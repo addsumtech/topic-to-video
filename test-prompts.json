@@ -1,0 +1,18 @@
+{
+  "skill": "slides-to-video",
+  "should_trigger": [
+    "turn these slides into a narrated video",
+    "make an explainer video from my pptx",
+    "add a voiceover to this deck",
+    "video walkthrough of this presentation",
+    "narrate my slides and render an mp4",
+    "can you make a video out of this slide deck with narration",
+    "把这个幻灯片做成带配音的视频"
+  ],
+  "should_not_trigger": [
+    "make me a slide deck about transformers",
+    "redesign this pptx to be less dense",
+    "summarize this pdf",
+    "write speaker notes for my presentation"
+  ]
+}
