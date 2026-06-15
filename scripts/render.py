@@ -49,7 +49,6 @@ def _draw_caption(d, text, W, H):
     if not text:
         return
     font = _load_font(int(H * 0.045))
-    label_font = font
     margin = int(H * 0.06)
     pad = int(H * 0.012)
     lines = _wrap(d, text, font, int(W * 0.9))
