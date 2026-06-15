@@ -25,3 +25,19 @@ def test_full_render_emits_mp4_and_srt(tmp_path, fixtures_dir):
     assert os.path.exists(mp4)
     assert os.path.exists(os.path.join(out, "out.srt"))
     assert os.path.getsize(os.path.join(out, "out.srt")) > 0
+
+def test_caption_overlay_draws_pixels(tmp_path):
+    from PIL import Image
+    p = str(tmp_path / "ov.png")
+    render._overlay(None, "Hello world, this is a burned-in caption.", 1920, 1080, p)
+    im = Image.open(p).convert("RGBA")
+    # The bottom band should contain opaque (drawn) pixels from the caption bar.
+    bottom = im.crop((0, int(1080 * 0.8), 1920, 1080))
+    assert bottom.getchannel("A").getextrema()[1] > 0
+
+def test_overlay_empty_when_nothing_to_draw(tmp_path):
+    from PIL import Image
+    p = str(tmp_path / "empty.png")
+    render._overlay(None, "", 1920, 1080, p)
+    im = Image.open(p).convert("RGBA")
+    assert im.getchannel("A").getextrema()[1] == 0

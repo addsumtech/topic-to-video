@@ -1,20 +1,22 @@
-"""storyboard.json -> out.mp4 (+ out.srt). ffmpeg-direct, no moviepy."""
-import argparse, os, subprocess, tempfile
-from PIL import Image, ImageDraw
+"""storyboard.json -> out.mp4 (+ out.srt). ffmpeg-direct, no moviepy.
+
+Captions are burned in with PIL (a bundled font), composited as an overlay
+*after* zoompan so they stay fixed while the slide gently zooms. This avoids
+any dependency on an ffmpeg built with libass.
+"""
+import argparse, os, tempfile
+from PIL import Image, ImageDraw, ImageFont
 import _common
 import storyboard as sb
 
-def _have_ass_filter():
-    """Return True if ffmpeg was compiled with libass (ass/subtitles filter)."""
-    try:
-        import re
-        out = subprocess.run(["ffmpeg", "-filters"], capture_output=True, text=True).stdout
-        # Match only lines where the filter name itself is 'ass' or 'subtitles'
-        return bool(re.search(r'^\s+[A-Z.]+\s+(?:ass|subtitles)\s+', out, re.MULTILINE))
-    except Exception:
-        return False
+FONT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "..", "assets", "fonts", "DejaVuSans.ttf")
 
-_ASS_AVAILABLE = _have_ass_filter()
+def _load_font(size):
+    try:
+        return ImageFont.truetype(FONT_PATH, size)
+    except Exception:
+        return ImageFont.load_default()
 
 def _canvas(meta, vertical):
     if vertical:
@@ -29,11 +31,45 @@ def _fit_frame(src, dst, W, H):
     bg.paste(im, ((W - im.width) // 2, (H - im.height) // 2))
     bg.save(dst)
 
-def _callout_overlay(callouts, W, H, dst):
-    """Draw all callouts for a slide onto one transparent PNG (static for v1)."""
+def _wrap(d, text, font, max_w):
+    """Greedy word-wrap to a max pixel width."""
+    lines, cur = [], ""
+    for w in text.split():
+        trial = (cur + " " + w).strip()
+        if not cur or d.textlength(trial, font=font) <= max_w:
+            cur = trial
+        else:
+            lines.append(cur); cur = w
+    if cur:
+        lines.append(cur)
+    return lines
+
+def _draw_caption(d, text, W, H):
+    """Burn a centered caption bar near the bottom (fixed, doesn't zoom)."""
+    if not text:
+        return
+    font = _load_font(int(H * 0.045))
+    label_font = font
+    margin = int(H * 0.06)
+    pad = int(H * 0.012)
+    lines = _wrap(d, text, font, int(W * 0.9))
+    ascent, descent = font.getmetrics()
+    line_h = ascent + descent
+    block_h = line_h * len(lines) + pad * 2
+    y0 = H - margin - block_h
+    d.rectangle([0, y0, W, y0 + block_h], fill=(0, 0, 0, 140))
+    y = y0 + pad
+    for ln in lines:
+        w = d.textlength(ln, font=font)
+        d.text(((W - w) / 2, y), ln, font=font, fill=(255, 255, 255, 255))
+        y += line_h
+
+def _overlay(callouts, caption_text, W, H, dst):
+    """Draw callouts and the caption onto one transparent PNG (static for v1)."""
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
-    for co in callouts:
+    label_font = _load_font(int(H * 0.028))
+    for co in callouts or []:
         x0, y0, x1, y1 = co["box"]
         box = [x0 * W, y0 * H, x1 * W, y1 * H]
         if co.get("style") == "highlight":
@@ -41,7 +77,9 @@ def _callout_overlay(callouts, W, H, dst):
         else:  # box / arrow target
             d.rectangle(box, outline=(255, 60, 60, 240), width=5)
         if co.get("label"):
-            d.text((box[0] + 6, max(0, box[1] - 22)), co["label"], fill=(255, 255, 255, 255))
+            d.text((box[0] + 6, max(0, box[1] - 30)), co["label"],
+                   font=label_font, fill=(255, 255, 255, 255))
+    _draw_caption(d, caption_text, W, H)
     layer.save(dst)
 
 def _srt_time(t):
@@ -67,25 +105,6 @@ def _write_srt(data, path):
     with open(path, "w") as f:
         f.write("\n".join(lines))
 
-def _ass_for_slide(slide, W, H, path):
-    """Minimal ASS so captions burn deterministically with a known font size."""
-    fs = int(H * 0.045)
-    header = (
-        "[Script Info]\nScriptType: v4.00+\nPlayResX: %d\nPlayResY: %d\n\n"
-        "[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,BackColour,"
-        "Bold,Alignment,MarginV\nStyle: Cap,Arial,%d,&H00FFFFFF,&H80000000,1,2,%d\n\n"
-        "[Events]\nFormat: Layer,Start,End,Style,Text\n"
-    ) % (W, H, fs, int(H * 0.06))
-    def ass_t(t):
-        h = int(t // 3600); m = int((t % 3600) // 60); s = t % 60
-        return f"{h:d}:{m:02d}:{s:05.2f}"
-    body = ""
-    for c in _captions_for(slide):
-        txt = c["text"].replace("\n", " ")
-        body += f"Dialogue: 0,{ass_t(c['start'])},{ass_t(c['end'])},Cap,{txt}\n"
-    with open(path, "w") as f:
-        f.write(header + body)
-
 def _render_slide(slide, meta, W, H, workdir, burn_captions):
     i = slide["index"]
     frame = os.path.join(workdir, f"fit_{i:02d}.png")
@@ -97,26 +116,23 @@ def _render_slide(slide, meta, W, H, workdir, burn_captions):
     zexpr = f"{z0}+({z1}-{z0})*on/{frames}"
     vf = (f"scale={W}:{H},zoompan=z='{zexpr}':d={frames}:s={W}x{H}:fps={fps}")
 
-    co_png = None
-    if slide.get("callouts"):
-        co_png = os.path.join(workdir, f"co_{i:02d}.png")
-        _callout_overlay(slide["callouts"], W, H, co_png)
-
-    ass = None
-    if burn_captions and _ASS_AVAILABLE:
-        ass = os.path.join(workdir, f"cap_{i:02d}.ass")
-        _ass_for_slide(slide, W, H, ass)
+    # Build a single overlay PNG (callouts + caption), composited after zoompan.
+    caption_text = ""
+    if burn_captions:
+        caption_text = " ".join(c["text"].strip() for c in _captions_for(slide)).strip()
+    ov_png = None
+    if slide.get("callouts") or caption_text:
+        ov_png = os.path.join(workdir, f"ov_{i:02d}.png")
+        _overlay(slide.get("callouts"), caption_text, W, H, ov_png)
 
     out_clip = os.path.join(workdir, f"clip_{i:02d}.mp4")
     # Inputs are fixed order: 0=frame(loop), 1=audio, 2=overlay(optional).
     parts = [f"[0:v]{vf}[base]"]
     vlabel = "base"
     extra_inputs = []
-    if co_png:
-        extra_inputs += ["-i", co_png]
+    if ov_png:
+        extra_inputs += ["-i", ov_png]
         parts.append(f"[{vlabel}][2:v]overlay=0:0[ov]"); vlabel = "ov"
-    if ass:
-        parts.append(f"[{vlabel}]ass={ass}[vc]"); vlabel = "vc"
     fcomplex = ";".join(parts)
     cmd = ["ffmpeg", "-y", "-loop", "1", "-i", frame, "-i",
            os.path.join(meta["_out"], slide["audio"])] + extra_inputs + [
