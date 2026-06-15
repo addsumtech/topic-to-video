@@ -27,8 +27,8 @@ Captions are ON by default (`meta.captions: true`). To disable:
 "meta": { "captions": false }
 ```
 
-When disabled, no caption bar is drawn and no `.srt` is written to the
-overlay; however, `out.srt` is still written for the full video.
+When disabled, no caption bar is burned into the frame. The `out.srt` sidecar
+is **always** written either way, so viewers can still turn on soft subtitles.
 
 ---
 

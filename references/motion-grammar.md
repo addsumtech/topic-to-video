@@ -12,26 +12,29 @@ Every slide has a `motion` object:
 }
 ```
 
-`[x, y, zoom]` are the parameters passed to ffmpeg's `zoompan` filter.
-`x` and `y` are pixel offsets (relative to the scaled frame); `zoom` is a
-scale multiplier relative to the frame size.
+`[x, y, zoom]`:
+- `x`, `y` are **normalized pan anchors in 0.0 – 1.0** — the point of the frame
+  the camera keeps centered as it zooms. `0.5, 0.5` = dead center, `0, 0` =
+  top-left, `1, 1` = bottom-right. (At `zoom == 1.0` the anchor has no effect;
+  it only matters once you zoom in.)
+- `zoom` is a scale multiplier (`1.0` = no zoom). Animating from the `from`
+  zoom to the `to` zoom over the slide is the Ken Burns push.
 
 **Default (from `storyboard.py`):**
 ```json
-"motion": { "type": "kenburns", "from": [0, 0, 1.0], "to": [0.08, 0.06, 1.15] }
+"motion": { "type": "kenburns", "from": [0.5, 0.5, 1.0], "to": [0.5, 0.5, 1.12] }
 ```
 
-This produces a gentle 1.0 → 1.15 zoom that drifts very slightly toward the
-top-left. The viewer barely notices it; it prevents the "static screenshot"
-look.
+This is a gentle centered 1.0 → 1.12 zoom — barely noticeable, but it kills the
+"static screenshot" look.
 
 ### Motion guidelines
 
 | Situation | Recommendation |
 |---|---|
-| Default, nothing to highlight | Keep defaults: 1.0 → 1.15, small x/y drift |
-| Narration calls out a region | Zoom toward it: increase x/y offset to pan that region into frame center |
-| Diagram with fine text | Don't zoom past 1.25 — text becomes blurry at zoompan's scale limit |
+| Default, nothing to highlight | Keep the centered default: `[0.5,0.5,1.0] → [0.5,0.5,1.12]` |
+| Narration calls out a region | Move the `to` anchor toward that region (e.g. top-right ≈ `[0.8, 0.2, …]`) and zoom in so it lands centered |
+| Diagram with fine text | Don't zoom past 1.25 — text softens at zoompan's scale limit |
 | Zoom delta | Keep ≤ 0.20; larger values cause visible jitter in ffmpeg zoompan |
 
 Zoom toward a region **only when the narration explicitly references it.**
@@ -92,8 +95,8 @@ A slide where the narration says "notice the reconstruction error in the top-rig
   "narration": "Notice the reconstruction error in the top-right corner — it disappears entirely after the compressed-sensing pass.",
   "motion": {
     "type": "kenburns",
-    "from": [0, 0, 1.0],
-    "to": [0.18, 0.0, 1.18]
+    "from": [0.5, 0.5, 1.0],
+    "to": [0.8, 0.2, 1.18]
   },
   "callouts": [
     {
@@ -106,5 +109,6 @@ A slide where the narration says "notice the reconstruction error in the top-rig
 }
 ```
 
-The `to` offset pans right (`x=0.18`) to keep the top-right corner in view
-as the zoom pushes in.
+The camera starts centered and drifts the anchor to the top-right
+(`x=0.8, y=0.2`) while zooming to 1.18, so the highlighted corner ends up
+centered in frame as the narration points to it.

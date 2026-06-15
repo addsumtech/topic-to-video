@@ -90,7 +90,7 @@ def _captions_for(slide):
     caps = slide.get("captions") or []
     if caps:
         return caps
-    return [{"start": 0.0, "end": slide["duration"], "text": slide["narration"].strip()}]
+    return [{"start": 0.0, "end": slide["duration"], "text": (slide.get("narration") or "").strip()}]
 
 def _write_srt(data, path):
     idx = 1; t0 = 0.0
@@ -111,9 +111,16 @@ def _render_slide(slide, meta, W, H, workdir, burn_captions):
     fps = meta.get("fps", 30)
     dur = slide["duration"]
     frames = max(1, int(round(dur * fps)))
-    z0 = slide["motion"]["from"][2]; z1 = slide["motion"]["to"][2]
+    m = slide["motion"]
+    fx, fy, z0 = m["from"]; tx, ty, z1 = m["to"]
     zexpr = f"{z0}+({z1}-{z0})*on/{frames}"
-    vf = (f"scale={W}:{H},zoompan=z='{zexpr}':d={frames}:s={W}x{H}:fps={fps}")
+    # x/y are normalized pan anchors in 0..1 (0.5 = centered); map each to the
+    # crop window's top-left so the chosen point stays put as we zoom in.
+    xpan = f"{fx}+({tx}-{fx})*on/{frames}"
+    ypan = f"{fy}+({ty}-{fy})*on/{frames}"
+    vf = (f"scale={W}:{H},zoompan=z='{zexpr}'"
+          f":x='(iw-iw/zoom)*({xpan})':y='(ih-ih/zoom)*({ypan})'"
+          f":d={frames}:s={W}x{H}:fps={fps}")
 
     # Build a single overlay PNG (callouts + caption), composited after zoompan.
     caption_text = ""

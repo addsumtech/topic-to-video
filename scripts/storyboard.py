@@ -14,7 +14,7 @@ def new_slide(index, image, narration="", notes=""):
         "notes": notes,
         "audio": None,
         "duration": None,
-        "motion": {"type": "kenburns", "from": [0, 0, 1.0], "to": [0.08, 0.06, 1.15]},
+        "motion": {"type": "kenburns", "from": [0.5, 0.5, 1.0], "to": [0.5, 0.5, 1.12]},
         "callouts": [],
         "captions": [],
     }
