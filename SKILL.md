@@ -35,13 +35,16 @@ Optional upgrade: OpenAI/ElevenLabs TTS if the user provides an API key.
    target pace (a seconds-per-slide ceiling).
 2. **Ingest** — run `ingest.py`. Report slide count and whether speaker notes were found.
 3. **Author narration** — read `references/narration-writing.md`. Write spoken-style
-   narration into each slide's `narration` field (seed from `notes` when present). Present
-   the FULL script to the user as text and let them EDIT before any audio is made.
+   narration into each slide's `narration` field (seed from `notes` when present).
+   🔴 **CHECKPOINT · 🛑 STOP:** present the FULL script as text and get the user's edits/
+   approval BEFORE running any TTS. Do not synthesize audio until they sign off.
 4. **Motion & callouts** — read `references/motion-grammar.md`. Set conservative
    `motion`/`callouts` per slide. Only highlight a region the narration actually refers to.
 5. **TTS** — run `tts.py` (use `--only N` while iterating on one slide).
-6. **Sample sign-off** — `render.py <out_dir> --sample 1`. Show `sample.mp4`. Iterate on
-   voice/pace/motion/captions until the user approves the style.
+6. **Sample sign-off** — `render.py <out_dir> --sample 1`. Show `sample.mp4`.
+   🔴 **CHECKPOINT · 🛑 STOP:** get explicit approval of the style (voice/pace/motion/
+   captions) BEFORE the full render. Iterate on the sample until they approve — never
+   batch-render all slides unsigned-off.
 7. **Full render** — `render.py <out_dir>` (add `--vertical` for 9:16). Deliver `out.mp4`,
    `out.srt`, and the editable `storyboard.json`.
 8. **Iterate** — any change = edit `storyboard.json`, then re-run tts (`--only N`) and/or
