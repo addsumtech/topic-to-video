@@ -38,8 +38,9 @@ TTS if the user gives an API key.
    narration into each slide's `narration` field (seed from `notes` when present).
    🔴 **CHECKPOINT · 🛑 STOP:** present the FULL script as text and get the user's edits/
    approval BEFORE running any TTS. Do not synthesize audio until they sign off.
-4. **Motion & callouts** — read `references/motion-grammar.md`. Set conservative
-   `motion`/`callouts` per slide. Only highlight a region the narration actually refers to.
+4. **Motion & callouts** — read `references/motion-grammar.md`. Default motion is a gentle
+   centered zoom `from:[0.5,0.5,1.0] → to:[0.5,0.5,1.12]` (keep zoom delta ≤0.20). Add at
+   most ONE callout per slide, and only on a region the narration explicitly names.
 5. **TTS** — run `tts.py` (use `--only N` while iterating on one slide).
 6. **Sample sign-off** — `render.py <out_dir> --sample 1`. Show `sample.mp4`.
    🔴 **CHECKPOINT · 🛑 STOP:** get explicit approval of the style (voice/pace/motion/
@@ -56,9 +57,8 @@ automated narration/pacing review before the full render.
 
 ## Guardrails
 - `duration` always comes from rendered audio (tts.py sets it) — never guess timings.
-- Keep narration within the user's seconds-per-slide ceiling (failure table below).
-- Set `meta.voice` (e.g. `say:Samantha` or `openai:alloy`) and `meta.captions` in the
-  storyboard rather than via flags.
+- Set `meta.voice` (`say:Samantha` or `openai:alloy`) and `meta.captions` in the
+  storyboard, not via flags.
 
 ## When a step fails (if → then → still-failing)
 
