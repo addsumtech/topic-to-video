@@ -76,9 +76,8 @@ For anything not listed, read `references/troubleshooting.md` before guessing.
 
 ## Red lights — never do this
 
-- ❌ Render audio or video before the user signs off the script / sample (don't skip the 🔴 checkpoints).
+- ❌ Render audio/video before the user signs off script/sample (honor the 🔴 checkpoints).
 - ❌ Read slide bullets aloud verbatim — write *spoken* narration (`references/narration-writing.md`).
 - ❌ Guess a slide's `duration` — it must come from ffprobe via `tts.py`.
 - ❌ Hand-edit `out.mp4`; change `storyboard.json` and re-render (`--only N`).
-- ❌ Stack callouts — cap at ONE primary callout per slide.
-- ❌ Burn captions with the ffmpeg `ass`/`subtitles` filter — this build has no libass; use the PIL path.
+- ❌ Stack callouts — one primary callout per slide.
