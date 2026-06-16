@@ -62,3 +62,17 @@ automated narration/pacing review before the full render.
   dense slides.
 - Set `meta.voice` (e.g. `say:Samantha` or `openai:alloy`) and `meta.captions` in the
   storyboard rather than via flags.
+
+## When a step fails (if → then → still-failing)
+
+| Trigger | First fix | If it still fails |
+|---|---|---|
+| `ingest.py`: `soffice` missing / hangs | Kill stale `soffice`; ask user to export the deck to PDF and feed the `.pdf` | Feed a folder of exported slide PNGs instead |
+| pptx has no speaker notes | Generate narration from visible slide content + any source docs | Ask the user for the deck's intent per section |
+| `tts.py`: cloud voice errors / no `OPENAI_API_KEY` | It auto-falls back to `say:Samantha` and prints a notice — continue | Set `meta.voice` to an explicit local `say:` voice |
+| `render.py`: concat `-c copy` errors (codec/timestamp) | Re-encode the concat (`-c:v libx264 -c:a aac`) — see `references/ffmpeg-recipes.md` | Render per-slide with `--only N` and report the failing slide |
+| Captions/text look wrong or font missing | render.py falls back to PIL's default font (still draws) | Confirm `assets/fonts/DejaVuSans.ttf` exists |
+| Narration overruns the seconds-per-slide ceiling | Tighten wording (`references/narration-writing.md`) | 🔴 STOP and propose splitting the dense slide |
+| A/V out of sync | Never guess timing — `duration` comes from ffprobe; re-run `tts.py --only N` | Re-render that slide with `--only N` |
+
+For anything not listed, read `references/troubleshooting.md` before guessing.
