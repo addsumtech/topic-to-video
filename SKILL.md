@@ -15,13 +15,13 @@ description: >-
 
 # Slides to Video
 
-You turn the user's slides into a narrated instruction video. The single source of
-truth is `storyboard.json`; you edit text/timing, and the scripts render the media.
+You turn slides into a narrated video. Source of truth is `storyboard.json` — you edit
+text/timing; the scripts render the media.
 
 ## Tools (all local & free; verify with `scripts/_common.have_tool`)
 `soffice` (pptx→pdf), PyMuPDF `fitz`, `python-pptx`, macOS `say`, `ffmpeg`, PIL.
-Captions are burned with PIL + a bundled font, so NO libass build of ffmpeg is needed.
-Optional upgrade: OpenAI/ElevenLabs TTS if the user provides an API key.
+Captions burn via PIL + a bundled font (no libass needed). Optional: OpenAI/ElevenLabs
+TTS if the user gives an API key.
 
 ## Pipeline scripts
 - `scripts/ingest.py <input> <out_dir>` — pptx/pdf/image-folder → `frames/` + skeleton `storyboard.json` (pulls speaker notes from pptx).
