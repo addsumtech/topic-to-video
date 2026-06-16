@@ -56,10 +56,7 @@ automated narration/pacing review before the full render.
 
 ## Guardrails
 - `duration` always comes from rendered audio (tts.py sets it) — never guess timings.
-- If `soffice` is missing, ask the user to export the deck to PDF (see
-  `references/troubleshooting.md`).
-- Keep narration within the user's seconds-per-slide ceiling; warn and suggest splitting
-  dense slides.
+- Keep narration within the user's seconds-per-slide ceiling (failure table below).
 - Set `meta.voice` (e.g. `say:Samantha` or `openai:alloy`) and `meta.captions` in the
   storyboard rather than via flags.
 
@@ -76,3 +73,12 @@ automated narration/pacing review before the full render.
 | A/V out of sync | Never guess timing — `duration` comes from ffprobe; re-run `tts.py --only N` | Re-render that slide with `--only N` |
 
 For anything not listed, read `references/troubleshooting.md` before guessing.
+
+## Red lights — never do this
+
+- ❌ Render audio or video before the user signs off the script / sample (don't skip the 🔴 checkpoints).
+- ❌ Read slide bullets aloud verbatim — write *spoken* narration (`references/narration-writing.md`).
+- ❌ Guess a slide's `duration` — it must come from ffprobe via `tts.py`.
+- ❌ Hand-edit `out.mp4`; change `storyboard.json` and re-render (`--only N`).
+- ❌ Stack callouts — cap at ONE primary callout per slide.
+- ❌ Burn captions with the ffmpeg `ass`/`subtitles` filter — this build has no libass; use the PIL path.
