@@ -72,7 +72,7 @@ automated narration/pacing review before the full render.
 | Narration overruns the seconds-per-slide ceiling | Tighten wording (`references/narration-writing.md`) | 🔴 STOP and propose splitting the dense slide |
 | A/V out of sync | Never guess timing — `duration` comes from ffprobe; re-run `tts.py --only N` | Re-render that slide with `--only N` |
 
-For anything not listed, read `references/troubleshooting.md` before guessing.
+For anything else, read `references/troubleshooting.md` before guessing.
 
 ## Red lights — never do this
 
