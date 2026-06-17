@@ -34,6 +34,36 @@ List all voices installed on your system:
 say -v '?'
 ```
 
+### Non-English voices (multi-language)
+
+The narration language lives in `meta.language` (`en`, `zh`, `ja`, …). When it is non-English
+and you leave the default `say:Samantha`, `tts.py` automatically swaps in a matching voice so
+the audio isn't read by an English engine. You can always override with an explicit
+`meta.voice`.
+
+| `meta.language` | Auto `say` voice | Notes |
+|---|---|---|
+| `en` | `Samantha` | default |
+| `zh` | `Tingting` | Mandarin; `Sinji` (Cantonese), `Meijia` (Taiwan) also exist |
+| `ja` | `Kyoko` | Japanese |
+| `ko` | `Yuna` | Korean |
+| `es` | `Monica` | Spanish; `Paulina` (Mexico) |
+| `fr` | `Thomas` | French; `Amelie` (Canada) |
+| `de` | `Anna` | German |
+| `it` | `Alice` | Italian |
+| `pt` | `Luciana` | Portuguese (Brazil) |
+| `ru` | `Milena` | Russian |
+| `nl` | `Xander` | Dutch |
+| `hi` | `Lekha` | Hindi |
+
+If a voice isn't installed, `say` errors and `tts.py` falls back to `Samantha` (which will
+mispronounce non-English text). Install voices via **System Settings → Accessibility →
+Spoken Content → System Voice → Manage Voices**, or run `say -v '?'` to see what you have.
+
+**Cloud TTS is language-agnostic:** OpenAI/ElevenLabs voices speak whatever language the
+input text is in, so for `openai:*` you don't need a per-language voice — just write the
+narration in the target language.
+
 **Rate:** `say` runs at 175 wpm by default (tts.py hard-codes `-r 175`).
 This maps well to the 140–160 wpm speaking target — the synthesizer speaks
 slightly faster than natural, which feels natural for voice-over.

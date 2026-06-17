@@ -34,12 +34,37 @@ def _provider(voice_spec):
         prov, name = "say", voice_spec
     return prov, name
 
+# A sensible default macOS `say` voice per language, so non-English narration isn't
+# read by an English voice (which mangles the pronunciation). These are the common
+# built-in voices; if one isn't installed, `say` errors and tts.py falls back to
+# Samantha — install the voice via System Settings → Accessibility → Spoken Content.
+SAY_VOICE_BY_LANG = {
+    "en": "Samantha", "zh": "Tingting", "ja": "Kyoko", "ko": "Yuna",
+    "es": "Monica", "fr": "Thomas", "de": "Anna", "it": "Alice",
+    "pt": "Luciana", "ru": "Milena", "nl": "Xander", "hi": "Lekha",
+}
+
+def _resolve_say_voice(name, language):
+    """If the storyboard still carries the default English voice ('Samantha') but the
+    narration is in another language, swap in a matching voice. A voice the user picked
+    explicitly (anything other than the default) is always respected."""
+    lang = (language or "auto").lower().replace("_", "-").split("-")[0]
+    if name == "Samantha" and lang not in ("", "en", "auto"):
+        v = SAY_VOICE_BY_LANG.get(lang)
+        if v and v != name:
+            return v, f"[tts] language={lang}: using say voice '{v}' (set meta.voice to override)"
+    return name, None
+
 def synthesize(out_dir, only=None):
     path = os.path.join(out_dir, "storyboard.json")
     data = sb.load(path)
     audio_dir = os.path.join(out_dir, "audio")
     os.makedirs(audio_dir, exist_ok=True)
     prov, name = _provider(data["meta"].get("voice", "say:Samantha"))
+    if prov == "say":
+        name, note = _resolve_say_voice(name, data["meta"].get("language", "auto"))
+        if note:
+            print(note)
 
     for s in data["slides"]:
         if only and s["index"] != only:

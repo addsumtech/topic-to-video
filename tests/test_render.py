@@ -29,7 +29,7 @@ def test_full_render_emits_mp4_and_srt(tmp_path, fixtures_dir):
 def test_caption_overlay_draws_pixels(tmp_path):
     from PIL import Image
     p = str(tmp_path / "ov.png")
-    render._overlay(None, "Hello world, this is a burned-in caption.", 1920, 1080, p)
+    render._caption_layer("Hello world, this is a burned-in caption.", 1920, 1080, p)
     im = Image.open(p).convert("RGBA")
     # The bottom band should contain opaque (drawn) pixels from the caption bar.
     bottom = im.crop((0, int(1080 * 0.8), 1920, 1080))
@@ -38,6 +38,33 @@ def test_caption_overlay_draws_pixels(tmp_path):
 def test_overlay_empty_when_nothing_to_draw(tmp_path):
     from PIL import Image
     p = str(tmp_path / "empty.png")
-    render._overlay(None, "", 1920, 1080, p)
+    render._caption_layer("", 1920, 1080, p)
     im = Image.open(p).convert("RGBA")
     assert im.getchannel("A").getextrema()[1] == 0
+
+def test_script_detection():
+    assert render._script_of("これはテストです") == "ja"      # kana -> Japanese
+    assert render._script_of("이것은 시험입니다") == "ko"       # hangul -> Korean
+    assert render._script_of("这是中文") == "zh"               # Han only -> Chinese
+    assert render._script_of("这是中文", "ja") == "ja"         # Han + ja hint -> Japanese
+    assert render._script_of("plain english") == "latin"
+
+def test_cjk_caption_wraps_into_multiple_lines():
+    # Chinese has no spaces, so the old word-wrap left it as one overflowing line.
+    # The CJK-aware wrap must break a long run across multiple lines that each fit.
+    from PIL import Image, ImageDraw
+    d = ImageDraw.Draw(Image.new("RGB", (1920, 1080)))
+    font = render._load_font(48, render._font_path({"language": "zh"}, "测"))
+    long_zh = "这是一段很长的中文字幕用来测试自动换行是否会把它拆成多行" * 3
+    lines = render._wrap(d, long_zh, font, int(1920 * 0.9))
+    assert len(lines) >= 2
+    assert all(d.textlength(ln, font=font) <= int(1920 * 0.9) for ln in lines)
+
+def test_latin_wrap_unchanged():
+    from PIL import Image, ImageDraw
+    d = ImageDraw.Draw(Image.new("RGB", (1920, 1080)))
+    font = render._load_font(48)
+    lines = render._wrap(d, "the quick brown fox " * 8, font, int(1920 * 0.9))
+    assert len(lines) >= 2
+    # words stay intact (joined by single spaces, no mid-word breaks)
+    assert all(" " in ln or ln == "the" for ln in lines)

@@ -20,8 +20,12 @@ def new_slide(index, image, narration="", notes=""):
     }
 
 def new_storyboard(meta_overrides=None):
+    # `language` is the language the narration/captions are WRITTEN in (BCP-47-ish:
+    # "en", "zh", "ja", "ko", "es", "fr", "de", ...). It drives the caption font and
+    # the default TTS voice. "auto" = decide from the slides' language during the
+    # interview; the workflow sets a concrete code once confirmed with the user.
     meta = {"aspect": "16:9", "width": 1920, "height": 1080, "fps": 30,
-            "voice": "say:Samantha", "captions": True}
+            "language": "auto", "voice": "say:Samantha", "captions": True}
     if meta_overrides:
         meta.update(meta_overrides)
     return {"meta": meta, "slides": []}
