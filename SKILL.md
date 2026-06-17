@@ -3,10 +3,13 @@ name: slides-to-video
 description: >-
   Turn a slide deck into a narrated instruction/explainer VIDEO — each slide shown
   full-frame with voiceover, gentle Ken Burns motion, timed callout highlights, and
-  optional burned-in captions. Use whenever the user wants to make a video / voiceover
-  / narrated walkthrough / explainer FROM slides or a deck — e.g. "turn these slides
-  into a video", "narrate my pptx", "make an explainer video from this deck", "add a
-  voiceover to my slides", "video walkthrough of this presentation", "把幻灯片做成视频".
+  optional burned-in captions. Works in ANY language, and can voice a deck in a
+  DIFFERENT language than its slides (e.g. a Chinese voice-over for an English deck).
+  Use whenever the user wants to make a video / voiceover / narrated walkthrough /
+  explainer FROM slides or a deck — e.g. "turn these slides into a video", "narrate my
+  pptx", "make an explainer video from this deck", "add a voiceover to my slides",
+  "video walkthrough of this presentation", "把幻灯片做成视频", "make a Chinese
+  voice-over from my English slides", "把英文幻灯片配成中文解说视频".
   Accepts .pptx, .pdf, an image folder, or a hand-off from slide-maker. Local & free by
   default (macOS say + ffmpeg); optional cloud TTS. Generates an editable storyboard,
   lets the user edit the script, renders one sample slide for sign-off, then the full

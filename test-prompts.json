@@ -14,5 +14,16 @@
     "redesign this pptx to be less dense",
     "summarize this pdf",
     "write speaker notes for my presentation"
+  ],
+  "task_prompts": [
+    {"id": 1, "name": "happy-path-en-grounded",
+     "prompt": "6-slide diffusion-MRI denoising deck + abstract; make a narrated explainer for a lab meeting (English).",
+     "expected": "comprehension brief; spoken non-bullet English narration faithful to the abstract numbers; explicit 🔴 checkpoints before TTS/render"},
+    {"id": 2, "name": "multilang-zh-voiceover",
+     "prompt": "Same English research deck, but the narrated video must be in Chinese (Mandarin) for a domestic audience.",
+     "expected": "confirms language; meta.language=zh; Chinese say voice (Tingting); flags CJK caption font; idiomatic Chinese narration (not translationese)"},
+    {"id": 3, "name": "ambiguous-no-material-no-lang",
+     "prompt": "Make a video out of these 5 slides (no source docs provided, language unspecified).",
+     "expected": "interviews: offers to web-research to ground; defaults language to the slides' language but confirms it; honors 🔴 checkpoints"}
   ]
 }
