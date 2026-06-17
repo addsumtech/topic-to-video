@@ -5,9 +5,9 @@ full-frame with a voiceover, gentle Ken Burns motion, timed callout highlights, 
 burned-in captions. Fully local and free by default (macOS `say` + `ffmpeg`); optional
 cloud TTS.
 
-This is a Claude Code skill — normally you just ask Claude (see triggers in `SKILL.md`)
-and it runs the guided workflow (interview → ingest → edit script → sample → render).
-The scripts below are also usable directly.
+This is an agent **skill** (Agent Skills standard) — your coding agent runs the guided
+workflow when you ask (see triggers in `SKILL.md`): interview → ingest → edit script →
+sample → render. The `scripts/` below are plain Python and also run standalone.
 
 ## Dependencies (all local, no API keys)
 
