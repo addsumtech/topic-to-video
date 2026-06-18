@@ -65,3 +65,18 @@ def test_chart_deterministic(tmp_path):
     pa = scenes.render_chart(props, META, 640, 360, 5, str(a), 1)
     pb = scenes.render_chart(props, META, 640, 360, 5, str(b), 1)
     assert all(_pix(pa % i) == _pix(pb % i) for i in range(5))
+
+def test_visible_count_grows_with_progress():
+    assert scenes._visible_count(4, 0.0) >= 0
+    assert scenes._visible_count(4, 1.0) == 4
+    assert scenes._visible_count(4, 0.5) <= 4
+    assert scenes._visible_count(4, 0.0) <= scenes._visible_count(4, 0.6) <= scenes._visible_count(4, 1.0)
+
+def test_timeline_writes_frames_and_final_nonblank(tmp_path):
+    props = {"title": "Milestones", "events": [
+        {"date": "2026-01", "label": "Kickoff"}, {"date": "2026-06", "label": "MVP"},
+        {"date": "2026-12", "label": "Ship"}]}
+    pat = scenes.render_timeline(props, META, 1280, 720, 9, str(tmp_path), 7)
+    from PIL import Image
+    assert len([f for f in os.listdir(tmp_path) if f.endswith(".png")]) == 9
+    assert Image.open(pat % 8).convert("RGB").getextrema() != ((0,0),(0,0),(0,0))

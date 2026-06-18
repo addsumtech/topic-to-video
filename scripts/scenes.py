@@ -98,6 +98,43 @@ def _mpl_font(meta):
             pass
     return "DejaVu Sans"
 
+def _visible_count(total, p):
+    return max(0, min(total, int(_ease(p) * total + 1e-9)))
+
+def render_timeline(props, meta, W, H, frames, workdir, index):
+    events = props.get("events", [])
+    title = props.get("title")
+    famly = _mpl_font(meta)
+    dpi = 100; figsize = (W / dpi, H / dpi)
+    accent = props.get("accent", "#4C9BE8")
+    n_ev = len(events)
+    xs = list(range(n_ev))
+
+    def draw(i, n):
+        vis = _visible_count(n_ev, i / max(1, n - 1) if n > 1 else 1.0)
+        fig = plt.figure(figsize=figsize, dpi=dpi); fig.patch.set_facecolor("#0d1117")
+        ax = fig.add_subplot(111); ax.set_facecolor("#0d1117"); ax.axis("off")
+        if title:
+            ax.set_title(title, color="white", fontsize=18, fontfamily=famly, pad=16)
+        if n_ev:
+            ax.plot([-0.3, n_ev - 0.7], [0, 0], color="#3a4150", linewidth=2)
+            for j in range(vis):
+                ax.scatter([xs[j]], [0], s=120, color=accent, zorder=3)
+                ax.text(xs[j], 0.12, events[j].get("date", ""), ha="center",
+                        color="#c0c8d4", fontsize=12, fontfamily=famly)
+                ax.text(xs[j], -0.18, events[j].get("label", ""), ha="center",
+                        color="white", fontsize=14, fontfamily=famly)
+            ax.set_xlim(-0.6, n_ev - 0.4); ax.set_ylim(-0.5, 0.5)
+        fig.tight_layout()
+        fig.canvas.draw()
+        img = Image.frombytes("RGBA", fig.canvas.get_width_height(),
+                              bytes(fig.canvas.buffer_rgba())).convert("RGB")
+        plt.close(fig)
+        return img.resize((W, H), Image.LANCZOS) if img.size != (W, H) else img
+
+    return _save_frames(draw, frames, workdir, index)
+
+
 def render_chart(props, meta, W, H, frames, workdir, index):
     kind = props.get("kind", "bars")
     data = props.get("data", [])
