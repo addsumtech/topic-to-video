@@ -84,3 +84,14 @@ def test_caption_chunks_latin_unchanged():
     chunks = render._split_caption_chunks(en)
     assert len(chunks) >= 2
     assert chunks[0] == "Hello world."
+
+def test_fingerprint_includes_type_and_props():
+    meta = {"_out": "/tmp", "fps": 30}
+    base = {"index": 1, "image": None, "audio": None, "duration": 3.0, "motion": {},
+            "narration": "n", "captions": [], "callouts": [], "type": "title",
+            "props": {"title": "A"}}
+    fp = lambda s: render._fingerprint(s, meta, 1920, 1080, 2, True, False)
+    a = fp(base)
+    b = fp({**base, "props": {"title": "B"}})       # prop change -> different
+    c = fp({**base, "type": "chart", "props": {"kind": "bars", "data": [{"label":"x","value":1}]}})
+    assert a != b and a != c and a == fp(dict(base))  # stable for identical input
