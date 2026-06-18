@@ -5,6 +5,7 @@ def _build(tmp_path, fixtures_dir):
     out = str(tmp_path / "proj")
     ingest.ingest(os.path.join(fixtures_dir, "deck.pdf"), out)
     data = sb.load(os.path.join(out, "storyboard.json"))
+    data["meta"]["voice"] = "say:Samantha"      # offline-deterministic; no edge/network in CI
     for s in data["slides"]:
         s["narration"] = f"This is slide {s['index']}."
     sb.save(data, os.path.join(out, "storyboard.json"))

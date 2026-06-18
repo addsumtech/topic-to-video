@@ -31,3 +31,6 @@ def test_validate_rejects_callout_out_of_range():
 def test_new_slide_defaults():
     s = sb.new_slide(2, "frames/02.png")
     assert s["index"] == 2 and s["narration"] == "" and s["callouts"] == []
+
+def test_default_voice_is_auto():
+    assert sb.new_storyboard()["meta"]["voice"] == "auto"

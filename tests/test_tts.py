@@ -9,8 +9,69 @@ def _proj(tmp_path):
     sb.save(data, os.path.join(out, "storyboard.json"))
     return str(out)
 
+def test_edge_catalog_resolution():
+    assert tts.resolve_edge_voice("en", "UK", "male") == "en-GB-RyanNeural"
+    assert tts.resolve_edge_voice("zh", "Mainland", "female") == "zh-CN-XiaoxiaoNeural"
+    assert tts.resolve_edge_voice("en") == "en-US-AriaNeural"      # default accent + gender
+    assert tts.resolve_edge_voice("ja", gender="male") == "ja-JP-KeitaNeural"
+    assert tts.resolve_edge_voice("EN-us", "uk") == "en-GB-SoniaNeural"  # case-insensitive
+    assert tts.resolve_edge_voice("xx") is None                   # unknown language
+
+def test_resolve_voice_auto_prefers_edge(monkeypatch):
+    monkeypatch.setattr(tts, "_have_edge", lambda: True)
+    assert tts._resolve_voice({"voice": "auto", "language": "en"}) == "edge:en-US-AriaNeural"
+    assert tts._resolve_voice({"voice": "auto", "language": "zh"}) == "edge:zh-CN-XiaoxiaoNeural"
+
+def test_resolve_voice_auto_falls_back_to_say(monkeypatch):
+    monkeypatch.setattr(tts, "_have_edge", lambda: False)
+    assert tts._resolve_voice({"voice": "auto", "language": "zh"}) == "say:Tingting"
+    assert tts._resolve_voice({"voice": "auto", "language": "en"}) == "say:Samantha"
+
+def test_resolve_voice_passthrough_explicit():
+    assert tts._resolve_voice({"voice": "edge:en-GB-RyanNeural", "language": "en"}) == "edge:en-GB-RyanNeural"
+    assert tts._resolve_voice({"voice": "openai:alloy", "language": "en"}) == "openai:alloy"
+    assert tts._resolve_voice({"voice": "say:Alex", "language": "en"}) == "say:Alex"
+
+def test_resolve_voice_auto_edge_unknown_language_falls_back_to_say(monkeypatch):
+    monkeypatch.setattr(tts, "_have_edge", lambda: True)
+    # 'xx' is not in EDGE_VOICE_CATALOG -> resolve_edge_voice returns None -> must use say
+    result = tts._resolve_voice({"voice": "auto", "language": "xx"})
+    assert result.startswith("say:")
+
+def test_edge_invokes_edge_tts(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(tts._common, "run", lambda cmd, **kw: captured.setdefault("cmd", cmd))
+    tts._edge("hello world", "/tmp/clip.mp3", "en-US-AriaNeural")
+    cmd = captured["cmd"]
+    assert "edge_tts" in cmd
+    assert cmd[cmd.index("--voice") + 1] == "en-US-AriaNeural"
+    assert cmd[cmd.index("--text") + 1] == "hello world"
+    assert cmd[cmd.index("--write-media") + 1] == "/tmp/clip.mp3"
+
+def test_synthesize_uses_edge_when_resolved(tmp_path, monkeypatch):
+    out = _proj(tmp_path)
+    data = sb.load(os.path.join(out, "storyboard.json"))
+    data["meta"]["voice"] = "auto"; data["meta"]["language"] = "en"
+    sb.save(data, os.path.join(out, "storyboard.json"))
+
+    monkeypatch.setattr(tts, "_have_edge", lambda: True)
+    made = []
+    def fake_edge(text, dest, voice):
+        with open(dest, "wb") as f:
+            f.write(b"\x00")
+        made.append((dest, voice))
+    monkeypatch.setattr(tts, "_edge", fake_edge)
+    monkeypatch.setattr(tts._common, "audio_duration", lambda p: 1.0)
+
+    res = tts.synthesize(out)
+    assert made, "edge synthesis was not called"
+    assert made[0][1] == "en-US-AriaNeural"
+    assert all(s["audio"].endswith(".mp3") for s in res["slides"])
+    assert all(s["duration"] == 1.0 for s in res["slides"])
+
 @pytest.mark.skipif(not _common.have_tool("say"), reason="macOS 'say' only")
-def test_synthesize_writes_audio_and_durations(tmp_path):
+def test_synthesize_writes_audio_and_durations(tmp_path, monkeypatch):
+    monkeypatch.setattr(tts, "_have_edge", lambda: False)
     out = _proj(tmp_path)
     data = tts.synthesize(out)
     for s in data["slides"]:

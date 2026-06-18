@@ -27,6 +27,13 @@ def _openai(text, out_path, voice):
     with open(out_path, "wb") as f:
         f.write(r.content)
 
+def _edge(text, out_path, voice):
+    # edge-tts neural voice via its CLI module (sync subprocess avoids threading its
+    # asyncio into our sync pipeline). Writes an mp3 directly; ffprobe reads duration.
+    import sys
+    _common.run([sys.executable, "-m", "edge_tts",
+                 "--voice", voice, "--text", text, "--write-media", out_path])
+
 def _provider(voice_spec):
     if ":" in voice_spec:
         prov, name = voice_spec.split(":", 1)
@@ -55,12 +62,70 @@ def _resolve_say_voice(name, language):
             return v, f"[tts] language={lang}: using say voice '{v}' (set meta.voice to override)"
     return name, None
 
+# Curated edge-tts neural voices: language -> accent -> {female, male} -> voice id.
+# "_default" names the accent used when none is given. Escape hatch for anything not
+# here: `python -m edge_tts --list-voices` and set meta.voice = "edge:<id>" directly.
+EDGE_VOICE_CATALOG = {
+    "en": {"_default": "US",
+           "US": {"female": "en-US-AriaNeural", "male": "en-US-GuyNeural"},
+           "UK": {"female": "en-GB-SoniaNeural", "male": "en-GB-RyanNeural"},
+           "AU": {"female": "en-AU-NatashaNeural", "male": "en-AU-WilliamNeural"},
+           "IN": {"female": "en-IN-NeerjaNeural", "male": "en-IN-PrabhatNeural"}},
+    "zh": {"_default": "Mainland",
+           "Mainland": {"female": "zh-CN-XiaoxiaoNeural", "male": "zh-CN-YunxiNeural"},
+           "HK": {"female": "zh-HK-HiuMaanNeural", "male": "zh-HK-WanLungNeural"},
+           "TW": {"female": "zh-TW-HsiaoChenNeural", "male": "zh-TW-YunJheNeural"}},
+    "ja": {"_default": "JP", "JP": {"female": "ja-JP-NanamiNeural", "male": "ja-JP-KeitaNeural"}},
+    "ko": {"_default": "KR", "KR": {"female": "ko-KR-SunHiNeural", "male": "ko-KR-InJoonNeural"}},
+    "es": {"_default": "ES", "ES": {"female": "es-ES-ElviraNeural", "male": "es-ES-AlvaroNeural"}},
+    "fr": {"_default": "FR", "FR": {"female": "fr-FR-DeniseNeural", "male": "fr-FR-HenriNeural"}},
+    "de": {"_default": "DE", "DE": {"female": "de-DE-KatjaNeural", "male": "de-DE-ConradNeural"}},
+    "pt": {"_default": "BR", "BR": {"female": "pt-BR-FranciscaNeural", "male": "pt-BR-AntonioNeural"}},
+    "it": {"_default": "IT", "IT": {"female": "it-IT-ElsaNeural", "male": "it-IT-DiegoNeural"}},
+    "ru": {"_default": "RU", "RU": {"female": "ru-RU-SvetlanaNeural", "male": "ru-RU-DmitryNeural"}},
+    "nl": {"_default": "NL", "NL": {"female": "nl-NL-ColetteNeural", "male": "nl-NL-MaartenNeural"}},
+    "hi": {"_default": "IN", "IN": {"female": "hi-IN-SwaraNeural", "male": "hi-IN-MadhurNeural"}},
+}
+
+def resolve_edge_voice(language, accent=None, gender="female"):
+    """Map (language, accent, gender) to a concrete edge-tts voice id, or None if the
+    language isn't in the curated catalog. Accent falls back to the language's default;
+    gender falls back to female. Language/accent matching is case-insensitive."""
+    lang = (language or "").lower().replace("_", "-").split("-")[0]
+    table = EDGE_VOICE_CATALOG.get(lang)
+    if not table:
+        return None
+    by_key = {k.lower(): k for k in table if k != "_default"}
+    key = by_key.get((accent or "").lower(), table["_default"])
+    g = gender if gender in ("female", "male") else "female"
+    return table[key][g]
+
+def _have_edge():
+    """True if the edge-tts package is importable (no network check)."""
+    import importlib.util
+    return importlib.util.find_spec("edge_tts") is not None
+
+def _resolve_voice(meta):
+    """Turn meta.voice into a concrete 'provider:name'. The 'auto' sentinel prefers
+    edge-tts (language + default accent + female) when available, else the language-
+    matched macOS say voice. Any explicit 'edge:/say:/openai:' spec passes through."""
+    spec = meta.get("voice", "auto")
+    lang = meta.get("language", "auto")
+    if spec and spec != "auto":
+        return spec
+    if _have_edge():
+        vid = resolve_edge_voice(lang, gender="female")
+        if vid:
+            return f"edge:{vid}"
+    name, _ = _resolve_say_voice("Samantha", lang)
+    return f"say:{name}"
+
 def synthesize(out_dir, only=None):
     path = os.path.join(out_dir, "storyboard.json")
     data = sb.load(path)
     audio_dir = os.path.join(out_dir, "audio")
     os.makedirs(audio_dir, exist_ok=True)
-    prov, name = _provider(data["meta"].get("voice", "say:Samantha"))
+    prov, name = _provider(_resolve_voice(data["meta"]))
     if prov == "say":
         name, note = _resolve_say_voice(name, data["meta"].get("language", "auto"))
         if note:
@@ -76,6 +141,8 @@ def synthesize(out_dir, only=None):
         try:
             if prov == "openai":
                 _openai(text, dest, name)
+            elif prov == "edge":
+                _edge(text, dest, name)
             else:
                 _say(text, dest, name)
         except Exception as e:
