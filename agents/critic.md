@@ -19,6 +19,9 @@ You will be given:
    script, which is ALSO the subtitle source) and `captions`/`callouts`, plus
    `meta.language` (the language the narration must be written in) and `meta.voice` (the
    TTS voice that will speak it — provider + locale, e.g. `edge:zh-CN-XiaoxiaoNeural`).
+   For ANIMATED scenes (`type` is `title`/`chart`/`timeline`, not `slide`), the on-screen
+   content is the scene's `props` (title/subtitle text, chart `data` numbers, timeline events)
+   — there is no slide image.
 2. The **comprehension brief and/or source material** (the paper/code/doc the deck is
    based on, or the web-research notes when there was no material). **Use this to verify
    every factual claim** — this is what makes you more than a style checker. If it is missing,
@@ -70,6 +73,12 @@ Compare `meta.voice` against `meta.language` (and the language the narration is 
   `openai:*` (cloud voices speak whatever language the text is in).
 - Accent and gender within the correct language (US vs UK English, male vs female) are user
   preference, **not** a correctness issue — never fail on those.
+
+### R1d — Animated scenes show only sourced content
+- For `type` ≠ `slide`: every on-screen string and number must come from the scene's `props`
+  and trace to the source (chart numbers live in `data`; titles/events are verbatim text).
+- FAIL on any invented or mis-stated on-screen value (a chart bar whose number isn't in the
+  source, a fabricated timeline event). Form (motion, color, layout) is free; facts are not.
 
 ### R2 — Pacing within ceiling
 - Estimate length: word count in `narration` for space-delimited languages; **character
