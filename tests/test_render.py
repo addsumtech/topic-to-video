@@ -95,3 +95,30 @@ def test_fingerprint_includes_type_and_props():
     b = fp({**base, "props": {"title": "B"}})       # prop change -> different
     c = fp({**base, "type": "chart", "props": {"kind": "bars", "data": [{"label":"x","value":1}]}})
     assert a != b and a != c and a == fp(dict(base))  # stable for identical input
+
+@pytest.mark.skipif(not _common.have_tool("ffmpeg") or not _common.have_tool("say"),
+                    reason="needs ffmpeg + say")
+def test_title_scene_renders_and_concats_with_slide(tmp_path, fixtures_dir, monkeypatch):
+    monkeypatch.setattr(tts, "_have_edge", lambda: False)   # offline-deterministic audio
+    out = str(tmp_path / "proj")
+    ingest.ingest(os.path.join(fixtures_dir, "deck.pdf"), out)   # gives >=1 real slide
+    data = sb.load(os.path.join(out, "storyboard.json"))
+    data["meta"]["voice"] = "say:Samantha"
+    slide1 = data["slides"][0]; slide1["narration"] = "This is the slide."
+    title = sb.new_scene(99, "title", {"title": "Title Scene", "subtitle": "Sub"},
+                         narration="Welcome to the talk.")
+    data["slides"] = [title, slide1]
+    sb.save(data, os.path.join(out, "storyboard.json"))
+    tts.synthesize(out)                                     # sets audio+duration for both
+    mp4 = render.render(out)
+    assert os.path.exists(mp4)
+    # both clips concatenated -> total duration ~= sum of scene durations
+    total = sum(s["duration"] for s in sb.load(os.path.join(out, "storyboard.json"))["slides"])
+    assert abs(_common.audio_duration(mp4) - total) < 0.6
+    # the title clip exists and has an audio stream
+    import json as _j
+    clip = os.path.join(out, ".clips", "clip_99.mp4")
+    streams = _j.loads(_common.run(["ffprobe","-v","error","-show_entries","stream=codec_type",
+                                    "-of","json", clip]))["streams"]
+    kinds = {s["codec_type"] for s in streams}
+    assert "video" in kinds and "audio" in kinds
