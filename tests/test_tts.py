@@ -32,6 +32,16 @@ def test_resolve_voice_passthrough_explicit():
     assert tts._resolve_voice({"voice": "openai:alloy", "language": "en"}) == "openai:alloy"
     assert tts._resolve_voice({"voice": "say:Alex", "language": "en"}) == "say:Alex"
 
+def test_edge_invokes_edge_tts(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(tts._common, "run", lambda cmd, **kw: captured.setdefault("cmd", cmd))
+    tts._edge("hello world", "/tmp/clip.mp3", "en-US-AriaNeural")
+    cmd = captured["cmd"]
+    assert "edge_tts" in cmd
+    assert cmd[cmd.index("--voice") + 1] == "en-US-AriaNeural"
+    assert cmd[cmd.index("--text") + 1] == "hello world"
+    assert cmd[cmd.index("--write-media") + 1] == "/tmp/clip.mp3"
+
 @pytest.mark.skipif(not _common.have_tool("say"), reason="macOS 'say' only")
 def test_synthesize_writes_audio_and_durations(tmp_path):
     out = _proj(tmp_path)

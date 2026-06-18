@@ -27,6 +27,13 @@ def _openai(text, out_path, voice):
     with open(out_path, "wb") as f:
         f.write(r.content)
 
+def _edge(text, out_path, voice):
+    # edge-tts neural voice via its CLI module (sync subprocess avoids threading its
+    # asyncio into our sync pipeline). Writes an mp3 directly; ffprobe reads duration.
+    import sys
+    _common.run([sys.executable, "-m", "edge_tts",
+                 "--voice", voice, "--text", text, "--write-media", out_path])
+
 def _provider(voice_spec):
     if ":" in voice_spec:
         prov, name = voice_spec.split(":", 1)
