@@ -464,14 +464,12 @@ def _render_scene(slide, meta, W, H, out_clip, burn_captions, workdir):
     fps = meta.get("fps", 30)
     dur = slide["duration"]
     frames = max(1, int(round(dur * fps)))
-    renderers = {"title": scenes.render_title, "chart": scenes.render_chart,
-                 "timeline": scenes.render_timeline}
-    renderer = renderers[slide["type"]]
+    renderer = getattr(scenes, "render_" + slide["type"])   # render_title / render_chart / render_timeline
     pattern = renderer(slide.get("props") or {}, meta, W, H, frames, workdir, slide["index"])
     segs = _captions_for(slide) if burn_captions else []
     return _encode_frames_clip(pattern, slide["audio"], dur, segs, meta, W, H, out_clip, workdir)
 ```
-NOTE: `_render_scene` references `scenes.render_chart`/`render_timeline` which arrive in Tasks 5/6. For Task 4 only `title` is exercised; the dict lookup for an unimplemented type would `AttributeError` only if such a scene is rendered, which no test does yet. (Tasks 5/6 add them; do not stub them here — that would be dead code.)
+NOTE: `getattr(scenes, "render_" + type)` resolves ONLY the renderer for the scene's actual type, so Task 4 (which exercises only `title`) does not require `render_chart`/`render_timeline` to exist yet — those arrive in Tasks 5/6. Do not stub them here (dead code).
 
 - [ ] **Step 4: Run tests to verify they pass**
 
