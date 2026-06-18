@@ -22,7 +22,7 @@ You turn slides into a narrated video. Source of truth is `storyboard.json` — 
 text/timing; the scripts render the media.
 
 ## Tools (all local & free; verify with `scripts/_common.have_tool`)
-`soffice` (pptx→pdf), PyMuPDF `fitz`, `python-pptx`, macOS `say`, `ffmpeg`, PIL.
+`soffice` (pptx→pdf), PyMuPDF `fitz`, `python-pptx`, **edge-tts** (preferred neural voice, free, cross-platform — needs network), macOS `say` (offline fallback), `ffmpeg`, PIL.
 Captions burn via PIL + a bundled font (no libass needed). Optional: OpenAI/ElevenLabs
 TTS if the user gives an API key.
 
@@ -36,7 +36,9 @@ TTS if the user gives an API key.
 1. **Interview** (one compact AskUserQuestion): the deck/PDF/image-folder to narrate;
    **source material to ground the narration** — the paper PDF, the code repo, a report or
    notes (slides alone rarely say enough to narrate *well*); audience & goal; **video
-   language**; voice (local `say` vs cloud); captions on/off; aspect (16:9 default / 9:16);
+   language**; voice — **edge-tts** (natural neural, free, needs network; then pick **accent** + **gender**
+   from `references/tts-voices.md`) by default, with macOS `say` as the offline fallback, or
+   cloud TTS if they give a key; captions on/off; aspect (16:9 default / 9:16);
    target pace (a seconds-per-slide ceiling). If the user has no material, tell them you'll
    web-research the topic to ground the script instead.
    - **Language**: default the narration to the **slides' own language** (detect it from the
@@ -82,7 +84,11 @@ TTS if the user gives an API key.
    box over a dark slide reads as a muddy coloured blob; the slide already shows the content.
    Add a callout ONLY if the user explicitly asks to emphasise a named region — then exactly
    one, tightly placed on that region, and confirm its position from the rendered sample.
-7. **TTS** — run `tts.py` (use `--only N` while iterating on one slide).
+7. **TTS** — before synth, if `meta.voice` is `auto` or `edge:*`, check edge-tts is
+   installed: `python -c "import edge_tts"`. If it's missing, **offer to install it once**
+   (`pip install edge-tts`) for natural neural voices; if the user declines, set
+   `meta.voice` to a `say:` fallback and continue. Then run `tts.py` (use `--only N` while
+   iterating on one slide). edge-tts emits `.mp3`; `say` emits `.aiff` — both fine.
 8. **Sample sign-off** — `render.py <out_dir> --sample N`. Show `sample.mp4`, and **re-run
    the critic's subtitle check on the rendered sample** — view the burned-in captions and
    confirm they are legible, correct, and aligned with the speech (this is the only way to
@@ -97,8 +103,9 @@ TTS if the user gives an API key.
 
 ## Guardrails
 - `duration` always comes from rendered audio (tts.py sets it) — never guess timings.
-- Set `meta.voice` (`say:Samantha` or `openai:alloy`), `meta.captions`, and `meta.language`
-  in the storyboard, not via flags.
+- Set `meta.voice`, `meta.captions`, and `meta.language` in the storyboard, not via flags.
+  `meta.voice` is one of: `auto` (default — tts.py prefers edge-tts, else `say`),
+  `edge:<id>` (e.g. `edge:en-GB-SoniaNeural`), `say:<voice>`, or `openai:<voice>`.
 - **Language is set once, in `meta.language`** — write the narration in that language, and
   let `meta.voice` match it. tts.py auto-picks a matching `say` voice when the language is
   non-English and you left the default (see `references/tts-voices.md` for the per-language
@@ -113,6 +120,8 @@ TTS if the user gives an API key.
 | `ingest.py`: `soffice` missing / hangs | Kill stale `soffice`; ask user to export the deck to PDF and feed the `.pdf` | Feed a folder of exported slide PNGs instead |
 | pptx has no speaker notes | Generate narration from visible slide content + any source docs | Ask the user for the deck's intent per section |
 | `tts.py`: cloud voice errors / no `OPENAI_API_KEY` | It auto-falls back to `say:Samantha` and prints a notice — continue | Set `meta.voice` to an explicit local `say:` voice |
+| `tts.py`: edge-tts not installed | The workflow offers `pip install edge-tts` once; on decline, set `meta.voice` to a `say:` fallback | tts.py auto-falls back to `say` at synth time and prints a notice — continue |
+| `tts.py`: edge-tts network error / endpoint down | tts.py catches it and falls back to `say:Samantha` with a notice — continue | Switch `meta.voice` to an explicit `say:` voice (fully offline) |
 | `render.py`: concat `-c copy` errors (codec/timestamp) | Re-encode the concat (`-c:v libx264 -c:a aac`) — see `references/ffmpeg-recipes.md` | Render per-slide with `--only N` and report the failing slide |
 | Captions/text look wrong or font missing | render.py falls back to PIL's default font (still draws) | Confirm `assets/fonts/DejaVuSans.ttf` exists |
 | Captions show tofu boxes / □□□ (non-Latin language) | Set `meta.language` so render.py picks a system CJK font (zh→PingFang, ja→Hiragino, ko→AppleSDGothicNeo) | Set `meta.font` to an explicit `.ttc`/`.ttf` that covers the script |
