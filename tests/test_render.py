@@ -69,3 +69,18 @@ def test_latin_wrap_unchanged():
     assert len(lines) >= 2
     # words stay intact (joined by single spaces, no mid-word breaks)
     assert all(" " in ln or ln == "the" for ln in lines)
+
+def test_caption_chunks_cjk_splits_no_wall_of_text():
+    # CJK punctuation (。，) has no trailing space; the splitter must still break it into
+    # multiple short chunks instead of one screen-filling block.
+    zh = ("再看最新进展，窗口正在收窄。SpaceX 已完成史上最大的 IPO，资本火力空前。"
+          "Starship V3 已首飞，但尚未投运，计划下半年入轨。对手出现波动，窗口正在收窄。")
+    chunks = render._split_caption_chunks(zh)
+    assert len(chunks) >= 4
+    assert all(len(c) <= 40 for c in chunks)   # no wall-of-text chunk
+
+def test_caption_chunks_latin_unchanged():
+    en = "Hello world. This is the first sentence. And here is a short second one."
+    chunks = render._split_caption_chunks(en)
+    assert len(chunks) >= 2
+    assert chunks[0] == "Hello world."

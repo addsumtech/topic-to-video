@@ -160,26 +160,44 @@ def _srt_time(t):
     h = int(t // 3600); m = int((t % 3600) // 60); s = t % 60
     return f"{h:02d}:{m:02d}:{s:06.3f}".replace(".", ",")
 
-# sentence/clause boundaries for Latin + CJK punctuation
-_ENDERS = ".!?…。！？；;"
+# sentence / clause boundaries. CJK punctuation (。！？，、：) carries NO trailing space, so
+# we break right after it. Latin punctuation (.!?,:) breaks only when followed by whitespace
+# or end-of-text — otherwise a decimal like "1.77" or "$1.5M" would split mid-number, and a
+# CJK-only "ender + whitespace" rule would leave a whole Chinese paragraph as one caption.
+_CJK_ENDERS = "。！？…"
+_LATIN_ENDERS = ".!?"
+_CJK_CLAUSES = "，、：；"
+_LATIN_CLAUSES = ",:;"
+
+def _segment(text, cjk_marks, latin_marks):
+    """Split into pieces ending at a boundary mark (kept attached). CJK marks break
+    unconditionally; Latin marks break only before whitespace/EOL so numbers stay intact."""
+    t = re.sub(rf"([{cjk_marks}])", "\\1\x00", text)
+    t = re.sub(rf"([{latin_marks}])(\s+|$)", "\\1\x00\\2", t)
+    return [p.strip() for p in t.split("\x00") if p.strip()]
+
 def _split_caption_chunks(text, max_len=84):
     """Split narration into readable, subtitle-sized chunks: first on sentence enders,
-    then break any over-long sentence on commas/colons so a chunk fits 1-2 lines."""
-    import re
+    then break any over-long sentence on commas/colons so a chunk fits 1-2 lines.
+    CJK uses a tighter char limit because each glyph is full-width — the Latin limit would
+    still render as a wall of text on screen."""
     text = (text or "").strip()
     if not text:
         return []
-    sents = [s.strip() for s in re.split(rf"(?<=[{_ENDERS}])\s+", text) if s.strip()]
+    limit = 34 if _CJK_RE.search(text) else max_len
     chunks = []
-    for s in sents:
-        if len(s) <= max_len:
+    for s in _segment(text, _CJK_ENDERS, _LATIN_ENDERS):
+        if len(s) <= limit:
             chunks.append(s); continue
         cur = ""
-        for piece in re.split(r"(?<=[,:，、：])\s+", s):
-            if cur and len(cur) + 1 + len(piece) > max_len:
+        for piece in _segment(s, _CJK_CLAUSES, _LATIN_CLAUSES):
+            if cur and len(cur) + len(piece) > limit:
                 chunks.append(cur); cur = piece
+            elif cur:
+                # join CJK tight (no space); Latin words keep a separating space
+                cur = cur + piece if _CJK_RE.search(cur[-1]) else cur + " " + piece
             else:
-                cur = (cur + " " + piece).strip()
+                cur = piece
         if cur:
             chunks.append(cur)
     return chunks
