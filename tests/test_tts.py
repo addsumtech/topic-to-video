@@ -32,6 +32,12 @@ def test_resolve_voice_passthrough_explicit():
     assert tts._resolve_voice({"voice": "openai:alloy", "language": "en"}) == "openai:alloy"
     assert tts._resolve_voice({"voice": "say:Alex", "language": "en"}) == "say:Alex"
 
+def test_resolve_voice_auto_edge_unknown_language_falls_back_to_say(monkeypatch):
+    monkeypatch.setattr(tts, "_have_edge", lambda: True)
+    # 'xx' is not in EDGE_VOICE_CATALOG -> resolve_edge_voice returns None -> must use say
+    result = tts._resolve_voice({"voice": "auto", "language": "xx"})
+    assert result.startswith("say:")
+
 def test_edge_invokes_edge_tts(monkeypatch):
     captured = {}
     monkeypatch.setattr(tts._common, "run", lambda cmd, **kw: captured.setdefault("cmd", cmd))
