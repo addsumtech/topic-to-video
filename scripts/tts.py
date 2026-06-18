@@ -93,6 +93,26 @@ def resolve_edge_voice(language, accent=None, gender="female"):
     g = gender if gender in ("female", "male") else "female"
     return table[key][g]
 
+def _have_edge():
+    """True if the edge-tts package is importable (no network check)."""
+    import importlib.util
+    return importlib.util.find_spec("edge_tts") is not None
+
+def _resolve_voice(meta):
+    """Turn meta.voice into a concrete 'provider:name'. The 'auto' sentinel prefers
+    edge-tts (language + default accent + female) when available, else the language-
+    matched macOS say voice. Any explicit 'edge:/say:/openai:' spec passes through."""
+    spec = meta.get("voice", "auto")
+    lang = meta.get("language", "auto")
+    if spec and spec != "auto":
+        return spec
+    if _have_edge():
+        vid = resolve_edge_voice(lang, gender="female")
+        if vid:
+            return f"edge:{vid}"
+    name, _ = _resolve_say_voice("Samantha", lang)
+    return f"say:{name}"
+
 def synthesize(out_dir, only=None):
     path = os.path.join(out_dir, "storyboard.json")
     data = sb.load(path)
