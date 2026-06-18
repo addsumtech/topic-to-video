@@ -72,9 +72,11 @@ TTS if the user gives an API key.
 5. **Critic — narration + subtitle (REQUIRED, not optional).** Dispatch the critic
    (`agents/critic.md`) on the storyboard **plus the comprehension brief / source material**,
    so it can check facts, not just style. It strictly verifies (a) the narration is
-   **precise and faithful** — no wrong, vague, or invented facts/numbers — and (b) the
+   **precise and faithful** — no wrong, vague, or invented facts/numbers — (b) the
    resulting **subtitles are correct** — they match the spoken words, segment into clean
-   readable lines, fit on screen, and contain no typos or garbled/again-truncated text.
+   readable lines, fit on screen, and contain no typos or garbled/again-truncated text —
+   and (c) the narration is in **`meta.language`** and **`meta.voice` matches that language**
+   (a wrong-language voice would garble the audio — caught here, before TTS).
    Apply its required EDITS and re-dispatch until it returns **PASS**. THEN:
    🔴 **CHECKPOINT · 🛑 STOP:** present the full, critic-passed script and get the user's
    edits/approval BEFORE any TTS. Do not synthesize audio until they sign off.

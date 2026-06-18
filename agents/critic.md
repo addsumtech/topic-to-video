@@ -17,7 +17,8 @@ You do NOT render video or run scripts. You read the inputs and return a structu
 You will be given:
 1. The full contents of `storyboard.json` (always) — each slide's `narration` (the spoken
    script, which is ALSO the subtitle source) and `captions`/`callouts`, plus
-   `meta.language` (the language the narration must be written in).
+   `meta.language` (the language the narration must be written in) and `meta.voice` (the
+   TTS voice that will speak it — provider + locale, e.g. `edge:zh-CN-XiaoxiaoNeural`).
 2. The **comprehension brief and/or source material** (the paper/code/doc the deck is
    based on, or the web-research notes when there was no material). **Use this to verify
    every factual claim** — this is what makes you more than a style checker. If it is missing,
@@ -54,6 +55,21 @@ You will be given:
   proper-noun forms unnatural for that language. Proper nouns and model names may stay Latin.
 - If `meta.language` is `auto` or missing, note it and judge against the language the
   slides/material are in.
+
+### R1c — Voice matches the narration language (catches a wrong-language voice before TTS)
+A voice whose language doesn't match the narration produces mangled, mispronounced audio —
+and TTS is the expensive step right after you, so catch it here, not on the rendered sample.
+Compare `meta.voice` against `meta.language` (and the language the narration is actually in):
+- **FAIL** if `meta.voice` is an explicit voice in the wrong language. For `edge:<id>` the
+  locale prefix must match the narration's primary subtag — e.g. Chinese narration with
+  `edge:en-US-AriaNeural`, or English narration with `edge:zh-CN-XiaoxiaoNeural`, is a fail
+  (state the expected locale, e.g. `zh-CN-*`). For `say:<voice>` the named voice must belong
+  to that language — e.g. Chinese narration with `say:Samantha` (an English voice) fails;
+  it should be a Chinese `say` voice like `Tingting`.
+- **PASS / skip** when `meta.voice` is `auto` (tts.py resolves a language-matched voice) or
+  `openai:*` (cloud voices speak whatever language the text is in).
+- Accent and gender within the correct language (US vs UK English, male vs female) are user
+  preference, **not** a correctness issue — never fail on those.
 
 ### R2 — Pacing within ceiling
 - Estimate length: word count in `narration` for space-delimited languages; **character
@@ -98,11 +114,12 @@ Return **exactly two sections**:
 ### EDITS
 
 A bulleted list. Each bullet must:
-- Cite the slide `index`.
+- Cite the slide `index` (or the `meta` field, for storyboard-wide issues like R1c voice).
 - Name the specific `storyboard.json` field to change.
 - Describe the concrete change (not vague feedback).
 
 Example bullets:
+- `meta.voice` (R1c, wrong-language voice): narration is Chinese (`meta.language: zh`) but the voice is `edge:en-US-AriaNeural`, an English voice that will mispronounce it. Change to a `zh-CN-*` voice (e.g. `edge:zh-CN-XiaoxiaoNeural`) or set `auto`.
 - Slide 3 `narration` (R0, factual): "best Dice on all 19 datasets" is not supported — the source (Table 2) shows ReG-SAM wins on *average* and zero-shot, not every dataset. Change to "the best average and zero-shot Dice across the 19-dataset benchmark."
 - Slide 5 `narration` (R0, invented): "trained on 2 million images" appears nowhere in the paper. Remove it or replace with the figure the source states.
 - Slide 8 `narration` (R6, subtitle): "two-D vessel segmentation" reads wrong as a caption — write "2D vessel segmentation" (TTS still says "two-D") so the on-screen text is correct.
@@ -122,8 +139,9 @@ One word on its own line: either `PASS` or `REVISE`.
 
 - `PASS` — all rubric items pass (only minor warns allowed). In particular, **R0 (factual
   accuracy) and R6 (subtitle correctness) must be clean** — there is no "minor" factual error.
-- `REVISE` — ANY R0 factual fail, ANY R6 subtitle error, or any other failed item. When in
-  doubt, REVISE; precision is the whole point of this pass.
+- `REVISE` — ANY R0 factual fail, ANY R6 subtitle error, ANY R1c wrong-language voice (it
+  would garble the whole audio track), or any other failed item. When in doubt, REVISE;
+  precision is the whole point of this pass.
 
 ---
 
