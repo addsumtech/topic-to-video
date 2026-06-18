@@ -71,6 +71,9 @@ def test_validate_chart_numbers_only():
     badkind = sb.new_scene(1, "chart", {"kind": "pie", "data": [{"label": "a", "value": 5}]}, "n")
     with pytest.raises(sb.StoryboardError):
         sb.validate(_wrap(badkind))
+    bad_bool = sb.new_scene(1, "chart", {"kind": "bars", "data": [{"label": "a", "value": True}]}, "n")
+    with pytest.raises(sb.StoryboardError):
+        sb.validate(_wrap(bad_bool))
 
 def test_validate_timeline_requires_events():
     sb.validate(_wrap(sb.new_scene(1, "timeline", {"events": [{"date": "2026", "label": "x"}]}, "n")))
