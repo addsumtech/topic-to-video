@@ -55,6 +55,44 @@ def _resolve_say_voice(name, language):
             return v, f"[tts] language={lang}: using say voice '{v}' (set meta.voice to override)"
     return name, None
 
+# Curated edge-tts neural voices: language -> accent -> {female, male} -> voice id.
+# "_default" names the accent used when none is given. Escape hatch for anything not
+# here: `python -m edge_tts --list-voices` and set meta.voice = "edge:<id>" directly.
+EDGE_VOICE_CATALOG = {
+    "en": {"_default": "US",
+           "US": {"female": "en-US-AriaNeural", "male": "en-US-GuyNeural"},
+           "UK": {"female": "en-GB-SoniaNeural", "male": "en-GB-RyanNeural"},
+           "AU": {"female": "en-AU-NatashaNeural", "male": "en-AU-WilliamNeural"},
+           "IN": {"female": "en-IN-NeerjaNeural", "male": "en-IN-PrabhatNeural"}},
+    "zh": {"_default": "Mainland",
+           "Mainland": {"female": "zh-CN-XiaoxiaoNeural", "male": "zh-CN-YunxiNeural"},
+           "HK": {"female": "zh-HK-HiuMaanNeural", "male": "zh-HK-WanLungNeural"},
+           "TW": {"female": "zh-TW-HsiaoChenNeural", "male": "zh-TW-YunJheNeural"}},
+    "ja": {"_default": "JP", "JP": {"female": "ja-JP-NanamiNeural", "male": "ja-JP-KeitaNeural"}},
+    "ko": {"_default": "KR", "KR": {"female": "ko-KR-SunHiNeural", "male": "ko-KR-InJoonNeural"}},
+    "es": {"_default": "ES", "ES": {"female": "es-ES-ElviraNeural", "male": "es-ES-AlvaroNeural"}},
+    "fr": {"_default": "FR", "FR": {"female": "fr-FR-DeniseNeural", "male": "fr-FR-HenriNeural"}},
+    "de": {"_default": "DE", "DE": {"female": "de-DE-KatjaNeural", "male": "de-DE-ConradNeural"}},
+    "pt": {"_default": "BR", "BR": {"female": "pt-BR-FranciscaNeural", "male": "pt-BR-AntonioNeural"}},
+    "it": {"_default": "IT", "IT": {"female": "it-IT-ElsaNeural", "male": "it-IT-DiegoNeural"}},
+    "ru": {"_default": "RU", "RU": {"female": "ru-RU-SvetlanaNeural", "male": "ru-RU-DmitryNeural"}},
+    "nl": {"_default": "NL", "NL": {"female": "nl-NL-ColetteNeural", "male": "nl-NL-MaartenNeural"}},
+    "hi": {"_default": "IN", "IN": {"female": "hi-IN-SwaraNeural", "male": "hi-IN-MadhurNeural"}},
+}
+
+def resolve_edge_voice(language, accent=None, gender="female"):
+    """Map (language, accent, gender) to a concrete edge-tts voice id, or None if the
+    language isn't in the curated catalog. Accent falls back to the language's default;
+    gender falls back to female. Language/accent matching is case-insensitive."""
+    lang = (language or "").lower().replace("_", "-").split("-")[0]
+    table = EDGE_VOICE_CATALOG.get(lang)
+    if not table:
+        return None
+    by_key = {k.lower(): k for k in table if k != "_default"}
+    key = by_key.get((accent or "").lower(), table["_default"])
+    g = gender if gender in ("female", "male") else "female"
+    return table[key][g]
+
 def synthesize(out_dir, only=None):
     path = os.path.join(out_dir, "storyboard.json")
     data = sb.load(path)

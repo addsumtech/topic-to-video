@@ -81,6 +81,49 @@ before committing to a full TTS pass.
 
 ---
 
+## edge-tts (preferred free voice — natural neural, cross-platform)
+
+`edge-tts` uses Microsoft Edge's free online neural voices — far more natural than `say`,
+and it runs on any OS (not just macOS). Install once:
+
+```bash
+pip install edge-tts
+```
+
+Set a voice by accent + gender; the id goes in `meta.voice` as `edge:<id>`:
+
+```json
+"meta": { "voice": "edge:en-GB-SoniaNeural" }
+```
+
+| Lang | Accent | Female | Male |
+|---|---|---|---|
+| en | US | en-US-AriaNeural | en-US-GuyNeural |
+| en | UK | en-GB-SoniaNeural | en-GB-RyanNeural |
+| en | AU | en-AU-NatashaNeural | en-AU-WilliamNeural |
+| en | IN | en-IN-NeerjaNeural | en-IN-PrabhatNeural |
+| zh | Mainland | zh-CN-XiaoxiaoNeural | zh-CN-YunxiNeural |
+| zh | HK | zh-HK-HiuMaanNeural | zh-HK-WanLungNeural |
+| zh | TW | zh-TW-HsiaoChenNeural | zh-TW-YunJheNeural |
+| ja | — | ja-JP-NanamiNeural | ja-JP-KeitaNeural |
+| ko | — | ko-KR-SunHiNeural | ko-KR-InJoonNeural |
+| es | — | es-ES-ElviraNeural | es-ES-AlvaroNeural |
+| fr | — | fr-FR-DeniseNeural | fr-FR-HenriNeural |
+| de | — | de-DE-KatjaNeural | de-DE-ConradNeural |
+| pt | — | pt-BR-FranciscaNeural | pt-BR-AntonioNeural |
+| it | — | it-IT-ElsaNeural | it-IT-DiegoNeural |
+| ru | — | ru-RU-SvetlanaNeural | ru-RU-DmitryNeural |
+| nl | — | nl-NL-ColetteNeural | nl-NL-MaartenNeural |
+| hi | — | hi-IN-SwaraNeural | hi-IN-MadhurNeural |
+
+Anything not listed: `python -m edge_tts --list-voices` and use any id as `edge:<id>`.
+
+**Notes:** needs network (it's a free, unauthenticated cloud endpoint — an unofficial Edge
+service, stable for years but not contractual). When edge-tts is unavailable, tts.py falls
+back to macOS `say`.
+
+---
+
 ## Cloud: OpenAI TTS
 
 ```json
