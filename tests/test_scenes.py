@@ -43,3 +43,25 @@ def test_title_single_frame_is_settled_nonblank(tmp_path):
 def test_hex_rgb_shorthand():
     assert scenes._hex_rgb("#F0F") == (255, 0, 255)
     assert scenes._hex_rgb("#E8590C") == (232, 89, 12)
+
+def test_chart_values_never_overshoot_and_settle():
+    vals = [61, 165, 90]
+    assert scenes._chart_values(vals, 0.0) == [0, 0, 0]
+    mid = scenes._chart_values(vals, 0.5)
+    assert all(0 <= m <= v for m, v in zip(mid, vals))     # never past target
+    assert scenes._chart_values(vals, 1.0) == [61, 165, 90]  # settles exactly on data
+
+def test_chart_writes_frames_and_final_nonblank(tmp_path):
+    props = {"kind": "bars", "title": "Launches", "unit": "x",
+             "data": [{"label": "2022", "value": 61}, {"label": "2025", "value": 165}]}
+    pat = scenes.render_chart(props, META, 1280, 720, 10, str(tmp_path), 4)
+    from PIL import Image
+    assert len([f for f in os.listdir(tmp_path) if f.endswith(".png")]) == 10
+    assert Image.open(pat % 9).convert("RGB").getextrema() != ((0,0),(0,0),(0,0))
+
+def test_chart_deterministic(tmp_path):
+    props = {"kind": "bars", "data": [{"label": "a", "value": 3}, {"label": "b", "value": 7}]}
+    a = tmp_path / "a"; b = tmp_path / "b"; a.mkdir(); b.mkdir()
+    pa = scenes.render_chart(props, META, 640, 360, 5, str(a), 1)
+    pb = scenes.render_chart(props, META, 640, 360, 5, str(b), 1)
+    assert all(_pix(pa % i) == _pix(pb % i) for i in range(5))

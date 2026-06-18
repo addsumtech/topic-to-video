@@ -4,6 +4,10 @@ Frames are namespaced by scene index because the full render shares one workdir.
 import os
 from PIL import Image, ImageDraw, ImageFont
 import render  # reuse the CJK-aware font resolver
+import matplotlib
+matplotlib.use("Agg")                       # deterministic, headless raster backend
+import matplotlib.pyplot as plt
+from matplotlib import font_manager
 
 BG = (13, 17, 23)        # near-black, matches the caption aesthetic
 FG = (255, 255, 255)
@@ -69,5 +73,74 @@ def render_title(props, meta, W, H, frames, workdir, index):
             d.text((x, int(H * 0.72)), kicker, font=kfont,
                    fill=(140, 150, 165, int(255 * p3)))
         return Image.alpha_composite(base, layer).convert("RGB")
+
+    return _save_frames(draw, frames, workdir, index)
+
+
+def _chart_values(values, p):
+    e = _ease(p)
+    out = []
+    for v in values:
+        x = v * e
+        out.append(round(x) if isinstance(v, int) and v == int(v) else x)
+    return [min(o, v) if v >= 0 else max(o, v) for o, v in zip(out, values)]
+
+def _mpl_font(meta):
+    """Register and select a CJK font for matplotlib when the narration language is CJK,
+    so axis/labels don't tofu; else use matplotlib's bundled DejaVu Sans."""
+    lang = (meta.get("language") or "").lower().split("-")[0]
+    if lang in ("zh", "ja", "ko"):
+        path = render._font_path({"language": lang}, "中")     # reuse the CJK resolver
+        try:
+            font_manager.fontManager.addfont(path)
+            return font_manager.FontProperties(fname=path).get_name()
+        except Exception:
+            pass
+    return "DejaVu Sans"
+
+def render_chart(props, meta, W, H, frames, workdir, index):
+    kind = props.get("kind", "bars")
+    data = props.get("data", [])
+    labels = [str(d.get("label", "")) for d in data]
+    values = [d["value"] for d in data]
+    title = props.get("title"); unit = props.get("unit", "")
+    y_max = props.get("y_max") or (max(values + [0]) * 1.15 or 1)
+    famly = _mpl_font(meta)
+    dpi = 100
+    figsize = (W / dpi, H / dpi)
+    accent = props.get("accent", "#4C9BE8")
+
+    def draw(i, n):
+        cur = _chart_values(values, i / max(1, n - 1) if n > 1 else 1.0)
+        fig = plt.figure(figsize=figsize, dpi=dpi)
+        fig.patch.set_facecolor("#0d1117")
+        ax = fig.add_subplot(111); ax.set_facecolor("#0d1117")
+        for sp in ax.spines.values():
+            sp.set_color("#3a4150")
+        ax.tick_params(colors="#c0c8d4")
+        if title:
+            ax.set_title(title, color="white", fontsize=18, fontfamily=famly, pad=16)
+        if kind == "counter":
+            ax.axis("off")
+            ax.text(0.5, 0.5, f"{cur[0]:g}{unit}", ha="center", va="center",
+                    color="white", fontsize=72, fontfamily=famly, transform=ax.transAxes)
+        elif kind == "line":
+            k = max(1, int(len(values) * (i / max(1, n - 1)))) if n > 1 else len(values)
+            ax.plot(range(k), values[:k], color=accent, linewidth=3)
+            ax.set_xlim(-0.5, len(values) - 0.5); ax.set_ylim(0, y_max)
+            ax.set_xticks(range(len(labels))); ax.set_xticklabels(labels, fontfamily=famly)
+        else:  # bars
+            ax.bar(labels, cur, color=accent)
+            ax.set_ylim(0, y_max)
+            for t in ax.get_xticklabels():
+                t.set_fontfamily(famly)
+        if props.get("y_label"):
+            ax.set_ylabel(props["y_label"], color="#c0c8d4", fontfamily=famly)
+        fig.tight_layout()
+        fig.canvas.draw()                       # Agg requires a draw before buffer_rgba()
+        img = Image.frombytes("RGBA", fig.canvas.get_width_height(),
+                              bytes(fig.canvas.buffer_rgba())).convert("RGB")
+        plt.close(fig)
+        return img.resize((W, H), Image.LANCZOS) if img.size != (W, H) else img
 
     return _save_frames(draw, frames, workdir, index)
