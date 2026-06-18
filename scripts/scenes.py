@@ -15,6 +15,8 @@ def _ease(p):
 
 def _hex_rgb(s):
     s = (s or "#E8590C").lstrip("#")
+    if len(s) == 3:
+        s = "".join(c * 2 for c in s)
     return tuple(int(s[i:i+2], 16) for i in (0, 2, 4))
 
 def _save_frames(draw_fn, frames, workdir, index):
@@ -42,11 +44,16 @@ def render_title(props, meta, W, H, frames, workdir, index):
     kfont = _font(meta, kicker or " ", int(H * 0.028))
     x = int(W * 0.08)
 
+    def _prog(i, delay):
+        if frames <= 1:
+            return 1.0
+        return _ease((i - delay) / max(1, min(intro, frames - 1)))
+
     def draw(i, n):
         base = Image.new("RGBA", (W, H), BG + (255,))
         layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         d = ImageDraw.Draw(layer)
-        p = _ease(i / intro)
+        p = _prog(i, 0)
         a = int(255 * p); dy = int((1 - p) * (H * 0.03))
         # accent rule above the title
         rule_y = int(H * 0.34) + dy
@@ -54,11 +61,11 @@ def render_title(props, meta, W, H, frames, workdir, index):
                     fill=accent + (a,))
         d.text((x, int(H * 0.40) + dy), title, font=tfont, fill=FG + (a,))
         if subtitle:
-            p2 = _ease((i - sub_delay) / intro)
+            p2 = _prog(i, sub_delay)
             d.text((x, int(H * 0.56)), subtitle, font=sfont,
                    fill=(180, 190, 205, int(255 * p2)))
         if kicker:
-            p3 = _ease((i - 2 * sub_delay) / intro)
+            p3 = _prog(i, 2 * sub_delay)
             d.text((x, int(H * 0.72)), kicker, font=kfont,
                    fill=(140, 150, 165, int(255 * p3)))
         return Image.alpha_composite(base, layer).convert("RGB")

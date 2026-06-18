@@ -34,3 +34,12 @@ def test_title_cjk_renders_glyphs(tmp_path):
     pat = scenes.render_title({"title": "进入商业航天发射市场"}, META_ZH, 1280, 720, 4, str(tmp_path), 1)
     last = Image.open(pat % 3).convert("RGB")
     assert last.getextrema() != ((0,0),(0,0),(0,0))   # CJK glyphs drawn (no blank/tofu-only)
+
+def test_title_single_frame_is_settled_nonblank(tmp_path):
+    pat = scenes.render_title({"title": "Still"}, META, 640, 360, 1, str(tmp_path), 5)
+    from PIL import Image
+    assert Image.open(pat % 0).convert("RGB").getextrema() != ((0,0),(0,0),(0,0))
+
+def test_hex_rgb_shorthand():
+    assert scenes._hex_rgb("#F0F") == (255, 0, 255)
+    assert scenes._hex_rgb("#E8590C") == (232, 89, 12)
