@@ -42,6 +42,27 @@ def test_edge_invokes_edge_tts(monkeypatch):
     assert cmd[cmd.index("--text") + 1] == "hello world"
     assert cmd[cmd.index("--write-media") + 1] == "/tmp/clip.mp3"
 
+def test_synthesize_uses_edge_when_resolved(tmp_path, monkeypatch):
+    out = _proj(tmp_path)
+    data = sb.load(os.path.join(out, "storyboard.json"))
+    data["meta"]["voice"] = "auto"; data["meta"]["language"] = "en"
+    sb.save(data, os.path.join(out, "storyboard.json"))
+
+    monkeypatch.setattr(tts, "_have_edge", lambda: True)
+    made = []
+    def fake_edge(text, dest, voice):
+        with open(dest, "wb") as f:
+            f.write(b"\x00")
+        made.append((dest, voice))
+    monkeypatch.setattr(tts, "_edge", fake_edge)
+    monkeypatch.setattr(tts._common, "audio_duration", lambda p: 1.0)
+
+    res = tts.synthesize(out)
+    assert made, "edge synthesis was not called"
+    assert made[0][1] == "en-US-AriaNeural"
+    assert all(s["audio"].endswith(".mp3") for s in res["slides"])
+    assert all(s["duration"] == 1.0 for s in res["slides"])
+
 @pytest.mark.skipif(not _common.have_tool("say"), reason="macOS 'say' only")
 def test_synthesize_writes_audio_and_durations(tmp_path):
     out = _proj(tmp_path)

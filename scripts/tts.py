@@ -125,7 +125,7 @@ def synthesize(out_dir, only=None):
     data = sb.load(path)
     audio_dir = os.path.join(out_dir, "audio")
     os.makedirs(audio_dir, exist_ok=True)
-    prov, name = _provider(data["meta"].get("voice", "say:Samantha"))
+    prov, name = _provider(_resolve_voice(data["meta"]))
     if prov == "say":
         name, note = _resolve_say_voice(name, data["meta"].get("language", "auto"))
         if note:
@@ -141,6 +141,8 @@ def synthesize(out_dir, only=None):
         try:
             if prov == "openai":
                 _openai(text, dest, name)
+            elif prov == "edge":
+                _edge(text, dest, name)
             else:
                 _say(text, dest, name)
         except Exception as e:
