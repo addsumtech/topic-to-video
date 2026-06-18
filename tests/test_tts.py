@@ -64,7 +64,8 @@ def test_synthesize_uses_edge_when_resolved(tmp_path, monkeypatch):
     assert all(s["duration"] == 1.0 for s in res["slides"])
 
 @pytest.mark.skipif(not _common.have_tool("say"), reason="macOS 'say' only")
-def test_synthesize_writes_audio_and_durations(tmp_path):
+def test_synthesize_writes_audio_and_durations(tmp_path, monkeypatch):
+    monkeypatch.setattr(tts, "_have_edge", lambda: False)
     out = _proj(tmp_path)
     data = tts.synthesize(out)
     for s in data["slides"]:
