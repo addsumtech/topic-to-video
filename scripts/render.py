@@ -250,14 +250,50 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
             return None
     payload = json.dumps({
         "s": {k: slide.get(k) for k in
-              ("image", "audio", "duration", "motion", "narration", "captions", "callouts")},
+              ("image", "audio", "duration", "motion", "narration", "captions", "callouts",
+               "type", "props")},
         "r": [W, H, meta.get("fps", 30), ss, burn, vertical,
               meta.get("language", "auto"), meta.get("font")],
         "img": stat(slide.get("image")), "aud": stat(slide.get("audio")),
     }, sort_keys=True, default=str)
     return hashlib.sha1(payload.encode()).hexdigest()[:16]
 
+def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_clip, workdir):
+    """Encode a per-frame PNG sequence + the scene's TTS audio (+ timed captions) into a
+    clip using the SAME codec params as the slide path, so the '-c copy' concat still works."""
+    fps = meta.get("fps", 30)
+    parts = [f"[0:v]scale={W}:{H}[v0]"]               # frames are already WxH; scale = safety
+    vlabel = "v0"; extra_inputs = []; n_in = 2        # 0=frames, 1=audio
+    for k, seg in enumerate(caption_segs):
+        if not (seg.get("text") or "").strip():
+            continue
+        cap_png = os.path.join(workdir, f"scap_{k:03d}.png")
+        _caption_layer(seg["text"], W, H, cap_png, meta)
+        extra_inputs += ["-i", cap_png]
+        en = f"between(t,{seg['start']},{seg['end']})"
+        parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
+        vlabel = f"v{n_in}"; n_in += 1
+    cmd = ["ffmpeg", "-y", "-framerate", str(fps), "-i", pattern,
+           "-i", os.path.join(meta["_out"], audio_rel)] + extra_inputs + [
+        "-filter_complex", ";".join(parts), "-map", f"[{vlabel}]", "-map", "1:a",
+        "-t", f"{dur}", "-r", str(fps), "-pix_fmt", "yuv420p",
+        "-c:v", "libx264", "-c:a", "aac", "-shortest", out_clip]
+    _common.run(cmd)
+    return out_clip
+
+def _render_scene(slide, meta, W, H, out_clip, burn_captions, workdir):
+    import scenes
+    fps = meta.get("fps", 30)
+    dur = slide["duration"]
+    frames = max(1, int(round(dur * fps)))
+    renderer = getattr(scenes, "render_" + slide["type"])   # render_title / render_chart / render_timeline
+    pattern = renderer(slide.get("props") or {}, meta, W, H, frames, workdir, slide["index"])
+    segs = _captions_for(slide) if burn_captions else []
+    return _encode_frames_clip(pattern, slide["audio"], dur, segs, meta, W, H, out_clip, workdir)
+
 def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
+    if slide.get("type", "slide") != "slide":
+        return _render_scene(slide, meta, W, H, out_clip, burn_captions, workdir)
     i = slide["index"]
     frame = os.path.join(workdir, f"fit_{i:02d}.png")
     _fit_frame(os.path.join(meta["_out"], slide["image"]), frame, W, H)

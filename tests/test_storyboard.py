@@ -34,3 +34,48 @@ def test_new_slide_defaults():
 
 def test_default_voice_is_auto():
     assert sb.new_storyboard()["meta"]["voice"] == "auto"
+
+def test_new_slide_defaults_type_slide():
+    s = sb.new_slide(1, "frames/01.png")
+    assert s["type"] == "slide" and s["props"] is None
+
+def test_new_scene_roundtrip(tmp_path):
+    sc = sb.new_scene(2, "title", {"title": "Hello"}, narration="Hi.")
+    assert sc["type"] == "title" and sc["props"] == {"title": "Hello"} and sc["image"] is None
+    p = tmp_path / "s.json"; sb.save({"meta": {}, "slides": [sc]}, str(p))
+    assert sb.load(str(p))["slides"][0]["props"]["title"] == "Hello"
+
+def _wrap(scene):
+    return {"meta": {"aspect": "16:9"}, "slides": [scene]}
+
+def test_validate_slide_still_requires_image():
+    bad = _wrap({"index": 1, "type": "slide", "narration": "x"})  # no image
+    with pytest.raises(sb.StoryboardError):
+        sb.validate(bad)
+
+def test_validate_unknown_type_rejected():
+    with pytest.raises(sb.StoryboardError):
+        sb.validate(_wrap({"index": 1, "type": "hologram", "narration": "x", "props": {}}))
+
+def test_validate_title_ok_and_requires_title_str():
+    sb.validate(_wrap(sb.new_scene(1, "title", {"title": "T", "subtitle": "S"}, "n")))
+    with pytest.raises(sb.StoryboardError):
+        sb.validate(_wrap(sb.new_scene(1, "title", {"subtitle": "S"}, "n")))  # missing title
+
+def test_validate_chart_numbers_only():
+    ok = sb.new_scene(1, "chart", {"kind": "bars", "data": [{"label": "a", "value": 5}]}, "n")
+    sb.validate(_wrap(ok))
+    bad = sb.new_scene(1, "chart", {"kind": "bars", "data": [{"label": "a", "value": "five"}]}, "n")
+    with pytest.raises(sb.StoryboardError):
+        sb.validate(_wrap(bad))
+    badkind = sb.new_scene(1, "chart", {"kind": "pie", "data": [{"label": "a", "value": 5}]}, "n")
+    with pytest.raises(sb.StoryboardError):
+        sb.validate(_wrap(badkind))
+    bad_bool = sb.new_scene(1, "chart", {"kind": "bars", "data": [{"label": "a", "value": True}]}, "n")
+    with pytest.raises(sb.StoryboardError):
+        sb.validate(_wrap(bad_bool))
+
+def test_validate_timeline_requires_events():
+    sb.validate(_wrap(sb.new_scene(1, "timeline", {"events": [{"date": "2026", "label": "x"}]}, "n")))
+    with pytest.raises(sb.StoryboardError):
+        sb.validate(_wrap(sb.new_scene(1, "timeline", {"events": []}, "n")))

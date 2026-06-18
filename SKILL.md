@@ -30,6 +30,10 @@ TTS if the user gives an API key.
 - `scripts/ingest.py <input> <out_dir>` — pptx/pdf/image-folder → `frames/` + skeleton `storyboard.json` (pulls speaker notes from pptx).
 - `scripts/tts.py <out_dir> [--only N]` — narration → `audio/` + real durations.
 - `scripts/render.py <out_dir> [--sample N] [--only N] [--vertical]` — storyboard → `out.mp4` + `out.srt`.
+- `scripts/scenes.py` — deterministic ANIMATED scene renderers (no slides): `title` (PIL),
+  `chart`/`timeline` (matplotlib). A storyboard scene with `type` `title`/`chart`/`timeline`
+  (+ a typed `props` block) renders an animation instead of a slide image; `type` defaults to
+  `slide` (unchanged). Animated scenes render ONLY their `props` (faithful by construction).
 
 ## Workflow (follow in order)
 
