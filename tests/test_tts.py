@@ -17,6 +17,30 @@ def test_edge_catalog_resolution():
     assert tts.resolve_edge_voice("EN-us", "uk") == "en-GB-SoniaNeural"  # case-insensitive
     assert tts.resolve_edge_voice("xx") is None                   # unknown language
 
+def test_edge_failure_falls_back_to_language_matched_say(tmp_path, monkeypatch):
+    # When edge synthesis throws (e.g. endpoint reset), the synth-time fallback must use
+    # the language-matched say voice — NOT hardcoded English Samantha — for a zh project.
+    out = tmp_path / "proj"; os.makedirs(out, exist_ok=True)
+    data = sb.new_storyboard()
+    data["meta"]["voice"] = "edge:zh-CN-XiaoxiaoNeural"
+    data["meta"]["language"] = "zh"
+    data["slides"] = [sb.new_slide(1, "frames/01.png", "你好，这是测试。")]
+    sb.save(data, os.path.join(out, "storyboard.json"))
+
+    def boom(*a, **k):
+        raise RuntimeError("edge endpoint reset")
+    monkeypatch.setattr(tts, "_edge", boom)
+    used = {}
+    def fake_say(text, dest, voice, rate=175):
+        used["voice"] = voice
+        with open(dest, "wb") as f:
+            f.write(b"\x00")
+    monkeypatch.setattr(tts, "_say", fake_say)
+    monkeypatch.setattr(tts._common, "audio_duration", lambda p: 1.0)
+
+    tts.synthesize(str(out))
+    assert used["voice"] == "Tingting"   # zh -> Tingting, not Samantha
+
 def test_resolve_voice_auto_prefers_edge(monkeypatch):
     monkeypatch.setattr(tts, "_have_edge", lambda: True)
     assert tts._resolve_voice({"voice": "auto", "language": "en"}) == "edge:en-US-AriaNeural"

@@ -146,10 +146,13 @@ def synthesize(out_dir, only=None):
             else:
                 _say(text, dest, name)
         except Exception as e:
-            print(f"[tts] {prov} failed ({e}); falling back to say:Samantha")
+            # Fall back to the LANGUAGE-MATCHED say voice — not a hardcoded English one,
+            # or a non-English project (e.g. zh) would get garbled English audio.
+            fb, _ = _resolve_say_voice("Samantha", data["meta"].get("language", "auto"))
+            print(f"[tts] {prov} failed ({e}); falling back to say:{fb}")
             rel = os.path.join("audio", f"{s['index']:02d}.aiff")
             dest = os.path.join(out_dir, rel)
-            _say(text, dest, "Samantha")
+            _say(text, dest, fb)
         s["audio"] = rel
         s["duration"] = round(_common.audio_duration(dest), 3)
 
