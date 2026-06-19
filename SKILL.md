@@ -29,6 +29,9 @@ TTS if the user gives an API key.
 ## Pipeline scripts
 - `scripts/ingest.py <input> <out_dir>` — pptx/pdf/image-folder → `frames/` + skeleton `storyboard.json` (pulls speaker notes from pptx).
 - `scripts/tts.py <out_dir> [--only N]` — narration → `audio/` + real durations.
+- `scripts/imagegen.py <out_dir> [--key KEY]` — OPTIONAL paid tier: generate AI scene images
+  via OpenAI `gpt-image-2` for scenes that carry an `image_prompt`, cached under `.assets/`
+  (re-runs are free). Only acts when `meta.image_source == "openai"`; needs `OPENAI_API_KEY`.
 - `scripts/render.py <out_dir> [--sample N] [--only N] [--vertical]` — storyboard → `out.mp4` + `out.srt`.
 - `scripts/scenes.py` — deterministic ANIMATED scene renderers (no slides): `title` (PIL),
   `chart`/`timeline` (matplotlib). A storyboard scene with `type` `title`/`chart`/`timeline`
@@ -43,7 +46,12 @@ TTS if the user gives an API key.
    language**; voice — **edge-tts** (natural neural, free, needs network; then pick **accent** + **gender**
    from `references/tts-voices.md`) by default, with macOS `say` as the offline fallback, or
    cloud TTS if they give a key; captions on/off; aspect (16:9 default / 9:16);
-   target pace (a seconds-per-slide ceiling). If the user has no material, tell them you'll
+   target pace (a seconds-per-slide ceiling); **image source** — **Free** (programmatic animation / slides, the default) vs **gpt-image**
+   (OpenAI `gpt-image-2`, **paid**, needs `OPENAI_API_KEY`). If gpt-image: ask for the key (env
+   or paste), and ask a **style** (photoreal · cinematic · editorial illustration · 3D render ·
+   watercolor · blueprint/diagram · minimal flat · or free-text) + a **focus** (subject emphasis).
+   Set `meta.image_source`/`image_style`/`image_quality`(default medium)/`image_size`(default
+   1536x1024). Default stays Free — AI imagery is opt-in and costs money. If the user has no material, tell them you'll
    web-research the topic to ground the script instead.
    - **Language**: default the narration to the **slides' own language** (detect it from the
      ingested text), but always confirm it as an option — users often want a video in a
@@ -73,6 +81,15 @@ TTS if the user gives an API key.
    narration into each slide's `narration`, grounded in the comprehension brief (seed from
    `notes`/material; never bullet-recite). The on-screen **captions are auto-derived from
    the narration**, so the words you write are also the subtitle.
+4b. **Image prompts (gpt-image tier only).** If `meta.image_source == "openai"`: for each
+    VISUAL/conceptual scene, author a grounded `image_prompt` from the narration + the chosen
+    style, tagged `image_tag:"broll"` and `fit:"cover"`; keep DATA in `chart` scenes (never AI).
+    Generic/atmospheric prompts only — no real logos, faces, named vehicles, or text in-image.
+    The critic (step 5, R1e) reviews the prompts.
+    🔴 **CHECKPOINT · 🛑 STOP:** present every prompt + the estimated cost
+    (`imagegen.cost_estimate(n, quality)`) and get sign-off BEFORE spending. Then run
+    `imagegen.py <out_dir>` (the paid step; cached after). No key / API error → fall back to the
+    free tier (drop `image_prompt`, use programmatic/slide) and tell the user.
 5. **Critic — narration + subtitle (REQUIRED, not optional).** Dispatch the critic
    (`agents/critic.md`) on the storyboard **plus the comprehension brief / source material**,
    so it can check facts, not just style. It strictly verifies (a) the narration is
@@ -112,6 +129,8 @@ TTS if the user gives an API key.
 - Set `meta.voice`, `meta.captions`, and `meta.language` in the storyboard, not via flags.
   `meta.voice` is one of: `auto` (default — tts.py prefers edge-tts, else `say`),
   `edge:<id>` (e.g. `edge:en-GB-SoniaNeural`), `say:<voice>`, or `openai:<voice>`.
+- `meta.image_source` is `none` (default, free) or `openai` (gpt-image-2, paid). AI images are
+  generated once by `imagegen.py` and CACHED under `.assets/` — re-renders are free + offline.
 - **Language is set once, in `meta.language`** — write the narration in that language, and
   let `meta.voice` match it. tts.py auto-picks a matching `say` voice when the language is
   non-English and you left the default (see `references/tts-voices.md` for the per-language
@@ -128,6 +147,8 @@ TTS if the user gives an API key.
 | `tts.py`: cloud voice errors / no `OPENAI_API_KEY` | It auto-falls back to `say:Samantha` and prints a notice — continue | Set `meta.voice` to an explicit local `say:` voice |
 | `tts.py`: edge-tts not installed | The workflow offers `pip install edge-tts` once; on decline, set `meta.voice` to a `say:` fallback | tts.py auto-falls back to `say` at synth time and prints a notice — continue |
 | `tts.py`: edge-tts network error / endpoint down | tts.py catches it and falls back to `say:Samantha` with a notice — continue | Switch `meta.voice` to an explicit `say:` voice (fully offline) |
+| `imagegen.py`: no `OPENAI_API_KEY` | It prints a notice and leaves those scenes for free-tier fallback — convert them to programmatic/slide and continue | Set the key (`export OPENAI_API_KEY=...`) and re-run `imagegen.py` |
+| `imagegen.py`: image API error / rate limit | Per-scene catch → free-tier fallback for that scene; cached scenes unaffected | Retry later; cached images never re-charge |
 | `render.py`: concat `-c copy` errors (codec/timestamp) | Re-encode the concat (`-c:v libx264 -c:a aac`) — see `references/ffmpeg-recipes.md` | Render per-slide with `--only N` and report the failing slide |
 | Captions/text look wrong or font missing | render.py falls back to PIL's default font (still draws) | Confirm `assets/fonts/DejaVuSans.ttf` exists |
 | Captions show tofu boxes / □□□ (non-Latin language) | Set `meta.language` so render.py picks a system CJK font (zh→PingFang, ja→Hiragino, ko→AppleSDGothicNeo) | Set `meta.font` to an explicit `.ttc`/`.ttf` that covers the script |
