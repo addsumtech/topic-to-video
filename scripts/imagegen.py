@@ -1,8 +1,7 @@
 """gpt-image-2 image generation + deterministic cache. Mirrors tts._openai (lazy requests,
 OPENAI_API_KEY, graceful fallback). Generation is non-deterministic, so we cache each PNG by
 a sha1 of (model,size,quality,prompt) -> re-renders are free and offline."""
-import argparse, base64, hashlib, json, os
-import storyboard as sb
+import base64, hashlib, os
 
 API_URL = "https://api.openai.com/v1/images/generations"
 DEFAULT_MODEL = "gpt-image-2"
@@ -21,9 +20,9 @@ def cost_estimate(n, quality="medium", size="1536x1024"):
 def generate(prompt, out_path, key, size="1536x1024", quality="medium", model=DEFAULT_MODEL):
     """Generate ONE image via gpt-image-2 and write a PNG to out_path.
     Raises RuntimeError if no key; raises on HTTP error (caller catches for fallback)."""
-    import requests
     if not key:
         raise RuntimeError("no OPENAI_API_KEY")
+    import requests
     r = requests.post(API_URL,
                       headers={"Authorization": f"Bearer {key}"},
                       json={"model": model, "prompt": prompt, "size": size,
