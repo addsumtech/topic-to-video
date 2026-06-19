@@ -79,9 +79,17 @@ def _canvas(meta, vertical):
         return 1080, 1920
     return meta.get("width", 1920), meta.get("height", 1080)
 
-def _fit_frame(src, dst, W, H):
-    """Scale-and-pad a slide image onto a WxH canvas (letterbox)."""
+def _fit_frame(src, dst, W, H, fit="contain"):
+    """Scale a slide image onto a WxH canvas. contain = letterbox (default); cover = scale to
+    fill then center-crop (full-frame, for AI b-roll)."""
     im = Image.open(src).convert("RGB")
+    if fit == "cover":
+        scale = max(W / im.width, H / im.height)
+        nw, nh = max(1, round(im.width * scale)), max(1, round(im.height * scale))
+        im = im.resize((nw, nh), Image.LANCZOS)
+        left, top = (nw - W) // 2, (nh - H) // 2
+        im.crop((left, top, left + W, top + H)).save(dst)
+        return
     im.thumbnail((W, H), Image.LANCZOS)
     bg = Image.new("RGB", (W, H), (0, 0, 0))
     bg.paste(im, ((W - im.width) // 2, (H - im.height) // 2))
@@ -251,7 +259,7 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
     payload = json.dumps({
         "s": {k: slide.get(k) for k in
               ("image", "audio", "duration", "motion", "narration", "captions", "callouts",
-               "type", "props")},
+               "type", "props", "fit")},
         "r": [W, H, meta.get("fps", 30), ss, burn, vertical,
               meta.get("language", "auto"), meta.get("font")],
         "img": stat(slide.get("image")), "aud": stat(slide.get("audio")),
@@ -295,8 +303,10 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
     if slide.get("type", "slide") != "slide":
         return _render_scene(slide, meta, W, H, out_clip, burn_captions, workdir)
     i = slide["index"]
+    if (slide.get("image_prompt") or "").strip() and not slide.get("image"):
+        raise sb.StoryboardError(f"slide {i}: image_prompt set but image not generated — run imagegen.py first")
     frame = os.path.join(workdir, f"fit_{i:02d}.png")
-    _fit_frame(os.path.join(meta["_out"], slide["image"]), frame, W, H)
+    _fit_frame(os.path.join(meta["_out"], slide["image"]), frame, W, H, slide.get("fit", "contain"))
     fps = meta.get("fps", 30)
     dur = slide["duration"]
     frames = max(1, int(round(dur * fps)))

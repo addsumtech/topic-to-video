@@ -8,6 +8,10 @@ VALID_STYLES = {"highlight", "arrow", "box"}
 VALID_SCENE_TYPES = {"slide", "title", "chart", "timeline"}
 ANIMATED_TYPES = {"title", "chart", "timeline"}
 VALID_CHART_KINDS = {"bars", "line", "counter"}
+VALID_IMAGE_SOURCES = {"none", "openai"}
+VALID_IMAGE_TAGS = {"motif", "broll", "asserted"}
+VALID_FITS = {"contain", "cover"}
+VALID_IMAGE_QUALITIES = {"low", "medium", "high"}
 
 def new_slide(index, image, narration="", notes=""):
     return {
@@ -81,6 +85,11 @@ def validate(data):
         raise StoryboardError("storyboard needs 'meta' and 'slides'")
     if not data["slides"]:
         raise StoryboardError("storyboard has no slides")
+    m = data["meta"]
+    if m.get("image_source") not in (None, *VALID_IMAGE_SOURCES):
+        raise StoryboardError(f"meta.image_source must be one of {VALID_IMAGE_SOURCES}")
+    if "image_quality" in m and m["image_quality"] not in VALID_IMAGE_QUALITIES:
+        raise StoryboardError(f"meta.image_quality must be one of {VALID_IMAGE_QUALITIES}")
     for s in data["slides"]:
         if "index" not in s or "narration" not in s:
             raise StoryboardError(f"slide missing 'index'/'narration': {s.get('index')}")
@@ -88,10 +97,16 @@ def validate(data):
         if t not in VALID_SCENE_TYPES:
             raise StoryboardError(f"slide {s.get('index')}: unknown type '{t}'")
         if t == "slide":
-            if "image" not in s or not s["image"]:
-                raise StoryboardError(f"slide {s.get('index')}: type 'slide' requires 'image'")
+            has_img = bool(s.get("image"))
+            has_prompt = bool((s.get("image_prompt") or "").strip())
+            if not has_img and not has_prompt:
+                raise StoryboardError(f"slide {s.get('index')}: type 'slide' requires 'image' or 'image_prompt'")
         else:
             _validate_props(s)
+        if "image_tag" in s and s["image_tag"] not in VALID_IMAGE_TAGS:
+            raise StoryboardError(f"slide {s.get('index')}: image_tag must be one of {VALID_IMAGE_TAGS}")
+        if "fit" in s and s["fit"] not in VALID_FITS:
+            raise StoryboardError(f"slide {s.get('index')}: fit must be one of {VALID_FITS}")
         for co in s.get("callouts", []):
             box = co.get("box", [])
             if len(box) != 4 or not _in_unit(*box):

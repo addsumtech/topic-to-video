@@ -94,6 +94,19 @@ IS the `props` (there is no slide image). Check it the same way you check narrat
 - This applies from `props` alone (no render needed) AND, when sample frames are given, on
   the rendered animation (see R6's animated-scene clause).
 
+### R1e — Imagery faithfulness (motifs / AI b-roll)
+A scene may carry an `image_prompt` (AI-generated image, `image_tag` one of motif/broll/asserted)
+or be a programmatic motif. Classes (see SKILL.md "Imagery faithfulness"):
+- `motif` / `broll`: PASS when GENERIC/atmospheric. **FAIL** if the prompt names or depicts a
+  specific real vehicle/mission/person/company logo/insignia or embeds factual text/numbers, or
+  if the image sits beside a specific claim implying it depicts that fact (it doesn't — the model
+  invented it). Relabel as generic or move the claim to a faithful element (chart/caption).
+- `asserted` AI imagery → **FAIL** (R0-class misattribution; a generated image is not the real
+  thing).
+- **FAIL** if data/numbers are rendered as an AI image instead of a faithful `chart`.
+Cross-ref R1d (animated on-screen values). When `meta.image_source == "openai"`, scan every
+scene's `image_prompt` against the adjacent `narration`.
+
 ### R2 — Pacing within ceiling
 - Estimate length: word count in `narration` for space-delimited languages; **character
   count for CJK** (Chinese/Japanese/Korean have no word spaces).

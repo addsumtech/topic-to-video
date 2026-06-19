@@ -79,3 +79,30 @@ def test_validate_timeline_requires_events():
     sb.validate(_wrap(sb.new_scene(1, "timeline", {"events": [{"date": "2026", "label": "x"}]}, "n")))
     with pytest.raises(sb.StoryboardError):
         sb.validate(_wrap(sb.new_scene(1, "timeline", {"events": []}, "n")))
+
+def _ai_slide():
+    s = sb.new_slide(1, None); s["image"] = None
+    s["image_prompt"] = "a generic rocket"; s["image_tag"] = "broll"; s["fit"] = "cover"
+    s["narration"] = "n"
+    return s
+
+def test_validate_ai_slide_prompt_no_image_ok():
+    sb.validate({"meta": {"image_source": "openai"}, "slides": [_ai_slide()]})
+
+def test_validate_slide_needs_image_or_prompt():
+    bad = sb.new_slide(1, None); bad["image"] = None  # no image, no prompt
+    with pytest.raises(sb.StoryboardError):
+        sb.validate({"meta": {}, "slides": [bad]})
+
+def test_validate_bad_image_enums():
+    for field, val in [("image_tag", "weird"), ("fit", "stretch")]:
+        s = _ai_slide(); s[field] = val
+        with pytest.raises(sb.StoryboardError):
+            sb.validate({"meta": {"image_source": "openai"}, "slides": [s]})
+    with pytest.raises(sb.StoryboardError):
+        sb.validate({"meta": {"image_source": "satellite"}, "slides": [_ai_slide()]})
+    with pytest.raises(sb.StoryboardError):
+        sb.validate({"meta": {"image_source": "openai", "image_quality": "ultra"}, "slides": [_ai_slide()]})
+
+def test_validate_plain_slide_still_ok():
+    sb.validate({"meta": {}, "slides": [sb.new_slide(1, "frames/01.png")]})
