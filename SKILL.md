@@ -138,6 +138,18 @@ TTS if the user gives an API key.
   if a glyph still tofus, set `meta.font` to a `.ttc`/`.ttf` that covers the script. Confirm
   the captions look right on the rendered **sample** (step 8) — that's where mojibake shows.
 
+## Imagery faithfulness (AI / b-roll)
+Every on-screen visual is one of three classes; the critic (R1e) enforces them:
+- **`motif`** — a generic programmatic vector. Always allowed; asserts no fact.
+- **`broll`** — a generic illustrative image, including an AI-generated one (`image_prompt`).
+  Allowed ONLY as generic/atmospheric backdrop — no real logos, faces, named vehicles, or
+  in-image text, and it must not sit as "evidence" beside a specific factual claim.
+- **`asserted`** — imagery standing in for a specific named vehicle/mission/person/event/figure.
+  For an AI image this is FABRICATION (the model invents it) and is NOT allowed.
+DATA always stays in faithful `chart` scenes — never render numbers/figures as an AI image.
+The full-AI escape hatch (`image_source:"openai"` with data as AI) is the user's call, but the
+critic flags every data-bearing AI scene.
+
 ## When a step fails (if → then → still-failing)
 
 | Trigger | First fix | If it still fails |
