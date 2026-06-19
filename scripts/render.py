@@ -259,7 +259,7 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
     payload = json.dumps({
         "s": {k: slide.get(k) for k in
               ("image", "audio", "duration", "motion", "narration", "captions", "callouts",
-               "type", "props")},
+               "type", "props", "fit")},
         "r": [W, H, meta.get("fps", 30), ss, burn, vertical,
               meta.get("language", "auto"), meta.get("font")],
         "img": stat(slide.get("image")), "aud": stat(slide.get("audio")),

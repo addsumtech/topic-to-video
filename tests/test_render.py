@@ -122,6 +122,15 @@ def test_fingerprint_includes_type_and_props():
     c = fp({**base, "type": "chart", "props": {"kind": "bars", "data": [{"label":"x","value":1}]}})
     assert a != b and a != c and a == fp(dict(base))  # stable for identical input
 
+def test_fingerprint_includes_fit():
+    meta = {"_out": "/tmp", "fps": 30}
+    base = {"index": 1, "image": "frames/01.png", "audio": None, "duration": 3.0,
+            "motion": {}, "narration": "n", "captions": [], "callouts": [],
+            "type": "slide", "props": None, "fit": "contain"}
+    fp = lambda s: render._fingerprint(s, meta, 1920, 1080, 2, True, False)
+    assert fp(base) != fp({**base, "fit": "cover"})   # changing fit re-renders
+    assert fp(base) == fp(dict(base))                 # stable otherwise
+
 @pytest.mark.skipif(not _common.have_tool("ffmpeg") or not _common.have_tool("say"),
                     reason="needs ffmpeg + say")
 def test_title_scene_renders_and_concats_with_slide(tmp_path, fixtures_dir, monkeypatch):
