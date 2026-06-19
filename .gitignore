@@ -3,3 +3,7 @@ __pycache__/
 .out/
 tests/fixtures/deck.*
 tests/fixtures/images/
+
+# per-project render caches (generated; never commit)
+.assets/
+.clips/
