@@ -47,9 +47,11 @@ TTS if the user gives an API key.
    from `references/tts-voices.md`) by default, with macOS `say` as the offline fallback, or
    cloud TTS if they give a key; captions on/off; aspect (16:9 default / 9:16);
    target pace (a seconds-per-slide ceiling); **image source** — **Free** (programmatic animation / slides, the default) vs **gpt-image**
-   (OpenAI `gpt-image-2`, **paid**, needs `OPENAI_API_KEY`). If gpt-image: ask for the key (env
-   or paste), and ask a **style** (photoreal · cinematic · editorial illustration · 3D render ·
-   watercolor · blueprint/diagram · minimal flat · or free-text) + a **focus** (subject emphasis).
+   (OpenAI `gpt-image-2`, **paid**, needs `OPENAI_API_KEY`). If gpt-image: ask for the key
+   **fresh, each run** (env var or pasted — never reuse a stored one; if pasted, warn it lands
+   in the transcript and tell them to rotate it afterward), and ask a **style** (photoreal ·
+   cinematic · editorial illustration · 3D render · watercolor · blueprint/diagram · minimal
+   flat · or free-text) + a **focus** (subject emphasis).
    Set `meta.image_source`/`image_style`/`image_quality`(default medium)/`image_size`(default
    1536x1024). Default stays Free — AI imagery is opt-in and costs money. If the user has no material, tell them you'll
    web-research the topic to ground the script instead.
@@ -85,6 +87,9 @@ TTS if the user gives an API key.
     VISUAL/conceptual scene, author a grounded `image_prompt` from the narration + the chosen
     style, tagged `image_tag:"broll"` and `fit:"cover"`; keep DATA in `chart` scenes (never AI).
     Generic/atmospheric prompts only — no real logos, faces, named vehicles, or text in-image.
+    **Pace the cuts:** a static AI image drags even with Ken Burns — keep each image scene's
+    narration short so it holds only ~5–8s, and prefer MORE, SHORTER b-roll cuts over a few
+    long holds (a 12s hold on one frame reads as sluggish; two 6s cuts feel alive).
     The critic (step 5, R1e) reviews the prompts.
     🔴 **CHECKPOINT · 🛑 STOP:** present every prompt + the estimated cost
     (`imagegen.cost_estimate(n, quality)`) and get sign-off BEFORE spending. Then run
@@ -131,6 +136,14 @@ TTS if the user gives an API key.
   `edge:<id>` (e.g. `edge:en-GB-SoniaNeural`), `say:<voice>`, or `openai:<voice>`.
 - `meta.image_source` is `none` (default, free) or `openai` (gpt-image-2, paid). AI images are
   generated once by `imagegen.py` and CACHED under `.assets/` — re-renders are free + offline.
+- **API key — never persist it.** Request the OpenAI key fresh each run and pass it ONLY as
+  `OPENAI_API_KEY` (env) or `imagegen.py --key` for that one call. NEVER write it into
+  `storyboard.json`, any script, the `.assets/` manifest, a log, or any committed file —
+  `imagegen.py` keeps it only in the request header, nowhere on disk. If the user pasted a key
+  into the chat, remind them to rotate it (the transcript retains it).
+- **Pacing — keep cuts moving.** Don't let one frame linger: aim for roughly ≤8s per scene,
+  especially image/b-roll (a held static image reads as sluggish even with Ken Burns). If a
+  scene's narration runs long, split it into shorter beats/cuts rather than holding one frame.
 - **Language is set once, in `meta.language`** — write the narration in that language, and
   let `meta.voice` match it. tts.py auto-picks a matching `say` voice when the language is
   non-English and you left the default (see `references/tts-voices.md` for the per-language
@@ -182,3 +195,8 @@ For anything else, read `references/troubleshooting.md` before guessing.
 - ❌ Guess a slide's `duration` — it must come from ffprobe via `tts.py`.
 - ❌ Hand-edit `out.mp4`; change `storyboard.json` and re-render (`--only N`).
 - ❌ Add callouts/emphasis boxes by default — they're OFF unless the user asks; never stack them.
+- ❌ Write the OpenAI API key into the storyboard, a script, the manifest, or any persisted/
+  committed file — request it fresh each run, pass it only via `OPENAI_API_KEY`/`--key`, and
+  remind the user to rotate a key they pasted into the chat.
+- ❌ Let a single static frame linger (one long held image reads as sluggish) — keep cuts
+  moving (~≤8s/scene), splitting a long scene into shorter beats rather than over-holding.
