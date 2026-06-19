@@ -85,6 +85,32 @@ def test_caption_chunks_latin_unchanged():
     assert len(chunks) >= 2
     assert chunks[0] == "Hello world."
 
+def test_fit_frame_cover_fills_no_letterbox(tmp_path):
+    from PIL import Image
+    src = str(tmp_path / "s.png"); dst = str(tmp_path / "d.png")
+    Image.new("RGB", (100, 100), (200, 80, 20)).save(src)   # square, non-black
+    render._fit_frame(src, dst, 200, 100, fit="cover")       # target 2:1
+    im = Image.open(dst).convert("RGB")
+    assert im.size == (200, 100)
+    # left & right edge columns are image content (no black letterbox bars)
+    assert im.getpixel((0, 50)) != (0, 0, 0) and im.getpixel((199, 50)) != (0, 0, 0)
+
+def test_fit_frame_contain_unchanged(tmp_path):
+    from PIL import Image
+    src = str(tmp_path / "s.png"); dst = str(tmp_path / "d.png")
+    Image.new("RGB", (100, 100), (200, 80, 20)).save(src)
+    render._fit_frame(src, dst, 200, 100)                    # default contain
+    im = Image.open(dst).convert("RGB")
+    assert im.size == (200, 100)
+    assert im.getpixel((0, 50)) == (0, 0, 0)                 # letterbox bar present
+
+def test_render_slide_ungenerated_ai_image_raises(tmp_path):
+    s = sb.new_slide(1, None); s["image"] = None; s["image_prompt"] = "x"
+    s["audio"] = "audio/01.aiff"; s["duration"] = 2.0
+    meta = {"_out": str(tmp_path), "fps": 30}
+    with pytest.raises(sb.StoryboardError):
+        render._render_slide(s, meta, 1920, 1080, str(tmp_path / "c.mp4"), False, str(tmp_path))
+
 def test_fingerprint_includes_type_and_props():
     meta = {"_out": "/tmp", "fps": 30}
     base = {"index": 1, "image": None, "audio": None, "duration": 3.0, "motion": {},
