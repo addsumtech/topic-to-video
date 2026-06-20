@@ -131,6 +131,17 @@ def test_fingerprint_includes_fit():
     assert fp(base) != fp({**base, "fit": "cover"})   # changing fit re-renders
     assert fp(base) == fp(dict(base))                 # stable otherwise
 
+def test_fingerprint_busts_on_html_page_edit(tmp_path):
+    pg = tmp_path / "pages"; pg.mkdir(); f = pg / "s.html"; f.write_text("a")
+    meta = {"_out": str(tmp_path), "fps": 30}
+    slide = {"index": 1, "type": "html", "props": {"html": "pages/s.html"},
+             "image": None, "audio": None, "duration": 3.0, "motion": {}, "narration": "n",
+             "captions": [], "callouts": [], "fit": "contain"}
+    fp = lambda: render._fingerprint(slide, meta, 1920, 1080, 2, True, False)
+    a = fp()
+    f.write_text("a much longer page body that changes the file size")   # edit the page
+    assert fp() != a                                                     # cache busts
+
 @pytest.mark.skipif(not _common.have_tool("ffmpeg") or not _common.have_tool("say"),
                     reason="needs ffmpeg + say")
 def test_title_scene_renders_and_concats_with_slide(tmp_path, fixtures_dir, monkeypatch):

@@ -263,6 +263,7 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
         "r": [W, H, meta.get("fps", 30), ss, burn, vertical,
               meta.get("language", "auto"), meta.get("font")],
         "img": stat(slide.get("image")), "aud": stat(slide.get("audio")),
+        "html": stat((slide.get("props") or {}).get("html")),
     }, sort_keys=True, default=str)
     return hashlib.sha1(payload.encode()).hexdigest()[:16]
 
