@@ -79,6 +79,14 @@ TTS if the user gives an API key.
      material or a verified source — never invent results, numbers, or citations the
      slide/paper doesn't support. A forward-looking aside is fine only if flagged as your
      own addition.
+3.5. **Content plan (director) — design the video as CONTENT before authoring.** Dispatch
+     `agents/content-planner.md` on the comprehension brief + material. It returns an ordered set
+     of **informative beats** — each with a learning point (traced to the material), the most
+     informative visual (`chart`/`compare`/`keypoints`/`timeline`/`title`, NOT decorative photos),
+     a narration intent, and a short `est_seconds`. Build the storyboard scenes from the plan
+     (**informative-first**); author the short per-beat narration in step 4.
+     🔴 **CHECKPOINT · 🛑 STOP:** show the content plan (arc + beats + chosen visuals) and get the
+     user's OK before authoring narration.
 4. **Author narration** — read `references/narration-writing.md`. Write spoken-style
    narration into each slide's `narration`, grounded in the comprehension brief (seed from
    `notes`/material; never bullet-recite). The on-screen **captions are auto-derived from
@@ -144,6 +152,14 @@ TTS if the user gives an API key.
 - **Pacing — keep cuts moving.** Don't let one frame linger: aim for roughly ≤8s per scene,
   especially image/b-roll (a held static image reads as sluggish even with Ken Burns). If a
   scene's narration runs long, split it into shorter beats/cuts rather than holding one frame.
+- **Informative-first visuals.** A beat that states a fact or concept uses an INFORMATIVE
+  visual — `chart`, `compare` (split/versus breakdown), `keypoints` (kinetic labeled points),
+  or `timeline` — never a decorative photoreal image. AI photoreal (`image_prompt`/`broll`) is
+  allowed ONLY as a rare atmospheric opener/closer, never as the carrier of a claim.
+- **Energetic pacing.** Prefer MANY short beats (~3–6s, one idea each; ≈ `video_seconds/4`
+  beats) over a few long holds; the animated renderers' internal reveals keep the screen moving.
+- **Audio↔visual.** Each narration line must MATCH what is on screen (its beat's visual) — the
+  critic (R2) fails a mismatch.
 - **Language is set once, in `meta.language`** — write the narration in that language, and
   let `meta.voice` match it. tts.py auto-picks a matching `say` voice when the language is
   non-English and you left the default (see `references/tts-voices.md` for the per-language

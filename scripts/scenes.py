@@ -77,6 +77,52 @@ def render_title(props, meta, W, H, frames, workdir, index):
     return _save_frames(draw, frames, workdir, index)
 
 
+def render_keypoints(props, meta, W, H, frames, workdir, index):
+    """Conceptual beat -> kinetic labeled points that reveal one-by-one. PURE; renders only props."""
+    title = props.get("title")
+    points = props.get("points", [])
+    accent = _hex_rgb(props.get("accent"))
+    fps = meta.get("fps", 30)
+    intro = max(1, int(0.5 * fps))                  # each row fades/slides in over ~0.5s
+    stagger = max(1, int(0.35 * fps))               # rows appear staggered
+    x = int(W * 0.10)
+    tfont = _font(meta, title or " ", int(H * 0.058))
+    lfont = _font(meta, "x", int(H * 0.050))
+    sfont = _font(meta, "x", int(H * 0.030))
+    top = int(H * 0.30) if title else int(H * 0.24)
+    row_h = int(H * 0.135)
+
+    def _prog(i, delay):
+        if frames <= 1:
+            return 1.0
+        return _ease((i - delay) / max(1, min(intro, frames - 1)))
+
+    def draw(i, n):
+        base = Image.new("RGBA", (W, H), BG + (255,))
+        layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        d = ImageDraw.Draw(layer)
+        if title:
+            a0 = int(255 * _prog(i, 0))
+            d.text((x, int(H * 0.15)), title, font=tfont, fill=FG + (a0,))
+        for k, pnt in enumerate(points):
+            p = _prog(i, (k + 1) * stagger)
+            if p <= 0:
+                continue
+            a = int(255 * p); dx = int((1 - p) * (W * 0.02))
+            y = top + k * row_h
+            mr = max(4, int(H * 0.018))
+            d.rectangle([x - dx, y + int(row_h * 0.18), x - dx + mr, y + int(row_h * 0.18) + mr * 3],
+                        fill=accent + (a,))
+            lx = x - dx + mr + int(W * 0.018)
+            d.text((lx, y), str(pnt.get("label", "")), font=lfont, fill=FG + (a,))
+            if pnt.get("sub"):
+                d.text((lx, y + int(row_h * 0.52)), str(pnt["sub"]), font=sfont,
+                       fill=(150, 160, 175, a))
+        return Image.alpha_composite(base, layer).convert("RGB")
+
+    return _save_frames(draw, frames, workdir, index)
+
+
 def _chart_values(values, p):
     e = _ease(p)
     out = []
@@ -175,6 +221,55 @@ def render_chart(props, meta, W, H, frames, workdir, index):
             ax.set_ylabel(props["y_label"], color="#c0c8d4", fontfamily=famly)
         fig.tight_layout()
         fig.canvas.draw()                       # Agg requires a draw before buffer_rgba()
+        img = Image.frombytes("RGBA", fig.canvas.get_width_height(),
+                              bytes(fig.canvas.buffer_rgba())).convert("RGB")
+        plt.close(fig)
+        return img.resize((W, H), Image.LANCZOS) if img.size != (W, H) else img
+
+    return _save_frames(draw, frames, workdir, index)
+
+
+def render_compare(props, meta, W, H, frames, workdir, index):
+    """Decomposition/contrast -> a labeled 'split' (100% stacked bar) or 'versus' (side-by-side).
+    PURE; values come straight from props (faithful)."""
+    kind = props.get("kind", "split")
+    parts = props.get("parts", [])
+    labels = [str(p.get("label", "")) for p in parts]
+    values = [p["value"] for p in parts]
+    title = props.get("title")
+    famly = _mpl_font(meta)
+    dpi = 100; figsize = (W / dpi, H / dpi)
+    palette = [props.get("accent", "#4C9BE8"), "#E8590C", "#46A758", "#9B7EDE", "#C0C8D4"]
+
+    def draw(i, n):
+        p = i / max(1, n - 1) if n > 1 else 1.0
+        e = _ease(p)
+        fig = plt.figure(figsize=figsize, dpi=dpi); fig.patch.set_facecolor("#0d1117")
+        ax = fig.add_subplot(111); ax.set_facecolor("#0d1117")
+        if title:
+            ax.set_title(title, color="white", fontsize=18, fontfamily=famly, pad=16)
+        if kind == "versus":
+            cur = _chart_values(values, p)
+            ax.bar(labels, cur, color=[palette[k % len(palette)] for k in range(len(parts))])
+            ax.set_ylim(0, (max(values + [0]) * 1.15 or 1))
+            for sp in ax.spines.values():
+                sp.set_color("#3a4150")
+            ax.tick_params(colors="#c0c8d4")
+            for t in ax.get_xticklabels():
+                t.set_fontfamily(famly)
+        else:  # split — one 100% stacked horizontal bar
+            ax.axis("off")
+            total = props.get("total") or sum(values) or 1
+            left = 0.0
+            for k, v in enumerate(values):
+                w = (v / total) * e
+                ax.barh([0], [w], left=[left], color=palette[k % len(palette)], height=0.5)
+                if w > 0.05:
+                    ax.text(left + w / 2, 0, f"{labels[k]}\n{v:g}", ha="center", va="center",
+                            color="white", fontsize=13, fontfamily=famly)
+                left += w
+            ax.set_xlim(0, 1); ax.set_ylim(-0.5, 0.5)
+        fig.tight_layout(); fig.canvas.draw()
         img = Image.frombytes("RGBA", fig.canvas.get_width_height(),
                               bytes(fig.canvas.buffer_rgba())).convert("RGB")
         plt.close(fig)

@@ -1,5 +1,6 @@
 import json, pytest
 import storyboard as sb
+import scenes  # dispatch-resolution check
 
 def _minimal():
     return {
@@ -106,3 +107,28 @@ def test_validate_bad_image_enums():
 
 def test_validate_plain_slide_still_ok():
     sb.validate({"meta": {}, "slides": [sb.new_slide(1, "frames/01.png")]})
+
+def test_validate_keypoints_ok_and_dispatchable():
+    d = {"meta": {}, "slides": [sb.new_scene(1, "keypoints",
+         {"title": "T", "points": [{"label": "a", "sub": "s"}, {"label": "b"}]}, "n")]}
+    sb.validate(d)
+    assert callable(getattr(scenes, "render_keypoints"))   # animated dispatch will resolve it
+
+def test_validate_keypoints_bad():
+    for bad in [{"points": []}, {"points": [{"sub": "no label"}]}, {"points": [{"label": ""}]},
+                {"points": [{"label": "x"}] * 6}]:
+        with pytest.raises(sb.StoryboardError):
+            sb.validate({"meta": {}, "slides": [sb.new_scene(1, "keypoints", bad, "n")]})
+
+def test_validate_compare_ok_and_dispatchable():
+    d = {"meta": {}, "slides": [sb.new_scene(1, "compare",
+         {"kind": "split", "parts": [{"label": "A", "value": 3}, {"label": "B", "value": 7}]}, "n")]}
+    sb.validate(d)
+    assert callable(getattr(scenes, "render_compare"))
+
+def test_validate_compare_bad():
+    for bad in [{"kind": "pie", "parts": [{"label": "A", "value": 1}, {"label": "B", "value": 2}]},
+                {"kind": "split", "parts": [{"label": "A", "value": 1}]},
+                {"kind": "split", "parts": [{"label": "A", "value": 1}, {"label": "B"}]}]:
+        with pytest.raises(sb.StoryboardError):
+            sb.validate({"meta": {}, "slides": [sb.new_scene(1, "compare", bad, "n")]})
