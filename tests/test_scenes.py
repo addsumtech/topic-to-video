@@ -169,3 +169,33 @@ def test_chrome_shot_no_chrome_raises(monkeypatch):
     monkeypatch.setattr(scenes, "_chrome_bin", lambda meta: None)
     with pytest.raises(RuntimeError):
         scenes._chrome_shot("file:///p.html", "/tmp/o.png", 1920, 1080, {})
+
+def _tiny_png(path):
+    Image.new("RGB", (4, 4), (10, 20, 30)).save(path)
+
+def test_render_html_frames_launch_count_and_p_ramp(tmp_path, monkeypatch):
+    out_dir = tmp_path / "proj"; (out_dir / "pages").mkdir(parents=True)
+    (out_dir / "pages" / "scene_03.html").write_text("<html></html>")
+    calls = []
+    def fake_shot(url, out_png, W, H, meta):
+        calls.append(url); _tiny_png(out_png)
+    monkeypatch.setattr(scenes, "_chrome_shot", fake_shot)
+    meta = {"_out": str(out_dir), "fps": 30}
+    pat = scenes.render_html({"html": "pages/scene_03.html", "anim_seconds": 0.2},
+                             meta, 1920, 1080, 12, str(tmp_path), 3)
+    files = sorted(f for f in os.listdir(tmp_path) if f.endswith(".png"))
+    assert len(files) == 12 and files[0] == "scene_03_0000.png" and "%04d" in pat
+    # anim 0.2s * 30fps = 6 reveal frames -> 6 Chrome launches; the other 6 frames are copies
+    assert len(calls) == 6
+    assert [c.split("?p=")[1] for c in calls] == ["0.0000","0.2000","0.4000","0.6000","0.8000","1.0000"]
+    assert calls[0].startswith("file://") and "scene_03.html" in calls[0]
+
+def test_render_html_single_frame_holds(tmp_path, monkeypatch):
+    out_dir = tmp_path / "proj"; (out_dir / "pages").mkdir(parents=True)
+    (out_dir / "pages" / "s.html").write_text("<html></html>")
+    calls = []
+    monkeypatch.setattr(scenes, "_chrome_shot",
+                        lambda url, out_png, W, H, meta: (calls.append(url), _tiny_png(out_png)))
+    pat = scenes.render_html({"html": "pages/s.html"}, {"_out": str(out_dir), "fps": 30},
+                             640, 360, 1, str(tmp_path), 1)
+    assert os.path.exists(pat % 0) and len(calls) == 1 and calls[0].endswith("?p=1.0000")

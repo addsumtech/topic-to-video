@@ -309,3 +309,24 @@ def render_compare(props, meta, W, H, frames, workdir, index):
         return img.resize((W, H), Image.LANCZOS) if img.size != (W, H) else img
 
     return _save_frames(draw, frames, workdir, index)
+
+
+def render_html(props, meta, W, H, frames, workdir, index):
+    """Render a designed HTML page (paused CSS reveals) into a frame sequence by screenshotting
+    it at progress p=0..1 via headless Chrome. Animate for anim_seconds, then hold the settle frame."""
+    src = os.path.join(meta["_out"], props["html"])
+    fps = meta.get("fps", 30)
+    anim = float(props.get("anim_seconds", 0.8))
+    reveal_frames = max(1, min(frames, int(round(anim * fps))))
+    pat = os.path.join(workdir, f"scene_{index:02d}_%04d.png")
+    settle = None
+    for i in range(frames):
+        out = pat % i
+        p = 1.0 if i >= reveal_frames - 1 else i / max(1, reveal_frames - 1)
+        if p >= 1.0 and settle is not None:
+            shutil.copyfile(settle, out)              # hold: reuse the settled screenshot
+            continue
+        _chrome_shot(f"file://{src}?p={p:.4f}", out, W, H, meta)
+        if p >= 1.0:
+            settle = out
+    return pat
