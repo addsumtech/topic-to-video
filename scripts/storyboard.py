@@ -5,8 +5,8 @@ class StoryboardError(ValueError):
     pass
 
 VALID_STYLES = {"highlight", "arrow", "box"}
-VALID_SCENE_TYPES = {"slide", "title", "chart", "timeline"}
-ANIMATED_TYPES = {"title", "chart", "timeline"}
+VALID_SCENE_TYPES = {"slide", "title", "chart", "timeline", "keypoints", "compare"}
+ANIMATED_TYPES = {"title", "chart", "timeline", "keypoints", "compare"}
 VALID_CHART_KINDS = {"bars", "line", "counter"}
 VALID_IMAGE_SOURCES = {"none", "openai"}
 VALID_IMAGE_TAGS = {"motif", "broll", "asserted"}
@@ -79,6 +79,22 @@ def _validate_props(s):
         for e in events:
             if not (isinstance(e, dict) and isinstance(e.get("date"), str) and isinstance(e.get("label"), str)):
                 raise StoryboardError(f"slide {s.get('index')}: every timeline event needs 'date' and 'label' strings")
+    elif t == "keypoints":
+        pts = p.get("points")
+        if not isinstance(pts, list) or not (1 <= len(pts) <= 5):
+            raise StoryboardError(f"slide {s.get('index')}: keypoints needs 1-5 'points'")
+        for it in pts:
+            if not (isinstance(it, dict) and isinstance(it.get("label"), str) and it["label"].strip()):
+                raise StoryboardError(f"slide {s.get('index')}: each keypoint needs a non-empty 'label' string")
+    elif t == "compare":
+        if p.get("kind") not in {"split", "versus"}:
+            raise StoryboardError(f"slide {s.get('index')}: compare 'kind' must be 'split' or 'versus'")
+        parts = p.get("parts")
+        if not isinstance(parts, list) or len(parts) < 2:
+            raise StoryboardError(f"slide {s.get('index')}: compare needs a 'parts' list of >=2 items")
+        for it in parts:
+            if not (isinstance(it, dict) and isinstance(it.get("label"), str) and _is_num(it.get("value"))):
+                raise StoryboardError(f"slide {s.get('index')}: each compare part needs a 'label' string + numeric 'value'")
 
 def validate(data):
     if "meta" not in data or "slides" not in data:
