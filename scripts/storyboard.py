@@ -5,8 +5,8 @@ class StoryboardError(ValueError):
     pass
 
 VALID_STYLES = {"highlight", "arrow", "box"}
-VALID_SCENE_TYPES = {"slide", "title", "chart", "timeline", "keypoints", "compare"}
-ANIMATED_TYPES = {"title", "chart", "timeline", "keypoints", "compare"}
+VALID_SCENE_TYPES = {"slide", "title", "chart", "timeline", "keypoints", "compare", "html"}
+ANIMATED_TYPES = {"title", "chart", "timeline", "keypoints", "compare", "html"}
 VALID_CHART_KINDS = {"bars", "line", "counter"}
 VALID_IMAGE_SOURCES = {"none", "openai"}
 VALID_IMAGE_TAGS = {"motif", "broll", "asserted"}
@@ -95,6 +95,11 @@ def _validate_props(s):
         for it in parts:
             if not (isinstance(it, dict) and isinstance(it.get("label"), str) and _is_num(it.get("value"))):
                 raise StoryboardError(f"slide {s.get('index')}: each compare part needs a 'label' string + numeric 'value'")
+    elif t == "html":
+        if not (isinstance(p.get("html"), str) and p["html"].strip()):
+            raise StoryboardError(f"slide {s.get('index')}: html scene needs a non-empty 'html' path")
+        if "anim_seconds" in p and not (_is_num(p["anim_seconds"]) and p["anim_seconds"] > 0):
+            raise StoryboardError(f"slide {s.get('index')}: html 'anim_seconds' must be a positive number")
 
 def validate(data):
     if "meta" not in data or "slides" not in data:
