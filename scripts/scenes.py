@@ -86,9 +86,12 @@ def render_keypoints(props, meta, W, H, frames, workdir, index):
     intro = max(1, int(0.5 * fps))                  # each row fades/slides in over ~0.5s
     stagger = max(1, int(0.35 * fps))               # rows appear staggered
     x = int(W * 0.10)
+    # Resolve fonts from the ACTUAL text that will be drawn (a Latin stand-in would tofu CJK).
+    lbl_sample = "".join(str(p.get("label", "")) for p in points) or "x"
+    sub_sample = "".join(str(p.get("sub", "")) for p in points) or "x"
     tfont = _font(meta, title or " ", int(H * 0.058))
-    lfont = _font(meta, "x", int(H * 0.050))
-    sfont = _font(meta, "x", int(H * 0.030))
+    lfont = _font(meta, lbl_sample, int(H * 0.050))
+    sfont = _font(meta, sub_sample, int(H * 0.030))
     top = int(H * 0.30) if title else int(H * 0.24)
     row_h = int(H * 0.135)
 

@@ -105,6 +105,18 @@ def test_keypoints_single_point_and_single_frame(tmp_path):
     last = Image.open(pat % 0).convert("RGB")
     assert last.getextrema() != ((0, 0), (0, 0), (0, 0))    # settled, non-blank
 
+def test_keypoints_cjk_labels_use_cjk_font_not_tofu(tmp_path):
+    # Regression: point labels/subs must resolve their font from the ACTUAL (CJK) label text,
+    # not a Latin stand-in — else CJK labels render as tofu boxes. Force the bundled Latin font
+    # (which tofus CJK) and assert the normal zh render differs (it drew real glyphs).
+    import render
+    a = tmp_path / "a"; b = tmp_path / "b"; a.mkdir(); b.mkdir()
+    props = {"points": [{"label": "政府客户", "sub": "军方"}]}
+    pat_ok = scenes.render_keypoints(props, META_ZH, 640, 360, 1, str(a), 1)
+    meta_latin = dict(META_ZH); meta_latin["font"] = render.BUNDLED_FONT
+    pat_tofu = scenes.render_keypoints(props, meta_latin, 640, 360, 1, str(b), 1)
+    assert _pix(pat_ok % 0) != _pix(pat_tofu % 0)          # CJK glyphs != tofu boxes
+
 def test_compare_split_writes_frames_and_nonblank(tmp_path):
     props = {"title": "2025 年的 165 次发射", "kind": "split", "total": 165,
              "parts": [{"label": "自用 Starlink", "value": 123, "note": "不可争夺"},
