@@ -80,3 +80,27 @@ def test_timeline_writes_frames_and_final_nonblank(tmp_path):
     from PIL import Image
     assert len([f for f in os.listdir(tmp_path) if f.endswith(".png")]) == 9
     assert Image.open(pat % 8).convert("RGB").getextrema() != ((0,0),(0,0),(0,0))
+
+def test_keypoints_writes_exact_frames_and_nonblank(tmp_path):
+    props = {"title": "市场可争夺的部分",
+             "points": [{"label": "对外发射 ≈ 42 次", "sub": "可被争夺"},
+                        {"label": "且多为政府 / 国安订单"}], "accent": "#4C9BE8"}
+    pat = scenes.render_keypoints(props, META_ZH, 1280, 720, 12, str(tmp_path), 4)
+    files = sorted(f for f in os.listdir(tmp_path) if f.endswith(".png"))
+    assert len(files) == 12 and files[0] == "scene_04_0000.png"
+    last = Image.open(pat % 11).convert("RGB")
+    assert last.size == (1280, 720)
+    assert last.getextrema() != ((0, 0), (0, 0), (0, 0))   # text drawn
+    assert "%04d" in pat
+
+def test_keypoints_deterministic(tmp_path):
+    a = tmp_path / "a"; b = tmp_path / "b"; a.mkdir(); b.mkdir()
+    props = {"points": [{"label": "One"}, {"label": "Two"}, {"label": "Three"}]}
+    pa = scenes.render_keypoints(props, META, 640, 360, 6, str(a), 1)
+    pb = scenes.render_keypoints(props, META, 640, 360, 6, str(b), 1)
+    assert all(_pix(pa % i) == _pix(pb % i) for i in range(6))
+
+def test_keypoints_single_point_and_single_frame(tmp_path):
+    pat = scenes.render_keypoints({"points": [{"label": "Solo"}]}, META, 640, 360, 1, str(tmp_path), 2)
+    last = Image.open(pat % 0).convert("RGB")
+    assert last.getextrema() != ((0, 0), (0, 0), (0, 0))    # settled, non-blank

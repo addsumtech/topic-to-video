@@ -77,6 +77,52 @@ def render_title(props, meta, W, H, frames, workdir, index):
     return _save_frames(draw, frames, workdir, index)
 
 
+def render_keypoints(props, meta, W, H, frames, workdir, index):
+    """Conceptual beat -> kinetic labeled points that reveal one-by-one. PURE; renders only props."""
+    title = props.get("title")
+    points = props.get("points", [])
+    accent = _hex_rgb(props.get("accent"))
+    fps = meta.get("fps", 30)
+    intro = max(1, int(0.5 * fps))                  # each row fades/slides in over ~0.5s
+    stagger = max(1, int(0.35 * fps))               # rows appear staggered
+    x = int(W * 0.10)
+    tfont = _font(meta, title or " ", int(H * 0.058))
+    lfont = _font(meta, "x", int(H * 0.050))
+    sfont = _font(meta, "x", int(H * 0.030))
+    top = int(H * 0.30) if title else int(H * 0.24)
+    row_h = int(H * 0.135)
+
+    def _prog(i, delay):
+        if frames <= 1:
+            return 1.0
+        return _ease((i - delay) / max(1, min(intro, frames - 1)))
+
+    def draw(i, n):
+        base = Image.new("RGBA", (W, H), BG + (255,))
+        layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        d = ImageDraw.Draw(layer)
+        if title:
+            a0 = int(255 * _prog(i, 0))
+            d.text((x, int(H * 0.15)), title, font=tfont, fill=FG + (a0,))
+        for k, pnt in enumerate(points):
+            p = _prog(i, (k + 1) * stagger)
+            if p <= 0:
+                continue
+            a = int(255 * p); dx = int((1 - p) * (W * 0.02))
+            y = top + k * row_h
+            mr = max(4, int(H * 0.018))
+            d.rectangle([x - dx, y + int(row_h * 0.18), x - dx + mr, y + int(row_h * 0.18) + mr * 3],
+                        fill=accent + (a,))
+            lx = x - dx + mr + int(W * 0.018)
+            d.text((lx, y), str(pnt.get("label", "")), font=lfont, fill=FG + (a,))
+            if pnt.get("sub"):
+                d.text((lx, y + int(row_h * 0.52)), str(pnt["sub"]), font=sfont,
+                       fill=(150, 160, 175, a))
+        return Image.alpha_composite(base, layer).convert("RGB")
+
+    return _save_frames(draw, frames, workdir, index)
+
+
 def _chart_values(values, p):
     e = _ease(p)
     out = []
