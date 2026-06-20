@@ -199,3 +199,25 @@ def test_render_html_single_frame_holds(tmp_path, monkeypatch):
     pat = scenes.render_html({"html": "pages/s.html"}, {"_out": str(out_dir), "fps": 30},
                              640, 360, 1, str(tmp_path), 1)
     assert os.path.exists(pat % 0) and len(calls) == 1 and calls[0].endswith("?p=1.0000")
+
+def _chrome_present():
+    return scenes._chrome_bin({}) is not None
+
+@pytest.mark.skipif(not _chrome_present(), reason="no Chrome for HTML-tier integration test")
+def test_base_css_page_renders_and_reveals(tmp_path):
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))   # skill root
+    css = os.path.join(skill, "assets", "html", "base.css")
+    js = os.path.join(skill, "assets", "html", "seek.js")
+    assert os.path.exists(css) and os.path.exists(js)
+    page = tmp_path / "p.html"
+    page.write_text(
+        '<!doctype html><html><head><meta charset="utf-8">'
+        f'<link rel="stylesheet" href="file://{css}"></head>'
+        '<body><div class="stage"><h1 class="title reveal-up">测试 42</h1></div>'
+        f'<script src="file://{js}"></script></body></html>')
+    a = tmp_path / "a.png"; b = tmp_path / "b.png"
+    scenes._chrome_shot(f"file://{page}?p=0", str(a), 960, 540, {})
+    scenes._chrome_shot(f"file://{page}?p=1", str(b), 960, 540, {})
+    ia = Image.open(a).convert("RGB"); ib = Image.open(b).convert("RGB")
+    assert ib.getextrema() != ((0, 0), (0, 0), (0, 0))     # settled page is non-blank
+    assert ia.tobytes() != ib.tobytes()                    # reveal animated (hidden at p=0)
