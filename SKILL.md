@@ -37,6 +37,9 @@ TTS if the user gives an API key.
   `chart`/`timeline` (matplotlib). A storyboard scene with `type` `title`/`chart`/`timeline`
   (+ a typed `props` block) renders an animation instead of a slide image; `type` defaults to
   `slide` (unchanged). Animated scenes render ONLY their `props` (faithful by construction).
+- **HTML pages tier** (optional, free): `scenes.py:render_html` screenshots bespoke designed
+  HTML pages (authored on `assets/html/base.css`, see `references/html-pages.md`) via headless
+  **Google Chrome** — no new dependency. Each page's paused CSS reveals are captured frame-by-frame.
 
 ## Workflow (follow in order)
 
@@ -53,7 +56,14 @@ TTS if the user gives an API key.
    cinematic · editorial illustration · 3D render · watercolor · blueprint/diagram · minimal
    flat · or free-text) + a **focus** (subject emphasis).
    Set `meta.image_source`/`image_style`/`image_quality`(default medium)/`image_size`(default
-   1536x1024). Default stays Free — AI imagery is opt-in and costs money. If the user has no material, tell them you'll
+   1536x1024). Default stays Free — AI imagery is opt-in and costs money.
+   A third visual mode is **HTML pages** — bespoke, designed pages (`type:"html"`) rendered by
+   headless Google Chrome (free, no dependency; needs Chrome installed). Choose it for a
+   "designed deck" look. The content-planner designs the beats; you author one
+   `pages/scene_NN.html` per beat on `assets/html/base.css` (faithful — real content only),
+   following `references/html-pages.md`. Set `meta.chrome_path` if Chrome isn't at the default
+   macOS location.
+   If the user has no material, tell them you'll
    web-research the topic to ground the script instead.
    - **Language**: default the narration to the **slides' own language** (detect it from the
      ingested text), but always confirm it as an option — users often want a video in a
@@ -144,6 +154,9 @@ TTS if the user gives an API key.
   `edge:<id>` (e.g. `edge:en-GB-SoniaNeural`), `say:<voice>`, or `openai:<voice>`.
 - `meta.image_source` is `none` (default, free) or `openai` (gpt-image-2, paid). AI images are
   generated once by `imagegen.py` and CACHED under `.assets/` — re-renders are free + offline.
+- **HTML pages tier:** `type:"html"` scenes render an authored page via headless Chrome
+  (`render_html`), captured as seekable CSS reveals. Pages render only real content (faithful);
+  the per-clip cache busts when the page file changes. Locate Chrome via `meta.chrome_path` if needed.
 - **API key — never persist it.** Request the OpenAI key fresh each run and pass it ONLY as
   `OPENAI_API_KEY` (env) or `imagegen.py --key` for that one call. NEVER write it into
   `storyboard.json`, any script, the `.assets/` manifest, a log, or any committed file —
@@ -198,6 +211,8 @@ critic flags every data-bearing AI scene.
 | A/V out of sync | Never guess timing — `duration` comes from ffprobe; re-run `tts.py --only N` | Re-render that slide with `--only N` |
 | Slide "shivers"/jitters during the zoom | zoompan runs supersampled (`meta.motion_ss`, default 2) then downscales; a `scale` filter must precede zoompan or the frame shrinks. Keep ss≥2 | Raise `motion_ss` to 3 (smoother, slower) |
 | Caption is one static line per slide | Captions auto-derive from `narration` — split into sentence chunks timed across the slide; a single full-span entry in `captions` is overridden by the narration track | For custom timing, supply a multi-segment `captions` array |
+| `render.py`: no Chrome for an `html` scene | `render_html` errors clearly; set `meta.chrome_path`, or switch those scenes to the free programmatic tier (title/chart/keypoints/compare) | Install Google Chrome, then re-render |
+| `html` page renders blank / unstyled | Confirm the page links `assets/html/base.css` + `seek.js` by ABSOLUTE `file://` path; no external/network assets | Open the page in a browser to debug, then re-render (the cache busts on edit) |
 
 For anything else, read `references/troubleshooting.md` before guessing.
 
