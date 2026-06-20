@@ -227,3 +227,52 @@ def render_chart(props, meta, W, H, frames, workdir, index):
         return img.resize((W, H), Image.LANCZOS) if img.size != (W, H) else img
 
     return _save_frames(draw, frames, workdir, index)
+
+
+def render_compare(props, meta, W, H, frames, workdir, index):
+    """Decomposition/contrast -> a labeled 'split' (100% stacked bar) or 'versus' (side-by-side).
+    PURE; values come straight from props (faithful)."""
+    kind = props.get("kind", "split")
+    parts = props.get("parts", [])
+    labels = [str(p.get("label", "")) for p in parts]
+    values = [p["value"] for p in parts]
+    title = props.get("title")
+    famly = _mpl_font(meta)
+    dpi = 100; figsize = (W / dpi, H / dpi)
+    palette = [props.get("accent", "#4C9BE8"), "#E8590C", "#46A758", "#9B7EDE", "#C0C8D4"]
+
+    def draw(i, n):
+        p = i / max(1, n - 1) if n > 1 else 1.0
+        e = _ease(p)
+        fig = plt.figure(figsize=figsize, dpi=dpi); fig.patch.set_facecolor("#0d1117")
+        ax = fig.add_subplot(111); ax.set_facecolor("#0d1117")
+        if title:
+            ax.set_title(title, color="white", fontsize=18, fontfamily=famly, pad=16)
+        if kind == "versus":
+            cur = _chart_values(values, p)
+            ax.bar(labels, cur, color=[palette[k % len(palette)] for k in range(len(parts))])
+            ax.set_ylim(0, (max(values + [0]) * 1.15 or 1))
+            for sp in ax.spines.values():
+                sp.set_color("#3a4150")
+            ax.tick_params(colors="#c0c8d4")
+            for t in ax.get_xticklabels():
+                t.set_fontfamily(famly)
+        else:  # split — one 100% stacked horizontal bar
+            ax.axis("off")
+            total = props.get("total") or sum(values) or 1
+            left = 0.0
+            for k, v in enumerate(values):
+                w = (v / total) * e
+                ax.barh([0], [w], left=[left], color=palette[k % len(palette)], height=0.5)
+                if w > 0.05:
+                    ax.text(left + w / 2, 0, f"{labels[k]}\n{v:g}", ha="center", va="center",
+                            color="white", fontsize=13, fontfamily=famly)
+                left += w
+            ax.set_xlim(0, 1); ax.set_ylim(-0.5, 0.5)
+        fig.tight_layout(); fig.canvas.draw()
+        img = Image.frombytes("RGBA", fig.canvas.get_width_height(),
+                              bytes(fig.canvas.buffer_rgba())).convert("RGB")
+        plt.close(fig)
+        return img.resize((W, H), Image.LANCZOS) if img.size != (W, H) else img
+
+    return _save_frames(draw, frames, workdir, index)
