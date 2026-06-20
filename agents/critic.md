@@ -92,7 +92,7 @@ IS the `props` (there is no slide image). Check it the same way you check narrat
   false-flag those in Phase 0/1. Focus on whether the numbers/labels/events are the RIGHT ones.
 - Form is free: motion, color, layout, easing, the title's accent — never fail on those.
 - This applies from `props` alone (no render needed) AND, when sample frames are given, on
-  the rendered animation (see R6's animated-scene clause).
+  the rendered animation (see R7's animated-scene clause).
 
 ### R1e — Imagery faithfulness (motifs / AI b-roll)
 A scene may carry an `image_prompt` (AI-generated image, `image_tag` one of motif/broll/asserted)
