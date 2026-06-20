@@ -2,6 +2,8 @@
 Each renderer is a PURE function of the frame index; no randomness, no wall-clock.
 Frames are namespaced by scene index because the full render shares one workdir."""
 import os
+import shutil
+import subprocess
 from PIL import Image, ImageDraw, ImageFont
 import render  # reuse the CJK-aware font resolver
 import matplotlib
@@ -11,6 +13,34 @@ from matplotlib import font_manager
 
 BG = (13, 17, 23)        # near-black, matches the caption aesthetic
 FG = (255, 255, 255)
+
+_CHROME_CANDIDATES = [
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+]
+
+def _chrome_bin(meta):
+    """Locate a Chrome/Chromium binary: meta.chrome_path, the macOS app, or PATH. None if absent."""
+    c = (meta or {}).get("chrome_path")
+    if c and os.path.exists(c):
+        return c
+    for p in _CHROME_CANDIDATES:
+        if os.path.exists(p):
+            return p
+    for n in ("google-chrome", "chromium", "chromium-browser", "chrome"):
+        w = shutil.which(n)
+        if w:
+            return w
+    return None
+
+def _chrome_shot(url, out_png, W, H, meta):
+    """Screenshot an HTML url to out_png via headless Chrome. Raises if no Chrome is found."""
+    chrome = _chrome_bin(meta)
+    if not chrome:
+        raise RuntimeError("no Chrome/Chromium for the HTML tier — install Chrome or set meta.chrome_path")
+    subprocess.run([chrome, "--headless", "--disable-gpu", "--hide-scrollbars", "--no-sandbox",
+                    f"--window-size={W},{H}", f"--screenshot={out_png}", url],
+                   check=True, capture_output=True, timeout=60)
 
 def _ease(p):
     """Smoothstep, clamped to [0,1]."""

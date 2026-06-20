@@ -1,4 +1,5 @@
 import os
+import pytest
 from PIL import Image
 import scenes
 
@@ -139,3 +140,32 @@ def test_compare_deterministic(tmp_path):
     pa = scenes.render_compare(props, META, 640, 360, 5, str(a), 1)
     pb = scenes.render_compare(props, META, 640, 360, 5, str(b), 1)
     assert all(_pix(pa % i) == _pix(pb % i) for i in range(5))
+
+def test_chrome_bin_honors_meta_path(tmp_path):
+    fake = tmp_path / "chrome"; fake.write_text("x")
+    assert scenes._chrome_bin({"chrome_path": str(fake)}) == str(fake)
+
+def test_chrome_bin_none_when_absent(monkeypatch):
+    monkeypatch.setattr(scenes, "_CHROME_CANDIDATES", [])
+    monkeypatch.setattr(scenes.shutil, "which", lambda n: None)
+    assert scenes._chrome_bin({}) is None
+
+def test_chrome_shot_builds_command(tmp_path, monkeypatch):
+    fake = tmp_path / "chrome"; fake.write_text("x")
+    cap = {}
+    def fake_run(cmd, **kw):
+        cap["cmd"] = cmd; cap["kw"] = kw
+    monkeypatch.setattr(scenes.subprocess, "run", fake_run)
+    scenes._chrome_shot("file:///p.html?p=0.5", str(tmp_path / "o.png"), 1920, 1080,
+                        {"chrome_path": str(fake)})
+    cmd = cap["cmd"]
+    assert cmd[0] == str(fake)
+    assert "--headless" in cmd and "--window-size=1920,1080" in cmd
+    assert f"--screenshot={tmp_path / 'o.png'}" in cmd
+    assert cmd[-1] == "file:///p.html?p=0.5"
+    assert cap["kw"].get("check") is True and cap["kw"].get("timeout") == 60
+
+def test_chrome_shot_no_chrome_raises(monkeypatch):
+    monkeypatch.setattr(scenes, "_chrome_bin", lambda meta: None)
+    with pytest.raises(RuntimeError):
+        scenes._chrome_shot("file:///p.html", "/tmp/o.png", 1920, 1080, {})
