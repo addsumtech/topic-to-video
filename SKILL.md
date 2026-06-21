@@ -82,7 +82,10 @@ TTS if the user gives an API key.
      one-sentence message, the key contributions, the method essence, and — per slide —
      what it is *really* showing and the point to land. Narrate from this brief.
    - **No material** → `WebSearch`/`WebFetch` the topic to ground and enrich: confirm the
-     facts, numbers, names and framing the slides imply, and fold in current context. Treat
+     facts, numbers, names and framing the slides imply, and fold in current context.
+     **Research the LATEST, up to today** — put the current year / "latest" in your queries,
+     prefer the most recent sources, and verify every figure is current *as of today's date*
+     (not a stale older number); for a time-sensitive fact, note its as-of date. Treat
      it as a **fact-check**, not flavour — with no source, you are the only thing standing
      between a confident-sounding wrong claim and the viewer.
    - **Either way, stay faithful:** every claim and number in the narration must trace to the
