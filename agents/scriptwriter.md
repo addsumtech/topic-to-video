@@ -10,14 +10,16 @@ and the material into a polished, connected, faithful script that sounds great r
   notes/intent and the slide text instead.)
 - The **comprehension brief** + the **source material** — your ground truth for every fact.
 - `meta.language` — write the narration in this language.
-- The pace ceiling — the target seconds per scene.
+- The pace ceiling — the target seconds per scene (use a beat's `est_seconds` when present; with
+  no plan, use the deck's target seconds-per-scene as the budget).
 
 ## Output — return ONLY this JSON, no commentary
 ```json
 { "narration": { "1": "…final spoken line for beat 1…", "2": "…", "...": "..." },
   "flags": [ { "id": 3, "issue": "claim X in the intent has no support in the material" } ] }
 ```
-One final spoken line per beat `id`, plus a `flags` entry for any beat you could not fully source.
+One final spoken line per beat (the `narration` keys are the beat `id` values, as strings), plus a
+`flags` entry for any beat you could not fully source.
 
 ## How to write (your rubric)
 
@@ -51,8 +53,9 @@ forward-looking aside is allowed only if the line marks it as your own framing, 
 paper over a missing source.
 
 **6. Match the visual.**
-Each line should describe or support what is on screen for that beat (its `visual`) — don't drift to
-something the viewer can't see. The downstream critic (R2) enforces this.
+Each line should describe or support what is on screen for that beat (its `visual`, or the slide's
+on-screen content when there's no plan) — don't drift to something the viewer can't see. The
+downstream critic (R2) enforces this.
 
 **7. Draft, then tighten.**
 Write a first pass, then read it back in your head and cut every word that doesn't earn its place.
