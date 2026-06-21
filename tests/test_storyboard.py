@@ -132,3 +132,14 @@ def test_validate_compare_bad():
                 {"kind": "split", "parts": [{"label": "A", "value": 1}, {"label": "B"}]}]:
         with pytest.raises(sb.StoryboardError):
             sb.validate({"meta": {}, "slides": [sb.new_scene(1, "compare", bad, "n")]})
+
+def test_validate_html_ok_and_dispatchable():
+    d = {"meta": {}, "slides": [sb.new_scene(1, "html", {"html": "pages/s.html", "anim_seconds": 0.8}, "n")]}
+    sb.validate(d)
+    assert callable(getattr(scenes, "render_html"))
+
+def test_validate_html_bad():
+    for bad in [{}, {"html": ""}, {"html": "   "},
+                {"html": "p.html", "anim_seconds": 0}, {"html": "p.html", "anim_seconds": -1}]:
+        with pytest.raises(sb.StoryboardError):
+            sb.validate({"meta": {}, "slides": [sb.new_scene(1, "html", bad, "n")]})

@@ -1,0 +1,32 @@
+/* slides-to-video — HTML page design system (huashu-aligned, anti-AI-slop).
+   Dark stage, CJK-first serif, accent palette, seekable reveals. Authored pages link this. */
+:root{
+  --bg:#0d1117; --panel:#161b22; --fg:#f0f3f8; --muted:#8b97a8;
+  --blue:#4C9BE8; --orange:#E8590C; --green:#46A758; --dur:.7s;
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--fg);
+  font-family:"PingFang SC","Hiragino Sans GB","Songti SC","Source Han Serif SC",
+              -apple-system,Georgia,"Times New Roman",serif;
+  overflow:hidden;text-wrap:pretty;-webkit-font-smoothing:antialiased}
+.stage{width:1920px;height:1080px;padding:120px 150px;display:flex;flex-direction:column;
+  justify-content:center;gap:36px}
+.kicker{color:var(--orange);font-size:30px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
+.rule{height:6px;width:140px;background:var(--orange);border-radius:3px}
+.title{font-size:104px;font-weight:800;line-height:1.08;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:42px;line-height:1.4}
+.stat{font-size:240px;font-weight:800;color:var(--blue);line-height:.95;letter-spacing:-.02em}
+.unit{font-size:64px;color:var(--muted);font-weight:600}
+.grid{display:grid;gap:40px}
+.row{display:flex;align-items:baseline;gap:28px;font-size:52px}
+.dot{width:22px;height:22px;border-radius:50%;background:var(--blue);flex:none;align-self:center}
+.label{font-size:54px;font-weight:700}
+.note{color:var(--muted);font-size:34px}
+.bar{height:90px;border-radius:10px;display:flex;align-items:center;padding:0 28px;color:#fff;font-size:40px;font-weight:700}
+/* seekable reveals — paused so render_html/seek.js can freeze them at any progress p.
+   Stagger by adding an inline positive animation-delay (e.g. style="animation-delay:.18s"). */
+.reveal{opacity:0;animation:fade var(--dur) ease forwards;animation-play-state:paused}
+.reveal-up{opacity:0;transform:translateY(48px);
+  animation:rise var(--dur) cubic-bezier(.22,1,.36,1) forwards;animation-play-state:paused}
+@keyframes fade{to{opacity:1}}
+@keyframes rise{to{opacity:1;transform:none}}

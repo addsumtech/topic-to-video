@@ -1,4 +1,5 @@
 import os
+import pytest
 from PIL import Image
 import scenes
 
@@ -139,3 +140,84 @@ def test_compare_deterministic(tmp_path):
     pa = scenes.render_compare(props, META, 640, 360, 5, str(a), 1)
     pb = scenes.render_compare(props, META, 640, 360, 5, str(b), 1)
     assert all(_pix(pa % i) == _pix(pb % i) for i in range(5))
+
+def test_chrome_bin_honors_meta_path(tmp_path):
+    fake = tmp_path / "chrome"; fake.write_text("x")
+    assert scenes._chrome_bin({"chrome_path": str(fake)}) == str(fake)
+
+def test_chrome_bin_none_when_absent(monkeypatch):
+    monkeypatch.setattr(scenes, "_CHROME_CANDIDATES", [])
+    monkeypatch.setattr(scenes.shutil, "which", lambda n: None)
+    assert scenes._chrome_bin({}) is None
+
+def test_chrome_shot_builds_command(tmp_path, monkeypatch):
+    fake = tmp_path / "chrome"; fake.write_text("x")
+    cap = {}
+    def fake_run(cmd, **kw):
+        cap["cmd"] = cmd; cap["kw"] = kw
+    monkeypatch.setattr(scenes.subprocess, "run", fake_run)
+    scenes._chrome_shot("file:///p.html?p=0.5", str(tmp_path / "o.png"), 1920, 1080,
+                        {"chrome_path": str(fake)})
+    cmd = cap["cmd"]
+    assert cmd[0] == str(fake)
+    assert "--headless" in cmd and "--window-size=1920,1080" in cmd
+    assert f"--screenshot={tmp_path / 'o.png'}" in cmd
+    assert cmd[-1] == "file:///p.html?p=0.5"
+    assert cap["kw"].get("check") is True and cap["kw"].get("timeout") == 60
+
+def test_chrome_shot_no_chrome_raises(monkeypatch):
+    monkeypatch.setattr(scenes, "_chrome_bin", lambda meta: None)
+    with pytest.raises(RuntimeError):
+        scenes._chrome_shot("file:///p.html", "/tmp/o.png", 1920, 1080, {})
+
+def _tiny_png(path):
+    Image.new("RGB", (4, 4), (10, 20, 30)).save(path)
+
+def test_render_html_frames_launch_count_and_p_ramp(tmp_path, monkeypatch):
+    out_dir = tmp_path / "proj"; (out_dir / "pages").mkdir(parents=True)
+    (out_dir / "pages" / "scene_03.html").write_text("<html></html>")
+    calls = []
+    def fake_shot(url, out_png, W, H, meta):
+        calls.append(url); _tiny_png(out_png)
+    monkeypatch.setattr(scenes, "_chrome_shot", fake_shot)
+    meta = {"_out": str(out_dir), "fps": 30}
+    pat = scenes.render_html({"html": "pages/scene_03.html", "anim_seconds": 0.2},
+                             meta, 1920, 1080, 12, str(tmp_path), 3)
+    files = sorted(f for f in os.listdir(tmp_path) if f.endswith(".png"))
+    assert len(files) == 12 and files[0] == "scene_03_0000.png" and "%04d" in pat
+    # anim 0.2s * 30fps = 6 reveal frames -> 6 Chrome launches; the other 6 frames are copies
+    assert len(calls) == 6
+    assert [c.split("?p=")[1] for c in calls] == ["0.0000","0.2000","0.4000","0.6000","0.8000","1.0000"]
+    assert calls[0].startswith("file://") and "scene_03.html" in calls[0]
+
+def test_render_html_single_frame_holds(tmp_path, monkeypatch):
+    out_dir = tmp_path / "proj"; (out_dir / "pages").mkdir(parents=True)
+    (out_dir / "pages" / "s.html").write_text("<html></html>")
+    calls = []
+    monkeypatch.setattr(scenes, "_chrome_shot",
+                        lambda url, out_png, W, H, meta: (calls.append(url), _tiny_png(out_png)))
+    pat = scenes.render_html({"html": "pages/s.html"}, {"_out": str(out_dir), "fps": 30},
+                             640, 360, 1, str(tmp_path), 1)
+    assert os.path.exists(pat % 0) and len(calls) == 1 and calls[0].endswith("?p=1.0000")
+
+def _chrome_present():
+    return scenes._chrome_bin({}) is not None
+
+@pytest.mark.skipif(not _chrome_present(), reason="no Chrome for HTML-tier integration test")
+def test_base_css_page_renders_and_reveals(tmp_path):
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))   # skill root
+    css = os.path.join(skill, "assets", "html", "base.css")
+    js = os.path.join(skill, "assets", "html", "seek.js")
+    assert os.path.exists(css) and os.path.exists(js)
+    page = tmp_path / "p.html"
+    page.write_text(
+        '<!doctype html><html><head><meta charset="utf-8">'
+        f'<link rel="stylesheet" href="file://{css}"></head>'
+        '<body><div class="stage"><h1 class="title reveal-up">测试 42</h1></div>'
+        f'<script src="file://{js}"></script></body></html>')
+    a = tmp_path / "a.png"; b = tmp_path / "b.png"
+    scenes._chrome_shot(f"file://{page}?p=0", str(a), 960, 540, {})
+    scenes._chrome_shot(f"file://{page}?p=1", str(b), 960, 540, {})
+    ia = Image.open(a).convert("RGB"); ib = Image.open(b).convert("RGB")
+    assert ib.getextrema() != ((0, 0), (0, 0), (0, 0))     # settled page is non-blank
+    assert ia.tobytes() != ib.tobytes()                    # reveal animated (hidden at p=0)
