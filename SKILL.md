@@ -97,10 +97,14 @@ TTS if the user gives an API key.
      (**informative-first**); author the short per-beat narration in step 4.
      🔴 **CHECKPOINT · 🛑 STOP:** show the content plan (arc + beats + chosen visuals) and get the
      user's OK before authoring narration.
-4. **Author narration** — read `references/narration-writing.md`. Write spoken-style
-   narration into each slide's `narration`, grounded in the comprehension brief (seed from
-   `notes`/material; never bullet-recite). The on-screen **captions are auto-derived from
-   the narration**, so the words you write are also the subtitle.
+4. **Write the manuscript — dispatch `agents/scriptwriter.md` (the WRITE specialist).** Give it
+   the content plan (or, with no plan, the per-slide intent + slide text), the comprehension
+   brief + material, `meta.language`, and the pace ceiling. It returns the final spoken line per
+   beat (`{id → narration}`) + a `flags` list of any beat it could not source. Write those lines
+   into each scene's `narration`; **resolve every flag** (drop or repair the unsourced beat)
+   before proceeding. The scriptwriter follows `references/narration-writing.md` (the style
+   basis). The on-screen **captions are auto-derived from the narration**, so its words are also
+   the subtitle. (PLAN → **WRITE** → CHECK: planner designs, scriptwriter writes, critic checks.)
 4b. **Image prompts (gpt-image tier only).** If `meta.image_source == "openai"`: for each
     VISUAL/conceptual scene, author a grounded `image_prompt` from the narration + the chosen
     style, tagged `image_tag:"broll"` and `fit:"cover"`; keep DATA in `chart` scenes (never AI).
