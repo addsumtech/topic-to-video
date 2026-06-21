@@ -221,3 +221,26 @@ def test_base_css_page_renders_and_reveals(tmp_path):
     ia = Image.open(a).convert("RGB"); ib = Image.open(b).convert("RGB")
     assert ib.getextrema() != ((0, 0), (0, 0), (0, 0))     # settled page is non-blank
     assert ia.tobytes() != ib.tobytes()                    # reveal animated (hidden at p=0)
+
+def test_motifs_css_exists():
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
+    assert os.path.exists(os.path.join(skill, "assets", "html", "motifs.css"))
+
+@pytest.mark.skipif(not _chrome_present(), reason="no Chrome for HTML-tier integration test")
+def test_motif_page_renders_nonblank(tmp_path):
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
+    base = os.path.join(skill, "assets", "html", "base.css")
+    motifs = os.path.join(skill, "assets", "html", "motifs.css")
+    js = os.path.join(skill, "assets", "html", "seek.js")
+    page = tmp_path / "m.html"
+    page.write_text(
+        '<!doctype html><html><head><meta charset="utf-8">'
+        f'<link rel="stylesheet" href="file://{base}">'
+        f'<link rel="stylesheet" href="file://{motifs}"></head>'
+        '<body><div class="bg-stars"></div><div class="ghost">165</div>'
+        '<div class="bg-glow blue" style="width:400px;height:400px;top:-80px;right:-80px"></div>'
+        '<div class="stage"><h1 class="title reveal-up">测试 <span class="grad-text">42</span></h1></div>'
+        f'<script src="file://{js}"></script></body></html>')
+    out = tmp_path / "o.png"
+    scenes._chrome_shot(f"file://{page}?p=1", str(out), 960, 540, {})
+    assert Image.open(out).convert("RGB").getextrema() != ((0, 0), (0, 0), (0, 0))   # motifs render

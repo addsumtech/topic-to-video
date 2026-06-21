@@ -47,3 +47,39 @@ narration (R2 audio↔visual) and the facts (R1d/R1e).
   </div>
 </div>
 ```
+
+## Motifs & pictures (make pages fancier)
+
+Also link `assets/html/motifs.css` (after `base.css`). Motifs are **atmosphere behind real
+content** — they assert no fact, so they stay decorative; the real data is the text/bars.
+
+**CSS motifs** — put backdrops as direct children of `<body>`, BEFORE `.stage` (content sits above):
+- `<div class="bg-stars"></div>` — a deterministic starfield.
+- `<div class="bg-glow blue" style="width:640px;height:640px;top:-120px;right:-120px"></div>` — a soft accent glow (position + size inline).
+- `<div class="ghost">165</div>` — an oversized faint number behind the content.
+- `<span class="grad-text">…</span>` — gradient accent text.
+- Motion (seekable, paused): `class="float"` (gentle rise) on any element.
+
+**Inline SVG motifs** (copy-paste; style with `fill`/`stroke`/`.float`/`.draw`):
+```html
+<!-- generic rocket silhouette -->
+<svg width="180" height="320" viewBox="0 0 60 120" class="float" style="position:absolute;right:160px;top:300px;z-index:1">
+  <path d="M30 4 C42 22 44 52 44 78 H16 C16 52 18 22 30 4 Z" fill="var(--blue)"/>
+  <path d="M16 78 L4 104 L18 92 Z M44 78 L56 104 L42 92 Z" fill="var(--orange)"/>
+  <circle cx="30" cy="46" r="7" fill="#0d1117"/>
+</svg>
+<!-- orbit ring (use .draw for a stroke-on; path/circle must set pathLength="1") -->
+<svg width="520" height="520" viewBox="0 0 200 200" style="position:absolute;left:-80px;bottom:-120px;z-index:1;opacity:.5">
+  <circle cx="100" cy="100" r="90" fill="none" stroke="#3a4150" stroke-width="2" pathLength="1" class="draw"/>
+</svg>
+```
+
+**Pictures (`gpt-image` backdrops or your own photos)** — a LOCAL image is allowed (a `file://`
+path is offline/deterministic; only NETWORK assets are forbidden). Use it as a darkened backdrop:
+```html
+<img class="bg-photo" src="file:///ABS/PATH/assets/bg_01.png" alt="">
+<div class="scrim"></div>
+<div class="stage"><!-- legible text over the photo --></div>
+```
+A gpt-image backdrop must stay **generic/atmospheric** (`broll`) — no fabricated specific
+vehicle/event/figure, no embedded numbers — the facts live in the page text, never in the image.
