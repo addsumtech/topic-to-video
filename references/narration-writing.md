@@ -47,6 +47,14 @@ reads cleanly as a caption. Never put raw math or markup in narration (`g_{Gi}`,
 - Use explicit transitions to bridge slides: "Next, let's look at…", "Now that we've covered X, we can…", "Building on that idea…"
 - End each slide with a hook that pulls into the next: "In the next slide, you'll see how this applies in practice."
 
+**Sound human, not AI** — this is what the audience feels first. Write like a sharp person
+explaining the topic, not a model generating text: **vary the sentence rhythm** (mix short and
+long — uniform measured sentences are the AI tell), **have a point of view** (lean in: "and that's
+the catch"), stay **concrete** (the specific number/name over a generic abstraction), and cut every
+machine tell — filler ("值得注意的是 / it's worth noting / in conclusion / let's dive in"),
+over-hedging, balanced-triplet padding, and em-dash overuse. Read each line back: if it sounds like
+a press release or a chatbot, rewrite it the way a person would say it out loud.
+
 ## Pacing Math
 
 ~140–160 words per minute ≈ ~2.5 words per second (English and other space-delimited

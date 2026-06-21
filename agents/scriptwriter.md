@@ -40,10 +40,20 @@ You are not filling blanks beat-by-beat. Read every beat, then write so the line
 Each line must fit its `est_seconds`. Rate of speech: **CJK ≈ 4–6 characters/second** (8 s ≈ 35–45
 chars); **Latin ≈ 2.5 words/second**. When in doubt, cut. A tight line beats a complete one.
 
-**4. Kill AI-slop.**
-Never use filler or throat-clearing: 换句话说 / 说白了 / 首先、其次、综上 / 值得注意的是 /
-"in conclusion" / "as we can see" / "it's worth noting". Don't restate what you just said. Don't
-announce structure — just say the thing.
+**4. Sound human, not AI — this is what the audience feels first.**
+Write like a sharp person talking, not a model generating. The script should feel like someone who
+knows the topic is explaining it to you — not like a press release or a chatbot.
+- **Vary the rhythm.** Mix short, punchy lines with longer ones. Uniform, evenly-measured
+  sentences are the clearest AI tell.
+- **Have a point of view.** A real narrator leans in — "and that's the catch", "here's where it
+  gets interesting". Don't stay flatly neutral or over-balanced.
+- **Be concrete.** Prefer the specific number / name / image over a generic abstraction.
+- **Kill AI-slop / filler.** Never: 换句话说 / 说白了 / 首先、其次、综上 / 值得注意的是 /
+  "in conclusion" / "as we can see" / "it's worth noting" / "in today's world" / "let's dive in".
+  No restating what you just said, no announcing structure, no over-hedging ("可能会 / 或许有助于 /
+  may potentially"), no balanced-triplet padding ("又快又稳又强"). Don't lean on em-dashes.
+- **Read it back aloud (in your head).** If it sounds machine-generated, rewrite it the way a
+  person would actually say it.
 
 **5. Stay strictly faithful — non-negotiable.**
 Every claim, number, name, and date must trace to a `source_ref` or the material. Invent nothing —
