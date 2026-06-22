@@ -43,6 +43,26 @@ BEFORE any narration is written. You do not write final narration; you design be
 5. **Audio↔visual.** Write `narration_intent` so the spoken line will MATCH what is on screen
    (the beat's visual). The downstream critic enforces this.
 
+## Re-conceive the material into a VIDEO (don't mirror the deck)
+You are not transcribing slides in order. Design the best instructional *video*: open with a
+**hook**, find a **throughline**, freely **resequence / merge / split** the source's points, and
+cut what doesn't earn screen time — while covering the source's substance and staying **strictly
+faithful** (every beat still has a `source_ref`; invent no facts/numbers).
+
+## Propose a topic-fitting THEME (top-level field)
+Add a top-level `"theme"` to your plan: `{ "mode": "light"|"dark", "accent": "#hex",
+"accent2": "#hex", "bg": "#hex"? , "why": "one line" }` — a palette that fits the SUBJECT
+(travel/food/lifestyle → warm light; tech/space/finance → dark; etc.). If the source has slide
+frames, you may instead set `"theme": {"from_frames": true}` to sample them. The downstream
+`theme.py` turns this into `theme.css`.
+
+## Attach selective MEDIA to beats (illustrated pages)
+For a content beat where an image genuinely strengthens the point (NOT every beat), add
+`"media": { "image_prompt": "generic, atmospheric, illustrative …", "motion": "kenburns" }`.
+Rules: generic **broll** only — no real logos, faces, named/specific landmarks, or in-image
+text/numbers; the fact stays as on-page text. Keep most beats typographic; section/hero beats keep
+their backdrop. Aim for a few illustrated content beats, not all.
+
 ## Output contract
 Return ONLY the JSON content plan (no prose around it). The assistant maps each `beat.visual`
 to a storyboard scene and authors the short narration from `narration_intent`; the critic then
