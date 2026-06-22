@@ -1,6 +1,8 @@
 import os, sys, json, base64, types
 import imagegen
 import storyboard as sb
+from PIL import Image
+import pytest
 
 # a 1x1 PNG, base64 (used as the fake API payload)
 _PNG_B64 = ("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYGAAAAAEAAH2FzhV" "AAAAAElFTkSuQmCC")
@@ -85,3 +87,37 @@ def test_synthesize_no_key_falls_back(tmp_path, monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     d = imagegen.synthesize_images(out, key=None)   # no key -> generate raises -> caught
     assert d["slides"][0]["image"] is None           # left for free-tier fallback, no crash
+
+def _valid_png(path):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    Image.new("RGB", (8, 8), (10, 20, 30)).save(path)
+
+def test_codex_available(monkeypatch):
+    monkeypatch.setattr(imagegen.shutil, "which", lambda n: "/usr/bin/codex" if n == "codex" else None)
+    assert imagegen._codex_available() is True
+    monkeypatch.setattr(imagegen.shutil, "which", lambda n: None)
+    assert imagegen._codex_available() is False
+
+def test_generate_codex_builds_command_and_validates(tmp_path, monkeypatch):
+    out = str(tmp_path / ".assets" / "x.png")
+    monkeypatch.setattr(imagegen.shutil, "which", lambda n: "/usr/bin/codex")
+    cap = {}
+    def fake_run(cmd, **kw):
+        cap["cmd"] = cmd; cap["kw"] = kw
+        _valid_png(out)                       # simulate codex producing the image
+    monkeypatch.setattr(imagegen.subprocess, "run", fake_run)
+    imagegen._generate_codex("a generic rocket", out, "1536x1024", "medium")
+    cmd = cap["cmd"]
+    assert cmd[0] == "/usr/bin/codex" and cmd[1] == "exec"
+    assert "--skip-git-repo-check" in cmd and "workspace-write" in cmd and "-C" in cmd
+    assert out in cmd[-1] and "a generic rocket" in cmd[-1]
+    assert all(("Bearer" not in str(c)) and ("sk-" not in str(c)) for c in cmd)   # no key anywhere
+    assert cap["kw"].get("capture_output") is True and cap["kw"].get("timeout") == 600
+    assert os.path.exists(out)
+
+from PIL import UnidentifiedImageError  # noqa: E402
+def test_generate_codex_raises_when_no_image(tmp_path, monkeypatch):
+    monkeypatch.setattr(imagegen.shutil, "which", lambda n: "/usr/bin/codex")
+    monkeypatch.setattr(imagegen.subprocess, "run", lambda cmd, **kw: None)   # writes nothing
+    with pytest.raises(RuntimeError):
+        imagegen._generate_codex("x", str(tmp_path / ".assets" / "y.png"))

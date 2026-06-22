@@ -1,7 +1,7 @@
 """gpt-image-2 image generation + deterministic cache. Mirrors tts._openai (lazy requests,
 OPENAI_API_KEY, graceful fallback). Generation is non-deterministic, so we cache each PNG by
 a sha1 of (model,size,quality,prompt) -> re-renders are free and offline."""
-import argparse, base64, hashlib, json, os
+import argparse, base64, hashlib, json, os, shutil, subprocess
 import storyboard as sb
 
 API_URL = "https://api.openai.com/v1/images/generations"
@@ -34,6 +34,28 @@ def generate(prompt, out_path, key, size="1536x1024", quality="medium", model=DE
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, "wb") as f:
         f.write(base64.b64decode(b64))
+
+def _codex_available():
+    """True if the Codex CLI is on PATH (it generates images natively, no API key)."""
+    return shutil.which("codex") is not None
+
+def _generate_codex(prompt, out_path, size="1536x1024", quality="medium"):
+    """Generate ONE image via the installed Codex CLI's native image-gen — NO API key.
+    Raises RuntimeError if codex is missing or no valid image is produced (caller falls back)."""
+    codex = shutil.which("codex")
+    if not codex:
+        raise RuntimeError("codex CLI not found")
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    work = os.path.dirname(out_path)
+    instr = (f"Generate a {size} cinematic image: {prompt}. "
+             f"Use your image-generation tool (do NOT draw it with code or PIL). "
+             f"Save the resulting PNG to {out_path}. Output nothing else.")
+    subprocess.run([codex, "exec", "--skip-git-repo-check", "-s", "workspace-write", "-C", work, instr],
+                   check=True, capture_output=True, timeout=600)
+    if not os.path.exists(out_path):
+        raise RuntimeError(f"codex produced no image at {out_path}")
+    from PIL import Image
+    Image.open(out_path).verify()             # raises if the file is not a valid image
 
 def synthesize_images(out_dir, key=None, date=""):
     path = os.path.join(out_dir, "storyboard.json")
