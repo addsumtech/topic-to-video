@@ -4,6 +4,7 @@
   /* canonical semantic theme vars (a per-video theme.css overrides these) */
   --bg:#0d1117; --surface:#161b22; --fg:#f0f3f8; --muted:#8b97a8;
   --accent:#4C9BE8; --accent2:#E8590C; --rule:var(--accent2); --scrim:#0d1117;
+  --on-accent:#fff;   /* readable text ON an --accent fill (theme.py flips it dark for light accents) */
   /* back-compat aliases (existing pages/inline styles) */
   --blue:var(--accent); --orange:var(--accent2); --green:#46A758; --panel:var(--surface);
   --dur:.7s;
@@ -26,7 +27,7 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 .dot{width:22px;height:22px;border-radius:50%;background:var(--blue);flex:none;align-self:center}
 .label{font-size:54px;font-weight:700}
 .note{color:var(--muted);font-size:34px}
-.bar{height:90px;border-radius:10px;display:flex;align-items:center;padding:0 28px;color:#fff;font-size:40px;font-weight:700}
+.bar{height:90px;border-radius:10px;display:flex;align-items:center;padding:0 28px;color:var(--on-accent);font-size:40px;font-weight:700}
 /* seekable reveals — paused so render_html/seek.js can freeze them at any progress p.
    Stagger by adding an inline positive animation-delay (e.g. style="animation-delay:.18s"). */
 .reveal{opacity:0;animation:fade var(--dur) ease forwards;animation-play-state:paused}

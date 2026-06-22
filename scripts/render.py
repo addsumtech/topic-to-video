@@ -264,6 +264,7 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
               meta.get("language", "auto"), meta.get("font")],
         "img": stat(slide.get("image")), "aud": stat(slide.get("audio")),
         "html": stat((slide.get("props") or {}).get("html")),
+        "theme": stat("theme.css"),   # re-theming (theme.py) busts html-scene clips
     }, sort_keys=True, default=str)
     return hashlib.sha1(payload.encode()).hexdigest()[:16]
 

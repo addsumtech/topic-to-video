@@ -31,7 +31,9 @@ BEFORE any narration is written. You do not write final narration; you design be
    - a conceptual claim or short list → `keypoints` (1–5 `points`, each a `label` (+ optional `sub`))
    - a sequence of dated events → `timeline`
    - a section / transition → `title`
-   `visual.type ∈ {title, chart, timeline, keypoints, compare, slide}`.
+   `visual.type ∈ {title, chart, timeline, keypoints, compare, slide, html}`. (`html` = a bespoke
+   designed page rendered by headless Chrome — the HTML-pages tier; each `html` beat needs a matching
+   authored `pages/scene_NN.html`. See `references/html-pages.md`.)
    **Never** assign a decorative photoreal image to a beat that states a fact. Photoreal
    (`slide` + `image_prompt`, tagged `broll`) may appear as **illustrative accompaniment on
    content beats** (see "Attach selective MEDIA to beats" below) where the fact remains in
