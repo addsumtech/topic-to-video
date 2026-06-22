@@ -1,7 +1,11 @@
 # ffmpeg Recipes
 
-These are the exact ffmpeg invocations issued by `render.py`. Understanding
-them helps with debugging, manual re-runs, and codec troubleshooting.
+These are representative/simplified ffmpeg invocations based on what `render.py`
+does. They help with debugging, manual re-runs, and codec troubleshooting.
+Note: the live `render.py` filter is more complex — it additionally applies 2× supersampling
+(`meta.motion_ss`: scale up → zoompan → scale back down with lanczos), animated x/y pan anchor
+expressions, and one overlay input per timed caption segment (each gated with
+`enable='between(t,start,end)'`) — so the real command is more complex than these minimal examples.
 
 ---
 
@@ -16,7 +20,7 @@ audio + optional overlay PNG.
 ffmpeg -y \
   -loop 1 -i fit_01.png \
   -i audio/01.aiff \
-  -filter_complex "[0:v]scale=1920:1080,zoompan=z='1.0+(1.15-1.0)*on/300':d=300:s=1920x1080:fps=30[base]" \
+  -filter_complex "[0:v]scale=1920:1080,zoompan=z='1.0+(1.12-1.0)*on/300':d=300:s=1920x1080:fps=30[base]" \
   -map "[base]" -map 1:a \
   -t 10.0 -r 30 -pix_fmt yuv420p \
   -c:v libx264 -c:a aac \
@@ -34,7 +38,7 @@ ffmpeg -y \
   -loop 1 -i fit_01.png \
   -i audio/01.aiff \
   -i ov_01.png \
-  -filter_complex "[0:v]scale=1920:1080,zoompan=z='1.0+(1.15-1.0)*on/300':d=300:s=1920x1080:fps=30[base];[base][2:v]overlay=0:0[ov]" \
+  -filter_complex "[0:v]scale=1920:1080,zoompan=z='1.0+(1.12-1.0)*on/300':d=300:s=1920x1080:fps=30[base];[base][2:v]overlay=0:0[ov]" \
   -map "[ov]" -map 1:a \
   -t 10.0 -r 30 -pix_fmt yuv420p \
   -c:v libx264 -c:a aac \
@@ -44,7 +48,7 @@ ffmpeg -y \
 
 **Key variables:**
 - `W`/`H`: output width/height (1920×1080 for 16:9; 1080×1920 for vertical)
-- `z0`/`z1`: `motion.from[2]` and `motion.to[2]` (zoom values, default 1.0 → 1.15)
+- `z0`/`z1`: `motion.from[2]` and `motion.to[2]` (zoom values, default 1.0 → 1.12)
 - `frames`: `round(duration * fps)` — number of zoompan frames
 - `DUR`: `slide.duration` in seconds (measured by ffprobe from the audio file)
 - `fps`: `meta.fps` (default 30)

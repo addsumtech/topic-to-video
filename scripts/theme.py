@@ -61,15 +61,17 @@ def derive_theme(out_dir, mode=None, accent=None, accent2=None, bg=None):
         bgc = tuple(c * 255 for c in colorsys.hls_to_rgb(h, l, s))
     if _contrast(fg, bgc) < 7.0:
         fg = (0, 0, 0) if m == "light" else (255, 255, 255)
+    on_accent = (255, 255, 255) if _lum(acc) < 0.5 else (17, 17, 17)   # readable text on the accent fill
     return {"mode": m, "bg": _hex(bgc), "surface": _hex(_mix(bgc, fg, 0.06)),
             "fg": _hex(fg), "muted": _hex(_mix(fg, bgc, 0.42)),
-            "accent": _hex(acc), "accent2": _hex(acc2), "scrim": _hex(bgc)}
+            "accent": _hex(acc), "accent2": _hex(acc2), "scrim": _hex(bgc),
+            "on_accent": _hex(on_accent)}
 
 def write_theme_css(theme, path):
     css = (":root{\n"
            f"  --bg:{theme['bg']}; --surface:{theme['surface']}; --fg:{theme['fg']};\n"
            f"  --muted:{theme['muted']}; --accent:{theme['accent']}; --accent2:{theme['accent2']};\n"
-           f"  --rule:var(--accent2); --scrim:{theme['scrim']};\n}}\n")
+           f"  --rule:var(--accent2); --scrim:{theme['scrim']}; --on-accent:{theme.get('on_accent', '#fff')};\n}}\n")
     with open(path, "w") as f:
         f.write(css)
 

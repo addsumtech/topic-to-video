@@ -276,3 +276,33 @@ def test_motif_page_renders_nonblank(tmp_path):
     out = tmp_path / "o.png"
     scenes._chrome_shot(f"file://{page}?p=1", str(out), 960, 540, {})
     assert Image.open(out).convert("RGB").getextrema() != ((0, 0), (0, 0), (0, 0))   # motifs render
+
+
+@pytest.mark.skipif(not _chrome_present(), reason="no Chrome for HTML-tier integration test")
+def test_kenburns_split_page_motion_captured(tmp_path):
+    """Spec: a .split page with a .kenburns <img> must DIFFER at ?p=0 vs ?p=1 (the Ken-Burns
+    transform progresses and seek.js freezes it per frame). Proves the illustrated-page motion path."""
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
+    base = os.path.join(skill, "assets", "html", "base.css")
+    motifs = os.path.join(skill, "assets", "html", "motifs.css")
+    js = os.path.join(skill, "assets", "html", "seek.js")
+    # a non-uniform local image so a scale/translate transform changes the captured pixels
+    img = tmp_path / "pic.png"
+    pic = Image.new("RGB", (200, 200), (20, 60, 140))
+    for x in range(200):
+        for y in range(200):
+            pic.putpixel((x, y), ((x * 5) % 256, (y * 7) % 256, 90))
+    pic.save(img)
+    page = tmp_path / "split.html"
+    page.write_text(
+        '<!doctype html><html><head><meta charset="utf-8">'
+        f'<link rel="stylesheet" href="file://{base}">'
+        f'<link rel="stylesheet" href="file://{motifs}"></head>'
+        '<body><div class="split"><div><h1 class="title">Point</h1></div>'
+        f'<div class="media"><img class="kenburns" src="file://{img}" alt=""></div></div>'
+        f'<script src="file://{js}"></script></body></html>')
+    a, b = tmp_path / "a.png", tmp_path / "b.png"
+    # full 1920x1080 capture — the .split media panel (and its kenburns img) is in the RIGHT half
+    scenes._chrome_shot(f"file://{page}?p=0", str(a), 1920, 1080, {})
+    scenes._chrome_shot(f"file://{page}?p=1", str(b), 1920, 1080, {})
+    assert Image.open(a).convert("RGB").tobytes() != Image.open(b).convert("RGB").tobytes()  # Ken-Burns moved

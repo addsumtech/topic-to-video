@@ -84,9 +84,13 @@ Fast zoom jumps appear as jitter in the rendered clip.
 
 **Cause:** Large zoom delta between `motion.from[2]` and `motion.to[2]`.
 
-**Fix:** Keep zoom delta ≤ 0.20. The default (1.0 → 1.15, delta = 0.15) is
+**Fix:** Keep zoom delta ≤ 0.20. The default (1.0 → 1.12, delta = 0.12) is
 safe. Exceeding 0.25 often produces visible stepping at 30 fps with ffmpeg's
 `zoompan`.
+
+Note: `render.py` already applies `meta.motion_ss` (default 2) supersampling to reduce stepping
+(scale up → zoompan → scale back down with lanczos). If jitter persists at the default delta,
+raise `meta.motion_ss` to 3 before reducing the zoom delta.
 
 ---
 

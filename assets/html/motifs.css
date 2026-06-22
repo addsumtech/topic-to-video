@@ -29,7 +29,7 @@
   font-size:720px;line-height:.8;letter-spacing:-.04em;right:80px;bottom:-120px}
 
 /* gradient accent text (use on a span/heading) */
-.grad-text{background:linear-gradient(92deg,var(--blue),#9fd0ff);
+.grad-text{background:linear-gradient(92deg,var(--accent),var(--accent2));
   -webkit-background-clip:text;background-clip:text;color:transparent}
 
 /* image backdrop: a hero <img class="bg-photo"> + .scrim darkens it for legible text */

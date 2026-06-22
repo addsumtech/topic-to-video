@@ -13,6 +13,7 @@ VALID_IMAGE_PROVIDERS = {"auto", "codex", "openai"}
 VALID_IMAGE_TAGS = {"motif", "broll", "asserted"}
 VALID_FITS = {"contain", "cover"}
 VALID_IMAGE_QUALITIES = {"low", "medium", "high"}
+VALID_IMAGE_SIZES = {"1024x1024", "1024x1536", "1536x1024", "auto"}   # gpt-image-2 supported sizes
 
 def new_slide(index, image, narration="", notes=""):
     return {
@@ -114,6 +115,8 @@ def validate(data):
         raise StoryboardError(f"meta.image_quality must be one of {VALID_IMAGE_QUALITIES}")
     if "image_provider" in m and m["image_provider"] not in VALID_IMAGE_PROVIDERS:
         raise StoryboardError(f"meta.image_provider must be one of {VALID_IMAGE_PROVIDERS}")
+    if "image_size" in m and m["image_size"] not in VALID_IMAGE_SIZES:
+        raise StoryboardError(f"meta.image_size must be one of {VALID_IMAGE_SIZES}")
     for s in data["slides"]:
         if "index" not in s or "narration" not in s:
             raise StoryboardError(f"slide missing 'index'/'narration': {s.get('index')}")
