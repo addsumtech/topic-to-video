@@ -39,3 +39,9 @@ def test_writes_theme_css_with_all_vars(tmp_path):
 def test_deterministic(tmp_path):
     _frame(str(tmp_path / "frames" / "01.png"), (200, 70, 30))
     assert theme.derive_theme(str(tmp_path)) == theme.derive_theme(str(tmp_path))
+
+def test_dark_frame_contrast_enforced(tmp_path):
+    _frame(str(tmp_path / "frames" / "01.png"), (40, 44, 12))   # tricky dark yellow-green hue
+    t = theme.derive_theme(str(tmp_path))
+    assert t["mode"] == "dark"
+    assert theme._contrast(theme._hex2rgb(t["fg"]), theme._hex2rgb(t["bg"])) >= 7.0

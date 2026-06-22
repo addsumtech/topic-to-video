@@ -52,8 +52,15 @@ def derive_theme(out_dir, mode=None, accent=None, accent2=None, bg=None):
     else:
         bgc = tuple(c * 255 for c in colorsys.hls_to_rgb(hue, 0.09, 0.22))
     fg = (22, 20, 18) if m == "light" else (240, 243, 248)
+    # enforce >=7:1 by pushing the background away from fg (keep its hue); l->1 (light) or ->0 (dark)
+    h, l, s = colorsys.rgb_to_hls(*[c / 255 for c in bgc])
+    for _ in range(60):
+        if _contrast(fg, bgc) >= 7.0:
+            break
+        l = min(1.0, l + 0.02) if m == "light" else max(0.0, l - 0.02)
+        bgc = tuple(c * 255 for c in colorsys.hls_to_rgb(h, l, s))
     if _contrast(fg, bgc) < 7.0:
-        fg = (8, 8, 8) if m == "light" else (255, 255, 255)
+        fg = (0, 0, 0) if m == "light" else (255, 255, 255)
     return {"mode": m, "bg": _hex(bgc), "surface": _hex(_mix(bgc, fg, 0.06)),
             "fg": _hex(fg), "muted": _hex(_mix(fg, bgc, 0.42)),
             "accent": _hex(acc), "accent2": _hex(acc2), "scrim": _hex(bgc)}
