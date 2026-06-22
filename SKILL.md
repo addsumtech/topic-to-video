@@ -29,14 +29,20 @@ TTS if the user gives an API key.
 ## Pipeline scripts
 - `scripts/ingest.py <input> <out_dir>` — pptx/pdf/image-folder → `frames/` + skeleton `storyboard.json` (pulls speaker notes from pptx).
 - `scripts/tts.py <out_dir> [--only N]` — narration → `audio/` + real durations.
+- `scripts/theme.py <out_dir> [--mode light|dark] [--accent #hex] [--accent2 #hex] [--bg #hex]` —
+  derive a topic-fitting palette from `frames/` (or the passed overrides) and write
+  `<out_dir>/theme.css` (the HTML tier links it). Run before authoring HTML pages.
 - `scripts/imagegen.py <out_dir> [--key KEY]` — OPTIONAL paid tier: generate AI scene images
   via OpenAI `gpt-image-2` for scenes that carry an `image_prompt`, cached under `.assets/`
-  (re-runs are free). Only acts when `meta.image_source == "openai"`; needs `OPENAI_API_KEY`.
+  (re-runs are free). Auto-uses the Codex CLI (no key) when installed, else needs
+  `OPENAI_API_KEY`/`~/.openai_key`; `meta.image_provider` (`auto`/`codex`/`openai`) selects
+  the path. Only acts when `meta.image_source == "openai"`.
 - `scripts/render.py <out_dir> [--sample N] [--only N] [--vertical]` — storyboard → `out.mp4` + `out.srt`.
-- `scripts/scenes.py` — deterministic ANIMATED scene renderers (no slides): `title` (PIL),
-  `chart`/`timeline` (matplotlib). A storyboard scene with `type` `title`/`chart`/`timeline`
-  (+ a typed `props` block) renders an animation instead of a slide image; `type` defaults to
-  `slide` (unchanged). Animated scenes render ONLY their `props` (faithful by construction).
+- `scripts/scenes.py` — deterministic ANIMATED scene renderers (no slides): `title`/`keypoints`
+  (PIL), `chart`/`timeline`/`compare` (matplotlib), `html` (headless Chrome). A storyboard scene
+  with `type` `title`/`keypoints`/`chart`/`timeline`/`compare`/`html` (+ a typed `props` block)
+  renders an animation instead of a slide image; `type` defaults to `slide` (unchanged). Animated
+  scenes render ONLY their `props` (faithful by construction).
 - **HTML pages tier** (optional, free): `scenes.py:render_html` screenshots bespoke designed
   HTML pages (authored on `assets/html/base.css`, see `references/html-pages.md`) via headless
   **Google Chrome** — no new dependency. Each page's paused CSS reveals are captured frame-by-frame.
@@ -55,7 +61,7 @@ TTS if the user gives an API key.
    in the transcript and tell them to rotate it afterward), and ask a **style** (photoreal ·
    cinematic · editorial illustration · 3D render · watercolor · blueprint/diagram · minimal
    flat · or free-text) + a **focus** (subject emphasis).
-   Set `meta.image_source`/`image_style`/`image_quality`(default medium)/`image_size`(default
+   Set `meta.image_source`/`image_quality`(default medium)/`image_size`(default
    1536x1024). Default stays Free — AI imagery is opt-in and costs money.
    A third visual mode is **HTML pages** — bespoke, designed pages (`type:"html"`) rendered by
    headless Google Chrome (free, no dependency; needs Chrome installed). Choose it for a
@@ -100,20 +106,21 @@ TTS if the user gives an API key.
 3.5. **Content plan (director) — design the video as CONTENT before authoring.** Dispatch
      `agents/content-planner.md` on the comprehension brief + material. It returns an ordered set
      of **informative beats** — each with a learning point (traced to the material), the most
-     informative visual (`chart`/`compare`/`keypoints`/`timeline`/`title`, NOT decorative photos),
+     informative visual (`chart`/`compare`/`keypoints`/`timeline`/`title`/`html`, NOT decorative photos),
      a narration intent, and a short `est_seconds`. Build the storyboard scenes from the plan
      (**informative-first**); author the short per-beat narration in step 4.
-- **Theme (HTML tier):** after the content plan, run `scripts/theme.py <out_dir>` to write
-  `theme.css` — it samples `frames/` for a curated light/dark palette fitting the topic (or pass
-  `--mode/--accent/--bg` from the planner's `theme` suggestion when there are no frames). Pages link
-  `base.css` → `theme.css` → `motifs.css`. 🔴 the plan checkpoint now also shows the palette + mode.
+- **Theme (HTML tier):** run `scripts/theme.py <out_dir>` AFTER the content plan and BEFORE
+  authoring any HTML page — it samples `frames/` for a curated light/dark palette fitting the topic
+  (or pass `--mode/--accent/--accent2/--bg` from the planner's `theme` suggestion when there are no
+  frames). Pages link `base.css` → `theme.css` → `motifs.css`. 🔴 the plan checkpoint now also shows
+  the palette + mode.
 - **Re-conceive, don't mirror:** the content-planner designs a video arc (hook + throughline +
   resequencing), not the slide order — faithful to the substance.
 - **Illustrated pages:** build a beat's `media` as a `.split` page (text + a `.kenburns` image
   panel, see `references/html-pages.md`); generate the image via `imagegen` (codex/key); keep it a
   generic broll. Most pages stay typographic.
-     🔴 **CHECKPOINT · 🛑 STOP:** show the content plan (arc + beats + chosen visuals) and get the
-     user's OK before authoring narration.
+     🔴 **CHECKPOINT · 🛑 STOP:** show the content plan (arc + beats + chosen visuals) and the
+     derived theme palette (mode + colors), and get the user's OK before authoring narration.
 4. **Write the manuscript — dispatch `agents/scriptwriter.md` (the WRITE specialist).** Give it
    the content plan (or, with no plan, the per-slide intent + slide text), the comprehension
    brief + material, `meta.language`, and the pace ceiling. It returns the final spoken line per
@@ -134,6 +141,10 @@ TTS if the user gives an API key.
     (`imagegen.cost_estimate(n, quality)`) and get sign-off BEFORE spending. Then run
     `imagegen.py <out_dir>` (the paid step; cached after). No key / API error → fall back to the
     free tier (drop `image_prompt`, use programmatic/slide) and tell the user.
+    **HTML-tier per-beat `media` images:** generate each by calling imagegen directly —
+    `imagegen.generate(prompt, out_path, key)` (key path) or `imagegen._generate_codex(prompt, out_path)`
+    (Codex) — then reference the file by `file://` in the page. The storyboard `image_source:"openai"`
+    CLI path of `imagegen.py` drives the non-HTML tiers, not these.
 5. **Critic — narration + subtitle (REQUIRED, not optional).** Dispatch the critic
    (`agents/critic.md`) on the storyboard **plus the comprehension brief / source material**,
    so it can check facts, not just style. It strictly verifies (a) the narration is
@@ -195,7 +206,8 @@ TTS if the user gives an API key.
 - **Informative-first visuals.** A beat that states a fact or concept uses an INFORMATIVE
   visual — `chart`, `compare` (split/versus breakdown), `keypoints` (kinetic labeled points),
   or `timeline` — never a decorative photoreal image. AI photoreal (`image_prompt`/`broll`) is
-  allowed ONLY as a rare atmospheric opener/closer, never as the carrier of a claim.
+  allowed as a rare atmospheric opener/closer OR as illustrative accompaniment on a content beat
+  where the fact stays as on-page text (e.g. a `.split` page); never as the sole carrier of a claim.
 - **Energetic pacing.** Prefer MANY short beats (~3–6s, one idea each; ≈ `video_seconds/4`
   beats) over a few long holds; the animated renderers' internal reveals keep the screen moving.
 - **Audio↔visual.** Each narration line must MATCH what is on screen (its beat's visual) — the
@@ -241,7 +253,7 @@ critic flags every data-bearing AI scene.
 | Slide "shivers"/jitters during the zoom | zoompan runs supersampled (`meta.motion_ss`, default 2) then downscales; a `scale` filter must precede zoompan or the frame shrinks. Keep ss≥2 | Raise `motion_ss` to 3 (smoother, slower) |
 | Caption is one static line per slide | Captions auto-derive from `narration` — split into sentence chunks timed across the slide; a single full-span entry in `captions` is overridden by the narration track | For custom timing, supply a multi-segment `captions` array |
 | `render.py`: no Chrome for an `html` scene | `render_html` errors clearly; set `meta.chrome_path`, or switch those scenes to the free programmatic tier (title/chart/keypoints/compare) | Install Google Chrome, then re-render |
-| `html` page renders blank / unstyled | Confirm the page links `assets/html/base.css` + `seek.js` by ABSOLUTE `file://` path; no external/network assets | Open the page in a browser to debug, then re-render (the cache busts on edit) |
+| `html` page renders blank / unstyled | Confirm the page links `assets/html/base.css` + `theme.css` (from `out_dir`) + `seek.js` by ABSOLUTE `file://` path; no external/network assets | Open the page in a browser to debug, then re-render (the cache busts on edit) |
 
 For anything else, read `references/troubleshooting.md` before guessing.
 
