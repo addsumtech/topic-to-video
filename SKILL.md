@@ -103,6 +103,15 @@ TTS if the user gives an API key.
      informative visual (`chart`/`compare`/`keypoints`/`timeline`/`title`, NOT decorative photos),
      a narration intent, and a short `est_seconds`. Build the storyboard scenes from the plan
      (**informative-first**); author the short per-beat narration in step 4.
+- **Theme (HTML tier):** after the content plan, run `scripts/theme.py <out_dir>` to write
+  `theme.css` — it samples `frames/` for a curated light/dark palette fitting the topic (or pass
+  `--mode/--accent/--bg` from the planner's `theme` suggestion when there are no frames). Pages link
+  `base.css` → `theme.css` → `motifs.css`. 🔴 the plan checkpoint now also shows the palette + mode.
+- **Re-conceive, don't mirror:** the content-planner designs a video arc (hook + throughline +
+  resequencing), not the slide order — faithful to the substance.
+- **Illustrated pages:** build a beat's `media` as a `.split` page (text + a `.kenburns` image
+  panel, see `references/html-pages.md`); generate the image via `imagegen` (codex/key); keep it a
+  generic broll. Most pages stay typographic.
      🔴 **CHECKPOINT · 🛑 STOP:** show the content plan (arc + beats + chosen visuals) and get the
      user's OK before authoring narration.
 4. **Write the manuscript — dispatch `agents/scriptwriter.md` (the WRITE specialist).** Give it
@@ -169,6 +178,8 @@ TTS if the user gives an API key.
 - **HTML pages tier:** `type:"html"` scenes render an authored page via headless Chrome
   (`render_html`), captured as seekable CSS reveals. Pages render only real content (faithful);
   the per-clip cache busts when the page file changes. Locate Chrome via `meta.chrome_path` if needed.
+- **Theming:** the HTML tier is themeable via `theme.py` → `theme.css` (semantic `:root` vars);
+  pick a palette/mode that fits the TOPIC (not always dark). Author pages with the vars, never raw hex.
 - **Image provider:** `imagegen.py` auto-detects the `codex` CLI and uses its native image-gen
   (no key, Codex-plan-billed, slower) when present; else the OpenAI key (`OPENAI_API_KEY` /
   `~/.openai_key`). `meta.image_provider` (`auto`/`codex`/`openai`) overrides. Codex and OpenAI

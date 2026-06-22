@@ -121,6 +121,9 @@ Check, per scene:
   point. Photoreal (`broll`) is allowed only as a rare atmospheric opener/closer.
 - **Sourcing.** Each beat's claim must trace to the material (the planner's `source_ref`);
   flag any unsourced or unsupported claim (cross-ref R1d data faithfulness, R1e imagery).
+- **Re-conceived coverage:** when the video re-conceives the deck (not slide order), confirm the
+  arc still COVERS the source's substance and invents nothing; per-beat `media` images stay generic
+  broll (R1e) — no fabricated specific landmark/logo, no text/data in the image.
 Apply required EDITS (relabel the visual to an informative type, or fix the narration to match)
 and re-check until clean.
 
