@@ -1,8 +1,12 @@
 /* slides-to-video — HTML page design system (huashu-aligned, anti-AI-slop).
    Dark stage, CJK-first serif, accent palette, seekable reveals. Authored pages link this. */
 :root{
-  --bg:#0d1117; --panel:#161b22; --fg:#f0f3f8; --muted:#8b97a8;
-  --blue:#4C9BE8; --orange:#E8590C; --green:#46A758; --dur:.7s;
+  /* canonical semantic theme vars (a per-video theme.css overrides these) */
+  --bg:#0d1117; --surface:#161b22; --fg:#f0f3f8; --muted:#8b97a8;
+  --accent:#4C9BE8; --accent2:#E8590C; --rule:var(--accent2); --scrim:#0d1117;
+  /* back-compat aliases (existing pages/inline styles) */
+  --blue:var(--accent); --orange:var(--accent2); --green:#46A758; --panel:var(--surface);
+  --dur:.7s;
 }
 *{box-sizing:border-box}
 html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--fg);

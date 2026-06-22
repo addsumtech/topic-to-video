@@ -21,11 +21,11 @@
 
 /* soft accent glow blobs — position with inline top/left/right + width/height */
 .bg-glow{position:absolute;z-index:0;pointer-events:none;border-radius:50%;filter:blur(110px);opacity:.45}
-.bg-glow.blue{background:#4C9BE8}
-.bg-glow.orange{background:#E8590C}
+.bg-glow.blue{background:var(--accent)}
+.bg-glow.orange{background:var(--accent2)}
 
 /* oversized faint "ghost" number/word behind content (e.g. a big 165) */
-.ghost{position:absolute;z-index:1;pointer-events:none;font-weight:800;color:#fff;opacity:.06;
+.ghost{position:absolute;z-index:1;pointer-events:none;font-weight:800;color:var(--fg);opacity:.06;
   font-size:720px;line-height:.8;letter-spacing:-.04em;right:80px;bottom:-120px}
 
 /* gradient accent text (use on a span/heading) */
@@ -35,7 +35,7 @@
 /* image backdrop: a hero <img class="bg-photo"> + .scrim darkens it for legible text */
 .bg-photo{position:absolute;inset:0;z-index:0;width:1920px;height:1080px;object-fit:cover}
 .scrim{position:absolute;inset:0;z-index:0;pointer-events:none;
-  background:linear-gradient(90deg,#0d1117ee 0%, #0d1117cc 38%, #0d111766 70%, #0d111733 100%)}
+  background:linear-gradient(90deg, var(--scrim) 0%, var(--scrim) 36%, transparent 78%)}
 
 /* seekable motion (paused so seek.js can freeze it):
    .rise-in/.fade-in echo base.css reveals; .float is a gentle bob; .draw strokes an SVG path on. */
@@ -44,3 +44,15 @@
 .draw{stroke-dasharray:1;stroke-dashoffset:1;animation:mt-draw 1.4s ease forwards;animation-play-state:paused}
 @keyframes mt-draw{to{stroke-dashoffset:0}}
 /* (SVG paths used with .draw must declare pathLength="1") */
+
+/* Ken-Burns on an embedded image — paused + seekable (seek.js freezes it per frame).
+   Wrap the img in a media panel with overflow:hidden. */
+.media{position:relative;overflow:hidden;border-radius:14px}
+.media img,img.kenburns{width:100%;height:100%;object-fit:cover;display:block}
+img.kenburns{animation:mt-kenburns 6s ease-out forwards;animation-play-state:paused;
+  transform-origin:50% 50%}
+@keyframes mt-kenburns{from{transform:scale(1.02)}to{transform:scale(1.14) translate(-2%,-1%)}}
+/* two-column illustrated content page: text + a media panel */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;
+  width:1920px;height:1080px;padding:120px 150px}
+.split .media{height:760px}

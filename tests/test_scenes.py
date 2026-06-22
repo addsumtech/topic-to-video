@@ -203,6 +203,38 @@ def test_render_html_single_frame_holds(tmp_path, monkeypatch):
 def _chrome_present():
     return scenes._chrome_bin({}) is not None
 
+def test_design_system_is_themeable():
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
+    base = open(os.path.join(skill, "assets", "html", "base.css")).read()
+    motifs = open(os.path.join(skill, "assets", "html", "motifs.css")).read()
+    # canonical semantic vars + back-compat aliases present in base.css :root
+    for v in ("--bg", "--surface", "--fg", "--muted", "--accent", "--accent2", "--rule", "--scrim"):
+        assert v in base, f"missing {v}"
+    assert "--blue:var(--accent)" in base.replace(" ", "") or "--blue: var(--accent)" in base
+    assert "--orange:var(--accent2)" in base.replace(" ", "") or "--orange: var(--accent2)" in base
+    # motion + illustrated-page helpers live in motifs.css
+    assert ".kenburns" in motifs and ".split" in motifs
+    # the photo scrim now derives from the theme bg (no hardcoded #0d1117 in motifs scrim)
+    assert "#0d1117" not in motifs
+
+@pytest.mark.skipif(not _chrome_present(), reason="no Chrome")
+def test_light_theme_renders_light(tmp_path):
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
+    base = os.path.join(skill, "assets", "html", "base.css")
+    theme_css = tmp_path / "theme.css"
+    theme_css.write_text(":root{--bg:#f5f0e6;--surface:#fffdf8;--fg:#201a14;--muted:#6b5e4f;"
+                         "--accent:#c0461f;--accent2:#2f7d4f;--rule:var(--accent2);--scrim:#f5f0e6;}")
+    page = tmp_path / "p.html"
+    page.write_text('<!doctype html><html><head><meta charset="utf-8">'
+                    f'<link rel="stylesheet" href="file://{base}">'
+                    f'<link rel="stylesheet" href="file://{theme_css}"></head>'
+                    '<body><div class="stage"><h1 class="title">Hello</h1></div></body></html>')
+    out = tmp_path / "o.png"
+    scenes._chrome_shot(f"file://{page}", str(out), 480, 270, {})
+    from PIL import Image
+    px = Image.open(out).convert("RGB").getpixel((10, 10))
+    assert sum(px) / 3 > 180, f"expected light bg, got {px}"   # theme.css overrode the dark default
+
 @pytest.mark.skipif(not _chrome_present(), reason="no Chrome for HTML-tier integration test")
 def test_base_css_page_renders_and_reveals(tmp_path):
     skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))   # skill root
