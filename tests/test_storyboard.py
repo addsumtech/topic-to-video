@@ -143,3 +143,8 @@ def test_validate_html_bad():
                 {"html": "p.html", "anim_seconds": 0}, {"html": "p.html", "anim_seconds": -1}]:
         with pytest.raises(sb.StoryboardError):
             sb.validate({"meta": {}, "slides": [sb.new_scene(1, "html", bad, "n")]})
+
+def test_validate_image_provider_enum():
+    sb.validate({"meta": {"image_source": "openai", "image_provider": "codex"}, "slides": [sb.new_slide(1, "f.png")]})
+    with pytest.raises(sb.StoryboardError):
+        sb.validate({"meta": {"image_source": "openai", "image_provider": "banana"}, "slides": [sb.new_slide(1, "f.png")]})
