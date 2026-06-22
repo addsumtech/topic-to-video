@@ -33,8 +33,10 @@ BEFORE any narration is written. You do not write final narration; you design be
    - a section / transition → `title`
    `visual.type ∈ {title, chart, timeline, keypoints, compare, slide}`.
    **Never** assign a decorative photoreal image to a beat that states a fact. Photoreal
-   (`slide` + `image_prompt`, tagged `broll`) is allowed ONLY as a rare atmospheric opener or
-   closer — at most one or two in the whole video — and never as the carrier of a claim.
+   (`slide` + `image_prompt`, tagged `broll`) may appear as **illustrative accompaniment on
+   content beats** (see "Attach selective MEDIA to beats" below) where the fact remains in
+   on-page text/chart, or as a rare atmospheric opener or closer. In all cases, broll is never
+   the carrier of a claim; keep it selective and keep most beats typographic.
 3. **Energetic pacing.** Many short beats; ONE idea per beat; `est_seconds` 3–6. Split a dense
    point into two beats rather than holding one long frame. Target beat count ≈
    `target_seconds / 4`.
@@ -51,7 +53,7 @@ faithful** (every beat still has a `source_ref`; invent no facts/numbers).
 
 ## Propose a topic-fitting THEME (top-level field)
 Add a top-level `"theme"` to your plan: `{ "mode": "light"|"dark", "accent": "#hex",
-"accent2": "#hex", "bg": "#hex"? , "why": "one line" }` — a palette that fits the SUBJECT
+"accent2": "#hex", "bg": "#hex", "why": "one line" }` — a palette that fits the SUBJECT
 (travel/food/lifestyle → warm light; tech/space/finance → dark; etc.). If the source has slide
 frames, you may instead set `"theme": {"from_frames": true}` to sample them. The downstream
 `theme.py` turns this into `theme.css`.
