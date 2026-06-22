@@ -63,6 +63,11 @@ TTS if the user gives an API key.
    `pages/scene_NN.html` per beat on `assets/html/base.css` (faithful — real content only),
    following `references/html-pages.md`. Set `meta.chrome_path` if Chrome isn't at the default
    macOS location.
+   **Image provider:** if the **`codex` CLI is installed**, generate via Codex's native
+   image-generation (NO key — it uses your Codex plan; slower, ~minutes/image). Otherwise ask for
+   the OpenAI key (`OPENAI_API_KEY` or `~/.openai_key`). If neither, fall back to the free
+   programmatic / HTML tier. `meta.image_provider` is `auto` (default — Codex-first when installed),
+   `codex`, or `openai` to force one.
    If the user has no material, tell them you'll
    web-research the topic to ground the script instead.
    - **Language**: default the narration to the **slides' own language** (detect it from the
@@ -164,6 +169,10 @@ TTS if the user gives an API key.
 - **HTML pages tier:** `type:"html"` scenes render an authored page via headless Chrome
   (`render_html`), captured as seekable CSS reveals. Pages render only real content (faithful);
   the per-clip cache busts when the page file changes. Locate Chrome via `meta.chrome_path` if needed.
+- **Image provider:** `imagegen.py` auto-detects the `codex` CLI and uses its native image-gen
+  (no key, Codex-plan-billed, slower) when present; else the OpenAI key (`OPENAI_API_KEY` /
+  `~/.openai_key`). `meta.image_provider` (`auto`/`codex`/`openai`) overrides. Codex and OpenAI
+  images cache separately (keyed by provider).
 - **API key — never persist it.** Request the OpenAI key fresh each run and pass it ONLY as
   `OPENAI_API_KEY` (env) or `imagegen.py --key` for that one call. NEVER write it into
   `storyboard.json`, any script, the `.assets/` manifest, a log, or any committed file —
@@ -210,6 +219,8 @@ critic flags every data-bearing AI scene.
 | `tts.py`: edge-tts network error / endpoint down | tts.py catches it and falls back to `say:Samantha` with a notice — continue | Switch `meta.voice` to an explicit `say:` voice (fully offline) |
 | `imagegen.py`: no `OPENAI_API_KEY` | It prints a notice and leaves those scenes for free-tier fallback — convert them to programmatic/slide and continue | Set the key (`export OPENAI_API_KEY=...`) and re-run `imagegen.py` |
 | `imagegen.py`: image API error / rate limit | Per-scene catch → free-tier fallback for that scene; cached scenes unaffected | Retry later; cached images never re-charge |
+| `imagegen.py`: Codex run fails / makes no image | `_generate_codex` raises → that scene falls back to the free tier; other cached scenes unaffected | Force `meta.image_provider:"openai"` + provide a key, or use the free programmatic/HTML tier |
+| Image tier on but no codex AND no key | Each scene falls back to the free tier with a notice | Install `codex`, or set `OPENAI_API_KEY` / `~/.openai_key`, then re-run `imagegen.py` |
 | `render.py`: concat `-c copy` errors (codec/timestamp) | Re-encode the concat (`-c:v libx264 -c:a aac`) — see `references/ffmpeg-recipes.md` | Render per-slide with `--only N` and report the failing slide |
 | Captions/text look wrong or font missing | render.py falls back to PIL's default font (still draws) | Confirm `assets/fonts/DejaVuSans.ttf` exists |
 | Captions show tofu boxes / □□□ (non-Latin language) | Set `meta.language` so render.py picks a system CJK font (zh→PingFang, ja→Hiragino, ko→AppleSDGothicNeo) | Set `meta.font` to an explicit `.ttc`/`.ttf` that covers the script |
