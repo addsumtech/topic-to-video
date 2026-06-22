@@ -1,7 +1,7 @@
 """gpt-image-2 image generation + deterministic cache. Mirrors tts._openai (lazy requests,
 OPENAI_API_KEY, graceful fallback). Generation is non-deterministic, so we cache each PNG by
 a sha1 of (model,size,quality,prompt) -> re-renders are free and offline."""
-import argparse, base64, hashlib, json, os
+import argparse, base64, hashlib, json, os, shutil, subprocess
 import storyboard as sb
 
 API_URL = "https://api.openai.com/v1/images/generations"
@@ -35,16 +35,48 @@ def generate(prompt, out_path, key, size="1536x1024", quality="medium", model=DE
     with open(out_path, "wb") as f:
         f.write(base64.b64decode(b64))
 
+def _codex_available():
+    """True if the Codex CLI is on PATH (it generates images natively, no API key)."""
+    return shutil.which("codex") is not None
+
+def _generate_codex(prompt, out_path, size="1536x1024", quality="medium"):
+    """Generate ONE image via the installed Codex CLI's native image-gen — NO API key.
+    Raises RuntimeError if codex is missing or no valid image is produced (caller falls back)."""
+    codex = shutil.which("codex")
+    if not codex:
+        raise RuntimeError("codex CLI not found")
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    work = os.path.dirname(out_path)
+    instr = (f"Generate a {size} cinematic image: {prompt}. "
+             f"Use your image-generation tool (do NOT draw it with code or PIL). "
+             f"Save the resulting PNG to {out_path}. Output nothing else.")
+    subprocess.run([codex, "exec", "--skip-git-repo-check", "-s", "workspace-write", "-C", work, instr],
+                   check=True, capture_output=True, timeout=600)
+    if not os.path.exists(out_path):
+        raise RuntimeError(f"codex produced no image at {out_path}")
+    from PIL import Image
+    Image.open(out_path).verify()             # raises if the file is not a valid image
+
+def _read_key_file():
+    try:
+        return (open(os.path.expanduser("~/.openai_key")).read().strip() or None)
+    except OSError:
+        return None
+
 def synthesize_images(out_dir, key=None, date=""):
     path = os.path.join(out_dir, "storyboard.json")
     data = sb.load(path)
     meta = data["meta"]
     if meta.get("image_source") != "openai":
         return data                                    # free tier — nothing to generate
-    key = key or os.environ.get("OPENAI_API_KEY")
+    provider = (meta.get("image_provider") or "auto").lower()
+    if provider == "auto":
+        provider = "codex" if _codex_available() else "openai"
     size = meta.get("image_size", "1536x1024")
     quality = meta.get("image_quality", "medium")
-    model = DEFAULT_MODEL
+    model = "codex" if provider == "codex" else DEFAULT_MODEL
+    if provider != "codex":
+        key = key or os.environ.get("OPENAI_API_KEY") or _read_key_file()
     pending = [s for s in data["slides"]
                if (s.get("image_prompt") or "").strip() and not s.get("image")]
     made = cached = failed = 0
@@ -52,20 +84,24 @@ def synthesize_images(out_dir, key=None, date=""):
         prompt = s["image_prompt"]
         cp = _cache_path(out_dir, prompt, model, size, quality)
         rel = os.path.relpath(cp, out_dir)
-        if os.path.exists(cp):                          # cache hit — free, offline
+        if os.path.exists(cp):
             s["image"] = rel; cached += 1; continue
         try:
-            generate(prompt, cp, key, size, quality, model)
-            with open(cp[:-4] + ".json", "w") as f:     # manifest sidecar
-                json.dump({"prompt": prompt, "model": model, "size": size, "quality": quality,
-                           "tag": s.get("image_tag", "broll"), "date": date}, f, indent=2)
+            if provider == "codex":
+                _generate_codex(prompt, cp, size, quality)
+            else:
+                generate(prompt, cp, key, size, quality, DEFAULT_MODEL)
+            with open(cp[:-4] + ".json", "w") as f:
+                json.dump({"prompt": prompt, "provider": provider, "model": model, "size": size,
+                           "quality": quality, "tag": s.get("image_tag", "broll"), "date": date},
+                          f, indent=2)
             s["image"] = rel; made += 1
         except Exception as e:
             print(f"[imagegen] scene {s['index']} failed ({e}); leaving for free-tier fallback")
             failed += 1
     sb.save(data, path)
-    print(f"[imagegen] generated {made}, cache-hit {cached}, fallback {failed}; "
-          f"est ${cost_estimate(made, quality, size)}")
+    cost = "via Codex plan (no key)" if provider == "codex" else f"est ${cost_estimate(made, quality, size)}"
+    print(f"[imagegen] provider={provider}: generated {made}, cache-hit {cached}, fallback {failed}; {cost}")
     return data
 
 def main():

@@ -9,6 +9,7 @@ VALID_SCENE_TYPES = {"slide", "title", "chart", "timeline", "keypoints", "compar
 ANIMATED_TYPES = {"title", "chart", "timeline", "keypoints", "compare", "html"}
 VALID_CHART_KINDS = {"bars", "line", "counter"}
 VALID_IMAGE_SOURCES = {"none", "openai"}
+VALID_IMAGE_PROVIDERS = {"auto", "codex", "openai"}
 VALID_IMAGE_TAGS = {"motif", "broll", "asserted"}
 VALID_FITS = {"contain", "cover"}
 VALID_IMAGE_QUALITIES = {"low", "medium", "high"}
@@ -111,6 +112,8 @@ def validate(data):
         raise StoryboardError(f"meta.image_source must be one of {VALID_IMAGE_SOURCES}")
     if "image_quality" in m and m["image_quality"] not in VALID_IMAGE_QUALITIES:
         raise StoryboardError(f"meta.image_quality must be one of {VALID_IMAGE_QUALITIES}")
+    if "image_provider" in m and m["image_provider"] not in VALID_IMAGE_PROVIDERS:
+        raise StoryboardError(f"meta.image_provider must be one of {VALID_IMAGE_PROVIDERS}")
     for s in data["slides"]:
         if "index" not in s or "narration" not in s:
             raise StoryboardError(f"slide missing 'index'/'narration': {s.get('index')}")
