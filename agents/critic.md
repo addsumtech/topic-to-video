@@ -118,7 +118,7 @@ Check, per scene:
 - **Informative-first.** A beat that states a fact or concept must use an informative visual
   (`chart`/`compare`/`keypoints`/`timeline`), NOT decorative photoreal b-roll. **FAIL** a
   factual/conceptual beat rendered as a photo where an informative visual should carry the
-  point. Photoreal (`broll`) is allowed only as a rare atmospheric opener/closer.
+  point. Photoreal (broll) is allowed as a rare atmospheric opener/closer OR as illustrative accompaniment on a content beat where the fact stays as on-page text (e.g. a .split page) — never as the sole carrier of a claim.
 - **Sourcing.** Each beat's claim must trace to the material (the planner's `source_ref`);
   flag any unsourced or unsupported claim (cross-ref R1d data faithfulness, R1e imagery).
 - **Re-conceived coverage:** when the video re-conceives the deck (not slide order), confirm the
