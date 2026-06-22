@@ -83,3 +83,28 @@ path is offline/deterministic; only NETWORK assets are forbidden). Use it as a d
 ```
 A gpt-image backdrop must stay **generic/atmospheric** (`broll`) — no fabricated specific
 vehicle/event/figure, no embedded numbers — the facts live in the page text, never in the image.
+
+## Theming (topic-fitting color)
+Link the stylesheets in THIS order: `base.css` → **`theme.css`** → `motifs.css`. `theme.css` is
+written by `scripts/theme.py <out_dir>` (it samples `frames/` for a curated light/dark palette, or
+takes `--mode/--accent/--bg` for a topic palette) and overrides the `:root` vars. **Author pages
+with the semantic vars only** — `var(--bg) var(--surface) var(--fg) var(--muted) var(--accent)
+var(--accent2) var(--rule)` (older `var(--blue)/var(--orange)` still alias to the accents). Never
+hardcode a hex in a page — that's how a page goes off-theme.
+
+## Illustrated content page (image + Ken-Burns)
+A content beat with `media` becomes a two-column `.split` page: text on one side, an image panel on
+the other. The image animates with a slow Ken-Burns (paused + seek-safe):
+```html
+<div class="split">
+  <div><div class="kicker reveal">SECTION</div>
+    <div class="title reveal-up" style="animation-delay:.1s">Headline</div>
+    <div class="grid" style="margin-top:28px;gap:22px">
+      <div class="row reveal-up" style="animation-delay:.3s"><span class="dot"></span><span class="label">Point</span></div>
+    </div></div>
+  <div class="media"><img class="kenburns" src="file:///ABS/out_dir/assets/scene_07.png" alt=""></div>
+</div>
+```
+The image is a generic atmospheric **broll** (generated via `imagegen`); the facts stay as text.
+Only CSS animation (`.kenburns` + reveals) — no JS-timed motion, no network assets — so `seek.js`
+captures it deterministically.
