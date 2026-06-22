@@ -270,7 +270,11 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
 
 def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_clip, workdir):
     """Encode a per-frame PNG sequence + the scene's TTS audio (+ timed captions) into a
-    clip using the SAME codec params as the slide path, so the '-c copy' concat still works."""
+    clip using the SAME codec params as the slide path, so the '-c copy' concat still works.
+    Audio is pinned to a uniform rate (-ar 48000 -ac 1): scenes can come from different audio
+    sources (edge .mp3 @24000 vs say .aiff @22050 in a partial-fallback run), and concatenating
+    clips with mismatched sample rates via '-c copy' silently desyncs (the demuxer reinterprets
+    all audio at the first clip's rate, inflating the audio stream) — normalizing here prevents it."""
     fps = meta.get("fps", 30)
     parts = [f"[0:v]scale={W}:{H}[v0]"]               # frames are already WxH; scale = safety
     vlabel = "v0"; extra_inputs = []; n_in = 2        # 0=frames, 1=audio
@@ -287,7 +291,7 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
            "-i", os.path.join(meta["_out"], audio_rel)] + extra_inputs + [
         "-filter_complex", ";".join(parts), "-map", f"[{vlabel}]", "-map", "1:a",
         "-t", f"{dur}", "-r", str(fps), "-pix_fmt", "yuv420p",
-        "-c:v", "libx264", "-c:a", "aac", "-shortest", out_clip]
+        "-c:v", "libx264", "-c:a", "aac", "-ar", "48000", "-ac", "1", "-shortest", out_clip]
     _common.run(cmd)
     return out_clip
 
@@ -360,7 +364,7 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
            os.path.join(meta["_out"], slide["audio"])] + extra_inputs + [
         "-filter_complex", fcomplex, "-map", f"[{vlabel}]", "-map", "1:a",
         "-t", f"{dur}", "-r", str(fps), "-pix_fmt", "yuv420p",
-        "-c:v", "libx264", "-c:a", "aac", "-shortest", out_clip]
+        "-c:v", "libx264", "-c:a", "aac", "-ar", "48000", "-ac", "1", "-shortest", out_clip]
     _common.run(cmd)
     return out_clip
 

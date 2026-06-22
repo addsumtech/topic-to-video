@@ -168,3 +168,34 @@ def test_title_scene_renders_and_concats_with_slide(tmp_path, fixtures_dir, monk
                                     "-of","json", clip]))["streams"]
     kinds = {s["codec_type"] for s in streams}
     assert "video" in kinds and "audio" in kinds
+
+
+@pytest.mark.skipif(not _common.have_tool("ffmpeg"), reason="needs ffmpeg")
+def test_mixed_samplerate_audio_stays_in_sync(tmp_path):
+    """Regression: when scene audio comes from different sources (e.g. a partial edge-tts run —
+    say .aiff @22050 for some scenes, edge .mp3 @24000 for others), the per-clip encodes must
+    normalize the audio rate so the `-c copy` concat stays A/V-aligned. Before the fix the concat
+    reinterpreted every clip's audio at the FIRST clip's sample rate, inflating the audio stream
+    vs the video and drifting worse over time. Assert the final video/audio stream durations match."""
+    import json as _j
+    out = str(tmp_path)
+    os.makedirs(os.path.join(out, "audio"), exist_ok=True)
+    rates = [22050, 24000, 22050, 24000]                 # mixed, as a fallback TTS run produces
+    slides = []
+    for i, r in enumerate(rates, 1):
+        af = f"audio/{i:02d}.wav"
+        _common.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "sine=frequency=300:duration=4",
+                     "-ar", str(r), "-ac", "1", os.path.join(out, af)])
+        s = sb.new_scene(i, "title", {"title": f"Scene {i}", "subtitle": "x"}, narration="x")
+        s["audio"] = af
+        s["duration"] = 4.0
+        slides.append(s)
+    data = sb.new_storyboard({"voice": "say:Samantha", "captions": False})
+    data["slides"] = slides
+    sb.validate(data)
+    sb.save(data, os.path.join(out, "storyboard.json"))
+    mp4 = render.render(out)
+    probe = lambda st: float(_common.run(["ffprobe", "-v", "error", "-select_streams", st,
+        "-show_entries", "stream=duration", "-of", "default=nw=1:nk=1", mp4]).strip())
+    vdur, adur = probe("v:0"), probe("a:0")
+    assert abs(vdur - adur) < 0.3, f"A/V drift: video {vdur:.2f}s vs audio {adur:.2f}s"
