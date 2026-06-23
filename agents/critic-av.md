@@ -69,6 +69,14 @@ The renderer burns captions derived from `narration` into the video. Check the s
 - PASS on visual aesthetics: colour palette, layout polish, animation style are NOT your concern — only
   technical rendering failures.
 
+### Squint + no player-chrome
+- **Squint test:** at a glance (or at low resolution), the visual hierarchy must read — size, weight,
+  colour, and contrast must separate the primary element from the secondary. FAIL a frame that is a flat
+  wall of same-size text with no clear focal point.
+- **No player-chrome (anti-slop REVISE):** flag any element resembling a video-player control — a
+  playback button, seek/progress bar, elapsed/remaining timecode, or chapter/slide counter. The video
+  is the content; on-screen player chrome is slop.
+
 ---
 
 ## Output format

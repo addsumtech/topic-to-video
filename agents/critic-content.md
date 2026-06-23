@@ -113,6 +113,14 @@ Check, per scene:
 
 Note: R5/R6 apply to `slide` scenes only — skip for animated scenes (`type` ≠ `slide`).
 
+### R8 — Visual variety + anti-slop
+- **REVISE** if more than **2 consecutive beats** share the same `visual.type` — a repetitive visual
+  rhythm kills engagement. Audit the beat sequence and call out the run.
+- **REVISE** (anti-slop) if any authored page or animated `props` contains: an emoji in a title; a
+  hardcoded hex `#rrggbb` (pages must use semantic vars — `var(--bg)`/`var(--accent)`/…); a fabricated
+  statistic that does not trace to `source_ref` (cross-ref R1d); a full-screen gradient-mesh background;
+  or a circle+left-border "card" (use `.card`/`.row` instead).
+
 ---
 
 ## Output format
