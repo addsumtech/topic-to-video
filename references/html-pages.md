@@ -120,10 +120,11 @@ captures it deterministically.
 
 ## Typographic roles (use the named classes — never a raw font-size)
 `.stat` = a single data value · `.title` = the primary claim · `.sub` = supporting context (always
-`--muted`) · `.kicker` = a category label (mono, `--accent`) · `.note` = secondary annotation. Keep the
-hierarchy contract: `.title`/`.sub` ≥ 2.5×, `.title`/`.note` ≥ 3×.
+`--muted`) · `.kicker` = a category label (mono, accent-coloured) · `.note` = secondary annotation. Keep
+the hierarchy contract: `.title`/`.sub` ≥ 2.5×, `.title`/`.note` ≥ 3×. (`var(--blue)`/`var(--orange)`
+are semantic *accent aliases*, not hardcoded colours — using them is fine; a literal `#rrggbb` is not.)
 
-## New layout patterns
+## Extended layout patterns
 - **`.card`** — a panel with depth (`--surface` + shadow + hairline). Group related rows in cards.
 - **`.dash`** (3-up) / **`.grid-asym`** (2fr 1fr) — dashboard + asymmetric layouts; break the centred-column monotony.
 - **`.defocus`** — on a `compare` page, add to the NON-active column/bar for depth-of-field (blur, not flat dim).

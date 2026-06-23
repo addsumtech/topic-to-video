@@ -66,8 +66,8 @@ The renderer burns captions derived from `narration` into the video. Check the s
 - **WARN** if motion (Ken Burns pan/zoom, animated scene transitions) appears jittery or stutters
   noticeably in the sample frames (possible zoompan delta issue — flag the slide index and approximate
   timestamp).
-- PASS on visual aesthetics: colour palette, layout polish, animation style are NOT your concern — only
-  technical rendering failures.
+- PASS on fine visual aesthetics: exact colour palette, micro-spacing, and animation style are NOT your
+  concern — only technical rendering failures AND the squint/player-chrome checks below.
 
 ### Squint + no player-chrome
 - **Squint test:** at a glance (or at low resolution), the visual hierarchy must read — size, weight,
