@@ -90,9 +90,9 @@ slide. Because the SAME text is both spoken by TTS and shown as the subtitle:
 - FAIL/WARN on text spelled for PRONUNCIATION that reads wrong as a subtitle — e.g. "two-D" for *2D*,
   "nineteen datasets" where *19 datasets* is clearer, "Re-G-SAM". Prefer a spelling that TTS still says
   correctly AND looks right as a caption; flag the token and give the fix.
-- When you are given the rendered sample frames: FAIL if a burned caption is clipped at the edge,
-  overlaps slide content illegibly, does NOT match the sentence being spoken, or shows a visible typo.
-  State the slide/timestamp.
+- When rendered sample frames exist, defer burned-caption legibility (clipping, alignment, tofu,
+  on-screen mismatch) to `agents/critic-av.md`. Your R7 check is limited to the caption TEXT itself —
+  sentence segmentation, garbled/again-truncated text, length, and pronunciation-vs-spelling.
 - **Animated-scene frames (R7 text level):** when the sample is a `title`/`chart`/`timeline` scene, also
   check the caption overlay — verify no tofu/□□□ in CJK caption text and that the caption text is clean
   (content-level animated-frame checking is owned by `agents/critic-content.md` R1d, and rendered
