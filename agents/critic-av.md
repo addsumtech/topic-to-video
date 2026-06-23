@@ -119,8 +119,8 @@ One word on its own line: either `PASS` or `REVISE`.
 - Do NOT edit or comment on `storyboard.json`, narration text, or source content — those are owned by the
   script-stage critics (`agents/critic-narrative.md`, `agents/critic-content.md`).
 - Do NOT rewrite narration or suggest content changes — only flag rendered artifacts.
-- Do NOT comment on visual aesthetics (colour choices, layout polish, animation style) — only technical
-  rendering failures.
+- Do NOT comment on fine visual aesthetics (exact colour choices, micro-spacing, animation style) —
+  only technical rendering failures AND the squint / player-chrome checks in your rubric above.
 - State the offending frames and timestamps precisely — the engineer needs to know exactly where to look.
 - Content correctness of animated scene `props` values (R1d) was verified at the script stage — do NOT
   re-litigate content accuracy here. Your R7 check is limited to: is the caption text legible, aligned,
