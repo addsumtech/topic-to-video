@@ -346,6 +346,32 @@ def test_motifs_focus_divider_and_kenburns_drift():
     assert "translate(" in css[i:i+160]
     assert "#0d1117" not in css                      # scrim still theme-derived
 
+def test_render_html_cue_capture_passes_cues(tmp_path, monkeypatch):
+    # a page with two cued points + a words.json -> render_html should resolve cues and pass ?cues= to chrome
+    import json
+    out = tmp_path; (out / "audio").mkdir(); (out / "pages").mkdir()
+    (out / "audio" / "03.words.json").write_text(json.dumps(
+        [{"w": "alpha", "t": 0.5}, {"w": "beta", "t": 3.0}]))
+    (out / "pages" / "p.html").write_text('<div class="stage">'
+        '<div class="row reveal-up-sm" data-cue-index="0" data-cue="alpha">A</div>'
+        '<div class="row reveal-up-sm" data-cue-index="1" data-cue="beta">B</div></div>')
+    seen = []
+    monkeypatch.setattr(scenes, "_chrome_shot", lambda url, o, w, h, m: (seen.append(url),
+                        __import__("pathlib").Path(o).write_bytes(b"\x89PNG\r\n")))
+    meta = {"_out": str(out), "fps": 30}
+    scenes.render_html({"html": "pages/p.html", "anim_seconds": 1.0}, meta, 1920, 1080, 120, str(out / "wd"), 3)
+    assert any("cues=" in u and "dur=" in u for u in seen), "cue params not passed"
+
+def test_render_html_no_words_uses_anim_path(tmp_path, monkeypatch):
+    out = tmp_path; (out / "pages").mkdir()
+    (out / "pages" / "p.html").write_text('<div class="stage"><div class="title reveal-up">X</div></div>')
+    seen = []
+    monkeypatch.setattr(scenes, "_chrome_shot", lambda url, o, w, h, m: (seen.append(url),
+                        __import__("pathlib").Path(o).write_bytes(b"\x89PNG\r\n")))
+    scenes.render_html({"html": "pages/p.html", "anim_seconds": 1.0}, {"_out": str(out), "fps": 30},
+                       1920, 1080, 60, str(out / "wd"), 5)
+    assert seen and all("cues=" not in u for u in seen), "should use anim path (no cues)"
+
 @pytest.mark.skipif(not _chrome_present(), reason="no Chrome")
 def test_seekjs_cue_override_gates_reveals(tmp_path):
     skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))

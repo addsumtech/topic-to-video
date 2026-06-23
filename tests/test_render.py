@@ -131,6 +131,15 @@ def test_fingerprint_includes_fit():
     assert fp(base) != fp({**base, "fit": "cover"})   # changing fit re-renders
     assert fp(base) == fp(dict(base))                 # stable otherwise
 
+def test_fingerprint_includes_words_json(tmp_path):
+    import render
+    out = tmp_path; (out / "audio").mkdir()
+    slide = {"index": 3, "type": "html", "props": {"html": "pages/p.html"}, "audio": "audio/03.mp3"}
+    meta = {"_out": str(out)}
+    a = render._fingerprint(slide, meta, 1920, 1080, 2, True, False)
+    (out / "audio" / "03.words.json").write_text('[{"w":"x","t":0.1}]')   # add timings
+    assert render._fingerprint(slide, meta, 1920, 1080, 2, True, False) != a   # cache busts
+
 def test_fingerprint_busts_on_html_page_edit(tmp_path):
     pg = tmp_path / "pages"; pg.mkdir(); f = pg / "s.html"; f.write_text("a")
     meta = {"_out": str(tmp_path), "fps": 30}
