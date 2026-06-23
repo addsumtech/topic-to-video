@@ -45,3 +45,15 @@ def test_dark_frame_contrast_enforced(tmp_path):
     t = theme.derive_theme(str(tmp_path))
     assert t["mode"] == "dark"
     assert theme._contrast(theme._hex2rgb(t["fg"]), theme._hex2rgb(t["bg"])) >= 7.0
+
+def test_pure_black_bg_is_tinted(tmp_path):
+    t = theme.derive_theme(str(tmp_path), mode="dark", accent="#4C9Be8", bg="#000000")
+    assert t["bg"].lower() != "#000000" and t["bg"].lower() == "#0e0f11"
+
+def test_pure_white_bg_is_tinted(tmp_path):
+    t = theme.derive_theme(str(tmp_path), mode="light", accent="#c0461f", bg="#ffffff")
+    assert t["bg"].lower() != "#ffffff" and t["bg"].lower() == "#f8f7f4"
+
+def test_clamped_bg_still_contrast_safe(tmp_path):
+    t = theme.derive_theme(str(tmp_path), mode="dark", accent="#4C9Be8", bg="#000000")
+    assert theme._contrast(theme._hex2rgb(t["fg"]), theme._hex2rgb(t["bg"])) >= 7.0
