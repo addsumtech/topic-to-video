@@ -66,8 +66,16 @@ The renderer burns captions derived from `narration` into the video. Check the s
 - **WARN** if motion (Ken Burns pan/zoom, animated scene transitions) appears jittery or stutters
   noticeably in the sample frames (possible zoompan delta issue — flag the slide index and approximate
   timestamp).
-- PASS on visual aesthetics: colour palette, layout polish, animation style are NOT your concern — only
-  technical rendering failures.
+- PASS on fine visual aesthetics: exact colour palette, micro-spacing, and animation style are NOT your
+  concern — only technical rendering failures AND the squint/player-chrome checks below.
+
+### Squint + no player-chrome
+- **Squint test:** at a glance (or at low resolution), the visual hierarchy must read — size, weight,
+  colour, and contrast must separate the primary element from the secondary. FAIL a frame that is a flat
+  wall of same-size text with no clear focal point.
+- **No player-chrome (anti-slop REVISE):** flag any element resembling a video-player control — a
+  playback button, seek/progress bar, elapsed/remaining timecode, or chapter/slide counter. The video
+  is the content; on-screen player chrome is slop.
 
 ---
 
@@ -111,8 +119,8 @@ One word on its own line: either `PASS` or `REVISE`.
 - Do NOT edit or comment on `storyboard.json`, narration text, or source content — those are owned by the
   script-stage critics (`agents/critic-narrative.md`, `agents/critic-content.md`).
 - Do NOT rewrite narration or suggest content changes — only flag rendered artifacts.
-- Do NOT comment on visual aesthetics (colour choices, layout polish, animation style) — only technical
-  rendering failures.
+- Do NOT comment on fine visual aesthetics (exact colour choices, micro-spacing, animation style) —
+  only technical rendering failures AND the squint / player-chrome checks in your rubric above.
 - State the offending frames and timestamps precisely — the engineer needs to know exactly where to look.
 - Content correctness of animated scene `props` values (R1d) was verified at the script stage — do NOT
   re-litigate content accuracy here. Your R7 check is limited to: is the caption text legible, aligned,

@@ -117,3 +117,34 @@ referenced as `file://<out_dir>/<slide.image>`. Do NOT use a literal `assets/sce
 The image is a generic atmospheric **broll** (generated via `imagegen`); the facts stay as text.
 Only CSS animation (`.kenburns` + reveals) — no JS-timed motion, no network assets — so `seek.js`
 captures it deterministically.
+
+## Typographic roles (use the named classes — never a raw font-size)
+`.stat` = a single data value · `.title` = the primary claim · `.sub` = supporting context (always
+`--muted`) · `.kicker` = a category label (mono, accent-coloured) · `.note` = secondary annotation. Keep
+the hierarchy contract: `.title`/`.sub` ≥ 2.5×, `.title`/`.note` ≥ 3×. (`var(--blue)`/`var(--orange)`
+are semantic *accent aliases*, not hardcoded colours — using them is fine; a literal `#rrggbb` is not.)
+
+## Extended layout patterns
+- **`.card`** — a panel with depth (`--surface` + shadow + hairline). Group related rows in cards.
+- **`.dash`** (3-up) / **`.grid-asym`** (2fr 1fr) — dashboard + asymmetric layouts; break the centred-column monotony.
+- **`.defocus`** — on a `compare` page, add to the NON-active column/bar for depth-of-field (blur, not flat dim).
+- **`.accent-fill`** — on `<body>` of a section-divider beat: full-bleed accent background, `--on-accent` text.
+- **`.reveal-pop`** — a spring overshoot for a hero `.stat`. **`.reveal-up-sm`** — shorter rise for dense sub-items.
+
+## Stagger cadence (seek-safe, snappy)
+kicker `0s`, rule `.05s`, title `.10s`, first content row `.25s`, then `+.03s` per sibling. Cap cumulative
+delay at `.9s`. Never stagger more than `.06s` between closely-related elements.
+
+## One-concept rule + whitespace floor
+ONE primary per page (a stat OR a list OR a chart — not two stacked). Content must not fill more than
+~60% of the canvas; if a row grid overflows below 960px, SPLIT the beat — never shrink `.stage` padding below 80px.
+
+## Anti-slop checklist (do NOT)
+emoji in titles · full-screen purple/pink/blue gradient-mesh backgrounds · circle+left-border accent
+cards (use `.card`/`.row`) · SVG depicting realistic scenes/figures · decorative bottom progress bars /
+timecodes / chapter counters (player-chrome) · hardcoded hex (use semantic vars) · network/CDN links.
+
+## Pre-render checklist
+absolute `file://` paths (files exist) · no `<link href="http…">` · base.css → theme.css → motifs.css
+linked · no content overflow below 960px · semantic vars only · all `.reveal*`/`.kenburns` keep
+`animation-play-state:paused` · no leftover debug overlays.

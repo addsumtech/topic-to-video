@@ -306,3 +306,42 @@ def test_kenburns_split_page_motion_captured(tmp_path):
     scenes._chrome_shot(f"file://{page}?p=0", str(a), 1920, 1080, {})
     scenes._chrome_shot(f"file://{page}?p=1", str(b), 1920, 1080, {})
     assert Image.open(a).convert("RGB").tobytes() != Image.open(b).convert("RGB").tobytes()  # Ken-Burns moved
+
+def test_base_css_design_tokens_and_classes():
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
+    css = open(os.path.join(skill, "assets", "html", "base.css")).read()
+    for tok in ("--ease-expo", "--ease-over", "--font-mono", "--shadow-primary",
+                "--shadow-float", "--hairline", "--stagger"):
+        assert tok in css, f"missing token {tok}"
+    for cls in (".reveal-pop", ".reveal-up-sm", ".mono", ".card", ".dash", ".grid-asym", ".dash-col"):
+        assert cls in css, f"missing class {cls}"
+    # seek-safe: the new spring reveal must be paused
+    i = css.index(".reveal-pop")
+    assert "animation-play-state:paused" in css[i:i+240]
+    assert "tabular-nums" in css            # data figures use tabular numerals
+
+@pytest.mark.skipif(not _chrome_present(), reason="no Chrome for HTML-tier integration test")
+def test_reveal_pop_motion_captured(tmp_path):
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
+    base = os.path.join(skill, "assets", "html", "base.css")
+    js = os.path.join(skill, "assets", "html", "seek.js")
+    page = tmp_path / "pop.html"
+    page.write_text('<!doctype html><html><head><meta charset="utf-8">'
+                    f'<link rel="stylesheet" href="file://{base}"></head>'
+                    '<body><div class="stage"><div class="stat reveal-pop">42</div></div>'
+                    f'<script src="file://{js}"></script></body></html>')
+    a, b = tmp_path / "a.png", tmp_path / "b.png"
+    scenes._chrome_shot(f"file://{page}?p=0", str(a), 960, 540, {})
+    scenes._chrome_shot(f"file://{page}?p=1", str(b), 960, 540, {})
+    from PIL import Image
+    assert Image.open(a).convert("RGB").tobytes() != Image.open(b).convert("RGB").tobytes()
+
+def test_motifs_focus_divider_and_kenburns_drift():
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
+    css = open(os.path.join(skill, "assets", "html", "motifs.css")).read()
+    for cls in (".defocus", ".accent-fill", ".bg-paper"):
+        assert cls in css, f"missing {cls}"
+    # Ken-Burns now drifts diagonally, not scale-only
+    i = css.index("@keyframes mt-kenburns")
+    assert "translate(" in css[i:i+160]
+    assert "#0d1117" not in css                      # scrim still theme-derived

@@ -51,6 +51,11 @@ def derive_theme(out_dir, mode=None, accent=None, accent2=None, bg=None):
         bgc = tuple(c * 255 for c in colorsys.hls_to_rgb(hue, 0.96, 0.18))
     else:
         bgc = tuple(c * 255 for c in colorsys.hls_to_rgb(hue, 0.09, 0.22))
+    # anti-cliché: never a pure-black/white background — nudge to a temperature-tinted neutral
+    if _lum(bgc) <= 0.02:
+        bgc = (14, 15, 17)        # #0e0f11
+    elif _lum(bgc) >= 0.97:
+        bgc = (248, 247, 244)     # #f8f7f4
     fg = (22, 20, 18) if m == "light" else (240, 243, 248)
     # enforce >=7:1 by pushing the background away from fg (keep its hue); l->1 (light) or ->0 (dark)
     h, l, s = colorsys.rgb_to_hls(*[c / 255 for c in bgc])
