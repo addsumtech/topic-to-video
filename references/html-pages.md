@@ -131,9 +131,17 @@ are semantic *accent aliases*, not hardcoded colours — using them is fine; a l
 - **`.accent-fill`** — on `<body>` of a section-divider beat: full-bleed accent background, `--on-accent` text.
 - **`.reveal-pop`** — a spring overshoot for a hero `.stat`. **`.reveal-up-sm`** — shorter rise for dense sub-items.
 
-## Stagger cadence (seek-safe, snappy)
-kicker `0s`, rule `.05s`, title `.10s`, first content row `.25s`, then `+.03s` per sibling. Cap cumulative
-delay at `.9s`. Never stagger more than `.06s` between closely-related elements.
+## Stagger cadence (seek-safe)
+- **Header chrome** (kicker → rule → title → sub) appears fast: `0s`, `.05s`, `.10s`, `.25s`.
+- **Content POINTS appear one-by-one, paced with the narration** — NOT all at once. Stagger the rows/
+  cards far apart: first point `~.4s`, then **`~+.5s` per point** (e.g. `.4 / .9 / 1.4 / 1.9`). Use
+  `.reveal-up-sm` on the points for a smaller, calmer rise.
+- **Spread the reveal over time via `anim_seconds`.** A page's reveals play out across its scene's
+  `anim_seconds` window (then the frame holds). For a multi-point content page set `anim_seconds` to a
+  few seconds (~half the scene's audio, e.g. **3–4s**), NOT the ~1s default — otherwise every point
+  flashes in at the very start and the rest of the scene is static. Heroes/title pages can keep ~1.2–1.5s.
+- **Equal-height cards:** rows of cards (`.dash`) are equal height by design (`align-items:stretch`); do
+  not set per-card heights. If one card's text is much longer, shorten it or move it to its own beat.
 
 ## One-concept rule + whitespace floor
 ONE primary per page (a stat OR a list OR a chart — not two stacked). Content must not fill more than

@@ -54,5 +54,5 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
   box-shadow:var(--shadow-primary),var(--shadow-float)}
 /* layout primitives: asymmetric + 3-up dashboard */
 .grid-asym{display:grid;grid-template-columns:2fr 1fr;gap:48px;align-items:start}
-.dash{display:grid;grid-template-columns:1fr 1fr 1fr;gap:48px;align-items:start}
+.dash{display:grid;grid-template-columns:1fr 1fr 1fr;gap:48px;align-items:stretch}  /* equal-height cards */
 .dash-col{display:flex;flex-direction:column;gap:24px}
