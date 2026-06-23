@@ -34,6 +34,7 @@
 
 /* image backdrop: a hero <img class="bg-photo"> + .scrim darkens it for legible text */
 .bg-photo{position:absolute;inset:0;z-index:0;width:1920px;height:1080px;object-fit:cover}
+/* scrim darkens the LEFT ~40% only (photo stays visible right). Keep hero text/captions in the left half. */
 .scrim{position:absolute;inset:0;z-index:0;pointer-events:none;
   background:linear-gradient(90deg, var(--scrim) 0%, color-mix(in srgb,var(--scrim) 55%,transparent) 42%, transparent 82%)}
 
@@ -62,5 +63,6 @@ img.kenburns{animation:mt-kenburns 6s ease-out forwards;animation-play-state:pau
 /* full-bleed accent section divider (use on <body> of a transition beat) */
 .accent-fill{background:var(--accent);color:var(--on-accent)}
 /* faint light-mode paper texture behind content */
+/* place FIRST among backdrops in source order (shares z-index:0 with .bg-photo/.scrim) */
 .bg-paper{position:absolute;inset:0;z-index:0;pointer-events:none;
   background:radial-gradient(ellipse at 30% 38%, color-mix(in srgb,var(--fg) 4%,transparent) 0%, transparent 70%)}
