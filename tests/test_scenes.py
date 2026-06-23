@@ -335,3 +335,13 @@ def test_reveal_pop_motion_captured(tmp_path):
     scenes._chrome_shot(f"file://{page}?p=1", str(b), 960, 540, {})
     from PIL import Image
     assert Image.open(a).convert("RGB").tobytes() != Image.open(b).convert("RGB").tobytes()
+
+def test_motifs_focus_divider_and_kenburns_drift():
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
+    css = open(os.path.join(skill, "assets", "html", "motifs.css")).read()
+    for cls in (".defocus", ".accent-fill", ".bg-paper"):
+        assert cls in css, f"missing {cls}"
+    # Ken-Burns now drifts diagonally, not scale-only
+    i = css.index("@keyframes mt-kenburns")
+    assert "translate(" in css[i:i+160]
+    assert "#0d1117" not in css                      # scrim still theme-derived

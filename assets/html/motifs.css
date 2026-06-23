@@ -35,7 +35,7 @@
 /* image backdrop: a hero <img class="bg-photo"> + .scrim darkens it for legible text */
 .bg-photo{position:absolute;inset:0;z-index:0;width:1920px;height:1080px;object-fit:cover}
 .scrim{position:absolute;inset:0;z-index:0;pointer-events:none;
-  background:linear-gradient(90deg, var(--scrim) 0%, var(--scrim) 36%, transparent 78%)}
+  background:linear-gradient(90deg, var(--scrim) 0%, color-mix(in srgb,var(--scrim) 55%,transparent) 42%, transparent 82%)}
 
 /* seekable motion (paused so seek.js can freeze it):
    .rise-in/.fade-in echo base.css reveals; .float is a gentle bob; .draw strokes an SVG path on. */
@@ -51,8 +51,16 @@
 .media img,img.kenburns{width:100%;height:100%;object-fit:cover;display:block}
 img.kenburns{animation:mt-kenburns 6s ease-out forwards;animation-play-state:paused;
   transform-origin:50% 50%}
-@keyframes mt-kenburns{from{transform:scale(1.02)}to{transform:scale(1.14) translate(-2%,-1%)}}
+@keyframes mt-kenburns{from{transform:scale(1.02)}to{transform:scale(1.14) translate(-3%,-1.5%)}}
 /* two-column illustrated content page: text + a media panel */
 .split{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;
   width:1920px;height:1080px;padding:120px 150px}
 .split .media{height:760px}
+
+/* depth-of-field: defocus the NON-focal element (compare pages) — static filter, seek-safe */
+.defocus{filter:brightness(.6) saturate(.7) blur(4px);opacity:.5}
+/* full-bleed accent section divider (use on <body> of a transition beat) */
+.accent-fill{background:var(--accent);color:var(--on-accent)}
+/* faint light-mode paper texture behind content */
+.bg-paper{position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse at 30% 38%, color-mix(in srgb,var(--fg) 4%,transparent) 0%, transparent 70%)}
