@@ -128,7 +128,7 @@ TTS if the user gives an API key.
    into each scene's `narration`; **resolve every flag** (drop or repair the unsourced beat)
    before proceeding. The scriptwriter follows `references/narration-writing.md` (the style
    basis). The on-screen **captions are auto-derived from the narration**, so its words are also
-   the subtitle. (PLAN → **WRITE** → CHECK: planner designs, scriptwriter writes, critic checks.)
+   the subtitle. (PLAN → **WRITE** → CHECK: planner designs, scriptwriter writes, the parallel critic panel — `critic-narrative` + `critic-content` — checks in parallel.)
 4b. **Image prompts (gpt-image tier only).** If `meta.image_source == "openai"`: for each
     VISUAL/conceptual scene, author a grounded `image_prompt` from the narration + the chosen
     style, tagged `image_tag:"broll"` and `fit:"cover"`; keep DATA in `chart` scenes (never AI).
@@ -136,7 +136,7 @@ TTS if the user gives an API key.
     **Pace the cuts:** a static AI image drags even with Ken Burns — keep each image scene's
     narration short so it holds only ~5–8s, and prefer MORE, SHORTER b-roll cuts over a few
     long holds (a 12s hold on one frame reads as sluggish; two 6s cuts feel alive).
-    The critic (step 5, R1e) reviews the prompts.
+    The critic panel (step 5, R1e via `critic-content`) reviews the prompts.
     🔴 **CHECKPOINT · 🛑 STOP:** present every prompt + the estimated cost
     (`imagegen.cost_estimate(n, quality)`) and get sign-off BEFORE spending. Then run
     `imagegen.py <out_dir>` (the paid step; cached after). No key / API error → fall back to the
@@ -145,16 +145,21 @@ TTS if the user gives an API key.
     `imagegen.generate(prompt, out_path, key)` (key path) or `imagegen._generate_codex(prompt, out_path)`
     (Codex) — then reference the file by `file://` in the page. The storyboard `image_source:"openai"`
     CLI path of `imagegen.py` drives the non-HTML tiers, not these.
-5. **Critic — narration + subtitle (REQUIRED, not optional).** Dispatch the critic
-   (`agents/critic.md`) on the storyboard **plus the comprehension brief / source material**,
-   so it can check facts, not just style. It strictly verifies (a) the narration is
-   **precise and faithful** — no wrong, vague, or invented facts/numbers — (b) the
-   resulting **subtitles are correct** — they match the spoken words, segment into clean
-   readable lines, fit on screen, and contain no typos or garbled/again-truncated text —
-   and (c) the narration is in **`meta.language`** and **`meta.voice` matches that language**
-   (a wrong-language voice would garble the audio — caught here, before TTS).
-   Apply its required EDITS and re-dispatch until it returns **PASS**. THEN:
-   🔴 **CHECKPOINT · 🛑 STOP:** present the full, critic-passed script and get the user's
+5. **Parallel critic panel — narration + subtitle (REQUIRED, not optional).** Dispatch
+   `agents/critic-narrative.md` AND `agents/critic-content.md` **concurrently — in ONE
+   message with two Agent calls** — on the storyboard **plus the comprehension brief /
+   source material**, so both critics can check facts, not just style.
+   - `critic-narrative` verifies: narration is **precise and faithful** (no wrong, vague, or
+     invented facts/numbers); subtitle text matches spoken words, segments into clean readable
+     lines, fits on screen, no typos or garbled text; narration is in **`meta.language`** and
+     **`meta.voice` matches that language** (a wrong-language voice would garble the audio).
+   - `critic-content` verifies: audio↔visual alignment per beat (R2), script faithfulness and
+     claims traceability (R1d/R1e including AI image prompts), scene/visual selection quality
+     (R3/R5/R6), pace and cuts.
+   **Overall PASS only when BOTH critics return PASS.** Apply the **UNION** of their required
+   EDITS to the storyboard, then re-dispatch both critics (or just the failing one) until both
+   return PASS. THEN:
+   🔴 **CHECKPOINT · 🛑 STOP:** present the full, critic-panel-passed script and get the user's
    edits/approval BEFORE any TTS. Do not synthesize audio until they sign off.
 6. **Motion** — read `references/motion-grammar.md`. Default motion is a gentle centered
    zoom `from:[0.5,0.5,1.0] → to:[0.5,0.5,1.12]` (keep zoom delta ≤0.20). **Callouts are OFF
@@ -167,10 +172,14 @@ TTS if the user gives an API key.
    (`pip install edge-tts`) for natural neural voices; if the user declines, set
    `meta.voice` to a `say:` fallback and continue. Then run `tts.py` (use `--only N` while
    iterating on one slide). edge-tts emits `.mp3`; `say` emits `.aiff` — both fine.
-8. **Sample sign-off** — `render.py <out_dir> --sample N`. Show `sample.mp4`, and **re-run
-   the critic's subtitle check on the rendered sample** — view the burned-in captions and
-   confirm they are legible, correct, and aligned with the speech (this is the only way to
-   catch a caption that renders wrong even when the script reads fine).
+8. **Sample sign-off** — `render.py <out_dir> --sample N`. Then:
+   a. **A/V gate:** run `python scripts/check_av.py <out_dir>`. A non-zero exit means A/V
+      drift or non-uniform clip rates — fix the root cause (clear `.clips/`, fix audio, or
+      regenerate the failing clips) and re-render before proceeding.
+   b. **AV critic:** dispatch `agents/critic-av.md` on the sample frames **plus** the
+      `check_av.py` report. It verifies A/V sync, burned-in caption legibility, font/glyph
+      correctness, and R7-rendered visual quality. Require its **PASS** before the sign-off.
+   Show `sample.mp4` to the user only after both gates pass.
    🔴 **CHECKPOINT · 🛑 STOP:** get explicit approval of the style (voice/pace/motion/
    captions) BEFORE the full render. Iterate on the sample until they approve — never
    batch-render all slides unsigned-off.
@@ -211,7 +220,7 @@ TTS if the user gives an API key.
 - **Energetic pacing.** Prefer MANY short beats (~3–6s, one idea each; ≈ `video_seconds/4`
   beats) over a few long holds; the animated renderers' internal reveals keep the screen moving.
 - **Audio↔visual.** Each narration line must MATCH what is on screen (its beat's visual) — the
-  critic (R2) fails a mismatch.
+  `critic-content` (R2) fails a mismatch.
 - **Language is set once, in `meta.language`** — write the narration in that language, and
   let `meta.voice` match it. tts.py auto-picks a matching `say` voice when the language is
   non-English and you left the default (see `references/tts-voices.md` for the per-language
@@ -220,7 +229,7 @@ TTS if the user gives an API key.
   the captions look right on the rendered **sample** (step 8) — that's where mojibake shows.
 
 ## Imagery faithfulness (AI / b-roll)
-Every on-screen visual is one of three classes; the critic (R1e) enforces them:
+Every on-screen visual is one of three classes; `critic-content` (R1e) enforces them:
 - **`motif`** — a generic programmatic vector. Always allowed; asserts no fact.
 - **`broll`** — a generic illustrative image, including an AI-generated one (`image_prompt`).
   Allowed ONLY as generic/atmospheric backdrop — no real logos, faces, named vehicles, or
@@ -229,7 +238,7 @@ Every on-screen visual is one of three classes; the critic (R1e) enforces them:
   For an AI image this is FABRICATION (the model invents it) and is NOT allowed.
 DATA always stays in faithful `chart` scenes — never render numbers/figures as an AI image.
 The full-AI escape hatch (`image_source:"openai"` with data as AI) is the user's call, but the
-critic flags every data-bearing AI scene.
+`critic-content` flags every data-bearing AI scene.
 
 ## When a step fails (if → then → still-failing)
 
@@ -263,7 +272,7 @@ For anything else, read `references/troubleshooting.md` before guessing.
 - ❌ Render audio/video before the user signs off script/sample (honor the 🔴 checkpoints).
 - ❌ Narrate from the slides alone, or invent facts/numbers — ground in the material (or a
   web fact-check) and stay strictly faithful (step 3).
-- ❌ Skip the critic — the narration + subtitle critic (step 5) is REQUIRED; ship only on PASS.
+- ❌ Skip the critic panel — the parallel `critic-narrative` + `critic-content` check (step 5) is REQUIRED; ship only when BOTH return PASS.
 - ❌ Read slide bullets aloud verbatim — write *spoken* narration (`references/narration-writing.md`).
 - ❌ Guess a slide's `duration` — it must come from ffprobe via `tts.py`.
 - ❌ Hand-edit `out.mp4`; change `storyboard.json` and re-render (`--only N`).
