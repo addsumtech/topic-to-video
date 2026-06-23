@@ -372,6 +372,17 @@ def test_render_html_no_words_uses_anim_path(tmp_path, monkeypatch):
                        1920, 1080, 60, str(out / "wd"), 5)
     assert seen and all("cues=" not in u for u in seen), "should use anim path (no cues)"
 
+def test_render_html_cued_points_but_no_words_uses_anim(tmp_path, monkeypatch):
+    out = tmp_path; (out / "pages").mkdir()
+    (out / "pages" / "p.html").write_text('<div class="stage">'
+        '<div class="row reveal-up-sm" data-cue-index="0" data-cue="alpha">A</div></div>')
+    seen = []
+    monkeypatch.setattr(scenes, "_chrome_shot", lambda url, o, w, h, m: (seen.append(url),
+                        __import__("pathlib").Path(o).write_bytes(b"\x89PNG\r\n")))
+    scenes.render_html({"html": "pages/p.html", "anim_seconds": 1.0}, {"_out": str(out), "fps": 30},
+                       1920, 1080, 60, str(out / "wd"), 7)   # no audio/07.words.json exists
+    assert seen and all("cues=" not in u for u in seen), "no words.json -> must use anim path"
+
 @pytest.mark.skipif(not _chrome_present(), reason="no Chrome")
 def test_seekjs_cue_override_gates_reveals(tmp_path):
     skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
