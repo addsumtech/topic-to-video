@@ -1,6 +1,38 @@
 import os, pytest
 import tts, storyboard as sb, _common
 
+SRT = """1
+00:00:00,100 --> 00:00:00,500
+Come
+
+2
+00:00:02,000 --> 00:00:02,400
+Dujiangyan
+
+3
+00:00:06,000 --> 00:00:06,300
+Leshan
+"""
+VTT = """WEBVTT
+
+00:00:00.100 --> 00:00:00.500
+Come
+
+00:00:02.000 --> 00:00:02.400
+Dujiangyan
+"""
+
+def test_parse_subs_srt():
+    r = tts._parse_subs(SRT)
+    assert r == [{"w": "Come", "t": 0.1}, {"w": "Dujiangyan", "t": 2.0}, {"w": "Leshan", "t": 6.0}]
+
+def test_parse_subs_vtt():
+    r = tts._parse_subs(VTT)
+    assert r == [{"w": "Come", "t": 0.1}, {"w": "Dujiangyan", "t": 2.0}]
+
+def test_parse_subs_empty():
+    assert tts._parse_subs("") == [] and tts._parse_subs("WEBVTT\n") == []
+
 def _proj(tmp_path):
     out = tmp_path / "proj"; os.makedirs(out, exist_ok=True)
     data = sb.new_storyboard()

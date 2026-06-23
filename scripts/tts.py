@@ -27,12 +27,41 @@ def _openai(text, out_path, voice):
     with open(out_path, "wb") as f:
         f.write(r.content)
 
+def _parse_subs(text):
+    """Parse an edge-tts subtitle file (SRT 'HH:MM:SS,mmm' or VTT 'HH:MM:SS.mmm') into
+    [{'w': cue text, 't': start seconds}] in order. Robust to index lines + a WEBVTT header."""
+    import re
+    ts_re = re.compile(r"(\d{2}):(\d{2}):(\d{2})[.,](\d{3})\s*-->")
+    out = []
+    for block in re.split(r"\n\s*\n", text.strip()):
+        lines = [l.strip() for l in block.splitlines() if l.strip() and l.strip() != "WEBVTT"]
+        t, words = None, []
+        for l in lines:
+            m = ts_re.search(l)
+            if m:
+                h, mm, s, ms = map(int, m.groups())
+                t = round(h * 3600 + mm * 60 + s + ms / 1000.0, 3)
+            elif not l.isdigit():
+                words.append(l)
+        if t is not None and words:
+            out.append({"w": " ".join(words), "t": t})
+    return out
+
 def _edge(text, out_path, voice):
     # edge-tts neural voice via its CLI module (sync subprocess avoids threading its
-    # asyncio into our sync pipeline). Writes an mp3 directly; ffprobe reads duration.
-    import sys
-    _common.run([sys.executable, "-m", "edge_tts",
-                 "--voice", voice, "--text", text, "--write-media", out_path])
+    # asyncio into our sync pipeline). Writes an mp3; also writes word-boundary subtitles.
+    import sys, os, json
+    subs = os.path.splitext(out_path)[0] + ".subs.srt"
+    _common.run([sys.executable, "-m", "edge_tts", "--voice", voice, "--text", text,
+                 "--write-media", out_path, "--write-subtitles", subs])
+    try:
+        if os.path.exists(subs):
+            words = _parse_subs(open(subs, encoding="utf-8", errors="replace").read())
+            if words:
+                with open(os.path.splitext(out_path)[0] + ".words.json", "w") as f:
+                    json.dump(words, f)
+    except Exception as e:
+        print(f"[tts] word-timing capture failed for {out_path}: {e}")
 
 def _provider(voice_spec):
     if ":" in voice_spec:
