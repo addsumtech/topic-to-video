@@ -47,7 +47,7 @@ def evaluate(v_dur, a_dur, rates, n_cues, n_scenes, drift_tol=0.3):
 
 def _count_cues(srt):
     try:
-        return open(srt).read().count(" --> ")
+        return open(srt, encoding="utf-8", errors="replace").read().count(" --> ")
     except OSError:
         return 0
 

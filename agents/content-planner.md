@@ -69,5 +69,6 @@ their backdrop. Aim for a few illustrated content beats, not all.
 
 ## Output contract
 Return ONLY the JSON content plan (no prose around it). The assistant maps each `beat.visual`
-to a storyboard scene and authors the short narration from `narration_intent`; the critic then
-checks faithfulness, subtitles, and audio↔visual coherence.
+to a storyboard scene and authors the short narration from `narration_intent`; the critic panel
+(`agents/critic-narrative.md` + `agents/critic-content.md`) then checks faithfulness, subtitles,
+and audio↔visual coherence.

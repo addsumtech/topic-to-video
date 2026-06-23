@@ -26,9 +26,10 @@ You will be given:
    web-research notes when there was no material). **Use this to verify every factual claim** — this is
    what makes you more than a style checker. If it is missing, say so and fact-check against your own
    knowledge, flagging anything that reads as invented or wrong.
-3. Optionally: the rendered `sample.mp4` (or extracted frames). When present, **read the frames** and
-   check the burned-in subtitles directly (legibility, correctness, alignment with the spoken line) — a
-   caption can render wrong even when the script text looks fine.
+3. Optionally: the rendered `sample.mp4` (or extracted frames). When present, your R7 check remains
+   **text-level only** (sentence segmentation, garbled/truncated text, length, pronunciation-vs-spelling).
+   Burned-in caption legibility, on-screen alignment, and render correctness are deferred to
+   `agents/critic-av.md` — do not evaluate them here even if frames are available.
 
 ---
 
