@@ -27,39 +27,35 @@ def _openai(text, out_path, voice):
     with open(out_path, "wb") as f:
         f.write(r.content)
 
-def _parse_subs(text):
-    """Parse an edge-tts subtitle file (SRT 'HH:MM:SS,mmm' or VTT 'HH:MM:SS.mmm') into
-    [{'w': cue text, 't': start seconds}] in order. Robust to index lines + a WEBVTT header."""
-    import re
-    ts_re = re.compile(r"(\d{2}):(\d{2}):(\d{2})[.,](\d{3})\s*-->")
+def _words_from_boundaries(chunks):
+    """Pure: list of edge WordBoundary chunks -> [{'w':word,'t':start_seconds}]. offset is in 100ns ticks."""
     out = []
-    for block in re.split(r"\n\s*\n", text.strip()):
-        lines = [l.strip() for l in block.splitlines() if l.strip() and l.strip() != "WEBVTT"]
-        t, words = None, []
-        for l in lines:
-            m = ts_re.search(l)
-            if m:
-                h, mm, s, ms = map(int, m.groups())
-                t = round(h * 3600 + mm * 60 + s + ms / 1000.0, 3)
-            elif not l.isdigit():
-                words.append(l)
-        if t is not None and words:
-            out.append({"w": " ".join(words), "t": t})
+    for c in chunks:
+        if c.get("type") == "WordBoundary":
+            out.append({"w": c.get("text", ""), "t": round(c.get("offset", 0) / 1e7, 3)})
     return out
 
 def _edge(text, out_path, voice):
-    # edge-tts neural voice via its CLI module (sync subprocess avoids threading its
-    # asyncio into our sync pipeline). Writes an mp3; also writes word-boundary subtitles.
-    import sys, os, json
-    subs = os.path.splitext(out_path)[0] + ".subs.srt"
-    _common.run([sys.executable, "-m", "edge_tts", "--voice", voice, "--text", text,
-                 "--write-media", out_path, "--write-subtitles", subs])
+    # edge-tts neural voice via its Python API: streams audio + per-word boundaries in one pass.
+    # asyncio.run at this leaf keeps the rest of the pipeline synchronous.
+    import asyncio, json, os, edge_tts
+    async def _go():
+        audio = bytearray(); chunks = []
+        comm = edge_tts.Communicate(text, voice, boundary="WordBoundary")
+        async for ch in comm.stream():
+            if ch["type"] == "audio":
+                audio.extend(ch["data"])
+            elif ch["type"] == "WordBoundary":
+                chunks.append(ch)
+        return bytes(audio), chunks
+    audio, chunks = asyncio.run(_go())
+    with open(out_path, "wb") as f:
+        f.write(audio)
     try:
-        if os.path.exists(subs):
-            words = _parse_subs(open(subs, encoding="utf-8", errors="replace").read())
-            if words:
-                with open(os.path.splitext(out_path)[0] + ".words.json", "w") as f:
-                    json.dump(words, f)
+        words = _words_from_boundaries(chunks)
+        if words:
+            with open(os.path.splitext(out_path)[0] + ".words.json", "w") as f:
+                json.dump(words, f)
     except Exception as e:
         print(f"[tts] word-timing capture failed for {out_path}: {e}")
 

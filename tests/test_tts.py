@@ -1,37 +1,14 @@
 import os, pytest
 import tts, storyboard as sb, _common
 
-SRT = """1
-00:00:00,100 --> 00:00:00,500
-Come
+def test_words_from_boundaries():
+    chunks = [{"type": "audio", "data": b"x"},
+              {"type": "WordBoundary", "text": "Dujiangyan", "offset": 20000000},
+              {"type": "WordBoundary", "text": "Leshan", "offset": 60000000}]
+    assert tts._words_from_boundaries(chunks) == [{"w": "Dujiangyan", "t": 2.0}, {"w": "Leshan", "t": 6.0}]
 
-2
-00:00:02,000 --> 00:00:02,400
-Dujiangyan
-
-3
-00:00:06,000 --> 00:00:06,300
-Leshan
-"""
-VTT = """WEBVTT
-
-00:00:00.100 --> 00:00:00.500
-Come
-
-00:00:02.000 --> 00:00:02.400
-Dujiangyan
-"""
-
-def test_parse_subs_srt():
-    r = tts._parse_subs(SRT)
-    assert r == [{"w": "Come", "t": 0.1}, {"w": "Dujiangyan", "t": 2.0}, {"w": "Leshan", "t": 6.0}]
-
-def test_parse_subs_vtt():
-    r = tts._parse_subs(VTT)
-    assert r == [{"w": "Come", "t": 0.1}, {"w": "Dujiangyan", "t": 2.0}]
-
-def test_parse_subs_empty():
-    assert tts._parse_subs("") == [] and tts._parse_subs("WEBVTT\n") == []
+def test_words_from_boundaries_empty():
+    assert tts._words_from_boundaries([{"type": "audio", "data": b"x"}]) == []
 
 def _proj(tmp_path):
     out = tmp_path / "proj"; os.makedirs(out, exist_ok=True)
@@ -93,16 +70,6 @@ def test_resolve_voice_auto_edge_unknown_language_falls_back_to_say(monkeypatch)
     # 'xx' is not in EDGE_VOICE_CATALOG -> resolve_edge_voice returns None -> must use say
     result = tts._resolve_voice({"voice": "auto", "language": "xx"})
     assert result.startswith("say:")
-
-def test_edge_invokes_edge_tts(monkeypatch):
-    captured = {}
-    monkeypatch.setattr(tts._common, "run", lambda cmd, **kw: captured.setdefault("cmd", cmd))
-    tts._edge("hello world", "/tmp/clip.mp3", "en-US-AriaNeural")
-    cmd = captured["cmd"]
-    assert "edge_tts" in cmd
-    assert cmd[cmd.index("--voice") + 1] == "en-US-AriaNeural"
-    assert cmd[cmd.index("--text") + 1] == "hello world"
-    assert cmd[cmd.index("--write-media") + 1] == "/tmp/clip.mp3"
 
 def test_synthesize_uses_edge_when_resolved(tmp_path, monkeypatch):
     out = _proj(tmp_path)
