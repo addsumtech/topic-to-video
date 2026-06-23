@@ -18,8 +18,11 @@ BEFORE any narration is written. You do not write final narration; you design be
       "source_ref": "slide 2 / paper §3 / web-verified — REQUIRED, no beat without a source",
       "visual": { "type": "compare", "props": { } },
       "narration_intent": "what the line must convey (not final words)",
-      "est_seconds": 5 } ] }
+      "est_seconds": 5,
+      "climax": true,
+      "hold": true } ] }
 ```
+(The `"climax"` and `"hold"` fields are optional — see Director's discipline below.)
 
 ## Rules (your rubric)
 1. **Deep understanding first.** Every `learning_point` must trace to the material via
@@ -78,7 +81,7 @@ Add these top-level fields to your plan JSON:
 - **`director_note`** (REQUIRED when `target_seconds` > 60): `{ "thesis": "one sentence — what this
   video argues", "not": ["explicit exclusions — what it is NOT / will not do"], "tone": "one word" }`.
 - **`anti_slop`** (REQUIRED array): the plan's self-imposed bans, e.g. `["no emoji in titles",
-  "no gradient-mesh backgrounds", "no stat without a source_ref", "no more than 2 same-type beats in a row"]`.
+  "no gradient-mesh backgrounds", "no stat without a source_ref", "no stock-chart clichés"]`.
 - Mark exactly ONE beat **`"climax": true`** at ~75–80% of the runtime (the peak — the result/payoff
   moment). Mark the FINAL beat **`"hold": true`** — a sparse title or single stat; do NOT add a
   fade-out or blank-screen beat (the render's end-hold IS the ending).
@@ -88,12 +91,13 @@ No more than **2 consecutive beats** may share the same `visual.type`. After two
 `chart`/`compare`/`title`/illustrated beat. Scan your beat list before returning and break any same-type run.
 
 ## Palette discipline (anti-cliché)
-Pick ONE dominant `--accent`; `--accent2` is a split-complement or tint of it, NOT an independent hue.
+These constraints govern the `theme.accent`, `theme.accent2`, and `theme.bg` fields above — they do not add new fields.
+Pick ONE dominant `theme.accent`; `theme.accent2` is a split-complement or tint of it, NOT an independent hue.
 Never propose a pure `#000000`/`#ffffff` bg. Avoid the electric-blue-on-`#0d1117` AI cliché unless the
 topic is literally code/GitHub — prefer a temperature-tinted bg + a topic-fitting accent.
 
 ## Before you emit the plan — two checks
 1. **Squint test:** at low resolution, does each beat's hierarchy still read (big vs small, bright vs
-   muted)? If a beat is a flat wall of same-size text, redesign it.
+   muted)? If a beat is a flat wall of same-size text, redesign it. (Your levers: change `visual.type`, restructure `props`/`points`, split or merge beats.)
 2. **Cover-text test:** covering `narration_intent`, can each beat be told apart from its neighbours by
-   visual SHAPE alone? If two adjacent beats look identical, vary the layout.
+   visual SHAPE alone? If two adjacent beats look identical, vary the layout. (Your levers: change `visual.type`, restructure `props`/`points`, split or merge beats.)
