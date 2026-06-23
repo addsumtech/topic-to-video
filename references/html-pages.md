@@ -156,3 +156,17 @@ timecodes / chapter counters (player-chrome) · hardcoded hex (use semantic vars
 absolute `file://` paths (files exist) · no `<link href="http…">` · base.css → theme.css → motifs.css
 linked · no content overflow below 960px · semantic vars only · all `.reveal*`/`.kenburns` keep
 `animation-play-state:paused` · no leftover debug overlays.
+
+## Audio-synced reveals (points appear when spoken)
+On a multi-point page, tag each point's reveal element with `data-cue-index="0|1|2…"` (in SPOKEN
+order) and `data-cue="<the spoken anchor phrase>"` — the word/phrase in the narration that introduces
+that point (usually the point's keyword; set it to a different phrase only when the visible label is
+not spoken verbatim). Example:
+```html
+<div class="row reveal-up-sm" data-cue-index="0" data-cue="Dujiangyan"> … </div>
+<div class="row reveal-up-sm" data-cue-index="1" data-cue="Leshan"> … </div>
+```
+When edge-tts word timings exist (`audio/NN.words.json`), `render_html` reveals each point exactly when
+its anchor is spoken (across the whole scene). With no word timings (macOS `say`, or a missing anchor)
+it falls back to the paced `anim_seconds` stagger. Heroes/title pages don't use `data-cue`. The anchor
+must be a phrase actually present in that scene's narration.
