@@ -101,7 +101,9 @@ alias to the accents). Never hardcode a hex in a page — that's how a page goes
 
 ## Illustrated content page (image + Ken-Burns)
 A content beat with `media` becomes a two-column `.split` page: text on one side, an image panel on
-the other. The image animates with a slow Ken-Burns (paused + seek-safe):
+the other. The side image is held **STATIC** — a zooming image next to revealing bullets is
+distracting (and steps with the cue capture). Ken-Burns is reserved for full-bleed hero `.bg-photo`
+backdrops; inside a `.split` it's disabled by `.split .media img{animation:none}`.
 ```html
 <div class="split">
   <div><div class="kicker reveal">SECTION</div>

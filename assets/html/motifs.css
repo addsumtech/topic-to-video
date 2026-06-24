@@ -57,6 +57,9 @@ img.kenburns{animation:mt-kenburns 6s ease-out forwards;animation-play-state:pau
 .split{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;
   width:1920px;height:1080px;padding:120px 150px}
 .split .media{height:760px}
+/* content-page side images are STATIC — a zooming image next to revealing bullets is distracting
+   (and steps with the cue capture). Ken-Burns stays on full-bleed hero .bg-photo backdrops only. */
+.split .media img{animation:none}
 
 /* depth-of-field: defocus the NON-focal element (compare pages) — static filter, seek-safe */
 .defocus{filter:brightness(.6) saturate(.7) blur(4px);opacity:.5}
