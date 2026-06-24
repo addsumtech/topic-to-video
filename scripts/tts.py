@@ -27,12 +27,37 @@ def _openai(text, out_path, voice):
     with open(out_path, "wb") as f:
         f.write(r.content)
 
+def _words_from_boundaries(chunks):
+    """Pure: list of edge WordBoundary chunks -> [{'w':word,'t':start_seconds}]. offset is in 100ns ticks."""
+    out = []
+    for c in chunks:
+        if c.get("type") == "WordBoundary":
+            out.append({"w": c.get("text", ""), "t": round(c.get("offset", 0) / 1e7, 3)})
+    return out
+
 def _edge(text, out_path, voice):
-    # edge-tts neural voice via its CLI module (sync subprocess avoids threading its
-    # asyncio into our sync pipeline). Writes an mp3 directly; ffprobe reads duration.
-    import sys
-    _common.run([sys.executable, "-m", "edge_tts",
-                 "--voice", voice, "--text", text, "--write-media", out_path])
+    # edge-tts neural voice via its Python API: streams audio + per-word boundaries in one pass.
+    # asyncio.run at this leaf keeps the rest of the pipeline synchronous.
+    import asyncio, json, edge_tts
+    async def _go():
+        audio = bytearray(); chunks = []
+        comm = edge_tts.Communicate(text, voice, boundary="WordBoundary")
+        async for ch in comm.stream():
+            if ch["type"] == "audio":
+                audio.extend(ch["data"])
+            elif ch["type"] == "WordBoundary":
+                chunks.append(ch)
+        return bytes(audio), chunks
+    audio, chunks = asyncio.run(_go())
+    with open(out_path, "wb") as f:
+        f.write(audio)
+    try:
+        words = _words_from_boundaries(chunks)
+        if words:
+            with open(os.path.splitext(out_path)[0] + ".words.json", "w") as f:
+                json.dump(words, f)
+    except Exception as e:
+        print(f"[tts] word-timing capture failed for {out_path}: {e}")
 
 def _provider(voice_spec):
     if ":" in voice_spec:

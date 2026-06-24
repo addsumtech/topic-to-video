@@ -345,3 +345,58 @@ def test_motifs_focus_divider_and_kenburns_drift():
     i = css.index("@keyframes mt-kenburns")
     assert "translate(" in css[i:i+160]
     assert "#0d1117" not in css                      # scrim still theme-derived
+
+def test_render_html_cue_capture_passes_cues(tmp_path, monkeypatch):
+    # a page with two cued points + a words.json -> render_html should resolve cues and pass ?cues= to chrome
+    import json
+    out = tmp_path; (out / "audio").mkdir(); (out / "pages").mkdir()
+    (out / "audio" / "03.words.json").write_text(json.dumps(
+        [{"w": "alpha", "t": 0.5}, {"w": "beta", "t": 3.0}]))
+    (out / "pages" / "p.html").write_text('<div class="stage">'
+        '<div class="row reveal-up-sm" data-cue-index="0" data-cue="alpha">A</div>'
+        '<div class="row reveal-up-sm" data-cue-index="1" data-cue="beta">B</div></div>')
+    seen = []
+    monkeypatch.setattr(scenes, "_chrome_shot", lambda url, o, w, h, m: (seen.append(url),
+                        __import__("pathlib").Path(o).write_bytes(b"\x89PNG\r\n")))
+    meta = {"_out": str(out), "fps": 30}
+    scenes.render_html({"html": "pages/p.html", "anim_seconds": 1.0}, meta, 1920, 1080, 120, str(out / "wd"), 3)
+    assert any("cues=" in u and "dur=" in u for u in seen), "cue params not passed"
+
+def test_render_html_no_words_uses_anim_path(tmp_path, monkeypatch):
+    out = tmp_path; (out / "pages").mkdir()
+    (out / "pages" / "p.html").write_text('<div class="stage"><div class="title reveal-up">X</div></div>')
+    seen = []
+    monkeypatch.setattr(scenes, "_chrome_shot", lambda url, o, w, h, m: (seen.append(url),
+                        __import__("pathlib").Path(o).write_bytes(b"\x89PNG\r\n")))
+    scenes.render_html({"html": "pages/p.html", "anim_seconds": 1.0}, {"_out": str(out), "fps": 30},
+                       1920, 1080, 60, str(out / "wd"), 5)
+    assert seen and all("cues=" not in u for u in seen), "should use anim path (no cues)"
+
+def test_render_html_cued_points_but_no_words_uses_anim(tmp_path, monkeypatch):
+    out = tmp_path; (out / "pages").mkdir()
+    (out / "pages" / "p.html").write_text('<div class="stage">'
+        '<div class="row reveal-up-sm" data-cue-index="0" data-cue="alpha">A</div></div>')
+    seen = []
+    monkeypatch.setattr(scenes, "_chrome_shot", lambda url, o, w, h, m: (seen.append(url),
+                        __import__("pathlib").Path(o).write_bytes(b"\x89PNG\r\n")))
+    scenes.render_html({"html": "pages/p.html", "anim_seconds": 1.0}, {"_out": str(out), "fps": 30},
+                       1920, 1080, 60, str(out / "wd"), 7)   # no audio/07.words.json exists
+    assert seen and all("cues=" not in u for u in seen), "no words.json -> must use anim path"
+
+@pytest.mark.skipif(not _chrome_present(), reason="no Chrome")
+def test_seekjs_cue_override_gates_reveals(tmp_path):
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
+    base = os.path.join(skill, "assets", "html", "base.css")
+    js = os.path.join(skill, "assets", "html", "seek.js")
+    page = tmp_path / "c.html"
+    page.write_text('<!doctype html><html><head><meta charset="utf-8">'
+                    f'<link rel="stylesheet" href="file://{base}"></head><body><div class="stage">'
+                    '<div class="row reveal-up-sm" data-cue-index="0">A</div>'
+                    '<div class="row reveal-up-sm" data-cue-index="1">B</div></div>'
+                    f'<script src="file://{js}"></script></body></html>')
+    early, late = tmp_path / "e.png", tmp_path / "l.png"
+    # dur=4s, cues at 0.2 and 2.0; at p=0.1 (t=0.4s) only point 0 is in; at p=0.6 (t=2.4s) both are
+    scenes._chrome_shot(f"file://{page}?cues=0.2,2.0&dur=4&p=0.1", str(early), 960, 540, {})
+    scenes._chrome_shot(f"file://{page}?cues=0.2,2.0&dur=4&p=0.6", str(late), 960, 540, {})
+    from PIL import Image
+    assert Image.open(early).convert("RGB").tobytes() != Image.open(late).convert("RGB").tobytes()

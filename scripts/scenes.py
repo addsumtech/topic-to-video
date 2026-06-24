@@ -312,20 +312,62 @@ def render_compare(props, meta, W, H, frames, workdir, index):
 
 
 def render_html(props, meta, W, H, frames, workdir, index):
-    """Render a designed HTML page (paused CSS reveals) into a frame sequence by screenshotting
-    it at progress p=0..1 via headless Chrome. Animate for anim_seconds, then hold the settle frame."""
+    """Render a designed HTML page (paused CSS reveals) into a frame sequence via headless Chrome.
+    If a per-scene word-timing file (audio/NN.words.json) exists AND the page has [data-cue-index]
+    points, reveal each point at its spoken cue time across the FULL scene (audio-synced); otherwise
+    animate the reveals over anim_seconds then hold (the default)."""
+    import json, re
+    import cues as _cues
     src = os.path.join(meta["_out"], props["html"])
     fps = meta.get("fps", 30)
+    dur = frames / float(fps)
+    html = open(src, encoding="utf-8", errors="replace").read()
+    words_path = os.path.join(meta["_out"], "audio", f"{index:02d}.words.json")
+    # collect cued points: (cue-index, anchor) where anchor = data-cue="..." (required on cued points)
+    pts = re.findall(r'data-cue-index="(\d+)"[^>]*?data-cue="([^"]*)"', html)
+    pts += [(i, a) for (a, i) in re.findall(r'data-cue="([^"]*)"[^>]*?data-cue-index="(\d+)"', html)]
+    cue_param = None
+    if pts and os.path.exists(words_path):
+        try:
+            words = json.load(open(words_path))
+            anchors = [a for _, a in sorted(((int(i), a) for i, a in pts), key=lambda x: x[0])]
+            ctimes = _cues.resolve_cues(words, anchors)
+            cue_param = ",".join(f"{t:.3f}" for t in ctimes)
+        except Exception:
+            cue_param = None
+    pat = os.path.join(workdir, f"scene_{index:02d}_%04d.png")
+    os.makedirs(workdir, exist_ok=True)
+    if cue_param is None and 'data-cue-index' in html:
+        import os as _os
+        why = "no audio/%02d.words.json (non-edge voice?)" % index if not _os.path.exists(words_path) \
+              else "points missing a data-cue= anchor attribute"
+        print(f"[render_html] scene {index}: audio-sync skipped ({why}) — using paced stagger")
+    if cue_param is not None:
+        # capture a fresh frame near each cue's reveal window (~0.6s); hold (copy) elsewhere
+        ctimes = [float(x) for x in cue_param.split(",")]
+        burst = 0.6
+        def is_reveal(t):
+            return t <= 0.001 or any(c <= t <= c + burst for c in ctimes)
+        last = None
+        for i in range(frames):
+            outp = pat % i
+            t = i / float(fps)
+            if is_reveal(t) or last is None:
+                p = min(1.0, t / dur)
+                _chrome_shot(f"file://{src}?p={p:.4f}&cues={cue_param}&dur={dur:.3f}", outp, W, H, meta)
+                last = outp
+            else:
+                shutil.copyfile(last, outp)
+        return pat
+    # default path (unchanged): animate over anim_seconds, then hold
     anim = float(props.get("anim_seconds", 0.8))
     reveal_frames = max(1, min(frames, int(round(anim * fps))))
-    pat = os.path.join(workdir, f"scene_{index:02d}_%04d.png")
     settle = None
     for i in range(frames):
         out = pat % i
         p = 1.0 if i >= reveal_frames - 1 else i / max(1, reveal_frames - 1)
         if p >= 1.0 and settle is not None:
-            shutil.copyfile(settle, out)              # hold: reuse the settled screenshot
-            continue
+            shutil.copyfile(settle, out); continue
         _chrome_shot(f"file://{src}?p={p:.4f}", out, W, H, meta)
         if p >= 1.0:
             settle = out
