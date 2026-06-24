@@ -23,7 +23,8 @@ ffmpeg -y \
   -filter_complex "[0:v]scale=1920:1080,zoompan=z='1.0+(1.12-1.0)*on/300':d=300:s=1920x1080:fps=30[base]" \
   -map "[base]" -map 1:a \
   -t 10.0 -r 30 -pix_fmt yuv420p \
-  -ar 48000 -ac 1 \        # pin sample rate — prevents -c copy drift when clips mix edge .mp3 @24000 and say .aiff @22050
+  # pin sample rate — prevents -c copy drift when clips mix edge .mp3 @24000 and say .aiff @22050
+  -ar 48000 -ac 1 \
   -c:v libx264 -c:a aac \
   -shortest \
   clip_01.mp4
@@ -42,7 +43,8 @@ ffmpeg -y \
   -filter_complex "[0:v]scale=1920:1080,zoompan=z='1.0+(1.12-1.0)*on/300':d=300:s=1920x1080:fps=30[base];[base][2:v]overlay=0:0[ov]" \
   -map "[ov]" -map 1:a \
   -t 10.0 -r 30 -pix_fmt yuv420p \
-  -ar 48000 -ac 1 \        # pin sample rate — prevents -c copy drift when clips mix edge .mp3 @24000 and say .aiff @22050
+  # pin sample rate — prevents -c copy drift when clips mix edge .mp3 @24000 and say .aiff @22050
+  -ar 48000 -ac 1 \
   -c:v libx264 -c:a aac \
   -shortest \
   clip_01.mp4
