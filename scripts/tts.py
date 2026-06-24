@@ -38,7 +38,7 @@ def _words_from_boundaries(chunks):
 def _edge(text, out_path, voice):
     # edge-tts neural voice via its Python API: streams audio + per-word boundaries in one pass.
     # asyncio.run at this leaf keeps the rest of the pipeline synchronous.
-    import asyncio, json, os, edge_tts
+    import asyncio, json, edge_tts
     async def _go():
         audio = bytearray(); chunks = []
         comm = edge_tts.Communicate(text, voice, boundary="WordBoundary")

@@ -337,6 +337,11 @@ def render_html(props, meta, W, H, frames, workdir, index):
             cue_param = None
     pat = os.path.join(workdir, f"scene_{index:02d}_%04d.png")
     os.makedirs(workdir, exist_ok=True)
+    if cue_param is None and 'data-cue-index' in html:
+        import os as _os
+        why = "no audio/%02d.words.json (non-edge voice?)" % index if not _os.path.exists(words_path) \
+              else "points missing a data-cue= anchor attribute"
+        print(f"[render_html] scene {index}: audio-sync skipped ({why}) — using paced stagger")
     if cue_param is not None:
         # capture a fresh frame near each cue's reveal window (~0.6s); hold (copy) elsewhere
         ctimes = [float(x) for x in cue_param.split(",")]
