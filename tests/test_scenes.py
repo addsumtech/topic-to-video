@@ -279,14 +279,14 @@ def test_motif_page_renders_nonblank(tmp_path):
 
 
 @pytest.mark.skipif(not _chrome_present(), reason="no Chrome for HTML-tier integration test")
-def test_kenburns_split_page_motion_captured(tmp_path):
-    """Spec: a .split page with a .kenburns <img> must DIFFER at ?p=0 vs ?p=1 (the Ken-Burns
-    transform progresses and seek.js freezes it per frame). Proves the illustrated-page motion path."""
+def test_split_media_image_is_static(tmp_path):
+    """A .split content-page side image must NOT zoom — a moving image next to revealing bullets is
+    distracting (and steps with the cue capture). A .split page with no animated text renders
+    IDENTICALLY at ?p=0 and ?p=1 (the image is frozen by `.split .media img{animation:none}`)."""
     skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
     base = os.path.join(skill, "assets", "html", "base.css")
     motifs = os.path.join(skill, "assets", "html", "motifs.css")
     js = os.path.join(skill, "assets", "html", "seek.js")
-    # a non-uniform local image so a scale/translate transform changes the captured pixels
     img = tmp_path / "pic.png"
     pic = Image.new("RGB", (200, 200), (20, 60, 140))
     for x in range(200):
@@ -302,10 +302,37 @@ def test_kenburns_split_page_motion_captured(tmp_path):
         f'<div class="media"><img class="kenburns" src="file://{img}" alt=""></div></div>'
         f'<script src="file://{js}"></script></body></html>')
     a, b = tmp_path / "a.png", tmp_path / "b.png"
-    # full 1920x1080 capture — the .split media panel (and its kenburns img) is in the RIGHT half
     scenes._chrome_shot(f"file://{page}?p=0", str(a), 1920, 1080, {})
     scenes._chrome_shot(f"file://{page}?p=1", str(b), 1920, 1080, {})
-    assert Image.open(a).convert("RGB").tobytes() != Image.open(b).convert("RGB").tobytes()  # Ken-Burns moved
+    assert Image.open(a).convert("RGB").tobytes() == Image.open(b).convert("RGB").tobytes()  # static, no zoom
+
+
+@pytest.mark.skipif(not _chrome_present(), reason="no Chrome for HTML-tier integration test")
+def test_kenburns_hero_backdrop_motion_captured(tmp_path):
+    """Ken-Burns still animates on a full-bleed hero .bg-photo (NOT inside a .split): the frame
+    differs at ?p=0 vs ?p=1, proving the hero backdrop motion path is intact."""
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
+    base = os.path.join(skill, "assets", "html", "base.css")
+    motifs = os.path.join(skill, "assets", "html", "motifs.css")
+    js = os.path.join(skill, "assets", "html", "seek.js")
+    img = tmp_path / "pic.png"
+    pic = Image.new("RGB", (200, 200), (20, 60, 140))
+    for x in range(200):
+        for y in range(200):
+            pic.putpixel((x, y), ((x * 5) % 256, (y * 7) % 256, 90))
+    pic.save(img)
+    page = tmp_path / "hero.html"
+    page.write_text(
+        '<!doctype html><html><head><meta charset="utf-8">'
+        f'<link rel="stylesheet" href="file://{base}">'
+        f'<link rel="stylesheet" href="file://{motifs}"></head>'
+        f'<body><img class="bg-photo kenburns" src="file://{img}" alt="">'
+        '<div class="stage"><h1 class="title">Hero</h1></div>'
+        f'<script src="file://{js}"></script></body></html>')
+    a, b = tmp_path / "a.png", tmp_path / "b.png"
+    scenes._chrome_shot(f"file://{page}?p=0", str(a), 1920, 1080, {})
+    scenes._chrome_shot(f"file://{page}?p=1", str(b), 1920, 1080, {})
+    assert Image.open(a).convert("RGB").tobytes() != Image.open(b).convert("RGB").tobytes()  # hero KB moves
 
 def test_base_css_design_tokens_and_classes():
     skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
