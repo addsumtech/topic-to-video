@@ -37,7 +37,7 @@ and visual rendering quality.
 
 ### A/V sync
 - **FAIL** (hard REVISE) if `python scripts/check_av.py <out_dir>` exits non-zero OR reports:
-  - Video duration does not match total audio duration (within a small tolerance, e.g. ±0.5 s).
+  - Video duration does not match total audio duration (within the gate's tolerance, default 0.3 s — `check_av.py` exits non-zero above this).
   - Per-clip sample-rate non-uniformity (mixed 44100/22050/16000 Hz clips concatenated without
     resampling, which causes audio drift).
 - State the exact mismatch: which clip(s) deviate and by how much.

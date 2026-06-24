@@ -21,9 +21,9 @@ BEFORE any narration is written. You do not write final narration; you design be
       "est_seconds": 5,
       "climax": true,
       "hold": true,
-      "cue": "optional — spoken anchor phrase(s) for audio-synced reveals (multi-point pages)" } ] }
+      "cue": ["optional", "array of per-point anchor strings (one per point, in spoken order)"] } ] }
 ```
-(The `"climax"`, `"hold"`, and `"cue"` fields are optional — see Director's discipline below. Per-point `cue` applies when a multi-point beat's content element has `data-cue-index="0|1|…"` tags and `edge-tts` word timings exist; the spoken anchor must be a phrase the beat's narration actually says, in spoken order.)
+(The `"climax"`, `"hold"`, and `"cue"` fields are optional — see Director's discipline below. `"cue"` is an ARRAY of per-point anchor strings, one per point in spoken order, e.g. `"cue": ["Dujiangyan", "Leshan"]`. This is a human hint — no script reads it; the author must write the matching `data-cue="..."` on each HTML point element. The spoken anchor must be a phrase the beat's narration actually says.)
 
 ## Rules (your rubric)
 1. **Deep understanding first.** Every `learning_point` must trace to the material via

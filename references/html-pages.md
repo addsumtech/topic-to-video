@@ -40,7 +40,7 @@ source) — type the real data into the HTML. Never invent figures or labels. Da
 page as real text/bars, not as a decorative picture. The critic checks the page against the
 narration (R2 audio↔visual) and the facts (R1d/R1e).
 
-## Example (a faithful split page)
+## Example (a faithful breakdown page)
 ```html
 <div class="stage">
   <div class="kicker reveal">2025 · 165 次发射</div>
@@ -144,6 +144,9 @@ are semantic *accent aliases*, not hardcoded colours — using them is fine; a l
   flashes in at the very start and the rest of the scene is static. Heroes/title pages can keep ~1.2–1.5s.
 - **Equal-height cards:** rows of cards (`.dash`) are equal height by design (`align-items:stretch`); do
   not set per-card heights. If one card's text is much longer, shorten it or move it to its own beat.
+- **Audio-synced cues override stagger:** when audio-synced cues are active (edge-tts + `data-cue`
+  attributes), `seek.js` overrides each cued point's delay with its resolved cue time from
+  `audio/NN.words.json`; your stagger `animation-delay` values on cued points are ignored.
 
 ## One-concept rule + whitespace floor
 ONE primary per page (a stat OR a list OR a chart — not two stacked). Content must not fill more than
