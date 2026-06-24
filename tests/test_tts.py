@@ -10,6 +10,24 @@ def test_words_from_boundaries():
 def test_words_from_boundaries_empty():
     assert tts._words_from_boundaries([{"type": "audio", "data": b"x"}]) == []
 
+def test_synthesize_only_zero_targets_slide_0(tmp_path, monkeypatch):
+    """--only 0 must synthesize ONLY slide 0 — the old `if only:` was falsy for 0 and synthesized all."""
+    out = tmp_path / "proj"; os.makedirs(out, exist_ok=True)
+    data = sb.new_storyboard()
+    data["meta"]["voice"] = "say:Samantha"
+    data["slides"] = [sb.new_slide(0, "frames/00.png", "zero"),
+                      sb.new_slide(1, "frames/01.png", "one")]
+    sb.save(data, os.path.join(out, "storyboard.json"))
+    done = []
+    def fake_say(text, dest, voice, rate=175):
+        done.append(dest)
+        with open(dest, "wb") as f:
+            f.write(b"\x00")
+    monkeypatch.setattr(tts, "_say", fake_say)
+    monkeypatch.setattr(tts._common, "audio_duration", lambda p: 1.0)
+    tts.synthesize(str(out), only=0)
+    assert len(done) == 1 and done[0].endswith("00.aiff"), f"only slide 0 should synth, got {done}"
+
 def _proj(tmp_path):
     out = tmp_path / "proj"; os.makedirs(out, exist_ok=True)
     data = sb.new_storyboard()

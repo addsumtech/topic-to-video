@@ -56,8 +56,8 @@ the audio isn't read by an English engine. You can always override with an expli
 | `nl` | `Xander` | Dutch |
 | `hi` | `Lekha` | Hindi |
 
-If a voice isn't installed, `say` errors and `tts.py` falls back to `Samantha` (which will
-mispronounce non-English text). Install voices via **System Settings → Accessibility →
+If a voice isn't installed, `say` errors and `tts.py` falls back to the language-matched say voice
+(e.g. say:Tingting for zh) and prints a notice. Install voices via **System Settings → Accessibility →
 Spoken Content → System Voice → Manage Voices**, or run `say -v '?'` to see what you have.
 
 **Cloud TTS is language-agnostic:** OpenAI/ElevenLabs voices speak whatever language the
@@ -120,7 +120,9 @@ Anything not listed: `python -m edge_tts --list-voices` and use any id as `edge:
 
 **Notes:** needs network (it's a free, unauthenticated cloud endpoint — an unofficial Edge
 service, stable for years but not contractual). When edge-tts is unavailable, tts.py falls
-back to macOS `say`.
+back to macOS `say`. edge-tts also writes `audio/NN.words.json` (per-word start times) alongside
+the `.mp3`; when present, `render_html` uses these timings to reveal each cued HTML point exactly
+when its anchor phrase is spoken (audio-synced reveals).
 
 ---
 
@@ -147,10 +149,11 @@ male voice. Preview at: https://platform.openai.com/docs/guides/text-to-speech
 ### Fallback behavior
 
 If the OpenAI call fails for any reason (missing key, network error, rate
-limit), `tts.py` automatically falls back to `say:Samantha` and logs:
+limit), `tts.py` automatically falls back to the language-matched say voice (e.g. say:Tingting for zh)
+and logs:
 
 ```
-[tts] openai failed (<reason>); falling back to say:Samantha
+[tts] openai failed (<reason>); falling back to say:Tingting for zh
 ```
 
 The fallback slide gets an `.aiff` file instead of `.mp3`. Rendering continues

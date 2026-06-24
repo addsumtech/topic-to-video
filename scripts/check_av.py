@@ -35,7 +35,7 @@ def evaluate(v_dur, a_dur, rates, n_cues, n_scenes, drift_tol=0.3):
     if drift > drift_tol:
         issues.append(f"A/V drift {drift:.3f}s > {drift_tol}s (video {v_dur:.2f}s vs audio {a_dur:.2f}s)")
     if not uniform:
-        issues.append(f"non-uniform clip audio sample rates {sorted(set(rates))} — '-c copy' concat desyncs")
+        issues.append(f"non-uniform clip audio sample rates {sorted(set(rates))} — '-c copy' concat desyncs — delete .clips/ and re-render to normalise")
     if v_dur <= 0 or a_dur <= 0:
         issues.append(f"missing stream (video {v_dur:.2f}s, audio {a_dur:.2f}s)")
     warnings = []

@@ -75,6 +75,9 @@ are never guessed or estimated. If your video feels out of sync:
 - If you edited an audio file manually, re-run `tts.py --only N` for that slide.
 - Durations are stored in `storyboard.json` as `slide.duration` (in seconds,
   3-decimal precision). Verify they look reasonable.
+- Mixed TTS engines (edge `.mp3` @24000 Hz vs say `.aiff` @22050 Hz) silently desync
+  with `-c copy`; run `python scripts/check_av.py <out_dir>` to detect; `render.py`
+  pins `-ar 48000 -ac 1` to prevent it (clear `.clips/` and re-render if you see drift).
 
 ---
 
@@ -125,4 +128,7 @@ much faster for long decks.
 # Verify a single slide before full render
 python scripts/render.py out/ --sample 1
 open out/sample.mp4
+
+# Check A/V sync and per-clip sample-rate uniformity after full render
+python scripts/check_av.py out/
 ```

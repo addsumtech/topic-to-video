@@ -43,3 +43,19 @@ def test_check_integration_aligned_then_drift(tmp_path):
                     aligned], capture_output=True)
     r2 = check_av.check(out)
     assert r2["ok"] is False and r2["drift"] > 1.5
+
+
+@pytest.mark.skipif(not _common.have_tool("ffmpeg"), reason="needs ffmpeg")
+def test_check_av_main_exit_code(tmp_path):
+    """main()'s process contract: exit 0 when aligned, non-zero on drift (so the workflow can gate)."""
+    import sys
+    script = check_av.__file__
+    out = str(tmp_path)
+    subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "testsrc=duration=3:size=320x240:rate=30",
+                    "-f", "lavfi", "-i", "sine=duration=3", "-c:v", "libx264", "-c:a", "aac",
+                    "-shortest", os.path.join(out, "out.mp4")], capture_output=True)
+    assert subprocess.run([sys.executable, script, out], capture_output=True).returncode == 0
+    subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "testsrc=duration=5:size=320x240:rate=30",
+                    "-f", "lavfi", "-i", "sine=duration=3", "-c:v", "libx264", "-c:a", "aac",
+                    os.path.join(out, "out.mp4")], capture_output=True)
+    assert subprocess.run([sys.executable, script, out], capture_output=True).returncode == 1

@@ -265,7 +265,10 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
         "img": stat(slide.get("image")), "aud": stat(slide.get("audio")),
         "html": stat((slide.get("props") or {}).get("html")),
         "theme": stat("theme.css"),   # re-theming (theme.py) busts html-scene clips
-        "words": stat(os.path.join("audio", f"{(slide.get('index') or 0):02d}.words.json")),
+        # per-word cue timings only matter to html scenes — gate on type so a TTS re-run
+        # doesn't spuriously bust every static slide's cached clip
+        "words": (stat(os.path.join("audio", f"{(slide.get('index') or 0):02d}.words.json"))
+                  if slide.get("type") == "html" else None),
     }, sort_keys=True, default=str)
     return hashlib.sha1(payload.encode()).hexdigest()[:16]
 
