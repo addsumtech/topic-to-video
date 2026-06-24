@@ -326,25 +326,32 @@ def render_html(props, meta, W, H, frames, workdir, index):
     # collect cued points: (cue-index, anchor) where anchor = data-cue="..." (required on cued points)
     pts = re.findall(r'data-cue-index="(\d+)"[^>]*?data-cue="([^"]*)"', html)
     pts += [(i, a) for (a, i) in re.findall(r'data-cue="([^"]*)"[^>]*?data-cue-index="(\d+)"', html)]
-    cue_param = None
+    cue_param = None        # comma list for seek.js, indexed by data-cue-index (sparse-safe)
+    cue_times = []          # the resolved reveal moments (for the capture bursts)
+    cue_err = None
     if pts and os.path.exists(words_path):
         try:
             words = json.load(open(words_path))
-            anchors = [a for _, a in sorted(((int(i), a) for i, a in pts), key=lambda x: x[0])]
-            ctimes = _cues.resolve_cues(words, anchors)
-            cue_param = ",".join(f"{t:.3f}" for t in ctimes)
-        except Exception:
-            cue_param = None
+            ordered = sorted(((int(i), a) for i, a in pts), key=lambda x: x[0])
+            ctimes = _cues.resolve_cues(words, [a for _, a in ordered])
+            margin = max(0.0, dur - 0.5)                  # a cue must fire before the final frame, else hidden
+            cue_times = [min(t, margin) for t in ctimes]
+            sparse = [0.0] * (ordered[-1][0] + 1)         # index by the element's actual data-cue-index
+            for (orig_i, _), t in zip(ordered, cue_times):
+                sparse[orig_i] = t
+            cue_param = ",".join(f"{t:.3f}" for t in sparse)
+        except Exception as e:
+            cue_param, cue_err = None, str(e)
     pat = os.path.join(workdir, f"scene_{index:02d}_%04d.png")
     os.makedirs(workdir, exist_ok=True)
     if cue_param is None and 'data-cue-index' in html:
-        import os as _os
-        why = "no audio/%02d.words.json (non-edge voice?)" % index if not _os.path.exists(words_path) \
-              else "points missing a data-cue= anchor attribute"
+        why = (f"malformed words.json: {cue_err}" if cue_err else
+               ("no audio/%02d.words.json (non-edge voice?)" % index if not os.path.exists(words_path)
+                else "points missing a data-cue= anchor attribute"))
         print(f"[render_html] scene {index}: audio-sync skipped ({why}) — using paced stagger")
     if cue_param is not None:
         # capture a fresh frame near each cue's reveal window (~0.6s); hold (copy) elsewhere
-        ctimes = [float(x) for x in cue_param.split(",")]
+        ctimes = cue_times
         burst = 0.6
         def is_reveal(t):
             return t <= 0.001 or any(c <= t <= c + burst for c in ctimes)

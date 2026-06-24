@@ -389,6 +389,73 @@ def test_render_html_cue_capture_passes_cues(tmp_path, monkeypatch):
     scenes.render_html({"html": "pages/p.html", "anim_seconds": 1.0}, meta, 1920, 1080, 120, str(out / "wd"), 3)
     assert any("cues=" in u and "dur=" in u for u in seen), "cue params not passed"
 
+
+def _cues_from_urls(urls):
+    import re
+    for u in urls:
+        m = re.search(r"cues=([0-9.,]+)&dur=([0-9.]+)", u)
+        if m:
+            return [float(x) for x in m.group(1).split(",")], float(m.group(2))
+    return None, None
+
+def _stub_shot(scenes_mod, monkeypatch, seen):
+    monkeypatch.setattr(scenes_mod, "_chrome_shot", lambda url, o, w, h, m: (seen.append(url),
+                        __import__("pathlib").Path(o).write_bytes(b"\x89PNG\r\n")))
+
+def test_render_html_cue_times_clamped_within_scene(tmp_path, monkeypatch):
+    """A cue that would land past the scene end must be CLAMPED before the final frame, else the
+    point stays hidden. 1 word (alpha) + 2 anchors -> beta is EPS-pushed; with the clamp all cues
+    sit within the capture window (<= dur - margin)."""
+    import json
+    out = tmp_path; (out / "audio").mkdir(); (out / "pages").mkdir()
+    (out / "audio" / "03.words.json").write_text(json.dumps([{"w": "alpha", "t": 0.5}]))
+    (out / "pages" / "p.html").write_text('<div class="stage">'
+        '<div class="row reveal-up-sm" data-cue-index="0" data-cue="alpha">A</div>'
+        '<div class="row reveal-up-sm" data-cue-index="1" data-cue="beta">B</div></div>')
+    seen = []; _stub_shot(scenes, monkeypatch, seen)
+    # 30 frames @30fps -> dur=1.0, margin=dur-0.5=0.5
+    scenes.render_html({"html": "pages/p.html"}, {"_out": str(out), "fps": 30}, 1920, 1080, 30, str(out / "wd"), 3)
+    cues, dur = _cues_from_urls(seen)
+    assert cues is not None and dur == 1.0
+    assert max(cues) <= dur - 0.4, f"a cue exceeded the capture window: {cues} (dur {dur})"
+
+def test_render_html_cue_capture_copies_frames(tmp_path, monkeypatch):
+    """The cue path must NOT screenshot every frame — it bursts around each cue and copies the rest."""
+    import json
+    out = tmp_path; (out / "audio").mkdir(); (out / "pages").mkdir()
+    (out / "audio" / "03.words.json").write_text(json.dumps([{"w": "alpha", "t": 0.3}, {"w": "beta", "t": 1.0}]))
+    (out / "pages" / "p.html").write_text('<div class="stage">'
+        '<div class="row reveal-up-sm" data-cue-index="0" data-cue="alpha">A</div>'
+        '<div class="row reveal-up-sm" data-cue-index="1" data-cue="beta">B</div></div>')
+    seen = []; _stub_shot(scenes, monkeypatch, seen)
+    frames = 90  # 3s @30fps
+    scenes.render_html({"html": "pages/p.html"}, {"_out": str(out), "fps": 30}, 1920, 1080, frames, str(out / "wd"), 3)
+    n_png = len(list((out / "wd").glob("scene_03_*.png")))
+    assert n_png == frames, "every frame index must produce a PNG (no %04d gap)"
+    assert len(seen) < frames, f"cue capture should copy held frames, not shoot all ({len(seen)} of {frames})"
+
+def test_render_html_noncontiguous_cue_index_sparse(tmp_path, monkeypatch):
+    """data-cue-index 0 and 2 (gap at 1) -> the cues= param must be a sparse array of length 3 so
+    seek.js indexes correctly (cues[2] = the 3rd element's time, not the 2nd)."""
+    import json
+    out = tmp_path; (out / "audio").mkdir(); (out / "pages").mkdir()
+    (out / "audio" / "03.words.json").write_text(json.dumps([{"w": "alpha", "t": 0.3}, {"w": "beta", "t": 1.0}]))
+    (out / "pages" / "p.html").write_text('<div class="stage">'
+        '<div class="row reveal-up-sm" data-cue-index="0" data-cue="alpha">A</div>'
+        '<div class="row reveal-up-sm" data-cue-index="2" data-cue="beta">B</div></div>')
+    seen = []; _stub_shot(scenes, monkeypatch, seen)
+    scenes.render_html({"html": "pages/p.html"}, {"_out": str(out), "fps": 30}, 1920, 1080, 90, str(out / "wd"), 3)
+    cues, _ = _cues_from_urls(seen)
+    assert len(cues) == 3, f"sparse cue array must have 3 slots (indices 0,1,2): {cues}"
+    assert cues[0] > 0 and cues[2] > 0  # the two real points resolved at their indices
+
+def test_split_media_image_static_rule_present():
+    """No-Chrome grep: the static-split rule must exist (deletion would otherwise pass CI)."""
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
+    css = open(os.path.join(skill, "assets", "html", "motifs.css")).read()
+    i = css.find(".split .media img")
+    assert i != -1 and "animation:none" in css[i:i + 60]
+
 def test_render_html_no_words_uses_anim_path(tmp_path, monkeypatch):
     out = tmp_path; (out / "pages").mkdir()
     (out / "pages" / "p.html").write_text('<div class="stage"><div class="title reveal-up">X</div></div>')

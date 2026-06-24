@@ -157,7 +157,7 @@ def synthesize(out_dir, only=None):
             print(note)
 
     for s in data["slides"]:
-        if only and s["index"] != only:
+        if only is not None and s["index"] != only:
             continue
         text = (s.get("narration") or "").strip() or " "
         ext = "aiff" if prov == "say" else "mp3"
@@ -178,6 +178,9 @@ def synthesize(out_dir, only=None):
             rel = os.path.join("audio", f"{s['index']:02d}.aiff")
             dest = os.path.join(out_dir, rel)
             _say(text, dest, fb)
+            wj = os.path.join(out_dir, "audio", f"{s['index']:02d}.words.json")
+            if os.path.exists(wj):
+                os.remove(wj)   # drop stale per-word timings — say has none; a leftover would mis-cue render_html
         s["audio"] = rel
         s["duration"] = round(_common.audio_duration(dest), 3)
 
