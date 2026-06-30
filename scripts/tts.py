@@ -3,10 +3,20 @@
 Voice spec in storyboard meta['voice']:
   "say:Samantha"        -> local macOS say, voice Samantha
   "openai:alloy"        -> OpenAI TTS (needs OPENAI_API_KEY); falls back to say
+  "edge:<id>"           -> edge-tts neural (free, network); also emits per-word timings
+  "minimax:<voice_id>"  -> MiniMax T2A (very natural, esp. zh; needs MINIMAX_API_KEY); falls back
+                           to say. "minimax" alone picks a voice by language+gender from the catalog.
 """
 import argparse, os
 import _common
 import storyboard as sb
+
+def _read_key_file(path):
+    """Read a single-line API key from `path` (e.g. ~/.minimax_key), or None. Never persisted by us."""
+    try:
+        return (open(os.path.expanduser(path)).read().strip() or None)
+    except OSError:
+        return None
 
 def _say(text, out_path, voice, rate=175):
     # say writes AIFF directly; ffprobe reads its real duration later.
@@ -26,6 +36,69 @@ def _openai(text, out_path, voice):
     r.raise_for_status()
     with open(out_path, "wb") as f:
         f.write(r.content)
+
+# --- MiniMax T2A (cloud, paid, very natural — especially Chinese) ----------------------------
+# Endpoint default is the INTERNATIONAL host (GroupId is carried by the key there). On the mainland
+# host (api.minimaxi.chat / api.minimax.chat) set meta.minimax_group_id (or MINIMAX_GROUP_ID).
+MINIMAX_DEFAULT_BASE = "https://api.minimax.io/v1/t2a_v2"
+MINIMAX_DEFAULT_MODEL = "speech-02-hd"          # natural HD; bump via meta.tts_model (speech-2.6-hd, ...)
+# language_boost improves pronunciation (MiniMax wants capitalised language names).
+MINIMAX_LANG_BOOST = {
+    "zh": "Chinese", "en": "English", "ja": "Japanese", "ko": "Korean", "es": "Spanish",
+    "fr": "French", "de": "German", "it": "Italian", "pt": "Portuguese", "ru": "Russian",
+    "nl": "Dutch", "hi": "Hindi",
+}
+# A few curated, professional system voices from MiniMax's current voice library (300+ exist —
+# set meta.voice = "minimax:<any voice_id>", list at platform.minimax.io/docs/faq/system-voice-id).
+MINIMAX_VOICE_CATALOG = {
+    "en": {"female": "English_Graceful_Lady", "male": "English_Persuasive_Man"},
+    "zh": {"female": "Chinese (Mandarin)_Intellectual_Girl",
+           "male": "Chinese (Mandarin)_Reliable_Executive"},
+}
+MINIMAX_DEFAULT_VOICE = "English_expressive_narrator"   # fallback for languages not in the catalog
+
+def resolve_minimax_voice(language, gender="female"):
+    """Map (language, gender) to a curated MiniMax voice_id; falls back to a neutral narrator for
+    languages not in the catalog. Any voice_id can be used directly via meta.voice='minimax:<id>'."""
+    lang = (language or "").lower().replace("_", "-").split("-")[0]
+    g = gender if gender in ("female", "male") else "female"
+    tbl = MINIMAX_VOICE_CATALOG.get(lang)
+    return tbl[g] if tbl else MINIMAX_DEFAULT_VOICE
+
+def _minimax(text, out_path, voice, meta):
+    """Synthesize via MiniMax T2A v2. Bearer auth; response `data.audio` is HEX-encoded mp3.
+    Key from MINIMAX_API_KEY env or ~/.minimax_key (never persisted). No per-word timings, so
+    HTML reveals use the paced fallback (use edge-tts if you need exact audio-synced cues)."""
+    import requests
+    meta = meta or {}
+    key = os.environ.get("MINIMAX_API_KEY") or _read_key_file("~/.minimax_key")
+    if not key:
+        raise RuntimeError("no MINIMAX_API_KEY")
+    base = meta.get("minimax_base") or os.environ.get("MINIMAX_API_BASE") or MINIMAX_DEFAULT_BASE
+    group = meta.get("minimax_group_id") or os.environ.get("MINIMAX_GROUP_ID")
+    url = f"{base}?GroupId={group}" if group else base
+    lang = (meta.get("language") or "auto").lower().replace("_", "-").split("-")[0]
+    body = {
+        "model": meta.get("tts_model") or MINIMAX_DEFAULT_MODEL,
+        "text": text,
+        "stream": False,
+        "language_boost": MINIMAX_LANG_BOOST.get(lang, "auto"),
+        "output_format": "hex",
+        "voice_setting": {"voice_id": voice, "speed": 1.0, "vol": 1.0, "pitch": 0},
+        "audio_setting": {"sample_rate": 32000, "bitrate": 128000, "format": "mp3", "channel": 1},
+    }
+    r = requests.post(url, headers={"Authorization": f"Bearer {key}",
+                                    "Content-Type": "application/json"}, json=body, timeout=120)
+    r.raise_for_status()
+    j = r.json()
+    br = j.get("base_resp") or {}
+    if br.get("status_code") not in (0, None):
+        raise RuntimeError(f"minimax error {br.get('status_code')}: {br.get('status_msg')}")
+    audio_hex = (j.get("data") or {}).get("audio")
+    if not audio_hex:
+        raise RuntimeError(f"minimax: no audio in response (status {br.get('status_msg')})")
+    with open(out_path, "wb") as f:
+        f.write(bytes.fromhex(audio_hex))
 
 def _words_from_boundaries(chunks):
     """Pure: list of edge WordBoundary chunks -> [{'w':word,'t':start_seconds}]. offset is in 100ns ticks."""
@@ -137,6 +210,9 @@ def _resolve_voice(meta):
     spec = meta.get("voice", "auto")
     lang = meta.get("language", "auto")
     if spec and spec != "auto":
+        # expand a bare "minimax" / "minimax:auto" to a concrete catalog voice for the language
+        if spec in ("minimax", "minimax:auto"):
+            return f"minimax:{resolve_minimax_voice(lang, meta.get('voice_gender', 'female'))}"
         return spec
     if _have_edge():
         vid = resolve_edge_voice(lang, gender="female")
@@ -168,6 +244,8 @@ def synthesize(out_dir, only=None):
                 _openai(text, dest, name)
             elif prov == "edge":
                 _edge(text, dest, name)
+            elif prov == "minimax":
+                _minimax(text, dest, name, data["meta"])
             else:
                 _say(text, dest, name)
         except Exception as e:
@@ -183,6 +261,13 @@ def synthesize(out_dir, only=None):
                 os.remove(wj)   # drop stale per-word timings — say has none; a leftover would mis-cue render_html
         s["audio"] = rel
         s["duration"] = round(_common.audio_duration(dest), 3)
+        # Only edge-tts emits per-word timings. For any other provider (say/openai/minimax) drop a
+        # leftover words.json from a PRIOR edge run — otherwise render_html would cue reveals off
+        # stale timings that don't match this audio. (The fallback branch above also handles it.)
+        if rel.endswith(".aiff") or prov != "edge":
+            wj = os.path.join(audio_dir, f"{s['index']:02d}.words.json")
+            if os.path.exists(wj):
+                os.remove(wj)
 
     sb.save(data, path)
     return data

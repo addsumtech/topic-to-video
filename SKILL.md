@@ -72,8 +72,11 @@ TTS if the user gives an API key.
    **source material to ground the narration** — the paper PDF, the code repo, a report or
    notes (slides alone rarely say enough to narrate *well*); audience & goal; **video
    language**; voice — **edge-tts** (natural neural, free, needs network; then pick **accent** + **gender**
-   from `references/tts-voices.md`) by default, with macOS `say` as the offline fallback, or
-   cloud TTS if they give a key; captions on/off; aspect (16:9 default / 9:16);
+   from `references/tts-voices.md`) by default, with macOS `say` as the offline fallback, or a
+   **paid cloud voice if they want the most natural result** — **MiniMax** (`minimax:<voice_id>`,
+   needs `MINIMAX_API_KEY`; markedly more natural, especially Chinese) or OpenAI (`openai:<voice>`).
+   Note the tradeoff: only edge-tts emits per-word timings, so MiniMax/OpenAI/say HTML reveals use
+   the paced fallback, not exact audio-synced cues. captions on/off; aspect (16:9 default / 9:16);
    target pace (a seconds-per-slide ceiling); **image source** — **Free** (programmatic animation / slides, the default) vs **gpt-image**
    (OpenAI `gpt-image-2`, **paid**, needs `OPENAI_API_KEY`). If gpt-image: ask for the key
    **fresh, each run** (env var or pasted — never reuse a stored one; if pasted, warn it lands
@@ -224,7 +227,10 @@ TTS if the user gives an API key.
 - `duration` always comes from rendered audio (tts.py sets it) — never guess timings.
 - Set `meta.voice`, `meta.captions`, and `meta.language` in the storyboard, not via flags.
   `meta.voice` is one of: `auto` (default — tts.py prefers edge-tts, else `say`),
-  `edge:<id>` (e.g. `edge:en-GB-SoniaNeural`), `say:<voice>`, or `openai:<voice>`.
+  `edge:<id>` (e.g. `edge:en-GB-SoniaNeural`), `say:<voice>`, `openai:<voice>`, or
+  `minimax:<voice_id>` (or bare `minimax` → a catalog voice by `meta.language`+`meta.voice_gender`).
+  MiniMax tunables: `meta.tts_model` (default `speech-02-hd`), `meta.minimax_base` (mainland host),
+  `meta.minimax_group_id` (mainland only); key via `MINIMAX_API_KEY` / `~/.minimax_key`.
 - `meta.image_source` is `none` (default, free) or `openai` (gpt-image-2, paid). AI images are
   generated once by `imagegen.py` and CACHED under `.assets/` — re-renders are free + offline.
 - **HTML pages tier:** `type:"html"` scenes render an authored page via headless Chrome
@@ -252,11 +258,12 @@ TTS if the user gives an API key.
   (no key, Codex-plan-billed, slower) when present; else the OpenAI key (`OPENAI_API_KEY` /
   `~/.openai_key`). `meta.image_provider` (`auto`/`codex`/`openai`) overrides. Codex and OpenAI
   images cache separately (keyed by provider).
-- **API key — never persist it.** Request the OpenAI key fresh each run and pass it ONLY as
-  `OPENAI_API_KEY` (env) or `imagegen.py --key` for that one call. NEVER write it into
-  `storyboard.json`, any script, the `.assets/` manifest, a log, or any committed file —
-  `imagegen.py` keeps it only in the request header, nowhere on disk. If the user pasted a key
-  into the chat, remind them to rotate it (the transcript retains it).
+- **API key — never persist it.** Applies to the OpenAI key (gpt-image / openai TTS) AND the
+  **MiniMax key** (`MINIMAX_API_KEY` / `~/.minimax_key`). Request it fresh each run and pass it ONLY
+  via the env var (or `imagegen.py --key`) for that one call. NEVER write any key into
+  `storyboard.json`, any script, the `.assets/` manifest, a log, or any committed file — the scripts
+  keep it only in the request header, nowhere on disk. If the user pasted a key into the chat, remind
+  them to rotate it (the transcript retains it).
 - **Pacing — keep cuts moving.** Don't let one frame linger: aim for roughly ≤8s per scene,
   especially image/b-roll (a held static image reads as sluggish even with Ken Burns). If a
   scene's narration runs long, split it into shorter beats/cuts rather than holding one frame.
@@ -295,6 +302,7 @@ The full-AI escape hatch (`image_source:"openai"` with data as AI) is the user's
 | `ingest.py`: `soffice` missing / hangs | Kill stale `soffice`; ask user to export the deck to PDF and feed the `.pdf` | Feed a folder of exported slide PNGs instead |
 | pptx has no speaker notes | Generate narration from visible slide content + any source docs | Ask the user for the deck's intent per section |
 | `tts.py`: cloud voice errors / no `OPENAI_API_KEY` | It auto-falls back to the language-matched say voice (e.g. say:Tingting for zh) and prints a notice — continue | Set `meta.voice` to an explicit local `say:` voice |
+| `tts.py`: MiniMax error / no `MINIMAX_API_KEY` | It auto-falls back to the language-matched say voice and prints a notice — continue | Verify `MINIMAX_API_KEY`; on the mainland host set `meta.minimax_group_id` + `meta.minimax_base`; check the `voice_id`/`tts_model` exist for your account |
 | `tts.py`: edge-tts not installed | The workflow offers `pip install edge-tts` once; on decline, set `meta.voice` to a `say:` fallback | tts.py auto-falls back to `say` at synth time and prints a notice — continue |
 | `tts.py`: edge-tts network error / endpoint down | tts.py catches it and falls back to the language-matched say voice (e.g. say:Tingting for zh) and prints a notice — continue | Switch `meta.voice` to an explicit `say:` voice (fully offline) |
 | `imagegen.py`: no `OPENAI_API_KEY` | It prints a notice and leaves those scenes for free-tier fallback — convert them to programmatic/slide and continue | Set the key (`export OPENAI_API_KEY=...`) and re-run `imagegen.py` |

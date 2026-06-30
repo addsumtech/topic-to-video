@@ -162,6 +162,61 @@ produced.
 
 ---
 
+## Cloud: MiniMax T2A (most natural — especially Chinese)
+
+MiniMax's neural voices sound markedly more human than edge-tts, and its Mandarin is excellent.
+Paid (per-character), needs an API key. Pick it when naturalness matters more than the free tier.
+
+```json
+"meta": {
+  "voice": "minimax:Chinese (Mandarin)_Intellectual_Girl",
+  "language": "zh"
+}
+```
+
+Or let the skill choose a curated voice for the language + gender:
+```json
+"meta": { "voice": "minimax", "language": "zh", "voice_gender": "female" }
+```
+
+Key (never persisted — request fresh each run):
+```bash
+export MINIMAX_API_KEY="..."        # or put it in ~/.minimax_key
+```
+
+**Endpoint / region:** defaults to the international host `https://api.minimax.io/v1/t2a_v2`
+(the key carries the group there). On the **mainland** host set both:
+```json
+"meta": { "minimax_base": "https://api.minimaxi.chat/v1/t2a_v2", "minimax_group_id": "<your GroupId>" }
+```
+
+**Model:** `meta.tts_model` (default `speech-02-hd`; bump to `speech-2.6-hd` / `speech-2.8-hd` for the
+latest if your account has them). Audio comes back hex-encoded and is written as `.mp3`.
+
+**Curated voices (the skill's catalog):**
+
+| language | female | male |
+|---|---|---|
+| `zh` | `Chinese (Mandarin)_Intellectual_Girl` | `Chinese (Mandarin)_Reliable_Executive` |
+| `en` | `English_Graceful_Lady` | `English_Persuasive_Man` |
+
+Any of MiniMax's 300+ system voices works — set `meta.voice` to `minimax:<voice_id>`. Other good
+picks: `English_expressive_narrator`, `Chinese (Mandarin)_News_Anchor`. Full list:
+https://platform.minimax.io/docs/faq/system-voice-id
+
+**Tradeoff — no per-word timings.** Unlike edge-tts, MiniMax (like OpenAI/say) does not emit
+`audio/NN.words.json`, so audio-synced HTML reveals fall back to the **paced** stagger (still spread
+across the scene via `anim_seconds`, just not anchored to each spoken word). Use **edge-tts** when you
+need exact `data-cue` audio-sync; use **MiniMax** when you want the most natural voice.
+
+### Fallback behavior
+
+If the MiniMax call fails (missing key, network, bad `voice_id`/`tts_model`, quota), `tts.py` falls
+back to the language-matched `say` voice and logs `[tts] minimax failed (<reason>); falling back to
+say:<voice>`. That slide gets an `.aiff`; rendering continues.
+
+---
+
 ## Changing voice mid-project
 
 1. Edit `meta.voice` in `storyboard.json`.

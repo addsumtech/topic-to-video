@@ -118,3 +118,87 @@ def test_synthesize_writes_audio_and_durations(tmp_path, monkeypatch):
     for s in data["slides"]:
         assert s["audio"] and os.path.exists(os.path.join(out, s["audio"]))
         assert s["duration"] and s["duration"] > 0.2
+
+# --- MiniMax ---------------------------------------------------------------------------------
+
+def test_minimax_voice_catalog():
+    assert tts.resolve_minimax_voice("zh", "female") == "Chinese (Mandarin)_Intellectual_Girl"
+    assert tts.resolve_minimax_voice("en", "male") == "English_Persuasive_Man"
+    assert tts.resolve_minimax_voice("xx") == tts.MINIMAX_DEFAULT_VOICE   # unlisted lang -> fallback
+
+def test_resolve_voice_minimax_expands_and_passes_through():
+    # bare "minimax" -> concrete catalog voice for the language; explicit voice_id passes through
+    assert tts._resolve_voice({"voice": "minimax", "language": "zh"}) == \
+        "minimax:Chinese (Mandarin)_Intellectual_Girl"
+    assert tts._resolve_voice({"voice": "minimax:auto", "language": "en", "voice_gender": "male"}) == \
+        "minimax:English_Persuasive_Man"
+    assert tts._resolve_voice({"voice": "minimax:English_Graceful_Lady", "language": "en"}) == \
+        "minimax:English_Graceful_Lady"
+
+def test_minimax_builds_request_and_decodes_hex(tmp_path, monkeypatch):
+    captured = {}
+    class FakeResp:
+        def raise_for_status(self): pass
+        def json(self):
+            return {"data": {"audio": b"ID3hello".hex(), "status": 2},
+                    "base_resp": {"status_code": 0, "status_msg": "success"}}
+    def fake_post(url, headers=None, json=None, timeout=None):
+        captured.update(url=url, headers=headers, body=json); return FakeResp()
+    import sys, types
+    fake_requests = types.SimpleNamespace(post=fake_post)
+    monkeypatch.setitem(sys.modules, "requests", fake_requests)
+    monkeypatch.setenv("MINIMAX_API_KEY", "secret-key")
+    out = tmp_path / "o.mp3"
+    tts._minimax("你好世界", str(out), "Chinese (Mandarin)_Intellectual_Girl",
+                 {"language": "zh", "tts_model": "speech-02-hd"})
+    assert out.read_bytes() == b"ID3hello"                              # hex decoded to real bytes
+    assert captured["headers"]["Authorization"] == "Bearer secret-key"
+    assert captured["body"]["voice_setting"]["voice_id"] == "Chinese (Mandarin)_Intellectual_Girl"
+    assert captured["body"]["language_boost"] == "Chinese"
+    assert captured["body"]["output_format"] == "hex" and captured["body"]["audio_setting"]["format"] == "mp3"
+
+def test_minimax_no_key_raises(monkeypatch):
+    monkeypatch.delenv("MINIMAX_API_KEY", raising=False)
+    monkeypatch.setattr(tts, "_read_key_file", lambda p: None)   # ignore any real ~/.minimax_key
+    with pytest.raises(RuntimeError, match="MINIMAX_API_KEY"):
+        tts._minimax("hi", "/tmp/x.mp3", "English_Graceful_Lady", {"language": "en"})
+
+def test_minimax_error_status_raises(tmp_path, monkeypatch):
+    class FakeResp:
+        def raise_for_status(self): pass
+        def json(self): return {"base_resp": {"status_code": 1004, "status_msg": "auth failed"}}
+    import sys, types
+    monkeypatch.setitem(sys.modules, "requests", types.SimpleNamespace(
+        post=lambda *a, **k: FakeResp()))
+    monkeypatch.setenv("MINIMAX_API_KEY", "k")
+    with pytest.raises(RuntimeError, match="1004"):
+        tts._minimax("hi", str(tmp_path / "x.mp3"), "English_Graceful_Lady", {"language": "en"})
+
+def test_minimax_failure_falls_back_to_say(tmp_path, monkeypatch):
+    out = _proj(tmp_path)
+    data = sb.load(os.path.join(out, "storyboard.json"))
+    data["meta"]["voice"] = "minimax:English_Graceful_Lady"; data["meta"]["language"] = "en"
+    sb.save(data, os.path.join(out, "storyboard.json"))
+    def boom(*a, **k): raise RuntimeError("no MINIMAX_API_KEY")
+    said = []
+    monkeypatch.setattr(tts, "_minimax", boom)
+    monkeypatch.setattr(tts, "_say", lambda text, dest, voice, rate=175: (
+        said.append(voice), open(dest, "wb").write(b"\x00")))
+    monkeypatch.setattr(tts._common, "audio_duration", lambda p: 1.0)
+    res = tts.synthesize(out)
+    assert said, "minimax failure should fall back to say"
+    assert all(s["audio"].endswith(".aiff") for s in res["slides"])
+
+def test_minimax_removes_stale_words_json(tmp_path, monkeypatch):
+    # switching from edge to minimax must drop leftover per-word timings (they'd mis-cue reveals)
+    out = _proj(tmp_path)
+    data = sb.load(os.path.join(out, "storyboard.json"))
+    data["meta"]["voice"] = "minimax:English_Graceful_Lady"; data["meta"]["language"] = "en"
+    sb.save(data, os.path.join(out, "storyboard.json"))
+    os.makedirs(os.path.join(out, "audio"), exist_ok=True)
+    stale = os.path.join(out, "audio", "01.words.json")
+    open(stale, "w").write('[{"w":"x","t":0.1}]')
+    monkeypatch.setattr(tts, "_minimax", lambda text, dest, voice, meta: open(dest, "wb").write(b"\x00"))
+    monkeypatch.setattr(tts._common, "audio_duration", lambda p: 1.0)
+    tts.synthesize(out)
+    assert not os.path.exists(stale), "stale words.json should be removed for the minimax provider"
