@@ -95,6 +95,14 @@ Check, per scene:
 - **Audio↔visual match.** The narration must describe / be supported by what is ON SCREEN (the scene's
   visual). **FAIL** a mismatch — e.g. a generic photo or an unrelated visual under a specific factual
   claim (the classic "satellite photo under a government-orders line").
+- **Reveal timing — content must not lead the voice.** For an `html` scene with ≥2 content points,
+  the points must reveal *as the narration reaches them*, not all up front. Require one of: (a) each
+  point carries a `data-cue` anchor (a phrase the narration actually speaks, in spoken order) so the
+  reveal is audio-synced — PREFERRED; or (b) the page leaves `anim_seconds` unset / set to ~0.7× the
+  scene's audio so the paced reveal spreads across the scene. **FAIL** a multi-point page that is
+  uncued AND has a small `anim_seconds` (points would flash in long before they're spoken) — the EDIT
+  is "add `data-cue` anchors to each point (give the planner's `cue` array)" or "unset/raise
+  `anim_seconds`". (`validate.py` flags this mechanically; confirm the fix here.)
 - **Sourcing.** Each beat's claim must trace to the material (the planner's `source_ref`); flag any
   unsourced or unsupported claim (cross-ref R1d data faithfulness, R1e imagery).
 - **Re-conceived coverage:** when the video re-conceives the deck (not slide order), confirm per-beat
@@ -120,6 +128,12 @@ Note: R5/R6 apply to `slide` scenes only — skip for animated scenes (`type` �
   hardcoded hex `#rrggbb` (pages must use semantic vars — `var(--bg)`/`var(--accent)`/…); a fabricated
   statistic that does not trace to `source_ref` (cross-ref R1d); a full-screen gradient-mesh background;
   or a circle+left-border "card" (use `.card`/`.row` instead).
+- **Icons (if any) must do a JOB, not decorate** (`references/icons.md`). REVISE if an SVG icon:
+  answers none of *what is this / what does it do / why care*; mixes more than one family; is larger
+  than the title; carries meaning with no text label; sits on an **evidence/stat beat** (a
+  `chart`/number/figure hero — it competes); or appears as wallpaper on every page. A few, consistent
+  (same family/size/treatment across siblings), semantically-fit, color-coded-per-category icons help;
+  emoji/✅/🚀 substituted for real icons is a fail.
 
 ---
 

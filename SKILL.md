@@ -40,6 +40,8 @@ TTS if the user gives an API key.
 - `scripts/render.py <out_dir> [--sample N] [--only N] [--vertical]` — storyboard → `out.mp4` + `out.srt`.
 - `scripts/cues.py` — pure anchor→cue-time resolver: reads per-scene `audio/NN.words.json` (edge-tts per-word timings) and resolves each `data-cue` anchor phrase to an absolute timestamp, used by `render_html` for audio-synced HTML reveals.
 - `scripts/check_av.py <out_dir>` — deterministic A/V gate: probes `out.mp4` video-vs-audio duration + per-clip sample-rate uniformity across `.clips/`; exits non-zero on A/V drift above tolerance (0.3 s) or non-uniform rates. Run AFTER the full render (step 9) as a gate before delivery.
+- `scripts/doctor.py [--json]` — environment preflight: reports which tools/libraries are present (ffmpeg/ffprobe/PIL required; PyMuPDF/python-pptx/edge-tts/soffice/Chrome/font optional) and, for each missing one, the stage it gates + the install hint. Exits non-zero only when a REQUIRED dep is missing. Run once at the START (step 1).
+- `scripts/validate.py <out_dir> [--pre-tts] [--vertical] [--json]` — deterministic PRE-render gate on `storyboard.json` (runs in ~1s): structural contract, duplicate indices, every referenced image/audio/html-page/`file://` asset + `theme.css` exists on disk, caption craft (no wall of text, no widow, ≥0.7s on screen — see `references/captions.md`), motion sanity (zoom delta + zoom-past-1.25 + callout-framing — see `references/motion-grammar.md`), CJK-font/cue/pacing/anti-slop warnings. Exits non-zero on any ERROR. Run BEFORE every render (step 9); `--pre-tts` validates right after authoring (skips audio checks); `--vertical` mirrors render's 9:16 canvas (also auto from `meta.aspect`). Errors block; warnings don't.
 - `scripts/scenes.py` — deterministic ANIMATED scene renderers (no slides): `title`/`keypoints`
   (PIL), `chart`/`timeline`/`compare` (matplotlib), `html` (headless Chrome). A storyboard scene
   with `type` `title`/`keypoints`/`chart`/`timeline`/`compare`/`html` (+ a typed `props` block)
@@ -52,10 +54,21 @@ TTS if the user gives an API key.
   `data-cue="<spoken anchor>"`. When edge-tts `audio/NN.words.json` exists, `render_html` resolves
   each anchor's timestamp via `cues.py` and reveals each point exactly when its phrase is spoken;
   falls back to the paced `anim_seconds` stagger otherwise (macOS `say` or missing anchor).
+  **Fast capture (default):** frames are grabbed from ONE persistent Chrome over the DevTools
+  Protocol as JPEG (`scripts/_cdp.py`) — one launch + many fast grabs instead of a cold Chrome per
+  frame (~18× faster on a full render; ~5–7× per scene). If CDP can't run (no Chrome, old build,
+  any error) it falls back automatically to the per-frame `--headless --screenshot` path (thread-
+  pooled across cores). Tunables in `meta`: `capture` (`cdp` default | `screenshot` to force the
+  fallback), `chrome_workers` (parallel Chromes; default ≈ cores−1, capped 8), `jpeg_quality`
+  (default 90). render prints a per-scene progress line + an in-place frame bar.
 
 ## Workflow (follow in order)
 
-1. **Interview** (one compact AskUserQuestion): the deck/PDF/image-folder to narrate;
+1. **Preflight + Interview.** First run `python scripts/doctor.py` once: it reports any
+   missing tool/library and the stage it gates. A REQUIRED dep missing (ffmpeg/ffprobe/PIL)
+   → stop and have the user install it; optional gaps (edge-tts/soffice/Chrome/…) just narrow
+   the tiers available — fold them into the interview (e.g. no Chrome → drop the HTML tier).
+   Then a **compact AskUserQuestion**: the deck/PDF/image-folder to narrate;
    **source material to ground the narration** — the paper PDF, the code repo, a report or
    notes (slides alone rarely say enough to narrate *well*); audience & goal; **video
    language**; voice — **edge-tts** (natural neural, free, needs network; then pick **accent** + **gender**
@@ -176,7 +189,10 @@ TTS if the user gives an API key.
    box over a dark slide reads as a muddy coloured blob; the slide already shows the content.
    Add a callout ONLY if the user explicitly asks to emphasise a named region — then exactly
    one, tightly placed on that region, and confirm its position from the rendered sample.
-7. **TTS** — before synth, if `meta.voice` is `auto` or `edge:*`, check edge-tts is
+7. **TTS** — optionally first catch structural problems early with
+   `python scripts/validate.py <out_dir> --pre-tts` (skips the audio checks, so it's safe to run
+   before synth): a missing image/page/asset or a wall-of-text caption is cheaper to fix now than
+   after rendering. Then, before synth, if `meta.voice` is `auto` or `edge:*`, check edge-tts is
    installed: `python -c "import edge_tts"`. If it's missing, **offer to install it once**
    (`pip install edge-tts`) for natural neural voices; if the user declines, set
    `meta.voice` to a `say:` fallback and continue. Then run `tts.py` (use `--only N` while
@@ -191,11 +207,16 @@ TTS if the user gives an API key.
    🔴 **CHECKPOINT · 🛑 STOP:** get explicit approval of the style (voice/pace/motion/
    captions) BEFORE the full render. Iterate on the sample until they approve — never
    batch-render all slides unsigned-off.
-9. **Full render** — `render.py <out_dir>` (add `--vertical` for 9:16). Then run the A/V gate:
+9. **Full render** — first the PRE-render gate: `python scripts/validate.py <out_dir>`. A
+   non-zero exit means a referenced image/audio/page/asset is missing, an index is duplicated,
+   `theme.css` is absent, or a caption is a wall of text — fix every ERROR before rendering (it
+   catches in ~1s what would otherwise waste a multi-minute render); skim the warnings too. Then
+   `render.py <out_dir>` (for 9:16 set `meta.aspect:"9:16"` — render and validate both honor it;
+   the `--vertical` flag also forces it on both), and the POST-render A/V gate:
    `python scripts/check_av.py <out_dir>`. A non-zero exit means A/V drift or non-uniform clip
    rates — fix the root cause (clear `.clips/`, fix audio or regenerate failing clips, and
    re-render) before delivering. Deliver `out.mp4`, `out.srt`, and the editable `storyboard.json`
-   only after `check_av.py` exits 0.
+   only after both `validate.py` and `check_av.py` exit 0.
 10. **Iterate** — any change = edit `storyboard.json`, then re-run render (the per-slide
     clip cache re-renders only changed slides) and tts (`--only N`). Never hand-edit the video.
 
@@ -213,10 +234,14 @@ TTS if the user gives an API key.
 - **Anti-slop (critic R8 / AV-critic):** no emoji in titles; no hardcoded hex — use semantic vars
   (`var(--bg)`, `var(--accent)`, etc.); no gradient-mesh backgrounds; no player-chrome / progress
   bars / timecodes; no more than 2 consecutive beats with the same `visual.type`.
-- **Audio-synced reveals (HTML tier):** tag each point's reveal element `data-cue-index="N"`
-  (spoken order) + `data-cue="<spoken anchor>"`; when edge `audio/NN.words.json` exists,
-  `render_html` reveals each point when its phrase is spoken; falls back to the paced `anim_seconds`
-  stagger otherwise.
+- **Audio-synced reveals (HTML tier) — content must not lead the voice.** Make multi-point pages
+  audio-synced by DEFAULT: tag each point `data-cue-index="N"` (spoken order) + `data-cue="<spoken
+  anchor>"` (a phrase the narration says); the content-planner emits a per-beat `cue` array for this.
+  When edge `audio/NN.words.json` exists, `render_html` reveals each point exactly when its phrase is
+  spoken. If a page is NOT cued, LEAVE `anim_seconds` unset — `render_html` defaults it to spread the
+  reveals across ~0.7× the scene (tracking the speaking pace) instead of cramming them at the start; a
+  small `anim_seconds` on a long content page makes content appear before it's spoken. `validate.py`
+  warns on that, and `critic-content` (R2) fails an uncued multi-point page whose reveals lead the audio.
 - **Theming:** the HTML tier is themeable via `theme.py` → `theme.css` (semantic `:root` vars);
   pick a palette/mode that fits the TOPIC (not always dark). Author pages with the vars, never raw hex.
   `theme.py`/`theme.css` themes ONLY the `html` tier. The programmatic scenes (`title`/`chart`/
@@ -284,6 +309,8 @@ The full-AI escape hatch (`image_source:"openai"` with data as AI) is the user's
 | A/V out of sync (one slide) | Never guess timing — `duration` comes from ffprobe; re-run `tts.py --only N` | Re-render that slide with `--only N` |
 | A/V drift across the WHOLE video (audio runs longer than the video, worse later) | Mixed audio sample rates across clips (e.g. a partial edge-tts run left some scenes as `say` .aiff @22050 and others edge .mp3 @24000) → the `-c copy` concat desyncs. render.py pins `-ar 48000 -ac 1` per clip to prevent this; clear `<out_dir>/.clips/` and re-render so every clip re-encodes uniformly | Regenerate ALL audio with one engine (delete `audio/`, re-run `tts.py`) so the voice is consistent too, then clear `.clips/` and re-render |
 | step 8 critic-av returns REVISE | Read the issue (illegible/mistimed burned caption / off-theme or tofu render / player-chrome) → fix the cause (fix the page/theme, clear `.clips/`, re-render sample) and re-dispatch `critic-av` until it passes, before the 🔴 sample sign-off |
+| step 1 `doctor.py` reports a REQUIRED dep missing (ffmpeg/ffprobe/PIL) | Install it (e.g. `brew install ffmpeg`, `pip install pillow`) before proceeding | Optional gaps (edge-tts/soffice/Chrome) only narrow the tiers — adjust the interview, don't block |
+| step 9 gate fails: `validate.py` exits non-zero before render | Read each ERROR (missing image/audio/page/`file://` asset, duplicate index, absent `theme.css`) → fix in `storyboard.json` / regenerate the missing asset (run `theme.py`/`imagegen.py`/`tts.py`) | Re-run `python scripts/validate.py <out_dir>` until exit 0 before calling `render.py` |
 | step 9 gate fails: `check_av.py` exits non-zero after full render | Read the issue (A/V drift / non-uniform clip rates) → fix the cause (clear `.clips/`, regenerate audio with ONE engine, re-render) | Re-run `python scripts/check_av.py <out_dir>` until exit 0 before delivering `out.mp4` |
 | Slide "shivers"/jitters during the zoom | zoompan runs supersampled (`meta.motion_ss`, default 2) then downscales; a `scale` filter must precede zoompan or the frame shrinks. Keep ss≥2 | Raise `motion_ss` to 3 (smoother, slower) |
 | Caption is one static line per slide | Captions auto-derive from `narration` — split into sentence chunks timed across the slide; a single full-span entry in `captions` is overridden by the narration track | For custom timing, supply a multi-segment `captions` array |

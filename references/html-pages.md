@@ -91,6 +91,40 @@ path is offline/deterministic; only NETWORK assets are forbidden). Use it as a d
 A gpt-image backdrop must stay **generic/atmospheric** (`broll`) — no fabricated specific
 vehicle/event/figure, no embedded numbers — the facts live in the page text, never in the image.
 
+## Soft AI backgrounds + glass cards (depth without clutter)
+To give a designed deck more depth, place a **generic, atmospheric AI image** (a `broll` —
+no logos/text/specific subjects) BEHIND the content at low opacity, and put the real content in
+**translucent "glass" cards** so the backdrop reads *through* the blocks instead of being fully
+covered. Keep it subtle — the image adds atmosphere, the text still carries every fact.
+
+- **Per-page soft backdrop:** first child of `<body>`, then a tint for palette cohesion:
+  ```html
+  <img class="bg-soft" src="file:///ABS/OUT_DIR/.assets/<hash>.png" alt="" style="opacity:.14">
+  <div class="bg-soft-tint"></div>
+  ```
+  Tune `opacity` inline: **content/middle pages ~.12–.18**; the **atmospheric opener & closer ends
+  ~.34–.46** (more image-forward, since those beats are sparse). One or two reused textures across
+  the middle pages keep it cohesive and cheap — you do NOT need a distinct image per page.
+- **Glass cards:** add `glass` to any `.card` so the backdrop shows through:
+  `<div class="card glass">…</div>`. The translucency is an alpha fill (renders under the
+  `--disable-gpu` screenshot path); the `backdrop-filter` blur is a bonus that may be ignored.
+- **Faithfulness:** the soft image is decorative `broll` only — generic/atmospheric, never a
+  specific vehicle/person/logo and never embedded text or numbers. Facts stay in the card text.
+- **Generate the images** with `imagegen` (the same provider as the rest of the tier): Codex
+  (`imagegen._generate_codex(prompt, out_path)`, no key) when the `codex` CLI is present, else the
+  OpenAI key path (`imagegen.generate(prompt, out_path, key)`); reference the cached file by
+  `file://`. Per-page AI imagery is **opt-in** (it costs time/credits) — present the prompts and
+  get sign-off before generating, exactly like the non-HTML gpt-image tier.
+
+## SVG icons (category marks, used with restraint) — see `references/icons.md`
+Inline-SVG line icons (one coherent Lucide family, themeable via `currentColor`) can mark a row of
+**category / feature cards** or flag status. Use the `.icon-tile` / `.icon-badge` / `.icon` classes
+(in `motifs.css`) and paste a glyph from `references/icons.md`. Discipline (enforced by `critic-content`):
+an icon must do a JOB (answer *what is this / what does it do / why care*) — never decoration; ONE
+family; **semantic fit**; color-code a category row by setting `color:` per tile; keep the text label;
+≤ the title size; and **no icon on an evidence/stat beat** (a `chart`/number/figure is the focal
+point). A few, consistent, purposeful — not one on every page.
+
 ## Theming (topic-fitting color)
 Link the stylesheets in THIS order: `base.css` → **`theme.css`** → `motifs.css`. `theme.css` is
 written by `scripts/theme.py <out_dir>` (it samples `frames/` for a curated light/dark palette, or
@@ -133,15 +167,24 @@ are semantic *accent aliases*, not hardcoded colours — using them is fine; a l
 - **`.accent-fill`** — on `<body>` of a section-divider beat: full-bleed accent background, `--on-accent` text.
 - **`.reveal-pop`** — a spring overshoot for a hero `.stat`. **`.reveal-up-sm`** — shorter rise for dense sub-items.
 
+## Reveal timing — points must NOT lead the voice (important)
+The most common defect is **content appearing well before the narration reaches it**. Avoid it:
+- **Multi-point content pages SHOULD be audio-synced with `data-cue`** (see "Audio-synced reveals"
+  below) — the precise *and* efficient path: each point reveals exactly when its spoken anchor is
+  heard, and the renderer only screenshots around each cue. Make this the default for any page with
+  ≥2 content points; the content-planner emits a per-beat `cue` array to support it.
+- **If a page is NOT cued, leave `anim_seconds` UNSET** on content pages — the renderer defaults it to
+  spread the reveals across ~70% of the scene (tracking the speaking pace) instead of cramming them into
+  the first second. Set `anim_seconds` explicitly only for heroes/title pages (~1.2–1.5s) or to override.
+  Do NOT set a small `anim_seconds` (2–3s) on a long (10s+) content page — every point flashes in early
+  and the rest of the scene is static. **`validate.py` warns** when an uncued multi-point page has an
+  `anim_seconds` < half the scene; **`critic-content` (R2) also flags reveals that lead the audio.**
+
 ## Stagger cadence (seek-safe)
 - **Header chrome** (kicker → rule → title → sub) appears fast: `0s`, `.05s`, `.10s`, `.25s`.
-- **Content POINTS appear one-by-one, paced with the narration** — NOT all at once. Stagger the rows/
-  cards far apart: first point `~.4s`, then **`~+.5s` per point** (e.g. `.4 / .9 / 1.4 / 1.9`). Use
-  `.reveal-up-sm` on the points for a smaller, calmer rise.
-- **Spread the reveal over time via `anim_seconds`.** A page's reveals play out across its scene's
-  `anim_seconds` window (then the frame holds). For a multi-point content page set `anim_seconds` to a
-  few seconds (~half the scene's audio, e.g. **3–4s**), NOT the ~1s default — otherwise every point
-  flashes in at the very start and the rest of the scene is static. Heroes/title pages can keep ~1.2–1.5s.
+- **Content POINTS appear one-by-one** — NOT all at once. Stagger rows/cards with `.reveal-up-sm`
+  (first `~.4s`, then `~+.5s` per point). With `data-cue` the real reveal time comes from the audio
+  (these inline delays are ignored); without cues the paced spread above applies.
 - **Equal-height cards:** rows of cards (`.dash`) are equal height by design (`align-items:stretch`); do
   not set per-card heights. If one card's text is much longer, shorten it or move it to its own beat.
 - **Audio-synced cues override stagger:** when audio-synced cues are active (edge-tts + `data-cue`
@@ -175,3 +218,10 @@ When edge-tts word timings exist (`audio/NN.words.json`), `render_html` reveals 
 its anchor is spoken (across the whole scene). With no word timings (macOS `say`, or a missing anchor)
 it falls back to the paced `anim_seconds` stagger. Heroes/title pages don't use `data-cue`. The anchor
 must be a phrase actually present in that scene's narration.
+
+> ⚠️ **Cued pages capture only the header window + cue bursts.** On a cued page, `render_html`
+> shoots fresh frames during the initial header window (~1.2s) and around each cue, and HOLDS
+> (copies) elsewhere. So a NON-cued element with a long animation freezes partway: `.float` (3s)
+> and `.draw` (1.4s) won't finish. On a cued page, keep non-cued decorative motion short
+> (≤ ~1.2s) or give those elements a `data-cue` so they're captured. Plain `.reveal*` header
+> chrome is fine (it settles by ~1s).

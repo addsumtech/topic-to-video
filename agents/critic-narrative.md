@@ -54,6 +54,16 @@ re-conceived coverage and narrative pull.
 - FAIL if narration is a comma-separated list with no connective tissue.
 - PASS if each sentence is one idea, addressed to "you", with context.
 
+### R1a — Natural & human, not marketing copy (see `references/human-subtitle-guide.md`)
+The narration is also the on-screen subtitle, so it must read like a person talking, not ad copy.
+- **FAIL on buzzwords / marketing tone:** AI-powered, intelligent, revolutionary, cutting-edge,
+  best-in-class, next-generation, seamless, world-class (and CJK equivalents: 智能、颠覆、赋能、
+  一站式、领先、强大) — unless the word adds real information. Name the token and give a plain-language fix.
+- **FAIL on overclaim:** "perfect every time", "解决一切", absolute promises. Prefer "helps you…",
+  "makes it easier to…", "quickly", "automatically" / "帮你…、更容易…".
+- **WARN (conversation test):** if a line wouldn't be the first thing a person naturally says when
+  asked "what does this do?", suggest a more concrete, verb-led, outcome-focused rewrite.
+
 ### R1b — Written in the target language (`meta.language`)
 - FAIL if a slide's `narration` is not in the language declared in `meta.language` (e.g. `meta.language`
   is `zh` but the narration is still English, or only half-translated).
@@ -84,8 +94,16 @@ Compare `meta.voice` against `meta.language` (and the language the narration is 
 ### R7 — Subtitle correctness (the on-screen captions are auto-derived from `narration`)
 The renderer splits each slide's `narration` into sentence-sized caption chunks and times them across the
 slide. Because the SAME text is both spoken by TTS and shown as the subtitle:
-- FAIL if a single sentence is so long (>~120 chars with no internal comma/clause break) that it can't
-  chunk into ≤2 readable lines.
+- FAIL if a single sentence is so long (>~120 chars Latin, or a CJK clause >~36 chars) **with no internal
+  clause break the segmenter can use** that it can't chunk into ≤2 readable lines. NOTE the segmenter
+  breaks on clause marks (`，、：；` and ASCII `,;:`); a long CJK run with NO such mark anywhere becomes a
+  single dense cue — split it by rewording or adding a clause break.
+- WARN if a chunk would wrap so its last line is a lone short word (a typographic widow); if a sentence is
+  so dense it would flash on screen under ~0.7 s; or if a cue would **end on a dangling clause mark**
+  (`，`/`、`/`,`/`:` at the line break reads as cut-off mid-thought) — all read poorly as burned captions
+  (`validate.py` flags these mechanically: line count, a per-cue char-density ceiling — 36 CJK / 90 Latin
+  — minimum on-screen time, and trailing clause marks; prefer to fix the wording here). Favour
+  phrase-sized sentences that break cleanly at a comma/clause boundary.
 - FAIL if the narration contains characters that will garble on screen: emoji, rare unicode, raw
   math/markup (`g_{Gi}`, `x^T`, `ᴴ`, `→` is fine, `\frac` is not) — they tofu or read wrong.
 - FAIL/WARN on text spelled for PRONUNCIATION that reads wrong as a subtitle — e.g. "two-D" for *2D*,

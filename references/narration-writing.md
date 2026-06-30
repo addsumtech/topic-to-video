@@ -55,6 +55,21 @@ machine tell — filler ("值得注意的是 / it's worth noting / in conclusion
 over-hedging, balanced-triplet padding, and em-dash overuse. Read each line back: if it sounds like
 a press release or a chatbot, rewrite it the way a person would say it out loud.
 
+## Natural & human (anti-marketing) — see `references/human-subtitle-guide.md`
+The narration IS the on-screen subtitle, so every line must read like a person talking, not ad copy.
+Apply the guide's principles to each line:
+- **Explain, don't advertise.** "Turn meeting notes into action items," not "AI-powered productivity."
+- **Lead with the user's outcome and a verb.** "Find the files faster" / "Write reports from raw data."
+- **Be specific and concrete.** A real noun/number/example beats an abstraction.
+- **Everyday language.** Talk to a colleague; drop jargon the audience doesn't expect.
+- **Kill buzzwords:** AI-powered · intelligent · revolutionary · cutting-edge · best-in-class ·
+  next-generation · seamless · 智能 · 颠覆 · 赋能 · 一站式 · 强大 — use one only if it adds real info.
+- **Don't overclaim.** Not "perfect every time" — prefer "helps you…", "makes it easier to…",
+  "quickly", "automatically".
+- **The conversation test.** If someone asked "what does this do?", your line should sound like the
+  first sentence you'd naturally say back. If it doesn't, rewrite it.
+This holds in every language (the buzzword/overclaim ban applies to the CJK equivalents too).
+
 ## Pacing Math
 
 ~140–160 words per minute ≈ ~2.5 words per second (English and other space-delimited

@@ -4,7 +4,7 @@ Captions are burned in with PIL (a bundled font), composited as an overlay
 *after* zoompan so they stay fixed while the slide gently zooms. This avoids
 any dependency on an ffmpeg built with libass.
 """
-import argparse, os, re, tempfile
+import argparse, os, re, tempfile, time
 from PIL import Image, ImageDraw, ImageFont
 import _common
 import storyboard as sb
@@ -179,10 +179,15 @@ _LATIN_CLAUSES = ",:;"
 
 def _segment(text, cjk_marks, latin_marks):
     """Split into pieces ending at a boundary mark (kept attached). CJK marks break
-    unconditionally; Latin marks break only before whitespace/EOL so numbers stay intact."""
+    unconditionally; Latin marks break before whitespace/EOL OR a following CJK glyph — so a
+    comma/colon authored in ASCII *inside* Chinese text ("提取,公式") still splits, while a
+    decimal like "1.77" or "1,000" (mark between digits) stays intact."""
     t = re.sub(rf"([{cjk_marks}])", "\\1\x00", text)
-    t = re.sub(rf"([{latin_marks}])(\s+|$)", "\\1\x00\\2", t)
+    t = re.sub(rf"([{latin_marks}])(?=\s|$|[{_CJK}])", "\\1\x00", t)
     return [p.strip() for p in t.split("\x00") if p.strip()]
+
+# trailing clause punctuation looks cut-off at a caption line break — strip it from each chunk
+_TRAIL_CLAUSE = "，、：；,;:　 "
 
 def _split_caption_chunks(text, max_len=84):
     """Split narration into readable, subtitle-sized chunks: first on sentence enders,
@@ -202,13 +207,16 @@ def _split_caption_chunks(text, max_len=84):
             if cur and len(cur) + len(piece) > limit:
                 chunks.append(cur); cur = piece
             elif cur:
-                # join CJK tight (no space); Latin words keep a separating space
-                cur = cur + piece if _CJK_RE.search(cur[-1]) else cur + " " + piece
+                # join tight when either side is CJK (Chinese sets no space, even after an
+                # ASCII comma); only two Latin pieces keep a separating space
+                tight = _CJK_RE.search(cur[-1]) or _CJK_RE.search(piece[0])
+                cur = cur + piece if tight else cur + " " + piece
             else:
                 cur = piece
         if cur:
             chunks.append(cur)
-    return chunks
+    # a chunk ending on a clause mark (","/"、"/":") reads as cut-off at the line break — trim it
+    return [c.rstrip(_TRAIL_CLAUSE) for c in chunks if c.rstrip(_TRAIL_CLAUSE)]
 
 def _captions_for(slide):
     """Timed caption segments that TRACK THE NARRATION as it's spoken. If the slide
@@ -251,7 +259,13 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
     mtime+size, so regenerating the deck or TTS invalidates the cached clip."""
     import hashlib, json
     def stat(rel):
-        p = os.path.join(meta["_out"], rel or "")
+        # rel may be None (e.g. an html scene has no `image`). Must return None then — NOT stat
+        # `os.path.join(out, "")` == the OUTPUT DIR, whose mtime changes on every render (new
+        # logs/clips/srt). That made every image-less (html) scene's fingerprint unstable, so the
+        # clip cache NEVER hit and every render re-did all html scenes. The guard is the fix.
+        if not rel:
+            return None
+        p = os.path.join(meta["_out"], rel)
         try:
             return [os.path.getmtime(p), os.path.getsize(p)]
         except OSError:
@@ -376,6 +390,8 @@ def render(out_dir, sample=None, vertical=False, only=None):
     data = sb.load(os.path.join(out_dir, "storyboard.json"))
     sb.validate(data)
     meta = data["meta"]; meta["_out"] = out_dir
+    # meta.aspect is authoritative; the --vertical flag also forces it (either makes it 9:16).
+    vertical = vertical or meta.get("aspect") == "9:16"
     W, H = _canvas(meta, vertical)
     burn = bool(meta.get("captions", True))
     ss = max(1, int(meta.get("motion_ss", 2)))
@@ -400,20 +416,27 @@ def render(out_dir, sample=None, vertical=False, only=None):
     clipdir = os.path.join(out_dir, ".clips")
     os.makedirs(clipdir, exist_ok=True)
     clips, rendered = [], 0
+    total_scenes = len(data["slides"])
+    t_all = time.monotonic()
     with tempfile.TemporaryDirectory() as wd:
-        for s in data["slides"]:
+        for n, s in enumerate(data["slides"], 1):
             clip = os.path.join(clipdir, f"clip_{s['index']:02d}.mp4")
             keyf = clip + ".key"
             key = _fingerprint(s, meta, W, H, ss, burn, vertical)
             force = (only is not None and s["index"] == only)
             cached = (not force and os.path.exists(clip) and os.path.exists(keyf)
                       and open(keyf).read().strip() == key)
-            if not cached:
+            if cached:
+                print(f"[{n}/{total_scenes}] scene {s['index']:02d} ({s.get('type','slide')}) — cached", flush=True)
+            else:
                 _need_av(s)
+                print(f"[{n}/{total_scenes}] scene {s['index']:02d} ({s.get('type','slide')}) — rendering…", flush=True)
+                t0 = time.monotonic()
                 _render_slide(s, meta, W, H, clip, burn, wd)
                 with open(keyf, "w") as f:
                     f.write(key)
                 rendered += 1
+                print(f"[{n}/{total_scenes}] scene {s['index']:02d} ✓ {time.monotonic()-t0:.1f}s", flush=True)
             clips.append(clip)
         listfile = os.path.join(wd, "list.txt")
         with open(listfile, "w") as f:
@@ -423,7 +446,8 @@ def render(out_dir, sample=None, vertical=False, only=None):
         _common.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", listfile,
                      "-c", "copy", dst])
         _write_srt(data, os.path.join(out_dir, "out.srt"))
-        print(f"({rendered} slide(s) rendered, {len(clips) - rendered} reused from cache)")
+        print(f"({rendered} slide(s) rendered, {len(clips) - rendered} reused from cache; "
+              f"{time.monotonic()-t_all:.1f}s total)")
         return dst
 
 def main():

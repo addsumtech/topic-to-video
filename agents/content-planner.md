@@ -18,12 +18,23 @@ BEFORE any narration is written. You do not write final narration; you design be
       "source_ref": "slide 2 / paper §3 / web-verified — REQUIRED, no beat without a source",
       "visual": { "type": "compare", "props": { } },
       "narration_intent": "what the line must convey (not final words)",
+      "motion_intent": "one motion VERB from references/motion-grammar.md (e.g. COUNTS UP, SLIDES, BREATHES)",
       "est_seconds": 5,
       "climax": true,
       "hold": true,
       "cue": ["optional", "array of per-point anchor strings (one per point, in spoken order)"] } ] }
 ```
-(The `"climax"`, `"hold"`, and `"cue"` fields are optional — see Director's discipline below. `"cue"` is an ARRAY of per-point anchor strings, one per point in spoken order, e.g. `"cue": ["Dujiangyan", "Leshan"]`. This is a human hint — no script reads it; the author must write the matching `data-cue="..."` on each HTML point element. The spoken anchor must be a phrase the beat's narration actually says.)
+(The `"climax"`, `"hold"`, and `"motion_intent"` fields are optional — see Director's discipline below.
+**`"cue"` is REQUIRED for any multi-point beat that will be authored as an HTML page** (an `html` beat
+with ≥2 content points; this is the default tier for designed decks): it is an ARRAY of per-point anchor
+strings, ONE per point, in SPOKEN order, e.g. `"cue": ["Dujiangyan", "Leshan"]`. Each anchor MUST be a
+short phrase the beat's narration actually says, introducing that point. The author writes the matching
+`data-cue="..."` on each HTML point so the point reveals exactly when it's spoken — this is what stops
+the content from appearing before the voice reaches it. If a point has no natural spoken anchor, give it
+one in the narration intent or merge/drop the point. (`cue` is harmless on a PROGRAMMATIC
+`keypoints`/`compare`/`timeline`/`chart` beat — those renderers self-pace their reveals across the
+scene and ignore it — but emit it anyway so the beat can be realized as an HTML page.) Single-statement
+beats (hero/title/big-stat) don't need cues.)
 
 ## Rules (your rubric)
 1. **Deep understanding first.** Every `learning_point` must trace to the material via
@@ -50,6 +61,12 @@ BEFORE any narration is written. You do not write final narration; you design be
    restatement.
 5. **Audio↔visual.** Write `narration_intent` so the spoken line will MATCH what is on screen
    (the beat's visual). The downstream critic enforces this.
+6. **Direct each beat — concept before layout.** A beat is an experience, not a slot. For any
+   beat that carries weight (the hook, the climax, each `html` beat), say in one line what the
+   viewer should FEEL and how it MOVES: pick a `motion_intent` verb from
+   `references/motion-grammar.md` (COUNTS UP for a metric, SLIDES for a transition, BREATHES for
+   a hero hold). Keep it deliverable by the free tiers (programmatic reveals / CSS reveals / Ken
+   Burns) — don't promise motion the renderer can't land. Plain content beats can omit it.
 
 ## Re-conceive the material into a VIDEO (don't mirror the deck)
 You are not transcribing slides in order. Design the best instructional *video*: open with a
@@ -86,6 +103,18 @@ Add these top-level fields to your plan JSON:
 - Mark exactly ONE beat **`"climax": true`** at ~75–80% of the runtime (the peak — the result/payoff
   moment). Mark the FINAL beat **`"hold": true`** — a sparse title or single stat; do NOT add a
   fade-out or blank-screen beat (the render's end-hold IS the ending).
+- **`rhythm`** (recommended for `target_seconds` > 45): one line NAMING the pacing arc before you
+  size beats — e.g. `"hook-fast → 3 build beats → SLOW climax → sparse hold"`. A named rhythm keeps
+  you from emitting a flat row of equal 5-second beats (the clearest "auto-generated" tell). Vary
+  `est_seconds` to match it: quick build beats (3–4s), a longer climax (6–8s), a sparse hold.
+
+## Composition density (html beats only)
+The programmatic renderers (`title`/`chart`/`keypoints`/`compare`/`timeline`) fix their own
+density — leave them be. For an **`html` beat**, design for the frame, not the web: scale type up
+(headlines read at a glance, body never tiny), give every beat ≥2 focal points and a clear
+foreground/background separation, and let the accent be genuinely present — a single small label on
+an empty field reads as unfinished. A beat with one centered line is a `title`, not an `html` page;
+if an `html` beat has that little to show, make it a `title` instead.
 
 ## Visual variety (no monotony)
 No more than **2 consecutive beats** may share the same `visual.type`. After two `keypoints`, insert a

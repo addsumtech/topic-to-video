@@ -85,6 +85,24 @@ def test_caption_chunks_latin_unchanged():
     assert len(chunks) >= 2
     assert chunks[0] == "Hello world."
 
+def test_caption_chunks_cjk_with_ascii_punctuation_splits():
+    # Chinese authored with ASCII commas/colons (no trailing space) is common — the splitter
+    # must still break it on those marks, not leave one 50-char wall. Regression for the
+    # "ASCII comma inside CJK never splits" bug.
+    zh = "承载证据的图,都是真的:原图精准提取,公式是真 LaTeX 能改,概念在真实输入上现算,不是随手贴张糊图。"
+    chunks = render._split_caption_chunks(zh)
+    assert len(chunks) >= 2
+    assert all(len(c) <= 36 for c in chunks)             # no wall-of-text chunk
+    # no chunk ends on a dangling clause mark, and CJK joins stay tight (no space after a comma)
+    assert all(c[-1] not in "，、：；,;:" for c in chunks)
+    assert ", " not in "".join(chunks) and ": " not in "".join(chunks)
+
+def test_caption_chunks_keeps_decimals_intact():
+    # an ASCII period/comma between digits must NOT split (1.77, 1,000 stay whole)
+    chunks = render._split_caption_chunks("缩放系数是 1.77 倍,采样 1,000 次,效果显著。")
+    joined = "".join(chunks)
+    assert "1.77" in joined and "1,000" in joined
+
 def test_fit_frame_cover_fills_no_letterbox(tmp_path):
     from PIL import Image
     src = str(tmp_path / "s.png"); dst = str(tmp_path / "d.png")
@@ -150,6 +168,22 @@ def test_fingerprint_busts_on_html_page_edit(tmp_path):
     a = fp()
     f.write_text("a much longer page body that changes the file size")   # edit the page
     assert fp() != a                                                     # cache busts
+
+def test_fingerprint_stable_for_imageless_scene_when_outdir_changes(tmp_path):
+    # Regression: an html scene has image=None. The fingerprint must NOT stat the output dir
+    # (os.path.join(out, "")), whose mtime changes on every render — that defeated the clip cache
+    # so all html scenes re-rendered every time. Writing a new file into out must NOT bust it.
+    pg = tmp_path / "pages"; pg.mkdir(); (pg / "s.html").write_text("hi")
+    meta = {"_out": str(tmp_path), "fps": 30}
+    slide = {"index": 1, "type": "html", "props": {"html": "pages/s.html"}, "image": None,
+             "audio": None, "duration": 3.0, "motion": {}, "narration": "n", "captions": [],
+             "callouts": [], "fit": None}
+    fp = lambda: render._fingerprint(slide, meta, 1920, 1080, 2, True, False)
+    a = fp()
+    (tmp_path / "out.srt").write_text("new log file in the out dir")   # bump out-dir mtime
+    os.utime(str(tmp_path), None)
+    assert fp() == a                                                   # cache still hits
+
 
 @pytest.mark.skipif(not _common.have_tool("ffmpeg") or not _common.have_tool("say"),
                     reason="needs ffmpeg + say")

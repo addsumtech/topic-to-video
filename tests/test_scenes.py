@@ -94,6 +94,19 @@ def test_keypoints_writes_exact_frames_and_nonblank(tmp_path):
     assert last.getextrema() != ((0, 0), (0, 0), (0, 0))   # text drawn
     assert "%04d" in pat
 
+def test_keypoints_reveals_spread_across_scene_not_crammed(tmp_path):
+    """Generality: points must reveal across the scene (track the voice), not cram into the first ~1s
+    then hold — same as render_timeline/chart. At ~25% through a long scene the later points should
+    not be on screen yet, so an early frame carries clearly less ink than the final frame."""
+    def ink(png):
+        im = Image.open(png).convert("RGB"); bg = (13, 17, 23)
+        return sum(1 for px in im.getdata() if px != bg)
+    props = {"title": "T", "points": [{"label": "Alpha"}, {"label": "Bravo"}, {"label": "Charlie"}]}
+    pat = scenes.render_keypoints(props, META, 960, 540, 300, str(tmp_path), 1)
+    early = ink(pat % 75)      # ~25% in — with spread, only the first point is appearing
+    late = ink(pat % 299)      # end — all three points present
+    assert early < 0.6 * late, f"keypoints not spread (early={early} vs late={late}); reveals look crammed"
+
 def test_keypoints_deterministic(tmp_path):
     a = tmp_path / "a"; b = tmp_path / "b"; a.mkdir(); b.mkdir()
     props = {"points": [{"label": "One"}, {"label": "Two"}, {"label": "Three"}]}
@@ -146,8 +159,9 @@ def test_chrome_bin_honors_meta_path(tmp_path):
     assert scenes._chrome_bin({"chrome_path": str(fake)}) == str(fake)
 
 def test_chrome_bin_none_when_absent(monkeypatch):
-    monkeypatch.setattr(scenes, "_CHROME_CANDIDATES", [])
-    monkeypatch.setattr(scenes.shutil, "which", lambda n: None)
+    import _common
+    monkeypatch.setattr(_common, "CHROME_CANDIDATES", [])
+    monkeypatch.setattr(_common.shutil, "which", lambda n: None)
     assert scenes._chrome_bin({}) is None
 
 def test_chrome_shot_builds_command(tmp_path, monkeypatch):
@@ -163,7 +177,8 @@ def test_chrome_shot_builds_command(tmp_path, monkeypatch):
     assert "--headless" in cmd and "--window-size=1920,1080" in cmd
     assert f"--screenshot={tmp_path / 'o.png'}" in cmd
     assert cmd[-1] == "file:///p.html?p=0.5"
-    assert cap["kw"].get("check") is True and cap["kw"].get("timeout") == 60
+    assert "--user-data-dir" not in " ".join(cmd)   # explicit profile hangs vs a running Chrome
+    assert cap["kw"].get("check") is True and cap["kw"].get("timeout") == 90
 
 def test_chrome_shot_no_chrome_raises(monkeypatch):
     monkeypatch.setattr(scenes, "_chrome_bin", lambda meta: None)
@@ -180,15 +195,44 @@ def test_render_html_frames_launch_count_and_p_ramp(tmp_path, monkeypatch):
     def fake_shot(url, out_png, W, H, meta):
         calls.append(url); _tiny_png(out_png)
     monkeypatch.setattr(scenes, "_chrome_shot", fake_shot)
-    meta = {"_out": str(out_dir), "fps": 30}
+    meta = {"_out": str(out_dir), "fps": 30, "capture": "screenshot"}
     pat = scenes.render_html({"html": "pages/scene_03.html", "anim_seconds": 0.2},
                              meta, 1920, 1080, 12, str(tmp_path), 3)
     files = sorted(f for f in os.listdir(tmp_path) if f.endswith(".png"))
     assert len(files) == 12 and files[0] == "scene_03_0000.png" and "%04d" in pat
-    # anim 0.2s * 30fps = 6 reveal frames -> 6 Chrome launches; the other 6 frames are copies
+    # anim 0.2s * 30fps = 6 reveal frames -> 6 Chrome launches; the other 6 frames are copies.
+    # Shots run in a thread pool, so completion order is nondeterministic — compare the SET of p's.
     assert len(calls) == 6
-    assert [c.split("?p=")[1] for c in calls] == ["0.0000","0.2000","0.4000","0.6000","0.8000","1.0000"]
-    assert calls[0].startswith("file://") and "scene_03.html" in calls[0]
+    assert sorted(c.split("?p=")[1] for c in calls) == ["0.0000","0.2000","0.4000","0.6000","0.8000","1.0000"]
+    assert all(c.startswith("file://") and "scene_03.html" in c for c in calls)
+
+def test_render_html_cued_path_captures_header_window(tmp_path, monkeypatch):
+    """Regression: on a cued page the non-cued header chrome animates on time-based reveals, not
+    cues. The cued capture path must shoot fresh frames across the initial HEAD_WINDOW — otherwise
+    only p=0 (everything hidden) is captured and copied until the first cue, leaving the page blank."""
+    import json
+    out_dir = tmp_path / "proj"; (out_dir / "pages").mkdir(parents=True)
+    (out_dir / "audio").mkdir(parents=True)
+    # a cued page: a time-based header + one cued point whose anchor fires late (t=1.5s)
+    (out_dir / "pages" / "scene_04.html").write_text(
+        '<div class="title reveal-up">Header</div>'
+        '<div class="row reveal-up" data-cue-index="0" data-cue="alpha">A</div>')
+    json.dump([{"w": "alpha", "t": 1.5}], open(out_dir / "audio" / "04.words.json", "w"))
+    calls = []
+    monkeypatch.setattr(scenes, "_chrome_shot",
+                        lambda url, out_png, W, H, meta: (calls.append(url), _tiny_png(out_png)))
+    meta = {"_out": str(out_dir), "fps": 30, "capture": "screenshot"}
+    # 60 frames @30fps -> dur=2.0s; cue at 1.5s. HEAD_WINDOW=1.2 -> t<=1.2 must be fresh shots.
+    scenes.render_html({"html": "pages/scene_04.html"}, meta, 1920, 1080, 60, str(tmp_path), 4)
+    assert calls, "cued path produced no Chrome shots"
+    assert all("&cues=" in c for c in calls), "expected the cued render path (cues in URL)"
+    # an early header-window frame (t=0.5s -> p=0.25) must be a FRESH shot, not a copy of p=0
+    assert any("?p=0.2500" in c for c in calls), "header-entrance window was not captured (the bug)"
+    # the window must cover the FULL header cadence: sub ends ~.95s (delay .25 + .7s reveal), so a
+    # fresh shot near t=0.9s (p=0.45 @ dur=2.0) must exist — a too-small HEAD_WINDOW would miss it
+    assert any("?p=0.4500" in c for c in calls), "HEAD_WINDOW too small to cover the header end (~.95s)"
+    # and the late cue burst is still captured
+    assert any("?p=0.7500" in c for c in calls), "cue burst near t=1.5s was not captured"
 
 def test_render_html_single_frame_holds(tmp_path, monkeypatch):
     out_dir = tmp_path / "proj"; (out_dir / "pages").mkdir(parents=True)
@@ -196,12 +240,66 @@ def test_render_html_single_frame_holds(tmp_path, monkeypatch):
     calls = []
     monkeypatch.setattr(scenes, "_chrome_shot",
                         lambda url, out_png, W, H, meta: (calls.append(url), _tiny_png(out_png)))
-    pat = scenes.render_html({"html": "pages/s.html"}, {"_out": str(out_dir), "fps": 30},
+    pat = scenes.render_html({"html": "pages/s.html"}, {"_out": str(out_dir), "fps": 30, "capture": "screenshot"},
                              640, 360, 1, str(tmp_path), 1)
     assert os.path.exists(pat % 0) and len(calls) == 1 and calls[0].endswith("?p=1.0000")
 
+def test_render_html_builds_absolute_file_url(tmp_path, monkeypatch):
+    # Regression: a relative out_dir (e.g. render run with out_dir=".") must still yield an ABSOLUTE
+    # file:// URL — CDP Page.navigate rejects "file://./pages/x.html" (ERR_INVALID_URL) and silently
+    # renders a Chrome error page. abspath in render_html is the fix.
+    (tmp_path / "proj" / "pages").mkdir(parents=True)
+    (tmp_path / "proj" / "pages" / "s.html").write_text("<html></html>")
+    monkeypatch.chdir(tmp_path / "proj")
+    calls = []
+    monkeypatch.setattr(scenes, "_chrome_shot",
+                        lambda url, o, W, H, m: (calls.append(url), _tiny_png(o)))
+    scenes.render_html({"html": "pages/s.html", "anim_seconds": 0.1},
+                       {"_out": ".", "fps": 30, "capture": "screenshot"}, 640, 360, 3, str(tmp_path), 1)
+    assert calls and all(c.startswith("file:///") for c in calls), calls[:1]
+    assert all("file://." not in c and "/./" not in c for c in calls)
+
+
+def test_capture_falls_back_to_screenshot_when_cdp_unavailable(tmp_path, monkeypatch):
+    # If CDP can't run, render_html must transparently fall back to the --screenshot path.
+    import _cdp
+    out_dir = tmp_path / "proj"; (out_dir / "pages").mkdir(parents=True)
+    (out_dir / "pages" / "s.html").write_text("<html></html>")
+    monkeypatch.setattr(_cdp, "capture",
+                        lambda *a, **k: (_ for _ in ()).throw(_cdp.CDPUnavailable("forced")))
+    calls = []
+    monkeypatch.setattr(scenes, "_chrome_shot",
+                        lambda url, o, W, H, m: (calls.append(url), _tiny_png(o)))
+    # NB: capture flag left at default ("cdp") so the CDP path is attempted, then fails over
+    pat = scenes.render_html({"html": "pages/s.html", "anim_seconds": 0.1},
+                             {"_out": str(out_dir), "fps": 30}, 640, 360, 6, str(tmp_path), 1)
+    assert pat.endswith(".png") and calls, "fallback to --screenshot did not engage"
+
+
 def _chrome_present():
     return scenes._chrome_bin({}) is not None
+
+
+@pytest.mark.skipif(not _chrome_present(), reason="no Chrome for CDP integration test")
+def test_cdp_capture_produces_real_jpeg_frames(tmp_path):
+    # End-to-end: persistent-Chrome CDP path captures real (non-blank) JPEG frames + copies hold.
+    import _cdp
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
+    css = os.path.join(skill, "assets", "html", "base.css")
+    page = tmp_path / "p.html"
+    page.write_text('<!doctype html><html><head><meta charset="utf-8">'
+                    f'<link rel="stylesheet" href="file://{css}"></head>'
+                    '<body><div class="stage"><h1 class="title">CDP 42</h1></div></body></html>')
+    url = f"file://{page}?p=1"
+    shots = [(0, url), (1, url)]
+    copies = [(2, 0)]
+    pat = _cdp.capture(shots, copies, str(tmp_path), 7, 960, 540, {}, "scene 07",
+                       scenes._chrome_bin({}), 2, lambda *a: None)
+    assert pat.endswith(".jpg")
+    for i in (0, 1, 2):
+        assert os.path.getsize(pat % i) > 3000, f"frame {i} looks blank"
+    a = Image.open(pat % 0).convert("RGB")
+    assert a.getextrema() != ((0, 0), (0, 0), (0, 0))   # non-blank render
 
 def test_design_system_is_themeable():
     skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
@@ -385,7 +483,7 @@ def test_render_html_cue_capture_passes_cues(tmp_path, monkeypatch):
     seen = []
     monkeypatch.setattr(scenes, "_chrome_shot", lambda url, o, w, h, m: (seen.append(url),
                         __import__("pathlib").Path(o).write_bytes(b"\x89PNG\r\n")))
-    meta = {"_out": str(out), "fps": 30}
+    meta = {"_out": str(out), "fps": 30, "capture": "screenshot"}
     scenes.render_html({"html": "pages/p.html", "anim_seconds": 1.0}, meta, 1920, 1080, 120, str(out / "wd"), 3)
     assert any("cues=" in u and "dur=" in u for u in seen), "cue params not passed"
 
@@ -414,7 +512,7 @@ def test_render_html_cue_times_clamped_within_scene(tmp_path, monkeypatch):
         '<div class="row reveal-up-sm" data-cue-index="1" data-cue="beta">B</div></div>')
     seen = []; _stub_shot(scenes, monkeypatch, seen)
     # 30 frames @30fps -> dur=1.0, margin=dur-0.5=0.5
-    scenes.render_html({"html": "pages/p.html"}, {"_out": str(out), "fps": 30}, 1920, 1080, 30, str(out / "wd"), 3)
+    scenes.render_html({"html": "pages/p.html"}, {"_out": str(out), "fps": 30, "capture": "screenshot"}, 1920, 1080, 30, str(out / "wd"), 3)
     cues, dur = _cues_from_urls(seen)
     assert cues is not None and dur == 1.0
     assert max(cues) <= dur - 0.4, f"a cue exceeded the capture window: {cues} (dur {dur})"
@@ -429,7 +527,7 @@ def test_render_html_cue_capture_copies_frames(tmp_path, monkeypatch):
         '<div class="row reveal-up-sm" data-cue-index="1" data-cue="beta">B</div></div>')
     seen = []; _stub_shot(scenes, monkeypatch, seen)
     frames = 90  # 3s @30fps
-    scenes.render_html({"html": "pages/p.html"}, {"_out": str(out), "fps": 30}, 1920, 1080, frames, str(out / "wd"), 3)
+    scenes.render_html({"html": "pages/p.html"}, {"_out": str(out), "fps": 30, "capture": "screenshot"}, 1920, 1080, frames, str(out / "wd"), 3)
     n_png = len(list((out / "wd").glob("scene_03_*.png")))
     assert n_png == frames, "every frame index must produce a PNG (no %04d gap)"
     assert len(seen) < frames, f"cue capture should copy held frames, not shoot all ({len(seen)} of {frames})"
@@ -444,7 +542,7 @@ def test_render_html_noncontiguous_cue_index_sparse(tmp_path, monkeypatch):
         '<div class="row reveal-up-sm" data-cue-index="0" data-cue="alpha">A</div>'
         '<div class="row reveal-up-sm" data-cue-index="2" data-cue="beta">B</div></div>')
     seen = []; _stub_shot(scenes, monkeypatch, seen)
-    scenes.render_html({"html": "pages/p.html"}, {"_out": str(out), "fps": 30}, 1920, 1080, 90, str(out / "wd"), 3)
+    scenes.render_html({"html": "pages/p.html"}, {"_out": str(out), "fps": 30, "capture": "screenshot"}, 1920, 1080, 90, str(out / "wd"), 3)
     cues, _ = _cues_from_urls(seen)
     assert len(cues) == 3, f"sparse cue array must have 3 slots (indices 0,1,2): {cues}"
     assert cues[0] > 0 and cues[2] > 0  # the two real points resolved at their indices
@@ -462,7 +560,7 @@ def test_render_html_no_words_uses_anim_path(tmp_path, monkeypatch):
     seen = []
     monkeypatch.setattr(scenes, "_chrome_shot", lambda url, o, w, h, m: (seen.append(url),
                         __import__("pathlib").Path(o).write_bytes(b"\x89PNG\r\n")))
-    scenes.render_html({"html": "pages/p.html", "anim_seconds": 1.0}, {"_out": str(out), "fps": 30},
+    scenes.render_html({"html": "pages/p.html", "anim_seconds": 1.0}, {"_out": str(out), "fps": 30, "capture": "screenshot"},
                        1920, 1080, 60, str(out / "wd"), 5)
     assert seen and all("cues=" not in u for u in seen), "should use anim path (no cues)"
 
@@ -473,7 +571,7 @@ def test_render_html_cued_points_but_no_words_uses_anim(tmp_path, monkeypatch):
     seen = []
     monkeypatch.setattr(scenes, "_chrome_shot", lambda url, o, w, h, m: (seen.append(url),
                         __import__("pathlib").Path(o).write_bytes(b"\x89PNG\r\n")))
-    scenes.render_html({"html": "pages/p.html", "anim_seconds": 1.0}, {"_out": str(out), "fps": 30},
+    scenes.render_html({"html": "pages/p.html", "anim_seconds": 1.0}, {"_out": str(out), "fps": 30, "capture": "screenshot"},
                        1920, 1080, 60, str(out / "wd"), 7)   # no audio/07.words.json exists
     assert seen and all("cues=" not in u for u in seen), "no words.json -> must use anim path"
 

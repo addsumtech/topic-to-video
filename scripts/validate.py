@@ -1,0 +1,309 @@
+"""Pre-render correctness gate for storyboard.json. Runs in ~1s and catches the failures
+that otherwise waste a full (minutes-long) render: a referenced image/audio/page/font that
+doesn't exist on disk, a duplicate scene index, an html scene whose `file://` assets or
+theme.css are missing, a caption that wraps into a wall of text, an over-zealous zoom, a
+CJK language with no system font (tofu), or audio/duration not yet synthesised.
+
+Mirrors check_av.py: a pure `evaluate(data, out_dir)` core, a thin `check(out_dir)` IO
+wrapper, and a `main()` that prints a human summary (or --json) and exits non-zero on any
+ERROR so the workflow can gate on it BEFORE render.py. ERRORS block; warnings don't.
+
+Run it AFTER tts.py and BEFORE render.py (step 9). Use --pre-tts to validate earlier
+(skips the audio/duration checks), e.g. right after authoring the storyboard.
+"""
+import argparse, json, os, re, sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import storyboard as sb
+import render as rd                       # caption-fit + font helpers, reused verbatim
+
+# A zoom delta beyond this reads as a lurch, not a gentle Ken Burns (SKILL.md / motion-grammar).
+MAX_ZOOM_DELTA = 0.20
+# A static frame held longer than this drags even with motion (SKILL.md pacing guardrail).
+PACE_CEILING_S = 8.0
+# A caption that needs more than this many wrapped lines is a wall of text on screen.
+MAX_CAPTION_LINES = 3
+# A burned caption flashed for less than this reads faster than a viewer can follow.
+MIN_CAPTION_SECONDS = 0.7
+# A Latin caption line that ends on a lone short word ("…to the / future") reads as a typo.
+DANGLING_WORD_MAX_CHARS = 8
+# A single cue denser than this is a wall even when it wraps to <= MAX_CAPTION_LINES (line count
+# alone misses a 2-line-but-packed CJK cue). CJK glyphs are full-width, so the ceiling is tighter.
+MAX_CAPTION_CHARS_CJK = 36
+MAX_CAPTION_CHARS_LATIN = 90
+# A caption ending on a clause mark looks cut-off mid-thought at the line break.
+TRAIL_CLAUSE_MARKS = "，、：；,;:"
+# When a callout is this far (in normalized frame units) from where the camera settles, the
+# motion isn't framing it — the highlight and the push disagree.
+MOTION_ALIGN_TOL = 0.25
+
+_FILE_REF_RE = re.compile(r'(?:href|src)\s*=\s*"([^"]+)"')
+
+
+def _exists(out_dir, rel):
+    return bool(rel) and os.path.exists(os.path.join(out_dir, rel))
+
+
+def _local_path_from_url(url):
+    """Resolve a stylesheet/script/image URL from an html page to a local filesystem path,
+    or None if it's a remote/data URI (which an html scene must not use). Strips the
+    `?p=...&cues=...` query seek params and percent-decodes the path."""
+    from urllib.parse import unquote, urlparse
+    if url.startswith(("http://", "https://", "data:", "//")):
+        return False                                   # remote — not allowed
+    u = url.split("?", 1)[0]
+    if u.startswith("file://"):
+        return unquote(urlparse(u).path)
+    return None                                        # relative/unknown — skip (can't resolve)
+
+
+def _caption_lines(text, meta, W, H):
+    """The lines this caption wraps to at the burned-in font/width (render.py's exact logic)."""
+    from PIL import Image, ImageDraw
+    if not (text or "").strip():
+        return []
+    font = rd._load_font(int(H * 0.045), rd._font_path(meta, text))
+    d = ImageDraw.Draw(Image.new("RGB", (4, 4)))
+    return rd._wrap(d, text, font, int(W * 0.9))
+
+
+def _dangling_word(lines):
+    """A Latin caption whose last wrapped line is a single short word (typographic widow)."""
+    if len(lines) < 2:
+        return None
+    last = lines[-1].strip()
+    if " " not in last and not rd._CJK_RE.search(last) and 0 < len(last) <= DANGLING_WORD_MAX_CHARS:
+        return last
+    return None
+
+
+def _cjk_font_ok(meta):
+    """For a CJK language, does a glyph-covering font resolve? If not, captions will tofu."""
+    lang = (meta.get("language") or "").lower()
+    probe = {"zh": "中", "ja": "あ", "ko": "가"}.get(lang[:2])
+    if not probe:
+        return True                                    # not a CJK language -> N/A
+    return rd._font_path(meta, probe) != rd.BUNDLED_FONT
+
+
+def _edge_tts_available():
+    try:
+        import edge_tts  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
+def evaluate(data, out_dir, pre_tts=False, vertical=False):
+    """Pure check: returns {ok, errors, warnings, scenes, ...}. No render, no network.
+    `vertical` mirrors render.py's --vertical flag; meta.aspect=="9:16" also forces it, so the
+    caption-fit checks run on the SAME canvas render.py will use."""
+    errors, warnings = [], []
+
+    # 1. Structural contract (the same gate render.py runs, surfaced early with its message).
+    #    Catch the broad failures too: a non-dict `meta`/`slides` makes sb.validate raise
+    #    TypeError/AttributeError/KeyError rather than StoryboardError — a gate must report
+    #    those cleanly, never crash with a traceback.
+    if not isinstance(data, dict):
+        return {"ok": False, "errors": ["storyboard.json is not a JSON object"], "warnings": warnings, "scenes": 0}
+    try:
+        sb.validate(data)
+    except (sb.StoryboardError, TypeError, AttributeError, KeyError) as e:
+        errors.append(f"structure: {e}")
+        return {"ok": False, "errors": errors, "warnings": warnings, "scenes": 0}
+
+    meta = data["meta"]
+    slides = data["slides"]
+    vertical = vertical or meta.get("aspect") == "9:16"
+    W, H = rd._canvas(meta, vertical)
+    voice = (meta.get("voice") or "auto")
+    wants_edge = voice == "auto" or voice.startswith("edge")
+
+    # 2. Duplicate indices break the per-clip cache + audio/words.json filenames.
+    seen = {}
+    for s in slides:
+        i = s.get("index")
+        if i in seen:
+            errors.append(f"duplicate scene index {i}")
+        seen[i] = True
+
+    # 3. Global font + language sanity (once).
+    if not os.path.exists(rd.BUNDLED_FONT):
+        warnings.append(f"bundled caption font missing ({rd.BUNDLED_FONT}); render falls back to a default face")
+    if not _cjk_font_ok(meta):
+        warnings.append(f"language '{meta.get('language')}' is CJK but no system font covers it — captions will tofu; set meta.font")
+    if wants_edge and not _edge_tts_available() and not pre_tts:
+        warnings.append("meta.voice wants edge-tts but it isn't importable — tts.py falls back to 'say' (different voice/quality)")
+
+    prev_types = []
+    for s in slides:
+        i = s.get("index")
+        t = s.get("type", "slide")
+        tag = f"scene {i}"
+
+        # --- referenced media exists on disk -------------------------------------------
+        if t == "slide":
+            if (s.get("image_prompt") or "").strip() and not s.get("image"):
+                errors.append(f"{tag}: image_prompt set but no generated image — run imagegen.py first")
+            elif s.get("image") and not _exists(out_dir, s["image"]):
+                errors.append(f"{tag}: image '{s['image']}' not found under {out_dir}")
+        elif t == "html":
+            page = (s.get("props") or {}).get("html")
+            if not _exists(out_dir, page):
+                errors.append(f"{tag}: html page '{page}' not found under {out_dir}")
+            else:
+                _check_html_assets(out_dir, page, wants_edge, i, errors, warnings,
+                                   (s.get("props") or {}).get("anim_seconds"), s.get("duration"))
+
+        # --- audio / duration (skipped in --pre-tts mode) ------------------------------
+        if not pre_tts:
+            if not s.get("audio") or not s.get("duration"):
+                errors.append(f"{tag}: no audio/duration — run tts.py before render")
+            elif not _exists(out_dir, s["audio"]):
+                errors.append(f"{tag}: audio '{s['audio']}' not found under {out_dir}")
+            elif s["duration"] > PACE_CEILING_S:
+                warnings.append(f"{tag}: holds {s['duration']:.1f}s (> {PACE_CEILING_S:.0f}s) — splitting into shorter beats reads less sluggish")
+
+        # --- caption craft (no wall of text, no widow, readable on screen) -------------
+        if meta.get("captions", True):
+            caps = s.get("captions") or []
+            texts = ([c.get("text", "") for c in caps] if len(caps) >= 2
+                     else rd._split_caption_chunks(s.get("narration") or ""))
+            for txt in texts:
+                ct = (txt or "").strip()                  # NOT `t` — that is the scene type above
+                lines = _caption_lines(ct, meta, W, H)
+                if len(lines) > MAX_CAPTION_LINES:
+                    warnings.append(f"{tag}: caption wraps to {len(lines)} lines (> {MAX_CAPTION_LINES}) — \"{ct[:40]}…\"; shorten or split")
+                # density ceiling — catches a 2-line-but-packed cue the line count misses (e.g. a
+                # CJK clause authored with ASCII commas that the segmenter couldn't break)
+                ceil = MAX_CAPTION_CHARS_CJK if rd._CJK_RE.search(ct) else MAX_CAPTION_CHARS_LATIN
+                if len(ct) > ceil:
+                    warnings.append(f"{tag}: caption is {len(ct)} chars (> {ceil}) — a wall of text on screen; split it on a comma/clause — \"{ct[:40]}…\"")
+                if ct and ct[-1] in TRAIL_CLAUSE_MARKS:
+                    warnings.append(f"{tag}: caption ends on a dangling \"{ct[-1]}\" — trim the trailing clause mark or merge with the next chunk")
+                widow = _dangling_word(lines)
+                if widow:
+                    warnings.append(f"{tag}: caption ends on a lone word \"{widow}\" — rephrase so the last line isn't a widow")
+            # minimum on-screen time (needs the timed segments, so only after tts)
+            if not pre_tts and s.get("duration"):
+                for seg in rd._captions_for(s):
+                    if (seg.get("text") or "").strip() and (seg["end"] - seg["start"]) < MIN_CAPTION_SECONDS:
+                        warnings.append(f"{tag}: a caption shows for {seg['end'] - seg['start']:.2f}s (< {MIN_CAPTION_SECONDS}s) — too fast to read; merge chunks or lengthen the line")
+                        break
+
+        # --- motion sanity --------------------------------------------------------------
+        m = s.get("motion") or {}
+        try:
+            dz = abs(m["to"][2] - m["from"][2])
+            if dz > MAX_ZOOM_DELTA:
+                warnings.append(f"{tag}: zoom delta {dz:.2f} > {MAX_ZOOM_DELTA} — the zoom will lurch")
+            if m["to"][2] > 1.25:
+                warnings.append(f"{tag}: zoom ends at {m['to'][2]:.2f}× (> 1.25) — fine text softens at zoompan's scale limit")
+            # motivated motion: a callout should be framed by where the camera settles — flag
+            # whenever motion.to is far from the callout center (a static centered hold OR a
+            # pan aimed somewhere else both leave the highlight unframed).
+            co = s.get("callouts") or []
+            if co and len(co[0].get("box", [])) == 4:
+                bx = co[0]["box"]
+                cx, cy = (bx[0] + bx[2]) / 2, (bx[1] + bx[3]) / 2
+                tx, ty = m["to"][0], m["to"][1]
+                if abs(tx - cx) + abs(ty - cy) > MOTION_ALIGN_TOL:
+                    warnings.append(f"{tag}: callout sits at ({cx:.2f},{cy:.2f}) but the camera settles at ({tx:.2f},{ty:.2f}) — move motion.to toward the callout so the push frames it (see references/motion-grammar.md)")
+        except (KeyError, IndexError, TypeError):
+            pass
+
+        # --- content sanity -------------------------------------------------------------
+        if not (s.get("narration") or "").strip():
+            warnings.append(f"{tag}: empty narration — the scene plays silent")
+
+        prev_types.append(t)
+
+    # Anti-slop R8: no more than 2 consecutive scenes with the same visual type. SKIP the html
+    # tier — every html scene's `type` is "html" regardless of its page layout, so the variety
+    # the rule cares about (the on-page design) isn't visible from the storyboard; flagging it
+    # would fire on every (recommended) all-html "designed deck". Programmatic types still checked.
+    run = 1
+    for a, b in zip(prev_types, prev_types[1:]):
+        run = run + 1 if a == b else 1
+        if run == 3 and b != "html":
+            warnings.append(f"3+ consecutive '{b}' scenes — vary the visual type (anti-slop)")
+
+    return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides)}
+
+
+def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
+                       anim_seconds=None, duration=None):
+    """Verify an html scene's page links resolve locally (base/theme/motifs css, seek.js,
+    images), that its audio-synced cues will fire, and that its reveals won't lead the audio."""
+    path = os.path.join(out_dir, page_rel)
+    tag = f"scene {index}"
+    try:
+        html = open(path, encoding="utf-8", errors="replace").read()
+    except OSError as e:
+        errors.append(f"{tag}: cannot read html page '{page_rel}': {e}")
+        return
+    for url in _FILE_REF_RE.findall(html):
+        local = _local_path_from_url(url)
+        if local is False:
+            errors.append(f"{tag}: page links a remote/data asset '{url[:50]}' — html scenes must use local file:// assets only")
+        elif local and not os.path.exists(local):
+            errors.append(f"{tag}: page asset not found: {local}")
+    if "theme.css" in html and not os.path.exists(os.path.join(out_dir, "theme.css")):
+        errors.append(f"{tag}: page links theme.css but {out_dir}/theme.css is missing — run theme.py")
+    # Audio-synced reveals: cued points need a data-cue anchor AND a words.json to resolve against.
+    # (The anchor regex is an approximate within-tag co-occurrence count — warning-only, never fatal.)
+    if "data-cue-index" in html:
+        cued = re.findall(r'data-cue-index="(\d+)"', html)
+        anchored = re.findall(r'data-cue-index="\d+"[^>]*data-cue="|data-cue="[^"]*"[^>]*data-cue-index="\d+"', html)
+        if len(anchored) < len(cued):
+            warnings.append(f"{tag}: {len(cued) - len(anchored)} cued point(s) missing a data-cue anchor — they fall back to the paced stagger")
+        words = os.path.join(out_dir, "audio", f"{index:02d}.words.json")
+        if wants_edge and not os.path.exists(words):
+            warnings.append(f"{tag}: data-cue reveals present but audio/{index:02d}.words.json missing — reveals fall back to the paced stagger (run tts.py with edge-tts)")
+    else:
+        # No audio-synced cues: a multi-point page reveals via the paced stagger. If anim_seconds is
+        # set SMALL relative to the scene, all the points appear long before the voice reaches them.
+        # Flag it so the author adds data-cue (preferred) or lets anim_seconds spread (~0.7×duration).
+        points = len(re.findall(r'reveal-up-sm', html)) + len(re.findall(r'card[^"]*reveal-up"', html))
+        if points >= 3 and sb._is_num(anim_seconds) and sb._is_num(duration) and duration > 0 \
+                and anim_seconds < 0.5 * duration:
+            warnings.append(f"{tag}: {points} reveal points, no data-cue, anim_seconds={anim_seconds}s on a "
+                            f"{duration:.0f}s scene — content appears well before the voice reaches it; add "
+                            f"data-cue anchors (preferred, audio-synced) or raise anim_seconds toward ~{0.7*duration:.0f}s")
+
+
+def check(out_dir, pre_tts=False, vertical=False):
+    path = os.path.join(out_dir, "storyboard.json")
+    if not os.path.exists(path):
+        return {"ok": False, "errors": [f"no storyboard.json in {out_dir}"], "warnings": [], "scenes": 0}
+    try:
+        data = sb.load(path)
+    except (json.JSONDecodeError, OSError) as e:
+        return {"ok": False, "errors": [f"storyboard.json unreadable: {e}"], "warnings": [], "scenes": 0}
+    if not isinstance(data, dict):                       # valid JSON but e.g. `null` / a list
+        return {"ok": False, "errors": ["storyboard.json is not a JSON object"], "warnings": [], "scenes": 0}
+    return evaluate(data, out_dir, pre_tts=pre_tts, vertical=vertical)
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Pre-render gate for storyboard.json")
+    ap.add_argument("out_dir")
+    ap.add_argument("--pre-tts", action="store_true", help="skip audio/duration checks (validate before tts.py)")
+    ap.add_argument("--vertical", action="store_true", help="check the 9:16 canvas (mirror render.py --vertical)")
+    ap.add_argument("--json", action="store_true", help="emit the result dict as JSON")
+    a = ap.parse_args()
+    r = check(a.out_dir, pre_tts=a.pre_tts, vertical=a.vertical)
+    if a.json:
+        print(json.dumps(r, ensure_ascii=False, indent=2))
+    else:
+        print(f"[validate] {'OK' if r['ok'] else 'FAIL'}  "
+              f"{r['scenes']} scene(s), {len(r['errors'])} error(s), {len(r['warnings'])} warning(s)")
+        for e in r["errors"]:
+            print(f"  ERROR: {e}")
+        for w in r["warnings"]:
+            print(f"  warn:  {w}")
+    sys.exit(0 if r["ok"] else 1)
+
+
+if __name__ == "__main__":
+    main()

@@ -18,3 +18,12 @@ def test_audio_duration_of_generated_clip(tmp_path):
 def test_have_tool():
     assert c.have_tool("ffmpeg") is True
     assert c.have_tool("definitely-not-a-tool-xyz") is False
+
+def test_find_chrome_honors_meta_path(tmp_path):
+    fake = tmp_path / "MyChrome"; fake.write_text("")
+    assert c.find_chrome({"chrome_path": str(fake)}) == str(fake)
+
+def test_find_chrome_ignores_bad_meta_path():
+    # a non-existent chrome_path must not be returned; falls through to real discovery (path or None)
+    r = c.find_chrome({"chrome_path": "/nope/Chrome"})
+    assert r is None or os.path.exists(r)

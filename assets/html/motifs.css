@@ -61,11 +61,54 @@ img.kenburns{animation:mt-kenburns 6s ease-out forwards;animation-play-state:pau
    (and steps with the cue capture). Ken-Burns stays on full-bleed hero .bg-photo backdrops only. */
 .split .media img{animation:none}
 
-/* depth-of-field: defocus the NON-focal element (compare pages) — static filter, seek-safe */
-.defocus{filter:brightness(.6) saturate(.7) blur(4px);opacity:.5}
+/* depth-of-field: gently de-emphasize the NON-focal element (compare pages) — static, seek-safe.
+   Kept SUBTLE on purpose: a heavy blur reads as a render glitch, not as intentional focus. */
+.defocus{filter:brightness(.88) saturate(.82) blur(1.5px);opacity:.74}
 /* full-bleed accent section divider (use on <body> of a transition beat) */
 .accent-fill{background:var(--accent);color:var(--on-accent)}
 /* faint light-mode paper texture behind content */
 /* place FIRST among backdrops in source order (shares z-index:0 with .bg-photo/.scrim) */
 .bg-paper{position:absolute;inset:0;z-index:0;pointer-events:none;
   background:radial-gradient(ellipse at 30% 38%, color-mix(in srgb,var(--fg) 4%,transparent) 0%, transparent 70%)}
+
+/* ── Soft AI/photo background + glass cards ───────────────────────────────────────────────
+   A generic, atmospheric image (broll) sits BEHIND the content at low opacity to add depth,
+   while the real content stays as text in translucent "glass" cards so the backdrop reads
+   THROUGH the blocks instead of being fully covered. Faithful: the image asserts no fact.
+   Place <img class="bg-soft"> as the FIRST child of <body> (z-index:0); add .bg-soft-tint right
+   after it so the image never fights the palette. Tune presence with inline opacity:
+   middle/content pages ~.12–.18 (default), atmospheric opener/closer ends ~.34–.46. */
+.bg-soft{position:absolute;inset:0;z-index:0;width:1920px;height:1080px;object-fit:cover;
+  opacity:.16;filter:saturate(.92)}
+.bg-soft-tint{position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 45%, color-mix(in srgb,var(--bg) 38%,transparent) 0%,
+            color-mix(in srgb,var(--bg) 70%,transparent) 78%)}
+/* translucent card: lets the soft backdrop show through (alpha fill renders without GPU; the
+   backdrop-filter is a harmless enhancement that the --disable-gpu screenshot path may ignore).
+   ~82% surface keeps text legible while the background still breathes at the edges. */
+.card.glass{background:color-mix(in srgb,var(--surface) 82%,transparent);
+  border-color:color-mix(in srgb,var(--fg) 12%,transparent);
+  backdrop-filter:blur(7px) saturate(1.05);-webkit-backdrop-filter:blur(7px) saturate(1.05)}
+
+/* ── SVG icons (inline, one coherent LINE family; themeable via currentColor) ──────────────
+   Icons must do a JOB — label a category, mark a section, flag status — never decorate; keep
+   the text label, and keep them ≤ the title. Paste an inline <svg class="icon">…</svg> from
+   references/icons.md. Recolor by setting `color:` on the icon or its tile (uses currentColor).
+   See references/icons.md for the family, the doctrine, and ready-to-paste snippets. */
+.icon{display:inline-block;flex:none;width:40px;height:40px;color:var(--accent);
+  stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+  vertical-align:-0.18em}
+/* tinted disc/tile behind the icon — guarantees contrast + a focal point. Color-code a row of
+   sibling categories by setting a different `color:` per tile (theme.py gives --accent/--accent2). */
+.icon-tile{display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:84px;height:84px;border-radius:20px;color:var(--accent);
+  background:color-mix(in srgb,currentColor 14%,transparent)}
+.icon-tile .icon{width:46px;height:46px;color:inherit}
+/* lighter ring variant (airy/editorial look on a light deck) */
+.icon-badge{display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:84px;height:84px;border-radius:50%;color:var(--accent);
+  border:2px solid color-mix(in srgb,currentColor 45%,transparent)}
+.icon-badge .icon{width:42px;height:42px;color:inherit}
+/* oversized faint icon as a card watermark (texture, not clutter) */
+.icon-ghost{position:absolute;right:24px;bottom:8px;width:160px;height:160px;color:var(--fg);
+  opacity:.05;stroke:currentColor;fill:none;stroke-width:1.5;pointer-events:none}

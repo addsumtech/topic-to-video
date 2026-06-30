@@ -42,6 +42,58 @@ Unmotivated motion is distracting.
 
 ---
 
+## Coordinate-target zoom (framing a named region)
+
+The `to` anchor IS the point the camera keeps centered as it zooms — so to land a
+specific region (a stat, a figure panel, a callout) dead-center at the end of the
+push, **set `to`'s `[x, y]` to that region's center** and raise the zoom.
+
+If the region is a box `[x0, y0, x1, y1]` (the same normalized frame coords a
+callout uses), its center is:
+
+```
+x = (x0 + x1) / 2
+y = (y0 + y1) / 2
+```
+
+Use that as `to`'s anchor. Example — frame the top-right box `[0.62, 0.05, 0.95, 0.38]`
+(center `≈ 0.785, 0.215`):
+
+```json
+"motion": { "from": [0.5, 0.5, 1.0], "to": [0.785, 0.215, 1.18] }
+```
+
+**Motivated-motion rule:** if a slide carries a callout, the camera should *agree*
+with it — `motion.to` should sit near the callout's center. `validate.py` warns
+whenever `motion.to` is far from the callout center, whether the camera holds at the
+default `[0.5, 0.5]` or pans somewhere else entirely (the highlight and the push
+disagree). Either move `to` toward the callout, or — for a deliberately static frame —
+drop the callout.
+
+---
+
+## Motion verbs (shared vocabulary)
+
+When you describe how a beat should move (the planner's `motion_intent`, an HTML
+page's reveal, or a Ken Burns choice), reach for a **verb with a physical
+character** rather than "it animates in". The verb tells the author which reveal /
+easing / zoom to pick, and keeps narration emphasis and on-screen motion aligned.
+
+| Character | Verbs | Fits |
+|---|---|---|
+| Impact / weight | SLAMS, DROPS, STAMPS, PUNCHES | a result, a headline number landing |
+| Directional | SLIDES, WIPES, PUSHES, CUTS | a transition, swapping one idea for the next |
+| Reveal / build | DRAWS, FILLS, GROWS, COUNTS UP, ASSEMBLES | a chart drawing, a metric counting up, a list building |
+| Organic / ambient | FLOATS, DRIFTS, BREATHES, PULSES | a hero/title beat, an atmospheric hold |
+| Mechanical | TYPES ON, SNAPS, LOCKS IN, STEPS | code/terminal text, a precise stepwise reveal |
+
+Keep it honest: the free tiers express these through the programmatic renderers'
+built-in reveals, the HTML tier's CSS reveals, and the Ken Burns push — not arbitrary
+keyframing. Pick the verb that the available motion can actually deliver; don't promise
+a SLAM the renderer can't land.
+
+---
+
 ## Callouts
 
 Callouts are static overlays drawn on top of the zoomed slide (they do not

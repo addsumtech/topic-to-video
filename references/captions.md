@@ -32,34 +32,36 @@ is **always** written either way, so viewers can still turn on soft subtitles.
 
 ---
 
-## Readability guidelines
+## Readability guidelines (caption craft)
 
-Keep each caption block to:
-- **≤ 42 characters per line**
-- **≤ 2 lines**
+Keep each on-screen caption to:
+- **≤ ~42 characters per line** (CJK is full-width — far fewer per line).
+- **≤ 2 lines** (the renderer draws as many lines as the text needs; `validate.py` warns when a caption wraps past 3).
+- **No widows** — don't let the last wrapped line be a single short word
+  ("…to the / **future**"). It reads as a typo. `validate.py` warns on this.
+- **On screen ≥ ~0.7 s** — a chunk that flashes faster is unreadable.
+  `validate.py` warns when a derived segment is too brief.
 
-Longer text wraps fine technically but exceeds safe reading speed for
-most viewers. If a caption needs more than 2 lines, the narration sentence
-is probably too long — shorten it.
+These are the same rules `scripts/validate.py` enforces as warnings before render,
+and `agents/critic-narrative.md` (R7) checks at the script stage. If a caption
+trips them, the underlying narration sentence is usually too long — shorten it.
 
 ---
 
-## v1 caption behavior
+## How captions are timed (auto-derived from narration)
 
-In v1, each slide shows **one caption block** for its entire duration.
+Each slide's burned caption **tracks the narration as it's spoken** — it is not one
+static block. `render.py` (`_captions_for`) splits the `narration` into sentence-sized
+chunks (`_split_caption_chunks`), times them across the slide's audio duration weighted
+by length, and burns each chunk only during its own window (an ffmpeg `overlay … enable`
+per segment). So the subtitle changes with the voice, sentence by sentence.
 
-`render.py` joins all `captions[]` text segments with spaces to produce the
-burned text:
-```python
-caption_text = " ".join(c["text"].strip() for c in _captions_for(slide)).strip()
-```
+If a slide provides an explicit **multi-segment** `captions` array (≥ 2 entries), that
+authored track is honoured verbatim instead. A single `captions` entry is treated as
+fallback text, not a fixed full-duration line.
 
-If `captions[]` is empty, the full `narration` string is used as the single
-caption block.
-
-The **`.srt` sidecar** (`out.srt`) always uses the individual `captions[]`
-entries with their precise `start`/`end` timings — useful for YouTube
-auto-captions or subtitle editors.
+The **`.srt` sidecar** (`out.srt`) is always written from the same segments with their
+`start`/`end` timings — useful for YouTube auto-captions or subtitle editors.
 
 ---
 

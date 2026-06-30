@@ -62,10 +62,13 @@ something the material doesn't support, write the most you CAN support and **fla
 forward-looking aside is allowed only if the line marks it as your own framing, not a fact. Never
 paper over a missing source.
 
-**6. Match the visual.**
+**6. Match the visual — and the motion.**
 Each line should describe or support what is on screen for that beat (its `visual`, or the slide's
 on-screen content when there's no plan) — don't drift to something the viewer can't see. The
-downstream critic (R2) enforces this.
+downstream critic (R2) enforces this. When a beat has a `motion_intent` verb, land the line's
+emphasis where the motion lands: a COUNTS-UP beat should speak the number at the moment it climbs;
+a SLIDES transition wants the connective phrase ("which brings us to…") on the move. The words and
+the motion should hit together, not fight.
 
 **7. Draft, then tighten.**
 Write a first pass, then read it back in your head and cut every word that doesn't earn its place.

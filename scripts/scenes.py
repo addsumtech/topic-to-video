@@ -4,8 +4,11 @@ Frames are namespaced by scene index because the full render shares one workdir.
 import os
 import shutil
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from PIL import Image, ImageDraw, ImageFont
 import render  # reuse the CJK-aware font resolver
+import _common
+import _cdp
 import matplotlib
 matplotlib.use("Agg")                       # deterministic, headless raster backend
 import matplotlib.pyplot as plt
@@ -14,33 +17,70 @@ from matplotlib import font_manager
 BG = (13, 17, 23)        # near-black, matches the caption aesthetic
 FG = (255, 255, 255)
 
-_CHROME_CANDIDATES = [
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "/Applications/Chromium.app/Contents/MacOS/Chromium",
-]
-
 def _chrome_bin(meta):
-    """Locate a Chrome/Chromium binary: meta.chrome_path, the macOS app, or PATH. None if absent."""
-    c = (meta or {}).get("chrome_path")
-    if c and os.path.exists(c):
-        return c
-    for p in _CHROME_CANDIDATES:
-        if os.path.exists(p):
-            return p
-    for n in ("google-chrome", "chromium", "chromium-browser", "chrome"):
-        w = shutil.which(n)
-        if w:
-            return w
-    return None
+    """Locate a Chrome/Chromium binary (shared with doctor.py via _common.find_chrome)."""
+    return _common.find_chrome(meta)
+
+def _chrome_workers(meta):
+    """How many Chrome shots to run at once. `meta.chrome_workers` overrides; default scales with
+    cores but is capped (each worker is a full Chrome process — too many thrashes memory)."""
+    n = (meta or {}).get("chrome_workers")
+    if n:
+        return max(1, int(n))
+    return max(1, min(8, (os.cpu_count() or 4) - 1))
 
 def _chrome_shot(url, out_png, W, H, meta):
-    """Screenshot an HTML url to out_png via headless Chrome. Raises if no Chrome is found."""
+    """Screenshot an HTML url to out_png via headless Chrome. Raises if no Chrome is found.
+    NOTE: deliberately NO `--user-data-dir` — an explicit profile makes a headless launch HANG on
+    macOS when the user's Chrome app is already running (it gets coalesced onto the live instance).
+    Omitting it lets each `--headless` launch spin up its own throwaway profile, which is also what
+    makes concurrent shots safe (no shared-profile singleton lock)."""
     chrome = _chrome_bin(meta)
     if not chrome:
         raise RuntimeError("no Chrome/Chromium for the HTML tier — install Chrome or set meta.chrome_path")
     subprocess.run([chrome, "--headless", "--disable-gpu", "--hide-scrollbars", "--no-sandbox",
                     f"--window-size={W},{H}", f"--screenshot={out_png}", url],
-                   check=True, capture_output=True, timeout=60)
+                   check=True, capture_output=True, timeout=90)
+
+def _capture_frames(shots, copies, workdir, index, W, H, meta, label):
+    """Materialise a scene's frame sequence and return the ffmpeg frame PATTERN.
+
+    FAST path (default): one persistent headless Chrome per worker, JPEG screenshots over CDP
+    (`_cdp.capture`) — one launch + many fast grabs instead of a cold Chrome per frame. If CDP is
+    unavailable or errors, fall back to the robust SLOW path: a fresh `--headless --screenshot` per
+    frame, run through a thread pool so the cold-starts at least overlap.
+
+    `shots`=[(frame_index, url)] are captured fresh; `copies`=[(frame_index, source_frame_index)]
+    are held frames filled by copying a captured shot (cheap). A live progress bar tracks the shots."""
+    workers = _chrome_workers(meta)
+    if (meta or {}).get("capture", "cdp") != "screenshot":
+        try:
+            return _cdp.capture(shots, copies, workdir, index, W, H, meta, label,
+                                _chrome_bin(meta), workers, _common.progress)
+        except _cdp.CDPUnavailable as e:
+            print(f"[render_html] scene {index}: CDP capture unavailable ({e}) — "
+                  f"falling back to --screenshot", flush=True)
+    # fallback: per-frame --screenshot (PNG), thread-pooled
+    pat = os.path.join(workdir, f"scene_{index:02d}_%04d.png")
+    os.makedirs(workdir, exist_ok=True)
+    total = len(shots)
+    n = min(workers, total) or 1
+    done = [0]
+    _common.progress(0, total, label)
+    def shoot(i, url):
+        _chrome_shot(url, pat % i, W, H, meta)
+    if n <= 1:
+        for i, url in shots:
+            shoot(i, url); done[0] += 1; _common.progress(done[0], total, label)
+    else:
+        with ThreadPoolExecutor(max_workers=n) as ex:
+            futs = [ex.submit(shoot, i, url) for i, url in shots]
+            for f in as_completed(futs):
+                f.result()                       # propagate the first failure
+                done[0] += 1; _common.progress(done[0], total, label)
+    for i, src_i in copies:
+        shutil.copyfile(pat % src_i, pat % i)
+    return pat
 
 def _ease(p):
     """Smoothstep, clamped to [0,1]."""
@@ -114,7 +154,11 @@ def render_keypoints(props, meta, W, H, frames, workdir, index):
     accent = _hex_rgb(props.get("accent"))
     fps = meta.get("fps", 30)
     intro = max(1, int(0.5 * fps))                  # each row fades/slides in over ~0.5s
-    stagger = max(1, int(0.35 * fps))               # rows appear staggered
+    # SPREAD the row reveals across the scene (track the speaking pace) instead of cramming them into
+    # the first ~1s and holding — same principle as render_timeline/render_chart, and the html tier's
+    # spread default. The title is the first slot; points fill the rest (floor 0.32s for short scenes).
+    n_pts = max(1, len(points))
+    stagger = max(int(0.32 * fps), frames // (n_pts + 1))
     x = int(W * 0.10)
     # Resolve fonts from the ACTUAL text that will be drawn (a Latin stand-in would tofu CJK).
     lbl_sample = "".join(str(p.get("label", "")) for p in points) or "x"
@@ -318,7 +362,10 @@ def render_html(props, meta, W, H, frames, workdir, index):
     animate the reveals over anim_seconds then hold (the default)."""
     import json, re
     import cues as _cues
-    src = os.path.join(meta["_out"], props["html"])
+    # ABSOLUTE path: the file:// URL must be absolute. The `--screenshot` CLI tolerated a relative
+    # path (it resolved it against cwd), but CDP Page.navigate rejects it (ERR_INVALID_URL) — which
+    # silently produced Chrome error-page frames. abspath makes both paths correct.
+    src = os.path.abspath(os.path.join(meta["_out"], props["html"]))
     fps = meta.get("fps", 30)
     dur = frames / float(fps)
     html = open(src, encoding="utf-8", errors="replace").read()
@@ -342,7 +389,6 @@ def render_html(props, meta, W, H, frames, workdir, index):
             cue_param = ",".join(f"{t:.3f}" for t in sparse)
         except Exception as e:
             cue_param, cue_err = None, str(e)
-    pat = os.path.join(workdir, f"scene_{index:02d}_%04d.png")
     os.makedirs(workdir, exist_ok=True)
     if cue_param is None and 'data-cue-index' in html:
         why = (f"malformed words.json: {cue_err}" if cue_err else
@@ -350,32 +396,41 @@ def render_html(props, meta, W, H, frames, workdir, index):
                 else "points missing a data-cue= anchor attribute"))
         print(f"[render_html] scene {index}: audio-sync skipped ({why}) — using paced stagger")
     if cue_param is not None:
-        # capture a fresh frame near each cue's reveal window (~0.6s); hold (copy) elsewhere
+        # capture a fresh frame during (a) the initial header-entrance window and (b) near each
+        # cue's reveal window (~0.6s); hold (copy) elsewhere. The HEAD_WINDOW is essential: the
+        # header chrome (kicker/rule/title/sub) animates in on plain time-based .reveal delays, NOT
+        # on cues — without capturing [0, HEAD_WINDOW] the only early frame is p=0 (everything
+        # hidden), which then gets copied until the first cue, leaving the whole page blank until
+        # the first spoken anchor. ~1.2s covers the header stagger (delay ≤ .3s + .7s reveal).
         ctimes = cue_times
         burst = 0.6
+        HEAD_WINDOW = 1.2
         def is_reveal(t):
-            return t <= 0.001 or any(c <= t <= c + burst for c in ctimes)
-        last = None
+            return t <= HEAD_WINDOW or any(c <= t <= c + burst for c in ctimes)
+        shots, copies, last_i = [], [], None
         for i in range(frames):
-            outp = pat % i
             t = i / float(fps)
-            if is_reveal(t) or last is None:
+            if is_reveal(t) or last_i is None:
                 p = min(1.0, t / dur)
-                _chrome_shot(f"file://{src}?p={p:.4f}&cues={cue_param}&dur={dur:.3f}", outp, W, H, meta)
-                last = outp
+                shots.append((i, f"file://{src}?p={p:.4f}&cues={cue_param}&dur={dur:.3f}"))
+                last_i = i
             else:
-                shutil.copyfile(last, outp)
-        return pat
-    # default path (unchanged): animate over anim_seconds, then hold
-    anim = float(props.get("anim_seconds", 0.8))
+                copies.append((i, last_i))
+        return _capture_frames(shots, copies, workdir, index, W, H, meta, f"scene {index:02d} (cued)")
+    # paced fallback (no audio cues): animate over anim_seconds, then hold. When anim_seconds is
+    # NOT set, default it to SPREAD the reveals across most of the scene (~0.7×duration) instead of
+    # cramming them into the first ~0.8s — otherwise the content appears long before the voice
+    # reaches it. Audio-synced `data-cue` reveals (above) are still the precise, preferred path;
+    # this only makes the cue-less fallback track the speaking pace by default.
+    av = props.get("anim_seconds")
+    anim = float(av) if av is not None else max(1.2, 0.7 * dur)
     reveal_frames = max(1, min(frames, int(round(anim * fps))))
-    settle = None
+    shots, copies, settle_i = [], [], None
     for i in range(frames):
-        out = pat % i
         p = 1.0 if i >= reveal_frames - 1 else i / max(1, reveal_frames - 1)
-        if p >= 1.0 and settle is not None:
-            shutil.copyfile(settle, out); continue
-        _chrome_shot(f"file://{src}?p={p:.4f}", out, W, H, meta)
+        if p >= 1.0 and settle_i is not None:
+            copies.append((i, settle_i)); continue
+        shots.append((i, f"file://{src}?p={p:.4f}"))
         if p >= 1.0:
-            settle = out
-    return pat
+            settle_i = i
+    return _capture_frames(shots, copies, workdir, index, W, H, meta, f"scene {index:02d}")
