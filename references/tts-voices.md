@@ -206,6 +206,11 @@ Any of MiniMax's 300+ system voices works — set `meta.voice` to `minimax:<voic
 picks: `English_expressive_narrator`, `Chinese (Mandarin)_News_Anchor`. Full list:
 https://platform.minimax.io/docs/faq/system-voice-id
 
+The **auto catalog covers `en` and `zh`** (used by a bare `"minimax"`). For any other language, pass an
+**explicit** `minimax:<voice_id>` — MiniMax has `Japanese_*`, `Korean_*`, `Spanish_*`, … voices; a bare
+`"minimax"` outside en/zh falls back to a neutral English narrator, which won't pronounce that language
+well. Tip: list your account's exact voices with a POST to `/v1/get_voice` (`{"voice_type":"system"}`).
+
 **Tradeoff — no per-word timings.** Unlike edge-tts, MiniMax (like OpenAI/say) does not emit
 `audio/NN.words.json`, so audio-synced HTML reveals fall back to the **paced** stagger (still spread
 across the scene via `anim_seconds`, just not anchored to each spoken word). Use **edge-tts** when you
