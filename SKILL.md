@@ -52,8 +52,10 @@ TTS if the user gives an API key.
   **Google Chrome** — no new dependency. Each page's paused CSS reveals are captured frame-by-frame.
   **Audio-synced reveals:** tag each point's reveal element `data-cue-index="N"` (spoken order) and
   `data-cue="<spoken anchor>"`. When edge-tts `audio/NN.words.json` exists, `render_html` resolves
-  each anchor's timestamp via `cues.py` and reveals each point exactly when its phrase is spoken;
-  falls back to the paced `anim_seconds` stagger otherwise (macOS `say` or missing anchor).
+  each anchor's timestamp via `cues.py` and reveals each point exactly when its phrase is spoken.
+  With NO per-word timings (MiniMax/say/openai) it **estimates cues from the anchor's position in the
+  narration text** (`cues.estimate_cues_from_text`) — reveals still track the voice's pacing; only if
+  a scene has no anchors/narration does it fall back to the blind `anim_seconds` stagger.
   **Fast capture (default):** frames are grabbed from ONE persistent Chrome over the DevTools
   Protocol as JPEG (`scripts/_cdp.py`) — one launch + many fast grabs instead of a cold Chrome per
   frame (~18× faster on a full render; ~5–7× per scene). If CDP can't run (no Chrome, old build,

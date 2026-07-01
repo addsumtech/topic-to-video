@@ -125,28 +125,28 @@ def _align(html, narration, duration, anim_seconds=None, words_path="/nonexisten
 _TWO_PT = ('<div class="row reveal-up" data-cue-index="0" data-cue="甲">A</div>'
            '<div class="row reveal-up" data-cue-index="1" data-cue="乙">B</div>')
 
-def test_reveal_alignment_flags_content_leading_voice():
-    # points spoken LATE but the paced stagger shows them early -> "leads the voice (appears early)"
+def test_reveal_alignment_text_estimate_aligns_uneven_narration():
+    # no word-timings + uneven narration (points spoken late): reveals are ESTIMATED from text
+    # position (matching render_html), so shown≈spoken -> NO leads/lags. This is the text-cue fix.
     narr = "开头先讲很多铺垫的内容占用了不少时间，后面才说到甲，最后才说到乙。"
-    w = _align(_TWO_PT, narr, duration=10.0, anim_seconds=1.0)   # tiny anim -> reveals crammed early
-    assert any("leads the voice" in x for x in w), w
+    w = _align(_TWO_PT, narr, duration=10.0)
+    assert not any("leads the voice" in x or "lags the voice" in x for x in w), w
 
-def test_reveal_alignment_flags_content_lagging_voice():
-    # points spoken EARLY but the paced stagger (0.7*dur) shows the last one late -> "lags"
-    narr = "甲乙" + "，后面是很长很长的补充说明一直延续到本段结束为止。"
-    w = _align(_TWO_PT, narr, duration=10.0)                     # anim unset -> span 0.7
-    assert any("lags the voice" in x for x in w), w
+def test_reveal_alignment_flags_ambiguous_wordcue(tmp_path):
+    # edge path: a word-cue that resolves EARLIER than the anchor's text position (ambiguous anchor)
+    # -> the reveal fires before it's spoken -> "leads the voice".
+    import json
+    wp = tmp_path / "05.words.json"
+    json.dump([{"w": "甲", "t": 0.3}, {"w": "乙", "t": 0.6}], open(wp, "w"))
+    narr = "这是一段较长的开场白用来铺垫背景信息，随后才真正提到甲，最后提到乙收尾。"
+    w = _align(_TWO_PT, narr, duration=10.0, words_path=str(wp))
+    assert any("leads the voice" in x for x in w), w
 
 def test_reveal_alignment_missing_anchor_flags():
     html = ('<div data-cue-index="0" data-cue="甲">A</div>'
             '<div data-cue-index="1" data-cue="不存在">B</div>')
     w = _align(html, "只说了甲，没有第二个词。", duration=8.0)
     assert any("not in the narration" in x for x in w), w
-
-def test_reveal_alignment_aligned_is_silent():
-    # anchors spoken at ~0% and ~50%; paced span 0.7 -> shown 0% / 70%; gaps under tolerance -> no flag
-    w = _align(_TWO_PT, "甲乙", duration=4.0)
-    assert not any("leads the voice" in x or "lags the voice" in x for x in w), w
 
 def test_reveal_alignment_ignored_before_tts():
     # no duration yet (pre-tts) -> the timing gap can't be computed, so no leads/lags noise

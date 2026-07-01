@@ -54,3 +54,50 @@ def resolve_cues(words, anchors):
         if res[i] <= res[i - 1]:
             res[i] = round(res[i - 1] + EPS, 3)
     return [round(float(x), 3) for x in res]
+
+
+def _fill(raw, n, dur):
+    """Fill None entries in `raw` (known reveal times) by interpolating between neighbours, then
+    enforce monotonic non-decreasing within [0, dur]. Shared by both cue resolvers."""
+    known = [i for i in range(n) if raw[i] is not None]
+    res = [0.0] * n
+    if not known:
+        return [round(dur * (i + 1) / (n + 1), 3) for i in range(n)]   # even spread
+    for i in range(known[0]):                                          # leading unknowns
+        res[i] = round(raw[known[0]] * (i + 1) / (known[0] + 1), 3)
+    res[known[0]] = round(raw[known[0]], 3)
+    for a, b in zip(known, known[1:]):                                 # interior gaps
+        res[b] = round(raw[b], 3)
+        for m in range(a + 1, b):
+            res[m] = round(raw[a] + (raw[b] - raw[a]) * (m - a) / (b - a), 3)
+    for i in range(known[-1] + 1, n):                                  # trailing unknowns
+        res[i] = round(min(dur, raw[known[-1]] + EPS * (i - known[-1])), 3)
+    for i in range(1, n):
+        if res[i] <= res[i - 1]:
+            res[i] = round(res[i - 1] + EPS, 3)
+    return [round(float(x), 3) for x in res]
+
+
+def estimate_cues_from_text(anchors, narration, duration):
+    """Approximate reveal times WITHOUT per-word timings (e.g. MiniMax/say/openai voices): place each
+    anchor at (its char offset in the narration / total length) * duration, assuming a ~uniform
+    speaking rate. Far better than a blind linear stagger — reveals track the narration's own pacing.
+    Monotonic left-to-right scan (an anchor found only earlier than the cursor is still accepted so a
+    later point can't jump ahead of it); unmatched anchors interpolate. Pure; same length as anchors."""
+    n = len(anchors)
+    if n == 0:
+        return []
+    N = narration or ""
+    L = len(N)
+    dur = float(duration) if duration and duration > 0 else float(n)
+    raw = [None] * n
+    cur = 0
+    for i, a in enumerate(anchors):
+        a = (a or "").strip()
+        pos = N.find(a, cur) if a else -1
+        if pos < 0 and a:
+            pos = N.find(a)                          # out of order — accept anywhere
+        if pos >= 0:
+            raw[i] = (pos / L) * dur if L else 0.0
+            cur = max(cur, pos + len(a))
+    return _fill(raw, n, dur)

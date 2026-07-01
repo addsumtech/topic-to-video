@@ -572,8 +572,23 @@ def test_render_html_cued_points_but_no_words_uses_anim(tmp_path, monkeypatch):
     monkeypatch.setattr(scenes, "_chrome_shot", lambda url, o, w, h, m: (seen.append(url),
                         __import__("pathlib").Path(o).write_bytes(b"\x89PNG\r\n")))
     scenes.render_html({"html": "pages/p.html", "anim_seconds": 1.0}, {"_out": str(out), "fps": 30, "capture": "screenshot"},
-                       1920, 1080, 60, str(out / "wd"), 7)   # no audio/07.words.json exists
-    assert seen and all("cues=" not in u for u in seen), "no words.json -> must use anim path"
+                       1920, 1080, 60, str(out / "wd"), 7)   # no audio/07.words.json AND no meta._narration
+    assert seen and all("cues=" not in u for u in seen), "no words.json + no narration -> anim path"
+
+def test_render_html_text_cues_when_no_words_but_narration(tmp_path, monkeypatch):
+    # NEW: no words.json, but the scene narration is available -> reveals are ESTIMATED from each
+    # anchor's position in the narration text (text-cues), so the cued capture path runs (cues= in URL).
+    out = tmp_path; (out / "pages").mkdir()
+    (out / "pages" / "p.html").write_text('<div class="stage">'
+        '<div class="row reveal-up-sm" data-cue-index="0" data-cue="alpha">A</div>'
+        '<div class="row reveal-up-sm" data-cue-index="1" data-cue="beta">B</div></div>')
+    seen = []
+    monkeypatch.setattr(scenes, "_chrome_shot", lambda url, o, w, h, m: (seen.append(url),
+                        __import__("pathlib").Path(o).write_bytes(b"\x89PNG\r\n")))
+    meta = {"_out": str(out), "fps": 30, "capture": "screenshot",
+            "_narration": "first we introduce alpha, then much later we get to beta near the end."}
+    scenes.render_html({"html": "pages/p.html"}, meta, 1920, 1080, 60, str(out / "wd"), 8)
+    assert seen and any("cues=" in u for u in seen), "no words.json + narration -> text-estimated cues"
 
 @pytest.mark.skipif(not _chrome_present(), reason="no Chrome")
 def test_seekjs_cue_override_gates_reveals(tmp_path):

@@ -376,25 +376,34 @@ def render_html(props, meta, W, H, frames, workdir, index):
     cue_param = None        # comma list for seek.js, indexed by data-cue-index (sparse-safe)
     cue_times = []          # the resolved reveal moments (for the capture bursts)
     cue_err = None
-    if pts and os.path.exists(words_path):
+    cue_src = None          # "words" (edge per-word timings) | "text" (narration char-position estimate)
+    ordered = sorted(((int(i), a) for i, a in pts), key=lambda x: x[0]) if pts else []
+    ctimes = None
+    if ordered and os.path.exists(words_path):        # BEST: exact per-word timings (edge-tts)
         try:
             words = json.load(open(words_path))
-            ordered = sorted(((int(i), a) for i, a in pts), key=lambda x: x[0])
-            ctimes = _cues.resolve_cues(words, [a for _, a in ordered])
-            margin = max(0.0, dur - 0.5)                  # a cue must fire before the final frame, else hidden
-            cue_times = [min(t, margin) for t in ctimes]
-            sparse = [0.0] * (ordered[-1][0] + 1)         # index by the element's actual data-cue-index
-            for (orig_i, _), t in zip(ordered, cue_times):
-                sparse[orig_i] = t
-            cue_param = ",".join(f"{t:.3f}" for t in sparse)
+            ctimes = _cues.resolve_cues(words, [a for _, a in ordered]); cue_src = "words"
         except Exception as e:
-            cue_param, cue_err = None, str(e)
+            ctimes, cue_err = None, str(e)
+    if ordered and ctimes is None:                    # NO word timings (MiniMax/say/openai): estimate
+        narration = (meta.get("_narration") or "")    # from each anchor's position in the narration text
+        if narration.strip():
+            ctimes = _cues.estimate_cues_from_text([a for _, a in ordered], narration, dur); cue_src = "text"
+    if ordered and ctimes is not None:
+        margin = max(0.0, dur - 0.5)                  # a cue must fire before the final frame, else hidden
+        cue_times = [min(t, margin) for t in ctimes]
+        sparse = [0.0] * (ordered[-1][0] + 1)         # index by the element's actual data-cue-index
+        for (orig_i, _), t in zip(ordered, cue_times):
+            sparse[orig_i] = t
+        cue_param = ",".join(f"{t:.3f}" for t in sparse)
     os.makedirs(workdir, exist_ok=True)
     if cue_param is None and 'data-cue-index' in html:
         why = (f"malformed words.json: {cue_err}" if cue_err else
-               ("no audio/%02d.words.json (non-edge voice?)" % index if not os.path.exists(words_path)
+               ("no word-timings and no narration to estimate from" if not os.path.exists(words_path)
                 else "points missing a data-cue= anchor attribute"))
         print(f"[render_html] scene {index}: audio-sync skipped ({why}) — using paced stagger")
+    elif cue_src == "text":
+        print(f"[render_html] scene {index}: no word-timings — reveals estimated from narration text position")
     if cue_param is not None:
         # capture a fresh frame during (a) the initial header-entrance window and (b) near each
         # cue's reveal window (~0.6s); hold (copy) elsewhere. The HEAD_WINDOW is essential: the

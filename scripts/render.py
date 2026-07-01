@@ -319,6 +319,9 @@ def _render_scene(slide, meta, W, H, out_clip, burn_captions, workdir):
     dur = slide["duration"]
     frames = max(1, int(round(dur * fps)))
     renderer = getattr(scenes, "render_" + slide["type"])   # render_title / render_chart / render_timeline
+    # expose this scene's narration so render_html can estimate reveal cues from text position when
+    # there are no per-word timings (non-edge voices). Scenes render sequentially, so this is safe.
+    meta["_narration"] = slide.get("narration") or ""
     pattern = renderer(slide.get("props") or {}, meta, W, H, frames, workdir, slide["index"])
     segs = _captions_for(slide) if burn_captions else []
     return _encode_frames_clip(pattern, slide["audio"], dur, segs, meta, W, H, out_clip, workdir)

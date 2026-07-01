@@ -275,18 +275,16 @@ def _reveal_alignment(html, narration, duration, anim_seconds, words_path, tag, 
     if not (sb._is_num(duration) and float(duration) > 0):
         return                                       # need real durations (post-tts) for the timing gap
     dur = float(duration); n = len(anchors)
+    import cues as _cues
     shown = None
-    if os.path.exists(words_path):                   # cued: reveal at the resolved spoken-word time
+    if os.path.exists(words_path):                   # cued (edge): reveal at the resolved spoken-word time
         try:
-            import cues as _cues
             words = json.load(open(words_path))
             shown = [min(1.0, t / dur) for t in _cues.resolve_cues(words, anchors)]
         except Exception:
             shown = None
-    if shown is None:                                # paced: even stagger across [0, anim]
-        anim = float(anim_seconds) if sb._is_num(anim_seconds) else max(1.2, 0.7 * dur)
-        span = min(1.0, anim / dur)
-        shown = [((i / (n - 1)) * span if n > 1 else 0.0) for i in range(n)]
+    if shown is None:                                # no word-timings: render estimates from text position
+        shown = [min(1.0, t / dur) for t in _cues.estimate_cues_from_text(anchors, narration, dur)]
     for i, (sp, sh) in enumerate(zip(spoken, shown)):
         if sp is None:
             continue

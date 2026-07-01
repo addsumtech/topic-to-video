@@ -40,3 +40,21 @@ def test_zero_time_words_still_monotonic():
 def test_multiword_anchor_skips_stopwords():
     w = [{"w": "come", "t": 0.3}, {"w": "an irrigation system", "t": 3.1}, {"w": "leshan", "t": 6.0}]
     assert cues.resolve_cues(w, ["an irrigation system", "leshan"]) == [3.1, 6.0]
+
+
+def test_estimate_from_text_tracks_char_position():
+    # anchors at ~0% and ~50% of a 10s scene -> ~0s and ~5s (uniform-rate assumption)
+    narr = "甲一二三四五六七八九"     # 甲 at index 0; each char ~10% of length
+    t = cues.estimate_cues_from_text(["甲", "六"], narr, 10.0)
+    assert len(t) == 2 and t[0] < 1.0 and 5.0 <= t[1] <= 7.0, t
+
+def test_estimate_from_text_monotonic_and_length():
+    narr = "先讲很多铺垫内容然后提到甲随后提到乙最后收尾。"
+    t = cues.estimate_cues_from_text(["甲", "乙"], narr, 12.0)
+    assert len(t) == 2 and t[0] < t[1]         # spoken order preserved, ascending
+    assert all(0 <= x <= 12.0 for x in t)
+
+def test_estimate_from_text_unmatched_interpolates():
+    # a missing middle anchor is interpolated between its resolved neighbours (never crashes)
+    t = cues.estimate_cues_from_text(["甲", "缺", "乙"], "甲……乙", 6.0)
+    assert len(t) == 3 and t[0] <= t[1] <= t[2]

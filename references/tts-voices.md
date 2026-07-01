@@ -212,9 +212,11 @@ The **auto catalog covers `en` and `zh`** (used by a bare `"minimax"`). For any 
 well. Tip: list your account's exact voices with a POST to `/v1/get_voice` (`{"voice_type":"system"}`).
 
 **Tradeoff — no per-word timings.** Unlike edge-tts, MiniMax (like OpenAI/say) does not emit
-`audio/NN.words.json`, so audio-synced HTML reveals fall back to the **paced** stagger (still spread
-across the scene via `anim_seconds`, just not anchored to each spoken word). Use **edge-tts** when you
-need exact `data-cue` audio-sync; use **MiniMax** when you want the most natural voice.
+`audio/NN.words.json`. HTML reveals then use **text-position-estimated cues**: each point reveals at
+(its `data-cue` anchor's char position in the narration ÷ length) × scene duration — so reveals still
+track the narration's pacing (a good approximation), not a blind stagger. It assumes a ~uniform
+speaking rate, so it's close but not word-exact. Use **edge-tts** when you need word-exact
+`data-cue` sync; use **MiniMax** for the most natural voice with text-estimated reveals.
 
 ### Fallback behavior
 
