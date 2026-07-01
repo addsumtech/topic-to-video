@@ -142,6 +142,18 @@ def test_reveal_alignment_flags_ambiguous_wordcue(tmp_path):
     w = _align(_TWO_PT, narr, duration=10.0, words_path=str(wp))
     assert any("leads the voice" in x for x in w), w
 
+def test_reveal_alignment_wholeword_anchor_no_phantom_with_edge(tmp_path):
+    # "art" collides inside "start" earlier; with the whole-word matcher, validate's spoken position
+    # matches resolve_cues' token time -> NO phantom leads/lags (regression for the substring skew).
+    import json
+    wp = tmp_path / "03.words.json"
+    json.dump([{"w": "art", "t": 5.0}, {"w": "end", "t": 8.0}], open(wp, "w"))
+    html = ('<div data-cue-index="0" data-cue="art">A</div>'
+            '<div data-cue-index="1" data-cue="end">B</div>')
+    narr = "we start the demo, then the art module runs, and it will end soon here."
+    w = _align(html, narr, duration=10.0, words_path=str(wp))
+    assert not any("leads the voice" in x or "lags the voice" in x for x in w), w
+
 def test_reveal_alignment_missing_anchor_flags():
     html = ('<div data-cue-index="0" data-cue="甲">A</div>'
             '<div data-cue-index="1" data-cue="不存在">B</div>')

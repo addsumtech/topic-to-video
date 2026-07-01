@@ -255,13 +255,15 @@ def _reveal_alignment(html, narration, duration, anim_seconds, words_path, tag, 
     L = len(N)
     if len(anchors) < 2 or not N.strip():
         return
-    # spoken fraction per anchor — monotonic raw-substring scan (anchors are verbatim spoken phrases)
+    # spoken fraction per anchor — case-insensitive, whole-word (Latin) / substring (CJK) monotonic
+    # scan via the SAME matcher render uses (cues._anchor_pos), so "spoken" can't skew vs "shown".
+    import cues as _cues
     spoken, cur = [], 0
     for a in anchors:
         a = (a or "").strip()
-        pos = N.find(a, cur) if a else -1
+        pos = _cues._anchor_pos(N, a, cur)
         if pos < 0:
-            anywhere = N.find(a) if a else -1
+            anywhere = _cues._anchor_pos(N, a)
             if anywhere < 0:
                 warnings.append(f"{tag}: data-cue anchor \"{a[:20]}\" is not in the narration — it can't "
                                 f"resolve, so that point reveals at the wrong time; use a phrase the "
@@ -275,7 +277,6 @@ def _reveal_alignment(html, narration, duration, anim_seconds, words_path, tag, 
     if not (sb._is_num(duration) and float(duration) > 0):
         return                                       # need real durations (post-tts) for the timing gap
     dur = float(duration); n = len(anchors)
-    import cues as _cues
     shown = None
     if os.path.exists(words_path):                   # cued (edge): reveal at the resolved spoken-word time
         try:

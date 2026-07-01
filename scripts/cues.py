@@ -6,6 +6,24 @@ import re
 
 EPS = 0.15  # seconds — minimum gap nudge when two anchors resolve to the same/earlier time
 
+# CJK ranges (ideographs, kana, hangul, fullwidth) — such text has NO word gaps, so a word-boundary
+# match would never fire between two CJK chars; those anchors match as plain substrings instead.
+_CJK = re.compile(r"[　-ヿ㐀-鿿가-힣＀-￯]")
+
+def _anchor_pos(narration, anchor, start=0):
+    """Char offset of `anchor` in `narration` at/after `start`, else -1. CASE-INSENSITIVE, and for a
+    Latin anchor it requires WHOLE-WORD boundaries (so "art" doesn't match inside "start", "AI" not
+    inside "brain"). CJK anchors match as a plain substring (no word gaps). This mirrors resolve_cues'
+    casefold/whole-token matching so the text estimate and validate agree with the edge word-resolver."""
+    a = (anchor or "").strip()
+    if not a:
+        return -1
+    if _CJK.search(a):
+        m = re.compile(re.escape(a), re.IGNORECASE).search(narration, start)
+    else:
+        m = re.compile(r"\b" + re.escape(a) + r"\b", re.IGNORECASE).search(narration, start)
+    return m.start() if m else -1
+
 def _norm(s):
     return re.sub(r"[^a-z0-9]+", " ", (s or "").casefold()).strip()
 
@@ -94,9 +112,9 @@ def estimate_cues_from_text(anchors, narration, duration):
     cur = 0
     for i, a in enumerate(anchors):
         a = (a or "").strip()
-        pos = N.find(a, cur) if a else -1
+        pos = _anchor_pos(N, a, cur)
         if pos < 0 and a:
-            pos = N.find(a)                          # out of order — accept anywhere
+            pos = _anchor_pos(N, a)                   # out of order — accept anywhere
         if pos >= 0:
             raw[i] = (pos / L) * dur if L else 0.0
             cur = max(cur, pos + len(a))

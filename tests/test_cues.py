@@ -58,3 +58,20 @@ def test_estimate_from_text_unmatched_interpolates():
     # a missing middle anchor is interpolated between its resolved neighbours (never crashes)
     t = cues.estimate_cues_from_text(["甲", "缺", "乙"], "甲……乙", 6.0)
     assert len(t) == 3 and t[0] <= t[1] <= t[2]
+
+
+def test_anchor_pos_case_insensitive():
+    assert cues._anchor_pos("we really use AI here", "ai") >= 0     # 'ai' matches 'AI'
+    assert cues._anchor_pos("MRI reconstruction", "mri") == 0
+
+def test_anchor_pos_whole_word_latin_not_midword():
+    assert cues._anchor_pos("we start today", "art") == -1         # NOT inside 'start'
+    assert cues._anchor_pos("modern art show", "art") == 7         # standalone word
+
+def test_anchor_pos_cjk_plain_substring():
+    assert cues._anchor_pos("公式是真概念现算", "概念") == 4          # CJK: substring, no word gaps
+
+def test_estimate_latin_ignores_midword_and_case():
+    # 'AI' is spoken late; must NOT resolve to the 'ai' inside 'brain' near the start
+    t = cues.estimate_cues_from_text(["AI"], "the brain is not it, the real ai here is AI.", 10.0)
+    assert t[0] > 5.0, t
