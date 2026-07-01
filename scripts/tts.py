@@ -62,6 +62,33 @@ MINIMAX_VOICE_CATALOG = {
 }
 MINIMAX_DEFAULT_VOICE = "English_expressive_narrator"   # fallback for languages not in the catalog
 
+# Curated HUMAN-LIKE candidates per language×gender for the voice-sample picker (voice_sample.py):
+# natural, conversational, trustworthy — NOT theatrical/character voices (comedian/anime/robot). The
+# user listens to these samples and picks; the first of each list is the catalog default.
+MINIMAX_VOICE_CANDIDATES = {
+    "en": {
+        "female": ["English_Graceful_Lady", "English_CalmWoman", "English_SereneWoman",
+                   "English_ConfidentWoman", "English_Upbeat_Woman"],
+        "male":   ["English_Trustworth_Man", "English_expressive_narrator", "English_Steadymentor",
+                   "English_Gentle-voiced_man", "English_Deep-VoicedGentleman"],
+    },
+    "zh": {
+        "female": ["Chinese (Mandarin)_IntellectualGirl", "Chinese (Mandarin)_Warm_Girl",
+                   "Chinese (Mandarin)_Sweet_Lady", "Chinese (Mandarin)_Mature_Woman",
+                   "Chinese (Mandarin)_Wise_Women"],
+        "male":   ["Chinese (Mandarin)_Reliable_Executive", "Chinese (Mandarin)_Gentleman",
+                   "Chinese (Mandarin)_Sincere_Adult", "Chinese (Mandarin)_Radio_Host",
+                   "Chinese (Mandarin)_Southern_Young_Man"],
+    },
+}
+
+def minimax_voice_candidates(language, gender="female"):
+    """Curated human-like MiniMax voice_ids to sample for (language, gender); [] if none curated
+    (caller can still use any voice_id via meta.voice='minimax:<id>')."""
+    lang = (language or "").lower().replace("_", "-").split("-")[0]
+    g = gender if gender in ("female", "male") else "female"
+    return list(MINIMAX_VOICE_CANDIDATES.get(lang, {}).get(g, []))
+
 def resolve_minimax_voice(language, gender="female"):
     """Map (language, gender) to a curated MiniMax voice_id; falls back to a neutral narrator for
     languages not in the catalog. Any voice_id can be used directly via meta.voice='minimax:<id>'."""

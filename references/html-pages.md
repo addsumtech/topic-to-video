@@ -106,6 +106,19 @@ path is offline/deterministic; only NETWORK assets are forbidden). Use it as a d
 A gpt-image backdrop must stay **generic/atmospheric** (`broll`) — no fabricated specific
 vehicle/event/figure, no embedded numbers — the facts live in the page text, never in the image.
 
+## AI cover + per-page backgrounds ("look A" — the not-flat option)
+When the user picks AI backgrounds, generate a SMALL, coherent set (not one busy image per page —
+that fights the content) and place them faithfully:
+- **Cover (hero):** a full-bleed `.bg-photo` + graded `.scrim` on the opener (scene 1) and, mirrored,
+  the closer — an atmospheric, on-topic broll (e.g. "editorial paper texture, soft warm light, ink
+  wash in <accent> and <accent2>, minimal, no text, no logos"). Ken-Burns is fine on the hero.
+- **Content pages:** 2–4 subtle textures **rotated** behind the content pages as `.bg-soft`
+  (opacity ~.10–.14) + `.bg-soft-tint`, so every page reads "not flat" while staying legible and
+  coherent. Reuse the set; don't generate 12 unique busy images.
+- **Generate:** `imagegen._generate_codex(prompt, out_path)` (Codex, no key) or
+  `imagegen.generate(prompt, out_path, key)` (OpenAI key); cache under `.assets/`. Prompts are generic
+  **broll** — no logos, faces, named things, or in-image text; a background NEVER carries a fact.
+
 ## Soft AI backgrounds + glass cards (depth without clutter)
 To give a designed deck more depth, place a **generic, atmospheric AI image** (a `broll` —
 no logos/text/specific subjects) BEHIND the content at low opacity, and put the real content in

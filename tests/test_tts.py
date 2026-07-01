@@ -126,6 +126,16 @@ def test_minimax_voice_catalog():
     assert tts.resolve_minimax_voice("en", "male") == "English_Trustworth_Man"
     assert tts.resolve_minimax_voice("xx") == tts.MINIMAX_DEFAULT_VOICE   # unlisted lang -> fallback
 
+def test_minimax_voice_candidates():
+    fem = tts.minimax_voice_candidates("en", "female")
+    assert len(fem) >= 3 and fem[0] == "English_Graceful_Lady"
+    assert tts.minimax_voice_candidates("zh", "male")[0] == "Chinese (Mandarin)_Reliable_Executive"
+    assert tts.minimax_voice_candidates("xx") == []                      # no curated candidates
+    # the first candidate for a (lang,gender) must equal the catalog default the bare voice resolves to
+    for lang in ("en", "zh"):
+        for g in ("female", "male"):
+            assert tts.minimax_voice_candidates(lang, g)[0] == tts.resolve_minimax_voice(lang, g)
+
 def test_resolve_voice_minimax_expands_and_passes_through():
     # bare "minimax" -> concrete catalog voice for the language; explicit voice_id passes through
     assert tts._resolve_voice({"voice": "minimax", "language": "zh"}) == \
