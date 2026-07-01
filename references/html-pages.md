@@ -35,7 +35,7 @@ pick the one whose shape matches the content (all classes are in `base.css`, all
 | **Parts of a whole / a share** | `.segbar` (100% stacked `.seg`, widths inline) or `.meter` (`.fill` width inline) |
 | **A comparison** (A vs B, before→after) | a `.compare` split (`.defocus` the non-focal side); `.quadrant` if two real axes |
 | **One idea / a verbatim line** | `.pullquote` (+ `<cite>`) — or a single hero `.stat` |
-| **Colour-coded categories** (bold, scannable) | `.blocks two` / `.blocks three` (one hue per `.block`, never grey filler) |
+| **Colour-coded categories** (bold, scannable) | `.blocks two` / `.blocks three` — one hue per `.block` from the THEME: `var(--accent)`, `var(--accent2)`, and for a 3rd either `var(--green)` (a theme-neutral alias) or a `color-mix(in srgb,var(--accent) 55%,var(--accent2))`; verify the 3rd doesn't clash — if you need 3 strongly-distinct on-brand hues and the theme only has 2, use `.blocks two` or `cards` instead. Never grey filler, never a raw hex. |
 | **A decomposition** (165 = 123 + 42) | a `.grid` of labeled `.bar` rows (widths inline) or a `.segbar` |
 | **Truly parallel, equal-weight items** | a `.card` grid (`.dash` 3-up / `.grid-asym`) — the *considered* choice for THIS shape only |
 | **A title / section** | `.kicker` + `.rule` + `.title` (+ `.sub`); a mono `.chrome` footer ties the deck together |

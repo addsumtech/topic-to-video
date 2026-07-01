@@ -242,7 +242,9 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     if len(families) >= 4:
         import collections
         fam, n = collections.Counter(families).most_common(1)[0]
-        if n / len(families) > LAYOUT_FAMILY_MAX_SHARE:
+        # require the dominant family to be BOTH a majority-ish share AND ≥3 scenes, so a tiny deck
+        # (e.g. 2 of 4 the same) isn't falsely flagged as monotonous.
+        if n >= 3 and n / len(families) > LAYOUT_FAMILY_MAX_SHARE:
             warnings.append(f"layout diversity: {n}/{len(families)} html scenes use the same form family "
                             f"('{fam}', {round(100*n/len(families))}%) — one form top-to-bottom reads as "
                             f"auto-generated; vary per content (form-selection in references/html-pages.md)")

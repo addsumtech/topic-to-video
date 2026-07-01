@@ -181,6 +181,17 @@ def test_diversity_gate_warns_when_one_family_dominates(tmp_path):
     r = validate.evaluate(data, str(tmp_path))
     assert any("layout diversity" in w and "cards" in w for w in r["warnings"])
 
+def test_diversity_gate_no_false_positive_on_tiny_deck(tmp_path):
+    # 2 of 4 the same family (50%) must NOT flag — the dominant family needs >=3 scenes
+    bodies = ['<div class="grid"><div class="card">x</div></div>',
+              '<div class="grid"><div class="card">x</div></div>',
+              '<div class="flow"><div class="step"></div></div>',
+              '<h1 class="title">x</h1>']
+    slides = [_html_scene(tmp_path, i, f"pages/s{i}.html", b) for i, b in enumerate(bodies)]
+    data = _board(str(tmp_path), slides)
+    r = validate.evaluate(data, str(tmp_path))
+    assert not any("layout diversity" in w for w in r["warnings"])
+
 def test_diversity_gate_silent_when_forms_vary(tmp_path):
     bodies = ['<div class="scorecard"><div class="tile">9</div></div>',
               '<div class="flow"><div class="step"></div></div>',
