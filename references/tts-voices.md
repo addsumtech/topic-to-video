@@ -169,7 +169,7 @@ Paid (per-character), needs an API key. Pick it when naturalness matters more th
 
 ```json
 "meta": {
-  "voice": "minimax:Chinese (Mandarin)_Intellectual_Girl",
+  "voice": "minimax:Chinese (Mandarin)_IntellectualGirl",
   "language": "zh"
 }
 ```
@@ -197,8 +197,8 @@ latest if your account has them). Audio comes back hex-encoded and is written as
 
 | language | female | male |
 |---|---|---|
-| `zh` | `Chinese (Mandarin)_Intellectual_Girl` | `Chinese (Mandarin)_Reliable_Executive` |
-| `en` | `English_Graceful_Lady` | `English_Persuasive_Man` |
+| `zh` | `Chinese (Mandarin)_IntellectualGirl` | `Chinese (Mandarin)_Reliable_Executive` |
+| `en` | `English_Graceful_Lady` | `English_Trustworth_Man` |
 
 Any of MiniMax's 300+ system voices works — set `meta.voice` to `minimax:<voice_id>`. Other good
 picks: `English_expressive_narrator`, `Chinese (Mandarin)_News_Anchor`. Full list:

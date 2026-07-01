@@ -122,16 +122,16 @@ def test_synthesize_writes_audio_and_durations(tmp_path, monkeypatch):
 # --- MiniMax ---------------------------------------------------------------------------------
 
 def test_minimax_voice_catalog():
-    assert tts.resolve_minimax_voice("zh", "female") == "Chinese (Mandarin)_Intellectual_Girl"
-    assert tts.resolve_minimax_voice("en", "male") == "English_Persuasive_Man"
+    assert tts.resolve_minimax_voice("zh", "female") == "Chinese (Mandarin)_IntellectualGirl"
+    assert tts.resolve_minimax_voice("en", "male") == "English_Trustworth_Man"
     assert tts.resolve_minimax_voice("xx") == tts.MINIMAX_DEFAULT_VOICE   # unlisted lang -> fallback
 
 def test_resolve_voice_minimax_expands_and_passes_through():
     # bare "minimax" -> concrete catalog voice for the language; explicit voice_id passes through
     assert tts._resolve_voice({"voice": "minimax", "language": "zh"}) == \
-        "minimax:Chinese (Mandarin)_Intellectual_Girl"
+        "minimax:Chinese (Mandarin)_IntellectualGirl"
     assert tts._resolve_voice({"voice": "minimax:auto", "language": "en", "voice_gender": "male"}) == \
-        "minimax:English_Persuasive_Man"
+        "minimax:English_Trustworth_Man"
     assert tts._resolve_voice({"voice": "minimax:English_Graceful_Lady", "language": "en"}) == \
         "minimax:English_Graceful_Lady"
 
@@ -149,11 +149,11 @@ def test_minimax_builds_request_and_decodes_hex(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "requests", fake_requests)
     monkeypatch.setenv("MINIMAX_API_KEY", "secret-key")
     out = tmp_path / "o.mp3"
-    tts._minimax("你好世界", str(out), "Chinese (Mandarin)_Intellectual_Girl",
+    tts._minimax("你好世界", str(out), "Chinese (Mandarin)_IntellectualGirl",
                  {"language": "zh", "tts_model": "speech-02-hd"})
     assert out.read_bytes() == b"ID3hello"                              # hex decoded to real bytes
     assert captured["headers"]["Authorization"] == "Bearer secret-key"
-    assert captured["body"]["voice_setting"]["voice_id"] == "Chinese (Mandarin)_Intellectual_Girl"
+    assert captured["body"]["voice_setting"]["voice_id"] == "Chinese (Mandarin)_IntellectualGirl"
     assert captured["body"]["language_boost"] == "Chinese"
     assert captured["body"]["output_format"] == "hex" and captured["body"]["audio_setting"]["format"] == "mp3"
 

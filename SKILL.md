@@ -76,7 +76,16 @@ TTS if the user gives an API key.
    **paid cloud voice if they want the most natural result** — **MiniMax** (`minimax:<voice_id>`,
    needs `MINIMAX_API_KEY`; markedly more natural, especially Chinese) or OpenAI (`openai:<voice>`).
    Note the tradeoff: only edge-tts emits per-word timings, so MiniMax/OpenAI/say HTML reveals use
-   the paced fallback, not exact audio-synced cues. captions on/off; aspect (16:9 default / 9:16);
+   the paced fallback, not exact audio-synced cues.
+   **If they choose MiniMax (or an OpenAI voice), ASK for the API key when they pick it** — MiniMax
+   T2A is key-authenticated; there is **no key-free "subscription/plan" path** (unlike Codex
+   image-gen, which can use the Codex plan without a key), so a key is required to synthesize.
+   **Get the key WITHOUT leaking it:** have them provide it OUT OF BAND — either `export
+   MINIMAX_API_KEY=…` in their own shell (they can type `! export MINIMAX_API_KEY=…` in this
+   session) or put it in `~/.minimax_key`. Do **NOT** ask them to paste it into the chat; if they
+   paste it anyway, warn that it lands in the transcript and tell them to **rotate it** afterward.
+   Never write the key into `storyboard.json`, a script, a log, or any committed file — `tts.py`
+   reads it from the env / `~/.minimax_key` only. captions on/off; aspect (16:9 default / 9:16);
    target pace (a seconds-per-slide ceiling); **image source** — **Free** (programmatic animation / slides, the default) vs **gpt-image**
    (OpenAI `gpt-image-2`, **paid**, needs `OPENAI_API_KEY`). If gpt-image: ask for the key
    **fresh, each run** (env var or pasted — never reuse a stored one; if pasted, warn it lands

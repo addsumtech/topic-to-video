@@ -51,8 +51,8 @@ MINIMAX_LANG_BOOST = {
 # A few curated, professional system voices from MiniMax's current voice library (300+ exist —
 # set meta.voice = "minimax:<any voice_id>", list at platform.minimax.io/docs/faq/system-voice-id).
 MINIMAX_VOICE_CATALOG = {
-    "en": {"female": "English_Graceful_Lady", "male": "English_Persuasive_Man"},
-    "zh": {"female": "Chinese (Mandarin)_Intellectual_Girl",
+    "en": {"female": "English_Graceful_Lady", "male": "English_Trustworth_Man"},
+    "zh": {"female": "Chinese (Mandarin)_IntellectualGirl",
            "male": "Chinese (Mandarin)_Reliable_Executive"},
 }
 MINIMAX_DEFAULT_VOICE = "English_expressive_narrator"   # fallback for languages not in the catalog
