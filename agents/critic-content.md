@@ -95,14 +95,26 @@ Check, per scene:
 - **Audio↔visual match.** The narration must describe / be supported by what is ON SCREEN (the scene's
   visual). **FAIL** a mismatch — e.g. a generic photo or an unrelated visual under a specific factual
   claim (the classic "satellite photo under a government-orders line").
-- **Reveal timing — content must not lead the voice.** For an `html` scene with ≥2 content points,
-  the points must reveal *as the narration reaches them*, not all up front. Require one of: (a) each
-  point carries a `data-cue` anchor (a phrase the narration actually speaks, in spoken order) so the
-  reveal is audio-synced — PREFERRED; or (b) the page leaves `anim_seconds` unset / set to ~0.7× the
-  scene's audio so the paced reveal spreads across the scene. **FAIL** a multi-point page that is
-  uncued AND has a small `anim_seconds` (points would flash in long before they're spoken) — the EDIT
-  is "add `data-cue` anchors to each point (give the planner's `cue` array)" or "unset/raise
-  `anim_seconds`". (`validate.py` flags this mechanically; confirm the fix here.)
+- **Reveal timing — each point must appear ~WHEN it's spoken (neither early nor late).** For an `html`
+  scene with ≥2 content points, walk the narration and, for EACH point, locate the moment its content
+  is introduced; then confirm the reveal fires at that moment. Check **both directions**: content that
+  pops up *before* the voice reaches it (leads) AND content that appears *after* it's already been said
+  (lags) are both defects. How to judge by the audio path:
+  - **Cued (edge-tts, per-word timings):** each point needs a `data-cue` anchor that is the phrase
+    spoken *as that point should appear* — in spoken order, and specific enough not to match an EARLIER
+    word (a short/common anchor like "的" resolves to the first occurrence and fires early). FAIL a
+    missing/out-of-order/ambiguous anchor.
+  - **Paced (say / openai / **MiniMax** — NO per-word timings):** points reveal on a linear stagger
+    across `anim_seconds`, blind to the narration. This only aligns if the narration introduces the
+    points at ROUGHLY EVEN intervals. If it front-loads or back-loads them (e.g. a long lead-in then
+    all points near the end), the linear stagger will lead or lag the voice. FAIL that — the EDIT is:
+    switch this video to **edge-tts + `data-cue` anchors** (the only way to get exact sync), OR
+    restructure the narration so the points are spoken evenly, OR tune `anim_seconds` to match. Note
+    in the EDIT that a natural cloud voice (MiniMax) trades away word-exact reveals for naturalness.
+  `validate.py` computes this mechanically — it prints, per point, `spoken at ~X% but shown at ~Y% —
+  reveal leads/lags the voice by ~Ns`. Treat each such line as a REVISE item and confirm the fix
+  removes it. Also FAIL a multi-point page that is uncued AND has a small `anim_seconds` (points flash
+  in long before they're spoken).
 - **Sourcing.** Each beat's claim must trace to the material (the planner's `source_ref`); flag any
   unsourced or unsupported claim (cross-ref R1d data faithfulness, R1e imagery).
 - **Re-conceived coverage:** when the video re-conceives the deck (not slide order), confirm per-beat

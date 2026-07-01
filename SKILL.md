@@ -41,7 +41,7 @@ TTS if the user gives an API key.
 - `scripts/cues.py` — pure anchor→cue-time resolver: reads per-scene `audio/NN.words.json` (edge-tts per-word timings) and resolves each `data-cue` anchor phrase to an absolute timestamp, used by `render_html` for audio-synced HTML reveals.
 - `scripts/check_av.py <out_dir>` — deterministic A/V gate: probes `out.mp4` video-vs-audio duration + per-clip sample-rate uniformity across `.clips/`; exits non-zero on A/V drift above tolerance (0.3 s) or non-uniform rates. Run AFTER the full render (step 9) as a gate before delivery.
 - `scripts/doctor.py [--json]` — environment preflight: reports which tools/libraries are present (ffmpeg/ffprobe/PIL required; PyMuPDF/python-pptx/edge-tts/soffice/Chrome/font optional) and, for each missing one, the stage it gates + the install hint. Exits non-zero only when a REQUIRED dep is missing. Run once at the START (step 1).
-- `scripts/validate.py <out_dir> [--pre-tts] [--vertical] [--json]` — deterministic PRE-render gate on `storyboard.json` (runs in ~1s): structural contract, duplicate indices, every referenced image/audio/html-page/`file://` asset + `theme.css` exists on disk, caption craft (no wall of text, no widow, ≥0.7s on screen — see `references/captions.md`), motion sanity (zoom delta + zoom-past-1.25 + callout-framing — see `references/motion-grammar.md`), CJK-font/cue/pacing/anti-slop warnings. Exits non-zero on any ERROR. Run BEFORE every render (step 9); `--pre-tts` validates right after authoring (skips audio checks); `--vertical` mirrors render's 9:16 canvas (also auto from `meta.aspect`). Errors block; warnings don't.
+- `scripts/validate.py <out_dir> [--pre-tts] [--vertical] [--json]` — deterministic PRE-render gate on `storyboard.json` (runs in ~1s): structural contract, duplicate indices, every referenced image/audio/html-page/`file://` asset + `theme.css` exists on disk, caption craft (no wall of text, no widow, ≥0.7s on screen — see `references/captions.md`), motion sanity (zoom delta + zoom-past-1.25 + callout-framing — see `references/motion-grammar.md`), per-point reveal↔voice alignment (each point spoken-% vs shown-% → leads/lags warning, cued or paced), CJK-font/cue/pacing/anti-slop warnings. Exits non-zero on any ERROR. Run BEFORE every render (step 9); `--pre-tts` validates right after authoring (skips audio checks); `--vertical` mirrors render's 9:16 canvas (also auto from `meta.aspect`). Errors block; warnings don't.
 - `scripts/scenes.py` — deterministic ANIMATED scene renderers (no slides): `title`/`keypoints`
   (PIL), `chart`/`timeline`/`compare` (matplotlib), `html` (headless Chrome). A storyboard scene
   with `type` `title`/`keypoints`/`chart`/`timeline`/`compare`/`html` (+ a typed `props` block)
@@ -259,6 +259,13 @@ TTS if the user gives an API key.
   reveals across ~0.7× the scene (tracking the speaking pace) instead of cramming them at the start; a
   small `anim_seconds` on a long content page makes content appear before it's spoken. `validate.py`
   warns on that, and `critic-content` (R2) fails an uncued multi-point page whose reveals lead the audio.
+  **Per-point alignment (leads/lags).** `validate.py` also estimates, for each point, WHEN it is spoken
+  (its `data-cue` anchor's position in the narration) vs WHEN it is shown (the resolved word-cue time if
+  edge `words.json` exists, else the paced stagger) and warns `point N spoken at ~X% but shown at ~Y% —
+  reveal leads/lags the voice by ~Ns`. This catches misalignment in **both** directions and for **both**
+  audio paths — important for a **paced** voice (say/openai/**MiniMax**, no per-word timings): a linear
+  stagger only aligns if the narration introduces the points at roughly even intervals; otherwise cue it
+  with edge-tts, restructure the narration, or tune `anim_seconds`. `critic-content` R2 confirms the fix.
 - **Theming:** the HTML tier is themeable via `theme.py` → `theme.css` (semantic `:root` vars);
   pick a palette/mode that fits the TOPIC (not always dark). Author pages with the vars, never raw hex.
   `theme.py`/`theme.css` themes ONLY the `html` tier. The programmatic scenes (`title`/`chart`/

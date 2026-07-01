@@ -33,6 +33,10 @@ MAX_CAPTION_CHARS_CJK = 36
 MAX_CAPTION_CHARS_LATIN = 90
 # A caption ending on a clause mark looks cut-off mid-thought at the line break.
 TRAIL_CLAUSE_MARKS = "，、：；,;:"
+# Reveal-vs-voice alignment: a point should appear ~when the narration speaks it. Flag a point whose
+# reveal leads/lags the voice by more than this fraction of the scene AND at least this many seconds.
+ALIGN_FRAC_TOL = 0.25
+ALIGN_SECS_TOL = 1.2
 # When a callout is this far (in normalized frame units) from where the camera settles, the
 # motion isn't framing it — the highlight and the push disagree.
 MOTION_ALIGN_TOL = 0.25
@@ -153,7 +157,8 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                 errors.append(f"{tag}: html page '{page}' not found under {out_dir}")
             else:
                 _check_html_assets(out_dir, page, wants_edge, i, errors, warnings,
-                                   (s.get("props") or {}).get("anim_seconds"), s.get("duration"))
+                                   (s.get("props") or {}).get("anim_seconds"), s.get("duration"),
+                                   s.get("narration"))
 
         # --- audio / duration (skipped in --pre-tts mode) ------------------------------
         if not pre_tts:
@@ -231,10 +236,72 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides)}
 
 
+def _ordered_anchors(html):
+    """The page's data-cue anchor phrases, ordered by data-cue-index (attr order-independent)."""
+    pts = re.findall(r'data-cue-index="(\d+)"[^>]*?data-cue="([^"]*)"', html)
+    pts += [(i, a) for (a, i) in re.findall(r'data-cue="([^"]*)"[^>]*?data-cue-index="(\d+)"', html)]
+    seen = {}
+    for i, a in pts:
+        seen.setdefault(int(i), a)
+    return [seen[k] for k in sorted(seen)]
+
+def _reveal_alignment(html, narration, duration, anim_seconds, words_path, tag, warnings):
+    """Flag points whose on-screen reveal leads/lags the voice. WHEN a point is SPOKEN is estimated
+    from its data-cue anchor's position in the narration text; WHEN it is SHOWN comes from the reveal
+    mechanism — the resolved word-cue time if edge `words.json` exists, else the paced even-stagger.
+    A large, sustained gap is the "audio before/after the content block" defect."""
+    anchors = _ordered_anchors(html)
+    N = narration or ""
+    L = len(N)
+    if len(anchors) < 2 or not N.strip():
+        return
+    # spoken fraction per anchor — monotonic raw-substring scan (anchors are verbatim spoken phrases)
+    spoken, cur = [], 0
+    for a in anchors:
+        a = (a or "").strip()
+        pos = N.find(a, cur) if a else -1
+        if pos < 0:
+            anywhere = N.find(a) if a else -1
+            if anywhere < 0:
+                warnings.append(f"{tag}: data-cue anchor \"{a[:20]}\" is not in the narration — it can't "
+                                f"resolve, so that point reveals at the wrong time; use a phrase the "
+                                f"narration actually speaks")
+                spoken.append(None); continue
+            warnings.append(f"{tag}: data-cue anchor \"{a[:20]}\" is out of spoken order — reveals fire "
+                            f"out of sequence; order the anchors as the narration says them")
+            pos = anywhere
+        spoken.append(pos / L if L else 0.0)
+        cur = max(cur, pos + len(a))
+    if not (sb._is_num(duration) and float(duration) > 0):
+        return                                       # need real durations (post-tts) for the timing gap
+    dur = float(duration); n = len(anchors)
+    shown = None
+    if os.path.exists(words_path):                   # cued: reveal at the resolved spoken-word time
+        try:
+            import cues as _cues
+            words = json.load(open(words_path))
+            shown = [min(1.0, t / dur) for t in _cues.resolve_cues(words, anchors)]
+        except Exception:
+            shown = None
+    if shown is None:                                # paced: even stagger across [0, anim]
+        anim = float(anim_seconds) if sb._is_num(anim_seconds) else max(1.2, 0.7 * dur)
+        span = min(1.0, anim / dur)
+        shown = [((i / (n - 1)) * span if n > 1 else 0.0) for i in range(n)]
+    for i, (sp, sh) in enumerate(zip(spoken, shown)):
+        if sp is None:
+            continue
+        gap = sh - sp        # shown fraction minus spoken fraction
+        if abs(gap) >= ALIGN_FRAC_TOL and abs(gap) * dur >= ALIGN_SECS_TOL:
+            # shown LATER than spoken -> content lags; shown EARLIER -> content leads (appears before the voice)
+            when = "lags the voice (content appears late)" if gap > 0 else "leads the voice (content appears early)"
+            warnings.append(f"{tag}: point {i+1} (\"{(anchors[i] or '')[:18]}\") is spoken at ~{sp*100:.0f}% "
+                            f"of the scene but shown at ~{sh*100:.0f}% — the reveal {when} by ~{abs(gap)*dur:.1f}s; "
+                            f"re-anchor the point (data-cue) or adjust anim_seconds / the narration")
+
 def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
-                       anim_seconds=None, duration=None):
+                       anim_seconds=None, duration=None, narration=None):
     """Verify an html scene's page links resolve locally (base/theme/motifs css, seek.js,
-    images), that its audio-synced cues will fire, and that its reveals won't lead the audio."""
+    images), that its audio-synced cues will fire, and that its reveals won't lead/lag the audio."""
     path = os.path.join(out_dir, page_rel)
     tag = f"scene {index}"
     try:
@@ -260,6 +327,8 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
         words = os.path.join(out_dir, "audio", f"{index:02d}.words.json")
         if wants_edge and not os.path.exists(words):
             warnings.append(f"{tag}: data-cue reveals present but audio/{index:02d}.words.json missing — reveals fall back to the paced stagger (run tts.py with edge-tts)")
+        # per-point content↔voice alignment (leads/lags), for cued OR paced reveals
+        _reveal_alignment(html, narration, duration, anim_seconds, words, tag, warnings)
     else:
         # No audio-synced cues: a multi-point page reveals via the paced stagger. If anim_seconds is
         # set SMALL relative to the scene, all the points appear long before the voice reaches them.
