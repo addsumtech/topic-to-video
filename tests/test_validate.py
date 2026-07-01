@@ -166,6 +166,33 @@ def test_reveal_alignment_ignored_before_tts():
     assert not any("leads the voice" in x or "lags the voice" in x for x in w), w
 
 
+def test_layout_family_classifies():
+    assert validate._layout_family('<div class="scorecard"><div class="tile">9</div></div>') == "scorecard"
+    assert validate._layout_family('<div class="flow"><div class="step"></div></div>') == "flow"
+    assert validate._layout_family('<div class="grid"><div class="card">x</div></div>') == "cards"
+    assert validate._layout_family('<div class="pullquote">x</div>') == "quote"
+    assert validate._layout_family('<h1 class="title">x</h1>') == "title"
+
+def test_diversity_gate_warns_when_one_family_dominates(tmp_path):
+    # 5 html scenes, all card grids -> >45% one family -> warn (the samey-deck signal)
+    slides = [_html_scene(tmp_path, i, f"pages/s{i}.html", '<div class="grid"><div class="card">x</div></div>')
+              for i in range(5)]
+    data = _board(str(tmp_path), slides)
+    r = validate.evaluate(data, str(tmp_path))
+    assert any("layout diversity" in w and "cards" in w for w in r["warnings"])
+
+def test_diversity_gate_silent_when_forms_vary(tmp_path):
+    bodies = ['<div class="scorecard"><div class="tile">9</div></div>',
+              '<div class="flow"><div class="step"></div></div>',
+              '<div class="quadrant"><div class="cell"></div></div>',
+              '<div class="timeline"><div class="tl-node"></div></div>',
+              '<div class="grid"><div class="card">x</div></div>']
+    slides = [_html_scene(tmp_path, i, f"pages/s{i}.html", b) for i, b in enumerate(bodies)]
+    data = _board(str(tmp_path), slides)
+    r = validate.evaluate(data, str(tmp_path))
+    assert not any("layout diversity" in w for w in r["warnings"])
+
+
 def test_consecutive_html_scenes_do_not_warn(tmp_path):
     # all-html "designed deck" is recommended; the anti-slop run check must NOT fire on it
     slides = [_html_scene(tmp_path, i, f"pages/s{i}.html", "<body>hi</body>") for i in range(3)]

@@ -37,6 +37,8 @@ TRAIL_CLAUSE_MARKS = "，、：；,;:"
 # reveal leads/lags the voice by more than this fraction of the scene AND at least this many seconds.
 ALIGN_FRAC_TOL = 0.25
 ALIGN_SECS_TOL = 1.2
+# Layout-diversity gate: warn when one form family exceeds this share of the html scenes.
+LAYOUT_FAMILY_MAX_SHARE = 0.45
 # When a callout is this far (in normalized frame units) from where the camera settles, the
 # motion isn't framing it — the highlight and the push disagree.
 MOTION_ALIGN_TOL = 0.25
@@ -140,6 +142,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         warnings.append("meta.voice wants edge-tts but it isn't importable — tts.py falls back to 'say' (different voice/quality)")
 
     prev_types = []
+    families = []                         # per-html-scene layout family, for the diversity gate
     for s in slides:
         i = s.get("index")
         t = s.get("type", "slide")
@@ -158,7 +161,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
             else:
                 _check_html_assets(out_dir, page, wants_edge, i, errors, warnings,
                                    (s.get("props") or {}).get("anim_seconds"), s.get("duration"),
-                                   s.get("narration"))
+                                   s.get("narration"), families)
 
         # --- audio / duration (skipped in --pre-tts mode) ------------------------------
         if not pre_tts:
@@ -233,8 +236,41 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         if run == 3 and b != "html":
             warnings.append(f"3+ consecutive '{b}' scenes — vary the visual type (anti-slop)")
 
+    # Layout-diversity gate (html tier): a deck dominated by one form family reads as auto-generated.
+    # Warn (not error) — a genuinely same-shape run is allowed with the planner's form-ledger reason,
+    # which critic-content judges. Skip small decks where a majority is unavoidable.
+    if len(families) >= 4:
+        import collections
+        fam, n = collections.Counter(families).most_common(1)[0]
+        if n / len(families) > LAYOUT_FAMILY_MAX_SHARE:
+            warnings.append(f"layout diversity: {n}/{len(families)} html scenes use the same form family "
+                            f"('{fam}', {round(100*n/len(families))}%) — one form top-to-bottom reads as "
+                            f"auto-generated; vary per content (form-selection in references/html-pages.md)")
+
     return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides)}
 
+
+def _layout_family(html):
+    """Classify an html page's dominant LAYOUT FAMILY (for the diversity gate). Priority-ordered so a
+    specific archetype wins over the generic card/row grid it may also contain. Token-exact on class
+    attributes (so 'block' != 'blockquote')."""
+    classes = set()
+    for m in re.findall(r'class="([^"]*)"', html):
+        classes.update(m.split())
+    def has(*cs):
+        return any(c in classes for c in cs)
+    if has("scorecard", "tile"):            return "scorecard"
+    if has("flow"):                         return "flow"
+    if has("timeline", "tl-node"):          return "timeline"
+    if has("quadrant"):                     return "quadrant"
+    if has("hubspoke", "hs-hub", "hs-spoke"): return "hubspoke"
+    if has("segbar", "meter"):              return "parts"
+    if has("blocks", "block"):              return "blocks"
+    if has("pullquote"):                    return "quote"
+    if has("defocus"):                      return "compare"
+    if has("stat"):                         return "stat"
+    if has("card", "row", "dash"):          return "cards"
+    return "title"
 
 def _ordered_anchors(html):
     """The page's data-cue anchor phrases, ordered by data-cue-index (attr order-independent)."""
@@ -298,7 +334,7 @@ def _reveal_alignment(html, narration, duration, anim_seconds, words_path, tag, 
                             f"re-anchor the point (data-cue) or adjust anim_seconds / the narration")
 
 def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
-                       anim_seconds=None, duration=None, narration=None):
+                       anim_seconds=None, duration=None, narration=None, families=None):
     """Verify an html scene's page links resolve locally (base/theme/motifs css, seek.js,
     images), that its audio-synced cues will fire, and that its reveals won't lead/lag the audio."""
     path = os.path.join(out_dir, page_rel)
@@ -308,6 +344,8 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
     except OSError as e:
         errors.append(f"{tag}: cannot read html page '{page_rel}': {e}")
         return
+    if families is not None:
+        families.append(_layout_family(html))
     for url in _FILE_REF_RE.findall(html):
         local = _local_path_from_url(url)
         if local is False:

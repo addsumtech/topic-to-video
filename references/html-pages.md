@@ -20,13 +20,28 @@ progress `p=0..1`; `seek.js` freezes its CSS reveals so the entrance animates th
 ```
 Use absolute `file://` paths. Order: `base.css` → `theme.css` (from `<out_dir>`) → `motifs.css` (from `assets/html/`).
 
-## Layout patterns (compose with base.css classes)
-- **Title:** `.kicker` + `.rule` + `.title` (+ `.sub`).
-- **Big stat:** a `.stat` number + `.unit`, with a `.sub` caption.
-- **Split / breakdown:** a `.grid` of `.bar` rows (widths set inline as `style="width:74%;background:var(--blue)"`), each labeled — for decompositions like 165 = 123 + 42.
-- **List / key points:** `.grid` of `.row`s, each `.dot` + `.label` (+ `.note`).
-- **Quote / takeaway:** a large `.title` line + `.sub` attribution.
-- **Timeline:** a `.grid`/flex row of dated `.row`s.
+## Form selection — choose the form the CONTENT wants (do NOT default to a card grid)
+**Design is choosing, not matching.** A `.card`/`.row` grid is the right answer ONLY for **parallel,
+unordered, equal-weight** items. The moment the content has **order, magnitude, a relationship, time,
+or two axes**, a non-card form says it better. For each beat, name the 2–3 forms it *could* take, then
+pick the one whose shape matches the content (all classes are in `base.css`, all reveal-ready):
+
+| The content is… | Reach for |
+|---|---|
+| **A few standout numbers / KPIs** | `.scorecard` (3 `.tile`: big `.num` + `.lab`, optional `.delta up/down`) — or one hero `.stat` + `.unit` when a single number IS the point |
+| **A process / sequence / steps** | `.flow` (`.step` = `.n`/`.t`/`.s`, `.arrow` between) — or `.timeline` if the steps are dated or one is the focus (`.tl-node.on`) |
+| **A relationship / structure** (inputs→decision, centre+peers) | `.hubspoke` (`.hs-spoke` × N → `.hs-connect` → `.hs-hub`) |
+| **Two axes / a positioning** | `.quadrant` (2×2 `.cell`, focal `.cell.on`, `.ax-x`/`.ax-y` labels) |
+| **Parts of a whole / a share** | `.segbar` (100% stacked `.seg`, widths inline) or `.meter` (`.fill` width inline) |
+| **A comparison** (A vs B, before→after) | a `.compare` split (`.defocus` the non-focal side); `.quadrant` if two real axes |
+| **One idea / a verbatim line** | `.pullquote` (+ `<cite>`) — or a single hero `.stat` |
+| **Colour-coded categories** (bold, scannable) | `.blocks two` / `.blocks three` (one hue per `.block`, never grey filler) |
+| **A decomposition** (165 = 123 + 42) | a `.grid` of labeled `.bar` rows (widths inline) or a `.segbar` |
+| **Truly parallel, equal-weight items** | a `.card` grid (`.dash` 3-up / `.grid-asym`) — the *considered* choice for THIS shape only |
+| **A title / section** | `.kicker` + `.rule` + `.title` (+ `.sub`); a mono `.chrome` footer ties the deck together |
+
+For each beat, record the pick as a one-line **form ledger**: *winner — beats `<runner-up>` because …*
+(the content-planner emits this; the critic audits it).
 
 ## Reveal animation (so the page captures cleanly)
 - Add `class="reveal"` or `class="reveal-up"` to elements you want to animate in.
@@ -160,12 +175,20 @@ captures it deterministically.
 the hierarchy contract: `.title`/`.sub` ≥ 2.5×, `.title`/`.note` ≥ 3×. (`var(--blue)`/`var(--orange)`
 are semantic *accent aliases*, not hardcoded colours — using them is fine; a literal `#rrggbb` is not.)
 
-## Extended layout patterns
-- **`.card`** — a panel with depth (`--surface` + shadow + hairline). Group related rows in cards.
+## Layout diversity — no samey deck (enforced)
+Across the deck's `html` scenes, **no single form family may exceed ~45%**. A deck that is card/row
+grids top to bottom reads as auto-generated — the exact "AI slop" this tier exists to avoid. If you're
+reaching for a card grid a third time, STOP and re-read the form-selection table above: the content
+almost always wants a `.flow` / `.scorecard` / `.quadrant` / `.timeline` / `.hubspoke` / `.segbar`
+instead. `validate.py` counts the families and warns when one dominates; `critic-content` (R8) fails it.
+
+## Composition helpers (pair with the forms above)
+- **`.card`** — a panel with depth (`--surface` + shadow + hairline); group related rows. **`.card.glass`** over a soft backdrop.
 - **`.dash`** (3-up) / **`.grid-asym`** (2fr 1fr) — dashboard + asymmetric layouts; break the centred-column monotony.
-- **`.defocus`** — on a `compare` page, add to the NON-active column/bar for depth-of-field (blur, not flat dim).
+- **`.defocus`** — on a comparison, add to the NON-focal side for depth-of-field (subtle blur, not flat dim).
 - **`.accent-fill`** — on `<body>` of a section-divider beat: full-bleed accent background, `--on-accent` text.
-- **`.reveal-pop`** — a spring overshoot for a hero `.stat`. **`.reveal-up-sm`** — shorter rise for dense sub-items.
+- **`.reveal-pop`** — spring overshoot for a hero `.stat`/`.num`. **`.reveal-up-sm`** — shorter rise for dense sub-items.
+- **`.chrome`** — a mono section+page marker rail (direct child of `<body>`); reuse across beats as a quiet editorial through-line.
 
 ## Reveal timing — points must NOT lead the voice (important)
 The most common defect is **content appearing well before the narration reaches it**. Avoid it:

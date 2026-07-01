@@ -136,6 +136,16 @@ Note: R5/R6 apply to `slide` scenes only — skip for animated scenes (`type` �
 ### R8 — Visual variety + anti-slop
 - **REVISE** if more than **2 consecutive beats** share the same `visual.type` — a repetitive visual
   rhythm kills engagement. Audit the beat sequence and call out the run.
+- **Layout-form diversity (html tier) — REVISE a deck dominated by one form.** A `.card`/`.row` grid
+  is right ONLY for **parallel, unordered, equal-weight** items; the moment content has **order,
+  magnitude, a relationship, time, or two axes**, it should use the matching form (`.flow`,
+  `.scorecard`, `.timeline`, `.quadrant`, `.hubspoke`, `.segbar`, `.pullquote`, `.blocks` — see
+  `references/html-pages.md` "form selection"). **REVISE** when **>~45% of html scenes are the same
+  form family** (a card-grid deck reads as auto-generated) UNLESS the planner's per-beat *form ledger*
+  justifies the same-shape run (genuinely parallel content). For any multi-point beat rendered as a
+  reflex card grid whose content actually has order/magnitude/relationship/time, name the beat and the
+  form it should take instead. (`validate.py` prints `layout diversity: N/M … same form family` —
+  treat it as a REVISE item, reconciled against the ledger.)
 - **REVISE** (anti-slop) if any authored page or animated `props` contains: an emoji in a title; a
   hardcoded hex `#rrggbb` (pages must use semantic vars — `var(--bg)`/`var(--accent)`/…); a fabricated
   statistic that does not trace to `source_ref` (cross-ref R1d); a full-screen gradient-mesh background;

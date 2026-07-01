@@ -116,9 +116,22 @@ foreground/background separation, and let the accent be genuinely present — a 
 an empty field reads as unfinished. A beat with one centered line is a `title`, not an `html` page;
 if an `html` beat has that little to show, make it a `title` instead.
 
+## Form selection (html beats) — choose the form the content wants; keep a form ledger
+**Design is choosing, not matching.** A card/row grid is the reflex, and it is right ONLY for
+**parallel, unordered, equal-weight** items. The moment a beat's content has **order, magnitude, a
+relationship, time, or two axes**, pick the form that says it (the `references/html-pages.md` catalog):
+process→`flow`/`timeline`, KPIs→`scorecard`, two-axes→`quadrant`, structure→`hubspoke`, share→`segbar`/
+`meter`, one line→`pullquote`, categories→colour `blocks`. For each `html` beat add a **`form`** field to
+its `props` plan naming the chosen form **and** the runner-up it beat, one clause: e.g.
+`"form": "flow — beats cards because the 5 steps are ORDERED; a card grid hides the sequence"`.
+
 ## Visual variety (no monotony)
 No more than **2 consecutive beats** may share the same `visual.type`. After two `keypoints`, insert a
 `chart`/`compare`/`title`/illustrated beat. Scan your beat list before returning and break any same-type run.
+**Layout-form diversity:** across the `html` beats, keep **no single form family above ~45%** — if most
+beats resolve to a card grid, the deck reads as auto-generated. When you catch a third card-grid, re-run
+form-selection on those beats; the content almost always wants a `flow`/`scorecard`/`quadrant`/`timeline`.
+(`validate.py` + `critic-content` R8 enforce this; the form ledger is your justification if a same-shape run is genuine.)
 
 ## Palette discipline (anti-cliché)
 These constraints govern the `theme.accent`, `theme.accent2`, and `theme.bg` fields above — they do not add new fields.

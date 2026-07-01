@@ -56,3 +56,95 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 .grid-asym{display:grid;grid-template-columns:2fr 1fr;gap:48px;align-items:start}
 .dash{display:grid;grid-template-columns:1fr 1fr 1fr;gap:48px;align-items:stretch}  /* equal-height cards */
 .dash-col{display:flex;flex-direction:column;gap:24px}
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   LAYOUT ARCHETYPES — a content-fit vocabulary (see references/html-pages.md "form selection").
+   The card grid is for PARALLEL, equal-weight items only. When the content has order / magnitude
+   / a relationship / time / two axes, reach for the archetype that says it. All themeable (semantic
+   vars) + reveal-ready (put .reveal-up + data-cue on the child items, stagger with animation-delay).
+   ══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* KPIs — a few standout numbers (scorecard tiles: big figure + optional ▲/▼ delta + label) */
+.scorecard{display:grid;grid-template-columns:repeat(3,1fr);gap:40px;align-items:stretch}
+.tile{background:var(--surface);border:var(--hairline);border-radius:16px;padding:40px 44px;
+  box-shadow:var(--shadow-float);display:flex;flex-direction:column;justify-content:center}
+.tile .num{font-size:150px;font-weight:800;line-height:.9;letter-spacing:-.03em;color:var(--accent);
+  font-variant-numeric:tabular-nums}
+.tile .lab{font-size:36px;color:var(--muted);margin-top:14px}
+.delta{font-size:40px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:8px}
+.delta.up{color:var(--green)} .delta.down{color:var(--accent2)}
+
+/* Relationship — one idea, verbatim: a pull-quote carries the whole slide */
+.pullquote{font-size:84px;font-weight:800;line-height:1.16;letter-spacing:-.02em;text-wrap:balance;
+  position:relative;padding-left:96px}
+.pullquote::before{content:"\201C";position:absolute;left:-6px;top:-46px;font-size:210px;
+  color:var(--accent);opacity:.45;line-height:1}
+.pullquote cite{display:block;font-size:38px;font-weight:600;color:var(--muted);font-style:normal;margin-top:36px}
+
+/* Process — sequence/steps with arrows; add data-cue on each .step to reveal as spoken */
+.flow{display:flex;align-items:stretch;gap:0}
+.flow .step{flex:1;background:var(--surface);border:var(--hairline);border-radius:14px;padding:30px 26px;
+  text-align:center;display:flex;flex-direction:column;justify-content:center;box-shadow:var(--shadow-float)}
+.flow .step .n{font-family:var(--font-mono);font-size:26px;color:var(--accent);font-weight:700}
+.flow .step .t{font-size:46px;font-weight:700;margin-top:8px}
+.flow .step .s{font-size:28px;color:var(--muted);margin-top:8px}
+.flow .arrow{flex:none;align-self:center;color:var(--rule);font-size:56px;font-weight:800;padding:0 18px}
+
+/* Time — a rail with one highlighted node (.tl-node.on). Dates in mono. */
+.timeline{position:relative;display:flex;justify-content:space-between;align-items:flex-start;padding-top:34px}
+.timeline::before{content:"";position:absolute;top:47px;left:2%;right:2%;height:4px;
+  background:var(--rule);opacity:.35}
+.tl-node{position:relative;flex:1;text-align:center;padding:0 14px}
+.tl-dot{width:28px;height:28px;border-radius:50%;background:var(--muted);margin:0 auto 26px;position:relative;z-index:1}
+.tl-node.on .tl-dot{background:var(--accent);width:38px;height:38px;margin-bottom:21px;
+  box-shadow:0 0 0 10px color-mix(in srgb,var(--accent) 24%,transparent)}
+.tl-when{font-family:var(--font-mono);font-size:28px;color:var(--muted)}
+.tl-what{font-size:42px;font-weight:700;margin-top:8px}
+.tl-node.on .tl-what{color:var(--accent)}
+
+/* Relationship/structure — spokes converging into a hub (e.g. inputs → decision) */
+.hubspoke{display:flex;flex-direction:column;align-items:center;gap:0}
+.hs-spokes{display:flex;gap:44px;justify-content:center;flex-wrap:wrap}
+.hs-spoke{background:var(--surface);border:var(--hairline);border-radius:14px;padding:26px 36px;
+  font-size:42px;font-weight:700;text-align:center;box-shadow:var(--shadow-float)}
+.hs-spoke .s{display:block;font-size:26px;color:var(--muted);font-weight:500;margin-top:6px}
+.hs-connect{width:4px;height:60px;background:var(--rule);opacity:.55;margin:6px auto}
+.hs-hub{background:var(--accent);color:var(--on-accent);border-radius:18px;padding:34px 64px;
+  font-size:56px;font-weight:800;box-shadow:var(--shadow-primary);text-align:center}
+
+/* Two axes — a 2×2 quadrant; mark the focal cell .cell.on. Axis labels are mono chrome. */
+.quadrant{position:relative;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;
+  gap:22px;height:620px;margin:26px 60px 40px}
+.quadrant .cell{background:var(--surface);border:var(--hairline);border-radius:16px;padding:36px 40px;
+  display:flex;flex-direction:column;justify-content:center}
+.quadrant .cell.on{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 40%,transparent)}
+.quadrant .cell .h{font-size:48px;font-weight:700}
+.quadrant .cell .d{font-size:30px;color:var(--muted);margin-top:12px}
+.ax{position:absolute;color:var(--muted);font-family:var(--font-mono);font-size:26px;
+  letter-spacing:.1em;text-transform:uppercase}
+.ax-x{bottom:-46px;left:50%;transform:translateX(-50%)}
+.ax-y{left:-30px;top:50%;transform:translate(-100%,-50%) rotate(-90deg);transform-origin:right center}
+
+/* Parts of a whole — a 100% segmented bar (widths inline) and a single-share meter */
+.segbar{display:flex;height:118px;border-radius:16px;overflow:hidden;box-shadow:var(--shadow-float)}
+.segbar .seg{display:flex;align-items:center;justify-content:center;color:var(--on-accent);
+  font-size:38px;font-weight:700;font-variant-numeric:tabular-nums;min-width:0}
+.meter{height:72px;border-radius:36px;background:var(--surface);overflow:hidden;border:var(--hairline)}
+.meter .fill{height:100%;background:var(--accent);display:flex;align-items:center;justify-content:flex-end;
+  padding-right:30px;color:var(--on-accent);font-size:38px;font-weight:700;border-radius:36px;
+  font-variant-numeric:tabular-nums}
+
+/* Colour-block panels — bold, scannable categories; ONE hue per block (set background inline), never grey */
+.blocks{display:grid;gap:22px}
+.blocks.two{grid-template-columns:1fr 1fr}
+.blocks.three{grid-template-columns:repeat(3,1fr)}
+.block{border-radius:18px;padding:44px 46px;color:var(--on-accent);min-height:300px;
+  display:flex;flex-direction:column;justify-content:flex-end}
+.block .bt{font-size:56px;font-weight:800;line-height:1.05}
+.block .bd{font-size:32px;opacity:.92;margin-top:14px}
+
+/* Mono "chrome" signature — a quiet section marker + page marker rail (an editorial through-line).
+   Put as a direct child of <body>; repeat across the deck (section left, marker right). */
+.chrome{position:absolute;bottom:56px;left:150px;right:150px;display:flex;justify-content:space-between;
+  font-family:var(--font-mono);font-size:24px;color:var(--muted);letter-spacing:.08em;
+  text-transform:uppercase;z-index:3;pointer-events:none}
