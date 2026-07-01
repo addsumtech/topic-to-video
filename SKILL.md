@@ -252,7 +252,10 @@ TTS if the user gives an API key.
   (new edge run) changes. Locate Chrome via `meta.chrome_path` if needed.
 - **Anti-slop (critic R8 / AV-critic):** no emoji in titles; no hardcoded hex — use semantic vars
   (`var(--bg)`, `var(--accent)`, etc.); no gradient-mesh backgrounds; no player-chrome / progress
-  bars / timecodes; no more than 2 consecutive beats with the same `visual.type`.
+  bars / timecodes / page counters; no more than 2 consecutive beats with the same `visual.type`
+  among the PROGRAMMATIC types (`html` scenes are exempt — vary those by **form family**, not type).
+- **Layout diversity (HTML tier):** no single form family (cards/flow/scorecard/quadrant/hubspoke/
+  blocks/timeline/compare) above ~45% of html scenes — `validate.py` warns, `critic-content` R8 fails it.
 - **Audio-synced reveals (HTML tier) — content must not lead the voice.** Make multi-point pages
   audio-synced by DEFAULT: tag each point `data-cue-index="N"` (spoken order) + `data-cue="<spoken
   anchor>"` (a phrase the narration says); the content-planner emits a per-beat `cue` array for this.

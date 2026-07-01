@@ -143,8 +143,10 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 .block .bt{font-size:56px;font-weight:800;line-height:1.05}
 .block .bd{font-size:32px;opacity:.92;margin-top:14px}
 
-/* Mono "chrome" signature — a quiet section marker + page marker rail (an editorial through-line).
-   Put as a direct child of <body>; repeat across the deck (section left, marker right). */
+/* Mono "chrome" signature — a quiet SECTION-LABEL through-line (e.g. the section/topic name), a
+   direct child of <body>, repeated across beats. NOT a page number / progress bar / counter — those
+   are player-chrome and banned for video (there is nothing to navigate). Section left; optionally the
+   deck/topic name right — never "03 / 14". */
 .chrome{position:absolute;bottom:56px;left:150px;right:150px;display:flex;justify-content:space-between;
   font-family:var(--font-mono);font-size:24px;color:var(--muted);letter-spacing:.08em;
   text-transform:uppercase;z-index:3;pointer-events:none}

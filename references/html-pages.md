@@ -188,7 +188,7 @@ instead. `validate.py` counts the families and warns when one dominates; `critic
 - **`.defocus`** — on a comparison, add to the NON-focal side for depth-of-field (subtle blur, not flat dim).
 - **`.accent-fill`** — on `<body>` of a section-divider beat: full-bleed accent background, `--on-accent` text.
 - **`.reveal-pop`** — spring overshoot for a hero `.stat`/`.num`. **`.reveal-up-sm`** — shorter rise for dense sub-items.
-- **`.chrome`** — a mono section+page marker rail (direct child of `<body>`); reuse across beats as a quiet editorial through-line.
+- **`.chrome`** — a mono SECTION-LABEL rail (direct child of `<body>`); reuse the section/topic name across beats as a quiet editorial through-line. **NOT a page number / progress bar / counter** (that's the banned player-chrome — a video has nothing to navigate).
 
 ## Reveal timing — points must NOT lead the voice (important)
 The most common defect is **content appearing well before the narration reaches it**. Avoid it:

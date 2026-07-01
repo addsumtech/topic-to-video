@@ -134,15 +134,19 @@ Check, per scene:
 Note: R5/R6 apply to `slide` scenes only — skip for animated scenes (`type` ≠ `slide`).
 
 ### R8 — Visual variety + anti-slop
-- **REVISE** if more than **2 consecutive beats** share the same `visual.type` — a repetitive visual
-  rhythm kills engagement. Audit the beat sequence and call out the run.
+- **REVISE** if more than **2 consecutive beats** share the same `visual.type` **among the PROGRAMMATIC
+  types** (`title`/`chart`/`keypoints`/`compare`/`timeline`) — a repetitive rhythm kills engagement.
+  **`html` beats are EXEMPT** from this run rule: an all-`html` "designed deck" is recommended, so a run
+  of `html` scenes is fine — judge those by **form family** (next bullet), NOT `visual.type`.
+  (`validate.py` mirrors this: its consecutive-type check skips `html`.)
 - **Layout-form diversity (html tier) — REVISE a deck dominated by one form.** A `.card`/`.row` grid
   is right ONLY for **parallel, unordered, equal-weight** items; the moment content has **order,
   magnitude, a relationship, time, or two axes**, it should use the matching form (`.flow`,
   `.scorecard`, `.timeline`, `.quadrant`, `.hubspoke`, `.segbar`, `.pullquote`, `.blocks` — see
   `references/html-pages.md` "form selection"). **REVISE** when **>~45% of html scenes are the same
   form family** (a card-grid deck reads as auto-generated) UNLESS the planner's per-beat *form ledger*
-  justifies the same-shape run (genuinely parallel content). For any multi-point beat rendered as a
+  (the plan's `form` field, carried in the scene's `props.form`) justifies the same-shape run (genuinely
+  parallel content). For any multi-point beat rendered as a
   reflex card grid whose content actually has order/magnitude/relationship/time, name the beat and the
   form it should take instead. (`validate.py` prints `layout diversity: N/M … same form family` —
   treat it as a REVISE item, reconciled against the ledger.)

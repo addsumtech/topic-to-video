@@ -29,8 +29,11 @@ BEFORE any narration is written. You do not write final narration; you design be
 with ≥2 content points; this is the default tier for designed decks): it is an ARRAY of per-point anchor
 strings, ONE per point, in SPOKEN order, e.g. `"cue": ["Dujiangyan", "Leshan"]`. Each anchor MUST be a
 short phrase the beat's narration actually says, introducing that point. The author writes the matching
-`data-cue="..."` on each HTML point so the point reveals exactly when it's spoken — this is what stops
-the content from appearing before the voice reaches it. If a point has no natural spoken anchor, give it
+`data-cue="..."` on each HTML point so the point reveals when it's spoken — this is what stops the
+content from appearing before the voice reaches it. (These anchors matter for EVERY voice, not just
+edge-tts: with edge they fire on the exact spoken word; with a cloud voice like MiniMax that has no
+per-word timings, the renderer estimates each cue from the anchor's *position in the narration text* —
+so a good anchor per point is essential either way.) If a point has no natural spoken anchor, give it
 one in the narration intent or merge/drop the point. (`cue` is harmless on a PROGRAMMATIC
 `keypoints`/`compare`/`timeline`/`chart` beat — those renderers self-pace their reveals across the
 scene and ignore it — but emit it anyway so the beat can be realized as an HTML page.) Single-statement
@@ -126,8 +129,11 @@ its `props` plan naming the chosen form **and** the runner-up it beat, one claus
 `"form": "flow — beats cards because the 5 steps are ORDERED; a card grid hides the sequence"`.
 
 ## Visual variety (no monotony)
-No more than **2 consecutive beats** may share the same `visual.type`. After two `keypoints`, insert a
-`chart`/`compare`/`title`/illustrated beat. Scan your beat list before returning and break any same-type run.
+No more than **2 consecutive beats** may share the same `visual.type` **among the PROGRAMMATIC types**
+(`title`/`chart`/`keypoints`/`compare`/`timeline`) — after two `keypoints`, insert a
+`chart`/`compare`/`title`/illustrated beat. **`html` beats are EXEMPT:** an all-`html` "designed deck"
+is recommended and does not violate this — for html scenes, variety is judged by **form family** (below),
+not `visual.type`. Scan your beat list before returning and break any same-type run of programmatic beats.
 **Layout-form diversity:** across the `html` beats, keep **no single form family above ~45%** — if most
 beats resolve to a card grid, the deck reads as auto-generated. When you catch a third card-grid, re-run
 form-selection on those beats; the content almost always wants a `flow`/`scorecard`/`quadrant`/`timeline`.
