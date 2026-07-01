@@ -184,11 +184,13 @@ Key (never persisted — request fresh each run):
 export MINIMAX_API_KEY="..."        # or put it in ~/.minimax_key
 ```
 
-**Endpoint / region:** defaults to the international host `https://api.minimax.io/v1/t2a_v2`
-(the key carries the group there). On the **mainland** host set both:
-```json
-"meta": { "minimax_base": "https://api.minimaxi.chat/v1/t2a_v2", "minimax_group_id": "<your GroupId>" }
-```
+**Region — auto-detected, nothing to set.** MiniMax has two account regions with separate key
+namespaces (international `api.minimax.io`, mainland `api.minimax.chat`); a key only works on its own
+region's host. `tts.py` tries both automatically — a wrong-region key returns `2049 "invalid api key"`,
+which the skill treats as "try the other host" — then caches whichever works for the rest of the run.
+So an international **or** mainland key just works. To pin one host explicitly, set
+`"minimax_base": "https://api.minimax.chat/v1/t2a_v2"` (this disables the auto-retry). If a mainland
+setup returns a group error, add `"minimax_group_id": "<your GroupId>"`.
 
 **Model:** `meta.tts_model` (default `speech-02-hd`; bump to `speech-2.6-hd` / `speech-2.8-hd` for the
 latest if your account has them). Audio comes back hex-encoded and is written as `.mp3`.

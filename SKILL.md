@@ -238,8 +238,10 @@ TTS if the user gives an API key.
   `meta.voice` is one of: `auto` (default — tts.py prefers edge-tts, else `say`),
   `edge:<id>` (e.g. `edge:en-GB-SoniaNeural`), `say:<voice>`, `openai:<voice>`, or
   `minimax:<voice_id>` (or bare `minimax` → a catalog voice by `meta.language`+`meta.voice_gender`).
-  MiniMax tunables: `meta.tts_model` (default `speech-02-hd`), `meta.minimax_base` (mainland host),
-  `meta.minimax_group_id` (mainland only); key via `MINIMAX_API_KEY` / `~/.minimax_key`.
+  MiniMax **region is auto-detected** (tries international `api.minimax.io` then mainland
+  `api.minimax.chat`, caches the one that works) — an int'l or mainland key just works. Tunables:
+  `meta.tts_model` (default `speech-02-hd`), `meta.minimax_base` (pin one host, disables auto-retry),
+  `meta.minimax_group_id` (only if a mainland setup needs it); key via `MINIMAX_API_KEY` / `~/.minimax_key`.
 - `meta.image_source` is `none` (default, free) or `openai` (gpt-image-2, paid). AI images are
   generated once by `imagegen.py` and CACHED under `.assets/` — re-renders are free + offline.
 - **HTML pages tier:** `type:"html"` scenes render an authored page via headless Chrome
@@ -311,7 +313,7 @@ The full-AI escape hatch (`image_source:"openai"` with data as AI) is the user's
 | `ingest.py`: `soffice` missing / hangs | Kill stale `soffice`; ask user to export the deck to PDF and feed the `.pdf` | Feed a folder of exported slide PNGs instead |
 | pptx has no speaker notes | Generate narration from visible slide content + any source docs | Ask the user for the deck's intent per section |
 | `tts.py`: cloud voice errors / no `OPENAI_API_KEY` | It auto-falls back to the language-matched say voice (e.g. say:Tingting for zh) and prints a notice — continue | Set `meta.voice` to an explicit local `say:` voice |
-| `tts.py`: MiniMax error / no `MINIMAX_API_KEY` | It auto-falls back to the language-matched say voice and prints a notice — continue | Verify `MINIMAX_API_KEY`; on the mainland host set `meta.minimax_group_id` + `meta.minimax_base`; check the `voice_id`/`tts_model` exist for your account |
+| `tts.py`: MiniMax error / no `MINIMAX_API_KEY` | It auto-falls back to the language-matched say voice and prints a notice — continue | Verify `MINIMAX_API_KEY` (region is auto-detected across both hosts); `2054`=voice_id not on account, `1008`=no balance (top up), `2049`=key invalid on both regions; check `voice_id`/`tts_model` exist for your account |
 | `tts.py`: edge-tts not installed | The workflow offers `pip install edge-tts` once; on decline, set `meta.voice` to a `say:` fallback | tts.py auto-falls back to `say` at synth time and prints a notice — continue |
 | `tts.py`: edge-tts network error / endpoint down | tts.py catches it and falls back to the language-matched say voice (e.g. say:Tingting for zh) and prints a notice — continue | Switch `meta.voice` to an explicit `say:` voice (fully offline) |
 | `imagegen.py`: no `OPENAI_API_KEY` | It prints a notice and leaves those scenes for free-tier fallback — convert them to programmatic/slide and continue | Set the key (`export OPENAI_API_KEY=...`) and re-run `imagegen.py` |

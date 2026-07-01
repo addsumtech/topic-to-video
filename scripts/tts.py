@@ -40,7 +40,12 @@ def _openai(text, out_path, voice):
 # --- MiniMax T2A (cloud, paid, very natural — especially Chinese) ----------------------------
 # Endpoint default is the INTERNATIONAL host (GroupId is carried by the key there). On the mainland
 # host (api.minimaxi.chat / api.minimax.chat) set meta.minimax_group_id (or MINIMAX_GROUP_ID).
-MINIMAX_DEFAULT_BASE = "https://api.minimax.io/v1/t2a_v2"
+# Two regions with SEPARATE key namespaces — a key only works on the host of the account that
+# issued it. We try both automatically (a wrong-region key returns 2049 "invalid api key", which we
+# treat as "try the other host"), so the user doesn't have to know or set the region.
+MINIMAX_INTL_BASE = "https://api.minimax.io/v1/t2a_v2"      # international accounts
+MINIMAX_CN_BASE   = "https://api.minimax.chat/v1/t2a_v2"    # mainland accounts
+_MINIMAX_BASE_BY_KEY = {}                                   # cache the working host per key (per run)
 MINIMAX_DEFAULT_MODEL = "speech-02-hd"          # natural HD; bump via meta.tts_model (speech-2.6-hd, ...)
 # language_boost improves pronunciation (MiniMax wants capitalised language names).
 MINIMAX_LANG_BOOST = {
@@ -65,18 +70,30 @@ def resolve_minimax_voice(language, gender="female"):
     tbl = MINIMAX_VOICE_CATALOG.get(lang)
     return tbl[g] if tbl else MINIMAX_DEFAULT_VOICE
 
+def _minimax_bases(meta, key):
+    """Ordered hosts to try. An explicit meta.minimax_base / MINIMAX_API_BASE forces exactly one.
+    Otherwise try both regions (int'l then mainland), but front-load the host cached as working for
+    this key so only the FIRST slide of a run pays the region probe."""
+    explicit = (meta or {}).get("minimax_base") or os.environ.get("MINIMAX_API_BASE")
+    if explicit:
+        return [explicit]
+    order = [MINIMAX_INTL_BASE, MINIMAX_CN_BASE]
+    cached = _MINIMAX_BASE_BY_KEY.get(key)
+    if cached in order:
+        order = [cached] + [b for b in order if b != cached]
+    return order
+
 def _minimax(text, out_path, voice, meta):
     """Synthesize via MiniMax T2A v2. Bearer auth; response `data.audio` is HEX-encoded mp3.
-    Key from MINIMAX_API_KEY env or ~/.minimax_key (never persisted). No per-word timings, so
-    HTML reveals use the paced fallback (use edge-tts if you need exact audio-synced cues)."""
+    Key from MINIMAX_API_KEY env or ~/.minimax_key (never persisted). Region is auto-detected: a
+    wrong-region key returns 2049 ("invalid api key"), so we transparently try the other host. No
+    per-word timings, so HTML reveals use the paced fallback (use edge-tts for exact audio-sync)."""
     import requests
     meta = meta or {}
     key = os.environ.get("MINIMAX_API_KEY") or _read_key_file("~/.minimax_key")
     if not key:
         raise RuntimeError("no MINIMAX_API_KEY")
-    base = meta.get("minimax_base") or os.environ.get("MINIMAX_API_BASE") or MINIMAX_DEFAULT_BASE
     group = meta.get("minimax_group_id") or os.environ.get("MINIMAX_GROUP_ID")
-    url = f"{base}?GroupId={group}" if group else base
     lang = (meta.get("language") or "auto").lower().replace("_", "-").split("-")[0]
     body = {
         "model": meta.get("tts_model") or MINIMAX_DEFAULT_MODEL,
@@ -87,18 +104,43 @@ def _minimax(text, out_path, voice, meta):
         "voice_setting": {"voice_id": voice, "speed": 1.0, "vol": 1.0, "pitch": 0},
         "audio_setting": {"sample_rate": 32000, "bitrate": 128000, "format": "mp3", "channel": 1},
     }
-    r = requests.post(url, headers={"Authorization": f"Bearer {key}",
-                                    "Content-Type": "application/json"}, json=body, timeout=120)
-    r.raise_for_status()
-    j = r.json()
-    br = j.get("base_resp") or {}
-    if br.get("status_code") not in (0, None):
-        raise RuntimeError(f"minimax error {br.get('status_code')}: {br.get('status_msg')}")
-    audio_hex = (j.get("data") or {}).get("audio")
-    if not audio_hex:
-        raise RuntimeError(f"minimax: no audio in response (status {br.get('status_msg')})")
-    with open(out_path, "wb") as f:
-        f.write(bytes.fromhex(audio_hex))
+    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    bases = _minimax_bases(meta, key)
+    last = None
+    for i, base in enumerate(bases):
+        url = f"{base}?GroupId={group}" if group else base
+        more = i < len(bases) - 1
+        try:
+            r = requests.post(url, headers=headers, json=body, timeout=120)
+            r.raise_for_status()
+            j = r.json()
+        except Exception as e:                      # network/HTTP: try the other host if we have one
+            last = e
+            if more:
+                continue
+            raise
+        br = j.get("base_resp") or {}
+        code = br.get("status_code")
+        if code == 2049 and more:                   # wrong-region key — try the other host
+            last = RuntimeError(f"2049 invalid api key @ {base}")
+            continue
+        if code not in (0, None):
+            hint = ""
+            if code == 2049:
+                hint = (" — wrong-region key: an international key uses api.minimax.io, a mainland "
+                        "key uses api.minimax.chat (tried both). Check the key.")
+            elif code == 1008:
+                hint = " — the MiniMax account has no balance; add credits in the console."
+            raise RuntimeError(f"minimax error {code}: {br.get('status_msg')}{hint}")
+        audio_hex = (j.get("data") or {}).get("audio")
+        if not audio_hex:
+            raise RuntimeError(f"minimax: no audio in response (status {br.get('status_msg')})")
+        if not ((meta or {}).get("minimax_base") or os.environ.get("MINIMAX_API_BASE")):
+            _MINIMAX_BASE_BY_KEY[key] = base        # remember the working host for the rest of the run
+        with open(out_path, "wb") as f:
+            f.write(bytes.fromhex(audio_hex))
+        return
+    raise RuntimeError(f"minimax: all hosts failed ({last})")
 
 def _words_from_boundaries(chunks):
     """Pure: list of edge WordBoundary chunks -> [{'w':word,'t':start_seconds}]. offset is in 100ns ticks."""

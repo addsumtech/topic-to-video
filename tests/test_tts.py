@@ -163,6 +163,52 @@ def test_minimax_no_key_raises(monkeypatch):
     with pytest.raises(RuntimeError, match="MINIMAX_API_KEY"):
         tts._minimax("hi", "/tmp/x.mp3", "English_Graceful_Lady", {"language": "en"})
 
+def _fake_requests(handler):
+    import sys, types
+    return types.SimpleNamespace(post=handler)
+
+def test_minimax_auto_region_falls_back_and_caches(tmp_path, monkeypatch):
+    # A mainland key is rejected by the international host (2049); the skill must transparently try
+    # the mainland host, succeed, and CACHE it so later slides skip the wasted intl probe.
+    calls = []
+    class R:
+        def __init__(self, p): self._p = p
+        def raise_for_status(self): pass
+        def json(self): return self._p
+    def post(url, headers=None, json=None, timeout=None):
+        calls.append(url)
+        if "api.minimax.io" in url:
+            return R({"base_resp": {"status_code": 2049, "status_msg": "invalid api key"}})
+        return R({"data": {"audio": b"CN".hex()}, "base_resp": {"status_code": 0, "status_msg": "success"}})
+    import sys
+    monkeypatch.setitem(sys.modules, "requests", _fake_requests(post))
+    monkeypatch.setenv("MINIMAX_API_KEY", "cn-key")
+    monkeypatch.setattr(tts, "_MINIMAX_BASE_BY_KEY", {})
+    out = tmp_path / "o.mp3"
+    tts._minimax("你好", str(out), "Chinese (Mandarin)_IntellectualGirl", {"language": "zh"})
+    assert out.read_bytes() == b"CN"
+    assert any("api.minimax.io" in u for u in calls) and any("api.minimax.chat" in u for u in calls)
+    calls.clear()
+    tts._minimax("再见", str(out), "Chinese (Mandarin)_IntellectualGirl", {"language": "zh"})
+    assert calls[0].startswith("https://api.minimax.chat"), "working host should be cached + tried first"
+
+def test_minimax_explicit_base_does_not_switch_region(tmp_path, monkeypatch):
+    # An explicit meta.minimax_base must be honored exactly — no silent cross-region retry.
+    calls = []
+    class R:
+        def raise_for_status(self): pass
+        def json(self): return {"base_resp": {"status_code": 2049, "status_msg": "invalid api key"}}
+    def post(url, headers=None, json=None, timeout=None):
+        calls.append(url); return R()
+    import sys
+    monkeypatch.setitem(sys.modules, "requests", _fake_requests(post))
+    monkeypatch.setenv("MINIMAX_API_KEY", "k")
+    monkeypatch.setattr(tts, "_MINIMAX_BASE_BY_KEY", {})
+    with pytest.raises(RuntimeError, match="2049"):
+        tts._minimax("hi", str(tmp_path / "x.mp3"), "English_Graceful_Lady",
+                     {"language": "en", "minimax_base": "https://api.minimax.io/v1/t2a_v2"})
+    assert len(calls) == 1, "explicit base must not try the other region"
+
 def test_minimax_error_status_raises(tmp_path, monkeypatch):
     class FakeResp:
         def raise_for_status(self): pass
