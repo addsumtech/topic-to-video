@@ -61,6 +61,13 @@ The narration is also the on-screen subtitle, so it must read like a person talk
   一站式、领先、强大) — unless the word adds real information. Name the token and give a plain-language fix.
 - **FAIL on overclaim:** "perfect every time", "解决一切", absolute promises. Prefer "helps you…",
   "makes it easier to…", "quickly", "automatically" / "帮你…、更容易…".
+- **FAIL on AI-tell constructions** (humanizer-informed; `validate.py` flags the high-precision ones,
+  `references/narration-writing.md` lists them): inflated "AI-vocabulary" words (delve / underscore /
+  showcase / pivotal / tapestry / testament; CJK 彰显 / 交织 / 深入探讨), tacked-on "-ing" depth-tails
+  ("…, highlighting the importance of…"), negative parallelism ("not only…but", 不仅…而且), aphorism
+  formulas ("X is the Y of Z"), authority/throat-clearing tropes ("at its core", 值得注意的是),
+  signposting / fake-candid openers ("let's dive in", "honestly,", 让我们), synonym-cycling the same
+  referent, and RUNS of staccato fragments. Name the phrase and give the plain spoken rewrite.
 - **WARN (conversation test):** if a line wouldn't be the first thing a person naturally says when
   asked "what does this do?", suggest a more concrete, verb-led, outcome-focused rewrite.
 

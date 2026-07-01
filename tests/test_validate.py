@@ -166,6 +166,25 @@ def test_reveal_alignment_ignored_before_tts():
     assert not any("leads the voice" in x or "lags the voice" in x for x in w), w
 
 
+def test_narration_ai_tells_flagged_en(tmp_path):
+    s = _slide_scene(tmp_path, 0, narration="This delve underscores a pivotal moment, not only clever.")
+    data = _board(str(tmp_path), [s])
+    r = validate.evaluate(data, str(tmp_path))
+    assert any("AI-tell" in w for w in r["warnings"])
+
+def test_narration_ai_tells_flagged_cjk(tmp_path):
+    s = _slide_scene(tmp_path, 0, narration="值得注意的是,它深入探讨,不仅快而且准。")
+    data = _board(str(tmp_path), [s], meta={"language": "zh"})
+    r = validate.evaluate(data, str(tmp_path))
+    assert any("AI-tell" in w for w in r["warnings"])
+
+def test_narration_clean_no_ai_tell(tmp_path):
+    s = _slide_scene(tmp_path, 0, narration="它帮你把要紧的内容做成专业演示。真文字、真形状,能继续改。")
+    data = _board(str(tmp_path), [s], meta={"language": "zh"})
+    r = validate.evaluate(data, str(tmp_path))
+    assert not any("AI-tell" in w for w in r["warnings"])
+
+
 def test_layout_family_classifies():
     assert validate._layout_family('<div class="scorecard"><div class="tile">9</div></div>') == "scorecard"
     assert validate._layout_family('<div class="flow"><div class="step"></div></div>') == "flow"

@@ -199,6 +199,16 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                         warnings.append(f"{tag}: a caption shows for {seg['end'] - seg['start']:.2f}s (< {MIN_CAPTION_SECONDS}s) — too fast to read; merge chunks or lengthen the line")
                         break
 
+        # --- narration AI-tells (humanizer-informed): reads as machine-generated even if grammatical ---
+        seen_tells = set()
+        for phrase, label in _narration_ai_tells(s.get("narration")):
+            key = phrase.lower()
+            if key in seen_tells:
+                continue
+            seen_tells.add(key)
+            warnings.append(f"{tag}: narration AI-tell — \"{phrase}\" ({label}); say it the way a "
+                            f"person would (references/narration-writing.md)")
+
         # --- motion sanity --------------------------------------------------------------
         m = s.get("motion") or {}
         try:
@@ -273,6 +283,26 @@ def _layout_family(html):
     if has("stat"):                         return "stat"
     if has("card", "row", "dash"):          return "cards"
     return "title"
+
+# High-precision AI-tell phrases in NARRATION (spoken == subtitle). Humanizer-informed
+# (github.com/blader/humanizer): these read as machine-written even when grammatical. WARN only
+# (a person rewrites them); the marketing-buzzword / filler bans live in narration-writing.md + critic R1a.
+_AI_TELLS = [
+    (r"\b(?:delve|tapestry|testament|underscor(?:e[sd]?|ing)|showcas(?:e[sd]?|ing)|realm|myriad|intricacies|pivotal)\b", "AI-vocabulary word"),
+    (r"\b(?:at its core|the real question is|what really matters|when it comes to|needless to say)\b", "authority/aphorism trope"),
+    (r"\b(?:not only|it['’]s not just|it is not just)\b", "negative parallelism"),
+    (r"\b(?:let['’]s dive in|let['’]s explore|here['’]s the thing|the thing is)\b", "signposting opener"),
+    (r"值得注意的是|值得一提的是|众所周知|综上所述|总而言之|不难看出", "套话 (throat-clearing)"),
+    (r"深入探讨|深入了解|彰显|交织|织就", "AI 味词"),
+    (r"不仅[^。！？!?]{0,18}(?:而且|还|也)|不仅仅是", "递进对偶 (not-only)"),
+    (r"让我们(?:一起)?|在[^，。]{0,12}的今天", "signposting/throat-clearing"),
+]
+_AI_TELLS = [(re.compile(p, re.IGNORECASE), lbl) for p, lbl in _AI_TELLS]
+
+def _narration_ai_tells(text):
+    """Return [(matched_phrase, label)] of AI-tell phrases found in the narration (spoken subtitle)."""
+    t = text or ""
+    return [(m.group(0), lbl) for pat, lbl in _AI_TELLS for m in pat.finditer(t)]
 
 def _ordered_anchors(html):
     """The page's data-cue anchor phrases, ordered by data-cue-index (attr order-independent)."""

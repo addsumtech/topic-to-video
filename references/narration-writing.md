@@ -70,6 +70,32 @@ Apply the guide's principles to each line:
   first sentence you'd naturally say back. If it doesn't, rewrite it.
 This holds in every language (the buzzword/overclaim ban applies to the CJK equivalents too).
 
+## Cut the AI tells (humanizer-informed) — constructions that read as machine-written
+Beyond buzzwords, these patterns are the giveaway that a *model*, not a person, wrote the line.
+`validate.py` flags the high-precision ones (and `critic-narrative` R1a checks them); cut them all:
+- **Inflated "AI-vocabulary" words** — rarely how a person says a terse spoken line: *delve,
+  underscore, showcase, pivotal, tapestry, testament, realm, myriad, intricate, robust, leverage,
+  foster, garner, landscape (abstract)*. CJK: *彰显、交织、深入探讨、赋能、生态(抽象)*. Say the plain verb.
+- **Tacked-on "-ing" depth-tails** — "…, highlighting the importance of…", "…, underscoring how…",
+  "…, showcasing…". Cut the clause or make it a plain statement of the fact.
+- **Negative parallelism** — "not only X but Y", "it's not just X, it's Y", CJK "不仅…而且…". Just say Y.
+- **Aphorism formulas** — "X is the Y of Z", "not a tool but a mirror", "X is the language of trust".
+  Make the concrete claim ("symmetric layouts feel more predictable"), not the fortune-cookie.
+- **Authority / throat-clearing tropes** — "at its core", "the real question is", "what really
+  matters", "fundamentally"; CJK "值得注意的是、众所周知、综上所述". State the point without ceremony.
+- **Signposting / fake-candid openers** — "let's dive in", "let's explore", "here's the thing",
+  "honestly,", "look,"; CJK "让我们…、在…的今天". Start with the content, not a preview or a fake pause.
+- **Synonym-cycling (elegant variation)** — don't rename the same thing every sentence (protagonist →
+  main character → central figure); call it the SAME word so the ear can track it.
+- **Manufactured staccato** — ONE short sentence for emphasis is human; a *run* of fragments ("It
+  arrived. No prior. No symmetry.") is engineered — write it as flowing speech.
+- **Generic upbeat endings** — not "exciting times lie ahead"; end on a concrete fact or the ask.
+- **Prefer plain copulas + active voice** — "X is Y" over "X serves as / stands as / represents Y";
+  name the actor ("the tool checks each number", not "each number is checked").
+
+Humanizer's own gut-check, applied per line: after writing, ask *"what still makes this sound AI?"* and
+rewrite until the honest answer is "nothing — that's how I'd say it out loud."
+
 ## Pacing Math
 
 ~140–160 words per minute ≈ ~2.5 words per second (English and other space-delimited
