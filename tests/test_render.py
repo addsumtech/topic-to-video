@@ -169,6 +169,54 @@ def test_fingerprint_busts_on_html_page_edit(tmp_path):
     f.write_text("a much longer page body that changes the file size")   # edit the page
     assert fp() != a                                                     # cache busts
 
+def test_caption_karaoke_segs_word_windows(tmp_path):
+    (tmp_path / "audio").mkdir()
+    narr = "It turns your notes into slides."
+    words = [{"w": "It", "t": 0.0}, {"w": "turns", "t": 0.4}, {"w": "your", "t": 0.8},
+             {"w": "notes", "t": 1.2}, {"w": "into", "t": 1.6}, {"w": "slides", "t": 2.0}]
+    import json as _j
+    _j.dump(words, open(tmp_path / "audio" / "01.words.json", "w"))
+    slide = {"index": 1, "narration": narr, "duration": 3.0, "type": "slide"}
+    segs = render._caption_karaoke_segs(slide, {"language": "en"}, str(tmp_path))
+    assert segs and len(segs) == 6                      # one overlay per word
+    assert [s["hl"] for s in segs] == [0, 1, 2, 3, 4, 5]
+    assert segs[0]["start"] == 0.0 and segs[-1]["end"] == 3.0   # last word runs to scene end
+    assert all(segs[i]["start"] <= segs[i + 1]["start"] for i in range(5))
+    assert all(s["text"] == narr for s in segs)
+
+def test_caption_karaoke_none_when_not_applicable(tmp_path):
+    # CJK -> chunk-level (None)
+    assert render._caption_karaoke_segs({"index": 1, "narration": "你好世界。", "duration": 3.0},
+                                        {"language": "zh"}, str(tmp_path)) is None
+    # no words.json -> None
+    assert render._caption_karaoke_segs({"index": 2, "narration": "Hello there world.", "duration": 3.0},
+                                        {"language": "en"}, str(tmp_path)) is None
+    # explicit off -> None even with words.json
+    (tmp_path / "audio").mkdir()
+    import json as _j
+    _j.dump([{"w": "Hello", "t": 0.1}], open(tmp_path / "audio" / "02.words.json", "w"))
+    assert render._caption_karaoke_segs({"index": 2, "narration": "Hello world.", "duration": 3.0},
+                                        {"language": "en", "captions_karaoke": "off"}, str(tmp_path)) is None
+
+def test_theme_bg_parses_or_defaults(tmp_path):
+    (tmp_path / "theme.css").write_text(":root{--bg:#f7f4ee;--fg:#111}")
+    assert render._theme_bg(str(tmp_path)) == "0xf7f4ee"
+    assert render._theme_bg(str(tmp_path / "nope")) == "0x0d1117"   # no theme.css -> dark default
+
+def test_fade_filter_dip_default_and_off_and_tooshort():
+    f = render._fade_filter({"_out": "/x"}, 10.0)                   # dip is the default
+    assert "fade=t=in" in f and "fade=t=out" in f and "0x0d1117" in f
+    assert render._fade_filter({"transition": "none"}, 10.0) == ""  # explicitly off
+    assert render._fade_filter({"transition_seconds": 0.2}, 0.3) == ""  # clip too short to dip
+
+def test_fingerprint_includes_transition():
+    meta = {"_out": "/tmp", "fps": 30}
+    base = {"index": 1, "image": "frames/01.png", "audio": None, "duration": 3.0, "motion": {},
+            "narration": "n", "captions": [], "callouts": [], "type": "slide", "props": None, "fit": "contain"}
+    fp = lambda m: render._fingerprint(base, m, 1920, 1080, 2, True, False)
+    assert fp(meta) != fp({**meta, "transition": "none"})          # toggling transitions busts the cache
+
+
 def test_fingerprint_stable_for_imageless_scene_when_outdir_changes(tmp_path):
     # Regression: an html scene has image=None. The fingerprint must NOT stat the output dir
     # (os.path.join(out, "")), whose mtime changes on every render — that defeated the clip cache

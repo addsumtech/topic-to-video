@@ -4,7 +4,7 @@ Captions are burned in with PIL (a bundled font), composited as an overlay
 *after* zoompan so they stay fixed while the slide gently zooms. This avoids
 any dependency on an ffmpeg built with libass.
 """
-import argparse, os, re, tempfile, time
+import argparse, json, os, re, tempfile, time
 from PIL import Image, ImageDraw, ImageFont
 import _common
 import storyboard as sb
@@ -122,8 +122,11 @@ def _wrap(d, text, font, max_w):
         lines.append(cur)
     return lines
 
-def _draw_caption(d, text, W, H, meta=None):
-    """Burn a centered caption bar near the bottom (fixed, doesn't zoom)."""
+KARAOKE_HL = (255, 209, 102, 255)   # warm gold — reads clearly on the dark caption bar
+
+def _draw_caption(d, text, W, H, meta=None, hl_word=None):
+    """Burn a centered caption bar near the bottom (fixed, doesn't zoom). If `hl_word` (a whitespace
+    word index) is given, that word is drawn in the karaoke highlight colour (space-delimited text)."""
     if not text:
         return
     font = _load_font(int(H * 0.045), _font_path(meta, text))
@@ -136,9 +139,24 @@ def _draw_caption(d, text, W, H, meta=None):
     y0 = H - margin - block_h
     d.rectangle([0, y0, W, y0 + block_h], fill=(0, 0, 0, 140))
     y = y0 + pad
+    if hl_word is None:
+        for ln in lines:
+            w = d.textlength(ln, font=font)
+            d.text(((W - w) / 2, y), ln, font=font, fill=(255, 255, 255, 255))
+            y += line_h
+        return
+    # word-aware: draw each wrapped line word-by-word, colouring the global hl_word index
+    gi = 0
+    space = d.textlength(" ", font=font)
     for ln in lines:
-        w = d.textlength(ln, font=font)
-        d.text(((W - w) / 2, y), ln, font=font, fill=(255, 255, 255, 255))
+        words = ln.split(" ")
+        lw = sum(d.textlength(w, font=font) for w in words) + space * (len(words) - 1)
+        x = (W - lw) / 2
+        for w in words:
+            col = KARAOKE_HL if gi == hl_word else (255, 255, 255, 255)
+            d.text((x, y), w, font=font, fill=col)
+            x += d.textlength(w, font=font) + space
+            gi += 1
         y += line_h
 
 def _callout_layer(callouts, W, H, dst, meta=None):
@@ -158,11 +176,52 @@ def _callout_layer(callouts, W, H, dst, meta=None):
                    font=label_font, fill=(255, 255, 255, 255))
     layer.save(dst)
 
-def _caption_layer(text, W, H, dst, meta=None):
+def _caption_layer(text, W, H, dst, meta=None, hl_word=None):
     """Draw ONLY one caption block onto a transparent PNG (shown for one time window)."""
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    _draw_caption(ImageDraw.Draw(layer), text, W, H, meta)
+    _draw_caption(ImageDraw.Draw(layer), text, W, H, meta, hl_word)
     layer.save(dst)
+
+def _load_words(out_dir, index):
+    """Per-word timings from edge-tts (audio/NN.words.json), or None."""
+    try:
+        return json.load(open(os.path.join(out_dir, "audio", f"{index:02d}.words.json")))
+    except (OSError, ValueError, TypeError):
+        return None
+
+def _caption_karaoke_segs(slide, meta, out_dir):
+    """Per-WORD caption overlays (active word highlighted), timed by the real edge-tts word times.
+    Each caption CHUNK's on-screen window and its words come straight from words.json, so the
+    highlight tracks the voice exactly. Returns None when karaoke can't apply (off / CJK / no
+    words.json / empty) — the caller then uses the chunk-level captions."""
+    if (meta or {}).get("captions_karaoke", "auto") in ("off", False):
+        return None
+    lang = ((meta or {}).get("language", "") or "").lower().split("-")[0]
+    if lang in ("zh", "ja", "ko"):        # per-word highlight of gap-less CJK is awkward — chunk-level instead
+        return None
+    words = _load_words(out_dir, slide.get("index") or 0)
+    dur = float(slide.get("duration") or 0)
+    if not words or dur <= 0:
+        return None
+    chunks = _captions_for(slide)         # reuse the chunking (text/lines); re-time from real word starts
+    chunk_words = [c["text"].split() for c in chunks]
+    flat = [w for cw in chunk_words for w in cw]
+    if not flat:
+        return None
+    import cues as _cues
+    times = _cues.resolve_cues(words, flat)     # one monotonic time per display word
+    if len(times) != len(flat):
+        return None
+    segs, gi, last = [], 0, len(flat) - 1
+    for c, cw in zip(chunks, chunk_words):
+        for j in range(len(cw)):
+            start = times[gi]
+            end = times[gi + 1] if gi < last else dur
+            if end <= start:
+                end = start + 0.08
+            segs.append({"start": round(start, 3), "end": round(end, 3), "text": c["text"], "hl": j})
+            gi += 1
+    return segs or None
 
 def _srt_time(t):
     h = int(t // 3600); m = int((t % 3600) // 60); s = t % 60
@@ -275,7 +334,9 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
               ("image", "audio", "duration", "motion", "narration", "captions", "callouts",
                "type", "props", "fit")},
         "r": [W, H, meta.get("fps", 30), ss, burn, vertical,
-              meta.get("language", "auto"), meta.get("font")],
+              meta.get("language", "auto"), meta.get("font"),
+              meta.get("transition", "dip"), meta.get("transition_seconds", 0.2),
+              meta.get("captions_karaoke", "auto")],
         "img": stat(slide.get("image")), "aud": stat(slide.get("audio")),
         "html": stat((slide.get("props") or {}).get("html")),
         "theme": stat("theme.css"),   # re-theming (theme.py) busts html-scene clips
@@ -285,6 +346,33 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
                   if slide.get("type") == "html" else None),
     }, sort_keys=True, default=str)
     return hashlib.sha1(payload.encode()).hexdigest()[:16]
+
+def _theme_bg(out_dir):
+    """The deck's background colour (for transition dips) as ffmpeg 0xRRGGBB — from theme.css --bg,
+    else the base dark default. A dip through the deck's OWN bg reads as the stage briefly clearing,
+    seamless on any theme (fading to black would flash on a light deck)."""
+    try:
+        m = re.search(r"--bg\s*:\s*#([0-9a-fA-F]{3,6})", open(os.path.join(out_dir, "theme.css")).read())
+        if m:
+            h = m.group(1)
+            if len(h) == 3:
+                h = "".join(c * 2 for c in h)
+            return "0x" + h.lower()
+    except OSError:
+        pass
+    return "0x0d1117"
+
+def _fade_filter(meta, dur):
+    """A gentle dip-to-bg at both clip edges (video only — audio + duration untouched, so the
+    per-clip cache, `-c copy` concat and A/V gate all still hold). '' when transitions are off or
+    the clip is too short to dip. meta.transition: 'dip' (default) | 'none'; meta.transition_seconds."""
+    if (meta or {}).get("transition", "dip") == "none":
+        return ""
+    d = float((meta or {}).get("transition_seconds", 0.2))
+    if d <= 0 or dur <= 2.2 * d:
+        return ""
+    bg = _theme_bg(meta.get("_out", "."))
+    return f"fade=t=in:st=0:d={d}:c={bg},fade=t=out:st={dur - d:.3f}:d={d}:c={bg}"
 
 def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_clip, workdir):
     """Encode a per-frame PNG sequence + the scene's TTS audio (+ timed captions) into a
@@ -300,11 +388,14 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
         if not (seg.get("text") or "").strip():
             continue
         cap_png = os.path.join(workdir, f"scap_{k:03d}.png")
-        _caption_layer(seg["text"], W, H, cap_png, meta)
+        _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"))
         extra_inputs += ["-i", cap_png]
         en = f"between(t,{seg['start']},{seg['end']})"
         parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
         vlabel = f"v{n_in}"; n_in += 1
+    fade = _fade_filter(meta, dur)                     # dip-to-bg transition at the clip edges
+    if fade:
+        parts.append(f"[{vlabel}]{fade}[vfade]"); vlabel = "vfade"
     cmd = ["ffmpeg", "-y", "-framerate", str(fps), "-i", pattern,
            "-i", os.path.join(meta["_out"], audio_rel)] + extra_inputs + [
         "-filter_complex", ";".join(parts), "-map", f"[{vlabel}]", "-map", "1:a",
@@ -323,7 +414,8 @@ def _render_scene(slide, meta, W, H, out_clip, burn_captions, workdir):
     # there are no per-word timings (non-edge voices). Scenes render sequentially, so this is safe.
     meta["_narration"] = slide.get("narration") or ""
     pattern = renderer(slide.get("props") or {}, meta, W, H, frames, workdir, slide["index"])
-    segs = _captions_for(slide) if burn_captions else []
+    segs = ((_caption_karaoke_segs(slide, meta, meta["_out"]) or _captions_for(slide))
+            if burn_captions else [])
     return _encode_frames_clip(pattern, slide["audio"], dur, segs, meta, W, H, out_clip, workdir)
 
 def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
@@ -370,15 +462,19 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
         extra_inputs += ["-i", co_png]
         parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0[v{n_in}]"); vlabel = f"v{n_in}"; n_in += 1
     if burn_captions:
-        for k, seg in enumerate(_captions_for(slide)):
+        segs = _caption_karaoke_segs(slide, meta, meta["_out"]) or _captions_for(slide)
+        for k, seg in enumerate(segs):
             if not (seg.get("text") or "").strip():
                 continue
             cap_png = os.path.join(workdir, f"cap_{i:02d}_{k:02d}.png")
-            _caption_layer(seg["text"], W, H, cap_png, meta)
+            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"))
             extra_inputs += ["-i", cap_png]
             en = f"between(t,{seg['start']},{seg['end']})"
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
             vlabel = f"v{n_in}"; n_in += 1
+    fade = _fade_filter(meta, dur)                     # dip-to-bg transition at the clip edges
+    if fade:
+        parts.append(f"[{vlabel}]{fade}[vfade]"); vlabel = "vfade"
     fcomplex = ";".join(parts)
 
     cmd = ["ffmpeg", "-y", "-loop", "1", "-i", frame, "-i",

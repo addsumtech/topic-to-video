@@ -38,6 +38,12 @@ TTS if the user gives an API key.
   `OPENAI_API_KEY`/`~/.openai_key`; `meta.image_provider` (`auto`/`codex`/`openai`) selects
   the path. Only acts when `meta.image_source == "openai"`.
 - `scripts/render.py <out_dir> [--sample N] [--only N] [--vertical]` — storyboard → `out.mp4` + `out.srt`.
+  **Scene transitions:** a gentle dip-to-theme-bg at each clip's edges (video only — audio/durations
+  untouched, so cache + `-c copy` concat + A/V gate still hold). `meta.transition` (`dip` default |
+  `none`), `meta.transition_seconds` (0.2). **Karaoke captions:** when edge-tts `audio/NN.words.json`
+  exists (space-delimited languages), the burned caption highlights the word being spoken, timed to the
+  real word times; falls back to line-level chunks for MiniMax/say and CJK. `meta.captions_karaoke`
+  (`auto` default | `off`).
 - `scripts/cues.py` — pure anchor→cue-time resolver: reads per-scene `audio/NN.words.json` (edge-tts per-word timings) and resolves each `data-cue` anchor phrase to an absolute timestamp, used by `render_html` for audio-synced HTML reveals.
 - `scripts/check_av.py <out_dir>` — deterministic A/V gate: probes `out.mp4` video-vs-audio duration + per-clip sample-rate uniformity across `.clips/`; exits non-zero on A/V drift above tolerance (0.3 s) or non-uniform rates. Run AFTER the full render (step 9) as a gate before delivery.
 - `scripts/doctor.py [--json]` — environment preflight: reports which tools/libraries are present (ffmpeg/ffprobe/PIL required; PyMuPDF/python-pptx/edge-tts/soffice/Chrome/font optional) and, for each missing one, the stage it gates + the install hint. Exits non-zero only when a REQUIRED dep is missing. Run once at the START (step 1).
