@@ -34,7 +34,7 @@ $PY scripts/ingest.py deck.pptx $OUT
 # 3) Narrate, preview one slide, then render the whole thing
 $PY scripts/tts.py $OUT
 $PY scripts/render.py $OUT --sample 1      # sample.mp4 for style sign-off
-$PY scripts/render.py $OUT                  # -> out.mp4 + out.srt   (add --vertical for 9:16)
+$PY scripts/render.py $OUT                  # -> out.mp4 + out.srt   (--vertical for 9:16, --reduced-motion for the accessibility variant)
 ```
 
 ## How it works

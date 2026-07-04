@@ -43,7 +43,7 @@ CHECKS = [
     ("python-pptx", False, _has_module("pptx"),   "pptx speaker notes (ingest)",     "pip install python-pptx"),
     ("edge-tts",    False, _has_module("edge_tts"), "neural voice + per-word timings", "pip install edge-tts (else falls back to macOS 'say')"),
     ("soffice",     False, _has_soffice,          "pptx -> pdf (ingest)",            "install LibreOffice (or export the deck to PDF yourself)"),
-    ("Google Chrome", False, _has_chrome,         "html-pages tier (render_html)",   "install Google Chrome (or use the programmatic scene tiers)"),
+    ("Google Chrome", False, _has_chrome,         "html-pages tier (render_html + keyframe_qa)", "install Google Chrome (or use the programmatic scene tiers)"),
     ("bundled font", False, _has_bundled_font,    "default Latin captions",          "restore assets/fonts/DejaVuSans.ttf"),
 ]
 

@@ -93,9 +93,14 @@ Compare `meta.voice` against `meta.language` (and the language the narration is 
 - Accent and gender within the correct language (US vs UK English, male vs female) are user preference,
   **not** a correctness issue — never fail on those.
 
-### R4 — Explicit transitions
-- FAIL if the last sentence of a slide doesn't signal "what comes next" (no "Next…", "Now…",
-  "Building on…", "In the following slide…", etc.).
+### R4 — Transitions (inherit → hook, not signposts)
+- Judge the HAND-OFF, not literal signpost words: each beat should carry momentum into the next —
+  a question raised, a tension left, a natural "so…" the next line answers (the plan's per-beat
+  `continuity` note, when present, says what to expect). FAIL a beat that ends DEAD at a real
+  section seam (states a fact, connects to nothing).
+- Do NOT demand "Next…"/"Now…"/"In the following slide…" on every beat — mechanical per-slide
+  signposting is an AI-tell (it collides with R1a and `references/narration-writing.md`).
+  Connectives belong at the few real section seams; interior beats may hand off by momentum alone.
 - Exception: the final slide — no transition needed.
 
 ### R7 — Subtitle correctness (the on-screen captions are auto-derived from `narration`)
@@ -151,7 +156,7 @@ Example bullets:
 - Slide 5 `narration` (R0, invented): "trained on 2 million images" appears nowhere in the paper. Remove it or replace with the figure the source states.
 - Slide 8 `narration` (R7, subtitle): "two-D vessel segmentation" reads wrong as a caption — write "2D vessel segmentation" (TTS still says "two-D") so the on-screen text is correct.
 - Slide 2 `narration` (R1): Remove verbatim bullet text. Replace "Results: 10x speedup, reduced noise, fewer artifacts" with "Here you'll see a tenfold speedup with visibly cleaner reconstructions."
-- Slide 7 `narration` (R4): Add a transition at the end, e.g., "Next, we'll compare this against the baseline method."
+- Slide 7 `narration` (R4): The section ends dead — leave a hook the next beat answers, e.g., "…which raises the obvious question: does it beat the baseline?"
 
 If there are no issues, write:
 ```

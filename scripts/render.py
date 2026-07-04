@@ -363,11 +363,15 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
               meta.get("captions_karaoke", "auto"), meta.get("reduced_motion", False)],
         "img": stat(slide.get("image")), "aud": stat(slide.get("audio")),
         "html": stat((slide.get("props") or {}).get("html")),
-        "theme": stat("theme.css"),   # re-theming (theme.py) busts html-scene clips
-        # per-word cue timings only matter to html scenes — gate on type so a TTS re-run
-        # doesn't spuriously bust every static slide's cached clip
+        # re-theming (theme.py) busts ALL clips — html pages link theme.css AND the programmatic
+        # renderers parse the same vars (one color world)
+        "theme": stat("theme.css"),
+        # per-word cue timings matter to html scenes AND any slide whose timed callout carries a
+        # `cue` (resolved against words.json) — gate on that so a TTS re-run doesn't spuriously
+        # bust every other static slide's cached clip
         "words": (stat(os.path.join("audio", f"{(slide.get('index') or 0):02d}.words.json"))
-                  if slide.get("type") == "html" else None),
+                  if (slide.get("type") == "html"
+                      or any(c.get("cue") for c in slide.get("callouts") or [])) else None),
     }, sort_keys=True, default=str)
     return hashlib.sha1(payload.encode()).hexdigest()[:16]
 

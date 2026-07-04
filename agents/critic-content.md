@@ -26,6 +26,10 @@ You will be given:
    web-research notes when there was no material). **Use this to verify every factual claim in animated
    scene props** and to assess informative-first visual selection. If it is missing, say so and
    fact-check against your own knowledge.
+3. The **content plan** (from `agents/content-planner.md`) — it carries the top-level `motif` and
+   per-beat `continuity`, which live only in the plan (not the storyboard). You need it for the R8
+   concept-veto and continuity checks; if it's missing, say so and judge those from the storyboard's
+   arc as best you can.
 
 ---
 
@@ -136,6 +140,10 @@ Check, per scene:
 ### R6 — Callout boxes in-bounds
 - FAIL if any value in `box` is outside [0.0, 1.0].
 - WARN if the box is tiny (width or height < 0.03) — probably a typo.
+- **Timed callout (`cue`/`at`):** FAIL if `at` is outside [0.0, 1.0] (`at ≥ 1` renders the callout
+  invisible — it appears exactly at clip end); WARN past 0.85 (too late to help). A `cue` must be a
+  phrase that slide's narration actually SAYS, early enough to matter — `validate.py` warns on
+  unfindable/late cues; confirm the anchor is unambiguous (no earlier accidental match).
 
 Note: R5/R6 apply to `slide` scenes only — skip for animated scenes (`type` ≠ `slide`).
 
@@ -143,12 +151,15 @@ Note: R5/R6 apply to `slide` scenes only — skip for animated scenes (`type` �
 - **Concept veto (the swap test) — REVISE a name-swappable video.** Apply the test: mentally swap the
   topic for an unrelated one — does the plan (arc, motif, at least one signature visual) still work
   unchanged? If yes, it's a template, not a design: **REVISE** and require at least ONE content-derived
-  motif/visual that could only belong to THIS subject (the plan's top-level `motif`). A polished deck
-  that expresses no specific subject fails "better content representation" even if every beat is clean.
+  motif/visual that could only belong to THIS subject (the plan's top-level `motif` — the CONCEPT
+  motif, distinct from the `image_tag: motif` imagery class in R1e). A polished deck that expresses
+  no specific subject fails "better content representation" even if every beat is clean.
 - **Continuity — REVISE loose, disconnected beats.** The video should argue a case, not list slides.
   **REVISE** when beats don't connect — a beat that neither builds on the previous nor sets up the next
-  (check each beat's `continuity`/narration for an inherit→hook through-line). Momentum across cuts is
-  what separates a coherent explainer from a deck read aloud.
+  (check each beat's `continuity` in the content plan for an inherit→hook through-line). Judge the
+  STRUCTURAL level only (is the beat a loose slide; does the sequence build) — the *phrasing* of a
+  transition line is `critic-narrative`'s (R4), not yours. Momentum across cuts is what separates a
+  coherent explainer from a deck read aloud.
 - **REVISE** if more than **2 consecutive beats** share the same `visual.type` **among the PROGRAMMATIC
   types** (`title`/`chart`/`keypoints`/`compare`/`timeline`) — a repetitive rhythm kills engagement.
   **`html` beats are EXEMPT** from this run rule: an all-`html` "designed deck" is recommended, so a run
@@ -166,9 +177,10 @@ Note: R5/R6 apply to `slide` scenes only — skip for animated scenes (`type` �
   form it should take instead. (`validate.py` prints `layout diversity: N/M … same form family` —
   treat it as a REVISE item, reconciled against the ledger.)
 - **REVISE** (anti-slop) if any authored page or animated `props` contains: an emoji in a title; a
-  hardcoded hex `#rrggbb` (pages must use semantic vars — `var(--bg)`/`var(--accent)`/…); a fabricated
-  statistic that does not trace to `source_ref` (cross-ref R1d); a full-screen gradient-mesh background;
-  or a circle+left-border "card" (use `.card`/`.row` instead).
+  hardcoded hex `#rrggbb` (pages must use semantic vars — `var(--bg)`/`var(--accent)`/…; `validate.py`
+  lints this deterministically as `raw hex […] in a style/SVG color` — treat its warning as a REVISE
+  item); a fabricated statistic that does not trace to `source_ref` (cross-ref R1d); a full-screen
+  gradient-mesh background; or a circle+left-border "card" (use `.card`/`.row` instead).
 - **Icons (if any) must do a JOB, not decorate** (`references/icons.md`). REVISE if an SVG icon:
   answers none of *what is this / what does it do / why care*; mixes more than one family; is larger
   than the title; carries meaning with no text label; sits on an **evidence/stat beat** (a

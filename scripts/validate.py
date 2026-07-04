@@ -16,6 +16,7 @@ import argparse, json, os, re, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import storyboard as sb
 import render as rd                       # caption-fit + font helpers, reused verbatim
+import cues as _cues                      # anchor matcher (timed-callout cues + reveal alignment)
 
 # A zoom delta beyond this reads as a lurch, not a gentle Ken Burns (SKILL.md / motion-grammar).
 MAX_ZOOM_DELTA = 0.20
@@ -170,7 +171,8 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
             else:
                 _check_html_assets(out_dir, page, wants_edge, i, errors, warnings,
                                    (s.get("props") or {}).get("anim_seconds"), s.get("duration"),
-                                   s.get("narration"), families)
+                                   s.get("narration"), families,
+                                   captions_on=bool((data.get("meta") or {}).get("captions", True)))
 
         # --- audio / duration (skipped in --pre-tts mode) ------------------------------
         if not pre_tts:
@@ -220,11 +222,13 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
 
         # --- motion sanity --------------------------------------------------------------
         m = s.get("motion") or {}
+        reduced = bool((data.get("meta") or {}).get("reduced_motion"))
         try:
             dz = abs(m["to"][2] - m["from"][2])
-            if dz > MAX_ZOOM_DELTA:
+            # under reduced motion the renderer forces to==from, so zoom warnings don't apply
+            if dz > MAX_ZOOM_DELTA and not reduced:
                 warnings.append(f"{tag}: zoom delta {dz:.2f} > {MAX_ZOOM_DELTA} — the zoom will lurch")
-            if m["to"][2] > 1.25:
+            if m["to"][2] > 1.25 and not reduced:
                 warnings.append(f"{tag}: zoom ends at {m['to'][2]:.2f}× (> 1.25) — fine text softens at zoompan's scale limit")
             # motivated motion: a callout should be framed by where the camera settles — flag
             # whenever motion.to is far from the callout center (a static centered hold OR a
@@ -244,7 +248,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                 if not cue:
                     continue
                 pos = _cues._anchor_pos(N, cue)
-                if pos is None:
+                if pos is None or pos < 0:      # cues._anchor_pos returns -1 for not-found
                     warnings.append(f'{tag}: callout cue "{cue}" is not in the narration — it can\'t be timed to the voice; use a spoken phrase or set an explicit `at` fraction')
                 elif N and pos / max(1, len(N)) > 0.85:
                     warnings.append(f'{tag}: callout cue "{cue}" is spoken at ~{100*pos/len(N):.0f}% of the line — it appears too late to help; move the phrase earlier or set `at`')
@@ -346,7 +350,6 @@ def _reveal_alignment(html, narration, duration, anim_seconds, words_path, tag, 
         return
     # spoken fraction per anchor — case-insensitive, whole-word (Latin) / substring (CJK) monotonic
     # scan via the SAME matcher render uses (cues._anchor_pos), so "spoken" can't skew vs "shown".
-    import cues as _cues
     spoken, cur = [], 0
     for a in anchors:
         a = (a or "").strip()
@@ -387,7 +390,8 @@ def _reveal_alignment(html, narration, duration, anim_seconds, words_path, tag, 
                             f"re-anchor the point (data-cue) or adjust anim_seconds / the narration")
 
 def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
-                       anim_seconds=None, duration=None, narration=None, families=None):
+                       anim_seconds=None, duration=None, narration=None, families=None,
+                       captions_on=True):
     """Verify an html scene's page links resolve locally (base/theme/motifs css, seek.js,
     images), that its audio-synced cues will fire, and that its reveals won't lead/lag the audio."""
     path = os.path.join(out_dir, page_rel)
@@ -414,6 +418,12 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
         uniq = sorted(set(h.lower() for h in hexes))
         warnings.append(f"{tag}: raw hex {uniq[:3]} in a style/SVG color — use semantic vars "
                         f"(var(--accent)/var(--surface)/…), not hardcoded colors (off-theme risk)")
+    # dogfood: the bottom .chrome rail (base.css bottom:56px) sits inside the burned caption band
+    # (bottom ~8% of the canvas) — with captions ON they collide (text under text). Caught by the
+    # AV critic in practice; cheaper to catch here, pre-render.
+    if captions_on and re.search(r'class="[^"]*\bchrome\b', html):
+        warnings.append(f"{tag}: page has a bottom .chrome rail but captions are ON — it collides "
+                        f"with the burned caption band; drop .chrome (or set meta.captions:false)")
     # Audio-synced reveals: cued points need a data-cue anchor AND a words.json to resolve against.
     # (The anchor regex is an approximate within-tag co-occurrence count — warning-only, never fatal.)
     if "data-cue-index" in html:

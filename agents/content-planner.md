@@ -108,9 +108,11 @@ typographic; section/hero beats keep their backdrop. Aim for a few illustrated c
 
 ## Output contract
 Return ONLY the JSON content plan (no prose around it). The assistant maps each `beat.visual`
-to a storyboard scene and authors the short narration from `narration_intent`; the critic panel
-(`agents/critic-narrative.md` + `agents/critic-content.md`) then checks faithfulness, subtitles,
-and audio↔visual coherence.
+to a storyboard scene and authors the short narration from `narration_intent` — carrying a
+climax beat's flag into a `chart` counter/hero-stat scene as `props.climax: true` (that triggers
+the renderer's key-number landing hold). The PLAN itself is handed to the critic panel
+(`agents/critic-narrative.md` + `agents/critic-content.md`) alongside the storyboard — `motif`
+and per-beat `continuity` live only here, and the critics audit them.
 
 ## Director's discipline (the plan carries the quality)
 Add these top-level fields to your plan JSON:

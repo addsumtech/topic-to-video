@@ -452,3 +452,52 @@ def test_hex_lint_ignores_svg_ids_content_and_vars(tmp_path):
     errors, warnings = [], []
     validate._check_html_assets(str(tmp_path), "pages/scene_01.html", False, 1, errors, warnings)
     assert not any("raw hex" in w for w in warnings)
+
+
+# ── alignment audit regressions ───────────────────────────────────────────────────────
+def _cue_board(tmp_path, narration, callout):
+    from PIL import Image
+    os.makedirs(tmp_path / "frames", exist_ok=True)
+    Image.new("RGB", (320, 180), "#333").save(str(tmp_path / "frames" / "01.png"))
+    (tmp_path / "theme.css").write_text(":root{--bg:#111;}")
+    return {"meta": {"language": "en", "captions": True},
+            "slides": [{"index": 1, "type": "slide", "image": "frames/01.png",
+                        "narration": narration,
+                        "motion": {"type": "kenburns", "from": [0.5, 0.5, 1.0], "to": [0.5, 0.5, 1.12]},
+                        "captions": [], "callouts": [callout]}]}
+
+def test_timed_callout_cue_does_not_crash_and_warns_when_missing(tmp_path):
+    # regression: _cues was undefined in evaluate() -> NameError on the first cue callout
+    data = _cue_board(tmp_path, "Nothing matching here at all.",
+                      {"box": [0.1, 0.1, 0.4, 0.4], "style": "highlight", "cue": "crucial region"})
+    r = validate.evaluate(data, str(tmp_path), pre_tts=True)
+    assert any("not in the narration" in w for w in r["warnings"])
+
+def test_timed_callout_cue_found_no_warning(tmp_path):
+    data = _cue_board(tmp_path, "Look at the crucial region early on, then more talk follows here.",
+                      {"box": [0.1, 0.1, 0.4, 0.4], "style": "highlight", "cue": "crucial region"})
+    r = validate.evaluate(data, str(tmp_path), pre_tts=True)
+    assert not any('cue "crucial region" is not' in w for w in r["warnings"])
+
+def test_reduced_motion_skips_zoom_warnings(tmp_path):
+    data = _cue_board(tmp_path, "Some narration line.",
+                      {"box": [0.4, 0.4, 0.6, 0.6], "style": "highlight"})
+    data["slides"][0]["motion"]["to"] = [0.5, 0.5, 1.4]          # zoom delta 0.4 + past 1.25
+    r1 = validate.evaluate(data, str(tmp_path), pre_tts=True)
+    assert any("zoom" in w for w in r1["warnings"])
+    data["meta"]["reduced_motion"] = True
+    r2 = validate.evaluate(data, str(tmp_path), pre_tts=True)
+    assert not any("zoom" in w for w in r2["warnings"])          # renderer forces to==from
+
+def test_chrome_with_captions_on_warns(tmp_path):
+    (tmp_path / "theme.css").write_text(":root{--bg:#111;}")
+    pg = tmp_path / "pages"; pg.mkdir()
+    (pg / "scene_01.html").write_text('<div class="chrome"><span>SECTION</span></div>')
+    errors, warnings = [], []
+    validate._check_html_assets(str(tmp_path), "pages/scene_01.html", False, 1, errors, warnings,
+                                captions_on=True)
+    assert any("chrome" in w and "caption" in w for w in warnings)
+    warnings2 = []
+    validate._check_html_assets(str(tmp_path), "pages/scene_01.html", False, 1, [], warnings2,
+                                captions_on=False)
+    assert not any("chrome" in w for w in warnings2)             # captions off: .chrome is fine

@@ -25,6 +25,13 @@ You will be given:
    sample-rate uniformity, and exits non-zero on FAIL. Paste or pipe the full stdout/stderr here.
 2. **Rendered frames** extracted from `out.mp4` — a selection of frames covering the video's range,
    including animated scenes. Read these frames for visual rendering quality and burned-in caption correctness.
+3. **Render-mode notes from the dispatcher** (stated at dispatch): whether `meta.reduced_motion`
+   is set — then identical frames per slide / no zoom-pan is CORRECT, not a defect (judge
+   composition + captions, not motion) — and whether a slide carries a TIMED callout (`cue`/`at`) —
+   then a frame sampled BEFORE its cue time legitimately shows NO callout; only a callout missing
+   in a LATE frame is a defect. If `<out_dir>/_keyframes/` contact sheets exist (`keyframe_qa.py`),
+   blank-page + canvas-overflow were already gated deterministically — spend your eyes on the
+   judgment calls (legibility, theme fit, timing, taste).
 
 You do NOT receive `storyboard.json` or source materials — content correctness (R1d, R1e, R0) was
 checked at the script stage by `agents/critic-narrative.md` and `agents/critic-content.md`. Your job is
@@ -63,8 +70,9 @@ The renderer burns captions derived from `narration` into the video. Check the s
 ### Visual rendering quality
 - **FAIL** (hard REVISE) if any slide is blank or unstyled — the theme was not applied, leaving a white
   or default-template page.
-- **FAIL** if the declared light/dark mode (from `meta.theme` or the render config) was not applied —
-  e.g. slides render in light mode when dark mode was requested.
+- **FAIL** if the deck's declared light/dark mode (from `<out_dir>/theme.css`) was not applied — to
+  ANY scene tier: html pages AND programmatic scenes (title/chart/keypoints/compare/timeline) share
+  the same palette (one color world); e.g. a dark chart inside a light deck is a defect.
 - **FAIL** if any on-screen glyph renders as tofu (□□□) — Latin, CJK, or symbol — indicating a missing
   font.
 - **WARN** if motion (Ken Burns pan/zoom, animated scene transitions) appears jittery or stutters

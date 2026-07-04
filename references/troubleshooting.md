@@ -125,6 +125,10 @@ much faster for long decks.
 ## Quick self-check
 
 ```bash
+# Pre-render gates (cheap — run BEFORE any render)
+python scripts/validate.py out/          # structure/captions/motion/cues (~1s)
+python scripts/keyframe_qa.py out/       # HTML decks: blank/overflow + contact sheets (~1 min)
+
 # Verify a single slide before full render
 python scripts/render.py out/ --sample 1
 open out/sample.mp4

@@ -4,8 +4,8 @@
 Screenshots every `type:"html"` page at several `?p=` values (seek.js freezes the reveals at
 each), montages a per-scene contact sheet + a master grid under `<out_dir>/_keyframes/`, and
 flags the failures that silently corrupt content clarity — a BLANK page (a reveal that never
-fired / a broken page) and CONTENT OVERFLOWING the 1920×1080 safe canvas — while they are still
-one-edit fixes, BEFORE the multi-minute full render.
+fired / a broken page) and CONTENT OVERFLOWING the video canvas (1920×1080, or 1080×1920 when
+`meta.aspect` is 9:16) — while they are still one-edit fixes, BEFORE the multi-minute full render.
 
 Overflow is measured from the DOM (max amount any `.stage`/`.split` descendant's box exceeds the
 canvas), so a legitimate full-bleed background (`.bg-photo`/`.bg-soft`, which lives OUTSIDE `.stage`)
@@ -13,8 +13,9 @@ never false-positives. Needs Chrome DevTools Protocol; without it, falls back to
 pixel blank-check only (no overflow measurement).
 
 Usage:  python scripts/keyframe_qa.py <out_dir> [--p N] [--json]
-Exit 0 when clean (this is advisory); non-zero if any page is blank or overflows. The contact
-sheets are the primary artifact — open `_keyframes/all.png` to eyeball tofu / off-theme / reveals.
+Exit 0 when clean; non-zero if any page is BLANK or OVERFLOWS (those block). The centered-
+paragraph check is advisory-only and never blocks. The contact sheets are the primary artifact —
+open `_keyframes/all.png` to eyeball tofu / off-theme / mistimed reveals.
 """
 import argparse, base64, json, os, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

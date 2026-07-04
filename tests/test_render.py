@@ -326,3 +326,21 @@ def test_reduced_motion_in_fingerprint():
     a = render._fingerprint(slide, {**base}, 1920, 1080, 2, True, False)
     b = render._fingerprint(slide, {**base, "reduced_motion": True}, 1920, 1080, 2, True, False)
     assert a != b                                             # flag busts the clip cache
+
+
+def test_fingerprint_words_gate_covers_cue_callouts(tmp_path):
+    # a slide whose timed callout resolves against words.json must bust when words.json changes
+    import os
+    os.makedirs(tmp_path / "audio", exist_ok=True)
+    slide = {"index": 1, "type": "slide", "image": None,
+             "callouts": [{"box": [0, 0, 1, 1], "style": "highlight", "cue": "x"}]}
+    meta = {"_out": str(tmp_path)}
+    a = render._fingerprint(slide, meta, 1920, 1080, 2, True, False)
+    (tmp_path / "audio" / "01.words.json").write_text("[]")
+    b = render._fingerprint(slide, meta, 1920, 1080, 2, True, False)
+    assert a != b                                                # words.json now in the key
+    plain = {"index": 1, "type": "slide", "image": None, "callouts": []}
+    c = render._fingerprint(plain, meta, 1920, 1080, 2, True, False)
+    (tmp_path / "audio" / "01.words.json").write_text('[{"w":"x","t":0}]')
+    d = render._fingerprint(plain, meta, 1920, 1080, 2, True, False)
+    assert c == d                                                # cue-less slide: TTS re-run doesn't bust

@@ -6,7 +6,8 @@ and the material into a polished, connected, faithful script that sounds great r
 
 ## Inputs (use whatever is provided)
 - The **content plan**: ordered beats, each with `id`, `learning_point`, `source_ref`,
-  `narration_intent`, `est_seconds`. (If no content plan is given, work from the per-slide
+  `narration_intent`, `est_seconds`, plus optional `continuity` (the beat's inherit→hook note)
+  and `motion_intent`. (If no content plan is given, work from the per-slide
   notes/intent and the slide text instead.)
 - The **comprehension brief** + the **source material** — your ground truth for every fact.
 - `meta.language` — write the narration in this language.

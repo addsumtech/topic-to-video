@@ -666,3 +666,19 @@ def test_reduced_motion_css_neutralizes_all_transform_channels():
     assert "animation-name: fade" in css and "transform: none" in css   # reveals -> opacity-only
     assert ".float" in css and "img.kenburns" in css and "animation: none" in css
     assert "stroke-dashoffset: 0" in css                                 # .draw shown, not hidden
+
+
+def test_on_fill_argmax_black_on_light_white_on_dark():
+    assert scenes._on_fill("#ffd166") == "#111111"               # bright yellow -> black text
+    assert scenes._on_fill("#0d1117") == "#ffffff"               # near-black -> white text
+
+def test_reduced_motion_title_has_no_rise(tmp_path):
+    meta_rm = {"fps": 30, "language": "en", "reduced_motion": True}
+    pat = scenes.render_title({"title": "Steady"}, meta_rm, 640, 360, 10, str(tmp_path), 1)
+    early = Image.open(pat % 2).convert("L")
+    final = Image.open(pat % 9).convert("L")
+    bg = final.getpixel((3, 3))
+    def bbox(im):
+        from PIL import ImageChops
+        return ImageChops.difference(im, Image.new("L", im.size, bg)).getbbox()
+    assert bbox(early)[1] == bbox(final)[1]                      # same top y: fade only, no translate

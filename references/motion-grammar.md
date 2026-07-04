@@ -101,7 +101,18 @@ easing / zoom to pick, and keeps narration emphasis and on-screen motion aligned
 Keep it honest: the free tiers express these through the programmatic renderers'
 built-in reveals, the HTML tier's CSS reveals, and the Ken Burns push — not arbitrary
 keyframing. Pick the verb that the available motion can actually deliver; don't promise
-a SLAM the renderer can't land.
+a SLAM the renderer can't land. The concrete "headline number landing": a `chart` scene
+with `props.kind:"counter"` **and `props.climax:true`** counts up, reaches the true final
+value at ~68% of the scene, then holds it static — that's the deliverable form of
+SLAMS/COUNTS UP for the payoff beat.
+
+## Reduced motion (accessibility variant)
+
+With `meta.reduced_motion` (or `render.py --reduced-motion`) the renderer forces `to == from`
+(a static frame — no zoom/pan) and HTML reveals become opacity-only cross-fades; the
+programmatic renderers drop their rise/slide offsets too. Author `motion` normally — the
+variant neutralizes it at render time, and `validate.py` skips its zoom warnings when the
+flag is set. It's an authoring-time opt-in (a baked mp4 can't read the viewer's OS setting).
 
 ---
 
@@ -141,10 +152,12 @@ semantic — use `arrow` when your narration says "here" or "this arrow shows".
 **Cap at ONE primary callout per slide.** Multiple callouts compete for
 attention and dilute the message.
 
-### `at` field
+### `at` / `cue` fields (timed appearance)
 
-Currently unused in v1 rendering (callout is static for the whole slide).
-Set `at: 0.0`. It is reserved for future timed callout support.
+Omit BOTH for the default whole-slide highlight. `at` (a `0..1` fraction of the clip) or `cue`
+(a phrase the narration says) makes the callout TIMED: it appears at that moment and holds to
+the clip end — see "Timed callout" above for the full contract. Keep `at` inside `[0, 0.85]`
+(`at ≥ 1` lands exactly at clip end — the callout never shows).
 
 ---
 

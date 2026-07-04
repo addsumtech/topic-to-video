@@ -38,7 +38,7 @@ pick the one whose shape matches the content (all classes are in `base.css`, all
 | **Colour-coded categories** (bold, scannable) | `.blocks two` / `.blocks three` — one hue per `.block` from the THEME: `var(--accent)`, `var(--accent2)`, and for a 3rd either `var(--green)` (a theme-neutral alias) or a `color-mix(in srgb,var(--accent) 55%,var(--accent2))`; verify the 3rd doesn't clash — if you need 3 strongly-distinct on-brand hues and the theme only has 2, use `.blocks two` or `cards` instead. Never grey filler, never a raw hex. |
 | **A decomposition** (165 = 123 + 42) | a `.grid` of labeled `.bar` rows (widths inline) or a `.segbar` |
 | **Truly parallel, equal-weight items** | a `.card` grid (`.dash` 3-up / `.grid-asym`) — the *considered* choice for THIS shape only |
-| **A title / section** | `.kicker` + `.rule` + `.title` (+ `.sub`); a mono `.chrome` footer ties the deck together |
+| **A title / section** | `.kicker` + `.rule` + `.title` (+ `.sub`); a mono `.chrome` footer ties the deck together — ONLY when `meta.captions:false` (see `.chrome` note below) |
 
 For each beat, record the pick as a one-line **form ledger**: *winner — beats `<runner-up>` because …*
 (the content-planner emits this; the critic audits it).
@@ -200,6 +200,9 @@ captures it deterministically.
 `--muted`) · `.kicker` = a category label (mono, accent-coloured) · `.note` = secondary annotation. Keep
 the hierarchy contract: `.title`/`.sub` ≥ 2.5×, `.title`/`.note` ≥ 3×. (`var(--blue)`/`var(--orange)`
 are semantic *accent aliases*, not hardcoded colours — using them is fine; a literal `#rrggbb` is not.)
+Body/running text (`.sub`, `.note`, long paragraphs) is **LEFT-ALIGNED** — a centered multi-line
+paragraph doesn't scan (`keyframe_qa` flags it); centering is for display elements (titles,
+pull-quotes, stats) and centered diagram archetypes only.
 
 ## Layout diversity — no samey deck (enforced)
 Across the deck's `html` scenes, **no single form family may exceed ~45%**. A deck that is card/row
@@ -214,7 +217,7 @@ instead. `validate.py` counts the families and warns when one dominates; `critic
 - **`.defocus`** — on a comparison, add to the NON-focal side for depth-of-field (subtle blur, not flat dim).
 - **`.accent-fill`** — on `<body>` of a section-divider beat: full-bleed accent background, `--on-accent` text.
 - **`.reveal-pop`** — spring overshoot for a hero `.stat`/`.num`. **`.reveal-up-sm`** — shorter rise for dense sub-items.
-- **`.chrome`** — a mono SECTION-LABEL rail (direct child of `<body>`); reuse the section/topic name across beats as a quiet editorial through-line. **NOT a page number / progress bar / counter** (that's the banned player-chrome — a video has nothing to navigate).
+- **`.chrome`** — a mono SECTION-LABEL rail (direct child of `<body>`); reuse the section/topic name across beats as a quiet editorial through-line. **NOT a page number / progress bar / counter** (that's the banned player-chrome — a video has nothing to navigate). ⚠️ **Use it ONLY when `meta.captions:false`:** the rail sits at `bottom:56px`, inside the burned caption band (bottom ~8% of the canvas) — with captions ON (the default) they collide, text under text. `validate.py` warns on this; the page's top kicker already labels the section, so with captions just drop `.chrome`.
 
 ## Reveal timing — points must NOT lead the voice (important)
 The most common defect is **content appearing well before the narration reaches it**. Avoid it:
@@ -252,7 +255,10 @@ timecodes / chapter counters (player-chrome) · hardcoded hex (use semantic vars
 ## Pre-render checklist
 absolute `file://` paths (files exist) · no `<link href="http…">` · base.css → theme.css → motifs.css
 linked · no content overflow below 960px · semantic vars only · all `.reveal*`/`.kenburns` keep
-`animation-play-state:paused` · no leftover debug overlays.
+`animation-play-state:paused` · no leftover debug overlays · no `.chrome` when captions are on —
+then run `python scripts/keyframe_qa.py <out_dir>`: it screenshots every page at 5 reveal states
+into `_keyframes/` and mechanically verifies the blank/overflow items above (eyeball `all.png` for
+tofu / off-theme / mistimed reveals).
 
 ## Audio-synced reveals (points appear when spoken)
 On a multi-point page, tag each point's reveal element with `data-cue-index="0|1|2…"` (in SPOKEN

@@ -31,11 +31,13 @@ TTS if the user gives an API key.
 - `scripts/tts.py <out_dir> [--only N]` — narration → `audio/` + real durations. With edge-tts, also writes `audio/NN.words.json` (per-word start times), used for audio-synced HTML reveals; emits `.mp3`. With macOS `say`, emits `.aiff` (no words.json).
 - `scripts/theme.py <out_dir> [--mode light|dark] [--accent #hex] [--accent2 #hex] [--bg #hex]` —
   derive a topic-fitting palette from `frames/` (or the passed overrides) and write
-  `<out_dir>/theme.css` (the HTML tier links it). Run before authoring HTML pages. Contrast is
-  **gamma-correct WCAG** (true relative luminance): it enforces fg/bg ≥7:1, guarantees a SAMPLED
-  accent clears ≥3:1 on the bg (nudging only a sampled accent's lightness, never an explicit
-  `--accent` override), and picks `--on-accent` by whichever of black/white has the higher true
-  contrast on the accent fill.
+  `<out_dir>/theme.css` (the HTML tier links it; the programmatic renderers parse the same
+  semantic vars — one color world). Run before authoring pages OR programmatic scenes. Contrast is
+  **gamma-correct WCAG** (true relative luminance): it enforces fg/bg ≥7:1, nudges a SAMPLED
+  accent toward ≥3:1 on the bg (lightness only, capped ±0.15 to preserve the hue's character;
+  an explicit `--accent` override is never touched), and picks `--on-accent` by whichever of
+  black/white has the higher true contrast on the accent fill. An out_dir themed BEFORE this fix
+  may carry a low-contrast `--on-accent` in its theme.css — re-run `theme.py` to regenerate.
 - `scripts/imagegen.py <out_dir> [--key KEY]` — OPTIONAL paid tier: generate AI scene images
   via OpenAI `gpt-image-2` for scenes that carry an `image_prompt`, cached under `.assets/`
   (re-runs are free). Auto-uses the Codex CLI (no key) when installed, else needs
@@ -128,7 +130,9 @@ TTS if the user gives an API key.
    into `<out_dir>/voice_samples/` (all candidates follow the human-sound rule — natural/conversational,
    never theatrical). Have the user **listen and pick**, then set `meta.voice = "minimax:<the pick>"`
    (and `meta.voice_gender`). Bare `minimax` uses the catalog default for the gender if they don't pick.
-   captions on/off; aspect (16:9 default / 9:16);
+   captions on/off; aspect (16:9 default / 9:16); reduced motion if the audience needs it
+   (accessibility variant — no zoom/pan, opacity-only reveals; sets `meta.reduced_motion`, off by
+   default — don't ask unless accessibility comes up);
    target pace (a seconds-per-slide ceiling);
    **Visual backgrounds — ASK which look (this is the "not flat" choice):**
    - **(A) AI cover + soft per-page backgrounds** — a generated full-bleed **cover** (hero
@@ -155,8 +159,10 @@ TTS if the user gives an API key.
    headless Google Chrome (free, no dependency; needs Chrome installed). Choose it for a
    "designed deck" look. The content-planner designs the beats; you author one
    `pages/scene_NN.html` per beat on `assets/html/base.css` (faithful — real content only),
-   following `references/html-pages.md`. Set `meta.chrome_path` if Chrome isn't at the default
-   macOS location.
+   following `references/html-pages.md`. Immediately after authoring the pages, run
+   `python scripts/keyframe_qa.py <out_dir>` (needs no audio, ~1 min) — catch a blank page /
+   canvas overflow while it's a one-edit fix, not at the step-9 gate. Set `meta.chrome_path`
+   if Chrome isn't at the default macOS location.
    **Image provider:** if the **`codex` CLI is installed**, generate via Codex's native
    image-generation (NO key — it uses your Codex plan; slower, ~minutes/image). Otherwise ask for
    the OpenAI key (`OPENAI_API_KEY` or `~/.openai_key`). If neither, fall back to the free
@@ -195,23 +201,29 @@ TTS if the user gives an API key.
      `agents/content-planner.md` on the comprehension brief + material. It returns an ordered set
      of **informative beats** — each with a learning point (traced to the material), the most
      informative visual (`chart`/`compare`/`keypoints`/`timeline`/`title`/`html`, NOT decorative photos),
-     a narration intent, and a short `est_seconds`. The planner may also emit `climax: true` (one beat
-     ~75–80% through — the payoff), `hold: true` (final beat, sparse), and per-point `cue` arrays
-     (one anchor phrase per point, in spoken order, for audio-synced HTML reveals). Build the storyboard
-     scenes from the plan (**informative-first**); author the short per-beat narration in step 4.
-- **Theme (HTML tier):** run `scripts/theme.py <out_dir>` AFTER the content plan and BEFORE
-  authoring any HTML page — it samples `frames/` for a curated light/dark palette fitting the topic
+     a narration intent, and a short `est_seconds`. The planner also emits a top-level `motif` (the
+     CONCEPT motif — one content-derived visual idea unique to this topic), per-beat `continuity`
+     (inherits-from / hooks-into), `climax: true` (one beat ~75–80% through — the payoff),
+     `hold: true` (final beat, sparse), and per-point `cue` arrays (one anchor phrase per point, in
+     spoken order, for audio-synced HTML reveals). Build the storyboard scenes from the plan
+     (**informative-first**); author the short per-beat narration in step 4. **Carry `climax` into
+     the scene:** when the climax beat's visual is a `chart` counter/hero-stat, set `props.climax:
+     true` on that scene — that's what triggers the renderer's key-number landing hold. **Keep the
+     content plan file** — the critic panel (step 5) receives it to audit motif + continuity.
+- **Theme:** run `scripts/theme.py <out_dir>` AFTER the content plan and BEFORE authoring pages or
+  programmatic scenes — it samples `frames/` for a curated light/dark palette fitting the topic
   (or pass `--mode/--accent/--accent2/--bg` from the planner's `theme` suggestion when there are no
-  frames). Pages link `base.css` → `theme.css` → `motifs.css`. 🔴 the plan checkpoint now also shows
-  the palette + mode.
+  frames). Pages link `base.css` → `theme.css` → `motifs.css`; the programmatic renderers parse the
+  same vars. 🔴 the plan checkpoint now also shows the palette + mode.
 - **Re-conceive, don't mirror:** the content-planner designs a video arc (hook + throughline +
   resequencing), not the slide order — faithful to the substance.
 - **Illustrated pages:** build a beat's `media` as a `.split` page (text + a STATIC image panel,
   see `references/html-pages.md`; Ken-Burns is disabled inside `.split` so it doesn't compete with
   revealing bullets — Ken-Burns is for full-bleed hero `.bg-photo` only); generate the image via
   `imagegen` (codex/key); keep it a generic broll. Most pages stay typographic.
-     🔴 **CHECKPOINT · 🛑 STOP:** show the content plan (arc + beats + chosen visuals) and the
-     derived theme palette (mode + colors), and get the user's OK before authoring narration.
+     🔴 **CHECKPOINT · 🛑 STOP:** show the content plan (arc + **motif** + beats + chosen visuals +
+     the continuity through-line) and the derived theme palette (mode + colors), and get the user's
+     OK before authoring narration.
 4. **Write the manuscript — dispatch `agents/scriptwriter.md` (the WRITE specialist).** Give it
    the content plan (or, with no plan, the per-slide intent + slide text), the comprehension
    brief + material, `meta.language`, and the pace ceiling. It returns the final spoken line per
@@ -244,7 +256,9 @@ TTS if the user gives an API key.
 5. **Parallel critic panel — narration + subtitle (REQUIRED, not optional).** Dispatch
    `agents/critic-narrative.md` AND `agents/critic-content.md` **concurrently — in ONE
    message with two Agent calls** — on the storyboard **plus the comprehension brief /
-   source material**, so both critics can check facts, not just style.
+   source material AND the content plan** (the plan carries `motif` + per-beat `continuity`,
+   which live only there — without it the critic can't run the concept-veto/continuity checks),
+   so both critics can check facts and structure, not just style.
    - `critic-narrative` verifies: narration is **precise and faithful** (no wrong, vague, or
      invented facts/numbers); subtitle text matches spoken words, segments into clean readable
      lines, fits on screen, no typos or garbled text; narration is in **`meta.language`** and
@@ -319,13 +333,15 @@ TTS if the user gives an API key.
   the per-clip cache busts when the page file, `theme.css` (re-theming), or `audio/NN.words.json`
   (new edge run) changes. Locate Chrome via `meta.chrome_path` if needed.
 - **Anti-slop (critic R8 / AV-critic):** no emoji in titles; no hardcoded hex — use semantic vars
-  (`var(--bg)`, `var(--accent)`, etc.); no gradient-mesh backgrounds; no player-chrome / progress
+  (`var(--bg)`, `var(--accent)`, etc.; `validate.py` lints raw `#hex` in style/SVG colors,
+  `critic-content` R8 fails it); no gradient-mesh backgrounds; no player-chrome / progress
   bars / timecodes / page counters; no more than 2 consecutive beats with the same `visual.type`
   among the PROGRAMMATIC types (`html` scenes are exempt — vary those by **form family**, not type).
 - **Layout diversity (HTML tier):** no single form family (cards/flow/scorecard/quadrant/hubspoke/
   blocks/timeline/compare) above ~45% of html scenes — `validate.py` warns, `critic-content` R8 fails it.
 - **Concept + continuity (critic R8):** the video must express THIS topic — the plan carries a
-  content-derived `motif`; a **name-swappable** design (swap the topic → still works) is a template,
+  content-derived top-level `motif` (the CONCEPT motif — distinct from the `image_tag: motif`
+  imagery class); a **name-swappable** design (swap the topic → still works) is a template,
   not a design, and gets revised. And beats must **connect** (each `continuity`: inherits from the
   prior, hooks into the next) so the video argues a case rather than listing slides.
 - **Audio-synced reveals (HTML tier) — content must not lead the voice.** Make multi-point pages
@@ -343,12 +359,12 @@ TTS if the user gives an API key.
   audio paths — important for a **paced** voice (say/openai/**MiniMax**, no per-word timings): a linear
   stagger only aligns if the narration introduces the points at roughly even intervals; otherwise cue it
   with edge-tts, restructure the narration, or tune `anim_seconds`. `critic-content` R2 confirms the fix.
-- **Theming:** the HTML tier is themeable via `theme.py` → `theme.css` (semantic `:root` vars);
-  pick a palette/mode that fits the TOPIC (not always dark). Author pages with the vars, never raw hex.
-  `theme.py`/`theme.css` themes ONLY the `html` tier. The programmatic scenes (`title`/`chart`/
-  `keypoints`/`compare`/`timeline`) always render on the dark palette — do NOT mix a light-theme
-  HTML deck with programmatic scenes expecting them to match; keep all programmatic scenes or all
-  HTML scenes if a consistent look matters.
+- **Theming:** `theme.py` → `theme.css` (semantic `:root` vars) themes BOTH tiers — the `html`
+  pages link it, and the programmatic scenes (`title`/`chart`/`keypoints`/`compare`/`timeline`)
+  parse the SAME vars (one color world), falling back to the dark palette only when no `theme.css`
+  exists. Pick a palette/mode that fits the TOPIC (not always dark); author pages with the vars,
+  never raw hex. Mixing html + programmatic scenes in one deck is fine — they share the palette.
+  Re-running `theme.py` busts ALL cached clips (both tiers read it).
 - **Image provider:** `imagegen.py` auto-detects the `codex` CLI and uses its native image-gen
   (no key, Codex-plan-billed, slower) when present; else the OpenAI key (`OPENAI_API_KEY` /
   `~/.openai_key`). `meta.image_provider` (`auto`/`codex`/`openai`) overrides. Codex and OpenAI
@@ -409,7 +425,7 @@ The full-AI escape hatch (`image_source:"openai"` with data as AI) is the user's
 | `imagegen.py`: Codex run fails / makes no image | `_generate_codex` raises → that scene falls back to the free tier; other cached scenes unaffected | Force `meta.image_provider:"openai"` + provide a key, or use the free programmatic/HTML tier |
 | Image tier on but no codex AND no key | Each scene falls back to the free tier with a notice | Install `codex`, or set `OPENAI_API_KEY` / `~/.openai_key`, then re-run `imagegen.py` |
 | `render.py`: concat `-c copy` errors (codec/timestamp) | Re-encode the concat (`-c:v libx264 -c:a aac`) — see `references/ffmpeg-recipes.md` | Render per-slide with `--only N` and report the failing slide |
-| Captions/text look wrong or font missing | render.py falls back to PIL's default font (still draws) | Confirm `assets/fonts/DejaVuSans.ttf` exists |
+| Captions/text look wrong or font missing | render.py falls back to PIL's default font (still draws) | Confirm `assets/fonts/DejaVuSans.ttf` and `DejaVuSerif.ttf` exist (the serif silently degrades to sans if absent) |
 | Captions show tofu boxes / □□□ (non-Latin language) | Set `meta.language` so render.py picks a system CJK font (zh→PingFang, ja→Hiragino, ko→AppleSDGothicNeo) | Set `meta.font` to an explicit `.ttc`/`.ttf` that covers the script |
 | Narration mispronounced / wrong-language voice | Set `meta.language`; tts.py auto-picks a matching `say` voice (zh→Tingting, ja→Kyoko, …) when you left the English default | Set `meta.voice` explicitly to an installed voice for that language (`say -v '?'` lists them) |
 | Narration overruns the seconds-per-slide ceiling | Tighten wording (`references/narration-writing.md`) | 🔴 STOP and propose splitting the dense slide |
@@ -419,6 +435,9 @@ The full-AI escape hatch (`image_source:"openai"` with data as AI) is the user's
 | step 1 `doctor.py` reports a REQUIRED dep missing (ffmpeg/ffprobe/PIL) | Install it (e.g. `brew install ffmpeg`, `pip install pillow`) before proceeding | Optional gaps (edge-tts/soffice/Chrome) only narrow the tiers — adjust the interview, don't block |
 | step 9 gate fails: `validate.py` exits non-zero before render | Read each ERROR (missing image/audio/page/`file://` asset, duplicate index, absent `theme.css`) → fix in `storyboard.json` / regenerate the missing asset (run `theme.py`/`imagegen.py`/`tts.py`) | Re-run `python scripts/validate.py <out_dir>` until exit 0 before calling `render.py` |
 | step 9 gate fails: `check_av.py` exits non-zero after full render | Read the issue (A/V drift / non-uniform clip rates) → fix the cause (clear `.clips/`, regenerate audio with ONE engine, re-render) | Re-run `python scripts/check_av.py <out_dir>` until exit 0 before delivering `out.mp4` |
+| `keyframe_qa.py` exits non-zero (BLANK page / canvas overflow) | Open `_keyframes/scene_NN.png` — BLANK → the reveal never fired (broken page / cue never resolves); OVERFLOW → shorten the text or split the beat | Re-run until exit 0; the centered-paragraph advisory never blocks |
+| Timed callout appears at the wrong moment / never appears | Check validate.py's cue warnings — the `cue` must be a phrase the narration says (with a non-edge voice the time is a text-position estimate); `at` ≥ 1.0 puts it exactly at clip end (invisible) | Set an explicit `at` fraction, or drop `cue`/`at` for a whole-slide highlight |
+| Reduced-motion render flagged as static / tools still assume zoom | Set `meta.reduced_motion: true` in the storyboard (the CLI flag isn't persisted) and STATE the mode when dispatching critic-av — static frames are correct there, not a defect | validate.py skips its zoom warnings when the meta flag is set |
 | Slide "shivers"/jitters during the zoom | zoompan runs supersampled (`meta.motion_ss`, default 2) then downscales; a `scale` filter must precede zoompan or the frame shrinks. Keep ss≥2 | Raise `motion_ss` to 3 (smoother, slower) |
 | Caption is one static line per slide | Captions auto-derive from `narration` — split into sentence chunks timed across the slide; a single full-span entry in `captions` is overridden by the narration track | For custom timing, supply a multi-segment `captions` array |
 | `render.py`: no Chrome for an `html` scene | `render_html` errors clearly; set `meta.chrome_path`, or switch those scenes to the free programmatic tier (title/chart/keypoints/compare) | Install Google Chrome, then re-render |

@@ -15,8 +15,8 @@ matplotlib.use("Agg")                       # deterministic, headless raster bac
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
 
-BG = (13, 17, 23)        # near-black, matches the caption aesthetic
-FG = (255, 255, 255)
+# (the old module-level BG/FG constants are gone — all renderers resolve colors through
+#  _scene_palette; _DARK_PALETTE below is the no-theme fallback)
 
 def _chrome_bin(meta):
     """Locate a Chrome/Chromium binary (shared with doctor.py via _common.find_chrome)."""
@@ -94,13 +94,22 @@ def _hex_rgb(s):
         s = "".join(c * 2 for c in s)
     return tuple(int(s[i:i+2], 16) for i in (0, 2, 4))
 
+def _on_fill(hex_color):
+    """Text color for a colored FILL (segment/bar): near-black or white, whichever has the higher
+    true WCAG contrast — same argmax theme.py uses for --on-accent."""
+    import theme as _theme
+    rgb = _hex_rgb(hex_color)
+    return "#111111" if _theme._contrast((17, 17, 17), rgb) >= _theme._contrast((255, 255, 255), rgb) else "#ffffff"
+
 # C1 — ONE COLOR WORLD. The programmatic tier historically hardcoded a dark palette, so a
 # light-themed HTML deck would jarringly cut to a dark chart. _scene_palette parses the SAME
 # theme.css :root vars the HTML tier uses (from meta["_out"]) into a small dict; when no
 # theme.css exists (dark decks, unit tests) it returns the original dark constants byte-for-byte.
 _DARK_PALETTE = {
     "bg": "#0d1117", "surface": "#161b22", "fg": "#ffffff", "muted": "#c0c8d4",
-    "rule": "#3a4150", "accent": "#4C9BE8", "accent2": "#E8590C", "on_accent": "#ffffff",
+    # on_accent matches what theme.py's WCAG argmax derives for the default #4C9BE8 accent
+    # (near-black 6.4:1 vs white 2.9:1 — white fails even the 3:1 large-text bar).
+    "rule": "#3a4150", "accent": "#4C9BE8", "accent2": "#E8590C", "on_accent": "#111111",
 }
 _PAL_CACHE = {}
 
@@ -202,7 +211,9 @@ def render_title(props, meta, W, H, frames, workdir, index):
         layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         d = ImageDraw.Draw(layer)
         p = _prog(i, 0)
-        a = int(255 * p); dy = int((1 - p) * (H * 0.03))
+        a = int(255 * p)
+        # reduced motion: fade only — no rise (translate) on the title/rule
+        dy = 0 if meta.get("reduced_motion") else int((1 - p) * (H * 0.03))
         # accent rule above the title
         rule_y = int(H * 0.34) + dy
         d.rectangle([x, rule_y, x + int(W * 0.10), rule_y + max(3, int(H * 0.008))],
@@ -261,7 +272,9 @@ def render_keypoints(props, meta, W, H, frames, workdir, index):
             p = _prog(i, (k + 1) * stagger)
             if p <= 0:
                 continue
-            a = int(255 * p); dx = int((1 - p) * (W * 0.02))
+            a = int(255 * p)
+            # reduced motion: fade only — no slide-in (translate) on the rows
+            dx = 0 if meta.get("reduced_motion") else int((1 - p) * (W * 0.02))
             y = top + k * row_h
             mr = max(4, int(H * 0.018))
             d.rectangle([x - dx, y + int(row_h * 0.18), x - dx + mr, y + int(row_h * 0.18) + mr * 3],
@@ -433,8 +446,9 @@ def render_compare(props, meta, W, H, frames, workdir, index):
                 w = (v / total) * e
                 ax.barh([0], [w], left=[left], color=palette[k % len(palette)], height=0.5)
                 if w > 0.05:
+                    # label sits ON the segment fill — pick black/white by true contrast per segment
                     ax.text(left + w / 2, 0, f"{labels[k]}\n{v:g}", ha="center", va="center",
-                            color=c_fg, fontsize=13, fontfamily=famly)
+                            color=_on_fill(palette[k % len(palette)]), fontsize=13, fontfamily=famly)
                 left += w
             ax.set_xlim(0, 1); ax.set_ylim(-0.5, 0.5)
         fig.tight_layout(); fig.canvas.draw()

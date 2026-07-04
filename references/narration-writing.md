@@ -44,8 +44,10 @@ reads cleanly as a caption. Never put raw math or markup in narration (`g_{Gi}`,
 - One idea per sentence. Long sentences are harder to follow when heard.
 - Address the viewer as "you": "Notice how you can…", "Here you'll see…"
 - Expand every acronym on first use: "MRI — Magnetic Resonance Imaging".
-- Use explicit transitions to bridge slides: "Next, let's look at…", "Now that we've covered X, we can…", "Building on that idea…"
-- End each slide with a hook that pulls into the next: "In the next slide, you'll see how this applies in practice."
+- Carry momentum between beats by inherit→hook, not signposts: honor the beat's `continuity` note —
+  end on a question/tension the next line answers ("so what does that leave?"), and save explicit
+  connectives ("but here's the catch…") for the few REAL section seams. Never bolt "Next…" /
+  "In the next slide…" onto every beat — mechanical signposting is an AI-tell (see "Sound human").
 
 **Sound human, not AI** — this is what the audience feels first. Write like a sharp person
 explaining the topic, not a model generating text: **vary the sentence rhythm** (mix short and
