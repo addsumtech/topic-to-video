@@ -109,15 +109,26 @@ vehicle/event/figure, no embedded numbers — the facts live in the page text, n
 ## AI cover + per-page backgrounds ("look A" — the not-flat option)
 When the user picks AI backgrounds, generate a SMALL, coherent set (not one busy image per page —
 that fights the content) and place them faithfully:
+- **🔑 Make it about THE VIDEO'S TOPIC, not generic decoration.** "Generic broll" bounds the
+  *specifics* (no fabricated logos/text/named things) — it does NOT mean topic-neutral. Every cover
+  and texture must visually EVOKE THE SUBJECT of this video, derived from the comprehension brief:
+  a video about neural nets → abstract node/layer imagery; about coffee sourcing → beans/terraces;
+  about slide-design → blank slide panels & layout grids. **Litmus test:** hide the text — could a
+  viewer still tell what the video is about? If not, the image is decoration, not broll — rewrite
+  the motif. A pretty-but-unrelated "editorial paper texture / soft gradient" is a MISS.
 - **Cover (hero):** a full-bleed `.bg-photo` + graded `.scrim` on the opener (scene 1) and, mirrored,
-  the closer — an atmospheric, on-topic broll (e.g. "editorial paper texture, soft warm light, ink
-  wash in <accent> and <accent2>, minimal, no text, no logos"). Ken-Burns is fine on the hero.
+  the closer — an atmospheric, **on-topic** broll whose motif comes from the subject (e.g. for a talk
+  ON DATA PIPELINES: "abstract flowing conduits and nodes of light, warm <accent>/<accent2> palette,
+  soft depth, minimal, no text, no logos"). Blank/abstract surfaces keep it faithful; the SUBJECT
+  keeps it relevant. Ken-Burns is fine on the hero.
 - **Content pages:** 2–4 subtle textures **rotated** behind the content pages as `.bg-soft`
   (opacity ~.10–.14) + `.bg-soft-tint`, so every page reads "not flat" while staying legible and
-  coherent. Reuse the set; don't generate 12 unique busy images.
+  coherent. Reuse the set; don't generate 12 unique busy images. Keep the textures on-topic too
+  (a faint motif of the subject), just quieter than the cover.
 - **Generate:** `imagegen._generate_codex(prompt, out_path)` (Codex, no key) or
   `imagegen.generate(prompt, out_path, key)` (OpenAI key); cache under `.assets/`. Prompts are generic
-  **broll** — no logos, faces, named things, or in-image text; a background NEVER carries a fact.
+  **broll** — no logos, faces, named things, or in-image text — AND topically evocative of the video's
+  subject; a background NEVER carries a fact, but it should never look like it belongs to a different video.
 
 ## Soft AI backgrounds + glass cards (depth without clutter)
 To give a designed deck more depth, place a **generic, atmospheric AI image** (a `broll` —
@@ -136,8 +147,10 @@ covered. Keep it subtle — the image adds atmosphere, the text still carries ev
 - **Glass cards:** add `glass` to any `.card` so the backdrop shows through:
   `<div class="card glass">…</div>`. The translucency is an alpha fill (renders under the
   `--disable-gpu` screenshot path); the `backdrop-filter` blur is a bonus that may be ignored.
-- **Faithfulness:** the soft image is decorative `broll` only — generic/atmospheric, never a
-  specific vehicle/person/logo and never embedded text or numbers. Facts stay in the card text.
+- **Faithfulness + topicality:** the soft image is decorative `broll` only — generic/atmospheric,
+  never a specific vehicle/person/logo and never embedded text or numbers (facts stay in the card
+  text) — AND its motif must still evoke the VIDEO'S TOPIC (generic bounds the specifics, not the
+  subject). A backdrop that could sit behind any deck is a miss; tie the motif to the subject.
 - **Generate the images** with `imagegen` (the same provider as the rest of the tier): Codex
   (`imagegen._generate_codex(prompt, out_path)`, no key) when the `codex` CLI is present, else the
   OpenAI key path (`imagegen.generate(prompt, out_path, key)`); reference the cached file by

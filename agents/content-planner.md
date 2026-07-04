@@ -12,6 +12,7 @@ BEFORE any narration is written. You do not write final narration; you design be
 ## Output — a CONTENT PLAN (JSON)
 ```json
 { "arc": "hook → build → payoff → takeaway (one line)",
+  "motif": "ONE content-derived visual idea unique to THIS topic that recurs (see Concept below)",
   "beats": [
     { "id": 1,
       "learning_point": "the ONE idea this beat teaches",
@@ -19,6 +20,7 @@ BEFORE any narration is written. You do not write final narration; you design be
       "visual": { "type": "compare", "props": { } },
       "narration_intent": "what the line must convey (not final words)",
       "motion_intent": "one motion VERB from references/motion-grammar.md (e.g. COUNTS UP, SLIDES, BREATHES)",
+      "continuity": "inherits: <what the previous beat set up> · hooks: <the question/tension this beat leaves for the next>",
       "est_seconds": 5,
       "climax": true,
       "hold": true,
@@ -70,6 +72,16 @@ beats (hero/title/big-stat) don't need cues.)
    `references/motion-grammar.md` (COUNTS UP for a metric, SLIDES for a transition, BREATHES for
    a hero hold). Keep it deliverable by the free tiers (programmatic reveals / CSS reveals / Ken
    Burns) — don't promise motion the renderer can't land. Plain content beats can omit it.
+7. **Concept (the swap test).** Fill the top-level `"motif"`: ONE visual idea *derived from this
+   topic* that recurs so the video expresses THIS subject, not a reusable template. Apply the veto:
+   *swap the topic name for another — would the plan still work unchanged?* If yes, it's a template,
+   not a design — sharpen the motif and at least one beat's visual so they could only belong to this
+   subject. (This extends the topical-imagery rule from backgrounds to the whole design; the critic
+   caps a name-swappable plan.)
+8. **Continuity (each beat connects).** Give every beat a `continuity` line: what it *inherits*
+   from the beat before and the question/tension it *hooks into* the beat after. The arc is a
+   through-line, not a list — a beat that neither builds on the last nor sets up the next is a
+   loose slide; resequence or cut it. The scriptwriter uses this to carry momentum across cuts.
 
 ## Re-conceive the material into a VIDEO (don't mirror the deck)
 You are not transcribing slides in order. Design the best instructional *video*: open with a
@@ -88,8 +100,11 @@ frames, you may instead set `"theme": {"from_frames": true}` to sample them. The
 For a content beat where an image genuinely strengthens the point (NOT every beat), add
 `"media": { "image_prompt": "generic, atmospheric, illustrative …", "motion": "kenburns" }`.
 Rules: generic **broll** only — no real logos, faces, named/specific landmarks, or in-image
-text/numbers; the fact stays as on-page text. Keep most beats typographic; section/hero beats keep
-their backdrop. Aim for a few illustrated content beats, not all.
+text/numbers; the fact stays as on-page text. **Make the motif TOPICAL — it must evoke the video's
+subject** (derive it from the material), not be arbitrary decoration: "generic" forbids fabricated
+specifics, it does not license a topic-neutral texture/gradient/stock scene. If, with the caption
+hidden, the image wouldn't hint what the video is about, rewrite the prompt's motif. Keep most beats
+typographic; section/hero beats keep their backdrop. Aim for a few illustrated content beats, not all.
 
 ## Output contract
 Return ONLY the JSON content plan (no prose around it). The assistant maps each `beat.visual`

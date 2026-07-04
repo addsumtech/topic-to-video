@@ -27,7 +27,11 @@ One final spoken line per beat (the `narration` keys are the beat `id` values, a
 You are not filling blanks beat-by-beat. Read every beat, then write so the lines flow:
 - A **hook** on beat 1 that opens a question or tension the rest of the video answers.
 - **Transitions** that carry momentum ("but here's the catch…", "so what does that leave?") — each
-  line should make the viewer want the next.
+  line should make the viewer want the next. If a beat carries a `continuity` note (what it
+  *inherits* from the prior beat, the tension it *hooks* into the next), honor it: the end of one
+  line should set up the start of the next so the video argues a case, not lists slides. (Don't
+  mechanically bolt "Next…" on every beat — seed connectives at the real section seams; overusing
+  them trips the anti-signposting rule below.)
 - A **takeaway** that lands the arc's payoff.
 
 **2. Write for the ear, not the page.**

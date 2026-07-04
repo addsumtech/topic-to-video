@@ -44,15 +44,32 @@ TTS if the user gives an API key.
   exists (space-delimited languages), the burned caption highlights the word being spoken, timed to the
   real word times; falls back to line-level chunks for MiniMax/say and CJK. `meta.captions_karaoke`
   (`auto` default | `off`).
+  **Timed callouts:** a callout carrying a `cue` anchor phrase (or an explicit `at` 0..1 fraction)
+  appears at the moment its region is spoken — resolved via `cues` (edge word-times, else text-position
+  estimate) — and holds to the clip end (a vanishing highlight reads as a glitch); untimed callouts
+  show for the whole slide (unchanged). The Ken Burns camera is NOT re-aimed mid-clip. Off by default.
 - `scripts/cues.py` — pure anchor→cue-time resolver: reads per-scene `audio/NN.words.json` (edge-tts per-word timings) and resolves each `data-cue` anchor phrase to an absolute timestamp, used by `render_html` for audio-synced HTML reveals.
 - `scripts/check_av.py <out_dir>` — deterministic A/V gate: probes `out.mp4` video-vs-audio duration + per-clip sample-rate uniformity across `.clips/`; exits non-zero on A/V drift above tolerance (0.3 s) or non-uniform rates. Run AFTER the full render (step 9) as a gate before delivery.
 - `scripts/doctor.py [--json]` — environment preflight: reports which tools/libraries are present (ffmpeg/ffprobe/PIL required; PyMuPDF/python-pptx/edge-tts/soffice/Chrome/font optional) and, for each missing one, the stage it gates + the install hint. Exits non-zero only when a REQUIRED dep is missing. Run once at the START (step 1).
 - `scripts/validate.py <out_dir> [--pre-tts] [--vertical] [--json]` — deterministic PRE-render gate on `storyboard.json` (runs in ~1s): structural contract, duplicate indices, every referenced image/audio/html-page/`file://` asset + `theme.css` exists on disk, caption craft (no wall of text, no widow, ≥0.7s on screen — see `references/captions.md`), motion sanity (zoom delta + zoom-past-1.25 + callout-framing — see `references/motion-grammar.md`), per-point reveal↔voice alignment (each point spoken-% vs shown-% → leads/lags warning, cued or paced), CJK-font/cue/pacing/anti-slop warnings. Exits non-zero on any ERROR. Run BEFORE every render (step 9); `--pre-tts` validates right after authoring (skips audio checks); `--vertical` mirrors render's 9:16 canvas (also auto from `meta.aspect`). Errors block; warnings don't.
+- `scripts/keyframe_qa.py <out_dir> [--p N] [--json]` — cheap PRE-render VISUAL QA for the HTML tier:
+  screenshots every `html` page at N `?p=` values, montages per-scene + a master contact sheet under
+  `<out_dir>/_keyframes/` (open `all.png` to eyeball tofu / off-theme / mistimed reveals), and — via
+  CDP DOM measurement — flags any BLANK page (a reveal that never fired) or content OVERFLOWING the
+  1920×1080 canvas (full-bleed backdrops are correctly ignored). Exits non-zero on a blank/overflow.
+  Run after authoring the pages, BEFORE the full render — a ~1-minute catch of the exact failures that
+  would otherwise silently ship in a multi-minute render. (No CDP → screenshots + blank-check only.)
 - `scripts/scenes.py` — deterministic ANIMATED scene renderers (no slides): `title`/`keypoints`
   (PIL), `chart`/`timeline`/`compare` (matplotlib), `html` (headless Chrome). A storyboard scene
   with `type` `title`/`keypoints`/`chart`/`timeline`/`compare`/`html` (+ a typed `props` block)
   renders an animation instead of a slide image; `type` defaults to `slide` (unchanged). Animated
-  scenes render ONLY their `props` (faithful by construction).
+  scenes render ONLY their `props` (faithful by construction). **Theme-aware palette:** the
+  programmatic renderers read the SAME `theme.css` semantic vars the HTML tier uses (via `meta._out`),
+  so charts/titles/timelines match a light-or-dark deck instead of always rendering dark — one color
+  world across both tiers; falls back to the dark palette when no `theme.css`. **Type contrast:**
+  editorial roles (title/kicker) use a bundled serif, data/labels stay sans/mono. **Key-number
+  landing:** a `counter`/hero-stat scene flagged `props.climax:true` reaches its final value at ~68%
+  then holds it static (no overshoot) so the key figure registers.
 - **HTML pages tier** (optional, free): `scenes.py:render_html` screenshots bespoke designed
   HTML pages (authored on `assets/html/base.css`, see `references/html-pages.md`) via headless
   **Google Chrome** — no new dependency. Each page's paused CSS reveals are captured frame-by-frame.
@@ -109,7 +126,13 @@ TTS if the user gives an API key.
      look. Generated **via the `codex` CLI when present — NO key, uses the user's Codex plan** (slower,
      ~min/image); else the OpenAI key (`OPENAI_API_KEY` / `~/.openai_key`). Imagery is **generic broll**
      — no logos, faces, named things, or in-image text; it NEVER carries a fact (real content stays as
-     text/charts). Ask a **style** (editorial · watercolor/ink · cinematic · photoreal · 3D · minimal ·
+     text/charts). **BUT generic ≠ topic-neutral: every generated cover/background MUST visually evoke
+     the VIDEO'S OWN SUBJECT**, not arbitrary decoration. "Generic" bounds the *specificity of claims*
+     (no fabricated logos/text/named things), not the *subject matter* — a video about database indexes
+     gets abstract index/lookup imagery, a talk on coral reefs gets reef imagery, a deck about slide
+     design gets blank slide panels / layout grids. A pretty-but-unrelated texture (random paper, generic
+     gradient, stock desk) is a MISS — derive the prompt's motif from the video's topic + the comprehension
+     brief. Ask a **style** (editorial · watercolor/ink · cinematic · photoreal · 3D · minimal ·
      free-text). If using the OpenAI-key path, request the key **out-of-band** (env / `~/.openai_key`,
      not pasted); the Codex path needs none.
    - **(B) Flat / clean** — the **free default**: the theme's flat surfaces, no API, no cost, no Codex
@@ -190,6 +213,11 @@ TTS if the user gives an API key.
     VISUAL/conceptual scene, author a grounded `image_prompt` from the narration + the chosen
     style, tagged `image_tag:"broll"` and `fit:"cover"`; keep DATA in `chart` scenes (never AI).
     Generic/atmospheric prompts only — no real logos, faces, named vehicles, or text in-image.
+    **Topical, not decorative:** the prompt's central motif MUST come from the VIDEO'S subject
+    (derive it from the comprehension brief), so the image reads as "about this topic" — generic
+    bounds the specifics (no fabricated logos/text), it does NOT license a topic-neutral texture.
+    Litmus test before you generate: *"remove the caption — would a viewer still sense what this
+    video is about from the image alone?"* If no, rewrite the motif to evoke the subject.
     **Pace the cuts:** a static AI image drags even with Ken Burns — keep each image scene's
     narration short so it holds only ~5–8s, and prefer MORE, SHORTER b-roll cuts over a few
     long holds (a 12s hold on one frame reads as sluggish; two 6s cuts feel alive).
@@ -224,6 +252,10 @@ TTS if the user gives an API key.
    box over a dark slide reads as a muddy coloured blob; the slide already shows the content.
    Add a callout ONLY if the user explicitly asks to emphasise a named region — then exactly
    one, tightly placed on that region, and confirm its position from the rendered sample.
+   **Timed callout (opt-in):** to sync the highlight with the narration, give the callout a
+   `cue` (a phrase the narration says) — it appears when that phrase is spoken and holds to the
+   clip end — or an explicit `at` (0..1 fraction) override. Leave both off for a whole-slide
+   highlight. `validate.py` warns if a `cue` isn't found in the narration or lands past ~85%.
 7. **TTS** — optionally first catch structural problems early with
    `python scripts/validate.py <out_dir> --pre-tts` (skips the audio checks, so it's safe to run
    before synth): a missing image/page/asset or a wall-of-text caption is cheaper to fix now than
@@ -245,7 +277,11 @@ TTS if the user gives an API key.
 9. **Full render** — first the PRE-render gate: `python scripts/validate.py <out_dir>`. A
    non-zero exit means a referenced image/audio/page/asset is missing, an index is duplicated,
    `theme.css` is absent, or a caption is a wall of text — fix every ERROR before rendering (it
-   catches in ~1s what would otherwise waste a multi-minute render); skim the warnings too. Then
+   catches in ~1s what would otherwise waste a multi-minute render); skim the warnings too.
+   **For an HTML-tier deck, also run `python scripts/keyframe_qa.py <out_dir>`** — it screenshots
+   every page at several reveal states into `<out_dir>/_keyframes/` and flags any BLANK page or
+   content overflowing the 1080 canvas (open `_keyframes/all.png` and eyeball for tofu / off-theme /
+   mistimed reveals). Fix any FAIL before the full render — cheaper than finding it in `out.mp4`. Then
    `render.py <out_dir>` (for 9:16 set `meta.aspect:"9:16"` — render and validate both honor it;
    the `--vertical` flag also forces it on both), and the POST-render A/V gate:
    `python scripts/check_av.py <out_dir>`. A non-zero exit means A/V drift or non-uniform clip
@@ -277,6 +313,10 @@ TTS if the user gives an API key.
   among the PROGRAMMATIC types (`html` scenes are exempt — vary those by **form family**, not type).
 - **Layout diversity (HTML tier):** no single form family (cards/flow/scorecard/quadrant/hubspoke/
   blocks/timeline/compare) above ~45% of html scenes — `validate.py` warns, `critic-content` R8 fails it.
+- **Concept + continuity (critic R8):** the video must express THIS topic — the plan carries a
+  content-derived `motif`; a **name-swappable** design (swap the topic → still works) is a template,
+  not a design, and gets revised. And beats must **connect** (each `continuity`: inherits from the
+  prior, hooks into the next) so the video argues a case rather than listing slides.
 - **Audio-synced reveals (HTML tier) — content must not lead the voice.** Make multi-point pages
   audio-synced by DEFAULT: tag each point `data-cue-index="N"` (spoken order) + `data-cue="<spoken
   anchor>"` (a phrase the narration says); the content-planner emits a per-beat `cue` array for this.
@@ -332,7 +372,11 @@ Every on-screen visual is one of three classes; `critic-content` (R1e) enforces 
 - **`motif`** — a generic programmatic vector. Always allowed; asserts no fact.
 - **`broll`** — a generic illustrative image, including an AI-generated one (`image_prompt`).
   Allowed ONLY as generic/atmospheric backdrop — no real logos, faces, named vehicles, or
-  in-image text, and it must not sit as "evidence" beside a specific factual claim.
+  in-image text, and it must not sit as "evidence" beside a specific factual claim. **It must
+  also be TOPICALLY RELEVANT to the video** — its motif evokes the subject (the "generic" rule
+  forbids fabricated *specifics*, not the subject itself). Topic-neutral filler (random paper,
+  a generic gradient, an unrelated stock scene) is a defect even though it is "faithful"; the
+  imagery should look like it belongs to *this* video, not any video.
 - **`asserted`** — imagery standing in for a specific named vehicle/mission/person/event/figure.
   For an AI image this is FABRICATION (the model invents it) and is NOT allowed.
 DATA always stays in faithful `chart` scenes — never render numbers/figures as an AI image.

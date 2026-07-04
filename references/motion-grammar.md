@@ -70,6 +70,17 @@ default `[0.5, 0.5]` or pans somewhere else entirely (the highlight and the push
 disagree). Either move `to` toward the callout, or — for a deliberately static frame —
 drop the callout.
 
+**Timed callout (`cue` / `at`) — sync the highlight to the voice.** A callout is shown for
+the whole slide by default. To make it *appear* at the moment its region is spoken, add a
+`cue` — an anchor phrase the narration actually says (`"cue": "the second peak"`); the
+renderer resolves its spoken time (edge word-timings when present, else the text-position
+estimate) and the highlight fades in there and **holds to the clip end** (a highlight that
+vanishes mid-clip reads as a glitch). Use `at` (a `0..1` fraction of the clip) to override the
+time manually. This is a **timed appearance only — the camera is NOT re-aimed mid-clip** (a
+mid-shot pan toward a late highlight lurches; keep the single motivated settle above). Keep it
+off by default and one callout per slide. `validate.py` warns when a `cue` isn't found in the
+narration (can't be timed) or resolves past ~85% of the line (appears too late to help).
+
 ---
 
 ## Motion verbs (shared vocabulary)

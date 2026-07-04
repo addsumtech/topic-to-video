@@ -189,6 +189,30 @@ def _load_words(out_dir, index):
     except (OSError, ValueError, TypeError):
         return None
 
+def _callout_time(slide, meta, co, dur, out_dir):
+    """C3 — absolute appearance time (seconds) for a TIMED callout: an explicit `at` fraction
+    (0..1) wins; else resolve its `cue` anchor phrase against the narration via edge word-timings
+    (audio/NN.words.json) or, lacking those, the text-position estimate (same paths the HTML
+    reveals use). Returns 0.0 for an untimed callout (shows for the whole slide, as before)."""
+    if "at" in co:
+        try:
+            return max(0.0, min(float(dur), float(co["at"]) * float(dur)))
+        except (TypeError, ValueError):
+            return 0.0
+    anchor = co.get("cue")
+    if not anchor:
+        return 0.0
+    import cues as _cues
+    words = _load_words(out_dir, slide.get("index") or 0)
+    try:
+        if words:
+            times = _cues.resolve_cues(words, [anchor])
+        else:
+            times = _cues.estimate_cues_from_text([anchor], slide.get("narration") or "", float(dur))
+        return max(0.0, min(float(dur), float(times[0]))) if times else 0.0
+    except Exception:
+        return 0.0
+
 def _caption_karaoke_segs(slide, meta, out_dir):
     """Per-WORD caption overlays (active word highlighted), timed by the real edge-tts word times.
     Each caption CHUNK's on-screen window and its words come straight from words.json, so the
@@ -457,10 +481,25 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
     extra_inputs = []
     n_in = 2                                        # 0=frame(loop), 1=audio
     if slide.get("callouts"):
-        co_png = os.path.join(workdir, f"co_{i:02d}.png")
-        _callout_layer(slide.get("callouts"), W, H, co_png, meta)
-        extra_inputs += ["-i", co_png]
-        parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0[v{n_in}]"); vlabel = f"v{n_in}"; n_in += 1
+        cos = slide["callouts"]
+        # C3 — a callout with `cue`/`at` is TIMED: it appears when its region is spoken and holds
+        # to the clip end (a vanishing highlight reads as a glitch). Untimed callouts stay on one
+        # shared static layer (unchanged). The Ken Burns camera is NOT re-aimed mid-clip.
+        static_cos = [c for c in cos if not c.get("cue") and "at" not in c]
+        timed_cos = [c for c in cos if c.get("cue") or "at" in c]
+        if static_cos:
+            co_png = os.path.join(workdir, f"co_{i:02d}.png")
+            _callout_layer(static_cos, W, H, co_png, meta)
+            extra_inputs += ["-i", co_png]
+            parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0[v{n_in}]"); vlabel = f"v{n_in}"; n_in += 1
+        for j, co in enumerate(timed_cos):
+            t0 = _callout_time(slide, meta, co, dur, meta["_out"])
+            tco_png = os.path.join(workdir, f"tco_{i:02d}_{j:02d}.png")
+            _callout_layer([co], W, H, tco_png, meta)
+            extra_inputs += ["-i", tco_png]
+            en = f"between(t,{t0:.3f},{dur})"
+            parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
+            vlabel = f"v{n_in}"; n_in += 1
     if burn_captions:
         segs = _caption_karaoke_segs(slide, meta, meta["_out"]) or _captions_for(slide)
         for k, seg in enumerate(segs):

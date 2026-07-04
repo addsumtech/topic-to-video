@@ -607,3 +607,48 @@ def test_seekjs_cue_override_gates_reveals(tmp_path):
     scenes._chrome_shot(f"file://{page}?cues=0.2,2.0&dur=4&p=0.6", str(late), 960, 540, {})
     from PIL import Image
     assert Image.open(early).convert("RGB").tobytes() != Image.open(late).convert("RGB").tobytes()
+
+
+# ── C1: one color world (theme.css palette reaches the programmatic tier) ─────────────
+def test_scene_palette_dark_fallback():
+    p = scenes._scene_palette({})                     # no _out -> original dark constants
+    assert p["bg"] == "#0d1117" and p["fg"] == "#ffffff" and p["accent"] == "#4C9BE8"
+
+def test_scene_palette_parses_theme_css_and_resolves_var(tmp_path):
+    (tmp_path / "theme.css").write_text(
+        ":root{--bg:#f5f3ee;--surface:#e8e6e1;--fg:#161412;--muted:#74726e;"
+        "--accent:#0b6e99;--accent2:#c1472e;--rule:var(--accent2);}")
+    scenes._PAL_CACHE.clear()
+    p = scenes._scene_palette({"_out": str(tmp_path)})
+    assert p["bg"] == "#f5f3ee" and p["fg"] == "#161412"
+    assert p["accent"] == "#0b6e99" and p["rule"] == "#c1472e"   # var(--accent2) resolved
+
+def test_title_uses_light_theme_bg(tmp_path):
+    (tmp_path / "theme.css").write_text(":root{--bg:#f5f3ee;--fg:#161412;--accent:#0b6e99;}")
+    scenes._PAL_CACHE.clear()
+    pat = scenes.render_title({"title": "Light"}, {"fps": 30, "language": "en", "_out": str(tmp_path)},
+                              640, 360, 3, str(tmp_path), 1)
+    r, g, b = Image.open(pat % 2).convert("RGB").getpixel((5, 5))
+    assert r > 220 and g > 210 and b > 200            # background is the light paper, not dark
+
+# ── C7: climax counter holds the final value static (no overshoot) ───────────────────
+def test_counter_climax_holds_final_static(tmp_path):
+    props = {"kind": "counter", "climax": True, "data": [{"label": "x", "value": 100}]}
+    pat = scenes.render_chart(props, META, 640, 360, 30, str(tmp_path), 1)
+    assert _pix(pat % 25) == _pix(pat % 29)           # value landed before the end, then held static
+
+def test_counter_nonclimax_still_counting_at_end(tmp_path):
+    props = {"kind": "counter", "data": [{"label": "x", "value": 100}]}
+    pat = scenes.render_chart(props, META, 640, 360, 30, str(tmp_path), 2)
+    assert _pix(pat % 25) != _pix(pat % 29)           # no hold: still easing up to the final value
+
+# ── C8: serif for editorial roles, sans for data ─────────────────────────────────────
+def test_serif_path_latin_is_bundled_serif():
+    p = scenes._serif_path({}, "Headline")
+    assert p and p.endswith("DejaVuSerif.ttf") and os.path.exists(p)
+
+def test_serif_and_sans_roles_differ():
+    serif = scenes._font(META, "Title", 40, role="serif")
+    sans = scenes._font(META, "Title", 40, role="sans")
+    assert getattr(serif, "path", "").endswith("DejaVuSerif.ttf")
+    assert getattr(sans, "path", "") != getattr(serif, "path", "")

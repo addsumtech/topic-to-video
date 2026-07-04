@@ -290,3 +290,19 @@ def test_mixed_samplerate_audio_stays_in_sync(tmp_path):
         "-show_entries", "stream=duration", "-of", "default=nw=1:nk=1", mp4]).strip())
     vdur, adur = probe("v:0"), probe("a:0")
     assert abs(vdur - adur) < 0.3, f"A/V drift: video {vdur:.2f}s vs audio {adur:.2f}s"
+
+
+# ── C3: timed callouts (appear when their region is spoken) ───────────────────────────
+def test_callout_time_at_fraction():
+    co = {"box": [0.1, 0.1, 0.3, 0.3], "at": 0.5}
+    assert render._callout_time({"index": 1}, {}, co, 10.0, "/nonexistent") == 5.0
+
+def test_callout_time_cue_estimated_from_text():
+    slide = {"index": 1, "narration": "First the left side. Then the crucial region on the right."}
+    co = {"box": [0.5, 0.1, 0.9, 0.5], "cue": "crucial region"}
+    t = render._callout_time(slide, {}, co, 10.0, "/nonexistent")
+    assert 3.0 < t < 10.0                              # lands in the latter part, when spoken
+
+def test_callout_time_untimed_is_zero():
+    slide = {"index": 1, "narration": "Anything at all."}
+    assert render._callout_time(slide, {}, {"box": [0, 0, 1, 1]}, 10.0, "/nonexistent") == 0.0

@@ -84,6 +84,12 @@ a programmatic motif. Classes (see SKILL.md "Imagery faithfulness"):
   real vehicle/mission/person/company logo/insignia or embeds factual text/numbers, or if the image sits
   beside a specific claim implying it depicts that fact (it doesn't — the model invented it). Relabel as
   generic or move the claim to a faithful element (chart/caption).
+- **Topical relevance (broll must be ON-SUBJECT).** A generated cover/background/`media` image must
+  visually EVOKE THE VIDEO'S TOPIC — "generic" bounds the *specifics* (no fabricated logos/text/named
+  things), it does NOT permit topic-neutral filler. **FAIL** a broll whose motif is unrelated decoration
+  (random paper texture, a generic gradient, an unrelated stock scene) even though it is otherwise
+  "faithful". Test: with the caption hidden, could a viewer sense what the video is about from the image?
+  If no, require the prompt's motif be rewritten to draw on the subject (from the comprehension brief).
 - `asserted` AI imagery → **FAIL** (R0-class misattribution; a generated image is not the real thing).
 - **FAIL** if data/numbers are rendered as an AI image instead of a faithful `chart`.
 - Cross-ref R1d (animated on-screen values). When `meta.image_source == "openai"`, scan every scene's
@@ -134,6 +140,15 @@ Check, per scene:
 Note: R5/R6 apply to `slide` scenes only — skip for animated scenes (`type` ≠ `slide`).
 
 ### R8 — Visual variety + anti-slop
+- **Concept veto (the swap test) — REVISE a name-swappable video.** Apply the test: mentally swap the
+  topic for an unrelated one — does the plan (arc, motif, at least one signature visual) still work
+  unchanged? If yes, it's a template, not a design: **REVISE** and require at least ONE content-derived
+  motif/visual that could only belong to THIS subject (the plan's top-level `motif`). A polished deck
+  that expresses no specific subject fails "better content representation" even if every beat is clean.
+- **Continuity — REVISE loose, disconnected beats.** The video should argue a case, not list slides.
+  **REVISE** when beats don't connect — a beat that neither builds on the previous nor sets up the next
+  (check each beat's `continuity`/narration for an inherit→hook through-line). Momentum across cuts is
+  what separates a coherent explainer from a deck read aloud.
 - **REVISE** if more than **2 consecutive beats** share the same `visual.type` **among the PROGRAMMATIC
   types** (`title`/`chart`/`keypoints`/`compare`/`timeline`) — a repetitive rhythm kills engagement.
   **`html` beats are EXEMPT** from this run rule: an all-`html` "designed deck" is recommended, so a run

@@ -2,6 +2,7 @@
 Each renderer is a PURE function of the frame index; no randomness, no wall-clock.
 Frames are namespaced by scene index because the full render shares one workdir."""
 import os
+import re
 import shutil
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -93,15 +94,78 @@ def _hex_rgb(s):
         s = "".join(c * 2 for c in s)
     return tuple(int(s[i:i+2], 16) for i in (0, 2, 4))
 
+# C1 — ONE COLOR WORLD. The programmatic tier historically hardcoded a dark palette, so a
+# light-themed HTML deck would jarringly cut to a dark chart. _scene_palette parses the SAME
+# theme.css :root vars the HTML tier uses (from meta["_out"]) into a small dict; when no
+# theme.css exists (dark decks, unit tests) it returns the original dark constants byte-for-byte.
+_DARK_PALETTE = {
+    "bg": "#0d1117", "surface": "#161b22", "fg": "#ffffff", "muted": "#c0c8d4",
+    "rule": "#3a4150", "accent": "#4C9BE8", "accent2": "#E8590C", "on_accent": "#ffffff",
+}
+_PAL_CACHE = {}
+
+def _scene_palette(meta):
+    """Parse <out_dir>/theme.css :root semantic vars into an RGB-hex palette dict, resolving
+    var(--x) references; fall back to the dark constants when theme.css is absent."""
+    out = (meta or {}).get("_out") or ""
+    if out in _PAL_CACHE:
+        return _PAL_CACHE[out]
+    pal = dict(_DARK_PALETTE)
+    try:
+        css = open(os.path.join(out, "theme.css")).read()
+        raw = dict(re.findall(r"--([a-z0-9-]+)\s*:\s*([^;]+);", css))
+
+        def resolve(v, depth=0):
+            v = (v or "").strip()
+            m = re.match(r"var\(--([a-z0-9-]+)\)", v)
+            if m and depth < 6:
+                return resolve(raw.get(m.group(1), ""), depth + 1)
+            return v if v.startswith("#") else None
+
+        for css_name, key in [("bg", "bg"), ("surface", "surface"), ("fg", "fg"),
+                              ("muted", "muted"), ("rule", "rule"), ("accent", "accent"),
+                              ("accent2", "accent2"), ("on-accent", "on_accent")]:
+            if css_name in raw:
+                hexv = resolve(raw[css_name])
+                if hexv:
+                    pal[key] = hexv
+    except Exception:
+        pass
+    _PAL_CACHE[out] = pal
+    return pal
+
 def _save_frames(draw_fn, frames, workdir, index):
     pat = os.path.join(workdir, f"scene_{index:02d}_%04d.png")
     for i in range(frames):
         draw_fn(i, frames).save(pat % i)
     return pat
 
-def _font(meta, text, size):
+# C8 — serif/sans type contrast. Editorial roles (title/kicker) get a serif; data/UI roles
+# (stats, labels, axes) stay sans/mono. Bundled DejaVuSerif alongside DejaVuSans (same license).
+BUNDLED_SERIF = os.path.join(os.path.dirname(render.BUNDLED_FONT), "DejaVuSerif.ttf")
+_CJK_SERIF = [
+    "/System/Library/Fonts/Supplemental/Songti.ttc", "/System/Library/Fonts/Songti.ttc",
+    "/System/Library/Fonts/Supplemental/Hiragino Mincho ProN.ttc",
+    "/System/Library/Fonts/AppleMyungjo.ttf",
+]
+
+def _serif_path(meta, text):
+    """A serif for the given text: a system CJK serif for CJK text, else the bundled Latin serif;
+    return None to signal 'no serif available' so the caller falls back to the sans resolver."""
+    script = render._script_of(text or "", (meta or {}).get("language", "auto"))
+    if script != "latin":
+        for p in _CJK_SERIF:
+            if os.path.exists(p):
+                return p
+        return None                       # let render._font_path pick the CJK sans (no tofu)
+    return BUNDLED_SERIF if os.path.exists(BUNDLED_SERIF) else None
+
+def _font(meta, text, size, role="sans"):
+    path = None
+    if role == "serif" and not (meta or {}).get("font"):   # an explicit meta.font wins for all roles
+        path = _serif_path(meta, text)
     try:
-        return ImageFont.truetype(render._font_path(meta, text), size)
+        return ImageFont.truetype(path or render._font_path(meta, text), size)
     except Exception:
         return ImageFont.load_default()
 
@@ -109,11 +173,13 @@ def render_title(props, meta, W, H, frames, workdir, index):
     title = props.get("title", "")
     subtitle = props.get("subtitle")
     kicker = props.get("kicker")
-    accent = _hex_rgb(props.get("accent"))
+    pal = _scene_palette(meta)
+    accent = _hex_rgb(props.get("accent") or pal["accent"])
+    bg = _hex_rgb(pal["bg"]); fg = _hex_rgb(pal["fg"]); muted = _hex_rgb(pal["muted"])
     fps = meta.get("fps", 30)
     intro = max(1, int(0.8 * fps))                  # title fades/rises over ~0.8s
     sub_delay = max(1, int(0.35 * fps))
-    tfont = _font(meta, title, int(H * 0.085))
+    tfont = _font(meta, title, int(H * 0.085), role="serif")   # editorial headline
     sfont = _font(meta, subtitle or " ", int(H * 0.040))
     kfont = _font(meta, kicker or " ", int(H * 0.028))
     x = int(W * 0.08)
@@ -124,7 +190,7 @@ def render_title(props, meta, W, H, frames, workdir, index):
         return _ease((i - delay) / max(1, min(intro, frames - 1)))
 
     def draw(i, n):
-        base = Image.new("RGBA", (W, H), BG + (255,))
+        base = Image.new("RGBA", (W, H), bg + (255,))
         layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         d = ImageDraw.Draw(layer)
         p = _prog(i, 0)
@@ -133,15 +199,15 @@ def render_title(props, meta, W, H, frames, workdir, index):
         rule_y = int(H * 0.34) + dy
         d.rectangle([x, rule_y, x + int(W * 0.10), rule_y + max(3, int(H * 0.008))],
                     fill=accent + (a,))
-        d.text((x, int(H * 0.40) + dy), title, font=tfont, fill=FG + (a,))
+        d.text((x, int(H * 0.40) + dy), title, font=tfont, fill=fg + (a,))
         if subtitle:
             p2 = _prog(i, sub_delay)
             d.text((x, int(H * 0.56)), subtitle, font=sfont,
-                   fill=(180, 190, 205, int(255 * p2)))
+                   fill=muted + (int(255 * p2),))
         if kicker:
             p3 = _prog(i, 2 * sub_delay)
             d.text((x, int(H * 0.72)), kicker, font=kfont,
-                   fill=(140, 150, 165, int(255 * p3)))
+                   fill=muted + (int(255 * p3),))
         return Image.alpha_composite(base, layer).convert("RGB")
 
     return _save_frames(draw, frames, workdir, index)
@@ -151,7 +217,9 @@ def render_keypoints(props, meta, W, H, frames, workdir, index):
     """Conceptual beat -> kinetic labeled points that reveal one-by-one. PURE; renders only props."""
     title = props.get("title")
     points = props.get("points", [])
-    accent = _hex_rgb(props.get("accent"))
+    pal = _scene_palette(meta)
+    accent = _hex_rgb(props.get("accent") or pal["accent"])
+    bg = _hex_rgb(pal["bg"]); fg = _hex_rgb(pal["fg"]); muted = _hex_rgb(pal["muted"])
     fps = meta.get("fps", 30)
     intro = max(1, int(0.5 * fps))                  # each row fades/slides in over ~0.5s
     # SPREAD the row reveals across the scene (track the speaking pace) instead of cramming them into
@@ -163,7 +231,7 @@ def render_keypoints(props, meta, W, H, frames, workdir, index):
     # Resolve fonts from the ACTUAL text that will be drawn (a Latin stand-in would tofu CJK).
     lbl_sample = "".join(str(p.get("label", "")) for p in points) or "x"
     sub_sample = "".join(str(p.get("sub", "")) for p in points) or "x"
-    tfont = _font(meta, title or " ", int(H * 0.058))
+    tfont = _font(meta, title or " ", int(H * 0.058), role="serif")   # editorial headline
     lfont = _font(meta, lbl_sample, int(H * 0.050))
     sfont = _font(meta, sub_sample, int(H * 0.030))
     top = int(H * 0.30) if title else int(H * 0.24)
@@ -175,12 +243,12 @@ def render_keypoints(props, meta, W, H, frames, workdir, index):
         return _ease((i - delay) / max(1, min(intro, frames - 1)))
 
     def draw(i, n):
-        base = Image.new("RGBA", (W, H), BG + (255,))
+        base = Image.new("RGBA", (W, H), bg + (255,))
         layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         d = ImageDraw.Draw(layer)
         if title:
             a0 = int(255 * _prog(i, 0))
-            d.text((x, int(H * 0.15)), title, font=tfont, fill=FG + (a0,))
+            d.text((x, int(H * 0.15)), title, font=tfont, fill=fg + (a0,))
         for k, pnt in enumerate(points):
             p = _prog(i, (k + 1) * stagger)
             if p <= 0:
@@ -191,10 +259,10 @@ def render_keypoints(props, meta, W, H, frames, workdir, index):
             d.rectangle([x - dx, y + int(row_h * 0.18), x - dx + mr, y + int(row_h * 0.18) + mr * 3],
                         fill=accent + (a,))
             lx = x - dx + mr + int(W * 0.018)
-            d.text((lx, y), str(pnt.get("label", "")), font=lfont, fill=FG + (a,))
+            d.text((lx, y), str(pnt.get("label", "")), font=lfont, fill=fg + (a,))
             if pnt.get("sub"):
                 d.text((lx, y + int(row_h * 0.52)), str(pnt["sub"]), font=sfont,
-                       fill=(150, 160, 175, a))
+                       fill=muted + (a,))
         return Image.alpha_composite(base, layer).convert("RGB")
 
     return _save_frames(draw, frames, workdir, index)
@@ -229,24 +297,26 @@ def render_timeline(props, meta, W, H, frames, workdir, index):
     title = props.get("title")
     famly = _mpl_font(meta)
     dpi = 100; figsize = (W / dpi, H / dpi)
-    accent = props.get("accent", "#4C9BE8")
+    pal = _scene_palette(meta)
+    accent = props.get("accent") or pal["accent"]
+    c_bg, c_fg, c_muted, c_rule = pal["bg"], pal["fg"], pal["muted"], pal["rule"]
     n_ev = len(events)
     xs = list(range(n_ev))
 
     def draw(i, n):
         vis = _visible_count(n_ev, i / max(1, n - 1) if n > 1 else 1.0)
-        fig = plt.figure(figsize=figsize, dpi=dpi); fig.patch.set_facecolor("#0d1117")
-        ax = fig.add_subplot(111); ax.set_facecolor("#0d1117"); ax.axis("off")
+        fig = plt.figure(figsize=figsize, dpi=dpi); fig.patch.set_facecolor(c_bg)
+        ax = fig.add_subplot(111); ax.set_facecolor(c_bg); ax.axis("off")
         if title:
-            ax.set_title(title, color="white", fontsize=18, fontfamily=famly, pad=16)
+            ax.set_title(title, color=c_fg, fontsize=18, fontfamily=famly, pad=16)
         if n_ev:
-            ax.plot([-0.3, n_ev - 0.7], [0, 0], color="#3a4150", linewidth=2)
+            ax.plot([-0.3, n_ev - 0.7], [0, 0], color=c_rule, linewidth=2)
             for j in range(vis):
                 ax.scatter([xs[j]], [0], s=120, color=accent, zorder=3)
                 ax.text(xs[j], 0.12, events[j].get("date", ""), ha="center",
-                        color="#c0c8d4", fontsize=12, fontfamily=famly)
+                        color=c_muted, fontsize=12, fontfamily=famly)
                 ax.text(xs[j], -0.18, events[j].get("label", ""), ha="center",
-                        color="white", fontsize=14, fontfamily=famly)
+                        color=c_fg, fontsize=14, fontfamily=famly)
             ax.set_xlim(-0.6, n_ev - 0.4); ax.set_ylim(-0.5, 0.5)
         fig.tight_layout()
         fig.canvas.draw()
@@ -268,22 +338,31 @@ def render_chart(props, meta, W, H, frames, workdir, index):
     famly = _mpl_font(meta)
     dpi = 100
     figsize = (W / dpi, H / dpi)
-    accent = props.get("accent", "#4C9BE8")
+    pal = _scene_palette(meta)
+    accent = props.get("accent") or pal["accent"]
+    c_bg, c_fg, c_muted, c_rule = pal["bg"], pal["fg"], pal["muted"], pal["rule"]
+    climax = bool(props.get("climax"))
 
     def draw(i, n):
-        cur = _chart_values(values, i / max(1, n - 1) if n > 1 else 1.0)
+        p_raw = i / max(1, n - 1) if n > 1 else 1.0
+        cur = _chart_values(values, p_raw)
         fig = plt.figure(figsize=figsize, dpi=dpi)
-        fig.patch.set_facecolor("#0d1117")
-        ax = fig.add_subplot(111); ax.set_facecolor("#0d1117")
+        fig.patch.set_facecolor(c_bg)
+        ax = fig.add_subplot(111); ax.set_facecolor(c_bg)
         for sp in ax.spines.values():
-            sp.set_color("#3a4150")
-        ax.tick_params(colors="#c0c8d4")
+            sp.set_color(c_rule)
+        ax.tick_params(colors=c_muted)
         if title:
-            ax.set_title(title, color="white", fontsize=18, fontfamily=famly, pad=16)
+            ax.set_title(title, color=c_fg, fontsize=18, fontfamily=famly, pad=16)
         if kind == "counter":
             ax.axis("off")
-            ax.text(0.5, 0.5, f"{cur[0]:g}{unit}", ha="center", va="center",
-                    color="white", fontsize=72, fontfamily=famly, transform=ax.transAxes)
+            # C7 — hero-number landing beat: on a CLIMAX counter, reach the true final at ~68%
+            # of the scene then HOLD it static (identical frames) so the key figure registers.
+            # No overshoot/bounce (would misrepresent a plain number). Non-climax = unchanged.
+            cp = min(1.0, p_raw / 0.68) if climax else p_raw
+            cval = _chart_values(values, cp)[0]
+            ax.text(0.5, 0.5, f"{cval:g}{unit}", ha="center", va="center",
+                    color=c_fg, fontsize=72, fontfamily=famly, transform=ax.transAxes)
         elif kind == "line":
             k = max(1, int(len(values) * (i / max(1, n - 1)))) if n > 1 else len(values)
             ax.plot(range(k), values[:k], color=accent, linewidth=3)
@@ -295,7 +374,7 @@ def render_chart(props, meta, W, H, frames, workdir, index):
             for t in ax.get_xticklabels():
                 t.set_fontfamily(famly)
         if props.get("y_label"):
-            ax.set_ylabel(props["y_label"], color="#c0c8d4", fontfamily=famly)
+            ax.set_ylabel(props["y_label"], color=c_muted, fontfamily=famly)
         fig.tight_layout()
         fig.canvas.draw()                       # Agg requires a draw before buffer_rgba()
         img = Image.frombytes("RGBA", fig.canvas.get_width_height(),
@@ -316,22 +395,26 @@ def render_compare(props, meta, W, H, frames, workdir, index):
     title = props.get("title")
     famly = _mpl_font(meta)
     dpi = 100; figsize = (W / dpi, H / dpi)
-    palette = [props.get("accent", "#4C9BE8"), "#E8590C", "#46A758", "#9B7EDE", "#C0C8D4"]
+    pal = _scene_palette(meta)
+    c_bg, c_fg, c_muted, c_rule = pal["bg"], pal["fg"], pal["muted"], pal["rule"]
+    # categorical palette: color IS data here, so lead with the theme accent + accent2 and keep
+    # the remaining distinct hues (do NOT desaturate — the skeptic flagged that as data-flattening).
+    palette = [props.get("accent") or pal["accent"], pal["accent2"], "#46A758", "#9B7EDE", pal["muted"]]
 
     def draw(i, n):
         p = i / max(1, n - 1) if n > 1 else 1.0
         e = _ease(p)
-        fig = plt.figure(figsize=figsize, dpi=dpi); fig.patch.set_facecolor("#0d1117")
-        ax = fig.add_subplot(111); ax.set_facecolor("#0d1117")
+        fig = plt.figure(figsize=figsize, dpi=dpi); fig.patch.set_facecolor(c_bg)
+        ax = fig.add_subplot(111); ax.set_facecolor(c_bg)
         if title:
-            ax.set_title(title, color="white", fontsize=18, fontfamily=famly, pad=16)
+            ax.set_title(title, color=c_fg, fontsize=18, fontfamily=famly, pad=16)
         if kind == "versus":
             cur = _chart_values(values, p)
             ax.bar(labels, cur, color=[palette[k % len(palette)] for k in range(len(parts))])
             ax.set_ylim(0, (max(values + [0]) * 1.15 or 1))
             for sp in ax.spines.values():
-                sp.set_color("#3a4150")
-            ax.tick_params(colors="#c0c8d4")
+                sp.set_color(c_rule)
+            ax.tick_params(colors=c_muted)
             for t in ax.get_xticklabels():
                 t.set_fontfamily(famly)
         else:  # split — one 100% stacked horizontal bar
@@ -343,7 +426,7 @@ def render_compare(props, meta, W, H, frames, workdir, index):
                 ax.barh([0], [w], left=[left], color=palette[k % len(palette)], height=0.5)
                 if w > 0.05:
                     ax.text(left + w / 2, 0, f"{labels[k]}\n{v:g}", ha="center", va="center",
-                            color="white", fontsize=13, fontfamily=famly)
+                            color=c_fg, fontsize=13, fontfamily=famly)
                 left += w
             ax.set_xlim(0, 1); ax.set_ylim(-0.5, 0.5)
         fig.tight_layout(); fig.canvas.draw()

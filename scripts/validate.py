@@ -227,6 +227,18 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                 tx, ty = m["to"][0], m["to"][1]
                 if abs(tx - cx) + abs(ty - cy) > MOTION_ALIGN_TOL:
                     warnings.append(f"{tag}: callout sits at ({cx:.2f},{cy:.2f}) but the camera settles at ({tx:.2f},{ty:.2f}) — move motion.to toward the callout so the push frames it (see references/motion-grammar.md)")
+            # C3 — a TIMED callout (`cue`) must anchor to a phrase the narration actually says, and
+            # shouldn't land so late there's no time to see it. `at` is an explicit fraction, no check.
+            N = (s.get("narration") or "")
+            for c in co:
+                cue = c.get("cue")
+                if not cue:
+                    continue
+                pos = _cues._anchor_pos(N, cue)
+                if pos is None:
+                    warnings.append(f'{tag}: callout cue "{cue}" is not in the narration — it can\'t be timed to the voice; use a spoken phrase or set an explicit `at` fraction')
+                elif N and pos / max(1, len(N)) > 0.85:
+                    warnings.append(f'{tag}: callout cue "{cue}" is spoken at ~{100*pos/len(N):.0f}% of the line — it appears too late to help; move the phrase earlier or set `at`')
         except (KeyError, IndexError, TypeError):
             pass
 
