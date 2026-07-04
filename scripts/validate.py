@@ -255,6 +255,18 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         except (KeyError, IndexError, TypeError):
             pass
 
+        # --- transition sanity (per-scene overrides; see motion-grammar "Transition rhythm") ----
+        tr = s.get("transition")
+        if tr not in (None, "dip", "in", "out", "none"):
+            warnings.append(f"{tag}: unknown transition '{tr}' — use 'dip'/'in'/'out'/'none' (falls back to the meta default)")
+        ts = s.get("transition_seconds")
+        if ts is not None:
+            try:
+                if float(ts) > 0.5:
+                    warnings.append(f"{tag}: transition_seconds {float(ts):.2f} > 0.5 — a long dip reads as sluggish; keep seams ≤0.35, closer ≤0.45")
+            except (TypeError, ValueError):
+                warnings.append(f"{tag}: transition_seconds '{ts}' is not a number")
+
         # --- content sanity -------------------------------------------------------------
         if not (s.get("narration") or "").strip():
             warnings.append(f"{tag}: empty narration — the scene plays silent")
@@ -283,6 +295,27 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
             warnings.append(f"layout diversity: {n}/{len(families)} html scenes use the same form family "
                             f"('{fam}', {round(100*n/len(families))}%) — one form top-to-bottom reads as "
                             f"auto-generated; vary per content (form-selection in references/html-pages.md)")
+
+    # Transition seam-pairing (motion-grammar "Transition rhythm"): a dip only reads as a dip when
+    # BOTH sides of the cut fade — an in-edge without the predecessor's out-edge is a smash-to-bg
+    # entrance; an out-edge into a hard-opening scene is a fade-down-then-pop. Both read as glitches.
+    meta_t = (data.get("meta") or {}).get("transition", "dip")
+    def _eff(s):
+        t = s.get("transition")
+        return t if t in ("dip", "in", "out", "none") else meta_t
+    effs = [_eff(s) for s in slides]
+    for k in range(1, len(effs)):
+        a, b = effs[k - 1], effs[k]
+        ta, tb = slides[k - 1].get("index", k), slides[k].get("index", k + 1)
+        if b in ("in", "dip") and a not in ("out", "dip"):
+            warnings.append(f"scene {tb} fades in from bg but scene {ta} ends hard — the seam reads as a "
+                            f"smash-cut-to-blank; give scene {ta} transition 'out' (or 'dip')")
+        elif a in ("out", "dip") and b not in ("in", "dip"):
+            warnings.append(f"scene {ta} fades out to bg but scene {tb} opens hard — fade-down-then-pop; "
+                            f"give scene {tb} transition 'in' (or make scene {ta} 'none'/'in')")
+    if effs and meta_t != "none" and effs[-1] not in ("out", "dip"):
+        warnings.append(f"final scene's transition '{effs[-1]}' has no out edge — the video ends on a hard "
+                        f"frame; the closer should be 'dip' (its out edge IS the end fade)")
 
     return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides)}
 

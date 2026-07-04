@@ -27,9 +27,12 @@ You will be given:
    scene props** and to assess informative-first visual selection. If it is missing, say so and
    fact-check against your own knowledge.
 3. The **content plan** (from `agents/content-planner.md`) — it carries the top-level `motif` and
-   per-beat `continuity`, which live only in the plan (not the storyboard). You need it for the R8
-   concept-veto and continuity checks; if it's missing, say so and judge those from the storyboard's
-   arc as best you can.
+   per-beat `continuity` + `relation`, which live only in the plan (not the storyboard). You need it
+   for the R8 concept-veto, continuity, and transition-rhythm checks; if it's missing, say so and
+   judge those from the storyboard's arc as best you can.
+4. For an HTML-tier deck, the **authored `pages/scene_NN.html` files** (read them via each scene's
+   `props.html` path) — required for the R8 icon and page anti-slop checks (icon family/fit,
+   emoji-in-title, hardcoded hex), which live in the pages, not the storyboard.
 
 ---
 
@@ -160,6 +163,11 @@ Note: R5/R6 apply to `slide` scenes only — skip for animated scenes (`type` �
   STRUCTURAL level only (is the beat a loose slide; does the sequence build) — the *phrasing* of a
   transition line is `critic-narrative`'s (R4), not yours. Momentum across cuts is what separates a
   coherent explainer from a deck read aloud.
+- **Transition rhythm — the cut must match the plan's `relation`.** Cross-check each scene's
+  `transition`/`transition_seconds` against the beat's `relation` (motion-grammar "Transition
+  rhythm"): continuation → `"none"`, new-topic seam → `"out"`+`"in"` dip, payoff → longer `"in"`,
+  close → `"dip"`. **REVISE** when every cut carries the identical dip despite the plan marking
+  sections (monotone), or when transitions vary with no semantic reason (random variety = slop).
 - **REVISE** if more than **2 consecutive beats** share the same `visual.type` **among the PROGRAMMATIC
   types** (`title`/`chart`/`keypoints`/`compare`/`timeline`) — a repetitive rhythm kills engagement.
   **`html` beats are EXEMPT** from this run rule: an all-`html` "designed deck" is recommended, so a run

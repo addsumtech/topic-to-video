@@ -106,6 +106,47 @@ with `props.kind:"counter"` **and `props.climax:true`** counts up, reaches the t
 value at ~68% of the scene, then holds it static — that's the deliverable form of
 SLAMS/COUNTS UP for the payoff beat.
 
+## Transition rhythm (semantic — the relationship between two beats picks the cut)
+
+One transition shape everywhere is smooth but monotone; random effect variety is slop. The rule
+(after the Semantic Transition principle): **classify the RELATIONSHIP between consecutive beats,
+then select; never choose randomly; when uncertain, prefer a short fade over a fancy effect.**
+The planner emits each beat's `relation` (to the PREVIOUS beat); map it to per-scene overrides
+(`slide.transition`: `dip` both edges · `in` / `out` one edge · `none`; `slide.transition_seconds`;
+falling back to `meta.transition`):
+
+| `relation` (A → B) | What to set | Why |
+|---|---|---|
+| `continuation` (same topic, more info) | B: `"none"` (hard cut) | momentum — the continuity hook carries the viewer; B's own progressive reveals ARE the "reveal" transition |
+| `new-topic` (a section seam) | A: `"out"` · B: `"in"` | a breath through the theme bg signals "new chapter" |
+| `payoff` (into the climax) | A: out edge · B: `"in"`, `transition_seconds: 0.3` | a longer breath sets up the key number/beat |
+| `close` (into the final hold) | A: out edge · B: `"dip"`, `transition_seconds: 0.4` | the in-edge is the exhale; the out-edge doubles as the video's end fade-out |
+
+**A dip needs BOTH sides of the cut.** An in-edge whose predecessor ends hard renders as a
+smash-cut-to-blank (B's first frame is fully bg); an out-edge into a hard-opening scene is a
+fade-down-then-pop. So every `"in"` composes with the PREVIOUS scene's out edge: upgrade the
+predecessor `"none"`→`"out"`, `"in"`→`"dip"` (`validate.py` warns on unpaired edges). At 0.2s per
+edge a seam is a composed ~0.4s dip through the bg — deliberately heavier than the guide's
+180–250ms crossfade, because a section seam is a chapter breath and a true crossfade is not
+deliverable per-clip. Scene 1 gets `"in"` — its fade-up IS the video's opening (only `"dip"` when
+scene 2 is `new-topic`). The FINAL scene must carry an out edge — it IS the video's end fade
+(`validate.py` warns if the closer ends hard).
+
+**Tier caveat (continuation):** the hard cut is right for html/programmatic scenes, whose reveals
+carry the motion. On the IMAGE tier (narrated slides) each clip ends at ~1.12 zoom while the next
+starts at 1.0 — a raw cut pops ~12% in scale; keep the meta dip (or a subtle `"in"` ~0.15s, the
+guide's "subtle fade-in" for same-topic) between image slides instead.
+
+**Honest deliverables:** the per-clip render (`-c copy` concat) cannot see the neighboring clip, so
+morph / shared-element / cross-clip pans are NOT deliverable — for a drill-down or comparison
+relation, put the semantics INSIDE the scene (the timeline archetype's left-to-right reveals, a
+counter animating its own number, a `.defocus` comparison) and use the short fade at the cut, per
+the guide's own fallback. Edge dips are LINEAR (ffmpeg's fade has no easing) — accepted: at ≤0.45s
+a dip-to-color reads the same eased or not, and custom easing would break the simple deterministic
+filter chain. No wipes/pushes/spins/page-curls — effect variety without meaning is the exact slop
+this doctrine avoids. Keep seams ≤0.35s, the closer ≤0.45s (`validate.py` warns past 0.5, flags
+unknown `transition` values, and lints unpaired seam edges + a hard-ending closer).
+
 ## Reduced motion (accessibility variant)
 
 With `meta.reduced_motion` (or `render.py --reduced-motion`) the renderer forces `to == from`

@@ -356,7 +356,7 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
     payload = json.dumps({
         "s": {k: slide.get(k) for k in
               ("image", "audio", "duration", "motion", "narration", "captions", "callouts",
-               "type", "props", "fit")},
+               "type", "props", "fit", "transition", "transition_seconds")},
         "r": [W, H, meta.get("fps", 30), ss, burn, vertical,
               meta.get("language", "auto"), meta.get("font"),
               meta.get("transition", "dip"), meta.get("transition_seconds", 0.2),
@@ -400,19 +400,32 @@ def _motion_exprs(m, frames, reduced_motion=False):
             f"{fx}+({tx}-{fx})*on/{frames}",
             f"{fy}+({ty}-{fy})*on/{frames}")
 
-def _fade_filter(meta, dur):
+def _fade_filter(meta, dur, slide=None):
     """A gentle dip-to-bg at both clip edges (video only — audio + duration untouched, so the
     per-clip cache, `-c copy` concat and A/V gate all still hold). '' when transitions are off or
-    the clip is too short to dip. meta.transition: 'dip' (default) | 'none'; meta.transition_seconds."""
-    if (meta or {}).get("transition", "dip") == "none":
+    the clip is too short to dip. A SLIDE-level `transition` / `transition_seconds` overrides the
+    meta default — that's how the section-aware rhythm is authored (hard cut inside a section,
+    dip at a seam, a longer dip into the climax/closer; see motion-grammar.md "Transition rhythm").
+    Values: 'dip' (both edges) | 'in' | 'out' (one edge) | 'none'; seconds default 0.2."""
+    s = slide or {}
+    t = s.get("transition")
+    if t not in ("dip", "in", "out", "none"):    # unknown/absent -> the meta default (validate warns)
+        t = (meta or {}).get("transition", "dip")
+    if t == "none":
         return ""
-    d = float((meta or {}).get("transition_seconds", 0.2))
+    d = s.get("transition_seconds")
+    d = float(d if d is not None else (meta or {}).get("transition_seconds", 0.2))
     if d <= 0 or dur <= 2.2 * d:
         return ""
     bg = _theme_bg(meta.get("_out", "."))
-    return f"fade=t=in:st=0:d={d}:c={bg},fade=t=out:st={dur - d:.3f}:d={d}:c={bg}"
+    parts = []
+    if t in ("dip", "in"):      # "in": dip only on this clip's opening edge (seam-opener / climax)
+        parts.append(f"fade=t=in:st=0:d={d}:c={bg}")
+    if t in ("dip", "out"):     # "out": dip only on the closing edge (section-ender before a seam)
+        parts.append(f"fade=t=out:st={dur - d:.3f}:d={d}:c={bg}")
+    return ",".join(parts)
 
-def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_clip, workdir):
+def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_clip, workdir, slide=None):
     """Encode a per-frame PNG sequence + the scene's TTS audio (+ timed captions) into a
     clip using the SAME codec params as the slide path, so the '-c copy' concat still works.
     Audio is pinned to a uniform rate (-ar 48000 -ac 1): scenes can come from different audio
@@ -431,7 +444,7 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
         en = f"between(t,{seg['start']},{seg['end']})"
         parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
         vlabel = f"v{n_in}"; n_in += 1
-    fade = _fade_filter(meta, dur)                     # dip-to-bg transition at the clip edges
+    fade = _fade_filter(meta, dur, slide)              # dip-to-bg transition at the clip edges
     if fade:
         parts.append(f"[{vlabel}]{fade}[vfade]"); vlabel = "vfade"
     cmd = ["ffmpeg", "-y", "-framerate", str(fps), "-i", pattern,
@@ -454,7 +467,7 @@ def _render_scene(slide, meta, W, H, out_clip, burn_captions, workdir):
     pattern = renderer(slide.get("props") or {}, meta, W, H, frames, workdir, slide["index"])
     segs = ((_caption_karaoke_segs(slide, meta, meta["_out"]) or _captions_for(slide))
             if burn_captions else [])
-    return _encode_frames_clip(pattern, slide["audio"], dur, segs, meta, W, H, out_clip, workdir)
+    return _encode_frames_clip(pattern, slide["audio"], dur, segs, meta, W, H, out_clip, workdir, slide=slide)
 
 def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
     if slide.get("type", "slide") != "slide":
@@ -522,7 +535,7 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
             en = f"between(t,{seg['start']},{seg['end']})"
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
             vlabel = f"v{n_in}"; n_in += 1
-    fade = _fade_filter(meta, dur)                     # dip-to-bg transition at the clip edges
+    fade = _fade_filter(meta, dur, slide)              # dip-to-bg transition at the clip edges
     if fade:
         parts.append(f"[{vlabel}]{fade}[vfade]"); vlabel = "vfade"
     fcomplex = ";".join(parts)

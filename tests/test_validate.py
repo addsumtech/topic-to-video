@@ -501,3 +501,53 @@ def test_chrome_with_captions_on_warns(tmp_path):
     validate._check_html_assets(str(tmp_path), "pages/scene_01.html", False, 1, [], warnings2,
                                 captions_on=False)
     assert not any("chrome" in w for w in warnings2)             # captions off: .chrome is fine
+
+
+def test_transition_sanity_warnings(tmp_path):
+    data = _cue_board(tmp_path, "Some line.", {"box": [0.4, 0.4, 0.6, 0.6], "style": "highlight"})
+    data["slides"][0]["transition"] = "wipe"                      # not a supported value
+    r = validate.evaluate(data, str(tmp_path), pre_tts=True)
+    assert any("unknown transition" in w for w in r["warnings"])
+    data["slides"][0]["transition"] = "in"
+    data["slides"][0]["transition_seconds"] = 0.8                 # sluggish
+    r2 = validate.evaluate(data, str(tmp_path), pre_tts=True)
+    assert not any("unknown transition" in w for w in r2["warnings"])
+    assert any("sluggish" in w for w in r2["warnings"])
+
+
+def _multi_board(tmp_path, transitions):
+    from PIL import Image
+    os.makedirs(tmp_path / "frames", exist_ok=True)
+    Image.new("RGB", (320, 180), "#333").save(str(tmp_path / "frames" / "01.png"))
+    (tmp_path / "theme.css").write_text(":root{--bg:#111;}")
+    slides = []
+    for i, tr in enumerate(transitions, 1):
+        s = {"index": i, "type": "slide", "image": "frames/01.png", "narration": f"Beat {i} says something.",
+             "motion": {"type": "kenburns", "from": [0.5, 0.5, 1.0], "to": [0.5, 0.5, 1.12]},
+             "captions": [], "callouts": []}
+        if tr is not None:
+            s["transition"] = tr
+        slides.append(s)
+    return {"meta": {"language": "en", "captions": True}, "slides": slides}
+
+def test_seam_pairing_smash_in_warns(tmp_path):
+    # B fades in from bg but A ends hard -> smash-cut-to-blank
+    data = _multi_board(tmp_path, ["in", "none", "in"])
+    r = validate.evaluate(data, str(tmp_path), pre_tts=True)
+    assert any("smash-cut" in w for w in r["warnings"])
+
+def test_seam_pairing_proper_seam_clean(tmp_path):
+    # A "out" + B "in" composes a proper dip; closer "dip" carries the end fade
+    data = _multi_board(tmp_path, ["in", "out", "dip"])
+    r = validate.evaluate(data, str(tmp_path), pre_tts=True)
+    assert not any("smash-cut" in w or "fade-down-then-pop" in w or "no out edge" in w
+                   for w in r["warnings"])
+
+def test_final_scene_hard_end_warns_unless_meta_none(tmp_path):
+    data = _multi_board(tmp_path, ["in", "none", "none"])
+    r = validate.evaluate(data, str(tmp_path), pre_tts=True)
+    assert any("no out edge" in w for w in r["warnings"])
+    data["meta"]["transition"] = "none"                          # user chose no transitions at all
+    data["slides"][0]["transition"] = None if False else "none"  # normalize scene 1 too
+    r2 = validate.evaluate(data, str(tmp_path), pre_tts=True)
+    assert not any("no out edge" in w for w in r2["warnings"])

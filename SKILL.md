@@ -44,9 +44,14 @@ TTS if the user gives an API key.
   `OPENAI_API_KEY`/`~/.openai_key`; `meta.image_provider` (`auto`/`codex`/`openai`) selects
   the path. Only acts when `meta.image_source == "openai"`.
 - `scripts/render.py <out_dir> [--sample N] [--only N] [--vertical] [--reduced-motion]` — storyboard → `out.mp4` + `out.srt`.
-  **Scene transitions:** a gentle dip-to-theme-bg at each clip's edges (video only — audio/durations
+  **Scene transitions:** a gentle dip-to-theme-bg at clip edges (video only — audio/durations
   untouched, so cache + `-c copy` concat + A/V gate still hold). `meta.transition` (`dip` default |
-  `none`), `meta.transition_seconds` (0.2). **Karaoke captions:** when edge-tts `audio/NN.words.json`
+  `none`), `meta.transition_seconds` (0.2). **Per-scene override — the transition is SEMANTIC:**
+  `slide.transition` (`dip` both edges · `in`/`out` one edge · `none`) + `slide.transition_seconds`
+  override the meta default per scene; the planner's per-beat `relation` picks it (continuation →
+  hard cut; new-topic/payoff/close → an in-edge on the opener PLUS an out-edge on the predecessor —
+  a dip needs both sides, validate lints unpaired edges) — see `references/motion-grammar.md`
+  "Transition rhythm". Never random; no wipes/spins. **Karaoke captions:** when edge-tts `audio/NN.words.json`
   exists (space-delimited languages), the burned caption highlights the word being spoken, timed to the
   real word times; falls back to line-level chunks for MiniMax/say and CJK. `meta.captions_karaoke`
   (`auto` default | `off`).
@@ -208,8 +213,14 @@ TTS if the user gives an API key.
      spoken order, for audio-synced HTML reveals). Build the storyboard scenes from the plan
      (**informative-first**); author the short per-beat narration in step 4. **Carry `climax` into
      the scene:** when the climax beat's visual is a `chart` counter/hero-stat, set `props.climax:
-     true` on that scene — that's what triggers the renderer's key-number landing hold. **Keep the
-     content plan file** — the critic panel (step 5) receives it to audit motif + continuity.
+     true` on that scene — that's what triggers the renderer's key-number landing hold. **Map each
+     beat's `relation` to the scene's transition** (continuation → `transition:"none"`; new-topic →
+     `"out"` on the section-ender + `"in"` on the opener; payoff → `"in"` + 0.3s; close → `"dip"` +
+     0.4s — and ALWAYS give the predecessor an out edge when a beat gets an in-edge: upgrade
+     `"none"`→`"out"`, `"in"`→`"dip"`; a dip needs both sides of the cut, see motion-grammar
+     "Transition rhythm"), and **carry the beat's `icons` hints** into the
+     authored page (`.icon-tile` rows per `references/icons.md`). **Keep the content plan file** —
+     the critic panel (step 5) receives it to audit motif + continuity + transition rhythm.
 - **Theme:** run `scripts/theme.py <out_dir>` AFTER the content plan and BEFORE authoring pages or
   programmatic scenes — it samples `frames/` for a curated light/dark palette fitting the topic
   (or pass `--mode/--accent/--accent2/--bg` from the planner's `theme` suggestion when there are no

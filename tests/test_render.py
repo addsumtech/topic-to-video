@@ -344,3 +344,34 @@ def test_fingerprint_words_gate_covers_cue_callouts(tmp_path):
     (tmp_path / "audio" / "01.words.json").write_text('[{"w":"x","t":0}]')
     d = render._fingerprint(plain, meta, 1920, 1080, 2, True, False)
     assert c == d                                                # cue-less slide: TTS re-run doesn't bust
+
+
+# ── semantic per-scene transitions (relation → dip/in/out/none) ───────────────────────
+def test_fade_filter_slide_overrides_meta():
+    m = {"transition": "dip", "transition_seconds": 0.2, "_out": "/nonexistent"}
+    assert render._fade_filter(m, 10.0, {"transition": "none"}) == ""
+    both = render._fade_filter(m, 10.0, {})
+    assert "t=in" in both and "t=out" in both                     # meta default: both edges
+    fin = render._fade_filter(m, 10.0, {"transition": "in"})
+    assert "t=in" in fin and "t=out" not in fin                   # seam-opener: in-edge only
+    fout = render._fade_filter(m, 10.0, {"transition": "out"})
+    assert "t=out" in fout and "t=in" not in fout                 # section-ender: out-edge only
+
+def test_fade_filter_slide_seconds_override():
+    m = {"transition": "dip", "transition_seconds": 0.2, "_out": "/nonexistent"}
+    s = render._fade_filter(m, 10.0, {"transition": "in", "transition_seconds": 0.3})
+    assert "d=0.3" in s                                           # payoff: longer breath
+
+def test_fingerprint_includes_scene_transition():
+    slide = {"index": 1, "type": "html", "props": {"html": "pages/scene_01.html"}}
+    meta = {"_out": "/x"}
+    a = render._fingerprint(slide, meta, 1920, 1080, 2, True, False)
+    b = render._fingerprint({**slide, "transition": "none"}, meta, 1920, 1080, 2, True, False)
+    c = render._fingerprint({**slide, "transition_seconds": 0.4}, meta, 1920, 1080, 2, True, False)
+    assert a != b and a != c and b != c                           # per-scene fields bust the cache
+
+
+def test_fade_filter_unknown_value_falls_back_to_meta():
+    m = {"transition": "dip", "transition_seconds": 0.2, "_out": "/nonexistent"}
+    s = render._fade_filter(m, 10.0, {"transition": "wipe"})     # unknown -> meta default (dip)
+    assert "t=in" in s and "t=out" in s

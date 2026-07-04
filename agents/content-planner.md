@@ -21,6 +21,8 @@ BEFORE any narration is written. You do not write final narration; you design be
       "narration_intent": "what the line must convey (not final words)",
       "motion_intent": "one motion VERB from references/motion-grammar.md (e.g. COUNTS UP, SLIDES, BREATHES)",
       "continuity": "inherits: <what the previous beat set up> · hooks: <the question/tension this beat leaves for the next>",
+      "relation": "continuation | new-topic | payoff | close — this beat's SEMANTIC relationship to the PREVIOUS beat; drives the transition (motion-grammar 'Transition rhythm')",
+      "icons": ["optional — for a CATEGORY/FEATURE row beat only: one Lucide glyph name per point, from references/icons.md"],
       "est_seconds": 5,
       "climax": true,
       "hold": true,
@@ -82,6 +84,20 @@ beats (hero/title/big-stat) don't need cues.)
    from the beat before and the question/tension it *hooks into* the beat after. The arc is a
    through-line, not a list — a beat that neither builds on the last nor sets up the next is a
    loose slide; resequence or cut it. The scriptwriter uses this to carry momentum across cuts.
+9. **Relation (the transition is semantic).** Set each beat's `relation` to the PREVIOUS beat:
+   `continuation` (same topic, more info — most beats), `new-topic` (a section seam),
+   `payoff` (the climax entrance), `close` (the final hold). Never leave the choice random —
+   the assistant maps it to the cut rhythm (hard cut on continuation, a short dip at seams,
+   longer into payoff/close; motion-grammar "Transition rhythm"). Typically 2–4 `new-topic`
+   seams in a 2–3 min video; a video that is ALL seams (or none) has a section-structure problem.
+10. **Icons (push them where they earn a job).** For a beat whose visual is a CATEGORY/FEATURE
+   row (cards, blocks, quadrant cells, hubspoke spokes — parallel labeled things), emit `icons`:
+   one Lucide glyph name per point — from `references/icons.md`'s snippet library, or any Lucide
+   glyph via its lucide.dev escape hatch — semantically fit (a "find/read" point gets `search`,
+   not decoration). NEVER on a stat/evidence/chart beat (the number is
+   the focal point), never more than one family, and most beats need none — one or two iconed
+   rows per video is the norm. The author renders them via `.icon-tile`/`.icon-badge`
+   (motifs.css); `critic-content` fails icons that decorate instead of doing a job.
 
 ## Re-conceive the material into a VIDEO (don't mirror the deck)
 You are not transcribing slides in order. Design the best instructional *video*: open with a
