@@ -31,13 +31,17 @@ TTS if the user gives an API key.
 - `scripts/tts.py <out_dir> [--only N]` — narration → `audio/` + real durations. With edge-tts, also writes `audio/NN.words.json` (per-word start times), used for audio-synced HTML reveals; emits `.mp3`. With macOS `say`, emits `.aiff` (no words.json).
 - `scripts/theme.py <out_dir> [--mode light|dark] [--accent #hex] [--accent2 #hex] [--bg #hex]` —
   derive a topic-fitting palette from `frames/` (or the passed overrides) and write
-  `<out_dir>/theme.css` (the HTML tier links it). Run before authoring HTML pages.
+  `<out_dir>/theme.css` (the HTML tier links it). Run before authoring HTML pages. Contrast is
+  **gamma-correct WCAG** (true relative luminance): it enforces fg/bg ≥7:1, guarantees a SAMPLED
+  accent clears ≥3:1 on the bg (nudging only a sampled accent's lightness, never an explicit
+  `--accent` override), and picks `--on-accent` by whichever of black/white has the higher true
+  contrast on the accent fill.
 - `scripts/imagegen.py <out_dir> [--key KEY]` — OPTIONAL paid tier: generate AI scene images
   via OpenAI `gpt-image-2` for scenes that carry an `image_prompt`, cached under `.assets/`
   (re-runs are free). Auto-uses the Codex CLI (no key) when installed, else needs
   `OPENAI_API_KEY`/`~/.openai_key`; `meta.image_provider` (`auto`/`codex`/`openai`) selects
   the path. Only acts when `meta.image_source == "openai"`.
-- `scripts/render.py <out_dir> [--sample N] [--only N] [--vertical]` — storyboard → `out.mp4` + `out.srt`.
+- `scripts/render.py <out_dir> [--sample N] [--only N] [--vertical] [--reduced-motion]` — storyboard → `out.mp4` + `out.srt`.
   **Scene transitions:** a gentle dip-to-theme-bg at each clip's edges (video only — audio/durations
   untouched, so cache + `-c copy` concat + A/V gate still hold). `meta.transition` (`dip` default |
   `none`), `meta.transition_seconds` (0.2). **Karaoke captions:** when edge-tts `audio/NN.words.json`
@@ -48,17 +52,24 @@ TTS if the user gives an API key.
   appears at the moment its region is spoken — resolved via `cues` (edge word-times, else text-position
   estimate) — and holds to the clip end (a vanishing highlight reads as a glitch); untimed callouts
   show for the whole slide (unchanged). The Ken Burns camera is NOT re-aimed mid-clip. Off by default.
+  **Reduced motion:** `--reduced-motion` (or `meta.reduced_motion`) emits an accessibility variant —
+  the image tier holds a static frame (to==from, no zoom/pan) and HTML reveals become opacity-only
+  cross-fades (a `reduced-motion.css` linked last), still deterministic + seekable. It's an
+  authoring-time opt-in variant (a baked mp4 can't read the viewer's OS setting), and it busts the
+  clip cache.
 - `scripts/cues.py` — pure anchor→cue-time resolver: reads per-scene `audio/NN.words.json` (edge-tts per-word timings) and resolves each `data-cue` anchor phrase to an absolute timestamp, used by `render_html` for audio-synced HTML reveals.
 - `scripts/check_av.py <out_dir>` — deterministic A/V gate: probes `out.mp4` video-vs-audio duration + per-clip sample-rate uniformity across `.clips/`; exits non-zero on A/V drift above tolerance (0.3 s) or non-uniform rates. Run AFTER the full render (step 9) as a gate before delivery.
 - `scripts/doctor.py [--json]` — environment preflight: reports which tools/libraries are present (ffmpeg/ffprobe/PIL required; PyMuPDF/python-pptx/edge-tts/soffice/Chrome/font optional) and, for each missing one, the stage it gates + the install hint. Exits non-zero only when a REQUIRED dep is missing. Run once at the START (step 1).
-- `scripts/validate.py <out_dir> [--pre-tts] [--vertical] [--json]` — deterministic PRE-render gate on `storyboard.json` (runs in ~1s): structural contract, duplicate indices, every referenced image/audio/html-page/`file://` asset + `theme.css` exists on disk, caption craft (no wall of text, no widow, ≥0.7s on screen — see `references/captions.md`), motion sanity (zoom delta + zoom-past-1.25 + callout-framing — see `references/motion-grammar.md`), per-point reveal↔voice alignment (each point spoken-% vs shown-% → leads/lags warning, cued or paced), CJK-font/cue/pacing/anti-slop warnings. Exits non-zero on any ERROR. Run BEFORE every render (step 9); `--pre-tts` validates right after authoring (skips audio checks); `--vertical` mirrors render's 9:16 canvas (also auto from `meta.aspect`). Errors block; warnings don't.
+- `scripts/validate.py <out_dir> [--pre-tts] [--vertical] [--json]` — deterministic PRE-render gate on `storyboard.json` (runs in ~1s): structural contract, duplicate indices, every referenced image/audio/html-page/`file://` asset + `theme.css` exists on disk, caption craft (no wall of text, no widow, ≥0.7s on screen — see `references/captions.md`), motion sanity (zoom delta + zoom-past-1.25 + callout-framing — see `references/motion-grammar.md`), per-point reveal↔voice alignment (each point spoken-% vs shown-% → leads/lags warning, cued or paced), a **hardcoded-hex lint** (WARN on a raw `#hex` in a `style=`/SVG-`fill`/`<style>` color — pages must use semantic vars), CJK-font/cue/pacing/anti-slop warnings. Exits non-zero on any ERROR. Run BEFORE every render (step 9); `--pre-tts` validates right after authoring (skips audio checks); `--vertical` mirrors render's 9:16 canvas (also auto from `meta.aspect`). Errors block; warnings don't.
 - `scripts/keyframe_qa.py <out_dir> [--p N] [--json]` — cheap PRE-render VISUAL QA for the HTML tier:
   screenshots every `html` page at N `?p=` values, montages per-scene + a master contact sheet under
   `<out_dir>/_keyframes/` (open `all.png` to eyeball tofu / off-theme / mistimed reveals), and — via
   CDP DOM measurement — flags any BLANK page (a reveal that never fired) or content OVERFLOWING the
-  1920×1080 canvas (full-bleed backdrops are correctly ignored). Exits non-zero on a blank/overflow.
-  Run after authoring the pages, BEFORE the full render — a ~1-minute catch of the exact failures that
-  would otherwise silently ship in a multi-minute render. (No CDP → screenshots + blank-check only.)
+  1920×1080 canvas (full-bleed backdrops are correctly ignored), and advises (non-blocking) on any
+  CENTERED multi-line running paragraph (body text should be left-aligned to scan; display/diagram
+  classes are excluded). Exits non-zero on a blank/overflow (advisories don't block). Run after
+  authoring the pages, BEFORE the full render — a ~1-minute catch of the exact failures that would
+  otherwise silently ship in a multi-minute render. (No CDP → screenshots + blank-check only.)
 - `scripts/scenes.py` — deterministic ANIMATED scene renderers (no slides): `title`/`keypoints`
   (PIL), `chart`/`timeline`/`compare` (matplotlib), `html` (headless Chrome). A storyboard scene
   with `type` `title`/`keypoints`/`chart`/`timeline`/`compare`/`html` (+ a typed `props` block)

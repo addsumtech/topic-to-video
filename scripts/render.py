@@ -360,7 +360,7 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
         "r": [W, H, meta.get("fps", 30), ss, burn, vertical,
               meta.get("language", "auto"), meta.get("font"),
               meta.get("transition", "dip"), meta.get("transition_seconds", 0.2),
-              meta.get("captions_karaoke", "auto")],
+              meta.get("captions_karaoke", "auto"), meta.get("reduced_motion", False)],
         "img": stat(slide.get("image")), "aud": stat(slide.get("audio")),
         "html": stat((slide.get("props") or {}).get("html")),
         "theme": stat("theme.css"),   # re-theming (theme.py) busts html-scene clips
@@ -385,6 +385,16 @@ def _theme_bg(out_dir):
     except OSError:
         pass
     return "0x0d1117"
+
+def _motion_exprs(m, frames, reduced_motion=False):
+    """The zoompan z / x-pan / y-pan expressions for a slide's Ken Burns move. With reduced_motion,
+    force to==from so every expression is constant (a static frame — no zoom/pan)."""
+    fx, fy, z0 = m["from"]; tx, ty, z1 = m["to"]
+    if reduced_motion:
+        tx, ty, z1 = fx, fy, z0
+    return (f"{z0}+({z1}-{z0})*on/{frames}",
+            f"{fx}+({tx}-{fx})*on/{frames}",
+            f"{fy}+({ty}-{fy})*on/{frames}")
 
 def _fade_filter(meta, dur):
     """A gentle dip-to-bg at both clip edges (video only — audio + duration untouched, so the
@@ -454,12 +464,9 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
     dur = slide["duration"]
     frames = max(1, int(round(dur * fps)))
     m = slide["motion"]
-    fx, fy, z0 = m["from"]; tx, ty, z1 = m["to"]
-    zexpr = f"{z0}+({z1}-{z0})*on/{frames}"
     # x/y are normalized pan anchors in 0..1 (0.5 = centered); map each to the crop
     # window's top-left so the chosen point stays put as we zoom in.
-    xpan = f"{fx}+({tx}-{fx})*on/{frames}"
-    ypan = f"{fy}+({ty}-{fy})*on/{frames}"
+    zexpr, xpan, ypan = _motion_exprs(m, frames, meta.get("reduced_motion"))
     # Anti-jitter: run zoompan in a SUPERSAMPLED space then scale back down. zoompan floors
     # its crop x/y to whole *input* pixels, so at native size every step is a full output
     # pixel = visible 'shivering'. Working at ss× makes each step 1/ss of an output pixel and
@@ -524,10 +531,13 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
     _common.run(cmd)
     return out_clip
 
-def render(out_dir, sample=None, vertical=False, only=None):
+def render(out_dir, sample=None, vertical=False, only=None, reduced_motion=False):
     data = sb.load(os.path.join(out_dir, "storyboard.json"))
     sb.validate(data)
     meta = data["meta"]; meta["_out"] = out_dir
+    # D — reduced-motion tier (accessibility): CLI flag OR meta.reduced_motion. Kills zoom/pan on the
+    # image tier and swaps HTML reveals to opacity-only fades; still deterministic + seekable.
+    meta["reduced_motion"] = bool(reduced_motion or meta.get("reduced_motion"))
     # meta.aspect is authoritative; the --vertical flag also forces it (either makes it 9:16).
     vertical = vertical or meta.get("aspect") == "9:16"
     W, H = _canvas(meta, vertical)
@@ -594,8 +604,11 @@ def main():
     ap.add_argument("--sample", type=int, default=None)
     ap.add_argument("--only", type=int, default=None)
     ap.add_argument("--vertical", action="store_true")
+    ap.add_argument("--reduced-motion", action="store_true",
+                    help="accessibility: no zoom/pan + opacity-only reveals (still deterministic/seekable)")
     a = ap.parse_args()
-    res = render(a.out_dir, sample=a.sample, vertical=a.vertical, only=a.only)
+    res = render(a.out_dir, sample=a.sample, vertical=a.vertical, only=a.only,
+                 reduced_motion=a.reduced_motion)
     print(f"Rendered -> {res}")
 
 if __name__ == "__main__":

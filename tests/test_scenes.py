@@ -652,3 +652,17 @@ def test_serif_and_sans_roles_differ():
     sans = scenes._font(META, "Title", 40, role="sans")
     assert getattr(serif, "path", "").endswith("DejaVuSerif.ttf")
     assert getattr(sans, "path", "") != getattr(serif, "path", "")
+
+
+# ── D: reduced-motion HTML injection + override css ──────────────────────────────────
+def test_inject_reduced_motion_adds_link_last_in_head():
+    html = '<html><head><link rel="stylesheet" href="base.css"></head><body>x</body></html>'
+    out = scenes._inject_reduced_motion(html, "/abs/reduced-motion.css")
+    assert out.index("base.css") < out.index("reduced-motion.css") < out.index("</head>")
+
+def test_reduced_motion_css_neutralizes_all_transform_channels():
+    assert os.path.exists(scenes._REDUCED_MOTION_CSS)
+    css = open(scenes._REDUCED_MOTION_CSS).read()
+    assert "animation-name: fade" in css and "transform: none" in css   # reveals -> opacity-only
+    assert ".float" in css and "img.kenburns" in css and "animation: none" in css
+    assert "stroke-dashoffset: 0" in css                                 # .draw shown, not hidden

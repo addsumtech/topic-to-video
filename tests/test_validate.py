@@ -432,3 +432,23 @@ def test_main_json_output(tmp_path):
                          capture_output=True, text=True)
     parsed = json.loads(out.stdout)
     assert parsed["ok"] is True and parsed["scenes"] == 1
+
+
+# ── B: hardcoded-hex lint (semantic-var contract, color contexts only) ────────────────
+def test_hardcoded_hex_lint_flags_style_svg_and_styleblock(tmp_path):
+    (tmp_path / "theme.css").write_text(":root{--bg:#111;}")
+    pg = tmp_path / "pages"; pg.mkdir()
+    (pg / "scene_01.html").write_text(
+        '<div style="color:#ff3366">x</div><rect fill="#0af"/><style>.y{background:#abcdef}</style>')
+    errors, warnings = [], []
+    validate._check_html_assets(str(tmp_path), "pages/scene_01.html", False, 1, errors, warnings)
+    assert any("raw hex" in w for w in warnings) and not errors
+
+def test_hex_lint_ignores_svg_ids_content_and_vars(tmp_path):
+    (tmp_path / "theme.css").write_text(":root{--bg:#111;}")
+    pg = tmp_path / "pages"; pg.mkdir()
+    (pg / "scene_01.html").write_text(
+        '<rect fill="url(#dead)"/><div style="background:var(--accent)">brand is #ff3366 in text</div>')
+    errors, warnings = [], []
+    validate._check_html_assets(str(tmp_path), "pages/scene_01.html", False, 1, errors, warnings)
+    assert not any("raw hex" in w for w in warnings)

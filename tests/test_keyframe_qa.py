@@ -17,7 +17,13 @@ def test_sheet_montages_all_frames(tmp_path):
     kq._sheet(imgs, out, cols=3, tw=100, th=56)
     assert os.path.exists(out) and Image.open(out).size == (300, 56)
 
-def test_overflow_js_is_wellformed():
-    # the probe JS must be a single self-invoking expression returning JSON (no syntax surprises)
+def test_probe_js_is_wellformed():
+    # a single self-invoking expression returning JSON with all three signals
     assert kq._OVERFLOW_JS.startswith("(function(){") and kq._OVERFLOW_JS.endswith("})()")
-    assert "getBoundingClientRect" in kq._OVERFLOW_JS and "textlen" in kq._OVERFLOW_JS
+    for k in ("getBoundingClientRect", "textlen", "worst", "centered", "getComputedStyle", "closest"):
+        assert k in kq._OVERFLOW_JS
+
+def test_center_exclude_covers_display_and_diagram_classes():
+    for c in (".title", ".pullquote", ".kicker", ".stat", ".flow", ".hubspoke",
+              ".timeline", ".quadrant", ".scorecard", ".tile", ".block"):
+        assert c in kq._CENTER_EXCL

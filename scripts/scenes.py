@@ -143,6 +143,14 @@ def _save_frames(draw_fn, frames, workdir, index):
 # C8 — serif/sans type contrast. Editorial roles (title/kicker) get a serif; data/UI roles
 # (stats, labels, axes) stay sans/mono. Bundled DejaVuSerif alongside DejaVuSans (same license).
 BUNDLED_SERIF = os.path.join(os.path.dirname(render.BUNDLED_FONT), "DejaVuSerif.ttf")
+_SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_REDUCED_MOTION_CSS = os.path.join(_SKILL_ROOT, "assets", "html", "reduced-motion.css")
+
+def _inject_reduced_motion(html, css_path):
+    """Insert a reduced-motion.css <link> LAST in the page <head> (after base/theme/motifs) so its
+    opacity-only reveal overrides win. Falls back to prepending if there's no </head>."""
+    link = f'<link rel="stylesheet" href="file://{css_path}">'
+    return html.replace("</head>", link + "</head>", 1) if "</head>" in html else link + html
 _CJK_SERIF = [
     "/System/Library/Fonts/Supplemental/Songti.ttc", "/System/Library/Fonts/Songti.ttc",
     "/System/Library/Fonts/Supplemental/Hiragino Mincho ProN.ttc",
@@ -452,6 +460,14 @@ def render_html(props, meta, W, H, frames, workdir, index):
     fps = meta.get("fps", 30)
     dur = frames / float(fps)
     html = open(src, encoding="utf-8", errors="replace").read()
+    # D — reduced-motion: capture a temp copy of the page with reduced-motion.css linked LAST (after
+    # base/theme/motifs), so reveals become opacity-only and ambient/Ken-Burns motion is off. The page
+    # uses absolute file:// links, so the temp file resolves them fine; cue parsing uses the original html.
+    if meta.get("reduced_motion"):
+        os.makedirs(workdir, exist_ok=True)
+        src = os.path.join(workdir, f"rm_scene_{index:02d}.html")
+        open(src, "w", encoding="utf-8").write(_inject_reduced_motion(html, _REDUCED_MOTION_CSS))
+        src = os.path.abspath(src)
     words_path = os.path.join(meta["_out"], "audio", f"{index:02d}.words.json")
     # collect cued points: (cue-index, anchor) where anchor = data-cue="..." (required on cued points)
     pts = re.findall(r'data-cue-index="(\d+)"[^>]*?data-cue="([^"]*)"', html)

@@ -1,0 +1,26 @@
+/* slides-to-video — REDUCED-MOTION override (accessibility). Injected AFTER base.css / theme.css /
+   motifs.css by render_html when meta.reduced_motion is on. Goal: keep the deck legible and still
+   deterministically SEEKABLE (seek.js freezes at progress p), but remove vestibular-trigger motion
+   — no translate/scale/zoom. Entrances become an opacity-only cross-fade.
+
+   Reveals stay animation-named `fade` (base.css @keyframes fade{to{opacity:1}}) so seek.js still
+   finds a non-'none' animation to freeze — do NOT use `animation:none` here or reveals would stay
+   at opacity:0 and vanish. */
+.reveal, .reveal-up, .reveal-up-sm, .reveal-pop {
+  animation-name: fade !important;   /* opacity-only keyframe (no transform in it) */
+  transform: none !important;        /* kill the slide-in / pop transform */
+}
+
+/* Ambient + Ken-Burns motion off. These carry no opacity, so freezing them at rest keeps them
+   visible; just remove the transform animation. */
+.float, img.kenburns, .kenburns {
+  animation: none !important;
+  transform: none !important;
+}
+
+/* .draw strokes an SVG path on via stroke-dashoffset; at rest (dashoffset:1) it is INVISIBLE, so
+   show it fully drawn instead of animating it. */
+.draw {
+  animation: none !important;
+  stroke-dashoffset: 0 !important;
+}

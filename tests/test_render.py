@@ -306,3 +306,23 @@ def test_callout_time_cue_estimated_from_text():
 def test_callout_time_untimed_is_zero():
     slide = {"index": 1, "narration": "Anything at all."}
     assert render._callout_time(slide, {}, {"box": [0, 0, 1, 1]}, 10.0, "/nonexistent") == 0.0
+
+
+# ── D: reduced-motion tier — static Ken Burns ────────────────────────────────────────
+def test_motion_exprs_static_under_reduced_motion():
+    m = {"from": [0.5, 0.5, 1.0], "to": [0.5, 0.5, 1.12]}
+    z, x, y = render._motion_exprs(m, 100, reduced_motion=True)
+    assert z == "1.0+(1.0-1.0)*on/100"                        # to==from -> constant zoom (no move)
+    assert x == "0.5+(0.5-0.5)*on/100" and y == "0.5+(0.5-0.5)*on/100"
+
+def test_motion_exprs_preserves_move_by_default():
+    m = {"from": [0.5, 0.5, 1.0], "to": [0.4, 0.5, 1.12]}
+    z, x, _ = render._motion_exprs(m, 100, reduced_motion=False)
+    assert "1.12" in z and "0.4" in x                         # the real Ken Burns move is kept
+
+def test_reduced_motion_in_fingerprint():
+    slide = {"index": 1, "type": "html", "props": {"html": "pages/scene_01.html"}}
+    base = {"_out": "/x"}
+    a = render._fingerprint(slide, {**base}, 1920, 1080, 2, True, False)
+    b = render._fingerprint(slide, {**base, "reduced_motion": True}, 1920, 1080, 2, True, False)
+    assert a != b                                             # flag busts the clip cache

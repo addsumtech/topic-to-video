@@ -44,6 +44,15 @@ LAYOUT_FAMILY_MAX_SHARE = 0.45
 MOTION_ALIGN_TOL = 0.25
 
 _FILE_REF_RE = re.compile(r'(?:href|src)\s*=\s*"([^"]+)"')
+# hardcoded-hex lint (KB "one primary + one accent; accent==meaning"): enforce the semantic-var
+# contract deterministically. Scan ONLY color contexts — a style="…" value, an SVG fill/stroke/
+# stop-color attr, or an inline <style> block — so a deck that legitimately DISPLAYS a hex string as
+# content never false-positives. Match a CSS-legal color token only (3/6/8 hex digits, non-hex left
+# boundary) so an SVG id ref like url(#face) / a 4-5 char #dead can't trip it.
+_COLOR_CTX_RE = re.compile(
+    r'style\s*=\s*"([^"]*)"|(?:fill|stroke|stop-color)\s*=\s*"([^"]*)"|<style[^>]*>(.*?)</style>',
+    re.I | re.S)
+_HEX_TOKEN_RE = re.compile(r'(?<![0-9a-fA-F#])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b')
 
 
 def _exists(out_dir, rel):
@@ -398,6 +407,13 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
             errors.append(f"{tag}: page asset not found: {local}")
     if "theme.css" in html and not os.path.exists(os.path.join(out_dir, "theme.css")):
         errors.append(f"{tag}: page links theme.css but {out_dir}/theme.css is missing — run theme.py")
+    hexes = []
+    for m in _COLOR_CTX_RE.finditer(html):
+        hexes += _HEX_TOKEN_RE.findall(m.group(1) or m.group(2) or m.group(3) or "")
+    if hexes:
+        uniq = sorted(set(h.lower() for h in hexes))
+        warnings.append(f"{tag}: raw hex {uniq[:3]} in a style/SVG color — use semantic vars "
+                        f"(var(--accent)/var(--surface)/…), not hardcoded colors (off-theme risk)")
     # Audio-synced reveals: cued points need a data-cue anchor AND a words.json to resolve against.
     # (The anchor regex is an approximate within-tag co-occurrence count — warning-only, never fatal.)
     if "data-cue-index" in html:

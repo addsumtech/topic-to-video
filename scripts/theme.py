@@ -7,14 +7,23 @@ def _hex(rgb): return "#%02x%02x%02x" % tuple(max(0, min(255, int(round(c)))) fo
 def _hex2rgb(h):
     h = h.lstrip("#"); return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
 def _lum(rgb):
+    """Simple (non-linear) luminance — a brightness proxy for the light/dark + pure-bg heuristics."""
     r, g, b = [c / 255 for c in rgb]; return 0.2126 * r + 0.7152 * g + 0.0722 * b
+def _rel_lum(rgb):
+    """WCAG relative luminance: sRGB channels LINEARIZED (gamma-correct). Use for CONTRAST only —
+    the simple _lum under-reports mid-tones ~2.2x (it scored #767676-on-#fff at 2.05 vs the true 4.54)."""
+    def lin(c):
+        c = c / 255.0
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = rgb
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
 def _sat(rgb):
     r, g, b = [c / 255 for c in rgb]; return colorsys.rgb_to_hls(r, g, b)[2]
 def _hue(rgb):
     r, g, b = [c / 255 for c in rgb]; return colorsys.rgb_to_hls(r, g, b)[0]
 def _mix(a, b, t): return tuple(a[i] + (b[i] - a[i]) * t for i in range(3))
 def _contrast(a, b):
-    la, lb = _lum(a) + 0.05, _lum(b) + 0.05
+    la, lb = _rel_lum(a) + 0.05, _rel_lum(b) + 0.05
     return max(la, lb) / min(la, lb)
 
 def _sample_frames(out_dir, k=4, n_colors=5):
@@ -66,7 +75,21 @@ def derive_theme(out_dir, mode=None, accent=None, accent2=None, bg=None):
         bgc = tuple(c * 255 for c in colorsys.hls_to_rgb(h, l, s))
     if _contrast(fg, bgc) < 7.0:
         fg = (0, 0, 0) if m == "light" else (255, 255, 255)
-    on_accent = (255, 255, 255) if _lum(acc) < 0.5 else (17, 17, 17)   # readable text on the accent fill
+    # accent must clear 3:1 on the bg — it renders LARGE marks (.stat 240px, .tile .num 150px → WCAG
+    # "large" text = 3:1). Nudge ONLY a SAMPLED accent's lightness (keep hue+sat), capped so a faithful
+    # brand/topic hue is never washed out; an explicit `accent=` override is left exactly as given.
+    if not accent:
+        ha, la0, sa = colorsys.rgb_to_hls(*[c / 255 for c in acc]); la = la0
+        for _ in range(30):
+            if _contrast(acc, bgc) >= 3.0:
+                break
+            la = max(0.0, la - 0.02) if m == "light" else min(1.0, la + 0.02)
+            if abs(la - la0) > 0.15:                 # cap — preserve the hue's character over full AA
+                break
+            acc = tuple(c * 255 for c in colorsys.hls_to_rgb(ha, la, sa))
+    # text ON the accent fill: whichever of near-black / white has the higher TRUE contrast (the old
+    # _lum<0.5 crossover mis-picked mid-tones — e.g. gave white on a teal accent at 2.06:1 vs black 4.37:1).
+    on_accent = (17, 17, 17) if _contrast((17, 17, 17), acc) >= _contrast((255, 255, 255), acc) else (255, 255, 255)
     return {"mode": m, "bg": _hex(bgc), "surface": _hex(_mix(bgc, fg, 0.06)),
             "fg": _hex(fg), "muted": _hex(_mix(fg, bgc, 0.42)),
             "accent": _hex(acc), "accent2": _hex(acc2), "scrim": _hex(bgc),

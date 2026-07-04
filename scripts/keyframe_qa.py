@@ -24,8 +24,12 @@ import scenes  # reuse the Chrome bin resolver + per-shot screenshot fallback
 DEFAULT_PS = [0.0, 0.25, 0.5, 0.75, 1.0]
 OVERFLOW_TOL = 6   # px a content box may exceed the canvas before it's flagged
 
-# max px any content box (under .stage/.split — NOT full-bleed backdrops) exceeds the canvas,
-# plus the visible text length (to catch a blank / never-revealed page).
+# DOM probe (page frozen at p=1). Returns: `worst` = max px any content box (under .stage/.split,
+# NOT full-bleed backdrops) exceeds the canvas; `textlen` = visible text length (blank detection);
+# `centered` = count of CENTERED running paragraphs (advisory — body text should be left-aligned to
+# scan; excludes display/diagram classes that are centered by design).
+_CENTER_EXCL = (".flow,.step,.hubspoke,.hs-spoke,.hs-hub,.timeline,.tl-node,.quadrant,.cell,"
+                ".scorecard,.tile,.title,.pullquote,.kicker,.stat,.block")
 _OVERFLOW_JS = (
     "(function(){var W=window.innerWidth,H=window.innerHeight,worst=0;"
     "var n=document.querySelectorAll('.stage *,.split *');"
@@ -33,7 +37,14 @@ _OVERFLOW_JS = (
     "if(r.width<1||r.height<1)continue;"
     "var o=Math.max(r.right-W,r.bottom-H,-r.left,-r.top);if(o>worst)worst=o;}"
     "var t=(document.body.innerText||'').replace(/\\s+/g,'').length;"
-    "return JSON.stringify({worst:Math.round(worst),textlen:t});})()")
+    "var EXCL='" + _CENTER_EXCL + "',centered=0,para=document.querySelectorAll('.sub,.note,.lead,p');"
+    "for(var j=0;j<para.length;j++){var e=para[j],cs=getComputedStyle(e);"
+    "if(cs.textAlign!=='center')continue;if(e.closest&&e.closest(EXCL))continue;"
+    "var fs=parseFloat(cs.fontSize)||0,lh=cs.lineHeight;"
+    "lh=(lh==='normal'||!lh)?1.4*fs:parseFloat(lh);if(lh<1)continue;"
+    "var lines=Math.round(e.scrollHeight/lh),w=e.getBoundingClientRect().width;"
+    "if(lines>=3&&w>=600)centered++;}"
+    "return JSON.stringify({worst:Math.round(worst),textlen:t,centered:centered});})()")
 
 
 def _is_blank(img):
@@ -75,7 +86,7 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
         print("[keyframe_qa] no html scenes — nothing to check"); return 0
 
     chrome = _open_cdp(meta, W, H)
-    report, last_frames, errors = [], [], 0
+    report, last_frames, errors, warns = [], [], 0, 0
     try:
         for s in html:
             idx = s.get("index")
@@ -99,7 +110,7 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                 continue
             _sheet(frames, os.path.join(kf, f"scene_{idx:02d}.png"))
             final = frames[-1]; last_frames.append(final)
-            issues = []
+            issues, advisories = [], []       # issues block the gate; advisories are non-blocking
             if chrome:
                 try:
                     info = _dom_probe(chrome)   # page is still at p=1 (last shot) — measure it
@@ -108,6 +119,9 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                     if info.get("worst", 0) > OVERFLOW_TOL:
                         issues.append(f"content overflows the safe canvas by {info['worst']}px — "
                                       "shorten the text or split the beat")
+                    if info.get("centered", 0) > 0:
+                        advisories.append(f"{info['centered']} centered running paragraph(s) — "
+                                          "left-align body text for scanning (studios do)")
                 except Exception:
                     if _is_blank(final):
                         issues.append("BLANK at p=1 (reveal never fired / broken page)")
@@ -115,7 +129,10 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                 issues.append("BLANK at p=1 (reveal never fired / broken page)")
             if issues:
                 errors += 1
-            report.append({"scene": idx, "status": "FAIL" if issues else "ok", "issues": issues})
+            if advisories:
+                warns += 1
+            report.append({"scene": idx, "issues": issues, "advisories": advisories,
+                           "status": "FAIL" if issues else ("WARN" if advisories else "ok")})
     finally:
         if chrome:
             chrome.close()
@@ -124,15 +141,17 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
         _sheet(last_frames, os.path.join(kf, "all.png"), cols=min(4, len(last_frames)))
 
     if as_json:
-        print(json.dumps({"errors": errors, "report": report, "cdp": bool(chrome)}, indent=2))
+        print(json.dumps({"errors": errors, "warns": warns, "report": report, "cdp": bool(chrome)}, indent=2))
     else:
         for r in report:
-            mark = "✗" if r["status"] != "ok" else "✓"
-            extra = ("  " + "; ".join(r["issues"])) if r.get("issues") else ""
+            mark = {"FAIL": "✗", "WARN": "!"}.get(r["status"], "✓")
+            notes = (r.get("issues") or []) + (r.get("advisories") or [])
+            extra = ("  " + "; ".join(notes)) if notes else ""
             print(f"  {mark} scene {r['scene']:02d} [{r['status']}]{extra}")
-        mode = "DOM+shots" if chrome else "shots-only (no CDP → overflow unchecked)"
+        mode = "DOM+shots" if chrome else "shots-only (no CDP → overflow/centered unchecked)"
         print(f"[keyframe_qa] {'OK' if errors == 0 else 'ISSUES'}  {len(report)} html page(s), "
-              f"{errors} issue(s) [{mode}]; sheets -> {kf}/  (open all.png to eyeball tofu/theme/reveals)")
+              f"{errors} issue(s), {warns} advisory(ies) [{mode}]; sheets -> {kf}/  "
+              f"(open all.png to eyeball tofu/theme/reveals)")
     return 1 if errors else 0
 
 
