@@ -271,7 +271,12 @@ The design system is 1920×1080; a 9:16 deck (`meta.aspect:"9:16"`) needs pages 
   (~y1000–1400) instead of a small corner stamp, so the column carries two visual centers.
 - **Restack, don't shrink:** `.split`/`.blocks`/multi-column `.grid` → ONE column; the horizontal
   `.timeline` → a **vertical rail** (`flex-direction:column`, rail on the left, node rows beside it);
-  `.hs-spokes` wraps 2×2. A squeezed landscape layout reads as a crop, not a design.
+  `.hs-spokes` gets `width:calc(50% - gap/2)` so it wraps a CLEAN 2×2 (auto widths wrap 1-1-2 at
+  phone scale). A squeezed landscape layout reads as a crop, not a design.
+- **Motif clearance:** a corner motif needs clear air — ≥80px from any text. On a page with a
+  CENTERED / full-width header the top corners aren't free: move the motif to the lower zone
+  (where it also helps fill) or drop it. Text stacks need real spacing too (~36–44px between a
+  title and its sub-lines at phone scale) — tight stacks above a large void read as a mistake.
 - **Keep long unbreakable tokens OUT of the narration** (filenames, URLs, long code): the caption
   column is narrow and `build_yourdeck.py` can't wrap — say "its build script" and show the
   filename ON the page instead.
