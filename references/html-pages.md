@@ -48,6 +48,11 @@ For each beat, record the pick as a one-line **form ledger**: *winner — beats 
 - Stagger by giving later elements an inline positive delay: `style="animation-delay:.18s"`.
 - ONLY use CSS animations via these classes. **No** `setTimeout`/JS-driven motion, **no** external
   network assets (images/fonts/CDNs) — they break deterministic, offline, seekable capture.
+- ⚠️ **NEVER put an inline `opacity` on a reveal element.** The reveal classes hide the element via
+  `opacity:0` in the CLASS; an inline `opacity:.92` overrides that, so the element is VISIBLE before
+  its cue/delay ever fires (content leads the voice — it shipped as a real bug). To dim a reveal
+  element, put the transparency in the COLOR instead:
+  `color:color-mix(in srgb,var(--on-accent) 92%,transparent)`.
 
 ## Faithfulness (required)
 Every number, name, date, and claim on the page must come from the material (or a verified
@@ -246,6 +251,33 @@ The most common defect is **content appearing well before the narration reaches 
 ## One-concept rule + whitespace floor
 ONE primary per page (a stat OR a list OR a chart — not two stacked). Content must not fill more than
 ~60% of the canvas; if a row grid overflows below 960px, SPLIT the beat — never shrink `.stage` padding below 80px.
+
+## 9:16 vertical pages (1080×1920) — author a VERTICAL layout, don't crop
+The design system is 1920×1080; a 9:16 deck (`meta.aspect:"9:16"`) needs pages re-authored at
+1080×1920 via an override `<style>` block linked LAST. Rules learned in production:
+- **Canvas override:** `html,body{width:1080px;height:1920px}` + resize `.bg-photo`/`.bg-soft` to
+  match; on a cover hero flip `.scrim` to a vertical gradient (`180deg`, dark at top).
+- **Top-anchored composition** (NOT the landscape vertical-centering): content opens at ONE
+  consistent line ~160px from the top (`.stage{padding:160px 84px 320px;justify-content:flex-start}`)
+  and the caption band owns the bottom ~270px — don't center content into it.
+- **FILL the column — the cardinal 9:16 rule.** Landscape content ported 1:1 fills ~40% of the
+  tall canvas and reads as a mistake. Target: content spans **≥70% of the zone between the top
+  line and the caption band** (~y160–1600). Measure it, don't eyeball it — freeze each page at
+  `?p=1` and take the bbox of visible `.stage` descendants over CDP; tune until every page clears.
+  Two levers: (a) **phone-first type scale** — title ~92px, labels ~44px, sub ~42px, notes ~32px,
+  blocks ~250px min-height, segbar ~120px, icon tiles ~88px (the 64–70px "desktop" scale is what
+  leaves the dead zone); (b) **distribute along the height** — tall row gaps (~34px), padded
+  timeline rows (~22px), and on a SPARSE beat drop a LARGE motif/visual into the lower zone
+  (~y1000–1400) instead of a small corner stamp, so the column carries two visual centers.
+- **Restack, don't shrink:** `.split`/`.blocks`/multi-column `.grid` → ONE column; the horizontal
+  `.timeline` → a **vertical rail** (`flex-direction:column`, rail on the left, node rows beside it);
+  `.hs-spokes` wraps 2×2. A squeezed landscape layout reads as a crop, not a design.
+- **Keep long unbreakable tokens OUT of the narration** (filenames, URLs, long code): the caption
+  column is narrow and `build_yourdeck.py` can't wrap — say "its build script" and show the
+  filename ON the page instead.
+- **Captions are auto-sized off the narrow dimension** (`min(W,H)*0.045` ≈ 48px in both aspects) —
+  the renderer handles it; still re-run `validate.py` after switching aspect (wraps/widows differ)
+  and `keyframe_qa.py` (it measures the 1080×1920 DOM and renders aspect-correct contact sheets).
 
 ## Anti-slop checklist (do NOT)
 emoji in titles · full-screen purple/pink/blue gradient-mesh backgrounds · circle+left-border accent

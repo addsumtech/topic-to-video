@@ -318,7 +318,10 @@ TTS if the user gives an API key.
    every page at several reveal states into `<out_dir>/_keyframes/` and flags any BLANK page or
    content overflowing the 1080 canvas (open `_keyframes/all.png` and eyeball for tofu / off-theme /
    mistimed reveals). Fix any FAIL before the full render — cheaper than finding it in `out.mp4`. Then
-   `render.py <out_dir>` (for 9:16 set `meta.aspect:"9:16"` — render and validate both honor it;
+   `render.py <out_dir>` (for 9:16 set `meta.aspect:"9:16"` — render and validate both honor it,
+   captions auto-scale off the narrow dimension, and HTML pages must be RE-AUTHORED vertically —
+   top-anchored, single-column restacks, vertical timeline rail; see `references/html-pages.md`
+   "9:16 vertical pages";
    the `--vertical` flag also forces it on both), and the POST-render A/V gate:
    `python scripts/check_av.py <out_dir>`. A non-zero exit means A/V drift or non-uniform clip
    rates — fix the root cause (clear `.clips/`, fix audio or regenerate failing clips, and

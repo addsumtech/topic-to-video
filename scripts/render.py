@@ -124,12 +124,18 @@ def _wrap(d, text, font, max_w):
 
 KARAOKE_HL = (255, 209, 102, 255)   # warm gold — reads clearly on the dark caption bar
 
+def _caption_font_px(W, H):
+    """Caption size scales with the NARROW dimension, not height: H-relative sizing balloons to
+    ~86px on a 9:16 canvas (double the landscape weight in half the width — 3-line wraps, widows,
+    and the band eats the layout). min(W,H)*0.045 keeps the same visual weight in both aspects."""
+    return int(min(W, H) * 0.045)
+
 def _draw_caption(d, text, W, H, meta=None, hl_word=None):
     """Burn a centered caption bar near the bottom (fixed, doesn't zoom). If `hl_word` (a whitespace
     word index) is given, that word is drawn in the karaoke highlight colour (space-delimited text)."""
     if not text:
         return
-    font = _load_font(int(H * 0.045), _font_path(meta, text))
+    font = _load_font(_caption_font_px(W, H), _font_path(meta, text))
     margin = int(H * 0.06)
     pad = int(H * 0.012)
     lines = _wrap(d, text, font, int(W * 0.9))

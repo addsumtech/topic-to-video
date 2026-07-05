@@ -375,3 +375,9 @@ def test_fade_filter_unknown_value_falls_back_to_meta():
     m = {"transition": "dip", "transition_seconds": 0.2, "_out": "/nonexistent"}
     s = render._fade_filter(m, 10.0, {"transition": "wipe"})     # unknown -> meta default (dip)
     assert "t=in" in s and "t=out" in s
+
+
+def test_caption_font_scales_with_narrow_dimension():
+    # same visual weight in both aspects: 48px on 1920x1080 AND on 1080x1920
+    assert render._caption_font_px(1920, 1080) == 48
+    assert render._caption_font_px(1080, 1920) == 48          # was 86 when H-relative (band ate the layout)

@@ -53,8 +53,11 @@ def _is_blank(img):
     return (hi - lo) < 12
 
 
-def _sheet(imgs, path, cols=None, tw=560, th=315):
+def _sheet(imgs, path, cols=None, tw=560, th=None):
     cols = cols or len(imgs)
+    if th is None:                       # aspect-correct thumbs (9:16 shots stay tall)
+        w0, h0 = imgs[0].size
+        th = max(1, int(tw * h0 / w0))
     rows = (len(imgs) + cols - 1) // cols
     sh = Image.new("RGB", (tw * cols, th * rows), "#cccccc")
     for i, im in enumerate(imgs):

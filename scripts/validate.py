@@ -78,7 +78,7 @@ def _caption_lines(text, meta, W, H):
     from PIL import Image, ImageDraw
     if not (text or "").strip():
         return []
-    font = rd._load_font(int(H * 0.045), rd._font_path(meta, text))
+    font = rd._load_font(rd._caption_font_px(W, H), rd._font_path(meta, text))  # narrow-dim scaled
     d = ImageDraw.Draw(Image.new("RGB", (4, 4)))
     return rd._wrap(d, text, font, int(W * 0.9))
 
