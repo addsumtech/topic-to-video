@@ -87,6 +87,10 @@ content** — they assert no fact, so they stay decorative; the real data is the
   (NOT a loop/bob); distinct from `class="reveal-up"` which is a 48px entrance + fade. Use `.float`
   for atmospheric elements that settle into position; use `.reveal-up` for content entrances.
 
+**Stroke weight for video:** information-carrying SVG/diagram strokes are **≥2px** — thin lines
+die under yuv420p encoding. The 1px `--hairline` card border is decorative only (cards are
+delineated by surface + shadow); never use a 1px stroke to carry meaning.
+
 **Inline SVG motifs** (copy-paste; style with `fill`/`stroke`/`.float`/`.draw`):
 ```html
 <!-- generic rocket silhouette -->
@@ -222,6 +226,10 @@ instead. `validate.py` counts the families and warns when one dominates; `critic
 - **`.defocus`** — on a comparison, add to the NON-focal side for depth-of-field (subtle blur, not flat dim).
 - **`.accent-fill`** — on `<body>` of a section-divider beat: full-bleed accent background, `--on-accent` text.
 - **`.reveal-pop`** — spring overshoot for a hero `.stat`/`.num`. **`.reveal-up-sm`** — shorter rise for dense sub-items.
+- **`.reveal-wipe`** — a left-to-right mask reveal (clip-path). ONLY for elements whose meaning is
+  filling/directional — `.rule`, `.segbar`, `.meter .fill`, a `.media` image panel (the FILLS/DRAWS
+  verbs); never on text rows/cards (text enters by opacity/rise). One direction deck-wide, at most
+  1–2 uses per video — an option, not a default.
 - **`.chrome`** — a mono SECTION-LABEL rail (direct child of `<body>`); reuse the section/topic name across beats as a quiet editorial through-line. **NOT a page number / progress bar / counter** (that's the banned player-chrome — a video has nothing to navigate). ⚠️ **Use it ONLY when `meta.captions:false`:** the rail sits at `bottom:56px`, inside the burned caption band (bottom ~8% of the canvas) — with captions ON (the default) they collide, text under text. `validate.py` warns on this; the page's top kicker already labels the section, so with captions just drop `.chrome`.
 
 ## Reveal timing — points must NOT lead the voice (important)
@@ -262,8 +270,8 @@ The design system is 1920×1080; a 9:16 deck (`meta.aspect:"9:16"`) needs pages 
   and the caption band owns the bottom ~270px — don't center content into it.
 - **FILL the column — the cardinal 9:16 rule.** Landscape content ported 1:1 fills ~40% of the
   tall canvas and reads as a mistake. Target: content spans **≥70% of the zone between the top
-  line and the caption band** (~y160–1600). Measure it, don't eyeball it — freeze each page at
-  `?p=1` and take the bbox of visible `.stage` descendants over CDP; tune until every page clears.
+  line and the caption band** (~y160–1600). Measure it, don't eyeball it — `keyframe_qa.py` reports each page's fill% on a 9:16 deck and
+  advises below 60% (heroes with a full-bleed `.bg-photo` exempt); tune until every page clears.
   Two levers: (a) **phone-first type scale** — title ~92px, labels ~44px, sub ~42px, notes ~32px,
   blocks ~250px min-height, segbar ~120px, icon tiles ~88px (the 64–70px "desktop" scale is what
   leaves the dead zone); (b) **distribute along the height** — tall row gaps (~34px), padded

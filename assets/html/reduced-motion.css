@@ -24,3 +24,11 @@
   animation: none !important;
   stroke-dashoffset: 0 !important;
 }
+
+/* .reveal-wipe hides via clip-path; swap to the opacity-only fade so it still reveals (and
+   seek.js still finds a named animation) without the directional sweep. */
+.reveal-wipe {
+  animation-name: fade !important;
+  clip-path: none !important;
+  opacity: 0;
+}

@@ -27,3 +27,7 @@ def test_center_exclude_covers_display_and_diagram_classes():
     for c in (".title", ".pullquote", ".kicker", ".stat", ".flow", ".hubspoke",
               ".timeline", ".quadrant", ".scorecard", ".tile", ".block"):
         assert c in kq._CENTER_EXCL
+
+def test_probe_js_reports_fill_bbox_and_bleed():
+    for k in ("ctop", "cbot", "bleed", ".bg-photo"):
+        assert k in kq._OVERFLOW_JS

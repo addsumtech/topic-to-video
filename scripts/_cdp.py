@@ -145,6 +145,12 @@ class Chrome:
         self._cmd("Runtime.evaluate",
                   {"expression": "document.fonts ? document.fonts.ready.then(()=>1) : 1",
                    "awaitPromise": True, "returnByValue": True}, self.sid)
+        # and let every <img> finish DECODING — readyState 'complete' means loaded, not painted;
+        # a multi-MB file:// backdrop can otherwise paint a frame late (blank/partial cover)
+        self._cmd("Runtime.evaluate",
+                  {"expression": "Promise.all(Array.from(document.images)"
+                                 ".map(i=>i.decode().catch(()=>1))).then(()=>1)",
+                   "awaitPromise": True, "returnByValue": True}, self.sid)
         data = self._cmd("Page.captureScreenshot",
                          {"format": "jpeg", "quality": self.quality}, self.sid)["result"]["data"]
         with open(out_path, "wb") as f:

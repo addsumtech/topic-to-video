@@ -32,11 +32,13 @@ OVERFLOW_TOL = 6   # px a content box may exceed the canvas before it's flagged
 _CENTER_EXCL = (".flow,.step,.hubspoke,.hs-spoke,.hs-hub,.timeline,.tl-node,.quadrant,.cell,"
                 ".scorecard,.tile,.title,.pullquote,.kicker,.stat,.block")
 _OVERFLOW_JS = (
-    "(function(){var W=window.innerWidth,H=window.innerHeight,worst=0;"
+    "(function(){var W=window.innerWidth,H=window.innerHeight,worst=0,ct=1e9,cb=-1e9;"
     "var n=document.querySelectorAll('.stage *,.split *');"
     "for(var i=0;i<n.length;i++){var r=n[i].getBoundingClientRect();"
     "if(r.width<1||r.height<1)continue;"
-    "var o=Math.max(r.right-W,r.bottom-H,-r.left,-r.top);if(o>worst)worst=o;}"
+    "var o=Math.max(r.right-W,r.bottom-H,-r.left,-r.top);if(o>worst)worst=o;"
+    "var cs=getComputedStyle(n[i]);if(cs.opacity!=='0'&&cs.display!=='none'){"
+    "if(r.top<ct)ct=r.top;if(r.bottom>cb)cb=r.bottom;}}"
     "var t=(document.body.innerText||'').replace(/\\s+/g,'').length;"
     "var EXCL='" + _CENTER_EXCL + "',centered=0,para=document.querySelectorAll('.sub,.note,.lead,p');"
     "for(var j=0;j<para.length;j++){var e=para[j],cs=getComputedStyle(e);"
@@ -45,7 +47,9 @@ _OVERFLOW_JS = (
     "lh=(lh==='normal'||!lh)?1.4*fs:parseFloat(lh);if(lh<1)continue;"
     "var lines=Math.round(e.scrollHeight/lh),w=e.getBoundingClientRect().width;"
     "if(lines>=3&&w>=600)centered++;}"
-    "return JSON.stringify({worst:Math.round(worst),textlen:t,centered:centered});})()")
+    "var bleed=!!document.querySelector('.bg-photo');"
+    "return JSON.stringify({worst:Math.round(worst),textlen:t,centered:centered,"
+    "ctop:Math.round(ct),cbot:Math.round(cb),bleed:bleed});})()")
 
 
 def _is_blank(img):
@@ -126,6 +130,16 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                     if info.get("centered", 0) > 0:
                         advisories.append(f"{info['centered']} centered running paragraph(s) — "
                                           "left-align body text for scanning (studios do)")
+                    # 9:16 fill (html-pages.md "fill the column"): content should span >=~70% of
+                    # the zone above the caption band (y160-1600). Advisory only; a full-bleed
+                    # .bg-photo hero provides visual fill outside .stage, so heroes never warn.
+                    if meta.get("aspect") == "9:16" and info.get("cbot", -1) > info.get("ctop", 0):
+                        fill = (info["cbot"] - info["ctop"]) / (1600 - 160)
+                        rep_fill = round(100 * min(1.0, fill))
+                        if fill < 0.60 and not info.get("bleed"):
+                            advisories.append(f"fills only {rep_fill}% of the 9:16 zone — scale type "
+                                              "up / distribute down / add a lower-zone visual "
+                                              "(html-pages '9:16 vertical pages')")
                 except Exception:
                     if _is_blank(final):
                         issues.append("BLANK at p=1 (reveal never fired / broken page)")

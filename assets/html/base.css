@@ -49,6 +49,11 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 @keyframes pop{to{opacity:1;transform:none}}
 /* shorter rise for dense sub-items */
 .reveal-up-sm{opacity:0;transform:translateY(10px);animation:rise var(--dur) var(--ease-expo) forwards;animation-play-state:paused}
+/* mask-reveal entrance (left-to-right wipe-on) — for elements with a FILLING/DIRECTIONAL semantic
+   only (.rule, .segbar, .meter .fill, a .media image panel); never on text rows/cards. One
+   direction deck-wide; at most 1-2 uses per video (an option, not a default). */
+.reveal-wipe{clip-path:inset(0 100% 0 0);animation:wipe var(--dur) var(--ease-expo) forwards;animation-play-state:paused}
+@keyframes wipe{to{clip-path:inset(0)}}
 /* card with depth + hairline */
 .card{background:var(--surface);border-radius:14px;padding:28px 32px;border:var(--hairline);
   box-shadow:var(--shadow-primary),var(--shadow-float)}

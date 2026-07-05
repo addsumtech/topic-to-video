@@ -366,7 +366,7 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
         "r": [W, H, meta.get("fps", 30), ss, burn, vertical,
               meta.get("language", "auto"), meta.get("font"),
               meta.get("transition", "dip"), meta.get("transition_seconds", 0.2),
-              meta.get("captions_karaoke", "auto"), meta.get("reduced_motion", False)],
+              meta.get("captions_karaoke", "auto"), meta.get("reduced_motion", False), "x264crf18"],
         "img": stat(slide.get("image")), "aud": stat(slide.get("audio")),
         "html": stat((slide.get("props") or {}).get("html")),
         # re-theming (theme.py) busts ALL clips — html pages link theme.css AND the programmatic
@@ -457,7 +457,7 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
            "-i", os.path.join(meta["_out"], audio_rel)] + extra_inputs + [
         "-filter_complex", ";".join(parts), "-map", f"[{vlabel}]", "-map", "1:a",
         "-t", f"{dur}", "-r", str(fps), "-pix_fmt", "yuv420p",
-        "-c:v", "libx264", "-c:a", "aac", "-ar", "48000", "-ac", "1", "-shortest", out_clip]
+        "-c:v", "libx264", "-crf", "18", "-c:a", "aac", "-ar", "48000", "-ac", "1", "-shortest", out_clip]
     _common.run(cmd)
     return out_clip
 
@@ -550,7 +550,7 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
            os.path.join(meta["_out"], slide["audio"])] + extra_inputs + [
         "-filter_complex", fcomplex, "-map", f"[{vlabel}]", "-map", "1:a",
         "-t", f"{dur}", "-r", str(fps), "-pix_fmt", "yuv420p",
-        "-c:v", "libx264", "-c:a", "aac", "-ar", "48000", "-ac", "1", "-shortest", out_clip]
+        "-c:v", "libx264", "-crf", "18", "-c:a", "aac", "-ar", "48000", "-ac", "1", "-shortest", out_clip]
     _common.run(cmd)
     return out_clip
 
@@ -615,7 +615,7 @@ def render(out_dir, sample=None, vertical=False, only=None, reduced_motion=False
                 f.write(f"file '{os.path.abspath(c)}'\n")
         dst = os.path.join(out_dir, "out.mp4")
         _common.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", listfile,
-                     "-c", "copy", dst])
+                     "-c", "copy", "-movflags", "+faststart", dst])
         _write_srt(data, os.path.join(out_dir, "out.srt"))
         print(f"({rendered} slide(s) rendered, {len(clips) - rendered} reused from cache; "
               f"{time.monotonic()-t_all:.1f}s total)")

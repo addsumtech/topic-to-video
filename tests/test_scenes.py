@@ -682,3 +682,12 @@ def test_reduced_motion_title_has_no_rise(tmp_path):
         from PIL import ImageChops
         return ImageChops.difference(im, Image.new("L", im.size, bg)).getbbox()
     assert bbox(early)[1] == bbox(final)[1]                      # same top y: fade only, no translate
+
+
+def test_chart_bars_direct_labels_deterministic(tmp_path):
+    props = {"kind": "bars", "unit": "%", "data": [{"label": "A", "value": 42}, {"label": "B", "value": 73}]}
+    a = tmp_path / "a"; b = tmp_path / "b"; a.mkdir(); b.mkdir()
+    pa = scenes.render_chart(props, META, 640, 360, 12, str(a), 1)
+    pb = scenes.render_chart(props, META, 640, 360, 12, str(b), 1)
+    assert all(_pix(pa % i) == _pix(pb % i) for i in range(12))   # labels stay pure/deterministic
+    assert _pix(pa % 11) != _pix(pa % 9)                          # label alpha still ramping at the end

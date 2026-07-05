@@ -394,6 +394,15 @@ def render_chart(props, meta, W, H, frames, workdir, index):
             ax.set_ylim(0, y_max)
             for t in ax.get_xticklabels():
                 t.set_fontfamily(famly)
+            # direct value labels (guide §11: "use direct labels; annotation appears last") —
+            # fade in over the last ~20% as the bars settle, anchored to the animated bar tip,
+            # clamped below y_max so a tight user-supplied ceiling can't clip the text.
+            la = max(0.0, min(1.0, (p_raw - 0.8) / 0.2))
+            if la > 0:
+                for j, v in enumerate(values):
+                    ax.text(j, min(cur[j], y_max * 0.98) + y_max * 0.02, f"{v:g}{unit}",
+                            ha="center", va="bottom", color=c_fg, alpha=la,
+                            fontsize=14, fontfamily=famly)
         if props.get("y_label"):
             ax.set_ylabel(props["y_label"], color=c_muted, fontfamily=famly)
         fig.tight_layout()

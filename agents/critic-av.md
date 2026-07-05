@@ -82,6 +82,11 @@ The renderer burns captions derived from `narration` into the video. Check the s
   concern — only technical rendering failures AND the squint/player-chrome checks below.
 
 ### Squint + no player-chrome
+- **Compression safety (WARN, not REVISE):** in the extracted frames (already once-encoded at
+  yuv420p), flag hairline strokes, small low-contrast gray text, or fine textures (dots, noise,
+  checkerboards) that are visibly smeared or will predictably degrade when a social platform
+  re-encodes. Fix: thicken the stroke, raise contrast, or enlarge the element. Scope this to
+  encode-degradation only — palette taste stays out of it.
 - **Squint test:** at a glance (or at low resolution), the visual hierarchy must read — size, weight,
   colour, and contrast must separate the primary element from the secondary. FAIL a frame that is a flat
   wall of same-size text with no clear focal point.
