@@ -440,6 +440,7 @@ def test_base_css_design_tokens_and_classes():
         assert tok in css, f"missing token {tok}"
     for cls in (".reveal-pop", ".reveal-up-sm", ".mono", ".card", ".dash", ".grid-asym", ".dash-col"):
         assert cls in css, f"missing class {cls}"
+    assert ".flow .step.on" in css   # focal step (bottleneck/key stage) — parity with .cell.on/.tl-node.on
     # seek-safe: the new spring reveal must be paused
     i = css.index(".reveal-pop")
     assert "animation-play-state:paused" in css[i:i+240]

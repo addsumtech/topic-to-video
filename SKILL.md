@@ -222,7 +222,11 @@ TTS if the user gives an API key.
      forms only, no un-renderable Sankey/heatmap/pyramid), `motion_intent`, `transition` (mapped from the
      beat's `relation`; see `references/motion-grammar.md` "Transition rhythm"), `icons`, `media`
      (`image_prompt` + `motion`: kenburns/bg-live/bg-drift), and a `cue` anchor array for any multi-point
-     `html` beat. **Build the storyboard by MERGING the two plans:** the design's `visual.type`+`props`
+     `html` beat. It also carries a per-beat **reasoning trace** (`narrative_job`/`content_shape`/
+     `rejected_default`), a deck **`rhythm_map`**, and a **`color_ledger`** — the operational design
+     intelligence (block-dependency audit, expanded concept→visual dictionary with use/avoid/failure,
+     evenness penalty, minimum deck-level variation) lives in `references/design-intelligence-addendum.md`,
+     which both the design-director and the design-critic apply. **Build the storyboard by MERGING the two plans:** the design's `visual.type`+`props`
      become each scene; its `transition` becomes the per-scene edges; a `climax` beat's chart becomes
      `props.climax:true` (the renderer's key-number landing hold); its `icons`/`media`/`cue` shape the
      authored page (`.icon-tile` rows per `references/icons.md`). **Keep BOTH plan files** — the critic

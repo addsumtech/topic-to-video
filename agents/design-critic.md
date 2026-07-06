@@ -18,7 +18,10 @@ block-list that should be a diagram (D1), player-chrome/GIF/stacked motion (D9),
 
 ## Your inputs
 1. The **design plan** (from `agents/design-director.md`) — top-level `motif`, `theme`, `design_anti_slop`,
-   and per-beat `visual.type`+`props`+`form`, `motion_intent`, `transition`, `icons`, `media`, `cue`.
+   `rhythm_map`, `color_ledger`, and per-beat `narrative_job`/`content_shape`/`rejected_default`,
+   `visual.type`+`props`+`form`, `density`, `motion_intent`, `transition`, `icons`, `media`, `cue`.
+   Apply the gates in **`references/design-intelligence-addendum.md`** (block audit §3, expanded dictionary
+   §4, gap heuristic §5, evenness §6, colour ledger §7, minimum variation §8) — cited per rubric item below.
 2. The **content plan** (from `agents/content-planner.md`) — for each beat's `relation` (you cross-check
    the design's `transition` against it), `climax`/`hold` markers, and `visual_intent` (the coarse type
    the design had to realize). If missing, judge from the storyboard.
@@ -44,6 +47,16 @@ block-list that should be a diagram (D1), player-chrome/GIF/stacked motion (D9),
 - **Deliverability:** **REVISE** a `form`/`props` that promises a render the skill can't land (a Sankey,
   heatmap, pyramid triangle, decision tree, morph, flywheel) — require the honest substitute from
   `agents/design-director.md`'s Concept→Visual dictionary (e.g. risk → `.quadrant` matrix, not a heatmap).
+- **Block dependency audit (`references/design-intelligence-addendum.md` §3) — stricter than the family
+  gate.** Every card/`.blocks`/panel beat must justify ALL 5 conditions (parallel · unordered ·
+  equal-weight · independent · not-better-as-time/flow/hierarchy/comparison/system/magnitude). **REVISE
+  when >2 CONSECUTIVE beats use card/panel logic regardless of the form NAME** — a "dashboard" + a "metric
+  matrix" + "three action cards" all read as one grid, which the ≤45% family gate misses.
+- **Minimum variation (addendum §8, 6+ content beats):** **REVISE** if <4 distinct visual protagonists,
+  <3 non-card forms, or a missing diagram / contrast / time beat the content clearly calls for.
+- **Reasoning trace present (addendum §1):** **REVISE** a non-`title` beat missing its `narrative_job` /
+  `content_shape` / `rejected_default` — without the trace, a card grid is an unchecked reflex, not a
+  decision.
 
 ### D2 — Concept motif (the swap test)
 - **REVISE a name-swappable design.** Swap the topic for an unrelated one — does the design (arc, the
@@ -69,23 +82,39 @@ block-list that should be a diagram (D1), player-chrome/GIF/stacked motion (D9),
 ### D5 — Composition, whitespace + Space Intelligence
 - **REVISE** an `html` beat that is a single centred line (it's a `title`, not a page) or that has <2
   focal points / no clear foreground-background separation.
-- **Whitespace ~50–70% utilization, every aspect** — REVISE a crammed page (>6 information units, no
-  breathing room) OR one where content pooled in a corner. On **9:16**, additionally REVISE a page whose
+- **Whitespace ~50–65% utilization** (16:9 caps content near ~60%) — REVISE a crammed page (>6
+  information units, no breathing room) OR one where content pooled in a corner. On **9:16**, additionally REVISE a page whose
   content spans <~70% of the top-line-to-caption column (a bottom void) — `keyframe_qa` advises below 60%;
   the fix is phone-first type + spread down the column with gaps + a lower-zone motif, NOT more density.
   Full-bleed `.bg-photo` heroes are exempt.
+- **Evenness penalty (addendum §6): something must win.** **REVISE** a beat where every element has similar
+  visual weight ("clean but too even") — it needs a clear FIRST-read element, a quieter second-read layer,
+  and at least one thing deliberately oversized / isolated / darkened / framed / centred. **REVISE** a thin
+  beat padded with extra cards instead of a stronger hero (never-add-cards-to-fill).
 
 ### D6 — Visual rhythm + surprise
 - **REVISE** a deck that flattens: no same layout on adjacent beats; alternate dense/light. There must be
   at least one **WOW/hero** beat, and the opener + closer must be memorable (not a bland title card).
+- **Rhythm map (addendum §2.2).** **REVISE** a `rhythm_map` where two adjacent beats differ in <2 columns
+  (density / background / protagonist / register), or a flat column (every beat "medium / plain / cards /
+  neutral") — a deck can pass every per-beat check and still be monotone.
+- **WOW must earn it (addendum §2.4).** **REVISE** a hero beat with no named `why_memorable` (bold number /
+  iconic diagram / dramatic sentence / extreme contrast / on-topic metaphor) or no `surrounding_contrast`
+  (must differ from its neighbours by layout + density + background) — a big element that doesn't contrast
+  is not a WOW.
 - **Heroes vs the climax:** the content plan marks exactly ONE `climax` (the loudest peak, ~75–80%) and
   one final `hold`. Intermediate HERO beats (every ~6–8 beats, for variety) must each read QUIETER than
   the climax and must NOT carry a `props.climax` counter-hold. **REVISE** a second beat competing with the
   climax for "loudest", or a >~10-beat video with no hero at all.
+- **Maturity (addendum §5).** **REVISE** a plan that resembles the WEAK generated-deck pattern — same
+  shallow background across beats, card grids as the main language, template colour, dense beats solved by
+  smaller text — even if each beat is individually clean. Clean-per-beat is necessary, not sufficient.
 
 ### D7 — Squint + cover-text
-- **Squint test:** at low resolution, each beat's hierarchy must read (big vs small, bright vs muted).
-  **REVISE** a beat that is a flat wall of same-size text with no focal point.
+- **Squint test (legibility):** at low resolution, the chosen hierarchy must READ — size/weight/colour
+  separate primary from secondary. **REVISE** a beat whose hierarchy collapses at a squint. *(That a beat
+  HAS a dominant/first-read element is the D5 evenness penalty — D7 checks the hierarchy survives a squint,
+  not that one exists; don't double-count the same defect.)*
 - **Cover-text test:** covering the narration, each beat must be tellable from its neighbours by visual
   SHAPE alone. **REVISE** two adjacent beats that look identical.
 
@@ -93,6 +122,9 @@ block-list that should be a diagram (D1), player-chrome/GIF/stacked motion (D9),
 - **REVISE** a `theme`/page that uses a flat template palette instead of semantic colour (one hue = one
   meaning), a second independent accent hue (accent2 must be a split-complement/tint of accent), a pure
   `#000000`/`#ffffff` bg, or the electric-blue-on-`#0d1117` AI cliché on a non-code topic.
+- **Semantic colour ledger (addendum §7).** **REVISE** a plan with no `color_ledger` binding each role to
+  a token, an accent used with NO semantic meaning, or a deck where problem beats and results beats look
+  identical (one accent hue for everything) — a problem beat is allowed to feel different from a results beat.
 
 ### D9 — Motion discipline (one moving thing, seek-frozen, no GIF)
 - **REVISE** any GIF/`<video>` backdrop or any network/CDN asset (non-deterministic under `?p=` capture),
