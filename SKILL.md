@@ -276,11 +276,15 @@ TTS if the user gives an API key.
     VISUAL/conceptual scene, author a grounded `image_prompt` from the narration + the chosen
     style, tagged `image_tag:"broll"` and `fit:"cover"`; keep DATA in `chart` scenes (never AI).
     Generic/atmospheric prompts only — no real logos, faces, named vehicles, or text in-image.
-    **Topical, not decorative:** the prompt's central motif MUST come from the VIDEO'S subject
-    (derive it from the comprehension brief), so the image reads as "about this topic" — generic
-    bounds the specifics (no fabricated logos/text), it does NOT license a topic-neutral texture.
-    Litmus test before you generate: *"remove the caption — would a viewer still sense what this
-    video is about from the image alone?"* If no, rewrite the motif to evoke the subject.
+    **Topical AND (for image-forward media) on-beat, not decorative:** the prompt's central motif MUST
+    come from the VIDEO'S subject (derive it from the comprehension brief). For an **image-forward**
+    scene (the image carries the beat — a cover/`.split`/`kenburns`), the motif must ALSO fit THIS
+    beat's point — through an **abstract quality** (sparseness, motion, density), NEVER by depicting the
+    beat's literal named subject (the generic rule still binds). Litmus: *"hide the caption — (a) can a
+    viewer sense what the VIDEO is about, and (b) does the image fit what THIS beat says?"* — rewrite the
+    motif from the brief + narration if either fails. **The low-opacity `.bg-soft` textures rotated
+    behind content pages are deck-level atmosphere and MEANT to be reused** — only litmus (a) applies to
+    them. (`critic-content` R1e enforces this split.)
     **Pace the cuts:** a static AI image drags even with Ken Burns — keep each image scene's
     narration short so it holds only ~5–8s, and prefer MORE, SHORTER b-roll cuts over a few
     long holds (a 12s hold on one frame reads as sluggish; two 6s cuts feel alive).

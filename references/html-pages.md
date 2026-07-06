@@ -139,7 +139,9 @@ that fights the content) and place them faithfully:
 - **Content pages:** 2–4 subtle textures **rotated** behind the content pages as `.bg-soft`
   (opacity ~.10–.14) + `.bg-soft-tint`, so every page reads "not flat" while staying legible and
   coherent. Reuse the set; don't generate 12 unique busy images. Keep the textures on-topic too
-  (a faint motif of the subject), just quieter than the cover.
+  (a faint motif of the subject), just quieter than the cover. These reused soft textures are deck-level
+  atmosphere, so **only the TOPIC litmus applies** (not the per-beat one that image-forward media gets —
+  `critic-content` R1e exempts them deliberately).
 - **Generate:** `imagegen._generate_codex(prompt, out_path)` (Codex, no key) or
   `imagegen.generate(prompt, out_path, key)` (OpenAI key); cache under `.assets/`. Prompts are generic
   **broll** — no logos, faces, named things, or in-image text — AND topically evocative of the video's

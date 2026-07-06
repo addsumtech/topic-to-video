@@ -61,12 +61,21 @@ block-list that should be a diagram (D1), player-chrome/GIF/stacked motion (D9),
   `content_shape` / `rejected_default` — without the trace, a card grid is an unchecked reflex, not a
   decision.
 
-### D2 — Concept motif (the swap test)
+### D2 — Concept motif + freshness (the swap test)
 - **REVISE a name-swappable design.** Swap the topic for an unrelated one — does the design (arc, the
   top-level `motif`, at least one signature visual) still work unchanged? If yes, it's a template, not a
   design: require at least ONE content-derived motif/visual that could only belong to THIS subject. (The
   `motif` here is the CONCEPT motif in the design plan — distinct from the `image_tag: motif` imagery
   class, which is `critic-content`'s R1e.)
+- **REVISE a "filled-in-template" deck.** Now that a template library exists, using a template is NOT the
+  same as designing. **REVISE** only when ALL hold: no topic signature AND no bespoke beat AND beats whose
+  compositions are interchangeable (beat 3 ≈ beat 7). A template ADAPTED to the subject (shifted emphasis,
+  re-cast accent, a signature beat) passes; a template merely *populated* deck-wide fails. **ONE bespoke /
+  signature beat is enough to pass** — a single legitimately-plain catalog form (a simple stat, a
+  genuinely-parallel card grid per D1) is NOT itself a failure. The deck must have a fingerprint that could
+  only be this topic. *(The plan-stage silhouette-repetition check lives here; D11 is its rendered-pixel
+  complement and D7 owns the adjacent cover-text case — flag a repeated pair under whichever fires, don't
+  double-count.)*
 
 ### D3 — Transition rhythm (the cut must match the plan's `relation`)
 - Cross-check each scene's `transition`/`transition_seconds` against the beat's `relation` (motion-grammar

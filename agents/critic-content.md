@@ -47,6 +47,10 @@ diversity, the concept motif, transitions, icons, whitespace, colour, motion —
 
 ### Content quality & optimization
 - Assess informativeness: does each beat convey a concrete, substantive point, or is it filler/fluff?
+- **Directness (WARN):** does each beat LEAD with its point, or bury the takeaway behind wind-up /
+  throat-clearing / "as you can see"? Flag a beat whose first sentence doesn't land the point — the fix is
+  to front-load the takeaway, support after (content-planner "curiosity + directness"). *(Curiosity — the
+  hook opening a gap, beats hooking forward — is `critic-narrative`'s R4/pull; you own directness.)*
 - Assess structure and depth: does the arc progress logically? Are key points developed sufficiently?
 - Provide concrete **optimization suggestions** where the script is weak, vague, or redundant — one
   actionable bullet per issue (what to add, cut, or reorder).
@@ -97,12 +101,21 @@ a programmatic motif. Classes (see SKILL.md "Imagery faithfulness"):
   real vehicle/mission/person/company logo/insignia or embeds factual text/numbers, or if the image sits
   beside a specific claim implying it depicts that fact (it doesn't — the model invented it). Relabel as
   generic or move the claim to a faithful element (chart/caption).
-- **Topical relevance (broll must be ON-SUBJECT).** A generated cover/background/`media` image must
-  visually EVOKE THE VIDEO'S TOPIC — "generic" bounds the *specifics* (no fabricated logos/text/named
-  things), it does NOT permit topic-neutral filler. **FAIL** a broll whose motif is unrelated decoration
-  (random paper texture, a generic gradient, an unrelated stock scene) even though it is otherwise
-  "faithful". Test: with the caption hidden, could a viewer sense what the video is about from the image?
-  If no, require the prompt's motif be rewritten to draw on the subject (from the comprehension brief).
+- **Topical relevance + on-beat correlation.** A generated cover/background/`media` image must visually
+  EVOKE THE VIDEO'S TOPIC — "generic" bounds the *specifics* (no fabricated logos/text/named things), it
+  does NOT permit topic-neutral filler. **FAIL** a broll whose motif is unrelated decoration (random paper
+  texture, a generic gradient, an unrelated stock scene) even though it is otherwise "faithful".
+  - **Image-forward media** — an image that CARRIES the beat (a `.split` panel, a cover, a `kenburns`
+    scene) — must ALSO correlate with THIS beat's point, through an **abstract motif/quality** (sparseness,
+    motion, density), **never by depicting the beat's literal named subject** (the generic rule still
+    binds). A beat about *undersampling* → sparse/aliased motifs; a beat about *speed* → motion. Litmus,
+    caption hidden: (a) can a viewer sense what the VIDEO is about, and (b) does the image fit what THIS
+    beat says? **FAIL** an image-forward broll that ignores its beat.
+  - **EXEMPT — reused soft backgrounds.** The low-opacity `.bg-soft` textures (`motion:bg-drift`/`bg-live`)
+    rotated behind content pages are **deck-level atmosphere and are MEANT to be reused** (html-pages.md) —
+    for them ONLY litmus (a), the topic test, applies; do NOT fail a reused soft texture for lacking
+    beat-specificity. Fix a failing prompt by rewriting the motif from the comprehension brief (+ the
+    beat's narration, for image-forward media).
 - `asserted` AI imagery → **FAIL** (R0-class misattribution; a generated image is not the real thing).
 - **FAIL** if data/numbers are rendered as an AI image instead of a faithful `chart`.
 - Cross-ref R1d (animated on-screen values). When `meta.image_source == "openai"`, scan every scene's

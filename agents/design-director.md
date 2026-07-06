@@ -47,7 +47,7 @@ A SEPARATE artifact from the content plan (the assistant merges the two into the
       "motion_intent": "one VERB from references/motion-grammar.md (COUNTS UP, SLIDES, BREATHES, DRAWS…)",
       "transition": { "in": "none|in|dip", "out": "none|out|dip", "seconds": 0.2 },
       "icons": ["optional — one Lucide glyph per point, category/feature rows only"],
-      "media": { "image_prompt": "generic, topical broll …", "motion": "kenburns|bg-live|bg-drift|none" },
+      "media": { "image_prompt": "broll motif from THIS beat's point + the topic (topical AND on-beat, generic specifics)", "motion": "kenburns|bg-live|bg-drift|none" },
       "cue": ["optional — per-point anchor phrases (one per point, in SPOKEN order) for an html multi-point beat"]
     } } }
 ```
@@ -117,10 +117,11 @@ AND the runner-up it beat, one clause: e.g. `"form": "flow — beats cards becau
 a card grid hides the sequence"`. **When the chosen form has a premium template in
 `references/html-templates.md`** — business/general (hero_stat, before_after, timeline_rail, problem_leak,
 system_map, metric_wall, case_story, flywheel) OR **research/technical** (research_method, code_architecture,
-equation_build, results_table, figure_focus) — START FROM IT and swap in real content — don't reinvent the
-composition — and name it in the `form` clause (e.g. `"form": "results_table template — …"`). Every
-template FORM is topic-agnostic; match the content SHAPE, not the domain. Templates are verified premium
-starting points to ADAPT, not fixed slots (design is still choosing). The card grid is right ONLY for **parallel, unordered, equal-weight**
+equation_build, results_table, figure_focus) — START FROM IT and populate with real content — don't
+reinvent the composition — then **adapt it to the subject** (see Freshness below); name it in the `form`
+clause (e.g. `"form": "results_table template — …"`). Every template FORM is topic-agnostic; match the
+content SHAPE, not the domain. Templates are verified premium starting points to ADAPT, not fixed slots
+(design is still choosing). The card grid is right ONLY for **parallel, unordered, equal-weight**
 items; the moment content has **order, magnitude, a relationship, time, or two axes**, pick the form that
 says it (`references/html-pages.md` catalog). Keep **no single form family above ~45%** of the `html`
 beats — when you catch a third card-grid, re-run form selection; the content almost always wants a
@@ -134,6 +135,26 @@ matrix", and "three action cards" all read as one grid); the audit catches that.
 (addendum §8, for 6+ content beats):** ≥4 distinct visual protagonists, ≥3 non-card forms, ≥1 hero, and a
 diagram / contrast / time beat whenever the content has a process / before-after / sequence. The
 design-critic (D1) enforces both.
+
+## Freshness — the catalog is a FLOOR, not a formula
+The templates + archetypes are a **quality floor and a starting scaffold — never the design itself.** With
+a big catalog the failure mode is a deck of *filled-in templates*: competent, on-brand, and utterly
+interchangeable — the "boring template every time" look. A fresh video is one that could ONLY be about
+THIS subject. Make it that:
+- **Start from the CONTENT, not the catalog.** Name the 2–3 forms a beat could take, pick by its *shape*,
+  then **adapt** — shift the emphasis, re-cast the accent's role, change the hero and the layout balance —
+  so the composition fits THIS point, not a stamped skin. The form is the skeleton; the topic is the flesh.
+- **Give the deck a topic SIGNATURE.** Apply the `motif` to at least ONE **bespoke** beat — a composition
+  you designed for this content's exact shape, not a catalog form. If every beat is a catalog form, the
+  deck has no fingerprint; add one signature beat.
+- **Vary the silhouette.** Don't repeat one template's shape down the deck — if beat 3 and beat 7 would be
+  interchangeable, you templated instead of designed. Rotate the hero treatment, accent placement, density,
+  and where the eye lands. *(Exception: if both beats are genuinely parallel/unordered content the form
+  ledger justifies (D1), a repeated form is fine — vary the hero/accent/density and keep a signature beat,
+  don't force zero repetition.)*
+- **The freshness test (design-critic D2):** could this whole deck be lifted onto an unrelated topic by
+  swapping the words? If yes, it's a formula, not a design. Freshness is the topic showing THROUGH the
+  design — a template *used* is not design; a template *adapted to the subject* is.
 
 ## Composition density + Space Intelligence (breathing room is a design decision)
 Programmatic renderers (`title`/`chart`/`keypoints`/`compare`/`timeline`) fix their own density — leave

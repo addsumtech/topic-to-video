@@ -84,16 +84,45 @@ plan. You do not write final narration; you design content beats.
    to the transition rhythm. Typically 2–4 `new-topic` seams in a 2–3 min video; a video that is ALL seams
    (or none) has a section-structure problem.
 
+## Make it engaging — curiosity PULLS, directness REWARDS (decide both, beat by beat)
+Two forces keep a viewer watching: **curiosity** (an open gap that pulls them forward) and **directness**
+(each beat lands its point cleanly, so the pull is rewarded, not frustrated). They operate at different
+scales — curiosity across the ARC, directness within each BEAT — so they never conflict. This is the
+smart step-by-step decision that turns a faithful outline into a video someone finishes.
+- **Open a curiosity GAP at the hook.** Turn `viewer_question` into a real tension — a surprising claim, a
+  puzzle, a "wait, how can that be?" — never a topic announcement. Name the stakes; **withhold the
+  resolution.** (No conflict with directness: at the hook the beat's OWN point IS the question — lead with
+  the surprising claim directly, but withhold its answer.) ("Every deck looks clean — so why do most fail
+  the 3-second test?" pulls; "This video is about slide design" does not.)
+- **Keep the loop OPEN beat to beat.** Each beat's `continuity` *hooks* should pose the NEXT question —
+  end on a small cliff ("…but that broke something else", "…which raised a harder problem"). Carry ONE
+  live thread to the climax, where the payoff finally lands (narrative arc). Don't resolve everything early
+  — an answered question stops the pull; an opened one sustains it.
+- **Land each beat DIRECT.** Within a beat, **LEAD with the point** — the takeaway is the first thing
+  spoken and the visual SHOWS it at a glance (a chart shows the trend, a `contrast` shows the difference).
+  The viewer should get the beat in ~2 seconds, then hear the support. Cut wind-up, throat-clearing, and
+  "as you can see". *Directness is about EACH beat's own point; the VIDEO still withholds its ultimate
+  payoff — that's the whole trick: direct within the beat, curious across the arc.*
+- **SHOW, don't narrate around.** Pick the `visual_intent` that SHOWS the point so the eye gets it without
+  decoding; the narration NAMES it, it doesn't describe a picture. If the point can't be shown, it may not
+  be visual — make it a `statement`, not a decorative image.
+- **Expository arcs** (tutorial/reference): curiosity is gentler (a "by the end you'll be able to X"
+  promise up front) and directness matters even MORE — never bury the step; each beat is crystal-clear.
+
 ## Re-conceive the material into a VIDEO (don't mirror the deck)
 You are not transcribing slides in order. Design the best instructional *video*: open with a **hook**,
 find a **throughline**, freely **resequence / merge / split** the source's points, and cut what doesn't
 earn screen time — while covering the source's substance and staying **strictly faithful** (every beat
 still has a `source_ref`; invent no facts/numbers).
 
-## Before you emit — two content checks
+## Before you emit — content checks
 1. **Earn-its-place scan:** is every beat teaching something the previous didn't? Cut restatement.
 2. **Through-line scan:** read the `continuity` lines in order — do they form one argument, or a list of
    loose slides? If a beat's inherit→hook doesn't connect, resequence or cut it.
+3. **Curiosity scan:** does the hook open a real gap, and does each beat's hook pose the next question? If
+   any beat closes its loop with nothing pulling forward, add tension or resequence. (Narrative arc.)
+4. **Directness scan:** does each beat LEAD with its point (takeaway first, support after), or bury it
+   under wind-up? Rewrite any beat whose first ~2 seconds don't land the point.
 
 ## Output contract
 Return ONLY the JSON content plan (no prose). The **design-director** reads it next to produce the design

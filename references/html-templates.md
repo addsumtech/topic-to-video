@@ -5,9 +5,12 @@ rather than a card grid. Each is a full `.stage` composition (kicker + title + t
 supporting element + staggered, cued reveals), **rendered and visually verified** at 1920×1080.
 
 **Use these as starting points to ADAPT, not fixed slots** — design is still choosing (pick the form via
-`agents/design-director.md`'s Concept→Visual dictionary, then copy the matching template and swap in your
-REAL content). They are not a licence to template; they are a floor on quality so the agent never
-reinvents good HTML from scratch.
+`agents/design-director.md`'s Concept→Visual dictionary, then copy the matching template and **populate it
+with your REAL content**). They are not a licence to template; they are a floor on quality so the agent
+never reinvents good HTML from scratch. **A template copied and merely populated is a FLOOR, not the
+design** — adapt it to the subject (shift the emphasis, re-cast the accent's role, vary the hero), and the
+deck still needs at least one **bespoke** non-catalog beat (see `agents/design-director.md` "Freshness" +
+design-critic D2). Populating alone produces the interchangeable "template every time" look.
 
 **Every FORM here is topic-agnostic — the content swaps wholesale.** Several examples happen to use a
 business scenario (for a familiar through-line), but the forms serve any subject. A research paper, a
