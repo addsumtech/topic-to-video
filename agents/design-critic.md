@@ -82,7 +82,7 @@ block-list that should be a diagram (D1), player-chrome/GIF/stacked motion (D9),
 ### D5 — Composition, whitespace + Space Intelligence
 - **REVISE** an `html` beat that is a single centred line (it's a `title`, not a page) or that has <2
   focal points / no clear foreground-background separation.
-- **Whitespace ~50–65% utilization** (16:9 caps content near ~60%) — REVISE a crammed page (>6
+- **Whitespace ~50–60% utilization** (16:9 caps content near ~60%) — REVISE a crammed page (>6
   information units, no breathing room) OR one where content pooled in a corner. On **9:16**, additionally REVISE a page whose
   content spans <~70% of the top-line-to-caption column (a bottom void) — `keyframe_qa` advises below 60%;
   the fix is phone-first type + spread down the column with gaps + a lower-zone motif, NOT more density.
@@ -120,7 +120,7 @@ block-list that should be a diagram (D1), player-chrome/GIF/stacked motion (D9),
 
 ### D8 — Colour is semantic, not decorative
 - **REVISE** a `theme`/page that uses a flat template palette instead of semantic colour (one hue = one
-  meaning), a second independent accent hue (accent2 must be a split-complement/tint of accent), a pure
+  meaning), an arbitrary second brand hue (accent2 must be a derived complement/split-complement of accent), a pure
   `#000000`/`#ffffff` bg, or the electric-blue-on-`#0d1117` AI cliché on a non-code topic.
 - **Semantic colour ledger (addendum §7).** **REVISE** a plan with no `color_ledger` binding each role to
   a token, an accent used with NO semantic meaning, or a deck where problem beats and results beats look

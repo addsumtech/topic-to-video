@@ -40,7 +40,7 @@ A SEPARATE artifact from the content plan (the assistant merges the two into the
       "content_shape": "the data relationship (order/magnitude/part-whole/two-axes/time/causality/structure/one-claim)",
       "rejected_default": "card grid / bullets — because <the content has X, which a grid hides>",
       "visual": { "type": "compare", "props": { }, "form": "compare — beats a card grid because it is A-vs-B, not two parallel items" },
-      "density": "~55%|~65%|~70% utilization + one-line decision (keep airy / split / compress because …)",
+      "density": "~55%|~60% utilization + one-line decision (keep airy / split / compress because …)",
       "wow": { "why_memorable": "bold number|iconic diagram|dramatic sentence|extreme contrast|on-topic metaphor",
                "surrounding_contrast": "differs from the beats before+after by layout + density + background" },
       "motion_intent": "one VERB from references/motion-grammar.md (COUNTS UP, SLIDES, BREATHES, DRAWS…)",
@@ -135,11 +135,14 @@ glance; body never tiny), give every beat **≥2 focal ELEMENTS** (a dominant pr
 background one — never two co-equal primaries) and a clear foreground/background
 separation, and let the accent be genuinely present (a single small label on an empty field reads as
 unfinished). A beat with one centred line is a `title`, not an `html` page — make it a `title`.
-- **~50–65% canvas utilization** — leave intentional whitespace; don't fill every area. Limit a beat to
+- **~50–60% canvas utilization** — leave intentional whitespace; don't fill every area. Limit a beat to
   **3–6 information units**. On 16:9, the html whitespace floor caps content near **~60%** and keeps
   `.stage` padding ≥80px; on 9:16 keep the same airy density but SPAN it ≥70% down the column (span ≠ density). **Whitespace is an ACTIVE element, not unused capacity** — if a beat feels
   thin, **strengthen the hero or cut a secondary element; NEVER add cards to fill space** (addendum §2.3).
-  Emit each beat's `density` (~55/65/70% utilization) so the call is visible.
+  Emit each beat's `density` (~55/60% utilization + the call) so it's visible.
+  **C.R.A.P. pass** (contrast · repetition · alignment · proximity): related elements sit close and align
+  to a shared edge/grid, unrelated groups are separated, and the accent repeats consistently — misaligned
+  or evenly-scattered elements read as template output even at the right density.
 - **Evenness penalty (addendum §6): something must win.** A beat where every element has similar weight
   is "clean but too even" and fails the squint test. Each beat needs a clear FIRST-READ element, a quieter
   SECOND-READ layer, and at least one thing deliberately oversized / isolated / darkened / framed / centred.
@@ -240,7 +243,7 @@ name-swappable plan.) *(Distinct from the storyboard `image_tag: motif` imagery 
 Propose the top-level `"theme"`: a palette that fits the SUBJECT (travel/food/lifestyle → warm light;
 tech/space/finance → dark). If the source has slide frames you may set `"theme": {"from_frames": true}`
 to sample them; `theme.py` turns this into `theme.css`. Discipline: pick ONE dominant `accent`; `accent2`
-is a split-complement or tint of it, NOT an independent hue. Never a pure `#000000`/`#ffffff` bg. Avoid
+is a derived complement/split-complement of the accent (not an arbitrary second brand hue). Never a pure `#000000`/`#ffffff` bg. Avoid
 the electric-blue-on-`#0d1117` AI cliché unless the topic is literally code/GitHub — prefer a
 temperature-tinted bg + a topic-fitting accent. Use **semantic colours** (one hue = one meaning), never a
 single flat template palette.
@@ -259,7 +262,7 @@ Score each; redesign any beat that fails:
 - ☐ **Could any block-list be a diagram?** (flow / timeline / quadrant / hubspoke) — if yes, make it one.
 - ☐ **Block audit:** does every card/panel beat justify all 5 conditions? Are there ≤2 consecutive? (§3)
 - ☐ Does each non-`title` beat carry its **reasoning trace** (`narrative_job`/`content_shape`/`rejected_default`)?
-- ☐ Is there enough **whitespace** (~50–65% utilization, 16:9 near ~60%; 9:16 distributed down the
+- ☐ Is there enough **whitespace** (~50–60% utilization, 16:9 near ~60%; 9:16 distributed down the
   column), and does one element **win** each beat (evenness penalty, §6)?
 - ☐ Is the information **hierarchy** obvious?
 - ☐ Does the `rhythm_map` **vary** (≥2 columns differ between neighbours), and does the deck clear the

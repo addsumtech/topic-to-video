@@ -29,7 +29,7 @@ pick the one whose shape matches the content (all classes are in `base.css`, all
 | The content is… | Reach for |
 |---|---|
 | **A few standout numbers / KPIs** | `.scorecard` (3 `.tile`: big `.num` + `.lab`, optional `.delta up/down`) — or one hero `.stat` + `.unit` when a single number IS the point |
-| **A process / sequence / steps** | `.flow` (`.step` = `.n`/`.t`/`.s`, `.arrow` between) — or `.timeline` if the steps are dated or one is the focus (`.tl-node.on`) |
+| **A process / sequence / steps** | `.flow` (`.step` = `.n`/`.t`/`.s`, `.arrow` between; mark a focal/constraint step `.step.on`, `--focal:var(--accent2)` for a risk step) — or `.timeline` if the steps are dated or one is the focus (`.tl-node.on`) |
 | **A relationship / structure** (inputs→decision, centre+peers) | `.hubspoke` (`.hs-spoke` × N → `.hs-connect` → `.hs-hub`) |
 | **Two axes / a positioning** | `.quadrant` (2×2 `.cell`, focal `.cell.on`, `.ax-x`/`.ax-y` labels) |
 | **Parts of a whole / a share** | `.segbar` (100% stacked `.seg`, widths inline) or `.meter` (`.fill` width inline) |

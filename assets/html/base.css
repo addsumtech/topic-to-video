@@ -93,10 +93,11 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 .flow .step .n{font-family:var(--font-mono);font-size:26px;color:var(--accent);font-weight:700}
 .flow .step .t{font-size:46px;font-weight:700;margin-top:8px}
 .flow .step .s{font-size:28px;color:var(--muted);margin-top:8px}
-/* focal step — the key stage / bottleneck (mirrors .cell.on / .tl-node.on). For a PROBLEM/constraint
-   step, set `color:var(--accent2)` inline so the ring reads as risk, not the neutral accent. */
-.flow .step.on{border-color:var(--accent);
-  box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 40%,transparent),var(--shadow-float)}
+/* focal step — the key stage / bottleneck (mirrors .cell.on / .tl-node.on). Ring hue = the `--focal`
+   var (default --accent); for a PROBLEM/constraint step set `--focal:var(--accent2)` inline so the ring
+   reads as risk. Text stays --fg (legible). */
+.flow .step.on{--focal:var(--accent);border-color:var(--focal);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--focal) 40%,transparent),var(--shadow-float)}
 .flow .arrow{flex:none;align-self:center;color:var(--rule);font-size:56px;font-weight:800;padding:0 18px}
 
 /* Time — a rail with one highlighted node (.tl-node.on). Dates in mono. */

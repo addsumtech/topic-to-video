@@ -58,19 +58,20 @@ cards / neutral") is the auto-generated tell.
 **strengthen the hero or cut a secondary element — never add cards to fill space.** Emit the schema's
 single `density` field = the number + the call:
 ```
-density: "~55%|~65% utilization — keep airy because … | split into two beats because … | compress only because …"
+density: "~55%|~60% utilization — keep airy because … | split into two beats because … | compress only because …"
 ```
-Target roughly **~50–65% content utilization** — on 16:9 the html whitespace floor caps content near
+Target roughly **~50–60% content utilization** — on 16:9 the html whitespace floor caps content near
 **~60%**; on 9:16 keep the same airy DENSITY but DISTRIBUTE it to SPAN ≥70% of the column (gaps + a
 lower-zone motif), never cram (span ≠ density; see `references/html-pages.md` "9:16").
 
 **2.4 Visual Surprise.** A WOW beat is not merely a big element — it must create a **deliberate
 contrast** against its neighbours and be memorable after the deck closes. For each hero beat emit:
 ```
-wow_beat: id
 why_memorable: bold number | iconic diagram | dramatic sentence | extreme contrast | unusual (on-topic) metaphor
 surrounding_contrast: differs from beat X-1 and X+1 by layout + density + background mode
 ```
+These land in the per-beat schema as `wow.why_memorable` / `wow.surrounding_contrast` (the beat id is the
+object key — there is no separate `wow_beat` field). Emit `wow` on hero beats only.
 
 **2.5 Visual Reasoning.** Do NOT map "problem slide → three cards." Map the CONTENT LOGIC: "this problem
 is three interacting failure points → a causal `.flow` / a converging `.hubspoke` / a descending funnel."
@@ -175,7 +176,9 @@ a results beat; if the whole deck uses ONE accent hue for everything, the plan i
 ## 8. Minimum deck-level variation (hard floors)
 For decks with **6+ content beats**:
 - **≥4 distinct visual protagonists** across the deck.
-- **≥3 non-card forms** (flow / timeline / quadrant / hubspoke / scorecard / segbar / meter / pullquote / chart).
+- **≥3 non-card forms** (flow / timeline / quadrant / hubspoke / segbar / meter / pullquote / chart) —
+  a `scorecard`/`.dash` is a TILE GRID, so it counts toward the diversity floor NOT as "non-card" and
+  still trips the §3 consecutive card/panel audit.
 - **≤2 consecutive** beats using card/panel logic (see §3).
 - **≥1** hero/WOW beat.
 - **≥1 diagrammatic** beat IF the content has any process, system, mechanism, or framework.
@@ -192,7 +195,7 @@ deliverable form (§4):
 - **Problem** → warning `.dash` (`.delta.down`) · descending funnel (bars) · causal `.flow` · a single
   dramatic hero number (`.stat`) · a `.quadrant` risk matrix.
 - **Root cause** → causal `.flow` chain · converging `.hubspoke` · a bottleneck-highlighted `.flow` (mark
-  the constraint step `.flow .step.on`).
+  the constraint step `.flow .step.on`; set `--focal:var(--accent2)` so the ring reads as risk, per §7).
 - **Framework / model** → `.hubspoke` model · stacked `.blocks` layers · a lifecycle `.flow` (with a
   return step) · a `.quadrant` map.
 - **Results** → `.dash` with ONE hero metric · a before/after `.split` scoreboard · a `chart` (slope/line)
