@@ -33,7 +33,7 @@ pick the one whose shape matches the content (all classes are in `base.css`, all
 | **A relationship / structure** (inputs→decision, centre+peers) | `.hubspoke` (`.hs-spoke` × N → `.hs-connect` → `.hs-hub`) |
 | **Two axes / a positioning** | `.quadrant` (2×2 `.cell`, focal `.cell.on`, `.ax-x`/`.ax-y` labels) |
 | **Parts of a whole / a share** | `.segbar` (100% stacked `.seg`, widths inline) or `.meter` (`.fill` width inline) |
-| **A comparison** (A vs B, before→after) | a `.compare` split (`.defocus` the non-focal side); `.quadrant` if two real axes |
+| **A comparison** (A vs B, before→after) | a two-column split — `.split` (full-page) or an inline `grid-template-columns:1fr 1fr` of two `.reveal-up` wrappers each holding a `.card` / `.card defocus` (defocus the non-focal side); see the `before_after` template. `.quadrant` if two real axes |
 | **One idea / a verbatim line** | `.pullquote` (+ `<cite>`) — or a single hero `.stat` |
 | **Colour-coded categories** (bold, scannable) | `.blocks two` / `.blocks three` — one hue per `.block` from the THEME: `var(--accent)`, `var(--accent2)`, and for a 3rd either `var(--green)` (a theme-neutral alias) or a `color-mix(in srgb,var(--accent) 55%,var(--accent2))`; verify the 3rd doesn't clash — if you need 3 strongly-distinct on-brand hues and the theme only has 2, use `.blocks two` or `cards` instead. Never grey filler, never a raw hex. |
 | **A decomposition** (165 = 123 + 42) | a `.grid` of labeled `.bar` rows (widths inline) or a `.segbar` |
@@ -41,7 +41,13 @@ pick the one whose shape matches the content (all classes are in `base.css`, all
 | **A title / section** | `.kicker` + `.rule` + `.title` (+ `.sub`); a mono `.chrome` footer ties the deck together — ONLY when `meta.captions:false` (see `.chrome` note below) |
 
 For each beat, record the pick as a one-line **form ledger**: *winner — beats `<runner-up>` because …*
-(the content-planner emits this; the critic audits it).
+(the design-director emits this; the design-critic audits it).
+
+**Premium templates — don't reinvent the composition.** For the richer composite forms, start from a
+verified, ready-to-adapt page in **`references/html-templates.md`** (`hero_stat`, `before_after`,
+`timeline_rail`, `problem_leak`/funnel, `system_map`, `metric_wall` = dashboard-with-one-hero-metric,
+`case_story`, `flywheel`) — copy it, swap in your REAL content, keep the reveals + cues. These are quality
+floors to ADAPT, not fixed slots; the plain archetype snippets above are for simpler beats.
 
 ## Reveal animation (so the page captures cleanly)
 - Add `class="reveal"` or `class="reveal-up"` to elements you want to animate in.

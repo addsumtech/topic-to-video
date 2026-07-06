@@ -23,6 +23,25 @@ attention?** — *before* the viewer reads the text. If it answers none, it's de
   meaning with **no text label**. Icons are seasoning — a few, consistent, purposeful. **Never** use
   emoji or ✅/🚀/🔥 in place of a real icon.
 
+## Role vocabulary (pick the glyph by the JOB, not the picture)
+Reach for the glyph whose meaning matches the point's ROLE. Colour-code by role too (per the semantic
+colour ledger, `references/design-intelligence-addendum.md` §7): risk in `--accent2`, growth in `--green`.
+
+| Role | Meaning | Glyph (from the library below) | Colour |
+|---|---|---|---|
+| category | labels a feature/topic | `layout`, `file-text`, `image`, `bar-chart` | `--accent` |
+| action | a thing done / a step | `refresh-cw`, `git-branch`, `search`, `sparkles` | `--accent` |
+| risk | a problem / warning / loss | `alert-triangle`, `x-circle` | `--accent2` |
+| growth | improvement / expansion | `sparkles`, an ▲ delta, `bar-chart` | `--green` |
+| decision | a choice / gate | `list-checks`, `git-branch` | `--accent` |
+| time | a stage / deadline / speed | `clock` | `--muted` |
+| system | components / structure | `git-branch`, `layout` | `--accent` |
+| user | audience / people | `users` | `--accent` |
+| data | numbers / evidence | `bar-chart`, `sigma` | `--accent` |
+| trust | verified / reviewed | `shield-check`, `check-circle` | `--green` |
+
+If a point's role isn't here, it probably doesn't need an icon — a decorative glyph is worse than none.
+
 ## Five qualities of good icon use
 1. **Semantic fit** — the metaphor *is* the thing (eye=perception, shield=trust, scale=fidelity,
    palette=design, bar-chart=data, languages=multilingual). A generic gear on every card mislabels.

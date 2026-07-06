@@ -260,6 +260,14 @@ def test_living_backdrop_lint_quote_agnostic_and_token_exact(tmp_path):
     assert not any("non-full-bleed" in w or "living backdrops" in w for w in r2["warnings"])
 
 
+def test_duplicate_cue_index_warns(tmp_path):
+    s = _html_scene(tmp_path, 0, "pages/s0.html",
+                    '<div class="row" data-cue-index="0" data-cue="a">A</div>'
+                    '<div class="row" data-cue-index="0" data-cue="b">B</div><body></body>')
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert any("duplicate data-cue-index" in w for w in r["warnings"])
+
+
 def test_html_cued_without_wordsjson_warns(tmp_path):
     s = _html_scene(tmp_path, 0, "pages/s0.html",
                     '<div class="row" data-cue-index="0" data-cue="alpha">A</div><body></body>')

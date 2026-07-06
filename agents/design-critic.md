@@ -29,6 +29,9 @@ block-list that should be a diagram (D1), player-chrome/GIF/stacked motion (D9),
 4. For an HTML-tier deck, the **authored `pages/scene_NN.html` files** (via each scene's `props.html`) —
    required for the form, icon, whitespace, colour, and motion-discipline checks (these live in the pages).
 5. `meta` — `aspect` (16:9 / 9:16), `language`, `target_seconds`.
+6. **(optional) rendered keyframes** — `<out_dir>/_keyframes/all.png` or extracted sample frames. When
+   present, run the **D11 rendered keyframe pass** on the actual pixels; when absent, D11 is skipped and
+   you grade the plan + authored pages only.
 
 ---
 
@@ -139,6 +142,26 @@ block-list that should be a diagram (D1), player-chrome/GIF/stacked motion (D9),
   (pages must use semantic vars — `validate.py` lints `raw hex […] in a style/SVG color`; treat as a
   REVISE item); a full-screen gradient-mesh background; or a circle+left-border fake "card" (use
   `.card`/`.row`). Cross-check the design plan's `design_anti_slop` bans are actually honoured.
+
+### D11 — Rendered keyframe pass (ONLY when keyframes/frames are provided)
+Many design defects are invisible in the plan and only appear once rendered. **When you are given
+`<out_dir>/_keyframes/all.png` (the contact sheet from `keyframe_qa.py`) or extracted sample frames**,
+judge the ACTUAL PIXELS (not the plan) — this is the design-quality complement to `critic-av`'s technical
+gate (which owns caption/tofu/sync). Reading the settled frame of each page:
+- **Focal dominance:** one element must clearly win the frame (biggest / brightest / most isolated).
+  **REVISE** a rendered page where the eye has no obvious first landing point (everything equal weight).
+- **Repeated layout:** scan the contact sheet as a whole. **REVISE** when many pages share the same
+  silhouette (e.g. a run of centred-title-over-a-grid) — the deck must vary its shapes page to page
+  (cover-text test applied to pixels).
+- **Figure-ground + crowding:** **REVISE** a page where text lacks separation from the backdrop (weak
+  contrast against a `.bg-soft`), or elements crowd the edges / each other with no breathing room
+  (the whitespace should be visible in the render, not just claimed in `density`).
+- **Colour reads:** **REVISE** if the semantic colour intent doesn't survive rendering — a "risk" figure
+  that reads the same as a neutral one, or an accent that vanishes into the bg.
+Frame-legibility of *captions*, tofu, A/V sync and player-chrome remain `critic-av`'s — don't duplicate.
+*(critic-av also does a COARSE squint as a low-res/encode-survival backstop; D11 is the deeper
+compositional pass — focal dominance + repeated-layout across the deck. Flag a defect under whichever
+fires; don't double-count the same page.)*
 
 ---
 

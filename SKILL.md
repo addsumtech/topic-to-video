@@ -68,6 +68,12 @@ TTS if the user gives an API key.
 - `scripts/check_av.py <out_dir>` — deterministic A/V gate: probes `out.mp4` video-vs-audio duration + per-clip sample-rate uniformity across `.clips/`; exits non-zero on A/V drift above tolerance (0.3 s) or non-uniform rates. Run AFTER the full render (step 9) as a gate before delivery.
 - `scripts/doctor.py [--json]` — environment preflight: reports which tools/libraries are present (ffmpeg/ffprobe/PIL required; PyMuPDF/python-pptx/edge-tts/soffice/Chrome/font optional) and, for each missing one, the stage it gates + the install hint. Exits non-zero only when a REQUIRED dep is missing. Run once at the START (step 1).
 - `scripts/validate.py <out_dir> [--pre-tts] [--vertical] [--json]` — deterministic PRE-render gate on `storyboard.json` (runs in ~1s): structural contract, duplicate indices, every referenced image/audio/html-page/`file://` asset + `theme.css` exists on disk, caption craft (no wall of text, no widow, ≥0.7s on screen — see `references/captions.md`), motion sanity (zoom delta + zoom-past-1.25 + callout-framing — see `references/motion-grammar.md`), per-point reveal↔voice alignment (each point spoken-% vs shown-% → leads/lags warning, cued or paced), a **hardcoded-hex lint** (WARN on a raw `#hex` in a `style=`/SVG-`fill`/`<style>` color — pages must use semantic vars), CJK-font/cue/pacing/anti-slop warnings. Exits non-zero on any ERROR. Run BEFORE every render (step 9); `--pre-tts` validates right after authoring (skips audio checks); `--vertical` mirrors render's 9:16 canvas (also auto from `meta.aspect`). Errors block; warnings don't.
+- `scripts/rhythm_qa.py <out_dir> [--json]` — deterministic PRE-render VIDEO-RHYTHM gate: the
+  video-native complement to the layout-diversity gate. Reads `storyboard.json` (real `duration`s after
+  tts, else estimates from narration) and flags flat pacing — durations too uniform (monotone), a climax
+  not at ~70–85% (or none on a >75s video), a non-sparse closer, a static image held too long, and no
+  attention reset for >~35s. Advisory (warnings) except two hard defects (a static frame held past ~16s,
+  no climax on a long video) → non-zero exit. Run after tts, before the full render.
 - `scripts/keyframe_qa.py <out_dir> [--p N] [--json]` — cheap PRE-render VISUAL QA for the HTML tier:
   screenshots every `html` page at N `?p=` values, montages per-scene + a master contact sheet under
   `<out_dir>/_keyframes/` (open `all.png` to eyeball tofu / off-theme / mistimed reveals), and — via
@@ -166,12 +172,18 @@ TTS if the user gives an API key.
    headless Google Chrome (free, no dependency; needs Chrome installed). Choose it for a
    "designed deck" look. The content-planner plans the beats and the design-director designs each
    beat's visual (form, motif, icons, motion); you author one `pages/scene_NN.html` per beat on
-   `assets/html/base.css` (faithful — real content only), following `references/html-pages.md`. A full-bleed backdrop can also gently **breathe** — a
+   `assets/html/base.css` (faithful — real content only), following `references/html-pages.md`. For the
+   richer forms (hero stat, before/after, timeline, funnel, system map, dashboard, case story, flywheel),
+   **start from a verified template in `references/html-templates.md`** and swap in real content — don't
+   reinvent the composition. A full-bleed backdrop can also gently **breathe** — a
    seek-frozen `.bg-live`/`.bg-drift` whisper on a sparse hero/hold beat (deterministic, off under
    reduced motion; see html-pages.md "Living backdrop") — never a GIF/video. Immediately after authoring the pages, run
    `python scripts/keyframe_qa.py <out_dir>` (needs no audio, ~1 min) — catch a blank page /
    canvas overflow while it's a one-edit fix, not at the step-9 gate. Set `meta.chrome_path`
-   if Chrome isn't at the default macOS location.
+   if Chrome isn't at the default macOS location. **Then hand `_keyframes/all.png` to
+   `agents/design-critic.md` for its D11 rendered pass** (focal dominance, repeated layout, crowding,
+   figure-ground) — the design-quality complement to keyframe_qa's deterministic overflow/blank checks;
+   fix what it flags while pages are still cheap to edit.
    **Image provider:** if the **`codex` CLI is installed**, generate via Codex's native
    image-generation (NO key — it uses your Codex plan; slower, ~minutes/image). Otherwise ask for
    the OpenAI key (`OPENAI_API_KEY` or `~/.openai_key`). If neither, fall back to the free
@@ -253,7 +265,9 @@ TTS if the user gives an API key.
    comprehension brief + material, `meta.language`, and the pace ceiling. It returns the final spoken line per
    beat (`{id → narration}`) + a `flags` list of any beat it could not source. Write those lines
    into each scene's `narration`; **resolve every flag** (drop or repair the unsourced beat)
-   before proceeding. The scriptwriter follows `references/narration-writing.md` (the style
+   before proceeding. It may also return `duration_estimate` (if a beat's estimate exceeds its
+   `est_seconds` budget, swap in its `too_dense` fallback line or tighten it) and `pronunciation_notes`
+   (already folded into how a term is SPELLED in the line — the renderer has no SSML). The scriptwriter follows `references/narration-writing.md` (the style
    basis). The on-screen **captions are auto-derived from the narration**, so its words are also
    the subtitle. (PLAN → **DESIGN** → **WRITE** → CHECK: content-planner plans, design-director designs, scriptwriter writes, the parallel critic panel — `critic-narrative` + `critic-content` + `design-critic` — checks in parallel.)
 4b. **Image prompts (gpt-image tier only).** If `meta.image_source == "openai"`: for each
@@ -331,6 +345,10 @@ TTS if the user gives an API key.
    non-zero exit means a referenced image/audio/page/asset is missing, an index is duplicated,
    `theme.css` is absent, or a caption is a wall of text — fix every ERROR before rendering (it
    catches in ~1s what would otherwise waste a multi-minute render); skim the warnings too.
+   **Also run `python scripts/rhythm_qa.py <out_dir>`** (needs the real durations, so after tts) — it
+   flags flat pacing: uniform scene lengths, a mis-placed or missing climax, a non-sparse closer, an
+   over-held static image, or no attention reset for >~35s. Fix the ERRORs; treat the WARNs as
+   direction (vary `est_seconds`, place the climax at ~75–80%, split a long image hold).
    **For an HTML-tier deck, also run `python scripts/keyframe_qa.py <out_dir>`** — it screenshots
    every page at several reveal states into `<out_dir>/_keyframes/` and flags any BLANK page or
    content overflowing the 1080 canvas (open `_keyframes/all.png` and eyeball for tofu / off-theme /

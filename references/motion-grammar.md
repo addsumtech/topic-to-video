@@ -106,6 +106,21 @@ with `props.kind:"counter"` **and `props.climax:true`** counts up, reaches the t
 value at ~68% of the scene, then holds it static — that's the deliverable form of
 SLAMS/COUNTS UP for the payoff beat.
 
+### Intent → motion (pick by what the beat is DOING)
+Start from the beat's *job*, not a menu of effects. Each row is deliverable by the free tiers:
+
+| Intent | Deliverable motion | Use when | Avoid |
+|---|---|---|---|
+| Reveal causality / a sequence | staggered `.reveal-up` per step + `.draw` on a connector | a `.flow` / chain / pipeline | fading every step in at once (hides the order) |
+| Emphasize a metric | `chart` counter count-up + hold (`props.climax`) | the KPI / result beat | an endless zoom, a number that never settles |
+| Compare two states | reveal A, then B; `.defocus` the non-focal side | before→after, A vs B | a spin/wipe between them |
+| Build a diagram | reveal nodes → connectors → the focal `.on` last | `.hubspoke` / `.quadrant` / `.timeline` | everything appearing together |
+| Draw a line/fill | `.reveal-wipe` (clip-path) or `.draw` (SVG stroke-on) | a `.rule` / `.segbar` / `.meter .fill` | on text rows/cards (meaningless there) |
+| Hold / breathe | a living backdrop (`.bg-live`/`.bg-drift`) whisper | a sparse hero / the closer | any second moving thing on the page |
+| Reset attention | a dip through the theme bg at the cut | a section seam (`new-topic`) | a decorative transition with no meaning |
+
+One intent per beat; the motion serves the idea, never decorates it.
+
 ## Living backdrop (ambient motion — the deliverable FLOATS/DRIFTS/BREATHES)
 
 The "Organic / ambient" verbs above (FLOATS, DRIFTS, BREATHES) are delivered by an **ambient

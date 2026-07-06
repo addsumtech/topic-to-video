@@ -15,6 +15,7 @@ plan. You do not write final narration; you design content beats.
 ## Output — a CONTENT PLAN (JSON)
 ```json
 { "arc": "hook → build → payoff → takeaway (one line)",
+  "viewer_question": "the ONE question the viewer wants answered — the video is the answer (drives the hook)",
   "director_note": { "thesis": "one sentence — what this video argues", "not": ["explicit exclusions"], "tone": "one word" },
   "anti_slop": ["faithfulness bans, e.g. no stat without a source_ref", "no invented numbers/citations"],
   "rhythm": "the PACING arc, e.g. hook-fast → 3 build beats → SLOW climax → sparse hold",
@@ -26,6 +27,7 @@ plan. You do not write final narration; you design content beats.
       "narration_intent": "what the line must convey (not final words); for a multi-point beat, name each point with a DISTINCT phrase it can be introduced by",
       "continuity": "inherits: <what the previous beat set up> · hooks: <the question/tension this beat leaves for the next>",
       "relation": "continuation | new-topic | payoff | close — this beat's SEMANTIC relationship to the PREVIOUS beat",
+      "energy": "low | medium | high | peak — the beat's emotional register (feeds the design-director's rhythm map)",
       "est_seconds": 5,
       "climax": true,
       "hold": true } ] }
@@ -39,6 +41,12 @@ plan. You do not write final narration; you design content beats.
 - **`climax`** / **`hold`** are optional NARRATIVE markers: mark exactly ONE beat `climax:true` at
   ~75–80% of runtime (the peak — the result/payoff), and mark the FINAL beat `hold:true` (a sparse
   takeaway). Do NOT add a separate fade-out/blank-screen beat — the render's end-hold IS the ending.
+- **`viewer_question`** is the promise the video keeps: the ONE thing the viewer wants to know. Open by
+  posing/hooking it; the closer answers it. If you can't state it, the video has no spine — fix the arc.
+- **`energy`** gives each beat an emotional register — and it must VARY (never a flat run of `medium`).
+  A typical shape: `medium` hook → `low`/`medium` build → `high` into the climax → `peak` at the climax →
+  `low` sparse hold. The design-director's rhythm map reads it (its `register` column); a monotone energy
+  column is the same monotony tell as equal `est_seconds` (which `rhythm_qa` catches from the durations).
 - `director_note` is REQUIRED when `target_seconds` > 60; `rhythm` is recommended when > 45.
 
 ## Rules (your rubric)

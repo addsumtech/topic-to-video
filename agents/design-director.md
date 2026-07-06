@@ -14,11 +14,12 @@ story. Simplicity is a design decision, not a lack of one. **A card/row grid is 
 default** — reach for it only when the content is genuinely parallel, unordered, equal-weight items.
 
 ## Inputs
-- The **content plan** (from `agents/content-planner.md`): top-level `arc`, `rhythm` (the pacing arc),
-  and `director_note.tone`; plus beats with `learning_point`, `narration_intent`, a COARSE `visual_intent`
-  (`metric` / `contrast` / `sequence` / `list` / `structure` / `statement` / `section`), `relation`,
-  `est_seconds`, `continuity`, and the `climax` / `hold` markers. Track the content `rhythm` when placing
-  your visual crests (heroes) so they don't fall out of phase with the audio pacing, and honour
+- The **content plan** (from `agents/content-planner.md`): top-level `arc`, `viewer_question`, `rhythm`
+  (the pacing arc), and `director_note.tone`; plus beats with `learning_point`, `narration_intent`, a
+  COARSE `visual_intent` (`metric` / `contrast` / `sequence` / `list` / `structure` / `statement` /
+  `section`), `relation`, `energy`, `est_seconds`, `continuity`, and the `climax` / `hold` markers. Track
+  the content `rhythm` + per-beat `energy` when placing your visual crests (heroes) so they don't fall out
+  of phase with the audio pacing (the rhythm map's `register` column IS each beat's `energy`), and honour
   `director_note.tone` in the theme/palette.
 - The **comprehension brief** + source material (for the topical motif — you must know the subject).
 - `meta`: `aspect` (16:9 / 9:16), `language`, `target_seconds`.
@@ -113,7 +114,11 @@ step). Use it for any beat whose logic isn't obvious from the table above, and t
 ## Form selection — choose the form the content wants; keep a form ledger
 **Design is choosing, not matching.** For each `html` beat add a **`form`** field naming the chosen form
 AND the runner-up it beat, one clause: e.g. `"form": "flow — beats cards because the 5 steps are ORDERED;
-a card grid hides the sequence"`. The card grid is right ONLY for **parallel, unordered, equal-weight**
+a card grid hides the sequence"`. **When the chosen form has a premium template in
+`references/html-templates.md`** (hero_stat, before_after, timeline_rail, problem_leak, system_map,
+metric_wall, case_story, flywheel), START FROM IT and swap in real content — don't reinvent the
+composition — and name it in the `form` clause (e.g. `"form": "problem_leak template — …"`). Templates are
+verified premium starting points to ADAPT, not fixed slots (design is still choosing). The card grid is right ONLY for **parallel, unordered, equal-weight**
 items; the moment content has **order, magnitude, a relationship, time, or two axes**, pick the form that
 says it (`references/html-pages.md` catalog). Keep **no single form family above ~45%** of the `html`
 beats — when you catch a third card-grid, re-run form selection; the content almost always wants a

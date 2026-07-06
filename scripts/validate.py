@@ -481,6 +481,10 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
         anchored = re.findall(r'data-cue-index="\d+"[^>]*data-cue="|data-cue="[^"]*"[^>]*data-cue-index="\d+"', html)
         if len(anchored) < len(cued):
             warnings.append(f"{tag}: {len(cued) - len(anchored)} cued point(s) missing a data-cue anchor — they fall back to the paced stagger")
+        dupes = sorted({i for i in cued if cued.count(i) > 1}, key=int)
+        if dupes:
+            warnings.append(f"{tag}: duplicate data-cue-index {dupes} — two points share a reveal slot, so one "
+                            f"reveals at the wrong time; number each point's data-cue-index uniquely in spoken order")
         words = os.path.join(out_dir, "audio", f"{index:02d}.words.json")
         if wants_edge and not os.path.exists(words):
             warnings.append(f"{tag}: data-cue reveals present but audio/{index:02d}.words.json missing — reveals fall back to the paced stagger (run tts.py with edge-tts)")

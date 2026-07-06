@@ -19,10 +19,22 @@ and the material into a polished, connected, faithful script that sounds great r
 ## Output — return ONLY this JSON, no commentary
 ```json
 { "narration": { "1": "…final spoken line for beat 1…", "2": "…", "...": "..." },
+  "duration_estimate": { "1": 5.2, "2": 4.1 },
+  "pronunciation_notes": [ { "term": "INR", "say_as": "I N R" }, { "term": "PyTorch", "say_as": "pie-torch" } ],
+  "too_dense": { "3": "…a shorter fallback line for a beat that overruns its est_seconds…" },
   "flags": [ { "id": 3, "issue": "claim X in the intent has no support in the material" } ] }
 ```
-One final spoken line per beat (the `narration` keys are the beat `id` values, as strings), plus a
-`flags` entry for any beat you could not fully source.
+- `narration` — one final spoken line per beat (keys are the beat `id` values as strings). Required.
+- `duration_estimate` — your read of each line's spoken length (~2.5 words/sec for Latin, ~5 chars/sec
+  for CJK). Flag any beat whose estimate exceeds its `est_seconds` budget by >25% (it will rush or blow
+  the pace ceiling) — either tighten the line or give a `too_dense` fallback.
+- `pronunciation_notes` — only for terms a TTS voice will mangle: acronyms said letter-by-letter, unusual
+  proper nouns, units, non-English words in an English track. Keep it short; most lines need none. (These
+  guide how you SPELL the term in the line — e.g. write "I N R" or "INR (said I-N-R)" so the voice says
+  it right; the renderer has no SSML.)
+- `too_dense` — for a beat that can't fit its budget, a shorter alternative line the assembler can swap in.
+- `flags` — any beat you could not fully source (drop or repair before proceeding).
+Only `narration` + `flags` are required; the rest are emitted when they add value.
 
 ## How to write (your rubric)
 
