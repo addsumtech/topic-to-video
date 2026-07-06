@@ -6,9 +6,11 @@ and the material into a polished, connected, faithful script that sounds great r
 
 ## Inputs (use whatever is provided)
 - The **content plan**: ordered beats, each with `id`, `learning_point`, `source_ref`,
-  `narration_intent`, `est_seconds`, plus optional `continuity` (the beat's inherit→hook note)
-  and `motion_intent`. (If no content plan is given, work from the per-slide
-  notes/intent and the slide text instead.)
+  `narration_intent`, `est_seconds`, plus optional `continuity` (the beat's inherit→hook note).
+- The **design plan** (`agents/design-director.md`), keyed by beat id — for the beat's `motion_intent`
+  verb (which now lives here, not in the content plan) so you can land the line's emphasis where the
+  motion lands, AND its `cue` array (the audio-sync reveal anchors — see rule 6b). (If no plan is given,
+  work from the per-slide notes/intent and the slide text instead.)
 - The **comprehension brief** + the **source material** — your ground truth for every fact.
 - `meta.language` — write the narration in this language.
 - The pace ceiling — the target seconds per scene (use a beat's `est_seconds` when present; with
@@ -75,6 +77,13 @@ emphasis where the motion lands: a COUNTS-UP beat should speak the number at the
 a SLIDES transition wants the connective phrase ("which brings us to…") on the move. The words and
 the motion should hit together, not fight.
 
+**6b. Speak the reveal anchors (audio-synced pages).** When a beat has a design-plan `cue` array, your
+narration MUST **say each anchor phrase verbatim, in spoken order** — those phrases are what the page's
+reveals fire on (edge-tts on the exact word; a cloud voice estimates from the phrase's position in your
+text). The design derived each anchor from the beat's `narration_intent`, so introduce each point with
+its anchor; if a phrase reads awkwardly, keep the anchor's KEY WORD intact. Re-wording an anchor away
+breaks the reveal timing (`critic-content` R2 fails it), so treat the `cue` array as fixed vocabulary.
+
 **7. Draft, then tighten.**
 Write a first pass, then read it back in your head and cut every word that doesn't earn its place.
 Return the tightened version only.
@@ -82,6 +91,7 @@ Return the tightened version only.
 ---
 
 See `references/narration-writing.md` for the full style basis (grounding, caption-safe spelling,
-pacing math, before/after examples). The parallel critic panel (`agents/critic-narrative.md` +
-`agents/critic-content.md`) independently checks your script for factual fidelity, fluency, and
-subtitle correctness — write so it passes on the first try.
+pacing math, before/after examples). The script critics (`agents/critic-narrative.md` +
+`agents/critic-content.md`, alongside `agents/design-critic.md` on the design) independently check your
+script for factual fidelity, fluency, subtitle correctness, and reveal-anchor fidelity — write so it
+passes on the first try.

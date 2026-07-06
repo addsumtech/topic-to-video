@@ -48,7 +48,7 @@ TTS if the user gives an API key.
   untouched, so cache + `-c copy` concat + A/V gate still hold). `meta.transition` (`dip` default |
   `none`), `meta.transition_seconds` (0.2). **Per-scene override — the transition is SEMANTIC:**
   `slide.transition` (`dip` both edges · `in`/`out` one edge · `none`) + `slide.transition_seconds`
-  override the meta default per scene; the planner's per-beat `relation` picks it (continuation →
+  override the meta default per scene; the design plan maps the beat's `relation` to it (continuation →
   hard cut; new-topic/payoff/close → an in-edge on the opener PLUS an out-edge on the predecessor —
   a dip needs both sides, validate lints unpaired edges) — see `references/motion-grammar.md`
   "Transition rhythm". Never random; no wipes/spins. **Karaoke captions:** when edge-tts `audio/NN.words.json`
@@ -164,9 +164,9 @@ TTS if the user gives an API key.
    (`auto`→codex-first). Default stays **B (flat, free)** — AI backgrounds are opt-in.
    A third visual mode is **HTML pages** — bespoke, designed pages (`type:"html"`) rendered by
    headless Google Chrome (free, no dependency; needs Chrome installed). Choose it for a
-   "designed deck" look. The content-planner designs the beats; you author one
-   `pages/scene_NN.html` per beat on `assets/html/base.css` (faithful — real content only),
-   following `references/html-pages.md`. A full-bleed backdrop can also gently **breathe** — a
+   "designed deck" look. The content-planner plans the beats and the design-director designs each
+   beat's visual (form, motif, icons, motion); you author one `pages/scene_NN.html` per beat on
+   `assets/html/base.css` (faithful — real content only), following `references/html-pages.md`. A full-bleed backdrop can also gently **breathe** — a
    seek-frozen `.bg-live`/`.bg-drift` whisper on a sparse hero/hold beat (deterministic, off under
    reduced motion; see html-pages.md "Living backdrop") — never a GIF/video. Immediately after authoring the pages, run
    `python scripts/keyframe_qa.py <out_dir>` (needs no audio, ~1 min) — catch a blank page /
@@ -206,47 +206,52 @@ TTS if the user gives an API key.
      material or a verified source — never invent results, numbers, or citations the
      slide/paper doesn't support. A forward-looking aside is fine only if flagged as your
      own addition.
-3.5. **Content plan (director) — design the video as CONTENT before authoring.** Dispatch
-     `agents/content-planner.md` on the comprehension brief + material. It returns an ordered set
-     of **informative beats** — each with a learning point (traced to the material), the most
-     informative visual (`chart`/`compare`/`keypoints`/`timeline`/`title`/`html`, NOT decorative photos),
-     a narration intent, and a short `est_seconds`. The planner also emits a top-level `motif` (the
-     CONCEPT motif — one content-derived visual idea unique to this topic), per-beat `continuity`
-     (inherits-from / hooks-into), `climax: true` (one beat ~75–80% through — the payoff),
-     `hold: true` (final beat, sparse), and per-point `cue` arrays (one anchor phrase per point, in
-     spoken order, for audio-synced HTML reveals). Build the storyboard scenes from the plan
-     (**informative-first**); author the short per-beat narration in step 4. **Carry `climax` into
-     the scene:** when the climax beat's visual is a `chart` counter/hero-stat, set `props.climax:
-     true` on that scene — that's what triggers the renderer's key-number landing hold. **Map each
-     beat's `relation` to the scene's transition** (continuation → `transition:"none"`; new-topic →
-     `"out"` on the section-ender + `"in"` on the opener; payoff → `"in"` + 0.3s; close → `"dip"` +
-     0.4s — and ALWAYS give the predecessor an out edge when a beat gets an in-edge: upgrade
-     `"none"`→`"out"`, `"in"`→`"dip"`; a dip needs both sides of the cut, see motion-grammar
-     "Transition rhythm"), and **carry the beat's `icons` hints** into the
-     authored page (`.icon-tile` rows per `references/icons.md`). **Keep the content plan file** —
-     the critic panel (step 5) receives it to audit motif + continuity + transition rhythm.
-- **Theme:** run `scripts/theme.py <out_dir>` AFTER the content plan and BEFORE authoring pages or
+3.5. **Content plan (director) — design the video as CONTENT before design/authoring.** Dispatch
+     `agents/content-planner.md` on the comprehension brief + material. It returns an ordered set of
+     **content beats** — each with a learning point (traced to the material), a COARSE `visual_intent`
+     (`metric`/`contrast`/`sequence`/`list`/`structure`/`statement`/`section` — NOT a concrete layout),
+     a narration intent, `est_seconds`, per-beat `continuity` (inherits-from / hooks-into) and
+     `relation`, and the narrative markers `climax: true` (one beat ~75–80% through — the payoff) and
+     `hold: true` (final beat, sparse). Plus top-level `arc`, `director_note`, `anti_slop` (faithfulness
+     bans), and `rhythm` (the pacing arc). It designs WHAT the video teaches — not how it looks.
+3.6. **Design plan (art director) — give the content its visual language.** Dispatch
+     `agents/design-director.md` on the content plan + comprehension brief + `meta`. It returns a
+     SEPARATE **design plan** keyed by beat id: top-level `motif` (the CONCEPT motif — one topic-derived
+     visual idea), `theme` (mode/accent/accent2/bg), `design_anti_slop`; and per beat the concrete
+     `visual.type` + `props` + `form` (the form ledger, via its Concept→Visual dictionary — deliverable
+     forms only, no un-renderable Sankey/heatmap/pyramid), `motion_intent`, `transition` (mapped from the
+     beat's `relation`; see `references/motion-grammar.md` "Transition rhythm"), `icons`, `media`
+     (`image_prompt` + `motion`: kenburns/bg-live/bg-drift), and a `cue` anchor array for any multi-point
+     `html` beat. **Build the storyboard by MERGING the two plans:** the design's `visual.type`+`props`
+     become each scene; its `transition` becomes the per-scene edges; a `climax` beat's chart becomes
+     `props.climax:true` (the renderer's key-number landing hold); its `icons`/`media`/`cue` shape the
+     authored page (`.icon-tile` rows per `references/icons.md`). **Keep BOTH plan files** — the critic
+     panel (step 5) receives them: `critic-content`/`critic-narrative` audit the content plan (continuity,
+     relation, faithfulness); the **design-critic** audits the design plan (motif, form diversity,
+     transitions, icons, whitespace, rhythm, colour, motion).
+- **Theme:** run `scripts/theme.py <out_dir>` AFTER the design plan and BEFORE authoring pages or
   programmatic scenes — it samples `frames/` for a curated light/dark palette fitting the topic
-  (or pass `--mode/--accent/--accent2/--bg` from the planner's `theme` suggestion when there are no
+  (or pass `--mode/--accent/--accent2/--bg` from the **design-director's** `theme` when there are no
   frames). Pages link `base.css` → `theme.css` → `motifs.css`; the programmatic renderers parse the
   same vars. 🔴 the plan checkpoint now also shows the palette + mode.
 - **Re-conceive, don't mirror:** the content-planner designs a video arc (hook + throughline +
   resequencing), not the slide order — faithful to the substance.
-- **Illustrated pages:** build a beat's `media` as a `.split` page (text + a STATIC image panel,
+- **Illustrated pages:** build a beat's design-plan `media` as a `.split` page (text + a STATIC image panel,
   see `references/html-pages.md`; Ken-Burns is disabled inside `.split` so it doesn't compete with
   revealing bullets — Ken-Burns is for full-bleed hero `.bg-photo` only); generate the image via
   `imagegen` (codex/key); keep it a generic broll. Most pages stay typographic.
-     🔴 **CHECKPOINT · 🛑 STOP:** show the content plan (arc + **motif** + beats + chosen visuals +
-     the continuity through-line) and the derived theme palette (mode + colors), and get the user's
-     OK before authoring narration.
+     🔴 **CHECKPOINT · 🛑 STOP:** show the content plan (arc + beats + coarse visual intents + the
+     continuity through-line) AND the design plan (**motif** + theme palette + per-beat forms), and get
+     the user's OK before authoring narration.
 4. **Write the manuscript — dispatch `agents/scriptwriter.md` (the WRITE specialist).** Give it
-   the content plan (or, with no plan, the per-slide intent + slide text), the comprehension
-   brief + material, `meta.language`, and the pace ceiling. It returns the final spoken line per
+   the content plan + the design plan (`motion_intent` lives in the design plan now; `est_seconds` /
+   `continuity` in the content plan) — or, with no plan, the per-slide intent + slide text — the
+   comprehension brief + material, `meta.language`, and the pace ceiling. It returns the final spoken line per
    beat (`{id → narration}`) + a `flags` list of any beat it could not source. Write those lines
    into each scene's `narration`; **resolve every flag** (drop or repair the unsourced beat)
    before proceeding. The scriptwriter follows `references/narration-writing.md` (the style
    basis). The on-screen **captions are auto-derived from the narration**, so its words are also
-   the subtitle. (PLAN → **WRITE** → CHECK: planner designs, scriptwriter writes, the parallel critic panel — `critic-narrative` + `critic-content` — checks in parallel.)
+   the subtitle. (PLAN → **DESIGN** → **WRITE** → CHECK: content-planner plans, design-director designs, scriptwriter writes, the parallel critic panel — `critic-narrative` + `critic-content` + `design-critic` — checks in parallel.)
 4b. **Image prompts (gpt-image tier only).** If `meta.image_source == "openai"`: for each
     VISUAL/conceptual scene, author a grounded `image_prompt` from the narration + the chosen
     style, tagged `image_tag:"broll"` and `fit:"cover"`; keep DATA in `chart` scenes (never AI).
@@ -268,21 +273,25 @@ TTS if the user gives an API key.
     `imagegen.generate(prompt, out_path, key)` (key path) or `imagegen._generate_codex(prompt, out_path)`
     (Codex) — then reference the file by `file://` in the page. The storyboard `image_source:"openai"`
     CLI path of `imagegen.py` drives the non-HTML tiers, not these.
-5. **Parallel critic panel — narration + subtitle (REQUIRED, not optional).** Dispatch
-   `agents/critic-narrative.md` AND `agents/critic-content.md` **concurrently — in ONE
-   message with two Agent calls** — on the storyboard **plus the comprehension brief /
-   source material AND the content plan** (the plan carries `motif` + per-beat `continuity`,
-   which live only there — without it the critic can't run the concept-veto/continuity checks),
-   so both critics can check facts and structure, not just style.
+5. **Parallel critic panel — narration + content + design (REQUIRED, not optional).** Dispatch
+   `agents/critic-narrative.md`, `agents/critic-content.md`, AND `agents/design-critic.md`
+   **concurrently — in ONE message with three Agent calls** — on the storyboard **plus the comprehension
+   brief / source material AND both plans** (the content plan carries `continuity`/`relation`/faithfulness;
+   the design plan carries `motif` + `form` + `theme` + the `relation`→`transition` mapping — each critic
+   needs the plan that owns what it checks), so the panel checks facts, structure, AND design, not just style.
    - `critic-narrative` verifies: narration is **precise and faithful** (no wrong, vague, or
      invented facts/numbers); subtitle text matches spoken words, segments into clean readable
      lines, fits on screen, no typos or garbled text; narration is in **`meta.language`** and
      **`meta.voice` matches that language** (a wrong-language voice would garble the audio).
    - `critic-content` verifies: audio↔visual alignment per beat (R2), script faithfulness and
      claims traceability (R1d/R1e including AI image prompts), scene/visual selection quality
-     (R3/R5/R6), pace and cuts.
-   **Overall PASS only when BOTH critics return PASS.** Apply the **UNION** of their required
-   EDITS to the storyboard, then re-dispatch both critics (or just the failing one) until both
+     (R3/R5/R6), continuity, pace and cuts.
+   - `design-critic` verifies: form fit + layout diversity (D1), the concept-motif swap test (D2),
+     transition rhythm vs `relation` (D3), icons (D4), composition/whitespace (D5), visual rhythm + a
+     WOW beat (D6), squint/cover-text (D7), semantic colour (D8), motion discipline / no-GIF (D9),
+     visual anti-slop (D10).
+   **Overall PASS only when ALL THREE critics return PASS.** Apply the **UNION** of their required
+   EDITS to the storyboard, then re-dispatch the critics (or just the failing one) until all
    return PASS. THEN:
    🔴 **CHECKPOINT · 🛑 STOP:** present the full, critic-panel-passed script and get the user's
    edits/approval BEFORE any TTS. Do not synthesize audio until they sign off.
@@ -350,21 +359,21 @@ TTS if the user gives an API key.
   (`render_html`), captured as seekable CSS reveals. Pages render only real content (faithful);
   the per-clip cache busts when the page file, `theme.css` (re-theming), or `audio/NN.words.json`
   (new edge run) changes. Locate Chrome via `meta.chrome_path` if needed.
-- **Anti-slop (critic R8 / AV-critic):** no emoji in titles; no hardcoded hex — use semantic vars
+- **Anti-slop (design-critic D10 / AV-critic):** no emoji in titles; no hardcoded hex — use semantic vars
   (`var(--bg)`, `var(--accent)`, etc.; `validate.py` lints raw `#hex` in style/SVG colors,
-  `critic-content` R8 fails it); no gradient-mesh backgrounds; no player-chrome / progress
+  `design-critic` D10 fails it); no gradient-mesh backgrounds; no player-chrome / progress
   bars / timecodes / page counters; no more than 2 consecutive beats with the same `visual.type`
   among the PROGRAMMATIC types (`html` scenes are exempt — vary those by **form family**, not type).
 - **Layout diversity (HTML tier):** no single form family (cards/flow/scorecard/quadrant/hubspoke/
-  blocks/timeline/compare) above ~45% of html scenes — `validate.py` warns, `critic-content` R8 fails it.
-- **Concept + continuity (critic R8):** the video must express THIS topic — the plan carries a
-  content-derived top-level `motif` (the CONCEPT motif — distinct from the `image_tag: motif`
-  imagery class); a **name-swappable** design (swap the topic → still works) is a template,
-  not a design, and gets revised. And beats must **connect** (each `continuity`: inherits from the
-  prior, hooks into the next) so the video argues a case rather than listing slides.
+  blocks/timeline/compare) above ~45% of html scenes — `validate.py` warns, `design-critic` D1 fails it.
+- **Concept (design-critic D2) + continuity (critic-content).** The video must express THIS topic — the
+  DESIGN plan carries the top-level `motif` (the CONCEPT motif — distinct from the `image_tag: motif`
+  imagery class); a **name-swappable** design (swap the topic → still works) is a template, not a design,
+  and gets revised (design-critic D2). And beats must **connect** (each `continuity`: inherits from the
+  prior, hooks into the next) so the video argues a case rather than listing slides (critic-content).
 - **Audio-synced reveals (HTML tier) — content must not lead the voice.** Make multi-point pages
   audio-synced by DEFAULT: tag each point `data-cue-index="N"` (spoken order) + `data-cue="<spoken
-  anchor>"` (a phrase the narration says); the content-planner emits a per-beat `cue` array for this.
+  anchor>"` (a phrase the narration says); the design-director emits a per-beat `cue` array for this.
   When edge `audio/NN.words.json` exists, `render_html` reveals each point exactly when its phrase is
   spoken. If a page is NOT cued, LEAVE `anim_seconds` unset — `render_html` defaults it to spread the
   reveals across ~0.7× the scene (tracking the speaking pace) instead of cramming them at the start; a
@@ -468,7 +477,7 @@ For anything else, read `references/troubleshooting.md` before guessing.
 - ❌ Render audio/video before the user signs off script/sample (honor the 🔴 checkpoints).
 - ❌ Narrate from the slides alone, or invent facts/numbers — ground in the material (or a
   web fact-check) and stay strictly faithful (step 3).
-- ❌ Skip the critic panel — the parallel `critic-narrative` + `critic-content` check (step 5) is REQUIRED; ship only when BOTH return PASS.
+- ❌ Skip the critic panel — the parallel `critic-narrative` + `critic-content` + `design-critic` check (step 5) is REQUIRED; ship only when ALL THREE return PASS.
 - ❌ Read slide bullets aloud verbatim — write *spoken* narration (`references/narration-writing.md`).
 - ❌ Guess a slide's `duration` — it must come from ffprobe via `tts.py`.
 - ❌ Hand-edit `out.mp4`; change `storyboard.json` and re-render (`--only N`).

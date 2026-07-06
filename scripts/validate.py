@@ -284,8 +284,8 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
             warnings.append(f"3+ consecutive '{b}' scenes — vary the visual type (anti-slop)")
 
     # Layout-diversity gate (html tier): a deck dominated by one form family reads as auto-generated.
-    # Warn (not error) — a genuinely same-shape run is allowed with the planner's form-ledger reason,
-    # which critic-content judges. Skip small decks where a majority is unavoidable.
+    # Warn (not error) — a genuinely same-shape run is allowed with the design plan's form-ledger reason,
+    # which design-critic (D1) judges. Skip small decks where a majority is unavoidable.
     if len(families) >= 4:
         import collections
         fam, n = collections.Counter(families).most_common(1)[0]

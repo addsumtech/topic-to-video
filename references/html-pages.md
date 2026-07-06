@@ -253,7 +253,7 @@ Across the deck's `html` scenes, **no single form family may exceed ~45%**. A de
 grids top to bottom reads as auto-generated — the exact "AI slop" this tier exists to avoid. If you're
 reaching for a card grid a third time, STOP and re-read the form-selection table above: the content
 almost always wants a `.flow` / `.scorecard` / `.quadrant` / `.timeline` / `.hubspoke` / `.segbar`
-instead. `validate.py` counts the families and warns when one dominates; `critic-content` (R8) fails it.
+instead. `validate.py` counts the families and warns when one dominates; `design-critic` (D1) fails it.
 
 ## Composition helpers (pair with the forms above)
 - **`.card`** — a panel with depth (`--surface` + shadow + hairline); group related rows. **`.card.glass`** over a soft backdrop.
