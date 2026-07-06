@@ -166,6 +166,41 @@ covered. Keep it subtle — the image adds atmosphere, the text still carries ev
   `file://`. Per-page AI imagery is **opt-in** (it costs time/credits) — present the prompts and
   get sign-off before generating, exactly like the non-HTML gpt-image tier.
 
+### Living backdrop (make it breathe, deterministically)
+A still backdrop can feel flat; a **GIF/video backdrop is wrong** — our renderer freshly loads each
+frame at `?p=`, so a GIF freezes at frame 0 (no motion) or, in a persistent page, jitters on wall-clock
+time (non-deterministic, breaks the clip cache + A/V gate). The right way to add life is a slow,
+**seek-frozen** motion driven by our own progress. Three tools, in order of subtlety:
+
+- **`.bg-live` / `.bg-drift`** — a very slow Ken-Burns push (or lateral parallax) on a **full-bleed**
+  `.bg-soft`/`.bg-photo`. Add the class next to the backdrop: `<img class="bg-soft bg-live" …>`. These
+  are **AMBIENT**: `seek.js` drives them by PROGRESS (0→1 over the whole scene) and leaves them OUT of
+  the reveal-stagger envelope, so the backdrop spans the full scene AND adding it can **never** shift
+  when a reveal fires (unlike the classic `.kenburns`, whose duration *does* enter the envelope — that's
+  why `.bg-live` is the preferred living primitive for a content page). Keep it a **whisper**: at
+  `.bg-soft`'s ~.12–.16 opacity a ~6% push (`.bg-live`) or a ~3% lateral parallax (`.bg-drift`) is felt,
+  not seen. **One** living motion per page; **full-bleed only** — never on a `.split` side image or a
+  card (those stay still next to revealing text).
+- **`.kenburns`** — the classic hero push, still correct on a full-bleed cover `.bg-photo` (see
+  "Cover" above). Reserved for heroes; disabled inside `.split`.
+- **`.reveal-wipe`** — a directional foreground reveal (clip-path mask sweep) for an element whose
+  meaning is *filling/directional* (`.rule`, `.segbar`, a `.media` panel). This is motion *in the
+  content*, not the backdrop — the **foreground alternative** in the same living-motion family: pick
+  ONE per page (a breathing backdrop OR a wiping panel), not both.
+
+Under **reduced motion** the backdrops (and the `.kenburns` push) go static, and `.reveal-wipe` drops
+its directional sweep to reveal via a plain opacity fade instead; all pass `keyframe_qa` (full-bleed
+ambients don't trip the overflow probe). Do not stack them — one moving thing at a time. `validate.py`
+warns on >1 living backdrop or a `.bg-live`/`.bg-drift` on a non-full-bleed element (the raw
+`[data-ambient]` hook is an advanced escape hatch — not full-bleed-linted, so you own its placement).
+
+**Render note:** an ambient page is captured **every frame** (the backdrop moves continuously, so the
+frame-copy hold optimization is disabled for it) — affordable because living backdrops are rare
+(hero/hold beats). Pair it with the **edge-tts cued path**: reveals settle at their cue and then hold
+while the backdrop keeps breathing. In the cue-less paced fallback there's only one progress clock, so
+the reveals spread across the whole scene alongside the backdrop — a calm, correct look for a sparse
+hero/closer, but the reason a living backdrop belongs on sparse beats, not dense content pages.
+
 ## SVG icons (category marks, used with restraint) — see `references/icons.md`
 Inline-SVG line icons (one coherent Lucide family, themeable via `currentColor`) can mark a row of
 **category / feature cards** or flag status. Use the `.icon-tile` / `.icon-badge` / `.icon` classes

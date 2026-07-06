@@ -166,7 +166,9 @@ TTS if the user gives an API key.
    headless Google Chrome (free, no dependency; needs Chrome installed). Choose it for a
    "designed deck" look. The content-planner designs the beats; you author one
    `pages/scene_NN.html` per beat on `assets/html/base.css` (faithful — real content only),
-   following `references/html-pages.md`. Immediately after authoring the pages, run
+   following `references/html-pages.md`. A full-bleed backdrop can also gently **breathe** — a
+   seek-frozen `.bg-live`/`.bg-drift` whisper on a sparse hero/hold beat (deterministic, off under
+   reduced motion; see html-pages.md "Living backdrop") — never a GIF/video. Immediately after authoring the pages, run
    `python scripts/keyframe_qa.py <out_dir>` (needs no audio, ~1 min) — catch a blank page /
    canvas overflow while it's a one-edit fix, not at the step-9 gate. Set `meta.chrome_path`
    if Chrome isn't at the default macOS location.

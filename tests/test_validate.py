@@ -231,6 +231,35 @@ def test_consecutive_html_scenes_do_not_warn(tmp_path):
     assert not any("consecutive" in w for w in r["warnings"])
 
 
+def test_two_living_backdrops_warn(tmp_path):
+    s = _html_scene(tmp_path, 0, "pages/s0.html",
+                    '<img class="bg-soft bg-live" src="x"><img class="bg-photo bg-drift" src="y"><body></body>')
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert any("living backdrops" in w for w in r["warnings"])   # >1 moving thing per page
+
+def test_single_full_bleed_living_backdrop_ok(tmp_path):
+    s = _html_scene(tmp_path, 0, "pages/s0.html",
+                    '<img class="bg-soft bg-live" src="x"><div class="stage">hi</div><body></body>')
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert not any("living backdrop" in w for w in r["warnings"])  # correct usage: no warning
+
+def test_living_backdrop_on_non_fullbleed_warns(tmp_path):
+    s = _html_scene(tmp_path, 0, "pages/s0.html",
+                    '<div class="card bg-live">x</div><body></body>')   # motion on a card, not a backdrop
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert any("non-full-bleed" in w for w in r["warnings"])
+
+def test_living_backdrop_lint_quote_agnostic_and_token_exact(tmp_path):
+    # SINGLE-quoted ambient on a card -> warns (mirrors seek.js .matches(), which is quote-agnostic)
+    s = _html_scene(tmp_path, 0, "pages/s0.html", "<div class='card bg-live'>x</div><body></body>")
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert any("non-full-bleed" in w for w in r["warnings"])
+    # a LOOK-ALIKE token 'my-bg-live' is not the class 'bg-live' -> no living-backdrop warning
+    s2 = _html_scene(tmp_path, 0, "pages/s1.html", '<div class="card my-bg-live">x</div><body></body>')
+    r2 = validate.evaluate(_board(str(tmp_path), [s2]), str(tmp_path))
+    assert not any("non-full-bleed" in w or "living backdrops" in w for w in r2["warnings"])
+
+
 def test_html_cued_without_wordsjson_warns(tmp_path):
     s = _html_scene(tmp_path, 0, "pages/s0.html",
                     '<div class="row" data-cue-index="0" data-cue="alpha">A</div><body></body>')

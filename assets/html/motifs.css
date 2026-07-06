@@ -90,6 +90,30 @@ img.kenburns{animation:mt-kenburns 6s ease-out forwards;animation-play-state:pau
   border-color:color-mix(in srgb,var(--fg) 12%,transparent);
   backdrop-filter:blur(7px) saturate(1.05);-webkit-backdrop-filter:blur(7px) saturate(1.05)}
 
+/* ── Living backdrop (ambient, progress-driven, seek-frozen) ───────────────────────────────
+   Make a FULL-BLEED backdrop (.bg-soft or .bg-photo) BREATHE across the whole scene without ever
+   competing with the content. Add ONE of these next to the backdrop class:
+     <img class="bg-soft bg-live"  ...>   slow Ken-Burns push (scale + slight diagonal drift)
+     <img class="bg-soft bg-drift" ...>   slow lateral parallax (eases sideways, for depth)
+   seek.js recognises `.bg-live`/`.bg-drift` (and any `[data-ambient]`) as AMBIENT: it drives them by
+   PROGRESS (0->1 over the whole scene) and leaves them OUT of the reveal-stagger envelope — so a
+   living backdrop spans the full scene AND can never shift when a reveal fires (determinism holds in
+   both cue and blind modes). The `animation-duration` here is only the keyframe SHAPE; seek.js remaps
+   it to 0->1 progress, so its numeric value is irrelevant (kept a nominal 1s).
+   TASTE: keep it a WHISPER. A moving backdrop is the loudest thing on screen — at .bg-soft's ~.12-.16
+   opacity a 5-7% push over ~10s is felt, not seen. One living motion per page; never on a .split side
+   image or a card (those must stay still next to revealing text). Off under reduced motion. */
+/* Coverage invariant: scaled from a CENTERED origin, the scale margin must always exceed the
+   translate so a full-bleed object-fit:cover image never exposes a hard --bg edge. Min margins:
+   bg-live ~32px (vertical, at p=0, scale 1.06); bg-drift ~43px. See tests/test_scenes.py
+   test_living_backdrop_coverage_never_exposes_edge — DON'T lower the scale floors below the translate. */
+.bg-live{animation:mt-bg-live 1s var(--ease-expo) forwards;animation-play-state:paused;
+  transform-origin:50% 50%}
+@keyframes mt-bg-live{from{transform:scale(1.06)}to{transform:scale(1.12) translate(-1.2%,-0.9%)}}
+.bg-drift{animation:mt-bg-drift 1s var(--ease-expo) forwards;animation-play-state:paused;
+  transform-origin:50% 50%}
+@keyframes mt-bg-drift{from{transform:scale(1.08) translateX(1.5%)}to{transform:scale(1.08) translateX(-1.5%)}}
+
 /* ── SVG icons (inline, one coherent LINE family; themeable via currentColor) ──────────────
    Icons must do a JOB — label a category, mark a section, flag status — never decorate; keep
    the text label, and keep them ≤ the title. Paste an inline <svg class="icon">…</svg> from

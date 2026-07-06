@@ -121,6 +121,10 @@ subject** (derive it from the material), not be arbitrary decoration: "generic" 
 specifics, it does not license a topic-neutral texture/gradient/stock scene. If, with the caption
 hidden, the image wouldn't hint what the video is about, rewrite the prompt's motif. Keep most beats
 typographic; section/hero beats keep their backdrop. Aim for a few illustrated content beats, not all.
+**Living backdrop:** on a `hold`/hero beat whose `motion_intent` is an ambient verb
+(FLOATS/DRIFTS/BREATHES) that carries a full-bleed image, set `"motion": "bg-live"` (or `"bg-drift"`) —
+a seek-frozen whisper that breathes across the sparse beat, the deliverable form of those verbs. It is
+the ONE moving thing on the page (never with a `.reveal-wipe`); keep `kenburns` for hero covers.
 
 ## Output contract
 Return ONLY the JSON content plan (no prose around it). The assistant maps each `beat.visual`

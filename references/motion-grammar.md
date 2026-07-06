@@ -106,6 +106,27 @@ with `props.kind:"counter"` **and `props.climax:true`** counts up, reaches the t
 value at ~68% of the scene, then holds it static — that's the deliverable form of
 SLAMS/COUNTS UP for the payoff beat.
 
+## Living backdrop (ambient motion — the deliverable FLOATS/DRIFTS/BREATHES)
+
+The "Organic / ambient" verbs above (FLOATS, DRIFTS, BREATHES) are delivered by an **ambient
+backdrop**, not by a GIF. A GIF/video background is non-deterministic under our capture (each frame
+reloads at `?p=`, so a GIF freezes at frame 0 or jitters on wall-clock time) — so the alive-but-still
+look comes from a slow, **seek-frozen** motion on a full-bleed backdrop:
+
+- **`.bg-live`** (slow Ken-Burns push) / **`.bg-drift`** (slow lateral parallax) on a `.bg-soft`/`.bg-photo`
+  — see `references/html-pages.md` "Living backdrop". These are AMBIENT: `seek.js` drives them by
+  PROGRESS (0→1 across the whole scene) and excludes them from the reveal-stagger envelope, so a living
+  backdrop spans the scene *and* never disturbs a reveal's freeze time.
+- The classic **`.kenburns`** hero push and the foreground **`.reveal-wipe`** mask sweep round out the set.
+
+**The one rule that keeps it tasteful: a moving backdrop is the loudest thing on screen.** The eye
+locks onto motion (see Visual Hierarchy — "the first moving object becomes the focus"), so the backdrop
+must be a WHISPER (`.bg-live` a ~6% push, `.bg-drift` a ~3% lateral parallax — felt, not seen) and it is
+the page's ONE continuous ambient motion. Content reveals settle in and then hold, so they don't
+compete — but never stack a SECOND loud/continuous motion on a living backdrop (a `.kenburns` hero push
+or a `.reveal-wipe` panel — pick one). Off under reduced motion. This is the deterministic, on-taste
+answer to "can the background move?".
+
 ## Transition rhythm (semantic — the relationship between two beats picks the cut)
 
 One transition shape everywhere is smooth but monotone; random effect variety is slop. The rule

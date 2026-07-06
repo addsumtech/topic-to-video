@@ -29,7 +29,10 @@ You will be given:
    is set — then identical frames per slide / no zoom-pan is CORRECT, not a defect (judge
    composition + captions, not motion) — and whether a slide carries a TIMED callout (`cue`/`at`) —
    then a frame sampled BEFORE its cue time legitimately shows NO callout; only a callout missing
-   in a LATE frame is a defect. If `<out_dir>/_keyframes/` contact sheets exist (`keyframe_qa.py`),
+   in a LATE frame is a defect — and whether a page carries a **living backdrop** (`.bg-live`/`.bg-drift`):
+   a slowly-drifting full-bleed backdrop is deliberate ambient motion, NOT jitter; flag it only if it is
+   clearly LOUD (visibly out-moving the content) or if more than one thing on the page is obviously
+   moving (a drifting backdrop should be the page's one moving thing). If `<out_dir>/_keyframes/` contact sheets exist (`keyframe_qa.py`),
    blank-page + canvas-overflow were already gated deterministically — spend your eyes on the
    judgment calls (legibility, theme fit, timing, taste).
 

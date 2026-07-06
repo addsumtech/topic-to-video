@@ -47,7 +47,7 @@ _OVERFLOW_JS = (
     "lh=(lh==='normal'||!lh)?1.4*fs:parseFloat(lh);if(lh<1)continue;"
     "var lines=Math.round(e.scrollHeight/lh),w=e.getBoundingClientRect().width;"
     "if(lines>=3&&w>=600)centered++;}"
-    "var bleed=!!document.querySelector('.bg-photo');"
+    "var bleed=!!document.querySelector('.bg-photo,.bg-soft');"
     "return JSON.stringify({worst:Math.round(worst),textlen:t,centered:centered,"
     "ctop:Math.round(ct),cbot:Math.round(cb),bleed:bleed});})()")
 

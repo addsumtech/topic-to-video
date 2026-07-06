@@ -457,6 +457,23 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
     if captions_on and re.search(r'class="[^"]*\bchrome\b', html):
         warnings.append(f"{tag}: page has a bottom .chrome rail but captions are ON — it collides "
                         f"with the burned caption band; drop .chrome (or set meta.captions:false)")
+    # Living backdrop: ONE moving thing per page, and full-bleed only. seek.js animates every ambient
+    # element, so two of them fight; and a .bg-live/.bg-drift on a non-full-bleed element (a card, a
+    # .split side image) both distracts AND, if nested in .stage/.split, misfires the keyframe_qa
+    # overflow probe (which then blames text length). Both are cheap static catches.
+    # Token-exact + quote-agnostic (mirrors scenes.py _has_ambient / seek.js's .matches()): split each
+    # class attr into tokens so 'my-bg-live' doesn't false-match, and accept single OR double quotes.
+    cls_lists = [a or b for a, b in re.findall(r'''class\s*=\s*(?:"([^"]*)"|'([^']*)')''', html)]
+    amb_classes = [c for c in cls_lists if {"bg-live", "bg-drift"} & set(c.split())]
+    n_ambient = len(amb_classes) + len(re.findall(r'\bdata-ambient(?![\w-])', html))
+    if n_ambient > 1:
+        warnings.append(f"{tag}: {n_ambient} living backdrops on one page — keep ONE moving thing per page "
+                        f"(motion-grammar: 'a moving backdrop is the loudest thing on screen')")
+    for cl in amb_classes:
+        if not ({"bg-soft", "bg-photo"} & set(cl.split())):
+            warnings.append(f"{tag}: .bg-live/.bg-drift on a non-full-bleed element (class=\"{cl[:40]}\") — "
+                            f"apply a living backdrop only to a full-bleed .bg-soft/.bg-photo, not a card/side image")
+            break
     # Audio-synced reveals: cued points need a data-cue anchor AND a words.json to resolve against.
     # (The anchor regex is an approximate within-tag co-occurrence count — warning-only, never fatal.)
     if "data-cue-index" in html:

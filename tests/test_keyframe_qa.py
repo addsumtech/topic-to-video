@@ -29,5 +29,6 @@ def test_center_exclude_covers_display_and_diagram_classes():
         assert c in kq._CENTER_EXCL
 
 def test_probe_js_reports_fill_bbox_and_bleed():
-    for k in ("ctop", "cbot", "bleed", ".bg-photo"):
+    # the 9:16 fill-exemption 'bleed' flag must cover BOTH full-bleed backdrops (.bg-photo AND .bg-soft)
+    for k in ("ctop", "cbot", "bleed", ".bg-photo", ".bg-soft"):
         assert k in kq._OVERFLOW_JS

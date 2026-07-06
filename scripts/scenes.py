@@ -483,6 +483,20 @@ def render_html(props, meta, W, H, frames, workdir, index):
     fps = meta.get("fps", 30)
     dur = frames / float(fps)
     html = open(src, encoding="utf-8", errors="replace").read()
+    # A living backdrop (.bg-live/.bg-drift/[data-ambient]) is driven by seek.js across the WHOLE
+    # scene progress, so the frame-copy HOLD optimization below would freeze it for seconds then SNAP
+    # to the next captured position (a render glitch). When one is present (and motion isn't reduced),
+    # capture EVERY frame at true scene progress so the backdrop drifts smoothly. Opt-in + rare
+    # (hero/hold beats), so the extra shots are affordable. Detect from the ORIGINAL page html
+    # (reduced-motion strips the motion, so the copy optimization is correct there).
+    # Token-exact + quote-agnostic — MUST match what seek.js's el.matches('.bg-live,.bg-drift,
+    # [data-ambient]') treats as ambient, or a page ambient to the DOM but not here would silently fall
+    # back to the freeze/snap copy path. Split each class attr into tokens (like the class list) so
+    # 'my-bg-live'/'bg-live-2' don't false-match; accept single OR double quotes. (validate.py mirrors.)
+    _cls = [a or b for a, b in re.findall(r'''class\s*=\s*(?:"([^"]*)"|'([^']*)')''', html)]
+    _has_ambient = (not meta.get("reduced_motion")) and (
+        any({"bg-live", "bg-drift"} & set(c.split()) for c in _cls)
+        or bool(re.search(r'\bdata-ambient(?![\w-])', html)))
     # D — reduced-motion: capture a temp copy of the page with reduced-motion.css linked LAST (after
     # base/theme/motifs), so reveals become opacity-only and ambient/Ken-Burns motion is off. The page
     # uses absolute file:// links, so the temp file resolves them fine; cue parsing uses the original html.
@@ -537,7 +551,8 @@ def render_html(props, meta, W, H, frames, workdir, index):
         burst = 0.6
         HEAD_WINDOW = 1.2
         def is_reveal(t):
-            return t <= HEAD_WINDOW or any(c <= t <= c + burst for c in ctimes)
+            # _has_ambient forces every frame (the backdrop moves continuously); else burst around cues
+            return _has_ambient or t <= HEAD_WINDOW or any(c <= t <= c + burst for c in ctimes)
         shots, copies, last_i = [], [], None
         for i in range(frames):
             t = i / float(fps)
@@ -558,6 +573,13 @@ def render_html(props, meta, W, H, frames, workdir, index):
     reveal_frames = max(1, min(frames, int(round(anim * fps))))
     shots, copies, settle_i = [], [], None
     for i in range(frames):
+        if _has_ambient:
+            # backdrop spans the whole scene: true progress, every frame (no hold-copy -> no snap).
+            # reveals then also spread across the scene in blind mode — fine for the sparse hero/hold
+            # beats a living backdrop belongs on (the cued path keeps reveals precise + settled).
+            p = 1.0 if frames <= 1 else i / (frames - 1)   # single-frame → settled, like the paced path
+            shots.append((i, f"file://{src}?p={p:.4f}"))
+            continue
         p = 1.0 if i >= reveal_frames - 1 else i / max(1, reveal_frames - 1)
         if p >= 1.0 and settle_i is not None:
             copies.append((i, settle_i)); continue

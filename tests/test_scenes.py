@@ -471,6 +471,103 @@ def test_motifs_focus_divider_and_kenburns_drift():
     assert "translate(" in css[i:i+160]
     assert "#0d1117" not in css                      # scrim still theme-derived
 
+def test_living_backdrop_classes_are_seekable():
+    """The living-backdrop utilities exist, are paused (seek-frozen), and seek.js treats them as
+    AMBIENT — progress-driven AND excluded from the reveal-stagger envelope."""
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
+    motifs = open(os.path.join(skill, "assets", "html", "motifs.css")).read()
+    for rule, kf in ((".bg-live{", "@keyframes mt-bg-live"), (".bg-drift{", "@keyframes mt-bg-drift")):
+        assert rule in motifs and kf in motifs, f"missing {rule}"
+        i = motifs.index(rule)                                      # the RULE, not the doctrine comment
+        assert "animation-play-state:paused" in motifs[i:i + 160]   # seek.js can freeze it
+    js = open(os.path.join(skill, "assets", "html", "seek.js")).read()
+    assert ".bg-live" in js and ".bg-drift" in js and "[data-ambient]" in js   # recognised as ambient
+    assert "s.ambient ? m :" in js          # ambient EXCLUDED from the reveal-stagger envelope
+    assert "-(p * s.dur)" in js             # ambient is PROGRESS-driven (0->1 over the scene)
+
+def test_reduced_motion_disables_living_backdrop():
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
+    css = open(os.path.join(skill, "assets", "html", "reduced-motion.css")).read()
+    assert ".bg-live" in css and ".bg-drift" in css   # living backdrops shown static under reduced motion
+    assert "[data-ambient]" in css   # raw ambient escape hatch neutralized too (else it moves — vestibular leak)
+
+def test_living_backdrop_coverage_never_exposes_edge():
+    """A scaled full-bleed backdrop (object-fit:cover, CENTERED origin) must always cover the
+    1920x1080 canvas: the scale margin must exceed the (scaled) translate at every p, or a hard --bg
+    edge shows. Guards the motifs.css scale floors against being lowered below the translate."""
+    import re
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
+    css = open(os.path.join(skill, "assets", "html", "motifs.css")).read()
+    W, H = 1920, 1080
+    def parse(kf):
+        m = re.search(r'@keyframes ' + kf + r'\{(.*?)\}\}', css, re.S)
+        assert m, f"keyframe {kf} not found"
+        xforms = re.findall(r'transform:\s*([^}]+)', m.group(1))
+        assert len(xforms) == 2, f"{kf}: expected from+to transforms"
+        def vals(t):
+            s = float(re.search(r'scale\(([0-9.]+)\)', t).group(1))
+            tr = re.search(r'translate(?:X)?\(([^)]+)\)', t)
+            tx = ty = 0.0
+            if tr:
+                parts = [x.strip().rstrip('%') for x in tr.group(1).split(',')]
+                tx = float(parts[0]) / 100.0
+                ty = float(parts[1]) / 100.0 if len(parts) > 1 else 0.0
+            return s, tx, ty
+        return vals(xforms[0]), vals(xforms[1])
+    for kf in ("mt-bg-live", "mt-bg-drift"):
+        (s0, x0, y0), (s1, x1, y1) = parse(kf)
+        worst = 1e9
+        for k in range(101):
+            p = k / 100.0
+            s = s0 + (s1 - s0) * p                      # linear proxy (endpoints dominate the min)
+            tx = abs(x0 + (x1 - x0) * p); ty = abs(y0 + (y1 - y0) * p)
+            mh = (s - 1) / 2 * W - s * tx * W           # margin each side, centered origin (conservative)
+            mv = (s - 1) / 2 * H - s * ty * H
+            worst = min(worst, mh, mv)
+        assert worst >= 24, f"{kf}: min coverage margin {worst:.1f}px < 24px — a --bg edge can show"
+
+@pytest.mark.skipif(not _chrome_present(), reason="no Chrome for HTML-tier integration test")
+def test_living_backdrop_is_ambient_and_does_not_shift_reveals(tmp_path):
+    """The determinism guarantee: an ambient backdrop (here a [data-ambient] box with a long 10s
+    animation) is (a) CAPTURED — it moves between ?p=0 and ?p=1 — and (b) EXCLUDED from the reveal
+    envelope, so a reveal is frozen IDENTICALLY whether or not the ambient element is present. If
+    ambient were (wrongly) folded into `total`, its 10s duration would balloon the envelope and the
+    reveal would jump to fully-revealed at p=0.5 — the top-region crops would then differ."""
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
+    base = os.path.join(skill, "assets", "html", "base.css")
+    motifs = os.path.join(skill, "assets", "html", "motifs.css")
+    js = os.path.join(skill, "assets", "html", "seek.js")
+    head = ('<!doctype html><html><head><meta charset="utf-8">'
+            f'<link rel="stylesheet" href="file://{base}">'
+            f'<link rel="stylesheet" href="file://{motifs}"></head>')
+    # a delayed reveal box in the TOP-LEFT (its freeze position is what must not move)
+    reveal = ('<div class="reveal-up" style="position:absolute;top:60px;left:60px;'
+              'width:360px;height:180px;background:#12a150;animation-delay:.4s"></div>')
+    # a full-duration AMBIENT box in the BOTTOM-LEFT (long 10s anim; the regression bait)
+    ambient = ('<div data-ambient style="position:absolute;bottom:60px;left:60px;width:200px;'
+               'height:200px;background:#d21f3c;animation:mt-float 10s ease forwards;'
+               'animation-play-state:paused"></div>')
+    tail = f'<script src="file://{js}"></script></body></html>'
+    p_amb = tmp_path / "amb.html";  p_amb.write_text(head + "<body>" + reveal + ambient + tail)
+    p_no = tmp_path / "noamb.html"; p_no.write_text(head + "<body>" + reveal + tail)
+
+    def shot(page, p, name):
+        out = tmp_path / name
+        scenes._chrome_shot(f"file://{page}?p={p}", str(out), 1920, 1080, {})
+        return Image.open(out).convert("RGB")
+
+    amb_half = shot(p_amb, 0.5, "amb_half.png")
+    no_half = shot(p_no, 0.5, "no_half.png")
+    top = (0, 0, 600, 400)   # contains ONLY the reveal box (ambient box is at the bottom)
+    assert amb_half.crop(top).tobytes() == no_half.crop(top).tobytes(), \
+        "ambient backdrop shifted the reveal's freeze time — it must be excluded from the envelope"
+
+    amb0 = shot(p_amb, 0, "amb0.png")
+    amb1 = shot(p_amb, 1, "amb1.png")
+    bot = (0, 800, 400, 1080)   # contains the ambient box
+    assert amb0.crop(bot).tobytes() != amb1.crop(bot).tobytes(), \
+        "ambient backdrop did not move between p=0 and p=1 — it is not progress-driven"
+
 def test_render_html_cue_capture_passes_cues(tmp_path, monkeypatch):
     # a page with two cued points + a words.json -> render_html should resolve cues and pass ?cues= to chrome
     import json
@@ -531,6 +628,64 @@ def test_render_html_cue_capture_copies_frames(tmp_path, monkeypatch):
     n_png = len(list((out / "wd").glob("scene_03_*.png")))
     assert n_png == frames, "every frame index must produce a PNG (no %04d gap)"
     assert len(seen) < frames, f"cue capture should copy held frames, not shoot all ({len(seen)} of {frames})"
+
+def _shot_progress(urls):
+    import re
+    return [float(re.search(r'[?&]p=([0-9.]+)', u).group(1)) for u in urls]
+
+def test_render_html_ambient_page_shoots_every_frame_cued(tmp_path, monkeypatch):
+    """A living backdrop moves CONTINUOUSLY, so the frame-copy hold optimization would freeze it then
+    snap. When a page carries .bg-live/.bg-drift/[data-ambient], the cued path must shoot EVERY frame
+    (no copies), each at true scene progress spanning 0->1."""
+    import json
+    out = tmp_path; (out / "audio").mkdir(); (out / "pages").mkdir()
+    (out / "audio" / "03.words.json").write_text(json.dumps([{"w": "alpha", "t": 0.3}, {"w": "beta", "t": 1.0}]))
+    (out / "pages" / "p.html").write_text(
+        '<img class="bg-soft bg-live" src="x" alt="">'          # <-- the living backdrop
+        '<div class="stage">'
+        '<div class="row reveal-up-sm" data-cue-index="0" data-cue="alpha">A</div>'
+        '<div class="row reveal-up-sm" data-cue-index="1" data-cue="beta">B</div></div>')
+    seen = []; _stub_shot(scenes, monkeypatch, seen)
+    frames = 90   # 3s @30fps
+    scenes.render_html({"html": "pages/p.html"}, {"_out": str(out), "fps": 30, "capture": "screenshot"}, 1920, 1080, frames, str(out / "wd"), 3)
+    assert len(seen) == frames, f"ambient page must shoot every frame, got {len(seen)}/{frames}"
+    ps = _shot_progress(seen)
+    assert min(ps) <= 0.01 and max(ps) >= 0.98, f"progress must span the scene: {min(ps):.3f}..{max(ps):.3f}"
+    assert any("cues=" in u for u in seen), "cued reveals must still be decoupled via cue params"
+
+def test_render_html_ambient_page_shoots_every_frame_paced(tmp_path, monkeypatch):
+    """Cue-less (paced) ambient page: still every frame, progress driven across the WHOLE scene to
+    p~1.0 (not the whole push crammed into anim_seconds then frozen)."""
+    out = tmp_path; (out / "pages").mkdir()
+    (out / "pages" / "p.html").write_text(
+        '<img class="bg-photo bg-drift" src="x" alt="">'
+        '<div class="stage"><h1 class="title reveal-up">Hero</h1></div>')
+    seen = []; _stub_shot(scenes, monkeypatch, seen)
+    frames = 60
+    scenes.render_html({"html": "pages/p.html", "anim_seconds": 1.0},
+                       {"_out": str(out), "fps": 30, "capture": "screenshot"}, 1920, 1080, frames, str(out / "wd"), 7)
+    assert len(seen) == frames, f"paced ambient page must shoot every frame, got {len(seen)}/{frames}"
+    ps = _shot_progress(seen)
+    assert max(ps) >= 0.999, f"paced ambient progress must reach ~1.0 across the scene, got {max(ps):.3f}"
+
+def test_ambient_detection_quote_agnostic_and_token_exact(tmp_path, monkeypatch):
+    """_has_ambient must agree with seek.js's .matches(): SINGLE or double quotes, and EXACT class
+    tokens. A single-quoted living backdrop must trigger every-frame capture; a look-alike token
+    (my-bg-live) must NOT (else non-ambient pages needlessly shoot every frame / the freeze-snap guard
+    misfires the other way)."""
+    out = tmp_path; (out / "pages").mkdir()
+    def shots_for(body):
+        seen = []; _stub_shot(scenes, monkeypatch, seen)
+        (out / "pages" / "p.html").write_text(body)
+        scenes.render_html({"html": "pages/p.html", "anim_seconds": 1.0},
+                           {"_out": str(out), "fps": 30, "capture": "screenshot"}, 1920, 1080, 60, str(out / "wd"), 7)
+        return len(seen)
+    # single-quoted ambient -> ambient -> every frame (60, no copies)
+    assert shots_for("<img class='bg-photo bg-live' src='x'>"
+                     "<div class='stage'><h1 class='title reveal-up'>H</h1></div>") == 60
+    # look-alike token 'my-bg-live' is NOT the class 'bg-live' -> not ambient -> paced path copies (< 60)
+    assert shots_for('<img class="bg-photo my-bg-live" src="x">'
+                     '<div class="stage"><h1 class="title reveal-up">H</h1></div>') < 60
 
 def test_render_html_noncontiguous_cue_index_sparse(tmp_path, monkeypatch):
     """data-cue-index 0 and 2 (gap at 1) -> the cues= param must be a sparse array of length 3 so

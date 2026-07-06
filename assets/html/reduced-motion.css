@@ -12,8 +12,10 @@
 }
 
 /* Ambient + Ken-Burns motion off. These carry no opacity, so freezing them at rest keeps them
-   visible; just remove the transform animation. */
-.float, img.kenburns, .kenburns {
+   visible; just remove the transform animation. (.bg-live/.bg-drift and the raw [data-ambient]
+   escape hatch are the living-backdrop ambient variants — show the backdrop static; MUST mirror
+   seek.js's ambient selector or a [data-ambient] element would keep moving under reduced motion.) */
+.float, img.kenburns, .kenburns, .bg-live, .bg-drift, [data-ambient] {
   animation: none !important;
   transform: none !important;
 }
