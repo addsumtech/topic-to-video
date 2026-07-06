@@ -239,9 +239,11 @@ TTS if the user gives an API key.
      intelligence (block-dependency audit, expanded concept→visual dictionary with use/avoid/failure,
      evenness penalty, minimum deck-level variation) lives in `references/design-intelligence-addendum.md`,
      which both the design-director and the design-critic apply. **Build the storyboard by MERGING the two plans:** the design's `visual.type`+`props`
-     become each scene; its `transition` becomes the per-scene edges; a `climax` beat's chart becomes
-     `props.climax:true` (the renderer's key-number landing hold); its `icons`/`media`/`cue` shape the
-     authored page (`.icon-tile` rows per `references/icons.md`). **Keep BOTH plan files** — the critic
+     become each scene; its `transition` becomes the per-scene edges; a `climax` beat's scene carries
+     `props.climax:true` — the climax MARKER (`rhythm_qa` reads it); it also drives the key-number landing
+     hold only on a `chart` counter (a harmless no-op on any other form); its `icons`/`media`/`cue` shape the authored page (`.icon-tile`
+     rows per `references/icons.md`). **Copy the content plan's `arc_kind` to `meta.arc_kind`** so
+     `rhythm_qa` relaxes the persuasive-arc checks on an expository (tutorial/reference) video. **Keep BOTH plan files** — the critic
      panel (step 5) receives them: `critic-content`/`critic-narrative` audit the content plan (continuity,
      relation, faithfulness); the **design-critic** audits the design plan (motif, form diversity,
      transitions, icons, whitespace, rhythm, colour, motion).

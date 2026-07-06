@@ -9,6 +9,13 @@ supporting element + staggered, cued reveals), **rendered and visually verified*
 REAL content). They are not a licence to template; they are a floor on quality so the agent never
 reinvents good HTML from scratch.
 
+**Every FORM here is topic-agnostic — the content swaps wholesale.** Several examples happen to use a
+business scenario (for a familiar through-line), but the forms serve any subject. A research paper, a
+code architecture, or a concept explainer keeps the same forms with scientific/technical content — and
+the **research/technical templates** below (`research_method`, `code_architecture`, `equation_build`,
+`results_table`, `figure_focus`) are built for exactly that. Match the form to the content *shape*, never
+to the domain.
+
 **Standard head + seek.js** (same for every page — see `references/html-pages.md`): each page links
 `base.css` → `theme.css` → `motifs.css` and ends with `<script src="…/seek.js"></script>`. The bodies
 below assume that wrapper. Every reveal already carries a `data-cue-index` (spoken order) — add the
@@ -174,6 +181,122 @@ the loop-back a labelled step, not a drawn circle). **Text budget:** `.t` ≤ 14
   </div>
 </div>
 ```
+
+---
+
+# Research / technical templates
+Built for papers, methods, architectures, and results — the shapes a business library misses.
+
+## research_method — an input → METHOD → output pipeline (a neutral method diagram)
+**Content shape:** a method that transforms an input into an output; the method stage is the focus
+(accent `.step.on`, NOT the risk-red of `problem_leak`). Also serves a **procedural how-to** (numbered
+steps). Where the true method is a data-flow *graph* (branches, an encoder/decoder, a data-consistency
+loop), it's not renderable as a graph — decompose to a linear `.flow` with a named return step, or a
+`system_map` hubspoke around the core. **Text budget:** `.t` ≤ 16 chars, `.s` a short sub-label.
+```html
+<div class="stage"><div class="kicker reveal-up">How the reconstruction works</div>
+  <h1 class="title reveal-up" style="font-size:60px;margin-bottom:28px">Undersampled input, learned prior, clean cine.</h1>
+  <div class="flow">
+    <div class="step reveal-up" data-cue-index="0"><div class="n">INPUT</div><div class="t">Undersampled k-space</div><div class="s">8× accelerated</div></div>
+    <div class="arrow">→</div>
+    <div class="step on reveal-up" data-cue-index="1"><div class="n" style="color:var(--accent)">METHOD</div><div class="t">Deep image prior</div><div class="s">unrolled network</div></div>
+    <div class="arrow">→</div>
+    <div class="step reveal-up" data-cue-index="2"><div class="n">OUTPUT</div><div class="t">Full 4D cine</div><div class="s">no aliasing</div></div>
+  </div>
+</div>
+```
+
+## code_architecture — a layered system (stacked tiers, one data path)
+**Content shape:** a system organised in layers/tiers with a data path through them; the key layer is
+accent-filled. (A hub-of-modules → use `system_map` instead; an arbitrary dependency *graph* isn't
+renderable — pick the dominant structure.) **Text budget:** `.bt` ≤ 18 chars, `.bd` ≤ 40 chars.
+```html
+<div class="stage"><div class="kicker reveal-up">System architecture</div>
+  <h1 class="title reveal-up" style="font-size:58px;margin-bottom:24px">Four layers, one data path.</h1>
+  <div class="blocks" style="grid-template-columns:1fr;gap:18px">
+    <div class="block reveal-up" data-cue-index="0" style="background:var(--surface);color:var(--fg);border:var(--hairline);min-height:0;padding:26px 40px"><div class="bt" style="font-size:40px">Ingest</div><div class="bd">DICOM / raw k-space loaders</div></div>
+    <div class="block reveal-up" data-cue-index="1" style="background:var(--surface);color:var(--fg);border:var(--hairline);min-height:0;padding:26px 40px"><div class="bt" style="font-size:40px">Preprocess</div><div class="bd">coil combine, normalise, mask</div></div>
+    <div class="block reveal-up" data-cue-index="2" style="background:var(--accent);color:var(--on-accent);min-height:0;padding:26px 40px"><div class="bt" style="font-size:40px">Recon engine</div><div class="bd">unrolled network + data consistency</div></div>
+    <div class="block reveal-up" data-cue-index="3" style="background:var(--surface);color:var(--fg);border:var(--hairline);min-height:0;padding:26px 40px"><div class="bt" style="font-size:40px">Export</div><div class="bd">4D cine, QA report</div></div>
+  </div>
+</div>
+```
+
+## equation_build — a typeset equation with annotated terms
+**Content shape:** one equation is the point; each term gets explained. Author the math as styled HTML
+(unicode ∑ ∫ ∇ √ ≈, `<sub>`/`<sup>`); wrap each annotated term in `.eqn-term` and either **anchor** the
+key term with a static `.on` glow (below) OR make the terms **light up in spoken order** by giving each
+`.eqn-term reveal-glow` + a `data-cue-index`. The explanations in `.eqn-terms` reveal in spoken order. For
+heavy LaTeX: pre-render via matplotlib mathtext to a `.media` image, or author native `<math>` MathML
+(Chrome renders it offline). **Text budget:** the equation on ONE line; ≤3 term notes.
+```html
+<div class="stage" style="justify-content:center"><div class="kicker reveal-up" style="text-align:center">The reconstruction objective</div>
+  <div class="eqn reveal-up" data-cue-index="0" style="margin-top:24px">
+    x̂ = argmin <span class="eqn-term on">‖Ax − y‖²</span> + <span class="eqn-term">λ·R(x)</span></div>
+  <div class="eqn-terms">
+    <div class="t reveal-up" data-cue-index="1"><b>Data consistency</b>the recon must explain the measured k-space y</div>
+    <div class="t reveal-up" data-cue-index="2"><b>Learned prior R(x)</b>λ weights how much the network's prior corrects it</div>
+  </div>
+</div>
+```
+
+## results_table — a benchmark / ablation matrix (the winning row highlighted)
+**Content shape:** N methods × M metrics; ONE row wins (`.win`, accent). Reveal row by row. Keep to ≤5
+rows × ≤4 columns (a wall of numbers fails the squint test). **Text budget:** short method names, figures
+only.
+```html
+<div class="stage"><div class="kicker reveal-up">Against the baselines</div>
+  <h1 class="title reveal-up" style="font-size:56px;margin-bottom:24px">Better reconstruction, fewer parameters.</h1>
+  <table class="rtable">
+    <tr class="reveal-up" data-cue-index="0"><th>Method</th><th>Dice ↑</th><th>nRMSE ↓</th><th>Params</th></tr>
+    <tr class="reveal-up" data-cue-index="1"><td>Zero-filled</td><td>0.71</td><td>0.184</td><td>—</td></tr>
+    <tr class="reveal-up" data-cue-index="2"><td>U-Net</td><td>0.88</td><td>0.052</td><td>31M</td></tr>
+    <tr class="win reveal-up" data-cue-index="3"><td>Ours</td><td>0.94</td><td>0.031</td><td>3.1M</td></tr>
+  </table>
+</div>
+```
+
+## figure_focus — a real plot/scan panel with labelled callout chips
+**Content shape:** the finding IS a figure (a plot, a reconstructed image, a scan) — show it big and walk
+it with cued callouts. The panel is a `.media` holding a `file://` image you generated (a matplotlib plot
+/ a real scan crop — `object-fit:contain` for a plot, `cover` for an image); `.chip`s (`.good`/`.risk`
+recolour the dot) reveal as the narration points. **Text budget:** takeaway ≤ 28 chars, each chip ≤ 34.
+```html
+<div class="stage"><div class="kicker reveal-up">Reconstruction error over iterations</div>
+  <div class="split" style="padding:0;height:auto;grid-template-columns:1.3fr 1fr;gap:56px;margin-top:24px">
+    <div class="media reveal-wipe" style="height:620px"><img src="file:///ABS/recon_curve.png" style="object-fit:contain;background:var(--bg)"></div>
+    <div style="display:flex;flex-direction:column;justify-content:center;gap:26px">
+      <div class="label reveal-up" data-cue-index="0" style="font-size:52px">Converges 2.4× faster.</div>
+      <div class="chip good reveal-up" data-cue-index="1"><span class="k"></span>ours: nRMSE 0.03 by iter 20</div>
+      <div class="chip reveal-up" data-cue-index="2"><span class="k" style="background:var(--muted)"></span>baseline plateaus at 0.10</div>
+    </div>
+  </div>
+</div>
+```
+The figure is a FAITHFUL asset (a real plot/scan), never an AI image standing in for data. Generate the
+plot with matplotlib (the `chart` renderers, or a one-off) and reference it by `file://`.
+
+## Cross-domain reminders (the forms above are not business-only)
+- **hero_stat / metric_wall** → any RESULT with one dominant figure: `0.94 Dice` + support tiles
+  (12 ms latency / 3.1M params), a `3.2× speedup`, a `10⁻⁹` error — not only ARR/NRR.
+- **timeline_rail** → a method's phases (pretrain → finetune → eval), a study's stages, the evolution of
+  a field — not only a product roadmap.
+- **case_story** → any single entity tracked over time (a patient in a longitudinal study, one test
+  sample, an observed object), ending on one proof figure.
+- **problem_leak** → any loss across stages (a data pipeline dropping samples at a QC filter, error
+  propagating across processing steps) — not only a growth funnel.
+- **flywheel** → any self-reinforcing loop (a positive feedback loop, an active-learning loop, a chain
+  reaction) — not only a growth-economics engine.
+
+The research templates use MRI examples for concreteness, but they are **not imaging-only** — swap the domain:
+- **results_table** → any N-methods × M-metrics benchmark (an NLP leaderboard, an economics model
+  comparison, an assay panel, a hyper-parameter sweep).
+- **equation_build** → any governing equation (a rate law, a regression/loss, a demand curve, a
+  conservation law) — annotate its terms.
+- **code_architecture** → any layered system (an ETL/data stack, an experimental apparatus, an org's
+  process tiers) — not only software.
+- **research_method** → any input→process→output pipeline (a lab protocol, a data-analysis workflow).
+- **figure_focus** → any real plot/scan/spectrum/chart you generated (a spectrum, a heatmap, a micrograph).
 
 ---
 

@@ -115,10 +115,12 @@ step). Use it for any beat whose logic isn't obvious from the table above, and t
 **Design is choosing, not matching.** For each `html` beat add a **`form`** field naming the chosen form
 AND the runner-up it beat, one clause: e.g. `"form": "flow — beats cards because the 5 steps are ORDERED;
 a card grid hides the sequence"`. **When the chosen form has a premium template in
-`references/html-templates.md`** (hero_stat, before_after, timeline_rail, problem_leak, system_map,
-metric_wall, case_story, flywheel), START FROM IT and swap in real content — don't reinvent the
-composition — and name it in the `form` clause (e.g. `"form": "problem_leak template — …"`). Templates are
-verified premium starting points to ADAPT, not fixed slots (design is still choosing). The card grid is right ONLY for **parallel, unordered, equal-weight**
+`references/html-templates.md`** — business/general (hero_stat, before_after, timeline_rail, problem_leak,
+system_map, metric_wall, case_story, flywheel) OR **research/technical** (research_method, code_architecture,
+equation_build, results_table, figure_focus) — START FROM IT and swap in real content — don't reinvent the
+composition — and name it in the `form` clause (e.g. `"form": "results_table template — …"`). Every
+template FORM is topic-agnostic; match the content SHAPE, not the domain. Templates are verified premium
+starting points to ADAPT, not fixed slots (design is still choosing). The card grid is right ONLY for **parallel, unordered, equal-weight**
 items; the moment content has **order, magnitude, a relationship, time, or two axes**, pick the form that
 says it (`references/html-pages.md` catalog). Keep **no single form family above ~45%** of the `html`
 beats — when you catch a third card-grid, re-run form selection; the content almost always wants a
@@ -167,10 +169,16 @@ unfinished). A beat with one centred line is a `title`, not an `html` page — m
 - **Alternate dense and light.** Mix hero pages, dashboards, diagrams, timelines and minimalist pages so
   adjacent beats differ in structure. **No same layout on adjacent beats.** No more than 2 consecutive
   PROGRAMMATIC beats share a `visual.type`; `html` beats vary by form family (above).
-- **Two kinds of "peak" — keep them distinct:**
-  - **CLIMAX** is the singular NARRATIVE payoff — the content plan marks exactly ONE `climax:true` beat
-    (~75–80% of runtime). Carry it into the scene as `props.climax:true` (the renderer's key-number
-    landing hold) and give it the payoff transition-in + its loudest treatment. This never changes.
+- **Two kinds of "peak" — keep them distinct:** *(a **narrative** arc has a climax; an **expository**
+  arc — tutorial/reference/survey — may have none, with even-weight beats. Don't force a peak on it.)*
+  - **CLIMAX** is the singular NARRATIVE payoff — the content plan (narrative arc) marks ONE `climax:true`
+    beat (~75–80%). Carry it into the scene as **`props.climax:true`** — this **MARKS the climax scene**
+    (so `rhythm_qa` sees the payoff) and, on a `chart` counter, additionally triggers the key-number
+    landing hold. Give it the payoff transition-in + its LOUDEST treatment. The payoff is **not always a
+    number**: when it's an IDEA / a result figure / a diagram / a verbatim line, `props.climax` is just
+    the marker — the climax reads through the loudest design treatment (biggest, most isolated, accent) +
+    the payoff transition + a longer hold (a hero `.pullquote`, a `figure_focus` reveal, a `results_table`
+    winning row). Always set `props.climax` on the climax scene regardless of form.
   - **HERO** beats are recurring VISUAL crests for variety: place a standout beat (a big-stat, a
     full-bleed `.accent-fill` divider, a `.pullquote`, a striking non-card form, an illustrated hero)
     **roughly every 6–8 beats** so the deck never goes monotone. A hero is NOT a climax — it gets no
@@ -281,7 +289,8 @@ Score each; redesign any beat that fails:
 ## Output contract
 Return ONLY the design-plan JSON (no prose). The assistant merges it with the content plan: your
 `visual.type`+`props` become the storyboard scene, your `transition` becomes the per-scene edges, your
-`icons`/`media`/`cue` shape the authored page, and a `climax` beat's visual becomes a `props.climax` scene.
+`icons`/`media`/`cue` shape the authored page, and a `climax` beat's scene carries `props.climax:true` (the
+climax marker `rhythm_qa` reads; it also drives the counter-landing hold only on a `chart` counter).
 Both plans go to the critic panel — `motif`, `form`, `theme`, the `relation`→`transition` mapping, icons,
 and the squint/rhythm/whitespace calls live HERE and the **design-critic** audits them; the content plan
 carries `continuity`/`relation`/faithfulness for `critic-content`/`critic-narrative`.

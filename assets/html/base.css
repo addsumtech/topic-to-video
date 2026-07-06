@@ -155,6 +155,42 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 .block .bt{font-size:56px;font-weight:800;line-height:1.05}
 .block .bd{font-size:32px;opacity:.92;margin-top:14px}
 
+/* ══ RESEARCH / TECHNICAL archetypes (equations, results tables, annotated figures) ══════════ */
+
+/* Equation — a large centred math statement whose TERMS light up in spoken order. Author the math as
+   styled HTML (unicode ∑ ∫ ∇ √ ≈, <sub>/<sup>), wrapping each term you'll annotate in `.eqn-term`;
+   toggle `.on` (or add `.reveal`) to glow it. For heavy LaTeX: pre-render via matplotlib mathtext to a
+   .media image (deterministic/offline), or author native <math> MathML (Chrome renders it offline). */
+.eqn{font-family:"STIX Two Math","Latin Modern Math",Cambria,Georgia,serif;font-size:100px;
+  line-height:1.35;text-align:center;letter-spacing:.01em;font-variant-numeric:tabular-nums}
+.eqn .eqn-term{border-radius:10px;padding:.02em .1em}
+.eqn .eqn-term.on{background:color-mix(in srgb,var(--accent) 22%,transparent);color:var(--accent)}
+/* term-by-term GLOW on the voice: paused so seek.js lights each term when its cue fires (put a
+   data-cue-index per term). Colour-only (no transform), so it's fine under reduced motion. */
+.eqn .eqn-term.reveal-glow{animation:eqn-glow var(--dur) var(--ease-expo) forwards;animation-play-state:paused}
+@keyframes eqn-glow{to{background:color-mix(in srgb,var(--accent) 22%,transparent);color:var(--accent)}}
+.eqn-terms{display:flex;gap:44px;justify-content:center;flex-wrap:wrap;margin-top:52px}
+.eqn-terms .t{font-size:32px;color:var(--muted);max-width:360px}
+.eqn-terms .t b{display:block;color:var(--fg);font-size:36px;font-weight:700;margin-bottom:6px}
+
+/* Results table — a compact benchmark / ablation matrix; the winning row gets `.win` so the comparison
+   lands. Header mono/muted, figures right-aligned tabular, the winner in accent. */
+.rtable{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.rtable th{font-family:var(--font-mono);font-size:26px;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.08em;text-align:right;padding:16px 30px;font-weight:600}
+.rtable th:first-child{text-align:left}
+.rtable td{font-size:42px;padding:24px 30px;text-align:right;border-top:var(--hairline)}
+.rtable td:first-child{text-align:left;font-weight:700;font-size:40px}
+.rtable tr.win{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.rtable tr.win td{color:var(--accent);font-weight:800}
+
+/* Annotated figure — a big image/plot panel with labelled callout CHIPS that reveal in spoken order.
+   The panel is a `.media` (motifs.css); pair with a `.chip` row. */
+.chip{display:inline-flex;align-items:center;gap:14px;background:var(--surface);border:var(--hairline);
+  border-radius:999px;padding:14px 28px;font-size:32px;font-weight:600;box-shadow:var(--shadow-float)}
+.chip .k{width:16px;height:16px;border-radius:50%;background:var(--accent);flex:none}
+.chip.risk .k{background:var(--accent2)} .chip.good .k{background:var(--green)}
+
 /* Mono "chrome" signature — a quiet SECTION-LABEL through-line (e.g. the section/topic name), a
    direct child of <body>, repeated across beats. NOT a page number / progress bar / counter — those
    are player-chrome and banned for video (there is nothing to navigate). Section left; optionally the

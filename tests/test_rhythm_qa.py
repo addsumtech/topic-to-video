@@ -1,12 +1,14 @@
 import rhythm_qa as rq
 
 
-def _sc(index, dur, type="html", narration="a beat", climax=False, transition=None):
+def _sc(index, dur, type="html", narration="a beat", climax=False, transition=None, callouts=None):
     s = {"index": index, "type": type, "narration": narration, "duration": dur, "props": {}}
     if climax:
         s["props"]["climax"] = True
     if transition:
         s["transition"] = transition
+    if callouts:
+        s["callouts"] = callouts
     return s
 
 
@@ -49,10 +51,39 @@ def test_no_climax_on_long_video_warns():
     assert any("no climax beat" in w for w in r["warnings"])
 
 
+def test_non_counter_climax_is_detected():
+    # a NARRATIVE video whose climax is a pullquote/idea (type html, not a chart counter) still carries
+    # props.climax as the MARKER -> rhythm_qa sees it, no false "no climax" warning
+    slides = [_sc(i, 10.0, type="html") for i in range(7)]
+    slides.append(_sc(7, 12.0, type="html", climax=True))   # non-counter climax at ~78%
+    slides.append(_sc(8, 4.0, type="title", narration="end"))
+    r = rq.evaluate(_board(slides))
+    assert not any("no climax" in w for w in r["warnings"])
+
+
 def test_static_image_over_hold_is_error():
     slides = [_sc(0, 5.0), _sc(1, 20.0, type="slide"), _sc(2, 4.0, type="title", narration="end")]
     r = rq.evaluate(_board(slides))
     assert r["ok"] is False and any("static image is held 20s" in e for e in r["errors"])
+
+
+def test_static_image_with_timed_callouts_no_error():
+    # a figure walked by timed callouts has moving attention — not a dead frame
+    slides = [_sc(0, 5.0),
+              _sc(1, 20.0, type="slide", callouts=[{"cue": "here", "box": [0, 0, 1, 1]},
+                                                    {"cue": "and there", "box": [0, 0, 1, 1]}]),
+              _sc(2, 4.0, type="title", narration="end")]
+    r = rq.evaluate(_board(slides))
+    assert r["ok"] is True and not any("static image is held" in e for e in r["errors"])
+
+
+def test_expository_suppresses_no_climax_and_recap_close():
+    # a 100s tutorial with even beats, no climax, a denser recap closer — none flagged when expository
+    slides = [_sc(i, 10.0, type=("chart" if i % 2 else "html"), narration="short") for i in range(9)]
+    slides.append(_sc(9, 10.0, type="html", narration=" ".join(["step"] * 40)))  # dense recap
+    r = rq.evaluate(_board(slides, meta={"language": "en", "arc_kind": "expository"}))
+    assert not any("no climax" in w for w in r["warnings"])
+    assert not any("final" in w for w in r["warnings"])
 
 
 def test_static_image_soft_hold_warns_not_errors():

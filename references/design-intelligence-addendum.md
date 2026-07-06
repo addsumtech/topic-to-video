@@ -26,11 +26,17 @@ chosen_form: the archetype + one line on why it explains the idea better than th
 ```
 The first three land in the per-beat schema as `narrative_job` / `content_shape` / `rejected_default`;
 `chosen_form` is the beat's `visual.form`.
-Worked example (a leaking growth engine):
+Worked example (business — a leaking growth engine):
 > content_shape: three interacting failure points compounding into one loss ·
 > rejected_default: "three problem cards — they read as independent, hiding the interaction" ·
 > chosen_form: "a descending `.flow` (acquire → activate → retain) with the leak step highlighted —
 > it shows the loss propagating across stages, which three cards cannot."
+
+Worked example (research — the same move, non-business):
+> content_shape: three error sources compounding into one reconstruction failure ·
+> rejected_default: "three cards — they read as independent, hiding how the errors propagate" ·
+> chosen_form: "a causal `.flow` (undersampling → motion → noise) into the failure, so the propagation
+> reads — which three parallel cards cannot show."
 
 ---
 
@@ -44,12 +50,15 @@ Worked example (a leaking growth engine):
 must carry a **rhythm map** — slide-to-slide variation across density, background, protagonist, and
 emotional register:
 
+This is ONE example arc (a business pitch); the Protagonist column is topic-derived, not prescribed —
+a research arc runs question → method → result → conclusion, not problem → funnel → solution:
+
 | # | Density | Background | Protagonist (the visual lead) | Register | Role |
 |---|---|---|---|---|---|
-| 1 | light | plain surface / hero `.bg-photo` | hero symbol / title | aspirational | opener |
-| 2 | medium | warm/`--accent2` tint | risk KPI (`.scorecard` `.delta.down`) | pressure | conflict |
-| 3 | light | plain | funnel (descending `.flow`/bars) | diagnostic | explanation |
-| 4 | medium | cool/`--accent` tint | system (`.hubspoke`) | constructive | solution |
+| 1 | light | plain surface / hero `.bg-photo` | hero title / the question | aspirational | opener (business: aspirational; research: the question) |
+| 2 | medium | warm/`--accent2` tint | conflict — a risk KPI *or* the problem/gap | pressure | conflict |
+| 3 | light | plain | mechanism — a funnel *or* the `research_method` pipeline | diagnostic | explanation |
+| 4 | medium | cool/`--accent` tint | payoff — a system `.hubspoke` *or* a `results_table` / `chart` | constructive | solution / result |
 
 Two adjacent rows must differ in at least TWO columns. A flat column (every row "medium / plain /
 cards / neutral") is the auto-generated tell.
@@ -116,7 +125,12 @@ land** — a `*` marks a metaphor that is broll-only or approximated (the honest
 | Big number / Result | `.stat` / `chart` counter (`props.climax`) | one magnitude must land | many values are close | a giant number with no context |
 | One idea / Insight / Conclusion | `.pullquote` / hero `title` / `.accent-fill` band | one message must land emotionally | detail-heavy content | the conclusion hidden small at the bottom |
 | Section / divider | `title` / full-bleed `.accent-fill` | a chapter break | mid-topic | a full content page used as a divider |
-| Bottleneck / Leakage / Churn | descending `render_chart` bars (funnel) / `.flow` with the constraint `.step.on` *(no hourglass/leaking-bucket)* | loss/constraint across stages | multiple unrelated problems | three warning cards |
+| Bottleneck / Leakage / Drop-off (churn, attrition, signal/sample loss) | descending `render_chart` bars (funnel) / `.flow` with the constraint `.step.on` *(no hourglass/leaking-bucket)* | loss/constraint across stages | multiple unrelated problems | three warning cards |
+| Method / pipeline (input→process→output) | `.flow` (neutral, method step `.on`) — `research_method` template | a method transforms input to output | a data-flow *graph* with branches | four cards with arrows |
+| Layered architecture / system tiers | stacked `.blocks` tiers — `code_architecture` template | a system organised in layers | a convergent hub (use `.hubspoke`) | boxes joined by meaningless lines |
+| Equation / math | `.eqn` + `.eqn-term` (term glow) — `equation_build` template *(heavy LaTeX → matplotlib mathtext image / MathML)* | one equation IS the point, term by term | a wall of equations | an equation shown but never explained |
+| Benchmark / ablation | `.rtable` with the winning row `.win` — `results_table` template | N methods × M metrics, one wins | a 2-state before→after (use `.split`) | a KPI-tile wall for a comparison |
+| Annotated figure / result | a big `.media` panel + `.chip` callouts — `figure_focus` template | the finding IS a plot / scan / image | a number (use `.stat`) | a decorative image with no annotation |
 | Tradeoff | `.quadrant` (two axes) / `.split` (two objectives in tension) *(no balance-scale)* | two objectives conflict | only one objective | two columns with no tension shown |
 | Causality / Root cause | causal `.flow` (chain) / `.hubspoke` (causes→effect) *(no fishbone/tree)* | cause→effect is the insight | items are merely descriptive | flat bullets/cards |
 | Risk | `.quadrant` (likelihood×impact) / colour `.blocks` tiers / `.meter` *(no heatmap)* | severity/likelihood matter | risks are only examples | red colour everywhere |
@@ -162,8 +176,8 @@ The design plan must carry a semantic colour ledger — each role bound to a the
 | Semantic role | Token | Used for | Must NOT be used for |
 |---|---|---|---|
 | Structure | `--fg` / `--muted` | systems, labels, axes, rails | warnings / positives |
-| Growth / positive | `--green` | improved metrics, `.delta.up`, expansion | neutral decoration |
-| Risk / problem | `--accent2` / `--rule` | bad metrics, bottlenecks, loss, `.delta.down` | ordinary emphasis |
+| Growth / positive | `--green` | improved result, a gain, `.delta.up`, expansion | neutral decoration |
+| Risk / problem | `--accent2` / `--rule` | a worse result, a failure mode, a bottleneck, loss, `.delta.down` | ordinary emphasis |
 | Neutral support | `--muted` / `--surface` | cards, grid, secondary text | the main hero |
 | Through-line / decision | `--accent` | the topic's spine, roadmap, the payoff | historical/negative evidence |
 

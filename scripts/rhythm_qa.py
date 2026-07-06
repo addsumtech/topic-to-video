@@ -84,6 +84,12 @@ def evaluate(data, meta=None):
     total = sum(durs)
     est_note = "" if all(isinstance(s.get("duration"), (int, float)) for s in slides) else \
         " (estimated from narration — run after tts.py for exact durations)"
+    # Video KIND — a NARRATIVE arc builds to a payoff (a paper, a pitch, a story); an EXPOSITORY arc is
+    # an even-weight walkthrough (a tutorial, a reference, a survey, a how-to). The persuasive-arc checks
+    # (no-climax, final-hold sparsity, and a tighter uniformity floor) only apply to a narrative arc.
+    expository = str(meta.get("arc_kind", "narrative")).lower() in (
+        "expository", "tutorial", "reference", "survey", "howto", "how-to", "walkthrough")
+    cv_floor = 0.10 if expository else UNIFORMITY_CV_MIN
 
     # 1. duration uniformity — a flat row of equal-length beats is the clearest monotony tell
     if n >= MIN_SCENES_UNIFORMITY:
@@ -91,11 +97,12 @@ def evaluate(data, meta=None):
         if mean > 0:
             sd = math.sqrt(sum((d - mean) ** 2 for d in durs) / n)
             cv = sd / mean
-            if cv < UNIFORMITY_CV_MIN:
+            if cv < cv_floor:
                 warnings.append(
-                    f"durations too uniform (CV={cv:.2f} < {UNIFORMITY_CV_MIN}){est_note} — vary the "
-                    f"pacing: quick build beats (3-4s), a longer climax (6-8s), a sparse hold. A flat "
-                    f"row of equal beats reads as auto-generated.")
+                    f"durations too uniform (CV={cv:.2f} < {cv_floor}){est_note} — vary the pacing: "
+                    f"quick build beats (3-4s), a longer key beat (6-8s), a sparse hold. A flat row of "
+                    f"equal beats reads as auto-generated (an expository/reference video may legitimately "
+                    f"use even beats — set meta.arc_kind=\"expository\" to relax this).")
 
     # 2. climax placement — one payoff, ~70-85% through
     cum = 0.0
@@ -115,32 +122,38 @@ def evaluate(data, meta=None):
             warnings.append(
                 f"{len(climax_positions)} scenes marked `props.climax` — a video has ONE payoff peak; "
                 f"keep one climax and let the others be quieter heroes.")
-    elif total > NO_CLIMAX_DURATION:
+    elif total > NO_CLIMAX_DURATION and not expository:
         warnings.append(
             f"no climax beat in a {total:.0f}s video — mark the payoff/result beat `props.climax:true` "
-            f"(the key-number landing hold) so the video builds to a peak.")
+            f"so the video builds to a peak. (A tutorial/reference/survey legitimately has no single "
+            f"payoff — set meta.arc_kind=\"expository\" to suppress this.)")
 
-    # 3. final hold should be sparse
-    if n >= 3:
+    # 3. final hold should be sparse — a NARRATIVE closer is a punchy single line; an EXPOSITORY video may
+    #    legitimately close on a denser step-recap / "what's next" summary.
+    if n >= 3 and not expository:
         lens = sorted(_narr_len(s, meta) for s in slides)
         med = lens[len(lens) // 2] or 1
         last = slides[-1]
         if _narr_len(last, meta) > FINAL_HOLD_RATIO * med:
             warnings.append(
-                f"scene {last.get('index')} (final): narration is denser than the deck median — the "
-                f"closer should be a SPARSE hold (a single stat / line), not a full beat.")
-        # (density of an html closer is judged by narration length above — the coarse `type` can't tell a
-        #  sparse pullquote page from a dense one, and the recommended deck is all-html, so no type check.)
+                f"scene {last.get('index')} (final): narration is denser than the deck median — a "
+                f"narrative closer should be a SPARSE hold (a single stat / line). (A tutorial recap may "
+                f"legitimately be denser — set meta.arc_kind=\"expository\".)")
 
     # 4. static image held too long — the ERROR gates a render, so raise it ONLY on a MEASURED duration
-    #    (a pre-tts narration-length estimate must never hard-block).
+    #    (a pre-tts estimate never hard-blocks) AND only on a genuinely DEAD frame. A slide walked by
+    #    TIMED callouts (cue/at) has moving attention — each callout is the reset-equivalent of a cut —
+    #    so downgrade it to a WARN, however long.
     for s, d in zip(slides, durs):
         if _stype(s) in _STATIC_TYPES:
             measured = isinstance(s.get("duration"), (int, float)) and s.get("duration") > 0
-            if measured and d > STATIC_IMAGE_HARD:
+            timed = any((c or {}).get("cue") or (c or {}).get("at") is not None
+                        for c in (s.get("callouts") or []))
+            if measured and d > STATIC_IMAGE_HARD and not timed:
                 errors.append(
                     f"scene {s.get('index')}: a static image is held {d:.0f}s (> {STATIC_IMAGE_HARD:.0f}s) "
-                    f"— split into shorter cuts or cut it; a long hold on one frame reads as sluggish.")
+                    f"with no timed callouts — split into shorter cuts or cut it; a dead frame held that "
+                    f"long reads as sluggish (a frame walked by timed callouts is exempt).")
             elif d > STATIC_IMAGE_SOFT:
                 warnings.append(
                     f"scene {s.get('index')}: a static image is held {d:.0f}s{est_note} — prefer 2 shorter "

@@ -15,6 +15,7 @@ plan. You do not write final narration; you design content beats.
 ## Output — a CONTENT PLAN (JSON)
 ```json
 { "arc": "hook → build → payoff → takeaway (one line)",
+  "arc_kind": "narrative | expository — narrative BUILDS to a payoff (a paper, a pitch, a result, a story); expository is an EVEN-WEIGHT walkthrough (a tutorial, a reference, a survey, a how-to) with no single peak",
   "viewer_question": "the ONE question the viewer wants answered — the video is the answer (drives the hook)",
   "director_note": { "thesis": "one sentence — what this video argues", "not": ["explicit exclusions"], "tone": "one word" },
   "anti_slop": ["faithfulness bans, e.g. no stat without a source_ref", "no invented numbers/citations"],
@@ -38,15 +39,21 @@ plan. You do not write final narration; you design content beats.
   hero line / big claim), `section` (a transition/divider). The **design-director** maps this to the
   concrete `visual.type` + form + props. Do NOT pick `html`/`slide`/`chart` here — the rendering tier is a
   design choice.
-- **`climax`** / **`hold`** are optional NARRATIVE markers: mark exactly ONE beat `climax:true` at
-  ~75–80% of runtime (the peak — the result/payoff), and mark the FINAL beat `hold:true` (a sparse
-  takeaway). Do NOT add a separate fade-out/blank-screen beat — the render's end-hold IS the ending.
+- **`climax`** / **`hold`** are optional markers, and they depend on **`arc_kind`**:
+  - **narrative** — mark exactly ONE beat `climax:true` at ~75–80% (the peak: a result / reveal /
+    recommendation), and mark the FINAL beat `hold:true` (a sparse punchy takeaway).
+  - **expository** (tutorial/reference/survey/how-to) — a climax is OPTIONAL; the beats are deliberately
+    even-weight, so don't manufacture a peak. The closer may be a step **recap** / "what's next" summary
+    rather than a sparse one-liner. `rhythm_qa` relaxes the no-climax / uniformity / sparse-hold checks
+    when `meta.arc_kind:"expository"`.
+  - Either way: do NOT add a separate fade-out/blank-screen beat — the render's end-hold IS the ending.
 - **`viewer_question`** is the promise the video keeps: the ONE thing the viewer wants to know. Open by
   posing/hooking it; the closer answers it. If you can't state it, the video has no spine — fix the arc.
-- **`energy`** gives each beat an emotional register — and it must VARY (never a flat run of `medium`).
-  A typical shape: `medium` hook → `low`/`medium` build → `high` into the climax → `peak` at the climax →
-  `low` sparse hold. The design-director's rhythm map reads it (its `register` column); a monotone energy
-  column is the same monotony tell as equal `est_seconds` (which `rhythm_qa` catches from the durations).
+- **`energy`** gives each beat an emotional register. A **narrative** arc varies to a `peak`: `medium`
+  hook → `low`/`medium` build → `high` into the climax → `peak` → `low` sparse hold. A **calm/expository**
+  tone (honour `director_note.tone`) needs only a SMALL lift at its key beat — it may top out at `medium`/
+  `high` and never `peak`; forcing drama onto a meditative technical explainer is wrong. Either way avoid
+  a perfectly flat run. The design-director's rhythm map reads it (its `register` column).
 - `director_note` is REQUIRED when `target_seconds` > 60; `rhythm` is recommended when > 45.
 
 ## Rules (your rubric)
