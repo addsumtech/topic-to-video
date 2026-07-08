@@ -28,6 +28,10 @@ default** — reach for it only when the content is genuinely parallel, unordere
 A SEPARATE artifact from the content plan (the assistant merges the two into the storyboard):
 ```json
 { "motif": "ONE topic-derived recurring visual idea (see The concept motif below)",
+  "signature_concept": { "beat": 4, "name": "e.g. the widening gap",
+      "encoding": "what CONTENT MEANING maps to what VISUAL PROPERTY — the APT part (e.g. the growing white gap BETWEEN two bars IS the compounding loss, no legend needed)",
+      "why_unexpected": "why this is not the obvious catalog form — the INVENTIVE part" },
+  "style_thesis": "the deck's distinctive aesthetic STANCE + why it fits THIS subject (a named register: blueprint/schematic · field-notebook/annotated · editorial museum-plate · terminal/data-console · cartographic · ledger/receipt · specimen-plate) — NOT just a palette restatement",
   "theme": { "mode": "light|dark", "accent": "#hex", "accent2": "#hex", "bg": "#hex", "why": "one line" },
   "design_anti_slop": ["no gradient-mesh backgrounds", "no stock-chart clichés", "no emoji in titles", "…"],
   "rhythm_map": [ { "id": 1, "density": "light|medium", "background": "plain|warm|cool|hero",
@@ -39,8 +43,8 @@ A SEPARATE artifact from the content plan (the assistant merges the two into the
     "1": {
       "narrative_job": "diagnosis|proof|contrast|mechanism|transition|decision|action",
       "content_shape": "the data relationship (order/magnitude/part-whole/two-axes/time/causality/structure/one-claim)",
-      "rejected_default": "card grid / bullets — because <the content has X, which a grid hides>",
-      "visual": { "type": "compare", "props": { }, "form": "compare — beats a card grid because it is A-vs-B, not two parallel items" },
+      "rejected_default": "the NEAREST COMPETING form that also fits, and why the winner beats it (stat vs line, split vs quadrant, segbar vs separate stats) — NOT a card-grid strawman",
+      "visual": { "type": "compare", "props": { }, "form": "SHAPE → FORM → LEGIBLE → REJECTED-RIVAL: 'A-vs-B contrast → compare, because it makes the DELTA legible at a glance; rejected a two-cell quadrant because there is no second axis'" },
       "density": "~55%|~60% utilization + one-line decision (keep airy / split / compress because …)",
       "wow": { "why_memorable": "bold number|iconic diagram|dramatic sentence|extreme contrast|on-topic metaphor",
                "surrounding_contrast": "differs from the beats before+after by layout + density + background" },
@@ -127,6 +131,21 @@ says it (`references/html-pages.md` catalog). Keep **no single form family above
 beats — when you catch a third card-grid, re-run form selection; the content almost always wants a
 `flow`/`scorecard`/`quadrant`/`timeline`. `validate.py` + the design-critic (D1) enforce this.
 
+**Fits vs Illuminates — pick the form that ILLUMINATES, not one that merely fits.** A form that *fits*
+holds the content without lying; a form that *illuminates* makes the RELATIONSHIP legible **without
+reading** — the trend, the rank, the share, the gap visible at a glance. Reject the merely-fitting form
+for the illuminating one. **Fit test, per data beat:** could the viewer get the trend / rank / share /
+gap — not just the number — in 3 seconds? If they'd have to READ to see the relationship, the form is
+wrong. Data-type → encoding (the discriminators the fit test enforces — reason from the existing
+Concept→Visual dictionary, these are the *rejections*): a value that **CHANGES over time** → a line, never
+a lone `.stat` (a single number hides the trajectory); a **part-of-whole / share** → `.segbar`/`.meter`,
+never separate stats (they hide the whole); **3–6 compared** → bars (ascending = ranking), not a card
+grid (a grid hides the magnitude order); **two variables / positioning** → `.quadrant`/scatter.
+**Contest, not strawman:** the `rejected_default` must be the NEAREST competing form that ALSO fits (stat
+vs line, split vs quadrant, segbar vs separate stats) — if the only alternative you can name is a card
+grid, you haven't run the contest (the grid is handled by the block audit). A form that only proves it
+beats a grid has not shown it is the MOST suitable. The design-critic (D1) REVISEs a strawman rival.
+
 **Block dependency audit (addendum §3) — stricter than the family gate.** For every beat using cards/
 `.blocks`/panels, justify ALL five conditions (parallel · unordered · equal-weight · independent · not
 better as time/flow/hierarchy/comparison/system/magnitude); **>2 CONSECUTIVE card/panel beats — regardless
@@ -144,9 +163,22 @@ THIS subject. Make it that:
 - **Start from the CONTENT, not the catalog.** Name the 2–3 forms a beat could take, pick by its *shape*,
   then **adapt** — shift the emphasis, re-cast the accent's role, change the hero and the layout balance —
   so the composition fits THIS point, not a stamped skin. The form is the skeleton; the topic is the flesh.
-- **Give the deck a topic SIGNATURE.** Apply the `motif` to at least ONE **bespoke** beat — a composition
-  you designed for this content's exact shape, not a catalog form. If every beat is a catalog form, the
-  deck has no fingerprint; add one signature beat.
+- **Give the deck a NAMED signature_concept (creativity, not just non-repetition).** Composition variety
+  makes a deck *not templated*; a signature_concept makes it *creative*. At ≥1 beat, invent an
+  **apt-but-unexpected encoding** — map a piece of CONTENT MEANING onto a VISUAL PROPERTY so the idea is
+  legible without a legend (the growing white gap between two bars IS the compounding loss; a value
+  physically falling off a shelf IS the cliff; a filling vessel IS adoption). Emit it as top-level
+  `signature_concept {beat, name, encoding, why_unexpected}`. **Hard constraints:** (a) realized in the
+  named beat with DELIVERABLE primitives (a creative USE of existing forms, never an un-renderable
+  promise); (b) it carries MEANING/data in the FOREGROUND, not background decoration (distinct from
+  `motif`, which recurs as atmosphere); (c) it sits UNDER clarity + faithfulness + deliverability — an
+  idea that hurts the 3-second read or invents data is NOT a pass. A custom layout that merely carries
+  the motif no longer counts — the signature beat must NAME the concept. **Screenshot test:** ≥1 beat a
+  designer would screenshot to save as inspiration. The design-critic (D2c) REVISEs a deck with none.
+- **Give the deck a style_thesis (a POV).** State one distinctive aesthetic stance that fits THIS subject
+  — a named register (blueprint/schematic · field-notebook/annotated · editorial museum-plate ·
+  terminal/data-console · cartographic · ledger/receipt · specimen-plate) that colors the type roles,
+  accent, motif, and at minimum the signature beat. A palette restatement is NOT a thesis.
 - **Vary the composition ENVELOPE, not just the form.** Two beats can use DIFFERENT forms and STILL
   share one composition — a top kicker over a vertically-centered block on a flat ground — and that IS
   the templated look the user complains about. RULE: no two content beats may share the same composition

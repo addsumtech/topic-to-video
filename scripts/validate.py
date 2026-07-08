@@ -451,7 +451,71 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                           + " carry non-image content (html/chart/…) that would render BLANK — use "
                             "renderer=local for an html/designed deck, or give them an `image`")
 
+    # Form-fit + creativity presence — mechanical hooks for design-critic D1/D2c, read from the
+    # persisted design_plan.json (semantic judgment stays with the critic; these just flag the highest-
+    # signal mismatch + a missing creative field). No-op when the plan isn't persisted.
+    _design_plan_lints(out_dir, warnings)
+
     return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides)}
+
+
+_TREND_SHAPE = ("time", "trend", "over-time", "over time", "trajectory", "growth", "declin", "rise",
+                "fell", "fall", "change over", "quarter", "year-over", "month")
+_SHARE_SHAPE = ("share", "part-of-whole", "part of whole", "proportion", "percent of", "split of",
+                "breakdown", "makeup", "composition of")
+_CATALOG_FORM = ("grid", "cards", "scorecard", "dash", "keypoints", "blocks")
+
+
+def _design_plan_lints(out_dir, warnings):
+    """When design_plan.json is persisted: WARN the two highest-signal content_shape↔form mismatches
+    (a temporal shape rendered static; a share atomized into separate numbers) and a missing/decorative
+    signature_concept / style_thesis — deterministic hooks feeding design-critic D1 + D2c."""
+    path = os.path.join(out_dir, "design_plan.json")
+    if not os.path.exists(path):
+        return
+    try:
+        plan = json.load(open(path, encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    beats = plan.get("beats") or plan.get("scenes") or []
+
+    def _form(b):
+        vis = b.get("visual") or {}
+        return (b.get("form") or vis.get("form") or vis.get("type") or "").lower()
+
+    for b in beats:
+        shape = (b.get("content_shape") or b.get("visual_intent") or "").lower()
+        form = _form(b)
+        if not shape or not form:
+            continue
+        temporal = any(k in shape for k in _TREND_SHAPE)
+        charty = any(f in form for f in ("chart", "line", "timeline", "flow", "spark"))
+        catalogish = any(f in form for f in ("stat", "keypoint", "card", "scorecard", "tile"))
+        if temporal and not charty and catalogish:
+            warnings.append(f"form-fit: a beat's content_shape reads temporal/trend ('{shape[:34]}') but its form is "
+                            f"'{form}' — a trend rendered static hides the trajectory; use a line chart / timeline (design-critic D1)")
+        share = any(k in shape for k in _SHARE_SHAPE)
+        sharey = any(f in form for f in ("segbar", "meter", "donut", "stack"))
+        atomized = any(f in form for f in ("stat", "card", "tile", "scorecard"))
+        if share and not sharey and atomized:
+            warnings.append(f"form-fit: a beat's content_shape reads share/part-of-whole ('{shape[:34]}') but its form "
+                            f"is '{form}' — separate numbers hide the whole; use .segbar/.meter (design-critic D1)")
+
+    if beats and not plan.get("signature_concept"):
+        warnings.append("creativity: design_plan has no signature_concept — name ONE inventive beat (an apt + "
+                        "unexpected content→visual encoding), not just a varied catalog (design-critic D2c)")
+    if beats and not plan.get("style_thesis"):
+        warnings.append("creativity: design_plan has no style_thesis — the deck needs a distinctive aesthetic POV "
+                        "that fits the subject (design-critic D2c)")
+    sig = plan.get("signature_concept") or {}
+    sig_beat = sig.get("beat") if isinstance(sig, dict) else None
+    if sig_beat is not None:
+        for b in beats:
+            if b.get("index") == sig_beat or b.get("beat") == sig_beat:
+                if any(f in _form(b) for f in _CATALOG_FORM):
+                    warnings.append("creativity: the signature_concept beat's form looks like a catalog grid — a "
+                                    "signature must be a bespoke encoding, not a reskinned card grid (design-critic D2c)")
+                break
 
 
 def _layout_family(html):

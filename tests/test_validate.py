@@ -408,6 +408,35 @@ def test_background_flatness_warns(tmp_path):
     assert any("background flatness" in w for w in r["warnings"])
 
 
+# --- design_plan.json hooks (form-fit + creativity presence, feeding design-critic D1/D2c) ---------
+def _design_plan(tmp_path, plan):
+    open(os.path.join(str(tmp_path), "design_plan.json"), "w").write(json.dumps(plan))
+
+def test_design_plan_trend_as_stat_warns(tmp_path):
+    _design_plan(tmp_path, {"beats": [{"index": 1, "content_shape": "revenue growth over 4 quarters", "form": "stat"}],
+                            "signature_concept": {"beat": 1, "name": "x"}, "style_thesis": "blueprint"})
+    r = validate.evaluate(_board(str(tmp_path), [_slide_scene(tmp_path, 0)]), str(tmp_path))
+    assert any("trend rendered static" in w for w in r["warnings"])
+
+def test_design_plan_share_as_stats_warns(tmp_path):
+    _design_plan(tmp_path, {"beats": [{"index": 1, "content_shape": "share of total revenue by segment", "form": "scorecard"}],
+                            "signature_concept": {"beat": 1, "name": "x"}, "style_thesis": "blueprint"})
+    r = validate.evaluate(_board(str(tmp_path), [_slide_scene(tmp_path, 0)]), str(tmp_path))
+    assert any("separate numbers hide the whole" in w for w in r["warnings"])
+
+def test_design_plan_missing_creativity_fields_warn(tmp_path):
+    _design_plan(tmp_path, {"beats": [{"index": 1, "content_shape": "one number", "form": "stat"}]})
+    r = validate.evaluate(_board(str(tmp_path), [_slide_scene(tmp_path, 0)]), str(tmp_path))
+    assert any("no signature_concept" in w for w in r["warnings"])
+    assert any("no style_thesis" in w for w in r["warnings"])
+
+def test_design_plan_signature_is_catalog_grid_warns(tmp_path):
+    _design_plan(tmp_path, {"beats": [{"index": 2, "content_shape": "x", "form": "card grid"}],
+                            "signature_concept": {"beat": 2, "name": "x"}, "style_thesis": "y"})
+    r = validate.evaluate(_board(str(tmp_path), [_slide_scene(tmp_path, 0)]), str(tmp_path))
+    assert any("signature_concept beat's form looks like a catalog grid" in w for w in r["warnings"])
+
+
 def test_html_local_asset_missing_is_error(tmp_path):
     s = _html_scene(tmp_path, 0, "pages/s0.html",
                     '<img src="file:///nonexistent/dir/bg_nope.png"><body></body>')

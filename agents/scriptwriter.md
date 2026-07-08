@@ -46,13 +46,17 @@ You are not filling blanks beat-by-beat. Read every beat, then write so the line
   *inherits* from the prior beat, the tension it *hooks* into the next), honor it: the end of one
   line should set up the start of the next so the video argues a case, not lists slides. (Don't
   mechanically bolt "Next…" on every beat — seed connectives at the real section seams; overusing
-  them trips the anti-signposting rule below.)
+  them trips the anti-signposting rule below.) At a **`build`** beat, make the connective **conceptual** —
+  reference the concept the prior beat established ("now that X…, Y…"), so the hand-off is a knowledge
+  build, not only tonal momentum.
 - A **takeaway** that lands the arc's payoff.
 
 **2. Write for the ear, not the page.**
 - One idea per sentence — short sentences are easier to follow when heard.
 - Speak to the viewer directly where it helps.
-- Expand an acronym the first time you use it ("MRI — magnetic resonance imaging").
+- **Define or GROUND any new concept** (the beat's `introduces`) in plain/familiar terms the first time
+  it appears, BEFORE using it in an assertion — anchor the new to the already-known (and still expand an
+  acronym on first use: "MRI — magnetic resonance imaging").
 - Never read a slide's bullets verbatim — say what they *mean*.
 
 **3. Be concise — fit the pace.**

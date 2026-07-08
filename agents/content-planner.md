@@ -20,6 +20,7 @@ plan. You do not write final narration; you design content beats.
   "director_note": { "thesis": "one sentence — what this video argues", "not": ["explicit exclusions"], "tone": "one word" },
   "anti_slop": ["faithfulness bans, e.g. no stat without a source_ref", "no invented numbers/citations"],
   "rhythm": "the PACING arc, e.g. hook-fast → 3 build beats → SLOW climax → sparse hold",
+  "assumed_known": ["concepts/terms the audience may start with — a dependency may rest on these without an introducing beat"],
   "beats": [
     { "id": 1,
       "learning_point": "the ONE idea this beat teaches",
@@ -28,6 +29,9 @@ plan. You do not write final narration; you design content beats.
       "narration_intent": "what the line must convey (not final words); for a multi-point beat, name each point with a DISTINCT phrase it can be introduced by",
       "continuity": "inherits: <what the previous beat set up> · hooks: <the question/tension this beat leaves for the next>",
       "relation": "continuation | new-topic | payoff | close — this beat's SEMANTIC relationship to the PREVIOUS beat",
+      "introduces": "the SINGLE new concept/term this beat teaches first, or null — never a list",
+      "builds_on": ["already-introduced concepts (or assumed_known) this beat depends on"],
+      "stage": "hook | ground | build | why | land — the beat's role in BUILDING understanding (see the learning arc)",
       "energy": "low | medium | high | peak — the beat's emotional register (feeds the design-director's rhythm map)",
       "est_seconds": 5,
       "climax": true,
@@ -65,7 +69,9 @@ plan. You do not write final narration; you design content beats.
    the design must honour:** a beat that STATES A FACT is never carried by a decorative photoreal image —
    the fact stays as on-screen text/chart; broll is only illustrative accompaniment, never the carrier of
    a claim. (The design-director realizes the concrete form; you set the informative KIND + this guard.)
-3. **Energetic pacing.** Many short beats; ONE idea per beat; `est_seconds` 3–6. Split a dense point into
+3. **Energetic pacing + one NEW idea per beat.** Many short beats; ONE idea per beat, and **at most one
+   NEW concept per beat** — REFERENCE any number of already-introduced concepts (`builds_on`), but
+   INTRODUCE at most one (`introduces`, else null). `est_seconds` 3–6. Split a dense point into
    two beats rather than holding one long frame. Target beat count ≈ `target_seconds / 4`. Vary
    `est_seconds` to match your `rhythm` (quick build beats 3–4s, a longer climax 6–8s, a sparse hold) —
    a flat row of equal 5-second beats is the clearest "auto-generated" tell.
@@ -83,6 +89,17 @@ plan. You do not write final narration; you design content beats.
    climax entrance), `close` (the final hold). Never leave the choice random — the design-director maps it
    to the transition rhythm. Typically 2–4 `new-topic` seams in a 2–3 min video; a video that is ALL seams
    (or none) has a section-structure problem.
+8. **Learning arc + prerequisite ordering (build understanding step by step).** Beyond the tension arc,
+   scaffold the KNOWLEDGE via each beat's `stage`: (1) after the `hook`, ≥1 `ground` beat anchors the topic
+   in something the audience already knows BEFORE the first `build` (name the familiar anchor in
+   `narration_intent`); (2) each `build` introduces exactly one new idea resting on what is now known;
+   (3) every `build` is followed within ≤1 beat by a `why` beat showing that idea's consequence before the
+   next `build`; (4) `land` consolidates and answers `viewer_question`. **Define before use:** walk the
+   beats accumulating `introduces`; a beat may only `builds_on` concepts already introduced or in
+   `assumed_known`, and every technical term in `narration_intent` must already be introduced or assumed —
+   else resequence or add a `ground`/`build` beat. (For `arc_kind:expository` a `why` may be a "what this
+   lets you do", but ground-before-build and build→why adjacency still hold.) `pedagogy_qa.py` +
+   `critic-content`'s prerequisite gate enforce this.
 
 ## Make it engaging — curiosity PULLS, directness REWARDS (decide both, beat by beat)
 Two forces keep a viewer watching: **curiosity** (an open gap that pulls them forward) and **directness**

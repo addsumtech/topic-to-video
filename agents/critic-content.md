@@ -11,7 +11,9 @@ You do NOT render video or run scripts. You read the inputs and return a structu
 
 **Hard-REVISE triggers for this critic:** any R1d fabricated or mis-stated on-screen value in an
 animated scene (a fabricated chart number or timeline event is as serious as a wrong spoken fact), any
-R1e asserted AI imagery, any other outright failure.
+R1e asserted AI imagery, a **C0** faithful-but-shallow/mis-understood brief (a wrong mechanism or thesis,
+a trivial takeaway instead of `the_one_thing`), a **prerequisite-gate** concept-used-before-introduced,
+any other outright failure.
 
 ---
 
@@ -24,10 +26,11 @@ You will be given:
    For ANIMATED scenes
    (`type` is `title`/`chart`/`timeline`, not `slide`), the on-screen content is the scene's `props`
    (title/subtitle text, chart `data` numbers, timeline events) — there is no slide image.
-2. The **comprehension brief and/or source material** (the paper/code/doc the deck is based on, or the
-   web-research notes when there was no material). **Use this to verify every factual claim in animated
-   scene props** and to assess informative-first visual selection. If it is missing, say so and
-   fact-check against your own knowledge.
+2. The **comprehension brief (`brief.json`) AND the source material** (the paper/code/doc the deck is
+   based on, or the web-research notes when there was no material). Two distinct roles: the SOURCE is the
+   oracle you verify claims AGAINST; the brief is an **artifact you AUDIT (C0)** — spot-check its
+   `thesis`/`mechanism` against the source, because a mis-understood brief is the one flaw the rest of
+   the panel can't catch (everything downstream is checked against it). If either is missing, say so.
 3. The **content plan** (from `agents/content-planner.md`) — it carries per-beat `continuity` +
    `relation`, which live only in the plan (not the storyboard). You need it for the continuity check;
    if it's missing, say so and judge from the storyboard's arc as best you can. (The top-level `motif`,
@@ -44,6 +47,23 @@ Score each slide against all criteria below. This critic owns content quality + 
 informative-first FAITHFULNESS, R1e, R2, R5, R6, and continuity. **Visual DESIGN — form fit, layout
 diversity, the concept motif, transitions, icons, whitespace, colour, motion — is owned by
 `agents/design-critic.md` (D1–D10); do not duplicate it here.**
+
+### C0 — Comprehension depth (audit the brief AS AN ARTIFACT, not as an oracle)
+**Faithfulness (R0/R1d) asks IS EVERY CLAIM TRUE-TO-SOURCE; C0 asks DID WE UNDERSTAND IT WELL ENOUGH TO
+EXPLAIN WHY AND TEACH THE RIGHT THING.** A script can be 100% faithful and 100% shallow — C0 is that
+orthogonal axis. Do NOT re-litigate R0 here.
+- **(a) Audit the brief against the RAW material.** Treat `brief.json` as an artifact to VERIFY, not a
+  reference oracle: spot-check `thesis` + `mechanism` against the source. **REVISE** if the brief misreads
+  or over-simplifies the mechanism, or mis-states the thesis — EVEN IF internally faithful (a
+  wrong-but-consistent brief propagates a wrong-but-coherent video past the whole panel).
+- **(b) Brief shape.** **REVISE** if `thesis` is a topic label not a claim-with-a-verb, `mechanism`
+  restates WHAT without the causal WHY (no because/therefore), any contribution lacks an `evidence` entry,
+  `the_one_thing` is missing/plural, `misconceptions` is empty, or a `source_health:contradictory` has an
+  unresolved conflict. (`brief_qa.py` catches the structural cases; you catch the semantic ones.)
+- **(c) Narration depth.** **REVISE** the NARRATION when it explains a mechanism in a faithful-but-
+  causally-wrong way, or teaches a trivial point instead of `the_one_thing`.
+- **(d) Plan↔brief tie.** **REVISE** when the plan's `viewer_question`/`director_note.thesis` diverges
+  from `brief.the_one_thing`/`brief.thesis` — the understood takeaway and the planned takeaway must match.
 
 ### Content quality & optimization
 - Assess informativeness: does each beat convey a concrete, substantive point, or is it filler/fluff?
@@ -169,12 +189,22 @@ Check, per scene:
 
 Note: R5/R6 apply to `slide` scenes only — skip for animated scenes (`type` ≠ `slide`).
 
-### Continuity — beats must connect (structural through-line)
+### Continuity — beats must connect (structural through-line) + build understanding step by step
 - The video should argue a case, not list slides. **REVISE** when beats don't connect — a beat that
   neither builds on the previous nor sets up the next (check each beat's `continuity` in the content
   plan for an inherit→hook through-line). Judge the STRUCTURAL level only (is the beat a loose slide;
   does the sequence build) — the *phrasing* of a transition line is `critic-narrative`'s (R4). Momentum
   across cuts is what separates a coherent explainer from a deck read aloud.
+- **Prerequisite gate (REVISE) — define before use.** Walk the beats accumulating each beat's
+  `introduces`. **REVISE** any beat whose `builds_on` — or whose narration uses a concept/term — is not
+  yet introduced and not in `meta.assumed_known` (**concept-used-before-introduced**). EDIT: introduce it
+  in an earlier `ground`/`build` beat, or resequence. (`pedagogy_qa.py` backstops this deterministically.)
+- **Load cap (REVISE) — one new idea per beat.** **REVISE** a beat that introduces >1 previously-unseen
+  concept — split into a `build` beat + a `why` beat so the viewer absorbs one idea at a time.
+- **Concept chain (sharpen the orphan trigger).** A `build` beat whose new idea rests on nothing
+  introduced (empty `builds_on`, not grounded in the opener), OR a new idea never given a why/implication
+  before the next new idea, is **unscaffolded → REVISE** (a concept-level through-line, on top of the
+  narrative-connection check above).
 - The **fabrication** half of anti-slop is yours: **REVISE** a statistic in any authored page or
   animated `props` that does not trace to a `source_ref` (cross-ref R1d).
 - Everything else once under "R8" — the concept-motif swap test, transition rhythm vs `relation`,

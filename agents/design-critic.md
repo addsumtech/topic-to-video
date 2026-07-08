@@ -10,9 +10,10 @@ SCRIPT stage, before TTS and render, alongside `critic-content` and `critic-narr
 You do NOT judge facts, narration wording, or pacing — those are `critic-content`/`critic-narrative`. You
 do NOT render video. You read the plans + authored pages and return a structured critique.
 
-**Hard-REVISE triggers:** a name-swappable design (D2), a deck dominated by one form family (D1), a
-block-list that should be a diagram (D1), player-chrome/GIF/stacked motion (D9), an icon that decorates
-(D4).
+**Hard-REVISE triggers:** a name-swappable design (D2), a clean+varied deck with NO inventive beat
+(D2c creativity floor), a deck dominated by one form family (D1), a block-list that should be a diagram
+OR a non-card form that fits in the wrong direction (D1 bidirectional), player-chrome/GIF/stacked motion
+(D9), an icon that decorates (D4).
 
 ---
 
@@ -42,6 +43,18 @@ block-list that should be a diagram (D1), player-chrome/GIF/stacked motion (D9),
   equal-weight** items. **REVISE** a beat whose content has **order, magnitude, a relationship, time, or
   two axes** but is rendered as a reflex card grid — name the form it should take (`.flow`/`.scorecard`/
   `.quadrant`/`.hubspoke`/`.timeline`/`.segbar`/`.pullquote`/`.blocks`; see `references/html-pages.md`).
+- **D1 is BIDIRECTIONAL — a non-card form that merely accommodates is as wrong as a reflex grid.** Named
+  REVISE cases: (a) a lone `.stat`/number for content whose point is a **TREND or COMPARISON** → a line /
+  before-after; (b) separate stats/cards for a **PART-OF-WHOLE/share** → `.segbar`/`.meter`; (c) an
+  unordered card grid or `.blocks` for a **RANKING/magnitude** → ascending bars; (d) a `.flow`/`.timeline`
+  imposed on items NOT ordered/dated (fit in the WRONG direction) → the right relation form or cards;
+  (e) a `.scorecard`/KPI wall for a **CAUSAL** story → `.flow`. (`validate.py` flags the two highest-signal
+  mismatches — temporal-as-static, share-as-separate — as a mechanical hook.)
+- **Strawman-rival REVISE.** **REVISE** a beat whose `rejected_default` in the form ledger is a card
+  grid / bullets rather than a genuinely-COMPETING form — the ledger must show the winner beat its
+  NEAREST rival; a form that only proves it's better than a grid hasn't shown it's the MOST suitable.
+  (Exception: a beat genuinely tempted by a grid — parallel-looking content — may keep the grid as its
+  rejected_default.)
 - **REVISE** when **>~45% of html scenes share one form family** UNLESS the per-beat `form` ledger
   justifies the same-shape run (genuinely parallel content). (`validate.py` prints `layout diversity:
   N/M … same form family` — treat as a REVISE item, reconciled against the ledger.)
@@ -76,6 +89,18 @@ block-list that should be a diagram (D1), player-chrome/GIF/stacked motion (D9),
   only be this topic. *(The plan-stage silhouette-repetition check lives here; D11 is its rendered-pixel
   complement and D7 owns the adjacent cover-text case — flag a repeated pair under whichever fires, don't
   double-count.)*
+- **D2c — Creativity floor (the POSITIVE bar).** The swap test (D2) and composition variety (D6b) are
+  NEGATIVE tests — they catch "templated". D2c is the positive complement: **REVISE a deck that passes
+  both but has NO genuinely inventive beat** — `signature_concept` is missing, OR is a topic-skinned
+  catalog form, OR is pure background decoration (an idea confined to broll while every data beat is a
+  stock form). **Screenshot test:** ≥1 beat must clear "would a designer screenshot this to save as
+  inspiration?" — an unexpected-but-apt encoding (content meaning → visual property), a bespoke
+  composition that could ONLY belong to this topic, or a distinctive coherent style move (`style_thesis`).
+  **Clean + varied + on-topic + forgettable = REVISE.** This RAISES the D2 pass condition: the
+  "ONE bespoke beat is enough" beat must now carry a NAMED `signature_concept`, not merely avoid a catalog
+  form. The floor sits UNDER clarity + faithfulness + deliverability — a gimmick that hurts the 3-second
+  read or fabricates data is a fail, not a pass. (`validate.py` flags a missing `signature_concept`/
+  `style_thesis` as a mechanical hook.)
 
 ### D3 — Transition rhythm (the cut must match the plan's `relation`)
 - Cross-check each scene's `transition`/`transition_seconds` against the beat's `relation` (motion-grammar

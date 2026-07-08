@@ -93,6 +93,18 @@ TTS if the user gives an API key.
   not at ~70–85% (or none on a >75s video), a non-sparse closer, a static image held too long, and no
   attention reset for >~35s. Advisory (warnings) except two hard defects (a static frame held past ~16s,
   no climax on a long video) → non-zero exit. Run after tts, before the full render.
+- `scripts/brief_qa.py <out_dir> [--json]` — deterministic PRE-plan gate on the **comprehension brief**:
+  reads `<out_dir>/brief.json` and ERRORs on a missing/empty required key (`thesis`/`mechanism`/`evidence`/
+  `why_it_matters`/`the_one_thing`/`source_health`), a non-singular `the_one_thing`, or a
+  `source_health:contradictory` with no resolved conflicts; WARNs on a verbless (topic-label) thesis or an
+  evidence item with no `source_ref`. The STRUCTURAL floor so a hollow brief can't reach the planner —
+  run at step 3.5 BEFORE dispatching `content-planner`. The SEMANTIC depth audit is `critic-content` C0.
+- `scripts/pedagogy_qa.py <out_dir> [--json]` — deterministic PRE-render **teaching-order** gate: walks
+  the concept-dependency DAG in `<out_dir>/content_plan.json` (`introduces`/`builds_on`/`stage` +
+  `meta.assumed_known`) and ERRORs on a **concept used before it is introduced**; WARNs on an `introduces`
+  that's a list (>1 new idea/beat), no `ground` before the first `build`, or a `build` with no `why`/`land`
+  within one beat. The mechanical backstop for `critic-content`'s prerequisite gate — run at step 9
+  alongside `validate.py`/`rhythm_qa.py`. No-ops when `content_plan.json` isn't persisted.
 - `scripts/keyframe_qa.py <out_dir> [--p N] [--json]` — cheap PRE-render VISUAL QA for the HTML tier:
   screenshots every `html` page at N `?p=` values, montages per-scene + a master contact sheet under
   `<out_dir>/_keyframes/` (open `all.png` to eyeball tofu / off-theme / mistimed reveals), and — via
@@ -253,9 +265,29 @@ TTS if the user gives an API key.
    understanding the bullets don't carry. This step is what makes the script good.
    - **Material provided** → read it properly, not skimmed: a paper end-to-end (intro →
      method → *every* results figure/table → conclusion); a codebase via its README + the
-     key modules; a doc in full. Then write a short **comprehension brief**: the
-     one-sentence message, the key contributions, the method essence, and — per slide —
-     what it is *really* showing and the point to land. Narrate from this brief.
+     key modules; a doc in full. Then write a **structured comprehension brief** and SAVE it to
+     `<out_dir>/brief.json` (mirror a readable `brief.md`). It's the most decision-carrying artifact in
+     the pipeline, so it must be **understanding-shaped, not summary-shaped**. Required keys:
+     - `thesis` — the ONE claim the material argues, a full sentence **with a verb + object**
+       ("X cuts Y by Z via M"), never a topic label ("about X").
+     - `mechanism` — the causal **how/why**: ≥1 because/therefore chain, the load-bearing reason it
+       works, in your OWN words (not copied verbatim off one slide — that's paraphrase, not understanding).
+     - `evidence` — array: each thesis/contribution → the specific figure/table/number/result that
+       proves it, each with a `source_ref`.
+     - `why_it_matters` — the stakes the hook will use · `the_one_thing` — a **single** sentence the
+       viewer must leave with (the whole arc serves IT) · `misconceptions` — what a smart viewer would
+       get wrong / what the material is NOT claiming.
+     - `per_unit` — per slide: what it is *really* showing + the point to land · `unknowns` — what you
+       couldn't determine (flag for extra fact-check) · `source_health` — `coherent|thin|contradictory`
+       + a `conflicts` array of `{what, resolution}`.
+     `brief_qa.py` gates this structurally before planning; `critic-content` **C0** audits it for DEPTH.
+   - **Before you plan — comprehension self-check** (record PASS/FAIL per gate in the brief): ①
+     **explain-back** — state thesis+mechanism from memory, slides closed; if you can only reword the
+     bullets, re-read. ② **causal** — the mechanism has ≥1 because/therefore link not printed verbatim on
+     any slide. ③ **evidence-map** — every thesis/contribution maps to a specific evidence item. ④
+     **one-thing** — you can state `the_one_thing` in ONE sentence and the arc serves it. ⑤ **confusion**
+     — you actively looked for a contradiction (slides vs source, source vs source) and named+resolved it
+     in `source_health.conflicts` (or flagged it).
    - **No material** → `WebSearch`/`WebFetch` the topic to ground and enrich: confirm the
      facts, numbers, names and framing the slides imply, and fold in current context.
      **Research the LATEST, up to today** — put the current year / "latest" in your queries,
@@ -263,10 +295,17 @@ TTS if the user gives an API key.
      (not a stale older number); for a time-sensitive fact, note its as-of date. Treat
      it as a **fact-check**, not flavour — with no source, you are the only thing standing
      between a confident-sounding wrong claim and the viewer.
+   - **Material provided but confusing / thin / contradictory** → (i) resolve internal contradictions by
+     deferring to the primary source (paper > slides > notes), recording each in `source_health.conflicts`;
+     (ii) when slides and source disagree, narrate the more authoritative source and NOTE the discrepancy —
+     never silently pick one; (iii) when the source is too thin to reveal the mechanism, `WebSearch` to
+     fill the gap and mark it your own verified addition; (iv) when a load-bearing contradiction can't be
+     resolved, **STOP and ask the user** (AskUserQuestion). Never narrate over an unresolved contradiction.
    - **Either way, stay faithful:** every claim and number in the narration must trace to the
      material or a verified source — never invent results, numbers, or citations the
      slide/paper doesn't support. A forward-looking aside is fine only if flagged as your
-     own addition.
+     own addition. (Faithfulness is TRACE-TO-SOURCE; the brief above is the orthogonal
+     UNDERSTANDING layer — a script can be 100% faithful and still shallow.)
 3.5. **Content plan (director) — design the video as CONTENT before design/authoring.** Dispatch
      `agents/content-planner.md` on the comprehension brief + material. It returns an ordered set of
      **content beats** — each with a learning point (traced to the material), a COARSE `visual_intent`
@@ -275,6 +314,11 @@ TTS if the user gives an API key.
      `relation`, and the narrative markers `climax: true` (one beat ~75–80% through — the payoff) and
      `hold: true` (final beat, sparse). Plus top-level `arc`, `director_note`, `anti_slop` (faithfulness
      bans), and `rhythm` (the pacing arc). It designs WHAT the video teaches — not how it looks.
+     **Concept ledger (build understanding, not just tension):** each beat also carries `introduces` (the
+     single NEW concept it teaches, or null — never a list), `builds_on` (already-introduced concepts it
+     depends on), and a learning `stage` (`hook|ground|build|why|land`); plus top-level `assumed_known`.
+     **Save the returned plan to `<out_dir>/content_plan.json`** — `pedagogy_qa.py` walks the ledger for a
+     concept-used-before-introduced ERROR, and `critic-content` reads it for the prerequisite gate.
 3.6. **Design plan (art director) — give the content its visual language.** Dispatch
      `agents/design-director.md` on the content plan + comprehension brief + `meta`. It returns a
      SEPARATE **design plan** keyed by beat id: top-level `motif` (the CONCEPT motif — one topic-derived
@@ -287,7 +331,13 @@ TTS if the user gives an API key.
      `rejected_default`), a deck **`rhythm_map`**, and a **`color_ledger`** — the operational design
      intelligence (block-dependency audit, expanded concept→visual dictionary with use/avoid/failure,
      evenness penalty, minimum deck-level variation) lives in `references/design-intelligence-addendum.md`,
-     which both the design-director and the design-critic apply. **Build the storyboard by MERGING the two plans:** the design's `visual.type`+`props`
+     which both the design-director and the design-critic apply. It also carries a top-level
+     **`signature_concept`** (ONE named, apt-but-unexpected content→visual encoding — the deck's creative
+     idea, realized in a named beat with deliverable primitives) and **`style_thesis`** (the deck's
+     distinctive aesthetic POV that fits THIS subject); **save the design plan to
+     `<out_dir>/design_plan.json`** — `validate.py` flags a content_shape↔form mismatch + a missing
+     `signature_concept`/`style_thesis`, and the **design-critic** (D1 fit, D2c creativity floor) judges
+     them. **Build the storyboard by MERGING the two plans:** the design's `visual.type`+`props`
      become each scene; its `transition` becomes the per-scene edges; a `climax` beat's scene carries
      `props.climax:true` — the climax MARKER (`rhythm_qa` reads it); it also drives the key-number landing
      hold only on a `chart` counter (a harmless no-op on any other form); its `icons`/`media`/`cue` shape the authored page (`.icon-tile`

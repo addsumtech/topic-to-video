@@ -21,8 +21,8 @@ just the result. This is what prevents slide-type→template mapping. Emit, per 
 ```
 narrative_job: diagnosis | proof | contrast | mechanism | transition | decision | action
 content_shape: what data relationship the content actually has (order / magnitude / part-whole / two-axes / time / causality / structure / one-claim)
-rejected_default: "card grid / bullet list / generic columns — because <the content has X, which a grid hides>"
-chosen_form: the archetype + one line on why it explains the idea better than the default  (this is the schema's `visual.form` field)
+rejected_default: "the NEAREST COMPETING form that also fits, and why the winner beats it — because <the content has X, which the rival hides>. A card grid/bullets is a valid rejected form ONLY when the content is genuinely grid-tempted (parallel-looking); otherwise name the real rival (stat vs line, split vs quadrant, segbar vs separate stats) — a contest, not a strawman."
+chosen_form: the archetype + one line on why it ILLUMINATES the relationship (makes the trend/rank/share/gap legible without reading) better than the rival  (this is the schema's `visual.form` field)
 ```
 The first three land in the per-beat schema as `narrative_job` / `content_shape` / `rejected_default`;
 `chosen_form` is the beat's `visual.form`.
