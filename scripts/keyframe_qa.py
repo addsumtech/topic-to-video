@@ -167,12 +167,13 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                     # STAGGER (paced pages only — a cued page renders BLIND here [no ?cues=], so its
                     # reveals all fire at delay 0 and would false-flag): on a page with NO data-cue-index,
                     # a proper stagger makes the visible-reveal count RISE across the p-states.
-                    if not info.get("cued") and rtot >= 3 and len(rvis) > 1:
-                        early = rvis[1] / rtot
+                    if not info.get("cued") and rtot >= 3 and len(ps) >= 4:
+                        ei = next((i for i, pp in enumerate(ps) if pp >= 0.25), 1)   # first ~quarter state, not literal index 1
+                        early = rvis[ei] / rtot if ei < len(rvis) else 1.0
                         rises = sum(1 for a, b in zip(rvis, rvis[1:]) if b > a)
                         if early > 0.7 or rises < 2:
-                            advisories.append(f"no stagger — {round(100*early)}% of reveals already visible at "
-                                              f"p={ps[1]} (rises across only {rises} step[s]); give each component "
+                            advisories.append(f"no stagger — {round(100*early)}% of reveals already visible by "
+                                              f"p={ps[ei]} (rises across only {rises} step[s]); give each component "
                                               f"its own data-cue-index so they land one-by-one")
                     # content centroid (normalized) for the deck-level silhouette-repetition advisory
                     if info.get("cright", -1) > info.get("cleft", 0) and info.get("cbot", -1) > info.get("ctop", 0):
@@ -200,12 +201,14 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
     # cluster, the deck reads as one template even if the forms differ. Greedy cluster @ tol 0.08.
     deck_notes = []
     if len(centroids) >= 4:
-        best = 0
+        best, best_c = 0, None
         for _, ax, ay in centroids:
             k = sum(1 for _, bx, by in centroids if abs(ax - bx) <= 0.08 and abs(ay - by) <= 0.08)
-            best = max(best, k)
+            if k > best:
+                best, best_c = k, (ax, ay)
         if best / len(centroids) > 0.5:
-            zone = "centered"
+            cy = best_c[1]
+            zone = "top" if cy < 0.40 else "bottom" if cy > 0.60 else "centered"   # from the cluster's actual centroid
             deck_notes.append(f"silhouette repetition: {best}/{len(centroids)} pages share one content "
                               f"centroid ({zone}) — vary the vertical anchor / horizontal balance so the deck "
                               f"isn't one template (design-critic D11)")

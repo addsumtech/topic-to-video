@@ -62,9 +62,11 @@ _HEX_TOKEN_RE = re.compile(r'(?<![0-9a-fA-F#])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|
 _REVEAL = {"reveal", "reveal-up", "reveal-up-sm", "reveal-pop", "reveal-wipe", "reveal-glow"}
 _CHROME = {"kicker", "rule", "title", "sub"}          # the only elements allowed to be uncued on a cued page
 _CONN = {"arrow", "hs-connect"}                       # connectors — reveal WITH their destination block
-# Independently-meaningful facts. .delta/.unit are DELIBERATELY excluded: a number carries its own
-# ▲/▼ delta or its unit as ONE visual unit, so "5.6% ▲" must not be split from itself.
-_MEAN = {"stat", "num", "label", "row", "note", "bar", "tile", "step", "block", "seg", "hs-spoke"}
+# Independently-meaningful facts = distinct LINE-ITEMS (row/tile/step/block/seg/hs-spoke) or a PRIMARY
+# number (stat/num). Pure descriptors attached to a number or a row (.label/.note/.bar/.delta/.unit) are
+# part of that ONE unit, NOT separate facts — so a "label: value" row or "5.6% ▲" counts as one point.
+# (Only the OUTERMOST such node per branch is counted, so a tile wrapping a labeled row is one fact.)
+_MEAN = {"stat", "num", "row", "tile", "step", "block", "seg", "hs-spoke"}
 _VOID = {"img", "br", "hr", "input", "meta", "link", "source", "path", "circle", "rect", "line",
          "polyline", "polygon", "use", "stop", "ellipse"}
 _BG_CLASSES = {"bg-soft", "bg-soft-tint", "bg-photo", "accent-fill", "bg-stars", "bg-glow", "bg-paper"}
@@ -78,8 +80,11 @@ class _DomNode:
 
 class _DomParser(HTMLParser):
     """Minimal nesting parser: records each element's tag, class set, data-cue-index, and parent idx.
-    Endtag popping is naive (pops the stack regardless of tag match) — fine for well-formed template
-    pages; on malformed input parent links are approximate, so all consumers are WARNING-only."""
+    handle_endtag pops DOWN TO the nearest open element of the matching tag (auto-closing any
+    optional-close tags left open, e.g. an unclosed <p>/<li>), and ignores a stray end tag — so an
+    unclosed <p> inside a flow step no longer re-parents the following .arrow off the flow. This keeps
+    the CONNECTOR-ORDERING check (which appends an ERROR) reliable on imperfect-but-browser-valid HTML;
+    the parser is still best-effort and returns [] on any exception."""
     def __init__(self):
         super().__init__()
         self.nodes, self.stack = [], []
@@ -101,8 +106,10 @@ class _DomParser(HTMLParser):
     def handle_startendtag(self, tag, attrs):
         self._open(tag, attrs)                        # self-closing: opened + closed, never pushed
     def handle_endtag(self, tag):
-        if self.stack:
-            self.stack.pop()
+        for i in range(len(self.stack) - 1, -1, -1):  # pop to the matching open tag; stray end tag → no-op
+            if self.nodes[self.stack[i]].tag == tag:
+                del self.stack[i:]
+                return
 
 
 def _parse_dom(html):
@@ -135,7 +142,10 @@ def _composition_sig(html):
         balance = "twocol"
     kicker_first = bool(re.search(r'class\s*=\s*"[^"]*\bstage\b[^"]*"[^>]*>\s*<[^>]*class\s*=\s*"[^"]*\bkicker\b', html))
     hero = bool(re.search(r'class\s*=\s*"[^"]*\bbg-photo\b', html))
-    flat = not any(re.search(r'class\s*=\s*"[^"]*\b' + re.escape(c) + r'\b', html) for c in _BG_CLASSES)
+    # an image-forward page (.media/.split panel or a full-bleed .bg-photo) is NOT a flat wall, even
+    # with no .bg-soft — mirror the AI-look flat exemption so an image-rich deck isn't false-flagged.
+    img_rich = bool(re.search(r'class\s*=\s*"[^"]*\b(?:media|split|bg-photo)\b', html))
+    flat = not img_rich and not any(re.search(r'class\s*=\s*"[^"]*\b' + re.escape(c) + r'\b', html) for c in _BG_CLASSES)
     return {"anchor": anchor, "balance": balance, "kicker_first": kicker_first, "hero": hero, "flat": flat}
 
 
@@ -389,7 +399,8 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # form-family gate. Warning-only (design-critic D6b judges intent); skip small decks (<4 html scenes).
     if len(comps) >= 4:
         n = len(comps)
-        center_share = sum(1 for c in comps if c["anchor"] == "center") / n
+        # a split/asym page is two-column, not a center stack — don't count it toward center-anchor share
+        center_share = sum(1 for c in comps if c["anchor"] == "center" and c["balance"] not in ("split", "asym")) / n
         offcenter = sum(1 for c in comps if c["balance"] in ("split", "asym") or c["anchor"] != "center") / n
         if center_share > 0.6:
             warnings.append(f"composition diversity: {round(100*center_share)}% of html pages are vertically "
@@ -659,12 +670,14 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
         for nd in nodes:
             if nd.cue is not None or not (nd.classes & _MEAN):
                 continue
-            p, anc = nd.parent, None
+            p, anc, nested = nd.parent, None, False
             while p is not None and 0 <= p < len(nodes):
                 if nodes[p].cue is not None:
                     anc = nodes[p].cue; break
+                if nodes[p].classes & _MEAN:        # an outer line-item already owns this node — count only the outermost
+                    nested = True; break
                 p = nodes[p].parent
-            if anc is not None:
+            if anc is not None and not nested:
                 per_cue[anc] = per_cue.get(anc, 0) + 1
         for cidx in sorted(c for c, k in per_cue.items() if k >= 2):
             warnings.append(f"{tag}: cue {cidx} groups {per_cue[cidx]} independently-meaningful facts into ONE reveal "

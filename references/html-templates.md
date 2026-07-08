@@ -273,7 +273,7 @@ recolour the dot) reveal as the narration points. **Text budget:** takeaway ≤ 
 ```html
 <div class="stage"><div class="kicker reveal-up">Reconstruction error over iterations</div>
   <div class="split" style="padding:0;height:auto;grid-template-columns:1.3fr 1fr;gap:56px;margin-top:24px">
-    <div class="media reveal-wipe" style="height:620px"><img src="file:///ABS/recon_curve.png" style="object-fit:contain;background:var(--bg)"></div>
+    <div class="media reveal-wipe" data-cue-index="0" style="height:620px"><img src="file:///ABS/recon_curve.png" style="object-fit:contain;background:var(--bg)"></div>
     <div style="display:flex;flex-direction:column;justify-content:center;gap:26px">
       <div class="label reveal-up" data-cue-index="0" style="font-size:52px">Converges 2.4× faster.</div>
       <div class="chip good reveal-up" data-cue-index="1"><span class="k"></span>ours: nRMSE 0.03 by iter 20</div>

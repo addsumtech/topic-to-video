@@ -324,9 +324,10 @@ def test_uncued_chrome_reveal_is_exempt(tmp_path):
     assert not any("uncued on a cued page" in w for w in r["warnings"])
 
 def test_facts_per_cue_warns(tmp_path):
+    # two distinct LINE-ITEMS (rows) crammed under one cue -> they land all at once -> warn
     s = _html_scene(tmp_path, 0, "pages/s0.html",
-                    '<div class="card reveal-up" data-cue-index="0" data-cue="a">'
-                    '<div class="stat">1</div><div class="note">n</div></div><body></body>')
+                    '<div class="dash reveal-up" data-cue-index="0" data-cue="a">'
+                    '<div class="row">one</div><div class="row">two</div></div><body></body>')
     r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
     assert any("groups 2 independently-meaningful facts" in w for w in r["warnings"])
 
@@ -335,6 +336,16 @@ def test_facts_per_cue_excludes_number_delta_unit(tmp_path):
     s = _html_scene(tmp_path, 0, "pages/s0.html",
                     '<div class="tile reveal-up" data-cue-index="0" data-cue="a">'
                     '<div class="num">5<span class="unit">%</span></div><div class="delta">▲</div></div><body></body>')
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert not any("independently-meaningful facts" in w for w in r["warnings"])
+
+def test_facts_per_cue_label_value_line_item_ok(tmp_path):
+    # a "label: value" row and a tile wrapping a labeled row are each ONE line-item -> no warn
+    s = _html_scene(tmp_path, 0, "pages/s0.html",
+                    '<div class="row reveal-up" data-cue-index="0" data-cue="a">'
+                    '<span class="label">GDP</span><span class="note">+5%</span></div>'
+                    '<div class="tile reveal-up" data-cue-index="1" data-cue="b">'
+                    '<div class="row"><span class="label">x</span><span class="stat">5</span></div></div><body></body>')
     r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
     assert not any("independently-meaningful facts" in w for w in r["warnings"])
 

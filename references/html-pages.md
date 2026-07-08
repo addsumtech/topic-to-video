@@ -193,7 +193,7 @@ time (non-deterministic, breaks the clip cache + A/V gate). The right way to add
   the reveal-stagger envelope, so the backdrop spans the full scene AND adding it can **never** shift
   when a reveal fires (unlike the classic `.kenburns`, whose duration *does* enter the envelope — that's
   why `.bg-live` is the preferred living primitive for a content page). Keep it a **whisper**: at
-  `.bg-soft`'s ~.12–.16 opacity a ~6% push (`.bg-live`) or a ~3% lateral parallax (`.bg-drift`) is felt,
+  `.bg-soft`'s ~.12 (cap .14) opacity a ~6% push (`.bg-live`) or a ~3% lateral parallax (`.bg-drift`) is felt,
   not seen. **One** living motion per page; **full-bleed only** — never on a `.split` side image or a
   card (those stay still next to revealing text).
 - **`.kenburns`** — the classic hero push, still correct on a full-bleed cover `.bg-photo` (see
@@ -301,9 +301,11 @@ The most common defect is **content appearing well before the narration reaches 
   meaning is its OWN reveal element with its OWN `data-cue-index` (monotonically increasing, `0..N-1`
   contiguous, in spoken order), anchored via `data-cue=` to the phrase that introduces it — so
   components land one at a time and guide the viewer step by step. A reveal wrapper may group ONLY a
-  tight visual unit (a number + its unit, an icon + its label). If a wrapper holds ≥2 independently-
-  meaningful facts (≥2 of `.stat`/`.num`/`.label`/`.row`/`.note`/`.bar`/`.tile`/`.step`/`.block`),
-  SPLIT them into separate cued reveal children. On a cued page **NO reveal element may be uncued
+  tight visual unit (a number + its unit/▲▼, a "label: value" line-item, an icon + its label — a pure
+  descriptor `.label`/`.note`/`.bar`/`.delta`/`.unit` is PART of its number/row, not a separate fact).
+  If a wrapper holds ≥2 independently-meaningful **line-items or primary numbers** (≥2 of
+  `.stat`/`.num`/`.row`/`.tile`/`.step`/`.block`/`.seg`/`.hs-spoke`), SPLIT them into separate cued
+  reveal children. On a cued page **NO reveal element may be uncued
   except header chrome** (`.kicker`/`.rule`/`.title`/`.sub`) — an uncued reveal keeps
   `animation-delay:0` and flashes in at ~0.7s WITH the header, leading the voice. `validate.py` warns
   on uncued reveals, ≥2-facts-per-cue wrappers, and index gaps; `keyframe_qa` advises when a paced

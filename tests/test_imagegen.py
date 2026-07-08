@@ -137,7 +137,7 @@ def test_soft_textures_absent_prompts_noop(tmp_path, monkeypatch):
     monkeypatch.setattr(imagegen, "generate", lambda *a, **k: calls.__setitem__("n", calls["n"] + 1))
     out = _soft_board(tmp_path, prompts=None)
     d = imagegen.synthesize_images(out, key="sk-x")
-    assert calls["n"] == 0 and not d["meta"].get("soft_textures")
+    assert calls["n"] == 0 and d["meta"].get("soft_textures") == []   # attempted-none, distinguishable from unset
 
 def test_synthesize_uses_cache_skips_api(tmp_path, monkeypatch):
     out = _board(tmp_path, source="openai", provider="openai")

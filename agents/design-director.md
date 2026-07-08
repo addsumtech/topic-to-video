@@ -154,7 +154,9 @@ THIS subject. Make it that:
   `centered` | `left-weighted` | `right-weighted` | `split` | `asymmetric`). Not every beat may be
   `justify-content:center` (the `.stage` default); **≥~1/3 of content beats must be off-center**
   (top/bottom-anchored, or `.grid-asym`/`.split`); **≥1 hero must lead with its number/image with NO
-  top kicker-hat.** `validate.py` gates center-anchor share >60%, all-pages-kicker-first, and off-center
+  top kicker-hat.** *(The lint credits off-center via `.split`/`.grid-asym` or a non-center
+  `justify-content` on `.stage`; a purely left/right-weighted layout still reads as varied to a viewer
+  but isn't machine-detected — so lean on `.grid-asym`/`.split`/anchor to satisfy the gate.)* `validate.py` gates center-anchor share >60%, all-pages-kicker-first, and off-center
   <25%; `keyframe_qa` advises on centroid clustering; `design-critic` D6b REVISEs a composition-monotone
   deck EVEN IF the form families vary. *(Exception: genuinely parallel/unordered content the form ledger
   justifies (D1) may repeat a form — but still vary the anchor/balance and keep a signature beat.)*
