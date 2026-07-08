@@ -629,7 +629,17 @@ def main():
     ap.add_argument("--vertical", action="store_true")
     ap.add_argument("--reduced-motion", action="store_true",
                     help="accessibility: no zoom/pan + opacity-only reveals (still deterministic/seekable)")
+    ap.add_argument("--renderer", choices=["local", "remotion"], default=None,
+                    help="override meta.renderer; 'remotion' = the optional cinematic tier (image scenes)")
     a = ap.parse_args()
+    # Renderer dispatch: the optional Remotion cinematic tier renders the whole storyboard at once.
+    meta = (sb.load(os.path.join(a.out_dir, "storyboard.json")).get("meta") or {})
+    if (a.renderer or meta.get("renderer", "local")) == "remotion":
+        if a.only:
+            print("[render] note: the remotion tier has no --only; rendering the whole deck.")
+        import render_remotion
+        print(f"Rendered -> {render_remotion.render(a.out_dir, vertical=a.vertical, reduced_motion=a.reduced_motion, sample=a.sample)}")
+        return
     res = render(a.out_dir, sample=a.sample, vertical=a.vertical, only=a.only,
                  reduced_motion=a.reduced_motion)
     print(f"Rendered -> {res}")

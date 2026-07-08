@@ -1,0 +1,16 @@
+{
+  "name": "slides-to-video-remotion",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Optional cinematic render tier for the slides-to-video skill: renders storyboard.json image scenes (full-bleed + Ken Burns + narration audio + captions) via Remotion. The local ffmpeg+Chrome path stays the free default; this tier is opt-in (meta.renderer=remotion).",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts Main"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.0"
+  }
+}

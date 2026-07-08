@@ -439,6 +439,18 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         warnings.append(f"final scene's transition '{effs[-1]}' has no out edge — the video ends on a hard "
                         f"frame; the closer should be 'dip' (its out edge IS the end fade)")
 
+    # Remotion cinematic tier renders IMAGE scenes only — a non-image scene would render BLANK and still
+    # pass the A/V gate (a blank video's audio is in sync). Fail at THIS gate too, not just at render.
+    if meta.get("renderer") == "remotion":
+        blank = [(s.get("index"), s.get("type", "slide")) for s in slides
+                 if not (s.get("image") or (s.get("props") or {}).get("image"))
+                 and s.get("type", "slide") not in ("slide", "title")]
+        if blank:
+            errors.append("renderer=remotion (cinematic tier) renders IMAGE scenes only, but scene(s) "
+                          + ", ".join("#%s(%s)" % (i, t) for i, t in blank)
+                          + " carry non-image content (html/chart/…) that would render BLANK — use "
+                            "renderer=local for an html/designed deck, or give them an `image`")
+
     return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides)}
 
 

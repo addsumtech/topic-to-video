@@ -35,6 +35,13 @@ def _has_bundled_font():
     return os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                        "..", "assets", "fonts", "DejaVuSans.ttf"))
 
+def _has_remotion():
+    # the optional cinematic tier needs Node + an installed remotion/ project
+    node = _common.have_tool("npx")
+    installed = os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                           "..", "remotion", "node_modules"))
+    return node and installed
+
 CHECKS = [
     ("ffmpeg",      True,  _has_tool("ffmpeg"),   "rendering clips + concat",        "brew install ffmpeg"),
     ("ffprobe",     True,  _has_tool("ffprobe"),  "audio duration (slide timing)",   "comes with ffmpeg (brew install ffmpeg)"),
@@ -45,6 +52,7 @@ CHECKS = [
     ("soffice",     False, _has_soffice,          "pptx -> pdf (ingest)",            "install LibreOffice (or export the deck to PDF yourself)"),
     ("Google Chrome", False, _has_chrome,         "html-pages tier (render_html + keyframe_qa)", "install Google Chrome (or use the programmatic scene tiers)"),
     ("bundled font", False, _has_bundled_font,    "default Latin captions",          "restore assets/fonts/DejaVuSans.ttf"),
+    ("remotion",    False, _has_remotion,         "optional cinematic render tier (meta.renderer=remotion)", "install Node.js, then `cd remotion && npm install` (else use the default local renderer)"),
 ]
 
 

@@ -64,6 +64,25 @@ TTS if the user gives an API key.
   cross-fades (a `reduced-motion.css` linked last), still deterministic + seekable. It's an
   authoring-time opt-in variant (a baked mp4 can't read the viewer's OS setting), and it busts the
   clip cache.
+- `scripts/render_remotion.py <out_dir> [--sample N] [--vertical] [--reduced-motion]` — **OPTIONAL
+  cinematic render tier** (opt-in via `meta.renderer:"remotion"`; the local ffmpeg+Chrome path stays the
+  free default). Renders the same `storyboard.json` through **Remotion** (React/Node): per scene a
+  full-bleed **image** with Ken Burns, the synthesized narration, subtitles, timed **callouts**, and an
+  optional lower-third `props.title`/`kicker` — the **story/cinematic** look. **Parity with the local
+  tier:** it honours the SAME per-scene fields — `motion` (Ken Burns from/to `[x,y,zoom]`, can zoom out),
+  `fit` (contain/cover), `callouts` (cue/at timing), `transition` (dip/in/out/none → scene-edge fades),
+  `reduced_motion`, canvas-derived caption size — reusing `render._captions_for`/`_canvas`/`_write_srt`/
+  `_callout_time` so captions + srt are byte-parity. It does NOT reproduce the HTML slide archetypes
+  (kicker/cards/charts): a deck with **html/chart/timeline/keypoints/compare** scenes **fails loud**
+  (both `render_remotion` and `validate.py` ERROR, listing the offending indices) rather than silently
+  rendering blank — use the local renderer for a designed/html deck, or give those scenes an `image`.
+  `render.py --renderer remotion` (or `meta.renderer`) dispatches here; **`--sample N` renders one scene
+  to `sample.mp4`** for the step-8 sign-off (critic-av reviews it exactly as for the local tier). Needs
+  the Node toolchain + a one-time `cd remotion && npm install` (doctor.py reports availability;
+  `node_modules` is gitignored). Writes `out.mp4` + `out.srt`; the post-render `check_av.py` A/V gate
+  still guards delivery (it degrades cleanly with no `.clips/`). When to reach for it: Remotion's real
+  edge is fast/kinetic motion + motion-blur + eased cross-scene transitions — worth it for a cinematic
+  **story** video, not for a calm explainer deck (where it's pixel-identical to local).
 - `scripts/cues.py` — pure anchor→cue-time resolver: reads per-scene `audio/NN.words.json` (edge-tts per-word timings) and resolves each `data-cue` anchor phrase to an absolute timestamp, used by `render_html` for audio-synced HTML reveals.
 - `scripts/check_av.py <out_dir>` — deterministic A/V gate: probes `out.mp4` video-vs-audio duration + per-clip sample-rate uniformity across `.clips/`; exits non-zero on A/V drift above tolerance (0.3 s) or non-uniform rates. Run AFTER the full render (step 9) as a gate before delivery.
 - `scripts/doctor.py [--json]` — environment preflight: reports which tools/libraries are present (ffmpeg/ffprobe/PIL required; PyMuPDF/python-pptx/edge-tts/soffice/Chrome/font optional) and, for each missing one, the stage it gates + the install hint. Exits non-zero only when a REQUIRED dep is missing. Run once at the START (step 1).
@@ -152,6 +171,11 @@ TTS if the user gives an API key.
      **per-beat template FORMS** (hero-stat, before/after, timeline rail, system map, metric wall,
      results table, figure focus, funnel, dashboard, case story, flywheel — see
      `references/html-templates.md`) are chosen by the design-director per beat, NOT asked here.
+     **Cinematic story option (Remotion):** if the deck is a **story/cinematic** piece of full-bleed
+     IMAGE scenes (not data cards/charts) — e.g. a historical story — and the Remotion tier is installed
+     (doctor.py reports it), offer it as a look and set `meta.renderer:"remotion"`; it renders images +
+     Ken Burns + narration + captions + callouts via `render_remotion.py`. It does NOT render the HTML
+     archetypes, so keep a designed/html/chart deck on the default local renderer (`meta.renderer:"local"`).
    - **④ Length** *(→ `meta.target_seconds` AND `meta.aspect` — one decision)* — the finished
      runtime, which also fixes orientation/platform. Menu: **Vertical short ~30–45s** (9:16 —
      Shorts/Reels/TikTok) · **Quick explainer ~60–90s** (16:9) · **Standard ~2–3 min** (16:9) ·
