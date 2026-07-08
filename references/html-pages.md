@@ -136,9 +136,15 @@ that fights the content) and place them faithfully:
   ON DATA PIPELINES: "abstract flowing conduits and nodes of light, warm <accent>/<accent2> palette,
   soft depth, minimal, no text, no logos"). Blank/abstract surfaces keep it faithful; the SUBJECT
   keeps it relevant. Ken-Burns is fine on the hero.
-- **Content pages:** 2–4 subtle textures **rotated** behind the content pages as `.bg-soft`
-  (opacity ~.10–.14) + `.bg-soft-tint`, so every page reads "not flat" while staying legible and
-  coherent. Reuse the set; don't generate 12 unique busy images. Keep the textures on-topic too
+- **Content pages are NOT flat in the AI look.** EVERY content page carries a reused low-opacity topic
+  texture: 2–3 textures **rotated** behind the pages as `.bg-soft` (**opacity ~.12, cap .14**) +
+  `.bg-soft-tint`, so every page reads "not flat" while text stays legible on `.card.glass`. The
+  design-director emits `meta.soft_texture_prompts` (2–3 on-topic broll prompts); `imagegen`
+  synthesizes them into `meta.soft_textures`, which the director rotates by scene index. The opener/
+  closer stay image-forward (`.bg-photo`, ~.34–.46). **`validate.py` warns** an AI-look content page
+  that is flat (no `.bg-soft`), a `.bg-soft` over ~.20 opacity, a `.bg-soft` with no `.bg-soft-tint`,
+  or a bespoke per-page `.bg-soft` src outside `meta.soft_textures`.
+  Reuse the set; don't generate 12 unique busy images. Keep the textures on-topic too
   (a faint motif of the subject), just quieter than the cover. These reused soft textures are deck-level
   atmosphere, so **only the TOPIC litmus applies** (not the per-beat one that image-forward media gets —
   `critic-content` R1e exempts them deliberately).
@@ -158,9 +164,10 @@ covered. Keep it subtle — the image adds atmosphere, the text still carries ev
   <img class="bg-soft" src="file:///ABS/OUT_DIR/.assets/<hash>.png" alt="" style="opacity:.14">
   <div class="bg-soft-tint"></div>
   ```
-  Tune `opacity` inline: **content/middle pages ~.12–.18**; the **atmospheric opener & closer ends
-  ~.34–.46** (more image-forward, since those beats are sparse). One or two reused textures across
-  the middle pages keep it cohesive and cheap — you do NOT need a distinct image per page.
+  Tune `opacity` inline: **content/middle pages ~.12 (cap .14)** — validate warns above ~.20; the
+  **atmospheric opener & closer ends ~.34–.46** (more image-forward, since those beats are sparse).
+  Two or three reused textures across the content pages keep it cohesive and cheap — you do NOT need a
+  distinct image per page (rotate `meta.soft_textures` by scene index).
 - **Glass cards:** add `glass` to any `.card` so the backdrop shows through:
   `<div class="card glass">…</div>`. The translucency is an alpha fill (renders under the
   `--disable-gpu` screenshot path); the `backdrop-filter` blur is a bonus that may be ignored.
@@ -277,9 +284,9 @@ instead. `validate.py` counts the families and warns when one dominates; `design
 
 ## Reveal timing — points must NOT lead the voice (important)
 The most common defect is **content appearing well before the narration reaches it**. Avoid it:
-- **Multi-point content pages SHOULD be audio-synced with `data-cue`** (see "Audio-synced reveals"
+- **Multi-point content pages MUST be audio-synced with `data-cue`** (see "Audio-synced reveals"
   below) — the precise *and* efficient path: each point reveals exactly when its spoken anchor is
-  heard, and the renderer only screenshots around each cue. Make this the default for any page with
+  heard, and the renderer only screenshots around each cue. This is the default for any page with
   ≥2 content points; the content-planner emits a per-beat `cue` array to support it.
 - **If a page is NOT cued, leave `anim_seconds` UNSET** on content pages — the renderer defaults it to
   spread the reveals across ~70% of the scene (tracking the speaking pace) instead of cramming them into
@@ -290,9 +297,24 @@ The most common defect is **content appearing well before the narration reaches 
 
 ## Stagger cadence (seek-safe)
 - **Header chrome** (kicker → rule → title → sub) appears fast: `0s`, `.05s`, `.10s`, `.25s`.
-- **Content POINTS appear one-by-one** — NOT all at once. Stagger rows/cards with `.reveal-up-sm`
-  (first `~.4s`, then `~+.5s` per point). With `data-cue` the real reveal time comes from the audio
-  (these inline delays are ignored); without cues the paced spread above applies.
+- **Content POINTS appear ONE BY ONE — MUST, not should.** Every component that carries its own
+  meaning is its OWN reveal element with its OWN `data-cue-index` (monotonically increasing, `0..N-1`
+  contiguous, in spoken order), anchored via `data-cue=` to the phrase that introduces it — so
+  components land one at a time and guide the viewer step by step. A reveal wrapper may group ONLY a
+  tight visual unit (a number + its unit, an icon + its label). If a wrapper holds ≥2 independently-
+  meaningful facts (≥2 of `.stat`/`.num`/`.label`/`.row`/`.note`/`.bar`/`.tile`/`.step`/`.block`),
+  SPLIT them into separate cued reveal children. On a cued page **NO reveal element may be uncued
+  except header chrome** (`.kicker`/`.rule`/`.title`/`.sub`) — an uncued reveal keeps
+  `animation-delay:0` and flashes in at ~0.7s WITH the header, leading the voice. `validate.py` warns
+  on uncued reveals, ≥2-facts-per-cue wrappers, and index gaps; `keyframe_qa` advises when a paced
+  page's reveals don't stagger across the frozen states; `design-critic` D6 REVISEs an all-at-once page.
+- **CONNECTORS reveal WITH their destination block — never before, never static.** An `.arrow`/
+  `.hs-connect` gets `reveal` (a plain fade, NOT `.reveal-up`, so a directional glyph doesn't slide)
+  + `data-cue-index` = its DESTINATION block's index (the LATER of the two nodes it joins; for
+  `.hs-connect`, the hub's). It carries **no `data-cue=`** of its own — it borrows the destination's
+  cue slot via `seek.js`, so nothing new is scraped and the render is unchanged. A static connector
+  among cued blocks paints from frame 0, before the blocks — **`validate.py` errors on it.** (The
+  single `.timeline::before` rail is a CSS backdrop, not a per-step connector, so it stays static.)
 - **Equal-height cards:** rows of cards (`.dash`) are equal height by design (`align-items:stretch`); do
   not set per-card heights. If one card's text is much longer, shorten it or move it to its own beat.
 - **Audio-synced cues override stagger:** when audio-synced cues are active (edge-tts + `data-cue`

@@ -276,6 +276,127 @@ def test_html_cued_without_wordsjson_warns(tmp_path):
     assert any("words.json" in w for w in r["warnings"])
 
 
+# --- one-by-one reveals + arrows-with-blocks + composition/background lints -------------------------
+_FLOW_CUED = ('<div class="stage"><div class="flow">'
+              '<div class="step reveal-up" data-cue-index="0" data-cue="a">A</div>'
+              '{arrow}'
+              '<div class="step reveal-up" data-cue-index="1" data-cue="b">B</div>'
+              '</div></div>')
+
+def test_static_connector_among_cued_blocks_is_error(tmp_path):
+    s = _html_scene(tmp_path, 0, "pages/s0.html", _FLOW_CUED.format(arrow='<div class="arrow">→</div>'))
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert not r["ok"]
+    assert any("static" in e and "connector" in e for e in r["errors"])
+
+def test_connector_reveal_shares_dest_index_no_error_no_dupe(tmp_path):
+    # arrow reveals WITH its destination (index 1, no data-cue of its own) — legal co-reveal
+    s = _html_scene(tmp_path, 0, "pages/s0.html",
+                    _FLOW_CUED.format(arrow='<div class="arrow reveal" data-cue-index="1">→</div>'))
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert not any("static" in e for e in r["errors"])          # not an error
+    assert not any("duplicate data-cue-index" in w for w in r["warnings"])   # connector-aware accounting
+    assert not any("missing a data-cue anchor" in w for w in r["warnings"])
+
+def test_connector_index_below_destination_warns(tmp_path):
+    # arrow at cue 0 but its destination block is at cue 1 -> warn (appears before the block)
+    body = ('<div class="stage"><div class="flow">'
+            '<div class="step reveal-up" data-cue-index="0" data-cue="a">A</div>'
+            '<div class="arrow reveal" data-cue-index="0">→</div>'
+            '<div class="step reveal-up" data-cue-index="1" data-cue="b">B</div>'
+            '</div></div>')
+    s = _html_scene(tmp_path, 0, "pages/s0.html", body)
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert any("points to a block at cue" in w for w in r["warnings"])
+
+def test_uncued_reveal_on_cued_page_warns(tmp_path):
+    s = _html_scene(tmp_path, 0, "pages/s0.html",
+                    '<div class="note reveal-up" data-cue-index="0" data-cue="a">A</div>'
+                    '<div class="note reveal-up">orphan</div><body></body>')   # 2nd reveal uncued
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert any("uncued on a cued page" in w for w in r["warnings"])
+
+def test_uncued_chrome_reveal_is_exempt(tmp_path):
+    s = _html_scene(tmp_path, 0, "pages/s0.html",
+                    '<div class="kicker reveal-up">hat</div>'                  # chrome — exempt
+                    '<div class="note reveal-up" data-cue-index="0" data-cue="a">A</div><body></body>')
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert not any("uncued on a cued page" in w for w in r["warnings"])
+
+def test_facts_per_cue_warns(tmp_path):
+    s = _html_scene(tmp_path, 0, "pages/s0.html",
+                    '<div class="card reveal-up" data-cue-index="0" data-cue="a">'
+                    '<div class="stat">1</div><div class="note">n</div></div><body></body>')
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert any("groups 2 independently-meaningful facts" in w for w in r["warnings"])
+
+def test_facts_per_cue_excludes_number_delta_unit(tmp_path):
+    # a number + its own delta/unit is ONE visual unit -> must NOT trip facts-per-cue
+    s = _html_scene(tmp_path, 0, "pages/s0.html",
+                    '<div class="tile reveal-up" data-cue-index="0" data-cue="a">'
+                    '<div class="num">5<span class="unit">%</span></div><div class="delta">▲</div></div><body></body>')
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert not any("independently-meaningful facts" in w for w in r["warnings"])
+
+def test_cue_contiguity_gap_warns(tmp_path):
+    s = _html_scene(tmp_path, 0, "pages/s0.html",
+                    '<div class="row reveal-up" data-cue-index="0" data-cue="a">A</div>'
+                    '<div class="row reveal-up" data-cue-index="2" data-cue="b">B</div><body></body>')
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert any("not contiguous" in w for w in r["warnings"])
+
+
+def _content_page(anchor_style="", cls="card", extra=""):
+    return f'{extra}<div class="stage" style="{anchor_style}"><div class="{cls}">body text here</div></div>'
+
+def test_ai_look_flat_content_page_warns(tmp_path):
+    slides = [_html_scene(tmp_path, i, f"pages/s{i}.html", _content_page()) for i in range(4)]
+    r = validate.evaluate(_board(str(tmp_path), slides, meta={"image_source": "openai"}), str(tmp_path))
+    assert any("content page is FLAT" in w for w in r["warnings"])
+
+def test_ai_look_bg_soft_page_not_flat(tmp_path):
+    open(os.path.join(str(tmp_path), "tex.png"), "wb").write(b"\x89PNG")
+    body = ('<img class="bg-soft" src="tex.png" style="opacity:.12"><div class="bg-soft-tint"></div>'
+            + _content_page())
+    slides = [_html_scene(tmp_path, i, f"pages/s{i}.html", body) for i in range(4)]
+    r = validate.evaluate(_board(str(tmp_path), slides,
+                                 meta={"image_source": "openai", "soft_textures": ["tex.png"]}), str(tmp_path))
+    assert not any("content page is FLAT" in w for w in r["warnings"])
+
+def test_ai_look_bg_soft_too_loud_and_missing_tint_warn(tmp_path):
+    open(os.path.join(str(tmp_path), "tex.png"), "wb").write(b"\x89PNG")
+    loud = '<img class="bg-soft" src="tex.png" style="opacity:.30">' + _content_page()  # no tint, loud
+    slides = [_html_scene(tmp_path, i, f"pages/s{i}.html", loud) for i in range(4)]
+    r = validate.evaluate(_board(str(tmp_path), slides, meta={"image_source": "openai"}), str(tmp_path))
+    assert any("opacity 0.30 > .20" in w or "opacity .30 > .20" in w or "> .20" in w for w in r["warnings"])
+    assert any("no following .bg-soft-tint" in w for w in r["warnings"])
+
+def test_composition_all_center_and_kicker_first_warn(tmp_path):
+    body = '<div class="stage"><div class="kicker">k</div><div class="card">x</div></div>'
+    slides = [_html_scene(tmp_path, i, f"pages/s{i}.html", body) for i in range(4)]
+    r = validate.evaluate(_board(str(tmp_path), slides), str(tmp_path))
+    assert any("CENTER-anchored" in w for w in r["warnings"])
+    assert any("opens with a top .kicker" in w for w in r["warnings"])
+
+def test_composition_varied_anchors_no_warn(tmp_path):
+    bodies = [
+        '<div class="stage" style="justify-content:flex-start"><div class="hero">x</div></div>',
+        '<div class="stage" style="justify-content:flex-end"><div class="card">x</div></div>',
+        '<div class="split"><div class="media">m</div><div class="body">b</div></div>',
+        '<div class="stage"><div class="grid-asym"><div class="card">x</div></div></div>',
+    ]
+    slides = [_html_scene(tmp_path, i, f"pages/s{i}.html", b) for i, b in enumerate(bodies)]
+    r = validate.evaluate(_board(str(tmp_path), slides), str(tmp_path))
+    assert not any("CENTER-anchored" in w for w in r["warnings"])
+    assert not any("break the centered column" in w for w in r["warnings"])
+
+def test_background_flatness_warns(tmp_path):
+    body = '<div class="stage"><div class="card">x</div></div>'   # bare --bg, no backdrop
+    slides = [_html_scene(tmp_path, i, f"pages/s{i}.html", body) for i in range(5)]
+    r = validate.evaluate(_board(str(tmp_path), slides), str(tmp_path))
+    assert any("background flatness" in w for w in r["warnings"])
+
+
 def test_html_local_asset_missing_is_error(tmp_path):
     s = _html_scene(tmp_path, 0, "pages/s0.html",
                     '<img src="file:///nonexistent/dir/bg_nope.png"><body></body>')

@@ -98,9 +98,9 @@ a short figure.
   <h1 class="title reveal-up" style="font-size:72px;margin-bottom:28px">The drop is between activate and retain.</h1>
   <div class="flow">
     <div class="step reveal-up" data-cue-index="0"><div class="n">STAGE 1</div><div class="t">Acquire</div><div class="s">100%</div></div>
-    <div class="arrow">→</div>
+    <div class="arrow reveal" data-cue-index="1">→</div>
     <div class="step reveal-up" data-cue-index="1"><div class="n">STAGE 2</div><div class="t">Activate</div><div class="s">71%</div></div>
-    <div class="arrow" style="color:var(--accent2)">→</div>
+    <div class="arrow reveal" data-cue-index="2" style="color:var(--accent2)">→</div>
     <div class="step on reveal-up" data-cue-index="2" style="--focal:var(--accent2)">
       <div class="n" style="color:var(--accent2)">STAGE 3</div><div class="t">Retain</div>
       <div class="s" style="color:var(--accent2);font-weight:700">38%</div></div>
@@ -109,6 +109,12 @@ a short figure.
 ```
 Same skeleton serves **causal chain / root-cause** (drop the percentages, mark the causal node `.on`).
 **9:16:** stack the steps vertically with a ↓ between them.
+**Connectors reveal WITH their destination block** (applies to every `.flow`/`.hubspoke` here): an
+`.arrow`/`.hs-connect` gets `reveal` (a plain fade — NOT `reveal-up`, so the glyph doesn't slide) +
+`data-cue-index` = the **LATER** node's index (for a hub-and-spoke, the hub's). It carries **no `data-cue=`
+of its own** — it borrows the destination's cue slot via seek.js, so nothing new is scraped and the render
+is unchanged. Never leave a connector static among cued steps: it would paint from frame 0, before the
+blocks (validate.py errors on that).
 
 ## system_map — inputs converge on one decision (hub + spokes)
 **Content shape:** several signals/actors feed one hub (a router, a decision, a system). Only a hub/star
@@ -122,7 +128,7 @@ topology renders — decompose an arbitrary graph to a hub. **Text budget:** spo
       <div class="hs-spoke reveal-up" data-cue-index="1">Cost<span class="s">$/1k tokens</span></div>
       <div class="hs-spoke reveal-up" data-cue-index="2">Load<span class="s">queue depth</span></div>
     </div>
-    <div class="hs-connect"></div>
+    <div class="hs-connect reveal" data-cue-index="3"></div>
     <div class="hs-hub reveal-pop" data-cue-index="3">Route</div>
   </div>
 </div>
@@ -175,11 +181,11 @@ the loop-back a labelled step, not a drawn circle). **Text budget:** `.t` ≤ 14
   <h1 class="title reveal-up" style="font-size:64px;margin-bottom:28px">Each user makes the next one cheaper.</h1>
   <div class="flow">
     <div class="step reveal-up" data-cue-index="0"><div class="n">01</div><div class="t">More users</div></div>
-    <div class="arrow">→</div>
+    <div class="arrow reveal" data-cue-index="1">→</div>
     <div class="step reveal-up" data-cue-index="1"><div class="n">02</div><div class="t">More data</div></div>
-    <div class="arrow">→</div>
+    <div class="arrow reveal" data-cue-index="2">→</div>
     <div class="step reveal-up" data-cue-index="2"><div class="n">03</div><div class="t">Better model</div></div>
-    <div class="arrow" style="color:var(--accent)">↻</div>
+    <div class="arrow reveal" data-cue-index="3" style="color:var(--accent)">↻</div>
     <div class="step on reveal-up" data-cue-index="3"><div class="n" style="color:var(--accent)">back to 01</div><div class="t">Lower cost</div></div>
   </div>
 </div>
@@ -201,9 +207,9 @@ loop), it's not renderable as a graph — decompose to a linear `.flow` with a n
   <h1 class="title reveal-up" style="font-size:60px;margin-bottom:28px">Undersampled input, learned prior, clean cine.</h1>
   <div class="flow">
     <div class="step reveal-up" data-cue-index="0"><div class="n">INPUT</div><div class="t">Undersampled k-space</div><div class="s">8× accelerated</div></div>
-    <div class="arrow">→</div>
+    <div class="arrow reveal" data-cue-index="1">→</div>
     <div class="step on reveal-up" data-cue-index="1"><div class="n" style="color:var(--accent)">METHOD</div><div class="t">Deep image prior</div><div class="s">unrolled network</div></div>
-    <div class="arrow">→</div>
+    <div class="arrow reveal" data-cue-index="2">→</div>
     <div class="step reveal-up" data-cue-index="2"><div class="n">OUTPUT</div><div class="t">Full 4D cine</div><div class="s">no aliasing</div></div>
   </div>
 </div>

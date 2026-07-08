@@ -114,7 +114,7 @@ Start from the beat's *job*, not a menu of effects. Each row is deliverable by t
 | Reveal causality / a sequence | staggered `.reveal-up` per step + `.draw` on a connector | a `.flow` / chain / pipeline | fading every step in at once (hides the order) |
 | Emphasize a metric | `chart` counter count-up + hold (`props.climax`) | the KPI / result beat | an endless zoom, a number that never settles |
 | Compare two states | reveal A, then B; `.defocus` the non-focal side | before→after, A vs B | a spin/wipe between them |
-| Build a diagram | reveal nodes → connectors → the focal `.on` last | `.hubspoke` / `.quadrant` / `.timeline` | everything appearing together |
+| Build a diagram | reveal nodes → each connector WITH its destination node (`.arrow`/`.hs-connect` gets `reveal` + the LATER node's `data-cue-index`) → the focal `.on` last | `.hubspoke` / `.quadrant` / `.timeline` | everything appearing together — worst case a **static connector that paints before its nodes** (validate ERRORs) |
 | Draw a line/fill | `.reveal-wipe` (clip-path) or `.draw` (SVG stroke-on) | a `.rule` / `.segbar` / `.meter .fill` | on text rows/cards (meaningless there) |
 | Hold / breathe | a living backdrop (`.bg-live`/`.bg-drift`) whisper | a sparse hero / the closer | any second moving thing on the page |
 | Reset attention | a dip through the theme bg at the cut | a section seam (`new-topic`) | a decorative transition with no meaning |

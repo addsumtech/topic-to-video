@@ -107,6 +107,38 @@ def test_image_size_explicit_overrides_aspect(tmp_path, monkeypatch):
     imagegen.synthesize_images(_board_aspect(tmp_path, "9:16", image_size="1024x1024"), key="sk-x")
     assert seen["size"] == "1024x1024"                                        # explicit wins over aspect
 
+def _soft_board(tmp_path, prompts=None):
+    out = tmp_path / "proj_soft"; os.makedirs(out, exist_ok=True)
+    meta = {"image_source": "openai", "image_provider": "openai", "image_quality": "medium", "image_size": "1536x1024"}
+    if prompts is not None:
+        meta["soft_texture_prompts"] = prompts
+    d = sb.new_storyboard(meta)
+    s = sb.new_slide(1, None); s["image"] = None; s["narration"] = "intro"
+    d["slides"] = [s]
+    sb.save(d, os.path.join(out, "storyboard.json"))
+    return str(out)
+
+def test_soft_textures_populate_meta_and_cache(tmp_path, monkeypatch):
+    calls = {"n": 0}
+    def fake_gen(prompt, path, key, size, quality, model):
+        calls["n"] += 1
+        os.makedirs(os.path.dirname(path), exist_ok=True); open(path, "wb").write(b"\x89PNG")
+    monkeypatch.setattr(imagegen, "generate", fake_gen)
+    out = _soft_board(tmp_path, prompts=["a foggy skyline", "frost on glass"])
+    d = imagegen.synthesize_images(out, key="sk-x")
+    assert len(d["meta"]["soft_textures"]) == 2 and calls["n"] == 2
+    for rel in d["meta"]["soft_textures"]:
+        assert os.path.exists(os.path.join(out, rel))
+    d2 = imagegen.synthesize_images(out, key="sk-x")           # idempotent — cache hit, no new calls
+    assert calls["n"] == 2 and len(d2["meta"]["soft_textures"]) == 2
+
+def test_soft_textures_absent_prompts_noop(tmp_path, monkeypatch):
+    calls = {"n": 0}
+    monkeypatch.setattr(imagegen, "generate", lambda *a, **k: calls.__setitem__("n", calls["n"] + 1))
+    out = _soft_board(tmp_path, prompts=None)
+    d = imagegen.synthesize_images(out, key="sk-x")
+    assert calls["n"] == 0 and not d["meta"].get("soft_textures")
+
 def test_synthesize_uses_cache_skips_api(tmp_path, monkeypatch):
     out = _board(tmp_path, source="openai", provider="openai")
     # pre-create the cache file so generate must NOT be called

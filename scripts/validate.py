@@ -12,6 +12,7 @@ Run it AFTER tts.py and BEFORE render.py (step 9). Use --pre-tts to validate ear
 (skips the audio/duration checks), e.g. right after authoring the storyboard.
 """
 import argparse, json, os, re, sys
+from html.parser import HTMLParser
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import storyboard as sb
@@ -54,6 +55,88 @@ _COLOR_CTX_RE = re.compile(
     r'style\s*=\s*"([^"]*)"|(?:fill|stroke|stop-color)\s*=\s*"([^"]*)"|<style[^>]*>(.*?)</style>',
     re.I | re.S)
 _HEX_TOKEN_RE = re.compile(r'(?<![0-9a-fA-F#])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b')
+
+# --- HTML reveal / composition analysis (one-by-one reveals, arrows-with-blocks, freshness) ------
+# A "reveal" is a CSS class that starts opacity:0 + paused (base.css); WHEN it fires is set by a
+# data-cue-index (spoken order). One meaningful component = one cued reveal → components land one-by-one.
+_REVEAL = {"reveal", "reveal-up", "reveal-up-sm", "reveal-pop", "reveal-wipe", "reveal-glow"}
+_CHROME = {"kicker", "rule", "title", "sub"}          # the only elements allowed to be uncued on a cued page
+_CONN = {"arrow", "hs-connect"}                       # connectors — reveal WITH their destination block
+# Independently-meaningful facts. .delta/.unit are DELIBERATELY excluded: a number carries its own
+# ▲/▼ delta or its unit as ONE visual unit, so "5.6% ▲" must not be split from itself.
+_MEAN = {"stat", "num", "label", "row", "note", "bar", "tile", "step", "block", "seg", "hs-spoke"}
+_VOID = {"img", "br", "hr", "input", "meta", "link", "source", "path", "circle", "rect", "line",
+         "polyline", "polygon", "use", "stop", "ellipse"}
+_BG_CLASSES = {"bg-soft", "bg-soft-tint", "bg-photo", "accent-fill", "bg-stars", "bg-glow", "bg-paper"}
+
+
+class _DomNode:
+    __slots__ = ("tag", "classes", "cue", "parent", "idx")
+    def __init__(self, tag, classes, cue, parent, idx):
+        self.tag, self.classes, self.cue, self.parent, self.idx = tag, classes, cue, parent, idx
+
+
+class _DomParser(HTMLParser):
+    """Minimal nesting parser: records each element's tag, class set, data-cue-index, and parent idx.
+    Endtag popping is naive (pops the stack regardless of tag match) — fine for well-formed template
+    pages; on malformed input parent links are approximate, so all consumers are WARNING-only."""
+    def __init__(self):
+        super().__init__()
+        self.nodes, self.stack = [], []
+    def _open(self, tag, attrs):
+        d = dict(attrs)
+        cue = d.get("data-cue-index")
+        try:
+            cue = int(cue) if cue is not None else None
+        except (TypeError, ValueError):
+            cue = None
+        idx = len(self.nodes)
+        self.nodes.append(_DomNode(tag, set((d.get("class") or "").split()), cue,
+                                   self.stack[-1] if self.stack else None, idx))
+        return idx
+    def handle_starttag(self, tag, attrs):
+        idx = self._open(tag, attrs)
+        if tag not in _VOID:
+            self.stack.append(idx)
+    def handle_startendtag(self, tag, attrs):
+        self._open(tag, attrs)                        # self-closing: opened + closed, never pushed
+    def handle_endtag(self, tag):
+        if self.stack:
+            self.stack.pop()
+
+
+def _parse_dom(html):
+    try:
+        p = _DomParser(); p.feed(html); return p.nodes
+    except Exception:
+        return []
+
+
+def _composition_sig(html):
+    """Coarse composition signature for the diversity gate: the visual ENVELOPE (vertical anchor ×
+    horizontal balance), whether the page opens with a kicker hat, whether it's a full-bleed hero,
+    and whether it has ANY backdrop element (else a bare --bg 'flat' page)."""
+    sm = re.search(r'class\s*=\s*"[^"]*\bstage\b[^"]*"([^>]*)>', html)
+    style = ""
+    if sm:
+        st = re.search(r'style\s*=\s*"([^"]*)"', sm.group(1))
+        style = st.group(1) if st else ""
+    jc = re.search(r'justify-content\s*:\s*([\w-]+)', style)
+    jc = jc.group(1) if jc else "center"
+    anchor = ("top" if jc in ("flex-start", "start") else "bottom" if jc in ("flex-end", "end")
+              else "full" if jc.startswith("space") else "center")
+    if re.search(r'class\s*=\s*"[^"]*\bsplit\b', html):
+        balance = "split"
+    elif re.search(r'class\s*=\s*"[^"]*\bgrid-asym\b', html):
+        balance = "asym"
+    elif "text-align:center" in style.replace(" ", ""):
+        balance = "centered"
+    else:
+        balance = "twocol"
+    kicker_first = bool(re.search(r'class\s*=\s*"[^"]*\bstage\b[^"]*"[^>]*>\s*<[^>]*class\s*=\s*"[^"]*\bkicker\b', html))
+    hero = bool(re.search(r'class\s*=\s*"[^"]*\bbg-photo\b', html))
+    flat = not any(re.search(r'class\s*=\s*"[^"]*\b' + re.escape(c) + r'\b', html) for c in _BG_CLASSES)
+    return {"anchor": anchor, "balance": balance, "kicker_first": kicker_first, "hero": hero, "flat": flat}
 
 
 def _exists(out_dir, rel):
@@ -153,6 +236,9 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
 
     prev_types = []
     families = []                         # per-html-scene layout family, for the diversity gate
+    comps = []                            # per-html-scene composition signature, for the composition gate
+    ai_look = meta.get("image_source") == "openai"
+    soft = list(meta.get("soft_textures") or [])
     for s in slides:
         i = s.get("index")
         t = s.get("type", "slide")
@@ -172,7 +258,8 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                 _check_html_assets(out_dir, page, wants_edge, i, errors, warnings,
                                    (s.get("props") or {}).get("anim_seconds"), s.get("duration"),
                                    s.get("narration"), families,
-                                   captions_on=bool((data.get("meta") or {}).get("captions", True)))
+                                   captions_on=bool((data.get("meta") or {}).get("captions", True)),
+                                   ai_look=ai_look, soft_textures=soft, comps=comps)
 
         # --- audio / duration (skipped in --pre-tts mode) ------------------------------
         if not pre_tts:
@@ -295,6 +382,30 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
             warnings.append(f"layout diversity: {n}/{len(families)} html scenes use the same form family "
                             f"('{fam}', {round(100*n/len(families))}%) — one form top-to-bottom reads as "
                             f"auto-generated; vary per content (form-selection in references/html-pages.md)")
+
+    # Composition-diversity + background-flatness gate (html tier): distinct FORM families can STILL
+    # all reduce to "top kicker over a vertically-centered stack on a flat ground" — the templated look.
+    # Guard the composition ENVELOPE (vertical anchor × balance) and background variety, parallel to the
+    # form-family gate. Warning-only (design-critic D6b judges intent); skip small decks (<4 html scenes).
+    if len(comps) >= 4:
+        n = len(comps)
+        center_share = sum(1 for c in comps if c["anchor"] == "center") / n
+        offcenter = sum(1 for c in comps if c["balance"] in ("split", "asym") or c["anchor"] != "center") / n
+        if center_share > 0.6:
+            warnings.append(f"composition diversity: {round(100*center_share)}% of html pages are vertically "
+                            f"CENTER-anchored — vary the vertical anchor (top/bottom/full-bleed), don't stack every beat mid-frame")
+        if all(c["kicker_first"] for c in comps):
+            warnings.append("composition diversity: EVERY html page opens with a top .kicker hat — let ≥1 hero lead "
+                            "with its number/image (no kicker) so the deck isn't one template")
+        if offcenter < 0.25:
+            warnings.append(f"composition diversity: only {round(100*offcenter)}% of pages break the centered column — "
+                            f"≥~1/3 should be off-center (grid-asym/.split/top-anchored)")
+        non_hero = [c for c in comps if not c["hero"]]
+        if non_hero:
+            nflat = sum(1 for c in non_hero if c["flat"])
+            if nflat / len(non_hero) > 0.6:
+                warnings.append(f"background flatness: {nflat}/{len(non_hero)} content pages have NO backdrop (bare "
+                                f"--bg) — rotate ≥2 backdrops or alternate plain/tinted/soft/accent-fill so the deck isn't a flat wall")
 
     # Transition seam-pairing (motion-grammar "Transition rhythm"): a dip only reads as a dip when
     # BOTH sides of the cut fade — an in-edge without the predecessor's out-edge is a smash-to-bg
@@ -424,7 +535,7 @@ def _reveal_alignment(html, narration, duration, anim_seconds, words_path, tag, 
 
 def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
                        anim_seconds=None, duration=None, narration=None, families=None,
-                       captions_on=True):
+                       captions_on=True, ai_look=False, soft_textures=None, comps=None):
     """Verify an html scene's page links resolve locally (base/theme/motifs css, seek.js,
     images), that its audio-synced cues will fire, and that its reveals won't lead/lag the audio."""
     path = os.path.join(out_dir, page_rel)
@@ -436,6 +547,8 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
         return
     if families is not None:
         families.append(_layout_family(html))
+    if comps is not None:
+        comps.append(_composition_sig(html))
     for url in _FILE_REF_RE.findall(html):
         local = _local_path_from_url(url)
         if local is False:
@@ -474,10 +587,47 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
             warnings.append(f"{tag}: .bg-live/.bg-drift on a non-full-bleed element (class=\"{cl[:40]}\") — "
                             f"apply a living backdrop only to a full-bleed .bg-soft/.bg-photo, not a card/side image")
             break
+    # AI look (image_source:openai): content pages must NOT be flat — each carries a reused low-opacity
+    # TOPIC texture (.bg-soft + .bg-soft-tint) so the deck isn't a flat wall. Exempt the image-forward
+    # opener/closer (.bg-photo) and any content page leading with a real .media/.split image panel
+    # (already visually non-flat).
+    if ai_look and not re.search(r'class\s*=\s*"[^"]*\bbg-photo\b', html) \
+            and not re.search(r'class\s*=\s*"[^"]*\b(?:media|split)\b', html):
+        has_soft = re.search(r'class\s*=\s*"[^"]*\bbg-soft\b', html)
+        has_tint = re.search(r'class\s*=\s*"[^"]*\bbg-soft-tint\b', html)
+        if not (has_soft or has_tint):
+            warnings.append(f"{tag}: AI look (image_source:openai) but this content page is FLAT — add a reused "
+                            f".bg-soft topic texture + .bg-soft-tint (the design-director rotates meta.soft_textures)")
+        else:
+            for op in re.findall(r'class\s*=\s*"[^"]*\bbg-soft\b[^"]*"[^>]*style\s*=\s*"[^"]*opacity:\s*([0-9.]+)', html):
+                try:
+                    if float(op) > 0.20:
+                        warnings.append(f"{tag}: content .bg-soft opacity {op} > .20 — too loud behind text; cap ~.14")
+                        break
+                except ValueError:
+                    pass
+            if has_soft and not has_tint:
+                warnings.append(f"{tag}: a .bg-soft with no following .bg-soft-tint — add the tint so text stays legible")
+            if soft_textures:
+                bases = {os.path.basename(t) for t in soft_textures}
+                for src in re.findall(r'class\s*=\s*"[^"]*\bbg-soft\b[^"]*"[^>]*src\s*=\s*"([^"]+)"', html):
+                    if os.path.basename(src) not in bases:
+                        warnings.append(f"{tag}: .bg-soft src '{os.path.basename(src)}' is outside meta.soft_textures — "
+                                        f"reuse the deck texture set (rotate meta.soft_textures), not a bespoke per-page image")
+                        break
     # Audio-synced reveals: cued points need a data-cue anchor AND a words.json to resolve against.
     # (The anchor regex is an approximate within-tag co-occurrence count — warning-only, never fatal.)
     if "data-cue-index" in html:
-        cued = re.findall(r'data-cue-index="(\d+)"', html)
+        nodes = _parse_dom(html)
+        cued_all = re.findall(r'data-cue-index="(\d+)"', html)
+        # Connectors (.arrow/.hs-connect) legitimately BORROW their destination block's cue-index and
+        # carry no data-cue= of their own — subtract one occurrence per connector index so the
+        # duplicate + missing-anchor accounting counts only real content points (not co-revealing arrows).
+        conn_cues = [n.cue for n in nodes if (n.classes & _CONN) and n.cue is not None]
+        cued = list(cued_all)
+        for cc in conn_cues:
+            if str(cc) in cued:
+                cued.remove(str(cc))
         anchored = re.findall(r'data-cue-index="\d+"[^>]*data-cue="|data-cue="[^"]*"[^>]*data-cue-index="\d+"', html)
         if len(anchored) < len(cued):
             warnings.append(f"{tag}: {len(cued) - len(anchored)} cued point(s) missing a data-cue anchor — they fall back to the paced stagger")
@@ -485,6 +635,61 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
         if dupes:
             warnings.append(f"{tag}: duplicate data-cue-index {dupes} — two points share a reveal slot, so one "
                             f"reveals at the wrong time; number each point's data-cue-index uniquely in spoken order")
+        # CUE-CONTIGUITY: indices should be 0..N-1 (a gap index resolves to sparse t=0, flashing in with
+        # the header). Count all indices incl. connectors — a connector at the top index is legitimate.
+        idxs = sorted({int(i) for i in cued_all})
+        if idxs and idxs != list(range(idxs[-1] + 1)):
+            missing = [k for k in range(idxs[-1] + 1) if k not in idxs]
+            warnings.append(f"{tag}: data-cue-index not contiguous (missing {missing}) — number points 0..N-1 in "
+                            f"spoken order; a gap index resolves to t=0 and flashes in with the header")
+        # UNCUED-REVEAL: on a cued page a reveal element with NO data-cue-index keeps animation-delay:0
+        # and flashes in at ~0.7s WITH the header, leading the voice. Only header chrome may be uncued.
+        uncued = 0
+        for tm in re.finditer(r'<[^>]+class\s*=\s*"([^"]*)"[^>]*>', html):
+            toks = set(tm.group(1).split())
+            if (_REVEAL & toks) and not (_CHROME & toks) and not (_CONN & toks) \
+                    and "data-cue-index" not in tm.group(0):
+                uncued += 1
+        if uncued:
+            warnings.append(f"{tag}: {uncued} reveal element(s) are uncued on a cued page — they fire at ~0.7s with "
+                            f"the header (leading the voice); give each its own data-cue-index in spoken order")
+        # FACTS-PER-CUE: a cued wrapper holding ≥2 independently-meaningful facts makes them land on ONE
+        # cue (all-at-once). Count meaningful descendants grouped by their nearest cued ancestor.
+        per_cue = {}
+        for nd in nodes:
+            if nd.cue is not None or not (nd.classes & _MEAN):
+                continue
+            p, anc = nd.parent, None
+            while p is not None and 0 <= p < len(nodes):
+                if nodes[p].cue is not None:
+                    anc = nodes[p].cue; break
+                p = nodes[p].parent
+            if anc is not None:
+                per_cue[anc] = per_cue.get(anc, 0) + 1
+        for cidx in sorted(c for c, k in per_cue.items() if k >= 2):
+            warnings.append(f"{tag}: cue {cidx} groups {per_cue[cidx]} independently-meaningful facts into ONE reveal "
+                            f"step — split each into its own cued reveal child so they land one-by-one")
+        # CONNECTOR ORDERING: an .arrow/.hs-connect must reveal WITH its destination block — never static
+        # (paints from frame 0, before any block) and never at an index below its destination.
+        for parent in nodes:
+            if not (parent.classes & {"flow", "hubspoke"}):
+                continue
+            kids = [n for n in nodes if n.parent == parent.idx]
+            cued_blocks = [k for k in kids if k.cue is not None and not (k.classes & _CONN)]
+            if not cued_blocks:
+                continue
+            for k in kids:
+                if not (k.classes & _CONN):
+                    continue
+                later = [b for b in cued_blocks if b.idx > k.idx]
+                dest = later[0] if later else cued_blocks[-1]
+                if k.cue is None and not (k.classes & _REVEAL):
+                    errors.append(f"{tag}: a static '{'/'.join(sorted(k.classes & _CONN))}' connector sits among cued "
+                                  f"blocks — it paints from frame 0, before the blocks; add reveal + "
+                                  f'data-cue-index="{dest.cue}" so it reveals WITH its destination block')
+                elif k.cue is not None and dest.cue is not None and k.cue < dest.cue:
+                    warnings.append(f"{tag}: a connector reveals at cue {k.cue} but points to a block at cue {dest.cue} "
+                                    f'— set data-cue-index="{dest.cue}" so it appears WITH the block, not before it')
         words = os.path.join(out_dir, "audio", f"{index:02d}.words.json")
         if wants_edge and not os.path.exists(words):
             warnings.append(f"{tag}: data-cue reveals present but audio/{index:02d}.words.json missing — reveals fall back to the paced stagger (run tts.py with edge-tts)")

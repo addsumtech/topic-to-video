@@ -53,15 +53,19 @@ emotional register:
 This is ONE example arc (a business pitch); the Protagonist column is topic-derived, not prescribed —
 a research arc runs question → method → result → conclusion, not problem → funnel → solution:
 
-| # | Density | Background | Protagonist (the visual lead) | Register | Role |
-|---|---|---|---|---|---|
-| 1 | light | plain surface / hero `.bg-photo` | hero title / the question | aspirational | opener (business: aspirational; research: the question) |
-| 2 | medium | warm/`--accent2` tint | conflict — a risk KPI *or* the problem/gap | pressure | conflict |
-| 3 | light | plain | mechanism — a funnel *or* the `research_method` pipeline | diagnostic | explanation |
-| 4 | medium | cool/`--accent` tint | payoff — a system `.hubspoke` *or* a `results_table` / `chart` | constructive | solution / result |
+| # | Density | Background | Composition (anchor × balance) | Protagonist (the visual lead) | Register | Role |
+|---|---|---|---|---|---|---|
+| 1 | light | plain surface / hero `.bg-photo` | full-bleed × centered (hero) | hero title / the question | aspirational | opener (business: aspirational; research: the question) |
+| 2 | medium | warm/`--accent2` tint | top × left-weighted | conflict — a risk KPI *or* the problem/gap | pressure | conflict |
+| 3 | light | plain / soft texture | center × split | mechanism — a funnel *or* the `research_method` pipeline | diagnostic | explanation |
+| 4 | medium | cool/`--accent` tint | bottom × grid-asym | payoff — a system `.hubspoke` *or* a `results_table` / `chart` | constructive | solution / result |
 
 Two adjacent rows must differ in at least TWO columns. A flat column (every row "medium / plain /
-cards / neutral") is the auto-generated tell.
+cards / neutral") is the auto-generated tell. **The Composition column may not be flat either:** no two
+adjacent beats may share the same (anchor × balance), and ≥~1/3 of beats must be off-center. And **bind
+the Background tag to an ACTUAL backdrop element** — a warm/cool/hero background MUST be a real
+`.bg-soft`/`.bg-soft-tint`/`.bg-photo`/`.accent-fill`, not a bare `--bg` (`validate.py` gates
+composition-center-share, off-center share, and bare-bg share).
 
 **2.3 Space Intelligence.** Whitespace is an ACTIVE element, not unused capacity. If a beat feels thin,
 **strengthen the hero or cut a secondary element — never add cards to fill space.** Emit the schema's

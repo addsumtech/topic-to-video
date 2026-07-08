@@ -121,6 +121,19 @@ block-list that should be a diagram (D1), player-chrome/GIF/stacked motion (D9),
 - **Maturity (addendum §5).** **REVISE** a plan that resembles the WEAK generated-deck pattern — same
   shallow background across beats, card grids as the main language, template colour, dense beats solved by
   smaller text — even if each beat is individually clean. Clean-per-beat is necessary, not sufficient.
+- **D6b — Composition envelope (independent of form family).** **REVISE** when >~60% of content beats
+  share one composition signature (same vertical anchor AND same horizontal balance) — e.g. all
+  `justify-content:center` centered stacks — EVEN IF the form families vary. **REVISE** when EVERY content
+  page opens with a top `.kicker` (no page leads with its hero number/image). **REVISE** when every content
+  page has a flat plain `--bg` (no rotated backdrop / no `.accent-fill` divider / no `.bg-soft` in the AI
+  look). D2 alone is insufficient: one bespoke beat exempts a deck whose other beats all share an envelope.
+  (`validate.py` gates these; `keyframe_qa` reports centroid clusters.)
+- **D6c — Reveal cadence (one-by-one).** **REVISE** a page that dumps its content all at once: ≥2
+  independently-meaningful facts wrapped in one cued reveal, a content reveal left uncued (flashes in with
+  the header, leading the voice), or a flow/causal diagram whose **connector paints before its blocks**
+  (an `.arrow`/`.hs-connect` that is static or reveals at an index below its destination). Components must
+  land ONE BY ONE to guide the viewer step by step. (`validate.py` warns the first two and ERRORs a static
+  connector.)
 
 ### D7 — Squint + cover-text
 - **Squint test (legibility):** at low resolution, the chosen hierarchy must READ — size/weight/colour
@@ -161,7 +174,9 @@ gate (which owns caption/tofu/sync). Reading the settled frame of each page:
   **REVISE** a rendered page where the eye has no obvious first landing point (everything equal weight).
 - **Repeated layout:** scan the contact sheet as a whole. **REVISE** when many pages share the same
   silhouette (e.g. a run of centred-title-over-a-grid) — the deck must vary its shapes page to page
-  (cover-text test applied to pixels).
+  (cover-text test applied to pixels). *(Objective signal: `keyframe_qa` reports a "silhouette repetition:
+  K/M pages share one centroid" advisory; REVISE when >~half the pages cluster on one centroid — this is
+  the rendered-pixel complement to D6b's plan-stage composition gate.)*
 - **Figure-ground + crowding:** **REVISE** a page where text lacks separation from the backdrop (weak
   contrast against a `.bg-soft`), or elements crowd the edges / each other with no breathing room
   (the whitespace should be visible in the render, not just claimed in `density`).

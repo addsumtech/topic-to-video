@@ -147,11 +147,22 @@ THIS subject. Make it that:
 - **Give the deck a topic SIGNATURE.** Apply the `motif` to at least ONE **bespoke** beat — a composition
   you designed for this content's exact shape, not a catalog form. If every beat is a catalog form, the
   deck has no fingerprint; add one signature beat.
-- **Vary the silhouette.** Don't repeat one template's shape down the deck — if beat 3 and beat 7 would be
-  interchangeable, you templated instead of designed. Rotate the hero treatment, accent placement, density,
-  and where the eye lands. *(Exception: if both beats are genuinely parallel/unordered content the form
-  ledger justifies (D1), a repeated form is fine — vary the hero/accent/density and keep a signature beat,
-  don't force zero repetition.)*
+- **Vary the composition ENVELOPE, not just the form.** Two beats can use DIFFERENT forms and STILL
+  share one composition — a top kicker over a vertically-centered block on a flat ground — and that IS
+  the templated look the user complains about. RULE: no two content beats may share the same composition
+  signature = (vertical anchor: `top` | `center` | `bottom` | `full-bleed`) × (horizontal balance:
+  `centered` | `left-weighted` | `right-weighted` | `split` | `asymmetric`). Not every beat may be
+  `justify-content:center` (the `.stage` default); **≥~1/3 of content beats must be off-center**
+  (top/bottom-anchored, or `.grid-asym`/`.split`); **≥1 hero must lead with its number/image with NO
+  top kicker-hat.** `validate.py` gates center-anchor share >60%, all-pages-kicker-first, and off-center
+  <25%; `keyframe_qa` advises on centroid clustering; `design-critic` D6b REVISEs a composition-monotone
+  deck EVEN IF the form families vary. *(Exception: genuinely parallel/unordered content the form ledger
+  justifies (D1) may repeat a form — but still vary the anchor/balance and keep a signature beat.)*
+- **Background floor (html tier): content beats must not ALL share a flat plain `--bg`.** Rotate ≥2
+  backdrops or alternate plain/tinted/soft/accent-fill; a beat whose `rhythm_map` background is
+  warm/cool/hero MUST carry a real backdrop element (`.bg-soft`/`.bg-soft-tint`/`.bg-photo`/`.accent-fill`),
+  not bare `--bg`; place ≥1 mid-deck accent-fill or soft-textured beat to break a flat run. `validate.py`
+  warns when >60% of content pages are bare `--bg`.
 - **The freshness test (design-critic D2):** could this whole deck be lifted onto an unrelated topic by
   swapping the words? If yes, it's a formula, not a design. Freshness is the topic showing THROUGH the
   design — a template *used* is not design; a template *adapted to the subject* is.
@@ -248,6 +259,25 @@ never stacked (`validate.py` warns on >1 living backdrop). The moving thing is t
 screen, so keep it a **whisper**; everything goes static under reduced motion. Pick the `motion_intent`
 VERB (motion-grammar's table) the available motion can actually land — don't promise a SLAM the renderer
 can't deliver.
+
+**Reveal ONE BY ONE — guide the viewer step by step (author it, don't hope for it).** Every component
+that carries its own meaning is its OWN `.reveal`/`.reveal-up` with its OWN `data-cue-index` (`0..N-1`
+contiguous, spoken order) + a `data-cue=` anchor. Do NOT wrap several independent facts in one cued
+reveal (they'd land all at once — `validate.py` warns ≥2 facts/cue); do NOT leave a content reveal
+uncued (it flashes in with the header — validate warns). A number keeps its own unit/▲▼ delta as one
+unit. **Connectors reveal WITH their destination block:** an `.arrow`/`.hs-connect` gets `reveal` (plain
+fade, not `.reveal-up`) + `data-cue-index` = the LATER block's index, no `data-cue=` of its own — never
+leave it static among cued steps (validate ERRORs; it would paint before the blocks). See
+`references/html-pages.md` "Stagger cadence" + `html-templates.md`.
+
+**AI look (`meta.image_source:openai`) → content pages carry a shallow topic background.** (1) Emit
+`meta.soft_texture_prompts`: 2–3 broll prompts that EVOKE THE VIDEO'S TOPIC (litmus: hide the text and
+the subject is still legible), no logos/faces/text/numbers — `imagegen` synthesizes them into
+`meta.soft_textures`. (2) On EVERY content html page (NOT the opener/closer, which keep image-forward
+`.bg-photo`+`.scrim`) place as the first two `<body>` children: `<img class="bg-soft"
+src="file://<out_dir>/<meta.soft_textures[scene_index % len]>" alt="" style="opacity:.12">` then
+`<div class="bg-soft-tint"></div>`, and put text on `.card.glass` where it sits over texture. Rotate by
+scene index so the deck stays cohesive and cheap. `validate.py` warns a flat AI-look content page.
 
 **Transitions are SEMANTIC — map the content's `relation` to the cut** (never random; no wipes/spins;
 when uncertain, a short fade). Set each beat's `transition` from its `relation`:

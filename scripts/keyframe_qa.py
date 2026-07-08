@@ -32,13 +32,13 @@ OVERFLOW_TOL = 6   # px a content box may exceed the canvas before it's flagged
 _CENTER_EXCL = (".flow,.step,.hubspoke,.hs-spoke,.hs-hub,.timeline,.tl-node,.quadrant,.cell,"
                 ".scorecard,.tile,.title,.pullquote,.kicker,.stat,.block")
 _OVERFLOW_JS = (
-    "(function(){var W=window.innerWidth,H=window.innerHeight,worst=0,ct=1e9,cb=-1e9;"
+    "(function(){var W=window.innerWidth,H=window.innerHeight,worst=0,ct=1e9,cb=-1e9,cl=1e9,cr=-1e9;"
     "var n=document.querySelectorAll('.stage *,.split *');"
     "for(var i=0;i<n.length;i++){var r=n[i].getBoundingClientRect();"
     "if(r.width<1||r.height<1)continue;"
     "var o=Math.max(r.right-W,r.bottom-H,-r.left,-r.top);if(o>worst)worst=o;"
     "var cs=getComputedStyle(n[i]);if(cs.opacity!=='0'&&cs.display!=='none'){"
-    "if(r.top<ct)ct=r.top;if(r.bottom>cb)cb=r.bottom;}}"
+    "if(r.top<ct)ct=r.top;if(r.bottom>cb)cb=r.bottom;if(r.left<cl)cl=r.left;if(r.right>cr)cr=r.right;}}"
     "var t=(document.body.innerText||'').replace(/\\s+/g,'').length;"
     "var EXCL='" + _CENTER_EXCL + "',centered=0,para=document.querySelectorAll('.sub,.note,.lead,p');"
     "for(var j=0;j<para.length;j++){var e=para[j],cs=getComputedStyle(e);"
@@ -49,7 +49,18 @@ _OVERFLOW_JS = (
     "if(lines>=3&&w>=600)centered++;}"
     "var bleed=!!document.querySelector('.bg-photo,.bg-soft');"
     "return JSON.stringify({worst:Math.round(worst),textlen:t,centered:centered,"
-    "ctop:Math.round(ct),cbot:Math.round(cb),bleed:bleed});})()")
+    "ctop:Math.round(ct),cbot:Math.round(cb),cleft:Math.round(cl),cright:Math.round(cr),"
+    "bleed:bleed,cued:!!document.querySelector('[data-cue-index]')});})()")
+
+# Reveal-count probe (evaluated at EACH frozen p-state): how many reveal elements are visible now.
+# Used for the STAGGER advisory — on a PACED page (no data-cue-index) a proper stagger makes this rise
+# across the p-states; if most are already visible at p=0.25 the page dumps everything at once.
+_REVEAL_COUNT_JS = (
+    "(function(){var n=document.querySelectorAll('.reveal,.reveal-up,.reveal-up-sm,.reveal-pop,"
+    ".reveal-wipe,.reveal-glow'),tot=0,vis=0;for(var i=0;i<n.length;i++){"
+    "var r=n[i].getBoundingClientRect();if(r.width<1)continue;tot++;"
+    "if(parseFloat(getComputedStyle(n[i]).opacity)>0.5)vis++;}"
+    "return JSON.stringify({tot:tot,vis:vis});})()")
 
 
 def _is_blank(img):
@@ -84,6 +95,16 @@ def _dom_probe(chrome):
     return json.loads(r["result"]["result"]["value"])
 
 
+def _reveal_count(chrome):
+    """{tot, vis} reveal elements at the page's CURRENT frozen state (call right after a ?p= shot)."""
+    try:
+        r = chrome._cmd("Runtime.evaluate",
+                        {"expression": _REVEAL_COUNT_JS, "returnByValue": True}, chrome.sid)
+        return json.loads(r["result"]["result"]["value"])
+    except Exception:
+        return {"tot": 0, "vis": 0}
+
+
 def run(out_dir, ps=DEFAULT_PS, as_json=False):
     data = json.load(open(os.path.join(out_dir, "storyboard.json")))
     meta = data["meta"]; meta["_out"] = out_dir
@@ -95,6 +116,7 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
 
     chrome = _open_cdp(meta, W, H)
     report, last_frames, errors, warns = [], [], 0, 0
+    centroids = []                        # (scene, cx, cy) normalized content centroids, for silhouette repetition
     try:
         for s in html:
             idx = s.get("index")
@@ -102,12 +124,14 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
             if not page:
                 continue
             url = "file://" + os.path.abspath(os.path.join(out_dir, page))
-            frames, ok = [], True
+            frames, ok, rvis, rtot = [], True, [], 0
             for p in ps:
                 fp = os.path.join(kf, f"scene_{idx:02d}_p{int(p*100):03d}.png")
                 try:
                     if chrome:
                         chrome.shot(url + f"?p={p}", fp)          # CDP: (url, out_path)
+                        rc = _reveal_count(chrome)                # count visible reveals at THIS frozen state
+                        rvis.append(rc["vis"]); rtot = max(rtot, rc["tot"])
                     else:
                         scenes._chrome_shot(url + f"?p={p}", fp, W, H, meta)
                     frames.append(Image.open(fp))
@@ -140,6 +164,20 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                             advisories.append(f"fills only {rep_fill}% of the 9:16 zone — scale type "
                                               "up / distribute down / add a lower-zone visual "
                                               "(html-pages '9:16 vertical pages')")
+                    # STAGGER (paced pages only — a cued page renders BLIND here [no ?cues=], so its
+                    # reveals all fire at delay 0 and would false-flag): on a page with NO data-cue-index,
+                    # a proper stagger makes the visible-reveal count RISE across the p-states.
+                    if not info.get("cued") and rtot >= 3 and len(rvis) > 1:
+                        early = rvis[1] / rtot
+                        rises = sum(1 for a, b in zip(rvis, rvis[1:]) if b > a)
+                        if early > 0.7 or rises < 2:
+                            advisories.append(f"no stagger — {round(100*early)}% of reveals already visible at "
+                                              f"p={ps[1]} (rises across only {rises} step[s]); give each component "
+                                              f"its own data-cue-index so they land one-by-one")
+                    # content centroid (normalized) for the deck-level silhouette-repetition advisory
+                    if info.get("cright", -1) > info.get("cleft", 0) and info.get("cbot", -1) > info.get("ctop", 0):
+                        centroids.append((idx, ((info["cleft"] + info["cright"]) / 2) / W,
+                                          ((info["ctop"] + info["cbot"]) / 2) / H))
                 except Exception:
                     if _is_blank(final):
                         issues.append("BLANK at p=1 (reveal never fired / broken page)")
@@ -158,17 +196,34 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
     if last_frames:
         _sheet(last_frames, os.path.join(kf, "all.png"), cols=min(4, len(last_frames)))
 
+    # Deck-level SILHOUETTE REPETITION (advisory): when >~half the pages share one content centroid
+    # cluster, the deck reads as one template even if the forms differ. Greedy cluster @ tol 0.08.
+    deck_notes = []
+    if len(centroids) >= 4:
+        best = 0
+        for _, ax, ay in centroids:
+            k = sum(1 for _, bx, by in centroids if abs(ax - bx) <= 0.08 and abs(ay - by) <= 0.08)
+            best = max(best, k)
+        if best / len(centroids) > 0.5:
+            zone = "centered"
+            deck_notes.append(f"silhouette repetition: {best}/{len(centroids)} pages share one content "
+                              f"centroid ({zone}) — vary the vertical anchor / horizontal balance so the deck "
+                              f"isn't one template (design-critic D11)")
+
     if as_json:
-        print(json.dumps({"errors": errors, "warns": warns, "report": report, "cdp": bool(chrome)}, indent=2))
+        print(json.dumps({"errors": errors, "warns": warns, "report": report,
+                          "deck_advisories": deck_notes, "cdp": bool(chrome)}, indent=2))
     else:
         for r in report:
             mark = {"FAIL": "✗", "WARN": "!"}.get(r["status"], "✓")
             notes = (r.get("issues") or []) + (r.get("advisories") or [])
             extra = ("  " + "; ".join(notes)) if notes else ""
             print(f"  {mark} scene {r['scene']:02d} [{r['status']}]{extra}")
+        for dn in deck_notes:
+            print(f"  ! deck  {dn}")
         mode = "DOM+shots" if chrome else "shots-only (no CDP → overflow/centered unchecked)"
         print(f"[keyframe_qa] {'OK' if errors == 0 else 'ISSUES'}  {len(report)} html page(s), "
-              f"{errors} issue(s), {warns} advisory(ies) [{mode}]; sheets -> {kf}/  "
+              f"{errors} issue(s), {warns + len(deck_notes)} advisory(ies) [{mode}]; sheets -> {kf}/  "
               f"(open all.png to eyeball tofu/theme/reveals)")
     return 1 if errors else 0
 

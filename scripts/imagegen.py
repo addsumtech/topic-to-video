@@ -63,6 +63,43 @@ def _read_key_file():
     except OSError:
         return None
 
+def synthesize_soft_textures(out_dir, data, key, provider, size, quality, date=""):
+    """Generate a SMALL reusable set (<=3) of on-topic soft background textures for the AI look
+    (from meta.soft_texture_prompts) into meta.soft_textures — atmospheric b-roll the design-director
+    rotates behind CONTENT pages at low opacity so they aren't flat. sha1-cached like the per-scene
+    images (re-renders are free). No-ops with a note when the deck declares no soft_texture_prompts."""
+    meta = data["meta"]
+    prompts = [p for p in (meta.get("soft_texture_prompts") or []) if (p or "").strip()][:3]
+    if not prompts:
+        print("[imagegen] AI look but no meta.soft_texture_prompts — content pages will be flat; "
+              "have the design-director emit 2-3 on-topic texture prompts")
+        return data
+    model = "codex" if provider == "codex" else DEFAULT_MODEL
+    rels, made, cached, failed = [], 0, 0, 0
+    for prompt in prompts:
+        cp = _cache_path(out_dir, prompt, model, size, quality)
+        rel = os.path.relpath(cp, out_dir)
+        if os.path.exists(cp):
+            rels.append(rel); cached += 1; continue
+        try:
+            if provider == "codex":
+                _generate_codex(prompt, cp, size, quality)
+            else:
+                generate(prompt, cp, key, size, quality, DEFAULT_MODEL)
+            with open(cp[:-4] + ".json", "w") as f:
+                json.dump({"prompt": prompt, "provider": provider, "model": model, "size": size,
+                           "quality": quality, "tag": "broll", "kind": "soft_texture", "date": date},
+                          f, indent=2)
+            rels.append(rel); made += 1
+        except Exception as e:
+            print(f"[imagegen] soft texture failed ({e}); skipping")
+            failed += 1
+    meta["soft_textures"] = rels
+    print(f"[imagegen] soft textures: generated {made}, cache-hit {cached}, fallback {failed} "
+          f"→ meta.soft_textures[{len(rels)}]")
+    return data
+
+
 def synthesize_images(out_dir, key=None, date=""):
     path = os.path.join(out_dir, "storyboard.json")
     data = sb.load(path)
@@ -102,6 +139,7 @@ def synthesize_images(out_dir, key=None, date=""):
         except Exception as e:
             print(f"[imagegen] scene {s['index']} failed ({e}); leaving for free-tier fallback")
             failed += 1
+    synthesize_soft_textures(out_dir, data, key, provider, size, quality, date)
     sb.save(data, path)
     cost = "via Codex plan (no key)" if provider == "codex" else f"est ${cost_estimate(made, quality, size)}"
     print(f"[imagegen] provider={provider}: generated {made}, cache-hit {cached}, fallback {failed}; {cost}")

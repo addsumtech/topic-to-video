@@ -98,6 +98,10 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
    reads as risk. Text stays --fg (legible). */
 .flow .step.on{--focal:var(--accent);border-color:var(--focal);
   box-shadow:0 0 0 3px color-mix(in srgb,var(--focal) 40%,transparent),var(--shadow-float)}
+/* A connector reveals WITH its destination step: author it <div class="arrow reveal" data-cue-index="D">
+   where D = the LATER step's data-cue-index. Use .reveal (plain fade), NOT .reveal-up, so the glyph does
+   not slide; no data-cue= of its own (it borrows the block's cue slot). Never static among cued steps —
+   it would paint from frame 0, before the blocks (validate.py errors on that). */
 .flow .arrow{flex:none;align-self:center;color:var(--rule);font-size:56px;font-weight:800;padding:0 18px}
 
 /* Time — a rail with one highlighted node (.tl-node.on). Dates in mono. */
@@ -120,6 +124,7 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 .hs-spoke{background:var(--surface);border:var(--hairline);border-radius:14px;padding:26px 36px;
   font-size:42px;font-weight:700;text-align:center;box-shadow:var(--shadow-float)}
 .hs-spoke .s{display:block;font-size:26px;color:var(--muted);font-weight:500;margin-top:6px}
+/* .hs-connect reveals WITH the hub: <div class="hs-connect reveal" data-cue-index="<hub index>">. */
 .hs-connect{width:4px;height:60px;background:var(--rule);opacity:.55;margin:6px auto}
 .hs-hub{background:var(--accent);color:var(--on-accent);border-radius:18px;padding:34px 64px;
   font-size:56px;font-weight:800;box-shadow:var(--shadow-primary);text-align:center}
