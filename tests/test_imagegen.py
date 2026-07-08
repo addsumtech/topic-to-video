@@ -75,6 +75,38 @@ def test_synthesize_generates_and_fills_image(tmp_path, monkeypatch):
     assert s["image"] and s["image"].startswith(".assets/") and s["image"].endswith(".png")
     assert os.path.exists(os.path.join(out, s["image"]))
 
+def _board_aspect(tmp_path, aspect, image_size=None):
+    out = tmp_path / f"proj_{aspect.replace(':','x')}"; os.makedirs(out, exist_ok=True)
+    meta = {"image_source": "openai", "image_provider": "openai", "image_quality": "medium", "aspect": aspect}
+    if image_size is not None:
+        meta["image_size"] = image_size
+    d = sb.new_storyboard(meta)
+    s = sb.new_slide(1, None); s["image"] = None; s["image_prompt"] = "a generic rocket"; s["image_tag"] = "broll"
+    s["narration"] = "intro"
+    d["slides"] = [s]
+    sb.save(d, os.path.join(out, "storyboard.json"))
+    return str(out)
+
+def test_image_size_defaults_from_aspect(tmp_path, monkeypatch):
+    seen = {}
+    def fake_gen(prompt, path, key, size, quality, model):
+        seen["size"] = size
+        os.makedirs(os.path.dirname(path), exist_ok=True); open(path, "wb").write(b"\x89PNG")
+    monkeypatch.setattr(imagegen, "generate", fake_gen)
+    imagegen.synthesize_images(_board_aspect(tmp_path, "9:16"), key="sk-x")   # no explicit size
+    assert seen["size"] == "1024x1536"                                        # -> portrait default
+    imagegen.synthesize_images(_board_aspect(tmp_path, "16:9"), key="sk-x")
+    assert seen["size"] == "1536x1024"                                        # -> landscape default
+
+def test_image_size_explicit_overrides_aspect(tmp_path, monkeypatch):
+    seen = {}
+    def fake_gen(prompt, path, key, size, quality, model):
+        seen["size"] = size
+        os.makedirs(os.path.dirname(path), exist_ok=True); open(path, "wb").write(b"\x89PNG")
+    monkeypatch.setattr(imagegen, "generate", fake_gen)
+    imagegen.synthesize_images(_board_aspect(tmp_path, "9:16", image_size="1024x1024"), key="sk-x")
+    assert seen["size"] == "1024x1024"                                        # explicit wins over aspect
+
 def test_synthesize_uses_cache_skips_api(tmp_path, monkeypatch):
     out = _board(tmp_path, source="openai", provider="openai")
     # pre-create the cache file so generate must NOT be called

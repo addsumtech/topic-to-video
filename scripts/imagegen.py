@@ -72,7 +72,10 @@ def synthesize_images(out_dir, key=None, date=""):
     provider = (meta.get("image_provider") or "auto").lower()
     if provider == "auto":
         provider = "codex" if _codex_available() else "openai"
-    size = meta.get("image_size", "1536x1024")
+    # Default the generated-image size from the deck aspect so a 9:16 deck gets
+    # portrait imagery (1024x1536) instead of landscape; an explicit meta.image_size wins.
+    _aspect_default = "1024x1536" if str(meta.get("aspect", "16:9")) == "9:16" else "1536x1024"
+    size = meta.get("image_size", _aspect_default)
     quality = meta.get("image_quality", "medium")
     model = "codex" if provider == "codex" else DEFAULT_MODEL
     if provider != "codex":
