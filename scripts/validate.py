@@ -69,7 +69,8 @@ _CONN = {"arrow", "hs-connect"}                       # connectors — reveal WI
 _MEAN = {"stat", "num", "row", "tile", "step", "block", "seg", "hs-spoke"}
 _VOID = {"img", "br", "hr", "input", "meta", "link", "source", "path", "circle", "rect", "line",
          "polyline", "polygon", "use", "stop", "ellipse"}
-_BG_CLASSES = {"bg-soft", "bg-soft-tint", "bg-photo", "accent-fill", "bg-stars", "bg-glow", "bg-paper"}
+_BG_CLASSES = {"bg-soft", "bg-soft-tint", "bg-photo", "accent-fill", "bg-stars", "bg-glow", "bg-paper",
+               "bg-motif", "bg-grid"}
 
 
 class _DomNode:
@@ -416,7 +417,9 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
             nflat = sum(1 for c in non_hero if c["flat"])
             if nflat / len(non_hero) > 0.6:
                 warnings.append(f"background flatness: {nflat}/{len(non_hero)} content pages have NO backdrop (bare "
-                                f"--bg) — rotate ≥2 backdrops or alternate plain/tinted/soft/accent-fill so the deck isn't a flat wall")
+                                f"--bg) — rotate ≥2 backdrops or alternate plain/tinted/soft/accent-fill; in the FREE/flat tier "
+                                f"a faint on-topic .bg-motif (an SVG diagram derived from THIS deck's motif — a ghosted "
+                                f"network/segbar/whisper of the beat's own chart) or a .bg-grid makes a page read not-flat AND on-topic")
 
     # Transition seam-pairing (motion-grammar "Transition rhythm"): a dip only reads as a dip when
     # BOTH sides of the cut fade — an in-edge without the predecessor's out-edge is a smash-to-bg

@@ -433,6 +433,20 @@ def test_background_flatness_warns(tmp_path):
     r = validate.evaluate(_board(str(tmp_path), slides), str(tmp_path))
     assert any("background flatness" in w for w in r["warnings"])
 
+def test_bg_motif_counts_as_backdrop_not_flat(tmp_path):
+    # a faint topical .bg-motif (the free flat-tier backdrop) makes a page read not-flat
+    body = ('<div class="bg-motif"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="9" fill="currentColor"/></svg></div>'
+            '<div class="bg-soft-tint"></div><div class="stage"><div class="card">x</div></div>')
+    slides = [_html_scene(tmp_path, i, f"pages/s{i}.html", body) for i in range(5)]
+    r = validate.evaluate(_board(str(tmp_path), slides), str(tmp_path))
+    assert not any("background flatness" in w for w in r["warnings"])
+
+def test_bg_grid_counts_as_backdrop_not_flat(tmp_path):
+    body = '<div class="bg-grid"></div><div class="stage"><div class="card">x</div></div>'
+    slides = [_html_scene(tmp_path, i, f"pages/s{i}.html", body) for i in range(5)]
+    r = validate.evaluate(_board(str(tmp_path), slides), str(tmp_path))
+    assert not any("background flatness" in w for w in r["warnings"])
+
 
 # --- design_plan.json hooks (form-fit + creativity presence, feeding design-critic D1/D2c) ---------
 def _design_plan(tmp_path, plan):

@@ -197,6 +197,14 @@ THIS subject. Make it that:
   warm/cool/hero MUST carry a real backdrop element (`.bg-soft`/`.bg-soft-tint`/`.bg-photo`/`.accent-fill`),
   not bare `--bg`; place ≥1 mid-deck accent-fill or soft-textured beat to break a flat run. `validate.py`
   warns when >60% of content pages are bare `--bg`.
+- **Flat/free tier — spend the backdrop budget on a TOPICAL motif, not generic decoration.** With no AI
+  images, the free way to make covers + main pages read "not flat" AND on-topic is a faint `.bg-motif`:
+  a simple SVG diagram derived from THIS deck's `motif`/`signature_concept` (a ghosted node-network for an
+  agents deck, a faint segbar for an 80/20 split, a whisper of the beat's own chart), drawn at a whisper
+  behind the content with a `.bg-soft-tint` for legibility — or the ready-made `.bg-grid` schematic. Name
+  the motif backdrop for the hero + ≥1 mid-deck beat in the plan so it's authored, not left to chance; keep
+  ONE motif family recurring across the deck (a system, not clip-art). See `references/html-pages.md`
+  "Topical motif backdrop". `.bg-stars`/`.bg-glow` are topic-neutral fallbacks — prefer the topical motif.
 - **The freshness test (design-critic D2):** could this whole deck be lifted onto an unrelated topic by
   swapping the words? If yes, it's a formula, not a design. Freshness is the topic showing THROUGH the
   design — a template *used* is not design; a template *adapted to the subject* is.

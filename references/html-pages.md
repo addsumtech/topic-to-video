@@ -111,6 +111,44 @@ delineated by surface + shadow); never use a 1px stroke to carry meaning.
 </svg>
 ```
 
+### Topical motif backdrop — the free way to make a flat page look fancier *and* on-topic
+In the **flat/free tier** (no AI images) a content page defaults to a bare `--bg` — clean, but flat,
+and generic decoration (`.bg-stars`/`.bg-glow`) doesn't *say* anything about the subject. Instead,
+draw a **simple diagram derived from THIS deck's own `motif`/`signature_concept`** and place it
+FAINT behind the content — the programmatic cousin of the AI `.bg-soft`: free, deterministic, and
+*about the topic*. It's the flat-mode answer to "background flatness" and freshens covers + main pages.
+
+Rules (same faithfulness contract as any motif): it stays a **whisper** (content pages `opacity
+~.06–.12`, a flat-mode hero/cover `~.14–.22`), asserts **no fact** (no real number/label lives in the
+backdrop — atmosphere only), and gets a `.bg-soft-tint` after it so text stays legible. Use
+`.bg-motif` (a full-bleed container; its `currentColor` is `var(--muted)` — override `color:var(--accent)`
+inline) or the ready-made `.bg-grid` schematic. Put it as the FIRST child of `<body>`.
+
+```html
+<!-- A) ready-made schematic grid — any system/engineering/plan topic (mask fades it at the edges) -->
+<div class="bg-grid" style="--cell:80px"></div><div class="bg-soft-tint"></div>
+
+<!-- B) ghosted node-network — an AI/agents/systems deck (echo the page's real "5 seats → agents") -->
+<div class="bg-motif" style="opacity:.09;color:var(--accent)"><svg viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <g fill="none" stroke="currentColor" stroke-width="2">
+    <line x1="1360" y1="240" x2="1600" y2="440"/><line x1="1600" y1="440" x2="1430" y2="700"/>
+    <line x1="1430" y1="700" x2="1180" y2="620"/><line x1="1180" y1="620" x2="1360" y2="240"/>
+    <line x1="1600" y1="440" x2="1180" y2="620"/></g>
+  <g fill="currentColor">
+    <circle cx="1360" cy="240" r="9"/><circle cx="1600" cy="440" r="9"/>
+    <circle cx="1430" cy="700" r="9"/><circle cx="1180" cy="620" r="9"/></g>
+</svg></div><div class="bg-soft-tint"></div>
+
+<!-- C) faint segmented bar — an 80/20 (or any share) deck; echoes the signature split, no numbers -->
+<div class="bg-motif" style="opacity:.10"><svg viewBox="0 0 1920 1080" preserveAspectRatio="none">
+  <rect x="0" y="470" width="1536" height="140" fill="currentColor"/>
+  <rect x="1536" y="470" width="384" height="140" fill="var(--accent)" opacity=".6"/>
+</svg></div><div class="bg-soft-tint"></div>
+```
+The strongest version is a **whisper of the beat's OWN diagram**: take the page's chart/flow/roster
+SVG, drop it into `.bg-motif` scaled up and faded — the backdrop and the content rhyme. Keep exactly
+ONE motif family across the deck (the same shape recurring) so it reads as a system, not clip-art.
+
 **Pictures (`gpt-image` backdrops or your own photos)** — a LOCAL image is allowed (a `file://`
 path is offline/deterministic; only NETWORK assets are forbidden). Use it as a darkened backdrop:
 ```html
