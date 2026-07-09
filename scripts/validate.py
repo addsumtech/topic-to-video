@@ -477,7 +477,10 @@ def _design_plan_lints(out_dir, warnings):
         plan = json.load(open(path, encoding="utf-8"))
     except (OSError, ValueError):
         return
-    beats = plan.get("beats") or plan.get("scenes") or []
+    raw = plan.get("beats") or plan.get("scenes") or []
+    # beats may be a dict keyed by id ({"1": {...}}) or a list — normalize to a list of dicts
+    beats = ([dict(v, index=k) for k, v in raw.items() if isinstance(v, dict)]
+             if isinstance(raw, dict) else [b for b in raw if isinstance(b, dict)])
 
     def _form(b):
         vis = b.get("visual") or {}
@@ -511,7 +514,7 @@ def _design_plan_lints(out_dir, warnings):
     sig_beat = sig.get("beat") if isinstance(sig, dict) else None
     if sig_beat is not None:
         for b in beats:
-            if b.get("index") == sig_beat or b.get("beat") == sig_beat:
+            if str(b.get("index")) == str(sig_beat) or b.get("beat") == sig_beat:
                 if any(f in _form(b) for f in _CATALOG_FORM):
                     warnings.append("creativity: the signature_concept beat's form looks like a catalog grid — a "
                                     "signature must be a bespoke encoding, not a reskinned card grid (design-critic D2c)")
@@ -779,6 +782,27 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
                 elif k.cue is not None and dest.cue is not None and k.cue < dest.cue:
                     warnings.append(f"{tag}: a connector reveals at cue {k.cue} but points to a block at cue {dest.cue} "
                                     f'— set data-cue-index="{dest.cue}" so it appears WITH the block, not before it')
+        # OPENING GAP: header chrome (.kicker/.rule/.title/.sub) shows in the ~1.2s head window, so a page
+        # with one is never blank at the start. But a NO-header hero/pullquote whose FIRST reveal is
+        # anchored to a phrase spoken well into the narration sits BLANK while the voice speaks the
+        # opening — reads as broken. Anchor the first reveal to an OPENING phrase (or add a kicker/title).
+        header_early = any((_CHROME & set(tm.group(1).split())) and "data-cue-index" not in tm.group(0)
+                           for tm in re.finditer(r'<[^>]+class\s*=\s*"([^"]*)"[^>]*>', html))
+        if not header_early and (narration or "").strip():
+            pairs = re.findall(r'data-cue-index="(\d+)"[^>]*?data-cue="([^"]*)"', html)
+            pairs += [(i, a) for (a, i) in re.findall(r'data-cue="([^"]*)"[^>]*?data-cue-index="(\d+)"', html)]
+            if pairs:
+                first_idx = min(int(i) for i, _ in pairs)
+                first_anchor = next((a for i, a in pairs if int(i) == first_idx and a.strip()), None)
+                if first_anchor:
+                    pos = _cues._anchor_pos(narration, first_anchor)
+                    if pos is not None and pos >= 0:
+                        frac = pos / max(1, len(narration))
+                        if frac > 0.15:
+                            warnings.append(f"{tag}: no early header AND the first reveal is anchored to a phrase "
+                                            f"spoken at ~{round(100*frac)}% of the narration — the page sits BLANK "
+                                            f"while the opening plays; anchor the FIRST reveal to an opening phrase "
+                                            f"(or add an uncued .kicker/.title that shows immediately)")
         words = os.path.join(out_dir, "audio", f"{index:02d}.words.json")
         if wants_edge and not os.path.exists(words):
             warnings.append(f"{tag}: data-cue reveals present but audio/{index:02d}.words.json missing — reveals fall back to the paced stagger (run tts.py with edge-tts)")

@@ -23,7 +23,9 @@ def evaluate(data):
     errors, warnings = [], []
     meta = data.get("meta") or {}
     beats = data.get("beats") or data.get("slides") or []
-    introduced = {_norm(c) for c in (meta.get("assumed_known") or []) if _norm(c)}
+    # assumed_known lives top-level in the content plan (meta.assumed_known also accepted)
+    assumed = data.get("assumed_known") or meta.get("assumed_known") or []
+    introduced = {_norm(c) for c in assumed if _norm(c)}
     seen_ground = False
     first_build = False
     for i, b in enumerate(beats):

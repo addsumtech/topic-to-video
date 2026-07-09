@@ -849,3 +849,18 @@ def test_chart_bars_direct_labels_deterministic(tmp_path):
     pb = scenes.render_chart(props, META, 640, 360, 12, str(b), 1)
     assert all(_pix(pa % i) == _pix(pb % i) for i in range(12))   # labels stay pure/deterministic
     assert _pix(pa % 11) != _pix(pa % 9)                          # label alpha still ramping at the end
+
+
+def test_dedup_cue_pts_one_anchor_per_index():
+    # co-reveal: three elements share index 1 (a repeated anchor + a borrowed slot) — must collapse to
+    # ONE anchor per index, sorted, so resolve_cues' sequential match isn't poisoned (the render bug).
+    pts = [("1", "headcount stays flat"), ("0", "revenue climbs"),
+           ("1", "headcount stays flat"), ("1", "stays flat"),
+           ("2", "four point seven million"), ("3", "ten to fifteen times")]
+    out = scenes._dedup_cue_pts(pts)
+    assert [i for i, _ in out] == [0, 1, 2, 3]                       # unique, sorted
+    assert dict(out)[1] == "headcount stays flat"                   # first non-empty anchor per index kept
+    assert dict(out)[2] == "four point seven million"
+
+def test_dedup_cue_pts_skips_empty_anchor():
+    assert scenes._dedup_cue_pts([("0", ""), ("0", "real"), ("1", "x")]) == [(0, "real"), (1, "x")]

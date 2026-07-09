@@ -469,6 +469,20 @@ def render_compare(props, meta, W, H, frames, workdir, index):
     return _save_frames(draw, frames, workdir, index)
 
 
+def _dedup_cue_pts(pts):
+    """Collapse scraped (cue-index, anchor) pairs to ONE anchor per index, sorted by index.
+    Co-revealing elements share a cue-index (a connector, or a group borrowing a block's slot). Keeping
+    a REPEATED anchor would break resolve_cues' SEQUENTIAL match (it can't find a 2nd occurrence of the
+    same phrase, defaults it late, and poisons EVERY later cue) — so keep the first non-empty anchor per
+    index and the whole group co-reveals on that one moment."""
+    by_idx = {}
+    for i, a in pts:
+        ii = int(i)
+        if ii not in by_idx and (a or "").strip():
+            by_idx[ii] = a
+    return sorted(by_idx.items())
+
+
 def render_html(props, meta, W, H, frames, workdir, index):
     """Render a designed HTML page (paused CSS reveals) into a frame sequence via headless Chrome.
     If a per-scene word-timing file (audio/NN.words.json) exists AND the page has [data-cue-index]
@@ -513,7 +527,7 @@ def render_html(props, meta, W, H, frames, workdir, index):
     cue_times = []          # the resolved reveal moments (for the capture bursts)
     cue_err = None
     cue_src = None          # "words" (edge per-word timings) | "text" (narration char-position estimate)
-    ordered = sorted(((int(i), a) for i, a in pts), key=lambda x: x[0]) if pts else []
+    ordered = _dedup_cue_pts(pts)
     ctimes = None
     if ordered and os.path.exists(words_path):        # BEST: exact per-word timings (edge-tts)
         try:

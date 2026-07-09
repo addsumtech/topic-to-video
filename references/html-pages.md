@@ -310,6 +310,14 @@ The most common defect is **content appearing well before the narration reaches 
   `animation-delay:0` and flashes in at ~0.7s WITH the header, leading the voice. `validate.py` warns
   on uncued reveals, ≥2-facts-per-cue wrappers, and index gaps; `keyframe_qa` advises when a paced
   page's reveals don't stagger across the frozen states; `design-critic` D6 REVISEs an all-at-once page.
+- **The FIRST reveal must land at the scene's OPENING — never leave the page BLANK while the voice
+  talks.** Header chrome (`.kicker`/`.rule`/`.title`/`.sub`) shows in the ~1.2s head window, so a page
+  WITH one is never empty at the start. But a **no-header hero / pull-quote / stat** whose only content
+  is anchored to a phrase spoken partway through sits BLANK for seconds while the narration's opening
+  plays — which reads as broken. Fix: anchor the FIRST reveal to the narration's **opening phrase** (the
+  hero's framing line or kicker appears as the voice begins, the big number then lands on ITS phrase),
+  or give the page an uncued `.kicker`/`.title`. `validate.py` warns when a no-header cued page's first
+  reveal is anchored past ~15% of the narration.
 - **CONNECTORS reveal WITH their destination block — never before, never static.** An `.arrow`/
   `.hs-connect` gets `reveal` (a plain fade, NOT `.reveal-up`, so a directional glyph doesn't slide)
   + `data-cue-index` = its DESTINATION block's index (the LATER of the two nodes it joins; for

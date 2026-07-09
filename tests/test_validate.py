@@ -349,6 +349,32 @@ def test_facts_per_cue_label_value_line_item_ok(tmp_path):
     r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
     assert not any("independently-meaningful facts" in w for w in r["warnings"])
 
+def test_opening_gap_no_header_late_first_reveal_warns(tmp_path):
+    # a no-header hero whose only reveal is anchored to a LATE phrase -> blank while the opening plays
+    s = _html_scene(tmp_path, 0, "pages/s0.html",
+                    '<div class="stage"><div class="stat reveal-up" data-cue-index="0" data-cue="the big number">42</div></div>')
+    s["narration"] = "Let me set this up at length before I finally reach the big number at the very end."
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert any("sits BLANK while the opening" in w for w in r["warnings"])
+
+def test_opening_gap_early_header_no_warn(tmp_path):
+    # a kicker (uncued header) shows in the head window -> not blank, even if content is anchored late
+    s = _html_scene(tmp_path, 0, "pages/s0.html",
+                    '<div class="stage"><div class="kicker">Setup</div>'
+                    '<div class="stat reveal-up" data-cue-index="0" data-cue="the big number">42</div></div>')
+    s["narration"] = "Let me set this up at length before I finally reach the big number at the very end."
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert not any("sits BLANK while the opening" in w for w in r["warnings"])
+
+def test_opening_gap_early_anchored_first_reveal_no_warn(tmp_path):
+    # no header, but the first reveal is anchored to the OPENING phrase -> appears immediately
+    s = _html_scene(tmp_path, 0, "pages/s0.html",
+                    '<div class="stage"><div class="stat reveal-up" data-cue-index="0" data-cue="Let me">42</div></div>')
+    s["narration"] = "Let me set this up, and here is the big number right away at the start."
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert not any("sits BLANK while the opening" in w for w in r["warnings"])
+
+
 def test_cue_contiguity_gap_warns(tmp_path):
     s = _html_scene(tmp_path, 0, "pages/s0.html",
                     '<div class="row reveal-up" data-cue-index="0" data-cue="a">A</div>'
