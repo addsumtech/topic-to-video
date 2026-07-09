@@ -147,8 +147,10 @@ never separate stats (they hide the whole); a **single dominant % or "k of N"** 
 to goal), not a plain bar; the **same measure at TWO points across many categories** → a slopegraph/dumbbell
 (rank crossover), not paired stats; a **running total from signed steps** → a `.waterfall`/bridge; **nested
 scope** → `.rings`; **shared-vs-unique membership** → `.venn`; an **ordered procedure with a current
-position** → `.stepper` (not a plain `.flow`); **3–6 compared** → bars (ascending = ranking), not a card
-grid (a grid hides the magnitude order); **two variables / positioning** → `.quadrant`/scatter.
+position** → `.stepper` (not a plain `.flow`); **4–6 parallel labeled features** → an `.icon-tile` grid
+(icon + label + blurb), not a plain card wall; **one→many decomposition** → an outward-facing `.hubspoke`
+(hub in the centre, spokes radiating) or radial cluster; **3–6 compared** → bars (ascending = ranking), not
+a card grid (a grid hides the magnitude order); **two variables / positioning** → `.quadrant`/scatter.
 **Contest, not strawman:** the `rejected_default` must be the NEAREST competing form that ALSO fits (stat
 vs line, split vs quadrant, segbar vs separate stats) — if the only alternative you can name is a card
 grid, you haven't run the contest (the grid is handled by the block audit). A form that only proves it

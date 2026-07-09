@@ -353,9 +353,19 @@ def render_chart(props, meta, W, H, frames, workdir, index):
     kind = props.get("kind", "bars")
     data = props.get("data", [])
     labels = [str(d.get("label", "")) for d in data]
-    values = [d["value"] for d in data]
+    values = [d.get("value", 0) for d in data]
     title = props.get("title"); unit = props.get("unit", "")
-    y_max = props.get("y_max") or (max(values + [0]) * 1.15 or 1)
+    # gather magnitudes across ALL data shapes (value / values[] / v1,v2 / y) for a sensible y ceiling,
+    # so slope/dumbbell/scatter/dist kinds (which don't use `value`) still get a fitting axis.
+    _allv = list(values)
+    for d in data:
+        vv = d.get("values")
+        if isinstance(vv, list):
+            _allv += [x for x in vv if isinstance(x, (int, float))]
+        for _k in ("v1", "v2", "y"):
+            if isinstance(d.get(_k), (int, float)):
+                _allv.append(d[_k])
+    y_max = props.get("y_max") or (max(_allv + [0]) * 1.15 or 1)
     famly = _mpl_font(meta)
     dpi = 100
     figsize = (W / dpi, H / dpi)
@@ -366,6 +376,34 @@ def render_chart(props, meta, W, H, frames, workdir, index):
 
     def draw(i, n):
         p_raw = i / max(1, n - 1) if n > 1 else 1.0
+        if kind == "small_multiples":
+            # the SAME mini-trend per category on a SHARED scale — spot the outlier/common shape at a glance
+            series = [(str(d.get("label", "")), (d.get("values") or [])) for d in data]
+            m = len(series) or 1
+            cols = 2 if m <= 4 else 3
+            rows = (m + cols - 1) // cols
+            fig, axes = plt.subplots(rows, cols, figsize=figsize, dpi=dpi, facecolor=c_bg)
+            axes = list(axes.flatten()) if hasattr(axes, "flatten") else [axes]
+            smax = max([max(v) for _, v in series if v] + [1]) * 1.1
+            for ax2, (lab, vals) in zip(axes, series):
+                ax2.set_facecolor(c_bg)
+                k = max(1, int(len(vals) * p_raw)) if vals else 0
+                if vals:
+                    ax2.plot(range(k), vals[:k], color=accent, linewidth=2.5)
+                ax2.set_title(lab, color=c_fg, fontsize=13, fontfamily=famly)
+                ax2.set_ylim(0, smax); ax2.set_xticks([]); ax2.set_yticks([])
+                for sp in ax2.spines.values():
+                    sp.set_color(c_rule)
+            for ax2 in axes[m:]:
+                ax2.axis("off")
+            if title:
+                fig.suptitle(title, color=c_fg, fontsize=18, fontfamily=famly)
+            fig.tight_layout()
+            fig.canvas.draw()
+            img = Image.frombytes("RGBA", fig.canvas.get_width_height(),
+                                  bytes(fig.canvas.buffer_rgba())).convert("RGB")
+            plt.close(fig)
+            return img.resize((W, H), Image.LANCZOS) if img.size != (W, H) else img
         cur = _chart_values(values, p_raw)
         fig = plt.figure(figsize=figsize, dpi=dpi)
         fig.patch.set_facecolor(c_bg)
@@ -389,6 +427,65 @@ def render_chart(props, meta, W, H, frames, workdir, index):
             ax.plot(range(k), values[:k], color=accent, linewidth=3)
             ax.set_xlim(-0.5, len(values) - 0.5); ax.set_ylim(0, y_max)
             ax.set_xticks(range(len(labels))); ax.set_xticklabels(labels, fontfamily=famly)
+        elif kind == "slope":
+            # two points per category; the STORY is direction + rank crossover. The right end animates in.
+            for d in data:
+                vv = d.get("values") or [d.get("v1", 0), d.get("v2", 0)]
+                a, b = vv[0], vv[1]
+                bb = a + (b - a) * p_raw
+                on = bool(d.get("on"))
+                col = accent if on else c_muted
+                ax.plot([0, 1], [a, bb], color=col, linewidth=4 if on else 2.5,
+                        marker="o", markersize=8, solid_capstyle="round")
+                ax.text(-0.03, a, f"{d.get('label','')}  {a:g}{unit}", ha="right", va="center",
+                        color=c_fg, fontsize=13, fontfamily=famly)
+                ax.text(1.03, bb, f"{b:g}{unit}", ha="left", va="center", color=col, fontsize=13, fontfamily=famly)
+            ax.set_xlim(-0.5, 1.5); ax.set_ylim(0, y_max)
+            ax.set_xticks([0, 1])
+            ax.set_xticklabels([props.get("left", "before"), props.get("right", "after")], fontfamily=famly)
+            for side in ("left", "right", "top"):
+                ax.spines[side].set_visible(False)
+            ax.set_yticks([])
+        elif kind == "dumbbell":
+            for j, d in enumerate(data):
+                vv = d.get("values") or [d.get("v1", 0), d.get("v2", 0)]
+                a = vv[0]; b = a + (vv[1] - a) * p_raw
+                y = len(data) - 1 - j
+                ax.plot([a, b], [y, y], color=c_rule, linewidth=6, solid_capstyle="round", alpha=0.6)
+                ax.plot([a], [y], marker="o", markersize=13, color=c_muted)
+                ax.plot([b], [y], marker="o", markersize=13, color=accent)
+            ax.set_ylim(-0.6, len(data) - 0.4); ax.set_xlim(0, y_max)
+            ax.set_yticks(range(len(data))); ax.set_yticklabels(list(reversed(labels)), fontfamily=famly)
+            for side in ("top", "right"):
+                ax.spines[side].set_visible(False)
+        elif kind == "scatter":
+            xs = [d.get("x", 0) for d in data]; ys = [d.get("y", 0) for d in data]
+            ax.scatter(xs, ys, s=150, color=accent, alpha=min(1.0, 0.3 + p_raw),
+                       edgecolors=c_bg, linewidths=1.5)
+            for d in data:
+                if d.get("label"):
+                    ax.annotate(str(d["label"]), (d.get("x", 0), d.get("y", 0)), color=c_muted,
+                                fontsize=11, fontfamily=famly, xytext=(7, 7), textcoords="offset points")
+            if props.get("x_label"):
+                ax.set_xlabel(props["x_label"], color=c_muted, fontfamily=famly)
+            for side in ("top", "right"):
+                ax.spines[side].set_visible(False)
+        elif kind == "dist":
+            # spread of a variable across groups (median/IQR/whiskers) + a strip of the real observations
+            groups = [(d.get("values") or []) for d in data]
+            bp = ax.boxplot(groups, patch_artist=True, widths=0.5, showfliers=False)
+            for patch in bp["boxes"]:
+                patch.set_facecolor(accent); patch.set_alpha(0.28); patch.set_edgecolor(accent)
+            for part in ("whiskers", "caps", "medians"):
+                for ln in bp[part]:
+                    ln.set_color(c_muted if part != "medians" else accent)
+                    ln.set_linewidth(2.5)
+            for gi, g in enumerate(groups):
+                ax.plot([gi + 1] * len(g), g, ".", color=accent,
+                        alpha=min(0.5, 0.15 + p_raw * 0.5), markersize=7)
+            ax.set_xticks(range(1, len(data) + 1)); ax.set_xticklabels(labels, fontfamily=famly)
+            for side in ("top", "right"):
+                ax.spines[side].set_visible(False)
         else:  # bars
             ax.bar(labels, cur, color=accent)
             ax.set_ylim(0, y_max)

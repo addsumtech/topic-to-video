@@ -67,6 +67,33 @@ def test_chart_deterministic(tmp_path):
     pb = scenes.render_chart(props, META, 640, 360, 5, str(b), 1)
     assert all(_pix(pa % i) == _pix(pb % i) for i in range(5))
 
+_NEW_CHART_CASES = {
+    "slope": {"kind": "slope", "data": [{"label": "A", "values": [42, 78], "on": True},
+                                        {"label": "B", "values": [65, 60]}]},
+    "dumbbell": {"kind": "dumbbell", "data": [{"label": "W", "values": [40, 72]},
+                                              {"label": "E", "values": [55, 63]}]},
+    "dist": {"kind": "dist", "data": [{"label": "Free", "values": [120, 140, 135, 160, 180]},
+                                      {"label": "Pro", "values": [60, 72, 68, 80, 55]}]},
+    "scatter": {"kind": "scatter", "data": [{"x": 30, "y": 94, "label": "Ours"}, {"x": 80, "y": 91}]},
+    "small_multiples": {"kind": "small_multiples", "data": [{"label": "A", "values": [1, 3, 6, 8]},
+                                                            {"label": "B", "values": [1, 2, 3, 5]}]},
+}
+
+@pytest.mark.parametrize("name", list(_NEW_CHART_CASES))
+def test_new_chart_kinds_render_nonblank(tmp_path, name):
+    # slope/dumbbell/dist/scatter/small_multiples write all frames and the final is not blank
+    from PIL import Image
+    d = tmp_path / name; d.mkdir()
+    pat = scenes.render_chart(_NEW_CHART_CASES[name], META, 640, 360, 4, str(d), 0)
+    assert len([f for f in os.listdir(d) if f.endswith(".png")]) == 4
+    assert Image.open(pat % 3).convert("RGB").getextrema() != ((0, 0), (0, 0), (0, 0))
+
+def test_slope_chart_deterministic(tmp_path):
+    a = tmp_path / "a"; b = tmp_path / "b"; a.mkdir(); b.mkdir()
+    pa = scenes.render_chart(_NEW_CHART_CASES["slope"], META, 640, 360, 4, str(a), 1)
+    pb = scenes.render_chart(_NEW_CHART_CASES["slope"], META, 640, 360, 4, str(b), 1)
+    assert all(_pix(pa % i) == _pix(pb % i) for i in range(4))
+
 def test_visible_count_grows_with_progress():
     assert scenes._visible_count(4, 0.0) >= 0
     assert scenes._visible_count(4, 1.0) == 4
