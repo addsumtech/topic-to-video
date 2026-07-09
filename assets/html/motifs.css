@@ -29,14 +29,15 @@
   font-size:720px;line-height:.8;letter-spacing:-.04em;right:80px;bottom:-120px}
 
 /* ── Topical MOTIF backdrop (flat/free tier — the programmatic cousin of .bg-soft) ─────────────
-   A simple ON-TOPIC diagram/pattern derived from THIS deck's own motif/signature (a ghosted
-   network for an AI topic, a faint segmented bar for an 80/20 split, a whisper of the beat's own
-   chart), drawn FAINT behind the content. Free, deterministic, no AI — the flat-mode way to make a
-   page read "not flat" AND on-topic. Fill .bg-motif with inline <svg> (use stroke/fill
-   `currentColor` — the class sets it to var(--muted); override with color:var(--accent) inline) OR a
-   CSS pattern. Keep it a WHISPER (content pages ~.06–.12, a flat-mode hero/cover ~.14–.22) and
-   assert NO fact — it is atmosphere, never a data point. Pair with .bg-soft-tint after it for
-   legibility. Place as the FIRST child of <body> (z-index:0, under .stage). */
+   A simple ON-TOPIC diagram/pattern derived from THIS deck's `motif` (the recurring atmosphere idea —
+   NOT the signature_concept, which stays in the foreground): a ghosted network for an AI topic, a faint
+   segmented bar for an 80/20 split. Drawn FAINT behind the content. Free, deterministic, no AI — the
+   flat-mode way to make a page read "not flat" AND on-topic. Fill .bg-motif with inline <svg> (use
+   stroke/fill `currentColor` — the class sets it to var(--muted); override with color:var(--accent)
+   inline) OR a CSS pattern. Keep it a WHISPER (content pages ~.06–.12, a flat-mode hero/cover ~.14–.22)
+   and assert NO DATA — no number/label AND no real trend/proportion a viewer could read as its own fact.
+   Add .bg-soft-tint after it ONLY where text overlaps the motif (a full-bleed tint washes out a motif
+   that sits in empty space). Place as the FIRST child of <body> (z-index:0, under .stage). */
 .bg-motif{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;
   color:var(--muted);opacity:.10}
 .bg-motif svg,.bg-motif img{position:absolute;inset:0;width:100%;height:100%}

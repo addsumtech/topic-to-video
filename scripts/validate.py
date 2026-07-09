@@ -712,6 +712,26 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
     # (The anchor regex is an approximate within-tag co-occurrence count — warning-only, never fatal.)
     if "data-cue-index" in html:
         nodes = _parse_dom(html)
+        # BACKDROP INERTNESS: a full-bleed backdrop (.bg-motif/.bg-soft/.bg-photo/…) must be INERT
+        # atmosphere. If an author drops the beat's OWN cued chart/reveal SVG into a .bg-motif without
+        # stripping markers, render_html scrapes those data-cue anchors — and since the backdrop is the
+        # FIRST child of <body>, its anchor WINS the per-index dedup over the real content, poisoning
+        # every reveal time. Flag any element UNDER a backdrop that still carries a cue or a .reveal*.
+        _INERT_BG = {"bg-motif", "bg-grid", "bg-soft", "bg-photo", "bg-stars", "bg-glow", "bg-paper"}
+        def _under_backdrop(i):
+            hops = 0
+            while i is not None and 0 <= i < len(nodes) and hops < 128:
+                if nodes[i].classes & _INERT_BG:
+                    return True
+                i = nodes[i].parent; hops += 1
+            return False
+        live_bg = sum(1 for nd in nodes
+                      if (nd.cue is not None or (nd.classes & _REVEAL))
+                      and not (nd.classes & _INERT_BG) and _under_backdrop(nd.parent))
+        if live_bg:
+            warnings.append(f"{tag}: {live_bg} element(s) INSIDE a full-bleed backdrop carry a data-cue-index/"
+                            f".reveal — a backdrop must be inert atmosphere; strip every data-cue*/id/.reveal* from "
+                            f"any SVG copied into .bg-motif (else render_html scrapes its anchors and poisons reveal timing)")
         cued_all = re.findall(r'data-cue-index="(\d+)"', html)
         # Connectors (.arrow/.hs-connect) legitimately BORROW their destination block's cue-index and
         # carry no data-cue= of their own — subtract one occurrence per connector index so the

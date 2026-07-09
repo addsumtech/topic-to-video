@@ -447,6 +447,23 @@ def test_bg_grid_counts_as_backdrop_not_flat(tmp_path):
     r = validate.evaluate(_board(str(tmp_path), slides), str(tmp_path))
     assert not any("background flatness" in w for w in r["warnings"])
 
+def test_backdrop_with_cue_inside_warns(tmp_path):
+    # a cued chart SVG copied into a .bg-motif backdrop WITHOUT stripping markers poisons reveal timing
+    body = ('<div class="bg-motif"><svg viewBox="0 0 100 100">'
+            '<polyline class="reveal-wipe" data-cue-index="0" data-cue="revenue climbs" points="0,90 90,10"/></svg></div>'
+            '<div class="stage"><div class="stat reveal" data-cue-index="1" data-cue="four point seven">$4.7M</div></div>')
+    slides = [_html_scene(tmp_path, 0, "pages/s0.html", body)]
+    r = validate.evaluate(_board(str(tmp_path), slides), str(tmp_path))
+    assert any("INSIDE a full-bleed backdrop" in w for w in r["warnings"])
+
+def test_inert_backdrop_no_warn(tmp_path):
+    # a clean, inert .bg-motif (no cue/reveal inside) on a cued page raises no backdrop-inertness warning
+    body = ('<div class="bg-motif"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="9" fill="currentColor"/></svg></div>'
+            '<div class="stage"><div class="stat reveal" data-cue-index="0" data-cue="four point seven">$4.7M</div></div>')
+    slides = [_html_scene(tmp_path, 0, "pages/s0.html", body)]
+    r = validate.evaluate(_board(str(tmp_path), slides), str(tmp_path))
+    assert not any("INSIDE a full-bleed backdrop" in w for w in r["warnings"])
+
 
 # --- design_plan.json hooks (form-fit + creativity presence, feeding design-critic D1/D2c) ---------
 def _design_plan(tmp_path, plan):

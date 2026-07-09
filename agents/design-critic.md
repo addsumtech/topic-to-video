@@ -151,7 +151,7 @@ OR a non-card form that fits in the wrong direction (D1 bidirectional), player-c
   `justify-content:center` centered stacks — EVEN IF the form families vary. **REVISE** when EVERY content
   page opens with a top `.kicker` (no page leads with its hero number/image). **REVISE** when every content
   page has a flat plain `--bg` (no rotated backdrop / no `.accent-fill` divider / no `.bg-soft` in the AI
-  look). D2 alone is insufficient: one bespoke beat exempts a deck whose other beats all share an envelope.
+  look / no topical `.bg-motif`/`.bg-grid` in the free tier). D2 alone is insufficient: one bespoke beat exempts a deck whose other beats all share an envelope.
   (`validate.py` gates these; `keyframe_qa` reports centroid clusters.)
 - **D6c — Reveal cadence (one-by-one).** **REVISE** a page that dumps its content all at once: ≥2
   independently-meaningful facts wrapped in one cued reveal, a content reveal left uncued (flashes in with
@@ -187,8 +187,10 @@ OR a non-card form that fits in the wrong direction (D1 bidirectional), player-c
 ### D10 — Anti-slop (visual)
 - **REVISE** any authored page or animated `props` with: an emoji in a title; a hardcoded hex `#rrggbb`
   (pages must use semantic vars — `validate.py` lints `raw hex […] in a style/SVG color`; treat as a
-  REVISE item); a full-screen gradient-mesh background; or a circle+left-border fake "card" (use
-  `.card`/`.row`). Cross-check the design plan's `design_anti_slop` bans are actually honoured.
+  REVISE item); a full-screen gradient-mesh background used as generic decoration (the edge-masked,
+  on-topic `.bg-grid` schematic and a faint topical `.bg-motif` are sanctioned atmosphere, NOT this
+  cliché — the ban is the aimless rainbow-blur mesh, not a subject-derived motif); or a circle+left-border
+  fake "card" (use `.card`/`.row`). Cross-check the design plan's `design_anti_slop` bans are actually honoured.
 
 ### D11 — Rendered keyframe pass (ONLY when keyframes/frames are provided)
 Many design defects are invisible in the plan and only appear once rendered. **When you are given
