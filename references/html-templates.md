@@ -309,6 +309,83 @@ The research templates use MRI examples for concreteness, but they are **not ima
 
 ---
 
+# Quantitative & structural encodings (one number · two-point change · part-of-whole · position)
+The forms above are mostly *narrative/structural*. These are the **quantitative** archetypes — reach for
+them when the CONTENT is a number, a share, a change, or a set relationship, and a card would bury it. All
+are pure CSS/SVG (deterministic, seekable), theme-var only, and **faithful**: every width/angle/count comes
+from a real value the page states. Reveal parts with `data-cue-index`.
+
+## one proportion — `.waffle` / `.gauge` / `.isotype` (pick by feel)
+A single %/ratio, three ways: **waffle** = feel it as a count-of-100; **gauge** = one WOW arc; **isotype** =
+discrete "k of N". ONE fact, not many — never cue the cells individually.
+```html
+<!-- waffle: first N of 100 cells .on = N% -->
+<div class="waffle reveal-up" data-cue-index="0"><i class="on"></i>… (100 <i>, first 38 with class="on") …</div>
+<!-- gauge: --p is the fraction; the number is the fact -->
+<div class="gauge reveal-pop" data-cue-index="0" style="--p:.72"><div class="g-val">72%</div><div class="g-lab">capacity</div></div>
+<!-- isotype: N .u glyphs, the real k get .on -->
+<div class="isotype" style="--cols:5;max-width:420px"><div class="u on"><svg …person…></svg></div> … (10, first 7 .on) …</div>
+```
+
+## actual vs target — `.bullet` (did we hit the goal?)
+A KPI against a target and qualitative bands. Band widths + value width + target position are real axis fractions.
+```html
+<div class="bullet reveal-up" data-cue-index="0">
+  <div class="band hi" style="width:100%"></div><div class="band mid" style="width:75%"></div><div class="band" style="width:50%"></div>
+  <div class="val" style="width:82%">$4.1M</div><div class="tgt" style="left:90%"></div></div>
+```
+
+## two-point change across many categories — slopegraph (SVG) / `.mk` matrix / waterfall
+```html
+<!-- SLOPEGRAPH: two axes, one line per category; rank crossover is the story. Strokes ≥2px. -->
+<svg viewBox="0 0 900 560" style="width:900px">
+  <text x="60" y="40" class="axl">2024</text><text x="840" y="40" text-anchor="end" class="axl">2025</text>
+  <line class="sl reveal-wipe" data-cue-index="0" x1="90" y1="120" x2="810" y2="300" stroke="var(--accent)" stroke-width="3"/>
+  <!-- label+value text at each end … one <line>+labels per category … -->
+</svg>
+<!-- CHECKMARK MATRIX: .rtable rows=features, cols=options; cells = .mk yes/no/mid -->
+<table class="rtable"><tr><th>Capability</th><th>Ours</th><th>Theirs</th></tr>
+  <tr class="win"><td>Audio-synced</td><td><span class="mk yes">✓</span></td><td><span class="mk no">✗</span></td></tr></table>
+<!-- WATERFALL / bridge: start total → signed steps → end. .wbar height = magnitude, margin-top = baseline offset. -->
+<div class="waterfall"><div class="wcol"><div class="wval">$100M</div><div class="wbar total" style="height:70%"></div><div class="wcap">FY24</div></div>
+  <div class="wcol"><div class="wval">+$40M</div><div class="wbar up" style="height:28%;margin-top:2%"></div><div class="wcap">New</div></div>
+  <div class="wcol"><div class="wval">−$18M</div><div class="wbar down" style="height:12%;margin-top:70%"></div><div class="wcap">Churn</div></div>
+  <div class="wcol"><div class="wval">$122M</div><div class="wbar total" style="height:85%"></div><div class="wcap">FY25</div></div></div>
+```
+
+## set relationship & scope — `.venn` / `.rings`
+`.venn` = shared vs unique (2–3 sets, screen-blended overlap — encodes MEMBERSHIP, never a precise area).
+`.rings` = nested containment/scope (TAM/SAM/SOM, core→ecosystem). Author circles/rings inline; `.on` the focal one.
+```html
+<div class="venn"><div class="set" style="left:120px;top:40px;width:340px;height:340px;background:color-mix(in srgb,var(--accent) 45%,transparent)"></div>
+  <div class="set" style="left:360px;top:40px;width:340px;height:340px;background:color-mix(in srgb,var(--green) 45%,transparent)"></div>
+  <div class="vlab" style="left:150px;top:190px">A<span class="s">speed</span></div> … </div>
+<div class="rings"><div class="ring" style="width:520px;height:520px"><div class="rlab">TAM · $50B</div></div>
+  <div class="ring on" style="width:200px;height:200px"><div class="rlab">SOM · $1.4B</div></div></div>
+```
+
+## ordered procedure with position — `.stepper` (how-to / walkthrough)
+Distinct from `.flow`: ordinality + a "you-are-here". `.step.done` past · `.step.on` current.
+```html
+<div class="stepper"><div class="step done"><div class="n">1</div><div class="st">Setup</div><div class="sd">install</div></div>
+  <div class="step on reveal-up" data-cue-index="0"><div class="n">2</div><div class="st">Configure</div><div class="sd">set theme</div></div> … </div>
+```
+
+## enrich existing tiles/panels — `.spark` sparkline · `.wipe` before/after
+`.spark` (an inline SVG trend inside a `.tile`/`.scorecard`, + a dashed `.base` target line) makes a metric
+answer "trend?" and "vs target?". `.wipe` shows two **pixel-registered** images on one frame (denoised vs
+noisy scan, redesign vs original) — a frozen `--w` split, or `.sweep` for a seek-frozen reveal.
+```html
+<div class="tile"><div class="stat">$482k</div><div class="note">MRR</div>
+  <svg class="spark" viewBox="0 0 360 70" preserveAspectRatio="none"><line class="base" x1="0" y1="30" x2="360" y2="30"/>
+    <polyline points="0,58 120,52 240,30 360,10"/><circle class="end" cx="360" cy="10" r="6"/></svg></div>
+<div class="wipe" style="--w:.5"><div class="after"><img src="file://…/after.png"></div>
+  <div class="before"><img src="file://…/before.png"></div><div class="seam"></div><div class="tag l">Before</div><div class="tag r">After</div></div>
+```
+(SVG helper: `.axl`/`.sl` are just author classes — set `fill:var(--muted)`/`stroke` inline or in a `<style>` using vars.)
+
+---
+
 ## Text-budget discipline (why every template caps chars)
 These pages are read at a glance on a moving frame — over-budget text shrinks or wraps and kills the
 squint test. If your real content won't fit the budget, that's a signal to **split the beat**, not to

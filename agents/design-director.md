@@ -121,7 +121,10 @@ AND the runner-up it beat, one clause: e.g. `"form": "flow — beats cards becau
 a card grid hides the sequence"`. **When the chosen form has a premium template in
 `references/html-templates.md`** — business/general (hero_stat, before_after, timeline_rail, problem_leak,
 system_map, metric_wall, case_story, flywheel) OR **research/technical** (research_method, code_architecture,
-equation_build, results_table, figure_focus) — START FROM IT and populate with real content — don't
+equation_build, results_table, figure_focus) OR **quantitative encodings** (`.waffle`/`.gauge`/`.isotype` for
+ONE proportion, `.bullet` for actual-vs-target, slopegraph + `.waterfall` for two-point change, `.venn`/`.rings`
+for set-overlap/nested-scope, `.stepper` for an ordered procedure — see "Quantitative & structural encodings")
+— START FROM IT and populate with real content — don't
 reinvent the composition — then **adapt it to the subject** (see Freshness below); name it in the `form`
 clause (e.g. `"form": "results_table template — …"`). Every template FORM is topic-agnostic; match the
 content SHAPE, not the domain. Templates are verified premium starting points to ADAPT, not fixed slots
@@ -139,7 +142,12 @@ gap — not just the number — in 3 seconds? If they'd have to READ to see the 
 wrong. Data-type → encoding (the discriminators the fit test enforces — reason from the existing
 Concept→Visual dictionary, these are the *rejections*): a value that **CHANGES over time** → a line, never
 a lone `.stat` (a single number hides the trajectory); a **part-of-whole / share** → `.segbar`/`.meter`,
-never separate stats (they hide the whole); **3–6 compared** → bars (ascending = ranking), not a card
+never separate stats (they hide the whole); a **single dominant % or "k of N"** → a `.gauge`/`.waffle`/
+`.isotype` (make the proportion FELT), not a bare `.stat`; **actual vs a target** → `.bullet` (shows the gap
+to goal), not a plain bar; the **same measure at TWO points across many categories** → a slopegraph/dumbbell
+(rank crossover), not paired stats; a **running total from signed steps** → a `.waterfall`/bridge; **nested
+scope** → `.rings`; **shared-vs-unique membership** → `.venn`; an **ordered procedure with a current
+position** → `.stepper` (not a plain `.flow`); **3–6 compared** → bars (ascending = ranking), not a card
 grid (a grid hides the magnitude order); **two variables / positioning** → `.quadrant`/scatter.
 **Contest, not strawman:** the `rejected_default` must be the NEAREST competing form that ALSO fits (stat
 vs line, split vs quadrant, segbar vs separate stats) — if the only alternative you can name is a card

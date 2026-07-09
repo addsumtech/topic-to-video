@@ -464,6 +464,24 @@ def test_inert_backdrop_no_warn(tmp_path):
     r = validate.evaluate(_board(str(tmp_path), slides), str(tmp_path))
     assert not any("INSIDE a full-bleed backdrop" in w for w in r["warnings"])
 
+def test_quantitative_archetypes_validate_clean(tmp_path):
+    # new quantitative encodings validate with no errors and their sub-parts (waffle cells, isotype units,
+    # bullet bands) do NOT false-trigger facts-per-cue — a proportion is ONE fact, not 100.
+    waffle = ''.join('<i class="on"></i>' if k < 38 else '<i></i>' for k in range(100))
+    iso = ''.join(f'<div class="u {"on" if k<7 else ""}"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/></svg></div>' for k in range(10))
+    body = ('<div class="stage">'
+            f'<div class="waffle reveal-up" data-cue-index="0" data-cue="thirty eight percent">{waffle}</div>'
+            '<div class="gauge reveal-pop" data-cue-index="1" data-cue="seventy two" style="--p:.72"><div class="g-val">72%</div></div>'
+            f'<div class="isotype" data-cue-index="2" data-cue="seven of ten" style="--cols:5">{iso}</div>'
+            '<div class="bullet reveal-up" data-cue-index="3" data-cue="four point one"><div class="band" style="width:50%"></div>'
+            '<div class="val" style="width:82%">4.1</div><div class="tgt" style="left:90%"></div></div>'
+            '</div>')
+    slide = _html_scene(tmp_path, 0, "pages/s0.html", body)
+    r = validate.evaluate(_board(str(tmp_path), [slide]), str(tmp_path))
+    assert r["errors"] == []
+    assert not any("independently-meaningful facts" in w for w in r["warnings"])
+    assert not any("uncued on a cued page" in w for w in r["warnings"])
+
 
 # --- design_plan.json hooks (form-fit + creativity presence, feeding design-critic D1/D2c) ---------
 def _design_plan(tmp_path, plan):

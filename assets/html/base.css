@@ -203,3 +203,126 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 .chrome{position:absolute;bottom:56px;left:150px;right:150px;display:flex;justify-content:space-between;
   font-family:var(--font-mono);font-size:24px;color:var(--muted);letter-spacing:.08em;
   text-transform:uppercase;z-index:3;pointer-events:none}
+
+/* ══ QUANTITATIVE ENCODINGS — vivid ways to show one number, a two-point change, a part-of-whole ══════
+   All deterministic + SEEKABLE (static fills / CSS frozen by seek.js), theme-var only, info strokes ≥2px,
+   chunky (video-safe). Each part can carry data-cue-index to reveal in spoken order. FAITHFUL: every
+   width/height/angle comes from a REAL value the page states — never a fabricated magnitude. */
+
+/* Single proportion FELT AS A COUNT — a 10×10 waffle. Author 100 <i> cells; give the first N `.on`
+   for N%. Chunky cells + gaps carry the meaning (no thin strokes). ONE fact — the % — not 100 facts. */
+.waffle{display:grid;grid-template-columns:repeat(10,1fr);grid-template-rows:repeat(10,1fr);
+  gap:9px;width:520px;height:520px}
+.waffle i{border-radius:6px;background:var(--surface);border:var(--hairline)}
+.waffle i.on{background:var(--accent);border-color:transparent}
+.waffle i.on.alt{background:var(--accent2)}
+
+/* Single value as an ARC — a donut gauge for a WOW score/percentage, the number in the hole. Set the
+   fraction inline `style="--p:.72"`. conic-gradient is static (inherently seekable); reveal the whole
+   gauge with .reveal-pop on its cue. The hole is --bg (a flat deck) — set it to the page ground. */
+.gauge{--p:.5;--gsize:340px;width:var(--gsize);height:var(--gsize);border-radius:50%;position:relative;
+  display:grid;place-items:center;
+  background:conic-gradient(var(--accent) calc(var(--p)*360deg), var(--surface) 0)}
+.gauge::after{content:"";position:absolute;width:calc(var(--gsize) - 68px);height:calc(var(--gsize) - 68px);
+  border-radius:50%;background:var(--bg)}
+.gauge>.g-val{position:relative;z-index:1;font-size:104px;font-weight:800;line-height:1;
+  font-variant-numeric:tabular-nums}
+.gauge>.g-lab{position:relative;z-index:1;font-size:30px;color:var(--muted);margin-top:6px}
+
+/* Count / ratio as REPEATED UNITS — isotype/pictograph ("7 of 10 responded"). N `.u` glyphs; the real
+   k get `.on`. Put any icon (svg/.icon) inside; cols via --cols. Discrete integers only — faithful. */
+.isotype{display:grid;grid-template-columns:repeat(var(--cols,10),1fr);gap:18px;max-width:940px}
+.isotype .u{width:100%;aspect-ratio:1;color:var(--surface)}
+.isotype .u.on{color:var(--accent)}
+.isotype .u svg,.isotype .u i,.isotype .u .icon{width:100%;height:100%;display:block;color:inherit}
+
+/* Actual vs TARGET vs qualitative bands — a bullet chart ("did we hit the goal?"). A track holds 2–3
+   band shades (inline width%), one value bar, and a target tick. Widths are real fractions of the axis. */
+.bullet{position:relative;height:104px;border-radius:14px;overflow:hidden;background:var(--surface);
+  border:var(--hairline)}
+/* qualitative zones: nested, left-anchored, widest+lightest at the back → the narrowest .hi reads as the
+   "stretch/poor" band. fg-based mixes so the steps are visible on a dark OR light ground. */
+.bullet .band{position:absolute;top:0;bottom:0;left:0;background:color-mix(in srgb,var(--fg) 8%,transparent)}
+.bullet .band.mid{background:color-mix(in srgb,var(--fg) 15%,transparent)}
+.bullet .band.hi{background:color-mix(in srgb,var(--fg) 24%,transparent)}
+.bullet .val{position:absolute;top:34px;bottom:34px;left:0;background:var(--accent);border-radius:8px;
+  display:flex;align-items:center;justify-content:flex-end;padding-right:20px;color:var(--on-accent);
+  font-size:30px;font-weight:800;font-variant-numeric:tabular-nums}
+.bullet .tgt{position:absolute;top:12px;bottom:12px;width:6px;background:var(--fg);border-radius:3px}
+
+/* Comparison MARKS — check / cross / partial glyphs for a feature-comparison matrix built on `.rtable`
+   cells (rows = features, cols = options). Semantic-var colours; ≥40px so they survive encoding. */
+.mk{font-weight:800;font-size:44px;line-height:1;font-variant-numeric:tabular-nums}
+.mk.yes{color:var(--green)} .mk.no{color:var(--accent2)} .mk.mid{color:var(--muted)}
+
+/* Bridge — a WATERFALL: a start total becomes an end total through signed steps. Each `.wcol` is a
+   full-height column; the floating `.wbar` gets inline height + margin-top (its baseline offset). Sign
+   sets colour: .up (add), .down (subtract), .total (a running/final total). Connectors optional. */
+.waterfall{position:relative;height:540px;display:flex;align-items:stretch;justify-content:space-between;gap:22px}
+.waterfall .wcol{flex:1;position:relative;display:flex;flex-direction:column;justify-content:flex-start}
+.waterfall .wbar{border-radius:6px;background:var(--muted);min-height:6px}
+.waterfall .wbar.up{background:var(--green)} .waterfall .wbar.down{background:var(--accent2)}
+.waterfall .wbar.total{background:var(--accent)}
+.waterfall .wcap{position:absolute;bottom:-44px;left:0;right:0;text-align:center;font-size:26px;
+  color:var(--muted);font-family:var(--font-mono)}
+.waterfall .wval{text-align:center;font-size:30px;font-weight:700;margin-bottom:10px;
+  font-variant-numeric:tabular-nums}
+
+/* Set overlap — a VENN (2–3 circles): shared vs unique membership. Author each `.set` with inline
+   size/position/background (a semi-opaque accent); screen-blend so the intersection reads. It encodes
+   MEMBERSHIP, not area — never imply a precise proportion by circle size. */
+.venn{position:relative;height:560px}
+.venn .set{position:absolute;border-radius:50%;mix-blend-mode:screen;
+  border:2px solid color-mix(in srgb,var(--fg) 28%,transparent)}
+.venn .vlab{position:absolute;font-size:34px;font-weight:700;text-align:center;z-index:2}
+.venn .vlab .s{display:block;font-size:26px;color:var(--muted);font-weight:500}
+
+/* Nested scope — concentric RINGS (core → outward), e.g. TAM/SAM/SOM, scope layers. Author each `.ring`
+   largest→smallest with inline size; label sits at the ring's top. Containment, not sequence. */
+.rings{position:relative;display:grid;place-items:center;height:600px}
+.rings .ring{position:absolute;border-radius:50%;display:flex;justify-content:center;align-items:flex-start;
+  padding-top:16px;border:2px solid color-mix(in srgb,var(--fg) 20%,transparent);
+  background:color-mix(in srgb,var(--accent) 6%,transparent)}
+.rings .ring .rlab{font-size:30px;font-weight:700;color:var(--muted)}
+.rings .ring.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.rings .ring.on .rlab{color:var(--accent)}
+
+/* Ordered procedure WITH POSITION — a numbered STEPPER. `.step.done` = past, `.step.on` = you-are-here.
+   The rail joins the nodes; ordinality + current position are the point (distinct from a plain .flow). */
+.stepper{display:flex;align-items:flex-start;gap:0}
+.stepper .step{flex:1;text-align:center;position:relative;padding:0 14px}
+.stepper .step::before{content:"";position:absolute;top:34px;left:-50%;width:100%;height:6px;
+  background:var(--rule);opacity:.35;z-index:0}
+.stepper .step:first-child::before{display:none}
+.stepper .step .n{position:relative;z-index:1;width:72px;height:72px;border-radius:50%;margin:0 auto 20px;
+  display:grid;place-items:center;font-size:34px;font-weight:800;background:var(--surface);
+  border:2px solid var(--rule);color:var(--muted);font-variant-numeric:tabular-nums}
+.stepper .step.done .n{background:var(--rule);color:var(--on-accent);border-color:var(--rule)}
+.stepper .step.on .n{background:var(--accent);color:var(--on-accent);border-color:var(--accent);
+  box-shadow:0 0 0 10px color-mix(in srgb,var(--accent) 24%,transparent)}
+.stepper .step .st{font-size:38px;font-weight:700}
+.stepper .step.on .st{color:var(--accent)}
+.stepper .step .sd{font-size:27px;color:var(--muted);margin-top:6px}
+
+/* In-tile micro-trend — a SPARKLINE (goes inside a .tile/.scorecard beside the number). Inline SVG
+   polyline (≥3px, no axes) + optional end-dot. The number is the fact; the spark shows direction. */
+.spark{display:block;width:210px;height:58px}
+.spark polyline{fill:none;stroke:var(--accent);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.spark .end{fill:var(--accent)}
+.spark .base{stroke:var(--rule);stroke-width:2;stroke-dasharray:3 7}   /* optional target reference line */
+
+/* Frozen WIPE divider — before/after on ONE pixel-registered frame (denoised vs noisy scan, redesign vs
+   original). `.before` is clipped; drive the seam with inline `--w` (0..1) for a static split, or add
+   `.sweep` for a reveal that seek.js freezes at each ?p=. A seam rule + handle marks the divide. */
+.wipe{position:relative;overflow:hidden}
+.wipe .after,.wipe .before{position:absolute;inset:0}
+.wipe .after img,.wipe .before img{width:100%;height:100%;object-fit:cover;display:block}
+.wipe .before{clip-path:inset(0 calc((1 - var(--w,.5))*100%) 0 0)}
+.wipe.sweep .before{animation:wipe-sweep var(--dur) var(--ease-expo) forwards;animation-play-state:paused}
+@keyframes wipe-sweep{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.wipe .seam{position:absolute;top:0;bottom:0;left:calc(var(--w,.5)*100%);width:4px;background:var(--accent);
+  z-index:2;box-shadow:0 0 0 1px color-mix(in srgb,var(--bg) 60%,transparent)}
+.wipe .tag{position:absolute;top:22px;font-family:var(--font-mono);font-size:26px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--fg);background:color-mix(in srgb,var(--bg) 64%,transparent);
+  padding:8px 18px;border-radius:8px;z-index:2}
+.wipe .tag.l{left:22px} .wipe .tag.r{right:22px}
