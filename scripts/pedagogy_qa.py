@@ -11,11 +11,18 @@ Mirrors validate.py: a pure evaluate(data) core + a check(out_dir) IO wrapper + 
 summary and exits non-zero on any ERROR. NO-OPs cleanly when content_plan.json is absent (a simple
 deck may not persist one). Run at step 9 alongside validate.py / rhythm_qa.py.
 """
-import argparse, json, os, sys
+import argparse, json, os, re, sys
 
 
 def _norm(c):
-    return (c or "").strip().lower() if isinstance(c, str) else ""
+    # Normalize a concept name so 'the Fourier transform' == 'Fourier transform' and 'k-space' == 'k space'
+    # — an exact string match wrongly ERRORed "used before introduced" on these harmless variants.
+    if not isinstance(c, str):
+        return ""
+    s = c.strip().lower()
+    s = re.sub(r"^(the|a|an)\s+", "", s)     # drop a leading article
+    s = re.sub(r"[-\s]+", " ", s).strip()    # collapse hyphens/whitespace
+    return s
 
 
 def evaluate(data):

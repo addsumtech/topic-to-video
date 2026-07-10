@@ -258,3 +258,22 @@ def test_minimax_removes_stale_words_json(tmp_path, monkeypatch):
     monkeypatch.setattr(tts._common, "audio_duration", lambda p: 1.0)
     tts.synthesize(out)
     assert not os.path.exists(stale), "stale words.json should be removed for the minimax provider"
+
+
+def test_empty_narration_uses_silence_not_say(tmp_path, monkeypatch):
+    # a blank-narration beat (divider / pre-script ingest) must NOT crash and must NOT call say ' ' —
+    # it gets a real short silent clip and a floored duration so the slide holds on screen.
+    out = tmp_path / "proj"; os.makedirs(out, exist_ok=True)
+    data = sb.new_storyboard()
+    data["meta"]["voice"] = "say:Samantha"
+    data["slides"] = [sb.new_slide(1, "frames/01.png", "Hello there."),
+                      sb.new_slide(2, "frames/02.png", "")]   # slide 2 SILENT
+    sb.save(data, os.path.join(out, "storyboard.json"))
+    said, silenced = [], []
+    monkeypatch.setattr(tts, "_say", lambda text, dest, voice, rate=175: (said.append(text), open(dest, "wb").write(b"\x00")))
+    monkeypatch.setattr(tts, "_silence", lambda dest, seconds=1.2: (silenced.append(dest), open(dest, "wb").write(b"\x00")))
+    monkeypatch.setattr(tts._common, "audio_duration", lambda p: 1.2)
+    res = tts.synthesize(str(out))
+    assert len(silenced) == 1 and silenced[0].endswith("02.aiff")     # silent clip for the blank slide
+    assert " " not in said                                            # never synthesized a bare space
+    assert res["slides"][1]["duration"] >= 1.0                        # floored so it holds

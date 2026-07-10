@@ -22,10 +22,21 @@ def _say(text, out_path, voice, rate=175):
     # say writes AIFF directly; ffprobe reads its real duration later.
     _common.run(["say", "-v", voice, "-r", str(rate), "-o", out_path, text])
 
+
+def _silence(out_path, seconds=1.2):
+    """A REAL short silent clip for a deliberately-silent beat (a section divider, or tts run before the
+    script is written). Holds the slide on screen for `seconds` instead of `say ' '` (which yields a
+    header-only ~0s AIFF that crashes duration probing and flashes for one frame)."""
+    sr = 22050 if out_path.endswith(".aiff") else 24000
+    _common.run(["ffmpeg", "-y", "-f", "lavfi", "-i", f"anullsrc=r={sr}:cl=mono",
+                 "-t", f"{seconds:.2f}", out_path])
+
 def _openai(text, out_path, voice):
     # Optional upgrade. Lazy import so the skill never hard-depends on it.
     import requests
-    key = os.environ.get("OPENAI_API_KEY")
+    # accept the key from the env OR ~/.openai_key (parity with minimax) — the docs tell users to put it
+    # in the key file, so reading only the env silently fell back to `say` for a paying OpenAI user.
+    key = os.environ.get("OPENAI_API_KEY") or _read_key_file("~/.openai_key")
     if not key:
         raise RuntimeError("no OPENAI_API_KEY")
     r = requests.post(
@@ -304,10 +315,20 @@ def synthesize(out_dir, only=None):
     for s in data["slides"]:
         if only is not None and s["index"] != only:
             continue
-        text = (s.get("narration") or "").strip() or " "
+        text = (s.get("narration") or "").strip()
         ext = "aiff" if prov == "say" else "mp3"
         rel = os.path.join("audio", f"{s['index']:02d}.{ext}")
         dest = os.path.join(out_dir, rel)
+        if not text:
+            # a deliberately-silent beat (divider / pre-script ingest): a real short silent clip so the
+            # slide HOLDS, and NO tts call (say ' ' crashes duration probing) — degrade this ONE slide only.
+            _silence(dest)
+            wj = os.path.join(audio_dir, f"{s['index']:02d}.words.json")
+            if os.path.exists(wj):
+                os.remove(wj)
+            s["audio"] = rel
+            s["duration"] = round(max(1.0, _common.audio_duration(dest)), 3)
+            continue
         try:
             if prov == "openai":
                 _openai(text, dest, name)

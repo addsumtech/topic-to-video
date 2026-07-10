@@ -1,10 +1,16 @@
 """Turn any supported input into frames/*.png + a skeleton storyboard.json."""
-import argparse, os, glob, shutil, tempfile
+import argparse, os, glob, re, shutil, tempfile
 import fitz  # PyMuPDF
 import _common
 import storyboard as sb
 
 IMAGE_EXTS = (".png", ".jpg", ".jpeg")
+
+
+def _natkey(f):
+    """Natural sort key so Slide1, Slide2, …, Slide10 order numerically (a plain lexical sort puts
+    '10' before '2', silently mis-ordering a PowerPoint/Keynote 'Save as Pictures' export)."""
+    return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", os.path.basename(f))]
 
 def _render_pdf(pdf_path, frames_dir, dpi=150):
     doc = fitz.open(pdf_path)
@@ -42,8 +48,8 @@ def ingest(input_path, out_dir, dpi=150):
     notes = None
 
     if os.path.isdir(input_path):
-        imgs = sorted(f for f in glob.glob(os.path.join(input_path, "*"))
-                      if f.lower().endswith(IMAGE_EXTS))
+        imgs = sorted((f for f in glob.glob(os.path.join(input_path, "*"))
+                       if f.lower().endswith(IMAGE_EXTS)), key=_natkey)
         frame_paths = []
         for i, src in enumerate(imgs, 1):
             dst = os.path.join(frames_dir, f"{i:02d}.png")

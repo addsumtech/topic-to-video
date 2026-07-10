@@ -39,7 +39,10 @@ def evaluate(data):
     ot = data.get("the_one_thing")
     if isinstance(ot, list):
         errors.append("`the_one_thing` is a list — it must be a SINGLE sentence the viewer leaves with")
-    elif isinstance(ot, str) and ot.strip() and len(re.findall(r"[.!?。！？]", ot.strip())) > 1:
+    elif isinstance(ot, str) and ot.strip() and \
+            len(re.findall(r"(?<!\d)[.!?](?!\d)|[。！？]", ot.strip())) > 1:
+        # count SENTENCE terminators, not the '.' inside a decimal/version ("3.5x", "v1.2") — those wrongly
+        # tripped a blocking ERROR on a legitimate one-sentence takeaway that contains a number.
         errors.append("`the_one_thing` has >1 sentence — collapse it to ONE takeaway")
 
     sh = data.get("source_health")

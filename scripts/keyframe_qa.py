@@ -146,7 +146,12 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
             if chrome:
                 try:
                     info = _dom_probe(chrome)   # page is still at p=1 (last shot) — measure it
-                    if info.get("textlen", 0) < 2:
+                    # BLANK only when there is genuinely nothing rendered — not merely little text. A single-
+                    # glyph hero ('7', a lone '%', one CJK char) or an icon-only diagram has a real content
+                    # bbox; a full-bleed visual sets bleed. Flag only empty text AND no visible content box.
+                    _has_box = (info.get("cright", 0) > info.get("cleft", 1e9)
+                                and info.get("cbot", -1e9) > info.get("ctop", 1e9))
+                    if info.get("textlen", 0) < 1 and not _has_box and not info.get("bleed"):
                         issues.append("BLANK at p=1 (reveal never fired / broken page)")
                     if info.get("worst", 0) > OVERFLOW_TOL:
                         issues.append(f"content overflows the safe canvas by {info['worst']}px — "

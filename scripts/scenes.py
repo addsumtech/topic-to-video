@@ -405,6 +405,22 @@ def render_timeline(props, meta, W, H, frames, workdir, index):
     return _save_frames(draw, frames, workdir, index)
 
 
+def _fmt_num(v, unit=""):
+    """Human number for on-frame labels — NEVER scientific notation (a hero counter of 1,234,567 must
+    not render as '1.23457e+06'). Thousands get comma groups; small floats stay compact (3.5, 0.94)."""
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return f"{v}{unit}"
+    if abs(v) >= 1000:
+        s = f"{v:,.0f}"
+    elif v == int(v):
+        s = f"{int(v)}"
+    else:
+        s = f"{v:g}"
+    return f"{s}{unit}"
+
+
 def render_chart(props, meta, W, H, frames, workdir, index):
     kind = props.get("kind", "bars")
     data = props.get("data", [])
@@ -476,7 +492,7 @@ def render_chart(props, meta, W, H, frames, workdir, index):
             # No overshoot/bounce (would misrepresent a plain number). Non-climax = unchanged.
             cp = min(1.0, p_raw / 0.68) if climax else p_raw
             cval = _chart_values(values, cp)[0]
-            ax.text(0.5, 0.5, f"{cval:g}{unit}", ha="center", va="center",
+            ax.text(0.5, 0.5, _fmt_num(cval, unit), ha="center", va="center",
                     color=c_fg, fontsize=72, fontfamily=famly, transform=ax.transAxes)
         elif kind == "line":
             k = max(1, int(len(values) * (i / max(1, n - 1)))) if n > 1 else len(values)
@@ -493,9 +509,9 @@ def render_chart(props, meta, W, H, frames, workdir, index):
                 col = accent if on else c_muted
                 ax.plot([0, 1], [a, bb], color=col, linewidth=4 if on else 2.5,
                         marker="o", markersize=8, solid_capstyle="round")
-                ax.text(-0.03, a, f"{d.get('label','')}  {a:g}{unit}", ha="right", va="center",
+                ax.text(-0.03, a, f"{d.get('label','')}  {_fmt_num(a, unit)}", ha="right", va="center",
                         color=c_fg, fontsize=13, fontfamily=famly)
-                ax.text(1.03, bb, f"{b:g}{unit}", ha="left", va="center", color=col, fontsize=13, fontfamily=famly)
+                ax.text(1.03, bb, _fmt_num(b, unit), ha="left", va="center", color=col, fontsize=13, fontfamily=famly)
             ax.set_xlim(-0.5, 1.5); ax.set_ylim(0, y_max)
             ax.set_xticks([0, 1])
             ax.set_xticklabels([props.get("left", "before"), props.get("right", "after")], fontfamily=famly)
@@ -553,7 +569,7 @@ def render_chart(props, meta, W, H, frames, workdir, index):
             la = max(0.0, min(1.0, (p_raw - 0.8) / 0.2))
             if la > 0:
                 for j, v in enumerate(values):
-                    ax.text(j, min(cur[j], y_max * 0.98) + y_max * 0.02, f"{v:g}{unit}",
+                    ax.text(j, min(cur[j], y_max * 0.98) + y_max * 0.02, _fmt_num(v, unit),
                             ha="center", va="bottom", color=c_fg, alpha=la,
                             fontsize=14, fontfamily=famly)
         if props.get("y_label"):
@@ -674,8 +690,10 @@ def render_html(props, meta, W, H, frames, workdir, index):
         src = os.path.abspath(src)
     words_path = os.path.join(meta["_out"], "audio", f"{index:02d}.words.json")
     # collect cued points: (cue-index, anchor) where anchor = data-cue="..." (required on cued points)
-    pts = re.findall(r'data-cue-index="(\d+)"[^>]*?data-cue="([^"]*)"', html)
-    pts += [(i, a) for (a, i) in re.findall(r'data-cue="([^"]*)"[^>]*?data-cue-index="(\d+)"', html)]
+    # quote-agnostic: single-quoted attrs (data-cue-index='0') must sync too, else the whole page
+    # silently falls back to the blind paced stagger (reveals unhooked from the voice).
+    pts = re.findall(r'''data-cue-index=["'](\d+)["'][^>]*?data-cue=["']([^"']*)["']''', html)
+    pts += [(i, a) for (a, i) in re.findall(r'''data-cue=["']([^"']*)["'][^>]*?data-cue-index=["'](\d+)["']''', html)]
     cue_param = None        # comma list for seek.js, indexed by data-cue-index (sparse-safe)
     cue_times = []          # the resolved reveal moments (for the capture bursts)
     cue_err = None

@@ -54,3 +54,13 @@ def test_build_without_following_why_warns():
 def test_check_noops_without_file(tmp_path):
     r = pq.check(str(tmp_path))
     assert r["ok"] and r.get("skipped")
+
+
+def test_article_and_hyphen_variants_not_false_flagged():
+    # 'the Fourier transform' introduces == 'Fourier transform' builds_on; 'k-space' == 'k space'
+    r = pq.evaluate(_plan([
+        {"index": 1, "stage": "ground", "introduces": "the Fourier transform", "builds_on": []},
+        {"index": 2, "stage": "ground", "introduces": "k-space", "builds_on": []},
+        {"index": 3, "stage": "build", "introduces": "reconstruction", "builds_on": ["Fourier transform", "k space"]},
+    ]))
+    assert r["ok"] and not r["errors"]

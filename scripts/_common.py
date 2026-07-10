@@ -58,7 +58,22 @@ def find_chrome(meta=None):
     return None
 
 def audio_duration(path):
-    """Seconds, via ffprobe. Source of truth for slide timing."""
+    """Seconds, via ffprobe. Source of truth for slide timing. NEVER raises — a header-only clip (e.g.
+    macOS `say ' '`, which writes an AIFF with no format.duration) falls back to the audio-stream probe,
+    then 0.0 — so one odd/empty clip can't abort the whole tts step with a KeyError."""
     out = run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
                "-of", "json", path])
-    return float(json.loads(out)["format"]["duration"])
+    try:
+        d = (json.loads(out).get("format") or {}).get("duration")
+        if d is not None:
+            return float(d)
+    except Exception:
+        pass
+    try:
+        out2 = run(["ffprobe", "-v", "error", "-select_streams", "a:0",
+                    "-show_entries", "stream=duration", "-of", "json", path])
+        streams = json.loads(out2).get("streams") or [{}]
+        d2 = streams[0].get("duration")
+        return float(d2) if d2 is not None else 0.0
+    except Exception:
+        return 0.0

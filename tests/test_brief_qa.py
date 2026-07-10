@@ -62,3 +62,9 @@ def test_check_required_over_60s(tmp_path):
 def test_check_noops_when_short(tmp_path):
     r = bq.check(str(tmp_path), target_seconds=40)
     assert r["ok"] and r.get("skipped")
+
+
+def test_the_one_thing_with_decimal_not_flagged():
+    # a one-sentence takeaway containing a number ("3.5x", "v1.2") must NOT be read as multiple sentences
+    assert bq.evaluate(_brief(the_one_thing="Model X cuts inference cost by 3.5x versus the baseline."))["ok"]
+    assert bq.evaluate(_brief(the_one_thing="Upgrade to v1.2 to halve the error rate."))["ok"]

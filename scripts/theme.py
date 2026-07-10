@@ -87,6 +87,22 @@ def derive_theme(out_dir, mode=None, accent=None, accent2=None, bg=None):
             if abs(la - la0) > 0.15:                 # cap — preserve the hue's character over full AA
                 break
             acc = tuple(c * 255 for c in colorsys.hls_to_rgb(ha, la, sa))
+        # UNCAPPED fallback: a light pastel can still be < 3:1 after the cap. Push toward the pole (shedding
+        # a little saturation) until it clears 3:1 — a readable deep hue beats an unreadable 240px hero number.
+        while _contrast(acc, bgc) < 3.0 and 0.0 < la < 1.0:
+            la = max(0.0, la - 0.02) if m == "light" else min(1.0, la + 0.02)
+            sa *= 0.97
+            acc = tuple(c * 255 for c in colorsys.hls_to_rgb(ha, la, sa))
+    # accent2 (the kicker on nearly every page, the .rule/.arrow, the focal timeline label) must ALSO clear
+    # 3:1 — it was NEVER contrast-checked, so a low-contrast sampled accent2 rendered near-invisible chrome.
+    # Same policy as accent: only nudge a SAMPLED accent2 (an explicit accent2= override is left as given).
+    if not accent2:
+        h2, l2_0, s2 = colorsys.rgb_to_hls(*[c / 255 for c in acc2]); l2 = l2_0
+        while _contrast(acc2, bgc) < 3.0 and 0.0 < l2 < 1.0:
+            l2 = max(0.0, l2 - 0.02) if m == "light" else min(1.0, l2 + 0.02)
+            if abs(l2 - l2_0) > 0.18:                 # past a soft cap, shed saturation to reach 3:1
+                s2 *= 0.97
+            acc2 = tuple(c * 255 for c in colorsys.hls_to_rgb(h2, l2, s2))
     # text ON the accent fill: whichever of near-black / white has the higher TRUE contrast (the old
     # _lum<0.5 crossover mis-picked mid-tones — e.g. gave white on a teal accent at 2.06:1 vs black 4.37:1).
     on_accent = (17, 17, 17) if _contrast((17, 17, 17), acc) >= _contrast((255, 255, 255), acc) else (255, 255, 255)

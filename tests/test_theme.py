@@ -83,3 +83,14 @@ def test_override_accent_never_nudged(tmp_path):
     _frame(str(tmp_path / "frames" / "01.png"), (250, 220, 60))          # frames present…
     t = theme.derive_theme(str(tmp_path), accent="#ffdd00")              # …but accent is an explicit override
     assert t["accent"].lower() == "#ffdd00"                              # left exactly as given (faithful)
+
+
+def test_accent_and_accent2_clear_3to1_on_pastel(tmp_path):
+    # a pale/pastel deck must not yield a low-contrast accent (240px hero) or accent2 (kicker/.rule)
+    _frame(str(tmp_path / "frames" / "01.png"), (238, 224, 236))
+    _frame(str(tmp_path / "frames" / "02.png"), (240, 232, 220))
+    for mode in ("light", "dark"):
+        t = theme.derive_theme(str(tmp_path), mode=mode)
+        bg = theme._hex2rgb(t["bg"])
+        assert theme._contrast(theme._hex2rgb(t["accent"]), bg) >= 3.0 - 0.05, (mode, "accent")
+        assert theme._contrast(theme._hex2rgb(t["accent2"]), bg) >= 3.0 - 0.05, (mode, "accent2")

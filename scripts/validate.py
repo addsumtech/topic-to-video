@@ -159,8 +159,10 @@ def _local_path_from_url(url):
     or None if it's a remote/data URI (which an html scene must not use). Strips the
     `?p=...&cues=...` query seek params and percent-decodes the path."""
     from urllib.parse import unquote, urlparse
-    if url.startswith(("http://", "https://", "data:", "//")):
-        return False                                   # remote — not allowed
+    if url.startswith(("http://", "https://", "//")):
+        return False                                   # NETWORK asset — not allowed (non-deterministic)
+    if url.startswith("data:"):
+        return None                                    # inline data: URI — offline + deterministic, allowed
     u = url.split("?", 1)[0]
     if u.startswith("file://"):
         return unquote(urlparse(u).path)

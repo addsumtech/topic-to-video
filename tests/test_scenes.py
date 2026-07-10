@@ -924,3 +924,10 @@ def test_dedup_cue_pts_one_anchor_per_index():
 
 def test_dedup_cue_pts_skips_empty_anchor():
     assert scenes._dedup_cue_pts([("0", ""), ("0", "real"), ("1", "x")]) == [(0, "real"), (1, "x")]
+
+
+def test_fmt_num_no_scientific_notation():
+    assert scenes._fmt_num(1234567) == "1,234,567"
+    assert scenes._fmt_num(1000000, " users") == "1,000,000 users"
+    assert scenes._fmt_num(3.5) == "3.5"
+    assert scenes._fmt_num(42) == "42"

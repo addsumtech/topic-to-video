@@ -21,3 +21,10 @@ def test_ingest_pptx_pulls_notes(tmp_path, fixtures_dir):
     data = ingest.ingest(os.path.join(fixtures_dir, "deck.pptx"), str(out))
     assert len(data["slides"]) == 2
     assert "scanner" in data["slides"][0]["notes"].lower()
+
+
+def test_natural_sort_orders_slide10_after_slide2():
+    import ingest
+    files = ["/x/Slide1.png", "/x/Slide10.png", "/x/Slide2.png", "/x/Slide11.png", "/x/Slide3.png"]
+    names = [f.split("/")[-1] for f in sorted(files, key=ingest._natkey)]
+    assert names == ["Slide1.png", "Slide2.png", "Slide3.png", "Slide10.png", "Slide11.png"]
