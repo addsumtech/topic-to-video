@@ -91,8 +91,9 @@ TTS if the user gives an API key.
   video-native complement to the layout-diversity gate. Reads `storyboard.json` (real `duration`s after
   tts, else estimates from narration) and flags flat pacing — durations too uniform (monotone), a climax
   not at ~70–85% (or none on a >75s video), a non-sparse closer, a static image held too long, and no
-  attention reset for >~35s. Advisory (warnings) except two hard defects (a static frame held past ~16s,
-  no climax on a long video) → non-zero exit. Run after tts, before the full render.
+  attention reset for >~35s. Advisory (warnings) except ONE hard defect — a MEASURED static frame held
+  past ~16s → non-zero exit; a missing climax is only a WARNING (an estimate never gates a render). Run
+  after tts, before the full render.
 - `scripts/brief_qa.py <out_dir> [--json]` — deterministic PRE-plan gate on the **comprehension brief**:
   reads `<out_dir>/brief.json` and ERRORs on a missing/empty required key (`thesis`/`mechanism`/`evidence`/
   `why_it_matters`/`the_one_thing`/`source_health`), a non-singular `the_one_thing`, or a

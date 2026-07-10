@@ -199,7 +199,8 @@ Note: R5/R6 apply to `slide` scenes only — skip for animated scenes (`type` �
   across cuts is what separates a coherent explainer from a deck read aloud.
 - **Prerequisite gate (REVISE) — define before use.** Walk the beats accumulating each beat's
   `introduces`. **REVISE** any beat whose `builds_on` — or whose narration uses a concept/term — is not
-  yet introduced and not in `meta.assumed_known` (**concept-used-before-introduced**). EDIT: introduce it
+  yet introduced and not in the plan's top-level `assumed_known` (`meta.assumed_known` also accepted)
+  (**concept-used-before-introduced**). EDIT: introduce it
   in an earlier `ground`/`build` beat, or resequence. (`pedagogy_qa.py` backstops this deterministically.)
 - **Load cap (REVISE) — one new idea per beat.** **REVISE** a beat that introduces >1 previously-unseen
   concept — split into a `build` beat + a `why` beat so the viewer absorbs one idea at a time.

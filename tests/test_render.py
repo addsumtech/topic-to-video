@@ -391,3 +391,20 @@ def test_caption_not_split_at_abbreviations():
     # decimals / multipliers stay intact too
     segs2 = render._segment("It grew 3.2x, e.g. a lot. Then more.", render._CJK_ENDERS, render._LATIN_ENDERS)
     assert segs2 == ["It grew 3.2x, e.g. a lot.", "Then more."]
+
+
+def test_legacy_object_transition_honored():
+    # a design-plan {in,out,seconds} object must produce the SAME fade as the flat form, not silently
+    # degrade to the meta default (which nullified the whole per-scene rhythm subsystem)
+    meta = {"transition": "dip", "transition_seconds": 0.2, "_out": "."}
+    obj = render._fade_filter(meta, 6.0, {"transition": {"in": "in", "out": "none"}, "transition_seconds": 0.4})
+    flat = render._fade_filter(meta, 6.0, {"transition": "in", "transition_seconds": 0.4})
+    assert obj == flat and "fade=t=in" in obj and "fade=t=out" not in obj
+
+
+def test_long_clause_hard_wraps_no_wall_of_text():
+    # a long sentence with NO comma/clause mark must break into <=limit chunks, not one 4-line wall
+    long1 = ("The reconstruction pipeline transforms undersampled k-space measurements into a fully "
+             "sampled clinically usable diagnostic magnetic resonance image without any artifacts")
+    chunks = render._split_caption_chunks(long1)
+    assert len(chunks) >= 2 and all(len(c) <= 84 for c in chunks)

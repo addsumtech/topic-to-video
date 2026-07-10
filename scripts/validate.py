@@ -305,7 +305,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         if meta.get("captions", True):
             caps = s.get("captions") or []
             texts = ([c.get("text", "") for c in caps] if len(caps) >= 2
-                     else rd._split_caption_chunks(s.get("narration") or ""))
+                     else rd._split_caption_chunks(s.get("narration") or "", hard_wrap=False))
             for txt in texts:
                 ct = (txt or "").strip()                  # NOT `t` — that is the scene type above
                 lines = _caption_lines(ct, meta, W, H)
@@ -374,10 +374,11 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
             pass
 
         # --- transition sanity (per-scene overrides; see motion-grammar "Transition rhythm") ----
-        tr = s.get("transition")
-        if tr not in (None, "dip", "in", "out", "none"):
-            warnings.append(f"{tag}: unknown transition '{tr}' — use 'dip'/'in'/'out'/'none' (falls back to the meta default)")
-        ts = s.get("transition_seconds")
+        _raw_tr = s.get("transition")
+        _flat_tr, _tr_sec = sb.normalize_transition(s)   # tolerate a legacy {in,out,seconds} object
+        if _raw_tr is not None and _flat_tr is None:
+            warnings.append(f"{tag}: unknown transition '{_raw_tr}' — use 'dip'/'in'/'out'/'none' (falls back to the meta default)")
+        ts = _tr_sec
         if ts is not None:
             try:
                 if float(ts) > 0.5:
@@ -446,7 +447,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # entrance; an out-edge into a hard-opening scene is a fade-down-then-pop. Both read as glitches.
     meta_t = (data.get("meta") or {}).get("transition", "dip")
     def _eff(s):
-        t = s.get("transition")
+        t, _ = sb.normalize_transition(s)
         return t if t in ("dip", "in", "out", "none") else meta_t
     effs = [_eff(s) for s in slides]
     for k in range(1, len(effs)):

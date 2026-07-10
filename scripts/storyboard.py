@@ -164,3 +164,18 @@ def validate(data):
             if co.get("style") not in VALID_STYLES:
                 raise StoryboardError(f"bad callout style: {co.get('style')}")
     return True
+
+
+def normalize_transition(slide):
+    """Return (flat_transition, seconds_or_None) for a slide, accepting BOTH the flat contract
+    (slide['transition'] in {dip,in,out,none} + slide['transition_seconds']) AND a legacy OBJECT
+    {'in','out','seconds'} the design plan sometimes emits — so a stray object can't silently degrade
+    the authored per-scene rhythm to the uniform meta default. `flat` is None when unknown/absent."""
+    t = (slide or {}).get("transition")
+    sec = (slide or {}).get("transition_seconds")
+    if isinstance(t, dict):
+        in_on = (t.get("in") or "none") not in ("none", "", None)
+        out_on = (t.get("out") or "none") not in ("none", "", None)
+        flat = "dip" if (in_on and out_on) else "in" if in_on else "out" if out_on else "none"
+        return flat, (sec if sec is not None else t.get("seconds"))
+    return (t if t in ("dip", "in", "out", "none") else None), sec

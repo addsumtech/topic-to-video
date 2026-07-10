@@ -30,8 +30,24 @@ def _norm(s):
 _STOP = {"a","an","the","and","or","of","to","in","on","for","with","your","you","this","that","from","is","are","it","its"}
 
 def _find(words, phrase, start):
-    """First index >= start whose (normalized) word/cue text contains the anchor's first SIGNIFICANT token; -1 none."""
-    toks = _norm(phrase).split()
+    """First index >= start whose word/cue text matches the anchor; -1 if none. LATIN: whole-token match
+    on the first SIGNIFICANT token. CJK: substring-match the anchor against the JOINED word stream — CJK
+    text has no word gaps, so a multi-char anchor (扩散模型 = edge words 扩散+模型) never equals a single
+    word; `_norm` would strip every CJK char to '' and match nothing (reveals silently fell back to an
+    even spread). This mirrors `_anchor_pos` so the edge word-resolver agrees with the text estimator."""
+    a = (phrase or "").strip()
+    if not a:
+        return -1
+    if _CJK.search(a):
+        owner, chars = [], []
+        for i in range(start, len(words)):
+            for ch in str(words[i].get("w", "")):
+                chars.append(ch); owner.append(i)
+        s = "".join(chars).casefold()
+        key = re.sub(r"\s+", "", a).casefold()          # CJK anchors carry no spaces
+        pos = s.find(key)
+        return owner[pos] if 0 <= pos < len(owner) else -1
+    toks = _norm(a).split()
     if not toks:
         return -1
     key = next((t for t in toks if t not in _STOP), toks[0])

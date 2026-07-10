@@ -49,7 +49,7 @@ A SEPARATE artifact from the content plan (the assistant merges the two into the
       "wow": { "why_memorable": "bold number|iconic diagram|dramatic sentence|extreme contrast|on-topic metaphor",
                "surrounding_contrast": "differs from the beats before+after by layout + density + background" },
       "motion_intent": "one VERB from references/motion-grammar.md (COUNTS UP, SLIDES, BREATHES, DRAWS…)",
-      "transition": { "in": "none|in|dip", "out": "none|out|dip", "seconds": 0.2 },
+      "transition": "none|in|out|dip", "transition_seconds": 0.2,   // FLAT string (dip = both edges, in/out = one edge) — NOT an object
       "icons": ["optional — one Lucide glyph per point, category/feature rows only"],
       "media": { "image_prompt": "broll motif from THIS beat's point + the topic (topical AND on-beat, generic specifics)", "motion": "kenburns|bg-live|bg-drift|none" },
       "cue": ["optional — per-point anchor phrases (one per point, in SPOKEN order) for an html multi-point beat"]

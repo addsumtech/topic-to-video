@@ -74,3 +74,11 @@ def test_missing_brief_fails_when_over_60s():
     # the >60s gate must fire when the target is known (CLI now reads it from the storyboard meta)
     assert bq.check("/no/such/dir", target_seconds=120)["ok"] is False
     assert bq.check("/no/such/dir", target_seconds=40)["ok"] is True   # short video may skip
+
+
+def test_non_english_thesis_no_verb_warning():
+    # the English verb heuristic must NOT fire on a Chinese thesis (every zh brief warned before)
+    b = _brief(thesis="缓存把p99延迟降低了30%")
+    assert not any("no recognizable verb" in w for w in bq.evaluate(b)["warnings"])
+    # an English topic-label still warns
+    assert any("no recognizable verb" in w for w in bq.evaluate(_brief(thesis="about caching and latency"))["warnings"])

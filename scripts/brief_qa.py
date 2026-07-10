@@ -66,8 +66,13 @@ def evaluate(data):
 
     th = data.get("thesis")
     if isinstance(th, str) and th.strip():
+        # the verb set is ENGLISH — only apply the heuristic to a confidently-English thesis, else every
+        # Chinese/Japanese/other-language brief gets a spurious "no verb" warning.
+        _letters = [c for c in th if c.isalpha()]
+        _ascii_ratio = (sum(1 for c in _letters if c.isascii()) / len(_letters)) if _letters else 1.0
+        _englishish = _ascii_ratio > 0.6 and not re.search(r"[　-ヿ㐀-鿿가-힣]", th)
         toks = {t.lower().strip(".,;:!?()\"'") for t in th.split()}
-        if not (toks & _VERBS):
+        if _englishish and not (toks & _VERBS):
             warnings.append("thesis has no recognizable verb — it reads as a topic label, not a claim "
                             "('X cuts Y by Z via M', not 'about X')")
     return {"ok": not errors, "errors": errors, "warnings": warnings}

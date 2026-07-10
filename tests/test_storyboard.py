@@ -166,3 +166,12 @@ def test_validate_image_provider_enum():
     sb.validate({"meta": {"image_source": "openai", "image_provider": "codex"}, "slides": [sb.new_slide(1, "f.png")]})
     with pytest.raises(sb.StoryboardError):
         sb.validate({"meta": {"image_source": "openai", "image_provider": "banana"}, "slides": [sb.new_slide(1, "f.png")]})
+
+
+def test_normalize_transition_flat_and_object():
+    assert sb.normalize_transition({"transition": "dip", "transition_seconds": 0.2}) == ("dip", 0.2)
+    assert sb.normalize_transition({"transition": {"in": "dip", "out": "dip", "seconds": 0.3}}) == ("dip", 0.3)
+    assert sb.normalize_transition({"transition": {"in": "in", "out": "none"}}) == ("in", None)
+    assert sb.normalize_transition({"transition": {"out": "out", "seconds": 0.25}}) == ("out", 0.25)
+    assert sb.normalize_transition({"transition": "bogus"}) == (None, None)
+    assert sb.normalize_transition({}) == (None, None)

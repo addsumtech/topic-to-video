@@ -75,3 +75,15 @@ def test_estimate_latin_ignores_midword_and_case():
     # 'AI' is spoken late; must NOT resolve to the 'ai' inside 'brain' near the start
     t = cues.estimate_cues_from_text(["AI"], "the brain is not it, the real ai here is AI.", 10.0)
     assert t[0] > 5.0, t
+
+
+def test_resolve_cues_cjk_lands_on_word_starts():
+    # CJK anchors must resolve to real edge word-start times, not a blind even spread
+    words = [{"w": "扩散", "t": 0.975}, {"w": "模型", "t": 1.42}, {"w": "的", "t": 1.7},
+             {"w": "原理", "t": 1.85}, {"w": "和", "t": 2.2}, {"w": "应用", "t": 2.362}]
+    res = cues.resolve_cues(words, ["扩散模型", "原理", "应用"])
+    assert abs(res[0] - 0.975) < 0.01 and abs(res[1] - 1.85) < 0.01 and abs(res[2] - 2.362) < 0.01
+
+def test_resolve_cues_mixed_latin_unchanged():
+    words = [{"w": "the", "t": 0.1}, {"w": "revenue", "t": 0.5}, {"w": "climbs", "t": 0.9}]
+    assert cues.resolve_cues(words, ["revenue", "climbs"]) == [0.5, 0.9]

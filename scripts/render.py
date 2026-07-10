@@ -286,7 +286,26 @@ def _segment(text, cjk_marks, latin_marks):
 # trailing clause punctuation looks cut-off at a caption line break — strip it from each chunk
 _TRAIL_CLAUSE = "，、：；,;:　 "
 
-def _split_caption_chunks(text, max_len=84):
+def _hardwrap(s, limit):
+    """Break an over-limit clause that has NO comma/clause mark to split on into <=limit pieces — at word
+    boundaries (Latin) or char boundaries (CJK) — so a long no-punctuation sentence doesn't render as a
+    4+-line wall of text over the lower third."""
+    s = s.strip()
+    if len(s) <= limit:
+        return [s] if s else []
+    if _CJK_RE.search(s):                         # CJK has no spaces — break on chars
+        return [s[i:i + limit] for i in range(0, len(s), limit)]
+    out, cur = [], ""
+    for w in s.split():
+        if cur and len(cur) + 1 + len(w) > limit:
+            out.append(cur); cur = w
+        else:
+            cur = w if not cur else cur + " " + w
+    if cur:
+        out.append(cur)
+    return out
+
+def _split_caption_chunks(text, max_len=84, hard_wrap=True):
     """Split narration into readable, subtitle-sized chunks: first on sentence enders,
     then break any over-long sentence on commas/colons so a chunk fits 1-2 lines.
     CJK uses a tighter char limit because each glyph is full-width — the Latin limit would
@@ -312,8 +331,16 @@ def _split_caption_chunks(text, max_len=84):
                 cur = piece
         if cur:
             chunks.append(cur)
-    # a chunk ending on a clause mark (","/"、"/":") reads as cut-off at the line break — trim it
-    return [c.rstrip(_TRAIL_CLAUSE) for c in chunks if c.rstrip(_TRAIL_CLAUSE)]
+    # a chunk ending on a clause mark reads as cut-off at the line break — trim it.
+    trimmed = [c.rstrip(_TRAIL_CLAUSE) for c in chunks if c.rstrip(_TRAIL_CLAUSE)]
+    if not hard_wrap:                             # validate wants the PRE-wrap chunks so it can still
+        return trimmed                            # warn "wall of text — split the beat" (author guidance)
+    # HARD-WRAP any clause still over the limit (a long sentence with no comma to break on) so the render
+    # doesn't put a 4+-line wall on screen even if the author ignores validate's warning.
+    out = []
+    for c in trimmed:
+        out.extend(_hardwrap(c, limit))
+    return out
 
 def _captions_for(slide):
     """Timed caption segments that TRACK THE NARRATION as it's spoken. If the slide
@@ -422,12 +449,11 @@ def _fade_filter(meta, dur, slide=None):
     dip at a seam, a longer dip into the climax/closer; see motion-grammar.md "Transition rhythm").
     Values: 'dip' (both edges) | 'in' | 'out' (one edge) | 'none'; seconds default 0.2."""
     s = slide or {}
-    t = s.get("transition")
+    t, d = sb.normalize_transition(s)            # accepts the flat form AND a legacy {in,out,seconds} object
     if t not in ("dip", "in", "out", "none"):    # unknown/absent -> the meta default (validate warns)
         t = (meta or {}).get("transition", "dip")
     if t == "none":
         return ""
-    d = s.get("transition_seconds")
     d = float(d if d is not None else (meta or {}).get("transition_seconds", 0.2))
     if d <= 0 or dur <= 2.2 * d:
         return ""
