@@ -265,14 +265,22 @@ _CJK_ENDERS = "。！？…"
 _LATIN_ENDERS = ".!?"
 _CJK_CLAUSES = "，、：；"
 _LATIN_CLAUSES = ",:;"
+# abbreviations whose trailing '.' must NOT end a caption ("Dr. Smith" is one phrase, not two captions).
+_ABBR = (r"Dr|Mr|Mrs|Ms|Prof|Sr|Jr|St|Mt|vs|etc|al|Inc|Ltd|Co|Corp|Dept|No|Fig|Eq|Ref|Vol|Ch|approx|"
+         r"Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|e\.g|i\.e|a\.m|p\.m|U\.S|U\.K|Ph\.D")
 
 def _segment(text, cjk_marks, latin_marks):
     """Split into pieces ending at a boundary mark (kept attached). CJK marks break
     unconditionally; Latin marks break before whitespace/EOL OR a following CJK glyph — so a
     comma/colon authored in ASCII *inside* Chinese text ("提取,公式") still splits, while a
-    decimal like "1.77" or "1,000" (mark between digits) stays intact."""
+    decimal like "1.77" or "1,000" (mark between digits) stays intact. Abbreviation/initial periods
+    ("Dr.", "e.g.", "U.S.", "J. Smith") are protected so they don't fragment into tiny captions."""
     t = re.sub(rf"([{cjk_marks}])", "\\1\x00", text)
+    if "." in latin_marks:                       # protect abbrev/initial periods (\x02), restore after
+        t = re.sub(rf"\b(?:{_ABBR})\.", lambda m: m.group(0)[:-1] + "\x02", t)
+        t = re.sub(r"\b([A-Z])\.(?=\s*[A-Z])", lambda m: m.group(1) + "\x02", t)   # initials: J. Smith / U.S.A.
     t = re.sub(rf"([{latin_marks}])(?=\s|$|[{_CJK}])", "\\1\x00", t)
+    t = t.replace("\x02", ".")
     return [p.strip() for p in t.split("\x00") if p.strip()]
 
 # trailing clause punctuation looks cut-off at a caption line break — strip it from each chunk

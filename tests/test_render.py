@@ -381,3 +381,13 @@ def test_caption_font_scales_with_narrow_dimension():
     # same visual weight in both aspects: 48px on 1920x1080 AND on 1080x1920
     assert render._caption_font_px(1920, 1080) == 48
     assert render._caption_font_px(1080, 1920) == 48          # was 86 when H-relative (band ate the layout)
+
+
+def test_caption_not_split_at_abbreviations():
+    # "Dr."/"Mr."/"e.g."/"U.S." must not fragment into tiny captions; real sentence ends still split
+    segs = render._segment("Dr. Smith and Mr. Jones ran the trial. It worked.",
+                           render._CJK_ENDERS, render._LATIN_ENDERS)
+    assert segs == ["Dr. Smith and Mr. Jones ran the trial.", "It worked."]
+    # decimals / multipliers stay intact too
+    segs2 = render._segment("It grew 3.2x, e.g. a lot. Then more.", render._CJK_ENDERS, render._LATIN_ENDERS)
+    assert segs2 == ["It grew 3.2x, e.g. a lot.", "Then more."]

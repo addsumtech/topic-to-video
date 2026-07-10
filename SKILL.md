@@ -10,8 +10,8 @@ description: >-
   pptx", "make an explainer video from this deck", "add a voiceover to my slides",
   "video walkthrough of this presentation", "把幻灯片做成视频", "make a Chinese
   voice-over from my English slides", "把英文幻灯片配成中文解说视频".
-  Accepts .pptx, .pdf, an image folder, or a hand-off from slide-maker. Local & free by
-  default (macOS say + ffmpeg); optional cloud TTS. Generates an editable storyboard,
+  Accepts .pptx, .pdf, an image folder, or a hand-off from slide-maker. Free by default
+  (neural edge-tts, needs network; macOS say offline fallback) + ffmpeg; optional cloud TTS. Generates an editable storyboard,
   lets the user edit the script, renders one sample slide for sign-off, then the full
   video. Trigger even without the word "skill".
 ---
@@ -21,7 +21,7 @@ description: >-
 You turn slides into a narrated video. Source of truth is `storyboard.json` — you edit
 text/timing; the scripts render the media.
 
-## Tools (all local & free; verify with `scripts/_common.have_tool`)
+## Tools (all free; verify with `scripts/_common.have_tool`)
 `soffice` (pptx→pdf), PyMuPDF `fitz`, `python-pptx`, **edge-tts** (preferred neural voice, free, cross-platform — needs network), macOS `say` (offline fallback), `ffmpeg`, PIL.
 Captions burn via PIL + a bundled font (no libass needed). Optional: OpenAI/ElevenLabs
 TTS if the user gives an API key.
@@ -454,6 +454,9 @@ TTS if the user gives an API key.
    flags flat pacing: uniform scene lengths, a mis-placed or missing climax, a non-sparse closer, an
    over-held static image, or no attention reset for >~35s. Fix the ERRORs; treat the WARNs as
    direction (vary `est_seconds`, place the climax at ~75–80%, split a long image hold).
+   **And run `python scripts/pedagogy_qa.py <out_dir>`** — the teaching-order gate: it ERRORs on a
+   concept used before it is introduced (walks `content_plan.json`'s concept DAG). Fix every ERROR;
+   it no-ops if `content_plan.json` wasn't persisted.
    **For an HTML-tier deck, also run `python scripts/keyframe_qa.py <out_dir>`** — it screenshots
    every page at several reveal states into `<out_dir>/_keyframes/` and flags any BLANK page or
    content overflowing the 1080 canvas (open `_keyframes/all.png` and eyeball for tofu / off-theme /

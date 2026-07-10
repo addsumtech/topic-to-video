@@ -68,3 +68,9 @@ def test_the_one_thing_with_decimal_not_flagged():
     # a one-sentence takeaway containing a number ("3.5x", "v1.2") must NOT be read as multiple sentences
     assert bq.evaluate(_brief(the_one_thing="Model X cuts inference cost by 3.5x versus the baseline."))["ok"]
     assert bq.evaluate(_brief(the_one_thing="Upgrade to v1.2 to halve the error rate."))["ok"]
+
+
+def test_missing_brief_fails_when_over_60s():
+    # the >60s gate must fire when the target is known (CLI now reads it from the storyboard meta)
+    assert bq.check("/no/such/dir", target_seconds=120)["ok"] is False
+    assert bq.check("/no/such/dir", target_seconds=40)["ok"] is True   # short video may skip

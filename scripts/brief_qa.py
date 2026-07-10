@@ -92,8 +92,16 @@ def main():
     ap = argparse.ArgumentParser(description="Comprehension-brief floor gate over brief.json")
     ap.add_argument("out_dir")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--target-seconds", type=float, default=None)
     a = ap.parse_args()
-    r = check(a.out_dir)
+    ts = a.target_seconds
+    if ts is None:      # read from the storyboard meta so the missing-brief >60s gate actually fires on a normal run
+        try:
+            _sb = json.load(open(os.path.join(a.out_dir, "storyboard.json"), encoding="utf-8"))
+            ts = (_sb.get("meta") or {}).get("target_seconds")
+        except (OSError, ValueError):
+            ts = None
+    r = check(a.out_dir, target_seconds=ts)
     if a.json:
         print(json.dumps(r, indent=2))
     elif r.get("skipped"):
