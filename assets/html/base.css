@@ -5,6 +5,7 @@
   --bg:#0d1117; --surface:#161b22; --fg:#f0f3f8; --muted:#8b97a8;
   --accent:#4C9BE8; --accent2:#E8590C; --rule:var(--accent2); --scrim:#0d1117;
   --on-accent:#fff;   /* text ON an --accent fill (theme.py sets whichever of near-black/white has the higher WCAG contrast) */
+  --on-accent2:#fff;  /* text ON an --accent2/--rule fill (own polarity — may differ from --on-accent) */
   /* back-compat aliases (existing pages/inline styles) */
   --blue:var(--accent); --orange:var(--accent2); --green:#46A758; --panel:var(--surface);
   --dur:.7s;
@@ -299,7 +300,7 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 .stepper .step .n{position:relative;z-index:1;width:72px;height:72px;border-radius:50%;margin:0 auto 20px;
   display:grid;place-items:center;font-size:34px;font-weight:800;background:var(--surface);
   border:2px solid var(--rule);color:var(--muted);font-variant-numeric:tabular-nums}
-.stepper .step.done .n{background:var(--rule);color:var(--on-accent);border-color:var(--rule)}
+.stepper .step.done .n{background:var(--rule);color:var(--on-accent2);border-color:var(--rule)}
 .stepper .step.on .n{background:var(--accent);color:var(--on-accent);border-color:var(--accent);
   box-shadow:0 0 0 10px color-mix(in srgb,var(--accent) 24%,transparent)}
 .stepper .step .st{font-size:38px;font-weight:700}

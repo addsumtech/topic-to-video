@@ -1,5 +1,9 @@
 # HyperFrames — design reference & improvement backlog
 
+> **Maintainer-facing only.** This file is NOT loaded by any agent, step, or runtime reference — it is a
+> design-inspiration + roadmap doc for whoever evolves the skill. It contains other-engine ideas and some
+> unimplemented `(open)` backlog, so it must NOT be cited as an authoring instruction during a run.
+
 Source: [`heygen-com/hyperframes`](https://github.com/heygen-com/hyperframes) (Apache-2.0),
 HeyGen's open-source **HTML-native, seekable-timeline video engine** — *"Write HTML. Render
 video. Built for agents."* Compositions are plain HTML with `data-start`/`data-duration`/

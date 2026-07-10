@@ -301,11 +301,27 @@ def _resolve_voice(meta):
     name, _ = _resolve_say_voice("Samantha", lang)
     return f"say:{name}"
 
+def _detect_language(slides):
+    """Best-guess narration language from the script when meta.language is 'auto' — otherwise a
+    non-English deck gets voiced by the English default. Covers the CJK scripts (the headline
+    cross-language flow); Latin scripts default to English (an explicit meta.language still wins)."""
+    txt = " ".join((s.get("narration") or "") for s in (slides or []))[:4000]
+    import re as _re
+    if _re.search(r"[぀-ヿ]", txt):   # kana → Japanese
+        return "ja"
+    if _re.search(r"[가-힣]", txt):   # hangul → Korean
+        return "ko"
+    if _re.search(r"[一-鿿]", txt):   # Han → Chinese
+        return "zh"
+    return "en"
+
 def synthesize(out_dir, only=None):
     path = os.path.join(out_dir, "storyboard.json")
     data = sb.load(path)
     audio_dir = os.path.join(out_dir, "audio")
     os.makedirs(audio_dir, exist_ok=True)
+    if (data["meta"].get("language") or "auto") in ("", "auto"):   # fill it so voice selection is right
+        data["meta"]["language"] = _detect_language(data["slides"])
     prov, name = _provider(_resolve_voice(data["meta"]))
     if prov == "say":
         name, note = _resolve_say_voice(name, data["meta"].get("language", "auto"))

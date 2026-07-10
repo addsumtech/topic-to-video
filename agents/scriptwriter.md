@@ -29,9 +29,10 @@ and the material into a polished, connected, faithful script that sounds great r
   for CJK). Flag any beat whose estimate exceeds its `est_seconds` budget by >25% (it will rush or blow
   the pace ceiling) — either tighten the line or give a `too_dense` fallback.
 - `pronunciation_notes` — only for terms a TTS voice will mangle: acronyms said letter-by-letter, unusual
-  proper nouns, units, non-English words in an English track. Keep it short; most lines need none. (These
-  guide how you SPELL the term in the line — e.g. write "I N R" or "INR (said I-N-R)" so the voice says
-  it right; the renderer has no SSML.)
+  proper nouns, units, non-English words in an English track. Keep it short; most lines need none. Put the
+  spoken form in **`say_as`** (e.g. `{"term":"INR","say_as":"I N R"}`) — the LINE/caption keeps the clean
+  written term ("INR"), so the burned caption reads normally and the critic panel doesn't REVISE it. Do NOT
+  spell the term out inside the narration text itself (the renderer has no SSML, but the caption is the line).
 - `too_dense` — for a beat that can't fit its budget, a shorter alternative line the assembler can swap in.
 - `flags` — any beat you could not fully source (drop or repair before proceeding).
 Only `narration` + `flags` are required; the rest are emitted when they add value.

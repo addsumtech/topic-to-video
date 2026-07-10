@@ -162,8 +162,10 @@ TTS if the user gives an API key.
    **Batch 1 — core intent + essentials (ask every run; up to 4 questions in one call):**
    - **① Purpose** *(→ `arc_kind` + the planner's tone/audience `director_note`)* — what the video
      is for, and roughly who watches. Menu: **Teach/explain** (expository) · **Pitch/persuade**
-     (narrative) · **How-to/walkthrough** (howto) · **Research briefing** (reference) ·
-     Overview/intro · Launch/announcement · Promo/hype. (Other → another goal, or a specific
+     (narrative) · **How-to/walkthrough** (howto → expository) · **Research briefing** (reference →
+     expository) · Overview/intro (→ expository) · Launch/announcement (→ narrative) · Promo/hype (→
+     narrative). Every Purpose maps to an `arc_kind` (narrative = builds to a payoff; expository =
+     even-weight walkthrough) — never leave it undefined. (Other → another goal, or a specific
      audience/register note the planner should honour.)
    - **② Voice & language** *(→ `meta.voice`; `meta.language` defaults to the slides' detected
      language)* — the narration engine. Menu: **Auto neural — edge-tts** (natural, free, needs
@@ -308,7 +310,10 @@ TTS if the user gives an API key.
      own addition. (Faithfulness is TRACE-TO-SOURCE; the brief above is the orthogonal
      UNDERSTANDING layer — a script can be 100% faithful and still shallow.)
 3.5. **Content plan (director) — design the video as CONTENT before design/authoring.** Dispatch
-     `agents/content-planner.md` on the comprehension brief + material. It returns an ordered set of
+     `agents/content-planner.md` on the comprehension brief + material **AND pass the interview's
+     Purpose→`arc_kind` + `director_note` (tone/audience)** — the planner ADOPTS that arc_kind (it may
+     override only with a one-line justification in `director_note`), so the user's Purpose choice isn't
+     silently re-derived. It returns an ordered set of
      **content beats** — each with a learning point (traced to the material), a COARSE `visual_intent`
      (`metric`/`contrast`/`sequence`/`list`/`structure`/`statement`/`section` — NOT a concrete layout),
      a narration intent, `est_seconds`, per-beat `continuity` (inherits-from / hooks-into) and

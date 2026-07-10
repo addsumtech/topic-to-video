@@ -94,3 +94,11 @@ def test_accent_and_accent2_clear_3to1_on_pastel(tmp_path):
         bg = theme._hex2rgb(t["bg"])
         assert theme._contrast(theme._hex2rgb(t["accent"]), bg) >= 3.0 - 0.05, (mode, "accent")
         assert theme._contrast(theme._hex2rgb(t["accent2"]), bg) >= 3.0 - 0.05, (mode, "accent2")
+
+
+def test_explicit_bg_not_repainted_to_different_color(tmp_path):
+    # an explicit --bg must keep its CHARACTER (near-white/near-black), not get repainted to a wild colour
+    t = theme.derive_theme(str(tmp_path), mode="dark", bg="#FFFFFF")
+    r, g, b = theme._hex2rgb(t["bg"])
+    assert r > 235 and g > 235 and b > 235, t["bg"]                 # still near-white (not dark brown)
+    assert theme._contrast(theme._hex2rgb(t["fg"]), (r, g, b)) >= 7.0   # readable dark fg on it

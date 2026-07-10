@@ -60,21 +60,31 @@ def derive_theme(out_dir, mode=None, accent=None, accent2=None, bg=None):
         bgc = tuple(c * 255 for c in colorsys.hls_to_rgb(hue, 0.96, 0.18))
     else:
         bgc = tuple(c * 255 for c in colorsys.hls_to_rgb(hue, 0.09, 0.22))
-    # anti-cliché: never a pure-black/white background — nudge to a temperature-tinted neutral
+    # anti-cliché: never a pure-black/white background — nudge to a temperature-tinted neutral. Applies to
+    # an explicit --bg too (a screen-white #FFF becomes near-white #f8f7f4) — that honors its character; the
+    # BUG this fixes is the contrast loop below repainting an explicit --bg to a WILDLY different colour.
     if _lum(bgc) <= 0.02:
         bgc = (14, 15, 17)        # #0e0f11
     elif _lum(bgc) >= 0.97:
         bgc = (248, 247, 244)     # #f8f7f4
-    fg = (22, 20, 18) if m == "light" else (240, 243, 248)
-    # enforce >=7:1 by pushing the background away from fg (keep its hue); l->1 (light) or ->0 (dark)
-    h, l, s = colorsys.rgb_to_hls(*[c / 255 for c in bgc])
-    for _ in range(60):
-        if _contrast(fg, bgc) >= 7.0:
-            break
-        l = min(1.0, l + 0.02) if m == "light" else max(0.0, l - 0.02)
-        bgc = tuple(c * 255 for c in colorsys.hls_to_rgb(h, l, s))
-    if _contrast(fg, bgc) < 7.0:
-        fg = (0, 0, 0) if m == "light" else (255, 255, 255)
+    _dark_fg, _light_fg = (22, 20, 18), (240, 243, 248)
+    if bg:
+        # an explicit --bg is a CONSTRAINT — pick fg by whichever pole has higher contrast ON it, and NEVER
+        # repaint the bg to reach contrast (so --bg #FFF --mode dark keeps a near-white bg + dark fg).
+        fg = _dark_fg if _contrast(_dark_fg, bgc) >= _contrast(_light_fg, bgc) else _light_fg
+        if _contrast(fg, bgc) < 7.0:
+            fg = (0, 0, 0) if fg == _dark_fg else (255, 255, 255)
+    else:
+        fg = _dark_fg if m == "light" else _light_fg
+        # enforce >=7:1 by pushing the DERIVED background away from fg (keep its hue); l->1 (light)/->0 (dark)
+        h, l, s = colorsys.rgb_to_hls(*[c / 255 for c in bgc])
+        for _ in range(60):
+            if _contrast(fg, bgc) >= 7.0:
+                break
+            l = min(1.0, l + 0.02) if m == "light" else max(0.0, l - 0.02)
+            bgc = tuple(c * 255 for c in colorsys.hls_to_rgb(h, l, s))
+        if _contrast(fg, bgc) < 7.0:
+            fg = (0, 0, 0) if m == "light" else (255, 255, 255)
     # accent must clear 3:1 on the bg — it renders LARGE marks (.stat 240px, .tile .num 150px → WCAG
     # "large" text = 3:1). Nudge ONLY a SAMPLED accent's lightness (keep hue+sat), capped so a faithful
     # brand/topic hue is never washed out; an explicit `accent=` override is left exactly as given.
@@ -106,16 +116,20 @@ def derive_theme(out_dir, mode=None, accent=None, accent2=None, bg=None):
     # text ON the accent fill: whichever of near-black / white has the higher TRUE contrast (the old
     # _lum<0.5 crossover mis-picked mid-tones — e.g. gave white on a teal accent at 2.06:1 vs black 4.37:1).
     on_accent = (17, 17, 17) if _contrast((17, 17, 17), acc) >= _contrast((255, 255, 255), acc) else (255, 255, 255)
+    # text ON an accent2 (--rule) fill — a SEPARATE token: --on-accent was chosen for --accent and can
+    # have the wrong polarity for accent2 (e.g. the .stepper 'done' number went white on a pale rule).
+    on_accent2 = (17, 17, 17) if _contrast((17, 17, 17), acc2) >= _contrast((255, 255, 255), acc2) else (255, 255, 255)
     return {"mode": m, "bg": _hex(bgc), "surface": _hex(_mix(bgc, fg, 0.06)),
             "fg": _hex(fg), "muted": _hex(_mix(fg, bgc, 0.42)),
             "accent": _hex(acc), "accent2": _hex(acc2), "scrim": _hex(bgc),
-            "on_accent": _hex(on_accent)}
+            "on_accent": _hex(on_accent), "on_accent2": _hex(on_accent2)}
 
 def write_theme_css(theme, path):
     css = (":root{\n"
            f"  --bg:{theme['bg']}; --surface:{theme['surface']}; --fg:{theme['fg']};\n"
            f"  --muted:{theme['muted']}; --accent:{theme['accent']}; --accent2:{theme['accent2']};\n"
-           f"  --rule:var(--accent2); --scrim:{theme['scrim']}; --on-accent:{theme.get('on_accent', '#fff')};\n}}\n")
+           f"  --rule:var(--accent2); --scrim:{theme['scrim']}; --on-accent:{theme.get('on_accent', '#fff')};\n"
+           f"  --on-accent2:{theme.get('on_accent2', '#fff')};\n}}\n")
     with open(path, "w") as f:
         f.write(css)
 

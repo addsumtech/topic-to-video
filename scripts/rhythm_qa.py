@@ -63,10 +63,13 @@ def _narr_len(s, meta):
 def _is_reset(s, prev, meta):
     """A scene resets attention if it opens a transition seam (a dip through the bg) OR changes the
     visual family. Resolve the EFFECTIVE transition the way the pipeline does — a per-scene value, else
-    the meta default (`dip`) — so a deck that relies on the ambient meta-default dip (a breath at every
-    cut) isn't falsely flagged; only a `meta.transition:"none"` deck with no per-scene seams and no
-    family change accumulates a real no-reset run."""
-    tr = s.get("transition") or (meta or {}).get("transition", "dip")
+    the meta default (`dip`). NOTE: the audit flagged that the meta-default `dip` makes this gate inert
+    (it never accumulates a no-reset run). The tempting fix (count only EXPLICIT seams) is UNSAFE here
+    because `_stype` is coarse — every `html` scene shares one type, so it would spuriously flag a
+    well-designed all-HTML deck (varied FORMS, one type) as monotone. A correct fix needs form-aware
+    scene-typing (read each page's layout family), which is out of scope for a safe minor edit — so the
+    conservative meta-default behaviour is kept deliberately until then."""
+    tr = sb.normalize_transition(s)[0] or (meta or {}).get("transition", "dip")
     if tr in ("in", "dip", "out"):
         return True
     return prev is not None and _stype(s) != _stype(prev)

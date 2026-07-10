@@ -408,3 +408,14 @@ def test_long_clause_hard_wraps_no_wall_of_text():
              "sampled clinically usable diagnostic magnetic resonance image without any artifacts")
     chunks = render._split_caption_chunks(long1)
     assert len(chunks) >= 2 and all(len(c) <= 84 for c in chunks)
+
+
+def test_mixed_cjk_caption_not_tripled():
+    # one CJK term in an English sentence must NOT collapse the whole line to the CJK-tight limit
+    eng = "The k空间 measurements feed the reconstruction network and it outputs a clean image quickly"
+    assert len(render._split_caption_chunks(eng)) <= 2
+
+def test_single_edge_fade_renders_on_short_scene():
+    # an 'in'/'out' seam only needs ~1*d headroom, not the dip's 2*d — so it isn't suppressed
+    meta = {"transition": "dip", "transition_seconds": 0.3, "_out": "."}
+    assert "fade=t=in" in render._fade_filter(meta, 1.0, {"transition": "in", "transition_seconds": 0.3})

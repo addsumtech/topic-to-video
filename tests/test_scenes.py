@@ -651,9 +651,10 @@ def test_render_html_cue_capture_passes_cues(tmp_path, monkeypatch):
 def _cues_from_urls(urls):
     import re
     for u in urls:
-        m = re.search(r"cues=([0-9.,]+)&dur=([0-9.]+)", u)
+        m = re.search(r"cues=([0-9.,]*)&dur=([0-9.]+)", u)
         if m:
-            return [float(x) for x in m.group(1).split(",")], float(m.group(2))
+            # unanchored slots are now BLANK ("" -> parseFloat NaN in seek.js, i.e. keep the paced stagger)
+            return [float(x) if x else float("nan") for x in m.group(1).split(",")], float(m.group(2))
     return None, None
 
 def _stub_shot(scenes_mod, monkeypatch, seen):

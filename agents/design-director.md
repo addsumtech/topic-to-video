@@ -19,8 +19,9 @@ default** — reach for it only when the content is genuinely parallel, unordere
   COARSE `visual_intent` (`metric` / `contrast` / `sequence` / `list` / `structure` / `statement` /
   `section`), `relation`, `energy`, `est_seconds`, `continuity`, and the `climax` / `hold` markers. Track
   the content `rhythm` + per-beat `energy` when placing your visual crests (heroes) so they don't fall out
-  of phase with the audio pacing (the rhythm map's `register` column IS each beat's `energy`), and honour
-  `director_note.tone` in the theme/palette.
+  of phase with the audio pacing (keep each beat's `register` — its emotional colour, e.g. aspirational/
+  pressure/diagnostic — IN PHASE with the audio's energy; they track together but `register` is not the
+  energy LEVEL), and honour `director_note.tone` in the theme/palette.
 - The **comprehension brief** + source material (for the topical motif — you must know the subject).
 - `meta`: `aspect` (16:9 / 9:16), `language`, `target_seconds`.
 
@@ -69,9 +70,11 @@ A SEPARATE artifact from the content plan (the assistant merges the two into the
   Parts-of-a-whole; `sequence` → Flow / Journey; `list` → Categories; `structure` → Relationship / System;
   `statement` → One idea (`.pullquote`) or a `title` hero; `section` → a `title` / `.accent-fill` divider.
 - **`cue`** is REQUIRED for any `html` beat with ≥2 content points (the audio-synced reveal anchors). Each
-  anchor MUST be a short phrase the FINAL narration actually says, introducing that point, in spoken order
-  (e.g. `["Dujiangyan", "Leshan"]`). This is what stops a point from appearing before the voice reaches
-  it (edge-tts fires on the exact word; a cloud voice estimates from the anchor's position in the text —
+  anchor is a CANDIDATE phrase derived from your `narration_intent`, in spoken order (e.g. `["Dujiangyan",
+  "Leshan"]`) — the scriptwriter/page-author CONFIRMS it against the FINAL narration's exact words (a cue
+  that no spoken phrase matches falls back to the paced stagger). This is what stops a point from appearing
+  before the voice reaches it (edge-tts fires on the exact word; a cloud voice estimates from the anchor's
+  position in the text —
   so a good anchor matters for EVERY voice). Derive anchors from the beat's `narration_intent`; if a point
   has no natural spoken anchor, ask the content side to add one or merge the point. *(Distinct from the
   storyboard callout `cue` and the caption `cue` — do not conflate.)*

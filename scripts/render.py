@@ -21,6 +21,12 @@ _CJK_PUNCT = "\u3000-\u303f\uff00-\uffef"
 _CJK = _HAN + _KANA + _HANGUL + _CJK_PUNCT
 _CJK_RE = re.compile(f"[{_CJK}]")
 
+def _wlen(s):
+    """On-screen width in char-units for caption budgets. A CJK glyph is ~2.5 Latin chars wide (matching
+    the skill's old 34-CJK vs 84-Latin ceilings at one budget of 84), so ONE CJK term in an English
+    sentence no longer collapses the whole line to the CJK-tight limit (the old binary flip)."""
+    return sum(2.5 if _CJK_RE.match(c) else 1 for c in (s or ""))
+
 # macOS system fonts with CJK coverage, keyed by detected script. First existing wins.
 _FONT_CANDIDATES = {
     "ja": ["/System/Library/Fonts/ヒラギノ角ゴシック W4.ttc",
@@ -291,13 +297,14 @@ def _hardwrap(s, limit):
     boundaries (Latin) or char boundaries (CJK) — so a long no-punctuation sentence doesn't render as a
     4+-line wall of text over the lower third."""
     s = s.strip()
-    if len(s) <= limit:
+    if _wlen(s) <= limit:
         return [s] if s else []
-    if _CJK_RE.search(s):                         # CJK has no spaces — break on chars
-        return [s[i:i + limit] for i in range(0, len(s), limit)]
+    if _CJK_RE.search(s) and " " not in s:        # CJK run, no spaces — break on chars (weighted ~2.5)
+        step = max(1, int(limit / 2.5))
+        return [s[i:i + step] for i in range(0, len(s), step)]
     out, cur = [], ""
     for w in s.split():
-        if cur and len(cur) + 1 + len(w) > limit:
+        if cur and _wlen(cur) + 1 + _wlen(w) > limit:
             out.append(cur); cur = w
         else:
             cur = w if not cur else cur + " " + w
@@ -308,19 +315,19 @@ def _hardwrap(s, limit):
 def _split_caption_chunks(text, max_len=84, hard_wrap=True):
     """Split narration into readable, subtitle-sized chunks: first on sentence enders,
     then break any over-long sentence on commas/colons so a chunk fits 1-2 lines.
-    CJK uses a tighter char limit because each glyph is full-width — the Latin limit would
-    still render as a wall of text on screen."""
+    A WEIGHTED budget (CJK glyph ~2, Latin ~1) fits both scripts — so a mostly-English line with one CJK
+    term isn't chopped to the CJK-tight limit (the old binary flip tripled the cuts on bilingual decks)."""
     text = (text or "").strip()
     if not text:
         return []
-    limit = 34 if _CJK_RE.search(text) else max_len
+    limit = max_len
     chunks = []
     for s in _segment(text, _CJK_ENDERS, _LATIN_ENDERS):
-        if len(s) <= limit:
+        if _wlen(s) <= limit:
             chunks.append(s); continue
         cur = ""
         for piece in _segment(s, _CJK_CLAUSES, _LATIN_CLAUSES):
-            if cur and len(cur) + len(piece) > limit:
+            if cur and _wlen(cur) + _wlen(piece) > limit:
                 chunks.append(cur); cur = piece
             elif cur:
                 # join tight when either side is CJK (Chinese sets no space, even after an
@@ -455,7 +462,10 @@ def _fade_filter(meta, dur, slide=None):
     if t == "none":
         return ""
     d = float(d if d is not None else (meta or {}).get("transition_seconds", 0.2))
-    if d <= 0 or dur <= 2.2 * d:
+    # a DIP occupies both edges (~2*d), a single 'in'/'out' fade only one — don't suppress a legit
+    # single-edge seam on a short scene by holding it to the dip headroom.
+    need = 2.2 * d if t == "dip" else 1.1 * d
+    if d <= 0 or dur <= need:
         return ""
     bg = _theme_bg(meta.get("_out", "."))
     parts = []

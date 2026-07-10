@@ -66,7 +66,7 @@ _CONN = {"arrow", "hs-connect"}                       # connectors — reveal WI
 # number (stat/num). Pure descriptors attached to a number or a row (.label/.note/.bar/.delta/.unit) are
 # part of that ONE unit, NOT separate facts — so a "label: value" row or "5.6% ▲" counts as one point.
 # (Only the OUTERMOST such node per branch is counted, so a tile wrapping a labeled row is one fact.)
-_MEAN = {"stat", "num", "row", "tile", "step", "block", "seg", "hs-spoke"}
+_MEAN = {"stat", "num", "row", "tile", "step", "block", "seg", "hs-spoke", "tl-node"}
 _VOID = {"img", "br", "hr", "input", "meta", "link", "source", "path", "circle", "rect", "line",
          "polyline", "polygon", "use", "stop", "ellipse"}
 _BG_CLASSES = {"bg-soft", "bg-soft-tint", "bg-photo", "accent-fill", "bg-stars", "bg-glow", "bg-paper",
@@ -124,10 +124,12 @@ def _composition_sig(html):
     """Coarse composition signature for the diversity gate: the visual ENVELOPE (vertical anchor ×
     horizontal balance), whether the page opens with a kicker hat, whether it's a full-bleed hero,
     and whether it has ANY backdrop element (else a bare --bg 'flat' page)."""
-    sm = re.search(r'class\s*=\s*"[^"]*\bstage\b[^"]*"([^>]*)>', html)
+    # match the WHOLE <div class="stage" …> open-tag so `style` is read regardless of attribute order
+    # (a `<div style="…" class="stage">` previously missed the style → false CENTER-anchor warnings).
+    sm = re.search(r'<[^>]*\bclass\s*=\s*"[^"]*\bstage\b[^"]*"[^>]*>', html)
     style = ""
     if sm:
-        st = re.search(r'style\s*=\s*"([^"]*)"', sm.group(1))
+        st = re.search(r'style\s*=\s*"([^"]*)"', sm.group(0))
         style = st.group(1) if st else ""
     jc = re.search(r'justify-content\s*:\s*([\w-]+)', style)
     jc = jc.group(1) if jc else "center"
@@ -799,7 +801,11 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
             p, anc, nested = nd.parent, None, False
             while p is not None and 0 <= p < len(nodes):
                 if nodes[p].cue is not None:
-                    anc = nodes[p].cue; break
+                    if nodes[p].classes & _MEAN:    # the cued ancestor is ITSELF a line-item (.tile/.row/.stat)
+                        nested = True               # → this descendant is PART of that one unit, not a 2nd fact
+                    else:
+                        anc = nodes[p].cue
+                    break
                 if nodes[p].classes & _MEAN:        # an outer line-item already owns this node — count only the outermost
                     nested = True; break
                 p = nodes[p].parent

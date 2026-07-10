@@ -383,18 +383,24 @@ def render_timeline(props, meta, W, H, frames, workdir, index):
         if title:
             ax.set_title(title, color=c_fg, fontsize=18, fontfamily=famly, pad=16)
         if n_ev:
+            import textwrap
+            # WRAP + SHRINK labels to the per-event slot so many events don't collide into unreadable mush
+            # (was raw centered strings that overlapped as the horizontal space per event shrank).
+            wrap_w = 16 if n_ev <= 4 else 12 if n_ev <= 6 else 9
+            fs_what = 14 if n_ev <= 5 else 12 if n_ev <= 7 else 10
             ax.plot([-0.3, n_ev - 0.7], [0, 0], color=c_rule, linewidth=2)
             for j in range(vis):
                 ax.scatter([xs[j]], [0], s=120, color=accent, zorder=3)
                 # accept BOTH key conventions: programmatic `date`/`label` AND the HTML tier's `when`/`what`
                 # (an author following the .timeline archetype uses when/what — never silently drop the label).
-                _when = events[j].get("date") or events[j].get("when") or ""
-                _what = events[j].get("label") or events[j].get("what") or ""
-                ax.text(xs[j], 0.12, str(_when), ha="center",
-                        color=c_muted, fontsize=12, fontfamily=famly)
-                ax.text(xs[j], -0.18, str(_what), ha="center",
-                        color=c_fg, fontsize=14, fontfamily=famly)
-            ax.set_xlim(-0.6, n_ev - 0.4); ax.set_ylim(-0.5, 0.5)
+                _when = str(events[j].get("date") or events[j].get("when") or "")
+                _what = str(events[j].get("label") or events[j].get("what") or "")
+                _what = "\n".join(textwrap.wrap(_what, wrap_w)[:2]) if _what else ""
+                ax.text(xs[j], 0.14, _when, ha="center", va="bottom",
+                        color=c_muted, fontsize=min(12, fs_what), fontfamily=famly)
+                ax.text(xs[j], -0.2, _what, ha="center", va="top",
+                        color=c_fg, fontsize=fs_what, fontfamily=famly)
+            ax.set_xlim(-0.6, n_ev - 0.4); ax.set_ylim(-0.6, 0.6)
         fig.tight_layout()
         fig.canvas.draw()
         img = Image.frombytes("RGBA", fig.canvas.get_width_height(),
@@ -713,10 +719,12 @@ def render_html(props, meta, W, H, frames, workdir, index):
     if ordered and ctimes is not None:
         margin = max(0.0, dur - 0.5)                  # a cue must fire before the final frame, else hidden
         cue_times = [min(t, margin) for t in ctimes]
-        sparse = [0.0] * (ordered[-1][0] + 1)         # index by the element's actual data-cue-index
+        sparse = [None] * (ordered[-1][0] + 1)        # index by the element's actual data-cue-index
         for (orig_i, _), t in zip(ordered, cue_times):
             sparse[orig_i] = t
-        cue_param = ",".join(f"{t:.3f}" for t in sparse)
+        # UNANCHORED slots stay BLANK ("") — seek.js parseFloat("")=NaN keeps that element's default paced
+        # stagger, instead of 0.0 which would flash it in at t=0 (an early pop before its spoken moment).
+        cue_param = ",".join("" if t is None else f"{t:.3f}" for t in sparse)
     os.makedirs(workdir, exist_ok=True)
     if cue_param is None and 'data-cue-index' in html:
         why = (f"malformed words.json: {cue_err}" if cue_err else
@@ -733,8 +741,8 @@ def render_html(props, meta, W, H, frames, workdir, index):
         # hidden), which then gets copied until the first cue, leaving the whole page blank until
         # the first spoken anchor. ~1.2s covers the header stagger (delay ≤ .3s + .7s reveal).
         ctimes = cue_times
-        burst = 0.6
-        HEAD_WINDOW = 1.2
+        burst = 0.8              # >= the reveal --dur (.7s) so a mid-scene cue reaches 100% inside its
+        HEAD_WINDOW = 1.2        # capture window before the hold-copy (was 0.6 → a visible freeze-then-snap)
         def is_reveal(t):
             # _has_ambient forces every frame (the backdrop moves continuously); else burst around cues
             return _has_ambient or t <= HEAD_WINDOW or any(c <= t <= c + burst for c in ctimes)

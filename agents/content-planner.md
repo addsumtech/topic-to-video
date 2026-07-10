@@ -15,7 +15,7 @@ plan. You do not write final narration; you design content beats.
 ## Output — a CONTENT PLAN (JSON)
 ```json
 { "arc": "hook → build → payoff → takeaway (one line)",
-  "arc_kind": "narrative | expository — narrative BUILDS to a payoff (a paper, a pitch, a result, a story); expository is an EVEN-WEIGHT walkthrough (a tutorial, a reference, a survey, a how-to) with no single peak",
+  "arc_kind": "narrative | expository — ADOPT the arc_kind passed from the interview's Purpose (Pitch/Launch/Promo→narrative; Teach/How-to/Reference/Overview→expository); override only with a one-line justification in director_note. narrative BUILDS to a payoff (a paper, a pitch, a result, a story); expository is an EVEN-WEIGHT walkthrough (a tutorial, a reference, a survey, a how-to) with no single peak",
   "viewer_question": "the ONE question the viewer wants answered — the video is the answer (drives the hook)",
   "director_note": { "thesis": "one sentence — what this video argues", "not": ["explicit exclusions"], "tone": "one word" },
   "anti_slop": ["faithfulness bans, e.g. no stat without a source_ref", "no invented numbers/citations"],
@@ -71,7 +71,8 @@ plan. You do not write final narration; you design content beats.
    a claim. (The design-director realizes the concrete form; you set the informative KIND + this guard.)
 3. **Energetic pacing + one NEW idea per beat.** Many short beats; ONE idea per beat, and **at most one
    NEW concept per beat** — REFERENCE any number of already-introduced concepts (`builds_on`), but
-   INTRODUCE at most one (`introduces`, else null). `est_seconds` 3–6. Split a dense point into
+   INTRODUCE at most one (`introduces`, else null). `est_seconds` ~3–6 for build beats (up to ~8 for the
+   climax, ~2–3 for a divider/hold) — consistent with the rhythm line below. Split a dense point into
    two beats rather than holding one long frame. Target beat count ≈ `target_seconds / 4`. Vary
    `est_seconds` to match your `rhythm` (quick build beats 3–4s, a longer climax 6–8s, a sparse hold) —
    a flat row of equal 5-second beats is the clearest "auto-generated" tell.
