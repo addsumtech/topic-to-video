@@ -76,10 +76,28 @@ def test_validate_chart_numbers_only():
     with pytest.raises(sb.StoryboardError):
         sb.validate(_wrap(bad_bool))
 
+def test_validate_new_chart_kinds_accepted():
+    # slope/dumbbell/dist/scatter/small_multiples use values/v1v2/x,y — the contract must accept them
+    sb.validate(_wrap(sb.new_scene(1, "chart", {"kind": "slope", "data": [{"label": "A", "values": [1, 2]}]}, "n")))
+    sb.validate(_wrap(sb.new_scene(1, "chart", {"kind": "dumbbell", "data": [{"label": "A", "v1": 1, "v2": 2}]}, "n")))
+    sb.validate(_wrap(sb.new_scene(1, "chart", {"kind": "scatter", "data": [{"x": 1, "y": 2}]}, "n")))
+    sb.validate(_wrap(sb.new_scene(1, "chart", {"kind": "dist", "data": [{"label": "A", "values": [1, 2, 3]}]}, "n")))
+    sb.validate(_wrap(sb.new_scene(1, "chart", {"kind": "small_multiples", "data": [{"label": "A", "values": [1, 2]}]}, "n")))
+
+def test_validate_new_chart_kinds_reject_bad_shape():
+    with pytest.raises(sb.StoryboardError):   # slope with no values/v1v2
+        sb.validate(_wrap(sb.new_scene(1, "chart", {"kind": "slope", "data": [{"label": "A", "value": 5}]}, "n")))
+    with pytest.raises(sb.StoryboardError):   # scatter with no x/y
+        sb.validate(_wrap(sb.new_scene(1, "chart", {"kind": "scatter", "data": [{"label": "A"}]}, "n")))
+
 def test_validate_timeline_requires_events():
     sb.validate(_wrap(sb.new_scene(1, "timeline", {"events": [{"date": "2026", "label": "x"}]}, "n")))
     with pytest.raises(sb.StoryboardError):
         sb.validate(_wrap(sb.new_scene(1, "timeline", {"events": []}, "n")))
+
+def test_validate_timeline_accepts_when_what():
+    # the HTML .timeline archetype uses when/what — the programmatic contract must accept them too
+    sb.validate(_wrap(sb.new_scene(1, "timeline", {"events": [{"when": "2026", "what": "x"}]}, "n")))
 
 def _ai_slide():
     s = sb.new_slide(1, None); s["image"] = None

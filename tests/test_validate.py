@@ -507,6 +507,25 @@ def test_design_plan_share_as_gauge_credited(tmp_path):
         r = validate.evaluate(_board(str(tmp_path), [_slide_scene(tmp_path, 0)]), str(tmp_path))
         assert not any("separate numbers hide the whole" in w for w in r["warnings"]), form
 
+def test_programmatic_chart_budget_warns(tmp_path):
+    # the programmatic tier has no headless-Chrome overflow check — a readability-floor lint guards it
+    s = _slide_scene(tmp_path, 0); s["type"] = "chart"
+    s["props"] = {"kind": "bars", "data": [{"label": f"item {k}", "value": k + 1} for k in range(10)]}
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert any("too many to read" in w for w in r["warnings"])
+
+def test_programmatic_chart_within_budget_ok(tmp_path):
+    s = _slide_scene(tmp_path, 0); s["type"] = "chart"
+    s["props"] = {"kind": "bars", "data": [{"label": f"item {k}", "value": k + 1} for k in range(5)]}
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert not any("too many to read" in w for w in r["warnings"])
+
+def test_programmatic_title_too_long_warns(tmp_path):
+    s = _slide_scene(tmp_path, 0); s["type"] = "title"
+    s["props"] = {"title": "A title that is deliberately far too long to land in a glance " * 2}
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert any("a title should land in a" in w for w in r["warnings"])
+
 def test_design_plan_slope_is_valid_trend_form(tmp_path):
     # slope/waterfall are valid change-over-time forms — a temporal beat using them isn't "rendered static"
     _design_plan(tmp_path, {"beats": [{"index": 1, "content_shape": "score change over time per method", "form": "slope"}],

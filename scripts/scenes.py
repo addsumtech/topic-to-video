@@ -186,6 +186,46 @@ def _font(meta, text, size, role="sans"):
     except Exception:
         return ImageFont.load_default()
 
+def _wrap_pil(draw, text, font, max_w):
+    """Greedy word-wrap `text` to lines each ≤ max_w px (PIL). Never returns []. For scripts with no
+    spaces (CJK), falls back to character wrapping so a long line still fits instead of overflowing."""
+    words = str(text).split()
+    if not words:
+        return [""]
+    if len(words) == 1 and draw.textlength(words[0], font=font) > max_w:  # CJK / one long token
+        out, cur = [], ""
+        for ch in words[0]:
+            if draw.textlength(cur + ch, font=font) <= max_w or not cur:
+                cur += ch
+            else:
+                out.append(cur); cur = ch
+        return out or [""]
+    lines, cur = [], words[0]
+    for w in words[1:]:
+        if draw.textlength(cur + " " + w, font=font) <= max_w:
+            cur += " " + w
+        else:
+            lines.append(cur); cur = w
+    lines.append(cur)
+    return lines
+
+
+def _fit_lines(meta, text, max_w, start_px, max_lines, role=None):
+    """Largest font (down to ~55% of start_px) at which `text` wraps to ≤ max_lines lines within max_w.
+    Returns (font, lines). Prevents the single-line clip that overflowed long titles/labels off-frame."""
+    scratch = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    px = int(start_px)
+    f = _font(meta, text, px, role=role)
+    lines = _wrap_pil(scratch, text, f, max_w)
+    while px > int(start_px * 0.55):
+        f = _font(meta, text, px, role=role)
+        lines = _wrap_pil(scratch, text, f, max_w)
+        if len(lines) <= max_lines and all(scratch.textlength(ln, font=f) <= max_w for ln in lines):
+            break
+        px = int(px * 0.92)
+    return f, lines
+
+
 def render_title(props, meta, W, H, frames, workdir, index):
     title = props.get("title", "")
     subtitle = props.get("subtitle")
@@ -196,10 +236,19 @@ def render_title(props, meta, W, H, frames, workdir, index):
     fps = meta.get("fps", 30)
     intro = max(1, int(0.8 * fps))                  # title fades/rises over ~0.8s
     sub_delay = max(1, int(0.35 * fps))
-    tfont = _font(meta, title, int(H * 0.085), role="serif")   # editorial headline
-    sfont = _font(meta, subtitle or " ", int(H * 0.040))
-    kfont = _font(meta, kicker or " ", int(H * 0.028))
     x = int(W * 0.08)
+    max_w = W - 2 * x                               # keep text INSIDE the frame (fixes long-title clip)
+    # wrap + shrink-to-fit each block so a long title/subtitle no longer overruns the right edge
+    tfont, title_lines = _fit_lines(meta, title, max_w, int(H * 0.085), max_lines=3, role="serif")
+    sfont, sub_lines = _fit_lines(meta, subtitle, max_w, int(H * 0.040), max_lines=2) if subtitle else (None, [])
+    kfont, kick_lines = _fit_lines(meta, kicker, max_w, int(H * 0.028), max_lines=1) if kicker else (None, [])
+    t_lh = int(tfont.size * 1.14)
+    s_lh = int(sfont.size * 1.28) if sfont else 0
+    # lay the blocks out top-down from a fixed anchor so multi-line titles never collide with the subtitle
+    rule_y0 = int(H * 0.30)
+    title_y0 = int(H * 0.36)
+    sub_y0 = title_y0 + len(title_lines) * t_lh + int(H * 0.045)
+    kick_y0 = sub_y0 + len(sub_lines) * s_lh + int(H * 0.035)
 
     def _prog(i, delay):
         if frames <= 1:
@@ -212,21 +261,18 @@ def render_title(props, meta, W, H, frames, workdir, index):
         d = ImageDraw.Draw(layer)
         p = _prog(i, 0)
         a = int(255 * p)
-        # reduced motion: fade only — no rise (translate) on the title/rule
         dy = 0 if meta.get("reduced_motion") else int((1 - p) * (H * 0.03))
-        # accent rule above the title
-        rule_y = int(H * 0.34) + dy
-        d.rectangle([x, rule_y, x + int(W * 0.10), rule_y + max(3, int(H * 0.008))],
+        d.rectangle([x, rule_y0 + dy, x + int(W * 0.10), rule_y0 + dy + max(3, int(H * 0.008))],
                     fill=accent + (a,))
-        d.text((x, int(H * 0.40) + dy), title, font=tfont, fill=fg + (a,))
-        if subtitle:
-            p2 = _prog(i, sub_delay)
-            d.text((x, int(H * 0.56)), subtitle, font=sfont,
-                   fill=muted + (int(255 * p2),))
-        if kicker:
-            p3 = _prog(i, 2 * sub_delay)
-            d.text((x, int(H * 0.72)), kicker, font=kfont,
-                   fill=muted + (int(255 * p3),))
+        for k, ln in enumerate(title_lines):
+            d.text((x, title_y0 + dy + k * t_lh), ln, font=tfont, fill=fg + (a,))
+        if sub_lines:
+            a2 = int(255 * _prog(i, sub_delay))
+            for k, ln in enumerate(sub_lines):
+                d.text((x, sub_y0 + k * s_lh), ln, font=sfont, fill=muted + (a2,))
+        if kick_lines:
+            a3 = int(255 * _prog(i, 2 * sub_delay))
+            d.text((x, kick_y0), kick_lines[0], font=kfont, fill=muted + (a3,))
         return Image.alpha_composite(base, layer).convert("RGB")
 
     return _save_frames(draw, frames, workdir, index)
@@ -247,14 +293,20 @@ def render_keypoints(props, meta, W, H, frames, workdir, index):
     n_pts = max(1, len(points))
     stagger = max(int(0.32 * fps), frames // (n_pts + 1))
     x = int(W * 0.10)
-    # Resolve fonts from the ACTUAL text that will be drawn (a Latin stand-in would tofu CJK).
-    lbl_sample = "".join(str(p.get("label", "")) for p in points) or "x"
     sub_sample = "".join(str(p.get("sub", "")) for p in points) or "x"
     tfont = _font(meta, title or " ", int(H * 0.058), role="serif")   # editorial headline
-    lfont = _font(meta, lbl_sample, int(H * 0.050))
-    sfont = _font(meta, sub_sample, int(H * 0.030))
-    top = int(H * 0.30) if title else int(H * 0.24)
-    row_h = int(H * 0.135)
+    top = int(H * 0.28) if title else int(H * 0.22)
+    # DYNAMIC row height so N points fit the vertical zone (was fixed 0.135H → the 6th row clipped off-frame)
+    avail_h = int(H * 0.92) - top
+    row_h = min(int(H * 0.135), max(int(H * 0.085), avail_h // n_pts))
+    mr = max(4, int(H * 0.018))
+    lx0 = x + mr + int(W * 0.018)
+    lbl_max_w = W - lx0 - int(W * 0.05)
+    # fit the label font so the LONGEST label fits on ONE line within the row width (was single-line d.text
+    # with no width-fit → long labels overran the right edge), capped by the row height.
+    longest = max((str(p.get("label", "")) for p in points), key=len, default="x") or "x"
+    lfont, _ = _fit_lines(meta, longest, lbl_max_w, min(int(H * 0.050), int(row_h * 0.42)), max_lines=1)
+    sfont = _font(meta, sub_sample, min(int(H * 0.030), max(14, int(row_h * 0.26))))
 
     def _prog(i, delay):
         if frames <= 1:
@@ -334,9 +386,13 @@ def render_timeline(props, meta, W, H, frames, workdir, index):
             ax.plot([-0.3, n_ev - 0.7], [0, 0], color=c_rule, linewidth=2)
             for j in range(vis):
                 ax.scatter([xs[j]], [0], s=120, color=accent, zorder=3)
-                ax.text(xs[j], 0.12, events[j].get("date", ""), ha="center",
+                # accept BOTH key conventions: programmatic `date`/`label` AND the HTML tier's `when`/`what`
+                # (an author following the .timeline archetype uses when/what — never silently drop the label).
+                _when = events[j].get("date") or events[j].get("when") or ""
+                _what = events[j].get("label") or events[j].get("what") or ""
+                ax.text(xs[j], 0.12, str(_when), ha="center",
                         color=c_muted, fontsize=12, fontfamily=famly)
-                ax.text(xs[j], -0.18, events[j].get("label", ""), ha="center",
+                ax.text(xs[j], -0.18, str(_what), ha="center",
                         color=c_fg, fontsize=14, fontfamily=famly)
             ax.set_xlim(-0.6, n_ev - 0.4); ax.set_ylim(-0.5, 0.5)
         fig.tight_layout()

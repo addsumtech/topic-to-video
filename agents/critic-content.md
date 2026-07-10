@@ -96,9 +96,11 @@ For a scene whose `type` is `title`/`chart`/`timeline` (not `slide`), the on-scr
   failure (see VERDICT), not a style nit.
 - **Cross-check `props` against the `narration` of the same scene** — they must agree (if the narration
   says "165 launches in 2025" the chart's 2025 bar `value` must be 165, not 170).
-- The renderer draws bars/lines/counters ONLY from `data` and pins the chart y-axis to a true 0 baseline,
-  so axis-truncation and invented marks are prevented by construction — do NOT false-flag those in Phase
-  0/1. Focus on whether the numbers/labels/events are the RIGHT ones.
+- The renderer draws every chart (bars/lines/counters AND slope/dumbbell/dist/scatter/small_multiples) ONLY
+  from `data`, so invented marks are prevented by construction; bar/line charts also pin the y-axis to a true
+  0 baseline (a slope/dumbbell/scatter/dist legitimately does NOT — it shows position/spread, not magnitude
+  from zero, so do not demand a 0 baseline there). Do NOT false-flag axis-truncation in Phase 0/1 — focus on
+  whether the numbers/labels/events are the RIGHT ones.
 - Form is free: motion, color, layout, easing, the title's accent — never fail on those.
 - This applies from `props` alone (no render needed). Rendered animated-frame checking is owned by
   `agents/critic-av.md`.

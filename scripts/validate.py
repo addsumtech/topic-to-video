@@ -271,6 +271,24 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                                    s.get("narration"), families,
                                    captions_on=bool((data.get("meta") or {}).get("captions", True)),
                                    ai_look=ai_look, soft_textures=soft, comps=comps)
+        elif t in ("keypoints", "timeline", "chart", "compare", "title"):
+            # Readability floor for the PROGRAMMATIC tier — keyframe_qa only overflow-checks html pages,
+            # so nothing else guards these. The renderers now wrap/shrink-to-fit, but past a sane item
+            # count the type drops below the squint test on a moving frame. Deterministic, warning-only.
+            props = s.get("props") or {}
+            # keypoints is already hard-capped 1-5 by the storyboard contract; guard the UNCAPPED types.
+            _budget = {"timeline": ("events", 7), "chart": ("data", 8), "compare": ("parts", 6)}
+            if t in _budget:
+                key, ceil = _budget[t]
+                nitems = len(props.get(key) or [])
+                if nitems > ceil:
+                    warnings.append(f"{tag}: {t} has {nitems} {key} (> {ceil}) — too many to read on a moving frame; "
+                                    f"split the beat or promote the few that matter (the renderer shrinks to fit, but "
+                                    f"past ~{ceil} the type drops below the squint test)")
+            if t == "title" and len(str(props.get("title") or "")) > 90:
+                warnings.append(f"{tag}: title is {len(str(props.get('title')))} chars — a title should land in a "
+                                f"glance; tighten it or move the detail to the subtitle (it now wraps, but a paragraph "
+                                f"title isn't a title)")
 
         # --- audio / duration (skipped in --pre-tts mode) ------------------------------
         if not pre_tts:

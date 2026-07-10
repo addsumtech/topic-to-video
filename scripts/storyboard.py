@@ -7,7 +7,7 @@ class StoryboardError(ValueError):
 VALID_STYLES = {"highlight", "arrow", "box"}
 VALID_SCENE_TYPES = {"slide", "title", "chart", "timeline", "keypoints", "compare", "html"}
 ANIMATED_TYPES = {"title", "chart", "timeline", "keypoints", "compare", "html"}
-VALID_CHART_KINDS = {"bars", "line", "counter"}
+VALID_CHART_KINDS = {"bars", "line", "counter", "slope", "dumbbell", "dist", "scatter", "small_multiples"}
 VALID_IMAGE_SOURCES = {"none", "openai"}
 VALID_IMAGE_PROVIDERS = {"auto", "codex", "openai"}
 VALID_IMAGE_TAGS = {"motif", "broll", "asserted"}
@@ -72,16 +72,36 @@ def _validate_props(s):
         data = p.get("data")
         if not isinstance(data, list) or not data:
             raise StoryboardError(f"slide {s.get('index')}: chart needs non-empty 'data' list")
+        kind = p.get("kind", "bars")
         for d in data:
-            if not isinstance(d, dict) or not _is_num(d.get("value")):
-                raise StoryboardError(f"slide {s.get('index')}: every chart data item needs a numeric 'value'")
+            if not isinstance(d, dict):
+                raise StoryboardError(f"slide {s.get('index')}: every chart data item must be an object")
+            if kind in ("bars", "line", "counter"):
+                if not _is_num(d.get("value")):
+                    raise StoryboardError(f"slide {s.get('index')}: every {kind} data item needs a numeric 'value'")
+            elif kind in ("slope", "dumbbell"):
+                vv = d.get("values")
+                ok = (isinstance(vv, list) and len(vv) >= 2 and _is_num(vv[0]) and _is_num(vv[1])) \
+                    or (_is_num(d.get("v1")) and _is_num(d.get("v2")))
+                if not ok:
+                    raise StoryboardError(f"slide {s.get('index')}: every {kind} data item needs 'values':[a,b] or 'v1'+'v2'")
+            elif kind == "scatter":
+                if not (_is_num(d.get("x")) and _is_num(d.get("y"))):
+                    raise StoryboardError(f"slide {s.get('index')}: every scatter data item needs numeric 'x' and 'y'")
+            elif kind in ("dist", "small_multiples"):
+                vv = d.get("values")
+                if not (isinstance(vv, list) and vv and all(_is_num(x) for x in vv)):
+                    raise StoryboardError(f"slide {s.get('index')}: every {kind} data item needs a non-empty numeric 'values' list")
     elif t == "timeline":
         events = p.get("events")
         if not isinstance(events, list) or not events:
             raise StoryboardError(f"slide {s.get('index')}: timeline needs non-empty 'events' list")
         for e in events:
-            if not (isinstance(e, dict) and isinstance(e.get("date"), str) and isinstance(e.get("label"), str)):
-                raise StoryboardError(f"slide {s.get('index')}: every timeline event needs 'date' and 'label' strings")
+            # accept BOTH conventions: programmatic date/label AND the HTML .timeline archetype's when/what
+            has_when = isinstance(e, dict) and (isinstance(e.get("date"), str) or isinstance(e.get("when"), str))
+            has_what = isinstance(e, dict) and (isinstance(e.get("label"), str) or isinstance(e.get("what"), str))
+            if not (has_when and has_what):
+                raise StoryboardError(f"slide {s.get('index')}: every timeline event needs 'date'/'when' + 'label'/'what' strings")
     elif t == "keypoints":
         pts = p.get("points")
         if not isinstance(pts, list) or not (1 <= len(pts) <= 5):

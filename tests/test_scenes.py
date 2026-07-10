@@ -109,6 +109,39 @@ def test_timeline_writes_frames_and_final_nonblank(tmp_path):
     assert len([f for f in os.listdir(tmp_path) if f.endswith(".png")]) == 9
     assert Image.open(pat % 8).convert("RGB").getextrema() != ((0,0),(0,0),(0,0))
 
+def test_timeline_accepts_when_what_keys(tmp_path):
+    # the HTML .timeline archetype uses when/what — the programmatic renderer must not silently drop them
+    from PIL import Image
+    def ink(pat, n):
+        return sum(1 for px in Image.open(pat % (n - 1)).convert("L").getdata() if px > 30)
+    a = tmp_path / "a"; b = tmp_path / "b"; a.mkdir(); b.mkdir()
+    ww = scenes.render_timeline({"events": [{"when": "2019", "what": "Kickoff"}, {"when": "2020", "what": "MVP"}]},
+                                META, 900, 520, 3, str(a), 0)
+    none = scenes.render_timeline({"events": [{"x": "2019", "y": "Kickoff"}, {"x": "2020", "y": "MVP"}]},
+                                  META, 900, 520, 3, str(b), 0)
+    assert ink(ww, 3) > ink(none, 3)   # when/what render label text; unknown keys render nothing extra
+
+def test_title_long_wraps_without_clip(tmp_path):
+    from PIL import Image
+    props = {"title": "How to Build a Resilient One-Person Company in the Generative AI Era",
+             "subtitle": "a practical field guide with a very long subtitle line that keeps going and going"}
+    pat = scenes.render_title(props, META, 1280, 720, 3, str(tmp_path), 0)
+    assert Image.open(pat % 2).convert("RGB").getextrema() != ((0, 0), (0, 0), (0, 0))
+
+def test_wrap_pil_fits_width():
+    from PIL import Image, ImageDraw
+    d = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    f = scenes._font(META, "x", 40)
+    lines = scenes._wrap_pil(d, "the quick brown fox jumps over the lazy dog again and again and again", f, 300)
+    assert len(lines) > 1 and all(d.textlength(ln, font=f) <= 300 for ln in lines)
+
+def test_keypoints_many_points_fit_and_render(tmp_path):
+    from PIL import Image
+    props = {"title": "Seven shifts", "points": [
+        {"label": f"Point {k} with a fairly long descriptive label here", "sub": "detail line"} for k in range(7)]}
+    pat = scenes.render_keypoints(props, META, 1280, 720, 8, str(tmp_path), 0)
+    assert Image.open(pat % 7).convert("RGB").getextrema() != ((0, 0), (0, 0), (0, 0))
+
 def test_keypoints_writes_exact_frames_and_nonblank(tmp_path):
     props = {"title": "市场可争夺的部分",
              "points": [{"label": "对外发射 ≈ 42 次", "sub": "可被争夺"},

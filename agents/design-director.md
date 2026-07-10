@@ -85,7 +85,7 @@ honest substitute + the deliverable data-form are named. **Never promise a form 
 |---|---|---|
 | **Flow / Process / Pipeline** | `.flow` (html) | numbered `.step`s + `.arrow`; `data-cue` per step. Pipeline/conveyor art is broll only — data lives in the steps |
 | **Journey / Evolution / Sequence** | `.timeline` (html) · `render_timeline` | rail of `.tl-node`, one focal `.tl-node.on`; dates in mono. Road/metro map is broll only |
-| **Growth / Trend** | `chart` kind=`line` (the curve) · `bars` · `counter` | the curve draws on progressively. Rocket/mountain are decorative broll — magnitude lives in the chart |
+| **Growth / Trend** | `chart` kind=`line` (the curve) · `bars` · `counter` · `slope`/`dumbbell` (two points, many categories) · `dist`/`scatter`/`small_multiples` (spread / correlation / same-shape-across-N) | the curve draws on progressively. Rocket/mountain are decorative broll — magnitude lives in the chart |
 | **Comparison / Before-after** | `.split` + `.defocus` (html) · `render_compare` (programmatic) | two-column, `.defocus` the non-focal side. Two real axes → use `.quadrant` |
 | **Prioritization / Two axes** | `.quadrant` (html) | 2×2 of `.cell`, focal `.cell.on`, mono `.ax-x`/`.ax-y` |
 | **Relationship / Ecosystem / System** | `.hubspoke` (html) | hub + spokes (centre+peers, or inputs→decision). **Only a hub/star topology renders** — an arbitrary many-to-many graph does NOT; decompose to a hub |
