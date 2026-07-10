@@ -102,3 +102,27 @@ def test_explicit_bg_not_repainted_to_different_color(tmp_path):
     r, g, b = theme._hex2rgb(t["bg"])
     assert r > 235 and g > 235 and b > 235, t["bg"]                 # still near-white (not dark brown)
     assert theme._contrast(theme._hex2rgb(t["fg"]), (r, g, b)) >= 7.0   # readable dark fg on it
+
+
+def test_style_preset_seeds_palette_and_keeps_wcag(tmp_path):
+    for st in ("swiss", "noir", "terminal", "artdeco"):
+        t = theme.derive_theme(str(tmp_path), style=st)
+        bg = theme._hex2rgb(t["bg"])
+        assert t["style"] == st and t["style_vars"]
+        assert theme._contrast(theme._hex2rgb(t["fg"]), bg) >= 7.0 - 0.05
+        assert theme._contrast(theme._hex2rgb(t["accent"]), bg) >= 3.0 - 0.05
+    # explicit accent still overrides a style preset
+    t2 = theme.derive_theme(str(tmp_path), style="swiss", accent="#22aa55")
+    assert t2["accent"].lower() == "#22aa55"
+
+def test_no_style_is_backward_compatible(tmp_path):
+    import os as _os
+    theme.write_theme_css(theme.derive_theme(str(tmp_path)), str(tmp_path / "t.css"))
+    css = open(str(tmp_path / "t.css")).read()
+    assert "--style:" not in css and "--radius:" not in css   # no style vars emitted without a style
+
+def test_style_css_emits_hint_vars(tmp_path):
+    theme.write_theme_css(theme.derive_theme(str(tmp_path), style="brutalism"), str(tmp_path / "b.css"))
+    css = open(str(tmp_path / "b.css")).read()
+    for v in ("--style:brutalism", "--radius:", "--border-weight:", "--font-display:", "--motif-ink:"):
+        assert v in css, v

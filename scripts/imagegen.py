@@ -63,6 +63,19 @@ def _read_key_file():
     except OSError:
         return None
 
+
+def _apply_style(prompt, meta):
+    """Weave the deck's ONE visual style into a b-roll prompt at the single choke point every image passes:
+    SUBJECT first (the topic leads), STYLE in the middle, a HARD FAITHFULNESS TAIL always last — so the whole
+    deck is stylistically coherent AND the style can never leak into the data (it's structurally sandwiched
+    before the negatives). No `meta.style_preamble` → returns the prompt unchanged (backward-compatible)."""
+    pre = (meta.get("style_preamble") or "").strip()
+    if not pre:
+        return prompt
+    return (f"{prompt}. Rendered in the visual style of {pre}. Generic atmospheric b-roll only — no text, "
+            f"no letters, no numbers, no logos, no readable signage, no real-world named specifics; the "
+            f"style treats the atmosphere, never the data.")
+
 def synthesize_soft_textures(out_dir, data, key, provider, size, quality, date=""):
     """Generate a SMALL reusable set (<=3) of on-topic soft background textures for the AI look
     (from meta.soft_texture_prompts) into meta.soft_textures — atmospheric b-roll the design-director
@@ -77,7 +90,8 @@ def synthesize_soft_textures(out_dir, data, key, provider, size, quality, date="
         return 0
     model = "codex" if provider == "codex" else DEFAULT_MODEL
     rels, made, cached, failed = [], 0, 0, 0
-    for prompt in prompts:
+    for _raw in prompts:
+        prompt = _apply_style(_raw, meta)                 # same style preamble as the per-scene images
         cp = _cache_path(out_dir, prompt, model, size, quality)
         rel = os.path.relpath(cp, out_dir)
         if os.path.exists(cp):
@@ -89,7 +103,8 @@ def synthesize_soft_textures(out_dir, data, key, provider, size, quality, date="
                 generate(prompt, cp, key, size, quality, DEFAULT_MODEL)
             with open(cp[:-4] + ".json", "w") as f:
                 json.dump({"prompt": prompt, "provider": provider, "model": model, "size": size,
-                           "quality": quality, "tag": "broll", "kind": "soft_texture", "date": date},
+                           "quality": quality, "tag": "broll", "kind": "soft_texture",
+                           "visual_style": meta.get("visual_style"), "date": date},
                           f, indent=2)
             rels.append(rel); made += 1
         except Exception as e:
@@ -122,7 +137,7 @@ def synthesize_images(out_dir, key=None, date=""):
                if (s.get("image_prompt") or "").strip() and not s.get("image")]
     made = cached = failed = 0
     for s in pending:
-        prompt = s["image_prompt"]
+        prompt = _apply_style(s["image_prompt"], meta)   # the styled prompt is what gets hashed + generated
         cp = _cache_path(out_dir, prompt, model, size, quality)
         rel = os.path.relpath(cp, out_dir)
         if os.path.exists(cp):
@@ -134,7 +149,8 @@ def synthesize_images(out_dir, key=None, date=""):
                 generate(prompt, cp, key, size, quality, DEFAULT_MODEL)
             with open(cp[:-4] + ".json", "w") as f:
                 json.dump({"prompt": prompt, "provider": provider, "model": model, "size": size,
-                           "quality": quality, "tag": s.get("image_tag", "broll"), "date": date},
+                           "quality": quality, "tag": s.get("image_tag", "broll"),
+                           "visual_style": meta.get("visual_style"), "date": date},
                           f, indent=2)
             s["image"] = rel; made += 1
         except Exception as e:

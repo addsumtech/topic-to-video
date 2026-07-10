@@ -38,18 +38,53 @@ def _sample_frames(out_dir, k=4, n_colors=5):
         cols += [rgb for _, rgb in q.getcolors(maxcolors=100000)]
     return cols or None
 
-def derive_theme(out_dir, mode=None, accent=None, accent2=None, bg=None):
+# Visual-style presets (see references/visual-styles.md). A chosen style SEEDS the palette (mode + accent
+# family) and emits style-hint CSS vars for the flat/HTML tiers + motifs. Precedence: explicit --mode/
+# --accent/--accent2/--bg (a stated brand) > STYLE preset > sampled frames > the neutral default. The WCAG
+# contrast loops below run AFTERWARD untouched, so a style can never yield an unreadable palette.
+# entry: (mode, accent, accent2, {radius, border, display-font, grid-strength, motif-ink})
+STYLE_PRESETS = {
+    "swiss":        ("light", "#e2231a", "#111111", {"radius": "2px",  "border": "2px", "font": "sans-serif", "grid": ".10", "ink": "grid"}),
+    "editorial":    ("light", "#7a1f1f", "#2b2b2b", {"radius": "3px",  "border": "1px", "font": "serif",      "grid": ".05", "ink": "rule"}),
+    "bauhaus":      ("light", "#e5231b", "#1552c4", {"radius": "0",    "border": "3px", "font": "sans-serif", "grid": ".08", "ink": "geometric"}),
+    "brutalism":    ("light", "#111111", "#c6ff00", {"radius": "0",    "border": "3px", "font": "monospace",  "grid": ".14", "ink": "grid"}),
+    "glassmorphism":("dark",  "#5b9dff", "#c58bff", {"radius": "20px", "border": "1px", "font": "sans-serif", "grid": ".05", "ink": "glow"}),
+    "claymorphism": ("light", "#7b6ef6", "#ff8fab", {"radius": "28px", "border": "0",   "font": "sans-serif", "grid": ".04", "ink": "blob"}),
+    "manga":        ("light", "#111111", "#e5231b", {"radius": "6px",  "border": "3px", "font": "sans-serif", "grid": ".10", "ink": "speedline"}),
+    "risograph":    ("light", "#ff5a3c", "#2f6ae0", {"radius": "4px",  "border": "2px", "font": "sans-serif", "grid": ".06", "ink": "halftone"}),
+    "memphis":      ("light", "#ff4d6d", "#00c2b8", {"radius": "12px", "border": "3px", "font": "sans-serif", "grid": ".08", "ink": "geometric"}),
+    "noir":         ("dark",  "#c9c2b6", "#8a1c1c", {"radius": "2px",  "border": "1px", "font": "serif",      "grid": ".06", "ink": "beam"}),
+    "cyberpunk":    ("dark",  "#00e5ff", "#ff2bd6", {"radius": "4px",  "border": "2px", "font": "monospace",  "grid": ".12", "ink": "grid"}),
+    "vaporwave":    ("dark",  "#ff71ce", "#01cdfe", {"radius": "8px",  "border": "2px", "font": "sans-serif", "grid": ".14", "ink": "grid"}),
+    "watercolor":   ("light", "#4f7a8a", "#c98b6b", {"radius": "10px", "border": "0",   "font": "serif",      "grid": ".04", "ink": "wash"}),
+    "artdeco":      ("dark",  "#c8a24a", "#0f6e63", {"radius": "2px",  "border": "2px", "font": "serif",      "grid": ".07", "ink": "fan"}),
+    "cinematic":    ("dark",  "#e08a3c", "#2f8f9d", {"radius": "6px",  "border": "0",   "font": "serif",      "grid": ".05", "ink": "none"}),
+    "blueprint":    ("dark",  "#5fbcff", "#bcd3e6", {"radius": "2px",  "border": "2px", "font": "monospace",  "grid": ".16", "ink": "grid"}),
+    "terminal":     ("dark",  "#39ff14", "#ffb000", {"radius": "2px",  "border": "1px", "font": "monospace",  "grid": ".12", "ink": "scanline"}),
+    "cartographic": ("light", "#3f6f5f", "#b06a3c", {"radius": "4px",  "border": "1px", "font": "serif",      "grid": ".07", "ink": "contour"}),
+}
+
+
+def derive_theme(out_dir, mode=None, accent=None, accent2=None, bg=None, style=None):
+    _pre = STYLE_PRESETS.get((style or "").lower())
+    _pmode, _pacc, _pacc2, _pvars = _pre if _pre else (None, None, None, {})
     sampled = None if (accent and bg) else _sample_frames(out_dir)
     if mode in ("light", "dark"):
         m = mode
+    elif _pmode:                                        # a chosen style's mode is intentional (noir=dark)
+        m = _pmode
     elif sampled:
         avg = sum(_lum(c) for c in sampled) / len(sampled)
         m = "light" if avg >= 0.5 else "dark"
     else:
         m = "dark"
-    acc = _hex2rgb(accent) if accent else (max(sampled, key=_sat) if sampled else (76, 155, 232))
+    # accent: explicit > style preset > sampled > neutral default (so a chosen style visibly recolors)
+    _acc_default = _hex2rgb(_pacc) if _pacc else (76, 155, 232)
+    acc = _hex2rgb(accent) if accent else (_hex2rgb(_pacc) if _pacc else (max(sampled, key=_sat) if sampled else _acc_default))
     if accent2:
         acc2 = _hex2rgb(accent2)
+    elif _pacc2 and not accent:                        # style's accent2 (unless an explicit accent recolors)
+        acc2 = _hex2rgb(_pacc2)
     else:
         h, l, s = colorsys.rgb_to_hls(*[c / 255 for c in acc])
         acc2 = tuple(c * 255 for c in colorsys.hls_to_rgb((h + 0.5) % 1.0, 0.5, max(0.5, s)))
@@ -122,11 +157,20 @@ def derive_theme(out_dir, mode=None, accent=None, accent2=None, bg=None):
     return {"mode": m, "bg": _hex(bgc), "surface": _hex(_mix(bgc, fg, 0.06)),
             "fg": _hex(fg), "muted": _hex(_mix(fg, bgc, 0.42)),
             "accent": _hex(acc), "accent2": _hex(acc2), "scrim": _hex(bgc),
-            "on_accent": _hex(on_accent), "on_accent2": _hex(on_accent2)}
+            "on_accent": _hex(on_accent), "on_accent2": _hex(on_accent2),
+            "style": (style or "").lower() if _pre else "", "style_vars": _pvars}
 
 def write_theme_css(theme, path):
+    sv = theme.get("style_vars") or {}
+    style_css = ""
+    if sv:   # style-hint vars — authored pages/motifs key off these (base.css/motifs.css stay untouched)
+        style_css = (f"  --style:{theme.get('style', '')}; --radius:{sv.get('radius', '14px')}; "
+                     f"--border-weight:{sv.get('border', '1px')};\n"
+                     f"  --font-display:{sv.get('font', 'inherit')}; --grid-strength:{sv.get('grid', '.07')}; "
+                     f"--motif-ink:{sv.get('ink', 'grid')};\n")
     css = (":root{\n"
-           f"  --bg:{theme['bg']}; --surface:{theme['surface']}; --fg:{theme['fg']};\n"
+           + style_css
+           + f"  --bg:{theme['bg']}; --surface:{theme['surface']}; --fg:{theme['fg']};\n"
            f"  --muted:{theme['muted']}; --accent:{theme['accent']}; --accent2:{theme['accent2']};\n"
            f"  --rule:var(--accent2); --scrim:{theme['scrim']}; --on-accent:{theme.get('on_accent', '#fff')};\n"
            f"  --on-accent2:{theme.get('on_accent2', '#fff')};\n}}\n")
@@ -137,10 +181,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("out_dir")
     ap.add_argument("--mode"); ap.add_argument("--accent"); ap.add_argument("--accent2"); ap.add_argument("--bg")
+    ap.add_argument("--style", default=None, help="a visual-styles.md key (swiss/editorial/glassmorphism/…)")
     a = ap.parse_args()
-    t = derive_theme(a.out_dir, a.mode, a.accent, a.accent2, a.bg)
+    t = derive_theme(a.out_dir, a.mode, a.accent, a.accent2, a.bg, a.style)
     write_theme_css(t, os.path.join(a.out_dir, "theme.css"))
-    print(f"[theme] mode={t['mode']} bg={t['bg']} fg={t['fg']} accent={t['accent']} accent2={t['accent2']}")
+    print(f"[theme] mode={t['mode']} bg={t['bg']} fg={t['fg']} accent={t['accent']} accent2={t['accent2']}"
+          + (f" style={t['style']}" if t.get('style') else ""))
 
 if __name__ == "__main__":
     main()

@@ -539,6 +539,10 @@ def _design_plan_lints(out_dir, warnings):
     if beats and not plan.get("style_thesis"):
         warnings.append("creativity: design_plan has no style_thesis — the deck needs a distinctive aesthetic POV "
                         "that fits the subject (design-critic D2c)")
+    if beats and not plan.get("visual_style"):
+        warnings.append("style: design_plan has no visual_style — pick ONE named style from "
+                        "references/visual-styles.md via the selection contest (or \"custom\"); it seeds theme.py "
+                        "--style and imagegen's style_preamble so the deck reads as one coherent register (design-critic D2c)")
     sig = plan.get("signature_concept") or {}
     sig_beat = sig.get("beat") if isinstance(sig, dict) else None
     if sig_beat is not None:

@@ -218,3 +218,14 @@ def test_synthesize_codex_cache_path_distinct(tmp_path):
     a = imagegen._cache_path(str(tmp_path), "p", "codex", "1536x1024", "medium")
     b = imagegen._cache_path(str(tmp_path), "p", imagegen.DEFAULT_MODEL, "1536x1024", "medium")
     assert a != b
+
+
+def test_apply_style_noop_and_structure():
+    # no meta.style_preamble → prompt unchanged (backward-compatible)
+    p = "a coral reef from above, calm water"
+    assert imagegen._apply_style(p, {}) == p
+    # with a preamble → subject first, style middle, faithfulness tail ALWAYS last
+    styled = imagegen._apply_style(p, {"style_preamble": "risograph spot-ink print, halftone, matte"})
+    assert styled.startswith(p) and "risograph" in styled
+    assert styled.rstrip().endswith("the style treats the atmosphere, never the data.")
+    assert "no text, no letters, no numbers, no logos" in styled

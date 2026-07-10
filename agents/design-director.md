@@ -32,8 +32,11 @@ A SEPARATE artifact from the content plan (the assistant merges the two into the
   "signature_concept": { "beat": 4, "name": "e.g. the widening gap",
       "encoding": "what CONTENT MEANING maps to what VISUAL PROPERTY — the APT part (e.g. the growing white gap BETWEEN two bars IS the compounding loss, no legend needed)",
       "why_unexpected": "why this is not the obvious catalog form — the INVENTIVE part" },
-  "style_thesis": "the deck's distinctive aesthetic STANCE + why it fits THIS subject (a named register: blueprint/schematic · field-notebook/annotated · editorial museum-plate · terminal/data-console · cartographic · ledger/receipt · specimen-plate) — NOT just a palette restatement",
-  "theme": { "mode": "light|dark", "accent": "#hex", "accent2": "#hex", "bg": "#hex", "why": "one line" },
+  "style_thesis": "the deck's distinctive aesthetic STANCE + WHY it fits THIS subject — NOT just a palette restatement",
+  "visual_style": "ONE catalog key from references/visual-styles.md (swiss/editorial/bauhaus/brutalism/glassmorphism/claymorphism/manga/risograph/memphis/noir/cyberpunk/vaporwave/watercolor/artdeco/cinematic/blueprint/terminal/cartographic), or \"custom\"+DNA — chosen by the selection contest below",
+  "rejected_style": "the NEAREST competing style + the ONE clause that separates them (a contest, not a strawman — mirrors rejected_default)",
+  "style_preamble": "(AI tiers only) the catalog style clause adapted to THIS subject + palette accents — imagegen prepends it to EVERY generated image so the deck reads as one coherent style, atmosphere-only",
+  "theme": { "mode": "light|dark", "accent": "#hex", "accent2": "#hex", "bg": "#hex", "style": "= visual_style (theme.py --style seeds palette/type + emits style vars)", "why": "one line" },
   "design_anti_slop": ["no gradient-mesh backgrounds", "no stock-chart clichés", "no emoji in titles", "…"],
   "rhythm_map": [ { "id": 1, "density": "light|medium", "background": "plain|warm|cool|hero",
       "protagonist": "the visual lead", "register": "aspirational|pressure|diagnostic|constructive|…",
@@ -188,10 +191,22 @@ THIS subject. Make it that:
   idea that hurts the 3-second read or invents data is NOT a pass. A custom layout that merely carries
   the motif no longer counts — the signature beat must NAME the concept. **Screenshot test:** ≥1 beat a
   designer would screenshot to save as inspiration. The design-critic (D2c) REVISEs a deck with none.
-- **Give the deck a style_thesis (a POV).** State one distinctive aesthetic stance that fits THIS subject
-  — a named register (blueprint/schematic · field-notebook/annotated · editorial museum-plate ·
-  terminal/data-console · cartographic · ledger/receipt · specimen-plate) that colors the type roles,
-  accent, motif, and at minimum the signature beat. A palette restatement is NOT a thesis.
+- **Pick ONE named visual style — a smart contest, not a reflex (`references/visual-styles.md`).** Choose the
+  deck's `visual_style` from the 18-style catalog by reasoning from the subject: **(0)** if the interview set
+  `meta.visual_style` (or slide frames carry a brand palette), HONOR it. **(1)** read five signals — domain ·
+  content-shape (data-dense vs narrative/emotional) · audience-formality · purpose-temperature · brand-cue.
+  **(2)** shortlist 2–3 from the topic→style map, then apply the **guardrail vetoes** (somber topics forbid
+  playful/retro-pop; enterprise/trust forbid vaporwave/cyberpunk/memphis; a data-dense deck forbids a
+  low-contrast/high-texture spine; never reflex cyberpunk/terminal for "AI/tech" — the electric-blue-on-ink
+  cliché). **(3)** crown a winner and NAME the nearest rejected rival with the one separating clause
+  (e.g. "editorial beats Swiss — long-form narrative with pull-quotes, not a systematic data-grid"). **(4)**
+  legibility supremacy: if the style would hurt the 3-second read, it YIELDS to atmosphere/background and the
+  content spine stays high-contrast (theme.py's ≥7:1/≥3:1 floors are the backstop). A style is a **rendering
+  TREATMENT of the atmosphere, never the data** — it colors type/accent/motif/composition + the AI imagery,
+  never distorts a chart or fabricates specifics, and the imagery must still EVOKE THE ACTUAL TOPIC (style OF
+  the subject). Set `visual_style` + `theme.style` (a catalog key); on AI tiers author `style_preamble` (the
+  catalog clause adapted to this subject) — imagegen threads it through every image. A palette restatement is
+  NOT a style_thesis; the `style_thesis` prose says WHY this style fits.
 - **Vary the composition ENVELOPE, not just the form.** Two beats can use DIFFERENT forms and STILL
   share one composition — a top kicker over a vertically-centered block on a flat ground — and that IS
   the templated look the user complains about. RULE: no two content beats may share the same composition

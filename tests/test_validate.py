@@ -858,3 +858,10 @@ def test_final_scene_hard_end_warns_unless_meta_none(tmp_path):
     data["slides"][0]["transition"] = None if False else "none"  # normalize scene 1 too
     r2 = validate.evaluate(data, str(tmp_path), pre_tts=True)
     assert not any("no out edge" in w for w in r2["warnings"])
+
+
+def test_design_plan_missing_visual_style_warns(tmp_path):
+    _design_plan(tmp_path, {"beats": [{"index": 1, "content_shape": "x", "form": "stat"}],
+                            "signature_concept": {"beat": 1, "name": "x"}, "style_thesis": "blueprint"})
+    r = validate.evaluate(_board(str(tmp_path), [_slide_scene(tmp_path, 0)]), str(tmp_path))
+    assert any("no visual_style" in w for w in r["warnings"])

@@ -227,9 +227,16 @@ TTS if the user gives an API key.
 
    **Batch 3 — AI imagery (ONLY if Batch 1 ③ = "AI cover + soft bg" or "HTML + AI backdrops",
    i.e. `image_source:openai`).** Confirm the spend first, then ask:
-   - **Art style** (feeds the design-director's `image_prompt`/motif): buttons **Editorial** (clean,
-     magazine-like — the safe default) · **Watercolor/ink** · **Cinematic** · **Photoreal**; 3D render ·
-     Minimal/abstract via Other (or a free-text style brief).
+   - **Visual style** *(→ `meta.visual_style`; sets the whole deck's aesthetic register — see
+     `references/visual-styles.md`)*. First DERIVE the most suitable style for THIS topic (the selection
+     contest: domain · data-dense vs narrative · audience · purpose, minus the guardrail vetoes), then offer
+     the FULL menu in the question text — **Swiss · Editorial · Bauhaus · Brutalism · Glassmorphism ·
+     Claymorphism · Manga · Risograph · Memphis · Noir · Cyberpunk · Vaporwave · Watercolor · Art-Deco ·
+     Cinematic · Blueprint · Terminal · Cartographic** — with the ≤4 buttons = your recommended pick + the 3
+     next-best FOR THIS TOPIC (so the default is topic-derived, not a hardcoded "Editorial"). Other → a
+     free-text brief (`"custom"`) or any listed style by name. If the user picks a style that COLLIDES with a
+     somber/sensitive topic, don't silently render it — surface the restrained alternative via a follow-up
+     question. Persists as `meta.visual_style` and overrides the director's auto-pick.
    - **Image cost** (`meta.image_quality`): **Low** ~$0.01/img · **Medium** ~$0.04 (default) ·
      **High** ~$0.17 (worth it for a hero cover). Set **`meta.image_size` FROM the aspect** — 9:16 →
      `1024x1536`, else `1536x1024` — so a vertical deck gets portrait imagery, not landscape.
@@ -239,6 +246,11 @@ TTS if the user gives an API key.
    index talk gets abstract index/lookup imagery, a reef talk gets reef imagery, a slide-design deck
    gets blank panels/layout grids; a pretty-but-unrelated texture (random paper, generic gradient,
    stock desk) is a MISS. Derive the prompt's motif from the topic + comprehension brief.
+   **Visual style:** the deck's chosen `meta.visual_style` (`references/visual-styles.md`) is applied
+   UNIFORMLY as an atmosphere treatment — `imagegen._apply_style` prepends `meta.style_preamble` to EVERY
+   generated prompt (sandwiched subject → style → hard faithfulness tail), so all images read as one coherent
+   style and the style can NEVER leak into the data. It doesn't change the generic/no-text/topical rules
+   above; it's HOW the atmosphere looks, not WHAT is shown.
    **Provider:** if the **`codex` CLI is installed**, generate via Codex's native image-gen (NO key —
    uses the user's Codex plan; slower, ~min/image); else the OpenAI key (`OPENAI_API_KEY` /
    `~/.openai_key`, requested out-of-band). `meta.image_provider` is `auto` (default, Codex-first),
@@ -352,11 +364,16 @@ TTS if the user gives an API key.
      panel (step 5) receives them: `critic-content`/`critic-narrative` audit the content plan (continuity,
      relation, faithfulness); the **design-critic** audits the design plan (motif, form diversity,
      transitions, icons, whitespace, rhythm, colour, motion).
-- **Theme:** run `scripts/theme.py <out_dir>` AFTER the design plan and BEFORE authoring pages or
-  programmatic scenes — it samples `frames/` for a curated light/dark palette fitting the topic
-  (or pass `--mode/--accent/--accent2/--bg` from the **design-director's** `theme` when there are no
-  frames). Pages link `base.css` → `theme.css` → `motifs.css`; the programmatic renderers parse the
-  same vars. 🔴 the plan checkpoint now also shows the palette + mode.
+- **Theme:** run `scripts/theme.py <out_dir> [--style <meta.visual_style>]` AFTER the design plan and BEFORE
+  authoring pages or programmatic scenes — it samples `frames/` for a curated light/dark palette fitting the
+  topic (or pass `--mode/--accent/--accent2/--bg` from the **design-director's** `theme` when there are no
+  frames). **Pass `--style <the deck's visual_style>`** (from `references/visual-styles.md`) so the chosen
+  style seeds the palette + emits style-hint vars (`--radius`/`--border-weight`/`--font-display`/
+  `--grid-strength`/`--motif-ink`) that the authored pages + `.bg-motif` key off — an explicit
+  `--accent`/`--mode` still wins, and the WCAG floors still run after, so a style can never make an unreadable
+  palette. The style applies on EVERY tier (flat/HTML too), not just AI imagery. Pages link `base.css` →
+  `theme.css` → `motifs.css`; the programmatic renderers parse the same vars. 🔴 the plan checkpoint now also
+  shows the palette + mode + **visual style**.
 - **Re-conceive, don't mirror:** the content-planner designs a video arc (hook + throughline +
   resequencing), not the slide order — faithful to the substance.
 - **Illustrated pages:** build a beat's design-plan `media` as a `.split` page (text + a STATIC image panel,
