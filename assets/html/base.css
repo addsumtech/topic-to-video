@@ -269,11 +269,13 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
   font-variant-numeric:tabular-nums}
 
 /* Set overlap — a VENN (2–3 circles): shared vs unique membership. Author each `.set` with inline
-   size/position/background (a semi-opaque accent); screen-blend so the intersection reads. It encodes
-   MEMBERSHIP, not area — never imply a precise proportion by circle size. */
+   size/position + its hue `--c` (e.g. `--c:var(--accent)`). Each circle is OUTLINED in its hue over a
+   faint fill (no blend mode — so it reads on a LIGHT or DARK ground alike); the intersection is
+   delineated by the crossing arcs + the doubled tint + the `both` label. Encodes MEMBERSHIP, not area —
+   never imply a precise proportion by circle size. */
 .venn{position:relative;height:560px}
-.venn .set{position:absolute;border-radius:50%;mix-blend-mode:screen;
-  border:2px solid color-mix(in srgb,var(--fg) 28%,transparent)}
+.venn .set{position:absolute;border-radius:50%;border:3px solid var(--c,var(--accent));
+  background:color-mix(in srgb,var(--c,var(--accent)) 16%,transparent)}
 .venn .vlab{position:absolute;font-size:34px;font-weight:700;text-align:center;z-index:2}
 .venn .vlab .s{display:block;font-size:26px;color:var(--muted);font-weight:500}
 

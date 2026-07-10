@@ -45,7 +45,9 @@ OR a non-card form that fits in the wrong direction (D1 bidirectional), player-c
   `.quadrant`/`.hubspoke`/`.timeline`/`.segbar`/`.pullquote`/`.blocks`; see `references/html-pages.md`).
 - **D1 is BIDIRECTIONAL — a non-card form that merely accommodates is as wrong as a reflex grid.** Named
   REVISE cases: (a) a lone `.stat`/number for content whose point is a **TREND or COMPARISON** → a line /
-  before-after; (b) separate stats/cards for a **PART-OF-WHOLE/share** → `.segbar`/`.meter`; (c) an
+  before-after / slopegraph; (b) separate stats/cards for a **PART-OF-WHOLE/share** → `.segbar`/`.meter`,
+  or for a **single dominant % / "k of N"** → `.gauge`/`.waffle`/`.isotype` (make the proportion felt),
+  or for **actual-vs-target** → `.bullet`; (c) an
   unordered card grid or `.blocks` for a **RANKING/magnitude** → ascending bars; (d) a `.flow`/`.timeline`
   imposed on items NOT ordered/dated (fit in the WRONG direction) → the right relation form or cards;
   (e) a `.scorecard`/KPI wall for a **CAUSAL** story → `.flow`. (`validate.py` flags the two highest-signal

@@ -116,13 +116,19 @@ land** — a `*` marks a metaphor that is broll-only or approximated (the honest
 |---|---|---|---|---|
 | Flow / Process | `.flow` (numbered steps + arrows) | steps happen in sequence | items are unordered | four cards with arrows |
 | Journey / Evolution | `.timeline` · `render_timeline` | time or stages matter | no chronology | timeline as decoration, too much text |
-| Growth / Trend | `chart` line (curve) / bars / counter | progress/acceleration is central | change is qualitative | a random upward arrow |
+| Growth / Trend | `chart` line (curve) / `slope` / `dumbbell` / `waterfall` / bars / counter | progress/acceleration is central | change is qualitative | a random upward arrow |
 | Loop / Flywheel / Compounding | linear `.flow` with a "return" step *(no cycle renderer)* | each step feeds the next | steps don't feed back | a pretty circle with no compounding logic |
 | Comparison / Before-after | `.split` + `.defocus` · `render_compare` | two states/options contrast | >3 alternatives | a table where visual contrast is needed |
 | Hierarchy / Ranking | graded `.bar` rows / stacked `.blocks` tiers *(no pyramid)* | levels/magnitude matter | items are equal-weight | a flat card grid |
 | Prioritization / Two axes | `.quadrant` | choice/order on two axes | there is no ranking | a quadrant with weak/undefined axes |
 | Relationship / Ecosystem / System | `.hubspoke` (hub+spokes) *(no arbitrary graph)* | actors converge on a centre | a simple sequence | random nodes with no meaning |
-| Parts of a whole / Share | `.segbar` / `.meter` · `render_compare` split | proportions of one whole | independent items | a pie-like grid of equal cards |
+| Parts of a whole / Share | `.segbar`/`.meter` · a SINGLE dominant % → `.gauge`/`.waffle`/`.isotype` · actual-vs-target → `.bullet` · `render_compare` split | proportions of one whole | independent items | a pie-like grid of equal cards |
+| Two-point change (many categories) | slopegraph (SVG) / `chart` `dumbbell` | the same measure at TWO points across items — rank crossover / gap | one series over time (use a line) | paired stats that hide the crossover |
+| Set overlap / membership | `.venn` (2–3 hue-outlined circles) *(membership, NOT area)* | shared vs unique matters | a strict hierarchy | circles sized to imply a fake proportion |
+| Nested scope / containment | `.rings` (concentric) | core→outer containment (TAM/SAM/SOM) | a flat sequence | rings implying precise areas |
+| Ordered procedure (how-to) with position | `.stepper` (numbered, `.on` = you-are-here) | a finite ordered procedure where position matters | an unordered set | a plain `.flow` that hides which step you're on |
+| Running total from signed steps | `.waterfall` (bridge) | a start total becomes an end total via +/− steps | independent magnitudes | floating bars with wrong offsets that lie |
+| Distribution / spread / correlation | `chart` `dist` (box + strip) / `scatter` / `small_multiples` | variance, outliers, a correlation, or the-same-shape-across-N | one summary number suffices | a bar of the mean that hides the spread |
 | Dependency | `.flow` (A feeds B) / `.segbar` *(no Sankey)* | inputs feed outputs | no volume/dependency | arrows with no weight or logic |
 | KPIs / Performance | `.dash` + `.scorecard`/`.tile`/`.delta` | KPIs are central | the story is causal | a KPI wall with no hierarchy |
 | Progress | `.meter` / milestone `.timeline` | completion status matters | open-ended exploration | decorative progress bars |

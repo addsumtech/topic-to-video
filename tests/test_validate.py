@@ -499,6 +499,21 @@ def test_design_plan_share_as_stats_warns(tmp_path):
     r = validate.evaluate(_board(str(tmp_path), [_slide_scene(tmp_path, 0)]), str(tmp_path))
     assert any("separate numbers hide the whole" in w for w in r["warnings"])
 
+def test_design_plan_share_as_gauge_credited(tmp_path):
+    # a single-proportion form (gauge/waffle/isotype) is a VALID share encoding — not flagged as "separate numbers"
+    for form in ("gauge", "waffle", "isotype", "bullet"):
+        _design_plan(tmp_path, {"beats": [{"index": 1, "content_shape": "share of total revenue", "form": form}],
+                                "signature_concept": {"beat": 1, "name": "x"}, "style_thesis": "blueprint"})
+        r = validate.evaluate(_board(str(tmp_path), [_slide_scene(tmp_path, 0)]), str(tmp_path))
+        assert not any("separate numbers hide the whole" in w for w in r["warnings"]), form
+
+def test_design_plan_slope_is_valid_trend_form(tmp_path):
+    # slope/waterfall are valid change-over-time forms — a temporal beat using them isn't "rendered static"
+    _design_plan(tmp_path, {"beats": [{"index": 1, "content_shape": "score change over time per method", "form": "slope"}],
+                            "signature_concept": {"beat": 1, "name": "x"}, "style_thesis": "blueprint"})
+    r = validate.evaluate(_board(str(tmp_path), [_slide_scene(tmp_path, 0)]), str(tmp_path))
+    assert not any("trend rendered static" in w for w in r["warnings"])
+
 def test_design_plan_missing_creativity_fields_warn(tmp_path):
     _design_plan(tmp_path, {"beats": [{"index": 1, "content_shape": "one number", "form": "stat"}]})
     r = validate.evaluate(_board(str(tmp_path), [_slide_scene(tmp_path, 0)]), str(tmp_path))

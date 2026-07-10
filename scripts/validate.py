@@ -495,17 +495,20 @@ def _design_plan_lints(out_dir, warnings):
         if not shape or not form:
             continue
         temporal = any(k in shape for k in _TREND_SHAPE)
-        charty = any(f in form for f in ("chart", "line", "timeline", "flow", "spark"))
+        charty = any(f in form for f in ("chart", "line", "timeline", "flow", "spark",
+                                         "slope", "dumbbell", "waterfall", "bump"))
         catalogish = any(f in form for f in ("stat", "keypoint", "card", "scorecard", "tile"))
         if temporal and not charty and catalogish:
             warnings.append(f"form-fit: a beat's content_shape reads temporal/trend ('{shape[:34]}') but its form is "
-                            f"'{form}' — a trend rendered static hides the trajectory; use a line chart / timeline (design-critic D1)")
+                            f"'{form}' — a trend rendered static hides the trajectory; use a line/slope/waterfall or timeline (design-critic D1)")
         share = any(k in shape for k in _SHARE_SHAPE)
-        sharey = any(f in form for f in ("segbar", "meter", "donut", "stack"))
+        sharey = any(f in form for f in ("segbar", "meter", "donut", "stack",
+                                         "gauge", "waffle", "isotype", "bullet", "pictograph"))
         atomized = any(f in form for f in ("stat", "card", "tile", "scorecard"))
         if share and not sharey and atomized:
             warnings.append(f"form-fit: a beat's content_shape reads share/part-of-whole ('{shape[:34]}') but its form "
-                            f"is '{form}' — separate numbers hide the whole; use .segbar/.meter (design-critic D1)")
+                            f"is '{form}' — separate numbers hide the whole; use .segbar/.meter or a single-proportion "
+                            f".gauge/.waffle/.isotype (design-critic D1)")
 
     if beats and not plan.get("signature_concept"):
         warnings.append("creativity: design_plan has no signature_concept — name ONE inventive beat (an apt + "

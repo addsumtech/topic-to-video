@@ -357,8 +357,8 @@ A KPI against a target and qualitative bands. Band widths + value width + target
 `.venn` = shared vs unique (2–3 sets, screen-blended overlap — encodes MEMBERSHIP, never a precise area).
 `.rings` = nested containment/scope (TAM/SAM/SOM, core→ecosystem). Author circles/rings inline; `.on` the focal one.
 ```html
-<div class="venn"><div class="set" style="left:120px;top:40px;width:340px;height:340px;background:color-mix(in srgb,var(--accent) 45%,transparent)"></div>
-  <div class="set" style="left:360px;top:40px;width:340px;height:340px;background:color-mix(in srgb,var(--green) 45%,transparent)"></div>
+<div class="venn"><div class="set" style="--c:var(--accent);left:120px;top:40px;width:340px;height:340px"></div>
+  <div class="set" style="--c:var(--accent2);left:360px;top:40px;width:340px;height:340px"></div>
   <div class="vlab" style="left:150px;top:190px">A<span class="s">speed</span></div> … </div>
 <div class="rings"><div class="ring" style="width:520px;height:520px"><div class="rlab">TAM · $50B</div></div>
   <div class="ring on" style="width:200px;height:200px"><div class="rlab">SOM · $1.4B</div></div></div>
@@ -383,6 +383,12 @@ noisy scan, redesign vs original) — a frozen `--w` split, or `.sweep` for a se
   <div class="before"><img src="file://…/before.png"></div><div class="seam"></div><div class="tag l">Before</div><div class="tag r">After</div></div>
 ```
 (SVG helper: `.axl`/`.sl` are just author classes — set `fill:var(--muted)`/`stroke` inline or in a `<style>` using vars.)
+
+**Robustness notes.** These read on a LIGHT *or* DARK theme (all theme-var / `color-mix`, no fixed blend
+modes). `.gauge`/`.waffle`/`.bullet` expect a **0–1 / 0–100%** value — a `>100%` bar is clipped by
+`overflow:hidden` and a `--p>1` fills the ring, so they degrade sanely but aren't *for* over-100% data.
+The fixed-size encodings (`.waffle` 520, `.gauge` 340, `.venn`/`.rings` ~560–600px) fit a 16:9 `.stage`;
+on a **9:16** deck size them down inline so they clear the narrower column (`keyframe_qa` flags overflow).
 
 ---
 

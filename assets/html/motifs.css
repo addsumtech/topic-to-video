@@ -8,16 +8,16 @@
 /* deterministic starfield backdrop (fixed positions — no randomness) */
 .bg-stars{position:absolute;inset:0;z-index:0;pointer-events:none;
   background-image:
-    radial-gradient(1.6px 1.6px at 12% 22%, #ffffff66, transparent),
-    radial-gradient(1.6px 1.6px at 78% 14%, #ffffff55, transparent),
-    radial-gradient(1.2px 1.2px at 34% 68%, #ffffff44, transparent),
-    radial-gradient(2.2px 2.2px at 88% 74%, #ffffff66, transparent),
-    radial-gradient(1.2px 1.2px at 56% 40%, #ffffff44, transparent),
-    radial-gradient(1.6px 1.6px at 22% 84%, #ffffff55, transparent),
-    radial-gradient(1.2px 1.2px at 66% 90%, #ffffff44, transparent),
-    radial-gradient(1.6px 1.6px at 46% 12%, #ffffff55, transparent),
-    radial-gradient(1.2px 1.2px at 92% 38%, #ffffff44, transparent),
-    radial-gradient(1.6px 1.6px at 8% 54%, #ffffff55, transparent);}
+    radial-gradient(1.6px 1.6px at 12% 22%, color-mix(in srgb,var(--fg) 40%,transparent), transparent),
+    radial-gradient(1.6px 1.6px at 78% 14%, color-mix(in srgb,var(--fg) 33%,transparent), transparent),
+    radial-gradient(1.2px 1.2px at 34% 68%, color-mix(in srgb,var(--fg) 27%,transparent), transparent),
+    radial-gradient(2.2px 2.2px at 88% 74%, color-mix(in srgb,var(--fg) 40%,transparent), transparent),
+    radial-gradient(1.2px 1.2px at 56% 40%, color-mix(in srgb,var(--fg) 27%,transparent), transparent),
+    radial-gradient(1.6px 1.6px at 22% 84%, color-mix(in srgb,var(--fg) 33%,transparent), transparent),
+    radial-gradient(1.2px 1.2px at 66% 90%, color-mix(in srgb,var(--fg) 27%,transparent), transparent),
+    radial-gradient(1.6px 1.6px at 46% 12%, color-mix(in srgb,var(--fg) 33%,transparent), transparent),
+    radial-gradient(1.2px 1.2px at 92% 38%, color-mix(in srgb,var(--fg) 27%,transparent), transparent),
+    radial-gradient(1.6px 1.6px at 8% 54%, color-mix(in srgb,var(--fg) 33%,transparent), transparent);}
 
 /* soft accent glow blobs — position with inline top/left/right + width/height */
 .bg-glow{position:absolute;z-index:0;pointer-events:none;border-radius:50%;filter:blur(110px);opacity:.45}
