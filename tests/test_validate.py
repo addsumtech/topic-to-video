@@ -865,3 +865,15 @@ def test_design_plan_missing_visual_style_warns(tmp_path):
                             "signature_concept": {"beat": 1, "name": "x"}, "style_thesis": "blueprint"})
     r = validate.evaluate(_board(str(tmp_path), [_slide_scene(tmp_path, 0)]), str(tmp_path))
     assert any("no visual_style" in w for w in r["warnings"])
+
+
+def test_unknown_visual_style_warns(tmp_path):
+    data = _board(str(tmp_path), [_slide_scene(tmp_path, 0)], meta={"visual_style": "bogusstyle"})
+    r = validate.evaluate(data, str(tmp_path))
+    assert any("not a known style" in w for w in r["warnings"])
+
+def test_known_or_custom_visual_style_no_warn(tmp_path):
+    for vs in ("swiss", "custom", "Art Deco", "cyberpunk_neon"):
+        data = _board(str(tmp_path), [_slide_scene(tmp_path, 0)], meta={"visual_style": vs})
+        r = validate.evaluate(data, str(tmp_path))
+        assert not any("not a known style" in w for w in r["warnings"]), vs

@@ -45,8 +45,8 @@
    atmosphere, not a hard table. Reusable for any system/engineering/plan topic; tune cell via --cell. */
 .bg-grid{position:absolute;inset:0;z-index:0;pointer-events:none;--cell:76px;
   background-image:
-    repeating-linear-gradient(0deg, color-mix(in srgb,var(--fg) 7%,transparent) 0 1px, transparent 1px var(--cell)),
-    repeating-linear-gradient(90deg, color-mix(in srgb,var(--fg) 7%,transparent) 0 1px, transparent 1px var(--cell));
+    repeating-linear-gradient(0deg, color-mix(in srgb,var(--fg) calc(var(--grid-strength,.07)*100%),transparent) 0 1px, transparent 1px var(--cell)),
+    repeating-linear-gradient(90deg, color-mix(in srgb,var(--fg) calc(var(--grid-strength,.07)*100%),transparent) 0 1px, transparent 1px var(--cell));
   -webkit-mask-image:radial-gradient(ellipse at 50% 42%, #000 18%, transparent 76%);
           mask-image:radial-gradient(ellipse at 50% 42%, #000 18%, transparent 76%)}
 

@@ -126,3 +126,19 @@ def test_style_css_emits_hint_vars(tmp_path):
     css = open(str(tmp_path / "b.css")).read()
     for v in ("--style:brutalism", "--radius:", "--border-weight:", "--font-display:", "--motif-ink:"):
         assert v in css, v
+
+
+def test_style_long_keys_resolve(tmp_path):
+    for k in ("cyberpunk_neon", "art_deco", "manga_comic", "cinematic_photoreal", "Art Deco"):
+        t = theme.derive_theme(str(tmp_path), style=k)
+        assert t["style"] and t["style_vars"], k          # the 4 catalog long-keys must not silently no-op
+    assert theme._style_key("cyberpunk_neon") == "cyberpunk"
+
+def test_brand_frames_outrank_style_preset(tmp_path):
+    _frame(str(tmp_path / "frames" / "01.png"), (240, 232, 220))   # light BRAND frames
+    t = theme.derive_theme(str(tmp_path), style="noir")            # noir=dark, but brand=light wins
+    assert t["mode"] == "light"
+
+def test_border_ink_emitted_for_brutalism(tmp_path):
+    theme.write_theme_css(theme.derive_theme(str(tmp_path), style="brutalism"), str(tmp_path / "b.css"))
+    assert "--border-ink:#111111" in open(str(tmp_path / "b.css")).read()

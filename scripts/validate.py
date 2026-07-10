@@ -228,6 +228,17 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
 
     meta = data["meta"]
     slides = data["slides"]
+    # visual_style is the declared single source of truth — a typo/hallucinated key degrades silently to the
+    # default look, so cross-check it against the catalog (theme.STYLE_PRESETS) independent of the plan file.
+    _vs = (meta.get("visual_style") or "").strip()
+    if _vs and _vs.lower() != "custom":
+        try:
+            import theme as _theme
+            if not _theme._style_key(_vs):
+                warnings.append(f"meta.visual_style '{_vs}' is not a known style — use a references/visual-styles.md key "
+                                f"({', '.join(sorted(_theme.STYLE_PRESETS))}) or \"custom\"; an unknown key degrades to the flat default")
+        except Exception:
+            pass
     vertical = vertical or meta.get("aspect") == "9:16"
     W, H = rd._canvas(meta, vertical)
     voice = (meta.get("voice") or "auto")
@@ -542,7 +553,7 @@ def _design_plan_lints(out_dir, warnings):
     if beats and not plan.get("visual_style"):
         warnings.append("style: design_plan has no visual_style — pick ONE named style from "
                         "references/visual-styles.md via the selection contest (or \"custom\"); it seeds theme.py "
-                        "--style and imagegen's style_preamble so the deck reads as one coherent register (design-critic D2c)")
+                        "--style and imagegen's style_preamble so the deck reads as one coherent register (design-critic D2d)")
     sig = plan.get("signature_concept") or {}
     sig_beat = sig.get("beat") if isinstance(sig, dict) else None
     if sig_beat is not None:

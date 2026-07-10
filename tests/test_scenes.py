@@ -932,3 +932,32 @@ def test_fmt_num_no_scientific_notation():
     assert scenes._fmt_num(1000000, " users") == "1,000,000 users"
     assert scenes._fmt_num(3.5) == "3.5"
     assert scenes._fmt_num(42) == "42"
+
+
+def test_scene_palette_reads_font_display(tmp_path):
+    (tmp_path / "theme.css").write_text(":root{--font-display:monospace; --style:brutalism; "
+                                        "--bg:#111111; --fg:#eeeeee; --accent:#00ff00;}")
+    pal = scenes._scene_palette({"_out": str(tmp_path)})
+    assert pal.get("font_display") == "monospace" and pal["accent"] == "#00ff00"
+
+def test_display_font_path_maps_style_face():
+    import render
+    meta = {"language": "en"}
+    assert scenes._display_font_path(meta, "Hi", "serif") == scenes._serif_path(meta, "Hi")
+    assert scenes._display_font_path(meta, "Hi", "sans-serif") == render._font_path(meta, "Hi")
+    assert scenes._display_font_path(meta, "Hi", "bogus") is None      # unknown → role default
+
+def test_programmatic_title_font_follows_style(tmp_path):
+    # a styled deck's programmatic headline uses the style face, not the always-serif default
+    (tmp_path / "theme.css").write_text(":root{--font-display:sans-serif; --bg:#fff; --fg:#111; --accent:#e2231a;}")
+    import render
+    f = scenes._font({"_out": str(tmp_path), "language": "en"}, "Title", 80, role="serif")
+    # sans-serif style → the sans path (not the bundled serif)
+    assert f.path == render._font_path({"language": "en"}, "Title")
+
+
+def test_mpl_title_family_follows_font_display(tmp_path):
+    (tmp_path / "theme.css").write_text(":root{--font-display:serif; --bg:#fff; --fg:#111; --accent:#e00;}")
+    assert scenes._mpl_title_family({"_out": str(tmp_path), "language": "en"}, "DejaVu Sans") == "serif"
+    # a CJK deck keeps its CJK font (a generic serif would tofu)
+    assert scenes._mpl_title_family({"_out": str(tmp_path), "language": "zh"}, "SomeCJK") == "SomeCJK"

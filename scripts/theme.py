@@ -44,15 +44,15 @@ def _sample_frames(out_dir, k=4, n_colors=5):
 # contrast loops below run AFTERWARD untouched, so a style can never yield an unreadable palette.
 # entry: (mode, accent, accent2, {radius, border, display-font, grid-strength, motif-ink})
 STYLE_PRESETS = {
-    "swiss":        ("light", "#e2231a", "#111111", {"radius": "2px",  "border": "2px", "font": "sans-serif", "grid": ".10", "ink": "grid"}),
+    "swiss":        ("light", "#e2231a", "#111111", {"radius": "2px",  "border": "2px", "font": "sans-serif", "grid": ".10", "ink": "grid", "bink": "#111111"}),
     "editorial":    ("light", "#7a1f1f", "#2b2b2b", {"radius": "3px",  "border": "1px", "font": "serif",      "grid": ".05", "ink": "rule"}),
-    "bauhaus":      ("light", "#e5231b", "#1552c4", {"radius": "0",    "border": "3px", "font": "sans-serif", "grid": ".08", "ink": "geometric"}),
-    "brutalism":    ("light", "#111111", "#c6ff00", {"radius": "0",    "border": "3px", "font": "monospace",  "grid": ".14", "ink": "grid"}),
+    "bauhaus":      ("light", "#e5231b", "#1552c4", {"radius": "0",    "border": "3px", "font": "sans-serif", "grid": ".08", "ink": "geometric", "bink": "#111111"}),
+    "brutalism":    ("light", "#111111", "#c6ff00", {"radius": "0",    "border": "3px", "font": "monospace",  "grid": ".14", "ink": "grid", "bink": "#111111"}),
     "glassmorphism":("dark",  "#5b9dff", "#c58bff", {"radius": "20px", "border": "1px", "font": "sans-serif", "grid": ".05", "ink": "glow"}),
     "claymorphism": ("light", "#7b6ef6", "#ff8fab", {"radius": "28px", "border": "0",   "font": "sans-serif", "grid": ".04", "ink": "blob"}),
-    "manga":        ("light", "#111111", "#e5231b", {"radius": "6px",  "border": "3px", "font": "sans-serif", "grid": ".10", "ink": "speedline"}),
+    "manga":        ("light", "#111111", "#e5231b", {"radius": "6px",  "border": "3px", "font": "sans-serif", "grid": ".10", "ink": "speedline", "bink": "#111111"}),
     "risograph":    ("light", "#ff5a3c", "#2f6ae0", {"radius": "4px",  "border": "2px", "font": "sans-serif", "grid": ".06", "ink": "halftone"}),
-    "memphis":      ("light", "#ff4d6d", "#00c2b8", {"radius": "12px", "border": "3px", "font": "sans-serif", "grid": ".08", "ink": "geometric"}),
+    "memphis":      ("light", "#ff4d6d", "#00c2b8", {"radius": "12px", "border": "3px", "font": "sans-serif", "grid": ".08", "ink": "geometric", "bink": "#111111"}),
     "noir":         ("dark",  "#c9c2b6", "#8a1c1c", {"radius": "2px",  "border": "1px", "font": "serif",      "grid": ".06", "ink": "beam"}),
     "cyberpunk":    ("dark",  "#00e5ff", "#ff2bd6", {"radius": "4px",  "border": "2px", "font": "monospace",  "grid": ".12", "ink": "grid"}),
     "vaporwave":    ("dark",  "#ff71ce", "#01cdfe", {"radius": "8px",  "border": "2px", "font": "sans-serif", "grid": ".14", "ink": "grid"}),
@@ -65,25 +65,39 @@ STYLE_PRESETS = {
 }
 
 
+_STYLE_ALIASES = {"mangacomic": "manga", "comic": "manga", "cyberpunkneon": "cyberpunk", "neon": "cyberpunk",
+                  "deco": "artdeco", "cinematicphotoreal": "cinematic", "photoreal": "cinematic",
+                  "glass": "glassmorphism", "clay": "claymorphism", "riso": "risograph",
+                  "international": "swiss", "flat": "swiss"}
+
+def _style_key(style):
+    """Normalize a style name to a STYLE_PRESETS key, tolerant of the catalog's long forms + spacing:
+    'Art Deco'/'art_deco'/'art-deco'→'artdeco'; 'manga_comic'→'manga'; 'cyberpunk_neon'→'cyberpunk'."""
+    k = "".join(c for c in (style or "").lower() if c.isalnum())
+    k = _STYLE_ALIASES.get(k, k)
+    return k if k in STYLE_PRESETS else ""
+
+
 def derive_theme(out_dir, mode=None, accent=None, accent2=None, bg=None, style=None):
-    _pre = STYLE_PRESETS.get((style or "").lower())
+    _pre = STYLE_PRESETS.get(_style_key(style))
     _pmode, _pacc, _pacc2, _pvars = _pre if _pre else (None, None, None, {})
     sampled = None if (accent and bg) else _sample_frames(out_dir)
     if mode in ("light", "dark"):
         m = mode
-    elif _pmode:                                        # a chosen style's mode is intentional (noir=dark)
-        m = _pmode
-    elif sampled:
+    elif sampled:                                       # a frame-sampled BRAND palette is a hard constraint
         avg = sum(_lum(c) for c in sampled) / len(sampled)
         m = "light" if avg >= 0.5 else "dark"
+    elif _pmode:                                        # else the chosen style's mode (noir=dark)
+        m = _pmode
     else:
         m = "dark"
-    # accent: explicit > style preset > sampled > neutral default (so a chosen style visibly recolors)
-    _acc_default = _hex2rgb(_pacc) if _pacc else (76, 155, 232)
-    acc = _hex2rgb(accent) if accent else (_hex2rgb(_pacc) if _pacc else (max(sampled, key=_sat) if sampled else _acc_default))
+    # accent: explicit > sampled BRAND > style preset > neutral default
+    acc = (_hex2rgb(accent) if accent
+           else (max(sampled, key=_sat) if sampled
+                 else (_hex2rgb(_pacc) if _pacc else (76, 155, 232))))
     if accent2:
         acc2 = _hex2rgb(accent2)
-    elif _pacc2 and not accent:                        # style's accent2 (unless an explicit accent recolors)
+    elif _pacc2 and not accent and not sampled:        # style accent2 (unless explicit/brand recolors)
         acc2 = _hex2rgb(_pacc2)
     else:
         h, l, s = colorsys.rgb_to_hls(*[c / 255 for c in acc])
@@ -158,14 +172,15 @@ def derive_theme(out_dir, mode=None, accent=None, accent2=None, bg=None, style=N
             "fg": _hex(fg), "muted": _hex(_mix(fg, bgc, 0.42)),
             "accent": _hex(acc), "accent2": _hex(acc2), "scrim": _hex(bgc),
             "on_accent": _hex(on_accent), "on_accent2": _hex(on_accent2),
-            "style": (style or "").lower() if _pre else "", "style_vars": _pvars}
+            "style": _style_key(style) if _pre else "", "style_vars": _pvars}
 
 def write_theme_css(theme, path):
     sv = theme.get("style_vars") or {}
     style_css = ""
-    if sv:   # style-hint vars — authored pages/motifs key off these (base.css/motifs.css stay untouched)
+    if sv:   # style-hint vars. base.css/motifs.css AUTO-consume --radius/--font-display/--border-weight/
+             # --border-ink/--grid-strength; --motif-ink is an AUTHOR hint (which .bg-motif linework to draw).
         style_css = (f"  --style:{theme.get('style', '')}; --radius:{sv.get('radius', '14px')}; "
-                     f"--border-weight:{sv.get('border', '1px')};\n"
+                     f"--border-weight:{sv.get('border', '1px')}; --border-ink:{sv.get('bink', 'rgba(127,127,127,.18)')};\n"
                      f"  --font-display:{sv.get('font', 'inherit')}; --grid-strength:{sv.get('grid', '.07')}; "
                      f"--motif-ink:{sv.get('ink', 'grid')};\n")
     css = (":root{\n"

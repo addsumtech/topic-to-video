@@ -10,6 +10,12 @@ look** (backward-compatible). Data-forms (charts/timelines/stats) stay in the se
 never distorted. Litmus: hide the text — a viewer must still tell what the video is ABOUT (style OF the subject,
 not generic style decoration).
 
+> **Hex below is ILLUSTRATIVE.** When you AUTHOR a page, use the semantic theme vars — `var(--accent)`,
+> `var(--fg)`, `var(--border-ink)`, `var(--radius)`, `var(--border-weight)` — never a raw `#hex` in a
+> `style=`/SVG-`fill`/`<style>` (validate lints it, the critic REVISEs it). Most of the style's DNA (palette,
+> corner radius, border weight, headline face, grid density) is already baked into `theme.css` by
+> `theme.py --style <key>` and auto-applied by base.css/motifs.css — you rarely need inline color at all.
+
 ## Smart selection (a ranked contest, not a reflex)
 
 STYLE-REGISTER SELECTION — a ranked contest, not a reflex. Drop-in replacement for the design-director's style_thesis authoring. The director already knows topic + brief + tone, so the SMART pick happens here. It widens the existing style_thesis vocabulary (blueprint/field-notebook/editorial/terminal/cartographic/specimen) to the full named-style catalog in references/visual-styles.md and crowns ONE the deck's register.
@@ -160,7 +166,7 @@ LAW 2 — A STYLE IS A RENDERING TREATMENT OF ATMOSPHERE, NEVER THE DATA. It cha
 
 ### illustrative-pop
 
-#### `manga_comic` — Manga / Comic Ink
+#### `manga` — Manga / Comic Ink
 - **When:** High-energy, story-driven arcs with DRAMA + MOMENTUM or a face-off/level-up.
 - **Best fit:** youth/gaming/anime culture, hero's-journey explainers, hype launches, competitor showdowns, retro-Americana, marketing/pop-culture (pop-art variant)
 - **Visual DNA:** Confident black ink linework + halftone/screentone shading; dramatic radial speed-lines, foreshortened hero angle; wordless bursts/motion streaks. MODE A (manga): monochrome + grey screentone + ONE accent wash, kinetic. MODE B (comic): saturated CMYK primaries + heavy black on cream newsprint, heroic. VARIANT (pop-art): flat silkscreen blocks, a Warhol repetition grid, ironic.
@@ -206,7 +212,7 @@ LAW 2 — A STYLE IS A RENDERING TREATMENT OF ATMOSPHERE, NEVER THE DATA. It cha
 - **Avoid the cliché:** no detective-fedora clip-art, no neon-noir purple mashup — pure high-contrast mono, ONE accent
 - **Beats its rival:** beats Cinematic-Photoreal when the topic needs suspense/monochrome gravity, not naturalistic warmth
 
-#### `cyberpunk_neon` — Cyberpunk Neon
+#### `cyberpunk` — Cyberpunk Neon
 - **When:** TECH-EDGE topics that are LITERALLY cyber/futuretech and want a near-future high-stakes charge.
 - **Best fit:** cybersecurity/red-team, gaming/esports, crypto/web3 (edgy), autonomous systems, sci-fi-adjacent launches for a young technical audience
 - **Visual DNA:** Two committed neons (magenta + cyan/electric-blue) over deep blue-black; dense rain-soaked night-city depth, wet reflections doubling the light, volumetric haze, lens bloom, subtle chromatic aberration; techno mono/wide uppercase.
@@ -239,7 +245,7 @@ LAW 2 — A STYLE IS A RENDERING TREATMENT OF ATMOSPHERE, NEVER THE DATA. It cha
 - **Avoid the cliché:** no spilled-paint-splatter PNG on a white card, no rainbow watercolor — 2–3 muted washes + ink discipline
 - **Beats its rival:** beats Editorial when the subject is organic/meditative and wants hand-made softness over publication polish
 
-#### `art_deco` — Art Deco / Gatsby
+#### `artdeco` — Art Deco / Gatsby
 - **When:** LUXURY and PRESTIGE — timeless elegance, glamour, geometric confidence. The one register where centered symmetry is correct.
 - **Best fit:** premium/heritage brands, private banking/wealth, hospitality/hotels/spirits, fashion & jewelry, awards & milestones, architecture / 1920s-40s history
 - **Visual DNA:** Metallic gold/brass on a deep jewel ground (emerald/midnight-navy/black); high-contrast deco display caps, WIDE tracking, fine gold linework; strong vertical/central SYMMETRY, radiating sunburst/fan, stepped ziggurat/chevron; brushed-metal sheen.
@@ -250,7 +256,7 @@ LAW 2 — A STYLE IS A RENDERING TREATMENT OF ATMOSPHERE, NEVER THE DATA. It cha
 - **Avoid the cliché:** no casino/Vegas glitter or literal 'Gatsby'-font stamp — restrained fine gold LINEWORK, one metallic accent
 - **Beats its rival:** beats Noir when the topic is celebratory-luxurious, not suspenseful
 
-#### `cinematic_photoreal` — Cinematic Photoreal (teal-orange grade)
+#### `cinematic` — Cinematic Photoreal (teal-orange grade)
 - **When:** REAL-WORLD topics wanting premium grounded emotional gravitas as actual cinematography.
 - **Best fit:** brand films/documentaries, product launches with physical products, corporate/enterprise storytelling, travel/adventure/sports, human-interest & mission-driven
 - **Visual DNA:** Complementary teal-and-orange blockbuster grade (warm amber highlights vs cool teal shadows); shallow depth of field isolating one subject; creamy bokeh, subtle anamorphic flare, filmic grain, golden-hour light; photoreal frames OF the subject.

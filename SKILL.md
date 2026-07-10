@@ -368,10 +368,13 @@ TTS if the user gives an API key.
   authoring pages or programmatic scenes — it samples `frames/` for a curated light/dark palette fitting the
   topic (or pass `--mode/--accent/--accent2/--bg` from the **design-director's** `theme` when there are no
   frames). **Pass `--style <the deck's visual_style>`** (from `references/visual-styles.md`) so the chosen
-  style seeds the palette + emits style-hint vars (`--radius`/`--border-weight`/`--font-display`/
-  `--grid-strength`/`--motif-ink`) that the authored pages + `.bg-motif` key off — an explicit
-  `--accent`/`--mode` still wins, and the WCAG floors still run after, so a style can never make an unreadable
-  palette. The style applies on EVERY tier (flat/HTML too), not just AI imagery. Pages link `base.css` →
+  style seeds the palette + emits style-hint vars. **base.css/motifs.css AUTO-consume** `--radius` (card +
+  data-component corners), `--font-display` (`.title`/`.pullquote` face), `--border-weight`+`--border-ink`
+  (the `--hairline` border), `--grid-strength` (`.bg-grid` density) — so every HTML frame follows the style
+  with no per-page effort; `--motif-ink` is an author hint for the `.bg-motif` linework. An explicit
+  `--accent`/`--mode` (and a frame-sampled BRAND palette) still win, and the WCAG floors run after, so a style
+  can never make an unreadable palette. The style applies on EVERY tier (flat/HTML + the programmatic
+  renderers read `--font-display` for their title face too), not just AI imagery. Pages link `base.css` →
   `theme.css` → `motifs.css`; the programmatic renderers parse the same vars. 🔴 the plan checkpoint now also
   shows the palette + mode + **visual style**.
 - **Re-conceive, don't mirror:** the content-planner designs a video arc (hook + throughline +

@@ -102,7 +102,7 @@ OR a non-card form that fits in the wrong direction (D1 bidirectional), player-c
   "ONE bespoke beat is enough" beat must now carry a NAMED `signature_concept`, not merely avoid a catalog
   form. The floor sits UNDER clarity + faithfulness + deliverability — a gimmick that hurts the 3-second
   read or fabricates data is a fail, not a pass. (`validate.py` flags a missing `signature_concept`/
-  `style_thesis`/`visual_style` as a mechanical hook.)
+  `style_thesis` as a mechanical hook; `visual_style` is D2d's.)
 - **D2d — Named visual style, applied coherently (`references/visual-styles.md`).** **REVISE** a deck whose
   `visual_style` is missing, or is a reflex/mismatched pick (cyberpunk-neon on enterprise finance; a playful/
   retro-pop style on a somber/sensitive topic — the guardrail vetoes), or is applied INCOHERENTLY (per-beat

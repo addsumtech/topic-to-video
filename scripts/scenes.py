@@ -138,6 +138,8 @@ def _scene_palette(meta):
                 hexv = resolve(raw[css_name])
                 if hexv:
                     pal[key] = hexv
+        # the deck's visual_style headline face — so the PROGRAMMATIC title/keypoints follow the style too
+        pal["font_display"] = (raw.get("font-display") or "").strip().lower()
     except Exception:
         pass
     _PAL_CACHE[out] = pal
@@ -177,10 +179,30 @@ def _serif_path(meta, text):
         return None                       # let render._font_path pick the CJK sans (no tofu)
     return BUNDLED_SERIF if os.path.exists(BUNDLED_SERIF) else None
 
+_SYS_MONO = ["/System/Library/Fonts/Menlo.ttc", "/System/Library/Fonts/SFNSMono.ttf",
+             "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", "/System/Library/Fonts/Courier.ttc"]
+
+def _display_font_path(meta, text, fd):
+    """Map the deck's visual_style --font-display (serif/sans-serif/monospace) to a real font path so a
+    PROGRAMMATIC display headline follows the style's face too; None → the caller's role default. Only
+    serif↔sans are bundled+deterministic; monospace is best-effort (system) and falls back to sans."""
+    if fd == "serif":
+        return _serif_path(meta, text)
+    if fd in ("sans-serif", "sans"):
+        return render._font_path(meta, text)
+    if fd == "monospace":
+        if render._script_of(text or "", (meta or {}).get("language", "auto")) == "latin":
+            for p in _SYS_MONO:
+                if os.path.exists(p):
+                    return p
+        return render._font_path(meta, text)          # no mono for CJK / none found → sans (non-serif intent)
+    return None
+
 def _font(meta, text, size, role="sans"):
     path = None
     if role == "serif" and not (meta or {}).get("font"):   # an explicit meta.font wins for all roles
-        path = _serif_path(meta, text)
+        fd = _scene_palette(meta).get("font_display")      # a chosen visual_style biases the headline face
+        path = (_display_font_path(meta, text, fd) if fd else None) or _serif_path(meta, text)
     try:
         return ImageFont.truetype(path or render._font_path(meta, text), size)
     except Exception:
@@ -362,6 +384,20 @@ def _mpl_font(meta):
             pass
     return "DejaVu Sans"
 
+def _mpl_title_family(meta, famly):
+    """The matplotlib family for a display TITLE — honors the deck's visual_style --font-display (serif/
+    monospace → matplotlib's generic families, i.e. DejaVu Serif/Mono); data labels/ticks keep `famly`.
+    Latin only: a CJK deck keeps its CJK font (a generic serif/mono would tofu)."""
+    lang = (meta.get("language") or "").lower().split("-")[0]
+    if lang in ("zh", "ja", "ko"):
+        return famly
+    fd = _scene_palette(meta).get("font_display")
+    if fd == "serif":
+        return "serif"
+    if fd == "monospace":
+        return "monospace"
+    return famly
+
 def _visible_count(total, p):
     return max(0, min(total, int(_ease(p) * total + 1e-9)))
 
@@ -381,7 +417,7 @@ def render_timeline(props, meta, W, H, frames, workdir, index):
         fig = plt.figure(figsize=figsize, dpi=dpi); fig.patch.set_facecolor(c_bg)
         ax = fig.add_subplot(111); ax.set_facecolor(c_bg); ax.axis("off")
         if title:
-            ax.set_title(title, color=c_fg, fontsize=18, fontfamily=famly, pad=16)
+            ax.set_title(title, color=c_fg, fontsize=18, fontfamily=_mpl_title_family(meta, famly), pad=16)
         if n_ev:
             import textwrap
             # WRAP + SHRINK labels to the per-event slot so many events don't collide into unreadable mush
@@ -475,7 +511,7 @@ def render_chart(props, meta, W, H, frames, workdir, index):
             for ax2 in axes[m:]:
                 ax2.axis("off")
             if title:
-                fig.suptitle(title, color=c_fg, fontsize=18, fontfamily=famly)
+                fig.suptitle(title, color=c_fg, fontsize=18, fontfamily=_mpl_title_family(meta, famly))
             fig.tight_layout()
             fig.canvas.draw()
             img = Image.frombytes("RGBA", fig.canvas.get_width_height(),
@@ -490,7 +526,7 @@ def render_chart(props, meta, W, H, frames, workdir, index):
             sp.set_color(c_rule)
         ax.tick_params(colors=c_muted)
         if title:
-            ax.set_title(title, color=c_fg, fontsize=18, fontfamily=famly, pad=16)
+            ax.set_title(title, color=c_fg, fontsize=18, fontfamily=_mpl_title_family(meta, famly), pad=16)
         if kind == "counter":
             ax.axis("off")
             # C7 — hero-number landing beat: on a CLIMAX counter, reach the true final at ~68%
@@ -612,7 +648,7 @@ def render_compare(props, meta, W, H, frames, workdir, index):
         fig = plt.figure(figsize=figsize, dpi=dpi); fig.patch.set_facecolor(c_bg)
         ax = fig.add_subplot(111); ax.set_facecolor(c_bg)
         if title:
-            ax.set_title(title, color=c_fg, fontsize=18, fontfamily=famly, pad=16)
+            ax.set_title(title, color=c_fg, fontsize=18, fontfamily=_mpl_title_family(meta, famly), pad=16)
         if kind == "versus":
             cur = _chart_values(values, p)
             ax.bar(labels, cur, color=[palette[k % len(palette)] for k in range(len(parts))])
