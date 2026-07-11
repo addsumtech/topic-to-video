@@ -130,31 +130,46 @@ def _wrap(d, text, font, max_w):
 
 KARAOKE_HL = (255, 209, 102, 255)   # warm gold — reads clearly on the dark caption bar
 
-def _caption_font_px(W, H):
+def _caption_font_px(W, H, band=False, meta=None):
     """Caption size scales with the NARROW dimension, not height: H-relative sizing balloons to
     ~86px on a 9:16 canvas (double the landscape weight in half the width — 3-line wraps, widows,
-    and the band eats the layout). min(W,H)*0.045 keeps the same visual weight in both aspects."""
-    return int(min(W, H) * 0.045)
+    and the band eats the layout). min(W,H)*0.045 keeps the same visual weight in both aspects.
+    The below-content BAND uses a slightly smaller face (~0.85×) — it has its own strip, so it needn't
+    shout over content; `meta.caption_scale` tunes either mode (e.g. 0.9 to shrink further)."""
+    scale = (0.85 if band else 1.0) * float((meta or {}).get("caption_scale", 1.0) or 1.0)
+    return max(12, int(min(W, H) * 0.045 * scale))
 
-def _draw_caption(d, text, W, H, meta=None, hl_word=None):
-    """Burn a centered caption bar near the bottom (fixed, doesn't zoom). If `hl_word` (a whitespace
-    word index) is given, that word is drawn in the karaoke highlight colour (space-delimited text)."""
+def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0):
+    """Burn a centered caption. `band==0` (default 'overlay'): a semi-transparent bar near the bottom of
+    the W×H content (classic burn-in). `band>0` ('band' mode): the text is drawn centered in a dedicated
+    strip BELOW the content — the region [H, H+band] on a W×(H+band) layer — so it never overlaps the
+    slide (the strip's solid background is added by the render's `pad` filter; here we draw only the text
+    in the deck's --bg colour over it). If `hl_word` is given, that word takes the karaoke colour."""
     if not text:
         return
-    font = _load_font(_caption_font_px(W, H), _font_path(meta, text))
-    margin = int(H * 0.06)
+    font = _load_font(_caption_font_px(W, H, band=bool(band), meta=meta), _font_path(meta, text))
     pad = int(H * 0.012)
     lines = _wrap(d, text, font, int(W * 0.9))
     ascent, descent = font.getmetrics()
     line_h = ascent + descent
     block_h = line_h * len(lines) + pad * 2
-    y0 = H - margin - block_h
-    d.rectangle([0, y0, W, y0 + block_h], fill=(0, 0, 0, 140))
+    if band:                                    # caption strip below the content — text only, centered in the band
+        out = (meta or {}).get("_out", ".")
+        base = _theme_rgb(out, "--bg", (255, 255, 255)) + (255,)
+        # the strip's ground is --fg; the fixed gold reads only on a DARK bar, so on a band highlight the
+        # spoken word in the deck's --accent (contrasts --fg on light AND dark decks; falls back to gold).
+        hl_col = _theme_rgb(out, "--accent", KARAOKE_HL[:3]) + (255,)
+        y0 = H + max(pad, (band - block_h) // 2)
+    else:                                       # classic overlay bar with a scrim over the bottom of the content
+        base = (255, 255, 255, 255)
+        hl_col = KARAOKE_HL
+        y0 = H - int(H * 0.06) - block_h
+        d.rectangle([0, y0, W, y0 + block_h], fill=(0, 0, 0, 140))
     y = y0 + pad
     if hl_word is None:
         for ln in lines:
             w = d.textlength(ln, font=font)
-            d.text(((W - w) / 2, y), ln, font=font, fill=(255, 255, 255, 255))
+            d.text(((W - w) / 2, y), ln, font=font, fill=base)
             y += line_h
         return
     # word-aware: draw each wrapped line word-by-word, colouring the global hl_word index
@@ -165,7 +180,7 @@ def _draw_caption(d, text, W, H, meta=None, hl_word=None):
         lw = sum(d.textlength(w, font=font) for w in words) + space * (len(words) - 1)
         x = (W - lw) / 2
         for w in words:
-            col = KARAOKE_HL if gi == hl_word else (255, 255, 255, 255)
+            col = hl_col if gi == hl_word else base
             d.text((x, y), w, font=font, fill=col)
             x += d.textlength(w, font=font) + space
             gi += 1
@@ -188,10 +203,11 @@ def _callout_layer(callouts, W, H, dst, meta=None):
                    font=label_font, fill=(255, 255, 255, 255))
     layer.save(dst)
 
-def _caption_layer(text, W, H, dst, meta=None, hl_word=None):
-    """Draw ONLY one caption block onto a transparent PNG (shown for one time window)."""
-    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    _draw_caption(ImageDraw.Draw(layer), text, W, H, meta, hl_word)
+def _caption_layer(text, W, H, dst, meta=None, hl_word=None, band=0):
+    """Draw ONLY one caption block onto a transparent PNG (shown for one time window). In band mode the
+    layer is W×(H+band) so the caption text lands in the strip below the content."""
+    layer = Image.new("RGBA", (W, H + band), (0, 0, 0, 0))
+    _draw_caption(ImageDraw.Draw(layer), text, W, H, meta, hl_word, band=band)
     layer.save(dst)
 
 def _load_words(out_dir, index):
@@ -423,20 +439,43 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
     }, sort_keys=True, default=str)
     return hashlib.sha1(payload.encode()).hexdigest()[:16]
 
-def _theme_bg(out_dir):
-    """The deck's background colour (for transition dips) as ffmpeg 0xRRGGBB — from theme.css --bg,
-    else the base dark default. A dip through the deck's OWN bg reads as the stage briefly clearing,
-    seamless on any theme (fading to black would flash on a light deck)."""
+def _theme_var_hex(out_dir, var, default):
+    """A theme.css colour var (e.g. '--bg', '--fg') as a 6-hex string ('rrggbb'), else `default`."""
     try:
-        m = re.search(r"--bg\s*:\s*#([0-9a-fA-F]{3,6})", open(os.path.join(out_dir, "theme.css")).read())
+        m = re.search(re.escape(var) + r"\s*:\s*#([0-9a-fA-F]{3,6})",
+                      open(os.path.join(out_dir, "theme.css")).read())
         if m:
             h = m.group(1)
             if len(h) == 3:
                 h = "".join(c * 2 for c in h)
-            return "0x" + h.lower()
+            return h.lower()
     except OSError:
         pass
-    return "0x0d1117"
+    return default
+
+def _theme_bg(out_dir):
+    """The deck's background colour (for transition dips) as ffmpeg 0xRRGGBB — from theme.css --bg,
+    else the base dark default. A dip through the deck's OWN bg reads as the stage briefly clearing,
+    seamless on any theme (fading to black would flash on a light deck)."""
+    return "0x" + _theme_var_hex(out_dir, "--bg", "0d1117")
+
+def _theme_rgb(out_dir, var, default_rgb):
+    """A theme.css colour var as an (r,g,b) tuple for PIL, else `default_rgb`."""
+    h = _theme_var_hex(out_dir, var, None)
+    if not h:
+        return default_rgb
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+def _caption_band_px(meta, W, H):
+    """Height of the below-content caption strip when `meta.caption_mode == 'band'` (else 0). Sized for
+    up to two caption lines + generous vertical padding; kept EVEN so H+band stays yuv420p-legal. In band
+    mode the caption sits OUTSIDE the content frame (a dedicated strip below), so it never overlaps the
+    slide — the output canvas becomes W×(H+band). Default ('overlay') keeps the classic burned-in bar."""
+    if (meta or {}).get("caption_mode") != "band":
+        return 0
+    fp = _caption_font_px(W, H, band=True, meta=meta)
+    band = int(fp * 2 * 1.30) + int(H * 0.030)   # up to 2 caption lines + tight vertical padding
+    return band + (band & 1)
 
 def _motion_exprs(m, frames, reduced_motion=False):
     """The zoompan z / x-pan / y-pan expressions for a slide's Ken Burns move. With reduced_motion,
@@ -483,20 +522,33 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
     clips with mismatched sample rates via '-c copy' silently desyncs (the demuxer reinterprets
     all audio at the first clip's rate, inflating the audio stream) — normalizing here prevents it."""
     fps = meta.get("fps", 30)
+    band = _caption_band_px(meta, W, H)                # >0 -> captions in a strip BELOW the content
     parts = [f"[0:v]scale={W}:{H}[v0]"]               # frames are already WxH; scale = safety
     vlabel = "v0"; extra_inputs = []; n_in = 2        # 0=frames, 1=audio
-    for k, seg in enumerate(caption_segs):
-        if not (seg.get("text") or "").strip():
-            continue
-        cap_png = os.path.join(workdir, f"scap_{k:03d}.png")
-        _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"))
-        extra_inputs += ["-i", cap_png]
-        en = f"between(t,{seg['start']},{seg['end']})"
-        parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
-        vlabel = f"v{n_in}"; n_in += 1
     fade = _fade_filter(meta, dur, slide)              # dip-to-bg transition at the clip edges
-    if fade:
-        parts.append(f"[{vlabel}]{fade}[vfade]"); vlabel = "vfade"
+
+    def _add_caption_overlays():
+        nonlocal vlabel, n_in
+        for k, seg in enumerate(caption_segs):
+            if not (seg.get("text") or "").strip():
+                continue
+            cap_png = os.path.join(workdir, f"scap_{k:03d}.png")
+            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band)
+            extra_inputs.append("-i"); extra_inputs.append(cap_png)
+            en = f"between(t,{seg['start']},{seg['end']})"
+            parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
+            vlabel = f"v{n_in}"; n_in += 1
+
+    if band:                                           # fade the content, add the strip, then the caption text
+        if fade:
+            parts.append(f"[{vlabel}]{fade}[vf]"); vlabel = "vf"
+        bg = "0x" + _theme_var_hex(meta.get("_out", "."), "--fg", "111111")
+        parts.append(f"[{vlabel}]pad={W}:{H + band}:0:0:color={bg}[vpad]"); vlabel = "vpad"
+        _add_caption_overlays()
+    else:                                              # classic burn-in bar, then fade the whole frame
+        _add_caption_overlays()
+        if fade:
+            parts.append(f"[{vlabel}]{fade}[vfade]"); vlabel = "vfade"
     cmd = ["ffmpeg", "-y", "-framerate", str(fps), "-i", pattern,
            "-i", os.path.join(meta["_out"], audio_rel)] + extra_inputs + [
         "-filter_complex", ";".join(parts), "-map", f"[{vlabel}]", "-map", "1:a",
@@ -574,20 +626,32 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
             en = f"between(t,{t0:.3f},{dur})"
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
             vlabel = f"v{n_in}"; n_in += 1
-    if burn_captions:
-        segs = _caption_karaoke_segs(slide, meta, meta["_out"]) or _captions_for(slide)
+    band = _caption_band_px(meta, W, H)                # >0 -> captions in a strip BELOW the content
+    segs = (_caption_karaoke_segs(slide, meta, meta["_out"]) or _captions_for(slide)) if burn_captions else []
+    fade = _fade_filter(meta, dur, slide)              # dip-to-bg transition at the clip edges
+
+    def _cap_overlays():
+        nonlocal vlabel, n_in
         for k, seg in enumerate(segs):
             if not (seg.get("text") or "").strip():
                 continue
             cap_png = os.path.join(workdir, f"cap_{i:02d}_{k:02d}.png")
-            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"))
-            extra_inputs += ["-i", cap_png]
+            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band)
+            extra_inputs.append("-i"); extra_inputs.append(cap_png)
             en = f"between(t,{seg['start']},{seg['end']})"
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
             vlabel = f"v{n_in}"; n_in += 1
-    fade = _fade_filter(meta, dur, slide)              # dip-to-bg transition at the clip edges
-    if fade:
-        parts.append(f"[{vlabel}]{fade}[vfade]"); vlabel = "vfade"
+
+    if band:                                           # fade content, add the strip, then the caption text
+        if fade:
+            parts.append(f"[{vlabel}]{fade}[vf]"); vlabel = "vf"
+        bg = "0x" + _theme_var_hex(meta.get("_out", "."), "--fg", "111111")
+        parts.append(f"[{vlabel}]pad={W}:{H + band}:0:0:color={bg}[vpad]"); vlabel = "vpad"
+        _cap_overlays()
+    else:                                              # classic burn-in bar, then fade the whole frame
+        _cap_overlays()
+        if fade:
+            parts.append(f"[{vlabel}]{fade}[vfade]"); vlabel = "vfade"
     fcomplex = ";".join(parts)
 
     cmd = ["ffmpeg", "-y", "-loop", "1", "-i", frame, "-i",

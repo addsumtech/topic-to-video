@@ -447,20 +447,30 @@ def render_timeline(props, meta, W, H, frames, workdir, index):
     return _save_frames(draw, frames, workdir, index)
 
 
+# unit spacing: a symbol/multiplier/magnitude suffix attaches tight ("62%", "10x", "9.7T"); a WORD unit
+# ("trillion", "kg", "GB") reads with a space ("9.7 trillion") — otherwise value+unit concat as "9.7trillion".
+_TIGHT_UNITS = {"%", "x", "×", "°", "‰", "T", "B", "M", "K", "k", "bp", "bps"}
+def _unit_sep(unit):
+    if not unit or unit[0].isspace() or unit in _TIGHT_UNITS or unit[0] in "%×°‰/":
+        return ""                          # already spaced by the caller, empty, or a tight suffix
+    return " "
+
 def _fmt_num(v, unit=""):
     """Human number for on-frame labels — NEVER scientific notation (a hero counter of 1,234,567 must
-    not render as '1.23457e+06'). Thousands get comma groups; small floats stay compact (3.5, 0.94)."""
+    not render as '1.23457e+06'). Thousands get comma groups; small floats stay compact (3.5, 0.94).
+    A word unit is separated by a space (a symbol/magnitude suffix stays attached — see `_unit_sep`)."""
+    sep = _unit_sep(unit)
     try:
         v = float(v)
     except (TypeError, ValueError):
-        return f"{v}{unit}"
+        return f"{v}{sep}{unit}"
     if abs(v) >= 1000:
         s = f"{v:,.0f}"
     elif v == int(v):
         s = f"{int(v)}"
     else:
         s = f"{v:g}"
-    return f"{s}{unit}"
+    return f"{s}{sep}{unit}"
 
 
 def render_chart(props, meta, W, H, frames, workdir, index):

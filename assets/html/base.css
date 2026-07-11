@@ -221,13 +221,16 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 
 /* Single value as an ARC — a donut gauge for a WOW score/percentage, the number in the hole. Set the
    fraction inline `style="--p:.72"`. conic-gradient is static (inherently seekable); reveal the whole
-   gauge with .reveal-pop on its cue. The hole is --bg (a flat deck) — set it to the page ground. */
+   gauge with .reveal-pop on its cue. The hole is --bg (a flat deck) — set it to the page ground.
+   ⚠️ The g-val must FIT INSIDE the hole (width ≈ --gsize − 68px). The 104px default suits a SHORT value
+   ("85%", "62"); a WIDE value (a range like "80–90%", 4+ glyphs) overflows and crosses the ring — for
+   those, enlarge `--gsize` AND drop the inline `font-size` (e.g. 74px) so the number clears the stroke. */
 .gauge{--p:.5;--gsize:340px;width:var(--gsize);height:var(--gsize);border-radius:50%;position:relative;
   display:grid;place-items:center;
   background:conic-gradient(var(--accent) calc(var(--p)*360deg), var(--surface) 0)}
 .gauge::after{content:"";position:absolute;width:calc(var(--gsize) - 68px);height:calc(var(--gsize) - 68px);
   border-radius:50%;background:var(--bg)}
-.gauge>.g-val{position:relative;z-index:1;font-size:104px;font-weight:800;line-height:1;
+.gauge>.g-val{position:relative;z-index:1;font-size:104px;font-weight:800;line-height:1;white-space:nowrap;
   font-variant-numeric:tabular-nums}
 .gauge>.g-lab{position:relative;z-index:1;font-size:30px;color:var(--muted);margin-top:6px}
 

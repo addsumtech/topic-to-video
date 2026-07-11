@@ -419,3 +419,75 @@ def test_single_edge_fade_renders_on_short_scene():
     # an 'in'/'out' seam only needs ~1*d headroom, not the dip's 2*d — so it isn't suppressed
     meta = {"transition": "dip", "transition_seconds": 0.3, "_out": "."}
     assert "fade=t=in" in render._fade_filter(meta, 1.0, {"transition": "in", "transition_seconds": 0.3})
+
+
+# ── caption placement: overlay (default) vs a band BELOW the content (meta.caption_mode) ──────────────
+def test_theme_var_hex_and_rgb(tmp_path):
+    (tmp_path / "theme.css").write_text(":root{--bg:#f4f3ee;--fg:#161412;--accent:#e2231a}")
+    assert render._theme_var_hex(str(tmp_path), "--bg", "x") == "f4f3ee"
+    assert render._theme_var_hex(str(tmp_path), "--fg", "x") == "161412"
+    assert render._theme_var_hex(str(tmp_path), "--nope", "fallback") == "fallback"
+    assert render._theme_rgb(str(tmp_path), "--fg", (0, 0, 0)) == (0x16, 0x14, 0x12)
+    assert render._theme_rgb(str(tmp_path), "--accent", (0, 0, 0)) == (0xe2, 0x23, 0x1a)
+    assert render._theme_rgb(str(tmp_path / "none"), "--fg", (1, 2, 3)) == (1, 2, 3)   # no file -> default
+
+
+def test_caption_band_px_modes_and_parity():
+    # overlay (default / explicit) reserves NO band; the classic dims are untouched
+    assert render._caption_band_px({}, 1920, 1080) == 0
+    assert render._caption_band_px({"caption_mode": "overlay"}, 1920, 1080) == 0
+    # band mode -> a non-zero, EVEN strip (yuv420p needs H+band even) in BOTH aspects
+    b16 = render._caption_band_px({"caption_mode": "band"}, 1920, 1080)
+    b916 = render._caption_band_px({"caption_mode": "band"}, 1080, 1920)
+    assert b16 > 0 and b16 % 2 == 0
+    assert b916 > 0 and b916 % 2 == 0
+
+
+def test_caption_layer_band_draws_below_content_only(tmp_path):
+    from PIL import Image
+    (tmp_path / "theme.css").write_text(":root{--bg:#ffffff;--fg:#101010}")
+    band = render._caption_band_px({"caption_mode": "band"}, 1920, 1080)
+    p = str(tmp_path / "band.png")
+    render._caption_layer("A caption sitting below the content.", 1920, 1080, p,
+                          {"_out": str(tmp_path)}, band=band)
+    im = Image.open(p).convert("RGBA")
+    assert im.size == (1920, 1080 + band)                       # canvas grew by exactly the band
+    content = im.crop((0, 0, 1920, 1080))                       # the slide region stays fully transparent
+    strip = im.crop((0, 1080, 1920, 1080 + band))              # the caption text lands in the strip
+    assert content.getchannel("A").getextrema()[1] == 0        # NOTHING drawn over the content
+    assert strip.getchannel("A").getextrema()[1] > 0           # caption drawn in the band
+
+
+def test_caption_overlay_default_unchanged(tmp_path):
+    # regression guard: band=0 (default) still draws the classic scrim bar over the bottom of the content
+    from PIL import Image
+    p = str(tmp_path / "ov.png")
+    render._caption_layer("Classic burned-in caption.", 1920, 1080, p, {}, band=0)
+    im = Image.open(p).convert("RGBA")
+    assert im.size == (1920, 1080)                              # no extra canvas in overlay mode
+    assert im.crop((0, int(1080 * 0.8), 1920, 1080)).getchannel("A").getextrema()[1] > 0
+
+
+@pytest.mark.skipif(not _common.have_tool("ffmpeg") or not _common.have_tool("say"),
+                    reason="needs ffmpeg + say")
+def test_caption_band_render_taller_canvas(tmp_path, monkeypatch):
+    """End-to-end: a `caption_mode:band` deck renders a canvas that is exactly H+band tall, exercising
+    BOTH encode paths — a `title` scene (_encode_frames_clip) AND an image `slide` (_render_slide) — so
+    the strip is general across tiers, and the clips still concat (uniform dims)."""
+    from PIL import Image
+    monkeypatch.setattr(tts, "_have_edge", lambda: False)      # offline-deterministic audio
+    out = str(tmp_path / "proj"); os.makedirs(os.path.join(out, "frames"), exist_ok=True)
+    Image.new("RGB", (1920, 1080), (30, 30, 30)).save(os.path.join(out, "frames", "01.png"))
+    (tmp_path / "proj" / "theme.css").write_text(":root{--bg:#ffffff;--fg:#111111}")
+    title = sb.new_scene(99, "title", {"title": "Title", "subtitle": "Sub"}, narration="Welcome in.")
+    img = sb.new_slide(1, "frames/01.png", narration="This is a content slide.")
+    data = sb.new_storyboard({"voice": "say:Samantha", "caption_mode": "band"})
+    data["slides"] = [title, img]
+    sb.save(data, os.path.join(out, "storyboard.json"))
+    tts.synthesize(out)
+    mp4 = render.render(out)
+    band = render._caption_band_px({"caption_mode": "band"}, 1920, 1080)
+    probe = lambda st: _common.run(["ffprobe", "-v", "error", "-select_streams", "v:0",
+        "-show_entries", f"stream={st}", "-of", "default=nk=1:nw=1", mp4]).strip()
+    assert int(probe("width")) == 1920 and int(probe("height")) == 1080 + band
+    assert _common.audio_duration(mp4) > 0.3                    # clips concatenated + play

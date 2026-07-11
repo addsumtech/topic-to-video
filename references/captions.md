@@ -30,6 +30,35 @@ Captions are ON by default (`meta.captions: true`). To disable:
 When disabled, no caption bar is burned into the frame. The `out.srt` sidecar
 is **always** written either way, so viewers can still turn on soft subtitles.
 
+### Placement — overlay (default) vs a band BELOW the content
+
+`meta.caption_mode` controls WHERE the burned caption sits:
+
+- **`"overlay"` (default):** the semi-transparent bar is burned over the bottom of the
+  W×H content (classic social-video look). The tradeoff: content that reaches the bottom
+  ~15% of the frame can sit *under* the caption. Authors must keep content clear of that
+  zone (heroes/airy beats are fine; a dense bottom-anchored beat can collide).
+- **`"band"`:** the caption is drawn in a **dedicated strip BELOW the content**, so it
+  **never overlaps the slide**. The output canvas grows to `W×(H+band)` (a ~138 px strip at
+  1080p → 1920×1218); the strip is filled with the deck's `--fg` colour and the text is the
+  deck's `--bg` (guaranteed ≥7:1 contrast, theme-coherent on light OR dark decks). The band uses
+  a slightly smaller face than the overlay bar (it has its own strip, so it needn't shout). Content
+  keeps the full 1080 — no bottom-clearance needed. Pick this when the frame is dense or when
+  a clean, un-obscured content area matters more than exact 16:9 output dimensions.
+
+`meta.caption_scale` (default 1.0) tunes the caption font in EITHER mode — e.g. `0.9` shrinks it a
+touch (and, in band mode, the strip shrinks with it).
+
+```json
+"meta": { "captions": true, "caption_mode": "band" }
+```
+
+Both modes time captions identically and write the same `out.srt`. `check_av.py` and the
+A/V gate are unaffected (the strip changes only the video canvas height, not durations). Works on
+BOTH tiers (html/chart + image slides), in 16:9 AND 9:16, and on light OR dark themes (the strip is
+`--fg`, the text `--bg`, so contrast is guaranteed). `caption_mode` applies to the **local renderer**;
+the optional Remotion tier renders captions its own way and ignores it.
+
 ---
 
 ## Readability guidelines (caption craft)

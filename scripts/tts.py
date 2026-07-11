@@ -121,6 +121,14 @@ def _minimax_bases(meta, key):
         order = [cached] + [b for b in order if b != cached]
     return order
 
+def _tts_speed(meta):
+    """Narration pace multiplier from `meta.tts_speed` (1.0 = natural). Lets a dense deck land in a
+    tighter runtime without cutting content. Clamped to MiniMax's valid [0.5, 2.0] band."""
+    try:
+        return max(0.5, min(2.0, float((meta or {}).get("tts_speed") or 1.0)))
+    except (TypeError, ValueError):
+        return 1.0
+
 def _minimax(text, out_path, voice, meta):
     """Synthesize via MiniMax T2A v2. Bearer auth; response `data.audio` is HEX-encoded mp3.
     Key from MINIMAX_API_KEY env or ~/.minimax_key (never persisted). Region is auto-detected: a
@@ -139,7 +147,7 @@ def _minimax(text, out_path, voice, meta):
         "stream": False,
         "language_boost": MINIMAX_LANG_BOOST.get(lang, "auto"),
         "output_format": "hex",
-        "voice_setting": {"voice_id": voice, "speed": 1.0, "vol": 1.0, "pitch": 0},
+        "voice_setting": {"voice_id": voice, "speed": _tts_speed(meta), "vol": 1.0, "pitch": 0},
         "audio_setting": {"sample_rate": 32000, "bitrate": 128000, "format": "mp3", "channel": 1},
     }
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}

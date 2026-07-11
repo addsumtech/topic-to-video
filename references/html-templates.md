@@ -321,8 +321,12 @@ discrete "k of N". ONE fact, not many — never cue the cells individually.
 ```html
 <!-- waffle: first N of 100 cells .on = N% -->
 <div class="waffle reveal-up" data-cue-index="0"><i class="on"></i>… (100 <i>, first 38 with class="on") …</div>
-<!-- gauge: --p is the fraction; the number is the fact -->
+<!-- gauge: --p is the fraction; the number is the fact. The g-val MUST fit inside the hole (≈ --gsize−68px):
+     the 104px default suits a SHORT value ("72%","62"); a WIDE value (a range like "80–90%", 4+ glyphs)
+     overflows and crosses the ring — for those, enlarge --gsize AND set a smaller inline font-size. -->
 <div class="gauge reveal-pop" data-cue-index="0" style="--p:.72"><div class="g-val">72%</div><div class="g-lab">capacity</div></div>
+<!-- wide/range value: bigger ring + smaller number so it clears the stroke -->
+<div class="gauge reveal-pop" style="--p:.85;--gsize:430px"><div class="g-val" style="font-size:74px">80–90%</div><div class="g-lab">served</div></div>
 <!-- isotype: N .u glyphs, the real k get .on -->
 <div class="isotype" style="--cols:5;max-width:420px"><div class="u on"><svg …person…></svg></div> … (10, first 7 .on) …</div>
 ```
