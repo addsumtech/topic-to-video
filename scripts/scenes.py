@@ -371,6 +371,32 @@ def _chart_values(values, p):
         out.append(round(x) if isinstance(v, int) and v == int(v) else x)
     return [min(o, v) if v >= 0 else max(o, v) for o, v in zip(out, values)]
 
+def _resolve_chart_cues(anchors, meta, index, dur):
+    """Word-synced chart builds: resolve each anchor in `props.cue` to its SPOKEN time — the SAME path
+    render_html uses (edge per-word timings audio/NN.words.json, else a narration text-position
+    estimate) — so a bar grows / a counter lands the instant the narrator says its figure. Returns a
+    per-element time list (each clamped to fire before the final frame) or None to keep the blind timer
+    (no cue array, or nothing to resolve against — fully backward-compatible)."""
+    anchors = [a for a in (anchors or []) if str(a or "").strip()]
+    if not anchors:
+        return None
+    try:
+        import json
+        import cues as _cues
+        wp = os.path.join(meta.get("_out", "."), "audio", f"{index:02d}.words.json")
+        if os.path.exists(wp):
+            with open(wp) as f:
+                times = _cues.resolve_cues(json.load(f), anchors)
+        else:
+            narr = meta.get("_narration") or ""
+            if not narr:
+                return None
+            times = _cues.estimate_cues_from_text(anchors, narr, dur)
+    except Exception:
+        return None
+    margin = max(0.0, dur - 0.5)
+    return [min(float(t), margin) for t in times]
+
 def _mpl_font(meta):
     """Register and select a CJK font for matplotlib when the narration language is CJK,
     so axis/labels don't tofu; else use matplotlib's bundled DejaVu Sans."""
@@ -497,9 +523,22 @@ def render_chart(props, meta, W, H, frames, workdir, index):
     accent = props.get("accent") or pal["accent"]
     c_bg, c_fg, c_muted, c_rule = pal["bg"], pal["fg"], pal["muted"], pal["rule"]
     climax = bool(props.get("climax"))
+    # Word-synced builds (bars + counter): if props.cue resolves, each bar grows / the counter lands
+    # when the narrator speaks its figure, instead of on the blind frame timer. None -> blind (default).
+    fps = meta.get("fps", 30) or 30
+    dur = frames / fps if fps else 0.0
+    cue_times = _resolve_chart_cues(props.get("cue"), meta, index, dur)
+    reveal_dur = 0.5                                   # seconds for one element to grow in on its cue
+
+    def _local_p(k, t, p_raw):
+        """Raw 0..1 progress for element k: from its cue time (word-synced) else the blind global curve."""
+        if cue_times and k < len(cue_times) and cue_times[k] is not None:
+            return max(0.0, min(1.0, (t - cue_times[k]) / reveal_dur))
+        return p_raw
 
     def draw(i, n):
         p_raw = i / max(1, n - 1) if n > 1 else 1.0
+        t = i / fps                                    # this frame's time in seconds (for cue-synced builds)
         if kind == "small_multiples":
             # the SAME mini-trend per category on a SHARED scale — spot the outlier/common shape at a glance
             series = [(str(d.get("label", "")), (d.get("values") or [])) for d in data]
@@ -542,7 +581,11 @@ def render_chart(props, meta, W, H, frames, workdir, index):
             # C7 — hero-number landing beat: on a CLIMAX counter, reach the true final at ~68%
             # of the scene then HOLD it static (identical frames) so the key figure registers.
             # No overshoot/bounce (would misrepresent a plain number). Non-climax = unchanged.
-            cp = min(1.0, p_raw / 0.68) if climax else p_raw
+            # Word-synced: if a cue resolves, LAND the count-up exactly when the number is spoken.
+            if cue_times and cue_times[0]:
+                cp = min(1.0, t / cue_times[0]) if cue_times[0] > 0 else 1.0
+            else:
+                cp = min(1.0, p_raw / 0.68) if climax else p_raw
             cval = _chart_values(values, cp)[0]
             ax.text(0.5, 0.5, _fmt_num(cval, unit), ha="center", va="center",
                     color=c_fg, fontsize=72, fontfamily=famly, transform=ax.transAxes)
@@ -611,17 +654,27 @@ def render_chart(props, meta, W, H, frames, workdir, index):
             for side in ("top", "right"):
                 ax.spines[side].set_visible(False)
         else:  # bars
-            ax.bar(labels, cur, color=accent)
+            # word-synced: each bar grows from ITS cue time; else all bars grow on the blind curve.
+            if cue_times:
+                bcur = []
+                for k, v in enumerate(values):
+                    x = v * _ease(_local_p(k, t, p_raw))
+                    x = round(x) if isinstance(v, int) and v == int(v) else x
+                    bcur.append(min(x, v) if v >= 0 else max(x, v))
+            else:
+                bcur = cur
+            ax.bar(labels, bcur, color=accent)
             ax.set_ylim(0, y_max)
-            for t in ax.get_xticklabels():
-                t.set_fontfamily(famly)
-            # direct value labels (guide §11: "use direct labels; annotation appears last") —
-            # fade in over the last ~20% as the bars settle, anchored to the animated bar tip,
-            # clamped below y_max so a tight user-supplied ceiling can't clip the text.
-            la = max(0.0, min(1.0, (p_raw - 0.8) / 0.2))
-            if la > 0:
-                for j, v in enumerate(values):
-                    ax.text(j, min(cur[j], y_max * 0.98) + y_max * 0.02, _fmt_num(v, unit),
+            for tk in ax.get_xticklabels():
+                tk.set_fontfamily(famly)
+            # direct value labels (guide §11: "use direct labels; annotation appears last") — each bar's
+            # label fades in as THAT bar settles (per-bar on a cued build, else globally over the last ~20%),
+            # anchored to the animated bar tip, clamped below y_max so a tight ceiling can't clip it.
+            for j, v in enumerate(values):
+                la = (max(0.0, min(1.0, (_local_p(j, t, p_raw) - 0.7) / 0.3)) if cue_times
+                      else max(0.0, min(1.0, (p_raw - 0.8) / 0.2)))
+                if la > 0:
+                    ax.text(j, min(bcur[j], y_max * 0.98) + y_max * 0.02, _fmt_num(v, unit),
                             ha="center", va="bottom", color=c_fg, alpha=la,
                             fontsize=14, fontfamily=famly)
         if props.get("y_label"):

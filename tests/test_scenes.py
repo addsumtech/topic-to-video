@@ -88,6 +88,57 @@ def test_new_chart_kinds_render_nonblank(tmp_path, name):
     assert len([f for f in os.listdir(d) if f.endswith(".png")]) == 4
     assert Image.open(pat % 3).convert("RGB").getextrema() != ((0, 0), (0, 0), (0, 0))
 
+def test_resolve_chart_cues_words_text_and_none(tmp_path):
+    import json
+    os.makedirs(tmp_path / "audio")
+    json.dump([{"w": "alpha", "t": 0.5}, {"w": "beta", "t": 3.0}],
+              open(tmp_path / "audio" / "07.words.json", "w"))
+    meta = {"_out": str(tmp_path), "fps": 30, "_narration": "alpha then beta"}
+    # edge per-word timings -> resolved exactly
+    assert scenes._resolve_chart_cues(["alpha", "beta"], meta, 7, 5.0) == [0.5, 3.0]
+    # no words.json (index 8) -> narration text-position estimate (monotone, within the scene)
+    est = scenes._resolve_chart_cues(["alpha", "beta"], {"_out": str(tmp_path), "fps": 30,
+                                     "_narration": "alpha then beta"}, 8, 5.0)
+    assert est and len(est) == 2 and est[0] < est[1] <= 5.0
+    # no cue array -> None (blind timer); no anchors + no narration -> None
+    assert scenes._resolve_chart_cues(None, meta, 7, 5.0) is None
+    assert scenes._resolve_chart_cues(["alpha"], {"_out": str(tmp_path), "fps": 30}, 8, 5.0) is None
+
+
+def test_chart_word_synced_bars_hold_uncued_then_settle(tmp_path):
+    # A cued build must HOLD BACK a bar until its figure is spoken, yet SETTLE to the same faithful
+    # final as the blind build. Test meta uses fps=2 so 10 frames = 5s (covers the 0.5s/3.0s cues).
+    import json
+    cued = tmp_path / "cued"; blind = tmp_path / "blind"
+    (cued / "audio").mkdir(parents=True); blind.mkdir()
+    json.dump([{"w": "first", "t": 0.5}, {"w": "second", "t": 3.0}],
+              open(cued / "audio" / "07.words.json", "w"))
+    data = [{"label": "A", "value": 100}, {"label": "B", "value": 200}]
+    props_cued = {"kind": "bars", "data": data, "cue": ["first", "second"]}
+    props_blind = {"kind": "bars", "data": data}
+    meta_c = {"fps": 2, "language": "en", "_out": str(cued), "_narration": "first then second"}
+    meta_b = {"fps": 2, "language": "en", "_out": str(blind)}
+    pc = scenes.render_chart(props_cued, meta_c, 640, 360, 10, str(cued), 7)
+    pb = scenes.render_chart(props_blind, meta_b, 640, 360, 10, str(blind), 7)
+    # early frame (t=1.0s): cued has bar B still down while blind has both rising -> frames differ
+    assert _pix(pc % 2) != _pix(pb % 2)
+    # final frame: both bars fully grown in BOTH builds -> the settled figure is faithful/identical
+    assert _pix(pc % 9) == _pix(pb % 9)
+
+
+def test_chart_no_cue_is_blind_timer_unchanged(tmp_path):
+    # backward compat: a bars chart with NO cue array renders byte-identically regardless of a
+    # stray words.json in the out dir (the blind timer path is untouched)
+    import json
+    a = tmp_path / "a"; b = tmp_path / "b"
+    (a / "audio").mkdir(parents=True); b.mkdir()
+    json.dump([{"w": "x", "t": 0.2}], open(a / "audio" / "01.words.json", "w"))   # present but unused
+    props = {"kind": "bars", "data": [{"label": "a", "value": 3}, {"label": "b", "value": 7}]}
+    pa = scenes.render_chart(props, {**META, "_out": str(a)}, 640, 360, 5, str(a), 1)
+    pb = scenes.render_chart(props, {**META, "_out": str(b)}, 640, 360, 5, str(b), 1)
+    assert all(_pix(pa % i) == _pix(pb % i) for i in range(5))
+
+
 def test_slope_chart_deterministic(tmp_path):
     a = tmp_path / "a"; b = tmp_path / "b"; a.mkdir(); b.mkdir()
     pa = scenes.render_chart(_NEW_CHART_CASES["slope"], META, 640, 360, 4, str(a), 1)

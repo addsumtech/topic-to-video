@@ -81,6 +81,11 @@ A SEPARATE artifact from the content plan (the assistant merges the two into the
   so a good anchor matters for EVERY voice). Derive anchors from the beat's `narration_intent`; if a point
   has no natural spoken anchor, ask the content side to add one or merge the point. *(Distinct from the
   storyboard callout `cue` and the caption `cue` — do not conflate.)*
+  **Also emit `cue` on a `chart` beat** (one anchor per bar, in spoken order) so the programmatic chart
+  becomes a WORD-SYNCED build — each bar grows / the `counter` lands exactly when the narrator says its
+  figure (`scenes.py:render_chart`), instead of a blind timer. A bar whose figure isn't spoken (an
+  unlabelled middle bar) can be left without a matching anchor — it interpolates between its cued
+  neighbours. No `cue` ⇒ the blind build.
 
 ## Concept → Visual Language (reason from concept to visualization — never map page-type to a template)
 Read the content's coarse intent (and the idea itself) and choose the form that SAYS it. This table is

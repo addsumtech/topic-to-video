@@ -133,7 +133,12 @@ TTS if the user gives an API key.
   world across both tiers; falls back to the dark palette when no `theme.css`. **Type contrast:**
   editorial roles (title/kicker) use a bundled serif, data/labels stay sans/mono. **Key-number
   landing:** a `counter`/hero-stat scene flagged `props.climax:true` reaches its final value at ~68%
-  then holds it static (no overshoot) so the key figure registers.
+  then holds it static (no overshoot) so the key figure registers. **Word-synced chart builds:** a
+  `chart` scene may carry a `props.cue` array (one anchor phrase per bar, in spoken order — the same
+  anchors the HTML tier uses); when it resolves (edge `audio/NN.words.json`, else a narration
+  text-position estimate via `cues.py`), each **bar grows** and its value label fades in exactly when
+  the narrator speaks that figure, and a **counter counts up to land** on the spoken number — instead of
+  the blind frame timer. No `cue` ⇒ the blind build (unchanged). Turns a narrated chart into a data video.
 - **HTML pages tier** (optional, free): `scenes.py:render_html` screenshots bespoke designed
   HTML pages (authored on `assets/html/base.css`, see `references/html-pages.md`) via headless
   **Google Chrome** — no new dependency. Each page's paused CSS reveals are captured frame-by-frame.
