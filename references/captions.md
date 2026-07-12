@@ -40,11 +40,15 @@ is **always** written either way, so viewers can still turn on soft subtitles.
   zone (heroes/airy beats are fine; a dense bottom-anchored beat can collide).
 - **`"band"`:** the caption is drawn in a **dedicated strip BELOW the content**, so it
   **never overlaps the slide**. The output canvas grows to `W×(H+band)` (a ~138 px strip at
-  1080p → 1920×1218); the strip is filled with the deck's `--fg` colour and the text is the
-  deck's `--bg` (guaranteed ≥7:1 contrast, theme-coherent on light OR dark decks). The band uses
-  a slightly smaller face than the overlay bar (it has its own strip, so it needn't shout). Content
-  keeps the full 1080 — no bottom-clearance needed. Pick this when the frame is dense or when
-  a clean, un-obscured content area matters more than exact 16:9 output dimensions.
+  1080p → 1920×1218). By default (`meta.caption_band` = `"flush"`) the strip **samples each scene's own
+  bottom-edge colour** and continues it, so it reads as that page's **bottom margin** — seamless whether
+  the slide ground is off-white, a tint, a full **accent-fill** (a red divider → a red strip), or a photo;
+  the text auto-flips to whichever of `--fg`/`--bg` contrasts that ground. Set `meta.caption_band` =
+  `"contrast"` for a fixed dark **subtitle bar** instead (`--fg` strip, `--bg` text). Contrast stays
+  legible either way. The band uses a slightly smaller face than the overlay bar (it has its own
+  strip, so it needn't shout). Content keeps the full 1080 — no bottom-clearance needed. Pick band
+  when the frame is dense or when a clean, un-obscured content area matters more than exact 16:9
+  output dimensions.
 
 `meta.caption_scale` (default 1.0) tunes the caption font in EITHER mode — e.g. `0.9` shrinks it a
 touch (and, in band mode, the strip shrinks with it).

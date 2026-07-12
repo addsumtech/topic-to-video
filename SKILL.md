@@ -58,9 +58,11 @@ TTS if the user gives an API key.
   **Caption placement — `meta.caption_mode`:** `overlay` (default) burns the semi-transparent bar over
   the bottom of the content (content must stay clear of the bottom ~15%); `band` draws the caption in a
   dedicated strip BELOW the content so it NEVER overlaps the slide — the canvas grows to `W×(H+~138px)`
-  (1920×1218 at 1080p), strip = `--fg`, text = `--bg` (a slightly smaller face than the overlay bar).
-  `meta.caption_scale` (default 1.0) tunes the caption font in either mode. Reach for `band` on dense
-  decks or when a clean content frame matters more than exact 16:9 output dims (see `references/captions.md`).
+  (1920×1218 at 1080p). `meta.caption_band` picks the strip's look: `flush` (default) SAMPLES each
+  scene's own bottom-edge colour and continues it (seamless on off-white, a tint, a red accent-fill, or a
+  photo; text auto-flips to contrast); `contrast` = a fixed dark `--fg` strip + `--bg` text (subtitle bar). `meta.caption_scale` (default 1.0) tunes the caption
+  font (band face is a touch smaller). Reach for `band` on dense decks or when a clean content frame
+  matters more than exact 16:9 output dims (see `references/captions.md`).
   **Timed callouts:** a callout carrying a `cue` anchor phrase (or an explicit `at` 0..1 fraction)
   appears at the moment its region is spoken — resolved via `cues` (edge word-times, else text-position
   estimate) — and holds to the clip end (a vanishing highlight reads as a glitch); untimed callouts

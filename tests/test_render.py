@@ -468,6 +468,70 @@ def test_caption_overlay_default_unchanged(tmp_path):
     assert im.crop((0, int(1080 * 0.8), 1920, 1080)).getchannel("A").getextrema()[1] > 0
 
 
+def test_caption_band_fill_samples_scene_ground(tmp_path):
+    # flush band continues THIS scene's own bottom colour: a red accent-fill frame -> red strip + light
+    # text; an off-white frame -> off-white strip + ink text; contrast -> dark bar; no frame -> flat --bg.
+    from PIL import Image
+    (tmp_path / "theme.css").write_text(":root{--bg:#f4f3ee;--fg:#161412}")
+    meta = {"_out": str(tmp_path)}
+    red = str(tmp_path / "red.png"); Image.new("RGB", (200, 120), (0xe2, 0x23, 0x1a)).save(red)
+    bg, text = render._caption_band_fill(meta, red)
+    assert bg == "0xe2231a" and text == (0xf4, 0xf3, 0xee)      # strip matches red; text flips to light --bg
+    ow = str(tmp_path / "ow.png"); Image.new("RGB", (200, 120), (0xf4, 0xf3, 0xee)).save(ow)
+    bg2, text2 = render._caption_band_fill(meta, ow)
+    assert bg2 == "0xf4f3ee" and text2 == (0x16, 0x14, 0x12)    # off-white strip + ink text
+    assert render._caption_band_fill({**meta, "caption_band": "contrast"}, red)[0] == "0x161412"  # dark bar
+    assert render._caption_band_fill(meta, None)[0] == "0xf4f3ee"                                  # flat fallback
+    # a saturated MID-tone ground (teal accent-fill) stays legible (>=3:1) and never picks the worse colour
+    teal = str(tmp_path / "teal.png"); Image.new("RGB", (80, 40), (42, 161, 152)).save(teal)
+    _, tt = render._caption_band_fill(meta, teal)
+    lt = render._rel_lum(teal_rgb := (42, 161, 152)); lx = render._rel_lum(tt)
+    assert (max(lt, lx) + 0.05) / (min(lt, lx) + 0.05) >= 3.0
+    # a pure-black contain-fit LETTERBOX bar must NOT become a black strip -> fall back to the --bg fill
+    blk = str(tmp_path / "blk.png"); Image.new("RGB", (80, 40), (0, 0, 0)).save(blk)
+    assert render._caption_band_fill(meta, blk)[0] == "0xf4f3ee"
+
+
+def test_fingerprint_includes_caption_placement():
+    # caption_mode/band/scale change the CLIP HEIGHT -> must bust the cache or a partial re-render mixes
+    # clip resolutions and the `-c copy` concat breaks.
+    meta = {"_out": "/x", "fps": 30}
+    base = {"index": 1, "type": "html", "props": {"html": "p.html"}, "image": None, "audio": None,
+            "duration": 3.0, "motion": {}, "narration": "n", "captions": [], "callouts": [], "fit": None}
+    fp = lambda m: render._fingerprint(base, m, 1920, 1080, 2, True, False)
+    assert fp(meta) != fp({**meta, "caption_mode": "band"})
+    assert fp({**meta, "caption_mode": "band"}) != fp({**meta, "caption_mode": "band", "caption_band": "contrast"})
+    assert fp(meta) != fp({**meta, "caption_scale": 0.9})
+
+
+def test_theme_rgb_ignores_invalid_hex(tmp_path):
+    # a 4- or 5-digit CSS hex is invalid — must return the default, not crash or corrupt into a bad colour
+    (tmp_path / "theme.css").write_text(":root{--bg:#abcd;--fg:#12345;--accent:#0e7c86}")
+    assert render._theme_rgb(str(tmp_path), "--bg", (9, 9, 9)) == (9, 9, 9)
+    assert render._theme_rgb(str(tmp_path), "--fg", (8, 8, 8)) == (8, 8, 8)
+    assert render._theme_rgb(str(tmp_path), "--accent", (0, 0, 0)) == (0x0e, 0x7c, 0x86)   # valid 6-digit still parses
+    assert render._theme_var_hex(str(tmp_path), "--bg", "ffffff") == "ffffff"              # ignored -> default
+
+
+def test_caption_band_px_off_when_captions_disabled():
+    # captions OFF must add NO strip even in band mode (else a captionless video gets a blank bar)
+    assert render._caption_band_px({"caption_mode": "band", "captions": False}, 1920, 1080) == 0
+    assert render._caption_band_px({"caption_mode": "band"}, 1920, 1080) > 0                # captions default-on
+
+
+def test_caption_band_fill_contrast_floor(tmp_path):
+    # a degenerate theme (both --fg and --bg mid-tone) + a mid-tone strip: neither theme colour clears the
+    # ~3:1 AA-large floor, so the text must fall back to pure black/white to stay legible.
+    from PIL import Image
+    (tmp_path / "theme.css").write_text(":root{--bg:#808080;--fg:#8a8a8a}")
+    p = str(tmp_path / "mid.png"); Image.new("RGB", (80, 40), (130, 130, 130)).save(p)
+    _, text = render._caption_band_fill({"_out": str(tmp_path)}, p)
+    assert text in ((0, 0, 0), (255, 255, 255))
+    lum = render._rel_lum((130, 130, 130))
+    tl = render._rel_lum(text)
+    assert (max(tl, lum) + 0.05) / (min(tl, lum) + 0.05) >= 3.0                             # legible on the strip
+
+
 @pytest.mark.skipif(not _common.have_tool("ffmpeg") or not _common.have_tool("say"),
                     reason="needs ffmpeg + say")
 def test_caption_band_render_taller_canvas(tmp_path, monkeypatch):
