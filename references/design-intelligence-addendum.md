@@ -123,6 +123,7 @@ land** — a `*` marks a metaphor that is broll-only or approximated (the honest
 | Prioritization / Two axes | `.quadrant` | choice/order on two axes | there is no ranking | a quadrant with weak/undefined axes |
 | Relationship / Ecosystem / System | `.hubspoke` (hub+spokes) *(no arbitrary graph)* | actors converge on a centre | a simple sequence | random nodes with no meaning |
 | Parts of a whole / Share | `.segbar`/`.meter` · a SINGLE dominant % → `.gauge`/`.waffle`/`.isotype` · actual-vs-target → `.bullet` · `render_compare` split | proportions of one whole | independent items | a pie-like grid of equal cards |
+| Visible surface vs hidden bulk (submerged cost/complexity/work — "what you see is a fraction") | `.iceberg` (small `.tip` above the `.waterline`, 2–4 `.ib-point` in the `.mass`) — motion-native pan-down uncovers the mass | the point is *most is hidden* | the parts are equal-weight / independent | three parallel cards that flatten the visible-vs-hidden read |
 | Two-point change (many categories) | slopegraph (SVG) / `chart` `dumbbell` | the same measure at TWO points across items — rank crossover / gap | one series over time (use a line) | paired stats that hide the crossover |
 | Set overlap / membership | `.venn` (2–3 hue-outlined circles) *(membership, NOT area)* | shared vs unique matters | a strict hierarchy | circles sized to imply a fake proportion |
 | Nested scope / containment | `.rings` (concentric) | core→outer containment (TAM/SAM/SOM) | a flat sequence | rings implying precise areas |
@@ -149,6 +150,31 @@ land** — a `*` marks a metaphor that is broll-only or approximated (the honest
 | Operating model | `.hubspoke` / stacked `.blocks` layers / `.dash` *(no RACI/org-tree)* | roles/process/metrics interact | pure narrative | an org chart as decoration |
 | Strategy | `.quadrant` / `.blocks` pillars *(no compass)* | direction & tradeoffs matter | pure execution detail | a decorative compass icon |
 | Categories (last resort) | colour `.blocks` / `.card` grid / `.icon-tile` rows | units are parallel/unordered/equal-weight | any order/magnitude/relation exists | a card grid for everything |
+
+### 4b. Abstract concept → concrete metaphor (for NON-data beats)
+The dictionary above maps DATA relationships to forms. A **purely conceptual/emotional beat with no
+numbers** (a definition, a principle, an idea) must NOT default to a bare `.pullquote` or generic broll —
+give it a **topical metaphor** that carries the idea, realized as the deck's `signature_concept`, a
+`.bg-motif` SVG echo, or an image-tier broll prompt (never generic filler — see the topical-imagery rule).
+Reach for a depictable image of the abstraction:
+
+| Abstract idea | Concrete metaphor (motif / broll direction) |
+|---|---|
+| Growth / compounding | a seed → sprout → tree; a rising staircase; stacked coins |
+| An algorithm / process converging | an ascending spiral; many paths merging to one line |
+| Encryption / security / a gate | a key + lock; a sealed vault; a shield over a stream |
+| Consensus / agreement | separate paths bending to converge; scattered dots snapping into a ring |
+| A bottleneck / constraint | a wide pipe necking down; a funnel; a single door in a wall |
+| Scale / explosion of volume | one dot → a swarm; a small square dwarfed by a vast field |
+| A hidden cause / the real cost | the `.iceberg` form (visible tip, submerged mass) |
+| A trade-off / tension | two arrows pulling opposite; a stretched band between two anchors |
+| Acceleration / speed | motion streaks; a compressed spring released |
+| Fragility / risk | a crack spreading; a tower of blocks mid-teeter |
+
+Rules: the metaphor is ATMOSPHERE or a SIGNATURE, never a data mark; keep it topical (hide the text —
+could a viewer still tell the subject?); one motif family recurs across a few beats, not clip-art per page;
+on the flat/free tier draw it as a faint `.bg-motif` SVG in the style's linework, on the AI tier as a
+generic broll prompt (no logos/faces/text). This closes the one real hole in form-selection: a no-data beat.
 
 ---
 

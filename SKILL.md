@@ -67,6 +67,11 @@ TTS if the user gives an API key.
   appears at the moment its region is spoken — resolved via `cues` (edge word-times, else text-position
   estimate) — and holds to the clip end (a vanishing highlight reads as a glitch); untimed callouts
   show for the whole slide (unchanged). The Ken Burns camera is NOT re-aimed mid-clip. Off by default.
+  **Motion intensity:** `meta.intensity` (`subtle`|`balanced` default|`bold`) + a per-scene
+  `slide.intensity` (the design-director derives it from the beat's `energy`) scale the Ken Burns
+  **move** (zoom-delta + pan) so a bold beat pushes harder and a subtle one drifts — the deck builds an
+  energy arc (calm intro → bold payoff) instead of a uniform push (see `references/motion-grammar.md`
+  "Shot grammar" + "Motion INTENSITY"). balanced/absent = unchanged; reduced-motion still wins.
   **Reduced motion:** `--reduced-motion` (or `meta.reduced_motion`) emits an accessibility variant —
   the image tier holds a static frame (to==from, no zoom/pan) and HTML reveals become opacity-only
   cross-fades (a `reduced-motion.css` linked last), still deterministic + seekable. It's an

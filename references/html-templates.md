@@ -339,6 +339,24 @@ A KPI against a target and qualitative bands. Band widths + value width + target
   <div class="val" style="width:82%">$4.1M</div><div class="tgt" style="left:90%"></div></div>
 ```
 
+## iceberg — visible tip vs hidden mass ("what you see is a fraction")
+For a beat whose point is that the surface (a price, a headline, the demo) hides a much larger reality
+(the real cost, the hidden work, the complexity). Small `.tip` above the `.waterline`, 2–4 `.ib-point` in
+the `.mass` below — each hidden point reveals on cue. Motion-native: on the image/Remotion tier, a slow
+Ken Burns pan DOWN past the waterline uncovers the mass (see `motion-grammar.md`). Sizes are fixed
+proportions (tip ≪ mass), NOT a magnitude — never fabricate a ratio here; the numbers live in the labels.
+```html
+<div class="iceberg">
+  <div class="tip">Per-token price</div>
+  <div class="waterline" data-label="what you see"></div>
+  <div class="mass">
+    <div class="ib-point reveal-up" data-cue-index="0" data-cue="serving">Serving fleet &amp; power<span class="s">80–90% of lifetime cost</span></div>
+    <div class="ib-point reveal-up" data-cue-index="1" data-cue="reasoning">Reasoning tokens per answer<span class="s">10–100× more</span></div>
+    <div class="ib-point reveal-up" data-cue-index="2" data-cue="capex">Capex racing to $600B<span class="s">the real bill</span></div>
+  </div>
+</div>
+```
+
 ## two-point change across many categories — slopegraph (SVG) / `.mk` matrix / waterfall
 ```html
 <!-- SLOPEGRAPH: two axes, one line per category; rank crossover is the story. Strokes ≥2px. -->

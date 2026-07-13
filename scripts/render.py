@@ -421,7 +421,7 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
     payload = json.dumps({
         "s": {k: slide.get(k) for k in
               ("image", "audio", "duration", "motion", "narration", "captions", "callouts",
-               "type", "props", "fit", "transition", "transition_seconds")},
+               "type", "props", "fit", "transition", "transition_seconds", "intensity")},
         "r": [W, H, meta.get("fps", 30), ss, burn, vertical,
               meta.get("language", "auto"), meta.get("font"),
               meta.get("transition", "dip"), meta.get("transition_seconds", 0.2),
@@ -429,7 +429,8 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
               # caption placement changes the CLIP HEIGHT (band -> H+band) and colours — must bust the
               # cache, else a partial re-render (--only / one edited scene) mixes clip heights and the
               # `-c copy` concat breaks.
-              meta.get("caption_mode"), meta.get("caption_band"), meta.get("caption_scale"), "x264crf18"],
+              meta.get("caption_mode"), meta.get("caption_band"), meta.get("caption_scale"),
+              meta.get("intensity"), "x264crf18"],
         "img": stat(slide.get("image")), "aud": stat(slide.get("audio")),
         "html": stat((slide.get("props") or {}).get("html")),
         # re-theming (theme.py) busts ALL clips — html pages link theme.css AND the programmatic
@@ -536,12 +537,28 @@ def _caption_band_fill(meta, content_frame=None):
         text = max((0, 0, 0), (255, 255, 255), key=_ratio)   # starve both -> pure b/w by MAX contrast
     return "0x%02x%02x%02x" % tuple(rgb), text
 
-def _motion_exprs(m, frames, reduced_motion=False):
+# Visual-ENERGY amplitude dial (baoyu "mood"/comic "tone"): scales the Ken Burns MOVE so a bold beat
+# pushes harder + a subtle one drifts. meta.intensity sets the deck default; a per-scene slide.intensity
+# (which the design-director maps from the beat's `energy`) overrides. balanced==1.0 leaves motion unchanged.
+_INTENSITY = {"subtle": 0.6, "balanced": 1.0, "bold": 1.5}
+def _intensity_amp(meta, slide=None):
+    key = (slide or {}).get("intensity") or (meta or {}).get("intensity") or "balanced"
+    try:
+        return max(0.0, float(key))                  # a raw multiplier is allowed too
+    except (TypeError, ValueError):
+        return _INTENSITY.get(str(key).lower(), 1.0)
+
+def _motion_exprs(m, frames, reduced_motion=False, amp=1.0):
     """The zoompan z / x-pan / y-pan expressions for a slide's Ken Burns move. With reduced_motion,
-    force to==from so every expression is constant (a static frame — no zoom/pan)."""
+    force to==from so every expression is constant (a static frame — no zoom/pan). `amp` scales the MOVE
+    (zoom-delta + pan) around the start point by the visual-energy dial (bold pushes more, subtle less)."""
     fx, fy, z0 = m["from"]; tx, ty, z1 = m["to"]
     if reduced_motion:
         tx, ty, z1 = fx, fy, z0
+    elif amp != 1.0:                                  # scale the move around the start anchor
+        z1 = z0 + (z1 - z0) * amp
+        tx = fx + (tx - fx) * amp
+        ty = fy + (ty - fy) * amp
     return (f"{z0}+({z1}-{z0})*on/{frames}",
             f"{fx}+({tx}-{fx})*on/{frames}",
             f"{fy}+({ty}-{fy})*on/{frames}")
@@ -645,7 +662,7 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
     m = slide["motion"]
     # x/y are normalized pan anchors in 0..1 (0.5 = centered); map each to the crop
     # window's top-left so the chosen point stays put as we zoom in.
-    zexpr, xpan, ypan = _motion_exprs(m, frames, meta.get("reduced_motion"))
+    zexpr, xpan, ypan = _motion_exprs(m, frames, meta.get("reduced_motion"), amp=_intensity_amp(meta, slide))
     # Anti-jitter: run zoompan in a SUPERSAMPLED space then scale back down. zoompan floors
     # its crop x/y to whole *input* pixels, so at native size every step is a full output
     # pixel = visible 'shivering'. Working at ss× makes each step 1/ss of an output pixel and

@@ -346,6 +346,26 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
   padding:8px 18px;border-radius:8px;z-index:2}
 .wipe .tag.l{left:22px} .wipe .tag.r{right:22px}
 
+/* Visible-tip / hidden-mass — an ICEBERG: a small labelled peak ABOVE the waterline and a much larger
+   submerged mass BELOW holding the hidden points. Encodes "what you see is a fraction of what's really
+   there" (10% visible / 90% hidden) — the one relational read the quantitative set lacked. Motion-native:
+   the .mass points reveal on cue, and on the image/Remotion tier a slow pan DOWN past the waterline
+   uncovers them. Author the tip label + 2–4 .ib-point items; sizes are fixed proportions (tip ≪ mass),
+   NOT a real magnitude, so it never fabricates data. */
+.iceberg{position:relative;width:min(760px,64%);margin:0 auto;display:flex;flex-direction:column;align-items:center}
+.iceberg .tip{background:var(--accent);color:var(--on-accent);font-weight:800;font-size:38px;text-align:center;
+  padding:18px 36px 20px;min-height:128px;display:flex;align-items:flex-end;justify-content:center;
+  clip-path:polygon(30% 0,70% 0,100% 100%,0 100%)}     /* text sits at the WIDE base so the peak can't clip it */
+.iceberg .waterline{align-self:stretch;height:4px;background:var(--accent2);position:relative;margin:2px 0;
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--bg) 60%,transparent)}
+.iceberg .waterline::after{content:attr(data-label);position:absolute;right:6px;bottom:12px;
+  font-family:var(--font-mono);font-size:24px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.iceberg .mass{align-self:stretch;background:color-mix(in srgb,var(--accent2) 15%,var(--surface));
+  clip-path:polygon(0 0,100% 0,82% 100%,18% 100%);padding:34px 64px 64px;
+  display:flex;flex-direction:column;gap:18px;align-items:center;text-align:center}
+.iceberg .ib-point{font-size:36px;font-weight:700;color:var(--fg)}
+.iceberg .ib-point .s{display:block;font-size:26px;font-weight:500;color:var(--muted);margin-top:4px}
+
 /* ══ STYLE TYPE ALIGNMENT ═══════════════════════════════════════════════════════════════════════
    The picked visual_style's DISPLAY face (--font-display, set by theme.py) on EVERY headline + hero-
    number/value role — so a hero stat, a card number, a hub, a segbar figure all match the style's

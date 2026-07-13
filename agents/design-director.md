@@ -102,6 +102,7 @@ honest substitute + the deliverable data-form are named. **Never promise a form 
 | **Relationship / Ecosystem / System** | `.hubspoke` (html) | hub + spokes (centre+peers, or inputs→decision). **Only a hub/star topology renders** — an arbitrary many-to-many graph does NOT; decompose to a hub |
 | **KPIs / Performance / Dashboard** | `.dash` + `.scorecard`/`.tile`/`.delta` + `.meter` | `.dash` IS the dashboard layout |
 | **Parts of a whole / Share / Dependency** | `.segbar` / `.meter` · `render_compare` kind=`split` | 100% stacked. **No Sankey** — represent the split, not the crossing flow-width |
+| **Visible surface vs hidden bulk** (submerged cost/complexity — "what you see is a fraction") | `.iceberg` (html) | small `.tip` above the `.waterline`, 2–4 `.ib-point` in the `.mass`. Motion-native (pan-down uncovers the mass). NOT three parallel cards |
 | **Scale / Ranking** | `chart` kind=`bars` (ascending) · graded `.bar` rows | ascending bars read as steps. No literal 3-D staircase |
 | **Big number / Result** | `.stat` / `chart` kind=`counter` (`props.climax`) | the counter lands its value at ~68% then holds |
 | **One idea / verbatim** | `.pullquote` (html) | a single pull-quote carries the beat |
@@ -118,6 +119,19 @@ When a concept isn't in the table, reason the same way: name the *data relations
 part-whole / two-axes / time / structure), then pick the archetype that says it. The metaphor (river,
 galaxy, mountain) may live in a **generic broll backdrop** (`.bg-soft`/`.bg-photo`, `image_tag: broll`) —
 never as the carrier of a fact.
+
+**A NON-DATA beat** (a definition, principle, or emotional idea with no numbers) must NOT default to a
+bare pull-quote or generic filler — give it a **topical metaphor** from the abstract-concept→metaphor
+table in `references/design-intelligence-addendum.md` §4b (growth→seed/tree, consensus→converging paths,
+hidden-cost→`.iceberg`, …), realized as the `signature_concept`, a `.bg-motif` SVG echo, or a broll prompt.
+
+**Per-beat MOTION (`shot` + `intensity`).** Emit, per beat, a `shot` (its Ken Burns framing by narrative
+function — wide-establishing opener / medium explain / close-push on the key term / big-push climax /
+slow-drift close) mapped to `motion.from/to/zoom`, and an `intensity` (`subtle`/`balanced`/`bold`) derived
+from the beat's `energy` — the renderer scales the Ken Burns move by it, so the deck builds an energy arc
+(calm intro → bold payoff) instead of a uniform push. Set `meta.intensity` for the deck's baseline. On the
+HTML tier the same `energy`/intensity steers the `motion_intent` verb + reveal stagger + transition length.
+See `references/motion-grammar.md` "Shot grammar" + "Motion INTENSITY".
 
 **Expanded dictionary** — `references/design-intelligence-addendum.md` §4 gives a fuller decision table
 (Use when / Avoid when / Common AI failure) and adds Bottleneck, Tradeoff, Causality, Leakage/churn,

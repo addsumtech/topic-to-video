@@ -318,7 +318,32 @@ def test_motion_exprs_static_under_reduced_motion():
 def test_motion_exprs_preserves_move_by_default():
     m = {"from": [0.5, 0.5, 1.0], "to": [0.4, 0.5, 1.12]}
     z, x, _ = render._motion_exprs(m, 100, reduced_motion=False)
-    assert "1.12" in z and "0.4" in x                         # the real Ken Burns move is kept
+    assert "1.12" in z and "0.4" in x                         # the real Ken Burns move is kept (amp=1.0)
+
+
+def test_intensity_amp_dial():
+    assert render._intensity_amp({}) == 1.0                                   # default balanced
+    assert render._intensity_amp({"intensity": "subtle"}) < 1.0
+    assert render._intensity_amp({"intensity": "bold"}) > 1.0
+    assert render._intensity_amp({"intensity": "1.3"}) == 1.3                 # raw multiplier accepted
+    assert render._intensity_amp({"intensity": "balanced"}, {"intensity": "bold"}) > 1.0  # per-scene overrides
+
+
+def test_motion_exprs_amp_scales_move_but_keeps_start():
+    m = {"from": [0.5, 0.5, 1.0], "to": [0.4, 0.5, 1.20]}
+    zb, xb, _ = render._motion_exprs(m, 100, amp=render._intensity_amp({"intensity": "bold"}))
+    zs, xs, _ = render._motion_exprs(m, 100, amp=render._intensity_amp({"intensity": "subtle"}))
+    # bold pushes the END zoom past 1.20, subtle stays under it; both start at 1.0
+    assert "1.0+(" in zb and "1.0+(" in zs                                    # same start anchor
+    end = lambda z: 1.0 + float(z.split("(")[1].split("-")[0]) - 1.0          # not needed; check via numeric render
+    # sanity: bold end-zoom string encodes a larger delta than subtle
+    import re
+    bz = float(re.search(r"1\.0\+\(([\d.]+)-1\.0\)", zb).group(1))
+    sz = float(re.search(r"1\.0\+\(([\d.]+)-1\.0\)", zs).group(1))
+    assert bz > 1.20 > sz > 1.0                                               # bold amplifies, subtle damps
+    # reduced motion still overrides everything to static regardless of amp
+    zr, _, _ = render._motion_exprs(m, 100, reduced_motion=True, amp=2.0)
+    assert zr == "1.0+(1.0-1.0)*on/100"
 
 def test_reduced_motion_in_fingerprint():
     slide = {"index": 1, "type": "html", "props": {"html": "pages/scene_01.html"}}

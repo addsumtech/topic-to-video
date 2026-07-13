@@ -42,6 +42,37 @@ Unmotivated motion is distracting.
 
 ---
 
+## Shot grammar — shot SIZE by narrative FUNCTION (image / Remotion tier)
+
+A beat's Ken Burns framing should follow its narrative JOB, not be uniform. The design-director emits a
+`shot` per image beat and maps it to `motion.from/to/zoom`; the renderer already honours any anchor+zoom.
+
+| Beat's job | Shot | Ken Burns `from → to` |
+|---|---|---|
+| Section opener / establishing | **wide, held** | `[0.5,0.5,1.0] → [0.5,0.5,1.04]` (barely moves — let the viewer take the frame in) |
+| Explaining, neutral | **medium push** | the centered default `→ [0.5,0.5,1.12]` |
+| Key term / the one number, spoken | **close push on it** | `to` = that region's center, zoom `~1.22` — lands as the word is said (pair with a `cue`) |
+| Climax / payoff | **big slow push** | a larger delta (`~1.2`) + `intensity:bold`, longest hold — the loudest move of the deck |
+| Calm close / hold | **slow drift** | tiny delta (`~1.05`) + `intensity:subtle` |
+
+## Motion INTENSITY — the visual-energy amplitude dial (`meta.intensity` + per-beat)
+
+`meta.intensity` (`subtle` | `balanced` default | `bold`) — and a per-scene `slide.intensity` the
+design-director derives from the beat's `energy` — scales the Ken Burns **move** (the renderer multiplies
+the zoom-delta + pan by `subtle≈0.6 / balanced=1.0 / bold≈1.5`, capped at the ≤0.20 jitter limit). This
+turns the fixed 1.0→1.12 default into an expressive dial: a calm intro can drift while the payoff pushes
+hard, so one video builds an arc. On the HTML tier (no Ken Burns) the SAME per-beat `energy`/intensity
+should steer the design-director's `motion_intent` verb, reveal stagger, and transition length instead —
+bold ⇒ snappier reveals + a longer dip into the beat; subtle ⇒ gentle staggered fades. Never exceed the
+zoom/jitter caps above, and keep motion motivated. (`rhythm_qa` may advise if every beat is one intensity.)
+
+## Iceberg pan (the `.iceberg` form)
+An `.iceberg` beat is motion-native: on the HTML tier the `.mass` `.ib-point`s reveal on their cues; on an
+image/Remotion iceberg, use a slow **downward** Ken Burns (`from [0.5,0.35,1.05] → to [0.5,0.75,1.05]`) so
+the camera sinks past the waterline and literally uncovers the hidden mass as the narration names it.
+
+---
+
 ## Coordinate-target zoom (framing a named region)
 
 The `to` anchor IS the point the camera keeps centered as it zooms — so to land a
