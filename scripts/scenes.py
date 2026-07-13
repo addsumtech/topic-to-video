@@ -138,8 +138,10 @@ def _scene_palette(meta):
                 hexv = resolve(raw[css_name])
                 if hexv:
                     pal[key] = hexv
-        # the deck's visual_style headline face — so the PROGRAMMATIC title/keypoints follow the style too
+        # the deck's visual_style TYPE — so the PROGRAMMATIC title/keypoints/chart follow the style too.
+        # font-kind (sans/serif/mono/comic) selects the bundled face; font-display kept for reference.
         pal["font_display"] = (raw.get("font-display") or "").strip().lower()
+        pal["font_kind"] = (raw.get("font-kind") or "").strip().lower()
     except Exception:
         pass
     _PAL_CACHE[out] = pal
@@ -154,6 +156,22 @@ def _save_frames(draw_fn, frames, workdir, index):
 # C8 — serif/sans type contrast. Editorial roles (title/kicker) get a serif; data/UI roles
 # (stats, labels, axes) stay sans/mono. Bundled DejaVuSerif alongside DejaVuSans (same license).
 BUNDLED_SERIF = os.path.join(os.path.dirname(render.BUNDLED_FONT), "DejaVuSerif.ttf")
+# Bundled style DISPLAY faces (SIL OFL) — the programmatic tier picks the same face as the HTML tier by
+# the deck's --font-kind, so a comic deck's chart/title reads comic, a Swiss deck grotesque, etc.
+_FONTS_DIR = os.path.dirname(render.BUNDLED_FONT)
+_STYLE_FACE = {
+    "comic": os.path.join(_FONTS_DIR, "Bangers-Regular.ttf"),
+    "serif": os.path.join(_FONTS_DIR, "PlayfairDisplay-VF.ttf"),
+    "sans":  os.path.join(_FONTS_DIR, "SpaceGrotesk-VF.ttf"),
+    "mono":  os.path.join(_FONTS_DIR, "JetBrainsMono-VF.ttf"),
+}
+_STYLE_FACE_MPL = {"comic": "Bangers", "serif": "Playfair Display", "sans": "Space Grotesk", "mono": "JetBrains Mono"}
+for _fp in _STYLE_FACE.values():                       # register with matplotlib so charts can name them
+    try:
+        if os.path.exists(_fp):
+            font_manager.fontManager.addfont(_fp)
+    except Exception:
+        pass
 _SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _REDUCED_MOTION_CSS = os.path.join(_SKILL_ROOT, "assets", "html", "reduced-motion.css")
 
@@ -182,27 +200,30 @@ def _serif_path(meta, text):
 _SYS_MONO = ["/System/Library/Fonts/Menlo.ttc", "/System/Library/Fonts/SFNSMono.ttf",
              "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", "/System/Library/Fonts/Courier.ttc"]
 
-def _display_font_path(meta, text, fd):
-    """Map the deck's visual_style --font-display (serif/sans-serif/monospace) to a real font path so a
-    PROGRAMMATIC display headline follows the style's face too; None → the caller's role default. Only
-    serif↔sans are bundled+deterministic; monospace is best-effort (system) and falls back to sans."""
-    if fd == "serif":
+def _display_font_path(meta, text, kind):
+    """The BUNDLED display face for the deck's --font-kind (comic/serif/sans/mono) so a PROGRAMMATIC
+    display headline follows the style; None → the caller's role default. Latin text uses the bundled
+    style face; CJK text keeps a CJK-covering font (the Latin faces have no CJK glyphs) — a CJK serif
+    for the serif kind, else the CJK sans (via the caller's fallback)."""
+    latin = render._script_of(text or "", (meta or {}).get("language", "auto")) == "latin"
+    if not latin:
+        return _serif_path(meta, text) if kind == "serif" else None
+    face = _STYLE_FACE.get(kind)
+    if face and os.path.exists(face):
+        return face
+    if kind == "serif":                                # bundled serif face missing → the DejaVu serif
         return _serif_path(meta, text)
-    if fd in ("sans-serif", "sans"):
-        return render._font_path(meta, text)
-    if fd == "monospace":
-        if render._script_of(text or "", (meta or {}).get("language", "auto")) == "latin":
-            for p in _SYS_MONO:
-                if os.path.exists(p):
-                    return p
-        return render._font_path(meta, text)          # no mono for CJK / none found → sans (non-serif intent)
+    if kind == "mono":
+        for p in _SYS_MONO:
+            if os.path.exists(p):
+                return p
     return None
 
 def _font(meta, text, size, role="sans"):
     path = None
     if role == "serif" and not (meta or {}).get("font"):   # an explicit meta.font wins for all roles
-        fd = _scene_palette(meta).get("font_display")      # a chosen visual_style biases the headline face
-        path = (_display_font_path(meta, text, fd) if fd else None) or _serif_path(meta, text)
+        kind = _scene_palette(meta).get("font_kind")       # a chosen visual_style sets the headline face
+        path = (_display_font_path(meta, text, kind) if kind else None) or _serif_path(meta, text)
     try:
         return ImageFont.truetype(path or render._font_path(meta, text), size)
     except Exception:
@@ -411,17 +432,16 @@ def _mpl_font(meta):
     return "DejaVu Sans"
 
 def _mpl_title_family(meta, famly):
-    """The matplotlib family for a display TITLE — honors the deck's visual_style --font-display (serif/
-    monospace → matplotlib's generic families, i.e. DejaVu Serif/Mono); data labels/ticks keep `famly`.
-    Latin only: a CJK deck keeps its CJK font (a generic serif/mono would tofu)."""
+    """The matplotlib family for a display TITLE — honors the deck's visual_style --font-kind by naming
+    the bundled face (Bangers / Playfair Display / Space Grotesk / JetBrains Mono, registered at import);
+    data labels/ticks keep `famly`. Latin only: a CJK deck keeps its CJK font (a Latin face would tofu)."""
     lang = (meta.get("language") or "").lower().split("-")[0]
     if lang in ("zh", "ja", "ko"):
         return famly
-    fd = _scene_palette(meta).get("font_display")
-    if fd == "serif":
-        return "serif"
-    if fd == "monospace":
-        return "monospace"
+    kind = _scene_palette(meta).get("font_kind")
+    face = _STYLE_FACE.get(kind)
+    if face and os.path.exists(face):
+        return _STYLE_FACE_MPL[kind]
     return famly
 
 def _visible_count(total, p):

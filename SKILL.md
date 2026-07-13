@@ -382,9 +382,14 @@ TTS if the user gives an API key.
   topic (or pass `--mode/--accent/--accent2/--bg` from the **design-director's** `theme` when there are no
   frames). **Pass `--style <the deck's visual_style>`** (from `references/visual-styles.md`) so the chosen
   style seeds the palette + emits style-hint vars. **base.css/motifs.css AUTO-consume** `--radius` (card +
-  data-component corners), `--font-display` (`.title`/`.pullquote` face), `--border-weight`+`--border-ink`
-  (the `--hairline` border), `--grid-strength` (`.bg-grid` density) — so every HTML frame follows the style
-  with no per-page effort; `--motif-ink` is an author hint for the `.bg-motif` linework. An explicit
+  data-component corners), `--font-display`/`--font-body` (the style's bundled TYPE — see below),
+  `--border-weight`+`--border-ink` (the `--hairline` border), `--grid-strength` (`.bg-grid` density) — so
+  every HTML frame follows the style with no per-page effort; `--motif-ink` is an author hint for the
+  `.bg-motif` linework. **Style TYPE:** the style maps to a bundled SIL-OFL FACE (Bangers for comic/manga,
+  Space Grotesk for grotesque/geometric, Playfair Display for serif/editorial, JetBrains Mono for
+  mono/technical — `@font-face`'d from `assets/fonts/`, CJK+generic fallback) on `--font-display` (every
+  headline + hero-number/value role) and a readable `--font-body`, so a comic deck reads comic and a Swiss
+  deck reads grotesque; `--font-kind` lets the programmatic tier use the same face. An explicit
   `--accent`/`--mode` (and a frame-sampled BRAND palette) still win, and the WCAG floors run after, so a style
   can never make an unreadable palette. The style applies on EVERY tier (flat/HTML + the programmatic
   renderers read `--font-display` for their title face too), not just AI imagery. Pages link `base.css` →

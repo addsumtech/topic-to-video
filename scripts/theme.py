@@ -65,6 +65,33 @@ STYLE_PRESETS = {
 }
 
 
+# ── style TYPE — each style's display + body FACE (bundled in assets/fonts/, SIL OFL) so the deck's
+#    typography matches its style: comic reads comic (Bangers), Swiss/geometric reads grotesque
+#    (Space Grotesk), editorial/deco/noir reads high-contrast serif (Playfair Display), code/data reads
+#    mono (JetBrains Mono). Each stack keeps a CJK + generic fallback so 中文 decks and non-mac machines
+#    still render. base.css @font-face declares the families; scenes.py reads --font-kind for the same
+#    face on the programmatic (matplotlib/PIL) tier.
+_CJK_SANS = '"PingFang SC","Hiragino Sans GB","Microsoft YaHei"'
+_CJK_SERIF = '"Songti SC","Source Han Serif SC","SimSun"'
+_FONT_FAMILIES = {   # kind -> (display stack, body stack)
+    "sans":  (f'"Space Grotesk","Helvetica Neue",Arial,{_CJK_SANS},sans-serif',
+              f'"Space Grotesk","Helvetica Neue",Arial,{_CJK_SANS},sans-serif'),
+    "serif": (f'"Playfair Display",Georgia,"Times New Roman",{_CJK_SERIF},serif',
+              f'Georgia,"Times New Roman",{_CJK_SERIF},serif'),
+    "mono":  (f'"JetBrains Mono","SF Mono",Menlo,{_CJK_SANS},monospace',
+              f'"JetBrains Mono","SF Mono",Menlo,{_CJK_SANS},monospace'),
+    "comic": (f'"Bangers","Space Grotesk",Impact,{_CJK_SANS},sans-serif',
+              f'"Space Grotesk","Helvetica Neue",Arial,{_CJK_SANS},sans-serif'),
+}
+_STYLE_FONT_KIND = {
+    "swiss": "sans", "bauhaus": "sans", "memphis": "sans", "vaporwave": "sans",
+    "risograph": "sans", "glassmorphism": "sans", "claymorphism": "sans",
+    "editorial": "serif", "artdeco": "serif", "noir": "serif", "cinematic": "serif",
+    "watercolor": "serif", "cartographic": "serif",
+    "terminal": "mono", "blueprint": "mono", "cyberpunk": "mono", "brutalism": "mono",
+    "manga": "comic",
+}
+
 _STYLE_ALIASES = {"mangacomic": "manga", "comic": "manga", "cyberpunkneon": "cyberpunk", "neon": "cyberpunk",
                   "deco": "artdeco", "cinematicphotoreal": "cinematic", "photoreal": "cinematic",
                   "glass": "glassmorphism", "clay": "claymorphism", "riso": "risograph",
@@ -177,12 +204,15 @@ def derive_theme(out_dir, mode=None, accent=None, accent2=None, bg=None, style=N
 def write_theme_css(theme, path):
     sv = theme.get("style_vars") or {}
     style_css = ""
-    if sv:   # style-hint vars. base.css/motifs.css AUTO-consume --radius/--font-display/--border-weight/
-             # --border-ink/--grid-strength; --motif-ink is an AUTHOR hint (which .bg-motif linework to draw).
+    if sv:   # style-hint vars. base.css/motifs.css AUTO-consume --radius/--font-display/--font-body/
+             # --border-weight/--border-ink/--grid-strength; --motif-ink + --font-kind are AUTHOR/renderer
+             # hints (which .bg-motif linework to draw; which bundled face the programmatic tier uses).
+        kind = _STYLE_FONT_KIND.get(_style_key(theme.get('style', '')), "sans")
+        disp, body = _FONT_FAMILIES[kind]
         style_css = (f"  --style:{theme.get('style', '')}; --radius:{sv.get('radius', '14px')}; "
                      f"--border-weight:{sv.get('border', '1px')}; --border-ink:{sv.get('bink', 'rgba(127,127,127,.18)')};\n"
-                     f"  --font-display:{sv.get('font', 'inherit')}; --grid-strength:{sv.get('grid', '.07')}; "
-                     f"--motif-ink:{sv.get('ink', 'grid')};\n")
+                     f"  --font-display:{disp}; --font-body:{body}; --font-kind:{kind};\n"
+                     f"  --grid-strength:{sv.get('grid', '.07')}; --motif-ink:{sv.get('ink', 'grid')};\n")
     css = (":root{\n"
            + style_css
            + f"  --bg:{theme['bg']}; --surface:{theme['surface']}; --fg:{theme['fg']};\n"
@@ -198,6 +228,7 @@ def main():
     ap.add_argument("--mode"); ap.add_argument("--accent"); ap.add_argument("--accent2"); ap.add_argument("--bg")
     ap.add_argument("--style", default=None, help="a visual-styles.md key (swiss/editorial/glassmorphism/…)")
     a = ap.parse_args()
+    os.makedirs(a.out_dir, exist_ok=True)                 # write theme.css even into a fresh out dir
     t = derive_theme(a.out_dir, a.mode, a.accent, a.accent2, a.bg, a.style)
     write_theme_css(t, os.path.join(a.out_dir, "theme.css"))
     print(f"[theme] mode={t['mode']} bg={t['bg']} fg={t['fg']} accent={t['accent']} accent2={t['accent2']}"

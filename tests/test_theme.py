@@ -124,8 +124,32 @@ def test_no_style_is_backward_compatible(tmp_path):
 def test_style_css_emits_hint_vars(tmp_path):
     theme.write_theme_css(theme.derive_theme(str(tmp_path), style="brutalism"), str(tmp_path / "b.css"))
     css = open(str(tmp_path / "b.css")).read()
-    for v in ("--style:brutalism", "--radius:", "--border-weight:", "--font-display:", "--motif-ink:"):
+    for v in ("--style:brutalism", "--radius:", "--border-weight:", "--font-display:", "--font-body:",
+              "--font-kind:", "--motif-ink:"):
         assert v in css, v
+
+
+def test_style_type_maps_to_bundled_face(tmp_path):
+    # the picked style drives the TYPE: a display face that evokes the style + a readable body face + the
+    # --font-kind the programmatic tier reads. Each stack keeps a CJK + generic fallback.
+    cases = {"manga": ("comic", "Bangers"), "swiss": ("sans", "Space Grotesk"),
+             "editorial": ("serif", "Playfair Display"), "terminal": ("mono", "JetBrains Mono"),
+             "cyberpunk": ("mono", "JetBrains Mono"), "artdeco": ("serif", "Playfair Display")}
+    for st, (kind, face) in cases.items():
+        p = tmp_path / f"{st}.css"
+        theme.write_theme_css(theme.derive_theme(str(tmp_path), style=st), str(p))
+        css = open(str(p)).read()
+        assert f"--font-kind:{kind}" in css, st
+        import re
+        disp = re.search(r"--font-display:([^;]+);", css).group(1).strip()
+        assert face in disp, (st, disp)                       # display face evokes the style
+        assert ("PingFang" in disp or "Songti" in disp)       # CJK fallback preserved
+        assert disp.endswith(("sans-serif", "serif", "monospace"))   # generic fallback last
+
+def test_font_kind_covers_every_style():
+    # no style may fall through to the "sans" default silently — each of the 18 is explicitly typed
+    for st in theme.STYLE_PRESETS:
+        assert st in theme._STYLE_FONT_KIND, st
 
 
 def test_style_long_keys_resolve(tmp_path):

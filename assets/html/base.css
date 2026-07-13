@@ -1,5 +1,15 @@
 /* slides-to-video — HTML page design system (huashu-aligned, anti-AI-slop).
    Dark stage, CJK-first serif, accent palette, seekable reveals. Authored pages link this. */
+
+/* Bundled style fonts (SIL OFL — see assets/fonts/OFL-*.txt). The picked visual_style maps
+   --font-display / --font-body to these via theme.py, so the deck's TYPE matches its style (a comic
+   deck reads comic, a Swiss deck reads grotesque). url() is relative to THIS stylesheet (assets/html/),
+   so no absolute path is baked in. Chrome renders any weight from the variable files. */
+@font-face{font-family:"Space Grotesk";src:url("../fonts/SpaceGrotesk-VF.ttf");font-weight:300 700;font-display:swap}
+@font-face{font-family:"Playfair Display";src:url("../fonts/PlayfairDisplay-VF.ttf");font-weight:400 900;font-display:swap}
+@font-face{font-family:"JetBrains Mono";src:url("../fonts/JetBrainsMono-VF.ttf");font-weight:100 800;font-display:swap}
+@font-face{font-family:"Bangers";src:url("../fonts/Bangers-Regular.ttf");font-weight:400;font-display:swap}
+
 :root{
   /* canonical semantic theme vars (a per-video theme.css overrides these) */
   --bg:#0d1117; --surface:#161b22; --fg:#f0f3f8; --muted:#8b97a8;
@@ -19,8 +29,10 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--fg);
-  font-family:"PingFang SC","Hiragino Sans GB","Songti SC","Source Han Serif SC",
-              -apple-system,Georgia,"Times New Roman",serif;
+  /* body text follows the picked visual_style's body face (--font-body, set by theme.py) — else the
+     default CJK-first serif stack. Style body stacks keep the CJK fonts as a fallback so 中文 decks render. */
+  font-family:var(--font-body,"PingFang SC","Hiragino Sans GB","Songti SC","Source Han Serif SC",
+              -apple-system,Georgia,"Times New Roman",serif);
   overflow:hidden;text-wrap:pretty;-webkit-font-smoothing:antialiased}
 .stage{width:1920px;height:1080px;padding:120px 150px;display:flex;flex-direction:column;
   justify-content:center;gap:36px}
@@ -333,3 +345,16 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
   text-transform:uppercase;color:var(--fg);background:color-mix(in srgb,var(--bg) 64%,transparent);
   padding:8px 18px;border-radius:8px;z-index:2}
 .wipe .tag.l{left:22px} .wipe .tag.r{right:22px}
+
+/* ══ STYLE TYPE ALIGNMENT ═══════════════════════════════════════════════════════════════════════
+   The picked visual_style's DISPLAY face (--font-display, set by theme.py) on EVERY headline + hero-
+   number/value role — so a hero stat, a card number, a hub, a segbar figure all match the style's
+   titles instead of inheriting the body font. (Placed last so it wins by source order at equal
+   specificity.) Data-LABEL roles deliberately stay mono (.kicker/.flow .n/.tl-when/.ax/.rtable th/
+   .chrome/.waterfall .wcap/.wipe .tag); running text uses --font-body via html,body. */
+.stat,.unit,.label,.delta,.tile .num,.block .bt,.hs-hub,.hs-spoke,.quadrant .cell .h,
+.flow .step .t,.tl-what,.gauge>.g-val,.stepper .step .st,.waterfall .wval,.bullet .val,.segbar .seg,
+.meter .fill{font-family:var(--font-display,inherit)}
+/* descriptive SUB-labels inside a display component stay in the readable BODY face (not the loud
+   display face — a small "active / token" in a comic display would be hard to read). */
+.tile .lab,.hs-spoke .s,.quadrant .cell .d,.flow .step .s,.stepper .step .sd{font-family:var(--font-body,inherit)}

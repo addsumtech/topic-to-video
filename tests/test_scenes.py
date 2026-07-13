@@ -992,23 +992,28 @@ def test_scene_palette_reads_font_display(tmp_path):
     assert pal.get("font_display") == "monospace" and pal["accent"] == "#00ff00"
 
 def test_display_font_path_maps_style_face():
-    import render
+    # each --font-kind resolves to its BUNDLED display face (Latin); an unknown kind -> None (role default)
     meta = {"language": "en"}
-    assert scenes._display_font_path(meta, "Hi", "serif") == scenes._serif_path(meta, "Hi")
-    assert scenes._display_font_path(meta, "Hi", "sans-serif") == render._font_path(meta, "Hi")
-    assert scenes._display_font_path(meta, "Hi", "bogus") is None      # unknown → role default
+    for kind in ("comic", "serif", "sans", "mono"):
+        assert scenes._display_font_path(meta, "Hi", kind) == scenes._STYLE_FACE[kind]
+    assert scenes._display_font_path(meta, "Hi", "bogus") is None
+    # a CJK title never uses a Latin-only face (would tofu) — serif routes to a CJK serif, else None
+    assert scenes._display_font_path({"language": "zh"}, "标题", "sans") is None
 
 def test_programmatic_title_font_follows_style(tmp_path):
-    # a styled deck's programmatic headline uses the style face, not the always-serif default
-    (tmp_path / "theme.css").write_text(":root{--font-display:sans-serif; --bg:#fff; --fg:#111; --accent:#e2231a;}")
-    import render
-    f = scenes._font({"_out": str(tmp_path), "language": "en"}, "Title", 80, role="serif")
-    # sans-serif style → the sans path (not the bundled serif)
-    assert f.path == render._font_path({"language": "en"}, "Title")
+    # a styled deck's programmatic headline uses the style's BUNDLED display face (here: comic -> Bangers)
+    (tmp_path / "theme.css").write_text(":root{--font-kind:comic; --bg:#fff; --fg:#111; --accent:#e2231a;}")
+    f = scenes._font({"_out": str(tmp_path), "language": "en"}, "POW", 80, role="serif")
+    assert f.path == scenes._STYLE_FACE["comic"]
 
 
-def test_mpl_title_family_follows_font_display(tmp_path):
-    (tmp_path / "theme.css").write_text(":root{--font-display:serif; --bg:#fff; --fg:#111; --accent:#e00;}")
-    assert scenes._mpl_title_family({"_out": str(tmp_path), "language": "en"}, "DejaVu Sans") == "serif"
-    # a CJK deck keeps its CJK font (a generic serif would tofu)
-    assert scenes._mpl_title_family({"_out": str(tmp_path), "language": "zh"}, "SomeCJK") == "SomeCJK"
+def test_mpl_title_family_follows_font_kind(tmp_path):
+    # distinct dirs — _scene_palette caches per out-dir (one theme.css per deck in production)
+    for kind, fam in [("serif", "Playfair Display"), ("comic", "Bangers"), ("mono", "JetBrains Mono")]:
+        d = tmp_path / kind; d.mkdir()
+        (d / "theme.css").write_text(f":root{{--font-kind:{kind}; --bg:#fff; --fg:#111; --accent:#e00;}}")
+        assert scenes._mpl_title_family({"_out": str(d), "language": "en"}, "DejaVu Sans") == fam
+    # a CJK deck keeps its CJK font (a Latin face would tofu)
+    zh = tmp_path / "zh"; zh.mkdir()
+    (zh / "theme.css").write_text(":root{--font-kind:comic; --bg:#fff; --fg:#111; --accent:#e00;}")
+    assert scenes._mpl_title_family({"_out": str(zh), "language": "zh"}, "SomeCJK") == "SomeCJK"
