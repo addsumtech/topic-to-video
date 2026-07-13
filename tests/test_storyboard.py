@@ -29,6 +29,20 @@ def test_validate_rejects_callout_out_of_range():
     with pytest.raises(sb.StoryboardError):
         sb.validate(bad)
 
+def test_validate_intensity_field():
+    # named tiers and a raw multiplier are accepted, on meta and per-slide
+    for v in ("subtle", "balanced", "bold", "1.3", 0.6):
+        ok = _minimal(); ok["meta"]["intensity"] = v; sb.validate(ok)          # no raise
+        ok2 = _minimal(); ok2["slides"][0]["intensity"] = v; sb.validate(ok2)  # no raise
+    # a typo or a nonsense value errors loudly instead of silently degrading to balanced
+    for bad_v in ("bald", -1, True):
+        bad = _minimal(); bad["meta"]["intensity"] = bad_v
+        with pytest.raises(sb.StoryboardError):
+            sb.validate(bad)
+        bad2 = _minimal(); bad2["slides"][0]["intensity"] = bad_v
+        with pytest.raises(sb.StoryboardError):
+            sb.validate(bad2)
+
 def test_new_slide_defaults():
     s = sb.new_slide(2, "frames/02.png")
     assert s["index"] == 2 and s["narration"] == "" and s["callouts"] == []

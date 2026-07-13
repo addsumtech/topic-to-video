@@ -330,20 +330,32 @@ def test_intensity_amp_dial():
 
 
 def test_motion_exprs_amp_scales_move_but_keeps_start():
-    m = {"from": [0.5, 0.5, 1.0], "to": [0.4, 0.5, 1.20]}
+    # authored delta 0.10 leaves headroom under the 0.20 cap, so amp is visible un-clamped
+    m = {"from": [0.5, 0.5, 1.0], "to": [0.4, 0.5, 1.10]}
     zb, xb, _ = render._motion_exprs(m, 100, amp=render._intensity_amp({"intensity": "bold"}))
     zs, xs, _ = render._motion_exprs(m, 100, amp=render._intensity_amp({"intensity": "subtle"}))
-    # bold pushes the END zoom past 1.20, subtle stays under it; both start at 1.0
     assert "1.0+(" in zb and "1.0+(" in zs                                    # same start anchor
-    end = lambda z: 1.0 + float(z.split("(")[1].split("-")[0]) - 1.0          # not needed; check via numeric render
-    # sanity: bold end-zoom string encodes a larger delta than subtle
     import re
     bz = float(re.search(r"1\.0\+\(([\d.]+)-1\.0\)", zb).group(1))
     sz = float(re.search(r"1\.0\+\(([\d.]+)-1\.0\)", zs).group(1))
-    assert bz > 1.20 > sz > 1.0                                               # bold amplifies, subtle damps
+    assert bz > 1.10 > sz > 1.0                                               # bold amplifies, subtle damps
     # reduced motion still overrides everything to static regardless of amp
     zr, _, _ = render._motion_exprs(m, 100, reduced_motion=True, amp=2.0)
     assert zr == "1.0+(1.0-1.0)*on/100"
+
+def test_motion_exprs_amp_clamped_to_caps():
+    # authored move sits EXACTLY at the caps (delta 0.20, ends 1.20); a bold amp (×1.5) would push
+    # the effective zoom to 1.30 (delta 0.30, abs 1.30) — the lurch/soft-text the validate gate forbids.
+    m = {"from": [0.9, 0.5, 1.0], "to": [0.1, 0.5, 1.20]}
+    z, x, y = render._motion_exprs(m, 100, amp=render._intensity_amp({"intensity": "bold"}))
+    import re
+    z1 = float(re.search(r"1\.0\+\(([\d.]+)-1\.0\)", z).group(1))
+    assert z1 <= render._MAX_ZOOM_ABS + 1e-9                                  # abs zoom capped at 1.25
+    assert (z1 - 1.0) <= render._MAX_ZOOM_DELTA + 1e-9                        # delta capped at 0.20
+    # a huge raw multiplier can't pan the anchor off-canvas either
+    _, x2, _ = render._motion_exprs(m, 100, amp=render._intensity_amp({"intensity": "9"}))
+    tx = float(re.search(r"0\.9\+\(([-\d.]+)-0\.9\)", x2).group(1))
+    assert 0.0 <= tx <= 1.0
 
 def test_reduced_motion_in_fingerprint():
     slide = {"index": 1, "type": "html", "props": {"html": "pages/scene_01.html"}}

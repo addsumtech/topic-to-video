@@ -15,6 +15,22 @@ VALID_FITS = {"contain", "cover"}
 VALID_IMAGE_QUALITIES = {"low", "medium", "high"}
 VALID_IMAGE_SIZES = {"1024x1024", "1024x1536", "1536x1024", "auto"}   # gpt-image-2 supported sizes
 VALID_RENDERERS = {"local", "remotion"}   # local = ffmpeg+Chrome (default); remotion = optional cinematic tier
+# Visual-ENERGY dial (render._intensity_amp): the design-director maps a beat's `energy` to this and
+# writes it as meta.intensity (deck default) or slide.intensity (per-scene override). "balanced" is the
+# no-op default, so the field is OPTIONAL and absent-means-balanced; validated here only when present so
+# a typo ("bald") errors loudly instead of silently degrading to balanced.
+VALID_INTENSITIES = {"subtle", "balanced", "bold"}
+
+def _valid_intensity(v):
+    """A named tier OR a non-negative raw multiplier — mirrors render._intensity_amp's acceptance."""
+    if isinstance(v, str) and v.strip().lower() in VALID_INTENSITIES:
+        return True
+    if isinstance(v, bool):
+        return False
+    try:
+        return float(v) >= 0.0
+    except (TypeError, ValueError):
+        return False
 
 def new_slide(index, image, narration="", notes=""):
     return {
@@ -140,6 +156,8 @@ def validate(data):
         raise StoryboardError(f"meta.image_size must be one of {VALID_IMAGE_SIZES}")
     if "renderer" in m and m["renderer"] not in VALID_RENDERERS:
         raise StoryboardError(f"meta.renderer must be one of {VALID_RENDERERS}")
+    if "intensity" in m and not _valid_intensity(m["intensity"]):
+        raise StoryboardError(f"meta.intensity must be one of {VALID_INTENSITIES} or a non-negative number")
     for s in data["slides"]:
         if "index" not in s or "narration" not in s:
             raise StoryboardError(f"slide missing 'index'/'narration': {s.get('index')}")
@@ -157,6 +175,8 @@ def validate(data):
             raise StoryboardError(f"slide {s.get('index')}: image_tag must be one of {VALID_IMAGE_TAGS}")
         if "fit" in s and s["fit"] not in VALID_FITS:
             raise StoryboardError(f"slide {s.get('index')}: fit must be one of {VALID_FITS}")
+        if "intensity" in s and not _valid_intensity(s["intensity"]):
+            raise StoryboardError(f"slide {s.get('index')}: intensity must be one of {VALID_INTENSITIES} or a non-negative number")
         for co in s.get("callouts", []):
             box = co.get("box", [])
             if len(box) != 4 or not _in_unit(*box):

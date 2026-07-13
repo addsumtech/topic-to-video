@@ -71,7 +71,11 @@ TTS if the user gives an API key.
   `slide.intensity` (the design-director derives it from the beat's `energy`) scale the Ken Burns
   **move** (zoom-delta + pan) so a bold beat pushes harder and a subtle one drifts — the deck builds an
   energy arc (calm intro → bold payoff) instead of a uniform push (see `references/motion-grammar.md`
-  "Shot grammar" + "Motion INTENSITY"). balanced/absent = unchanged; reduced-motion still wins.
+  "Shot grammar" + "Motion INTENSITY"). balanced/absent = unchanged; reduced-motion still wins. It's a
+  gentle DIAL — `validate.py` accepts `intensity` (a tier or a non-negative multiplier) as a known field,
+  and the render **clamps** the amplified move back under the zoom-delta/absolute-zoom/pan caps so a
+  `bold` beat can never lurch past the gate. `shot` is authoring shorthand: the director must translate it
+  into `motion.from/to/zoom` (render reads `motion`, not `shot`).
   **Reduced motion:** `--reduced-motion` (or `meta.reduced_motion`) emits an accessibility variant —
   the image tier holds a static frame (to==from, no zoom/pan) and HTML reveals become opacity-only
   cross-fades (a `reduced-motion.css` linked last), still deterministic + seekable. It's an
@@ -397,7 +401,7 @@ TTS if the user gives an API key.
   deck reads grotesque; `--font-kind` lets the programmatic tier use the same face. An explicit
   `--accent`/`--mode` (and a frame-sampled BRAND palette) still win, and the WCAG floors run after, so a style
   can never make an unreadable palette. The style applies on EVERY tier (flat/HTML + the programmatic
-  renderers read `--font-display` for their title face too), not just AI imagery. Pages link `base.css` →
+  renderers read `--font-kind` to pick the same bundled title face), not just AI imagery. Pages link `base.css` →
   `theme.css` → `motifs.css`; the programmatic renderers parse the same vars. 🔴 the plan checkpoint now also
   shows the palette + mode + **visual style**.
 - **Re-conceive, don't mirror:** the content-planner designs a video arc (hook + throughline +

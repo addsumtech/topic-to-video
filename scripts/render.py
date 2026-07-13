@@ -537,6 +537,12 @@ def _caption_band_fill(meta, content_frame=None):
         text = max((0, 0, 0), (255, 255, 255), key=_ratio)   # starve both -> pure b/w by MAX contrast
     return "0x%02x%02x%02x" % tuple(rgb), text
 
+# The lurch / soft-text ceilings the validate gate enforces on the AUTHORED move. Kept here (not
+# imported from validate — validate imports render, not the reverse) so the intensity dial can't push
+# the EFFECTIVE move past them. Keep in sync with validate.MAX_ZOOM_DELTA / its 1.25 check.
+_MAX_ZOOM_DELTA = 0.20   # a bigger zoom delta reads as a lurch, not a Ken Burns
+_MAX_ZOOM_ABS = 1.25     # fine text softens past zoompan's scale limit
+
 # Visual-ENERGY amplitude dial (baoyu "mood"/comic "tone"): scales the Ken Burns MOVE so a bold beat
 # pushes harder + a subtle one drifts. meta.intensity sets the deck default; a per-scene slide.intensity
 # (which the design-director maps from the beat's `energy`) overrides. balanced==1.0 leaves motion unchanged.
@@ -559,6 +565,13 @@ def _motion_exprs(m, frames, reduced_motion=False, amp=1.0):
         z1 = z0 + (z1 - z0) * amp
         tx = fx + (tx - fx) * amp
         ty = fy + (ty - fy) * amp
+        # intensity is a gentle DIAL, not a bypass of the caps validate enforces on the authored move:
+        # clamp the amplified result so a bold beat (or a raw multiplier) can't exceed a 0.20 zoom-delta,
+        # a 1.25 absolute zoom, or pan the anchor off-canvas — the exact lurch/soft-text this dial invites.
+        dz = max(-_MAX_ZOOM_DELTA, min(_MAX_ZOOM_DELTA, z1 - z0))
+        z1 = min(_MAX_ZOOM_ABS, max(1.0, z0 + dz))
+        tx = min(1.0, max(0.0, tx))
+        ty = min(1.0, max(0.0, ty))
     return (f"{z0}+({z1}-{z0})*on/{frames}",
             f"{fx}+({tx}-{fx})*on/{frames}",
             f"{fy}+({ty}-{fy})*on/{frames}")

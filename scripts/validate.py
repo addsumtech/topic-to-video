@@ -579,6 +579,7 @@ def _layout_family(html):
     if has("timeline", "tl-node"):          return "timeline"
     if has("quadrant"):                     return "quadrant"
     if has("hubspoke", "hs-hub", "hs-spoke"): return "hubspoke"
+    if has("iceberg"):                      return "iceberg"
     if has("segbar", "meter"):              return "parts"
     if has("blocks", "block"):              return "blocks"
     if has("pullquote"):                    return "quote"

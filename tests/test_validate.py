@@ -190,6 +190,7 @@ def test_layout_family_classifies():
     assert validate._layout_family('<div class="flow"><div class="step"></div></div>') == "flow"
     assert validate._layout_family('<div class="grid"><div class="card">x</div></div>') == "cards"
     assert validate._layout_family('<div class="pullquote">x</div>') == "quote"
+    assert validate._layout_family('<div class="iceberg"><div class="tip">x</div></div>') == "iceberg"
     assert validate._layout_family('<h1 class="title">x</h1>') == "title"
 
 def test_diversity_gate_warns_when_one_family_dominates(tmp_path):

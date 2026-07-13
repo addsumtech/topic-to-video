@@ -59,12 +59,13 @@ A beat's Ken Burns framing should follow its narrative JOB, not be uniform. The 
 
 `meta.intensity` (`subtle` | `balanced` default | `bold`) — and a per-scene `slide.intensity` the
 design-director derives from the beat's `energy` — scales the Ken Burns **move** (the renderer multiplies
-the zoom-delta + pan by `subtle≈0.6 / balanced=1.0 / bold≈1.5`, capped at the ≤0.20 jitter limit). This
-turns the fixed 1.0→1.12 default into an expressive dial: a calm intro can drift while the payoff pushes
-hard, so one video builds an arc. On the HTML tier (no Ken Burns) the SAME per-beat `energy`/intensity
-should steer the design-director's `motion_intent` verb, reveal stagger, and transition length instead —
-bold ⇒ snappier reveals + a longer dip into the beat; subtle ⇒ gentle staggered fades. Never exceed the
-zoom/jitter caps above, and keep motion motivated. (`rhythm_qa` may advise if every beat is one intensity.)
+the zoom-delta + pan by `subtle≈0.6 / balanced=1.0 / bold≈1.5`, then **clamps** the amplified result back
+under the ≤0.20 zoom-delta / ≤1.25 absolute-zoom / on-canvas-pan caps, so a bold beat can never lurch past
+the gate). This turns the fixed 1.0→1.12 default into an expressive dial: a calm intro can drift while the
+payoff pushes hard, so one video builds an arc. On the HTML tier (no Ken Burns) the SAME per-beat
+`energy`/intensity should steer the design-director's `motion_intent` verb, reveal stagger, and transition
+length instead — bold ⇒ snappier reveals + a longer dip into the beat; subtle ⇒ gentle staggered fades.
+Author a deliberate arc rather than one flat intensity across every beat, and keep motion motivated.
 
 ## Iceberg pan (the `.iceberg` form)
 An `.iceberg` beat is motion-native: on the HTML tier the `.mass` `.ib-point`s reveal on their cues; on an
