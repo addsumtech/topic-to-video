@@ -146,6 +146,27 @@ def test_style_type_maps_to_bundled_face(tmp_path):
         assert ("PingFang" in disp or "Songti" in disp)       # CJK fallback preserved
         assert disp.endswith(("sans-serif", "serif", "monospace"))   # generic fallback last
 
+def test_font_number_is_clean_figure_face(tmp_path):
+    # NUMBERS get a dedicated clean lining/tabular figure face (--font-number), distinct from the
+    # display face on serif/comic decks (where Playfair/Bangers digits render unevenly) — always a
+    # Space-Grotesk-first (or mono JetBrains) stack, with CJK + generic fallback preserved.
+    import re
+    for st, expect in {"editorial": "Space Grotesk", "manga": "Space Grotesk",
+                       "swiss": "Space Grotesk", "terminal": "JetBrains Mono",
+                       "blueprint": "JetBrains Mono"}.items():
+        p = tmp_path / f"{st}.css"
+        theme.write_theme_css(theme.derive_theme(str(tmp_path), style=st), str(p))
+        css = open(str(p)).read()
+        num = re.search(r"--font-number:([^;]+);", css)
+        assert num, f"{st}: no --font-number emitted"
+        num = num.group(1).strip()
+        assert num.startswith(f'"{expect}"'), (st, num)          # clean figure face leads the stack
+        assert ("PingFang" in num or "Hiragino" in num)          # CJK fallback preserved
+        # on a SERIF/COMIC deck the number face DIFFERS from the display face (that IS the fix)
+        if st in ("editorial", "manga"):
+            disp = re.search(r"--font-display:([^;]+);", css).group(1).strip()
+            assert num != disp, f"{st}: --font-number should differ from the ornate display face"
+
 def test_font_kind_covers_every_style():
     # no style may fall through to the "sans" default silently — each of the 18 is explicitly typed
     for st in theme.STYLE_PRESETS:

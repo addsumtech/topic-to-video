@@ -48,6 +48,10 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 .dot{width:22px;height:22px;border-radius:50%;background:var(--blue);flex:none;align-self:center}
 .label{font-size:54px;font-weight:700;font-variant-numeric:tabular-nums}
 .note{color:var(--muted);font-size:34px}
+/* attribution for a DOCUMENTARY (real fetched) image — CC-BY requires a credit. A quiet mono line in
+   the lower corner; on a dark scrimmed photo set color inline to a light --bg tint. */
+.credit{position:absolute;right:26px;bottom:16px;z-index:6;font-family:var(--font-mono);font-size:15px;
+  letter-spacing:.02em;color:var(--muted);opacity:.72;max-width:46%;text-align:right;line-height:1.3}
 .bar{height:90px;border-radius:var(--radius,10px);display:flex;align-items:center;padding:0 28px;color:var(--on-accent);font-size:40px;font-weight:700;font-variant-numeric:tabular-nums}
 /* seekable reveals — paused so render_html/seek.js can freeze them at any progress p.
    Stagger by adding an inline positive animation-delay (e.g. style="animation-delay:.18s"). */
@@ -378,3 +382,14 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 /* descriptive SUB-labels inside a display component stay in the readable BODY face (not the loud
    display face — a small "active / token" in a comic display would be hard to read). */
 .tile .lab,.hs-spoke .s,.quadrant .cell .d,.flow .step .s,.stepper .step .sd{font-family:var(--font-body,inherit)}
+/* NUMBERS get a dedicated clean LINING + TABULAR figure face (--font-number) — a display SERIF
+   (Playfair) or COMIC (Bangers) renders big figures unevenly (ornate, varying weight/baseline), so
+   the numeric value roles switch to Space Grotesk / JetBrains Mono digits while WORD headlines above
+   keep --font-display. Placed AFTER the display rule so it wins for these roles by source order.
+   SCOPE — only roles that are DOMINANTLY a numeric VALUE. Deliberately EXCLUDES word-carrying roles
+   (.label / .bar / .stepper .step .st) so a word label ("does not scale", "Editable charts") keeps the
+   style's display face; put a numeric value in .stat / .num (or add .num) to get the clean figures. */
+.stat,.num,.tile .num,.delta,.gauge>.g-val,.waterfall .wval,.bullet .val,.segbar .seg,
+.meter .fill{
+  font-family:var(--font-number,var(--font-display,inherit));
+  font-variant-numeric:tabular-nums lining-nums;font-feature-settings:"lnum" 1,"tnum" 1}

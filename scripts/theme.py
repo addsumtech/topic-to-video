@@ -83,6 +83,17 @@ _FONT_FAMILIES = {   # kind -> (display stack, body stack)
     "comic": (f'"Bangers","Space Grotesk",Impact,{_CJK_SANS},sans-serif',
               f'"Space Grotesk","Helvetica Neue",Arial,{_CJK_SANS},sans-serif'),
 }
+# The NUMERIC value-role face (--font-number, applied to .stat/.num/.delta/…). A display SERIF
+# (Playfair) or COMIC (Bangers) renders big figures unevenly — ornate, varying weight/baseline — so
+# numbers get a clean LINING + TABULAR figure face regardless of the headline style: Space Grotesk for
+# serif/sans/comic decks (even, modern digits that still sit under a serif headline), JetBrains Mono
+# for mono/technical decks (where monospaced figures fit the register). Words keep --font-display.
+_FONT_NUMBER = {
+    "sans":  f'"Space Grotesk","Helvetica Neue",Arial,{_CJK_SANS},sans-serif',
+    "serif": f'"Space Grotesk","Helvetica Neue",Arial,{_CJK_SANS},sans-serif',
+    "mono":  f'"JetBrains Mono","SF Mono",Menlo,{_CJK_SANS},monospace',
+    "comic": f'"Space Grotesk","Helvetica Neue",Arial,{_CJK_SANS},sans-serif',
+}
 _STYLE_FONT_KIND = {
     "swiss": "sans", "bauhaus": "sans", "memphis": "sans", "vaporwave": "sans",
     "risograph": "sans", "glassmorphism": "sans", "claymorphism": "sans",
@@ -209,9 +220,10 @@ def write_theme_css(theme, path):
              # hints (which .bg-motif linework to draw; which bundled face the programmatic tier uses).
         kind = _STYLE_FONT_KIND.get(_style_key(theme.get('style', '')), "sans")
         disp, body = _FONT_FAMILIES[kind]
+        num = _FONT_NUMBER[kind]
         style_css = (f"  --style:{theme.get('style', '')}; --radius:{sv.get('radius', '14px')}; "
                      f"--border-weight:{sv.get('border', '1px')}; --border-ink:{sv.get('bink', 'rgba(127,127,127,.18)')};\n"
-                     f"  --font-display:{disp}; --font-body:{body}; --font-kind:{kind};\n"
+                     f"  --font-display:{disp}; --font-body:{body}; --font-number:{num}; --font-kind:{kind};\n"
                      f"  --grid-strength:{sv.get('grid', '.07')}; --motif-ink:{sv.get('ink', 'grid')};\n")
     css = (":root{\n"
            + style_css
