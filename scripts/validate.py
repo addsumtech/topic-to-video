@@ -289,7 +289,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                                    (s.get("props") or {}).get("anim_seconds"), s.get("duration"),
                                    s.get("narration"), families,
                                    captions_on=bool((data.get("meta") or {}).get("captions", True)),
-                                   ai_look=ai_look, soft_textures=soft, comps=comps)
+                                   ai_look=ai_look, soft_textures=soft, comps=comps, vertical=vertical)
         elif t in ("keypoints", "timeline", "chart", "compare", "title"):
             # Readability floor for the PROGRAMMATIC tier — keyframe_qa only overflow-checks html pages,
             # so nothing else guards these. The renderers now wrap/shrink-to-fit, but past a sane item
@@ -584,6 +584,15 @@ def _layout_family(html):
     if has("quadrant"):                     return "quadrant"
     if has("hubspoke", "hs-hub", "hs-spoke"): return "hubspoke"
     if has("iceberg"):                      return "iceberg"
+    # research / technical forms — a distinct silhouette each; classify so the diversity gate doesn't
+    # mis-lump an equation / code / results-table page into the generic "title" bucket.
+    if has("eqn"):                          return "equation"
+    if has("code"):                         return "code"
+    if has("rtable"):                       return "table"
+    if has("waterfall"):                    return "waterfall"
+    if has("gauge", "waffle", "isotype", "bullet"): return "proportion"
+    if has("rings", "venn"):                return "nested"
+    if has("stepper"):                      return "stepper"
     if has("segbar", "meter"):              return "parts"
     if has("blocks", "block"):              return "blocks"
     if has("pullquote"):                    return "quote"
@@ -674,7 +683,7 @@ def _reveal_alignment(html, narration, duration, anim_seconds, words_path, tag, 
 
 def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
                        anim_seconds=None, duration=None, narration=None, families=None,
-                       captions_on=True, ai_look=False, soft_textures=None, comps=None):
+                       captions_on=True, ai_look=False, soft_textures=None, comps=None, vertical=False):
     """Verify an html scene's page links resolve locally (base/theme/motifs css, seek.js,
     images), that its audio-synced cues will fire, and that its reveals won't lead/lag the audio."""
     path = os.path.join(out_dir, page_rel)
@@ -715,9 +724,13 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
             warnings.append(f"{tag}: a .code block has {len(texts)} lines (> 9) — a code wall is unreadable "
                             f"on a moving frame; keep the key ~9 lines and elide the rest with a `# …` comment")
         longest = max((len(t) for t in texts), default=0)
-        if longest > 58:
-            warnings.append(f"{tag}: a .code line is {longest} chars (> 58) — too wide to read in a video; "
-                            f"shorten identifiers, drop alignment padding, or wrap the logic (algorithm_build budget)")
+        # the readable line width tracks the column: a 9:16 vertical column (1080px) fits far fewer
+        # monospace chars than a 16:9 row, so tighten the budget when vertical.
+        line_max = 40 if vertical else 58
+        if longest > line_max:
+            warnings.append(f"{tag}: a .code line is {longest} chars (> {line_max}"
+                            f"{' for 9:16' if vertical else ''}) — too wide to read in a video; shorten "
+                            f"identifiers, drop alignment padding, or wrap the logic (algorithm_build budget)")
     # dogfood: the bottom .chrome rail (base.css bottom:56px) sits inside the burned caption band
     # (bottom ~8% of the canvas) — with captions ON they collide (text under text). Caught by the
     # AV critic in practice; cheaper to catch here, pre-render.

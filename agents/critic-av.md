@@ -62,8 +62,8 @@ and visual rendering quality.
 ### R7 — Burned-in captions (rendered legibility)
 The renderer burns captions derived from `narration` into the video. Check the sample frames:
 - **FAIL** if a burned caption is clipped at the screen edge or extends beyond the safe zone.
-- **FAIL** if the caption overlaps slide content illegibly (covers a figure, equation, or table without
-  readable separation).
+- **FAIL** if the caption overlaps slide content illegibly (covers a figure, equation, code block, or
+  table without readable separation).
 - **FAIL** if the caption text does NOT match the sentence being spoken at that timestamp (mis-timed or
   wrong text).
 - **FAIL** if a visible typo appears in a burned caption.

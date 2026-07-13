@@ -191,6 +191,14 @@ def test_layout_family_classifies():
     assert validate._layout_family('<div class="grid"><div class="card">x</div></div>') == "cards"
     assert validate._layout_family('<div class="pullquote">x</div>') == "quote"
     assert validate._layout_family('<div class="iceberg"><div class="tip">x</div></div>') == "iceberg"
+    # research / technical + quantitative forms get their OWN family (not mis-lumped as "title")
+    assert validate._layout_family('<div class="eqn"><span class="eqn-term">x</span></div>') == "equation"
+    assert validate._layout_family('<div class="code"><span class="ln">x</span></div>') == "code"
+    assert validate._layout_family('<table class="rtable"><tr class="win"></tr></table>') == "table"
+    assert validate._layout_family('<div class="waterfall"></div>') == "waterfall"
+    assert validate._layout_family('<div class="gauge"></div>') == "proportion"
+    assert validate._layout_family('<div class="rings"></div>') == "nested"
+    assert validate._layout_family('<div class="stepper"><div class="step"></div></div>') == "stepper"
     assert validate._layout_family('<h1 class="title">x</h1>') == "title"
 
 def test_diversity_gate_warns_when_one_family_dominates(tmp_path):
@@ -323,6 +331,14 @@ def test_code_block_legibility_warns_on_wall_and_wide(tmp_path):
     wide = '<div class="stage"><div class="code"><span class="ln">' + ("x = " + "a" * 70) + '</span></div></div>'
     r3 = validate.evaluate(_board(str(tmp_path), [_html_scene(tmp_path, 2, "pages/wide.html", wide)]), str(tmp_path))
     assert any("chars (> 58)" in w for w in r3["warnings"]), r3["warnings"]
+
+def test_code_line_budget_tightens_on_9x16(tmp_path):
+    # a 46-char code line fits a 16:9 row but overflows a 1080-wide 9:16 column — the lint tracks the aspect
+    body = '<div class="stage"><div class="code"><span class="ln">' + ("x" * 46) + '</span></div></div>'
+    land = validate.evaluate(_board(str(tmp_path), [_html_scene(tmp_path, 0, "pages/l.html", body)]), str(tmp_path), vertical=False)
+    assert not any(".code line" in w for w in land["warnings"]), land["warnings"]
+    vert = validate.evaluate(_board(str(tmp_path), [_html_scene(tmp_path, 1, "pages/v.html", body)]), str(tmp_path), vertical=True)
+    assert any(".code line" in w and "9:16" in w for w in vert["warnings"]), vert["warnings"]
 
 def test_bespoke_svg_connector_borrows_cue_no_dupe(tmp_path):
     # a hand-drawn SVG arc + chevron marked `.connector` borrow their cue (no data-cue of their own) —

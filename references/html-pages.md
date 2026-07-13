@@ -453,6 +453,13 @@ The design system is 1920×1080; a 9:16 deck (`meta.aspect:"9:16"`) needs pages 
   `.timeline` → a **vertical rail** (`flex-direction:column`, rail on the left, node rows beside it);
   `.hs-spokes` gets `width:calc(50% - gap/2)` so it wraps a CLEAN 2×2 (auto widths wrap 1-1-2 at
   phone scale). A squeezed landscape layout reads as a crop, not a design.
+- **Research / technical forms — the WIDTH-bound ones need real care in a 1080 column** (they're sized
+  for a 1920 row): a `.code` block (`algorithm_build`) must drop to **≤ ~40-char lines** (validate's
+  vertical lint enforces this) and a smaller font (~30px) — split or wrap a long line, don't let it
+  overflow; a `.eqn` (`equation_build`) shrinks from ~100px to ~64–72px and may need the equation broken
+  across two lines; a `.rtable` (`results_table`) drops to ≤3 columns or restacks each row as a labeled
+  card. `keyframe_qa --vertical` FAILS any of these that overflow the column, so **re-check every
+  technical page after switching aspect** — the naive 16:9 sizing overflows.
 - **Motif clearance:** a corner motif needs clear air — ≥80px from any text. On a page with a
   CENTERED / full-width header the top corners aren't free: move the motif to the lower zone
   (where it also helps fill) or drop it. Text stacks need real spacing too (~36–44px between a

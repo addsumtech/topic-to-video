@@ -52,6 +52,15 @@ OR a non-card form that fits in the wrong direction (D1 bidirectional), player-c
   imposed on items NOT ordered/dated (fit in the WRONG direction) → the right relation form or cards;
   (e) a `.scorecard`/KPI wall for a **CAUSAL** story → `.flow`. (`validate.py` flags the two highest-signal
   mismatches — temporal-as-static, share-as-separate — as a mechanical hook.)
+- **Research / technical content has its OWN right forms — don't let it collapse to a title card or a
+  bullet list.** REVISE: (f) a **governing equation/formula** paraphrased in prose or shown unexplained →
+  `.eqn` + `.eqn-term` (`equation_build`), one equation, terms glowing in spoken order; (g) an **algorithm /
+  pseudocode / key routine** whose exact logic + order is the point → a `.code` block (`algorithm_build`),
+  lines revealing on the voice — NOT a `.flow` of vague boxes (and conversely, a high-level *process* is a
+  `.flow`/`.stepper`, NOT a code dump); (h) an **N-methods × M-metrics benchmark/ablation** → `.rtable` with
+  the winning row `.win` (`results_table`), not a KPI-tile wall; (i) a **layered system / architecture** →
+  stacked `.blocks` (`code_architecture`) and a **method pipeline** → `.flow` (`research_method`). A code
+  wall (>~9 lines) or a wall of equations fails the squint test (`validate.py` warns on the code wall).
 - **Strawman-rival REVISE.** **REVISE** a beat whose `rejected_default` in the form ledger is a card
   grid / bullets rather than a genuinely-COMPETING form — the ledger must show the winner beat its
   NEAREST rival; a form that only proves it's better than a grid hasn't shown it's the MOST suitable.
