@@ -55,7 +55,7 @@ A SEPARATE artifact from the content plan (the assistant merges the two into the
       "motion_intent": "one VERB from references/motion-grammar.md (COUNTS UP, SLIDES, BREATHES, DRAWS…)",
       "transition": "none|in|out|dip", "transition_seconds": 0.2,   // FLAT string (dip = both edges, in/out = one edge) — NOT an object
       "icons": ["optional — one Lucide glyph per point, category/feature rows only"],
-      "media": { "image_prompt": "broll motif from THIS beat's point + the topic (topical AND on-beat, generic specifics)", "motion": "kenburns|bg-live|bg-drift|none" },
+      "media": { "treatment": "none|atmosphere|documentary", "image_prompt": "(atmosphere) broll motif from THIS beat's point + the topic — topical AND on-beat, generic specifics", "doc_query": "(documentary) the search terms naming the REAL subject to fetch from Wikimedia Commons", "doc_prefer": "(documentary, optional) a word biasing the pick e.g. 'map'", "motion": "kenburns|bg-live|bg-drift|none" },
       "cue": ["optional — per-point anchor phrases (one per point, in SPOKEN order) for an html multi-point beat"]
     } } }
 ```
@@ -124,6 +124,61 @@ never as the carrier of a fact.
 bare pull-quote or generic filler — give it a **topical metaphor** from the abstract-concept→metaphor
 table in `references/design-intelligence-addendum.md` §4b (growth→seed/tree, consensus→converging paths,
 hidden-cost→`.iceberg`, …), realized as the `signature_concept`, a `.bg-motif` SVG echo, or a broll prompt.
+
+**IMAGERY TREATMENT — a per-beat DECISION (`media.treatment`), not a reflex.** Imagery is a cost (it
+competes with the type, and it can mislead), so it must EARN its place. Run this procedure for every beat;
+most beats end at Step 1 with `none`. Three treatments: `none` (type/data only), `atmosphere` (GENERATED
+generic broll via `imagegen`), `documentary` (SCRAPED real license-clean image via `imagefetch.py`).
+
+**Step 1 — Does this beat want an image AT ALL? (default: NO.)** A beat earns one ONLY if:
+  - **(show-the-real-thing)** its subject is a CONCRETE, recognizable REAL thing the viewer *understands
+    better by seeing* — a place / landmark / building / real object / device / organism / real map or
+    diagram / historical scene; OR
+  - **(mood)** it is a SPARSE hook / section-divider / close / emotional-stakes beat that benefits from
+    atmosphere behind the words.
+  Otherwise → **`none`**. Every DATA beat (a number, trend, proportion, process, comparison, structure) is
+  ALWAYS `none`: the chart/diagram IS the visual, and an image there carries no fact and only distracts.
+  A deck of mostly-`none` beats with imagery on a FEW is the correct shape — not one image per beat.
+
+**Step 2 — If it earns an image: GENERATED or SCRAPED?** The deciding question: *does the beat want the
+viewer to SEE A SPECIFIC REAL THING, or to FEEL a mood?*
+  - **See the real thing → `documentary` (SCRAPED).** The subject is concrete, nameable, and plausibly
+    photographed/mapped in the commons (a real skyline, a real transit map, a real building/device/
+    organism, a real historical photo or authoritative diagram). Showing the ACTUAL thing DEMONSTRATES
+    the point; it's faithful because it's the real sourced image (attributed via a `.credit` line).
+  - **Feel a mood, or the subject is abstract → `atmosphere` (GENERATED).** Abstract concepts (an
+    algorithm, a market force, a philosophy), a texture behind glass cards, or a "feeling" (speed,
+    density, calm) on a sparse beat. Generic BY DESIGN — depicts nothing real or named, carries no fact.
+
+**The BRIGHT LINE (faithfulness): never GENERATE a stand-in for a specific real named thing.** If you'd be
+tempted to prompt AI for "the Golden Gate Bridge", "a Boeing 747", "Tokyo's rail map", or a real person —
+STOP: that's fabrication (`asserted`). SCRAPE the real one (`documentary`) or use `none`. Generated imagery
+is ONLY for the generic/abstract/atmospheric. Conversely, don't `documentary`-fetch an ABSTRACT idea (no
+real photo of "inflation") — that's `none`/`atmosphere`.
+
+**Subject → treatment quick-map:**
+| The beat's subject | Treatment |
+|---|---|
+| a number / trend / proportion / process / **your own** data | `none` (chart/diagram) |
+| a place · city · geography · landmark · building | `documentary` (real photo/map); `atmosphere` only for a mood texture |
+| a historical event / era / figure | `documentary` (PD archival photo/map) |
+| a real object · device · vehicle · product · artwork | `documentary` — never generate a fake of a real thing |
+| a natural subject (animal · plant · landscape · sky) | `documentary` (real photo exists in the commons) |
+| a real, authoritative diagram/map/schematic that EXISTS | `documentary` (sourced) — but YOUR data → build a `chart` |
+| an abstract concept (algorithm · economics · philosophy · math) | `none` (diagram) — or `atmosphere` on a sparse mood beat |
+| software / UI / a screen you can capture | `none`/diagram (or your own real screenshot); `atmosphere` for mood |
+| a sparse hook / section-divider / close needing mood | `atmosphere` (generic, topical) |
+
+**Availability + fallback (a documentary pick can miss):** `imagefetch.fetch(doc_query)` returns None when
+no license-clean image exists for the query. So a `documentary` beat MUST degrade gracefully — fall back to
+`atmosphere` (if the beat wanted mood) or `none` (if it wanted the real thing and none exists), never ship
+a blank. Keep `doc_query` SPECIFIC enough to name the subject but not so narrow it finds nothing (prefer
+"Tokyo rail network map" over "Tokyo 2026 official JR East route diagram"). `documentary` is FREE (Commons,
+no key); `atmosphere` costs credits (Codex/OpenAI, opt-in) — another reason to prefer the real image on a
+concrete subject and reserve generation for genuine mood.
+
+For each imagery beat, emit `media.treatment` + (`image_prompt` for atmosphere | `doc_query`/`doc_prefer`
+for documentary). The step-6 authoring then fetches/generates accordingly (SKILL.md step 4b + 4c).
 
 **Per-beat MOTION (`shot` + `intensity`).** Emit, per beat, a `shot` (its Ken Burns framing by narrative
 function — wide-establishing opener / medium explain / close-push on the key term / big-push climax /

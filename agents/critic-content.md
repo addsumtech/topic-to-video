@@ -123,6 +123,22 @@ a programmatic motif. Classes (see SKILL.md "Imagery faithfulness"):
   real vehicle/mission/person/company logo/insignia or embeds factual text/numbers, or if the image sits
   beside a specific claim implying it depicts that fact (it doesn't — the model invented it). Relabel as
   generic or move the claim to a faithful element (chart/caption).
+- `documentary` (real, fetched via `imagefetch.py` — `media.treatment:"documentary"`): a REAL Commons
+  image of the actual subject. PASS when (a) the `doc_query` genuinely names the beat's subject and the
+  fetched image depicts THAT (not a look-alike or a wrong era — check the sidecar `.json` title), (b) an
+  on-screen **`.credit`** attribution is present (CC-BY requires it), and (c) numbers/claims are still in
+  on-page TEXT, not read off the image. **FAIL** a documentary image whose subject doesn't match the beat,
+  a missing credit, or a data figure lifted from the image instead of stated as faithful text. (Unlike
+  `asserted` AI fabrication, a REAL sourced image of a named subject is ALLOWED — that is the point of
+  this class.)
+- **GENERATED-vs-SCRAPED decision (enforce the treatment choice, not just each image in isolation).** The
+  design-director's rule: SHOW a specific real thing → `documentary` (scraped); FEEL a mood / abstract
+  subject → `atmosphere` (generated); data beat → `none`. **FAIL a mismatch:** (i) a GENERATED image that
+  is standing in for a specific real named thing (a real place/landmark/object/person/map) — that's
+  fabrication; it must be `documentary` (fetch the real one) or `none`; (ii) an image (either kind) on a
+  DATA beat where a chart/diagram should carry it; (iii) a `documentary` fetch used for an ABSTRACT idea
+  with no real referent (should be `none`/`atmosphere`). The litmus: *would the viewer be misled into
+  thinking a generated picture is the real thing?* If yes → REVISE to scraped or none.
 - **Topical relevance + on-beat correlation.** A generated cover/background/`media` image must visually
   EVOKE THE VIDEO'S TOPIC — "generic" bounds the *specifics* (no fabricated logos/text/named things), it
   does NOT permit topic-neutral filler. **FAIL** a broll whose motif is unrelated decoration (random paper

@@ -42,7 +42,19 @@ TTS if the user gives an API key.
   via OpenAI `gpt-image-2` for scenes that carry an `image_prompt`, cached under `.assets/`
   (re-runs are free). Auto-uses the Codex CLI (no key) when installed, else needs
   `OPENAI_API_KEY`/`~/.openai_key`; `meta.image_provider` (`auto`/`codex`/`openai`) selects
-  the path. Only acts when `meta.image_source == "openai"`.
+  the path. Only acts when `meta.image_source == "openai"`. This is the **`atmosphere`/broll** class —
+  generic, no facts.
+- `scripts/imagefetch.py <query> <out_path> [--prefer W] [--duotone SHADOW HIGHLIGHT]` — the
+  **`documentary` (REAL-image) tier**, FREE + no key: search **Wikimedia Commons** for a
+  license-clean (CC / Public-Domain) real photo/map/diagram of the ACTUAL named subject, download it,
+  and write a sidecar `<out_path>.json` with the license + attribution. Unlike `imagegen` (generic
+  atmosphere), this DEPICTS the real thing, so it can demonstrate the point directly (a real
+  rail-network map, a real cityscape) — a FAITHFUL class (real + sourced + credited). API helpers:
+  `search(query)`, `fetch(query,out,prefer=)` → attribution dict (or None if nothing license-clean),
+  `attribution_line(meta)` for the on-screen `.credit`, and `duotone(in,out,shadow,highlight,mid=)`
+  to tone a real image into the deck's palette ("treated to match" a styled deck). The design-director
+  picks `media.treatment: none|atmosphere|documentary` per beat (see its agent + the Imagery
+  faithfulness section); reach for `documentary` on CONCRETE topics (a city, place, real system).
 - `scripts/render.py <out_dir> [--sample N] [--only N] [--vertical] [--reduced-motion]` — storyboard → `out.mp4` + `out.srt`.
   **Scene transitions:** a gentle dip-to-theme-bg at clip edges (video only — audio/durations
   untouched, so cache + `-c copy` concat + A/V gate still hold). `meta.transition` (`dip` default |
@@ -54,7 +66,9 @@ TTS if the user gives an API key.
   "Transition rhythm". Never random; no wipes/spins. **Karaoke captions:** when edge-tts `audio/NN.words.json`
   exists (space-delimited languages), the burned caption highlights the word being spoken, timed to the
   real word times; falls back to line-level chunks for MiniMax/say and CJK. `meta.captions_karaoke`
-  (`auto` default | `off`).
+  (`auto` default | `off`). The highlight colour is **contrast-picked per scene** against the caption band's
+  ground (prefers `--accent`, else `--accent2`/gold/high-contrast b/w) AND kept distinct from the
+  neighbouring words — so the spoken word never vanishes into an accent-fill / same-colour band.
   **Caption placement — `meta.caption_mode`:** `overlay` (default) burns the semi-transparent bar over
   the bottom of the content (content must stay clear of the bottom ~15%); `band` draws the caption in a
   dedicated strip BELOW the content so it NEVER overlaps the slide — the canvas grows to `W×(H+~138px)`
@@ -204,7 +218,13 @@ TTS if the user gives an API key.
      on-topic textures behind pages at low opacity, paid (`image_source:openai`) · **Designed HTML
      deck** — bespoke full-screen pages rendered by headless Chrome, free, needs Chrome (per-beat
      `type:"html"`) · **HTML + AI backdrops** — designed HTML pages WITH generated soft backgrounds
-     behind glass cards, paid. (Other → a mix of tiers, or a brand/theme/CSS to match.) The
+     behind glass cards, paid. (Other → a mix of tiers, or a brand/theme/CSS to match.) **Real
+     (documentary) images — FREE, no API:** independently of the tier above, for a **CONCRETE** topic
+     (a city, place, real system/product/organism/event) the design-director may pull REAL license-clean
+     photos/maps/diagrams from Wikimedia Commons (`scripts/imagefetch.py`) to DEMONSTRATE the subject
+     directly (a real rail map, a real cityscape) — treated to match the deck. It's decided per-beat, not
+     asked here; mention it when the topic is concrete (an abstract topic stays typographic/atmosphere).
+     The
      **per-beat template FORMS** (hero-stat, before/after, timeline rail, system map, metric wall,
      results table, figure focus, funnel, dashboard, case story, flywheel — see
      `references/html-templates.md`) are chosen by the design-director per beat, NOT asked here.
@@ -449,6 +469,19 @@ TTS if the user gives an API key.
     `imagegen.generate(prompt, out_path, key)` (key path) or `imagegen._generate_codex(prompt, out_path)`
     (Codex) — then reference the file by `file://` in the page. The storyboard `image_source:"openai"`
     CLI path of `imagegen.py` drives the non-HTML tiers, not these.
+4c. **Documentary (REAL-image) fetch — FREE, no key.** For every beat the design plan marks
+    `media.treatment:"documentary"` (the design-director's per-beat imagery DECISION — see its "IMAGERY
+    TREATMENT" procedure: `none` for data beats, `atmosphere` for mood, `documentary` to SHOW a real
+    concrete subject), fetch the real image at authoring time:
+    `imagefetch.fetch(doc_query, out_path, prefer=doc_prefer)` → returns an attribution dict (or **None**
+    if nothing license-clean matched). Then: **treat it to match the deck** on a non-photographic style —
+    `imagefetch.duotone(raw, out_path, shadow=<--fg rgb>, mid=<--accent rgb>, highlight=<--bg rgb>)`;
+    reference it as a full-bleed `.bg-photo` (+ `.scrim`) or a `.split` panel; and **add a `.credit` line**
+    with `imagefetch.attribution_line(meta)` — placed as a DIRECT CHILD of `<body>` (a sibling of
+    `.stage`, NOT inside it, so it can't trip `keyframe_qa`'s content-overflow probe). **Fallback:** if
+    `fetch` returns None, degrade per the design plan — `atmosphere` if the beat wanted mood, else `none`
+    (never ship a blank). No spend + no checkpoint (it's free + real), but the critic panel (R1e) still
+    checks the query matched the subject and the credit is present. Keep it to the 2–4 most physical beats.
 5. **Parallel critic panel — narration + content + design (REQUIRED, not optional).** Dispatch
    `agents/critic-narrative.md`, `agents/critic-content.md`, AND `agents/design-critic.md`
    **concurrently — in ONE message with three Agent calls** — on the storyboard **plus the comprehension
@@ -536,6 +569,11 @@ TTS if the user gives an API key.
   `api.minimax.chat`, caches the one that works) — an int'l or mainland key just works. Tunables:
   `meta.tts_model` (default `speech-02-hd`), `meta.minimax_base` (pin one host, disables auto-retry),
   `meta.minimax_group_id` (only if a mainland setup needs it); key via `MINIMAX_API_KEY` / `~/.minimax_key`.
+- **`meta.tts_speed`** (default `1.0`) tightens or loosens the narration PACE without cutting content —
+  a multiplier applied to BOTH edge-tts (mapped to its `rate` `±%`, e.g. `1.25` → `+25%`) and MiniMax
+  (its `speed`). Clamped `[0.5, 2.0]`; for edge, keep within **~±30%** (`0.8–1.3`) — beyond that the
+  neural voice sounds unnatural. Per-word timings scale WITH the rate, so captions + audio-synced reveals
+  stay in sync. Reach for it (e.g. `1.2–1.3`) when a faithful script overruns the target runtime.
 - `meta.image_source` is `none` (default, free) or `openai` (gpt-image-2, paid). AI images are
   generated once by `imagegen.py` and CACHED under `.assets/` — re-renders are free + offline.
 - **HTML pages tier:** `type:"html"` scenes render an authored page via headless Chrome
@@ -604,8 +642,8 @@ TTS if the user gives an API key.
   if a glyph still tofus, set `meta.font` to a `.ttc`/`.ttf` that covers the script. Confirm
   the captions look right on the rendered **sample** (step 8) — that's where mojibake shows.
 
-## Imagery faithfulness (AI / b-roll)
-Every on-screen visual is one of three classes; `critic-content` (R1e) enforces them:
+## Imagery faithfulness (AI / b-roll / documentary)
+Every on-screen visual is one of four classes; `critic-content` (R1e) enforces them:
 - **`motif`** — a generic programmatic vector. Always allowed; asserts no fact.
 - **`broll`** — a generic illustrative image, including an AI-generated one (`image_prompt`).
   Allowed ONLY as generic/atmospheric backdrop — no real logos, faces, named vehicles, or
@@ -614,8 +652,17 @@ Every on-screen visual is one of three classes; `critic-content` (R1e) enforces 
   forbids fabricated *specifics*, not the subject itself). Topic-neutral filler (random paper,
   a generic gradient, an unrelated stock scene) is a defect even though it is "faithful"; the
   imagery should look like it belongs to *this* video, not any video.
-- **`asserted`** — imagery standing in for a specific named vehicle/mission/person/event/figure.
-  For an AI image this is FABRICATION (the model invents it) and is NOT allowed.
+- **`documentary`** — a REAL, license-clean image (photo/map/diagram) of the ACTUAL named subject,
+  fetched from Wikimedia Commons via `scripts/imagefetch.py` (CC/Public-Domain only). BECAUSE it is
+  real + sourced, it is allowed to DEPICT the real thing and demonstrate the point directly (a real
+  rail-network map, a real cityscape, a real crowded station) — the one image class that may show a
+  named real subject. Requirements: (1) a genuine `doc_query` naming the subject (a wrong image is a
+  faithfulness break); (2) an on-screen **`.credit`** attribution line (CC-BY requires it; the sidecar
+  `.json` carries license/artist); (3) numbers/claims still live in on-page TEXT — the image shows the
+  subject, the text asserts the fact. Reach for it on CONCRETE topics; treat it to match the deck
+  (`imagefetch.duotone`) on a non-photographic style. Not for abstract topics (use `broll`/`none`).
+- **`asserted`** — an AI image FABRICATING a specific named vehicle/mission/person/event/figure. NOT
+  allowed (that's precisely what `documentary` exists for — fetch the real one instead of inventing it).
 DATA always stays in faithful `chart` scenes — never render numbers/figures as an AI image.
 The full-AI escape hatch (`image_source:"openai"` with data as AI) is the user's call, but the
 `critic-content` flags every data-bearing AI scene.

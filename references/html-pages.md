@@ -176,6 +176,36 @@ path is offline/deterministic; only NETWORK assets are forbidden). Use it as a d
 A gpt-image backdrop must stay **generic/atmospheric** (`broll`) — no fabricated specific
 vehicle/event/figure, no embedded numbers — the facts live in the page text, never in the image.
 
+## Documentary (REAL) images — the SCRAPED, license-clean tier
+For a **concrete** subject (a place, landmark, real object/device/organism, a real map/diagram, a
+historical scene), a REAL image DEMONSTRATES the point far better than generated atmosphere — and it's
+faithful because it's the real, sourced thing. The design-director marks such beats
+`media.treatment:"documentary"` (see its "IMAGERY TREATMENT" decision procedure — **generated =
+atmosphere/abstract, scraped = show a real named thing; never GENERATE a stand-in for a real thing**).
+Fetch + place them like this (SKILL.md step 4c):
+```
+meta = imagefetch.fetch("Tokyo rail network map", "images/doc/railmap_raw.png", prefer="map")  # -> attrib dict or None
+imagefetch.duotone("images/doc/railmap_raw.png", "images/doc/railmap.png",           # treat to match a styled deck
+                   shadow=<--fg rgb>, mid=<--accent rgb>, highlight=<--bg rgb>)       # (skip for a photo-real style)
+line = imagefetch.attribution_line(meta)   # "Artist · CC BY 4.0 · Wikimedia Commons"
+```
+```html
+<body>
+  <img class="bg-photo" src="file:///ABS/OUT/images/doc/railmap.png" alt="">
+  <div class="scrim" style="background:linear-gradient(...var(--fg)...)"></div>   <!-- darken for legible text -->
+  <div class="stage"><!-- the beat's real text/number over the image --></div>
+  <div class="credit">Artist · CC BY 4.0 · Wikimedia Commons</div>   <!-- ⚠ SIBLING of .stage, NOT inside it -->
+</body>
+```
+- **`.credit` is REQUIRED** for a CC-BY image (attribution), and MUST be a **direct child of `<body>`**,
+  a sibling of `.stage` — NOT inside `.stage`. It's `position:absolute` in the lower corner; placed inside
+  `.stage`, `keyframe_qa`'s overflow probe (which measures `.stage *`) counts it as content spilling past
+  the canvas and FAILS the page. On a dark scrimmed photo, set `style="color:color-mix(in srgb,var(--bg) 80%,transparent)"`.
+- **Fetch can miss** — `imagefetch.fetch` returns `None` when nothing license-clean matched the query;
+  fall back to an `atmosphere` texture (mood beat) or `none` (drop the image), never a blank page.
+- Numbers/claims still live in the page TEXT — the image shows the subject, the text asserts the fact
+  (`critic-content` R1e: the fetched subject must match the beat; the credit must be present).
+
 ## AI cover + per-page backgrounds ("look A" — the not-flat option)
 When the user picks AI backgrounds, generate a SMALL, coherent set (not one busy image per page —
 that fights the content) and place them faithfully:
@@ -380,6 +410,18 @@ The most common defect is **content appearing well before the narration reaches 
   cue slot via `seek.js`, so nothing new is scraped and the render is unchanged. A static connector
   among cued blocks paints from frame 0, before the blocks — **`validate.py` errors on it.** (The
   single `.timeline::before` rail is a CSS backdrop, not a per-step connector, so it stays static.)
+  - **Bespoke SVG lines/arcs/chevrons in a diagram follow the SAME rule — mark them `.connector`.** A
+    hand-drawn `<path>`/`<polyline>` that connects or points between cued nodes must (a) carry a
+    reveal/`.draw` animation + `data-cue-index` = the cue of the line it belongs to (borrow, no
+    `data-cue=` of its own), so it draws/fades WITH that line, and (b) carry the **`.connector`** class
+    so `validate.py` treats it as a borrowing connector (exempt from the duplicate/uncued accounting),
+    not a stray point. A raw static `<polyline>` has NO animation, so `seek.js` never touches it and it
+    paints at frame 0 — the "arrow appears too early" bug. **A DIRECTIONAL arrowhead must sit ON the
+    line's centerline and point along its tangent** — for an SVG arc, put the chevron TIP on the exact
+    path point (compute it from the arc's own geometry) and splay the wings symmetric to the tangent, so
+    the arrow follows the curve instead of floating beside it. Give each drawn segment the cue of the
+    beat it's SPOKEN at (a two-arc loop: arc-A on the cue that describes A→B, arc-B on the cue for B→A),
+    never a blanket single cue that makes half the diagram lead the narration.
 - **Equal-height cards:** rows of cards (`.dash`) are equal height by design (`align-items:stretch`); do
   not set per-card heights. If one card's text is much longer, shorten it or move it to its own beat.
 - **Audio-synced cues override stagger:** when audio-synced cues are active (edge-tts + `data-cue`
