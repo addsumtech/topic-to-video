@@ -36,6 +36,24 @@ def test_caption_overlay_draws_pixels(tmp_path):
     bottom = im.crop((0, int(1080 * 0.8), 1920, 1080))
     assert bottom.getchannel("A").getextrema()[1] > 0
 
+def test_band_karaoke_highlight_threads_band_bg(tmp_path, monkeypatch):
+    # the spoken-word highlight must be picked against the ACTUAL band ground threaded from the call site
+    # (band_bg), not blindly --accent — the reported accent-fill bug. Assert _draw_caption asks
+    # _karaoke_hl_rgb with the band_bg it was given, and that the highlighted word draws distinct pixels.
+    from PIL import Image
+    seen = {}
+    real = render._karaoke_hl_rgb
+    monkeypatch.setattr(render, "_karaoke_hl_rgb",
+                        lambda out, bg, base: seen.setdefault("bg", tuple(bg)) or real(out, bg, base))
+    p = str(tmp_path / "band.png")
+    terracotta = (181, 101, 47)
+    render._caption_layer("alpha beta gamma", 1920, 1080, p, meta={"_out": str(tmp_path)},
+                          hl_word=1, band=138, text_rgb=(22, 20, 18), band_bg=terracotta)
+    assert seen.get("bg") == terracotta                       # the threaded ground reached the picker
+    im = Image.open(p).convert("RGBA")
+    strip = im.crop((0, 1080, 1920, 1080 + 138))              # the band region carries drawn text
+    assert strip.getchannel("A").getextrema()[1] > 0
+
 def test_overlay_empty_when_nothing_to_draw(tmp_path):
     from PIL import Image
     p = str(tmp_path / "empty.png")
@@ -183,6 +201,32 @@ def test_caption_karaoke_segs_word_windows(tmp_path):
     assert segs[0]["start"] == 0.0 and segs[-1]["end"] == 3.0   # last word runs to scene end
     assert all(segs[i]["start"] <= segs[i + 1]["start"] for i in range(5))
     assert all(s["text"] == narr for s in segs)
+
+def test_karaoke_hl_contrast_and_distinct():
+    # the highlight must NEVER vanish into the band ground and must differ from the neighbouring words
+    T = (0xb5, 0x65, 0x2f)      # terracotta accent
+    paper = (0xf5, 0xf2, 0xea); ink = (0x16, 0x14, 0x12); white = (255, 255, 255)
+    for band_bg, base in [(T, ink), (T, white), (paper, ink), (ink, paper),
+                          ((0x2f, 0x6d, 0x75), white)]:
+        hl = render._karaoke_hl_rgb(".", band_bg, base)[:3]
+        assert render._wcag_contrast(hl, band_bg) >= 3.0, (band_bg, base, hl)   # readable on the strip
+        # distinct from neighbours: either a real luminance gap OR a clear channel-distance
+        near = render._wcag_contrast(hl, base) >= 1.6 or sum(abs(a - b) for a, b in zip(hl, base)) >= 120
+        assert near, (band_bg, base, hl)
+    # the exact reported bug: an accent highlight on an accent-fill band must be REPLACED (not accent)
+    assert render._karaoke_hl_rgb(".", T, ink)[:3] != T
+
+def test_karaoke_hl_keeps_accent_on_paper():
+    # on a normal light strip the on-brand accent highlight is preserved (no needless change)
+    paper = (0xf5, 0xf2, 0xea); ink = (0x16, 0x14, 0x12)
+    # with no theme.css, --accent falls back to the default terracotta-ish; assert it's chosen when it clears
+    hl = render._karaoke_hl_rgb(".", paper, ink)[:3]
+    assert render._wcag_contrast(hl, paper) >= 3.0
+
+def test_ffhex_rgb_parses_ffmpeg_and_css_hex():
+    assert render._ffhex_rgb("0xb5652f") == (181, 101, 47)
+    assert render._ffhex_rgb("#f5f2ea") == (245, 242, 234)
+    assert render._ffhex_rgb("garbage") == (244, 243, 238)   # safe fallback
 
 def test_caption_karaoke_none_when_not_applicable(tmp_path):
     # CJK -> chunk-level (None)

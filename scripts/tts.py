@@ -129,6 +129,13 @@ def _tts_speed(meta):
     except (TypeError, ValueError):
         return 1.0
 
+def _edge_rate(meta):
+    """edge-tts `rate` string from meta.tts_speed (1.0 = natural → '+0%'). A dense deck can speed the
+    neural voice a touch (edge handles ~±30% naturally) to land a tighter runtime without cutting
+    content — the same knob _tts_speed feeds MiniMax, mapped to edge's percentage form."""
+    pct = round((_tts_speed(meta) - 1.0) * 100)
+    return f"{pct:+d}%"
+
 def _minimax(text, out_path, voice, meta):
     """Synthesize via MiniMax T2A v2. Bearer auth; response `data.audio` is HEX-encoded mp3.
     Key from MINIMAX_API_KEY env or ~/.minimax_key (never persisted). Region is auto-detected: a
@@ -196,13 +203,14 @@ def _words_from_boundaries(chunks):
             out.append({"w": c.get("text", ""), "t": round(c.get("offset", 0) / 1e7, 3)})
     return out
 
-def _edge(text, out_path, voice):
+def _edge(text, out_path, voice, rate="+0%"):
     # edge-tts neural voice via its Python API: streams audio + per-word boundaries in one pass.
-    # asyncio.run at this leaf keeps the rest of the pipeline synchronous.
+    # asyncio.run at this leaf keeps the rest of the pipeline synchronous. `rate` (e.g. '+25%') speeds
+    # or slows the voice — the word-boundary times scale with it, so cued reveals stay in sync.
     import asyncio, json, edge_tts
     async def _go():
         audio = bytearray(); chunks = []
-        comm = edge_tts.Communicate(text, voice, boundary="WordBoundary")
+        comm = edge_tts.Communicate(text, voice, rate=rate, boundary="WordBoundary")
         async for ch in comm.stream():
             if ch["type"] == "audio":
                 audio.extend(ch["data"])
@@ -357,7 +365,7 @@ def synthesize(out_dir, only=None):
             if prov == "openai":
                 _openai(text, dest, name)
             elif prov == "edge":
-                _edge(text, dest, name)
+                _edge(text, dest, name, _edge_rate(data["meta"]))
             elif prov == "minimax":
                 _minimax(text, dest, name, data["meta"])
             else:

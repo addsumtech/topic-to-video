@@ -310,6 +310,20 @@ def test_connector_index_below_destination_warns(tmp_path):
     r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
     assert any("points to a block at cue" in w for w in r["warnings"])
 
+def test_bespoke_svg_connector_borrows_cue_no_dupe(tmp_path):
+    # a hand-drawn SVG arc + chevron marked `.connector` borrow their cue (no data-cue of their own) —
+    # they must NOT count as duplicate/missing points or as uncued reveals (same exemption as .arrow)
+    body = ('<div class="stage">'
+            '<svg><path class="draw connector" data-cue-index="0"></path>'
+            '<polyline class="reveal connector" data-cue-index="0"></polyline></svg>'
+            '<div class="row reveal-up" data-cue-index="0" data-cue="alpha">A</div>'
+            '<div class="row reveal-up" data-cue-index="1" data-cue="beta">B</div></div>')
+    s = _html_scene(tmp_path, 0, "pages/s0.html", body)
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    assert not any("duplicate data-cue-index" in w for w in r["warnings"])
+    assert not any("missing a data-cue anchor" in w for w in r["warnings"])
+    assert not any("uncued on a cued page" in w for w in r["warnings"])
+
 def test_uncued_reveal_on_cued_page_warns(tmp_path):
     s = _html_scene(tmp_path, 0, "pages/s0.html",
                     '<div class="note reveal-up" data-cue-index="0" data-cue="a">A</div>'

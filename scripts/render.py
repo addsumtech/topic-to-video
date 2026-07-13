@@ -139,12 +139,13 @@ def _caption_font_px(W, H, band=False, meta=None):
     scale = (0.85 if band else 1.0) * float((meta or {}).get("caption_scale", 1.0) or 1.0)
     return max(12, int(min(W, H) * 0.045 * scale))
 
-def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None):
+def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None, band_bg=None):
     """Burn a centered caption. `band==0` (default 'overlay'): a semi-transparent bar near the bottom of
     the W×H content (classic burn-in). `band>0` ('band' mode): the text is drawn centered in a dedicated
     strip BELOW the content — the region [H, H+band] on a W×(H+band) layer — so it never overlaps the
     slide (the strip's solid background is added by the render's `pad` filter; here we draw only the text
-    in the deck's --bg colour over it). If `hl_word` is given, that word takes the karaoke colour."""
+    in the deck's --bg colour over it). If `hl_word` is given, that word takes the karaoke colour —
+    contrast-picked against `band_bg` (the strip ground) so it never vanishes into an accent-fill band."""
     if not text:
         return
     font = _load_font(_caption_font_px(W, H, band=bool(band), meta=meta), _font_path(meta, text))
@@ -157,8 +158,10 @@ def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None)
         out = (meta or {}).get("_out", ".")
         # text = the per-scene sampled colour (contrasts THIS scene's strip) else the flat fallback
         base = (tuple(text_rgb) if text_rgb else _caption_band_colors(meta)[1]) + (255,)
-        # highlight the spoken word in the deck's --accent (contrasts either strip ground; falls back to gold).
-        hl_col = _theme_rgb(out, "--accent", KARAOKE_HL[:3]) + (255,)
+        # the spoken word's highlight: contrast-picked against the strip GROUND (so it never blends into
+        # an accent-fill band) AND kept distinct from the neighbouring words — not a blind --accent.
+        bbg = tuple(band_bg) if band_bg else _ffhex_rgb(_caption_band_colors(meta)[0])
+        hl_col = _karaoke_hl_rgb(out, bbg, base[:3])
         y0 = H + max(pad, (band - block_h) // 2)
     else:                                       # classic overlay bar with a scrim over the bottom of the content
         base = (255, 255, 255, 255)
@@ -203,12 +206,13 @@ def _callout_layer(callouts, W, H, dst, meta=None):
                    font=label_font, fill=(255, 255, 255, 255))
     layer.save(dst)
 
-def _caption_layer(text, W, H, dst, meta=None, hl_word=None, band=0, text_rgb=None):
+def _caption_layer(text, W, H, dst, meta=None, hl_word=None, band=0, text_rgb=None, band_bg=None):
     """Draw ONLY one caption block onto a transparent PNG (shown for one time window). In band mode the
     layer is W×(H+band) so the caption text lands in the strip below the content; `text_rgb` overrides
-    the text colour (the per-scene sampled colour that contrasts a flush strip)."""
+    the text colour (the per-scene sampled colour that contrasts a flush strip); `band_bg` is that strip's
+    ground rgb, used to contrast-pick the karaoke highlight so it never vanishes into the band."""
     layer = Image.new("RGBA", (W, H + band), (0, 0, 0, 0))
-    _draw_caption(ImageDraw.Draw(layer), text, W, H, meta, hl_word, band=band, text_rgb=text_rgb)
+    _draw_caption(ImageDraw.Draw(layer), text, W, H, meta, hl_word, band=band, text_rgb=text_rgb, band_bg=band_bg)
     layer.save(dst)
 
 def _load_words(out_dir, index):
@@ -537,6 +541,45 @@ def _caption_band_fill(meta, content_frame=None):
         text = max((0, 0, 0), (255, 255, 255), key=_ratio)   # starve both -> pure b/w by MAX contrast
     return "0x%02x%02x%02x" % tuple(rgb), text
 
+def _ffhex_rgb(s):
+    """'0xRRGGBB' (or '#RRGGBB') -> (r,g,b). Used to turn the band strip colour back into rgb."""
+    s = str(s).lstrip("#")
+    if s[:2].lower() == "0x":
+        s = s[2:]
+    try:
+        return tuple(int(s[i:i + 2], 16) for i in (0, 2, 4))
+    except (ValueError, IndexError):
+        return (244, 243, 238)
+
+def _wcag_contrast(a, b):
+    la, lb = sorted((_rel_lum(a), _rel_lum(b)))
+    return (lb + 0.05) / (la + 0.05)
+
+def _karaoke_hl_rgb(out, band_bg, base):
+    """The karaoke highlight colour for the SPOKEN word in the caption band. Must (1) clear a readable
+    contrast against the band BACKGROUND — so on an accent-fill strip the emphasised word never vanishes
+    into a same-colour ground (the bug: --accent highlight on an --accent band) — AND (2) stay visually
+    DISTINCT from the neighbouring (base) words, so the emphasis still reads. Prefers the deck --accent
+    (keeps the on-brand look on a paper strip), then --accent2, then a warm gold, then a max-contrast b/w.
+    `band_bg`/`base` are rgb tuples."""
+    def rgb_dist(a, b):
+        return sum(abs(x - y) for x, y in zip(a, b))
+    def distinct(c):                                  # different enough from the neighbouring words
+        return _wcag_contrast(c, base) >= 1.6 or rgb_dist(c, base) >= 120
+    cands = [_theme_rgb(out, "--accent", (181, 101, 47)),
+             _theme_rgb(out, "--accent2", (47, 109, 117)),
+             tuple(KARAOKE_HL[:3])]
+    for c in cands:
+        if _wcag_contrast(c, band_bg) >= 3.0 and distinct(c):    # readable on the strip AND not a neighbour twin
+            return tuple(c) + (255,)
+    # nothing preferred clears both — prefer the black/white that BOTH contrasts the strip strongly AND
+    # stays distinct from the neighbouring words (on an accent-fill band this gives a crisp high-contrast
+    # spoken word); only if neither b/w is distinct (base already is b/w) fall to the accent that pops most.
+    bw_ok = [c for c in ((0, 0, 0), (255, 255, 255)) if distinct(c)]
+    if bw_ok:
+        return max(bw_ok, key=lambda c: _wcag_contrast(c, band_bg)) + (255,)
+    return tuple(max(cands, key=lambda c: _wcag_contrast(c, band_bg))) + (255,)
+
 # The lurch / soft-text ceilings the validate gate enforces on the AUTHORED move. Kept here (not
 # imported from validate — validate imports render, not the reverse) so the intensity dial can't push
 # the EFFECTIVE move past them. Keep in sync with validate.MAX_ZOOM_DELTA / its 1.25 check.
@@ -616,14 +659,14 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
     vlabel = "v0"; extra_inputs = []; n_in = 2        # 0=frames, 1=audio
     fade = _fade_filter(meta, dur, slide)              # dip-to-bg transition at the clip edges
 
-    band_text = None                                   # per-scene sampled caption text colour (flush band)
+    band_text = None; band_bg = None                   # per-scene sampled caption text colour + strip ground
     def _add_caption_overlays():
         nonlocal vlabel, n_in
         for k, seg in enumerate(caption_segs):
             if not (seg.get("text") or "").strip():
                 continue
             cap_png = os.path.join(workdir, f"scap_{k:03d}.png")
-            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text)
+            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text, band_bg=band_bg)
             extra_inputs.append("-i"); extra_inputs.append(cap_png)
             en = f"between(t,{seg['start']},{seg['end']})"
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
@@ -633,6 +676,7 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
         if fade:
             parts.append(f"[{vlabel}]{fade}[vf]"); vlabel = "vf"
         bg, band_text = _caption_band_fill(meta, pattern % 0)   # strip continues THIS scene's own ground
+        band_bg = _ffhex_rgb(bg)                        # the strip ground, for the highlight-contrast pick
         parts.append(f"[{vlabel}]pad={W}:{H + band}:0:0:color={bg}[vpad]"); vlabel = "vpad"
         _add_caption_overlays()
     else:                                              # classic burn-in bar, then fade the whole frame
@@ -720,14 +764,14 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
     segs = (_caption_karaoke_segs(slide, meta, meta["_out"]) or _captions_for(slide)) if burn_captions else []
     fade = _fade_filter(meta, dur, slide)              # dip-to-bg transition at the clip edges
 
-    band_text = None                                   # per-scene sampled caption text colour (flush band)
+    band_text = None; band_bg = None                   # per-scene sampled caption text colour + strip ground
     def _cap_overlays():
         nonlocal vlabel, n_in
         for k, seg in enumerate(segs):
             if not (seg.get("text") or "").strip():
                 continue
             cap_png = os.path.join(workdir, f"cap_{i:02d}_{k:02d}.png")
-            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text)
+            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text, band_bg=band_bg)
             extra_inputs.append("-i"); extra_inputs.append(cap_png)
             en = f"between(t,{seg['start']},{seg['end']})"
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
@@ -737,6 +781,7 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
         if fade:
             parts.append(f"[{vlabel}]{fade}[vf]"); vlabel = "vf"
         bg, band_text = _caption_band_fill(meta, frame)    # strip continues THIS scene's own ground
+        band_bg = _ffhex_rgb(bg)                        # the strip ground, for the highlight-contrast pick
         parts.append(f"[{vlabel}]pad={W}:{H + band}:0:0:color={bg}[vpad]"); vlabel = "vpad"
         _cap_overlays()
     else:                                              # classic burn-in bar, then fade the whole frame

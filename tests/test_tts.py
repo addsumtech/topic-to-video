@@ -97,18 +97,39 @@ def test_synthesize_uses_edge_when_resolved(tmp_path, monkeypatch):
 
     monkeypatch.setattr(tts, "_have_edge", lambda: True)
     made = []
-    def fake_edge(text, dest, voice):
+    def fake_edge(text, dest, voice, rate="+0%"):
         with open(dest, "wb") as f:
             f.write(b"\x00")
-        made.append((dest, voice))
+        made.append((dest, voice, rate))
     monkeypatch.setattr(tts, "_edge", fake_edge)
     monkeypatch.setattr(tts._common, "audio_duration", lambda p: 1.0)
 
     res = tts.synthesize(out)
     assert made, "edge synthesis was not called"
     assert made[0][1] == "en-US-AriaNeural"
+    assert made[0][2] == "+0%"                       # default speed -> no rate change
     assert all(s["audio"].endswith(".mp3") for s in res["slides"])
     assert all(s["duration"] == 1.0 for s in res["slides"])
+
+def test_edge_rate_maps_tts_speed():
+    assert tts._edge_rate({}) == "+0%"               # natural default
+    assert tts._edge_rate({"tts_speed": 1.25}) == "+25%"
+    assert tts._edge_rate({"tts_speed": 0.9}) == "-10%"
+    assert tts._edge_rate({"tts_speed": "bad"}) == "+0%"   # invalid -> natural
+
+def test_synthesize_passes_edge_rate_from_meta(tmp_path, monkeypatch):
+    out = _proj(tmp_path)
+    data = sb.load(os.path.join(out, "storyboard.json"))
+    data["meta"].update({"voice": "auto", "language": "en", "tts_speed": 1.25})
+    sb.save(data, os.path.join(out, "storyboard.json"))
+    monkeypatch.setattr(tts, "_have_edge", lambda: True)
+    seen = []
+    def fake_edge(text, dest, voice, rate="+0%"):
+        open(dest, "wb").write(b"\x00"); seen.append(rate)
+    monkeypatch.setattr(tts, "_edge", fake_edge)
+    monkeypatch.setattr(tts._common, "audio_duration", lambda p: 1.0)
+    tts.synthesize(out)
+    assert seen and all(r == "+25%" for r in seen)   # meta.tts_speed reaches the edge voice
 
 @pytest.mark.skipif(not _common.have_tool("say"), reason="macOS 'say' only")
 def test_synthesize_writes_audio_and_durations(tmp_path, monkeypatch):

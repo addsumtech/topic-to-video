@@ -61,7 +61,11 @@ _HEX_TOKEN_RE = re.compile(r'(?<![0-9a-fA-F#])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|
 # data-cue-index (spoken order). One meaningful component = one cued reveal → components land one-by-one.
 _REVEAL = {"reveal", "reveal-up", "reveal-up-sm", "reveal-pop", "reveal-wipe", "reveal-glow"}
 _CHROME = {"kicker", "rule", "title", "sub"}          # the only elements allowed to be uncued on a cued page
-_CONN = {"arrow", "hs-connect"}                       # connectors — reveal WITH their destination block
+_CONN = {"arrow", "hs-connect", "connector"}          # connectors — reveal WITH their destination block
+#   `.arrow`/`.hs-connect` are the archetype connectors; `.connector` is the GENERAL marker an author
+#   puts on ANY directional element that borrows a cue slot (a bespoke SVG arc/chevron/link that reveals
+#   WITH the line it belongs to, carrying no data-cue of its own) — so it's exempt from the duplicate/
+#   uncued accounting exactly like the built-in connectors, and never left static (frame-0) on a cued page.
 # Independently-meaningful facts = distinct LINE-ITEMS (row/tile/step/block/seg/hs-spoke) or a PRIMARY
 # number (stat/num). Pure descriptors attached to a number or a row (.label/.note/.bar/.delta/.unit) are
 # part of that ONE unit, NOT separate facts — so a "label: value" row or "5.6% ▲" counts as one point.
