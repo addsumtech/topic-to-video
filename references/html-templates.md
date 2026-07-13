@@ -249,6 +249,30 @@ heavy LaTeX: pre-render via matplotlib mathtext to a `.media` image, or author n
 </div>
 ```
 
+## algorithm_build — pseudocode / a key routine, revealed LINE-BY-LINE on the voice
+**Content shape:** the actual LOGIC is the point — an update rule, a protocol, a training loop, a key
+routine — and reading the real steps (not a boxed abstraction) matters. Author each line as a `.ln` and
+either **BUILD** it (each line `reveal-up-sm` + `data-cue-index`, appearing as the narrator reaches it) or
+**WALK** it (all lines shown, each `.ln reveal-glow` + `data-cue-index` lights as it's narrated); mark the
+key line `.ln.on`. Use `.kw` to accent a keyword, `.cm` to mute a comment. **When to reach for it vs a
+diagram:** a code block when the ORDER + exact operations are the teaching point; a `.flow`/`.stepper`
+when it's a high-level *process* (the design dict "Algorithm / pseudocode" row). **Video legibility (hard):**
+≤ ~9 lines, each ≤ ~52 chars, font ≥ 28px, indentation via leading spaces — a wall of code is unreadable
+(`validate.py` warns past these). Add `numbered` to the `.code` for line numbers. **Text budget:** short
+identifiers; elide boilerplate with a `.cm` "# …".
+```html
+<div class="stage" style="justify-content:center"><div class="kicker reveal-up">The update rule</div>
+  <h1 class="title reveal-up" style="font-size:52px;margin:8px 0 26px">One gradient step, unrolled.</h1>
+  <div class="code numbered reveal-up" data-cue-index="0" style="margin:0 auto">
+    <span class="ln reveal-up-sm" data-cue-index="1"><span class="cm"># x: estimate,  y: measurement</span></span>
+    <span class="ln reveal-up-sm" data-cue-index="2"><span class="kw">for</span> t <span class="kw">in</span> range(T):</span>
+    <span class="ln reveal-up-sm on" data-cue-index="3">    g = Aᵀ(A·x − y)  <span class="cm"># data gradient</span></span>
+    <span class="ln reveal-up-sm" data-cue-index="4">    x = x − η·g + prior(x)  <span class="cm"># step + prior</span></span>
+    <span class="ln reveal-up-sm" data-cue-index="5"><span class="kw">return</span> x</span>
+  </div>
+</div>
+```
+
 ## results_table — a benchmark / ablation matrix (the winning row highlighted)
 **Content shape:** N methods × M metrics; ONE row wins (`.win`, accent). Reveal row by row. Keep to ≤5
 rows × ≤4 columns (a wall of numbers fails the squint test). **Text budget:** short method names, figures

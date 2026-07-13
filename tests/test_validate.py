@@ -310,6 +310,20 @@ def test_connector_index_below_destination_warns(tmp_path):
     r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
     assert any("points to a block at cue" in w for w in r["warnings"])
 
+def test_code_block_legibility_warns_on_wall_and_wide(tmp_path):
+    # a compact algorithm block is fine; a code WALL (>9 lines) or a too-WIDE line (>58) warns
+    ok = '<div class="stage"><div class="code">' + \
+         "".join(f'<span class="ln">step {i}</span>' for i in range(5)) + '</div></div>'
+    r = validate.evaluate(_board(str(tmp_path), [_html_scene(tmp_path, 0, "pages/ok.html", ok)]), str(tmp_path))
+    assert not any(".code" in w for w in r["warnings"]), r["warnings"]
+    wall = '<div class="stage"><div class="code">' + \
+           "".join(f'<span class="ln">line {i}</span>' for i in range(12)) + '</div></div>'
+    r2 = validate.evaluate(_board(str(tmp_path), [_html_scene(tmp_path, 1, "pages/wall.html", wall)]), str(tmp_path))
+    assert any("12 lines" in w for w in r2["warnings"]), r2["warnings"]
+    wide = '<div class="stage"><div class="code"><span class="ln">' + ("x = " + "a" * 70) + '</span></div></div>'
+    r3 = validate.evaluate(_board(str(tmp_path), [_html_scene(tmp_path, 2, "pages/wide.html", wide)]), str(tmp_path))
+    assert any("chars (> 58)" in w for w in r3["warnings"]), r3["warnings"]
+
 def test_bespoke_svg_connector_borrows_cue_no_dupe(tmp_path):
     # a hand-drawn SVG arc + chevron marked `.connector` borrow their cue (no data-cue of their own) —
     # they must NOT count as duplicate/missing points or as uncued reveals (same exemption as .arrow)

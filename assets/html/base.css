@@ -196,6 +196,26 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 .eqn-terms .t{font-size:32px;color:var(--muted);max-width:360px}
 .eqn-terms .t b{display:block;color:var(--fg);font-size:36px;font-weight:700;margin-bottom:6px}
 
+/* Algorithm / pseudocode / a key code path — a monospace block whose LINES reveal (or light up) in
+   spoken order (the code cousin of .eqn's term-glow / .flow's stepped reveal). Bundled JetBrains Mono,
+   theme-var, seekable. For VIDEO legibility keep it SHORT: ≤ ~9 lines, lines ≤ ~52 chars, font ≥ 28px —
+   a wall of code is unreadable in a video; a concept better shown as a diagram belongs in a .flow /
+   .stepper, not here (design dict "Algorithm / pseudocode"). Each line is a `.ln`; give it a
+   `data-cue-index` + `reveal-up-sm` to BUILD the listing line-by-line, OR `reveal-glow` to light each
+   line as it's narrated; mark the key line `.ln.on`. `.kw` accents a keyword, `.cm` mutes a comment. */
+.code{font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;font-size:32px;line-height:1.5;
+  background:var(--surface);border:var(--hairline);border-radius:var(--radius,12px);padding:30px 40px;
+  color:var(--fg);max-width:min(1500px,92%);overflow:hidden;text-align:left;counter-reset:ln}
+.code .ln{display:block;white-space:pre;padding:2px 12px;border-radius:6px;position:relative;
+  font-variant-numeric:tabular-nums}                    /* white-space:pre PER line preserves indentation */
+.code.numbered .ln{padding-left:66px}
+.code.numbered .ln::before{counter-increment:ln;content:counter(ln);position:absolute;left:0;width:46px;
+  text-align:right;color:var(--muted);opacity:.55;font-size:.72em}
+.code .ln.on{background:color-mix(in srgb,var(--accent) 16%,transparent)}   /* the active/current line */
+.code .ln.reveal-glow{animation:eqn-glow var(--dur) var(--ease-expo) forwards;animation-play-state:paused}
+.code .kw{color:var(--accent);font-weight:600}         /* a keyword / operator to emphasise */
+.code .cm{color:var(--muted);font-style:italic}        /* a comment / annotation */
+
 /* Results table — a compact benchmark / ablation matrix; the winning row gets `.win` so the comparison
    lands. Header mono/muted, figures right-aligned tabular, the winner in accent. */
 .rtable{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}

@@ -703,6 +703,21 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
         uniq = sorted(set(h.lower() for h in hexes))
         warnings.append(f"{tag}: raw hex {uniq[:3]} in a style/SVG color — use semantic vars "
                         f"(var(--accent)/var(--surface)/…), not hardcoded colors (off-theme risk)")
+    # .code / algorithm block legibility: a wall of code is unreadable on a moving frame. Warn past
+    # ~9 lines or any line > ~52 chars (visible text only — strip the inline tag markup first). This is
+    # the code cousin of the caption wall-of-text + chart item-budget gates. (design dict "Algorithm".)
+    for cm in re.finditer(r'<div[^>]*class="[^"]*\bcode\b[^"]*"[^>]*>(.*?)</div>', html, re.S):
+        lns = re.findall(r'<span[^>]*class="[^"]*\bln\b[^"]*"[^>]*>(.*?)</span>', cm.group(1), re.S)
+        if not lns:
+            continue
+        texts = [re.sub(r"<[^>]+>", "", ln).replace("&nbsp;", " ").strip("\n") for ln in lns]
+        if len(texts) > 9:
+            warnings.append(f"{tag}: a .code block has {len(texts)} lines (> 9) — a code wall is unreadable "
+                            f"on a moving frame; keep the key ~9 lines and elide the rest with a `# …` comment")
+        longest = max((len(t) for t in texts), default=0)
+        if longest > 58:
+            warnings.append(f"{tag}: a .code line is {longest} chars (> 58) — too wide to read in a video; "
+                            f"shorten identifiers, drop alignment padding, or wrap the logic (algorithm_build budget)")
     # dogfood: the bottom .chrome rail (base.css bottom:56px) sits inside the burned caption band
     # (bottom ~8% of the canvas) — with captions ON they collide (text under text). Caught by the
     # AV critic in practice; cheaper to catch here, pre-render.

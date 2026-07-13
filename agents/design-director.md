@@ -201,7 +201,8 @@ AND the runner-up it beat, one clause: e.g. `"form": "flow — beats cards becau
 a card grid hides the sequence"`. **When the chosen form has a premium template in
 `references/html-templates.md`** — business/general (hero_stat, before_after, timeline_rail, problem_leak,
 system_map, metric_wall, case_story, flywheel) OR **research/technical** (research_method, code_architecture,
-equation_build, results_table, figure_focus) OR **quantitative encodings** (`.waffle`/`.gauge`/`.isotype` for
+equation_build, algorithm_build (pseudocode / a key routine, lines reveal on the voice), results_table,
+figure_focus) OR **quantitative encodings** (`.waffle`/`.gauge`/`.isotype` for
 ONE proportion, `.bullet` for actual-vs-target, slopegraph + `.waterfall` for two-point change, `.venn`/`.rings`
 for set-overlap/nested-scope, `.stepper` for an ordered procedure — see "Quantitative & structural encodings")
 — START FROM IT and populate with real content — don't
