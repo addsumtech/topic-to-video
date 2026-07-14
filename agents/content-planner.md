@@ -63,6 +63,9 @@ plan. You do not write final narration; you design content beats.
 ## Rules (your rubric)
 1. **Deep understanding first.** Every `learning_point` must trace to the material via `source_ref`.
    Never invent facts, numbers, names, or citations. If the material does not support a point, drop it.
+   **This includes "illustrative" stats:** don't plant a made-up figure (a "43% vs 12%" contrast) as a
+   real number to make a beat land — a fabricated statistic with a plausible `source_ref` is the worst
+   case (it launders past every downstream check). Go qualitative, or mark it explicitly hypothetical.
 2. **Coarse visual intent + faithfulness.** Set `visual_intent` to the KIND of visual the point needs (a
    number → `metric`; a contrast → `contrast`; ordered steps → `sequence`; a short parallel set → `list`;
    a relationship → `structure`; a hero claim → `statement`; a divider → `section`). **Faithfulness rule

@@ -922,3 +922,27 @@ def test_known_or_custom_visual_style_no_warn(tmp_path):
         data = _board(str(tmp_path), [_slide_scene(tmp_path, 0)], meta={"visual_style": vs})
         r = validate.evaluate(data, str(tmp_path))
         assert not any("not a known style" in w for w in r["warnings"]), vs
+
+
+def test_figure_traceability_flags_unsourced_stat(tmp_path):
+    # a statistic (%/×) spoken or shown must trace to a number in brief.json evidence; one that isn't
+    # there is likely invented downstream -> WARN. A sourced figure passes; an unsourced one is flagged.
+    out = str(tmp_path)
+    (tmp_path / "brief.json").write_text(json.dumps({
+        "evidence": [{"claim": "accuracy", "detail": "reaches 60% Dice on the held-out set",
+                      "source_ref": "paper Table 2"}]}))
+    s1 = _slide_scene(tmp_path, index=1, narration="The method reaches 60% Dice.")
+    s2 = _slide_scene(tmp_path, index=2, narration="It cuts errors by 43% versus the baseline.")
+    res = validate.evaluate(_board(out, [s1, s2]), out)
+    figs = [w for w in res["warnings"] if "trace to the source" in w]
+    assert any("43%" in w and "scene 2" in w for w in figs), figs      # unsourced stat flagged
+    assert not any("60%" in w for w in figs)                           # sourced stat traces -> not flagged
+
+
+def test_figure_traceability_skipped_without_brief(tmp_path):
+    # no brief.json to verify against -> the check is skipped (the content-critic owns faithfulness),
+    # so a bare storyboard never false-flags a figure.
+    out = str(tmp_path)
+    s1 = _slide_scene(tmp_path, index=1, narration="It cuts errors by 43%.")
+    res = validate.evaluate(_board(out, [s1]), out)
+    assert not any("trace to the source" in w for w in res["warnings"])

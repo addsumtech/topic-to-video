@@ -212,6 +212,68 @@ def _edge_tts_available():
         return False
 
 
+# A STATISTIC form on a slide (a percentage or an N× multiplier) — the shape a fabricated "confident
+# number" most often takes. A plain count ("5 agents") is usually structural, so it's NOT matched (it
+# would be noisy); percentages/multipliers are high-signal and rarely coincidental.
+_STAT_RE = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)\s?(%|×)")
+
+
+def _brief_numbers(out_dir):
+    """Numeric tokens that appear in `brief.json`'s **evidence** (the CITED facts) — the set a slide
+    statistic must trace to. None when there's no brief (skip; the content-critic owns faithfulness).
+    Collecting from `evidence` (NOT the whole brief) is deliberate: a figure must come from a cited
+    fact, not from a rhetorical framing that lives in the thesis / misconceptions / why_it_matters — an
+    invented "43%" placed only in a punchy framing (not in cited evidence) must still be caught."""
+    try:
+        b = json.load(open(os.path.join(out_dir, "brief.json"), encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return set(re.findall(r"\d+(?:\.\d+)?", json.dumps(b.get("evidence") or [], ensure_ascii=False)))
+
+
+def _visible_text(out_dir, rel):
+    """Best-effort VISIBLE text of an html page — drop <style>/<script>/<svg> blocks (their CSS/SVG
+    coordinates are not content), then strip tags (which also removes inline `style=` numbers). So a
+    figure found here is a real on-screen claim, not a layout coordinate."""
+    p = _local_path_from_url("file://" + os.path.abspath(os.path.join(out_dir, rel))) \
+        if not str(rel).startswith("file://") else _local_path_from_url(rel)
+    try:
+        t = open(p or os.path.join(out_dir, rel), encoding="utf-8", errors="replace").read()
+    except OSError:
+        return ""
+    t = re.sub(r"<(style|script|svg)\b.*?</\1>", " ", t, flags=re.S | re.I)
+    t = re.sub(r"<[^>]+>", " ", t)
+    return re.sub(r"\s+", " ", t)
+
+
+def _figure_traceability(slides, out_dir, warnings):
+    """Deterministic backstop for truthful content: every STATISTIC (%/× ) spoken or shown must trace to
+    a number in `brief.json` (the sourced evidence). A stat whose value is absent from the brief is likely
+    INVENTED — WARN (not ERROR: a figure can be legitimately DERIVED or phrased differently, and the
+    content-critic is the semantic judge that FAILs a confirmed fabrication). No brief → skip."""
+    nums = _brief_numbers(out_dir)
+    if nums is None:
+        return
+    for s in slides:
+        idx = s.get("index")
+        texts = [s.get("narration") or ""]
+        props = s.get("props") or {}
+        if s.get("type") != "slide":
+            texts.append(json.dumps(props, ensure_ascii=False))     # animated on-screen strings
+        if props.get("html"):
+            texts.append(_visible_text(out_dir, props["html"]))     # html-page on-screen text
+        seen = set()
+        for txt in texts:
+            for m in _STAT_RE.finditer(txt or ""):
+                stat, val = m.group(0).strip(), m.group(1)
+                if val in nums or stat in seen:
+                    continue
+                seen.add(stat)
+                warnings.append(f"scene {idx}: figure '{stat}' isn't in brief.json evidence — every statistic "
+                                f"must trace to the source; cite it, reframe qualitatively, or (if it's derived "
+                                f"or a hypothetical) confirm it — no invented numbers (see the faithfulness gate)")
+
+
 def evaluate(data, out_dir, pre_tts=False, vertical=False):
     """Pure check: returns {ok, errors, warnings, scenes, ...}. No render, no network.
     `vertical` mirrors render.py's --vertical flag; meta.aspect=="9:16" also forces it, so the
@@ -496,6 +558,9 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # persisted design_plan.json (semantic judgment stays with the critic; these just flag the highest-
     # signal mismatch + a missing creative field). No-op when the plan isn't persisted.
     _design_plan_lints(out_dir, warnings)
+
+    # Truthful-content backstop: flag any statistic spoken/shown that doesn't trace to brief.json evidence.
+    _figure_traceability(slides, out_dir, warnings)
 
     return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides)}
 

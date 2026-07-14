@@ -51,10 +51,29 @@ diversity, the concept motif, transitions, icons, whitespace, colour, motion —
 ### C0 — Comprehension depth (audit the brief AS AN ARTIFACT, not as an oracle)
 **Faithfulness (R0/R1d) asks IS EVERY CLAIM TRUE-TO-SOURCE; C0 asks DID WE UNDERSTAND IT WELL ENOUGH TO
 EXPLAIN WHY AND TEACH THE RIGHT THING.** A script can be 100% faithful and 100% shallow — C0 is that
-orthogonal axis. Do NOT re-litigate R0 here.
+orthogonal axis.
+
+### R0 — EVERY concrete value traces to the source (all tiers, no invented stats)
+A number, **percentage**, ratio, date, count, named entity, or quote — whether SPOKEN (`narration`),
+shown in an animated scene's `props`, or typed into an **HTML page's text** — must APPEAR IN or DERIVE
+FROM the source material. The standard is **TRACEABILITY, not mere non-contradiction**: an invented
+figure that contradicts nothing (the source simply never states it) is STILL fabricated → **R0 FAIL**.
+- **Laundered stats.** A real `source_ref` does NOT make a fabricated number true. A statistic dropped
+  into a brief `evidence.detail` (e.g. an invented "43% vs 12%") that the CITED source never actually
+  states is laundered fabrication → FAIL. Verify the number is in the source, not just that a ref exists.
+- **Illustrative ≠ real.** A hypothetical figure is allowed ONLY when the slide AND the narration
+  explicitly frame it as hypothetical ("imagine a deck prints 43% — nobody checked it"). A number
+  presented as a REAL rate/measurement ("the industry's number: 43%") with no source is fabricated even
+  if it's rhetorically punchy — the punch is exactly why it's dangerous. When tempted by an unsourced
+  figure, the fix is qualitative ("a confident number vs. a traced one"), not a made-up percentage.
+- `validate.py` WARNs on a slide statistic missing from brief evidence (a deterministic backstop that
+  cannot see the raw source); **you are the semantic judge** that FAILs a confirmed fabrication.
+
 - **(a) Audit the brief against the RAW material.** Treat `brief.json` as an artifact to VERIFY, not a
-  reference oracle: spot-check `thesis` + `mechanism` against the source. **REVISE** if the brief misreads
-  or over-simplifies the mechanism, or mis-states the thesis — EVEN IF internally faithful (a
+  reference oracle: spot-check `thesis` + `mechanism` against the source, **and verify every FIGURE in
+  the brief — especially a number inside an `evidence.detail` — actually appears in the cited source**
+  (the laundering case above). **REVISE** if the brief misreads or over-simplifies the mechanism,
+  mis-states the thesis, or carries a figure the source never states — EVEN IF internally faithful (a
   wrong-but-consistent brief propagates a wrong-but-coherent video past the whole panel).
 - **(b) Brief shape.** **REVISE** if `thesis` is a topic label not a claim-with-a-verb, `mechanism`
   restates WHAT without the causal WHY (no because/therefore), any contribution lacks an `evidence` entry,

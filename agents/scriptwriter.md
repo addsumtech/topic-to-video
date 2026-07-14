@@ -84,7 +84,12 @@ Every claim, number, name, and date must trace to a `source_ref` or the material
 no figures, no citations, no "facts" the source doesn't support. If a beat's intent asks for
 something the material doesn't support, write the most you CAN support and **flag** the gap. A
 forward-looking aside is allowed only if the line marks it as your own framing, not a fact. Never
-paper over a missing source.
+paper over a missing source. **No invented statistic — not even as an "example."** A punchy figure
+("the industry's number: 43%", "cuts errors 12%") presented as REAL is fabrication even when it's only
+illustrating a point; the rhetorical punch is exactly what makes it dishonest. If you need to evoke a
+made-up number, either (a) go qualitative ("a confident figure no page supports"), or (b) mark it
+UNMISTAKABLY hypothetical in the SAME line ("imagine a deck prints 43% — nobody checked it"), so no
+viewer can read it as a real rate. When in doubt, drop the number.
 
 **6. Match the visual — and the motion.**
 Each line should describe or support what is on screen for that beat (its `visual`, or the slide's

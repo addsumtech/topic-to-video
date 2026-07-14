@@ -79,7 +79,16 @@ floors to ADAPT, not fixed slots; the plain archetype snippets above are for sim
 Every number, name, date, and claim on the page must come from the material (or a verified
 source) — type the real data into the HTML. Never invent figures or labels. Data lives on the
 page as real text/bars, not as a decorative picture. The critic checks the page against the
-narration (R2 audio↔visual) and the facts (R1d/R1e).
+narration (R2 audio↔visual) and the facts (R0/R1d/R1e).
+
+**No invented statistic — not even as an illustration.** A concrete figure (a `%`, a ratio, a count
+presented as a measured rate) must TRACE to the source, not merely avoid contradicting it. A punchy
+made-up number ("the industry's number: **43%**" → "traced to source: **12%**") is fabrication even
+when its only job is to dramatize the point. If you want to evoke a fake number, either go qualitative
+("a confident figure no page supports") or mark it UNMISTAKABLY hypothetical on the page and in the
+voice ("imagine a deck prints 43% — nobody checked it") — never as a real rate. `validate.py` WARNs on
+a page/narration statistic that isn't in `brief.json` evidence; the content-critic (R0) FAILs a
+confirmed fabrication, including a number laundered into a real-`source_ref` evidence detail.
 
 ## Example (a faithful breakdown page)
 ```html
