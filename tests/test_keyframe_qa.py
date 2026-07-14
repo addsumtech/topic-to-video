@@ -122,3 +122,43 @@ def test_caption_band_overlap_flagged(tmp_path, capsys):
     by = {r["scene"]: r for r in data["report"]}
     assert any("caption band" in i for i in by[1]["issues"]), by[1]           # into the band → flagged
     assert not any("caption band" in i for i in by[2].get("issues", [])), by[2]  # clears it → not flagged
+
+
+def test_connector_align_js_wellformed():
+    assert kq._CONNECTOR_ALIGN_JS.startswith("(function(){") and kq._CONNECTOR_ALIGN_JS.endswith("})()")
+    for k in (".connector,.arrow", "textAlign", "flexDirection", "parentElement"):
+        assert k in kq._CONNECTOR_ALIGN_JS
+
+
+@pytest.mark.skipif(_common.find_chrome() is None, reason="needs Chrome for CDP DOM probe")
+def test_connector_center_over_left_stack_flagged(tmp_path, capsys):
+    # a ↓/arrow between STACKED blocks must share their alignment. scene 1: centre-aligned connector over
+    # left-aligned blocks → flagged. scene 2: the connector left-aligned (matches) → not flagged. scene 3:
+    # a genuinely CENTRED stack (siblings centred too) → not flagged (no false positive).
+    pages = tmp_path / "pages"; pages.mkdir()
+    def page(arrow_align, blk_align):
+        return ("<!doctype html><html><head><meta charset=utf-8>"
+                f'<link rel="stylesheet" href="file://{_ASSETS}/base.css">'
+                "<style>:root{--dur:.7s;--ease-expo:ease;--fg:#111;--bg:#fff}body{margin:0;background:#fff}</style>"
+                "</head><body><div class='stage'><div style='display:flex;flex-direction:column;gap:30px'>"
+                f"<div style='text-align:{blk_align};font-size:120px'>43%</div>"
+                f"<div class='arrow' style='text-align:{arrow_align};font-size:100px'>&#8595;</div>"
+                f"<div style='text-align:{blk_align};font-size:120px'>12%</div>"
+                "</div></div></body></html>")
+    (pages / "bad.html").write_text(page("center", "left"))     # centred arrow, left blocks → misaligned
+    (pages / "good.html").write_text(page("left", "left"))      # arrow matches the left blocks
+    (pages / "centered.html").write_text(page("center", "center"))  # whole stack centred → fine
+    deck = {"meta": {"aspect": "16:9"},
+            "slides": [{"index": 1, "type": "html", "props": {"html": "pages/bad.html"}},
+                       {"index": 2, "type": "html", "props": {"html": "pages/good.html"}},
+                       {"index": 3, "type": "html", "props": {"html": "pages/centered.html"}}]}
+    (tmp_path / "storyboard.json").write_text(json.dumps(deck))
+    kq.run(str(tmp_path), ps=[0.0, 1.0], as_json=True)
+    data = json.loads(capsys.readouterr().out)
+    if any("render failed" in i for r in data["report"] for i in r.get("issues", [])):
+        pytest.skip("Chrome render flake (infra)")
+    by = {r["scene"]: r for r in data["report"]}
+    note = lambda r: (r.get("advisories") or [])
+    assert any("connector" in a for a in note(by[1])), by[1]                  # centred over left → flagged
+    assert not any("connector" in a for a in note(by[2])), by[2]             # aligned → not flagged
+    assert not any("connector" in a for a in note(by[3])), by[3]             # centred stack → not flagged

@@ -87,6 +87,32 @@ _EARLY_POP_JS = (
     "var op=parseFloat(cs.opacity);if(op>0.05)out.push({cls:e.className,op:Math.round(op*100)/100,"
     "top:Math.round(r.top)});}return JSON.stringify(out);})()")
 
+# Connector-alignment probe (evaluated at the final p=1 state): a `.connector`/`.arrow` that joins
+# STACKED blocks must share their horizontal alignment. Flags a connector explicitly `text-align:center`
+# whose box is WIDE (so centring actually pushes the glyph to the column centre) sitting in a VERTICAL
+# stack whose text-bearing siblings are left/start-aligned — the glyph then floats to centre while the
+# content (numbers/labels) sits at the left (a visible misalignment). Precise + low-false-positive:
+# (a) the canonical `.flow .arrow` centres via `align-self` (text-align stays start) → not flagged;
+# (b) a genuinely centred card stack has centre-aligned siblings → not flagged; (c) a thin RAIL sized to
+# itself (`.hs-connect` width:5px, centred as a unit in a centred hub layout) has a narrow box, so
+# text-align can't displace it → not flagged. Only a bespoke left-aligned stack with a stray centred
+# full-width connector trips it.
+_CONNECTOR_ALIGN_JS = (
+    "(function(){var out=[],c=document.querySelectorAll('.connector,.arrow');"
+    "for(var i=0;i<c.length;i++){var el=c[i];if(getComputedStyle(el).textAlign!=='center')continue;"
+    # only an arrow/chevron GLYPH (≤3 chars) — a `.connector`-marked CONTENT box (e.g. a hub label that
+    # borrows a cue) or an empty rail is not an alignment-sensitive glyph.
+    "var t=(el.innerText||'').trim();if(t.length<1||t.length>3)continue;"
+    "var p=el.parentElement;if(!p)continue;var pcs=getComputedStyle(p);"
+    "var vertical=(pcs.display.indexOf('flex')>=0)?(pcs.flexDirection==='column'):true;if(!vertical)continue;"
+    "var er=el.getBoundingClientRect(),pr=p.getBoundingClientRect();"
+    "if(pr.width<=0||er.width<pr.width*0.4)continue;"   # narrow box: centring can't displace the glyph
+    "var sib=p.children,left=0;for(var j=0;j<sib.length;j++){var s=sib[j];"
+    "if(s===el||s.matches('.connector,.arrow'))continue;if(!(s.innerText||'').trim())continue;"
+    "var ta=getComputedStyle(s).textAlign;if(ta==='left'||ta==='start')left++;}"
+    "if(left>=1)out.push({cls:el.className,top:Math.round(er.top)});}"
+    "return JSON.stringify(out);})()")
+
 
 def _is_blank(img):
     lo, hi = img.convert("L").getextrema()
@@ -140,6 +166,16 @@ def _early_pop(chrome):
         return []
 
 
+def _connector_misaligned(chrome):
+    """Connectors centre-aligned over a left-aligned vertical stack (misaligned) at the current state."""
+    try:
+        r = chrome._cmd("Runtime.evaluate",
+                        {"expression": _CONNECTOR_ALIGN_JS, "returnByValue": True}, chrome.sid)
+        return json.loads(r["result"]["result"]["value"])
+    except Exception:
+        return []
+
+
 def run(out_dir, ps=DEFAULT_PS, as_json=False):
     data = json.load(open(os.path.join(out_dir, "storyboard.json")))
     meta = data["meta"]; meta["_out"] = out_dir
@@ -188,6 +224,11 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
             if chrome:
                 try:
                     info = _dom_probe(chrome)   # page is still at p=1 (last shot) — measure it
+                    mis = _connector_misaligned(chrome)   # centred connector over a left-aligned stack
+                    if mis:
+                        advisories.append(f"{len(mis)} connector(s) centre-aligned over left-aligned content — "
+                                          "align the ↓/arrow to the content it joins (left-align it under the "
+                                          "anchor); see html-pages 'A connector shares the ALIGNMENT'")
                     # BLANK only when there is genuinely nothing rendered — not merely little text. A single-
                     # glyph hero ('7', a lone '%', one CJK char) or an icon-only diagram has a real content
                     # bbox; a full-bleed visual sets bleed. Flag only empty text AND no visible content box.

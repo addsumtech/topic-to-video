@@ -426,6 +426,15 @@ The most common defect is **content appearing well before the narration reaches 
   cue slot via `seek.js`, so nothing new is scraped and the render is unchanged. A static connector
   among cued blocks paints from frame 0, before the blocks — **`validate.py` errors on it.** (The
   single `.timeline::before` rail is a CSS backdrop, not a per-step connector, so it stays static.)
+  - **A connector shares the ALIGNMENT of the blocks it joins.** A vertical `↓`/arrow between STACKED
+    blocks must sit on the same horizontal axis as the content it connects — over **left-aligned**
+    editorial content (labels/numbers/notes anchored at the left) the connector is **left-aligned** (or
+    nudged under the anchor it descends from), NOT `text-align:center`, which floats the glyph to the
+    COLUMN centre while the numbers sit at the left — a visible misalignment. Centre a vertical
+    connector only when the blocks it joins are themselves centred (full-width `.card`s, a centred
+    `.flow`). The canonical `.flow .arrow` uses `align-self:center` between FULL-WIDTH cards, so it's
+    already aligned; a **bespoke** left-aligned stack is where a stray `text-align:center` connector
+    creeps in. (`keyframe_qa` flags a centre-aligned connector amid left-aligned stack siblings.)
   - **Bespoke SVG lines/arcs/chevrons in a diagram follow the SAME rule — mark them `.connector`.** A
     hand-drawn `<path>`/`<polyline>` that connects or points between cued nodes must (a) carry a
     reveal/`.draw` animation + `data-cue-index` = the cue of the line it belongs to (borrow, no
