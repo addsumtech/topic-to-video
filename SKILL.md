@@ -69,14 +69,19 @@ TTS if the user gives an API key.
   (`auto` default | `off`). The highlight colour is **contrast-picked per scene** against the caption band's
   ground (prefers `--accent`, else `--accent2`/gold/high-contrast b/w) AND kept distinct from the
   neighbouring words — so the spoken word never vanishes into an accent-fill / same-colour band.
-  **Caption placement — `meta.caption_mode`:** `overlay` (default) burns the semi-transparent bar over
-  the bottom of the content (content must stay clear of the bottom ~15%); `band` draws the caption in a
-  dedicated strip BELOW the content so it NEVER overlaps the slide — the canvas grows to `W×(H+~138px)`
-  (1920×1218 at 1080p). `meta.caption_band` picks the strip's look: `flush` (default) SAMPLES each
-  scene's own bottom-edge colour and continues it (seamless on off-white, a tint, a red accent-fill, or a
-  photo; text auto-flips to contrast); `contrast` = a fixed dark `--fg` strip + `--bg` text (subtitle bar). `meta.caption_scale` (default 1.0) tunes the caption
-  font (band face is a touch smaller). Reach for `band` on dense decks or when a clean content frame
-  matters more than exact 16:9 output dims (see `references/captions.md`).
+  **Caption placement — `meta.caption_mode`:** **`band` (flush) is the DEFAULT** — the caption sits in a
+  seamless strip at the bottom of the frame that continues the scene's own ground colour (no dark bar).
+  It is drawn **IN-canvas** — the output stays a TRUE `1920×1080` / `1080×1920` (the strip occupies the
+  bottom `~138px`/`~164px`; the frame does NOT grow). So **author pages to keep meaningful content clear
+  of that bottom strip** (reserve ~140px on 16:9, ~164px on 9:16) — `keyframe_qa` **fails the gate** on a
+  page whose real content reaches into the band, so raise/scale that beat's bottom content.
+  `meta.caption_band` picks the strip's look: `flush` (default) makes the strip the **SAME background as
+  the video** — it samples the scene's ground from the bottom **left/right margins** (not the centre, so
+  centered content can't tint it) and **snaps to the exact theme colour** it matches (`--bg`/`--surface`/
+  `--accent`/`--accent2`), continuing the page seamlessly (off-white, a tint, an accent-fill, or a photo;
+  text + karaoke highlight auto-flip to contrast); `contrast` = a fixed dark `--fg` strip + `--bg` text.
+  Set **`meta.caption_mode:"overlay"`** for the classic semi-transparent dark bar burned over the content
+  instead. `meta.caption_scale` (default 1.0) tunes the caption font. See `references/captions.md`.
   **Timed callouts:** a callout carrying a `cue` anchor phrase (or an explicit `at` 0..1 fraction)
   appears at the moment its region is spoken — resolved via `cues` (edge word-times, else text-position
   estimate) — and holds to the clip end (a vanishing highlight reads as a glitch); untimed callouts
@@ -140,12 +145,15 @@ TTS if the user gives an API key.
 - `scripts/keyframe_qa.py <out_dir> [--p N] [--json]` — cheap PRE-render VISUAL QA for the HTML tier:
   screenshots every `html` page at N `?p=` values, montages per-scene + a master contact sheet under
   `<out_dir>/_keyframes/` (open `all.png` to eyeball tofu / off-theme / mistimed reveals), and — via
-  CDP DOM measurement — flags any BLANK page (a reveal that never fired) or content OVERFLOWING the
-  1920×1080 canvas (full-bleed backdrops are correctly ignored), and advises (non-blocking) on any
-  CENTERED multi-line running paragraph (body text should be left-aligned to scan; display/diagram
-  classes are excluded) and, on a 9:16 deck, on any page filling <60% of the vertical zone (the
-  "fill the column" rule — heroes with a full-bleed `.bg-photo` are exempt). Exits non-zero on a
-  blank/overflow (advisories don't block). Run after
+  CDP DOM measurement — flags any BLANK page (a reveal that never fired), content OVERFLOWING the
+  1920×1080 canvas (full-bleed backdrops are correctly ignored), or an EARLY-POP reveal (any
+  `.reveal*` element already visible at `p=0`, before anything should be — a decorative class or inline
+  style leaked a base `opacity` past the reveal's `opacity:0`, so it paints before its cue and breaks
+  step-by-step top-to-bottom order; dim via `filter:opacity()`/a translucent color instead), and
+  advises (non-blocking) on any CENTERED multi-line running paragraph (body text should be left-aligned
+  to scan; display/diagram classes are excluded) and, on a 9:16 deck, on any page filling <60% of the
+  vertical zone (the "fill the column" rule — heroes with a full-bleed `.bg-photo` are exempt). Exits
+  non-zero on a blank/overflow/early-pop (advisories don't block). Run after
   authoring the pages, BEFORE the full render — a ~1-minute catch of the exact failures that would
   otherwise silently ship in a multi-minute render. (No CDP → screenshots + blank-check only.)
 - `scripts/scenes.py` — deterministic ANIMATED scene renderers (no slides): `title`/`keypoints`
@@ -692,7 +700,7 @@ The full-AI escape hatch (`image_source:"openai"` with data as AI) is the user's
 | step 1 `doctor.py` reports a REQUIRED dep missing (ffmpeg/ffprobe/PIL) | Install it (e.g. `brew install ffmpeg`, `pip install pillow`) before proceeding | Optional gaps (edge-tts/soffice/Chrome) only narrow the tiers — adjust the interview, don't block |
 | step 9 gate fails: `validate.py` exits non-zero before render | Read each ERROR (missing image/audio/page/`file://` asset, duplicate index, absent `theme.css`) → fix in `storyboard.json` / regenerate the missing asset (run `theme.py`/`imagegen.py`/`tts.py`) | Re-run `python scripts/validate.py <out_dir>` until exit 0 before calling `render.py` |
 | step 9 gate fails: `check_av.py` exits non-zero after full render | Read the issue (A/V drift / non-uniform clip rates) → fix the cause (clear `.clips/`, regenerate audio with ONE engine, re-render) | Re-run `python scripts/check_av.py <out_dir>` until exit 0 before delivering `out.mp4` |
-| `keyframe_qa.py` exits non-zero (BLANK page / canvas overflow) | Open `_keyframes/scene_NN.png` — BLANK → the reveal never fired (broken page / cue never resolves); OVERFLOW → shorten the text or split the beat | Re-run until exit 0; the centered-paragraph advisory never blocks |
+| `keyframe_qa.py` exits non-zero (BLANK page / canvas overflow / early pop) | Open `_keyframes/scene_NN.png` — BLANK → the reveal never fired (broken page / cue never resolves); OVERFLOW → shorten the text or split the beat; EARLY POP → a reveal element is visible at `p=0` (a class/inline style set the `opacity` property the reveal owns) — dim via `filter:opacity()`/translucent color so it stays hidden until its cue | Re-run until exit 0; the centered-paragraph advisory never blocks |
 | Timed callout appears at the wrong moment / never appears | Check validate.py's cue warnings — the `cue` must be a phrase the narration says (with a non-edge voice the time is a text-position estimate); `at` ≥ 1.0 puts it exactly at clip end (invisible) | Set an explicit `at` fraction, or drop `cue`/`at` for a whole-slide highlight |
 | Reduced-motion render flagged as static / tools still assume zoom | Set `meta.reduced_motion: true` in the storyboard (the CLI flag isn't persisted) and STATE the mode when dispatching critic-av — static frames are correct there, not a defect | validate.py skips its zoom warnings when the meta flag is set |
 | Slide "shivers"/jitters during the zoom | zoompan runs supersampled (`meta.motion_ss`, default 2) then downscales; a `scale` filter must precede zoompan or the frame shrinks. Keep ss≥2 | Raise `motion_ss` to 3 (smoother, slower) |

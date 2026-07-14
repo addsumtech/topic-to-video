@@ -140,12 +140,12 @@ def _caption_font_px(W, H, band=False, meta=None):
     return max(12, int(min(W, H) * 0.045 * scale))
 
 def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None, band_bg=None):
-    """Burn a centered caption. `band==0` (default 'overlay'): a semi-transparent bar near the bottom of
-    the W×H content (classic burn-in). `band>0` ('band' mode): the text is drawn centered in a dedicated
-    strip BELOW the content — the region [H, H+band] on a W×(H+band) layer — so it never overlaps the
-    slide (the strip's solid background is added by the render's `pad` filter; here we draw only the text
-    in the deck's --bg colour over it). If `hl_word` is given, that word takes the karaoke colour —
-    contrast-picked against `band_bg` (the strip ground) so it never vanishes into an accent-fill band."""
+    """Burn a centered caption on a W×H layer. `band==0` ('overlay'): a semi-transparent dark bar near the
+    bottom of the content (classic burn-in). `band>0` ('band' mode): the text is drawn centered in the
+    IN-canvas flush strip — the region [H-band, H] — so it never grows the frame; the strip's solid ground
+    fill is added by the render's `drawbox`, here we draw only the text over it. If `hl_word` is given, that
+    word takes the karaoke colour — contrast-picked against `band_bg` (the strip ground) so it never
+    vanishes into an accent-fill band."""
     if not text:
         return
     font = _load_font(_caption_font_px(W, H, band=bool(band), meta=meta), _font_path(meta, text))
@@ -162,7 +162,7 @@ def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None,
         # an accent-fill band) AND kept distinct from the neighbouring words — not a blind --accent.
         bbg = tuple(band_bg) if band_bg else _ffhex_rgb(_caption_band_colors(meta)[0])
         hl_col = _karaoke_hl_rgb(out, bbg, base[:3])
-        y0 = H + max(pad, (band - block_h) // 2)
+        y0 = (H - band) + max(pad, (band - block_h) // 2)    # IN-canvas strip: [H-band, H]
     else:                                       # classic overlay bar with a scrim over the bottom of the content
         base = (255, 255, 255, 255)
         hl_col = KARAOKE_HL
@@ -207,11 +207,11 @@ def _callout_layer(callouts, W, H, dst, meta=None):
     layer.save(dst)
 
 def _caption_layer(text, W, H, dst, meta=None, hl_word=None, band=0, text_rgb=None, band_bg=None):
-    """Draw ONLY one caption block onto a transparent PNG (shown for one time window). In band mode the
-    layer is W×(H+band) so the caption text lands in the strip below the content; `text_rgb` overrides
+    """Draw ONLY one caption block onto a transparent W×H PNG (shown for one time window). In band mode the
+    caption text lands in the IN-canvas flush strip [H-band, H] (no canvas growth); `text_rgb` overrides
     the text colour (the per-scene sampled colour that contrasts a flush strip); `band_bg` is that strip's
     ground rgb, used to contrast-pick the karaoke highlight so it never vanishes into the band."""
-    layer = Image.new("RGBA", (W, H + band), (0, 0, 0, 0))
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     _draw_caption(ImageDraw.Draw(layer), text, W, H, meta, hl_word, band=band, text_rgb=text_rgb, band_bg=band_bg)
     layer.save(dst)
 
@@ -434,7 +434,7 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
               # cache, else a partial re-render (--only / one edited scene) mixes clip heights and the
               # `-c copy` concat breaks.
               meta.get("caption_mode"), meta.get("caption_band"), meta.get("caption_scale"),
-              meta.get("intensity"), "x264crf18"],
+              meta.get("intensity"), "x264crf18-band4"],   # -band4: rgb24-before-drawbox (exact strip colour, no range shift)
         "img": stat(slide.get("image")), "aud": stat(slide.get("audio")),
         "html": stat((slide.get("props") or {}).get("html")),
         # re-theming (theme.py) busts ALL clips — html pages link theme.css AND the programmatic
@@ -481,12 +481,15 @@ def _theme_rgb(out_dir, var, default_rgb):
     return default_rgb
 
 def _caption_band_px(meta, W, H):
-    """Height of the below-content caption strip when `meta.caption_mode == 'band'` (else 0). Sized for
-    up to two caption lines + generous vertical padding; kept EVEN so H+band stays yuv420p-legal. In band
-    mode the caption sits OUTSIDE the content frame (a dedicated strip below), so it never overlaps the
-    slide — the output canvas becomes W×(H+band). Default ('overlay') keeps the classic burned-in bar."""
-    if (meta or {}).get("caption_mode") != "band" or not (meta or {}).get("captions", True):
-        return 0                                  # no strip in overlay mode OR when captions are off
+    """Height of the flush caption strip in `band` mode (else 0). Sized for up to two caption lines +
+    generous vertical padding; kept EVEN for yuv420p. The strip is drawn IN-canvas over the bottom `band`
+    px of the fixed W×H frame (NOT appended — the output stays a true 16:9 / 9:16), filled with the colour
+    the content has just above it so it reads as a SEAMLESS continuation of the scene's own ground (no dark
+    bar, no overlap). Pages must keep meaningful content clear of that bottom strip (the flush ground fill
+    continues cleanly through it). **`band` (flush) is the DEFAULT**; set `meta.caption_mode:"overlay"` for
+    the classic semi-transparent burned-in bar instead."""
+    if (meta or {}).get("caption_mode", "band") == "overlay" or not (meta or {}).get("captions", True):
+        return 0                                  # explicit overlay mode OR captions off -> no strip
     fp = _caption_font_px(W, H, band=True, meta=meta)
     band = int(fp * 2 * 1.30) + int(H * 0.030)   # up to 2 caption lines + tight vertical padding
     return band + (band & 1)
@@ -508,28 +511,58 @@ def _rel_lum(rgb):
     r, g, b = rgb
     return 0.2126 * _lin(r) + 0.7152 * _lin(g) + 0.0722 * _lin(b)
 
-def _sample_strip_color(frame_path):
-    """Median colour of a content frame's bottom edge — so the flush caption strip is a SEAMLESS
-    continuation of THIS scene's own ground (off-white, a tint, a red accent-fill, a photo), not a flat
-    deck --bg. Median (not mean) shrugs off a stray glyph in the bottom row. None if the frame is unreadable."""
+def _sample_strip_color(frame_path, band=0):
+    """The scene's GROUND colour behind the flush caption strip — so the strip is the SAME background as
+    the video (a seamless continuation of the scene's own ground: off-white, a tint, an accent-fill, a
+    photo), never a content colour. Sample the LEFT+RIGHT margin columns of the bottom band region: the
+    page's horizontal padding guarantees GROUND there (centered content/cards live in the middle), so a
+    card or diagram that reaches the bottom centre can't tint the strip. Median (not mean) shrugs off a
+    stray glyph/edge. None if the frame is unreadable."""
     try:
         im = Image.open(frame_path).convert("RGB")
-        row = im.crop((0, max(0, im.height - 6), im.width, im.height))
-        px = sorted(row.getdata(), key=_rel_lum)
+        W, H = im.width, im.height
+        top = max(0, H - max(band, 40) - 8)          # the strip region (+ a hair above it)
+        mw = max(24, W // 12)                        # margin width ~ the page's horizontal padding
+        px = list(im.crop((0, top, mw, H)).getdata()) + list(im.crop((W - mw, top, W, H)).getdata())
+        px.sort(key=_rel_lum)
         return px[len(px) // 2]
     except Exception:
         return None
 
-def _caption_band_fill(meta, content_frame=None):
+def _snap_to_theme_bg(rgb, out):
+    """Snap a sampled ground colour to the EXACT theme colour it matches, so the caption strip is
+    literally the video's BACKGROUND (a theme var) — free of motif/gradient/anti-alias noise. Snaps
+    ONLY to an UNAMBIGUOUS nearest var: within tolerance AND a clear winner over the runner-up. A
+    ground blended BETWEEN two CLOSE vars (e.g. --bg and --surface on a deck where they're only ~30
+    apart) is therefore kept as SAMPLED, not snapped to the wrong one — not snapping is always safe
+    (the raw sample IS the ground, seamless), so the snap is reserved for the clear cases where it
+    only removes noise. A photo/gradient ground with no near theme colour is likewise kept."""
+    dists = []
+    for v in ("--bg", "--surface", "--accent", "--accent2", "--fg"):
+        c = _theme_rgb(out, v, None)
+        if c:
+            dists.append((sum(abs(a - b) for a, b in zip(rgb, c)), c))
+    if not dists:
+        return rgb
+    dists.sort(key=lambda t: t[0])
+    nearest_d, nearest_c = dists[0]
+    second_d = dists[1][0] if len(dists) > 1 else 1e9
+    # within tolerance (~15/channel) AND the runner-up is ≥1.6× further (clear winner, not a blend)
+    if nearest_d <= 46 and second_d >= nearest_d * 1.6:
+        return nearest_c
+    return rgb
+
+def _caption_band_fill(meta, content_frame=None, band=0):
     """(strip bg 0xRRGGBB, text rgb) for band mode. 'contrast' or no frame -> the flat fallback above.
-    Default 'flush' SAMPLES this scene's bottom-edge colour (content_frame) so the strip continues the
-    slide exactly; the text is whichever of --fg/--bg contrasts that sampled ground better."""
+    Default 'flush' SAMPLES the row just above the in-canvas strip (content_frame) so the strip continues
+    the slide exactly; the text is whichever of --fg/--bg contrasts that sampled ground better."""
     if (meta or {}).get("caption_band") == "contrast" or not content_frame:
         return _caption_band_colors(meta)
-    rgb = _sample_strip_color(content_frame)
+    rgb = _sample_strip_color(content_frame, band)
     if rgb is None or max(rgb) < 8:                  # unreadable, OR a pure-black contain-fit LETTERBOX
         return _caption_band_colors(meta)            # bar (no real theme/scene ground is near-pure-black)
     out = (meta or {}).get("_out", ".")
+    rgb = _snap_to_theme_bg(rgb, out)                # make the strip the EXACT video background (a theme var)
     fg = _theme_rgb(out, "--fg", (17, 17, 17)); bg = _theme_rgb(out, "--bg", (244, 243, 238))
     lum = _rel_lum(rgb)
 
@@ -672,12 +705,18 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
             vlabel = f"v{n_in}"; n_in += 1
 
-    if band:                                           # fade the content, add the strip, then the caption text
+    if band:                                           # fade the content, fill the in-canvas strip, then caption
         if fade:
             parts.append(f"[{vlabel}]{fade}[vf]"); vlabel = "vf"
-        bg, band_text = _caption_band_fill(meta, pattern % 0)   # strip continues THIS scene's own ground
+        bg, band_text = _caption_band_fill(meta, pattern % 0, band)   # strip continues THIS scene's own ground
         band_bg = _ffhex_rgb(bg)                        # the strip ground, for the highlight-contrast pick
-        parts.append(f"[{vlabel}]pad={W}:{H + band}:0:0:color={bg}[vpad]"); vlabel = "vpad"
+        # IN-canvas flush strip: fill the bottom `band` px of the fixed W×H frame (no growth). `format=rgb24`
+        # FIRST is essential: drawbox draws its color in the frame's working space, and on the yuv(j)420p
+        # pipeline it range-converts the fill (full→limited: e.g. #f5f1e8 245,241,232 → 226,224,214) while the
+        # full-range CONTENT is untouched — so the strip would NOT match the scene ground. Drawing in rgb24
+        # keeps the fill EXACT, matching the sampled/snapped ground; the final -pix_fmt yuv420p re-converts
+        # the whole frame consistently (content + strip land on the same value → seamless).
+        parts.append(f"[{vlabel}]format=rgb24,drawbox=x=0:y={H - band}:w={W}:h={band}:color={bg}:t=fill[vstrip]"); vlabel = "vstrip"
         _add_caption_overlays()
     else:                                              # classic burn-in bar, then fade the whole frame
         _add_caption_overlays()
@@ -777,12 +816,16 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
             vlabel = f"v{n_in}"; n_in += 1
 
-    if band:                                           # fade content, add the strip, then the caption text
+    if band:                                           # fade content, fill the in-canvas strip, then caption
         if fade:
             parts.append(f"[{vlabel}]{fade}[vf]"); vlabel = "vf"
-        bg, band_text = _caption_band_fill(meta, frame)    # strip continues THIS scene's own ground
+        bg, band_text = _caption_band_fill(meta, frame, band)    # strip continues THIS scene's own ground
         band_bg = _ffhex_rgb(bg)                        # the strip ground, for the highlight-contrast pick
-        parts.append(f"[{vlabel}]pad={W}:{H + band}:0:0:color={bg}[vpad]"); vlabel = "vpad"
+        # IN-canvas flush strip: fill the bottom `band` px of the fixed W×H frame (no growth). `format=rgb24`
+        # FIRST keeps drawbox's fill EXACT — on the yuv420p pipeline drawbox range-converts its colour
+        # (full→limited) while the full-range content is untouched, so the strip would otherwise not match
+        # the scene ground; the final -pix_fmt yuv420p re-converts the whole frame consistently (seamless).
+        parts.append(f"[{vlabel}]format=rgb24,drawbox=x=0:y={H - band}:w={W}:h={band}:color={bg}:t=fill[vstrip]"); vlabel = "vstrip"
         _cap_overlays()
     else:                                              # classic burn-in bar, then fade the whole frame
         _cap_overlays()

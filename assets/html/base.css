@@ -142,8 +142,11 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 .hs-spoke{background:var(--surface);border:var(--hairline);border-radius:var(--radius,14px);padding:26px 36px;
   font-size:42px;font-weight:700;text-align:center;box-shadow:var(--shadow-float)}
 .hs-spoke .s{display:block;font-size:26px;color:var(--muted);font-weight:500;margin-top:6px}
-/* .hs-connect reveals WITH the hub: <div class="hs-connect reveal" data-cue-index="<hub index>">. */
-.hs-connect{width:4px;height:60px;background:var(--rule);opacity:.55;margin:6px auto}
+/* .hs-connect reveals WITH the hub: <div class="hs-connect reveal" data-cue-index="<hub index>">.
+   The subtle 55% tint lives in the BACKGROUND alpha, never the `opacity` PROPERTY — that channel
+   belongs to `.reveal` (opacity:0 → 1). A base `opacity:.55` here would beat `.reveal{opacity:0}`
+   in the cascade and paint the rail before its cue (an early pop). */
+.hs-connect{width:4px;height:60px;background:color-mix(in srgb,var(--rule) 55%,transparent);margin:6px auto}
 .hs-hub{background:var(--accent);color:var(--on-accent);border-radius:var(--radius,18px);padding:34px 64px;
   font-size:56px;font-weight:800;box-shadow:var(--shadow-primary);text-align:center}
 

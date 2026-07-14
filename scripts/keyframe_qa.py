@@ -31,14 +31,24 @@ OVERFLOW_TOL = 6   # px a content box may exceed the canvas before it's flagged
 # scan; excludes display/diagram classes that are centered by design).
 _CENTER_EXCL = (".flow,.step,.hubspoke,.hs-spoke,.hs-hub,.timeline,.tl-node,.quadrant,.cell,"
                 ".scorecard,.tile,.title,.pullquote,.kicker,.stat,.block")
+# `cbotc` = deepest REAL-content bottom, EXCLUDING full-bleed backdrops, faint decorative watermarks,
+# and bottom-corner chrome (.credit/.pageno) — used for the caption-band overlap check (content must
+# clear the bottom strip the flush caption is drawn over). It differs from `cbot` (which includes any
+# box) precisely so a low-opacity texture or an image credit can't mask a real chart/label spilling
+# into the band. `.ghost`/`.icon-ghost` are ~.05-.06 opacity `pointer-events:none` watermarks that
+# CAN sit under `.stage` (a card watermark, an oversized ghost number) — excluded so a faint watermark
+# reaching the band never phantom-blocks the gate; `.bg-glow` is a backdrop that may also land there.
+_CBOTC_EXCL = (".bg-photo,.bg-soft,.bg-motif,.bg-grid,.bg-glow,.bg-live,.bg-drift,.scrim,"
+               ".ghost,.icon-ghost,.credit,.pageno,[data-ambient]")
 _OVERFLOW_JS = (
-    "(function(){var W=window.innerWidth,H=window.innerHeight,worst=0,ct=1e9,cb=-1e9,cl=1e9,cr=-1e9;"
+    "(function(){var W=window.innerWidth,H=window.innerHeight,worst=0,ct=1e9,cb=-1e9,cl=1e9,cr=-1e9,cbc=-1e9;"
     "var n=document.querySelectorAll('.stage *,.split *');"
     "for(var i=0;i<n.length;i++){var r=n[i].getBoundingClientRect();"
     "if(r.width<1||r.height<1)continue;"
     "var o=Math.max(r.right-W,r.bottom-H,-r.left,-r.top);if(o>worst)worst=o;"
     "var cs=getComputedStyle(n[i]);if(cs.opacity!=='0'&&cs.display!=='none'){"
-    "if(r.top<ct)ct=r.top;if(r.bottom>cb)cb=r.bottom;if(r.left<cl)cl=r.left;if(r.right>cr)cr=r.right;}}"
+    "if(r.top<ct)ct=r.top;if(r.bottom>cb)cb=r.bottom;if(r.left<cl)cl=r.left;if(r.right>cr)cr=r.right;"
+    "if(!n[i].matches('" + _CBOTC_EXCL + "')&&r.bottom>cbc)cbc=r.bottom;}}"
     "var t=(document.body.innerText||'').replace(/\\s+/g,'').length;"
     "var EXCL='" + _CENTER_EXCL + "',centered=0,para=document.querySelectorAll('.sub,.note,.lead,p');"
     "for(var j=0;j<para.length;j++){var e=para[j],cs=getComputedStyle(e);"
@@ -49,7 +59,7 @@ _OVERFLOW_JS = (
     "if(lines>=3&&w>=600)centered++;}"
     "var bleed=!!document.querySelector('.bg-photo,.bg-soft,.bg-motif,.bg-grid');"
     "return JSON.stringify({worst:Math.round(worst),textlen:t,centered:centered,"
-    "ctop:Math.round(ct),cbot:Math.round(cb),cleft:Math.round(cl),cright:Math.round(cr),"
+    "ctop:Math.round(ct),cbot:Math.round(cb),cbotc:Math.round(cbc),cleft:Math.round(cl),cright:Math.round(cr),"
     "bleed:bleed,cued:!!document.querySelector('[data-cue-index]')});})()")
 
 # Reveal-count probe (evaluated at EACH frozen p-state): how many reveal elements are visible now.
@@ -61,6 +71,21 @@ _REVEAL_COUNT_JS = (
     "var r=n[i].getBoundingClientRect();if(r.width<1)continue;tot++;"
     "if(parseFloat(getComputedStyle(n[i]).opacity)>0.5)vis++;}"
     "return JSON.stringify({tot:tot,vis:vis});})()")
+
+# Early-pop probe (evaluated at the p=0 frozen state, where seek.js has revealed NOTHING yet): any
+# reveal element already painted (opacity > 0.05) has a BASE OPACITY leaking past .reveal's opacity:0
+# — a decorative class (a dim/tint) set the `opacity` PROPERTY, which the reveal owns, so the element
+# pops in BEFORE its cue and breaks step-by-step (top-to-bottom / left-to-right) order. Ambient
+# backdrops (.bg-live/.bg-drift/[data-ambient] — progress-driven, legitimately visible at p=0) and
+# unanimated elements are excluded. Returns each offender's class + opacity + top-y.
+_EARLY_POP_JS = (
+    "(function(){var n=document.querySelectorAll('.reveal,.reveal-up,.reveal-up-sm,.reveal-pop,"
+    ".reveal-wipe,.reveal-glow'),out=[];for(var i=0;i<n.length;i++){var e=n[i];"
+    "if(e.matches('.bg-live,.bg-drift,[data-ambient]'))continue;"
+    "var r=e.getBoundingClientRect();if(r.width<1||r.height<1)continue;"
+    "var cs=getComputedStyle(e);if(cs.animationName==='none')continue;"
+    "var op=parseFloat(cs.opacity);if(op>0.05)out.push({cls:e.className,op:Math.round(op*100)/100,"
+    "top:Math.round(r.top)});}return JSON.stringify(out);})()")
 
 
 def _is_blank(img):
@@ -105,10 +130,25 @@ def _reveal_count(chrome):
         return {"tot": 0, "vis": 0}
 
 
+def _early_pop(chrome):
+    """Reveal elements already visible at the current (p=0) frozen state — a base-opacity leak."""
+    try:
+        r = chrome._cmd("Runtime.evaluate",
+                        {"expression": _EARLY_POP_JS, "returnByValue": True}, chrome.sid)
+        return json.loads(r["result"]["result"]["value"])
+    except Exception:
+        return []
+
+
 def run(out_dir, ps=DEFAULT_PS, as_json=False):
     data = json.load(open(os.path.join(out_dir, "storyboard.json")))
     meta = data["meta"]; meta["_out"] = out_dir
     W, H = (1080, 1920) if meta.get("aspect") == "9:16" else (1920, 1080)
+    try:                                  # the flush caption strip (px) is drawn over the bottom of each
+        import render                     # frame — content must clear it; 0 in overlay mode / captions off
+        band = render._caption_band_px(meta, W, H)
+    except Exception:
+        band = 0
     kf = os.path.join(out_dir, "_keyframes"); os.makedirs(kf, exist_ok=True)
     html = [s for s in data.get("slides", []) if s.get("type") == "html"]
     if not html:
@@ -124,14 +164,16 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
             if not page:
                 continue
             url = "file://" + os.path.abspath(os.path.join(out_dir, page))
-            frames, ok, rvis, rtot = [], True, [], 0
-            for p in ps:
+            frames, ok, rvis, rtot, early_pop = [], True, [], 0, []
+            for pi, p in enumerate(ps):
                 fp = os.path.join(kf, f"scene_{idx:02d}_p{int(p*100):03d}.png")
                 try:
                     if chrome:
                         chrome.shot(url + f"?p={p}", fp)          # CDP: (url, out_path)
                         rc = _reveal_count(chrome)                # count visible reveals at THIS frozen state
                         rvis.append(rc["vis"]); rtot = max(rtot, rc["tot"])
+                        if pi == 0 and p <= 0.02:                 # p=0: nothing revealed yet — any visible reveal leaks
+                            early_pop = _early_pop(chrome)
                     else:
                         scenes._chrome_shot(url + f"?p={p}", fp, W, H, meta)
                     frames.append(Image.open(fp))
@@ -156,6 +198,17 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                     if info.get("worst", 0) > OVERFLOW_TOL:
                         issues.append(f"content overflows the safe canvas by {info['worst']}px — "
                                       "shorten the text or split the beat")
+                    # CAPTION-BAND OVERLAP: the flush caption strip is drawn IN-canvas over the bottom
+                    # `band` px; REAL content (cbotc excludes full-bleed backdrops + .credit/.pageno
+                    # chrome) must clear it, or the caption paints over it. Tolerate a small kiss into the
+                    # strip's top padding; flag a meaningful intrusion so the author raises/scales it.
+                    if band:
+                        band_top = H - band
+                        into = info.get("cbotc", -1) - band_top
+                        if into > max(16, int(band * 0.18)):
+                            issues.append(f"content reaches {into}px into the bottom {band}px caption band "
+                                          f"— raise/scale it so the burned caption never overlaps (reserve "
+                                          f"the bottom ~{band}px; see captions.md)")
                     if info.get("centered", 0) > 0:
                         advisories.append(f"{info['centered']} centered running paragraph(s) — "
                                           "left-align body text for scanning (studios do)")
@@ -180,6 +233,16 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                             advisories.append(f"no stagger — {round(100*early)}% of reveals already visible by "
                                               f"p={ps[ei]} (rises across only {rises} step[s]); give each component "
                                               f"its own data-cue-index so they land one-by-one")
+                    # EARLY POP (measured at p=0, where NOTHING should be revealed): a reveal element
+                    # already painted → its base opacity leaked past .reveal's opacity:0 (a decorative
+                    # class set the `opacity` PROPERTY the reveal owns), so it appears before its cue and
+                    # breaks step-by-step top-to-bottom / left-to-right order. Blocks the gate.
+                    if early_pop:
+                        top = ", ".join(f"{(o['cls'].split(' reveal')[0] or o['cls']).strip()}@op{o['op']}"
+                                        for o in sorted(early_pop, key=lambda o: -o["op"])[:4])
+                        issues.append(f"{len(early_pop)} reveal element(s) already visible at p=0 (early pop "
+                                      f"before cue): {top}. A decorative class set the `opacity` property that "
+                                      ".reveal owns — dim via filter:opacity() or a translucent color instead")
                     # content centroid (normalized) for the deck-level silhouette-repetition advisory
                     if info.get("cright", -1) > info.get("cleft", 0) and info.get("cbot", -1) > info.get("ctop", 0):
                         centroids.append((idx, ((info["cleft"] + info["cright"]) / 2) / W,

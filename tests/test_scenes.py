@@ -411,6 +411,30 @@ def test_cdp_capture_produces_real_jpeg_frames(tmp_path):
         assert os.path.getsize(pat % i) > 3000, f"frame {i} looks blank"
     a = Image.open(pat % 0).convert("RGB")
     assert a.getextrema() != ((0, 0), (0, 0), (0, 0))   # non-blank render
+    assert a.size == (960, 540)                          # capture honors the requested W×H
+
+
+@pytest.mark.skipif(scenes._chrome_bin({}) is None, reason="needs Chrome")
+def test_cdp_shot_captures_exact_tall_dimensions(tmp_path):
+    # _cdp.Chrome.shot must produce EXACTLY W×H even for a TALL frame — headless Chrome clamps a
+    # 1920-tall window's viewport (captures ~1833 without a clip), which would (a) stretch every html
+    # frame and (b) shift the flush-caption band SAMPLE off the true bottom ground onto content. The
+    # explicit W×H clip + captureBeyondViewport forces true dimensions. On a non-clamping host this
+    # passes trivially; on a clamping one it directly guards the fix.
+    import _cdp
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
+    css = os.path.join(skill, "assets", "html", "base.css")
+    page = tmp_path / "tall.html"
+    page.write_text('<!doctype html><html><head><meta charset="utf-8">'
+                    f'<link rel="stylesheet" href="file://{css}"></head>'
+                    '<body><div class="stage"><h1 class="title">TALL</h1></div></body></html>')
+    c = _cdp.Chrome(scenes._chrome_bin({}), 1080, 1920)
+    try:
+        out = str(tmp_path / "tall.jpg")
+        c.shot(f"file://{page}?p=1", out)
+        assert Image.open(out).size == (1080, 1920)      # NOT the clamped ~1833
+    finally:
+        c.close()
 
 def test_design_system_is_themeable():
     skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))

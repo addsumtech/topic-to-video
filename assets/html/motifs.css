@@ -84,8 +84,13 @@ img.kenburns{animation:mt-kenburns 6s ease-out forwards;animation-play-state:pau
 .split .media img{animation:none}
 
 /* depth-of-field: gently de-emphasize the NON-focal element (compare pages) — static, seek-safe.
-   Kept SUBTLE on purpose: a heavy blur reads as a render glitch, not as intentional focus. */
-.defocus{filter:brightness(.88) saturate(.82) blur(1.5px);opacity:.74}
+   Kept SUBTLE on purpose: a heavy blur reads as a render glitch, not as intentional focus.
+   The dimming lives ENTIRELY in the filter pipeline (incl. `opacity()`), NEVER the `opacity`
+   PROPERTY — that channel belongs to `.reveal*` (opacity:0 → 1). A base `opacity:.74` here would
+   beat `.reveal-up{opacity:0}` in the cascade and PAINT this element before its cue (an early pop
+   that breaks top-to-bottom reveal order). Filter-opacity multiplies AFTER the reveal, so when the
+   reveal holds opacity:0 the element is still fully hidden; once revealed it lands dimmed. */
+.defocus{filter:brightness(.88) saturate(.82) blur(1.5px) opacity(.74)}
 /* full-bleed accent section divider (use on <body> of a transition beat) */
 .accent-fill{background:var(--accent);color:var(--on-accent)}
 /* faint light-mode paper texture behind content */

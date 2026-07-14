@@ -30,25 +30,26 @@ Captions are ON by default (`meta.captions: true`). To disable:
 When disabled, no caption bar is burned into the frame. The `out.srt` sidecar
 is **always** written either way, so viewers can still turn on soft subtitles.
 
-### Placement — overlay (default) vs a band BELOW the content
+### Placement — a flush band (default) vs an overlay bar
 
 `meta.caption_mode` controls WHERE the burned caption sits:
 
-- **`"overlay"` (default):** the semi-transparent bar is burned over the bottom of the
-  W×H content (classic social-video look). The tradeoff: content that reaches the bottom
-  ~15% of the frame can sit *under* the caption. Authors must keep content clear of that
-  zone (heroes/airy beats are fine; a dense bottom-anchored beat can collide).
-- **`"band"`:** the caption is drawn in a **dedicated strip BELOW the content**, so it
-  **never overlaps the slide**. The output canvas grows to `W×(H+band)` (a ~138 px strip at
-  1080p → 1920×1218). By default (`meta.caption_band` = `"flush"`) the strip **samples each scene's own
-  bottom-edge colour** and continues it, so it reads as that page's **bottom margin** — seamless whether
-  the slide ground is off-white, a tint, a full **accent-fill** (a red divider → a red strip), or a photo;
-  the text auto-flips to whichever of `--fg`/`--bg` contrasts that ground. Set `meta.caption_band` =
-  `"contrast"` for a fixed dark **subtitle bar** instead (`--fg` strip, `--bg` text). Contrast stays
-  legible either way. The band uses a slightly smaller face than the overlay bar (it has its own
-  strip, so it needn't shout). Content keeps the full 1080 — no bottom-clearance needed. Pick band
-  when the frame is dense or when a clean, un-obscured content area matters more than exact 16:9
-  output dimensions.
+- **`"band"` (DEFAULT):** the caption is drawn in a strip over the **bottom `band` px of the
+  fixed W×H frame** (via ffmpeg `drawbox`) — **IN-canvas, so the output stays exactly W×H** (a true
+  16:9 / 9:16; ~138 px strip at 1080p 16:9, ~164 px at 9:16). By default (`meta.caption_band` = `"flush"`)
+  the strip is the **SAME background as the video**: it samples the scene's own GROUND from the bottom
+  **left/right margins** (where the page padding guarantees ground, not centered content) and **snaps to
+  the exact theme colour** it matches (`--bg`/`--surface`/`--accent`/`--accent2`) — so it continues the
+  page seamlessly whether the ground is off-white, a tint, a full **accent-fill** (a red divider → a red
+  strip), or a photo, with no motif/gradient/anti-alias noise. The text auto-flips to whichever of
+  `--fg`/`--bg` contrasts that ground. Set `meta.caption_band` = `"contrast"` for a fixed dark
+  **subtitle bar** instead (`--fg` strip, `--bg` text). Contrast stays legible either way.
+  **Because the strip is IN-canvas, content must CLEAR the bottom `band` px** (reserve ~140 px on 16:9,
+  ~164 px on 9:16) — otherwise the caption paints over it. `keyframe_qa` measures real content (excluding
+  backdrops + `.credit`/`.pageno` chrome) and **fails the gate** on a page whose content reaches into the
+  band, so raise/scale that beat's bottom content.
+- **`"overlay"`:** a semi-transparent bar is burned over the bottom of the W×H content (classic
+  social-video look). Content that reaches the bottom ~15% can sit *under* the caption; keep it clear.
 
 `meta.caption_scale` (default 1.0) tunes the caption font in EITHER mode — e.g. `0.9` shrinks it a
 touch (and, in band mode, the strip shrinks with it).
