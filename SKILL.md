@@ -157,10 +157,29 @@ TTS if the user gives an API key.
   authoring the pages, BEFORE the full render — a ~1-minute catch of the exact failures that would
   otherwise silently ship in a multi-minute render. (No CDP → screenshots + blank-check only.)
 - `scripts/scenes.py` — deterministic ANIMATED scene renderers (no slides): `title`/`keypoints`
-  (PIL), `chart`/`timeline`/`compare` (matplotlib), `html` (headless Chrome). A storyboard scene
-  with `type` `title`/`keypoints`/`chart`/`timeline`/`compare`/`html` (+ a typed `props` block)
-  renders an animation instead of a slide image; `type` defaults to `slide` (unchanged). Animated
-  scenes render ONLY their `props` (faithful by construction). **Theme-aware palette:** the
+  (PIL), `chart`/`timeline`/`compare` (matplotlib), `html` (headless Chrome), `kinetic` (headless
+  Chrome). A storyboard scene with `type` `title`/`keypoints`/`chart`/`timeline`/`compare`/`html`/`kinetic`
+  (+ a typed `props` block) renders an animation instead of a slide image; `type` defaults to `slide`
+  (unchanged). Animated scenes render ONLY their `props`/narration (faithful by construction).
+  **BEYOND-SLIDES MOTION ARCHETYPES** (`kinetic`/`system`/`morph`/`conceptmap`/`scroll`) — HTML-native
+  FILM scenes where the content lives in a SPACE/SYSTEM and a **camera + clock narrate it**, instead of a
+  slide sequence. All share ONE master-clock primitive: a timeline-driven page captured EVERY frame,
+  each element carrying a single full-timeline animation frozen by `seek.js` at `?p=` — so they stay
+  deterministic/seekable/cache-safe/A/V-gated, and captions auto-suppress (each carries its own
+  on-screen text). **Reach for one when a beat's SHAPE has a better motion metaphor than "show a slide"
+  — not for everything (a deck that's all camera-films is as monotone as all slides):**
+  - **`kinetic`** — a short punchy LINE (thesis/turn/payoff): the narration renders as living type, each
+    word igniting as spoken (edge-tts word-times), the live word flaring in `--accent`. `props.text`/
+    `emphasis`. See `references/kinetic-typography.md`.
+  - **`system`** — a PROCESS/pipeline/mechanism/architecture: a token flows through `props.stations`,
+    each lighting as it arrives, then a `caption` lands. Show it RUNNING.
+  - **`morph`** — a TRANSFORMATION / before→after / hero opener: one shape morphs dot→bar→card→deck, no
+    cuts (`props.labels`). Continuity beats a cut.
+  - **`conceptmap`** — an OVERVIEW relating several ideas: a `hub` wired to `nodes` the camera flies
+    between, then pulls back to the whole constellation (auto-layout if no `x`/`y`).
+  - **`scroll`** — a vertical (9:16) STORY: the camera glides DOWN one tall canvas, each `props.sections`
+    beat igniting as it centers.
+  See **`references/motion-archetypes.md`** for the which-archetype-for-which-content decision table. **Theme-aware palette:** the
   programmatic renderers read the SAME `theme.css` semantic vars the HTML tier uses (via `meta._out`),
   so charts/titles/timelines match a light-or-dark deck instead of always rendering dark — one color
   world across both tiers; falls back to the dark palette when no `theme.css`. **Type contrast:**

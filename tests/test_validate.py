@@ -946,3 +946,15 @@ def test_figure_traceability_skipped_without_brief(tmp_path):
     s1 = _slide_scene(tmp_path, index=1, narration="It cuts errors by 43%.")
     res = validate.evaluate(_board(out, [s1]), out)
     assert not any("trace to the source" in w for w in res["warnings"])
+
+
+def test_validate_accepts_motion_archetypes(tmp_path):
+    # the beyond-slides motion archetypes are valid animated scene types (no per-type props required)
+    import storyboard as sb
+    os.makedirs(os.path.join(str(tmp_path), "audio"), exist_ok=True)
+    open(os.path.join(str(tmp_path), "audio", "01.mp3"), "wb").write(b"\x00")
+    for t in ("system", "morph", "conceptmap", "scroll", "kinetic"):
+        s = sb.new_scene(1, t, {}, narration="A short line for this beat.")
+        s["audio"] = "audio/01.mp3"; s["duration"] = 6.0
+        r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+        assert r["ok"], (t, r["errors"])

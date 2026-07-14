@@ -5,8 +5,13 @@ class StoryboardError(ValueError):
     pass
 
 VALID_STYLES = {"highlight", "arrow", "box"}
-VALID_SCENE_TYPES = {"slide", "title", "chart", "timeline", "keypoints", "compare", "html"}
-ANIMATED_TYPES = {"title", "chart", "timeline", "keypoints", "compare", "html"}
+VALID_SCENE_TYPES = {"slide", "title", "chart", "timeline", "keypoints", "compare", "html", "kinetic",
+                     "system", "morph", "conceptmap", "scroll"}
+ANIMATED_TYPES = {"title", "chart", "timeline", "keypoints", "compare", "html", "kinetic",
+                  "system", "morph", "conceptmap", "scroll"}
+# the HTML-native "beyond-slides" motion archetypes (timeline-driven, camera-narrated) — see
+# references/motion-archetypes.md for when to reach for each.
+MOTION_ARCHETYPES = {"kinetic", "system", "morph", "conceptmap", "scroll"}
 VALID_CHART_KINDS = {"bars", "line", "counter", "slope", "dumbbell", "dist", "scatter", "small_multiples"}
 VALID_IMAGE_SOURCES = {"none", "openai"}
 VALID_IMAGE_PROVIDERS = {"auto", "codex", "openai"}

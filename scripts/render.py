@@ -740,8 +740,13 @@ def _render_scene(slide, meta, W, H, out_clip, burn_captions, workdir):
     # there are no per-word timings (non-edge voices). Scenes render sequentially, so this is safe.
     meta["_narration"] = slide.get("narration") or ""
     pattern = renderer(slide.get("props") or {}, meta, W, H, frames, workdir, slide["index"])
-    segs = ((_caption_karaoke_segs(slide, meta, meta["_out"]) or _captions_for(slide))
-            if burn_captions else [])
+    # a motion archetype (kinetic/system/morph/conceptmap/scroll) carries its OWN on-screen text — a
+    # caption band would just double it, so suppress captions there (unless slide.captions=True forces it).
+    _MOTION = {"kinetic", "system", "morph", "conceptmap", "scroll"}
+    # suppress unless captions are affirmatively wanted (True OR an explicit non-empty segment track)
+    mute_cap = slide.get("type") in _MOTION and not slide.get("captions")
+    segs = ([] if mute_cap else
+            ((_caption_karaoke_segs(slide, meta, meta["_out"]) or _captions_for(slide)) if burn_captions else []))
     return _encode_frames_clip(pattern, slide["audio"], dur, segs, meta, W, H, out_clip, workdir, slide=slide)
 
 def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
