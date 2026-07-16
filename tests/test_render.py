@@ -51,8 +51,7 @@ def test_band_karaoke_highlight_threads_band_bg(tmp_path, monkeypatch):
                           hl_word=1, band=138, text_rgb=(22, 20, 18), band_bg=terracotta)
     assert seen.get("bg") == terracotta                       # the threaded ground reached the picker
     im = Image.open(p).convert("RGBA")
-    assert im.size == (1920, 1080)                            # IN-canvas: the layer never grows the frame
-    strip = im.crop((0, 1080 - 138, 1920, 1080))             # the in-canvas strip [H-band, H] carries the text
+    strip = im.crop((0, 1080, 1920, 1080 + 138))              # the band region carries drawn text
     assert strip.getchannel("A").getextrema()[1] > 0
 
 def test_overlay_empty_when_nothing_to_draw(tmp_path):
@@ -515,31 +514,29 @@ def test_theme_var_hex_and_rgb(tmp_path):
 
 
 def test_caption_band_px_modes_and_parity():
-    # band (flush) is the DEFAULT now — unset OR explicit band reserves a non-zero, EVEN strip
-    # (yuv420p needs H+band even) in BOTH aspects; only explicit overlay (or captions off) reserves none.
-    for meta in ({}, {"caption_mode": "band"}):
-        b16 = render._caption_band_px(meta, 1920, 1080)
-        b916 = render._caption_band_px(meta, 1080, 1920)
-        assert b16 > 0 and b16 % 2 == 0, meta
-        assert b916 > 0 and b916 % 2 == 0, meta
-    # explicit overlay (or captions off) keeps the classic dims — no band
+    # overlay (default / explicit) reserves NO band; the classic dims are untouched
+    assert render._caption_band_px({}, 1920, 1080) == 0
     assert render._caption_band_px({"caption_mode": "overlay"}, 1920, 1080) == 0
-    assert render._caption_band_px({"captions": False}, 1920, 1080) == 0
+    # band mode -> a non-zero, EVEN strip (yuv420p needs H+band even) in BOTH aspects
+    b16 = render._caption_band_px({"caption_mode": "band"}, 1920, 1080)
+    b916 = render._caption_band_px({"caption_mode": "band"}, 1080, 1920)
+    assert b16 > 0 and b16 % 2 == 0
+    assert b916 > 0 and b916 % 2 == 0
 
 
-def test_caption_layer_band_is_in_canvas_bottom_strip(tmp_path):
+def test_caption_layer_band_draws_below_content_only(tmp_path):
     from PIL import Image
     (tmp_path / "theme.css").write_text(":root{--bg:#ffffff;--fg:#101010}")
     band = render._caption_band_px({"caption_mode": "band"}, 1920, 1080)
     p = str(tmp_path / "band.png")
-    render._caption_layer("A caption sitting in the bottom strip.", 1920, 1080, p,
+    render._caption_layer("A caption sitting below the content.", 1920, 1080, p,
                           {"_out": str(tmp_path)}, band=band)
     im = Image.open(p).convert("RGBA")
-    assert im.size == (1920, 1080)                              # IN-canvas: the frame does NOT grow
-    content = im.crop((0, 0, 1920, 1080 - band))               # above the strip stays fully transparent
-    strip = im.crop((0, 1080 - band, 1920, 1080))              # the caption text lands in the bottom strip
-    assert content.getchannel("A").getextrema()[1] == 0        # NOTHING drawn over the content above
-    assert strip.getchannel("A").getextrema()[1] > 0           # caption drawn in the in-canvas strip
+    assert im.size == (1920, 1080 + band)                       # canvas grew by exactly the band
+    content = im.crop((0, 0, 1920, 1080))                       # the slide region stays fully transparent
+    strip = im.crop((0, 1080, 1920, 1080 + band))              # the caption text lands in the strip
+    assert content.getchannel("A").getextrema()[1] == 0        # NOTHING drawn over the content
+    assert strip.getchannel("A").getextrema()[1] > 0           # caption drawn in the band
 
 
 def test_caption_overlay_default_unchanged(tmp_path):
@@ -574,39 +571,6 @@ def test_caption_band_fill_samples_scene_ground(tmp_path):
     # a pure-black contain-fit LETTERBOX bar must NOT become a black strip -> fall back to the --bg fill
     blk = str(tmp_path / "blk.png"); Image.new("RGB", (80, 40), (0, 0, 0)).save(blk)
     assert render._caption_band_fill(meta, blk)[0] == "0xf4f3ee"
-
-
-def test_caption_band_bg_is_video_bg_margin_sampled_and_snapped(tmp_path):
-    # the strip must be the SAME background as the video. (1) _snap_to_theme_bg pins a sampled ground to
-    # the EXACT theme var (the video background) and keeps a far colour as-is. (2) the strip samples the
-    # MARGINS, so centered content reaching the bottom can't tint it.
-    from PIL import Image, ImageDraw
-    (tmp_path / "theme.css").write_text(":root{--bg:#f5f1e8;--fg:#141414;--accent2:#0f766e}")
-    out = str(tmp_path)
-    assert render._snap_to_theme_bg((244, 240, 231), out) == (245, 241, 232)   # near --bg  -> exact --bg
-    assert render._snap_to_theme_bg((16, 120, 116), out) == (15, 118, 110)     # near --accent2 -> exact
-    assert render._snap_to_theme_bg((200, 10, 10), out) == (200, 10, 10)       # far -> kept as sampled
-    W, H, band = 1080, 300, 164                                  # cream frame; a teal card fills the CENTRE
-    im = Image.new("RGB", (W, H), (245, 241, 232))              # of the bottom band region, margins stay ground
-    ImageDraw.Draw(im).rectangle([230, H - band - 8, W - 230, H], fill=(15, 118, 110))
-    fp = str(tmp_path / "f.png"); im.save(fp)
-    bg, _ = render._caption_band_fill({"_out": out}, fp, band)
-    assert bg == "0xf5f1e8"                                      # sampled from margins (ground), NOT the card
-
-
-def test_snap_to_theme_bg_keeps_ambiguous_blend_between_close_vars(tmp_path):
-    # --bg and --surface only ~30 apart (the default dark theme): an EXACT bg/surface sample still
-    # snaps (clear winner), but a sample blended toward the midpoint stays RAW rather than snapping to
-    # the WRONG var — not snapping is always safe (the raw sample IS the ground). Guards cross-snap.
-    (tmp_path / "theme.css").write_text(":root{--bg:#0d1117;--surface:#161b22;--fg:#e6edf3}")
-    out = str(tmp_path)
-    bgc, sur = (0x0d, 0x11, 0x17), (0x16, 0x1b, 0x22)
-    assert render._snap_to_theme_bg(bgc, out) == bgc            # exact --bg  -> snaps to --bg
-    assert render._snap_to_theme_bg(sur, out) == sur           # exact --surface -> snaps to --surface
-    mid = tuple((bgc[k] + sur[k]) // 2 for k in range(3))       # ambiguous blend near the midpoint
-    assert render._snap_to_theme_bg(mid, out) == mid           # kept RAW, NOT snapped to the wrong var
-    near = (bgc[0] + 2, bgc[1] - 1, bgc[2] + 1)                 # clearly nearest --bg (noise) -> still snaps
-    assert render._snap_to_theme_bg(near, out) == bgc
 
 
 def test_fingerprint_includes_caption_placement():
@@ -651,11 +615,10 @@ def test_caption_band_fill_contrast_floor(tmp_path):
 
 @pytest.mark.skipif(not _common.have_tool("ffmpeg") or not _common.have_tool("say"),
                     reason="needs ffmpeg + say")
-def test_caption_band_render_keeps_canvas_dims(tmp_path, monkeypatch):
-    """End-to-end: a `caption_mode:band` deck renders the IN-canvas flush strip WITHOUT growing the frame
-    (stays exactly W×H — a true 16:9 / 9:16), exercising BOTH encode paths — a `title` scene
-    (_encode_frames_clip) AND an image `slide` (_render_slide) — so the drawbox strip fill is general
-    across tiers and the clips still concat (uniform dims)."""
+def test_caption_band_render_taller_canvas(tmp_path, monkeypatch):
+    """End-to-end: a `caption_mode:band` deck renders a canvas that is exactly H+band tall, exercising
+    BOTH encode paths — a `title` scene (_encode_frames_clip) AND an image `slide` (_render_slide) — so
+    the strip is general across tiers, and the clips still concat (uniform dims)."""
     from PIL import Image
     monkeypatch.setattr(tts, "_have_edge", lambda: False)      # offline-deterministic audio
     out = str(tmp_path / "proj"); os.makedirs(os.path.join(out, "frames"), exist_ok=True)
@@ -671,35 +634,5 @@ def test_caption_band_render_keeps_canvas_dims(tmp_path, monkeypatch):
     band = render._caption_band_px({"caption_mode": "band"}, 1920, 1080)
     probe = lambda st: _common.run(["ffprobe", "-v", "error", "-select_streams", "v:0",
         "-show_entries", f"stream={st}", "-of", "default=nk=1:nw=1", mp4]).strip()
-    assert band > 0                                            # band IS reserved (default flush mode)
-    assert int(probe("width")) == 1920 and int(probe("height")) == 1080   # IN-canvas: NO growth
+    assert int(probe("width")) == 1920 and int(probe("height")) == 1080 + band
     assert _common.audio_duration(mp4) > 0.3                    # clips concatenated + play
-
-
-@pytest.mark.skipif(not _common.have_tool("ffmpeg") or not _common.have_tool("say"),
-                    reason="needs ffmpeg + say")
-def test_caption_band_fill_color_not_range_shifted(tmp_path, monkeypatch):
-    """Regression: the flush strip must be the EXACT sampled/snapped colour, NOT a range-shifted one.
-    drawbox draws its fill in the frame's working space; on the yuv420p pipeline it range-converts the
-    colour (full->limited: a light #f5f1e8 245,241,232 would land ~226,224,214) while the full-range
-    CONTENT is untouched — so the strip would visibly differ from the scene ground. `format=rgb24`
-    before drawbox keeps the fill exact. Render a solid light slide and assert the band matches it."""
-    from PIL import Image
-    monkeypatch.setattr(tts, "_have_edge", lambda: False)
-    out = str(tmp_path / "proj"); os.makedirs(os.path.join(out, "frames"), exist_ok=True)
-    Image.new("RGB", (1920, 1080), (245, 241, 232)).save(os.path.join(out, "frames", "01.png"))
-    (tmp_path / "proj" / "theme.css").write_text(":root{--bg:#f5f1e8;--fg:#161412}")
-    img = sb.new_slide(1, "frames/01.png", narration="A light content slide for the band colour check.")
-    data = sb.new_storyboard({"voice": "say:Samantha", "caption_mode": "band"})
-    data["slides"] = [img]
-    sb.save(data, os.path.join(out, "storyboard.json"))
-    tts.synthesize(out)
-    mp4 = render.render(out)
-    band = render._caption_band_px({"caption_mode": "band"}, 1920, 1080)
-    frame = str(tmp_path / "f.png")
-    _common.run(["ffmpeg", "-v", "error", "-i", mp4, "-ss", "0.5", "-frames:v", "1", frame, "-y"])
-    im = Image.open(frame).convert("RGB")
-    # band FILL sampled at a text-free edge (bottom-left of the strip), NOT the centered caption text
-    fill = sorted(im.crop((0, 1080 - band + 8, 40, 1078)).getdata())[(40 * (band - 10)) // 2]
-    # exact colour (±8 for yuv rounding); a range-shifted strip (~226) would be >15 off and FAIL
-    assert all(abs(fill[k] - g) <= 8 for k, g in enumerate((245, 241, 232))), f"band fill {fill} range-shifted"

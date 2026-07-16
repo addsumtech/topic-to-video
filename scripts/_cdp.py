@@ -91,8 +91,6 @@ class Chrome:
     def __init__(self, chrome_bin, W, H, quality=90, timeout=30):
         self.quality = quality
         self.timeout = timeout
-        self.W = W
-        self.H = H
         self._id = 0
         self.proc = subprocess.Popen(
             [chrome_bin, "--headless=new", "--disable-gpu", "--hide-scrollbars", "--no-sandbox",
@@ -153,14 +151,8 @@ class Chrome:
                   {"expression": "Promise.all(Array.from(document.images)"
                                  ".map(i=>i.decode().catch(()=>1))).then(()=>1)",
                    "awaitPromise": True, "returnByValue": True}, self.sid)
-        # Force an explicit W×H clip: headless Chrome clamps the window/viewport height (a 1920-tall
-        # window captures ~1833 px without a clip), which would (a) stretch the frame to fill W×H in the
-        # encoder and (b) shift the flush-caption band SAMPLE off the true bottom ground onto content.
-        # captureBeyondViewport renders the full clip even where it exceeds the clamped viewport.
         data = self._cmd("Page.captureScreenshot",
-                         {"format": "jpeg", "quality": self.quality,
-                          "clip": {"x": 0, "y": 0, "width": self.W, "height": self.H, "scale": 1},
-                          "captureBeyondViewport": True}, self.sid)["result"]["data"]
+                         {"format": "jpeg", "quality": self.quality}, self.sid)["result"]["data"]
         with open(out_path, "wb") as f:
             f.write(base64.b64decode(data))
 

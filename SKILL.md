@@ -69,19 +69,14 @@ TTS if the user gives an API key.
   (`auto` default | `off`). The highlight colour is **contrast-picked per scene** against the caption band's
   ground (prefers `--accent`, else `--accent2`/gold/high-contrast b/w) AND kept distinct from the
   neighbouring words — so the spoken word never vanishes into an accent-fill / same-colour band.
-  **Caption placement — `meta.caption_mode`:** **`band` (flush) is the DEFAULT** — the caption sits in a
-  seamless strip at the bottom of the frame that continues the scene's own ground colour (no dark bar).
-  It is drawn **IN-canvas** — the output stays a TRUE `1920×1080` / `1080×1920` (the strip occupies the
-  bottom `~138px`/`~164px`; the frame does NOT grow). So **author pages to keep meaningful content clear
-  of that bottom strip** (reserve ~140px on 16:9, ~164px on 9:16) — `keyframe_qa` **fails the gate** on a
-  page whose real content reaches into the band, so raise/scale that beat's bottom content.
-  `meta.caption_band` picks the strip's look: `flush` (default) makes the strip the **SAME background as
-  the video** — it samples the scene's ground from the bottom **left/right margins** (not the centre, so
-  centered content can't tint it) and **snaps to the exact theme colour** it matches (`--bg`/`--surface`/
-  `--accent`/`--accent2`), continuing the page seamlessly (off-white, a tint, an accent-fill, or a photo;
-  text + karaoke highlight auto-flip to contrast); `contrast` = a fixed dark `--fg` strip + `--bg` text.
-  Set **`meta.caption_mode:"overlay"`** for the classic semi-transparent dark bar burned over the content
-  instead. `meta.caption_scale` (default 1.0) tunes the caption font. See `references/captions.md`.
+  **Caption placement — `meta.caption_mode`:** `overlay` (default) burns the semi-transparent bar over
+  the bottom of the content (content must stay clear of the bottom ~15%); `band` draws the caption in a
+  dedicated strip BELOW the content so it NEVER overlaps the slide — the canvas grows to `W×(H+~138px)`
+  (1920×1218 at 1080p). `meta.caption_band` picks the strip's look: `flush` (default) SAMPLES each
+  scene's own bottom-edge colour and continues it (seamless on off-white, a tint, a red accent-fill, or a
+  photo; text auto-flips to contrast); `contrast` = a fixed dark `--fg` strip + `--bg` text (subtitle bar). `meta.caption_scale` (default 1.0) tunes the caption
+  font (band face is a touch smaller). Reach for `band` on dense decks or when a clean content frame
+  matters more than exact 16:9 output dims (see `references/captions.md`).
   **Timed callouts:** a callout carrying a `cue` anchor phrase (or an explicit `at` 0..1 fraction)
   appears at the moment its region is spoken — resolved via `cues` (edge word-times, else text-position
   estimate) — and holds to the clip end (a vanishing highlight reads as a glitch); untimed callouts
@@ -122,7 +117,7 @@ TTS if the user gives an API key.
 - `scripts/cues.py` — pure anchor→cue-time resolver: reads per-scene `audio/NN.words.json` (edge-tts per-word timings) and resolves each `data-cue` anchor phrase to an absolute timestamp, used by `render_html` for audio-synced HTML reveals.
 - `scripts/check_av.py <out_dir>` — deterministic A/V gate: probes `out.mp4` video-vs-audio duration + per-clip sample-rate uniformity across `.clips/`; exits non-zero on A/V drift above tolerance (0.3 s) or non-uniform rates. Run AFTER the full render (step 9) as a gate before delivery.
 - `scripts/doctor.py [--json]` — environment preflight: reports which tools/libraries are present (ffmpeg/ffprobe/PIL required; PyMuPDF/python-pptx/edge-tts/soffice/Chrome/font optional) and, for each missing one, the stage it gates + the install hint. Exits non-zero only when a REQUIRED dep is missing. Run once at the START (step 1).
-- `scripts/validate.py <out_dir> [--pre-tts] [--vertical] [--json]` — deterministic PRE-render gate on `storyboard.json` (runs in ~1s): structural contract, duplicate indices, every referenced image/audio/html-page/`file://` asset + `theme.css` exists on disk, caption craft (no wall of text, no widow, ≥0.7s on screen — see `references/captions.md`), motion sanity (zoom delta + zoom-past-1.25 + callout-framing — see `references/motion-grammar.md`), per-point reveal↔voice alignment (each point spoken-% vs shown-% → leads/lags warning, cued or paced), a **hardcoded-hex lint** (WARN on a raw `#hex` in a `style=`/SVG-`fill`/`<style>` color — pages must use semantic vars), a **figure-traceability lint** (WARN on a statistic — a `%`/`×` — spoken or shown that isn't a number in `brief.json` evidence, i.e. likely invented downstream; the content-critic R0 is the semantic judge that FAILs a confirmed fabrication, incl. a stat laundered into a real-`source_ref` evidence detail), CJK-font/cue/pacing/anti-slop warnings. Exits non-zero on any ERROR. Run BEFORE every render (step 9); `--pre-tts` validates right after authoring (skips audio checks); `--vertical` mirrors render's 9:16 canvas (also auto from `meta.aspect`). Errors block; warnings don't.
+- `scripts/validate.py <out_dir> [--pre-tts] [--vertical] [--json]` — deterministic PRE-render gate on `storyboard.json` (runs in ~1s): structural contract, duplicate indices, every referenced image/audio/html-page/`file://` asset + `theme.css` exists on disk, caption craft (no wall of text, no widow, ≥0.7s on screen — see `references/captions.md`), motion sanity (zoom delta + zoom-past-1.25 + callout-framing — see `references/motion-grammar.md`), per-point reveal↔voice alignment (each point spoken-% vs shown-% → leads/lags warning, cued or paced), a **hardcoded-hex lint** (WARN on a raw `#hex` in a `style=`/SVG-`fill`/`<style>` color — pages must use semantic vars), CJK-font/cue/pacing/anti-slop warnings. Exits non-zero on any ERROR. Run BEFORE every render (step 9); `--pre-tts` validates right after authoring (skips audio checks); `--vertical` mirrors render's 9:16 canvas (also auto from `meta.aspect`). Errors block; warnings don't.
 - `scripts/rhythm_qa.py <out_dir> [--json]` — deterministic PRE-render VIDEO-RHYTHM gate: the
   video-native complement to the layout-diversity gate. Reads `storyboard.json` (real `duration`s after
   tts, else estimates from narration) and flags flat pacing — durations too uniform (monotone), a climax
@@ -145,41 +140,19 @@ TTS if the user gives an API key.
 - `scripts/keyframe_qa.py <out_dir> [--p N] [--json]` — cheap PRE-render VISUAL QA for the HTML tier:
   screenshots every `html` page at N `?p=` values, montages per-scene + a master contact sheet under
   `<out_dir>/_keyframes/` (open `all.png` to eyeball tofu / off-theme / mistimed reveals), and — via
-  CDP DOM measurement — flags any BLANK page (a reveal that never fired), content OVERFLOWING the
-  1920×1080 canvas (full-bleed backdrops are correctly ignored), or an EARLY-POP reveal (any
-  `.reveal*` element already visible at `p=0`, before anything should be — a decorative class or inline
-  style leaked a base `opacity` past the reveal's `opacity:0`, so it paints before its cue and breaks
-  step-by-step top-to-bottom order; dim via `filter:opacity()`/a translucent color instead), and
-  advises (non-blocking) on any CENTERED multi-line running paragraph (body text should be left-aligned
-  to scan; display/diagram classes are excluded) and, on a 9:16 deck, on any page filling <60% of the
-  vertical zone (the "fill the column" rule — heroes with a full-bleed `.bg-photo` are exempt). Exits
-  non-zero on a blank/overflow/early-pop (advisories don't block). Run after
+  CDP DOM measurement — flags any BLANK page (a reveal that never fired) or content OVERFLOWING the
+  1920×1080 canvas (full-bleed backdrops are correctly ignored), and advises (non-blocking) on any
+  CENTERED multi-line running paragraph (body text should be left-aligned to scan; display/diagram
+  classes are excluded) and, on a 9:16 deck, on any page filling <60% of the vertical zone (the
+  "fill the column" rule — heroes with a full-bleed `.bg-photo` are exempt). Exits non-zero on a
+  blank/overflow (advisories don't block). Run after
   authoring the pages, BEFORE the full render — a ~1-minute catch of the exact failures that would
   otherwise silently ship in a multi-minute render. (No CDP → screenshots + blank-check only.)
 - `scripts/scenes.py` — deterministic ANIMATED scene renderers (no slides): `title`/`keypoints`
-  (PIL), `chart`/`timeline`/`compare` (matplotlib), `html` (headless Chrome), `kinetic` (headless
-  Chrome). A storyboard scene with `type` `title`/`keypoints`/`chart`/`timeline`/`compare`/`html`/`kinetic`
-  (+ a typed `props` block) renders an animation instead of a slide image; `type` defaults to `slide`
-  (unchanged). Animated scenes render ONLY their `props`/narration (faithful by construction).
-  **BEYOND-SLIDES MOTION ARCHETYPES** (`kinetic`/`system`/`morph`/`conceptmap`/`scroll`) — HTML-native
-  FILM scenes where the content lives in a SPACE/SYSTEM and a **camera + clock narrate it**, instead of a
-  slide sequence. All share ONE master-clock primitive: a timeline-driven page captured EVERY frame,
-  each element carrying a single full-timeline animation frozen by `seek.js` at `?p=` — so they stay
-  deterministic/seekable/cache-safe/A/V-gated, and captions auto-suppress (each carries its own
-  on-screen text). **Reach for one when a beat's SHAPE has a better motion metaphor than "show a slide"
-  — not for everything (a deck that's all camera-films is as monotone as all slides):**
-  - **`kinetic`** — a short punchy LINE (thesis/turn/payoff): the narration renders as living type, each
-    word igniting as spoken (edge-tts word-times), the live word flaring in `--accent`. `props.text`/
-    `emphasis`. See `references/kinetic-typography.md`.
-  - **`system`** — a PROCESS/pipeline/mechanism/architecture: a token flows through `props.stations`,
-    each lighting as it arrives, then a `caption` lands. Show it RUNNING.
-  - **`morph`** — a TRANSFORMATION / before→after / hero opener: one shape morphs dot→bar→card→deck, no
-    cuts (`props.labels`). Continuity beats a cut.
-  - **`conceptmap`** — an OVERVIEW relating several ideas: a `hub` wired to `nodes` the camera flies
-    between, then pulls back to the whole constellation (auto-layout if no `x`/`y`).
-  - **`scroll`** — a vertical (9:16) STORY: the camera glides DOWN one tall canvas, each `props.sections`
-    beat igniting as it centers.
-  See **`references/motion-archetypes.md`** for the which-archetype-for-which-content decision table. **Theme-aware palette:** the
+  (PIL), `chart`/`timeline`/`compare` (matplotlib), `html` (headless Chrome). A storyboard scene
+  with `type` `title`/`keypoints`/`chart`/`timeline`/`compare`/`html` (+ a typed `props` block)
+  renders an animation instead of a slide image; `type` defaults to `slide` (unchanged). Animated
+  scenes render ONLY their `props` (faithful by construction). **Theme-aware palette:** the
   programmatic renderers read the SAME `theme.css` semantic vars the HTML tier uses (via `meta._out`),
   so charts/titles/timelines match a light-or-dark deck instead of always rendering dark — one color
   world across both tiers; falls back to the dark palette when no `theme.css`. **Type contrast:**
@@ -719,7 +692,7 @@ The full-AI escape hatch (`image_source:"openai"` with data as AI) is the user's
 | step 1 `doctor.py` reports a REQUIRED dep missing (ffmpeg/ffprobe/PIL) | Install it (e.g. `brew install ffmpeg`, `pip install pillow`) before proceeding | Optional gaps (edge-tts/soffice/Chrome) only narrow the tiers — adjust the interview, don't block |
 | step 9 gate fails: `validate.py` exits non-zero before render | Read each ERROR (missing image/audio/page/`file://` asset, duplicate index, absent `theme.css`) → fix in `storyboard.json` / regenerate the missing asset (run `theme.py`/`imagegen.py`/`tts.py`) | Re-run `python scripts/validate.py <out_dir>` until exit 0 before calling `render.py` |
 | step 9 gate fails: `check_av.py` exits non-zero after full render | Read the issue (A/V drift / non-uniform clip rates) → fix the cause (clear `.clips/`, regenerate audio with ONE engine, re-render) | Re-run `python scripts/check_av.py <out_dir>` until exit 0 before delivering `out.mp4` |
-| `keyframe_qa.py` exits non-zero (BLANK page / canvas overflow / early pop) | Open `_keyframes/scene_NN.png` — BLANK → the reveal never fired (broken page / cue never resolves); OVERFLOW → shorten the text or split the beat; EARLY POP → a reveal element is visible at `p=0` (a class/inline style set the `opacity` property the reveal owns) — dim via `filter:opacity()`/translucent color so it stays hidden until its cue | Re-run until exit 0; the centered-paragraph advisory never blocks |
+| `keyframe_qa.py` exits non-zero (BLANK page / canvas overflow) | Open `_keyframes/scene_NN.png` — BLANK → the reveal never fired (broken page / cue never resolves); OVERFLOW → shorten the text or split the beat | Re-run until exit 0; the centered-paragraph advisory never blocks |
 | Timed callout appears at the wrong moment / never appears | Check validate.py's cue warnings — the `cue` must be a phrase the narration says (with a non-edge voice the time is a text-position estimate); `at` ≥ 1.0 puts it exactly at clip end (invisible) | Set an explicit `at` fraction, or drop `cue`/`at` for a whole-slide highlight |
 | Reduced-motion render flagged as static / tools still assume zoom | Set `meta.reduced_motion: true` in the storyboard (the CLI flag isn't persisted) and STATE the mode when dispatching critic-av — static frames are correct there, not a defect | validate.py skips its zoom warnings when the meta flag is set |
 | Slide "shivers"/jitters during the zoom | zoompan runs supersampled (`meta.motion_ss`, default 2) then downscales; a `scale` filter must precede zoompan or the frame shrinks. Keep ss≥2 | Raise `motion_ss` to 3 (smoother, slower) |

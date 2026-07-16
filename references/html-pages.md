@@ -55,40 +55,17 @@ floors to ADAPT, not fixed slots; the plain archetype snippets above are for sim
 - Stagger by giving later elements an inline positive delay: `style="animation-delay:.18s"`.
 - ONLY use CSS animations via these classes. **No** `setTimeout`/JS-driven motion, **no** external
   network assets (images/fonts/CDNs) — they break deterministic, offline, seekable capture.
-- **Reveal in reading order — always top-to-bottom, left-to-right.** Components appear step by step;
-  a lower/later element must never fire before one above/before it. Give each element a
-  `data-cue-index` in DOM/reading order (spoken order), and lay the DOM out in that same order.
-  A **connector** (a rail/arrow/line that joins two nodes) carries the class `connector` and borrows
-  the **LATER** node's `data-cue-index`, so the line draws *after* both endpoints exist — never before.
-- ⚠️ **`opacity` is the reveal's channel — nothing else may set the `opacity` PROPERTY on a reveal
-  element.** The reveal classes hide the element via `opacity:0`; ANY same-or-higher-priority rule that
-  also sets `opacity` (an inline `opacity:.92`, OR a decorative CLASS like a dim/tint) overrides that
-  `0`, so the element is PAINTED before its cue/delay ever fires — an "early pop" that breaks
-  top-to-bottom order (it shipped as a real bug: `.defocus` and `.hs-connect` each set a base
-  `opacity` that leaked past the reveal). To dim/tint a reveal element, put the transparency in a
-  channel the reveal does NOT own:
-  - **color/background:** `color:color-mix(in srgb,var(--on-accent) 92%,transparent)` (or a
-    `color-mix(... N%,transparent)` background for a rule/bar).
-  - **the filter pipeline:** `filter:opacity(.74)` — it multiplies AFTER the reveal, so at
-    `opacity:0` the element is still fully hidden, and once revealed it lands dimmed. This is exactly
-    how `.defocus` now dims.
-  `keyframe_qa` measures every reveal element at `p=0` and FAILS the gate on any that are already
-  visible (the early-pop check) — so a re-introduced `opacity`-property leak is caught before render.
+- ⚠️ **NEVER put an inline `opacity` on a reveal element.** The reveal classes hide the element via
+  `opacity:0` in the CLASS; an inline `opacity:.92` overrides that, so the element is VISIBLE before
+  its cue/delay ever fires (content leads the voice — it shipped as a real bug). To dim a reveal
+  element, put the transparency in the COLOR instead:
+  `color:color-mix(in srgb,var(--on-accent) 92%,transparent)`.
 
 ## Faithfulness (required)
 Every number, name, date, and claim on the page must come from the material (or a verified
 source) — type the real data into the HTML. Never invent figures or labels. Data lives on the
 page as real text/bars, not as a decorative picture. The critic checks the page against the
-narration (R2 audio↔visual) and the facts (R0/R1d/R1e).
-
-**No invented statistic — not even as an illustration.** A concrete figure (a `%`, a ratio, a count
-presented as a measured rate) must TRACE to the source, not merely avoid contradicting it. A punchy
-made-up number ("the industry's number: **43%**" → "traced to source: **12%**") is fabrication even
-when its only job is to dramatize the point. If you want to evoke a fake number, either go qualitative
-("a confident figure no page supports") or mark it UNMISTAKABLY hypothetical on the page and in the
-voice ("imagine a deck prints 43% — nobody checked it") — never as a real rate. `validate.py` WARNs on
-a page/narration statistic that isn't in `brief.json` evidence; the content-critic (R0) FAILs a
-confirmed fabrication, including a number laundered into a real-`source_ref` evidence detail.
+narration (R2 audio↔visual) and the facts (R1d/R1e).
 
 ## Example (a faithful breakdown page)
 ```html
@@ -382,8 +359,6 @@ instead. `validate.py` counts the families and warns when one dominates; `design
 - **`.card`** — a panel with depth (`--surface` + shadow + hairline); group related rows. **`.card.glass`** over a soft backdrop.
 - **`.dash`** (3-up) / **`.grid-asym`** (2fr 1fr) — dashboard + asymmetric layouts; break the centred-column monotony.
 - **`.defocus`** — on a comparison, add to the NON-focal side for depth-of-field (subtle blur, not flat dim).
-  Dims entirely through the `filter` pipeline (`filter:...opacity(.74)`), so it is safe to combine with
-  a `.reveal*` class — it never touches the `opacity` property the reveal owns (no early pop).
 - **`.accent-fill`** — on `<body>` of a section-divider beat: full-bleed accent background, `--on-accent` text.
 - **`.reveal-pop`** — spring overshoot for a hero `.stat`/`.num`. **`.reveal-up-sm`** — shorter rise for dense sub-items.
 - **`.reveal-wipe`** — a left-to-right mask reveal (clip-path). ONLY for elements whose meaning is
@@ -435,15 +410,6 @@ The most common defect is **content appearing well before the narration reaches 
   cue slot via `seek.js`, so nothing new is scraped and the render is unchanged. A static connector
   among cued blocks paints from frame 0, before the blocks — **`validate.py` errors on it.** (The
   single `.timeline::before` rail is a CSS backdrop, not a per-step connector, so it stays static.)
-  - **A connector shares the ALIGNMENT of the blocks it joins.** A vertical `↓`/arrow between STACKED
-    blocks must sit on the same horizontal axis as the content it connects — over **left-aligned**
-    editorial content (labels/numbers/notes anchored at the left) the connector is **left-aligned** (or
-    nudged under the anchor it descends from), NOT `text-align:center`, which floats the glyph to the
-    COLUMN centre while the numbers sit at the left — a visible misalignment. Centre a vertical
-    connector only when the blocks it joins are themselves centred (full-width `.card`s, a centred
-    `.flow`). The canonical `.flow .arrow` uses `align-self:center` between FULL-WIDTH cards, so it's
-    already aligned; a **bespoke** left-aligned stack is where a stray `text-align:center` connector
-    creeps in. (`keyframe_qa` flags a centre-aligned connector amid left-aligned stack siblings.)
   - **Bespoke SVG lines/arcs/chevrons in a diagram follow the SAME rule — mark them `.connector`.** A
     hand-drawn `<path>`/`<polyline>` that connects or points between cued nodes must (a) carry a
     reveal/`.draw` animation + `data-cue-index` = the cue of the line it belongs to (borrow, no
@@ -472,16 +438,12 @@ The design system is 1920×1080; a 9:16 deck (`meta.aspect:"9:16"`) needs pages 
 - **Canvas override:** `html,body{width:1080px;height:1920px}` + resize `.bg-photo`/`.bg-soft` to
   match; on a cover hero flip `.scrim` to a vertical gradient (`180deg`, dark at top).
 - **Top-anchored composition** (NOT the landscape vertical-centering): content opens at ONE
-  consistent line ~150px from the top and reserves the bottom for the caption:
-  `.stage{padding:150px 84px 190px;justify-content:flex-start}`. **Captions are the flush BAND by
-  default** — an IN-canvas strip in the bottom ~164px of the true 1080×1920 frame (it does NOT grow the
-  canvas; see `SKILL.md` `meta.caption_mode`). So keep meaningful content ABOVE ~y1756 (reserve the
-  bottom ~180–190px); the flush strip continues the ground colour seamlessly through it. Don't push a
-  content line INTO that strip — it gets covered by the fill.
+  consistent line ~160px from the top (`.stage{padding:160px 84px 320px;justify-content:flex-start}`)
+  and the caption band owns the bottom ~270px — don't center content into it.
 - **FILL the column — the cardinal 9:16 rule.** Landscape content ported 1:1 fills ~40% of the
-  tall canvas and reads as a mistake. Target: content spans **≥70% of the zone above the caption
-  strip** (~y150–1756). Measure it, don't eyeball it — `keyframe_qa.py` reports each page's fill% on a
-  9:16 deck and advises below 60% (heroes with a full-bleed `.bg-photo` exempt); tune until every page clears.
+  tall canvas and reads as a mistake. Target: content spans **≥70% of the zone between the top
+  line and the caption band** (~y160–1600). Measure it, don't eyeball it — `keyframe_qa.py` reports each page's fill% on a 9:16 deck and
+  advises below 60% (heroes with a full-bleed `.bg-photo` exempt); tune until every page clears.
   Two levers: (a) **phone-first type scale** — title ~92px, labels ~44px, sub ~42px, notes ~32px,
   blocks ~250px min-height, segbar ~120px, icon tiles ~88px (the 64–70px "desktop" scale is what
   leaves the dead zone); (b) **distribute along the height** — tall row gaps (~34px), padded
