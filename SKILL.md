@@ -195,7 +195,12 @@ TTS if the user gives an API key.
    button. Ask the **core screen (Batch 1) always**; fire Batches 2–3 **only when a prior answer
    triggers them**. A common free/default run finishes in the single Batch-1 screen.
 
-   **Batch 1 — core intent + essentials (ask every run; up to 4 questions in one call):**
+   **Batch 1 — core intent + essentials (ask every run; 5 core questions).** `AskUserQuestion`
+   shows ≤4 buttons/call, so fire Batch 1 as **two calls: screen A = ①–④, screen B = ⑤ Voice**.
+   **No-deck (make-from-scratch) runs — capture the topic FIRST:** if the user has a deck
+   (pptx/pdf/images) SKIP this (the deck IS the topic); with **no** input deck, before screen A ask a
+   plain prompt (not buttons) for the **topic + goal/takeaway** — it becomes the source the
+   content-planner + design-director build the deck from (with the grounding material below).
    - **① Purpose** *(→ `arc_kind` + the planner's tone/audience `director_note`)* — what the video
      is for, and roughly who watches. Menu: **Teach/explain** (expository) · **Pitch/persuade**
      (narrative) · **How-to/walkthrough** (howto → expository) · **Research briefing** (reference →
@@ -203,20 +208,13 @@ TTS if the user gives an API key.
      narrative). Every Purpose maps to an `arc_kind` (narrative = builds to a payoff; expository =
      even-weight walkthrough) — never leave it undefined. (Other → another goal, or a specific
      audience/register note the planner should honour.)
-   - **② Language** *(→ `meta.language`; the voice ENGINE defaults to edge-tts, `meta.voice:"auto"`)* —
-     **ALWAYS ask this explicitly; never silently default the language.** The language the narration
-     AND captions are written in (it drives the caption font + the default TTS voice). Menu: **Match
-     the slides** (auto-detect the deck's language — the safe default) · **English** (`en`) · **中文**
-     (`zh`) · plus **any BCP-47 via Other** (`ja`/`ko`/`es`/`fr`/`de`/… — or a *cross-language*
-     voiceover where the narration language ≠ the slide language). Set `meta.language` to the resolved
-     code (never leave it `"auto"` at render). **Voice engine** (spelled out here so it stays
-     discoverable, but NOT its own button — it defaults sensibly): **edge-tts** is the default
-     (natural, free, needs network, accent-matched; the ONLY engine that emits per-word timings for
-     word-exact caption/reveal sync). Pick **Other → change the voice** to switch to **macOS `say`**
-     (offline, robotic fallback), **MiniMax** (paid, most natural, esp. Chinese), or **OpenAI** (paid,
-     premium) — or to set an accent/gender. State the tradeoff aloud: only edge-tts gives per-word
-     timings, so say/MiniMax/OpenAI HTML reveals use the text-position estimate (tracks the voice's
-     pacing, not word-exact). Choosing a cloud engine (MiniMax/OpenAI) then triggers Batch 2.
+   - **② Language** *(→ `meta.language`)* — **ALWAYS ask this explicitly; never silently default the
+     language.** The language the narration AND captions are written in (it drives the caption font +
+     the default TTS voice). Menu: **Match the slides** (auto-detect the deck's language — the safe
+     default) · **English** (`en`) · **中文** (`zh`) · plus **any BCP-47 via Other** (`ja`/`ko`/`es`/
+     `fr`/`de`/… — or a *cross-language* voiceover where the narration language ≠ the slide language).
+     Set `meta.language` to the resolved code (never leave it `"auto"` at render). The narration
+     **voice engine** is the separate question **⑤** below.
    - **③ Look / template — and whether to use the image generator** *(→ `meta.image_source` + the
      per-beat scene tier)* — the deck's visual world. **This question IS the explicit
      image-generation decision:** the two "free" tiers use **NO** image generator
@@ -255,14 +253,21 @@ TTS if the user gives an API key.
      into beat count (**beats ≈ target_seconds/4**, with per-beat `est_seconds` summed to the target)
      and the design-director reads to scale hero/climax cadence — so it SUBSUMES the old per-slide
      pace ask (a per-slide ceiling, if ever wanted, is just `target_seconds / beats`).
+   - **⑤ Voice engine** *(→ `meta.voice`; its own screen B, since screen A already holds 4 buttons)* —
+     the narration engine. Menu: **edge-tts** (free **default**, natural, needs network, accent-matched;
+     the ONLY engine that emits per-word timings for word-exact caption/reveal sync) · **MiniMax**
+     (paid, most natural, esp. **Chinese**; needs a key) · **OpenAI** (paid, premium neural; needs a
+     key) · **macOS `say`** (offline, robotic fallback). (Other → an accent or gender preference.)
+     State the tradeoff aloud: only edge-tts gives per-word timings, so say/MiniMax/OpenAI HTML reveals
+     use the text-position estimate (tracks the voice's pacing, not word-exact). A cloud engine
+     (MiniMax/OpenAI) then triggers **Batch 2** (key setup out-of-band + a voice-sample pick).
    - **+ Grounding material** *(a plain prompt, NOT a selectable question — it doesn't fit 2–4
      options)*: ask for **source material to ground the narration** — the paper PDF, the code repo,
      a report or notes. Slides alone rarely say enough to narrate *well* (this is what step 3
      depends on). If they have none, tell them you'll **web-research the topic** (the latest, as of
      today) to ground and fact-check the script instead.
 
-   **Batch 2 — cloud-voice setup (ONLY if Batch 1 ②'s voice engine = MiniMax or OpenAI, chosen via
-   "Other → change the voice").** First get the API key
+   **Batch 2 — cloud-voice setup (ONLY if Batch 1 ⑤ Voice engine = MiniMax or OpenAI).** First get the API key
    **OUT OF BAND** — have them `export MINIMAX_API_KEY=…` / `export OPENAI_API_KEY=…` in their own
    shell (they can type `! export …` in this session) or put it in `~/.minimax_key` /
    `~/.openai_key`. Do **NOT** ask them to paste it into chat; if they paste it anyway, warn it lands
