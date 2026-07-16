@@ -203,22 +203,33 @@ TTS if the user gives an API key.
      narrative). Every Purpose maps to an `arc_kind` (narrative = builds to a payoff; expository =
      even-weight walkthrough) — never leave it undefined. (Other → another goal, or a specific
      audience/register note the planner should honour.)
-   - **② Voice & language** *(→ `meta.voice`; `meta.language` defaults to the slides' detected
-     language)* — the narration engine. Menu: **Auto neural — edge-tts** (natural, free, needs
-     network; accent-matched female; the ONLY engine that emits per-word timings for word-exact
-     caption/reveal sync) · **Offline — macOS `say`** (no network, robotic fallback) · **MiniMax
-     cloud** (most natural, esp. Chinese; paid, needs a key) · **OpenAI cloud** (premium neural;
-     needs a key). (Other → a DIFFERENT narration language than the slides [cross-language
-     voiceover], a specific BCP-47 code, an accent, or a gender preference.) State the tradeoff
-     aloud: only edge-tts gives per-word timings, so MiniMax/OpenAI/say HTML reveals use the
-     text-position estimate (tracks the voice's pacing, not word-exact).
-   - **③ Look / template** *(→ `meta.image_source` + the per-beat scene tier)* — the deck's visual
-     world. Menu (4 tiers): **Flat/clean** — theme's flat programmatic surfaces, free, no API
-     (`image_source:none`, the default) · **AI cover + soft bg** — a generated full-bleed cover +
-     on-topic textures behind pages at low opacity, paid (`image_source:openai`) · **Designed HTML
-     deck** — bespoke full-screen pages rendered by headless Chrome, free, needs Chrome (per-beat
-     `type:"html"`) · **HTML + AI backdrops** — designed HTML pages WITH generated soft backgrounds
-     behind glass cards, paid. (Other → a mix of tiers, or a brand/theme/CSS to match.) **Real
+   - **② Language** *(→ `meta.language`; the voice ENGINE defaults to edge-tts, `meta.voice:"auto"`)* —
+     **ALWAYS ask this explicitly; never silently default the language.** The language the narration
+     AND captions are written in (it drives the caption font + the default TTS voice). Menu: **Match
+     the slides** (auto-detect the deck's language — the safe default) · **English** (`en`) · **中文**
+     (`zh`) · plus **any BCP-47 via Other** (`ja`/`ko`/`es`/`fr`/`de`/… — or a *cross-language*
+     voiceover where the narration language ≠ the slide language). Set `meta.language` to the resolved
+     code (never leave it `"auto"` at render). **Voice engine** (spelled out here so it stays
+     discoverable, but NOT its own button — it defaults sensibly): **edge-tts** is the default
+     (natural, free, needs network, accent-matched; the ONLY engine that emits per-word timings for
+     word-exact caption/reveal sync). Pick **Other → change the voice** to switch to **macOS `say`**
+     (offline, robotic fallback), **MiniMax** (paid, most natural, esp. Chinese), or **OpenAI** (paid,
+     premium) — or to set an accent/gender. State the tradeoff aloud: only edge-tts gives per-word
+     timings, so say/MiniMax/OpenAI HTML reveals use the text-position estimate (tracks the voice's
+     pacing, not word-exact). Choosing a cloud engine (MiniMax/OpenAI) then triggers Batch 2.
+   - **③ Look / template — and whether to use the image generator** *(→ `meta.image_source` + the
+     per-beat scene tier)* — the deck's visual world. **This question IS the explicit
+     image-generation decision:** the two "free" tiers use **NO** image generator
+     (`image_source:none`); the two "AI" tiers turn on the OpenAI `gpt-image-2` generator
+     (`image_source:openai`, **paid** — Batch 3 then confirms the spend). Make that free-vs-paid split
+     visible in every option label; never enable image generation without the user picking an AI tier
+     here. Menu (4 tiers): **Flat/clean — FREE, no AI images** — theme's flat programmatic surfaces, no
+     API (`image_source:none`, the default) · **Designed HTML deck — FREE, no AI images** — bespoke
+     full-screen pages rendered by headless Chrome, needs Chrome (per-beat `type:"html"`) · **AI cover
+     + soft bg — PAID, uses image generation** — a generated full-bleed cover + on-topic textures
+     behind pages at low opacity (`image_source:openai`) · **HTML + AI backdrops — PAID, uses image
+     generation** — designed HTML pages WITH generated soft backgrounds behind glass cards
+     (`image_source:openai`). (Other → a mix of tiers, or a brand/theme/CSS to match.) **Real
      (documentary) images — FREE, no API:** independently of the tier above, for a **CONCRETE** topic
      (a city, place, real system/product/organism/event) the design-director may pull REAL license-clean
      photos/maps/diagrams from Wikimedia Commons (`scripts/imagefetch.py`) to DEMONSTRATE the subject
@@ -250,7 +261,8 @@ TTS if the user gives an API key.
      depends on). If they have none, tell them you'll **web-research the topic** (the latest, as of
      today) to ground and fact-check the script instead.
 
-   **Batch 2 — cloud-voice setup (ONLY if Batch 1 ② = MiniMax or OpenAI).** First get the API key
+   **Batch 2 — cloud-voice setup (ONLY if Batch 1 ②'s voice engine = MiniMax or OpenAI, chosen via
+   "Other → change the voice").** First get the API key
    **OUT OF BAND** — have them `export MINIMAX_API_KEY=…` / `export OPENAI_API_KEY=…` in their own
    shell (they can type `! export …` in this session) or put it in `~/.minimax_key` /
    `~/.openai_key`. Do **NOT** ask them to paste it into chat; if they paste it anyway, warn it lands
