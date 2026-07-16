@@ -34,12 +34,12 @@ is **always** written either way, so viewers can still turn on soft subtitles.
 
 `meta.caption_mode` controls WHERE the burned caption sits:
 
-- **`"overlay"` (default):** a **theme-coloured** bar is burned at the **very bottom** of the
-  W×H content. Its ground is the deck's own `--bg` (via `_caption_band_colors`) with contrast-picked
-  `--fg` text and a contrast-picked karaoke word, so it **blends with the frame on ANY theme** — not a
-  fixed black strip (which floated as a dark block in a light 9:16 deck's empty bottom zone) — and it sits
-  flush to the bottom edge rather than 6% up. The tradeoff: content that reaches the bottom
-  ~15% of the frame can sit *under* the caption. Authors must keep content clear of that
+- **`"overlay"` (default):** **NO background bar** — the caption text is burned flush at the **very
+  bottom** of the W×H content in the deck's `--fg` ink with a subtle **opposite-luminance outline** (drawn
+  per glyph), and the karaoke word is contrast-picked vs the frame's own `--bg`. A flat strip — even a
+  theme-coloured one — reads as a heavy block, so there is none; the outline keeps the text legible over
+  ANY ground (empty frame, a tint, a photo) on any theme + aspect. The tradeoff: content that reaches the
+  bottom ~15% of the frame can sit *under* the caption. Authors must keep content clear of that
   zone (heroes/airy beats are fine; a dense bottom-anchored beat can collide). This applies to BOTH
   aspects; a top-anchored 9:16 deck (bottom zone empty) reads it as the frame's own footer.
 - **`"band"`:** the caption is drawn in a **dedicated strip BELOW the content**, so it

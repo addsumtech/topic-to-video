@@ -140,11 +140,10 @@ def _caption_font_px(W, H, band=False, meta=None):
     return max(12, int(min(W, H) * 0.045 * scale))
 
 def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None, band_bg=None):
-    """Burn a centered caption. `band==0` (default 'overlay'): a THEME-COLOURED bar at the very bottom of
-    the W×H content — its ground is the deck's own `--bg` (via `_caption_band_colors`) with contrast-picked
-    `--fg` text, so it BLENDS with the frame on any theme instead of a fixed black strip (which floated as a
-    dark block in a light 9:16 deck's empty bottom zone); the karaoke word is contrast-picked vs that ground
-    too. `band>0` ('band' mode): the text is drawn centered in a dedicated
+    """Burn a centered caption. `band==0` (default 'overlay'): NO background bar — the text sits at the very
+    BOTTOM of the W×H content in the deck's `--fg` ink with a subtle opposite-luminance OUTLINE, so it reads
+    over any ground (empty frame, a tint, a photo) on any theme + aspect without a heavy/ugly strip; the
+    karaoke word is contrast-picked vs the frame's own `--bg`. `band>0` ('band' mode): the text is drawn centered in a dedicated
     strip BELOW the content — the region [H, H+band] on a W×(H+band) layer — so it never overlaps the
     slide (the strip's solid background is added by the render's `pad` filter; here we draw only the text
     in the deck's --bg colour over it). If `hl_word` is given, that word takes the karaoke colour —
@@ -166,19 +165,26 @@ def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None,
         bbg = tuple(band_bg) if band_bg else _ffhex_rgb(_caption_band_colors(meta)[0])
         hl_col = _karaoke_hl_rgb(out, bbg, base[:3])
         y0 = H + max(pad, (band - block_h) // 2)
-    else:                                       # overlay bar — THEME-AWARE: reads as THIS deck's own frame
-        out = (meta or {}).get("_out", ".")     # (was a hardcoded black bar + white text — wrong on a LIGHT deck,
-        band_hex, txt_rgb = _caption_band_colors(meta)   # and it floats as a dark strip in a 9:16 empty bottom zone)
-        bbg = _ffhex_rgb(band_hex)              # 'flush' default: the deck --bg ground + --fg ink text (7:1)
-        base = tuple(txt_rgb) + (255,)
-        hl_col = _karaoke_hl_rgb(out, bbg, base[:3])      # spoken word contrast-picked vs the band ground
-        y0 = H - int(H * 0.022) - block_h        # sit near the very BOTTOM (was 6% up — left a gap on 9:16)
-        d.rectangle([0, y0 - pad, W, H], fill=bbg + (235,))   # theme-bg strip down to the frame's bottom edge
+        halo = None                             # the band has its own solid strip — no per-glyph outline needed
+    else:                                       # overlay — NO background bar (a flat bar reads heavy/ugly, and a
+        out = (meta or {}).get("_out", ".")     # theme strip still shows as a block). Draw the caption at the very
+        fg = _theme_rgb(out, "--fg", (17, 17, 17))      # BOTTOM in the theme ink with a subtle contrast OUTLINE so it
+        bg = _theme_rgb(out, "--bg", (244, 243, 238))   # stays legible over ANY ground (empty frame / tint / photo),
+        base = tuple(fg) + (255,)               # on any theme + aspect — no bar.
+        hl_col = _karaoke_hl_rgb(out, bg, base[:3])     # spoken word contrasts the frame's OWN ground
+        halo = (245, 244, 240, 200) if _rel_lum(fg) < 0.45 else (12, 12, 12, 210)   # opposite-luminance outline
+        y0 = H - int(H * 0.02) - block_h        # flush to the very bottom edge
     y = y0 + pad
+    def _put(xy, s, fill):                      # a caption line/word, with a thin outline when there's no bar
+        if halo:
+            ox, oy = xy
+            for dx, dy in ((-2, -2), (-2, 2), (2, -2), (2, 2), (-2, 0), (2, 0), (0, -2), (0, 2)):
+                d.text((ox + dx, oy + dy), s, font=font, fill=halo)
+        d.text(xy, s, font=font, fill=fill)
     if hl_word is None:
         for ln in lines:
             w = d.textlength(ln, font=font)
-            d.text(((W - w) / 2, y), ln, font=font, fill=base)
+            _put(((W - w) / 2, y), ln, base)
             y += line_h
         return
     # word-aware: draw each wrapped line word-by-word, colouring the global hl_word index
@@ -190,7 +196,7 @@ def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None,
         x = (W - lw) / 2
         for w in words:
             col = hl_col if gi == hl_word else base
-            d.text((x, y), w, font=font, fill=col)
+            _put((x, y), w, col)
             x += d.textlength(w, font=font) + space
             gi += 1
         y += line_h
