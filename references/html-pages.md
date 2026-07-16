@@ -453,6 +453,11 @@ The design system is 1920×1080; a 9:16 deck (`meta.aspect:"9:16"`) needs pages 
   `.timeline` → a **vertical rail** (`flex-direction:column`, rail on the left, node rows beside it);
   `.hs-spokes` gets `width:calc(50% - gap/2)` so it wraps a CLEAN 2×2 (auto widths wrap 1-1-2 at
   phone scale). A squeezed landscape layout reads as a crop, not a design.
+- **Vertical `.flow`/`.stepper` connectors point DOWN, not sideways.** When a horizontal flow stacks
+  into a column, its `.arrow`/rail must read top→bottom. Author the glyph as **`↓`** (`&#8595;`), and in
+  the 9:16 override **do NOT `transform:rotate(90deg)` an authored `↓`** — that yields a sideways `←`
+  (a shipped bug). The robust form forces it regardless of the authored glyph:
+  `.flow .arrow{transform:none;font-size:0}  .flow .arrow::after{content:"\2193";font-size:52px;color:var(--rule)}`.
 - **Research / technical forms — the WIDTH-bound ones need real care in a 1080 column** (they're sized
   for a 1920 row): a `.code` block (`algorithm_build`) must drop to **≤ ~40-char lines** (validate's
   vertical lint enforces this) and a smaller font (~30px) — split or wrap a long line, don't let it

@@ -140,8 +140,11 @@ def _caption_font_px(W, H, band=False, meta=None):
     return max(12, int(min(W, H) * 0.045 * scale))
 
 def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None, band_bg=None):
-    """Burn a centered caption. `band==0` (default 'overlay'): a semi-transparent bar near the bottom of
-    the W×H content (classic burn-in). `band>0` ('band' mode): the text is drawn centered in a dedicated
+    """Burn a centered caption. `band==0` (default 'overlay'): a THEME-COLOURED bar at the very bottom of
+    the W×H content — its ground is the deck's own `--bg` (via `_caption_band_colors`) with contrast-picked
+    `--fg` text, so it BLENDS with the frame on any theme instead of a fixed black strip (which floated as a
+    dark block in a light 9:16 deck's empty bottom zone); the karaoke word is contrast-picked vs that ground
+    too. `band>0` ('band' mode): the text is drawn centered in a dedicated
     strip BELOW the content — the region [H, H+band] on a W×(H+band) layer — so it never overlaps the
     slide (the strip's solid background is added by the render's `pad` filter; here we draw only the text
     in the deck's --bg colour over it). If `hl_word` is given, that word takes the karaoke colour —
@@ -163,11 +166,14 @@ def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None,
         bbg = tuple(band_bg) if band_bg else _ffhex_rgb(_caption_band_colors(meta)[0])
         hl_col = _karaoke_hl_rgb(out, bbg, base[:3])
         y0 = H + max(pad, (band - block_h) // 2)
-    else:                                       # classic overlay bar with a scrim over the bottom of the content
-        base = (255, 255, 255, 255)
-        hl_col = KARAOKE_HL
-        y0 = H - int(H * 0.06) - block_h
-        d.rectangle([0, y0, W, y0 + block_h], fill=(0, 0, 0, 140))
+    else:                                       # overlay bar — THEME-AWARE: reads as THIS deck's own frame
+        out = (meta or {}).get("_out", ".")     # (was a hardcoded black bar + white text — wrong on a LIGHT deck,
+        band_hex, txt_rgb = _caption_band_colors(meta)   # and it floats as a dark strip in a 9:16 empty bottom zone)
+        bbg = _ffhex_rgb(band_hex)              # 'flush' default: the deck --bg ground + --fg ink text (7:1)
+        base = tuple(txt_rgb) + (255,)
+        hl_col = _karaoke_hl_rgb(out, bbg, base[:3])      # spoken word contrast-picked vs the band ground
+        y0 = H - int(H * 0.022) - block_h        # sit near the very BOTTOM (was 6% up — left a gap on 9:16)
+        d.rectangle([0, y0 - pad, W, H], fill=bbg + (235,))   # theme-bg strip down to the frame's bottom edge
     y = y0 + pad
     if hl_word is None:
         for ln in lines:

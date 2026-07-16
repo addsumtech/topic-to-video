@@ -34,10 +34,14 @@ is **always** written either way, so viewers can still turn on soft subtitles.
 
 `meta.caption_mode` controls WHERE the burned caption sits:
 
-- **`"overlay"` (default):** the semi-transparent bar is burned over the bottom of the
-  W×H content (classic social-video look). The tradeoff: content that reaches the bottom
+- **`"overlay"` (default):** a **theme-coloured** bar is burned at the **very bottom** of the
+  W×H content. Its ground is the deck's own `--bg` (via `_caption_band_colors`) with contrast-picked
+  `--fg` text and a contrast-picked karaoke word, so it **blends with the frame on ANY theme** — not a
+  fixed black strip (which floated as a dark block in a light 9:16 deck's empty bottom zone) — and it sits
+  flush to the bottom edge rather than 6% up. The tradeoff: content that reaches the bottom
   ~15% of the frame can sit *under* the caption. Authors must keep content clear of that
-  zone (heroes/airy beats are fine; a dense bottom-anchored beat can collide).
+  zone (heroes/airy beats are fine; a dense bottom-anchored beat can collide). This applies to BOTH
+  aspects; a top-anchored 9:16 deck (bottom zone empty) reads it as the frame's own footer.
 - **`"band"`:** the caption is drawn in a **dedicated strip BELOW the content**, so it
   **never overlaps the slide**. The output canvas grows to `W×(H+band)` (a ~138 px strip at
   1080p → 1920×1218). By default (`meta.caption_band` = `"flush"`) the strip **samples each scene's own

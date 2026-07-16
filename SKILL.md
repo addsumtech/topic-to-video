@@ -69,8 +69,11 @@ TTS if the user gives an API key.
   (`auto` default | `off`). The highlight colour is **contrast-picked per scene** against the caption band's
   ground (prefers `--accent`, else `--accent2`/gold/high-contrast b/w) AND kept distinct from the
   neighbouring words — so the spoken word never vanishes into an accent-fill / same-colour band.
-  **Caption placement — `meta.caption_mode`:** `overlay` (default) burns the semi-transparent bar over
-  the bottom of the content (content must stay clear of the bottom ~15%); `band` draws the caption in a
+  **Caption placement — `meta.caption_mode`:** `overlay` (default) burns a **theme-coloured** bar at the
+  very bottom of the content — its ground is the deck's own `--bg` with contrast-picked `--fg` text (and a
+  contrast-picked karaoke word), so it **blends with the frame on ANY theme** and sits close to the bottom
+  edge (not a fixed black strip, which floated as a dark block in a light 9:16 deck's empty bottom zone);
+  content must stay clear of the bottom ~15%. `band` draws the caption in a
   dedicated strip BELOW the content so it NEVER overlaps the slide — the canvas grows to `W×(H+~138px)`
   (1920×1218 at 1080p). `meta.caption_band` picks the strip's look: `flush` (default) SAMPLES each
   scene's own bottom-edge colour and continues it (seamless on off-white, a tint, a red accent-fill, or a
