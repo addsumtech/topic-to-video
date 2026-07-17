@@ -289,7 +289,7 @@ def test_chrome_shot_builds_command(tmp_path, monkeypatch):
     assert f"--screenshot={tmp_path / 'o.png'}" in cmd
     assert cmd[-1] == "file:///p.html?p=0.5"
     assert "--user-data-dir" not in " ".join(cmd)   # explicit profile hangs vs a running Chrome
-    assert cap["kw"].get("check") is True and cap["kw"].get("timeout") == 90
+    assert cap["kw"].get("check") is True and cap["kw"].get("timeout") == 60   # retries once on a hang
 
 def test_chrome_shot_no_chrome_raises(monkeypatch):
     monkeypatch.setattr(scenes, "_chrome_bin", lambda meta: None)
