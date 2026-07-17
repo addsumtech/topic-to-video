@@ -85,9 +85,11 @@ def _canvas(meta, vertical):
         return 1080, 1920
     return meta.get("width", 1920), meta.get("height", 1080)
 
-def _fit_frame(src, dst, W, H, fit="contain"):
+def _fit_frame(src, dst, W, H, fit="contain", bg_rgb=(0, 0, 0)):
     """Scale a slide image onto a WxH canvas. contain = letterbox (default); cover = scale to
-    fill then center-crop (full-frame, for AI b-roll)."""
+    fill then center-crop (full-frame, for AI b-roll). The letterbox is filled with `bg_rgb` — pass
+    the deck's --bg so a bar-free caption in the letterbox keeps its ≥7:1 --fg contrast (a pure-black
+    letterbox made a light-theme caption invisible) and the scene-edge dip matches the bands."""
     im = Image.open(src).convert("RGB")
     if fit == "cover":
         scale = max(W / im.width, H / im.height)
@@ -97,7 +99,7 @@ def _fit_frame(src, dst, W, H, fit="contain"):
         im.crop((left, top, left + W, top + H)).save(dst)
         return
     im.thumbnail((W, H), Image.LANCZOS)
-    bg = Image.new("RGB", (W, H), (0, 0, 0))
+    bg = Image.new("RGB", (W, H), tuple(bg_rgb))
     bg.paste(im, ((W - im.width) // 2, (H - im.height) // 2))
     bg.save(dst)
 
@@ -166,13 +168,16 @@ def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None,
         hl_col = _karaoke_hl_rgb(out, bbg, base[:3])
         y0 = H + max(pad, (band - block_h) // 2)
         halo = None                             # the band has its own solid strip — no per-glyph outline needed
-    else:                                       # overlay — NO background bar (a flat bar reads heavy/ugly, and a
-        out = (meta or {}).get("_out", ".")     # theme strip still shows as a block). Draw the caption at the very
-        fg = _theme_rgb(out, "--fg", (17, 17, 17))      # BOTTOM in the theme ink with a subtle contrast OUTLINE so it
-        bg = _theme_rgb(out, "--bg", (244, 243, 238))   # stays legible over ANY ground (empty frame / tint / photo),
-        base = tuple(fg) + (255,)               # on any theme + aspect — no bar.
-        hl_col = _karaoke_hl_rgb(out, bg, base[:3])     # spoken word contrasts the frame's OWN ground
-        halo = (245, 244, 240, 200) if _rel_lum(fg) < 0.45 else (12, 12, 12, 210)   # opposite-luminance outline
+    else:                                       # overlay — NO background bar. Draw the caption at the very BOTTOM in
+        out = (meta or {}).get("_out", ".")     # an ink that CONTRASTS the REAL ground (sampled into band_bg by the
+        fg = _theme_rgb(out, "--fg", (17, 17, 17))      # caller), with a subtle opposite-luminance OUTLINE — legible
+        bg = _theme_rgb(out, "--bg", (244, 243, 238))   # over any ground (empty frame / tint / photo / letterbox).
+        ground = tuple(band_bg) if band_bg is not None else bg   # the pixels actually under the caption
+        # keep the deck ink when it reads on that ground; else flip to --bg or pure b/w by MAX real contrast
+        base = tuple(max((fg, bg, (17, 17, 17), (245, 244, 240)),
+                         key=lambda c: _wcag_contrast(c, ground))) + (255,)
+        hl_col = _karaoke_hl_rgb(out, ground, base[:3])          # spoken word contrasts the SAME real ground
+        halo = (245, 244, 240, 220) if _rel_lum(base[:3]) < 0.45 else (12, 12, 12, 225)   # outline = opposite of TEXT
         y0 = H - int(H * 0.02) - block_h        # flush to the very bottom edge
     y = y0 + pad
     def _put(xy, s, fill):                      # a caption line/word, with a thin outline when there's no bar
@@ -532,6 +537,19 @@ def _sample_strip_color(frame_path):
     except Exception:
         return None
 
+def _sample_region_color(frame_path, top_frac=0.80):
+    """Median colour of a content frame's BOTTOM region (where the bar-free OVERLAY caption sits) — so
+    the caption can contrast-pick its ink + outline + karaoke against the REAL ground (a photo, a tint,
+    a --bg letterbox) instead of assuming the flat theme bg. Median shrugs off local detail. None if
+    unreadable (the caller then falls back to the theme --fg/--bg)."""
+    try:
+        im = Image.open(frame_path).convert("RGB")
+        y = max(0, min(im.height - 1, int(im.height * top_frac)))
+        px = sorted(im.crop((0, y, im.width, im.height)).getdata(), key=_rel_lum)
+        return px[len(px) // 2]
+    except Exception:
+        return None
+
 def _caption_band_fill(meta, content_frame=None):
     """(strip bg 0xRRGGBB, text rgb) for band mode. 'contrast' or no frame -> the flat fallback above.
     Default 'flush' SAMPLES this scene's bottom-edge colour (content_frame) so the strip continues the
@@ -691,7 +709,8 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
         band_bg = _ffhex_rgb(bg)                        # the strip ground, for the highlight-contrast pick
         parts.append(f"[{vlabel}]pad={W}:{H + band}:0:0:color={bg}[vpad]"); vlabel = "vpad"
         _add_caption_overlays()
-    else:                                              # classic burn-in bar, then fade the whole frame
+    else:                                              # overlay (no bar): sample the ground UNDER the caption so its
+        band_bg = _sample_region_color(pattern % 0)    # ink/outline/karaoke adapt to a photo/tint/letterbox
         _add_caption_overlays()
         if fade:
             parts.append(f"[{vlabel}]{fade}[vfade]"); vlabel = "vfade"
@@ -724,7 +743,8 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
     if (slide.get("image_prompt") or "").strip() and not slide.get("image"):
         raise sb.StoryboardError(f"slide {i}: image_prompt set but image not generated — run imagegen.py first")
     frame = os.path.join(workdir, f"fit_{i:02d}.png")
-    _fit_frame(os.path.join(meta["_out"], slide["image"]), frame, W, H, slide.get("fit", "contain"))
+    _fit_frame(os.path.join(meta["_out"], slide["image"]), frame, W, H, slide.get("fit", "contain"),
+               bg_rgb=_theme_rgb(meta.get("_out", "."), "--bg", (13, 17, 23)))
     fps = meta.get("fps", 30)
     dur = slide["duration"]
     frames = max(1, int(round(dur * fps)))
@@ -796,7 +816,8 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
         band_bg = _ffhex_rgb(bg)                        # the strip ground, for the highlight-contrast pick
         parts.append(f"[{vlabel}]pad={W}:{H + band}:0:0:color={bg}[vpad]"); vlabel = "vpad"
         _cap_overlays()
-    else:                                              # classic burn-in bar, then fade the whole frame
+    else:                                              # overlay (no bar): sample the ground UNDER the caption so its
+        band_bg = _sample_region_color(frame)          # ink/outline/karaoke adapt to a photo/tint/--bg letterbox
         _cap_overlays()
         if fade:
             parts.append(f"[{vlabel}]{fade}[vfade]"); vlabel = "vfade"
