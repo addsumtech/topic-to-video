@@ -212,10 +212,20 @@ def _edge_tts_available():
         return False
 
 
-# A STATISTIC form on a slide (a percentage or an N× multiplier) — the shape a fabricated "confident
-# number" most often takes. A plain count ("5 agents") is usually structural, so it's NOT matched (it
-# would be noisy); percentages/multipliers are high-signal and rarely coincidental.
-_STAT_RE = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)\s?(%|×)")
+# A STATISTIC form on a slide — the shapes a fabricated "confident number" most often takes: a percent,
+# an ×/x multiplier, currency, "percent"/"pct", "-fold", or a magnitude suffix (k/M/B/million/…). A plain
+# bare count ("5 agents", "3 steps") is usually structural, so it's deliberately NOT matched (too noisy);
+# these UNIT-BEARING forms are high-signal and rarely coincidental. Each alternative captures the numeric
+# VALUE in its own group; _figure_traceability takes whichever group matched.
+_STAT_RE = re.compile(
+    r"(?<![\w.])(?:"
+    r"(\d+(?:\.\d+)?)\s?[%×]"                                                   # 50%   3×
+    r"|(\d+(?:\.\d+)?)\s?[xX](?![\w])"                                          # 3x    (not 'matrix')
+    r"|[$€£¥]\s?(\d+(?:\.\d+)?)"                                                # $4.2
+    r"|(\d+(?:\.\d+)?)\s?(?:percent|pct)\b"                                     # 50 percent
+    r"|(\d+(?:\.\d+)?)-fold\b"                                                  # 2.3-fold
+    r"|(\d+(?:\.\d+)?)\s?(?:k|K|M|B|bn|billion|million|trillion|thousand)\b"    # 4.2M  3 billion
+    r")", re.I)
 
 
 def _brief_numbers(out_dir):
@@ -265,8 +275,9 @@ def _figure_traceability(slides, out_dir, warnings):
         seen = set()
         for txt in texts:
             for m in _STAT_RE.finditer(txt or ""):
-                stat, val = m.group(0).strip(), m.group(1)
-                if val in nums or stat in seen:
+                stat = m.group(0).strip()
+                val = next((g for g in m.groups() if g is not None), None)   # numeric value across the alternation
+                if val is None or val in nums or stat in seen:
                     continue
                 seen.add(stat)
                 warnings.append(f"scene {idx}: figure '{stat}' isn't in brief.json evidence — every statistic "

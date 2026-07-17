@@ -9,7 +9,23 @@ No third-party deps: a tiny WebSocket client (RFC 6455 handshake + framing) over
 Everything here is best-effort — callers MUST catch `CDPUnavailable` and fall back to the
 `--screenshot` path, so a missing/old/edge-case Chrome never breaks a render.
 """
-import socket, base64, os, json, struct, subprocess, re, time, threading
+import socket, base64, os, json, struct, subprocess, re, time, threading, atexit
+
+# Every launched headless Chrome is tracked here and KILLED on interpreter exit, so a render that
+# crashes / is interrupted before close() can't leave a stale Chrome behind. (A pile of orphaned
+# headless Chromes accumulating across render attempts starved CDP and forced the slow --screenshot
+# fallback, which then timed out and crashed a full render — this reaper prevents the accumulation.)
+_LIVE_PROCS = set()
+
+def _reap_live():
+    for p in list(_LIVE_PROCS):
+        try:
+            p.kill()
+        except Exception:
+            pass
+    _LIVE_PROCS.clear()
+
+atexit.register(_reap_live)
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
@@ -92,15 +108,27 @@ class Chrome:
         self.quality = quality
         self.timeout = timeout
         self._id = 0
+        self.ws = None
         self.proc = subprocess.Popen(
             [chrome_bin, "--headless=new", "--disable-gpu", "--hide-scrollbars", "--no-sandbox",
              "--remote-debugging-port=0", f"--window-size={W},{H}", "about:blank"],
             stderr=subprocess.PIPE, stdout=subprocess.DEVNULL)
-        host, port, path = self._read_endpoint()
-        self.ws = _WS(host, port, path, timeout)
-        tgt = self._cmd("Target.createTarget", {"url": "about:blank"})["result"]["targetId"]
-        self.sid = self._cmd("Target.attachToTarget", {"targetId": tgt, "flatten": True})["result"]["sessionId"]
-        self._cmd("Page.enable", {}, self.sid)
+        _LIVE_PROCS.add(self.proc)                  # track for the atexit reaper the moment it exists
+        try:
+            host, port, path = self._read_endpoint()
+            self.ws = _WS(host, port, path, timeout)
+            tgt = self._cmd("Target.createTarget", {"url": "about:blank"})["result"]["targetId"]
+            self.sid = self._cmd("Target.attachToTarget", {"targetId": tgt, "flatten": True})["result"]["sessionId"]
+            self._cmd("Page.enable", {}, self.sid)
+        except Exception:
+            self.close()                            # a FAILED init must not leak the just-spawned Chrome
+            raise
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
 
     def _read_endpoint(self):
         # Chrome prints "DevTools listening on ws://127.0.0.1:PORT/devtools/browser/GUID" to stderr.
@@ -158,7 +186,10 @@ class Chrome:
 
     def close(self):
         try:
-            self.ws.close()
+            if self.ws is not None:
+                self.ws.close()
+        except Exception:
+            pass
         finally:
             try:
                 self.proc.terminate()
@@ -168,6 +199,7 @@ class Chrome:
                     self.proc.kill()
                 except Exception:
                     pass
+            _LIVE_PROCS.discard(self.proc)          # reaped explicitly — drop from the atexit set
 
 
 def capture(shots, copies, workdir, index, W, H, meta, label, chrome_bin, workers, progress):

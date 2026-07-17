@@ -39,9 +39,17 @@ def _chrome_shot(url, out_png, W, H, meta):
     chrome = _chrome_bin(meta)
     if not chrome:
         raise RuntimeError("no Chrome/Chromium for the HTML tier — install Chrome or set meta.chrome_path")
-    subprocess.run([chrome, "--headless", "--disable-gpu", "--hide-scrollbars", "--no-sandbox",
-                    f"--window-size={W},{H}", f"--screenshot={out_png}", url],
-                   check=True, capture_output=True, timeout=90)
+    cmd = [chrome, "--headless", "--disable-gpu", "--hide-scrollbars", "--no-sandbox",
+           f"--window-size={W},{H}", f"--screenshot={out_png}", url]
+    # Retry ONCE on a hang: a single frame that stalls under load must not crash a multi-scene render
+    # (subprocess.run kills the timed-out Chrome, so a retry starts clean). 60s is generous for one page.
+    for attempt in (1, 2):
+        try:
+            subprocess.run(cmd, check=True, capture_output=True, timeout=60)
+            return
+        except subprocess.TimeoutExpired:
+            if attempt == 2:
+                raise
 
 def _capture_frames(shots, copies, workdir, index, W, H, meta, label):
     """Materialise a scene's frame sequence and return the ffmpeg frame PATTERN.

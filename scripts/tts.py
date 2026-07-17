@@ -344,6 +344,8 @@ def synthesize(out_dir, only=None):
         if note:
             print(note)
 
+    fell_back = []        # indices that dropped to the say fallback (a cloud/edge failure)
+    used_primary = []     # indices that actually used the requested non-say provider
     for s in data["slides"]:
         if only is not None and s["index"] != only:
             continue
@@ -361,6 +363,7 @@ def synthesize(out_dir, only=None):
             s["audio"] = rel
             s["duration"] = round(max(1.0, _common.audio_duration(dest)), 3)
             continue
+        ok_primary = False
         try:
             if prov == "openai":
                 _openai(text, dest, name)
@@ -370,6 +373,7 @@ def synthesize(out_dir, only=None):
                 _minimax(text, dest, name, data["meta"])
             else:
                 _say(text, dest, name)
+            ok_primary = prov != "say"
         except Exception as e:
             # Fall back to the LANGUAGE-MATCHED say voice — not a hardcoded English one,
             # or a non-English project (e.g. zh) would get garbled English audio.
@@ -378,9 +382,12 @@ def synthesize(out_dir, only=None):
             rel = os.path.join("audio", f"{s['index']:02d}.aiff")
             dest = os.path.join(out_dir, rel)
             _say(text, dest, fb)
+            fell_back.append(s["index"])
             wj = os.path.join(out_dir, "audio", f"{s['index']:02d}.words.json")
             if os.path.exists(wj):
                 os.remove(wj)   # drop stale per-word timings — say has none; a leftover would mis-cue render_html
+        if ok_primary:
+            used_primary.append(s["index"])
         s["audio"] = rel
         s["duration"] = round(_common.audio_duration(dest), 3)
         # Only edge-tts emits per-word timings. For any other provider (say/openai/minimax) drop a
@@ -390,6 +397,20 @@ def synthesize(out_dir, only=None):
             wj = os.path.join(audio_dir, f"{s['index']:02d}.words.json")
             if os.path.exists(wj):
                 os.remove(wj)
+
+    # MIXED-VOICE guard: a cloud/edge run that fell back to `say` on SOME (not all) scenes ships an
+    # INCONSISTENT narration voice (and mixed sample rates the render must normalize). This happens on a
+    # systemic mid-run failure (MiniMax 1008 insufficient-balance, an expired key, a network outage) that
+    # succeeds early then fails for the rest. It used to ship silently — surface it LOUDLY + actionably.
+    if only is None and prov != "say" and fell_back and used_primary:
+        print(f"[tts] ⚠️  MIXED-VOICE RUN — {len(used_primary)} scene(s) used {prov}, "
+              f"{len(fell_back)} fell back to say (indices {fell_back}). The narration voice is "
+              f"INCONSISTENT across the deck. Fix {prov} (e.g. top up MiniMax balance / check the key / "
+              f"network) and re-run `tts.py`, OR set meta.voice to 'edge:<id>' (free, consistent) or "
+              f"'say:<voice>' so every scene uses ONE engine. Do NOT ship this as-is.")
+        data["meta"]["_tts_mixed_voice"] = {"provider": prov, "fell_back": fell_back}
+    elif data["meta"].pop("_tts_mixed_voice", None):
+        pass   # a clean re-run clears a prior mixed-voice flag
 
     sb.save(data, path)
     return data
