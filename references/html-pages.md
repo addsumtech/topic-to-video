@@ -369,6 +369,30 @@ instead. `validate.py` counts the families and warns when one dominates; `design
   1–2 uses per video — an option, not a default.
 - **`.chrome`** — a mono SECTION-LABEL rail (direct child of `<body>`); reuse the section/topic name across beats as a quiet editorial through-line. **NOT a page number / progress bar / counter** (that's the banned player-chrome — a video has nothing to navigate). ⚠️ **Use it ONLY when `meta.captions:false`:** the rail sits at `bottom:56px`, inside the burned caption band (bottom ~8% of the canvas) — with captions ON (the default) they collide, text under text. `validate.py` warns on this; the page's top kicker already labels the section, so with captions just drop `.chrome`.
 
+## Component motion — re-enact the data (opt-in, seek-safe)
+Beyond the entrance reveals, a small vocabulary animates the ENCODING inside a data archetype so the
+motion RE-ENACTS the fact. Each is paused (seek.js freezes it at `?p=`), deterministic, its final frame
+= the static render, and reduced-motion collapses it to the end-state. Use ONE per component, carry
+`data-cue-index` to fire on the spoken word, never over a living backdrop. All OPT-IN — omit and the
+component is exactly as today.
+- **`.grow-w` / `.grow-h`** — a solid fill GROWS from the baseline to its authored size (magnitude).
+  For `.meter .fill` / `.segbar .seg` / `.bullet .val` / a solid `.bar`; a LABELLED bar distorts under
+  scale, so fade its label with `.reveal` or sweep it with `.reveal-wipe` instead. `.grow-h` (origin
+  bottom) for a vertical `.waterfall .wbar`.
+- **`.rail-fill`** — a `.stepper`/`.timeline` rail segment FILLS forward toward the node it leads into
+  (progress). Author the rail as a real child element; give each segment the cue of the step it leads to.
+- **`.draw-down`** — a vertical connector EXTENDS from source toward destination (flow direction; the
+  non-SVG cousin of `.draw`). Borrows the destination block's `data-cue-index`.
+- **`.settle`** — the focal cell/row/node SETTLES in LAST from just-below full size (never `scale(0)`),
+  paired with its static `.on` ring. "This is the one."
+- **`.cross-dim`** — the NON-focal side of a comparison DIMS (to .42, still legible) as the focal side is
+  named. Pairs with `.defocus` / `rtable tr.win` / `.cell.on`.
+- **`.count-up`** — a pure-CSS COUNT for a value that genuinely accumulates (a total/score). Author
+  `<span class="count-up num" style="--count-to:87"></span>` (+ a sibling `.unit` for %/×). Never a
+  static label. (Chrome `@property`; modern headless supports it.)
+- **`.gauge.sweep`** — the `.gauge` arc SWEEPS to its `--p` fraction (radial magnitude). Add `.sweep`
+  to a `.gauge`; the hole/value stay put.
+
 ## Reveal timing — points must NOT lead the voice (important)
 The most common defect is **content appearing well before the narration reaches it**. Avoid it:
 - **Multi-point content pages MUST be audio-synced with `data-cue`** (see "Audio-synced reveals"

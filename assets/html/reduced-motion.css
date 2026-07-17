@@ -34,3 +34,28 @@
   clip-path: none !important;
   opacity: 0;
 }
+
+/* MEANING-BEARING COMPONENT MOTION → each collapses to its static END-STATE (no transform/grow/sweep):
+   a grown bar is shown full, a rail filled, a connector extended, a swept gauge at its fraction, a
+   counter at its final value. .settle keeps the opacity fade-in (no scale); .cross-dim keeps its dimmed
+   end (the dim is information, not vestibular motion). */
+.grow-w, .grow-h, .rail-fill, .draw-down {
+  animation: none !important;
+  transform: none !important;                    /* scaleX/Y(1) resting = the authored full size */
+}
+.settle {
+  animation-name: fade !important;
+  transform: none !important;
+}
+.cross-dim {
+  animation: none !important;
+  opacity: .42 !important;                        /* keep the de-emphasis end-state (still legible) */
+}
+.count-up {
+  animation: none !important;
+  --count-n: var(--count-to, 0) !important;       /* jump straight to the final value */
+}
+.gauge.sweep {
+  animation: none !important;
+  --pdeg: calc(var(--p) * 360deg) !important;     /* show the full arc at its fraction */
+}

@@ -413,3 +413,52 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 .meter .fill{
   font-family:var(--font-number,var(--font-display,inherit));
   font-variant-numeric:tabular-nums lining-nums;font-feature-settings:"lnum" 1,"tnum" 1}
+
+/* ══ MEANING-BEARING COMPONENT MOTION ═══════════════════════════════════════════════════════════
+   Beyond the entrance reveals (.reveal*/.draw), these animate the ENCODING inside a data archetype so
+   the motion RE-ENACTS the fact (a bar grows = magnitude, a rail fills = progress, a counter ticks =
+   accumulation, a focal cell settles = "this is the one"). Every one is: paused (seek.js freezes it at
+   ?p=), deterministic (a pure function of progress — no JS/wall-clock), and its FINAL frame is
+   byte-identical to the static render, so the clean deck is the resting state. reduced-motion.css maps
+   each to its end-state instantly. Use ONE meaningful motion per component; carry data-cue-index to fire
+   on the spoken word; never stack a second continuous motion over a living backdrop. All OPT-IN. */
+
+/* magnitude: a fill GROWS from the baseline to its authored size (solid fills only — a labelled bar
+   distorts under scale, so fade its label with .reveal instead, or use .reveal-wipe to sweep it). */
+.grow-w{transform-origin:left center;animation:grow-w var(--dur) var(--ease-expo) forwards;animation-play-state:paused}
+@keyframes grow-w{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.grow-h{transform-origin:bottom center;animation:grow-h var(--dur) var(--ease-expo) forwards;animation-play-state:paused}
+@keyframes grow-h{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+/* progress: a stepper/timeline rail segment FILLS forward toward the node it leads into (reuses grow-w;
+   author the rail as a real child .rail element and give each segment the cue of the step it leads to). */
+.rail-fill{transform-origin:left center;animation:grow-w var(--dur) var(--ease-expo) forwards;animation-play-state:paused}
+/* flow direction: a vertical connector EXTENDS from source toward destination (the non-SVG cousin of
+   .draw; for an SVG path use .draw + pathLength="1"). Borrows the destination block's data-cue-index. */
+.draw-down{transform-origin:top center;animation:grow-h var(--dur) var(--ease-expo) forwards;animation-play-state:paused}
+
+/* emphasis: the focal cell/row/node SETTLES in last, from just-below full size (never scale(0) — a
+   0.96 start reads as a considered landing, not a pop). Pair with the element's static .on ring. */
+.settle{opacity:0;transform:scale(.96);animation:settle var(--dur) var(--ease-over) forwards;animation-play-state:paused}
+@keyframes settle{to{opacity:1;transform:none}}
+
+/* comparison: the NON-focal side DIMS as the focal side is named (opacity-only, stays >=.4 = still
+   legible; pairs with .defocus / rtable tr.win / .cell.on). */
+.cross-dim{animation:cross-dim var(--dur) ease forwards;animation-play-state:paused}
+@keyframes cross-dim{from{opacity:1}to{opacity:.42}}
+
+/* accumulation: a pure-CSS COUNT-UP for a value that genuinely accumulates (a total/score — never a
+   static label). Registered <integer> prop interpolates by computed value, so seek.js captures a real
+   intermediate count. Author: <span class="count-up num" style="--count-to:87"></span> (+ an optional
+   sibling .unit for %/×). Modern Chrome (render uses --headless=new) supports @property; reduced-motion
+   jumps to the final value. */
+@property --count-n{syntax:"<integer>";inherits:false;initial-value:0}
+.count-up{counter-reset:cn var(--count-n);animation:count-up var(--dur-slow) var(--ease-expo) forwards;animation-play-state:paused}
+.count-up::after{content:counter(cn)}
+@keyframes count-up{from{--count-n:0}to{--count-n:var(--count-to,0)}}
+
+/* radial magnitude: the .gauge arc SWEEPS to its fraction (registered <angle>, deterministic). Add
+   .sweep to a .gauge; the hole/value stay put. */
+@property --pdeg{syntax:"<angle>";inherits:false;initial-value:0deg}
+.gauge.sweep{background:conic-gradient(var(--accent) var(--pdeg),var(--surface) 0);
+  animation:gauge-sweep var(--dur) var(--ease-expo) forwards;animation-play-state:paused}
+@keyframes gauge-sweep{to{--pdeg:calc(var(--p)*360deg)}}
