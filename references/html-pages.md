@@ -12,13 +12,15 @@ progress `p=0..1`; `seek.js` freezes its CSS reveals so the entrance animates th
 <link rel="stylesheet" href="file:///ABS/OUT_DIR/theme.css">
 <!-- motifs.css is in the skill assets dir -->
 <link rel="stylesheet" href="file:///ABS/PATH/TO/skill/assets/html/motifs.css">
+<!-- 9:16 ONLY: link the shipped vertical override LAST (see "9:16 vertical pages") -->
+<link rel="stylesheet" href="file:///ABS/PATH/TO/skill/assets/html/vertical.css">
 </head>
 <body>
   <div class="stage"><!-- your layout --></div>
   <script src="file:///ABS/PATH/TO/skill/assets/html/seek.js"></script>
 </body></html>
 ```
-Use absolute `file://` paths. Order: `base.css` → `theme.css` (from `<out_dir>`) → `motifs.css` (from `assets/html/`).
+Use absolute `file://` paths. Order: `base.css` → `theme.css` (from `<out_dir>`) → `motifs.css` → **(9:16 only) `vertical.css`** (all from `assets/html/`). On a 16:9 deck, DROP the `vertical.css` line.
 
 ## Form selection — choose the form the CONTENT wants (do NOT default to a card grid)
 **Design is choosing, not matching.** A `.card`/`.row` grid is the right answer ONLY for **parallel,
@@ -432,11 +434,17 @@ The most common defect is **content appearing well before the narration reaches 
 ONE primary per page (a stat OR a list OR a chart — not two stacked). Content must not fill more than
 ~60% of the canvas; if a row grid overflows below 960px, SPLIT the beat — never shrink `.stage` padding below 80px.
 
-## 9:16 vertical pages (1080×1920) — author a VERTICAL layout, don't crop
-The design system is 1920×1080; a 9:16 deck (`meta.aspect:"9:16"`) needs pages re-authored at
-1080×1920 via an override `<style>` block linked LAST. Rules learned in production:
-- **Canvas override:** `html,body{width:1080px;height:1920px}` + resize `.bg-photo`/`.bg-soft` to
-  match; on a cover hero flip `.scrim` to a vertical gradient (`180deg`, dark at top).
+## 9:16 vertical pages (1080×1920) — LINK `vertical.css`, don't hand-crop
+The design system is 1920×1080; a 9:16 deck (`meta.aspect:"9:16"`) just links the **shipped canonical
+override `assets/html/vertical.css` LAST** (base.css → theme.css → motifs.css → **vertical.css**). It
+restacks EVERY archetype to a 1080 column, top-anchors the stage, applies the phone-first type scale,
+**forces `.flow`/`.stepper` connectors DOWN** (so a rotated `↓`→`←` bug is impossible), and rescales the
+width-bound (`.code`/`.eqn`/`.rtable`) + fixed-height (`.quadrant`/`.venn`/`.rings`/`.waterfall`/`.gauge`)
+forms so they fill the tall column. A per-page `<style>` is then only for a genuine EXCEPTION, not the
+baseline. What it already handles (so you don't re-author it):
+- **Canvas + backdrops:** `html,body`+`.stage` → 1080×1920 top-anchored; `.bg-photo`/`.bg-soft` are now
+  aspect-correct by default (motifs.css sizes them 100%); on a cover hero add `class="scrim vert"` for the
+  vertical gradient (dark at top).
 - **Top-anchored composition** (NOT the landscape vertical-centering): content opens at ONE
   consistent line ~160px from the top (`.stage{padding:160px 84px 320px;justify-content:flex-start}`)
   and the caption band owns the bottom ~270px — don't center content into it.

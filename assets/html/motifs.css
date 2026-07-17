@@ -55,7 +55,7 @@
   -webkit-background-clip:text;background-clip:text;color:transparent}
 
 /* image backdrop: a hero <img class="bg-photo"> + .scrim darkens it for legible text */
-.bg-photo{position:absolute;inset:0;z-index:0;width:1920px;height:1080px;object-fit:cover}
+.bg-photo{position:absolute;inset:0;z-index:0;width:100%;height:100%;object-fit:cover}  /* inset:0 + 100% = aspect-correct in 16:9 AND 9:16 (was a hardcoded 1920×1080 that mis-sized a vertical deck) */
 /* scrim darkens the LEFT ~40% only (photo stays visible right). Keep hero text/captions in the left half. */
 .scrim{position:absolute;inset:0;z-index:0;pointer-events:none;
   background:linear-gradient(90deg, var(--scrim) 0%, color-mix(in srgb,var(--scrim) 55%,transparent) 42%, transparent 82%)}
@@ -100,7 +100,7 @@ img.kenburns{animation:mt-kenburns 6s ease-out forwards;animation-play-state:pau
    Place <img class="bg-soft"> as the FIRST child of <body> (z-index:0); add .bg-soft-tint right
    after it so the image never fights the palette. Tune presence with inline opacity:
    middle/content pages ~.12–.18 (default), atmospheric opener/closer ends ~.34–.46. */
-.bg-soft{position:absolute;inset:0;z-index:0;width:1920px;height:1080px;object-fit:cover;
+.bg-soft{position:absolute;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;  /* aspect-correct in both (was hardcoded 1920×1080) */
   opacity:.16;filter:saturate(.92)}
 .bg-soft-tint{position:absolute;inset:0;z-index:0;pointer-events:none;
   background:radial-gradient(ellipse at 50% 45%, color-mix(in srgb,var(--bg) 38%,transparent) 0%,

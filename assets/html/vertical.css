@@ -1,0 +1,99 @@
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   9:16 VERTICAL (1080×1920) — the canonical shipped override. Link it LAST, after theme.css:
+     base.css → theme.css → motifs.css → vertical.css
+   base.css/motifs.css size everything for the 1920×1080 landscape stage; a 9:16 deck (meta.aspect
+   "9:16") re-authors NOTHING by hand — this file restacks the archetypes to a 1080 column, top-anchors
+   the stage, applies a phone-first type scale, forces vertical connectors DOWN, and rescales the
+   width-bound + fixed-height forms so they fill the tall column. A per-page <style> is then only for a
+   genuine exception, not the baseline. (Everything here is a plain override — no @media — because the
+   render viewport IS 1080×1920 for a 9:16 deck.)
+   ══════════════════════════════════════════════════════════════════════════════════════════ */
+
+html, body { width: 1080px; height: 1920px; }
+
+/* top-anchored: content opens ~150px from the top; the burned caption owns the bottom ~300px */
+.stage { width: 1080px; height: 1920px; padding: 150px 80px 300px; justify-content: flex-start; gap: 40px; }
+
+/* full-bleed backdrops fill the tall canvas (motifs.css now sizes them 100%, so this is a belt-and-braces) */
+.bg-photo, .bg-soft { width: 100%; height: 100%; }
+/* cover hero: a vertical scrim (dark at top) for a top-anchored title over a photo */
+.scrim.vert { background: linear-gradient(180deg,
+  color-mix(in srgb, var(--scrim) 82%, transparent) 0%,
+  color-mix(in srgb, var(--scrim) 30%, transparent) 42%,
+  color-mix(in srgb, var(--scrim) 68%, transparent) 100%); }
+
+/* ── phone-first type scale (the 64–70px desktop scale leaves a dead column) ── */
+.kicker { font-size: 34px; letter-spacing: .14em; }
+.rule { height: 6px; width: 120px; }
+.title { font-size: 92px; line-height: 1.07; }
+.sub { font-size: 42px; line-height: 1.42; }
+.note { font-size: 32px; }
+.label { font-size: 46px; }
+.row { font-size: 46px; gap: 26px; }
+.dot { width: 20px; height: 20px; }
+.pullquote { font-size: 66px; line-height: 1.22; padding-left: 66px; }
+.pullquote::before { font-size: 168px; top: -34px; left: -4px; }
+.pullquote cite { font-size: 34px; margin-top: 30px; line-height: 1.35; }
+.stat { font-size: 176px; }
+.unit { font-size: 52px; }
+
+/* ── restacks — multi-column forms collapse to ONE column ── */
+.split { display: flex; flex-direction: column; width: auto; height: auto; padding: 0; gap: 34px; align-items: stretch; }
+.split .media { height: 520px; }
+.grid-asym { grid-template-columns: 1fr; gap: 30px; }
+.dash { grid-template-columns: 1fr; gap: 26px; }
+.scorecard { grid-template-columns: 1fr; gap: 26px; }
+.blocks.two, .blocks.three { grid-template-columns: 1fr; gap: 22px; }
+.block { min-height: 200px; padding: 34px 40px; }
+.block .bt { font-size: 52px; } .block .bd { font-size: 32px; }
+
+/* FLOW → vertical stack; the connector points DOWN. Force a ↓ via ::after regardless of the authored
+   glyph — rotating an authored "↓" by 90deg yields "←" (the shipped bug this makes impossible). */
+.flow { flex-direction: column; gap: 0; }
+.flow .step { text-align: left; padding: 26px 34px; }
+.flow .step .n { font-size: 26px; } .flow .step .t { font-size: 46px; } .flow .step .s { font-size: 32px; }
+.flow .arrow { transform: none; padding: 8px 0; align-self: center; font-size: 0; }
+.flow .arrow::after { content: "\2193"; font-size: 52px; line-height: 1; color: var(--rule); }
+
+/* STEPPER → a vertical rail: numbered dot on the LEFT, a vertical connector down the column */
+.stepper { flex-direction: column; align-items: stretch; gap: 0; }
+.stepper .step { flex: none; display: flex; align-items: flex-start; gap: 28px; text-align: left; padding: 20px 0; }
+.stepper .step::before { top: auto; left: 35px; bottom: 50%; width: 6px; height: 100%; }   /* rail runs DOWN */
+.stepper .step:first-child::before { display: none; }
+.stepper .step .n { margin: 0; } .stepper .step .st { font-size: 44px; } .stepper .step .sd { font-size: 30px; }
+
+/* TIMELINE → a vertical rail on the LEFT, node rows beside it */
+.timeline { flex-direction: column; align-items: stretch; padding-top: 0; }
+.timeline::before { top: 0; bottom: 0; left: 13px; right: auto; width: 4px; height: auto; }   /* vertical rail */
+.tl-node { flex: none; display: flex; align-items: flex-start; gap: 28px; text-align: left; padding: 18px 0; }
+.tl-dot { margin: 6px 0 0; } .tl-when { font-size: 28px; } .tl-what { font-size: 44px; }
+
+/* HUBSPOKE: spokes wrap into a clean 2-wide grid; hub sits below */
+.hs-spokes { gap: 24px; }
+.hs-spoke { width: calc(50% - 12px); font-size: 40px; padding: 24px 26px; } .hs-spoke .s { font-size: 28px; }
+.hs-connect { height: 48px; } .hs-hub { font-size: 52px; padding: 30px 52px; }
+
+/* scorecard / tiles / icons */
+.tile { padding: 34px 38px; } .tile .num { font-size: 118px; } .tile .lab { font-size: 34px; }
+.icon-tile { width: 86px; height: 86px; } .icon-tile .icon { width: 50px; height: 50px; } .icon { width: 46px; height: 46px; }
+
+/* quantitative bars scale up for the narrow column */
+.segbar { height: 118px; } .segbar .seg { font-size: 40px; }
+.bar { height: 92px; font-size: 42px; }
+.meter { height: 84px; } .bullet { height: 118px; }
+.card { padding: 30px 34px; }
+
+/* FIXED-HEIGHT DIAGRAMS — scale up so a 560–620px block doesn't leave a dead zone in a 1920-tall column */
+.quadrant { height: 900px; margin: 26px 20px 60px; }
+.quadrant .cell .h { font-size: 52px; } .quadrant .cell .d { font-size: 32px; }
+.venn { height: 900px; } .rings { height: 980px; } .waterfall { height: 820px; }
+.waffle { width: 640px; height: 640px; } .gauge { --gsize: 460px; }
+.iceberg { width: min(880px, 92%); } .iceberg .tip { font-size: 42px; } .iceberg .ib-point { font-size: 40px; }
+
+/* WIDTH-BOUND RESEARCH/TECHNICAL forms — sized for a 1920 row, must shrink for a 1080 column */
+.code { font-size: 30px; max-width: 100%; padding: 26px 30px; }      /* keep authored lines ≤ ~40 chars */
+.eqn { font-size: 68px; line-height: 1.4; }                          /* was ~100px; break long eqns across lines */
+.eqn-terms .t { max-width: 300px; font-size: 30px; }
+.rtable th { font-size: 24px; padding: 12px 18px; } .rtable td { font-size: 34px; padding: 16px 18px; }
+.rtable td:first-child { font-size: 32px; }
+.mk { font-size: 40px; }
