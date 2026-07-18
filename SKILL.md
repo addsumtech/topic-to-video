@@ -143,12 +143,17 @@ TTS if the user gives an API key.
 - `scripts/keyframe_qa.py <out_dir> [--p N] [--json]` — cheap PRE-render VISUAL QA for the HTML tier:
   screenshots every `html` page at N `?p=` values, montages per-scene + a master contact sheet under
   `<out_dir>/_keyframes/` (open `all.png` to eyeball tofu / off-theme / mistimed reveals), and — via
-  CDP DOM measurement — flags any BLANK page (a reveal that never fired) or content OVERFLOWING the
-  1920×1080 canvas (full-bleed backdrops are correctly ignored), and advises (non-blocking) on any
+  CDP DOM measurement — flags any BLANK page (a reveal that never fired) or content mis-PLACED three
+  ways: OVERFLOWING the 1920×1080 canvas (full-bleed backdrops are correctly ignored); text CLIPPED
+  INSIDE a card/box (a fixed-height / `overflow:hidden` box slicing its own content — the box fits so
+  the canvas check can't see it; fill/bar components that legitimately clip a `.fill` are excluded);
+  and content reaching into the bottom **caption zone** (the lowest ~14% where an overlay subtitle
+  burns — it would sit under the caption; `caption_mode:band` and captions-off decks are exempt).
+  It also advises (non-blocking) on any
   CENTERED multi-line running paragraph (body text should be left-aligned to scan; display/diagram
   classes are excluded) and, on a 9:16 deck, on any page filling <60% of the vertical zone (the
   "fill the column" rule — heroes with a full-bleed `.bg-photo` are exempt). Exits non-zero on a
-  blank/overflow (advisories don't block). Run after
+  blank / overflow / clip / caption-occlusion (advisories don't block). Run after
   authoring the pages, BEFORE the full render — a ~1-minute catch of the exact failures that would
   otherwise silently ship in a multi-minute render. (No CDP → screenshots + blank-check only.)
 - `scripts/scenes.py` — deterministic ANIMATED scene renderers (no slides): `title`/`keypoints`

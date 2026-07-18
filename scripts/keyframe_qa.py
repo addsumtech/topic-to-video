@@ -31,24 +31,31 @@ OVERFLOW_TOL = 6   # px a content box may exceed the canvas before it's flagged
 # scan; excludes display/diagram classes that are centered by design).
 _CENTER_EXCL = (".flow,.step,.hubspoke,.hs-spoke,.hs-hub,.timeline,.tl-node,.quadrant,.cell,"
                 ".scorecard,.tile,.title,.pullquote,.kicker,.stat,.block")
+# `clip` = worst px of TEXT clipped INSIDE a box (a fixed-height / overflow:hidden card slicing its own
+# content — invisible to the canvas-overflow check). Fill/bar components legitimately clip (a .meter clips
+# its .fill), so those are excluded. `cbot` (content bottom) also drives the caption-zone occlusion check.
 _OVERFLOW_JS = (
-    "(function(){var W=window.innerWidth,H=window.innerHeight,worst=0,ct=1e9,cb=-1e9,cl=1e9,cr=-1e9;"
+    "(function(){var W=window.innerWidth,H=window.innerHeight,worst=0,clip=0,ct=1e9,cb=-1e9,cl=1e9,cr=-1e9;"
     "var n=document.querySelectorAll('.stage *,.split *');"
-    "for(var i=0;i<n.length;i++){var r=n[i].getBoundingClientRect();"
+    "var FILL='.meter,.segbar,.bar,.fill,.gauge,.track,.waffle,.isotype,.bullet,.spark';"
+    "for(var i=0;i<n.length;i++){var e=n[i],r=e.getBoundingClientRect();"
     "if(r.width<1||r.height<1)continue;"
     "var o=Math.max(r.right-W,r.bottom-H,-r.left,-r.top);if(o>worst)worst=o;"
-    "var cs=getComputedStyle(n[i]);if(cs.opacity!=='0'&&cs.display!=='none'){"
-    "if(r.top<ct)ct=r.top;if(r.bottom>cb)cb=r.bottom;if(r.left<cl)cl=r.left;if(r.right>cr)cr=r.right;}}"
+    "var cs=getComputedStyle(e);if(cs.opacity!=='0'&&cs.display!=='none'){"
+    "if(r.top<ct)ct=r.top;if(r.bottom>cb)cb=r.bottom;if(r.left<cl)cl=r.left;if(r.right>cr)cr=r.right;}"
+    "var oy=cs.overflowY;if((oy==='hidden'||oy==='clip')&&e.scrollHeight-e.clientHeight>8"
+    "&&(e.innerText||'').trim().length>12&&!(e.matches&&e.matches(FILL))){"
+    "var cc=e.scrollHeight-e.clientHeight;if(cc>clip)clip=cc;}}"
     "var t=(document.body.innerText||'').replace(/\\s+/g,'').length;"
     "var EXCL='" + _CENTER_EXCL + "',centered=0,para=document.querySelectorAll('.sub,.note,.lead,p');"
-    "for(var j=0;j<para.length;j++){var e=para[j],cs=getComputedStyle(e);"
-    "if(cs.textAlign!=='center')continue;if(e.closest&&e.closest(EXCL))continue;"
-    "var fs=parseFloat(cs.fontSize)||0,lh=cs.lineHeight;"
+    "for(var j=0;j<para.length;j++){var pe=para[j],pcs=getComputedStyle(pe);"
+    "if(pcs.textAlign!=='center')continue;if(pe.closest&&pe.closest(EXCL))continue;"
+    "var fs=parseFloat(pcs.fontSize)||0,lh=pcs.lineHeight;"
     "lh=(lh==='normal'||!lh)?1.4*fs:parseFloat(lh);if(lh<1)continue;"
-    "var lines=Math.round(e.scrollHeight/lh),w=e.getBoundingClientRect().width;"
+    "var lines=Math.round(pe.scrollHeight/lh),w=pe.getBoundingClientRect().width;"
     "if(lines>=3&&w>=600)centered++;}"
     "var bleed=!!document.querySelector('.bg-photo,.bg-soft,.bg-motif,.bg-grid');"
-    "return JSON.stringify({worst:Math.round(worst),textlen:t,centered:centered,"
+    "return JSON.stringify({worst:Math.round(worst),clip:Math.round(clip),textlen:t,centered:centered,"
     "ctop:Math.round(ct),cbot:Math.round(cb),cleft:Math.round(cl),cright:Math.round(cr),"
     "bleed:bleed,cued:!!document.querySelector('[data-cue-index]')});})()")
 
@@ -93,6 +100,33 @@ def _dom_probe(chrome):
     r = chrome._cmd("Runtime.evaluate",
                     {"expression": _OVERFLOW_JS, "returnByValue": True}, chrome.sid)
     return json.loads(r["result"]["result"]["value"])
+
+
+def _geometry_issues(info, meta, H):
+    """Pure classifier for the box-geometry gate — the three ways content can be *placed* wrong even
+    when the reveal fired: (1) it overflows the safe canvas, (2) a fixed-height / overflow:hidden box
+    CLIPS its own text (invisible to the canvas check — the box fits, its content doesn't), (3) it
+    reaches into the bottom caption zone where an overlay subtitle burns. Returns blocking-issue
+    strings. Chrome-free + unit-tested so the thresholds can't silently drift."""
+    out = []
+    if info.get("worst", 0) > OVERFLOW_TOL:
+        out.append(f"content overflows the safe canvas by {info['worst']}px — "
+                   "shorten the text or split the beat")
+    if info.get("clip", 0) > 8:
+        out.append(f"text CLIPPED inside a card/box by {info['clip']}px — a fixed height / "
+                   "overflow:hidden is cutting its own content; give the box auto height, "
+                   "shorten the text, or split the beat")
+    # caption-zone occlusion: an overlay caption burns into the bottom ~14% of the frame, so page
+    # content reaching there sits UNDER the subtitle. band mode moves captions below the content, so
+    # it's exempt; a page with no visible content box (a full-bleed hero) has nothing to occlude.
+    _has_box = (info.get("cright", 0) > info.get("cleft", 1e9)
+                and info.get("cbot", -1e9) > info.get("ctop", 1e9))
+    if (meta.get("captions", True) and meta.get("caption_mode", "overlay") != "band"
+            and _has_box and info.get("cbot", -1) > 0.86 * H):
+        out.append(f"content reaches the bottom caption zone (lowest content y={info['cbot']} "
+                   f"> {int(0.86 * H)}px) — it will overlap the burned subtitle; push content "
+                   "up (reduce sizes/gaps, or reserve the bottom ~14%)")
+    return out
 
 
 def _reveal_count(chrome):
@@ -153,9 +187,7 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                                 and info.get("cbot", -1e9) > info.get("ctop", 1e9))
                     if info.get("textlen", 0) < 1 and not _has_box and not info.get("bleed"):
                         issues.append("BLANK at p=1 (reveal never fired / broken page)")
-                    if info.get("worst", 0) > OVERFLOW_TOL:
-                        issues.append(f"content overflows the safe canvas by {info['worst']}px — "
-                                      "shorten the text or split the beat")
+                    issues.extend(_geometry_issues(info, meta, H))   # overflow + intra-box clip + caption occlusion
                     if info.get("centered", 0) > 0:
                         advisories.append(f"{info['centered']} centered running paragraph(s) — "
                                           "left-align body text for scanning (studios do)")

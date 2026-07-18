@@ -32,3 +32,50 @@ def test_probe_js_reports_fill_bbox_and_bleed():
     # the 9:16 fill-exemption 'bleed' flag must cover BOTH full-bleed backdrops (.bg-photo AND .bg-soft)
     for k in ("ctop", "cbot", "bleed", ".bg-photo", ".bg-soft"):
         assert k in kq._OVERFLOW_JS
+
+def test_probe_js_measures_intra_box_clip_excluding_fills():
+    # the probe must emit a `clip` signal, key it off scroll-vs-client height, and EXCLUDE fill/bar
+    # components (a .meter legitimately clips its .fill) so only real text-clipping cards flag
+    assert "clip:" in kq._OVERFLOW_JS and "scrollHeight" in kq._OVERFLOW_JS and "clientHeight" in kq._OVERFLOW_JS
+    for c in (".meter", ".fill", ".bar", ".track", ".gauge"):
+        assert c in kq._OVERFLOW_JS
+
+# ---- _geometry_issues: the pure box-geometry classifier (overflow / intra-box clip / caption zone) ----
+_CLEAN = {"worst": 0, "clip": 0, "cbot": 800, "ctop": 100, "cleft": 100, "cright": 1800}
+
+def test_geometry_clean_page_has_no_issues():
+    assert kq._geometry_issues(_CLEAN, {}, 1080) == []
+
+def test_geometry_flags_canvas_overflow():
+    out = kq._geometry_issues({**_CLEAN, "worst": 40}, {}, 1080)
+    assert len(out) == 1 and "overflows the safe canvas" in out[0]
+
+def test_geometry_flags_intra_box_clip():
+    # the case the canvas check MISSES: box fits (worst 0) but its own text is sliced
+    out = kq._geometry_issues({**_CLEAN, "clip": 104}, {}, 1080)
+    assert len(out) == 1 and "CLIPPED inside a card/box" in out[0]
+
+def test_geometry_clip_ignores_sub_threshold_jitter():
+    assert kq._geometry_issues({**_CLEAN, "clip": 6}, {}, 1080) == []
+
+def test_geometry_flags_caption_zone_occlusion():
+    # content bottom at 1000 > 0.86*1080 (=928) => overlaps the burned overlay subtitle
+    out = kq._geometry_issues({**_CLEAN, "cbot": 1000}, {}, 1080)
+    assert len(out) == 1 and "caption zone" in out[0]
+
+def test_geometry_caption_zone_exempt_in_band_mode():
+    # band mode moves captions BELOW the content, so low content is fine
+    assert kq._geometry_issues({**_CLEAN, "cbot": 1000}, {"caption_mode": "band"}, 1080) == []
+
+def test_geometry_caption_zone_exempt_when_captions_off():
+    assert kq._geometry_issues({**_CLEAN, "cbot": 1000}, {"captions": False}, 1080) == []
+
+def test_geometry_caption_zone_scales_with_canvas_height():
+    # a 9:16 canvas (H=1920) zone boundary is 0.86*1920=1651 — content at 1600 clears it
+    assert kq._geometry_issues({**_CLEAN, "cbot": 1600}, {}, 1920) == []
+    assert len(kq._geometry_issues({**_CLEAN, "cbot": 1700}, {}, 1920)) == 1
+
+def test_geometry_no_caption_flag_without_a_content_box():
+    # a full-bleed hero (no .stage content box) has nothing to occlude even if cbot is spurious
+    empty = {"worst": 0, "clip": 0, "cbot": 1000, "ctop": 1e9, "cleft": 1e9, "cright": 0}
+    assert kq._geometry_issues(empty, {}, 1080) == []
