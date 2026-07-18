@@ -181,6 +181,28 @@ def test_timeline_word_synced_holds_then_settles(tmp_path):
     _cue_holds_then_settles(scenes.render_timeline, "events",
                             [{"date": "a", "label": "first"}, {"date": "b", "label": "second"}], tmp_path)
 
+def test_timeline_short_cue_still_settles_full(tmp_path):
+    # a props.cue SHORTER than the events must NOT permanently hide the trailing un-cued events — timeline
+    # falls back to the blind reveal so the settled final frame == the blind final (the end-state invariant)
+    import json
+    cued = tmp_path / "c"; blind = tmp_path / "b"
+    (cued / "audio").mkdir(parents=True); blind.mkdir()
+    json.dump([{"w": "one", "t": 0.3}], open(cued / "audio" / "07.words.json", "w"))   # 1 anchor, 3 events
+    events = [{"date": "a", "label": "first"}, {"date": "b", "label": "second"}, {"date": "c", "label": "third"}]
+    pc = scenes.render_timeline({"events": events, "cue": ["one"]},
+                                {"fps": 2, "language": "en", "_out": str(cued), "_narration": "one"}, 640, 360, 10, str(cued), 7)
+    pb = scenes.render_timeline({"events": events}, {"fps": 2, "language": "en", "_out": str(blind)}, 640, 360, 10, str(blind), 7)
+    assert _pix(pc % 9) == _pix(pb % 9)                # every event present at the settled frame, not hidden
+
+def test_keypoints_cued_survives_fps_zero(tmp_path):
+    # fps=0 must not ZeroDivisionError on the cued path (the `or 30` guard)
+    import json
+    d = tmp_path / "k"; (d / "audio").mkdir(parents=True)
+    json.dump([{"w": "one", "t": 0.3}], open(d / "audio" / "07.words.json", "w"))
+    pat = scenes.render_keypoints({"points": [{"label": "a"}, {"label": "b"}], "cue": ["one"]},
+                                  {"fps": 0, "language": "en", "_out": str(d), "_narration": "one"}, 480, 270, 4, str(d), 7)
+    assert os.path.exists(pat % 0)
+
 def test_compare_versus_word_synced_holds_then_settles(tmp_path):
     _cue_holds_then_settles(
         lambda p, m, W, H, f, wd, ix: scenes.render_compare({**p, "kind": "versus"}, m, W, H, f, wd, ix),

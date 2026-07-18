@@ -141,8 +141,11 @@ def _composition_sig(html):
               else "full" if jc.startswith("space") else "center")
     # off-center/thirds bands park the content in one horizontal third with a deliberate void — a
     # genuine left/right-weighted balance the composition gate should CREDIT (not a centered column).
-    if re.search(r'class\s*=\s*"[^"]*\bstage\b[^"]*\b(?:frame-left|frame-right|thirds)\b', html) \
-            or re.search(r'class\s*=\s*"[^"]*\b(?:frame-left|frame-right|thirds)\b[^"]*\bstage\b', html):
+    # `(?<![\w-])...(?![\w-])` are token boundaries so a hyphenated superstring (e.g. "grid-thirds") is
+    # NOT mis-credited — only the exact frame-left/frame-right/thirds classes count.
+    _off = r'(?<![\w-])(?:frame-left|frame-right|thirds)(?![\w-])'
+    if re.search(r'class\s*=\s*"[^"]*\bstage\b[^"]*' + _off, html) \
+            or re.search(r'class\s*=\s*"[^"]*' + _off + r'[^"]*\bstage\b', html):
         balance = "offset"
     elif re.search(r'class\s*=\s*"[^"]*\bsplit\b', html):
         balance = "split"
@@ -312,7 +315,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     slides = data["slides"]
     # visual_style is the declared single source of truth — a typo/hallucinated key degrades silently to the
     # default look, so cross-check it against the catalog (theme.STYLE_PRESETS) independent of the plan file.
-    _vs = (meta.get("visual_style") or "").strip()
+    _vs = str(meta.get("visual_style") or "").strip()   # str() guards a hand-edited non-string value (.strip crash)
     if _vs and _vs.lower() != "custom":
         try:
             import theme as _theme
@@ -322,7 +325,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         except Exception:
             pass
     # audacity dial — the register's RISK budget (a typo silently loses the intent). Never touches the floor.
-    _aud = (meta.get("audacity") or "").strip().lower()
+    _aud = str(meta.get("audacity") or "").strip().lower()
     if _aud and _aud not in ("conservative", "balanced", "bold", "experimental"):
         warnings.append(f"meta.audacity '{meta.get('audacity')}' is not a known level — use "
                         "conservative | balanced (default) | bold | experimental; it scales how far the design_register pushes")
@@ -604,6 +607,8 @@ def _design_plan_lints(out_dir, warnings):
         plan = json.load(open(path, encoding="utf-8"))
     except (OSError, ValueError):
         return
+    if not isinstance(plan, dict):          # a hand-edited plan that parses to a list/scalar — nothing to lint
+        return
     raw = plan.get("beats") or plan.get("scenes") or []
     # beats may be a dict keyed by id ({"1": {...}}) or a list — normalize to a list of dicts
     beats = ([dict(v, index=k) for k, v in raw.items() if isinstance(v, dict)]
@@ -611,10 +616,10 @@ def _design_plan_lints(out_dir, warnings):
 
     def _form(b):
         vis = b.get("visual") or {}
-        return (b.get("form") or vis.get("form") or vis.get("type") or "").lower()
+        return str(b.get("form") or vis.get("form") or vis.get("type") or "").lower()
 
     for b in beats:
-        shape = (b.get("content_shape") or b.get("visual_intent") or "").lower()
+        shape = str(b.get("content_shape") or b.get("visual_intent") or "").lower()
         form = _form(b)
         if not shape or not form:
             continue

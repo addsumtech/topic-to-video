@@ -336,7 +336,7 @@ def render_keypoints(props, meta, W, H, frames, workdir, index):
     pal = _scene_palette(meta)
     accent = _hex_rgb(props.get("accent") or pal["accent"])
     bg = _hex_rgb(pal["bg"]); fg = _hex_rgb(pal["fg"]); muted = _hex_rgb(pal["muted"])
-    fps = meta.get("fps", 30)
+    fps = meta.get("fps", 30) or 30                 # `or 30` guards fps=0 (the cued path divides by it — matches siblings)
     intro = max(1, int(0.5 * fps))                  # each row fades/slides in over ~0.5s
     # SPREAD the row reveals across the scene (track the speaking pace) instead of cramming them into
     # the first ~1s and holding — same principle as render_timeline/render_chart, and the html tier's
@@ -491,10 +491,10 @@ def render_timeline(props, meta, W, H, frames, workdir, index):
     def draw(i, n):
         if n <= 1:
             vis = n_ev                                              # static single frame -> all events settled
-        elif cue_times:
-            t = i / fps
-            vis = sum(1 for j in range(n_ev)
-                      if j < len(cue_times) and cue_times[j] is not None and t + 1e-6 >= cue_times[j])
+        elif cue_times and len(cue_times) >= n_ev:                 # only cue when EVERY event has an anchor — a
+            t = i / fps                                            # SHORT cue array falls back to the blind reveal
+            vis = sum(1 for j in range(n_ev)                       # so no trailing un-cued event is hidden at the
+                      if cue_times[j] is not None and t + 1e-6 >= cue_times[j])   # settled final frame (end-state == blind)
         else:
             vis = _visible_count(n_ev, i / max(1, n - 1))
         fig = plt.figure(figsize=figsize, dpi=dpi); fig.patch.set_facecolor(c_bg)

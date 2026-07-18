@@ -108,6 +108,7 @@ def _geometry_issues(info, meta, H):
     CLIPS its own text (invisible to the canvas check — the box fits, its content doesn't), (3) it
     reaches into the bottom caption zone where an overlay subtitle burns. Returns blocking-issue
     strings. Chrome-free + unit-tested so the thresholds can't silently drift."""
+    meta = meta or {}                       # defensive: a direct API call may pass None (run() always passes a dict)
     out = []
     if info.get("worst", 0) > OVERFLOW_TOL:
         out.append(f"content overflows the safe canvas by {info['worst']}px — "

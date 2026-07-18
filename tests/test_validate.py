@@ -655,6 +655,19 @@ def test_meta_audacity_valid_value_no_warn(tmp_path):
         r = validate.evaluate(_board(str(tmp_path), [_slide_scene(tmp_path, 0)], meta={"audacity": level}), str(tmp_path))
         assert not any("meta.audacity" in w for w in r["warnings"]), level
 
+def test_composition_sig_hyphenated_superstring_not_offset_credited():
+    # a hyphenated superstring (grid-thirds) must NOT be mis-credited as an off-center band
+    assert validate._composition_sig('<div class="stage grid-thirds"><div>x</div></div>')["balance"] != "offset"
+    assert validate._composition_sig('<div class="stage thirds"><div>x</div></div>')["balance"] == "offset"
+
+def test_evaluate_survives_nonstring_meta_and_plan(tmp_path):
+    # robustness: a hand-edited non-string meta value / non-dict plan must not crash the gate with a traceback
+    r = validate.evaluate(_board(str(tmp_path), [_slide_scene(tmp_path, 0)], meta={"audacity": 3, "visual_style": True}), str(tmp_path))
+    assert isinstance(r.get("warnings"), list)                 # returned cleanly, no AttributeError
+    open(os.path.join(str(tmp_path), "design_plan.json"), "w").write("[1, 2, 3]")   # plan parses to a list
+    r2 = validate.evaluate(_board(str(tmp_path), [_slide_scene(tmp_path, 0)]), str(tmp_path))
+    assert isinstance(r2.get("warnings"), list)                # non-dict plan skipped, not crashed
+
 
 def test_html_local_asset_missing_is_error(tmp_path):
     s = _html_scene(tmp_path, 0, "pages/s0.html",
