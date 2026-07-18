@@ -32,6 +32,11 @@ A SEPARATE artifact from the content plan (the assistant merges the two into the
   "signature_concept": { "beat": 4, "name": "e.g. the widening gap",
       "encoding": "what CONTENT MEANING maps to what VISUAL PROPERTY — the APT part (e.g. the growing white gap BETWEEN two bars IS the compounding loss, no legend needed)",
       "why_unexpected": "why this is not the obvious catalog form — the INVENTIVE part" },
+  "design_register": { "name": "a ONE-PHRASE name for the video's WHOLE expressive identity (e.g. 'the terminal you step into', 'a clinical dossier', 'a hand-drawn field notebook') — the critic must be able to say it back in one phrase; 'a clean explainer' is NOT a register",
+      "motion_personality": "the WHOLE-video motion CHARACTER — NOT the default uniform whisper-zoom. One of e.g. restrained-drift | snappy-kinetic | weighty-mechanical | floaty-organic | precise-clinical, + one line on HOW it shows (the Ken-Burns intensity ARC across the deck + reveal easing + transition feel). Two videos with different registers must MOVE differently, not merely look different — motion is where the video's 差异感 most lives",
+      "type_attitude": "quiet-editorial | loud-display | kinetic-type-forward — how type behaves across the video",
+      "how_distinct": "ONE line: how this register DEPARTS from the generic AI-explainer default, AND why that departure fits THIS topic/audience — the distinctiveness (差异感) commitment",
+      "carried_by": [ "the 2–4 beat ids where the register is most legible — MUST include the OPENER and the signature_concept beat, so it reads as a SPINE across the video, not a one-off flourish" ] },
   "style_thesis": "the deck's distinctive aesthetic STANCE + WHY it fits THIS subject — NOT just a palette restatement",
   "visual_style": "ONE catalog key from references/visual-styles.md (swiss/editorial/bauhaus/brutalism/glassmorphism/claymorphism/manga/risograph/memphis/noir/cyberpunk/vaporwave/watercolor/artdeco/cinematic/blueprint/terminal/cartographic), or \"custom\"+DNA — chosen by the selection contest below",
   "rejected_style": "the NEAREST competing style + the ONE clause that separates them (a contest, not a strawman — mirrors rejected_default)",
@@ -266,6 +271,30 @@ THIS subject. Make it that:
   idea that hurts the 3-second read or invents data is NOT a pass. A custom layout that merely carries
   the motif no longer counts — the signature beat must NAME the concept. **Screenshot test:** ≥1 beat a
   designer would screenshot to save as inspiration. The design-critic (D2c) REVISEs a deck with none.
+- **Commit ONE whole-video `design_register` — a coherent expressive IDENTITY, not a single bold beat.**
+  A signature_concept is ONE beat; the register is the SPINE the whole video is designed in — it BINDS
+  `visual_style` + `style_thesis` + `motif` + the signature into one identity you can name in a phrase,
+  and it decides how the video MOVES. Why this is both bolder AND safer: a single wild beat in an
+  otherwise-safe video is a tonal BREAK (high variance); one coherent register carried across every beat
+  is a *designed thing* (low variance) that also reads as distinctive — **coherence is the stabiliser**,
+  so the boldness rides the register, not scattered risks. Commit four things: **(a) a NAMED identity**
+  ('the terminal you step into', not 'a clean explainer'); **(b) a `motion_personality`** — the video's
+  native 差异感 lever: pick a motion CHARACTER and REALISE it (set the per-scene `intensity`/`energy` and
+  the Ken-Burns `motion` so the deck has a motion ARC that fits the register — a precise-clinical register
+  drifts slow and even, a snappy-kinetic one punches and settles; do NOT leave every beat on the same
+  whisper-zoom); **(c) `type_attitude`**; **(d) `how_distinct`** — one line naming how this departs from
+  the generic AI-explainer default and why that fits the topic. `carried_by` MUST include the opener AND
+  the signature beat (a spine, not a flourish). The register sits UNDER clarity + faithfulness + A-V + the
+  gates — a register move that hurts the 3-second read, breaks a caption/overflow gate, or desyncs audio is
+  redone IN-register but IN-bounds, never shipped. design-critic **D2e** REVISEs a missing/bland/one-beat
+  register or a register whose motion never actually varies.
+- **Honour the audacity budget `meta.audacity` (`conservative`|`balanced`|`bold`|`experimental`, default
+  `balanced`).** It is the RISK budget for the register, not a licence to touch the floor. `conservative`
+  → a quiet, restrained register (still named, still coherent); `balanced` (default) → a solid base with
+  ONE register that genuinely carries the video; `bold` → a vivid, unmistakable register + a sharper motion
+  arc; `experimental` (opt-in only) → push the register hard, accept that a beat may be sent back. The
+  budget scales HOW FAR the register/motion/type push — it NEVER relaxes clarity, faithfulness, WCAG, the
+  keyframe/caption/AV gates. On a higher tier, be braver on the aesthetic axes; the floor is identical.
 - **Pick ONE named visual style — a smart contest, not a reflex (`references/visual-styles.md`).** Choose the
   deck's `visual_style` from the 18-style catalog by reasoning from the subject: **(0)** if the interview set
   `meta.visual_style` (or slide frames carry a brand palette), HONOR it. **(1)** read five signals — domain ·

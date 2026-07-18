@@ -119,6 +119,27 @@ OR a non-card form that fits in the wrong direction (D1 bidirectional), player-c
   an **atmosphere treatment**: a beat where the style DISTORTS a chart/axis/proportion or FABRICATES specifics
   (readable fake code/HUD/signage/text) is a FAIL. The imagery must still EVOKE THE TOPIC (style OF the
   subject — hide the text, is it still about X?). This sits UNDER clarity + faithfulness + deliverability.
+- **D2e — Whole-video register + motion personality (the up-pushing 差异感 axis).** D2c judges ONE
+  inventive beat; D2e judges whether the WHOLE video has a coherent, distinctive expressive IDENTITY —
+  the axis that pushes UP, not just cuts. Four checks, all REVISE:
+  **(1) Name it.** Say the `design_register` back in ONE phrase from the rendered result. If you can't, or
+  it's "a clean/corporate explainer," that is a finding — *clean + varied + faithful + forgettable = REVISE*.
+  **(2) Carried, not bolted on.** The register must read across the video (the opener AND the signature beat
+  at least, per `carried_by`), not as one flourish on an otherwise-generic deck — a single bold beat in a
+  safe video is a tonal break, not a register.
+  **(3) Motion has personality.** The video's biggest 差异感 lever is MOTION: REVISE a deck whose
+  `motion_personality` is claimed but not realised — every beat on the same uniform whisper-zoom regardless
+  of the register. Two different registers must MOVE differently (intensity arc + easing + transition feel),
+  and the motion must MEAN something, not just be present.
+  **(4) Survived build/fix.** If the register/signature was sanded back toward safe during scripting/revision
+  (named in the plan but flat in the rendered sample/keyframes), that regression is a finding — check the
+  actual pixels, not the plan's promise.
+  Respect the budget: judge against `meta.audacity` (default `balanced`) — do NOT demand experimental
+  boldness on a `conservative` dial, and do NOT pass bland on a `bold` one. **Strict priority:** D2e ONLY
+  pushes up — it sits UNDER clarity + faithfulness + WCAG + deliverability + the keyframe/caption/AV gates
+  and can NEVER override a floor finding. A register move that hurts the 3-second read or breaks a gate is
+  redone in-register but in-bounds; the fix is "make it legible," never "make it safe/forgettable."
+  (`validate.py` flags a missing/stub `design_register` as a mechanical hook.)
 
 ### D3 — Transition rhythm (the cut must match the plan's `relation`)
 - Cross-check each scene's `transition`/`transition_seconds` against the beat's `relation` (motion-grammar

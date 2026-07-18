@@ -610,6 +610,51 @@ def test_design_plan_signature_is_catalog_grid_warns(tmp_path):
     r = validate.evaluate(_board(str(tmp_path), [_slide_scene(tmp_path, 0)]), str(tmp_path))
     assert any("signature_concept beat's form looks like a catalog grid" in w for w in r["warnings"])
 
+# --- whole-video design_register (the 差异感 axis, feeding design-critic D2e) ------------------------
+_FULL_REG = {"name": "the terminal you step into", "motion_personality": "snappy-kinetic: punch then settle",
+             "type_attitude": "loud-display", "how_distinct": "boots like a real shell", "carried_by": ["1", "4"]}
+
+def _reg_board(tmp_path, plan):
+    _design_plan(tmp_path, plan)
+    return [w for w in validate.evaluate(_board(str(tmp_path), [_slide_scene(tmp_path, 0)]), str(tmp_path))["warnings"]
+            if w.startswith("register:")]
+
+def test_design_plan_missing_register_warns(tmp_path):
+    w = _reg_board(tmp_path, {"beats": [{"index": 1, "content_shape": "x", "form": "stat"}],
+                              "signature_concept": {"beat": 1}, "style_thesis": "y", "visual_style": "swiss"})
+    assert any("no design_register" in x for x in w)
+
+def test_design_plan_full_register_no_warn(tmp_path):
+    w = _reg_board(tmp_path, {"beats": [{"index": 1, "content_shape": "x", "form": "stat"},
+                                        {"index": 4, "content_shape": "y", "form": "compare"}],
+                              "signature_concept": {"beat": 4}, "style_thesis": "y", "visual_style": "swiss",
+                              "design_register": _FULL_REG})
+    assert w == []
+
+def test_design_plan_register_without_motion_personality_warns(tmp_path):
+    w = _reg_board(tmp_path, {"beats": [{"index": 1, "content_shape": "x", "form": "stat"}],
+                              "design_register": {**_FULL_REG, "motion_personality": ""}})
+    assert any("motion_personality" in x for x in w)
+
+def test_design_plan_register_one_beat_spine_warns(tmp_path):
+    w = _reg_board(tmp_path, {"beats": [{"index": 1, "content_shape": "x", "form": "stat"}],
+                              "design_register": {**_FULL_REG, "carried_by": ["1"]}})
+    assert any("carried_by must name" in x for x in w)
+
+def test_design_plan_register_omitting_signature_beat_warns(tmp_path):
+    w = _reg_board(tmp_path, {"beats": [{"index": 1, "content_shape": "x", "form": "stat"}],
+                              "signature_concept": {"beat": 4}, "design_register": {**_FULL_REG, "carried_by": ["1", "2"]}})
+    assert any("omits the signature beat" in x for x in w)
+
+def test_meta_audacity_invalid_value_warns(tmp_path):
+    r = validate.evaluate(_board(str(tmp_path), [_slide_scene(tmp_path, 0)], meta={"audacity": "reckless"}), str(tmp_path))
+    assert any("meta.audacity" in w for w in r["warnings"])
+
+def test_meta_audacity_valid_value_no_warn(tmp_path):
+    for level in ("conservative", "balanced", "bold", "experimental"):
+        r = validate.evaluate(_board(str(tmp_path), [_slide_scene(tmp_path, 0)], meta={"audacity": level}), str(tmp_path))
+        assert not any("meta.audacity" in w for w in r["warnings"]), level
+
 
 def test_html_local_asset_missing_is_error(tmp_path):
     s = _html_scene(tmp_path, 0, "pages/s0.html",

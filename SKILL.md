@@ -96,6 +96,14 @@ TTS if the user gives an API key.
   and the render **clamps** the amplified move back under the zoom-delta/absolute-zoom/pan caps so a
   `bold` beat can never lurch past the gate. `shot` is authoring shorthand: the director must translate it
   into `motion.from/to/zoom` (render reads `motion`, not `shot`).
+  **Audacity dial:** `meta.audacity` (`conservative`|`balanced` default|`bold`|`experimental`) is the
+  RISK BUDGET for the video's `design_register` (its whole-video expressive identity — see the
+  design-director step) — it scales how far the register/motion-personality/type push, so `bold` commits a
+  vivid unmistakable register and `experimental` (opt-in) pushes hard and accepts a beat may be sent back.
+  It is NOT a render knob and NEVER relaxes the floor: clarity, faithfulness, WCAG, and the
+  keyframe/caption/overflow/AV gates are identical at every level — a register move that breaks one is
+  redone in-register but in-bounds. `validate.py` accepts it as a known field (warns on a typo);
+  design-director honours it when committing the register, design-critic (D2e) judges against it.
   **Reduced motion:** `--reduced-motion` (or `meta.reduced_motion`) emits an accessibility variant —
   the image tier holds a static frame (to==from, no zoom/pan) and HTML reveals become opacity-only
   cross-fades (a `reduced-motion.css` linked last), still deterministic + seekable. It's an
@@ -252,6 +260,12 @@ TTS if the user gives an API key.
      **per-beat template FORMS** (hero-stat, before/after, timeline rail, system map, metric wall,
      results table, figure focus, funnel, dashboard, case story, flywheel — see
      `references/html-templates.md`) are chosen by the design-director per beat, NOT asked here.
+     **Audacity (optional, defaults `balanced`):** independently of the tier, `meta.audacity`
+     (`conservative`/`balanced`/`bold`/`experimental`) is the RISK BUDGET for the video's whole-video
+     expressive register — how far its look + MOTION + type push. Default `balanced` (solid base + one
+     register that genuinely carries the video) is right for most runs; mention it only if the user wants
+     a bolder or more restrained feel — the floor (clarity/faithfulness/AV/gates) is identical at every
+     level. Set it here or leave the default; the design-director commits the register accordingly.
      **Cinematic story option (Remotion):** if the deck is a **story/cinematic** piece of full-bleed
      IMAGE scenes (not data cards/charts) — e.g. a historical story — and the Remotion tier is installed
      (doctor.py reports it), offer it as a look and set `meta.renderer:"remotion"`; it renders images +
@@ -426,10 +440,19 @@ TTS if the user gives an API key.
      which both the design-director and the design-critic apply. It also carries a top-level
      **`signature_concept`** (ONE named, apt-but-unexpected content→visual encoding — the deck's creative
      idea, realized in a named beat with deliverable primitives) and **`style_thesis`** (the deck's
-     distinctive aesthetic POV that fits THIS subject); **save the design plan to
+     distinctive aesthetic POV that fits THIS subject); and a top-level **`design_register`** — the ONE
+     whole-video expressive IDENTITY the video is designed in (`name` + `motion_personality` +
+     `type_attitude` + `how_distinct` + `carried_by`), which BINDS visual_style/style_thesis/motif/
+     signature into a single register and, crucially, commits the video's MOTION character (not the default
+     uniform whisper-zoom — two registers must MOVE differently). A coherent whole-video register is where
+     the video's **差异感 (distinctiveness)** lives; because it's ONE committed language carried across
+     every beat, it's both bolder AND lower-variance than a single wild beat. Its risk budget is the
+     **`meta.audacity`** dial (`conservative`|`balanced` default|`bold`|`experimental`) — which scales how
+     far the register/motion/type push but NEVER relaxes the floor. **Save the design plan to
      `<out_dir>/design_plan.json`** — `validate.py` flags a content_shape↔form mismatch + a missing
-     `signature_concept`/`style_thesis`, and the **design-critic** (D1 fit, D2c creativity floor) judges
-     them. **Build the storyboard by MERGING the two plans:** the design's `visual.type`+`props`
+     `signature_concept`/`style_thesis`/`design_register` (and an invalid `meta.audacity`), and the
+     **design-critic** (D1 fit, D2c creativity floor, **D2e whole-video register + motion personality**)
+     judges them. **Build the storyboard by MERGING the two plans:** the design's `visual.type`+`props`
      become each scene; its `transition` becomes the per-scene edges; a `climax` beat's scene carries
      `props.climax:true` — the climax MARKER (`rhythm_qa` reads it); it also drives the key-number landing
      hold only on a `chart` counter (a harmless no-op on any other form); its `icons`/`media`/`cue` shape the authored page (`.icon-tile`
@@ -528,9 +551,12 @@ TTS if the user gives an API key.
      claims traceability (R1d/R1e including AI image prompts), scene/visual selection quality
      (R3/R5/R6), continuity, pace and cuts.
    - `design-critic` verifies: form fit + layout diversity (D1), the concept-motif swap test (D2),
-     transition rhythm vs `relation` (D3), icons (D4), composition/whitespace (D5), visual rhythm + a
-     WOW beat (D6), squint/cover-text (D7), semantic colour (D8), motion discipline / no-GIF (D9),
-     visual anti-slop (D10).
+     creativity floor (D2c) + named visual style (D2d) + **whole-video register & motion personality
+     (D2e — the up-pushing 差异感 axis: name the register in one phrase, is it CARRIED across the video,
+     does the motion actually vary, did it survive build/fix; blandness = a finding, but it only pushes
+     UP and never overrides a floor)**, transition rhythm vs `relation` (D3), icons (D4),
+     composition/whitespace (D5), visual rhythm + a WOW beat (D6), squint/cover-text (D7), semantic
+     colour (D8), motion discipline / no-GIF (D9), visual anti-slop (D10).
    **Overall PASS only when ALL THREE critics return PASS.** Apply the **UNION** of their required
    EDITS to the storyboard, then re-dispatch the critics (or just the failing one) until all
    return PASS. THEN:

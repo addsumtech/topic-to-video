@@ -321,6 +321,11 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                                 f"({', '.join(sorted(_theme.STYLE_PRESETS))}) or \"custom\"; an unknown key degrades to the flat default")
         except Exception:
             pass
+    # audacity dial — the register's RISK budget (a typo silently loses the intent). Never touches the floor.
+    _aud = (meta.get("audacity") or "").strip().lower()
+    if _aud and _aud not in ("conservative", "balanced", "bold", "experimental"):
+        warnings.append(f"meta.audacity '{meta.get('audacity')}' is not a known level — use "
+                        "conservative | balanced (default) | bold | experimental; it scales how far the design_register pushes")
     vertical = vertical or meta.get("aspect") == "9:16"
     W, H = rd._canvas(meta, vertical)
     voice = (meta.get("voice") or "auto")
@@ -648,6 +653,28 @@ def _design_plan_lints(out_dir, warnings):
                     warnings.append("creativity: the signature_concept beat's form looks like a catalog grid — a "
                                     "signature must be a bespoke encoding, not a reskinned card grid (design-critic D2c)")
                 break
+
+    # WHOLE-VIDEO register (the up-pushing 差异感 axis): a coherent named identity carried across the video,
+    # committing MOTION personality — not a per-beat signature bolted onto a generic deck. Structural hooks
+    # feeding design-critic D2e; the semantic "is it actually distinct / did the motion vary" is D2e's.
+    reg = plan.get("design_register")
+    if beats and not (isinstance(reg, dict) and reg):
+        warnings.append("register: design_plan has no design_register — commit ONE whole-video expressive identity "
+                        "(name + motion_personality + type_attitude + how_distinct + carried_by), not just a per-beat "
+                        "signature; a coherent register carried across the video is its 差异感 (design-critic D2e)")
+    elif beats:
+        if not reg.get("name") or not reg.get("motion_personality"):
+            warnings.append("register: design_register needs a NAMED identity AND a motion_personality — commit a "
+                            "whole-video motion CHARACTER (not the uniform whisper-zoom), the video's biggest "
+                            "distinctiveness lever (design-critic D2e)")
+        cb = [str(x) for x in (reg.get("carried_by") or []) if not isinstance(x, (dict, list))]
+        if len(cb) < 2:
+            warnings.append("register: design_register.carried_by must name ≥2 beats the register spans (incl. the "
+                            "opener AND the signature beat) — a register is a SPINE across the video, not a one-off "
+                            "flourish (design-critic D2e)")
+        elif sig_beat is not None and str(sig_beat) not in cb:
+            warnings.append("register: design_register.carried_by omits the signature beat — the register should PEAK "
+                            "at the signature, so that beat must be among the beats it spans (design-critic D2e)")
 
 
 def _layout_family(html):
