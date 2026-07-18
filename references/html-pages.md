@@ -320,6 +320,13 @@ with the semantic vars only** — `var(--bg) var(--surface) var(--fg) var(--mute
 var(--accent2) var(--rule) var(--scrim) var(--on-accent)` (older `var(--blue)/var(--orange)` still
 alias to the accents). Never hardcode a hex in a page — that's how a page goes off-theme.
 
+**Film grain (automatic).** `theme.py` emits `--grain-amount` per style, and `motifs.css` paints a
+fixed-seed feTurbulence grain over the whole frame via `body::after` — so a *printed/filmic* style
+(risograph, manga, watercolor, terminal, noir, cartographic) gets a subtle filmic surface on the FREE
+tier with zero author effort, while clean styles (swiss, glass, cyberpunk, …) stay crisp at `0`. You
+don't add anything. On a data-heavy page where the noise fights a chart/table, add `class="no-grain"`
+to that page's `<body>` to switch it off for that scene only.
+
 ## Illustrated content page (image + Ken-Burns)
 A content beat with `media` becomes a two-column `.split` page: text on one side, an image panel on
 the other. The side image is held **STATIC** — a zooming image next to revealing bullets is
@@ -360,6 +367,12 @@ instead. `validate.py` counts the families and warns when one dominates; `design
 ## Composition helpers (pair with the forms above)
 - **`.card`** — a panel with depth (`--surface` + shadow + hairline); group related rows. **`.card.glass`** over a soft backdrop.
 - **`.dash`** (3-up) / **`.grid-asym`** (2fr 1fr) — dashboard + asymmetric layouts; break the centred-column monotony.
+- **`.stage.frame-left` / `.frame-right` / `.thirds`** — OFF-CENTER bands: park the whole content column in ONE
+  horizontal third and leave a DELIBERATE void on the other side (real negative space, NOT a 2fr/1fr card
+  split). The reference class's most reliable "art-directed" silhouette — reads the same in 16:9 and 9:16,
+  needs no data/imagery, and pairs beautifully with a `.bg-photo`/`.bg-soft`/`.bg-motif` breathing in the
+  void. Add the class to the `<div class="stage …">` itself. `validate.py` credits it as genuine asymmetry
+  (a `frame-left` hero counts toward the ≥⅓ off-center quota). Reach for it on a hook/hero/divider beat.
 - **`.defocus`** — on a comparison, add to the NON-focal side for depth-of-field (subtle blur, not flat dim).
 - **`.accent-fill`** — on `<body>` of a section-divider beat: full-bleed accent background, `--on-accent` text.
 - **`.reveal-pop`** — spring overshoot for a hero `.stat`/`.num`. **`.reveal-up-sm`** — shorter rise for dense sub-items.

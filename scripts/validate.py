@@ -139,7 +139,12 @@ def _composition_sig(html):
     jc = jc.group(1) if jc else "center"
     anchor = ("top" if jc in ("flex-start", "start") else "bottom" if jc in ("flex-end", "end")
               else "full" if jc.startswith("space") else "center")
-    if re.search(r'class\s*=\s*"[^"]*\bsplit\b', html):
+    # off-center/thirds bands park the content in one horizontal third with a deliberate void — a
+    # genuine left/right-weighted balance the composition gate should CREDIT (not a centered column).
+    if re.search(r'class\s*=\s*"[^"]*\bstage\b[^"]*\b(?:frame-left|frame-right|thirds)\b', html) \
+            or re.search(r'class\s*=\s*"[^"]*\b(?:frame-left|frame-right|thirds)\b[^"]*\bstage\b', html):
+        balance = "offset"
+    elif re.search(r'class\s*=\s*"[^"]*\bsplit\b', html):
         balance = "split"
     elif re.search(r'class\s*=\s*"[^"]*\bgrid-asym\b', html):
         balance = "asym"
@@ -511,9 +516,9 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # form-family gate. Warning-only (design-critic D6b judges intent); skip small decks (<4 html scenes).
     if len(comps) >= 4:
         n = len(comps)
-        # a split/asym page is two-column, not a center stack — don't count it toward center-anchor share
-        center_share = sum(1 for c in comps if c["anchor"] == "center" and c["balance"] not in ("split", "asym")) / n
-        offcenter = sum(1 for c in comps if c["balance"] in ("split", "asym") or c["anchor"] != "center") / n
+        # a split/asym/offset page is left/right-weighted, not a center stack — don't count it toward center-anchor share
+        center_share = sum(1 for c in comps if c["anchor"] == "center" and c["balance"] not in ("split", "asym", "offset")) / n
+        offcenter = sum(1 for c in comps if c["balance"] in ("split", "asym", "offset") or c["anchor"] != "center") / n
         if center_share > 0.6:
             warnings.append(f"composition diversity: {round(100*center_share)}% of html pages are vertically "
                             f"CENTER-anchored — vary the vertical anchor (top/bottom/full-bleed), don't stack every beat mid-frame")
@@ -522,7 +527,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                             "with its number/image (no kicker) so the deck isn't one template")
         if offcenter < 0.25:
             warnings.append(f"composition diversity: only {round(100*offcenter)}% of pages break the centered column — "
-                            f"≥~1/3 should be off-center (grid-asym/.split/top-anchored)")
+                            f"≥~1/3 should be off-center (.frame-left/.frame-right/.thirds/grid-asym/.split/top-anchored)")
         non_hero = [c for c in comps if not c["hero"]]
         if non_hero:
             nflat = sum(1 for c in non_hero if c["flat"])

@@ -472,6 +472,26 @@ def test_composition_varied_anchors_no_warn(tmp_path):
     assert not any("CENTER-anchored" in w for w in r["warnings"])
     assert not any("break the centered column" in w for w in r["warnings"])
 
+def test_composition_sig_credits_offcenter_band():
+    # the new off-center primitive must register as left/right-weighted (not a centered stack),
+    # in either class order, so the diversity gate credits it
+    for html in ('<div class="stage frame-left"><div class="title">x</div></div>',
+                 '<div class="frame-right stage"><div>x</div></div>',
+                 '<div class="stage thirds" style="justify-content:flex-start"><div>x</div></div>'):
+        assert validate._composition_sig(html)["balance"] == "offset"
+    # a plain centered page is NOT credited
+    assert validate._composition_sig('<div class="stage" style="text-align:center"><div>x</div></div>')["balance"] == "centered"
+
+def test_composition_offcenter_bands_satisfy_gate(tmp_path):
+    # a deck built entirely from .frame-left/.thirds bands must NOT trip the "break the centered column"
+    # warning — the lint now SEES the asymmetry the CSS builds
+    bodies = ['<div class="stage frame-left"><div class="title">x</div></div>',
+              '<div class="stage thirds"><div class="title">y</div></div>',
+              '<div class="stage frame-right"><div class="title">z</div></div>']
+    slides = [_html_scene(tmp_path, i, f"pages/s{i}.html", b) for i, b in enumerate(bodies)]
+    r = validate.evaluate(_board(str(tmp_path), slides), str(tmp_path))
+    assert not any("break the centered column" in w for w in r["warnings"])
+
 def test_background_flatness_warns(tmp_path):
     body = '<div class="stage"><div class="card">x</div></div>'   # bare --bg, no backdrop
     slides = [_html_scene(tmp_path, i, f"pages/s{i}.html", body) for i in range(5)]

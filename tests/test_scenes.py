@@ -145,6 +145,61 @@ def test_slope_chart_deterministic(tmp_path):
     pb = scenes.render_chart(_NEW_CHART_CASES["slope"], META, 640, 360, 4, str(b), 1)
     assert all(_pix(pa % i) == _pix(pb % i) for i in range(4))
 
+
+# --- word-sync extended to timeline / compare / keypoints -------------------------------------
+
+def test_cue_local_p_word_synced_vs_blind():
+    ct = [0.5, 3.0, None]
+    # cued: element 1 held before its 3.0s cue, rising after
+    assert scenes._cue_local_p(ct, 1, 1.0, 0.9) == 0.0
+    assert scenes._cue_local_p(ct, 1, 3.25, 0.0) == 0.5          # (3.25-3.0)/0.5
+    assert scenes._cue_local_p(ct, 1, 9.0, 0.0) == 1.0           # clamped to 1
+    # None cue slot / no cue_times -> fall through to the blind p_raw
+    assert scenes._cue_local_p(ct, 2, 1.0, 0.42) == 0.42
+    assert scenes._cue_local_p(None, 0, 1.0, 0.7) == 0.7
+
+def _cue_holds_then_settles(render, props_key, items, tmp_path, index=7):
+    """Shared: a cued build (anchors spoken EARLY) must differ from the blind build at some frame yet
+    SETTLE to a pixel-identical final frame (cues change WHEN, never the end state)."""
+    import json
+    cued = tmp_path / "cued"; blind = tmp_path / "blind"
+    (cued / "audio").mkdir(parents=True); blind.mkdir()
+    json.dump([{"w": "one", "t": 0.2}, {"w": "two", "t": 0.8}],
+              open(cued / "audio" / ("%02d.words.json" % index), "w"))
+    meta_c = {"fps": 2, "language": "en", "_out": str(cued), "_narration": "one then two"}
+    meta_b = {"fps": 2, "language": "en", "_out": str(blind)}
+    pc = render({**{props_key: items}, "cue": ["one", "two"]}, meta_c, 640, 360, 10, str(cued), index)
+    pb = render({props_key: items}, meta_b, 640, 360, 10, str(blind), index)
+    assert any(_pix(pc % i) != _pix(pb % i) for i in range(10))   # cues shifted the timing
+    assert _pix(pc % 9) == _pix(pb % 9)                           # end state faithful/identical
+
+def test_keypoints_word_synced_holds_then_settles(tmp_path):
+    _cue_holds_then_settles(scenes.render_keypoints, "points",
+                            [{"label": "first point"}, {"label": "second point"}], tmp_path)
+
+def test_timeline_word_synced_holds_then_settles(tmp_path):
+    _cue_holds_then_settles(scenes.render_timeline, "events",
+                            [{"date": "a", "label": "first"}, {"date": "b", "label": "second"}], tmp_path)
+
+def test_compare_versus_word_synced_holds_then_settles(tmp_path):
+    _cue_holds_then_settles(
+        lambda p, m, W, H, f, wd, ix: scenes.render_compare({**p, "kind": "versus"}, m, W, H, f, wd, ix),
+        "parts", [{"label": "first", "value": 4}, {"label": "second", "value": 9}], tmp_path)
+
+def test_uncued_diagrams_ignore_stray_words_json(tmp_path):
+    # backward compat: with NO cue array, a stray words.json must not change the blind render
+    import json
+    for render, key, items in [
+        (scenes.render_keypoints, "points", [{"label": "a"}, {"label": "b"}]),
+        (scenes.render_timeline, "events", [{"date": "1", "label": "a"}, {"date": "2", "label": "b"}]),
+    ]:
+        a = tmp_path / (key + "a"); b = tmp_path / (key + "b")
+        (a / "audio").mkdir(parents=True); b.mkdir()
+        json.dump([{"w": "x", "t": 0.2}], open(a / "audio" / "01.words.json", "w"))
+        pa = render({key: items}, {**META, "_out": str(a)}, 480, 270, 5, str(a), 1)
+        pb = render({key: items}, {**META, "_out": str(b)}, 480, 270, 5, str(b), 1)
+        assert all(_pix(pa % i) == _pix(pb % i) for i in range(5))
+
 def test_visible_count_grows_with_progress():
     assert scenes._visible_count(4, 0.0) >= 0
     assert scenes._visible_count(4, 1.0) == 4

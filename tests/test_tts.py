@@ -140,6 +140,50 @@ def test_synthesize_writes_audio_and_durations(tmp_path, monkeypatch):
         assert s["audio"] and os.path.exists(os.path.join(out, s["audio"]))
         assert s["duration"] and s["duration"] > 0.2
 
+# --- audio master / dead-air trim ------------------------------------------------------------
+
+def _tone_clip(path, tone_s, lead_s=0.0, tail_s=0.0):
+    """A test speech-stand-in: lead_s silence + tone_s of 440Hz + tail_s silence, at 24k/mono."""
+    af = "sine=frequency=440:duration=%s" % tone_s
+    filt = []
+    if lead_s:
+        filt.append("adelay=%d" % int(lead_s * 1000))
+    if tail_s:
+        filt.append("apad=pad_dur=%s" % tail_s)
+    cmd = ["ffmpeg", "-y", "-f", "lavfi", "-i", af]
+    if filt:
+        cmd += ["-af", ",".join(filt)]
+    cmd += ["-ar", "24000", "-ac", "1", path]
+    _common.run(cmd)
+
+@pytest.mark.skipif(not _common.have_tool("ffmpeg"), reason="needs ffmpeg")
+def test_master_trims_trailing_dead_air(tmp_path):
+    p = str(tmp_path / "a.mp3")
+    _tone_clip(p, tone_s=1.0, tail_s=1.2)          # 2.2s: 1s speech + 1.2s tail
+    before = _common.audio_duration(p)
+    tts._master(p, {})
+    after = _common.audio_duration(p)
+    assert before > 2.0                            # sanity: the tail was really there
+    assert after < 1.6                             # tail trimmed to ~1s speech + 0.12 pad
+    assert after > 0.8                             # but the speech itself is NOT eaten
+
+@pytest.mark.skipif(not _common.have_tool("ffmpeg"), reason="needs ffmpeg")
+def test_master_preserves_leading_silence(tmp_path):
+    # LEADING/internal timing must NOT move — edge-tts words.json times are relative to the start.
+    p = str(tmp_path / "b.mp3")
+    _tone_clip(p, tone_s=1.0, lead_s=0.4)          # 1.4s: 0.4s lead + 1s speech, no tail
+    tts._master(p, {})
+    after = _common.audio_duration(p)
+    assert after > 1.3                             # ~0.4 lead + 1.0 speech (+pad) kept; not trimmed to ~1.1
+
+@pytest.mark.skipif(not _common.have_tool("ffmpeg"), reason="needs ffmpeg")
+def test_master_opt_out_leaves_clip_untouched(tmp_path):
+    p = str(tmp_path / "c.mp3")
+    _tone_clip(p, tone_s=1.0, tail_s=1.2)
+    before = _common.audio_duration(p)
+    tts._master(p, {"audio_master": False})
+    assert abs(_common.audio_duration(p) - before) < 0.05
+
 # --- MiniMax ---------------------------------------------------------------------------------
 
 def test_minimax_voice_catalog():

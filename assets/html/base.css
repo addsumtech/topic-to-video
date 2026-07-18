@@ -75,6 +75,16 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 /* card with depth + hairline */
 .card{background:var(--surface);border-radius:var(--radius,14px);padding:28px 32px;border:var(--hairline);
   box-shadow:var(--shadow-primary),var(--shadow-float)}
+/* OFF-CENTER / rule-of-thirds bands — park the whole content column in ONE horizontal third-band and
+   leave a DELIBERATE void on the other side (real negative space, NOT a 2fr/1fr card split). This is
+   the reference class's most reliable "art-directed" silhouette: it reads the same in 16:9 and 9:16,
+   needs no data or imagery, and pairs beautifully with a .bg-photo/.bg-soft/.bg-motif breathing in the
+   void. keyframe_qa's caption/overflow checks still apply; validate.py credits it as genuine asymmetry. */
+.stage.frame-left{align-items:flex-start}
+.stage.frame-right{align-items:flex-end;text-align:right}
+.stage.frame-left>*,.stage.frame-right>*{max-width:58%}
+.stage.thirds{align-items:flex-start}
+.stage.thirds>*{max-width:66%}
 /* layout primitives: asymmetric + 3-up dashboard */
 .grid-asym{display:grid;grid-template-columns:2fr 1fr;gap:48px;align-items:start}
 .dash{display:grid;grid-template-columns:1fr 1fr 1fr;gap:48px;align-items:stretch}  /* equal-height cards */

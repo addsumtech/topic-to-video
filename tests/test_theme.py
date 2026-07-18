@@ -125,8 +125,23 @@ def test_style_css_emits_hint_vars(tmp_path):
     theme.write_theme_css(theme.derive_theme(str(tmp_path), style="brutalism"), str(tmp_path / "b.css"))
     css = open(str(tmp_path / "b.css")).read()
     for v in ("--style:brutalism", "--radius:", "--border-weight:", "--font-display:", "--font-body:",
-              "--font-kind:", "--motif-ink:"):
+              "--font-kind:", "--motif-ink:", "--grain-amount:"):
         assert v in css, v
+
+
+def test_grain_amount_wires_texture_styles_not_clean_ones(tmp_path):
+    # the film-grain amount is the consumer the `ink` metadata (halftone/…) never had: textured styles
+    # get grain, clean/grid styles stay crisp at 0
+    def amt(style):
+        p = tmp_path / f"{style}.css"
+        theme.write_theme_css(theme.derive_theme(str(tmp_path), style=style), str(p))
+        line = [l for l in open(str(p)) if "--grain-amount:" in l][0]
+        return line.split("--grain-amount:")[1].split(";")[0].strip()
+    assert amt("risograph") == ".16"          # ink:'halftone' now HAS a consumer
+    assert amt("manga") == ".13"
+    assert float(amt("noir")) > 0
+    for clean in ("swiss", "glassmorphism", "cyberpunk"):
+        assert amt(clean) == "0", clean
 
 
 def test_style_type_maps_to_bundled_face(tmp_path):

@@ -158,3 +158,16 @@ img.kenburns{animation:mt-kenburns 6s ease-out forwards;animation-play-state:pau
 /* oversized faint icon as a card watermark (texture, not clutter) */
 .icon-ghost{position:absolute;right:24px;bottom:8px;width:160px;height:160px;color:var(--fg);
   opacity:.05;stroke:currentColor;fill:none;stroke-width:1.5;pointer-events:none}
+
+/* FILM GRAIN — a fixed-seed feTurbulence overlay that gives the FREE (no-AI-image) tier a filmic /
+   riso / print surface instead of flat CSS. AUTO-applied from the theme's per-style --grain-amount
+   (0 = off, so clean styles pay nothing and add no pixels); this is the consumer the risograph
+   `ink:'halftone'` / manga speedline / watercolor wash / terminal scanline / noir beam metadata never
+   had. Deterministic (fixed seed → same frame every render), pointer-events:none, whole-frame overlay
+   above content for a true film grain; doubles as anti-banding on gradients. A data-heavy page can
+   opt out with class="no-grain" on <body>. --grain-size tunes the tile (coarser vs finer). */
+body::after{content:"";position:fixed;inset:0;z-index:5;pointer-events:none;
+  mix-blend-mode:overlay;opacity:var(--grain-amount,0);
+  background-size:var(--grain-size,170px) var(--grain-size,170px);
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='170'%20height='170'%3E%3Cfilter%20id='n'%3E%3CfeTurbulence%20type='fractalNoise'%20baseFrequency='0.8'%20numOctaves='2'%20stitchTiles='stitch'%20seed='11'/%3E%3CfeColorMatrix%20type='saturate'%20values='0'/%3E%3C/filter%3E%3Crect%20width='170'%20height='170'%20filter='url(%23n)'/%3E%3C/svg%3E")}
+body.no-grain::after{opacity:0}

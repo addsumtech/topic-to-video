@@ -64,6 +64,13 @@ STYLE_PRESETS = {
     "cartographic": ("light", "#3f6f5f", "#b06a3c", {"radius": "4px",  "border": "1px", "font": "serif",      "grid": ".07", "ink": "contour"}),
 }
 
+# FILM-GRAIN amount per style, keyed off its `ink` — the consumer the `ink` metadata (halftone/speedline/
+# wash/scanline/beam) never had. motifs.css `body::after` reads --grain-amount; 0 = clean styles pay
+# nothing. Only the styles whose identity is a printed/filmic SURFACE get grain; grid/geometric/glow/blob
+# styles stay crisp. A style dict may override with an explicit "grain" key.
+_GRAIN_BY_INK = {"halftone": ".16", "speedline": ".13", "wash": ".10",
+                 "scanline": ".10", "beam": ".08", "contour": ".06"}
+
 
 # ── style TYPE — each style's display + body FACE (bundled in assets/fonts/, SIL OFL) so the deck's
 #    typography matches its style: comic reads comic (Bangers), Swiss/geometric reads grotesque
@@ -221,10 +228,11 @@ def write_theme_css(theme, path):
         kind = _STYLE_FONT_KIND.get(_style_key(theme.get('style', '')), "sans")
         disp, body = _FONT_FAMILIES[kind]
         num = _FONT_NUMBER[kind]
+        grain = sv.get("grain") or _GRAIN_BY_INK.get(sv.get("ink"), "0")
         style_css = (f"  --style:{theme.get('style', '')}; --radius:{sv.get('radius', '14px')}; "
                      f"--border-weight:{sv.get('border', '1px')}; --border-ink:{sv.get('bink', 'rgba(127,127,127,.18)')};\n"
                      f"  --font-display:{disp}; --font-body:{body}; --font-number:{num}; --font-kind:{kind};\n"
-                     f"  --grid-strength:{sv.get('grid', '.07')}; --motif-ink:{sv.get('ink', 'grid')};\n")
+                     f"  --grid-strength:{sv.get('grid', '.07')}; --motif-ink:{sv.get('ink', 'grid')}; --grain-amount:{grain};\n")
     css = (":root{\n"
            + style_css
            + f"  --bg:{theme['bg']}; --surface:{theme['surface']}; --fg:{theme['fg']};\n"

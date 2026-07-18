@@ -14,6 +14,11 @@ html, body { width: 1080px; height: 1920px; }
 /* top-anchored: content opens ~150px from the top; the burned caption owns the bottom ~300px */
 .stage { width: 1080px; height: 1920px; padding: 150px 80px 300px; justify-content: flex-start; gap: 40px; }
 
+/* off-center bands: a 58% band is too pinched on the narrow 1080 column — widen it so the void reads
+   as intentional negative space, not a cramped gutter (the vertical canvas already stacks tall). */
+.stage.frame-left > *, .stage.frame-right > * { max-width: 82%; }
+.stage.thirds > * { max-width: 88%; }
+
 /* full-bleed backdrops fill the tall canvas (motifs.css now sizes them 100%, so this is a belt-and-braces) */
 .bg-photo, .bg-soft { width: 100%; height: 100%; }
 /* cover hero: a vertical scrim (dark at top) for a top-anchored title over a photo */

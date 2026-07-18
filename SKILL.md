@@ -37,7 +37,10 @@ TTS if the user gives an API key.
   accent toward ≥3:1 on the bg (lightness only, capped ±0.15 to preserve the hue's character;
   an explicit `--accent` override is never touched), and picks `--on-accent` by whichever of
   black/white has the higher true contrast on the accent fill. An out_dir themed BEFORE this fix
-  may carry a low-contrast `--on-accent` in its theme.css — re-run `theme.py` to regenerate.
+  may carry a low-contrast `--on-accent` in its theme.css — re-run `theme.py` to regenerate. It also
+  emits **`--grain-amount`** per style — a printed/filmic style (risograph/manga/watercolor/terminal/
+  noir/cartographic) gets a subtle fixed-seed **film grain** (motifs.css `body::after`, auto-applied,
+  FREE tier), clean styles stay crisp at 0; a data-heavy page opts out with `<body class="no-grain">`.
 - `scripts/imagegen.py <out_dir> [--key KEY]` — OPTIONAL paid tier: generate AI scene images
   via OpenAI `gpt-image-2` for scenes that carry an `image_prompt`, cached under `.assets/`
   (re-runs are free). Auto-uses the Codex CLI (no key) when installed, else needs
@@ -172,6 +175,10 @@ TTS if the user gives an API key.
   text-position estimate via `cues.py`), each **bar grows** and its value label fades in exactly when
   the narrator speaks that figure, and a **counter counts up to land** on the spoken number — instead of
   the blind frame timer. No `cue` ⇒ the blind build (unchanged). Turns a narrated chart into a data video.
+  The SAME `props.cue` word-sync now drives **`timeline`** (each node lands as its date/label is spoken),
+  **`compare`** (each bar/segment grows on its part's cue), and **`keypoints`** (each row reveals on its
+  phrase) — one anchor per element in spoken order; cues change only WHEN an element appears, never the
+  faithful final frame. So "the element lands as it is spoken" is no longer chart-only.
 - **HTML pages tier** (optional, free): `scenes.py:render_html` screenshots bespoke designed
   HTML pages (authored on `assets/html/base.css`, see `references/html-pages.md`) via headless
   **Google Chrome** — no new dependency. Each page's paused CSS reveals are captured frame-by-frame.

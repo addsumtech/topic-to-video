@@ -331,6 +331,39 @@ def _detect_language(slides):
         return "zh"
     return "en"
 
+def _master(path, meta=None):
+    """Loudness-normalise + trim TRAILING dead-air of a SPEECH clip, in place. Two problems at once:
+    (1) raw TTS ships at wildly different loudness across providers/scenes with no master, so a
+    carefully-placed climax has no consistent sonic level; (2) the trailing tail (esp. say/openai/
+    minimax) inflates the ffprobe duration, so the pacing gate + clip length are computed against dead
+    air. loudnorm (EBU R128, I=-14) fixes level; a REVERSED silenceremove trims only the TAIL —
+    leading & internal timing are untouched, so edge-tts `audio/NN.words.json` stays aligned (word
+    times are relative to the start, which never moves) and karaoke/cues keep syncing. A fixed 0.12s
+    pad keeps a uniform short breath so scene-edge dips never clip a word. The render re-encodes every
+    clip to aac/48000/mono anyway, so this never touches sample-rate uniformity or the -c copy concat.
+    Best-effort + deterministic: any ffmpeg failure keeps the original clip untouched. meta.audio_master
+    == False opts out."""
+    if meta is not None and meta.get("audio_master") is False:
+        return
+    if not _common.have_tool("ffmpeg"):
+        return
+    tmp = path + ".master" + os.path.splitext(path)[1]
+    af = ("loudnorm=I=-14:TP=-1.5:LRA=11,"
+          "areverse,silenceremove=start_periods=1:start_duration=0.06:"
+          "start_threshold=-45dB:detection=peak,areverse,apad=pad_dur=0.12")
+    try:
+        _common.run(["ffmpeg", "-y", "-i", path, "-af", af, "-map_metadata", "-1", tmp])
+        # only adopt the mastered clip if it's a real, non-degenerate result (guards the pathological
+        # case where a near-silent clip gets trimmed to ~nothing — keep the original instead)
+        if os.path.getsize(tmp) > 0 and _common.audio_duration(tmp) >= 0.3:
+            os.replace(tmp, path)
+        elif os.path.exists(tmp):
+            os.remove(tmp)
+    except Exception:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
 def synthesize(out_dir, only=None):
     path = os.path.join(out_dir, "storyboard.json")
     data = sb.load(path)
@@ -389,6 +422,7 @@ def synthesize(out_dir, only=None):
         if ok_primary:
             used_primary.append(s["index"])
         s["audio"] = rel
+        _master(dest, data["meta"])   # level + trim TAIL before we measure — pacing must see speech, not dead air
         s["duration"] = round(_common.audio_duration(dest), 3)
         # Only edge-tts emits per-word timings. For any other provider (say/openai/minimax) drop a
         # leftover words.json from a PRIOR edge run — otherwise render_html would cue reveals off

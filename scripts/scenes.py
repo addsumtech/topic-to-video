@@ -343,6 +343,9 @@ def render_keypoints(props, meta, W, H, frames, workdir, index):
     # spread default. The title is the first slot; points fill the rest (floor 0.32s for short scenes).
     n_pts = max(1, len(points))
     stagger = max(int(0.32 * fps), frames // (n_pts + 1))
+    # WORD-SYNC (opt-in via props.cue, one anchor per point in spoken order): each row reveals the moment
+    # its phrase is spoken instead of on the blind stagger. None -> the blind stagger (unchanged).
+    cue_times = _resolve_chart_cues(props.get("cue"), meta, index, frames / (fps or 30))
     x = int(W * 0.10)
     sub_sample = "".join(str(p.get("sub", "")) for p in points) or "x"
     tfont = _font(meta, title or " ", int(H * 0.058), role="serif")   # editorial headline
@@ -372,7 +375,12 @@ def render_keypoints(props, meta, W, H, frames, workdir, index):
             a0 = int(255 * _prog(i, 0))
             d.text((x, int(H * 0.15)), title, font=tfont, fill=fg + (a0,))
         for k, pnt in enumerate(points):
-            p = _prog(i, (k + 1) * stagger)
+            if frames <= 1:                                        # static single frame -> settled end state
+                p = 1.0
+            elif cue_times and k < len(cue_times) and cue_times[k] is not None:
+                p = _ease(_cue_local_p(cue_times, k, i / fps, 0.0, reveal_dur=intro / fps))
+            else:
+                p = _prog(i, (k + 1) * stagger)                    # blind stagger UNCHANGED (keeps its own guards)
             if p <= 0:
                 continue
             a = int(255 * p)
@@ -426,6 +434,16 @@ def _resolve_chart_cues(anchors, meta, index, dur):
     margin = max(0.0, dur - 0.5)
     return [min(float(t), margin) for t in times]
 
+def _cue_local_p(cue_times, k, t, p_raw, reveal_dur=0.5):
+    """Element k's raw 0..1 progress: WORD-SYNCED from its resolved cue time when available (grows in
+    over `reveal_dur` s once the narrator reaches its anchor), else the blind fallback `p_raw`. Shared
+    by render_chart/keypoints/timeline/compare so 'the element lands as it is spoken' behaves identically
+    across the programmatic diagram renderers — the single most authored kinetic behaviour, previously
+    wired into charts only. Fully backward-compatible: cue_times None -> every element uses p_raw."""
+    if cue_times and k < len(cue_times) and cue_times[k] is not None:
+        return max(0.0, min(1.0, (t - cue_times[k]) / (reveal_dur or 0.5)))
+    return p_raw
+
 def _mpl_font(meta):
     """Register and select a CJK font for matplotlib when the narration language is CJK,
     so axis/labels don't tofu; else use matplotlib's bundled DejaVu Sans."""
@@ -465,9 +483,20 @@ def render_timeline(props, meta, W, H, frames, workdir, index):
     c_bg, c_fg, c_muted, c_rule = pal["bg"], pal["fg"], pal["muted"], pal["rule"]
     n_ev = len(events)
     xs = list(range(n_ev))
+    fps = meta.get("fps", 30) or 30
+    # WORD-SYNC (opt-in via props.cue, one anchor per event in spoken order): each node lands as its
+    # date/label is spoken instead of on the blind count. None -> the blind reveal (unchanged).
+    cue_times = _resolve_chart_cues(props.get("cue"), meta, index, frames / fps)
 
     def draw(i, n):
-        vis = _visible_count(n_ev, i / max(1, n - 1) if n > 1 else 1.0)
+        if n <= 1:
+            vis = n_ev                                              # static single frame -> all events settled
+        elif cue_times:
+            t = i / fps
+            vis = sum(1 for j in range(n_ev)
+                      if j < len(cue_times) and cue_times[j] is not None and t + 1e-6 >= cue_times[j])
+        else:
+            vis = _visible_count(n_ev, i / max(1, n - 1))
         fig = plt.figure(figsize=figsize, dpi=dpi); fig.patch.set_facecolor(c_bg)
         ax = fig.add_subplot(111); ax.set_facecolor(c_bg); ax.axis("off")
         if title:
@@ -560,9 +589,7 @@ def render_chart(props, meta, W, H, frames, workdir, index):
 
     def _local_p(k, t, p_raw):
         """Raw 0..1 progress for element k: from its cue time (word-synced) else the blind global curve."""
-        if cue_times and k < len(cue_times) and cue_times[k] is not None:
-            return max(0.0, min(1.0, (t - cue_times[k]) / reveal_dur))
-        return p_raw
+        return _cue_local_p(cue_times, k, t, p_raw, reveal_dur)
 
     def draw(i, n):
         p_raw = i / max(1, n - 1) if n > 1 else 1.0
@@ -732,16 +759,22 @@ def render_compare(props, meta, W, H, frames, workdir, index):
     # categorical palette: color IS data here, so lead with the theme accent + accent2 and keep
     # the remaining distinct hues (do NOT desaturate — the skeptic flagged that as data-flattening).
     palette = [props.get("accent") or pal["accent"], pal["accent2"], "#46A758", "#9B7EDE", pal["muted"]]
+    fps = meta.get("fps", 30) or 30
+    # WORD-SYNC (opt-in via props.cue, one anchor per part in spoken order): each bar/segment grows the
+    # moment its part is spoken instead of all together. None -> the blind global grow (unchanged).
+    cue_times = _resolve_chart_cues(props.get("cue"), meta, index, frames / fps)
 
     def draw(i, n):
         p = i / max(1, n - 1) if n > 1 else 1.0
+        t = i / fps
         e = _ease(p)
         fig = plt.figure(figsize=figsize, dpi=dpi); fig.patch.set_facecolor(c_bg)
         ax = fig.add_subplot(111); ax.set_facecolor(c_bg)
         if title:
             ax.set_title(title, color=c_fg, fontsize=18, fontfamily=_mpl_title_family(meta, famly), pad=16)
         if kind == "versus":
-            cur = _chart_values(values, p)
+            cur = [_chart_values([values[k]], 1.0 if n <= 1 else _cue_local_p(cue_times, k, t, p))[0]
+                   for k in range(len(values))]
             ax.bar(labels, cur, color=[palette[k % len(palette)] for k in range(len(parts))])
             ax.set_ylim(0, (max(values + [0]) * 1.15 or 1))
             for sp in ax.spines.values():
@@ -754,7 +787,7 @@ def render_compare(props, meta, W, H, frames, workdir, index):
             total = props.get("total") or sum(values) or 1
             left = 0.0
             for k, v in enumerate(values):
-                w = (v / total) * e
+                w = (v / total) * (1.0 if n <= 1 else _ease(_cue_local_p(cue_times, k, t, p)))
                 ax.barh([0], [w], left=[left], color=palette[k % len(palette)], height=0.5)
                 if w > 0.05:
                     # label sits ON the segment fill — pick black/white by true contrast per segment

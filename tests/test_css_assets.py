@@ -39,3 +39,24 @@ def test_backdrops_are_aspect_general():
     m = _read("motifs.css")
     for block in re.finditer(r"\.bg-(?:photo|soft)\{[^}]*\}", m):
         assert "1920px" not in block.group(0), "backdrop still hardcodes a landscape 1920px size"
+
+
+def test_offcenter_band_primitive_present():
+    css = _read("base.css")
+    for cls in (".stage.frame-left", ".stage.frame-right", ".stage.thirds"):
+        assert cls in css, f"{cls} off-center band missing from base.css"
+    # left/right park the content in ONE band (a capped width leaves the deliberate void)
+    assert "max-width:58%" in css.replace(" ", "")
+    # 9:16 widens the band so it isn't a cramped gutter on the narrow column
+    v = _read("vertical.css")
+    assert "frame-left" in v and "82%" in v
+
+
+def test_grain_primitive_present_and_gated():
+    m = _read("motifs.css")
+    # a fixed-seed feTurbulence overlay, auto-applied via body::after, GATED by --grain-amount (0 = off)
+    assert "body::after" in m and "feTurbulence" in m
+    assert "opacity:var(--grain-amount,0)" in m.replace(" ", "")
+    assert "seed=" in m and "fractalNoise" in m          # deterministic seed, film-grain noise type
+    assert "pointer-events:none" in m.replace(" ", "")
+    assert "body.no-grain::after" in m                   # data-heavy pages can opt out
