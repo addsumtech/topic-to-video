@@ -295,6 +295,28 @@ THIS subject. Make it that:
   arc; `experimental` (opt-in only) → push the register hard, accept that a beat may be sent back. The
   budget scales HOW FAR the register/motion/type push — it NEVER relaxes clarity, faithfulness, WCAG, the
   keyframe/caption/AV gates. On a higher tier, be braver on the aesthetic axes; the floor is identical.
+- **Register CONTEST — Phase A (when dispatched in contest mode): divergence BEFORE commitment.** A
+  register written once regresses to the safe mean, so on a designed (html/AI-tier) video the assistant
+  dispatches you FIRST in contest mode: return ONLY `register_candidates` — N genuinely divergent
+  candidates (`balanced` 3 · `bold` 5 · `experimental` 7), NOT a full design plan. Each candidate:
+  `{key, name, angle, visual_style (catalog key or "custom"+DNA), motion_personality, type_attitude,
+  how_distinct, palette_hint {mode, accent, accent2, bg}, frame_spec}` — where `frame_spec` is a CONCRETE
+  one-frame brief for that candidate's representative frame (its signature or opener beat): the layout
+  archetype, the type treatment, what the style/motif does in THIS frame, and what would make a designer
+  stop on it. **Forced divergence:** give each candidate a DIFFERENT angle from: motion-led / type-drama /
+  metaphor-embodied / restrained-editorial / bold-graphic / material-texture / spatial-depth; any two
+  candidates must differ in ≥2 of {style family, motion personality, type attitude, palette mood}. Two
+  skins of one idea defeat the contest — replace one. Divergent ≠ broken: every candidate still respects
+  the floor (deliverable primitives, faithful, legible) and must FIT the topic (a bold-but-alien register
+  loses to a quieter apt one). The assistant then authors one page per candidate, gets a floor verdict
+  per frame (`scripts/snapshot.py`), has the design-critic judge them ("Register contest — judge mode"),
+  surfaces the top picks to the user, and re-dispatches you (**Phase B**) for the FULL design plan
+  committed to the selected register — record `register_contest {mode, candidates:[{key, name, angle,
+  frame, floor, verdict}], winner, user_pick}` in the plan so `validate.py` + the critic can verify the
+  selection actually drove the plan (the committed `design_register.name` must be the winner's).
+  **On a REDIVERGE re-dispatch** (the judge found candidates collapsed into skins of one idea): replace
+  ONLY the candidates on the named collapsed axes — keep the genuinely distinct survivors unchanged;
+  one redivergence round max, then the judge ranks what exists.
 - **Pick ONE named visual style — a smart contest, not a reflex (`references/visual-styles.md`).** Choose the
   deck's `visual_style` from the 18-style catalog by reasoning from the subject: **(0)** if the interview set
   `meta.visual_style` (or slide frames carry a brand palette), HONOR it. **(1)** read five signals — domain ·

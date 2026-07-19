@@ -103,7 +103,10 @@ TTS if the user gives an API key.
   It is NOT a render knob and NEVER relaxes the floor: clarity, faithfulness, WCAG, and the
   keyframe/caption/overflow/AV gates are identical at every level — a register move that breaks one is
   redone in-register but in-bounds. `validate.py` accepts it as a known field (warns on a typo);
-  design-director honours it when committing the register, design-critic (D2e) judges against it.
+  design-director honours it when committing the register, design-critic (D2e) judges against it. It
+  also sets the **register-contest width** (workflow 3.55): `conservative` skips the contest ·
+  `balanced` 3 candidates · `bold` 5 · `experimental` 7 — and validate warns when a bold/experimental
+  deck ships a register with no contest recorded.
   **Reduced motion:** `--reduced-motion` (or `meta.reduced_motion`) emits an accessibility variant —
   the image tier holds a static frame (to==from, no zoom/pan) and HTML reveals become opacity-only
   cross-fades (a `reduced-motion.css` linked last), still deterministic + seekable. It's an
@@ -167,6 +170,13 @@ TTS if the user gives an API key.
   blank / overflow / clip / caption-occlusion (advisories don't block). Run after
   authoring the pages, BEFORE the full render — a ~1-minute catch of the exact failures that would
   otherwise silently ship in a multi-minute render. (No CDP → screenshots + blank-check only.)
+- `scripts/snapshot.py <page.html> <out.png> [--p 1.0] [--vertical] [--no-captions] [--json]` — render
+  ONE designed HTML page frozen at `?p=` to a PNG and run the SAME box-geometry floor probe keyframe_qa
+  gates on (canvas overflow / intra-box clip / caption-zone) — no storyboard.json needed. Exit 0 =
+  clean · 2 = floor issues (printed) · 3 = rendered but floor NOT probed (no CDP — screenshot only;
+  unusable as a contest verdict, drop to paper mode) · 1 = could not render; `--no-captions` skips the
+  caption-zone check (band/captions-off decks). The **register-contest** primitive (every candidate gets
+  real pixels + a deterministic floor verdict before any style points); also handy while authoring any page.
 - `scripts/scenes.py` — deterministic ANIMATED scene renderers (no slides): `title`/`keypoints`
   (PIL), `chart`/`timeline`/`compare` (matplotlib), `html` (headless Chrome). A storyboard scene
   with `type` `title`/`keypoints`/`chart`/`timeline`/`compare`/`html` (+ a typed `props` block)
@@ -425,6 +435,31 @@ TTS if the user gives an API key.
      depends on), and a learning `stage` (`hook|ground|build|why|land`); plus top-level `assumed_known`.
      **Save the returned plan to `<out_dir>/content_plan.json`** — `pedagogy_qa.py` walks the ledger for a
      concept-used-before-introduced ERROR, and `critic-content` reads it for the prerequisite gate.
+3.55. **Register CONTEST — the divergence half (designed decks; audacity-gated).** A register written
+     once regresses to the safe mean: the register system (D2e) can REFUSE blandness, but only sampling
+     several genuinely different registers and SELECTING can produce the striking one. So on a
+     from-scratch **designed** deck (HTML or AI tier — skip when an ingested pptx/pdf already owns the
+     look, and skip at `meta.audacity: conservative`), run the contest BEFORE the full design plan.
+     Width by audacity: `balanced` 3 candidates · `bold` 5 · `experimental` 7. Bounded cost: ONE authored
+     page + ONE snapshot per candidate — never a full render. Procedure:
+     ① Dispatch `agents/design-director.md` in **CONTEST mode** → `register_candidates` (forced-divergent
+     angles; see its "Register CONTEST — Phase A"). ② Per candidate `<key>`: make `<out>/_contest/<key>/`,
+     run `python scripts/theme.py <out>/_contest/<key> --style <its visual_style> [--accent …]` for its
+     own theme.css, author ONE representative page from its `frame_spec` (the signature/opener frame, on
+     `base.css` + that theme.css), then `python scripts/snapshot.py <page> <out>/_contest/<key>/frame.png`
+     — exit 2 = floor issues: repair ONCE in-register or disqualify; exit 3 = rendered but floor NOT
+     probed (CDP unavailable): do NOT record a `rendered` floor verdict — fix Chrome/CDP or drop the
+     whole contest to paper mode. ③ Dispatch `agents/design-critic.md`
+     in **judge mode** (give it the PNG paths + specs + `meta.audacity`): floor-breakers out, survivors
+     ranked, ONE winner (or REDIVERGE once — never twice). ④ Surface the winner + runner-up to the USER
+     via `AskUserQuestion` (winner first with "(Recommended)"; include the frame paths so they can look) —
+     their pick is FINAL: record it as `register_contest.winner` (+ `user_pick: true`). ⑤ Continue to the
+     design plan (3.6) with the director committed to the selected register, recording
+     `register_contest {mode: "rendered", candidates, winner, user_pick}` in `design_plan.json` —
+     `validate.py` warns at bold/experimental when a register ships with NO contest recorded, and when the
+     committed `design_register.name` isn't the recorded winner's. **No Chrome / no HTML pages:** run the
+     contest on PAPER (judge mode ranks the specs; record `mode: "paper"`) — weaker than pixels, say so,
+     but still divergence+selection.
 3.6. **Design plan (art director) — give the content its visual language.** Dispatch
      `agents/design-director.md` on the content plan + comprehension brief + `meta`. It returns a
      SEPARATE **design plan** keyed by beat id: top-level `motif` (the CONCEPT motif — one topic-derived

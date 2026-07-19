@@ -655,6 +655,72 @@ def test_meta_audacity_valid_value_no_warn(tmp_path):
         r = validate.evaluate(_board(str(tmp_path), [_slide_scene(tmp_path, 0)], meta={"audacity": level}), str(tmp_path))
         assert not any("meta.audacity" in w for w in r["warnings"]), level
 
+_CONTEST_CANDS = [{"key": "A", "name": "the terminal you step into"},
+                  {"key": "B", "name": "a clinical dossier"}]
+
+def _contest_board(tmp_path, plan, meta=None):
+    _design_plan(tmp_path, plan)
+    r = validate.evaluate(_board(str(tmp_path), [_slide_scene(tmp_path, 0)], meta=meta), str(tmp_path))
+    return [w for w in r["warnings"] if "register_contest" in w or "contest winner" in w]
+
+_REG_PLAN = {"beats": [{"index": 1, "content_shape": "x", "form": "stat"},
+                       {"index": 4, "content_shape": "y", "form": "compare"}],
+             "signature_concept": {"beat": 4}, "style_thesis": "y", "visual_style": "swiss",
+             "design_register": _FULL_REG}
+
+def test_register_contest_missing_at_bold_warns(tmp_path):
+    w = _contest_board(tmp_path, _REG_PLAN, meta={"audacity": "bold"})
+    assert any("no register_contest" in x for x in w)
+
+def test_register_contest_not_required_at_balanced(tmp_path):
+    assert _contest_board(tmp_path, _REG_PLAN) == []          # default balanced -> advisory only at bold+
+
+def test_register_contest_consistent_no_warn(tmp_path):
+    plan = {**_REG_PLAN, "register_contest": {"mode": "rendered", "candidates": _CONTEST_CANDS, "winner": "A"}}
+    assert _contest_board(tmp_path, plan, meta={"audacity": "bold"}) == []
+
+def test_register_contest_winner_mismatch_warns(tmp_path):
+    # committed register (A's name) differs from the recorded winner (B) -> the selection didn't drive the plan
+    plan = {**_REG_PLAN, "register_contest": {"mode": "rendered", "candidates": _CONTEST_CANDS, "winner": "B"}}
+    w = _contest_board(tmp_path, plan, meta={"audacity": "bold"})
+    assert any("differs from the contest winner" in x for x in w)
+
+def test_register_contest_winner_unknown_and_single_candidate_warn(tmp_path):
+    w = _contest_board(tmp_path, {**_REG_PLAN, "register_contest": {"candidates": _CONTEST_CANDS, "winner": "Z"}})
+    assert any("not among its candidates" in x for x in w)
+    w2 = _contest_board(tmp_path, {**_REG_PLAN, "register_contest": {"candidates": _CONTEST_CANDS[:1], "winner": "A"}})
+    assert any("<2 candidates" in x for x in w2)
+
+def test_register_contest_falsy_key_zero_is_valid(tmp_path):
+    # a falsy-but-valid key (0) must NOT false-warn "winner not among candidates", and the name-consistency
+    # check must still run (the truthiness or-chain used to fall through key 0 -> name)
+    cands = [{"key": 0, "name": "the terminal you step into"}, {"key": 1, "name": "a clinical dossier"}]
+    plan = {**_REG_PLAN, "register_contest": {"mode": "rendered", "candidates": cands, "winner": 0}}
+    assert _contest_board(tmp_path, plan, meta={"audacity": "bold"}) == []
+    # same falsy key, but the committed register is NOT the winner's name -> the real mismatch warn fires
+    bad = {**_REG_PLAN, "design_register": {**_FULL_REG, "name": "something else entirely"},
+           "register_contest": {"mode": "rendered", "candidates": cands, "winner": 0}}
+    assert any("differs from the contest winner" in x for x in _contest_board(tmp_path, bad, meta={"audacity": "bold"}))
+
+def test_register_contest_dict_candidates_normalized(tmp_path):
+    # candidates recorded as a dict keyed by candidate key (like `beats`) must normalize, not read as <2
+    cands = {"A": {"name": "the terminal you step into"}, "B": {"name": "a clinical dossier"}}
+    plan = {**_REG_PLAN, "register_contest": {"mode": "rendered", "candidates": cands, "winner": "A"}}
+    assert _contest_board(tmp_path, plan, meta={"audacity": "bold"}) == []
+
+def test_register_contest_candidates_without_winner_warns(tmp_path):
+    # divergence without SELECTION is not a contest — candidates recorded but no winner must warn
+    plan = {**_REG_PLAN, "register_contest": {"mode": "rendered", "candidates": _CONTEST_CANDS}}
+    w = _contest_board(tmp_path, plan, meta={"audacity": "bold"})
+    assert any("no winner" in x for x in w)
+
+def test_register_contest_garbage_no_crash(tmp_path):
+    # a non-dict contest is treated as missing (warns at bold), never crashes the gate
+    w = _contest_board(tmp_path, {**_REG_PLAN, "register_contest": [1, 2]}, meta={"audacity": "bold"})
+    assert any("no register_contest" in x for x in w)
+    w2 = _contest_board(tmp_path, {**_REG_PLAN, "register_contest": {"candidates": "oops", "winner": 3}})
+    assert isinstance(w2, list)                                # degenerate fields -> warnings, no AttributeError
+
 def test_composition_sig_hyphenated_superstring_not_offset_credited():
     # a hyphenated superstring (grid-thirds) must NOT be mis-credited as an off-center band
     assert validate._composition_sig('<div class="stage grid-thirds"><div>x</div></div>')["balance"] != "offset"

@@ -141,6 +141,30 @@ OR a non-card form that fits in the wrong direction (D1 bidirectional), player-c
   redone in-register but in-bounds; the fix is "make it legible," never "make it safe/forgettable."
   (`validate.py` flags a missing/stub `design_register` as a mechanical hook.)
 
+### Register contest — judge mode (selection half of divergence+selection)
+When dispatched to judge register CANDIDATES (N one-frame PNGs + specs, BEFORE the full plan exists),
+you are the selector that makes divergence pay. Judge from the RENDERED frames (Read the PNGs), not the
+prose promises. Protocol:
+1. **Floor first — no style points for broken frames.** A candidate whose frame fails the snapshot floor
+   verdict (canvas overflow / clipped text / caption-zone), the 3-second read, obvious contrast, or
+   faithfulness is DISQUALIFIED; it may re-enter after ONE in-register repair, never a second.
+2. **Rank the survivors** on four axes: **DISTINCT** — name each register from the pixels in one phrase;
+   "a clean corporate explainer" ranks last. **APT** — fits THIS topic + audience; a bold-but-wrong
+   register loses to a quieter apt one. **REALIZED** — the frame actually shows the claimed register; a
+   spec the pixels don't deliver ranks below a modest frame that delivers. **IN-BUDGET** — matches
+   `meta.audacity` (don't crown an experimental frame on a balanced dial, don't crown bland on bold).
+3. **Anti-collapse.** If two+ candidates read as skins of one idea (fail the pairwise ≥2-axis difference
+   from the director's Phase A), return **REDIVERGE** naming the collapsed axes — ONE redivergence round
+   max, then judge what exists.
+4. **Verdict:** ONE winner + one line why; one line per loser on why it lost; and ALWAYS name the
+   runner-up (the assistant surfaces winner + runner-up to the user). The user's pick, when they
+   make one, is FINAL — record it as the winner (`user_pick: true`), and Phase B commits to it.
+
+**Paper mode** (`mode: "paper"` — no Chrome / no HTML pages, specs only): skip step 1 (there are no
+frames to floor-check) and judge DISTINCT / APT / IN-BUDGET from the `frame_spec`s, replacing REALIZED
+with **DELIVERABLE** — could this frame_spec actually be built with the skill's primitives, or is it an
+un-renderable promise? State in the verdict that the ranking is spec-only and weaker than pixels.
+
 ### D3 — Transition rhythm (the cut must match the plan's `relation`)
 - Cross-check each scene's `transition`/`transition_seconds` against the beat's `relation` (motion-grammar
   "Transition rhythm"): continuation → `none`; new-topic seam → predecessor `out` + this `in` (a dip);

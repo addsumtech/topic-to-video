@@ -581,7 +581,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # Form-fit + creativity presence — mechanical hooks for design-critic D1/D2c, read from the
     # persisted design_plan.json (semantic judgment stays with the critic; these just flag the highest-
     # signal mismatch + a missing creative field). No-op when the plan isn't persisted.
-    _design_plan_lints(out_dir, warnings)
+    _design_plan_lints(out_dir, warnings, meta)
 
     # Truthful-content backstop: flag any statistic spoken/shown that doesn't trace to brief.json evidence.
     _figure_traceability(slides, out_dir, warnings)
@@ -596,7 +596,7 @@ _SHARE_SHAPE = ("share", "part-of-whole", "part of whole", "proportion", "percen
 _CATALOG_FORM = ("grid", "cards", "scorecard", "dash", "keypoints", "blocks")
 
 
-def _design_plan_lints(out_dir, warnings):
+def _design_plan_lints(out_dir, warnings, meta=None):
     """When design_plan.json is persisted: WARN the two highest-signal content_shape↔form mismatches
     (a temporal shape rendered static; a share atomized into separate numbers) and a missing/decorative
     signature_concept / style_thesis — deterministic hooks feeding design-critic D1 + D2c."""
@@ -680,6 +680,45 @@ def _design_plan_lints(out_dir, warnings):
         elif sig_beat is not None and str(sig_beat) not in cb:
             warnings.append("register: design_register.carried_by omits the signature beat — the register should PEAK "
                             "at the signature, so that beat must be among the beats it spans (design-critic D2e)")
+
+    # REGISTER CONTEST (the generative half): a single-shot register regresses to the safe mean, so at a
+    # bold/experimental audacity the plan should record a real divergence+selection contest. Structural
+    # hooks only — the judging itself is design-critic's "Register contest — judge mode".
+    contest = plan.get("register_contest")
+    aud = str((meta or {}).get("audacity") or "balanced").strip().lower()
+    if beats and isinstance(reg, dict) and reg:
+        if not (isinstance(contest, dict) and contest):
+            if aud in ("bold", "experimental"):
+                warnings.append(f"register: audacity '{aud}' but design_plan records no register_contest — a "
+                                "single-shot register regresses to the safe mean; run the divergence contest "
+                                "(SKILL.md 'Register contest') and record {mode, candidates, winner, user_pick}")
+        else:
+            raw_c = contest.get("candidates")
+            if isinstance(raw_c, dict):    # dict keyed by candidate key — normalize like `beats` above
+                raw_c = [dict(v, key=k) for k, v in raw_c.items() if isinstance(v, dict)]
+            cands = [c for c in raw_c if isinstance(c, dict)] if isinstance(raw_c, list) else []
+
+            def _ckey(c):
+                # NO truthiness fallback: a falsy-but-valid key (0, "") must not fall through to `name`
+                k = c.get("key")
+                return str(c.get("name") or "") if k is None else str(k)
+            keys = [_ckey(c) for c in cands]
+            if len(cands) < 2:
+                warnings.append("register: register_contest has <2 candidates — a contest needs genuinely "
+                                "divergent rivals, else it's a single-shot with extra steps")
+            win = contest.get("winner")
+            if win is None and cands:
+                warnings.append("register: register_contest records candidates but no winner — the contest is "
+                                "divergence + SELECTION; record the final pick as `winner` (`user_pick: true` "
+                                "when the user overrode the judge)")
+            elif win is not None and keys and str(win) not in keys:
+                warnings.append("register: register_contest.winner is not among its candidates — record the FINAL "
+                                "selected candidate's key (the user's pick when they overrode the judge)")
+            elif win is not None:
+                wname = next((str(c.get("name") or "") for c in cands if _ckey(c) == str(win)), "")
+                if wname and str(reg.get("name") or "") and wname != str(reg.get("name")):
+                    warnings.append("register: the committed design_register.name differs from the contest winner's "
+                                    "name — the full plan must adopt the SELECTED register (or re-record the winner)")
 
 
 def _layout_family(html):
