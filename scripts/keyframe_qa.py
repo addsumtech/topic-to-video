@@ -34,18 +34,37 @@ _CENTER_EXCL = (".flow,.step,.hubspoke,.hs-spoke,.hs-hub,.timeline,.tl-node,.qua
 # `clip` = worst px of TEXT clipped INSIDE a box (a fixed-height / overflow:hidden card slicing its own
 # content — invisible to the canvas-overflow check). Fill/bar components legitimately clip (a .meter clips
 # its .fill), so those are excluded. `cbot` (content bottom) also drives the caption-zone occlusion check.
+# `mystery` = bordered EMPTY leaf boxes ≥~6000px² with no text and no declared role — "mystery furniture"
+# a viewer can't decode (an element may assert its idiom with a `data-role` attribute to opt out).
+# `nearmiss` = sibling edge pairs off by 5-22px — the "almost aligned" smell (deliberate offsets read
+# clearly different; near-misses read as sloppiness). Both feed non-blocking advisories.
 _OVERFLOW_JS = (
     "(function(){var W=window.innerWidth,H=window.innerHeight,worst=0,clip=0,ct=1e9,cb=-1e9,cl=1e9,cr=-1e9;"
+    "var myst=0,mystEx='';"
     "var n=document.querySelectorAll('.stage *,.split *');"
     "var FILL='.meter,.segbar,.bar,.fill,.gauge,.track,.waffle,.isotype,.bullet,.spark';"
     "for(var i=0;i<n.length;i++){var e=n[i],r=e.getBoundingClientRect();"
     "if(r.width<1||r.height<1)continue;"
     "var o=Math.max(r.right-W,r.bottom-H,-r.left,-r.top);if(o>worst)worst=o;"
     "var cs=getComputedStyle(e);if(cs.opacity!=='0'&&cs.display!=='none'){"
-    "if(r.top<ct)ct=r.top;if(r.bottom>cb)cb=r.bottom;if(r.left<cl)cl=r.left;if(r.right>cr)cr=r.right;}"
+    "if(r.top<ct)ct=r.top;if(r.bottom>cb)cb=r.bottom;if(r.left<cl)cl=r.left;if(r.right>cr)cr=r.right;"
+    "if(e.children.length===0&&!(e.innerText||'').trim()&&r.width*r.height>=6000"
+    "&&!e.hasAttribute('data-role')&&!(e.matches&&e.matches(FILL))"
+    "&&!/^(svg|img|video|canvas|path|rect|circle|line|i)$/i.test(e.tagName)"
+    "&&(parseFloat(cs.borderTopWidth)||0)>0.5&&cs.borderTopStyle!=='none'){"
+    "myst++;if(!mystEx)mystEx=String(e.className).slice(0,40);}}"
     "var oy=cs.overflowY;if((oy==='hidden'||oy==='clip')&&e.scrollHeight-e.clientHeight>8"
     "&&(e.innerText||'').trim().length>12&&!(e.matches&&e.matches(FILL))){"
     "var cc=e.scrollHeight-e.clientHeight;if(cc>clip)clip=cc;}}"
+    "var nm=0,nmEx='';var pars=document.querySelectorAll('.stage,.split,.stage *,.split *');"
+    "for(var pi=0;pi<pars.length;pi++){var pe=pars[pi],ch=pe.children;"
+    "if(ch.length<2||ch.length>12)continue;var bx=[];"
+    "for(var ci=0;ci<ch.length;ci++){var el=ch[ci],rr=el.getBoundingClientRect();"
+    "if(rr.width*rr.height<2500)continue;var c2=getComputedStyle(el);"
+    "if(c2.opacity==='0'||c2.display==='none'||el.hasAttribute('data-role'))continue;bx.push(rr);}"
+    "for(var a=0;a<bx.length;a++)for(var b=a+1;b<bx.length;b++){var A=bx[a],B=bx[b];"
+    "var ds=[Math.abs(A.left-B.left),Math.abs(A.top-B.top),Math.abs(A.right-B.right),Math.abs(A.bottom-B.bottom)];"
+    "for(var di=0;di<4;di++){if(ds[di]>=5&&ds[di]<=22){nm++;if(!nmEx)nmEx=String(pe.className).slice(0,30);break;}}}}"
     "var t=(document.body.innerText||'').replace(/\\s+/g,'').length;"
     "var EXCL='" + _CENTER_EXCL + "',centered=0,para=document.querySelectorAll('.sub,.note,.lead,p');"
     "for(var j=0;j<para.length;j++){var pe=para[j],pcs=getComputedStyle(pe);"
@@ -57,6 +76,7 @@ _OVERFLOW_JS = (
     "var bleed=!!document.querySelector('.bg-photo,.bg-soft,.bg-motif,.bg-grid');"
     "return JSON.stringify({worst:Math.round(worst),clip:Math.round(clip),textlen:t,centered:centered,"
     "ctop:Math.round(ct),cbot:Math.round(cb),cleft:Math.round(cl),cright:Math.round(cr),"
+    "mystery:myst,mystery_ex:mystEx,nearmiss:nm,nearmiss_ex:nmEx,"
     "bleed:bleed,cued:!!document.querySelector('[data-cue-index]')});})()")
 
 # Reveal-count probe (evaluated at EACH frozen p-state): how many reveal elements are visible now.
@@ -206,6 +226,22 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                     if info.get("centered", 0) > 0:
                         advisories.append(f"{info['centered']} centered running paragraph(s) — "
                                           "left-align body text for scanning (studios do)")
+                    # DECODABILITY: an empty bordered box with no text and no declared role is "mystery
+                    # furniture" — a viewer can't name what it is. Label it, mark its idiom with
+                    # data-role="…", or remove it (composition needs = meaning or deliberate whitespace).
+                    if info.get("mystery", 0) > 0:
+                        advisories.append(f"{info['mystery']} empty bordered box(es) with no text/role "
+                                          f"(e.g. '{info.get('mystery_ex', '')}') — mystery furniture: every "
+                                          "element must be viewer-decodable in ~1s; label it, add data-role, "
+                                          "or remove it (html-pages.md Decodability rule)")
+                    # ORDER: sibling edges off by 5-22px read as sloppiness, not intent — snap to a
+                    # shared guide or make the offset clearly deliberate. One pair may be a false
+                    # positive (baseline type); two or more is a pattern.
+                    if info.get("nearmiss", 0) >= 2:
+                        advisories.append(f"{info['nearmiss']} nearly-aligned sibling edge pair(s) (off by "
+                                          f"5-22px, e.g. under '{info.get('nearmiss_ex', '')}') — snap to a "
+                                          "shared guide or make the offset clearly deliberate "
+                                          "(html-pages.md Alignment & order discipline)")
                     # 9:16 fill (html-pages.md "fill the column"): content should span >=~70% of
                     # the zone above the caption band (y160-1600). Advisory only; a full-bleed
                     # .bg-photo hero provides visual fill outside .stage, so heroes never warn.

@@ -33,6 +33,15 @@ def test_probe_js_reports_fill_bbox_and_bleed():
     for k in ("ctop", "cbot", "bleed", ".bg-photo", ".bg-soft"):
         assert k in kq._OVERFLOW_JS
 
+def test_probe_js_measures_mystery_furniture_and_nearmiss():
+    # DECODABILITY: empty bordered leaf boxes with no text/role -> `mystery` (data-role is the opt-out);
+    # ORDER: sibling edges off by 5-22px -> `nearmiss`. Both advisory signals must be in the probe.
+    for k in ("mystery:", "nearmiss:", "data-role", "borderTopWidth", "children.length===0"):
+        assert k in kq._OVERFLOW_JS, k
+    # near-miss band is 5..22px and applies to sibling pairs, not nested boxes
+    assert "ds[di]>=5&&ds[di]<=22" in kq._OVERFLOW_JS
+
+
 def test_probe_js_measures_intra_box_clip_excluding_fills():
     # the probe must emit a `clip` signal, key it off scroll-vs-client height, and EXCLUDE fill/bar
     # components (a .meter legitimately clips its .fill) so only real text-clipping cards flag

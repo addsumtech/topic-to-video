@@ -1083,6 +1083,21 @@ def test_figure_traceability_flags_unsourced_stat(tmp_path):
     assert not any("60%" in w for w in figs)                           # sourced stat traces -> not flagged
 
 
+def test_figure_traceability_data_ui_chrome_text_exempt(tmp_path):
+    # UI-idiom chrome text (a zoom badge's "100%") marked data-ui is NOT a content claim — excluded
+    # from the scan, so authors never mutate chrome text to dodge the lint. Unmarked, it still flags.
+    out = str(tmp_path)
+    (tmp_path / "brief.json").write_text(json.dumps({"evidence": [{"claim": "x", "source_ref": "y"}]}))
+    marked = _html_scene(tmp_path, 1, "pages/ui1.html",
+                         '<div class="stage"><span class="zoom-pill" data-ui>100%</span><div class="t">画布</div></div>')
+    bare = _html_scene(tmp_path, 2, "pages/ui2.html",
+                       '<div class="stage"><span class="zoom-pill">100%</span><div class="t">画布</div></div>')
+    res = validate.evaluate(_board(out, [marked, bare]), out)
+    figs = [w for w in res["warnings"] if "trace to the source" in w]
+    assert not any("scene 1" in w for w in figs), figs                 # data-ui text exempt
+    assert any("100%" in w and "scene 2" in w for w in figs), figs     # unmarked chrome still flags
+
+
 def test_figure_traceability_skipped_without_brief(tmp_path):
     # no brief.json to verify against -> the check is skipped (the content-critic owns faithfulness),
     # so a bare storyboard never false-flags a figure.

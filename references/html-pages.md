@@ -382,6 +382,26 @@ Concretely:
 - **Abstract placeholders live INSIDE labeled objects.** Ghost text-lines/blocks are fine as the
   *content* of a named thing ("taste.md · 口味档案" + ghost lines = a file); free-floating they're noise.
 The design-critic (D11) flags any element it cannot assign a decodable role from the pixels alone.
+**Mechanical hooks:** `keyframe_qa` advises on any *empty bordered box with no text and no role* —
+an element whose idiom is genuinely glance-readable (a selection frame, a window outline) declares it
+with **`data-role="…"`** (e.g. `data-role="selection-frame"`), which is both the opt-out AND
+self-documentation. Text that is *interface idiom, not a content claim* (a zoom badge's "100%",
+window-chrome labels) is marked **`data-ui`** on the leaf element — `validate.py` then excludes it
+from the figure-traceability scan, so there is NEVER a reason to mutate chrome text to silence a lint.
+
+## Alignment & order discipline (the canvas is a grid — behave like one)
+Loose scatter reads as sloppiness, not style — deliberate asymmetry needs deliberate ALIGNMENT:
+- **Snap to a coarse grid.** Hand-placed absolute positions align to ~20px steps; elements that share
+  a row/column share the EXACT same x/y. Edges are either exactly aligned or clearly different —
+  never off by a hair (`keyframe_qa` advises on sibling edges off by 5–22px, the "almost aligned" smell).
+- **Grids are equal-height.** Cards in one grid get one fixed height (interior extras pinned with
+  `margin-top:auto`), so bottoms form a line, not a rag.
+- **Bands span and baseline-align.** A row of objects (artboards, chips, tiles) spans the full content
+  width (`justify-content:space-between`) with bottoms on one baseline — not a cluster of postage
+  stamps floating in a corner — and sits under a rule/caption that names the band.
+- **Kill dead zones.** After composing, squint at the four quadrants: a large empty corner that isn't
+  DELIBERATE whitespace (an off-center void, air over a hero) is a composition hole — rebalance with
+  meaning-carrying elements, never with mystery filler (see the Decodability rule above).
 
 ## Composition helpers (pair with the forms above)
 - **`.card`** — a panel with depth (`--surface` + shadow + hairline); group related rows. **`.card.glass`** over a soft backdrop.

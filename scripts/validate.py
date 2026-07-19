@@ -260,6 +260,11 @@ def _visible_text(out_dir, rel):
     except OSError:
         return ""
     t = re.sub(r"<(style|script|svg)\b.*?</\1>", " ", t, flags=re.S | re.I)
+    # drop UI-idiom chrome text (a zoom badge's "100%", window-chrome labels): a LEAF element marked
+    # `data-ui` declares "this text is interface idiom, not a content claim" — excluded from the
+    # figure-traceability scan so authors never mutate chrome text to dodge the lint (the failure mode:
+    # "100%"→"1:1" satisfied the machine and confused every human; see html-pages.md Decodability rule).
+    t = re.sub(r"<(\w+)\b[^>]*\bdata-ui\b[^>]*>.*?</\1>", " ", t, flags=re.S | re.I)
     t = re.sub(r"<[^>]+>", " ", t)
     return re.sub(r"\s+", " ", t)
 
