@@ -76,11 +76,14 @@ TTS if the user gives an API key.
   override the meta default per scene; the design plan maps the beat's `relation` to it (continuation →
   hard cut; new-topic/payoff/close → an in-edge on the opener PLUS an out-edge on the predecessor —
   a dip needs both sides, validate lints unpaired edges) — see `references/motion-grammar.md`
-  "Transition rhythm". **Transition STYLE — `meta.transition_style` (`dip` default | `push` horizontal
-  page-push | `lift` vertical page-turn):** what a seam LOOKS like, chosen ONCE per deck from the
-  register's motion personality (per-scene `slide.transition_style` for a justified exception, e.g.
-  a climax entrance kept on dip). Each half is self-contained per clip so `-c copy` concat still
-  holds; motion is eased and rides the audio-breath silence. Never random; no spins. **Karaoke captions:** when edge-tts `audio/NN.words.json`
+  "Transition rhythm". **Transition STYLE — `meta.transition_style`** (`dip` default | `fadethrough` studio-timed dip |
+  `drift` breath-with-direction | `push` horizontal page-push | `lift` vertical page-turn | `wipe`
+  bg-sheet sweep | `blur` rack-defocus coda): what a seam LOOKS like, chosen ONCE per deck from the
+  register's motion personality — a transition is a CLAIM about how two beats relate, never decoration
+  (semantics + taste/rhythm rules + the doc-only match-cut/jump-cut/verbal-J-cut techniques:
+  `references/motion-grammar.md` "Transition STYLE"). Each half is self-contained per clip so `-c copy`
+  concat still holds; motion is eased and rides the audio-breath silence. Budget ~2-3 marked seams per
+  video; never random; no spins. **Karaoke captions:** when edge-tts `audio/NN.words.json`
   exists, the burned caption highlights the word being spoken, timed to the real word times — for
   space-delimited languages by word index, and for **CJK by CHAR-SPAN** (each edge token is located as a
   substring of the caption, so 中文 gets the same word-level highlight as English); falls back to

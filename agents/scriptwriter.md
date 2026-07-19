@@ -33,6 +33,9 @@ and the material into a polished, connected, faithful script that sounds great r
   spoken form in **`say_as`** (e.g. `{"term":"INR","say_as":"I N R"}`) — the LINE/caption keeps the clean
   written term ("INR"), so the burned caption reads normally and the critic panel doesn't REVISE it. Do NOT
   spell the term out inside the narration text itself (the renderer has no SSML, but the caption is the line).
+  **Verbal J-cut at section seams:** a real audio J-cut is impossible (audio is per-clip), so author
+  the pull in WORDS — end a section's last line with a forward hook naming the NEXT beat's subject
+  (「那数字呢?」 into the numbers beat); the hook rides the audio breath across the cut.
   **CJK lines:** place a ，、：； (or sentence ender) at least every ~36 characters — the caption
   segmenter can only split at clause marks, and an unbroken >36-char CJK clause burns as a wall of text
   (validate warns, critic-narrative R7 fails it).

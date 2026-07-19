@@ -296,6 +296,13 @@ THIS subject. Make it that:
   arc; `experimental` (opt-in only) → push the register hard, accept that a beat may be sent back. The
   budget scales HOW FAR the register/motion/type push — it NEVER relaxes clarity, faithfulness, WCAG, the
   keyframe/caption/AV gates. On a higher tier, be braver on the aesthetic axes; the floor is identical.
+- **Pick the deck's `transition_style` FROM the motion personality** (motion-grammar "Transition STYLE"):
+  restrained-drift → dip or drift · precise-clinical → fadethrough · snappy-kinetic / weighty-mechanical
+  → push · reading-flow registers → lift · graphic swiss/terminal → wipe; blur only as a single coda
+  override. ONE style + one direction per deck; continuation stays a hard cut (budget ~2-3 marked seams
+  per video); a per-scene override only for a justified exception (climax entrance on dip). Also plan the
+  doc-only techniques where they're STRONGER than any filter: ONE anchor-handoff match cut when adjacent
+  beats truly share a shape; jump-cut chains for same-layout data progressions.
 - **Register CONTEST — Phase A (when dispatched in contest mode): divergence BEFORE commitment.** A
   register written once regresses to the safe mean, so on a designed (html/AI-tier) video the assistant
   dispatches you FIRST in contest mode: return ONLY `register_candidates` — N genuinely divergent

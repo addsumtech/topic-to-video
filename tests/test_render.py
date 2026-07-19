@@ -769,8 +769,9 @@ def test_edge_filter_lift_builds_bg_overlay():
     parts, v = render._edge_filter(meta, 10.0, {}, "v0", 1920, 1080)
     assert v == "vedge" and len(parts) == 2
     assert parts[0].startswith("color=c=") and ":s=1920x1080" in parts[0]
-    assert "overlay=x='0'" in parts[1] and "1080*(1-" in parts[1]     # vertical motion, enters from below
+    assert ":y='" in parts[1] and "x='0'" in parts[1] and "1080*(1-" in parts[1]   # vertical, enters from below
     assert "-1080*(" in parts[1]                                      # exits upward
+    assert ":r=30" in parts[0]                                        # color source fps pinned (drift hazard)
 
 def test_edge_filter_push_is_horizontal_and_scene_override_wins():
     meta = {"_out": "/x", "transition": "dip", "transition_style": "lift"}
@@ -789,3 +790,26 @@ def test_fingerprint_includes_transition_style():
                                              "duration": 3}, meta, 1920, 1080, 2, True, False)
     meta = {"_out": "/x"}
     assert fp(meta) != fp({**meta, "transition_style": "lift"})       # style change busts the cache
+
+
+def test_edge_filter_new_styles_shapes():
+    meta = {"_out": "/x", "transition": "dip", "fps": 30}
+    # fadethrough: exit fade is SHORT (<=0.15), entrance takes the full d
+    parts, _ = render._edge_filter({**meta, "transition_style": "fadethrough", "transition_seconds": 0.3},
+                                   10.0, {}, "v0", 1920, 1080)
+    assert "fade=t=in:st=0:d=0.3" in parts[0] and "d=0.15" in parts[0]
+    # drift: fade + small eased overlay drift over an fps-pinned bg
+    parts, _ = render._edge_filter({**meta, "transition_style": "drift"}, 10.0, {}, "v0", 1920, 1080)
+    assert parts[0].startswith("color=") and ":r=30" in parts[0]
+    assert "fade=t=in" in parts[1] and "overlay=eval=frame" in parts[2]
+    assert "28*" in parts[2] or "24*" in parts[2] or "16*" in parts[2] or "32*" in parts[2]
+    # wipe (both edges): page is MAIN input; two sheets, enter then leave
+    parts, _ = render._edge_filter({**meta, "transition_style": "wipe"}, 10.0, {}, "v0", 1920, 1080)
+    assert len(parts) == 4 and parts[2].startswith("[v0][sh1]overlay")
+    # blur: gblur copy alpha-fades over the sharp frame, then dips to bg
+    parts, _ = render._edge_filter({**meta, "transition_style": "blur"}, 10.0, {}, "v0", 1920, 1080)
+    joined = ";".join(parts)
+    assert "gblur" in joined and "alpha=1" in joined and "fade=t=out" in joined
+    # unknown style falls back to dip
+    parts, _ = render._edge_filter({**meta, "transition_style": "cube3d"}, 10.0, {}, "v0", 1920, 1080)
+    assert len(parts) == 1 and "fade=" in parts[0]

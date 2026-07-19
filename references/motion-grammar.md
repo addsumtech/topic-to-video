@@ -216,20 +216,54 @@ this doctrine avoids. Keep seams ≤0.35s, the closer ≤0.45s (`validate.py` wa
 unknown `transition` values, and lints unpaired seam edges + a hard-ending closer).
 
 
-### Transition STYLE — dip | push | lift (one per deck, from the register)
+### Transition STYLE — the seam vocabulary (one style per deck, from the register)
 The semantic EDGES (`transition`: dip/in/out/none, mapped from each beat's `relation`) say WHERE the
-seams are; **`transition_style`** says what a seam LOOKS like:
-- **`dip`** (default) — the classic dip-to-theme-bg fade. Quiet, works everywhere.
-- **`push`** — the page itself slides out LEFT while the next slides in from the RIGHT (each half is
-  self-contained per clip, so `-c copy` concat and the clip cache hold; matching halves read as one
-  continuous push). A "handing over the page" feel.
-- **`lift`** — vertical page-turn: out UPWARD, in from BELOW — consecutive pages read as one upward
-  turn/scroll. Fits reading-flow registers (canvas/editorial/document worlds).
-**Discipline:** pick ONE style per deck, from the `design_register`'s motion personality (set
-`meta.transition_style`; a per-scene `slide.transition_style` exists for a justified exception —
-e.g. keep the CLIMAX entrance on `dip` for weight while the deck lifts). Style variety across a
-single deck reads as churn, not craft. Motion is smoothstep-eased and happens in the audio-breath
-silence at the clip tail (`meta.audio_breath`, default ~0.42s), so a seam never cuts into speech.
+seams are; **`transition_style`** says what a seam LOOKS like. Every style is TWO SELF-CONTAINED halves
+meeting at the byte-identical theme-bg frame (the same construction as an NLE's Dip-to-Color), so the
+`-c copy` concat, per-clip cache and A/V gate always hold. A transition is a CLAIM about how two beats
+relate — never decoration:
+
+| style | what | says | fits |
+|---|---|---|---|
+| **cut** (`transition:"none"`) | nothing — the concat IS the cut, resting on the 0.42s audio breath | same thought, next beat (neutral momentum) | the DEFAULT between continuation beats, all registers |
+| **dip** | fade to/from the deck's own bg | topic reset / chapter breath | the quiet workhorse; restrained registers; the fallback |
+| **fadethrough** | dip with studio timing — exit FAST (≤0.15s), entrance takes the full d | same reset, emphasis lands on the NEW content (Material fade-through 30/70) | the upgraded default for precise/clinical registers |
+| **drift** | dip + ~24px eased drift in the deck's direction | "the page breathes away" — direction without loudness | canvas/editorial; restrained-drift, floaty-organic |
+| **push** | the page slides out LEFT over bg, next in from RIGHT | lateral sequence — next page / next step | step-by-step decks; snappy-kinetic, weighty-mechanical |
+| **lift** | vertical page-turn: out UP, in from BELOW | reading-flow progression down one document | canvas/document/editorial reading registers |
+| **wipe** | a bg sheet sweeps L→R: covers the still page, uncovers the next | directional replacement without travel ("and next…") | graphic registers: swiss/terminal/editorial; process decks |
+| **blur** | rack-defocus into the dip; the entrance refocuses | attention shift / reflective coda | at most ONCE per deck (quote/closer), contemplative registers |
+
+**Taste + rhythm rules (from the research consensus):**
+- **Cut is the default; styled seams are punctuation.** Budget ~2–3 marked transitions per video
+  (section seams + one payoff). If a viewer notices the mechanism, it failed the invisibility test.
+- **Exit fast, enter slow** — emphasis always belongs to the NEW content.
+- **Duration norms:** seam ≤0.35s · payoff in-edge 0.3s · closer ≤0.45s (`validate` warns past 0.5).
+  Duration scales with the size of the move and the narrative distance.
+- **Direction is grammar:** ONE push/wipe/lift/drift direction per deck (= reading direction). The
+  REVERSED direction is reserved to mean "going back" (recap/callback), used at most once.
+- **Meet at the theme bg, never generic black** — the background is the persistent container;
+  continuity comes from what does NOT move.
+- ONE style + one easing family per deck, chosen from the `design_register.motion_personality`
+  (`meta.transition_style`); a per-scene `slide.transition_style` only for a justified narrative
+  exception (climax entrance kept on dip for weight; one blur coda).
+
+**Authoring techniques that need NO renderer code (doc-only, stronger than any filter):**
+- **Match-cut / anchor continuity** (at most ONE per deck): pin a shared anchor (title block, motif,
+  diagram) at IDENTICAL coordinates/size in scene A's final frame and scene B's first frame, then hard
+  cut — "this IS that", the strongest continuity claim available. Plan it in the storyboard, not a filter.
+- **Jump-cut data progression:** for enumerated states (a chart stepping, a checklist filling), keep
+  the layout constant and hard-cut between states — the visible skip IS the message.
+- **Verbal J-cut:** a real audio J-cut is impossible (per-clip audio), so author the anticipation in
+  WORDS — end scene A's narration with a forward hook naming scene B's subject; it rides the breath
+  across the cut. (The scriptwriter owns this; see narration-writing.md.)
+
+**Rejected on taste or feasibility (do not re-litigate):** true crossfade/morph/Magic-Move and any
+cross-clip pixel filter (impossible under `-c copy`); audio J/L-cuts (per-clip audio); whip-pan blur,
+curtain/barn-door, CRT-off, desaturate-dip (feasible but off-brand/loud); iris/3D-cube/blinds/
+checkerboard/"random" (novelty — the audience notices the mechanism instead of the content).
+zoom-dip (depth seams) is DEFERRED, not rejected — it needs composition with each scene's authored
+Ken Burns curve; do not fake it with a crop hack.
 
 ## Reduced motion (accessibility variant)
 

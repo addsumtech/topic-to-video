@@ -506,9 +506,13 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         if _raw_tr is not None and _flat_tr is None:
             warnings.append(f"{tag}: unknown transition '{_raw_tr}' — use 'dip'/'in'/'out'/'none' (falls back to the meta default)")
         _ts = s.get("transition_style") or meta.get("transition_style")
-        if _ts and _ts not in ("dip", "push", "lift"):
-            warnings.append(f"{tag}: unknown transition_style '{_ts}' — use 'dip' (fade to bg) / 'push' "
-                            f"(horizontal page push) / 'lift' (vertical page turn); falls back to dip")
+        if _ts and _ts not in ("dip", "fadethrough", "drift", "push", "lift", "wipe", "blur"):
+            warnings.append(f"{tag}: unknown transition_style '{_ts}' — use dip / fadethrough / drift / "
+                            f"push / lift / wipe / blur (see motion-grammar 'Transition STYLE'); falls back to dip")
+        _tsec = s.get("transition_seconds")
+        if isinstance(_tsec, (int, float)) and _tsec > 0.5:
+            warnings.append(f"{tag}: transition_seconds {_tsec} > 0.5 — a seam past ~0.45s reads as a stall "
+                            f"(norms: seam ≤0.35, payoff 0.3, closer ≤0.45)")
         ts = _tr_sec
         if ts is not None:
             try:

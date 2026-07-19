@@ -812,45 +812,122 @@ def _fade_filter(meta, dur, slide=None):
     return ",".join(parts)
 
 def _edge_filter(meta, dur, slide, vlabel, W, H):
-    """Scene-edge transition as FILTERGRAPH PARTS: returns (parts, new_vlabel). Style via
-    `slide.transition_style` / `meta.transition_style`:
-      dip  (default) — the classic dip-to-bg fade (delegates to _fade_filter);
-      push — the frame itself slides horizontally over the theme bg (out to the LEFT, in from the
-             RIGHT — a page being pushed away / arriving);
-      lift — vertical page-turn/scroll: out UPWARD, in from BELOW, so consecutive pages read as one
-             continuous upward turn (each half is SELF-CONTAINED per clip, so the -c copy concat and
-             the per-clip cache still hold; both sides sharing the style makes the seam read as one move).
-    Edges still come from the semantic `transition` field (dip=both, in/out=one, none). Motion is
-    smoothstep-eased; audio untouched — with the audio-breath tail (tts._master) the move happens in
-    the between-sentence silence, not over speech."""
+    """Scene-edge transition as FILTERGRAPH PARTS: (parts, new_vlabel). The seam is TWO SELF-CONTAINED
+    halves meeting at the byte-identical theme-bg frame (so the -c copy concat + per-clip cache hold —
+    the same construction as an NLE's Dip-to-Color). Edges come from the semantic `transition` field
+    (dip=both, in/out=one, none); the LOOK comes from `transition_style` (slide overrides meta):
+
+      dip         fade to/from the theme bg (the quiet workhorse; default)
+      fadethrough dip with studio timing — exit FAST (~half d, capped 0.15s), entrance takes the full d;
+                  emphasis lands on the NEW content (Material fade-through's 30/70 choreography)
+      drift       dip + a whisper of direction: ~24px positional drift while fully fading — the page
+                  "breathes away"; direction without the push's loudness
+      push        the page slides out LEFT over bg, next slides in from the RIGHT (lateral sequence)
+      lift        vertical page-turn: out UP, in from BELOW (reading-flow progression)
+      wipe        a theme-bg sheet sweeps L->R: exit covers the still page, entrance uncovers the next —
+                  directional replacement without spatial travel (graphic/editorial)
+      blur        rack-defocus: the frame softens (gblur copy alpha-fades in) as it dips to bg; entrance
+                  refocuses — attention-shift / reflective coda (use at most once, e.g. the closer)
+
+    All motion is smoothstep-eased, rides the audio-breath tail, and never touches audio/duration.
+    See references/motion-grammar.md "Transition STYLE" for semantics + the one-style-per-deck rule."""
     st_, d = sb.normalize_transition(slide or {})
     t = st_ if st_ in ("dip", "in", "out", "none") else (meta or {}).get("transition", "dip")
     if t == "none":
         return [], vlabel
     d = float(d if d is not None else (meta or {}).get("transition_seconds", 0.2))
     style = (slide or {}).get("transition_style") or (meta or {}).get("transition_style") or "dip"
-    if style not in ("dip", "push", "lift"):
+    if style not in ("dip", "fadethrough", "drift", "push", "lift", "wipe", "blur"):
         style = "dip"
     need = 2.2 * d if t == "dip" else 1.1 * d
     if d <= 0 or dur <= need:
         return [], vlabel
-    if style == "dip":
-        fade = _fade_filter(meta, dur, slide)
-        return ([f"[{vlabel}]{fade}[vedge]"], "vedge") if fade else ([], vlabel)
+    fps = (meta or {}).get("fps", 30) or 30
     bg = _theme_bg(meta.get("_out", "."))
-    span = W if style == "push" else H
     T0 = dur - d
-    sm_in = f"pow(min(t/{d},1),2)*(3-2*min(t/{d},1))"
-    sm_out = f"pow(min((t-{T0:.3f})/{d},1),2)*(3-2*min((t-{T0:.3f})/{d},1))"
+    has_in, has_out = t in ("dip", "in"), t in ("dip", "out")
+
+    def _sm(expr_p):                                   # smoothstep of a 0..1 progress expression
+        return f"pow(min({expr_p},1),2)*(3-2*min({expr_p},1))"
+    sm_in, sm_out = _sm(f"t/{d}"), _sm(f"(t-{T0:.3f})/{d}")
+
+    if style in ("dip", "fadethrough"):
+        d_out = min(0.15, d * 0.5) if style == "fadethrough" else d   # exit fast, enter slow (30/70)
+        fades = []
+        if has_in:
+            fades.append(f"fade=t=in:st=0:d={d}:c={bg}")
+        if has_out:
+            fades.append(f"fade=t=out:st={dur - d_out:.3f}:d={d_out}:c={bg}")
+        return ([f"[{vlabel}]{','.join(fades)}[vedge]"], "vedge") if fades else ([], vlabel)
+
+    if style == "blur":
+        # progressive defocus riding the dip: a gblur copy alpha-fades over the sharp frame while the
+        # composite fades to bg (exit); the entrance refocuses (alpha fades the blur away) while fading up
+        parts = [f"[{vlabel}]split[shp][tob]",
+                 f"[tob]gblur=sigma=14,format=yuva420p[blr0]"]
+        af = []
+        if has_out:
+            af.append(f"fade=t=in:st={T0:.3f}:d={0.7 * d:.3f}:alpha=1")
+        if has_in:
+            af.append(f"fade=t=out:st=0:d={0.7 * d:.3f}:alpha=1" if not has_out else
+                      f"fade=t=out:st=0:d={0.7 * d:.3f}:alpha=1")
+        alpha0 = "" if has_in else "colorchannelmixer=aa=0,"          # exit-only: blur starts invisible
+        parts[-1] = f"[tob]gblur=sigma=14,format=yuva420p,{alpha0}{','.join(af)}[blr]"
+        comp = ["overlay=eval=frame"]
+        parts.append(f"[shp][blr]{comp[0]},format=yuv420p[vb]")
+        fades = []
+        if has_in:
+            fades.append(f"fade=t=in:st=0:d={0.6 * d:.3f}:c={bg}")
+        if has_out:
+            fades.append(f"fade=t=out:st={dur - 0.6 * d:.3f}:d={0.6 * d:.3f}:c={bg}")
+        parts.append(f"[vb]{','.join(fades)}[vedge]")
+        return parts, "vedge"
+
+    if style == "drift":
+        px = max(16, min(int(W * 0.015), 32))                          # a breath, not a slide
+        terms = []
+        if has_in:
+            terms.append(f"if(lte(t,{d}),{px}*(1-({sm_in})),0)")
+        if has_out:
+            terms.append(f"if(gte(t,{T0:.3f}),-{px}*({sm_out}),0)")
+        fades = []
+        if has_in:
+            fades.append(f"fade=t=in:st=0:d={d}:c={bg}")
+        if has_out:
+            fades.append(f"fade=t=out:st={dur - d:.3f}:d={d}:c={bg}")
+        return ([f"color=c={bg}:s={W}x{H}:r={fps}:d={dur:.3f}[ebg]",
+                 f"[{vlabel}]{','.join(fades)}[vfd]",
+                 f"[ebg][vfd]overlay=eval=frame:x='{'+'.join(terms)}':y=0:shortest=1[vedge]"], "vedge")
+
+    if style == "wipe":
+        # a bg sheet passes L->R through the seam: exit covers (sheet x: -W -> 0), entrance uncovers
+        # (sheet x: 0 -> +W). The PAGE is the main input, so the clip's own fps/duration are preserved.
+        terms = []
+        if has_out:
+            terms.append(f"if(gte(t,{T0:.3f}),-{W}+{W}*({sm_out}),-{W})")
+        if has_in:
+            terms.append(f"if(lte(t,{d}),{W}*({sm_in}),{W})" if not has_out else "0")
+        if has_in and has_out:   # both edges: one sheet enters, then a second leaves — use two overlays
+            return ([f"color=c={bg}:s={W}x{H}:r={fps}:d={dur:.3f}[sh1]",
+                     f"color=c={bg}:s={W}x{H}:r={fps}:d={dur:.3f}[sh2]",
+                     f"[{vlabel}][sh1]overlay=eval=frame:y=0:x='if(lte(t,{d}),{W}*({sm_in}),{W})'[vw1]",
+                     f"[vw1][sh2]overlay=eval=frame:y=0:x='if(gte(t,{T0:.3f}),-{W}+{W}*({sm_out}),-{W})'[vedge]"],
+                    "vedge")
+        expr = terms[0]
+        return ([f"color=c={bg}:s={W}x{H}:r={fps}:d={dur:.3f}[sheet]",
+                 f"[{vlabel}][sheet]overlay=eval=frame:y=0:x='{expr}'[vedge]"], "vedge")
+
+    # push / lift — the page itself travels over the bg
+    span = W if style == "push" else H
     terms = []
-    if t in ("dip", "in"):
-        terms.append(f"if(lte(t,{d}),{span}*(1-({sm_in})),0)")     # enters from +span -> 0
-    if t in ("dip", "out"):
-        terms.append(f"if(gte(t,{T0:.3f}),-{span}*({sm_out}),0)")  # exits 0 -> -span
+    if has_in:
+        terms.append(f"if(lte(t,{d}),{span}*(1-({sm_in})),0)")
+    if has_out:
+        terms.append(f"if(gte(t,{T0:.3f}),-{span}*({sm_out}),0)")
     expr = "+".join(terms)
     xe, ye = (expr, "0") if style == "push" else ("0", expr)
-    return ([f"color=c={bg}:s={W}x{H}:d={dur:.3f}[ebg]",
-             f"[ebg][{vlabel}]overlay=x='{xe}':y='{ye}':shortest=1[vedge]"], "vedge")
+    return ([f"color=c={bg}:s={W}x{H}:r={fps}:d={dur:.3f}[ebg]",
+             f"[ebg][{vlabel}]overlay=eval=frame:x='{xe}':y='{ye}':shortest=1[vedge]"], "vedge")
 
 
 def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_clip, workdir, slide=None):
