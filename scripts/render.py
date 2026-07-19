@@ -969,7 +969,7 @@ def render(out_dir, sample=None, vertical=False, only=None, reduced_motion=False
     data = sb.load(os.path.join(out_dir, "storyboard.json"))
     sb.validate(data)
     meta = data["meta"]; meta["_out"] = out_dir
-    # PREVIEW tier — cheap design iteration (~2.5x faster): 12fps captures + lighter JPEG, its OWN clip
+    # PREVIEW tier — cheap design iteration (~1.4-2x wall-clock; 2.5x fewer captures): 12fps captures + lighter JPEG, its OWN clip
     # cache (.clips_preview) and preview.mp4 output, so it never pollutes the full-quality cache or
     # out.mp4. Temporally IDENTICAL to the full render (fps only changes sampling density — captions,
     # cues and word-sync are all time-based), just choppier. The full render stays the delivery path.

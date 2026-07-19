@@ -63,7 +63,7 @@ TTS if the user gives an API key.
   picks `media.treatment: none|atmosphere|documentary` per beat (see its agent + the Imagery
   faithfulness section); reach for `documentary` on CONCRETE topics (a city, place, real system).
 - `scripts/render.py <out_dir> [--sample N] [--only N] [--vertical] [--reduced-motion] [--preview]` — storyboard → `out.mp4` + `out.srt`.
-  **`--preview`** = the cheap ITERATION tier (~2.5× faster): 12fps captures + lighter JPEG, its own
+  **`--preview`** = the cheap ITERATION tier (~1.4–2× wall-clock; 2.5× fewer captured frames — per-scene fixed overheads eat part of the gain): 12fps captures + lighter JPEG, its own
   clip cache (`.clips_preview`) and `preview.mp4` output — temporally identical (captions/cues/word-sync
   are time-based), just choppier; never touches `out.mp4`/`.clips`. Use it while experimenting with
   design/register changes so iteration cost never argues against boldness; deliver with the full render.
