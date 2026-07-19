@@ -274,6 +274,12 @@ gate (which owns caption/tofu/sync). Reading the settled frame of each page:
   (the whitespace should be visible in the render, not just claimed in `density`).
 - **Colour reads:** **REVISE** if the semantic colour intent doesn't survive rendering — a "risk" figure
   that reads the same as a neutral one, or an accent that vanishes into the bg.
+- **Decodability (no mystery furniture):** walk every visible element of each settled frame and assign
+  it a role a first-time viewer could name in ~1 second. **REVISE** any element you cannot — an empty
+  unlabeled box, a bare pill/badge, an ornament that exists only to "balance the layout". Composition
+  needs are met with MEANING-carrying elements or deliberate whitespace, never with unexplained shapes
+  (see html-pages.md "Decodability rule"). If a furniture piece was renamed to dodge a lint at the cost
+  of human legibility, that is a finding — remove it, don't rename it.
 Frame-legibility of *captions*, tofu, A/V sync and player-chrome remain `critic-av`'s — don't duplicate.
 *(critic-av also does a COARSE squint as a low-res/encode-survival backstop; D11 is the deeper
 compositional pass — focal dominance + repeated-layout across the deck. Flag a defect under whichever

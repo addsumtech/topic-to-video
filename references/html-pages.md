@@ -366,6 +366,23 @@ reaching for a card grid a third time, STOP and re-read the form-selection table
 almost always wants a `.flow` / `.scorecard` / `.quadrant` / `.timeline` / `.hubspoke` / `.segbar`
 instead. `validate.py` counts the families and warns when one dominates; `design-critic` (D1) fails it.
 
+## Decodability rule — every on-frame element must telegraph its role (REQUIRED)
+A viewer gets each frame for only a few seconds. **Every visible element must pass a 1-second test:
+a first-time viewer can name what it is and why it's there.** Existence-for-composition is NOT enough —
+an element that "balances the layout" but can't be decoded reads as a rendering bug, not design.
+Concretely:
+- **No empty/unlabeled furniture.** An empty box, a bare pill, an unexplained badge = a MYSTERY the
+  viewer stops to puzzle over. If a counterweight is needed, use an element that carries meaning
+  (a labeled secondary object, a captioned chip, a titled panel) — or trust the void (deliberate
+  whitespace beats mysterious filler; see the off-center bands).
+- **Chrome must be idiomatic.** Register furniture (rulers, guides, selection handles, zoom badges)
+  is allowed ONLY when it reproduces an idiom the audience already knows at a glance; if a furniture
+  piece needs relabeling to dodge a lint (e.g. "100%"→"1:1"), that's a sign to REMOVE it, not rename
+  it — never sacrifice human legibility to satisfy a machine check.
+- **Abstract placeholders live INSIDE labeled objects.** Ghost text-lines/blocks are fine as the
+  *content* of a named thing ("taste.md · 口味档案" + ghost lines = a file); free-floating they're noise.
+The design-critic (D11) flags any element it cannot assign a decodable role from the pixels alone.
+
 ## Composition helpers (pair with the forms above)
 - **`.card`** — a panel with depth (`--surface` + shadow + hairline); group related rows. **`.card.glass`** over a soft backdrop.
 - **`.dash`** (3-up) / **`.grid-asym`** (2fr 1fr) — dashboard + asymmetric layouts; break the centred-column monotony.
