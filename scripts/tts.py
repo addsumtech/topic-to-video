@@ -348,9 +348,16 @@ def _master(path, meta=None):
     if not _common.have_tool("ffmpeg"):
         return
     tmp = path + ".master" + os.path.splitext(path)[1]
+    # BREATH: the pad after the trimmed tail IS the between-scene pause. 0.12s proved abrupt in
+    # practice (speech hard-cut into the next page); ~0.42s reads as a natural sentence-end breath
+    # and gives the scene-edge transition silence to move in. meta.audio_breath tunes it.
+    try:
+        breath = max(0.0, min(1.5, float((meta or {}).get("audio_breath", 0.42))))
+    except (TypeError, ValueError):
+        breath = 0.42
     af = ("loudnorm=I=-14:TP=-1.5:LRA=11,"
           "areverse,silenceremove=start_periods=1:start_duration=0.06:"
-          "start_threshold=-45dB:detection=peak,areverse,apad=pad_dur=0.12")
+          f"start_threshold=-45dB:detection=peak,areverse,apad=pad_dur={breath}")
     try:
         _common.run(["ffmpeg", "-y", "-i", path, "-af", af, "-map_metadata", "-1", tmp])
         # only adopt the mastered clip if it's a real, non-degenerate result (guards the pathological

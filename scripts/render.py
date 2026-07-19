@@ -576,10 +576,11 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
     payload = json.dumps({
         "s": {k: slide.get(k) for k in
               ("image", "audio", "duration", "motion", "narration", "captions", "callouts",
-               "type", "props", "fit", "transition", "transition_seconds", "intensity")},
+               "type", "props", "fit", "transition", "transition_seconds", "transition_style", "intensity")},
         "r": [W, H, meta.get("fps", 30), ss, burn, vertical,
               meta.get("language", "auto"), meta.get("font"),
               meta.get("transition", "dip"), meta.get("transition_seconds", 0.2),
+              meta.get("transition_style", "dip"),
               meta.get("captions_karaoke", "auto"), meta.get("reduced_motion", False),
               # caption placement changes the CLIP HEIGHT (band -> H+band) and colours — must bust the
               # cache, else a partial re-render (--only / one edited scene) mixes clip heights and the
@@ -810,6 +811,48 @@ def _fade_filter(meta, dur, slide=None):
         parts.append(f"fade=t=out:st={dur - d:.3f}:d={d}:c={bg}")
     return ",".join(parts)
 
+def _edge_filter(meta, dur, slide, vlabel, W, H):
+    """Scene-edge transition as FILTERGRAPH PARTS: returns (parts, new_vlabel). Style via
+    `slide.transition_style` / `meta.transition_style`:
+      dip  (default) — the classic dip-to-bg fade (delegates to _fade_filter);
+      push — the frame itself slides horizontally over the theme bg (out to the LEFT, in from the
+             RIGHT — a page being pushed away / arriving);
+      lift — vertical page-turn/scroll: out UPWARD, in from BELOW, so consecutive pages read as one
+             continuous upward turn (each half is SELF-CONTAINED per clip, so the -c copy concat and
+             the per-clip cache still hold; both sides sharing the style makes the seam read as one move).
+    Edges still come from the semantic `transition` field (dip=both, in/out=one, none). Motion is
+    smoothstep-eased; audio untouched — with the audio-breath tail (tts._master) the move happens in
+    the between-sentence silence, not over speech."""
+    st_, d = sb.normalize_transition(slide or {})
+    t = st_ if st_ in ("dip", "in", "out", "none") else (meta or {}).get("transition", "dip")
+    if t == "none":
+        return [], vlabel
+    d = float(d if d is not None else (meta or {}).get("transition_seconds", 0.2))
+    style = (slide or {}).get("transition_style") or (meta or {}).get("transition_style") or "dip"
+    if style not in ("dip", "push", "lift"):
+        style = "dip"
+    need = 2.2 * d if t == "dip" else 1.1 * d
+    if d <= 0 or dur <= need:
+        return [], vlabel
+    if style == "dip":
+        fade = _fade_filter(meta, dur, slide)
+        return ([f"[{vlabel}]{fade}[vedge]"], "vedge") if fade else ([], vlabel)
+    bg = _theme_bg(meta.get("_out", "."))
+    span = W if style == "push" else H
+    T0 = dur - d
+    sm_in = f"pow(min(t/{d},1),2)*(3-2*min(t/{d},1))"
+    sm_out = f"pow(min((t-{T0:.3f})/{d},1),2)*(3-2*min((t-{T0:.3f})/{d},1))"
+    terms = []
+    if t in ("dip", "in"):
+        terms.append(f"if(lte(t,{d}),{span}*(1-({sm_in})),0)")     # enters from +span -> 0
+    if t in ("dip", "out"):
+        terms.append(f"if(gte(t,{T0:.3f}),-{span}*({sm_out}),0)")  # exits 0 -> -span
+    expr = "+".join(terms)
+    xe, ye = (expr, "0") if style == "push" else ("0", expr)
+    return ([f"color=c={bg}:s={W}x{H}:d={dur:.3f}[ebg]",
+             f"[ebg][{vlabel}]overlay=x='{xe}':y='{ye}':shortest=1[vedge]"], "vedge")
+
+
 def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_clip, workdir, slide=None):
     """Encode a per-frame PNG sequence + the scene's TTS audio (+ timed captions) into a
     clip using the SAME codec params as the slide path, so the '-c copy' concat still works.
@@ -821,7 +864,6 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
     band = _caption_band_px(meta, W, H)                # >0 -> captions in a strip BELOW the content
     parts = [f"[0:v]scale={W}:{H}[v0]"]               # frames are already WxH; scale = safety
     vlabel = "v0"; extra_inputs = []; n_in = 2        # 0=frames, 1=audio
-    fade = _fade_filter(meta, dur, slide)              # dip-to-bg transition at the clip edges
 
     band_text = None; band_bg = None                   # per-scene sampled caption text colour + strip ground
     def _add_caption_overlays():
@@ -836,9 +878,9 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
             vlabel = f"v{n_in}"; n_in += 1
 
-    if band:                                           # fade the content, add the strip, then the caption text
-        if fade:
-            parts.append(f"[{vlabel}]{fade}[vf]"); vlabel = "vf"
+    if band:                                           # edge-treat the content, add the strip, then the captions
+        ep, vlabel = _edge_filter(meta, dur, slide, vlabel, W, H)
+        parts.extend(ep)
         bg, band_text = _caption_band_fill(meta, pattern % 0)   # strip continues THIS scene's own ground
         band_bg = _ffhex_rgb(bg)                        # the strip ground, for the highlight-contrast pick
         parts.append(f"[{vlabel}]pad={W}:{H + band}:0:0:color={bg}[vpad]"); vlabel = "vpad"
@@ -846,8 +888,8 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
     else:                                              # overlay (no bar): sample the ground UNDER the caption so its
         band_bg = _sample_region_color(pattern % 0)    # ink/outline/karaoke adapt to a photo/tint/letterbox
         _add_caption_overlays()
-        if fade:
-            parts.append(f"[{vlabel}]{fade}[vfade]"); vlabel = "vfade"
+        ep, vlabel = _edge_filter(meta, dur, slide, vlabel, W, H)
+        parts.extend(ep)
     cmd = ["ffmpeg", "-y", "-framerate", str(fps), "-i", pattern,
            "-i", os.path.join(meta["_out"], audio_rel)] + extra_inputs + [
         "-filter_complex", ";".join(parts), "-map", f"[{vlabel}]", "-map", "1:a",
@@ -928,7 +970,6 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
             vlabel = f"v{n_in}"; n_in += 1
     band = _caption_band_px(meta, W, H)                # >0 -> captions in a strip BELOW the content
     segs = (_caption_karaoke_segs(slide, meta, meta["_out"]) or _captions_for(slide)) if burn_captions else []
-    fade = _fade_filter(meta, dur, slide)              # dip-to-bg transition at the clip edges
 
     band_text = None; band_bg = None                   # per-scene sampled caption text colour + strip ground
     def _cap_overlays():
@@ -943,9 +984,9 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
             vlabel = f"v{n_in}"; n_in += 1
 
-    if band:                                           # fade content, add the strip, then the caption text
-        if fade:
-            parts.append(f"[{vlabel}]{fade}[vf]"); vlabel = "vf"
+    if band:                                           # edge-treat content, add the strip, then the captions
+        ep, vlabel = _edge_filter(meta, dur, slide, vlabel, W, H)
+        parts.extend(ep)
         bg, band_text = _caption_band_fill(meta, frame)    # strip continues THIS scene's own ground
         band_bg = _ffhex_rgb(bg)                        # the strip ground, for the highlight-contrast pick
         parts.append(f"[{vlabel}]pad={W}:{H + band}:0:0:color={bg}[vpad]"); vlabel = "vpad"
@@ -953,8 +994,8 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
     else:                                              # overlay (no bar): sample the ground UNDER the caption so its
         band_bg = _sample_region_color(frame)          # ink/outline/karaoke adapt to a photo/tint/--bg letterbox
         _cap_overlays()
-        if fade:
-            parts.append(f"[{vlabel}]{fade}[vfade]"); vlabel = "vfade"
+        ep, vlabel = _edge_filter(meta, dur, slide, vlabel, W, H)
+        parts.extend(ep)
     fcomplex = ";".join(parts)
 
     cmd = ["ffmpeg", "-y", "-loop", "1", "-i", frame, "-i",

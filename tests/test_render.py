@@ -756,3 +756,36 @@ def test_preview_mode_isolated_from_delivery():
     assert '".clips_preview" if preview else ".clips"' in src
     assert '"preview.mp4" if preview else "out.mp4"' in src
     assert "fps=12" in src                     # the actual speedup lever
+
+
+# --- transition styles (push/lift) + edge filter ---------------------------------------------
+
+def test_edge_filter_dip_delegates_to_fade():
+    parts, v = render._edge_filter({"_out": "/x", "transition": "dip"}, 10.0, {}, "v0", 1920, 1080)
+    assert v == "vedge" and len(parts) == 1 and "fade=t=in" in parts[0] and "fade=t=out" in parts[0]
+
+def test_edge_filter_lift_builds_bg_overlay():
+    meta = {"_out": "/x", "transition": "dip", "transition_style": "lift"}
+    parts, v = render._edge_filter(meta, 10.0, {}, "v0", 1920, 1080)
+    assert v == "vedge" and len(parts) == 2
+    assert parts[0].startswith("color=c=") and ":s=1920x1080" in parts[0]
+    assert "overlay=x='0'" in parts[1] and "1080*(1-" in parts[1]     # vertical motion, enters from below
+    assert "-1080*(" in parts[1]                                      # exits upward
+
+def test_edge_filter_push_is_horizontal_and_scene_override_wins():
+    meta = {"_out": "/x", "transition": "dip", "transition_style": "lift"}
+    parts, _ = render._edge_filter(meta, 10.0, {"transition_style": "push"}, "v0", 1920, 1080)
+    assert "1920*(1-" in parts[1] and ":y='0'" in parts[1]            # horizontal, slide override beat meta
+
+def test_edge_filter_none_and_short_clip_noop():
+    assert render._edge_filter({"_out": "/x", "transition": "none"}, 10.0, {}, "v0", 1920, 1080) == ([], "v0")
+    assert render._edge_filter({"_out": "/x", "transition_style": "lift", "transition_seconds": 0.3},
+                               0.4, {}, "v0", 1920, 1080) == ([], "v0")
+
+def test_fingerprint_includes_transition_style():
+    import json as _json
+    def fp(meta, slide=None):
+        return render._fingerprint(slide or {"index": 1, "type": "title", "props": {}, "audio": None,
+                                             "duration": 3}, meta, 1920, 1080, 2, True, False)
+    meta = {"_out": "/x"}
+    assert fp(meta) != fp({**meta, "transition_style": "lift"})       # style change busts the cache

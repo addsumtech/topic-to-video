@@ -342,3 +342,15 @@ def test_empty_narration_uses_silence_not_say(tmp_path, monkeypatch):
     assert len(silenced) == 1 and silenced[0].endswith("02.aiff")     # silent clip for the blank slide
     assert " " not in said                                            # never synthesized a bare space
     assert res["slides"][1]["duration"] >= 1.0                        # floored so it holds
+
+
+@pytest.mark.skipif(not _common.have_tool("ffmpeg"), reason="needs ffmpeg")
+def test_master_breath_is_tunable(tmp_path):
+    # the re-padded tail IS the between-scene breath: default ~0.42s, meta.audio_breath overrides
+    a = str(tmp_path / "a.mp3"); b = str(tmp_path / "b.mp3")
+    _tone_clip(a, tone_s=1.0, tail_s=1.5); _tone_clip(b, tone_s=1.0, tail_s=1.5)
+    tts._master(a, {})                                   # default breath 0.42
+    tts._master(b, {"audio_breath": 0.9})
+    da, db = _common.audio_duration(a), _common.audio_duration(b)
+    assert 1.25 <= da <= 1.65                            # ~1.0 speech + 0.42 breath
+    assert db - da > 0.3                                 # bigger breath -> audibly longer tail

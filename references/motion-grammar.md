@@ -215,6 +215,22 @@ filter chain. No wipes/pushes/spins/page-curls — effect variety without meanin
 this doctrine avoids. Keep seams ≤0.35s, the closer ≤0.45s (`validate.py` warns past 0.5, flags
 unknown `transition` values, and lints unpaired seam edges + a hard-ending closer).
 
+
+### Transition STYLE — dip | push | lift (one per deck, from the register)
+The semantic EDGES (`transition`: dip/in/out/none, mapped from each beat's `relation`) say WHERE the
+seams are; **`transition_style`** says what a seam LOOKS like:
+- **`dip`** (default) — the classic dip-to-theme-bg fade. Quiet, works everywhere.
+- **`push`** — the page itself slides out LEFT while the next slides in from the RIGHT (each half is
+  self-contained per clip, so `-c copy` concat and the clip cache hold; matching halves read as one
+  continuous push). A "handing over the page" feel.
+- **`lift`** — vertical page-turn: out UPWARD, in from BELOW — consecutive pages read as one upward
+  turn/scroll. Fits reading-flow registers (canvas/editorial/document worlds).
+**Discipline:** pick ONE style per deck, from the `design_register`'s motion personality (set
+`meta.transition_style`; a per-scene `slide.transition_style` exists for a justified exception —
+e.g. keep the CLIMAX entrance on `dip` for weight while the deck lifts). Style variety across a
+single deck reads as churn, not craft. Motion is smoothstep-eased and happens in the audio-breath
+silence at the clip tail (`meta.audio_breath`, default ~0.42s), so a seam never cuts into speech.
+
 ## Reduced motion (accessibility variant)
 
 With `meta.reduced_motion` (or `render.py --reduced-motion`) the renderer forces `to == from`

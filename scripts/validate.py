@@ -505,6 +505,10 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         _flat_tr, _tr_sec = sb.normalize_transition(s)   # tolerate a legacy {in,out,seconds} object
         if _raw_tr is not None and _flat_tr is None:
             warnings.append(f"{tag}: unknown transition '{_raw_tr}' — use 'dip'/'in'/'out'/'none' (falls back to the meta default)")
+        _ts = s.get("transition_style") or meta.get("transition_style")
+        if _ts and _ts not in ("dip", "push", "lift"):
+            warnings.append(f"{tag}: unknown transition_style '{_ts}' — use 'dip' (fade to bg) / 'push' "
+                            f"(horizontal page push) / 'lift' (vertical page turn); falls back to dip")
         ts = _tr_sec
         if ts is not None:
             try:

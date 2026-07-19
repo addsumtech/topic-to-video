@@ -32,7 +32,9 @@ TTS if the user gives an API key.
   **Every speech clip is MASTERED in place before its duration is measured:** loudness-normalised
   (EBU R128, I=-14) + trailing dead-air trimmed (tail-only — leading/internal timing untouched, so
   `words.json` word times stay valid), so levels are consistent across providers and the pacing gates
-  see speech, not dead air. Opt out with `meta.audio_master: false`.
+  see speech, not dead air. The re-padded tail is the BETWEEN-SCENE BREATH — `meta.audio_breath`
+  (default 0.42s; 0.12s proved abrupt: speech hard-cut into the next page). Scene-edge transitions
+  ride this silence. Opt out of mastering with `meta.audio_master: false`.
 - `scripts/theme.py <out_dir> [--mode light|dark] [--accent #hex] [--accent2 #hex] [--bg #hex] [--style <key>]` —
   derive a topic-fitting palette from `frames/` (or the passed overrides) and write
   `<out_dir>/theme.css` (the HTML tier links it; the programmatic renderers parse the same
@@ -74,7 +76,11 @@ TTS if the user gives an API key.
   override the meta default per scene; the design plan maps the beat's `relation` to it (continuation →
   hard cut; new-topic/payoff/close → an in-edge on the opener PLUS an out-edge on the predecessor —
   a dip needs both sides, validate lints unpaired edges) — see `references/motion-grammar.md`
-  "Transition rhythm". Never random; no wipes/spins. **Karaoke captions:** when edge-tts `audio/NN.words.json`
+  "Transition rhythm". **Transition STYLE — `meta.transition_style` (`dip` default | `push` horizontal
+  page-push | `lift` vertical page-turn):** what a seam LOOKS like, chosen ONCE per deck from the
+  register's motion personality (per-scene `slide.transition_style` for a justified exception, e.g.
+  a climax entrance kept on dip). Each half is self-contained per clip so `-c copy` concat still
+  holds; motion is eased and rides the audio-breath silence. Never random; no spins. **Karaoke captions:** when edge-tts `audio/NN.words.json`
   exists, the burned caption highlights the word being spoken, timed to the real word times — for
   space-delimited languages by word index, and for **CJK by CHAR-SPAN** (each edge token is located as a
   substring of the caption, so 中文 gets the same word-level highlight as English); falls back to

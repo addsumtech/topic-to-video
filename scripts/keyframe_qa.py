@@ -56,15 +56,23 @@ _OVERFLOW_JS = (
     "var oy=cs.overflowY;if((oy==='hidden'||oy==='clip')&&e.scrollHeight-e.clientHeight>8"
     "&&(e.innerText||'').trim().length>12&&!(e.matches&&e.matches(FILL))){"
     "var cc=e.scrollHeight-e.clientHeight;if(cc>clip)clip=cc;}}"
-    "var nm=0,nmEx='';var pars=document.querySelectorAll('.stage,.split,.stage *,.split *');"
+    "var nm=0,nmEx='',crowd=0,crowdEx='';var pars=document.querySelectorAll('.stage,.split,.stage *,.split *');"
     "for(var pi=0;pi<pars.length;pi++){var pe=pars[pi],ch=pe.children;"
     "if(ch.length<2||ch.length>12)continue;var bx=[];"
     "for(var ci=0;ci<ch.length;ci++){var el=ch[ci],rr=el.getBoundingClientRect();"
     "if(rr.width*rr.height<2500)continue;var c2=getComputedStyle(el);"
-    "if(c2.opacity==='0'||c2.display==='none'||el.hasAttribute('data-role'))continue;bx.push(rr);}"
+    "if(c2.opacity==='0'||c2.display==='none'||el.hasAttribute('data-role'))continue;"
+    "rr.abs=(c2.position==='absolute'||c2.position==='fixed');bx.push(rr);}"
     "for(var a=0;a<bx.length;a++)for(var b=a+1;b<bx.length;b++){var A=bx[a],B=bx[b];"
     "var ds=[Math.abs(A.left-B.left),Math.abs(A.top-B.top),Math.abs(A.right-B.right),Math.abs(A.bottom-B.bottom)];"
-    "for(var di=0;di<4;di++){if(ds[di]>=5&&ds[di]<=22){nm++;if(!nmEx)nmEx=String(pe.className).slice(0,30);break;}}}}"
+    "for(var di=0;di<4;di++){if(ds[di]>=5&&ds[di]<=22){nm++;if(!nmEx)nmEx=String(pe.className).slice(0,30);break;}}"
+    "var vgap=Math.max(A.top,B.top)-Math.min(A.bottom,B.bottom);"
+    "var hgap=Math.max(A.left,B.left)-Math.min(A.right,B.right);"
+    "var hOv=Math.min(A.right,B.right)-Math.max(A.left,B.left);"
+    "var vOv=Math.min(A.bottom,B.bottom)-Math.max(A.top,B.top);"
+    "var minW=Math.min(A.width,B.width),minH=Math.min(A.height,B.height);"
+    "if(A.abs&&B.abs&&((vgap>=-8&&vgap<=12&&hOv>0.3*minW)||(hgap>=-8&&hgap<=12&&vOv>0.3*minH))){"
+    "crowd++;if(!crowdEx)crowdEx=String(pe.className).slice(0,30);}}}"
     "var t=(document.body.innerText||'').replace(/\\s+/g,'').length;"
     "var EXCL='" + _CENTER_EXCL + "',centered=0,para=document.querySelectorAll('.sub,.note,.lead,p');"
     "for(var j=0;j<para.length;j++){var pe=para[j],pcs=getComputedStyle(pe);"
@@ -76,7 +84,7 @@ _OVERFLOW_JS = (
     "var bleed=!!document.querySelector('.bg-photo,.bg-soft,.bg-motif,.bg-grid');"
     "return JSON.stringify({worst:Math.round(worst),clip:Math.round(clip),textlen:t,centered:centered,"
     "ctop:Math.round(ct),cbot:Math.round(cb),cleft:Math.round(cl),cright:Math.round(cr),"
-    "mystery:myst,mystery_ex:mystEx,nearmiss:nm,nearmiss_ex:nmEx,"
+    "mystery:myst,mystery_ex:mystEx,nearmiss:nm,nearmiss_ex:nmEx,crowd:crowd,crowd_ex:crowdEx,"
     "bleed:bleed,cued:!!document.querySelector('[data-cue-index]')});})()")
 
 # Reveal-count probe (evaluated at EACH frozen p-state): how many reveal elements are visible now.
@@ -237,6 +245,14 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                     # ORDER: sibling edges off by 5-22px read as sloppiness, not intent — snap to a
                     # shared guide or make the offset clearly deliberate. One pair may be a false
                     # positive (baseline type); two or more is a pattern.
+                    # CROWDING: two sibling boxes nearly TOUCHING (gap -8..12px with real cross-axis
+                    # overlap) read as a collision, not a layout — give elements breathing room.
+                    # Deliberate deep overlaps (stacked planes) sit far outside the near-touch band.
+                    if info.get("crowd", 0) > 0:
+                        advisories.append(f"{info['crowd']} sibling box pair(s) nearly TOUCHING "
+                                          f"(gap within -8..12px, e.g. under '{info.get('crowd_ex', '')}') — "
+                                          "elements need breathing room; add margin or move one "
+                                          "(html-pages.md Alignment & order discipline)")
                     if info.get("nearmiss", 0) >= 2:
                         advisories.append(f"{info['nearmiss']} nearly-aligned sibling edge pair(s) (off by "
                                           f"5-22px, e.g. under '{info.get('nearmiss_ex', '')}') — snap to a "
