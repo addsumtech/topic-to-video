@@ -87,7 +87,7 @@ _FONT_FAMILIES = {   # kind -> (display stack, body stack)
               f'Georgia,"Times New Roman",{_CJK_SERIF},serif'),
     "mono":  (f'"JetBrains Mono","SF Mono",Menlo,{_CJK_SANS},monospace',
               f'"JetBrains Mono","SF Mono",Menlo,{_CJK_SANS},monospace'),
-    "comic": (f'"Bangers","Space Grotesk",Impact,{_CJK_SANS},sans-serif',
+    "comic": (f'"Bangers","Space Grotesk",Impact,"Hannotate SC","HanziPen SC",{_CJK_SANS},sans-serif',
               f'"Space Grotesk","Helvetica Neue",Arial,{_CJK_SANS},sans-serif'),
 }
 # The NUMERIC value-role face (--font-number, applied to .stat/.num/.delta/…). A display SERIF

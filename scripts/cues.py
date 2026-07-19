@@ -8,7 +8,7 @@ EPS = 0.15  # seconds — minimum gap nudge when two anchors resolve to the same
 
 # CJK ranges (ideographs, kana, hangul, fullwidth) — such text has NO word gaps, so a word-boundary
 # match would never fire between two CJK chars; those anchors match as plain substrings instead.
-_CJK = re.compile(r"[　-ヿ㐀-鿿가-힣＀-￯]")
+_CJK = re.compile("[\u3000-\u30ff\u3400-\u9fff\uac00-\ud7a3\uf900-\ufaff\uff00-\uffef]")   # incl. compat ideographs (matches render._HAN)
 
 def _anchor_pos(narration, anchor, start=0):
     """Char offset of `anchor` in `narration` at/after `start`, else -1. CASE-INSENSITIVE, and for a

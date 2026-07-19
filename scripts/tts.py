@@ -327,7 +327,7 @@ def _detect_language(slides):
         return "ja"
     if _re.search(r"[가-힣]", txt):   # hangul → Korean
         return "ko"
-    if _re.search(r"[一-鿿]", txt):   # Han → Chinese
+    if _re.search("[\u3400-\u9fff\uf900-\ufaff]", txt):   # Han incl. Ext-A + compat ideographs (matches render._HAN) → Chinese
         return "zh"
     return "en"
 

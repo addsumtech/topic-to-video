@@ -65,7 +65,9 @@ input text is in, so for `openai:*` you don't need a per-language voice — just
 narration in the target language.
 
 **Rate:** `say` runs at 175 wpm by default (tts.py hard-codes `-r 175`).
-This maps well to the 140–160 wpm speaking target — the synthesizer speaks
+This maps well to the 140–160 wpm speaking target. **CJK note:** `-r` semantics differ for CJK voices
+(rate is per-syllable, not wpm) — preview with e.g. `say -v Tingting 你好世界` and judge against the
+4–6 chars/sec narration target instead — the synthesizer speaks
 slightly faster than natural, which feels natural for voice-over.
 To slow down for clarity you can edit the `rate` default in `tts.py`
 (`_say` function, `rate=175`).

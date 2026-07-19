@@ -134,8 +134,6 @@ The `.srt` will have two separate entries with exact timing.
 
 | Format | H | Bottom margin | Font size |
 |---|---|---|---|
-| 16:9 (1920×1080) | 1080 | 65 px | ~48 px |
-| 9:16 vertical (1080×1920) | 1920 | 115 px | ~86 px |
 
 For vertical video (use `--vertical` flag), the caption bar sits higher
 above the bottom edge proportionally — safe for mobile display.

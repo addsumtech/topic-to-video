@@ -337,10 +337,14 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         try:
             import theme as _theme2
             _kind = _theme2._STYLE_FONT_KIND.get(_theme2._style_key(_vs) or "", "")
-            if _kind in ("comic", "mono"):
-                warnings.append(f"meta.visual_style '{_vs}' uses a {_kind} display face with NO CJK glyphs — "
+            if _kind == "mono":
+                warnings.append(f"meta.visual_style '{_vs}' uses a mono display face with NO CJK glyphs — "
                                 "a CJK deck renders its headlines in plain system sans (the style register "
                                 "won't read); pick a sans/serif style or accept the plain-type look knowingly")
+            elif _kind == "comic":
+                warnings.append(f"meta.visual_style '{_vs}': the comic face has no CJK glyphs — zh/ja/ko "
+                                "headlines fall back to a HANDWRITING face on macOS (Hannotate/HanziPen, a "
+                                "reasonable comic read) and plain sans elsewhere; check the sample")
         except Exception:
             pass
     # audacity dial — the register's RISK budget (a typo silently loses the intent). Never touches the floor.
