@@ -173,6 +173,13 @@ un-renderable promise? State in the verdict that the ranking is spec-only and we
   payoff → longer `in`; close → `dip`. **REVISE** when every cut carries the identical dip despite the
   plan marking sections (monotone), or when transitions vary with NO semantic reason (random = slop), or
   when a seam edge is unpaired (an `in` whose predecessor ends hard — `validate.py` lints this).
+- **Style consistency** (motion-grammar "Transition STYLE"): the `transition_style` is the deck's LOOK,
+  chosen ONCE from the register's motion personality — audit that ONE house style carries the deck and
+  any per-scene override is a NAMED marked moment (at most one–two; blur only as a once-per-deck coda).
+  **REVISE** when styles vary scene-to-scene with no named reason (a sampler is the motion equivalent of
+  mixing type families), when the style contradicts the register (a `push` under a hushed contemplative
+  register; a `dip` under a snappy editorial one — check the director's register→style mapping), or when
+  a directional style flips direction mid-deck with no going-back semantics (direction IS grammar).
 
 ### D4 — Icons must do a JOB (`references/icons.md`)
 - **REVISE** if an SVG icon: answers none of *what is this / what does it do / why care*; mixes more than

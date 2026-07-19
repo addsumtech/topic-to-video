@@ -806,10 +806,22 @@ def test_edge_filter_new_styles_shapes():
     # wipe (both edges): page is MAIN input; two sheets, enter then leave
     parts, _ = render._edge_filter({**meta, "transition_style": "wipe"}, 10.0, {}, "v0", 1920, 1080)
     assert len(parts) == 4 and parts[2].startswith("[v0][sh1]overlay")
-    # blur: gblur copy alpha-fades over the sharp frame, then dips to bg
+    # blur: alpha fades MULTIPLY when chained (t=in zeroes pre-st, t=out zeroes post-st+d — two on one
+    # layer cancel to invisible, the v1 bug), so a both-edges seam MUST carry one gblur layer PER edge,
+    # each with exactly ONE alpha window; exit layer transparent-until-T0 via fade=t=in (no
+    # colorchannelmixer=aa=0, which zeroes the channel permanently)
     parts, _ = render._edge_filter({**meta, "transition_style": "blur"}, 10.0, {}, "v0", 1920, 1080)
     joined = ";".join(parts)
-    assert "gblur" in joined and "alpha=1" in joined and "fade=t=out" in joined
+    lays = [p for p in parts if "gblur" in p]
+    assert len(lays) == 2 and all(p.count("alpha=1") == 1 for p in lays)
+    assert "colorchannelmixer" not in joined
+    assert any("fade=t=out:st=0" in p for p in lays)                  # entrance: opaque -> gone
+    assert any("fade=t=in:st=9.8" in p for p in lays)                 # exit: gone -> opaque at T0
+    # blur exit-only: ONE layer, alpha window opens at T0
+    parts, _ = render._edge_filter({**meta, "transition_style": "blur"}, 10.0,
+                                   {"transition": "out"}, "v0", 1920, 1080)
+    lays = [p for p in parts if "gblur" in p]
+    assert len(lays) == 1 and "fade=t=in:st=9.8" in lays[0] and "colorchannelmixer" not in lays[0]
     # unknown style falls back to dip
     parts, _ = render._edge_filter({**meta, "transition_style": "cube3d"}, 10.0, {}, "v0", 1920, 1080)
     assert len(parts) == 1 and "fade=" in parts[0]

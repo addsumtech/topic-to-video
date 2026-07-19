@@ -587,6 +587,10 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
               # `-c copy` concat breaks.
               meta.get("caption_mode"), meta.get("caption_band"), meta.get("caption_scale"),
               meta.get("intensity"), "x264crf18"],
+        # filter-impl version for the blur edge only: v1's chained alpha-fades cancelled to invisible
+        # (fixed to one layer per edge) — bust just those clips, not every cached clip everywhere
+        "edge": ("blur2" if (slide.get("transition_style") or meta.get("transition_style")) == "blur"
+                 else None),
         "img": stat(slide.get("image")), "aud": stat(slide.get("audio")),
         "html": stat((slide.get("props") or {}).get("html")),
         # re-theming (theme.py) busts ALL clips — html pages link theme.css AND the programmatic
@@ -862,25 +866,28 @@ def _edge_filter(meta, dur, slide, vlabel, W, H):
 
     if style == "blur":
         # progressive defocus riding the dip: a gblur copy alpha-fades over the sharp frame while the
-        # composite fades to bg (exit); the entrance refocuses (alpha fades the blur away) while fading up
-        parts = [f"[{vlabel}]split[shp][tob]",
-                 f"[tob]gblur=sigma=14,format=yuva420p[blr0]"]
-        af = []
-        if has_out:
-            af.append(f"fade=t=in:st={T0:.3f}:d={0.7 * d:.3f}:alpha=1")
-        if has_in:
-            af.append(f"fade=t=out:st=0:d={0.7 * d:.3f}:alpha=1" if not has_out else
-                      f"fade=t=out:st=0:d={0.7 * d:.3f}:alpha=1")
-        alpha0 = "" if has_in else "colorchannelmixer=aa=0,"          # exit-only: blur starts invisible
-        parts[-1] = f"[tob]gblur=sigma=14,format=yuva420p,{alpha0}{','.join(af)}[blr]"
-        comp = ["overlay=eval=frame"]
-        parts.append(f"[shp][blr]{comp[0]},format=yuv420p[vb]")
+        # composite fades to bg (exit); the entrance refocuses (alpha fades the blur away) while fading up.
+        # ONE alpha-fade window per gblur layer — chained fades MULTIPLY (t=in zeroes everything before
+        # its st, t=out everything after st+d), so a both-edges seam needs an independent layer per edge
+        # (verified empirically: fade=t=in:alpha=1 holds the layer transparent before st; fade=t=out
+        # :alpha=1 holds it transparent after st+d; two fades on one layer cancel to invisible).
+        labels = ["shp"] + (["bi"] if has_in else []) + (["bo"] if has_out else [])
+        parts = [f"[{vlabel}]split={len(labels)}" + "".join(f"[{l}]" for l in labels)]
+        base = "shp"
+        if has_in:   # entrance refocuses: blur opaque at t=0, alpha-fades away over 0.7d
+            parts.append(f"[bi]gblur=sigma=14,format=yuva420p,fade=t=out:st=0:d={0.7 * d:.3f}:alpha=1[blin]")
+            parts.append(f"[{base}][blin]overlay[vbi]")
+            base = "vbi"
+        if has_out:  # exit defocuses: blur transparent until T0, alpha-fades in over 0.7d
+            parts.append(f"[bo]gblur=sigma=14,format=yuva420p,fade=t=in:st={T0:.3f}:d={0.7 * d:.3f}:alpha=1[blout]")
+            parts.append(f"[{base}][blout]overlay[vbo]")
+            base = "vbo"
         fades = []
         if has_in:
             fades.append(f"fade=t=in:st=0:d={0.6 * d:.3f}:c={bg}")
         if has_out:
             fades.append(f"fade=t=out:st={dur - 0.6 * d:.3f}:d={0.6 * d:.3f}:c={bg}")
-        parts.append(f"[vb]{','.join(fades)}[vedge]")
+        parts.append(f"[{base}]{','.join(fades)},format=yuv420p[vedge]")
         return parts, "vedge"
 
     if style == "drift":

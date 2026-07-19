@@ -598,6 +598,29 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         warnings.append(f"final scene's transition '{effs[-1]}' has no out edge — the video ends on a hard "
                         f"frame; the closer should be 'dip' (its out edge IS the end fade)")
 
+    # Transition-STYLE discipline (motion-grammar "the style is the deck's LOOK"): ONE style per deck,
+    # chosen from the register's motion personality; a per-scene override marks at most one special
+    # seam. 3+ distinct styles reads as a template sampler, not a register. And blur is a reflective
+    # coda accent — once per deck, never the house style.
+    meta_ts = meta.get("transition_style") or "dip"
+    eff_ts = [(s.get("index", i + 1), s.get("transition_style") or meta_ts)
+              for i, s in enumerate(slides) if _eff(s) != "none"]
+    by_style = {}
+    for _idx, _st in eff_ts:
+        by_style.setdefault(_st, []).append(_idx)
+    if len(by_style) > 2:
+        pretty = ", ".join(f"{k} (scene {', '.join(map(str, v[:4]))})" for k, v in sorted(by_style.items()))
+        warnings.append(f"deck mixes {len(by_style)} transition styles — {pretty}; the style is the "
+                        f"deck's LOOK: pick ONE meta.transition_style, per-scene overrides mark at most "
+                        f"one special seam (see motion-grammar 'Transition STYLE')")
+    if meta_ts == "blur":
+        warnings.append("meta.transition_style 'blur' rack-defocuses EVERY seam — blur is a once-per-deck "
+                        "coda accent; set the house style to dip/fadethrough/drift/... and give only the "
+                        "closer a per-scene transition_style 'blur'")
+    elif len(by_style.get("blur", [])) > 1:
+        warnings.append(f"blur transition on scenes {', '.join(map(str, by_style['blur']))} — blur reads "
+                        f"as a reflective coda; use it at most ONCE (usually the closer)")
+
     # Remotion cinematic tier renders IMAGE scenes only — a non-image scene would render BLANK and still
     # pass the A/V gate (a blank video's audio is in sync). Fail at THIS gate too, not just at render.
     if meta.get("renderer") == "remotion":

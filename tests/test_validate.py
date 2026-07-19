@@ -1049,6 +1049,39 @@ def test_final_scene_hard_end_warns_unless_meta_none(tmp_path):
     assert not any("no out edge" in w for w in r2["warnings"])
 
 
+def test_style_sampler_warns_but_house_plus_one_accent_is_clean(tmp_path):
+    # 3+ distinct transition styles = a template sampler, not a register
+    data = _multi_board(tmp_path, ["dip", "dip", "dip", "dip"])
+    data["meta"]["transition_style"] = "lift"
+    for i, st in ((1, "push"), (2, "wipe")):
+        data["slides"][i]["transition_style"] = st               # lift + push + wipe = 3 looks
+    r = validate.evaluate(data, str(tmp_path), pre_tts=True)
+    assert any("mixes 3 transition styles" in w for w in r["warnings"])
+    # ONE house style + ONE marked-seam accent is the sanctioned shape — no warning
+    data["slides"][2].pop("transition_style")
+    r2 = validate.evaluate(data, str(tmp_path), pre_tts=True)
+    assert not any("transition styles" in w for w in r2["warnings"])
+
+def test_blur_discipline_warns(tmp_path):
+    # blur as the HOUSE style rack-defocuses every seam
+    data = _multi_board(tmp_path, ["dip", "dip", "dip"])
+    data["meta"]["transition_style"] = "blur"
+    r = validate.evaluate(data, str(tmp_path), pre_tts=True)
+    assert any("EVERY seam" in w for w in r["warnings"])
+    # blur twice via per-scene overrides -> once-per-deck warning
+    data["meta"]["transition_style"] = "dip"
+    data["slides"][0]["transition_style"] = "blur"
+    data["slides"][1]["transition_style"] = "blur"
+    r2 = validate.evaluate(data, str(tmp_path), pre_tts=True)
+    assert any("at most ONCE" in w for w in r2["warnings"])
+    # blur once on the closer = the sanctioned coda accent
+    data["slides"][0].pop("transition_style")
+    data["slides"][1].pop("transition_style")
+    data["slides"][2]["transition_style"] = "blur"
+    r3 = validate.evaluate(data, str(tmp_path), pre_tts=True)
+    assert not any("blur" in w for w in r3["warnings"])
+
+
 def test_design_plan_missing_visual_style_warns(tmp_path):
     _design_plan(tmp_path, {"beats": [{"index": 1, "content_shape": "x", "form": "stat"}],
                             "signature_concept": {"beat": 1, "name": "x"}, "style_thesis": "blueprint"})
