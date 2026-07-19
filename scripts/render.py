@@ -56,9 +56,27 @@ def _script_of(text, language="auto"):
         return "zh"
     return "latin"
 
+# caption face follows the deck's TYPE: --font-kind (theme.css) -> the same bundled style face the
+# pages/programmatic tiers use, so the burned caption reads as the deck's own voice, not a third font.
+# (Latin scripts only — CJK captions keep the system CJK face, which IS the deck's CJK body fallback.)
+_STYLE_CAP_FACE = {"comic": "Bangers-Regular.ttf", "serif": "PlayfairDisplay-VF.ttf",
+                   "sans": "SpaceGrotesk-VF.ttf", "mono": "JetBrainsMono-VF.ttf"}
+
+def _style_caption_font(out_dir):
+    """The deck's body face for captions, from theme.css --font-kind; None when absent/missing."""
+    try:
+        css = open(os.path.join(out_dir or ".", "theme.css"), encoding="utf-8").read()
+    except OSError:
+        return None
+    m = re.search(r"--font-kind:\s*(\w+)", css)
+    if not m:
+        return None
+    p = os.path.join(os.path.dirname(BUNDLED_FONT), _STYLE_CAP_FACE.get(m.group(1), ""))
+    return p if os.path.basename(p) and os.path.exists(p) else None
+
 def _font_path(meta, text):
     """Resolve the caption font: an explicit meta.font override, else a system CJK font
-    when the text needs one, else the bundled Latin font."""
+    when the text needs one, else the deck's own body face (--font-kind), else the bundled Latin font."""
     explicit = (meta or {}).get("font")
     if explicit and os.path.exists(explicit):
         return explicit
@@ -67,7 +85,8 @@ def _font_path(meta, text):
         for p in _FONT_CANDIDATES.get(script, []) + _FONT_FALLBACKS:
             if os.path.exists(p):
                 return p
-    return BUNDLED_FONT
+        return BUNDLED_FONT
+    return _style_caption_font((meta or {}).get("_out")) or BUNDLED_FONT
 
 _FONT_CACHE = {}
 def _load_font(size, path=None):
@@ -137,11 +156,14 @@ def _caption_font_px(W, H, band=False, meta=None):
     ~86px on a 9:16 canvas (double the landscape weight in half the width — 3-line wraps, widows,
     and the band eats the layout). min(W,H)*0.045 keeps the same visual weight in both aspects.
     The below-content BAND uses a slightly smaller face (~0.85×) — it has its own strip, so it needn't
-    shout over content; `meta.caption_scale` tunes either mode (e.g. 0.9 to shrink further)."""
+    shout over content; `meta.caption_scale` tunes either mode (e.g. 0.9 to shrink further).
+    Base factor 0.040 (was 0.045): captions are a reading aid, not a headline — they should sit quietly
+    under the content (user feedback: the burned caption competed with the page's own type)."""
     scale = (0.85 if band else 1.0) * float((meta or {}).get("caption_scale", 1.0) or 1.0)
-    return max(12, int(min(W, H) * 0.045 * scale))
+    return max(12, int(min(W, H) * 0.040 * scale))
 
-def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None, band_bg=None):
+def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None, band_bg=None,
+                  hl_span=None):
     """Burn a centered caption. `band==0` (default 'overlay'): NO background bar — the text sits at the very
     BOTTOM of the W×H content in the deck's `--fg` ink with a subtle opposite-luminance OUTLINE, so it reads
     over any ground (empty frame, a tint, a photo) on any theme + aspect without a heavy/ugly strip; the
@@ -186,6 +208,34 @@ def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None,
             for dx, dy in ((-2, -2), (-2, 2), (2, -2), (2, 2), (-2, 0), (2, 0), (0, -2), (0, 2)):
                 d.text((ox + dx, oy + dy), s, font=font, fill=halo)
         d.text(xy, s, font=font, fill=fill)
+    if hl_span is not None:
+        # CJK karaoke: highlight a CHAR RANGE [a,b) of the ORIGINAL text. Wrapping may normalize
+        # whitespace, so align wrapped-line chars to original indices by walking both streams over
+        # their non-space chars; each line then draws as runs (base / highlight / base).
+        a, b = hl_span
+        oi = 0
+        for ln in lines:
+            runs, cur, cur_hl = [], "", None
+            for chx in ln:
+                if chx.isspace():
+                    hl = cur_hl if cur_hl is not None else False   # spaces inherit the current run
+                else:
+                    while oi < len(text) and text[oi].isspace():
+                        oi += 1
+                    hl = a <= oi < b
+                    oi += 1
+                if cur_hl is None or hl == cur_hl:
+                    cur += chx; cur_hl = hl
+                else:
+                    runs.append((cur, cur_hl)); cur, cur_hl = chx, hl
+            if cur:
+                runs.append((cur, cur_hl))
+            x = (W - d.textlength(ln, font=font)) / 2
+            for s, hlf in runs:
+                _put((x, y), s, hl_col if hlf else base)
+                x += d.textlength(s, font=font)
+            y += line_h
+        return
     if hl_word is None:
         for ln in lines:
             w = d.textlength(ln, font=font)
@@ -223,13 +273,15 @@ def _callout_layer(callouts, W, H, dst, meta=None):
                    font=label_font, fill=(255, 255, 255, 255))
     layer.save(dst)
 
-def _caption_layer(text, W, H, dst, meta=None, hl_word=None, band=0, text_rgb=None, band_bg=None):
+def _caption_layer(text, W, H, dst, meta=None, hl_word=None, band=0, text_rgb=None, band_bg=None,
+                   hl_span=None):
     """Draw ONLY one caption block onto a transparent PNG (shown for one time window). In band mode the
     layer is W×(H+band) so the caption text lands in the strip below the content; `text_rgb` overrides
     the text colour (the per-scene sampled colour that contrasts a flush strip); `band_bg` is that strip's
     ground rgb, used to contrast-pick the karaoke highlight so it never vanishes into the band."""
     layer = Image.new("RGBA", (W, H + band), (0, 0, 0, 0))
-    _draw_caption(ImageDraw.Draw(layer), text, W, H, meta, hl_word, band=band, text_rgb=text_rgb, band_bg=band_bg)
+    _draw_caption(ImageDraw.Draw(layer), text, W, H, meta, hl_word, band=band, text_rgb=text_rgb,
+                  band_bg=band_bg, hl_span=hl_span)
     layer.save(dst)
 
 def _load_words(out_dir, index):
@@ -271,12 +323,16 @@ def _caption_karaoke_segs(slide, meta, out_dir):
     if (meta or {}).get("captions_karaoke", "auto") in ("off", False):
         return None
     lang = ((meta or {}).get("language", "") or "").lower().split("-")[0]
-    if lang in ("zh", "ja", "ko"):        # per-word highlight of gap-less CJK is awkward — chunk-level instead
-        return None
     words = _load_words(out_dir, slide.get("index") or 0)
     dur = float(slide.get("duration") or 0)
     if not words or dur <= 0:
         return None
+    if lang in ("zh", "ja", "ko"):
+        # CJK has no spaces, so the space-split word path can't apply — but edge-tts DOES emit per-token
+        # word boundaries for CJK. Match each token as a SUBSTRING of the caption chunks, sequentially
+        # (tokens arrive in spoken order = display order), and highlight its CHAR RANGE (`hl_span`)
+        # instead of a space-word index — so 中文 captions get the same word-level karaoke as English.
+        return _cjk_karaoke_segs(words, _captions_for(slide), dur)
     chunks = _captions_for(slide)         # reuse the chunking (text/lines); re-time from real word starts
     chunk_words = [c["text"].split() for c in chunks]
     flat = [w for cw in chunk_words for w in cw]
@@ -296,6 +352,44 @@ def _caption_karaoke_segs(slide, meta, out_dir):
             segs.append({"start": round(start, 3), "end": round(end, 3), "text": c["text"], "hl": j})
             gi += 1
     return segs or None
+
+def _cjk_karaoke_segs(words, chunks, dur):
+    """CJK karaoke: sequentially locate each edge-tts token as a substring of the caption chunks and
+    emit one seg per token — {start, end, text (the chunk), hl_span: [a, b) char range}. Tokens and
+    chunks are both in spoken order, so matching walks both left-to-right; a token absent from the
+    current chunk's remainder moves to the next chunk when it appears later, else is skipped (edge
+    normalizes some tokens — numbers, Latin runs). Too few matches → None (chunk-level fallback)."""
+    toks = [(str(w.get("w") or "").strip(), float(w.get("t") or 0)) for w in words]
+    toks = [(w, t) for w, t in toks if w]
+    if not toks or not chunks:
+        return None
+    matches, wi = [], 0                     # [chunk_idx, a, b, start]
+    for ci, c in enumerate(chunks):
+        txt = c["text"]
+        pos = 0
+        while wi < len(toks):
+            tok, t0 = toks[wi]
+            f = txt.find(tok, pos)
+            if f < 0:
+                # not in this chunk's remainder: if a LATER chunk has it, advance chunks; else drop it
+                if any(tok in chunks[cj]["text"] for cj in range(ci + 1, len(chunks))):
+                    break
+                wi += 1
+                continue
+            matches.append([ci, f, f + len(tok), t0])
+            pos = f + len(tok)
+            wi += 1
+    if len(matches) < max(3, len(toks) // 2):
+        return None                          # matching too weak — safer to fall back to chunk captions
+    segs = []
+    for i, (ci, a, b, t0) in enumerate(matches):
+        end = matches[i + 1][3] if i + 1 < len(matches) else dur
+        if end <= t0:
+            end = t0 + 0.08
+        segs.append({"start": round(t0, 3), "end": round(end, 3),
+                     "text": chunks[ci]["text"], "hl_span": [a, b]})
+    return segs or None
+
 
 def _srt_time(t):
     h = int(t // 3600); m = int((t % 3600) // 60); s = t % 60
@@ -696,7 +790,7 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
             if not (seg.get("text") or "").strip():
                 continue
             cap_png = os.path.join(workdir, f"scap_{k:03d}.png")
-            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text, band_bg=band_bg)
+            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text, band_bg=band_bg, hl_span=seg.get("hl_span"))
             extra_inputs.append("-i"); extra_inputs.append(cap_png)
             en = f"between(t,{seg['start']},{seg['end']})"
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
@@ -803,7 +897,7 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
             if not (seg.get("text") or "").strip():
                 continue
             cap_png = os.path.join(workdir, f"cap_{i:02d}_{k:02d}.png")
-            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text, band_bg=band_bg)
+            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text, band_bg=band_bg, hl_span=seg.get("hl_span"))
             extra_inputs.append("-i"); extra_inputs.append(cap_png)
             en = f"between(t,{seg['start']},{seg['end']})"
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")

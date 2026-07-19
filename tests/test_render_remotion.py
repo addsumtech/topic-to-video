@@ -43,7 +43,7 @@ def test_build_props_threads_motion_fit_and_fontsize(tmp_path):
     sc = p["scenes"][0]
     assert sc["motion"] == {"from": [0.3, 0.4, 1.0], "to": [0.6, 0.5, 1.2]}   # honours slide.motion
     assert sc["fit"] == "cover"
-    assert p["captionFontPx"] == int(min(1920, 1080) * 0.045)                 # canvas-derived (== 48)
+    assert p["captionFontPx"] == int(min(1920, 1080) * 0.040)                 # canvas-derived (== 43)
 
 
 def test_build_props_default_motion_and_fit(tmp_path):

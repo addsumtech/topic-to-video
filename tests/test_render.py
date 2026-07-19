@@ -459,9 +459,10 @@ def test_fade_filter_unknown_value_falls_back_to_meta():
 
 
 def test_caption_font_scales_with_narrow_dimension():
-    # same visual weight in both aspects: 48px on 1920x1080 AND on 1080x1920
-    assert render._caption_font_px(1920, 1080) == 48
-    assert render._caption_font_px(1080, 1920) == 48          # was 86 when H-relative (band ate the layout)
+    # same visual weight in both aspects: 43px on 1920x1080 AND on 1080x1920 (base 0.040 — captions
+    # are a reading aid, not a headline; user feedback: they competed with the page's own type)
+    assert render._caption_font_px(1920, 1080) == 43
+    assert render._caption_font_px(1080, 1920) == 43          # was 86 when H-relative (band ate the layout)
 
 
 def test_caption_not_split_at_abbreviations():
@@ -636,3 +637,47 @@ def test_caption_band_render_taller_canvas(tmp_path, monkeypatch):
         "-show_entries", f"stream={st}", "-of", "default=nk=1:nw=1", mp4]).strip()
     assert int(probe("width")) == 1920 and int(probe("height")) == 1080 + band
     assert _common.audio_duration(mp4) > 0.3                    # clips concatenated + play
+
+
+# --- CJK karaoke (char-span) + caption face follows the deck type -----------------------------
+
+def test_cjk_karaoke_segs_matches_tokens_to_char_spans():
+    # edge zh tokens located as substrings, in order; each seg carries the chunk text + hl_span
+    chunks = [{"text": "几秒,一份漂亮的 PPT 就出来了。"}, {"text": "数字可信吗?"}]
+    words = [{"w": "几秒", "t": 0.1}, {"w": "一份", "t": 0.6}, {"w": "漂亮的", "t": 1.0},
+             {"w": "PPT", "t": 1.5}, {"w": "数字", "t": 2.4}, {"w": "可信", "t": 2.9}]
+    segs = render._cjk_karaoke_segs(words, chunks, 4.0)
+    assert segs and len(segs) == 6
+    assert segs[0]["text"] == chunks[0]["text"] and segs[0]["hl_span"] == [0, 2]   # 几秒
+    assert segs[0]["start"] == 0.1 and segs[0]["end"] == 0.6                        # ends at next token
+    assert segs[3]["hl_span"][1] - segs[3]["hl_span"][0] == 3                       # PPT (latin run)
+    assert segs[4]["text"] == chunks[1]["text"] and segs[4]["hl_span"] == [0, 2]   # crossed into chunk 2
+    assert segs[-1]["end"] == 4.0                                                   # last holds to dur
+    assert all(s["end"] > s["start"] for s in segs)
+
+def test_cjk_karaoke_segs_weak_match_falls_back():
+    # tokens that don't appear in the captions (mismatched narration) -> None (chunk-level captions)
+    segs = render._cjk_karaoke_segs([{"w": "无关", "t": 0.2}, {"w": "词块", "t": 0.8}],
+                                    [{"text": "完全不同的字幕文本"}], 3.0)
+    assert segs is None
+
+def test_cjk_karaoke_enabled_for_zh(tmp_path, monkeypatch):
+    # the zh path no longer bails: with words.json present, _caption_karaoke_segs returns char-span segs
+    import json as _json
+    (tmp_path / "audio").mkdir()
+    (tmp_path / "audio" / "03.words.json").write_text(_json.dumps(
+        [{"w": "数字", "t": 0.2}, {"w": "可信", "t": 0.9}, {"w": "把过关", "t": 1.7}]))
+    slide = {"index": 3, "narration": "数字可信吗?谁把过关?", "duration": 3.0}
+    segs = render._caption_karaoke_segs(slide, {"language": "zh"}, str(tmp_path))
+    assert segs and all("hl_span" in s for s in segs)
+
+def test_caption_font_follows_deck_font_kind(tmp_path):
+    # latin captions pick up the deck's --font-kind face; CJK text keeps a CJK-capable face
+    (tmp_path / "theme.css").write_text(":root{ --font-kind:mono; --bg:#fff; }")
+    meta = {"_out": str(tmp_path), "language": "en"}
+    p = render._font_path(meta, "hello world")
+    assert p.endswith("JetBrainsMono-VF.ttf")
+    p_zh = render._font_path({"_out": str(tmp_path), "language": "zh"}, "中文字幕")
+    assert not p_zh.endswith("JetBrainsMono-VF.ttf")          # CJK never uses the Latin-only face
+    # no theme.css -> bundled default
+    assert render._font_path({"_out": str(tmp_path / "nope"), "language": "en"}, "hi").endswith("DejaVuSans.ttf")

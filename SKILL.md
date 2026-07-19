@@ -71,8 +71,10 @@ TTS if the user gives an API key.
   hard cut; new-topic/payoff/close → an in-edge on the opener PLUS an out-edge on the predecessor —
   a dip needs both sides, validate lints unpaired edges) — see `references/motion-grammar.md`
   "Transition rhythm". Never random; no wipes/spins. **Karaoke captions:** when edge-tts `audio/NN.words.json`
-  exists (space-delimited languages), the burned caption highlights the word being spoken, timed to the
-  real word times; falls back to line-level chunks for MiniMax/say and CJK. `meta.captions_karaoke`
+  exists, the burned caption highlights the word being spoken, timed to the real word times — for
+  space-delimited languages by word index, and for **CJK by CHAR-SPAN** (each edge token is located as a
+  substring of the caption, so 中文 gets the same word-level highlight as English); falls back to
+  line-level chunks for MiniMax/say (no word timings) or when token matching is too weak. `meta.captions_karaoke`
   (`auto` default | `off`). The highlight colour is **contrast-picked per scene** against the caption band's
   ground (prefers `--accent`, else `--accent2`/gold/high-contrast b/w) AND kept distinct from the
   neighbouring words — so the spoken word never vanishes into an accent-fill / same-colour band.
