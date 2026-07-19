@@ -710,10 +710,10 @@ def _design_plan_lints(out_dir, warnings, meta=None):
             if win is None and cands:
                 warnings.append("register: register_contest records candidates but no winner — the contest is "
                                 "divergence + SELECTION; record the final pick as `winner` (`user_pick: true` "
-                                "when the user overrode the judge)")
+                                "when the user made the pick)")
             elif win is not None and keys and str(win) not in keys:
                 warnings.append("register: register_contest.winner is not among its candidates — record the FINAL "
-                                "selected candidate's key (the user's pick when they overrode the judge)")
+                                "selected candidate's key (the user's pick is final when they made one)")
             elif win is not None:
                 wname = next((str(c.get("name") or "") for c in cands if _ckey(c) == str(win)), "")
                 if wname and str(reg.get("name") or "") and wname != str(reg.get("name")):

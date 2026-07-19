@@ -56,6 +56,52 @@ def test_unprobed_fallback_reports_itself(tmp_path, monkeypatch):
     assert shots and "?p=0.5" in shots[0]
 
 
+class _StubChrome:
+    def __init__(self, probe_raises=False):
+        self.shots, self.closed, self.probe_raises = [], False, probe_raises
+
+    def shot(self, url, out):
+        self.shots.append(url)
+        from PIL import Image
+        Image.new("RGB", (8, 8), "#333").save(out, "JPEG")   # CDP path really writes JPEG bytes
+
+    def close(self):
+        self.closed = True
+
+
+def test_probed_happy_path_shape_and_png_transcode(tmp_path, monkeypatch):
+    page = tmp_path / "p.html"; page.write_text("<html><body>x</body></html>")
+    out = str(tmp_path / "o.png")
+    stub = _StubChrome()
+    monkeypatch.setattr(snapshot.keyframe_qa, "_open_cdp", lambda meta, W, H: stub)
+    info = {"worst": 0, "clip": 0, "textlen": 40, "cbot": 800, "ctop": 100, "cleft": 100, "cright": 900}
+    monkeypatch.setattr(snapshot.keyframe_qa, "_dom_probe", lambda c: info)
+    r = snapshot.shoot(str(page), out)
+    assert r["probed"] is True and r["issues"] == [] and r["info"] is info
+    assert stub.closed                                        # chrome released
+    assert open(out, "rb").read(4) == b"\x89PNG"              # JPEG bytes transcoded to real PNG
+
+def test_probe_exception_still_closes_chrome(tmp_path, monkeypatch):
+    page = tmp_path / "p.html"; page.write_text("<html><body>x</body></html>")
+    stub = _StubChrome()
+    monkeypatch.setattr(snapshot.keyframe_qa, "_open_cdp", lambda meta, W, H: stub)
+    def boom(c): raise RuntimeError("probe died")
+    monkeypatch.setattr(snapshot.keyframe_qa, "_dom_probe", boom)
+    import pytest
+    with pytest.raises(RuntimeError):
+        snapshot.shoot(str(page), str(tmp_path / "o.png"))
+    assert stub.closed                                        # try/finally held
+
+def test_blank_page_fails_the_contest_floor(tmp_path, monkeypatch):
+    # a page whose reveal never fired (empty text, no box, no bleed) must NOT pass as "floor clean"
+    page = tmp_path / "p.html"; page.write_text("<html><body></body></html>")
+    monkeypatch.setattr(snapshot.keyframe_qa, "_open_cdp", lambda meta, W, H: _StubChrome())
+    blank_info = {"worst": 0, "clip": 0, "textlen": 0, "cbot": -1e9, "ctop": 1e9, "cleft": 1e9, "cright": 0}
+    monkeypatch.setattr(snapshot.keyframe_qa, "_dom_probe", lambda c: blank_info)
+    r = snapshot.shoot(str(page), str(tmp_path / "o.png"))
+    assert any("BLANK" in i for i in r["issues"]) and snapshot._exit_code(r) == 2
+
+
 def test_url_is_percent_encoded(tmp_path, monkeypatch):
     # a '#' in the filename must not truncate the file:// URL (Chrome would load its error page and
     # the probe would return a clean verdict for a frame that never rendered)

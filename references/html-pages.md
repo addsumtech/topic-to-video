@@ -21,6 +21,8 @@ progress `p=0..1`; `seek.js` freezes its CSS reveals so the entrance animates th
 </body></html>
 ```
 Use absolute `file://` paths. Order: `base.css` → `theme.css` (from `<out_dir>`) → `motifs.css` → **(9:16 only) `vertical.css`** (all from `assets/html/`). On a 16:9 deck, DROP the `vertical.css` line.
+**Register-contest candidate pages (SKILL.md 3.55) substitute the theme link:** they link their OWN
+`<out_dir>/_contest/<key>/theme.css` instead — `<out_dir>/theme.css` doesn't exist yet at contest time.
 
 ## Form selection — choose the form the CONTENT wants (do NOT default to a card grid)
 **Design is choosing, not matching.** A `.card`/`.row` grid is the right answer ONLY for **parallel,

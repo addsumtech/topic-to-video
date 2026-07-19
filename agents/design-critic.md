@@ -133,7 +133,9 @@ OR a non-card form that fits in the wrong direction (D1 bidirectional), player-c
   and the motion must MEAN something, not just be present.
   **(4) Survived build/fix.** If the register/signature was sanded back toward safe during scripting/revision
   (named in the plan but flat in the rendered sample/keyframes), that regression is a finding — check the
-  actual pixels, not the plan's promise.
+  actual pixels, not the plan's promise. When the plan records a `register_contest`, also verify the
+  SELECTION drove the plan: REVISE if the committed `design_register.name` is not the recorded winner's
+  (the contest was divergence + selection — a silently swapped register defeats it).
   Respect the budget: judge against `meta.audacity` (default `balanced`) — do NOT demand experimental
   boldness on a `conservative` dial, and do NOT pass bland on a `bold` one. **Strict priority:** D2e ONLY
   pushes up — it sits UNDER clarity + faithfulness + WCAG + deliverability + the keyframe/caption/AV gates

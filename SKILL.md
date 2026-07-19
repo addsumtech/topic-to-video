@@ -29,7 +29,11 @@ TTS if the user gives an API key.
 ## Pipeline scripts
 - `scripts/ingest.py <input> <out_dir>` — pptx/pdf/image-folder → `frames/` + skeleton `storyboard.json` (pulls speaker notes from pptx).
 - `scripts/tts.py <out_dir> [--only N]` — narration → `audio/` + real durations. With edge-tts, also writes `audio/NN.words.json` (per-word start times), used for audio-synced HTML reveals; emits `.mp3`. With macOS `say`, emits `.aiff` (no words.json).
-- `scripts/theme.py <out_dir> [--mode light|dark] [--accent #hex] [--accent2 #hex] [--bg #hex]` —
+  **Every speech clip is MASTERED in place before its duration is measured:** loudness-normalised
+  (EBU R128, I=-14) + trailing dead-air trimmed (tail-only — leading/internal timing untouched, so
+  `words.json` word times stay valid), so levels are consistent across providers and the pacing gates
+  see speech, not dead air. Opt out with `meta.audio_master: false`.
+- `scripts/theme.py <out_dir> [--mode light|dark] [--accent #hex] [--accent2 #hex] [--bg #hex] [--style <key>]` —
   derive a topic-fitting palette from `frames/` (or the passed overrides) and write
   `<out_dir>/theme.css` (the HTML tier links it; the programmatic renderers parse the same
   semantic vars — one color world). Run before authoring pages OR programmatic scenes. Contrast is
@@ -373,6 +377,9 @@ TTS if the user gives an API key.
    downstream; set `meta.language` to the code (`en`/`zh`/`ja`/`ko`/`es`/`fr`/`de`/…), defaulting to
    the slides' own detected language but always confirmed (voice-over may differ from the deck).
 2. **Ingest** — run `ingest.py`. Report slide count and whether speaker notes were found.
+   **SKIP on a no-deck / from-scratch run** (`ingest.py` requires an input deck): just create
+   `<out_dir>`; `storyboard.json` is built at step 3.6 by merging the two plans — and remember to
+   write the interview's meta (language/voice/aspect/audacity/…) into it there.
 3. **Understand the material DEEPLY — never narrate from the slides alone.** A good
    voice-over explains *why*, connects ideas, and is precise — that requires real
    understanding the bullets don't carry. This step is what makes the script good.
@@ -445,8 +452,12 @@ TTS if the user gives an API key.
      ① Dispatch `agents/design-director.md` in **CONTEST mode** → `register_candidates` (forced-divergent
      angles; see its "Register CONTEST — Phase A"). ② Per candidate `<key>`: make `<out>/_contest/<key>/`,
      run `python scripts/theme.py <out>/_contest/<key> --style <its visual_style> [--accent …]` for its
-     own theme.css, author ONE representative page from its `frame_spec` (the signature/opener frame, on
-     `base.css` + that theme.css), then `python scripts/snapshot.py <page> <out>/_contest/<key>/frame.png`
+     own theme.css, author ONE representative page from its `frame_spec` — **linking
+     `<out>/_contest/<key>/theme.css`, NOT `<out_dir>/theme.css`** (which doesn't exist yet; the
+     html-pages boilerplate's theme link is substituted with the candidate's) — then
+     `python scripts/snapshot.py <page> <out>/_contest/<key>/frame.png` (**add `--vertical` when
+     `meta.aspect` is 9:16, `--no-captions` when captions are off or `caption_mode` is `band`** — the
+     same exemptions keyframe_qa reads from the meta)
      — exit 2 = floor issues: repair ONCE in-register or disqualify; exit 3 = rendered but floor NOT
      probed (CDP unavailable): do NOT record a `rendered` floor verdict — fix Chrome/CDP or drop the
      whole contest to paper mode. ③ Dispatch `agents/design-critic.md`
@@ -468,7 +479,8 @@ TTS if the user gives an API key.
      forms only, no un-renderable Sankey/heatmap/pyramid), `motion_intent`, `transition` (mapped from the
      beat's `relation`; see `references/motion-grammar.md` "Transition rhythm"), `icons`, `media`
      (`image_prompt` + `motion`: kenburns/bg-live/bg-drift), and a `cue` anchor array for any multi-point
-     `html` beat. It also carries a per-beat **reasoning trace** (`narrative_job`/`content_shape`/
+     `html` beat AND any programmatic multi-element beat (`chart`/`timeline`/`compare`/`keypoints` —
+     one anchor per element in spoken order, so the build is word-synced, not a blind timer). It also carries a per-beat **reasoning trace** (`narrative_job`/`content_shape`/
      `rejected_default`), a deck **`rhythm_map`**, and a **`color_ledger`** — the operational design
      intelligence (block-dependency audit, expanded concept→visual dictionary with use/avoid/failure,
      evenness penalty, minimum deck-level variation) lives in `references/design-intelligence-addendum.md`,
@@ -492,7 +504,10 @@ TTS if the user gives an API key.
      `props.climax:true` — the climax MARKER (`rhythm_qa` reads it); it also drives the key-number landing
      hold only on a `chart` counter (a harmless no-op on any other form); its `icons`/`media`/`cue` shape the authored page (`.icon-tile`
      rows per `references/icons.md`). **Copy the content plan's `arc_kind` to `meta.arc_kind`** so
-     `rhythm_qa` relaxes the persuasive-arc checks on an expository (tutorial/reference) video. **Keep BOTH plan files** — the critic
+     `rhythm_qa` relaxes the persuasive-arc checks on an expository (tutorial/reference) video.
+     **Also persist the interview's audacity into `meta.audacity`** — `validate.py`'s register-contest
+     lints read it from the storyboard meta; left unset it defaults to `balanced` and a bold run's
+     missing-contest warning would silently never fire. **Keep BOTH plan files** — the critic
      panel (step 5) receives them: `critic-content`/`critic-narrative` audit the content plan (continuity,
      relation, faithfulness); the **design-critic** audits the design plan (motif, form diversity,
      transitions, icons, whitespace, rhythm, colour, motion).
@@ -522,7 +537,9 @@ TTS if the user gives an API key.
   `imagegen` (codex/key); keep it a generic broll. Most pages stay typographic.
      🔴 **CHECKPOINT · 🛑 STOP:** show the content plan (arc + beats + coarse visual intents + the
      continuity through-line) AND the design plan (**motif** + theme palette + per-beat forms), and get
-     the user's OK before authoring narration.
+     the user's OK before authoring narration. If the user changes the register/style HERE (after a
+     contest), re-record `register_contest.winner` (`user_pick: true`) to match — the committed
+     register and the recorded winner must agree.
 4. **Write the manuscript — dispatch `agents/scriptwriter.md` (the WRITE specialist).** Give it
    the content plan + the design plan (`motion_intent` lives in the design plan now; `est_seconds` /
    `continuity` in the content plan) — or, with no plan, the per-slide intent + slide text — the
@@ -572,6 +589,12 @@ TTS if the user gives an API key.
     `fetch` returns None, degrade per the design plan — `atmosphere` if the beat wanted mood, else `none`
     (never ship a blank). No spend + no checkpoint (it's free + real), but the critic panel (R1e) still
     checks the query matched the subject and the credit is present. Keep it to the 2–4 most physical beats.
+4d. **Author the pages (HTML tiers).** This is where the deck's `pages/scene_NN.html` are actually
+    written — one page per beat from the design plan (form + props + cue anchors + media), on
+    `base.css` + `theme.css` (+ `motifs.css`; `vertical.css` last on 9:16), per
+    `references/html-pages.md`. The full authoring procedure (including the archetype and cue-anchor
+    rules) is the "After the look is chosen (HTML tiers)" passage in step 1's interview notes — follow
+    it HERE in the sequence, then run `keyframe_qa` on the authored pages before the critic panel.
 5. **Parallel critic panel — narration + content + design (REQUIRED, not optional).** Dispatch
    `agents/critic-narrative.md`, `agents/critic-content.md`, AND `agents/design-critic.md`
    **concurrently — in ONE message with three Agent calls** — on the storyboard **plus the comprehension
@@ -654,7 +677,7 @@ TTS if the user gives an API key.
 
 ## Guardrails
 - `duration` always comes from rendered audio (tts.py sets it) — never guess timings.
-- Set `meta.voice`, `meta.captions`, and `meta.language` in the storyboard, not via flags.
+- Set `meta.voice`, `meta.captions`, `meta.language`, and `meta.audacity` in the storyboard, not via flags.
   `meta.voice` is one of: `auto` (default — tts.py prefers edge-tts, else `say`),
   `edge:<id>` (e.g. `edge:en-GB-SoniaNeural`), `say:<voice>`, `openai:<voice>`, or
   `minimax:<voice_id>` (or bare `minimax` → a catalog voice by `meta.language`+`meta.voice_gender`).

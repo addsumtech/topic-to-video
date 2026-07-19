@@ -436,10 +436,11 @@ def _resolve_chart_cues(anchors, meta, index, dur):
 
 def _cue_local_p(cue_times, k, t, p_raw, reveal_dur=0.5):
     """Element k's raw 0..1 progress: WORD-SYNCED from its resolved cue time when available (grows in
-    over `reveal_dur` s once the narrator reaches its anchor), else the blind fallback `p_raw`. Shared
-    by render_chart/keypoints/timeline/compare so 'the element lands as it is spoken' behaves identically
-    across the programmatic diagram renderers — the single most authored kinetic behaviour, previously
-    wired into charts only. Fully backward-compatible: cue_times None -> every element uses p_raw."""
+    over `reveal_dur` s once the narrator reaches its anchor), else the blind fallback `p_raw`. Called
+    by render_chart/keypoints/compare; render_timeline consumes the SAME resolved cue_times but via an
+    instant visible-count (a node either has landed or hasn't — no growth ramp), so 'the element lands
+    as it is spoken' still behaves consistently across the programmatic diagram renderers. Fully
+    backward-compatible: cue_times None -> every element uses p_raw."""
     if cue_times and k < len(cue_times) and cue_times[k] is not None:
         return max(0.0, min(1.0, (t - cue_times[k]) / (reveal_dur or 0.5)))
     return p_raw
@@ -854,6 +855,10 @@ def render_html(props, meta, W, H, frames, workdir, index):
         src = os.path.join(workdir, f"rm_scene_{index:02d}.html")
         open(src, "w", encoding="utf-8").write(_inject_reduced_motion(html, _REDUCED_MOTION_CSS))
         src = os.path.abspath(src)
+    # percent-encode the path for the file:// URLs below — an unquoted '#'/'%' truncates the URL and
+    # Chrome silently renders its error page instead of the scene (same hardening as snapshot/keyframe_qa)
+    from urllib.parse import quote as _urlquote
+    src_q = _urlquote(src)
     words_path = os.path.join(meta["_out"], "audio", f"{index:02d}.words.json")
     # collect cued points: (cue-index, anchor) where anchor = data-cue="..." (required on cued points)
     # quote-agnostic: single-quoted attrs (data-cue-index='0') must sync too, else the whole page
@@ -911,7 +916,7 @@ def render_html(props, meta, W, H, frames, workdir, index):
             t = i / float(fps)
             if is_reveal(t) or last_i is None:
                 p = min(1.0, t / dur)
-                shots.append((i, f"file://{src}?p={p:.4f}&cues={cue_param}&dur={dur:.3f}"))
+                shots.append((i, f"file://{src_q}?p={p:.4f}&cues={cue_param}&dur={dur:.3f}"))
                 last_i = i
             else:
                 copies.append((i, last_i))
@@ -931,12 +936,12 @@ def render_html(props, meta, W, H, frames, workdir, index):
             # reveals then also spread across the scene in blind mode — fine for the sparse hero/hold
             # beats a living backdrop belongs on (the cued path keeps reveals precise + settled).
             p = 1.0 if frames <= 1 else i / (frames - 1)   # single-frame → settled, like the paced path
-            shots.append((i, f"file://{src}?p={p:.4f}"))
+            shots.append((i, f"file://{src_q}?p={p:.4f}"))
             continue
         p = 1.0 if i >= reveal_frames - 1 else i / max(1, reveal_frames - 1)
         if p >= 1.0 and settle_i is not None:
             copies.append((i, settle_i)); continue
-        shots.append((i, f"file://{src}?p={p:.4f}"))
+        shots.append((i, f"file://{src_q}?p={p:.4f}"))
         if p >= 1.0:
             settle_i = i
     return _capture_frames(shots, copies, workdir, index, W, H, meta, f"scene {index:02d}")

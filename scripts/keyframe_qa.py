@@ -102,6 +102,18 @@ def _dom_probe(chrome):
     return json.loads(r["result"]["result"]["value"])
 
 
+def _blank_issue(info):
+    """The BLANK gate as a pure check — shared with snapshot.py so a contest frame whose reveal never
+    fired can't pass as 'floor clean'. BLANK only when there is genuinely nothing rendered: empty text
+    AND no visible content box AND no full-bleed backdrop (a single-glyph hero or icon-only diagram has
+    a real bbox; a photo page sets bleed). Returns the issue string, or None."""
+    has_box = (info.get("cright", 0) > info.get("cleft", 1e9)
+               and info.get("cbot", -1e9) > info.get("ctop", 1e9))
+    if info.get("textlen", 0) < 1 and not has_box and not info.get("bleed"):
+        return "BLANK at p=1 (reveal never fired / broken page)"
+    return None
+
+
 def _geometry_issues(info, meta, H):
     """Pure classifier for the box-geometry gate — the three ways content can be *placed* wrong even
     when the reveal fired: (1) it overflows the safe canvas, (2) a fixed-height / overflow:hidden box
@@ -158,7 +170,10 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
             page = (s.get("props") or {}).get("html")
             if not page:
                 continue
-            url = "file://" + os.path.abspath(os.path.join(out_dir, page))
+            from urllib.parse import quote
+            # percent-encode: an unquoted '#'/'%' truncates the file:// URL — Chrome loads its error
+            # page and the probe returns a clean verdict for a page that never rendered (see snapshot.py)
+            url = "file://" + quote(os.path.abspath(os.path.join(out_dir, page)))
             frames, ok, rvis, rtot = [], True, [], 0
             for p in ps:
                 fp = os.path.join(kf, f"scene_{idx:02d}_p{int(p*100):03d}.png")
@@ -184,10 +199,9 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                     # BLANK only when there is genuinely nothing rendered — not merely little text. A single-
                     # glyph hero ('7', a lone '%', one CJK char) or an icon-only diagram has a real content
                     # bbox; a full-bleed visual sets bleed. Flag only empty text AND no visible content box.
-                    _has_box = (info.get("cright", 0) > info.get("cleft", 1e9)
-                                and info.get("cbot", -1e9) > info.get("ctop", 1e9))
-                    if info.get("textlen", 0) < 1 and not _has_box and not info.get("bleed"):
-                        issues.append("BLANK at p=1 (reveal never fired / broken page)")
+                    _blank = _blank_issue(info)
+                    if _blank:
+                        issues.append(_blank)
                     issues.extend(_geometry_issues(info, meta, H))   # overflow + intra-box clip + caption occlusion
                     if info.get("centered", 0) > 0:
                         advisories.append(f"{info['centered']} centered running paragraph(s) — "

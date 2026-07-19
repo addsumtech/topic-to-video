@@ -86,11 +86,12 @@ A SEPARATE artifact from the content plan (the assistant merges the two into the
   so a good anchor matters for EVERY voice). Derive anchors from the beat's `narration_intent`; if a point
   has no natural spoken anchor, ask the content side to add one or merge the point. *(Distinct from the
   storyboard callout `cue` and the caption `cue` — do not conflate.)*
-  **Also emit `cue` on a `chart` beat** (one anchor per bar, in spoken order) so the programmatic chart
-  becomes a WORD-SYNCED build — each bar grows / the `counter` lands exactly when the narrator says its
-  figure (`scenes.py:render_chart`), instead of a blind timer. A bar whose figure isn't spoken (an
-  unlabelled middle bar) can be left without a matching anchor — it interpolates between its cued
-  neighbours. No `cue` ⇒ the blind build.
+  **Also emit `cue` on ANY programmatic multi-element beat — `chart`, `timeline`, `compare`, `keypoints`**
+  (one anchor per element, in spoken order) so the build is WORD-SYNCED — each bar grows / node lands /
+  segment fills / row reveals exactly when the narrator speaks it (`scenes.py`), instead of a blind
+  timer. A bar whose figure isn't spoken (an unlabelled middle bar) can be left without a matching
+  anchor — it interpolates between its cued neighbours. On a `timeline`, give EVERY event an anchor (a
+  short cue array falls back to the blind reveal). No `cue` ⇒ the blind build.
 
 ## Concept → Visual Language (reason from concept to visualization — never map page-type to a template)
 Read the content's coarse intent (and the idea itself) and choose the form that SAYS it. This table is
@@ -306,7 +307,9 @@ THIS subject. Make it that:
   stop on it. **Forced divergence:** give each candidate a DIFFERENT angle from: motion-led / type-drama /
   metaphor-embodied / restrained-editorial / bold-graphic / material-texture / spatial-depth; any two
   candidates must differ in ≥2 of {style family, motion personality, type attitude, palette mood}. Two
-  skins of one idea defeat the contest — replace one. Divergent ≠ broken: every candidate still respects
+  skins of one idea defeat the contest — replace one. **If the interview set `meta.visual_style`, LOCK
+  the style family to it** (honouring the user's pick, as everywhere else) and force divergence on the
+  remaining axes — the ≥2-axis rule then applies to {motion personality, type attitude, palette mood}. Divergent ≠ broken: every candidate still respects
   the floor (deliverable primitives, faithful, legible) and must FIT the topic (a bold-but-alien register
   loses to a quieter apt one). The assistant then authors one page per candidate, gets a floor verdict
   per frame (`scripts/snapshot.py`), has the design-critic judge them ("Register contest — judge mode"),
