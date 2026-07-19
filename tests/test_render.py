@@ -681,3 +681,67 @@ def test_caption_font_follows_deck_font_kind(tmp_path):
     assert not p_zh.endswith("JetBrainsMono-VF.ttf")          # CJK never uses the Latin-only face
     # no theme.css -> bundled default
     assert render._font_path({"_out": str(tmp_path / "nope"), "language": "en"}, "hi").endswith("DejaVuSans.ttf")
+
+
+# --- zh/en parity hardening (matcher drift, hangul, kinsoku, VF weight) -----------------------
+
+def test_cjk_karaoke_no_duplicate_theft_on_normalized_token():
+    # edge normalized '1.5' -> spoken 一点五; a verbatim 一点五 later must NOT be stolen early
+    chunks = [{"text": "先说1.5,再说一点五的事"}]
+    toks = [{"w": "先说", "t": 0.2}, {"w": "一点五", "t": 0.7}, {"w": "再说", "t": 1.2},
+            {"w": "一点五", "t": 1.9}, {"w": "的事", "t": 2.5}]
+    segs = render._cjk_karaoke_segs(toks, chunks, 3.5)
+    assert segs and not any(s["hl_span"] == [8, 11] and s["start"] < 1.0 for s in segs)
+    assert any(s["hl_span"] == [8, 11] and s["start"] == 1.9 for s in segs)   # real one, real time
+
+def test_cjk_karaoke_no_premature_chunk_jump():
+    # a chunk-1 normalized token whose spoken form appears in chunk-2 must not drag the caption forward
+    chunks = [{"text": "今天我们讲这个1.1兆的大市场"}, {"text": "误差才一点一毫米"}]
+    toks = [{"w": w, "t": t} for w, t in [("今天", .1), ("我们", .4), ("讲", .7), ("这个", .9),
+            ("一点一", 1.2), ("兆", 1.6), ("的", 1.8), ("大", 2.0), ("市场", 2.2),
+            ("误差", 3.0), ("才", 3.3), ("一点一", 3.6), ("毫米", 4.0)]]
+    segs = render._cjk_karaoke_segs(toks, chunks, 5.0)
+    assert segs and not any(s["text"] == chunks[1]["text"] and s["start"] < 2.5 for s in segs)
+    assert sum(1 for s in segs if s["text"] == chunks[0]["text"]) >= 6
+
+def test_korean_wrap_preserves_word_spaces():
+    from PIL import Image, ImageDraw
+    d = ImageDraw.Draw(Image.new("RGB", (4, 4)))
+    f = render._load_font(40, render.BUNDLED_FONT)
+    lines = render._wrap(d, "안녕하세요 여러분 반갑습니다", f, 4000)
+    assert lines == ["안녕하세요 여러분 반갑습니다"]          # spaces kept (Korean orthography requires them)
+
+def test_wrap_kinsoku_no_line_starts_with_closer(tmp_path):
+    from PIL import Image, ImageDraw
+    d = ImageDraw.Draw(Image.new("RGB", (4, 4)))
+    f = render._load_font(48, render._font_path({"language": "zh"}, "中"))
+    text = "一二三四五六七八九十，甲乙丙丁。"
+    for w in range(360, 720, 60):                                # many wrap points
+        for ln in render._wrap(d, text, f, w):
+            assert ln[0] not in "，。、：；！？…", (w, ln)
+
+def test_vf_caption_face_pinned_to_regular_weight():
+    # SpaceGrotesk-VF's fvar default is 300 (Light) — _load_font must pin wght=400 so captions match body
+    import os
+    from PIL import Image, ImageDraw, ImageFont
+    path = os.path.join(os.path.dirname(render.BUNDLED_FONT), "SpaceGrotesk-VF.ttf")
+    def ink(font):
+        im = Image.new("L", (500, 70), 255)
+        ImageDraw.Draw(im).text((5, 5), "Hamburg install 123", font=font, fill=0)
+        return sum(1 for px in im.getdata() if px < 128)
+    raw = ImageFont.truetype(path, 48)               # default instance (Light 300)
+    pinned = render._load_font(48, path)             # our loader (pins 400)
+    assert ink(pinned) > ink(raw) * 1.1
+
+def test_speak_wlen_weights_cjk_3x():
+    assert render._speak_wlen("abc") == 3
+    assert render._speak_wlen("中文字") == 9
+    assert render._speak_wlen("a中") == 4
+
+def test_captions_for_mixed_script_speaking_time_weights():
+    # a 20-char zh chunk (~4s of speech) must not be starved next to a long Latin chunk
+    slide = {"duration": 12.0, "narration": "扩散模型一步步去噪还原出清晰图像。Then we compare it against the strong baseline models in detail."}
+    segs = render._captions_for(slide)
+    assert len(segs) >= 2
+    zh = next(s for s in segs if "扩散" in s["text"])
+    assert zh["end"] - zh["start"] >= 3.5             # raw-len weighting gave it ~2.6s

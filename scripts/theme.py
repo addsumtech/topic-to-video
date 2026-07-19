@@ -1,7 +1,7 @@
 """Derive a topic-fitting color theme and write theme.css. Samples the source slide frames when
 present (PIL quantize + luminance -> light/dark + a vivid accent), else uses a passed topic palette.
 Curated, contrast-safe derivation (not raw pixels). Deterministic: no randomness, no wall-clock."""
-import argparse, colorsys, glob, os
+import argparse, colorsys, glob, json, os
 
 def _hex(rgb): return "#%02x%02x%02x" % tuple(max(0, min(255, int(round(c)))) for c in rgb)
 def _hex2rgb(h):
@@ -219,6 +219,14 @@ def derive_theme(out_dir, mode=None, accent=None, accent2=None, bg=None, style=N
             "on_accent": _hex(on_accent), "on_accent2": _hex(on_accent2),
             "style": _style_key(style) if _pre else "", "style_vars": _pvars}
 
+def _deck_language(out_dir):
+    """The deck's language from <out_dir>/storyboard.json (written by ingest/merge), '' if unknown."""
+    try:
+        return str(json.load(open(os.path.join(out_dir, "storyboard.json")))["meta"].get("language") or "").lower()[:2]
+    except Exception:
+        return ""
+
+
 def write_theme_css(theme, path):
     sv = theme.get("style_vars") or {}
     style_css = ""
@@ -233,7 +241,16 @@ def write_theme_css(theme, path):
                      f"--border-weight:{sv.get('border', '1px')}; --border-ink:{sv.get('bink', 'rgba(127,127,127,.18)')};\n"
                      f"  --font-display:{disp}; --font-body:{body}; --font-number:{num}; --font-kind:{kind};\n"
                      f"  --grid-strength:{sv.get('grid', '.07')}; --motif-ink:{sv.get('ink', 'grid')}; --grain-amount:{grain};\n")
+    # CJK display metrics: negative tracking is a LATIN display convention (it squeezes CJK glyphs)
+    # and tight display line-heights (~1.08) set full-square CJK lines nearly touching. base.css
+    # consumes these via calc(-.025em * var(--track-scale,1)) / var(--lh-display,1.08) — a Latin deck
+    # keeps today's values, a CJK deck gets tracking 0 + air.
+    _lang = theme.get("language") or _deck_language(os.path.dirname(os.path.abspath(path)))
+    _cjk = _lang in ("zh", "ja", "ko")
+    metrics_css = (f"  --track-scale:{0 if _cjk else 1}; --lh-display:{'1.28' if _cjk else '1.08'}; "
+                   f"--lh-pull:{'1.34' if _cjk else '1.16'};\n")
     css = (":root{\n"
+           + metrics_css
            + style_css
            + f"  --bg:{theme['bg']}; --surface:{theme['surface']}; --fg:{theme['fg']};\n"
            f"  --muted:{theme['muted']}; --accent:{theme['accent']}; --accent2:{theme['accent2']};\n"

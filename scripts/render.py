@@ -21,6 +21,12 @@ _CJK_PUNCT = "\u3000-\u303f\uff00-\uffef"
 _CJK = _HAN + _KANA + _HANGUL + _CJK_PUNCT
 _CJK_RE = re.compile(f"[{_CJK}]")
 
+def _speak_wlen(s):
+    """SPEAKING-TIME weight of a string: a CJK char ~3x a Latin char (~5 chars/s vs ~15 chars/s).
+    Used to TIME caption chunks in mixed-script text — raw len() starves the CJK side (a 20-char zh
+    clause needs ~4s but weighed like 20 Latin chars), and a binary CJK/Latin flip breaks the mix."""
+    return sum(3 if _CJK_RE.match(c) else 1 for c in (s or ""))
+
 def _wlen(s):
     """On-screen width in char-units for caption budgets. A CJK glyph is ~2.5 Latin chars wide (matching
     the skill's old 34-CJK vs 84-Latin ceilings at one budget of 84), so ONE CJK term in an English
@@ -94,7 +100,12 @@ def _load_font(size, path=None):
     key = (path, size)
     if key not in _FONT_CACHE:
         try:
-            _FONT_CACHE[key] = ImageFont.truetype(path, size)
+            f = ImageFont.truetype(path, size)
+            try:
+                f.set_variation_by_axes([400])   # VF faces: pin Regular (SpaceGrotesk-VF defaults to 300/Light,
+            except Exception:                    # which burned lighter than the deck body); static faces raise -> no-op
+                pass
+            _FONT_CACHE[key] = f
         except Exception:
             _FONT_CACHE[key] = ImageFont.load_default()
     return _FONT_CACHE[key]
@@ -122,27 +133,32 @@ def _fit_frame(src, dst, W, H, fit="contain", bg_rgb=(0, 0, 0)):
     bg.paste(im, ((W - im.width) // 2, (H - im.height) // 2))
     bg.save(dst)
 
+# Hangul is EXCLUDED from the break-anywhere class: Korean orthography REQUIRES inter-word spaces,
+# so hangul runs wrap like Latin words (the old tight-join silently deleted the spaces).
+_CJK_TIGHT = _HAN + _KANA + _CJK_PUNCT
+_CJK_TIGHT_RE = re.compile(f"[{_CJK_TIGHT}]")
+
 def _atoms(text):
-    """Break text into wrap units: each CJK character is its own unit (CJK has no
-    spaces, so a line may break between any two characters), while runs of non-CJK
-    non-space characters stay together as Latin 'words'. Whitespace is dropped here and
-    re-inserted on join only between two Latin words."""
-    return re.findall(f"[{_CJK}]|[^{_CJK}\\s]+", text)
+    """Break text into wrap units: each zh/ja CJK character is its own unit (no spaces — a line may
+    break between any two), while runs of other non-space characters (Latin words AND Korean hangul
+    words) stay together and re-join with a space."""
+    return re.findall(f"[{_CJK_TIGHT}]|[^{_CJK_TIGHT}\\s]+", text)
 
 def _wrap(d, text, font, max_w):
     """Greedy wrap to a max pixel width. Latin words join with a space; CJK characters
     join tight and may break anywhere — so Chinese/Japanese/Korean captions wrap instead
     of overflowing as one un-splittable line (which `text.split()` alone produced)."""
+    KINSOKU = "，。、：；！？…）』」》%"      # closers/clause marks never START a wrapped line
     lines, cur = [], ""
     for a in _atoms(text):
         if not cur:
             trial = a
-        elif _CJK_RE.match(a) or _CJK_RE.match(cur[-1]):
-            trial = cur + a            # no space when either side is CJK
+        elif _CJK_TIGHT_RE.match(a) or _CJK_TIGHT_RE.match(cur[-1]):
+            trial = cur + a            # no space when either side is zh/ja CJK
         else:
-            trial = cur + " " + a      # space between two Latin words
-        if not cur or d.textlength(trial, font=font) <= max_w:
-            cur = trial
+            trial = cur + " " + a      # space between Latin/hangul words
+        if not cur or d.textlength(trial, font=font) <= max_w or a in KINSOKU:
+            cur = trial                # kinsoku: a lone closer rides the line even slightly over budget
         else:
             lines.append(cur); cur = a
     if cur:
@@ -154,7 +170,7 @@ KARAOKE_HL = (255, 209, 102, 255)   # warm gold — reads clearly on the dark ca
 def _caption_font_px(W, H, band=False, meta=None):
     """Caption size scales with the NARROW dimension, not height: H-relative sizing balloons to
     ~86px on a 9:16 canvas (double the landscape weight in half the width — 3-line wraps, widows,
-    and the band eats the layout). min(W,H)*0.045 keeps the same visual weight in both aspects.
+    and the band eats the layout). min(W,H)*0.040 keeps the same visual weight in both aspects.
     The below-content BAND uses a slightly smaller face (~0.85×) — it has its own strip, so it needn't
     shout over content; `meta.caption_scale` tunes either mode (e.g. 0.9 to shrink further).
     Base factor 0.040 (was 0.045): captions are a reading aid, not a headline — they should sit quietly
@@ -180,6 +196,13 @@ def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None,
     ascent, descent = font.getmetrics()
     line_h = ascent + descent
     block_h = line_h * len(lines) + pad * 2
+    if band:
+        while block_h > band and getattr(font, "size", 0) > 16:   # authored 3+-line band captions: shrink to
+            font = _load_font(max(16, int(font.size * 0.87)), _font_path(meta, text))   # fit the strip instead of
+            lines = _wrap(d, text, font, int(W * 0.9))                                  # silently clipping lines
+            ascent, descent = font.getmetrics()
+            line_h = ascent + descent
+            block_h = line_h * len(lines) + pad * 2
     if band:                                    # caption strip below the content — text only, centered in the band
         out = (meta or {}).get("_out", ".")
         # text = the per-scene sampled colour (contrasts THIS scene's strip) else the flat fallback
@@ -367,17 +390,34 @@ def _cjk_karaoke_segs(words, chunks, dur):
     for ci, c in enumerate(chunks):
         txt = c["text"]
         pos = 0
-        while wi < len(toks):
+        slack = 4                            # chars the next match may sit past the cursor (punctuation);
+        while wi < len(toks):                # grows after a skipped (normalized) token so we can resume
             tok, t0 = toks[wi]
             f = txt.find(tok, pos)
-            if f < 0:
-                # not in this chunk's remainder: if a LATER chunk has it, advance chunks; else drop it
-                if any(tok in chunks[cj]["text"] for cj in range(ci + 1, len(chunks))):
+            near = f >= 0 and (f - pos) <= slack
+            if not near:
+                # no PLAUSIBLE match at the cursor. A far-forward hit is likely a DUPLICATE of a later
+                # occurrence (edge normalized this token — e.g. spoke '1.5' as 一点五) — binding it
+                # would flash the highlight early and starve the tokens in between. Advance to a later
+                # chunk only with CORROBORATION (this token AND the next appear there in order);
+                # otherwise skip just this token and widen the slack to step past its unmatched text.
+                moved = False
+                for cj in range(ci + 1, len(chunks)):
+                    g = chunks[cj]["text"].find(tok)
+                    if g >= 0:
+                        nxt = toks[wi + 1][0] if wi + 1 < len(toks) else None
+                        if (nxt is None or chunks[cj]["text"].find(nxt, g + len(tok)) >= 0
+                                or any(nxt in chunks[ck]["text"] for ck in range(cj + 1, len(chunks)))):
+                            moved = True
+                        break
+                if moved:
                     break
                 wi += 1
+                slack += 6
                 continue
             matches.append([ci, f, f + len(tok), t0])
             pos = f + len(tok)
+            slack = 4
             wi += 1
     if len(matches) < max(3, len(toks) // 2):
         return None                          # matching too weak — safer to fall back to chunk captions
@@ -447,7 +487,7 @@ def _hardwrap(s, limit):
 def _split_caption_chunks(text, max_len=84, hard_wrap=True):
     """Split narration into readable, subtitle-sized chunks: first on sentence enders,
     then break any over-long sentence on commas/colons so a chunk fits 1-2 lines.
-    A WEIGHTED budget (CJK glyph ~2, Latin ~1) fits both scripts — so a mostly-English line with one CJK
+    A WEIGHTED budget (CJK glyph ~2.5, Latin ~1) fits both scripts — so a mostly-English line with one CJK
     term isn't chopped to the CJK-tight limit (the old binary flip tripled the cuts on bilingual decks)."""
     text = (text or "").strip()
     if not text:
@@ -494,7 +534,7 @@ def _captions_for(slide):
     chunks = _split_caption_chunks(slide.get("narration") or (caps[0]["text"] if caps else ""))
     if not chunks or dur <= 0:
         return []
-    weights = [max(1, len(c)) for c in chunks]
+    weights = [max(1, _speak_wlen(c)) for c in chunks]   # speaking-time, not raw chars (mixed-script)
     total = sum(weights)
     segs, t = [], 0.0
     for c, w in zip(chunks, weights):

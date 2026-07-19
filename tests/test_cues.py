@@ -87,3 +87,12 @@ def test_resolve_cues_cjk_lands_on_word_starts():
 def test_resolve_cues_mixed_latin_unchanged():
     words = [{"w": "the", "t": 0.1}, {"w": "revenue", "t": 0.5}, {"w": "climbs", "t": 0.9}]
     assert cues.resolve_cues(words, ["revenue", "climbs"]) == [0.5, 0.9]
+
+
+def test_estimate_weighted_by_script_speaking_time():
+    # zh lead + latin tail: a latin anchor near the text-end must estimate LATER than uniform-per-char
+    # (CJK chars speak ~3x slower, so the zh lead consumes more of the clock than its char share)
+    narr = "扩散模型一步步去噪还原出清晰图像然后我们再仔细对比" + " then we compare the baseline"
+    t_uniform = (len(narr) - 8) / len(narr) * 10.0
+    t = cues.estimate_cues_from_text(["baseline"], narr, 10.0)[0]
+    assert t > t_uniform + 0.5          # weighted estimate pushes the latin-tail anchor later

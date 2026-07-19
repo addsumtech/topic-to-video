@@ -44,20 +44,32 @@ def _est_seconds(s, meta):
     text = (s.get("narration") or "").strip()
     if not text:
         return 3.0
-    lang = (meta.get("language") or "").lower()
-    if lang[:2] in ("zh", "ja", "ko") or _looks_cjk(text):
-        return max(2.0, len(text) / 5.0)               # ~5 chars/sec CJK
-    return max(2.0, len(text.split()) / 2.5)           # ~2.5 words/sec
+    cjk, words = _script_split(text)
+    return max(2.0, cjk / 5.0 + words / 2.5)           # per-SCRIPT sum: ~5 CJK chars/sec + ~2.5 Latin words/sec
+                                                       # (the old binary flip made one zh term in an en line
+                                                       # count every Latin CHAR as a CJK char — a 3x blowup)
+
+
+def _cjk_char(c):
+    return "　" <= c <= "鿿" or "가" <= c <= "힣"
 
 
 def _looks_cjk(text):
-    return any("　" <= c <= "鿿" or "가" <= c <= "힣" for c in text)
+    return any(_cjk_char(c) for c in text)
+
+
+def _script_split(text):
+    """(cjk_char_count, latin_word_count) — the two speaking-rate populations of a mixed line."""
+    cjk = sum(1 for c in text if _cjk_char(c))
+    words = len("".join(" " if _cjk_char(c) else c for c in text).split())
+    return cjk, words
 
 
 def _narr_len(s, meta):
-    text = (s.get("narration") or "").strip()
-    lang = (meta.get("language") or "").lower()
-    return len(text) if (lang[:2] in ("zh", "ja", "ko") or _looks_cjk(text)) else len(text.split())
+    """Relative narration LENGTH in one speaking-time unit (CJK char = 1, Latin word = 2 — a word
+    takes ~2 CJK-chars' time), so mixed-script decks compare consistently."""
+    cjk, words = _script_split((s.get("narration") or "").strip())
+    return cjk + 2 * words
 
 
 def _is_reset(s, prev, meta):

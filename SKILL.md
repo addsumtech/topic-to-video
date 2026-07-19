@@ -126,7 +126,8 @@ TTS if the user gives an API key.
   tier:** it honours the SAME per-scene fields — `motion` (Ken Burns from/to `[x,y,zoom]`, can zoom out),
   `fit` (contain/cover), `callouts` (cue/at timing), `transition` (dip/in/out/none → scene-edge fades),
   `reduced_motion`, canvas-derived caption size — reusing `render._captions_for`/`_canvas`/`_write_srt`/
-  `_callout_time` so captions + srt are byte-parity. It does NOT reproduce the HTML slide archetypes
+  `_callout_time` so the **srt is byte-parity** (burned captions DIVERGE on this tier: no karaoke
+  highlight, a fixed Helvetica-family face rather than the deck face — cinematic-story scope). It does NOT reproduce the HTML slide archetypes
   (kicker/cards/charts): a deck with **html/chart/timeline/keypoints/compare** scenes **fails loud**
   (both `render_remotion` and `validate.py` ERROR, listing the offending indices) rather than silently
   rendering blank — use the local renderer for a designed/html deck, or give those scenes an `image`.
@@ -804,7 +805,7 @@ The full-AI escape hatch (`image_source:"openai"` with data as AI) is the user's
 | `imagegen.py`: Codex run fails / makes no image | `_generate_codex` raises → that scene falls back to the free tier; other cached scenes unaffected | Force `meta.image_provider:"openai"` + provide a key, or use the free programmatic/HTML tier |
 | Image tier on but no codex AND no key | Each scene falls back to the free tier with a notice | Install `codex`, or set `OPENAI_API_KEY` / `~/.openai_key`, then re-run `imagegen.py` |
 | `render.py`: concat `-c copy` errors (codec/timestamp) | Re-encode the concat (`-c:v libx264 -c:a aac`) — see `references/ffmpeg-recipes.md` | Render per-slide with `--only N` and report the failing slide |
-| Captions/text look wrong or font missing | render.py falls back to PIL's default font (still draws) | Confirm `assets/fonts/DejaVuSans.ttf` and `DejaVuSerif.ttf` exist (the serif silently degrades to sans if absent) |
+| Captions/text look wrong or font missing | render.py falls back to PIL's default font (still draws) | Confirm the bundled faces exist — `DejaVuSans.ttf`/`DejaVuSerif.ttf` AND the style faces (`SpaceGrotesk-VF`/`JetBrainsMono-VF`/`PlayfairDisplay-VF`/`Bangers-Regular`, which a themed deck's captions now use; a missing one silently falls back to DejaVu) |
 | Captions show tofu boxes / □□□ (non-Latin language) | Set `meta.language` so render.py picks a system CJK font (zh→PingFang, ja→Hiragino, ko→AppleSDGothicNeo) | Set `meta.font` to an explicit `.ttc`/`.ttf` that covers the script |
 | Narration mispronounced / wrong-language voice | Set `meta.language`; tts.py auto-picks a matching `say` voice (zh→Tingting, ja→Kyoko, …) when you left the English default | Set `meta.voice` explicitly to an installed voice for that language (`say -v '?'` lists them) |
 | Narration overruns the beat's `est_seconds` budget (≈ `target_seconds / beats`) | Tighten wording (`references/narration-writing.md`) | 🔴 STOP and propose splitting the dense slide |

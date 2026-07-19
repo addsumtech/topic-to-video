@@ -40,9 +40,13 @@ def evaluate(data):
     if isinstance(ot, list):
         errors.append("`the_one_thing` is a list — it must be a SINGLE sentence the viewer leaves with")
     elif isinstance(ot, str) and ot.strip() and \
-            len(re.findall(r"(?<!\d)[.!?](?!\d)|[。！？]", ot.strip())) > 1:
-        # count SENTENCE terminators, not the '.' inside a decimal/version ("3.5x", "v1.2") — those wrongly
-        # tripped a blocking ERROR on a legitimate one-sentence takeaway that contains a number.
+            len(re.findall(r"(?<!\d)[.!?](?!\d)|[。！？]",
+                           re.sub(r"(?<=\w)\.(?=\w)", "",
+                                  re.sub(r"\b(?:e\.g|i\.e|etc|vs|Dr|Mr|Mrs|Ms|Prof|No|Fig|approx)\.", " ",
+                                         ot.strip())))) > 1:
+        # count SENTENCE terminators only: mask the '.' inside a decimal/version ("3.5x", "v1.2"),
+        # a FILENAME/token ("SKILL.md", "index.html" — letter.letter), and common abbreviations
+        # ("e.g.", "vs.") — each wrongly tripped a blocking ERROR on a one-sentence takeaway.
         errors.append("`the_one_thing` has >1 sentence — collapse it to ONE takeaway")
 
     sh = data.get("source_health")

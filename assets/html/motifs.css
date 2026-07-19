@@ -26,7 +26,7 @@
 
 /* oversized faint "ghost" number/word behind content (e.g. a big 165) */
 .ghost{position:absolute;z-index:1;pointer-events:none;font-weight:800;color:var(--fg);opacity:.06;
-  font-size:720px;line-height:.8;letter-spacing:-.04em;right:80px;bottom:-120px}
+  font-size:720px;line-height:.8;letter-spacing:calc(-.04em * var(--track-scale,1));right:80px;bottom:-120px}
 
 /* ── Topical MOTIF backdrop (flat/free tier — the programmatic cousin of .bg-soft) ─────────────
    A simple ON-TOPIC diagram/pattern derived from THIS deck's `motif` (the recurring atmosphere idea —

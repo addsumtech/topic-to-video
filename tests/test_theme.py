@@ -202,3 +202,15 @@ def test_brand_frames_outrank_style_preset(tmp_path):
 def test_border_ink_emitted_for_brutalism(tmp_path):
     theme.write_theme_css(theme.derive_theme(str(tmp_path), style="brutalism"), str(tmp_path / "b.css"))
     assert "--border-ink:#111111" in open(str(tmp_path / "b.css")).read()
+
+
+def test_theme_emits_cjk_display_metrics(tmp_path):
+    import json as _json
+    zh = tmp_path / "zh"; en = tmp_path / "en"
+    for d, lang in ((zh, "zh"), (en, "en")):
+        d.mkdir()
+        (d / "storyboard.json").write_text(_json.dumps({"meta": {"language": lang}, "slides": []}))
+        theme.write_theme_css(theme.derive_theme(str(d)), str(d / "theme.css"))
+    zh_css = (zh / "theme.css").read_text(); en_css = (en / "theme.css").read_text()
+    assert "--track-scale:0" in zh_css and "--lh-display:1.28" in zh_css   # CJK: no negative tracking + air
+    assert "--track-scale:1" in en_css and "--lh-display:1.08" in en_css   # Latin: unchanged defaults

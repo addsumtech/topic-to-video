@@ -1,5 +1,5 @@
 /* slides-to-video — HTML page design system (huashu-aligned, anti-AI-slop).
-   Dark stage, CJK-first serif, accent palette, seekable reveals. Authored pages link this. */
+   Dark stage, CJK-first sans, accent palette, seekable reveals. Authored pages link this. */
 
 /* Bundled style fonts (SIL OFL — see assets/fonts/OFL-*.txt). The picked visual_style maps
    --font-display / --font-body to these via theme.py, so the deck's TYPE matches its style (a comic
@@ -30,7 +30,7 @@
 *{box-sizing:border-box}
 html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--fg);
   /* body text follows the picked visual_style's body face (--font-body, set by theme.py) — else the
-     default CJK-first serif stack. Style body stacks keep the CJK fonts as a fallback so 中文 decks render. */
+     default CJK-first sans stack (PingFang first). Style body stacks keep the CJK fonts as a fallback so 中文 decks render. */
   font-family:var(--font-body,"PingFang SC","Hiragino Sans GB","Songti SC","Source Han Serif SC",
               -apple-system,Georgia,"Times New Roman",serif);
   overflow:hidden;text-wrap:pretty;-webkit-font-smoothing:antialiased}
@@ -38,10 +38,10 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
   justify-content:center;gap:36px}
 .kicker{color:var(--orange);font-size:30px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
 .rule{height:6px;width:140px;background:var(--orange);border-radius:3px}
-.title{font-size:104px;font-weight:800;line-height:1.08;letter-spacing:-.025em;text-wrap:balance;
+.title{font-size:104px;font-weight:800;line-height:var(--lh-display,1.08);letter-spacing:calc(-.025em * var(--track-scale,1));text-wrap:balance;
   font-family:var(--font-display,inherit)}   /* a chosen visual_style biases the headline face (serif/sans/mono) */
 .sub{color:var(--muted);font-size:42px;line-height:1.4}
-.stat{font-size:240px;font-weight:800;color:var(--blue);line-height:.95;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.stat{font-size:240px;font-weight:800;color:var(--blue);line-height:.95;letter-spacing:calc(-.04em * var(--track-scale,1));font-variant-numeric:tabular-nums}
 .unit{font-size:64px;color:var(--muted);font-weight:600}
 .grid{display:grid;gap:48px}
 .row{display:flex;align-items:baseline;gap:32px;font-size:52px}
@@ -101,14 +101,14 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 .scorecard{display:grid;grid-template-columns:repeat(3,1fr);gap:40px;align-items:stretch}
 .tile{background:var(--surface);border:var(--hairline);border-radius:var(--radius,16px);padding:40px 44px;
   box-shadow:var(--shadow-float);display:flex;flex-direction:column;justify-content:center}
-.tile .num{font-size:150px;font-weight:800;line-height:.9;letter-spacing:-.03em;color:var(--accent);
+.tile .num{font-size:150px;font-weight:800;line-height:.9;letter-spacing:calc(-.03em * var(--track-scale,1));color:var(--accent);
   font-variant-numeric:tabular-nums}
 .tile .lab{font-size:36px;color:var(--muted);margin-top:14px}
 .delta{font-size:40px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:8px}
 .delta.up{color:var(--green)} .delta.down{color:var(--accent2)}
 
 /* Relationship — one idea, verbatim: a pull-quote carries the whole slide */
-.pullquote{font-size:84px;font-weight:800;line-height:1.16;letter-spacing:-.02em;text-wrap:balance;
+.pullquote{font-size:84px;font-weight:800;line-height:var(--lh-pull,1.16);letter-spacing:calc(-.02em * var(--track-scale,1));text-wrap:balance;
   position:relative;padding-left:96px;font-family:var(--font-display,inherit)}
 .pullquote::before{content:"\201C";position:absolute;left:-6px;top:-46px;font-size:210px;
   color:var(--accent);opacity:.45;line-height:1}
@@ -185,7 +185,7 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 .blocks.three{grid-template-columns:repeat(3,1fr)}
 .block{border-radius:var(--radius,18px);padding:44px 46px;color:var(--on-accent);min-height:300px;
   display:flex;flex-direction:column;justify-content:flex-end}
-.block .bt{font-size:56px;font-weight:800;line-height:1.05}
+.block .bt{font-size:56px;font-weight:800;line-height:var(--lh-display,1.05)}
 .block .bd{font-size:32px;opacity:.92;margin-top:14px}
 
 /* ══ RESEARCH / TECHNICAL archetypes (equations, results tables, annotated figures) ══════════ */
@@ -194,7 +194,7 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
    styled HTML (unicode ∑ ∫ ∇ √ ≈, <sub>/<sup>), wrapping each term you'll annotate in `.eqn-term`;
    toggle `.on` (or add `.reveal`) to glow it. For heavy LaTeX: pre-render via matplotlib mathtext to a
    .media image (deterministic/offline), or author native <math> MathML (Chrome renders it offline). */
-.eqn{font-family:"STIX Two Math","Latin Modern Math",Cambria,Georgia,serif;font-size:100px;
+.eqn{font-family:"STIX Two Math","Latin Modern Math",Cambria,Georgia,"Songti SC","Source Han Serif SC",serif;font-size:100px;
   line-height:1.35;text-align:center;letter-spacing:.01em;font-variant-numeric:tabular-nums}
 .eqn .eqn-term{border-radius:var(--radius,10px);padding:.02em .1em}
 .eqn .eqn-term.on{background:color-mix(in srgb,var(--accent) 22%,transparent);color:var(--accent)}
@@ -213,7 +213,7 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
    .stepper, not here (design dict "Algorithm / pseudocode"). Each line is a `.ln`; give it a
    `data-cue-index` + `reveal-up-sm` to BUILD the listing line-by-line, OR `reveal-glow` to light each
    line as it's narrated; mark the key line `.ln.on`. `.kw` accents a keyword, `.cm` mutes a comment. */
-.code{font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;font-size:32px;line-height:1.5;
+.code{font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,"PingFang SC","Hiragino Sans GB",monospace;font-size:32px;line-height:1.5;
   background:var(--surface);border:var(--hairline);border-radius:var(--radius,12px);padding:30px 40px;
   color:var(--fg);max-width:min(1500px,92%);overflow:hidden;text-align:left;counter-reset:ln}
 .code .ln{display:block;white-space:pre;padding:2px 12px;border-radius:6px;position:relative;

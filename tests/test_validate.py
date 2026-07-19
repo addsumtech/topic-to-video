@@ -840,7 +840,7 @@ def test_wall_of_text_caption_warns(tmp_path):
 
 def test_widow_caption_warns_end_to_end(tmp_path):
     # a 60-char single token fills line 1; the trailing short word is forced to a lone line 2
-    s = _slide_scene(tmp_path, 0, narration=("x" * 60) + " to")
+    s = _slide_scene(tmp_path, 0, narration=("x" * 75) + " to")   # 75 x's: wraps at the 43px caption face
     data = _board(str(tmp_path), [s])
     r = validate.evaluate(data, str(tmp_path))
     assert any("lone word" in w for w in r["warnings"])

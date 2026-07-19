@@ -188,7 +188,8 @@ def _caption_lines(text, meta, W, H):
     from PIL import Image, ImageDraw
     if not (text or "").strip():
         return []
-    font = rd._load_font(rd._caption_font_px(W, H), rd._font_path(meta, text))  # narrow-dim scaled
+    font = rd._load_font(rd._caption_font_px(W, H, band=(meta or {}).get("caption_mode") == "band", meta=meta),
+                         rd._font_path(meta, text))  # narrow-dim scaled + caption_scale/band-aware
     d = ImageDraw.Draw(Image.new("RGB", (4, 4)))
     return rd._wrap(d, text, font, int(W * 0.9))
 
@@ -329,6 +330,19 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                                 f"({', '.join(sorted(_theme.STYLE_PRESETS))}) or \"custom\"; an unknown key degrades to the flat default")
         except Exception:
             pass
+    # CJK x style-register feasibility: the comic/mono display faces are Latin-only, so a zh/ja/ko deck
+    # picking them renders headlines in plain system CJK sans — the style register silently vanishes.
+    _lang2 = str(meta.get("language") or "").lower()[:2]
+    if _vs and _lang2 in ("zh", "ja", "ko"):
+        try:
+            import theme as _theme2
+            _kind = _theme2._STYLE_FONT_KIND.get(_theme2._style_key(_vs) or "", "")
+            if _kind in ("comic", "mono"):
+                warnings.append(f"meta.visual_style '{_vs}' uses a {_kind} display face with NO CJK glyphs — "
+                                "a CJK deck renders its headlines in plain system sans (the style register "
+                                "won't read); pick a sans/serif style or accept the plain-type look knowingly")
+        except Exception:
+            pass
     # audacity dial — the register's RISK budget (a typo silently loses the intent). Never touches the floor.
     _aud = str(meta.get("audacity") or "").strip().lower()
     if _aud and _aud not in ("conservative", "balanced", "bold", "experimental"):
@@ -395,8 +409,8 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                     warnings.append(f"{tag}: {t} has {nitems} {key} (> {ceil}) — too many to read on a moving frame; "
                                     f"split the beat or promote the few that matter (the renderer shrinks to fit, but "
                                     f"past ~{ceil} the type drops below the squint test)")
-            if t == "title" and len(str(props.get("title") or "")) > 90:
-                warnings.append(f"{tag}: title is {len(str(props.get('title')))} chars — a title should land in a "
+            if t == "title" and rd._wlen(str(props.get("title") or "")) > 90:
+                warnings.append(f"{tag}: title weighs {rd._wlen(str(props.get('title'))):.0f} width-units — a title should land in a "
                                 f"glance; tighten it or move the detail to the subtitle (it now wraps, but a paragraph "
                                 f"title isn't a title)")
 
@@ -421,9 +435,10 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                     warnings.append(f"{tag}: caption wraps to {len(lines)} lines (> {MAX_CAPTION_LINES}) — \"{ct[:40]}…\"; shorten or split")
                 # density ceiling — catches a 2-line-but-packed cue the line count misses (e.g. a
                 # CJK clause authored with ASCII commas that the segmenter couldn't break)
-                ceil = MAX_CAPTION_CHARS_CJK if rd._CJK_RE.search(ct) else MAX_CAPTION_CHARS_LATIN
-                if len(ct) > ceil:
-                    warnings.append(f"{tag}: caption is {len(ct)} chars (> {ceil}) — a wall of text on screen; split it on a comma/clause — \"{ct[:40]}…\"")
+                # weighted density (render._wlen: CJK ~2.5, Latin 1) — the binary CJK/Latin flip
+                # disagreed with the renderer's own budget on MIXED-script captions in both directions
+                if rd._wlen(ct) > 84:
+                    warnings.append(f"{tag}: caption weighs {rd._wlen(ct):.0f} width-units (> 84) — a wall of text on screen; split it on a comma/clause — \"{ct[:40]}…\"")
                 if ct and ct[-1] in TRAIL_CLAUSE_MARKS:
                     warnings.append(f"{tag}: caption ends on a dangling \"{ct[-1]}\" — trim the trailing clause mark or merge with the next chunk")
                 widow = _dangling_word(lines)
@@ -880,7 +895,7 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
         if len(texts) > 9:
             warnings.append(f"{tag}: a .code block has {len(texts)} lines (> 9) — a code wall is unreadable "
                             f"on a moving frame; keep the key ~9 lines and elide the rest with a `# …` comment")
-        longest = max((len(t) for t in texts), default=0)
+        longest = max((sum(2 if rd._CJK_RE.match(ch) else 1 for ch in t) for t in texts), default=0)   # CJK mono = 2 cols
         # the readable line width tracks the column: a 9:16 vertical column (1080px) fits far fewer
         # monospace chars than a 16:9 row, so tighten the budget when vertical.
         line_max = 40 if vertical else 58

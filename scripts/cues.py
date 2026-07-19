@@ -122,8 +122,14 @@ def estimate_cues_from_text(anchors, narration, duration):
     if n == 0:
         return []
     N = narration or ""
-    L = len(N)
     dur = float(duration) if duration and duration > 0 else float(n)
+    # SPEAKING-TIME weighted offsets: a CJK char takes ~3x a Latin char (~5 chars/s vs ~15), so a
+    # uniform per-char position skews estimates by seconds in mixed-script narration.
+    w = [3 if _CJK.match(ch) else 1 for ch in N]
+    pref = [0]
+    for x in w:
+        pref.append(pref[-1] + x)
+    L = pref[-1]
     raw = [None] * n
     cur = 0
     for i, a in enumerate(anchors):
@@ -132,6 +138,6 @@ def estimate_cues_from_text(anchors, narration, duration):
         if pos < 0 and a:
             pos = _anchor_pos(N, a)                   # out of order — accept anywhere
         if pos >= 0:
-            raw[i] = (pos / L) * dur if L else 0.0
+            raw[i] = (pref[pos] / L) * dur if L else 0.0
             cur = max(cur, pos + len(a))
     return _fill(raw, n, dur)

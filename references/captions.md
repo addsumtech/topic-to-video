@@ -10,15 +10,15 @@ no special ffmpeg build needed.
 ## How the caption bar looks
 
 - **Position:** Centered, near the bottom of the frame.
-- **Background:** Semi-transparent black rectangle (alpha ≈ 140/255).
+- **Background:** OVERLAY default: NO bar — contrast-picked ink with an opposite-luminance outline (band mode: a dedicated strip below the content).
 - **Text:** White, horizontally centered within the bar.
 - **Font size:** ~4.0% of the NARROW dimension (`int(min(W,H) * 0.040)`; `meta.caption_scale` tunes) —
   captions are a reading aid, not a headline; they must not compete with the page's own type.
 - **Font face:** follows the DECK's type — `--font-kind` (theme.css) maps to the same bundled style
   face the pages use (sans→Space Grotesk, mono→JetBrains, serif→Playfair, comic→Bangers), so the burned
   caption reads as the deck's own voice. CJK captions use the system CJK face (the deck's CJK fallback).
-  At 1080p that's ~48 px; at 1920p (vertical) it's ~86 px.
-- **Bottom safe margin:** ~6% of frame height (`int(H * 0.06)`).
+  ~43 px in BOTH aspects (min-dim scaled).
+- **Bottom safe margin:** ~2% of frame height above the very bottom edge (`H*0.02`).
   At 1080p ≈ 65 px from bottom — comfortably inside the safe zone.
 - **Text wrap:** Greedy word-wrap to 90% of frame width.
 - **Padding inside bar:** ~1.2% of frame height above and below text.

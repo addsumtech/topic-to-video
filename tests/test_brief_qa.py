@@ -82,3 +82,13 @@ def test_non_english_thesis_no_verb_warning():
     assert not any("no recognizable verb" in w for w in bq.evaluate(b)["warnings"])
     # an English topic-label still warns
     assert any("no recognizable verb" in w for w in bq.evaluate(_brief(thesis="about caching and latency"))["warnings"])
+
+
+def test_one_thing_filename_and_abbrev_dots_not_sentence_ends():
+    # a filename dot (SKILL.md, index.html) or an abbreviation (e.g.) is NOT a sentence end — the old
+    # digit-only guard blocked a legitimate one-sentence takeaway that names a file
+    r = bq.evaluate(_brief(the_one_thing="Use SKILL.md and e.g. index.html to turn slides into video."))
+    assert not any(">1 sentence" in e for e in r["errors"]), r["errors"]
+    # a REAL two-sentence takeaway still errors
+    r2 = bq.evaluate(_brief(the_one_thing="Cache it. Also index it."))
+    assert any(">1 sentence" in e for e in r2["errors"])

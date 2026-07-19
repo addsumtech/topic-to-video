@@ -122,7 +122,7 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
             "fadeInFrames": fi,
             "fadeOutFrames": fo,
         })
-    return {"width": W, "height": H, "fps": fps, "captionFontPx": rd._caption_font_px(W, H),
+    return {"width": W, "height": H, "fps": fps, "captionFontPx": rd._caption_font_px(W, H, meta=meta),
             "theme": _theme(out_dir), "scenes": scenes}
 
 

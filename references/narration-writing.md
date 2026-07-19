@@ -34,6 +34,9 @@ wrong on screen: write **"2D"** not "two-D", **"19 datasets"** not "nineteen dat
 correctly, so you rarely need phonetic spelling — and when you do, prefer a form that still
 reads cleanly as a caption. Never put raw math or markup in narration (`g_{Gi}`, `x^T`,
 `\frac`) — it garbles both the speech and the caption; say it in words ("the query embedding").
+**CJK clause budget:** the caption segmenter can only split at clause marks — in 中文/日本語/한국어,
+break with ，、：； (or a sentence ender) **at least every ~36 characters**, or the line burns as an
+unsplittable wall of text (`validate.py` warns; `critic-narrative` R7 fails a >36-char unbroken clause).
 
 ---
 
@@ -147,8 +150,8 @@ Concrete benefit, second person, one sentence per idea. ~28 words ≈ ~11 s at 2
 - [ ] **Caption-safe spelling (2D not "two-D", 19 not "nineteen"); no raw math/markup**
 - [ ] No bullet-list recitation
 - [ ] Each sentence is one idea
-- [ ] Transitions explicit ("Next…", "Now that…", "With that in mind…")
+- [ ] Beats hand off by inherit→hook; explicit connectives only at real section seams
 - [ ] Last sentence hooks into the next slide
-- [ ] Word count matches target duration ±15%
+- [ ] Word (Latin) / character (CJK) count matches target duration ±15%
 - [ ] Acronyms expanded on first use across the full storyboard (not just per slide)
 - [ ] Critic (step 5) returned PASS before TTS

@@ -30,13 +30,13 @@ html, body { width: 1080px; height: 1920px; }
 /* ── phone-first type scale (the 64–70px desktop scale leaves a dead column) ── */
 .kicker { font-size: 34px; letter-spacing: .14em; }
 .rule { height: 6px; width: 120px; }
-.title { font-size: 92px; line-height: 1.07; }
+.title { font-size: 92px; line-height: var(--lh-display, 1.07); }
 .sub { font-size: 42px; line-height: 1.42; }
 .note { font-size: 32px; }
 .label { font-size: 46px; }
 .row { font-size: 46px; gap: 26px; }
 .dot { width: 20px; height: 20px; }
-.pullquote { font-size: 66px; line-height: 1.22; padding-left: 66px; }
+.pullquote { font-size: 66px; line-height: var(--lh-pull, 1.22); padding-left: 66px; }
 .pullquote::before { font-size: 168px; top: -34px; left: -4px; }
 .pullquote cite { font-size: 34px; margin-top: 30px; line-height: 1.35; }
 .stat { font-size: 176px; }

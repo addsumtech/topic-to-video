@@ -127,3 +127,12 @@ def test_durations_estimated_when_missing():
               {"index": 1, "type": "title", "narration": "end", "props": {}}]
     r = rq.evaluate(_board(slides))
     assert any("estimated from narration" in (w + " ") for w in r["warnings"] + r["errors"]) or r["scenes"] == 2
+
+
+def test_est_seconds_mixed_script_no_blowup():
+    # one zh term inside an en sentence must not flip every Latin CHAR to CJK pacing (was a 3x blowup)
+    s = {"narration": "We ship a fully deterministic renderer with sixteen English words in this sentence 扩散模型"}
+    est = rq._est_seconds(s, {"language": "en"})
+    assert est < 9.0                      # binary flip gave ~20s
+    zh = {"narration": "这是一个二十个字左右的中文句子用来测速"}
+    assert 3.0 <= rq._est_seconds(zh, {"language": "zh"}) <= 5.5   # pure zh path unchanged

@@ -10,7 +10,7 @@ Set `meta.voice` in `storyboard.json` before running `tts.py`:
 }
 ```
 
-Format: `"provider:name"`. Provider is `say` (local macOS) or `openai` (cloud).
+Format: `"provider:name"`. Provider is `edge` (preferred, free neural), `say` (offline macOS fallback), `openai`, or `minimax` (cloud, paid).
 
 ---
 
