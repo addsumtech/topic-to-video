@@ -62,7 +62,11 @@ TTS if the user gives an API key.
   to tone a real image into the deck's palette ("treated to match" a styled deck). The design-director
   picks `media.treatment: none|atmosphere|documentary` per beat (see its agent + the Imagery
   faithfulness section); reach for `documentary` on CONCRETE topics (a city, place, real system).
-- `scripts/render.py <out_dir> [--sample N] [--only N] [--vertical] [--reduced-motion]` — storyboard → `out.mp4` + `out.srt`.
+- `scripts/render.py <out_dir> [--sample N] [--only N] [--vertical] [--reduced-motion] [--preview]` — storyboard → `out.mp4` + `out.srt`.
+  **`--preview`** = the cheap ITERATION tier (~2.5× faster): 12fps captures + lighter JPEG, its own
+  clip cache (`.clips_preview`) and `preview.mp4` output — temporally identical (captions/cues/word-sync
+  are time-based), just choppier; never touches `out.mp4`/`.clips`. Use it while experimenting with
+  design/register changes so iteration cost never argues against boldness; deliver with the full render.
   **Scene transitions:** a gentle dip-to-theme-bg at clip edges (video only — audio/durations
   untouched, so cache + `-c copy` concat + A/V gate still hold). `meta.transition` (`dip` default |
   `none`), `meta.transition_seconds` (0.2). **Per-scene override — the transition is SEMANTIC:**
@@ -180,7 +184,17 @@ TTS if the user gives an API key.
   blank / overflow / clip / caption-occlusion (advisories don't block). Run after
   authoring the pages, BEFORE the full render — a ~1-minute catch of the exact failures that would
   otherwise silently ship in a multi-minute render. (No CDP → screenshots + blank-check only.)
-- `scripts/snapshot.py <page.html> <out.png> [--p 1.0] [--vertical] [--no-captions] [--json]` — render
+- `scripts/register_ledger.py record <out_dir> | show [-n N] [--json]` — cross-deck REGISTER MEMORY
+  (`~/.slides-to-video/recent.json`): records each delivered deck's expressive identity (register name,
+  style, mode, accent, motion, angle) so consecutive videos don't silently converge on one look. The
+  contest reads it (Phase A avoid-list + the user's distinct-vs-house pick); the delivery step records it.
+- `scripts/contest_diversity.py <frameA.png> <frameB.png> … [--json]` — MECHANICAL divergence check for
+  contest candidate frames (mode / palette distance / 16×9 ink-silhouette hamming): a pair that matches
+  mode AND clusters on both metrics is flagged as "two skins of one idea" (exit 2). Semantics:
+  **flag = rediverge OR keep with a NAMED justification** — it complements the judge's semantic
+  anti-collapse; it never auto-kills a topically-right pair.
+- `scripts/snapshot.py <page.html> <out.png> [--p 1.0] [--vertical] [--no-captions] [--json]
+  [--motion clip.mp4 [--mseconds 2] [--mfps 12]]` — render
   ONE designed HTML page frozen at `?p=` to a PNG and run the SAME box-geometry floor probe keyframe_qa
   gates on (canvas overflow / intra-box clip / caption-zone) — no storyboard.json needed. Exit 0 =
   clean · 2 = floor issues (printed) · 3 = rendered but floor NOT probed (no CDP — screenshot only;
@@ -455,7 +469,10 @@ TTS if the user gives an API key.
      look, and skip at `meta.audacity: conservative`), run the contest BEFORE the full design plan.
      Width by audacity: `balanced` 3 candidates · `bold` 5 · `experimental` 7. Bounded cost: ONE authored
      page + ONE snapshot per candidate — never a full render. Procedure:
-     ① Dispatch `agents/design-director.md` in **CONTEST mode** → `register_candidates` (forced-divergent
+     ⓪ **Read the register ledger first**: `python scripts/register_ledger.py show` — pass any recent
+     registers into the Phase A dispatch ("recent decks used: 「…」— do NOT clone them by default") so
+     consecutive videos don't converge on one look. ① Dispatch `agents/design-director.md` in
+     **CONTEST mode** → `register_candidates` (forced-divergent
      angles; see its "Register CONTEST — Phase A"). ② Per candidate `<key>`: make `<out>/_contest/<key>/`,
      run `python scripts/theme.py <out>/_contest/<key> --style <its visual_style> [--accent …]` for its
      own theme.css, author ONE representative page from its `frame_spec` — **linking
@@ -466,11 +483,20 @@ TTS if the user gives an API key.
      same exemptions keyframe_qa reads from the meta)
      — exit 2 = floor issues: repair ONCE in-register or disqualify; exit 3 = rendered but floor NOT
      probed (CDP unavailable): do NOT record a `rendered` floor verdict — fix Chrome/CDP or drop the
-     whole contest to paper mode. ③ Dispatch `agents/design-critic.md`
+     whole contest to paper mode. **②b Mechanical diversity check:**
+     `python scripts/contest_diversity.py <out>/_contest/*/frame.png` — a flagged pair (same mode +
+     clustered palette + clustered silhouette) means the divergence was theater: REDIVERGE the pair, or
+     keep it ONLY with a named justification recorded in the contest notes. ③ Dispatch `agents/design-critic.md`
      in **judge mode** (give it the PNG paths + specs + `meta.audacity`): floor-breakers out, survivors
-     ranked, ONE winner (or REDIVERGE once — never twice). ④ Surface the winner + runner-up to the USER
+     ranked, ONE winner (or REDIVERGE once — never twice). **③b Motion snippets for the finalists:**
+     re-run snapshot with `--motion <out>/_contest/<key>/motion.mp4` for the winner + runner-up (~2s
+     each) — the judge CONFIRMS its ranking against the moving frames (a motion-led register may
+     overtake a still-photogenic one), and the user gets the clips to watch. ④ Surface the winner + runner-up to the USER
      via `AskUserQuestion` (winner first with "(Recommended)"; include the frame paths so they can look) —
-     their pick is FINAL: record it as `register_contest.winner` (+ `user_pick: true`). ⑤ Continue to the
+     their pick is FINAL: record it as `register_contest.winner` (+ `user_pick: true`). **When the
+     ledger has a recent register, the pick MUST also offer a house option** ("延续上一条的 register" —
+     continuity is a legitimate choice, distinctness is never auto-imposed) and name what the last
+     deck(s) looked like so the user chooses distinct-vs-house consciously. ⑤ Continue to the
      design plan (3.6) with the director committed to the selected register, recording
      `register_contest {mode: "rendered", candidates, winner, user_pick}` in `design_plan.json` —
      `validate.py` warns at bold/experimental when a register ships with NO contest recorded, and when the
@@ -677,9 +703,14 @@ TTS if the user gives an API key.
    `python scripts/check_av.py <out_dir>`. A non-zero exit means A/V drift or non-uniform clip
    rates — fix the root cause (clear `.clips/`, fix audio or regenerate failing clips, and
    re-render) before delivering. Deliver `out.mp4`, `out.srt`, and the editable `storyboard.json`
-   only after both `validate.py` and `check_av.py` exit 0.
+   only after both `validate.py` and `check_av.py` exit 0. Then record the deck's register into the
+   cross-deck ledger: `python scripts/register_ledger.py record <out_dir>` (feeds the next video's
+   contest with "what the last decks looked like").
 10. **Iterate** — any change = edit `storyboard.json`, then re-run render (the per-slide
-    clip cache re-renders only changed slides) and tts (`--only N`). Never hand-edit the video.
+    clip cache re-renders only changed slides) and tts (`--only N`). For DESIGN experiments
+    (register/theme/caption changes that bust many clips), iterate with `render.py --preview`
+    (12fps, own cache, `preview.mp4`) and only run the full render once the look is settled.
+    Never hand-edit the video.
 
 ## Guardrails
 - `duration` always comes from rendered audio (tts.py sets it) — never guess timings.

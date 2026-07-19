@@ -113,3 +113,24 @@ def test_url_is_percent_encoded(tmp_path, monkeypatch):
     monkeypatch.setattr(scenes, "_chrome_shot", lambda url, out, W, H, meta: shots.append(url))
     snapshot.shoot(str(page), str(tmp_path / "o.png"))
     assert shots and "%23" in shots[0] and "#" not in shots[0].split("?p=")[0]
+
+
+def test_motion_snippet_signature_and_scale_guard():
+    # finalists are judged in MOTION: snippet sweeps p=0..1; the encode must force the canonical WxH
+    # (headless viewports can come up short → odd heights break yuv420p/x264)
+    import inspect
+    params = inspect.signature(snapshot.motion_snippet).parameters
+    for k in ("page", "out_mp4", "seconds", "fps", "vertical"):
+        assert k in params, k
+    src = inspect.getsource(snapshot.motion_snippet)
+    assert 'f"scale={W}:{H}"' in src
+
+
+def test_cdp_viewport_is_pinned():
+    # --window-size alone lets new-headless subtract ~87px of chrome from the viewport (1920x993
+    # captures: bottom crop + 1080/993 vertical stretch at encode). The device-metrics override is
+    # the root fix — guard it against regression.
+    import os
+    src = open(os.path.join(os.path.dirname(snapshot.__file__), "_cdp.py")).read()
+    assert "Emulation.setDeviceMetricsOverride" in src
+    assert '"width": W, "height": H' in src

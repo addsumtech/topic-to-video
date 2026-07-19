@@ -965,10 +965,17 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
     _common.run(cmd)
     return out_clip
 
-def render(out_dir, sample=None, vertical=False, only=None, reduced_motion=False):
+def render(out_dir, sample=None, vertical=False, only=None, reduced_motion=False, preview=False):
     data = sb.load(os.path.join(out_dir, "storyboard.json"))
     sb.validate(data)
     meta = data["meta"]; meta["_out"] = out_dir
+    # PREVIEW tier — cheap design iteration (~2.5x faster): 12fps captures + lighter JPEG, its OWN clip
+    # cache (.clips_preview) and preview.mp4 output, so it never pollutes the full-quality cache or
+    # out.mp4. Temporally IDENTICAL to the full render (fps only changes sampling density — captions,
+    # cues and word-sync are all time-based), just choppier. The full render stays the delivery path.
+    if preview:
+        meta = dict(meta, fps=12, jpeg_quality=70)
+        meta["_out"] = out_dir
     # D — reduced-motion tier (accessibility): CLI flag OR meta.reduced_motion. Kills zoom/pan on the
     # image tier and swaps HTML reveals to opacity-only fades; still deterministic + seekable.
     meta["reduced_motion"] = bool(reduced_motion or meta.get("reduced_motion"))
@@ -995,7 +1002,7 @@ def render(out_dir, sample=None, vertical=False, only=None, reduced_motion=False
     # FULL render with a per-slide CLIP CACHE: only slides whose fingerprint changed are
     # re-rendered; the rest are reused, so iterating on a few slides is fast. `--only N`
     # forces slide N to re-render regardless of cache.
-    clipdir = os.path.join(out_dir, ".clips")
+    clipdir = os.path.join(out_dir, ".clips_preview" if preview else ".clips")
     os.makedirs(clipdir, exist_ok=True)
     clips, rendered = [], 0
     total_scenes = len(data["slides"])
@@ -1024,10 +1031,11 @@ def render(out_dir, sample=None, vertical=False, only=None, reduced_motion=False
         with open(listfile, "w") as f:
             for c in clips:
                 f.write(f"file '{os.path.abspath(c)}'\n")
-        dst = os.path.join(out_dir, "out.mp4")
+        dst = os.path.join(out_dir, "preview.mp4" if preview else "out.mp4")
         _common.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", listfile,
                      "-c", "copy", "-movflags", "+faststart", dst])
-        _write_srt(data, os.path.join(out_dir, "out.srt"))
+        if not preview:                       # srt belongs to the delivery artifact only
+            _write_srt(data, os.path.join(out_dir, "out.srt"))
         print(f"({rendered} slide(s) rendered, {len(clips) - rendered} reused from cache; "
               f"{time.monotonic()-t_all:.1f}s total)")
         return dst
@@ -1042,6 +1050,8 @@ def main():
                     help="accessibility: no zoom/pan + opacity-only reveals (still deterministic/seekable)")
     ap.add_argument("--renderer", choices=["local", "remotion"], default=None,
                     help="override meta.renderer; 'remotion' = the optional cinematic tier (image scenes)")
+    ap.add_argument("--preview", action="store_true",
+                    help="cheap iteration render: 12fps, own cache (.clips_preview), writes preview.mp4 — never touches out.mp4/.clips")
     a = ap.parse_args()
     # Renderer dispatch: the optional Remotion cinematic tier renders the whole storyboard at once.
     meta = (sb.load(os.path.join(a.out_dir, "storyboard.json")).get("meta") or {})
@@ -1052,7 +1062,7 @@ def main():
         print(f"Rendered -> {render_remotion.render(a.out_dir, vertical=a.vertical, reduced_motion=a.reduced_motion, sample=a.sample)}")
         return
     res = render(a.out_dir, sample=a.sample, vertical=a.vertical, only=a.only,
-                 reduced_motion=a.reduced_motion)
+                 reduced_motion=a.reduced_motion, preview=a.preview)
     print(f"Rendered -> {res}")
 
 if __name__ == "__main__":

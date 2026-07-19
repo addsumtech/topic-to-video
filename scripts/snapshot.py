@@ -8,6 +8,10 @@ the floor is disqualified before any style points. Also handy for one-off page c
 
 Usage:
   python scripts/snapshot.py <page.html> <out.png> [--p 1.0] [--vertical] [--no-captions] [--json]
+  python scripts/snapshot.py <page.html> <out.png> --motion <clip.mp4> [--mseconds 2.0] [--mfps 12]
+    — ALSO render a short ANIMATED snippet (the page's paused reveals swept p=0..1) so a register-
+    contest finalist is judged in MOTION, not just as a still (a motion-led register can't show
+    itself in one frame). ~24 CDP grabs + one ffmpeg encode; still writes the PNG + floor verdict.
 
 Exit codes: 0 = rendered + floor clean · 2 = rendered but floor ISSUES (printed) · 3 = rendered but the
 floor could NOT be probed (no CDP — screenshot only; UNUSABLE as a contest verdict, fall back to paper
@@ -40,6 +44,38 @@ def _ensure_png(path):
                 im.convert("RGB").save(path, "PNG")
     except Exception:
         pass   # a mislabeled-but-openable frame beats a crashed snapshot
+
+
+def motion_snippet(page, out_mp4, seconds=2.0, fps=12, vertical=False, meta=None):
+    """Sweep the page's frozen reveals p=0..1 into a short mp4 — the contest's motion sample.
+    Deterministic (same p ladder every run). Raises when Chrome/CDP is unavailable (the still+floor
+    path is the fallback; a motion snippet without CDP would be too slow to be worth it)."""
+    import subprocess
+    import tempfile
+    meta = dict(meta or {})
+    W, H = (1080, 1920) if vertical else (1920, 1080)
+    url = "file://" + quote(os.path.abspath(page))
+    chrome = keyframe_qa._open_cdp(meta, W, H)
+    if not chrome:
+        raise RuntimeError("no CDP — motion snippet unavailable (still + paper judging only)")
+    n = max(2, int(round(seconds * fps)))
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            for i in range(n):
+                p = i / (n - 1)
+                # .jpg names: the CDP fast path captures JPEG bytes; ffmpeg's image2 demuxer picks the
+                # decoder by EXTENSION, so jpeg-in-.png frames fail to decode
+                chrome.shot(f"{url}?p={p:.4f}", os.path.join(td, f"f_{i:04d}.jpg"))
+            # scale to the canonical canvas: the headless viewport can come up short of the window
+            # size (e.g. 1920x993), and an ODD height breaks yuv420p/x264 outright
+            subprocess.run(["ffmpeg", "-y", "-framerate", str(fps),
+                            "-i", os.path.join(td, "f_%04d.jpg"),
+                            "-vf", f"scale={W}:{H}",
+                            "-c:v", "libx264", "-crf", "23", "-pix_fmt", "yuv420p", out_mp4],
+                           check=True, capture_output=True)
+    finally:
+        chrome.close()
+    return out_mp4
 
 
 def _exit_code(r):
@@ -89,12 +125,23 @@ def main():
     ap.add_argument("--vertical", action="store_true")
     ap.add_argument("--no-captions", action="store_true", dest="no_captions")
     ap.add_argument("--json", action="store_true", dest="as_json")
+    ap.add_argument("--motion", default=None, metavar="CLIP_MP4",
+                    help="also sweep p=0..1 into a short animated mp4 (contest finalists)")
+    ap.add_argument("--mseconds", type=float, default=2.0)
+    ap.add_argument("--mfps", type=int, default=12)
     a = ap.parse_args()
     try:
         r = shoot(a.page, a.out, p=a.p, vertical=a.vertical, captions=not a.no_captions)
     except Exception as e:
         print(f"[snapshot] could not render: {e}")
         sys.exit(1)
+    if a.motion:
+        try:
+            motion_snippet(a.page, a.motion, seconds=a.mseconds, fps=a.mfps, vertical=a.vertical)
+            r["motion"] = a.motion
+            print(f"[snapshot] motion snippet -> {a.motion}")
+        except Exception as e:
+            print(f"[snapshot] motion snippet failed ({e}) — still + floor verdict only")
     if a.as_json:
         print(json.dumps(r))
     else:

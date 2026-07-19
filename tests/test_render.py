@@ -745,3 +745,14 @@ def test_captions_for_mixed_script_speaking_time_weights():
     assert len(segs) >= 2
     zh = next(s for s in segs if "扩散" in s["text"])
     assert zh["end"] - zh["start"] >= 3.5             # raw-len weighting gave it ~2.6s
+
+
+def test_preview_mode_isolated_from_delivery():
+    # --preview must exist, and render() must accept preview= (own cache dir + preview.mp4 — never
+    # touching out.mp4/.clips). Signature + source-level guards (a full render is too heavy for CI).
+    import inspect
+    assert "preview" in inspect.signature(render.render).parameters
+    src = inspect.getsource(render.render)
+    assert '".clips_preview" if preview else ".clips"' in src
+    assert '"preview.mp4" if preview else "out.mp4"' in src
+    assert "fps=12" in src                     # the actual speedup lever

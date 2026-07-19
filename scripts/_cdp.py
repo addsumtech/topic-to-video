@@ -120,6 +120,13 @@ class Chrome:
             tgt = self._cmd("Target.createTarget", {"url": "about:blank"})["result"]["targetId"]
             self.sid = self._cmd("Target.attachToTarget", {"targetId": tgt, "flatten": True})["result"]["sessionId"]
             self._cmd("Page.enable", {}, self.sid)
+            # Pin the viewport EXACTLY to W×H. --window-size alone lets new-headless subtract ~87px of
+            # window chrome from the viewport (1920×1080 → 1920×993 captures): the page bottom was
+            # silently cropped and every frame vertically STRETCHED 1080/993 by the clip encoder's
+            # "safety" scale — and the cold-launch race on this same gap produced the phantom
+            # "87px overflow" (1080-993) keyframe report. Device-metrics override closes all of it.
+            self._cmd("Emulation.setDeviceMetricsOverride",
+                      {"width": W, "height": H, "deviceScaleFactor": 1, "mobile": False}, self.sid)
         except Exception:
             self.close()                            # a FAILED init must not leak the just-spawned Chrome
             raise
