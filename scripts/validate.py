@@ -15,6 +15,7 @@ import argparse, json, os, re, sys
 from html.parser import HTMLParser
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _common
 import storyboard as sb
 import render as rd                       # caption-fit + font helpers, reused verbatim
 import cues as _cues                      # anchor matcher (timed-callout cues + reveal alignment)
@@ -1024,34 +1025,15 @@ def _ordered_anchors(html):
         seen.setdefault(int(i), a)
     return [seen[k] for k in sorted(seen)]
 
-_ANIM_DUR_CACHE = {}
-
 def _css_anim_durations():
-    """{class_name: seconds} for every animation class in base.css/motifs.css, parsed from the CSS
-    itself so it can never drift from the stylesheets. `var(--dur)` resolves via :root's own --dur."""
-    if _ANIM_DUR_CACHE:
-        return _ANIM_DUR_CACHE
-    here = os.path.dirname(os.path.abspath(__file__))
-    css = ""
-    for name in ("base.css", "motifs.css"):
-        p = os.path.join(here, "..", "assets", "html", name)
-        if os.path.exists(p):
-            try:
-                css += open(p, encoding="utf-8").read() + "\n"
-            except Exception:
-                pass
-    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)   # a comment naming .draw would pollute the next selector
-    m = re.search(r"--dur\s*:\s*([\d.]+)s", css)
-    base_dur = float(m.group(1)) if m else 0.7
-    # `.a,.b{ ... animation:<name> <dur> ... }` — <dur> is a literal 0.7s or var(--dur)
-    for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
-        ma = re.search(r"animation\s*:\s*[a-zA-Z0-9_-]+\s+(?:([\d.]+)s|var\(--dur\))", body)
-        if not ma:
-            continue
-        secs = float(ma.group(1)) if ma.group(1) else base_dur
-        for cls in re.findall(r"\.([a-zA-Z0-9_-]+)", sel):
-            _ANIM_DUR_CACHE[cls] = max(_ANIM_DUR_CACHE.get(cls, 0.0), secs)
-    return _ANIM_DUR_CACHE
+    """{class_name: seconds} for every animation class in base.css/motifs.css.
+
+    Delegates to `_common` so validate (does a cued animation FINISH before the scene cuts?) and
+    scenes (how wide must the capture window be so it doesn't freeze mid-flight?) read ONE table.
+    These two must agree on the same numbers or one gate passes exactly what the other renders
+    wrong — which is why this is not a second copy of the parser."""
+    return _common.css_anim_durations()
+
 
 # seek.js drives these off scene PROGRESS (0->1 across the whole scene), not the reveal clock, so
 # they can never be truncated by a late cue — mirror that exclusion here.

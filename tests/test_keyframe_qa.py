@@ -201,3 +201,15 @@ def test_weighted_centroid_skips_pure_containers():
 def test_weighted_centroid_has_a_sentinel_when_nothing_carries_ink():
     # wsum==0 -> -1, so run() can fall back to the bbox midpoint rather than dividing by zero
     assert "wsum?Math.round(wx/wsum):-1" in kq._OVERFLOW_JS
+
+def test_blank_probe_memo_is_per_element_not_per_chain():
+    # REGRESSION: the visibility memo once cached whichever text node was walked FIRST onto all of
+    # its ancestors, so a hidden block poisoned its shared parent and every later sibling under that
+    # parent was judged invisible — a page with a hidden block ahead of a visible one reported
+    # textlen 0, i.e. a FALSE BLANK, which BLOCKS a render. The memo must cache each element's own
+    # chain verdict, computed recursively.
+    js = kq._OVERFLOW_JS
+    assert "function vis(el)" in js and "vis(el.parentElement)" in js
+    assert "seen.set(el,v)" in js
+    # and it must NOT walk back up writing one verdict onto every ancestor
+    assert "while(p&&p!==document.body){seen.set(p,vis)" not in js

@@ -95,15 +95,20 @@ _OVERFLOW_JS = (
     # reveals never fired reported a full text length and sailed through the BLANK check, which is
     # precisely the failure the check exists to catch. Walk the leaf text nodes and charge each one
     # only when its whole ancestor chain is actually visible.
-    "var t=0;(function(){var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,null);"
-    "var seen=new Map();var nd;while((nd=w.nextNode())){var s=(nd.nodeValue||'').replace(/\\s+/g,'');"
-    "if(!s)continue;var el=nd.parentElement,vis=true;"
-    "while(el&&el!==document.body){if(seen.has(el)){vis=seen.get(el);break;}"
+    # The memo caches each element's OWN chain verdict, computed recursively. An earlier version
+    # cached the verdict of whichever text node happened to be walked first onto ALL of its
+    # ancestors — so one hidden element poisoned its shared parent and every later sibling under
+    # that parent was judged invisible too (a page with a hidden block ahead of a visible one
+    # reported textlen 0, i.e. a FALSE BLANK, which blocks a render).
+    "var t=0;(function(){var seen=new Map();"
+    "function vis(el){if(!el||el===document.body)return true;"
+    "if(seen.has(el))return seen.get(el);"
     "var c=getComputedStyle(el);"
-    "if(c.display==='none'||c.visibility==='hidden'||parseFloat(c.opacity)<0.05){vis=false;break;}"
-    "el=el.parentElement;}"
-    "var p=nd.parentElement;while(p&&p!==document.body){seen.set(p,vis);p=p.parentElement;}"
-    "if(vis)t+=s.length;}})();"
+    "var v=!(c.display==='none'||c.visibility==='hidden'||parseFloat(c.opacity)<0.05)&&vis(el.parentElement);"
+    "seen.set(el,v);return v;}"
+    "var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,null);var nd;"
+    "while((nd=w.nextNode())){var s=(nd.nodeValue||'').replace(/\\s+/g,'');"
+    "if(s&&vis(nd.parentElement))t+=s.length;}})();"
     "var EXCL='" + _CENTER_EXCL + "',centered=0,para=document.querySelectorAll('.sub,.note,.lead,p');"
     "for(var j=0;j<para.length;j++){var pe=para[j],pcs=getComputedStyle(pe);"
     "if(pcs.textAlign!=='center')continue;if(pe.closest&&pe.closest(EXCL))continue;"
