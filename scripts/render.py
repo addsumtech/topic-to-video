@@ -556,6 +556,32 @@ def _write_srt(data, path):
     with open(path, "w") as f:
         f.write("\n".join(lines))
 
+def _has_long_cued_anim(slide, meta):
+    """True when this scene is a CUED html page carrying an animation longer than the old flat 0.8s
+    capture burst — i.e. exactly the pages whose rendered pixels changed when the burst became
+    per-cue. Used as a surgical cache salt so the fix reaches existing decks without invalidating
+    every cached clip in every out_dir."""
+    if slide.get("type") != "html":
+        return False
+    rel = (slide.get("props") or {}).get("html")
+    if not rel:
+        return False
+    try:
+        html = open(os.path.join(meta["_out"], rel), encoding="utf-8", errors="replace").read()
+    except OSError:
+        return False
+    if "data-cue-index" not in html:
+        return False
+    table = _common.css_anim_durations()
+    for tag in re.findall(r"<[^>]+>", html):
+        if "data-cue-index" not in tag:
+            continue
+        secs = _common.element_anim_seconds(tag, table)
+        if secs and secs > 0.8:
+            return True
+    return False
+
+
 def _fingerprint(slide, meta, W, H, ss, burn, vertical):
     """A short hash of everything that affects a slide's rendered clip, so a re-render can
     skip slides that didn't change (the cache key). Includes the image/audio file
@@ -591,6 +617,13 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
         # (fixed to one layer per edge) — bust just those clips, not every cached clip everywhere
         "edge": ("blur2" if (slide.get("transition_style") or meta.get("transition_style")) == "blur"
                  else None),
+        # capture-window version — cued HTML pages carrying a LONG animation only. render_html's
+        # burst was a flat 0.8s, which stopped capturing a 1.4s `.draw` at 57% of its timeline and
+        # then held that frame for the rest of the scene (the connector never reached its endpoint).
+        # The window is now sized per cue. A clip cached before that fix still contains the frozen
+        # render, and nothing else in this fingerprint would notice — so salt exactly the pages whose
+        # pixels change, and leave every ordinary .7s-reveal page byte-identical and still cached.
+        "cap": ("burst2" if _has_long_cued_anim(slide, meta) else None),
         "img": stat(slide.get("image")), "aud": stat(slide.get("audio")),
         "html": stat((slide.get("props") or {}).get("html")),
         # re-theming (theme.py) busts ALL clips — html pages link theme.css AND the programmatic

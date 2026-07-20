@@ -139,11 +139,29 @@ def _composition_sig(html):
     if sm:
         st = re.search(r'style\s*=\s*"([^"]*)"', sm.group(0))
         style = st.group(1) if st else ""
+    # The ENVELOPE classes (base.css "VERTICAL composition") are the supported way to set the vertical
+    # band; read them FIRST, since they are a declaration the author made on purpose. Inline
+    # justify-content stays supported as the escape hatch.
+    _cls_anchor = None
+    for _c, _a in (("band-upper", "top"), ("band-lower", "bottom"),
+                   ("anchor-top", "top"), ("anchor-bottom", "bottom"), ("bleed", "full")):
+        if re.search(r'class\s*=\s*"[^"]*\bstage\b[^"]*\b' + _c + r'\b', html) \
+                or re.search(r'class\s*=\s*"[^"]*\b' + _c + r'\b[^"]*\bstage\b', html):
+            _cls_anchor = _a
+            break
+    # html-pages.md teaches overriding `.stage{…justify-content:…}` in a <style> block; reading only
+    # the style= ATTRIBUTE made those pages silently vote "center" (the default) with full confidence.
+    if not re.search(r'justify-content', style):
+        _blk = re.search(r'<style[^>]*>(.*?)</style>', html, re.S)
+        if _blk:
+            _rule = re.search(r'\.stage[^{}]*\{[^{}]*justify-content\s*:\s*([\w-]+)', _blk.group(1))
+            if _rule:
+                style += f";justify-content:{_rule.group(1)}"
     jc = re.search(r'justify-content\s*:\s*([\w-]+)', style)
-    jc_seen = bool(jc)
+    jc_seen = bool(jc) or _cls_anchor is not None
     jc = jc.group(1) if jc else "center"
-    anchor = ("top" if jc in ("flex-start", "start") else "bottom" if jc in ("flex-end", "end")
-              else "full" if jc.startswith("space") else "center")
+    anchor = _cls_anchor or ("top" if jc in ("flex-start", "start") else "bottom" if jc in ("flex-end", "end")
+                             else "full" if jc.startswith("space") else "center")
     # off-center/thirds bands park the content in one horizontal third with a deliberate void — a
     # genuine left/right-weighted balance the composition gate should CREDIT (not a centered column).
     # `(?<![\w-])...(?![\w-])` are token boundaries so a hyphenated superstring (e.g. "grid-thirds") is
@@ -152,9 +170,13 @@ def _composition_sig(html):
     if re.search(r'class\s*=\s*"[^"]*\bstage\b[^"]*' + _off, html) \
             or re.search(r'class\s*=\s*"[^"]*' + _off + r'[^"]*\bstage\b', html):
         balance = "offset"
-    elif re.search(r'class\s*=\s*"[^"]*\bsplit\b', html):
+    # `.split` is a PAGE layout (motifs.css sizes it as its own 1920×1080 container) and `.grid-asym`
+    # only rebalances the frame when it IS the stage's layout. Credited from anywhere in the source, a
+    # single nested sub-panel on a dead-centred page counted as "breaks the centered column" — so
+    # require them at page level: outside the stage subtree, or on the stage itself.
+    elif _at_page_level(html, sm, "split"):
         balance = "split"
-    elif re.search(r'class\s*=\s*"[^"]*\bgrid-asym\b', html):
+    elif _at_page_level(html, sm, "grid-asym"):
         balance = "asym"
     elif "text-align:center" in style.replace(" ", ""):
         balance = "centered"
@@ -167,8 +189,13 @@ def _composition_sig(html):
     # was reported as "0% break the centered column"), which is worse than staying silent: it sends the
     # author chasing a non-problem and hides the real one. Detect the idiom and abstain — keyframe_qa
     # measures these pages properly from real element boxes.
-    abs_kids = len(re.findall(r'position\s*:\s*absolute', html))
-    measurable = bool(jc_seen) or abs_kids < 5
+    # Count absolute positioning INSIDE the stage subtree only — the backdrops/vignettes that every
+    # page stacks behind .stage are absolute by design and must not make a normal flex page look
+    # unmeasurable. And `jc_seen` must NOT rescue the verdict: flex properties do not lay out
+    # absolutely-positioned children, so a page that declares justify-content AND positions its
+    # content absolutely is exactly the confident-false-reading case, not an exemption from it.
+    abs_kids = len(re.findall(r'position\s*:\s*absolute', html[(sm.start() if sm else 0):]))
+    measurable = abs_kids < 5
     kicker_first = bool(re.search(r'class\s*=\s*"[^"]*\bstage\b[^"]*"[^>]*>\s*<[^>]*class\s*=\s*"[^"]*\bkicker\b', html))
     hero = bool(re.search(r'class\s*=\s*"[^"]*\bbg-photo\b', html))
     # an image-forward page (.media/.split panel or a full-bleed .bg-photo) is NOT a flat wall, even
@@ -177,6 +204,19 @@ def _composition_sig(html):
     flat = not img_rich and not any(re.search(r'class\s*=\s*"[^"]*\b' + re.escape(c) + r'\b', html) for c in _BG_CLASSES)
     return {"anchor": anchor, "balance": balance, "kicker_first": kicker_first, "hero": hero, "flat": flat,
             "measurable": measurable}
+
+
+def _at_page_level(html, stage_match, cls):
+    """True when `cls` governs the PAGE's balance rather than sitting in a nested sub-panel: it is on
+    the stage element itself, or it appears before the stage opens (i.e. it IS the page container)."""
+    pat = r'class\s*=\s*"[^"]*\b' + re.escape(cls) + r'\b'
+    if stage_match is not None and re.search(pat + r'[^"]*\bstage\b|\bstage\b[^"]*' + re.escape(cls),
+                                             stage_match.group(0)):
+        return True
+    hit = re.search(pat, html)
+    if not hit:
+        return False
+    return stage_match is None or hit.start() < stage_match.start()
 
 
 def _exists(out_dir, rel):
@@ -1057,7 +1097,8 @@ def _reveal_truncation(html, narration, duration, words_path, tag, errors, warni
             if not hits:
                 continue                                            # element carries no animation
             adur = max(hits)
-        cue = float(times[ci])
+        moff = re.search(r'data-cue-offset\s*=\s*["\']([-\d.]+)["\']', el)   # lead(-)/lag(+) vs the word
+        cue = max(0.0, min(dur, float(times[ci]) + (float(moff.group(1)) if moff else 0.0)))
         done = (dur - cue) / adur if adur > 0 else 1.0
         if done >= 1.0:
             continue
@@ -1407,8 +1448,15 @@ def main():
     ap.add_argument("--pre-tts", action="store_true", help="skip audio/duration checks (validate before tts.py)")
     ap.add_argument("--vertical", action="store_true", help="check the 9:16 canvas (mirror render.py --vertical)")
     ap.add_argument("--json", action="store_true", help="emit the result dict as JSON")
+    ap.add_argument("--strict", action="store_true",
+                    help="treat DESIGN warnings as blocking. The gates enforce 'it will render'; "
+                         "almost every judgement about how the video LOOKS is advisory, which is how "
+                         "a deck once shipped 'all green' carrying 94 warnings. Opt-in so existing "
+                         "decks keep their exit codes; reach for it on a deck you intend to be good.")
     a = ap.parse_args()
     r = check(a.out_dir, pre_tts=a.pre_tts, vertical=a.vertical)
+    if a.strict and r["warnings"]:
+        r = dict(r, ok=False)
     if a.json:
         print(json.dumps(r, ensure_ascii=False, indent=2))
     else:
@@ -1417,7 +1465,9 @@ def main():
         for e in r["errors"]:
             print(f"  ERROR: {e}")
         for w in r["warnings"]:
-            print(f"  warn:  {w}")
+            print(f"  {'ERROR' if a.strict else 'warn '}: {w}")
+        if a.strict and r["warnings"]:
+            print(f"[validate] --strict: {len(r['warnings'])} design warning(s) treated as blocking")
     sys.exit(0 if r["ok"] else 1)
 
 

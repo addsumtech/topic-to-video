@@ -171,3 +171,12 @@ def test_band_uniformity_also_catches_a_shared_top_line():
     bands = [(i, 0.12, 0.40 + 0.06 * i) for i in range(9)]
     n = kq._band_uniformity_note(bands)
     assert n and "top" in n
+
+def test_shipped_url_is_parameterised_by_p():
+    # the sweep now walks the REAL cue timeline, so every p must be expressible (p=0 is the opening)
+    import tempfile, pathlib
+    with tempfile.TemporaryDirectory() as td:
+        s = _cued_scene(pathlib.Path(td))
+        for p in (0.0, 0.5, 1.0):
+            u = kq._shipped_url(td, s, "file:///p.html", p=p)
+            assert f"?p={p}&cues=" in u and "&dur=6.000" in u

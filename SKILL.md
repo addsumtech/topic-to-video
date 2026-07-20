@@ -185,16 +185,18 @@ the opacity cap — together these once let five PAID generated images ship cont
   within one beat. The mechanical backstop for `critic-content`'s prerequisite gate — run at step 9
   alongside `validate.py`/`rhythm_qa.py`. No-ops when `content_plan.json` isn't persisted.
 - `scripts/keyframe_qa.py <out_dir> [--p N] [--json]` — cheap PRE-render VISUAL QA for the HTML tier:
-  screenshots every `html` page at N `?p=` values, montages per-scene + a master contact sheet under
-  `<out_dir>/_keyframes/` (open `all.png` to eyeball tofu / off-theme / mistimed reveals). It also
-  writes **`scene_NN_shipped.png`** per cued scene — the page re-shot with the REAL `?cues=`+`?dur=`
-  at p=1.0, i.e. the render's actual last frame — and `all.png` is built from those. This matters:
-  the `?p=` sheet renders BLIND (no `?cues=`), and in that mode seek.js sets `total = max(delay +
-  animation-duration)`, so `p=1.0` means "every animation has finished" BY CONSTRUCTION — an
-  animation the scene cut off mid-flight is not representable there and looks perfect on the sheet.
-  The shipped frame is the one the viewer gets (`validate.py`'s truncation gate is the detector; this
-  is how you SEE it). Captured after the DOM probe, so every gate below still measures the resting
-  state. It also — via
+  sweeps every cued `html` page across its **REAL cue timeline** (`?p=`+`?cues=`+`?dur=`) at N points,
+  so each per-scene sheet `scene_NN.png` is an actual **FILMSTRIP**: leftmost tile = the frame at t=0
+  (what the viewer sees while the narration's first words play), rightmost = the frame that ships at
+  the cut. Previously the sweep ran BLIND (no `?cues=`), where seek.js sets `total = max(delay +
+  animation-duration)` — a timeline that never ships, in which `p=1.0` means "every animation has
+  finished" BY CONSTRUCTION, so a truncated animation was not representable and a blank opening was
+  invisible. Same shot count as the blind sweep; strictly more information. `all.png` is built from
+  the shipped frames. Two checks fall out of it: an **OPENING gate** (a page still blank a quarter of
+  the way in has held the viewer on black for seconds → blocks; blank only at t=0 is a legitimate beat
+  of black → advisory), and **`scene_NN_resting.png`**, one blind shot kept so the geometry probe still
+  measures the AUTHORED layout rather than a mid-flight entrance. A scene whose probe could not run is
+  reported **UNVERIFIED**, never `ok` — an unmeasured scene is not a passing scene. It also — via
   CDP DOM measurement — flags any BLANK page (a reveal that never fired) or content mis-PLACED three
   ways: OVERFLOWING the 1920×1080 canvas (full-bleed backdrops are correctly ignored); text CLIPPED
   INSIDE a card/box (a fixed-height / `overflow:hidden` box slicing its own content — the box fits so
@@ -757,8 +759,13 @@ the opacity cap — together these once let five PAID generated images ship cont
    the `--vertical` flag also forces it on both), and the POST-render A/V gate:
    `python scripts/check_av.py <out_dir>`. A non-zero exit means A/V drift or non-uniform clip
    rates — fix the root cause (clear `.clips/`, fix audio or regenerate failing clips, and
-   re-render) before delivering. Deliver `out.mp4`, `out.srt`, and the editable `storyboard.json`
-   only after both `validate.py` and `check_av.py` exit 0. Then record the deck's register into the
+   re-render) before delivering. **DELIVERY CRITERION — every gate, not two.** Deliver `out.mp4`,
+   `out.srt`, and the editable `storyboard.json` only after **`validate.py`, `check_av.py`,
+   `keyframe_qa.py`, `rhythm_qa.py` and `pedagogy_qa.py` ALL exit 0**. Naming only the first two is
+   how a deck shipped "all green" while the gates that actually look at the pages were never
+   consulted. Also read `keyframe_qa`'s **deck advisories** (silhouette repetition, content-band
+   uniformity) and any scene reported **UNVERIFIED** — an unverified scene is not a passing scene, it
+   is a scene nothing measured. Then record the deck's register into the
    cross-deck ledger: `python scripts/register_ledger.py record <out_dir>` (feeds the next video's
    contest with "what the last decks looked like").
 10. **Iterate** — any change = edit `storyboard.json`, then re-run render (the per-slide

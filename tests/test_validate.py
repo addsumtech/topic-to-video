@@ -1,4 +1,4 @@
-import json, os, subprocess, sys
+import json, os, re, subprocess, sys
 import validate
 import storyboard as sb
 
@@ -1452,3 +1452,64 @@ def test_declared_backdrop_div_is_not_flagged_for_its_mechanism(tmp_path):
     html = ('<body><div class="world"></div><div class="bg-photo" style="position:absolute;inset:0;'
             'background-image:url(\'.assets/t.png\')"></div><div class="stage"><h1 class="title">t</h1></div></body>')
     assert not any("UNDECLARED" in w for w in _one(tmp_path, html))
+
+
+# ---- composition gate: the ENVELOPE classes, and no more false-confident readings -----------------
+
+def test_envelope_classes_are_read_as_the_vertical_anchor():
+    for cls, want in (("band-upper", "top"), ("band-lower", "bottom"),
+                      ("anchor-top", "top"), ("anchor-bottom", "bottom")):
+        sig = validate._composition_sig(f'<div class="stage {cls}"><h1 class="title">t</h1></div>')
+        assert sig["anchor"] == want and sig["measurable"] is True, cls
+
+def test_style_block_justify_content_is_no_longer_invisible():
+    # html-pages teaches overriding .stage in a <style> block; reading only the style= ATTRIBUTE made
+    # those pages silently vote "center" with full confidence
+    html = '<style>.stage{justify-content:flex-end}</style><div class="stage"><h1 class="title">t</h1></div>'
+    assert validate._composition_sig(html)["anchor"] == "bottom"
+
+def test_inline_justify_content_does_not_rescue_an_absolute_page():
+    # flex properties do not lay out absolutely-positioned children — declaring justify-content on
+    # such a page is exactly the false-reading case, not an exemption from it
+    html = ('<div class="stage" style="justify-content:flex-start;position:relative">'
+            + ''.join('<div style="position:absolute">x</div>' for _ in range(6)) + '</div>')
+    assert validate._composition_sig(html)["measurable"] is False
+
+def test_backdrops_outside_the_stage_do_not_make_a_flex_page_unmeasurable():
+    html = ('<img class="bg-soft" style="position:absolute">'
+            '<div class="bg-soft-tint" style="position:absolute"></div>'
+            '<div class="world" style="position:absolute"></div>'
+            '<div class="vignette" style="position:absolute"></div>'
+            '<div class="cold-glow" style="position:absolute"></div>'
+            '<div class="stage"><h1 class="title">t</h1></div>')
+    assert validate._composition_sig(html)["measurable"] is True
+
+def test_nested_split_does_not_count_as_page_balance():
+    html = '<div class="stage" style="text-align:center"><div class="split">x</div></div>'
+    assert validate._composition_sig(html)["balance"] == "centered"
+
+def test_page_level_split_still_counts():
+    assert validate._composition_sig('<div class="split"><div>a</div><div>b</div></div>')["balance"] == "split"
+
+
+# ---- truncation gate honours data-cue-offset ------------------------------------------------------
+
+def test_truncation_accounts_for_a_lagging_cue_offset():
+    # the element fires 1.0s AFTER its anchor, so it has 1.0s less to finish in
+    html = ('<div class="reveal" data-cue-index="0" data-cue="first">A</div>'
+            '<path class="draw" data-cue-index="1" data-cue="payoff" data-cue-offset="1.0" d="M 0 0 L 9 9"/>')
+    e, w = _trunc(html, "we begin with an opening clause and then at last the payoff", duration=8.0)
+    assert any("complete when the render cuts" in x for x in e + w), (e, w)
+
+def test_truncation_accounts_for_a_leading_cue_offset():
+    # firing EARLY buys the animation room: the same page+scene must report a HIGHER completion with
+    # a negative offset than without one (a lead cannot always rescue a line-final anchor, but it
+    # must always move the number in the right direction)
+    def pct(off):
+        el = f' data-cue-offset="{off}"' if off else ''
+        html = ('<div class="reveal" data-cue-index="0" data-cue="first">A</div>'
+                f'<path class="draw" data-cue-index="1" data-cue="payoff"{el} d="M 0 0 L 9 9"/>')
+        e, w = _trunc(html, "we begin with a nice long opening clause and then at last the payoff", duration=6.4)
+        m = re.search(r"~(\d+)% complete", (e + w)[0])
+        return int(m.group(1))
+    assert pct("-0.6") > pct(None)

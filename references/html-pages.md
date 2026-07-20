@@ -424,6 +424,25 @@ Drive it from what the beat SAYS — a sparse pivot earns void, a "this sits on 
 the baseline. A uniform nudge to satisfy the metric is worse than leaving it alone. `keyframe_qa`
 measures the real band from the DOM and flags a shared edge above 60%.
 
+**The classes that express it** (base.css; vertical.css restates each for the 1920-tall 9:16 stage —
+the bottom paddings already clear the caption burn, so reaching for the baseline can never collide
+with the caption gate):
+
+| class on `.stage` | envelope | reach for it when |
+|---|---|---|
+| *(none)* | the default centred band | the workhorse — roughly a third of the deck |
+| `band-upper` | content in the top ~60%, real void below | a sparse statement or pivot that needs air |
+| `band-lower` | content riding the baseline, void above | a beat about a surface, a floor, a device on a desk |
+| `anchor-top` / `anchor-bottom` | plain top / baseline anchor, no void constraint | a rail, a masthead-led page, a closing line |
+| `bleed` / `bleed-x` | content may reach the frame edge | a full-bleed plane or type that must touch the edge |
+
+Composition helpers that were prescribed by `visual-styles.md` and previously had **no CSS at all**:
+`.overlap` (stacks its children in one grid cell so they deliberately overlap — the z-ladder only ever
+put backdrops *under* content), `.bleed-out` (an element intentionally cropped by the frame edge;
+`keyframe_qa`'s overflow probe skips that subtree, because the crop is the composition, not a bug),
+and `.tilt-s` / `.tilt-m` (+`.cw`) for a rotated hero — put tilt on a **wrapper**, never on a
+`.reveal*` element, whose entrance animates `transform` and would overwrite the rotation.
+
 > ⚠️ **`validate.py`'s composition gate cannot see an absolute-positioned page.** It reads the
 > `.stage`'s flex `justify-content` and a handful of layout classes (`.frame-left`/`.thirds`/`.split`/
 > `.grid-asym`). A page that positions its children absolutely has neither, so the gate **abstains**
@@ -672,6 +691,28 @@ must be a phrase actually present in that scene's narration.
 > and `.draw` (1.4s) won't finish. On a cued page, keep non-cued decorative motion short
 > (≤ ~1.2s) or give those elements a `data-cue` so they're captured. Plain `.reveal*` header
 > chrome is fine (it settles by ~1s).
+>
+> **CUED elements are now safe automatically.** The burst used to be a flat 0.8s, so giving a long
+> animation a `data-cue` did *not* rescue it — a cued `.draw` (1.4s) stopped being captured at 57% of
+> its timeline and HELD that frame for the rest of the scene, so the connector never reached its
+> endpoint no matter how long the scene ran (measured: frozen at 86% of its length for 5s of a 7s
+> scene). The window is now sized **per cue** from the longest animation on that cue, so a cued
+> `.draw`/`.count-up`/Ken-Burns finishes. A page of ordinary .7s reveals captures exactly as many
+> frames as before — the cost is paid only where a long animation actually needs it.
+
+### `data-cue-offset` — phrase a reveal against its word
+A `data-cue` says *which* word fires an element; `data-cue-offset` says *how it sits against* that
+word, in seconds — negative to LEAD, positive to LAG. Without it the only temporal control an author
+has is the choice of anchor, and everything lands flat on the beat:
+```html
+<!-- the connector starts drawing a beat BEFORE the phrase, so it ARRIVES on the word -->
+<path class="draw" data-cue-index="2" data-cue="execution" data-cue-offset="-0.35" …/>
+<!-- the punchline lands a beat AFTER, so the line has room to breathe -->
+<div class="sub reveal-up" data-cue-index="3" data-cue="the wow" data-cue-offset="0.25">…</div>
+```
+Clamped to the scene, honoured by the truncation gate and by the capture window (a lagged element
+still gets captured through its whole animation). Use it sparingly — the default (land on the word)
+is right most of the time; reach for it when a connector should arrive rather than depart on the cue.
 
 > ⚠️ **The TAIL budget: a cue near the end of the line must fit its animation.** The complement of
 > the rule above, for CUED elements. seek.js starts a cued element at its cue time and then runs it

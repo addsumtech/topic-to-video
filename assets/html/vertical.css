@@ -19,6 +19,17 @@ html, body { width: 1080px; height: 1920px; }
 .stage.frame-left > *, .stage.frame-right > * { max-width: 82%; }
 .stage.thirds > * { max-width: 88%; }
 
+/* VERTICAL ENVELOPE on the tall canvas. Without these the 9:16 stage forces flex-start with a fixed
+   300px foot on EVERY page — i.e. one shared envelope by construction, the exact monotony base.css's
+   band classes exist to break. Restated for H=1920: the caption burn owns the bottom ~300px, so the
+   baseline classes stop at 1620px (0.844·H), clear of keyframe_qa's 0.86·H block. */
+.stage.anchor-top { justify-content: flex-start; }
+.stage.anchor-bottom { justify-content: flex-end; padding-bottom: 300px; }
+.stage.band-upper { justify-content: flex-start; padding-bottom: 760px; }
+.stage.band-lower { justify-content: flex-end; padding-top: 870px; padding-bottom: 300px; }
+.stage.bleed { padding: 0 0 300px; }        /* the burn zone is never freed */
+.stage.bleed-x { padding-left: 0; padding-right: 0; }
+
 /* full-bleed backdrops fill the tall canvas (motifs.css now sizes them 100%, so this is a belt-and-braces) */
 .bg-photo, .bg-soft { width: 100%; height: 100%; }
 /* cover hero: a vertical scrim (dark at top) for a top-anchored title over a photo */

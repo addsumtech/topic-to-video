@@ -33,6 +33,17 @@ OR a non-card form that fits in the wrong direction (D1 bidirectional), player-c
 6. **(optional) rendered keyframes** — `<out_dir>/_keyframes/all.png` or extracted sample frames. When
    present, run the **D11 rendered keyframe pass** on the actual pixels; when absent, D11 is skipped and
    you grade the plan + authored pages only.
+7. **(optional) per-scene FILMSTRIPS — `<out_dir>/_keyframes/scene_NN.png`.** Each is that scene swept
+   across its REAL cue timeline: leftmost tile = the frame at t=0 (what the viewer sees while the
+   narration's first words play), rightmost = the frame that ships at the cut. This is the only motion
+   evidence in the pipeline — before it existed, **D2e(3) motion personality was unjudgeable by
+   construction** and every "the motion has personality" verdict was inferred from a JSON string. When
+   the strips are present, judge motion FROM THEM: does the deck's declared `motion_personality`
+   actually differ beat to beat, does the energy arc build toward the climax, and does each page OPEN
+   with something on screen. When absent, say so and mark D2e(3) unjudged rather than passing it.
+8. **(optional) `keyframe_qa` deck advisories** — the DOM-measured **content-band uniformity** and
+   silhouette-repetition lines. Feed them into D6b/D11: a deck whose pages all start or stop on the
+   same line is one template no matter how varied its forms are.
 
 ---
 

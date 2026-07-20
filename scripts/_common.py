@@ -77,3 +77,57 @@ def audio_duration(path):
         return float(d2) if d2 is not None else 0.0
     except Exception:
         return 0.0
+
+
+_ANIM_DUR_CACHE = {}
+
+def css_anim_durations():
+    """{class_name: seconds} for every animation class in base.css/motifs.css, parsed from the CSS so
+    it can never drift from the stylesheets. `var(--dur)` resolves via :root's own --dur.
+
+    Shared by validate.py (does a cued animation finish before the scene cuts?) and scenes.py (how
+    wide must the capture burst be so it doesn't freeze mid-flight?) — two questions that must agree
+    on the same numbers, or one gate passes what the other renders wrong."""
+    import re
+    if _ANIM_DUR_CACHE:
+        return _ANIM_DUR_CACHE
+    here = os.path.dirname(os.path.abspath(__file__))
+    css = ""
+    for name in ("base.css", "motifs.css"):
+        p = os.path.join(here, "..", "assets", "html", name)
+        if os.path.exists(p):
+            try:
+                css += open(p, encoding="utf-8").read() + "\n"
+            except Exception:
+                pass
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)   # a comment naming .draw would pollute the next selector
+    m = re.search(r"--dur\s*:\s*([\d.]+)s", css)
+    base_dur = float(m.group(1)) if m else 0.7
+    for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+        ma = re.search(r"animation\s*:\s*[a-zA-Z0-9_-]+\s+(?:([\d.]+)s|var\(--dur\))", body)
+        if not ma:
+            continue
+        secs = float(ma.group(1)) if ma.group(1) else base_dur
+        for cls in re.findall(r"\.([a-zA-Z0-9_-]+)", sel):
+            _ANIM_DUR_CACHE[cls] = max(_ANIM_DUR_CACHE.get(cls, 0.0), secs)
+    return _ANIM_DUR_CACHE
+
+
+AMBIENT_CLASSES = {"bg-live", "bg-drift"}
+
+def element_anim_seconds(tag_html, table=None):
+    """Effective animation-duration (seconds) for ONE element's opening tag: an inline
+    `animation-duration` wins, else the longest duration among its animation classes. None when the
+    element carries no animation at all (or is an ambient backdrop, which is progress-driven and
+    never truncated)."""
+    import re
+    table = table if table is not None else css_anim_durations()
+    mc = re.search(r'class\s*=\s*"([^"]*)"', tag_html)
+    classes = set(re.findall(r"[\w-]+", mc.group(1))) if mc else set()
+    if classes & AMBIENT_CLASSES or "data-ambient" in tag_html:
+        return None
+    mo = re.search(r"animation-duration\s*:\s*([\d.]*)s", tag_html)
+    if mo and mo.group(1) not in ("", "."):
+        return float(mo.group(1))
+    hits = [table[c] for c in classes if c in table]
+    return max(hits) if hits else None

@@ -23,7 +23,17 @@
     spans.forEach(function (s) {
       if (s.ambient) return;   // ambient backdrops are progress-driven, never cue-anchored
       var ci = s.el.getAttribute('data-cue-index');
-      if (ci !== null && cues[+ci] != null && !isNaN(cues[+ci])) s.d = cues[+ci];
+      if (ci !== null && cues[+ci] != null && !isNaN(cues[+ci])) {
+        // data-cue-offset: seconds to LEAD (negative) or LAG (positive) the spoken word. Without it
+        // an author's only temporal control is WHICH word fires an element — the reveal lands exactly
+        // on the anchor and nothing can be phrased against it. A connector that should start drawing
+        // just before its phrase, or a punchline that should land a beat after, had no expression.
+        // Clamped to [0, dur] so an offset can never schedule a reveal off the scene.
+        var off = parseFloat(s.el.getAttribute('data-cue-offset'));
+        s.d = cues[+ci] + (isNaN(off) ? 0 : off);
+        if (s.d < 0) s.d = 0;
+        if (s.d > dur) s.d = dur;
+      }
     });
   }
   // reveal-stagger envelope: max(delay+dur) over the REVEALS only (ambient backdrops excluded)

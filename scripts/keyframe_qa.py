@@ -46,6 +46,11 @@ _OVERFLOW_JS = (
     "var FILL='.meter,.segbar,.bar,.fill,.gauge,.track,.waffle,.isotype,.bullet,.spark';"
     "for(var i=0;i<n.length;i++){var e=n[i],r=e.getBoundingClientRect();"
     "if(r.width<1||r.height<1)continue;"
+    # .bleed-out = an element DELIBERATELY cropped by the frame edge. The crop is the composition,
+    # not an accident, so its subtree is exempt from the overflow measure (mirrors how a full-bleed
+    # backdrop is exempt). Without this, the off-canvas-bleed primitive would be unusable: the very
+    # gesture it exists to express is the one the probe blocks.
+    "if(e.closest&&e.closest('.bleed-out'))continue;"
     "var o=Math.max(r.right-W,r.bottom-H,-r.left,-r.top);if(o>worst)worst=o;"
     "var cs=getComputedStyle(e);if(cs.opacity!=='0'&&cs.display!=='none'){"
     "if(r.top<ct)ct=r.top;if(r.bottom>cb)cb=r.bottom;if(r.left<cl)cl=r.left;if(r.right>cr)cr=r.right;"
@@ -74,7 +79,20 @@ _OVERFLOW_JS = (
     "var minW=Math.min(A.width,B.width),minH=Math.min(A.height,B.height);"
     "if(A.abs&&B.abs&&((vgap>=-8&&vgap<=12&&hOv>0.3*minW)||(hgap>=-8&&hgap<=12&&vOv>0.3*minH))){"
     "crowd++;if(!crowdEx)crowdEx=String(pe.className).slice(0,30);}}}"
-    "var t=(document.body.innerText||'').replace(/\\s+/g,'').length;"
+    # VISIBLE text only. innerText counts text inside an `opacity:0` element (it excludes only
+    # display:none / visibility:hidden), and every .reveal* starts at opacity:0 — so a page whose
+    # reveals never fired reported a full text length and sailed through the BLANK check, which is
+    # precisely the failure the check exists to catch. Walk the leaf text nodes and charge each one
+    # only when its whole ancestor chain is actually visible.
+    "var t=0;(function(){var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,null);"
+    "var seen=new Map();var nd;while((nd=w.nextNode())){var s=(nd.nodeValue||'').replace(/\\s+/g,'');"
+    "if(!s)continue;var el=nd.parentElement,vis=true;"
+    "while(el&&el!==document.body){if(seen.has(el)){vis=seen.get(el);break;}"
+    "var c=getComputedStyle(el);"
+    "if(c.display==='none'||c.visibility==='hidden'||parseFloat(c.opacity)<0.05){vis=false;break;}"
+    "el=el.parentElement;}"
+    "var p=nd.parentElement;while(p&&p!==document.body){seen.set(p,vis);p=p.parentElement;}"
+    "if(vis)t+=s.length;}})();"
     "var EXCL='" + _CENTER_EXCL + "',centered=0,para=document.querySelectorAll('.sub,.note,.lead,p');"
     "for(var j=0;j<para.length;j++){var pe=para[j],pcs=getComputedStyle(pe);"
     "if(pcs.textAlign!=='center')continue;if(pe.closest&&pe.closest(EXCL))continue;"
@@ -210,7 +228,7 @@ def _band_uniformity_note(bands):
     return None
 
 
-def _shipped_url(out_dir, s, url):
+def _shipped_url(out_dir, s, url, p=1.0):
     """URL for the frame that ACTUALLY SHIPS — seek.js in CUE mode (?cues=&dur=) at p=1.0, which is
     the render's real last frame.
 
@@ -249,7 +267,7 @@ def _shipped_url(out_dir, s, url):
     for (orig_i, _), t in zip(ordered, times):
         sparse[orig_i] = min(t, margin)
     cue_param = ",".join("" if t is None else f"{t:.3f}" for t in sparse)
-    return url + f"?p=1.0&cues={cue_param}&dur={dur:.3f}"
+    return url + f"?p={p}&cues={cue_param}&dur={dur:.3f}"
 
 
 def run(out_dir, ps=DEFAULT_PS, as_json=False):
@@ -275,16 +293,25 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
             # percent-encode: an unquoted '#'/'%' truncates the file:// URL — Chrome loads its error
             # page and the probe returns a clean verdict for a page that never rendered (see snapshot.py)
             url = "file://" + quote(os.path.abspath(os.path.join(out_dir, page)))
+            # THE SWEEP IS THE REAL FILM. Without ?cues= seek.js runs in blind-ENVELOPE mode, where
+            # total = max(delay + animation-duration) — a timeline that NEVER SHIPS. Every p in that
+            # mode is a fiction: p=0 is not the scene's opening, and p=1.0 means "all animations
+            # finished" by construction. Sweeping the CUE timeline instead makes the contact sheet an
+            # actual filmstrip: p=0 is the frame the viewer sees while the narration's first words
+            # play, and p=1.0 is the frame that ships. Same shot count as before — strictly more
+            # information (the old separate shipped shot is now just the last frame of the sweep).
+            cued = _shipped_url(out_dir, s, url, p=1.0) is not None
             frames, ok, rvis, rtot = [], True, [], 0
             for p in ps:
                 fp = os.path.join(kf, f"scene_{idx:02d}_p{int(p*100):03d}.png")
+                shot_url = (_shipped_url(out_dir, s, url, p=p) if cued else url + f"?p={p}")
                 try:
                     if chrome:
-                        chrome.shot(url + f"?p={p}", fp)          # CDP: (url, out_path)
+                        chrome.shot(shot_url, fp)                 # CDP: (url, out_path)
                         rc = _reveal_count(chrome)                # count visible reveals at THIS frozen state
                         rvis.append(rc["vis"]); rtot = max(rtot, rc["tot"])
                     else:
-                        scenes._chrome_shot(url + f"?p={p}", fp, W, H, meta)
+                        scenes._chrome_shot(shot_url, fp, W, H, meta)
                     frames.append(Image.open(fp))
                 except Exception as e:
                     report.append({"scene": idx, "status": "ERROR", "issues": [f"render failed: {e}"]})
@@ -292,11 +319,20 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
             if not ok or not frames:
                 continue
             _sheet(frames, os.path.join(kf, f"scene_{idx:02d}.png"))
-            final = frames[-1]; shipped = None
+            final = frames[-1]; shipped = frames[-1] if cued else None
             issues, advisories = [], []       # issues block the gate; advisories are non-blocking
+            probed = True                     # False = nothing was measured; never report that as "ok"
             if chrome:
                 try:
-                    info = _dom_probe(chrome)   # page is still at p=1 (last shot) — measure it
+                    # GEOMETRY is measured on the AUTHORED RESTING state (blind p=1.0), not on the
+                    # shipped frame: overflow/clip must judge the layout the author wrote. On the cue
+                    # timeline an entrance can still be mid-flight at the cut, and .reveal-up's
+                    # transform would shift a box and report a phantom overflow. One extra blind shot
+                    # here replaces the separate shipped shot the sweep now provides — net shot count
+                    # per scene is unchanged.
+                    if cued:
+                        chrome.shot(url + "?p=1.0", os.path.join(kf, f"scene_{idx:02d}_resting.png"))
+                    info = _dom_probe(chrome)
                     # BLANK only when there is genuinely nothing rendered — not merely little text. A single-
                     # glyph hero ('7', a lone '%', one CJK char) or an icon-only diagram has a real content
                     # bbox; a full-bleed visual sets bleed. Flag only empty text AND no visible content box.
@@ -357,30 +393,46 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                         centroids.append((idx, ((info["cleft"] + info["cright"]) / 2) / W,
                                           ((info["ctop"] + info["cbot"]) / 2) / H))
                         bands.append((idx, info["ctop"] / H, info["cbot"] / H))
-                except Exception:
+                except Exception as e:
+                    # A probe that THREW measured nothing. Reporting "ok" here made an unverified
+                    # scene indistinguishable from a scene that passed all four geometry checks.
+                    probed = False
+                    advisories.append(f"UNVERIFIED — DOM probe failed ({type(e).__name__}); "
+                                      f"geometry/blank checks did not run for this page")
                     if _is_blank(final):
                         issues.append("BLANK at p=1 (reveal never fired / broken page)")
-            elif _is_blank(final):
-                issues.append("BLANK at p=1 (reveal never fired / broken page)")
-            # SHIPPED frame — captured AFTER the probe so every gate above keeps measuring the blind
-            # resting state it was written against. This is the frame the viewer actually sees: an
-            # animation the scene cuts off mid-flight shows up HERE and nowhere else on the sheet.
-            if chrome:
-                surl = _shipped_url(out_dir, s, url)
-                if surl:
-                    try:
-                        sfp = os.path.join(kf, f"scene_{idx:02d}_shipped.png")
-                        chrome.shot(surl, sfp)
-                        shipped = Image.open(sfp)
-                    except Exception:
-                        shipped = None
+            else:
+                probed = False
+                if _is_blank(final):
+                    issues.append("BLANK at p=1 (reveal never fired / broken page)")
+            # THE OPENING. frames[0] is now the real t=0 frame — what the viewer actually sees while
+            # the narration's first words play, and (with a dip) what the transition lands on. A page
+            # whose first reveal is anchored to a phrase spoken partway through opens on nothing; the
+            # doctrine has always called this "reads as broken" but no gate could see it, because in
+            # blind-envelope mode p=0 was a fiction. Only meaningful on the cue timeline.
+            if cued and frames and _is_blank(frames[0]):
+                # A page still empty a QUARTER of the way in has left the viewer on black for
+                # seconds while the voice talks — the doctrine's "reads as broken". A page blank only
+                # at t=0 has merely opened on a beat of black before its line fades in, which is a
+                # legitimate choice, so that one is said out loud but never blocks.
+                _late = next((i for i, pp in enumerate(ps) if pp >= 0.2), None)
+                if _late is not None and _late < len(frames) and _is_blank(frames[_late]):
+                    issues.append(f"BLANK through {int(ps[_late]*100)}% of the scene — the viewer is "
+                                  f"held on an empty frame for seconds while the narration plays; "
+                                  f"anchor the first reveal to an OPENING phrase, or give the page "
+                                  f"uncued header chrome that shows immediately")
+                else:
+                    advisories.append("opens on an empty frame at t=0 (its first reveal is cued, not "
+                                      "immediate) — fine as a deliberate beat of black, but check it "
+                                      "reads that way rather than as a late page")
             last_frames.append(shipped or final)   # all.png shows shipped frames where we have them
             if issues:
                 errors += 1
             if advisories:
                 warns += 1
-            report.append({"scene": idx, "issues": issues, "advisories": advisories,
-                           "status": "FAIL" if issues else ("WARN" if advisories else "ok")})
+            report.append({"scene": idx, "issues": issues, "advisories": advisories, "probed": probed,
+                           "status": "FAIL" if issues else ("WARN" if advisories else
+                                                            ("ok" if probed else "UNVERIFIED"))})
     finally:
         if chrome:
             chrome.close()

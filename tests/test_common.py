@@ -27,3 +27,28 @@ def test_find_chrome_ignores_bad_meta_path():
     # a non-existent chrome_path must not be returned; falls through to real discovery (path or None)
     r = c.find_chrome({"chrome_path": "/nope/Chrome"})
     assert r is None or os.path.exists(r)
+
+
+# ---- shared CSS animation-duration table (validate + scenes must agree on these numbers) ---------
+
+def test_css_anim_durations_match_the_stylesheets():
+    import _common
+    t = _common.css_anim_durations()
+    assert t["draw"] == 1.4 and t["reveal"] == 0.7 and t["float"] == 3.0
+
+def test_element_anim_seconds_prefers_an_inline_override():
+    import _common
+    assert _common.element_anim_seconds('<path class="draw" style="animation-duration:.5s">') == 0.5
+
+def test_element_anim_seconds_falls_back_to_the_class():
+    import _common
+    assert _common.element_anim_seconds('<path class="draw connector">') == 1.4
+
+def test_element_anim_seconds_none_without_animation():
+    import _common
+    assert _common.element_anim_seconds('<div class="card">') is None
+
+def test_element_anim_seconds_ignores_ambient_backdrops():
+    # .bg-live/.bg-drift are progress-driven across the whole scene and are never truncated
+    import _common
+    assert _common.element_anim_seconds('<img class="bg-soft bg-live">') is None

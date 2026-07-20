@@ -35,9 +35,9 @@ motion automatically.
 **Content shape:** one magnitude / result is the whole point. **Text budget:** kicker ≤ 24 chars, one
 `.stat` number, sub ≤ 90 chars. Pair with `props.climax` on the payoff beat.
 ```html
+<img class="bg-soft" src="file:///…/.assets/tex_1.png" style="opacity:.16">
 <div class="bg-soft-tint"></div>
-<div class="stage" style="justify-content:center">
-  <div class="kicker reveal-up">Net revenue retention</div>
+<div class="stage band-upper frame-left">
   <div class="reveal-up" data-cue-index="0" style="display:flex;align-items:baseline;gap:28px">
     <div class="stat">92<span class="unit">%</span></div>
     <div class="delta down" style="font-size:56px">▼ 14 pts</div>
@@ -48,6 +48,13 @@ motion automatically.
 ```
 Drop the `.delta` for a pure number. **9:16:** unchanged (already center-stacked); scale `.stat` up
 (`font-size:280px`) and let it own the upper-middle, sub below.
+
+**Why this one leads with the number and no kicker.** The deck's composition gate warns when EVERY
+page opens with a top `.kicker` hat, and a hero stat is the beat that should break it — the figure is
+the headline. `band-upper` + `frame-left` also gives it a silhouette no other template has: content in
+the top-left, a real void through the lower-right that the `.bg-soft` breathes in. Copying this page
+onto every beat would of course re-create the monotony; that is the point of having several envelopes
+to choose from.
 
 ## before_after — two states in tension (defocus the old one)
 **Content shape:** old→new / problem→solution / baseline→proposed. **Text budget:** title ≤ 34 chars, one
@@ -76,7 +83,7 @@ delta between them.
 **Content shape:** 3–5 ordered/dated stages, one is the focus (`.tl-node.on`). **Text budget:** `.tl-what`
 ≤ 16 chars, `.tl-when` a short date. Don't exceed 5 nodes on 16:9 (they crowd).
 ```html
-<div class="stage"><div class="kicker reveal-up">From prototype to product</div>
+<div class="stage band-lower"><div class="kicker reveal-up">From prototype to product</div>
   <h1 class="title reveal-up" style="font-size:72px;margin-bottom:20px">Four quarters, one bet.</h1>
   <div class="timeline">
     <div class="tl-node reveal-up" data-cue-index="0"><div class="tl-dot"></div><div class="tl-when">Q1</div><div class="tl-what">Prototype</div></div>
@@ -140,7 +147,7 @@ topology renders — decompose an arbitrary graph to a hub. **Text budget:** spo
 is visually 2× the supporting column — never an equal `.scorecard` wall. **Text budget:** one big `.stat`,
 supporting `.num` ≤ 6 chars, `.lab` ≤ 18 chars.
 ```html
-<div class="stage"><div class="kicker reveal-up">Quarter in one screen</div>
+<div class="stage anchor-top"><div class="kicker reveal-up">Quarter in one screen</div>
   <div class="grid-asym" style="margin-top:16px;align-items:stretch">
     <div class="card reveal-up" data-cue-index="0" style="display:flex;flex-direction:column;justify-content:center;border-color:var(--accent)">
       <div class="note">Annual recurring revenue</div>
@@ -160,7 +167,7 @@ supporting `.num` ≤ 6 chars, `.lab` ≤ 18 chars.
 primary, the stat is a small accent — not a co-equal block). **Text budget:** `.tl-what` ≤ 14 chars,
 one proof figure + ≤ 30-char note.
 ```html
-<div class="stage"><div class="kicker reveal-up">One customer, twelve months</div>
+<div class="stage anchor-bottom"><div class="kicker reveal-up">One customer, twelve months</div>
   <h1 class="title reveal-up" style="font-size:60px;margin-bottom:18px">From pilot to platform bet.</h1>
   <div class="timeline" style="margin-bottom:44px">
     <div class="tl-node reveal-up" data-cue-index="0"><div class="tl-dot"></div><div class="tl-when">Jan</div><div class="tl-what">10-seat pilot</div></div>
@@ -295,7 +302,7 @@ it with cued callouts. The panel is a `.media` holding a `file://` image you gen
 / a real scan crop — `object-fit:contain` for a plot, `cover` for an image); `.chip`s (`.good`/`.risk`
 recolour the dot) reveal as the narration points. **Text budget:** takeaway ≤ 28 chars, each chip ≤ 34.
 ```html
-<div class="stage"><div class="kicker reveal-up">Reconstruction error over iterations</div>
+<div class="stage anchor-top frame-left"><div class="kicker reveal-up">Reconstruction error over iterations</div>
   <div class="split" style="padding:0;height:auto;grid-template-columns:1.3fr 1fr;gap:56px;margin-top:24px">
     <div class="media reveal-wipe" data-cue-index="0" style="height:620px"><img src="file:///ABS/recon_curve.png" style="object-fit:contain;background:var(--bg)"></div>
     <div style="display:flex;flex-direction:column;justify-content:center;gap:26px">

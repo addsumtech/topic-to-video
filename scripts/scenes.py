@@ -908,9 +908,34 @@ def render_html(props, meta, W, H, frames, workdir, index):
         ctimes = cue_times
         burst = 0.8              # >= the reveal --dur (.7s) so a mid-scene cue reaches 100% inside its
         HEAD_WINDOW = 1.2        # capture window before the hold-copy (was 0.6 → a visible freeze-then-snap)
+        # PER-CUE burst. A flat 0.8s silently truncated every animation longer than the .7s reveal:
+        # a cued `.draw` (1.4s) stopped being captured at 57% of its timeline and then HELD that frame
+        # for the rest of the scene, so the connector never reached its endpoint — no matter how long
+        # the scene ran. (Measured: a 1.4s draw cued at 1.2s of a 7s scene froze at 86% of its length
+        # and stayed there for 5s.) `.count-up` (1.2s) and a cued `img.kenburns` failed the same way.
+        # Widen the window ONLY for the cue indices that actually carry a long animation, so a page of
+        # ordinary .7s reveals captures exactly as many frames as before.
+        _table = _common.css_anim_durations()
+        _need = {}
+        for _tag in re.findall(r"<[^>]+>", html):
+            _mi = re.search(r'data-cue-index\s*=\s*["\'](\d+)["\']', _tag)
+            if not _mi:
+                continue
+            _sec = _common.element_anim_seconds(_tag, _table)
+            if _sec:
+                _ci = int(_mi.group(1))
+                # a data-cue-offset LAGS the element past its anchor, so the window must reach that
+                # far too or the offset reveal itself gets frozen mid-flight
+                _mo = re.search(r'data-cue-offset\s*=\s*["\']([-\d.]+)["\']', _tag)
+                _lag = max(0.0, float(_mo.group(1))) if _mo else 0.0
+                _need[_ci] = max(_need.get(_ci, 0.0), _sec + _lag)
+        # +0.1s so the final settled frame is captured, capped so a stray 3s .float can't force a
+        # full-frame capture of the whole scene.
+        _windows = [min(max(burst, _need.get(i, 0.0) + 0.1), 3.1) for i in range(len(ctimes))]
         def is_reveal(t):
             # _has_ambient forces every frame (the backdrop moves continuously); else burst around cues
-            return _has_ambient or t <= HEAD_WINDOW or any(c <= t <= c + burst for c in ctimes)
+            return _has_ambient or t <= HEAD_WINDOW or any(c <= t <= c + _windows[i]
+                                                           for i, c in enumerate(ctimes))
         shots, copies, last_i = [], [], None
         for i in range(frames):
             t = i / float(fps)
