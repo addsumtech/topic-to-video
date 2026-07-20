@@ -77,6 +77,10 @@ def record(out_dir):
         "mode": mode,
         "accent": accent,
         "language": str(meta.get("language") or ""),
+        # a branded HOUSE series shares its accent by mandate — the marker lets the contest dispatch
+        # read same-brand recents as continuity, not convergence to avoid
+        "brand": os.path.basename(str(((meta.get("brand") or {}).get("logo")) or ""))
+                 if isinstance(meta.get("brand"), dict) else "",
     }
     entries = [e for e in _load() if e.get("deck") != entry["deck"]]   # re-delivering a deck updates it
     entries.insert(0, entry)

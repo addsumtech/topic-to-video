@@ -1206,6 +1206,56 @@ def test_brand_jpeg_logo_warns(tmp_path):
     r = _brand_eval(tmp_path, {"logo": _brand_asset(tmp_path, "assets/brand/logo.jpg")})
     assert any("JPEG" in w and "white box" in w for w in r["warnings"])
 
+def _brand_png(tmp_path, rel="assets/brand/logo.png", size=(60, 20)):
+    from PIL import Image
+    p = os.path.join(str(tmp_path), rel)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    Image.new("RGBA", size, (200, 30, 30, 255)).save(p)
+    return rel
+
+def test_brand_bug_margin_frac_warns(tmp_path):
+    # margin_frac 0.5 lands the "top corner" mark in the caption zone; 1.5 pastes it off-canvas —
+    # both previously validated CLEAN (audit find S4#2)
+    r = _brand_eval(tmp_path, {"logo": _brand_png(tmp_path), "placement": ["bug"],
+                               "bug": {"margin_frac": 0.5}})
+    assert any("margin_frac" in w for w in r["warnings"])
+    r2 = _brand_eval(tmp_path, {"logo": _brand_png(tmp_path), "placement": ["bug"],
+                                "bug": {"margin_frac": 0.02}})
+    assert not any("margin_frac" in w for w in r2["warnings"])
+
+def test_brand_banner_logo_warns_under_bug(tmp_path):
+    # a ~13:1 wordmark hits render's 35%-width clamp — steer toward a squarer mark up front
+    r = _brand_eval(tmp_path, {"logo": _brand_png(tmp_path, size=(2600, 200)), "placement": ["bug"]})
+    assert any("banner" in w and "35%" in w for w in r["warnings"])
+    r2 = _brand_eval(tmp_path, {"logo": _brand_png(tmp_path, size=(480, 160)), "placement": ["bug"]})
+    assert not any("banner" in w for w in r2["warnings"])
+    # lockup-only placement never draws the bug -> no banner warn either
+    r3 = _brand_eval(tmp_path, {"logo": _brand_png(tmp_path, size=(2600, 200))})
+    assert not any("banner" in w for w in r3["warnings"])
+
+def test_brand_lockup_on_non_html_edge_scene_warns_only_on_designed_decks(tmp_path):
+    # cover in placement but scene 1 is an image slide: on a deck that HAS html pages that's an
+    # unbranded cover nobody will notice (audit find S3#13iii); on a pure slide-image deck the
+    # master logo arrives baked in — stay quiet
+    brand = {"logo": _brand_asset(tmp_path), "placement": ["cover"]}
+    mixed = [_slide_scene(tmp_path, 0), _html_scene(tmp_path, 1, "pages/s2.html", "<div>x</div>")]
+    r = validate.evaluate(_board(str(tmp_path), mixed, meta={"brand": brand}), str(tmp_path))
+    assert any("can only be AUTHORED into an html page" in w for w in r["warnings"])
+    pure = [_slide_scene(tmp_path, 0), _slide_scene(tmp_path, 1)]
+    r2 = validate.evaluate(_board(str(tmp_path), pure, meta={"brand": brand}), str(tmp_path))
+    assert not any("AUTHORED into an html" in w for w in r2["warnings"])
+
+def test_brand_lockup_reference_in_comment_does_not_count(tmp_path):
+    # a commented-out <img> satisfied the substring check while shipping an unbranded frame
+    brand = {"logo": _brand_asset(tmp_path), "placement": ["cover"]}
+    page = _html_scene(tmp_path, 0, "pages/cov.html",
+                       "<!-- <img src='assets/brand/logo.png'> --><div>title</div>")
+    r = validate.evaluate(_board(str(tmp_path), [page], meta={"brand": brand}), str(tmp_path))
+    assert any("never references" in w for w in r["warnings"])
+    live = _html_scene(tmp_path, 0, "pages/cov.html", "<img src='assets/brand/logo.png'><div>title</div>")
+    r2 = validate.evaluate(_board(str(tmp_path), [live], meta={"brand": brand}), str(tmp_path))
+    assert not any("never references" in w for w in r2["warnings"])
+
 def test_brand_bug_corner_warns(tmp_path):
     r = _brand_eval(tmp_path, {"logo": _brand_asset(tmp_path), "placement": ["bug"],
                                "bug": {"corner": "bl"}})

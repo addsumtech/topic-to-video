@@ -83,6 +83,13 @@ The renderer burns captions derived from `narration` into the video. Check the s
   timestamp).
 - PASS on fine visual aesthetics: exact colour palette, micro-spacing, and animation style are NOT your
   concern — only technical rendering failures AND the squint/player-chrome checks below.
+- **Brand bug (only when `meta.brand.placement` includes `"bug"`)** — you are the ONLY gate whose
+  evidence shows it (it is drawn at render time; pages/keyframes never carry it). In the extracted
+  frames confirm: present in the declared top corner on non-edge scenes; ABSENT on the cover/endcard
+  scenes its lockups own (double-brand is a defect); the variant reads against the ground (not a dark
+  mark lost on a dark bg); it sits over quiet space, not busy content; aspect looks true (a squashed
+  or stretched mark is a hard REVISE). WARN, not FAIL, on judgement calls; FAIL a missing-everywhere
+  bug (placement asked, nothing drawn — likely an unreadable logo file, check the render log).
 
 ### Squint + no player-chrome
 - **Compression safety (WARN, not REVISE):** in the extracted frames (already once-encoded at

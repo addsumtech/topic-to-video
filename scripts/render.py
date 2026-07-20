@@ -609,8 +609,9 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
         "logo": stat(_bug_logo_rel(meta)) if _bug_placed(meta) else None,
         # whether THIS scene carries the bug depends on its edge position (first/last skip under
         # cover/endcard) — appending or dropping an edge scene flips a former edge scene's bug
-        # without changing anything else about it, so the verdict itself must key the cache
-        "bughere": _bug_wanted(meta, slide) if meta.get("brand") else None,
+        # without changing anything else about it, so the verdict itself must key the cache.
+        # "v2" = sizing impl (min(W,H) + 35%-W banner clamp): busts only bug-bearing clips
+        "bughere": ("v2" if _bug_wanted(meta, slide) else False) if meta.get("brand") else None,
     }, sort_keys=True, default=str)
     return hashlib.sha1(payload.encode()).hexdigest()[:16]
 
@@ -998,13 +999,23 @@ def _brand_bug_png(meta, W, H, dst):
     # at the gate (numbers-only lint), and a warning must never become a render crash here
     try:
         logo = Image.open(os.path.join((meta or {}).get("_out", "."), rel)).convert("RGBA")
-        h = max(1, int(float(cfg.get("height_frac", 0.045)) * H))
+        if logo.getchannel("A").getextrema()[1] == 0:
+            print(f"[render] warning: brand bug skipped — logo is fully transparent: {rel}")
+            return None
+        # size by the NARROW dimension (the caption-font lesson: a fraction of H balloons ~3× relative
+        # to frame width on 9:16) and clamp a banner wordmark to ~35% of W — wider is a strip, not a
+        # watermark, and PIL would silently paste it off-canvas; aspect survives via the h rescale
+        margin = int(float(cfg.get("margin_frac", 0.02)) * W)
+        h = max(1, int(float(cfg.get("height_frac", 0.045)) * min(W, H)))
         w = max(1, round(logo.width * h / logo.height))
+        wmax = max(1, min(int(0.35 * W), W - 2 * margin))
+        if w > wmax:
+            w = wmax
+            h = max(1, round(logo.height * w / logo.width))
         logo = logo.resize((w, h), Image.LANCZOS)
         op = max(0.0, min(1.0, float(cfg.get("opacity", 0.5))))
         if op < 1.0:
             logo.putalpha(logo.getchannel("A").point(lambda a: int(a * op)))
-        margin = int(float(cfg.get("margin_frac", 0.02)) * W)
         x = margin if cfg.get("corner") == "tl" else W - w - margin
         layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         layer.paste(logo, (x, margin)) # verbatim copy (no mask): the ground is fully transparent, and a
@@ -1039,7 +1050,9 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
         for k, seg in enumerate(caption_segs):
             if not (seg.get("text") or "").strip():
                 continue
-            cap_png = os.path.join(workdir, f"scap_{k:03d}.png")
+            # index-scoped like every other per-scene artifact in the shared workdir (sbug_/cap_/
+            # scene_ frames) — the sequential loop makes a bare k safe today, a parallel one wouldn't
+            cap_png = os.path.join(workdir, f"scap_{(slide or {}).get('index', 0):02d}_{k:03d}.png")
             _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text, band_bg=band_bg, hl_span=seg.get("hl_span"))
             extra_inputs.append("-i"); extra_inputs.append(cap_png)
             en = f"between(t,{seg['start']},{seg['end']})"

@@ -45,3 +45,16 @@ def test_record_nothing_without_register(tmp_path, monkeypatch):
     (d / "design_plan.json").write_text(json.dumps({"beats": {}}))
     assert rl.record(str(d)) is None
     assert rl.recent() == []
+
+
+def test_record_carries_brand_marker(tmp_path, monkeypatch):
+    # a branded HOUSE series shares its accent by mandate — the marker lets the contest dispatch
+    # read same-brand recents as continuity instead of convergence to diverge away from
+    monkeypatch.setenv("SLIDES_TO_VIDEO_HOME", str(tmp_path / "home"))
+    d = tmp_path / "deckB"; _mk_deck(d)
+    (d / "storyboard.json").write_text(json.dumps(
+        {"meta": {"language": "zh", "brand": {"logo": "assets/brand/acme.png"}}, "slides": []}))
+    e = rl.record(str(d))
+    assert e["brand"] == "acme.png"
+    _mk_deck(tmp_path / "deckC")                     # unbranded -> empty marker, never a crash
+    assert rl.record(str(tmp_path / "deckC"))["brand"] == ""

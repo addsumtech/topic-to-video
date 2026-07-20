@@ -496,7 +496,9 @@ TTS if the user gives an API key.
      **CONTEST mode** → `register_candidates` (forced-divergent
      angles; see its "Register CONTEST — Phase A"). ② Per candidate `<key>`: make `<out>/_contest/<key>/`,
      run `python scripts/theme.py <out>/_contest/<key> --style <its visual_style> [--accent …]` for its
-     own theme.css, author ONE representative page from its `frame_spec` — **linking
+     own theme.css (**branded deck: pass the brand hue as `--accent` for EVERY candidate** — the
+     `_contest` dirs have no storyboard so the auto-seed can't fire there; candidates diverge on style
+     family/motion/type/silhouette, never on the mark's colour), author ONE representative page from its `frame_spec` — **linking
      `<out>/_contest/<key>/theme.css`, NOT `<out_dir>/theme.css`** (which doesn't exist yet; the
      html-pages boilerplate's theme link is substituted with the candidate's) — then
      `python scripts/snapshot.py <page> <out>/_contest/<key>/frame.png` (**add `--vertical` when
@@ -507,7 +509,9 @@ TTS if the user gives an API key.
      whole contest to paper mode. **②b Mechanical diversity check:**
      `python scripts/contest_diversity.py <out>/_contest/*/frame.png` — a flagged pair (same mode +
      clustered palette + clustered silhouette) means the divergence was theater: REDIVERGE the pair, or
-     keep it ONLY with a named justification recorded in the contest notes. ③ Dispatch `agents/design-critic.md`
+     keep it ONLY with a named justification recorded in the contest notes ("brand-locked accent" is
+     PRE-AUTHORIZED on a `meta.brand` deck — the shared palette is a mandate; a flag there means look
+     at mode+silhouette, which must still diverge). ③ Dispatch `agents/design-critic.md`
      in **judge mode** (give it the PNG paths + specs + `meta.audacity`): floor-breakers out, survivors
      ranked, ONE winner (or REDIVERGE once — never twice). **③b Motion snippets for the finalists:**
      re-run snapshot with `--motion <out>/_contest/<key>/motion.mp4` for the winner + runner-up (~2s
@@ -560,14 +564,20 @@ TTS if the user gives an API key.
      `rhythm_qa` relaxes the persuasive-arc checks on an expository (tutorial/reference) video.
      **Also persist the interview's audacity into `meta.audacity`** — `validate.py`'s register-contest
      lints read it from the storyboard meta; left unset it defaults to `balanced` and a bold run's
-     missing-contest warning would silently never fire. **Keep BOTH plan files** — the critic
+     missing-contest warning would silently never fire. **Persist the interview's brand assets into
+     `meta.brand` at this merge too** (and copy the files to `assets/brand/` if not already) — the
+     theme auto-seed, the render bug, and every brand lint read the STORYBOARD meta; a brand recorded
+     only in conversation notes never reaches any of them. **Keep BOTH plan files** — the critic
      panel (step 5) receives them: `critic-content`/`critic-narrative` audit the content plan (continuity,
      relation, faithfulness); the **design-critic** audits the design plan (motif, form diversity,
      transitions, icons, whitespace, rhythm, colour, motion).
 - **Theme:** run `scripts/theme.py <out_dir> [--style <meta.visual_style>]` AFTER the design plan and BEFORE
   authoring pages or programmatic scenes — it samples `frames/` for a curated light/dark palette fitting the
   topic (or pass `--mode/--accent/--accent2/--bg` from the **design-director's** `theme` when there are no
-  frames). **Pass `--style <the deck's visual_style>`** (from `references/visual-styles.md`) so the chosen
+  frames — **EXCEPT the accent on a branded deck**: when `meta.brand` is set, OMIT `--accent` so the
+  brand auto-seed fires, or pass the brand hue itself; the director's topic-derived accent would
+  silently override the mark's colour — the exact deck class the seed exists for is the from-scratch
+  designed one with no frames). **Pass `--style <the deck's visual_style>`** (from `references/visual-styles.md`) so the chosen
   style seeds the palette + emits style-hint vars. **base.css/motifs.css AUTO-consume** `--radius` (card +
   data-component corners), `--font-display`/`--font-body` (the style's bundled TYPE — see below),
   `--border-weight`+`--border-ink` (the `--hairline` border), `--grid-strength` (`.bg-grid` density) — so
@@ -766,9 +776,11 @@ TTS if the user gives an API key.
   EXCEPT scene 1 when "cover" ∈ placement and the last scene when "endcard" ∈ placement (double-brand
   on one frame is a craft fail). Top corners only (`"tr"`/`"tl"` — the bottom is the caption zone);
   height = `height_frac`·H (default 4.5%), margin = `margin_frac`·W, opacity via alpha; uses
-  `logo_dark` when the parsed theme bg's relative luminance < 0.5, else `logo`; composited INTO the
-  page BEFORE the edge/transition filter so it dips with the seam (a bug floating over a bg dip is
-  wrong). The bug is a **local-renderer** feature — the remotion tier does not draw it
+  `logo_dark` when the parsed theme bg's relative luminance < 0.5, else `logo`; height scales by
+  the NARROW canvas dimension (so 9:16 doesn't balloon it) and a banner wordmark is clamped to
+  ~35% of the frame width (aspect kept); OVERLAID onto the composite (not baked into the frame — it
+  must not ride the Ken Burns move) BEFORE the edge/transition filter so it dips with the seam (a
+  bug floating over a bg dip is wrong). The bug is a **local-renderer** feature — the remotion tier does not draw it
   (`validate.py` warns on "bug" + `renderer:"remotion"`). The logo is NEVER stretched (preserve
   aspect), never recolored, no effects.
 - **HTML pages tier:** `type:"html"` scenes render an authored page via headless Chrome

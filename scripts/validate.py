@@ -850,12 +850,38 @@ def _brand_lints(meta, slides, out_dir, errors, warnings):
             if sb._is_num(hf) and not (0.02 <= float(hf) <= 0.10):
                 warnings.append(f"meta.brand.bug.height_frac {hf} outside 0.02..0.10 — a bug is a watermark, "
                                 f"not a lockup; keep ~0.045")
+            mf = bug.get("margin_frac")
+            if sb._is_num(mf) and not (0.005 <= float(mf) <= 0.08):
+                warnings.append(f"meta.brand.bug.margin_frac {mf} outside 0.005..0.08 — past it the 'top "
+                                f"corner' mark drifts into the content (or clean off the canvas); keep ~0.02")
+        # a banner wordmark drawn at bug height becomes a strip across the top — render clamps it to
+        # ~35% of the frame width (aspect kept), so warn the author toward a squarer mark up front
+        if logo and _exists(out_dir, logo) and not str(logo).lower().endswith(".svg"):
+            try:
+                from PIL import Image as _Im
+                lw, lh = _Im.open(os.path.join(out_dir, str(logo))).size
+                if lh and lw / lh > 8:
+                    warnings.append(f"meta.brand.logo is {lw}×{lh} (~{lw / lh:.0f}:1) — at corner-bug height a "
+                                    f"banner this wide hits render's ~35%-of-frame-width clamp; a squarer mark "
+                                    f"(or a cropped monogram variant) reads better at watermark size")
+            except Exception:
+                pass
     # cover/endcard lockups are AUTHORED into the first/last html pages (render.py does NOT draw
     # them) — a placement whose page never references the logo filename ships an unbranded frame.
     names = {os.path.basename(str(p)) for p in (logo, dark) if p}
+    has_html = any(isinstance(s, dict) and s.get("type") == "html" for s in slides)
     for place, scene in (("cover", slides[0] if slides else None),
                          ("endcard", slides[-1] if slides else None)):
-        if place not in pl or not isinstance(scene, dict) or scene.get("type") != "html":
+        if place not in pl or not isinstance(scene, dict):
+            continue
+        if scene.get("type") != "html":
+            # only meaningful on a deck that HAS designed pages — a pure slide-image deck can't author
+            # a lockup anywhere (its master-slide logo arrives baked into the frames)
+            if has_html:
+                warnings.append(f"meta.brand: '{place}' in placement but the "
+                                f"{'first' if place == 'cover' else 'last'} scene is type "
+                                f"'{scene.get('type', 'slide')}' — a lockup can only be AUTHORED into an html "
+                                f"page; make that beat an html scene or drop '{place}' from placement")
             continue
         page = (scene.get("props") or {}).get("html")
         if not page or not _exists(out_dir, page):
@@ -864,6 +890,7 @@ def _brand_lints(meta, slides, out_dir, errors, warnings):
             html = open(os.path.join(out_dir, page), encoding="utf-8", errors="replace").read()
         except OSError:
             continue
+        html = re.sub(r"<!--.*?-->", "", html, flags=re.S)   # a commented-out lockup is not a lockup
         if names and not any(n in html for n in names):
             warnings.append(f"meta.brand: '{place}' in placement but {page} never references "
                             f"'{sorted(names)[0]}' — the lockup is authored into the page, not drawn by "

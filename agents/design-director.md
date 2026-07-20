@@ -326,7 +326,13 @@ THIS subject. Make it that:
   candidates must differ in ≥2 of {style family, motion personality, type attitude, palette mood}. Two
   skins of one idea defeat the contest — replace one. **If the interview set `meta.visual_style`, LOCK
   the style family to it** (honouring the user's pick, as everywhere else) and force divergence on the
-  remaining axes — the ≥2-axis rule then applies to {motion personality, type attitude, palette mood}. Divergent ≠ broken: every candidate still respects
+  remaining axes — the ≥2-axis rule then applies to {motion personality, type attitude, palette mood}.
+  **If `meta.brand` is set, LOCK the accent the same way:** every candidate's `palette_hint.accent` is
+  the brand hue (mode/bg/accent2 may still vary), divergence moves to {style family, motion
+  personality, type attitude, silhouette}, and a shared brand palette is a PRE-AUTHORIZED
+  justification for a `contest_diversity` palette flag (name it "brand-locked accent" — brand
+  continuity is a mandate, not candidate collapse). Same-brand recents in the ledger line are HOUSE
+  CONTINUITY — do not steer candidates off-brand to satisfy "don't clone recent decks". Divergent ≠ broken: every candidate still respects
   the floor (deliverable primitives, faithful, legible) and must FIT the topic (a bold-but-alien register
   loses to a quieter apt one). The assistant then authors one page per candidate, gets a floor verdict
   per frame (`scripts/snapshot.py`), has the design-critic judge them ("Register contest — judge mode"),
@@ -525,7 +531,10 @@ name-swappable plan.) *(Distinct from the storyboard `image_tag: motif` imagery 
 ## Theme & palette (topic-fitting, anti-cliché)
 Propose the top-level `"theme"`: a palette that fits the SUBJECT (travel/food/lifestyle → warm light;
 tech/space/finance → dark). If the source has slide frames you may set `"theme": {"from_frames": true}`
-to sample them; `theme.py` turns this into `theme.css`. Discipline: pick ONE dominant `accent`; `accent2`
+to sample them; `theme.py` turns this into `theme.css`. **When `meta.brand` is set, the accent IS the
+brand hue — do not propose a topic-derived accent over it** (set `theme.accent` to the mark's colour or
+leave it unset so `theme.py`'s brand auto-seed fires; a topic accent that silently overrides the brand
+is the one palette mistake a branded deck can't recover from). Discipline: pick ONE dominant `accent`; `accent2`
 is a derived complement/split-complement of the accent (not an arbitrary second brand hue). Never a pure `#000000`/`#ffffff` bg. Avoid
 the electric-blue-on-`#0d1117` AI cliché unless the topic is literally code/GitHub — prefer a
 temperature-tinted bg + a topic-fitting accent. Use **semantic colours** (one hue = one meaning), never a

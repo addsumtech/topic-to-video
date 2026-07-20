@@ -253,8 +253,10 @@ AUTHORED into the first/last pages — `render.py` does not draw them (only the 
 `meta.brand.logo` path resolved absolute: `file:///ABS/OUT_DIR/assets/brand/logo.png` (svg is
 fine here — only the render bug needs raster).
 
-**Cover LOCKUP — furniture, never the hero.** Small, in a corner or under the title block; the
-topic is the hero, the mark is a byline — it must not compete with the title/kicker:
+**Cover LOCKUP — furniture, never the hero.** Small, in a TOP corner or under the title block —
+never the bottom ~14% (that's the overlay caption zone; a bottom-corner lockup trips the blocking
+caption-zone gate). The topic is the hero, the mark is a byline — it must not compete with the
+title/kicker:
 ```html
 <div class="stage frame-left">
   <div class="kicker reveal">SERIES</div>

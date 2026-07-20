@@ -69,13 +69,19 @@ def _brand_accent(path):
 
 def _storyboard_brand_logo(out_dir):
     """meta.brand.logo from <out_dir>/storyboard.json (path rel to out_dir) — the auto brand source
-    when neither --accent nor --brand-logo was passed. Best-effort: '' on any absence, no note."""
+    when neither --accent nor --brand-logo was passed. Best-effort AND honest: silent when there is
+    no storyboard or no brand block (the normal unbranded case), but a DECLARED brand whose logo
+    file isn't on disk yet gets a printed note — the silent no-op shipped brandless accents."""
     try:
         lg = str(json.load(open(os.path.join(out_dir, "storyboard.json")))["meta"]["brand"]["logo"])
-        lg = lg if os.path.isabs(lg) else os.path.join(out_dir, lg)
-        return lg if os.path.exists(lg) else ""
     except Exception:
         return ""
+    p = lg if os.path.isabs(lg) else os.path.join(out_dir, lg)
+    if not os.path.exists(p):
+        print(f"[theme] meta.brand.logo '{lg}' declared but not on disk — accent derived WITHOUT the "
+              f"brand hue; copy the asset in and re-run theme.py")
+        return ""
+    return p
 
 # Visual-style presets (see references/visual-styles.md). A chosen style SEEDS the palette (mode + accent
 # family) and emits style-hint CSS vars for the flat/HTML tiers + motifs. Precedence: explicit --mode/
@@ -167,6 +173,14 @@ def derive_theme(out_dir, mode=None, accent=None, accent2=None, bg=None, style=N
     _pmode, _pacc, _pacc2, _pvars = _pre if _pre else (None, None, None, {})
     if not accent and not brand_logo:                   # storyboard meta.brand.logo auto-seeds the accent
         brand_logo = _storyboard_brand_logo(out_dir)
+    elif accent:
+        # overriding a DECLARED brand with --accent is legitimate (a stated brand colour) — but say
+        # so, or the override is indistinguishable from the seed never having fired
+        try:
+            if json.load(open(os.path.join(out_dir, "storyboard.json")))["meta"].get("brand"):
+                print("[theme] explicit --accent overrides the meta.brand hue (drop --accent to seed from the logo)")
+        except Exception:
+            pass
     brand = _brand_accent(brand_logo) if (brand_logo and not accent) else None
     sampled = None if (accent and bg) else _sample_frames(out_dir)   # frames still drive light/dark
     if mode in ("light", "dark"):

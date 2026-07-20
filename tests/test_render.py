@@ -939,6 +939,39 @@ def test_fingerprint_keys_edge_position_flip(tmp_path):
     assert fp(9) != fp(10)              # scene 9 stops being the closer -> gains the bug -> re-render
 
 
+def test_brand_bug_sizes_by_narrow_dim_and_clamps_banners(tmp_path):
+    # the caption-font lesson applies to the bug too: a fraction of H balloons ~3x relative to frame
+    # width on 9:16 -> size by min(W,H). And a banner wordmark must clamp to ~35% of W (aspect kept)
+    # instead of PIL silently pasting it off-canvas (audit finds S1#2/S1#3/S4#1)
+    from PIL import Image
+    (tmp_path / "assets").mkdir()
+    Image.new("RGBA", (480, 160), (200, 30, 30, 255)).save(tmp_path / "assets" / "logo.png")
+    meta = {"_out": str(tmp_path), "brand": {"logo": "assets/logo.png", "placement": ["bug"]}}
+    p = str(tmp_path / "bug.png")
+    render._brand_bug_png(meta, 1080, 1920, p)                     # vertical
+    x0, y0, x1, y1 = Image.open(p).getchannel("A").getbbox()
+    assert y1 - y0 == int(0.045 * 1080)                            # narrow dim, not H=1920
+    assert x1 <= 1080 and x0 >= 0                                  # on-canvas
+    Image.new("RGBA", (4000, 50), (200, 30, 30, 255)).save(tmp_path / "assets" / "logo.png")
+    render._brand_bug_png(meta, 1080, 1920, p)                     # 80:1 banner on 9:16
+    x0, y0, x1, y1 = Image.open(p).getchannel("A").getbbox()
+    assert x1 - x0 <= int(0.35 * 1080) + 1 and x0 > 0              # clamped, right-aligned, on-canvas
+    assert abs((x1 - x0) / (y1 - y0) - 80) < 12                    # aspect survives the clamp
+    render._brand_bug_png(meta, 1920, 1080, p)                     # same banner, landscape
+    x0, _, x1, _ = Image.open(p).getchannel("A").getbbox()
+    assert x1 - x0 <= int(0.35 * 1920) + 1 and x1 <= 1920
+
+
+def test_brand_bug_fully_transparent_logo_skips(tmp_path, capsys):
+    # an all-transparent png "succeeding" means an invisible bug and no signal anywhere — skip loud
+    from PIL import Image
+    (tmp_path / "assets").mkdir()
+    Image.new("RGBA", (60, 20), (0, 0, 0, 0)).save(tmp_path / "assets" / "logo.png")
+    meta = {"_out": str(tmp_path), "brand": {"logo": "assets/logo.png", "placement": ["bug"]}}
+    assert render._brand_bug_png(meta, 1920, 1080, str(tmp_path / "b.png")) is None
+    assert "fully transparent" in capsys.readouterr().out
+
+
 def test_brand_malformed_degrades_never_crashes(tmp_path, capsys):
     # validate ERRORs these shapes, but render can run ungated — it must skip the bug, not die
     assert render._bug_wanted({"_out": str(tmp_path), "brand": "acme"}, {"index": 3}) is False

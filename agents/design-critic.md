@@ -196,6 +196,11 @@ un-renderable promise? State in the verdict that the ranking is spec-only and we
   hero); the **`bug` over busy content** (it needs a quiet corner); or **double-brand on one frame**
   (bug + lockup simultaneously — the bug must skip the cover/endcard scenes its `placement` lockups
   own). A FABRICATED logo inside generated imagery stays `critic-content`'s R1e — don't double-count.
+- **Evidence source:** lockup items are judged from the AUTHORED PAGES (and keyframes when present);
+  the corner **bug never appears in pages or keyframes** — it is drawn at render time, so bug items
+  are judgeable only from EXTRACTED VIDEO FRAMES (`sample.mp4`/`out.mp4` — the critic-av's evidence).
+  With no video frames in your inputs, mark bug items "not assessed — critic-av's step" rather than
+  passing them silently.
 
 ### D5 — Composition, whitespace + Space Intelligence
 - **REVISE** an `html` beat that is a single centred line (it's a `title`, not a page) or that has <2
