@@ -208,7 +208,7 @@ the opacity cap — together these once let five PAID generated images ship cont
   classes are excluded); on **mystery furniture** (an empty bordered box with no text and no
   `data-role` — every element must be viewer-decodable in ~1s, see html-pages.md "Decodability rule");
   on **near-miss alignment** (sibling edges off by 5–22px — snap to a shared guide, see "Alignment &
-  order discipline"); on **content-band uniformity** (the deck-level check the centroid can't make: when
+  order discipline"); on **silhouette repetition** (deck-level clustering of the **area-weighted** content centroid — weighting each ink-carrying box by its area, because the bbox MIDPOINT it replaced sits at ~0.5 for any page whose content spans the frame, and so reported 23-of-29 pages "centred" on a deck measuring 10-left/9-mid/10-right by visual weight); on **content-band uniformity** (the deck-level check the centroid can't make: when
   >60% of pages start or end their content on the SAME line, the pages differ but the ENVELOPE doesn't —
   which is what actually reads as templated. A deck measured 12-left/8-mid/7-right horizontally still
   felt like one page because 21/29 of its pages ended at ~0.82 frame-height); and, on a 9:16 deck, on any page filling <60% of the vertical zone (the

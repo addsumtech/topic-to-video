@@ -180,3 +180,24 @@ def test_shipped_url_is_parameterised_by_p():
         for p in (0.0, 0.5, 1.0):
             u = kq._shipped_url(td, s, "file:///p.html", p=p)
             assert f"?p={p}&cues=" in u and "&dur=6.000" in u
+
+
+# ---- area-weighted centroid ----------------------------------------------------------------------
+# The bbox midpoint ((cleft+cright)/2) is ~0.5 for ANY page whose content spans the frame, however
+# left- or right-heavy it looks. On a real deck it reported 23-of-29 "centred" while the same pages
+# measured 10-left/9-mid/10-right by visual weight — the same class of confident-false-reading this
+# skill spent a whole pass eliminating. The probe now weights each ink-carrying box by its area.
+
+def test_probe_reports_a_weighted_centroid():
+    for k in ("wcx:", "wcy:", "wsum"):
+        assert k in kq._OVERFLOW_JS, k
+
+def test_weighted_centroid_skips_pure_containers():
+    # a wrapper and its children must not double-count the same pixels: only boxes with their OWN
+    # direct text, or leaf boxes, contribute
+    assert "nodeType===3" in kq._OVERFLOW_JS
+    assert "e.children.length===0" in kq._OVERFLOW_JS
+
+def test_weighted_centroid_has_a_sentinel_when_nothing_carries_ink():
+    # wsum==0 -> -1, so run() can fall back to the bbox midpoint rather than dividing by zero
+    assert "wsum?Math.round(wx/wsum):-1" in kq._OVERFLOW_JS

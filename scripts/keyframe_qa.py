@@ -41,6 +41,7 @@ _CENTER_EXCL = (".flow,.step,.hubspoke,.hs-spoke,.hs-hub,.timeline,.tl-node,.qua
 # clearly different; near-misses read as sloppiness). Both feed non-blocking advisories.
 _OVERFLOW_JS = (
     "(function(){var W=window.innerWidth,H=window.innerHeight,worst=0,clip=0,ct=1e9,cb=-1e9,cl=1e9,cr=-1e9;"
+    "var wx=0,wy=0,wsum=0;"
     "var myst=0,mystEx='';"
     "var n=document.querySelectorAll('.stage *,.split *');"
     "var FILL='.meter,.segbar,.bar,.fill,.gauge,.track,.waffle,.isotype,.bullet,.spark';"
@@ -54,6 +55,16 @@ _OVERFLOW_JS = (
     "var o=Math.max(r.right-W,r.bottom-H,-r.left,-r.top);if(o>worst)worst=o;"
     "var cs=getComputedStyle(e);if(cs.opacity!=='0'&&cs.display!=='none'){"
     "if(r.top<ct)ct=r.top;if(r.bottom>cb)cb=r.bottom;if(r.left<cl)cl=r.left;if(r.right>cr)cr=r.right;"
+    # AREA-WEIGHTED centroid = where the visual MASS actually sits. The bbox midpoint
+    # ((cleft+cright)/2) that this replaced is ~0.5 for ANY page whose content spans the frame,
+    # however left- or right-heavy it looks — so it reported "everything is centred" for a deck whose
+    # ink-weighted balance measured 12-left/8-mid/7-right. Weight each element that carries its own
+    # ink (a leaf box, or a box with direct text) by its area; containers are skipped so a wrapper
+    # and its children don't double-count the same pixels.
+    "var own=false;for(var k=0;k<e.childNodes.length;k++){var cn=e.childNodes[k];"
+    "if(cn.nodeType===3&&(cn.nodeValue||'').trim()){own=true;break;}}"
+    "if((own||e.children.length===0)&&r.width*r.height>=100){"
+    "var ar=r.width*r.height;wx+=ar*(r.left+r.right)/2;wy+=ar*(r.top+r.bottom)/2;wsum+=ar;}"
     "if(e.children.length===0&&!(e.innerText||'').trim()&&r.width*r.height>=6000"
     "&&!e.hasAttribute('data-role')&&!(e.matches&&e.matches(FILL))"
     "&&!/^(svg|img|video|canvas|path|rect|circle|line|i)$/i.test(e.tagName)"
@@ -103,6 +114,7 @@ _OVERFLOW_JS = (
     "var bleed=!!document.querySelector('.bg-photo,.bg-soft,.bg-motif,.bg-grid');"
     "return JSON.stringify({worst:Math.round(worst),clip:Math.round(clip),textlen:t,centered:centered,"
     "ctop:Math.round(ct),cbot:Math.round(cb),cleft:Math.round(cl),cright:Math.round(cr),"
+    "wcx:wsum?Math.round(wx/wsum):-1,wcy:wsum?Math.round(wy/wsum):-1,"
     "mystery:myst,mystery_ex:mystEx,nearmiss:nm,nearmiss_ex:nmEx,crowd:crowd,crowd_ex:crowdEx,"
     "bleed:bleed,cued:!!document.querySelector('[data-cue-index]')});})()")
 
@@ -390,8 +402,15 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                                               f"its own data-cue-index so they land one-by-one")
                     # content centroid (normalized) for the deck-level silhouette-repetition advisory
                     if info.get("cright", -1) > info.get("cleft", 0) and info.get("cbot", -1) > info.get("ctop", 0):
-                        centroids.append((idx, ((info["cleft"] + info["cright"]) / 2) / W,
-                                          ((info["ctop"] + info["cbot"]) / 2) / H))
+                        # AREA-WEIGHTED centroid where available: the bbox midpoint is ~0.5 for any
+                        # page whose content spans the frame, so it called a deck "all centred" whose
+                        # visual weight was genuinely 12-left/8-mid/7-right. Fall back to the midpoint
+                        # only when nothing carried measurable ink.
+                        cx = (info["wcx"] / W if info.get("wcx", -1) >= 0
+                              else ((info["cleft"] + info["cright"]) / 2) / W)
+                        cy = (info["wcy"] / H if info.get("wcy", -1) >= 0
+                              else ((info["ctop"] + info["cbot"]) / 2) / H)
+                        centroids.append((idx, cx, cy))
                         bands.append((idx, info["ctop"] / H, info["cbot"] / H))
                 except Exception as e:
                     # A probe that THREW measured nothing. Reporting "ok" here made an unverified
