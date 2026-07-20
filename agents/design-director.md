@@ -186,6 +186,16 @@ concrete subject and reserve generation for genuine mood.
 For each imagery beat, emit `media.treatment` + (`image_prompt` for atmosphere | `doc_query`/`doc_prefer`
 for documentary). The step-6 authoring then fetches/generates accordingly (SKILL.md step 4b + 4c).
 
+**BRAND placement (`meta.brand` — a user-supplied REAL logo).** The logo appears at the COVER + ENDCARD
+by default (`placement` default `["cover","endcard"]` — author the lockups into those two pages per
+`references/html-pages.md` "Brand lockups"); the persistent corner `bug` ONLY when the user asks for
+persistent marking. The logo is FURNITURE, not content: it never competes with an evidence beat, never
+sits over busy ground — give it a QUIET zone (a corner, or under the title block, clear space ≥ its own
+height). Pick the variant per ground (`logo_dark` on a dark ground, else `logo`); NEVER distort, recolor,
+or effect it. This is the mirror of the imagery doctrine above, not an exception to it — generated
+imagery still never fabricates a logo; only the user's verbatim file may carry the mark. On the
+slide-image tier, master-slide logos arrive baked into the frames — add nothing there.
+
 **Per-beat MOTION (`shot` + `intensity`).** Emit, per beat, a `shot` (its Ken Burns framing by narrative
 function — wide-establishing opener / medium explain / close-push on the key term / big-push climax /
 slow-drift close) mapped to `motion.from/to/zoom`, and an `intensity` (`subtle`/`balanced`/`bold`) derived

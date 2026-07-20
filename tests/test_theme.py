@@ -214,3 +214,73 @@ def test_theme_emits_cjk_display_metrics(tmp_path):
     zh_css = (zh / "theme.css").read_text(); en_css = (en / "theme.css").read_text()
     assert "--track-scale:0" in zh_css and "--lh-display:1.28" in zh_css   # CJK: no negative tracking + air
     assert "--track-scale:1" in en_css and "--lh-display:1.08" in en_css   # Latin: unchanged defaults
+
+
+# ── C: brand-logo accent sourcing (real user assets IN; fabricated logos stay banned in imagery) ─────
+def _logo(path, mark):
+    im = Image.new("RGBA", (96, 96), (0, 0, 0, 0))                   # transparent ground
+    im.paste(Image.new("RGBA", (48, 48), mark + (255,)), (24, 24))
+    im.save(path)
+
+def _hue_close(a, b, tol=0.04):
+    d = abs(theme._hue(a) - theme._hue(b))
+    return min(d, 1 - d) <= tol                                      # circular hue distance
+
+def test_brand_logo_seeds_brand_family_accent(tmp_path):
+    p = str(tmp_path / "logo.png"); _logo(p, (30, 90, 220))          # blue mark
+    t = theme.derive_theme(str(tmp_path), brand_logo=p)
+    acc = theme._hex2rgb(t["accent"])
+    assert _hue_close(acc, (30, 90, 220))                            # blue-family accent
+    assert theme._contrast(acc, theme._hex2rgb(t["bg"])) >= 3.0 - 0.05   # SAMPLED semantics: nudged legible
+
+def test_brand_logo_outranks_frames(tmp_path):
+    _frame(str(tmp_path / "frames" / "01.png"), (200, 40, 30))       # vivid red frames…
+    p = str(tmp_path / "logo.png"); _logo(p, (30, 90, 220))
+    t = theme.derive_theme(str(tmp_path), brand_logo=p)
+    assert _hue_close(theme._hex2rgb(t["accent"]), (30, 90, 220))    # …but the brand hue wins the accent
+
+def test_explicit_accent_beats_brand_logo(tmp_path):
+    p = str(tmp_path / "logo.png"); _logo(p, (30, 90, 220))
+    t = theme.derive_theme(str(tmp_path), accent="#22aa55", brand_logo=p)
+    assert t["accent"].lower() == "#22aa55"                          # explicit wins outright, untouched
+
+def test_brand_hue_preserved_through_nudge(tmp_path):
+    raw = (250, 220, 60)                                             # bright brand yellow on a light deck
+    p = str(tmp_path / "logo.png"); _logo(p, raw)
+    t = theme.derive_theme(str(tmp_path), mode="light", brand_logo=p)
+    acc = theme._hex2rgb(t["accent"]); bg = theme._hex2rgb(t["bg"])
+    assert _hue_close(acc, raw)                                      # hue kept — only lightness nudged
+    assert theme._contrast(acc, bg) >= theme._contrast(raw, bg)
+
+def test_all_neutral_logo_falls_back_with_note(tmp_path, capsys):
+    p = str(tmp_path / "logo.png")
+    im = Image.new("RGBA", (96, 96), (0, 0, 0, 0))
+    im.paste(Image.new("RGBA", (32, 32), (250, 250, 250, 255)), (0, 0))     # near-white
+    im.paste(Image.new("RGBA", (32, 32), (10, 10, 10, 255)), (32, 32))      # near-black
+    im.paste(Image.new("RGBA", (32, 32), (128, 128, 128, 255)), (64, 64))   # low-sat gray
+    im.save(p)
+    _frame(str(tmp_path / "frames" / "01.png"), (200, 40, 30))
+    t = theme.derive_theme(str(tmp_path), brand_logo=p)
+    assert _hue_close(theme._hex2rgb(t["accent"]), (200, 40, 30))    # fell back to the frame hue
+    assert "falling back" in capsys.readouterr().out                 # with a printed note
+
+def test_svg_logo_never_crashes(tmp_path, capsys):
+    p = str(tmp_path / "logo.svg"); open(p, "w").write("<svg/>")
+    t = theme.derive_theme(str(tmp_path), brand_logo=p)              # no frames: neutral default path
+    assert t["accent"]                                               # still derives a full palette
+    assert "svg" in capsys.readouterr().out
+
+def test_storyboard_brand_logo_auto_used(tmp_path):
+    import json as _json
+    lp = tmp_path / "assets" / "brand" / "logo.png"; lp.parent.mkdir(parents=True)
+    _logo(str(lp), (30, 90, 220))
+    (tmp_path / "storyboard.json").write_text(_json.dumps(
+        {"meta": {"brand": {"logo": "assets/brand/logo.png"}}, "slides": []}))
+    t = theme.derive_theme(str(tmp_path))                            # no --accent / --brand-logo passed
+    assert _hue_close(theme._hex2rgb(t["accent"]), (30, 90, 220))
+
+def test_storyboard_without_brand_is_silent(tmp_path, capsys):
+    import json as _json
+    (tmp_path / "storyboard.json").write_text(_json.dumps({"meta": {}, "slides": []}))
+    theme.derive_theme(str(tmp_path))
+    assert capsys.readouterr().out == ""                             # best-effort, silent-on-absence

@@ -1138,3 +1138,109 @@ def test_figure_traceability_skipped_without_brief(tmp_path):
     s1 = _slide_scene(tmp_path, index=1, narration="It cuts errors by 43%.")
     res = validate.evaluate(_board(out, [s1]), out)
     assert not any("trace to the source" in w for w in res["warnings"])
+
+
+# ── meta.brand lints (user-supplied REAL assets; cover/endcard lockups + the render-level bug) ──────
+def _brand_asset(tmp_path, rel="assets/brand/logo.png"):
+    p = os.path.join(str(tmp_path), rel)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    open(p, "wb").write(b"\x89PNG")
+    return rel
+
+def _brand_eval(tmp_path, brand, slides=None):
+    slides = slides or [_slide_scene(tmp_path, 0)]
+    return validate.evaluate(_board(str(tmp_path), slides, meta={"brand": brand}), str(tmp_path))
+
+def test_brand_not_dict_is_error(tmp_path):
+    r = _brand_eval(tmp_path, "acme")
+    assert r["ok"] is False and any("meta.brand" in e and "not an object" in e for e in r["errors"])
+
+def test_brand_without_logo_is_error(tmp_path):
+    r = _brand_eval(tmp_path, {"name": "ACME Institute"})
+    assert r["ok"] is False and any("no 'logo'" in e for e in r["errors"])
+
+def test_brand_logo_missing_on_disk_is_error(tmp_path):
+    r = _brand_eval(tmp_path, {"logo": "assets/brand/logo.png"})   # declared, never copied in
+    assert r["ok"] is False and any("meta.brand.logo" in e and "not found" in e for e in r["errors"])
+
+def test_brand_logo_dark_missing_is_error(tmp_path):
+    r = _brand_eval(tmp_path, {"logo": _brand_asset(tmp_path), "logo_dark": "assets/brand/dark.png"})
+    assert r["ok"] is False and any("logo_dark" in e and "not found" in e for e in r["errors"])
+
+def test_brand_unknown_placement_is_error(tmp_path):
+    r = _brand_eval(tmp_path, {"logo": _brand_asset(tmp_path), "placement": ["cover", "banner"]})
+    assert r["ok"] is False and any("placement" in e for e in r["errors"])
+
+def test_brand_bug_any_svg_variant_is_error(tmp_path):
+    # render picks the bug variant BY THEME GROUND (logo on light, logo_dark on dark), so with 'bug'
+    # in placement EVERY declared variant must be raster — an svg logo + raster logo_dark would still
+    # ship a bug-less deck on a light theme (drift-review find #1)
+    svg = _brand_asset(tmp_path, "assets/brand/logo.svg")
+    r = _brand_eval(tmp_path, {"logo": svg, "placement": ["bug"]})
+    assert r["ok"] is False and any("raster" in e and "png" in e for e in r["errors"])
+    r2 = _brand_eval(tmp_path, {"logo": svg, "logo_dark": _brand_asset(tmp_path, "assets/brand/dark.png"),
+                                "placement": ["bug"]})
+    assert any("meta.brand.logo " in e and "raster" in e for e in r2["errors"])
+    # all-raster clears; svg with lockup-only placement stays fine (html pages take svg)
+    r3 = _brand_eval(tmp_path, {"logo": _brand_asset(tmp_path), "placement": ["bug"]})
+    assert not any("raster" in e for e in r3["errors"])
+    r4 = _brand_eval(tmp_path, {"logo": svg})
+    assert not any("raster" in e for e in r4["errors"])
+
+def test_brand_bug_not_dict_is_error(tmp_path):
+    # a non-dict bug config passed validate but crashed render's cfg.get (drift-review find #3)
+    r = _brand_eval(tmp_path, {"logo": _brand_asset(tmp_path), "placement": ["bug"], "bug": "tr"})
+    assert r["ok"] is False and any("meta.brand.bug" in e and "not an object" in e for e in r["errors"])
+
+def test_brand_bug_on_remotion_warns(tmp_path):
+    # the remotion tier draws no corner bug — a branded remotion deck would validate clean and ship
+    # unmarked (drift-review find #5)
+    slides = [_slide_scene(tmp_path, 0)]
+    board = _board(str(tmp_path), slides,
+                   meta={"brand": {"logo": _brand_asset(tmp_path), "placement": ["bug"]},
+                         "renderer": "remotion"})
+    r = validate.evaluate(board, str(tmp_path))
+    assert any("remotion" in w and "bug" in w for w in r["warnings"])
+
+def test_brand_jpeg_logo_warns(tmp_path):
+    r = _brand_eval(tmp_path, {"logo": _brand_asset(tmp_path, "assets/brand/logo.jpg")})
+    assert any("JPEG" in w and "white box" in w for w in r["warnings"])
+
+def test_brand_bug_corner_warns(tmp_path):
+    r = _brand_eval(tmp_path, {"logo": _brand_asset(tmp_path), "placement": ["bug"],
+                               "bug": {"corner": "bl"}})
+    assert any("bug.corner" in w and "'tr'" in w for w in r["warnings"])
+
+def test_brand_bug_opacity_warns(tmp_path):
+    r = _brand_eval(tmp_path, {"logo": _brand_asset(tmp_path), "placement": ["bug"],
+                               "bug": {"opacity": 0.05}})
+    assert any("bug.opacity" in w for w in r["warnings"])
+
+def test_brand_bug_height_frac_warns(tmp_path):
+    r = _brand_eval(tmp_path, {"logo": _brand_asset(tmp_path), "placement": ["bug"],
+                               "bug": {"height_frac": 0.2}})
+    assert any("bug.height_frac" in w for w in r["warnings"])
+
+def test_brand_empty_placement_warns(tmp_path):
+    r = _brand_eval(tmp_path, {"logo": _brand_asset(tmp_path), "placement": []})
+    assert any("would never appear" in w for w in r["warnings"])
+
+def test_brand_lockup_not_authored_warns(tmp_path):
+    # cover + endcard placements, but neither the first nor the last html page references the logo
+    # filename -> the lockup was planned but never designed in (render.py does NOT draw it)
+    logo = _brand_asset(tmp_path)
+    slides = [_html_scene(tmp_path, 0, "pages/s0.html", '<div class="stage"><h1 class="title">open</h1></div>'),
+              _html_scene(tmp_path, 1, "pages/s1.html", '<div class="stage"><h1 class="title">close</h1></div>')]
+    r = _brand_eval(tmp_path, {"logo": logo, "placement": ["cover", "endcard"]}, slides=slides)
+    assert any("'cover'" in w and "never references" in w for w in r["warnings"])
+    assert any("'endcard'" in w and "never references" in w for w in r["warnings"])
+
+def test_brand_authored_lockups_and_valid_brand_clean(tmp_path):
+    # authored lockups (pages reference logo.png) + a well-formed brand -> no brand errors/warnings
+    logo = _brand_asset(tmp_path)
+    body = '<div class="stage"><img class="lockup" src="assets/brand/logo.png"><h1 class="title">x</h1></div>'
+    slides = [_html_scene(tmp_path, 0, "pages/s0.html", body),
+              _html_scene(tmp_path, 1, "pages/s1.html", body)]
+    r = _brand_eval(tmp_path, {"logo": logo, "name": "ACME Institute"}, slides=slides)   # default placement
+    assert r["errors"] == []
+    assert not any("brand" in w for w in r["warnings"])

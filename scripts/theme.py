@@ -1,5 +1,6 @@
 """Derive a topic-fitting color theme and write theme.css. Samples the source slide frames when
 present (PIL quantize + luminance -> light/dark + a vivid accent), else uses a passed topic palette.
+A brand logo (--brand-logo, or storyboard meta.brand.logo) outranks frames as the ACCENT source.
 Curated, contrast-safe derivation (not raw pixels). Deterministic: no randomness, no wall-clock."""
 import argparse, colorsys, glob, json, os
 
@@ -37,6 +38,44 @@ def _sample_frames(out_dir, k=4, n_colors=5):
         q = im.quantize(colors=n_colors).convert("RGB")
         cols += [rgb for _, rgb in q.getcolors(maxcolors=100000)]
     return cols or None
+
+def _sample_logo(path):
+    """Dominant NON-neutral hue of a brand logo. Logos are mostly mark + ground, so drop transparent,
+    near-white/near-black and low-saturation pixels; the heaviest survivor is the brand hue.
+    None = all-neutral mark (caller falls back)."""
+    from PIL import Image
+    im = Image.open(path).convert("RGBA"); im.thumbnail((128, 128))
+    best, best_n = None, 0
+    for n, (r, g, b, a) in (im.getcolors(maxcolors=128 * 128) or []):
+        if a < 128 or not (0.06 <= _lum((r, g, b)) <= 0.92) or _sat((r, g, b)) < 0.25:
+            continue
+        if n > best_n:
+            best, best_n = (r, g, b), n
+    return best
+
+def _brand_accent(path):
+    """Accent source from a brand logo, honoring the never-crash contract: svg (PIL can't rasterize),
+    an unreadable file, or an all-neutral mark -> printed note + None so derivation falls back."""
+    if str(path).lower().endswith(".svg"):
+        print(f"[theme] brand logo {os.path.basename(path)} is svg — can't sample it, falling back (pass a png)")
+        return None
+    try:
+        c = _sample_logo(path)
+    except Exception:
+        print(f"[theme] brand logo {path!r} unreadable — falling back"); return None
+    if not c:
+        print("[theme] brand logo has no usable non-neutral hue — falling back to frames/style")
+    return c
+
+def _storyboard_brand_logo(out_dir):
+    """meta.brand.logo from <out_dir>/storyboard.json (path rel to out_dir) — the auto brand source
+    when neither --accent nor --brand-logo was passed. Best-effort: '' on any absence, no note."""
+    try:
+        lg = str(json.load(open(os.path.join(out_dir, "storyboard.json")))["meta"]["brand"]["logo"])
+        lg = lg if os.path.isabs(lg) else os.path.join(out_dir, lg)
+        return lg if os.path.exists(lg) else ""
+    except Exception:
+        return ""
 
 # Visual-style presets (see references/visual-styles.md). A chosen style SEEDS the palette (mode + accent
 # family) and emits style-hint CSS vars for the flat/HTML tiers + motifs. Precedence: explicit --mode/
@@ -123,10 +162,13 @@ def _style_key(style):
     return k if k in STYLE_PRESETS else ""
 
 
-def derive_theme(out_dir, mode=None, accent=None, accent2=None, bg=None, style=None):
+def derive_theme(out_dir, mode=None, accent=None, accent2=None, bg=None, style=None, brand_logo=None):
     _pre = STYLE_PRESETS.get(_style_key(style))
     _pmode, _pacc, _pacc2, _pvars = _pre if _pre else (None, None, None, {})
-    sampled = None if (accent and bg) else _sample_frames(out_dir)
+    if not accent and not brand_logo:                   # storyboard meta.brand.logo auto-seeds the accent
+        brand_logo = _storyboard_brand_logo(out_dir)
+    brand = _brand_accent(brand_logo) if (brand_logo and not accent) else None
+    sampled = None if (accent and bg) else _sample_frames(out_dir)   # frames still drive light/dark
     if mode in ("light", "dark"):
         m = mode
     elif sampled:                                       # a frame-sampled BRAND palette is a hard constraint
@@ -136,13 +178,15 @@ def derive_theme(out_dir, mode=None, accent=None, accent2=None, bg=None, style=N
         m = _pmode
     else:
         m = "dark"
-    # accent: explicit > sampled BRAND > style preset > neutral default
+    # accent: explicit > brand-logo hue > sampled frames > style preset > neutral default. The brand
+    # hue counts as SAMPLED — the >=3:1 lightness nudge below still applies (hue preserved).
     acc = (_hex2rgb(accent) if accent
-           else (max(sampled, key=_sat) if sampled
-                 else (_hex2rgb(_pacc) if _pacc else (76, 155, 232))))
+           else (brand if brand
+                 else (max(sampled, key=_sat) if sampled
+                       else (_hex2rgb(_pacc) if _pacc else (76, 155, 232)))))
     if accent2:
         acc2 = _hex2rgb(accent2)
-    elif _pacc2 and not accent and not sampled:        # style accent2 (unless explicit/brand recolors)
+    elif _pacc2 and not accent and not brand and not sampled:   # style accent2 (unless explicit/brand recolors)
         acc2 = _hex2rgb(_pacc2)
     else:
         h, l, s = colorsys.rgb_to_hls(*[c / 255 for c in acc])
@@ -264,9 +308,12 @@ def main():
     ap.add_argument("out_dir")
     ap.add_argument("--mode"); ap.add_argument("--accent"); ap.add_argument("--accent2"); ap.add_argument("--bg")
     ap.add_argument("--style", default=None, help="a visual-styles.md key (swiss/editorial/glassmorphism/…)")
+    ap.add_argument("--brand-logo", default=None,
+                    help="brand logo png — its dominant non-neutral hue seeds the accent (counts as "
+                         "sampled: the >=3:1 nudge still applies; an explicit --accent wins outright)")
     a = ap.parse_args()
     os.makedirs(a.out_dir, exist_ok=True)                 # write theme.css even into a fresh out dir
-    t = derive_theme(a.out_dir, a.mode, a.accent, a.accent2, a.bg, a.style)
+    t = derive_theme(a.out_dir, a.mode, a.accent, a.accent2, a.bg, a.style, a.brand_logo)
     write_theme_css(t, os.path.join(a.out_dir, "theme.css"))
     print(f"[theme] mode={t['mode']} bg={t['bg']} fg={t['fg']} accent={t['accent']} accent2={t['accent2']}"
           + (f" style={t['style']}" if t.get('style') else ""))

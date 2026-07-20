@@ -188,6 +188,15 @@ un-renderable promise? State in the verdict that the ranking is spec-only and we
   consistent (same family/size/treatment across siblings), semantically-fit, colour-coded-per-category
   icons help. Emoji/✅/🚀 substituted for a real icon is a fail.
 
+### D4b — Brand craft (`meta.brand` decks only)
+- **REVISE** when the user's logo is: **stretched** (aspect off), **recolored**, or given a
+  shadow/effect (it is placed VERBATIM); the **wrong variant for the ground** — `logo` lost on a dark
+  scrim / `logo_dark` on a light bg (a contrast fail); **clear space violated** (< the logo's own height
+  of air on any side); **competing on an evidence beat** (like an icon, it never sits on a chart/number
+  hero); the **`bug` over busy content** (it needs a quiet corner); or **double-brand on one frame**
+  (bug + lockup simultaneously — the bug must skip the cover/endcard scenes its `placement` lockups
+  own). A FABRICATED logo inside generated imagery stays `critic-content`'s R1e — don't double-count.
+
 ### D5 — Composition, whitespace + Space Intelligence
 - **REVISE** an `html` beat that is a single centred line (it's a `title`, not a page) or that has <2
   focal points / no clear foreground-background separation.

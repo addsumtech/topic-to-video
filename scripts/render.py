@@ -602,6 +602,15 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
         "words": (stat(os.path.join("audio", f"{(slide.get('index') or 0):02d}.words.json"))
                   if (slide.get("type") == "html"
                       or any(c.get("cue") for c in slide.get("callouts") or [])) else None),
+        # brand is part of the look (always in the key); the logo BYTES matter only where render
+        # DRAWS them — the corner bug — so a logo touch must not bust clips for lockup-only decks
+        # (cover/endcard lockups live in the authored pages, fingerprinted via "html").
+        "brand": meta.get("brand"),
+        "logo": stat(_bug_logo_rel(meta)) if _bug_placed(meta) else None,
+        # whether THIS scene carries the bug depends on its edge position (first/last skip under
+        # cover/endcard) — appending or dropping an edge scene flips a former edge scene's bug
+        # without changing anything else about it, so the verdict itself must key the cache
+        "bughere": _bug_wanted(meta, slide) if meta.get("brand") else None,
     }, sort_keys=True, default=str)
     return hashlib.sha1(payload.encode()).hexdigest()[:16]
 
@@ -937,6 +946,75 @@ def _edge_filter(meta, dur, slide, vlabel, W, H):
              f"[ebg][{vlabel}]overlay=eval=frame:x='{xe}':y='{ye}':shortest=1[vedge]"], "vedge")
 
 
+# ── brand bug: a render-level persistent corner mark (meta.brand, placement "bug") ─────────────
+def _brand_dict(meta):
+    """meta.brand as a dict, {} for anything malformed — validate ERRORs a non-dict brand, but render
+    must degrade (skip the bug), never crash, when run without the gate."""
+    b = (meta or {}).get("brand")
+    return b if isinstance(b, dict) else {}
+
+def _bug_placement(meta):
+    """The effective placement list (contract default when absent; malformed -> default, a string
+    'bug' must not sneak past via substring containment)."""
+    pl = _brand_dict(meta).get("placement")
+    return pl if isinstance(pl, list) else ["cover", "endcard"]
+
+def _bug_placed(meta):
+    """True when the deck asks for the corner bug at all — the fingerprint's logo-stat gate."""
+    return "bug" in _bug_placement(meta) and bool(_brand_dict(meta).get("logo"))
+
+def _bug_wanted(meta, slide):
+    """True when the corner bug belongs on THIS scene. Skips the first scene under 'cover' and the
+    last under 'endcard' — those frames carry an AUTHORED lockup, and bug + lockup is a double-brand."""
+    if not _bug_placed(meta):
+        return False
+    placement = _bug_placement(meta)
+    idx = (slide or {}).get("index")
+    first, last = (meta or {}).get("_first_index"), (meta or {}).get("_last_index")
+    if "cover" in placement and first is not None and idx == first:
+        return False
+    if "endcard" in placement and last is not None and idx == last:
+        return False
+    return True
+
+def _bug_logo_rel(meta):
+    """The logo variant the bug draws: logo_dark on a dark ground (the SAME theme bg the seam dips
+    through, rel-luminance < 0.5), else logo. Shared with _fingerprint so the statted file is the drawn one."""
+    brand = _brand_dict(meta)
+    dark = brand.get("logo_dark")
+    if dark and _rel_lum(_ffhex_rgb(_theme_bg((meta or {}).get("_out", ".")))) < 0.5:
+        return dark
+    return brand.get("logo")
+
+def _brand_bug_png(meta, W, H, dst):
+    """The corner bug as a W×H transparent layer (same shape as the callout/caption layers), or None
+    when the logo is missing/unreadable — a broken brand asset warns and skips, never kills a render.
+    Aspect preserved (scaled by height only), never recolored, no effects; opacity rides the alpha.
+    Top corners only — the bottom is the caption zone; an unknown corner value means tr."""
+    cfg = _brand_dict(meta).get("bug")
+    cfg = cfg if isinstance(cfg, dict) else {}         # validate ERRORs a non-dict; render degrades
+    rel = _bug_logo_rel(meta)
+    # the whole composition is guarded, not just the open — a garbage height_frac/opacity only WARNS
+    # at the gate (numbers-only lint), and a warning must never become a render crash here
+    try:
+        logo = Image.open(os.path.join((meta or {}).get("_out", "."), rel)).convert("RGBA")
+        h = max(1, int(float(cfg.get("height_frac", 0.045)) * H))
+        w = max(1, round(logo.width * h / logo.height))
+        logo = logo.resize((w, h), Image.LANCZOS)
+        op = max(0.0, min(1.0, float(cfg.get("opacity", 0.5))))
+        if op < 1.0:
+            logo.putalpha(logo.getchannel("A").point(lambda a: int(a * op)))
+        margin = int(float(cfg.get("margin_frac", 0.02)) * W)
+        x = margin if cfg.get("corner") == "tl" else W - w - margin
+        layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        layer.paste(logo, (x, margin)) # verbatim copy (no mask): the ground is fully transparent, and a
+        layer.save(dst)                # masked paste would re-blend the logo's own alpha against it (op²)
+        return dst
+    except Exception as e:
+        print(f"[render] warning: brand bug skipped — logo unusable: {rel} ({e})")
+        return None
+
+
 def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_clip, workdir, slide=None):
     """Encode a per-frame PNG sequence + the scene's TTS audio (+ timed captions) into a
     clip using the SAME codec params as the slide path, so the '-c copy' concat still works.
@@ -948,6 +1026,12 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
     band = _caption_band_px(meta, W, H)                # >0 -> captions in a strip BELOW the content
     parts = [f"[0:v]scale={W}:{H}[v0]"]               # frames are already WxH; scale = safety
     vlabel = "v0"; extra_inputs = []; n_in = 2        # 0=frames, 1=audio
+
+    if _bug_wanted(meta, slide):                      # before _edge_filter (both branches) — the bug rides the seam
+        bug_png = os.path.join(workdir, f"sbug_{(slide or {}).get('index', 0):02d}.png")
+        if _brand_bug_png(meta, W, H, bug_png):       # None = unreadable logo (warned) — render on without it
+            extra_inputs += ["-i", bug_png]
+            parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0[v{n_in}]"); vlabel = f"v{n_in}"; n_in += 1
 
     band_text = None; band_bg = None                   # per-scene sampled caption text colour + strip ground
     def _add_caption_overlays():
@@ -1052,6 +1136,14 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
             en = f"between(t,{t0:.3f},{dur})"
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
             vlabel = f"v{n_in}"; n_in += 1
+    # Brand bug — an ffmpeg overlay input (like callouts), NOT a paste into the source frame: the
+    # frame rides zoompan, so a baked-in bug would zoom/pan with the Ken Burns move. Composited here,
+    # BEFORE _edge_filter in both caption modes, so the bug dips/travels with the seam.
+    if _bug_wanted(meta, slide):
+        bug_png = os.path.join(workdir, f"bug_{i:02d}.png")
+        if _brand_bug_png(meta, W, H, bug_png):        # None = unreadable logo (warned) — render on without it
+            extra_inputs += ["-i", bug_png]
+            parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0[v{n_in}]"); vlabel = f"v{n_in}"; n_in += 1
     band = _caption_band_px(meta, W, H)                # >0 -> captions in a strip BELOW the content
     segs = (_caption_karaoke_segs(slide, meta, meta["_out"]) or _captions_for(slide)) if burn_captions else []
 
@@ -1109,6 +1201,11 @@ def render(out_dir, sample=None, vertical=False, only=None, reduced_motion=False
     W, H = _canvas(meta, vertical)
     burn = bool(meta.get("captions", True))
     ss = max(1, int(meta.get("motion_ss", 2)))
+    # first/last scene indices for the brand bug's skip rule (bug + authored cover/endcard lockup
+    # on one frame is a double-brand) — also honoured by a --sample of an edge scene
+    if data["slides"]:
+        meta["_first_index"] = data["slides"][0]["index"]
+        meta["_last_index"] = data["slides"][-1]["index"]
 
     def _need_av(s):
         if not s.get("audio") or not s.get("duration"):

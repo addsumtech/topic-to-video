@@ -633,6 +633,12 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                           + " carry non-image content (html/chart/…) that would render BLANK — use "
                             "renderer=local for an html/designed deck, or give them an `image`")
 
+    # meta.brand (user-supplied REAL assets — the mirror of the "never fabricate logos in generated
+    # imagery" doctrine): render.py composites the corner bug from the raster file, and the cover/
+    # endcard lockups must already be AUTHORED into the first/last pages — lint both before a full
+    # render bakes a missing or broken mark into every frame.
+    _brand_lints(meta, slides, out_dir, errors, warnings)
+
     # Form-fit + creativity presence — mechanical hooks for design-critic D1/D2c, read from the
     # persisted design_plan.json (semantic judgment stays with the critic; these just flag the highest-
     # signal mismatch + a missing creative field). No-op when the plan isn't persisted.
@@ -774,6 +780,94 @@ def _design_plan_lints(out_dir, warnings, meta=None):
                 if wname and str(reg.get("name") or "") and wname != str(reg.get("name")):
                     warnings.append("register: the committed design_register.name differs from the contest winner's "
                                     "name — the full plan must adopt the SELECTED register (or re-record the winner)")
+
+
+_BRAND_PLACEMENTS = ("cover", "endcard", "bug")
+
+
+def _brand_lints(meta, slides, out_dir, errors, warnings):
+    """meta.brand lints. ERRORS for what render.py cannot do (no logo file, no raster for the bug);
+    WARNINGS for what would render wrong (opaque JPEG, an off-contract bug config, a cover/endcard
+    placement whose page never references the logo — the lockup planned but not authored). The
+    slide-image tier gets no lockup check: master-slide logos arrive baked into the frames."""
+    brand = meta.get("brand")
+    if brand is None:
+        return
+    if not isinstance(brand, dict):
+        errors.append(f"meta.brand {brand!r} is not an object — declare {{\"logo\": \"assets/brand/logo.png\", ...}}")
+        return
+    logo = brand.get("logo")
+    dark = brand.get("logo_dark")
+    if not logo:
+        errors.append("meta.brand has no 'logo' — the one REQUIRED brand field; point it at the user's "
+                      "real file (assets/brand/logo.png), never a generated one")
+    elif not _exists(out_dir, logo):
+        errors.append(f"meta.brand.logo '{logo}' not found under {out_dir} — copy the real asset in before render")
+    if dark and not _exists(out_dir, dark):
+        errors.append(f"meta.brand.logo_dark '{dark}' not found under {out_dir} — copy it in, or drop the key "
+                      f"(render falls back to logo)")
+    for k, p in (("logo", logo), ("logo_dark", dark)):
+        if p and str(p).lower().endswith((".jpg", ".jpeg")):
+            warnings.append(f"meta.brand.{k} '{p}' is a JPEG — no alpha channel, so it composites as a "
+                            f"white box on any non-white ground; export a transparent png")
+    pl = brand.get("placement")
+    if pl is None:
+        pl = ["cover", "endcard"]                     # the contract default when absent
+    if not isinstance(pl, list) or any(v not in _BRAND_PLACEMENTS for v in pl):
+        errors.append(f"meta.brand.placement {pl!r} — must be a list drawn from "
+                      f"{' / '.join(_BRAND_PLACEMENTS)}; an unknown value would silently place nothing")
+        pl = [v for v in pl if v in _BRAND_PLACEMENTS] if isinstance(pl, list) else []
+    elif pl == []:
+        warnings.append("meta.brand.placement is [] — the brand is declared but would never appear; "
+                        "drop meta.brand or list cover/endcard/bug")
+    if "bug" in pl:
+        # the corner bug is PIL-composited by render.py, so it needs a RASTER — and render picks the
+        # variant BY THEME GROUND (logo_dark on dark, logo on light), so EVERY declared variant must
+        # be raster: an svg logo + raster logo_dark still fails on a light theme. Svg stays fine for
+        # the html lockups.
+        for _k, _p in (("logo", logo), ("logo_dark", dark)):
+            if _p and str(_p).lower().endswith(".svg"):
+                errors.append(f"meta.brand.{_k} '{_p}' is an .svg with 'bug' in placement — the render "
+                              f"bug is raster-composited and picks its variant by theme ground; export "
+                              f"a png (keep the svg for the html lockups)")
+        if meta.get("renderer") == "remotion":
+            warnings.append("meta.brand placement includes 'bug' but meta.renderer is 'remotion' — the "
+                            "remotion tier does not draw the corner bug; use the local renderer or drop 'bug'")
+        bug = brand.get("bug")
+        if bug is not None and not isinstance(bug, dict):
+            errors.append(f"meta.brand.bug {bug!r} is not an object — use "
+                          f'{{"corner":"tr","opacity":0.5,"height_frac":0.045,"margin_frac":0.02}}')
+        if isinstance(bug, dict):
+            corner = bug.get("corner")
+            if corner is not None and corner not in ("tl", "tr"):
+                warnings.append(f"meta.brand.bug.corner '{corner}' — top corners only (the bottom is the "
+                                f"caption zone); render clamps it to 'tr'")
+            op = bug.get("opacity")
+            if sb._is_num(op) and not (0.15 <= float(op) <= 0.9):
+                warnings.append(f"meta.brand.bug.opacity {op} outside 0.15..0.9 — below it the mark is lint, "
+                                f"above it it shouts over the content; keep ~0.5")
+            hf = bug.get("height_frac")
+            if sb._is_num(hf) and not (0.02 <= float(hf) <= 0.10):
+                warnings.append(f"meta.brand.bug.height_frac {hf} outside 0.02..0.10 — a bug is a watermark, "
+                                f"not a lockup; keep ~0.045")
+    # cover/endcard lockups are AUTHORED into the first/last html pages (render.py does NOT draw
+    # them) — a placement whose page never references the logo filename ships an unbranded frame.
+    names = {os.path.basename(str(p)) for p in (logo, dark) if p}
+    for place, scene in (("cover", slides[0] if slides else None),
+                         ("endcard", slides[-1] if slides else None)):
+        if place not in pl or not isinstance(scene, dict) or scene.get("type") != "html":
+            continue
+        page = (scene.get("props") or {}).get("html")
+        if not page or not _exists(out_dir, page):
+            continue                                  # a missing page is already an ERROR upstream
+        try:
+            html = open(os.path.join(out_dir, page), encoding="utf-8", errors="replace").read()
+        except OSError:
+            continue
+        if names and not any(n in html for n in names):
+            warnings.append(f"meta.brand: '{place}' in placement but {page} never references "
+                            f"'{sorted(names)[0]}' — the lockup is authored into the page, not drawn by "
+                            f"render.py; add the <img> lockup (or drop '{place}' from placement)")
 
 
 def _layout_family(html):

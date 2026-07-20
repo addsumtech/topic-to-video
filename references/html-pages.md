@@ -242,6 +242,44 @@ that fights the content) and place them faithfully:
   **broll** — no logos, faces, named things, or in-image text — AND topically evocative of the video's
   subject; a background NEVER carries a fact, but it should never look like it belongs to a different video.
 
+## Brand lockups (user-supplied `meta.brand` — cover + endcard)
+When `meta.brand` is set (SKILL.md "Brand assets"), the `"cover"`/`"endcard"` placements are
+AUTHORED into the first/last pages — `render.py` does not draw them (only the optional corner
+`bug` is render-level). Rules binding both patterns: the logo is `<img>`'d VERBATIM — size by
+`height` only + `width:auto` (never stretched), never recolored/filtered/shadowed; **clear space
+≥ the logo's own height on all sides**; pick the variant by the PAGE's ground luminance —
+`logo_dark` on a dark ground (dark `--bg`, a scrimmed `.bg-photo`, a dark `.accent-fill`), else
+`logo` (`logo_dark` falls back to `logo` when absent); the `src` is the out_dir-relative
+`meta.brand.logo` path resolved absolute: `file:///ABS/OUT_DIR/assets/brand/logo.png` (svg is
+fine here — only the render bug needs raster).
+
+**Cover LOCKUP — furniture, never the hero.** Small, in a corner or under the title block; the
+topic is the hero, the mark is a byline — it must not compete with the title/kicker:
+```html
+<div class="stage frame-left">
+  <div class="kicker reveal">SERIES</div>
+  <div class="rule reveal" style="animation-delay:.05s"></div>
+  <div class="title reveal-up" style="animation-delay:.1s">The real headline</div>
+  <!-- lockup: height-only sizing; margin-top ≥ its own height = the clear space -->
+  <img class="reveal" src="file:///ABS/OUT_DIR/assets/brand/logo.png" alt=""
+       style="height:56px;width:auto;margin-top:64px;animation-delay:.3s">
+</div>
+```
+
+**ENDCARD — a sparse closer.** Logo + optional `meta.brand.name` line, generous whitespace (this
+IS the `hold` beat's sparseness — don't add content around it):
+```html
+<div class="stage" style="justify-content:center;align-items:center;text-align:center">
+  <!-- dark ground here → logo_dark; on a light ground use logo -->
+  <img class="reveal" src="file:///ABS/OUT_DIR/assets/brand/logo_dark.png" alt=""
+       style="height:96px;width:auto">
+  <div class="note reveal" style="animation-delay:.2s">ACME Institute</div>
+</div>
+```
+When `"bug"` is ALSO in `meta.brand.placement`, render skips the bug on the scenes these lockups
+own (scene 1 for "cover", the last scene for "endcard") — a bug + a lockup on one frame is
+double-brand, a craft fail — so author the lockups without reserving the corner.
+
 ## Soft AI backgrounds + glass cards (depth without clutter)
 To give a designed deck more depth, place a **generic, atmospheric AI image** (a `broll` —
 no logos/text/specific subjects) BEHIND the content at low opacity, and put the real content in

@@ -35,14 +35,18 @@ TTS if the user gives an API key.
   see speech, not dead air. The re-padded tail is the BETWEEN-SCENE BREATH — `meta.audio_breath`
   (default 0.42s; 0.12s proved abrupt: speech hard-cut into the next page). Scene-edge transitions
   ride this silence. Opt out of mastering with `meta.audio_master: false`.
-- `scripts/theme.py <out_dir> [--mode light|dark] [--accent #hex] [--accent2 #hex] [--bg #hex] [--style <key>]` —
+- `scripts/theme.py <out_dir> [--mode light|dark] [--accent #hex] [--accent2 #hex] [--bg #hex] [--style <key>] [--brand-logo <png>]` —
   derive a topic-fitting palette from `frames/` (or the passed overrides) and write
   `<out_dir>/theme.css` (the HTML tier links it; the programmatic renderers parse the same
   semantic vars — one color world). Run before authoring pages OR programmatic scenes. Contrast is
   **gamma-correct WCAG** (true relative luminance): it enforces fg/bg ≥7:1, nudges a SAMPLED
   accent toward ≥3:1 on the bg (lightness only, capped ±0.15 to preserve the hue's character;
   an explicit `--accent` override is never touched), and picks `--on-accent` by whichever of
-  black/white has the higher true contrast on the accent fill. An out_dir themed BEFORE this fix
+  black/white has the higher true contrast on the accent fill. **`--brand-logo <png>`** samples the
+  logo's dominant non-neutral hue as the accent source (priority over frames; the SAMPLED contrast
+  nudge still applies; explicit `--accent` still wins outright) — and when `<out_dir>/storyboard.json`
+  carries `meta.brand.logo` and no accent/brand-logo flag was passed, that logo is **auto-used** as
+  the brand source, so a branded deck's accent follows its mark by default. An out_dir themed BEFORE this fix
   may carry a low-contrast `--on-accent` in its theme.css — re-run `theme.py` to regenerate. It also
   emits **`--grain-amount`** per style — a printed/filmic style (risograph/manga/watercolor/terminal/
   noir/cartographic) gets a subtle fixed-seed **film grain** (motifs.css `body::after`, auto-applied,
@@ -338,6 +342,14 @@ TTS if the user gives an API key.
      a report or notes. Slides alone rarely say enough to narrate *well* (this is what step 3
      depends on). If they have none, tell them you'll **web-research the topic** (the latest, as of
      today) to ground and fact-check the script instead.
+   - **+ Brand assets** *(a plain prompt, asked ONLY when the topic is company/institution/
+     product-related or the user mentions a logo)*: "有品牌资产吗？(logo 文件、品牌色、亮/暗底变体、
+     用法规范)" — copy the logo file(s) to **`<out_dir>/assets/brand/`** (so the `meta.brand` paths
+     stay out_dir-relative), record them as `meta.brand` (the block is in Guardrails; the doctrine
+     split is the "Brand assets" section), and feed a stated brand colour to `theme.py --accent`
+     (an explicit accent is never nudged) — with NO stated colour, `theme.py` auto-samples the
+     accent from `meta.brand.logo` (see its `--brand-logo` entry), so just recording the block is
+     enough. No assets ⇒ no `brand` block — never fabricate one.
 
    **Batch 2 — cloud-voice setup (ONLY if Batch 1 ⑤ Voice engine = MiniMax or OpenAI).** First get the API key
    **OUT OF BAND** — have them `export MINIMAX_API_KEY=…` / `export OPENAI_API_KEY=…` in their own
@@ -738,6 +750,27 @@ TTS if the user gives an API key.
   stay in sync. Reach for it (e.g. `1.2–1.3`) when a faithful script overruns the target runtime.
 - `meta.image_source` is `none` (default, free) or `openai` (gpt-image-2, paid). AI images are
   generated once by `imagegen.py` and CACHED under `.assets/` — re-renders are free + offline.
+- **`meta.brand`** (OPTIONAL — user-supplied REAL assets; the mirror of the no-fabricated-logos
+  imagery doctrine, which stays untouched):
+  `{"logo": "assets/brand/logo.png", "logo_dark": "assets/brand/logo_dark.png",
+  "name": "ACME Institute", "placement": ["cover","endcard"],
+  "bug": {"corner":"tr","opacity":0.5,"height_frac":0.045,"margin_frac":0.02}}`.
+  `logo` is REQUIRED when `brand` is present — path relative to out_dir (svg ok for HTML lockups;
+  the render bug needs raster — and since it picks its variant BY THEME GROUND, **every declared
+  variant** must be raster when "bug" ∈ placement); `logo_dark` is an OPTIONAL variant for dark
+  grounds (falls back to `logo`); `name` is the OPTIONAL end-card byline; `placement` is a subset of
+  {"cover","endcard","bug"} — DEFAULT when absent: `["cover","endcard"]`; `bug` is read only when
+  "bug" ∈ placement (defaults as shown). **Semantics:** "cover"/"endcard" lockups are AUTHORED into
+  the first/last HTML pages (design-director doctrine — `render.py` does NOT draw them; the pages
+  fingerprint themselves). "bug" is the RENDER-level persistent corner mark: drawn on EVERY scene
+  EXCEPT scene 1 when "cover" ∈ placement and the last scene when "endcard" ∈ placement (double-brand
+  on one frame is a craft fail). Top corners only (`"tr"`/`"tl"` — the bottom is the caption zone);
+  height = `height_frac`·H (default 4.5%), margin = `margin_frac`·W, opacity via alpha; uses
+  `logo_dark` when the parsed theme bg's relative luminance < 0.5, else `logo`; composited INTO the
+  page BEFORE the edge/transition filter so it dips with the seam (a bug floating over a bg dip is
+  wrong). The bug is a **local-renderer** feature — the remotion tier does not draw it
+  (`validate.py` warns on "bug" + `renderer:"remotion"`). The logo is NEVER stretched (preserve
+  aspect), never recolored, no effects.
 - **HTML pages tier:** `type:"html"` scenes render an authored page via headless Chrome
   (`render_html`), captured as seekable CSS reveals. Pages render only real content (faithful);
   the per-clip cache busts when the page file, `theme.css` (re-theming), or `audio/NN.words.json`
@@ -828,6 +861,17 @@ Every on-screen visual is one of four classes; `critic-content` (R1e) enforces t
 DATA always stays in faithful `chart` scenes — never render numbers/figures as an AI image.
 The full-AI escape hatch (`image_source:"openai"` with data as AI) is the user's call, but the
 `critic-content` flags every data-bearing AI scene.
+
+## Brand assets (user-supplied real logos — the DOCTRINE SPLIT)
+`meta.brand` (Guardrails has the block) places the user's OWN real logo. Two complementary rules,
+not in tension: **user-supplied real logos are placed VERBATIM** — never stretched (preserve
+aspect), never recolored, no shadows/effects, clear space respected — while **generated imagery
+still NEVER fabricates a logo** (broll stays logo-free, exactly as the imagery doctrine says).
+Cover/endcard lockups are authored into the first/last HTML pages (`references/html-pages.md`
+"Brand lockups"; the design-director owns placement); the corner `bug` is the only render-drawn
+brand mark. **Slide-image tier (pptx ingest):** master-slide logos arrive already baked into
+`frames/` — render adds NO cover/endcard branding there; the `bug` is the only brand path render
+adds on that tier.
 
 ## When a step fails (if → then → still-failing)
 

@@ -825,3 +825,134 @@ def test_edge_filter_new_styles_shapes():
     # unknown style falls back to dip
     parts, _ = render._edge_filter({**meta, "transition_style": "cube3d"}, 10.0, {}, "v0", 1920, 1080)
     assert len(parts) == 1 and "fade=" in parts[0]
+
+
+# ── brand bug: the render-level persistent corner mark (meta.brand, placement "bug") ──────────
+
+def test_bug_wanted_skips_lockup_scenes(tmp_path):
+    # drawn on a mid scene; skipped on the FIRST under 'cover' and the LAST under 'endcard' —
+    # those frames carry the authored lockup (bug + lockup on one frame is a double-brand)
+    meta = {"_out": str(tmp_path), "_first_index": 1, "_last_index": 9,
+            "brand": {"logo": "l.png", "placement": ["cover", "endcard", "bug"]}}
+    assert render._bug_wanted(meta, {"index": 5})
+    assert not render._bug_wanted(meta, {"index": 1})
+    assert not render._bug_wanted(meta, {"index": 9})
+    # bug-only placement: no lockups exist, so the mark appears on the edge scenes too
+    m2 = {**meta, "brand": {"logo": "l.png", "placement": ["bug"]}}
+    assert render._bug_wanted(m2, {"index": 1}) and render._bug_wanted(m2, {"index": 9})
+    # default placement (absent) is ["cover","endcard"] — lockups only, render draws nothing
+    assert not render._bug_wanted({**meta, "brand": {"logo": "l.png"}}, {"index": 5})
+    assert not render._bug_wanted({"_out": str(tmp_path)}, {"index": 5})       # no brand at all
+
+
+def test_brand_bug_layer_corner_aspect_opacity(tmp_path):
+    from PIL import Image
+    (tmp_path / "assets").mkdir()
+    Image.new("RGBA", (300, 100), (10, 60, 200, 255)).save(tmp_path / "assets" / "logo.png")
+    meta = {"_out": str(tmp_path), "brand": {"logo": "assets/logo.png", "placement": ["bug"]}}
+    p = str(tmp_path / "bug.png")
+    assert render._brand_bug_png(meta, 1920, 1080, p)
+    a = Image.open(p).getchannel("A")
+    box = a.getbbox()                                        # the drawn logo's extent
+    w, h = box[2] - box[0], box[3] - box[1]
+    assert h == int(1080 * 0.045)                            # default height_frac
+    assert abs(w / h - 3.0) < 0.1                            # 300x100 source: aspect preserved, no stretch
+    margin = int(1920 * 0.02)
+    assert box[2] == 1920 - margin and box[1] == margin      # default corner tr + margin_frac
+    assert 120 <= a.getextrema()[1] <= 135                   # default opacity 0.5 halves the alpha
+    # explicit cfg: tl corner, full opacity, bigger mark, tighter margin
+    meta["brand"]["bug"] = {"corner": "tl", "opacity": 1.0, "height_frac": 0.10, "margin_frac": 0.01}
+    render._brand_bug_png(meta, 1920, 1080, p)
+    a2 = Image.open(p).getchannel("A"); box2 = a2.getbbox()
+    assert box2[0] == int(1920 * 0.01) and box2[3] - box2[1] == 108 and a2.getextrema()[1] == 255
+    # an invalid corner (bottom = caption zone) is treated as tr
+    meta["brand"]["bug"] = {"corner": "bl"}
+    render._brand_bug_png(meta, 1920, 1080, p)
+    assert Image.open(p).getchannel("A").getbbox()[2] == 1920 - margin
+
+
+def test_brand_bug_dark_theme_picks_dark_variant(tmp_path):
+    from PIL import Image
+    Image.new("RGBA", (100, 50), (0, 0, 0, 255)).save(tmp_path / "logo.png")
+    Image.new("RGBA", (100, 50), (255, 255, 255, 255)).save(tmp_path / "logo_dark.png")
+    meta = {"_out": str(tmp_path),
+            "brand": {"logo": "logo.png", "logo_dark": "logo_dark.png", "placement": ["bug"]}}
+    (tmp_path / "theme.css").write_text(":root{--bg:#0d1117}")     # dark ground (lum < 0.5)
+    assert render._bug_logo_rel(meta) == "logo_dark.png"
+    p = str(tmp_path / "b.png")
+    render._brand_bug_png(meta, 1920, 1080, p)
+    im = Image.open(p).convert("RGBA"); box = im.getchannel("A").getbbox()
+    assert im.getpixel(((box[0] + box[2]) // 2, (box[1] + box[3]) // 2))[:3] == (255, 255, 255)
+    (tmp_path / "theme.css").write_text(":root{--bg:#f4f3ee}")     # light ground -> base logo
+    assert render._bug_logo_rel(meta) == "logo.png"
+    # no dark variant -> the base logo even on a dark ground (no recolor, ever)
+    (tmp_path / "theme.css").write_text(":root{--bg:#0d1117}")
+    assert render._bug_logo_rel({**meta, "brand": {"logo": "logo.png"}}) == "logo.png"
+
+
+def test_brand_bug_missing_logo_warns_and_skips(tmp_path, capsys):
+    # a missing/unreadable logo must SKIP the bug with a warning, never crash a render
+    meta = {"_out": str(tmp_path), "brand": {"logo": "assets/nope.png", "placement": ["bug"]}}
+    p = str(tmp_path / "bug.png")
+    assert render._brand_bug_png(meta, 1920, 1080, p) is None
+    assert "brand bug skipped" in capsys.readouterr().out
+    assert not os.path.exists(p)                                   # no layer -> no overlay input added
+
+
+def test_bug_composited_before_edge_filter():
+    # the bug must be composited INTO the page BEFORE the edge/transition filter so it dips with the
+    # seam (a bug floating over a bg dip is wrong). Source-order guard on BOTH encode paths.
+    import inspect
+    for fn in (render._render_slide, render._encode_frames_clip):
+        src = inspect.getsource(fn)
+        assert src.index("_bug_wanted(") < src.index("= _edge_filter("), fn.__name__
+
+
+def test_fingerprint_brand_always_logo_stat_only_under_bug(tmp_path):
+    from PIL import Image
+    (tmp_path / "assets").mkdir()
+    lp = tmp_path / "assets" / "logo.png"
+    Image.new("RGBA", (60, 20), (0, 0, 0, 255)).save(lp)
+    slide = {"index": 3, "type": "slide", "image": None}
+    fp = lambda m: render._fingerprint(slide, {"_out": str(tmp_path), **m}, 1920, 1080, 2, True, False)
+    plain = fp({})
+    lockup = fp({"brand": {"logo": "assets/logo.png"}})            # default placement: lockups only
+    bug = fp({"brand": {"logo": "assets/logo.png", "placement": ["bug"]}})
+    assert plain != lockup and lockup != bug                       # brand is ALWAYS in the key
+    assert bug == fp({"brand": {"logo": "assets/logo.png", "placement": ["bug"]}})   # stable
+    os.utime(lp, (1, 1))                                           # touch the logo file
+    assert fp({"brand": {"logo": "assets/logo.png"}}) == lockup    # lockup-only deck: cache holds
+    assert fp({"brand": {"logo": "assets/logo.png", "placement": ["bug"]}}) != bug   # bug deck: busts
+
+
+def test_fingerprint_keys_edge_position_flip(tmp_path):
+    # appending/dropping an edge scene flips whether a former/new edge scene carries the bug WITHOUT
+    # changing anything else about it — the bug verdict itself must key the cache (drift find #2)
+    from PIL import Image
+    (tmp_path / "assets").mkdir()
+    Image.new("RGBA", (60, 20), (0, 0, 0, 255)).save(tmp_path / "assets" / "logo.png")
+    slide = {"index": 9, "type": "slide", "image": None}
+    brand = {"logo": "assets/logo.png", "placement": ["endcard", "bug"]}
+    fp = lambda last: render._fingerprint(slide, {"_out": str(tmp_path), "brand": brand,
+                                                  "_first_index": 1, "_last_index": last},
+                                          1920, 1080, 2, True, False)
+    assert fp(9) != fp(10)              # scene 9 stops being the closer -> gains the bug -> re-render
+
+
+def test_brand_malformed_degrades_never_crashes(tmp_path, capsys):
+    # validate ERRORs these shapes, but render can run ungated — it must skip the bug, not die
+    assert render._bug_wanted({"_out": str(tmp_path), "brand": "acme"}, {"index": 3}) is False
+    assert render._bug_wanted({"_out": str(tmp_path),
+                               "brand": {"logo": "l.png", "placement": "bug"}}, {"index": 3}) is False
+    from PIL import Image
+    (tmp_path / "assets").mkdir()
+    Image.new("RGBA", (60, 20), (0, 0, 0, 255)).save(tmp_path / "assets" / "logo.png")
+    meta = {"_out": str(tmp_path), "brand": {"logo": "assets/logo.png", "placement": ["bug"],
+                                             "bug": "tr"}}                # non-dict bug cfg
+    assert render._brand_bug_png(meta, 1920, 1080, str(tmp_path / "b.png"))   # cfg coerced to {}
+    meta["brand"]["bug"] = {"height_frac": "big"}                          # garbage numeric -> skip
+    assert render._brand_bug_png(meta, 1920, 1080, str(tmp_path / "b2.png")) is None
+    assert "brand bug skipped" in capsys.readouterr().out
+    # a non-dict brand must not crash the fingerprint either
+    render._fingerprint({"index": 3, "type": "slide", "image": None},
+                        {"_out": str(tmp_path), "brand": "acme"}, 1920, 1080, 2, True, False)
