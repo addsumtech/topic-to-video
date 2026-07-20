@@ -140,6 +140,7 @@ def _composition_sig(html):
         st = re.search(r'style\s*=\s*"([^"]*)"', sm.group(0))
         style = st.group(1) if st else ""
     jc = re.search(r'justify-content\s*:\s*([\w-]+)', style)
+    jc_seen = bool(jc)
     jc = jc.group(1) if jc else "center"
     anchor = ("top" if jc in ("flex-start", "start") else "bottom" if jc in ("flex-end", "end")
               else "full" if jc.startswith("space") else "center")
@@ -159,13 +160,23 @@ def _composition_sig(html):
         balance = "centered"
     else:
         balance = "twocol"
+    # STATICALLY MEASURABLE? anchor/balance above are read off the .stage's FLEX signature + a handful
+    # of layout classes. A page that lays itself out with absolutely-positioned children has neither,
+    # so those two fields are not observations — they are the defaults ("center"/"centered"). Reporting
+    # them as findings produces a CONFIDENT FALSE READING (a deck measured 12-left/8-mid/7-right by DOM
+    # was reported as "0% break the centered column"), which is worse than staying silent: it sends the
+    # author chasing a non-problem and hides the real one. Detect the idiom and abstain — keyframe_qa
+    # measures these pages properly from real element boxes.
+    abs_kids = len(re.findall(r'position\s*:\s*absolute', html))
+    measurable = bool(jc_seen) or abs_kids < 5
     kicker_first = bool(re.search(r'class\s*=\s*"[^"]*\bstage\b[^"]*"[^>]*>\s*<[^>]*class\s*=\s*"[^"]*\bkicker\b', html))
     hero = bool(re.search(r'class\s*=\s*"[^"]*\bbg-photo\b', html))
     # an image-forward page (.media/.split panel or a full-bleed .bg-photo) is NOT a flat wall, even
     # with no .bg-soft — mirror the AI-look flat exemption so an image-rich deck isn't false-flagged.
     img_rich = bool(re.search(r'class\s*=\s*"[^"]*\b(?:media|split|bg-photo)\b', html))
     flat = not img_rich and not any(re.search(r'class\s*=\s*"[^"]*\b' + re.escape(c) + r'\b', html) for c in _BG_CLASSES)
-    return {"anchor": anchor, "balance": balance, "kicker_first": kicker_first, "hero": hero, "flat": flat}
+    return {"anchor": anchor, "balance": balance, "kicker_first": kicker_first, "hero": hero, "flat": flat,
+            "measurable": measurable}
 
 
 def _exists(out_dir, rel):
@@ -560,18 +571,29 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # form-family gate. Warning-only (design-critic D6b judges intent); skip small decks (<4 html scenes).
     if len(comps) >= 4:
         n = len(comps)
-        # a split/asym/offset page is left/right-weighted, not a center stack — don't count it toward center-anchor share
-        center_share = sum(1 for c in comps if c["anchor"] == "center" and c["balance"] not in ("split", "asym", "offset")) / n
-        offcenter = sum(1 for c in comps if c["balance"] in ("split", "asym", "offset") or c["anchor"] != "center") / n
-        if center_share > 0.6:
-            warnings.append(f"composition diversity: {round(100*center_share)}% of html pages are vertically "
-                            f"CENTER-anchored — vary the vertical anchor (top/bottom/full-bleed), don't stack every beat mid-frame")
+        # Only pages whose layout this gate can actually READ may vote on anchor/balance. An
+        # absolute-positioned deck is invisible to a flex/class signature, so counting its default
+        # "center"/"centered" would manufacture a false verdict (see _composition_sig).
+        meas = [c for c in comps if c.get("measurable", True)]
+        if len(meas) < max(4, 0.5 * n):
+            warnings.append(f"composition diversity: NOT statically measurable — {n - len(meas)}/{n} html pages lay "
+                            f"themselves out with absolutely-positioned children, which carry no flex/class "
+                            f"composition signature. This gate is abstaining rather than reporting a false 0%; read "
+                            f"keyframe_qa's DOM-measured content band/centroid for these pages instead")
+        else:
+            m = len(meas)
+            # a split/asym/offset page is left/right-weighted, not a center stack — don't count it toward center-anchor share
+            center_share = sum(1 for c in meas if c["anchor"] == "center" and c["balance"] not in ("split", "asym", "offset")) / m
+            offcenter = sum(1 for c in meas if c["balance"] in ("split", "asym", "offset") or c["anchor"] != "center") / m
+            if center_share > 0.6:
+                warnings.append(f"composition diversity: {round(100*center_share)}% of html pages are vertically "
+                                f"CENTER-anchored — vary the vertical anchor (top/bottom/full-bleed), don't stack every beat mid-frame")
+            if offcenter < 0.25:
+                warnings.append(f"composition diversity: only {round(100*offcenter)}% of pages break the centered column — "
+                                f"≥~1/3 should be off-center (.frame-left/.frame-right/.thirds/grid-asym/.split/top-anchored)")
         if all(c["kicker_first"] for c in comps):
             warnings.append("composition diversity: EVERY html page opens with a top .kicker hat — let ≥1 hero lead "
                             "with its number/image (no kicker) so the deck isn't one template")
-        if offcenter < 0.25:
-            warnings.append(f"composition diversity: only {round(100*offcenter)}% of pages break the centered column — "
-                            f"≥~1/3 should be off-center (.frame-left/.frame-right/.thirds/grid-asym/.split/top-anchored)")
         non_hero = [c for c in comps if not c["hero"]]
         if non_hero:
             nflat = sum(1 for c in non_hero if c["flat"])
@@ -1170,6 +1192,33 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
             warnings.append(f"{tag}: .bg-live/.bg-drift on a non-full-bleed element (class=\"{cl[:40]}\") — "
                             f"apply a living backdrop only to a full-bleed .bg-soft/.bg-photo, not a card/side image")
             break
+    # BACKDROP THAT RENDERS AS NOTHING. Two ways an authored backdrop silently contributes zero:
+    #   (a) it is painted BEFORE an opaque full-bleed sibling (a .world/.near-black grade covering
+    #       inset:0), so it is completely occluded — the page looks identical with the image removed;
+    #   (b) it is declared as a raw inline `background-image` div instead of <img class="bg-soft">,
+    #       which bypasses the opacity guidance AND the flatness gate, so the page still reads flat.
+    # Both shipped together in a real deck: five paid generated images sat under an opaque gradient at
+    # opacity .10 — the tier was billed and bought literally nothing, and every gate stayed silent.
+    _OPAQUE_FULLBLEED = r'<div[^>]*class\s*=\s*"[^"]*\b(?:world|near-black)\b'
+    _occluder = re.search(_OPAQUE_FULLBLEED, html)
+    if _occluder:
+        for m in re.finditer(r'<(?:img|div)[^>]*(?:class\s*=\s*"[^"]*\bbg-(?:soft|photo)\b|background-image\s*:\s*url)[^>]*>', html):
+            if m.start() < _occluder.start():
+                warnings.append(f"{tag}: a backdrop is painted BEFORE the opaque full-bleed "
+                                f"\"{_occluder.group(0)[12:44].strip()}…\" layer — it is fully occluded and renders as "
+                                f"NOTHING (the page is identical with the image deleted). Move it AFTER that layer "
+                                f"(and before any .desk/foreground plane)")
+                break
+    for m in re.finditer(r'<div[^>]*style\s*=\s*"[^"]*inset\s*:\s*0[^"]*background-image\s*:\s*url\([^)]*\)[^"]*"[^>]*>', html):
+        # The mechanism (div+background-image vs <img>) is fine; what matters is that the element
+        # DECLARES itself a backdrop with bg-soft/bg-photo. Undeclared, it is invisible to the
+        # flatness gate and to the opacity cap — so it reads as a flat page carrying a hidden image.
+        if re.search(r'class\s*=\s*"[^"]*\bbg-(?:soft|photo)\b', m.group(0)):
+            continue
+        warnings.append(f"{tag}: full-bleed backdrop is UNDECLARED — a raw inset:0 background-image div with no "
+                        f"bg-soft/bg-photo class. Add the class (or use <img class=\"bg-soft\"> + .bg-soft-tint) so "
+                        f"it obeys the opacity cap and REGISTERS with the flatness gate, which cannot see it today")
+        break
     # AI look (image_source:openai): content pages must NOT be flat — each carries a reused low-opacity
     # TOPIC texture (.bg-soft + .bg-soft-tint) so the deck isn't a flat wall. Exempt the image-forward
     # opener/closer (.bg-photo) and any content page leading with a real .media/.split image panel

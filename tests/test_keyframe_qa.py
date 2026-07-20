@@ -142,3 +142,32 @@ def test_shipped_url_none_when_page_missing(tmp_path):
     s = {"index": 1, "type": "html", "props": {"html": "pages/gone.html"},
          "narration": "we open here and then the payoff", "duration": 6.0}
     assert kq._shipped_url(str(tmp_path), s, "file:///p.html") is None
+
+
+# ---- deck-level content-BAND uniformity ----------------------------------------------------------
+# The centroid check can pass while every page still occupies the same rectangle. A real deck measured
+# 12-left/8-mid/7-right horizontally (varied!) yet felt like one template because 21/29 pages ended
+# their content on the same bottom line. The shared ENVELOPE is the defect the centroid can't see.
+
+def test_band_uniformity_flags_a_shared_bottom_line():
+    bands = [(i, 0.10 + 0.01 * i, 0.82) for i in range(10)]      # tops vary, bottoms identical
+    n = kq._band_uniformity_note(bands)
+    assert n and "bottom" in n and "10/10" in n
+
+def test_band_uniformity_reports_the_actual_line():
+    n = kq._band_uniformity_note([(i, 0.1, 0.82) for i in range(8)])
+    assert "0.82" in n
+
+def test_band_uniformity_quiet_when_bands_genuinely_vary():
+    bands = [(0, 0.05, 0.40), (1, 0.30, 0.60), (2, 0.55, 0.85), (3, 0.12, 0.72),
+             (4, 0.40, 0.95), (5, 0.20, 0.50), (6, 0.60, 0.90), (7, 0.02, 0.33)]
+    assert kq._band_uniformity_note(bands) is None
+
+def test_band_uniformity_needs_enough_pages():
+    assert kq._band_uniformity_note([(i, 0.1, 0.82) for i in range(5)]) is None
+
+def test_band_uniformity_also_catches_a_shared_top_line():
+    # same masthead height on every page, bottoms varied -> the top edge is the shared one
+    bands = [(i, 0.12, 0.40 + 0.06 * i) for i in range(9)]
+    n = kq._band_uniformity_note(bands)
+    assert n and "top" in n

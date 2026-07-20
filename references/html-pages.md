@@ -406,6 +406,45 @@ reaching for a card grid a third time, STOP and re-read the form-selection table
 almost always wants a `.flow` / `.scorecard` / `.quadrant` / `.timeline` / `.hubspoke` / `.segbar`
 instead. `validate.py` counts the families and warns when one dominates; `design-critic` (D1) fails it.
 
+### Vary the ENVELOPE, not just the alignment
+Form diversity and left/right balance are not enough. The subtler monotony is the **content band** —
+where content starts and stops vertically. A deck can be genuinely varied horizontally
+(12 pages left-weighted, 8 mid, 7 right) and *still* read as one template because **21 of 29 of its
+pages ended their content on the same line** (~0.82 of frame height). Every page filled the same
+rectangle: masthead at the top, content down to just above the caption zone, page after page.
+
+So when you plan a deck, treat the band as a design variable with a target distribution — roughly:
+- **~1/3 in the default band** (top kicker → content → caption clearance). The workhorse.
+- **~1/3 stopping HIGH with real void below** — a statement or pivot beat that needs air. Content
+  ends by ~0.6 and the bottom third is *empty on purpose*.
+- **~1/3 sitting LOW on the baseline** — a beat about a surface, a floor, a foundation, a device on a
+  desk. Content starts around ~0.5 and rides the bottom.
+
+Drive it from what the beat SAYS — a sparse pivot earns void, a "this sits on your desk" beat earns
+the baseline. A uniform nudge to satisfy the metric is worse than leaving it alone. `keyframe_qa`
+measures the real band from the DOM and flags a shared edge above 60%.
+
+> ⚠️ **`validate.py`'s composition gate cannot see an absolute-positioned page.** It reads the
+> `.stage`'s flex `justify-content` and a handful of layout classes (`.frame-left`/`.thirds`/`.split`/
+> `.grid-asym`). A page that positions its children absolutely has neither, so the gate **abstains**
+> and says so rather than reporting its defaults as a finding. On such a deck, the composition signal
+> you trust is `keyframe_qa`'s DOM-measured band/centroid — not validate's silence.
+
+### Layer a backdrop so it actually renders
+A backdrop contributes NOTHING if it is painted **before** an opaque full-bleed layer. In a register
+that grades the frame with an opaque `.world` / `.near-black` gradient, a texture placed above it in
+source order is completely covered — the page renders identically with the image deleted. Order is:
+```html
+<div class="world"></div>                        <!-- the opaque grade -->
+<img class="bg-soft" src="…" style="opacity:.16"> <!-- the city out the window -->
+<div class="bg-soft-tint"></div>
+<div class="desk"></div>                          <!-- foreground plane, drawn OVER the backdrop -->
+```
+And always **declare** it with `bg-soft`/`bg-photo`. A bare `inset:0` `background-image` div is
+invisible to the flatness gate and to the opacity cap, so a page carrying a hidden image still reports
+FLAT. Both mistakes shipped together once: five paid `gpt-image` assets, under an opaque gradient, at
+`opacity:.10` — a billed tier that bought exactly nothing. `validate.py` now lints both.
+
 ## Decodability rule — every on-frame element must telegraph its role (REQUIRED)
 A viewer gets each frame for only a few seconds. **Every visible element must pass a 1-second test:
 a first-time viewer can name what it is and why it's there.** Existence-for-composition is NOT enough —

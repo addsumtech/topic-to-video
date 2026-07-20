@@ -1375,3 +1375,80 @@ def test_truncation_end_to_end_through_evaluate(tmp_path):
     r = validate.evaluate(data, str(tmp_path))
     assert r["ok"] is False
     assert any("complete when the render cuts" in e for e in r["errors"])
+
+
+# ---- composition gate: abstain instead of reporting a FALSE reading -------------------------------
+# anchor/balance are read off the .stage's FLEX signature + a few layout classes. An absolute-
+# positioned page has neither, so those fields are defaults, not observations. A real deck measured
+# 12-left/8-mid/7-right by DOM was reported "0% break the centered column" — a confident false
+# verdict that sent the author chasing a non-problem and hid the real one (a shared content band).
+
+_ABS_PAGE = ('<div class="stage" style="position:relative;padding:0">'
+             '<div style="position:absolute;left:120px;top:132px">a</div>'
+             '<div style="position:absolute;left:120px;top:210px">b</div>'
+             '<div style="position:absolute;left:900px;top:300px">c</div>'
+             '<div style="position:absolute;left:900px;top:500px">d</div>'
+             '<div style="position:absolute;left:200px;top:700px">e</div></div>')
+_FLEX_PAGE = ('<div class="stage" style="justify-content:flex-start">'
+              '<h1 class="title">t</h1><p>body</p></div>')
+
+def test_composition_sig_abstains_on_an_absolute_positioned_page():
+    assert validate._composition_sig(_ABS_PAGE)["measurable"] is False
+
+def test_composition_sig_measures_a_flex_page():
+    sig = validate._composition_sig(_FLEX_PAGE)
+    assert sig["measurable"] is True and sig["anchor"] == "top"
+
+def test_composition_sig_measures_a_simple_page_with_few_absolutes():
+    # a couple of absolutely-positioned decorations don't make a page unreadable to the gate
+    html = '<div class="stage"><div style="position:absolute">x</div><h1 class="title">t</h1></div>'
+    assert validate._composition_sig(html)["measurable"] is True
+
+def _comp_eval(tmp_path, page_html, n=6):
+    slides = [_html_scene(tmp_path, i, f"pages/s{i}.html", page_html) for i in range(n)]
+    data = _board(str(tmp_path), slides, {"image_source": "none"})
+    return validate.evaluate(data, str(tmp_path))
+
+def test_absolute_deck_reports_abstention_not_a_false_zero(tmp_path):
+    r = _comp_eval(tmp_path, _ABS_PAGE)
+    assert any("NOT statically measurable" in w for w in r["warnings"])
+    assert not any("break the centered column" in w for w in r["warnings"])
+
+def test_flex_deck_still_gets_the_real_composition_warning(tmp_path):
+    centered = ('<div class="stage" style="text-align:center"><h1 class="title">t</h1></div>')
+    r = _comp_eval(tmp_path, centered)
+    assert not any("NOT statically measurable" in w for w in r["warnings"])
+    assert any("CENTER-anchored" in w or "break the centered column" in w for w in r["warnings"])
+
+
+# ---- a backdrop that renders as NOTHING -----------------------------------------------------------
+# Five paid generated images once shipped underneath an OPAQUE full-bleed gradient at opacity .10:
+# the tier was billed, the pages looked identical with the images deleted, and every gate stayed quiet.
+
+_OCCLUDED = ('<body><div style="position:absolute;inset:0;background-image:url(\'.assets/t.png\');'
+             'background-size:cover;opacity:.10"></div><div class="world"></div>'
+             '<div class="stage"><h1 class="title">t</h1></div></body>')
+_CORRECT = ('<body><div class="world"></div><img class="bg-soft" src=".assets/t.png" style="opacity:.16">'
+            '<div class="bg-soft-tint"></div><div class="stage"><h1 class="title">t</h1></div></body>')
+
+def _one(tmp_path, html):
+    data = _board(str(tmp_path), [_html_scene(tmp_path, 0, "pages/s0.html", html)])
+    return validate.evaluate(data, str(tmp_path))["warnings"]
+
+def test_backdrop_under_an_opaque_layer_is_flagged(tmp_path):
+    assert any("renders as\nNOTHING" in w or "renders as NOTHING" in w for w in _one(tmp_path, _OCCLUDED))
+
+def test_correctly_layered_backdrop_is_quiet(tmp_path):
+    ws = _one(tmp_path, _CORRECT)
+    assert not any("renders as NOTHING" in w or "UNDECLARED" in w for w in ws)
+
+def test_undeclared_fullbleed_backdrop_is_flagged(tmp_path):
+    html = ('<body><div class="world"></div><div style="position:absolute;inset:0;'
+            'background-image:url(\'.assets/t.png\')"></div><div class="stage"><h1 class="title">t</h1></div></body>')
+    assert any("UNDECLARED" in w for w in _one(tmp_path, html))
+
+def test_declared_backdrop_div_is_not_flagged_for_its_mechanism(tmp_path):
+    # div + background-image is a fine MECHANISM as long as it declares itself bg-photo/bg-soft
+    html = ('<body><div class="world"></div><div class="bg-photo" style="position:absolute;inset:0;'
+            'background-image:url(\'.assets/t.png\')"></div><div class="stage"><h1 class="title">t</h1></div></body>')
+    assert not any("UNDECLARED" in w for w in _one(tmp_path, html))

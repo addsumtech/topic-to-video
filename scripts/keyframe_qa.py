@@ -181,6 +181,35 @@ def _reveal_count(chrome):
         return {"tot": 0, "vis": 0}
 
 
+BAND_TOL = 0.035          # normalized frame-height slack for "the same line"
+BAND_SHARE = 0.6          # share of pages on one line before it reads as a shared envelope
+
+def _band_uniformity_note(bands):
+    """Deck-level CONTENT-BAND uniformity. `bands` = [(scene, ctop, cbot)] normalized to frame height.
+
+    A centroid can look varied while every page still occupies the SAME rectangle — content starting
+    and ending on the same two lines, page after page. That shared envelope, not "everything is
+    centered", is what actually reads as templated: a deck measured 12-left/8-mid/7-right horizontally
+    still felt like one page because 21/29 of its pages ended at cbot ~0.82. Report the shared EDGE so
+    the fix is concrete (give N beats a different band) rather than a vague "vary the composition"."""
+    if len(bands) < 6:
+        return None
+    for edge, name in ((2, "bottom"), (1, "top")):
+        vals = [b[edge] for b in bands]
+        best, at = 0, None
+        for v in vals:
+            k = sum(1 for w in vals if abs(v - w) <= BAND_TOL)
+            if k > best:
+                best, at = k, v
+        if best / len(bands) > BAND_SHARE:
+            return (f"content-band uniformity: {best}/{len(bands)} pages end their content on the same {name} "
+                    f"line (~{at:.2f} of frame height) — the pages differ but the ENVELOPE does not, which is "
+                    f"what reads as templated. Give ~1/3 of beats a genuinely different band (a sparse beat "
+                    f"that stops high with void below; a beat that sits low on the baseline), driven by what "
+                    f"the beat says — not a uniform nudge")
+    return None
+
+
 def _shipped_url(out_dir, s, url):
     """URL for the frame that ACTUALLY SHIPS — seek.js in CUE mode (?cues=&dur=) at p=1.0, which is
     the render's real last frame.
@@ -235,6 +264,7 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
     chrome = _open_cdp(meta, W, H)
     report, last_frames, errors, warns = [], [], 0, 0
     centroids = []                        # (scene, cx, cy) normalized content centroids, for silhouette repetition
+    bands = []                            # (scene, ctop, cbot) normalized content BAND, for band uniformity
     try:
         for s in html:
             idx = s.get("index")
@@ -326,6 +356,7 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                     if info.get("cright", -1) > info.get("cleft", 0) and info.get("cbot", -1) > info.get("ctop", 0):
                         centroids.append((idx, ((info["cleft"] + info["cright"]) / 2) / W,
                                           ((info["ctop"] + info["cbot"]) / 2) / H))
+                        bands.append((idx, info["ctop"] / H, info["cbot"] / H))
                 except Exception:
                     if _is_blank(final):
                         issues.append("BLANK at p=1 (reveal never fired / broken page)")
@@ -372,6 +403,16 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
             deck_notes.append(f"silhouette repetition: {best}/{len(centroids)} pages share one content "
                               f"centroid ({zone}) — vary the vertical anchor / horizontal balance so the deck "
                               f"isn't one template (design-critic D11)")
+
+    # Deck-level CONTENT-BAND uniformity (advisory). A centroid can look varied while every page still
+    # occupies the SAME rectangle — content starting and ending on the same two lines, page after page.
+    # That shared envelope, not "everything is centered", is what actually reads as templated: a deck
+    # measured 12-left/8-mid/7-right horizontally still felt like one page because 22/29 of its pages
+    # ended at cbot 0.79-0.85. Report the shared EDGE so the fix is concrete (give N beats a different
+    # band) rather than the vague "vary the composition".
+    note = _band_uniformity_note(bands)
+    if note:
+        deck_notes.append(note)
 
     if as_json:
         print(json.dumps({"errors": errors, "warns": warns, "report": report,

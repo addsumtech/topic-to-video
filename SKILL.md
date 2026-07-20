@@ -158,7 +158,13 @@ TTS if the user gives an API key.
 - `scripts/cues.py` — pure anchor→cue-time resolver: reads per-scene `audio/NN.words.json` (edge-tts per-word timings) and resolves each `data-cue` anchor phrase to an absolute timestamp, used by `render_html` for audio-synced HTML reveals.
 - `scripts/check_av.py <out_dir>` — deterministic A/V gate: probes `out.mp4` video-vs-audio duration + per-clip sample-rate uniformity across `.clips/`; exits non-zero on A/V drift above tolerance (0.3 s) or non-uniform rates. Run AFTER the full render (step 9) as a gate before delivery.
 - `scripts/doctor.py [--json]` — environment preflight: reports which tools/libraries are present (ffmpeg/ffprobe/PIL required; PyMuPDF/python-pptx/edge-tts/soffice/Chrome/font optional) and, for each missing one, the stage it gates + the install hint. Exits non-zero only when a REQUIRED dep is missing. Run once at the START (step 1).
-- `scripts/validate.py <out_dir> [--pre-tts] [--vertical] [--json]` — deterministic PRE-render gate on `storyboard.json` (runs in ~1s): structural contract, duplicate indices, every referenced image/audio/html-page/`file://` asset + `theme.css` exists on disk, caption craft (no wall of text, no widow, ≥0.7s on screen — see `references/captions.md`), motion sanity (zoom delta + zoom-past-1.25 + callout-framing — see `references/motion-grammar.md`), per-point reveal↔voice alignment (each point spoken-% vs shown-% → leads/lags warning, cued or paced), an **animation-TRUNCATION gate** (a cued element starts at its cue and runs for its own `animation-duration`; when `cue + duration > scene duration` the render freezes it mid-flight and hard-cuts — a connector stopping in mid-air. ERROR under ~90% complete, WARN above, reporting the exact duration to set. `.draw` at 1.4s is the usual casualty, double the `--dur` .7s every other reveal uses; durations are parsed from base.css/motifs.css so they can't drift. **This is the ONLY gate that sees it** — `keyframe_qa`'s `?p=` sheet renders in blind-envelope mode where p=1.0 means "every animation finished" by construction), a **hardcoded-hex lint** (WARN on a raw `#hex` in a `style=`/SVG-`fill`/`<style>` color — pages must use semantic vars), figure-traceability (a stat on screen/voice must trace to the brief; **UI-idiom chrome text opts out via `data-ui`** on the leaf element — never mutate chrome text to dodge the lint), CJK-font/cue/pacing/anti-slop warnings. Exits non-zero on any ERROR. Run BEFORE every render (step 9); `--pre-tts` validates right after authoring (skips audio checks); `--vertical` mirrors render's 9:16 canvas (also auto from `meta.aspect`). Errors block; warnings don't.
+- `scripts/validate.py <out_dir> [--pre-tts] [--vertical] [--json]` — deterministic PRE-render gate on `storyboard.json` (runs in ~1s): structural contract, duplicate indices, every referenced image/audio/html-page/`file://` asset + `theme.css` exists on disk, caption craft (no wall of text, no widow, ≥0.7s on screen — see `references/captions.md`), motion sanity (zoom delta + zoom-past-1.25 + callout-framing — see `references/motion-grammar.md`), per-point reveal↔voice alignment (each point spoken-% vs shown-% → leads/lags warning, cued or paced), an **animation-TRUNCATION gate** (a cued element starts at its cue and runs for its own `animation-duration`; when `cue + duration > scene duration` the render freezes it mid-flight and hard-cuts — a connector stopping in mid-air. ERROR under ~90% complete, WARN above, reporting the exact duration to set. `.draw` at 1.4s is the usual casualty, double the `--dur` .7s every other reveal uses; durations are parsed from base.css/motifs.css so they can't drift. **This is the ONLY gate that sees it** — `keyframe_qa`'s `?p=` sheet renders in blind-envelope mode where p=1.0 means "every animation finished" by construction), a **composition-gate ABSTENTION** (anchor/balance are read off the `.stage`'s flex signature + a few
+layout classes; an absolute-positioned page has neither, so the gate now says it cannot measure instead of
+reporting the defaults as a finding — it once reported "0% break the centered column" for a deck the DOM
+measured at 12-left/8-mid/7-right, a confident false verdict that hid the real defect), a **dead-backdrop
+lint** (a backdrop painted BEFORE an opaque full-bleed `.world`/`.near-black` layer is fully occluded and
+renders as NOTHING; and an undeclared `inset:0` background-image div is invisible to the flatness gate and
+the opacity cap — together these once let five PAID generated images ship contributing literally zero), a **hardcoded-hex lint** (WARN on a raw `#hex` in a `style=`/SVG-`fill`/`<style>` color — pages must use semantic vars), figure-traceability (a stat on screen/voice must trace to the brief; **UI-idiom chrome text opts out via `data-ui`** on the leaf element — never mutate chrome text to dodge the lint), CJK-font/cue/pacing/anti-slop warnings. Exits non-zero on any ERROR. Run BEFORE every render (step 9); `--pre-tts` validates right after authoring (skips audio checks); `--vertical` mirrors render's 9:16 canvas (also auto from `meta.aspect`). Errors block; warnings don't.
 - `scripts/rhythm_qa.py <out_dir> [--json]` — deterministic PRE-render VIDEO-RHYTHM gate: the
   video-native complement to the layout-diversity gate. Reads `storyboard.json` (real `duration`s after
   tts, else estimates from narration) and flags flat pacing — durations too uniform (monotone), a climax
@@ -200,7 +206,10 @@ TTS if the user gives an API key.
   classes are excluded); on **mystery furniture** (an empty bordered box with no text and no
   `data-role` — every element must be viewer-decodable in ~1s, see html-pages.md "Decodability rule");
   on **near-miss alignment** (sibling edges off by 5–22px — snap to a shared guide, see "Alignment &
-  order discipline"); and, on a 9:16 deck, on any page filling <60% of the vertical zone (the
+  order discipline"); on **content-band uniformity** (the deck-level check the centroid can't make: when
+  >60% of pages start or end their content on the SAME line, the pages differ but the ENVELOPE doesn't —
+  which is what actually reads as templated. A deck measured 12-left/8-mid/7-right horizontally still
+  felt like one page because 21/29 of its pages ended at ~0.82 frame-height); and, on a 9:16 deck, on any page filling <60% of the vertical zone (the
   "fill the column" rule — heroes with a full-bleed `.bg-photo` are exempt). Exits non-zero on a
   blank / overflow / clip / caption-occlusion (advisories don't block). Run after
   authoring the pages, BEFORE the full render — a ~1-minute catch of the exact failures that would
@@ -722,7 +731,14 @@ TTS if the user gives an API key.
 9. **Full render** — first the PRE-render gate: `python scripts/validate.py <out_dir>`. A
    non-zero exit means a referenced image/audio/page/asset is missing, an index is duplicated,
    `theme.css` is absent, or a caption is a wall of text — fix every ERROR before rendering (it
-   catches in ~1s what would otherwise waste a multi-minute render); skim the warnings too.
+   catches in ~1s what would otherwise waste a multi-minute render).
+   **WARNING TRIAGE — required, not "skim the warnings too".** Warnings do not block the render, which
+   is exactly why they get shipped: a deck once delivered "all green" carrying **94** of them, including
+   28 pages flagged FLAT on a PAID image tier and every reveal-choreography defect on the deck. An exit
+   code of 0 is a floor, not a verdict. So before delivering, GROUP the warnings by kind (they repeat —
+   94 collapsed to ~10 kinds) and put every kind in one of three buckets: **fix** · **accept, with a
+   one-line reason** · **can't fix here**. Then TELL THE USER the accepted ones and why. A warning
+   silently swallowed is a defect you chose and hid; a warning accepted out loud is a design decision.
    **Also run `python scripts/rhythm_qa.py <out_dir>`** (needs the real durations, so after tts) — it
    flags flat pacing: uniform scene lengths, a mis-placed or missing climax, a non-sparse closer, an
    over-held static image, or no attention reset for >~35s. Fix the ERRORs; treat the WARNs as
