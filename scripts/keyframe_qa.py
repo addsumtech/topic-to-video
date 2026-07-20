@@ -17,10 +17,11 @@ Exit 0 when clean; non-zero if any page is BLANK or OVERFLOWS (those block). The
 paragraph check is advisory-only and never blocks. The contact sheets are the primary artifact —
 open `_keyframes/all.png` to eyeball tofu / off-theme / mistimed reveals.
 """
-import argparse, base64, json, os, sys, time
+import argparse, base64, json, os, re, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from PIL import Image
 import scenes  # reuse the Chrome bin resolver + per-shot screenshot fallback
+import cues as _cues
 
 DEFAULT_PS = [0.0, 0.25, 0.5, 0.75, 1.0]
 OVERFLOW_TOL = 6   # px a content box may exceed the canvas before it's flagged
@@ -180,6 +181,48 @@ def _reveal_count(chrome):
         return {"tot": 0, "vis": 0}
 
 
+def _shipped_url(out_dir, s, url):
+    """URL for the frame that ACTUALLY SHIPS — seek.js in CUE mode (?cues=&dur=) at p=1.0, which is
+    the render's real last frame.
+
+    Why this exists: with no ?cues= seek.js runs in blind-ENVELOPE mode, where total = max(delay +
+    animation-duration) over the reveals, so p=1.0 means "every animation has finished" BY
+    CONSTRUCTION. The blind sheet therefore CANNOT show an animation the scene cut off mid-flight
+    (a connector frozen in mid-air) — in its coordinate system that state does not exist. Mirrors
+    the cue-param construction in scenes.render_html; returns None when the scene isn't cued (blind
+    mode is then already the truth) or the durations aren't in yet (pre-tts)."""
+    dur = s.get("duration")
+    if not isinstance(dur, (int, float)) or dur <= 0:
+        return None
+    try:
+        html = open(os.path.join(out_dir, (s.get("props") or {}).get("html") or ""), encoding="utf-8").read()
+    except Exception:
+        return None
+    pts = re.findall(r'''data-cue-index=["'](\d+)["'][^>]*?data-cue=["']([^"']*)["']''', html)
+    pts += [(i, a) for (a, i) in re.findall(r'''data-cue=["']([^"']*)["'][^>]*?data-cue-index=["'](\d+)["']''', html)]
+    ordered = scenes._dedup_cue_pts(pts)
+    if not ordered:
+        return None
+    times = None
+    words_path = os.path.join(out_dir, "audio", f"{s.get('index'):02d}.words.json")
+    if os.path.exists(words_path):
+        try:
+            times = _cues.resolve_cues(json.load(open(words_path)), [a for _, a in ordered])
+        except Exception:
+            times = None
+    if times is None:
+        narration = s.get("narration") or ""
+        if not narration.strip():
+            return None
+        times = _cues.estimate_cues_from_text([a for _, a in ordered], narration, dur)
+    margin = max(0.0, dur - 0.5)                       # same clamp render_html applies
+    sparse = [None] * (ordered[-1][0] + 1)
+    for (orig_i, _), t in zip(ordered, times):
+        sparse[orig_i] = min(t, margin)
+    cue_param = ",".join("" if t is None else f"{t:.3f}" for t in sparse)
+    return url + f"?p=1.0&cues={cue_param}&dur={dur:.3f}"
+
+
 def run(out_dir, ps=DEFAULT_PS, as_json=False):
     data = json.load(open(os.path.join(out_dir, "storyboard.json")))
     meta = data["meta"]; meta["_out"] = out_dir
@@ -219,7 +262,7 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
             if not ok or not frames:
                 continue
             _sheet(frames, os.path.join(kf, f"scene_{idx:02d}.png"))
-            final = frames[-1]; last_frames.append(final)
+            final = frames[-1]; shipped = None
             issues, advisories = [], []       # issues block the gate; advisories are non-blocking
             if chrome:
                 try:
@@ -288,6 +331,19 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                         issues.append("BLANK at p=1 (reveal never fired / broken page)")
             elif _is_blank(final):
                 issues.append("BLANK at p=1 (reveal never fired / broken page)")
+            # SHIPPED frame — captured AFTER the probe so every gate above keeps measuring the blind
+            # resting state it was written against. This is the frame the viewer actually sees: an
+            # animation the scene cuts off mid-flight shows up HERE and nowhere else on the sheet.
+            if chrome:
+                surl = _shipped_url(out_dir, s, url)
+                if surl:
+                    try:
+                        sfp = os.path.join(kf, f"scene_{idx:02d}_shipped.png")
+                        chrome.shot(surl, sfp)
+                        shipped = Image.open(sfp)
+                    except Exception:
+                        shipped = None
+            last_frames.append(shipped or final)   # all.png shows shipped frames where we have them
             if issues:
                 errors += 1
             if advisories:

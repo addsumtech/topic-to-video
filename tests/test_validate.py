@@ -1294,3 +1294,84 @@ def test_brand_authored_lockups_and_valid_brand_clean(tmp_path):
     r = _brand_eval(tmp_path, {"logo": logo, "name": "ACME Institute"}, slides=slides)   # default placement
     assert r["errors"] == []
     assert not any("brand" in w for w in r["warnings"])
+
+
+# ---- cue-triggered animation TRUNCATED by the scene cut ------------------------------------------
+# seek.js starts a cued element at its cue and runs it for its own animation-duration; if that
+# overruns the scene the render freezes it mid-flight and hard-cuts (a connector stopping in
+# mid-air). keyframe_qa cannot see this — with no ?cues= it renders in blind-envelope mode where
+# p=1.0 means "every animation finished" by construction — so validate is the only detector.
+
+def _trunc(html, narration, duration, words_path="/nonexistent.json"):
+    e, w = [], []
+    validate._reveal_truncation(html, narration, duration, words_path, "scene 1", e, w)
+    return e, w
+
+def _draw_page(anchor, extra=""):
+    return (f'<div class="reveal" data-cue-index="0" data-cue="first">A</div>'
+            f'<path class="draw" data-cue-index="1" data-cue="{anchor}"{extra} d="M 0 0 L 9 9"/>')
+
+# narration where the 2nd anchor is the FINAL phrase -> ~93% of the way through the line
+_LATE = "we begin here with a good long opening clause, and then at last the payoff"
+
+def test_truncation_errors_when_draw_cannot_finish():
+    # 1.4s .draw cued at ~93% of a 6s scene has ~0.4s left -> ~30% complete at the cut
+    e, w = _trunc(_draw_page("payoff"), _LATE, duration=6.0)
+    assert any("complete when the render cuts" in x for x in e), (e, w)
+    assert w == []
+
+def test_truncation_reports_the_duration_to_use():
+    e, _ = _trunc(_draw_page("payoff"), _LATE, duration=6.0)
+    assert "animation-duration" in e[0]
+
+def test_truncation_respects_inline_duration_override():
+    # the documented fix: an explicit short duration lands before the cut -> silent
+    e, w = _trunc(_draw_page("payoff", ' style="animation-duration:.3s"'), _LATE, duration=6.0)
+    assert e == [] and w == []
+
+def test_truncation_silent_when_cue_is_early():
+    early = "at last the payoff, and then a good long trailing clause to close the line out"
+    e, w = _trunc(_draw_page("payoff"), early, duration=6.0)
+    assert e == [] and w == []
+
+def test_truncation_warns_not_errors_on_a_marginal_shortfall(tmp_path):
+    # ~95% complete: cosmetic, so it must WARN rather than block the render
+    import json
+    wp = tmp_path / "01.words.json"
+    json.dump([{"w": "first", "t": 0.2}, {"w": "payoff", "t": 4.07}], open(wp, "w"))
+    e, w = _trunc(_draw_page("payoff"), _LATE, duration=5.4, words_path=str(wp))
+    assert e == [], e
+    assert any("complete when the render cuts" in x for x in w), w
+
+def test_truncation_ignores_ambient_backdrops():
+    # .bg-live/.bg-drift are progress-driven in seek.js (they span the scene), never truncated
+    html = ('<div class="reveal" data-cue-index="0" data-cue="first">A</div>'
+            '<div class="bg-live" data-cue-index="1" data-cue="payoff"></div>')
+    e, w = _trunc(html, _LATE, duration=6.0)
+    assert e == [] and w == []
+
+def test_truncation_skips_elements_with_no_animation():
+    html = ('<div class="reveal" data-cue-index="0" data-cue="first">A</div>'
+            '<div class="plainbox" data-cue-index="1" data-cue="payoff">B</div>')
+    e, w = _trunc(html, _LATE, duration=6.0)
+    assert e == [] and w == []
+
+def test_truncation_needs_real_durations():
+    e, w = _trunc(_draw_page("payoff"), _LATE, duration=None)   # pre-tts: no durations yet
+    assert e == [] and w == []
+
+def test_css_anim_durations_match_the_stylesheets():
+    # parsed from base.css/motifs.css so the gate can never drift from the CSS. A comment naming a
+    # class used to leak into the NEXT rule's selector (.draw read 3s off .float) — regression.
+    t = validate._css_anim_durations()
+    assert t["draw"] == 1.4
+    assert t["float"] == 3.0
+    assert t["reveal"] == 0.7 and t["reveal-up"] == 0.7
+
+def test_truncation_end_to_end_through_evaluate(tmp_path):
+    s = _html_scene(tmp_path, 0, "pages/s0.html", _draw_page("payoff"))
+    s["narration"] = _LATE; s["duration"] = 6.0
+    data = _board(str(tmp_path), [s])
+    r = validate.evaluate(data, str(tmp_path))
+    assert r["ok"] is False
+    assert any("complete when the render cuts" in e for e in r["errors"])

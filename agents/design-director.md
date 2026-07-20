@@ -92,6 +92,15 @@ A SEPARATE artifact from the content plan (the assistant merges the two into the
   timer. A bar whose figure isn't spoken (an unlabelled middle bar) can be left without a matching
   anchor — it interpolates between its cued neighbours. On a `timeline`, give EVERY event an anchor (a
   short cue array falls back to the blind reveal). No `cue` ⇒ the blind build.
+  **Leave the last anchor room to LAND.** A cued element starts at its anchor and needs its full
+  animation time; if the anchor is the line's FINAL phrase, the scene cuts before the animation
+  finishes and the render freezes it mid-flight (a connector stopping in mid-air). A drawn connector
+  is the worst case — `.draw` runs 1.4s, double every other reveal. So when a beat's payoff is a
+  CONNECTION (`sequence`/`structure`, an A→B thread), write the `narration_intent` so the anchor
+  phrase lands with **~1s of line still to speak after it** — put the payoff phrase mid-clause, not
+  on the full stop. Where the anchor must be last, say so in `motion_intent` ("short draw — anchor
+  is line-final") so the page author sets an explicit `animation-duration`. `validate.py` ERRORs on
+  a cued animation under ~90% complete at the cut.
 
 ## Concept → Visual Language (reason from concept to visualization — never map page-type to a template)
 Read the content's coarse intent (and the idea itself) and choose the form that SAYS it. This table is

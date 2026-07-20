@@ -633,3 +633,26 @@ must be a phrase actually present in that scene's narration.
 > and `.draw` (1.4s) won't finish. On a cued page, keep non-cued decorative motion short
 > (≤ ~1.2s) or give those elements a `data-cue` so they're captured. Plain `.reveal*` header
 > chrome is fine (it settles by ~1s).
+
+> ⚠️ **The TAIL budget: a cue near the end of the line must fit its animation.** The complement of
+> the rule above, for CUED elements. seek.js starts a cued element at its cue time and then runs it
+> for its own `animation-duration`; if `cue + duration > scene duration` the render's last frame
+> catches it mid-flight and hard-cuts — a connector stopping in mid-air, a bar short of its value.
+> `.draw` is the usual casualty at **1.4s**, double the `--dur` (.7s) every other reveal uses.
+>
+> **Budget: an element cued to phrase P has `duration − (time P is spoken)` to finish, minus ~0.15s
+> so the finished state visibly settles before the cut.** When the anchor is the line's LAST phrase
+> that leaves well under a second, so set an explicit inline duration:
+> ```html
+> <!-- narration: "…charts included — from one instruction."   scene 5.35s, cue at 4.09s -->
+> <path class="draw connector" data-cue-index="1" data-cue="one instruction"
+>       style="animation-duration:1.1s" pathLength="1" d="…"/>
+> ```
+> Prefer shortening the animation over re-anchoring: the connector IS the payoff, so drawing it
+> before its phrase is spoken spoils the reveal. `validate.py` gates this — **ERROR** below ~90%
+> completion, **WARNING** above — and reports the exact duration to use.
+>
+> **`keyframe_qa` cannot show you this in its `p=` sheet.** With no `?cues=`, seek.js runs in
+> blind-ENVELOPE mode where `p=1.0` means "every animation has finished" by construction, so a
+> truncated animation is not representable there. Check `_keyframes/scene_NN_shipped.png` (and
+> `all.png`, which uses shipped frames) — that is the frame the viewer actually gets.

@@ -39,6 +39,10 @@ TRAIL_CLAUSE_MARKS = "，、：；,;:"
 # reveal leads/lags the voice by more than this fraction of the scene AND at least this many seconds.
 ALIGN_FRAC_TOL = 0.25
 ALIGN_SECS_TOL = 1.2
+# Cue-triggered animation truncated by the scene cut. Below this completion fraction the frozen
+# last frame reads as visibly broken (a connector stopping in mid-air) -> ERROR; a marginal
+# shortfall above it is cosmetic -> WARNING.
+TRUNCATION_ERROR_FRAC = 0.90
 # Layout-diversity gate: warn when one form family exceeds this share of the html scenes.
 LAYOUT_FAMILY_MAX_SHARE = 0.45
 # When a callout is this far (in normalized frame units) from where the camera settles, the
@@ -958,6 +962,90 @@ def _ordered_anchors(html):
         seen.setdefault(int(i), a)
     return [seen[k] for k in sorted(seen)]
 
+_ANIM_DUR_CACHE = {}
+
+def _css_anim_durations():
+    """{class_name: seconds} for every animation class in base.css/motifs.css, parsed from the CSS
+    itself so it can never drift from the stylesheets. `var(--dur)` resolves via :root's own --dur."""
+    if _ANIM_DUR_CACHE:
+        return _ANIM_DUR_CACHE
+    here = os.path.dirname(os.path.abspath(__file__))
+    css = ""
+    for name in ("base.css", "motifs.css"):
+        p = os.path.join(here, "..", "assets", "html", name)
+        if os.path.exists(p):
+            try:
+                css += open(p, encoding="utf-8").read() + "\n"
+            except Exception:
+                pass
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)   # a comment naming .draw would pollute the next selector
+    m = re.search(r"--dur\s*:\s*([\d.]+)s", css)
+    base_dur = float(m.group(1)) if m else 0.7
+    # `.a,.b{ ... animation:<name> <dur> ... }` — <dur> is a literal 0.7s or var(--dur)
+    for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+        ma = re.search(r"animation\s*:\s*[a-zA-Z0-9_-]+\s+(?:([\d.]+)s|var\(--dur\))", body)
+        if not ma:
+            continue
+        secs = float(ma.group(1)) if ma.group(1) else base_dur
+        for cls in re.findall(r"\.([a-zA-Z0-9_-]+)", sel):
+            _ANIM_DUR_CACHE[cls] = max(_ANIM_DUR_CACHE.get(cls, 0.0), secs)
+    return _ANIM_DUR_CACHE
+
+# seek.js drives these off scene PROGRESS (0->1 across the whole scene), not the reveal clock, so
+# they can never be truncated by a late cue — mirror that exclusion here.
+_AMBIENT_CLASSES = {"bg-live", "bg-drift"}
+
+def _reveal_truncation(html, narration, duration, words_path, tag, errors, warnings):
+    """A cue-triggered animation that cannot FINISH before the scene cuts.
+
+    seek.js freezes each cued element at `cue_time`, then runs its animation for the element's own
+    animation-duration. If cue + duration exceeds the scene, the render's last frame catches the
+    animation mid-flight and hard-cuts — a connector that stops in mid-air, a bar that never reaches
+    its value. keyframe_qa cannot see this: with no ?cues= it renders in blind-envelope mode where
+    p=1.0 means "every animation has finished" by construction, so only this gate catches it."""
+    anchors = _ordered_anchors(html)
+    if not anchors or not (sb._is_num(duration) and float(duration) > 0):
+        return
+    dur = float(duration)
+    times = None
+    if os.path.exists(words_path):
+        try:
+            times = _cues.resolve_cues(json.load(open(words_path)), anchors)
+        except Exception:
+            times = None
+    if times is None:
+        times = _cues.estimate_cues_from_text(anchors, narration, dur)
+    table = _css_anim_durations()
+    for el in re.findall(r"<[^>]+>", html):
+        mi = re.search(r'data-cue-index="(\d+)"', el)
+        if not mi:
+            continue
+        ci = int(mi.group(1))
+        if ci >= len(times) or times[ci] is None:
+            continue
+        mc = re.search(r'class="([^"]*)"', el)
+        classes = set(re.findall(r"[\w-]+", mc.group(1))) if mc else set()
+        if classes & _AMBIENT_CLASSES or "data-ambient" in el:
+            continue
+        mo = re.search(r"animation-duration\s*:\s*([\d.]*)s", el)   # inline override wins
+        if mo and mo.group(1) not in ("", "."):
+            adur = float(mo.group(1))
+        else:
+            hits = [table[c] for c in classes if c in table]
+            if not hits:
+                continue                                            # element carries no animation
+            adur = max(hits)
+        cue = float(times[ci])
+        done = (dur - cue) / adur if adur > 0 else 1.0
+        if done >= 1.0:
+            continue
+        what = f'the "{(anchors[ci] or "")[:18]}" reveal'
+        fix = (f"set an inline animation-duration of ~{max(0.2, (dur - cue) - 0.15):.2f}s on it, or "
+               f"re-anchor it to an earlier phrase")
+        msg = (f"{tag}: {what} starts at {cue:.2f}s and needs {adur:.2f}s, but the scene ends at "
+               f"{dur:.2f}s — it is only ~{done*100:.0f}% complete when the render cuts; {fix}")
+        (errors if done < TRUNCATION_ERROR_FRAC else warnings).append(msg)
+
 def _reveal_alignment(html, narration, duration, anim_seconds, words_path, tag, warnings):
     """Flag points whose on-screen reveal leads/lags the voice. WHEN a point is SPOKEN is estimated
     from its data-cue anchor's position in the narration text; WHEN it is SHOWN comes from the reveal
@@ -1237,6 +1325,8 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
             warnings.append(f"{tag}: data-cue reveals present but audio/{index:02d}.words.json missing — reveals fall back to the paced stagger (run tts.py with edge-tts)")
         # per-point content↔voice alignment (leads/lags), for cued OR paced reveals
         _reveal_alignment(html, narration, duration, anim_seconds, words, tag, warnings)
+        # a cued animation that cannot finish before the cut (keyframe_qa is structurally blind to it)
+        _reveal_truncation(html, narration, duration, words, tag, errors, warnings)
     else:
         # No audio-synced cues: a multi-point page reveals via the paced stagger. If anim_seconds is
         # set SMALL relative to the scene, all the points appear long before the voice reaches them.

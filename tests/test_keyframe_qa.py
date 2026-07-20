@@ -88,3 +88,57 @@ def test_geometry_no_caption_flag_without_a_content_box():
     # a full-bleed hero (no .stage content box) has nothing to occlude even if cbot is spurious
     empty = {"worst": 0, "clip": 0, "cbot": 1000, "ctop": 1e9, "cleft": 1e9, "cright": 0}
     assert kq._geometry_issues(empty, {}, 1080) == []
+
+
+# ---- shipped frame (the render's REAL last frame) ------------------------------------------------
+# The ?p= sheet renders BLIND (no ?cues=), and in that mode seek.js sets total = max(delay +
+# animation-duration), so p=1.0 means "every animation has finished" BY CONSTRUCTION. An animation
+# the scene cut off mid-flight is not representable there. The shipped shot re-renders in CUE mode.
+
+_BODY = ('<div data-cue-index="0" data-cue="open">A</div>'
+         '<div data-cue-index="1" data-cue="payoff">B</div>')
+
+def _cued_scene(tmp_path, body=_BODY, narration="we open here and then the payoff", duration=6.0, index=1):
+    os.makedirs(str(tmp_path / "pages"), exist_ok=True)
+    (tmp_path / "pages" / "s.html").write_text(body)
+    return {"index": index, "type": "html", "props": {"html": "pages/s.html"},
+            "narration": narration, "duration": duration}
+
+def test_shipped_url_carries_real_cues_and_duration(tmp_path):
+    s = _cued_scene(tmp_path)
+    u = kq._shipped_url(str(tmp_path), s, "file:///p.html")
+    assert u.startswith("file:///p.html?p=1.0&cues=")
+    assert "&dur=6.000" in u
+    assert len(u.split("cues=")[1].split("&")[0].split(",")) == 2
+
+def test_shipped_url_prefers_edge_word_timings(tmp_path):
+    import json
+    s = _cued_scene(tmp_path)
+    os.makedirs(str(tmp_path / "audio"), exist_ok=True)
+    json.dump([{"w": "open", "t": 0.5}, {"w": "payoff", "t": 4.25}],
+              open(str(tmp_path / "audio" / "01.words.json"), "w"))
+    u = kq._shipped_url(str(tmp_path), s, "file:///p.html")
+    assert "cues=0.500,4.250" in u
+
+def test_shipped_url_clamps_a_cue_to_the_render_margin(tmp_path):
+    # render_html clamps every cue to dur-0.5 so it fires before the final frame; mirror it exactly
+    import json
+    s = _cued_scene(tmp_path)
+    os.makedirs(str(tmp_path / "audio"), exist_ok=True)
+    json.dump([{"w": "open", "t": 0.5}, {"w": "payoff", "t": 5.9}],
+              open(str(tmp_path / "audio" / "01.words.json"), "w"))
+    u = kq._shipped_url(str(tmp_path), s, "file:///p.html")
+    assert "cues=0.500,5.500" in u
+
+def test_shipped_url_none_when_scene_is_not_cued(tmp_path):
+    s = _cued_scene(tmp_path, "<div>no cues here</div>")
+    assert kq._shipped_url(str(tmp_path), s, "file:///p.html") is None
+
+def test_shipped_url_none_before_tts(tmp_path):
+    s = _cued_scene(tmp_path, _BODY, duration=None)
+    assert kq._shipped_url(str(tmp_path), s, "file:///p.html") is None
+
+def test_shipped_url_none_when_page_missing(tmp_path):
+    s = {"index": 1, "type": "html", "props": {"html": "pages/gone.html"},
+         "narration": "we open here and then the payoff", "duration": 6.0}
+    assert kq._shipped_url(str(tmp_path), s, "file:///p.html") is None
