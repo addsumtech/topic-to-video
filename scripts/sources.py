@@ -14,8 +14,22 @@ gates check the brief's internal consistency, the plans inherit it, and 40 beats
 error with every check passing. Persisting the extracts turns `source_ref` from a free-text
 string nobody reads into a pointer a critic (or a human, months later) can follow.
 
+Each source also carries a **`tier`** — how hard the evidence is:
+
+    primary    the thing itself: official docs, the paper, the repo, the filing, the spec
+    secondary  reporting ABOUT it: news, analyst notes, vendor blogs
+    community  experience reports: forum posts, tutorials, comments, "I tested it and got X"
+    self       material the user handed over directly
+
+Tier is not a quality score — a community post can be right and a vendor page can be stale. It
+records WHERE a claim's support comes from, so "this number rests only on tutorials" becomes
+visible to a critic instead of living in the researcher's head. Paired with `as_of` (the date a
+time-sensitive fact was true, distinct from `fetched`, when the text was pulled), it lets
+`brief_qa` flag the two failure modes that actually bite: a figure backed by no primary source,
+and a figure with no date on a page that may itself be stale.
+
 Layout — `<out_dir>/sources/`:
-    sources/index.json          {sid → {origin, kind, fetched, title, chars}}
+    sources/index.json          {sid → {origin, kind, tier, fetched, as_of, title, chars}}
     sources/<sid>.txt           the extract, verbatim, as it was read
 
 `sid` is a short stable slug. An evidence item then carries `source_ref: "<sid>#<anchor>"`,
@@ -30,8 +44,8 @@ Usage
   python scripts/sources.py list <out_dir>
   python scripts/sources.py verify <out_dir> --ref "tencent-overview#交付可验收的结果"
 
-API: `add(out_dir, sid, text, origin, kind, title, extra)` · `load(out_dir)` ·
-     `resolve(out_dir, ref)` -> (ok, detail)
+API: `add(out_dir, sid, text, origin, kind, title, extra, fetched, tier, as_of)` ·
+     `load(out_dir)` · `resolve(out_dir, ref)` -> (ok, detail) · `meta_of(out_dir, ref)
 """
 import argparse, json, os, re, sys
 
@@ -64,9 +78,16 @@ def text_of(out_dir, sid):
         return None
 
 
-def add(out_dir, sid, text, origin, kind="web", title="", extra=None, fetched=None):
-    """Persist one extract verbatim. `fetched` must be supplied by the caller (the pipeline
-    knows today's date); it is recorded, never invented here."""
+TIERS = ("primary", "secondary", "community", "self")
+
+
+def add(out_dir, sid, text, origin, kind="web", title="", extra=None, fetched=None,
+        tier="secondary", as_of=None):
+    """Persist one extract verbatim. `fetched`/`as_of` must be supplied by the caller (the
+    pipeline knows today's date); they are recorded, never invented here.
+
+    `tier` defaults to "secondary" deliberately: an unlabelled source is NOT assumed to be the
+    thing itself. Claiming primary status has to be a decision someone made."""
     if not re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,63}", sid or ""):
         raise ValueError("sid must be a short lowercase slug (a-z 0-9 . _ -)")
     if not (text or "").strip():
@@ -75,7 +96,11 @@ def add(out_dir, sid, text, origin, kind="web", title="", extra=None, fetched=No
     with open(os.path.join(_dir(out_dir), sid + ".txt"), "w", encoding="utf-8") as fh:
         fh.write(text)
     idx = load(out_dir)
-    meta = {"origin": origin, "kind": kind, "title": title, "chars": len(text)}
+    if tier not in TIERS:
+        raise ValueError(f"tier must be one of {TIERS} — it records WHERE the support comes from")
+    meta = {"origin": origin, "kind": kind, "tier": tier, "title": title, "chars": len(text)}
+    if as_of:
+        meta["as_of"] = as_of
     if fetched:
         meta["fetched"] = fetched
     if extra:
@@ -123,6 +148,25 @@ def resolve(out_dir, ref):
                    f"\"{anchor[:40]}\"; quote the source, or fix the claim")
 
 
+def meta_of(out_dir, ref):
+    """The index entry a `source_ref` points at, or None. Accepts `<sid>` or `<sid>#<anchor>`."""
+    sid = str(ref or "").partition("#")[0].strip()
+    return load(out_dir).get(sid)
+
+
+# A claim is TIME-SENSITIVE when its truth has a shelf life: a price, a version, a count, a date,
+# or an explicit "currently". Those are the ones that go stale silently — the pricing page in one
+# real run still said "effective July 1" three weeks after July 1, and only a human noticed.
+_TIME_SENSITIVE = re.compile(
+    r"(?:[¥$€£]\s*\d|\d+\s*(?:元|美元|块)|/\s*(?:月|年|mo|month|yr|year)|每月|每年"
+    r"|\bv?\d+\.\d+(?:\.\d+)?\b|版本|\b20\d\d\b|\d+\s*(?:万|亿|million|billion|k\b)"
+    r"|目前|现在|最新|当前|如今|latest|currently|as of|至今|截至)", re.I)
+
+
+def is_time_sensitive(text):
+    return bool(_TIME_SENSITIVE.search(str(text or "")))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -131,6 +175,11 @@ def main():
     a.add_argument("--origin", required=True, help="URL or file path the text came from")
     a.add_argument("--kind", default="web", choices=["web", "pdf", "doc", "code", "notes", "transcript", "image"])
     a.add_argument("--title", default=""); a.add_argument("--fetched", default="")
+    a.add_argument("--tier", default="secondary", choices=list(TIERS),
+                   help="primary = the thing itself · secondary = reporting about it · "
+                        "community = experience reports · self = user-supplied")
+    a.add_argument("--as-of", dest="as_of", default="",
+                   help="date a TIME-SENSITIVE fact was true (a page fetched today can itself be stale)")
     a.add_argument("--pages", default="", help="page range, for a pdf/doc extract")
     src = a.add_mutually_exclusive_group(required=True)
     src.add_argument("--text-file"); src.add_argument("--text")
@@ -141,14 +190,20 @@ def main():
     if args.cmd == "add":
         text = args.text if args.text else open(args.text_file, encoding="utf-8").read()
         extra = {"pages": args.pages} if args.pages else None
-        m = add(args.out_dir, args.sid, text, args.origin, args.kind, args.title, extra, args.fetched or None)
-        print(f"[sources] captured '{args.sid}' ({m['chars']} chars) from {args.origin}")
+        m = add(args.out_dir, args.sid, text, args.origin, args.kind, args.title, extra,
+                args.fetched or None, args.tier, args.as_of or None)
+        print(f"[sources] captured '{args.sid}' [{m['tier']}] ({m['chars']} chars) from {args.origin}")
     elif args.cmd == "list":
         idx = load(args.out_dir)
         if not idx:
             print("[sources] nothing captured"); return 0
         for sid, m in sorted(idx.items()):
-            print(f"  {sid:<28} {m.get('kind',''):<10} {m.get('chars',0):>7} chars  {m.get('origin','')[:60]}")
+            print(f"  {sid:<26} {m.get('tier','?'):<10} {m.get('kind',''):<8} "
+                  f"{m.get('chars',0):>6} chars  {m.get('as_of','') or m.get('fetched',''):<12} {m.get('origin','')[:48]}")
+        tiers = {}
+        for m in idx.values():
+            tiers[m.get("tier", "?")] = tiers.get(m.get("tier", "?"), 0) + 1
+        print("  " + " · ".join(f"{k}: {v}" for k, v in sorted(tiers.items())))
     else:
         ok, detail = resolve(args.out_dir, args.ref)
         print(("  OK   " if ok else "  FAIL ") + detail)

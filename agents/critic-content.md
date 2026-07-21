@@ -61,6 +61,14 @@ figure that contradicts nothing (the source simply never states it) is STILL fab
 - **Laundered stats.** A real `source_ref` does NOT make a fabricated number true. A statistic dropped
   into a brief `evidence.detail` (e.g. an invented "43% vs 12%") that the CITED source never actually
   states is laundered fabrication → FAIL. Verify the number is in the source, not just that a ref exists.
+- **Weak sourcing is yours to judge, not the gate's.** When `<out_dir>/sources/` exists, OPEN the
+  extracts — `brief_qa` can only confirm a quote is present, and it WARNs (never blocks) on a claim
+  with no `primary` source, a lone uncorroborated source, or a time-sensitive figure with no `as_of`.
+  Read those warnings and decide: does the source actually ASSERT the claim (a quote lifted out of a
+  negation still resolves), and is a `community`/`secondary` source enough to state this as FACT on
+  screen? A number every third-party guide repeats while the official page says otherwise passes every
+  mechanical check. **REVISE** an unhedged on-screen figure that rests only on non-primary sources —
+  attribute it ("据…报道"), find the primary source, or cut it.
 - **Illustrative ≠ real.** A hypothetical figure is allowed ONLY when the slide AND the narration
   explicitly frame it as hypothetical ("imagine a deck prints 43% — nobody checked it"). A number
   presented as a REAL rate/measurement ("the industry's number: 43%") with no source is fabricated even

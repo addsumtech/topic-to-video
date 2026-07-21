@@ -177,14 +177,26 @@ the opacity cap — together these once let five PAID generated images ship cont
   pointer a critic can follow rather than a string nobody reads. Refs are `<sid>#<literal quote>`;
   matching ignores whitespace/punctuation so a hand-typed citation still resolves. Without it a
   web-researched brief is unverifiable after the fact — the single point where a wrong input
-  produces a fully-green output.
+  produces a fully-green output. Each source also carries **`--tier`** — *how hard the evidence is*:
+  `primary` (the thing itself: official doc, paper, repo, spec) · `secondary` (reporting ABOUT it) ·
+  `community` (forum posts, tutorials, "I tested it") · `self` (material the user handed over).
+  Tier is NOT a quality score — a forum post can be right and a vendor page stale; it records WHERE
+  the support comes from, so "this number rests only on tutorials" is visible to a critic instead of
+  living in your head. **`--as-of`** dates a TIME-SENSITIVE fact (distinct from `--fetched`: a page
+  pulled today can itself be out of date). Defaults to `secondary` deliberately — an unlabelled
+  source is not assumed to be the thing itself.
 - `scripts/brief_qa.py <out_dir> [--json]` — deterministic PRE-plan gate on the **comprehension brief**:
   reads `<out_dir>/brief.json` and ERRORs on a missing/empty required key (`thesis`/`mechanism`/`evidence`/
   `why_it_matters`/`the_one_thing`/`source_health`), an evidence `source_ref` that does not RESOLVE against the captured
 `sources/` (unknown source id, or a quote absent from the extract — this is what stops an invented
 figure), a non-singular `the_one_thing`, or a
   `source_health:contradictory` with no resolved conflicts; WARNs on a verbless (topic-label) thesis or an
-  evidence item with no `source_ref`. The STRUCTURAL floor so a hollow brief can't reach the planner —
+  evidence item with no `source_ref`. It also grades **evidence HARDNESS** off the source tiers (WARN,
+  never blocking): a claim backed by **no primary source**, a claim resting on a **single non-primary
+  source** (no corroboration), and a **time-sensitive** claim (price / version / count / "currently")
+  whose sources carry **no `as_of`**. Resolving a ref proves the quote EXISTS in what you read — these
+  three say how much that is worth. `source_ref` may be a **string or a list** (every ref in the list
+  is still resolved; cross-sourcing a claim clears the corroboration warning). The STRUCTURAL floor so a hollow brief can't reach the planner —
   run at step 3.5 BEFORE dispatching `content-planner`. The SEMANTIC depth audit is `critic-content` C0.
 - `scripts/pedagogy_qa.py <out_dir> [--json]` — deterministic PRE-render **teaching-order** gate: walks
   the concept-dependency DAG in `<out_dir>/content_plan.json` (`introduces`/`builds_on`/`stage` +
@@ -471,8 +483,14 @@ figure), a non-singular `the_one_thing`, or a
      `brief_qa.py` gates this structurally before planning; `critic-content` **C0** audits it for DEPTH.
    - **CAPTURE THE SOURCE TEXT as you read — `scripts/sources.py`.** For every passage a claim will
      rest on, persist the extract verbatim:
-     `python scripts/sources.py add <out_dir> --sid <slug> --origin <url|path> --kind web|pdf|doc|code|notes|transcript --title … --fetched <today> --text-file <extract>`
-     Then write each evidence `source_ref` as **`<sid>#<a literal quote from that extract>`**.
+     `python scripts/sources.py add <out_dir> --sid <slug> --origin <url|path> --kind web|pdf|doc|code|notes|transcript --title … --tier primary|secondary|community|self --fetched <today> [--as-of <date>] --text-file <extract>`
+     Then write each evidence `source_ref` as **`<sid>#<a literal quote from that extract>`** — or a
+     **list** of such refs when a claim is cross-sourced.
+     **Tier every source as you capture it**, and reach for the PRIMARY one on anything load-bearing:
+     the real failure this catches is a figure every third-party guide repeats while the official
+     page says something else — both quotes resolve, only the tier separates them. Put `--as-of` on
+     any price / version / count / "currently" claim: it dates the FACT, where `--fetched` only dates
+     your reading, and a page fetched today can still be quoting last quarter.
      Why this is not optional on a WEB-RESEARCHED deck: the brief is otherwise the only record of
      what the material said, and **nothing downstream can verify it** — a content critic reviewing a
      real deck could audit `brief.json` as an artifact but could not re-verify its web-sourced
@@ -481,9 +499,12 @@ figure), a non-singular `the_one_thing`, or a
      extracts captured, `brief_qa` ERRORs on a ref whose quote is absent from the text or whose
      source was never captured — an invented figure is stopped at step 3.5 instead of shipping.
      **Know the boundary:** the match proves the passage EXISTS in what you read, not that the
-     source ASSERTS it (a quote lifted out of a negation still resolves). The mechanical gate
-     stops fabrication; whether the source actually claims the thing remains `critic-content`'s
-     judgement — which is why the extract, not just the citation, is what gets persisted.
+     source ASSERTS it (a quote lifted out of a negation still resolves), and not that the source is
+     RIGHT. The mechanical gates stop fabrication and surface weak sourcing; whether the source
+     actually claims the thing, and whether it deserved to be believed, remain `critic-content`'s
+     judgement — which is why the extract, not just the citation, is what gets persisted. When a
+     hardness warning fires and you cannot find a primary source, the honest fix is usually to
+     **say it as reported** ("据报道…") or cut the number, not to silence the warning.
    - **Record `coverage`** in the brief: `read_in_full` / `sampled` / `skipped`. `unknowns` says what
      you could not determine; coverage says what you never opened — the more dangerous of the two,
      because nothing else in the brief reveals that a chapter was skipped.

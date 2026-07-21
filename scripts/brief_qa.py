@@ -76,15 +76,46 @@ def evaluate(data, out_dir=None):
         for ev in (data.get("evidence") or []):
             if not isinstance(ev, dict):
                 continue
-            ref = ev.get("source_ref")
-            if _empty(ref):
+            raw = ev.get("source_ref")
+            if _empty(raw):
                 continue
-            ok, detail = _src.resolve(out_dir, ref)
-            if not ok:
-                errors.append(f"evidence source_ref does not resolve: {detail}")
-            elif "no anchor given" in detail:
-                warnings.append(f"evidence source_ref '{ref}' names a source but pins no passage — "
-                                f"add '#<a literal quote from the extract>' so the claim is checkable")
+            refs = raw if isinstance(raw, list) else [raw]        # a claim may rest on several
+            claim = str(ev.get("claim") or "")[:44]
+            metas = []
+            for ref in refs:
+                ok, detail = _src.resolve(out_dir, ref)
+                if not ok:
+                    errors.append(f"evidence source_ref does not resolve: {detail}")
+                    continue
+                if "no anchor given" in detail:
+                    warnings.append(f"evidence source_ref '{ref}' names a source but pins no passage — "
+                                    f"add '#<a literal quote from the extract>' so the claim is checkable")
+                m = _src.meta_of(out_dir, ref)
+                if m:
+                    metas.append((ref, m))
+            if not metas:
+                continue
+
+            tiers = [m.get("tier", "secondary") for _, m in metas]
+            # (a) NOTHING primary behind it. Not automatically wrong — but "this rests only on
+            #     tutorials" must be visible to a critic rather than living in the researcher's head.
+            #     The real case: every third-party guide said "5000 credits on signup"; the official
+            #     page said 500/month. Both would have resolved; only the tier distinguishes them.
+            if "primary" not in tiers and "self" not in tiers:
+                warnings.append(f"claim rests on no PRIMARY source (tiers: {', '.join(sorted(set(tiers)))}) — "
+                                f"«{claim}» — find the thing itself (official doc / paper / repo), or "
+                                f"state it as reported rather than as fact")
+            # (b) a single NON-primary source = no corroboration
+            elif len(metas) == 1 and tiers[0] not in ("primary", "self"):
+                warnings.append(f"claim has a single {tiers[0]} source and no corroboration — "
+                                f"«{claim}» — cross-check it against a second, independent source")
+            # (c) a TIME-SENSITIVE figure whose source carries no as_of. A page fetched today can
+            #     itself be stale: one run's pricing page still read "effective July 1" three weeks
+            #     after July 1, and only a human caught it.
+            if _src.is_time_sensitive(ev.get("claim")) and not any(m.get("as_of") for _, m in metas):
+                warnings.append(f"time-sensitive claim with no `as_of` on any of its sources — "
+                                f"«{claim}» — record the date the figure was true (distinct from when "
+                                f"the page was fetched); a fetched page can itself be out of date")
 
     for ev in (data.get("evidence") or []):
         if isinstance(ev, dict) and _empty(ev.get("source_ref")):

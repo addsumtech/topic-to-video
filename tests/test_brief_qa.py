@@ -178,3 +178,120 @@ def test_malformed_sources_index_degrades_instead_of_raising(tmp_path):
 def test_evidence_entries_that_are_not_objects_do_not_raise(tmp_path):
     _srcbrief(tmp_path, ["a string", 42, None, {"claim": "c"}], coverage={"read_in_full": ["d"]})
     bq.check(str(tmp_path))     # must not raise
+
+
+# ---- evidence HARDNESS: resolving proves a quote EXISTS, not that it is TRUE --------------------
+# The capture layer above stops fabrication. It says nothing about whether the source was worth
+# believing. The real case that motivated this: every third-party guide said "5000 credits on
+# signup"; the official page said 500/month. Both anchors would have resolved. Only the tier
+# separates "the thing itself" from "someone's write-up of the thing".
+
+def test_a_claim_with_no_primary_source_warns(tmp_path):
+    import sources
+    sources.add(str(tmp_path), "guide", "注册后即可领取 5000 积分。", "https://blog/x", "web",
+                tier="community")
+    _srcbrief(tmp_path, [{"claim": "注册即送 5000 积分", "source_ref": "guide#领取 5000 积分"}],
+              coverage={"read_in_full": ["guide"]})
+    r = bq.check(str(tmp_path))
+    assert r["ok"] is True, "hardness is advisory — it must not block a legitimate deck"
+    assert any("no PRIMARY source" in w for w in r["warnings"]), r["warnings"]
+
+def test_a_primary_source_does_not_warn(tmp_path):
+    import sources
+    sources.add(str(tmp_path), "off", "免费版每月发放 500 积分。", "https://official/pricing", "web",
+                tier="primary", as_of="2026-07-21")
+    _srcbrief(tmp_path, [{"claim": "免费版每月 500 积分", "source_ref": "off#每月发放 500 积分"}],
+              coverage={"read_in_full": ["off"]})
+    assert not bq.check(str(tmp_path))["warnings"]
+
+def test_user_supplied_material_counts_as_hard_evidence(tmp_path):
+    # `self` = the user handed it over. Demanding an external primary source for the user's own
+    # deck/notes would fire on every material-driven run.
+    import sources
+    sources.add(str(tmp_path), "deck", "我们的目标是把周报自动化。", "./notes.md", "notes", tier="self")
+    _srcbrief(tmp_path, [{"claim": "目标是把周报自动化", "source_ref": "deck#把周报自动化"}],
+              coverage={"read_in_full": ["deck"]})
+    assert not any("PRIMARY" in w or "corroboration" in w
+                   for w in bq.check(str(tmp_path))["warnings"])
+
+def test_source_ref_may_be_a_LIST_and_cross_sourcing_clears_the_warning(tmp_path):
+    import sources
+    sources.add(str(tmp_path), "off", "三端同步上线。", "https://official/news", "web",
+                tier="primary", as_of="2026-07-18")
+    sources.add(str(tmp_path), "news", "三端同步上线。", "https://press/x", "web", tier="secondary")
+    _srcbrief(tmp_path, [{"claim": "三端同步上线",
+                          "source_ref": ["off#三端同步上线", "news#三端同步上线"]}],
+              coverage={"read_in_full": ["off"]})
+    r = bq.check(str(tmp_path))
+    assert r["ok"] is True and not r["warnings"], r["warnings"]
+
+def test_every_ref_in_a_LIST_is_still_resolved(tmp_path):
+    # the list form must not become a way to smuggle an unchecked ref past the anchor gate
+    import sources
+    sources.add(str(tmp_path), "off", "真实存在的句子。", "https://official/x", "web", tier="primary")
+    _srcbrief(tmp_path, [{"claim": "c", "source_ref": ["off#真实存在的句子", "off#从未写过的句子"]}],
+              coverage={"read_in_full": ["off"]})
+    r = bq.check(str(tmp_path))
+    assert r["ok"] is False and any("anchor not found" in e for e in r["errors"])
+
+def test_a_lone_secondary_source_warns_about_corroboration(tmp_path):
+    import sources
+    sources.add(str(tmp_path), "news", "该产品已服务超过一万家企业。", "https://press/x", "web",
+                tier="secondary")
+    _srcbrief(tmp_path, [{"claim": "服务超过一万家企业", "source_ref": "news#超过一万家企业"}],
+              coverage={"read_in_full": ["news"]})
+    assert any("no PRIMARY" in w or "corroboration" in w
+               for w in bq.check(str(tmp_path))["warnings"])
+
+def test_a_time_sensitive_claim_without_as_of_warns(tmp_path):
+    # a page FETCHED today can itself be stale — one run's pricing page still read
+    # "effective July 1" three weeks after July 1
+    import sources
+    sources.add(str(tmp_path), "off", "专业版每月 99 元。", "https://official/pricing", "web",
+                tier="primary", fetched="2026-07-21")
+    _srcbrief(tmp_path, [{"claim": "专业版目前每月 99 元", "source_ref": "off#每月 99 元"}],
+              coverage={"read_in_full": ["off"]})
+    r = bq.check(str(tmp_path))
+    assert r["ok"] is True
+    assert any("as_of" in w for w in r["warnings"]), r["warnings"]
+
+def test_as_of_silences_the_staleness_warning(tmp_path):
+    import sources
+    sources.add(str(tmp_path), "off", "专业版每月 99 元。", "https://official/pricing", "web",
+                tier="primary", as_of="2026-07-21")
+    _srcbrief(tmp_path, [{"claim": "专业版目前每月 99 元", "source_ref": "off#每月 99 元"}],
+              coverage={"read_in_full": ["off"]})
+    assert not any("as_of" in w for w in bq.check(str(tmp_path))["warnings"])
+
+def test_a_mechanism_claim_is_not_treated_as_time_sensitive(tmp_path):
+    # the check must stay quiet on claims that do not go stale, or it becomes noise the
+    # author learns to scroll past
+    import sources
+    sources.add(str(tmp_path), "off", "它在本机沙盒里执行，只能访问你授权的文件夹。",
+                "https://official/overview", "web", tier="primary")
+    _srcbrief(tmp_path, [{"claim": "它只能访问你授权的文件夹", "source_ref": "off#只能访问你授权的文件夹"}],
+              coverage={"read_in_full": ["off"]})
+    assert not bq.check(str(tmp_path))["warnings"]
+
+def test_an_unresolvable_ref_does_not_also_produce_hardness_noise(tmp_path):
+    # a broken citation is ONE problem; piling three warnings on top buries the error
+    import sources
+    sources.add(str(tmp_path), "off", "任意文本。", "https://official/x", "web", tier="primary")
+    _srcbrief(tmp_path, [{"claim": "c", "source_ref": "ghost#x"}], coverage={"read_in_full": ["off"]})
+    r = bq.check(str(tmp_path))
+    assert any("unknown source id" in e for e in r["errors"])
+    assert not any("PRIMARY" in w or "corroboration" in w or "as_of" in w for w in r["warnings"])
+
+def test_an_unknown_tier_is_rejected_at_capture_time(tmp_path):
+    # a typo ("offical", "docs") must not silently become an unlabelled source that then
+    # dodges the no-primary warning
+    import sources, pytest
+    with pytest.raises(ValueError):
+        sources.add(str(tmp_path), "x", "文本", "https://o/x", "web", tier="offical")
+
+def test_an_unlabelled_source_is_not_assumed_primary(tmp_path):
+    import sources
+    sources.add(str(tmp_path), "x", "某个说法。", "https://o/x", "web")     # no tier passed
+    _srcbrief(tmp_path, [{"claim": "某个说法", "source_ref": "x#某个说法"}],
+              coverage={"read_in_full": ["x"]})
+    assert any("no PRIMARY source" in w for w in bq.check(str(tmp_path))["warnings"])
