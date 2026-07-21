@@ -33,6 +33,13 @@ OR a non-card form that fits in the wrong direction (D1 bidirectional), player-c
 6. **(optional) rendered keyframes** — `<out_dir>/_keyframes/all.png` or extracted sample frames. When
    present, run the **D11 rendered keyframe pass** on the actual pixels; when absent, D11 is skipped and
    you grade the plan + authored pages only.
+> ⚠️ **D2e(3) motion is NOT judgeable before tts.py has run.** The strips carry a real timeline
+> only when each scene has a `duration`; without one keyframe_qa sweeps the BLIND envelope, where
+> `p` is a fraction of `max(delay + animation-duration)` rather than of the scene. In that mode
+> EVERY page appears fully drawn by p=0.25 — by construction, not by design. If the run printed
+> "MOTION NOT JUDGEABLE YET", mark D2e(3) unjudged and say so; never report a deck-wide "one
+> motion signature" finding from blind frames.
+
 7. **(optional) per-scene FILMSTRIPS — `<out_dir>/_keyframes/scene_NN.png`.** Each is that scene swept
    across its REAL cue timeline: leftmost tile = the frame at t=0 (what the viewer sees while the
    narration's first words play), rightmost = the frame that ships at the cut. This is the only motion

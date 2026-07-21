@@ -338,7 +338,11 @@ def _figure_traceability(slides, out_dir, warnings):
         idx = s.get("index")
         texts = [s.get("narration") or ""]
         props = s.get("props") or {}
-        if s.get("type") != "slide":
+        # For a PROGRAMMATIC scene, props ARE the on-screen strings. For an `html` scene they are
+        # authoring metadata (form notes, layout hints like "2×2", cue arrays) and the real screen
+        # text is read from the page below — scanning both made a layout note read as a fabricated
+        # statistic, which erodes the one gate that guards against invented numbers.
+        if s.get("type") not in ("slide", "html"):
             texts.append(json.dumps(props, ensure_ascii=False))     # animated on-screen strings
         if props.get("html"):
             texts.append(_visible_text(out_dir, props["html"]))     # html-page on-screen text

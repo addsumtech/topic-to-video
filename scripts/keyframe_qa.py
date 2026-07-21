@@ -54,7 +54,14 @@ _OVERFLOW_JS = (
     "if(e.closest&&e.closest('.bleed-out'))continue;"
     "var o=Math.max(r.right-W,r.bottom-H,-r.left,-r.top);if(o>worst)worst=o;"
     "var cs=getComputedStyle(e);if(cs.opacity!=='0'&&cs.display!=='none'){"
-    "if(r.top<ct)ct=r.top;if(r.bottom>cb)cb=r.bottom;if(r.left<cl)cl=r.left;if(r.right>cr)cr=r.right;"
+    # An <svg> CONTAINER's box is the drawing surface it reserves, not ink. A page that overlays one
+    # full-canvas transparent SVG and positions its strokes inside (a normal, and for hand-drawn
+    # registers the natural, technique) would otherwise report content spanning y=0..H — tripping the
+    # caption-zone gate and pinning the content band to 0.00 on every such page. Its drawable children
+    # are themselves in this same `.stage *` walk and contribute their REAL stroke boxes, so skipping
+    # the container loses nothing and stops the probe measuring a proxy instead of the thing.
+    "if(e.tagName.toLowerCase()!=='svg'){"
+    "if(r.top<ct)ct=r.top;if(r.bottom>cb)cb=r.bottom;if(r.left<cl)cl=r.left;if(r.right>cr)cr=r.right;}"
     # AREA-WEIGHTED centroid = where the visual MASS actually sits. The bbox midpoint
     # ((cleft+cright)/2) that this replaced is ~0.5 for ANY page whose content spans the frame,
     # however left- or right-heavy it looks — so it reported "everything is centred" for a deck whose
@@ -298,6 +305,7 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
 
     chrome = _open_cdp(meta, W, H)
     report, last_frames, errors, warns = [], [], 0, 0
+    blind_scenes = []                     # swept in BLIND mode: no cue timeline available (pre-tts)
     centroids = []                        # (scene, cx, cy) normalized content centroids, for silhouette repetition
     bands = []                            # (scene, ctop, cbot) normalized content BAND, for band uniformity
     try:
@@ -318,6 +326,8 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
             # play, and p=1.0 is the frame that ships. Same shot count as before — strictly more
             # information (the old separate shipped shot is now just the last frame of the sweep).
             cued = _shipped_url(out_dir, s, url, p=1.0) is not None
+            if not cued:
+                blind_scenes.append(idx)
             frames, ok, rvis, rtot = [], True, [], 0
             for p in ps:
                 fp = os.path.join(kf, f"scene_{idx:02d}_p{int(p*100):03d}.png")
@@ -486,6 +496,17 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
     # measured 12-left/8-mid/7-right horizontally still felt like one page because 22/29 of its pages
     # ended at cbot 0.79-0.85. Report the shared EDGE so the fix is concrete (give N beats a different
     # band) rather than the vague "vary the composition".
+    if blind_scenes:
+        # Without per-scene `duration` (i.e. before tts.py runs) there is no cue timeline, so the
+        # sweep necessarily falls back to the BLIND envelope — where p is a fraction of
+        # max(delay+animation-duration), NOT of the scene. Every page looks "flooded by p=0.25" in
+        # that mode BY CONSTRUCTION. Say so loudly: a reviewer who reads these strips as motion
+        # evidence will conclude the whole deck shares one motion signature, which is an artifact.
+        deck_notes.append(f"MOTION NOT JUDGEABLE YET: {len(blind_scenes)} scene(s) were swept in "
+                          f"BLIND-envelope mode because they carry no duration (run tts.py first). "
+                          f"In blind mode p is a fraction of the animation envelope, not of the scene, "
+                          f"so every page appears fully drawn early — do NOT read these strips as "
+                          f"motion personality evidence; re-run this after tts.py for the real timeline")
     note = _band_uniformity_note(bands)
     if note:
         deck_notes.append(note)
