@@ -35,6 +35,16 @@ def _has_bundled_font():
     return os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                        "..", "assets", "fonts", "DejaVuSans.ttf"))
 
+def _has_ocr():
+    # scanned / image-only PDFs have no text layer; without OCR the only path is reading the page
+    # as an IMAGE, which works for a handful of pages and not for a 200-page scan.
+    return _common.have_tool("tesseract") or _has_module("pytesseract")()
+
+def _has_transcribe():
+    # a recorded talk / podcast / screen-capture carries its content in SPEECH. Without a
+    # transcriber that content is simply unreachable — frames can be sampled, words cannot.
+    return any(_has_module(m)() for m in ("whisper", "faster_whisper", "mlx_whisper"))
+
 def _has_remotion():
     # the optional cinematic tier needs Node + an installed remotion/ project
     node = _common.have_tool("npx")
@@ -52,6 +62,8 @@ CHECKS = [
     ("soffice",     False, _has_soffice,          "pptx -> pdf (ingest)",            "install LibreOffice (or export the deck to PDF yourself)"),
     ("Google Chrome", False, _has_chrome,         "html-pages tier (render_html + keyframe_qa)", "install Google Chrome (or use the programmatic scene tiers)"),
     ("bundled font", False, _has_bundled_font,    "default Latin captions",          "restore assets/fonts/DejaVuSans.ttf"),
+    ("OCR (tesseract)", False, _has_ocr,       "text out of SCANNED / image-only PDFs at step 3 (grounding material)", "brew install tesseract && pip install pytesseract (without it a scan can only be READ AS IMAGES — fine for a few pages, not for a long document)"),
+    ("transcription", False, _has_transcribe,   "audio/video source material at step 3 (a recorded talk, podcast, screen capture)", "pip install openai-whisper (or faster-whisper / mlx-whisper). WITHOUT IT SPEECH IS UNREACHABLE — say so in the interview rather than discovering it mid-pipeline"),
     ("remotion",    False, _has_remotion,         "optional cinematic render tier (meta.renderer=remotion)", "install Node.js, then `cd remotion && npm install` (else use the default local renderer)"),
 ]
 

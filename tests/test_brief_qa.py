@@ -92,3 +92,63 @@ def test_one_thing_filename_and_abbrev_dots_not_sentence_ends():
     # a REAL two-sentence takeaway still errors
     r2 = bq.evaluate(_brief(the_one_thing="Cache it. Also index it."))
     assert any(">1 sentence" in e for e in r2["errors"])
+
+
+# ---- source capture: make a citation checkable instead of decorative ----------------------------
+# The one place a WRONG INPUT yields a fully-green output: the gates check the brief's internal
+# consistency, the plans inherit it, and every beat carries the error. A content critic reviewing a
+# real deck said it outright — it could audit brief.json as an artifact but could not re-verify its
+# web-sourced figures, because nothing in the workdir preserved what was read.
+
+def _srcbrief(tmp_path, evidence, coverage=None):
+    import json
+    d = {"thesis": "X 把 A 变成 B。", "mechanism": "因为 P，所以 Q；因此 R。",
+         "why_it_matters": "省下重复劳动。", "the_one_thing": "一句话。",
+         "source_health": {"status": "coherent", "conflicts": []}, "evidence": evidence}
+    if coverage is not None:
+        d["coverage"] = coverage
+    json.dump(d, open(str(tmp_path / "brief.json"), "w"), ensure_ascii=False)
+    return d
+
+def test_source_ref_anchor_must_exist_in_the_captured_text(tmp_path):
+    import sources
+    sources.add(str(tmp_path), "doc", "官方说：交付可验收的结果。", "https://example/doc", "web")
+    _srcbrief(tmp_path, [{"claim": "编造的数字", "source_ref": "doc#准确率 98%"}])
+    r = bq.check(str(tmp_path))
+    assert r["ok"] is False
+    assert any("anchor not found" in e for e in r["errors"])
+
+def test_source_ref_resolves_when_the_quote_is_real(tmp_path):
+    import sources
+    sources.add(str(tmp_path), "doc", "官方说：交付可验收的结果。", "https://example/doc", "web")
+    _srcbrief(tmp_path, [{"claim": "官方强调交付", "source_ref": "doc#交付可验收的结果"}],
+           coverage={"read_in_full": ["doc"], "sampled": [], "skipped": []})
+    r = bq.check(str(tmp_path))
+    assert r["ok"] is True and not any("does not resolve" in e for e in r["errors"])
+
+def test_unknown_source_id_is_an_error(tmp_path):
+    import sources
+    sources.add(str(tmp_path), "doc", "任意文本。", "https://example/doc", "web")
+    _srcbrief(tmp_path, [{"claim": "引用了没落盘的来源", "source_ref": "ghost#随便"}])
+    r = bq.check(str(tmp_path))
+    assert r["ok"] is False and any("unknown source id" in e for e in r["errors"])
+
+def test_ref_checking_is_skipped_when_nothing_was_captured(tmp_path):
+    # no sources/ dir -> advisory only; a deck grounded on material the author read directly
+    # must not be blocked by a mechanism it never opted into
+    _srcbrief(tmp_path, [{"claim": "某说法", "source_ref": "自由文本引用"}],
+           coverage={"read_in_full": ["手边的论文"], "sampled": [], "skipped": []})
+    r = bq.check(str(tmp_path))
+    assert r["ok"] is True
+
+def test_missing_coverage_warns(tmp_path):
+    _srcbrief(tmp_path, [{"claim": "c", "source_ref": "r"}])
+    r = bq.check(str(tmp_path))
+    assert any("coverage" in w for w in r["warnings"])
+
+def test_anchor_matching_ignores_punctuation_and_whitespace(tmp_path):
+    import sources
+    sources.add(str(tmp_path), "doc", "交付、可验收的  结果", "https://example/doc", "web")
+    _srcbrief(tmp_path, [{"claim": "同一句话，标点不同", "source_ref": "doc#交付可验收的结果"}],
+           coverage={"read_in_full": ["doc"]})
+    assert bq.check(str(tmp_path))["ok"] is True

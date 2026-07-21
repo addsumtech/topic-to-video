@@ -172,9 +172,17 @@ the opacity cap — together these once let five PAID generated images ship cont
   attention reset for >~35s. Advisory (warnings) except ONE hard defect — a MEASURED static frame held
   past ~16s → non-zero exit; a missing climax is only a WARNING (an estimate never gates a render). Run
   after tts, before the full render.
+- `scripts/sources.py add|list|verify <out_dir>` — capture the SOURCE TEXT behind each claim into
+  `<out_dir>/sources/` (extract verbatim + origin + kind + fetch date), so `source_ref` becomes a
+  pointer a critic can follow rather than a string nobody reads. Refs are `<sid>#<literal quote>`;
+  matching ignores whitespace/punctuation so a hand-typed citation still resolves. Without it a
+  web-researched brief is unverifiable after the fact — the single point where a wrong input
+  produces a fully-green output.
 - `scripts/brief_qa.py <out_dir> [--json]` — deterministic PRE-plan gate on the **comprehension brief**:
   reads `<out_dir>/brief.json` and ERRORs on a missing/empty required key (`thesis`/`mechanism`/`evidence`/
-  `why_it_matters`/`the_one_thing`/`source_health`), a non-singular `the_one_thing`, or a
+  `why_it_matters`/`the_one_thing`/`source_health`), an evidence `source_ref` that does not RESOLVE against the captured
+`sources/` (unknown source id, or a quote absent from the extract — this is what stops an invented
+figure), a non-singular `the_one_thing`, or a
   `source_health:contradictory` with no resolved conflicts; WARNs on a verbless (topic-label) thesis or an
   evidence item with no `source_ref`. The STRUCTURAL floor so a hollow brief can't reach the planner —
   run at step 3.5 BEFORE dispatching `content-planner`. The SEMANTIC depth audit is `critic-content` C0.
@@ -461,6 +469,20 @@ the opacity cap — together these once let five PAID generated images ship cont
        couldn't determine (flag for extra fact-check) · `source_health` — `coherent|thin|contradictory`
        + a `conflicts` array of `{what, resolution}`.
      `brief_qa.py` gates this structurally before planning; `critic-content` **C0** audits it for DEPTH.
+   - **CAPTURE THE SOURCE TEXT as you read — `scripts/sources.py`.** For every passage a claim will
+     rest on, persist the extract verbatim:
+     `python scripts/sources.py add <out_dir> --sid <slug> --origin <url|path> --kind web|pdf|doc|code|notes|transcript --title … --fetched <today> --text-file <extract>`
+     Then write each evidence `source_ref` as **`<sid>#<a literal quote from that extract>`**.
+     Why this is not optional on a WEB-RESEARCHED deck: the brief is otherwise the only record of
+     what the material said, and **nothing downstream can verify it** — a content critic reviewing a
+     real deck could audit `brief.json` as an artifact but could not re-verify its web-sourced
+     figures. That is the one place a wrong INPUT yields a fully-green output: the gates check the
+     brief's internal consistency, the plans inherit it, and every beat carries the error. With
+     extracts captured, `brief_qa` ERRORs on a ref whose quote is absent from the text or whose
+     source was never captured — an invented figure is stopped at step 3.5 instead of shipping.
+   - **Record `coverage`** in the brief: `read_in_full` / `sampled` / `skipped`. `unknowns` says what
+     you could not determine; coverage says what you never opened — the more dangerous of the two,
+     because nothing else in the brief reveals that a chapter was skipped.
    - **Before you plan — comprehension self-check** (record PASS/FAIL per gate in the brief): ①
      **explain-back** — state thesis+mechanism from memory, slides closed; if you can only reword the
      bullets, re-read. ② **causal** — the mechanism has ≥1 because/therefore link not printed verbatim on

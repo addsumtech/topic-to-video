@@ -30,7 +30,7 @@ def _empty(v):
     return False
 
 
-def evaluate(data):
+def evaluate(data, out_dir=None):
     errors, warnings = [], []
     for k in _REQUIRED:
         if k not in data or _empty(data.get(k)):
@@ -63,10 +63,45 @@ def evaluate(data):
                                   "or flag it; never narrate over an unresolved contradiction")
                     break
 
+    # A source_ref that points at nothing is a citation in name only. When `sources/` has been
+    # captured (scripts/sources.py), resolve every ref against the text that was actually read —
+    # this is the one place a WRONG INPUT would otherwise produce a fully-green output: the gates
+    # check the brief's internal consistency, the plans inherit it, and every beat carries the error.
+    try:
+        import sources as _src
+        _have_sources = bool(out_dir) and bool(_src.load(out_dir))
+    except Exception:
+        _src, _have_sources = None, False
+    if _have_sources:
+        for ev in (data.get("evidence") or []):
+            if not isinstance(ev, dict):
+                continue
+            ref = ev.get("source_ref")
+            if _empty(ref):
+                continue
+            ok, detail = _src.resolve(out_dir, ref)
+            if not ok:
+                errors.append(f"evidence source_ref does not resolve: {detail}")
+            elif "no anchor given" in detail:
+                warnings.append(f"evidence source_ref '{ref}' names a source but pins no passage — "
+                                f"add '#<a literal quote from the extract>' so the claim is checkable")
+
     for ev in (data.get("evidence") or []):
         if isinstance(ev, dict) and _empty(ev.get("source_ref")):
             warnings.append("an evidence item has no `source_ref` — tie each claim to the figure/number that proves it")
             break
+
+    # COVERAGE — what was READ vs SAMPLED vs SKIPPED. `unknowns` records what could not be
+    # determined; coverage records what was never looked at. The second is the more dangerous of
+    # the two because it is invisible: nothing in the brief reveals that chapter 7 was skipped.
+    cov = data.get("coverage")
+    if cov is None:
+        warnings.append("brief has no `coverage` — record what you read IN FULL, what you only "
+                        "SAMPLED, and what you SKIPPED. `unknowns` covers what you could not "
+                        "determine; it does not reveal what you never opened")
+    elif isinstance(cov, dict) and not any(str(cov.get(k) or "").strip() or cov.get(k)
+                                           for k in ("read_in_full", "sampled", "skipped")):
+        warnings.append("`coverage` is present but empty — name at least what was read in full")
 
     th = data.get("thesis")
     if isinstance(th, str) and th.strip():
@@ -94,7 +129,7 @@ def check(out_dir, target_seconds=None):
         data = json.load(open(path, encoding="utf-8"))
     except (OSError, ValueError) as e:
         return {"ok": False, "errors": [f"brief.json unreadable: {e}"], "warnings": []}
-    return evaluate(data)
+    return evaluate(data, out_dir)
 
 
 def main():
