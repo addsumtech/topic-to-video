@@ -52,3 +52,39 @@ def test_element_anim_seconds_ignores_ambient_backdrops():
     # .bg-live/.bg-drift are progress-driven across the whole scene and are never truncated
     import _common
     assert _common.element_anim_seconds('<img class="bg-soft bg-live">') is None
+
+
+# ---- sources.py: the capture that makes a citation checkable ------------------------------------
+
+def test_source_id_rejects_path_traversal_and_separators():
+    import sources, tempfile, pytest
+    T = tempfile.mkdtemp()
+    for bad in ("../escape", "a/b", "", ".hidden", "A-Upper", "x" * 80):
+        with pytest.raises(ValueError):
+            sources.add(T, bad, "text", "origin")
+
+def test_source_refuses_an_empty_extract():
+    import sources, tempfile, pytest
+    with pytest.raises(ValueError):
+        sources.add(tempfile.mkdtemp(), "sid", "   \n ", "origin")
+
+def test_resolve_handles_malformed_refs():
+    import sources, tempfile
+    T = tempfile.mkdtemp(); sources.add(T, "doc", "交付可验收的结果", "o")
+    assert sources.resolve(T, "")[0] is False
+    assert sources.resolve(T, None)[0] is False
+    assert sources.resolve(T, "ghost#x")[0] is False
+    assert sources.resolve(T, "doc")[0] is True            # no anchor: exists, unpinned
+    assert sources.resolve(T, "doc#交付可验收的结果")[0] is True
+
+def test_anchor_match_normalises_punctuation_and_whitespace():
+    import sources, tempfile
+    T = tempfile.mkdtemp(); sources.add(T, "doc", "交付、可验收的  结果", "o")
+    assert sources.resolve(T, "doc#交付可验收的结果")[0] is True
+
+def test_missing_extract_file_is_reported_not_silently_passed():
+    import sources, tempfile, os
+    T = tempfile.mkdtemp(); sources.add(T, "doc", "text", "o")
+    os.remove(os.path.join(T, "sources", "doc.txt"))
+    ok, detail = sources.resolve(T, "doc#text")
+    assert ok is False and "missing" in detail

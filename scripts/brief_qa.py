@@ -99,8 +99,11 @@ def evaluate(data, out_dir=None):
         warnings.append("brief has no `coverage` — record what you read IN FULL, what you only "
                         "SAMPLED, and what you SKIPPED. `unknowns` covers what you could not "
                         "determine; it does not reveal what you never opened")
-    elif isinstance(cov, dict) and not any(str(cov.get(k) or "").strip() or cov.get(k)
-                                           for k in ("read_in_full", "sampled", "skipped")):
+    elif not isinstance(cov, dict):
+        warnings.append(f"`coverage` must be an object with read_in_full / sampled / skipped, not a "
+                        f"{type(cov).__name__} — a free-form note is not machine-readable, so nothing "
+                        f"downstream can tell what was left unopened")
+    elif not any(cov.get(k) for k in ("read_in_full", "sampled", "skipped")):
         warnings.append("`coverage` is present but empty — name at least what was read in full")
 
     th = data.get("thesis")

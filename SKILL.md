@@ -480,6 +480,10 @@ figure), a non-singular `the_one_thing`, or a
      brief's internal consistency, the plans inherit it, and every beat carries the error. With
      extracts captured, `brief_qa` ERRORs on a ref whose quote is absent from the text or whose
      source was never captured — an invented figure is stopped at step 3.5 instead of shipping.
+     **Know the boundary:** the match proves the passage EXISTS in what you read, not that the
+     source ASSERTS it (a quote lifted out of a negation still resolves). The mechanical gate
+     stops fabrication; whether the source actually claims the thing remains `critic-content`'s
+     judgement — which is why the extract, not just the citation, is what gets persisted.
    - **Record `coverage`** in the brief: `read_in_full` / `sampled` / `skipped`. `unknowns` says what
      you could not determine; coverage says what you never opened — the more dangerous of the two,
      because nothing else in the brief reveals that a chapter was skipped.

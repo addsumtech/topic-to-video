@@ -152,3 +152,29 @@ def test_anchor_matching_ignores_punctuation_and_whitespace(tmp_path):
     _srcbrief(tmp_path, [{"claim": "同一句话，标点不同", "source_ref": "doc#交付可验收的结果"}],
            coverage={"read_in_full": ["doc"]})
     assert bq.check(str(tmp_path))["ok"] is True
+
+def test_coverage_must_be_an_object_not_a_free_form_note(tmp_path):
+    # a string/list/number passed the first version silently: the field existed but nothing
+    # downstream could tell what was left unopened
+    for bad in (["a"], "读了全部", 0):
+        _srcbrief(tmp_path, [{"claim": "c", "source_ref": "r"}], coverage=bad)
+        assert any("coverage" in w for w in bq.check(str(tmp_path))["warnings"]), bad
+
+def test_evaluate_is_backward_compatible_without_out_dir():
+    # older callers pass only the parsed brief; ref-resolution must degrade, not raise
+    d = {"thesis": "X 把 A 变成 B。", "mechanism": "因为 P 所以 Q，因此 R。",
+         "why_it_matters": "省。", "the_one_thing": "一句话。",
+         "source_health": {"status": "coherent", "conflicts": []},
+         "evidence": [{"claim": "c", "source_ref": "anything"}]}
+    assert bq.evaluate(d)["ok"] is True
+
+def test_malformed_sources_index_degrades_instead_of_raising(tmp_path):
+    import os
+    os.makedirs(str(tmp_path / "sources"), exist_ok=True)
+    (tmp_path / "sources" / "index.json").write_text("{ not json")
+    _srcbrief(tmp_path, [{"claim": "c", "source_ref": "doc#x"}], coverage={"read_in_full": ["d"]})
+    assert bq.check(str(tmp_path))["ok"] is True
+
+def test_evidence_entries_that_are_not_objects_do_not_raise(tmp_path):
+    _srcbrief(tmp_path, ["a string", 42, None, {"claim": "c"}], coverage={"read_in_full": ["d"]})
+    bq.check(str(tmp_path))     # must not raise

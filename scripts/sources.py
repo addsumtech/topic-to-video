@@ -112,6 +112,11 @@ def resolve(out_dir, ref):
     body = text_of(out_dir, sid)
     if body is None:
         return False, f"sources/{sid}.txt is missing though the index lists it"
+    # NOTE the boundary: a substring match proves the passage EXISTS in what was read; it does not
+    # prove the source ASSERTS it. An anchor quoted out of a negated sentence ("并非交付可验收的结果")
+    # still matches. That is deliberate — the mechanical gate exists to stop a FABRICATED figure, and
+    # judging whether the source actually claims the thing stays with critic-content, which reads the
+    # extract. Widening this into semantic judgement would trade a reliable check for an unreliable one.
     if _norm(anchor) in _norm(body):
         return True, f"anchor found in '{sid}'"
     return False, (f"anchor not found in '{sid}' — the captured text does not contain "
