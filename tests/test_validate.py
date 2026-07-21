@@ -1558,3 +1558,31 @@ def test_opening_gap_still_fires_when_the_page_really_is_blank_at_t0():
     # an empty box, or one holding only an entity/whitespace, is not "text on screen"
     assert _v._has_static_opening_text('<body><div class="anno a-cap"></div></body>') is False
     assert _v._has_static_opening_text('<body><div class="anno a-cap">&middot;</div></body>') is False
+
+
+def test_uniform_default_transition_warns(tmp_path):
+    # the "transition is always the same" smell: no scene sets its own transition, so every cut
+    # falls through to the meta default (dip). A real deck shipped this way — the design plan's
+    # per-beat transitions never reached the storyboard, and all 41 seams looked identical.
+    slides = [_slide_scene(tmp_path, i) for i in range(8)]
+    data = _board(str(tmp_path), slides)              # meta.transition defaults to dip
+    r = validate.evaluate(data, str(tmp_path))
+    assert any("every cut is the identical seam" in w for w in r["warnings"]), r["warnings"]
+
+
+def test_hard_cut_default_does_not_warn(tmp_path):
+    # meta.transition:'none' is the invisible baseline — a uniform HARD cut is not a repeating effect
+    slides = [_slide_scene(tmp_path, i) for i in range(8)]
+    data = _board(str(tmp_path), slides, meta={"transition": "none"})
+    r = validate.evaluate(data, str(tmp_path))
+    assert not any("identical seam" in w for w in r["warnings"])
+
+
+def test_authored_seam_rhythm_does_not_warn(tmp_path):
+    # once the section rhythm is authored (hard cuts + a couple of marked seams), no warning
+    slides = [_slide_scene(tmp_path, i) for i in range(8)]
+    slides[3]["transition"] = "out"
+    slides[4]["transition"] = "in"
+    data = _board(str(tmp_path), slides, meta={"transition": "none"})
+    r = validate.evaluate(data, str(tmp_path))
+    assert not any("identical seam" in w for w in r["warnings"])

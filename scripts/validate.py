@@ -699,6 +699,20 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         warnings.append(f"final scene's transition '{effs[-1]}' has no out edge — the video ends on a hard "
                         f"frame; the closer should be 'dip' (its out edge IS the end fade)")
 
+    # UNIFORM-SEAM smell: when NO scene sets its own transition, every cut falls through to the meta
+    # default — so all N seams look identical. A viewer reads that as "the transition is always the
+    # same" (they are right). The section rhythm — hard cut inside a section, a dip at 2-3 seams — is
+    # exactly what the design-director plans per beat; a deck where none of it reached the storyboard
+    # is one that forgot to wire it in. Only fires on a FADING default (a uniform HARD cut is the
+    # invisible baseline, not a repeating effect) and on a deck long enough for the repetition to read.
+    explicit = sum(1 for s in slides if sb.normalize_transition(s)[0] in ("dip", "in", "out", "none"))
+    if explicit == 0 and meta_t != "none" and len(slides) >= 6:
+        warnings.append(f"all {len(slides)} scenes use the meta default transition '{meta_t}' and not one "
+                        f"sets its own — every cut is the identical seam, which reads as monotonous. "
+                        f"Author the rhythm: mark 2-3 section seams (a `dip`) and set the rest to hard "
+                        f"cuts (meta.transition:'none', or per-scene 'none'). The design plan's per-beat "
+                        f"`transition` is what carries this — make sure it reached the storyboard.")
+
     # Transition-STYLE discipline (motion-grammar "the style is the deck's LOOK"): ONE style per deck,
     # chosen from the register's motion personality; a per-scene override marks at most one special
     # seam. 3+ distinct styles reads as a template sampler, not a register. And blur is a reflective
