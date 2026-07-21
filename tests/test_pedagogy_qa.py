@@ -64,3 +64,33 @@ def test_article_and_hyphen_variants_not_false_flagged():
         {"index": 3, "stage": "build", "introduces": "reconstruction", "builds_on": ["Fourier transform", "k space"]},
     ]))
     assert r["ok"] and not r["errors"]
+
+
+def test_a_build_beat_that_lands_its_own_consequence_is_not_flagged():
+    # one page that reveals the idea and then its implication scaffolds BETTER than splitting the
+    # two across pages — but `stage` is one label and cannot say so. Reading only the tag would
+    # flag precisely the beats that teach best.
+    plan = {"beats": [
+        {"stage": "ground", "introduces": "the window", "builds_on": []},
+        {"stage": "build", "introduces": "CLAUDE.md", "builds_on": ["the window"],
+         "points": ["it is read every session", "so you stop re-explaining the project"]},
+        {"stage": "build", "introduces": "skills", "builds_on": ["CLAUDE.md"],
+         "lands_within": True},
+        {"stage": "land", "introduces": None, "builds_on": ["skills"]},
+    ]}
+    r = pq.evaluate(plan)
+    assert r["ok"] is True
+    assert not any("not followed within one beat" in w for w in r["warnings"]), r["warnings"]
+
+
+def test_a_build_beat_with_a_single_point_still_needs_a_follow_up():
+    # the escape hatch must not become a way to silence the check: one point is not a landing
+    plan = {"beats": [
+        {"stage": "ground", "introduces": "the window", "builds_on": []},
+        {"stage": "build", "introduces": "CLAUDE.md", "builds_on": ["the window"],
+         "points": ["it is read every session"]},
+        {"stage": "build", "introduces": "skills", "builds_on": ["CLAUDE.md"]},
+        {"stage": "build", "introduces": "hooks", "builds_on": ["skills"]},
+    ]}
+    r = pq.evaluate(plan)
+    assert any("not followed within one beat" in w for w in r["warnings"])

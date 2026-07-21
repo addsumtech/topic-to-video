@@ -62,9 +62,16 @@ def evaluate(data):
                                 f"in something the audience already knows before the first new idea")
         for x in intro_items:                             # only NOW is this beat's concept known to later beats
             introduced.add(_norm(x))
-    # build -> why adjacency: a new idea's consequence must land before the next new idea
+    # build -> why adjacency: a new idea's consequence must land before the next new idea.
+    # A beat can also land its OWN consequence — one page that reveals the idea and then its
+    # implication is a legitimate (often better) structure than splitting them across two pages.
+    # `stage` is a single label and cannot say that, so a beat says it directly: `lands_within`,
+    # or a `points` list whose second entry IS the consequence. Reading only the stage label would
+    # flag exactly the beats that scaffold best — the gate must measure the landing, not the tag.
     for i, b in enumerate(beats):
         if _norm(b.get("stage")) != "build":
+            continue
+        if b.get("lands_within") or len(b.get("points") or []) > 1:
             continue
         nxt = [_norm(beats[j].get("stage")) for j in (i + 1, i + 2) if j < len(beats)]
         if "why" not in nxt and "land" not in nxt:
