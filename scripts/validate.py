@@ -66,6 +66,36 @@ _HEX_TOKEN_RE = re.compile(r'(?<![0-9a-fA-F#])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|
 # data-cue-index (spoken order). One meaningful component = one cued reveal → components land one-by-one.
 _REVEAL = {"reveal", "reveal-up", "reveal-up-sm", "reveal-pop", "reveal-wipe", "reveal-glow"}
 _CHROME = {"kicker", "rule", "title", "sub"}          # the only elements allowed to be uncued on a cued page
+# ...in the BUILT-IN vocabulary. A deck with its own register names its header chrome whatever the
+# register calls it (.a-cap, .masthead, .plate-tag), and a class whitelist cannot know those — it
+# once put a false "page sits BLANK" warning on all 41 pages of a deck whose every page opened with
+# a static kicker. The question is not what the class is called; it is whether any TEXT is on screen
+# at t=0. That is: an element with real text, no cue, and no entrance animation to wait for.
+# NOTE an entrance class is deliberately NOT disqualifying. An UNCUED .reveal runs on the blind
+# stagger, i.e. it fades in immediately and lands inside the renderer's head window — the page is not
+# "blank while the opening plays". Only a CUED element waits for a phrase that may be spoken late,
+# which is the failure this check exists to catch.
+
+
+def _has_static_opening_text(html):
+    """True when some element paints TEXT at t=0 — uncued, unanimated, non-empty.
+
+    Only LEAF elements count. A wrapper like `<div class="stage">` inherits its children's text
+    while carrying none of its own, so counting containers would call every cued page "not blank"
+    and silence the check entirely.
+    """
+    body = html[html.find("<body"):] if "<body" in html else html
+    # Match each OPENING tag and only the text directly after it, before any child tag. Pairing
+    # tags with a regex cannot survive nesting — an outer <div class="stage"> swallows the kicker
+    # inside it and the kicker is never examined — and direct text is exactly what "this element
+    # paints" means anyway.
+    for m in re.finditer(r'<(div|p|span|h[1-6])\b([^>]*)>([^<]*)', body, re.I):
+        attrs, direct = m.group(2), m.group(3)
+        if "data-cue-index" in attrs:
+            continue
+        if re.sub(r"&[a-z#0-9]+;|\s", "", direct):    # real glyphs, not an entity or whitespace
+            return True
+    return False
 _CONN = {"arrow", "hs-connect", "connector"}          # connectors — reveal WITH their destination block
 #   `.arrow`/`.hs-connect` are the archetype connectors; `.connector` is the GENERAL marker an author
 #   puts on ANY directional element that borrows a cue slot (a bespoke SVG arc/chevron/link that reveals
@@ -1391,8 +1421,7 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
         # with one is never blank at the start. But a NO-header hero/pullquote whose FIRST reveal is
         # anchored to a phrase spoken well into the narration sits BLANK while the voice speaks the
         # opening — reads as broken. Anchor the first reveal to an OPENING phrase (or add a kicker/title).
-        header_early = any((_CHROME & set(tm.group(1).split())) and "data-cue-index" not in tm.group(0)
-                           for tm in re.finditer(r'<[^>]+class\s*=\s*"([^"]*)"[^>]*>', html))
+        header_early = _has_static_opening_text(html)
         if not header_early and (narration or "").strip():
             pairs = re.findall(r'data-cue-index="(\d+)"[^>]*?data-cue="([^"]*)"', html)
             pairs += [(i, a) for (a, i) in re.findall(r'data-cue="([^"]*)"[^>]*?data-cue-index="(\d+)"', html)]

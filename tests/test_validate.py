@@ -1526,3 +1526,35 @@ def test_duplicate_style_attribute_is_flagged(tmp_path):
 def test_single_style_attribute_is_clean(tmp_path):
     html = '<div class="stage"><div class="title" style="color:red;left:100px">x</div></div>'
     assert not any("TWO style" in w for w in _one(tmp_path, html))
+
+
+def test_opening_gap_sees_a_custom_registers_header_not_just_the_builtin_class_names():
+    # a deck with its own register names its chrome whatever the register calls it. A class
+    # whitelist once put a false "page sits BLANK" warning on all 41 pages of a deck whose every
+    # page opened with a static kicker — the question is whether TEXT is on screen at t=0.
+    import validate as _v
+    assert _v._has_static_opening_text(
+        '<body><div class="anno a-cap">The session loop</div>'
+        '<div class="anno a-head reveal" data-cue-index="0" data-cue="x">Y</div></body>') is True
+    assert _v._has_static_opening_text(
+        '<body><div class="kicker">HOOK</div>'
+        '<div class="title reveal" data-cue-index="0" data-cue="x">Y</div></body>') is True
+
+
+def test_opening_gap_still_fires_when_the_page_really_is_blank_at_t0():
+    import validate as _v
+    # every element cued -> nothing on frame 0
+    assert _v._has_static_opening_text(
+        '<body><div class="anno a-cap reveal" data-cue-index="0" data-cue="x">A</div></body>') is False
+    # but an UNCUED .reveal is NOT a failure: it runs on the blind stagger, fades in immediately,
+    # and lands inside the head window. Only a CUED element can wait for a late phrase.
+    assert _v._has_static_opening_text(
+        '<body><div class="anno a-cap reveal">A</div>'
+        '<div class="a-head reveal" data-cue-index="0" data-cue="x">B</div></body>') is True
+    # a container holding only animated children paints nothing of its own
+    assert _v._has_static_opening_text(
+        '<body><div class="stage">  <div class="stat reveal-up" data-cue-index="0" '
+        'data-cue="x">42</div></div></body>') is False
+    # an empty box, or one holding only an entity/whitespace, is not "text on screen"
+    assert _v._has_static_opening_text('<body><div class="anno a-cap"></div></body>') is False
+    assert _v._has_static_opening_text('<body><div class="anno a-cap">&middot;</div></body>') is False
