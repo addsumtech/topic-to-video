@@ -1513,3 +1513,16 @@ def test_truncation_accounts_for_a_leading_cue_offset():
         m = re.search(r"~(\d+)% complete", (e + w)[0])
         return int(m.group(1))
     assert pct("-0.6") > pct(None)
+
+
+def test_duplicate_style_attribute_is_flagged(tmp_path):
+    # HTML keeps the FIRST style= and DISCARDS the second. An element that already carried its
+    # position and then gained style="animation-duration:…" silently lost the position and collapsed
+    # onto its neighbours — a pile that is inside the canvas, not blank and not overflowing, so no
+    # geometry gate can see it.
+    html = '<div class="stage"><div class="title" style="color:red" style="left:100px">x</div></div>'
+    assert any("TWO style" in w for w in _one(tmp_path, html))
+
+def test_single_style_attribute_is_clean(tmp_path):
+    html = '<div class="stage"><div class="title" style="color:red;left:100px">x</div></div>'
+    assert not any("TWO style" in w for w in _one(tmp_path, html))

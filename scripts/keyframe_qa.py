@@ -52,7 +52,12 @@ _OVERFLOW_JS = (
     # backdrop is exempt). Without this, the off-canvas-bleed primitive would be unusable: the very
     # gesture it exists to express is the one the probe blocks.
     "if(e.closest&&e.closest('.bleed-out'))continue;"
-    "var o=Math.max(r.right-W,r.bottom-H,-r.left,-r.top);if(o>worst)worst=o;"
+    # …and the same applies to OVERFLOW: a transparent <svg> drawing surface that extends past the
+# canvas is not spilled content — its strokes are measured individually below, so a real spill
+# is still caught by the child that actually spills. (The container was excluded from the
+# content bbox already; leaving it in the overflow measure was half a fix.)
+    "if(e.tagName.toLowerCase()!=='svg'){"
+    "var o=Math.max(r.right-W,r.bottom-H,-r.left,-r.top);if(o>worst)worst=o;}"
     "var cs=getComputedStyle(e);if(cs.opacity!=='0'&&cs.display!=='none'){"
     # An <svg> CONTAINER's box is the drawing surface it reserves, not ink. A page that overlays one
     # full-canvas transparent SVG and positions its strokes inside (a normal, and for hand-drawn
@@ -123,10 +128,32 @@ _OVERFLOW_JS = (
     "lh=(lh==='normal'||!lh)?1.4*fs:parseFloat(lh);if(lh<1)continue;"
     "var lines=Math.round(pe.scrollHeight/lh),w=pe.getBoundingClientRect().width;"
     "if(lines>=3&&w>=600)centered++;}"
+    # ENCLOSURE CONTAINMENT: a ring/circle that OVERLAPS text but does not CONTAIN it. An enclosure
+    # asserts "these ones, not the others" — text spilling past its edge silently breaks that claim,
+    # and no geometry gate can see it (nothing overflows the canvas, nothing is blank, nothing enters
+    # the caption zone; the frame is simply wrong about what it encircles).
+    "var encl=0,enclEx='';"
+    "document.querySelectorAll('.ring,[data-encloses]').forEach(function(rg){"
+    "var R=rg.getBoundingClientRect();if(R.width<60||R.height<40)return;"
+    "document.querySelectorAll('.stage *,.split *').forEach(function(t){"
+    "if(t===rg||rg.contains(t))return;var own=false;"
+    "for(var k=0;k<t.childNodes.length;k++){var c=t.childNodes[k];"
+    "if(c.nodeType===3&&(c.nodeValue||'').trim()){own=true;break;}}"
+    # Measure the TEXT, not its container. A div declared `width:1620px` whose text only fills 1216px
+# has a box that spills past the ring while the ink sits comfortably inside — the same
+# box-instead-of-ink error this probe fixes elsewhere. Range over the contents gives the real
+# glyph extent.
+    "if(!own)return;var rr=document.createRange();rr.selectNodeContents(t);"
+    "var b=rr.getBoundingClientRect();rr.detach&&rr.detach();"
+    "if(b.width<10||b.height<10)return;"
+    "var cs2=getComputedStyle(t);if(cs2.opacity==='0'||cs2.display==='none')return;"
+    "var ov=!(b.right<R.left||b.left>R.right||b.bottom<R.top||b.top>R.bottom);if(!ov)return;"
+    "var ins=b.left>=R.left-3&&b.right<=R.right+3&&b.top>=R.top-3&&b.bottom<=R.bottom+3;"
+    "if(!ins){encl++;if(!enclEx)enclEx=(t.innerText||'').trim().slice(0,16);}});});"
     "var bleed=!!document.querySelector('.bg-photo,.bg-soft,.bg-motif,.bg-grid');"
     "return JSON.stringify({worst:Math.round(worst),clip:Math.round(clip),textlen:t,centered:centered,"
     "ctop:Math.round(ct),cbot:Math.round(cb),cleft:Math.round(cl),cright:Math.round(cr),"
-    "wcx:wsum?Math.round(wx/wsum):-1,wcy:wsum?Math.round(wy/wsum):-1,"
+    "wcx:wsum?Math.round(wx/wsum):-1,wcy:wsum?Math.round(wy/wsum):-1,encl:encl,enclEx:enclEx,"
     "mystery:myst,mystery_ex:mystEx,nearmiss:nm,nearmiss_ex:nmEx,crowd:crowd,crowd_ex:crowdEx,"
     "bleed:bleed,cued:!!document.querySelector('[data-cue-index]')});})()")
 
@@ -367,6 +394,11 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                     if _blank:
                         issues.append(_blank)
                     issues.extend(_geometry_issues(info, meta, H))   # overflow + intra-box clip + caption occlusion
+                    if info.get("encl", 0) > 0:
+                        advisories.append(f"{info['encl']} text block(s) SPILL past an enclosure "
+                                          f"(e.g. \u300c{info.get('enclEx','')}\u300d) — a ring asserts "
+                                          f"\u201cthese ones, not the others\u201d; text crossing its edge "
+                                          f"breaks that claim. Enlarge the enclosure or shrink/move the text")
                     if info.get("centered", 0) > 0:
                         advisories.append(f"{info['centered']} centered running paragraph(s) — "
                                           "left-align body text for scanning (studios do)")

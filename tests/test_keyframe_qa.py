@@ -213,3 +213,21 @@ def test_blank_probe_memo_is_per_element_not_per_chain():
     assert "seen.set(el,v)" in js
     # and it must NOT walk back up writing one verdict onto every ancestor
     assert "while(p&&p!==document.body){seen.set(p,vis)" not in js
+
+
+# ---- enclosure containment ------------------------------------------------------------------------
+# A ring asserts "these ones, not the others". Text crossing its edge breaks that claim and NO other
+# gate can see it: nothing overflows the canvas, nothing is blank, nothing enters the caption zone.
+
+def test_probe_measures_enclosure_containment():
+    for k in ("encl:", "enclEx:", ".ring,[data-encloses]"):
+        assert k in kq._OVERFLOW_JS, k
+
+def test_enclosure_check_measures_text_ink_not_the_container_box():
+    # REGRESSION: the first version measured the text element's BOX, so a div declared width:1620px
+    # whose glyphs only fill 1216px was reported as spilling while the ink sat well inside — the same
+    # box-instead-of-ink error this probe corrects for <svg> containers and the centroid.
+    assert "createRange" in kq._OVERFLOW_JS and "selectNodeContents" in kq._OVERFLOW_JS
+
+def test_enclosure_check_skips_the_ring_s_own_subtree():
+    assert "rg.contains(t)" in kq._OVERFLOW_JS

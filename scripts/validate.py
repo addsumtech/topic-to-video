@@ -1236,6 +1236,18 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
                                 f"NOTHING (the page is identical with the image deleted). Move it AFTER that layer "
                                 f"(and before any .desk/foreground plane)")
                 break
+    # DUPLICATE style= ON ONE ELEMENT — silent data loss. HTML keeps the FIRST style attribute and
+    # DISCARDS the second, so an element that already carried `style="left:…;top:…"` and then gained a
+    # second `style="animation-duration:…"` silently loses its POSITION and collapses to the layout
+    # default. Three labels stacked into one illegible pile that way, and no geometry gate could see it:
+    # the pile is inside the canvas, not blank, not overflowing — it is simply unreadable. Merge them.
+    for m in re.finditer(r'<[a-zA-Z][^>]*?\sstyle\s*=\s*"[^"]*"[^>]*?\sstyle\s*=\s*"[^"]*"[^>]*>', html):
+        dup = re.sub(r'\s+', ' ', m.group(0))[:90]
+        warnings.append(f"{tag}: element carries TWO style= attributes — HTML keeps the first and "
+                        f"DROPS the second, so whichever declaration came later (often the position) is "
+                        f"silently lost: {dup}… — merge them into one style attribute")
+        break
+
     for m in re.finditer(r'<div[^>]*style\s*=\s*"[^"]*inset\s*:\s*0[^"]*background-image\s*:\s*url\([^)]*\)[^"]*"[^>]*>', html):
         # The mechanism (div+background-image vs <img>) is fine; what matters is that the element
         # DECLARES itself a backdrop with bg-soft/bg-photo. Undeclared, it is invisible to the

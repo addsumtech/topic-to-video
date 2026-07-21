@@ -700,6 +700,34 @@ must be a phrase actually present in that scene's narration.
 > `.draw`/`.count-up`/Ken-Burns finishes. A page of ordinary .7s reveals captures exactly as many
 > frames as before — the cost is paid only where a long animation actually needs it.
 
+### Connectors: make the direction explicit, and draw the head ONCE
+A bare line between two objects says they are related; it does not say **which way**. On any beat
+that reads "A produces / becomes / hands to B", the connector needs a head. Draw it as part of the
+same path — two short barbs off the tip, the way a hand draws it in chalk:
+```html
+<!-- 主线 + 倒钩，同一条 path：末端切线方向 ±24°，长约 19px -->
+<path class="chalk connector draw" pathLength="1"
+      d="M 562 505 H 700  M 684 494 L 700 505 L 684 516"/>
+```
+Rules that cost a re-render when broken:
+- **One head per line.** Adding barbs to a path that already has them yields a doubled, smeared
+  glyph that reads as a scribble. Before appending a head, check the `d` for an existing short
+  subpath ending at the main path's tip.
+- **The head follows the END TANGENT, not the chord.** For a curve, take the direction from the last
+  control point to the endpoint. Using the start→end chord puts the head at the wrong angle and it
+  reads as a check-mark rather than an arrow.
+- **Headless is a CLAIM, not an omission.** A line that stops short with no head says "this does not
+  arrive" — a legitimate and powerful gesture (one deck's whole thesis rested on an arc that never
+  reaches its target). Use it deliberately, and never let a batch edit add heads to those.
+- Rails, tick marks, underlines, enclosures and strike-throughs are **not** connectors and take no head.
+
+### An enclosure must CONTAIN what it encircles
+A ring asserts "these ones, not the others". Text or objects crossing its edge silently break that
+claim, and no geometry gate can see it — nothing overflows the canvas, nothing is blank, nothing
+enters the caption zone; the frame is simply wrong about what it encircles. Size the enclosure from
+the measured box of its contents plus ~45px of padding, not by eye. `keyframe_qa` advises when text
+overlaps a `.ring` without being inside it (mark any deliberate exception `data-encloses`).
+
 ### `data-cue-offset` — phrase a reveal against its word
 A `data-cue` says *which* word fires an element; `data-cue-offset` says *how it sits against* that
 word, in seconds — negative to LEAD, positive to LAG. Without it the only temporal control an author
