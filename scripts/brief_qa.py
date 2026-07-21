@@ -18,6 +18,22 @@ _VERBS = {"is", "are", "was", "cuts", "reduces", "increases", "improves", "enabl
           "predicts", "learns", "uses", "avoids", "prevents", "speeds", "slows", "drops", "grows",
           "shrinks", "outperforms", "yields", "converts", "maps", "links", "drives", "hides", "reveals",
           "means", "allows", "requires", "needs", "gives", "costs", "saves", "closes", "opens", "breaks"}
+# The list above can never be complete, and a gate that fires on a GOOD thesis is worse than no gate —
+# the author learns to scroll past it. A real thesis "X stops being Y the moment you Z" was flagged
+# because none of stops/being/configuring made a hand-picked list of 48. So there is a second path:
+# a clause needs a finite verb, and a finite verb in English almost always drags in an auxiliary/modal
+# or a subordinator. A bare topic label ("Deep learning for medical imaging") has neither, which is
+# exactly the thing this check exists to catch.
+_AUX = {"is", "are", "was", "were", "be", "been", "being", "am",
+        "can", "could", "will", "would", "shall", "should", "may", "might", "must",
+        "do", "does", "did", "has", "have", "had", "stops", "starts", "keeps", "becomes"}
+_CLAUSE = {"because", "therefore", "so", "when", "whenever", "if", "unless", "while", "whereas",
+           "than", "once", "after", "before", "since", "until", "without", "instead"}
+
+
+def _reads_as_a_claim(thesis):
+    toks = {t.lower().strip(".,;:!?()\"'`") for t in thesis.split()}
+    return bool(toks & _VERBS) or bool(toks & _AUX) or bool(toks & _CLAUSE)
 
 
 def _empty(v):
@@ -144,8 +160,7 @@ def evaluate(data, out_dir=None):
         _letters = [c for c in th if c.isalpha()]
         _ascii_ratio = (sum(1 for c in _letters if c.isascii()) / len(_letters)) if _letters else 1.0
         _englishish = _ascii_ratio > 0.6 and not re.search(r"[　-ヿ㐀-鿿가-힣]", th)
-        toks = {t.lower().strip(".,;:!?()\"'") for t in th.split()}
-        if _englishish and not (toks & _VERBS):
+        if _englishish and not _reads_as_a_claim(th):
             warnings.append("thesis has no recognizable verb — it reads as a topic label, not a claim "
                             "('X cuts Y by Z via M', not 'about X')")
     return {"ok": not errors, "errors": errors, "warnings": warnings}

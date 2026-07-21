@@ -295,3 +295,23 @@ def test_an_unlabelled_source_is_not_assumed_primary(tmp_path):
     _srcbrief(tmp_path, [{"claim": "某个说法", "source_ref": "x#某个说法"}],
               coverage={"read_in_full": ["x"]})
     assert any("no PRIMARY source" in w for w in bq.check(str(tmp_path))["warnings"])
+
+def test_a_real_thesis_is_not_flagged_just_for_using_an_unlisted_verb():
+    # the whitelist can never be complete; a GOOD thesis flagged as a topic label teaches the
+    # author to scroll past the warning, which costs more than the check earns
+    for t in ("Claude Code stops being a fancier autocomplete once you configure what it reads.",
+              "Sparse attention can halve memory without hurting accuracy.",
+              "The model is faster because it skips the second pass."):
+        r = bq.evaluate(_brief(thesis=t))
+        assert not any("recognizable verb" in w for w in r["warnings"]), t
+
+def test_a_bare_topic_label_is_still_flagged():
+    for t in ("Deep learning approaches for medical imaging",
+              "An overview of transformer architectures",
+              "Notes on distributed systems"):
+        r = bq.evaluate(_brief(thesis=t))
+        assert any("recognizable verb" in w for w in r["warnings"]), t
+
+def test_the_verb_heuristic_still_skips_non_english_theses():
+    r = bq.evaluate(_brief(thesis="腾讯 WorkBuddy 把一句话变成你电脑上的一个文件。"))
+    assert not any("recognizable verb" in w for w in r["warnings"])
