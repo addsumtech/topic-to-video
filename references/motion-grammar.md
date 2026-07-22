@@ -205,6 +205,19 @@ carry the motion. On the IMAGE tier (narrated slides) each clip ends at ~1.12 zo
 starts at 1.0 — a raw cut pops ~12% in scale; keep the meta dip (or a subtle `"in"` ~0.15s, the
 guide's "subtle fade-in" for same-topic) between image slides instead.
 
+**Pace caveat (continuation) — the hard-cut default assumes a PUNCHY pace.** On a deliberately CALM,
+unhurried register (a low `meta.tts_speed`, a high average scene length, an explainer that lingers),
+an all-hard-cut deck reads as STIFF — each scene snaps to the next with no give, and any tail silence
+turns the snap into an abrupt "obvious gap" (a real deck shipped this and the viewer said exactly that).
+There, make continuation cuts a UNIFORM LIGHT dip: `meta.transition: "dip"`, `meta.transition_seconds:
+~0.25`, and still mark the 3–5 real section seams with a heavier dip (`transition_seconds: ~0.4`) so
+the chapter breaths stay distinct. That is documentary-smooth, not monotone — the seams give it rhythm,
+and marking them keeps `validate.py`'s uniform-seam warning quiet (it fires only when NO scene sets its
+own transition, i.e. when the rhythm was never authored at all). The dividing line is PACE, not tier:
+a light dip on FAST continuation cuts is the "nervous blink" to avoid; the same dip on calm 8-second
+scenes is a gentle cross-fade. If you slow the voice to fix "too fast," soften the cuts to match — the
+two decisions travel together.
+
 **Honest deliverables:** the per-clip render (`-c copy` concat) cannot see the neighboring clip, so
 morph / shared-element / cross-clip pans are NOT deliverable — for a drill-down or comparison
 relation, put the semantics INSIDE the scene (the timeline archetype's left-to-right reveals, a

@@ -28,13 +28,16 @@ TTS if the user gives an API key.
 
 ## Pipeline scripts
 - `scripts/ingest.py <input> <out_dir>` — pptx/pdf/image-folder → `frames/` + skeleton `storyboard.json` (pulls speaker notes from pptx).
-- `scripts/tts.py <out_dir> [--only N]` — narration → `audio/` + real durations. With edge-tts, also writes `audio/NN.words.json` (per-word start times), used for audio-synced HTML reveals; emits `.mp3`. With macOS `say`, emits `.aiff` (no words.json).
+- `scripts/tts.py <out_dir> [--only N]` — narration → `audio/` + real durations. With edge-tts, also writes `audio/NN.words.json` (per-word start times), used for audio-synced HTML reveals; emits `.mp3`. With macOS `say`, emits `.aiff` (no words.json). **`tts.py` REWRITES `storyboard.json`** (to store each clip's measured duration) — so run it (and any duration-editing pass of your own, e.g. tail-padding) **BEFORE you hand-set per-scene fields like `transition`**, or a later re-synth/duration pass that loads-then-saves the board will silently clobber those edits. Order: finalize audio & durations → THEN set transitions/motion → validate → render (render only READS the board, so it's safe after).
   **Every speech clip is MASTERED in place before its duration is measured:** loudness-normalised
   (EBU R128, I=-14) + trailing dead-air trimmed (tail-only — leading/internal timing untouched, so
   `words.json` word times stay valid), so levels are consistent across providers and the pacing gates
   see speech, not dead air. The re-padded tail is the BETWEEN-SCENE BREATH — `meta.audio_breath`
   (default 0.42s; 0.12s proved abrupt: speech hard-cut into the next page). Scene-edge transitions
   ride this silence. Opt out of mastering with `meta.audio_master: false`.
+  **`audio_breath` is a BREATH, not a reading buffer — keep it ≤~0.5 s.** Padding it to 2–3 s to
+  "give time to read" makes each scene end on a frozen, silent frame that reads as the video hanging;
+  reading time belongs in a slower `meta.tts_speed`, not a long dead tail (see `tts_speed` below).
 - `scripts/theme.py <out_dir> [--mode light|dark] [--accent #hex] [--accent2 #hex] [--bg #hex] [--style <key>] [--brand-logo <png>]` —
   derive a topic-fitting palette from `frames/` (or the passed overrides) and write
   `<out_dir>/theme.css` (the HTML tier links it; the programmatic renderers parse the same
@@ -835,7 +838,18 @@ figure), a non-singular `the_one_thing`, or a
   a multiplier applied to BOTH edge-tts (mapped to its `rate` `±%`, e.g. `1.25` → `+25%`) and MiniMax
   (its `speed`). Clamped `[0.5, 2.0]`; for edge, keep within **~±30%** (`0.8–1.3`) — beyond that the
   neural voice sounds unnatural. Per-word timings scale WITH the rate, so captions + audio-synced reveals
-  stay in sync. Reach for it (e.g. `1.2–1.3`) when a faithful script overruns the target runtime.
+  stay in sync. Reach for `1.2–1.3` when a faithful script overruns the target runtime.
+  **The knob is BIDIRECTIONAL, and slowing DOWN is the fix for a video that feels rushed or whose
+  scene-ends read as abrupt.** The instinct — "give the viewer more time to read" — must NOT be paid
+  for by padding a long SILENT, STATIC tail onto each clip via `audio_breath`: a frame frozen and
+  silent for 2–3 s then hard-cut reads as the video HANGING, not as breathing room (a real deck shipped
+  this and the viewer called every scene-end "a stiff obvious gap"). Reading time belongs INSIDE the
+  narration — set `tts_speed` to ~`0.9–0.92` so the whole delivery is unhurried and the reveals land
+  leisurely — leaving only a SHORT natural breath (`audio_breath` ~0.4–0.5, or a per-scene tail of
+  ≤~1 s) after the last word. Slow-voice + short-breath + a gentle seam beats fast-voice + long-dead-tail
+  at the same total runtime, every time. (Rule of thumb: if any page's on-screen text exceeds ~28
+  characters/second of its own duration it will feel too fast — lower `tts_speed` or split the page,
+  don't just freeze the tail.)
 - `meta.image_source` is `none` (default, free) or `openai` (gpt-image-2, paid). AI images are
   generated once by `imagegen.py` and CACHED under `.assets/` — re-renders are free + offline.
 - **`meta.brand`** (OPTIONAL — user-supplied REAL assets; the mirror of the no-fabricated-logos
