@@ -1586,3 +1586,39 @@ def test_authored_seam_rhythm_does_not_warn(tmp_path):
     data = _board(str(tmp_path), slides, meta={"transition": "none"})
     r = validate.evaluate(data, str(tmp_path))
     assert not any("identical seam" in w for w in r["warnings"])
+
+
+# ── cinematic camera/layers gate (Phase 0 spine) ──────────────────────────────────────────────────
+def test_cinematic_fields_clean_pass_has_no_errors_or_warnings():
+    import validate as _v
+    s = {"index": 1, "type": "cinematic", "duration": 6.0,
+         "layers": [{"kind": "grid", "parallax": 0.82}, {"kind": "panel", "parallax": 1.28}],
+         "camera": [{"atFrame": 0, "x": 0.5, "y": 0.5, "zoom": 1.0, "easing": "inout"},
+                    {"atFrame": 180, "x": 0.46, "y": 0.52, "zoom": 1.12, "easing": "inout"}]}
+    e, w = [], []
+    _v._cinematic_fields(s, {"fps": 30}, "/tmp", "scene 1", e, w)
+    assert e == [] and w == []
+
+
+def test_cinematic_fields_is_noop_when_absent():
+    import validate as _v
+    e, w = [], []
+    _v._cinematic_fields({"index": 1, "type": "html"}, {"fps": 30}, "/tmp", "scene 1", e, w)
+    assert e == [] and w == []
+
+
+def test_cinematic_fields_catch_structural_faults(tmp_path):
+    import validate as _v
+    s = {"index": 1, "type": "cinematic", "duration": 6.0,
+         "layers": [{"kind": "blob", "parallax": 9}, {"kind": "image", "src": "nope.png"}],
+         "camera": [{"atFrame": 0, "zoom": 1.0},
+                    {"atFrame": 300, "x": 3.0, "zoom": 1.9, "easing": "nope"},
+                    {"atFrame": 100, "zoom": 1.0}]}
+    e, w = [], []
+    _v._cinematic_fields(s, {"fps": 30}, str(tmp_path), "scene 1", e, w)
+    assert any("non-decreasing" in x for x in e)                 # keyframe ordering
+    assert any("image src 'nope.png' not found" in x for x in e)  # missing image plane
+    assert any("blob" in x for x in w) and any("parallax 9" in x for x in w)
+    assert any("zoom 1.9" in x for x in w) and any("lurch" in x for x in w)
+    assert any("off-canvas" in x for x in w) and any("easing 'nope'" in x for x in w)
+    assert any("past the scene end" in x for x in w)

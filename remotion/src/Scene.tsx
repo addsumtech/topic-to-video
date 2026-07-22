@@ -2,6 +2,7 @@ import React from 'react';
 import {AbsoluteFill, Audio, Img, staticFile, interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
 import {Theme} from './Video';
 import {Captions, CaptionSeg} from './Captions';
+import {CinematicScene, CameraKeyframe, Layer} from './Camera';
 
 export type CalloutData = {
   box: number[];           // [x0, y0, x1, y1] normalized 0..1
@@ -24,6 +25,11 @@ export type SceneData = {
   kicker?: string | null;
   fadeInFrames?: number;   // gentle dip-in at the scene edge (from meta.transition)
   fadeOutFrames?: number;
+  // CINEMATIC (opt-in): a virtual-camera path over a 2.5D layer stack. When `layers` is present the
+  // scene renders on the cinematic path; otherwise the image/Ken-Burns path below is unchanged.
+  camera?: CameraKeyframe[] | null;
+  layers?: Layer[] | null;
+  reducedMotion?: boolean;
 };
 
 const CLAMP = {extrapolateLeft: 'clamp' as const, extrapolateRight: 'clamp' as const};
@@ -36,6 +42,24 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
   const frame = useCurrentFrame();
   const {durationInFrames} = useVideoConfig();
   const dur = Math.max(1, durationInFrames);
+
+  // CINEMATIC DISPATCH: a scene carrying a 2.5D layer stack renders on the cinematic path (virtual
+  // camera + parallax + eased reveal). Everything below is the unchanged image/Ken-Burns fallback.
+  if (scene.layers && scene.layers.length) {
+    return (
+      <CinematicScene
+        layers={scene.layers}
+        camera={scene.camera || [{atFrame: 0, x: 0.5, y: 0.5, zoom: 1}]}
+        theme={theme}
+        captions={scene.captions}
+        audio={scene.audio}
+        captionFontPx={captionFontPx}
+        reducedMotion={scene.reducedMotion}
+        fadeInFrames={scene.fadeInFrames}
+        fadeOutFrames={scene.fadeOutFrames}
+      />
+    );
+  }
 
   // Ken Burns that HONOURS the authored camera (slide.motion): zoom z0->z1 (may zoom OUT) about a pan
   // anchor that moves from->to — mirrors the local zoompan instead of a hardcoded push.

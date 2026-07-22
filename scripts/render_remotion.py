@@ -31,13 +31,21 @@ _DEFAULT_MOTION = {"from": [0.5, 0.5, 1.0], "to": [0.5, 0.5, 1.12]}   # matches 
 _IMAGE_OK_TYPES = {"slide", "title"}
 
 
+def _scene_layers(s):
+    """The cinematic depth planes for a scene (top-level or in props), or None."""
+    return s.get("layers") or (s.get("props") or {}).get("layers")
+
+
 def unsupported_scenes(data):
-    """Scene indices whose visual would render BLANK on the cinematic tier (non-image html/chart/…)."""
+    """Scene indices whose visual would render BLANK on the cinematic tier (non-image html/chart/…).
+
+    A scene carrying cinematic `layers` (a composited 2.5D stack) is renderable even with no `image`,
+    so it is NOT unsupported — the layered path draws it."""
     bad = []
     for s in data.get("slides", []):
         t = s.get("type", "slide")
         image = s.get("image") or (s.get("props") or {}).get("image")
-        if not image and t not in _IMAGE_OK_TYPES:
+        if not image and not _scene_layers(s) and t not in _IMAGE_OK_TYPES:
             bad.append((s.get("index"), t))
     return bad
 
@@ -97,6 +105,21 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
                                  "from": int(round(float(seg["start"]) * fps)),
                                  "to": int(round(float(seg["end"]) * fps))})
         fi, fo = _edges(s, meta, fps)
+        # CINEMATIC (opt-in, additive, backward-compatible): a virtual-camera keyframe path over a
+        # 2.5D layer stack. Absent -> the scene renders on the existing image/Ken-Burns path unchanged.
+        # Contract: camera[i].atFrame is an integer FRAME index (0..durationInFrames); at is normalised
+        # so a keyframe past the end clamps. A missing camera on a layered scene defaults to a gentle
+        # eased push-in built here so `layers` alone already yields a cinematic move.
+        layers = _scene_layers(s)
+        camera = s.get("camera") or props.get("camera")
+        if layers and not camera:
+            camera = [{"atFrame": 0, "x": 0.5, "y": 0.5, "zoom": 1.0, "easing": "inout"},
+                      {"atFrame": frames, "x": 0.5, "y": 0.5, "zoom": 1.08, "easing": "inout"}]
+        if camera:
+            camera = [{"atFrame": int(round(float(k.get("atFrame", 0)))),
+                       "x": float(k.get("x", 0.5)), "y": float(k.get("y", 0.5)),
+                       "zoom": float(k.get("zoom", 1.0)), "easing": str(k.get("easing", "inout"))}
+                      for k in camera]
         mot = s.get("motion") or _DEFAULT_MOTION
         callouts = []                               # timed/static highlight overlays (parity with the local tier)
         for co in (s.get("callouts") or []):
@@ -121,6 +144,9 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
             "kicker": props.get("kicker"),
             "fadeInFrames": fi,
             "fadeOutFrames": fo,
+            "camera": camera,                        # cinematic: eased virtual-camera keyframes (or None)
+            "layers": layers,                        # cinematic: 2.5D depth planes (or None)
+            "reducedMotion": reduced,                # freeze the camera + show reveals instantly
         })
     return {"width": W, "height": H, "fps": fps, "captionFontPx": rd._caption_font_px(W, H, meta=meta),
             "theme": _theme(out_dir), "scenes": scenes}

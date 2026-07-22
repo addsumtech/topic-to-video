@@ -158,6 +158,21 @@ TTS if the user gives an API key.
   still guards delivery (it degrades cleanly with no `.clips/`). When to reach for it: Remotion's real
   edge is fast/kinetic motion + motion-blur + eased cross-scene transitions — worth it for a cinematic
   **story** video, not for a calm explainer deck (where it's pixel-identical to local).
+  **CINEMATIC 2.5D (opt-in, additive — the enterprise/product-video tier, being built out; see
+  `references/shots/`):** a scene may carry two extra fields that switch it to a **virtual-camera path
+  over depth planes** instead of the flat image path — `layers` (2–4 depth planes, each `{kind:
+  fill|grid|hero|panel|image, parallax}` where background < 1 and foreground > 1) and `camera` (a list
+  of eased keyframes `{atFrame, x, y, zoom, easing: linear|in|out|inout}`). The shared camera moves the
+  whole layer group; each plane pans and zooms by `camera × its parallax`, so near and far planes travel
+  at different rates (real 2.5D, not a Ken Burns zoom). A layered scene with no `camera` gets a gentle
+  default push-in, so `layers` alone is already cinematic. Rendered by `remotion/src/Camera.tsx`
+  (`CinematicScene`); `reduced_motion` freezes the camera at keyframe 0 and shows reveals instantly.
+  `validate.py` structurally gates the fields (keyframe ordering, on-canvas targets, a read-safe zoom
+  band, layer kinds, image-plane existence) — but the **move itself is judged only from the rendered
+  filmstrip** `<out_dir>/_keyframes/scene_NN.png`, never from the plan (pre-tts the blind envelope is
+  meaningless → mark UNJUDGED, not passed). This tier is Remotion-only; the free path degrades to eased
+  Ken Burns. Moves are documented as load-on-demand recipe cards in `references/shots/` (the director
+  cites a card by `name`; the critic checks the render against that card's Checklist).
 - `scripts/cues.py` — pure anchor→cue-time resolver: reads per-scene `audio/NN.words.json` (edge-tts per-word timings) and resolves each `data-cue` anchor phrase to an absolute timestamp, used by `render_html` for audio-synced HTML reveals.
 - `scripts/check_av.py <out_dir>` — deterministic A/V gate: probes `out.mp4` video-vs-audio duration + per-clip sample-rate uniformity across `.clips/`; exits non-zero on A/V drift above tolerance (0.3 s) or non-uniform rates. Run AFTER the full render (step 9) as a gate before delivery.
 - `scripts/doctor.py [--json]` — environment preflight: reports which tools/libraries are present (ffmpeg/ffprobe/PIL required; PyMuPDF/python-pptx/edge-tts/soffice/Chrome/font optional) and, for each missing one, the stage it gates + the install hint. Exits non-zero only when a REQUIRED dep is missing. Run once at the START (step 1).

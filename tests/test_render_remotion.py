@@ -127,3 +127,48 @@ def test_renderer_meta_validation():
     bad["slides"] = [sb.new_scene(1, "title", {"title": "x"}, narration="x")]
     with pytest.raises(sb.StoryboardError):
         sb.validate(bad)
+
+
+# ── cinematic tier: additive camera + 2.5D layers (Phase 0 spine) ─────────────────────────────────
+def _cine_board(**meta):
+    m = {"aspect": "16:9", "fps": 30, "renderer": "remotion"}
+    m.update(meta)
+    data = sb.new_storyboard(m)
+    s = sb.new_scene(1, "cinematic", {}, narration="Alpha beta gamma.")
+    s["audio"] = "audio/01.mp3"; s["duration"] = 6.0
+    s["layers"] = [{"kind": "grid", "parallax": 0.82}, {"kind": "panel", "parallax": 1.28, "title": "T"}]
+    s["camera"] = [{"atFrame": 0, "x": 0.5, "y": 0.5, "zoom": 1.0, "easing": "inout"},
+                   {"atFrame": 180, "x": 0.44, "y": 0.54, "zoom": 1.12, "easing": "inout"}]
+    data["slides"] = [s]
+    return data
+
+
+def test_build_props_threads_camera_and_layers(tmp_path):
+    sc = rr.build_props(_cine_board(), str(tmp_path))["scenes"][0]
+    assert sc["layers"] and len(sc["layers"]) == 2
+    assert sc["camera"] and sc["camera"][0]["atFrame"] == 0
+    assert sc["camera"][-1]["zoom"] == 1.12 and sc["camera"][-1]["easing"] == "inout"
+    assert sc["reducedMotion"] is False
+
+
+def test_layered_scene_synthesizes_default_camera(tmp_path):
+    d = _cine_board(); d["slides"][0].pop("camera", None)
+    sc = rr.build_props(d, str(tmp_path))["scenes"][0]
+    # a layered scene with no camera gets a gentle default eased push-in (so `layers` alone is cinematic)
+    assert sc["camera"] and len(sc["camera"]) == 2 and sc["camera"][-1]["zoom"] > 1.0
+
+
+def test_layered_scene_is_not_unsupported(tmp_path):
+    d = _cine_board(); d["slides"][0].pop("image", None)
+    assert rr.unsupported_scenes(d) == []                 # layers make it renderable without an image
+
+
+def test_non_image_non_layer_scene_is_unsupported():
+    d = _cine_board(); s = d["slides"][0]
+    s.pop("layers", None); s.pop("camera", None); s.pop("image", None); s["type"] = "chart"
+    assert any(i == 1 for i, _ in rr.unsupported_scenes(d))
+
+
+def test_reduced_motion_flag_threads_to_cinematic_scene(tmp_path):
+    sc = rr.build_props(_cine_board(), str(tmp_path), reduced_motion=True)["scenes"][0]
+    assert sc["reducedMotion"] is True

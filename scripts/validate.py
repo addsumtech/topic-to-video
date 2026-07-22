@@ -389,6 +389,82 @@ def _figure_traceability(slides, out_dir, warnings):
                                 f"or a hypothetical) confirm it — no invented numbers (see the faithfulness gate)")
 
 
+_CINE_KINDS = {"fill", "grid", "hero", "panel", "image"}
+_CINE_EASINGS = {"linear", "in", "out", "inout"}
+
+
+def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
+    """Validate the opt-in cinematic `camera` / `layers` on a scene (Remotion tier). NO-OP when both
+    are absent, so non-cinematic decks are wholly unaffected. The camera MOVE itself is judged from the
+    rendered filmstrip (`_keyframes/scene_NN.png`), never from the plan — this gate only catches the
+    STRUCTURAL faults that would render a broken, blank, or lurching move: bad keyframe ordering,
+    off-canvas targets, a push past the read-safe zoom, an unknown layer kind, a missing image plane."""
+    cam = s.get("camera") or (s.get("props") or {}).get("camera")
+    layers = s.get("layers") or (s.get("props") or {}).get("layers")
+    if not cam and not layers:
+        return
+    fps = int((meta or {}).get("fps", 30) or 30)
+    dur = s.get("duration")
+    dframes = int(round(float(dur) * fps)) if isinstance(dur, (int, float)) and dur else None
+
+    if layers is not None:
+        if not isinstance(layers, list) or not layers:
+            errors.append(f"{tag}: `layers` must be a non-empty list of depth planes")
+        else:
+            for j, ly in enumerate(layers):
+                if not isinstance(ly, dict):
+                    errors.append(f"{tag}: layer {j} must be an object"); continue
+                if ly.get("kind") not in _CINE_KINDS:
+                    warnings.append(f"{tag}: layer {j} kind '{ly.get('kind')}' is not one of "
+                                    f"{sorted(_CINE_KINDS)} — it renders blank")
+                p = ly.get("parallax", 1.0)
+                if not isinstance(p, (int, float)) or not (0.3 <= float(p) <= 2.0):
+                    warnings.append(f"{tag}: layer {j} parallax {p} outside 0.3–2.0 — depth reads wrong "
+                                    f"(background < 1, foreground > 1)")
+                if ly.get("kind") == "image" and not _exists(out_dir, ly.get("src") or ""):
+                    errors.append(f"{tag}: layer {j} image src '{ly.get('src')}' not found under {out_dir}")
+
+    if cam is not None:
+        if not isinstance(cam, list) or not cam:
+            errors.append(f"{tag}: `camera` must be a non-empty list of keyframes")
+        else:
+            prev = None
+            for j, k in enumerate(cam):
+                if not isinstance(k, dict):
+                    errors.append(f"{tag}: camera keyframe {j} must be an object"); continue
+                at = k.get("atFrame")
+                if not isinstance(at, (int, float)):
+                    errors.append(f"{tag}: camera keyframe {j} needs a numeric atFrame (integer frame index)")
+                else:
+                    if at < 0:
+                        errors.append(f"{tag}: camera keyframe {j} atFrame {at} < 0")
+                    if prev is not None and at < prev:
+                        errors.append(f"{tag}: camera keyframes must be non-decreasing in atFrame "
+                                      f"(kf {j}={at} < kf {j - 1}={prev})")
+                    if dframes is not None and at > dframes + 1:
+                        warnings.append(f"{tag}: camera keyframe {j} atFrame {at} is past the scene end "
+                                        f"({dframes}f) — it clamps")
+                    prev = at
+                z = k.get("zoom", 1.0)
+                if not isinstance(z, (int, float)) or not (0.6 <= float(z) <= 1.6):
+                    warnings.append(f"{tag}: camera keyframe {j} zoom {z} outside 0.6–1.6 — a bigger push "
+                                    f"lurches or breaks the 3-second read")
+                for ax in ("x", "y"):
+                    v = k.get(ax, 0.5)
+                    if not isinstance(v, (int, float)) or not (-0.5 <= float(v) <= 1.5):
+                        warnings.append(f"{tag}: camera keyframe {j} {ax}={v} is far off-canvas (keep ~0..1)")
+                e = k.get("easing", "inout")
+                if e not in _CINE_EASINGS:
+                    warnings.append(f"{tag}: camera keyframe {j} easing '{e}' unknown — use "
+                                    f"{sorted(_CINE_EASINGS)} (the runtime falls back to inout)")
+            zs = [float(k.get("zoom", 1.0)) for k in cam
+                  if isinstance(k, dict) and isinstance(k.get("zoom", 1.0), (int, float))]
+            for a, b in zip(zs, zs[1:]):
+                if abs(b - a) > 0.35:
+                    warnings.append(f"{tag}: camera zoom jumps {a}->{b} (Δ{abs(b - a):.2f} > 0.35) in one "
+                                    f"segment — reads as a lurch, not a filmic push")
+
+
 def evaluate(data, out_dir, pre_tts=False, vertical=False):
     """Pure check: returns {ok, errors, warnings, scenes, ...}. No render, no network.
     `vertical` mirrors render.py's --vertical flag; meta.aspect=="9:16" also forces it, so the
@@ -472,6 +548,8 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         i = s.get("index")
         t = s.get("type", "slide")
         tag = f"scene {i}"
+
+        _cinematic_fields(s, data.get("meta") or {}, out_dir, tag, errors, warnings)
 
         # --- referenced media exists on disk -------------------------------------------
         if t == "slide":
