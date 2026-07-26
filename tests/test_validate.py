@@ -1656,3 +1656,24 @@ def test_cinematic_lens_requires_layers_to_move_over():
     _v._cinematic_fields({"index": 1, "type": "cinematic", "duration": 6.0, "lens": [{"atFrame": 0}]},
                          {"fps": 30}, "/tmp", "scene 1", e, w)
     assert any("needs `layers`" in x for x in e)
+
+
+def test_text_on_backgrounded_plane_warns():
+    import validate as _v
+    s = {"index": 1, "type": "cinematic", "duration": 6.0,
+         "layers": [{"kind": "panel", "z": -1200, "dim": 0.4, "title": "buried in the back"},
+                    {"kind": "panel", "z": 120, "title": "focal"}],
+         "lens": [{"atFrame": 0}, {"atFrame": 180}]}
+    e, w = [], []
+    _v._cinematic_fields(s, {"fps": 30}, "/tmp", "scene 1", e, w)
+    assert any("TEXT on a backgrounded plane" in x for x in w)
+
+
+def test_text_on_focal_plane_does_not_warn():
+    import validate as _v
+    s = {"index": 1, "type": "cinematic", "duration": 6.0,
+         "layers": [{"kind": "grid", "z": -1200, "dim": 0.4}, {"kind": "panel", "z": 120, "title": "focal"}],
+         "lens": [{"atFrame": 0}, {"atFrame": 180}]}
+    e, w = [], []
+    _v._cinematic_fields(s, {"fps": 30}, "/tmp", "scene 1", e, w)
+    assert not any("TEXT on a backgrounded plane" in x for x in w)

@@ -438,6 +438,15 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
                     warnings.append(f"{tag}: layer {j} dim {dm} outside 0–1")
                 if ly.get("kind") == "image" and not _exists(out_dir, ly.get("src") or ""):
                     errors.append(f"{tag}: layer {j} image src '{ly.get('src')}' not found under {out_dir}")
+                # TEXT belongs on the sharp focal plane. A dimmed/blurred background plane carrying a
+                # title/sub/kicker muddles into competing noise (the audit's clearest authoring fix).
+                has_text = any(isinstance(ly.get(k), str) and ly.get(k).strip()
+                               for k in ("title", "sub", "kicker", "text"))
+                if has_text and ((isinstance(dm, (int, float)) and float(dm) >= 0.25)
+                                 or (isinstance(bl, (int, float)) and float(bl) >= 4)):
+                    warnings.append(f"{tag}: layer {j} puts TEXT on a backgrounded plane (dim/blur) — "
+                                    f"competing text muddles into noise; reserve text for the sharp focal "
+                                    f"plane and make far planes texture (grid/floor/hero)")
 
     if lens is not None:
         if not isinstance(lens, list) or not lens:

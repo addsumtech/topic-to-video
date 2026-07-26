@@ -126,7 +126,8 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
             lens = [{"atFrame": int(round(float(k.get("atFrame", 0)))),
                      "dolly": float(k.get("dolly", 0.0)), "pitch": float(k.get("pitch", 0.0)),
                      "yaw": float(k.get("yaw", 0.0)), "roll": float(k.get("roll", 0.0)),
-                     "zoom": float(k.get("zoom", 1.0)), "easing": str(k.get("easing", "inout"))}
+                     "zoom": float(k.get("zoom", 1.0)), "easing": str(k.get("easing", "inout")),
+                     **({"focusZ": float(k["focusZ"])} if k.get("focusZ") is not None else {})}
                     for k in lens]
         mot = s.get("motion") or _DEFAULT_MOTION
         callouts = []                               # timed/static highlight overlays (parity with the local tier)

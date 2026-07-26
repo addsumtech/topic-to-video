@@ -26,8 +26,14 @@ Mechanics (`CinematicScene3D`): a `perspective` container wraps a `preserve-3d` 
 | lens `yaw` | ±8–14 → ±2 | a little orbit makes depth legible; past ±35° planes lose their face |
 | lens `dolly` | −500 → +200 px | the push-through; more negative starts further back |
 | layer `z` | focal +120 … far −1500 | spread ≥ ~800px between focal and far so occlusion/parallax read |
-| layer `blur` / `dim` | focal 0 / 0; far 6–10 / 0.3–0.5 | rack focus: only the focal plane is sharp; background softens + darkens |
+| layer `blur` / `dim` | focal 0 / 0; far 6–10 / 0.3–0.5 | STATIC rack focus: only the focal plane is sharp; background softens + darkens |
+| lens `focusZ` | e.g. −1100 → 150 | DYNAMIC rack focus — the focal distance PULLS across the move (bg→fg); overrides `blur`, so leave `blur` unset when using it |
 | `perspective` | 1200–1400 | smaller warps, larger flattens toward orthographic |
+
+A **finishing pass** (a subtle color grade + moving film grain, on the outer 2D layer) and **glass panel
+material** (gradient + rim highlight + inner accent glow) are applied automatically by `CinematicScene3D`
+— deterministic, and the single biggest "premium/filmic" uplift. They cannot manufacture luminance range
+from a flat scene, though: if the beat is about a real thing, make a deep plane a real `image`.
 
 Tuned truth lives in `remotion/src/Camera.tsx` `CinematicScene3D`.
 

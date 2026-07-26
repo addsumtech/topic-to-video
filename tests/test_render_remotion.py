@@ -198,3 +198,16 @@ def test_build_props_threads_lens_and_perspective(tmp_path):
 def test_lens_scene_not_unsupported(tmp_path):
     d = _lens_board(); d["slides"][0].pop("image", None)
     assert rr.unsupported_scenes(d) == []                 # layers make it renderable
+
+
+def test_build_props_threads_focusz_for_rack_focus(tmp_path):
+    d = _lens_board()
+    d["slides"][0]["lens"] = [{"atFrame": 0, "dolly": -500, "focusZ": -1100, "easing": "inout"},
+                              {"atFrame": 180, "dolly": 200, "focusZ": 150, "easing": "inout"}]
+    sc = rr.build_props(d, str(tmp_path))["scenes"][0]
+    assert sc["lens"][0]["focusZ"] == -1100 and sc["lens"][-1]["focusZ"] == 150   # rack focus survives
+
+
+def test_build_props_omits_focusz_when_absent(tmp_path):
+    sc = rr.build_props(_lens_board(), str(tmp_path))["scenes"][0]
+    assert "focusZ" not in sc["lens"][0]                  # static blur path — no focus pull injected

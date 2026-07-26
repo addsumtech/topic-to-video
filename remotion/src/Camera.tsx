@@ -36,6 +36,8 @@ export type LensKeyframe = {
   yaw?: number;     // rotateY deg (orbit-lite)
   roll?: number;    // rotateZ deg (dutch tilt)
   zoom?: number;    // overall scale (a subtle vertigo/zoom on top of the dolly)
+  focusZ?: number;  // rack focus: the z-plane in focus this frame; planes further from it soften.
+                    // Set it in keyframes to PULL focus (bg→fg) as the camera moves. Overrides layer.blur.
   easing?: string;
 };
 
@@ -133,7 +135,7 @@ const PlaneContent: React.FC<{layer: Layer; theme: Theme; frame: number; reduced
   if (layer.kind === 'image' && layer.src) {
     return <Img src={staticFile(layer.src)} style={{...bleed, objectFit: 'cover'}} />;
   }
-  // panel — a floating card in space
+  // panel — a floating glass card in space (gradient + rim highlight + inner accent glow = premium material)
   const centre = layer.align === 'center';
   return (
     <div
@@ -145,10 +147,10 @@ const PlaneContent: React.FC<{layer: Layer; theme: Theme; frame: number; reduced
         padding: '52px 60px',
         boxSizing: 'border-box',
         textAlign: centre ? 'center' : 'left',
-        background: `${theme.bg}dd`,
-        border: `2px solid ${theme.accent}55`,
-        borderRadius: 14,
-        boxShadow: '0 44px 130px rgba(0,0,0,0.55)',
+        background: `linear-gradient(158deg, ${theme.bg}f2 0%, ${theme.bg}cc 100%)`,
+        border: `1.5px solid ${theme.accent}40`,
+        borderRadius: 16,
+        boxShadow: `0 54px 150px rgba(0,0,0,0.62), inset 0 1.5px 0 ${theme.fg}26, inset 0 0 100px ${theme.accent}0e`,
       }}
     >
       {layer.kicker ? (
@@ -209,6 +211,7 @@ export const CinematicScene: React.FC<{
         <PlaneViewFlat key={i} layer={layer} cam={cam} theme={theme} frame={frame} reduced={reduced} />
       ))}
       <Vignette />
+      <Finish frame={frame} />
       {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} /> : null}
       {audio ? <Audio src={staticFile(audio)} /> : null}
     </AbsoluteFill>
@@ -245,6 +248,11 @@ export const CinematicScene3D: React.FC<{
   const yaw = read((k) => k.yaw || 0);
   const roll = read((k) => k.roll || 0);
   const zoom = read((k) => (k.zoom == null ? 1 : k.zoom));
+  // dynamic RACK FOCUS: if any keyframe sets focusZ, the focal distance can PULL across the move, and
+  // each plane's blur is derived from |z − focusZ| (overrides the plane's static blur). No focusZ set
+  // → planes keep their authored static blur.
+  const hasFocus = kfs.some((k) => k.focusZ != null);
+  const focusZ = hasFocus ? read((k) => (k.focusZ == null ? 0 : k.focusZ)) : null;
 
   const world: React.CSSProperties = {
     position: 'absolute',
@@ -274,7 +282,7 @@ export const CinematicScene3D: React.FC<{
               }}
             >
               {/* DoF + dim on an INNER wrapper (leaf) — safe: it has no 3D descendants to flatten. */}
-              <div style={{filter: p.blur ? `blur(${p.blur}px)` : undefined, opacity: p.dim != null ? 1 - p.dim : 1}}>
+              <div style={{filter: planeBlur(p, focusZ) ? `blur(${planeBlur(p, focusZ)}px)` : undefined, opacity: p.dim != null ? 1 - p.dim : 1}}>
                 <PlaneContent layer={p} theme={theme} frame={frame} reduced={reduced} />
               </div>
             </div>
@@ -282,14 +290,22 @@ export const CinematicScene3D: React.FC<{
         </div>
       </AbsoluteFill>
 
-      {/* OUTER overlays (2D, on top) — vignette then the scene-edge fade. */}
+      {/* OUTER overlays (2D, on top) — vignette, grade+grain finish, then the scene-edge fade. */}
       <Vignette />
+      <Finish frame={frame} />
       <AbsoluteFill style={{pointerEvents: 'none', backgroundColor: theme.bg, opacity: fade}} />
       {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} /> : null}
       {audio ? <Audio src={staticFile(audio)} /> : null}
     </AbsoluteFill>
   );
 };
+
+// Rack-focus blur for a plane: static (author's layer.blur) unless the lens sets focusZ, in which case
+// the blur is derived from the plane's distance from the focal z (a real, pullable depth-of-field).
+function planeBlur(p: Layer, focusZ: number | null): number {
+  if (focusZ == null) return p.blur || 0;
+  return Math.min(14, Math.abs((p.z || 0) - focusZ) / 120);
+}
 
 // ── shared bits ──────────────────────────────────────────────────────────────────────────────────
 function edgeOpacity(frame: number, dur: number, fadeInFrames?: number, fadeOutFrames?: number): number {
@@ -303,3 +319,23 @@ function edgeOpacity(frame: number, dur: number, fadeInFrames?: number, fadeOutF
 const Vignette: React.FC = () => (
   <AbsoluteFill style={{pointerEvents: 'none', background: 'radial-gradient(130% 130% at 50% 45%, rgba(0,0,0,0) 52%, rgba(0,0,0,0.42) 100%)'}} />
 );
+
+// A fixed-seed feTurbulence tile — deterministic noise. Scrolled by frame for moving film grain.
+const NOISE =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E" +
+  "%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E" +
+  "%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E\")";
+
+// Finishing pass (OUTER 2D — never on a preserve-3d ancestor): a subtle graded wash + moving film grain.
+// This is the single biggest "premium / filmic" uplift and it is deterministic (grain scroll = f(frame)).
+const Finish: React.FC<{frame: number; grain?: number}> = ({frame, grain = 0.05}) => {
+  const off = (frame * 11) % 200;                 // deterministic grain scroll
+  return (
+    <>
+      <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'soft-light',
+        background: 'linear-gradient(122deg, rgba(30,60,110,0.14) 0%, rgba(255,180,120,0.07) 100%)'}} />
+      <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'overlay', opacity: grain,
+        backgroundImage: NOISE, backgroundRepeat: 'repeat', backgroundPosition: `${off}px ${off}px`}} />
+    </>
+  );
+};
