@@ -53,7 +53,7 @@ Tuned truth lives in `remotion/src/Camera.tsx` `CinematicScene3D`.
 
 ## Checklist
 
-- [ ] **Real depth** — on the filmstrip, planes OCCLUDE and the floor grid CONVERGES to a vanishing point; it is not a uniform zoom. [design-critic D2e depth-ordering]
-- [ ] **A lens angle is visible** — the frame looks DOWN then levels (or up): a camera, not a slider. [D2e camera-motivation]
-- [ ] **One focus** — exactly one sharp focal plane; background soft + dim. [D5 focal dominance]
-- [ ] **In band** — pitch ≤ ~40°, yaw ≤ ~35°; text lives only on the focal plane. [D9 renegotiated]
+- [ ] **Real depth** — on the filmstrip, planes OCCLUDE and the floor grid CONVERGES to a vanishing point; it is not a uniform zoom. [D12a depth-ordering]
+- [ ] **A lens angle is visible** — the frame looks DOWN then levels (or up): a camera, not a slider. [D12b camera-motivation]
+- [ ] **One focus** — exactly one sharp focal plane; background soft + dim. [D12d focal dominance]
+- [ ] **In band** — pitch ≤ ~40°, yaw ≤ ~35°; text lives only on the focal plane. [D12f in band]

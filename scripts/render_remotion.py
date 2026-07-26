@@ -262,12 +262,56 @@ def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="erro
     except OSError:
         pass
 
+    _write_filmstrips(out_dir, data, out_mp4)         # the D12 evidence the design-critic judges from
     if sample is None:                                # out.srt for parity with the local renderer
         rd._write_srt(data, os.path.join(out_dir, "out.srt"))
         print("[render_remotion] done -> %s (+ out.srt)" % out_mp4)
     else:
         print("[render_remotion] sample done -> %s" % out_mp4)
     return out_mp4
+
+
+def _write_filmstrips(out_dir, data, mp4):
+    """Per CINEMATIC scene, slice ~5 frames across its time span from the rendered mp4 and montage to
+    <out_dir>/_keyframes/scene_NN.png — the rendered-pixel evidence the design-critic's D12 (and the shot
+    cards' Checklists) judge the camera move from. Motion is un-judgeable from the plan, so this artifact
+    is what makes the loop real. Best-effort: needs ffmpeg + PIL; silently no-ops if either is missing.
+    `data` must match `mp4` (for --sample it is the single sampled scene, so the timeline starts at 0)."""
+    try:
+        from PIL import Image
+    except Exception:
+        return
+    if not shutil.which("ffmpeg") or not os.path.exists(mp4):
+        return
+    kf = os.path.join(out_dir, "_keyframes")
+    os.makedirs(kf, exist_ok=True)
+    t0 = 0.0
+    for s in data.get("slides", []):
+        dur = float(s.get("duration") or 0)
+        is_cine = s.get("type") == "cinematic" or _scene_layers(s)
+        if is_cine and dur > 0.2:
+            n = 5
+            tiles = []
+            for i in range(n):
+                t = t0 + dur * (0.06 + 0.9 * i / (n - 1))
+                fp = os.path.join(kf, ".t.png")
+                subprocess.run(["ffmpeg", "-v", "error", "-ss", "%.3f" % t, "-i", mp4,
+                                "-frames:v", "1", "-y", fp], check=False)
+                if os.path.exists(fp):
+                    tiles.append(Image.open(fp).copy())
+            if tiles:
+                w, h = tiles[0].size
+                sc = 0.32
+                tw, th = int(w * sc), int(h * sc)
+                strip = Image.new("RGB", (tw * len(tiles), th))
+                for i, im in enumerate(tiles):
+                    strip.paste(im.resize((tw, th)), (i * tw, 0))
+                strip.save(os.path.join(kf, "scene_%02d.png" % s.get("index")))
+        t0 += dur
+    try:
+        os.unlink(os.path.join(kf, ".t.png"))         # drop the transient single-frame scratch
+    except OSError:
+        pass
 
 
 def main():

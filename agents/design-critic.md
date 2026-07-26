@@ -324,6 +324,38 @@ Frame-legibility of *captions*, tofu, A/V sync and player-chrome remain `critic-
 compositional pass — focal dominance + repeated-layout across the deck. Flag a defect under whichever
 fires; don't double-count the same page.)*
 
+### D12 — Cinematic tier (Remotion `meta.renderer:"remotion"` scenes with `layers`/`lens`)
+The cinematic tier moves a virtual camera over depth planes — motion is the point, so it is **judged from
+the rendered filmstrip** (`<out_dir>/_keyframes/scene_NN.png`, the leftmost tile ≈ t=0 → rightmost ≈ the
+cut), NEVER from the plan (pre-tts the blind envelope shows everything settled — mark **UNJUDGED**, don't
+pass). Each shot card's Checklist cites these IDs; hold the render to them:
+- **D12a — Depth-ordering (real depth, not a zoom).** On the filmstrip the planes must OCCLUDE and the
+  perspective must read (a ground grid CONVERGES to a vanishing point; near planes displace/grow more
+  than far). **REVISE** a "3D" scene that is actually a uniform scale of one flat image — that is the
+  free tier's Ken Burns, not the cinematic tier's reason to exist.
+- **D12b — Camera-motivation (the move MEANS something for THIS beat).** The push/tilt/dolly must land on
+  the beat's hero content and settle as the narration makes its point. **REVISE** a camera that drifts
+  decoratively, is re-aimed with no narrative reason, or moves because "cinematic = motion".
+- **D12c — Easing, not linear.** The move must accelerate in and settle out (a camera), not slide at a
+  constant rate (a slider). **REVISE** a linear/robotic push. (The runtime eases by default; this catches
+  a keyframe set that defeats it.)
+- **D12d — Focal dominance / one focus per frame.** Exactly one plane is sharp and forward; the rest are
+  softer/dimmer/further. **REVISE** a frame with two equal focal claims, or no rack-focus separation
+  (everything equally sharp reads flat). TEXT belongs only on the focal plane — background text muddles
+  into noise even blurred (validate warns; confirm on the render).
+- **D12e — One motion system (the D9 renegotiation).** A declared, bounded depth stack under ONE camera
+  counts as one motivated system — that is how cinematic layered motion is reconciled with D9's
+  "one moving thing". **REVISE** a stray second animation competing with the camera (a spinning icon, a
+  second reveal), or an undeclared plane that just drifts.
+- **D12f — In band + no-flatten.** Card planes keystone past ~40° pitch / ~35° yaw (validate warns —
+  route a true 90° top-down/orbit to the R3F tier, don't push the rig out of band). And confirm the depth
+  did not silently FLATTEN (any `opacity`/`filter`/`overflow` on the 3D ancestor collapses it — the
+  runtime guards this and `tests/test_remotion_3d.py` locks it, but if the filmstrip shows a flat frame
+  where depth was specified, that is the footgun).
+Inherited checks still apply to the composed frame: D5 (composition/whitespace), D7 (squint/cover-text),
+D8 (semantic colour), D10 (anti-slop). D1/D6b (layout/silhouette diversity) apply ACROSS cinematic scenes
+too — vary the lens move + depth arrangement, don't ship five identical dolly-ins.
+
 ---
 
 ## Output format

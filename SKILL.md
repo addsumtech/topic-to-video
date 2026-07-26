@@ -651,7 +651,13 @@ figure), a non-singular `the_one_thing`, or a
      `<out_dir>/design_plan.json`** — `validate.py` flags a content_shape↔form mismatch + a missing
      `signature_concept`/`style_thesis`/`design_register` (and an invalid `meta.audacity`), and the
      **design-critic** (D1 fit, D2c creativity floor, **D2e whole-video register + motion personality**)
-     judges them. **Build the storyboard by MERGING the two plans:** the design's `visual.type`+`props`
+     judges them. **CINEMATIC decks (`meta.renderer:"remotion"` — enterprise/product film):** the director
+     ALSO emits `type:"cinematic"` scenes — depth `layers` + a `lens` (3D dolly/pitch/yaw) or `camera`
+     (flat parallax) + a cited **`shot_card`** from `references/shots/` (read its `README.md` manifest +
+     the cited card FIRST; see `agents/design-director.md` "Cinematic tier"). These are judged by
+     **design-critic D12** from the per-scene filmstrip `_keyframes/scene_NN.png` that `render_remotion.py`
+     writes; a cinematic scene on the local renderer is a validate ERROR (it can't render there).
+     **Build the storyboard by MERGING the two plans:** the design's `visual.type`+`props`
      become each scene; its `transition` becomes the per-scene edges; a `climax` beat's scene carries
      `props.climax:true` — the climax MARKER (`rhythm_qa` reads it); it also drives the key-number landing
      hold only on a `chart` counter (a harmless no-op on any other form); its `icons`/`media`/`cue` shape the authored page (`.icon-tile`

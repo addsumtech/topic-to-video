@@ -220,6 +220,39 @@ forms (e.g. a "leaking funnel" → descending `chart` bars; a "flywheel" → lin
 step). Use it for any beat whose logic isn't obvious from the table above, and to fill each beat's
 `content_shape` + `rejected_default` reasoning trace.
 
+## CINEMATIC tier (`meta.renderer:"remotion"`) — a moving camera over depth planes
+This tier is for **enterprise/product/marketing films** — a virtual camera that dollies, tilts and pulls
+focus THROUGH real depth, a look the free HTML tier structurally cannot make. It is OPT-IN: the HTML
+explainer stays the default; reach for cinematic only when the brief wants a *film*, and only when
+`meta.renderer:"remotion"` (the Node/Remotion tier). **Do not emit cinematic scenes on the local
+renderer — validate errors and the render crashes.** Before authoring, READ the card you cite:
+`references/shots/` (start with its `README.md` manifest).
+
+Per cinematic beat, emit `type:"cinematic"` with:
+- **`layers`** — 2–4 depth planes, back→front. Each `{kind, …content}` where kind ∈
+  `fill|grid|floor|hero|panel|image`; the FOCAL plane carries the text (kicker/title/sub); far planes are
+  texture (`grid`/`floor`/`hero` ghost word) or a real `image`. Place them in space with either `parallax`
+  (flat tier, bg<1 fg>1) OR a real `z` (3D tier, focal ≈ +120 … far ≈ −1500) + optional `blur`/`dim`.
+- **the camera** — EITHER `camera` (flat parallax: `{atFrame,x,y,zoom,easing}`) OR `lens` (3D:
+  `{atFrame,dolly,pitch,yaw,roll,zoom,focusZ,easing}`) + `perspective` (~1250). Eased, in-band: pitch
+  ≤ ~40°, yaw ≤ ~35° (a true 90° top-down/orbit is out of scope — reserved R3F tier).
+- **`shot_card`** — the `name` of the shot card this beat realises (the critic checks the render against
+  that card's Checklist under D12). This is REQUIRED — an uncited cinematic move has no design gate.
+
+**Concept → cinematic move** (cite the card):
+
+| beat job | move | card |
+|---|---|---|
+| open a section / establish a space / hero product reveal | dolly-through + bird's-eye→eye-level tilt, rack focus | `lens-dolly-tilt` |
+| calm arrival / "settle on this" / continuation | eased push-in with differential parallax | `push-in-parallax` |
+| a true 90° top-down / full orbit / real 3D geometry | NOT deliverable yet — redesign in-band, or flag for the R3F tier | — |
+
+**Divergence still applies (D1/D6b/D12):** vary the lens move AND the depth arrangement across cinematic
+scenes — five identical dolly-ins is the cinematic form of a template. The register contest + `meta.audacity`
+govern how bold the cinematic register goes, exactly as for HTML decks. "Parallax of nothing" (a
+vector-only scene with no lit/topical subject) reads cold — if the beat is about a real thing, make a deep
+plane a real `image` (documentary/atmosphere treatment), never generic filler.
+
 ## Form selection — choose the form the content wants; keep a form ledger
 **Design is choosing, not matching.** For each `html` beat add a **`form`** field naming the chosen form
 AND the runner-up it beat, one clause: e.g. `"form": "flow — beats cards because the 5 steps are ORDERED;

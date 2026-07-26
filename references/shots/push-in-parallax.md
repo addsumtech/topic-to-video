@@ -46,7 +46,7 @@ Tuned truth lives in `remotion/src/Camera.tsx` — the parallax formula, the rev
 
 ## Checklist
 
-- [ ] **Depth is visible** — on the filmstrip, the near plane has clearly travelled/grown more than the far plane (not a uniform zoom). [design-critic D2e depth-ordering]
-- [ ] **The move is motivated** — the push lands on the beat's hero content and settles as the narration makes its point, not a decorative drift. [D2e camera-motivation]
-- [ ] **Eased, not linear** — the push accelerates in and settles out (≤0.5s settle), never a constant-rate slide. [D2e easing-not-linear]
-- [ ] **One motion system** — exactly one declared depth stack + at most one reveal; no stray second animation. [D9 renegotiated]
+- [ ] **Depth is visible** — on the filmstrip, the near plane has clearly travelled/grown more than the far plane (not a uniform zoom). [D12a depth-ordering]
+- [ ] **The move is motivated** — the push lands on the beat's hero content and settles as the narration makes its point, not a decorative drift. [D12b camera-motivation]
+- [ ] **Eased, not linear** — the push accelerates in and settles out (≤0.5s settle), never a constant-rate slide. [D12c easing-not-linear]
+- [ ] **One motion system** — exactly one declared depth stack + at most one reveal; no stray second animation. [D12e one motion system]
