@@ -112,7 +112,9 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
         # eased push-in built here so `layers` alone already yields a cinematic move.
         layers = _scene_layers(s)
         camera = s.get("camera") or props.get("camera")
-        if layers and not camera:
+        lens = s.get("lens") or props.get("lens")           # 3D perspective path (dolly/pitch/yaw)
+        perspective = s.get("perspective") or props.get("perspective")
+        if layers and not camera and not lens:              # a flat layered scene gets a default push-in
             camera = [{"atFrame": 0, "x": 0.5, "y": 0.5, "zoom": 1.0, "easing": "inout"},
                       {"atFrame": frames, "x": 0.5, "y": 0.5, "zoom": 1.08, "easing": "inout"}]
         if camera:
@@ -120,6 +122,12 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
                        "x": float(k.get("x", 0.5)), "y": float(k.get("y", 0.5)),
                        "zoom": float(k.get("zoom", 1.0)), "easing": str(k.get("easing", "inout"))}
                       for k in camera]
+        if lens:
+            lens = [{"atFrame": int(round(float(k.get("atFrame", 0)))),
+                     "dolly": float(k.get("dolly", 0.0)), "pitch": float(k.get("pitch", 0.0)),
+                     "yaw": float(k.get("yaw", 0.0)), "roll": float(k.get("roll", 0.0)),
+                     "zoom": float(k.get("zoom", 1.0)), "easing": str(k.get("easing", "inout"))}
+                    for k in lens]
         mot = s.get("motion") or _DEFAULT_MOTION
         callouts = []                               # timed/static highlight overlays (parity with the local tier)
         for co in (s.get("callouts") or []):
@@ -144,8 +152,10 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
             "kicker": props.get("kicker"),
             "fadeInFrames": fi,
             "fadeOutFrames": fo,
-            "camera": camera,                        # cinematic: eased virtual-camera keyframes (or None)
-            "layers": layers,                        # cinematic: 2.5D depth planes (or None)
+            "camera": camera,                        # cinematic FLAT: eased virtual-camera keyframes (or None)
+            "lens": lens,                            # cinematic 3D: dolly/pitch/yaw keyframes (or None)
+            "perspective": float(perspective) if perspective else None,
+            "layers": layers,                        # cinematic: depth planes (or None)
             "reducedMotion": reduced,                # freeze the camera + show reveals instantly
         })
     return {"width": W, "height": H, "fps": fps, "captionFontPx": rd._caption_font_px(W, H, meta=meta),

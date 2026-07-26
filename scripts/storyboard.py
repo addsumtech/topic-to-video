@@ -5,7 +5,7 @@ class StoryboardError(ValueError):
     pass
 
 VALID_STYLES = {"highlight", "arrow", "box"}
-VALID_SCENE_TYPES = {"slide", "title", "chart", "timeline", "keypoints", "compare", "html"}
+VALID_SCENE_TYPES = {"slide", "title", "chart", "timeline", "keypoints", "compare", "html", "cinematic"}
 ANIMATED_TYPES = {"title", "chart", "timeline", "keypoints", "compare", "html"}
 VALID_CHART_KINDS = {"bars", "line", "counter", "slope", "dumbbell", "dist", "scatter", "small_multiples"}
 VALID_IMAGE_SOURCES = {"none", "openai"}
@@ -77,6 +77,13 @@ def _is_num(v):
 
 def _validate_props(s):
     t = s["type"]; p = s.get("props")
+    if t == "cinematic":
+        # the Remotion cinematic tier carries its content in top-level `layers` (+ optional `camera`/
+        # `lens`), or inside props — either is fine. It needs depth planes to render.
+        layers = s.get("layers") or (p.get("layers") if isinstance(p, dict) else None)
+        if not (isinstance(layers, list) and layers):
+            raise StoryboardError(f"slide {s.get('index')}: cinematic scene needs a non-empty 'layers' list")
+        return
     if not isinstance(p, dict):
         raise StoryboardError(f"slide {s.get('index')}: type '{t}' needs a props dict")
     if t == "title":

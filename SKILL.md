@@ -167,6 +167,17 @@ TTS if the user gives an API key.
   at different rates (real 2.5D, not a Ken Burns zoom). A layered scene with no `camera` gets a gentle
   default push-in, so `layers` alone is already cinematic. Rendered by `remotion/src/Camera.tsx`
   (`CinematicScene`); `reduced_motion` freezes the camera at keyframe 0 and shows reveals instantly.
+  **3D LENS path (the headline cinematic look — real camera angles, not flat parallax):** give the
+  scene a `lens` (eased keyframes `{atFrame, dolly, pitch, yaw, roll, zoom}`) + a `perspective` and put
+  each layer at a real `z` (plus optional `blur`/`dim` for depth-of-field). Then the layers render on a
+  CSS 3D perspective rig (`CinematicScene3D`): planes at different `z` **occlude and foreshorten**, the
+  camera looks **down (bird's-eye, +pitch) / up (worm's-eye, −pitch)**, yaws for orbit-lite, and dollies
+  THROUGH the space — a lens flat parallax cannot make. Layers are still authored in the HTML/CSS design
+  system. **Flattening footgun:** any `opacity`/`filter`/`overflow:hidden` on a `preserve-3d` ancestor
+  silently collapses all depth to a flat image that no render test catches — so the rig is kept inner
+  (fades/vignette outer, DoF blur on an inner wrapper), guarded by `tests/test_remotion_3d.py`; never
+  add opacity/filter to the 3D world. Card planes keystone past ~40° pitch / ~35° yaw (validate warns) —
+  route a true 90° top-down / full orbit to a future R3F tier. See `references/shots/lens-dolly-tilt.md`.
   `validate.py` structurally gates the fields (keyframe ordering, on-canvas targets, a read-safe zoom
   band, layer kinds, image-plane existence) — but the **move itself is judged only from the rendered
   filmstrip** `<out_dir>/_keyframes/scene_NN.png`, never from the plan (pre-tts the blind envelope is

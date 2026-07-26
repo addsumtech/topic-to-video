@@ -172,3 +172,29 @@ def test_non_image_non_layer_scene_is_unsupported():
 def test_reduced_motion_flag_threads_to_cinematic_scene(tmp_path):
     sc = rr.build_props(_cine_board(), str(tmp_path), reduced_motion=True)["scenes"][0]
     assert sc["reducedMotion"] is True
+
+
+# ── cinematic 3D LENS tier (perspective + dolly/pitch/yaw over translateZ planes) ─────────────────
+def _lens_board(**meta):
+    m = {"aspect": "16:9", "fps": 30, "renderer": "remotion"}
+    m.update(meta)
+    data = sb.new_storyboard(m)
+    s = sb.new_scene(1, "cinematic", {}, narration="Depth.")
+    s["audio"] = "audio/01.mp3"; s["duration"] = 6.0; s["perspective"] = 1250
+    s["layers"] = [{"kind": "grid", "z": -1200, "blur": 8}, {"kind": "panel", "z": 120, "title": "T"}]
+    s["lens"] = [{"atFrame": 0, "dolly": -500, "pitch": 30, "yaw": 10, "easing": "inout"},
+                 {"atFrame": 180, "dolly": 200, "pitch": 4, "yaw": -2, "easing": "inout"}]
+    data["slides"] = [s]
+    return data
+
+
+def test_build_props_threads_lens_and_perspective(tmp_path):
+    sc = rr.build_props(_lens_board(), str(tmp_path))["scenes"][0]
+    assert sc["lens"] and sc["lens"][0]["dolly"] == -500 and sc["lens"][-1]["pitch"] == 4
+    assert sc["perspective"] == 1250 and sc["layers"][0]["z"] == -1200
+    assert sc["camera"] is None                          # a lens scene is NOT also given a flat camera
+
+
+def test_lens_scene_not_unsupported(tmp_path):
+    d = _lens_board(); d["slides"][0].pop("image", None)
+    assert rr.unsupported_scenes(d) == []                 # layers make it renderable

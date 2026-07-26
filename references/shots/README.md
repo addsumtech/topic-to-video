@@ -33,7 +33,18 @@ delivers_via: <impl pointer, e.g. remotion/src/Camera.tsx CinematicScene>
 
 | card | tier | energy | move |
 |------|------|--------|------|
-| [push-in-parallax](push-in-parallax.md) | remotion | balanced | eased push-in over a 2.5D depth stack |
+| [push-in-parallax](push-in-parallax.md) | remotion | balanced | eased push-in over a 2.5D depth stack (flat parallax) |
+| [lens-dolly-tilt](lens-dolly-tilt.md) | remotion | bold | dolly THROUGH real `z` depth while tilting bird's-eye → eye level, with rack focus (CSS-3D lens) |
+
+## Two depth paths
+
+- **Flat parallax** (`push-in-parallax`) — `layers[].parallax` + a `camera` (x/y/zoom). Cheap, no true
+  depth; the cinematic-lite look. Reads as a zoom unless it has a real lit subject to push into.
+- **CSS-3D lens** (`lens-dolly-tilt`) — `layers[].z` + a `lens` (dolly/pitch/yaw) inside a `perspective`
+  rig. Real occlusion, vanishing point, camera angles (bird's-eye / worm's-eye), rack focus. The
+  headline cinematic path; the layers are still authored in the HTML/CSS design system.
+- **R3F / @remotion/three** — RESERVED hero tier (not yet built) for true 90° top-down, full orbit, and
+  real geometry / materials, where card planes keystone. See the plan.
 
 ## Attribution
 

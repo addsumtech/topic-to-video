@@ -1622,3 +1622,37 @@ def test_cinematic_fields_catch_structural_faults(tmp_path):
     assert any("zoom 1.9" in x for x in w) and any("lurch" in x for x in w)
     assert any("off-canvas" in x for x in w) and any("easing 'nope'" in x for x in w)
     assert any("past the scene end" in x for x in w)
+
+
+# ── cinematic 3D lens gate ─────────────────────────────────────────────────────────────────────────
+def test_cinematic_lens_clean_pass_no_errors_or_warnings():
+    import validate as _v
+    s = {"index": 1, "type": "cinematic", "duration": 6.0, "perspective": 1250,
+         "layers": [{"kind": "grid", "z": -1200, "blur": 8, "dim": 0.4}, {"kind": "panel", "z": 120}],
+         "lens": [{"atFrame": 0, "dolly": -500, "pitch": 30, "yaw": 10, "easing": "inout"},
+                  {"atFrame": 180, "dolly": 200, "pitch": 4, "yaw": -2, "easing": "inout"}]}
+    e, w = [], []
+    _v._cinematic_fields(s, {"fps": 30}, "/tmp", "scene 1", e, w)
+    assert e == [] and w == []
+
+
+def test_cinematic_lens_catches_faults(tmp_path):
+    import validate as _v
+    s = {"index": 1, "type": "cinematic", "duration": 6.0, "perspective": 200,
+         "layers": [{"kind": "panel", "z": -9000, "blur": 99, "dim": 3}],
+         "lens": [{"atFrame": 0}, {"atFrame": 300, "pitch": 60, "yaw": 50, "zoom": 1.9, "easing": "nope"},
+                  {"atFrame": 100}]}
+    e, w = [], []
+    _v._cinematic_fields(s, {"fps": 30}, str(tmp_path), "scene 1", e, w)
+    assert any("non-decreasing" in x for x in e)
+    assert any("pitch 60" in x for x in w) and any("yaw 50" in x for x in w)
+    assert any("perspective 200" in x for x in w)
+    assert any("z -9000" in x for x in w) and any("blur 99" in x for x in w) and any("dim 3" in x for x in w)
+
+
+def test_cinematic_lens_requires_layers_to_move_over():
+    import validate as _v
+    e, w = [], []
+    _v._cinematic_fields({"index": 1, "type": "cinematic", "duration": 6.0, "lens": [{"atFrame": 0}]},
+                         {"fps": 30}, "/tmp", "scene 1", e, w)
+    assert any("needs `layers`" in x for x in e)

@@ -389,7 +389,7 @@ def _figure_traceability(slides, out_dir, warnings):
                                 f"or a hypothetical) confirm it — no invented numbers (see the faithfulness gate)")
 
 
-_CINE_KINDS = {"fill", "grid", "hero", "panel", "image"}
+_CINE_KINDS = {"fill", "grid", "floor", "hero", "panel", "image"}
 _CINE_EASINGS = {"linear", "in", "out", "inout"}
 
 
@@ -400,12 +400,17 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
     STRUCTURAL faults that would render a broken, blank, or lurching move: bad keyframe ordering,
     off-canvas targets, a push past the read-safe zoom, an unknown layer kind, a missing image plane."""
     cam = s.get("camera") or (s.get("props") or {}).get("camera")
+    lens = s.get("lens") or (s.get("props") or {}).get("lens")
     layers = s.get("layers") or (s.get("props") or {}).get("layers")
-    if not cam and not layers:
+    if not cam and not lens and not layers:
         return
     fps = int((meta or {}).get("fps", 30) or 30)
     dur = s.get("duration")
     dframes = int(round(float(dur) * fps)) if isinstance(dur, (int, float)) and dur else None
+
+    persp = s.get("perspective") or (s.get("props") or {}).get("perspective")
+    if persp is not None and (not isinstance(persp, (int, float)) or not (600 <= float(persp) <= 3200)):
+        warnings.append(f"{tag}: perspective {persp} outside 600–3200 — too small warps, too large flattens the 3D")
 
     if layers is not None:
         if not isinstance(layers, list) or not layers:
@@ -421,8 +426,57 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
                 if not isinstance(p, (int, float)) or not (0.3 <= float(p) <= 2.0):
                     warnings.append(f"{tag}: layer {j} parallax {p} outside 0.3–2.0 — depth reads wrong "
                                     f"(background < 1, foreground > 1)")
+                zz = ly.get("z")
+                if zz is not None and (not isinstance(zz, (int, float)) or not (-4000 <= float(zz) <= 1500)):
+                    warnings.append(f"{tag}: layer {j} z {zz} outside -4000..1500 px — a plane that far "
+                                    f"is off-camera or through the lens")
+                bl = ly.get("blur", 0)
+                if not isinstance(bl, (int, float)) or not (0 <= float(bl) <= 40):
+                    warnings.append(f"{tag}: layer {j} blur {bl} outside 0–40 px")
+                dm = ly.get("dim", 0)
+                if not isinstance(dm, (int, float)) or not (0 <= float(dm) <= 1):
+                    warnings.append(f"{tag}: layer {j} dim {dm} outside 0–1")
                 if ly.get("kind") == "image" and not _exists(out_dir, ly.get("src") or ""):
                     errors.append(f"{tag}: layer {j} image src '{ly.get('src')}' not found under {out_dir}")
+
+    if lens is not None:
+        if not isinstance(lens, list) or not lens:
+            errors.append(f"{tag}: `lens` must be a non-empty list of 3D keyframes")
+        elif layers is None:
+            errors.append(f"{tag}: `lens` needs `layers` to move over — add depth planes")
+        else:
+            prev = None
+            for j, k in enumerate(lens):
+                if not isinstance(k, dict):
+                    errors.append(f"{tag}: lens keyframe {j} must be an object"); continue
+                at = k.get("atFrame")
+                if not isinstance(at, (int, float)):
+                    errors.append(f"{tag}: lens keyframe {j} needs a numeric atFrame")
+                else:
+                    if at < 0:
+                        errors.append(f"{tag}: lens keyframe {j} atFrame {at} < 0")
+                    if prev is not None and at < prev:
+                        errors.append(f"{tag}: lens keyframes must be non-decreasing in atFrame "
+                                      f"(kf {j}={at} < kf {j - 1}={prev})")
+                    if dframes is not None and at > dframes + 1:
+                        warnings.append(f"{tag}: lens keyframe {j} atFrame {at} is past the scene end "
+                                        f"({dframes}f) — it clamps")
+                    prev = at
+                pitch = k.get("pitch", 0)
+                if not isinstance(pitch, (int, float)) or abs(float(pitch)) > 45:
+                    warnings.append(f"{tag}: lens keyframe {j} pitch {pitch}° beyond ±45 — flat card planes "
+                                    f"keystone and reveal as sheets; route a true top-down to the R3F tier")
+                yaw = k.get("yaw", 0)
+                if not isinstance(yaw, (int, float)) or abs(float(yaw)) > 35:
+                    warnings.append(f"{tag}: lens keyframe {j} yaw {yaw}° beyond ±35 — card planes lose their "
+                                    f"face; keep orbit-lite within ±20–35")
+                zoomv = k.get("zoom", 1.0)
+                if not isinstance(zoomv, (int, float)) or not (0.6 <= float(zoomv) <= 1.6):
+                    warnings.append(f"{tag}: lens keyframe {j} zoom {zoomv} outside 0.6–1.6")
+                e = k.get("easing", "inout")
+                if e not in _CINE_EASINGS:
+                    warnings.append(f"{tag}: lens keyframe {j} easing '{e}' unknown — use "
+                                    f"{sorted(_CINE_EASINGS)} (the runtime falls back to inout)")
 
     if cam is not None:
         if not isinstance(cam, list) or not cam:
@@ -819,6 +873,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     if meta.get("renderer") == "remotion":
         blank = [(s.get("index"), s.get("type", "slide")) for s in slides
                  if not (s.get("image") or (s.get("props") or {}).get("image"))
+                 and not (s.get("layers") or (s.get("props") or {}).get("layers"))   # cinematic layered scene renders
                  and s.get("type", "slide") not in ("slide", "title")]
         if blank:
             errors.append("renderer=remotion (cinematic tier) renders IMAGE scenes only, but scene(s) "
