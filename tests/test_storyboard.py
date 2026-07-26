@@ -189,3 +189,21 @@ def test_normalize_transition_flat_and_object():
     assert sb.normalize_transition({"transition": {"out": "out", "seconds": 0.25}}) == ("out", 0.25)
     assert sb.normalize_transition({"transition": "bogus"}) == (None, None)
     assert sb.normalize_transition({}) == (None, None)
+
+
+def test_cinematic_scene_needs_layers():
+    import storyboard as _sb
+    data = _sb.new_storyboard({"renderer": "remotion"})
+    s = _sb.new_scene(1, "cinematic", {}, narration="x")         # no layers
+    data["slides"] = [s]
+    with pytest.raises(_sb.StoryboardError):
+        _sb.validate(data)
+
+
+def test_cinematic_scene_with_layers_validates():
+    import storyboard as _sb
+    data = _sb.new_storyboard({"renderer": "remotion"})
+    s = _sb.new_scene(1, "cinematic", {}, narration="x")
+    s["layers"] = [{"kind": "panel", "z": 100}]
+    data["slides"] = [s]
+    _sb.validate(data)                                           # must not raise

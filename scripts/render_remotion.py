@@ -16,7 +16,7 @@ doctor.py reports whether it's available. Falls back with a clear error if not �
 
 Usage:  python scripts/render_remotion.py <out_dir> [--vertical]
 """
-import argparse, json, os, re, shutil, subprocess, sys
+import argparse, json, math, os, re, shutil, subprocess, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import storyboard as sb
@@ -34,6 +34,42 @@ _IMAGE_OK_TYPES = {"slide", "title"}
 def _scene_layers(s):
     """The cinematic depth planes for a scene (top-level or in props), or None."""
     return s.get("layers") or (s.get("props") or {}).get("layers")
+
+
+def _num(v, ctx, default=0.0):
+    """Coerce v to a FINITE float, raising a clear error naming ctx on NaN/Inf/non-numeric. Fail loud
+    beats a silent-garbage render: a NaN reaches Remotion and blanks the frame; a string plane field
+    would otherwise render at 0 with no error."""
+    if v is None:
+        return default
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        raise RuntimeError("cinematic %s: expected a number, got %r" % (ctx, v))
+    if not math.isfinite(f):
+        raise RuntimeError("cinematic %s: %r is not finite (NaN/Infinity)" % (ctx, v))
+    return f
+
+
+_LAYER_NUMS = ("z", "blur", "dim", "parallax", "x", "y", "revealAtFrame")
+
+
+def _clean_layers(layers, tag):
+    """Validate + coerce a layer stack. Every numeric field goes through _num (fail-loud); strings
+    (kind/content) pass through. Raises on a non-list stack or a non-dict layer — never emits a shape
+    that would crash Camera.tsx's .map."""
+    if not isinstance(layers, list):
+        raise RuntimeError("cinematic %s: `layers` must be a list, got %s" % (tag, type(layers).__name__))
+    out = []
+    for j, ly in enumerate(layers):
+        if not isinstance(ly, dict):
+            raise RuntimeError("cinematic %s layer %d: must be an object, got %s" % (tag, j, type(ly).__name__))
+        c = dict(ly)
+        for key in _LAYER_NUMS:
+            if ly.get(key) is not None:
+                c[key] = _num(ly[key], "%s layer %d.%s" % (tag, j, key))
+        out.append(c)
+    return out
 
 
 def unsupported_scenes(data):
@@ -113,22 +149,34 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
         layers = _scene_layers(s)
         camera = s.get("camera") or props.get("camera")
         lens = s.get("lens") or props.get("lens")           # 3D perspective path (dolly/pitch/yaw)
-        perspective = s.get("perspective") or props.get("perspective")
+        perspective = _num(s.get("perspective") or props.get("perspective"), "scene %s perspective" % s.get("index"), None) \
+            if (s.get("perspective") or props.get("perspective")) is not None else None
+        if layers is not None:                              # fail-loud coercion — no NaN/string reaches Remotion
+            layers = _clean_layers(layers, "scene %s" % s.get("index"))
         if layers and not camera and not lens:              # a flat layered scene gets a default push-in
             camera = [{"atFrame": 0, "x": 0.5, "y": 0.5, "zoom": 1.0, "easing": "inout"},
                       {"atFrame": frames, "x": 0.5, "y": 0.5, "zoom": 1.08, "easing": "inout"}]
-        if camera:
-            camera = [{"atFrame": int(round(float(k.get("atFrame", 0)))),
-                       "x": float(k.get("x", 0.5)), "y": float(k.get("y", 0.5)),
-                       "zoom": float(k.get("zoom", 1.0)), "easing": str(k.get("easing", "inout"))}
-                      for k in camera]
-        if lens:
-            lens = [{"atFrame": int(round(float(k.get("atFrame", 0)))),
-                     "dolly": float(k.get("dolly", 0.0)), "pitch": float(k.get("pitch", 0.0)),
-                     "yaw": float(k.get("yaw", 0.0)), "roll": float(k.get("roll", 0.0)),
-                     "zoom": float(k.get("zoom", 1.0)), "easing": str(k.get("easing", "inout")),
-                     **({"focusZ": float(k["focusZ"])} if k.get("focusZ") is not None else {})}
-                    for k in lens]
+        if camera is not None:
+            if not isinstance(camera, list):
+                raise RuntimeError("cinematic scene %s: `camera` must be a list" % s.get("index"))
+            camera = [{"atFrame": int(round(_num(k.get("atFrame", 0), "scene %s camera.atFrame" % s.get("index")))),
+                       "x": _num(k.get("x", 0.5), "scene %s camera.x" % s.get("index"), 0.5),
+                       "y": _num(k.get("y", 0.5), "scene %s camera.y" % s.get("index"), 0.5),
+                       "zoom": _num(k.get("zoom", 1.0), "scene %s camera.zoom" % s.get("index"), 1.0),
+                       "easing": str(k.get("easing", "inout"))}
+                      for k in camera if isinstance(k, dict)]
+        if lens is not None:
+            if not isinstance(lens, list):
+                raise RuntimeError("cinematic scene %s: `lens` must be a list" % s.get("index"))
+            lens = [{"atFrame": int(round(_num(k.get("atFrame", 0), "scene %s lens.atFrame" % s.get("index")))),
+                     "dolly": _num(k.get("dolly", 0.0), "scene %s lens.dolly" % s.get("index")),
+                     "pitch": _num(k.get("pitch", 0.0), "scene %s lens.pitch" % s.get("index")),
+                     "yaw": _num(k.get("yaw", 0.0), "scene %s lens.yaw" % s.get("index")),
+                     "roll": _num(k.get("roll", 0.0), "scene %s lens.roll" % s.get("index")),
+                     "zoom": _num(k.get("zoom", 1.0), "scene %s lens.zoom" % s.get("index"), 1.0),
+                     "easing": str(k.get("easing", "inout")),
+                     **({"focusZ": _num(k["focusZ"], "scene %s lens.focusZ" % s.get("index"))} if k.get("focusZ") is not None else {})}
+                    for k in lens if isinstance(k, dict)]
         mot = s.get("motion") or _DEFAULT_MOTION
         callouts = []                               # timed/static highlight overlays (parity with the local tier)
         for co in (s.get("callouts") or []):
@@ -197,7 +245,7 @@ def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="erro
     props = build_props(data, out_dir, vertical, reduced_motion)
     props_path = os.path.join(out_dir, ".remotion-props.json")
     with open(props_path, "w", encoding="utf-8") as f:
-        json.dump(props, f)
+        json.dump(props, f, allow_nan=False)   # bare NaN/Infinity is invalid JSON — Remotion rejects it cryptically
     out_name = "sample.mp4" if sample is not None else "out.mp4"
     out_mp4 = os.path.abspath(os.path.join(out_dir, out_name))
 

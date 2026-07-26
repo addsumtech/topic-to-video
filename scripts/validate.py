@@ -11,7 +11,7 @@ ERROR so the workflow can gate on it BEFORE render.py. ERRORS block; warnings do
 Run it AFTER tts.py and BEFORE render.py (step 9). Use --pre-tts to validate earlier
 (skips the audio/duration checks), e.g. right after authoring the storyboard.
 """
-import argparse, json, os, re, sys
+import argparse, json, math, os, re, sys
 from html.parser import HTMLParser
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -408,8 +408,24 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
     dur = s.get("duration")
     dframes = int(round(float(dur) * fps)) if isinstance(dur, (int, float)) and dur else None
 
+    # Non-finite (NaN/Infinity) anywhere is an ERROR, not a range warning — it blanks the render and
+    # writes invalid JSON. (json.load parses NaN/Infinity, so a hand-authored board can contain them.)
+    def _nf(v):
+        return isinstance(v, float) and not math.isfinite(v)
+    for j, ly in enumerate(layers if isinstance(layers, list) else []):
+        if isinstance(ly, dict):
+            for key in ("z", "blur", "dim", "parallax", "x", "y", "revealAtFrame"):
+                if _nf(ly.get(key)):
+                    errors.append(f"{tag}: layer {j} {key} is NaN/Infinity — not a renderable value")
+    for grp, gname in ((cam, "camera"), (lens, "lens")):
+        for j, k in enumerate(grp if isinstance(grp, list) else []):
+            if isinstance(k, dict):
+                for key in ("atFrame", "x", "y", "zoom", "dolly", "pitch", "yaw", "roll", "focusZ"):
+                    if _nf(k.get(key)):
+                        errors.append(f"{tag}: {gname} keyframe {j} {key} is NaN/Infinity — not a renderable value")
+
     persp = s.get("perspective") or (s.get("props") or {}).get("perspective")
-    if persp is not None and (not isinstance(persp, (int, float)) or not (600 <= float(persp) <= 3200)):
+    if persp is not None and (not isinstance(persp, (int, float)) or _nf(persp) or not (600 <= float(persp) <= 3200)):
         warnings.append(f"{tag}: perspective {persp} outside 600–3200 — too small warps, too large flattens the 3D")
 
     if layers is not None:
@@ -876,6 +892,18 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     elif len(by_style.get("blur", [])) > 1:
         warnings.append(f"blur transition on scenes {', '.join(map(str, by_style['blur']))} — blur reads "
                         f"as a reflective coda; use it at most ONCE (usually the closer)")
+
+    # A cinematic scene (type 'cinematic', or any scene carrying top-level `layers`/`lens`) renders ONLY
+    # on the Remotion tier. On the local path render.py does getattr(scenes,'render_cinematic') and
+    # crashes with AttributeError — so it MUST declare meta.renderer=='remotion'. Caught here, unconditionally.
+    cine = [s.get("index") for s in slides
+            if s.get("type") == "cinematic" or s.get("layers") or s.get("lens")
+            or (s.get("props") or {}).get("layers") or (s.get("props") or {}).get("lens")]
+    if cine and meta.get("renderer") != "remotion":
+        errors.append("scene(s) %s use the cinematic tier (type 'cinematic' / `layers` / `lens`) but "
+                      "meta.renderer is '%s' — set meta.renderer:'remotion' (the local renderer has no "
+                      "cinematic path and would crash at render)"
+                      % (", ".join("#%s" % i for i in cine), meta.get("renderer") or "local"))
 
     # Remotion cinematic tier renders IMAGE scenes only — a non-image scene would render BLANK and still
     # pass the A/V gate (a blank video's audio is in sync). Fail at THIS gate too, not just at render.

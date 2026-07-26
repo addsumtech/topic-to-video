@@ -48,7 +48,7 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
 
   // CINEMATIC DISPATCH. `lens` → the 3D perspective path (real depth + camera angles); else `layers`
   // → flat parallax; else the unchanged image/Ken-Burns fallback below.
-  if (scene.lens && scene.lens.length && scene.layers && scene.layers.length) {
+  if (Array.isArray(scene.lens) && scene.lens.length && Array.isArray(scene.layers) && scene.layers.length) {
     return (
       <CinematicScene3D
         layers={scene.layers}
@@ -64,11 +64,11 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
       />
     );
   }
-  if (scene.layers && scene.layers.length) {
+  if (Array.isArray(scene.layers) && scene.layers.length) {
     return (
       <CinematicScene
         layers={scene.layers}
-        camera={scene.camera || [{atFrame: 0, x: 0.5, y: 0.5, zoom: 1}]}
+        camera={Array.isArray(scene.camera) ? scene.camera : [{atFrame: 0, x: 0.5, y: 0.5, zoom: 1}]}
         theme={theme}
         captions={scene.captions}
         audio={scene.audio}

@@ -1117,6 +1117,13 @@ def _render_scene(slide, meta, W, H, out_clip, burn_captions, workdir):
     fps = meta.get("fps", 30)
     dur = slide["duration"]
     frames = max(1, int(round(dur * fps)))
+    if slide["type"] == "cinematic" or slide.get("layers") or slide.get("lens"):
+        raise RuntimeError("scene %s is a cinematic scene (type 'cinematic' / layers / lens) — it renders "
+                           "on the Remotion tier only. Set meta.renderer:'remotion' (validate.py flags this "
+                           "before render)." % slide.get("index"))
+    if not hasattr(scenes, "render_" + slide["type"]):
+        raise RuntimeError("scene %s: no renderer for type '%s' (known: title/slide/html/chart/timeline/"
+                           "keypoints/compare)" % (slide.get("index"), slide["type"]))
     renderer = getattr(scenes, "render_" + slide["type"])   # render_title / render_chart / render_timeline
     # expose this scene's narration so render_html can estimate reveal cues from text position when
     # there are no per-word timings (non-edge voices). Scenes render sequentially, so this is safe.

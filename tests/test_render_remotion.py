@@ -211,3 +211,29 @@ def test_build_props_threads_focusz_for_rack_focus(tmp_path):
 def test_build_props_omits_focusz_when_absent(tmp_path):
     sc = rr.build_props(_lens_board(), str(tmp_path))["scenes"][0]
     assert "focusZ" not in sc["lens"][0]                  # static blur path — no focus pull injected
+
+
+# ── robustness floor: bad input must FAIL LOUD, never reach Remotion as garbage ────────────────────
+import pytest as _pytest
+
+
+@_pytest.mark.parametrize("bad", [
+    {"layers": [{"kind": "panel", "z": float("nan")}]},          # NaN in a layer
+    {"layers": [{"kind": "panel", "z": float("inf")}]},          # Infinity
+    {"layers": [{"kind": "panel", "z": "abc"}]},                 # string numeric
+    {"layers": "nope"},                                          # non-list layers
+    {"layers": ["nope"]},                                        # non-dict layer
+    {"layers": [{"kind": "panel"}], "lens": "nope"},             # non-list lens
+    {"layers": [{"kind": "panel"}], "lens": [{"atFrame": 0, "dolly": float("nan")}]},
+])
+def test_build_props_rejects_garbage_cinematic_input(tmp_path, bad):
+    data = {"meta": {"fps": 30, "renderer": "remotion"},
+            "slides": [dict({"index": 1, "type": "cinematic", "audio": "a.mp3", "duration": 6.0}, **bad)]}
+    with _pytest.raises((RuntimeError, ValueError)):
+        rr.build_props(data, str(tmp_path))
+
+
+def test_build_props_props_are_json_finite(tmp_path):
+    import json
+    p = rr.build_props(_lens_board(), str(tmp_path))
+    json.dumps(p, allow_nan=False)                               # no NaN/Inf survived into the props

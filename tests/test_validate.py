@@ -1677,3 +1677,23 @@ def test_text_on_focal_plane_does_not_warn():
     e, w = [], []
     _v._cinematic_fields(s, {"fps": 30}, "/tmp", "scene 1", e, w)
     assert not any("TEXT on a backgrounded plane" in x for x in w)
+
+
+def test_cinematic_scene_on_local_renderer_errors():
+    import validate as _v
+    data = {"meta": {"fps": 30},                                 # renderer NOT remotion
+            "slides": [{"index": 1, "type": "cinematic", "narration": "x", "duration": 6.0, "audio": "a.mp3",
+                        "layers": [{"kind": "panel", "z": 100}]}]}
+    r = _v.evaluate(data, "/tmp")
+    assert any("cinematic tier" in e and "renderer" in e for e in r["errors"])
+
+
+def test_cinematic_nonfinite_is_an_error_not_a_warning():
+    import validate as _v
+    s = {"index": 1, "type": "cinematic", "duration": 6.0,
+         "layers": [{"kind": "panel", "z": float("nan")}],
+         "lens": [{"atFrame": 0, "dolly": float("inf")}]}
+    e, w = [], []
+    _v._cinematic_fields(s, {"fps": 30}, "/tmp", "scene 1", e, w)
+    assert any("layer 0 z is NaN/Infinity" in x for x in e)
+    assert any("lens keyframe 0 dolly is NaN/Infinity" in x for x in e)
