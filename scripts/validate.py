@@ -918,6 +918,32 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                           + " carry non-image content (html/chart/…) that would render BLANK — use "
                             "renderer=local for an html/designed deck, or give them an `image`")
 
+        # PARITY: the Remotion tier silently DROPS several local-tier looks. Warn so an authored look
+        # isn't discarded without notice (parity with the brand-bug lint below).
+        if meta.get("caption_mode") == "band":
+            warnings.append("renderer=remotion ignores meta.caption_mode:'band' — captions render as a "
+                            "bottom overlay (no dedicated strip); keep content clear of the lower ~15%")
+        _ts = meta.get("transition_style")
+        if _ts and _ts != "dip":
+            warnings.append(f"renderer=remotion ignores meta.transition_style:'{_ts}' — only scene-edge "
+                            f"dips are delivered (no push/wipe/lift/blur); the authored seam LOOK is dropped")
+        if meta.get("captions_karaoke") not in (None, "off", False):
+            warnings.append("renderer=remotion has no karaoke caption highlight — captions render plain; "
+                            "meta.captions_karaoke is ignored on this tier")
+        _co = [s.get("index") for s in slides
+               if (s.get("type") == "cinematic" or s.get("layers")) and s.get("callouts")]
+        if _co:
+            warnings.append("scene(s) %s carry `callouts` but the cinematic path does not render them — "
+                            "put the highlight IN a layer, or move it to an image scene"
+                            % ", ".join("#%s" % i for i in _co))
+        # cinematic layers are authored in absolute px tuned for a 1920-wide landscape canvas; on a
+        # 1080-wide 9:16 frame a full-width panel overflows and NO gate re-checks the pixels.
+        if (vertical or meta.get("aspect") == "9:16") and any(
+                s.get("type") == "cinematic" or s.get("layers") for s in slides):
+            warnings.append("cinematic layers are landscape-tuned (absolute px sized for 1920 wide) — on "
+                            "9:16 panels/hero/grid can overflow the 1080-wide frame; verify the render, or "
+                            "keep cinematic scenes to 16:9")
+
     # meta.brand (user-supplied REAL assets — the mirror of the "never fabricate logos in generated
     # imagery" doctrine): render.py composites the corner bug from the raster file, and the cover/
     # endcard lockups must already be AUTHORED into the first/last pages — lint both before a full

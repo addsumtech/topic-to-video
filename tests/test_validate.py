@@ -1697,3 +1697,27 @@ def test_cinematic_nonfinite_is_an_error_not_a_warning():
     _v._cinematic_fields(s, {"fps": 30}, "/tmp", "scene 1", e, w)
     assert any("layer 0 z is NaN/Infinity" in x for x in e)
     assert any("lens keyframe 0 dolly is NaN/Infinity" in x for x in e)
+
+
+def test_remotion_tier_warns_on_silently_dropped_looks():
+    import validate as _v
+    data = {"meta": {"fps": 30, "renderer": "remotion", "aspect": "9:16", "caption_mode": "band",
+                     "transition_style": "wipe", "captions_karaoke": "auto"},
+            "slides": [{"index": 1, "type": "cinematic", "narration": "x", "duration": 6.0, "audio": "a.mp3",
+                        "layers": [{"kind": "panel", "z": 100}], "lens": [{"atFrame": 0}],
+                        "callouts": [{"box": [0, 0, 1, 1], "style": "box"}]}]}
+    w = _v.evaluate(data, "/tmp")["warnings"]
+    assert any("caption_mode:'band'" in x for x in w)
+    assert any("transition_style:'wipe'" in x for x in w)
+    assert any("karaoke" in x for x in w)
+    assert any("callouts" in x and "cinematic path does not render" in x for x in w)
+    assert any("landscape-tuned" in x for x in w)
+
+
+def test_remotion_16x9_cinematic_deck_has_no_parity_warnings():
+    import validate as _v
+    data = {"meta": {"fps": 30, "renderer": "remotion", "aspect": "16:9"},
+            "slides": [{"index": 1, "type": "cinematic", "narration": "x", "duration": 6.0, "audio": "a.mp3",
+                        "layers": [{"kind": "panel", "z": 100}], "lens": [{"atFrame": 0}]}]}
+    w = _v.evaluate(data, "/tmp")["warnings"]
+    assert not any(k in x for x in w for k in ("caption_mode", "transition_style", "karaoke", "landscape-tuned"))
