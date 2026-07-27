@@ -54,12 +54,14 @@ TTS if the user gives an API key.
   emits **`--grain-amount`** per style — a printed/filmic style (risograph/manga/watercolor/terminal/
   noir/cartographic) gets a subtle fixed-seed **film grain** (motifs.css `body::after`, auto-applied,
   FREE tier), clean styles stay crisp at 0; a data-heavy page opts out with `<body class="no-grain">`.
-- `scripts/imagegen.py <out_dir> [--key KEY]` — OPTIONAL paid tier: generate AI scene images
-  via OpenAI `gpt-image-2` for scenes that carry an `image_prompt`, cached under `.assets/`
+- `scripts/imagegen.py <out_dir> [--key KEY]` — OPTIONAL paid step: generate AI **background/atmosphere
+  art** via OpenAI `gpt-image-2` for scenes/pages that carry an `image_prompt`, cached under `.assets/`
   (re-runs are free). Auto-uses the Codex CLI (no key) when installed, else needs
   `OPENAI_API_KEY`/`~/.openai_key`; `meta.image_provider` (`auto`/`codex`/`openai`) selects
   the path. Only acts when `meta.image_source == "openai"`. This is the **`atmosphere`/broll** class —
-  generic, no facts.
+  generic, no facts — and it lives **behind HTML pages** (soft `.bg-soft` textures / a hero cover) or
+  as **depth planes on the Remotion tier**, never a standalone slideshow of generated stills (data
+  stays in real HTML/charts — the "AI = background, code = data" split).
 - `scripts/imagefetch.py <query> <out_path> [--prefer W] [--duotone SHADOW HIGHLIGHT]` — the
   **`documentary` (REAL-image) tier**, FREE + no key: search **Wikimedia Commons** for a
   license-clean (CC / Public-Domain) real photo/map/diagram of the ACTUAL named subject, download it,
@@ -324,7 +326,8 @@ figure), a non-singular `the_one_thing`, or a
 1. **Preflight + Interview.** First run `python scripts/doctor.py` once: it reports any
    missing tool/library and the stage it gates. A REQUIRED dep missing (ffmpeg/ffprobe/PIL)
    → stop and have the user install it; optional gaps (edge-tts/soffice/Chrome/…) just narrow
-   the tiers available — fold them into the interview (e.g. no Chrome → drop the HTML tier).
+   the tiers available — fold them into the interview (e.g. no Chrome → the promoted HTML tier is
+   unavailable and the deck falls back to the flat programmatic renderers, the no-Chrome safety net).
    Then run the **interview** — a small set of selectable questions that capture the
    user's whole intention up front. **Rendering rule for options:** `AskUserQuestion` shows at
    most **4 selectable buttons per question**; when a menu is richer, spell out the FULL menu in
@@ -353,20 +356,25 @@ figure), a non-singular `the_one_thing`, or a
      `fr`/`de`/… — or a *cross-language* voiceover where the narration language ≠ the slide language).
      Set `meta.language` to the resolved code (never leave it `"auto"` at render). The narration
      **voice engine** is the separate question **⑤** below.
-   - **③ Look / template — and whether to use the image generator** *(→ `meta.image_source` + the
-     per-beat scene tier)* — the deck's visual world. **This question IS the explicit
-     image-generation decision:** the two "free" tiers use **NO** image generator
-     (`image_source:none`); the two "AI" tiers turn on the OpenAI `gpt-image-2` generator
-     (`image_source:openai`, **paid** — Batch 3 then confirms the spend). Make that free-vs-paid split
-     visible in every option label; never enable image generation without the user picking an AI tier
-     here. Menu (4 tiers): **Flat/clean — FREE, no AI images** — theme's flat programmatic surfaces, no
-     API (`image_source:none`, the default) · **Designed HTML deck — FREE, no AI images** — bespoke
-     full-screen pages rendered by headless Chrome, needs Chrome (per-beat `type:"html"`) · **AI cover
-     + soft bg — PAID, uses image generation** — a generated full-bleed cover + on-topic textures
-     behind pages at low opacity (`image_source:openai`) · **HTML + AI backdrops — PAID, uses image
-     generation** — designed HTML pages WITH generated soft backgrounds behind glass cards
-     (`image_source:openai`). (Other → a mix of tiers, or a brand/theme/CSS to match.) **Real
-     (documentary) images — FREE, no API:** independently of the tier above, for a **CONCRETE** topic
+   - **③ Look / template — and whether to use the image generator** *(→ `meta.image_source`)* — the
+     deck's visual world. **The promoted free/paid looks are BOTH the Designed HTML tier** (bespoke
+     full-screen pages rendered by headless Chrome, per-beat `type:"html"`) — the real choice here is
+     whether AI-generated art goes BEHIND the pages, so **this question IS the explicit image-generation
+     decision:** the free look uses **NO** image generator (`image_source:none`); the AI look turns on
+     the OpenAI `gpt-image-2` generator (`image_source:openai`, **paid** — Batch 3 then confirms the
+     spend). Make that free-vs-paid split visible in every option label; never enable image generation
+     without the user picking the AI look here. Menu: **Designed HTML deck — FREE, no AI images** —
+     bespoke full-screen pages rendered by headless Chrome, needs Chrome (`image_source:none`, the
+     default) · **HTML + AI backdrops — PAID, uses image generation** — the SAME designed pages WITH a
+     generated hero cover + soft on-topic textures behind the glass cards at low opacity
+     (`image_source:openai`). (Other → a brand/theme/CSS to match.) The image generator only ever
+     produces **backgrounds/atmosphere behind HTML pages** (or depth planes on the Remotion tier) — a
+     deck is never a bare slideshow of generated stills, and data always stays in real HTML/charts (the
+     "AI = background, code = data" split). **No Chrome?** the HTML tier is unavailable; the deck then
+     falls back automatically to the flat **programmatic** renderers (`title`/`chart`/`timeline`/
+     `compare`/`keypoints`, `scripts/scenes.py`) — that is a **no-Chrome safety net, NOT a promoted
+     look**, so don't offer it as a menu option. **Real (documentary) images — FREE, no API:**
+     independently of the tier above, for a **CONCRETE** topic
      (a city, place, real system/product/organism/event) the design-director may pull REAL license-clean
      photos/maps/diagrams from Wikimedia Commons (`scripts/imagefetch.py`) to DEMONSTRATE the subject
      directly (a real rail map, a real cityscape) — treated to match the deck. It's decided per-beat, not
@@ -436,8 +444,8 @@ figure), a non-singular `the_one_thing`, or a
      buttons **Nova** · **Onyx** · **Shimmer** · **Alloy**; Echo · Fable via Other → set
      `meta.voice = "openai:<name>"`.
 
-   **Batch 3 — AI imagery (ONLY if Batch 1 ③ = "AI cover + soft bg" or "HTML + AI backdrops",
-   i.e. `image_source:openai`).** Confirm the spend first, then ask:
+   **Batch 3 — AI imagery (ONLY if Batch 1 ③ = "HTML + AI backdrops", i.e. `image_source:openai`).**
+   Confirm the spend first, then ask:
    - **Visual style** *(→ `meta.visual_style`; sets the whole deck's aesthetic register — see
      `references/visual-styles.md`)*. First DERIVE the most suitable style for THIS topic (the selection
      contest: domain · data-dense vs narrative · audience · purpose, minus the guardrail vetoes), then offer
@@ -715,9 +723,11 @@ figure), a non-singular `the_one_thing`, or a
    (already folded into how a term is SPELLED in the line — the renderer has no SSML). The scriptwriter follows `references/narration-writing.md` (the style
    basis). The on-screen **captions are auto-derived from the narration**, so its words are also
    the subtitle. (PLAN → **DESIGN** → **WRITE** → CHECK: content-planner plans, design-director designs, scriptwriter writes, the parallel critic panel — `critic-narrative` + `critic-content` + `design-critic` — checks in parallel.)
-4b. **Image prompts (gpt-image tier only).** If `meta.image_source == "openai"`: for each
-    VISUAL/conceptual scene, author a grounded `image_prompt` from the narration + the chosen
-    style, tagged `image_tag:"broll"` and `fit:"cover"`; keep DATA in `chart` scenes (never AI).
+4b. **Image prompts (AI-backdrop look only — `image_source:"openai"`).** The generated art is
+    ALWAYS a background/atmosphere layer behind an HTML page (a soft `.bg-soft` texture or a hero
+    `.bg-photo`/`.split` cover), never a standalone image scene: for each page that wants a backdrop,
+    author a grounded `image_prompt` from the narration + the chosen style, tagged `image_tag:"broll"`
+    and `fit:"cover"`; keep DATA in real HTML/`chart` components (never AI).
     Generic/atmospheric prompts only — no real logos, faces, named vehicles, or text in-image.
     **Topical AND (for image-forward media) on-beat, not decorative:** the prompt's central motif MUST
     come from the VIDEO'S subject (derive it from the comprehension brief). For an **image-forward**
@@ -728,18 +738,17 @@ figure), a non-singular `the_one_thing`, or a
     motif from the brief + narration if either fails. **The low-opacity `.bg-soft` textures rotated
     behind content pages are deck-level atmosphere and MEANT to be reused** — only litmus (a) applies to
     them. (`critic-content` R1e enforces this split.)
-    **Pace the cuts:** a static AI image drags even with Ken Burns — keep each image scene's
-    narration short so it holds only ~5–8s, and prefer MORE, SHORTER b-roll cuts over a few
-    long holds (a 12s hold on one frame reads as sluggish; two 6s cuts feel alive).
     The critic panel (step 5, R1e via `critic-content`) reviews the prompts.
     🔴 **CHECKPOINT · 🛑 STOP:** present every prompt + the estimated cost
     (`imagegen.cost_estimate(n, quality)`) and get sign-off BEFORE spending. Then run
     `imagegen.py <out_dir>` (the paid step; cached after). No key / API error → fall back to the
-    free tier (drop `image_prompt`, use programmatic/slide) and tell the user.
+    free HTML tier (drop the `image_prompt` backdrop, keep the page on its flat theme surface) and
+    tell the user.
     **HTML-tier per-beat `media` images:** generate each by calling imagegen directly —
     `imagegen.generate(prompt, out_path, key)` (key path) or `imagegen._generate_codex(prompt, out_path)`
-    (Codex) — then reference the file by `file://` in the page. The storyboard `image_source:"openai"`
-    CLI path of `imagegen.py` drives the non-HTML tiers, not these.
+    (Codex) — then reference the file by `file://` in the page. The `imagegen.py <out_dir>` CLI path
+    generates any deck-level `image_prompt` backdrops/cover in one pass; these direct calls cover the
+    per-beat page media.
 4c. **Documentary (REAL-image) fetch — FREE, no key.** For every beat the design plan marks
     `media.treatment:"documentary"` (the design-director's per-beat imagery DECISION — see its "IMAGERY
     TREATMENT" procedure: `none` for data beats, `atmosphere` for mood, `documentary` to SHOW a real
@@ -994,7 +1003,7 @@ Every on-screen visual is one of four classes; `critic-content` (R1e) enforces t
   (`imagefetch.duotone`) on a non-photographic style. Not for abstract topics (use `broll`/`none`).
 - **`asserted`** — an AI image FABRICATING a specific named vehicle/mission/person/event/figure. NOT
   allowed (that's precisely what `documentary` exists for — fetch the real one instead of inventing it).
-DATA always stays in faithful `chart` scenes — never render numbers/figures as an AI image.
+DATA always stays in faithful HTML/`chart` components — never render numbers/figures as an AI image.
 The full-AI escape hatch (`image_source:"openai"` with data as AI) is the user's call, but the
 `critic-content` flags every data-bearing AI scene.
 

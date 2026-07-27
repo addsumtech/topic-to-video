@@ -71,8 +71,11 @@ A SEPARATE artifact from the content plan (the assistant merges the two into the
 > with use/avoid/failure columns (§4), the **evenness penalty** (§6), the **semantic colour ledger** (§7),
 > and the **minimum deck-level variation floors** (§8). Emit the fields above; the addendum is the how.
 > The reasoning trace is REQUIRED on every non-`title` beat.
-- **`visual.type` ∈ {title, chart, timeline, keypoints, compare, slide, html}** — you pick the CONCRETE
-  type (and the rendering tier: `html` = a bespoke Chrome-rendered page; `slide`/`chart`/… = programmatic).
+- **`visual.type` ∈ {html (DEFAULT), slide, title, chart, timeline, keypoints, compare}** — you pick the
+  CONCRETE type. **DEFAULT to `html`** (a bespoke Chrome-rendered page) for every designed beat: it is the
+  promoted tier and covers every form in the dictionary below. The programmatic types
+  (`title`/`chart`/`timeline`/`compare`/`keypoints`, rendered by `scripts/scenes.py`) are the **no-Chrome
+  fallback ONLY** — emit one solely when Chrome is unavailable; `slide` is an ingested / handed-off deck frame.
   Map the content's coarse `visual_intent` → a concrete form by its **data relationship**, then read the
   dictionary below for the deliverable: `metric` → Big number / Growth-Trend; `contrast` → Comparison or
   Parts-of-a-whole; `sequence` → Flow / Journey; `list` → Categories; `structure` → Relationship / System;
@@ -106,6 +109,11 @@ A SEPARATE artifact from the content plan (the assistant merges the two into the
 Read the content's coarse intent (and the idea itself) and choose the form that SAYS it. This table is
 **grounded in what the renderer can actually land** — where the metaphor isn't a first-class render, the
 honest substitute + the deliverable data-form are named. **Never promise a form the renderer can't draw.**
+
+**Tier rule:** author every row's deliverable as its **`html`** form — HTML is the promoted tier. Where a
+row ALSO names a `render_*` programmatic renderer (e.g. `render_timeline`, `render_compare`), that is the
+**no-Chrome fallback**, not a co-equal choice: default to the HTML form and reach for the programmatic one
+only when Chrome is unavailable.
 
 | Concept | Deliverable form | Notes / honest substitute |
 |---|---|---|
