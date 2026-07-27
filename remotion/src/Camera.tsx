@@ -11,6 +11,8 @@ import {
 } from 'remotion';
 import {Theme} from './Video';
 import {Captions, CaptionSeg} from './Captions';
+import {Finish} from './theme/Finish';
+import {textStyle} from './theme/typography';
 
 // ── Cinematic props (additive to SceneData; see scripts/render_remotion.py build_props) ────────────
 // Two paths share this file:
@@ -104,7 +106,7 @@ const PlaneContent: React.FC<{layer: Layer; theme: Theme; frame: number; reduced
       });
   // Content is positioned CENTER-ORIGIN (offsets around 0,0). Both render paths put PlaneContent inside a
   // zero-size div anchored at the frame/world centre, so these coordinates centre identically in flat and 3D.
-  const mono = '"JetBrains Mono", "SF Mono", Menlo, monospace';
+  const monoStyle = textStyle(theme, 'body', 'number');
 
   if (layer.kind === 'fill') {
     return (
@@ -131,8 +133,9 @@ const PlaneContent: React.FC<{layer: Layer; theme: Theme; frame: number; reduced
     );
   }
   if (layer.kind === 'hero') {
+    const heroStyle = textStyle(theme, 'display', 'body');
     return (
-      <div style={{position: 'absolute', left: -760, top: -280, width: 1520, textAlign: 'center', color: theme.fg, opacity: 0.09, fontSize: 420, fontWeight: 800, letterSpacing: -6, fontFamily: mono}}>
+      <div style={{...heroStyle, position: 'absolute', left: -760, top: -280, width: 1520, textAlign: 'center', color: theme.fg, opacity: 0.09, fontSize: 420, fontWeight: 800, letterSpacing: -6}}>
         {layer.text || ''}
       </div>
     );
@@ -151,6 +154,11 @@ const PlaneContent: React.FC<{layer: Layer; theme: Theme; frame: number; reduced
   }
   // panel — a floating glass card in space (gradient + rim highlight + inner accent glow = premium material)
   const centre = layer.align === 'center';
+  const kickerStyle = textStyle(theme, 'caption', 'body');
+  const titleStyle = textStyle(theme, 'display', 'display');
+  const subStyle = textStyle(theme, 'body', 'body');
+  const radius = parseInt(theme.radius || '14px', 10);
+
   return (
     <div
       style={{
@@ -163,18 +171,18 @@ const PlaneContent: React.FC<{layer: Layer; theme: Theme; frame: number; reduced
         textAlign: centre ? 'center' : 'left',
         background: `linear-gradient(158deg, ${theme.bg}f2 0%, ${theme.bg}cc 100%)`,
         border: `1.5px solid ${theme.accent}40`,
-        borderRadius: 16,
+        borderRadius: radius,
         boxShadow: `0 54px 150px rgba(0,0,0,0.62), inset 0 1.5px 0 ${theme.fg}26, inset 0 0 100px ${theme.accent}0e`,
       }}
     >
       {layer.kicker ? (
-        <div style={{color: theme.accent2, fontSize: 28, fontWeight: 700, letterSpacing: 4, textTransform: 'uppercase', marginBottom: 20, fontFamily: mono}}>{layer.kicker}</div>
+        <div style={{...kickerStyle, color: theme.accent2, fontSize: 28, fontWeight: 700, letterSpacing: 4, textTransform: 'uppercase', marginBottom: 20}}>{layer.kicker}</div>
       ) : null}
       {layer.title ? (
-        <div style={{color: theme.fg, fontSize: 80, fontWeight: 800, lineHeight: 1.08, letterSpacing: -1, fontFamily: mono, textShadow: '0 6px 30px rgba(0,0,0,0.45)'}}>{layer.title}</div>
+        <div style={{...titleStyle, color: theme.fg, fontSize: 80, fontWeight: 800, lineHeight: 1.08, letterSpacing: -1, textShadow: '0 6px 30px rgba(0,0,0,0.45)'}}>{layer.title}</div>
       ) : null}
       {layer.sub ? (
-        <div style={{color: theme.muted, fontSize: 34, lineHeight: 1.34, marginTop: 22, opacity: rev, transform: `translateY(${(1 - rev) * 16}px)`, fontFamily: mono}}>{layer.sub}</div>
+        <div style={{...subStyle, color: theme.muted, fontSize: 34, lineHeight: 1.34, marginTop: 22, opacity: rev, transform: `translateY(${(1 - rev) * 16}px)`}}>{layer.sub}</div>
       ) : null}
     </div>
   );
@@ -228,7 +236,7 @@ export const CinematicScene: React.FC<{
         <PlaneViewFlat key={i} layer={layer} cam={cam} theme={theme} frame={frame} reduced={reduced} />
       ))}
       <Vignette />
-      <Finish frame={frame} />
+      <Finish frame={frame} theme={theme} />
       {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} /> : null}
       {audio ? <Audio src={staticFile(audio)} /> : null}
     </AbsoluteFill>
@@ -309,7 +317,7 @@ export const CinematicScene3D: React.FC<{
 
       {/* OUTER overlays (2D, on top) — vignette, grade+grain finish, then the scene-edge fade. */}
       <Vignette />
-      <Finish frame={frame} />
+      <Finish frame={frame} theme={theme} />
       <AbsoluteFill style={{pointerEvents: 'none', backgroundColor: theme.bg, opacity: fade}} />
       {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} /> : null}
       {audio ? <Audio src={staticFile(audio)} /> : null}
@@ -336,23 +344,3 @@ function edgeOpacity(frame: number, dur: number, fadeInFrames?: number, fadeOutF
 const Vignette: React.FC = () => (
   <AbsoluteFill style={{pointerEvents: 'none', background: 'radial-gradient(130% 130% at 50% 45%, rgba(0,0,0,0) 52%, rgba(0,0,0,0.42) 100%)'}} />
 );
-
-// A fixed-seed feTurbulence tile — deterministic noise. Scrolled by frame for moving film grain.
-const NOISE =
-  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E" +
-  "%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E" +
-  "%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E\")";
-
-// Finishing pass (OUTER 2D — never on a preserve-3d ancestor): a subtle graded wash + moving film grain.
-// This is the single biggest "premium / filmic" uplift and it is deterministic (grain scroll = f(frame)).
-const Finish: React.FC<{frame: number; grain?: number}> = ({frame, grain = 0.05}) => {
-  const off = (frame * 11) % 200;                 // deterministic grain scroll
-  return (
-    <>
-      <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'soft-light',
-        background: 'linear-gradient(122deg, rgba(30,60,110,0.14) 0%, rgba(255,180,120,0.07) 100%)'}} />
-      <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'overlay', opacity: grain,
-        backgroundImage: NOISE, backgroundRepeat: 'repeat', backgroundPosition: `${off}px ${off}px`}} />
-    </>
-  );
-};

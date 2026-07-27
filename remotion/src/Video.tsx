@@ -2,7 +2,27 @@ import React from 'react';
 import {AbsoluteFill, Series} from 'remotion';
 import {Scene, SceneData} from './Scene';
 
-export type Theme = {bg: string; fg: string; muted: string; accent: string; accent2: string};
+// Extended theme tokens (matches theme/tokens.ts)
+export type Theme = {
+  bg: string;
+  surface: string;
+  fg: string;
+  muted: string;
+  accent: string;
+  accent2: string;
+  scrim: string;
+  onAccent: string;
+  onAccent2: string;
+  fontDisplay: string;
+  fontBody: string;
+  fontNumber: string;
+  fontKind: 'sans' | 'serif';
+  style: string;
+  radius: string;
+  grainAmount: string;
+  trackScale: string;
+  lhDisplay: string;
+};
 
 export type VideoProps = {
   width: number;
@@ -18,7 +38,26 @@ export const defaultProps: VideoProps = {
   height: 1080,
   fps: 30,
   captionFontPx: 48,
-  theme: {bg: '#0d1117', fg: '#f0f3f8', muted: '#94989e', accent: '#5fb3c4', accent2: '#e0894a'},
+  theme: {
+    bg: '#0d1117',
+    surface: '#161b22',
+    fg: '#f0f3f8',
+    muted: '#94989e',
+    accent: '#5fb3c4',
+    accent2: '#e0894a',
+    scrim: 'rgba(13,17,23,.55)',
+    onAccent: '#ffffff',
+    onAccent2: '#ffffff',
+    fontDisplay: '"Space Grotesk","Helvetica Neue",Arial,sans-serif',
+    fontBody: '"Space Grotesk","Helvetica Neue",Arial,sans-serif',
+    fontNumber: '"Space Grotesk","Helvetica Neue",Arial,sans-serif',
+    fontKind: 'sans',
+    style: '',
+    radius: '14px',
+    grainAmount: '0',
+    trackScale: '1',
+    lhDisplay: '1.08',
+  },
   scenes: [],
 };
 

@@ -24,6 +24,18 @@ import render as rd                      # reuse _canvas + _captions_for + _writ
 
 _REMOTION_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion")
 _THEME_FALLBACK = {"bg": "#0d1117", "fg": "#f0f3f8", "muted": "#94989e", "accent": "#5fb3c4", "accent2": "#e0894a"}
+# Extended design tokens the CINEMATIC tier also reads from theme.css (surface/scrim/on-accent colours,
+# the type faces, style, radius, grain, tracking). theme.py ALREADY emits every one of these; only this
+# consumer widens (the HTML tier reads the same vars — one design world). Every key is ADDITIVE with a
+# fallback equal to today's implicit look, so a themeless / colour-only board renders unchanged and the
+# golden legacy-props test stays green. Keys are camelCase; the CSS var is "--"+kebab (see _css_var).
+_TOKEN_FALLBACK = {
+    "surface": "#161b22", "scrim": "rgba(13,17,23,.55)", "onAccent": "#ffffff", "onAccent2": "#ffffff",
+    "fontDisplay": '"Space Grotesk","Helvetica Neue",Arial,sans-serif',
+    "fontBody": '"Space Grotesk","Helvetica Neue",Arial,sans-serif',
+    "fontNumber": '"Space Grotesk","Helvetica Neue",Arial,sans-serif',
+    "fontKind": "sans", "style": "", "radius": "14px",
+    "grainAmount": "0", "trackScale": "1", "lhDisplay": "1.08"}
 _DEFAULT_MOTION = {"from": [0.5, 0.5, 1.0], "to": [0.5, 0.5, 1.12]}   # matches storyboard.new_slide
 # scene types the cinematic tier can render: an image (full-bleed) or a plain title/text card. The
 # rest (html/chart/timeline/keypoints/compare) carry their visual in a page/props, NOT an image, so
@@ -86,19 +98,41 @@ def unsupported_scenes(data):
     return bad
 
 
+def _css_var(key):
+    """camelCase token key -> the CSS custom-property name theme.py emits ('onAccent' -> '--on-accent')."""
+    return "--" + re.sub(r"([A-Z])", r"-\1", key).lower()
+
+
 def _theme(out_dir):
-    """Parse the deck's semantic colours from theme.css (one colour world with the local tier)."""
-    t = dict(_THEME_FALLBACK)
+    """Parse the deck's design tokens from theme.css — one design world with the HTML/local tier.
+    Returns the 5 base colours (golden-locked) PLUS the extended cinematic tokens (surface/scrim/
+    on-accent, the type faces, style, radius, grain, tracking). Each value is captured up to its `;`
+    (so a font STACK with commas survives), and every key falls back to today's implicit default when
+    the var is absent (a colour-only or themeless board). theme.py is unchanged; only this reader widens."""
+    t = dict(_THEME_FALLBACK); t.update(_TOKEN_FALLBACK)
     path = os.path.join(out_dir, "theme.css")
     try:
         css = open(path, encoding="utf-8").read()
     except OSError:
         return t
-    for var in t:
-        m = re.search(r"--%s\s*:\s*(#[0-9a-fA-F]{3,8})" % re.escape(var), css)
+    for key in t:
+        m = re.search(r"%s\s*:\s*([^;]+?)\s*;" % re.escape(_css_var(key)), css)
         if m:
-            t[var] = m.group(1)
+            t[key] = m.group(1).strip()
     return t
+
+
+def _copy_fonts(out_dir):
+    """Copy bundled fonts from assets/fonts/*.ttf to out_dir/.fonts/ for @remotion/fonts staticFile() to load.
+    Best-effort: silently no-ops if assets/fonts/ is missing (colour-only deck, no custom fonts)."""
+    src_fonts = os.path.join(out_dir, "assets", "fonts")
+    if not os.path.isdir(src_fonts):
+        return
+    dst_fonts = os.path.join(out_dir, ".fonts")
+    os.makedirs(dst_fonts, exist_ok=True)
+    for name in os.listdir(src_fonts):
+        if name.lower().endswith(".ttf"):
+            shutil.copy2(os.path.join(src_fonts, name), os.path.join(dst_fonts, name))
 
 
 def _edges(slide, meta, fps):
@@ -241,6 +275,9 @@ def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="erro
             "content (html/chart/timeline/…) that would render BLANK. Use the local renderer "
             "(meta.renderer=local) for an html/designed deck, or give those scenes an `image`."
             % ", ".join("#%s(%s)" % (i, t) for i, t in bad))
+
+    # Copy bundled fonts to out_dir/.fonts/ for @remotion/fonts to load
+    _copy_fonts(out_dir)
 
     props = build_props(data, out_dir, vertical, reduced_motion)
     props_path = os.path.join(out_dir, ".remotion-props.json")
