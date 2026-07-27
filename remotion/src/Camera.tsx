@@ -102,11 +102,16 @@ const PlaneContent: React.FC<{layer: Layer; theme: Theme; frame: number; reduced
         extrapolateLeft: 'clamp',
         extrapolateRight: 'clamp',
       });
-  const bleed: React.CSSProperties = {position: 'absolute', left: '-18%', top: '-18%', width: '136%', height: '136%'};
+  // Content is positioned CENTER-ORIGIN (offsets around 0,0). Both render paths put PlaneContent inside a
+  // zero-size div anchored at the frame/world centre, so these coordinates centre identically in flat and 3D.
   const mono = '"JetBrains Mono", "SF Mono", Menlo, monospace';
 
   if (layer.kind === 'fill') {
-    return <div style={{...bleed, background: `radial-gradient(120% 120% at 50% 40%, ${theme.bg} 0%, ${theme.bg} 55%, #00000055 100%)`}} />;
+    return (
+      <div style={{position: 'absolute', left: '50%', top: '50%', width: 3200, height: 2200,
+                   transform: 'translate(-50%, -50%)',
+                   background: `radial-gradient(120% 120% at 50% 40%, ${theme.bg} 0%, ${theme.bg} 55%, #00000055 100%)`}} />
+    );
   }
   if (layer.kind === 'grid' || layer.kind === 'floor') {
     const strong = layer.kind === 'floor';
@@ -133,7 +138,16 @@ const PlaneContent: React.FC<{layer: Layer; theme: Theme; frame: number; reduced
     );
   }
   if (layer.kind === 'image' && layer.src) {
-    return <Img src={staticFile(layer.src)} style={{...bleed, objectFit: 'cover'}} />;
+    // FIXED px, centred on the plane origin — works in BOTH paths: the 3D rig's layer div is zero-size
+    // (percentage bleed would collapse to nothing), and in the flat AbsoluteFill this still centres.
+    return (
+      <Img
+        src={staticFile(layer.src)}
+        style={{position: 'absolute', left: '50%', top: '50%', width: 1920, height: 1080,
+                transform: 'translate(-50%, -50%)', objectFit: 'cover',
+                boxShadow: '0 60px 160px rgba(0,0,0,0.6)'}}
+      />
+    );
   }
   // panel — a floating glass card in space (gradient + rim highlight + inner accent glow = premium material)
   const centre = layer.align === 'center';
@@ -141,10 +155,10 @@ const PlaneContent: React.FC<{layer: Layer; theme: Theme; frame: number; reduced
     <div
       style={{
         position: 'absolute',
-        left: -580,
-        top: -230,
-        width: 1160,
-        padding: '52px 60px',
+        left: -520,
+        top: -200,
+        width: 1040,
+        padding: '44px 52px',
         boxSizing: 'border-box',
         textAlign: centre ? 'center' : 'left',
         background: `linear-gradient(158deg, ${theme.bg}f2 0%, ${theme.bg}cc 100%)`,
@@ -154,13 +168,13 @@ const PlaneContent: React.FC<{layer: Layer; theme: Theme; frame: number; reduced
       }}
     >
       {layer.kicker ? (
-        <div style={{color: theme.accent2, fontSize: 32, fontWeight: 700, letterSpacing: 4, textTransform: 'uppercase', marginBottom: 20, fontFamily: mono}}>{layer.kicker}</div>
+        <div style={{color: theme.accent2, fontSize: 28, fontWeight: 700, letterSpacing: 4, textTransform: 'uppercase', marginBottom: 20, fontFamily: mono}}>{layer.kicker}</div>
       ) : null}
       {layer.title ? (
-        <div style={{color: theme.fg, fontSize: 96, fontWeight: 800, lineHeight: 1.05, letterSpacing: -1, fontFamily: mono, textShadow: '0 6px 30px rgba(0,0,0,0.45)'}}>{layer.title}</div>
+        <div style={{color: theme.fg, fontSize: 80, fontWeight: 800, lineHeight: 1.08, letterSpacing: -1, fontFamily: mono, textShadow: '0 6px 30px rgba(0,0,0,0.45)'}}>{layer.title}</div>
       ) : null}
       {layer.sub ? (
-        <div style={{color: theme.muted, fontSize: 40, lineHeight: 1.34, marginTop: 28, opacity: rev, transform: `translateY(${(1 - rev) * 16}px)`, fontFamily: mono}}>{layer.sub}</div>
+        <div style={{color: theme.muted, fontSize: 34, lineHeight: 1.34, marginTop: 22, opacity: rev, transform: `translateY(${(1 - rev) * 16}px)`, fontFamily: mono}}>{layer.sub}</div>
       ) : null}
     </div>
   );
@@ -175,7 +189,10 @@ const PlaneViewFlat: React.FC<{layer: Layer; cam: {x: number; y: number; zoom: n
   const scale = 1 + (cam.zoom - 1) * p;
   return (
     <AbsoluteFill style={{transform: `translate(${tx}px, ${ty}px) scale(${scale})`, transformOrigin: 'center center', overflow: 'visible'}}>
-      <PlaneContent layer={layer} theme={theme} frame={frame} reduced={reduced} />
+      {/* zero-size node at the frame CENTRE so PlaneContent's center-origin coordinates match the 3D path */}
+      <div style={{position: 'absolute', left: '50%', top: '50%', width: 0, height: 0}}>
+        <PlaneContent layer={layer} theme={theme} frame={frame} reduced={reduced} />
+      </div>
     </AbsoluteFill>
   );
 };
