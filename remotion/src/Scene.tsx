@@ -3,6 +3,7 @@ import {AbsoluteFill, Audio, Img, staticFile, interpolate, useCurrentFrame, useV
 import {Theme} from './Video';
 import {Captions, CaptionSeg} from './Captions';
 import {CinematicScene, CinematicScene3D, CameraKeyframe, LensKeyframe, Layer} from './Camera';
+import {SceneStage, type StageData, type ShotSpec} from './stage/SceneStage';
 
 export type CalloutData = {
   box: number[];           // [x0, y0, x1, y1] normalized 0..1
@@ -25,9 +26,11 @@ export type SceneData = {
   kicker?: string | null;
   fadeInFrames?: number;   // gentle dip-in at the scene edge (from meta.transition)
   fadeOutFrames?: number;
-  // CINEMATIC (opt-in): a virtual-camera path over a 2.5D layer stack. `lens` → the 3D perspective
-  // path (dolly/pitch/yaw over real translateZ planes); else `camera` + `layers` → flat parallax; else
-  // the image/Ken-Burns path below is unchanged.
+  // CINEMATIC (opt-in): virtual-camera paths over 2.5D/3D scenes.
+  // SHOT-BASED (P2+): `stage` + `shot` → SceneStage (new paradigm)
+  // LEGACY: `lens` → CinematicScene3D; `camera`+`layers` → CinematicScene (flat parallax)
+  stage?: StageData | null;
+  shot?: ShotSpec | null;
   camera?: CameraKeyframe[] | null;
   lens?: LensKeyframe[] | null;
   perspective?: number | null;
@@ -46,8 +49,23 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
   const {durationInFrames} = useVideoConfig();
   const dur = Math.max(1, durationInFrames);
 
-  // CINEMATIC DISPATCH. `lens` → the 3D perspective path (real depth + camera angles); else `layers`
-  // → flat parallax; else the unchanged image/Ken-Burns fallback below.
+  // CINEMATIC DISPATCH. Shot-based (P2+): `stage` + `shot` → SceneStage; legacy: `lens` → 3D
+  // perspective (real depth + camera angles); `layers` → flat parallax; else unchanged image/Ken-Burns.
+  if (scene.stage && scene.shot) {
+    return (
+      <SceneStage
+        stage={scene.stage}
+        shot={scene.shot}
+        theme={theme}
+        captions={scene.captions}
+        audio={scene.audio}
+        captionFontPx={captionFontPx}
+        reducedMotion={scene.reducedMotion}
+        fadeInFrames={scene.fadeInFrames}
+        fadeOutFrames={scene.fadeOutFrames}
+      />
+    );
+  }
   if (Array.isArray(scene.lens) && scene.lens.length && Array.isArray(scene.layers) && scene.layers.length) {
     return (
       <CinematicScene3D

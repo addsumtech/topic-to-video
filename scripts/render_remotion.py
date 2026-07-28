@@ -48,6 +48,16 @@ def _scene_layers(s):
     return s.get("layers") or (s.get("props") or {}).get("layers")
 
 
+def _scene_stage(s):
+    """The shot-based stage data for a scene (top-level or in props), or None."""
+    return s.get("stage") or (s.get("props") or {}).get("stage")
+
+
+def _scene_shot(s):
+    """The shot specification for a scene (top-level or in props), or None."""
+    return s.get("shot") or (s.get("props") or {}).get("shot")
+
+
 def _num(v, ctx, default=0.0):
     """Coerce v to a FINITE float, raising a clear error naming ctx on NaN/Inf/non-numeric. Fail loud
     beats a silent-garbage render: a NaN reaches Remotion and blanks the frame; a string plane field
@@ -87,11 +97,14 @@ def _clean_layers(layers, tag):
 def unsupported_scenes(data):
     """Scene indices whose visual would render BLANK on the cinematic tier (non-image html/chart/…).
 
-    A scene carrying cinematic `layers` (a composited 2.5D stack) is renderable even with no `image`,
-    so it is NOT unsupported — the layered path draws it."""
+    A scene carrying cinematic `layers` OR `stage`+`shot` (shot-based compositing) is renderable even
+    with no `image`, so it is NOT unsupported — those paths draw the content."""
     bad = []
     for s in data.get("slides", []):
         t = s.get("type", "slide")
+        # Shot-based or legacy layered scenes are OK (they render via SceneStage/CinematicScene)
+        if _scene_stage(s) or _scene_layers(s):
+            continue
         image = s.get("image") or (s.get("props") or {}).get("image")
         if not image and not _scene_layers(s) and t not in _IMAGE_OK_TYPES:
             bad.append((s.get("index"), t))
@@ -175,19 +188,40 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
                                  "from": int(round(float(seg["start"]) * fps)),
                                  "to": int(round(float(seg["end"]) * fps))})
         fi, fo = _edges(s, meta, fps)
-        # CINEMATIC (opt-in, additive, backward-compatible): a virtual-camera keyframe path over a
-        # 2.5D layer stack. Absent -> the scene renders on the existing image/Ken-Burns path unchanged.
-        # Contract: camera[i].atFrame is an integer FRAME index (0..durationInFrames); at is normalised
-        # so a keyframe past the end clamps. A missing camera on a layered scene defaults to a gentle
-        # eased push-in built here so `layers` alone already yields a cinematic move.
+        # CINEMATIC (opt-in, additive, backward-compatible): virtual-camera over staged elements or layers.
+        # P2+ SHOT-BASED: `stage` + `shot` → SceneStage (new paradigm, highest priority).
+        # LEGACY: `lens` → CinematicScene3D (3D perspective); `layers` → CinematicScene (flat parallax).
+        # Absent -> scene renders on existing image/Ken-Burns path unchanged.
+        stage = _scene_stage(s)
+        shot = _scene_shot(s)
         layers = _scene_layers(s)
         camera = s.get("camera") or props.get("camera")
         lens = s.get("lens") or props.get("lens")           # 3D perspective path (dolly/pitch/yaw)
         perspective = _num(s.get("perspective") or props.get("perspective"), "scene %s perspective" % s.get("index"), None) \
             if (s.get("perspective") or props.get("perspective")) is not None else None
-        if layers is not None:                              # fail-loud coercion — no NaN/string reaches Remotion
+
+        # Shot-based scene: pass stage + shot through to SceneStage (validation in TypeScript)
+        if stage and shot:
+            if not isinstance(stage, dict):
+                raise RuntimeError("cinematic scene %s: `stage` must be an object" % s.get("index"))
+            if not isinstance(shot, dict):
+                raise RuntimeError("cinematic scene %s: `shot` must be an object" % s.get("index"))
+            # Validate stage.elements is a list
+            elements = stage.get("elements")
+            if not isinstance(elements, list):
+                raise RuntimeError("cinematic scene %s: `stage.elements` must be a list" % s.get("index"))
+            # Coerce shot.duration (required)
+            if shot.get("duration") is None:
+                shot = dict(shot)
+                shot["duration"] = frames
+            else:
+                shot = dict(shot)
+                shot["duration"] = int(round(_num(shot["duration"], "scene %s shot.duration" % s.get("index"))))
+
+        # Legacy layered scenes: fail-loud coercion — no NaN/string reaches Remotion
+        if layers is not None:
             layers = _clean_layers(layers, "scene %s" % s.get("index"))
-        if layers and not camera and not lens:              # a flat layered scene gets a default push-in
+        if layers and not camera and not lens and not (stage and shot):  # flat layered scene gets default push-in
             camera = [{"atFrame": 0, "x": 0.5, "y": 0.5, "zoom": 1.0, "easing": "inout"},
                       {"atFrame": frames, "x": 0.5, "y": 0.5, "zoom": 1.08, "easing": "inout"}]
         if camera is not None:
@@ -235,6 +269,8 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
             "kicker": props.get("kicker"),
             "fadeInFrames": fi,
             "fadeOutFrames": fo,
+            "stage": stage if (stage and shot) else None,    # shot-based (P2+): scene-space staging
+            "shot": shot if (stage and shot) else None,      # shot specification (type, motion, target)
             "camera": camera,                        # cinematic FLAT: eased virtual-camera keyframes (or None)
             "lens": lens,                            # cinematic 3D: dolly/pitch/yaw keyframes (or None)
             "perspective": float(perspective) if perspective else None,
