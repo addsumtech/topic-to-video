@@ -18,11 +18,14 @@ import {Captions} from '../Captions';
 import {Finish} from '../theme/Finish';
 
 export type Plane3D = {
+  kind?: 'plane' | 'bars'; // a 3D element: a plane (default) or an extruded bar chart
   color?: string;
   src?: string; // image/screenshot -> textured onto a REAL 3D mesh (true perspective, not a flat overlay)
   position: [number, number, number];
   rotation?: [number, number, number];
   size?: [number, number]; // world units of the plane (default [3, 1.8])
+  data?: number[]; // bars: values (drive bar heights)
+  labels?: string[]; // bars: optional per-bar labels
 };
 
 // Load all plane image textures at the DOM level (Remotion's reconciler) so delayRender/continueRender
@@ -76,6 +79,35 @@ const TexturedPlane: React.FC<{tex?: THREE.Texture; size: [number, number]; posi
           darkened by scene lighting. toneMapped:false keeps the colours accurate. */}
       <meshBasicMaterial map={tex} toneMapped={false} />
     </mesh>
+  );
+};
+
+// A real extruded 3D BAR CHART — boxes with genuine depth the orbit camera reveals; data drives heights;
+// each bar GROWS from the floor over the scene (frame-driven, eased staggered). Born-in-3D data-viz, not a
+// flat chart on a plane. Lit (meshStandardMaterial) so the depth reads via shading.
+const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number; accent: string; accent2: string}> = ({data, frame, durationInFrames, accent, accent2}) => {
+  const max = Math.max(1e-6, ...data.map((v) => Math.abs(v)));
+  const bw = 0.62, gap = 0.42, maxH = 2.6; // bar width / gap / tallest bar (world units)
+  const total = data.length * bw + (data.length - 1) * gap;
+  const growStart = Math.round(durationInFrames * 0.1);
+  const growSpan = Math.max(1, Math.round(durationInFrames * 0.45));
+  return (
+    <group>
+      {data.map((v, i) => {
+        const full = (Math.abs(v) / max) * maxH;
+        const stagger = growStart + i * 4;
+        const t = Math.max(0, Math.min(1, (frame - stagger) / growSpan));
+        const e = EASE.out(t); // ease-out grow
+        const h = Math.max(0.001, full * e);
+        const x = -total / 2 + bw / 2 + i * (bw + gap);
+        return (
+          <mesh key={i} position={[x, -1.3 + h / 2, 0]}>
+            <boxGeometry args={[bw, h, bw]} />
+            <meshStandardMaterial color={i === data.length - 1 ? accent : accent2} metalness={0.1} roughness={0.55} />
+          </mesh>
+        );
+      })}
+    </group>
   );
 };
 export type Camera3DKey = {atFrame: number; yaw: number; pitch: number; radius: number; height: number; easing?: string};
@@ -151,7 +183,11 @@ export const ThreeScene: React.FC<{
           <meshStandardMaterial color={theme.surface || theme.bg} />
         </mesh>
         {planes.map((p, i) =>
-          p.src ? (
+          p.kind === 'bars' && p.data ? (
+            <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
+              <Bars3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} />
+            </group>
+          ) : p.src ? (
             <TexturedPlane key={i} tex={textures[p.src]} size={p.size || [3, 1.8]} position={p.position} rotation={p.rotation || [0, 0, 0]} theme={theme} />
           ) : (
             <mesh key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>

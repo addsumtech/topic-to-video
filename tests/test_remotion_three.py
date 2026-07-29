@@ -70,6 +70,31 @@ def test_plane_src_threads(tmp_path):
     assert p["src"] == "assets/shot.png" and p["size"] == [5.0, 3.1]
 
 
+def test_bars_element_threads(tmp_path):
+    """A `kind:'bars'` 3D element carries data (drives extruded bar heights) through build_props."""
+    sc = rr.build_props(_board(planes=[{"kind": "bars", "position": [0, 0, 0], "data": [40, 65, 88],
+                                         "labels": ["A", "B", "C"]}]), str(tmp_path))["scenes"][0]
+    p = sc["planes"][0]
+    assert p["kind"] == "bars" and p["data"] == [40.0, 65.0, 88.0] and p["labels"] == ["A", "B", "C"]
+
+
+def test_bars_without_data_fails_loud(tmp_path):
+    with pytest.raises(RuntimeError, match="bars need a non-empty"):
+        rr.build_props(_board(planes=[{"kind": "bars", "position": [0, 0, 0]}]), str(tmp_path))
+
+
+def test_bad_plane_kind_fails_loud(tmp_path):
+    with pytest.raises(RuntimeError, match="kind must be"):
+        rr.build_props(_board(planes=[{"kind": "pie", "position": [0, 0, 0]}]), str(tmp_path))
+
+
+def test_bars3d_is_real_extruded_geometry():
+    """Bars must be real 3D boxes that GROW by frame (born-in-3D data-viz), not a flat chart."""
+    src = open(os.path.join(_SKILL, "remotion", "src", "three", "ThreeScene.tsx"), encoding="utf-8").read()
+    assert "Bars3D" in src and "boxGeometry" in src, "bars are real extruded 3D boxes"
+    assert "frame" in src and "EASE.out" in src, "bars grow from the floor, frame-driven + eased"
+
+
 def test_texture_loads_at_dom_level_not_in_canvas():
     """Image textures MUST load in the DOM-level scene component (delayRender works there), not inside the
     R3F canvas children (a separate reconciler whose effects/delayRender aren't synced -> blank). And a

@@ -247,6 +247,17 @@ def _clean_planes(planes, tag):
             c["color"] = str(p["color"])
         if p.get("src") is not None:                         # image texture on a real 3D mesh
             c["src"] = str(p["src"])
+        kind = str(p.get("kind", "plane"))                   # a 3D element: plane (default) | bars (chart)
+        if kind not in ("plane", "bars"):
+            raise RuntimeError("cinematic3d %s plane %d: kind must be plane|bars, got %r" % (tag, j, kind))
+        c["kind"] = kind
+        if kind == "bars":                                   # extruded 3D bar chart — data drives heights
+            data = p.get("data")
+            if not (isinstance(data, list) and data):
+                raise RuntimeError("cinematic3d %s plane %d: bars need a non-empty `data` list" % (tag, j))
+            c["data"] = [_num(v, "%s plane %d data[%d]" % (tag, j, k)) for k, v in enumerate(data)]
+            if p.get("labels") is not None:
+                c["labels"] = [str(x) for x in p["labels"]]
         out.append(c)
     return out
 

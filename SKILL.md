@@ -184,13 +184,16 @@ TTS if the user gives an API key.
   add opacity/filter to the 3D world. Card planes keystone past ~40° pitch / ~35° yaw (validate warns) —
   route a true 90° top-down / full orbit to the **TRUE-3D tier** below. See `references/shots/lens-dolly-tilt.md`.
   **TRUE-3D (WebGL / R3F) hero tier (`type:"cinematic3d"`, P6):** for the moves card planes can't hold —
-  a real 90° top-down / full orbit / crane over content `planes` at true depth, with real lighting and
-  occlusion. Author `planes` (`[{position:[x,y,z], rotation?, size?, color?}]`) + a `camera3d` orbit/crane
-  path (`[{at, yaw, radius, height, easing}]`, `at` = 0..1 fraction). Renders via
-  `remotion/src/three/ThreeScene.tsx` (`@remotion/three` + React-Three-Fiber v8 + three); `render_remotion`
-  auto-adds **`--gl=angle`** (headless Chrome has no WebGL otherwise → black). Needs a one-time
-  `cd remotion && npm install` of those deps (see the plan). Current state: camera/depth/lighting spine is
-  built + verified; plane content is solid-colour (image/text texturing on planes is the next increment).
+  a real 90° top-down / full orbit / crane over 3D content at true depth, with real lighting and occlusion.
+  Author `planes` — each a 3D element `{kind, position:[x,y,z], rotation?, size?, …}`:
+  **`kind:"plane"`** (default) is a surface — `color`, or **`src`** to texture a real SCREENSHOT onto the
+  mesh (the product UI as a true-3D object the camera orbits — not a flat overlay); **`kind:"bars"`** is a
+  real **extruded 3D bar chart** (`data:[…]` drives box heights, bars grow frame-by-frame — born-in-3D
+  data-viz). Plus a `camera3d` orbit/crane path (`[{at, yaw, radius, height, easing}]`, `at` = 0..1). Renders
+  via `remotion/src/three/ThreeScene.tsx` (`@remotion/three` + R3F v8 + three + drei); `render_remotion`
+  auto-adds **`--gl=angle`** (headless Chrome has no WebGL otherwise → black); needs a one-time
+  `cd remotion && npm install`. **Image textures load at the DOM level (not inside the canvas) — see
+  `references/cinematic-components.md`.** Next increment: 3D text (drei `Text`) + per-bar value labels.
   `validate.py` structurally gates the fields (keyframe ordering, on-canvas targets, a read-safe zoom
   band, layer kinds, image-plane existence) — but the **move itself is judged only from the rendered
   filmstrip** `<out_dir>/_keyframes/scene_NN.png`, never from the plan (pre-tts the blind envelope is
