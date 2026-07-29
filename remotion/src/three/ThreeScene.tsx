@@ -100,7 +100,6 @@ export const ThreeScene: React.FC<{
       </ThreeCanvas>
 
       {/* 2D overlays on top of the canvas — grade/grain/vignette, edge fade, captions, audio */}
-      <Vignette />
       <Finish frame={frame} theme={theme} />
       <AbsoluteFill style={{pointerEvents: 'none', backgroundColor: theme.bg, opacity: fadeOpacity}} />
       {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} /> : null}
@@ -108,7 +107,3 @@ export const ThreeScene: React.FC<{
     </AbsoluteFill>
   );
 };
-
-const Vignette: React.FC = () => (
-  <AbsoluteFill style={{pointerEvents: 'none', background: 'radial-gradient(130% 130% at 50% 45%, rgba(0,0,0,0) 52%, rgba(0,0,0,0.42) 100%)'}} />
-);

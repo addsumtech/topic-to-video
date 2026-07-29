@@ -52,9 +52,19 @@ export const Element: React.FC<{
     transform: `translate3d(${x}px, ${y}px, ${z}px)`,
   };
 
+  // ENTER FADE (P4 fix): a CONTENT element materialises as the camera arrives on it (its enterAtFrame,
+  // auto-derived from the shot that frames it) — NOT from frame 0. Without this an empty glass card floats
+  // in space before its text reveals (mystery furniture). Pure backgrounds (grid/floor/fill) are the world
+  // and stay constant. Opacity is on an INNER wrapper so it never flattens the element's place in the 3D rig.
+  const isBackground = kind === 'grid' || kind === 'floor' || kind === 'fill';
+  const enter = element.enterAtFrame ?? 0;
+  const op = isBackground || reducedMotion ? 1 : Math.max(0, Math.min(1, (frame - enter) / 8));
+
   return (
     <div style={containerStyle}>
-      <ElementContent element={element} theme={theme} frame={frame} reducedMotion={reducedMotion} />
+      <div style={{opacity: op}}>
+        <ElementContent element={element} theme={theme} frame={frame} reducedMotion={reducedMotion} />
+      </div>
     </div>
   );
 };

@@ -77,6 +77,26 @@ def test_flat_frame_floors_on_focal_dominance():
     assert any("focal dominance" in f for f in r["floors"])
 
 
+def _murk():
+    """A near-uniform very-dark focal region — content present nowhere (murky/illegible)."""
+    import numpy as _np
+    arr = (_np.ones((H, W, 3)) * 10 + _np.random.RandomState(1).rand(H, W, 3) * 6).astype("uint8")
+    return Image.fromarray(arr, "RGB")
+
+
+def test_legibility_floor_flags_dark_flat_focal():
+    """The cinematic-tier WCAG analog: a dark + FLAT focal region (no readable content) floors."""
+    r = shot_qa.score_scene([_murk()] * 5, declared_move=False, is_3d=False)
+    assert any("murky" in f or "illegible" in f for f in r["floors"])
+
+
+def test_legibility_floor_passes_dark_but_high_contrast():
+    """A dark card with light text (dark MEAN but high CONTRAST) is legible — must NOT floor on legibility."""
+    r = shot_qa.score_scene([_panel(shift=i * 4) for i in range(5)], declared_move=True, is_3d=True)
+    assert not any("murky" in f or "illegible" in f for f in r["floors"])
+    assert r["metrics"]["focal_contrast_std"] > 8
+
+
 # ── abstention discipline ────────────────────────────────────────────────────────────────────────────
 def test_typography_always_abstains():
     frames = [_panel(shift=i * 5) for i in range(5)]

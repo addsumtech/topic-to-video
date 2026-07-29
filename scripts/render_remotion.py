@@ -364,7 +364,10 @@ def _transitions(scenes, meta, fps):
     transition can never eat live narration or desync the audio. The very first scene's opening fade and
     the very last scene's closing fade are NOT seams and are preserved."""
     style_default = str(meta.get("transition_style") or meta.get("transition") or "dip")
-    breath = float(meta.get("audio_breath", 0.42) or 0.42)
+    # The overlap must ride the trailing-breath SILENCE. That silence only exists if mastering ran
+    # (it pads meta.audio_breath). If mastering is OFF, assume NO breath and clamp the overlap to ~1
+    # frame (a cut, not a cross-fade) so a transition can never eat live narration.
+    breath = 0.0 if meta.get("audio_master") is False else float(meta.get("audio_breath", 0.42) or 0.42)
     cap = max(1, int(round(breath * fps)))                  # overlap ceiling = the breath (A/V safety)
     for i in range(len(scenes)):
         scenes[i]["transitionToNext"] = None

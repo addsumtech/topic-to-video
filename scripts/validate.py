@@ -392,6 +392,7 @@ def _figure_traceability(slides, out_dir, warnings):
 _CINE_KINDS = {"fill", "grid", "floor", "hero", "panel", "image"}
 _CINE_EASINGS = {"linear", "in", "out", "inout"}
 _SHOT_TYPES = {"ESTABLISH", "MEDIUM", "CLOSEUP", "OVER_SHOULDER", "REVEAL", "HERO"}
+_ELEM_KINDS = {"panel", "image", "textblock", "callout", "grid", "floor", "hero", "fill"}  # ElementKind (elements.tsx)
 _SHOT_MOTIONS = {"STATIC", "PUSH_IN", "PULL_OUT", "PAN_RIGHT", "PAN_LEFT", "TILT_UP", "TILT_DOWN",
                  "ORBIT_RIGHT", "ORBIT_LEFT", "RACK_FOCUS"}
 
@@ -416,6 +417,10 @@ def _shot_stage_fields(stage, shots, tag, errors, warnings):
                 errors.append(f"{tag}: duplicate stage element id {eid!r}")
             else:
                 ids.add(eid)
+            k = el.get("kind")
+            if k is not None and k not in _ELEM_KINDS:
+                warnings.append(f"{tag}: stage element {eid!r} kind '{k}' is unknown "
+                                f"(known: {sorted(_ELEM_KINDS)}) — it will render as a default panel")
             pos = el.get("position")
             if not (isinstance(pos, list) and len(pos) == 3 and all(isinstance(v, (int, float)) for v in pos)):
                 errors.append(f"{tag}: stage element {eid!r} `position` must be [x,y,z] numbers")

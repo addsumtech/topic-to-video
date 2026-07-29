@@ -116,6 +116,21 @@ def score_scene(frames, declared_move, is_3d):
     dom_s = 0.2 + 0.8 * max(0.0, min(1.0, (dominance - 1.15) / (3.5 - 1.15)))
     scores["composition"] = int(round(100 * dom_s * (1.0 if competing <= 2 else 0.8)))
 
+    # ── LEGIBILITY FLOOR: the FOCAL region (centre, ABOVE the caption band) must not be a dark, flat
+    # murk. This is the cinematic-tier analog of the HTML tier's WCAG contrast discipline — measured from
+    # pixels, caption-excluded (so a burned caption can't confound it), and CONSERVATIVE: it fires only
+    # when the focal region is BOTH dark AND low-contrast (a genuinely unreadable frame), never on a
+    # legitimately dark-but-legible card (light text on a dark panel = high contrast = passes). ──
+    g = grays[len(grays) // 2]
+    fh, fw = g.shape
+    focal = g[int(fh * 0.15):int(fh * 0.72), int(fw * 0.22):int(fw * 0.78)]
+    f_mean, f_std = float(focal.mean()), float(focal.std())
+    metrics["focal_luma_mean"] = round(f_mean, 1)
+    metrics["focal_contrast_std"] = round(f_std, 1)
+    if f_mean < 20 and f_std < 8:
+        floors.append("focal region is dark + flat (luma %.0f, contrast %.0f) — content is murky/illegible; "
+                      "lift exposure or give the subject a legible ground" % (f_mean, f_std))
+
     # typography/caption-zone: NOT scored — a captioned frame's burned caption confounds any bottom-band
     # measurement. (The HTML tier checks this pre-burn via keyframe_qa; the cinematic tier can't here.)
     scores["typography"] = None

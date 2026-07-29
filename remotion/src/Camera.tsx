@@ -235,7 +235,6 @@ export const CinematicScene: React.FC<{
       {layers.map((layer, i) => (
         <PlaneViewFlat key={i} layer={layer} cam={cam} theme={theme} frame={frame} reduced={reduced} />
       ))}
-      <Vignette />
       <Finish frame={frame} theme={theme} />
       {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} /> : null}
       {audio ? <Audio src={staticFile(audio)} /> : null}
@@ -316,7 +315,6 @@ export const CinematicScene3D: React.FC<{
       </AbsoluteFill>
 
       {/* OUTER overlays (2D, on top) — vignette, grade+grain finish, then the scene-edge fade. */}
-      <Vignette />
       <Finish frame={frame} theme={theme} />
       <AbsoluteFill style={{pointerEvents: 'none', backgroundColor: theme.bg, opacity: fade}} />
       {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} /> : null}
@@ -340,7 +338,3 @@ function edgeOpacity(frame: number, dur: number, fadeInFrames?: number, fadeOutF
   const fadeOut = fo > 0 ? interpolate(frame, [dur - fo, dur], [1, 0], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'}) : 1;
   return Math.min(fadeIn, fadeOut);
 }
-
-const Vignette: React.FC = () => (
-  <AbsoluteFill style={{pointerEvents: 'none', background: 'radial-gradient(130% 130% at 50% 45%, rgba(0,0,0,0) 52%, rgba(0,0,0,0.42) 100%)'}} />
-);

@@ -92,7 +92,6 @@ export const SceneStage: React.FC<SceneStageProps> = ({
       </AbsoluteFill>
 
       {/* OUTER 2D overlays (never on the preserve-3d chain). */}
-      <Vignette />
       <Finish frame={frame} theme={theme} />
       <AbsoluteFill style={{pointerEvents: 'none', backgroundColor: theme.bg, opacity: fade}} />
       {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} /> : null}
@@ -115,9 +114,3 @@ function edgeOpacity(frame: number, dur: number, fadeInFrames?: number, fadeOutF
   const fadeOut = fo > 0 ? interpolate(frame, [dur - fo, dur], [1, 0], clamp) : 1;
   return Math.min(fadeIn, fadeOut);
 }
-
-const Vignette: React.FC = () => (
-  <AbsoluteFill
-    style={{pointerEvents: 'none', background: 'radial-gradient(130% 130% at 50% 45%, rgba(0,0,0,0) 52%, rgba(0,0,0,0.42) 100%)'}}
-  />
-);

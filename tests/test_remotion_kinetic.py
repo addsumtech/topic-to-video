@@ -94,3 +94,11 @@ def test_elements_use_kinetic_text():
 def test_motions_takes_energy_amplitude():
     src = open(os.path.join(_SKILL, "remotion", "src", "stage", "motions.ts"), encoding="utf-8").read()
     assert "amp" in src and "* A" in src, "motion deltas must scale by an energy amplitude"
+
+
+def test_elements_fade_in_on_arrival():
+    """A content element must materialise at its enterAtFrame (camera arrival), not from frame 0 — else an
+    empty glass card floats in space before its text reveals (mystery furniture)."""
+    src = open(os.path.join(_SKILL, "remotion", "src", "stage", "elements.tsx"), encoding="utf-8").read()
+    assert "enterAtFrame" in src and "isBackground" in src, "content elements fade in on arrival; backgrounds don't"
+    assert "opacity: op" in src

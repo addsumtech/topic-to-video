@@ -126,6 +126,14 @@ _GOOD_STAGE = {"elements": [{"id": "a", "kind": "panel", "position": [0, 0, 120]
                             {"id": "b", "kind": "hero", "position": [1000, 0, -400], "heroText": "Y"}]}
 
 
+def test_validate_gate_warns_unknown_element_kind():
+    import validate as v
+    errs, warns = [], []
+    stage = {"elements": [{"id": "a", "kind": "widget", "position": [0, 0, 0]}]}
+    v._shot_stage_fields(stage, [{"type": "HERO", "target": "a"}], "scene 1", errs, warns)
+    assert any("unknown" in w and "kind" in w for w in warns)  # unknown kind -> warn (renders as panel)
+
+
 def test_validate_gate_passes_valid_shot_scene():
     assert _vgate(_GOOD_STAGE, [{"type": "ESTABLISH", "target": "a"},
                                 {"type": "HERO", "target": "b", "motion": "PUSH_IN", "carry": True}]) == []

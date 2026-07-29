@@ -27,6 +27,11 @@ const STYLE_TO_FAMILY: Record<string, keyof typeof GRADE_FAMILIES> = {
   swiss: 'soft', bauhaus: 'soft', glassmorphism: 'soft', claymorphism: 'soft', risograph: 'soft', manga: 'soft',
 };
 
+// The full finishing stack, in cinematographer's order: KEY LIGHT (lift the centred subject) -> GRADE
+// (mood tint) -> GRAIN (unify) -> VIGNETTE (darken edges, draw the eye). Key-light + a MODERATED vignette
+// = exposure discipline: the focal subject (the camera centres it) stays bright and legible while the
+// edges fall off, instead of a heavy vignette crushing content into murk. Vignette is here (one place),
+// not duplicated per scene. All layers are OUTER 2D — never on a preserve-3d ancestor.
 export const Finish: React.FC<{frame: number; theme: Theme}> = ({frame, theme}) => {
   const grainAmount = Math.max(0, Math.min(0.2, parseFloat(theme.grainAmount || '0') || 0));
   const grade = GRADE_FAMILIES[STYLE_TO_FAMILY[theme.style] || 'warm'];  // unknown/empty style -> cinematic warm
@@ -34,15 +39,17 @@ export const Finish: React.FC<{frame: number; theme: Theme}> = ({frame, theme}) 
 
   return (
     <>
-      {/* Graded wash layer */}
+      {/* KEY LIGHT — a soft central lift so the framed subject reads (legibility), subtle so it's not a hotspot */}
       <AbsoluteFill
         style={{
           pointerEvents: 'none',
           mixBlendMode: 'soft-light',
-          background: grade,
+          background: 'radial-gradient(70% 58% at 50% 44%, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 60%)',
         }}
       />
-      {/* Film grain layer */}
+      {/* Graded wash */}
+      <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'soft-light', background: grade}} />
+      {/* Film grain */}
       {grainAmount > 0 && (
         <AbsoluteFill
           style={{
@@ -55,6 +62,13 @@ export const Finish: React.FC<{frame: number; theme: Theme}> = ({frame, theme}) 
           }}
         />
       )}
+      {/* VIGNETTE — moderated (edges only): wider clear centre + gentler falloff than a heavy crush */}
+      <AbsoluteFill
+        style={{
+          pointerEvents: 'none',
+          background: 'radial-gradient(135% 135% at 50% 46%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.30) 100%)',
+        }}
+      />
     </>
   );
 };

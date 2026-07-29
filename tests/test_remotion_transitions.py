@@ -75,6 +75,15 @@ def test_hard_cut_seam_has_no_transition(tmp_path):
     assert scs[0]["transitionToNext"] is None
 
 
+def test_overlap_zeroed_when_mastering_off(tmp_path):
+    """audio_master:false means no trailing-breath silence exists, so the overlap must clamp to ~1 frame
+    (a cut) — a real cross-fade there would eat live narration."""
+    d = _board(2, secs=0.5)
+    d["meta"]["audio_master"] = False
+    scs = rr.build_props(d, str(tmp_path))["scenes"]
+    assert scs[0]["transitionToNext"]["durationInFrames"] == 1  # not 15 (0.5s)
+
+
 def test_single_scene_board_has_no_transition(tmp_path):
     scs = rr.build_props(_board(1), str(tmp_path))["scenes"]
     assert scs[0]["transitionToNext"] is None
