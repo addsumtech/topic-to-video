@@ -18,15 +18,23 @@ import {Captions} from '../Captions';
 import {Finish} from '../theme/Finish';
 
 export type Plane3D = {
-  kind?: 'plane' | 'bars'; // a 3D element: a plane (default) or an extruded bar chart
+  kind?: 'plane' | 'bars'; // a 3D element: a plane (default) or a bar chart (`text` is rasterized to a plane)
   color?: string;
-  src?: string; // image/screenshot -> textured onto a REAL 3D mesh (true perspective, not a flat overlay)
+  src?: string; // image/screenshot/rasterized-text -> textured onto a REAL 3D mesh (true perspective)
+  alpha?: boolean; // the texture has transparency (a rasterized-text PNG) -> transparent material
+  billboard?: boolean; // face the camera (text labels) — else a fixed-facing plane goes edge-on when orbited
   position: [number, number, number];
   rotation?: [number, number, number];
   size?: [number, number]; // world units of the plane (default [3, 1.8])
   data?: number[]; // bars: values (drive bar heights)
-  labels?: string[]; // bars: optional per-bar labels
+  labels?: string[]; // bars: optional per-bar value labels
 };
+
+// NOTE ON 3D TEXT: troika/drei <Text> renders BLANK under Remotion — it generates its glyph SDF
+// ASYNCHRONOUSLY inside the R3F canvas (a layer below font loading; a DOM-level preloadFont doesn't fix
+// it), and the capture happens before it syncs. So a `kind:"text"` element is RASTERIZED to a transparent
+// PNG at build (PIL + the bundled font, in render_remotion) and textured onto a plane here — reusing the
+// proven DOM-level texture path, no troika. `alpha:true` selects a transparent material.
 
 // Load all plane image textures at the DOM level (Remotion's reconciler) so delayRender/continueRender
 // actually make the render WAIT — the SAME pattern fails inside the R3F canvas children (a separate
@@ -63,8 +71,10 @@ function usePlaneTextures(srcs: string[]): Record<string, THREE.Texture> {
 // A plane textured with a real screenshot/image, living in true 3D (the camera orbits it with real
 // perspective + lighting) — NOT a flat 2D overlay. Consumes an ALREADY-LOADED texture (loaded at the DOM
 // level by usePlaneTextures). If the texture isn't ready/failed, renders a dark placeholder plane.
-const TexturedPlane: React.FC<{tex?: THREE.Texture; size: [number, number]; position: [number, number, number]; rotation: [number, number, number]; theme: Theme}> = ({tex, size, position, rotation, theme}) => {
+const TexturedPlane: React.FC<{tex?: THREE.Texture; size: [number, number]; position: [number, number, number]; rotation: [number, number, number]; theme: Theme; alpha?: boolean}> = ({tex, size, position, rotation, theme, alpha}) => {
   if (!tex) {
+    // a rasterized-text plane has nothing to show without its texture -> render nothing (not a dark rect)
+    if (alpha) return null;
     return (
       <mesh position={position} rotation={rotation}>
         <planeGeometry args={size} />
@@ -75,9 +85,9 @@ const TexturedPlane: React.FC<{tex?: THREE.Texture; size: [number, number]; posi
   return (
     <mesh position={position} rotation={rotation}>
       <planeGeometry args={size} />
-      {/* UNLIT: a UI screen emits its own image — show the screenshot at its true pixel colours, not
-          darkened by scene lighting. toneMapped:false keeps the colours accurate. */}
-      <meshBasicMaterial map={tex} toneMapped={false} />
+      {/* UNLIT: a UI screen / text label emits its own image — true pixel colours, not scene-lit.
+          alpha (a rasterized-text PNG) -> transparent so only the glyphs show, no black card. */}
+      <meshBasicMaterial map={tex} toneMapped={false} transparent={!!alpha} depthWrite={!alpha} />
     </mesh>
   );
 };
@@ -160,7 +170,9 @@ export const ThreeScene: React.FC<{
   const {width, height, durationInFrames} = useVideoConfig();
   const dur = Math.max(1, durationInFrames);
   const keys = camera3d && camera3d.length ? camera3d : [{atFrame: 0, yaw: -0.6, pitch: 0, radius: 7, height: 4}];
+  const camYaw = reducedMotion ? keys[0].yaw : lerpKey(keys, frame, (k) => k.yaw); // for billboarding text at the camera
   // Load plane textures HERE (DOM reconciler) so the render waits; pass the ready textures into the canvas.
+  // (Rasterized-text planes are just image planes with alpha — same path.)
   const srcs = planes.map((p) => p.src).filter((s): s is string => !!s);
   const textures = usePlaneTextures(srcs);
 
@@ -188,7 +200,8 @@ export const ThreeScene: React.FC<{
               <Bars3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} />
             </group>
           ) : p.src ? (
-            <TexturedPlane key={i} tex={textures[p.src]} size={p.size || [3, 1.8]} position={p.position} rotation={p.rotation || [0, 0, 0]} theme={theme} />
+            <TexturedPlane key={i} tex={textures[p.src]} size={p.size || [3, 1.8]} position={p.position}
+              rotation={p.billboard ? [0, camYaw, 0] : p.rotation || [0, 0, 0]} theme={theme} alpha={p.alpha} />
           ) : (
             <mesh key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
               <planeGeometry args={p.size || [3, 1.8]} />

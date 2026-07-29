@@ -247,9 +247,13 @@ def _clean_planes(planes, tag):
             c["color"] = str(p["color"])
         if p.get("src") is not None:                         # image texture on a real 3D mesh
             c["src"] = str(p["src"])
-        kind = str(p.get("kind", "plane"))                   # a 3D element: plane (default) | bars (chart)
-        if kind not in ("plane", "bars"):
-            raise RuntimeError("cinematic3d %s plane %d: kind must be plane|bars, got %r" % (tag, j, kind))
+        if p.get("alpha") is not None:                       # texture has transparency (rasterized text)
+            c["alpha"] = bool(p["alpha"])
+        if p.get("billboard") is not None:                   # face the camera (rasterized text default)
+            c["billboard"] = bool(p["billboard"])
+        kind = str(p.get("kind", "plane"))                   # 3D element: plane (default) | bars | text
+        if kind not in ("plane", "bars", "text"):
+            raise RuntimeError("cinematic3d %s plane %d: kind must be plane|bars|text, got %r" % (tag, j, kind))
         c["kind"] = kind
         if kind == "bars":                                   # extruded 3D bar chart — data drives heights
             data = p.get("data")
@@ -258,6 +262,14 @@ def _clean_planes(planes, tag):
             c["data"] = [_num(v, "%s plane %d data[%d]" % (tag, j, k)) for k, v in enumerate(data)]
             if p.get("labels") is not None:
                 c["labels"] = [str(x) for x in p["labels"]]
+        if kind == "text":                                   # real 3D text (drei <Text>) in the scene
+            if not p.get("text"):
+                raise RuntimeError("cinematic3d %s plane %d: text element needs a `text` string" % (tag, j))
+            c["text"] = str(p["text"])
+            if p.get("textColor") is not None:
+                c["textColor"] = str(p["textColor"])
+            if p.get("textSize") is not None:
+                c["textSize"] = _num(p["textSize"], "%s plane %d textSize" % (tag, j))
         out.append(c)
     return out
 
@@ -346,6 +358,70 @@ def _copy_fonts(out_dir):
             shutil.copy2(os.path.join(_SKILL_FONTS, name), os.path.join(dst_fonts, name))
             copied.append(name)
     return copied
+
+
+_FONT_KIND_FILE = {"sans": "SpaceGrotesk-VF.ttf", "serif": "PlayfairDisplay-VF.ttf",
+                   "mono": "JetBrainsMono-VF.ttf", "comic": "Bangers-Regular.ttf"}
+
+
+def _rasterize_text3d(data, out_dir):
+    """Turn each cinematic3d `kind:'text'` element into a textured plane: PIL renders the string to a
+    TRANSPARENT PNG (the deck's bundled display face + textColor), and the element becomes a `plane` with
+    `src` + `alpha:true` + a world `size` from the text's aspect ratio. Why not drei/troika <Text>: it
+    renders BLANK under Remotion (async glyph SDF inside the R3F canvas). This reuses the proven DOM-level
+    texture path instead. Best-effort: no PIL -> the text element is dropped (never a blank/black card)."""
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except Exception:
+        for s in data.get("slides", []):
+            pls = _scene_planes(s)
+            if isinstance(pls, list):
+                s["planes"] = [p for p in pls if not (isinstance(p, dict) and p.get("kind") == "text")]
+        return
+    tk = _theme(out_dir)
+    font_path = os.path.join(_SKILL_FONTS, _FONT_KIND_FILE.get(tk.get("fontKind", "sans"), "SpaceGrotesk-VF.ttf"))
+    kf = os.path.join(out_dir, ".text3d")
+    for s in data.get("slides", []):
+        pls = _scene_planes(s)
+        if not isinstance(pls, list):
+            continue
+        for i, p in enumerate(pls):
+            if not (isinstance(p, dict) and p.get("kind") == "text" and p.get("text")):
+                continue
+            os.makedirs(kf, exist_ok=True)
+            txt = str(p["text"])
+            world_h = float(p.get("textSize") or 0.6)        # world-unit height of the text
+            px = 220                                         # raster height (hi-res so it stays crisp)
+            try:
+                font = ImageFont.truetype(font_path, px)
+            except Exception:
+                font = ImageFont.load_default()
+            tmp = ImageDraw.Draw(Image.new("RGBA", (10, 10)))
+            l, t, r, b = tmp.textbbox((0, 0), txt, font=font)
+            tw, th = max(1, r - l), max(1, b - t)
+            pad = int(px * 0.18)
+            img = Image.new("RGBA", (tw + 2 * pad, th + 2 * pad), (0, 0, 0, 0))
+            col = _hex_rgb(p.get("textColor") or tk.get("fg", "#f0f3f8"))
+            ImageDraw.Draw(img).text((pad - l, pad - t), txt, font=font, fill=col + (255,))
+            rel = os.path.join(".text3d", "s%s_p%d.png" % (s.get("index"), i))
+            img.save(os.path.join(out_dir, rel))
+            aspect = img.width / img.height
+            # billboard by default (face the camera) unless the author pinned a rotation — a fixed-facing
+            # text plane goes edge-on/invisible as the camera orbits.
+            bill = p.get("rotation") is None
+            pls[i] = {"kind": "plane", "src": rel, "alpha": True, "billboard": bill, "position": p["position"],
+                      "size": [world_h * aspect, world_h], **({"rotation": p["rotation"]} if p.get("rotation") else {})}
+        s["planes"] = pls
+
+
+def _hex_rgb(h):
+    h = str(h).lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    try:
+        return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+    except ValueError:
+        return (240, 243, 248)
 
 
 def _edges(slide, meta, fps):
@@ -569,6 +645,7 @@ def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="erro
 
     # Copy bundled fonts to out_dir/.fonts/ for @remotion/fonts to load
     _copy_fonts(out_dir)
+    _rasterize_text3d(data, out_dir)   # 3D text -> transparent PNG textured planes (troika renders blank)
 
     props = build_props(data, out_dir, vertical, reduced_motion)
     props_path = os.path.join(out_dir, ".remotion-props.json")

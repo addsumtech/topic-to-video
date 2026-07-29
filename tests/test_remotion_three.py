@@ -95,6 +95,30 @@ def test_bars3d_is_real_extruded_geometry():
     assert "frame" in src and "EASE.out" in src, "bars grow from the floor, frame-driven + eased"
 
 
+def test_text3d_rasterizes_to_a_textured_plane(tmp_path):
+    """A `kind:'text'` 3D element is RASTERIZED (PIL) to a transparent PNG and becomes an alpha textured
+    plane (billboarded) — troika/drei <Text> renders blank under Remotion, so we don't use it."""
+    import os
+    import theme as th
+    th.write_theme_css({"bg": "#0e1116", "surface": "#141a24", "fg": "#f2f4f8", "muted": "#93a0b4",
+                        "accent": "#e3b23c", "accent2": "#5fb3c9", "scrim": "rgba(14,17,22,.55)",
+                        "on_accent": "#000", "on_accent2": "#000", "style": "editorial",
+                        "style_vars": {"radius": "8px"}, "language": "en"}, str(tmp_path / "theme.css"))
+    d = _board(planes=[{"kind": "text", "position": [0, 1.9, 0], "text": "Growth", "textColor": "#e3b23c"}])
+    rr._rasterize_text3d(d, str(tmp_path))
+    p = d["slides"][0]["planes"][0]
+    assert p["kind"] == "plane" and p["alpha"] is True and p["billboard"] is True
+    assert p["src"].startswith(".text3d") and os.path.isfile(tmp_path / p["src"])  # the PNG was written
+    assert p["size"][0] > p["size"][1]  # "Growth" is wider than tall
+
+
+def test_text3d_billboards_to_camera():
+    """A billboard text plane must rotate to the current camera yaw (else it goes edge-on when orbited)."""
+    src = open(os.path.join(_SKILL, "remotion", "src", "three", "ThreeScene.tsx"), encoding="utf-8").read()
+    assert "camYaw" in src and "billboard" in src, "text planes billboard to face the camera"
+    assert "transparent={!!alpha}" in src, "rasterized-text planes use a transparent material"
+
+
 def test_texture_loads_at_dom_level_not_in_canvas():
     """Image textures MUST load in the DOM-level scene component (delayRender works there), not inside the
     R3F canvas children (a separate reconciler whose effects/delayRender aren't synced -> blank). And a

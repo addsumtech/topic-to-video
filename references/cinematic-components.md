@@ -43,9 +43,12 @@ frame in Remotion.** So:
   most-used product-video component. Static markup → frame-safe.
 - **Icons — `lucide-react`** (the SAME Lucide family the HTML tier uses; themeable via `currentColor`).
   Standalone React components, static → frame-safe. One icon world across both tiers.
-- **3D text/materials — `@react-three/drei`** `Text3D` (needs a typeface.json font), `Text` (troika),
-  `RoundedBox`, `useTexture`. Gives the P6 tier real text + materials. **Version: drei v9.x matches our
-  r3f v8** (drei v10 needs r3f v9 → do NOT install v10).
+- **3D text — do NOT use drei/troika `<Text>` under Remotion.** It renders BLANK: troika generates its
+  glyph SDF ASYNCHRONOUSLY inside the R3F canvas (a layer below font loading — a DOM-level `preloadFont`
+  does not fix it), so the frame captures before it syncs. Verified + drei removed. **The working path:
+  RASTERIZE text to a transparent PNG at build (PIL + the bundled font, `render_remotion._rasterize_text3d`)
+  and texture it onto a plane** (`kind:"text"` → an alpha textured plane, billboarded to face the camera).
+  Reuses the proven DOM-level texture load. Real 3D text, deterministic, any camera angle.
 
 ## 3. Community kits — mine for ideas, adopt selectively
 
