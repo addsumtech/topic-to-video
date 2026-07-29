@@ -22,6 +22,9 @@ export type ElementData = {
   // Image fields
   src?: string; // relative path (staticFile)
   fit?: 'cover' | 'contain';
+  size?: [number, number]; // [w,h] px in stage space (default 1600x1000); frames a screenshot properly
+  frame?: 'none' | 'browser' | 'window'; // device/browser chrome around the image (product-UI framing)
+  frameLabel?: string; // the browser chrome's address/title text
   // TextBlock fields
   text?: string;
   level?: 'display' | 'body' | 'caption';
@@ -138,20 +141,43 @@ const ElementContent: React.FC<{
   }
 
   if (kind === 'image' && element.src) {
+    // Sized (not full-frame) so a screenshot frames properly; optional browser/device chrome (product UI).
+    const [iw, ih] = element.size && element.size.length === 2 ? element.size : [1600, 1000];
+    const radius = parseInt(theme.radius || '14px', 10);
+    const img = (
+      <Img src={staticFile(element.src)}
+           style={{display: 'block', width: iw, height: ih, objectFit: element.fit || 'cover'}} />
+    );
+    if (element.frame === 'browser' || element.frame === 'window') {
+      const bar = 56;
+      return (
+        <div style={{position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
+                     width: iw, borderRadius: radius, overflow: 'hidden',
+                     border: `1px solid ${theme.fg}1f`, background: theme.surface || theme.bg,
+                     boxShadow: '0 60px 160px rgba(0,0,0,0.6)'}}>
+          {/* browser/window chrome: traffic-light dots + an address/title */}
+          <div style={{height: bar, display: 'flex', alignItems: 'center', gap: 10, padding: '0 22px',
+                       background: theme.bg, borderBottom: `1px solid ${theme.fg}14`}}>
+            {['#ff5f57', '#febc2e', '#28c840'].map((c) => (
+              <div key={c} style={{width: 14, height: 14, borderRadius: 7, background: c}} />
+            ))}
+            {element.frameLabel ? (
+              <div style={{marginLeft: 18, flex: 1, height: 28, borderRadius: 8, background: `${theme.fg}0f`,
+                           color: theme.muted, fontSize: 22, display: 'flex', alignItems: 'center',
+                           padding: '0 16px', fontFamily: theme.fontBody}}>{element.frameLabel}</div>
+            ) : null}
+          </div>
+          {img}
+        </div>
+      );
+    }
+    // bare sized image (a framed float, not a full-frame bitmap)
     return (
-      <Img
-        src={staticFile(element.src)}
-        style={{
-          position: 'absolute',
-          left: '50%',
-          top: '50%',
-          width: 1920,
-          height: 1080,
-          transform: 'translate(-50%, -50%)',
-          objectFit: element.fit || 'cover',
-          boxShadow: '0 60px 160px rgba(0,0,0,0.6)',
-        }}
-      />
+      <div style={{position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
+                   width: iw, height: ih, borderRadius: radius, overflow: 'hidden',
+                   boxShadow: '0 60px 160px rgba(0,0,0,0.6)'}}>
+        {img}
+      </div>
     );
   }
 

@@ -114,6 +114,30 @@ def test_shot_props_are_json_finite(tmp_path):
     json.dumps(p, allow_nan=False)  # no NaN/Inf survived into the props
 
 
+# ── image element: sizing + device/browser frame (product-UI framing) ──────────────────────────────
+def test_image_size_and_frame_thread(tmp_path):
+    els = [{"id": "ui", "kind": "image", "src": "a.png", "position": [0, 0, 0],
+            "size": [1500, 940], "frame": "browser", "frameLabel": "app.example.com"}]
+    d = _board([{"type": "HERO", "target": "ui"}], elements=els)
+    e = rr.build_props(d, str(tmp_path))["scenes"][0]["stage"]["elements"][0]
+    assert e["size"] == [1500.0, 940.0] and e["frame"] == "browser" and e["frameLabel"] == "app.example.com"
+
+
+def test_bad_image_size_fails_loud(tmp_path):
+    els = [{"id": "ui", "kind": "image", "src": "a.png", "position": [0, 0, 0], "size": [1500]}]
+    with pytest.raises(RuntimeError, match="size"):
+        rr.build_props(_board([{"type": "HERO", "target": "ui"}], elements=els), str(tmp_path))
+
+
+def test_elements_render_browser_chrome():
+    """The image element must render a real browser chrome (traffic-light dots + address bar) when framed."""
+    import os
+    src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "remotion", "src", "stage", "elements.tsx"), encoding="utf-8").read()
+    assert "element.frame === 'browser'" in src and "frameLabel" in src
+    assert "#ff5f57" in src  # the red traffic-light dot -> a browser chrome is drawn
+
+
 # ── validate.py pre-render gate (the ~1s catch before a multi-minute render) ──────────────────────
 def _vgate(stage, shots):
     import validate as v

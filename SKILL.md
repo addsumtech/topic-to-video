@@ -197,6 +197,12 @@ TTS if the user gives an API key.
   meaningless → mark UNJUDGED, not passed). This tier is Remotion-only; the free path degrades to eased
   Ken Burns. Moves are documented as load-on-demand recipe cards in `references/shots/` (the director
   cites a card by `name`; the critic checks the render against that card's Checklist).
+  **When ADDING a component/element kind to the cinematic tier (a device frame, chart, icon, counter,
+  shape, 3D content, a Remotion/third-party package), READ `references/cinematic-components.md` FIRST** —
+  it is the adoption catalog: the hard **frame-driven** rule (a real-time-animated component renders
+  frozen in Remotion), which official `@remotion/*` packages + third-party libs to use vs the HTML-form-
+  as-plane reuse path, the need→source matrix, and the version-compat/frame-safety checklist to run
+  before `npm install`.
 - `scripts/cues.py` — pure anchor→cue-time resolver: reads per-scene `audio/NN.words.json` (edge-tts per-word timings) and resolves each `data-cue` anchor phrase to an absolute timestamp, used by `render_html` for audio-synced HTML reveals.
 - `scripts/check_av.py <out_dir>` — deterministic A/V gate: probes `out.mp4` video-vs-audio duration + per-clip sample-rate uniformity across `.clips/`; exits non-zero on A/V drift above tolerance (0.3 s) or non-uniform rates. Run AFTER the full render (step 9) as a gate before delivery.
 - `scripts/shot_qa.py <out_dir> [--mp4 M] [--threshold N] [--json]` — the **CINEMATIC-tier scored reviewer**

@@ -111,7 +111,8 @@ _MOTIONS = {"STATIC", "PUSH_IN", "PULL_OUT", "PAN_RIGHT", "PAN_LEFT", "TILT_UP",
             "ORBIT_RIGHT", "ORBIT_LEFT", "RACK_FOCUS"}
 _EASINGS = {"linear", "in", "out", "inout"}
 # element content fields passed through verbatim (strings) — geometry (position) is coerced numeric.
-_ELEM_STR = ("kind", "title", "kicker", "sub", "text", "heroText", "src", "label", "align", "level", "fit")
+_ELEM_STR = ("kind", "title", "kicker", "sub", "text", "heroText", "src", "label", "align", "level", "fit",
+             "frame", "frameLabel")  # frame = device/browser chrome around an image (product-UI framing)
 
 
 def _clean_stage(stage, tag):
@@ -142,6 +143,11 @@ def _clean_stage(stage, tag):
                 c[key] = str(el[key])
         if el.get("enterAtFrame") is not None:
             c["enterAtFrame"] = int(round(_num(el["enterAtFrame"], "%s element %r enterAtFrame" % (tag, eid))))
+        if el.get("size") is not None:                       # image [w,h] px in stage space (fail-loud numeric)
+            sz = el["size"]
+            if not (isinstance(sz, list) and len(sz) == 2):
+                raise RuntimeError("cinematic %s element %r: `size` must be [w,h]" % (tag, eid))
+            c["size"] = [_num(sz[k], "%s element %r size[%d]" % (tag, eid, k)) for k in range(2)]
         out.append(c)
     persp = stage.get("perspective")
     cleaned = {"elements": out}

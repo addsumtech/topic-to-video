@@ -39,7 +39,9 @@ Pre-built motivated moves mapped to narrative beats:
 Pre-composed content blocks placed in scene-space:
 
 - **Panel** — Floating glass card (existing, from Camera.tsx PlaneContent)
-- **Image** — Full-bleed or contained photo plane
+- **Image** — a screenshot/photo plane. `size:[w,h]` frames it (default 1600×1000, NOT full-frame, so it
+  reads as a floated panel). `frame:"browser"` wraps it in a **browser/device chrome** (traffic-light dots
+  + `frameLabel` address bar) — the standard way to show product UI in a product film. `fit:cover|contain`.
 - **TextBlock** — Typeset heading/body/caption
 - **Callout** — Animated label/annotation
 - **Grid** — Reference floor/wall
