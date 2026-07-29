@@ -10,16 +10,26 @@ const NOISE =
   "%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E" +
   "%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E\")";
 
-// Style-specific grade overlays (editorial = warm/cool split, technical = neutral contrast, minimal = subtle)
-const GRADE_OVERLAYS: Record<string, string> = {
-  editorial: 'linear-gradient(122deg, rgba(30,60,110,0.14) 0%, rgba(255,180,120,0.07) 100%)',
-  technical: 'linear-gradient(135deg, rgba(20,40,80,0.10) 0%, rgba(100,100,120,0.05) 100%)',
-  minimal: 'linear-gradient(180deg, rgba(0,0,0,0.03) 0%, rgba(0,0,0,0.01) 100%)',
+// Per-MOOD colour grade, keyed off the deck's real visual style (theme.py emits one of ~18 names).
+// Styles are grouped into grade families so every named style gets an intentional wash — not a silent
+// fallback. A cool/neutral 'technical' wash for blueprint/terminal/swiss; a warm cinematic split for
+// editorial/noir/cinematic; a saturated push for cyberpunk/vaporwave; a soft neutral for clean styles.
+const GRADE_FAMILIES: Record<string, string> = {
+  warm: 'linear-gradient(122deg, rgba(30,60,110,0.14) 0%, rgba(255,180,120,0.08) 100%)',   // cinematic warm/cool split
+  cool: 'linear-gradient(135deg, rgba(20,40,80,0.12) 0%, rgba(90,150,200,0.05) 100%)',      // technical / blueprint
+  neon: 'linear-gradient(122deg, rgba(120,40,180,0.13) 0%, rgba(40,200,220,0.09) 100%)',    // cyberpunk / vaporwave
+  soft: 'linear-gradient(180deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.02) 100%)',               // clean/minimal
+};
+const STYLE_TO_FAMILY: Record<string, keyof typeof GRADE_FAMILIES> = {
+  editorial: 'warm', noir: 'warm', cinematic: 'warm', artdeco: 'warm', watercolor: 'warm',
+  blueprint: 'cool', terminal: 'cool', cartographic: 'cool', brutalism: 'cool',
+  cyberpunk: 'neon', vaporwave: 'neon', memphis: 'neon',
+  swiss: 'soft', bauhaus: 'soft', glassmorphism: 'soft', claymorphism: 'soft', risograph: 'soft', manga: 'soft',
 };
 
 export const Finish: React.FC<{frame: number; theme: Theme}> = ({frame, theme}) => {
-  const grainAmount = parseFloat(theme.grainAmount || '0');
-  const grade = GRADE_OVERLAYS[theme.style] || GRADE_OVERLAYS.editorial;
+  const grainAmount = Math.max(0, Math.min(0.2, parseFloat(theme.grainAmount || '0') || 0));
+  const grade = GRADE_FAMILIES[STYLE_TO_FAMILY[theme.style] || 'warm'];  // unknown/empty style -> cinematic warm
   const off = (frame * 11) % 200; // deterministic grain scroll
 
   return (

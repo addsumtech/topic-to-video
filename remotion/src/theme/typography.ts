@@ -1,3 +1,4 @@
+import type {CSSProperties} from 'react';
 import {fitText, measureText} from '@remotion/layout-utils';
 import type {Theme} from './tokens';
 
@@ -66,7 +67,7 @@ export function textStyle(
   theme: Theme,
   level: TypeLevel,
   role: 'display' | 'body' | 'number' = 'body',
-): React.CSSProperties {
+): CSSProperties {
   const fontFamily = getFontFamily(theme, role);
   const fontSize = TYPE_SCALE[level];
   const lineHeight = level === 'display' ? parseFloat(theme.lhDisplay) : 1.4;

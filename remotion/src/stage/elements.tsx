@@ -5,6 +5,7 @@ import React from 'react';
 import {Img, staticFile} from 'remotion';
 import type {Theme} from '../Video';
 import {textStyle} from '../theme/typography';
+import {KineticText} from '../theme/KineticText';
 
 export type ElementKind = 'panel' | 'image' | 'textblock' | 'callout' | 'grid' | 'floor' | 'hero' | 'fill';
 
@@ -29,6 +30,8 @@ export type ElementData = {
   // Grid/floor fields (no extra config, size/opacity derived from kind)
   // Hero fields
   heroText?: string;
+  // Kinetic typography: the scene-local frame at which this element's text reveals in (default 0).
+  enterAtFrame?: number;
 };
 
 // Render an element at its stage position (inside a positioned div with translateZ).
@@ -64,6 +67,7 @@ const ElementContent: React.FC<{
   reducedMotion: boolean;
 }> = ({element, theme, frame, reducedMotion}) => {
   const {kind} = element;
+  const enter = element.enterAtFrame ?? 0; // scene-local frame this element's text reveals in
 
   if (kind === 'fill') {
     // Radial gradient background fill (large, centered on origin)
@@ -156,7 +160,7 @@ const ElementContent: React.FC<{
           textAlign: element.align || 'left',
         }}
       >
-        {element.text || ''}
+        <KineticText text={element.text || ''} frame={frame} startFrame={enter} split="line" reduced={reducedMotion} />
       </div>
     );
   }
@@ -219,7 +223,7 @@ const ElementContent: React.FC<{
             marginBottom: 20,
           }}
         >
-          {element.kicker}
+          <KineticText text={element.kicker} frame={frame} startFrame={enter} split="none" reduced={reducedMotion} />
         </div>
       ) : null}
       {element.title ? (
@@ -234,7 +238,8 @@ const ElementContent: React.FC<{
             textShadow: '0 6px 30px rgba(0,0,0,0.45)',
           }}
         >
-          {element.title}
+          {/* title reveals word-by-word after the kicker */}
+          <KineticText text={element.title} frame={frame} startFrame={enter + 4} split="word" reduced={reducedMotion} />
         </div>
       ) : null}
       {element.sub ? (
@@ -247,7 +252,8 @@ const ElementContent: React.FC<{
             marginTop: 22,
           }}
         >
-          {element.sub}
+          {/* sub follows the title */}
+          <KineticText text={element.sub} frame={frame} startFrame={enter + 12} split="word" staggerFrames={2} reduced={reducedMotion} />
         </div>
       ) : null}
     </div>

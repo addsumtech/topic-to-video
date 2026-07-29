@@ -247,6 +247,21 @@ Per cinematic beat, emit `type:"cinematic"` with:
 - **`shot_card`** — the `name` of the shot card this beat realises (the critic checks the render against
   that card's Checklist under D12). This is REQUIRED — an uncited cinematic move has no design gate.
 
+**SHOT-BASED staging — the paradigm (prefer this for a real film).** Instead of one move over flat
+`layers`, author a beat as a **SET** the camera moves THROUGH: `stage.elements` placed once in 3D space
+(each `{id, kind, position:[x,y,z], …content}`) + an ordered **`shots`** list, each shot framing an
+element (`{type, target:<id>, motion, energy, carry, duration}`). The camera cuts/glides between framings
+of the *same* set — wide → push → hero — so the eye tracks one continuous space (set `carry:true` to GLIDE
+to the next subject instead of cutting). This is what the old one-move-per-scene `layers` path structurally
+could not do. **READ `references/shots/shot-vocabulary.md`** for the shot types (ESTABLISH/MEDIUM/CLOSEUP/
+OVER_SHOULDER/REVEAL/HERO), motions (STATIC/PUSH_IN/PULL_OUT/PAN/TILT/ORBIT/RACK_FOCUS), element kinds,
+and the full schema before authoring. `duration` is in SECONDS and auto-tiles to the scene's frames
+(A/V-safe). **VARY the motion**: give each shot an `energy` (`subtle|balanced|bold`, the move amplitude —
+map it from the beat's energy so the deck builds a calm→bold arc, not a uniform push) and don't repeat one
+framing (validate warns on ≥3 identical shots). **Kinetic type is automatic** — each element's text reveals
+word-by-word as the camera arrives on it. Legacy `layers`+`camera`/`lens` still works for a single-move
+beat; use `stage`+`shots` when the beat wants multiple framings or a sense of place.
+
 **Concept → cinematic move** (cite the card):
 
 | beat job | move | card |

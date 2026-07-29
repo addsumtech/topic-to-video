@@ -1,28 +1,28 @@
 import React from 'react';
-import {AbsoluteFill, Series} from 'remotion';
+import {AbsoluteFill} from 'remotion';
+import {TransitionSeries, linearTiming} from '@remotion/transitions';
+import {fade} from '@remotion/transitions/fade';
+import {slide} from '@remotion/transitions/slide';
+import {wipe} from '@remotion/transitions/wipe';
 import {Scene, SceneData} from './Scene';
+import type {Theme} from './theme/tokens';
 
-// Extended theme tokens (matches theme/tokens.ts)
-export type Theme = {
-  bg: string;
-  surface: string;
-  fg: string;
-  muted: string;
-  accent: string;
-  accent2: string;
-  scrim: string;
-  onAccent: string;
-  onAccent2: string;
-  fontDisplay: string;
-  fontBody: string;
-  fontNumber: string;
-  fontKind: 'sans' | 'serif';
-  style: string;
-  radius: string;
-  grainAmount: string;
-  trackScale: string;
-  lhDisplay: string;
-};
+// Single authoritative Theme lives in theme/tokens.ts; re-exported here so the many modules that
+// `import {Theme} from './Video'` and those that import from './theme/tokens' share ONE type.
+export type {Theme};
+
+// Seam-look KEY (from render_remotion._TRANSITION_STYLE) -> a @remotion/transitions presentation.
+// fade = cross-dissolve (opacity only, reduced-motion-safe); slide/wipe are directional page moves.
+// Under reduced motion every seam collapses to fade (no travel).
+function presentationFor(style: string | undefined, reduced: boolean) {
+  if (reduced) return fade();
+  switch (style) {
+    case 'slide': return slide({direction: 'from-right'});
+    case 'slide-up': return slide({direction: 'from-bottom'});
+    case 'wipe': return wipe();
+    default: return fade(); // 'fade' + 'blur' (blur shader is out of P3 scope) + unknown
+  }
+}
 
 export type VideoProps = {
   width: number;
@@ -61,12 +61,14 @@ export const defaultProps: VideoProps = {
   scenes: [],
 };
 
-// duration + canvas come from the storyboard (summed real per-scene durations).
+// Total duration = sum of scene durations MINUS the transition overlaps (a transition makes the next
+// scene start early, shortening the whole). Must match render_remotion's overlap math or A/V drifts.
 export const calcMeta = ({props}: {props: VideoProps}) => {
   const fps = props.fps || 30;
-  const total = props.scenes.reduce((a, s) => a + Math.max(1, s.durationInFrames || 1), 0) || fps;
+  const sum = props.scenes.reduce((a, s) => a + Math.max(1, s.durationInFrames || 1), 0);
+  const overlaps = props.scenes.reduce((a, s) => a + (s.transitionToNext?.durationInFrames || 0), 0);
   return {
-    durationInFrames: total,
+    durationInFrames: Math.max(1, sum - overlaps) || fps,
     fps,
     width: props.width || 1920,
     height: props.height || 1080,
@@ -74,15 +76,30 @@ export const calcMeta = ({props}: {props: VideoProps}) => {
 };
 
 export const Video: React.FC<VideoProps> = ({theme, scenes, captionFontPx}) => {
+  // Interleave scene Sequences with cross-scene Transitions. A seam only gets a Transition when
+  // build_props set transitionToNext (a marked seam that rides the audio-breath silence); otherwise the
+  // scenes simply cut. The overlap length is frame-exact (linearTiming) so it matches calcMeta + the srt.
+  const children: React.ReactNode[] = [];
+  scenes.forEach((s, i) => {
+    children.push(
+      <TransitionSeries.Sequence key={`s${s.index}`} durationInFrames={Math.max(1, s.durationInFrames || 1)}>
+        <Scene scene={s} theme={theme} captionFontPx={captionFontPx} />
+      </TransitionSeries.Sequence>,
+    );
+    const t = s.transitionToNext;
+    if (t && i < scenes.length - 1) {
+      children.push(
+        <TransitionSeries.Transition
+          key={`t${s.index}`}
+          timing={linearTiming({durationInFrames: Math.max(1, t.durationInFrames || 1)})}
+          presentation={presentationFor(t.style, !!s.reducedMotion)}
+        />,
+      );
+    }
+  });
   return (
     <AbsoluteFill style={{backgroundColor: theme.bg}}>
-      <Series>
-        {scenes.map((s) => (
-          <Series.Sequence key={s.index} durationInFrames={Math.max(1, s.durationInFrames || 1)}>
-            <Scene scene={s} theme={theme} captionFontPx={captionFontPx} />
-          </Series.Sequence>
-        ))}
-      </Series>
+      <TransitionSeries>{children}</TransitionSeries>
     </AbsoluteFill>
   );
 };

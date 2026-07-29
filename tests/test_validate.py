@@ -1701,14 +1701,16 @@ def test_cinematic_nonfinite_is_an_error_not_a_warning():
 
 def test_remotion_tier_warns_on_silently_dropped_looks():
     import validate as _v
+    # 'blur' is the one seam LOOK the Remotion tier can't yet deliver exactly (P3 renders fade/slide/wipe;
+    # blur falls back to a cross-dissolve) — so it still warns; wipe/push/lift now render for real.
     data = {"meta": {"fps": 30, "renderer": "remotion", "aspect": "9:16", "caption_mode": "band",
-                     "transition_style": "wipe", "captions_karaoke": "auto"},
+                     "transition_style": "blur", "captions_karaoke": "auto"},
             "slides": [{"index": 1, "type": "cinematic", "narration": "x", "duration": 6.0, "audio": "a.mp3",
                         "layers": [{"kind": "panel", "z": 100}], "lens": [{"atFrame": 0}],
                         "callouts": [{"box": [0, 0, 1, 1], "style": "box"}]}]}
     w = _v.evaluate(data, "/tmp")["warnings"]
     assert any("caption_mode:'band'" in x for x in w)
-    assert any("transition_style:'wipe'" in x for x in w)
+    assert any("transition_style:'blur'" in x for x in w)
     assert any("karaoke" in x for x in w)
     assert any("callouts" in x and "cinematic path does not render" in x for x in w)
     assert any("landscape-tuned" in x for x in w)

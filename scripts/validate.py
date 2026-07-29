@@ -391,6 +391,59 @@ def _figure_traceability(slides, out_dir, warnings):
 
 _CINE_KINDS = {"fill", "grid", "floor", "hero", "panel", "image"}
 _CINE_EASINGS = {"linear", "in", "out", "inout"}
+_SHOT_TYPES = {"ESTABLISH", "MEDIUM", "CLOSEUP", "OVER_SHOULDER", "REVEAL", "HERO"}
+_SHOT_MOTIONS = {"STATIC", "PUSH_IN", "PULL_OUT", "PAN_RIGHT", "PAN_LEFT", "TILT_UP", "TILT_DOWN",
+                 "ORBIT_RIGHT", "ORBIT_LEFT", "RACK_FOCUS"}
+
+
+def _shot_stage_fields(stage, shots, tag, errors, warnings):
+    """P2 SHOT-BASED pre-render gate: a scene-space SET (stage.elements placed once) + an ordered LIST
+    of shots. Mirrors render_remotion._clean_stage/_clean_shots so the ~1s validate pass catches the
+    faults that would otherwise only fail at render: an empty/malformed stage, a NaN position, a shot
+    with an unknown type/motion, or a shot targeting an element id that isn't on the stage. Structural
+    only — the framings themselves are judged from the rendered filmstrip (design-critic D12)."""
+    ids = set()
+    if not isinstance(stage, dict) or not isinstance(stage.get("elements"), list) or not stage["elements"]:
+        errors.append(f"{tag}: shot-based `stage.elements` must be a non-empty list")
+    else:
+        for j, el in enumerate(stage["elements"]):
+            if not isinstance(el, dict):
+                errors.append(f"{tag}: stage element {j} must be an object"); continue
+            eid = el.get("id")
+            if not isinstance(eid, str) or not eid:
+                errors.append(f"{tag}: stage element {j} needs a non-empty string `id`")
+            elif eid in ids:
+                errors.append(f"{tag}: duplicate stage element id {eid!r}")
+            else:
+                ids.add(eid)
+            pos = el.get("position")
+            if not (isinstance(pos, list) and len(pos) == 3 and all(isinstance(v, (int, float)) for v in pos)):
+                errors.append(f"{tag}: stage element {eid!r} `position` must be [x,y,z] numbers")
+            elif any(isinstance(v, float) and not math.isfinite(v) for v in pos):
+                errors.append(f"{tag}: stage element {eid!r} position has a NaN/Infinity — not renderable")
+    if not isinstance(shots, list) or not shots:
+        errors.append(f"{tag}: shot-based `shots` must be a non-empty list"); return
+    for j, sh in enumerate(shots):
+        if not isinstance(sh, dict):
+            errors.append(f"{tag}: shot {j} must be an object"); continue
+        st = str(sh.get("type", "MEDIUM")).upper()
+        if st not in _SHOT_TYPES:
+            errors.append(f"{tag}: shot {j} unknown type {st!r} (known: {sorted(_SHOT_TYPES)})")
+        mo = str(sh.get("motion", "STATIC")).upper().replace("-", "_").replace(" ", "_")
+        if mo not in _SHOT_MOTIONS:
+            errors.append(f"{tag}: shot {j} unknown motion {mo!r}")
+        tgt = sh.get("target")
+        if tgt is not None and ids and str(tgt) not in ids:
+            errors.append(f"{tag}: shot {j} target {tgt!r} is not a staged element id")
+    # MOVE-DIVERSITY (P4, analog of contest_diversity): >=3 shots that are ALL the same framing+motion
+    # read as a template, not a film — the shots should reframe (different subject/scale/angle/move).
+    moves = [(str(sh.get("type", "MEDIUM")).upper(),
+              str(sh.get("motion", "STATIC")).upper().replace("-", "_").replace(" ", "_"))
+             for sh in shots if isinstance(sh, dict)]
+    if len(moves) >= 3 and len(set(moves)) == 1:
+        warnings.append(f"{tag}: all {len(moves)} shots use the same framing+motion {moves[0]} — vary the "
+                        f"shot type / motion / target so the camera reframes (D12g; three identical shots "
+                        f"is the cinematic form of a template)")
 
 
 def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
@@ -402,6 +455,10 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
     cam = s.get("camera") or (s.get("props") or {}).get("camera")
     lens = s.get("lens") or (s.get("props") or {}).get("lens")
     layers = s.get("layers") or (s.get("props") or {}).get("layers")
+    stage = s.get("stage") or (s.get("props") or {}).get("stage")
+    shots = s.get("shots") or (s.get("props") or {}).get("shots")
+    if stage and shots:
+        _shot_stage_fields(stage, shots, tag, errors, warnings)   # P2 shot-based pre-render gate
     if not cam and not lens and not layers:
         return
     fps = int((meta or {}).get("fps", 30) or 30)
@@ -924,9 +981,10 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
             warnings.append("renderer=remotion ignores meta.caption_mode:'band' — captions render as a "
                             "bottom overlay (no dedicated strip); keep content clear of the lower ~15%")
         _ts = meta.get("transition_style")
-        if _ts and _ts != "dip":
-            warnings.append(f"renderer=remotion ignores meta.transition_style:'{_ts}' — only scene-edge "
-                            f"dips are delivered (no push/wipe/lift/blur); the authored seam LOOK is dropped")
+        if _ts == "blur":
+            warnings.append("renderer=remotion: transition_style:'blur' (rack-defocus) is not yet a Remotion "
+                            "presentation — it renders as a cross-dissolve (fade). Use dip/push/lift/wipe for "
+                            "an exact seam, or the blur coda on the local tier.")
         if meta.get("captions_karaoke") not in (None, "off", False):
             warnings.append("renderer=remotion has no karaoke caption highlight — captions render plain; "
                             "meta.captions_karaoke is ignored on this tier")

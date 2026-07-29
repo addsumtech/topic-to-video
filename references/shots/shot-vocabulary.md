@@ -54,36 +54,57 @@ Pre-composed content blocks placed in scene-space:
 
 ## Data Schema (storyboard.json extension)
 
+A cinematic scene is a **SET** (`stage.elements`, placed ONCE) plus an ordered **LIST of shots** the
+camera moves between over that set. This is the paradigm — NOT one move per scene. Author `stage` +
+`shots` at the scene top-level (or under `props`).
+
 ```json
 {
-  "props": {
-    "stage": {
-      "elements": [
-        {
-          "id": "title-card",
-          "kind": "panel",
-          "position": [0, 0, -500],
-          "title": "Shot-Based Design",
-          "kicker": "REMOTION",
-          "align": "center"
-        },
-        {
-          "id": "bg-grid",
-          "kind": "grid",
-          "position": [0, -400, -800]
-        }
-      ]
-    },
-    "shot": {
-      "type": "MEDIUM",
-      "motion": "PUSH_IN",
-      "target": "title-card",
-      "duration": 90,
-      "easing": "out"
-    }
-  }
+  "type": "cinematic",
+  "duration": 12.0,
+  "stage": {
+    "perspective": 1300,
+    "elements": [
+      {"id": "grid",    "kind": "grid",  "position": [0, 0, -1200]},
+      {"id": "gateway", "kind": "panel", "position": [-120, -30, 120],
+       "kicker": "MEET SLIDE-MAKER", "title": "A team of agents", "sub": "It reads your real work."},
+      {"id": "db",      "kind": "hero",  "position": [1180, 0, -360], "heroText": "EDITABLE"}
+    ]
+  },
+  "shots": [
+    {"type": "ESTABLISH", "duration": 4.0, "target": "grid",    "motion": "STATIC"},
+    {"type": "MEDIUM",    "duration": 4.0, "target": "gateway", "motion": "PUSH_IN", "carry": true},
+    {"type": "HERO",      "duration": 4.0, "target": "db",      "motion": "PUSH_IN"}
+  ]
 }
 ```
+
+**Shot fields:** `type` (framing) · `target` (a staged element `id` — the shot moves to frame it) or
+`targetPos` `[x,y,z]` · `motion` (pattern) · `easing` · `energy` (`subtle|balanced|bold` — motion
+AMPLITUDE: a bold beat pushes harder, a subtle one drifts) · `duration` (SECONDS; optional — see tiling) ·
+`carry` · `lens` (manual keyframe override, advanced).
+
+**Kinetic typography (automatic).** Each element's text (kicker → title → sub, or a textblock's lines)
+reveals unit-by-unit with a restrained spring settle, timed to the moment the camera FIRST frames that
+element (the start of the shot that targets it) — so text animates in on arrival, not while it's a speck
+in the wide establish. Set `enterAtFrame` on an element to override the reveal timing. Frozen under
+reduced motion.
+
+**Move diversity (gate).** `validate.py` warns when ≥3 shots share the same framing+motion — the shots
+should reframe (different subject/scale/angle/move); three identical shots is a template, not a film (D12g).
+
+**Motion blur — RESERVED (not built).** `@remotion/motion-blur` composites its samples with an
+opacity/blend `filter` on an ancestor, which silently FLATTENS the CSS-3D rig (the same footgun the whole
+tier guards against). Real per-sample motion blur therefore waits for the R3F/`@remotion/three` hero tier
+where 3D motion blur is native. Keep fast moves eased + amplitude-controlled instead.
+
+**`carry` = continuity.** A `carry` shot GLIDES from the previous shot's end pose to this shot's framing
+(a continuous move to the new subject — the eye tracks one space across the cut). A non-`carry` shot CUTS
+to its framing. This is the thing the old one-move-per-scene model could not express.
+
+**Frame-window auto-tiling (A/V-safe).** `duration` is in seconds; `render_remotion._clean_shots` converts
+each to frames and scales them so the shots tile the scene's total frames EXACTLY — so authored shot
+durations can never desync the narration/captions. Omit `duration` on some/all shots to split evenly.
 
 ## Camera Targeting
 
@@ -94,17 +115,18 @@ Camera can target:
 
 ## Backward Compatibility
 
-Legacy scenes with `camera`/`lens`/`layers` continue to work via Camera.tsx (unchanged). New shot-based scenes use `stage`+`shot` and dispatch to SceneStage.tsx. No scene is forced to migrate.
+Legacy scenes with `camera`/`lens`/`layers` continue to work via Camera.tsx (unchanged). New shot-based scenes use `stage`+`shots` (list) and dispatch to SceneStage.tsx. A legacy singular `shot` object is still accepted (wrapped into a one-shot list). No scene is forced to migrate.
 
 ## P2 Implementation Scope
 
-- `remotion/src/stage/SceneStage.tsx` — shot interpreter + element renderer
-- `remotion/src/stage/shots.ts` — shot type → camera position calculator
+- `remotion/src/stage/SceneStage.tsx` — the SET renderer (perspective rig + elements + Finish)
+- `remotion/src/stage/camera.ts` — shots LIST → continuous pose timeline (carry continuity)
+- `remotion/src/stage/shots.ts` — shot type → target framing (camera position calculator)
 - `remotion/src/stage/motions.ts` — motion pattern → lens keyframe generator
 - `remotion/src/stage/elements.tsx` — element primitive components
-- `scripts/render_remotion.py` — detect `stage`+`shot` and dispatch to SceneStage
-- `scripts/validate.py` — validate shot schema in `_cinematic_fields`
-- `tests/test_remotion_shots.py` — shot registry + motion generation tests
+- `scripts/render_remotion.py` — `_clean_stage`/`_clean_shots` (fail-loud + frame-window tiling) + dispatch
+- `scripts/validate.py` — `_shot_stage_fields` pre-render gate (in `_cinematic_fields`)
+- `tests/test_remotion_shots.py` — schema tiling, fail-loud, back-compat, validate-gate tests
 
 ## Design Principles (from guide + huashu-design)
 

@@ -23,9 +23,11 @@ export function generateMotion(
   startFrame: LensKeyframe,
   durationFrames: number,
   easing: string = 'out',
+  amp: number = 1, // energy amplitude: a bold beat pushes harder, a subtle one drifts (P4)
 ): LensKeyframe[] {
   const start = {...startFrame, atFrame: 0, easing: undefined}; // force frame 0, no easing
   const end = {...startFrame, atFrame: durationFrames, easing}; // end state with easing
+  const A = Math.max(0, amp);
 
   switch (pattern) {
     case 'STATIC': {
@@ -35,55 +37,51 @@ export function generateMotion(
 
     case 'PUSH_IN': {
       // Dolly forward: increase dolly (push world toward camera)
-      const delta = 150; // move 150px forward
-      end.dolly = (start.dolly || 0) + delta;
-      end.zoom = (start.zoom || 1.0) * 1.08; // subtle zoom boost
+      end.dolly = (start.dolly || 0) + 150 * A;
+      end.zoom = (start.zoom || 1.0) * (1 + 0.08 * A); // subtle zoom boost, scaled by energy
       return [start, end];
     }
 
     case 'PULL_OUT': {
       // Dolly backward: decrease dolly
-      const delta = -180;
-      end.dolly = (start.dolly || 0) + delta;
-      end.zoom = (start.zoom || 1.0) * 0.92; // subtle zoom reduction
+      end.dolly = (start.dolly || 0) - 180 * A;
+      end.zoom = (start.zoom || 1.0) * (1 - 0.08 * A); // subtle zoom reduction
       return [start, end];
     }
 
     case 'PAN_RIGHT': {
-      // Horizontal yaw right
-      end.yaw = (start.yaw || 0) + 12;
+      end.yaw = (start.yaw || 0) + 12 * A;
       return [start, end];
     }
 
     case 'PAN_LEFT': {
-      // Horizontal yaw left
-      end.yaw = (start.yaw || 0) - 12;
+      end.yaw = (start.yaw || 0) - 12 * A;
       return [start, end];
     }
 
     case 'TILT_UP': {
       // Vertical pitch up (look down / bird's-eye)
-      end.pitch = (start.pitch || 0) + 8;
+      end.pitch = (start.pitch || 0) + 8 * A;
       return [start, end];
     }
 
     case 'TILT_DOWN': {
       // Vertical pitch down (look up / worm's-eye)
-      end.pitch = (start.pitch || 0) - 8;
+      end.pitch = (start.pitch || 0) - 8 * A;
       return [start, end];
     }
 
     case 'ORBIT_RIGHT': {
       // Arc around subject: yaw + dolly adjustment to maintain distance
-      end.yaw = (start.yaw || 0) + 15;
-      end.dolly = (start.dolly || 0) + 50; // slight push to compensate arc
+      end.yaw = (start.yaw || 0) + 15 * A;
+      end.dolly = (start.dolly || 0) + 50 * A; // slight push to compensate arc
       return [start, end];
     }
 
     case 'ORBIT_LEFT': {
       // Arc around subject (counter)
-      end.yaw = (start.yaw || 0) - 15;
-      end.dolly = (start.dolly || 0) + 50;
+      end.yaw = (start.yaw || 0) - 15 * A;
+      end.dolly = (start.dolly || 0) + 50 * A;
       return [start, end];
     }
 

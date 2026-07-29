@@ -12,8 +12,8 @@ export type Theme = {
   fontDisplay: string; // CSS font stack
   fontBody: string;
   fontNumber: string;
-  fontKind: 'sans' | 'serif'; // derived from font family
-  style: string; // 'editorial' | 'technical' | 'minimal' | ''
+  fontKind: 'sans' | 'serif' | 'mono' | 'comic'; // the four bundled faces theme.py maps --font-kind to
+  style: string; // one of ~18 visual-styles.md names, or '' (unstyled)
   radius: string; // e.g. '6px'
   grainAmount: string; // 0–1 float as string
   trackScale: string; // letter-spacing multiplier

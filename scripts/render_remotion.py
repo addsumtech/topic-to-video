@@ -53,9 +53,19 @@ def _scene_stage(s):
     return s.get("stage") or (s.get("props") or {}).get("stage")
 
 
-def _scene_shot(s):
-    """The shot specification for a scene (top-level or in props), or None."""
-    return s.get("shot") or (s.get("props") or {}).get("shot")
+def _scene_shots(s):
+    """The ordered SHOT list for a scene (top-level or in props), or None. Accepts `shots` (a list, the
+    paradigm) OR a legacy singular `shot` object, which is wrapped into a one-shot list for compat."""
+    sh = s.get("shots") or (s.get("props") or {}).get("shots")
+    if sh is not None:
+        return sh
+    one = s.get("shot") or (s.get("props") or {}).get("shot")
+    return [one] if isinstance(one, dict) else None
+
+
+def _scene_planes(s):
+    """The TRUE-3D (P6) content planes for a scene (top-level or in props), or None."""
+    return s.get("planes") or (s.get("props") or {}).get("planes")
 
 
 def _num(v, ctx, default=0.0):
@@ -94,16 +104,179 @@ def _clean_layers(layers, tag):
     return out
 
 
+# ── SHOT-BASED staging (P2): a scene is a SET (elements placed once in a 3D world) + an ordered LIST of
+# SHOTS the camera moves between over that set. This is the shot paradigm — NOT one-move-per-scene. ──
+_SHOT_TYPES = {"ESTABLISH", "MEDIUM", "CLOSEUP", "OVER_SHOULDER", "REVEAL", "HERO"}
+_MOTIONS = {"STATIC", "PUSH_IN", "PULL_OUT", "PAN_RIGHT", "PAN_LEFT", "TILT_UP", "TILT_DOWN",
+            "ORBIT_RIGHT", "ORBIT_LEFT", "RACK_FOCUS"}
+_EASINGS = {"linear", "in", "out", "inout"}
+# element content fields passed through verbatim (strings) — geometry (position) is coerced numeric.
+_ELEM_STR = ("kind", "title", "kicker", "sub", "text", "heroText", "src", "label", "align", "level", "fit")
+
+
+def _clean_stage(stage, tag):
+    """Validate + coerce a scene's stage (the SET). Elements are a non-empty list; each needs a unique
+    string `id`, a `kind`, and a finite [x,y,z] `position`. Content strings pass through; geometry is
+    fail-loud numeric. Raises on any malformed shape so nothing garbage reaches SceneStage."""
+    if not isinstance(stage, dict):
+        raise RuntimeError("cinematic %s: `stage` must be an object, got %s" % (tag, type(stage).__name__))
+    elems = stage.get("elements")
+    if not isinstance(elems, list) or not elems:
+        raise RuntimeError("cinematic %s: `stage.elements` must be a non-empty list" % tag)
+    seen, out = set(), []
+    for j, el in enumerate(elems):
+        if not isinstance(el, dict):
+            raise RuntimeError("cinematic %s element %d: must be an object" % (tag, j))
+        eid = el.get("id")
+        if not isinstance(eid, str) or not eid:
+            raise RuntimeError("cinematic %s element %d: needs a non-empty string `id`" % (tag, j))
+        if eid in seen:
+            raise RuntimeError("cinematic %s: duplicate element id %r" % (tag, eid))
+        seen.add(eid)
+        pos = el.get("position")
+        if not (isinstance(pos, list) and len(pos) == 3):
+            raise RuntimeError("cinematic %s element %r: `position` must be [x,y,z]" % (tag, eid))
+        c = {"id": eid, "position": [_num(pos[k], "%s element %r position[%d]" % (tag, eid, k)) for k in range(3)]}
+        for key in _ELEM_STR:
+            if el.get(key) is not None:
+                c[key] = str(el[key])
+        if el.get("enterAtFrame") is not None:
+            c["enterAtFrame"] = int(round(_num(el["enterAtFrame"], "%s element %r enterAtFrame" % (tag, eid))))
+        out.append(c)
+    persp = stage.get("perspective")
+    cleaned = {"elements": out}
+    if persp is not None:
+        cleaned["perspective"] = _num(persp, "%s stage.perspective" % tag)
+    return cleaned
+
+
+def _clean_shots(shots, frames, fps, elem_ids, tag):
+    """Validate + coerce the ordered SHOT list and assign each shot an integer frame window that sums
+    EXACTLY to the scene's `frames` (so audio/caption sync is never broken by authored shot durations).
+    Each shot: a framing `type`, a `target` element (or targetPos/manual lens), a `motion` pattern, an
+    `easing`, and a `carry` continuity flag. Raises on a bad shape or a target that isn't a staged id."""
+    if not isinstance(shots, list) or not shots:
+        raise RuntimeError("cinematic %s: `shots` must be a non-empty list" % tag)
+    cleaned, raws = [], []
+    for j, sh in enumerate(shots):
+        if not isinstance(sh, dict):
+            raise RuntimeError("cinematic %s shot %d: must be an object" % (tag, j))
+        st = str(sh.get("type", "MEDIUM")).upper()
+        if st not in _SHOT_TYPES:
+            raise RuntimeError("cinematic %s shot %d: unknown type %r (known: %s)" % (tag, j, st, sorted(_SHOT_TYPES)))
+        c = {"type": st, "motion": str(sh.get("motion", "STATIC")).upper().replace("-", "_").replace(" ", "_"),
+             "easing": str(sh.get("easing", "inout")), "carry": bool(sh.get("carry"))}
+        if c["motion"] not in _MOTIONS:
+            raise RuntimeError("cinematic %s shot %d: unknown motion %r" % (tag, j, c["motion"]))
+        en = str(sh.get("energy", "balanced")).lower()
+        if en not in ("subtle", "balanced", "bold"):
+            raise RuntimeError("cinematic %s shot %d: energy must be subtle|balanced|bold, got %r" % (tag, j, en))
+        c["energy"] = en
+        tgt = sh.get("target")
+        if tgt is not None:
+            if str(tgt) not in elem_ids:
+                raise RuntimeError("cinematic %s shot %d: target %r is not a staged element id" % (tag, j, tgt))
+            c["target"] = str(tgt)
+        if sh.get("targetPos") is not None:
+            tp = sh["targetPos"]
+            if not (isinstance(tp, list) and len(tp) == 3):
+                raise RuntimeError("cinematic %s shot %d: `targetPos` must be [x,y,z]" % (tag, j))
+            c["targetPos"] = [_num(tp[k], "%s shot %d targetPos[%d]" % (tag, j, k)) for k in range(3)]
+        if sh.get("lens") is not None:                       # manual keyframe override (advanced)
+            if not isinstance(sh["lens"], list):
+                raise RuntimeError("cinematic %s shot %d: `lens` must be a list" % (tag, j))
+            c["lens"] = [{"atFrame": int(round(_num(k.get("atFrame", 0), "%s shot %d lens.atFrame" % (tag, j)))),
+                          "dolly": _num(k.get("dolly", 0.0), "%s shot %d lens.dolly" % (tag, j)),
+                          "pitch": _num(k.get("pitch", 0.0), "%s shot %d lens.pitch" % (tag, j)),
+                          "yaw": _num(k.get("yaw", 0.0), "%s shot %d lens.yaw" % (tag, j)),
+                          "roll": _num(k.get("roll", 0.0), "%s shot %d lens.roll" % (tag, j)),
+                          "zoom": _num(k.get("zoom", 1.0), "%s shot %d lens.zoom" % (tag, j), 1.0),
+                          "easing": str(k.get("easing", "inout")),
+                          **({"focusZ": _num(k["focusZ"], "%s shot %d lens.focusZ" % (tag, j))} if k.get("focusZ") is not None else {})}
+                         for k in sh["lens"] if isinstance(k, dict)]
+        d = sh.get("duration")
+        raws.append(max(1, int(round(_num(d, "%s shot %d duration" % (tag, j)) * fps))) if d is not None else None)
+        cleaned.append(c)
+    # Assign frame windows that sum EXACTLY to the scene's frames (protects A/V sync).
+    n_none = raws.count(None)
+    if n_none:
+        fixed = sum(r for r in raws if r is not None)
+        each = max(1, (frames - fixed) // n_none)
+        raws = [each if r is None else r for r in raws]
+    tot = sum(raws) or 1
+    scaled = [max(1, int(round(r * frames / tot))) for r in raws]
+    scaled[-1] = max(1, scaled[-1] + (frames - sum(scaled)))   # absorb rounding drift in the last shot
+    acc = 0
+    for c, dv in zip(cleaned, scaled):
+        c["startFrame"], c["durationFrames"] = acc, dv
+        acc += dv
+    return cleaned
+
+
+# ── TRUE-3D hero tier (P6): WebGL planes + an orbit/crane camera (ThreeScene / @remotion/three). ──
+def _clean_planes(planes, tag):
+    """Validate + coerce the 3D content planes. Each needs a finite [x,y,z] `position`; `rotation` (3),
+    `size` (2) and `color` are optional. Fail-loud so no NaN/garbage reaches the WebGL scene."""
+    if not isinstance(planes, list) or not planes:
+        raise RuntimeError("cinematic3d %s: `planes` must be a non-empty list" % tag)
+    out = []
+    for j, p in enumerate(planes):
+        if not isinstance(p, dict):
+            raise RuntimeError("cinematic3d %s plane %d: must be an object" % (tag, j))
+        pos = p.get("position")
+        if not (isinstance(pos, list) and len(pos) == 3):
+            raise RuntimeError("cinematic3d %s plane %d: `position` must be [x,y,z]" % (tag, j))
+        c = {"position": [_num(pos[k], "%s plane %d position[%d]" % (tag, j, k)) for k in range(3)]}
+        if p.get("rotation") is not None:
+            r = p["rotation"]
+            if not (isinstance(r, list) and len(r) == 3):
+                raise RuntimeError("cinematic3d %s plane %d: `rotation` must be [x,y,z]" % (tag, j))
+            c["rotation"] = [_num(r[k], "%s plane %d rotation[%d]" % (tag, j, k)) for k in range(3)]
+        if p.get("size") is not None:
+            sz = p["size"]
+            if not (isinstance(sz, list) and len(sz) == 2):
+                raise RuntimeError("cinematic3d %s plane %d: `size` must be [w,h]" % (tag, j))
+            c["size"] = [_num(sz[k], "%s plane %d size[%d]" % (tag, j, k)) for k in range(2)]
+        if p.get("color") is not None:
+            c["color"] = str(p["color"])
+        out.append(c)
+    return out
+
+
+def _clean_camera3d(cam, frames, tag):
+    """Coerce the orbit/crane camera keyframes. `at` is a 0..1 fraction of the scene -> atFrame. Each
+    keyframe: yaw (radians), pitch, radius, height, easing. A missing camera -> a gentle default crane."""
+    if cam is None:
+        return [{"atFrame": 0, "yaw": -0.6, "pitch": 0.0, "radius": 7.0, "height": 6.0, "easing": "inout"},
+                {"atFrame": frames, "yaw": 0.4, "pitch": 0.0, "radius": 7.0, "height": 2.6, "easing": "inout"}]
+    if not isinstance(cam, list) or not cam:
+        raise RuntimeError("cinematic3d %s: `camera3d` must be a non-empty list" % tag)
+    out = []
+    for j, k in enumerate(cam):
+        if not isinstance(k, dict):
+            raise RuntimeError("cinematic3d %s camera3d %d: must be an object" % (tag, j))
+        at = k.get("atFrame")
+        if at is None:
+            at = int(round(_num(k.get("at", 0.0), "%s camera3d %d at" % (tag, j)) * frames))
+        out.append({"atFrame": int(at),
+                    "yaw": _num(k.get("yaw", 0.0), "%s camera3d %d yaw" % (tag, j)),
+                    "pitch": _num(k.get("pitch", 0.0), "%s camera3d %d pitch" % (tag, j)),
+                    "radius": _num(k.get("radius", 7.0), "%s camera3d %d radius" % (tag, j), 7.0),
+                    "height": _num(k.get("height", 4.0), "%s camera3d %d height" % (tag, j), 4.0),
+                    "easing": str(k.get("easing", "inout"))})
+    return out
+
+
 def unsupported_scenes(data):
     """Scene indices whose visual would render BLANK on the cinematic tier (non-image html/chart/…).
 
-    A scene carrying cinematic `layers` OR `stage`+`shot` (shot-based compositing) is renderable even
-    with no `image`, so it is NOT unsupported — those paths draw the content."""
+    A scene carrying cinematic `layers` OR a `stage`+`shots` set (shot-based compositing) is renderable
+    even with no `image`, so it is NOT unsupported — those paths draw the content."""
     bad = []
     for s in data.get("slides", []):
         t = s.get("type", "slide")
-        # Shot-based or legacy layered scenes are OK (they render via SceneStage/CinematicScene)
-        if _scene_stage(s) or _scene_layers(s):
+        # Shot-based (stage+shots), true-3D (planes), or legacy layered scenes are OK (they draw content)
+        if (_scene_stage(s) and _scene_shots(s)) or _scene_planes(s) or _scene_layers(s):
             continue
         image = s.get("image") or (s.get("props") or {}).get("image")
         if not image and not _scene_layers(s) and t not in _IMAGE_OK_TYPES:
@@ -135,17 +308,25 @@ def _theme(out_dir):
     return t
 
 
+_SKILL_FONTS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "fonts")
+
+
 def _copy_fonts(out_dir):
-    """Copy bundled fonts from assets/fonts/*.ttf to out_dir/.fonts/ for @remotion/fonts staticFile() to load.
-    Best-effort: silently no-ops if assets/fonts/ is missing (colour-only deck, no custom fonts)."""
-    src_fonts = os.path.join(out_dir, "assets", "fonts")
-    if not os.path.isdir(src_fonts):
-        return
+    """Copy the bundled variable fonts from the SKILL's assets/fonts/*.ttf into out_dir/.fonts/ so
+    @remotion/fonts `loadFont(staticFile('.fonts/<file>'))` can load the same faces the HTML tier uses
+    (one type world). Source is the skill dir — NOT out_dir/assets (an out_dir has no assets/fonts; the
+    HTML tier links its CSS by absolute file:// path). Returns the sorted list of copied basenames.
+    Best-effort: no-ops if the skill's fonts dir is somehow missing."""
+    if not os.path.isdir(_SKILL_FONTS):
+        return []
     dst_fonts = os.path.join(out_dir, ".fonts")
     os.makedirs(dst_fonts, exist_ok=True)
-    for name in os.listdir(src_fonts):
+    copied = []
+    for name in sorted(os.listdir(_SKILL_FONTS)):
         if name.lower().endswith(".ttf"):
-            shutil.copy2(os.path.join(src_fonts, name), os.path.join(dst_fonts, name))
+            shutil.copy2(os.path.join(_SKILL_FONTS, name), os.path.join(dst_fonts, name))
+            copied.append(name)
+    return copied
 
 
 def _edges(slide, meta, fps):
@@ -160,6 +341,44 @@ def _edges(slide, meta, fps):
     fi = f if tr in ("dip", "in") else 0
     fo = f if tr in ("dip", "out") else 0
     return fi, fo
+
+
+# The deck's seam LOOK (meta.transition_style) -> a @remotion/transitions presentation KEY. The TS side
+# (Video.tsx) maps the key to the actual presentation, so the vocabulary lives in one place. A per-scene
+# `transition_style` overrides the deck default for that seam.
+_TRANSITION_STYLE = {
+    "dip": "fade", "fadethrough": "fade", "none": "fade",   # cross-dissolve (the smooth default)
+    "push": "slide", "drift": "slide", "lift": "slide-up",   # directional page moves
+    "wipe": "wipe", "blur": "blur",                          # sheet wipe / rack-defocus coda
+}
+
+
+def _transitions(scenes, meta, fps):
+    """CROSS-SCENE transitions (P3): turn each seam that the storyboard marks (a scene's out-edge OR the
+    next scene's in-edge) into a real cross-scene transition the TS TransitionSeries renders, instead of
+    two within-clip dips-to-bg. Sets `transitionToNext` on each scene (or None) and ZEROES the two
+    within-clip fades at a transitioned seam so the seam isn't faded twice.
+
+    A/V SAFETY: the transition OVERLAPS the two scenes, so it must ride the trailing-breath SILENCE
+    (tts pads meta.audio_breath, default 0.42s) — the overlap is CLAMPED to <= the breath so a
+    transition can never eat live narration or desync the audio. The very first scene's opening fade and
+    the very last scene's closing fade are NOT seams and are preserved."""
+    style_default = str(meta.get("transition_style") or meta.get("transition") or "dip")
+    breath = float(meta.get("audio_breath", 0.42) or 0.42)
+    cap = max(1, int(round(breath * fps)))                  # overlap ceiling = the breath (A/V safety)
+    for i in range(len(scenes)):
+        scenes[i]["transitionToNext"] = None
+    for i in range(len(scenes) - 1):
+        a, b = scenes[i], scenes[i + 1]
+        seam = max(int(a.get("fadeOutFrames") or 0), int(b.get("fadeInFrames") or 0))
+        if seam <= 0:                                        # a hard cut — no transition
+            continue
+        style = str(a.get("transitionStyle") or style_default)
+        a["transitionToNext"] = {"style": _TRANSITION_STYLE.get(style, "fade"),
+                                 "durationInFrames": min(seam, cap)}
+        a["fadeOutFrames"] = 0                               # TransitionSeries now owns this seam
+        b["fadeInFrames"] = 0
+    return scenes
 
 
 def build_props(data, out_dir, vertical=False, reduced_motion=False):
@@ -193,35 +412,45 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
         # LEGACY: `lens` → CinematicScene3D (3D perspective); `layers` → CinematicScene (flat parallax).
         # Absent -> scene renders on existing image/Ken-Burns path unchanged.
         stage = _scene_stage(s)
-        shot = _scene_shot(s)
+        shots = _scene_shots(s)
+        planes = _scene_planes(s)                           # P6 TRUE-3D (WebGL) content planes
         layers = _scene_layers(s)
         camera = s.get("camera") or props.get("camera")
         lens = s.get("lens") or props.get("lens")           # 3D perspective path (dolly/pitch/yaw)
         perspective = _num(s.get("perspective") or props.get("perspective"), "scene %s perspective" % s.get("index"), None) \
             if (s.get("perspective") or props.get("perspective")) is not None else None
 
-        # Shot-based scene: pass stage + shot through to SceneStage (validation in TypeScript)
-        if stage and shot:
-            if not isinstance(stage, dict):
-                raise RuntimeError("cinematic scene %s: `stage` must be an object" % s.get("index"))
-            if not isinstance(shot, dict):
-                raise RuntimeError("cinematic scene %s: `shot` must be an object" % s.get("index"))
-            # Validate stage.elements is a list
-            elements = stage.get("elements")
-            if not isinstance(elements, list):
-                raise RuntimeError("cinematic scene %s: `stage.elements` must be a list" % s.get("index"))
-            # Coerce shot.duration (required)
-            if shot.get("duration") is None:
-                shot = dict(shot)
-                shot["duration"] = frames
-            else:
-                shot = dict(shot)
-                shot["duration"] = int(round(_num(shot["duration"], "scene %s shot.duration" % s.get("index"))))
+        # TRUE-3D scene (P6): WebGL planes + an orbit/crane camera. Highest-priority cinematic path.
+        three_d = bool(planes)
+        if three_d:
+            planes = _clean_planes(planes, "scene %s" % s.get("index"))
+            camera3d = _clean_camera3d(s.get("camera3d") or props.get("camera3d"), frames, "scene %s" % s.get("index"))
+        else:
+            camera3d = None
+
+        # Shot-based scene (P2): a SET (stage) + an ordered LIST of shots. Fail-loud coercion here,
+        # camera timeline computed in SceneStage from the shots + element positions.
+        shot_based = bool(stage and shots)
+        if shot_based:
+            stage = _clean_stage(stage, "scene %s" % s.get("index"))
+            elem_ids = {e["id"] for e in stage["elements"]}
+            shots = _clean_shots(shots, frames, fps, elem_ids, "scene %s" % s.get("index"))
+            # KINETIC TYPE (P4): reveal each element's text as the camera FIRST frames it (the start of the
+            # shot that targets it), unless the element sets an explicit enterAtFrame. So text animates in
+            # on arrival — not while it's a speck in the wide establish.
+            first_target = {}
+            for sh in shots:
+                t = sh.get("target")
+                if t and t not in first_target:
+                    first_target[t] = sh["startFrame"]
+            for el in stage["elements"]:
+                if el.get("enterAtFrame") is None and el["id"] in first_target:
+                    el["enterAtFrame"] = first_target[el["id"]]
 
         # Legacy layered scenes: fail-loud coercion — no NaN/string reaches Remotion
         if layers is not None:
             layers = _clean_layers(layers, "scene %s" % s.get("index"))
-        if layers and not camera and not lens and not (stage and shot):  # flat layered scene gets default push-in
+        if layers and not camera and not lens and not shot_based:  # flat layered scene gets default push-in
             camera = [{"atFrame": 0, "x": 0.5, "y": 0.5, "zoom": 1.0, "easing": "inout"},
                       {"atFrame": frames, "x": 0.5, "y": 0.5, "zoom": 1.08, "easing": "inout"}]
         if camera is not None:
@@ -269,14 +498,18 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
             "kicker": props.get("kicker"),
             "fadeInFrames": fi,
             "fadeOutFrames": fo,
-            "stage": stage if (stage and shot) else None,    # shot-based (P2+): scene-space staging
-            "shot": shot if (stage and shot) else None,      # shot specification (type, motion, target)
+            "stage": stage if shot_based else None,          # shot-based (P2): the SET (elements placed once)
+            "shots": shots if shot_based else None,           # the ordered SHOT list (framings over the set)
+            "planes": planes if three_d else None,            # P6 TRUE-3D: WebGL content planes
+            "camera3d": camera3d if three_d else None,        # P6 orbit/crane camera keyframes
             "camera": camera,                        # cinematic FLAT: eased virtual-camera keyframes (or None)
             "lens": lens,                            # cinematic 3D: dolly/pitch/yaw keyframes (or None)
             "perspective": float(perspective) if perspective else None,
             "layers": layers,                        # cinematic: depth planes (or None)
             "reducedMotion": reduced,                # freeze the camera + show reveals instantly
+            "transitionStyle": s.get("transition_style"),  # per-scene seam-look override (else meta default)
         })
+    _transitions(scenes, meta, fps)                  # derive cross-scene transitions + de-double the seam fades
     return {"width": W, "height": H, "fps": fps, "captionFontPx": rd._caption_font_px(W, H, meta=meta),
             "theme": _theme(out_dir), "scenes": scenes}
 
@@ -326,6 +559,8 @@ def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="erro
            "--props=" + os.path.abspath(props_path),
            "--public-dir=" + os.path.abspath(out_dir),
            "--log=" + log]
+    if any(sc.get("planes") for sc in props["scenes"]):   # P6 TRUE-3D scenes need a WebGL renderer
+        cmd.append("--gl=angle")                          # else headless Chrome has no WebGL -> black frames
     print("[render_remotion] %s: %d scene(s), %dx%d @%dfps -> %s"
           % ("sample" if sample is not None else "full", len(props["scenes"]),
              props["width"], props["height"], props["fps"], out_mp4))
@@ -336,12 +571,56 @@ def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="erro
         pass
 
     _write_filmstrips(out_dir, data, out_mp4)         # the D12 evidence the design-critic judges from
-    if sample is None:                                # out.srt for parity with the local renderer
-        rd._write_srt(data, os.path.join(out_dir, "out.srt"))
+    _run_shot_qa(out_dir, out_mp4)                     # P5: score the rendered frames -> shot_qa.json (advisory print)
+    if sample is None:                                # out.srt — overlap-aware (cross-scene transitions)
+        _write_srt_overlapped(data, out_dir, os.path.join(out_dir, "out.srt"))
         print("[render_remotion] done -> %s (+ out.srt)" % out_mp4)
     else:
         print("[render_remotion] sample done -> %s" % out_mp4)
     return out_mp4
+
+
+def _run_shot_qa(out_dir, mp4):
+    """Score the rendered cinematic frames (P5). Best-effort + non-fatal here: it always writes
+    shot_qa.json and prints a summary so the design-critic (D12) and the operator see it; the actual
+    BLOCK-below-threshold decision is the CLI (`python scripts/shot_qa.py <out> --threshold N`) run as a
+    pre-full-render gate on the sample, so a scoring hiccup never crashes a finished render."""
+    try:
+        import shot_qa
+        rep = shot_qa.evaluate(out_dir, mp4=mp4)
+        if rep.get("abstained"):
+            print("[shot_qa] UNSCORED (%s) — shot_qa.json written" % rep.get("reason", ""))
+            return
+        bad = [sc for sc in rep["scenes"] if not sc["passed"]]
+        print("[shot_qa] %d/%d cinematic scenes pass (threshold %d)%s"
+              % (len(rep["scenes"]) - len(bad), len(rep["scenes"]), rep["threshold"],
+                 "" if not bad else "  — REVIEW: " + ", ".join("#%s %s" % (b["index"], b["floors"] or b["composite"]) for b in bad)))
+    except Exception as e:
+        print("[shot_qa] skipped (%s)" % e)
+
+
+def _write_srt_overlapped(data, out_dir, path):
+    """SRT for the Remotion tier that accounts for CROSS-SCENE transition OVERLAPS: when scene i+1 is
+    transitioned into scene i, it starts `overlap` frames early, so every later scene's captions shift
+    earlier by the cumulative overlap. The shared rd._write_srt sums durations sequentially (correct for
+    the local tier, which has no overlap) — this variant subtracts overlaps so the burned/scene-local
+    captions and the external .srt agree. Burned captions are already scene-local (they track their scene
+    automatically); this only fixes the standalone .srt file."""
+    meta = data.get("meta") or {}
+    fps = int(meta.get("fps", 30) or 30)
+    props = build_props(data, out_dir)               # reuse the exact overlaps the render used
+    over = {sc["index"]: (sc.get("transitionToNext") or {}).get("durationInFrames", 0) for sc in props["scenes"]}
+    lines, idx, t0, cum_overlap = [], 1, 0.0, 0.0
+    for s in data.get("slides", []):
+        start = t0 - cum_overlap
+        for c in rd._captions_for(s):
+            lines += [str(idx), "%s --> %s" % (rd._srt_time(start + c["start"]), rd._srt_time(start + c["end"])),
+                      c["text"], ""]
+            idx += 1
+        t0 += float(s.get("duration") or 0)
+        cum_overlap += float(over.get(s.get("index"), 0)) / fps
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
 
 
 def _write_filmstrips(out_dir, data, mp4):
@@ -361,7 +640,7 @@ def _write_filmstrips(out_dir, data, mp4):
     t0 = 0.0
     for s in data.get("slides", []):
         dur = float(s.get("duration") or 0)
-        is_cine = s.get("type") == "cinematic" or _scene_layers(s)
+        is_cine = s.get("type") == "cinematic" or _scene_layers(s) or _scene_planes(s) or (_scene_stage(s) and _scene_shots(s))
         if is_cine and dur > 0.2:
             n = 5
             tiles = []

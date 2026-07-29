@@ -324,11 +324,20 @@ Frame-legibility of *captions*, tofu, A/V sync and player-chrome remain `critic-
 compositional pass — focal dominance + repeated-layout across the deck. Flag a defect under whichever
 fires; don't double-count the same page.)*
 
-### D12 — Cinematic tier (Remotion `meta.renderer:"remotion"` scenes with `layers`/`lens`)
+### D12 — Cinematic tier (Remotion `meta.renderer:"remotion"` scenes with `layers`/`lens` OR `stage`/`shots`)
 The cinematic tier moves a virtual camera over depth planes — motion is the point, so it is **judged from
 the rendered filmstrip** (`<out_dir>/_keyframes/scene_NN.png`, the leftmost tile ≈ t=0 → rightmost ≈ the
 cut), NEVER from the plan (pre-tts the blind envelope shows everything settled — mark **UNJUDGED**, don't
 pass). Each shot card's Checklist cites these IDs; hold the render to them:
+
+**FIRST read `<out_dir>/shot_qa.json`** (the P5 mechanical reviewer — `scripts/shot_qa.py`). It scores the
+same rendered frames and HARD-FAILS the objective defects you shouldn't have to eyeball: a blank/collapsed
+frame, a **declared camera move that produced ~no motion** (the invisible-move bug), and a flat frame with
+no focal subject. Treat any scene it marks `passed:false` (a `floors` entry, or `composite` below
+threshold) as a **pre-flagged REVISE**, and treat an `abstained`/UNSCORED report as **UNJUDGED, not a
+pass**. Then spend your judgement on what it deliberately ABSTAINS from — is the move MOTIVATED for THIS
+beat (D12b), do the shots reframe (D12g), is the type legible — the things pixels can't score. shot_qa is
+the floor; you are the ceiling.
 - **D12a — Depth-ordering (real depth, not a zoom).** On the filmstrip the planes must OCCLUDE and the
   perspective must read (a ground grid CONVERGES to a vanishing point; near planes displace/grow more
   than far). **REVISE** a "3D" scene that is actually a uniform scale of one flat image — that is the
@@ -352,6 +361,13 @@ pass). Each shot card's Checklist cites these IDs; hold the render to them:
   did not silently FLATTEN (any `opacity`/`filter`/`overflow` on the 3D ancestor collapses it — the
   runtime guards this and `tests/test_remotion_3d.py` locks it, but if the filmstrip shows a flat frame
   where depth was specified, that is the footgun).
+- **D12g — Shot-based scenes (`stage`+`shots`): distinct framings + continuity.** A shot-based scene is
+  ONE set framed by an ordered `shots` list; on the filmstrip the successive shots must be GENUINELY
+  DIFFERENT framings of that set (a different subject/scale/angle per shot), not three near-identical
+  frames — three identical framings is the cinematic form of a template (D1/D6b). A `carry` shot must
+  read as a CONTINUOUS glide from the previous framing to the new subject (the eye tracks one space); a
+  non-carry boundary reads as a deliberate cut. **REVISE** a shots list whose framings don't visibly
+  differ, a `carry` that jumps, or a set where the targeted element isn't actually framed by its shot.
 Inherited checks still apply to the composed frame: D5 (composition/whitespace), D7 (squint/cover-text),
 D8 (semantic colour), D10 (anti-slop). D1/D6b (layout/silhouette diversity) apply ACROSS cinematic scenes
 too — vary the lens move + depth arrangement, don't ship five identical dolly-ins.

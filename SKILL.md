@@ -146,8 +146,11 @@ TTS if the user gives an API key.
   full-bleed **image** with Ken Burns, the synthesized narration, subtitles, timed **callouts**, and an
   optional lower-third `props.title`/`kicker` — the **story/cinematic** look. **Parity with the local
   tier:** it honours the SAME per-scene fields — `motion` (Ken Burns from/to `[x,y,zoom]`, can zoom out),
-  `fit` (contain/cover), `callouts` (cue/at timing), `transition` (dip/in/out/none → scene-edge fades),
-  `reduced_motion`, canvas-derived caption size — reusing `render._captions_for`/`_canvas`/`_write_srt`/
+  `fit` (contain/cover), `callouts` (cue/at timing), `transition` (dip/in/out/none) + `transition_style`
+  (a REAL cross-scene transition via `@remotion/transitions` — fade/slide(push)/slide-up(lift)/wipe; a
+  marked seam OVERLAPS the two scenes and rides the audio-breath silence, clamped ≤ the breath so A/V
+  stays in sync; the standalone `.srt` is overlap-aware),
+  `reduced_motion` (transitions collapse to fade), canvas-derived caption size — reusing `render._captions_for`/`_canvas`/`_write_srt`/
   `_callout_time` so the **srt is byte-parity** (burned captions DIVERGE on this tier: no karaoke
   highlight, a fixed Helvetica-family face rather than the deck face — cinematic-story scope). It does NOT reproduce the HTML slide archetypes
   (kicker/cards/charts): a deck with **html/chart/timeline/keypoints/compare** scenes **fails loud**
@@ -179,7 +182,15 @@ TTS if the user gives an API key.
   silently collapses all depth to a flat image that no render test catches — so the rig is kept inner
   (fades/vignette outer, DoF blur on an inner wrapper), guarded by `tests/test_remotion_3d.py`; never
   add opacity/filter to the 3D world. Card planes keystone past ~40° pitch / ~35° yaw (validate warns) —
-  route a true 90° top-down / full orbit to a future R3F tier. See `references/shots/lens-dolly-tilt.md`.
+  route a true 90° top-down / full orbit to the **TRUE-3D tier** below. See `references/shots/lens-dolly-tilt.md`.
+  **TRUE-3D (WebGL / R3F) hero tier (`type:"cinematic3d"`, P6):** for the moves card planes can't hold —
+  a real 90° top-down / full orbit / crane over content `planes` at true depth, with real lighting and
+  occlusion. Author `planes` (`[{position:[x,y,z], rotation?, size?, color?}]`) + a `camera3d` orbit/crane
+  path (`[{at, yaw, radius, height, easing}]`, `at` = 0..1 fraction). Renders via
+  `remotion/src/three/ThreeScene.tsx` (`@remotion/three` + React-Three-Fiber v8 + three); `render_remotion`
+  auto-adds **`--gl=angle`** (headless Chrome has no WebGL otherwise → black). Needs a one-time
+  `cd remotion && npm install` of those deps (see the plan). Current state: camera/depth/lighting spine is
+  built + verified; plane content is solid-colour (image/text texturing on planes is the next increment).
   `validate.py` structurally gates the fields (keyframe ordering, on-canvas targets, a read-safe zoom
   band, layer kinds, image-plane existence) — but the **move itself is judged only from the rendered
   filmstrip** `<out_dir>/_keyframes/scene_NN.png`, never from the plan (pre-tts the blind envelope is
@@ -188,6 +199,16 @@ TTS if the user gives an API key.
   cites a card by `name`; the critic checks the render against that card's Checklist).
 - `scripts/cues.py` — pure anchor→cue-time resolver: reads per-scene `audio/NN.words.json` (edge-tts per-word timings) and resolves each `data-cue` anchor phrase to an absolute timestamp, used by `render_html` for audio-synced HTML reveals.
 - `scripts/check_av.py <out_dir>` — deterministic A/V gate: probes `out.mp4` video-vs-audio duration + per-clip sample-rate uniformity across `.clips/`; exits non-zero on A/V drift above tolerance (0.3 s) or non-uniform rates. Run AFTER the full render (step 9) as a gate before delivery.
+- `scripts/shot_qa.py <out_dir> [--mp4 M] [--threshold N] [--json]` — the **CINEMATIC-tier scored reviewer**
+  (P5; the mechanical half of the guide's "reviewer agent"). Samples the rendered frames per cinematic scene
+  and HARD-FAILS the objective defects (a blank/collapsed frame; a **declared camera move that rendered ~no
+  motion** — the invisible-move bug; a flat frame with no focal subject), plus a 0-100 focal-composition
+  score; writes `shot_qa.json` (which `design-critic` D12 reads FIRST). It measures-or-ABSTAINS by design —
+  motion is only floor-checked (restraint is the goal, not a low score) and legibility isn't scored from a
+  captioned frame — so it never false-fails good, restrained cinematography; an `abstained` report is
+  UNSCORED, not passed. `render_remotion` runs it automatically after a render (advisory); run the CLI on
+  the `--sample` BEFORE the full render as a block-below-threshold gate (exit 2 = floor/below-threshold).
+  Needs numpy + ffmpeg.
 - `scripts/doctor.py [--json]` — environment preflight: reports which tools/libraries are present (ffmpeg/ffprobe/PIL required; PyMuPDF/python-pptx/edge-tts/soffice/Chrome/font optional) and, for each missing one, the stage it gates + the install hint. Exits non-zero only when a REQUIRED dep is missing. Run once at the START (step 1).
 - `scripts/validate.py <out_dir> [--pre-tts] [--vertical] [--json]` — deterministic PRE-render gate on `storyboard.json` (runs in ~1s): structural contract, duplicate indices, every referenced image/audio/html-page/`file://` asset + `theme.css` exists on disk, caption craft (no wall of text, no widow, ≥0.7s on screen — see `references/captions.md`), motion sanity (zoom delta + zoom-past-1.25 + callout-framing — see `references/motion-grammar.md`), per-point reveal↔voice alignment (each point spoken-% vs shown-% → leads/lags warning, cued or paced), an **animation-TRUNCATION gate** (a cued element starts at its cue and runs for its own `animation-duration`; when `cue + duration > scene duration` the render freezes it mid-flight and hard-cuts — a connector stopping in mid-air. ERROR under ~90% complete, WARN above, reporting the exact duration to set. `.draw` at 1.4s is the usual casualty, double the `--dur` .7s every other reveal uses; durations are parsed from base.css/motifs.css so they can't drift. **This is the ONLY gate that sees it** — `keyframe_qa`'s `?p=` sheet renders in blind-envelope mode where p=1.0 means "every animation finished" by construction), a **composition-gate ABSTENTION** (anchor/balance are read off the `.stage`'s flex signature + a few
 layout classes; an absolute-positioned page has neither, so the gate now says it cannot measure instead of

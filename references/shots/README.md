@@ -43,8 +43,14 @@ delivers_via: <impl pointer, e.g. remotion/src/Camera.tsx CinematicScene>
 - **CSS-3D lens** (`lens-dolly-tilt`) — `layers[].z` + a `lens` (dolly/pitch/yaw) inside a `perspective`
   rig. Real occlusion, vanishing point, camera angles (bird's-eye / worm's-eye), rack focus. The
   headline cinematic path; the layers are still authored in the HTML/CSS design system.
-- **R3F / @remotion/three** — RESERVED hero tier (not yet built) for true 90° top-down, full orbit, and
-  real geometry / materials, where card planes keystone. See the plan.
+- **TRUE-3D / @remotion/three (R3F)** — the hero tier for what the CSS-3D card-plane rig structurally
+  cannot do: real 90° top-down / full orbit / crane over content planes at true depth, with real lighting
+  and occlusion (no keystone limit). Author a scene `type:"cinematic3d"` with `planes` (content planes at
+  `position:[x,y,z]`, optional `rotation`/`size`/`color`) + a `camera3d` orbit/crane path (`{at, yaw,
+  radius, height}`, `at` = 0..1 fraction). Renders via `remotion/src/three/ThreeScene.tsx`; the render
+  auto-adds `--gl=angle` (WebGL). **Current state:** the camera/depth/lighting spine is built + verified
+  end-to-end; content planes are solid-COLOR (or textured — image/text texturing on planes is the next
+  increment). Reach for it only when a beat genuinely needs a true-3D move a card plane can't hold.
 
 ## Attribution
 

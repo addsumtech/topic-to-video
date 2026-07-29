@@ -3,7 +3,9 @@ import {AbsoluteFill, Audio, Img, staticFile, interpolate, useCurrentFrame, useV
 import {Theme} from './Video';
 import {Captions, CaptionSeg} from './Captions';
 import {CinematicScene, CinematicScene3D, CameraKeyframe, LensKeyframe, Layer} from './Camera';
-import {SceneStage, type StageData, type ShotSpec} from './stage/SceneStage';
+import {SceneStage, type StageData} from './stage/SceneStage';
+import type {ShotSpec} from './stage/shots';
+import {ThreeScene, type Plane3D, type Camera3DKey} from './three/ThreeScene';
 
 export type CalloutData = {
   box: number[];           // [x0, y0, x1, y1] normalized 0..1
@@ -27,15 +29,21 @@ export type SceneData = {
   fadeInFrames?: number;   // gentle dip-in at the scene edge (from meta.transition)
   fadeOutFrames?: number;
   // CINEMATIC (opt-in): virtual-camera paths over 2.5D/3D scenes.
-  // SHOT-BASED (P2+): `stage` + `shot` → SceneStage (new paradigm)
+  // SHOT-BASED (P2): `stage` (the SET) + `shots` (ordered framings) → SceneStage (the paradigm)
   // LEGACY: `lens` → CinematicScene3D; `camera`+`layers` → CinematicScene (flat parallax)
   stage?: StageData | null;
-  shot?: ShotSpec | null;
+  shots?: ShotSpec[] | null;
   camera?: CameraKeyframe[] | null;
   lens?: LensKeyframe[] | null;
   perspective?: number | null;
   layers?: Layer[] | null;
   reducedMotion?: boolean;
+  // CROSS-SCENE transition INTO the next scene (P3): a marked seam that overlaps the two scenes.
+  transitionToNext?: {style: string; durationInFrames: number} | null;
+  transitionStyle?: string | null; // per-scene seam-look override (consumed by build_props)
+  // TRUE-3D tier (P6): WebGL planes + an orbit/crane camera (renders via ThreeScene / @remotion/three).
+  planes?: Plane3D[] | null;
+  camera3d?: Camera3DKey[] | null;
 };
 
 const CLAMP = {extrapolateLeft: 'clamp' as const, extrapolateRight: 'clamp' as const};
@@ -51,11 +59,26 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
 
   // CINEMATIC DISPATCH. Shot-based (P2+): `stage` + `shot` → SceneStage; legacy: `lens` → 3D
   // perspective (real depth + camera angles); `layers` → flat parallax; else unchanged image/Ken-Burns.
-  if (scene.stage && scene.shot) {
+  if (Array.isArray(scene.planes) && scene.planes.length) {
+    return (
+      <ThreeScene
+        planes={scene.planes}
+        camera3d={Array.isArray(scene.camera3d) ? scene.camera3d : []}
+        theme={theme}
+        captions={scene.captions}
+        audio={scene.audio}
+        captionFontPx={captionFontPx}
+        reducedMotion={scene.reducedMotion}
+        fadeInFrames={scene.fadeInFrames}
+        fadeOutFrames={scene.fadeOutFrames}
+      />
+    );
+  }
+  if (scene.stage && Array.isArray(scene.shots) && scene.shots.length) {
     return (
       <SceneStage
         stage={scene.stage}
-        shot={scene.shot}
+        shots={scene.shots}
         theme={theme}
         captions={scene.captions}
         audio={scene.audio}

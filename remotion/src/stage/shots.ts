@@ -22,15 +22,20 @@ export type CameraTarget =
   | {kind: 'position'; pos: Position} // aim at this point
   | {kind: 'manual'; lens: LensKeyframe[]}; // explicit keyframes (legacy)
 
-// Shot specification (storyboard.json schema)
+// Shot specification. One entry in a scene's ordered `shots` list; the camera moves between framings
+// of ONE staged set. startFrame/durationFrames are assigned by render_remotion._clean_shots so the
+// windows tile the scene exactly (A/V-safe); the authoring fields are type/target/motion/carry/easing.
 export type ShotSpec = {
   type: ShotType;
   target?: string; // element ID to frame (shorthand for {kind: 'element', id})
   targetPos?: Position; // position to frame (shorthand for {kind: 'position', pos})
-  lens?: LensKeyframe[]; // manual override (shorthand for {kind: 'manual', lens})
-  duration: number; // frames
+  lens?: LensKeyframe[]; // manual keyframe override (advanced escape hatch)
   motion?: string; // motion pattern name (motions.ts), default 'STATIC'
   easing?: string; // 'linear' | 'in' | 'out' | 'inout'
+  energy?: 'subtle' | 'balanced' | 'bold'; // motion amplitude (drift ... hard push); default balanced
+  carry?: boolean; // start at the previous shot's END pose (continuous move, not a cut)
+  startFrame?: number; // absolute window start (assigned by build_props)
+  durationFrames?: number; // window length in frames (assigned by build_props)
 };
 
 // Calculate initial camera position to frame a target at the given shot type.
