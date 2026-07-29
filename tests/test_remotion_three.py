@@ -62,6 +62,24 @@ def test_props_json_finite(tmp_path):
     json.dumps(rr.build_props(_board(), str(tmp_path)), allow_nan=False)
 
 
+def test_plane_src_threads(tmp_path):
+    """A plane's image `src` (textured onto a real 3D mesh) must thread through build_props."""
+    sc = rr.build_props(_board(planes=[{"src": "assets/shot.png", "position": [0, 0, 0], "size": [5, 3.1]}]),
+                        str(tmp_path))["scenes"][0]
+    p = sc["planes"][0]
+    assert p["src"] == "assets/shot.png" and p["size"] == [5.0, 3.1]
+
+
+def test_texture_loads_at_dom_level_not_in_canvas():
+    """Image textures MUST load in the DOM-level scene component (delayRender works there), not inside the
+    R3F canvas children (a separate reconciler whose effects/delayRender aren't synced -> blank). And a
+    screenshot renders UNLIT (meshBasicMaterial) so it shows at true pixel colours."""
+    src = open(os.path.join(_SKILL, "remotion", "src", "three", "ThreeScene.tsx"), encoding="utf-8").read()
+    assert "usePlaneTextures" in src and "delayRender" in src and "TextureLoader" in src
+    assert "meshBasicMaterial" in src, "a UI screen must be unlit (true colours), not lit"
+    assert "setCrossOrigin" in src, "WebGL needs a CORS-clean texture"
+
+
 # ── TS wiring source-guards ──────────────────────────────────────────────────────────────────────────
 def test_threescene_exists_and_uses_threecanvas():
     src = open(os.path.join(_SKILL, "remotion", "src", "three", "ThreeScene.tsx"), encoding="utf-8").read()

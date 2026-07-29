@@ -245,6 +245,8 @@ def _clean_planes(planes, tag):
             c["size"] = [_num(sz[k], "%s plane %d size[%d]" % (tag, j, k)) for k in range(2)]
         if p.get("color") is not None:
             c["color"] = str(p["color"])
+        if p.get("src") is not None:                         # image texture on a real 3D mesh
+            c["src"] = str(p["src"])
         out.append(c)
     return out
 

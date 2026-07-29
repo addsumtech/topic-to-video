@@ -8,9 +8,10 @@
 // + captions + audio ride ON TOP as normal Remotion layers, outside the canvas.
 
 import React from 'react';
-import {AbsoluteFill, Audio, staticFile, useCurrentFrame, useVideoConfig, interpolate, Easing} from 'remotion';
+import {AbsoluteFill, Audio, staticFile, useCurrentFrame, useVideoConfig, interpolate, Easing, delayRender, continueRender} from 'remotion';
 import {ThreeCanvas} from '@remotion/three';
 import {useThree} from '@react-three/fiber';
+import * as THREE from 'three';
 import type {Theme} from '../Video';
 import type {CaptionSeg} from '../Captions';
 import {Captions} from '../Captions';
@@ -18,9 +19,64 @@ import {Finish} from '../theme/Finish';
 
 export type Plane3D = {
   color?: string;
+  src?: string; // image/screenshot -> textured onto a REAL 3D mesh (true perspective, not a flat overlay)
   position: [number, number, number];
   rotation?: [number, number, number];
-  size?: [number, number];
+  size?: [number, number]; // world units of the plane (default [3, 1.8])
+};
+
+// Load all plane image textures at the DOM level (Remotion's reconciler) so delayRender/continueRender
+// actually make the render WAIT — the SAME pattern fails inside the R3F canvas children (a separate
+// reconciler whose effects/delayRender aren't synced to the frame capture; verified: it renders blank).
+// The ready THREE.Texture objects are passed DOWN into the canvas meshes, which then just consume them.
+function usePlaneTextures(srcs: string[]): Record<string, THREE.Texture> {
+  const [textures, setTextures] = React.useState<Record<string, THREE.Texture>>({});
+  const [handle] = React.useState(() => (srcs.length ? delayRender('3d plane textures') : null));
+  React.useEffect(() => {
+    if (!srcs.length) return;
+    const loader = new THREE.TextureLoader();
+    loader.setCrossOrigin('anonymous'); // WebGL needs a CORS-clean image to avoid a tainted texture
+    const out: Record<string, THREE.Texture> = {};
+    let done = 0;
+    const finish = () => {
+      done += 1;
+      if (done === srcs.length) {
+        setTextures(out);
+        if (handle != null) continueRender(handle);
+      }
+    };
+    srcs.forEach((s) =>
+      loader.load(staticFile(s), (t) => {
+        t.colorSpace = THREE.SRGBColorSpace;
+        out[s] = t;
+        finish();
+      }, undefined, finish), // a failed load still resolves the gate (never hang the render)
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return textures;
+}
+
+// A plane textured with a real screenshot/image, living in true 3D (the camera orbits it with real
+// perspective + lighting) — NOT a flat 2D overlay. Consumes an ALREADY-LOADED texture (loaded at the DOM
+// level by usePlaneTextures). If the texture isn't ready/failed, renders a dark placeholder plane.
+const TexturedPlane: React.FC<{tex?: THREE.Texture; size: [number, number]; position: [number, number, number]; rotation: [number, number, number]; theme: Theme}> = ({tex, size, position, rotation, theme}) => {
+  if (!tex) {
+    return (
+      <mesh position={position} rotation={rotation}>
+        <planeGeometry args={size} />
+        <meshStandardMaterial color={theme.surface || theme.bg} />
+      </mesh>
+    );
+  }
+  return (
+    <mesh position={position} rotation={rotation}>
+      <planeGeometry args={size} />
+      {/* UNLIT: a UI screen emits its own image — show the screenshot at its true pixel colours, not
+          darkened by scene lighting. toneMapped:false keeps the colours accurate. */}
+      <meshBasicMaterial map={tex} toneMapped={false} />
+    </mesh>
+  );
 };
 export type Camera3DKey = {atFrame: number; yaw: number; pitch: number; radius: number; height: number; easing?: string};
 
@@ -72,6 +128,9 @@ export const ThreeScene: React.FC<{
   const {width, height, durationInFrames} = useVideoConfig();
   const dur = Math.max(1, durationInFrames);
   const keys = camera3d && camera3d.length ? camera3d : [{atFrame: 0, yaw: -0.6, pitch: 0, radius: 7, height: 4}];
+  // Load plane textures HERE (DOM reconciler) so the render waits; pass the ready textures into the canvas.
+  const srcs = planes.map((p) => p.src).filter((s): s is string => !!s);
+  const textures = usePlaneTextures(srcs);
 
   // scene-edge fade (2D overlay — same semantics as the other tiers)
   const clamp = {extrapolateLeft: 'clamp' as const, extrapolateRight: 'clamp' as const};
@@ -91,12 +150,16 @@ export const ThreeScene: React.FC<{
           <planeGeometry args={[40, 40]} />
           <meshStandardMaterial color={theme.surface || theme.bg} />
         </mesh>
-        {planes.map((p, i) => (
-          <mesh key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
-            <planeGeometry args={p.size || [3, 1.8]} />
-            <meshStandardMaterial color={p.color || theme.accent} />
-          </mesh>
-        ))}
+        {planes.map((p, i) =>
+          p.src ? (
+            <TexturedPlane key={i} tex={textures[p.src]} size={p.size || [3, 1.8]} position={p.position} rotation={p.rotation || [0, 0, 0]} theme={theme} />
+          ) : (
+            <mesh key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
+              <planeGeometry args={p.size || [3, 1.8]} />
+              <meshStandardMaterial color={p.color || theme.accent} />
+            </mesh>
+          )
+        )}
       </ThreeCanvas>
 
       {/* 2D overlays on top of the canvas — grade/grain/vignette, edge fade, captions, audio */}
