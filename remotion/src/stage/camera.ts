@@ -44,15 +44,22 @@ export function computeTimeline(
 ): ResolvedShot[] {
   const out: ResolvedShot[] = [];
   let prevEnd: Pose | null = null;
-  for (const sh of shots) {
+  for (let i = 0; i < shots.length; i++) {
+    const sh = shots[i];
     const start = sh.startFrame ?? 0;
     const dur = Math.max(1, sh.durationFrames ?? 1);
+    // A carry shot whose NEXT shot ALSO carries is an INTERIOR waypoint of a continuous move — it must NOT
+    // decelerate to a stop at its end (an 'inout'/'out' ease zeroes velocity at the boundary, so a run of
+    // carries reads as hesitant eased HOPS). Glide through it at constant velocity ('linear'); the LAST
+    // carry of the run keeps its settling ease so the move still lands softly.
+    const nextCarries = i + 1 < shots.length && !!shots[i + 1].carry;
+    const flowThrough = !!sh.carry && nextCarries;
 
     // Manual keyframe override: use first/last as the window's poses (advanced escape hatch).
     if (sh.lens && sh.lens.length) {
       const startPose = toPose(sh.lens[0]);
       const endPose = toPose(sh.lens[sh.lens.length - 1]);
-      out.push({start, end: start + dur, startPose, endPose, easing: sh.easing || 'inout'});
+      out.push({start, end: start + dur, startPose, endPose, easing: flowThrough ? 'linear' : sh.easing || 'inout'});
       prevEnd = endPose;
       continue;
     }
@@ -72,10 +79,20 @@ export function computeTimeline(
     // subject); non-carry => CUT: sit at the framing and apply the motion (start == the framing pose).
     const startPose: Pose = sh.carry && prevEnd ? prevEnd : toPose(settled[0]);
 
-    out.push({start, end: start + dur, startPose, endPose, easing: sh.easing || 'out'});
+    out.push({start, end: start + dur, startPose, endPose, easing: flowThrough ? 'linear' : sh.easing || 'out'});
     prevEnd = endPose;
   }
   return out;
+}
+
+// Reduced-motion pose: HARD-CUT to the active shot's SETTLED (end) framing and hold — no camera travel
+// (accessibility), but each beat still appears at ITS intended scale. Freezing on the first shot's wide
+// establish (the old behaviour) showed every close-up/hero payload at its smallest, most distant framing.
+export function reducedPoseAtFrame(timeline: ResolvedShot[], frame: number): Pose {
+  if (!timeline.length) return {dolly: 0, pitch: 0, yaw: 0, roll: 0, zoom: 1, focusZ: null};
+  let rs = timeline[0];
+  for (const t of timeline) if (frame >= t.start) rs = t;
+  return rs.endPose;
 }
 
 // Interpolate the camera pose at a given absolute frame (eased within the active shot window).

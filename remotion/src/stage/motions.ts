@@ -86,13 +86,16 @@ export function generateMotion(
     }
 
     case 'RACK_FOCUS': {
-      // Static camera, pull focus from background to foreground
-      // Assumes start.focusZ is on background; pull to -200 (near foreground)
-      const startZ = start.focusZ || -500;
-      const endZ = -200;
-      const mid = {...start, atFrame: Math.floor(durationFrames / 2), focusZ: startZ};
-      end.focusZ = endZ;
-      return [start, mid, end];
+      // Static camera, pull focus ONTO the subject — the payoff of a rack is the subject snapping sharp.
+      // calculateShotFrame set start.focusZ = the target's own z, so open defocused on a plane WELL IN
+      // FRONT of it, then rack the focal plane back to the subject. (The old code racked AWAY to a fixed
+      // z=-200 that need not coincide with any element, so focus landed on empty space.)
+      const subjectZ = start.focusZ ?? -300;
+      const openingZ = subjectZ - 600; // a defocused foreground the shot opens on
+      const startK = {...start, focusZ: openingZ};
+      const mid = {...start, atFrame: Math.floor(durationFrames / 2), focusZ: openingZ};
+      end.focusZ = subjectZ; // land the focal plane on the subject
+      return [startK, mid, end];
     }
 
     default: {

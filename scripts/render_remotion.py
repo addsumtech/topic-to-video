@@ -364,12 +364,25 @@ _FONT_KIND_FILE = {"sans": "SpaceGrotesk-VF.ttf", "serif": "PlayfairDisplay-VF.t
                    "mono": "JetBrainsMono-VF.ttf", "comic": "Bangers-Regular.ttf"}
 
 
+# Extruded-bar layout constants — MUST match three/ThreeScene.tsx Bars3D (bw/gap/maxH + floor base y) so
+# rasterized value/category labels land exactly over their bars.
+_BAR_BW, _BAR_GAP, _BAR_MAXH, _BAR_BASE_Y = 0.62, 0.42, 2.6, -1.3
+
+
+def _fmt_bar_value(v):
+    """Format a bar's numeric value for its on-top label: integers as-is, else one decimal, thousands
+    grouped (a lining-figures display face renders the digits)."""
+    f = float(v)
+    return ("{:,}".format(int(round(f))) if abs(f - round(f)) < 0.05 else "{:,.1f}".format(f))
+
+
 def _rasterize_text3d(data, out_dir):
-    """Turn each cinematic3d `kind:'text'` element into a textured plane: PIL renders the string to a
-    TRANSPARENT PNG (the deck's bundled display face + textColor), and the element becomes a `plane` with
-    `src` + `alpha:true` + a world `size` from the text's aspect ratio. Why not drei/troika <Text>: it
-    renders BLANK under Remotion (async glyph SDF inside the R3F canvas). This reuses the proven DOM-level
-    texture path instead. Best-effort: no PIL -> the text element is dropped (never a blank/black card)."""
+    """Turn each cinematic3d `kind:'text'` element into a textured plane, AND emit value/category label
+    planes for `kind:'bars'`. PIL renders each string to a TRANSPARENT PNG (the deck's bundled display face
+    + colour); the element/label becomes a `plane` with `src`+`alpha:true`, billboarded to face the camera,
+    sized from the text aspect. Why not drei/troika <Text>: it renders BLANK under Remotion (async glyph SDF
+    inside the R3F canvas). This reuses the proven DOM-level texture path. Best-effort: no PIL -> text
+    elements are dropped (never a blank card) and bars simply carry no labels."""
     try:
         from PIL import Image, ImageDraw, ImageFont
     except Exception:
@@ -381,41 +394,77 @@ def _rasterize_text3d(data, out_dir):
     tk = _theme(out_dir)
     font_path = os.path.join(_SKILL_FONTS, _FONT_KIND_FILE.get(tk.get("fontKind", "sans"), "SpaceGrotesk-VF.ttf"))
     kf = os.path.join(out_dir, ".text3d")
+
+    def _text_png(txt, color_rgb, rel_name, px=220):
+        """Render txt to a transparent PNG under .text3d/; return (relpath, aspect w/h)."""
+        os.makedirs(kf, exist_ok=True)
+        try:
+            font = ImageFont.truetype(font_path, px)
+            try:                                     # match the 2D display titles' weight (~700-800): the VF
+                font.set_variation_by_axes([700])    # default instance is LIGHT (Space Grotesk 300), which
+            except Exception:                        # rasterizes thin/anemic beside a bold 2D title.
+                pass                                 # non-variable face (Bangers) keeps its single weight.
+        except Exception:
+            font = ImageFont.load_default()
+        tmp = ImageDraw.Draw(Image.new("RGBA", (10, 10)))
+        l, t, r, b = tmp.textbbox((0, 0), txt, font=font)
+        tw, th = max(1, r - l), max(1, b - t)
+        pad = int(px * 0.18)
+        img = Image.new("RGBA", (tw + 2 * pad, th + 2 * pad), (0, 0, 0, 0))
+        ImageDraw.Draw(img).text((pad - l, pad - t), txt, font=font, fill=tuple(color_rgb) + (255,))
+        rel = os.path.join(".text3d", rel_name)
+        img.save(os.path.join(out_dir, rel))
+        return rel, img.width / img.height
+
+    def _bar_label_planes(p, sidx):
+        """Value labels above each bar (accent on the final/result bar) + optional category labels
+        (`labels`) at the base — the numbers that make an extruded bar chart READ as data-viz."""
+        vals = [abs(_num(v, "bars data")) for v in p["data"]]
+        n = len(vals)
+        if not n:
+            return []
+        mx = max(vals + [1e-6])
+        total = n * _BAR_BW + (n - 1) * _BAR_GAP
+        gx, gy, gz = (list(p.get("position") or [0, 0, 0]) + [0, 0, 0])[:3]
+        labels = p.get("labels") or []
+        accent = _hex_rgb(tk.get("accent", "#e3b23c"))
+        fg = _hex_rgb(tk.get("fg", "#f0f3f8"))
+        muted = _hex_rgb(tk.get("muted", "#93a0b4"))
+        out = []
+        for i, v in enumerate(vals):
+            bar_x = -total / 2 + _BAR_BW / 2 + i * (_BAR_BW + _BAR_GAP)
+            top_y = _BAR_BASE_Y + (v / mx) * _BAR_MAXH
+            val_h = 0.32                                     # world height of the value label
+            rel, asp = _text_png(_fmt_bar_value(p["data"][i]), accent if i == n - 1 else fg,
+                                  "s%s_bar%d_val.png" % (sidx, i), px=170)
+            out.append({"kind": "plane", "src": rel, "alpha": True, "billboard": True,
+                        "position": [gx + bar_x, gy + top_y + 0.30, gz], "size": [val_h * asp, val_h]})
+            if i < len(labels) and str(labels[i]).strip():   # category tag on the floor, IN FRONT of the bar
+                cat_h = 0.26
+                rel2, asp2 = _text_png(str(labels[i]), muted, "s%s_bar%d_cat.png" % (sidx, i), px=150)
+                out.append({"kind": "plane", "src": rel2, "alpha": True, "billboard": True,
+                            "position": [gx + bar_x, gy + _BAR_BASE_Y + 0.06, gz + 0.9], "size": [cat_h * asp2, cat_h]})
+        return out
+
     for s in data.get("slides", []):
         pls = _scene_planes(s)
         if not isinstance(pls, list):
             continue
+        extra = []
         for i, p in enumerate(pls):
-            if not (isinstance(p, dict) and p.get("kind") == "text" and p.get("text")):
+            if not isinstance(p, dict):
                 continue
-            os.makedirs(kf, exist_ok=True)
-            txt = str(p["text"])
-            world_h = float(p.get("textSize") or 0.6)        # world-unit height of the text
-            px = 220                                         # raster height (hi-res so it stays crisp)
-            try:
-                font = ImageFont.truetype(font_path, px)
-                try:                                     # match the 2D display titles' weight (~700-800): the
-                    font.set_variation_by_axes([700])    # VF default instance is LIGHT (Space Grotesk 300),
-                except Exception:                        # which rasterizes thin/anemic beside a bold 2D title.
-                    pass                                 # non-variable face (Bangers) keeps its single weight.
-            except Exception:
-                font = ImageFont.load_default()
-            tmp = ImageDraw.Draw(Image.new("RGBA", (10, 10)))
-            l, t, r, b = tmp.textbbox((0, 0), txt, font=font)
-            tw, th = max(1, r - l), max(1, b - t)
-            pad = int(px * 0.18)
-            img = Image.new("RGBA", (tw + 2 * pad, th + 2 * pad), (0, 0, 0, 0))
-            col = _hex_rgb(p.get("textColor") or tk.get("fg", "#f0f3f8"))
-            ImageDraw.Draw(img).text((pad - l, pad - t), txt, font=font, fill=col + (255,))
-            rel = os.path.join(".text3d", "s%s_p%d.png" % (s.get("index"), i))
-            img.save(os.path.join(out_dir, rel))
-            aspect = img.width / img.height
-            # billboard by default (face the camera) unless the author pinned a rotation — a fixed-facing
-            # text plane goes edge-on/invisible as the camera orbits.
-            bill = p.get("rotation") is None
-            pls[i] = {"kind": "plane", "src": rel, "alpha": True, "billboard": bill, "position": p["position"],
-                      "size": [world_h * aspect, world_h], **({"rotation": p["rotation"]} if p.get("rotation") else {})}
-        s["planes"] = pls
+            if p.get("kind") == "text" and p.get("text"):
+                world_h = float(p.get("textSize") or 0.6)    # world-unit height of the text
+                col = _hex_rgb(p.get("textColor") or tk.get("fg", "#f0f3f8"))
+                rel, aspect = _text_png(str(p["text"]), col, "s%s_p%d.png" % (s.get("index"), i))
+                # billboard by default (face the camera) unless the author pinned a rotation.
+                bill = p.get("rotation") is None
+                pls[i] = {"kind": "plane", "src": rel, "alpha": True, "billboard": bill, "position": p["position"],
+                          "size": [world_h * aspect, world_h], **({"rotation": p["rotation"]} if p.get("rotation") else {})}
+            elif p.get("kind") == "bars" and isinstance(p.get("data"), list) and p["data"]:
+                extra.extend(_bar_label_planes(p, s.get("index")))
+        s["planes"] = list(pls) + extra
 
 
 def _hex_rgb(h):

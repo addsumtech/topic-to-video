@@ -13,7 +13,7 @@ import {Captions} from '../Captions';
 import {Finish} from '../theme/Finish';
 import {Element, type ElementData} from './elements';
 import type {ShotSpec, Position} from './shots';
-import {computeTimeline, poseAtFrame} from './camera';
+import {computeTimeline, poseAtFrame, reducedPoseAtFrame} from './camera';
 
 // Stage data schema (from storyboard.json stage) — elements placed ONCE.
 export type StageData = {
@@ -56,9 +56,9 @@ export const SceneStage: React.FC<SceneStageProps> = ({
   // Resolve the shot list into a pose timeline, then read the pose for THIS frame (reduced motion =>
   // freeze at the first shot's start pose).
   const timeline = computeTimeline(shots, registry, width / height);
-  const pose = reduced && timeline.length
-    ? timeline[0].startPose
-    : poseAtFrame(timeline, frame);
+  // Reduced motion => hard-cut to each shot's SETTLED framing (each beat at its intended scale, no travel);
+  // otherwise the eased pose for this frame.
+  const pose = reduced ? reducedPoseAtFrame(timeline, frame) : poseAtFrame(timeline, frame);
   const focusZ = pose.focusZ;
 
   // Same 3D rig as CinematicScene3D. The `world` node is the preserve-3d ancestor — NO opacity/filter
