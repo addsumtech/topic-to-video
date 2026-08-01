@@ -5,7 +5,7 @@ class StoryboardError(ValueError):
     pass
 
 VALID_STYLES = {"highlight", "arrow", "box"}
-VALID_SCENE_TYPES = {"slide", "title", "chart", "timeline", "keypoints", "compare", "html", "cinematic"}
+VALID_SCENE_TYPES = {"slide", "title", "chart", "timeline", "keypoints", "compare", "html", "cinematic", "cinematic3d"}
 ANIMATED_TYPES = {"title", "chart", "timeline", "keypoints", "compare", "html"}
 VALID_CHART_KINDS = {"bars", "line", "counter", "slope", "dumbbell", "dist", "scatter", "small_multiples"}
 VALID_IMAGE_SOURCES = {"none", "openai"}
@@ -77,12 +77,22 @@ def _is_num(v):
 
 def _validate_props(s):
     t = s["type"]; p = s.get("props")
-    if t == "cinematic":
-        # the Remotion cinematic tier carries its content in top-level `layers` (+ optional `camera`/
-        # `lens`), or inside props — either is fine. It needs depth planes to render.
-        layers = s.get("layers") or (p.get("layers") if isinstance(p, dict) else None)
-        if not (isinstance(layers, list) and layers):
-            raise StoryboardError(f"slide {s.get('index')}: cinematic scene needs a non-empty 'layers' list")
+    if t in ("cinematic", "cinematic3d"):
+        # The Remotion cinematic tier carries its content in ANY of three forms (top-level OR inside props):
+        # a shot-based SET (`stage`+`shots`, the paradigm), true-3D `planes` (P6), or legacy depth `layers`
+        # (+ optional camera/lens). cinematic3d specifically needs `planes`. Any one is enough to render —
+        # requiring `layers` alone wrongly rejected every shot-based / 3D board (render_remotion draws them).
+        def _f(key):
+            return s.get(key) or (p.get(key) if isinstance(p, dict) else None)
+        layers, stage, shots, planes = _f("layers"), _f("stage"), _f("shots"), _f("planes")
+        if t == "cinematic3d":
+            if not (isinstance(planes, list) and planes):
+                raise StoryboardError(f"slide {s.get('index')}: cinematic3d scene needs a non-empty 'planes' list")
+            return
+        ok = (isinstance(layers, list) and layers) or (stage and shots) or (isinstance(planes, list) and planes)
+        if not ok:
+            raise StoryboardError(f"slide {s.get('index')}: cinematic scene needs `stage`+`shots`, or `planes`, "
+                                  f"or a non-empty `layers` list")
         return
     if not isinstance(p, dict):
         raise StoryboardError(f"slide {s.get('index')}: type '{t}' needs a props dict")

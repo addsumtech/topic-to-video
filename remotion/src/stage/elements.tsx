@@ -44,28 +44,34 @@ export const Element: React.FC<{
   theme: Theme;
   frame: number;
   reducedMotion: boolean;
-}> = ({element, theme, frame, reducedMotion}) => {
+  blur?: number; // rack-focus DoF (px) — applied on the INNER leaf, never above the depth node
+}> = ({element, theme, frame, reducedMotion, blur = 0}) => {
   const {kind, position} = element;
   const [x, y, z] = position;
 
-  // Element container: absolute position in 3D space
+  // Element container: ONE node, the DIRECT child of the preserve-3d `world`. It carries preserve-3d AND
+  // the translate3d depth (plus the floor's rotateX so the floor lays down IN the 3D space). CRITICAL:
+  // never put a filter/opacity/flat node ABOVE this container — a flat ancestor collapses every descendant
+  // translateZ to one plane, which silently kills all per-element depth (parallax/size-by-distance/dolly-
+  // past). That was the bug; enter-opacity + DoF blur now live on an inner LEAF instead (below).
+  const isFloor = kind === 'floor';
   const containerStyle: React.CSSProperties = {
     position: 'absolute',
     transformStyle: 'preserve-3d',
-    transform: `translate3d(${x}px, ${y}px, ${z}px)`,
+    transform: `translate3d(${x}px, ${y}px, ${z}px)${isFloor ? ' rotateX(90deg)' : ''}`,
   };
 
-  // ENTER FADE (P4 fix): a CONTENT element materialises as the camera arrives on it (its enterAtFrame,
-  // auto-derived from the shot that frames it) — NOT from frame 0. Without this an empty glass card floats
-  // in space before its text reveals (mystery furniture). Pure backgrounds (grid/floor/fill) are the world
-  // and stay constant. Opacity is on an INNER wrapper so it never flattens the element's place in the 3D rig.
+  // ENTER FADE (P4): a CONTENT element materialises as the camera arrives on it (its enterAtFrame, auto-
+  // derived from the shot that frames it) — NOT from frame 0. Pure backgrounds (grid/floor/fill) are the
+  // world and stay constant. Opacity + rack-focus blur sit on this INNER leaf (flat is fine here — the
+  // content has no translateZ of its own), so they never flatten the depth node above.
   const isBackground = kind === 'grid' || kind === 'floor' || kind === 'fill';
   const enter = element.enterAtFrame ?? 0;
   const op = isBackground || reducedMotion ? 1 : Math.max(0, Math.min(1, (frame - enter) / 8));
 
   return (
     <div style={containerStyle}>
-      <div style={{opacity: op}}>
+      <div style={{opacity: op, filter: blur > 0 ? `blur(${blur}px)` : undefined}}>
         <ElementContent element={element} theme={theme} frame={frame} reducedMotion={reducedMotion} />
       </div>
     </div>
@@ -111,9 +117,8 @@ const ElementContent: React.FC<{
       backgroundImage: `linear-gradient(${strong ? theme.accent + '55' : theme.muted} ${strong ? 2 : 1}px, transparent ${strong ? 2 : 1}px), linear-gradient(90deg, ${strong ? theme.accent + '55' : theme.muted} ${strong ? 2 : 1}px, transparent ${strong ? 2 : 1}px)`,
       backgroundSize: strong ? '170px 170px' : '120px 120px',
     };
-    if (kind === 'floor') {
-      gridStyle.transform = 'rotateX(90deg)';
-    }
+    // NOTE: the floor's rotateX(90deg) is applied on the element CONTAINER (Element above), not here —
+    // it must live on the preserve-3d depth node so the floor lays down in the 3D world, not on this flat leaf.
     return <div style={gridStyle} />;
   }
 

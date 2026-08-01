@@ -80,12 +80,12 @@ export const SceneStage: React.FC<SceneStageProps> = ({
       <AbsoluteFill style={{perspective: `${stage.perspective || 1300}px`, perspectiveOrigin: '50% 46%'}}>
         <div style={world}>
           {stage.elements.map((el) => {
-            // rack focus: soften planes off the focal z (on an INNER wrapper — never on the 3D node).
+            // rack focus: soften planes off the focal z. The blur is passed INTO Element, which applies it
+            // on an inner leaf — NOT on a wrapper here. A wrapper div (default transform-style: flat) placed
+            // above the element's translate3d node would collapse all per-element depth to one plane.
             const blur = focusZ != null ? computeDofBlur(el.position[2], focusZ) : 0;
             return (
-              <div key={el.id} style={{filter: blur > 0 ? `blur(${blur}px)` : undefined}}>
-                <Element element={el} theme={theme} frame={frame} reducedMotion={reduced} />
-              </div>
+              <Element key={el.id} element={el} theme={theme} frame={frame} reducedMotion={reduced} blur={blur} />
             );
           })}
         </div>

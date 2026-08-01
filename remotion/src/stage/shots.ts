@@ -40,6 +40,13 @@ export type ShotSpec = {
 
 // Calculate initial camera position to frame a target at the given shot type.
 // Returns a starting LensKeyframe (dolly, pitch, yaw, zoom).
+//
+// DEPTH: the WORLD node gets translateZ(dolly) and the TARGET element also carries its own translate3d(tz),
+// so the target's final camera-space depth = dolly + tz. To hold the subject at a CONSTANT distance DIST
+// regardless of where it sits in the set, dolly = -DIST - tz (final depth = -DIST for every shot). The
+// earlier `dolly = tz - DIST` double-counted tz (final depth 2·tz - DIST), so deeper targets rendered
+// SMALLER and the establish→hero size ladder inverted on any multi-depth stage. DIST + zoom now order the
+// ladder; tz cancels out. Distances are the same magnitudes as before, only the tz sign is corrected.
 export function calculateShotFrame(
   shotType: ShotType,
   target: Position,
@@ -50,46 +57,45 @@ export function calculateShotFrame(
   switch (shotType) {
     case 'ESTABLISH': {
       // Wide: camera far back, low zoom, see the full stage
-      const dolly = tz - 1000; // push world 1000px away from target
+      const dolly = -1000 - tz; // hold the target 1000px in front, whatever its z
       const pitch = -5; // slight bird's-eye
       return {atFrame: 0, dolly, pitch, yaw: 0, zoom: 0.85, focusZ: tz};
     }
 
     case 'MEDIUM': {
       // Balanced: mid-distance, neutral framing
-      const dolly = tz - 500;
+      const dolly = -500 - tz;
       return {atFrame: 0, dolly, pitch: 0, yaw: 0, zoom: 1.0, focusZ: tz};
     }
 
     case 'CLOSEUP': {
       // Tight: close or high zoom
-      const dolly = tz - 300;
+      const dolly = -300 - tz;
       return {atFrame: 0, dolly, pitch: 0, yaw: 0, zoom: 1.5, focusZ: tz};
     }
 
     case 'OVER_SHOULDER': {
       // Foreground element partially in frame, subject in background
-      // Assume foreground is at z: -100, subject at target z
-      const dolly = tz - 400;
+      const dolly = -400 - tz;
       const yaw = 8; // slight angle to see past foreground
       return {atFrame: 0, dolly, pitch: 0, yaw, zoom: 1.1, focusZ: tz};
     }
 
     case 'REVEAL': {
       // Starts obscured (high zoom or off-angle), motion pattern will reveal
-      const dolly = tz - 200;
+      const dolly = -200 - tz;
       return {atFrame: 0, dolly, pitch: 10, yaw: -15, zoom: 1.8, focusZ: tz - 100};
     }
 
     case 'HERO': {
       // Dramatic isolation: close, strong DoF, centered
-      const dolly = tz - 350;
+      const dolly = -350 - tz;
       return {atFrame: 0, dolly, pitch: 0, yaw: 0, zoom: 1.3, focusZ: tz};
     }
 
     default:
       // Fallback to MEDIUM
-      const dolly = tz - 500;
+      const dolly = -500 - tz;
       return {atFrame: 0, dolly, pitch: 0, yaw: 0, zoom: 1.0, focusZ: tz};
   }
 }

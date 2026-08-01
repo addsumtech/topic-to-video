@@ -35,7 +35,7 @@ export function fitTextToWidth(
     withinWidth,
     fontFamily,
     letterSpacing,
-    fontVariantNumeric: role === 'number' ? 'lining-nums tabular-nums' : undefined,
+    fontVariantNumeric: role === 'number' ? 'lining-nums tabular-nums' : 'lining-nums',
     validateFontIsLoaded: true,
   });
 
@@ -57,7 +57,7 @@ export function getTextDimensions(
     fontFamily,
     fontSize,
     letterSpacing,
-    fontVariantNumeric: role === 'number' ? 'lining-nums tabular-nums' : undefined,
+    fontVariantNumeric: role === 'number' ? 'lining-nums tabular-nums' : 'lining-nums',
     validateFontIsLoaded: true,
   });
 }
@@ -78,6 +78,11 @@ export function textStyle(
     fontSize,
     lineHeight,
     letterSpacing,
-    fontVariantNumeric: role === 'number' ? 'lining-nums tabular-nums' : undefined,
+    // LINING FIGURES ALWAYS (standing rule): force lining numerals on EVERY role so digits never render
+    // in an old-style/text-figure face (e.g. Georgia/Playfair defaults, where '4' drops below the baseline).
+    // Tabular alignment only where numbers are the point (role 'number'); proportional lining reads more
+    // naturally in headlines/body. This is the enforcement the HTML tier does in CSS — the cinematic tier
+    // never passed role 'number', so without this every stat rendered old-style.
+    fontVariantNumeric: role === 'number' ? 'lining-nums tabular-nums' : 'lining-nums',
   };
 }

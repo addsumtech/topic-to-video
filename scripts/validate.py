@@ -958,9 +958,16 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # A cinematic scene (type 'cinematic', or any scene carrying top-level `layers`/`lens`) renders ONLY
     # on the Remotion tier. On the local path render.py does getattr(scenes,'render_cinematic') and
     # crashes with AttributeError — so it MUST declare meta.renderer=='remotion'. Caught here, unconditionally.
+    def _cine_content(s):
+        # Any cinematic content that the Remotion tier draws WITHOUT an image: a shot-based SET
+        # (stage+shots), true-3D planes (P6), or legacy depth layers. Used to exempt these from the
+        # "blank scene" trap and to route them to the remotion renderer.
+        pr = s.get("props") or {}
+        return ((s.get("stage") or pr.get("stage")) and (s.get("shots") or pr.get("shots"))) \
+            or (s.get("planes") or pr.get("planes")) or (s.get("layers") or pr.get("layers"))
     cine = [s.get("index") for s in slides
-            if s.get("type") == "cinematic" or s.get("layers") or s.get("lens")
-            or (s.get("props") or {}).get("layers") or (s.get("props") or {}).get("lens")]
+            if s.get("type") in ("cinematic", "cinematic3d") or s.get("lens")
+            or (s.get("props") or {}).get("lens") or _cine_content(s)]
     if cine and meta.get("renderer") != "remotion":
         errors.append("scene(s) %s use the cinematic tier (type 'cinematic' / `layers` / `lens`) but "
                       "meta.renderer is '%s' — set meta.renderer:'remotion' (the local renderer has no "
@@ -972,7 +979,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     if meta.get("renderer") == "remotion":
         blank = [(s.get("index"), s.get("type", "slide")) for s in slides
                  if not (s.get("image") or (s.get("props") or {}).get("image"))
-                 and not (s.get("layers") or (s.get("props") or {}).get("layers"))   # cinematic layered scene renders
+                 and not _cine_content(s)   # stage+shots / planes / layers all render content without an image
                  and s.get("type", "slide") not in ("slide", "title")]
         if blank:
             errors.append("renderer=remotion (cinematic tier) renders IMAGE scenes only, but scene(s) "
