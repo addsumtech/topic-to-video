@@ -33,7 +33,11 @@ const STYLE_TO_FAMILY: Record<string, keyof typeof GRADE_FAMILIES> = {
 // edges fall off, instead of a heavy vignette crushing content into murk. Vignette is here (one place),
 // not duplicated per scene. All layers are OUTER 2D — never on a preserve-3d ancestor.
 export const Finish: React.FC<{frame: number; theme: Theme}> = ({frame, theme}) => {
-  const grainAmount = Math.max(0, Math.min(0.2, parseFloat(theme.grainAmount || '0') || 0));
+  // Grain FLOOR (video tier only): theme.py leaves --grain-amount 0 on ~12 of 18 styles (incl. the
+  // filmic 'cinematic'/'editorial'), which the HTML tier wants crisp — but a moving video composites
+  // separate planes and a soft-light grade that BAND without a little sensor texture. A subtle 0.03 floor
+  // (well below the printed-style values) unifies the frame and hides banding, without touching theme.py.
+  const grainAmount = Math.max(0.03, Math.min(0.2, parseFloat(theme.grainAmount || '0') || 0));
   const grade = GRADE_FAMILIES[STYLE_TO_FAMILY[theme.style] || 'warm'];  // unknown/empty style -> cinematic warm
   const off = (frame * 11) % 200; // deterministic grain scroll
 
@@ -62,11 +66,14 @@ export const Finish: React.FC<{frame: number; theme: Theme}> = ({frame, theme}) 
           }}
         />
       )}
-      {/* VIGNETTE — moderated (edges only): wider clear centre + gentler falloff than a heavy crush */}
+      {/* VIGNETTE — moderated but REAL: the falloff must start INSIDE the frame. The old 135%/60% radii
+          put every visible corner below the first (transparent) stop, so it darkened zero pixels; here the
+          clear centre ends at 40% and the corners (~0.62 of the gradient radius) fall to ~0.12 alpha —
+          a gentle exposure roll-off that draws the eye, not a heavy crush. Verified from a corner pixel. */}
       <AbsoluteFill
         style={{
           pointerEvents: 'none',
-          background: 'radial-gradient(135% 135% at 50% 46%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.30) 100%)',
+          background: 'radial-gradient(118% 118% at 50% 47%, rgba(0,0,0,0) 40%, rgba(0,0,0,0.34) 100%)',
         }}
       />
     </>

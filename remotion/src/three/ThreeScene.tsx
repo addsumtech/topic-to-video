@@ -71,7 +71,7 @@ function usePlaneTextures(srcs: string[]): Record<string, THREE.Texture> {
 // A plane textured with a real screenshot/image, living in true 3D (the camera orbits it with real
 // perspective + lighting) — NOT a flat 2D overlay. Consumes an ALREADY-LOADED texture (loaded at the DOM
 // level by usePlaneTextures). If the texture isn't ready/failed, renders a dark placeholder plane.
-const TexturedPlane: React.FC<{tex?: THREE.Texture; size: [number, number]; position: [number, number, number]; rotation: [number, number, number]; theme: Theme; alpha?: boolean}> = ({tex, size, position, rotation, theme, alpha}) => {
+const TexturedPlane: React.FC<{tex?: THREE.Texture; size: [number, number]; position: [number, number, number]; rotation: [number, number, number] | THREE.Euler; theme: Theme; alpha?: boolean}> = ({tex, size, position, rotation, theme, alpha}) => {
   if (!tex) {
     // a rasterized-text plane has nothing to show without its texture -> render nothing (not a dark rect)
     if (alpha) return null;
@@ -111,7 +111,7 @@ const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number;
         const h = Math.max(0.001, full * e);
         const x = -total / 2 + bw / 2 + i * (bw + gap);
         return (
-          <mesh key={i} position={[x, -1.3 + h / 2, 0]}>
+          <mesh key={i} position={[x, -1.3 + h / 2, 0]} castShadow receiveShadow>
             <boxGeometry args={[bw, h, bw]} />
             <meshStandardMaterial color={i === data.length - 1 ? accent : accent2} metalness={0.1} roughness={0.55} />
           </mesh>
@@ -138,6 +138,21 @@ function lerpKey(keys: Camera3DKey[], frame: number, get: (k: Camera3DKey) => nu
     }
   }
   return get(last);
+}
+
+// A TRUE billboard rotation: face the camera in BOTH yaw AND pitch, so a label never foreshortens or leans
+// back under a crane / top-down angle (yaw-only billboarding does). The camera orbits the origin at
+// (yaw, radius, height); a plane at p turns to look straight down the ray from p to the camera. Returns a
+// THREE.Euler with order 'YXZ' (yaw THEN pitch, the FPS-camera order) so combining the two adds NO roll —
+// default 'XYZ' order visibly tilts the word at mid-orbit when both angles are non-zero.
+function billboardEuler(
+  p: [number, number, number], camYaw: number, camHeight: number, camRadius: number,
+): THREE.Euler {
+  const camX = Math.sin(camYaw) * camRadius, camZ = Math.cos(camYaw) * camRadius;
+  const dx = camX - p[0], dz = camZ - p[2], dy = camHeight - p[1];
+  const yaw = Math.atan2(dx, dz);
+  const pitch = Math.atan2(dy, Math.hypot(dx, dz));
+  return new THREE.Euler(-pitch, yaw, 0, 'YXZ'); // rotate.x = -pitch tilts the +Z face UP toward the camera
 }
 
 // Frame-driven orbit/crane camera: yaw around the target, at a keyframed radius + height. Reduced motion
@@ -170,7 +185,10 @@ export const ThreeScene: React.FC<{
   const {width, height, durationInFrames} = useVideoConfig();
   const dur = Math.max(1, durationInFrames);
   const keys = camera3d && camera3d.length ? camera3d : [{atFrame: 0, yaw: -0.6, pitch: 0, radius: 7, height: 4}];
-  const camYaw = reducedMotion ? keys[0].yaw : lerpKey(keys, frame, (k) => k.yaw); // for billboarding text at the camera
+  // Camera pose at this frame (for billboarding labels to face the camera in yaw + pitch).
+  const camYaw = reducedMotion ? keys[0].yaw : lerpKey(keys, frame, (k) => k.yaw);
+  const camHeight = reducedMotion ? keys[0].height : lerpKey(keys, frame, (k) => k.height);
+  const camRadius = reducedMotion ? keys[0].radius : lerpKey(keys, frame, (k) => k.radius);
   // Load plane textures HERE (DOM reconciler) so the render waits; pass the ready textures into the canvas.
   // (Rasterized-text planes are just image planes with alpha — same path.)
   const srcs = planes.map((p) => p.src).filter((s): s is string => !!s);
@@ -184,13 +202,30 @@ export const ThreeScene: React.FC<{
 
   return (
     <AbsoluteFill style={{backgroundColor: theme.bg}}>
-      <ThreeCanvas width={width} height={height} style={{backgroundColor: theme.bg}} camera={{fov: 45, position: [0, keys[0].height, keys[0].radius]}}>
-        <ambientLight intensity={0.55} />
-        <directionalLight position={[5, 9, 4]} intensity={1.3} />
+      <ThreeCanvas shadows width={width} height={height} style={{backgroundColor: theme.bg}} camera={{fov: 45, position: [0, keys[0].height, keys[0].radius]}}>
+        {/* depth fog: the floor's far edge + distant geometry DISSOLVE into the bg instead of ending at a
+            hard 40-unit horizon — the atmospheric falloff that makes a 3D space read as large, not a toy. */}
+        <fog attach="fog" args={[theme.bg, 11, 33]} />
+        <ambientLight intensity={0.5} />
+        {/* key light CASTS shadows so bars/objects are grounded with a real contact shadow, not floating. */}
+        <directionalLight
+          position={[5, 9, 4]}
+          intensity={1.35}
+          castShadow
+          shadow-mapSize={[2048, 2048]}
+          shadow-camera-left={-14}
+          shadow-camera-right={14}
+          shadow-camera-top={14}
+          shadow-camera-bottom={-14}
+          shadow-camera-near={0.5}
+          shadow-camera-far={44}
+          shadow-bias={-0.0006}
+        />
         <pointLight position={[-5, 3, -3]} intensity={0.5} color={theme.accent2} />
         <CameraRig keys={keys} reduced={!!reducedMotion} />
-        {/* ground plane — real perspective floor receding to a vanishing point */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.3, 0]}>
+        {/* ground plane — real perspective floor that RECEIVES the contact shadows (dropped a hair below the
+            bar feet so the shadow reads and the coplanar faces don't z-fight). */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.32, 0]} receiveShadow>
           <planeGeometry args={[40, 40]} />
           <meshStandardMaterial color={theme.surface || theme.bg} />
         </mesh>
@@ -201,9 +236,10 @@ export const ThreeScene: React.FC<{
             </group>
           ) : p.src ? (
             <TexturedPlane key={i} tex={textures[p.src]} size={p.size || [3, 1.8]} position={p.position}
-              rotation={p.billboard ? [0, camYaw, 0] : p.rotation || [0, 0, 0]} theme={theme} alpha={p.alpha} />
+              rotation={p.billboard ? billboardEuler(p.position, camYaw, camHeight, camRadius) : p.rotation || [0, 0, 0]}
+              theme={theme} alpha={p.alpha} />
           ) : (
-            <mesh key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
+            <mesh key={i} position={p.position} rotation={p.rotation || [0, 0, 0]} castShadow>
               <planeGeometry args={p.size || [3, 1.8]} />
               <meshStandardMaterial color={p.color || theme.accent} />
             </mesh>

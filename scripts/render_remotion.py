@@ -394,6 +394,10 @@ def _rasterize_text3d(data, out_dir):
             px = 220                                         # raster height (hi-res so it stays crisp)
             try:
                 font = ImageFont.truetype(font_path, px)
+                try:                                     # match the 2D display titles' weight (~700-800): the
+                    font.set_variation_by_axes([700])    # VF default instance is LIGHT (Space Grotesk 300),
+                except Exception:                        # which rasterizes thin/anemic beside a bold 2D title.
+                    pass                                 # non-variable face (Bangers) keeps its single weight.
             except Exception:
                 font = ImageFont.load_default()
             tmp = ImageDraw.Draw(Image.new("RGBA", (10, 10)))
