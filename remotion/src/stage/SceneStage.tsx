@@ -31,6 +31,7 @@ export type SceneStageProps = {
   reducedMotion?: boolean;
   fadeInFrames?: number;
   fadeOutFrames?: number;
+  motionAmp?: number; // motion_personality amplitude scale (default 1)
 };
 
 export const SceneStage: React.FC<SceneStageProps> = ({
@@ -43,6 +44,7 @@ export const SceneStage: React.FC<SceneStageProps> = ({
   reducedMotion,
   fadeInFrames,
   fadeOutFrames,
+  motionAmp,
 }) => {
   const frame = useCurrentFrame();
   const {durationInFrames, width, height} = useVideoConfig();
@@ -55,7 +57,7 @@ export const SceneStage: React.FC<SceneStageProps> = ({
 
   // Resolve the shot list into a pose timeline, then read the pose for THIS frame (reduced motion =>
   // freeze at the first shot's start pose).
-  const timeline = computeTimeline(shots, registry, width / height);
+  const timeline = computeTimeline(shots, registry, width / height, motionAmp ?? 1);
   // Reduced motion => hard-cut to each shot's SETTLED framing (each beat at its intended scale, no travel);
   // otherwise the eased pose for this frame.
   const pose = reduced ? reducedPoseAtFrame(timeline, frame) : poseAtFrame(timeline, frame);

@@ -190,6 +190,7 @@ def _clean_shots(shots, frames, fps, elem_ids, tag):
     `easing`, and a `carry` continuity flag. Raises on a bad shape or a target that isn't a staged id."""
     if not isinstance(shots, list) or not shots:
         raise RuntimeError("cinematic %s: `shots` must be a non-empty list" % tag)
+    author_energy = any(isinstance(sh, dict) and sh.get("energy") is not None for sh in shots)
     cleaned, raws = [], []
     for j, sh in enumerate(shots):
         if not isinstance(sh, dict):
@@ -209,6 +210,8 @@ def _clean_shots(shots, frames, fps, elem_ids, tag):
         if en not in ("subtle", "balanced", "bold"):
             raise RuntimeError("cinematic %s shot %d: energy must be subtle|balanced|bold, got %r" % (tag, j, en))
         c["energy"] = en
+        if sh.get("motive"):                             # the shot's one-line reason to exist (#6 discipline)
+            c["motive"] = str(sh["motive"])
         tgt = sh.get("target")
         if tgt is not None:
             if str(tgt) not in elem_ids:
@@ -234,12 +237,29 @@ def _clean_shots(shots, frames, fps, elem_ids, tag):
         d = sh.get("duration")
         raws.append(max(1, int(round(_num(d, "%s shot %d duration" % (tag, j)) * fps))) if d is not None else None)
         cleaned.append(c)
-    # Assign frame windows that sum EXACTLY to the scene's frames (protects A/V sync).
+    # ENERGY ARC (#6): if the author tuned NO shot's energy, DERIVE an arc instead of a uniform push —
+    # calm open (the establish/first beat drifts), the climax near ~80% pushes hardest, the rest settle.
+    # A hand-set energy on any shot means the author owns the arc, so leave all of them alone.
+    if not author_energy and len(cleaned) >= 2:
+        climax = max(0, int(round(len(cleaned) * 0.8)) - 1)
+        for i, c in enumerate(cleaned):
+            if i == 0 or c["type"] == "ESTABLISH":
+                c["energy"] = "subtle"
+            elif c["type"] == "HERO" or i == climax:
+                c["energy"] = "bold"
+            else:
+                c["energy"] = "balanced"
+    # Assign frame windows that sum EXACTLY to the scene's frames (protects A/V sync). Un-authored windows
+    # are weighted by energy so a bold climax gets MORE screen time and a subtle drift less (an energy arc
+    # in TIME, not just amplitude) — authored `duration`s are honoured exactly.
+    _W = {"subtle": 0.82, "balanced": 1.0, "bold": 1.35}
     n_none = raws.count(None)
     if n_none:
         fixed = sum(r for r in raws if r is not None)
-        each = max(1, (frames - fixed) // n_none)
-        raws = [each if r is None else r for r in raws]
+        free = max(n_none, frames - fixed)
+        wsum = sum(_W[cleaned[i]["energy"]] for i in range(len(raws)) if raws[i] is None) or 1
+        raws = [max(1, int(round(free * _W[cleaned[i]["energy"]] / wsum))) if r is None else r
+                for i, r in enumerate(raws)]
     tot = sum(raws) or 1
     scaled = [max(1, int(round(r * frames / tot))) for r in raws]
     scaled[-1] = max(1, scaled[-1] + (frames - sum(scaled)))   # absorb rounding drift in the last shot
@@ -647,6 +667,12 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
     Threads the same per-scene fields the local renderer honours: motion (Ken Burns from/to), fit
     (contain/cover), captions, transitions — plus a canvas-derived caption font size."""
     meta = data.get("meta") or {}
+    # motion_personality (#10): one dial that scales EVERY move's amplitude, so the whole film shares one
+    # motion physics (a calm product film drifts; an energetic launch pushes). The cinematic tier used to
+    # drop this field; now it flows into the shared camera ease/amplitude. Default balanced (1.0).
+    _MOTION_AMP = {"calm": 0.72, "precise": 0.8, "weighty": 0.9, "balanced": 1.0, "smooth": 1.0,
+                   "editorial": 1.0, "bold": 1.35, "energetic": 1.4}
+    motion_amp = _MOTION_AMP.get(str(meta.get("motion_personality", "balanced")).lower(), 1.0)
     vertical = vertical or meta.get("aspect") == "9:16"
     W, H = rd._canvas(meta, vertical)
     fps = int(meta.get("fps", 30))
@@ -760,6 +786,7 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
             "fadeOutFrames": fo,
             "stage": stage if shot_based else None,          # shot-based (P2): the SET (elements placed once)
             "shots": shots if shot_based else None,           # the ordered SHOT list (framings over the set)
+            "motionAmp": motion_amp if shot_based else None,  # motion_personality amplitude (#10)
             "planes": planes if three_d else None,            # P6 TRUE-3D: WebGL content planes
             "camera3d": camera3d if three_d else None,        # P6 orbit/crane camera keyframes
             "filmLook": (s.get("film_look") if s.get("film_look") is not None else meta.get("film_look", True)) if three_d else None,

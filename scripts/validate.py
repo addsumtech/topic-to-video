@@ -518,6 +518,16 @@ def _shot_stage_fields(stage, shots, tag, errors, warnings):
             warnings.append(f"{tag}: {n} of {len(moves)} shots use the same framing+motion {top} — vary the "
                             f"shot type / motion / target so the camera reframes (D12g; >=3 identical shots "
                             f"is the cinematic form of a template)")
+    # #6 MOTIVE: a big push (HERO/CLOSEUP) must answer a question — nudge for a one-line `motive`.
+    if any(isinstance(sh, dict) and str(sh.get("type", "")).upper() in ("HERO", "CLOSEUP") and not sh.get("motive")
+           for sh in shots):
+        warnings.append(f"{tag}: a HERO/CLOSEUP shot has no `motive` — state in one line what question the push "
+                        f"answers; a move without a motive reads as restless (references/shots/shot-vocabulary.md)")
+    # #6 FLAT ARC: the author pinned every shot to the SAME energy (a uniform push, not an arc).
+    _ens = [str(sh.get("energy")).lower() for sh in shots if isinstance(sh, dict) and sh.get("energy")]
+    if len(_ens) >= 4 and len(set(_ens)) == 1:
+        warnings.append(f"{tag}: all {len(_ens)} shots share energy '{_ens[0]}' — build an ARC (calm open -> "
+                        f"bold climax near ~80%% -> resolve), don't push uniformly (or drop `energy` to auto-derive)")
 
 
 def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
@@ -553,6 +563,12 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
                             f"gets a bespoke design (cover-the-copy test), not the default glass panel")
         elif str(_arche) not in _ARCHETYPES:
             errors.append(f"{tag}: unknown archetype {_arche!r} (known: {sorted(_ARCHETYPES)})")
+    # #6 COMFORT BUDGET: too many camera changes per second reads as vertigo (huashu: >=2.6s between moves).
+    if stage and isinstance(shots, list) and len(shots) >= 3 and isinstance(s.get("duration"), (int, float)) and s["duration"]:
+        avg = float(s["duration"]) / len(shots)
+        if avg < 2.6:
+            warnings.append(f"{tag}: {len(shots)} shots in {float(s['duration']):.1f}s (~{avg:.1f}s each) — the "
+                            f"camera changes faster than ~2.6s (vertigo); merge or cut a shot (comfort budget)")
     if not cam and not lens and not layers:
         return
     fps = int((meta or {}).get("fps", 30) or 30)

@@ -33,6 +33,7 @@ export type SceneData = {
   // LEGACY: `lens` → CinematicScene3D; `camera`+`layers` → CinematicScene (flat parallax)
   stage?: StageData | null;
   shots?: ShotSpec[] | null;
+  motionAmp?: number; // motion_personality amplitude scale (default 1)
   camera?: CameraKeyframe[] | null;
   lens?: LensKeyframe[] | null;
   perspective?: number | null;
@@ -90,6 +91,7 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
         reducedMotion={scene.reducedMotion}
         fadeInFrames={scene.fadeInFrames}
         fadeOutFrames={scene.fadeOutFrames}
+        motionAmp={scene.motionAmp}
       />
     );
   }

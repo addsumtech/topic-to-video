@@ -22,6 +22,9 @@ const EASE: Record<string, (n: number) => number> = {
   in: Easing.in(Easing.cubic),
   out: Easing.out(Easing.cubic),
   inout: Easing.inOut(Easing.cubic),
+  // HOUSE_EASE — the shared premium "quick-out, long-settle" curve (expo-out). The default camera settle so
+  // every move lands with the same restrained confidence (one motion physics, not per-shot ad-hoc eases).
+  house: Easing.bezier(0.16, 1, 0.3, 1),
 };
 
 function toPose(k: LensKeyframe): Pose {
@@ -41,6 +44,7 @@ export function computeTimeline(
   shots: ShotSpec[],
   registry: Map<string, Position>,
   aspect: number,
+  ampScale: number = 1, // motion_personality: scales every move's amplitude (calm 0.72 … energetic 1.4)
 ): ResolvedShot[] {
   const out: ResolvedShot[] = [];
   let prevEnd: Pose | null = null;
@@ -71,15 +75,15 @@ export function computeTimeline(
 
     // The shot settles at its framing (+ its motion pattern applied on top), scaled by the shot's ENERGY
     // so a bold beat pushes harder and a subtle one drifts — varied motion, not one uniform push.
-    const amp = sh.energy === 'bold' ? 1.6 : sh.energy === 'subtle' ? 0.55 : 1;
-    const settled = generateMotion(parseMotionPattern(sh.motion), framing, dur, sh.easing || 'out', amp);
+    const amp = (sh.energy === 'bold' ? 1.6 : sh.energy === 'subtle' ? 0.55 : 1) * ampScale;
+    const settled = generateMotion(parseMotionPattern(sh.motion), framing, dur, sh.easing || 'house', amp);
     const endPose = toPose(settled[settled.length - 1]);
 
     // carry => GLIDE from the previous shot's end pose to this framing (continuous move to the new
     // subject); non-carry => CUT: sit at the framing and apply the motion (start == the framing pose).
     const startPose: Pose = sh.carry && prevEnd ? prevEnd : toPose(settled[0]);
 
-    out.push({start, end: start + dur, startPose, endPose, easing: flowThrough ? 'linear' : sh.easing || 'out'});
+    out.push({start, end: start + dur, startPose, endPose, easing: flowThrough ? 'linear' : sh.easing || 'house'});
     prevEnd = endPose;
   }
   return out;
