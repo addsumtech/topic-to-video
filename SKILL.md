@@ -197,6 +197,13 @@ TTS if the user gives an API key.
   SHADOWS + `<fog>`. Needs a one-time `cd remotion && npm install`. **Image textures + 3D text/labels load at
   the DOM level (not inside the canvas), rasterized via `_rasterize_text3d` — see
   `references/cinematic-components.md`.**
+  **PER-BEAT DESIGN (avoid the one-glass-panel trap): before authoring a cinematic scene, READ
+  `references/shot-archetypes.md` and give the scene an `archetype`** (the beat's bespoke composition/concept,
+  orthogonal to `meta.style`) — the content becomes the SET natively (hero text / 3D bars / device frame) OR
+  via **Path A**: author an HTML form page at `<out_dir>/pages/<name>.html` (the HTML tier's forms) and point
+  a `kind:"card"` element at it with `html:"pages/<name>.html"` (screenshotted onto the plane the camera flies
+  over). `validate` lints design-variety (archetype spread, ≥1 signature beat, no back-to-back repeats) so a
+  film of identical glass panels can't ship.
   `validate.py` structurally gates the fields (keyframe ordering, on-canvas targets, a read-safe zoom
   band, layer kinds, image-plane existence) — but the **move itself is judged only from the rendered
   filmstrip** `<out_dir>/_keyframes/scene_NN.png`, never from the plan (pre-tts the blind envelope is

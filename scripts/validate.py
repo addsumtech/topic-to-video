@@ -393,6 +393,41 @@ _CINE_KINDS = {"fill", "grid", "floor", "hero", "panel", "image"}
 _CINE_EASINGS = {"linear", "in", "out", "inout"}
 _SHOT_TYPES = {"ESTABLISH", "MEDIUM", "CLOSEUP", "OVER_SHOULDER", "REVEAL", "HERO"}
 _ELEM_KINDS = {"panel", "image", "textblock", "callout", "grid", "floor", "hero", "fill", "card"}  # ElementKind (elements.tsx); `card` = a Path-A html form
+# The per-beat DESIGN axis (references/shot-archetypes.md). Chosen per cinematic scene; MUST vary across the
+# film so every beat isn't the same glass panel reframed. Orthogonal to meta.style (the deck's one skin).
+_ARCHETYPES = {"hero-on-void", "manifesto-monolith", "data-materializes", "metric-wall", "process-flow",
+               "comparison-split", "system-map", "timeline-rail", "quadrant-position", "metaphor-mechanic",
+               "device-focus", "quote-testament", "exploded-assemble", "turntable-material"}
+_SIGNATURE_ARCHETYPES = {"metaphor-mechanic", "data-materializes", "manifesto-monolith", "turntable-material"}
+
+
+def _archetype_of(s):
+    return str(s.get("archetype") or (s.get("props") or {}).get("archetype") or "")
+
+
+def _design_variety_lint(slides, warnings):
+    """DESIGN-VARIETY across the film (cinematic tier): the ARCHETYPE (each beat's bespoke design) must vary
+    — not just the camera. The backstop for the design-sameness failure (every beat = one glass panel
+    reframed): no archetype on >45% of beats, >=3 distinct, >=1 signature/metaphor beat, no back-to-back
+    repeats. Advisory (warnings) — a strong film satisfies it, a lazy one gets told exactly why."""
+    arches = [_archetype_of(s) for s in slides if _archetype_of(s)]
+    if len(arches) >= 4:
+        top, n = max(((a, arches.count(a)) for a in set(arches)), key=lambda kv: kv[1])
+        if n / len(arches) > 0.45:
+            warnings.append("design-variety: archetype '%s' is on %d/%d cinematic beats (>45%%) — vary the "
+                            "per-beat DESIGN (references/shot-archetypes.md); every beat the same look is the "
+                            "design-sameness failure the tier exists to avoid" % (top, n, len(arches)))
+        if len(set(arches)) < 3:
+            warnings.append("design-variety: only %d distinct archetype(s) across %d cinematic beats — a launch "
+                            "film needs a fresh design idea per beat (>=3 distinct)" % (len(set(arches)), len(arches)))
+        if not (_SIGNATURE_ARCHETYPES & set(arches)):
+            warnings.append("design-variety: no signature/metaphor beat (metaphor-mechanic / data-materializes / "
+                            "manifesto-monolith) — add >=1 so the film has a memorable, topic-locked moment")
+    for a, b in zip(slides, slides[1:]):
+        aa, bb = _archetype_of(a), _archetype_of(b)
+        if aa and aa == bb:
+            warnings.append("design-variety: scenes #%s and #%s share archetype '%s' back-to-back — consecutive "
+                            "beats must reframe the DESIGN, not just the camera" % (a.get("index"), b.get("index"), aa))
 _SHOT_MOTIONS = {"STATIC", "PUSH_IN", "PULL_OUT", "PAN_RIGHT", "PAN_LEFT", "TILT_UP", "TILT_DOWN",
                  "ORBIT_RIGHT", "ORBIT_LEFT", "RACK_FOCUS"}
 # MIRROR render_remotion._MOTION_ALIASES so the bare survey names the docs teach (PAN/TILT/ORBIT/…) pass
@@ -496,6 +531,16 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
         if not _exists(out_dir, str(c.get("html") or "")):
             errors.append(f"{tag}: Path-A html card page '{c.get('html')}' not found under {out_dir} — "
                           f"author the form page there (it is screenshotted onto the plane at render)")
+    # DESIGN AXIS (references/shot-archetypes.md): a shot-based / 3D cinematic beat must declare an
+    # `archetype` so it gets a bespoke, topic-driven design (not the default glass panel). Absent -> warn
+    # (nudge the director); set-but-unknown -> error.
+    _arche = s.get("archetype") or pr.get("archetype")
+    if (stage and shots) or (s.get("planes") or pr.get("planes")):
+        if _arche is None:
+            warnings.append(f"{tag}: no `archetype` — pick one from references/shot-archetypes.md so the beat "
+                            f"gets a bespoke design (cover-the-copy test), not the default glass panel")
+        elif str(_arche) not in _ARCHETYPES:
+            errors.append(f"{tag}: unknown archetype {_arche!r} (known: {sorted(_ARCHETYPES)})")
     if not cam and not lens and not layers:
         return
     fps = int((meta or {}).get("fps", 30) or 30)
@@ -997,6 +1042,8 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         pr = s.get("props") or {}
         return ((s.get("stage") or pr.get("stage")) and (s.get("shots") or pr.get("shots"))) \
             or (s.get("planes") or pr.get("planes")) or (s.get("layers") or pr.get("layers"))
+    _design_variety_lint(slides, warnings)
+
     cine = [s.get("index") for s in slides
             if s.get("type") in ("cinematic", "cinematic3d") or s.get("lens")
             or (s.get("props") or {}).get("lens") or _cine_content(s)]

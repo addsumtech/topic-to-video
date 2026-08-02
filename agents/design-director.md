@@ -247,6 +247,22 @@ Per cinematic beat, emit `type:"cinematic"` with:
 - **`shot_card`** — the `name` of the shot card this beat realises (the critic checks the render against
   that card's Checklist under D12). This is REQUIRED — an uncited cinematic move has no design gate.
 
+**PER-BEAT DESIGN — the archetype axis (do this FIRST, before the camera).** The camera tier is strong, but
+left alone it films the SAME glass panel on every beat, so the film reads as one card reframed N times. A
+real launch film gives every beat its own bespoke, topic-driven design. **READ `references/shot-archetypes.md`
+and assign each cinematic scene an `archetype`** (`hero-on-void`/`metric-wall`/`process-flow`/`comparison-split`/
+`system-map`/`metaphor-mechanic`/…) — the axis that fixes the beat's COMPOSITION + visual concept + the FORM
+its content takes, orthogonal to the deck's one `meta.style`. Author a one-line **styleframe brief** per scene
+(focal subject · concept · the 120% signature · the motion-verb) BEFORE tuning the camera. **VARY the archetype
+beat to beat** (validate lints: no archetype >45% of beats, ≥3 distinct, ≥1 signature/metaphor beat, never two
+consecutive the same) and apply the **cover-the-copy test**: hide the narration — if two beats look alike, redesign.
+A beat's content becomes the SET either NATIVELY (hero text / 3D bars / device frame) or via **Path A** — author
+an HTML form page at `<out_dir>/pages/<name>.html` (the HTML tier's own forms: flow/scorecard/quadrant/…) and
+reference it from a `kind:"card"` element with `html:"pages/<name>.html"`; it is screenshotted onto the plane
+the camera flies over. Reach for `metaphor-mechanic` (make the abstract idea physical) on any abstract beat —
+it is the highest-yield, most topic-locked novelty. **If a beat could have been a static HTML slide, it should
+have been — reserve the cinematic tier for beats whose idea needs depth, a camera move, motion, or continuity.**
+
 **SHOT-BASED staging — the paradigm (prefer this for a real film).** Instead of one move over flat
 `layers`, author a beat as a **SET** the camera moves THROUGH: `stage.elements` placed once in 3D space
 (each `{id, kind, position:[x,y,z], …content}`) + an ordered **`shots`** list, each shot framing an
