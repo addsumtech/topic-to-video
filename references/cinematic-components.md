@@ -85,7 +85,9 @@ Copy-paste kits; each component must be checked for frame-safety before use.
 | Logo / brand animation | `@remotion/lottie` (or static PNG) | B | Lottie is frame-safe |
 | Connector / arrow / underline draw-on | `@remotion/paths` `evolvePath` | B | frame-safe |
 | Shapes / masks / dividers | `@remotion/shapes` | B | frame-safe |
-| Real 3D text / product mockup | `@react-three/drei` Text3D + `useOffthreadVideoTexture` | B (P6) | frame-safe |
+| Real 3D text | `kind:"text"` → `render_remotion._rasterize_text3d` (PIL → billboard alpha PNG plane) | B (P6) | **drei/troika `<Text>` renders BLANK under Remotion — do NOT use.** This is the working path |
+| 3D bar labels | `kind:"bars"` `data`/`labels` → auto value+category billboard planes (`_rasterize_text3d`) | B (P6) | rasterized, lining face |
+| Product mockup / video-in-3D | `@remotion/three` `useOffthreadVideoTexture` on a plane | B (P6) | frame-safe (video texture only) |
 | Bloom / glow | `@remotion/skia` | B | separate canvas — won't flatten 3D |
 
 ## 6. Adoption checklist (run BEFORE `npm install` anything)
@@ -106,4 +108,9 @@ Copy-paste kits; each component must be checked for frame-safety before use.
 1. **Device frame element + image `size`** — makes "show the product UI" look right immediately.
 2. **HTML-form-as-plane** — one step to reuse all ~30 data/diagram forms (highest leverage).
 3. **Native KPI counter + `lucide-react` icons + `@remotion/shapes`/`paths` connectors** — hero moments.
-4. **`@remotion/lottie` (brand/icon motion) + drei Text3D/textures (P6 content) + `@remotion/skia` bloom**.
+4. **`@remotion/lottie` (brand/icon motion) + rasterized 3D text / textured planes (P6 content, `_rasterize_text3d`) + `@remotion/skia` bloom**.
+
+**Caveat — content planes are single-sided (front `+Z`).** A fixed-facing textured/colour plane renders
+nothing when the camera passes BEHIND it, so keep an authored `camera3d` orbit in FRONT of flat planes
+(the default crane sweeps ~57°, never behind). Billboard text always faces the camera, and bars are solid
+boxes, so this only bites a hand-authored >90° orbit over a flat plane.

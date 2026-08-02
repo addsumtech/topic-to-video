@@ -30,7 +30,7 @@ export const KineticText: React.FC<{
     let opacity = 1;
     let ty = 0;
     if (!reduced) {
-      const s = spring({frame: frame - start, fps, config: {damping: 200, mass: 0.7, stiffness: 120}, durationInFrames: 22});
+      const s = spring({frame: frame - start, fps, config: {damping: 200, mass: 0.7, stiffness: 120, overshootClamping: true}, durationInFrames: 22});
       opacity = interpolate(s, [0, 1], [0, 1]);
       ty = interpolate(s, [0, 1], [risePx, 0]);
     }

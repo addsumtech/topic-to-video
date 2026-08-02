@@ -395,6 +395,15 @@ _SHOT_TYPES = {"ESTABLISH", "MEDIUM", "CLOSEUP", "OVER_SHOULDER", "REVEAL", "HER
 _ELEM_KINDS = {"panel", "image", "textblock", "callout", "grid", "floor", "hero", "fill"}  # ElementKind (elements.tsx)
 _SHOT_MOTIONS = {"STATIC", "PUSH_IN", "PULL_OUT", "PAN_RIGHT", "PAN_LEFT", "TILT_UP", "TILT_DOWN",
                  "ORBIT_RIGHT", "ORBIT_LEFT", "RACK_FOCUS"}
+# MIRROR render_remotion._MOTION_ALIASES so the bare survey names the docs teach (PAN/TILT/ORBIT/…) pass
+# the gate and resolve to the same concrete direction the render uses.
+_SHOT_MOTION_ALIASES = {"PAN": "PAN_RIGHT", "TILT": "TILT_UP", "ORBIT": "ORBIT_RIGHT",
+                        "DOLLY": "PUSH_IN", "ZOOM": "PUSH_IN", "PUSH": "PUSH_IN", "PULL": "PULL_OUT"}
+
+
+def _norm_motion(m):
+    m = str(m).upper().replace("-", "_").replace(" ", "_")
+    return _SHOT_MOTION_ALIASES.get(m, m)
 
 
 def _shot_stage_fields(stage, shots, tag, errors, warnings):
@@ -434,21 +443,34 @@ def _shot_stage_fields(stage, shots, tag, errors, warnings):
         st = str(sh.get("type", "MEDIUM")).upper()
         if st not in _SHOT_TYPES:
             errors.append(f"{tag}: shot {j} unknown type {st!r} (known: {sorted(_SHOT_TYPES)})")
-        mo = str(sh.get("motion", "STATIC")).upper().replace("-", "_").replace(" ", "_")
+        mo = _norm_motion(sh.get("motion", "STATIC"))
         if mo not in _SHOT_MOTIONS:
             errors.append(f"{tag}: shot {j} unknown motion {mo!r}")
+        # MIRROR _clean_shots: energy + easing + targetPos are coerced/raised there, so catch them at the
+        # ~1s gate instead of after a multi-minute render.
+        en = sh.get("energy")
+        if en is not None and str(en).lower() not in ("subtle", "balanced", "bold"):
+            errors.append(f"{tag}: shot {j} energy {en!r} must be subtle|balanced|bold")
+        ea = sh.get("easing")
+        if ea is not None and str(ea) not in _CINE_EASINGS:
+            warnings.append(f"{tag}: shot {j} easing {ea!r} unknown (known: {sorted(_CINE_EASINGS)}) — falls back to inout")
+        tp = sh.get("targetPos")
+        if tp is not None and not (isinstance(tp, list) and len(tp) == 3 and all(isinstance(v, (int, float)) for v in tp)):
+            errors.append(f"{tag}: shot {j} targetPos must be [x,y,z] numbers")
         tgt = sh.get("target")
         if tgt is not None and ids and str(tgt) not in ids:
             errors.append(f"{tag}: shot {j} target {tgt!r} is not a staged element id")
-    # MOVE-DIVERSITY (P4, analog of contest_diversity): >=3 shots that are ALL the same framing+motion
-    # read as a template, not a film — the shots should reframe (different subject/scale/angle/move).
-    moves = [(str(sh.get("type", "MEDIUM")).upper(),
-              str(sh.get("motion", "STATIC")).upper().replace("-", "_").replace(" ", "_"))
+    # MOVE-DIVERSITY (P4, analog of contest_diversity): a (framing,motion) pair that recurs >=3 times reads
+    # as a template, not a film — even padded with a token-different shot. Fire on the MOST-REPEATED pair,
+    # not only the degenerate all-identical case (the old len(set)==1 missed [EST,EST,EST,HERO]).
+    moves = [(str(sh.get("type", "MEDIUM")).upper(), _norm_motion(sh.get("motion", "STATIC")))
              for sh in shots if isinstance(sh, dict)]
-    if len(moves) >= 3 and len(set(moves)) == 1:
-        warnings.append(f"{tag}: all {len(moves)} shots use the same framing+motion {moves[0]} — vary the "
-                        f"shot type / motion / target so the camera reframes (D12g; three identical shots "
-                        f"is the cinematic form of a template)")
+    if moves:
+        top, n = max(((m, moves.count(m)) for m in set(moves)), key=lambda kv: kv[1])
+        if n >= 3:
+            warnings.append(f"{tag}: {n} of {len(moves)} shots use the same framing+motion {top} — vary the "
+                            f"shot type / motion / target so the camera reframes (D12g; >=3 identical shots "
+                            f"is the cinematic form of a template)")
 
 
 def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):

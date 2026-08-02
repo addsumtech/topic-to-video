@@ -29,9 +29,12 @@ Pre-built motivated moves mapped to narrative beats:
 1. **STATIC** — No camera move. Clean hold on composed frame.
 2. **PUSH_IN** — Dolly forward (z increases). Intensifies, draws focus.
 3. **PULL_OUT** — Dolly backward (z decreases). Reveals context, releases tension.
-4. **PAN** — Horizontal yaw. Surveys, connects elements.
-5. **TILT** — Vertical pitch. Reveals hierarchy (tilt up = awe, down = intimacy).
-6. **ORBIT** — Yaw + dolly arc. Explores subject from multiple angles.
+4. **PAN** (→ `PAN_RIGHT`, or `PAN_LEFT`) — Horizontal yaw. Surveys, connects elements.
+5. **TILT** (→ `TILT_UP`, or `TILT_DOWN`) — Vertical pitch. Reveals hierarchy (up = awe, down = intimacy).
+6. **ORBIT** (→ `ORBIT_RIGHT`, or `ORBIT_LEFT`) — Yaw + dolly arc. Explores a subject from multiple angles.
+
+The bare names `PAN`/`TILT`/`ORBIT` (and `DOLLY`/`ZOOM`) are accepted and resolve to the default direction
+shown; pass the explicit directional variant when you need the other way.
 7. **RACK_FOCUS** — Static camera, focusZ pulls from bg to fg or vice versa.
 
 ### Element Primitives

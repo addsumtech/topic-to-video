@@ -189,11 +189,14 @@ TTS if the user gives an API key.
   **`kind:"plane"`** (default) is a surface — `color`, or **`src`** to texture a real SCREENSHOT onto the
   mesh (the product UI as a true-3D object the camera orbits — not a flat overlay); **`kind:"bars"`** is a
   real **extruded 3D bar chart** (`data:[…]` drives box heights, bars grow frame-by-frame — born-in-3D
-  data-viz). Plus a `camera3d` orbit/crane path (`[{at, yaw, radius, height, easing}]`, `at` = 0..1). Renders
-  via `remotion/src/three/ThreeScene.tsx` (`@remotion/three` + R3F v8 + three + drei); `render_remotion`
-  auto-adds **`--gl=angle`** (headless Chrome has no WebGL otherwise → black); needs a one-time
-  `cd remotion && npm install`. **Image textures load at the DOM level (not inside the canvas) — see
-  `references/cinematic-components.md`.** Next increment: 3D text (drei `Text`) + per-bar value labels.
+  data-viz), and **`kind:"text"`** is a real 3D headline. Plus a `camera3d` orbit/crane path
+  (`[{at, yaw, radius, height, easing}]`, `at` = 0..1). Renders via `remotion/src/three/ThreeScene.tsx`
+  (`@remotion/three` + R3F v8 + three — **not drei**, whose `<Text>` renders BLANK); `render_remotion`
+  auto-adds the WebGL flag **`--gl`** (`angle` on macOS/Windows, `swangle` on headless Linux/CI; headless
+  Chrome has no WebGL otherwise → black). Bars auto-emit value+category labels; the floor casts real contact
+  SHADOWS + `<fog>`. Needs a one-time `cd remotion && npm install`. **Image textures + 3D text/labels load at
+  the DOM level (not inside the canvas), rasterized via `_rasterize_text3d` — see
+  `references/cinematic-components.md`.**
   `validate.py` structurally gates the fields (keyframe ordering, on-canvas targets, a read-safe zoom
   band, layer kinds, image-plane existence) — but the **move itself is judged only from the rendered
   filmstrip** `<out_dir>/_keyframes/scene_NN.png`, never from the plan (pre-tts the blind envelope is

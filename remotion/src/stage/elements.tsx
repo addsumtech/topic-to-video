@@ -155,21 +155,28 @@ const ElementContent: React.FC<{
     );
     if (element.frame === 'browser' || element.frame === 'window') {
       const bar = 56;
+      const isBrowser = element.frame === 'browser';
       return (
         <div style={{position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
                      width: iw, borderRadius: radius, overflow: 'hidden',
                      border: `1px solid ${theme.fg}1f`, background: theme.surface || theme.bg,
                      boxShadow: '0 60px 160px rgba(0,0,0,0.6)'}}>
-          {/* browser/window chrome: traffic-light dots + an address/title */}
+          {/* chrome: traffic-light dots + EITHER a browser address bar OR a native-window centered title */}
           <div style={{height: bar, display: 'flex', alignItems: 'center', gap: 10, padding: '0 22px',
-                       background: theme.bg, borderBottom: `1px solid ${theme.fg}14`}}>
+                       position: 'relative', background: theme.bg, borderBottom: `1px solid ${theme.fg}14`}}>
             {['#ff5f57', '#febc2e', '#28c840'].map((c) => (
               <div key={c} style={{width: 14, height: 14, borderRadius: 7, background: c}} />
             ))}
-            {element.frameLabel ? (
+            {isBrowser && element.frameLabel ? (
+              // browser: an address/URL pill
               <div style={{marginLeft: 18, flex: 1, height: 28, borderRadius: 8, background: `${theme.fg}0f`,
                            color: theme.muted, fontSize: 22, display: 'flex', alignItems: 'center',
                            padding: '0 16px', fontFamily: theme.fontBody}}>{element.frameLabel}</div>
+            ) : null}
+            {!isBrowser && element.frameLabel ? (
+              // native app window: a CENTERED title, no URL pill (a URL on an app window mislabels it)
+              <div style={{position: 'absolute', left: 0, right: 0, textAlign: 'center', color: theme.muted,
+                           fontSize: 22, fontFamily: theme.fontBody, pointerEvents: 'none'}}>{element.frameLabel}</div>
             ) : null}
           </div>
           {img}

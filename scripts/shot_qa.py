@@ -192,14 +192,21 @@ def evaluate(out_dir, mp4=None, threshold=70):
             is_3d = bool(s.get("lens") or (s.get("props") or {}).get("lens")
                          or rr._scene_planes(s) or (rr._scene_stage(s) and rr._scene_shots(s)))
             r = score_scene(frames, _declared_move(s), is_3d)
-            vals = [v for v in r["scores"].values() if isinstance(v, (int, float))]
-            composite = int(round(sum(vals) / len(vals))) if vals else None
-            passed = (not r["floors"]) and (composite is None or composite >= threshold)
-            report["scenes"].append({"index": s.get("index"), "composite": composite,
-                                     "scores": r["scores"], "floors": r["floors"],
-                                     "metrics": r["metrics"], "passed": passed})
-            if not passed:
-                report["ok"] = False
+            if r.get("abstained"):
+                # could not MEASURE this scene (truncated mp4 / missing frames / no PIL) — UNSCORED, not a
+                # pass. passed=None so it never reads as "measured and passed" to the reader or D12 critic.
+                report["scenes"].append({"index": s.get("index"), "composite": None, "scores": {},
+                                         "floors": [], "metrics": r.get("metrics", {}),
+                                         "passed": None, "abstained": True})
+            else:
+                vals = [v for v in r["scores"].values() if isinstance(v, (int, float))]
+                composite = int(round(sum(vals) / len(vals))) if vals else None
+                passed = (not r["floors"]) and (composite is None or composite >= threshold)
+                report["scenes"].append({"index": s.get("index"), "composite": composite,
+                                         "scores": r["scores"], "floors": r["floors"],
+                                         "metrics": r["metrics"], "passed": passed, "abstained": False})
+                if not passed:
+                    report["ok"] = False
         t0 += dur
     _write(out_dir, report)
     return report
@@ -227,7 +234,7 @@ def main():
         if rep.get("abstained"):
             print("[shot_qa] UNSCORED — %s" % rep.get("reason", "")); return sys.exit(3)
         for sc in rep["scenes"]:
-            tag = "ok " if sc["passed"] else "FAIL"
+            tag = "UNSCORED" if sc.get("abstained") else ("ok " if sc["passed"] else "FAIL")
             print("[shot_qa] scene %02d  %s  composite=%s  %s%s"
                   % (sc["index"], tag, sc["composite"], sc["scores"],
                      "  FLOORS: " + "; ".join(sc["floors"]) if sc["floors"] else ""))

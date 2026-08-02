@@ -110,6 +110,11 @@ _SHOT_TYPES = {"ESTABLISH", "MEDIUM", "CLOSEUP", "OVER_SHOULDER", "REVEAL", "HER
 _MOTIONS = {"STATIC", "PUSH_IN", "PULL_OUT", "PAN_RIGHT", "PAN_LEFT", "TILT_UP", "TILT_DOWN",
             "ORBIT_RIGHT", "ORBIT_LEFT", "RACK_FOCUS"}
 _EASINGS = {"linear", "in", "out", "inout"}
+# The docs (shot-vocabulary, design-director) teach the bare survey moves PAN/TILT/ORBIT (and DOLLY/ZOOM);
+# resolve them to a concrete default direction so authoring a documented name never fails the gate. validate
+# mirrors this map so the ~1s pass and the render agree.
+_MOTION_ALIASES = {"PAN": "PAN_RIGHT", "TILT": "TILT_UP", "ORBIT": "ORBIT_RIGHT",
+                   "DOLLY": "PUSH_IN", "ZOOM": "PUSH_IN", "PUSH": "PUSH_IN", "PULL": "PULL_OUT"}
 # element content fields passed through verbatim (strings) — geometry (position) is coerced numeric.
 _ELEM_STR = ("kind", "title", "kicker", "sub", "text", "heroText", "src", "label", "align", "level", "fit",
              "frame", "frameLabel")  # frame = device/browser chrome around an image (product-UI framing)
@@ -170,8 +175,12 @@ def _clean_shots(shots, frames, fps, elem_ids, tag):
         st = str(sh.get("type", "MEDIUM")).upper()
         if st not in _SHOT_TYPES:
             raise RuntimeError("cinematic %s shot %d: unknown type %r (known: %s)" % (tag, j, st, sorted(_SHOT_TYPES)))
-        c = {"type": st, "motion": str(sh.get("motion", "STATIC")).upper().replace("-", "_").replace(" ", "_"),
-             "easing": str(sh.get("easing", "inout")), "carry": bool(sh.get("carry"))}
+        mot = str(sh.get("motion", "STATIC")).upper().replace("-", "_").replace(" ", "_")
+        mot = _MOTION_ALIASES.get(mot, mot)              # accept the bare documented names (PAN/TILT/ORBIT/…)
+        eas = str(sh.get("easing", "inout"))
+        if eas not in _EASINGS:                          # validate easing too (the lens/camera paths already do)
+            raise RuntimeError("cinematic %s shot %d: unknown easing %r (known: %s)" % (tag, j, eas, sorted(_EASINGS)))
+        c = {"type": st, "motion": mot, "easing": eas, "carry": bool(sh.get("carry"))}
         if c["motion"] not in _MOTIONS:
             raise RuntimeError("cinematic %s shot %d: unknown motion %r" % (tag, j, c["motion"]))
         en = str(sh.get("energy", "balanced")).lower()
@@ -262,7 +271,9 @@ def _clean_planes(planes, tag):
             c["data"] = [_num(v, "%s plane %d data[%d]" % (tag, j, k)) for k, v in enumerate(data)]
             if p.get("labels") is not None:
                 c["labels"] = [str(x) for x in p["labels"]]
-        if kind == "text":                                   # real 3D text (drei <Text>) in the scene
+        if kind == "text":                                   # real 3D text -> rasterized to a billboard plane
+                                                             # (_rasterize_text3d); NOT drei/troika <Text>, which
+                                                             # renders BLANK under Remotion (async glyph SDF).
             if not p.get("text"):
                 raise RuntimeError("cinematic3d %s plane %d: text element needs a `text` string" % (tag, j))
             c["text"] = str(p["text"])
@@ -276,10 +287,11 @@ def _clean_planes(planes, tag):
 
 def _clean_camera3d(cam, frames, tag):
     """Coerce the orbit/crane camera keyframes. `at` is a 0..1 fraction of the scene -> atFrame. Each
-    keyframe: yaw (radians), pitch, radius, height, easing. A missing camera -> a gentle default crane."""
+    keyframe: yaw (radians), radius, height, easing (tilt comes from height+radius; there is no `pitch`,
+    which would no-op). A missing camera -> a gentle default crane."""
     if cam is None:
-        return [{"atFrame": 0, "yaw": -0.6, "pitch": 0.0, "radius": 7.0, "height": 6.0, "easing": "inout"},
-                {"atFrame": frames, "yaw": 0.4, "pitch": 0.0, "radius": 7.0, "height": 2.6, "easing": "inout"}]
+        return [{"atFrame": 0, "yaw": -0.6, "radius": 7.0, "height": 6.0, "easing": "inout"},
+                {"atFrame": frames, "yaw": 0.4, "radius": 7.0, "height": 2.6, "easing": "inout"}]
     if not isinstance(cam, list) or not cam:
         raise RuntimeError("cinematic3d %s: `camera3d` must be a non-empty list" % tag)
     out = []
@@ -291,7 +303,6 @@ def _clean_camera3d(cam, frames, tag):
             at = int(round(_num(k.get("at", 0.0), "%s camera3d %d at" % (tag, j)) * frames))
         out.append({"atFrame": int(at),
                     "yaw": _num(k.get("yaw", 0.0), "%s camera3d %d yaw" % (tag, j)),
-                    "pitch": _num(k.get("pitch", 0.0), "%s camera3d %d pitch" % (tag, j)),
                     "radius": _num(k.get("radius", 7.0), "%s camera3d %d radius" % (tag, j), 7.0),
                     "height": _num(k.get("height", 4.0), "%s camera3d %d height" % (tag, j), 4.0),
                     "easing": str(k.get("easing", "inout"))})
@@ -712,7 +723,11 @@ def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="erro
            "--public-dir=" + os.path.abspath(out_dir),
            "--log=" + log]
     if any(sc.get("planes") for sc in props["scenes"]):   # P6 TRUE-3D scenes need a WebGL renderer
-        cmd.append("--gl=angle")                          # else headless Chrome has no WebGL -> black frames
+        # else headless Chrome has no WebGL -> black frames. Backend is platform-dependent: 'angle' on
+        # macOS/Windows; 'swangle' (SwiftShader) on GPU-less headless Linux/CI/Lambda, where plain 'angle'
+        # can fail to initialise. Override via REMOTION_GL if the host needs a specific backend.
+        gl = os.environ.get("REMOTION_GL") or ("angle" if sys.platform in ("darwin", "win32") else "swangle")
+        cmd.append("--gl=" + gl)
     print("[render_remotion] %s: %d scene(s), %dx%d @%dfps -> %s"
           % ("sample" if sample is not None else "full", len(props["scenes"]),
              props["width"], props["height"], props["fps"], out_mp4))
@@ -743,10 +758,16 @@ def _run_shot_qa(out_dir, mp4):
         if rep.get("abstained"):
             print("[shot_qa] UNSCORED (%s) — shot_qa.json written" % rep.get("reason", ""))
             return
-        bad = [sc for sc in rep["scenes"] if not sc["passed"]]
-        print("[shot_qa] %d/%d cinematic scenes pass (threshold %d)%s"
-              % (len(rep["scenes"]) - len(bad), len(rep["scenes"]), rep["threshold"],
-                 "" if not bad else "  — REVIEW: " + ", ".join("#%s %s" % (b["index"], b["floors"] or b["composite"]) for b in bad)))
+        scored = [sc for sc in rep["scenes"] if not sc.get("abstained")]
+        unscored = [sc for sc in rep["scenes"] if sc.get("abstained")]
+        bad = [sc for sc in scored if not sc["passed"]]
+        msg = "[shot_qa] %d/%d scored cinematic scenes pass (threshold %d)" % (
+            len(scored) - len(bad), len(scored), rep["threshold"])
+        if bad:
+            msg += "  — REVIEW: " + ", ".join("#%s %s" % (b["index"], b["floors"] or b["composite"]) for b in bad)
+        if unscored:
+            msg += "  — UNSCORED (unmeasurable): " + ", ".join("#%s" % u["index"] for u in unscored)
+        print(msg)
     except Exception as e:
         print("[shot_qa] skipped (%s)" % e)
 

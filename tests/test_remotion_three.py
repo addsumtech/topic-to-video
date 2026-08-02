@@ -141,9 +141,11 @@ def test_scene_dispatches_planes_to_threescene():
     assert "ThreeScene" in src and "scene.planes" in src
 
 
-def test_render_adds_gl_angle_for_3d():
+def test_render_adds_gl_flag_for_3d():
     src = open(os.path.join(_SKILL, "scripts", "render_remotion.py"), encoding="utf-8").read()
-    assert "--gl=angle" in src and 'sc.get("planes")' in src, "3D scenes must trigger the WebGL renderer flag"
+    assert "--gl=" in src and 'sc.get("planes")' in src, "3D scenes must trigger the WebGL renderer flag"
+    # backend is platform-branched: 'angle' on macOS/Windows, 'swangle' on GPU-less headless Linux/CI.
+    assert '"angle"' in src and '"swangle"' in src, "GL backend must be platform-aware (angle / swangle)"
 
 
 def test_three_deps_installed():

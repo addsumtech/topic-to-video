@@ -120,7 +120,9 @@ const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number;
     </group>
   );
 };
-export type Camera3DKey = {atFrame: number; yaw: number; pitch: number; radius: number; height: number; easing?: string};
+// Tilt is driven by height + radius (a high/short crane looks down); there is deliberately NO `pitch`
+// field — the camera always lookAt(0,0,0), so a pitch value would silently no-op.
+export type Camera3DKey = {atFrame: number; yaw: number; radius: number; height: number; easing?: string};
 
 const EASE: Record<string, (n: number) => number> = {
   linear: Easing.linear, in: Easing.in(Easing.cubic), out: Easing.out(Easing.cubic), inout: Easing.inOut(Easing.cubic),
@@ -184,7 +186,11 @@ export const ThreeScene: React.FC<{
   const frame = useCurrentFrame();
   const {width, height, durationInFrames} = useVideoConfig();
   const dur = Math.max(1, durationInFrames);
-  const keys = camera3d && camera3d.length ? camera3d : [{atFrame: 0, yaw: -0.6, pitch: 0, radius: 7, height: 4}];
+  // The real pipeline always supplies a crane (render_remotion._clean_camera3d synthesizes a 2-key default
+  // when absent); this fallback is only for driving ThreeScene in isolation — make it the SAME moving crane
+  // (height 6 -> 2.6) so an isolated render also moves, instead of a single static keyframe.
+  const keys = camera3d && camera3d.length ? camera3d
+    : [{atFrame: 0, yaw: -0.6, radius: 7, height: 6}, {atFrame: dur, yaw: 0.4, radius: 7, height: 2.6}];
   // Camera pose at this frame (for billboarding labels to face the camera in yaw + pitch).
   const camYaw = reducedMotion ? keys[0].yaw : lerpKey(keys, frame, (k) => k.yaw);
   const camHeight = reducedMotion ? keys[0].height : lerpKey(keys, frame, (k) => k.height);
