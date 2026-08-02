@@ -136,6 +136,7 @@ const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number;
 // + scales in on its own frame slice). "accumulation has MASS" — the orbit camera reveals real depth. The
 // layout constants MUST match render_remotion._STACK_* so rasterized per-column totals sit on their stacks.
 const STACK_U = 0.5, STACK_GAP = 0.5, STACK_BASE_Y = -1.3;
+const STACK_MAX_CUBES = 50; // per-column safety cap (see Stack3D) — validate warns above ~40
 const Stack3D: React.FC<{data: number[]; frame: number; durationInFrames: number; accent: string; accent2: string; glow?: boolean}> = ({data, frame, durationInFrames, accent, accent2, glow}) => {
   const total = data.length * STACK_U + (data.length - 1) * STACK_GAP;
   const growStart = Math.round(durationInFrames * 0.1);
@@ -144,7 +145,11 @@ const Stack3D: React.FC<{data: number[]; frame: number; durationInFrames: number
     <group>
       {data.map((cnt, c) => {
         const x = -total / 2 + STACK_U / 2 + c * (STACK_U + STACK_GAP);
-        const n = Math.max(0, Math.round(cnt));
+        // SAFETY CAP: one shadow-casting mesh PER UNIT, so a large count (a realistic "420 customers")
+        // would spawn hundreds of meshes AND stagger past the scene's end (never finishing). `stack` is for
+        // SMALL countable accumulation; validate warns the author toward `bars` for magnitudes — this bounds
+        // the render so a mistake degrades gracefully instead of melting it.
+        const n = Math.min(STACK_MAX_CUBES, Math.max(0, Math.round(cnt)));
         return Array.from({length: n}).map((_, k) => {
           const my = order++;
           const t = Math.max(0, Math.min(1, (frame - (growStart + my * 3)) / 6));

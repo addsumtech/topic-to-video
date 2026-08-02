@@ -85,9 +85,9 @@ Copy-paste kits; each component must be checked for frame-safety before use.
 | Logo / brand animation | `@remotion/lottie` (or static PNG) | B | Lottie is frame-safe |
 | Connector / arrow / underline draw-on | `@remotion/paths` `evolvePath` | B | frame-safe |
 | Shapes / masks / dividers | `@remotion/shapes` | B | frame-safe |
-| Real 3D text | `kind:"text"` → `render_remotion._rasterize_text3d` (PIL → billboard alpha PNG plane) | B (P6) | **drei/troika `<Text>` renders BLANK under Remotion — do NOT use.** This is the working path |
-| 3D bar labels | `kind:"bars"` `data`/`labels` → auto value+category billboard planes (`_rasterize_text3d`) | B (P6) | rasterized, lining face |
-| 3D accumulation | `kind:"stack"` `data`/`labels` → cube stacks grow cube-by-cube + per-column totals | B (P6) | when the point is a COUNT building up (accretion has mass) |
+| Real 3D text | `kind:"text"` → `render_remotion._rasterize_text3d` (PIL → billboard alpha PNG plane) | B (P6) | **drei/troika `<Text>` renders BLANK under Remotion — do NOT use.** This is the working path. **The 4 bundled faces are LATIN-ONLY** — a CJK label routes to a host system CJK font if one exists (else warns + boxes); DOM stage text likewise depends on host fonts, so a CJK cinematic deck renders on macOS but can tofu on headless Linux/Lambda (validate warns). For a CJK deck prefer the HTML tier, or ensure the render host has Noto Sans CJK |
+| 3D bar labels | `kind:"bars"` `data`/`labels` → auto value+category billboard planes (`_rasterize_text3d`) | B (P6) | rasterized, lining face. **POSITIVE MAGNITUDES ONLY** — bars grow up from `|value|`, so a negative renders as a tall bar with a `-` label; validate ERRORs on a signed datum. Keep to ≤~12 columns (validate warns; use a Path-A html chart for a dense/signed series). Values ≥1e6 abbreviate (M/B/T) |
+| 3D accumulation | `kind:"stack"` `data`/`labels` → cube stacks grow cube-by-cube + per-column totals | B (P6) | when the point is a COUNT building up (accretion has mass). SMALL counts only — one mesh per unit (renderer caps at 50, validate warns above 40; use `bars` for magnitudes). Positive only |
 | Product mockup / video-in-3D | `@remotion/three` `useOffthreadVideoTexture` on a plane | B (P6) | frame-safe (video texture only) |
 | Bloom / glow | `@remotion/skia` | B | separate canvas — won't flatten 3D |
 

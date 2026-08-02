@@ -175,6 +175,8 @@ def _clean_stage(stage, tag):
             for k in ("atFrame", "verbSpan"):
                 if el.get(k) is not None:
                     c[k] = int(round(_num(el[k], "%s element %r %s" % (tag, eid, k))))
+            if c.get("verbSpan") is not None:                # floor at 1 frame: span 0 -> u=(f-fire)/0=NaN at
+                c["verbSpan"] = max(1, c["verbSpan"])        # frame==fire (prints 'NaN'); negative freezes the verb
         out.append(c)
     persp = stage.get("perspective")
     cleaned = {"elements": out}
@@ -250,6 +252,12 @@ def _clean_shots(shots, frames, fps, elem_ids, tag):
                 c["energy"] = "bold"
             else:
                 c["energy"] = "balanced"
+    # Every shot needs at least 1 frame, so N shots cannot fit in fewer than N frames — otherwise the
+    # windows sum past `frames` and trailing shots get a startFrame beyond the scene end (they never render).
+    # Fail loud rather than silently drop the tail.
+    if frames < len(cleaned):
+        raise RuntimeError("cinematic %s: %d shots but only %d frame(s) (%.2fs) — each shot needs >=1 frame; "
+                           "lengthen the scene or cut shots" % (tag, len(cleaned), frames, frames / max(1, fps)))
     # Assign frame windows that sum EXACTLY to the scene's frames (protects A/V sync). Un-authored windows
     # are weighted by energy so a bold climax gets MORE screen time and a subtle drift less (an energy arc
     # in TIME, not just amplitude) — authored `duration`s are honoured exactly.
@@ -419,6 +427,34 @@ def _copy_fonts(out_dir):
 _FONT_KIND_FILE = {"sans": "SpaceGrotesk-VF.ttf", "serif": "PlayfairDisplay-VF.ttf",
                    "mono": "JetBrainsMono-VF.ttf", "comic": "Bangers-Regular.ttf"}
 
+# The 4 bundled display faces are LATIN-ONLY (verified: zero CJK/Kana/Hangul codepoints). So a Chinese/
+# Japanese/Korean deck's 3D text (kind:"text" planes, bar/stack labels) would rasterize as .notdef TOFU
+# boxes — silently, in a multi-minute render. The HTML tier already leans on a system CJK face; mirror that
+# here: when a label carries non-Latin (>=U+2E80: CJK radicals, Kana, Hangul, CJK Unified) glyphs, fall back
+# to the first system CJK font we can find (macOS + Linux/CI paths), else warn LOUD (never ship tofu quietly).
+_CJK_FONT_CANDIDATES = [
+    "/System/Library/Fonts/PingFang.ttc", "/System/Library/Fonts/Hiragino Sans GB.ttc",
+    "/System/Library/Fonts/STHeiti Light.ttc", "/System/Library/Fonts/Supplemental/Songti.ttc",
+    "/Library/Fonts/Arial Unicode.ttf",
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc",
+    "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc", "C:/Windows/Fonts/msyh.ttc",
+]
+_CJK_FONT_CACHE = []   # [resolved_path_or_None]; a single filesystem probe per render
+
+
+def _needs_nonlatin(txt):
+    return any(ord(c) >= 0x2E80 for c in str(txt))
+
+
+def _resolve_cjk_font():
+    """First existing system CJK font path (cached), or None. None → the caller warns and renders tofu
+    rather than crashing the whole render mid-way."""
+    if not _CJK_FONT_CACHE:
+        _CJK_FONT_CACHE.append(next((p for p in _CJK_FONT_CANDIDATES if os.path.isfile(p)), None))
+    return _CJK_FONT_CACHE[0]
+
 
 # Extruded-bar layout constants — MUST match three/ThreeScene.tsx Bars3D (bw/gap/maxH + floor base y) so
 # rasterized value/category labels land exactly over their bars.
@@ -429,8 +465,13 @@ _STACK_U, _STACK_GAP, _STACK_BASE_Y = 0.5, 0.5, -1.3
 
 def _fmt_bar_value(v):
     """Format a bar's numeric value for its on-top label: integers as-is, else one decimal, thousands
-    grouped (a lining-figures display face renders the digits)."""
+    grouped (a lining-figures display face renders the digits). Large magnitudes (>=1e6) abbreviate to
+    M/B/T so the rasterized PNG can't grow enormous / run off the frame (matches elements.tsx abbrevNum)."""
     f = float(v)
+    a = abs(f)
+    for lim, suf in ((1e12, "T"), (1e9, "B"), (1e6, "M")):
+        if a >= lim:
+            return ("{:.1f}".format(f / lim).rstrip("0").rstrip(".")) + suf
     return ("{:,}".format(int(round(f))) if abs(f - round(f)) < 0.05 else "{:,.1f}".format(f))
 
 
@@ -452,16 +493,27 @@ def _rasterize_text3d(data, out_dir):
     tk = _theme(out_dir)
     font_path = os.path.join(_SKILL_FONTS, _FONT_KIND_FILE.get(tk.get("fontKind", "sans"), "SpaceGrotesk-VF.ttf"))
     kf = os.path.join(out_dir, ".text3d")
+    _warned = []                                     # warn ONCE per render if a CJK label falls back to tofu
 
     def _text_png(txt, color_rgb, rel_name, px=220):
         """Render txt to a transparent PNG under .text3d/; return (relpath, aspect w/h)."""
         os.makedirs(kf, exist_ok=True)
+        fp = font_path
+        if _needs_nonlatin(txt):                     # bundled faces are Latin-only → route CJK to a system face
+            cjk = _resolve_cjk_font()
+            if cjk:
+                fp = cjk
+            elif not _warned:
+                print("[text3d] label %r has non-Latin glyphs but the bundled faces are Latin-only and no "
+                      "system CJK font was found — it will render as boxes. Use the HTML tier for a CJK "
+                      "deck, or install Noto Sans CJK." % str(txt)[:24])
+                _warned.append(True)
         try:
-            font = ImageFont.truetype(font_path, px)
+            font = ImageFont.truetype(fp, px)
             try:                                     # match the 2D display titles' weight (~700-800): the VF
                 font.set_variation_by_axes([700])    # default instance is LIGHT (Space Grotesk 300), which
-            except Exception:                        # rasterizes thin/anemic beside a bold 2D title.
-                pass                                 # non-variable face (Bangers) keeps its single weight.
+            except Exception:                        # rasterizes thin/anemic beside a bold 2D title; a .ttc
+                pass                                 # CJK face / non-VF (Bangers) keeps its single weight.
         except Exception:
             font = ImageFont.load_default()
         tmp = ImageDraw.Draw(Image.new("RGBA", (10, 10)))

@@ -20,6 +20,7 @@ import struct
 import subprocess
 import sys
 import wave
+import zlib
 
 try:
     import numpy as np
@@ -53,7 +54,10 @@ def _norm(x):
 def cue(name):
     if np is None:
         return None
-    rng = np.random.default_rng(_SEED + (abs(hash(name)) % 9973))
+    # zlib.crc32 (NOT Python's hash()) — str hash() is salted by PYTHONHASHSEED, so it varies every
+    # process, making the noise cues (click/whoosh) synthesize a different waveform on each render. crc32
+    # is stable, so a re-render is byte-reproducible (the frame-driven determinism law, in the audio bed).
+    rng = np.random.default_rng(_SEED + (zlib.crc32(name.encode("utf-8")) % 9973))
     if name == "click":                            # a decision / selection tick
         n = int(0.06 * SR); return _norm(rng.standard_normal(n) * _env(n, 0.001, 0.02)) * 0.85
     if name == "tick":                             # a small focus/progress blip

@@ -54,50 +54,60 @@ export function calculateShotFrame(
 ): LensKeyframe {
   const [tx, ty, tz] = target;
 
+  let base: LensKeyframe;
   switch (shotType) {
     case 'ESTABLISH': {
       // Wide: camera far back, low zoom, see the full stage
       const dolly = -1000 - tz; // hold the target 1000px in front, whatever its z
       const pitch = -5; // slight bird's-eye
-      return {atFrame: 0, dolly, pitch, yaw: 0, zoom: 0.85, focusZ: tz};
+      base = {atFrame: 0, dolly, pitch, yaw: 0, zoom: 0.85, focusZ: tz};
+      break;
     }
-
     case 'MEDIUM': {
       // Balanced: mid-distance, neutral framing
       const dolly = -500 - tz;
-      return {atFrame: 0, dolly, pitch: 0, yaw: 0, zoom: 1.0, focusZ: tz};
+      base = {atFrame: 0, dolly, pitch: 0, yaw: 0, zoom: 1.0, focusZ: tz};
+      break;
     }
-
     case 'CLOSEUP': {
       // Tight: close or high zoom
       const dolly = -300 - tz;
-      return {atFrame: 0, dolly, pitch: 0, yaw: 0, zoom: 1.5, focusZ: tz};
+      base = {atFrame: 0, dolly, pitch: 0, yaw: 0, zoom: 1.5, focusZ: tz};
+      break;
     }
-
     case 'OVER_SHOULDER': {
       // Foreground element partially in frame, subject in background
       const dolly = -400 - tz;
       const yaw = 8; // slight angle to see past foreground
-      return {atFrame: 0, dolly, pitch: 0, yaw, zoom: 1.1, focusZ: tz};
+      base = {atFrame: 0, dolly, pitch: 0, yaw, zoom: 1.1, focusZ: tz};
+      break;
     }
-
     case 'REVEAL': {
       // Starts obscured (high zoom or off-angle), motion pattern will reveal
       const dolly = -200 - tz;
-      return {atFrame: 0, dolly, pitch: 10, yaw: -15, zoom: 1.8, focusZ: tz - 100};
+      base = {atFrame: 0, dolly, pitch: 10, yaw: -15, zoom: 1.8, focusZ: tz - 100};
+      break;
     }
-
     case 'HERO': {
       // Dramatic isolation: close, strong DoF, centered
       const dolly = -350 - tz;
-      return {atFrame: 0, dolly, pitch: 0, yaw: 0, zoom: 1.3, focusZ: tz};
+      base = {atFrame: 0, dolly, pitch: 0, yaw: 0, zoom: 1.3, focusZ: tz};
+      break;
     }
-
-    default:
+    default: {
       // Fallback to MEDIUM
       const dolly = -500 - tz;
-      return {atFrame: 0, dolly, pitch: 0, yaw: 0, zoom: 1.0, focusZ: tz};
+      base = {atFrame: 0, dolly, pitch: 0, yaw: 0, zoom: 1.0, focusZ: tz};
+    }
   }
+
+  // ASPECT-AWARE FRAMING: the stage elements are sized in world px tuned for a 1920-wide (16:9) frame, so a
+  // narrower (portrait) frame shows less world-width at the same zoom and crops wide elements (panel 1040,
+  // display 1680). Scale zoom by the width ratio so the same horizontal extent stays framed. This is
+  // MONOTONIC and regression-safe: for landscape (aspect >= 16/9) the factor is exactly 1 (poses unchanged);
+  // for portrait it only zooms OUT (can never worsen overflow). Floored at 0.5 so it never shrinks to nothing.
+  const aspectZoom = Math.max(0.5, Math.min(1, aspectRatio / (16 / 9)));
+  return {...base, zoom: base.zoom * aspectZoom};
 }
 
 // Resolve a CameraTarget to a Position in scene-space.

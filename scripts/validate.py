@@ -479,6 +479,15 @@ def _shot_stage_fields(stage, shots, tag, errors, warnings):
                     errors.append(f"{tag}: stage element {eid!r} metaphor needs a non-empty `values` list")
                 elif cn in _METAPHOR_ARITY and len(vs) != _METAPHOR_ARITY[cn]:
                     errors.append(f"{tag}: stage element {eid!r} concept {cn!r} needs {_METAPHOR_ARITY[cn]} values, got {len(vs)}")
+                # SEMANTIC-DIRECTION checks (the verb encodes meaning in a visual property, so a value that
+                # contradicts the verb renders a confidently-wrong beat that no structural check would catch):
+                _vn = [v for v in (vs or []) if isinstance(v, (int, float))]
+                if cn == "physical-fall" and len(_vn) == 2 and _vn[0] <= _vn[1]:
+                    warnings.append(f"{tag}: element {eid!r} physical-fall needs values[0] > values[1] (a FALL); "
+                                    f"{_vn} does not drop — the token freezes on the shelf and the label mis-signs")
+                if cn == "filling-vessel" and len(_vn) >= 1 and _vn[0] == 1:
+                    warnings.append(f"{tag}: element {eid!r} filling-vessel value 1 is read as the fraction 1.0 "
+                                    f"(=100%); write 0.01 for 1% or 100 for 100% to disambiguate")
             if k == "display" and el.get("attitude") is not None and str(el["attitude"]) not in ("rise", "tracking-in", "blur-in"):
                 warnings.append(f"{tag}: display element {eid!r} attitude {el['attitude']!r} unknown "
                                 f"(rise|tracking-in|blur-in) — a typo silently renders as blur-in")
@@ -577,6 +586,34 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
         if avg < 2.6:
             warnings.append(f"{tag}: {len(shots)} shots in {float(s['duration']):.1f}s (~{avg:.1f}s each) — the "
                             f"camera changes faster than ~2.6s (vertigo); merge or cut a shot (comfort budget)")
+    # PLANE DATA (bars/stack) — runs for the shot-based / cinematic3d paradigm too (which returns before the
+    # cam/lens NaN checks below): a NaN/Inf value blanks the WebGL render; a large `stack` count spawns one
+    # cube per unit (hundreds of shadow-casters that stagger past the scene's end, never finishing) — the
+    # renderer caps at 50, but steer big magnitudes to `bars` (stack is for SMALL countable accumulation).
+    for j, p in enumerate((s.get("planes") or pr.get("planes") or [])):
+        if not isinstance(p, dict) or p.get("kind") not in ("bars", "stack") or not isinstance(p.get("data"), list):
+            continue
+        nums = [v for v in p["data"] if isinstance(v, (int, float))]
+        if any(isinstance(v, float) and not math.isfinite(v) for v in nums):
+            errors.append(f"{tag}: plane {j} `data` has a NaN/Infinity value — it blanks the 3D render")
+        # SIGNED DATA — the classic "every gate misses it" trap: Bars3D grows every bar UP from |value| and
+        # Stack3D clamps a negative to 0 cubes, while the label keeps the sign — so a -30 renders as the
+        # TALLEST bar tagged "-30", a decline reads as a record high. The 3D primitives are magnitude-only;
+        # fail loud here (bipolar rendering isn't built) rather than ship a confidently-wrong chart.
+        if any(v < 0 for v in nums):
+            errors.append(f"{tag}: plane {j} `{p.get('kind')}` has a NEGATIVE value — 3D bars/stack render by "
+                          f"MAGNITUDE (a -30 becomes the tallest bar, labelled '-30'); they cannot show signed "
+                          f"data. Use positive magnitudes, or an html chart plane (Path A) for a signed series")
+        if p.get("kind") == "stack" and nums:
+            mx = max(abs(v) for v in nums)
+            if mx > 40:
+                warnings.append(f"{tag}: plane {j} is a `stack` with a column of {int(mx)} — it renders one "
+                                f"cube per unit (render caps at 50, so it will UNDER-count); `stack` is for "
+                                f"small countable accumulation — use `bars` for a magnitude like this")
+        if p.get("kind") == "bars" and len(nums) > 12:
+            warnings.append(f"{tag}: plane {j} is a `bars` chart with {len(nums)} columns — beyond ~12 the bars "
+                            f"spill past the frame and each emits 2 rasterized label PNGs; aggregate to the top "
+                            f"~8–10, or use an html chart plane (Path A) for a dense series")
     if not cam and not lens and not layers:
         return
     fps = int((meta or {}).get("fps", 30) or 30)
@@ -1124,10 +1161,21 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         # cinematic layers are authored in absolute px tuned for a 1920-wide landscape canvas; on a
         # 1080-wide 9:16 frame a full-width panel overflows and NO gate re-checks the pixels.
         if (vertical or meta.get("aspect") == "9:16") and any(
-                s.get("type") == "cinematic" or s.get("layers") for s in slides):
-            warnings.append("cinematic layers are landscape-tuned (absolute px sized for 1920 wide) — on "
-                            "9:16 panels/hero/grid can overflow the 1080-wide frame; verify the render, or "
-                            "keep cinematic scenes to 16:9")
+                s.get("type") in ("cinematic", "cinematic3d") or s.get("layers") for s in slides):
+            warnings.append("cinematic scenes are landscape-tuned (stage/plane sizes + camera framing assume "
+                            "1920-wide) — on a 9:16 frame panels/hero/display/3D planes can crop; verify the "
+                            "render, or keep cinematic scenes to 16:9")
+        # CJK on the cinematic tier is a PORTABILITY trap: the 4 bundled display faces are Latin-only, so 3D
+        # text/label planes route to a HOST system CJK font (present on macOS, absent on a bare headless
+        # Linux/Lambda box — the --gl=swangle target), and DOM stage text (panel/display/metaphor) resolves
+        # only through the CSS system-font chain. A clean mac preview can ship boxes on CI. Warn loud here
+        # (~1s) so it isn't discovered after a multi-minute render — the HTML tier has the real CJK fallbacks.
+        if str(meta.get("language") or "").lower()[:2] in ("zh", "ja", "ko") and any(
+                s.get("type") in ("cinematic", "cinematic3d") for s in slides):
+            warnings.append("CJK deck on the cinematic tier: the bundled display faces are Latin-only, so 3D "
+                            "text/label planes and DOM stage text depend on a HOST CJK font — a macOS preview "
+                            "renders but a headless Linux/Lambda target can tofu. Use the HTML tier for a CJK "
+                            "deck, or ensure the render host has a CJK font (Noto Sans CJK) installed")
 
     # meta.brand (user-supplied REAL assets — the mirror of the "never fabricate logos in generated
     # imagery" doctrine): render.py composites the corner bug from the raster file, and the cover/

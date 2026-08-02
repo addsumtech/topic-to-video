@@ -24,11 +24,19 @@ const hash1 = (i: number, salt: number) => {
   const s = Math.sin((i + 1) * 12.9898 + salt * 78.233) * 43758.5453;
   return s - Math.floor(s);
 };
+// abbreviate large magnitudes (M/B/T) so a big count can't run off a fixed metaphor box; keep <1e6 exact.
+const abbrevNum = (v: number): string => {
+  const a = Math.abs(v);
+  if (a >= 1e12) return (v / 1e12).toFixed(1).replace(/\.0$/, '') + 'T';
+  if (a >= 1e9) return (v / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+  if (a >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+  return Math.round(v).toLocaleString('en-US');
+};
 // counts a number 0->target over [fire, fire+span], eased; lining figures (grouped) — never old-style.
 function counted(frame: number, fire: number, span: number, target: number, unit: string, reduced: boolean) {
   const u = reduced ? 1 : clamp01((frame - fire) / span);
   const v = target * easeOut(u);
-  const body = Math.abs(v) >= 100 ? Math.round(v).toLocaleString('en-US')
+  const body = Math.abs(v) >= 100 ? abbrevNum(v)
     : (Math.abs(v - Math.round(v)) < 0.05 ? String(Math.round(v)) : v.toFixed(1));
   return body + (unit || '');
 }
@@ -343,7 +351,7 @@ const ElementContent: React.FC<{
           <div style={{position: 'absolute', left: 0, top: cy, width: 240, height: 6, background: base, borderRadius: 3}} />
           <div style={{position: 'absolute', left: 70, top: cy + y, width: 180, height: 110, borderRadius: 16, background: acc, color: theme.onAccent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: numFont, fontVariantNumeric: 'lining-nums tabular-nums', fontWeight: 800, fontSize: 64, boxShadow: '0 30px 60px rgba(0,0,0,.5)'}}>{String(tokVal) + (element.unit ?? '')}</div>
           <div style={{position: 'absolute', left: 300, top: cy + restY, width: 2, height: Math.max(0, dropPx), background: gapc}} />
-          <div style={{position: 'absolute', left: 316, top: cy + restY + dropPx / 2, transform: 'translateY(-50%)', fontFamily: numFont, fontVariantNumeric: 'lining-nums tabular-nums', fontWeight: 800, fontSize: 72, color: gapc}}>{'-' + counted(frame, fire, span, before - after, element.unit ?? '', reducedMotion)}</div>
+          <div style={{position: 'absolute', left: 316, top: cy + restY + dropPx / 2, transform: 'translateY(-50%)', fontFamily: numFont, fontVariantNumeric: 'lining-nums tabular-nums', fontWeight: 800, fontSize: 72, color: gapc}}>{(before > after ? '-' : '') + counted(frame, fire, span, Math.abs(before - after), element.unit ?? '', reducedMotion)}</div>
         </div>
       );
     }
