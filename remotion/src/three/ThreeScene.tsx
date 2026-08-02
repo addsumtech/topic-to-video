@@ -172,6 +172,70 @@ const CameraRig: React.FC<{keys: Camera3DKey[]; reduced: boolean}> = ({keys, red
   return null;
 };
 
+// ── LIGHT AS A MOVING CHARACTER ──────────────────────────────────────────────────────────────────────
+// A frame-driven light rig (pure fn of useCurrentFrame): the KEY + its contact shadow SWEEP across the
+// shot, a travelling SPECULAR glint crosses the front, a RIM/backlight pops the silhouette, and the whole
+// rig RAMPS out of a per-register mood floor (a noir/void beat opens near-black and lifts in — the
+// lighting-driven reveal a static rig can't do). Bound to a lighting MOOD per style.
+type Mood = 'studio' | 'noir' | 'void' | 'product';
+const STYLE_TO_MOOD: Record<string, Mood> = {
+  swiss: 'studio', bauhaus: 'studio', memphis: 'studio', risograph: 'studio', cartographic: 'studio', watercolor: 'studio', manga: 'studio',
+  noir: 'noir', editorial: 'noir', cinematic: 'noir', artdeco: 'noir',
+  cyberpunk: 'void', vaporwave: 'void', terminal: 'void', blueprint: 'void', brutalism: 'void',
+  glassmorphism: 'product', claymorphism: 'product',
+};
+const W = (_: Theme) => '#ffffff';
+type Rig = {amb: number; key: number; rim: number; spec: number; fill: number; floor: number; keyY: number; rimY: number;
+  keyColor: (t: Theme) => string; rimColor: (t: Theme) => string; specColor: (t: Theme) => string; fillColor: (t: Theme) => string};
+// amb/key/rim/fill are 0–2 scale; spec is candela-scale (three 0.169 decay=2 eats ~1/16 at a ~4-unit subject)
+const RIG: Record<Mood, Rig> = {
+  // `floor` = the light level a scene OPENS at (before the reveal ramp lifts it to full). Kept non-zero so
+  // every mid-film beat opens DIM-but-visible + lifts (moody), never full-black — the full dark->lit hero
+  // reveal is the opt-in `reveal3d` overlay. (A 0 floor rendered frame 0 black and made shot_qa abstain.)
+  studio: {amb: 0.38, key: 1.50, rim: 0.55, spec: 26, fill: 0.35, floor: 0.30, keyY: 9, rimY: 6, keyColor: W, rimColor: (t) => t.accent2, specColor: W, fillColor: (t) => t.accent2},
+  noir: {amb: 0.06, key: 1.85, rim: 1.05, spec: 24, fill: 0.12, floor: 0.16, keyY: 6, rimY: 5, keyColor: () => '#fff1df', rimColor: (t) => t.accent, specColor: W, fillColor: (t) => t.accent2},
+  void: {amb: 0.05, key: 1.15, rim: 1.35, spec: 20, fill: 0.10, floor: 0.14, keyY: 7, rimY: 6, keyColor: (t) => t.accent, rimColor: (t) => t.accent2, specColor: W, fillColor: (t) => t.accent},
+  product: {amb: 0.46, key: 1.30, rim: 0.70, spec: 32, fill: 0.42, floor: 0.42, keyY: 8, rimY: 6, keyColor: W, rimColor: (t) => t.accent, specColor: W, fillColor: (t) => t.accent},
+};
+const _hexLum = (hex: string) => {
+  const h = (hex || '').replace('#', '');
+  if (h.length < 6) return 0.5;
+  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+};
+// dark->lit reveal envelope (0..1 over the first ~22% of the scene); exported so the rig + the reveal
+// overlay share one curve and can't drift.
+export const revealEnvelope = (frame: number, dur: number) => interpolate(frame, [0, Math.round(dur * 0.22)], [0, 1],
+  {extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.inOut(Easing.cubic)});
+
+const LightRig: React.FC<{theme: Theme; dur: number; reduced: boolean}> = ({theme, dur, reduced}) => {
+  const cf = useCurrentFrame();
+  const f = reduced ? Math.round(dur * 0.5) : cf;          // freeze REVEALED + mid-sweep, never at black
+  const mood: Mood = STYLE_TO_MOOD[theme.style] ?? (_hexLum(theme.bg) < 0.4 ? 'noir' : 'studio');
+  const r = RIG[mood];
+  const rev = revealEnvelope(f, dur);
+  const revRim = interpolate(f, [0, Math.round(dur * 0.14)], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic)});
+  const lift = r.floor + (1 - r.floor) * rev;              // intensities climb out of the mood floor
+  const liftRim = r.floor * 0.5 + (1 - r.floor * 0.5) * revRim; // edge lights FIRST
+  const p = Math.max(0, Math.min(1, f / Math.max(1, dur)));
+  const swing = -1 + 2 * p;                                // key sweeps L->R
+  return (
+    <>
+      <ambientLight intensity={r.amb * lift} />
+      <hemisphereLight intensity={r.fill * lift} color={r.fillColor(theme)} groundColor={theme.bg} />
+      {/* travelling KEY — the only shadow caster; shadows rake with the sweep */}
+      <directionalLight position={[swing * 7, r.keyY, 5]} intensity={r.key * lift} color={r.keyColor(theme)}
+        castShadow shadow-mapSize={[2048, 2048]}
+        shadow-camera-left={-14} shadow-camera-right={14} shadow-camera-top={14} shadow-camera-bottom={-14}
+        shadow-camera-near={0.5} shadow-camera-far={44} shadow-bias={-0.0006} />
+      {/* travelling SPECULAR glint — crosses the front opposite the key; decay gives a localized hotspot */}
+      <pointLight position={[-swing * 5.5, 1.5, 4.5]} intensity={r.spec * lift} color={r.specColor(theme)} distance={16} decay={2} />
+      {/* RIM / backlight — behind + counter-swing, pops the silhouette; leads the reveal */}
+      <directionalLight position={[-swing * 4, r.rimY, -7]} intensity={r.rim * liftRim} color={r.rimColor(theme)} />
+    </>
+  );
+};
+
 export const ThreeScene: React.FC<{
   planes: Plane3D[];
   camera3d: Camera3DKey[];
@@ -182,7 +246,8 @@ export const ThreeScene: React.FC<{
   reducedMotion?: boolean;
   fadeInFrames?: number;
   fadeOutFrames?: number;
-}> = ({planes, camera3d, theme, captions, audio, captionFontPx, reducedMotion, fadeInFrames, fadeOutFrames}) => {
+  reveal3d?: boolean; // opt-in dark->lit reveal for an unlit-plane hero opener
+}> = ({planes, camera3d, theme, captions, audio, captionFontPx, reducedMotion, fadeInFrames, fadeOutFrames, reveal3d}) => {
   const frame = useCurrentFrame();
   const {width, height, durationInFrames} = useVideoConfig();
   const dur = Math.max(1, durationInFrames);
@@ -212,22 +277,9 @@ export const ThreeScene: React.FC<{
         {/* depth fog: the floor's far edge + distant geometry DISSOLVE into the bg instead of ending at a
             hard 40-unit horizon — the atmospheric falloff that makes a 3D space read as large, not a toy. */}
         <fog attach="fog" args={[theme.bg, 11, 33]} />
-        <ambientLight intensity={0.5} />
-        {/* key light CASTS shadows so bars/objects are grounded with a real contact shadow, not floating. */}
-        <directionalLight
-          position={[5, 9, 4]}
-          intensity={1.35}
-          castShadow
-          shadow-mapSize={[2048, 2048]}
-          shadow-camera-left={-14}
-          shadow-camera-right={14}
-          shadow-camera-top={14}
-          shadow-camera-bottom={-14}
-          shadow-camera-near={0.5}
-          shadow-camera-far={44}
-          shadow-bias={-0.0006}
-        />
-        <pointLight position={[-5, 3, -3]} intensity={0.5} color={theme.accent2} />
+        {/* LIGHT AS A MOVING CHARACTER — the travelling key/rim/specular rig (replaces the 3 static lights);
+            ramps out of a per-register mood floor so a noir/void beat opens near-black and lifts in. */}
+        <LightRig theme={theme} dur={dur} reduced={!!reducedMotion} />
         <CameraRig keys={keys} reduced={!!reducedMotion} />
         {/* ground plane — real perspective floor that RECEIVES the contact shadows (dropped a hair below the
             bar feet so the shadow reads and the coplanar faces don't z-fight). */}
@@ -252,6 +304,13 @@ export const ThreeScene: React.FC<{
           )
         )}
       </ThreeCanvas>
+
+      {/* opt-in dark->lit reveal for an unlit-plane hero: a black scrim that lifts in lockstep with the rig
+          (shares revealEnvelope so they can't drift). Default OFF — an ordinary 3D scene opens normally. */}
+      {reveal3d ? (
+        <AbsoluteFill style={{pointerEvents: 'none', backgroundColor: '#000',
+          opacity: 1 - revealEnvelope(reducedMotion ? Math.round(dur * 0.5) : frame, dur)}} />
+      ) : null}
 
       {/* 2D overlays on top of the canvas — grade/grain/vignette, edge fade, captions, audio */}
       <Finish frame={frame} theme={theme} />
