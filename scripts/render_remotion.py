@@ -117,7 +117,7 @@ _MOTION_ALIASES = {"PAN": "PAN_RIGHT", "TILT": "TILT_UP", "ORBIT": "ORBIT_RIGHT"
                    "DOLLY": "PUSH_IN", "ZOOM": "PUSH_IN", "PUSH": "PUSH_IN", "PULL": "PULL_OUT"}
 # element content fields passed through verbatim (strings) — geometry (position) is coerced numeric.
 _ELEM_STR = ("kind", "title", "kicker", "sub", "text", "heroText", "src", "html", "label", "align", "level",
-             "fit", "frame", "frameLabel", "concept", "unit")  # `html` = a Path-A form page (screenshotted to
+             "fit", "frame", "frameLabel", "concept", "unit", "attitude")  # `html` = a Path-A form page (to
 #            `src` at render); `concept` = a materialized-metaphor verb; frame = device/browser chrome
 _METAPHOR = {"widening-gap", "physical-fall", "filling-vessel", "diverging-pair", "converging-scatter"}
 # how many `values` each concept needs (None = any non-empty list)

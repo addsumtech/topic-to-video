@@ -392,7 +392,7 @@ def _figure_traceability(slides, out_dir, warnings):
 _CINE_KINDS = {"fill", "grid", "floor", "hero", "panel", "image"}
 _CINE_EASINGS = {"linear", "in", "out", "inout"}
 _SHOT_TYPES = {"ESTABLISH", "MEDIUM", "CLOSEUP", "OVER_SHOULDER", "REVEAL", "HERO"}
-_ELEM_KINDS = {"panel", "image", "textblock", "callout", "grid", "floor", "hero", "fill", "card", "metaphor"}  # ElementKind (elements.tsx); `card` = a Path-A html form, `metaphor` = a materialized-metaphor verb
+_ELEM_KINDS = {"panel", "image", "textblock", "callout", "grid", "floor", "hero", "fill", "card", "metaphor", "display"}  # ElementKind (elements.tsx); card=Path-A html form, metaphor=materialized verb, display=giant kinetic type
 _METAPHOR_CONCEPTS = {"widening-gap", "physical-fall", "filling-vessel", "diverging-pair", "converging-scatter"}
 _METAPHOR_ARITY = {"widening-gap": 2, "physical-fall": 2, "filling-vessel": 1, "diverging-pair": 2}
 # The per-beat DESIGN axis (references/shot-archetypes.md). Chosen per cinematic scene; MUST vary across the

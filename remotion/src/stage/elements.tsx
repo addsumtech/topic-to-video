@@ -7,7 +7,8 @@ import type {Theme} from '../Video';
 import {textStyle} from '../theme/typography';
 import {KineticText} from '../theme/KineticText';
 
-export type ElementKind = 'panel' | 'image' | 'textblock' | 'callout' | 'grid' | 'floor' | 'hero' | 'fill' | 'metaphor';
+export type ElementKind = 'panel' | 'image' | 'textblock' | 'callout' | 'grid' | 'floor' | 'hero' | 'fill' | 'metaphor' | 'display';
+export type TypeAttitude = 'rise' | 'tracking-in' | 'blur-in'; // the entrance personality of a display statement
 
 // MATERIALIZED METAPHOR (the highest-yield topic-locked novelty): a beat's MEANING encoded as a visual
 // PROPERTY that only THIS subject would use, summarizable by one VERB. Each concept is a frame-driven
@@ -61,6 +62,7 @@ export type ElementData = {
   values?: number[]; // the numbers the verb encodes (arity depends on concept)
   valueLabels?: string[]; // optional labels for the values
   unit?: string; // appended to the counted number (e.g. '%')
+  attitude?: TypeAttitude; // display statement entrance (rise | tracking-in | blur-in)
   atFrame?: number; // scene-local frame the VERB fires (default enter+10)
   verbSpan?: number; // frames the verb takes (default 30)
   accentIndex?: number;
@@ -265,6 +267,28 @@ const ElementContent: React.FC<{
         {element.label || ''}
       </div>
     );
+  }
+
+  // GIANT DISPLAY STATEMENT — full-strength kinetic type staged as an OBJECT the camera pushes into/through
+  // (the native manifesto-monolith vehicle; not the 9%-opacity hero watermark). Entrance = `attitude`.
+  if (kind === 'display') {
+    const u = reducedMotion ? 1 : clamp01((frame - enter) / 18);
+    const e = easeOut(u);
+    const att = element.attitude || 'rise';
+    const dstyle = textStyle(theme, 'display', 'display');
+    const box: React.CSSProperties = {
+      ...dstyle, position: 'absolute', left: -840, top: -180, width: 1680, textAlign: element.align || 'center',
+      color: theme.fg, fontSize: 200, fontWeight: 800, lineHeight: 1.02, letterSpacing: -2,
+      textShadow: '0 8px 44px rgba(0,0,0,0.55)',
+    };
+    const txt = element.text || element.heroText || '';
+    if (att === 'rise') {
+      return <div style={box}><KineticText text={txt} frame={frame} startFrame={enter} split="word" reduced={reducedMotion} /></div>;
+    }
+    if (att === 'tracking-in') {          // the word CONDENSES into place (wide tracking -> tight)
+      return <div style={{...box, opacity: e, letterSpacing: (1 - e) * 44 - 2}}>{txt}</div>;
+    }
+    return <div style={{...box, opacity: e, filter: `blur(${(1 - e) * 22}px)`}}>{txt}</div>; // blur-in: rack into focus
   }
 
   // MATERIALIZED METAPHOR — the beat's meaning as a physical action (one VERB), driven purely by frame.

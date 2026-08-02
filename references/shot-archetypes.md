@@ -52,7 +52,7 @@ the plane at render; see `references/cinematic-components.md` + `references/html
 | Archetype | Use when the beat is… | Composition / signature | Form source | Camera that suits it |
 |---|---|---|---|---|
 | **hero-on-void** | a thesis / one hero number / a manifesto line | ONE object in vast negative space; the void IS the design | native `hero`/big stat, or Path A `.stat` | slow push-in, long static hold |
-| **manifesto-monolith** | a bold claim / value proposition | GIANT display type as the set, staged in Z | native kinetic type (full-strength, not a 9% watermark) | dolly THROUGH the words |
+| **manifesto-monolith** | a bold claim / value proposition | GIANT display type as the set, staged in Z | native `display` element (`text` + `attitude`: rise / tracking-in / blur-in) — full-strength kinetic type, not a 9% watermark | dolly THROUGH the words |
 | **data-materializes** | a metric / trend / magnitude | numbers with real mass — extruded 3D that grows | native 3D `bars` (+ value labels) | craning orbit reveal |
 | **metric-wall** | 3–4 standout KPIs | a grid of proof tiles | Path A `.scorecard` (`.tile`) | pan across, then push into one tile |
 | **process-flow** | a sequence / pipeline / workflow | stepped arrow of progress, a focal step lit | Path A `.flow` (`.step.on`) | pan along the steps → push the focal step |
