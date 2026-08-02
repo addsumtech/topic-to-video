@@ -392,7 +392,9 @@ def _figure_traceability(slides, out_dir, warnings):
 _CINE_KINDS = {"fill", "grid", "floor", "hero", "panel", "image"}
 _CINE_EASINGS = {"linear", "in", "out", "inout"}
 _SHOT_TYPES = {"ESTABLISH", "MEDIUM", "CLOSEUP", "OVER_SHOULDER", "REVEAL", "HERO"}
-_ELEM_KINDS = {"panel", "image", "textblock", "callout", "grid", "floor", "hero", "fill", "card"}  # ElementKind (elements.tsx); `card` = a Path-A html form
+_ELEM_KINDS = {"panel", "image", "textblock", "callout", "grid", "floor", "hero", "fill", "card", "metaphor"}  # ElementKind (elements.tsx); `card` = a Path-A html form, `metaphor` = a materialized-metaphor verb
+_METAPHOR_CONCEPTS = {"widening-gap", "physical-fall", "filling-vessel", "diverging-pair", "converging-scatter"}
+_METAPHOR_ARITY = {"widening-gap": 2, "physical-fall": 2, "filling-vessel": 1, "diverging-pair": 2}
 # The per-beat DESIGN axis (references/shot-archetypes.md). Chosen per cinematic scene; MUST vary across the
 # film so every beat isn't the same glass panel reframed. Orthogonal to meta.style (the deck's one skin).
 _ARCHETYPES = {"hero-on-void", "manifesto-monolith", "data-materializes", "metric-wall", "process-flow",
@@ -465,6 +467,16 @@ def _shot_stage_fields(stage, shots, tag, errors, warnings):
             if k is not None and k not in _ELEM_KINDS:
                 warnings.append(f"{tag}: stage element {eid!r} kind '{k}' is unknown "
                                 f"(known: {sorted(_ELEM_KINDS)}) — it will render as a default panel")
+            if k == "metaphor":                              # mirror _clean_stage: concept + values arity
+                cn = el.get("concept")
+                if cn not in _METAPHOR_CONCEPTS:
+                    errors.append(f"{tag}: stage element {eid!r} unknown metaphor concept {cn!r} "
+                                  f"(known: {sorted(_METAPHOR_CONCEPTS)})")
+                vs = el.get("values")
+                if not (isinstance(vs, list) and vs):
+                    errors.append(f"{tag}: stage element {eid!r} metaphor needs a non-empty `values` list")
+                elif cn in _METAPHOR_ARITY and len(vs) != _METAPHOR_ARITY[cn]:
+                    errors.append(f"{tag}: stage element {eid!r} concept {cn!r} needs {_METAPHOR_ARITY[cn]} values, got {len(vs)}")
             pos = el.get("position")
             if not (isinstance(pos, list) and len(pos) == 3 and all(isinstance(v, (int, float)) for v in pos)):
                 errors.append(f"{tag}: stage element {eid!r} `position` must be [x,y,z] numbers")

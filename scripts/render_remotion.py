@@ -117,8 +117,11 @@ _MOTION_ALIASES = {"PAN": "PAN_RIGHT", "TILT": "TILT_UP", "ORBIT": "ORBIT_RIGHT"
                    "DOLLY": "PUSH_IN", "ZOOM": "PUSH_IN", "PUSH": "PUSH_IN", "PULL": "PULL_OUT"}
 # element content fields passed through verbatim (strings) — geometry (position) is coerced numeric.
 _ELEM_STR = ("kind", "title", "kicker", "sub", "text", "heroText", "src", "html", "label", "align", "level",
-             "fit", "frame", "frameLabel")  # `html` = a Path-A form page (screenshotted to `src` at render);
-#                                             frame = device/browser chrome around an image (product-UI framing)
+             "fit", "frame", "frameLabel", "concept", "unit")  # `html` = a Path-A form page (screenshotted to
+#            `src` at render); `concept` = a materialized-metaphor verb; frame = device/browser chrome
+_METAPHOR = {"widening-gap", "physical-fall", "filling-vessel", "diverging-pair", "converging-scatter"}
+# how many `values` each concept needs (None = any non-empty list)
+_ARITY = {"widening-gap": 2, "physical-fall": 2, "filling-vessel": 1, "diverging-pair": 2, "converging-scatter": None}
 
 
 def _clean_stage(stage, tag):
@@ -154,6 +157,24 @@ def _clean_stage(stage, tag):
             if not (isinstance(sz, list) and len(sz) == 2):
                 raise RuntimeError("cinematic %s element %r: `size` must be [w,h]" % (tag, eid))
             c["size"] = [_num(sz[k], "%s element %r size[%d]" % (tag, eid, k)) for k in range(2)]
+        if c.get("kind") == "metaphor":                      # materialized-metaphor verb: validate + coerce data
+            cn = c.get("concept")
+            if cn not in _METAPHOR:
+                raise RuntimeError("cinematic %s element %r: unknown metaphor concept %r (known: %s)"
+                                   % (tag, eid, cn, sorted(_METAPHOR)))
+            vs = el.get("values")
+            if not (isinstance(vs, list) and vs):
+                raise RuntimeError("cinematic %s element %r: metaphor needs a non-empty `values` list" % (tag, eid))
+            c["values"] = [_num(v, "%s element %r values[%d]" % (tag, eid, k)) for k, v in enumerate(vs)]
+            need = _ARITY[cn]
+            if need is not None and len(c["values"]) != need:
+                raise RuntimeError("cinematic %s element %r: concept %r needs exactly %d values, got %d"
+                                   % (tag, eid, cn, need, len(c["values"])))
+            if el.get("valueLabels") is not None:
+                c["valueLabels"] = [str(x) for x in el["valueLabels"]]
+            for k in ("atFrame", "verbSpan", "accentIndex"):
+                if el.get(k) is not None:
+                    c[k] = int(round(_num(el[k], "%s element %r %s" % (tag, eid, k))))
         out.append(c)
     persp = stage.get("perspective")
     cleaned = {"elements": out}

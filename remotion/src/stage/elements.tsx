@@ -7,7 +7,24 @@ import type {Theme} from '../Video';
 import {textStyle} from '../theme/typography';
 import {KineticText} from '../theme/KineticText';
 
-export type ElementKind = 'panel' | 'image' | 'textblock' | 'callout' | 'grid' | 'floor' | 'hero' | 'fill';
+export type ElementKind = 'panel' | 'image' | 'textblock' | 'callout' | 'grid' | 'floor' | 'hero' | 'fill' | 'metaphor';
+
+// MATERIALIZED METAPHOR (the highest-yield topic-locked novelty): a beat's MEANING encoded as a visual
+// PROPERTY that only THIS subject would use, summarizable by one VERB. Each concept is a frame-driven
+// primitive (pure fn of useCurrentFrame — no CSS transition/keyframes/RAF, which freeze off-thread).
+export type MetaphorConcept = 'widening-gap' | 'physical-fall' | 'filling-vessel' | 'diverging-pair' | 'converging-scatter';
+
+const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);      // decel: a fill / a settle
+const easeGravity = (t: number) => t * t;                   // accel: a fall speeds up
+// counts a number 0->target over [fire, fire+span], eased; lining figures (grouped) — never old-style.
+function counted(frame: number, fire: number, span: number, target: number, unit: string, reduced: boolean) {
+  const u = reduced ? 1 : clamp01((frame - fire) / span);
+  const v = target * easeOut(u);
+  const body = Math.abs(v) >= 100 ? Math.round(v).toLocaleString('en-US')
+    : (Math.abs(v - Math.round(v)) < 0.05 ? String(Math.round(v)) : v.toFixed(1));
+  return body + (unit || '');
+}
 
 // Element data schema (from storyboard.json stage.elements[])
 export type ElementData = {
@@ -33,6 +50,14 @@ export type ElementData = {
   // Grid/floor fields (no extra config, size/opacity derived from kind)
   // Hero fields
   heroText?: string;
+  // Materialized-metaphor fields (kind:'metaphor'): the verb + its data + timing.
+  concept?: MetaphorConcept;
+  values?: number[]; // the numbers the verb encodes (arity depends on concept)
+  valueLabels?: string[]; // optional labels for the values
+  unit?: string; // appended to the counted number (e.g. '%')
+  atFrame?: number; // scene-local frame the VERB fires (default enter+10)
+  verbSpan?: number; // frames the verb takes (default 30)
+  accentIndex?: number;
   // Kinetic typography: the scene-local frame at which this element's text reveals in (default 0).
   enterAtFrame?: number;
 };
@@ -234,6 +259,66 @@ const ElementContent: React.FC<{
         {element.label || ''}
       </div>
     );
+  }
+
+  // MATERIALIZED METAPHOR — the beat's meaning as a physical action (one VERB), driven purely by frame.
+  if (kind === 'metaphor') {
+    const fire = element.atFrame ?? (enter + 10), span = element.verbSpan ?? 30;
+    const u = reducedMotion ? 1 : clamp01((frame - fire) / span);
+    const acc = theme.accent, base = theme.muted, gapc = theme.accent2, numFont = theme.fontNumber;
+
+    if (element.concept === 'filling-vessel') {
+      // a container FILLS = adoption / progress / capacity.
+      const raw = element.values?.[0] ?? 0;
+      const pct = clamp01(raw > 1 ? raw / 100 : raw);
+      const W = 360, H = 520, r = 28, fillH = easeOut(u) * pct * H;
+      return (
+        <div style={{position: 'absolute', left: -W / 2, top: -H / 2, width: W, height: H}}>
+          <div style={{position: 'absolute', inset: 0, border: `3px solid ${base}`, borderRadius: r, overflow: 'hidden', background: `${theme.bg}66`}}>
+            <div style={{position: 'absolute', left: 0, right: 0, bottom: 0, height: fillH, background: `linear-gradient(180deg,${acc} 0%,${gapc} 100%)`}} />
+            <div style={{position: 'absolute', left: 0, right: 0, bottom: fillH - 2, height: 4, background: `${theme.fg}cc`, opacity: fillH > 2 ? 1 : 0}} />
+          </div>
+          <div style={{position: 'absolute', left: 0, right: 0, top: '50%', transform: 'translateY(-50%)', textAlign: 'center', fontFamily: numFont, fontVariantNumeric: 'lining-nums tabular-nums', fontWeight: 800, fontSize: 120, color: theme.fg, textShadow: '0 4px 24px rgba(0,0,0,.5)'}}>{counted(frame, fire, span, pct * 100, element.unit ?? '%', reducedMotion)}</div>
+          {element.label ? <div style={{position: 'absolute', left: 0, right: 0, top: H + 16, textAlign: 'center', fontFamily: theme.fontBody, letterSpacing: 4, textTransform: 'uppercase', color: base, fontSize: 26}}>{element.label}</div> : null}
+        </div>
+      );
+    }
+
+    if (element.concept === 'widening-gap') {
+      // two tracks separate; the growing GAP is the loss / divergence.
+      const a = element.values?.[0] ?? 0, b = element.values?.[1] ?? 0;
+      const delta = Math.abs(b - a), denom = Math.max(1e-6, Math.abs(a), Math.abs(b));
+      const W = 620, gapPx = easeOut(u) * (delta / denom) * 300, half = gapPx / 2, cy = 260, lw = 6;
+      return (
+        <div style={{position: 'absolute', left: -W / 2, top: -260, width: W, height: 520}}>
+          <div style={{position: 'absolute', left: 0, width: W, height: lw, top: cy - half, background: acc, borderRadius: lw}} />
+          <div style={{position: 'absolute', left: 0, width: W, height: lw, top: cy + half, background: base, borderRadius: lw}} />
+          <div style={{position: 'absolute', left: W + 18, top: cy - half, width: 2, height: gapPx, background: gapc}} />
+          <div style={{position: 'absolute', left: W + 34, top: cy, transform: 'translateY(-50%)', fontFamily: numFont, fontVariantNumeric: 'lining-nums tabular-nums', fontWeight: 800, fontSize: 88, color: gapc}}>{counted(frame, fire, span, delta, element.unit ?? '', reducedMotion)}</div>
+          {element.valueLabels?.[1] ? <div style={{position: 'absolute', left: 0, top: cy - half - 40, fontFamily: theme.fontBody, color: acc, fontSize: 28}}>{element.valueLabels[1]}</div> : null}
+          {element.valueLabels?.[0] ? <div style={{position: 'absolute', left: 0, top: cy + half + 12, fontFamily: theme.fontBody, color: base, fontSize: 28}}>{element.valueLabels[0]}</div> : null}
+        </div>
+      );
+    }
+
+    if (element.concept === 'physical-fall') {
+      // a value FALLS off a shelf = the cliff (accelerating, not eased).
+      const before = element.values?.[0] ?? 0, after = element.values?.[1] ?? 0;
+      const dropPx = ((before - after) / Math.max(1e-6, Math.abs(before))) * 360;
+      const g = reducedMotion ? 1 : easeGravity(clamp01((frame - fire) / span));
+      const cy = 260, restY = -160, y = restY + g * Math.max(0, dropPx);
+      const tokVal = Math.round(before + (after - before) * g);
+      return (
+        <div style={{position: 'absolute', left: -260, top: -260, width: 520, height: 560}}>
+          <div style={{position: 'absolute', left: 60, top: cy + restY, width: 200, height: 0, borderTop: `2px dashed ${base}`, opacity: 0.6}} />
+          <div style={{position: 'absolute', left: 0, top: cy, width: 240, height: 6, background: base, borderRadius: 3}} />
+          <div style={{position: 'absolute', left: 70, top: cy + y, width: 180, height: 110, borderRadius: 16, background: acc, color: theme.onAccent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: numFont, fontVariantNumeric: 'lining-nums tabular-nums', fontWeight: 800, fontSize: 64, boxShadow: '0 30px 60px rgba(0,0,0,.5)'}}>{String(tokVal) + (element.unit ?? '')}</div>
+          <div style={{position: 'absolute', left: 300, top: cy + restY, width: 2, height: Math.max(0, dropPx), background: gapc}} />
+          <div style={{position: 'absolute', left: 316, top: cy + restY + dropPx / 2, transform: 'translateY(-50%)', fontFamily: numFont, fontVariantNumeric: 'lining-nums tabular-nums', fontWeight: 800, fontSize: 72, color: gapc}}>{'-' + counted(frame, fire, span, before - after, element.unit ?? '', reducedMotion)}</div>
+        </div>
+      );
+    }
+    return null; // unknown concept — coercion/validate already guard this
   }
 
   // Panel: floating glass card (ported from Camera.tsx PlaneContent)

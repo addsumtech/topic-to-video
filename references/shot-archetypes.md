@@ -60,11 +60,26 @@ the plane at render; see `references/cinematic-components.md` + `references/html
 | **system-map** | a structure / architecture / relationship | a constellation; centre + peers | Path A `.hubspoke` / system_map | pull-OUT reveal of the whole system |
 | **timeline-rail** | a history / roadmap / dated milestones | a throughline with nodes | Path A `.timeline` / timeline_rail | travel along the rail |
 | **quadrant-position** | two axes / a market position | a map with a focal cell | Path A `.quadrant` (`.cell.on`) | push into the focal cell |
-| **metaphor-mechanic** | an abstract idea needing a concrete image | the idea made PHYSICAL — a verb you can see | Path A `.iceberg`/`.waffle`/`.gauge`/`.meter` | motion that ENACTS it (pan down past the waterline) |
+| **metaphor-mechanic** | an abstract idea needing a concrete image | the idea made PHYSICAL — a verb you can see | **native `metaphor` verb** (below) when the meaning is a physical CHANGE the camera can watch; else Path A `.iceberg`/`.waffle`/`.gauge` | motion that ENACTS it (the fill rises, the token falls) |
 | **device-focus** | showing the actual product UI | the real thing, framed | native `image` + `frame:"browser"/"window"` | push into the UI, rack to a detail |
 | **quote-testament** | a verbatim customer voice / claim | the human voice, alone | Path A `.pullquote`, or native | static hold, a breath of push |
 | **exploded-assemble** *(reserve)* | a composed system revealed by its parts | parts fly apart / assemble | native 3D planes (future) | orbit while parts assemble |
 | **turntable-material** *(reserve)* | a single hero product / logo | the object as sculpture, lit | native 3D + light rig (future) | slow turntable + light sweep |
+
+### Native materialized-metaphor verbs (`kind:"metaphor"`, `concept:<verb>`)
+
+A stage element `{kind:"metaphor", concept, values:[…], label?, unit?, valueLabels?, verbSpan?}` renders a
+frame-driven primitive whose MOTION enacts the meaning as the camera arrives (the number counts as the verb
+plays; digits use the lining number face). Prefer a native verb over a Path-A card when the meaning is a
+physical CHANGE the camera can WATCH:
+
+| concept | values → meaning | verb |
+|---|---|---|
+| `filling-vessel` | `[level]` (0..1 or 0..100) = adoption / progress / capacity | FILL — a vessel fills |
+| `widening-gap` | `[baseline, with]` → the gap = loss / divergence / lead | DIVERGE — two tracks separate |
+| `physical-fall` | `[before, after]` → the drop = the cliff | FALL — a token drops off a shelf (accelerating) |
+| `diverging-pair` | `[a, b]` end-heights from one origin | SPLIT *(reserve)* |
+| `converging-scatter` | `[total]` scattered → one = consolidation | CONVERGE *(reserve)* |
 
 **metaphor-mechanic is the highest-yield novelty engine** (huashu 律八 物化+过程感): map the beat's MEANING
 to a visual PROPERTY that only THIS subject would use — *the widening white gap between two bars IS the
