@@ -56,7 +56,7 @@ def test_bare_motion_names_alias(tmp_path, bare, resolved):
 def test_validate_accepts_bare_motion_names():
     errs, warns = [], []
     v._shot_stage_fields({"elements": [{"id": "a", "kind": "panel", "position": [0, 0, 0]}]},
-                         [{"type": "PAN" and "MEDIUM", "target": "a", "motion": "PAN"}], "s1", errs, warns)
+                         [{"type": "MEDIUM", "target": "a", "motion": "PAN"}], "s1", errs, warns)
     assert not any("unknown motion" in e for e in errs)
 
 

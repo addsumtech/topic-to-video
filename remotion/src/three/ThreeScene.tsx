@@ -30,8 +30,9 @@ export type Plane3D = {
   position: [number, number, number];
   rotation?: [number, number, number];
   size?: [number, number]; // world units of the plane (default [3, 1.8])
-  data?: number[]; // bars: values (drive bar heights)
-  labels?: string[]; // bars: optional per-bar value labels
+  data?: number[]; // bars/stack: values (drive bar heights / cube counts)
+  labels?: string[]; // per-column category labels — consumed by render_remotion._rasterize_text3d (which
+  //                    emits billboarded label PLANES), NOT read here; kept on the type for the props shape.
 };
 
 // NOTE ON 3D TEXT: troika/drei <Text> renders BLANK under Remotion — it generates its glyph SDF

@@ -65,7 +65,6 @@ export type ElementData = {
   attitude?: TypeAttitude; // display statement entrance (rise | tracking-in | blur-in)
   atFrame?: number; // scene-local frame the VERB fires (default enter+10)
   verbSpan?: number; // frames the verb takes (default 30)
-  accentIndex?: number;
   // Kinetic typography: the scene-local frame at which this element's text reveals in (default 0).
   enterAtFrame?: number;
 };

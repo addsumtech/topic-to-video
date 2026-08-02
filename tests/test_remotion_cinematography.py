@@ -22,6 +22,9 @@ def test_grade_has_a_distinct_entry_per_style():
     assert "STYLE_TO_GRADE" in src and "GRADE_FAMILIES" not in src, "the 4-family fold is replaced by a per-style table"
     for s in _STYLES:
         assert re.search(r"\b" + s + r":\s*'linear-gradient", src), "style %r must have its own grade" % s
+    # the 18 grade VALUES must be DISTINCT (not the same wash pasted 18x) — every linear-gradient literal.
+    grads = re.findall(r"'(linear-gradient\([^']+\))'", src)
+    assert len(grads) >= 18 and len(set(grads)) == len(grads), "each style needs a DISTINCT grade, not one repeated wash"
     assert "STYLE_TO_GRADE[theme.style]" in src and "FALLBACK_GRADE" in src, "keyed on theme.style with a fallback"
 
 

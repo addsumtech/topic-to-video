@@ -109,7 +109,7 @@ def _clean_layers(layers, tag):
 _SHOT_TYPES = {"ESTABLISH", "MEDIUM", "CLOSEUP", "OVER_SHOULDER", "REVEAL", "HERO"}
 _MOTIONS = {"STATIC", "PUSH_IN", "PULL_OUT", "PAN_RIGHT", "PAN_LEFT", "TILT_UP", "TILT_DOWN",
             "ORBIT_RIGHT", "ORBIT_LEFT", "RACK_FOCUS"}
-_EASINGS = {"linear", "in", "out", "inout"}
+_EASINGS = {"linear", "in", "out", "inout", "house"}  # `house` = the shared premium expo-out settle (camera.ts)
 # The docs (shot-vocabulary, design-director) teach the bare survey moves PAN/TILT/ORBIT (and DOLLY/ZOOM);
 # resolve them to a concrete default direction so authoring a documented name never fails the gate. validate
 # mirrors this map so the ~1s pass and the render agree.
@@ -172,7 +172,7 @@ def _clean_stage(stage, tag):
                                    % (tag, eid, cn, need, len(c["values"])))
             if el.get("valueLabels") is not None:
                 c["valueLabels"] = [str(x) for x in el["valueLabels"]]
-            for k in ("atFrame", "verbSpan", "accentIndex"):
+            for k in ("atFrame", "verbSpan"):
                 if el.get(k) is not None:
                     c[k] = int(round(_num(el[k], "%s element %r %s" % (tag, eid, k))))
         out.append(c)
@@ -200,7 +200,8 @@ def _clean_shots(shots, frames, fps, elem_ids, tag):
             raise RuntimeError("cinematic %s shot %d: unknown type %r (known: %s)" % (tag, j, st, sorted(_SHOT_TYPES)))
         mot = str(sh.get("motion", "STATIC")).upper().replace("-", "_").replace(" ", "_")
         mot = _MOTION_ALIASES.get(mot, mot)              # accept the bare documented names (PAN/TILT/ORBIT/…)
-        eas = str(sh.get("easing", "inout"))
+        eas = str(sh.get("easing", "house"))             # default to the shared HOUSE_EASE settle (#10) — NOT
+        #                                                  'inout', which was shadowing camera.ts's `|| 'house'`.
         if eas not in _EASINGS:                          # validate easing too (the lens/camera paths already do)
             raise RuntimeError("cinematic %s shot %d: unknown easing %r (known: %s)" % (tag, j, eas, sorted(_EASINGS)))
         c = {"type": st, "motion": mot, "easing": eas, "carry": bool(sh.get("carry"))}
@@ -860,6 +861,14 @@ def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="erro
     missing = [s.get("index") for s in data.get("slides", []) if not s.get("audio") or not s.get("duration")]
     if missing:
         raise RuntimeError("scene(s) %s have no audio/duration — run tts.py before rendering" % missing)
+
+    # Copy bundled fonts to out_dir/.fonts/ for @remotion/fonts to load
+    _copy_fonts(out_dir)
+    _render_html_cards(data, out_dir)  # PATH A: `html` form pages -> screenshot -> textured plane `src`
+    _rasterize_text3d(data, out_dir)   # 3D text -> transparent PNG textured planes (troika renders blank)
+
+    # The blank-scene gate runs AFTER the pre-passes so it sees the FINAL planes: e.g. no PIL drops every
+    # kind:'text' plane, leaving a scene content-blank — catch it here rather than render an empty frame.
     bad = unsupported_scenes(data)
     if bad:                                           # the biggest trap: non-image scenes render BLANK
         raise RuntimeError(
@@ -867,11 +876,6 @@ def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="erro
             "content (html/chart/timeline/…) that would render BLANK. Use the local renderer "
             "(meta.renderer=local) for an html/designed deck, or give those scenes an `image`."
             % ", ".join("#%s(%s)" % (i, t) for i, t in bad))
-
-    # Copy bundled fonts to out_dir/.fonts/ for @remotion/fonts to load
-    _copy_fonts(out_dir)
-    _render_html_cards(data, out_dir)  # PATH A: `html` form pages -> screenshot -> textured plane `src`
-    _rasterize_text3d(data, out_dir)   # 3D text -> transparent PNG textured planes (troika renders blank)
 
     props = build_props(data, out_dir, vertical, reduced_motion)
     props_path = os.path.join(out_dir, ".remotion-props.json")

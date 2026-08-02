@@ -59,6 +59,13 @@ def test_house_ease_and_ampscale_wired():
     assert "ampScale" in src and "|| 'house'" in src, "personality amp + house as the default settle"
 
 
+def test_uneased_shot_actually_gets_house(tmp_path):
+    # BEHAVIOURAL (not a source grep): an un-eased shot must carry easing 'house' — Python used to default
+    # 'inout', which shadowed the TS `|| 'house'` fallback and left the shared motion physics dead.
+    sc = rr.build_props(_shots([{"type": "HERO", "target": "a"}]), str(tmp_path))["scenes"][0]
+    assert sc["shots"][0]["easing"] == "house"
+
+
 @pytest.mark.parametrize("pers,amp", [("energetic", 1.4), ("calm", 0.72), ("balanced", 1.0), ("weird", 1.0)])
 def test_motion_personality_scales_amplitude(tmp_path, pers, amp):
     sc = rr.build_props(_shots([{"type": "HERO", "target": "a"}], meta={"motion_personality": pers}), str(tmp_path))["scenes"][0]

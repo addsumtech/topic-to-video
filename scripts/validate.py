@@ -390,7 +390,7 @@ def _figure_traceability(slides, out_dir, warnings):
 
 
 _CINE_KINDS = {"fill", "grid", "floor", "hero", "panel", "image"}
-_CINE_EASINGS = {"linear", "in", "out", "inout"}
+_CINE_EASINGS = {"linear", "in", "out", "inout", "house"}  # `house` = the shared premium expo-out settle (default)
 _SHOT_TYPES = {"ESTABLISH", "MEDIUM", "CLOSEUP", "OVER_SHOULDER", "REVEAL", "HERO"}
 _ELEM_KINDS = {"panel", "image", "textblock", "callout", "grid", "floor", "hero", "fill", "card", "metaphor", "display"}  # ElementKind (elements.tsx); card=Path-A html form, metaphor=materialized verb, display=giant kinetic type
 _METAPHOR_CONCEPTS = {"widening-gap", "physical-fall", "filling-vessel", "diverging-pair", "converging-scatter"}
@@ -400,7 +400,9 @@ _METAPHOR_ARITY = {"widening-gap": 2, "physical-fall": 2, "filling-vessel": 1, "
 _ARCHETYPES = {"hero-on-void", "manifesto-monolith", "data-materializes", "metric-wall", "process-flow",
                "comparison-split", "system-map", "timeline-rail", "quadrant-position", "metaphor-mechanic",
                "device-focus", "quote-testament", "exploded-assemble", "turntable-material"}
-_SIGNATURE_ARCHETYPES = {"metaphor-mechanic", "data-materializes", "manifesto-monolith", "turntable-material"}
+# signature beats that have a REAL renderer (a non-deliverable reserve archetype must not satisfy the gate).
+_SIGNATURE_ARCHETYPES = {"metaphor-mechanic", "data-materializes", "manifesto-monolith"}
+_RESERVE_ARCHETYPES = {"exploded-assemble", "turntable-material"}  # named but no native renderer yet
 
 
 def _archetype_of(s):
@@ -477,6 +479,9 @@ def _shot_stage_fields(stage, shots, tag, errors, warnings):
                     errors.append(f"{tag}: stage element {eid!r} metaphor needs a non-empty `values` list")
                 elif cn in _METAPHOR_ARITY and len(vs) != _METAPHOR_ARITY[cn]:
                     errors.append(f"{tag}: stage element {eid!r} concept {cn!r} needs {_METAPHOR_ARITY[cn]} values, got {len(vs)}")
+            if k == "display" and el.get("attitude") is not None and str(el["attitude"]) not in ("rise", "tracking-in", "blur-in"):
+                warnings.append(f"{tag}: display element {eid!r} attitude {el['attitude']!r} unknown "
+                                f"(rise|tracking-in|blur-in) — a typo silently renders as blur-in")
             pos = el.get("position")
             if not (isinstance(pos, list) and len(pos) == 3 and all(isinstance(v, (int, float)) for v in pos)):
                 errors.append(f"{tag}: stage element {eid!r} `position` must be [x,y,z] numbers")
@@ -500,7 +505,7 @@ def _shot_stage_fields(stage, shots, tag, errors, warnings):
             errors.append(f"{tag}: shot {j} energy {en!r} must be subtle|balanced|bold")
         ea = sh.get("easing")
         if ea is not None and str(ea) not in _CINE_EASINGS:
-            warnings.append(f"{tag}: shot {j} easing {ea!r} unknown (known: {sorted(_CINE_EASINGS)}) — falls back to inout")
+            warnings.append(f"{tag}: shot {j} easing {ea!r} unknown (known: {sorted(_CINE_EASINGS)}) — falls back to house")
         tp = sh.get("targetPos")
         if tp is not None and not (isinstance(tp, list) and len(tp) == 3 and all(isinstance(v, (int, float)) for v in tp)):
             errors.append(f"{tag}: shot {j} targetPos must be [x,y,z] numbers")
@@ -563,6 +568,9 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
                             f"gets a bespoke design (cover-the-copy test), not the default glass panel")
         elif str(_arche) not in _ARCHETYPES:
             errors.append(f"{tag}: unknown archetype {_arche!r} (known: {sorted(_ARCHETYPES)})")
+        elif str(_arche) in _RESERVE_ARCHETYPES:
+            warnings.append(f"{tag}: archetype {_arche!r} has no native renderer yet — it renders as whatever "
+                            f"stage elements you build; use a shipped archetype or build the set explicitly")
     # #6 COMFORT BUDGET: too many camera changes per second reads as vertigo (huashu: >=2.6s between moves).
     if stage and isinstance(shots, list) and len(shots) >= 3 and isinstance(s.get("duration"), (int, float)) and s["duration"]:
         avg = float(s["duration"]) / len(shots)

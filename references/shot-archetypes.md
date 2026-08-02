@@ -78,8 +78,8 @@ physical CHANGE the camera can WATCH:
 | `filling-vessel` | `[level]` (0..1 or 0..100) = adoption / progress / capacity | FILL — a vessel fills |
 | `widening-gap` | `[baseline, with]` → the gap = loss / divergence / lead | DIVERGE — two tracks separate |
 | `physical-fall` | `[before, after]` → the drop = the cliff | FALL — a token drops off a shelf (accelerating) |
-| `diverging-pair` | `[a, b]` end-heights from one origin | SPLIT *(reserve)* |
-| `converging-scatter` | `[total]` scattered → one = consolidation | CONVERGE *(reserve)* |
+| `diverging-pair` | `[a, b]` end-heights from one origin | SPLIT |
+| `converging-scatter` | `[total]` scattered → one = consolidation | CONVERGE |
 
 **metaphor-mechanic is the highest-yield novelty engine** (huashu 律八 物化+过程感): map the beat's MEANING
 to a visual PROPERTY that only THIS subject would use — *the widening white gap between two bars IS the

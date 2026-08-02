@@ -263,6 +263,17 @@ the camera flies over. Reach for `metaphor-mechanic` (make the abstract idea phy
 it is the highest-yield, most topic-locked novelty. **If a beat could have been a static HTML slide, it should
 have been — reserve the cinematic tier for beats whose idea needs depth, a camera move, motion, or continuity.**
 
+**FILM-LEVEL knobs (decide these ONCE on `meta` for a cinematic story film).** These are opt-in and easy to
+forget — commit them with the register: (a) **`sound_design:true`** adds a two-track SFX+BGM mix, cues pinned
+frame-exact to the beats (`meta.bgm` = a track path or `"auto"` for a subtle synth pad) — a launch film with
+no beat-synced sound reads as a muted slideshow; **the mix cannot be auditioned by the pipeline, so flag that
+the operator must LISTEN before delivery.** (b) **`hero_mark:"<wordmark>"`** pins a small persistent brand
+lockup on every scene (the continuity spine — set it whenever the deck varies its design aggressively across
+≥3 archetypes, so the film reads as ONE piece). (c) **`motion_personality`** (`calm`|`precise`|`weighty`|
+`balanced`|`bold`|`energetic`) scales the whole film's move amplitude. (d) **`film_look`** (the 3D DoF+bloom+
+ACES post stack) is ON by default for 3D scenes — leave it unless rendering on GPU-less CI. For a **3D HERO
+OPENER on an unlit plane**, set that scene's **`reveal3d:true`** for a dark→lit reveal.
+
 **SHOT-BASED staging — the paradigm (prefer this for a real film).** Instead of one move over flat
 `layers`, author a beat as a **SET** the camera moves THROUGH: `stage.elements` placed once in 3D space
 (each `{id, kind, position:[x,y,z], …content}`) + an ordered **`shots`** list, each shot framing an

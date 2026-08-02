@@ -168,6 +168,10 @@ TTS if the user gives an API key.
   **Audition the audio before delivery — the pipeline can't hear it.**
   **3D film-look (`meta.film_look`, default on for 3D scenes)** — react-postprocessing DoF + selective
   Bloom + ACES; set `false` on GPU-less CI where the composer is costly.
+  **Continuity spine (`meta.hero_mark:"<wordmark>"`)** — a persistent brand lockup on every scene (the
+  through-line that keeps aggressive per-beat design variety reading as ONE film; set it when a deck spans
+  ≥3 distinct archetypes). **`meta.motion_personality`** (calm…energetic) scales the whole film's move
+  amplitude. Per-scene **`reveal3d:true`** gives a 3D hero opener a dark→lit reveal.
   When to reach for the tier: Remotion's real
   edge is fast/kinetic motion + motion-blur + eased cross-scene transitions — worth it for a cinematic
   **story** video, not for a calm explainer deck (where it's pixel-identical to local).
@@ -197,7 +201,9 @@ TTS if the user gives an API key.
   **`kind:"plane"`** (default) is a surface — `color`, or **`src`** to texture a real SCREENSHOT onto the
   mesh (the product UI as a true-3D object the camera orbits — not a flat overlay); **`kind:"bars"`** is a
   real **extruded 3D bar chart** (`data:[…]` drives box heights, bars grow frame-by-frame — born-in-3D
-  data-viz), and **`kind:"text"`** is a real 3D headline. Plus a `camera3d` orbit/crane path
+  data-viz), **`kind:"stack"`** stacks `data:[…]` UNIT CUBES per column (accretion/accumulation "has mass" —
+  the pile grows cube-by-cube with per-column totals; reach for it when the point is a COUNT building up),
+  and **`kind:"text"`** is a real 3D headline. Plus a `camera3d` orbit/crane path
   (`[{at, yaw, radius, height, easing}]`, `at` = 0..1). Renders via `remotion/src/three/ThreeScene.tsx`
   (`@remotion/three` + R3F v8 + three — **not drei**, whose `<Text>` renders BLANK); `render_remotion`
   auto-adds the WebGL flag **`--gl`** (`angle` on macOS/Windows, `swangle` on headless Linux/CI; headless

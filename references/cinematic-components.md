@@ -87,6 +87,7 @@ Copy-paste kits; each component must be checked for frame-safety before use.
 | Shapes / masks / dividers | `@remotion/shapes` | B | frame-safe |
 | Real 3D text | `kind:"text"` → `render_remotion._rasterize_text3d` (PIL → billboard alpha PNG plane) | B (P6) | **drei/troika `<Text>` renders BLANK under Remotion — do NOT use.** This is the working path |
 | 3D bar labels | `kind:"bars"` `data`/`labels` → auto value+category billboard planes (`_rasterize_text3d`) | B (P6) | rasterized, lining face |
+| 3D accumulation | `kind:"stack"` `data`/`labels` → cube stacks grow cube-by-cube + per-column totals | B (P6) | when the point is a COUNT building up (accretion has mass) |
 | Product mockup / video-in-3D | `@remotion/three` `useOffthreadVideoTexture` on a plane | B (P6) | frame-safe (video texture only) |
 | Bloom / glow | `@remotion/skia` | B | separate canvas — won't flatten 3D |
 

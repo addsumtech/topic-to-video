@@ -29,6 +29,9 @@ OR a non-card form that fits in the wrong direction (D1 bidirectional), player-c
 3. The full **`storyboard.json`** — the assembled scenes (`visual`, `transition`, `props`, `motion`).
 4. For an HTML-tier deck, the **authored `pages/scene_NN.html` files** (via each scene's `props.html`) —
    required for the form, icon, whitespace, colour, and motion-discipline checks (these live in the pages).
+   **On the cinematic (Remotion) tier this ALSO includes Path-A form pages** referenced from a scene's
+   `stage.elements[].html` or `planes[].html` — apply the same page-level checks (D1/D5/D8) to each, since
+   the camera flies over them full-frame.
 5. `meta` — `aspect` (16:9 / 9:16), `language`, `target_seconds`.
 6. **(optional) rendered keyframes** — `<out_dir>/_keyframes/all.png` or extracted sample frames. When
    present, run the **D11 rendered keyframe pass** on the actual pixels; when absent, D11 is skipped and
@@ -368,6 +371,21 @@ the floor; you are the ceiling.
   read as a CONTINUOUS glide from the previous framing to the new subject (the eye tracks one space); a
   non-carry boundary reads as a deliberate cut. **REVISE** a shots list whose framings don't visibly
   differ, a `carry` that jumps, or a set where the targeted element isn't actually framed by its shot.
+- **D12h — Per-beat BESPOKE design (the cover-the-copy test).** The camera is not the design. Each cinematic
+  beat must carry its own topic-driven visual IDEA (its `archetype` — hero-on-void / metric-wall / process-flow
+  / comparison-split / metaphor-mechanic / manifesto-monolith / …), realised natively or via a Path-A form.
+  Apply huashu's test on the filmstrips: **cover the narration — can you still tell which beat, and which
+  product, this is, from the visuals alone?** **REVISE** a film where two beats look alike with the copy
+  hidden, where every content beat is the same glass panel reframed, where the design-director set an
+  `archetype` label but built the identical panel under it, or where an abstract beat that begs for a
+  `metaphor-mechanic` (the widening gap IS the loss; the vessel filling IS adoption) settled for a bar chart.
+  A launch film should carry ≥1 signature/metaphor moment (`validate` lints the archetype spread; you judge
+  whether the pixels honour it).
+- **D12i — Film craft: sound + continuity.** For a cinematic STORY film, confirm the director committed the
+  film-level knobs: `meta.sound_design` (a beat-synced two-track mix — **note the operator must audition it**);
+  `meta.hero_mark` (a persistent lockup) when the deck varies design across ≥3 archetypes so it reads as ONE
+  film; `film_look` on for 3D hero beats. **FLAG (not block)** a launch film that ships silent or as an
+  anthology of unrelated beats with no through-line.
 Inherited checks still apply to the composed frame: D5 (composition/whitespace), D7 (squint/cover-text),
 D8 (semantic colour), D10 (anti-slop). D1/D6b (layout/silhouette diversity) apply ACROSS cinematic scenes
 too — vary the lens move + depth arrangement, don't ship five identical dolly-ins.
