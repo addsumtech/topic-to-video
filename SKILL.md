@@ -160,7 +160,15 @@ TTS if the user gives an API key.
   to `sample.mp4`** for the step-8 sign-off (critic-av reviews it exactly as for the local tier). Needs
   the Node toolchain + a one-time `cd remotion && npm install` (doctor.py reports availability;
   `node_modules` is gitignored). Writes `out.mp4` + `out.srt`; the post-render `check_av.py` A/V gate
-  still guards delivery (it degrades cleanly with no `.clips/`). When to reach for it: Remotion's real
+  still guards delivery (it degrades cleanly with no `.clips/`).
+  **Sound design (opt-in, `meta.sound_design:true`)** — a post-render two-track mix (`scripts/sfx.py`):
+  SYNTHESIZED SFX cues (no API, no assets) pinned frame-exact to the beats + frequency-isolated (SFX
+  highpass 800Hz, BGM lowpass 4kHz, `amix normalize=0`, loudnorm) under the voiceover; `meta.bgm` =
+  a track path OR `"auto"` (a subtle synth pad). Preview the cue plan: `python scripts/sfx.py <out>`.
+  **Audition the audio before delivery — the pipeline can't hear it.**
+  **3D film-look (`meta.film_look`, default on for 3D scenes)** — react-postprocessing DoF + selective
+  Bloom + ACES; set `false` on GPU-less CI where the composer is costly.
+  When to reach for the tier: Remotion's real
   edge is fast/kinetic motion + motion-blur + eased cross-scene transitions — worth it for a cinematic
   **story** video, not for a calm explainer deck (where it's pixel-identical to local).
   **CINEMATIC 2.5D (opt-in, additive — the enterprise/product-video tier, being built out; see

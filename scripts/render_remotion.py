@@ -842,6 +842,13 @@ def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="erro
     _run_shot_qa(out_dir, out_mp4)                     # P5: score the rendered frames -> shot_qa.json (advisory print)
     if sample is None:                                # out.srt — overlap-aware (cross-scene transitions)
         _write_srt_overlapped(data, out_dir, os.path.join(out_dir, "out.srt"))
+        meta = data.get("meta") or {}
+        if meta.get("sound_design"):                  # OPT-IN two-track SFX(+BGM) mix (#8), post-render
+            try:
+                import sfx
+                sfx.mix(out_dir, out_mp4, props["scenes"], meta, int(meta.get("fps", 30)))
+            except Exception as e:
+                print("[sfx] skipped (%s)" % e)
         print("[render_remotion] done -> %s (+ out.srt)" % out_mp4)
     else:
         print("[render_remotion] sample done -> %s" % out_mp4)
