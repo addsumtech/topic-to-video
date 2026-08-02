@@ -304,14 +304,14 @@ def _clean_planes(planes, tag):
             c["alpha"] = bool(p["alpha"])
         if p.get("billboard") is not None:                   # face the camera (rasterized text default)
             c["billboard"] = bool(p["billboard"])
-        kind = str(p.get("kind", "plane"))                   # 3D element: plane (default) | bars | text
-        if kind not in ("plane", "bars", "text"):
-            raise RuntimeError("cinematic3d %s plane %d: kind must be plane|bars|text, got %r" % (tag, j, kind))
+        kind = str(p.get("kind", "plane"))                   # 3D element: plane (default) | bars | stack | text
+        if kind not in ("plane", "bars", "stack", "text"):
+            raise RuntimeError("cinematic3d %s plane %d: kind must be plane|bars|stack|text, got %r" % (tag, j, kind))
         c["kind"] = kind
-        if kind == "bars":                                   # extruded 3D bar chart — data drives heights
+        if kind in ("bars", "stack"):                        # data-driven 3D: bar heights / cube-stack counts
             data = p.get("data")
             if not (isinstance(data, list) and data):
-                raise RuntimeError("cinematic3d %s plane %d: bars need a non-empty `data` list" % (tag, j))
+                raise RuntimeError("cinematic3d %s plane %d: %s need a non-empty `data` list" % (tag, j, kind))
             c["data"] = [_num(v, "%s plane %d data[%d]" % (tag, j, k)) for k, v in enumerate(data)]
             if p.get("labels") is not None:
                 c["labels"] = [str(x) for x in p["labels"]]
@@ -422,6 +422,8 @@ _FONT_KIND_FILE = {"sans": "SpaceGrotesk-VF.ttf", "serif": "PlayfairDisplay-VF.t
 # Extruded-bar layout constants — MUST match three/ThreeScene.tsx Bars3D (bw/gap/maxH + floor base y) so
 # rasterized value/category labels land exactly over their bars.
 _BAR_BW, _BAR_GAP, _BAR_MAXH, _BAR_BASE_Y = 0.62, 0.42, 2.6, -1.3
+# accreting cube-stack layout — MUST byte-match three/ThreeScene.tsx STACK_U/STACK_GAP/STACK_BASE_Y.
+_STACK_U, _STACK_GAP, _STACK_BASE_Y = 0.5, 0.5, -1.3
 
 
 def _fmt_bar_value(v):
@@ -501,6 +503,35 @@ def _rasterize_text3d(data, out_dir):
                             "position": [gx + bar_x, gy + _BAR_BASE_Y + 0.06, gz + 0.9], "size": [cat_h * asp2, cat_h]})
         return out
 
+    def _stack_label_planes(p, sidx):
+        """A per-column TOTAL label above each cube stack (the count = the accumulation) + optional category
+        labels at the base — matches ThreeScene Stack3D's layout so the totals sit ON their stacks."""
+        vals = [abs(_num(v, "stack data")) for v in p["data"]]
+        n = len(vals)
+        if not n:
+            return []
+        total = n * _STACK_U + (n - 1) * _STACK_GAP
+        gx, gy, gz = (list(p.get("position") or [0, 0, 0]) + [0, 0, 0])[:3]
+        labels = p.get("labels") or []
+        accent = _hex_rgb(tk.get("accent", "#e3b23c"))
+        fg = _hex_rgb(tk.get("fg", "#f0f3f8"))
+        muted = _hex_rgb(tk.get("muted", "#93a0b4"))
+        out = []
+        for i, v in enumerate(vals):
+            cnt = int(round(v))
+            col_x = -total / 2 + _STACK_U / 2 + i * (_STACK_U + _STACK_GAP)
+            top_y = _STACK_BASE_Y + cnt * _STACK_U
+            val_h = 0.30
+            rel, asp = _text_png(str(cnt), accent if i == n - 1 else fg, "s%s_stk%d_val.png" % (sidx, i), px=160)
+            out.append({"kind": "plane", "src": rel, "alpha": True, "billboard": True,
+                        "position": [gx + col_x, gy + top_y + 0.28, gz], "size": [val_h * asp, val_h]})
+            if i < len(labels) and str(labels[i]).strip():
+                cat_h = 0.24
+                rel2, asp2 = _text_png(str(labels[i]), muted, "s%s_stk%d_cat.png" % (sidx, i), px=140)
+                out.append({"kind": "plane", "src": rel2, "alpha": True, "billboard": True,
+                            "position": [gx + col_x, gy + _STACK_BASE_Y - 0.30, gz + 0.9], "size": [cat_h * asp2, cat_h]})
+        return out
+
     for s in data.get("slides", []):
         pls = _scene_planes(s)
         if not isinstance(pls, list):
@@ -519,6 +550,8 @@ def _rasterize_text3d(data, out_dir):
                           "size": [world_h * aspect, world_h], **({"rotation": p["rotation"]} if p.get("rotation") else {})}
             elif p.get("kind") == "bars" and isinstance(p.get("data"), list) and p["data"]:
                 extra.extend(_bar_label_planes(p, s.get("index")))
+            elif p.get("kind") == "stack" and isinstance(p.get("data"), list) and p["data"]:
+                extra.extend(_stack_label_planes(p, s.get("index")))
         s["planes"] = list(pls) + extra
 
 

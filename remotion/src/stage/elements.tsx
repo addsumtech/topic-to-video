@@ -17,6 +17,12 @@ export type MetaphorConcept = 'widening-gap' | 'physical-fall' | 'filling-vessel
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);      // decel: a fill / a settle
 const easeGravity = (t: number) => t * t;                   // accel: a fall speeds up
+// deterministic pseudo-scatter in [0,1) — a frame-STABLE hash, never a per-frame RNG (which would re-roll
+// every frame and strobe the dots).
+const hash1 = (i: number, salt: number) => {
+  const s = Math.sin((i + 1) * 12.9898 + salt * 78.233) * 43758.5453;
+  return s - Math.floor(s);
+};
 // counts a number 0->target over [fire, fire+span], eased; lining figures (grouped) — never old-style.
 function counted(frame: number, fire: number, span: number, target: number, unit: string, reduced: boolean) {
   const u = reduced ? 1 : clamp01((frame - fire) / span);
@@ -315,6 +321,49 @@ const ElementContent: React.FC<{
           <div style={{position: 'absolute', left: 70, top: cy + y, width: 180, height: 110, borderRadius: 16, background: acc, color: theme.onAccent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: numFont, fontVariantNumeric: 'lining-nums tabular-nums', fontWeight: 800, fontSize: 64, boxShadow: '0 30px 60px rgba(0,0,0,.5)'}}>{String(tokVal) + (element.unit ?? '')}</div>
           <div style={{position: 'absolute', left: 300, top: cy + restY, width: 2, height: Math.max(0, dropPx), background: gapc}} />
           <div style={{position: 'absolute', left: 316, top: cy + restY + dropPx / 2, transform: 'translateY(-50%)', fontFamily: numFont, fontVariantNumeric: 'lining-nums tabular-nums', fontWeight: 800, fontSize: 72, color: gapc}}>{'-' + counted(frame, fire, span, before - after, element.unit ?? '', reducedMotion)}</div>
+        </div>
+      );
+    }
+
+    if (element.concept === 'diverging-pair') {
+      // two paths SPLIT from one origin — the divergence is the choice / the two outcomes. Drawn on via
+      // strokeDashoffset with an ANALYTICAL Math.hypot length (a DOM path measure is 0/unstable off-thread).
+      const a = element.values?.[0] ?? 0, b = element.values?.[1] ?? 0;
+      const W = 640, H = 440, x1 = 44, y0 = H / 2, x2 = W - 44;
+      const denom = Math.max(1e-6, Math.abs(a), Math.abs(b));
+      const upY = y0 - (Math.abs(b) / denom) * (H / 2 - 34);
+      const dnY = y0 + (Math.abs(a) / denom) * (H / 2 - 34);
+      const lenU = Math.hypot(x2 - x1, upY - y0), lenD = Math.hypot(x2 - x1, dnY - y0);
+      const e = easeOut(u);
+      return (
+        <div style={{position: 'absolute', left: -W / 2, top: -H / 2, width: W, height: H}}>
+          <svg width={W} height={H} style={{position: 'absolute', inset: 0, overflow: 'visible'}}>
+            <line x1={x1} y1={y0} x2={x2} y2={upY} stroke={acc} strokeWidth={6} strokeLinecap="round" strokeDasharray={lenU} strokeDashoffset={(1 - e) * lenU} />
+            <line x1={x1} y1={y0} x2={x2} y2={dnY} stroke={base} strokeWidth={6} strokeLinecap="round" strokeDasharray={lenD} strokeDashoffset={(1 - e) * lenD} />
+            <circle cx={x1} cy={y0} r={10} fill={theme.fg} />
+            {e > 0.98 ? <circle cx={x2} cy={upY} r={9} fill={acc} /> : null}
+            {e > 0.98 ? <circle cx={x2} cy={dnY} r={9} fill={base} /> : null}
+          </svg>
+          {element.valueLabels?.[1] ? <div style={{position: 'absolute', left: x2 - 30, top: upY - 48, fontFamily: theme.fontBody, color: acc, fontSize: 26}}>{element.valueLabels[1]}</div> : null}
+          {element.valueLabels?.[0] ? <div style={{position: 'absolute', left: x2 - 30, top: dnY + 18, fontFamily: theme.fontBody, color: base, fontSize: 26}}>{element.valueLabels[0]}</div> : null}
+        </div>
+      );
+    }
+
+    if (element.concept === 'converging-scatter') {
+      // scattered points CONVERGE to one node = consolidation. Starts are deterministic (hash1), never RNG.
+      const total = element.values?.[0] ?? 0;
+      const N = 22, R = 250;
+      const nodeOp = clamp01((u - 0.62) / 0.38);
+      return (
+        <div style={{position: 'absolute', left: -300, top: -300, width: 600, height: 600}}>
+          {Array.from({length: N}).map((_, i) => {
+            const sx = (hash1(i, 1) - 0.5) * R * 2, sy = (hash1(i, 2) - 0.5) * R * 2;
+            const e = easeOut(clamp01(u * 1.15 - i * 0.014));
+            return <div key={i} style={{position: 'absolute', left: 300 + sx * (1 - e) - 7, top: 300 + sy * (1 - e) - 7, width: 14, height: 14, borderRadius: 7, background: i % 3 === 0 ? gapc : acc, opacity: 0.85}} />;
+          })}
+          <div style={{position: 'absolute', left: 0, right: 0, top: '50%', transform: 'translateY(-50%)', textAlign: 'center', fontFamily: numFont, fontVariantNumeric: 'lining-nums tabular-nums', fontWeight: 800, fontSize: 110, color: theme.fg, opacity: nodeOp, textShadow: '0 4px 24px rgba(0,0,0,.6)'}}>{counted(frame, fire, span, total, element.unit ?? '', reducedMotion)}</div>
+          {element.label ? <div style={{position: 'absolute', left: 0, right: 0, top: 452, textAlign: 'center', fontFamily: theme.fontBody, letterSpacing: 4, textTransform: 'uppercase', color: base, fontSize: 26, opacity: nodeOp}}>{element.label}</div> : null}
         </div>
       );
     }

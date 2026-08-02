@@ -22,7 +22,7 @@ import {Captions} from '../Captions';
 import {Finish} from '../theme/Finish';
 
 export type Plane3D = {
-  kind?: 'plane' | 'bars'; // a 3D element: a plane (default) or a bar chart (`text` is rasterized to a plane)
+  kind?: 'plane' | 'bars' | 'stack'; // a plane (default) / a bar chart / an accreting cube stack (`text` -> a plane)
   color?: string;
   src?: string; // image/screenshot/rasterized-text -> textured onto a REAL 3D mesh (true perspective)
   alpha?: boolean; // the texture has transparency (a rasterized-text PNG) -> transparent material
@@ -131,6 +131,38 @@ const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number;
 };
 // Tilt is driven by height + radius (a high/short crane looks down); there is deliberately NO `pitch`
 // field — the camera always lookAt(0,0,0), so a pitch value would silently no-op.
+// ACCRETING CUBE STACK — data[c] unit cubes per column, stacking bottom-up cube-by-cube (each slides down
+// + scales in on its own frame slice). "accumulation has MASS" — the orbit camera reveals real depth. The
+// layout constants MUST match render_remotion._STACK_* so rasterized per-column totals sit on their stacks.
+const STACK_U = 0.5, STACK_GAP = 0.5, STACK_BASE_Y = -1.3;
+const Stack3D: React.FC<{data: number[]; frame: number; durationInFrames: number; accent: string; accent2: string; glow?: boolean}> = ({data, frame, durationInFrames, accent, accent2, glow}) => {
+  const total = data.length * STACK_U + (data.length - 1) * STACK_GAP;
+  const growStart = Math.round(durationInFrames * 0.1);
+  let order = 0;
+  return (
+    <group>
+      {data.map((cnt, c) => {
+        const x = -total / 2 + STACK_U / 2 + c * (STACK_U + STACK_GAP);
+        const n = Math.max(0, Math.round(cnt));
+        return Array.from({length: n}).map((_, k) => {
+          const my = order++;
+          const t = Math.max(0, Math.min(1, (frame - (growStart + my * 3)) / 6));
+          const e = EASE.out(t);
+          if (e <= 0) return null;
+          const isTop = k === n - 1;
+          return (
+            <mesh key={`${c}-${k}`} position={[x, STACK_BASE_Y + STACK_U / 2 + k * STACK_U + (1 - e) * 1.2, 0]} scale={[e, e, e]} castShadow receiveShadow>
+              <boxGeometry args={[STACK_U, STACK_U, STACK_U]} />
+              <meshStandardMaterial color={isTop ? accent : accent2}
+                emissive={glow && isTop ? accent : '#000000'} emissiveIntensity={glow && isTop ? 2.2 : 0}
+                toneMapped={!(glow && isTop)} metalness={0.1} roughness={0.55} />
+            </mesh>
+          );
+        });
+      })}
+    </group>
+  );
+};
 export type Camera3DKey = {atFrame: number; yaw: number; radius: number; height: number; easing?: string};
 
 const EASE: Record<string, (n: number) => number> = {
@@ -304,6 +336,10 @@ export const ThreeScene: React.FC<{
           p.kind === 'bars' && p.data ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
               <Bars3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} glow={filmLook !== false} />
+            </group>
+          ) : p.kind === 'stack' && p.data ? (
+            <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
+              <Stack3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} glow={filmLook !== false} />
             </group>
           ) : p.src ? (
             <TexturedPlane key={i} tex={textures[p.src]} size={p.size || [3, 1.8]} position={p.position}
