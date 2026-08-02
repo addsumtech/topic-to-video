@@ -762,6 +762,8 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
             "shots": shots if shot_based else None,           # the ordered SHOT list (framings over the set)
             "planes": planes if three_d else None,            # P6 TRUE-3D: WebGL content planes
             "camera3d": camera3d if three_d else None,        # P6 orbit/crane camera keyframes
+            "filmLook": (s.get("film_look") if s.get("film_look") is not None else meta.get("film_look", True)) if three_d else None,
+            "reveal3d": bool(s.get("reveal3d")) if three_d else None,   # opt-in dark->lit hero reveal (3D)
             "camera": camera,                        # cinematic FLAT: eased virtual-camera keyframes (or None)
             "lens": lens,                            # cinematic 3D: dolly/pitch/yaw keyframes (or None)
             "perspective": float(perspective) if perspective else None,

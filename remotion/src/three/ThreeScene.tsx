@@ -12,6 +12,10 @@ import {AbsoluteFill, Audio, staticFile, useCurrentFrame, useVideoConfig, interp
 import {ThreeCanvas} from '@remotion/three';
 import {useThree} from '@react-three/fiber';
 import * as THREE from 'three';
+// Film-look POST stack (pinned v2 line — @react-three/postprocessing@2.19.1 for R3F v8 / React 18). Runs
+// deterministically under @remotion/three (ThreeCanvas forces frameloop='never' + advance() per frame).
+import {EffectComposer, DepthOfField, Bloom, ToneMapping, SMAA} from '@react-three/postprocessing';
+import {ToneMappingMode} from 'postprocessing';
 import type {Theme} from '../Video';
 import type {CaptionSeg} from '../Captions';
 import {Captions} from '../Captions';
@@ -95,7 +99,7 @@ const TexturedPlane: React.FC<{tex?: THREE.Texture; size: [number, number]; posi
 // A real extruded 3D BAR CHART — boxes with genuine depth the orbit camera reveals; data drives heights;
 // each bar GROWS from the floor over the scene (frame-driven, eased staggered). Born-in-3D data-viz, not a
 // flat chart on a plane. Lit (meshStandardMaterial) so the depth reads via shading.
-const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number; accent: string; accent2: string}> = ({data, frame, durationInFrames, accent, accent2}) => {
+const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number; accent: string; accent2: string; glow?: boolean}> = ({data, frame, durationInFrames, accent, accent2, glow}) => {
   const max = Math.max(1e-6, ...data.map((v) => Math.abs(v)));
   const bw = 0.62, gap = 0.42, maxH = 2.6; // bar width / gap / tallest bar (world units)
   const total = data.length * bw + (data.length - 1) * gap;
@@ -110,10 +114,15 @@ const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number;
         const e = EASE.out(t); // ease-out grow
         const h = Math.max(0.001, full * e);
         const x = -total / 2 + bw / 2 + i * (bw + gap);
+        const isLast = i === data.length - 1;
         return (
           <mesh key={i} position={[x, -1.3 + h / 2, 0]} castShadow receiveShadow>
             <boxGeometry args={[bw, h, bw]} />
-            <meshStandardMaterial color={i === data.length - 1 ? accent : accent2} metalness={0.1} roughness={0.55} />
+            {/* the RESULT bar glows via HDR emissive (>1) so selective Bloom picks only it; toneMapped=false
+                keeps the colour out of [0,1] so it survives to the composer. Only when filmLook is on. */}
+            <meshStandardMaterial color={isLast ? accent : accent2}
+              emissive={glow && isLast ? accent : '#000000'} emissiveIntensity={glow && isLast ? 2.4 : 0}
+              toneMapped={!(glow && isLast)} metalness={0.1} roughness={0.55} />
           </mesh>
         );
       })}
@@ -247,7 +256,8 @@ export const ThreeScene: React.FC<{
   fadeInFrames?: number;
   fadeOutFrames?: number;
   reveal3d?: boolean; // opt-in dark->lit reveal for an unlit-plane hero opener
-}> = ({planes, camera3d, theme, captions, audio, captionFontPx, reducedMotion, fadeInFrames, fadeOutFrames, reveal3d}) => {
+  filmLook?: boolean; // the EffectComposer post stack (DoF + selective Bloom + ACES); default on
+}> = ({planes, camera3d, theme, captions, audio, captionFontPx, reducedMotion, fadeInFrames, fadeOutFrames, reveal3d, filmLook}) => {
   const frame = useCurrentFrame();
   const {width, height, durationInFrames} = useVideoConfig();
   const dur = Math.max(1, durationInFrames);
@@ -274,6 +284,9 @@ export const ThreeScene: React.FC<{
   return (
     <AbsoluteFill style={{backgroundColor: theme.bg}}>
       <ThreeCanvas shadows width={width} height={height} style={{backgroundColor: theme.bg}} camera={{fov: 45, position: [0, keys[0].height, keys[0].radius]}}>
+        {/* opaque scene background — the composer's input buffer replaces the transparent (CSS-bg) region
+            above the horizon with BLACK; an explicit background keeps the whole graded frame consistent. */}
+        <color attach="background" args={[theme.bg]} />
         {/* depth fog: the floor's far edge + distant geometry DISSOLVE into the bg instead of ending at a
             hard 40-unit horizon — the atmospheric falloff that makes a 3D space read as large, not a toy. */}
         <fog attach="fog" args={[theme.bg, 11, 33]} />
@@ -290,7 +303,7 @@ export const ThreeScene: React.FC<{
         {planes.map((p, i) =>
           p.kind === 'bars' && p.data ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
-              <Bars3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} />
+              <Bars3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} glow={filmLook !== false} />
             </group>
           ) : p.src ? (
             <TexturedPlane key={i} tex={textures[p.src]} size={p.size || [3, 1.8]} position={p.position}
@@ -303,6 +316,18 @@ export const ThreeScene: React.FC<{
             </mesh>
           )
         )}
+        {/* FILM-LOOK POST — real optical DoF (bokeh) + selective Bloom (only HDR-emissive elements glow) +
+            ACES tone map (matches R3F's default the composer bypasses) + SMAA. Vignette + grain stay in the
+            2D Finish (one owner — no double vignette). Deterministic: DoF focus is geometric from the pose,
+            Bloom/tone are stateless. Opt-in (default on); resolutionScale 0.5 + multisampling 0 keep it cheap. */}
+        {filmLook !== false ? (
+          <EffectComposer multisampling={0} frameBufferType={THREE.HalfFloatType} enableNormalPass={false} stencilBuffer={false}>
+            <DepthOfField target={[0, 0, 0]} worldFocusRange={4} bokehScale={3} resolutionScale={0.5} />
+            <Bloom mipmapBlur luminanceThreshold={1.0} luminanceSmoothing={0.2} intensity={0.9} radius={0.7} />
+            <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+            <SMAA />
+          </EffectComposer>
+        ) : null}
       </ThreeCanvas>
 
       {/* opt-in dark->lit reveal for an unlit-plane hero: a black scrim that lifts in lockstep with the rig

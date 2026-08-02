@@ -44,6 +44,8 @@ export type SceneData = {
   // TRUE-3D tier (P6): WebGL planes + an orbit/crane camera (renders via ThreeScene / @remotion/three).
   planes?: Plane3D[] | null;
   camera3d?: Camera3DKey[] | null;
+  filmLook?: boolean; // the true-3D film-look post stack (default on)
+  reveal3d?: boolean; // opt-in dark->lit reveal for a 3D hero opener
 };
 
 const CLAMP = {extrapolateLeft: 'clamp' as const, extrapolateRight: 'clamp' as const};
@@ -71,6 +73,8 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
         reducedMotion={scene.reducedMotion}
         fadeInFrames={scene.fadeInFrames}
         fadeOutFrames={scene.fadeOutFrames}
+        reveal3d={scene.reveal3d}
+        filmLook={scene.filmLook}
       />
     );
   }
