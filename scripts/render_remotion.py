@@ -833,7 +833,8 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
         })
     _transitions(scenes, meta, fps)                  # derive cross-scene transitions + de-double the seam fades
     return {"width": W, "height": H, "fps": fps, "captionFontPx": rd._caption_font_px(W, H, meta=meta),
-            "theme": _theme(out_dir), "scenes": scenes}
+            "theme": _theme(out_dir), "scenes": scenes,
+            "heroMark": meta.get("hero_mark") or None}   # continuity spine (#11): a persistent brand lockup
 
 
 def available():

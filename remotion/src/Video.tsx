@@ -31,7 +31,21 @@ export type VideoProps = {
   captionFontPx: number;
   theme: Theme;
   scenes: SceneData[];
+  heroMark?: string | null; // a persistent brand wordmark (continuity spine) shown on every scene
 };
+
+// CONTINUITY SPINE (#11): a small, CONSTANT brand lockup rendered OUTSIDE the TransitionSeries — it does not
+// transition or reset, so however aggressively each beat's DESIGN varies, the film reads as ONE piece (the
+// anthology-of-unrelated-beats failure is the risk more variety directly creates). Opt-in (meta.hero_mark);
+// top-left, clear of the bottom caption zone; subtle so it anchors without competing.
+const HeroMark: React.FC<{text: string; theme: Theme}> = ({text, theme}) => (
+  <AbsoluteFill style={{pointerEvents: 'none'}}>
+    <div style={{position: 'absolute', left: 56, top: 48, display: 'flex', alignItems: 'center', gap: 12, opacity: 0.6}}>
+      <div style={{width: 12, height: 12, borderRadius: 3, background: theme.accent}} />
+      <div style={{fontFamily: theme.fontDisplay, fontWeight: 700, fontSize: 30, letterSpacing: 2, color: theme.fg}}>{text}</div>
+    </div>
+  </AbsoluteFill>
+);
 
 export const defaultProps: VideoProps = {
   width: 1920,
@@ -75,7 +89,7 @@ export const calcMeta = ({props}: {props: VideoProps}) => {
   };
 };
 
-export const Video: React.FC<VideoProps> = ({theme, scenes, captionFontPx}) => {
+export const Video: React.FC<VideoProps> = ({theme, scenes, captionFontPx, heroMark}) => {
   // Interleave scene Sequences with cross-scene Transitions. A seam only gets a Transition when
   // build_props set transitionToNext (a marked seam that rides the audio-breath silence); otherwise the
   // scenes simply cut. The overlap length is frame-exact (linearTiming) so it matches calcMeta + the srt.
@@ -100,6 +114,7 @@ export const Video: React.FC<VideoProps> = ({theme, scenes, captionFontPx}) => {
   return (
     <AbsoluteFill style={{backgroundColor: theme.bg}}>
       <TransitionSeries>{children}</TransitionSeries>
+      {heroMark ? <HeroMark text={heroMark} theme={theme} /> : null}
     </AbsoluteFill>
   );
 };

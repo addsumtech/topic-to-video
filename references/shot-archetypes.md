@@ -101,6 +101,16 @@ film full of metaphor-mechanic beats could ONLY be about this product. Reach for
 5. **Write the styleframe** per scene, build the SET (native elements or a Path A form page), then frame it
    with `shots` per `shot-vocabulary.md`.
 
+## The continuity spine (so variety reads as ONE film, not an anthology)
+
+Aggressively varying each beat's design risks the opposite failure — a grab-bag of unrelated shots. Two
+cheap anchors hold it together as one film: (1) **a persistent hero mark** — set `meta.hero_mark` to a short
+brand wordmark and it renders as a small, CONSTANT top-left lockup on every scene (it never transitions or
+resets), the through-line the eye tracks across all the variety; (2) **morph, don't cut, between related
+beats** — when beat B is the payoff of beat A, carry a shared element across the seam (a shape becomes the
+next object) rather than a naked cut. Budget: never a naked cut between two designed beats — a marked seam
+rides the audio breath (see `references/motion-grammar.md` "Transition STYLE").
+
 ## The distinctiveness rule (why Remotion, not HTML)
 
 Spend the cinematic tier's unique budget where an HTML page CANNOT follow: real depth, a camera that
