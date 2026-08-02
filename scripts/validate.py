@@ -392,7 +392,7 @@ def _figure_traceability(slides, out_dir, warnings):
 _CINE_KINDS = {"fill", "grid", "floor", "hero", "panel", "image"}
 _CINE_EASINGS = {"linear", "in", "out", "inout"}
 _SHOT_TYPES = {"ESTABLISH", "MEDIUM", "CLOSEUP", "OVER_SHOULDER", "REVEAL", "HERO"}
-_ELEM_KINDS = {"panel", "image", "textblock", "callout", "grid", "floor", "hero", "fill"}  # ElementKind (elements.tsx)
+_ELEM_KINDS = {"panel", "image", "textblock", "callout", "grid", "floor", "hero", "fill", "card"}  # ElementKind (elements.tsx); `card` = a Path-A html form
 _SHOT_MOTIONS = {"STATIC", "PUSH_IN", "PULL_OUT", "PAN_RIGHT", "PAN_LEFT", "TILT_UP", "TILT_DOWN",
                  "ORBIT_RIGHT", "ORBIT_LEFT", "RACK_FOCUS"}
 # MIRROR render_remotion._MOTION_ALIASES so the bare survey names the docs teach (PAN/TILT/ORBIT/…) pass
@@ -486,6 +486,16 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
     shots = s.get("shots") or (s.get("props") or {}).get("shots")
     if stage and shots:
         _shot_stage_fields(stage, shots, tag, errors, warnings)   # P2 shot-based pre-render gate
+    # PATH A: any stage element / 3D plane with an `html` form page — the page MUST exist on disk (render
+    # screenshots it into a plane texture). A missing page would silently render nothing, so fail loud here.
+    pr = s.get("props") or {}
+    _st = stage if isinstance(stage, dict) else None
+    _cards = [e for e in ((_st.get("elements") if _st else None) or []) if isinstance(e, dict) and e.get("html")]
+    _cards += [p for p in (s.get("planes") or pr.get("planes") or []) if isinstance(p, dict) and p.get("html")]
+    for c in _cards:
+        if not _exists(out_dir, str(c.get("html") or "")):
+            errors.append(f"{tag}: Path-A html card page '{c.get('html')}' not found under {out_dir} — "
+                          f"author the form page there (it is screenshotted onto the plane at render)")
     if not cam and not lens and not layers:
         return
     fps = int((meta or {}).get("fps", 30) or 30)

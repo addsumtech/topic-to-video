@@ -116,8 +116,9 @@ _EASINGS = {"linear", "in", "out", "inout"}
 _MOTION_ALIASES = {"PAN": "PAN_RIGHT", "TILT": "TILT_UP", "ORBIT": "ORBIT_RIGHT",
                    "DOLLY": "PUSH_IN", "ZOOM": "PUSH_IN", "PUSH": "PUSH_IN", "PULL": "PULL_OUT"}
 # element content fields passed through verbatim (strings) — geometry (position) is coerced numeric.
-_ELEM_STR = ("kind", "title", "kicker", "sub", "text", "heroText", "src", "label", "align", "level", "fit",
-             "frame", "frameLabel")  # frame = device/browser chrome around an image (product-UI framing)
+_ELEM_STR = ("kind", "title", "kicker", "sub", "text", "heroText", "src", "html", "label", "align", "level",
+             "fit", "frame", "frameLabel")  # `html` = a Path-A form page (screenshotted to `src` at render);
+#                                             frame = device/browser chrome around an image (product-UI framing)
 
 
 def _clean_stage(stage, tag):
@@ -256,6 +257,8 @@ def _clean_planes(planes, tag):
             c["color"] = str(p["color"])
         if p.get("src") is not None:                         # image texture on a real 3D mesh
             c["src"] = str(p["src"])
+        if p.get("html") is not None:                        # Path-A form page (screenshotted to src pre-render)
+            c["html"] = str(p["html"])
         if p.get("alpha") is not None:                       # texture has transparency (rasterized text)
             c["alpha"] = bool(p["alpha"])
         if p.get("billboard") is not None:                   # face the camera (rasterized text default)
@@ -476,6 +479,80 @@ def _rasterize_text3d(data, out_dir):
             elif p.get("kind") == "bars" and isinstance(p.get("data"), list) and p["data"]:
                 extra.extend(_bar_label_planes(p, s.get("index")))
         s["planes"] = list(pls) + extra
+
+
+def _html_card_jobs(data):
+    """Collect (html_page_rel, element_dict) for every cinematic element/plane that carries an `html` form
+    page and has no `src` yet — across shot-based stage elements AND true-3D planes."""
+    jobs = []
+    for s in data.get("slides", []):
+        stage = _scene_stage(s)
+        if isinstance(stage, dict):
+            for el in stage.get("elements") or []:
+                if isinstance(el, dict) and el.get("html") and not el.get("src"):
+                    jobs.append((str(el["html"]), el))
+        for p in (_scene_planes(s) or []):
+            if isinstance(p, dict) and p.get("html") and not p.get("src"):
+                jobs.append((str(p["html"]), p))
+    return jobs
+
+
+def _render_html_cards(data, out_dir, scale=2):
+    """PATH A — the bridge that lets a cinematic shot's content be ANY of the HTML tier's bespoke forms
+    (flow / timeline / quadrant / metric-wall / comparison / …), NOT the one generic glass panel. A stage
+    element or 3D plane carries `html: "pages/<name>.html"` (an author-written form page, the SAME kind the
+    HTML tier renders). We screenshot that page through the SAME headless-Chrome path the HTML tier uses
+    (snapshot/_cdp), at `scale`x device-pixels so it stays razor-sharp when the camera pushes in, then set
+    the element's `src` to the PNG — and the existing image-plane / textured-3D-plane rendering flies the
+    camera over it. Best-effort: no Chrome / a missing page -> the element keeps no src (validate flags a
+    missing page pre-render; a Chrome hiccup prints a clear warning and the shot's other elements still
+    render) — never a silent crash."""
+    jobs = _html_card_jobs(data)
+    if not jobs:
+        return
+    try:
+        import _cdp
+        import scenes
+        import snapshot
+        from urllib.parse import quote
+    except Exception as e:
+        print("[path-a] toolchain unavailable (%s) — html cards not rendered" % e)
+        return
+    meta = data.get("meta") or {}
+    vertical = meta.get("aspect") == "9:16"
+    W, H = rd._canvas(meta, vertical)
+    cards_dir = os.path.join(out_dir, ".cards")
+    os.makedirs(cards_dir, exist_ok=True)
+    try:
+        chrome = _cdp.Chrome(scenes._chrome_bin(meta), W, H, device_scale=scale)
+    except Exception as e:
+        print("[path-a] Chrome unavailable (%s) — %d html card(s) not rendered" % (e, len(jobs)))
+        return
+    try:
+        for i, (html_rel, el) in enumerate(jobs):
+            page = os.path.abspath(os.path.join(out_dir, html_rel))
+            if not os.path.exists(page):
+                print("[path-a] page not found: %s — element skipped" % html_rel)
+                continue
+            rel = os.path.join(".cards", "card_%02d.png" % i)
+            chrome.shot("file://" + quote(page) + "?p=1.0", os.path.join(out_dir, rel))
+            try:
+                snapshot._ensure_png(os.path.join(out_dir, rel))   # CDP returns JPEG bytes -> real PNG
+            except Exception:
+                pass
+            el["src"] = rel
+            if "kind" in el and el.get("kind") == "card":          # stage `card` alias -> the image renderer
+                el["kind"] = "image"
+            elif _is_stage_el(el):
+                el.setdefault("kind", "image")
+    finally:
+        chrome.close()
+    print("[path-a] rendered %d html card(s) at %dx -> .cards/" % (len(jobs), scale))
+
+
+def _is_stage_el(el):
+    """True for a shot-based stage element (has a string `id`); a 3D plane has no id."""
+    return isinstance(el.get("id"), str)
 
 
 def _hex_rgb(h):
@@ -709,6 +786,7 @@ def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="erro
 
     # Copy bundled fonts to out_dir/.fonts/ for @remotion/fonts to load
     _copy_fonts(out_dir)
+    _render_html_cards(data, out_dir)  # PATH A: `html` form pages -> screenshot -> textured plane `src`
     _rasterize_text3d(data, out_dir)   # 3D text -> transparent PNG textured planes (troika renders blank)
 
     props = build_props(data, out_dir, vertical, reduced_motion)

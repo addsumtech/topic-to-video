@@ -104,9 +104,10 @@ class Chrome:
     """One persistent headless Chrome with a single attached page target. `shot()` navigates to a
     url and writes a JPEG screenshot. NOTE: no `--user-data-dir` (it hangs vs a running Chrome on
     macOS); `--headless=new` auto-isolates, and `--remote-debugging-port=0` picks a free port."""
-    def __init__(self, chrome_bin, W, H, quality=90, timeout=30):
+    def __init__(self, chrome_bin, W, H, quality=90, timeout=30, device_scale=1):
         self.quality = quality
         self.timeout = timeout
+        self.device_scale = device_scale           # >1 supersamples: layout stays W×H CSS px, rasterized N×
         self._id = 0
         self.ws = None
         self.proc = subprocess.Popen(
@@ -126,7 +127,7 @@ class Chrome:
             # "safety" scale — and the cold-launch race on this same gap produced the phantom
             # "87px overflow" (1080-993) keyframe report. Device-metrics override closes all of it.
             self._cmd("Emulation.setDeviceMetricsOverride",
-                      {"width": W, "height": H, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                      {"width": W, "height": H, "deviceScaleFactor": device_scale, "mobile": False}, self.sid)
         except Exception:
             self.close()                            # a FAILED init must not leak the just-spawned Chrome
             raise
