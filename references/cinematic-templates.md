@@ -213,21 +213,34 @@ Each: **fit** · **the pitch** (director→user) · **colour system** (accent-de
 
 ## Transition GRAMMAR (named, reusable, motivated — not crossfades)
 
-A cinematic transition is a CLAIM about how two beats relate; pick from this grammar per the template. The
-storyboard marks the seam (`transition`/`transition_style`) and, for authored match-cuts, keeps shared
-element coordinates across the seam.
+A cinematic transition is a CLAIM about how two beats relate. **Two mechanisms deliver it, and they are not
+interchangeable — authoring one where you mean the other renders the wrong thing:**
 
-- **collapse-to-line** — a world sucks into one glowing caret/rule. **aperture / aperture-bloom** — the next
-  world irises open FROM that line; paired they read as a **match-cut on the seam**.
-- **match-cut** (shared-element / identical coords) — one shape becomes the next thing; the strongest "this IS
-  that", authored in the storyboard, not filtered.
-- **liquid dissolve / reform** — structure melts, flows, re-condenses; silhouette persists (rack-defocus).
-- **carry** glide · **drift** (page breathes away) · **push-through-Z** (constant forward momentum).
-- **wipe** (room-reveal / scanline) · **lift** (vertical page-turn) · **blur coda** (one reserved rack-defocus
-  close) · **dip** (fall through the ground colour at a chapter seam + a 0.3s payoff dip before a climax).
-- **blackout-rake** (fall to black, next rim rakes in) · **explode/assemble** (parts along a Z-rail) ·
-  **x-ray phase** (ghost→solid) · **dimension draw-on / part-snap** · **boot / power-down** · **turntable
-  carry / macro rack**.
+**(A) The cross-scene SEAM** (`meta.transition_style` / per-scene `transition_style`, rendered by
+`<TransitionSeries>`). Only FOUR presentations render today; everything else silently falls to `fade`:
+
+| author `transition_style:` | renders as | reads as |
+|---|---|---|
+| `dip` `fadethrough` `none` | cross-dissolve | the quiet default seam |
+| `push` `drift` | horizontal slide | directional page move |
+| `lift` | vertical slide-up | page-turn |
+| `wipe` | wipe | room-reveal / scanline |
+| `blur` | **→ fade** (warns) | rack-defocus coda — *approximated*, not real yet |
+
+**(B) The AUTHORED match-cut** — the strongest "this IS that" is NOT a seam preset; it is **built in the two
+adjacent scenes**: keep a shared element at identical `[x,y]` across the cut, `collapseAtFrame` it to a line
+at the end of scene N, and `enterMotion:"aperture"` the next world open FROM that line at the start of scene
+N+1. The seam itself stays a hard cut (`transition:"none"`) so the eye welds the two shapes. These are real,
+rendered element behaviours (see §5b): `collapse-to-line` · `aperture/aperture-bloom` · `materialize` ·
+connector `draw-on` · `terminal` boot/collapse. **Author these on elements, never as a `transition_style`.**
+
+**(C) ROADMAP — do NOT author yet** (they render as their fallback, listed): **liquid dissolve / reform**
+(→ hard cut + rack-defocus approximation) · **blackout-rake** · **x-ray phase** (ghost→solid) · **turntable
+carry / macro rack** · **explode/assemble along a Z-rail** · **boot / power-down as a *seam***. Each needs
+the WebGL/skia tier (§Component ROADMAP) — until then a template that leans on one degrades to (A)+(B).
+
+Within an idea use **carry** (camera glides, continuity) or **drift** (page breathes away); across a chapter
+use a marked seam. Budget ~2–3 marked seams per film; a match-cut is worth more than any crossfade.
 
 ## Component ROADMAP (what the catalogue needs the tier to grow — build in Phase 2)
 

@@ -970,6 +970,12 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         if _ts and _ts not in ("dip", "fadethrough", "drift", "push", "lift", "wipe", "blur"):
             warnings.append(f"{tag}: unknown transition_style '{_ts}' — use dip / fadethrough / drift / "
                             f"push / lift / wipe / blur (see motion-grammar 'Transition STYLE'); falls back to dip")
+        elif _ts == "blur" and meta.get("renderer") == "remotion":
+            # blur is a KNOWN seam key but the Remotion tier has no rack-defocus presentation yet — it renders
+            # as a cross-dissolve (Video.tsx presentationFor default). Surface the approximation so a template
+            # that leans on a "blur coda" doesn't silently ship a plain fade (cinematic-templates.md grammar C).
+            warnings.append(f"{tag}: transition_style 'blur' renders as a cross-dissolve on the Remotion tier "
+                            f"(real rack-defocus is roadmap) — author a rack via a scene DoF beat if you need it")
         _tsec = s.get("transition_seconds")
         if isinstance(_tsec, (int, float)) and _tsec > 0.5:
             warnings.append(f"{tag}: transition_seconds {_tsec} > 0.5 — a seam past ~0.45s reads as a stall "

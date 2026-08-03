@@ -115,3 +115,19 @@ def test_valid_template_contest_passes():
     r = v.evaluate(_cine({"audacity": "bold", "template_contest": {
         "candidates": ["defrag", "command-surface"], "winner": "defrag", "user_pick": True}}), "/tmp", pre_tts=True)
     assert not any("template_contest" in e for e in r["errors"]), "a valid contest record must pass"
+
+
+# ── transition honesty: a 'blur' seam has no rack-defocus presentation yet → it must WARN it approximates ──
+def test_blur_seam_warns_it_is_approximated_on_remotion():
+    d = _cine()
+    d["slides"][0]["transition_style"] = "blur"
+    r = v.evaluate(d, "/tmp", pre_tts=True)
+    assert any("blur" in w and "cross-dissolve" in w for w in r["warnings"]), \
+        "a 'blur' seam renders as a fade on the Remotion tier — the approximation must make a noise, not ship silently"
+
+
+def test_known_seam_style_does_not_warn():
+    d = _cine()
+    d["slides"][0]["transition_style"] = "wipe"  # a real, distinct presentation
+    r = v.evaluate(d, "/tmp", pre_tts=True)
+    assert not any("transition_style" in w and "wipe" in w for w in r["warnings"])
