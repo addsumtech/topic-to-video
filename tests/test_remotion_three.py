@@ -141,11 +141,16 @@ def test_scene_dispatches_planes_to_threescene():
     assert "ThreeScene" in src and "scene.planes" in src
 
 
-def test_render_adds_gl_flag_for_3d():
+def test_render_adds_gl_flag_for_cinematic():
     src = open(os.path.join(_SKILL, "scripts", "render_remotion.py"), encoding="utf-8").read()
-    assert "--gl=" in src and 'sc.get("planes")' in src, "3D scenes must trigger the WebGL renderer flag"
+    # --gl is now added UNCONDITIONALLY for the cinematic tier (not only 3D `planes` scenes): TRUE-3D needs
+    # WebGL, and the CSS-3D CinematicScene is ALSO GPU-bound — without a GL renderer it software-rasterises
+    # and a peak-framing frame blows past the 30s/frame timeout (a whole scene once took >9min and FAILED).
+    assert "--gl=" in src, "the cinematic tier must trigger the WebGL/ANGLE renderer flag"
     # backend is platform-branched: 'angle' on macOS/Windows, 'swangle' on GPU-less headless Linux/CI.
     assert '"angle"' in src and '"swangle"' in src, "GL backend must be platform-aware (angle / swangle)"
+    # and a safety timeout so a slow frame degrades to 'slower', never a hard render failure.
+    assert "--timeout=" in src, "raise the per-frame timeout for GPU-less peak-framing frames"
 
 
 def test_three_deps_installed():

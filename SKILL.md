@@ -245,6 +245,20 @@ TTS if the user gives an API key.
   meaningless → mark UNJUDGED, not passed). This tier is Remotion-only; the free path degrades to eased
   Ken Burns. Moves are documented as load-on-demand recipe cards in `references/shots/` (the director
   cites a card by `name`; the critic checks the render against that card's Checklist).
+  **CAMERA GRAMMAR (operational — the two rules that fail silently, so they live here; the fuller catalogue
+  + the why + the bridge menu is `references/camera-and-bridges.md`).** ① **LEGIBILITY first: MEDIUM is home
+  base, and HOLD is the default.** A content beat opens and rests at a comfortable MEDIUM (read-card ~60–75%
+  of frame, FRONTAL — 0° pitch/yaw), and the camera is LOCKED unless a move is MOTIVATED (push=intensify ·
+  pull=contextualize · pan=reveal-next · tilt=scale · rack=redirect); if none applies, HOLD. Never open tiny
+  and swing to huge, never push so close content overflows/keystones — the framing ladder + 2000px default
+  perspective + amplitude clamp now keep it in ONE legible band by default (shots.ts/Camera.tsx), but don't
+  hand-author a `lens`/`camera` that pushes a plane near the perspective value or tilts a read-card. ② **A
+  DIEGETIC BRIDGE is the strongest motivation + the novel hand-off:** ONE advance-gesture per film — set
+  `meta.bridge` (`auto` derives it from the deck's aesthetic; `type-enter` is native today — a command types
+  out and Return fires, revealing the next scene as the output) and give a hand-off scene a `bridge_label`
+  (the command/phrase). It plays over that scene's TAIL (no transition-overlap, so it never eats narration),
+  reduced-motion drops it. Reserve it for meaningful seams; a gesture that doesn't match the look reads as a
+  costume. Full menu (cursor-click, page-turn, control-toggle, …) + per-aesthetic mapping: `references/camera-and-bridges.md`.
   **When ADDING a component/element kind to the cinematic tier (a device frame, chart, icon, counter,
   shape, 3D content, a Remotion/third-party package), READ `references/cinematic-components.md` FIRST** —
   it is the adoption catalog: the hard **frame-driven** rule (a real-time-animated component renders

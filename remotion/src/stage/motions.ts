@@ -27,7 +27,11 @@ export function generateMotion(
 ): LensKeyframe[] {
   const start = {...startFrame, atFrame: 0, easing: undefined}; // force frame 0, no easing
   const end = {...startFrame, atFrame: durationFrames, easing}; // end state with easing
-  const A = Math.max(0, amp);
+  // CLAMP the amplitude stack: energy (bold≈1.6) × motion_personality (≤1.4) can reach ~2.24 and blow a
+  // push's zoom endpoint past the readable band (0.08·2.24 ≈ 18%). Cap at 1.6 so the boldest push stays a
+  // ~13% zoom delta and the endpoint stays action-safe — bold still pushes harder than subtle, never out of
+  // band (camera research: bounded amplitude, safe endpoint — references/camera-and-bridges.md).
+  const A = Math.min(1.6, Math.max(0, amp));
 
   switch (pattern) {
     case 'STATIC': {

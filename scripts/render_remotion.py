@@ -845,6 +845,15 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
     fps = int(meta.get("fps", 30))
     reduced = bool(reduced_motion or meta.get("reduced_motion"))
     captions_on = meta.get("captions", True)
+    # DIEGETIC BRIDGE selector: ONE advance-gesture per film, from meta.bridge ('auto' → derived from the
+    # deck's aesthetic so a terminal/mono deck types-and-Enters). Only scenes that carry a `bridge_label`
+    # (the command/phrase) get the gesture on their TAIL — minor beats stay plain cuts; reduced-motion drops
+    # all gestures. The full gesture menu + per-aesthetic mapping is in references/camera-and-bridges.md.
+    _tok = _theme(out_dir)
+    _bridge_gesture = str(meta.get("bridge") or "none").lower()
+    if _bridge_gesture == "auto":
+        _mono = (_tok.get("fontKind") == "mono") or (str(_tok.get("style", "")).lower() == "terminal")
+        _bridge_gesture = "type-enter" if _mono else "none"   # type-enter is the natively-rendered gesture today
     scenes = []
     for s in data.get("slides", []):
         dur = float(s.get("duration") or 0)
@@ -936,6 +945,11 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
             t = rd._callout_time(s, meta, co, dur, out_dir)   # 0.0 = untimed (whole scene)
             callouts.append({"box": box, "style": co.get("style", "box"),
                              "label": co.get("label"), "fromFrame": int(round(t * fps))})
+        bridge = None
+        if not reduced and _bridge_gesture not in ("none", "") and s.get("bridge_label"):
+            bridge = {"gesture": _bridge_gesture, "label": str(s.get("bridge_label"))}
+            if s.get("bridge_at_frame") is not None:
+                bridge["atFrame"] = int(round(_num(s["bridge_at_frame"], "scene %s bridge_at_frame" % s.get("index"))))
         scenes.append({
             "index": s.get("index"),
             "durationInFrames": frames,
@@ -965,6 +979,7 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
             "layers": layers,                        # cinematic: depth planes (or None)
             "reducedMotion": reduced,                # freeze the camera + show reveals instantly
             "transitionStyle": s.get("transition_style"),  # per-scene seam-look override (else meta default)
+            "bridge": bridge,                        # diegetic advance gesture on this scene's tail (or None)
         })
     _transitions(scenes, meta, fps)                  # derive cross-scene transitions + de-double the seam fades
     return {"width": W, "height": H, "fps": fps, "captionFontPx": rd._caption_font_px(W, H, meta=meta),
@@ -1037,12 +1052,18 @@ def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="erro
            "--props=" + os.path.abspath(props_path),
            "--public-dir=" + os.path.abspath(out_dir),
            "--log=" + log]
-    if any(sc.get("planes") for sc in props["scenes"]):   # P6 TRUE-3D scenes need a WebGL renderer
-        # else headless Chrome has no WebGL -> black frames. Backend is platform-dependent: 'angle' on
-        # macOS/Windows; 'swangle' (SwiftShader) on GPU-less headless Linux/CI/Lambda, where plain 'angle'
-        # can fail to initialise. Override via REMOTION_GL if the host needs a specific backend.
-        gl = os.environ.get("REMOTION_GL") or ("angle" if sys.platform in ("darwin", "win32") else "swangle")
-        cmd.append("--gl=" + gl)
+    # GPU-backed rasterisation (ANGLE) for the WHOLE cinematic tier — not only TRUE-3D `planes` scenes.
+    # TRUE-3D needs WebGL (else black frames); but the CSS-3D CinematicScene (a virtual camera over depth
+    # planes + large card/text planes) is ALSO GPU-bound: in headless Chrome without a GL renderer it is
+    # SOFTWARE-rasterised, and a single peak-framing frame (a big card near the camera) then blows past
+    # the default 30 s/frame timeout — a whole scene once took >9 min and FAILED. Enabling ANGLE cut it to
+    # ~30 s/scene. Backend is platform-dependent: 'angle' on macOS/Windows; 'swangle' (SwiftShader) on
+    # GPU-less headless Linux/CI/Lambda, where plain 'angle' can fail to initialise. Override via REMOTION_GL.
+    gl = os.environ.get("REMOTION_GL") or ("angle" if sys.platform in ("darwin", "win32") else "swangle")
+    cmd.append("--gl=" + gl)
+    # a peak-framing CSS-3D frame can still be slow to rasterise on a GPU-less host — raise the per-frame
+    # timeout as a safety net so a slow frame degrades to 'slower', never a hard render failure.
+    cmd.append("--timeout=" + str(int(os.environ.get("REMOTION_TIMEOUT_MS", "120000") or "120000")))
     print("[render_remotion] %s: %d scene(s), %dx%d @%dfps -> %s"
           % ("sample" if sample is not None else "full", len(props["scenes"]),
              props["width"], props["height"], props["fps"], out_mp4))

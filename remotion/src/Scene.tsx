@@ -6,6 +6,7 @@ import {CinematicScene, CinematicScene3D, CameraKeyframe, LensKeyframe, Layer} f
 import {SceneStage, type StageData} from './stage/SceneStage';
 import type {ShotSpec} from './stage/shots';
 import {ThreeScene, type Plane3D, type Camera3DKey} from './three/ThreeScene';
+import {BridgeOverlay, type BridgeData} from './BridgeOverlay';
 
 export type CalloutData = {
   box: number[];           // [x0, y0, x1, y1] normalized 0..1
@@ -48,6 +49,7 @@ export type SceneData = {
   camera3d?: Camera3DKey[] | null;
   filmLook?: boolean; // the true-3D film-look post stack (default on)
   reveal3d?: boolean; // opt-in dark->lit reveal for a 3D hero opener
+  bridge?: BridgeData; // DIEGETIC bridge: an in-world advance gesture on THIS scene's tail (type-Enter, …)
 };
 
 const CLAMP = {extrapolateLeft: 'clamp' as const, extrapolateRight: 'clamp' as const};
@@ -61,6 +63,10 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
   const {durationInFrames} = useVideoConfig();
   const dur = Math.max(1, durationInFrames);
 
+  // Compute the scene BODY, then wrap it with an optional diegetic BridgeOverlay (screen-fixed, over the
+  // camera rig, under nothing) so an in-world advance gesture (type-Enter, …) can play on ANY scene type's
+  // tail without touching the renderers themselves.
+  const renderBody = (): React.ReactNode => {
   // CINEMATIC DISPATCH. Shot-based (P2+): `stage` + `shot` → SceneStage; legacy: `lens` → 3D
   // perspective (real depth + camera angles); `layers` → flat parallax; else unchanged image/Ken-Burns.
   if (Array.isArray(scene.planes) && scene.planes.length) {
@@ -226,5 +232,13 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
 
       {scene.audio ? <Audio src={staticFile(scene.audio)} /> : null}
     </AbsoluteFill>
+  );
+  };
+
+  return (
+    <>
+      {renderBody()}
+      <BridgeOverlay bridge={scene.bridge ?? null} theme={theme} reducedMotion={scene.reducedMotion} />
+    </>
   );
 };

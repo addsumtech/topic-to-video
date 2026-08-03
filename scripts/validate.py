@@ -542,6 +542,24 @@ def _shot_stage_fields(stage, shots, tag, errors, warnings):
                                 f"(rise|tracking-in|blur-in) — a typo silently renders as blur-in")
             if k == "terminal" and not (isinstance(el.get("lines"), list) and el.get("lines")):
                 errors.append(f"{tag}: terminal element {eid!r} needs a non-empty `lines` list (the streaming log)")
+            # NATIVE TEXT CLIPS/COLLIDES beyond its element's fixed footprint — a render shipped a quote
+            # running off the right edge and two giant displays overlapping. A native `textblock` is a
+            # FIXED 800px box that does not wrap-to-fit (long prose clips); a native `display` is 1680px at
+            # 200px type (~14 chars/line — a 1-3 word monolith) and a long line wraps to 3+ lines where two
+            # displays then collide. Multi-line prose / a headline+body belongs on a Path-A html card.
+            if k == "textblock":
+                for _ln in str(el.get("text") or "").split("\n"):
+                    if len(_ln.strip()) > 30:
+                        warnings.append(f"{tag}: textblock {eid!r} has a ~{len(_ln.strip())}-char line — a native "
+                                        f"textblock is a fixed 800px box that CLIPS beyond ~30 chars/line; put "
+                                        f"multi-line prose on a Path-A html card (kind:'card', html:'pages/…')")
+                        break
+            if k == "display":
+                _dt = str(el.get("text") or el.get("heroText") or "")
+                if len(_dt) > 22:
+                    warnings.append(f"{tag}: display {eid!r} text is ~{len(_dt)} chars — a native display wraps "
+                                    f"beyond ~14 chars at 200px and two wrapped displays collide; keep it a "
+                                    f"1-3 word monolith, or move a headline+body to a Path-A html card")
             pos = el.get("position")
             if not (isinstance(pos, list) and len(pos) == 3 and all(isinstance(v, (int, float)) for v in pos)):
                 errors.append(f"{tag}: stage element {eid!r} `position` must be [x,y,z] numbers")
@@ -553,6 +571,11 @@ def _shot_stage_fields(stage, shots, tag, errors, warnings):
             if isinstance(el, dict) and el.get("kind") == "connector" and isinstance(el.get("to"), str):
                 if el["to"] not in ids:
                     errors.append(f"{tag}: connector {el.get('id')!r} `to` target id {el['to']!r} is not a staged element")
+        _n_display = sum(1 for el in stage["elements"] if isinstance(el, dict) and el.get("kind") == "display")
+        if _n_display >= 2:                                  # two 1680×200 monoliths each wrap and collide
+            warnings.append(f"{tag}: {_n_display} native `display` monoliths in one scene — each is a large "
+                            f"block that WRAPS at 200px, and two of them collide (a render overlapped a "
+                            f"floor/ceiling pair); compose multiple big lines on ONE Path-A html card instead")
         _cine_crowding(stage["elements"], tag, warnings)     # two content boxes colliding on one depth plane
     if not isinstance(shots, list) or not shots:
         errors.append(f"{tag}: shot-based `shots` must be a non-empty list"); return

@@ -18,7 +18,9 @@ import {computeTimeline, poseAtFrame, reducedPoseAtFrame} from './camera';
 // Stage data schema (from storyboard.json stage) — elements placed ONCE.
 export type StageData = {
   elements: ElementData[];
-  perspective?: number; // CSS perspective px (default 1300)
+  perspective?: number; // CSS perspective px (default 2000 = a long, flat virtual lens). Distortion is a
+  // lens+distance problem: a SMALL perspective (200–800) is a fisheye that keystones type; ~2000 keeps read
+  // planes frontal and undistorted. Raised from 1300 per the camera research (references/camera-and-bridges.md).
 };
 
 export type SceneStageProps = {
@@ -90,7 +92,7 @@ export const SceneStage: React.FC<SceneStageProps> = ({
 
   return (
     <AbsoluteFill style={{backgroundColor: theme.bg, overflow: 'hidden'}}>
-      <AbsoluteFill style={{perspective: `${stage.perspective || 1300}px`, perspectiveOrigin: '50% 46%'}}>
+      <AbsoluteFill style={{perspective: `${stage.perspective || 2000}px`, perspectiveOrigin: '50% 50%'}}>
         <div style={world}>
           {worldEls.map((el) => {
             // rack focus: soften planes off the focal z. The blur is passed INTO Element, which applies it

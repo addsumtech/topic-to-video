@@ -54,44 +54,51 @@ export function calculateShotFrame(
 ): LensKeyframe {
   const [tx, ty, tz] = target;
 
+  // FRAMING LADDER — compressed into ONE legible band so content can never go tiny→huge (the widest:tightest
+  // content-size ratio across a scene stays ~≤1.25×), and READ shots are FRONTAL (0° pitch/yaw/roll) so type
+  // never keystones. This is the generalizable cure for the 'opens tiny then pushes in so close it overflows /
+  // distorts' failure: MEDIUM is home base, ESTABLISH is only ~one step wider (not a 0.85→1.5 swing), and the
+  // old oblique REVEAL (pitch 10 / yaw −15 / zoom 1.8 — the main distortion culprit) is recast as a FRONTAL
+  // soft arrival the motion reveals. Distortion is a lens+distance thing: keep the rig perspective long
+  // (≥~2000, set in SceneStage/Camera) and the push a small clamped zoom, not a deep dolly. (Sources: shot-size
+  // + safe-area + motivated-movement cinematography research — see references/camera-and-bridges.md.)
   let base: LensKeyframe;
   switch (shotType) {
     case 'ESTABLISH': {
-      // Wide: camera far back, low zoom, see the full stage
-      const dolly = -1000 - tz; // hold the target 1000px in front, whatever its z
-      const pitch = -5; // slight bird's-eye
-      base = {atFrame: 0, dolly, pitch, yaw: 0, zoom: 0.85, focusZ: tz};
+      // Section/title opener — one step WIDER than medium, still readable (never tiny). Frontal.
+      const dolly = -750 - tz;
+      base = {atFrame: 0, dolly, pitch: 0, yaw: 0, zoom: 0.95, focusZ: tz};
       break;
     }
     case 'MEDIUM': {
-      // Balanced: mid-distance, neutral framing
+      // HOME BASE — the default resting framing (read-card ~60–70% of frame). Balanced, frontal, neutral.
       const dolly = -500 - tz;
       base = {atFrame: 0, dolly, pitch: 0, yaw: 0, zoom: 1.0, focusZ: tz};
       break;
     }
     case 'CLOSEUP': {
-      // Tight: close or high zoom
-      const dolly = -300 - tz;
-      base = {atFrame: 0, dolly, pitch: 0, yaw: 0, zoom: 1.5, focusZ: tz};
+      // Tight — but only a small step in from MEDIUM (~1.10, was 1.5). Frontal; endpoint stays action-safe.
+      const dolly = -350 - tz;
+      base = {atFrame: 0, dolly, pitch: 0, yaw: 0, zoom: 1.1, focusZ: tz};
       break;
     }
     case 'OVER_SHOULDER': {
-      // Foreground element partially in frame, subject in background
-      const dolly = -400 - tz;
-      const yaw = 8; // slight angle to see past foreground
-      base = {atFrame: 0, dolly, pitch: 0, yaw, zoom: 1.1, focusZ: tz};
+      // Foreground element partially in frame, subject behind — kept frontal for read legibility (was yaw 8).
+      const dolly = -420 - tz;
+      base = {atFrame: 0, dolly, pitch: 0, yaw: 0, zoom: 1.04, focusZ: tz};
       break;
     }
     case 'REVEAL': {
-      // Starts obscured (high zoom or off-angle), motion pattern will reveal
-      const dolly = -200 - tz;
-      base = {atFrame: 0, dolly, pitch: 10, yaw: -15, zoom: 1.8, focusZ: tz - 100};
+      // FRONTAL soft arrival the motion reveals (rack-focus / pull-out) — NOT an oblique high-zoom pose.
+      // Opens a touch wide + soft (focusZ pushed off the plane); the shot's motion racks/pulls to sharp.
+      const dolly = -620 - tz;
+      base = {atFrame: 0, dolly, pitch: 0, yaw: 0, zoom: 0.98, focusZ: tz + 500};
       break;
     }
     case 'HERO': {
-      // Dramatic isolation: close, strong DoF, centered
-      const dolly = -350 - tz;
-      base = {atFrame: 0, dolly, pitch: 0, yaw: 0, zoom: 1.3, focusZ: tz};
+      // Isolation/emphasis — a modest step in (~1.06, was 1.3), frontal, strong DoF via focusZ.
+      const dolly = -380 - tz;
+      base = {atFrame: 0, dolly, pitch: 0, yaw: 0, zoom: 1.06, focusZ: tz};
       break;
     }
     default: {

@@ -118,6 +118,18 @@ title + a node display 300px apart colliding). `terminal` ~860×780, `textblock`
 elements in **z** (real parallax, not a collision) or space them out. Overlay kinds (`hud`/`spotlight`) are
 screen-fixed and may pass over world content by design.
 
+**Native text CLIPS/WRAPS at its fixed footprint — the failure mode, and when to reach for Path-A instead.**
+The fixed footprints above do NOT wrap-to-fit or shrink text, so native text OVERFLOWS silently:
+- **`textblock`** is a fixed **800px** box — a line beyond **~30 chars** CLIPS off the right edge (a real
+  render shipped a persona quote cut mid-word). Use it only for a SHORT caption/attribution.
+- **`display`** is 1680px at 200px type = **~14 chars/line** — it is a **1–3-word MONOLITH**. A longer line
+  wraps to 3+ lines, and **two `display`s in one scene wrap and COLLIDE** (a render overlapped a
+  floor/ceiling pair the crowding footprint under-measured).
+So: a **headline + body**, **multi-line prose**, or **two stacked big lines** belongs on a **Path-A html
+card** (`kind:"card"`, `html:"pages/…"`), where the HTML tier wraps, sizes, and composes freely — NOT on
+native `display`/`textblock`. `validate` warns on a >30-char textblock line, a >22-char display, and ≥2
+displays in one scene (the deterministic backstop for exactly these two render failures).
+
 ## 6. Adoption checklist (run BEFORE `npm install` anything)
 
 1. **Version compat** with the stack: React 18.3.1 · Remotion 4.0.486 · @react-three/fiber 8.17.10 ·

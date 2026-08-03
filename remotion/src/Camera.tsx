@@ -294,7 +294,7 @@ export const CinematicScene3D: React.FC<{
     // OUTER: bg + overflow clip. NO opacity/filter here (would flatten the inner 3D).
     <AbsoluteFill style={{backgroundColor: theme.bg, overflow: 'hidden'}}>
       {/* INNER RIG: perspective + preserve-3d, no opacity/filter on this chain. */}
-      <AbsoluteFill style={{perspective: `${perspective || 1300}px`, perspectiveOrigin: '50% 46%'}}>
+      <AbsoluteFill style={{perspective: `${perspective || 2000}px`, perspectiveOrigin: '50% 50%'}}>
         <div style={world}>
           {layers.map((p, i) => (
             <div
