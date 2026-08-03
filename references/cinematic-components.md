@@ -109,6 +109,15 @@ Entrances: `enterMotion:"materialize"` (a slide flies out) · `"aperture"` (the 
 line, via scaleY). DoF is OPT-IN (`scene.dof`, default OFF = crisp). Colour worlds are GENERATED — call
 `scripts/cine_palette.py aurora_page(pal,…)` per beat, never hand-author.
 
+**Footprints & crowding (each box is a FIXED size, not sized to its text — so close positions collide).** A
+`display`/`hero` is a **1680px-wide, 200px** monolith centred on its position — essentially ONE per shot; two
+of them within ~480px vertically or ~1680px horizontally on the same z **overlap** (a real render showed a
+title + a node display 300px apart colliding). `terminal` ~860×780, `textblock` 800-wide, `metaphor` ~720,
+`card` = its `size`. For small, closely-spaced nodes (a process-flow, a system-map) use `textblock`/`callout`
+— NOT giant `display`. `validate._cine_crowding` warns on any same-plane box overlap ≥25%; stagger crowded
+elements in **z** (real parallax, not a collision) or space them out. Overlay kinds (`hud`/`spotlight`) are
+screen-fixed and may pass over world content by design.
+
 ## 6. Adoption checklist (run BEFORE `npm install` anything)
 
 1. **Version compat** with the stack: React 18.3.1 · Remotion 4.0.486 · @react-three/fiber 8.17.10 ·

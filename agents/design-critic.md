@@ -401,7 +401,11 @@ the floor; you are the ceiling.
   beside a fogged neighbour on a UI/type/data beat is the inconsistent-focus defect. And the trigger device
   (terminal, boot HUD, opening frame) appears at most ONCE as a cold-open, then the film BLOOMS into the other
   worlds — flag a film that leans on the same device (or the same panel) every beat instead of using it as a
-  doorway.
+  doorway. **Crowding:** `validate._cine_crowding` warns when two content boxes collide on one depth plane
+  (a `display` is a 1680×200 monolith, ~one per shot — packing two close is the "内容过近/重叠" defect the user
+  called out); **REVISE any unresolved crowding warning** and confirm on the filmstrip that no on-frame element
+  sits on top of another (stagger crowded elements in z for real parallax, or use `textblock`/`callout` for
+  small nodes instead of a giant `display`).
 - **D12l — Content richness (the film says something).** The narration + on-screen content must carry the
   CONTENT PLAN's real substance (the product's actual mechanism/process/differentiator), not generic marketing
   filler — cover-the-copy also means: is there anything *specific and true* here, or is it hollow? **FLAG a

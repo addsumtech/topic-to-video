@@ -445,6 +445,53 @@ def _norm_motion(m):
     return _SHOT_MOTION_ALIASES.get(m, m)
 
 
+# Per-kind SCREEN FOOTPRINT (half-width hw, top/bottom offset from the element's y), MIRRORING the fixed
+# boxes in stage/elements.tsx (a `display` is a 1680-wide, 200px block centred on its position — NOT sized to
+# its text). Used to catch two content elements placed so close they COLLIDE on the same depth plane — the
+# "内容过近/重叠" defect that a positions-only board produces silently (validate passes, the render ships the
+# overlap). Overlay kinds (hud/spotlight, screen-fixed) and backdrops (grid/floor/fill/image) are excluded:
+# their overlap with world content is by design, not a bug.
+_CINE_FOOTPRINT = {          # kind: (half_width, top_offset, bottom_offset)
+    "display": (840, -180, 300), "hero": (840, -180, 300), "textblock": (400, -100, 220),
+    "terminal": (430, -390, 390), "metaphor": (360, -260, 260), "callout": (260, -40, 80),
+    "panel": (500, -300, 300), "card": (800, -450, 450),
+}
+_CINE_SAMEPLANE_DZ = 25      # |Δz| within this => same visual plane (real parallax across z is NOT a collision)
+
+
+def _cine_crowding(elements, tag, warnings):
+    """Warn when two content elements' fixed boxes overlap on the same depth plane (they visually collide)."""
+    boxes = []
+    for el in elements:
+        if not isinstance(el, dict):
+            continue
+        fp = _CINE_FOOTPRINT.get(el.get("kind"))
+        pos = el.get("position")
+        if fp is None or not (isinstance(pos, list) and len(pos) == 3 and all(isinstance(v, (int, float)) for v in pos)):
+            continue
+        hw, t0, t1 = fp
+        if el.get("kind") == "card" and isinstance(el.get("size"), list) and len(el["size"]) == 2:
+            hw, t0, t1 = el["size"][0] / 2, -el["size"][1] / 2, el["size"][1] / 2   # a card is sized explicitly
+        x, y, z = pos
+        boxes.append((el.get("id"), z, x - hw, x + hw, y + t0, y + t1))
+    for i in range(len(boxes)):
+        idi, zi, x0i, x1i, y0i, y1i = boxes[i]
+        for j in range(i + 1, len(boxes)):
+            idj, zj, x0j, x1j, y0j, y1j = boxes[j]
+            if abs(zi - zj) > _CINE_SAMEPLANE_DZ:
+                continue                                     # different depth plane — parallax, not a collision
+            ox = max(0, min(x1i, x1j) - max(x0i, x0j))
+            oy = max(0, min(y1i, y1j) - max(y0i, y0j))
+            if ox <= 0 or oy <= 0:
+                continue
+            area = ox * oy
+            amin = min((x1i - x0i) * (y1i - y0i), (x1j - x0j) * (y1j - y0j)) or 1
+            if area >= 0.25 * amin:                          # a meaningful overlap, not a hairline touch
+                warnings.append(f"{tag}: elements {idi!r} and {idj!r} overlap on the same depth plane "
+                                f"(~{100 * area / amin:.0f}% of the smaller box) — space them apart or stagger "
+                                f"their z; two large boxes at the same [x,y] collide (see the crowding rule)")
+
+
 def _shot_stage_fields(stage, shots, tag, errors, warnings):
     """P2 SHOT-BASED pre-render gate: a scene-space SET (stage.elements placed once) + an ordered LIST
     of shots. Mirrors render_remotion._clean_stage/_clean_shots so the ~1s validate pass catches the
@@ -504,6 +551,7 @@ def _shot_stage_fields(stage, shots, tag, errors, warnings):
             if isinstance(el, dict) and el.get("kind") == "connector" and isinstance(el.get("to"), str):
                 if el["to"] not in ids:
                     errors.append(f"{tag}: connector {el.get('id')!r} `to` target id {el['to']!r} is not a staged element")
+        _cine_crowding(stage["elements"], tag, warnings)     # two content boxes colliding on one depth plane
     if not isinstance(shots, list) or not shots:
         errors.append(f"{tag}: shot-based `shots` must be a non-empty list"); return
     for j, sh in enumerate(shots):

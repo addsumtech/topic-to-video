@@ -151,6 +151,33 @@ def test_valid_template_contest_passes():
     assert not any("template_contest" in e for e in r["errors"]), "a valid contest record must pass"
 
 
+# ── crowding guard: two large content boxes on one depth plane collide (the "内容过近/重叠" defect) ─────────
+def _crowd(els):
+    d = _cine()
+    d["slides"][0]["stage"]["elements"] = els
+    return v.evaluate(d, "/tmp", pre_tts=True)["warnings"]
+
+
+def test_crowding_flags_two_displays_on_the_same_plane():
+    # a real render showed a title + a node display 300px apart (same z) COLLIDING — validate passed silently.
+    w = _crowd([{"id": "title", "kind": "display", "text": "Command Surface", "position": [420, -120, 30]},
+                {"id": "node", "kind": "display", "text": "output", "position": [420, 180, 30]}])
+    assert any("overlap on the same depth plane" in x and "'title'" in x and "'node'" in x for x in w)
+
+
+def test_crowding_allows_well_separated_elements():
+    w = _crowd([{"id": "a", "kind": "display", "text": "x", "position": [-1400, 0, 0]},
+                {"id": "b", "kind": "display", "text": "y", "position": [1400, 0, 0]}])
+    assert not any("overlap on the same depth plane" in x for x in w), "boxes >1680px apart must not flag"
+
+
+def test_crowding_ignores_different_depth_planes():
+    # the SAME x,y but far apart in z is legitimate parallax (foreground/background), not a collision.
+    w = _crowd([{"id": "a", "kind": "display", "text": "x", "position": [0, 0, 0]},
+                {"id": "b", "kind": "display", "text": "y", "position": [0, 0, 400]}])
+    assert not any("overlap on the same depth plane" in x for x in w), "parallax across z must not flag"
+
+
 # ── transition honesty: a 'blur' seam has no rack-defocus presentation yet → it must WARN it approximates ──
 def test_blur_seam_warns_it_is_approximated_on_remotion():
     d = _cine()
