@@ -80,11 +80,19 @@ export const SceneStage: React.FC<SceneStageProps> = ({
 
   const fade = 1 - edgeOpacity(frame, dur, fadeInFrames, fadeOutFrames);
 
+  // SCREEN-FIXED overlays: a HUD reticle and a travelling spotlight are screen-space (a gunsight / a pool of
+  // light across the FRAME), so they must NOT ride the camera transform — rendered outside the preserve-3d
+  // world (like Finish/Captions), centred on the viewport. (In-world they panned/scaled/keystoned with every
+  // dolly — the audit bug.) Everything else stays in the 3D world.
+  const OVERLAY_KINDS = new Set(['hud', 'spotlight']);
+  const worldEls = stage.elements.filter((e) => !OVERLAY_KINDS.has(e.kind));
+  const overlayEls = stage.elements.filter((e) => OVERLAY_KINDS.has(e.kind));
+
   return (
     <AbsoluteFill style={{backgroundColor: theme.bg, overflow: 'hidden'}}>
       <AbsoluteFill style={{perspective: `${stage.perspective || 1300}px`, perspectiveOrigin: '50% 46%'}}>
         <div style={world}>
-          {stage.elements.map((el) => {
+          {worldEls.map((el) => {
             // rack focus: soften planes off the focal z. The blur is passed INTO Element, which applies it
             // on an inner leaf — NOT on a wrapper here. A wrapper div (default transform-style: flat) placed
             // above the element's translate3d node would collapse all per-element depth to one plane.
@@ -98,6 +106,15 @@ export const SceneStage: React.FC<SceneStageProps> = ({
 
       {/* OUTER 2D overlays (never on the preserve-3d chain). */}
       <Finish frame={frame} theme={theme} />
+      {overlayEls.length ? (
+        <AbsoluteFill style={{pointerEvents: 'none'}}>
+          <div style={{position: 'absolute', left: width / 2, top: height / 2}}>
+            {overlayEls.map((el) => (
+              <Element key={el.id} element={el} theme={theme} frame={frame} reducedMotion={reduced} blur={0} />
+            ))}
+          </div>
+        </AbsoluteFill>
+      ) : null}
       <AbsoluteFill style={{pointerEvents: 'none', backgroundColor: theme.bg, opacity: fade}} />
       {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} /> : null}
       {audio ? <Audio src={staticFile(audio)} /> : null}

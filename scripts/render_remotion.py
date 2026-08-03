@@ -641,6 +641,49 @@ def _html_card_jobs(data):
     return jobs
 
 
+def _generate_color_worlds(data, out_dir):
+    """WIRE the generalisation engine (cine_palette) INTO the render pipeline — the audit's #1 fix. When
+    `meta.cinematic_template` + `meta.accent` are set, any cinematic `card` element carrying a `colorWorld`
+    content spec ({title,kicker,grad,sub}) gets its aurora backplane page GENERATED from the accent + the
+    template (a deterministic per-beat transform), written under pages/, and set as the element's `html` — so
+    _render_html_cards then screenshots it like any Path-A card. Colour worlds become a PRODUCT of the render,
+    not a hand-run script. No-ops without a template/accent or without any colorWorld element (fully additive)."""
+    meta = data.get("meta") or {}
+    tpl = meta.get("cinematic_template")
+    if not tpl:
+        return
+    try:
+        import cine_palette as _cinep
+    except Exception as e:
+        print("[color-worlds] cine_palette unavailable (%s) — skipped" % e)
+        return
+    accent = meta.get("accent") or _theme(out_dir).get("accent") or "#7c5cff"
+    cine = [s for s in data.get("slides", []) if _scene_stage(s) or _scene_planes(s)]
+    if not cine:
+        return
+    pals = _cinep.derive(accent, str(tpl), len(cine))
+    skill = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    pages_dir = os.path.join(out_dir, "pages")
+    made = 0
+    for i, s in enumerate(cine):
+        stage = _scene_stage(s)
+        for el in ((stage or {}).get("elements") or []) if isinstance(stage, dict) else []:
+            cw = el.get("colorWorld")
+            if not isinstance(cw, dict) or el.get("html") or el.get("src"):
+                continue
+            os.makedirs(pages_dir, exist_ok=True)
+            html = _cinep.aurora_page(pals[i], skill, out_dir, title=str(cw.get("title", "")),
+                                      kicker=str(cw.get("kicker", "")), grad_words=str(cw.get("grad", "")),
+                                      sub=str(cw.get("sub", "")))
+            rel = os.path.join("pages", "_cw_%s.html" % re.sub(r"[^A-Za-z0-9_]+", "", str(el.get("id") or i)))
+            with open(os.path.join(out_dir, rel), "w", encoding="utf-8") as f:
+                f.write(html)
+            el["html"] = rel                              # now a Path-A card -> screenshotted below
+            made += 1
+    if made:
+        print("[color-worlds] generated %d colour-world page(s) from template=%s accent=%s" % (made, tpl, accent))
+
+
 def _render_html_cards(data, out_dir, scale=2):
     """PATH A — the bridge that lets a cinematic shot's content be ANY of the HTML tier's bespoke forms
     (flow / timeline / quadrant / metric-wall / comparison / …), NOT the one generic glass panel. A stage
@@ -934,6 +977,7 @@ def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="erro
 
     # Copy bundled fonts to out_dir/.fonts/ for @remotion/fonts to load
     _copy_fonts(out_dir)
+    _generate_color_worlds(data, out_dir)  # WIRE cine_palette: template+accent -> GENERATED colour-world pages
     _render_html_cards(data, out_dir)  # PATH A: `html` form pages -> screenshot -> textured plane `src`
     _rasterize_text3d(data, out_dir)   # 3D text -> transparent PNG textured planes (troika renders blank)
 

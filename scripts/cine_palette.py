@@ -134,6 +134,43 @@ def _defrag(a, n):
     return out
 
 
+def _doorway_gallery(a, n):
+    """Warm museum WALLS (ground moves), accent muted one step; each 'room' a different wall tone."""
+    acc = scale(a, 0.72)
+    rooms = ["#ede6da", "#e9dfcc", "#dce0d6", "#241f1a"]      # neutral / ochre / grey-green / dark alcove
+    out = []
+    for i in range(n):
+        wall = rooms[i % len(rooms)]
+        light = "light" if sum(_hex(wall)) / 3 > 0.5 else "dark"
+        ink = "#211c17" if light == "light" else "#ede6da"
+        out.append({"bg": wall, "blobs": [setl(acc, 0.5), scale(wall, 1.0, ladd=-0.05), setl(acc, 0.42)],
+                    "accent": acc, "accent2": setl(a, 0.6), "ink": ink, "kicker": scale(ink, 0.55), "light": light})
+    return out
+
+
+def _rakelight(a, n):
+    """Obsidian — colour only where light strikes. Material-accent = A ~50% chroma at lit value; cool backlight."""
+    mat = setl(sets(a, 0.5), 0.62)
+    back = scale(rot(a, 160), 0.6, ladd=-0.1)
+    out = []
+    for i in range(n):
+        out.append({"bg": "#0a0b0d", "blobs": [setl(mat, 0.22), "#141618", setl(back, 0.2)],
+                    "accent": mat, "accent2": back, "ink": "#e8eaed", "kicker": setl(mat, 0.55), "light": "dark"})
+    return out
+
+
+def _exploded_schematic(a, n):
+    """Blueprint navy; LINE = A rotated 70% toward cyan (~200°) low-chroma; HOT active = A full chroma."""
+    ah = _hls(a)[0]
+    line = _from_hls(ah + (200 / 360.0 - ah) * 0.7, 0.5, 0.52)
+    hot = setl(sets(a, 0.9), 0.55)
+    out = []
+    for i in range(n):
+        out.append({"bg": "#0b1a2b", "blobs": [setl(line, 0.25), "#0b1a2b", setl(line, 0.16)],
+                    "accent": hot, "accent2": line, "ink": "#dce9f5", "kicker": setl(line, 0.6), "light": "dark"})
+    return out
+
+
 def _default(a, n):
     """A generic vivid aurora from A + two neighbours (the b1-style world) when a template has no bespoke map."""
     b1, b2 = rot(a, 28), rot(a, -32)
@@ -149,9 +186,10 @@ def _default(a, n):
 _TEMPLATES = {
     "command-surface": _command_surface, "ignition-monument": _ignition_monument,
     "aurora-bloom": _aurora_bloom, "liquid-model": _liquid_model, "molten-ledger": _molten_ledger,
-    "defrag": _defrag,
+    "defrag": _defrag, "doorway-gallery": _doorway_gallery, "rakelight": _rakelight,
+    "exploded-schematic": _exploded_schematic,
 }
-TEMPLATE_KEYS = set(_TEMPLATES) | {"doorway-gallery", "rakelight", "exploded-schematic"}
+TEMPLATE_KEYS = set(_TEMPLATES)                                # all 9 now have a bespoke palette (no _default fallback)
 
 
 def derive(accent, template, n_beats):

@@ -246,9 +246,10 @@ to any topic by re-deriving ONE accent. **READ `references/cinematic-templates.m
    prompt) — "根据主题给你几个大胆的电影级模板选一个". The user's pick becomes **`meta.cinematic_template`** (a
    catalogue key) — validate errors on an unknown key, warns if absent.
 3. **Instantiate** the chosen template: (a) set **`meta.accent`** (the brand/topic hue) — every colour world
-   is a deterministic transform of it (`scripts/cine_palette.py derive(accent, template, n)`), so DON'T
-   hand-author aurora pages; call the generator (`cine_palette.aurora_page`) per beat and reference the page
-   as a `card`. (b) Fill the template's **beat arc** (its archetype sequence) with the CONTENT PLAN's real
+   is a deterministic transform of it. DON'T hand-author aurora pages: put a **`colorWorld:{title,kicker,grad,
+   sub}`** content spec on a `kind:"card"` element and the render pipeline GENERATES that beat's colour-world
+   page from `accent`+`template` automatically (`render_remotion._generate_color_worlds` → `cine_palette`); the
+   page is screenshotted like any Path-A card. (b) Fill the template's **beat arc** (its archetype sequence) with the CONTENT PLAN's real
    material — each beat a DIFFERENT archetype so no two look alike. (c) Bind with the template's **signature
    element** (present first+last frame) and its **transition grammar** (mark seams; keep shared coords for an
    authored match-cut). (d) Then **enrich + innovate ON the template** for this specific topic — the template

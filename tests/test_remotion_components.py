@@ -58,3 +58,32 @@ def test_component_branches_present_in_tsx():
     assert "kind === 'spotlight'" in el and "kind === 'hud'" in el and "kind === 'connector'" in el
     assert "strokeDashoffset" in el, "connector draw-on lost"
     assert "mixBlendMode" in el, "spotlight light-pool lost"
+
+
+def test_hud_spotlight_render_screen_fixed_not_in_world():
+    # the audit bug: a HUD/spotlight placed in the preserve-3d world pans/scales with the camera. They must be
+    # partitioned out and rendered in the OUTER 2D overlay (siblings of Finish), centred on the viewport.
+    st = open(os.path.join(_SKILL, "remotion", "src", "stage", "SceneStage.tsx"), encoding="utf-8").read()
+    assert "OVERLAY_KINDS" in st and "worldEls" in st and "overlayEls" in st
+    assert "'hud'" in st and "'spotlight'" in st
+
+
+def test_color_worlds_wired_into_render_pipeline(tmp_path):
+    """The audit's #1 fix: cine_palette is WIRED into the render path. A card with a `colorWorld` spec + a
+    template + accent gets its aurora page GENERATED automatically (not by a hand-run script)."""
+    (tmp_path / "theme.css").write_text(":root{--accent:#e0a020;}")
+    data = {"meta": {"renderer": "remotion", "cinematic_template": "molten-ledger", "accent": "#e0a020"},
+            "slides": [{"index": 1, "type": "cinematic", "stage": {"elements": [
+                {"id": "cw", "kind": "card", "position": [0, 0, 0], "size": [2000, 1125],
+                 "colorWorld": {"title": "收入", "kicker": "Q3", "grad": "翻倍", "sub": "核实"}}]}}]}
+    rr._generate_color_worlds(data, str(tmp_path))
+    el = data["slides"][0]["stage"]["elements"][0]
+    assert el.get("html", "").startswith("pages/"), "colorWorld card must get a GENERATED html page"
+    assert (tmp_path / el["html"]).exists(), "the generated aurora page must be written to disk"
+
+
+def test_color_worlds_noop_without_template(tmp_path):
+    data = {"meta": {"renderer": "remotion"}, "slides": [{"index": 1, "type": "cinematic", "stage": {"elements": [
+        {"id": "cw", "kind": "card", "position": [0, 0, 0], "colorWorld": {"title": "x"}}]}}]}
+    rr._generate_color_worlds(data, str(tmp_path))  # no template -> no-op, no crash
+    assert data["slides"][0]["stage"]["elements"][0].get("html") is None

@@ -12,7 +12,8 @@ sys.path.insert(0, os.path.join(_SKILL, "scripts"))
 import cine_palette as cp  # noqa: E402
 
 _HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
-_TPLS = ["command-surface", "ignition-monument", "aurora-bloom", "liquid-model", "molten-ledger", "defrag", "rakelight"]
+_TPLS = ["command-surface", "ignition-monument", "aurora-bloom", "liquid-model", "molten-ledger", "defrag",
+         "doorway-gallery", "rakelight", "exploded-schematic"]  # all 9 — none may fall to the generic default
 
 
 @pytest.mark.parametrize("tpl", _TPLS)
@@ -43,6 +44,12 @@ def test_aurora_bloom_is_a_light_film():
     # a light ground (high luminance bg)
     r, g, b = cp._hex(pals[0]["bg"])
     assert (r + g + b) / 3 > 0.85
+
+
+def test_all_templates_have_bespoke_palettes_no_fallback():
+    # every catalogue template must map to its OWN palette function — none may silently route to _default
+    # (which would render a wrong-colour generic aurora and collapse the catalogue's variety).
+    assert cp.TEMPLATE_KEYS == set(cp._TEMPLATES), "a template key has no bespoke palette (falls to _default)"
 
 
 def test_unknown_template_falls_back_not_crashes():
