@@ -51,31 +51,31 @@ def test_known_archetype_is_clean():
     assert not any("archetype" in w for w in warns) and not errs
 
 
-# ── cross-scene design-variety lint ──
+# ── cross-scene design-variety lint (now ERROR-BLOCKS, not warns — the 3-arg signature reflects that) ──
 def test_variety_flags_one_archetype_dominating():
-    warns = []
-    v._design_variety_lint([{"index": i, "archetype": "metric-wall"} for i in range(1, 6)], warns)
-    assert any(">45%" in w for w in warns) and any("distinct" in w for w in warns)
+    errs, warns = [], []
+    v._design_variety_lint([{"index": i, "archetype": "metric-wall"} for i in range(1, 6)], errs, warns)
+    assert any(">45%" in e for e in errs) and any("distinct" in e for e in errs), "same-look film must BLOCK"
 
 
 def test_variety_flags_no_signature_beat():
-    warns = []
+    errs, warns = [], []
     slides = [{"index": 1, "archetype": "metric-wall"}, {"index": 2, "archetype": "process-flow"},
               {"index": 3, "archetype": "comparison-split"}, {"index": 4, "archetype": "system-map"}]
-    v._design_variety_lint(slides, warns)
-    assert any("signature/metaphor" in w for w in warns)
+    v._design_variety_lint(slides, errs, warns)
+    assert any("signature/metaphor" in e for e in errs)
 
 
 def test_variety_flags_back_to_back_repeat():
-    warns = []
-    v._design_variety_lint([{"index": 1, "archetype": "metric-wall"}, {"index": 2, "archetype": "metric-wall"}], warns)
-    assert any("back-to-back" in w for w in warns)
+    errs, warns = [], []
+    v._design_variety_lint([{"index": 1, "archetype": "metric-wall"}, {"index": 2, "archetype": "metric-wall"}], errs, warns)
+    assert any("back-to-back" in e for e in errs)
 
 
 def test_varied_film_with_a_signature_beat_is_clean():
-    warns = []
+    errs, warns = [], []
     slides = [{"index": 1, "archetype": "hero-on-void"}, {"index": 2, "archetype": "metaphor-mechanic"},
               {"index": 3, "archetype": "process-flow"}, {"index": 4, "archetype": "metric-wall"},
               {"index": 5, "archetype": "data-materializes"}]
-    v._design_variety_lint(slides, warns)
-    assert warns == []
+    v._design_variety_lint(slides, errs, warns)
+    assert errs == [] and warns == []

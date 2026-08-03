@@ -977,17 +977,31 @@ def available():
     return bool(shutil.which("npx")) and os.path.isdir(os.path.join(_REMOTION_DIR, "node_modules"))
 
 
-def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="error"):
+def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="error", no_plan=False):
     """Render the whole deck to out.mp4 (+ out.srt), or a single scene (sample=N) to sample.mp4 for the
     step-8 sign-off checkpoint. Fails loudly on non-image scenes (which would render blank)."""
+    path = os.path.join(out_dir, "storyboard.json")
+    data = sb.load(path)
+    # PLAN-TRACE (agent-workflow enforcement): a cinematic film must have been PLANNED by the pipeline. Require
+    # content_plan.json (the content-planner's output) in out_dir so a hand-authored storyboard can't silently
+    # SKIP the workflow — making "bypassable" into "walk the workflow, or opt out on purpose". Checked BEFORE the
+    # toolchain probe so a workflow violation fails fast (and is testable without Node). Escape with --no-plan /
+    # meta.no_plan for a deliberate hand-authored film.
+    _cine_deck = any(s.get("type") == "cinematic" for s in data.get("slides", []))
+    _no_plan = no_plan or bool((data.get("meta") or {}).get("no_plan"))
+    if _cine_deck and not _no_plan and not os.path.isfile(os.path.join(out_dir, "content_plan.json")):
+        raise RuntimeError(
+            "cinematic render has no content_plan.json — the agent workflow (content-planner -> design-director "
+            "-> scriptwriter -> design-critic, see SKILL.md) must run before a cinematic render, so the film is "
+            "actually PLANNED and DESIGNED, not hand-improvised. Hand-authoring on purpose? pass --no-plan (CLI) "
+            "or set meta.no_plan:true.")
+
     if not shutil.which("npx"):
         raise RuntimeError("Node/npx not found — the Remotion tier needs Node.js. Install Node, then "
                            "`cd %s && npm install`, or use the local renderer (meta.renderer=local)." % _REMOTION_DIR)
     if not os.path.isdir(os.path.join(_REMOTION_DIR, "node_modules")):
         raise RuntimeError("remotion/ deps not installed — run `cd %s && npm install` once." % _REMOTION_DIR)
 
-    path = os.path.join(out_dir, "storyboard.json")
-    data = sb.load(path)
     if sample is not None:                            # single-scene preview for the step-8 checkpoint
         data = {"meta": data.get("meta", {}), "slides": [s for s in data.get("slides", []) if s.get("index") == sample]}
         if not data["slides"]:
@@ -1154,8 +1168,10 @@ def main():
     ap.add_argument("--sample", type=int, default=None, help="render only scene N -> sample.mp4 (step-8 sign-off)")
     ap.add_argument("--reduced-motion", action="store_true")
     ap.add_argument("--log", default="error")
+    ap.add_argument("--no-plan", action="store_true",
+                    help="allow a hand-authored cinematic render with no content_plan.json (skip the agent-workflow trace)")
     a = ap.parse_args()
-    render(a.out_dir, vertical=a.vertical, reduced_motion=a.reduced_motion, sample=a.sample, log=a.log)
+    render(a.out_dir, vertical=a.vertical, reduced_motion=a.reduced_motion, sample=a.sample, log=a.log, no_plan=a.no_plan)
 
 
 if __name__ == "__main__":

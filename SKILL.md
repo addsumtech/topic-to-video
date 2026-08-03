@@ -161,6 +161,13 @@ TTS if the user gives an API key.
   the Node toolchain + a one-time `cd remotion && npm install` (doctor.py reports availability;
   `node_modules` is gitignored). Writes `out.mp4` + `out.srt`; the post-render `check_av.py` A/V gate
   still guards delivery (it degrades cleanly with no `.clips/`).
+  **Agent-workflow enforcement (cinematic tier):** a cinematic render REQUIRES `content_plan.json` in the
+  out_dir (the content-planner's output) — so a hand-authored storyboard can't silently skip the pipeline;
+  it errors with the fix unless you pass **`--no-plan`** (or set `meta.no_plan:true`) for a deliberate
+  hand-authored film. And `validate` now ERROR-blocks a cinematic film that records no `meta.template_contest`
+  at any audacity except `conservative`, and blocks a ≥4-beat film that fails archetype diversity (>45% one
+  archetype / <3 distinct / no signature beat / back-to-back repeats) — the workflow's novel-design intent,
+  made into hard gates where it can be decided mechanically (the rest stays design-critic D12 judgment).
   **Sound design (opt-in, `meta.sound_design:true`)** — a post-render two-track mix (`scripts/sfx.py`):
   SYNTHESIZED SFX cues (no API, no assets) pinned frame-exact to the beats + frequency-isolated (SFX
   highpass 800Hz, BGM lowpass 4kHz, `amix normalize=0`, loudnorm) under the voiceover; `meta.bgm` =

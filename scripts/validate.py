@@ -409,29 +409,31 @@ def _archetype_of(s):
     return str(s.get("archetype") or (s.get("props") or {}).get("archetype") or "")
 
 
-def _design_variety_lint(slides, warnings):
+def _design_variety_lint(slides, errors, warnings):
     """DESIGN-VARIETY across the film (cinematic tier): the ARCHETYPE (each beat's bespoke design) must vary
     — not just the camera. The backstop for the design-sameness failure (every beat = one glass panel
     reframed): no archetype on >45% of beats, >=3 distinct, >=1 signature/metaphor beat, no back-to-back
-    repeats. Advisory (warnings) — a strong film satisfies it, a lazy one gets told exactly why."""
+    repeats. These BLOCK (errors) on a >=4-archetype film — a lazy same-look film must not render. CAVEAT
+    kept honest: this reads the archetype STRING, not the rendered pixels, so 'labelled a different archetype
+    but built the identical panel' still needs design-critic D12h; this gate catches the declared-sameness case."""
     arches = [_archetype_of(s) for s in slides if _archetype_of(s)]
     if len(arches) >= 4:
         top, n = max(((a, arches.count(a)) for a in set(arches)), key=lambda kv: kv[1])
         if n / len(arches) > 0.45:
-            warnings.append("design-variety: archetype '%s' is on %d/%d cinematic beats (>45%%) — vary the "
-                            "per-beat DESIGN (references/shot-archetypes.md); every beat the same look is the "
-                            "design-sameness failure the tier exists to avoid" % (top, n, len(arches)))
+            errors.append("design-variety: archetype '%s' is on %d/%d cinematic beats (>45%%) — vary the "
+                          "per-beat DESIGN (references/shot-archetypes.md); every beat the same look is the "
+                          "design-sameness failure the tier exists to avoid" % (top, n, len(arches)))
         if len(set(arches)) < 3:
-            warnings.append("design-variety: only %d distinct archetype(s) across %d cinematic beats — a launch "
-                            "film needs a fresh design idea per beat (>=3 distinct)" % (len(set(arches)), len(arches)))
+            errors.append("design-variety: only %d distinct archetype(s) across %d cinematic beats — a launch "
+                          "film needs a fresh design idea per beat (>=3 distinct)" % (len(set(arches)), len(arches)))
         if not (_SIGNATURE_ARCHETYPES & set(arches)):
-            warnings.append("design-variety: no signature/metaphor beat (metaphor-mechanic / data-materializes / "
-                            "manifesto-monolith) — add >=1 so the film has a memorable, topic-locked moment")
+            errors.append("design-variety: no signature/metaphor beat (metaphor-mechanic / data-materializes / "
+                          "manifesto-monolith) — add >=1 so the film has a memorable, topic-locked moment")
     for a, b in zip(slides, slides[1:]):
         aa, bb = _archetype_of(a), _archetype_of(b)
         if aa and aa == bb:
-            warnings.append("design-variety: scenes #%s and #%s share archetype '%s' back-to-back — consecutive "
-                            "beats must reframe the DESIGN, not just the camera" % (a.get("index"), b.get("index"), aa))
+            errors.append("design-variety: scenes #%s and #%s share archetype '%s' back-to-back — consecutive "
+                          "beats must reframe the DESIGN, not just the camera" % (a.get("index"), b.get("index"), aa))
 _SHOT_MOTIONS = {"STATIC", "PUSH_IN", "PULL_OUT", "PAN_RIGHT", "PAN_LEFT", "TILT_UP", "TILT_DOWN",
                  "ORBIT_RIGHT", "ORBIT_LEFT", "RACK_FOCUS"}
 # MIRROR render_remotion._MOTION_ALIASES so the bare survey names the docs teach (PAN/TILT/ORBIT/…) pass
@@ -1177,7 +1179,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         pr = s.get("props") or {}
         return ((s.get("stage") or pr.get("stage")) and (s.get("shots") or pr.get("shots"))) \
             or (s.get("planes") or pr.get("planes")) or (s.get("layers") or pr.get("layers"))
-    _design_variety_lint(slides, warnings)
+    _design_variety_lint(slides, errors, warnings)
 
     cine = [s.get("index") for s in slides
             if s.get("type") in ("cinematic", "cinematic3d") or s.get("lens")
@@ -1270,14 +1272,18 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                 _tc = meta.get("template_contest")
                 _aud = str(meta.get("audacity") or "balanced").strip().lower()
                 if not (isinstance(_tc, dict) and _tc):
-                    if _aud in ("bold", "experimental"):
+                    # A contest is EXPECTED at every audacity except conservative (which deliberately SKIPS it —
+                    # see the contest-width rule: conservative skips · balanced 3 · bold 5 · experimental 7). So a
+                    # missing record ERRORs at balanced/bold/experimental (the default is balanced) and is only a
+                    # warning at conservative — a hardcoded single template must not pass as "the user picked it".
+                    if _aud != "conservative":
                         errors.append("cinematic film at audacity '%s' records no `meta.template_contest` — a "
                                       "single hardcoded template is not a contest; run STEP-0 (offer 2–4, user "
                                       "picks) and record {candidates:[>=2], winner, user_pick}" % _aud)
                     else:
-                        warnings.append("cinematic film records no `meta.template_contest` — the design-director "
-                                        "should offer 2–4 templates and record the user's pick {candidates, "
-                                        "winner, user_pick} (mechanical trace of the STEP-0 contest)")
+                        warnings.append("cinematic film at audacity 'conservative' records no `meta.template_contest` "
+                                        "— conservative may skip the contest, but recording {candidates, winner, "
+                                        "user_pick} still documents the STEP-0 choice")
                 else:
                     _cand = [str(c) for c in (_tc.get("candidates") or []) if isinstance(c, str)]
                     if len(_cand) < 2:
