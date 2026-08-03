@@ -244,7 +244,10 @@ to any topic by re-deriving ONE accent. **READ `references/cinematic-templates.m
    coherent looks, and they read premium *because* they are a disciplined grammar, not a one-off.
 2. **Offer the contenders to the user** with each template's one-line pitch (via the host's selectable-option
    prompt) — "根据主题给你几个大胆的电影级模板选一个". The user's pick becomes **`meta.cinematic_template`** (a
-   catalogue key) — validate errors on an unknown key, warns if absent.
+   catalogue key). **Record the contest** on `meta.template_contest = {candidates:[the ≥2 keys you offered],
+   winner:<the pick>, user_pick:true}` — validate errors on an unknown key, and (mirroring the register
+   contest) requires this record at bold/experimental audacity so a hardcoded single template can't pass as a
+   contest. Get `meta.template_contest.candidates` from `cine_palette` routing / the catalogue, never invent.
 3. **Instantiate** the chosen template: (a) set **`meta.accent`** (the brand/topic hue) — every colour world
    is a deterministic transform of it. DON'T hand-author aurora pages: put a **`colorWorld:{title,kicker,grad,
    sub}`** content spec on a `kind:"card"` element and the render pipeline GENERATES that beat's colour-world

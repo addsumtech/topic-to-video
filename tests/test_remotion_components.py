@@ -87,3 +87,31 @@ def test_color_worlds_noop_without_template(tmp_path):
         {"id": "cw", "kind": "card", "position": [0, 0, 0], "colorWorld": {"title": "x"}}]}}]}
     rr._generate_color_worlds(data, str(tmp_path))  # no template -> no-op, no crash
     assert data["slides"][0]["stage"]["elements"][0].get("html") is None
+
+
+# ── template contest mechanical trace (a hardcoded single template must not pass as a contest) ──────────
+def _cine(extra=None):
+    m = {"renderer": "remotion", "fps": 30, "cinematic_template": "defrag", "accent": "#37e0ff"}
+    m.update(extra or {})
+    return {"meta": m, "slides": [{"index": 1, "type": "cinematic", "archetype": "hero-on-void", "duration": 5,
+            "narration": "x", "stage": {"elements": [{"id": "a", "kind": "display", "text": "x", "position": [0, 0, 0]}]},
+            "shots": [{"type": "HERO", "target": "a"}]}]}
+
+
+def test_template_contest_required_at_bold_audacity():
+    r = v.evaluate(_cine({"audacity": "bold"}), "/tmp", pre_tts=True)
+    assert any("template_contest" in e for e in r["errors"]), "bold audacity must ERROR without a contest record"
+
+
+def test_template_contest_shape_validated():
+    r = v.evaluate(_cine({"template_contest": {"candidates": ["defrag"], "winner": "defrag"}}), "/tmp", pre_tts=True)
+    assert any("candidates" in e for e in r["errors"]), "<2 candidates must error"
+    r2 = v.evaluate(_cine({"template_contest": {"candidates": ["defrag", "command-surface"], "winner": "command-surface"}}),
+                    "/tmp", pre_tts=True)
+    assert any("winner" in e for e in r2["errors"]), "winner != chosen template must error"
+
+
+def test_valid_template_contest_passes():
+    r = v.evaluate(_cine({"audacity": "bold", "template_contest": {
+        "candidates": ["defrag", "command-surface"], "winner": "defrag", "user_pick": True}}), "/tmp", pre_tts=True)
+    assert not any("template_contest" in e for e in r["errors"]), "a valid contest record must pass"

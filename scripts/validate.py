@@ -1203,6 +1203,31 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                 warnings.append("meta.cinematic_template %r is set but meta.accent is not — the colour-world "
                                 "generator derives every beat's palette from the accent; set meta.accent (the "
                                 "brand/topic hue) so the template re-colours to this topic" % _tpl)
+            # TEMPLATE CONTEST trace (mirrors register_contest): the STEP-0 contest ("offer 2–4 → USER picks")
+            # should leave a record, else a hardcoded single template passes green with no user involvement.
+            # meta.template_contest = {candidates:[≥2 template keys], winner, user_pick}.
+            if _tpl is not None and str(_tpl) in _known:
+                _tc = meta.get("template_contest")
+                _aud = str(meta.get("audacity") or "balanced").strip().lower()
+                if not (isinstance(_tc, dict) and _tc):
+                    if _aud in ("bold", "experimental"):
+                        errors.append("cinematic film at audacity '%s' records no `meta.template_contest` — a "
+                                      "single hardcoded template is not a contest; run STEP-0 (offer 2–4, user "
+                                      "picks) and record {candidates:[>=2], winner, user_pick}" % _aud)
+                    else:
+                        warnings.append("cinematic film records no `meta.template_contest` — the design-director "
+                                        "should offer 2–4 templates and record the user's pick {candidates, "
+                                        "winner, user_pick} (mechanical trace of the STEP-0 contest)")
+                else:
+                    _cand = [str(c) for c in (_tc.get("candidates") or []) if isinstance(c, str)]
+                    if len(_cand) < 2:
+                        errors.append("meta.template_contest needs >=2 `candidates` — a contest is divergence")
+                    _win = _tc.get("winner")
+                    if _win is not None and str(_win) != str(_tpl):
+                        errors.append("meta.template_contest.winner %r != meta.cinematic_template %r — the winner "
+                                      "IS the chosen template" % (_win, _tpl))
+                    if _win is not None and _cand and str(_win) not in _cand:
+                        errors.append("meta.template_contest.winner %r is not among its candidates %s" % (_win, _cand))
 
     # meta.brand (user-supplied REAL assets — the mirror of the "never fabricate logos in generated
     # imagery" doctrine): render.py composites the corner bug from the raster file, and the cover/
