@@ -74,3 +74,44 @@ def test_color_helpers_roundtrip():
     assert _HEX.match(cp.rot("#7c5cff", 120))
     assert _HEX.match(cp.complement("#20c997"))
     assert cp.setl("#7c5cff", 0.5) != "#7c5cff"
+
+
+# ── the INSTANTIATOR: a template contributes STRUCTURE (arc/signature/transition), not just colour ──────
+def test_storyboard_skeleton_gives_structure():
+    sk = cp.storyboard_skeleton("command-surface", "#7c5cff", 5)
+    assert len(sk) == 5
+    assert sk[0]["is_signature"] and sk[-1]["is_signature"], "signature beat on first AND last frame"
+    assert all(b.get("archetype") and b.get("palette") and "transition" in b for b in sk)
+    assert sk[0]["transition"] == "none", "the first beat has no transition-IN"
+
+
+def test_skeleton_archetypes_are_all_valid():
+    import validate as _v
+    for t in cp._TEMPLATES:
+        for b in cp.storyboard_skeleton(t, "#20c997", 6):
+            assert b["archetype"] in _v._ARCHETYPES, "%s: unknown archetype %r" % (t, b["archetype"])
+
+
+def test_skeleton_preserves_arc_opening_and_close():
+    # proportional sampling keeps the arc's first + last archetype at the film's first + last beat
+    for t, spec in cp._ARCS.items():
+        sk = cp.storyboard_skeleton(t, "#7c5cff", 4)
+        assert sk[0]["archetype"] == spec["arc"][0] and sk[-1]["archetype"] == spec["arc"][-1]
+
+
+def test_every_template_has_an_arc():
+    assert set(cp._ARCS) == set(cp._TEMPLATES), "every template needs a beat-arc for the instantiator"
+
+
+def test_derive_never_returns_empty():
+    for t in cp._TEMPLATES:
+        assert len(cp.derive("#7c5cff", t, 3)) == 3
+
+
+def test_substrate_templates_may_be_mono_by_design():
+    # defrag/rakelight/exploded are DELIBERATELY a fixed substrate (variety = archetype/light, not hue). This
+    # is not a bug — guard that they still return valid palettes so nobody "fixes" the single-substrate away.
+    import json as _j
+    for t in ("defrag", "rakelight", "exploded-schematic"):
+        pals = cp.derive("#7c5cff", t, 5)
+        assert len({_j.dumps(p, sort_keys=True) for p in pals}) >= 1 and _HEX.match(pals[0]["bg"])

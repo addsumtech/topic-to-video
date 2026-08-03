@@ -1196,6 +1196,13 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                                 "the film gets a bold, coherent, generalisable look, not an ad-hoc concept")
             elif str(_tpl) not in _known:
                 errors.append("unknown meta.cinematic_template %r (known: %s)" % (_tpl, sorted(_known)))
+            elif not meta.get("accent"):
+                # the colour-world generator (render_remotion._generate_color_worlds -> cine_palette) derives
+                # every beat's palette from meta.accent; without it, `colorWorld` cards fall back to the theme
+                # accent and the template's colour intent is lost.
+                warnings.append("meta.cinematic_template %r is set but meta.accent is not — the colour-world "
+                                "generator derives every beat's palette from the accent; set meta.accent (the "
+                                "brand/topic hue) so the template re-colours to this topic" % _tpl)
 
     # meta.brand (user-supplied REAL assets — the mirror of the "never fabricate logos in generated
     # imagery" doctrine): render.py composites the corner bug from the raster file, and the cover/

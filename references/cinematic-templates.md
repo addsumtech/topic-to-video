@@ -37,15 +37,28 @@ Each template is a FIXED grammar + ONE re-derived accent. Instantiation:
 2. **Pull one deck accent A** — the brand/topic hue (`theme.py --accent`, or sampled). Every palette is a
    **deterministic transform of A** (per the template's colour system below) — so the film is on-brand and a
    different topic/accent yields a different-looking, on-topic film with zero new hand-authoring.
-3. **Generate the per-beat colour worlds** with `scripts/cine_palette.py` (accent + template key → the
-   per-beat `{bg, blobs, accent}` palettes + the aurora backplane pages). Never hand-author aurora pages.
-4. **Fill the beat arc** (below) with the topic's real content (from the content plan) — each beat a
-   DIFFERENT archetype (references/shot-archetypes.md), so no two beats look alike.
+3. **Generate the beat STRUCTURE + colour worlds** with `scripts/cine_palette.py` —
+   `storyboard_skeleton(template, accent, n)` returns per-beat `{archetype, palette, transition,
+   is_signature}` (the template's arc + generated palette), and a `colorWorld:{title,kicker,grad,sub}` on a
+   `card` element makes `render_remotion._generate_color_worlds` GENERATE that beat's aurora page from the
+   accent+template automatically. Never hand-author aurora pages.
+4. **Fill the beat arc** with the topic's real content (from the content plan) — each beat a DIFFERENT
+   archetype (references/shot-archetypes.md), so no two beats look alike.
 5. **Bind with the template's SIGNATURE element + TRANSITION grammar** (below).
 
 `meta.cinematic_template` (a key from this catalogue) + `meta.accent` are the only knobs the look needs;
 the palette engine + the arc do the rest. Semantic colours (go/info/alert, gain/loss, growth/attention,
 warm=raw/cool=resolved) are FIXED per template so the film reads sound-off across any accent.
+
+**Two colour families — variety comes from DIFFERENT places, and that is by design.** (a) *Aurora-family*
+(Ignition, Aurora Bloom, Doorway, Liquid) — each beat is its OWN colour world; the per-beat palettes visibly
+shift (a cool→hot ramp, room tones, fluid poles). (b) *Substrate templates* (Command Surface graphite, Molten
+Ledger obsidian, Defrag FUI, Rakelight one-light, Exploded blueprint) — the substrate is DELIBERATELY fixed
+and near-mono; variety comes from the **archetype, the light, and the accent-by-role** (go/info/alert, gain/
+loss, the one hot part), NOT per-beat hue. So a substrate template returning one repeated palette is CORRECT —
+do not force colour variety on it; enforce variety through the archetype spread + the light rig instead. The
+anti-boring guarantee is the archetype-diversity lint (`validate._design_variety_lint`) + design-critic D12j,
+never a blanket "adjacent hues must differ" rule.
 
 ## The 9 templates
 

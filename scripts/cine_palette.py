@@ -247,6 +247,41 @@ def aurora_page(pal, skill_dir, out_dir, title="", kicker="", grad_words="", sub
     return html
 
 
+# ── the STRUCTURAL half: each template's beat ARC + signature + seam, as DATA (not prose) ────────────────
+# So a template contributes STRUCTURE (which archetype per beat, the through-line, the transition), turning
+# "template-driven" from colour-only into real. Arcs mirror references/cinematic-templates.md.
+_ARCS = {
+    "command-surface":   {"arc": ["hero-on-void", "metaphor-mechanic", "manifesto-monolith", "process-flow", "data-materializes", "hero-on-void"], "transition": "collapse-aperture", "signature": "the blinking caret / prompt line"},
+    "ignition-monument": {"arc": ["manifesto-monolith", "metaphor-mechanic", "manifesto-monolith", "data-materializes", "quote-testament", "hero-on-void"], "transition": "match-cut", "signature": "the hot line"},
+    "molten-ledger":     {"arc": ["device-focus", "hero-on-void", "data-materializes", "metaphor-mechanic", "metric-wall", "hero-on-void"], "transition": "collapse-to-line", "signature": "the molten ledger line"},
+    "aurora-bloom":      {"arc": ["hero-on-void", "data-materializes", "metaphor-mechanic", "metric-wall", "system-map", "hero-on-void"], "transition": "aperture-bloom", "signature": "light as medium"},
+    "liquid-model":      {"arc": ["hero-on-void", "manifesto-monolith", "system-map", "comparison-split", "data-materializes", "hero-on-void"], "transition": "liquid-dissolve", "signature": "the one iridescent material"},
+    "defrag":            {"arc": ["hero-on-void", "system-map", "metric-wall", "data-materializes", "comparison-split", "manifesto-monolith"], "transition": "boot", "signature": "the reticle + horizon-grid"},
+    "doorway-gallery":   {"arc": ["hero-on-void", "device-focus", "manifesto-monolith", "metric-wall", "metaphor-mechanic", "quote-testament"], "transition": "wipe", "signature": "the frame + the moving light"},
+    "rakelight":         {"arc": ["hero-on-void", "turntable-material", "device-focus", "exploded-assemble", "metaphor-mechanic", "manifesto-monolith"], "transition": "blackout-rake", "signature": "the travelling blade of light"},
+    "exploded-schematic": {"arc": ["device-focus", "exploded-assemble", "device-focus", "metric-wall", "comparison-split", "exploded-assemble"], "transition": "explode-assemble", "signature": "the measurement HUD"},
+}
+
+
+def storyboard_skeleton(template, accent, n_beats):
+    """The INSTANTIATOR: return per-beat STRUCTURAL specs from the template's arc + generated palettes, so a
+    template contributes archetype/signature/transition, not just colour. The arc is sampled proportionally so
+    a shorter/longer film keeps the opening→climax→close shape. The design-director fills each beat's content
+    (title/kicker/…) and reads `archetype`/`palette`/`transition`/`is_signature` off each returned dict."""
+    tpl = str(template)
+    spec = _ARCS.get(tpl, {"arc": ["hero-on-void"], "transition": "dip", "signature": "hero"})
+    arc = spec["arc"]
+    pals = derive(accent, tpl, n_beats)
+    out = []
+    for i in range(max(1, int(n_beats))):
+        j = round(i * (len(arc) - 1) / max(1, n_beats - 1)) if n_beats > 1 else 0
+        out.append({"beat": i, "archetype": arc[min(j, len(arc) - 1)], "palette": pals[i],
+                    "transition": spec["transition"] if i > 0 else "none",
+                    "is_signature": (i == 0 or i == n_beats - 1),
+                    "signature_element": spec["signature"]})
+    return out
+
+
 if __name__ == "__main__":                                    # tiny CLI: preview a template's palette ramp
     import sys, json
     acc = sys.argv[1] if len(sys.argv) > 1 else "#7c5cff"
