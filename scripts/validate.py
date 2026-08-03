@@ -498,6 +498,12 @@ def _shot_stage_fields(stage, shots, tag, errors, warnings):
                 errors.append(f"{tag}: stage element {eid!r} `position` must be [x,y,z] numbers")
             elif any(isinstance(v, float) and not math.isfinite(v) for v in pos):
                 errors.append(f"{tag}: stage element {eid!r} position has a NaN/Infinity — not renderable")
+        # connector target-BY-ID: a `to` naming an element must name a STAGED one (mirror _clean_stage's
+        # fail-loud so the dangling id is caught at the ~1s gate, not after a multi-minute render).
+        for el in stage["elements"]:
+            if isinstance(el, dict) and el.get("kind") == "connector" and isinstance(el.get("to"), str):
+                if el["to"] not in ids:
+                    errors.append(f"{tag}: connector {el.get('id')!r} `to` target id {el['to']!r} is not a staged element")
     if not isinstance(shots, list) or not shots:
         errors.append(f"{tag}: shot-based `shots` must be a non-empty list"); return
     for j, sh in enumerate(shots):

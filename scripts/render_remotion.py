@@ -154,12 +154,20 @@ def _clean_stage(stage, tag):
         for _fk in ("enterAtFrame", "collapseAtFrame", "sweepSpan", "lockAtFrame", "drawAtFrame"):
             if el.get(_fk) is not None:
                 c[_fk] = int(round(_num(el[_fk], "%s element %r %s" % (tag, eid, _fk))))
-        for _tk in ("sweep", "to"):                          # 2-number tuples (spotlight sweep / connector end)
-            if el.get(_tk) is not None:
-                tv = el[_tk]
-                if not (isinstance(tv, list) and len(tv) == 2):
-                    raise RuntimeError("cinematic %s element %r: `%s` must be [a,b]" % (tag, eid, _tk))
-                c[_tk] = [_num(tv[k], "%s element %r %s[%d]" % (tag, eid, _tk, k)) for k in range(2)]
+        if el.get("sweep") is not None:                      # spotlight sweep: a 2-number [a,b] tuple
+            tv = el["sweep"]
+            if not (isinstance(tv, list) and len(tv) == 2):
+                raise RuntimeError("cinematic %s element %r: `sweep` must be [a,b]" % (tag, eid))
+            c["sweep"] = [_num(tv[k], "%s element %r sweep[%d]" % (tag, eid, k)) for k in range(2)]
+        if el.get("to") is not None:                         # connector end: a [dx,dy] offset OR a target id
+            tv = el["to"]
+            if isinstance(tv, str):                          # target-by-id: resolved to the delta after the loop
+                c["to"] = tv                                 # (defer — the target's position may come later)
+            elif isinstance(tv, list) and len(tv) == 2:
+                c["to"] = [_num(tv[k], "%s element %r to[%d]" % (tag, eid, k)) for k in range(2)]
+            else:
+                raise RuntimeError("cinematic %s element %r: `to` must be [dx,dy] or a target element id"
+                                   % (tag, eid))
         if el.get("arrow") is not None:
             c["arrow"] = bool(el["arrow"])
         if el.get("size") is not None:                       # image [w,h] px in stage space (fail-loud numeric)
@@ -195,6 +203,19 @@ def _clean_stage(stage, tag):
             if c.get("verbSpan") is not None:                # floor at 1 frame: span 0 -> u=(f-fire)/0=NaN at
                 c["verbSpan"] = max(1, c["verbSpan"])        # frame==fire (prints 'NaN'); negative freezes the verb
         out.append(c)
+    # Resolve connector target-BY-ID: a `to` given as an element id becomes the [dx,dy] delta from the
+    # connector's position to the target's (same y-down px space the SVG draws in — translate3d maps
+    # position[1] straight to CSS translateY, so no sign flip). Deferred to here because a connector may
+    # point at an element declared LATER in the list. Fail-loud on a dangling id (a mistyped target that
+    # silently drew a stub line would look like a real diagram — exactly the mystery-furniture failure).
+    _by_id = {c["id"]: c["position"] for c in out}
+    for c in out:
+        if isinstance(c.get("to"), str):
+            tgt = _by_id.get(c["to"])
+            if tgt is None:
+                raise RuntimeError("cinematic %s connector %r: `to` target id %r is not a staged element"
+                                   % (tag, c["id"], c["to"]))
+            c["to"] = [tgt[0] - c["position"][0], tgt[1] - c["position"][1]]
     persp = stage.get("perspective")
     cleaned = {"elements": out}
     if persp is not None:

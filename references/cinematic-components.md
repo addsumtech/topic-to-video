@@ -103,7 +103,7 @@ These render natively in `elements.tsx` (no dep, pure `useCurrentFrame`), each a
 | `card` (Path-A) | a designed HTML page (incl. a **`cine_palette.aurora_page`**-GENERATED colour world) textured onto a plane | `html`, `size`, `enterMotion` (`materialize`/`aperture`) | every template's colour worlds |
 | `spotlight` | a travelling POOL OF LIGHT (light as a moving character) | `sweep:[a,b]`, `sweepSpan`, `hue` | Doorway → Gallery, Rakelight |
 | `hud` | frame-driven FUI — corner reticle brackets + a centre crosshair that hunts→LOCKS + a corner status readout | `hudLabel`, `hudStatus`, `lockAtFrame` | Defrag, Exploded Schematic |
-| `connector` | a line/arrow that DRAWS ON (stroke-dashoffset) from this position `to` a point | `to:[x,y]`, `arrow`, `strokeColor`, `drawAtFrame` | system-map, process-flow, Exploded (leader lines) |
+| `connector` | a line/arrow that DRAWS ON (stroke-dashoffset) from this position `to` a point OR another element | `to:[dx,dy]` **or** `to:"<target id>"` (resolved to the delta — wire nodes without hand-math; dangling id fails loud), `arrow`, `strokeColor`, `drawAtFrame` | system-map, process-flow, Exploded (leader lines) |
 
 Entrances: `enterMotion:"materialize"` (a slide flies out) · `"aperture"` (the world blooms open from a centre
 line, via scaleY). DoF is OPT-IN (`scene.dof`, default OFF = crisp). Colour worlds are GENERATED — call

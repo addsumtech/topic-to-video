@@ -53,6 +53,40 @@ def test_bad_tuple_fails_loud(tmp_path):
         rr.build_props(_board([el]), str(tmp_path))
 
 
+def test_connector_to_by_id_resolves_to_delta(tmp_path):
+    # a connector whose `to` is another element's ID becomes the [dx,dy] delta between their positions,
+    # so a diagram can wire nodes without the author hand-computing offsets (system-map professional layout).
+    conn = {"id": "c", "kind": "connector", "position": [100, 40, 0], "to": "node", "arrow": True}
+    node = {"id": "node", "kind": "display", "text": "x", "position": [460, 120, 0]}
+    out = rr.build_props(_board([conn, node]), str(tmp_path))["scenes"][0]["stage"]["elements"]
+    c = next(e for e in out if e["id"] == "c")
+    assert c["to"] == [360, 80], "to-by-id must resolve to target.pos - conn.pos (y-down, no flip)"
+
+
+def test_connector_to_by_id_can_point_forward(tmp_path):
+    # the target may be declared LATER in the list — resolution is deferred to after the whole stage is read.
+    conn = {"id": "c", "kind": "connector", "position": [0, 0, 0], "to": "later"}
+    later = {"id": "later", "kind": "display", "text": "x", "position": [200, 0, 0]}
+    out = rr.build_props(_board([conn, later]), str(tmp_path))["scenes"][0]["stage"]["elements"]
+    assert next(e for e in out if e["id"] == "c")["to"] == [200, 0]
+
+
+def test_connector_to_by_dangling_id_fails_loud(tmp_path):
+    conn = {"id": "c", "kind": "connector", "position": [0, 0, 0], "to": "ghost"}
+    with pytest.raises(RuntimeError, match="not a staged element"):
+        rr.build_props(_board([conn]), str(tmp_path))
+
+
+def test_connector_dangling_id_caught_at_validate_gate():
+    # the same dangling target must ERROR at the ~1s validate gate, not only after the render starts.
+    d = _cine()
+    d["slides"][0]["stage"]["elements"] = [
+        {"id": "c", "kind": "connector", "position": [0, 0, 0], "to": "ghost"},
+        {"id": "a", "kind": "display", "text": "x", "position": [0, 0, 0]}]
+    r = v.evaluate(d, "/tmp", pre_tts=True)
+    assert any("ghost" in e and "not a staged element" in e for e in r["errors"])
+
+
 def test_component_branches_present_in_tsx():
     el = open(os.path.join(_SKILL, "remotion", "src", "stage", "elements.tsx"), encoding="utf-8").read()
     assert "kind === 'spotlight'" in el and "kind === 'hud'" in el and "kind === 'connector'" in el
