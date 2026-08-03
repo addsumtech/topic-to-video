@@ -91,6 +91,24 @@ Copy-paste kits; each component must be checked for frame-safety before use.
 | Product mockup / video-in-3D | `@remotion/three` `useOffthreadVideoTexture` on a plane | B (P6) | frame-safe (video texture only) |
 | Bloom / glow | `@remotion/skia` | B | separate canvas — won't flatten 3D |
 
+## 5b. NATIVE frame-driven components (already built — reach for these first)
+
+These render natively in `elements.tsx` (no dep, pure `useCurrentFrame`), each a `kind` on a `stage.element`:
+
+| kind | what | key fields | powers templates |
+|---|---|---|---|
+| `terminal` | a streaming CLI (lines reveal, newest types, blinking cursor, ✓/✗) + `collapseAtFrame` (collapse-to-line) | `lines[]`, `lineDelay`, `termTitle`, `collapseAtFrame` | Command Surface, Defrag (boot) — **once, as a cold-open trigger** |
+| `display` | giant kinetic statement type (200px), entrance `attitude` | `text`, `attitude` (rise/tracking-in/blur-in) | Ignition, Command, any monolith |
+| `metaphor` | a materialized verb (fill/gap/fall/diverge/converge) | `concept`, `values`, `unit` | any "the shape IS the meaning" beat |
+| `card` (Path-A) | a designed HTML page (incl. a **`cine_palette.aurora_page`**-GENERATED colour world) textured onto a plane | `html`, `size`, `enterMotion` (`materialize`/`aperture`) | every template's colour worlds |
+| `spotlight` | a travelling POOL OF LIGHT (light as a moving character) | `sweep:[a,b]`, `sweepSpan`, `hue` | Doorway → Gallery, Rakelight |
+| `hud` | frame-driven FUI — corner reticle brackets + a centre crosshair that hunts→LOCKS + a corner status readout | `hudLabel`, `hudStatus`, `lockAtFrame` | Defrag, Exploded Schematic |
+| `connector` | a line/arrow that DRAWS ON (stroke-dashoffset) from this position `to` a point | `to:[x,y]`, `arrow`, `strokeColor`, `drawAtFrame` | system-map, process-flow, Exploded (leader lines) |
+
+Entrances: `enterMotion:"materialize"` (a slide flies out) · `"aperture"` (the world blooms open from a centre
+line, via scaleY). DoF is OPT-IN (`scene.dof`, default OFF = crisp). Colour worlds are GENERATED — call
+`scripts/cine_palette.py aurora_page(pal,…)` per beat, never hand-author.
+
 ## 6. Adoption checklist (run BEFORE `npm install` anything)
 
 1. **Version compat** with the stack: React 18.3.1 · Remotion 4.0.486 · @react-three/fiber 8.17.10 ·

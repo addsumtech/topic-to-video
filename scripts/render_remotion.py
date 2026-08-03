@@ -117,7 +117,8 @@ _MOTION_ALIASES = {"PAN": "PAN_RIGHT", "TILT": "TILT_UP", "ORBIT": "ORBIT_RIGHT"
                    "DOLLY": "PUSH_IN", "ZOOM": "PUSH_IN", "PUSH": "PUSH_IN", "PULL": "PULL_OUT"}
 # element content fields passed through verbatim (strings) — geometry (position) is coerced numeric.
 _ELEM_STR = ("kind", "title", "kicker", "sub", "text", "heroText", "src", "html", "label", "align", "level",
-             "fit", "frame", "frameLabel", "concept", "unit", "attitude", "termTitle", "enterMotion")  # `html` = a Path-A form page (to
+             "fit", "frame", "frameLabel", "concept", "unit", "attitude", "termTitle", "enterMotion",
+             "hue", "hudLabel", "hudStatus", "strokeColor")  # `html` = a Path-A form page (to
 #            `src` at render); `concept` = a materialized-metaphor verb; frame = device/browser chrome
 _METAPHOR = {"widening-gap", "physical-fall", "filling-vessel", "diverging-pair", "converging-scatter"}
 # how many `values` each concept needs (None = any non-empty list)
@@ -150,9 +151,17 @@ def _clean_stage(stage, tag):
         for key in _ELEM_STR:
             if el.get(key) is not None:
                 c[key] = str(el[key])
-        for _fk in ("enterAtFrame", "collapseAtFrame"):
+        for _fk in ("enterAtFrame", "collapseAtFrame", "sweepSpan", "lockAtFrame", "drawAtFrame"):
             if el.get(_fk) is not None:
                 c[_fk] = int(round(_num(el[_fk], "%s element %r %s" % (tag, eid, _fk))))
+        for _tk in ("sweep", "to"):                          # 2-number tuples (spotlight sweep / connector end)
+            if el.get(_tk) is not None:
+                tv = el[_tk]
+                if not (isinstance(tv, list) and len(tv) == 2):
+                    raise RuntimeError("cinematic %s element %r: `%s` must be [a,b]" % (tag, eid, _tk))
+                c[_tk] = [_num(tv[k], "%s element %r %s[%d]" % (tag, eid, _tk, k)) for k in range(2)]
+        if el.get("arrow") is not None:
+            c["arrow"] = bool(el["arrow"])
         if el.get("size") is not None:                       # image [w,h] px in stage space (fail-loud numeric)
             sz = el["size"]
             if not (isinstance(sz, list) and len(sz) == 2):

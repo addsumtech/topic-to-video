@@ -7,7 +7,7 @@ import type {Theme} from '../Video';
 import {textStyle} from '../theme/typography';
 import {KineticText} from '../theme/KineticText';
 
-export type ElementKind = 'panel' | 'image' | 'textblock' | 'callout' | 'grid' | 'floor' | 'hero' | 'fill' | 'metaphor' | 'display' | 'terminal';
+export type ElementKind = 'panel' | 'image' | 'textblock' | 'callout' | 'grid' | 'floor' | 'hero' | 'fill' | 'metaphor' | 'display' | 'terminal' | 'spotlight' | 'hud' | 'connector';
 export type TypeAttitude = 'rise' | 'tracking-in' | 'blur-in'; // the entrance personality of a display statement
 
 // MATERIALIZED METAPHOR (the highest-yield topic-locked novelty): a beat's MEANING encoded as a visual
@@ -82,6 +82,16 @@ export type ElementData = {
   // Entrance: 'materialize' = a card scales+rises+fades in; 'aperture' = the world BLOOMS OPEN from a centre
   // horizontal slit (clip-path) — the terminal collapse line tearing open into the next scene.
   enterMotion?: 'materialize' | 'aperture' | 'none';
+  // Spotlight (kind:'spotlight'): a travelling pool of light — light as a moving character (Doorway/Rakelight).
+  sweep?: [number, number]; // light-centre x travels start→end as a fraction of the frame half-width [-1..1]
+  sweepSpan?: number;       // frames the sweep takes (default 100)
+  hue?: string;             // light colour (default warm white)
+  // HUD (kind:'hud'): frame-driven FUI — corner reticle brackets + a centre crosshair that hunts and LOCKS +
+  // a monospace corner status readout (Defrag / Exploded professional layout).
+  hudLabel?: string; hudStatus?: string; lockAtFrame?: number;
+  // Connector (kind:'connector'): a line/arrow from this element's position to `to`, DRAWING ON from drawAtFrame
+  // (stroke-dashoffset) — for process-flow / system-map diagrams.
+  to?: [number, number]; arrow?: boolean; strokeColor?: string; drawAtFrame?: number;
   // Kinetic typography: the scene-local frame at which this element's text reveals in (default 0).
   enterAtFrame?: number;
 };
@@ -241,6 +251,69 @@ const ElementContent: React.FC<{
                        boxShadow: `0 0 ${16 + cpe * 90}px ${cpe * 34}px rgba(180,255,205,${cpe})`}} />
         ) : null}
       </div>
+    );
+  }
+
+  if (kind === 'spotlight') {
+    // A travelling POOL OF LIGHT — light as a moving character. Its centre glides across the frame; content
+    // beneath it lifts out of the dark. (Doorway → Gallery, Rakelight, "light as a moving element".)
+    const [sx, ex] = element.sweep || [-0.55, 0.55];
+    const span = element.sweepSpan ?? 100;
+    const t = reducedMotion ? 0.5 : clamp01((frame - enter) / Math.max(1, span));
+    const cx = 50 + (sx + (ex - sx) * easeOut(t)) * 50;
+    const hue = element.hue || '#fff6e6';
+    return (
+      <div style={{position: 'absolute', left: '50%', top: '50%', width: 3400, height: 2300,
+                   transform: 'translate(-50%, -50%)', mixBlendMode: 'screen',
+                   background: `radial-gradient(42% 62% at ${cx}% 47%, ${hue}30 0%, ${hue}14 24%, transparent 56%)`}} />
+    );
+  }
+
+  if (kind === 'hud') {
+    // Frame-driven FUI: corner reticle brackets + a centre crosshair that HUNTS then LOCKS + a corner status
+    // readout (Defrag / Exploded Schematic professional layout). Pure function of frame.
+    const c = theme.accent2 || theme.accent;
+    const lock = element.lockAtFrame;
+    const lp = lock != null && !reducedMotion ? clamp01((frame - lock) / 12) : 1;
+    const hunt = reducedMotion || lock == null ? 0 : (frame < lock ? Math.sin(frame / 5) * 10 * (1 - lp) : 0);
+    const ret = 96 - lp * 30;
+    const bracket = (x: number, y: number, dx: number, dy: number) =>
+      `M ${x} ${y + dy * 30} L ${x} ${y} L ${x + dx * 30} ${y}`;
+    return (
+      <div style={{position: 'absolute', left: '50%', top: '50%', width: 1920, height: 1080, transform: 'translate(-50%,-50%)', fontFamily: '"JetBrains Mono", monospace'}}>
+        <svg width={1920} height={1080} style={{position: 'absolute', inset: 0}} fill="none" stroke={c} strokeWidth={3}>
+          <path d={bracket(64, 64, 1, 1)} /><path d={bracket(1856, 64, -1, 1)} />
+          <path d={bracket(64, 1016, 1, -1)} /><path d={bracket(1856, 1016, -1, -1)} />
+        </svg>
+        <svg width={ret * 2} height={ret * 2} style={{position: 'absolute', left: 960 + hunt, top: 540 + hunt * 0.6, transform: 'translate(-50%,-50%)'}} stroke={c} strokeWidth={2} fill="none">
+          <circle cx={ret} cy={ret} r={ret - 6} opacity={0.6} />
+          <line x1={ret} y1={2} x2={ret} y2={16} /><line x1={ret} y1={ret * 2 - 16} x2={ret} y2={ret * 2 - 2} />
+          <line x1={2} y1={ret} x2={16} y2={ret} /><line x1={ret * 2 - 16} y1={ret} x2={ret * 2 - 2} y2={ret} />
+        </svg>
+        <div style={{position: 'absolute', left: 78, top: 96, color: c, fontSize: 23, letterSpacing: '.10em'}}>
+          {element.hudLabel || 'SYS'} <span style={{color: theme.muted}}>· {lock != null && lp >= 1 ? 'LOCK' : 'SCAN'}</span>
+        </div>
+        {element.hudStatus ? <div style={{position: 'absolute', right: 78, top: 96, color: theme.muted, fontSize: 21, textAlign: 'right'}}>{element.hudStatus}</div> : null}
+      </div>
+    );
+  }
+
+  if (kind === 'connector') {
+    // A line/arrow from this position to `to`, DRAWING ON (stroke-dashoffset) from drawAtFrame — diagrams.
+    const [tx, ty] = element.to || [300, 0];
+    const dl = element.drawAtFrame ?? enter;
+    const p = reducedMotion ? 1 : clamp01((frame - dl) / 18);
+    const len = Math.hypot(tx, ty) || 1;
+    const col = element.strokeColor || theme.accent2 || theme.accent;
+    return (
+      <svg style={{position: 'absolute', overflow: 'visible'}} width={Math.abs(tx) + 40} height={Math.abs(ty) + 40}>
+        <line x1={0} y1={0} x2={tx} y2={ty} stroke={col} strokeWidth={3} strokeLinecap="round"
+              strokeDasharray={len} strokeDashoffset={len * (1 - p)} />
+        {element.arrow && p > 0.96 ? (
+          <polygon points={`${tx},${ty} ${tx - 16},${ty - 7} ${tx - 16},${ty + 7}`} fill={col}
+                   transform={`rotate(${(Math.atan2(ty, tx) * 180) / Math.PI} ${tx} ${ty})`} />
+        ) : null}
+      </svg>
     );
   }
 
