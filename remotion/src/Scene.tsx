@@ -34,6 +34,7 @@ export type SceneData = {
   stage?: StageData | null;
   shots?: ShotSpec[] | null;
   motionAmp?: number; // motion_personality amplitude scale (default 1)
+  dof?: boolean; // rack-focus DoF opt-in (default OFF = crisp)
   camera?: CameraKeyframe[] | null;
   lens?: LensKeyframe[] | null;
   perspective?: number | null;
@@ -92,6 +93,7 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
         fadeInFrames={scene.fadeInFrames}
         fadeOutFrames={scene.fadeOutFrames}
         motionAmp={scene.motionAmp}
+        dof={scene.dof}
       />
     );
   }

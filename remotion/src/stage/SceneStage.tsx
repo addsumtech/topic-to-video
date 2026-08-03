@@ -32,6 +32,8 @@ export type SceneStageProps = {
   fadeInFrames?: number;
   fadeOutFrames?: number;
   motionAmp?: number; // motion_personality amplitude scale (default 1)
+  dof?: boolean; // rack-focus DoF — OPT-IN per scene (default OFF = crisp). A global-default blur read as an
+                 // inconsistent "some sharp, some smeared" mess; depth now comes from parallax + colour haze.
 };
 
 export const SceneStage: React.FC<SceneStageProps> = ({
@@ -45,6 +47,7 @@ export const SceneStage: React.FC<SceneStageProps> = ({
   fadeInFrames,
   fadeOutFrames,
   motionAmp,
+  dof = false,
 }) => {
   const frame = useCurrentFrame();
   const {durationInFrames, width, height} = useVideoConfig();
@@ -85,7 +88,7 @@ export const SceneStage: React.FC<SceneStageProps> = ({
             // rack focus: soften planes off the focal z. The blur is passed INTO Element, which applies it
             // on an inner leaf — NOT on a wrapper here. A wrapper div (default transform-style: flat) placed
             // above the element's translate3d node would collapse all per-element depth to one plane.
-            const blur = focusZ != null ? computeDofBlur(el.position[2], focusZ) : 0;
+            const blur = dof && focusZ != null ? computeDofBlur(el.position[2], focusZ) : 0;
             return (
               <Element key={el.id} element={el} theme={theme} frame={frame} reducedMotion={reduced} blur={blur} />
             );
@@ -104,7 +107,8 @@ export const SceneStage: React.FC<SceneStageProps> = ({
 
 // Depth-of-field blur for a plane at distance from the focal z (matches Camera.tsx planeBlur).
 function computeDofBlur(elementZ: number, focusZ: number): number {
-  return Math.min(14, Math.abs(elementZ - focusZ) / 120);
+  // Gentle + capped so the subject AND its near neighbours stay sharp — only truly-distant planes soften.
+  return Math.min(4, Math.abs(elementZ - focusZ) / 260);
 }
 
 // Scene-edge fade (matches Camera.tsx edgeOpacity — clamped interpolate, strictly increasing ranges).

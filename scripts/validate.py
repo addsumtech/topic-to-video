@@ -392,7 +392,7 @@ def _figure_traceability(slides, out_dir, warnings):
 _CINE_KINDS = {"fill", "grid", "floor", "hero", "panel", "image"}
 _CINE_EASINGS = {"linear", "in", "out", "inout", "house"}  # `house` = the shared premium expo-out settle (default)
 _SHOT_TYPES = {"ESTABLISH", "MEDIUM", "CLOSEUP", "OVER_SHOULDER", "REVEAL", "HERO"}
-_ELEM_KINDS = {"panel", "image", "textblock", "callout", "grid", "floor", "hero", "fill", "card", "metaphor", "display"}  # ElementKind (elements.tsx); card=Path-A html form, metaphor=materialized verb, display=giant kinetic type
+_ELEM_KINDS = {"panel", "image", "textblock", "callout", "grid", "floor", "hero", "fill", "card", "metaphor", "display", "terminal"}  # ElementKind (elements.tsx); card=Path-A html form, metaphor=materialized verb, display=giant kinetic type, terminal=frame-driven streaming CLI
 _METAPHOR_CONCEPTS = {"widening-gap", "physical-fall", "filling-vessel", "diverging-pair", "converging-scatter"}
 _METAPHOR_ARITY = {"widening-gap": 2, "physical-fall": 2, "filling-vessel": 1, "diverging-pair": 2}
 # The per-beat DESIGN axis (references/shot-archetypes.md). Chosen per cinematic scene; MUST vary across the
@@ -491,6 +491,8 @@ def _shot_stage_fields(stage, shots, tag, errors, warnings):
             if k == "display" and el.get("attitude") is not None and str(el["attitude"]) not in ("rise", "tracking-in", "blur-in"):
                 warnings.append(f"{tag}: display element {eid!r} attitude {el['attitude']!r} unknown "
                                 f"(rise|tracking-in|blur-in) — a typo silently renders as blur-in")
+            if k == "terminal" and not (isinstance(el.get("lines"), list) and el.get("lines")):
+                errors.append(f"{tag}: terminal element {eid!r} needs a non-empty `lines` list (the streaming log)")
             pos = el.get("position")
             if not (isinstance(pos, list) and len(pos) == 3 and all(isinstance(v, (int, float)) for v in pos)):
                 errors.append(f"{tag}: stage element {eid!r} `position` must be [x,y,z] numbers")
@@ -1176,6 +1178,24 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                             "text/label planes and DOM stage text depend on a HOST CJK font — a macOS preview "
                             "renders but a headless Linux/Lambda target can tofu. Use the HTML tier for a CJK "
                             "deck, or ensure the render host has a CJK font (Noto Sans CJK) installed")
+        # CINEMATIC TEMPLATE (the whole-film LOOK): a cinematic film should DECLARE meta.cinematic_template — a
+        # key from references/cinematic-templates.md — so the design-director instantiates a bold, coherent,
+        # GENERALISABLE look (accent -> per-beat colour worlds via cine_palette) instead of an ad-hoc concept.
+        # Absent -> warn (nudge the director to run the template contest); set-but-unknown -> error.
+        if cine:
+            _tpl = meta.get("cinematic_template")
+            try:
+                import cine_palette as _cinep
+                _known = _cinep.TEMPLATE_KEYS
+            except Exception:
+                _known = {"command-surface", "liquid-model", "molten-ledger", "aurora-bloom", "ignition-monument",
+                          "doorway-gallery", "rakelight", "exploded-schematic", "defrag"}
+            if _tpl is None:
+                warnings.append("cinematic film has no `meta.cinematic_template` — pick one from "
+                                "references/cinematic-templates.md (design-director runs a template contest) so "
+                                "the film gets a bold, coherent, generalisable look, not an ad-hoc concept")
+            elif str(_tpl) not in _known:
+                errors.append("unknown meta.cinematic_template %r (known: %s)" % (_tpl, sorted(_known)))
 
     # meta.brand (user-supplied REAL assets — the mirror of the "never fabricate logos in generated
     # imagery" doctrine): render.py composites the corner bug from the raster file, and the cover/

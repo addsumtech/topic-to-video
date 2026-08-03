@@ -175,6 +175,20 @@ TTS if the user gives an API key.
   When to reach for the tier: Remotion's real
   edge is fast/kinetic motion + motion-blur + eased cross-scene transitions — worth it for a cinematic
   **story** video, not for a calm explainer deck (where it's pixel-identical to local).
+  **Building a cinematic film? It is TEMPLATE-DRIVEN — read `references/cinematic-templates.md`.** The
+  design-director runs a **template contest** (STEP 0): route the topic → offer 2–4 bold, distinct,
+  generalisable templates (Command Surface / Liquid Model / Molten Ledger / Aurora Bloom / Ignition →
+  Monument / Doorway → Gallery / Rakelight / Exploded Schematic / Defrag) → the USER picks one →
+  `meta.cinematic_template` (a catalogue key; `validate` errors on an unknown key, warns if absent). The
+  per-beat COLOUR WORLDS are **generated** from `meta.accent` + the template by **`scripts/cine_palette.py`**
+  (`derive(accent, template, n)` → per-beat palettes; `aurora_page(pal,…)` → the backplane page) — a
+  deterministic transform of the accent, so any topic re-skins any template with zero hand-authored colour
+  (the fix for "偏纯色" + generalisation). **Crisp by default** (`dof:false` — DoF is opt-in per scene, only on
+  a genuine object-in-a-lit-volume beat); the trigger device (terminal / boot) appears **at most once** as a
+  cold-open that blooms open into the other worlds, never on every beat. Named transition GRAMMAR
+  (collapse-to-line · aperture-bloom · match-cut · liquid-dissolve · carry · drift · push-Z · wipe · lift ·
+  blur-coda · dip · explode/assemble · x-ray) — see the reference. `design-critic` **D12j–D12l** audit
+  template adherence + signature, colour-world variety, crisp-not-fogged, and content richness.
   **CINEMATIC 2.5D (opt-in, additive — the enterprise/product-video tier, being built out; see
   `references/shots/`):** a scene may carry two extra fields that switch it to a **virtual-camera path
   over depth planes** instead of the flat image path — `layers` (2–4 depth planes, each `{kind:

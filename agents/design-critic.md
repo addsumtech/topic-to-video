@@ -386,6 +386,26 @@ the floor; you are the ceiling.
   `meta.hero_mark` (a persistent lockup) when the deck varies design across ≥3 archetypes so it reads as ONE
   film; `film_look` on for 3D hero beats. **FLAG (not block)** a launch film that ships silent or as an
   anthology of unrelated beats with no through-line.
+- **D12j — TEMPLATE adherence + colour-world variety (the anti-"boring/纯色" gate).** The film must be built on
+  a declared `meta.cinematic_template` (`references/cinematic-templates.md`; validate warns if absent). On the
+  filmstrips confirm: (a) **the template's SIGNATURE element** is present at the first and last frame and its
+  **transition grammar** is honoured at the seams (a template is only premium if its grammar is actually
+  executed — a "Command Surface" that never collapses to a line, or an "Ignition" with no hot line, is the
+  template in name only); (b) **each beat is its OWN colour world** — the per-beat palettes (from
+  `cine_palette`, an accent-derived transform) must visibly differ scene-to-scene; **REVISE a film that runs
+  one hue-world start to finish** (that is the "偏纯色/boring" failure, now structural to catch); (c) the
+  colour semantics stay fixed (go/info/alert, gain/loss, growth/attention, warm=raw/cool=resolved) so it reads
+  sound-off; (d) the accent actually threads (the film is on-brand for the topic hue, not a generic palette).
+- **D12k — Crisp by default + signature-once.** **REVISE the "sharp-next-to-smeared" mess**: DoF is opt-in
+  (`dof:true`) and belongs only on a genuine object-in-a-lit-volume beat — a film where a crisp headline sits
+  beside a fogged neighbour on a UI/type/data beat is the inconsistent-focus defect. And the trigger device
+  (terminal, boot HUD, opening frame) appears at most ONCE as a cold-open, then the film BLOOMS into the other
+  worlds — flag a film that leans on the same device (or the same panel) every beat instead of using it as a
+  doorway.
+- **D12l — Content richness (the film says something).** The narration + on-screen content must carry the
+  CONTENT PLAN's real substance (the product's actual mechanism/process/differentiator), not generic marketing
+  filler — cover-the-copy also means: is there anything *specific and true* here, or is it hollow? **FLAG a
+  film that is visually rich but content-thin.**
 Inherited checks still apply to the composed frame: D5 (composition/whitespace), D7 (squint/cover-text),
 D8 (semantic colour), D10 (anti-slop). D1/D6b (layout/silhouette diversity) apply ACROSS cinematic scenes
 too — vary the lens move + depth arrangement, don't ship five identical dolly-ins.

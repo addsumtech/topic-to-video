@@ -236,6 +236,28 @@ explainer stays the default; reach for cinematic only when the brief wants a *fi
 renderer — validate errors and the render crashes.** Before authoring, READ the card you cite:
 `references/shots/` (start with its `README.md` manifest).
 
+**STEP 0 — the CINEMATIC TEMPLATE CONTEST (do this FIRST, before any beat).** A cinematic film is BUILT ON a
+whole-film TEMPLATE — a fixed look (substrate + silhouette + motion grammar + beat-semantics) that generalises
+to any topic by re-deriving ONE accent. **READ `references/cinematic-templates.md`.** Then:
+1. **Route** the topic → score the top **2–4 templates** from the catalogue's routing table (a topic often
+   fits several — that's the contest). Do NOT invent an ad-hoc concept; the templates ARE the bold, novel,
+   coherent looks, and they read premium *because* they are a disciplined grammar, not a one-off.
+2. **Offer the contenders to the user** with each template's one-line pitch (via the host's selectable-option
+   prompt) — "根据主题给你几个大胆的电影级模板选一个". The user's pick becomes **`meta.cinematic_template`** (a
+   catalogue key) — validate errors on an unknown key, warns if absent.
+3. **Instantiate** the chosen template: (a) set **`meta.accent`** (the brand/topic hue) — every colour world
+   is a deterministic transform of it (`scripts/cine_palette.py derive(accent, template, n)`), so DON'T
+   hand-author aurora pages; call the generator (`cine_palette.aurora_page`) per beat and reference the page
+   as a `card`. (b) Fill the template's **beat arc** (its archetype sequence) with the CONTENT PLAN's real
+   material — each beat a DIFFERENT archetype so no two look alike. (c) Bind with the template's **signature
+   element** (present first+last frame) and its **transition grammar** (mark seams; keep shared coords for an
+   authored match-cut). (d) Then **enrich + innovate ON the template** for this specific topic — the template
+   is the floor, the topic-specific invention is what makes it feel bespoke.
+The template gives the film its coherence + generalisation; the per-beat archetype design (below) gives each
+beat its own idea. Crisp by default (`dof:false` unless a beat is a genuine object-in-a-lit-volume); the
+terminal / any signature device appears at most ONCE (as a cold-open trigger), then the film blooms open into
+the other worlds — never a terminal (or the same panel) on every beat.
+
 Per cinematic beat, emit `type:"cinematic"` with:
 - **`layers`** — 2–4 depth planes, back→front. Each `{kind, …content}` where kind ∈
   `fill|grid|floor|hero|panel|image`; the FOCAL plane carries the text (kicker/title/sub); far planes are

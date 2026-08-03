@@ -7,7 +7,7 @@ import type {Theme} from '../Video';
 import {textStyle} from '../theme/typography';
 import {KineticText} from '../theme/KineticText';
 
-export type ElementKind = 'panel' | 'image' | 'textblock' | 'callout' | 'grid' | 'floor' | 'hero' | 'fill' | 'metaphor' | 'display';
+export type ElementKind = 'panel' | 'image' | 'textblock' | 'callout' | 'grid' | 'floor' | 'hero' | 'fill' | 'metaphor' | 'display' | 'terminal';
 export type TypeAttitude = 'rise' | 'tracking-in' | 'blur-in'; // the entrance personality of a display statement
 
 // MATERIALIZED METAPHOR (the highest-yield topic-locked novelty): a beat's MEANING encoded as a visual
@@ -73,6 +73,15 @@ export type ElementData = {
   attitude?: TypeAttitude; // display statement entrance (rise | tracking-in | blur-in)
   atFrame?: number; // scene-local frame the VERB fires (default enter+10)
   verbSpan?: number; // frames the verb takes (default 30)
+  // Terminal fields (kind:'terminal'): a frame-driven streaming CLI (the "engine room" — an agent running).
+  lines?: string[]; // log lines revealed one per `lineDelay`; the newest types char-by-char with a cursor.
+  lineDelay?: number; // frames between lines (default 22)
+  termTitle?: string; // the window title-bar text (default "slidemaker — zsh")
+  collapseAtFrame?: number; // terminal COLLAPSE-TO-LINE: from this frame it pinches to a hot bright filament
+                            // (CRT power-off reversed) — the cold-open's hand-off to the bloom. Scene-local.
+  // Entrance: 'materialize' = a card scales+rises+fades in; 'aperture' = the world BLOOMS OPEN from a centre
+  // horizontal slit (clip-path) — the terminal collapse line tearing open into the next scene.
+  enterMotion?: 'materialize' | 'aperture' | 'none';
   // Kinetic typography: the scene-local frame at which this element's text reveals in (default 0).
   enterAtFrame?: number;
 };
@@ -107,11 +116,31 @@ export const Element: React.FC<{
   // content has no translateZ of its own), so they never flatten the depth node above.
   const isBackground = kind === 'grid' || kind === 'floor' || kind === 'fill';
   const enter = element.enterAtFrame ?? 0;
-  const op = isBackground || reducedMotion ? 1 : Math.max(0, Math.min(1, (frame - enter) / 8));
+  // MATERIALIZE entrance (a slide flying out of the terminal): a card scales up + rises + fades over ~20f.
+  // Frame-driven + on the INNER leaf (the element's own flat content, no sub-depth) — never flattens others.
+  const materialize = element.enterMotion === 'materialize' && !isBackground;
+  const me = materialize && !reducedMotion ? Math.max(0, Math.min(1, (frame - enter) / 20)) : 1;
+  const meE = 1 - Math.pow(1 - me, 3); // easeOutCubic
+  // APERTURE entrance (the world blooms open from a centre horizontal slit — the collapse line tearing open).
+  const aperture = element.enterMotion === 'aperture' && !isBackground;
+  const ae = aperture && !reducedMotion ? 1 - Math.pow(1 - Math.max(0, Math.min(1, (frame - enter) / 22)), 3) : 1;
+  const op = isBackground || reducedMotion ? 1
+    : aperture ? 1
+    : Math.max(0, Math.min(1, (frame - enter) / (materialize ? 14 : 8)));
+  // aperture = the world stretches open vertically from a centre line (scaleY, transform-based so it works
+  // on a zero-size wrapper — a clip-path % would resolve against the empty box and hide everything).
+  const leafTransform = materialize
+    ? `translateY(${(1 - meE) * 150}px) scale(${0.86 + 0.14 * meE})`
+    : aperture
+    ? `scaleY(${Math.max(0.004, ae)})`
+    : undefined;
+  // a hot bright edge glow while the aperture is mid-open (the tear line), fades as it completes
+  const apEdge = aperture && ae < 0.98 ? `drop-shadow(0 0 ${34 * (1 - ae)}px rgba(255,255,255,${0.6 * (1 - ae)}))` : '';
+  const leafFilter = [blur > 0 ? `blur(${blur}px)` : '', apEdge].filter(Boolean).join(' ') || undefined;
 
   return (
     <div style={containerStyle}>
-      <div style={{opacity: op, filter: blur > 0 ? `blur(${blur}px)` : undefined}}>
+      <div style={{opacity: op, transform: leafTransform, transformOrigin: 'center', filter: leafFilter}}>
         <ElementContent element={element} theme={theme} frame={frame} reducedMotion={reducedMotion} />
       </div>
     </div>
@@ -142,6 +171,76 @@ const ElementContent: React.FC<{
           background: `radial-gradient(120% 120% at 50% 40%, ${theme.bg} 0%, ${theme.bg} 55%, #00000055 100%)`,
         }}
       />
+    );
+  }
+
+  if (kind === 'terminal') {
+    // A FRAME-DRIVEN streaming CLI — the "engine room". Lines reveal one per `lineDelay`; the newest types
+    // char-by-char; a block cursor blinks. Pure function of frame (deterministic under off-thread capture).
+    const lines = element.lines || [];
+    const lineDelay = element.lineDelay ?? 22;
+    const mono = '"JetBrains Mono", ui-monospace, SFMono-Regular, monospace';
+    const termBg = '#0b0f14', green = '#4fe08a', warn = '#ff6b6b', W = 1360;
+    const active = reducedMotion ? lines.length : Math.floor((frame - enter) / lineDelay);
+    const cursorLine = Math.min(Math.max(0, active), lines.length - 1);
+    const cursorOn = Math.floor(frame / 14) % 2 === 0;
+    // COLLAPSE-TO-LINE (cold-open hand-off): the box pinches vertically to a hot bright filament.
+    const cAt = element.collapseAtFrame;
+    const cp = cAt != null && !reducedMotion ? Math.max(0, Math.min(1, (frame - cAt) / 16)) : 0;
+    const cpe = cp * cp; // accelerate the pinch (CRT power-off)
+    const collapsing = cp > 0;
+    const colorFor = (ln: string): string => {
+      const t = ln.trimStart();
+      if (t.startsWith('❯') || t.startsWith('$') || t.startsWith('slidemaker')) return green;
+      if (ln.includes('✗')) return warn;
+      return theme.fg;
+    };
+    const rows: React.ReactNode[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      if (i > active) break;
+      const typing = i === active && active < lines.length && !reducedMotion;
+      const chars = typing ? Math.max(0, Math.min(lines[i].length, Math.floor((frame - (enter + i * lineDelay)) / 1.4))) : lines[i].length;
+      const shown = lines[i].slice(0, chars);
+      const cursorHere = i === cursorLine;
+      const c = colorFor(lines[i]);
+      const weight = c === green || c === warn ? 600 : 460; // prompts/status crisper than plain log
+      rows.push(
+        <div key={i} style={{color: c, fontWeight: weight, whiteSpace: 'pre', minHeight: 50}}>
+          {shown}
+          {cursorHere ? <span style={{background: cursorOn ? green : 'transparent', color: termBg, marginLeft: 2}}>&nbsp;</span> : null}
+        </div>
+      );
+    }
+    return (
+      <div style={{position: 'absolute', left: -W / 2, top: -390, width: W}}>
+        {/* the terminal box — pinches vertically to a filament as it collapses */}
+        <div style={{background: termBg, borderRadius: 18, border: `1px solid ${theme.fg}1c`, overflow: 'hidden',
+                     fontFamily: mono, transformOrigin: 'center',
+                     transform: collapsing ? `scaleY(${Math.max(0.012, 1 - cpe * 0.985)})` : undefined,
+                     opacity: 1 - cp * 0.9,
+                     boxShadow: collapsing
+                       ? `0 0 ${60 + cpe * 170}px ${cpe * 60}px rgba(150,255,180,${cpe * 0.9}), 0 70px 170px rgba(0,0,0,.62)`
+                       : '0 70px 170px rgba(0,0,0,.62)'}}>
+          <div style={{height: 56, display: 'flex', alignItems: 'center', gap: 11, padding: '0 24px',
+                       background: '#0f141b', borderBottom: `1px solid ${theme.fg}12`}}>
+            {['#ff5f57', '#febc2e', '#28c840'].map((c) => (
+              <div key={c} style={{width: 15, height: 15, borderRadius: 8, background: c}} />
+            ))}
+            <div style={{marginLeft: 16, color: theme.muted, fontSize: 25, letterSpacing: '.05em'}}>
+              {element.termTitle || 'slidemaker — zsh'}</div>
+          </div>
+          <div style={{padding: '36px 44px', fontSize: 39, lineHeight: 1.48, fontVariantNumeric: 'lining-nums tabular-nums'}}>
+            {rows}
+          </div>
+        </div>
+        {/* hot filament at the pinch centre — the bright line the next world blooms out of */}
+        {collapsing ? (
+          <div style={{position: 'absolute', left: '-3%', right: '-3%', top: '50%', height: 3 + cpe * 5,
+                       transform: 'translateY(-50%)', borderRadius: 4,
+                       background: `rgba(236,255,242,${Math.min(1, cpe * 1.4)})`,
+                       boxShadow: `0 0 ${16 + cpe * 90}px ${cpe * 34}px rgba(180,255,205,${cpe})`}} />
+        ) : null}
+      </div>
     );
   }
 

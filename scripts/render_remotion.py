@@ -117,7 +117,7 @@ _MOTION_ALIASES = {"PAN": "PAN_RIGHT", "TILT": "TILT_UP", "ORBIT": "ORBIT_RIGHT"
                    "DOLLY": "PUSH_IN", "ZOOM": "PUSH_IN", "PUSH": "PUSH_IN", "PULL": "PULL_OUT"}
 # element content fields passed through verbatim (strings) — geometry (position) is coerced numeric.
 _ELEM_STR = ("kind", "title", "kicker", "sub", "text", "heroText", "src", "html", "label", "align", "level",
-             "fit", "frame", "frameLabel", "concept", "unit", "attitude")  # `html` = a Path-A form page (to
+             "fit", "frame", "frameLabel", "concept", "unit", "attitude", "termTitle", "enterMotion")  # `html` = a Path-A form page (to
 #            `src` at render); `concept` = a materialized-metaphor verb; frame = device/browser chrome
 _METAPHOR = {"widening-gap", "physical-fall", "filling-vessel", "diverging-pair", "converging-scatter"}
 # how many `values` each concept needs (None = any non-empty list)
@@ -150,13 +150,21 @@ def _clean_stage(stage, tag):
         for key in _ELEM_STR:
             if el.get(key) is not None:
                 c[key] = str(el[key])
-        if el.get("enterAtFrame") is not None:
-            c["enterAtFrame"] = int(round(_num(el["enterAtFrame"], "%s element %r enterAtFrame" % (tag, eid))))
+        for _fk in ("enterAtFrame", "collapseAtFrame"):
+            if el.get(_fk) is not None:
+                c[_fk] = int(round(_num(el[_fk], "%s element %r %s" % (tag, eid, _fk))))
         if el.get("size") is not None:                       # image [w,h] px in stage space (fail-loud numeric)
             sz = el["size"]
             if not (isinstance(sz, list) and len(sz) == 2):
                 raise RuntimeError("cinematic %s element %r: `size` must be [w,h]" % (tag, eid))
             c["size"] = [_num(sz[k], "%s element %r size[%d]" % (tag, eid, k)) for k in range(2)]
+        if c.get("kind") == "terminal":                      # streaming CLI: a non-empty list of log lines
+            ln = el.get("lines")
+            if not (isinstance(ln, list) and ln):
+                raise RuntimeError("cinematic %s element %r: terminal needs a non-empty `lines` list" % (tag, eid))
+            c["lines"] = [str(x) for x in ln]
+            if el.get("lineDelay") is not None:
+                c["lineDelay"] = max(1, int(round(_num(el["lineDelay"], "%s element %r lineDelay" % (tag, eid)))))
         if c.get("kind") == "metaphor":                      # materialized-metaphor verb: validate + coerce data
             cn = c.get("concept")
             if cn not in _METAPHOR:
@@ -873,6 +881,7 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
             "stage": stage if shot_based else None,          # shot-based (P2): the SET (elements placed once)
             "shots": shots if shot_based else None,           # the ordered SHOT list (framings over the set)
             "motionAmp": motion_amp if shot_based else None,  # motion_personality amplitude (#10)
+            "dof": bool(s.get("dof")) if shot_based else None,  # rack-focus DoF opt-in (default OFF = crisp)
             "planes": planes if three_d else None,            # P6 TRUE-3D: WebGL content planes
             "camera3d": camera3d if three_d else None,        # P6 orbit/crane camera keyframes
             "filmLook": (s.get("film_look") if s.get("film_look") is not None else meta.get("film_look", True)) if three_d else None,
