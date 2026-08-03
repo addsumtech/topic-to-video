@@ -33,8 +33,11 @@ def test_scenestage_passes_blur_into_element_no_flat_wrapper():
 def test_element_blur_and_opacity_are_on_the_inner_leaf():
     src = _src("remotion", "src", "stage", "elements.tsx")
     assert "transformStyle: 'preserve-3d'" in src and "translate3d(" in src
-    # opacity + rack-focus blur live on the inner wrapper, never on the depth node.
-    assert re.search(r"opacity:\s*op,\s*filter:\s*blur", src), "opacity+blur must be on the inner leaf"
+    # opacity + rack-focus blur live on the inner leaf, never on the depth node. The leaf also carries the
+    # entrance transform (materialize/aperture) — so match opacity:op … filter:leafFilter on that leaf, and
+    # confirm the rack-focus blur is composed INTO leafFilter.
+    assert re.search(r"opacity:\s*op,.*filter:\s*leafFilter", src), "opacity + filter(leafFilter) must be on the inner leaf"
+    assert "blur(${blur}px)" in src, "rack-focus blur must be composed into the leaf filter"
     # the floor's rotateX must be composed onto the depth container (so it lays down in 3D), not a flat leaf.
     assert "isFloor ? ' rotateX(90deg)'" in src, "floor rotateX must be on the preserve-3d container"
 
