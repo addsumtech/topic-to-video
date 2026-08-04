@@ -12,7 +12,14 @@ Run it AFTER tts.py and BEFORE render.py (step 9). Use --pre-tts to validate ear
 (skips the audio/duration checks), e.g. right after authoring the storyboard.
 """
 import argparse, json, math, os, re, sys
+import unicodedata
 from html.parser import HTMLParser
+
+
+def _disp_width(s):
+    """Display width of a string for FIXED-WIDTH box lints: a full/wide east-asian glyph (W/F) counts as 2,
+    since it fills a fixed-px box twice as fast as a Latin 'i'. A codepoint count under-fires on CJK decks."""
+    return sum(2 if unicodedata.east_asian_width(c) in ("W", "F") else 1 for c in str(s))
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _common
@@ -549,17 +556,19 @@ def _shot_stage_fields(stage, shots, tag, errors, warnings):
             # displays then collide. Multi-line prose / a headline+body belongs on a Path-A html card.
             if k == "textblock":
                 for _ln in str(el.get("text") or "").split("\n"):
-                    if len(_ln.strip()) > 30:
-                        warnings.append(f"{tag}: textblock {eid!r} has a ~{len(_ln.strip())}-char line — a native "
-                                        f"textblock is a fixed 800px box that CLIPS beyond ~30 chars/line; put "
-                                        f"multi-line prose on a Path-A html card (kind:'card', html:'pages/…')")
+                    _w = _disp_width(_ln.strip())               # east-asian-width: a full-width CJK glyph = 2
+                    if _w > 30:
+                        warnings.append(f"{tag}: textblock {eid!r} has a ~{_w}-wide line — a native "
+                                        f"textblock is a fixed 800px box that CLIPS beyond ~30 (a full-width CJK "
+                                        f"glyph counts double); put multi-line prose on a Path-A html card")
                         break
             if k == "display":
                 _dt = str(el.get("text") or el.get("heroText") or "")
-                if len(_dt) > 22:
-                    warnings.append(f"{tag}: display {eid!r} text is ~{len(_dt)} chars — a native display wraps "
-                                    f"beyond ~14 chars at 200px and two wrapped displays collide; keep it a "
-                                    f"1-3 word monolith, or move a headline+body to a Path-A html card")
+                _w = _disp_width(_dt)
+                if _w > 22:
+                    warnings.append(f"{tag}: display {eid!r} text is ~{_w} wide — a native display wraps beyond "
+                                    f"~14 at 200px (CJK counts double) and two wrapped displays collide; keep it "
+                                    f"a 1-3 word monolith, or move a headline+body to a Path-A html card")
             pos = el.get("position")
             if not (isinstance(pos, list) and len(pos) == 3 and all(isinstance(v, (int, float)) for v in pos)):
                 errors.append(f"{tag}: stage element {eid!r} `position` must be [x,y,z] numbers")
@@ -780,16 +789,35 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
                         warnings.append(f"{tag}: lens keyframe {j} atFrame {at} is past the scene end "
                                         f"({dframes}f) — it clamps")
                     prev = at
+                # ESCAPE-HATCH clamp: the auto shot ladder is bounded by construction, but a HAND-AUTHORED
+                # lens is not — so an EGREGIOUS zoom/keystone (fisheye-crop / edge-on read-card territory)
+                # BLOCKS, while mild out-of-band stays advisory. Conservative bounds so a dramatic-but-fine
+                # shot is never falsely blocked. (Audit P0: the highest-risk input had zero enforcement.)
                 pitch = k.get("pitch", 0)
-                if not isinstance(pitch, (int, float)) or abs(float(pitch)) > 45:
+                if not isinstance(pitch, (int, float)):
+                    errors.append(f"{tag}: lens keyframe {j} pitch must be a number")
+                elif abs(float(pitch)) > 60:
+                    errors.append(f"{tag}: lens keyframe {j} pitch {pitch}° is a SEVERE keystone — flat card "
+                                  f"planes reveal edge-on; route a true top-down to the R3F tier")
+                elif abs(float(pitch)) > 45:
                     warnings.append(f"{tag}: lens keyframe {j} pitch {pitch}° beyond ±45 — flat card planes "
                                     f"keystone and reveal as sheets; route a true top-down to the R3F tier")
                 yaw = k.get("yaw", 0)
-                if not isinstance(yaw, (int, float)) or abs(float(yaw)) > 35:
+                if not isinstance(yaw, (int, float)):
+                    errors.append(f"{tag}: lens keyframe {j} yaw must be a number")
+                elif abs(float(yaw)) > 55:
+                    errors.append(f"{tag}: lens keyframe {j} yaw {yaw}° loses the card's face entirely — keep "
+                                  f"orbit-lite within ±35 (a true orbit belongs on the R3F tier)")
+                elif abs(float(yaw)) > 35:
                     warnings.append(f"{tag}: lens keyframe {j} yaw {yaw}° beyond ±35 — card planes lose their "
                                     f"face; keep orbit-lite within ±20–35")
                 zoomv = k.get("zoom", 1.0)
-                if not isinstance(zoomv, (int, float)) or not (0.6 <= float(zoomv) <= 1.6):
+                if not isinstance(zoomv, (int, float)):
+                    errors.append(f"{tag}: lens keyframe {j} zoom must be a number")
+                elif float(zoomv) > 2.0 or float(zoomv) < 0.4:
+                    errors.append(f"{tag}: lens keyframe {j} zoom {zoomv} is a SEVERE over/under-zoom — the "
+                                  f"read-card fisheye-crops or vanishes; keep it in the readable band ~0.6–1.6")
+                elif not (0.6 <= float(zoomv) <= 1.6):
                     warnings.append(f"{tag}: lens keyframe {j} zoom {zoomv} outside 0.6–1.6")
                 e = k.get("easing", "inout")
                 if e not in _CINE_EASINGS:
@@ -818,7 +846,12 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
                                         f"({dframes}f) — it clamps")
                     prev = at
                 z = k.get("zoom", 1.0)
-                if not isinstance(z, (int, float)) or not (0.6 <= float(z) <= 1.6):
+                if not isinstance(z, (int, float)):
+                    errors.append(f"{tag}: camera keyframe {j} zoom must be a number")
+                elif float(z) > 2.0 or float(z) < 0.4:
+                    errors.append(f"{tag}: camera keyframe {j} zoom {z} is a SEVERE over/under-zoom — the "
+                                  f"read-card crops or vanishes; keep it in the readable band ~0.6–1.6")
+                elif not (0.6 <= float(z) <= 1.6):
                     warnings.append(f"{tag}: camera keyframe {j} zoom {z} outside 0.6–1.6 — a bigger push "
                                     f"lurches or breaks the 3-second read")
                 for ax in ("x", "y"):

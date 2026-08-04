@@ -824,7 +824,11 @@ def _transitions(scenes, meta, fps):
     # The overlap must ride the trailing-breath SILENCE. That silence only exists if mastering ran
     # (it pads meta.audio_breath). If mastering is OFF, assume NO breath and clamp the overlap to ~1
     # frame (a cut, not a cross-fade) so a transition can never eat live narration.
-    breath = 0.0 if meta.get("audio_master") is False else float(meta.get("audio_breath", 0.42) or 0.42)
+    # The breath silence only exists if tts MASTERING actually padded it — which needs ffmpeg. On a
+    # Node-present/ffmpeg-absent host mastering is silently skipped (audio_master left unset), so there is
+    # NO trailing silence and an overlap would eat live narration. Treat 'no ffmpeg' like audio_master:False.
+    breath = 0.0 if (meta.get("audio_master") is False or not shutil.which("ffmpeg")) \
+        else float(meta.get("audio_breath", 0.42) or 0.42)
     cap = max(1, int(round(breath * fps)))                  # overlap ceiling = the breath (A/V safety)
     for i in range(len(scenes)):
         scenes[i]["transitionToNext"] = None
@@ -1032,7 +1036,11 @@ def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="erro
     # SKIP the workflow — making "bypassable" into "walk the workflow, or opt out on purpose". Checked BEFORE the
     # toolchain probe so a workflow violation fails fast (and is testable without Node). Escape with --no-plan /
     # meta.no_plan for a deliberate hand-authored film.
-    _cine_deck = any(s.get("type") == "cinematic" for s in data.get("slides", []))
+    # Match the project's ACTUAL cinematic definition (not just type=='cinematic') so a cinematic3d deck or a
+    # shot/layer/lens-based deck typed 'slide' can't bypass the content_plan.json enforcement. (Audit P2.)
+    _cine_deck = any(s.get("type") in ("cinematic", "cinematic3d") or _scene_planes(s) or _scene_layers(s)
+                     or (_scene_stage(s) and _scene_shots(s)) or s.get("lens") or s.get("camera")
+                     for s in data.get("slides", []))
     _no_plan = no_plan or bool((data.get("meta") or {}).get("no_plan"))
     if _cine_deck and not _no_plan and not os.path.isfile(os.path.join(out_dir, "content_plan.json")):
         raise RuntimeError(

@@ -127,9 +127,10 @@ def score_scene(frames, declared_move, is_3d):
     f_mean, f_std = float(focal.mean()), float(focal.std())
     metrics["focal_luma_mean"] = round(f_mean, 1)
     metrics["focal_contrast_std"] = round(f_std, 1)
-    if f_mean < 20 and f_std < 8:
-        floors.append("focal region is dark + flat (luma %.0f, contrast %.0f) — content is murky/illegible; "
-                      "lift exposure or give the subject a legible ground" % (f_mean, f_std))
+    if f_std < 8 and (f_mean < 20 or f_mean > 235):        # SYMMETRIC: dark+flat OR washed-out-bright+flat
+        _w = "washed-out bright" if f_mean > 235 else "dark"
+        floors.append("focal region is %s + flat (luma %.0f, contrast %.0f) — content is murky/illegible; "
+                      "restore contrast between the subject and its ground" % (_w, f_mean, f_std))
 
     # typography/caption-zone: NOT scored — a captioned frame's burned caption confounds any bottom-band
     # measurement. (The HTML tier checks this pre-burn via keyframe_qa; the cinematic tier can't here.)
