@@ -22,7 +22,8 @@ import {Captions} from '../Captions';
 import {Finish} from '../theme/Finish';
 
 export type Plane3D = {
-  kind?: 'plane' | 'bars' | 'stack'; // a plane (default) / a bar chart / an accreting cube stack (`text` -> a plane)
+  kind?: 'plane' | 'bars' | 'stack' | 'particles' | 'surface'; // plane (default) / bar chart / cube stack /
+  //   an instanced FIELD that assembles from scatter into a lattice / a parametric HEIGHTFIELD (data landscape)
   color?: string;
   src?: string; // image/screenshot/rasterized-text -> textured onto a REAL 3D mesh (true perspective)
   alpha?: boolean; // the texture has transparency (a rasterized-text PNG) -> transparent material
@@ -30,7 +31,8 @@ export type Plane3D = {
   position: [number, number, number];
   rotation?: [number, number, number];
   size?: [number, number]; // world units of the plane (default [3, 1.8])
-  data?: number[]; // bars/stack: values (drive bar heights / cube counts)
+  data?: number[]; // bars/stack: values (drive bar heights / cube counts); surface: a height ridge profile
+  count?: number; // particles: how many points assemble (default 120, capped at PARTICLE_MAX)
   labels?: string[]; // per-column category labels — consumed by render_remotion._rasterize_text3d (which
   //                    emits billboarded label PLANES), NOT read here; kept on the type for the props shape.
 };
@@ -173,6 +175,85 @@ const Stack3D: React.FC<{data: number[]; frame: number; durationInFrames: number
     </group>
   );
 };
+// ── BORN-IN-3D FORM VOCABULARY (beyond bars/stack/plane) — forms the flat card rig structurally cannot make.
+// Both are pure functions of the frame (deterministic/seek-safe), material-bound (STYLE_TO_MATERIAL3D), and
+// asset-free. (Extruded 3D TITLE geometry is the third audit ask but needs an async font loader that renders
+// BLANK under Remotion — the same troika footgun as kind:"text" — so it is deferred to a bundled-font pass.)
+
+// PARTICLE FIELD — N points fly in from a deterministic SCATTER and settle into a tidy 3D LATTICE: "chaos/
+// data coalescing into order", the assembling-cloud form. Declarative meshes (the proven bars/stack pattern —
+// no imperative InstancedMesh matrices, which can miss Remotion's capture); positions are a HASH of the index
+// (a deterministic sin-hash, never an RNG), staggered so the cloud gathers over the scene.
+const PARTICLE_MAX = 160;
+const _hash11 = (n: number) => {const x = Math.sin(n) * 43758.5453; return 2 * (x - Math.floor(x)) - 1;}; // int -> [-1,1]
+const Particles3D: React.FC<{count?: number; frame: number; durationInFrames: number; accent: string; mat: Mat3D; spread?: number}> = ({count, frame, durationInFrames, accent, mat, spread = 5.5}) => {
+  const m = mat || DEFAULT_MAT3D;
+  const n = Math.max(1, Math.min(PARTICLE_MAX, Math.round(count || 120)));
+  const side = Math.max(1, Math.ceil(Math.cbrt(n)));    // cube-root lattice
+  const gap = 0.5;
+  const g0 = Math.round(durationInFrames * 0.08);
+  const gspan = Math.max(1, Math.round(durationInFrames * 0.5));
+  return (
+    <group>
+      {Array.from({length: n}).map((_, i) => {
+        const gx = i % side, gy = Math.floor(i / side) % side, gz = Math.floor(i / (side * side));
+        const tx = (gx - (side - 1) / 2) * gap, ty = (gy - (side - 1) / 2) * gap - 0.2, tz = (gz - (side - 1) / 2) * gap;
+        const sx = _hash11(i + 1) * spread, sy = _hash11(i + 7) * spread + 2.5, sz = _hash11(i + 13) * spread;
+        const t = Math.max(0, Math.min(1, (frame - (g0 + (i / n) * gspan * 0.55)) / (gspan * 0.45)));
+        const e = EASE.out(t);
+        if (e <= 0) return null;
+        const sc = 0.18 * (0.35 + 0.65 * e);
+        return (
+          <mesh key={i} position={[sx + (tx - sx) * e, sy + (ty - sy) * e, sz + (tz - sz) * e]} scale={[sc, sc, sc]} castShadow>
+            <boxGeometry args={[1, 1, 1]} />
+            {/* a POINT stays SOLID regardless of style — a 0.18 wireframe cube is near-invisible (shot_qa
+                flagged blueprint particles as near-black); still inherits metalness/roughness/flatShading. */}
+            <meshStandardMaterial color={accent} metalness={m.metalness} roughness={m.roughness} flatShading={m.flatShading} />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+};
+
+// HEIGHTFIELD SURFACE — a subdivided plane whose height field RISES in (0 -> target): a "data landscape" of
+// peaks/valleys that bars cannot be. Heights from `data` (a 1D ridge profile, magnitude-faithful) or a
+// deterministic sum-of-sines. The base X/Y grid is constant, so a useLayoutEffect (synchronous in commit,
+// applied BEFORE Remotion's capture) mutates only Z in place each frame — no per-frame geometry realloc.
+const Surface3D: React.FC<{data?: number[]; frame: number; durationInFrames: number; accent: string; mat: Mat3D; size?: [number, number]}> = ({data, frame, durationInFrames, accent, mat, size}) => {
+  const m = mat || DEFAULT_MAT3D;
+  const geomRef = React.useRef<THREE.PlaneGeometry>(null);
+  const W = (size && size[0]) || 6.4, D = (size && size[1]) || 6.4, SEG = 40;
+  const rise = Math.max(0, Math.min(1, (frame - Math.round(durationInFrames * 0.08)) / Math.max(1, Math.round(durationInFrames * 0.5))));
+  const e = EASE.out(rise);
+  const mx = data && data.length ? Math.max(1e-6, ...data.map((v) => Math.abs(v))) : 1;
+  React.useLayoutEffect(() => {
+    const g = geomRef.current; if (!g) return;
+    const pos = g.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), y = pos.getY(i);
+      const u = x / W, v = y / D;                       // -0.5..0.5
+      let h: number;
+      if (data && data.length) {
+        const idx = Math.min(data.length - 1, Math.max(0, Math.round((u + 0.5) * (data.length - 1))));
+        h = (data[idx] / mx) * (0.7 + 0.3 * Math.cos(v * 6.0));   // magnitude ridge across the depth axis
+      } else {
+        h = 0.55 * Math.sin(u * 6.3) * Math.cos(v * 5.2) + 0.28 * Math.sin(u * 11 + v * 7.5);
+      }
+      pos.setZ(i, h * 1.5 * e);
+    }
+    pos.needsUpdate = true;
+    g.computeVertexNormals();
+  }, [frame, e, W, D, mx]);
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.15, 0]} castShadow receiveShadow>
+      <planeGeometry ref={geomRef} args={[W, D, SEG, SEG]} />
+      <meshStandardMaterial color={accent} metalness={m.metalness} roughness={m.roughness}
+        wireframe={m.wireframe} flatShading={m.flatShading} side={THREE.DoubleSide} />
+    </mesh>
+  );
+};
+
 export type Camera3DKey = {atFrame: number; yaw: number; radius: number; height: number; easing?: string};
 
 const EASE: Record<string, (n: number) => number> = {
@@ -380,6 +461,14 @@ export const ThreeScene: React.FC<{
           ) : p.kind === 'stack' && p.data ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
               <Stack3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} glow={filmLook !== false} mat={mat3d} />
+            </group>
+          ) : p.kind === 'particles' ? (
+            <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
+              <Particles3D count={p.count} frame={frame} durationInFrames={dur} accent={theme.accent} mat={mat3d} />
+            </group>
+          ) : p.kind === 'surface' ? (
+            <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
+              <Surface3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} mat={mat3d} size={p.size} />
             </group>
           ) : p.src ? (
             <TexturedPlane key={i} tex={textures[p.src]} size={p.size || [3, 1.8]} position={p.position}

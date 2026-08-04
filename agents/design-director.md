@@ -322,7 +322,19 @@ beat; use `stage`+`shots` when the beat wants multiple framings or a sense of pl
 |---|---|---|
 | open a section / establish a space / hero product reveal | dolly-through + bird's-eye→eye-level tilt, rack focus | `lens-dolly-tilt` |
 | calm arrival / "settle on this" / continuation | eased push-in with differential parallax | `push-in-parallax` |
-| a true 90° top-down / full orbit / real 3D geometry | NOT deliverable yet — redesign in-band, or flag for the R3F tier | — |
+| a true 90° top-down / full orbit / real 3D geometry | the R3F tier (`type:"cinematic3d"`, orbit/crane camera) | — |
+
+**BORN-IN-3D FORMS (the R3F `type:"cinematic3d"` tier — forms the flat card rig CANNOT make).** A cinematic3d
+scene carries `planes` (each `{kind, position:[x,y,z], …}`) + a `camera3d` orbit/crane path. The form
+vocabulary: `bars` (3D bar chart, grows from the floor) · `stack` (accreting cube stack, ≤50/column) ·
+**`particles`** (a field of `count` points that flies in from scatter and ASSEMBLES into a lattice — "data/
+chaos coalescing into order"; ≤160) · **`surface`** (a parametric HEIGHTFIELD / data landscape that rises
+out of the floor — a `data` ridge profile or a default undulation) · `plane`/`text` (a screenshot or
+rasterized label on a real mesh). ALL are lit by the travelling LightRig and inherit the deck's
+`theme.style` MATERIAL (brutalism=flat-matte, noir=metal, blueprint=WIREFRAME — a wireframe `surface` is a
+gorgeous topographic terrain). Reach for cinematic3d when a beat's idea IS a real 3D form (a landscape of
+values, points converging, a magnitude wall in true depth) — not to tilt a card. Signed data is
+magnitude-only here (validate errors); keep `bars`/`stack`/`surface` values positive.
 
 **Divergence still applies (D1/D6b/D12):** vary the lens move AND the depth arrangement across cinematic
 scenes — five identical dolly-ins is the cinematic form of a template. The register contest + `meta.audacity`

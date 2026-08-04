@@ -351,9 +351,10 @@ def _clean_planes(planes, tag):
             c["alpha"] = bool(p["alpha"])
         if p.get("billboard") is not None:                   # face the camera (rasterized text default)
             c["billboard"] = bool(p["billboard"])
-        kind = str(p.get("kind", "plane"))                   # 3D element: plane (default) | bars | stack | text
-        if kind not in ("plane", "bars", "stack", "text"):
-            raise RuntimeError("cinematic3d %s plane %d: kind must be plane|bars|stack|text, got %r" % (tag, j, kind))
+        kind = str(p.get("kind", "plane"))                   # 3D element: plane|bars|stack|text|particles|surface
+        if kind not in ("plane", "bars", "stack", "text", "particles", "surface"):
+            raise RuntimeError("cinematic3d %s plane %d: kind must be plane|bars|stack|text|particles|surface, "
+                               "got %r" % (tag, j, kind))
         c["kind"] = kind
         if kind in ("bars", "stack"):                        # data-driven 3D: bar heights / cube-stack counts
             data = p.get("data")
@@ -362,6 +363,13 @@ def _clean_planes(planes, tag):
             c["data"] = [_num(v, "%s plane %d data[%d]" % (tag, j, k)) for k, v in enumerate(data)]
             if p.get("labels") is not None:
                 c["labels"] = [str(x) for x in p["labels"]]
+        if kind == "particles" and p.get("count") is not None:   # how many points assemble (ThreeScene caps it)
+            c["count"] = int(_num(p["count"], "%s plane %d count" % (tag, j)))
+        if kind == "surface" and p.get("data") is not None:      # optional height ridge profile (else sum-of-sines)
+            data = p.get("data")
+            if not isinstance(data, list):
+                raise RuntimeError("cinematic3d %s plane %d: surface `data` must be a list" % (tag, j))
+            c["data"] = [_num(v, "%s plane %d data[%d]" % (tag, j, k)) for k, v in enumerate(data)]
         if kind == "text":                                   # real 3D text -> rasterized to a billboard plane
                                                              # (_rasterize_text3d); NOT drei/troika <Text>, which
                                                              # renders BLANK under Remotion (async glyph SDF).

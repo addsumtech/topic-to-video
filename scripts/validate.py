@@ -774,6 +774,21 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
             warnings.append(f"{tag}: plane {j} is a `bars` chart with {len(nums)} columns — beyond ~12 the bars "
                             f"spill past the frame and each emits 2 rasterized label PNGs; aggregate to the top "
                             f"~8–10, or use an html chart plane (Path A) for a dense series")
+    # born-in-3D forms (particles/surface): a NaN blanks the WebGL render; a huge particle count is capped by
+    # the renderer (PARTICLE_MAX=160) so it silently UNDER-shows — steer the author to the cap early.
+    for j, p in enumerate((s.get("planes") or pr.get("planes") or [])):
+        if not isinstance(p, dict):
+            continue
+        if p.get("kind") == "particles" and p.get("count") is not None:
+            c = p.get("count")
+            if not isinstance(c, (int, float)) or (isinstance(c, float) and not math.isfinite(c)) or c <= 0:
+                errors.append(f"{tag}: plane {j} particles `count` {c!r} must be a positive number")
+            elif c > 160:
+                warnings.append(f"{tag}: plane {j} particles count {int(c)} exceeds the render cap (160) — it "
+                                f"will UNDER-show; keep it ≤160 (the field reads as 'many' well below that)")
+        if p.get("kind") == "surface" and isinstance(p.get("data"), list):
+            if any(isinstance(v, float) and not math.isfinite(v) for v in p["data"] if isinstance(v, (int, float))):
+                errors.append(f"{tag}: plane {j} surface `data` has a NaN/Infinity value — it blanks the render")
     if not cam and not lens and not layers:
         return
     fps = int((meta or {}).get("fps", 30) or 30)
