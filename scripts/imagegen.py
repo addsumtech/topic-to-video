@@ -116,6 +116,30 @@ def synthesize_soft_textures(out_dir, data, key, provider, size, quality, date="
     return made
 
 
+def _image_slots(data):
+    """Every place a GENERATED image attaches, yielded uniformly as (owner_dict, dest_field, label, tag):
+    a scene's flat `image` (scene `image_prompt` → `image`) AND — on the CINEMATIC tier — each depth-plane
+    (`layers`), true-3D plane (`planes`), and shot-stage element (`stage.elements`) that carries its OWN
+    `image_prompt` (→ its `src`). This is what makes "use a gen image where code can't draw the texture"
+    turn-key: a cinematic beat authors a FAR `kind:"image"` plane with an `image_prompt` (+ `treatment:
+    "atmosphere"`), and it is filled by the SAME cache+style path as a scene image — no separate pipeline,
+    and re-runs stay free (sha1 cache). Only UNFILLED slots (no existing image/src) are yielded."""
+    for s in data.get("slides", []):
+        if (s.get("image_prompt") or "").strip() and not (s.get("image") or "").strip():
+            yield s, "image", "scene %s" % s.get("index"), s.get("image_tag", "broll")
+        props = s.get("props") or {}
+        for coll_key in ("layers", "planes"):
+            coll = s.get(coll_key) or props.get(coll_key)
+            for k, ly in enumerate(coll if isinstance(coll, list) else []):
+                if isinstance(ly, dict) and (ly.get("image_prompt") or "").strip() and not (ly.get("src") or "").strip():
+                    yield ly, "src", "scene %s %s[%d]" % (s.get("index"), coll_key, k), ly.get("image_tag", "backplane")
+        stage = s.get("stage") or props.get("stage")
+        els = stage.get("elements") if isinstance(stage, dict) else None
+        for k, el in enumerate(els if isinstance(els, list) else []):
+            if isinstance(el, dict) and (el.get("image_prompt") or "").strip() and not (el.get("src") or "").strip():
+                yield el, "src", "scene %s element %s" % (s.get("index"), el.get("id", k)), el.get("image_tag", "backplane")
+
+
 def synthesize_images(out_dir, key=None, date=""):
     path = os.path.join(out_dir, "storyboard.json")
     data = sb.load(path)
@@ -133,15 +157,13 @@ def synthesize_images(out_dir, key=None, date=""):
     model = "codex" if provider == "codex" else DEFAULT_MODEL
     if provider != "codex":
         key = key or os.environ.get("OPENAI_API_KEY") or _read_key_file()
-    pending = [s for s in data["slides"]
-               if (s.get("image_prompt") or "").strip() and not s.get("image")]
     made = cached = failed = 0
-    for s in pending:
-        prompt = _apply_style(s["image_prompt"], meta)   # the styled prompt is what gets hashed + generated
+    for owner, dest, label, tag in _image_slots(data):
+        prompt = _apply_style(owner["image_prompt"], meta)   # the styled prompt is what gets hashed + generated
         cp = _cache_path(out_dir, prompt, model, size, quality)
         rel = os.path.relpath(cp, out_dir)
         if os.path.exists(cp):
-            s["image"] = rel; cached += 1; continue
+            owner[dest] = rel; cached += 1; continue
         try:
             if provider == "codex":
                 _generate_codex(prompt, cp, size, quality)
@@ -149,12 +171,12 @@ def synthesize_images(out_dir, key=None, date=""):
                 generate(prompt, cp, key, size, quality, DEFAULT_MODEL)
             with open(cp[:-4] + ".json", "w") as f:
                 json.dump({"prompt": prompt, "provider": provider, "model": model, "size": size,
-                           "quality": quality, "tag": s.get("image_tag", "broll"),
+                           "quality": quality, "tag": tag,
                            "visual_style": meta.get("visual_style"), "date": date},
                           f, indent=2)
-            s["image"] = rel; made += 1
+            owner[dest] = rel; made += 1
         except Exception as e:
-            print(f"[imagegen] scene {s['index']} failed ({e}); leaving for free-tier fallback")
+            print(f"[imagegen] {label} failed ({e}); leaving for free-tier fallback")
             failed += 1
     smade = synthesize_soft_textures(out_dir, data, key, provider, size, quality, date)
     sb.save(data, path)

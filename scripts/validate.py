@@ -398,6 +398,14 @@ def _figure_traceability(slides, out_dir, warnings):
 
 _CINE_KINDS = {"fill", "grid", "floor", "hero", "panel", "image"}
 _CINE_EASINGS = {"linear", "in", "out", "inout", "house"}  # `house` = the shared premium expo-out settle (default)
+# A GENERATED (Codex/`atmosphere`) image can render texture/mood/material but NOT legible text, UI chrome,
+# data marks, or logos — asking for them yields garbled glyphs (that content belongs on the code-drawn
+# plane). Used to WARN on a gen backplane prompt that requests them. (The "AI = background, code = data"
+# split, made mechanical for the cinematic depth-plane path.)
+_GEN_PROMPT_FORBIDDEN = re.compile(
+    r"\b(text|words?|letter|lettering|label|caption|title|headline|paragraph|typograph\w*|"
+    r"UI|interface|screenshot|dashboard|chart|graph|plot|axis|legend|table|"
+    r"logo|wordmark|brand\s?mark|number|digits?|percent|data)\b", re.I)
 _SHOT_TYPES = {"ESTABLISH", "MEDIUM", "CLOSEUP", "OVER_SHOULDER", "REVEAL", "HERO"}
 _ELEM_KINDS = {"panel", "image", "textblock", "callout", "grid", "floor", "hero", "fill", "card", "metaphor", "display", "terminal", "spotlight", "hud", "connector"}  # ElementKind (elements.tsx); card=Path-A html form, metaphor=materialized verb, display=giant kinetic type, terminal=streaming CLI, spotlight=travelling light-pool, hud=FUI reticle+readout, connector=draw-on line
 _METAPHOR_CONCEPTS = {"widening-gap", "physical-fall", "filling-vessel", "diverging-pair", "converging-scatter"}
@@ -501,6 +509,51 @@ def _cine_crowding(elements, tag, warnings):
                                 f"their z; two large boxes at the same [x,y] collide (see the crowding rule)")
 
 
+_GEN_TEXT_FIELDS = ("title", "sub", "kicker", "text", "heroText")
+
+
+def _gen_image_guards(el, z, parallax, focal_zs, label, tag, errors, warnings):
+    """Guardrails for a GENERATED (`treatment:"atmosphere"`) image — SHARED by the flat depth-plane path
+    (`layers`) and the shot-based path (`stage.elements`) so the discipline generalises across BOTH tiers,
+    not just the one it was first written for. A gen image is a FAR BACKPLANE behind the code-drawn focal
+    card: (1) it must sit BEHIND the focal/text plane, never foreground; (2) it carries NO text/data (gen
+    glyphs garble — the code plane owns text); (3) it must not stand in for a REAL named subject (that's
+    `documentary`, fetched + credited). `z`/`parallax` locate the plane (either may be None); `focal_zs`
+    are the z of the text-bearing planes it must sit behind. No-op unless the plane is a gen image."""
+    if el.get("kind") != "image" or str(el.get("treatment", "")).strip().lower() != "atmosphere":
+        return
+    # (1) PLACEMENT — behind the focal (text) plane, never foreground.
+    if z is not None:
+        if focal_zs and float(z) >= min(focal_zs):
+            errors.append(f"{tag}: {label} is a GENERATED image at z={z} but sits at/in front of the text "
+                          f"plane (z≥{min(focal_zs):g}) — a gen image is atmosphere; push it BEHIND the "
+                          f"focal card (more-negative z)")
+        elif not focal_zs and float(z) > 0:
+            warnings.append(f"{tag}: {label} is a GENERATED image at z={z} (>0, foreground) — reserve the "
+                            f"front for the code-drawn focal plane; push it back")
+    elif isinstance(parallax, (int, float)) and float(parallax) >= 1.0:
+        errors.append(f"{tag}: {label} is a GENERATED image at parallax {parallax} (≥1 = foreground) — a gen "
+                      f"image is atmosphere; make it a background plane (parallax<1) behind the focal card")
+    elif parallax is None:
+        warnings.append(f"{tag}: {label} is a GENERATED image with no explicit depth (parallax/z) — place it "
+                        f"as a background plane (parallax<1 or a deep -z) so it stays behind the focal card")
+    # (2) NO TEXT/DATA — gen glyphs garble; the code plane owns text.
+    if any(isinstance(el.get(f), str) and el.get(f).strip() for f in _GEN_TEXT_FIELDS):
+        errors.append(f"{tag}: {label} is a GENERATED image carrying TEXT — gen imagery garbles type and "
+                      f"can't hold a fact; keep title/kicker/sub/data on the code-drawn focal plane")
+    # (3) real-named-subject smell — a specific real thing must be documentary, not fabricated.
+    if (el.get("doc_query") or "").strip() or (el.get("credit") or "").strip():
+        warnings.append(f"{tag}: {label} is treatment 'atmosphere' (generated) yet names a real subject "
+                        f"(doc_query/credit) — a specific real thing must be 'documentary' (fetched + "
+                        f"credited), never generated")
+    # (4) prompt hygiene — a gen prompt asking for text/UI/data/logos renders garbled.
+    _bad = _GEN_PROMPT_FORBIDDEN.search(el.get("image_prompt") or "")
+    if _bad:
+        warnings.append(f"{tag}: {label} gen image_prompt asks for '{_bad.group(0)}' — generated imagery "
+                        f"can't render legible text/UI/data/logos; draw those in code and keep the prompt to "
+                        f"texture/material/mood")
+
+
 def _shot_stage_fields(stage, shots, tag, errors, warnings):
     """P2 SHOT-BASED pre-render gate: a scene-space SET (stage.elements placed once) + an ordered LIST
     of shots. Mirrors render_remotion._clean_stage/_clean_shots so the ~1s validate pass catches the
@@ -586,6 +639,23 @@ def _shot_stage_fields(stage, shots, tag, errors, warnings):
                             f"block that WRAPS at 200px, and two of them collide (a render overlapped a "
                             f"floor/ceiling pair); compose multiple big lines on ONE Path-A html card instead")
         _cine_crowding(stage["elements"], tag, warnings)     # two content boxes colliding on one depth plane
+
+        # GENERATED-imagery guardrails on the shot-based tier — a `treatment:"atmosphere"` image ELEMENT is
+        # the same atmosphere-only backplane as a `layers` gen plane, so it gets the SAME three bright lines
+        # (backplane behind the focal card / no text-data / not a real-named-subject stand-in). Focal = any
+        # element that carries text OR is a Path-A `card` (the code-drawn focal plane the gen image sits
+        # behind). Without this, the director's PREFERRED cinematic path would generate but go unguarded.
+        def _el_z(e):
+            p = e.get("position")
+            return float(p[2]) if isinstance(p, list) and len(p) == 3 and isinstance(p[2], (int, float)) else None
+        _focal_zs = [_el_z(e) for e in stage["elements"]
+                     if isinstance(e, dict) and _el_z(e) is not None
+                     and (e.get("kind") == "card"
+                          or any(isinstance(e.get(f), str) and e.get(f).strip() for f in _GEN_TEXT_FIELDS))]
+        for el in stage["elements"]:
+            if isinstance(el, dict):
+                _gen_image_guards(el, _el_z(el), None, [z for z in _focal_zs if z is not None],
+                                  f"stage element {el.get('id')!r}", tag, errors, warnings)
     if not isinstance(shots, list) or not shots:
         errors.append(f"{tag}: shot-based `shots` must be a non-empty list"); return
     for j, sh in enumerate(shots):
@@ -754,17 +824,30 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
                 dm = ly.get("dim", 0)
                 if not isinstance(dm, (int, float)) or not (0 <= float(dm) <= 1):
                     warnings.append(f"{tag}: layer {j} dim {dm} outside 0–1")
-                if ly.get("kind") == "image" and not _exists(out_dir, ly.get("src") or ""):
-                    errors.append(f"{tag}: layer {j} image src '{ly.get('src')}' not found under {out_dir}")
+                if ly.get("kind") == "image":
+                    if not (ly.get("src") or "").strip() and (ly.get("image_prompt") or "").strip():
+                        # authored a gen backplane but the asset isn't there yet — clearer than 'src not found'
+                        errors.append(f"{tag}: layer {j} has image_prompt but no generated src — run "
+                                      f"imagegen.py first (it fills each depth-plane's src)")
+                    elif not _exists(out_dir, ly.get("src") or ""):
+                        errors.append(f"{tag}: layer {j} image src '{ly.get('src')}' not found under {out_dir}")
                 # TEXT belongs on the sharp focal plane. A dimmed/blurred background plane carrying a
                 # title/sub/kicker muddles into competing noise (the audit's clearest authoring fix).
                 has_text = any(isinstance(ly.get(k), str) and ly.get(k).strip()
-                               for k in ("title", "sub", "kicker", "text"))
+                               for k in ("title", "sub", "kicker", "text", "heroText"))
                 if has_text and ((isinstance(dm, (int, float)) and float(dm) >= 0.25)
                                  or (isinstance(bl, (int, float)) and float(bl) >= 4)):
                     warnings.append(f"{tag}: layer {j} puts TEXT on a backgrounded plane (dim/blur) — "
                                     f"competing text muddles into noise; reserve text for the sharp focal "
                                     f"plane and make far planes texture (grid/floor/hero)")
+
+                # ── GENERATED-imagery guardrails (the Codex/`atmosphere` backplane) — shared helper so the
+                # SAME three bright lines apply on the shot-based `stage.elements` path too (see below). ──
+                _focal_zs = [float(t.get("z")) for t in layers
+                             if isinstance(t, dict) and isinstance(t.get("z"), (int, float))
+                             and any(isinstance(t.get(w), str) and t.get(w).strip() for w in _GEN_TEXT_FIELDS)]
+                _z = float(zz) if isinstance(zz, (int, float)) else None
+                _gen_image_guards(ly, _z, ly.get("parallax"), _focal_zs, f"layer {j}", tag, errors, warnings)
 
     if lens is not None:
         if not isinstance(lens, list) or not lens:

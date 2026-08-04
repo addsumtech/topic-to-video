@@ -330,6 +330,32 @@ govern how bold the cinematic register goes, exactly as for HTML decks. "Paralla
 vector-only scene with no lit/topical subject) reads cold — if the beat is about a real thing, make a deep
 plane a real `image` (documentary/atmosphere treatment), never generic filler.
 
+**DEPTH-PLANE IMAGERY — a GENERATED backplane where CODE can't draw it (the "AI = background, code = data"
+split, applied to the camera rig).** The depth rig is exactly where a generated image earns its cost: as a
+FAR plane (soft, deep, parallaxing) it supplies production value CODE structurally can't draw — an organic
+/material/atmospheric texture (brain tissue, cloth, terrain, cloud, water, city haze, painterly light,
+volumetric glow) — behind the code-drawn focal card, WITHOUT competing with it. Reach for it deliberately,
+per beat, by the SAME `media.treatment` decision as the HTML tier (Step 1/Step 2 above), realised on a
+PLANE:
+- **When to reach for it:** the beat wants a texture/material/mood on a far plane that a CSS gradient or
+  vector cannot convincingly make. A flat, code-drawable backdrop (a grid, a floor, a tint, a `.bg-motif`)
+  stays code — don't generate what code draws cleanly. Most beats still need no image at all (`none`).
+- **How to author it:** put the `image_prompt` **on the far `kind:"image"` plane itself** — a `layers`
+  depth plane OR a `stage` image element — with **`treatment:"atmosphere"`** — `imagegen.py` fills that
+  plane's `src` from the SAME cache+style path as a scene image (re-runs free). Place it BEHIND the focal
+  card: `parallax < 1` (flat tier) or a deep, more-negative `z` than the text plane (3D/shot tier), and
+  usually a little `blur`/`dim` so it reads as ground, not figure.
+- **The three bright lines (validate ENFORCES these on the plane — a violation blocks the render):**
+  (a) a gen plane is **atmosphere only** — it must be a BACKPLANE, never the focal/foreground plane
+  (parallax ≥ 1 or in front of the text plane ⇒ ERROR); (b) it **carries NO text/data** — title/kicker/
+  sub/figures live on the code-drawn plane (gen glyphs garble; text on a gen plane ⇒ ERROR); (c) it
+  **never stands in for a REAL named subject** — a specific real thing (a real place/building/device/map)
+  is `documentary` (fetched real + credited via `doc_query`), never generated (the faithfulness bright
+  line; naming a `doc_query` on an `atmosphere` plane ⇒ WARN). Keep the prompt to texture/material/mood —
+  asking a gen prompt for text/UI/charts/logos is a warned smell. These lints fire on BOTH the `layers`
+  and the shot-based `stage.elements` paths; the design-critic (D12m) judges the real-subject stand-in and
+  any over-reliance the lint can't fully decide.
+
 ## Form selection — choose the form the content wants; keep a form ledger
 **Design is choosing, not matching.** For each `html` beat add a **`form`** field naming the chosen form
 AND the runner-up it beat, one clause: e.g. `"form": "flow — beats cards because the 5 steps are ORDERED;

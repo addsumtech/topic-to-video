@@ -410,6 +410,16 @@ the floor; you are the ceiling.
   CONTENT PLAN's real substance (the product's actual mechanism/process/differentiator), not generic marketing
   filler — cover-the-copy also means: is there anything *specific and true* here, or is it hollow? **FLAG a
   film that is visually rich but content-thin.**
+- **D12m — Generated-backplane discipline (atmosphere, not a stand-in).** A `treatment:"atmosphere"` depth
+  plane is a GENERATED texture behind the code-drawn card — validate enforces its PLACEMENT (backplane, no
+  text, no `doc_query`), but you judge the two things pixels-and-lints can't: (a) **the bright line** — the
+  gen plane must NOT depict a SPECIFIC REAL named thing (a real place/building/device/map/person). If the
+  filmstrip shows a generated stand-in for something real, **REVISE** — it's `documentary` (fetch the real
+  one, credited) or `none`, never a fabrication. (b) **atmosphere, not the carrier** — the far plane sets
+  mood/material only; the FACT/subject still lives on the code plane in front. **REVISE** a beat that leans
+  on the generated image to carry its meaning, or a film that drifts into a slideshow of gen stills (the
+  "AI = background, code = data" split broken). A gen backplane that's merely soft topical texture behind a
+  legible code card is correct — this catches the stand-in and the over-reliance, not the honest use.
 Inherited checks still apply to the composed frame: D5 (composition/whitespace), D7 (squint/cover-text),
 D8 (semantic colour), D10 (anti-slop). D1/D6b (layout/silhouette diversity) apply ACROSS cinematic scenes
 too — vary the lens move + depth arrangement, don't ship five identical dolly-ins.

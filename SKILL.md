@@ -61,7 +61,13 @@ TTS if the user gives an API key.
   the path. Only acts when `meta.image_source == "openai"`. This is the **`atmosphere`/broll** class —
   generic, no facts — and it lives **behind HTML pages** (soft `.bg-soft` textures / a hero cover) or
   as **depth planes on the Remotion tier**, never a standalone slideshow of generated stills (data
-  stays in real HTML/charts — the "AI = background, code = data" split).
+  stays in real HTML/charts — the "AI = background, code = data" split). **Cinematic gen BACKPLANE:** a
+  cinematic beat may put an `image_prompt` + **`treatment:"atmosphere"`** directly on a FAR `kind:"image"`
+  plane (a `layers` depth plane or a `stage` image element) to get a generated texture CODE can't draw
+  (material/terrain/haze/painterly light) behind the code-drawn focal card — imagegen fills that plane's
+  `src` (same cache path). `validate.py` ENFORCES the three bright lines on such a plane, on BOTH paths
+  (backplane-only, no text/data, never a stand-in for a real named subject → that's `documentary`); the
+  design-director's cinematic "DEPTH-PLANE IMAGERY" section is the authoring procedure.
 - `scripts/imagefetch.py <query> <out_path> [--prefer W] [--duotone SHADOW HIGHLIGHT]` — the
   **`documentary` (REAL-image) tier**, FREE + no key: search **Wikimedia Commons** for a
   license-clean (CC / Public-Domain) real photo/map/diagram of the ACTUAL named subject, download it,
