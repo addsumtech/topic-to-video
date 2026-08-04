@@ -16,6 +16,51 @@ export type TypeAttitude = 'rise' | 'tracking-in' | 'blur-in'; // the entrance p
 export type MetaphorConcept = 'widening-gap' | 'physical-fall' | 'filling-vessel' | 'diverging-pair' | 'converging-scatter';
 
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+
+// PANEL MATERIAL per style — the deck's chosen visual language now reaches the card SURFACE, not just the
+// grade + 3D light mood. The panel used to be ONE hardcoded glass recipe on every topic, so a brutalism
+// deck and a glassmorphism deck rendered the identical translucent card (the half-closed "design gap":
+// theme.style reached Finish/ThreeScene but never elements.tsx). Now the surface is a function of the style:
+// hard-graphic (opaque fill + hard offset shadow), metal (brushed dark gradient + bright edge), schematic
+// (wireframe line border), CRT/neon (glowing edge), print (ink + misregister), soft (clay/watercolour).
+// Pure CSS (background/border/boxShadow only — NO filter/opacity, so a preserve-3d ancestor never flattens;
+// frame-safe). DEFAULT (glassmorphism / unstyled / unknown) is BYTE-IDENTICAL to the prior recipe.
+export type PanelMat = {background: string; border: string; boxShadow: string; radius?: number};
+export function panelMaterial(theme: Theme): PanelMat {
+  const bg = theme.bg, ac = theme.accent, a2 = theme.accent2, fg = theme.fg, sf = theme.surface || theme.bg;
+  const GLASS: PanelMat = {
+    background: `linear-gradient(158deg, ${bg}f2 0%, ${bg}cc 100%)`,
+    border: `1.5px solid ${ac}40`,
+    boxShadow: `0 54px 150px rgba(0,0,0,0.62), inset 0 1.5px 0 ${fg}26, inset 0 0 100px ${ac}0e`,
+  };
+  const R: Record<string, PanelMat> = {
+    glassmorphism: GLASS,
+    // HARD GRAPHIC — opaque fill + hard offset shadow, thick square border
+    brutalism: {background: bg, border: `3px solid ${fg}`, boxShadow: `14px 14px 0 ${ac}`, radius: 2},
+    swiss:     {background: bg, border: `2px solid ${fg}`, boxShadow: `0 2px 0 ${fg}, 12px 12px 0 ${ac}22`, radius: 2},
+    bauhaus:   {background: bg, border: `3px solid ${fg}`, boxShadow: `10px 10px 0 ${a2}`, radius: 2},
+    memphis:   {background: bg, border: `3px solid ${fg}`, boxShadow: `8px 8px 0 ${ac}, 16px 16px 0 ${a2}66`, radius: 4},
+    // PRINT — flat ink + slight misregister offset
+    risograph: {background: `${bg}f6`, border: `2px solid ${fg}cc`, boxShadow: `6px 6px 0 ${ac}55`, radius: 3},
+    manga:     {background: bg, border: `3px solid ${fg}`, boxShadow: `7px 7px 0 rgba(0,0,0,0.5)`, radius: 2},
+    // METAL — brushed dark gradient + bright top edge + spec
+    noir:      {background: `linear-gradient(145deg, ${fg}14 0%, ${bg}f2 32%, #05060a 100%)`, border: `1px solid ${fg}2e`, boxShadow: `0 50px 130px rgba(0,0,0,0.7), inset 0 1.5px 0 ${fg}55, inset 0 -1px 0 rgba(0,0,0,0.6)`},
+    cinematic: {background: `linear-gradient(150deg, ${bg}f2 0%, ${bg}d0 100%)`, border: `1px solid ${ac}33`, boxShadow: `0 60px 150px rgba(0,0,0,0.66), inset 0 1.5px 0 ${fg}22`},
+    artdeco:   {background: `linear-gradient(160deg, ${bg}f6 0%, ${bg}e0 100%)`, border: `1px solid ${ac}`, boxShadow: `0 0 0 3px ${bg}, 0 0 0 4px ${ac}55, 0 40px 110px rgba(0,0,0,0.55)`, radius: 3},
+    editorial: {background: `${sf}f8`, border: `1px solid ${fg}1f`, boxShadow: `0 30px 90px rgba(0,0,0,0.28)`, radius: 6},
+    // WIRE / SCHEMATIC — near-transparent + bright line border + double rule
+    blueprint:   {background: `${ac}0d`, border: `1.5px solid ${ac}`, boxShadow: `inset 0 0 0 1px ${ac}33, 0 30px 90px rgba(0,0,0,0.5)`, radius: 2},
+    cartographic:{background: `${bg}ea`, border: `1.5px solid ${ac}aa`, boxShadow: `inset 0 0 0 1px ${ac}22, 0 26px 80px rgba(0,0,0,0.4)`, radius: 3},
+    // CRT / NEON — dark + glowing edge
+    terminal:  {background: `${bg}f2`, border: `1px solid ${ac}`, boxShadow: `0 0 34px ${ac}55, inset 0 0 44px ${ac}12, 0 40px 120px rgba(0,0,0,0.6)`, radius: 3},
+    cyberpunk: {background: `${bg}dd`, border: `1.5px solid ${ac}`, boxShadow: `0 0 30px ${ac}66, inset 0 0 30px ${a2}1a, 0 40px 120px rgba(0,0,0,0.6)`, radius: 4},
+    vaporwave: {background: `linear-gradient(160deg, ${ac}1a 0%, ${bg}e6 60%)`, border: `1.5px solid ${a2}aa`, boxShadow: `0 0 34px ${ac}55, 0 40px 120px rgba(0,0,0,0.5)`, radius: 8},
+    // SOFT — clay puff / watercolour wash
+    claymorphism:{background: sf, border: 'none', boxShadow: `0 30px 70px rgba(0,0,0,0.30), inset 0 3px 8px ${fg}22, inset 0 -6px 14px rgba(0,0,0,0.28)`, radius: 28},
+    watercolor:  {background: `${sf}f0`, border: `1px solid ${ac}33`, boxShadow: `0 30px 90px rgba(0,0,0,0.24)`, radius: 18},
+  };
+  return R[theme.style] || GLASS;
+}
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);      // decel: a fill / a settle
 const easeGravity = (t: number) => t * t;                   // accel: a fall speeds up
 // deterministic pseudo-scatter in [0,1) — a frame-STABLE hash, never a per-frame RNG (which would re-roll
@@ -579,6 +624,7 @@ const ElementContent: React.FC<{
   const titleStyle = textStyle(theme, 'display', 'display');
   const subStyle = textStyle(theme, 'body', 'body');
   const radius = parseInt(theme.radius || '14px', 10);
+  const mat = panelMaterial(theme);   // the card SURFACE follows the deck's chosen style (was hardcoded glass)
 
   return (
     <div
@@ -590,10 +636,10 @@ const ElementContent: React.FC<{
         padding: '44px 52px',
         boxSizing: 'border-box',
         textAlign: centre ? 'center' : 'left',
-        background: `linear-gradient(158deg, ${theme.bg}f2 0%, ${theme.bg}cc 100%)`,
-        border: `1.5px solid ${theme.accent}40`,
-        borderRadius: radius,
-        boxShadow: `0 54px 150px rgba(0,0,0,0.62), inset 0 1.5px 0 ${theme.fg}26, inset 0 0 100px ${theme.accent}0e`,
+        background: mat.background,
+        border: mat.border,
+        borderRadius: mat.radius ?? radius,
+        boxShadow: mat.boxShadow,
       }}
     >
       {element.kicker ? (

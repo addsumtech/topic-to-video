@@ -100,7 +100,8 @@ const TexturedPlane: React.FC<{tex?: THREE.Texture; size: [number, number]; posi
 // A real extruded 3D BAR CHART — boxes with genuine depth the orbit camera reveals; data drives heights;
 // each bar GROWS from the floor over the scene (frame-driven, eased staggered). Born-in-3D data-viz, not a
 // flat chart on a plane. Lit (meshStandardMaterial) so the depth reads via shading.
-const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number; accent: string; accent2: string; glow?: boolean}> = ({data, frame, durationInFrames, accent, accent2, glow}) => {
+const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number; accent: string; accent2: string; glow?: boolean; mat?: Mat3D}> = ({data, frame, durationInFrames, accent, accent2, glow, mat}) => {
+  const m = mat || DEFAULT_MAT3D;
   const max = Math.max(1e-6, ...data.map((v) => Math.abs(v)));
   const bw = 0.62, gap = 0.42, maxH = 2.6; // bar width / gap / tallest bar (world units)
   const total = data.length * bw + (data.length - 1) * gap;
@@ -123,7 +124,8 @@ const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number;
                 keeps the colour out of [0,1] so it survives to the composer. Only when filmLook is on. */}
             <meshStandardMaterial color={isLast ? accent : accent2}
               emissive={glow && isLast ? accent : '#000000'} emissiveIntensity={glow && isLast ? 2.4 : 0}
-              toneMapped={!(glow && isLast)} metalness={0.1} roughness={0.55} />
+              toneMapped={!(glow && isLast)} metalness={m.metalness} roughness={m.roughness}
+              wireframe={m.wireframe} flatShading={m.flatShading} />
           </mesh>
         );
       })}
@@ -137,7 +139,8 @@ const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number;
 // layout constants MUST match render_remotion._STACK_* so rasterized per-column totals sit on their stacks.
 const STACK_U = 0.5, STACK_GAP = 0.5, STACK_BASE_Y = -1.3;
 const STACK_MAX_CUBES = 50; // per-column safety cap (see Stack3D) — validate warns above ~40
-const Stack3D: React.FC<{data: number[]; frame: number; durationInFrames: number; accent: string; accent2: string; glow?: boolean}> = ({data, frame, durationInFrames, accent, accent2, glow}) => {
+const Stack3D: React.FC<{data: number[]; frame: number; durationInFrames: number; accent: string; accent2: string; glow?: boolean; mat?: Mat3D}> = ({data, frame, durationInFrames, accent, accent2, glow, mat}) => {
+  const m = mat || DEFAULT_MAT3D;
   const total = data.length * STACK_U + (data.length - 1) * STACK_GAP;
   const growStart = Math.round(durationInFrames * 0.1);
   let order = 0;
@@ -161,7 +164,8 @@ const Stack3D: React.FC<{data: number[]; frame: number; durationInFrames: number
               <boxGeometry args={[STACK_U, STACK_U, STACK_U]} />
               <meshStandardMaterial color={isTop ? accent : accent2}
                 emissive={glow && isTop ? accent : '#000000'} emissiveIntensity={glow && isTop ? 2.2 : 0}
-                toneMapped={!(glow && isTop)} metalness={0.1} roughness={0.55} />
+                toneMapped={!(glow && isTop)} metalness={m.metalness} roughness={m.roughness}
+                wireframe={m.wireframe} flatShading={m.flatShading} />
             </mesh>
           );
         });
@@ -230,6 +234,32 @@ const STYLE_TO_MOOD: Record<string, Mood> = {
   noir: 'noir', editorial: 'noir', cinematic: 'noir', artdeco: 'noir',
   cyberpunk: 'void', vaporwave: 'void', terminal: 'void', blueprint: 'void', brutalism: 'void',
   glassmorphism: 'product', claymorphism: 'product',
+};
+
+// MATERIAL SURFACE per style — the deck's chosen visual language now reaches the 3D SURFACE, not just the
+// grade + light MOOD. Two decks that pick different styles used to render the SAME matte-plastic mesh (the
+// half-closed "design gap": theme.style reached Finish/lighting but never the material). Now a brutalism
+// deck is flat-shaded concrete, a noir deck is brushed metal the travelling spec GLINTS across, a blueprint
+// deck is wireframe line-render. meshStandardMaterial params only (metalness responds to the existing
+// LightRig with NO envMap needed; true glass/transmission needs IBL — deferred). DEFAULT == the prior
+// hardcoded {0.1,0.55} so an unstyled/unknown deck is byte-unchanged (no fixture regression).
+type Mat3D = {metalness: number; roughness: number; wireframe?: boolean; flatShading?: boolean};
+const DEFAULT_MAT3D: Mat3D = {metalness: 0.1, roughness: 0.55};
+const STYLE_TO_MATERIAL3D: Record<string, Mat3D> = {
+  // GRAPHIC / hard-matte — flat-shaded poster-ink surfaces, no spec
+  swiss: {metalness: 0, roughness: 0.9, flatShading: true}, bauhaus: {metalness: 0, roughness: 0.9, flatShading: true},
+  memphis: {metalness: 0, roughness: 0.92, flatShading: true}, risograph: {metalness: 0, roughness: 0.95, flatShading: true},
+  manga: {metalness: 0, roughness: 0.95, flatShading: true}, cartographic: {metalness: 0, roughness: 0.9, flatShading: true},
+  brutalism: {metalness: 0.02, roughness: 1.0, flatShading: true},
+  // METAL — brushed metal + spec (the travelling key/rim/spec rig glints across it)
+  noir: {metalness: 0.9, roughness: 0.28}, cinematic: {metalness: 0.8, roughness: 0.32},
+  artdeco: {metalness: 0.95, roughness: 0.22}, editorial: {metalness: 0.55, roughness: 0.42},
+  // WIRE / NEON — line-render or slick reflective
+  blueprint: {metalness: 0, roughness: 1.0, wireframe: true},
+  terminal: {metalness: 0.15, roughness: 0.35},
+  cyberpunk: {metalness: 0.55, roughness: 0.22}, vaporwave: {metalness: 0.5, roughness: 0.24},
+  // SOFT — matte plastic / clay (≈ the default)
+  glassmorphism: {metalness: 0.1, roughness: 0.55}, claymorphism: {metalness: 0, roughness: 0.85}, watercolor: {metalness: 0, roughness: 0.8},
 };
 const W = (_: Theme) => '#ffffff';
 type Rig = {amb: number; key: number; rim: number; spec: number; fill: number; floor: number; keyY: number; rimY: number;
@@ -318,6 +348,9 @@ export const ThreeScene: React.FC<{
   const fi = Math.min(fadeInFrames || 0, dur), fo = Math.min(fadeOutFrames || 0, dur);
   const fadeOpacity = 1 - Math.min(fi > 0 ? interpolate(frame, [0, fi], [0, 1], clamp) : 1,
                                    fo > 0 ? interpolate(frame, [dur - fo, dur], [1, 0], clamp) : 1);
+  // the deck's chosen style drives the 3D SURFACE (brushed-metal noir / flat-matte brutalism / wireframe
+  // blueprint / …) — unstyled/unknown falls back to the prior {0.1,0.55} matte plastic (no regression).
+  const mat3d = STYLE_TO_MATERIAL3D[theme.style] ?? DEFAULT_MAT3D;
 
   return (
     <AbsoluteFill style={{backgroundColor: theme.bg}}>
@@ -336,16 +369,17 @@ export const ThreeScene: React.FC<{
             bar feet so the shadow reads and the coplanar faces don't z-fight). */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.32, 0]} receiveShadow>
           <planeGeometry args={[40, 40]} />
-          <meshStandardMaterial color={theme.surface || theme.bg} />
+          <meshStandardMaterial color={theme.surface || theme.bg}
+            metalness={mat3d.metalness} roughness={mat3d.roughness} wireframe={mat3d.wireframe} />
         </mesh>
         {planes.map((p, i) =>
           p.kind === 'bars' && p.data ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
-              <Bars3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} glow={filmLook !== false} />
+              <Bars3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} glow={filmLook !== false} mat={mat3d} />
             </group>
           ) : p.kind === 'stack' && p.data ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
-              <Stack3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} glow={filmLook !== false} />
+              <Stack3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} glow={filmLook !== false} mat={mat3d} />
             </group>
           ) : p.src ? (
             <TexturedPlane key={i} tex={textures[p.src]} size={p.size || [3, 1.8]} position={p.position}
@@ -354,7 +388,8 @@ export const ThreeScene: React.FC<{
           ) : (
             <mesh key={i} position={p.position} rotation={p.rotation || [0, 0, 0]} castShadow>
               <planeGeometry args={p.size || [3, 1.8]} />
-              <meshStandardMaterial color={p.color || theme.accent} />
+              <meshStandardMaterial color={p.color || theme.accent}
+                metalness={mat3d.metalness} roughness={mat3d.roughness} wireframe={mat3d.wireframe} flatShading={mat3d.flatShading} />
             </mesh>
           )
         )}

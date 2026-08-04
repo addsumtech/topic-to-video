@@ -503,7 +503,12 @@ THIS subject. Make it that:
   never distorts a chart or fabricates specifics, and the imagery must still EVOKE THE ACTUAL TOPIC (style OF
   the subject). Set `visual_style` + `theme.style` (a catalog key); on AI tiers author `style_preamble` (the
   catalog clause adapted to this subject) — imagegen threads it through every image. A palette restatement is
-  NOT a style_thesis; the `style_thesis` prose says WHY this style fits.
+  NOT a style_thesis; the `style_thesis` prose says WHY this style fits. **On the cinematic tier `theme.style`
+  now drives the SURFACE MATERIAL too** (not just the grade + light mood): the panel card and the R3F meshes
+  re-skin per style — brutalism = hard opaque + offset shadow / flat-matte boxes, noir = brushed metal +
+  bright edge / metallic, blueprint = line-border / WIREFRAME, glass = translucent (the default). So the
+  style you pick is now the single biggest lever for "two decks look like two different films" — pick it to
+  MEAN something for THIS subject, not as a wash.
 - **Vary the composition ENVELOPE, not just the form.** Two beats can use DIFFERENT forms and STILL
   share one composition — a top kicker over a vertically-centered block on a flat ground — and that IS
   the templated look the user complains about. RULE: no two content beats may share the same composition

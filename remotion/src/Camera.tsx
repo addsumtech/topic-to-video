@@ -12,6 +12,7 @@ import {
 import {Theme} from './Video';
 import {Captions, CaptionSeg} from './Captions';
 import {Finish} from './theme/Finish';
+import {panelMaterial} from './stage/elements';   // shared style->surface recipe (same as the shot tier)
 import {textStyle} from './theme/typography';
 
 // ── Cinematic props (additive to SceneData; see scripts/render_remotion.py build_props) ────────────
@@ -158,6 +159,7 @@ const PlaneContent: React.FC<{layer: Layer; theme: Theme; frame: number; reduced
   const titleStyle = textStyle(theme, 'display', 'display');
   const subStyle = textStyle(theme, 'body', 'body');
   const radius = parseInt(theme.radius || '14px', 10);
+  const mat = panelMaterial(theme);   // card SURFACE follows the deck's style (shared with the shot tier)
 
   return (
     <div
@@ -169,10 +171,10 @@ const PlaneContent: React.FC<{layer: Layer; theme: Theme; frame: number; reduced
         padding: '44px 52px',
         boxSizing: 'border-box',
         textAlign: centre ? 'center' : 'left',
-        background: `linear-gradient(158deg, ${theme.bg}f2 0%, ${theme.bg}cc 100%)`,
-        border: `1.5px solid ${theme.accent}40`,
-        borderRadius: radius,
-        boxShadow: `0 54px 150px rgba(0,0,0,0.62), inset 0 1.5px 0 ${theme.fg}26, inset 0 0 100px ${theme.accent}0e`,
+        background: mat.background,
+        border: mat.border,
+        borderRadius: mat.radius ?? radius,
+        boxShadow: mat.boxShadow,
       }}
     >
       {layer.kicker ? (
