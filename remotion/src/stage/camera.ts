@@ -15,7 +15,16 @@ import {calculateShotFrame, resolveTarget} from './shots';
 import {generateMotion, parseMotionPattern} from './motions';
 
 export type Pose = {dolly: number; pitch: number; yaw: number; roll: number; zoom: number; focusZ: number | null};
-export type ResolvedShot = {start: number; end: number; startPose: Pose; endPose: Pose; easing: string};
+export type ResolvedShot = {
+  start: number;
+  end: number;
+  startPose: Pose;
+  endPose: Pose;
+  keys: {at: number; pose: Pose}[]; // ALL waypoints (a rack-focus is [open, HOLD@mid, land]); poseAtFrame
+  // interpolates through them so a hold-then-rack doesn't flatten to one linear pull. startPose/endPose are
+  // kept for reducedPoseAtFrame + back-compat (they equal keys[0]/keys[last]).
+  easing: string;
+};
 
 const EASE: Record<string, (n: number) => number> = {
   linear: Easing.linear,
@@ -63,7 +72,8 @@ export function computeTimeline(
     if (sh.lens && sh.lens.length) {
       const startPose = toPose(sh.lens[0]);
       const endPose = toPose(sh.lens[sh.lens.length - 1]);
-      out.push({start, end: start + dur, startPose, endPose, easing: flowThrough ? 'linear' : sh.easing || 'inout'});
+      const keys = [{at: start, pose: startPose}, {at: start + dur, pose: endPose}];
+      out.push({start, end: start + dur, startPose, endPose, keys, easing: flowThrough ? 'linear' : sh.easing || 'inout'});
       prevEnd = endPose;
       continue;
     }
@@ -83,7 +93,15 @@ export function computeTimeline(
     // subject); non-carry => CUT: sit at the framing and apply the motion (start == the framing pose).
     const startPose: Pose = sh.carry && prevEnd ? prevEnd : toPose(settled[0]);
 
-    out.push({start, end: start + dur, startPose, endPose, easing: flowThrough ? 'linear' : sh.easing || 'house'});
+    // Honour EVERY interior keyframe (RACK_FOCUS returns [open, HOLD@mid, land]) — map each settled keyframe
+    // to its absolute frame; only the FIRST pose is overridden by carry. A 2-keyframe motion yields exactly
+    // one segment == the old start->end behaviour, so nothing else changes.
+    const keys = settled.map((k, idx) => ({
+      at: start + Math.min(dur, Math.max(0, k.atFrame ?? (idx === settled.length - 1 ? dur : 0))),
+      pose: idx === 0 ? startPose : toPose(k),
+    }));
+
+    out.push({start, end: start + dur, startPose, endPose, keys, easing: flowThrough ? 'linear' : sh.easing || 'house'});
     prevEnd = endPose;
   }
   return out;
@@ -104,20 +122,30 @@ export function poseAtFrame(timeline: ResolvedShot[], frame: number): Pose {
   if (!timeline.length) return {dolly: 0, pitch: 0, yaw: 0, roll: 0, zoom: 1, focusZ: null};
   let rs = timeline[0];
   for (const t of timeline) if (frame >= t.start) rs = t; // last window whose start we've reached
-  const span = Math.max(1, rs.end - rs.start);
-  const raw = Math.min(1, Math.max(0, (frame - rs.start) / span));
+  const keys = rs.keys && rs.keys.length >= 2 ? rs.keys
+    : [{at: rs.start, pose: rs.startPose}, {at: rs.end, pose: rs.endPose}];
+  // Find the sub-segment [keys[j], keys[j+1]] containing `frame` and interpolate WITHIN it — this honours
+  // interior waypoints (a rack-focus HOLD-then-rack). A 2-keyframe shot has exactly one segment == the old
+  // start->end behaviour, so nothing regresses for the common case. Easing is applied per segment.
+  let j = 0;
+  while (j < keys.length - 1 && frame >= keys[j + 1].at) j++;
+  const jn = Math.min(j + 1, keys.length - 1);
+  const a = keys[j].pose;
+  const b = keys[jn].pose;
+  const span = Math.max(1, keys[jn].at - keys[j].at);
+  const raw = Math.min(1, Math.max(0, (frame - keys[j].at) / span));
   const e = (EASE[rs.easing] || EASE.inout)(raw);
-  const L = (a: number, b: number) => a + (b - a) * e;
+  const L = (x: number, y: number) => x + (y - x) * e;
   const fz =
-    rs.startPose.focusZ == null && rs.endPose.focusZ == null
+    a.focusZ == null && b.focusZ == null
       ? null
-      : L(rs.startPose.focusZ ?? rs.endPose.focusZ ?? 0, rs.endPose.focusZ ?? rs.startPose.focusZ ?? 0);
+      : L(a.focusZ ?? b.focusZ ?? 0, b.focusZ ?? a.focusZ ?? 0);
   return {
-    dolly: L(rs.startPose.dolly, rs.endPose.dolly),
-    pitch: L(rs.startPose.pitch, rs.endPose.pitch),
-    yaw: L(rs.startPose.yaw, rs.endPose.yaw),
-    roll: L(rs.startPose.roll, rs.endPose.roll),
-    zoom: L(rs.startPose.zoom, rs.endPose.zoom),
+    dolly: L(a.dolly, b.dolly),
+    pitch: L(a.pitch, b.pitch),
+    yaw: L(a.yaw, b.yaw),
+    roll: L(a.roll, b.roll),
+    zoom: L(a.zoom, b.zoom),
     focusZ: fz,
   };
 }
