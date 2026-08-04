@@ -7,6 +7,7 @@ import {SceneStage, type StageData} from './stage/SceneStage';
 import type {ShotSpec} from './stage/shots';
 import {ThreeScene, type Plane3D, type Camera3DKey} from './three/ThreeScene';
 import {BridgeOverlay, type BridgeData} from './BridgeOverlay';
+import type {MatchSpec} from './transitions/sharedElement';
 
 export type CalloutData = {
   box: number[];           // [x0, y0, x1, y1] normalized 0..1
@@ -41,8 +42,9 @@ export type SceneData = {
   perspective?: number | null;
   layers?: Layer[] | null;
   reducedMotion?: boolean;
-  // CROSS-SCENE transition INTO the next scene (P3): a marked seam that overlaps the two scenes.
-  transitionToNext?: {style: string; durationInFrames: number} | null;
+  // CROSS-SCENE transition INTO the next scene (P3): a marked seam that overlaps the two scenes. `match`
+  // (optional) makes it a SHARED-ELEMENT match-cut — an anchor held/morphed across the seam.
+  transitionToNext?: {style: string; durationInFrames: number; match?: MatchSpec | null} | null;
   transitionStyle?: string | null; // per-scene seam-look override (consumed by build_props)
   // TRUE-3D tier (P6): WebGL planes + an orbit/crane camera (renders via ThreeScene / @remotion/three).
   planes?: Plane3D[] | null;

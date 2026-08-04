@@ -468,8 +468,13 @@ THIS subject. Make it that:
   → push · reading-flow registers → lift · graphic swiss/terminal → wipe; blur only as a single coda
   override. ONE style + one direction per deck; continuation stays a hard cut (budget ~2-3 marked seams
   per video); a per-scene override only for a justified exception (climax entrance on dip). Also plan the
-  doc-only techniques where they're STRONGER than any filter: ONE anchor-handoff match cut when adjacent
-  beats truly share a shape; jump-cut chains for same-layout data progressions.
+  stronger-than-any-filter techniques: ONE **shared-element MATCH-CUT** when adjacent beats truly share a
+  shape — on the cinematic (Remotion) tier this is now a REAL rendered transition, not just authoring
+  discipline: put `match_cut:{shape:"box|bar|line|dot", from:[cx,cy,w,h], to:[cx,cy,w,h], color?}` on the
+  OUTGOING scene (coords are FRAME FRACTIONS 0..1; `from`=the anchor's pose at A's end, `to`=at B's start —
+  from==to is a pure HOLD, from≠to a MORPH). The anchor is held/morphed across the cross-dissolve so the eye
+  tracks one element A→B ("this IS that") — compose both beats so a real element sits under `from` and `to`.
+  Budget ONE per film. Plus jump-cut chains for same-layout data progressions.
 - **Register CONTEST — Phase A (when dispatched in contest mode): divergence BEFORE commitment.** A
   register written once regresses to the safe mean, so on a designed (html/AI-tier) video the assistant
   dispatches you FIRST in contest mode: return ONLY `register_candidates` — N genuinely divergent

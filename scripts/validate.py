@@ -1067,6 +1067,26 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
 
         _cinematic_fields(s, data.get("meta") or {}, out_dir, tag, errors, warnings)
 
+        # SHARED-ELEMENT match-cut spec (P3+): validate the anchor early (render's _clean_match is fail-loud,
+        # but a ~1s catch is friendlier). from/to are [cx,cy,w,h] FRAME FRACTIONS (0..1); it needs a NEXT scene.
+        mc = s.get("match_cut")
+        if mc is not None:
+            if not isinstance(mc, dict):
+                errors.append(f"{tag}: match_cut must be an object")
+            else:
+                if str(mc.get("shape", "box")) not in ("box", "bar", "line", "dot"):
+                    errors.append(f"{tag}: match_cut.shape {mc.get('shape')!r} must be box|bar|line|dot")
+                for key in ("from", "to"):
+                    v = mc.get(key)
+                    if not (isinstance(v, list) and len(v) == 4 and all(isinstance(x, (int, float)) for x in v)):
+                        errors.append(f"{tag}: match_cut.{key} must be [cx,cy,w,h] frame fractions (0..1)")
+                    elif any(not (-0.2 <= float(x) <= 1.2) for x in v):
+                        warnings.append(f"{tag}: match_cut.{key} {v} looks like PIXELS — coords are FRAME "
+                                        f"FRACTIONS (0..1); the anchor will sit off-frame")
+                if slides and s is slides[-1]:
+                    warnings.append(f"{tag}: match_cut is on the LAST scene — no next scene to match into, so it "
+                                    f"never renders; put it on the scene that transitions INTO the shared element")
+
         # --- referenced media exists on disk -------------------------------------------
         if t == "slide":
             if (s.get("image_prompt") or "").strip() and not s.get("image"):

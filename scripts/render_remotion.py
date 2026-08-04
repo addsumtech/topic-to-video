@@ -816,6 +816,29 @@ _TRANSITION_STYLE = {
     "push": "slide", "drift": "slide", "lift": "slide-up",   # directional page moves
     "wipe": "wipe", "blur": "blur",                          # sheet wipe / rack-defocus coda
 }
+_MATCH_SHAPES = ("box", "bar", "line", "dot")
+
+
+def _clean_match(m, tag):
+    """Coerce a SHARED-ELEMENT match-cut spec (P3+). `from`/`to` are [cx,cy,w,h] as FRACTIONS of the frame
+    (0..1): from==to is a pure HOLD match-cut (the anchor stays put while the scenes change), from!=to a
+    MORPH (it travels/scales A->B). Fail loud on a malformed spec — a NaN would blank the anchor."""
+    if not isinstance(m, dict):
+        raise RuntimeError("cinematic %s: match_cut must be an object" % tag)
+
+    def _box(key):
+        v = m.get(key)
+        if not (isinstance(v, list) and len(v) == 4 and all(isinstance(x, (int, float)) for x in v)):
+            raise RuntimeError("cinematic %s: match_cut.%s must be [cx,cy,w,h] fractions 0..1" % (tag, key))
+        return [_num(x, "%s match_cut.%s[%d]" % (tag, key, k)) for k, x in enumerate(v)]
+
+    shape = str(m.get("shape", "box"))
+    if shape not in _MATCH_SHAPES:
+        raise RuntimeError("cinematic %s: match_cut.shape %r must be one of %s" % (tag, shape, "|".join(_MATCH_SHAPES)))
+    out = {"shape": shape, "from": _box("from"), "to": _box("to")}
+    if m.get("color"):
+        out["color"] = str(m["color"])
+    return out
 
 
 def _transitions(scenes, meta, fps):
@@ -843,11 +866,15 @@ def _transitions(scenes, meta, fps):
     for i in range(len(scenes) - 1):
         a, b = scenes[i], scenes[i + 1]
         seam = max(int(a.get("fadeOutFrames") or 0), int(b.get("fadeInFrames") or 0))
-        if seam <= 0:                                        # a hard cut — no transition
+        # a match-cut REQUIRES an overlap to carry the anchor — force a breath-length seam even on a hard cut.
+        match = _clean_match(a["match_cut"], "scene %s" % a.get("index")) if a.get("match_cut") else None
+        if seam <= 0 and not match:                          # a hard cut — no transition
             continue
         style = str(a.get("transitionStyle") or style_default)
         a["transitionToNext"] = {"style": _TRANSITION_STYLE.get(style, "fade"),
-                                 "durationInFrames": min(seam, cap)}
+                                 "durationInFrames": min(seam if seam > 0 else cap, cap)}
+        if match:                                            # the seam carries a shared-element anchor
+            a["transitionToNext"]["match"] = match
         a["fadeOutFrames"] = 0                               # TransitionSeries now owns this seam
         b["fadeInFrames"] = 0
     return scenes
@@ -1021,6 +1048,8 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
             "layers": layers,                        # cinematic: depth planes (or None)
             "reducedMotion": reduced,                # freeze the camera + show reveals instantly
             "transitionStyle": s.get("transition_style"),  # per-scene seam-look override (else meta default)
+            "match_cut": s.get("match_cut"),         # shared-element match-cut INTO the next scene (P3+); _transitions
+            #                                          coerces it onto transitionToNext.match (dropped from props after)
             "bridge": bridge,                        # diegetic advance gesture on this scene's tail (or None)
         })
     _transitions(scenes, meta, fps)                  # derive cross-scene transitions + de-double the seam fades

@@ -6,6 +6,7 @@ import {slide} from '@remotion/transitions/slide';
 import {wipe} from '@remotion/transitions/wipe';
 import {Scene, SceneData} from './Scene';
 import type {Theme} from './theme/tokens';
+import {sharedElement, MatchSpec} from './transitions/sharedElement';
 
 // Single authoritative Theme lives in theme/tokens.ts; re-exported here so the many modules that
 // `import {Theme} from './Video'` and those that import from './theme/tokens' share ONE type.
@@ -13,10 +14,13 @@ export type {Theme};
 
 // Seam-look KEY (from render_remotion._TRANSITION_STYLE) -> a @remotion/transitions presentation.
 // fade = cross-dissolve (opacity only, reduced-motion-safe); slide/wipe are directional page moves.
-// Under reduced motion every seam collapses to fade (no travel).
-function presentationFor(style: string | undefined, reduced: boolean) {
+// A seam carrying `match` gets the SHARED-ELEMENT presentation: an anchor held/morphed across the cut so a
+// reel of shots reads as one space (the eye tracks one element A->B). Under reduced motion every seam
+// collapses to fade (no travel — the anchor morph is motion).
+function presentationFor(t: {style?: string; match?: MatchSpec | null} | undefined, theme: Theme, reduced: boolean) {
   if (reduced) return fade();
-  switch (style) {
+  if (t && t.match) return sharedElement(t.match, theme);
+  switch (t && t.style) {
     case 'slide': return slide({direction: 'from-right'});
     case 'slide-up': return slide({direction: 'from-bottom'});
     case 'wipe': return wipe();
@@ -106,7 +110,7 @@ export const Video: React.FC<VideoProps> = ({theme, scenes, captionFontPx, heroM
         <TransitionSeries.Transition
           key={`t${s.index}`}
           timing={linearTiming({durationInFrames: Math.max(1, t.durationInFrames || 1)})}
-          presentation={presentationFor(t.style, !!s.reducedMotion)}
+          presentation={presentationFor(t, theme, !!s.reducedMotion)}
         />,
       );
     }
