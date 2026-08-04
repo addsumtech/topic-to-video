@@ -712,9 +712,11 @@ def _render_html_cards(data, out_dir, scale=2):
     HTML tier renders). We screenshot that page through the SAME headless-Chrome path the HTML tier uses
     (snapshot/_cdp), at `scale`x device-pixels so it stays razor-sharp when the camera pushes in, then set
     the element's `src` to the PNG — and the existing image-plane / textured-3D-plane rendering flies the
-    camera over it. Best-effort: no Chrome / a missing page -> the element keeps no src (validate flags a
-    missing page pre-render; a Chrome hiccup prints a clear warning and the shot's other elements still
-    render) — never a silent crash."""
+    camera over it. RESILIENCE (html cards ARE the cinematic content, not decoration): a missing page or a
+    per-card screenshot HICCUP prints a warning and SKIPS that one element (the other cards still render); but
+    if Chrome can't start at all, or EVERY card fails, that would ship a content-BLANK film, so it raises —
+    fail loud, never silently blank. A single bad card must not crash the render; a total content loss must
+    not pass as green."""
     jobs = _html_card_jobs(data)
     if not jobs:
         return
@@ -734,8 +736,10 @@ def _render_html_cards(data, out_dir, scale=2):
     try:
         chrome = _cdp.Chrome(scenes._chrome_bin(meta), W, H, device_scale=scale)
     except Exception as e:
-        print("[path-a] Chrome unavailable (%s) — %d html card(s) not rendered" % (e, len(jobs)))
-        return
+        # Chrome can't start but the deck NEEDS html cards for its content — this is fatal, not best-effort.
+        raise RuntimeError("[path-a] Chrome unavailable (%s) — %d html card(s) are the cinematic content and "
+                           "cannot be rendered. Install Google Chrome or set meta.chrome_path." % (e, len(jobs)))
+    ok = 0
     try:
         for i, (html_rel, el) in enumerate(jobs):
             page = os.path.abspath(os.path.join(out_dir, html_rel))
@@ -743,7 +747,11 @@ def _render_html_cards(data, out_dir, scale=2):
                 print("[path-a] page not found: %s — element skipped" % html_rel)
                 continue
             rel = os.path.join(".cards", "card_%02d.png" % i)
-            chrome.shot("file://" + quote(page) + "?p=1.0", os.path.join(out_dir, rel))
+            try:
+                chrome.shot("file://" + quote(page) + "?p=1.0", os.path.join(out_dir, rel))
+            except Exception as e:
+                print("[path-a] screenshot FAILED for %s (%s) — element skipped" % (html_rel, e))
+                continue
             try:
                 snapshot._ensure_png(os.path.join(out_dir, rel))   # CDP returns JPEG bytes -> real PNG
             except Exception:
@@ -753,9 +761,14 @@ def _render_html_cards(data, out_dir, scale=2):
                 el["kind"] = "image"
             elif _is_stage_el(el):
                 el.setdefault("kind", "image")
+            ok += 1
     finally:
         chrome.close()
-    print("[path-a] rendered %d html card(s) at %dx -> .cards/" % (len(jobs), scale))
+    print("[path-a] rendered %d/%d html card(s) at %dx -> .cards/" % (ok, len(jobs), scale))
+    if jobs and ok == 0:
+        # every card failed -> the film would render content-blank. Fail loud rather than ship empty scenes.
+        raise RuntimeError("[path-a] ALL %d html card(s) failed to screenshot — no cinematic content would "
+                           "render. Check Chrome/CDP and the page files." % len(jobs))
 
 
 def _is_stage_el(el):
@@ -850,10 +863,18 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
     # (the command/phrase) get the gesture on their TAIL — minor beats stay plain cuts; reduced-motion drops
     # all gestures. The full gesture menu + per-aesthetic mapping is in references/camera-and-bridges.md.
     _tok = _theme(out_dir)
+    _IMPLEMENTED_BRIDGES = {"none", "type-enter"}   # gestures BridgeOverlay actually renders (others are designed)
     _bridge_gesture = str(meta.get("bridge") or "none").lower()
     if _bridge_gesture == "auto":
         _mono = (_tok.get("fontKind") == "mono") or (str(_tok.get("style", "")).lower() == "terminal")
         _bridge_gesture = "type-enter" if _mono else "none"   # type-enter is the natively-rendered gesture today
+    if _bridge_gesture not in _IMPLEMENTED_BRIDGES:
+        # a documented-but-not-yet-rendered gesture (cursor-click / page-turn / …) or a typo would SILENTLY
+        # no-op (BridgeOverlay returns null) and swallow every bridge_label. Fail LOUD to a plain cut instead —
+        # mirror how shot type/motion/easing are validated (references/camera-and-bridges.md lists the menu).
+        print("[render_remotion] meta.bridge=%r is not a rendered gesture (implemented: %s) — the seams will use "
+              "a plain cut. Use 'type-enter' or 'auto', or leave it unset." % (_bridge_gesture, sorted(_IMPLEMENTED_BRIDGES)))
+        _bridge_gesture = "none"
     scenes = []
     for s in data.get("slides", []):
         dur = float(s.get("duration") or 0)
@@ -950,6 +971,15 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
             bridge = {"gesture": _bridge_gesture, "label": str(s.get("bridge_label"))}
             if s.get("bridge_at_frame") is not None:
                 bridge["atFrame"] = int(round(_num(s["bridge_at_frame"], "scene %s bridge_at_frame" % s.get("index"))))
+        # DoF must be ON for a rack-focus / REVEAL soft-arrival to SHOW: SceneStage applies the focus blur only
+        # when dof is enabled, but RACK_FOCUS + the REVEAL recast do their whole job through focusZ — so without
+        # dof they render as a crisp static hold (a silent no-op). Auto-enable it for those shots. (Audit P1.)
+        _dof = bool(s.get("dof"))
+        if shot_based and not _dof:
+            for _sh in (shots or []):
+                if str(_sh.get("motion", "")).upper() == "RACK_FOCUS" or str(_sh.get("type", "")).upper() == "REVEAL":
+                    _dof = True
+                    break
         scenes.append({
             "index": s.get("index"),
             "durationInFrames": frames,
@@ -968,7 +998,7 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
             "stage": stage if shot_based else None,          # shot-based (P2): the SET (elements placed once)
             "shots": shots if shot_based else None,           # the ordered SHOT list (framings over the set)
             "motionAmp": motion_amp if shot_based else None,  # motion_personality amplitude (#10)
-            "dof": bool(s.get("dof")) if shot_based else None,  # rack-focus DoF opt-in (default OFF = crisp)
+            "dof": _dof if shot_based else None,  # rack-focus DoF (opt-in, or auto-on for RACK_FOCUS/REVEAL)
             "planes": planes if three_d else None,            # P6 TRUE-3D: WebGL content planes
             "camera3d": camera3d if three_d else None,        # P6 orbit/crane camera keyframes
             "filmLook": (s.get("film_look") if s.get("film_look") is not None else meta.get("film_look", True)) if three_d else None,
@@ -1052,22 +1082,35 @@ def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="erro
            "--props=" + os.path.abspath(props_path),
            "--public-dir=" + os.path.abspath(out_dir),
            "--log=" + log]
-    # GPU-backed rasterisation (ANGLE) for the WHOLE cinematic tier — not only TRUE-3D `planes` scenes.
-    # TRUE-3D needs WebGL (else black frames); but the CSS-3D CinematicScene (a virtual camera over depth
-    # planes + large card/text planes) is ALSO GPU-bound: in headless Chrome without a GL renderer it is
-    # SOFTWARE-rasterised, and a single peak-framing frame (a big card near the camera) then blows past
-    # the default 30 s/frame timeout — a whole scene once took >9 min and FAILED. Enabling ANGLE cut it to
-    # ~30 s/scene. Backend is platform-dependent: 'angle' on macOS/Windows; 'swangle' (SwiftShader) on
-    # GPU-less headless Linux/CI/Lambda, where plain 'angle' can fail to initialise. Override via REMOTION_GL.
-    gl = os.environ.get("REMOTION_GL") or ("angle" if sys.platform in ("darwin", "win32") else "swangle")
-    cmd.append("--gl=" + gl)
-    # a peak-framing CSS-3D frame can still be slow to rasterise on a GPU-less host — raise the per-frame
-    # timeout as a safety net so a slow frame degrades to 'slower', never a hard render failure.
-    cmd.append("--timeout=" + str(int(os.environ.get("REMOTION_TIMEOUT_MS", "120000") or "120000")))
+    # GPU-backed rasterisation (ANGLE) — needed by the whole CINEMATIC tier, not only TRUE-3D `planes`:
+    # TRUE-3D needs WebGL (else black frames), and the CSS-3D CinematicScene/SceneStage (a virtual camera over
+    # depth planes + large card/text planes) is ALSO GPU-bound — software-rasterised it blows past the 30s/frame
+    # timeout (a scene once took >9min and FAILED; ANGLE cut it to ~30s). But a PURE-IMAGE (Ken-Burns) deck does
+    # NOT need GL, so only add it when a scene actually uses a GPU path — this keeps image-only decks portable
+    # on GL-less hosts (adding --gl there regressed them). Backend: 'angle' on macOS/Windows; 'swangle'
+    # (SwiftShader) on GPU-less headless Linux/CI/Lambda; override via REMOTION_GL.
+    needs_gl = any(sc.get("planes") or sc.get("stage") or sc.get("layers") or sc.get("lens") or sc.get("camera")
+                   for sc in props["scenes"])
+    if needs_gl:
+        gl = os.environ.get("REMOTION_GL") or ("angle" if sys.platform in ("darwin", "win32") else "swangle")
+        cmd.append("--gl=" + gl)
+        # raise the per-frame timeout so a slow GPU-less peak-framing frame degrades to 'slower', not a failure.
+        cmd.append("--timeout=" + str(int(os.environ.get("REMOTION_TIMEOUT_MS", "120000") or "120000")))
     print("[render_remotion] %s: %d scene(s), %dx%d @%dfps -> %s"
           % ("sample" if sample is not None else "full", len(props["scenes"]),
              props["width"], props["height"], props["fps"], out_mp4))
-    subprocess.run(cmd, cwd=_REMOTION_DIR, check=True)
+    try:
+        subprocess.run(cmd, cwd=_REMOTION_DIR, check=True)
+    except subprocess.CalledProcessError:
+        # a GL-init failure on a GPU-less/GL-restricted host is the likeliest cause of a render that would
+        # otherwise work — retry ONCE without --gl (software raster: slower, but portable). If it fails again,
+        # re-raise with a hint. Only fires when --gl was actually added (a GL-needing deck on an odd host).
+        if any(a.startswith("--gl=") for a in cmd):
+            print("[render_remotion] render failed with GL — retrying ONCE without --gl (software raster; slower). "
+                  "If this recurs, set REMOTION_GL to a working backend (e.g. 'swangle' on headless Linux).")
+            subprocess.run([a for a in cmd if not a.startswith("--gl=")], cwd=_REMOTION_DIR, check=True)
+        else:
+            raise
     try:
         os.unlink(props_path)                         # transient — don't leave it in the out_dir
     except OSError:
@@ -1153,7 +1196,18 @@ def _write_filmstrips(out_dir, data, mp4):
         return
     kf = os.path.join(out_dir, "_keyframes")
     os.makedirs(kf, exist_ok=True)
+    # Cross-scene transitions OVERLAP the two scenes, so every later scene starts `overlap` frames EARLY —
+    # the mp4 timeline is shorter than the naive Σduration. Subtract the cumulative overlap from the seek
+    # time (mirroring _write_srt_overlapped) so each scene's filmstrip slices its OWN frames, not the next
+    # scene's. (Audit P1: without this the D12 evidence drifts past scene boundaries on a multi-seam film.)
+    fps = int((data.get("meta") or {}).get("fps", 30) or 30)
+    try:
+        over = {sc["index"]: (sc.get("transitionToNext") or {}).get("durationInFrames", 0)
+                for sc in build_props(data, out_dir)["scenes"]}
+    except Exception:
+        over = {}
     t0 = 0.0
+    cum_overlap = 0.0
     for s in data.get("slides", []):
         dur = float(s.get("duration") or 0)
         is_cine = s.get("type") == "cinematic" or _scene_layers(s) or _scene_planes(s) or (_scene_stage(s) and _scene_shots(s))
@@ -1161,7 +1215,7 @@ def _write_filmstrips(out_dir, data, mp4):
             n = 5
             tiles = []
             for i in range(n):
-                t = t0 + dur * (0.06 + 0.9 * i / (n - 1))
+                t = (t0 - cum_overlap) + dur * (0.06 + 0.9 * i / (n - 1))
                 fp = os.path.join(kf, ".t.png")
                 subprocess.run(["ffmpeg", "-v", "error", "-ss", "%.3f" % t, "-i", mp4,
                                 "-frames:v", "1", "-y", fp], check=False)
@@ -1176,6 +1230,7 @@ def _write_filmstrips(out_dir, data, mp4):
                     strip.paste(im.resize((tw, th)), (i * tw, 0))
                 strip.save(os.path.join(kf, "scene_%02d.png" % s.get("index")))
         t0 += dur
+        cum_overlap += float(over.get(s.get("index"), 0)) / fps
     try:
         os.unlink(os.path.join(kf, ".t.png"))         # drop the transient single-frame scratch
     except OSError:

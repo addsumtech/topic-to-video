@@ -108,7 +108,7 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
       <CinematicScene3D
         layers={scene.layers}
         lens={scene.lens}
-        perspective={scene.perspective || 1300}
+        perspective={scene.perspective || 2000}
         theme={theme}
         captions={scene.captions}
         audio={scene.audio}
@@ -218,7 +218,9 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
           style={{
             position: 'absolute', left: 96, right: 96, bottom: 210, color: theme.fg, fontSize: 76,
             fontWeight: 800, lineHeight: 1.12,
-            fontFamily: 'Georgia, "Songti SC", "Hiragino Mincho ProN", serif',
+            // sans with LINING figures — never Georgia/old-style faces for a title that may carry digits.
+            fontFamily: '"Helvetica Neue", Helvetica, Arial, "PingFang SC", "Hiragino Sans", sans-serif',
+            fontVariantNumeric: 'lining-nums tabular-nums',
             textShadow: '0 3px 18px rgba(0,0,0,0.5)',
           }}
         >

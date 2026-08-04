@@ -890,6 +890,19 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     if _aud and _aud not in ("conservative", "balanced", "bold", "experimental"):
         warnings.append(f"meta.audacity '{meta.get('audacity')}' is not a known level — use "
                         "conservative | balanced (default) | bold | experimental; it scales how far the design_register pushes")
+    # DIEGETIC BRIDGE — only 'type-enter' renders today (others are designed, not built). A documented-but-
+    # unrendered gesture (or a typo) SILENTLY no-ops and swallows every bridge_label, so warn pre-render;
+    # and a long bridge_label overflows the command bar, so cap it. (Audit P0/P2; mirrors render_remotion.)
+    _br = str(meta.get("bridge") or "").strip().lower()
+    if _br and _br not in ("none", "auto", "type-enter"):
+        warnings.append(f"meta.bridge '{meta.get('bridge')}' is not a rendered gesture — only 'type-enter' "
+                        "(and 'auto') render today; the seams will fall back to a plain cut (references/camera-and-bridges.md lists the designed menu)")
+    if _br and _br not in ("none", ""):
+        for s in data.get("slides", []):
+            _lbl = str(s.get("bridge_label") or "")
+            if len(_lbl) > 28:
+                warnings.append(f"scene {s.get('index')}: bridge_label {_lbl!r} is ~{len(_lbl)} chars — keep a "
+                                "diegetic command ≤~28 chars so it reads at the held framing and doesn't run off the bar")
     vertical = vertical or meta.get("aspect") == "9:16"
     W, H = rd._canvas(meta, vertical)
     voice = (meta.get("voice") or "auto")

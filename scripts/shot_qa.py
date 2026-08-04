@@ -135,6 +135,40 @@ def score_scene(frames, declared_move, is_3d):
     # measurement. (The HTML tier checks this pre-burn via keyframe_qa; the cinematic tier can't here.)
     scores["typography"] = None
 
+    # ── SAFE-AREA / OVER-ZOOM floor (the camera research's #1 backstop): measure the read-card EXTENT per
+    # frame from the EDGE/DETAIL mass (theme-agnostic — keys on detail, not brightness, so it works on a dark
+    # OR a light card), caption-band excluded, via the robust 1.5–98.5% cumulative-edge span. The reliable,
+    # FALSE-FAIL-SAFE signal is the SWING: a scene that opens tiny and pushes huge has a big widest:tightest
+    # extent ratio, whereas a legitimately full-bleed beat has ~constant extent (swing ~1) — so the swing
+    # floor catches 'tiny→huge / pushed until it crops' WITHOUT punishing a full-frame design (a raw
+    # max-extent floor WOULD false-fail full-bleed, so it stays a recorded metric, not a floor). Both are
+    # recorded so the D12 critic can see an over-zoom the swing alone doesn't trip. Conservative by design. ──
+    exts = []
+    for g in (grays[1:-1] if len(grays) >= 3 else grays):   # SETTLED middle only — the first/last frames catch
+        # content ENTRANCES/EXITS (aperture bloom, terminal collapse, a metaphor verb), which are content
+        # animation, NOT camera framing; sampling the middle isolates the framing so the swing tracks the lens.
+        gh, gw = g.shape
+        gg = g[:max(1, int(gh * 0.86)), :]            # drop the bottom caption band
+        gy, gx = np.gradient(gg)
+        e = np.abs(gx) + np.abs(gy)
+        tot = float(e.sum())
+        if tot <= 1e-6:
+            continue
+        cc = np.cumsum(e.sum(axis=0)) / tot
+        cr = np.cumsum(e.sum(axis=1)) / tot
+        ew = (int(np.searchsorted(cc, 0.985)) - int(np.searchsorted(cc, 0.015))) / max(1, gw)
+        eh = (int(np.searchsorted(cr, 0.985)) - int(np.searchsorted(cr, 0.015))) / max(1, gg.shape[0])
+        exts.append((ew, eh))
+    if len(exts) >= 2:
+        ews = [x[0] for x in exts]
+        ehs = [x[1] for x in exts]
+        swing = max(max(ews) / max(1e-3, min(ews)), max(ehs) / max(1e-3, min(ehs)))
+        metrics["content_extent_span"] = [round(max(ews), 2), round(max(ehs), 2)]
+        metrics["extent_swing"] = round(swing, 2)
+        if swing > 1.7:
+            floors.append("content size swings %.2f× across the shot (tiny→huge) — hold ONE legible band; open "
+                          "at MEDIUM, not a wide establish that pushes to a crop (safe band ≤~1.25×)" % swing)
+
     return {"scores": scores, "floors": floors, "metrics": metrics, "abstained": False}
 
 

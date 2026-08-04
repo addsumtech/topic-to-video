@@ -66,6 +66,9 @@ export const BridgeOverlay: React.FC<{bridge: BridgeData; theme: Theme; reducedM
             color: '#E7EDF3',
             boxShadow: '0 24px 70px rgba(0,0,0,.55)',
             whiteSpace: 'pre',
+            // safety cap so a long command can never run off both frame edges (a length lint keeps it short).
+            maxWidth: 1500,
+            overflow: 'hidden',
           }}
         >
           <span style={{color: go, fontWeight: 700}}>$ </span>
