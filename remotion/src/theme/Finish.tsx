@@ -49,7 +49,12 @@ const FALLBACK_GRADE = STYLE_TO_GRADE.cinematic;
 // = exposure discipline: the focal subject (the camera centres it) stays bright and legible while the
 // edges fall off, instead of a heavy vignette crushing content into murk. Vignette is here (one place),
 // not duplicated per scene. All layers are OUTER 2D — never on a preserve-3d ancestor.
-export const Finish: React.FC<{frame: number; theme: Theme}> = ({frame, theme}) => {
+// PER-BEAT grade (was GLOBAL/frame-invariant — the audit's axis C). `energy` is the beat's HEAT 0..1
+// (calm..climax): a bold/climax beat runs HOTTER (a stronger wash + a warm amber lift), a calm beat cools
+// and softens (a steel drift). `dur` lets the grade gently SWELL toward the middle so it breathes instead
+// of sitting dead. When `energy` is undefined the grade is EXACTLY the old global look (opacity 1, no
+// warm/cool, no swell) — zero regression for any scene that doesn't opt in.
+export const Finish: React.FC<{frame: number; theme: Theme; energy?: number; dur?: number}> = ({frame, theme, energy, dur}) => {
   // Grain FLOOR (video tier only): theme.py leaves --grain-amount 0 on ~12 of 18 styles (incl. the
   // filmic 'cinematic'/'editorial'), which the HTML tier wants crisp — but a moving video composites
   // separate planes and a soft-light grade that BAND without a little sensor texture. A subtle 0.03 floor
@@ -57,6 +62,16 @@ export const Finish: React.FC<{frame: number; theme: Theme}> = ({frame, theme}) 
   const grainAmount = Math.max(0.03, Math.min(0.2, parseFloat(theme.grainAmount || '0') || 0));
   const grade = STYLE_TO_GRADE[theme.style] || FALLBACK_GRADE;  // per-register split-tone (unknown -> cinematic)
   const off = (frame * 11) % 200; // deterministic grain scroll
+
+  const hasHeat = energy != null;
+  const heat = hasHeat ? Math.max(0, Math.min(1, energy as number)) : 0.5;
+  const D = dur && dur > 1 ? dur : null;
+  // subtle swell (deterministic): peaks mid-beat, so the wash breathes rather than freezing (only when heated)
+  const swell = hasHeat && D ? 1 + 0.08 * Math.sin(Math.PI * Math.max(0, Math.min(1, frame / D))) : 1;
+  // heat 0 -> 0.72, 0.5 -> 1.0 (== old neutral), 1 -> 1.28. Undefined energy -> exactly 1.0 (byte-identical).
+  const gradeOpacity = hasHeat ? (0.72 + 0.56 * heat) * swell : 1;
+  const warm = hasHeat ? Math.max(0, heat - 0.5) * 2 : 0;   // ->1 toward a climax
+  const cool = hasHeat ? Math.max(0, 0.5 - heat) * 2 : 0;   // ->1 toward a calm beat
 
   return (
     <>
@@ -68,8 +83,18 @@ export const Finish: React.FC<{frame: number; theme: Theme}> = ({frame, theme}) 
           background: 'radial-gradient(70% 58% at 50% 44%, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 60%)',
         }}
       />
-      {/* Graded wash */}
-      <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'soft-light', background: grade}} />
+      {/* Graded wash — opacity scales with the beat's HEAT (+ a gentle swell); default 1 = the old look */}
+      <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'soft-light', background: grade, opacity: gradeOpacity}} />
+      {/* WARM lift on a hot/climax beat (amber) — the payoff runs warmer; soft-light so it grades, never tints */}
+      {warm > 0.02 ? (
+        <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'soft-light', opacity: 0.15 * warm,
+          background: 'radial-gradient(85% 72% at 50% 46%, rgba(255,178,96,0.9) 0%, rgba(255,150,60,0) 70%)'}} />
+      ) : null}
+      {/* COOL drift on a calm beat (steel) — intros/close-outs cool down */}
+      {cool > 0.02 ? (
+        <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'soft-light', opacity: 0.12 * cool,
+          background: 'linear-gradient(180deg, rgba(70,110,170,0.85) 0%, rgba(40,60,110,0.5) 100%)'}} />
+      ) : null}
       {/* Film grain */}
       {grainAmount > 0 && (
         <AbsoluteFill

@@ -218,7 +218,8 @@ export const CinematicScene: React.FC<{
   reducedMotion?: boolean;
   fadeInFrames?: number;
   fadeOutFrames?: number;
-}> = ({layers, camera, theme, captions, audio, captionFontPx, reducedMotion, fadeInFrames, fadeOutFrames}) => {
+  gradeHeat?: number | null;
+}> = ({layers, camera, theme, captions, audio, captionFontPx, reducedMotion, fadeInFrames, fadeOutFrames, gradeHeat}) => {
   const frame = useCurrentFrame();
   const {durationInFrames} = useVideoConfig();
   const dur = Math.max(1, durationInFrames);
@@ -237,7 +238,7 @@ export const CinematicScene: React.FC<{
       {layers.map((layer, i) => (
         <PlaneViewFlat key={i} layer={layer} cam={cam} theme={theme} frame={frame} reduced={reduced} />
       ))}
-      <Finish frame={frame} theme={theme} />
+      <Finish frame={frame} theme={theme} energy={gradeHeat ?? undefined} dur={dur} />
       {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} /> : null}
       {audio ? <Audio src={staticFile(audio)} /> : null}
     </AbsoluteFill>
@@ -261,7 +262,8 @@ export const CinematicScene3D: React.FC<{
   reducedMotion?: boolean;
   fadeInFrames?: number;
   fadeOutFrames?: number;
-}> = ({layers, lens, perspective, theme, captions, audio, captionFontPx, reducedMotion, fadeInFrames, fadeOutFrames}) => {
+  gradeHeat?: number | null;
+}> = ({layers, lens, perspective, theme, captions, audio, captionFontPx, reducedMotion, fadeInFrames, fadeOutFrames, gradeHeat}) => {
   const frame = useCurrentFrame();
   const {durationInFrames, width, height} = useVideoConfig();
   const dur = Math.max(1, durationInFrames);
@@ -317,7 +319,7 @@ export const CinematicScene3D: React.FC<{
       </AbsoluteFill>
 
       {/* OUTER overlays (2D, on top) — vignette, grade+grain finish, then the scene-edge fade. */}
-      <Finish frame={frame} theme={theme} />
+      <Finish frame={frame} theme={theme} energy={gradeHeat ?? undefined} dur={dur} />
       <AbsoluteFill style={{pointerEvents: 'none', backgroundColor: theme.bg, opacity: fade}} />
       {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} /> : null}
       {audio ? <Audio src={staticFile(audio)} /> : null}

@@ -880,6 +880,28 @@ def _transitions(scenes, meta, fps):
     return scenes
 
 
+_ENERGY_HEAT = {"bold": 0.78, "energetic": 0.82, "subtle": 0.30, "calm": 0.26}
+
+
+def _grade_heat(s):
+    """PER-BEAT grade heat 0..1 (calm..climax) from the beat's ENERGY signal — or None when the beat is
+    neutral (Finish then renders the unchanged global grade, so a deck with no energy arc is byte-identical).
+    A climax runs HOTTEST (a warm payoff); a bold beat warm, a subtle/calm beat cool. A shot-based scene
+    reads its HOTTEST shot so the grade tracks the energy arc the director already authored (no new field)."""
+    if (s.get("props") or {}).get("climax") or s.get("climax"):
+        return 0.92
+    e = str(s.get("energy") or s.get("intensity") or "").lower()
+    if e in _ENERGY_HEAT:
+        return _ENERGY_HEAT[e]
+    shots = s.get("shots") or (s.get("props") or {}).get("shots")
+    if isinstance(shots, list) and shots:
+        vals = [_ENERGY_HEAT.get(str(sh.get("energy", "")).lower()) for sh in shots if isinstance(sh, dict)]
+        vals = [v for v in vals if v is not None]
+        if vals:
+            return max(vals)
+    return None
+
+
 def build_props(data, out_dir, vertical=False, reduced_motion=False):
     """Pure storyboard -> Remotion input-props dict (no Node, no IO beyond reading durations).
     Paths stay RELATIVE to out_dir; render() passes --public-dir=out_dir so staticFile() resolves them.
@@ -1047,6 +1069,7 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
             "perspective": float(perspective) if perspective else None,
             "layers": layers,                        # cinematic: depth planes (or None)
             "reducedMotion": reduced,                # freeze the camera + show reveals instantly
+            "gradeHeat": _grade_heat(s),             # PER-BEAT grade heat (climax hotter / calm cooler) or None
             "transitionStyle": s.get("transition_style"),  # per-scene seam-look override (else meta default)
             "match_cut": s.get("match_cut"),         # shared-element match-cut INTO the next scene (P3+); _transitions
             #                                          coerces it onto transitionToNext.match (dropped from props after)

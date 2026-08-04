@@ -406,7 +406,8 @@ export const ThreeScene: React.FC<{
   fadeOutFrames?: number;
   reveal3d?: boolean; // opt-in dark->lit reveal for an unlit-plane hero opener
   filmLook?: boolean; // the EffectComposer post stack (DoF + selective Bloom + ACES); default on
-}> = ({planes, camera3d, theme, captions, audio, captionFontPx, reducedMotion, fadeInFrames, fadeOutFrames, reveal3d, filmLook}) => {
+  gradeHeat?: number | null; // per-beat grade heat 0..1 (calm..climax) -> Finish
+}> = ({planes, camera3d, theme, captions, audio, captionFontPx, reducedMotion, fadeInFrames, fadeOutFrames, reveal3d, filmLook, gradeHeat}) => {
   const frame = useCurrentFrame();
   const {width, height, durationInFrames} = useVideoConfig();
   const dur = Math.max(1, durationInFrames);
@@ -504,7 +505,7 @@ export const ThreeScene: React.FC<{
       ) : null}
 
       {/* 2D overlays on top of the canvas — grade/grain/vignette, edge fade, captions, audio */}
-      <Finish frame={frame} theme={theme} />
+      <Finish frame={frame} theme={theme} energy={gradeHeat ?? undefined} dur={dur} />
       <AbsoluteFill style={{pointerEvents: 'none', backgroundColor: theme.bg, opacity: fadeOpacity}} />
       {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} /> : null}
       {audio ? <Audio src={staticFile(audio)} /> : null}

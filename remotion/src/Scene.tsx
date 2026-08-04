@@ -46,6 +46,7 @@ export type SceneData = {
   // (optional) makes it a SHARED-ELEMENT match-cut — an anchor held/morphed across the seam.
   transitionToNext?: {style: string; durationInFrames: number; match?: MatchSpec | null} | null;
   transitionStyle?: string | null; // per-scene seam-look override (consumed by build_props)
+  gradeHeat?: number | null;  // PER-BEAT grade heat 0..1 (calm..climax) -> Finish runs the wash hotter/cooler
   // TRUE-3D tier (P6): WebGL planes + an orbit/crane camera (renders via ThreeScene / @remotion/three).
   planes?: Plane3D[] | null;
   camera3d?: Camera3DKey[] | null;
@@ -85,6 +86,7 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
         fadeOutFrames={scene.fadeOutFrames}
         reveal3d={scene.reveal3d}
         filmLook={scene.filmLook}
+        gradeHeat={scene.gradeHeat}
       />
     );
   }
@@ -102,6 +104,7 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
         fadeOutFrames={scene.fadeOutFrames}
         motionAmp={scene.motionAmp}
         dof={scene.dof}
+        gradeHeat={scene.gradeHeat}
       />
     );
   }
@@ -118,6 +121,7 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
         reducedMotion={scene.reducedMotion}
         fadeInFrames={scene.fadeInFrames}
         fadeOutFrames={scene.fadeOutFrames}
+        gradeHeat={scene.gradeHeat}
       />
     );
   }
@@ -133,6 +137,7 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
         reducedMotion={scene.reducedMotion}
         fadeInFrames={scene.fadeInFrames}
         fadeOutFrames={scene.fadeOutFrames}
+        gradeHeat={scene.gradeHeat}
       />
     );
   }

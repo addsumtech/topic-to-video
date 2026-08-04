@@ -219,7 +219,11 @@ slow-drift close) mapped to `motion.from/to/zoom`, and an `intensity` (`subtle`/
 from the beat's `energy` — the renderer scales the Ken Burns move by it, so the deck builds an energy arc
 (calm intro → bold payoff) instead of a uniform push. Set `meta.intensity` for the deck's baseline. On the
 HTML tier the same `energy`/intensity steers the `motion_intent` verb + reveal stagger + transition length.
-See `references/motion-grammar.md` "Shot grammar" + "Motion INTENSITY".
+See `references/motion-grammar.md` "Shot grammar" + "Motion INTENSITY". **On the cinematic tier the same
+energy also drives a PER-BEAT COLOUR GRADE automatically** (no new field): a `climax`/`bold` beat's finish
+runs HOTTER (a warm amber lift + a stronger wash), a `subtle`/`calm` beat runs COOLER (steel) and softer, and
+the wash gently breathes — so the payoff feels warmer without touching the palette. A beat with no energy
+signal keeps the neutral global grade. Author the energy arc and the grade arc follows.
 
 **Expanded dictionary** — `references/design-intelligence-addendum.md` §4 gives a fuller decision table
 (Use when / Avoid when / Common AI failure) and adds Bottleneck, Tradeoff, Causality, Leakage/churn,
