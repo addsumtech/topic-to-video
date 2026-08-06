@@ -240,6 +240,18 @@ explainer stays the default; reach for cinematic only when the brief wants a *fi
 renderer — validate errors and the render crashes.** Before authoring, READ the card you cite:
 `references/shots/` (start with its `README.md` manifest).
 
+**STEP 0a — the ATMOSPHERE CONTEST (the WORLD the film renders in — do this FIRST).** An ATMOSPHERE is a
+whole-film WORLD that reaches the PIXELS — a render substrate = material CLASS (standard PBR vs cel-shaded
+`toon`) + post profile (`film` grade / `crt` scanlines / `clean` product) + a base style (drives the
+material/mood/grade recipes). Unlike a colour re-skin, picking a WORLD actually changes the render: a
+`terminal` deck gets CRT scanlines over phosphor forms, a `cartoon` deck is cel-shaded, an `app` deck is a
+crisp product finish. Run it like the template contest: **`scripts/atmospheres.py` `route(topic)` returns the
+best ~3 worlds** (a real topic→best-3 contest — DON'T invent); offer them to the user (selectable-option
+prompt, each with its `pitch`); the pick becomes **`meta.atmosphere`** (a library key; `validate` errors on
+an unknown key). The atmosphere is ORTHOGONAL to and composes with the template below (atmosphere = the render
+substrate/finish; template = the per-beat colour-world + beat-arc). Adding a new world = one entry in
+`atmospheres.py`; routing + the contest pick it up automatically.
+
 **STEP 0 — the CINEMATIC TEMPLATE CONTEST (do this FIRST, before any beat).** A cinematic film is BUILT ON a
 whole-film TEMPLATE — a fixed look (substrate + silhouette + motion grammar + beat-semantics) that generalises
 to any topic by re-deriving ONE accent. **READ `references/cinematic-templates.md`.** Then:

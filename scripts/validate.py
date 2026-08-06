@@ -1482,6 +1482,20 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                     if _win is not None and _cand and str(_win) not in _cand:
                         errors.append("meta.template_contest.winner %r is not among its candidates %s" % (_win, _cand))
 
+            # ATMOSPHERE (the whole-film WORLD substrate — scripts/atmospheres.py): meta.atmosphere binds the
+            # render's material CLASS + post profile + style to the picked world (terminal/cartoon/app/…), so
+            # the chosen world actually reaches the pixels. Unknown key -> ERROR (it silently no-ops to the
+            # default look). The topic-routed contest (atmospheres.route) offers the best ~3 to pick from.
+            _atmo_key = meta.get("atmosphere")
+            if _atmo_key is not None:
+                try:
+                    import atmospheres as _atmos
+                    _known_atmo = set(_atmos.keys())
+                except Exception:
+                    _known_atmo = set()
+                if _known_atmo and str(_atmo_key).lower() not in _known_atmo:
+                    errors.append("unknown meta.atmosphere %r (known: %s)" % (_atmo_key, sorted(_known_atmo)))
+
     # meta.brand (user-supplied REAL assets — the mirror of the "never fabricate logos in generated
     # imagery" doctrine): render.py composites the corner bug from the raster file, and the cover/
     # endcard lockups must already be AUTHORED into the first/last pages — lint both before a full

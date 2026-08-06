@@ -37,6 +37,7 @@ export type SceneStageProps = {
   dof?: boolean; // rack-focus DoF — OPT-IN per scene (default OFF = crisp). A global-default blur read as an
                  // inconsistent "some sharp, some smeared" mess; depth now comes from parallax + colour haze.
   gradeHeat?: number | null; // per-beat grade heat 0..1 (calm..climax) -> Finish
+  atmosphere?: {materialClass?: string; post?: string} | null; // WORLD substrate (post profile -> Finish)
 };
 
 export const SceneStage: React.FC<SceneStageProps> = ({
@@ -52,6 +53,7 @@ export const SceneStage: React.FC<SceneStageProps> = ({
   motionAmp,
   dof = false,
   gradeHeat,
+  atmosphere,
 }) => {
   const frame = useCurrentFrame();
   const {durationInFrames, width, height} = useVideoConfig();
@@ -109,7 +111,7 @@ export const SceneStage: React.FC<SceneStageProps> = ({
       </AbsoluteFill>
 
       {/* OUTER 2D overlays (never on the preserve-3d chain). */}
-      <Finish frame={frame} theme={theme} energy={gradeHeat ?? undefined} dur={dur} />
+      <Finish frame={frame} theme={theme} energy={gradeHeat ?? undefined} dur={dur} post={atmosphere?.post} />
       {overlayEls.length ? (
         <AbsoluteFill style={{pointerEvents: 'none'}}>
           <div style={{position: 'absolute', left: width / 2, top: height / 2}}>

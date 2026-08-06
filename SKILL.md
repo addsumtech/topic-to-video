@@ -188,7 +188,16 @@ TTS if the user gives an API key.
   When to reach for the tier: Remotion's real
   edge is fast/kinetic motion + motion-blur + eased cross-scene transitions — worth it for a cinematic
   **story** video, not for a calm explainer deck (where it's pixel-identical to local).
-  **Building a cinematic film? It is TEMPLATE-DRIVEN — read `references/cinematic-templates.md`.** The
+  **Building a cinematic film? Pick an ATMOSPHERE (the render WORLD) — `scripts/atmospheres.py`.** An
+  atmosphere is a whole-film substrate that reaches the pixels (material CLASS standard/`toon` cel-shaded +
+  post `film`/`crt`/`clean` + a base style), NOT a colour re-skin: the design-director runs an **atmosphere
+  contest** (STEP 0a) — `atmospheres.route(topic)` returns the best ~3 worlds (terminal/cartoon/app/blueprint/
+  hologram/clay/noir/diorama/papercut/vaporwave/chalkboard/molten) → the USER picks → **`meta.atmosphere`**
+  (`validate` errors on an unknown key). build_props threads the world's style + `{materialClass, post}` onto
+  every scene so a terminal deck renders CRT-scanline phosphor and a cartoon deck renders cel-shaded (proven
+  in pixels). Adding a world = one entry in `atmospheres.py`. It composes with the template below (atmosphere
+  = substrate/finish; template = per-beat colour-world + arc).
+  **A cinematic film is also TEMPLATE-DRIVEN — read `references/cinematic-templates.md`.** The
   design-director runs a **template contest** (STEP 0): route the topic → offer 2–4 bold, distinct,
   generalisable templates (Command Surface / Liquid Model / Molten Ledger / Aurora Bloom / Ignition →
   Monument / Doorway → Gallery / Rakelight / Exploded Schematic / Defrag) → the USER picks one →

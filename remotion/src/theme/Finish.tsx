@@ -54,12 +54,18 @@ const FALLBACK_GRADE = STYLE_TO_GRADE.cinematic;
 // and softens (a steel drift). `dur` lets the grade gently SWELL toward the middle so it breathes instead
 // of sitting dead. When `energy` is undefined the grade is EXACTLY the old global look (opacity 1, no
 // warm/cool, no swell) — zero regression for any scene that doesn't opt in.
-export const Finish: React.FC<{frame: number; theme: Theme; energy?: number; dur?: number}> = ({frame, theme, energy, dur}) => {
+export const Finish: React.FC<{frame: number; theme: Theme; energy?: number; dur?: number; post?: string}> = ({frame, theme, energy, dur, post}) => {
   // Grain FLOOR (video tier only): theme.py leaves --grain-amount 0 on ~12 of 18 styles (incl. the
   // filmic 'cinematic'/'editorial'), which the HTML tier wants crisp — but a moving video composites
   // separate planes and a soft-light grade that BAND without a little sensor texture. A subtle 0.03 floor
   // (well below the printed-style values) unifies the frame and hides banding, without touching theme.py.
-  const grainAmount = Math.max(0.03, Math.min(0.2, parseFloat(theme.grainAmount || '0') || 0));
+  // POST profile (from the ATMOSPHERE): 'crt' = a CRT terminal world (scanlines + rolling scan + phosphor);
+  // 'clean' = a crisp product world (grain off, vignette softened); undefined/'film' = the default look.
+  const isCrt = post === 'crt';
+  const isClean = post === 'clean';
+  const grainBase = Math.max(0.03, Math.min(0.2, parseFloat(theme.grainAmount || '0') || 0));
+  const grainAmount = isClean ? 0 : (isCrt ? Math.max(grainBase, 0.06) : grainBase);
+  const scanRoll = (frame * 3) % 100; // deterministic CRT scan roll
   const grade = STYLE_TO_GRADE[theme.style] || FALLBACK_GRADE;  // per-register split-tone (unknown -> cinematic)
   const off = (frame * 11) % 200; // deterministic grain scroll
 
@@ -115,9 +121,24 @@ export const Finish: React.FC<{frame: number; theme: Theme; energy?: number; dur
       <AbsoluteFill
         style={{
           pointerEvents: 'none',
-          background: 'radial-gradient(118% 118% at 50% 47%, rgba(0,0,0,0) 40%, rgba(0,0,0,0.34) 100%)',
+          background: !isClean
+            ? 'radial-gradient(118% 118% at 50% 47%, rgba(0,0,0,0) 40%, rgba(0,0,0,0.34) 100%)'    // film/crt
+            : 'radial-gradient(125% 125% at 50% 47%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.18) 100%)',   // clean: airy but still darkens corners to 0.18
         }}
       />
+      {/* CRT terminal post (the 'crt' atmosphere): fixed SCANLINES (multiply) + a slow rolling scan band +
+          a faint phosphor-green cast. All deterministic (roll = f(frame)); a 2D overlay, never on a 3D
+          ancestor, so the preserve-3d depth is untouched. */}
+      {isCrt ? (
+        <>
+          <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'multiply', opacity: 0.55,
+            background: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.55) 0px, rgba(0,0,0,0.55) 1px, rgba(0,0,0,0) 1px, rgba(0,0,0,0) 3px)'}} />
+          <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'overlay', opacity: 0.05,
+            background: `linear-gradient(180deg, rgba(120,255,170,0) ${Math.max(0, scanRoll - 12)}%, rgba(120,255,170,0.9) ${scanRoll}%, rgba(120,255,170,0) ${Math.min(100, scanRoll + 12)}%)`}} />
+          <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'soft-light', opacity: 0.10,
+            background: 'radial-gradient(80% 70% at 50% 46%, rgba(80,255,150,0.7) 0%, rgba(80,255,150,0) 72%)'}} />
+        </>
+      ) : null}
     </>
   );
 };

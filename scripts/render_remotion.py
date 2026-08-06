@@ -21,6 +21,7 @@ import argparse, json, math, os, re, shutil, subprocess, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import storyboard as sb
 import render as rd                      # reuse _canvas + _captions_for + _write_srt (one caption world)
+import atmospheres as _atmo             # the atmosphere library + topic routing (render-substrate bundles)
 
 _REMOTION_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion")
 _THEME_FALLBACK = {"bg": "#0d1117", "fg": "#f0f3f8", "muted": "#94989e", "accent": "#5fb3c4", "accent2": "#e0894a"}
@@ -914,6 +915,12 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
     _MOTION_AMP = {"calm": 0.72, "precise": 0.8, "weighty": 0.9, "balanced": 1.0, "smooth": 1.0,
                    "editorial": 1.0, "bold": 1.35, "energetic": 1.4}
     motion_amp = _MOTION_AMP.get(str(meta.get("motion_personality", "balanced")).lower(), 1.0)
+    # ATMOSPHERE (a whole-film WORLD bundle) — meta.atmosphere resolves to a render substrate that reaches the
+    # pixels: its `style` overrides the deck's theme.style (so the material/mood/grade recipes follow), and its
+    # materialClass (standard|toon) + post (film|crt|clean) thread onto each scene for ThreeScene/Finish. This
+    # is what makes the picked WORLD actually change the render (not a colour re-skin). None -> unchanged.
+    atmo = _atmo.profile(meta.get("atmosphere"))
+    atmo_scene = {"materialClass": atmo["materialClass"], "post": atmo["post"]} if atmo else None
     vertical = vertical or meta.get("aspect") == "9:16"
     W, H = rd._canvas(meta, vertical)
     fps = int(meta.get("fps", 30))
@@ -1070,14 +1077,18 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
             "layers": layers,                        # cinematic: depth planes (or None)
             "reducedMotion": reduced,                # freeze the camera + show reveals instantly
             "gradeHeat": _grade_heat(s),             # PER-BEAT grade heat (climax hotter / calm cooler) or None
+            "atmosphere": atmo_scene,                # the WORLD's render substrate {materialClass, post} or None
             "transitionStyle": s.get("transition_style"),  # per-scene seam-look override (else meta default)
             "match_cut": s.get("match_cut"),         # shared-element match-cut INTO the next scene (P3+); _transitions
             #                                          coerces it onto transitionToNext.match (dropped from props after)
             "bridge": bridge,                        # diegetic advance gesture on this scene's tail (or None)
         })
     _transitions(scenes, meta, fps)                  # derive cross-scene transitions + de-double the seam fades
+    _themed = _theme(out_dir)
+    if atmo and atmo.get("style"):
+        _themed = dict(_themed); _themed["style"] = atmo["style"]   # the atmosphere drives the substrate style
     return {"width": W, "height": H, "fps": fps, "captionFontPx": rd._caption_font_px(W, H, meta=meta),
-            "theme": _theme(out_dir), "scenes": scenes,
+            "theme": _themed, "scenes": scenes,
             "heroMark": meta.get("hero_mark") or None}   # continuity spine (#11): a persistent brand lockup
 
 

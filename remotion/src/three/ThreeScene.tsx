@@ -99,10 +99,24 @@ const TexturedPlane: React.FC<{tex?: THREE.Texture; size: [number, number]; posi
   );
 };
 
+// TOON gradient (the CARTOON atmosphere): a static 1D texture that quantises MeshToonMaterial's lighting into
+// 4 flat cel BANDS (NearestFilter), so the LightRig reads as hand-drawn shading instead of smooth PBR. Built
+// once, deterministic. Forms swap to <meshToonMaterial gradientMap={TOON_GRADIENT}> when materialClass='toon'.
+const TOON_GRADIENT = (() => {
+  const steps = 4;
+  const data = new Uint8Array(steps);
+  for (let i = 0; i < steps; i++) data[i] = Math.round((255 * (i + 1)) / steps);
+  const tex = new THREE.DataTexture(data, steps, 1, THREE.RedFormat);
+  tex.minFilter = THREE.NearestFilter;
+  tex.magFilter = THREE.NearestFilter;
+  tex.needsUpdate = true;
+  return tex;
+})();
+
 // A real extruded 3D BAR CHART — boxes with genuine depth the orbit camera reveals; data drives heights;
 // each bar GROWS from the floor over the scene (frame-driven, eased staggered). Born-in-3D data-viz, not a
 // flat chart on a plane. Lit (meshStandardMaterial) so the depth reads via shading.
-const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number; accent: string; accent2: string; glow?: boolean; mat?: Mat3D}> = ({data, frame, durationInFrames, accent, accent2, glow, mat}) => {
+const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number; accent: string; accent2: string; glow?: boolean; mat?: Mat3D; toon?: boolean}> = ({data, frame, durationInFrames, accent, accent2, glow, mat, toon}) => {
   const m = mat || DEFAULT_MAT3D;
   const max = Math.max(1e-6, ...data.map((v) => Math.abs(v)));
   const bw = 0.62, gap = 0.42, maxH = 2.6; // bar width / gap / tallest bar (world units)
@@ -124,10 +138,16 @@ const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number;
             <boxGeometry args={[bw, h, bw]} />
             {/* the RESULT bar glows via HDR emissive (>1) so selective Bloom picks only it; toneMapped=false
                 keeps the colour out of [0,1] so it survives to the composer. Only when filmLook is on. */}
-            <meshStandardMaterial color={isLast ? accent : accent2}
-              emissive={glow && isLast ? accent : '#000000'} emissiveIntensity={glow && isLast ? 2.4 : 0}
-              toneMapped={!(glow && isLast)} metalness={m.metalness} roughness={m.roughness}
-              wireframe={m.wireframe} flatShading={m.flatShading} />
+            {toon ? (
+              <meshToonMaterial color={isLast ? accent : accent2} gradientMap={TOON_GRADIENT}
+                emissive={glow && isLast ? accent : '#000000'} emissiveIntensity={glow && isLast ? 1.2 : 0}
+                toneMapped={!(glow && isLast)} />
+            ) : (
+              <meshStandardMaterial color={isLast ? accent : accent2}
+                emissive={glow && isLast ? accent : '#000000'} emissiveIntensity={glow && isLast ? 2.4 : 0}
+                toneMapped={!(glow && isLast)} metalness={m.metalness} roughness={m.roughness}
+                wireframe={m.wireframe} flatShading={m.flatShading} />
+            )}
           </mesh>
         );
       })}
@@ -141,7 +161,7 @@ const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number;
 // layout constants MUST match render_remotion._STACK_* so rasterized per-column totals sit on their stacks.
 const STACK_U = 0.5, STACK_GAP = 0.5, STACK_BASE_Y = -1.3;
 const STACK_MAX_CUBES = 50; // per-column safety cap (see Stack3D) — validate warns above ~40
-const Stack3D: React.FC<{data: number[]; frame: number; durationInFrames: number; accent: string; accent2: string; glow?: boolean; mat?: Mat3D}> = ({data, frame, durationInFrames, accent, accent2, glow, mat}) => {
+const Stack3D: React.FC<{data: number[]; frame: number; durationInFrames: number; accent: string; accent2: string; glow?: boolean; mat?: Mat3D; toon?: boolean}> = ({data, frame, durationInFrames, accent, accent2, glow, mat, toon}) => {
   const m = mat || DEFAULT_MAT3D;
   const total = data.length * STACK_U + (data.length - 1) * STACK_GAP;
   const growStart = Math.round(durationInFrames * 0.1);
@@ -164,10 +184,16 @@ const Stack3D: React.FC<{data: number[]; frame: number; durationInFrames: number
           return (
             <mesh key={`${c}-${k}`} position={[x, STACK_BASE_Y + STACK_U / 2 + k * STACK_U + (1 - e) * 1.2, 0]} scale={[e, e, e]} castShadow receiveShadow>
               <boxGeometry args={[STACK_U, STACK_U, STACK_U]} />
-              <meshStandardMaterial color={isTop ? accent : accent2}
-                emissive={glow && isTop ? accent : '#000000'} emissiveIntensity={glow && isTop ? 2.2 : 0}
-                toneMapped={!(glow && isTop)} metalness={m.metalness} roughness={m.roughness}
-                wireframe={m.wireframe} flatShading={m.flatShading} />
+              {toon ? (
+                <meshToonMaterial color={isTop ? accent : accent2} gradientMap={TOON_GRADIENT}
+                  emissive={glow && isTop ? accent : '#000000'} emissiveIntensity={glow && isTop ? 1.1 : 0}
+                  toneMapped={!(glow && isTop)} />
+              ) : (
+                <meshStandardMaterial color={isTop ? accent : accent2}
+                  emissive={glow && isTop ? accent : '#000000'} emissiveIntensity={glow && isTop ? 2.2 : 0}
+                  toneMapped={!(glow && isTop)} metalness={m.metalness} roughness={m.roughness}
+                  wireframe={m.wireframe} flatShading={m.flatShading} />
+              )}
             </mesh>
           );
         });
@@ -186,7 +212,7 @@ const Stack3D: React.FC<{data: number[]; frame: number; durationInFrames: number
 // (a deterministic sin-hash, never an RNG), staggered so the cloud gathers over the scene.
 const PARTICLE_MAX = 160;
 const _hash11 = (n: number) => {const x = Math.sin(n) * 43758.5453; return 2 * (x - Math.floor(x)) - 1;}; // int -> [-1,1]
-const Particles3D: React.FC<{count?: number; frame: number; durationInFrames: number; accent: string; mat: Mat3D; spread?: number}> = ({count, frame, durationInFrames, accent, mat, spread = 5.5}) => {
+const Particles3D: React.FC<{count?: number; frame: number; durationInFrames: number; accent: string; mat: Mat3D; spread?: number; toon?: boolean}> = ({count, frame, durationInFrames, accent, mat, spread = 5.5, toon}) => {
   const m = mat || DEFAULT_MAT3D;
   const n = Math.max(1, Math.min(PARTICLE_MAX, Math.round(count || 120)));
   const side = Math.max(1, Math.ceil(Math.cbrt(n)));    // cube-root lattice
@@ -208,7 +234,11 @@ const Particles3D: React.FC<{count?: number; frame: number; durationInFrames: nu
             <boxGeometry args={[1, 1, 1]} />
             {/* a POINT stays SOLID regardless of style — a 0.18 wireframe cube is near-invisible (shot_qa
                 flagged blueprint particles as near-black); still inherits metalness/roughness/flatShading. */}
-            <meshStandardMaterial color={accent} metalness={m.metalness} roughness={m.roughness} flatShading={m.flatShading} />
+            {toon ? (
+              <meshToonMaterial color={accent} gradientMap={TOON_GRADIENT} />
+            ) : (
+              <meshStandardMaterial color={accent} metalness={m.metalness} roughness={m.roughness} flatShading={m.flatShading} />
+            )}
           </mesh>
         );
       })}
@@ -220,7 +250,7 @@ const Particles3D: React.FC<{count?: number; frame: number; durationInFrames: nu
 // peaks/valleys that bars cannot be. Heights from `data` (a 1D ridge profile, magnitude-faithful) or a
 // deterministic sum-of-sines. The base X/Y grid is constant, so a useLayoutEffect (synchronous in commit,
 // applied BEFORE Remotion's capture) mutates only Z in place each frame — no per-frame geometry realloc.
-const Surface3D: React.FC<{data?: number[]; frame: number; durationInFrames: number; accent: string; mat: Mat3D; size?: [number, number]}> = ({data, frame, durationInFrames, accent, mat, size}) => {
+const Surface3D: React.FC<{data?: number[]; frame: number; durationInFrames: number; accent: string; mat: Mat3D; size?: [number, number]; toon?: boolean}> = ({data, frame, durationInFrames, accent, mat, size, toon}) => {
   const m = mat || DEFAULT_MAT3D;
   const geomRef = React.useRef<THREE.PlaneGeometry>(null);
   const W = (size && size[0]) || 6.4, D = (size && size[1]) || 6.4, SEG = 40;
@@ -248,8 +278,12 @@ const Surface3D: React.FC<{data?: number[]; frame: number; durationInFrames: num
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.15, 0]} castShadow receiveShadow>
       <planeGeometry ref={geomRef} args={[W, D, SEG, SEG]} />
-      <meshStandardMaterial color={accent} metalness={m.metalness} roughness={m.roughness}
-        wireframe={m.wireframe} flatShading={m.flatShading} side={THREE.DoubleSide} />
+      {toon ? (
+        <meshToonMaterial color={accent} gradientMap={TOON_GRADIENT} side={THREE.DoubleSide} />
+      ) : (
+        <meshStandardMaterial color={accent} metalness={m.metalness} roughness={m.roughness}
+          wireframe={m.wireframe} flatShading={m.flatShading} side={THREE.DoubleSide} />
+      )}
     </mesh>
   );
 };
@@ -407,7 +441,8 @@ export const ThreeScene: React.FC<{
   reveal3d?: boolean; // opt-in dark->lit reveal for an unlit-plane hero opener
   filmLook?: boolean; // the EffectComposer post stack (DoF + selective Bloom + ACES); default on
   gradeHeat?: number | null; // per-beat grade heat 0..1 (calm..climax) -> Finish
-}> = ({planes, camera3d, theme, captions, audio, captionFontPx, reducedMotion, fadeInFrames, fadeOutFrames, reveal3d, filmLook, gradeHeat}) => {
+  atmosphere?: {materialClass?: string; post?: string} | null; // WORLD substrate: toon material + post profile
+}> = ({planes, camera3d, theme, captions, audio, captionFontPx, reducedMotion, fadeInFrames, fadeOutFrames, reveal3d, filmLook, gradeHeat, atmosphere}) => {
   const frame = useCurrentFrame();
   const {width, height, durationInFrames} = useVideoConfig();
   const dur = Math.max(1, durationInFrames);
@@ -433,6 +468,8 @@ export const ThreeScene: React.FC<{
   // the deck's chosen style drives the 3D SURFACE (brushed-metal noir / flat-matte brutalism / wireframe
   // blueprint / …) — unstyled/unknown falls back to the prior {0.1,0.55} matte plastic (no regression).
   const mat3d = STYLE_TO_MATERIAL3D[theme.style] ?? DEFAULT_MAT3D;
+  const toon = atmosphere?.materialClass === 'toon';   // CARTOON world: cel-shaded forms (MeshToonMaterial)
+  const cleanPost = atmosphere?.post === 'clean';      // APP world: crisp product — drop DoF+Bloom from the composer
 
   return (
     <AbsoluteFill style={{backgroundColor: theme.bg}}>
@@ -457,19 +494,19 @@ export const ThreeScene: React.FC<{
         {planes.map((p, i) =>
           p.kind === 'bars' && p.data ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
-              <Bars3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} glow={filmLook !== false} mat={mat3d} />
+              <Bars3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} glow={filmLook !== false} mat={mat3d} toon={toon} />
             </group>
           ) : p.kind === 'stack' && p.data ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
-              <Stack3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} glow={filmLook !== false} mat={mat3d} />
+              <Stack3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} glow={filmLook !== false} mat={mat3d} toon={toon} />
             </group>
           ) : p.kind === 'particles' ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
-              <Particles3D count={p.count} frame={frame} durationInFrames={dur} accent={theme.accent} mat={mat3d} />
+              <Particles3D count={p.count} frame={frame} durationInFrames={dur} accent={theme.accent} mat={mat3d} toon={toon} />
             </group>
           ) : p.kind === 'surface' ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
-              <Surface3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} mat={mat3d} size={p.size} />
+              <Surface3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} mat={mat3d} size={p.size} toon={toon} />
             </group>
           ) : p.src ? (
             <TexturedPlane key={i} tex={textures[p.src]} size={p.size || [3, 1.8]} position={p.position}
@@ -489,8 +526,10 @@ export const ThreeScene: React.FC<{
             Bloom/tone are stateless. Opt-in (default on); resolutionScale 0.5 + multisampling 0 keep it cheap. */}
         {filmLook !== false ? (
           <EffectComposer multisampling={0} frameBufferType={THREE.HalfFloatType} enableNormalPass={false} stencilBuffer={false}>
-            <DepthOfField target={[0, 0, 0]} worldFocusRange={4} bokehScale={3} resolutionScale={0.5} />
-            <Bloom mipmapBlur luminanceThreshold={1.0} luminanceSmoothing={0.2} intensity={0.9} radius={0.7} />
+            {/* APP/clean world: crisp product render — DoF+Bloom OFF, keep ACES+SMAA. Toon world: no bokeh/
+                bloom either (cel shading wants flat, not glow). Otherwise the full film-look stack. */}
+            {!(cleanPost || toon) && <DepthOfField target={[0, 0, 0]} worldFocusRange={4} bokehScale={3} resolutionScale={0.5} />}
+            {!(cleanPost || toon) && <Bloom mipmapBlur luminanceThreshold={1.0} luminanceSmoothing={0.2} intensity={0.9} radius={0.7} />}
             <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
             <SMAA />
           </EffectComposer>
@@ -505,7 +544,7 @@ export const ThreeScene: React.FC<{
       ) : null}
 
       {/* 2D overlays on top of the canvas — grade/grain/vignette, edge fade, captions, audio */}
-      <Finish frame={frame} theme={theme} energy={gradeHeat ?? undefined} dur={dur} />
+      <Finish frame={frame} theme={theme} energy={gradeHeat ?? undefined} dur={dur} post={atmosphere?.post} />
       <AbsoluteFill style={{pointerEvents: 'none', backgroundColor: theme.bg, opacity: fadeOpacity}} />
       {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} /> : null}
       {audio ? <Audio src={staticFile(audio)} /> : null}

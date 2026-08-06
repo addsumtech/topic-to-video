@@ -47,6 +47,7 @@ export type SceneData = {
   transitionToNext?: {style: string; durationInFrames: number; match?: MatchSpec | null} | null;
   transitionStyle?: string | null; // per-scene seam-look override (consumed by build_props)
   gradeHeat?: number | null;  // PER-BEAT grade heat 0..1 (calm..climax) -> Finish runs the wash hotter/cooler
+  atmosphere?: {materialClass?: string; post?: string} | null;  // the WORLD's render substrate (toon / CRT / clean)
   // TRUE-3D tier (P6): WebGL planes + an orbit/crane camera (renders via ThreeScene / @remotion/three).
   planes?: Plane3D[] | null;
   camera3d?: Camera3DKey[] | null;
@@ -87,6 +88,7 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
         reveal3d={scene.reveal3d}
         filmLook={scene.filmLook}
         gradeHeat={scene.gradeHeat}
+        atmosphere={scene.atmosphere}
       />
     );
   }
@@ -105,6 +107,7 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
         motionAmp={scene.motionAmp}
         dof={scene.dof}
         gradeHeat={scene.gradeHeat}
+        atmosphere={scene.atmosphere}
       />
     );
   }
@@ -122,6 +125,7 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
         fadeInFrames={scene.fadeInFrames}
         fadeOutFrames={scene.fadeOutFrames}
         gradeHeat={scene.gradeHeat}
+        atmosphere={scene.atmosphere}
       />
     );
   }
@@ -138,6 +142,7 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
         fadeInFrames={scene.fadeInFrames}
         fadeOutFrames={scene.fadeOutFrames}
         gradeHeat={scene.gradeHeat}
+        atmosphere={scene.atmosphere}
       />
     );
   }
