@@ -920,7 +920,8 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
     # materialClass (standard|toon) + post (film|crt|clean) thread onto each scene for ThreeScene/Finish. This
     # is what makes the picked WORLD actually change the render (not a colour re-skin). None -> unchanged.
     atmo = _atmo.profile(meta.get("atmosphere"))
-    atmo_scene = {"materialClass": atmo["materialClass"], "post": atmo["post"]} if atmo else None
+    atmo_scene = {"materialClass": atmo["materialClass"], "post": atmo["post"],
+                  "motion": atmo.get("motion"), "camera": atmo.get("camera")} if atmo else None
     vertical = vertical or meta.get("aspect") == "9:16"
     W, H = rd._canvas(meta, vertical)
     fps = int(meta.get("fps", 30))

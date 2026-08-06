@@ -127,7 +127,7 @@ const BoxOutline: React.FC<{position: [number, number, number]; args: [number, n
 // A real extruded 3D BAR CHART — boxes with genuine depth the orbit camera reveals; data drives heights;
 // each bar GROWS from the floor over the scene (frame-driven, eased staggered). Born-in-3D data-viz, not a
 // flat chart on a plane. Lit (meshStandardMaterial) so the depth reads via shading.
-const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number; accent: string; accent2: string; glow?: boolean; mat?: Mat3D; toon?: boolean}> = ({data, frame, durationInFrames, accent, accent2, glow, mat, toon}) => {
+const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number; accent: string; accent2: string; glow?: boolean; mat?: Mat3D; toon?: boolean; motion?: string}> = ({data, frame, durationInFrames, accent, accent2, glow, mat, toon, motion}) => {
   const m = mat || DEFAULT_MAT3D;
   const max = Math.max(1e-6, ...data.map((v) => Math.abs(v)));
   const bw = 0.62, gap = 0.42, maxH = 2.6; // bar width / gap / tallest bar (world units)
@@ -140,7 +140,7 @@ const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number;
         const full = (Math.abs(v) / max) * maxH;
         const stagger = growStart + i * 4;
         const t = Math.max(0, Math.min(1, (frame - stagger) / growSpan));
-        const e = EASE.out(t); // ease-out grow
+        const e = growEase(motion, t); // per-atmosphere grow cadence (bouncy/snap/boot; default smooth)
         const h = Math.max(0.001, full * e);
         const x = -total / 2 + bw / 2 + i * (bw + gap);
         const isLast = i === data.length - 1;
@@ -175,7 +175,7 @@ const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number;
 // layout constants MUST match render_remotion._STACK_* so rasterized per-column totals sit on their stacks.
 const STACK_U = 0.5, STACK_GAP = 0.5, STACK_BASE_Y = -1.3;
 const STACK_MAX_CUBES = 50; // per-column safety cap (see Stack3D) — validate warns above ~40
-const Stack3D: React.FC<{data: number[]; frame: number; durationInFrames: number; accent: string; accent2: string; glow?: boolean; mat?: Mat3D; toon?: boolean}> = ({data, frame, durationInFrames, accent, accent2, glow, mat, toon}) => {
+const Stack3D: React.FC<{data: number[]; frame: number; durationInFrames: number; accent: string; accent2: string; glow?: boolean; mat?: Mat3D; toon?: boolean; motion?: string}> = ({data, frame, durationInFrames, accent, accent2, glow, mat, toon, motion}) => {
   const m = mat || DEFAULT_MAT3D;
   const total = data.length * STACK_U + (data.length - 1) * STACK_GAP;
   const growStart = Math.round(durationInFrames * 0.1);
@@ -192,7 +192,7 @@ const Stack3D: React.FC<{data: number[]; frame: number; durationInFrames: number
         return Array.from({length: n}).map((_, k) => {
           const my = order++;
           const t = Math.max(0, Math.min(1, (frame - (growStart + my * 3)) / 6));
-          const e = EASE.out(t);
+          const e = growEase(motion, t);
           if (e <= 0) return null;
           const isTop = k === n - 1;
           const _sy = STACK_BASE_Y + STACK_U / 2 + k * STACK_U + (1 - e) * 1.2;
@@ -230,7 +230,7 @@ const Stack3D: React.FC<{data: number[]; frame: number; durationInFrames: number
 // (a deterministic sin-hash, never an RNG), staggered so the cloud gathers over the scene.
 const PARTICLE_MAX = 160;
 const _hash11 = (n: number) => {const x = Math.sin(n) * 43758.5453; return 2 * (x - Math.floor(x)) - 1;}; // int -> [-1,1]
-const Particles3D: React.FC<{count?: number; frame: number; durationInFrames: number; accent: string; mat: Mat3D; spread?: number; toon?: boolean}> = ({count, frame, durationInFrames, accent, mat, spread = 5.5, toon}) => {
+const Particles3D: React.FC<{count?: number; frame: number; durationInFrames: number; accent: string; mat: Mat3D; spread?: number; toon?: boolean; motion?: string}> = ({count, frame, durationInFrames, accent, mat, spread = 5.5, toon, motion}) => {
   const m = mat || DEFAULT_MAT3D;
   const n = Math.max(1, Math.min(PARTICLE_MAX, Math.round(count || 120)));
   const side = Math.max(1, Math.ceil(Math.cbrt(n)));    // cube-root lattice
@@ -244,7 +244,7 @@ const Particles3D: React.FC<{count?: number; frame: number; durationInFrames: nu
         const tx = (gx - (side - 1) / 2) * gap, ty = (gy - (side - 1) / 2) * gap - 0.2, tz = (gz - (side - 1) / 2) * gap;
         const sx = _hash11(i + 1) * spread, sy = _hash11(i + 7) * spread + 2.5, sz = _hash11(i + 13) * spread;
         const t = Math.max(0, Math.min(1, (frame - (g0 + (i / n) * gspan * 0.55)) / (gspan * 0.45)));
-        const e = EASE.out(t);
+        const e = growEase(motion, t);
         if (e <= 0) return null;
         const sc = 0.18 * (0.35 + 0.65 * e);
         const _pp: [number, number, number] = [sx + (tx - sx) * e, sy + (ty - sy) * e, sz + (tz - sz) * e];
@@ -272,12 +272,12 @@ const Particles3D: React.FC<{count?: number; frame: number; durationInFrames: nu
 // peaks/valleys that bars cannot be. Heights from `data` (a 1D ridge profile, magnitude-faithful) or a
 // deterministic sum-of-sines. The base X/Y grid is constant, so a useLayoutEffect (synchronous in commit,
 // applied BEFORE Remotion's capture) mutates only Z in place each frame — no per-frame geometry realloc.
-const Surface3D: React.FC<{data?: number[]; frame: number; durationInFrames: number; accent: string; mat: Mat3D; size?: [number, number]; toon?: boolean}> = ({data, frame, durationInFrames, accent, mat, size, toon}) => {
+const Surface3D: React.FC<{data?: number[]; frame: number; durationInFrames: number; accent: string; mat: Mat3D; size?: [number, number]; toon?: boolean; motion?: string}> = ({data, frame, durationInFrames, accent, mat, size, toon, motion}) => {
   const m = mat || DEFAULT_MAT3D;
   const geomRef = React.useRef<THREE.PlaneGeometry>(null);
   const W = (size && size[0]) || 6.4, D = (size && size[1]) || 6.4, SEG = 40;
   const rise = Math.max(0, Math.min(1, (frame - Math.round(durationInFrames * 0.08)) / Math.max(1, Math.round(durationInFrames * 0.5))));
-  const e = EASE.out(rise);
+  const e = growEase(motion, rise);
   const mx = data && data.length ? Math.max(1e-6, ...data.map((v) => Math.abs(v))) : 1;
   React.useLayoutEffect(() => {
     const g = geomRef.current; if (!g) return;
@@ -315,6 +315,19 @@ export type Camera3DKey = {atFrame: number; yaw: number; radius: number; height:
 const EASE: Record<string, (n: number) => number> = {
   linear: Easing.linear, in: Easing.in(Easing.cubic), out: Easing.out(Easing.cubic), inout: Easing.inOut(Easing.cubic),
 };
+// Per-ATMOSPHERE entrance cadence — how a form GROWS/assembles in is the WORLD's motion signature (a third of
+// "a different world": geometry + material + MOTION). bouncy (cartoon) overshoots then settles; snap (app) is
+// stiff with a hard arrival; boot (terminal) pops in on a machine step; smooth (default/undefined) is the
+// eased-out grow (byte-identical to before). Deterministic (pure fn of t), so every render is seek-stable.
+function growEase(motion: string | undefined, t: number): number {
+  const x = Math.max(0, Math.min(1, t));
+  switch (motion) {
+    case 'bouncy': { const s = 1.70158; return 1 + (s + 1) * Math.pow(x - 1, 3) + s * Math.pow(x - 1, 2); } // back-out overshoot
+    case 'snap':   return 1 - Math.pow(1 - x, 5);              // quint-out — fast, stiff arrival
+    case 'boot':   return Math.min(1, Math.floor(x * 6) / 5);  // 6 discrete steps — a machine boot
+    default:       return EASE.out(x);                          // smooth cubic-out (unchanged)
+  }
+}
 function lerpKey(keys: Camera3DKey[], frame: number, get: (k: Camera3DKey) => number): number {
   const first = keys[0];
   if (keys.length === 1 || frame <= first.atFrame) return get(first);
@@ -463,7 +476,7 @@ export const ThreeScene: React.FC<{
   reveal3d?: boolean; // opt-in dark->lit reveal for an unlit-plane hero opener
   filmLook?: boolean; // the EffectComposer post stack (DoF + selective Bloom + ACES); default on
   gradeHeat?: number | null; // per-beat grade heat 0..1 (calm..climax) -> Finish
-  atmosphere?: {materialClass?: string; post?: string} | null; // WORLD substrate: toon material + post profile
+  atmosphere?: {materialClass?: string; post?: string; motion?: string; camera?: string} | null; // WORLD substrate + motion grammar
 }> = ({planes, camera3d, theme, captions, audio, captionFontPx, reducedMotion, fadeInFrames, fadeOutFrames, reveal3d, filmLook, gradeHeat, atmosphere}) => {
   const frame = useCurrentFrame();
   const {width, height, durationInFrames} = useVideoConfig();
@@ -492,6 +505,7 @@ export const ThreeScene: React.FC<{
   const mat3d = STYLE_TO_MATERIAL3D[theme.style] ?? DEFAULT_MAT3D;
   const toon = atmosphere?.materialClass === 'toon';   // CARTOON world: cel-shaded forms (MeshToonMaterial)
   const cleanPost = atmosphere?.post === 'clean';      // APP world: crisp product — drop DoF+Bloom from the composer
+  const motionG = atmosphere?.motion;                  // WORLD motion cadence (bouncy/snap/boot) -> the forms' grow
 
   return (
     <AbsoluteFill style={{backgroundColor: theme.bg}}>
@@ -516,19 +530,19 @@ export const ThreeScene: React.FC<{
         {planes.map((p, i) =>
           p.kind === 'bars' && p.data ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
-              <Bars3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} glow={filmLook !== false} mat={mat3d} toon={toon} />
+              <Bars3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} glow={filmLook !== false} mat={mat3d} toon={toon} motion={motionG} />
             </group>
           ) : p.kind === 'stack' && p.data ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
-              <Stack3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} glow={filmLook !== false} mat={mat3d} toon={toon} />
+              <Stack3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} glow={filmLook !== false} mat={mat3d} toon={toon} motion={motionG} />
             </group>
           ) : p.kind === 'particles' ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
-              <Particles3D count={p.count} frame={frame} durationInFrames={dur} accent={theme.accent} mat={mat3d} toon={toon} />
+              <Particles3D count={p.count} frame={frame} durationInFrames={dur} accent={theme.accent} mat={mat3d} toon={toon} motion={motionG} />
             </group>
           ) : p.kind === 'surface' ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
-              <Surface3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} mat={mat3d} size={p.size} toon={toon} />
+              <Surface3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} mat={mat3d} size={p.size} toon={toon} motion={motionG} />
             </group>
           ) : p.src ? (
             <TexturedPlane key={i} tex={textures[p.src]} size={p.size || [3, 1.8]} position={p.position}

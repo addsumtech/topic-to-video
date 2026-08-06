@@ -47,7 +47,7 @@ export type SceneData = {
   transitionToNext?: {style: string; durationInFrames: number; match?: MatchSpec | null} | null;
   transitionStyle?: string | null; // per-scene seam-look override (consumed by build_props)
   gradeHeat?: number | null;  // PER-BEAT grade heat 0..1 (calm..climax) -> Finish runs the wash hotter/cooler
-  atmosphere?: {materialClass?: string; post?: string} | null;  // the WORLD's render substrate (toon / CRT / clean)
+  atmosphere?: {materialClass?: string; post?: string; motion?: string; camera?: string} | null;  // the WORLD's render substrate + motion/camera grammar
   // TRUE-3D tier (P6): WebGL planes + an orbit/crane camera (renders via ThreeScene / @remotion/three).
   planes?: Plane3D[] | null;
   camera3d?: Camera3DKey[] | null;

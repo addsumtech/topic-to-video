@@ -71,7 +71,8 @@ def _deck(tmp, atmosphere):
 def test_build_props_overrides_style_and_threads_substrate(tmp_path):
     p = rr.build_props(_deck(tmp_path, "terminal"), str(tmp_path))
     assert p["theme"]["style"] == "terminal", "atmosphere did not override theme.style"
-    assert p["scenes"][0]["atmosphere"] == {"materialClass": "standard", "post": "crt"}
+    a = p["scenes"][0]["atmosphere"]
+    assert a["materialClass"] == "standard" and a["post"] == "crt"
 
 
 def test_build_props_no_atmosphere_is_unchanged(tmp_path):
@@ -125,3 +126,20 @@ def test_cartoon_has_the_ink_outline():
     three = open(os.path.join(_SRC, "three", "ThreeScene.tsx"), encoding="utf-8").read()
     assert "BoxOutline" in three and "THREE.BackSide" in three, "the inverted-hull ink outline is gone"
     assert three.count("<BoxOutline") >= 3, "not all box forms (bars/stack/particles) draw the toon outline"
+
+
+def test_per_atmosphere_motion_grammar_is_wired():
+    # each world MOVES differently: bouncy/snap/boot grow cadences reach the forms via growEase.
+    three = open(os.path.join(_SRC, "three", "ThreeScene.tsx"), encoding="utf-8").read()
+    assert "function growEase" in three, "the per-atmosphere grow cadence is gone"
+    for m in ("'bouncy'", "'snap'", "'boot'"):
+        assert m in three, "growEase is missing the %s cadence" % m
+    assert three.count("growEase(motion,") >= 4, "not all forms use the atmosphere motion cadence"
+    assert 'atmosphere?.motion' in three, "the motion grammar is not resolved from the atmosphere"
+
+
+def test_build_props_threads_motion_and_camera(tmp_path):
+    # the motion + camera grammar fields reach the scene props (camera wiring is a follow-up; the field flows now)
+    p = rr.build_props(_deck(tmp_path, "cartoon"), str(tmp_path))
+    a = p["scenes"][0]["atmosphere"]
+    assert a["motion"] == "bouncy" and a["camera"] == "whip"
