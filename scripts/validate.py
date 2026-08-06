@@ -1481,6 +1481,14 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                                       "IS the chosen template" % (_win, _tpl))
                     if _win is not None and _cand and str(_win) not in _cand:
                         errors.append("meta.template_contest.winner %r is not among its candidates %s" % (_win, _cand))
+                    # the AIM is ~3 distinct candidates (the user's "give me 3"); >=2 is the hard floor. And the
+                    # pick is a HUMAN choice — record user_pick so a self-selection isn't passed off as a contest.
+                    if 0 < len(_cand) < 3:
+                        warnings.append("meta.template_contest offered only %d candidate(s) — aim for ~3 distinct "
+                                        "templates so the user has a real choice (>=2 is the floor)" % len(_cand))
+                    if _tc.get("user_pick") is not True:
+                        warnings.append("meta.template_contest has no `user_pick:true` — record that the USER "
+                                        "chose (a contest is a human pick, not a self-selection)")
 
             # ATMOSPHERE (the whole-film WORLD substrate — scripts/atmospheres.py): meta.atmosphere binds the
             # render's material CLASS + post profile + style to the picked world (terminal/cartoon/app/…), so
@@ -1495,6 +1503,32 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                     _known_atmo = set()
                 if _known_atmo and str(_atmo_key).lower() not in _known_atmo:
                     errors.append("unknown meta.atmosphere %r (known: %s)" % (_atmo_key, sorted(_known_atmo)))
+                # ATMOSPHERE CONTEST trace (mirror template_contest): record which WORLDS were offered so a
+                # hardcoded world isn't passed off as a topic-routed pick. Absent -> warn; present -> validate.
+                _ac = meta.get("atmosphere_contest")
+                if not (isinstance(_ac, dict) and _ac):
+                    warnings.append("meta.atmosphere is set but no `meta.atmosphere_contest` — record the STEP-0a "
+                                    "contest {candidates:[>=2 keys from atmospheres.route], winner, user_pick} so a "
+                                    "hardcoded world isn't passed off as a topic-routed pick")
+                else:
+                    _ac_cand = [str(c).lower() for c in (_ac.get("candidates") or []) if isinstance(c, str)]
+                    if len(_ac_cand) < 2:
+                        errors.append("meta.atmosphere_contest needs >=2 `candidates` — a contest is a choice")
+                    elif len(_ac_cand) < 3:
+                        warnings.append("meta.atmosphere_contest offered only 2 worlds — aim for ~3 (atmospheres.route "
+                                        "returns 3 by default)")
+                    _ac_win = _ac.get("winner")
+                    if _ac_win is not None and str(_ac_win).lower() != str(_atmo_key).lower():
+                        errors.append("meta.atmosphere_contest.winner %r != meta.atmosphere %r — the winner IS the "
+                                      "chosen world" % (_ac_win, _atmo_key))
+                    if _ac_win is not None and _ac_cand and str(_ac_win).lower() not in _ac_cand:
+                        errors.append("meta.atmosphere_contest.winner %r is not among its candidates %s" % (_ac_win, _ac_cand))
+                    if _known_atmo:
+                        _bad_w = [c for c in _ac_cand if c not in _known_atmo]
+                        if _bad_w:
+                            errors.append("meta.atmosphere_contest has unknown candidate world(s): %s" % _bad_w)
+                    if _ac.get("user_pick") is not True:
+                        warnings.append("meta.atmosphere_contest has no `user_pick:true` — record that the USER chose the world")
 
     # meta.brand (user-supplied REAL assets — the mirror of the "never fabricate logos in generated
     # imagery" doctrine): render.py composites the corner bug from the raster file, and the cover/

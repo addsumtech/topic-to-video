@@ -100,6 +100,26 @@ def test_render_side_has_the_bridge():
     assert "post === 'clean'" in fin, "clean post is gone from Finish"
 
 
+def test_atmosphere_contest_absent_warns_present_validates(tmp_path):
+    # atmosphere set but no contest record -> warn (mirror the template contest)
+    r = validate.evaluate(_deck(tmp_path, "terminal"), str(tmp_path))
+    assert any("no `meta.atmosphere_contest`" in w for w in r["warnings"]), r["warnings"]
+
+
+def test_atmosphere_contest_winner_must_match(tmp_path):
+    d = _deck(tmp_path, "terminal")
+    d["meta"]["atmosphere_contest"] = {"candidates": ["terminal", "hologram", "app"], "winner": "app", "user_pick": True}
+    r = validate.evaluate(d, str(tmp_path))
+    assert any("atmosphere_contest.winner" in e for e in r["errors"]), r["errors"]
+
+
+def test_atmosphere_contest_valid_is_clean(tmp_path):
+    d = _deck(tmp_path, "terminal")
+    d["meta"]["atmosphere_contest"] = {"candidates": ["terminal", "hologram", "app"], "winner": "terminal", "user_pick": True}
+    r = validate.evaluate(d, str(tmp_path))
+    assert not any("atmosphere_contest" in e for e in r["errors"]), r["errors"]
+
+
 def test_cartoon_has_the_ink_outline():
     # the CARTOON world = cel bands + an inverted-hull INK outline; all 3 box forms draw it when toon.
     three = open(os.path.join(_SRC, "three", "ThreeScene.tsx"), encoding="utf-8").read()
