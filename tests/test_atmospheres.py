@@ -98,3 +98,10 @@ def test_render_side_has_the_bridge():
     fin = open(os.path.join(_SRC, "theme", "Finish.tsx"), encoding="utf-8").read()
     assert "post === 'crt'" in fin and "repeating-linear-gradient" in fin, "CRT scanline post is gone from Finish"
     assert "post === 'clean'" in fin, "clean post is gone from Finish"
+
+
+def test_cartoon_has_the_ink_outline():
+    # the CARTOON world = cel bands + an inverted-hull INK outline; all 3 box forms draw it when toon.
+    three = open(os.path.join(_SRC, "three", "ThreeScene.tsx"), encoding="utf-8").read()
+    assert "BoxOutline" in three and "THREE.BackSide" in three, "the inverted-hull ink outline is gone"
+    assert three.count("<BoxOutline") >= 3, "not all box forms (bars/stack/particles) draw the toon outline"

@@ -113,6 +113,17 @@ const TOON_GRADIENT = (() => {
   return tex;
 })();
 
+// INK OUTLINE (the CARTOON world's second half): an inverted-hull — a back-face copy of the box scaled out a
+// little, in near-black ink. The main mesh occludes its centre, so only a clean line pokes out around the
+// silhouette. Static + frame-safe; a mesh (not a post filter), so the preserve-3d depth is untouched.
+const INK_OUTLINE = '#0a0a12';
+const BoxOutline: React.FC<{position: [number, number, number]; args: [number, number, number]; scale?: number}> = ({position, args, scale = 1.06}) => (
+  <mesh position={position} scale={scale}>
+    <boxGeometry args={args} />
+    <meshBasicMaterial color={INK_OUTLINE} side={THREE.BackSide} />
+  </mesh>
+);
+
 // A real extruded 3D BAR CHART — boxes with genuine depth the orbit camera reveals; data drives heights;
 // each bar GROWS from the floor over the scene (frame-driven, eased staggered). Born-in-3D data-viz, not a
 // flat chart on a plane. Lit (meshStandardMaterial) so the depth reads via shading.
@@ -134,21 +145,24 @@ const Bars3D: React.FC<{data: number[]; frame: number; durationInFrames: number;
         const x = -total / 2 + bw / 2 + i * (bw + gap);
         const isLast = i === data.length - 1;
         return (
-          <mesh key={i} position={[x, -1.3 + h / 2, 0]} castShadow receiveShadow>
-            <boxGeometry args={[bw, h, bw]} />
-            {/* the RESULT bar glows via HDR emissive (>1) so selective Bloom picks only it; toneMapped=false
-                keeps the colour out of [0,1] so it survives to the composer. Only when filmLook is on. */}
-            {toon ? (
-              <meshToonMaterial color={isLast ? accent : accent2} gradientMap={TOON_GRADIENT}
-                emissive={glow && isLast ? accent : '#000000'} emissiveIntensity={glow && isLast ? 1.2 : 0}
-                toneMapped={!(glow && isLast)} />
-            ) : (
-              <meshStandardMaterial color={isLast ? accent : accent2}
-                emissive={glow && isLast ? accent : '#000000'} emissiveIntensity={glow && isLast ? 2.4 : 0}
-                toneMapped={!(glow && isLast)} metalness={m.metalness} roughness={m.roughness}
-                wireframe={m.wireframe} flatShading={m.flatShading} />
-            )}
-          </mesh>
+          <React.Fragment key={i}>
+            <mesh position={[x, -1.3 + h / 2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[bw, h, bw]} />
+              {/* the RESULT bar glows via HDR emissive (>1) so selective Bloom picks only it; toneMapped=false
+                  keeps the colour out of [0,1] so it survives to the composer. Only when filmLook is on. */}
+              {toon ? (
+                <meshToonMaterial color={isLast ? accent : accent2} gradientMap={TOON_GRADIENT}
+                  emissive={glow && isLast ? accent : '#000000'} emissiveIntensity={glow && isLast ? 1.2 : 0}
+                  toneMapped={!(glow && isLast)} />
+              ) : (
+                <meshStandardMaterial color={isLast ? accent : accent2}
+                  emissive={glow && isLast ? accent : '#000000'} emissiveIntensity={glow && isLast ? 2.4 : 0}
+                  toneMapped={!(glow && isLast)} metalness={m.metalness} roughness={m.roughness}
+                  wireframe={m.wireframe} flatShading={m.flatShading} />
+              )}
+            </mesh>
+            {toon ? <BoxOutline position={[x, -1.3 + h / 2, 0]} args={[bw, h, bw]} scale={1.05} /> : null}
+          </React.Fragment>
         );
       })}
     </group>
@@ -181,20 +195,24 @@ const Stack3D: React.FC<{data: number[]; frame: number; durationInFrames: number
           const e = EASE.out(t);
           if (e <= 0) return null;
           const isTop = k === n - 1;
+          const _sy = STACK_BASE_Y + STACK_U / 2 + k * STACK_U + (1 - e) * 1.2;
           return (
-            <mesh key={`${c}-${k}`} position={[x, STACK_BASE_Y + STACK_U / 2 + k * STACK_U + (1 - e) * 1.2, 0]} scale={[e, e, e]} castShadow receiveShadow>
-              <boxGeometry args={[STACK_U, STACK_U, STACK_U]} />
-              {toon ? (
-                <meshToonMaterial color={isTop ? accent : accent2} gradientMap={TOON_GRADIENT}
-                  emissive={glow && isTop ? accent : '#000000'} emissiveIntensity={glow && isTop ? 1.1 : 0}
-                  toneMapped={!(glow && isTop)} />
-              ) : (
-                <meshStandardMaterial color={isTop ? accent : accent2}
-                  emissive={glow && isTop ? accent : '#000000'} emissiveIntensity={glow && isTop ? 2.2 : 0}
-                  toneMapped={!(glow && isTop)} metalness={m.metalness} roughness={m.roughness}
-                  wireframe={m.wireframe} flatShading={m.flatShading} />
-              )}
-            </mesh>
+            <React.Fragment key={`${c}-${k}`}>
+              <mesh position={[x, _sy, 0]} scale={[e, e, e]} castShadow receiveShadow>
+                <boxGeometry args={[STACK_U, STACK_U, STACK_U]} />
+                {toon ? (
+                  <meshToonMaterial color={isTop ? accent : accent2} gradientMap={TOON_GRADIENT}
+                    emissive={glow && isTop ? accent : '#000000'} emissiveIntensity={glow && isTop ? 1.1 : 0}
+                    toneMapped={!(glow && isTop)} />
+                ) : (
+                  <meshStandardMaterial color={isTop ? accent : accent2}
+                    emissive={glow && isTop ? accent : '#000000'} emissiveIntensity={glow && isTop ? 2.2 : 0}
+                    toneMapped={!(glow && isTop)} metalness={m.metalness} roughness={m.roughness}
+                    wireframe={m.wireframe} flatShading={m.flatShading} />
+                )}
+              </mesh>
+              {toon ? <BoxOutline position={[x, _sy, 0]} args={[STACK_U, STACK_U, STACK_U]} scale={e * 1.07} /> : null}
+            </React.Fragment>
           );
         });
       })}
@@ -229,17 +247,21 @@ const Particles3D: React.FC<{count?: number; frame: number; durationInFrames: nu
         const e = EASE.out(t);
         if (e <= 0) return null;
         const sc = 0.18 * (0.35 + 0.65 * e);
+        const _pp: [number, number, number] = [sx + (tx - sx) * e, sy + (ty - sy) * e, sz + (tz - sz) * e];
         return (
-          <mesh key={i} position={[sx + (tx - sx) * e, sy + (ty - sy) * e, sz + (tz - sz) * e]} scale={[sc, sc, sc]} castShadow>
-            <boxGeometry args={[1, 1, 1]} />
-            {/* a POINT stays SOLID regardless of style — a 0.18 wireframe cube is near-invisible (shot_qa
-                flagged blueprint particles as near-black); still inherits metalness/roughness/flatShading. */}
-            {toon ? (
-              <meshToonMaterial color={accent} gradientMap={TOON_GRADIENT} />
-            ) : (
-              <meshStandardMaterial color={accent} metalness={m.metalness} roughness={m.roughness} flatShading={m.flatShading} />
-            )}
-          </mesh>
+          <React.Fragment key={i}>
+            <mesh position={_pp} scale={[sc, sc, sc]} castShadow>
+              <boxGeometry args={[1, 1, 1]} />
+              {/* a POINT stays SOLID regardless of style — a 0.18 wireframe cube is near-invisible (shot_qa
+                  flagged blueprint particles as near-black); still inherits metalness/roughness/flatShading. */}
+              {toon ? (
+                <meshToonMaterial color={accent} gradientMap={TOON_GRADIENT} />
+              ) : (
+                <meshStandardMaterial color={accent} metalness={m.metalness} roughness={m.roughness} flatShading={m.flatShading} />
+              )}
+            </mesh>
+            {toon ? <BoxOutline position={_pp} args={[1, 1, 1]} scale={sc * 1.18} /> : null}
+          </React.Fragment>
         );
       })}
     </group>
