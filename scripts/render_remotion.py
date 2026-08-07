@@ -352,10 +352,10 @@ def _clean_planes(planes, tag):
             c["alpha"] = bool(p["alpha"])
         if p.get("billboard") is not None:                   # face the camera (rasterized text default)
             c["billboard"] = bool(p["billboard"])
-        kind = str(p.get("kind", "plane"))                   # plane|bars|stack|text|particles|surface|glyphrain
-        if kind not in ("plane", "bars", "stack", "text", "particles", "surface", "glyphrain"):
+        kind = str(p.get("kind", "plane"))                   # plane|bars|stack|text|particles|surface|glyphrain|device
+        if kind not in ("plane", "bars", "stack", "text", "particles", "surface", "glyphrain", "device"):
             raise RuntimeError("cinematic3d %s plane %d: kind must be plane|bars|stack|text|particles|surface|"
-                               "glyphrain, got %r" % (tag, j, kind))
+                               "glyphrain|device, got %r" % (tag, j, kind))
         c["kind"] = kind
         if kind == "glyphrain" and p.get("count") is not None:   # number of falling code columns (ThreeScene caps it)
             c["count"] = int(_num(p["count"], "%s plane %d count" % (tag, j)))

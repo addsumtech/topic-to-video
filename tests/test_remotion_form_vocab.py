@@ -88,6 +88,19 @@ def test_glyphrain_wired_in_threescene_and_rasterizer():
     assert "glyphrain" in rr_src and "_glyphrain_png" in rr_src, "the glyph-strip rasterizer is gone"
 
 
+# ── APP device-volume (a born-in-3D world form) ───────────────────────────────────────────────────────
+def test_clean_planes_accepts_device():
+    out = rr._clean_planes([{"kind": "device", "position": [0, 0, 0]}], "s1")
+    assert out[0]["kind"] == "device"
+
+
+def test_device_volume_wired_in_threescene():
+    src = _three()
+    assert "Device3D" in src and "kind === 'device'" in src, "the device-volume component/dispatch is gone"
+    # cards float at REAL increasing z-depth in front of the screen (not a flat panel / screenshot)
+    assert "bd / 2 + 0.4 + k * 0.6" in src, "the floating UI cards lost their real z-depth stagger"
+
+
 def test_particle_cap_is_declared_in_source():
     src = _three()
     assert "PARTICLE_MAX = 160" in src, "the particle safety cap changed — keep validate's warn threshold in sync"

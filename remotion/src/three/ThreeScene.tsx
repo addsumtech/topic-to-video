@@ -22,8 +22,8 @@ import {Captions} from '../Captions';
 import {Finish} from '../theme/Finish';
 
 export type Plane3D = {
-  kind?: 'plane' | 'bars' | 'stack' | 'particles' | 'surface' | 'glyphrain'; // plane (default) / bar chart /
-  //   cube stack / instanced FIELD that assembles into a lattice / parametric HEIGHTFIELD / falling code RAIN
+  kind?: 'plane' | 'bars' | 'stack' | 'particles' | 'surface' | 'glyphrain' | 'device'; // plane / bar chart /
+  //   cube stack / assembling lattice FIELD / parametric HEIGHTFIELD / falling code RAIN / app DEVICE volume
   color?: string;
   src?: string; // image/screenshot/rasterized-text -> textured onto a REAL 3D mesh (true perspective)
   alpha?: boolean; // the texture has transparency (a rasterized-text PNG) -> transparent material
@@ -351,6 +351,54 @@ const GlyphRain3D: React.FC<{tex?: THREE.Texture; frame: number; durationInFrame
   );
 };
 
+// APP DEVICE-VOLUME (born-in-3D): a device chassis with UI CARDS floating at REAL z-depth in front of a
+// glossy screen — a product-render volume the (turntable) camera orbits, NOT a flat clean panel or a UI
+// screenshot on one plane (the parallax between the cards is real, not simulated). All native meshes;
+// deterministic; product-lit by the LightRig. Cards rise/settle in with the world's motion cadence.
+const Device3D: React.FC<{frame: number; durationInFrames: number; accent: string; accent2: string; theme: Theme; mat: Mat3D; motion?: string}> = ({frame, durationInFrames, accent, accent2, theme, mat, motion}) => {
+  const bw = 3.0, bh = 6.0, bd = 0.34;                       // chassis proportions (a portrait device)
+  const g0 = Math.round(durationInFrames * 0.1), gspan = Math.max(1, Math.round(durationInFrames * 0.4));
+  const surface = theme.surface || '#1b1f27', muted = theme.muted || '#8a93a0';
+  return (
+    <group>
+      {/* chassis */}
+      <mesh castShadow receiveShadow>
+        <boxGeometry args={[bw, bh, bd]} />
+        <meshStandardMaterial color={surface} metalness={mat.metalness} roughness={Math.min(0.7, mat.roughness + 0.1)} />
+      </mesh>
+      {/* glossy screen — a dark reflective plane proud of the front face, faint accent 'on' glow */}
+      <mesh position={[0, 0, bd / 2 + 0.01]}>
+        <planeGeometry args={[bw * 0.9, bh * 0.92]} />
+        <meshStandardMaterial color={'#0a0c12'} metalness={0.5} roughness={0.16} emissive={accent} emissiveIntensity={0.06} />
+      </mesh>
+      {/* floating UI cards at increasing depth in front of the screen (real parallax under the orbit) */}
+      {[0, 1, 2].map((k) => {
+        const e = growEase(motion, Math.max(0, Math.min(1, (frame - (g0 + k * 6)) / gspan)));
+        if (e <= 0) return null;
+        const cw = bw * 0.78, ch = 1.15, z = bd / 2 + 0.4 + k * 0.6, y = 1.5 - k * 1.5;
+        return (
+          <group key={k} position={[0, y, z]} scale={[e, e, e]}>
+            <mesh castShadow>
+              <planeGeometry args={[cw, ch]} />
+              <meshStandardMaterial color={surface} metalness={0} roughness={0.6} side={THREE.DoubleSide} />
+            </mesh>
+            <mesh position={[0, ch / 2 - 0.14, 0.006]}>
+              <planeGeometry args={[cw, 0.16]} />
+              <meshBasicMaterial color={k === 0 ? accent : accent2} toneMapped={false} />
+            </mesh>
+            <mesh position={[-cw * 0.2, -0.04, 0.006]}>
+              <planeGeometry args={[cw * 0.5, 0.08]} /><meshBasicMaterial color={muted} />
+            </mesh>
+            <mesh position={[-cw * 0.28, -0.24, 0.006]}>
+              <planeGeometry args={[cw * 0.34, 0.08]} /><meshBasicMaterial color={muted} />
+            </mesh>
+          </group>
+        );
+      })}
+    </group>
+  );
+};
+
 export type Camera3DKey = {atFrame: number; yaw: number; radius: number; height: number; easing?: string};
 
 const EASE: Record<string, (n: number) => number> = {
@@ -605,6 +653,10 @@ export const ThreeScene: React.FC<{
           ) : p.kind === 'glyphrain' ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
               <GlyphRain3D tex={textures[p.src || '']} frame={frame} durationInFrames={dur} count={p.count} />
+            </group>
+          ) : p.kind === 'device' ? (
+            <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
+              <Device3D frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} theme={theme} mat={mat3d} motion={motionG} />
             </group>
           ) : p.src ? (
             <TexturedPlane key={i} tex={textures[p.src]} size={p.size || [3, 1.8]} position={p.position}
