@@ -28,6 +28,17 @@ def test_every_atmosphere_has_a_valid_render_bundle():
         assert p["post"] in A._POST_PROFILES, "%s bad post" % k
 
 
+def test_no_two_worlds_render_identically():
+    # each world must be a DISTINCT render substrate — two atmospheres with the same (style, materialClass,
+    # post) would look identical if co-offered, defeating "each world is different".
+    sigs = {}
+    for k in A.keys():
+        p = A.profile(k)
+        sigs.setdefault((p["style"], p["materialClass"], p["post"]), []).append(k)
+    dupes = {s: ks for s, ks in sigs.items() if len(ks) > 1}
+    assert not dupes, "render-identical worlds (would look the same if co-offered): %s" % dupes
+
+
 def test_three_seed_worlds_are_render_distinct():
     # the 3 seeds must differ at the RENDER layer, not just palette: post + materialClass.
     t, c, a = A.profile("terminal"), A.profile("cartoon"), A.profile("app")

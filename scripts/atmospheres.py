@@ -91,7 +91,8 @@ ATMOSPHERES = {
         "name": "Molten Ledger", "pitch": "Numbers cast in metal — magnitude as a physical, weighty thing.",
         "topics": ["finance", "money", "revenue", "markets", "trading", "wealth", "gold", "economy", "valuation",
                    "profit", "growth", "capital", "investment", "returns", "fund"],
-        "render": {"style": "noir", "materialClass": "standard", "post": "film", "camera": "dolly", "motion": "smooth"},
+        # artdeco base = warm GOLD-metal (distinct from noir's cool steel) so molten never clones noir.
+        "render": {"style": "artdeco", "materialClass": "standard", "post": "film", "camera": "dolly", "motion": "smooth"},
     },
 }
 
