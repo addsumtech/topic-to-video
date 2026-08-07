@@ -352,11 +352,13 @@ def _clean_planes(planes, tag):
             c["alpha"] = bool(p["alpha"])
         if p.get("billboard") is not None:                   # face the camera (rasterized text default)
             c["billboard"] = bool(p["billboard"])
-        kind = str(p.get("kind", "plane"))                   # 3D element: plane|bars|stack|text|particles|surface
-        if kind not in ("plane", "bars", "stack", "text", "particles", "surface"):
-            raise RuntimeError("cinematic3d %s plane %d: kind must be plane|bars|stack|text|particles|surface, "
-                               "got %r" % (tag, j, kind))
+        kind = str(p.get("kind", "plane"))                   # plane|bars|stack|text|particles|surface|glyphrain
+        if kind not in ("plane", "bars", "stack", "text", "particles", "surface", "glyphrain"):
+            raise RuntimeError("cinematic3d %s plane %d: kind must be plane|bars|stack|text|particles|surface|"
+                               "glyphrain, got %r" % (tag, j, kind))
         c["kind"] = kind
+        if kind == "glyphrain" and p.get("count") is not None:   # number of falling code columns (ThreeScene caps it)
+            c["count"] = int(_num(p["count"], "%s plane %d count" % (tag, j)))
         if kind in ("bars", "stack"):                        # data-driven 3D: bar heights / cube-stack counts
             data = p.get("data")
             if not (isinstance(data, list) and data):
@@ -573,6 +575,29 @@ def _rasterize_text3d(data, out_dir):
         img.save(os.path.join(out_dir, rel))
         return rel, img.width / img.height
 
+    def _glyphrain_png(seed, rel_name, rows=44, cell=110):
+        """A tall COLUMN of deterministic pseudo-random code glyphs, fading dim(top)->bright(bottom) so it
+        reads as a falling trail with a bright head. Phosphor green, transparent bg. ThreeScene tiles this
+        one strip into many depth columns and scrolls it. Deterministic (seeded) — every render identical."""
+        os.makedirs(kf, exist_ok=True)
+        import random as _rnd
+        rng = _rnd.Random(seed)
+        charset = "0123456789ABCDEF<>/\\{}[]$#*+=?%&@!;:"
+        try:
+            font = ImageFont.truetype(font_path, int(cell * 0.82))
+        except Exception:
+            font = ImageFont.load_default()
+        W, H = cell, cell * rows
+        img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        for r in range(rows):
+            ch = rng.choice(charset)
+            a = 70 + int(185 * (r / max(1, rows - 1)))   # dim top -> bright bottom (a falling head + trail)
+            d.text((cell * 0.12, r * cell), ch, font=font, fill=(120, 255, 150, a))
+        rel = os.path.join(".text3d", rel_name)
+        img.save(os.path.join(out_dir, rel))
+        return rel, W / H
+
     def _bar_label_planes(p, sidx):
         """Value labels above each bar (accent on the final/result bar) + optional category labels
         (`labels`) at the base — the numbers that make an extruded bar chart READ as data-viz."""
@@ -648,6 +673,11 @@ def _rasterize_text3d(data, out_dir):
                 bill = p.get("rotation") is None
                 pls[i] = {"kind": "plane", "src": rel, "alpha": True, "billboard": bill, "position": p["position"],
                           "size": [world_h * aspect, world_h], **({"rotation": p["rotation"]} if p.get("rotation") else {})}
+            elif p.get("kind") == "glyphrain":
+                # keep the kind (ThreeScene tiles it into depth columns) but give it the strip texture.
+                rel, _asp = _glyphrain_png(1000 + i, "s%s_glyph%d.png" % (s.get("index"), i))
+                p["src"] = rel
+                p["alpha"] = True
             elif p.get("kind") == "bars" and isinstance(p.get("data"), list) and p["data"]:
                 extra.extend(_bar_label_planes(p, s.get("index")))
             elif p.get("kind") == "stack" and isinstance(p.get("data"), list) and p["data"]:

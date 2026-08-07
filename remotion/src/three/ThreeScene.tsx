@@ -22,8 +22,8 @@ import {Captions} from '../Captions';
 import {Finish} from '../theme/Finish';
 
 export type Plane3D = {
-  kind?: 'plane' | 'bars' | 'stack' | 'particles' | 'surface'; // plane (default) / bar chart / cube stack /
-  //   an instanced FIELD that assembles from scatter into a lattice / a parametric HEIGHTFIELD (data landscape)
+  kind?: 'plane' | 'bars' | 'stack' | 'particles' | 'surface' | 'glyphrain'; // plane (default) / bar chart /
+  //   cube stack / instanced FIELD that assembles into a lattice / parametric HEIGHTFIELD / falling code RAIN
   color?: string;
   src?: string; // image/screenshot/rasterized-text -> textured onto a REAL 3D mesh (true perspective)
   alpha?: boolean; // the texture has transparency (a rasterized-text PNG) -> transparent material
@@ -310,6 +310,47 @@ const Surface3D: React.FC<{data?: number[]; frame: number; durationInFrames: num
   );
 };
 
+// TERMINAL GLYPH-RAIN (born-in-3D): the rasterized code-glyph STRIP (render_remotion._glyphrain_png) TILED
+// into many depth columns that FALL, with the camera flying THROUGH them — a real 3D terminal WORLD, not a
+// scanline filter over flat content. Each column clones the strip (its own scroll offset), spread over x/z by
+// a deterministic hash; the scroll is a pure fn of frame (a useLayoutEffect sets the texture offset, applied
+// in commit BEFORE Remotion's capture — the proven surface-displacement pattern). Unlit phosphor (meshBasic).
+const GLYPH_COLS = 16;
+const GlyphRain3D: React.FC<{tex?: THREE.Texture; frame: number; durationInFrames: number; count?: number}> = ({tex, frame, durationInFrames, count}) => {
+  const n = Math.max(4, Math.min(28, Math.round(count || GLYPH_COLS)));
+  const cols = React.useMemo(() => {
+    if (!tex) return [];
+    return Array.from({length: n}).map((_, i) => {
+      const t = tex.clone();
+      t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(1, 1.8);
+      t.needsUpdate = true;
+      return {
+        tex: t,
+        x: _hash11(i * 3 + 1) * 8,
+        z: _hash11(i * 3 + 2) * 6 - 1.5,
+        y: _hash11(i * 3 + 3) * 1.4,
+        speed: 0.9 + Math.abs(_hash11(i * 7 + 5)) * 1.8,   // per-column fall speed (deterministic)
+      };
+    });
+  }, [tex, n]);
+  React.useLayoutEffect(() => {
+    const p = frame / Math.max(1, durationInFrames);
+    for (const c of cols) c.tex.offset.y = p * c.speed;    // scroll the sampled region -> glyphs fall
+  }, [frame, cols, durationInFrames]);
+  if (!tex) return null;
+  return (
+    <group>
+      {cols.map((c, i) => (
+        <mesh key={i} position={[c.x, c.y, c.z]}>
+          <planeGeometry args={[0.55, 6.5]} />
+          <meshBasicMaterial map={c.tex} transparent depthWrite={false} toneMapped={false} />
+        </mesh>
+      ))}
+    </group>
+  );
+};
+
 export type Camera3DKey = {atFrame: number; yaw: number; radius: number; height: number; easing?: string};
 
 const EASE: Record<string, (n: number) => number> = {
@@ -560,6 +601,10 @@ export const ThreeScene: React.FC<{
           ) : p.kind === 'surface' ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
               <Surface3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} mat={mat3d} size={p.size} toon={toon} motion={motionG} />
+            </group>
+          ) : p.kind === 'glyphrain' ? (
+            <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
+              <GlyphRain3D tex={textures[p.src || '']} frame={frame} durationInFrames={dur} count={p.count} />
             </group>
           ) : p.src ? (
             <TexturedPlane key={i} tex={textures[p.src]} size={p.size || [3, 1.8]} position={p.position}

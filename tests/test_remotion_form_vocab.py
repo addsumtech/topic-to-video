@@ -11,7 +11,8 @@ import os
 import validate as v
 import render_remotion as rr
 
-_SRC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src")
+_SKILL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_SRC = os.path.join(_SKILL, "remotion", "src")
 
 
 def _three():
@@ -71,6 +72,20 @@ def test_threescene_defines_and_dispatches_the_new_forms():
     assert src.count("mat={mat3d}") >= 4, "a new form is not threaded the style material (mat={mat3d})"
     # deterministic: the particle scatter is a HASH of the index, never Math.random
     assert "_hash11" in src and "Math.random(" not in src, "particle placement must be a deterministic hash (no Math.random call)"
+
+
+# ── TERMINAL glyph-rain (a born-in-3D world form) ─────────────────────────────────────────────────────
+def test_clean_planes_accepts_glyphrain():
+    out = rr._clean_planes([{"kind": "glyphrain", "count": 20, "position": [0, 0, 0]}], "s1")
+    assert out[0]["kind"] == "glyphrain" and out[0]["count"] == 20
+
+
+def test_glyphrain_wired_in_threescene_and_rasterizer():
+    src = _three()
+    assert "GlyphRain3D" in src and "kind === 'glyphrain'" in src, "glyph-rain component/dispatch is gone"
+    assert "RepeatWrapping" in src and "offset.y" in src, "glyph-rain scroll (texture offset) is gone"
+    rr_src = open(os.path.join(_SKILL, "scripts", "render_remotion.py"), encoding="utf-8").read()
+    assert "glyphrain" in rr_src and "_glyphrain_png" in rr_src, "the glyph-strip rasterizer is gone"
 
 
 def test_particle_cap_is_declared_in_source():
