@@ -328,7 +328,21 @@ function growEase(motion: string | undefined, t: number): number {
     default:       return EASE.out(x);                          // smooth cubic-out (unchanged)
   }
 }
-function lerpKey(keys: Camera3DKey[], frame: number, get: (k: Camera3DKey) => number): number {
+// Per-atmosphere CAMERA grammar — the WORLD's camera CHARACTER between keyframes (a third of "a different
+// world" alongside geometry + material + motion). dolly (default) eases smoothly in/out; whip (cartoon) snaps
+// fast then decelerates to a stop; punch (terminal) arrives HARD in the first third then LOCKS (a machine
+// punch-in); turntable (app) moves at CONSTANT angular velocity (a steady product orbit). Deterministic.
+function camGrammarEase(grammar: string | undefined, t: number): number {
+  const x = Math.max(0, Math.min(1, t));
+  switch (grammar) {
+    case 'whip':      return 1 - Math.pow(1 - x, 4);   // quart-out — fast whip decelerating to a stop
+    case 'punch':     return Math.min(1, x / 0.32);    // snap in over the first third, then LOCK
+    case 'turntable': return x;                        // linear — constant angular velocity (a steady orbit)
+    default:          return EASE.inout(x);            // dolly — smooth eased in/out (the current default)
+  }
+}
+
+function lerpKey(keys: Camera3DKey[], frame: number, get: (k: Camera3DKey) => number, grammar?: string): number {
   const first = keys[0];
   if (keys.length === 1 || frame <= first.atFrame) return get(first);
   const last = keys[keys.length - 1];
@@ -336,7 +350,9 @@ function lerpKey(keys: Camera3DKey[], frame: number, get: (k: Camera3DKey) => nu
   for (let i = 0; i < keys.length - 1; i++) {
     const a = keys[i], b = keys[i + 1];
     if (frame >= a.atFrame && frame <= b.atFrame) {
-      const t = (EASE[b.easing || 'inout'] || EASE.inout)((frame - a.atFrame) / Math.max(1, b.atFrame - a.atFrame));
+      const raw = (frame - a.atFrame) / Math.max(1, b.atFrame - a.atFrame);
+      // the atmosphere's camera grammar overrides the per-key easing (one camera character for the WORLD).
+      const t = grammar ? camGrammarEase(grammar, raw) : (EASE[b.easing || 'inout'] || EASE.inout)(raw);
       return get(a) + (get(b) - get(a)) * t;
     }
   }
@@ -360,13 +376,13 @@ function billboardEuler(
 
 // Frame-driven orbit/crane camera: yaw around the target, at a keyframed radius + height. Reduced motion
 // freezes at the first keyframe. This is the move CSS-3D cannot make (no keystone limit in real 3D).
-const CameraRig: React.FC<{keys: Camera3DKey[]; reduced: boolean}> = ({keys, reduced}) => {
+const CameraRig: React.FC<{keys: Camera3DKey[]; reduced: boolean; grammar?: string}> = ({keys, reduced, grammar}) => {
   const frame = useCurrentFrame();
   const camera = useThree((s) => s.camera);
   const f = reduced ? keys[0].atFrame : frame;
-  const yaw = lerpKey(keys, f, (k) => k.yaw);
-  const radius = lerpKey(keys, f, (k) => k.radius);
-  const height = lerpKey(keys, f, (k) => k.height);
+  const yaw = lerpKey(keys, f, (k) => k.yaw, grammar);
+  const radius = lerpKey(keys, f, (k) => k.radius, grammar);
+  const height = lerpKey(keys, f, (k) => k.height, grammar);
   camera.position.set(Math.sin(yaw) * radius, height, Math.cos(yaw) * radius);
   camera.lookAt(0, 0, 0);
   camera.updateProjectionMatrix();
@@ -487,9 +503,10 @@ export const ThreeScene: React.FC<{
   const keys = camera3d && camera3d.length ? camera3d
     : [{atFrame: 0, yaw: -0.6, radius: 7, height: 6}, {atFrame: dur, yaw: 0.4, radius: 7, height: 2.6}];
   // Camera pose at this frame (for billboarding labels to face the camera in yaw + pitch).
-  const camYaw = reducedMotion ? keys[0].yaw : lerpKey(keys, frame, (k) => k.yaw);
-  const camHeight = reducedMotion ? keys[0].height : lerpKey(keys, frame, (k) => k.height);
-  const camRadius = reducedMotion ? keys[0].radius : lerpKey(keys, frame, (k) => k.radius);
+  const camGrammar = atmosphere?.camera;               // WORLD camera character (whip/punch/turntable/dolly)
+  const camYaw = reducedMotion ? keys[0].yaw : lerpKey(keys, frame, (k) => k.yaw, camGrammar);
+  const camHeight = reducedMotion ? keys[0].height : lerpKey(keys, frame, (k) => k.height, camGrammar);
+  const camRadius = reducedMotion ? keys[0].radius : lerpKey(keys, frame, (k) => k.radius, camGrammar);
   // Load plane textures HERE (DOM reconciler) so the render waits; pass the ready textures into the canvas.
   // (Rasterized-text planes are just image planes with alpha — same path.)
   const srcs = planes.map((p) => p.src).filter((s): s is string => !!s);
@@ -519,7 +536,7 @@ export const ThreeScene: React.FC<{
         {/* LIGHT AS A MOVING CHARACTER — the travelling key/rim/specular rig (replaces the 3 static lights);
             ramps out of a per-register mood floor so a noir/void beat opens near-black and lifts in. */}
         <LightRig theme={theme} dur={dur} reduced={!!reducedMotion} />
-        <CameraRig keys={keys} reduced={!!reducedMotion} />
+        <CameraRig keys={keys} reduced={!!reducedMotion} grammar={camGrammar} />
         {/* ground plane — real perspective floor that RECEIVES the contact shadows (dropped a hair below the
             bar feet so the shadow reads and the coplanar faces don't z-fight). */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.32, 0]} receiveShadow>

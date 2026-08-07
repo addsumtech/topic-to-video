@@ -139,7 +139,17 @@ def test_per_atmosphere_motion_grammar_is_wired():
 
 
 def test_build_props_threads_motion_and_camera(tmp_path):
-    # the motion + camera grammar fields reach the scene props (camera wiring is a follow-up; the field flows now)
+    # the motion + camera grammar fields reach the scene props.
     p = rr.build_props(_deck(tmp_path, "cartoon"), str(tmp_path))
     a = p["scenes"][0]["atmosphere"]
     assert a["motion"] == "bouncy" and a["camera"] == "whip"
+
+
+def test_per_atmosphere_camera_grammar_is_wired():
+    # each world's CAMERA moves in character: whip/punch/turntable/dolly via camGrammarEase in the rig.
+    three = open(os.path.join(_SRC, "three", "ThreeScene.tsx"), encoding="utf-8").read()
+    assert "function camGrammarEase" in three, "the per-atmosphere camera grammar is gone"
+    for g in ("'whip'", "'punch'", "'turntable'"):
+        assert g in three, "camGrammarEase is missing the %s grammar" % g
+    assert "atmosphere?.camera" in three, "the camera grammar is not resolved from the atmosphere"
+    assert "grammar={camGrammar}" in three, "CameraRig is not given the world's camera grammar"
