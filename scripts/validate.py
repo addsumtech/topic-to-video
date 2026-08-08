@@ -1093,8 +1093,12 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         # a plane the camera flies past = "build a 2D slide, then simulate 3D" — the thing the tier AVOIDS.
         # WARN so it stays a rare escape hatch: carry content with NATIVE forms (display/text/metaphor/bars/
         # device/glyphrain/…), or if the deck is really designed 2D slides, make it an HTML-tier deck (omit
-        # meta.renderer:"remotion"). Targets hand-authored `html:` only — the template's generated `colorWorld`
-        # cards use a different field and are left alone.
+        # meta.renderer:"remotion"). Targets an authored `html:` field. A template's generated `colorWorld`
+        # backplane ALSO becomes an html card — but only at RENDER time (`_generate_color_worlds` injects
+        # `html` into the props JSON), AFTER validate has read the authored storyboard.json where the card
+        # still carries only `colorWorld`. So this pre-render gate never sees (never warns on) a colorWorld
+        # backplane — do NOT move colour-world generation before validate, or this lint would false-fire on
+        # the SUPPORTED template path.
         _st = s.get("stage") or (s.get("props") or {}).get("stage")
         _els = _st.get("elements") if isinstance(_st, dict) else []
         _patha = sum(1 for e in (_els or []) if isinstance(e, dict) and (e.get("html") or "").strip())

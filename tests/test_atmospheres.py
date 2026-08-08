@@ -66,6 +66,17 @@ def test_route_is_deterministic():
     assert A.route("a fintech savings platform") == A.route("a fintech savings platform")
 
 
+def test_route_matches_whole_tokens_not_substrings():
+    # a single-word keyword must NOT match inside an unrelated word (the review's misrouting bug):
+    # 'ai' in 'email', 'art' in 'start', 'api' in 'therapist' must NOT surface hologram/papercut/terminal.
+    assert A.route("email marketing")[0] != "hologram", "'ai' should not match inside 'email'"
+    assert A.route("start a company")[0] != "papercut", "'art' should not match inside 'start'"
+    assert A.route("physical therapist")[0] != "terminal", "'api' should not match inside 'therapist'"
+    # multi-word keywords still match as phrases:
+    assert A.route("a machine learning model")[0] == "hologram"
+    assert A.route("supply chain logistics")[0] == "diorama"
+
+
 # ── the render bridge: build_props threads the world onto the render ──────────────────────────────────
 def _deck(tmp, atmosphere):
     aud = os.path.join("audio", "01.mp3")

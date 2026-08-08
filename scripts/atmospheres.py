@@ -14,6 +14,7 @@ contest, like the HTML tier). `profile(key)` returns the render bundle build_pro
 Extending the tier = adding ONE entry here; routing + the contest pick it up automatically. Only `materialClass`
 and `post` need matching render code (ThreeScene/Finish); everything else reuses the style/mood/grade axes.
 """
+import re
 
 # key -> {name, pitch, topics(routing keywords), render bundle}. `style` is a theme.py style key (one of the
 # 18); `materialClass` in {standard, toon}; `post` in {film, crt, clean}; camera/motion are stored for the
@@ -115,14 +116,17 @@ def profile(key):
 
 def route(topic, n=3):
     """Score the library against a free-text TOPIC and return the best `n` atmosphere keys (the contest
-    candidates). Deterministic: score = count of the atmosphere's keywords found as substrings in the topic;
-    ties break by the fixed _FALLBACK_ORDER. Always returns `n` distinct keys (pads from the fallback order),
-    so the director always has a full contest to offer — no topic can leave it short."""
-    t = " " + str(topic or "").lower() + " "
+    candidates). Deterministic: score = count of the atmosphere's keywords that MATCH the topic — a
+    single-word keyword matches as a WHOLE TOKEN (so 'ai' does NOT match inside 'email', 'art' not inside
+    'start'), a multi-word keyword ('machine learning', 'supply chain') matches as a phrase substring. Ties
+    break by the fixed _FALLBACK_ORDER. Always returns `n` distinct keys (pads from the fallback order), so
+    the director always has a full contest to offer — no topic can leave it short."""
+    low = str(topic or "").lower()
+    tokens = set(re.findall(r"[a-z0-9]+", low))     # whole-word tokens (word-boundary match, no false substrings)
     prio = {k: i for i, k in enumerate(_FALLBACK_ORDER)}
     scored = []
     for key, a in ATMOSPHERES.items():
-        score = sum(1 for kw in a["topics"] if kw in t)
+        score = sum(1 for kw in a["topics"] if (kw in tokens if " " not in kw else kw in low))
         scored.append((key, score))
     # highest score first; among equal scores, the fallback-priority order (stable, deterministic)
     scored.sort(key=lambda kv: (-kv[1], prio.get(kv[0], 999)))

@@ -378,7 +378,9 @@ the floor; you are the ceiling.
   native-3D STYLE, not the HTML tier with a camera bolted on** — **REVISE a film that leans on Path-A** (HTML
   slides screenshotted onto planes the camera flies past = "build a 2D slide then simulate 3D"; `validate`
   warns each one). If the content is really designed 2D slides, it should be an HTML-tier deck, not a
-  cinematic film. Apply huashu's test on the filmstrips: **cover the narration — can you still tell which
+  cinematic film. **(Exempt: a template `colorWorld` BACKPLANE behind native forms — a generated atmosphere
+  plane, not a screenshotted content slide — does not count as Path-A.)** Apply huashu's test on the
+  filmstrips: **cover the narration — can you still tell which
   beat, and which product, this is, from the visuals alone?** **REVISE** a film where two beats look alike
   with the copy hidden, where every content beat is the same glass panel reframed, where the design-director
   set an `archetype` label but built the identical panel under it, or where an abstract beat that begs for a

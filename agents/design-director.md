@@ -303,11 +303,14 @@ its content takes, orthogonal to the deck's one `meta.style`. Author a one-line 
 beat to beat** (validate lints: no archetype >45% of beats, ≥3 distinct, ≥1 signature/metaphor beat, never two
 consecutive the same) and apply the **cover-the-copy test**: hide the narration — if two beats look alike, redesign.
 **A beat's content becomes the SET NATIVELY — the cinematic tier is a DISTINCT 3D style, NOT the HTML tier
-with a camera bolted on.** Carry content with the native 3D forms: `display` (giant kinetic statement type),
-`text` (a rasterized line billboarded in space), `metaphor` (a materialized concept), `bars`/`stack`/
-`particles`/`surface` (born-in-3D data), `glyphrain`/`device`/`terminal`/`hud`/`spotlight`/`connector`
-(world + FUI). Reach for `metaphor-mechanic` (make the abstract idea physical) on any abstract beat — the
-highest-yield, most topic-locked novelty.
+with a camera bolted on.** Carry content with the native 3D forms, but pick them from ONE of the two
+mutually-exclusive render tiers per beat (a scene renders EITHER its `planes` OR its `stage`+`shots`, never
+both — the other tier's forms silently drop): the **PLANE tier** = `bars`/`stack`/`particles`/`surface`/
+`glyphrain`/`device`/`text`-plane; the **STAGE tier** = `display`/`metaphor`/`terminal`/`hud`/`spotlight`/
+`connector`/`textblock`. A flow-arrow / divider / rail is a STAGE-tier composition (there is no plane-tier
+connector) — don't pair it with plane `bars`. Reach for `metaphor-mechanic` (make the abstract idea physical)
+on any abstract beat — the highest-yield, most topic-locked novelty. (See `references/shot-archetypes.md`
+for a per-archetype single-tier realization.)
 **DEFAULT: no Path-A.** Path A (author an HTML slide at `<out_dir>/pages/<name>.html`, reference it from a
 `kind:"card"`/plane `html:` field, and screenshot it onto a plane the camera flies past) is **deprecated as
 the content path** — it is literally "build a 2D slide, then simulate 3D by moving a camera at it", the exact
@@ -318,6 +321,11 @@ motion/continuity), it is an **HTML-tier deck — omit `meta.renderer:"remotion"
 slides flown past the lens. Path-A remains ONLY as a rare escape hatch for a genuinely necessary designed
 form that has NO native equivalent in an otherwise-native cinematic deck; `validate` WARNS on every Path-A
 card so it stays the exception, never the default (`design-critic` D12h REVISEs a film that leans on it).
+**EXEMPT: a template `colorWorld` BACKPLANE.** The STEP-0 template's auto-generated colour-world page
+(`colorWorld:{…}` on a card → `cine_palette`) is a soft ATMOSPHERE plane BEHIND the native focal forms, not
+a hand-authored content slide — it is NOT the deprecated Path-A and does not count against "no Path-A" (the
+deprecation is about screenshotting the BEAT'S CONTENT as a 2D slide; a generated backplane behind native
+type/forms is fine). The `no-Path-A` default applies to a beat's CONTENT.
 
 **FILM-LEVEL knobs (decide these ONCE on `meta` for a cinematic story film).** These are opt-in and easy to
 forget — commit them with the register: (a) **`sound_design:true`** adds a two-track SFX+BGM mix, cues pinned

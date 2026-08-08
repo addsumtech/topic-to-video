@@ -965,7 +965,13 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
     _IMPLEMENTED_BRIDGES = {"none", "type-enter"}   # gestures BridgeOverlay actually renders (others are designed)
     _bridge_gesture = str(meta.get("bridge") or "none").lower()
     if _bridge_gesture == "auto":
-        _mono = (_tok.get("fontKind") == "mono") or (str(_tok.get("style", "")).lower() == "terminal")
+        # the ATMOSPHERE (if any) overrides the deck's style, so it is AUTHORITATIVE for the auto-derivation —
+        # a `terminal` atmosphere must get its type-and-Enter gesture even over a non-terminal base theme, and
+        # a non-terminal atmosphere must NOT inherit a stray gesture from a mono base theme.css.
+        if atmo and atmo.get("style"):
+            _mono = str(atmo["style"]).lower() == "terminal"
+        else:
+            _mono = (_tok.get("fontKind") == "mono") or (str(_tok.get("style", "")).lower() == "terminal")
         _bridge_gesture = "type-enter" if _mono else "none"   # type-enter is the natively-rendered gesture today
     if _bridge_gesture not in _IMPLEMENTED_BRIDGES:
         # a documented-but-not-yet-rendered gesture (cursor-click / page-turn / …) or a typo would SILENTLY

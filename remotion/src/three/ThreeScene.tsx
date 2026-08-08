@@ -338,6 +338,10 @@ const GlyphRain3D: React.FC<{tex?: THREE.Texture; frame: number; durationInFrame
     const p = frame / Math.max(1, durationInFrames);
     for (const c of cols) c.tex.offset.y = p * c.speed;    // scroll the sampled region -> glyphs fall
   }, [frame, cols, durationInFrames]);
+  // dispose the per-column CLONED textures on unmount / when the set is superseded — R3F only auto-disposes
+  // objects it created declaratively, so these imperative clones would otherwise leak GPU memory across a
+  // multi-scene render (pixel-neutral; resource hygiene only).
+  React.useEffect(() => () => { for (const c of cols) c.tex.dispose(); }, [cols]);
   if (!tex) return null;
   return (
     <group>

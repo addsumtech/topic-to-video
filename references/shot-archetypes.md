@@ -52,20 +52,32 @@ screenshotted onto a plane the camera flies past) is a **DEPRECATED escape hatch
 native equivalent (a dense scorecard, a 2×2 quadrant); if the WHOLE deck is that kind of designed 2D content,
 it belongs on the **HTML tier** (omit `meta.renderer:"remotion"`), not screenshotted into 3D.
 
-| Archetype | Use when the beat is… | Composition / signature | NATIVE form (Path-A = escape hatch) | Camera that suits it |
+**⚠️ TWO native renderers, NEVER mixed in one beat.** The native forms split across two mutually-exclusive
+render paths, and a scene dispatches to exactly ONE (a scene with `planes` renders NO stage elements, and
+vice-versa — the other tier's forms silently DROP):
+- **PLANE tier** (`scene.planes`, rendered by ThreeScene): `bars` · `stack` · `particles` · `surface` ·
+  `glyphrain` · `device` · a rasterized `text` plane · `image` planes.
+- **STAGE tier** (`scene.stage` + `shots`, rendered by SceneStage): `display` · `metaphor` · `terminal` ·
+  `hud` · `spotlight` · `connector` · `textblock` · `panel` · `card` (Path-A) · `image`.
+So a beat's realization must draw ALL its forms from ONE tier. Do NOT combine e.g. `bars` (plane) with a
+`connector`/`spotlight` divide (stage) — only the plane renders and the divide vanishes. There is no
+plane-tier connector today; a divide/rail/flow-arrow is a STAGE-tier composition (`display` groups +
+`connector`/`spotlight`).
+
+| Archetype | Use when the beat is… | Composition / signature | NATIVE form — pick ONE tier (Path-A = escape hatch) | Camera that suits it |
 |---|---|---|---|---|
-| **hero-on-void** | a thesis / one hero number / a manifesto line | ONE object in vast negative space; the void IS the design | native `display`/`text` hero, or a single `bars` stat | slow push-in, long static hold |
-| **manifesto-monolith** | a bold claim / value proposition | GIANT display type as the set, staged in Z | native `display` element (`text` + `attitude`: rise / tracking-in / blur-in) — full-strength kinetic type, not a 9% watermark | dolly THROUGH the words |
-| **data-materializes** | a metric / trend / magnitude | numbers with real mass — extruded 3D that grows | native 3D `bars`/`stack`/`particles`/`surface` (+ value labels) | craning orbit reveal |
-| **metric-wall** | 3–4 standout KPIs | a grid of proof tiles | native a row of `display`/`text` KPI values or `bars`; Path-A `.scorecard` only if a rich tiled layout is essential | pan across, then push into one KPI |
-| **process-flow** | a sequence / pipeline / workflow | stepped arrow of progress, a focal step lit | native `connector` (draw-on arrows) + `display`/`text` steps; Path-A `.flow` = escape hatch | pan along the steps → push the focal step |
-| **comparison-split** | a contrast (before/after, v1/v2, us/them) | a hard divide, two worlds | native two groups (`bars`/`display`) split in X + a `spotlight`/`connector` divide; Path-A `.split` = escape hatch | whip-pan or rack between the two sides |
-| **system-map** | a structure / architecture / relationship | a constellation; centre + peers | native `hud` + `connector` hub/spokes; Path-A `.hubspoke` = escape hatch | pull-OUT reveal of the whole system |
-| **timeline-rail** | a history / roadmap / dated milestones | a throughline with nodes | native `connector` rail + `display`/`text` nodes; Path-A `.timeline` = escape hatch | travel along the rail |
+| **hero-on-void** | a thesis / one hero number / a manifesto line | ONE object in vast negative space; the void IS the design | `display` hero (stage) OR a single `bars` stat (plane) | slow push-in, long static hold |
+| **manifesto-monolith** | a bold claim / value proposition | GIANT display type as the set, staged in Z | `display` element (stage; `attitude`: rise / tracking-in / blur-in) — full-strength kinetic type, not a 9% watermark | dolly THROUGH the words |
+| **data-materializes** | a metric / trend / magnitude | numbers with real mass — extruded 3D that grows | `bars`/`stack`/`particles`/`surface` (plane; + value labels) | craning orbit reveal |
+| **metric-wall** | 3–4 standout KPIs | a grid of proof tiles | a row of `display` KPIs (stage) OR `bars` (plane); Path-A `.scorecard` only if a rich tiled layout is essential | pan across, then push into one KPI |
+| **process-flow** | a sequence / pipeline / workflow | stepped arrow of progress, a focal step lit | `connector` arrows + `display` steps (all STAGE-tier); Path-A `.flow` = escape hatch | pan along the steps → push the focal step |
+| **comparison-split** | a contrast (before/after, v1/v2, us/them) | a hard divide, two worlds | two `display` groups split in X + a `spotlight`/`connector` divide (all STAGE-tier); Path-A `.split` = escape hatch | whip-pan or rack between the two sides |
+| **system-map** | a structure / architecture / relationship | a constellation; centre + peers | `hud` + `connector` hub/spokes (all STAGE-tier); Path-A `.hubspoke` = escape hatch | pull-OUT reveal of the whole system |
+| **timeline-rail** | a history / roadmap / dated milestones | a throughline with nodes | `connector` rail + `display` nodes (all STAGE-tier); Path-A `.timeline` = escape hatch | travel along the rail |
 | **quadrant-position** | two axes / a market position | a map with a focal cell | (weak native) Path-A `.quadrant` escape hatch, or route this beat to the HTML tier | push into the focal cell |
-| **metaphor-mechanic** | an abstract idea needing a concrete image | the idea made PHYSICAL — a verb you can see | **native `metaphor` verb** (below) — the idea as a physical CHANGE the camera watches | motion that ENACTS it (the fill rises, the token falls) |
-| **device-focus** | showing the actual product UI | the real thing, framed | native **`device`** volume (chassis + glossy screen + UI cards floating at real z), or `image` + `frame` | turntable orbit, push into the screen |
-| **world-immersion** | a terminal / dev / infra / code space | the viewer stands INSIDE the world | native **`glyphrain`** (falling code in depth) / `terminal` / `hud` | dolly THROUGH the space |
+| **metaphor-mechanic** | an abstract idea needing a concrete image | the idea made PHYSICAL — a verb you can see | **`metaphor` verb** (stage; below) — the idea as a physical CHANGE the camera watches | motion that ENACTS it (the fill rises, the token falls) |
+| **device-focus** | showing the actual product UI | the real thing, framed | **`device`** volume (plane; chassis + glossy screen + UI cards at real z), or an `image` plane | turntable orbit, push into the screen |
+| **world-immersion** | a terminal / dev / infra / code space | the viewer stands INSIDE the world | **`glyphrain`** falling code (PLANE-tier) OR a `terminal`+`hud` set (STAGE-tier) — one tier, not both | dolly THROUGH the space |
 | **quote-testament** | a verbatim customer voice / claim | the human voice, alone | native `display`/`text` (the words ARE the set) | static hold, a breath of push |
 | **exploded-assemble** *(reserve)* | a composed system revealed by its parts | parts fly apart / assemble | native 3D planes (future) | orbit while parts assemble |
 | **turntable-material** *(reserve)* | a single hero product / logo | the object as sculpture, lit | native 3D + light rig (future) | slow turntable + light sweep |
