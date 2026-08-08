@@ -44,25 +44,29 @@ SET to realize it, then frame it.
 
 ## The catalogue (pick one per scene; VARY them across the film)
 
-Each archetype = a composition + a FORM source. **Form source** is either **native** (stage elements /
-3D primitives) or **Path A** (author an HTML form page at `<out_dir>/pages/<name>.html` in the HTML tier's
-design system, referenced by a `kind:"card"` element with `html:"pages/<name>.html"` — screenshotted onto
-the plane at render; see `references/cinematic-components.md` + `references/html-pages.md` for the forms).
+Each archetype = a composition + a FORM source. **Realise it NATIVELY** (stage elements / 3D primitives) —
+the cinematic tier is a DISTINCT native-3D style, NOT the HTML tier with a camera bolted on. **Path A**
+(author an HTML slide at `<out_dir>/pages/<name>.html`, reference it from a `kind:"card"`/plane `html:` field,
+screenshotted onto a plane the camera flies past) is a **DEPRECATED escape hatch** — `validate` WARNS on it,
+`design-critic` D12h REVISEs a film that leans on it. Use it ONLY for a genuinely rich designed form with no
+native equivalent (a dense scorecard, a 2×2 quadrant); if the WHOLE deck is that kind of designed 2D content,
+it belongs on the **HTML tier** (omit `meta.renderer:"remotion"`), not screenshotted into 3D.
 
-| Archetype | Use when the beat is… | Composition / signature | Form source | Camera that suits it |
+| Archetype | Use when the beat is… | Composition / signature | NATIVE form (Path-A = escape hatch) | Camera that suits it |
 |---|---|---|---|---|
-| **hero-on-void** | a thesis / one hero number / a manifesto line | ONE object in vast negative space; the void IS the design | native `hero`/big stat, or Path A `.stat` | slow push-in, long static hold |
+| **hero-on-void** | a thesis / one hero number / a manifesto line | ONE object in vast negative space; the void IS the design | native `display`/`text` hero, or a single `bars` stat | slow push-in, long static hold |
 | **manifesto-monolith** | a bold claim / value proposition | GIANT display type as the set, staged in Z | native `display` element (`text` + `attitude`: rise / tracking-in / blur-in) — full-strength kinetic type, not a 9% watermark | dolly THROUGH the words |
-| **data-materializes** | a metric / trend / magnitude | numbers with real mass — extruded 3D that grows | native 3D `bars` (+ value labels) | craning orbit reveal |
-| **metric-wall** | 3–4 standout KPIs | a grid of proof tiles | Path A `.scorecard` (`.tile`) | pan across, then push into one tile |
-| **process-flow** | a sequence / pipeline / workflow | stepped arrow of progress, a focal step lit | Path A `.flow` (`.step.on`) | pan along the steps → push the focal step |
-| **comparison-split** | a contrast (before/after, v1/v2, us/them) | a hard divide, two worlds | Path A `.split` / `.wipe` / before_after | whip-pan or rack between the two sides |
-| **system-map** | a structure / architecture / relationship | a constellation; centre + peers | Path A `.hubspoke` / system_map | pull-OUT reveal of the whole system |
-| **timeline-rail** | a history / roadmap / dated milestones | a throughline with nodes | Path A `.timeline` / timeline_rail | travel along the rail |
-| **quadrant-position** | two axes / a market position | a map with a focal cell | Path A `.quadrant` (`.cell.on`) | push into the focal cell |
-| **metaphor-mechanic** | an abstract idea needing a concrete image | the idea made PHYSICAL — a verb you can see | **native `metaphor` verb** (below) when the meaning is a physical CHANGE the camera can watch; else Path A `.iceberg`/`.waffle`/`.gauge` | motion that ENACTS it (the fill rises, the token falls) |
-| **device-focus** | showing the actual product UI | the real thing, framed | native `image` + `frame:"browser"/"window"` | push into the UI, rack to a detail |
-| **quote-testament** | a verbatim customer voice / claim | the human voice, alone | Path A `.pullquote`, or native | static hold, a breath of push |
+| **data-materializes** | a metric / trend / magnitude | numbers with real mass — extruded 3D that grows | native 3D `bars`/`stack`/`particles`/`surface` (+ value labels) | craning orbit reveal |
+| **metric-wall** | 3–4 standout KPIs | a grid of proof tiles | native a row of `display`/`text` KPI values or `bars`; Path-A `.scorecard` only if a rich tiled layout is essential | pan across, then push into one KPI |
+| **process-flow** | a sequence / pipeline / workflow | stepped arrow of progress, a focal step lit | native `connector` (draw-on arrows) + `display`/`text` steps; Path-A `.flow` = escape hatch | pan along the steps → push the focal step |
+| **comparison-split** | a contrast (before/after, v1/v2, us/them) | a hard divide, two worlds | native two groups (`bars`/`display`) split in X + a `spotlight`/`connector` divide; Path-A `.split` = escape hatch | whip-pan or rack between the two sides |
+| **system-map** | a structure / architecture / relationship | a constellation; centre + peers | native `hud` + `connector` hub/spokes; Path-A `.hubspoke` = escape hatch | pull-OUT reveal of the whole system |
+| **timeline-rail** | a history / roadmap / dated milestones | a throughline with nodes | native `connector` rail + `display`/`text` nodes; Path-A `.timeline` = escape hatch | travel along the rail |
+| **quadrant-position** | two axes / a market position | a map with a focal cell | (weak native) Path-A `.quadrant` escape hatch, or route this beat to the HTML tier | push into the focal cell |
+| **metaphor-mechanic** | an abstract idea needing a concrete image | the idea made PHYSICAL — a verb you can see | **native `metaphor` verb** (below) — the idea as a physical CHANGE the camera watches | motion that ENACTS it (the fill rises, the token falls) |
+| **device-focus** | showing the actual product UI | the real thing, framed | native **`device`** volume (chassis + glossy screen + UI cards floating at real z), or `image` + `frame` | turntable orbit, push into the screen |
+| **world-immersion** | a terminal / dev / infra / code space | the viewer stands INSIDE the world | native **`glyphrain`** (falling code in depth) / `terminal` / `hud` | dolly THROUGH the space |
+| **quote-testament** | a verbatim customer voice / claim | the human voice, alone | native `display`/`text` (the words ARE the set) | static hold, a breath of push |
 | **exploded-assemble** *(reserve)* | a composed system revealed by its parts | parts fly apart / assemble | native 3D planes (future) | orbit while parts assemble |
 | **turntable-material** *(reserve)* | a single hero product / logo | the object as sculpture, lit | native 3D + light rig (future) | slow turntable + light sweep |
 

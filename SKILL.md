@@ -249,11 +249,15 @@ TTS if the user gives an API key.
   `references/cinematic-components.md`.**
   **PER-BEAT DESIGN (avoid the one-glass-panel trap): before authoring a cinematic scene, READ
   `references/shot-archetypes.md` and give the scene an `archetype`** (the beat's bespoke composition/concept,
-  orthogonal to `meta.style`) — the content becomes the SET natively (hero text / 3D bars / device frame) OR
-  via **Path A**: author an HTML form page at `<out_dir>/pages/<name>.html` (the HTML tier's forms) and point
-  a `kind:"card"` element at it with `html:"pages/<name>.html"` (screenshotted onto the plane the camera flies
-  over). `validate` lints design-variety (archetype spread, ≥1 signature beat, no back-to-back repeats) so a
-  film of identical glass panels can't ship.
+  orthogonal to `meta.style`) — **the content becomes the SET NATIVELY** (display/text/metaphor/bars/stack/
+  particles/surface/glyphrain/device/terminal/hud/…). **The cinematic tier is a DISTINCT native-3D style, NOT
+  the HTML tier with a camera bolted on.** **Path A** (author an HTML slide at `pages/<name>.html`, point a
+  `kind:"card"`/plane `html:` at it, screenshot it onto a plane the camera flies past) is **DEPRECATED as the
+  default** — it is "build a 2D slide then simulate 3D", the exact thing this tier avoids; `validate` WARNS on
+  every Path-A card. The two tiers are two STYLES: designed 2D slides → the **HTML/local tier** (omit
+  `meta.renderer:"remotion"`); native 3D → the Remotion tier. Don't screenshot one into the other. `validate`
+  also lints design-variety (archetype spread, ≥1 signature beat, no back-to-back repeats) so a film of
+  identical glass panels can't ship.
   `validate.py` structurally gates the fields (keyframe ordering, on-canvas targets, a read-safe zoom
   band, layer kinds, image-plane existence) — but the **move itself is judged only from the rendered
   filmstrip** `<out_dir>/_keyframes/scene_NN.png`, never from the plan (pre-tts the blind envelope is

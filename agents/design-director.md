@@ -302,12 +302,22 @@ its content takes, orthogonal to the deck's one `meta.style`. Author a one-line 
 (focal subject · concept · the 120% signature · the motion-verb) BEFORE tuning the camera. **VARY the archetype
 beat to beat** (validate lints: no archetype >45% of beats, ≥3 distinct, ≥1 signature/metaphor beat, never two
 consecutive the same) and apply the **cover-the-copy test**: hide the narration — if two beats look alike, redesign.
-A beat's content becomes the SET either NATIVELY (hero text / 3D bars / device frame) or via **Path A** — author
-an HTML form page at `<out_dir>/pages/<name>.html` (the HTML tier's own forms: flow/scorecard/quadrant/…) and
-reference it from a `kind:"card"` element with `html:"pages/<name>.html"`; it is screenshotted onto the plane
-the camera flies over. Reach for `metaphor-mechanic` (make the abstract idea physical) on any abstract beat —
-it is the highest-yield, most topic-locked novelty. **If a beat could have been a static HTML slide, it should
-have been — reserve the cinematic tier for beats whose idea needs depth, a camera move, motion, or continuity.**
+**A beat's content becomes the SET NATIVELY — the cinematic tier is a DISTINCT 3D style, NOT the HTML tier
+with a camera bolted on.** Carry content with the native 3D forms: `display` (giant kinetic statement type),
+`text` (a rasterized line billboarded in space), `metaphor` (a materialized concept), `bars`/`stack`/
+`particles`/`surface` (born-in-3D data), `glyphrain`/`device`/`terminal`/`hud`/`spotlight`/`connector`
+(world + FUI). Reach for `metaphor-mechanic` (make the abstract idea physical) on any abstract beat — the
+highest-yield, most topic-locked novelty.
+**DEFAULT: no Path-A.** Path A (author an HTML slide at `<out_dir>/pages/<name>.html`, reference it from a
+`kind:"card"`/plane `html:` field, and screenshot it onto a plane the camera flies past) is **deprecated as
+the content path** — it is literally "build a 2D slide, then simulate 3D by moving a camera at it", the exact
+thing the cinematic tier exists to AVOID. **The two tiers are two STYLES: the HTML/local tier is the 2D
+designed-slide look; the Remotion tier is the native-3D look. Do not screenshot one into the other.** If a
+deck's content is fundamentally designed 2D slides (dense chart+text layouts with no idea that needs depth/
+motion/continuity), it is an **HTML-tier deck — omit `meta.renderer:"remotion"`** — NOT a cinematic film with
+slides flown past the lens. Path-A remains ONLY as a rare escape hatch for a genuinely necessary designed
+form that has NO native equivalent in an otherwise-native cinematic deck; `validate` WARNS on every Path-A
+card so it stays the exception, never the default (`design-critic` D12h REVISEs a film that leans on it).
 
 **FILM-LEVEL knobs (decide these ONCE on `meta` for a cinematic story film).** These are opt-in and easy to
 forget — commit them with the register: (a) **`sound_design:true`** adds a two-track SFX+BGM mix, cues pinned

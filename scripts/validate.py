@@ -414,9 +414,10 @@ _METAPHOR_ARITY = {"widening-gap": 2, "physical-fall": 2, "filling-vessel": 1, "
 # film so every beat isn't the same glass panel reframed. Orthogonal to meta.style (the deck's one skin).
 _ARCHETYPES = {"hero-on-void", "manifesto-monolith", "data-materializes", "metric-wall", "process-flow",
                "comparison-split", "system-map", "timeline-rail", "quadrant-position", "metaphor-mechanic",
-               "device-focus", "quote-testament", "exploded-assemble", "turntable-material"}
+               "device-focus", "world-immersion", "quote-testament", "exploded-assemble", "turntable-material"}
 # signature beats that have a REAL renderer (a non-deliverable reserve archetype must not satisfy the gate).
-_SIGNATURE_ARCHETYPES = {"metaphor-mechanic", "data-materializes", "manifesto-monolith"}
+# world-immersion = a native world the camera stands INSIDE (glyphrain/terminal/device) — a real native form.
+_SIGNATURE_ARCHETYPES = {"metaphor-mechanic", "data-materializes", "manifesto-monolith", "world-immersion"}
 _RESERVE_ARCHETYPES = {"exploded-assemble", "turntable-material"}  # named but no native renderer yet
 
 
@@ -1086,6 +1087,24 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                 if slides and s is slides[-1]:
                     warnings.append(f"{tag}: match_cut is on the LAST scene — no next scene to match into, so it "
                                     f"never renders; put it on the scene that transitions INTO the shared element")
+
+        # PATH-A deprecation (the cinematic tier is a DISTINCT native-3D style — not the HTML tier with a
+        # camera bolted on). A hand-authored `html:"pages/..."` on a stage `card`/plane is SCREENSHOTTED onto
+        # a plane the camera flies past = "build a 2D slide, then simulate 3D" — the thing the tier AVOIDS.
+        # WARN so it stays a rare escape hatch: carry content with NATIVE forms (display/text/metaphor/bars/
+        # device/glyphrain/…), or if the deck is really designed 2D slides, make it an HTML-tier deck (omit
+        # meta.renderer:"remotion"). Targets hand-authored `html:` only — the template's generated `colorWorld`
+        # cards use a different field and are left alone.
+        _st = s.get("stage") or (s.get("props") or {}).get("stage")
+        _els = _st.get("elements") if isinstance(_st, dict) else []
+        _patha = sum(1 for e in (_els or []) if isinstance(e, dict) and (e.get("html") or "").strip())
+        _patha += sum(1 for p in (s.get("planes") or (s.get("props") or {}).get("planes") or [])
+                      if isinstance(p, dict) and (p.get("html") or "").strip())
+        if _patha:
+            warnings.append(f"{tag}: uses {_patha} Path-A HTML-screenshot plane(s) (a 2D slide flown past the "
+                            f"camera) — deprecated as the cinematic default; carry the content with NATIVE 3D "
+                            f"forms (display/text/metaphor/bars/device/glyphrain/…), or if this is really a "
+                            f"designed 2D-slide deck, drop meta.renderer:'remotion' and use the HTML tier")
 
         # --- referenced media exists on disk -------------------------------------------
         if t == "slide":

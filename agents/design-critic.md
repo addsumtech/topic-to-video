@@ -371,13 +371,17 @@ the floor; you are the ceiling.
   read as a CONTINUOUS glide from the previous framing to the new subject (the eye tracks one space); a
   non-carry boundary reads as a deliberate cut. **REVISE** a shots list whose framings don't visibly
   differ, a `carry` that jumps, or a set where the targeted element isn't actually framed by its shot.
-- **D12h — Per-beat BESPOKE design (the cover-the-copy test).** The camera is not the design. Each cinematic
-  beat must carry its own topic-driven visual IDEA (its `archetype` — hero-on-void / metric-wall / process-flow
-  / comparison-split / metaphor-mechanic / manifesto-monolith / …), realised natively or via a Path-A form.
-  Apply huashu's test on the filmstrips: **cover the narration — can you still tell which beat, and which
-  product, this is, from the visuals alone?** **REVISE** a film where two beats look alike with the copy
-  hidden, where every content beat is the same glass panel reframed, where the design-director set an
-  `archetype` label but built the identical panel under it, or where an abstract beat that begs for a
+- **D12h — Per-beat BESPOKE design, realised NATIVELY (the cover-the-copy test).** The camera is not the
+  design. Each cinematic beat must carry its own topic-driven visual IDEA (its `archetype` — hero-on-void /
+  metric-wall / process-flow / comparison-split / metaphor-mechanic / manifesto-monolith / …) realised with
+  NATIVE 3D forms (display/text/metaphor/bars/device/glyphrain/…). **The cinematic tier is a DISTINCT
+  native-3D STYLE, not the HTML tier with a camera bolted on** — **REVISE a film that leans on Path-A** (HTML
+  slides screenshotted onto planes the camera flies past = "build a 2D slide then simulate 3D"; `validate`
+  warns each one). If the content is really designed 2D slides, it should be an HTML-tier deck, not a
+  cinematic film. Apply huashu's test on the filmstrips: **cover the narration — can you still tell which
+  beat, and which product, this is, from the visuals alone?** **REVISE** a film where two beats look alike
+  with the copy hidden, where every content beat is the same glass panel reframed, where the design-director
+  set an `archetype` label but built the identical panel under it, or where an abstract beat that begs for a
   `metaphor-mechanic` (the widening gap IS the loss; the vessel filling IS adoption) settled for a bar chart.
   A launch film should carry ≥1 signature/metaphor moment (`validate` lints the archetype spread; you judge
   whether the pixels honour it).

@@ -75,3 +75,25 @@ def test_validate_knows_card_kind_and_flags_missing_page(tmp_path):
     v._cinematic_fields(_card_board()["slides"][0], {"fps": 30}, str(tmp_path), "scene 1", errs, warns)
     assert not any("'card'" in w for w in warns), "card is a known element kind (no unknown-kind warning)"
     assert any("html card page" in e for e in errs), "a missing Path-A page must fail the gate"
+
+
+def test_path_a_is_deprecated_as_the_default(tmp_path):
+    # Path-A (a hand-authored html slide screenshotted onto a plane) is no longer the cinematic default:
+    # a deck that uses it WARNS (nudging authors to native forms / the HTML tier). Still a warn (escape
+    # hatch), never an error -- the mechanism keeps working.
+    d = _card_board()
+    r = v.evaluate(d, "/tmp/nowhere", pre_tts=True)
+    assert any("Path-A HTML-screenshot" in w for w in r["warnings"]), r["warnings"]
+    assert not any("Path-A HTML-screenshot" in e for e in r["errors"]), "Path-A stays a warn, not an error"
+
+
+def test_native_cinematic_deck_has_no_path_a_warning(tmp_path):
+    # a native cinematic deck (no html: cards) must NOT get the Path-A warn.
+    d = sb.new_storyboard({"fps": 30, "renderer": "remotion", "captions": False})
+    s = sb.new_scene(1, "cinematic", {}, narration="x")
+    s["audio"] = "audio/01.mp3"; s["duration"] = 5.0
+    s["stage"] = {"elements": [{"id": "h", "kind": "display", "position": [0, 0, 0], "text": "Native"}]}
+    s["shots"] = [{"type": "HERO", "target": "h"}]
+    d["slides"] = [s]
+    r = v.evaluate(d, "/tmp/nowhere", pre_tts=True)
+    assert not any("Path-A" in w for w in r["warnings"]), r["warnings"]
