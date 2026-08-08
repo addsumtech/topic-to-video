@@ -56,13 +56,14 @@ it belongs on the **HTML tier** (omit `meta.renderer:"remotion"`), not screensho
 render paths, and a scene dispatches to exactly ONE (a scene with `planes` renders NO stage elements, and
 vice-versa — the other tier's forms silently DROP):
 - **PLANE tier** (`scene.planes`, rendered by ThreeScene): `bars` · `stack` · `particles` · `surface` ·
-  `glyphrain` · `device` · a rasterized `text` plane · `image` planes.
+  `glyphrain` · `device` · **`connector3d`** (a native 3D line/arrow between two world points) · a rasterized
+  `text` plane · `image` planes.
 - **STAGE tier** (`scene.stage` + `shots`, rendered by SceneStage): `display` · `metaphor` · `terminal` ·
   `hud` · `spotlight` · `connector` · `textblock` · `panel` · `card` (Path-A) · `image`.
-So a beat's realization must draw ALL its forms from ONE tier. Do NOT combine e.g. `bars` (plane) with a
-`connector`/`spotlight` divide (stage) — only the plane renders and the divide vanishes. There is no
-plane-tier connector today; a divide/rail/flow-arrow is a STAGE-tier composition (`display` groups +
-`connector`/`spotlight`).
+So a beat's realization must draw ALL its forms from ONE tier. To join PLANE forms (a divide / rail /
+flow-arrow between `bars` groups) use the **plane-tier `connector3d`** (`{kind:"connector3d", from, to,
+arrow?}`); to join STAGE elements use the stage `connector`. Do NOT cross them — a stage `connector` in a
+`planes` scene silently vanishes.
 
 | Archetype | Use when the beat is… | Composition / signature | NATIVE form — pick ONE tier (Path-A = escape hatch) | Camera that suits it |
 |---|---|---|---|---|
@@ -70,10 +71,10 @@ plane-tier connector today; a divide/rail/flow-arrow is a STAGE-tier composition
 | **manifesto-monolith** | a bold claim / value proposition | GIANT display type as the set, staged in Z | `display` element (stage; `attitude`: rise / tracking-in / blur-in) — full-strength kinetic type, not a 9% watermark | dolly THROUGH the words |
 | **data-materializes** | a metric / trend / magnitude | numbers with real mass — extruded 3D that grows | `bars`/`stack`/`particles`/`surface` (plane; + value labels) | craning orbit reveal |
 | **metric-wall** | 3–4 standout KPIs | a grid of proof tiles | a row of `display` KPIs (stage) OR `bars` (plane); Path-A `.scorecard` only if a rich tiled layout is essential | pan across, then push into one KPI |
-| **process-flow** | a sequence / pipeline / workflow | stepped arrow of progress, a focal step lit | `connector` arrows + `display` steps (all STAGE-tier); Path-A `.flow` = escape hatch | pan along the steps → push the focal step |
-| **comparison-split** | a contrast (before/after, v1/v2, us/them) | a hard divide, two worlds | two `display` groups split in X + a `spotlight`/`connector` divide (all STAGE-tier); Path-A `.split` = escape hatch | whip-pan or rack between the two sides |
-| **system-map** | a structure / architecture / relationship | a constellation; centre + peers | `hud` + `connector` hub/spokes (all STAGE-tier); Path-A `.hubspoke` = escape hatch | pull-OUT reveal of the whole system |
-| **timeline-rail** | a history / roadmap / dated milestones | a throughline with nodes | `connector` rail + `display` nodes (all STAGE-tier); Path-A `.timeline` = escape hatch | travel along the rail |
+| **process-flow** | a sequence / pipeline / workflow | stepped arrow of progress, a focal step lit | STAGE: `connector` arrows + `display` steps · PLANE: `bars`/`device` steps + `connector3d` arrows; Path-A `.flow` = escape hatch | pan along the steps → push the focal step |
+| **comparison-split** | a contrast (before/after, v1/v2, us/them) | a hard divide, two worlds | STAGE: two `display` groups + `spotlight`/`connector` divide · PLANE: two `bars` groups + a `connector3d` divide/arrow; Path-A `.split` = escape hatch | whip-pan or rack between the two sides |
+| **system-map** | a structure / architecture / relationship | a constellation; centre + peers | STAGE: `hud` + `connector` hub/spokes · PLANE: a hub form + `connector3d` spokes; Path-A `.hubspoke` = escape hatch | pull-OUT reveal of the whole system |
+| **timeline-rail** | a history / roadmap / dated milestones | a throughline with nodes | STAGE: `connector` rail + `display` nodes · PLANE: `connector3d` rail + `bars`/`text` nodes; Path-A `.timeline` = escape hatch | travel along the rail |
 | **quadrant-position** | two axes / a market position | a map with a focal cell | (weak native) Path-A `.quadrant` escape hatch, or route this beat to the HTML tier | push into the focal cell |
 | **metaphor-mechanic** | an abstract idea needing a concrete image | the idea made PHYSICAL — a verb you can see | **`metaphor` verb** (stage; below) — the idea as a physical CHANGE the camera watches | motion that ENACTS it (the fill rises, the token falls) |
 | **device-focus** | showing the actual product UI | the real thing, framed | **`device`** volume (plane; chassis + glossy screen + UI cards at real z), or an `image` plane | turntable orbit, push into the screen |

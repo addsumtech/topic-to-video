@@ -306,9 +306,11 @@ consecutive the same) and apply the **cover-the-copy test**: hide the narration 
 with a camera bolted on.** Carry content with the native 3D forms, but pick them from ONE of the two
 mutually-exclusive render tiers per beat (a scene renders EITHER its `planes` OR its `stage`+`shots`, never
 both — the other tier's forms silently drop): the **PLANE tier** = `bars`/`stack`/`particles`/`surface`/
-`glyphrain`/`device`/`text`-plane; the **STAGE tier** = `display`/`metaphor`/`terminal`/`hud`/`spotlight`/
-`connector`/`textblock`. A flow-arrow / divider / rail is a STAGE-tier composition (there is no plane-tier
-connector) — don't pair it with plane `bars`. Reach for `metaphor-mechanic` (make the abstract idea physical)
+`glyphrain`/`device`/`connector3d`/`text`-plane; the **STAGE tier** = `display`/`metaphor`/`terminal`/`hud`/
+`spotlight`/`connector`/`textblock`. A flow-arrow / divider / rail joining plane forms uses the PLANE-tier
+**`connector3d`** (`{kind:"connector3d", from:[x,y,z], to:[x,y,z], arrow?}` — a native 3D beam that draws on
+between two world points); the STAGE-tier `connector` joins stage elements. Don't cross the two. Reach for
+`metaphor-mechanic` (make the abstract idea physical)
 on any abstract beat — the highest-yield, most topic-locked novelty. (See `references/shot-archetypes.md`
 for a per-archetype single-tier realization.)
 **DEFAULT: no Path-A.** Path A (author an HTML slide at `<out_dir>/pages/<name>.html`, reference it from a

@@ -37,7 +37,7 @@ export type SceneStageProps = {
   dof?: boolean; // rack-focus DoF — OPT-IN per scene (default OFF = crisp). A global-default blur read as an
                  // inconsistent "some sharp, some smeared" mess; depth now comes from parallax + colour haze.
   gradeHeat?: number | null; // per-beat grade heat 0..1 (calm..climax) -> Finish
-  atmosphere?: {materialClass?: string; post?: string} | null; // WORLD substrate (post profile -> Finish)
+  atmosphere?: {materialClass?: string; post?: string; motion?: string; camera?: string} | null; // WORLD substrate (post -> Finish, camera -> shot grammar)
 };
 
 export const SceneStage: React.FC<SceneStageProps> = ({
@@ -69,7 +69,7 @@ export const SceneStage: React.FC<SceneStageProps> = ({
   const timeline = computeTimeline(shots, registry, width / height, motionAmp ?? 1);
   // Reduced motion => hard-cut to each shot's SETTLED framing (each beat at its intended scale, no travel);
   // otherwise the eased pose for this frame.
-  const pose = reduced ? reducedPoseAtFrame(timeline, frame) : poseAtFrame(timeline, frame);
+  const pose = reduced ? reducedPoseAtFrame(timeline, frame) : poseAtFrame(timeline, frame, atmosphere?.camera ?? undefined);
   const focusZ = pose.focusZ;
 
   // Same 3D rig as CinematicScene3D. The `world` node is the preserve-3d ancestor — NO opacity/filter

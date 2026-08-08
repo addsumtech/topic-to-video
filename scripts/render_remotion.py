@@ -352,11 +352,19 @@ def _clean_planes(planes, tag):
             c["alpha"] = bool(p["alpha"])
         if p.get("billboard") is not None:                   # face the camera (rasterized text default)
             c["billboard"] = bool(p["billboard"])
-        kind = str(p.get("kind", "plane"))                   # plane|bars|stack|text|particles|surface|glyphrain|device
-        if kind not in ("plane", "bars", "stack", "text", "particles", "surface", "glyphrain", "device"):
+        kind = str(p.get("kind", "plane"))                   # plane|bars|stack|text|particles|surface|glyphrain|device|connector3d
+        if kind not in ("plane", "bars", "stack", "text", "particles", "surface", "glyphrain", "device", "connector3d"):
             raise RuntimeError("cinematic3d %s plane %d: kind must be plane|bars|stack|text|particles|surface|"
-                               "glyphrain|device, got %r" % (tag, j, kind))
+                               "glyphrain|device|connector3d, got %r" % (tag, j, kind))
         c["kind"] = kind
+        if kind == "connector3d":                            # a native 3D LINE/ARROW between two world points
+            for key in ("from", "to"):                       # (a divide/rail/flow in the PLANE tier — was stage-only)
+                v = p.get(key)
+                if not (isinstance(v, list) and len(v) == 3 and all(isinstance(x, (int, float)) for x in v)):
+                    raise RuntimeError("cinematic3d %s plane %d: connector3d needs `%s`:[x,y,z]" % (tag, j, key))
+                c[key] = [_num(x, "%s plane %d %s[%d]" % (tag, j, key, k)) for k, x in enumerate(v)]
+            if p.get("arrow") is not None:
+                c["arrow"] = bool(p["arrow"])
         if kind == "glyphrain" and p.get("count") is not None:   # number of falling code columns (ThreeScene caps it)
             c["count"] = int(_num(p["count"], "%s plane %d count" % (tag, j)))
         if kind in ("bars", "stack"):                        # data-driven 3D: bar heights / cube-stack counts

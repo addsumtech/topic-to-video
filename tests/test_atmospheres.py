@@ -175,3 +175,15 @@ def test_per_atmosphere_camera_grammar_is_wired():
         assert g in three, "camGrammarEase is missing the %s grammar" % g
     assert "atmosphere?.camera" in three, "the camera grammar is not resolved from the atmosphere"
     assert "grammar={camGrammar}" in three, "CameraRig is not given the world's camera grammar"
+
+
+def test_shot_tier_camera_grammar_is_wired():
+    # the SHOT tier (camera.ts poseAtFrame, used by SceneStage) also honours the atmosphere camera grammar,
+    # not just the cinematic3d CameraRig.
+    cam = open(os.path.join(_SRC, "stage", "camera.ts"), encoding="utf-8").read()
+    assert "function camGrammar" in cam, "the shot-tier camera grammar is gone"
+    for g in ("'whip'", "'punch'", "'turntable'"):
+        assert g in cam, "shot-tier camGrammar is missing the %s grammar" % g
+    assert "grammar?: string" in cam and "camGrammar(grammar," in cam, "poseAtFrame does not apply the grammar"
+    stage = open(os.path.join(_SRC, "stage", "SceneStage.tsx"), encoding="utf-8").read()
+    assert "poseAtFrame(timeline, frame, atmosphere?.camera" in stage, "SceneStage does not pass the world camera grammar"

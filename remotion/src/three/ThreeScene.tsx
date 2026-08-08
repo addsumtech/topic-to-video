@@ -22,8 +22,11 @@ import {Captions} from '../Captions';
 import {Finish} from '../theme/Finish';
 
 export type Plane3D = {
-  kind?: 'plane' | 'bars' | 'stack' | 'particles' | 'surface' | 'glyphrain' | 'device'; // plane / bar chart /
-  //   cube stack / assembling lattice FIELD / parametric HEIGHTFIELD / falling code RAIN / app DEVICE volume
+  kind?: 'plane' | 'bars' | 'stack' | 'particles' | 'surface' | 'glyphrain' | 'device' | 'connector3d'; // plane
+  //   / bar chart / cube stack / lattice FIELD / HEIGHTFIELD / code RAIN / DEVICE volume / native line-CONNECTOR
+  from?: [number, number, number]; // connector3d: line start
+  to?: [number, number, number];   // connector3d: line end
+  arrow?: boolean;                  // connector3d: draw an arrow head at `to`
   color?: string;
   src?: string; // image/screenshot/rasterized-text -> textured onto a REAL 3D mesh (true perspective)
   alpha?: boolean; // the texture has transparency (a rasterized-text PNG) -> transparent material
@@ -403,6 +406,44 @@ const Device3D: React.FC<{frame: number; durationInFrames: number; accent: strin
   );
 };
 
+// NATIVE 3D CONNECTOR (the PLANE tier's line/arrow — was stage-only). A thin box beam DRAWS ON from `from`
+// to `to` over the beat (scale along its own axis, eased), with an optional arrow head — so a divide / rail /
+// flow-arrow / hub-spoke can live in a DATA-plane world (bars/particles) instead of forcing a stage scene.
+// Lit + material-bound; deterministic. Placed via a group at midpoint, rotated to aim at `to`.
+const Connector3D: React.FC<{from: [number, number, number]; to: [number, number, number]; frame: number; durationInFrames: number; accent: string; mat: Mat3D; toon?: boolean; motion?: string; arrow?: boolean}> = ({from, to, frame, durationInFrames, accent, mat, toon, motion, arrow}) => {
+  const dx = to[0] - from[0], dy = to[1] - from[1], dz = to[2] - from[2];
+  const len = Math.max(1e-4, Math.hypot(dx, dy, dz));
+  const g0 = Math.round(durationInFrames * 0.12), gspan = Math.max(1, Math.round(durationInFrames * 0.45));
+  const grow = growEase(motion, Math.max(0, Math.min(1, (frame - g0) / gspan)));   // draw-on 0..1
+  if (grow <= 0) return null;
+  const mid: [number, number, number] = [from[0] + dx / 2, from[1] + dy / 2, from[2] + dz / 2];
+  // orient +Y (the beam's long axis) to the from->to direction
+  const dir = new THREE.Vector3(dx, dy, dz).normalize();
+  const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+  const eul = new THREE.Euler().setFromQuaternion(quat);
+  const thick = 0.06;
+  const drawn = len * grow;
+  // the beam grows from the `from` end: offset the midpoint back along dir by half the ungrown remainder.
+  const off = (len - drawn) / 2;
+  const beamCenter: [number, number, number] = [mid[0] - dir.x * off, mid[1] - dir.y * off, mid[2] - dir.z * off];
+  const M = () => toon
+    ? <meshToonMaterial color={accent} gradientMap={TOON_GRADIENT} />
+    : <meshStandardMaterial color={accent} metalness={mat.metalness} roughness={mat.roughness} emissive={accent} emissiveIntensity={0.12} />;
+  const headAt: [number, number, number] = [from[0] + dx * grow, from[1] + dy * grow, from[2] + dz * grow];
+  return (
+    <group>
+      <group position={beamCenter} rotation={[eul.x, eul.y, eul.z]}>
+        <mesh castShadow><boxGeometry args={[thick, drawn, thick]} />{M()}</mesh>
+      </group>
+      {arrow && grow > 0.98 ? (
+        <group position={headAt} rotation={[eul.x, eul.y, eul.z]}>
+          <mesh castShadow><coneGeometry args={[thick * 2.4, thick * 6, 12]} />{M()}</mesh>
+        </group>
+      ) : null}
+    </group>
+  );
+};
+
 export type Camera3DKey = {atFrame: number; yaw: number; radius: number; height: number; easing?: string};
 
 const EASE: Record<string, (n: number) => number> = {
@@ -661,6 +702,10 @@ export const ThreeScene: React.FC<{
           ) : p.kind === 'device' ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
               <Device3D frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} theme={theme} mat={mat3d} motion={motionG} />
+            </group>
+          ) : p.kind === 'connector3d' && p.from && p.to ? (
+            <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
+              <Connector3D from={p.from} to={p.to} frame={frame} durationInFrames={dur} accent={theme.accent} mat={mat3d} toon={toon} motion={motionG} arrow={p.arrow} />
             </group>
           ) : p.src ? (
             <TexturedPlane key={i} tex={textures[p.src]} size={p.size || [3, 1.8]} position={p.position}

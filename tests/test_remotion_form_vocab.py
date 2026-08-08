@@ -101,6 +101,26 @@ def test_device_volume_wired_in_threescene():
     assert "bd / 2 + 0.4 + k * 0.6" in src, "the floating UI cards lost their real z-depth stagger"
 
 
+# ── native PLANE-tier connector (fills the review's cross-tier gap) ───────────────────────────────────
+def test_clean_planes_accepts_connector3d():
+    out = rr._clean_planes([{"kind": "connector3d", "from": [0, 0, 0], "to": [2, 0, 0], "arrow": True,
+                             "position": [0, 0, 0]}], "s1")
+    assert out[0]["kind"] == "connector3d" and out[0]["from"] == [0.0, 0.0, 0.0] and out[0]["to"] == [2.0, 0.0, 0.0]
+    assert out[0]["arrow"] is True
+
+
+def test_clean_planes_connector3d_needs_from_to():
+    import pytest
+    with pytest.raises(RuntimeError):
+        rr._clean_planes([{"kind": "connector3d", "from": [0, 0, 0], "position": [0, 0, 0]}], "s1")  # no `to`
+
+
+def test_connector3d_wired_in_threescene():
+    src = _three()
+    assert "Connector3D" in src and "kind === 'connector3d'" in src, "the native connector component/dispatch is gone"
+    assert "coneGeometry" in src, "the connector arrow head is gone"
+
+
 def test_particle_cap_is_declared_in_source():
     src = _three()
     assert "PARTICLE_MAX = 160" in src, "the particle safety cap changed — keep validate's warn threshold in sync"

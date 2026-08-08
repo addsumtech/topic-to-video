@@ -36,6 +36,20 @@ const EASE: Record<string, (n: number) => number> = {
   house: Easing.bezier(0.16, 1, 0.3, 1),
 };
 
+// Per-ATMOSPHERE camera GRAMMAR for the shot tier — the WORLD's camera character between shot framings,
+// mirroring ThreeScene.camGrammarEase so both cinematic tiers move the same per world. When set, it OVERRIDES
+// the per-shot easing (one camera character for the whole film). whip=fast-then-stop, punch=snap-first-third-
+// then-lock, turntable=linear/constant, dolly/undefined=fall through to the shot's own ease. Deterministic.
+function camGrammar(grammar: string | undefined, x: number): number | null {
+  const t = Math.max(0, Math.min(1, x));
+  switch (grammar) {
+    case 'whip': return 1 - Math.pow(1 - t, 4);
+    case 'punch': return Math.min(1, t / 0.32);
+    case 'turntable': return t;
+    default: return null;   // dolly / unknown -> use the shot's own easing (no override)
+  }
+}
+
 function toPose(k: LensKeyframe): Pose {
   return {
     dolly: k.dolly || 0,
@@ -117,8 +131,10 @@ export function reducedPoseAtFrame(timeline: ResolvedShot[], frame: number): Pos
   return rs.endPose;
 }
 
-// Interpolate the camera pose at a given absolute frame (eased within the active shot window).
-export function poseAtFrame(timeline: ResolvedShot[], frame: number): Pose {
+// Interpolate the camera pose at a given absolute frame (eased within the active shot window). `grammar`
+// (the atmosphere camera character, optional) OVERRIDES the shot easing when set, so a world moves in
+// character (whip/punch/turntable) on the shot tier just as it does on the cinematic3d tier.
+export function poseAtFrame(timeline: ResolvedShot[], frame: number, grammar?: string): Pose {
   if (!timeline.length) return {dolly: 0, pitch: 0, yaw: 0, roll: 0, zoom: 1, focusZ: null};
   let rs = timeline[0];
   for (const t of timeline) if (frame >= t.start) rs = t; // last window whose start we've reached
@@ -134,7 +150,8 @@ export function poseAtFrame(timeline: ResolvedShot[], frame: number): Pose {
   const b = keys[jn].pose;
   const span = Math.max(1, keys[jn].at - keys[j].at);
   const raw = Math.min(1, Math.max(0, (frame - keys[j].at) / span));
-  const e = (EASE[rs.easing] || EASE.inout)(raw);
+  const g = camGrammar(grammar, raw);                 // atmosphere camera character overrides the shot ease
+  const e = g != null ? g : (EASE[rs.easing] || EASE.inout)(raw);
   const L = (x: number, y: number) => x + (y - x) * e;
   const fz =
     a.focusZ == null && b.focusZ == null
