@@ -1122,7 +1122,7 @@ def build_props(data, out_dir, vertical=False, reduced_motion=False):
             "layers": layers,                        # cinematic: depth planes (or None)
             "reducedMotion": reduced,                # freeze the camera + show reveals instantly
             "gradeHeat": _grade_heat(s),             # PER-BEAT grade heat (climax hotter / calm cooler) or None
-            "atmosphere": atmo_scene,                # the WORLD's render substrate {materialClass, post} or None
+            "atmosphere": atmo_scene,                # the WORLD's render substrate {materialClass, post, motion, camera} or None
             "transitionStyle": s.get("transition_style"),  # per-scene seam-look override (else meta default)
             "match_cut": s.get("match_cut"),         # shared-element match-cut INTO the next scene (P3+); _transitions
             #                                          coerces it onto transitionToNext.match (dropped from props after)

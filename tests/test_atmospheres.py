@@ -187,3 +187,12 @@ def test_shot_tier_camera_grammar_is_wired():
     assert "grammar?: string" in cam and "camGrammar(grammar," in cam, "poseAtFrame does not apply the grammar"
     stage = open(os.path.join(_SRC, "stage", "SceneStage.tsx"), encoding="utf-8").read()
     assert "poseAtFrame(timeline, frame, atmosphere?.camera" in stage, "SceneStage does not pass the world camera grammar"
+
+
+def test_shot_grammar_exempts_carry_chain_glide():
+    # a whip/punch grammar must NOT override a flowThrough (interior carry-chain) segment's 'linear' glide —
+    # else a run of carries reads as hesitant hops (the exact thing 'linear' prevents). Source-guard the gate.
+    cam = open(os.path.join(_SRC, "stage", "camera.ts"), encoding="utf-8").read()
+    assert "flowThrough?: boolean" in cam, "ResolvedShot lost the flowThrough continuity flag"
+    assert "rs.flowThrough ? null : camGrammar(grammar" in cam, "the grammar override no longer exempts carry-chain glide"
+    assert cam.count("keys, flowThrough,") >= 2, "computeTimeline does not record flowThrough on both push sites"

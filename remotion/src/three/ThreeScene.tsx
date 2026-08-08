@@ -414,22 +414,26 @@ const Connector3D: React.FC<{from: [number, number, number]; to: [number, number
   const dx = to[0] - from[0], dy = to[1] - from[1], dz = to[2] - from[2];
   const len = Math.max(1e-4, Math.hypot(dx, dy, dz));
   const g0 = Math.round(durationInFrames * 0.12), gspan = Math.max(1, Math.round(durationInFrames * 0.45));
-  const grow = growEase(motion, Math.max(0, Math.min(1, (frame - g0) / gspan)));   // draw-on 0..1
+  const grow = growEase(motion, Math.max(0, Math.min(1, (frame - g0) / gspan)));   // draw-on 0..1 (may overshoot >1 under 'bouncy')
   if (grow <= 0) return null;
+  // CLAMP the geometry to [0,1]: a connector joins two FIXED points, so its tip must land ON `to`, never poke
+  // past it — even when the world's 'bouncy' cadence overshoots grow to ~1.1. The bouncy ease-RATE still reads
+  // in how fast it draws; only the endpoint is pinned. (No-op for smooth/snap/boot, which never exceed 1.)
+  const gdraw = Math.min(1, grow);
   const mid: [number, number, number] = [from[0] + dx / 2, from[1] + dy / 2, from[2] + dz / 2];
   // orient +Y (the beam's long axis) to the from->to direction
   const dir = new THREE.Vector3(dx, dy, dz).normalize();
   const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
   const eul = new THREE.Euler().setFromQuaternion(quat);
   const thick = 0.06;
-  const drawn = len * grow;
+  const drawn = len * gdraw;
   // the beam grows from the `from` end: offset the midpoint back along dir by half the ungrown remainder.
   const off = (len - drawn) / 2;
   const beamCenter: [number, number, number] = [mid[0] - dir.x * off, mid[1] - dir.y * off, mid[2] - dir.z * off];
   const M = () => toon
     ? <meshToonMaterial color={accent} gradientMap={TOON_GRADIENT} />
     : <meshStandardMaterial color={accent} metalness={mat.metalness} roughness={mat.roughness} emissive={accent} emissiveIntensity={0.12} />;
-  const headAt: [number, number, number] = [from[0] + dx * grow, from[1] + dy * grow, from[2] + dz * grow];
+  const headAt: [number, number, number] = [from[0] + dx * gdraw, from[1] + dy * gdraw, from[2] + dz * gdraw];
   return (
     <group>
       <group position={beamCenter} rotation={[eul.x, eul.y, eul.z]}>

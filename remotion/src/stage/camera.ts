@@ -24,6 +24,8 @@ export type ResolvedShot = {
   // interpolates through them so a hold-then-rack doesn't flatten to one linear pull. startPose/endPose are
   // kept for reducedPoseAtFrame + back-compat (they equal keys[0]/keys[last]).
   easing: string;
+  flowThrough?: boolean; // interior waypoint of a carry-chain: its 'linear' easing is a CONSTANT-VELOCITY
+  // continuity contract (not a per-shot choice), so the atmosphere camera-grammar must NOT override it.
 };
 
 const EASE: Record<string, (n: number) => number> = {
@@ -87,7 +89,7 @@ export function computeTimeline(
       const startPose = toPose(sh.lens[0]);
       const endPose = toPose(sh.lens[sh.lens.length - 1]);
       const keys = [{at: start, pose: startPose}, {at: start + dur, pose: endPose}];
-      out.push({start, end: start + dur, startPose, endPose, keys, easing: flowThrough ? 'linear' : sh.easing || 'inout'});
+      out.push({start, end: start + dur, startPose, endPose, keys, flowThrough, easing: flowThrough ? 'linear' : sh.easing || 'inout'});
       prevEnd = endPose;
       continue;
     }
@@ -115,7 +117,7 @@ export function computeTimeline(
       pose: idx === 0 ? startPose : toPose(k),
     }));
 
-    out.push({start, end: start + dur, startPose, endPose, keys, easing: flowThrough ? 'linear' : sh.easing || 'house'});
+    out.push({start, end: start + dur, startPose, endPose, keys, flowThrough, easing: flowThrough ? 'linear' : sh.easing || 'house'});
     prevEnd = endPose;
   }
   return out;
@@ -150,7 +152,11 @@ export function poseAtFrame(timeline: ResolvedShot[], frame: number, grammar?: s
   const b = keys[jn].pose;
   const span = Math.max(1, keys[jn].at - keys[j].at);
   const raw = Math.min(1, Math.max(0, (frame - keys[j].at) / span));
-  const g = camGrammar(grammar, raw);                 // atmosphere camera character overrides the shot ease
+  // The atmosphere camera character overrides the shot ease — EXCEPT on a flowThrough (interior carry-chain)
+  // segment, whose 'linear' is a constant-velocity CONTINUITY contract: a whip/punch curve there zeroes
+  // velocity at the boundary and turns a carry-glide into hesitant hops. The last carry of a run is NOT
+  // flowThrough, so it still lands in the world's character.
+  const g = rs.flowThrough ? null : camGrammar(grammar, raw);
   const e = g != null ? g : (EASE[rs.easing] || EASE.inout)(raw);
   const L = (x: number, y: number) => x + (y - x) * e;
   const fz =
