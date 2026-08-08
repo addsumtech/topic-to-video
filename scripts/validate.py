@@ -716,6 +716,16 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
     layers = s.get("layers") or (s.get("props") or {}).get("layers")
     stage = s.get("stage") or (s.get("props") or {}).get("stage")
     shots = s.get("shots") or (s.get("props") or {}).get("shots")
+    planes = s.get("planes") or (s.get("props") or {}).get("planes")
+    # TWO RENDER TIERS, NEVER MIXED: Scene.tsx dispatches a scene to EITHER ThreeScene (its `planes`, checked
+    # FIRST) OR SceneStage (`stage`+`shots`) — never both, so a scene carrying BOTH silently DROPS all its
+    # stage content (the plane tier wins). The docs say the tiers are mutually exclusive; catch the mistake
+    # here (ERROR) instead of shipping a film missing half its authored forms.
+    if isinstance(planes, list) and planes and stage and isinstance(stage.get("elements"), list) and stage["elements"]:
+        errors.append(f"{tag}: carries BOTH `planes` and `stage` — a scene renders EITHER the plane tier "
+                      f"(bars/particles/glyphrain/device/connector3d/…) OR the stage tier (display/metaphor/"
+                      f"hud/connector/…), never both; the `stage` content would SILENTLY DROP. Split into two "
+                      f"scenes or keep the beat on ONE tier.")
     if stage and shots:
         _shot_stage_fields(stage, shots, tag, errors, warnings)   # P2 shot-based pre-render gate
     # PATH A: any stage element / 3D plane with an `html` form page — the page MUST exist on disk (render
@@ -1263,11 +1273,16 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # Anti-slop R8: no more than 2 consecutive scenes with the same visual type. SKIP the html
     # tier — every html scene's `type` is "html" regardless of its page layout, so the variety
     # the rule cares about (the on-page design) isn't visible from the storyboard; flagging it
-    # would fire on every (recommended) all-html "designed deck". Programmatic types still checked.
+    # would fire on every (recommended) all-html "designed deck". SKIP cinematic likewise — every
+    # cinematic scene's type is "cinematic"/"cinematic3d" and its variety is the ARCHETYPE spread,
+    # enforced by _design_variety_lint (>45% / <3 distinct / back-to-back); a type run-length warn
+    # here fires on EVERY cinematic film (incl. the golden fixture) and is unactionable. Programmatic
+    # types (title/chart/timeline/…) still checked.
+    _variety_exempt = {"html", "cinematic", "cinematic3d"}
     run = 1
     for a, b in zip(prev_types, prev_types[1:]):
         run = run + 1 if a == b else 1
-        if run == 3 and b != "html":
+        if run == 3 and b not in _variety_exempt:
             warnings.append(f"3+ consecutive '{b}' scenes — vary the visual type (anti-slop)")
 
     # Layout-diversity gate (html tier): a deck dominated by one form family reads as auto-generated.

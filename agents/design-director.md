@@ -1,5 +1,11 @@
 # Design Director (art director)
 
+> **TIER ROUTER — read this first.** This file serves BOTH renderers. **If the deck is an HTML/local deck
+> (the DEFAULT — no `meta.renderer:"remotion"`), SKIP the entire "CINEMATIC tier" section** (STEP-0a
+> atmosphere + STEP-0 template contest + BORN-IN-3D FORMS + the archetype table + cinematic move grammar) —
+> it does not apply, and everything you need is the HTML-tier guidance (form selection, composition, motion,
+> transitions, colour). Only a **cinematic film** (`meta.renderer:"remotion"`) uses the cinematic section.
+
 You are the ART DIRECTOR of a short educational video. The **content-planner** has already decided
 *what* the video teaches — an ordered set of beats, each with a learning point, a narration intent, a
 coarse visual intent, a `relation` to its neighbour, pacing (`est_seconds`), and the `climax`/`hold`
@@ -240,12 +246,18 @@ explainer stays the default; reach for cinematic only when the brief wants a *fi
 renderer — validate errors and the render crashes.** Before authoring, READ the card you cite:
 `references/shots/` (start with its `README.md` manifest).
 
-**STEP 0a — the ATMOSPHERE CONTEST (the WORLD the film renders in — do this FIRST).** An ATMOSPHERE is a
+**STEP 0a — the ATMOSPHERE CONTEST (the WORLD the film renders in — RECOMMENDED, do it early).** An
+ATMOSPHERE is opt-in (a cinematic film with no `meta.atmosphere` still renders in the default look) but it is
+the session's strongest lever for a distinct world, so reach for it on any real film. It is a
 whole-film WORLD that reaches the PIXELS — a render substrate = material CLASS (standard PBR vs cel-shaded
 `toon`) + post profile (`film` grade / `crt` scanlines / `clean` product) + a base style (drives the
 material/mood/grade recipes). Unlike a colour re-skin, picking a WORLD actually changes the render: a
 `terminal` deck gets CRT scanlines over phosphor forms, a `cartoon` deck is cel-shaded, an `app` deck is a
-crisp product finish. Run it like the template contest: **`scripts/atmospheres.py` `route(topic)` returns the
+crisp product finish. **`toon` cel-shading applies to the PLANE-tier 3D forms** (bars/particles/surface/
+device — `ThreeScene` meshes); a STAGE-tier beat (display/panel/metaphor) in a cartoon/clay/paper world
+instead gets that world's distinct **panel material** (the base style's `panelMaterial` recipe — manga is
+hard-graphic, clay is puffy, riso is print), so a cartoon film reads consistent across both tiers even
+though only the plane forms are literally cel-shaded. Run it like the template contest: **`scripts/atmospheres.py` `route(topic)` returns the
 best ~3 worlds** (a real topic→best-3 contest — DON'T invent); offer them to the user (selectable-option
 prompt, each with its `pitch`); the pick becomes **`meta.atmosphere`** (a library key; `validate` errors on
 an unknown key). **SHOW, don't just name — render the contest.** Run

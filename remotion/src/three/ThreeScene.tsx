@@ -661,6 +661,10 @@ export const ThreeScene: React.FC<{
   const toon = atmosphere?.materialClass === 'toon';   // CARTOON world: cel-shaded forms (MeshToonMaterial)
   const cleanPost = atmosphere?.post === 'clean';      // APP world: crisp product — drop DoF+Bloom from the composer
   const motionG = atmosphere?.motion;                  // WORLD motion cadence (bouncy/snap/boot) -> the forms' grow
+  // REDUCED MOTION: freeze the FORMS at their settled state (grow=1 at the scene end), just as the camera/rig
+  // freeze — else particles assemble / surface rises / glyphrain falls / device cards rise / connector draws
+  // on, which is exactly the motion an accessibility variant must suppress. `dur` = fully-settled frame.
+  const formFrame = reducedMotion ? dur : frame;
 
   return (
     <AbsoluteFill style={{backgroundColor: theme.bg}}>
@@ -685,31 +689,31 @@ export const ThreeScene: React.FC<{
         {planes.map((p, i) =>
           p.kind === 'bars' && p.data ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
-              <Bars3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} glow={filmLook !== false} mat={mat3d} toon={toon} motion={motionG} />
+              <Bars3D data={p.data} frame={formFrame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} glow={filmLook !== false} mat={mat3d} toon={toon} motion={motionG} />
             </group>
           ) : p.kind === 'stack' && p.data ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
-              <Stack3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} glow={filmLook !== false} mat={mat3d} toon={toon} motion={motionG} />
+              <Stack3D data={p.data} frame={formFrame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} glow={filmLook !== false} mat={mat3d} toon={toon} motion={motionG} />
             </group>
           ) : p.kind === 'particles' ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
-              <Particles3D count={p.count} frame={frame} durationInFrames={dur} accent={theme.accent} mat={mat3d} toon={toon} motion={motionG} />
+              <Particles3D count={p.count} frame={formFrame} durationInFrames={dur} accent={theme.accent} mat={mat3d} toon={toon} motion={motionG} />
             </group>
           ) : p.kind === 'surface' ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
-              <Surface3D data={p.data} frame={frame} durationInFrames={dur} accent={theme.accent} mat={mat3d} size={p.size} toon={toon} motion={motionG} />
+              <Surface3D data={p.data} frame={formFrame} durationInFrames={dur} accent={theme.accent} mat={mat3d} size={p.size} toon={toon} motion={motionG} />
             </group>
           ) : p.kind === 'glyphrain' ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
-              <GlyphRain3D tex={textures[p.src || '']} frame={frame} durationInFrames={dur} count={p.count} />
+              <GlyphRain3D tex={textures[p.src || '']} frame={formFrame} durationInFrames={dur} count={p.count} />
             </group>
           ) : p.kind === 'device' ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
-              <Device3D frame={frame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} theme={theme} mat={mat3d} motion={motionG} />
+              <Device3D frame={formFrame} durationInFrames={dur} accent={theme.accent} accent2={theme.accent2} theme={theme} mat={mat3d} motion={motionG} />
             </group>
           ) : p.kind === 'connector3d' && p.from && p.to ? (
             <group key={i} position={p.position} rotation={p.rotation || [0, 0, 0]}>
-              <Connector3D from={p.from} to={p.to} frame={frame} durationInFrames={dur} accent={theme.accent} mat={mat3d} toon={toon} motion={motionG} arrow={p.arrow} />
+              <Connector3D from={p.from} to={p.to} frame={formFrame} durationInFrames={dur} accent={theme.accent} mat={mat3d} toon={toon} motion={motionG} arrow={p.arrow} />
             </group>
           ) : p.src ? (
             <TexturedPlane key={i} tex={textures[p.src]} size={p.size || [3, 1.8]} position={p.position}

@@ -8,6 +8,7 @@ import type {ShotSpec} from './stage/shots';
 import {ThreeScene, type Plane3D, type Camera3DKey} from './three/ThreeScene';
 import {BridgeOverlay, type BridgeData} from './BridgeOverlay';
 import type {MatchSpec} from './transitions/sharedElement';
+import {Finish} from './theme/Finish';
 
 export type CalloutData = {
   box: number[];           // [x0, y0, x1, y1] normalized 0..1
@@ -239,6 +240,11 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
           {scene.title}
         </div>
       ) : null}
+
+      {/* Finishing pass so a plain image/Ken-Burns scene shares the film's WORLD: the atmosphere post
+          (grade / CRT / clean) + the per-beat grade, exactly like the four cinematic renderers — else an
+          image beat inside an atmosphere film reads ungraded and breaks world consistency. */}
+      <Finish frame={frame} theme={theme} energy={scene.gradeHeat ?? undefined} dur={dur} post={scene.atmosphere?.post} />
 
       {scene.captions && scene.captions.length ? (
         <Captions segments={scene.captions} fontPx={captionFontPx} />

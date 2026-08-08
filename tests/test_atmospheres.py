@@ -189,6 +189,26 @@ def test_shot_tier_camera_grammar_is_wired():
     assert "poseAtFrame(timeline, frame, atmosphere?.camera" in stage, "SceneStage does not pass the world camera grammar"
 
 
+def test_mixed_tier_scene_errors():
+    # a scene with BOTH planes and stage renders only the plane tier (stage silently drops) -> validate ERRORs.
+    errs, warns = [], []
+    scene = {"type": "cinematic3d",
+             "planes": [{"kind": "bars", "data": [1, 2, 3], "position": [0, 0, 0]}],
+             "stage": {"elements": [{"id": "h", "kind": "display", "position": [0, 0, 0], "text": "X"}]},
+             "shots": [{"type": "HERO", "target": "h"}],
+             "camera3d": [{"at": 0.0, "yaw": 0, "radius": 8, "height": 4}]}
+    validate._cinematic_fields(scene, {"fps": 30}, "/tmp", "s1", errs, warns)
+    assert any("BOTH `planes` and `stage`" in e for e in errs), errs
+
+
+def test_single_tier_scene_is_clean():
+    errs, warns = [], []
+    scene = {"type": "cinematic3d", "planes": [{"kind": "bars", "data": [1, 2, 3], "position": [0, 0, 0]}],
+             "camera3d": [{"at": 0.0, "yaw": 0, "radius": 8, "height": 4}]}
+    validate._cinematic_fields(scene, {"fps": 30}, "/tmp", "s1", errs, warns)
+    assert not any("BOTH" in e for e in errs), errs
+
+
 def test_shot_grammar_exempts_carry_chain_glide():
     # a whip/punch grammar must NOT override a flowThrough (interior carry-chain) segment's 'linear' glide —
     # else a run of carries reads as hesitant hops (the exact thing 'linear' prevents). Source-guard the gate.

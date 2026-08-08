@@ -44,14 +44,24 @@ def _run(cmd, **kw):
     return subprocess.run(cmd, cwd=_SKILL, capture_output=True, text=True, **kw)
 
 
+# wall-clock cap per candidate render so a wedged child (bundle stall / GL-init hang) degrades to a
+# placeholder tile instead of hanging the whole STEP-0a contest. Override via ATMO_PREVIEW_TIMEOUT.
+_RENDER_TIMEOUT = int(os.environ.get("ATMO_PREVIEW_TIMEOUT", "300"))
+
+
 def _render_one(key, work_dir, accent, bg):
     """tts → theme → render sample → extract a frame; return the frame path or None (best-effort per world)."""
     os.makedirs(work_dir, exist_ok=True)
     json.dump(_canonical_board(key), open(os.path.join(work_dir, "storyboard.json"), "w"), indent=2)
-    if _run([sys.executable, "scripts/tts.py", work_dir]).returncode != 0:
+    try:
+        if _run([sys.executable, "scripts/tts.py", work_dir], timeout=120).returncode != 0:
+            return None
+        _run([sys.executable, "scripts/theme.py", work_dir, "--mode", "dark", "--accent", accent, "--bg", bg], timeout=60)
+        r = _run([sys.executable, "scripts/render_remotion.py", work_dir, "--sample", "1", "--no-plan"],
+                 timeout=_RENDER_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        print("[atmosphere_preview] %s render timed out -> placeholder" % key)
         return None
-    _run([sys.executable, "scripts/theme.py", work_dir, "--mode", "dark", "--accent", accent, "--bg", bg])
-    r = _run([sys.executable, "scripts/render_remotion.py", work_dir, "--sample", "1", "--no-plan"])
     mp4 = os.path.join(work_dir, "sample.mp4")
     if r.returncode != 0 or not os.path.isfile(mp4):
         return None

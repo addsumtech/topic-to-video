@@ -121,6 +121,29 @@ def test_connector3d_wired_in_threescene():
     assert "coneGeometry" in src, "the connector arrow head is gone"
 
 
+def test_plane_position_is_optional_defaults_to_origin():
+    # the documented connector3d schema omits `position`; _clean_planes must default it to origin (was a
+    # golden-path breaker: doc example passed validate then crashed the render).
+    out = rr._clean_planes([{"kind": "connector3d", "from": [-2, 0, 0], "to": [2, 0, 0], "arrow": True}], "s1")
+    assert out[0]["position"] == [0.0, 0.0, 0.0] and out[0]["from"] == [-2.0, 0.0, 0.0]
+    # a bars plane without position also defaults to origin
+    assert rr._clean_planes([{"kind": "bars", "data": [1, 2]}], "s1")[0]["position"] == [0.0, 0.0, 0.0]
+
+
+def test_malformed_position_still_errors():
+    import pytest
+    with pytest.raises(RuntimeError):
+        rr._clean_planes([{"kind": "bars", "data": [1], "position": [0, 0]}], "s1")
+
+
+def test_reduced_motion_freezes_the_plane_forms():
+    # under reduced motion the FORMS freeze at their settled state (grow=1 at dur), like the camera — else
+    # particles/surface/glyphrain/device/connector still animate (the motion an a11y variant must suppress).
+    src = _three()
+    assert "const formFrame = reducedMotion ? dur : frame" in src, "the reduced-motion form freeze is gone"
+    assert "frame={formFrame}" in src, "the forms do not receive the reduced-motion frame"
+
+
 def test_particle_cap_is_declared_in_source():
     src = _three()
     assert "PARTICLE_MAX = 160" in src, "the particle safety cap changed — keep validate's warn threshold in sync"

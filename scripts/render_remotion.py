@@ -328,8 +328,13 @@ def _clean_planes(planes, tag):
     for j, p in enumerate(planes):
         if not isinstance(p, dict):
             raise RuntimeError("cinematic3d %s plane %d: must be an object" % (tag, j))
+        # `position` is the plane's GROUP offset; it DEFAULTS to the origin when omitted (a no-op wrapper) —
+        # so a form whose geometry is already absolute (connector3d's from/to, a centred bars/device) can be
+        # authored without it, matching the documented schemas. A malformed (non-[x,y,z]) position still errors.
         pos = p.get("position")
-        if not (isinstance(pos, list) and len(pos) == 3):
+        if pos is None:
+            pos = [0, 0, 0]
+        elif not (isinstance(pos, list) and len(pos) == 3):
             raise RuntimeError("cinematic3d %s plane %d: `position` must be [x,y,z]" % (tag, j))
         c = {"position": [_num(pos[k], "%s plane %d position[%d]" % (tag, j, k)) for k in range(3)]}
         if p.get("rotation") is not None:
