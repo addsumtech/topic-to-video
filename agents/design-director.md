@@ -248,9 +248,14 @@ material/mood/grade recipes). Unlike a colour re-skin, picking a WORLD actually 
 crisp product finish. Run it like the template contest: **`scripts/atmospheres.py` `route(topic)` returns the
 best ~3 worlds** (a real topic→best-3 contest — DON'T invent); offer them to the user (selectable-option
 prompt, each with its `pitch`); the pick becomes **`meta.atmosphere`** (a library key; `validate` errors on
-an unknown key). **Record the contest** on `meta.atmosphere_contest = {candidates:[the ≥2 world keys you
-offered, from `route`], winner:<the pick>, user_pick:true}` — validate warns if it's missing or the pick
-wasn't the user's, and errors on a malformed record (mirrors the template contest). The atmosphere is
+an unknown key). **SHOW, don't just name — render the contest.** Run
+`python scripts/atmosphere_preview.py <out_dir> --topic "<topic>"` (or `--candidates a,b,c`): it renders ONE
+frame of each candidate world on the SAME canonical bars scene and montages them into a labelled contact sheet
+`<out_dir>/atmosphere_contest.png`, so the user picks the WORLD from PIXELS (its real material + post + colour),
+not a name — the cinematic analog of the HTML register-contest snapshot. **Record the contest** on
+`meta.atmosphere_contest = {candidates:[the ≥2 world keys you offered, from `route`], winner:<the pick>,
+user_pick:true}` — validate warns if it's missing or the pick wasn't the user's, and errors on a malformed
+record (mirrors the template contest). The atmosphere is
 ORTHOGONAL to and composes with the template below (atmosphere = the render substrate/finish; template = the
 per-beat colour-world + beat-arc). Adding a new world = one entry in `atmospheres.py`; routing + the contest
 pick it up automatically.
