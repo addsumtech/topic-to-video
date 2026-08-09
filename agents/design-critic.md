@@ -435,7 +435,13 @@ the floor; you are the ceiling.
   were "three skins of one representation" (same composition, different palette/font) rather than genuinely
   different visual REPRESENTATIONS shown to the user as RENDERED frames, the contest was theatre — REVISE
   (the user explicitly wants to pick from real, divergent rendered options). Cross-check with
-  `contest_diversity` on the recorded candidate frames.
+  `contest_diversity` on the recorded candidate frames. (c) **native-for-cool (gimmick, not 与内容相贴合)** —
+  a native capability used because it's impressive rather than because the content demands it (3D where the
+  idea isn't spatial, an audio-reactive form where the thing isn't a signal, a morph where nothing becomes
+  anything) is a gimmick — REVISE so the technique EXPRESSES the beat's idea (the native `signature_concept`).
+  And a native 3D beat whose camera SPINS / whip-zooms gratuitously (the "忽远忽近" lurch) violates the camera
+  grammar even in 3D — REVISE (cross-ref D12b: motivated, gentle, HELD-by-default; boldness in the concept,
+  restraint in the move).
 Inherited checks still apply to the composed frame: D5 (composition/whitespace), D7 (squint/cover-text),
 D8 (semantic colour), D10 (anti-slop). D1/D6b (layout/silhouette diversity) apply ACROSS cinematic scenes
 too — vary the lens move + depth arrangement, don't ship five identical dolly-ins.

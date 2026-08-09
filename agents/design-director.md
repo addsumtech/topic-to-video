@@ -262,8 +262,21 @@ filled with data read as a generic "tech-demo", and a film built ONLY from them 
 the same glowing cloud/panel (the exact thing the user rejected: "每个介绍都是一个template … 毫无设计感"). DESIGN a
 bespoke component or composition per hero beat (the content BECOMES the set), and **cut decoration that means
 nothing** — a `hud` reticle that isn't tracking anything, cubes that don't stand for anything, are furniture:
-delete them. Achieving a genuinely-native look often means authoring custom React/R3F beyond the stock
-`build_props` forms — that is the intended work of this tier, not a detour.
+delete them. Achieving a genuinely-native look often means authoring custom React/R3F BEYOND the stock
+`build_props` forms — that is the intended work of this tier, not a detour (READ `references/cinematic-
+components.md` for adopting a package/component + the frame-driven safety rules; today only SOME native 3D is
+expressible through the storyboard→`build_props` schema, so a truly bespoke hero beat may need a custom
+Remotion composition — build it, don't fake it flat).
+**Bold in the IDEA, disciplined in the MOVE — the native power must FIT THIS content (与内容相贴合).** Reach
+for a capability because the CONTENT demands it, never because it looks impressive: 3D because the idea IS
+spatial (a field, real depth, an orbit that reveals structure the flat view hides), audio-reactive because
+the thing IS a signal, a morph because one form literally BECOMES another. "3D because 3D is cool" is the
+gimmick trap — it reads as a tech-demo, not a film. The more novel the technique, the MORE it must earn its
+place by expressing THIS beat's idea (it IS the `signature_concept`, realised natively). And the more the
+technique invites a big camera (a real orbit / dolly-through-depth), the HARDER the lens obeys the CAMERA
+GRAMMAR (SKILL.md): a MOTIVATED, gentle, legible move over a HELD, frontal MEDIUM by default — a gratuitous
+spin/whip-zoom re-introduces the "忽远忽近" lurch the grammar exists to kill. Boldness lives in the CONCEPT;
+the move stays restrained.
 **Gates are a floor, never a verdict.** A cinematic cut can pass `validate` + `check_av` + `shot_qa` and still
 be ugly (it did). RENDER frames and LOOK before you believe it — and give the user real rendered frames to
 judge, never a description.
