@@ -251,7 +251,13 @@ TTS if the user gives an API key.
   `references/shot-archetypes.md` and give the scene an `archetype`** (the beat's bespoke composition/concept,
   orthogonal to `meta.style`) — **the content becomes the SET NATIVELY** (display/text/metaphor/bars/stack/
   particles/surface/glyphrain/device/terminal/hud/…). **The cinematic tier is a DISTINCT native-3D style, NOT
-  the HTML tier with a camera bolted on.** **Path A** (author an HTML slide at `pages/<name>.html`, point a
+  the HTML tier with a camera bolted on.** **REACH FOR REMOTION'S REAL EDGE on the hero beats — what HTML
+  CANNOT do (genuine WebGL 3D authored bespoke, audio-reactive visuals via `@remotion/media-utils`, path/shape
+  morphing via `@remotion/paths`) — a film that could've been HTML has wasted the tier; the stock
+  `particles/surface/bars/hud` forms are a FLOOR not the look (a film built only from them reads templated),
+  and a passing `validate`/`check_av`/`shot_qa` is NOT a verdict — render frames and LOOK, and give the user
+  genuinely-DIFFERENT rendered representations to pick (not re-skins). The `design-director` "REMOTION'S REAL
+  EDGE" + rendered-contest sections are the procedure.** **Path A** (author an HTML slide at `pages/<name>.html`, point a
   `kind:"card"`/plane `html:` at it, screenshot it onto a plane the camera flies past) is **DEPRECATED as the
   default** — it is "build a 2D slide then simulate 3D", the exact thing this tier avoids; `validate` WARNS on
   every Path-A card. The two tiers are two STYLES: designed 2D slides → the **HTML/local tier** (omit

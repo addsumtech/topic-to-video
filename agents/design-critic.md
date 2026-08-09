@@ -426,6 +426,16 @@ the floor; you are the ceiling.
   on the generated image to carry its meaning, or a film that drifts into a slideshow of gen stills (the
   "AI = background, code = data" split broken). A gen backplane that's merely soft topical texture behind a
   legible code card is correct — this catches the stand-in and the over-reliance, not the honest use.
+- **D12n — Native edge + real divergent contest (why is this on the Remotion tier at all?).** Two REVISE
+  triggers from real feedback: (a) **HTML-in-React** — if the film uses NO capability HTML structurally can't
+  (no bespoke WebGL 3D, no audio-reactive visual, no path/shape morph) and is built ONLY from the stock
+  `particles/surface/bars/hud` forms filled with data, it reads as a templated "tech-demo" and has wasted the
+  tier — REVISE toward a genuinely-native hero beat, or send it to the HTML tier. Confirm ≥1 hero beat does
+  something HTML cannot. (b) **contest was re-skins** — if `meta.template_contest` recorded candidates that
+  were "three skins of one representation" (same composition, different palette/font) rather than genuinely
+  different visual REPRESENTATIONS shown to the user as RENDERED frames, the contest was theatre — REVISE
+  (the user explicitly wants to pick from real, divergent rendered options). Cross-check with
+  `contest_diversity` on the recorded candidate frames.
 Inherited checks still apply to the composed frame: D5 (composition/whitespace), D7 (squint/cover-text),
 D8 (semantic colour), D10 (anti-slop). D1/D6b (layout/silhouette diversity) apply ACROSS cinematic scenes
 too — vary the lens move + depth arrangement, don't ship five identical dolly-ins.

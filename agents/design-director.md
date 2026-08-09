@@ -246,6 +246,28 @@ explainer stays the default; reach for cinematic only when the brief wants a *fi
 renderer — validate errors and the render crashes.** Before authoring, READ the card you cite:
 `references/shots/` (start with its `README.md` manifest).
 
+**REMOTION'S REAL EDGE — reach for what HTML CANNOT do, or you have wasted the tier (real feedback).** A
+cinematic film that could have been an HTML/CSS video has UNDER-USED Remotion — "the same flat design, but in
+React" gains nothing and is the wrong reason to be on this tier. The payoff is the three things HTML
+structurally cannot make: (a) **genuine WebGL 3D you author BESPOKE** (R3F meshes + real lighting/occlusion +
+`@react-three/postprocessing` Bloom/DoF; the render auto-adds `--gl=angle`) — e.g. a real 3D field of
+precessing spins the camera orbits; (b) **audio-reactive** visuals driven by the ACTUAL narration
+(`@remotion/media-utils` `getAudioData`/`visualizeAudio` — a signal/waveform that IS the voice); (c)
+**path/shape MORPHING**, one form dissolving into another (`@remotion/paths` `interpolatePath`/`evolvePath`).
+Reach for these on the 2–4 **HERO** beats; keep clean designed 2D for the calm beats (the eye needs rest). If
+NO beat needs 3D / audio-reactivity / morph, it is an HTML-tier deck — omit `meta.renderer:"remotion"` rather
+than shipping HTML-in-React.
+**The stock native forms are a FLOOR, not the look.** `particles`/`surface`/`bars`/`glyphrain`/`device`/`hud`
+filled with data read as a generic "tech-demo", and a film built ONLY from them looks templated — every beat
+the same glowing cloud/panel (the exact thing the user rejected: "每个介绍都是一个template … 毫无设计感"). DESIGN a
+bespoke component or composition per hero beat (the content BECOMES the set), and **cut decoration that means
+nothing** — a `hud` reticle that isn't tracking anything, cubes that don't stand for anything, are furniture:
+delete them. Achieving a genuinely-native look often means authoring custom React/R3F beyond the stock
+`build_props` forms — that is the intended work of this tier, not a detour.
+**Gates are a floor, never a verdict.** A cinematic cut can pass `validate` + `check_av` + `shot_qa` and still
+be ugly (it did). RENDER frames and LOOK before you believe it — and give the user real rendered frames to
+judge, never a description.
+
 **STEP 0a — the ATMOSPHERE CONTEST (the WORLD the film renders in — RECOMMENDED, do it early).** An
 ATMOSPHERE is opt-in (a cinematic film with no `meta.atmosphere` still renders in the default look) but it is
 the session's strongest lever for a distinct world, so reach for it on any real film. It is a
@@ -274,7 +296,19 @@ pick it up automatically.
 
 **STEP 0 — the CINEMATIC TEMPLATE CONTEST (do this FIRST, before any beat).** A cinematic film is BUILT ON a
 whole-film TEMPLATE — a fixed look (substrate + silhouette + motion grammar + beat-semantics) that generalises
-to any topic by re-deriving ONE accent. **READ `references/cinematic-templates.md`.** Then:
+to any topic by re-deriving ONE accent. **READ `references/cinematic-templates.md`.**
+
+**Offer RENDERED, genuinely-DIVERGENT representations — not paper pitches, not re-skins (real feedback: the
+user asked to SEE three different videos and pick, and rejected "different decorations, same representation").**
+Two hard requirements: (1) candidates must differ in visual THINKING — e.g. precise vector-diagram vs tactile
+physical objects vs real-documentary imagery vs kinetic-type — NOT one layout recoloured; "three skins of one
+idea" (same composition, three palettes/fonts) is the exact failure the register-contest `contest_diversity`
+check catches, and it applies here. (2) the user picks from PIXELS: render ONE representative frame (or a ~3s
+clip) per candidate of its HERO beat — a minimal Remotion scene rendered with `remotion still/render` (add
+`--gl` if 3D), or an HTML mock via `scripts/snapshot.py` — then run `scripts/contest_diversity.py` on the
+frames (a flagged pair ⇒ rediverge or record a named justification), montage them, and let the USER choose;
+their pick is FINAL. A PAPER contest (pitches only) is the fallback ONLY when nothing can be rendered — say so.
+Then:
 1. **Route** the topic → score the top **2–4 templates** from the catalogue's routing table (a topic often
    fits several — that's the contest). Do NOT invent an ad-hoc concept; the templates ARE the bold, novel,
    coherent looks, and they read premium *because* they are a disciplined grammar, not a one-off.
