@@ -264,9 +264,13 @@ bespoke component or composition per hero beat (the content BECOMES the set), an
 nothing** — a `hud` reticle that isn't tracking anything, cubes that don't stand for anything, are furniture:
 delete them. Achieving a genuinely-native look often means authoring custom React/R3F BEYOND the stock
 `build_props` forms — that is the intended work of this tier, not a detour (READ `references/cinematic-
-components.md` for adopting a package/component + the frame-driven safety rules; today only SOME native 3D is
-expressible through the storyboard→`build_props` schema, so a truly bespoke hero beat may need a custom
-Remotion composition — build it, don't fake it flat).
+components.md` for adopting a package/component + the frame-driven safety rules). When a hero beat needs 3D no
+fixed `planes` kind expresses, DON'T fork a separate composition (that loses captions/audio/transitions/gates):
+author a **bespoke `component`** — a custom React/R3F file at `out_dir/bespoke/<Name>.tsx`, named by
+`scene.component` (+ `componentProps`) — which stages into the bundle and flows through the NORMAL render with
+full parity (the Scene wrapper guarantees captions/audio/edge-fade; you return only the visual body). **READ
+`references/bespoke-components.md`** for the props contract + a worked R3F example before authoring one. Build
+it, don't fake it flat.
 **Bold in the IDEA, disciplined in the MOVE — the native power must FIT THIS content (与内容相贴合).** Reach
 for a capability because the CONTENT demands it, never because it looks impressive: 3D because the idea IS
 spatial (a field, real depth, an orbit that reveals structure the flat view hides), audio-reactive because

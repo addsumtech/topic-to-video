@@ -705,6 +705,32 @@ def _shot_stage_fields(stage, shots, tag, errors, warnings):
                         f"bold climax near ~80%% -> resolve), don't push uniformly (or drop `energy` to auto-derive)")
 
 
+def _camera_lurch(track, axes, tag, gname, warnings):
+    """Amplitude + in-and-out (oscillation) lint across a camera track's keyframes — the '忽远忽近' lurch the
+    per-keyframe band checks MISS (a zoom 1.0->1.55->1.0 passes every band but swings out and back). Advisory,
+    like shot_qa: ONE motivated push/tilt/orbit is fine; a BIG swing OR a move that RETURNS is what this flags.
+    `axes` = list of (key, amp_warn, osc_warn, relative); relative -> thresholds are a fraction of the mean |v|."""
+    kfs = [k for k in (track or []) if isinstance(k, dict)]
+    if len(kfs) < 2:
+        return
+    for key, amp_thr, osc_thr, rel in axes:
+        vals = [float(k[key]) for k in kfs if isinstance(k.get(key), (int, float))]
+        if len(vals) < 2:
+            continue
+        amp = max(vals) - min(vals)
+        backtrack = sum(abs(b - a) for a, b in zip(vals, vals[1:])) - abs(vals[-1] - vals[0])  # went out and returned
+        base = max(1e-6, sum(abs(v) for v in vals) / len(vals)) if rel else 1.0
+        amp_n, bt_n = (amp / base, backtrack / base) if rel else (amp, backtrack)
+        if bt_n > osc_thr:
+            warnings.append(f"{tag}: {gname} `{key}` moves in-and-out within one scene (out to {max(vals):g} and "
+                            f"back, backtrack {backtrack:g}) — the '忽远忽近' lurch. A camera gesture should be SINGLE "
+                            f"and motivated, not a swing that returns; HOLD or make it monotonic (SKILL camera grammar).")
+        elif amp_n > amp_thr:
+            warnings.append(f"{tag}: {gname} `{key}` swings {min(vals):g}->{max(vals):g} (delta {amp:g}) across one "
+                            f"scene — a big camera move reads as a lurch, not a gentle push; keep one small motivated "
+                            f"move over a held, frontal frame.")
+
+
 def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
     """Validate the opt-in cinematic `camera` / `layers` on a scene (Remotion tier). NO-OP when both
     are absent, so non-cinematic decks are wholly unaffected. The camera MOVE itself is judged from the
@@ -717,6 +743,8 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
     stage = s.get("stage") or (s.get("props") or {}).get("stage")
     shots = s.get("shots") or (s.get("props") or {}).get("shots")
     planes = s.get("planes") or (s.get("props") or {}).get("planes")
+    camera3d = s.get("camera3d") or (s.get("props") or {}).get("camera3d")
+    component = s.get("component") or (s.get("props") or {}).get("component")
     # TWO RENDER TIERS, NEVER MIXED: Scene.tsx dispatches a scene to EITHER ThreeScene (its `planes`, checked
     # FIRST) OR SceneStage (`stage`+`shots`) — never both, so a scene carrying BOTH silently DROPS all its
     # stage content (the plane tier wins). The docs say the tiers are mutually exclusive; catch the mistake
@@ -800,7 +828,47 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
         if p.get("kind") == "surface" and isinstance(p.get("data"), list):
             if any(isinstance(v, float) and not math.isfinite(v) for v in p["data"] if isinstance(v, (int, float))):
                 errors.append(f"{tag}: plane {j} surface `data` has a NaN/Infinity value — it blanks the render")
-    if not cam and not lens and not layers:
+    # BESPOKE hero beat: a `component` names a custom React/R3F file staged into the Remotion bundle. validate
+    # can't judge the component's VISUAL interior (that's rendered-frame review, D12), but it CAN guard the
+    # WIRING deterministically — an unsafe name / missing file / missing export would render an empty frame.
+    if component is not None:
+        name = str(component)
+        cprops = s.get("componentProps") or s.get("component_props") or (s.get("props") or {}).get("componentProps")
+        if not re.match(r"^[A-Za-z][A-Za-z0-9_]*$", name):
+            errors.append(f"{tag}: component name {name!r} must be a bare identifier ([A-Za-z][A-Za-z0-9_]*) — "
+                          f"it becomes a filename + a TS import; rename the component + its file")
+        else:
+            src = os.path.join(out_dir, "bespoke", name + ".tsx")
+            if not os.path.isfile(src):
+                errors.append(f"{tag}: component {name!r} is set but {os.path.join('bespoke', name + '.tsx')} is "
+                              f"missing under {out_dir} — author it there (references/bespoke-components.md)")
+            else:
+                try:
+                    with open(src, encoding="utf-8") as _f:
+                        txt = _f.read()
+                except OSError:
+                    txt = ""
+                # The registry imports `_Name.<Name> ?? _Name.default`, so the file MUST expose one of those.
+                if txt and not re.search(r"export\s+(?:const|function|class)\s+" + re.escape(name) + r"\b", txt) \
+                        and not re.search(r"export\s*\{[^}]*\b" + re.escape(name) + r"\b", txt) \
+                        and "export default" not in txt:
+                    errors.append(f"{tag}: {name}.tsx exports neither a named `{name}` nor a default — the registry "
+                                  f"can't resolve it and the beat renders BLANK; add `export const {name} = ...`")
+                if txt and re.search(r"<Captions\b|staticFile\([^)]*audio|<Audio\b", txt):
+                    warnings.append(f"{tag}: {name}.tsx renders its own Captions/Audio — the Scene wrapper ALREADY "
+                                    f"adds them (double captions/audio). The component should return only its visual body")
+        if cprops is not None and not isinstance(cprops, dict):
+            errors.append(f"{tag}: `componentProps` must be an object (author params passed to {name})")
+        # A bespoke component renders the WHOLE beat and owns its OWN camera — it receives only
+        # {theme, componentProps, reducedMotion, atmosphere, durationInFrames}. So pipeline render/camera fields
+        # are DEAD here (a `camera3d` that never moves the view, `planes` that never draw); warn, don't silently drop.
+        _dead = [k for k in ("planes", "camera3d", "stage", "shots", "layers", "lens", "camera", "perspective")
+                 if s.get(k) or (s.get("props") or {}).get(k)]
+        if _dead:
+            warnings.append(f"{tag}: component {name!r} also carries {_dead} — those are IGNORED on a bespoke beat "
+                            f"(the component renders the beat and owns its camera; it gets only theme/componentProps/"
+                            f"reducedMotion/atmosphere/durationInFrames). Move that motion INTO the component or drop the fields")
+    if not cam and not lens and not layers and not camera3d and not component:
         return
     fps = int((meta or {}).get("fps", 30) or 30)
     dur = s.get("duration")
@@ -977,6 +1045,31 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
                 if abs(b - a) > 0.35:
                     warnings.append(f"{tag}: camera zoom jumps {a}->{b} (Δ{abs(b - a):.2f} > 0.35) in one "
                                     f"segment — reads as a lurch, not a filmic push")
+
+    # AMPLITUDE + OSCILLATION lint — the '忽远忽近' lurch the per-keyframe bands miss, across ALL camera tiers.
+    _camera_lurch(cam, [("zoom", 0.55, 0.28, False), ("x", 0.6, 0.35, False), ("y", 0.6, 0.35, False)], tag, "camera", warnings)
+    _camera_lurch(lens, [("zoom", 0.55, 0.28, False), ("pitch", 38, 20, False), ("yaw", 46, 26, False)], tag, "lens", warnings)
+    # camera3d (the R3F orbit/crane tier) was UNvalidated (the early return skipped it) — sanity-check it, then
+    # lurch-lint yaw/radius/height (radius/height relative to their mean, since world units vary by scene).
+    if camera3d is not None:
+        if not isinstance(camera3d, list) or not camera3d:
+            errors.append(f"{tag}: `camera3d` must be a non-empty list of orbit/crane keyframes")
+        else:
+            prev3 = None
+            for j, k in enumerate(camera3d):
+                if not isinstance(k, dict):
+                    errors.append(f"{tag}: camera3d keyframe {j} must be an object"); continue
+                at = k.get("at", k.get("atFrame"))
+                if not isinstance(at, (int, float)):
+                    warnings.append(f"{tag}: camera3d keyframe {j} needs a numeric `at` (0..1 fraction)")
+                elif prev3 is not None and float(at) < float(prev3):
+                    warnings.append(f"{tag}: camera3d keyframes should be non-decreasing in `at` (kf {j}={at} < {prev3})")
+                else:
+                    prev3 = at
+                for key in ("yaw", "radius", "height"):
+                    if _nf(k.get(key)):
+                        errors.append(f"{tag}: camera3d keyframe {j} {key} is NaN/Infinity — not a renderable value")
+            _camera_lurch(camera3d, [("yaw", 55, 28, False), ("radius", 0.55, 0.30, True), ("height", 0.6, 0.35, True)], tag, "camera3d", warnings)
 
 
 def evaluate(data, out_dir, pre_tts=False, vertical=False):
@@ -1403,7 +1496,8 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         # "blank scene" trap and to route them to the remotion renderer.
         pr = s.get("props") or {}
         return ((s.get("stage") or pr.get("stage")) and (s.get("shots") or pr.get("shots"))) \
-            or (s.get("planes") or pr.get("planes")) or (s.get("layers") or pr.get("layers"))
+            or (s.get("planes") or pr.get("planes")) or (s.get("layers") or pr.get("layers")) \
+            or (s.get("component") or pr.get("component"))   # BESPOKE beat draws its own content (no image needed)
     _design_variety_lint(slides, errors, warnings)
 
     cine = [s.get("index") for s in slides

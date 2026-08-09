@@ -85,14 +85,16 @@ def _validate_props(s):
         def _f(key):
             return s.get(key) or (p.get(key) if isinstance(p, dict) else None)
         layers, stage, shots, planes = _f("layers"), _f("stage"), _f("shots"), _f("planes")
+        component = _f("component")   # a BESPOKE component draws the whole beat itself — satisfies either type
         if t == "cinematic3d":
-            if not (isinstance(planes, list) and planes):
-                raise StoryboardError(f"slide {s.get('index')}: cinematic3d scene needs a non-empty 'planes' list")
+            if not (isinstance(planes, list) and planes) and not component:
+                raise StoryboardError(f"slide {s.get('index')}: cinematic3d scene needs a non-empty 'planes' list "
+                                      f"(or a `component` that renders the beat itself)")
             return
-        ok = (isinstance(layers, list) and layers) or (stage and shots) or (isinstance(planes, list) and planes)
+        ok = (isinstance(layers, list) and layers) or (stage and shots) or (isinstance(planes, list) and planes) or component
         if not ok:
             raise StoryboardError(f"slide {s.get('index')}: cinematic scene needs `stage`+`shots`, or `planes`, "
-                                  f"or a non-empty `layers` list")
+                                  f"or a non-empty `layers` list, or a `component`")
         return
     if not isinstance(p, dict):
         raise StoryboardError(f"slide {s.get('index')}: type '{t}' needs a props dict")

@@ -257,7 +257,15 @@ TTS if the user gives an API key.
   `particles/surface/bars/hud` forms are a FLOOR not the look (a film built only from them reads templated),
   and a passing `validate`/`check_av`/`shot_qa` is NOT a verdict — render frames and LOOK, and give the user
   genuinely-DIFFERENT rendered representations to pick (not re-skins). The `design-director` "REMOTION'S REAL
-  EDGE" + rendered-contest sections are the procedure.** **Path A** (author an HTML slide at `pages/<name>.html`, point a
+  EDGE" + rendered-contest sections are the procedure.**
+  **BESPOKE-COMPONENT ESCAPE HATCH — when a hero beat needs WebGL/R3F no fixed `planes` kind expresses, author a
+  `component` instead of forking the composition: a custom React/R3F file at `out_dir/bespoke/<Name>.tsx`, named by
+  `scene.component` (+ author params in `scene.componentProps`). It STAGES into the bundle at render (`_stage_bespoke`)
+  and flows through the NORMAL `render_remotion` pipeline — the Scene wrapper GUARANTEES captions/audio/edge-fade
+  around it (the component returns only its visual body), so a bespoke beat keeps full parity (srt, transitions, gates).
+  `validate` deterministically gates the WIRING (safe name, file exists, exports `<Name>`-or-default, no self-rendered
+  captions); the LOOK is judged from rendered frames like any hero beat. Before authoring one, READ
+  `references/bespoke-components.md` for the props contract + a worked example.** **Path A** (author an HTML slide at `pages/<name>.html`, point a
   `kind:"card"`/plane `html:` at it, screenshot it onto a plane the camera flies past) is **DEPRECATED as the
   default** — it is "build a 2D slide then simulate 3D", the exact thing this tier avoids; `validate` WARNS on
   every Path-A card. The two tiers are two STYLES: designed 2D slides → the **HTML/local tier** (omit

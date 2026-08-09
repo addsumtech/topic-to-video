@@ -9,6 +9,12 @@ import {ThreeScene, type Plane3D, type Camera3DKey} from './three/ThreeScene';
 import {BridgeOverlay, type BridgeData} from './BridgeOverlay';
 import type {MatchSpec} from './transitions/sharedElement';
 import {Finish} from './theme/Finish';
+// BESPOKE hero-beat registry — AUTO-GENERATED per render by render_remotion._stage_bespoke (name -> component).
+// A `scene.component` routes HERE, so a hero beat no fixed `planes` kind can express still flows through the
+// pipeline. The staged component returns only its VISUAL body; captions/audio/edge-fade are added by the
+// wrapper below so they can't be dropped. Props passed: {theme, componentProps, reducedMotion, atmosphere,
+// durationInFrames}; the component uses Remotion hooks (useCurrentFrame/useVideoConfig) for its own timing.
+import {BESPOKE} from './bespoke/registry';
 
 export type CalloutData = {
   box: number[];           // [x0, y0, x1, y1] normalized 0..1
@@ -52,6 +58,9 @@ export type SceneData = {
   // TRUE-3D tier (P6): WebGL planes + an orbit/crane camera (renders via ThreeScene / @remotion/three).
   planes?: Plane3D[] | null;
   camera3d?: Camera3DKey[] | null;
+  // BESPOKE tier: a custom per-project React/R3F component (staged into ./bespoke/ + registered by name).
+  component?: string | null;
+  componentProps?: Record<string, unknown> | null;
   filmLook?: boolean; // the true-3D film-look post stack (default on)
   reveal3d?: boolean; // opt-in dark->lit reveal for a 3D hero opener
   bridge?: BridgeData; // DIEGETIC bridge: an in-world advance gesture on THIS scene's tail (type-Enter, …)
@@ -72,8 +81,42 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
   // camera rig, under nothing) so an in-world advance gesture (type-Enter, …) can play on ANY scene type's
   // tail without touching the renderers themselves.
   const renderBody = (): React.ReactNode => {
-  // CINEMATIC DISPATCH. Shot-based (P2+): `stage` + `shot` → SceneStage; legacy: `lens` → 3D
-  // perspective (real depth + camera angles); `layers` → flat parallax; else unchanged image/Ken-Burns.
+  // CINEMATIC DISPATCH. BESPOKE (highest priority): a named custom component; else shot-based (P2+):
+  // `stage` + `shot` → SceneStage; legacy: `lens` → 3D perspective; `layers` → flat parallax; else image/KB.
+  if (scene.component) {
+    const C = BESPOKE[scene.component];
+    if (!C) {
+      // A named component with no registry entry would render an EMPTY frame — fail loud instead. This fires if
+      // render_remotion didn't stage out_dir/bespoke/<name>.tsx, or the file exports neither `<name>` nor default.
+      throw new Error(
+        `bespoke component "${scene.component}" is not in the registry — expected out_dir/bespoke/${scene.component}.tsx ` +
+          `with an export named "${scene.component}" or a default export (see references/bespoke-components.md).`,
+      );
+    }
+    // The wrapper GUARANTEES edge-fade + finishing pass + captions + audio around the component's visual body,
+    // so a bespoke beat keeps full pipeline parity no matter what the author's component draws.
+    const fi = Math.min(scene.fadeInFrames || 0, dur);
+    const fo = Math.min(scene.fadeOutFrames || 0, dur);
+    const fadeIn = fi > 0 ? interpolate(frame, [0, fi], [0, 1], CLAMP) : 1;
+    const fadeOut = fo > 0 ? interpolate(frame, [dur - fo, dur], [1, 0], CLAMP) : 1;
+    const opacity = Math.min(fadeIn, fadeOut);
+    return (
+      <AbsoluteFill style={{backgroundColor: theme.bg, overflow: 'hidden', opacity}}>
+        <C
+          theme={theme}
+          componentProps={scene.componentProps || {}}
+          reducedMotion={scene.reducedMotion}
+          atmosphere={scene.atmosphere}
+          durationInFrames={dur}
+        />
+        <Finish frame={frame} theme={theme} energy={scene.gradeHeat ?? undefined} dur={dur} post={scene.atmosphere?.post} />
+        {scene.captions && scene.captions.length ? (
+          <Captions segments={scene.captions} fontPx={captionFontPx} />
+        ) : null}
+        {scene.audio ? <Audio src={staticFile(scene.audio)} /> : null}
+      </AbsoluteFill>
+    );
+  }
   if (Array.isArray(scene.planes) && scene.planes.length) {
     return (
       <ThreeScene
