@@ -13,7 +13,8 @@ import {Finish} from './theme/Finish';
 // A `scene.component` routes HERE, so a hero beat no fixed `planes` kind can express still flows through the
 // pipeline. The staged component returns only its VISUAL body; captions/audio/edge-fade are added by the
 // wrapper below so they can't be dropped. Props passed: {theme, componentProps, reducedMotion, atmosphere,
-// durationInFrames}; the component uses Remotion hooks (useCurrentFrame/useVideoConfig) for its own timing.
+// durationInFrames, audioSrc}; the component uses Remotion hooks (useCurrentFrame/useVideoConfig) for its own
+// timing, and audioSrc (the narration path) feeds @remotion/media-utils for an AUDIO-REACTIVE beat.
 import {BESPOKE} from './bespoke/registry';
 
 export type CalloutData = {
@@ -108,6 +109,7 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
           reducedMotion={scene.reducedMotion}
           atmosphere={scene.atmosphere}
           durationInFrames={dur}
+          audioSrc={scene.audio ?? null}
         />
         <Finish frame={frame} theme={theme} energy={scene.gradeHeat ?? undefined} dur={dur} post={scene.atmosphere?.post} />
         {scene.captions && scene.captions.length ? (

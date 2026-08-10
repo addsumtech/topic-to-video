@@ -3,11 +3,24 @@ out_dir/bespoke/<Name>.tsx, named by scene.component, staged into the bundle + r
 through the NORMAL render_remotion pipeline. These cover the DETERMINISTIC wiring — build_props emit,
 _stage_bespoke staging + registry generation, and validate's name/file/export/dead-field/double-caption
 gates. The component's visual interior is judged from rendered frames (design-critic D12), not here."""
+import json
 import os
 import pytest
 import render_remotion as rr
 import validate
 import storyboard as sb
+
+
+def test_html_impossible_powers_are_declared_deps():
+    """The design-director + SKILL.md + bespoke-components.md advertise audio-reactive
+    (@remotion/media-utils) and path-morph (@remotion/paths) as first-class powers. They must be DECLARED
+    deps, not merely transitively present — else a clean install elsewhere breaks any bespoke beat that
+    imports them. This is the deterministic backstop for that promise-vs-reality gap."""
+    pkg = json.load(open(os.path.join(os.path.dirname(rr._REMOTION_DIR), "remotion", "package.json")))
+    deps = pkg.get("dependencies", {})
+    for name in ("@remotion/media-utils", "@remotion/paths"):
+        assert name in deps, f"{name} advertised as a Remotion power but not a declared dependency"
+        assert deps[name] == deps["@remotion/three"], f"{name} should pin the same Remotion version as the rest"
 
 _GOOD = "export const {name} = () => null;\n"                       # a minimal valid component (named export)
 

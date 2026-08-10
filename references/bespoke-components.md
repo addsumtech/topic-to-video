@@ -56,6 +56,7 @@ because they'd silently do nothing. Any orbit/animation you want goes in `compon
 | `reducedMotion` | `boolean` | when true, hold a legible static composition (no spin/drift) — accessibility parity. |
 | `atmosphere` | `{materialClass, post, …} \| null` | the world substrate, if a `meta.atmosphere` is set. Optional to honour. |
 | `durationInFrames` | `number` | the scene length, for normalising your own timing. |
+| `audioSrc` | `string \| null` | the scene's narration path (relative to the public dir). Feed it to `@remotion/media-utils` for an **audio-reactive** beat: `useAudioData(staticFile(audioSrc))`. |
 
 For the current frame / fps / canvas, call Remotion hooks **inside** the component:
 `useCurrentFrame()`, `useVideoConfig()` (`{width, height, fps, durationInFrames}`),
@@ -128,6 +129,72 @@ export const SpinField: React.FC<{
 
 A **2D bespoke beat** is just as valid — return DOM/SVG/CSS (springy glossy spheres, an animated
 SVG `path`), no `ThreeCanvas` needed. Reach for R3F only when the beat is genuinely 3D.
+
+## Worked example — an AUDIO-REACTIVE beat (a waveform that IS the narration)
+
+The `audioSrc` prop is the scene's narration. `@remotion/media-utils` (a declared dep) reads its
+samples so the visual is driven by the ACTUAL voice — the HTML-impossible power (a) audio access,
+(b) frame-exact sync. `useAudioData` suspends the render until the audio is decoded.
+
+```tsx
+import React from 'react';
+import {AbsoluteFill, useCurrentFrame, useVideoConfig, staticFile} from 'remotion';
+import {useAudioData, visualizeAudio} from '@remotion/media-utils';
+
+export const VoiceBars: React.FC<{
+  theme: {bg: string; accent: string};
+  componentProps: {bars?: number};
+  reducedMotion?: boolean;
+  audioSrc: string | null;
+}> = ({theme, componentProps, reducedMotion, audioSrc}) => {
+  const frame = useCurrentFrame();
+  const {fps, width, height} = useVideoConfig();
+  const n = componentProps.bars ?? 32;
+  const data = useAudioData(audioSrc ? staticFile(audioSrc) : '');  // suspends until decoded
+  // visualizeAudio → per-frame frequency amplitudes; reduced-motion holds a flat baseline.
+  const amps = !data || reducedMotion ? new Array(n).fill(0.05)
+    : visualizeAudio({frame, fps, audioData: data, numberOfSamples: n});
+  return (
+    <AbsoluteFill style={{background: theme.bg, alignItems: 'center', justifyContent: 'center', gap: 6, flexDirection: 'row'}}>
+      {amps.map((a, i) => (
+        <div key={i} style={{width: (width / n) * 0.5, height: Math.max(4, a * height * 0.8),
+          background: theme.accent, borderRadius: 4}} />
+      ))}
+    </AbsoluteFill>
+  );
+};
+```
+
+`numberOfSamples` must be a power of two. If `audioSrc` is null (shouldn't happen — every rendered
+scene has narration), fall back to a static baseline as above so the beat never crashes.
+
+## Worked example — a PATH-MORPH beat (one shape becomes another)
+
+`@remotion/paths` (a declared dep) interpolates between two SVG path strings — the
+HTML-impossible power (c): a form that literally BECOMES another, in sync with the narration.
+Both paths must have the **same command structure** (same number/type of segments) for a clean
+morph; author them as such, or run them through a normaliser.
+
+```tsx
+import React from 'react';
+import {AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, Easing} from 'remotion';
+import {interpolatePath} from '@remotion/paths';
+
+const CIRCLE = 'M 50 10 C 72 10 90 28 90 50 C 90 72 72 90 50 90 C 28 90 10 72 10 50 C 10 28 28 10 50 10 Z';
+const SQUARE = 'M 50 10 C 50 10 90 10 90 10 C 90 10 90 50 90 50 C 90 50 90 90 90 90 C 10 90 10 90 10 50 Z';
+
+export const Morph: React.FC<{theme: {bg: string; accent: string}; reducedMotion?: boolean}> = ({theme, reducedMotion}) => {
+  const frame = useCurrentFrame();
+  const {durationInFrames} = useVideoConfig();
+  const t = reducedMotion ? 1 : interpolate(frame, [0, durationInFrames], [0, 1], {easing: Easing.inOut(Easing.cubic), extrapolateRight: 'clamp'});
+  const d = interpolatePath(t, CIRCLE, SQUARE);
+  return (
+    <AbsoluteFill style={{background: theme.bg, alignItems: 'center', justifyContent: 'center'}}>
+      <svg viewBox="0 0 100 100" width="46%"><path d={d} fill="none" stroke={theme.accent} strokeWidth={2} /></svg>
+    </AbsoluteFill>
+  );
+};
+```
 
 ## What the pipeline does for you (and what it checks)
 
