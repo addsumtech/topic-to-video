@@ -122,7 +122,7 @@ export const SceneStage: React.FC<SceneStageProps> = ({
         </AbsoluteFill>
       ) : null}
       <AbsoluteFill style={{pointerEvents: 'none', backgroundColor: theme.bg, opacity: fade}} />
-      {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} /> : null}
+      {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} theme={theme} /> : null}
       {audio ? <Audio src={staticFile(audio)} /> : null}
     </AbsoluteFill>
   );

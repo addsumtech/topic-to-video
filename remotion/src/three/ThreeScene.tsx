@@ -753,7 +753,7 @@ export const ThreeScene: React.FC<{
       {/* 2D overlays on top of the canvas — grade/grain/vignette, edge fade, captions, audio */}
       <Finish frame={frame} theme={theme} energy={gradeHeat ?? undefined} dur={dur} post={atmosphere?.post} />
       <AbsoluteFill style={{pointerEvents: 'none', backgroundColor: theme.bg, opacity: fadeOpacity}} />
-      {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} /> : null}
+      {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} theme={theme} /> : null}
       {audio ? <Audio src={staticFile(audio)} /> : null}
     </AbsoluteFill>
   );

@@ -158,7 +158,9 @@ TTS if the user gives an API key.
   stays in sync; the standalone `.srt` is overlap-aware),
   `reduced_motion` (transitions collapse to fade), canvas-derived caption size — reusing `render._captions_for`/`_canvas`/`_write_srt`/
   `_callout_time` so the **srt is byte-parity** (burned captions DIVERGE on this tier: no karaoke
-  highlight, a fixed Helvetica-family face rather than the deck face — cinematic-story scope). It does NOT reproduce the HTML slide archetypes
+  highlight, a fixed Helvetica-family face rather than the deck face — cinematic-story scope; but the
+  LOOK now MATCHES the local `overlay` — NO background bar, the caption sits flush at the bottom in a
+  theme-contrast ink with an opposite-luminance outline, adapting to light/dark, `Captions.tsx`). It does NOT reproduce the HTML slide archetypes
   (kicker/cards/charts): a deck with **html/chart/timeline/keypoints/compare** scenes **fails loud**
   (both `render_remotion` and `validate.py` ERROR, listing the offending indices) rather than silently
   rendering blank — use the local renderer for a designed/html deck, or give those scenes an `image`.

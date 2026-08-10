@@ -113,7 +113,7 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
         />
         <Finish frame={frame} theme={theme} energy={scene.gradeHeat ?? undefined} dur={dur} post={scene.atmosphere?.post} />
         {scene.captions && scene.captions.length ? (
-          <Captions segments={scene.captions} fontPx={captionFontPx} />
+          <Captions segments={scene.captions} fontPx={captionFontPx} theme={theme} />
         ) : null}
         {scene.audio ? <Audio src={staticFile(scene.audio)} /> : null}
       </AbsoluteFill>
@@ -292,7 +292,7 @@ export const Scene: React.FC<{scene: SceneData; theme: Theme; captionFontPx: num
       <Finish frame={frame} theme={theme} energy={scene.gradeHeat ?? undefined} dur={dur} post={scene.atmosphere?.post} />
 
       {scene.captions && scene.captions.length ? (
-        <Captions segments={scene.captions} fontPx={captionFontPx} />
+        <Captions segments={scene.captions} fontPx={captionFontPx} theme={theme} />
       ) : null}
 
       {scene.audio ? <Audio src={staticFile(scene.audio)} /> : null}

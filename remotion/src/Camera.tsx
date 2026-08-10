@@ -240,7 +240,7 @@ export const CinematicScene: React.FC<{
         <PlaneViewFlat key={i} layer={layer} cam={cam} theme={theme} frame={frame} reduced={reduced} />
       ))}
       <Finish frame={frame} theme={theme} energy={gradeHeat ?? undefined} dur={dur} post={atmosphere?.post} />
-      {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} /> : null}
+      {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} theme={theme} /> : null}
       {audio ? <Audio src={staticFile(audio)} /> : null}
     </AbsoluteFill>
   );
@@ -323,7 +323,7 @@ export const CinematicScene3D: React.FC<{
       {/* OUTER overlays (2D, on top) — vignette, grade+grain finish, then the scene-edge fade. */}
       <Finish frame={frame} theme={theme} energy={gradeHeat ?? undefined} dur={dur} post={atmosphere?.post} />
       <AbsoluteFill style={{pointerEvents: 'none', backgroundColor: theme.bg, opacity: fade}} />
-      {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} /> : null}
+      {captions && captions.length ? <Captions segments={captions} fontPx={captionFontPx} theme={theme} /> : null}
       {audio ? <Audio src={staticFile(audio)} /> : null}
     </AbsoluteFill>
   );
