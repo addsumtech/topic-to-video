@@ -28,6 +28,13 @@ the scene's ground (light OR dark). A blank/half-drawn/garbled frame is a REVISE
 **S5 · COPY register.** `shot_props` text is SHORT (a title/label, not the whole narration — that's the VO +
 caption) and in the deck's language (English or 中文, matching `meta.language`).
 **S6 · A/V.** `check_av` must pass (video/audio durations in sync, no truncation). A FAIL blocks delivery.
+**S7 · DIRECTION adherence (whole-film).** If `meta.shot_template` is set (the user's chosen direction from the
+contest), the film should visibly LEAN toward that direction's families (scripts/shot_templates.py: e.g. data-story
+→ D/F/H, terminal-technical → A/C/D, retro-playful → C/G/I) — its hero register or an equivalent should carry the
+opener/climax, and the majority of beats should sit in-direction. A film tagged `data-story` that shows no chart/
+graph/orrery anywhere, or one whose register mix ignores the chosen direction entirely, is a REVISE (this is a
+soft/whole-film judgment — S2 family variety still wins over it; the direction is a lean, not a straitjacket). If
+no `meta.shot_template` is set, S7 is N/A.
 
 ## Output
 For each flagged scene: `scene #N · Sx · <what's wrong on screen> · FIX: <the concrete change — a different

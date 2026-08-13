@@ -1072,11 +1072,56 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
             _camera_lurch(camera3d, [("yaw", 55, 28, False), ("radius", 0.55, 0.30, True), ("height", 0.6, 0.35, True)], tag, "camera3d", warnings)
 
 
-def _check_remotion(slides, errors, warnings):
-    """Guardrails for the remotion bespoke-shot tier: every scene needs a valid `shot` id + object
-    `shot_props`; a NUMBER-bearing register left on its illustrative demo default is flagged (a real film must
-    pass a SOURCED figure); adjacent same-FAMILY scenes are flagged (vary the design language). Ids auto-derived
-    from remotion/src/shots so this never drifts from the library."""
+def _check_shot_template(meta, errors, warnings):
+    """The remotion analogue of the html register-contest gate (mirrors the `template_contest` checks): if a
+    whole-film `meta.shot_template` DIRECTION is set it must be a known shot_templates key; a recorded
+    `meta.shot_template_contest` must be a real divergence (>=2 candidate keys, the winner among them and ==
+    the chosen template, and a USER pick). A template with no contest trace is warned (the user should PICK)."""
+    tmpl = meta.get("shot_template")
+    try:
+        import shot_templates as _st
+        keys = set(_st.TEMPLATES)
+    except Exception:
+        keys = None
+    if tmpl is not None:
+        if keys and tmpl not in keys:
+            errors.append("meta.shot_template %r is not a known direction — see scripts/shot_templates.py "
+                          "(product-demo/kinetic-editorial/cinematic-craft/data-story/retro-playful/"
+                          "terminal-technical)" % tmpl)
+    tc = meta.get("shot_template_contest")
+    if tc is None:
+        if tmpl is not None:
+            warnings.append("meta.shot_template is set but no `meta.shot_template_contest` is recorded — the "
+                            "user should PICK the direction from rendered contest stills (mirror the html "
+                            "register-contest); record {candidates, winner, user_pick}")
+        return
+    if not isinstance(tc, dict):
+        errors.append("meta.shot_template_contest must be an object {candidates, winner, user_pick}"); return
+    cands = tc.get("candidates")
+    if not isinstance(cands, list) or len(cands) < 2:
+        errors.append("meta.shot_template_contest needs >=2 `candidates` — a contest is a divergence")
+    elif keys:
+        bad = [c for c in cands if c not in keys]
+        if bad:
+            errors.append("meta.shot_template_contest.candidates has unknown direction(s) %s" % bad)
+    win = tc.get("winner")
+    if win is not None and isinstance(cands, list) and win not in cands:
+        errors.append("meta.shot_template_contest.winner %r is not among its candidates %s" % (win, cands))
+    if win is not None and tmpl is not None and win != tmpl:
+        errors.append("meta.shot_template_contest.winner %r != meta.shot_template %r — the winner IS the "
+                      "chosen direction" % (win, tmpl))
+    if not tc.get("user_pick"):
+        warnings.append("meta.shot_template_contest has no `user_pick:true` — record that the USER chose the "
+                        "direction (the contest exists so a human picks, not the model)")
+
+
+def _check_remotion(meta, slides, errors, warnings):
+    """Guardrails for the remotion bespoke-shot tier: a valid whole-film `shot_template` direction (+ its
+    contest trace); every scene needs a valid `shot` id + object `shot_props`; a NUMBER-bearing register left on
+    its illustrative demo default is flagged (a real film must pass a SOURCED figure); adjacent same-FAMILY
+    scenes are flagged (vary the design language). Ids auto-derived from remotion/src/shots so this never drifts
+    from the library."""
+    _check_shot_template(meta, errors, warnings)
     shots_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src", "shots")
     valid = {f[:-4] for f in os.listdir(shots_dir) if f.endswith(".tsx")} if os.path.isdir(shots_dir) else set()
     NUM = {"ChartLive": "endVal", "BeforeAfterSlider": "metric", "VelocitySnap": "metric"}
@@ -1132,7 +1177,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # REMOTION2 bespoke-shot tier — its own scene contract (shot id + props + family variety); the legacy
     # cinematic/HTML checks below don't apply to it, so guard and skip them.
     if (meta.get("renderer") or "") == "remotion":
-        _check_remotion(slides, errors, warnings)
+        _check_remotion(meta, slides, errors, warnings)
         return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides)}
     # visual_style is the declared single source of truth — a typo/hallucinated key degrades silently to the
     # default look, so cross-check it against the catalog (theme.STYLE_PRESETS) independent of the plan file.

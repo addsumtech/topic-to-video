@@ -47,8 +47,13 @@ CLOSE = ["LiquidChrome", "HoloFoil", "CinematicTitle", "SwissEditorial"]
 FALLBACK = ["ChatThread", "AuroraFlow", "MaterialHero", "SplitFlap", "ClayStack", "AnalogTape"]
 
 
-def _pick(cands, last_family, used):
-    """First candidate whose family differs from the previous beat's; prefer unused registers."""
+def _pick(cands, last_family, used, prefer=None):
+    """First candidate whose family differs from the previous beat's; prefer unused registers. When `prefer`
+    (the chosen template's family letters) is given, BIAS toward those families first — the template EMPHASIZES
+    families without ever forcing two adjacent beats into the same one (variety still wins)."""
+    if prefer:
+        order = {c: i for i, c in enumerate(cands)}
+        cands = sorted(cands, key=lambda c: (FAMILY.get(c) not in prefer, order[c]))
     fresh = [c for c in cands if FAMILY.get(c) != last_family and c not in used]
     if fresh:
         return fresh[0]
@@ -56,10 +61,25 @@ def _pick(cands, last_family, used):
     return diff[0] if diff else cands[0]
 
 
-def assign_shots(data, content_plan=None):
-    """Fill each scene's `shot` + `shot_props` (={}). Returns the modified data. VARIES family across beats."""
+def _template_families(template):
+    if not template:
+        return None
+    try:
+        import shot_templates
+        return shot_templates.TEMPLATES.get(template, {}).get("families")
+    except Exception:
+        return None
+
+
+def assign_shots(data, content_plan=None, template=None):
+    """Fill each scene's `shot` + `shot_props` (={}). VARIES family across beats; when `template` (a
+    shot_templates key) is given, biases the register selection toward that template's families and records
+    it as meta.shot_template."""
+    prefer = _template_families(template)
     beats = {b.get("id"): b for b in (content_plan or {}).get("beats", [])}
     data.setdefault("meta", {})["renderer"] = "remotion"
+    if template:
+        data["meta"]["shot_template"] = template
     last_family, used = None, set()
     for s in data.get("slides", []):
         beat = beats.get(s.get("index"), {})
@@ -70,7 +90,7 @@ def assign_shots(data, content_plan=None):
             cands = CLOSE
         else:
             cands = CANDIDATES.get(intent, FALLBACK)
-        shot = _pick(cands, last_family, used)
+        shot = _pick(cands, last_family, used, prefer)
         s["shot"], s["shot_props"] = shot, s.get("shot_props") or {}
         used.add(shot)
         last_family = FAMILY.get(shot)
@@ -80,12 +100,15 @@ def assign_shots(data, content_plan=None):
 def main():
     ap = argparse.ArgumentParser(description="Assign remotion shots to storyboard scenes (deterministic fallback).")
     ap.add_argument("out_dir")
+    ap.add_argument("--template", default=None,
+                    help="a shot_templates key (product-demo/kinetic-editorial/cinematic-craft/data-story/"
+                         "retro-playful/terminal-technical) to bias family selection toward that direction")
     a = ap.parse_args()
     sb_path = os.path.join(a.out_dir, "storyboard.json")
     cp_path = os.path.join(a.out_dir, "content_plan.json")
     data = json.load(open(sb_path, encoding="utf-8"))
     cp = json.load(open(cp_path, encoding="utf-8")) if os.path.isfile(cp_path) else None
-    assign_shots(data, cp)
+    assign_shots(data, cp, template=a.template)
     json.dump(data, open(sb_path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     seq = [(s.get("index"), s.get("shot"), FAMILY.get(s.get("shot"))) for s in data.get("slides", [])]
     print("[shot_director] assigned %d scenes (family-varied):" % len(seq))

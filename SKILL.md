@@ -637,10 +637,23 @@ figure), a non-singular `the_one_thing`, or a
      `signature_concept`/`style_thesis`/`design_register` (and an invalid `meta.audacity`), and the
      **design-critic** (D1 fit, D2c creativity floor, **D2e whole-video register + motion personality**)
      judges them. **CINEMATIC decks (`meta.renderer:"remotion"`, alias `"remotion"` — the bespoke-shot film
-     tier):** the design step is NOT this file — dispatch **`agents/shot-director.md`** instead (it assigns
-     each beat a `shot` register from `remotion/LIBRARY.md` + faithful `shot_props`, VARYING the family; run
-     `python scripts/shot_director.py <out_dir>` first for a deterministic family-varied skeleton, then the
-     agent fills the topic copy). SKIP the HTML design plan for these decks (no `design_plan.json`). After the
+     tier):** the design step is NOT this file — dispatch **`agents/shot-director.md`** instead. It runs in
+     TWO parts. **① The shot-template CONTEST (the remotion analogue of 3.55 — the user picks a DIRECTION):**
+     a *direction* is a whole-film lean toward certain register FAMILIES (each beat is still its own design
+     language; the direction only EMPHASIZES families + sets the feel). `python scripts/shot_templates.py
+     --route "<topic>"` returns 3 fitting directions (product-demo/kinetic-editorial/cinematic-craft/
+     data-story/retro-playful/terminal-technical); render ONE representative still per direction so the user
+     compares REAL topic-bearing frames — pass `--out <out_dir>` and the CLI prints the exact copy-pasteable
+     `npx remotion still … --frame=110 --props='…'` command per direction (**`--frame=110` is REQUIRED — the
+     default frame 0 is un-started: a blank command palette, a half-formed wordmark; frame 110 is the settled
+     zone**), then montage the three; surface them to the USER via `AskUserQuestion` (option prompt); record
+     the pick as `meta.shot_template` +
+     `meta.shot_template_contest {candidates:[the 3 keys], winner:<pick>, user_pick:true}` (`validate.py` errors
+     on an unknown direction or malformed contest, warns if a template is set with no contest trace). **② The
+     per-beat assignment:** run `python scripts/shot_director.py <out_dir> --template <pick>` first for a
+     deterministic family-varied skeleton BIASED toward the chosen direction, then the shot-director agent fills
+     each beat's `shot` register (from `remotion/LIBRARY.md`) + faithful `shot_props` (topic copy), keeping the
+     family-variety pass. SKIP the HTML design plan for these decks (no `design_plan.json`). After the
      render, the review gate is **`agents/shot-critic.md`** (the design-critic analogue), judging register fit
      + family variety + faithful copy + decodability from the per-scene filmstrip `_keyframes/scene_NN.png`
      that `render_remotion.py` writes + the `check_av` report; it REVISEs failing beats (the shot-director

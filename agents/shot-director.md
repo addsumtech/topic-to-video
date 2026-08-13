@@ -16,10 +16,34 @@ each scene in `storyboard.json`. You do NOT change facts, narration, or beat ord
    type & title · D Data/technical · E 3D · F Fluid/generative · G Illustrated/craft styles · H Comparison ·
    I Mechanical/physical), each with a one-line **"use when"** and its **props** (the Generalization table).
 
+## Step 0 — the shot-template CONTEST (the user picks a DIRECTION)
+This is the remotion analogue of the html register-contest (SKILL.md 3.55). Before assigning per-beat shots,
+offer the user a **whole-film direction** to choose from — a *direction* is a coherent lean toward certain
+register FAMILIES (each beat is still its own design language; the template only EMPHASIZES families + sets the
+overall feel). The catalogue is `scripts/shot_templates.py` (product-demo · kinetic-editorial · cinematic-craft ·
+data-story · retro-playful · terminal-technical).
+1. **Route** the topic → 3 fitting candidates: `python scripts/shot_templates.py --route "<topic>" --out <out_dir>`.
+   Each candidate has a `pitch`, a HERO register, and a printed **copy-pasteable still command**.
+2. **Render one representative still per candidate** so the user compares REAL topic-bearing frames (never abstract
+   defaults): run the printed command for each — `cd remotion && npx remotion still src/index.ts <hero_id>
+   <out>/_contest_<k>.png --frame=110 --props='<json>'` — then montage the three. **`--frame=110` is REQUIRED:**
+   `remotion still` defaults to frame 0, where an animated shot is UN-STARTED (a blank command palette, a
+   half-formed wordmark); every hero is ≥150f so frame 110 (`shot_templates.CONTEST_FRAME`) is the settled zone.
+   The still carries the topic (the wordmark / label / filename IS the topic), so the frames differ by look, not
+   by placeholder.
+3. **User picks** one via AskUserQuestion (option prompt, never free-text). Record `meta.shot_template` = the pick
+   and `meta.shot_template_contest = {candidates:[the 3 keys], winner:<pick>, user_pick:true}` on the storyboard —
+   `validate.py` errors on an unknown direction or a malformed contest, and warns if a template is set with no
+   contest trace.
+4. **Apply it.** The chosen direction BIASES per-beat register selection toward its families (still never two
+   adjacent same-family): `python scripts/shot_director.py <out> --template <pick>` runs the deterministic
+   assigner with the bias, or apply the same lean by hand as you author `shot`s below.
+
 ## The mandate
 For each beat ask *"what is the clearest hand-written LANGUAGE for THIS idea?"* — match the beat's intent to a
 register's "use when", never "which card layout". Then fill that register's props from the beat's own content so
-it speaks the topic, not WorkBuddy.
+it speaks the topic, not WorkBuddy. **Lean toward the chosen `meta.shot_template`'s families** (Step 0) while
+keeping the family-variety rule — the direction colours the film without making it monotone.
 
 ## Rules (all four bind)
 1. **Match intent → register.** `statement`→a title/kinetic register (CinematicTitle, FocalIsolation,
