@@ -12,9 +12,12 @@ each scene in `storyboard.json`. You do NOT change facts, narration, or beat ord
 ## Read first
 1. `content_plan.json` — the ordered beats (learning_point, narration_intent, `visual_intent`, `relation`,
    `energy`, `stage`, `climax`/`hold`, and `source_ref`).
-2. `remotion/LIBRARY.md` — the 50 registers grouped into 9 FAMILIES (A Product-UI · B Camera/space · C Kinetic
-   type & title · D Data/technical · E 3D · F Fluid/generative · G Illustrated/craft styles · H Comparison ·
-   I Mechanical/physical), each with a one-line **"use when"** and its **props** (the Generalization table).
+2. `remotion/LIBRARY.md` — the 75 registers grouped into FAMILIES (A Product-UI · B Camera/space · C Kinetic
+   type & title · D Data/technical · E 3D/spatial · F Fluid/generative · G Illustrated/craft styles · H Comparison ·
+   I Mechanical/physical · J Experimental type · K Generative · L Editorial/print · M Glitch/digital-decay ·
+   N Isometric · O Urban/signage), each with a one-line **"use when"** and its **props** (the Generalization
+   table). The family set is **OPEN** — if a beat wants a bold language that fits none of these, a new register
+   in a NEW family is fair game (add the letter).
 
 ## Step 0 — the shot-template CONTEST (the user picks a DIRECTION)
 This is the remotion analogue of the html register-contest (SKILL.md 3.55). Before assigning per-beat shots,

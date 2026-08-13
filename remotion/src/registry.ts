@@ -62,6 +62,21 @@ import {PositioningMatrix} from './shots/PositioningMatrix';
 import {GaugeCluster} from './shots/GaugeCluster';
 import {BentoReveal} from './shots/BentoReveal';
 import {ConveyorBelt} from './shots/ConveyorBelt';
+import {CardStack3D} from './shots/CardStack3D';
+import {CrashZoom} from './shots/CrashZoom';
+import {VersusSplit} from './shots/VersusSplit';
+import {RisoPrint} from './shots/RisoPrint';
+import {HudReticle} from './shots/HudReticle';
+import {VariableTypeMorph} from './shots/VariableTypeMorph';
+import {FlowField} from './shots/FlowField';
+import {MagazineSpread} from './shots/MagazineSpread';
+import {RansomZine} from './shots/RansomZine';
+import {DataMonolith} from './shots/DataMonolith';
+import {LowPolyForm} from './shots/LowPolyForm';
+import {GlitchDatamosh} from './shots/GlitchDatamosh';
+import {IsoWorld} from './shots/IsoWorld';
+import {MorphForms} from './shots/MorphForms';
+import {NeonTickerWall} from './shots/NeonTickerWall';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   CollaborativeCursors, CommandSummon, TemporalAccelerate, FocalIsolation, KineticManifesto, InfiniteCanvas,
@@ -73,6 +88,9 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   BokehPull, PixelBuild, BrutalistType, LightTrails, DataOrrery, PhysicsStack,
   OdometerRoll, QuadSplit, CardFlip3D, CubeRotate, GearTrain,
   FractureIn, PositioningMatrix, GaugeCluster, BentoReveal, ConveyorBelt,
+  CardStack3D, CrashZoom, VersusSplit, RisoPrint, HudReticle,
+  VariableTypeMorph, FlowField, MagazineSpread, RansomZine, DataMonolith,
+  LowPolyForm, GlitchDatamosh, IsoWorld, MorphForms, NeonTickerWall,
 };
 
 export const SHOT_IDS = Object.keys(REGISTRY);

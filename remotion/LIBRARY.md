@@ -1,4 +1,4 @@
-# Remotion2 — Bespoke Shot Library (60 design languages)
+# Remotion2 — Bespoke Shot Library (75 design languages)
 
 Each shot is a **hand-written, deterministic component** (`{default Component, DURATION}`) authored in
 1920×1080, driven by `useT()` (0→1) + the shared `runtime/motion.ts` kit. No generic template funnel —
@@ -7,6 +7,11 @@ every register is its own file. Renderable standalone: `npx remotion still src/i
 **Selection contract (for the film's design step):** pick a register per beat by matching the beat's *intent*
 to the "use when" below, and vary the FAMILY across the film (never two adjacent shots from the same family).
 Every shot accepts overridable copy via constants at the top of its file (wordmark/tagline/labels).
+
+**The family set is OPEN-ENDED — grow it.** Families are a variety axis, not a fixed taxonomy: when a bold new
+design language doesn't fit an existing bucket, **open a new family letter** (add it here + to
+`shot_director.FAMILY`). New families cost nothing mechanically (the variety rule only checks that adjacent
+beats differ). Novel and daring beats a clean taxonomy — reach past the obvious register.
 
 ## A · Product-UI / SaaS-film — motion of a working interface
 1. **CollaborativeCursors** — multiplayer cursors build a deliverable on an aligned grid. *Use: teamwork / "your AI team".*
@@ -28,6 +33,7 @@ Every shot accepts overridable copy via constants at the top of its file (wordma
 14. **MapRoutes** — glowing routes hub→spokes on a night map. *Use: integrations / reach.*
 15. **ExplodedSchematic** — a pipeline explodes into labeled parts. *Use: how-it-works.*
 51. **CubeRotate** — content on the four faces of a 3D cube; the camera orbits and holds each face. *Use: one subject, several sides / a loop.*
+62. **CrashZoom** — a wide overview grid holds, then the camera PUNCHES in on one target tile (speed lines) until it fills the frame. *Use: overview → the one that matters / zoom to the detail.*
 
 ## C · Kinetic type & title
 16. **KineticManifesto** — phrases rush the Z-axis. *Use: manifesto / values.*
@@ -50,11 +56,15 @@ Every shot accepts overridable copy via constants at the top of its file (wordma
 31. **DataOrrery** — labeled nodes ORBIT a core on tilted rings. *Use: your work in motion / ecosystem.*
 52. **OdometerRoll** — a big metric where every digit is a mechanical reel that spins through 0-9 and snaps, staggered. *Use: a single headline number, felt.*
 57. **GaugeCluster** — a panel of circular gauges sweep their arcs; the hero gauge's needle rises and its value locks. *Use: live status / health / a KPI panel.*
+65. **HudReticle** — a sci-fi FUI: corner brackets snap around a subject, a dashed scan ring rotates, readouts type in, then LOCK (goes green). *Use: targeting / analysing / "locked on".*
 
 ## E · 3D / material
 32. **MaterialHero** — real 3D torusKnot (R3F/WebGL), studio-lit. *Use: a hero object beat.*
 53. **CardFlip3D** — a row of cards flip 180° on Y (CSS 3D), a sheen at the seam, the payoff on the back. *Use: question → answer / before → after pairs.*
 58. **FractureIn** — 25 tiles fly in from scattered 3D space and lock centre-out into a hero poster, then the title resolves. *Use: many parts → one picture / a bold reveal.*
+61. **CardStack3D** — cards spring up into a pile, then fan out into a 3D arc (tone-edged), labels facing camera. *Use: a deck of capabilities → laid out in hand.*
+66. **DataMonolith** — a nighttime skyline of glowing data towers rises from a perspective grid floor (caps + reflections), the hero tower pulsing. *Use: data as architecture / scale / growth.*
+74. **MorphForms** — a rotating 3D point-cloud morphs sphere → cube → torus → sphere, depth-shaded (pure math, no WebGL). *Use: one idea, many shapes / an abstract kinetic hero.*
 
 ## F · Fluid / generative / light
 33. **AuroraFlow** — Stripe/Vercel flowing gradient blobs + type. *Use: calm premium ambient.*
@@ -74,17 +84,40 @@ Every shot accepts overridable copy via constants at the top of its file (wordma
 45. **PaperCutout** — layered paper-cutout parallax diorama. *Use: warm storybook.*
 46. **SpotlightStage** — theatrical spotlight reveals PLAN→BUILD→SHIP. *Use: dramatic three-step.*
 47. **PixelBuild** — 8-bit pixel checkmark assembles + CRT HUD. *Use: retro-game / "level complete".*
+64. **RisoPrint** — a risograph wordmark on cream paper: pink + blue ink channels start misregistered and snap into registration (grain + halftone). *Use: warm hand-printed craft / a LIGHT-ground title.*
 
 ## H · Comparison
 48. **BeforeAfterSlider** — slider wipes rough draft → board-ready. *Use: quality / transformation.*
 54. **QuadSplit** — the frame splits into a 2×2 of micro-panels (each a distinct accent + motif), then one hero panel takes the whole frame. *Use: four angles → the one that matters.*
 59. **PositioningMatrix** — a 2×2 axes map; item dots drift to their spots and the hero lands in its quadrant (ring + label). *Use: positioning / where things sit / who leads (qualitative).*
+63. **VersusSplit** — a head-to-head split screen: two contenders slide in across a diagonal seam, a VS badge slams, the winner side glows. *Use: A vs B / this beats that (qualitative).*
 
 ## I · Mechanical / tactile-physical
 49. **SplitFlap** — Solari flap board riffles + settles to the message. *Use: status flips to done / announce.*
 50. **PhysicsStack** — weighty bars DROP + bounce-settle into a chart. *Use: tactile results / a week of output.*
 55. **GearTrain** — interlocking gears mesh and turn in a chain (hubs carry the steps); the last gear locks the payoff. *Use: mechanism / one turn drives the next.*
 60. **ConveyorBelt** — items ride a scrolling belt through a stamp press and exit finished (✓). *Use: assembly line / "it just processes everything".*
+
+## J · Experimental type — typography as a living material
+67. **VariableTypeMorph** — one enormous word alive on its axes: a WEIGHT wave travels the letters while the word breathes on the WIDTH axis, over a duotone field. *Use: a bold expressive title / "type, alive".*
+
+## K · Generative — computed fields, not gradients
+68. **FlowField** — hundreds of streamlines trace a static curl field and draw on in waves, revealing an ambient generative field with a centred wordmark. *Use: flow / everything moving as one / ambient hero.*
+71. **LowPolyForm** — a jittered low-poly triangle mesh assembles centre-out, colour-graded across a duotone, with a wordmark over it. *Use: faceted crystalline hero / "many facets, one form".*
+
+## L · Editorial / print — designed page systems
+(see also **RisoPrint** in G — a riso print title.)
+69. **MagazineSpread** — a designer editorial cover sets itself: serif masthead, hairline rule, hero colour block, a word-by-word feature headline, deck + column rules. *Use: an editorial section opener (LIGHT ground).*
+70. **RansomZine** — a punk cut-out ransom-note collage: each letter a torn paper scrap in a different colour + typeface, taped down askew, with a marker scrawl. *Use: loud DIY / anti-slick statement.*
+
+## M · Glitch / digital-decay
+72. **GlitchDatamosh** — a word tears out of digital noise: RGB-split channels drift, displacement bands stutter, scanlines + block noise flicker, then the signal RESOLVES clean. *Use: digital / disruption / noise → clarity.*
+
+## N · Isometric — dioramas & worlds
+73. **IsoWorld** — an isometric diorama builds: a tiled ground draws in, then labelled iso-cube buildings rise in an outward ripple. *Use: your world / workspace-as-a-city / a system laid out.*
+
+## O · Urban / signage
+75. **NeonTickerWall** — a night-city wall of signage: stacked LED tickers scroll at different speeds, neon flickers, a central marquee holds the message. *Use: launch / announcement / electric energy.*
 
 ---
 ## Generalization — every shot is topic-driven via props (defaults = the WorkBuddy demo)
@@ -118,6 +151,12 @@ in the film wrapper. Per-shot props:
 | GaugeCluster `value, unit, label, gauges[{label,fill}], title` · FractureIn `title, tagline, accent` | |
 | BentoReveal `title, hero, items[]` · ConveyorBelt `items[], title, doneLabel` | |
 | PositioningMatrix `title, xAxis[lo,hi], yAxis[lo,hi], items[{label,x,y,hero}]` | |
+| CardStack3D `items[], title` · CrashZoom `items[], label, target, title` · RisoPrint `title, tagline` | |
+| VersusSplit `left{label,points[]}, right{label,points[]}, winner, title` · HudReticle `target, readouts[], title` | |
+| VariableTypeMorph `word, kicker, tagline, accent, accent2` · FlowField `title, tagline, accent, accent2, lines` | |
+| MagazineSpread `title, headline, deck, issue, accent` · RansomZine `word, tagline` · DataMonolith `items[], title, hero` | |
+| LowPolyForm `title, tagline, accent, accent2` · GlitchDatamosh `word, tagline, accent` · MorphForms `title, tagline` | |
+| IsoWorld `items[], title` · NeonTickerWall `headline, tickers[], accent` | |
 | LiquidMorph | *(abstract — no topic text; generalizes as-is)* |
 
 **Faithfulness:** shots carrying a NUMBER (ChartLive, BeforeAfterSlider, VelocitySnap, OdometerRoll, GaugeCluster, BlueprintGrid's counter)

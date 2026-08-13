@@ -15,7 +15,7 @@ wrong on screen.
 ## The dimensions (score each scene, then the whole film)
 **S1 · Register FIT.** Does the chosen `shot` express THIS beat's idea (match it to the register's LIBRARY
 "use when")? A statement beat on a data-chart register, or a climax on a flat list register, is a REVISE.
-**S2 · Family VARIETY (whole-film).** No two ADJACENT beats may share a family (A–I in LIBRARY.md); a ≥10-beat
+**S2 · Family VARIETY (whole-film).** No two ADJACENT beats may share a family (A–O in LIBRARY.md, an OPEN set); a ≥10-beat
 film should span ≥6 families and not lean on one. Two adjacent same-family beats = REVISE the second.
 **S3 · FAITHFULNESS (hard gate).** Every on-screen NUMBER must trace to the beat's `source_ref` — a register
 that shows a figure (ChartLive/BeforeAfterSlider/VelocitySnap/BlueprintGrid counter) left on its **demo default**

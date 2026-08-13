@@ -60,6 +60,21 @@ import {PositioningMatrix, DURATION as PM} from './shots/PositioningMatrix';
 import {GaugeCluster, DURATION as GC} from './shots/GaugeCluster';
 import {BentoReveal, DURATION as BR} from './shots/BentoReveal';
 import {ConveyorBelt, DURATION as CVB} from './shots/ConveyorBelt';
+import {CardStack3D, DURATION as CSK} from './shots/CardStack3D';
+import {CrashZoom, DURATION as CZ} from './shots/CrashZoom';
+import {VersusSplit, DURATION as VSU} from './shots/VersusSplit';
+import {RisoPrint, DURATION as RIP} from './shots/RisoPrint';
+import {HudReticle, DURATION as HUD} from './shots/HudReticle';
+import {VariableTypeMorph, DURATION as VTM} from './shots/VariableTypeMorph';
+import {FlowField, DURATION as FLF} from './shots/FlowField';
+import {MagazineSpread, DURATION as MAG} from './shots/MagazineSpread';
+import {RansomZine, DURATION as RZ} from './shots/RansomZine';
+import {DataMonolith, DURATION as DML} from './shots/DataMonolith';
+import {LowPolyForm, DURATION as LPF} from './shots/LowPolyForm';
+import {GlitchDatamosh, DURATION as GDM} from './shots/GlitchDatamosh';
+import {IsoWorld, DURATION as ISW} from './shots/IsoWorld';
+import {MorphForms, DURATION as MPF} from './shots/MorphForms';
+import {NeonTickerWall, DURATION as NTW} from './shots/NeonTickerWall';
 import {Film, WORKBUDDY_SCENES, filmDuration} from './Film';
 
 // Redo tier: each bespoke shot registers as its OWN Composition (video-shotcraft pattern), renderable
@@ -132,5 +147,20 @@ export const RemotionRoot: React.FC = () => (
     {F('GaugeCluster', GaugeCluster, GC)}
     {F('BentoReveal', BentoReveal, BR)}
     {F('ConveyorBelt', ConveyorBelt, CVB)}
+    {F('CardStack3D', CardStack3D, CSK)}
+    {F('CrashZoom', CrashZoom, CZ)}
+    {F('VersusSplit', VersusSplit, VSU)}
+    {F('RisoPrint', RisoPrint, RIP)}
+    {F('HudReticle', HudReticle, HUD)}
+    {F('VariableTypeMorph', VariableTypeMorph, VTM)}
+    {F('FlowField', FlowField, FLF)}
+    {F('MagazineSpread', MagazineSpread, MAG)}
+    {F('RansomZine', RansomZine, RZ)}
+    {F('DataMonolith', DataMonolith, DML)}
+    {F('LowPolyForm', LowPolyForm, LPF)}
+    {F('GlitchDatamosh', GlitchDatamosh, GDM)}
+    {F('IsoWorld', IsoWorld, ISW)}
+    {F('MorphForms', MorphForms, MPF)}
+    {F('NeonTickerWall', NeonTickerWall, NTW)}
   </>
 );
