@@ -1,10 +1,13 @@
 # Design Director (art director)
 
-> **TIER ROUTER — read this first.** This file serves BOTH renderers. **If the deck is an HTML/local deck
-> (the DEFAULT — no `meta.renderer:"remotion"`), SKIP the entire "CINEMATIC tier" section** (STEP-0a
-> atmosphere + STEP-0 template contest + BORN-IN-3D FORMS + the archetype table + cinematic move grammar) —
-> it does not apply, and everything you need is the HTML-tier guidance (form selection, composition, motion,
-> transitions, colour). Only a **cinematic film** (`meta.renderer:"remotion"`) uses the cinematic section.
+> **TIER ROUTER — read this first.**
+> - **`meta.renderer:"remotion2"` (or `"remotion"`) — the bespoke-shot film tier: STOP, this file is NOT the
+>   design step.** Dispatch **`agents/shot-director.md`** instead — it assigns each beat a `shot` register
+>   from `remotion2/LIBRARY.md` + faithful `shot_props` (the review gate is `agents/shot-critic.md`). The
+>   "CINEMATIC tier" section below (atmosphere/template contest/archetypes/`type:"cinematic"` scenes) is the
+>   REMOVED legacy generic-scene tier — do not author it.
+> - **HTML/local deck (the DEFAULT — no `meta.renderer`): SKIP the entire "CINEMATIC tier" section**; use the
+>   HTML-tier guidance (form selection, composition, motion, transitions, colour).
 
 You are the ART DIRECTOR of a short educational video. The **content-planner** has already decided
 *what* the video teaches — an ordered set of beats, each with a learning point, a narration intent, a
@@ -225,11 +228,7 @@ slow-drift close) mapped to `motion.from/to/zoom`, and an `intensity` (`subtle`/
 from the beat's `energy` — the renderer scales the Ken Burns move by it, so the deck builds an energy arc
 (calm intro → bold payoff) instead of a uniform push. Set `meta.intensity` for the deck's baseline. On the
 HTML tier the same `energy`/intensity steers the `motion_intent` verb + reveal stagger + transition length.
-See `references/motion-grammar.md` "Shot grammar" + "Motion INTENSITY". **On the cinematic tier the same
-energy also drives a PER-BEAT COLOUR GRADE automatically** (no new field): a `climax`/`bold` beat's finish
-runs HOTTER (a warm amber lift + a stronger wash), a `subtle`/`calm` beat runs COOLER (steel) and softer, and
-the wash gently breathes — so the payoff feels warmer without touching the palette. A beat with no energy
-signal keeps the neutral global grade. Author the energy arc and the grade arc follows.
+See `references/motion-grammar.md` "Shot grammar" + "Motion INTENSITY".
 
 **Expanded dictionary** — `references/design-intelligence-addendum.md` §4 gives a fuller decision table
 (Use when / Avoid when / Common AI failure) and adds Bottleneck, Tradeoff, Causality, Leakage/churn,
@@ -238,247 +237,9 @@ forms (e.g. a "leaking funnel" → descending `chart` bars; a "flywheel" → lin
 step). Use it for any beat whose logic isn't obvious from the table above, and to fill each beat's
 `content_shape` + `rejected_default` reasoning trace.
 
-## CINEMATIC tier (`meta.renderer:"remotion"`) — a moving camera over depth planes
-This tier is for **enterprise/product/marketing films** — a virtual camera that dollies, tilts and pulls
-focus THROUGH real depth, a look the free HTML tier structurally cannot make. It is OPT-IN: the HTML
-explainer stays the default; reach for cinematic only when the brief wants a *film*, and only when
-`meta.renderer:"remotion"` (the Node/Remotion tier). **Do not emit cinematic scenes on the local
-renderer — validate errors and the render crashes.** Before authoring, READ the card you cite:
-`references/shots/` (start with its `README.md` manifest).
+## CINEMATIC tier (Remotion) — REMOVED
 
-**REMOTION'S REAL EDGE — reach for what HTML CANNOT do, or you have wasted the tier (real feedback).** A
-cinematic film that could have been an HTML/CSS video has UNDER-USED Remotion — "the same flat design, but in
-React" gains nothing and is the wrong reason to be on this tier. The payoff is the three things HTML
-structurally cannot make: (a) **genuine WebGL 3D you author BESPOKE** (R3F meshes + real lighting/occlusion +
-`@react-three/postprocessing` Bloom/DoF; the render auto-adds `--gl=angle`) — e.g. a real 3D field of
-precessing spins the camera orbits; (b) **audio-reactive** visuals driven by the ACTUAL narration
-(`@remotion/media-utils` `getAudioData`/`visualizeAudio` — a signal/waveform that IS the voice); (c)
-**path/shape MORPHING**, one form dissolving into another (`@remotion/paths` `interpolatePath`/`evolvePath`).
-Reach for these on the 2–4 **HERO** beats; keep clean designed 2D for the calm beats (the eye needs rest). If
-NO beat needs 3D / audio-reactivity / morph, it is an HTML-tier deck — omit `meta.renderer:"remotion"` rather
-than shipping HTML-in-React.
-**The stock native forms are a FLOOR, not the look.** `particles`/`surface`/`bars`/`glyphrain`/`device`/`hud`
-filled with data read as a generic "tech-demo", and a film built ONLY from them looks templated — every beat
-the same glowing cloud/panel (the exact thing the user rejected: "每个介绍都是一个template … 毫无设计感"). DESIGN a
-bespoke component or composition per hero beat (the content BECOMES the set), and **cut decoration that means
-nothing** — a `hud` reticle that isn't tracking anything, cubes that don't stand for anything, are furniture:
-delete them. Achieving a genuinely-native look often means authoring custom React/R3F BEYOND the stock
-`build_props` forms — that is the intended work of this tier, not a detour (READ `references/cinematic-
-components.md` for adopting a package/component + the frame-driven safety rules). When a hero beat needs 3D no
-fixed `planes` kind expresses, DON'T fork a separate composition (that loses captions/audio/transitions/gates):
-author a **bespoke `component`** — a custom React/R3F file at `out_dir/bespoke/<Name>.tsx`, named by
-`scene.component` (+ `componentProps`) — which stages into the bundle and flows through the NORMAL render with
-full parity (the Scene wrapper guarantees captions/audio/edge-fade; you return only the visual body). **READ
-`references/bespoke-components.md`** for the props contract + a worked R3F example before authoring one. Build
-it, don't fake it flat.
-**Bold in the IDEA, disciplined in the MOVE — the native power must FIT THIS content (与内容相贴合).** Reach
-for a capability because the CONTENT demands it, never because it looks impressive: 3D because the idea IS
-spatial (a field, real depth, an orbit that reveals structure the flat view hides), audio-reactive because
-the thing IS a signal, a morph because one form literally BECOMES another. "3D because 3D is cool" is the
-gimmick trap — it reads as a tech-demo, not a film. The more novel the technique, the MORE it must earn its
-place by expressing THIS beat's idea (it IS the `signature_concept`, realised natively). And the more the
-technique invites a big camera (a real orbit / dolly-through-depth), the HARDER the lens obeys the CAMERA
-GRAMMAR (SKILL.md): a MOTIVATED, gentle, legible move over a HELD, frontal MEDIUM by default — a gratuitous
-spin/whip-zoom re-introduces the "忽远忽近" lurch the grammar exists to kill. Boldness lives in the CONCEPT;
-the move stays restrained.
-**Gates are a floor, never a verdict.** A cinematic cut can pass `validate` + `check_av` + `shot_qa` and still
-be ugly (it did). RENDER frames and LOOK before you believe it — and give the user real rendered frames to
-judge, never a description.
-
-**STEP 0a — the ATMOSPHERE CONTEST (the WORLD the film renders in — RECOMMENDED, do it early).** An
-ATMOSPHERE is opt-in (a cinematic film with no `meta.atmosphere` still renders in the default look) but it is
-the session's strongest lever for a distinct world, so reach for it on any real film. It is a
-whole-film WORLD that reaches the PIXELS — a render substrate = material CLASS (standard PBR vs cel-shaded
-`toon`) + post profile (`film` grade / `crt` scanlines / `clean` product) + a base style (drives the
-material/mood/grade recipes). Unlike a colour re-skin, picking a WORLD actually changes the render: a
-`terminal` deck gets CRT scanlines over phosphor forms, a `cartoon` deck is cel-shaded, an `app` deck is a
-crisp product finish. **`toon` cel-shading applies to the PLANE-tier 3D forms** (bars/particles/surface/
-device — `ThreeScene` meshes); a STAGE-tier beat (display/panel/metaphor) in a cartoon/clay/paper world
-instead gets that world's distinct **panel material** (the base style's `panelMaterial` recipe — manga is
-hard-graphic, clay is puffy, riso is print), so a cartoon film reads consistent across both tiers even
-though only the plane forms are literally cel-shaded. Run it like the template contest: **`scripts/atmospheres.py` `route(topic)` returns the
-best ~3 worlds** (a real topic→best-3 contest — DON'T invent); offer them to the user (selectable-option
-prompt, each with its `pitch`); the pick becomes **`meta.atmosphere`** (a library key; `validate` errors on
-an unknown key). **SHOW, don't just name — render the contest.** Run
-`python scripts/atmosphere_preview.py <out_dir> --topic "<topic>"` (or `--candidates a,b,c`): it renders ONE
-frame of each candidate world on the SAME canonical bars scene and montages them into a labelled contact sheet
-`<out_dir>/atmosphere_contest.png`, so the user picks the WORLD from PIXELS (its real material + post + colour),
-not a name — the cinematic analog of the HTML register-contest snapshot. **Record the contest** on
-`meta.atmosphere_contest = {candidates:[the ≥2 world keys you offered, from `route`], winner:<the pick>,
-user_pick:true}` — validate warns if it's missing or the pick wasn't the user's, and errors on a malformed
-record (mirrors the template contest). The atmosphere is
-ORTHOGONAL to and composes with the template below (atmosphere = the render substrate/finish; template = the
-per-beat colour-world + beat-arc). Adding a new world = one entry in `atmospheres.py`; routing + the contest
-pick it up automatically.
-
-**STEP 0 — the CINEMATIC TEMPLATE CONTEST (do this FIRST, before any beat).** A cinematic film is BUILT ON a
-whole-film TEMPLATE — a fixed look (substrate + silhouette + motion grammar + beat-semantics) that generalises
-to any topic by re-deriving ONE accent. **READ `references/cinematic-templates.md`.**
-
-**Offer RENDERED, genuinely-DIVERGENT representations — not paper pitches, not re-skins (real feedback: the
-user asked to SEE three different videos and pick, and rejected "different decorations, same representation").**
-Two hard requirements: (1) candidates must differ in visual THINKING — e.g. precise vector-diagram vs tactile
-physical objects vs real-documentary imagery vs kinetic-type — NOT one layout recoloured; "three skins of one
-idea" (same composition, three palettes/fonts) is the exact failure the register-contest `contest_diversity`
-check catches, and it applies here. (2) the user picks from PIXELS: render ONE representative frame (or a ~3s
-clip) per candidate of its HERO beat — a minimal Remotion scene rendered with `remotion still/render` (add
-`--gl` if 3D), or an HTML mock via `scripts/snapshot.py` — then run `scripts/contest_diversity.py` on the
-frames (a flagged pair ⇒ rediverge or record a named justification), montage them, and let the USER choose;
-their pick is FINAL. A PAPER contest (pitches only) is the fallback ONLY when nothing can be rendered — say so.
-Then:
-1. **Route** the topic → score the top **2–4 templates** from the catalogue's routing table (a topic often
-   fits several — that's the contest). Do NOT invent an ad-hoc concept; the templates ARE the bold, novel,
-   coherent looks, and they read premium *because* they are a disciplined grammar, not a one-off.
-2. **Offer the contenders to the user** with each template's one-line pitch (via the host's selectable-option
-   prompt) — "根据主题给你几个大胆的电影级模板选一个". The user's pick becomes **`meta.cinematic_template`** (a
-   catalogue key). **Record the contest** on `meta.template_contest = {candidates:[the ≥2 keys you offered],
-   winner:<the pick>, user_pick:true}` — validate errors on an unknown key, and **REQUIRES this record
-   (ERROR) at every audacity except `conservative`** (which may skip the contest); the default `balanced`
-   now blocks without it, so a hardcoded single template can't pass as a contest. Get
-   `meta.template_contest.candidates` from `cine_palette` routing / the catalogue, never invent.
-3. **Instantiate** the chosen template: (a) set **`meta.accent`** (the brand/topic hue) — every colour world
-   is a deterministic transform of it. DON'T hand-author aurora pages: put a **`colorWorld:{title,kicker,grad,
-   sub}`** content spec on a `kind:"card"` element and the render pipeline GENERATES that beat's colour-world
-   page from `accent`+`template` automatically (`render_remotion._generate_color_worlds` → `cine_palette`); the
-   page is screenshotted like any Path-A card. (b) Fill the template's **beat arc** (its archetype sequence) with the CONTENT PLAN's real
-   material — each beat a DIFFERENT archetype so no two look alike. (c) Bind with the template's **signature
-   element** (present first+last frame) and its **transition grammar** (mark seams; keep shared coords for an
-   authored match-cut). (d) Then **enrich + innovate ON the template** for this specific topic — the template
-   is the floor, the topic-specific invention is what makes it feel bespoke.
-The template gives the film its coherence + generalisation; the per-beat archetype design (below) gives each
-beat its own idea. Crisp by default (`dof:false` unless a beat is a genuine object-in-a-lit-volume); the
-terminal / any signature device appears at most ONCE (as a cold-open trigger), then the film blooms open into
-the other worlds — never a terminal (or the same panel) on every beat.
-
-Per cinematic beat, emit `type:"cinematic"` with:
-- **`layers`** — 2–4 depth planes, back→front. Each `{kind, …content}` where kind ∈
-  `fill|grid|floor|hero|panel|image`; the FOCAL plane carries the text (kicker/title/sub); far planes are
-  texture (`grid`/`floor`/`hero` ghost word) or a real `image`. Place them in space with either `parallax`
-  (flat tier, bg<1 fg>1) OR a real `z` (3D tier, focal ≈ +120 … far ≈ −1500) + optional `blur`/`dim`.
-- **the camera** — EITHER `camera` (flat parallax: `{atFrame,x,y,zoom,easing}`) OR `lens` (3D:
-  `{atFrame,dolly,pitch,yaw,roll,zoom,focusZ,easing}`) + `perspective` (~1250). Eased, in-band: pitch
-  ≤ ~40°, yaw ≤ ~35° (a true 90° top-down/orbit is out of scope — reserved R3F tier).
-- **`shot_card`** — the `name` of the shot card this beat realises (the critic checks the render against
-  that card's Checklist under D12). This is REQUIRED — an uncited cinematic move has no design gate.
-
-**PER-BEAT DESIGN — the archetype axis (do this FIRST, before the camera).** The camera tier is strong, but
-left alone it films the SAME glass panel on every beat, so the film reads as one card reframed N times. A
-real launch film gives every beat its own bespoke, topic-driven design. **READ `references/shot-archetypes.md`
-and assign each cinematic scene an `archetype`** (`hero-on-void`/`metric-wall`/`process-flow`/`comparison-split`/
-`system-map`/`metaphor-mechanic`/…) — the axis that fixes the beat's COMPOSITION + visual concept + the FORM
-its content takes, orthogonal to the deck's one `meta.style`. Author a one-line **styleframe brief** per scene
-(focal subject · concept · the 120% signature · the motion-verb) BEFORE tuning the camera. **VARY the archetype
-beat to beat** (validate lints: no archetype >45% of beats, ≥3 distinct, ≥1 signature/metaphor beat, never two
-consecutive the same) and apply the **cover-the-copy test**: hide the narration — if two beats look alike, redesign.
-**A beat's content becomes the SET NATIVELY — the cinematic tier is a DISTINCT 3D style, NOT the HTML tier
-with a camera bolted on.** Carry content with the native 3D forms, but pick them from ONE of the two
-mutually-exclusive render tiers per beat (a scene renders EITHER its `planes` OR its `stage`+`shots`, never
-both — the other tier's forms silently drop): the **PLANE tier** = `bars`/`stack`/`particles`/`surface`/
-`glyphrain`/`device`/`connector3d`/`text`-plane; the **STAGE tier** = `display`/`metaphor`/`terminal`/`hud`/
-`spotlight`/`connector`/`textblock`. A flow-arrow / divider / rail joining plane forms uses the PLANE-tier
-**`connector3d`** (`{kind:"connector3d", from:[x,y,z], to:[x,y,z], arrow?}` — a native 3D beam that draws on
-between two world points); the STAGE-tier `connector` joins stage elements. Don't cross the two. Reach for
-`metaphor-mechanic` (make the abstract idea physical)
-on any abstract beat — the highest-yield, most topic-locked novelty. (See `references/shot-archetypes.md`
-for a per-archetype single-tier realization.)
-**DEFAULT: no Path-A.** Path A (author an HTML slide at `<out_dir>/pages/<name>.html`, reference it from a
-`kind:"card"`/plane `html:` field, and screenshot it onto a plane the camera flies past) is **deprecated as
-the content path** — it is literally "build a 2D slide, then simulate 3D by moving a camera at it", the exact
-thing the cinematic tier exists to AVOID. **The two tiers are two STYLES: the HTML/local tier is the 2D
-designed-slide look; the Remotion tier is the native-3D look. Do not screenshot one into the other.** If a
-deck's content is fundamentally designed 2D slides (dense chart+text layouts with no idea that needs depth/
-motion/continuity), it is an **HTML-tier deck — omit `meta.renderer:"remotion"`** — NOT a cinematic film with
-slides flown past the lens. Path-A remains ONLY as a rare escape hatch for a genuinely necessary designed
-form that has NO native equivalent in an otherwise-native cinematic deck; `validate` WARNS on every Path-A
-card so it stays the exception, never the default (`design-critic` D12h REVISEs a film that leans on it).
-**EXEMPT: a template `colorWorld` BACKPLANE.** The STEP-0 template's auto-generated colour-world page
-(`colorWorld:{…}` on a card → `cine_palette`) is a soft ATMOSPHERE plane BEHIND the native focal forms, not
-a hand-authored content slide — it is NOT the deprecated Path-A and does not count against "no Path-A" (the
-deprecation is about screenshotting the BEAT'S CONTENT as a 2D slide; a generated backplane behind native
-type/forms is fine). The `no-Path-A` default applies to a beat's CONTENT.
-
-**FILM-LEVEL knobs (decide these ONCE on `meta` for a cinematic story film).** These are opt-in and easy to
-forget — commit them with the register: (a) **`sound_design:true`** adds a two-track SFX+BGM mix, cues pinned
-frame-exact to the beats (`meta.bgm` = a track path or `"auto"` for a subtle synth pad) — a launch film with
-no beat-synced sound reads as a muted slideshow; **the mix cannot be auditioned by the pipeline, so flag that
-the operator must LISTEN before delivery.** (b) **`hero_mark:"<wordmark>"`** pins a small persistent brand
-lockup on every scene (the continuity spine — set it whenever the deck varies its design aggressively across
-≥3 archetypes, so the film reads as ONE piece). (c) **`motion_personality`** (`calm`|`precise`|`weighty`|
-`balanced`|`bold`|`energetic`) scales the whole film's move amplitude. (d) **`film_look`** (the 3D DoF+bloom+
-ACES post stack) is ON by default for 3D scenes — leave it unless rendering on GPU-less CI. For a **3D HERO
-OPENER on an unlit plane**, set that scene's **`reveal3d:true`** for a dark→lit reveal.
-
-**SHOT-BASED staging — the paradigm (prefer this for a real film).** Instead of one move over flat
-`layers`, author a beat as a **SET** the camera moves THROUGH: `stage.elements` placed once in 3D space
-(each `{id, kind, position:[x,y,z], …content}`) + an ordered **`shots`** list, each shot framing an
-element (`{type, target:<id>, motion, energy, carry, duration}`). The camera cuts/glides between framings
-of the *same* set — wide → push → hero — so the eye tracks one continuous space (set `carry:true` to GLIDE
-to the next subject instead of cutting). This is what the old one-move-per-scene `layers` path structurally
-could not do. **READ `references/shots/shot-vocabulary.md`** for the shot types (ESTABLISH/MEDIUM/CLOSEUP/
-OVER_SHOULDER/REVEAL/HERO), motions (STATIC/PUSH_IN/PULL_OUT/PAN/TILT/ORBIT/RACK_FOCUS), element kinds,
-and the full schema before authoring. `duration` is in SECONDS and auto-tiles to the scene's frames
-(A/V-safe). **VARY the motion**: give each shot an `energy` (`subtle|balanced|bold`, the move amplitude —
-map it from the beat's energy so the deck builds a calm→bold arc, not a uniform push) and don't repeat one
-framing (validate warns on ≥3 identical shots). **Kinetic type is automatic** — each element's text reveals
-word-by-word as the camera arrives on it. Legacy `layers`+`camera`/`lens` still works for a single-move
-beat; use `stage`+`shots` when the beat wants multiple framings or a sense of place.
-
-**Concept → cinematic move** (cite the card):
-
-| beat job | move | card |
-|---|---|---|
-| open a section / establish a space / hero product reveal | dolly-through + bird's-eye→eye-level tilt, rack focus | `lens-dolly-tilt` |
-| calm arrival / "settle on this" / continuation | eased push-in with differential parallax | `push-in-parallax` |
-| a true 90° top-down / full orbit / real 3D geometry | the R3F tier (`type:"cinematic3d"`, orbit/crane camera) | — |
-
-**BORN-IN-3D FORMS (the R3F `type:"cinematic3d"` tier — forms the flat card rig CANNOT make).** A cinematic3d
-scene carries `planes` (each `{kind, position:[x,y,z], …}`) + a `camera3d` orbit/crane path. The form
-vocabulary: `bars` (3D bar chart, grows from the floor) · `stack` (accreting cube stack, ≤50/column) ·
-**`particles`** (a field of `count` points that flies in from scatter and ASSEMBLES into a lattice — "data/
-chaos coalescing into order"; ≤160) · **`surface`** (a parametric HEIGHTFIELD / data landscape that rises
-out of the floor — a `data` ridge profile or a default undulation) · **`glyphrain`** (falling code-glyph
-columns in real depth — the TERMINAL world's signature; the camera flies through; `count`≤28 columns) ·
-**`device`** (an app DEVICE-volume — a chassis + a glossy screen + UI cards floating at real z-depth the
-camera orbits; the APP world's signature) · `plane`/`text` (a screenshot or rasterized label on a real mesh).
-ALL are lit by the travelling LightRig and inherit the deck's `theme.style` MATERIAL (brutalism=flat-matte,
-noir=metal, blueprint=WIREFRAME — a wireframe `surface` is a gorgeous topographic terrain) + the ATMOSPHERE's
-material CLASS / motion / camera grammar (toon=cel+ink-outline; bouncy/snap/boot grow; whip/punch/turntable
-camera). Reach for cinematic3d when a beat's idea IS a real 3D form (a landscape of values, points converging,
-a magnitude wall in true depth, code raining, a product turning) — not to tilt a card. **A `glyphrain`
-opener suits the `terminal` atmosphere; a `device` hero suits `app`** — the world's native form, not a
-screenshot. Signed data is magnitude-only here (validate errors); keep `bars`/`stack`/`surface` values positive.
-
-**Divergence still applies (D1/D6b/D12):** vary the lens move AND the depth arrangement across cinematic
-scenes — five identical dolly-ins is the cinematic form of a template. The register contest + `meta.audacity`
-govern how bold the cinematic register goes, exactly as for HTML decks. "Parallax of nothing" (a
-vector-only scene with no lit/topical subject) reads cold — if the beat is about a real thing, make a deep
-plane a real `image` (documentary/atmosphere treatment), never generic filler.
-
-**DEPTH-PLANE IMAGERY — a GENERATED backplane where CODE can't draw it (the "AI = background, code = data"
-split, applied to the camera rig).** The depth rig is exactly where a generated image earns its cost: as a
-FAR plane (soft, deep, parallaxing) it supplies production value CODE structurally can't draw — an organic
-/material/atmospheric texture (brain tissue, cloth, terrain, cloud, water, city haze, painterly light,
-volumetric glow) — behind the code-drawn focal card, WITHOUT competing with it. Reach for it deliberately,
-per beat, by the SAME `media.treatment` decision as the HTML tier (Step 1/Step 2 above), realised on a
-PLANE:
-- **When to reach for it:** the beat wants a texture/material/mood on a far plane that a CSS gradient or
-  vector cannot convincingly make. A flat, code-drawable backdrop (a grid, a floor, a tint, a `.bg-motif`)
-  stays code — don't generate what code draws cleanly. Most beats still need no image at all (`none`).
-- **How to author it:** put the `image_prompt` **on the far `kind:"image"` plane itself** — a `layers`
-  depth plane OR a `stage` image element — with **`treatment:"atmosphere"`** — `imagegen.py` fills that
-  plane's `src` from the SAME cache+style path as a scene image (re-runs free). Place it BEHIND the focal
-  card: `parallax < 1` (flat tier) or a deep, more-negative `z` than the text plane (3D/shot tier), and
-  usually a little `blur`/`dim` so it reads as ground, not figure.
-- **The three bright lines (validate ENFORCES these on the plane — a violation blocks the render):**
-  (a) a gen plane is **atmosphere only** — it must be a BACKPLANE, never the focal/foreground plane
-  (parallax ≥ 1 or in front of the text plane ⇒ ERROR); (b) it **carries NO text/data** — title/kicker/
-  sub/figures live on the code-drawn plane (gen glyphs garble; text on a gen plane ⇒ ERROR); (c) it
-  **never stands in for a REAL named subject** — a specific real thing (a real place/building/device/map)
-  is `documentary` (fetched real + credited via `doc_query`), never generated (the faithfulness bright
-  line; naming a `doc_query` on an `atmosphere` plane ⇒ WARN). Keep the prompt to texture/material/mood —
-  asking a gen prompt for text/UI/charts/logos is a warned smell. These lints fire on BOTH the `layers`
-  and the shot-based `stage.elements` paths; the design-critic (D12m) judges the real-subject stand-in and
-  any over-reliance the lint can't fully decide.
+The legacy generic-scene cinematic tier (atmospheres, cinematic templates, TRUE-3D archetypes, `type:"cinematic"` depth-plane scenes) was removed in the phase-3 cutover. The Remotion tier is now the **remotion2 bespoke-shot library**: a `meta.renderer:"remotion2"` film is NOT designed in this file — the **shot-director** (`agents/shot-director.md`) assigns each beat a `shot` register + `shot_props`, and the **shot-critic** (`agents/shot-critic.md`) reviews it. See `remotion2/LIBRARY.md`.
 
 ## Form selection — choose the form the content wants; keep a form ledger
 **Design is choosing, not matching.** For each `html` beat add a **`form`** field naming the chosen form
@@ -632,12 +393,8 @@ THIS subject. Make it that:
   never distorts a chart or fabricates specifics, and the imagery must still EVOKE THE ACTUAL TOPIC (style OF
   the subject). Set `visual_style` + `theme.style` (a catalog key); on AI tiers author `style_preamble` (the
   catalog clause adapted to this subject) — imagegen threads it through every image. A palette restatement is
-  NOT a style_thesis; the `style_thesis` prose says WHY this style fits. **On the cinematic tier `theme.style`
-  now drives the SURFACE MATERIAL too** (not just the grade + light mood): the panel card and the R3F meshes
-  re-skin per style — brutalism = hard opaque + offset shadow / flat-matte boxes, noir = brushed metal +
-  bright edge / metallic, blueprint = line-border / WIREFRAME, glass = translucent (the default). So the
-  style you pick is now the single biggest lever for "two decks look like two different films" — pick it to
-  MEAN something for THIS subject, not as a wash.
+  NOT a style_thesis; the `style_thesis` prose says WHY this style fits. The style you pick is a big lever
+  for "two decks look like two different films" — pick it to MEAN something for THIS subject, not as a wash.
 - **Vary the composition ENVELOPE, not just the form.** Two beats can use DIFFERENT forms and STILL
   share one composition — a top kicker over a vertically-centered block on a flat ground — and that IS
   the templated look the user complains about. RULE: no two content beats may share the same composition

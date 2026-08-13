@@ -410,7 +410,7 @@ _SHOT_TYPES = {"ESTABLISH", "MEDIUM", "CLOSEUP", "OVER_SHOULDER", "REVEAL", "HER
 _ELEM_KINDS = {"panel", "image", "textblock", "callout", "grid", "floor", "hero", "fill", "card", "metaphor", "display", "terminal", "spotlight", "hud", "connector"}  # ElementKind (elements.tsx); card=Path-A html form, metaphor=materialized verb, display=giant kinetic type, terminal=streaming CLI, spotlight=travelling light-pool, hud=FUI reticle+readout, connector=draw-on line
 _METAPHOR_CONCEPTS = {"widening-gap", "physical-fall", "filling-vessel", "diverging-pair", "converging-scatter"}
 _METAPHOR_ARITY = {"widening-gap": 2, "physical-fall": 2, "filling-vessel": 1, "diverging-pair": 2}
-# The per-beat DESIGN axis (references/shot-archetypes.md). Chosen per cinematic scene; MUST vary across the
+# The per-beat DESIGN axis ((the removed legacy cinematic tier)). Chosen per cinematic scene; MUST vary across the
 # film so every beat isn't the same glass panel reframed. Orthogonal to meta.style (the deck's one skin).
 _ARCHETYPES = {"hero-on-void", "manifesto-monolith", "data-materializes", "metric-wall", "process-flow",
                "comparison-split", "system-map", "timeline-rail", "quadrant-position", "metaphor-mechanic",
@@ -437,7 +437,7 @@ def _design_variety_lint(slides, errors, warnings):
         top, n = max(((a, arches.count(a)) for a in set(arches)), key=lambda kv: kv[1])
         if n / len(arches) > 0.45:
             errors.append("design-variety: archetype '%s' is on %d/%d cinematic beats (>45%%) — vary the "
-                          "per-beat DESIGN (references/shot-archetypes.md); every beat the same look is the "
+                          "per-beat DESIGN ((the removed legacy cinematic tier)); every beat the same look is the "
                           "design-sameness failure the tier exists to avoid" % (top, n, len(arches)))
         if len(set(arches)) < 3:
             errors.append("design-variety: only %d distinct archetype(s) across %d cinematic beats — a launch "
@@ -697,7 +697,7 @@ def _shot_stage_fields(stage, shots, tag, errors, warnings):
     if any(isinstance(sh, dict) and str(sh.get("type", "")).upper() in ("HERO", "CLOSEUP") and not sh.get("motive")
            for sh in shots):
         warnings.append(f"{tag}: a HERO/CLOSEUP shot has no `motive` — state in one line what question the push "
-                        f"answers; a move without a motive reads as restless (references/shots/shot-vocabulary.md)")
+                        f"answers; a move without a motive reads as restless (the removed legacy cinematic tier)")
     # #6 FLAT ARC: the author pinned every shot to the SAME energy (a uniform push, not an arc).
     _ens = [str(sh.get("energy")).lower() for sh in shots if isinstance(sh, dict) and sh.get("energy")]
     if len(_ens) >= 4 and len(set(_ens)) == 1:
@@ -766,13 +766,13 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
         if not _exists(out_dir, str(c.get("html") or "")):
             errors.append(f"{tag}: Path-A html card page '{c.get('html')}' not found under {out_dir} — "
                           f"author the form page there (it is screenshotted onto the plane at render)")
-    # DESIGN AXIS (references/shot-archetypes.md): a shot-based / 3D cinematic beat must declare an
+    # DESIGN AXIS ((the removed legacy cinematic tier)): a shot-based / 3D cinematic beat must declare an
     # `archetype` so it gets a bespoke, topic-driven design (not the default glass panel). Absent -> warn
     # (nudge the director); set-but-unknown -> error.
     _arche = s.get("archetype") or pr.get("archetype")
     if (stage and shots) or (s.get("planes") or pr.get("planes")):
         if _arche is None:
-            warnings.append(f"{tag}: no `archetype` — pick one from references/shot-archetypes.md so the beat "
+            warnings.append(f"{tag}: no `archetype` — pick one from (the removed legacy cinematic tier) so the beat "
                             f"gets a bespoke design (cover-the-copy test), not the default glass panel")
         elif str(_arche) not in _ARCHETYPES:
             errors.append(f"{tag}: unknown archetype {_arche!r} (known: {sorted(_ARCHETYPES)})")
@@ -1072,6 +1072,43 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
             _camera_lurch(camera3d, [("yaw", 55, 28, False), ("radius", 0.55, 0.30, True), ("height", 0.6, 0.35, True)], tag, "camera3d", warnings)
 
 
+def _check_remotion2(slides, errors, warnings):
+    """Guardrails for the remotion2 bespoke-shot tier: every scene needs a valid `shot` id + object
+    `shot_props`; a NUMBER-bearing register left on its illustrative demo default is flagged (a real film must
+    pass a SOURCED figure); adjacent same-FAMILY scenes are flagged (vary the design language). Ids auto-derived
+    from remotion2/src/shots so this never drifts from the library."""
+    shots_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion2", "src", "shots")
+    valid = {f[:-4] for f in os.listdir(shots_dir) if f.endswith(".tsx")} if os.path.isdir(shots_dir) else set()
+    NUM = {"ChartLive": "endVal", "BeforeAfterSlider": "metric", "VelocitySnap": "metric"}
+    seq = []
+    for s in slides:
+        tag = "scene #%s" % s.get("index")
+        shot = s.get("shot")
+        if not shot:
+            errors.append(f"{tag}: meta.renderer='remotion2' but the scene has no `shot` (a register id) — run "
+                          f"the shot-director step; valid ids are in remotion2/LIBRARY.md")
+            seq.append(None); continue
+        if valid and shot not in valid:
+            errors.append(f"{tag}: unknown shot {shot!r} — see remotion2/LIBRARY.md for the valid ids")
+            seq.append(None); continue
+        sp = s.get("shot_props")
+        if sp is not None and not isinstance(sp, dict):
+            errors.append(f"{tag}: `shot_props` must be an object")
+        if shot in NUM and (not isinstance(sp, dict) or NUM[shot] not in sp):
+            warnings.append(f"{tag}: {shot} shows an ILLUSTRATIVE demo number by default — pass "
+                            f"shot_props.{NUM[shot]} a SOURCED figure, or use a non-number register (no-fake-info)")
+        seq.append(shot)
+    try:                                                   # family-variety: no two ADJACENT beats one look
+        import shot_director as _sd
+        fams = [_sd.FAMILY.get(x) if x else None for x in seq]
+        for a, b, fa, fb in zip(seq, seq[1:], fams, fams[1:]):
+            if fa and fa == fb:
+                warnings.append(f"remotion2: adjacent scenes {a}/{b} share family {fa} — vary the design "
+                                f"language so the film doesn't read as one look")
+    except Exception:
+        pass
+
+
 def evaluate(data, out_dir, pre_tts=False, vertical=False):
     """Pure check: returns {ok, errors, warnings, scenes, ...}. No render, no network.
     `vertical` mirrors render.py's --vertical flag; meta.aspect=="9:16" also forces it, so the
@@ -1092,6 +1129,11 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
 
     meta = data["meta"]
     slides = data["slides"]
+    # REMOTION2 bespoke-shot tier — its own scene contract (shot id + props + family variety); the legacy
+    # cinematic/HTML checks below don't apply to it, so guard and skip them.
+    if (meta.get("renderer") or "") == "remotion2":
+        _check_remotion2(slides, errors, warnings)
+        return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides)}
     # visual_style is the declared single source of truth — a typo/hallucinated key degrades silently to the
     # default look, so cross-check it against the catalog (theme.STYLE_PRESETS) independent of the plan file.
     _vs = str(meta.get("visual_style") or "").strip()   # str() guards a hand-edited non-string value (.strip crash)
@@ -1342,7 +1384,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         elif _ts == "blur" and meta.get("renderer") == "remotion":
             # blur is a KNOWN seam key but the Remotion tier has no rack-defocus presentation yet — it renders
             # as a cross-dissolve (Video.tsx presentationFor default). Surface the approximation so a template
-            # that leans on a "blur coda" doesn't silently ship a plain fade (cinematic-templates.md grammar C).
+            # that leans on a "blur coda" doesn't silently ship a plain fade (legacy cinematic tier, removed).
             warnings.append(f"{tag}: transition_style 'blur' renders as a cross-dissolve on the Remotion tier "
                             f"(real rack-defocus is roadmap) — author a rack via a scene DoF beat if you need it")
         _tsec = s.get("transition_seconds")
@@ -1560,20 +1602,17 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                             "renders but a headless Linux/Lambda target can tofu. Use the HTML tier for a CJK "
                             "deck, or ensure the render host has a CJK font (Noto Sans CJK) installed")
         # CINEMATIC TEMPLATE (the whole-film LOOK): a cinematic film should DECLARE meta.cinematic_template — a
-        # key from references/cinematic-templates.md — so the design-director instantiates a bold, coherent,
+        # key from (the removed legacy cinematic tier) — so the design-director instantiates a bold, coherent,
         # GENERALISABLE look (accent -> per-beat colour worlds via cine_palette) instead of an ad-hoc concept.
         # Absent -> warn (nudge the director to run the template contest); set-but-unknown -> error.
         if cine:
             _tpl = meta.get("cinematic_template")
-            try:
-                import cine_palette as _cinep
-                _known = _cinep.TEMPLATE_KEYS
-            except Exception:
-                _known = {"command-surface", "liquid-model", "molten-ledger", "aurora-bloom", "ignition-monument",
-                          "doorway-gallery", "rakelight", "exploded-schematic", "defrag"}
+            # (legacy generic-scene tier, retained inert — the live Remotion tier is remotion2/shot-director)
+            _known = {"command-surface", "liquid-model", "molten-ledger", "aurora-bloom", "ignition-monument",
+                      "doorway-gallery", "rakelight", "exploded-schematic", "defrag"}
             if _tpl is None:
                 warnings.append("cinematic film has no `meta.cinematic_template` — pick one from "
-                                "references/cinematic-templates.md (design-director runs a template contest) so "
+                                "(the removed legacy cinematic tier) (design-director runs a template contest) so "
                                 "the film gets a bold, coherent, generalisable look, not an ad-hoc concept")
             elif str(_tpl) not in _known:
                 errors.append("unknown meta.cinematic_template %r (known: %s)" % (_tpl, sorted(_known)))
@@ -1622,17 +1661,13 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                         warnings.append("meta.template_contest has no `user_pick:true` — record that the USER "
                                         "chose (a contest is a human pick, not a self-selection)")
 
-            # ATMOSPHERE (the whole-film WORLD substrate — scripts/atmospheres.py): meta.atmosphere binds the
+            # ATMOSPHERE (the whole-film WORLD substrate — the removed legacy tier): meta.atmosphere binds the
             # render's material CLASS + post profile + style to the picked world (terminal/cartoon/app/…), so
             # the chosen world actually reaches the pixels. Unknown key -> ERROR (it silently no-ops to the
-            # default look). The topic-routed contest (atmospheres.route) offers the best ~3 to pick from.
+            # default look). The topic-routed contest (the removed atmosphere router) offers the best ~3 to pick from.
             _atmo_key = meta.get("atmosphere")
             if _atmo_key is not None:
-                try:
-                    import atmospheres as _atmos
-                    _known_atmo = set(_atmos.keys())
-                except Exception:
-                    _known_atmo = set()
+                _known_atmo = set()   # (legacy generic-scene tier retired; the world catalogue no longer ships)
                 if _known_atmo and str(_atmo_key).lower() not in _known_atmo:
                     errors.append("unknown meta.atmosphere %r (known: %s)" % (_atmo_key, sorted(_known_atmo)))
                 # ATMOSPHERE CONTEST trace (mirror template_contest): record which WORLDS were offered so a
@@ -1640,14 +1675,14 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                 _ac = meta.get("atmosphere_contest")
                 if not (isinstance(_ac, dict) and _ac):
                     warnings.append("meta.atmosphere is set but no `meta.atmosphere_contest` — record the STEP-0a "
-                                    "contest {candidates:[>=2 keys from atmospheres.route], winner, user_pick} so a "
+                                    "contest {candidates:[>=2 keys from the removed atmosphere router], winner, user_pick} so a "
                                     "hardcoded world isn't passed off as a topic-routed pick")
                 else:
                     _ac_cand = [str(c).lower() for c in (_ac.get("candidates") or []) if isinstance(c, str)]
                     if len(_ac_cand) < 2:
                         errors.append("meta.atmosphere_contest needs >=2 `candidates` — a contest is a choice")
                     elif len(_ac_cand) < 3:
-                        warnings.append("meta.atmosphere_contest offered only 2 worlds — aim for ~3 (atmospheres.route "
+                        warnings.append("meta.atmosphere_contest offered only 2 worlds — aim for ~3 (the removed atmosphere router "
                                         "returns 3 by default)")
                     _ac_win = _ac.get("winner")
                     if _ac_win is not None and str(_ac_win).lower() != str(_atmo_key).lower():

@@ -1,5 +1,0 @@
-# Per-project bespoke hero-beat components are STAGED here at render time from out_dir/bespoke/*.tsx.
-# They are project artifacts, not part of the skill — keep them out of git. registry.ts (the committed
-# empty default) is regenerated every render but tracked so a fresh checkout bundles.
-*.tsx
-!registry.ts

@@ -29,9 +29,6 @@ OR a non-card form that fits in the wrong direction (D1 bidirectional), player-c
 3. The full **`storyboard.json`** — the assembled scenes (`visual`, `transition`, `props`, `motion`).
 4. For an HTML-tier deck, the **authored `pages/scene_NN.html` files** (via each scene's `props.html`) —
    required for the form, icon, whitespace, colour, and motion-discipline checks (these live in the pages).
-   **On the cinematic (Remotion) tier this ALSO includes Path-A form pages** referenced from a scene's
-   `stage.elements[].html` or `planes[].html` — apply the same page-level checks (D1/D5/D8) to each, since
-   the camera flies over them full-frame.
 5. `meta` — `aspect` (16:9 / 9:16), `language`, `target_seconds`.
 6. **(optional) rendered keyframes** — `<out_dir>/_keyframes/all.png` or extracted sample frames. When
    present, run the **D11 rendered keyframe pass** on the actual pixels; when absent, D11 is skipped and
@@ -327,126 +324,8 @@ Frame-legibility of *captions*, tofu, A/V sync and player-chrome remain `critic-
 compositional pass — focal dominance + repeated-layout across the deck. Flag a defect under whichever
 fires; don't double-count the same page.)*
 
-### D12 — Cinematic tier (Remotion `meta.renderer:"remotion"` scenes with `layers`/`lens` OR `stage`/`shots`)
-The cinematic tier moves a virtual camera over depth planes — motion is the point, so it is **judged from
-the rendered filmstrip** (`<out_dir>/_keyframes/scene_NN.png`, the leftmost tile ≈ t=0 → rightmost ≈ the
-cut), NEVER from the plan (pre-tts the blind envelope shows everything settled — mark **UNJUDGED**, don't
-pass). Each shot card's Checklist cites these IDs; hold the render to them:
-
-**FIRST read `<out_dir>/shot_qa.json`** (the P5 mechanical reviewer — `scripts/shot_qa.py`). It scores the
-same rendered frames and HARD-FAILS the objective defects you shouldn't have to eyeball: a blank/collapsed
-frame, a **declared camera move that produced ~no motion** (the invisible-move bug), and a flat frame with
-no focal subject. Treat any scene it marks `passed:false` (a `floors` entry, or `composite` below
-threshold) as a **pre-flagged REVISE**, and treat an `abstained`/UNSCORED report as **UNJUDGED, not a
-pass**. Then spend your judgement on what it deliberately ABSTAINS from — is the move MOTIVATED for THIS
-beat (D12b), do the shots reframe (D12g), is the type legible — the things pixels can't score. shot_qa is
-the floor; you are the ceiling.
-- **D12a — Depth-ordering (real depth, not a zoom).** On the filmstrip the planes must OCCLUDE and the
-  perspective must read (a ground grid CONVERGES to a vanishing point; near planes displace/grow more
-  than far). **REVISE** a "3D" scene that is actually a uniform scale of one flat image — that is the
-  free tier's Ken Burns, not the cinematic tier's reason to exist.
-- **D12b — Camera-motivation (the move MEANS something for THIS beat).** The push/tilt/dolly must land on
-  the beat's hero content and settle as the narration makes its point. **REVISE** a camera that drifts
-  decoratively, is re-aimed with no narrative reason, or moves because "cinematic = motion".
-- **D12c — Easing, not linear.** The move must accelerate in and settle out (a camera), not slide at a
-  constant rate (a slider). **REVISE** a linear/robotic push. (The runtime eases by default; this catches
-  a keyframe set that defeats it.)
-- **D12d — Focal dominance / one focus per frame.** Exactly one plane is sharp and forward; the rest are
-  softer/dimmer/further. **REVISE** a frame with two equal focal claims, or no rack-focus separation
-  (everything equally sharp reads flat). TEXT belongs only on the focal plane — background text muddles
-  into noise even blurred (validate warns; confirm on the render).
-- **D12e — One motion system (the D9 renegotiation).** A declared, bounded depth stack under ONE camera
-  counts as one motivated system — that is how cinematic layered motion is reconciled with D9's
-  "one moving thing". **REVISE** a stray second animation competing with the camera (a spinning icon, a
-  second reveal), or an undeclared plane that just drifts.
-- **D12f — In band + no-flatten.** Card planes keystone past ~40° pitch / ~35° yaw (validate warns —
-  route a true 90° top-down/orbit to the R3F tier, don't push the rig out of band). And confirm the depth
-  did not silently FLATTEN (any `opacity`/`filter`/`overflow` on the 3D ancestor collapses it — the
-  runtime guards this and `tests/test_remotion_3d.py` locks it, but if the filmstrip shows a flat frame
-  where depth was specified, that is the footgun).
-- **D12g — Shot-based scenes (`stage`+`shots`): distinct framings + continuity.** A shot-based scene is
-  ONE set framed by an ordered `shots` list; on the filmstrip the successive shots must be GENUINELY
-  DIFFERENT framings of that set (a different subject/scale/angle per shot), not three near-identical
-  frames — three identical framings is the cinematic form of a template (D1/D6b). A `carry` shot must
-  read as a CONTINUOUS glide from the previous framing to the new subject (the eye tracks one space); a
-  non-carry boundary reads as a deliberate cut. **REVISE** a shots list whose framings don't visibly
-  differ, a `carry` that jumps, or a set where the targeted element isn't actually framed by its shot.
-- **D12h — Per-beat BESPOKE design, realised NATIVELY (the cover-the-copy test).** The camera is not the
-  design. Each cinematic beat must carry its own topic-driven visual IDEA (its `archetype` — hero-on-void /
-  metric-wall / process-flow / comparison-split / metaphor-mechanic / manifesto-monolith / …) realised with
-  NATIVE 3D forms (display/text/metaphor/bars/device/glyphrain/…). **The cinematic tier is a DISTINCT
-  native-3D STYLE, not the HTML tier with a camera bolted on** — **REVISE a film that leans on Path-A** (HTML
-  slides screenshotted onto planes the camera flies past = "build a 2D slide then simulate 3D"; `validate`
-  warns each one). If the content is really designed 2D slides, it should be an HTML-tier deck, not a
-  cinematic film. **(Exempt: a template `colorWorld` BACKPLANE behind native forms — a generated atmosphere
-  plane, not a screenshotted content slide — does not count as Path-A.)** Apply huashu's test on the
-  filmstrips: **cover the narration — can you still tell which
-  beat, and which product, this is, from the visuals alone?** **REVISE** a film where two beats look alike
-  with the copy hidden, where every content beat is the same glass panel reframed, where the design-director
-  set an `archetype` label but built the identical panel under it, or where an abstract beat that begs for a
-  `metaphor-mechanic` (the widening gap IS the loss; the vessel filling IS adoption) settled for a bar chart.
-  A launch film should carry ≥1 signature/metaphor moment (`validate` lints the archetype spread; you judge
-  whether the pixels honour it).
-- **D12i — Film craft: sound + continuity.** For a cinematic STORY film, confirm the director committed the
-  film-level knobs: `meta.sound_design` (a beat-synced two-track mix — **note the operator must audition it**);
-  `meta.hero_mark` (a persistent lockup) when the deck varies design across ≥3 archetypes so it reads as ONE
-  film; `film_look` on for 3D hero beats. **FLAG (not block)** a launch film that ships silent or as an
-  anthology of unrelated beats with no through-line.
-- **D12j — TEMPLATE adherence + colour-world variety (the anti-"boring/纯色" gate).** The film must be built on
-  a declared `meta.cinematic_template` (`references/cinematic-templates.md`; validate warns if absent). On the
-  filmstrips confirm: (a) **the template's SIGNATURE element** is present at the first and last frame and its
-  **transition grammar** is honoured at the seams (a template is only premium if its grammar is actually
-  executed — a "Command Surface" that never collapses to a line, or an "Ignition" with no hot line, is the
-  template in name only); (b) **each beat is its OWN colour world** — the per-beat palettes (from
-  `cine_palette`, an accent-derived transform) must visibly differ scene-to-scene; **REVISE a film that runs
-  one hue-world start to finish** (that is the "偏纯色/boring" failure, now structural to catch); (c) the
-  colour semantics stay fixed (go/info/alert, gain/loss, growth/attention, warm=raw/cool=resolved) so it reads
-  sound-off; (d) the accent actually threads (the film is on-brand for the topic hue, not a generic palette).
-- **D12k — Crisp by default + signature-once.** **REVISE the "sharp-next-to-smeared" mess**: DoF is opt-in
-  (`dof:true`) and belongs only on a genuine object-in-a-lit-volume beat — a film where a crisp headline sits
-  beside a fogged neighbour on a UI/type/data beat is the inconsistent-focus defect. And the trigger device
-  (terminal, boot HUD, opening frame) appears at most ONCE as a cold-open, then the film BLOOMS into the other
-  worlds — flag a film that leans on the same device (or the same panel) every beat instead of using it as a
-  doorway. **Crowding:** `validate._cine_crowding` warns when two content boxes collide on one depth plane
-  (a `display` is a 1680×200 monolith, ~one per shot — packing two close is the "内容过近/重叠" defect the user
-  called out); **REVISE any unresolved crowding warning** and confirm on the filmstrip that no on-frame element
-  sits on top of another (stagger crowded elements in z for real parallax, or use `textblock`/`callout` for
-  small nodes instead of a giant `display`).
-- **D12l — Content richness (the film says something).** The narration + on-screen content must carry the
-  CONTENT PLAN's real substance (the product's actual mechanism/process/differentiator), not generic marketing
-  filler — cover-the-copy also means: is there anything *specific and true* here, or is it hollow? **FLAG a
-  film that is visually rich but content-thin.**
-- **D12m — Generated-backplane discipline (atmosphere, not a stand-in).** A `treatment:"atmosphere"` depth
-  plane is a GENERATED texture behind the code-drawn card — validate enforces its PLACEMENT (backplane, no
-  text, no `doc_query`), but you judge the two things pixels-and-lints can't: (a) **the bright line** — the
-  gen plane must NOT depict a SPECIFIC REAL named thing (a real place/building/device/map/person). If the
-  filmstrip shows a generated stand-in for something real, **REVISE** — it's `documentary` (fetch the real
-  one, credited) or `none`, never a fabrication. (b) **atmosphere, not the carrier** — the far plane sets
-  mood/material only; the FACT/subject still lives on the code plane in front. **REVISE** a beat that leans
-  on the generated image to carry its meaning, or a film that drifts into a slideshow of gen stills (the
-  "AI = background, code = data" split broken). A gen backplane that's merely soft topical texture behind a
-  legible code card is correct — this catches the stand-in and the over-reliance, not the honest use.
-- **D12n — Native edge + real divergent contest (why is this on the Remotion tier at all?).** Two REVISE
-  triggers from real feedback: (a) **HTML-in-React** — if the film uses NO capability HTML structurally can't
-  (no bespoke WebGL 3D, no audio-reactive visual, no path/shape morph) and is built ONLY from the stock
-  `particles/surface/bars/hud` forms filled with data, it reads as a templated "tech-demo" and has wasted the
-  tier — REVISE toward a genuinely-native hero beat, or send it to the HTML tier. Confirm ≥1 hero beat does
-  something HTML cannot. (b) **contest was re-skins** — if `meta.template_contest` recorded candidates that
-  were "three skins of one representation" (same composition, different palette/font) rather than genuinely
-  different visual REPRESENTATIONS shown to the user as RENDERED frames, the contest was theatre — REVISE
-  (the user explicitly wants to pick from real, divergent rendered options). Cross-check with
-  `contest_diversity` on the recorded candidate frames. (c) **native-for-cool (gimmick, not 与内容相贴合)** —
-  a native capability used because it's impressive rather than because the content demands it (3D where the
-  idea isn't spatial, an audio-reactive form where the thing isn't a signal, a morph where nothing becomes
-  anything) is a gimmick — REVISE so the technique EXPRESSES the beat's idea (the native `signature_concept`).
-  And a native 3D beat whose camera SPINS / whip-zooms gratuitously (the "忽远忽近" lurch) violates the camera
-  grammar even in 3D — REVISE (cross-ref D12b: motivated, gentle, HELD-by-default; boldness in the concept,
-  restraint in the move).
-Inherited checks still apply to the composed frame: D5 (composition/whitespace), D7 (squint/cover-text),
-D8 (semantic colour), D10 (anti-slop). D1/D6b (layout/silhouette diversity) apply ACROSS cinematic scenes
-too — vary the lens move + depth arrangement, don't ship five identical dolly-ins.
-
----
+### D12 — Remotion tier → use the shot-critic
+The Remotion tier is now the **remotion2 bespoke-shot library**; a `meta.renderer:"remotion2"` film is reviewed by **`agents/shot-critic.md`** (register fit / family variety / faithful copy / decodability from the per-scene `_keyframes/` + `check_av`), NOT by this file. The legacy generic-scene cinematic dimension (depth planes / atmospheres / archetypes / shot_qa) was removed in the phase-3 cutover.
 
 ## Output format
 

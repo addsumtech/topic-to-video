@@ -1,0 +1,46 @@
+// SHOT · Particle Form — an elegant point-cloud (NOT cubes): ~140 glowing dots fly in from scatter and
+// ASSEMBLE into a giant checkmark — "a hundred moving parts resolve into one finished result." Dark + accent
+// glow. Deterministic (scatter seeded by index; assembly eased per dot).
+
+import React from 'react';
+import {AbsoluteFill, useVideoConfig} from 'remotion';
+import {useT, seg, lerp, easeInOutCubic, easeOutBack, clamp01, hash01} from '../runtime/motion';
+
+export const DURATION = 150; // 5s
+const ACC = '#3FA9FF';
+
+export const ParticleForm: React.FC<{label?: string}> = ({label = 'Done.'} = {}) => {
+  const t = useT();
+  const {width: W, height: H} = useVideoConfig();
+  const cx = W / 2, cy = H / 2 - 30, N = 150;
+  // checkmark target polyline
+  const A: [number, number] = [cx - 300, cy - 10], B: [number, number] = [cx - 90, cy + 200], C: [number, number] = [cx + 360, cy - 280];
+  const l1 = Math.hypot(B[0] - A[0], B[1] - A[1]), l2 = Math.hypot(C[0] - B[0], C[1] - B[1]);
+  const n1 = Math.round(N * (l1 / (l1 + l2)));
+  const target = (i: number): [number, number] => {
+    if (i < n1) {const u = i / n1; return [lerp(A[0], B[0], u), lerp(A[1], B[1], u)];}
+    const u = (i - n1) / (N - n1); return [lerp(B[0], C[0], u), lerp(B[1], C[1], u)];
+  };
+  const assembled = easeInOutCubic(seg(t, 0.1, 0.72));
+  const pulse = easeOutBack(seg(t, 0.72, 0.86));
+  return (
+    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 44%, #0f1626, #05070e 72%)'}}>
+      <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
+        <defs><filter id="pg"><feGaussianBlur stdDeviation="5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter></defs>
+        <g filter="url(#pg)">
+          {[...Array(N)].map((_, i) => {
+            const [tx, ty] = target(i);
+            const sx = cx + (hash01(i * 2.1) - 0.5) * W * 1.05, sy = cy + (hash01(i * 3.7) - 0.5) * H * 1.1;
+            const a = clamp01((assembled - hash01(i) * 0.18) / 0.6);
+            const x = lerp(sx, tx, a), y = lerp(sy, ty, a);
+            const r = (5 + hash01(i * 5) * 4) * (1 + 0.5 * pulse);
+            return <circle key={i} cx={x} cy={y} r={r} fill={i % 7 === 0 ? '#8fd0ff' : ACC} opacity={0.5 + 0.5 * a} />;
+          })}
+        </g>
+      </svg>
+      <div style={{position: 'absolute', left: 0, right: 0, top: cy + 300, textAlign: 'center',
+        opacity: clamp01((assembled - 0.7) / 0.2), font: '800 70px/1 Inter,system-ui,sans-serif', color: '#eaf2ff'}}>{label}</div>
+    </AbsoluteFill>
+  );
+};
+export default ParticleForm;

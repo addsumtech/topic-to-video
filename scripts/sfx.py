@@ -107,7 +107,7 @@ def _write_wav(path, arr):
 
 # ── cue planning: pin cues to the video's BEATS (frame-exact), with restraint ─────────────────────────
 def plan_cues(scenes, fps):
-    """Given build_props scenes (resolved shot startFrames + durations), return a cue list
+    """Given a scene list (each with durationInFrames; optional shots[].startFrame), return a cue list
     [(t_seconds, cue_name, gain)] aligned to beats: a whoosh at each scene transition (anticipatory, −2
     frames), a focus tick at each interior shot arrival, a pop at each element's enter, and a reveal bell
     at the LAST scene's final shot. Then applies restraint — caps density at ~4 cues / 10s, dropping the
@@ -219,14 +219,17 @@ def _probe_duration(mp4):
         return None
 
 
-if __name__ == "__main__":                          # CLI: regenerate + preview the cue plan for a deck
+if __name__ == "__main__":                          # CLI: preview the cue plan for a deck (renderer-agnostic)
     import json
     out_dir = sys.argv[1]
     data = json.load(open(os.path.join(out_dir, "storyboard.json")))
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    import render_remotion as rr
-    props = rr.build_props(data, out_dir)
-    cs = plan_cues(props["scenes"], int((data.get("meta") or {}).get("fps", 30)))
+    fps = int((data.get("meta") or {}).get("fps", 30))
+    _TR = 12   # remotion2 cross-dissolve overlap (frames); the -TR keeps whooshes on the real transitions
+    scenes = [{"durationInFrames": max(1, int(round(float(s.get("duration") or 0) * fps)) - _TR)}
+              for s in data.get("slides", [])]
+    if scenes:
+        scenes[-1]["shots"] = [{"startFrame": 0}]   # closing reveal bell
+    cs = plan_cues(scenes, fps)
     print("planned %d cues:" % len(cs))
     for (t, name, g) in cs:
         print("  %6.2fs  %-7s  %.2f" % (t, name, g))

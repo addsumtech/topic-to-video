@@ -59,15 +59,10 @@ TTS if the user gives an API key.
   (re-runs are free). Auto-uses the Codex CLI (no key) when installed, else needs
   `OPENAI_API_KEY`/`~/.openai_key`; `meta.image_provider` (`auto`/`codex`/`openai`) selects
   the path. Only acts when `meta.image_source == "openai"`. This is the **`atmosphere`/broll** class —
-  generic, no facts — and it lives **behind HTML pages** (soft `.bg-soft` textures / a hero cover) or
-  as **depth planes on the Remotion tier**, never a standalone slideshow of generated stills (data
-  stays in real HTML/charts — the "AI = background, code = data" split). **Cinematic gen BACKPLANE:** a
-  cinematic beat may put an `image_prompt` + **`treatment:"atmosphere"`** directly on a FAR `kind:"image"`
-  plane (a `layers` depth plane or a `stage` image element) to get a generated texture CODE can't draw
-  (material/terrain/haze/painterly light) behind the code-drawn focal card — imagegen fills that plane's
-  `src` (same cache path). `validate.py` ENFORCES the three bright lines on such a plane, on BOTH paths
-  (backplane-only, no text/data, never a stand-in for a real named subject → that's `documentary`); the
-  design-director's cinematic "DEPTH-PLANE IMAGERY" section is the authoring procedure.
+  generic, no facts — and it lives **behind HTML pages** (soft `.bg-soft` textures / a hero cover),
+  never a standalone slideshow of generated stills (data stays in real HTML/charts — the "AI =
+  background, code = data" split). `validate.py` enforces the three bright lines on such a background
+  (backplane-only, no text/data, never a stand-in for a real named subject → that's `documentary`).
 - `scripts/imagefetch.py <query> <out_path> [--prefer W] [--duotone SHADOW HIGHLIGHT]` — the
   **`documentary` (REAL-image) tier**, FREE + no key: search **Wikimedia Commons** for a
   license-clean (CC / Public-Domain) real photo/map/diagram of the ACTUAL named subject, download it,
@@ -146,172 +141,28 @@ TTS if the user gives an API key.
   cross-fades (a `reduced-motion.css` linked last), still deterministic + seekable. It's an
   authoring-time opt-in variant (a baked mp4 can't read the viewer's OS setting), and it busts the
   clip cache.
-- `scripts/render_remotion.py <out_dir> [--sample N] [--vertical] [--reduced-motion]` — **OPTIONAL
-  cinematic render tier** (opt-in via `meta.renderer:"remotion"`; the local ffmpeg+Chrome path stays the
-  free default). Renders the same `storyboard.json` through **Remotion** (React/Node): per scene a
-  full-bleed **image** with Ken Burns, the synthesized narration, subtitles, timed **callouts**, and an
-  optional lower-third `props.title`/`kicker` — the **story/cinematic** look. **Parity with the local
-  tier:** it honours the SAME per-scene fields — `motion` (Ken Burns from/to `[x,y,zoom]`, can zoom out),
-  `fit` (contain/cover), `callouts` (cue/at timing), `transition` (dip/in/out/none) + `transition_style`
-  (a REAL cross-scene transition via `@remotion/transitions` — fade/slide(push)/slide-up(lift)/wipe; a
-  marked seam OVERLAPS the two scenes and rides the audio-breath silence, clamped ≤ the breath so A/V
-  stays in sync; the standalone `.srt` is overlap-aware),
-  `reduced_motion` (transitions collapse to fade), canvas-derived caption size — reusing `render._captions_for`/`_canvas`/`_write_srt`/
-  `_callout_time` so the **srt is byte-parity** (burned captions DIVERGE on this tier: no karaoke
-  highlight, a fixed Helvetica-family face rather than the deck face — cinematic-story scope; but the
-  LOOK now MATCHES the local `overlay` — NO background bar, the caption sits flush at the bottom in a
-  theme-contrast ink with an opposite-luminance outline, adapting to light/dark, `Captions.tsx`). It does NOT reproduce the HTML slide archetypes
-  (kicker/cards/charts): a deck with **html/chart/timeline/keypoints/compare** scenes **fails loud**
-  (both `render_remotion` and `validate.py` ERROR, listing the offending indices) rather than silently
-  rendering blank — use the local renderer for a designed/html deck, or give those scenes an `image`.
-  `render.py --renderer remotion` (or `meta.renderer`) dispatches here; **`--sample N` renders one scene
-  to `sample.mp4`** for the step-8 sign-off (critic-av reviews it exactly as for the local tier). Needs
-  the Node toolchain + a one-time `cd remotion && npm install` (doctor.py reports availability;
-  `node_modules` is gitignored). Writes `out.mp4` + `out.srt`; the post-render `check_av.py` A/V gate
-  still guards delivery (it degrades cleanly with no `.clips/`).
-  **Agent-workflow enforcement (cinematic tier):** a cinematic render REQUIRES `content_plan.json` in the
-  out_dir (the content-planner's output) — so a hand-authored storyboard can't silently skip the pipeline;
-  it errors with the fix unless you pass **`--no-plan`** (or set `meta.no_plan:true`) for a deliberate
-  hand-authored film. And `validate` now ERROR-blocks a cinematic film that records no `meta.template_contest`
-  at any audacity except `conservative`, and blocks a ≥4-beat film that fails archetype diversity (>45% one
-  archetype / <3 distinct / no signature beat / back-to-back repeats) — the workflow's novel-design intent,
-  made into hard gates where it can be decided mechanically (the rest stays design-critic D12 judgment).
-  **Sound design (opt-in, `meta.sound_design:true`)** — a post-render two-track mix (`scripts/sfx.py`):
-  SYNTHESIZED SFX cues (no API, no assets) pinned frame-exact to the beats + frequency-isolated (SFX
-  highpass 800Hz, BGM lowpass 4kHz, `amix normalize=0`, loudnorm) under the voiceover; `meta.bgm` =
-  a track path OR `"auto"` (a subtle synth pad). Preview the cue plan: `python scripts/sfx.py <out>`.
-  **Audition the audio before delivery — the pipeline can't hear it.**
-  **3D film-look (`meta.film_look`, default on for 3D scenes)** — react-postprocessing DoF + selective
-  Bloom + ACES; set `false` on GPU-less CI where the composer is costly.
-  **Continuity spine (`meta.hero_mark:"<wordmark>"`)** — a persistent brand lockup on every scene (the
-  through-line that keeps aggressive per-beat design variety reading as ONE film; set it when a deck spans
-  ≥3 distinct archetypes). **`meta.motion_personality`** (calm…energetic) scales the whole film's move
-  amplitude. Per-scene **`reveal3d:true`** gives a 3D hero opener a dark→lit reveal.
-  When to reach for the tier: Remotion's real
-  edge is fast/kinetic motion + motion-blur + eased cross-scene transitions — worth it for a cinematic
-  **story** video, not for a calm explainer deck (where it's pixel-identical to local).
-  **Building a cinematic film? Pick an ATMOSPHERE (the render WORLD) — `scripts/atmospheres.py`.** An
-  atmosphere is a whole-film substrate that reaches the pixels (material CLASS standard/`toon` cel-shaded +
-  post `film`/`crt`/`clean` + a base style), NOT a colour re-skin: the design-director runs an **atmosphere
-  contest** (STEP 0a) — `atmospheres.route(topic)` returns the best ~3 worlds (terminal/cartoon/app/blueprint/
-  hologram/clay/noir/diorama/papercut/vaporwave/chalkboard/molten) → the USER picks → **`meta.atmosphere`**
-  (`validate` errors on an unknown key). build_props threads the world's style + `{materialClass, post}` onto
-  every scene so a terminal deck renders CRT-scanline phosphor and a cartoon deck renders cel-shaded (proven
-  in pixels). Adding a world = one entry in `atmospheres.py`. It composes with the template below (atmosphere
-  = substrate/finish; template = per-beat colour-world + arc).
-  **A cinematic film is also TEMPLATE-DRIVEN — read `references/cinematic-templates.md`.** The
-  design-director runs a **template contest** (STEP 0): route the topic → offer 2–4 bold, distinct,
-  generalisable templates (Command Surface / Liquid Model / Molten Ledger / Aurora Bloom / Ignition →
-  Monument / Doorway → Gallery / Rakelight / Exploded Schematic / Defrag) → the USER picks one →
-  `meta.cinematic_template` (a catalogue key; `validate` errors on an unknown key, warns if absent). The
-  per-beat COLOUR WORLDS are **generated** from `meta.accent` + the template by **`scripts/cine_palette.py`**
-  (`derive(accent, template, n)` → per-beat palettes; `aurora_page(pal,…)` → the backplane page) — a
-  deterministic transform of the accent, so any topic re-skins any template with zero hand-authored colour
-  (the fix for "偏纯色" + generalisation). **Crisp by default** (`dof:false` — DoF is opt-in per scene, only on
-  a genuine object-in-a-lit-volume beat); the trigger device (terminal / boot) appears **at most once** as a
-  cold-open that blooms open into the other worlds, never on every beat. Named transition GRAMMAR
-  (collapse-to-line · aperture-bloom · match-cut · liquid-dissolve · carry · drift · push-Z · wipe · lift ·
-  blur-coda · dip · explode/assemble · x-ray) — see the reference. `design-critic` **D12j–D12l** audit
-  template adherence + signature, colour-world variety, crisp-not-fogged, and content richness.
-  **CINEMATIC 2.5D (opt-in, additive — the enterprise/product-video tier, being built out; see
-  `references/shots/`):** a scene may carry two extra fields that switch it to a **virtual-camera path
-  over depth planes** instead of the flat image path — `layers` (2–4 depth planes, each `{kind:
-  fill|grid|hero|panel|image, parallax}` where background < 1 and foreground > 1) and `camera` (a list
-  of eased keyframes `{atFrame, x, y, zoom, easing: linear|in|out|inout}`). The shared camera moves the
-  whole layer group; each plane pans and zooms by `camera × its parallax`, so near and far planes travel
-  at different rates (real 2.5D, not a Ken Burns zoom). A layered scene with no `camera` gets a gentle
-  default push-in, so `layers` alone is already cinematic. Rendered by `remotion/src/Camera.tsx`
-  (`CinematicScene`); `reduced_motion` freezes the camera at keyframe 0 and shows reveals instantly.
-  **3D LENS path (the headline cinematic look — real camera angles, not flat parallax):** give the
-  scene a `lens` (eased keyframes `{atFrame, dolly, pitch, yaw, roll, zoom}`) + a `perspective` and put
-  each layer at a real `z` (plus optional `blur`/`dim` for depth-of-field). Then the layers render on a
-  CSS 3D perspective rig (`CinematicScene3D`): planes at different `z` **occlude and foreshorten**, the
-  camera looks **down (bird's-eye, +pitch) / up (worm's-eye, −pitch)**, yaws for orbit-lite, and dollies
-  THROUGH the space — a lens flat parallax cannot make. Layers are still authored in the HTML/CSS design
-  system. **Flattening footgun:** any `opacity`/`filter`/`overflow:hidden` on a `preserve-3d` ancestor
-  silently collapses all depth to a flat image that no render test catches — so the rig is kept inner
-  (fades/vignette outer, DoF blur on an inner wrapper), guarded by `tests/test_remotion_3d.py`; never
-  add opacity/filter to the 3D world. Card planes keystone past ~40° pitch / ~35° yaw (validate warns) —
-  route a true 90° top-down / full orbit to the **TRUE-3D tier** below. See `references/shots/lens-dolly-tilt.md`.
-  **TRUE-3D (WebGL / R3F) hero tier (`type:"cinematic3d"`, P6):** for the moves card planes can't hold —
-  a real 90° top-down / full orbit / crane over 3D content at true depth, with real lighting and occlusion.
-  Author `planes` — each a 3D element `{kind, position:[x,y,z], rotation?, size?, …}`:
-  **`kind:"plane"`** (default) is a surface — `color`, or **`src`** to texture a real SCREENSHOT onto the
-  mesh (the product UI as a true-3D object the camera orbits — not a flat overlay); **`kind:"bars"`** is a
-  real **extruded 3D bar chart** (`data:[…]` drives box heights, bars grow frame-by-frame — born-in-3D
-  data-viz), **`kind:"stack"`** stacks `data:[…]` UNIT CUBES per column (accretion/accumulation "has mass" —
-  the pile grows cube-by-cube with per-column totals; reach for it when the point is a COUNT building up),
-  and **`kind:"text"`** is a real 3D headline. Plus a `camera3d` orbit/crane path
-  (`[{at, yaw, radius, height, easing}]`, `at` = 0..1). Renders via `remotion/src/three/ThreeScene.tsx`
-  (`@remotion/three` + R3F v8 + three — **not drei**, whose `<Text>` renders BLANK); `render_remotion`
-  auto-adds the WebGL flag **`--gl`** (`angle` on macOS/Windows, `swangle` on headless Linux/CI; headless
-  Chrome has no WebGL otherwise → black). Bars auto-emit value+category labels; the floor casts real contact
-  SHADOWS + `<fog>`. Needs a one-time `cd remotion && npm install`. **Image textures + 3D text/labels load at
-  the DOM level (not inside the canvas), rasterized via `_rasterize_text3d` — see
-  `references/cinematic-components.md`.**
-  **PER-BEAT DESIGN (avoid the one-glass-panel trap): before authoring a cinematic scene, READ
-  `references/shot-archetypes.md` and give the scene an `archetype`** (the beat's bespoke composition/concept,
-  orthogonal to `meta.style`) — **the content becomes the SET NATIVELY** (display/text/metaphor/bars/stack/
-  particles/surface/glyphrain/device/terminal/hud/…). **The cinematic tier is a DISTINCT native-3D style, NOT
-  the HTML tier with a camera bolted on.** **REACH FOR REMOTION'S REAL EDGE on the hero beats — what HTML
-  CANNOT do (genuine WebGL 3D authored bespoke, audio-reactive visuals via `@remotion/media-utils`, path/shape
-  morphing via `@remotion/paths`) — a film that could've been HTML has wasted the tier; the stock
-  `particles/surface/bars/hud` forms are a FLOOR not the look (a film built only from them reads templated),
-  and a passing `validate`/`check_av`/`shot_qa` is NOT a verdict — render frames and LOOK, and give the user
-  genuinely-DIFFERENT rendered representations to pick (not re-skins). The `design-director` "REMOTION'S REAL
-  EDGE" + rendered-contest sections are the procedure.**
-  **BESPOKE-COMPONENT ESCAPE HATCH — when a hero beat needs WebGL/R3F no fixed `planes` kind expresses, author a
-  `component` instead of forking the composition: a custom React/R3F file at `out_dir/bespoke/<Name>.tsx`, named by
-  `scene.component` (+ author params in `scene.componentProps`). It STAGES into the bundle at render (`_stage_bespoke`)
-  and flows through the NORMAL `render_remotion` pipeline — the Scene wrapper GUARANTEES captions/audio/edge-fade
-  around it (the component returns only its visual body), so a bespoke beat keeps full parity (srt, transitions, gates).
-  `validate` deterministically gates the WIRING (safe name, file exists, exports `<Name>`-or-default, no self-rendered
-  captions); the LOOK is judged from rendered frames like any hero beat. Before authoring one, READ
-  `references/bespoke-components.md` for the props contract + a worked example.** **Path A** (author an HTML slide at `pages/<name>.html`, point a
-  `kind:"card"`/plane `html:` at it, screenshot it onto a plane the camera flies past) is **DEPRECATED as the
-  default** — it is "build a 2D slide then simulate 3D", the exact thing this tier avoids; `validate` WARNS on
-  every Path-A card. The two tiers are two STYLES: designed 2D slides → the **HTML/local tier** (omit
-  `meta.renderer:"remotion"`); native 3D → the Remotion tier. Don't screenshot one into the other. `validate`
-  also lints design-variety (archetype spread, ≥1 signature beat, no back-to-back repeats) so a film of
-  identical glass panels can't ship.
-  `validate.py` structurally gates the fields (keyframe ordering, on-canvas targets, a read-safe zoom
-  band, layer kinds, image-plane existence) — but the **move itself is judged only from the rendered
-  filmstrip** `<out_dir>/_keyframes/scene_NN.png`, never from the plan (pre-tts the blind envelope is
-  meaningless → mark UNJUDGED, not passed). This tier is Remotion-only; the free path degrades to eased
-  Ken Burns. Moves are documented as load-on-demand recipe cards in `references/shots/` (the director
-  cites a card by `name`; the critic checks the render against that card's Checklist).
-  **CAMERA GRAMMAR (operational — the two rules that fail silently, so they live here; the fuller catalogue
-  + the why + the bridge menu is `references/camera-and-bridges.md`).** ① **LEGIBILITY first: MEDIUM is home
-  base, and HOLD is the default.** A content beat opens and rests at a comfortable MEDIUM (read-card ~60–75%
-  of frame, FRONTAL — 0° pitch/yaw), and the camera is LOCKED unless a move is MOTIVATED (push=intensify ·
-  pull=contextualize · pan=reveal-next · tilt=scale · rack=redirect); if none applies, HOLD. Never open tiny
-  and swing to huge, never push so close content overflows/keystones — the framing ladder + 2000px default
-  perspective + amplitude clamp now keep it in ONE legible band by default (shots.ts/Camera.tsx), but don't
-  hand-author a `lens`/`camera` that pushes a plane near the perspective value or tilts a read-card. ② **A
-  DIEGETIC BRIDGE is the strongest motivation + the novel hand-off:** ONE advance-gesture per film — set
-  `meta.bridge` (`auto` derives it from the deck's aesthetic; `type-enter` is native today — a command types
-  out and Return fires, revealing the next scene as the output) and give a hand-off scene a `bridge_label`
-  (the command/phrase). It plays over that scene's TAIL (no transition-overlap, so it never eats narration),
-  reduced-motion drops it. Reserve it for meaningful seams; a gesture that doesn't match the look reads as a
-  costume. Full menu (cursor-click, page-turn, control-toggle, …) + per-aesthetic mapping: `references/camera-and-bridges.md`.
-  **When ADDING a component/element kind to the cinematic tier (a device frame, chart, icon, counter,
-  shape, 3D content, a Remotion/third-party package), READ `references/cinematic-components.md` FIRST** —
-  it is the adoption catalog: the hard **frame-driven** rule (a real-time-animated component renders
-  frozen in Remotion), which official `@remotion/*` packages + third-party libs to use vs the HTML-form-
-  as-plane reuse path, the need→source matrix, and the version-compat/frame-safety checklist to run
-  before `npm install`.
+- `scripts/render_remotion.py <out_dir>` with **`meta.renderer:"remotion2"`** — the **RECOMMENDED cinematic
+  tier**: a **bespoke-shot LIBRARY** where every beat is a hand-written, topic-driven design language (50
+  registers catalogued in `remotion2/LIBRARY.md`), sequenced into a narrated film with cross-dissolve
+  transitions + scene-relative captions + per-scene edge-tts narration (served via `--public-dir=<out_dir>`).
+  **Authoring:** the **shot-director** agent (`agents/shot-director.md`) reads `content_plan.json` +
+  `remotion2/LIBRARY.md` and writes, per scene, `shot` (a register id) + `shot_props` (the beat's topic copy)
+  — matching the beat's intent to a register's "use when" and **varying the FAMILY across the film** (no two
+  adjacent beats read as one look). Deterministic fallback: `python scripts/shot_director.py <out_dir>`.
+  **Faithfulness:** a register that shows a NUMBER (ChartLive/BeforeAfterSlider/VelocitySnap) MUST be given a
+  SOURCED figure in `shot_props` — never its illustrative demo default (`validate.py` warns; see
+  no-fabricated-stats). `validate.py` ERRORS on a missing/unknown `shot`. Each shot is standalone-renderable
+  (`cd remotion2 && npx remotion still src/index.ts <Id> out.png --frame=N --gl=angle`) and topic-driven via
+  `--props='{...}'` (ASCII only — a multibyte `·` breaks the CLI arg). **`meta.sound_design:true`** (opt-in)
+  adds a restrained SFX bed (transition whooshes pinned frame-exact to the cross-dissolves + a closing reveal)
+  under the VO, plus `meta.bgm` (a path or `"auto"` synth pad) — **audition it before delivery (the pipeline
+  can't hear it)**. Needs the Node toolchain (one-time `cd remotion2 && npm install`); the html/local tier
+  (`render.py`) is untouched by this path.
+  **`meta.renderer:"remotion"` is an ALIAS for `remotion2`** (both render the bespoke-shot library). The old
+  generic-scene tier was REMOVED in the phase-3 cutover — `"remotion-legacy"` now errors with a migration hint.
+- `scripts/render_remotion.py <out_dir>` — the render CLI for the **remotion2 bespoke-shot tier** (see the bullet above). The legacy generic-scene Remotion tier (atmospheres / cinematic templates / TRUE-3D archetypes / `type:"cinematic"` scenes) was REMOVED in the phase-3 cutover — its scripts, reference docs, and tests were deleted; `meta.renderer:"remotion-legacy"` errors with a re-author hint.
 - `scripts/cues.py` — pure anchor→cue-time resolver: reads per-scene `audio/NN.words.json` (edge-tts per-word timings) and resolves each `data-cue` anchor phrase to an absolute timestamp, used by `render_html` for audio-synced HTML reveals.
 - `scripts/check_av.py <out_dir>` — deterministic A/V gate: probes `out.mp4` video-vs-audio duration + per-clip sample-rate uniformity across `.clips/`; exits non-zero on A/V drift above tolerance (0.3 s) or non-uniform rates. Run AFTER the full render (step 9) as a gate before delivery.
-- `scripts/shot_qa.py <out_dir> [--mp4 M] [--threshold N] [--json]` — the **CINEMATIC-tier scored reviewer**
-  (P5; the mechanical half of the guide's "reviewer agent"). Samples the rendered frames per cinematic scene
-  and HARD-FAILS the objective defects (a blank/collapsed frame; a **declared camera move that rendered ~no
-  motion** — the invisible-move bug; a flat frame with no focal subject), plus a 0-100 focal-composition
-  score; writes `shot_qa.json` (which `design-critic` D12 reads FIRST). It measures-or-ABSTAINS by design —
-  motion is only floor-checked (restraint is the goal, not a low score) and legibility isn't scored from a
-  captioned frame — so it never false-fails good, restrained cinematography; an `abstained` report is
-  UNSCORED, not passed. `render_remotion` runs it automatically after a render (advisory); run the CLI on
-  the `--sample` BEFORE the full render as a block-below-threshold gate (exit 2 = floor/below-threshold).
-  Needs numpy + ffmpeg.
 - `scripts/doctor.py [--json]` — environment preflight: reports which tools/libraries are present (ffmpeg/ffprobe/PIL required; PyMuPDF/python-pptx/edge-tts/soffice/Chrome/font optional) and, for each missing one, the stage it gates + the install hint. Exits non-zero only when a REQUIRED dep is missing. Run once at the START (step 1).
 - `scripts/validate.py <out_dir> [--pre-tts] [--vertical] [--json]` — deterministic PRE-render gate on `storyboard.json` (runs in ~1s): structural contract, duplicate indices, every referenced image/audio/html-page/`file://` asset + `theme.css` exists on disk, caption craft (no wall of text, no widow, ≥0.7s on screen — see `references/captions.md`), motion sanity (zoom delta + zoom-past-1.25 + callout-framing — see `references/motion-grammar.md`), per-point reveal↔voice alignment (each point spoken-% vs shown-% → leads/lags warning, cued or paced), an **animation-TRUNCATION gate** (a cued element starts at its cue and runs for its own `animation-duration`; when `cue + duration > scene duration` the render freezes it mid-flight and hard-cuts — a connector stopping in mid-air. ERROR under ~90% complete, WARN above, reporting the exact duration to set. `.draw` at 1.4s is the usual casualty, double the `--dur` .7s every other reveal uses; durations are parsed from base.css/motifs.css so they can't drift. **This is the ONLY gate that sees it** — `keyframe_qa`'s `?p=` sheet renders in blind-envelope mode where p=1.0 means "every animation finished" by construction), a **composition-gate ABSTENTION** (anchor/balance are read off the `.stage`'s flex signature + a few
 layout classes; an absolute-positioned page has neither, so the gate now says it cannot measure instead of
@@ -492,7 +343,7 @@ figure), a non-singular `the_one_thing`, or a
      default) · **HTML + AI backdrops — PAID, uses image generation** — the SAME designed pages WITH a
      generated hero cover + soft on-topic textures behind the glass cards at low opacity
      (`image_source:openai`). (Other → a brand/theme/CSS to match.) The image generator only ever
-     produces **backgrounds/atmosphere behind HTML pages** (or depth planes on the Remotion tier) — a
+     produces **backgrounds/atmosphere behind HTML pages** — a
      deck is never a bare slideshow of generated stills, and data always stays in real HTML/charts (the
      "AI = background, code = data" split). **No Chrome?** the HTML tier is unavailable; the deck then
      falls back automatically to the flat **programmatic** renderers (`title`/`chart`/`timeline`/
@@ -513,11 +364,13 @@ figure), a non-singular `the_one_thing`, or a
      register that genuinely carries the video) is right for most runs; mention it only if the user wants
      a bolder or more restrained feel — the floor (clarity/faithfulness/AV/gates) is identical at every
      level. Set it here or leave the default; the design-director commits the register accordingly.
-     **Cinematic story option (Remotion):** if the deck is a **story/cinematic** piece of full-bleed
-     IMAGE scenes (not data cards/charts) — e.g. a historical story — and the Remotion tier is installed
-     (doctor.py reports it), offer it as a look and set `meta.renderer:"remotion"`; it renders images +
-     Ken Burns + narration + captions + callouts via `render_remotion.py`. It does NOT render the HTML
-     archetypes, so keep a designed/html/chart deck on the default local renderer (`meta.renderer:"local"`).
+     **Cinematic option (Remotion / remotion2):** if the user wants a **kinetic, bespoke-designed** film —
+     each beat its OWN hand-written design language from the 50-register library (`remotion2/LIBRARY.md`),
+     narrated, with cross-dissolves — rather than the html designed-slide look, and the Remotion tier is
+     installed (doctor.py reports it), offer it and set `meta.renderer:"remotion2"`. The **shot-director**
+     assigns each beat a `shot` register + faithful `shot_props`; it renders via `render_remotion.py` and is
+     reviewed by the **shot-critic**. Keep a designed/html/chart deck on the default local renderer
+     (`meta.renderer:"local"`) — the two tiers are two distinct LOOKS, not interchangeable.
    - **④ Length** *(→ `meta.target_seconds` AND `meta.aspect` — one decision)* — the finished
      runtime, which also fixes orientation/platform. Menu: **Vertical short ~30–45s** (9:16 —
      Shorts/Reels/TikTok) · **Quick explainer ~60–90s** (16:9) · **Standard ~2–3 min** (16:9) ·
@@ -783,12 +636,15 @@ figure), a non-singular `the_one_thing`, or a
      `<out_dir>/design_plan.json`** — `validate.py` flags a content_shape↔form mismatch + a missing
      `signature_concept`/`style_thesis`/`design_register` (and an invalid `meta.audacity`), and the
      **design-critic** (D1 fit, D2c creativity floor, **D2e whole-video register + motion personality**)
-     judges them. **CINEMATIC decks (`meta.renderer:"remotion"` — enterprise/product film):** the director
-     ALSO emits `type:"cinematic"` scenes — depth `layers` + a `lens` (3D dolly/pitch/yaw) or `camera`
-     (flat parallax) + a cited **`shot_card`** from `references/shots/` (read its `README.md` manifest +
-     the cited card FIRST; see `agents/design-director.md` "Cinematic tier"). These are judged by
-     **design-critic D12** from the per-scene filmstrip `_keyframes/scene_NN.png` that `render_remotion.py`
-     writes; a cinematic scene on the local renderer is a validate ERROR (it can't render there).
+     judges them. **CINEMATIC decks (`meta.renderer:"remotion2"`, alias `"remotion"` — the bespoke-shot film
+     tier):** the design step is NOT this file — dispatch **`agents/shot-director.md`** instead (it assigns
+     each beat a `shot` register from `remotion2/LIBRARY.md` + faithful `shot_props`, VARYING the family; run
+     `python scripts/shot_director.py <out_dir>` first for a deterministic family-varied skeleton, then the
+     agent fills the topic copy). SKIP the HTML design plan for these decks (no `design_plan.json`). After the
+     render, the review gate is **`agents/shot-critic.md`** (the design-critic analogue), judging register fit
+     + family variety + faithful copy + decodability from the per-scene filmstrip `_keyframes/scene_NN.png`
+     that `render_remotion.py` writes + the `check_av` report; it REVISEs failing beats (the shot-director
+     re-assigns, re-render). A `shot`-based scene on the local renderer is a validate ERROR (it can't render there).
      **Build the storyboard by MERGING the two plans:** the design's `visual.type`+`props`
      become each scene; its `transition` becomes the per-scene edges; a `climax` beat's scene carries
      `props.climax:true` — the climax MARKER (`rhythm_qa` reads it); it also drives the key-number landing
@@ -974,7 +830,14 @@ figure), a non-singular `the_one_thing`, or a
    the `--vertical` flag also forces it on both), and the POST-render A/V gate:
    `python scripts/check_av.py <out_dir>`. A non-zero exit means A/V drift or non-uniform clip
    rates — fix the root cause (clear `.clips/`, fix audio or regenerate failing clips, and
-   re-render) before delivering. **DELIVERY CRITERION — every gate, not two.** Deliver `out.mp4`,
+   re-render) before delivering.
+   **For a `meta.renderer:"remotion2"` deck** (the bespoke-shot tier), `render_remotion.py` writes `out.srt`
+   + `_keyframes/scene_NN.png` itself, and the HTML-only gates (`keyframe_qa`/`rhythm_qa`/`pedagogy_qa` — the
+   last two still apply since they read `content_plan.json`) are replaced at the DESIGN layer by dispatching
+   **`agents/shot-critic.md`** on those keyframes + the `check_av` report: it judges register fit, family
+   variety, faithful copy (no demo-number/WorkBuddy-leftover), and decodability, and REVISEs failing beats
+   (the shot-director re-assigns → re-render). Deliver only after **shot-critic PASSES and `check_av` exits 0**.
+   **DELIVERY CRITERION — every gate, not two.** Deliver `out.mp4`,
    `out.srt`, and the editable `storyboard.json` only after **`validate.py`, `check_av.py`,
    `keyframe_qa.py`, `rhythm_qa.py` and `pedagogy_qa.py` ALL exit 0**. Naming only the first two is
    how a deck shipped "all green" while the gates that actually look at the pages were never

@@ -14,7 +14,9 @@ VALID_IMAGE_TAGS = {"motif", "broll", "asserted"}
 VALID_FITS = {"contain", "cover"}
 VALID_IMAGE_QUALITIES = {"low", "medium", "high"}
 VALID_IMAGE_SIZES = {"1024x1024", "1024x1536", "1536x1024", "auto"}   # gpt-image-2 supported sizes
-VALID_RENDERERS = {"local", "remotion"}   # local = ffmpeg+Chrome (default); remotion = optional cinematic tier
+VALID_RENDERERS = {"local", "remotion", "remotion2", "remotion-legacy"}
+# local = ffmpeg+Chrome (default). remotion/remotion2 = the bespoke-shot cinematic tier (LIBRARY.md).
+# remotion-legacy = the retired generic-scene machinery (kept one release for migration).
 # Visual-ENERGY dial (render._intensity_amp): the design-director maps a beat's `energy` to this and
 # writes it as meta.intensity (deck default) or slide.intensity (per-scene override). "balanced" is the
 # no-op default, so the field is OPTIONAL and absent-means-balanced; validated here only when present so
@@ -180,6 +182,11 @@ def validate(data):
     for s in data["slides"]:
         if "index" not in s or "narration" not in s:
             raise StoryboardError(f"slide missing 'index'/'narration': {s.get('index')}")
+        if m.get("renderer") == "remotion2":
+            # the bespoke-shot tier: a scene renders a `shot` (a register id), NOT the type/image contract.
+            if not isinstance(s.get("shot"), str) or not s.get("shot"):
+                raise StoryboardError(f"slide {s.get('index')}: remotion2 tier requires a `shot` (a register id)")
+            continue
         t = s.get("type", "slide")
         if t not in VALID_SCENE_TYPES:
             raise StoryboardError(f"slide {s.get('index')}: unknown type '{t}'")

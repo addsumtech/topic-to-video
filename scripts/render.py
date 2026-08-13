@@ -1323,14 +1323,16 @@ def main():
     ap.add_argument("--vertical", action="store_true")
     ap.add_argument("--reduced-motion", action="store_true",
                     help="accessibility: no zoom/pan + opacity-only reveals (still deterministic/seekable)")
-    ap.add_argument("--renderer", choices=["local", "remotion"], default=None,
-                    help="override meta.renderer; 'remotion' = the optional cinematic tier (image scenes)")
+    ap.add_argument("--renderer", choices=["local", "remotion", "remotion2", "remotion-legacy"], default=None,
+                    help="override meta.renderer; 'remotion2' = the bespoke-shot cinematic tier (recommended); "
+                         "'remotion'/'remotion-legacy' = the deprecated generic-scene tier")
     ap.add_argument("--preview", action="store_true",
                     help="cheap iteration render: 12fps, own cache (.clips_preview), writes preview.mp4 — never touches out.mp4/.clips")
     a = ap.parse_args()
-    # Renderer dispatch: the optional Remotion cinematic tier renders the whole storyboard at once.
+    # Renderer dispatch: any Remotion tier (bespoke remotion2 OR the legacy generic-scene remotion) renders the
+    # whole storyboard at once via render_remotion, which internally picks the tier from meta.renderer.
     meta = (sb.load(os.path.join(a.out_dir, "storyboard.json")).get("meta") or {})
-    if (a.renderer or meta.get("renderer", "local")) == "remotion":
+    if (a.renderer or meta.get("renderer", "local")) in ("remotion", "remotion2", "remotion-legacy"):
         if a.only:
             print("[render] note: the remotion tier has no --only; rendering the whole deck.")
         import render_remotion
