@@ -24,9 +24,10 @@ const WB_SEC = [9.3, 9.075, 9.224, 11.495, 12.632, 10.538, 9.0, 10.41, 10.692, 1
 const WB_SHOTS = ['ChatThread', 'CinematicTitle', 'ExplodedSchematic', 'CollaborativeCursors', 'KnowledgeGraph',
   'BlockAssembly', 'BlueprintGrid', 'FocalIsolation', 'MapRoutes', 'MaterialHero', 'ParticleForm', 'ChartLive', 'HandDrawn', 'LiquidChrome'];
 const WB_PROPS: Record<number, Record<string, unknown>> = {11: {endVal: 68, unit: '×', label: 'Hy3 call volume · first week'}};
+// The default preview is SILENT (no demo audio ships with the skill) — a real film's per-scene narration is
+// supplied by render_remotion.py from the out_dir (`sc.mp3`), served via --public-dir.
 export const WORKBUDDY_SCENES: SceneSpec[] = WB_SHOTS.map((shot, i) => ({
-  shot, props: WB_PROPS[i] ?? {}, durF: Math.round(WB_SEC[i] * 30),
-  mp3: `narration/${String(i + 1).padStart(2, '0')}.mp3`, caption: CAPTIONS[i],
+  shot, props: WB_PROPS[i] ?? {}, durF: Math.round(WB_SEC[i] * 30), caption: CAPTIONS[i],
 }));
 
 const SceneCaption: React.FC<{text: string; dur: number}> = ({text, dur}) => {

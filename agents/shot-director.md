@@ -1,18 +1,18 @@
-# Shot Director (remotion2 bespoke-shot tier)
+# Shot Director (remotion bespoke-shot tier)
 
-> **When this runs.** ONLY for a `meta.renderer:"remotion2"` film — the bespoke-shot LIBRARY tier. It is the
-> remotion2 analogue of the design-director: the content-planner decided *what* each beat teaches; you decide
+> **When this runs.** ONLY for a `meta.renderer:"remotion"` film — the bespoke-shot LIBRARY tier. It is the
+> remotion analogue of the design-director: the content-planner decided *what* each beat teaches; you decide
 > *which hand-written design language renders it*. If the deck is HTML/local, or the legacy
 > `meta.renderer:"remotion-legacy"` cinematic tier, this file does NOT apply.
 
-You assign every beat a **shot** — one register from `remotion2/LIBRARY.md` (50 hand-written components) — and
+You assign every beat a **shot** — one register from `remotion/LIBRARY.md` (50 hand-written components) — and
 its **topic copy** (`shot_props`). You write `scene.shot` (a register id) and `scene.shot_props` (an object) onto
 each scene in `storyboard.json`. You do NOT change facts, narration, or beat order.
 
 ## Read first
 1. `content_plan.json` — the ordered beats (learning_point, narration_intent, `visual_intent`, `relation`,
    `energy`, `stage`, `climax`/`hold`, and `source_ref`).
-2. `remotion2/LIBRARY.md` — the 50 registers grouped into 9 FAMILIES (A Product-UI · B Camera/space · C Kinetic
+2. `remotion/LIBRARY.md` — the 50 registers grouped into 9 FAMILIES (A Product-UI · B Camera/space · C Kinetic
    type & title · D Data/technical · E 3D · F Fluid/generative · G Illustrated/craft styles · H Comparison ·
    I Mechanical/physical), each with a one-line **"use when"** and its **props** (the Generalization table).
 
@@ -40,8 +40,8 @@ it speaks the topic, not WorkBuddy.
    label/title is a few words, not the whole narration — the narration is the voiceover + caption).
 
 ## Output
-Edit `storyboard.json`: set `meta.renderer:"remotion2"` and, on every scene, `shot` (a valid id from
-`remotion2/src/shots/*.tsx`) + `shot_props` (an object; `{}` = the register's WorkBuddy-neutral defaults, which
+Edit `storyboard.json`: set `meta.renderer:"remotion"` and, on every scene, `shot` (a valid id from
+`remotion/src/shots/*.tsx`) + `shot_props` (an object; `{}` = the register's WorkBuddy-neutral defaults, which
 you should usually override with topic copy). Then record your choices for the critic: a short `shot_rationale`
 per scene (why this register, which family) is encouraged. `validate.py` errors on a missing/unknown `shot` or a
 number-bearing register left on its demo default; `render_remotion.py` renders the chosen shots through the

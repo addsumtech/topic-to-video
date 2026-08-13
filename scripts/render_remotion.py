@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render storyboard.json through the REMOTION2 bespoke-shot LIBRARY — the skill's Remotion cinematic tier.
 
-Each storyboard scene names a `shot` (a register id from remotion2/LIBRARY.md, chosen by the shot-director
+Each storyboard scene names a `shot` (a register id from remotion/LIBRARY.md, chosen by the shot-director
 agent) + optional topic `shot_props`; this sequences the chosen shots through the data-driven `Film`
 composition (cross-dissolve transitions + scene-relative captions + per-scene edge-tts narration served from
 out_dir via `--public-dir`), then writes delivery parity — `out.srt` + `_keyframes/scene_NN.png` (the
@@ -9,22 +9,22 @@ shot-critic filmstrip + the `check_av` A/V gate) + an optional `meta.sound_desig
 
 The html/local tier (`render.py`) is a completely separate module and is byte-untouched by this one. The legacy
 generic-scene Remotion machinery (atmospheres/templates/planes/ThreeScene) was REMOVED in the phase-3 cutover.
-Requires the Node toolchain + `cd remotion2 && npm install` once (doctor.py reports availability).
+Requires the Node toolchain + `cd remotion && npm install` once (doctor.py reports availability).
 """
 import argparse, json, os, shutil, subprocess, sys
 import storyboard as sb
 
-_REMOTION2_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion2")
+_REMOTION2_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion")
 _REMOTION2_TR = 12   # cross-dissolve length in Film.tsx (frames) — the output timeline is compressed by this per cut
 
 
 def available():
-    """True if the Node toolchain + the installed remotion2/ project are present."""
+    """True if the Node toolchain + the installed remotion/ project are present."""
     return bool(shutil.which("npx")) and os.path.isdir(os.path.join(_REMOTION2_DIR, "node_modules"))
 
 
-def _remotion2_shot_ids():
-    """The valid shot ids = the component files in remotion2/src/shots (auto-syncs with the library)."""
+def _remotion_shot_ids():
+    """The valid shot ids = the component files in remotion/src/shots (auto-syncs with the library)."""
     d = os.path.join(_REMOTION2_DIR, "src", "shots")
     return {f[:-4] for f in os.listdir(d) if f.endswith(".tsx")} if os.path.isdir(d) else set()
 
@@ -34,7 +34,7 @@ def _srt_ts(t):
     return "%02d:%02d:%02d,%03d" % (h, m, s, ms)
 
 
-def _remotion2_deliverables(out_dir, scenes, out_mp4, fps):
+def _remotion_deliverables(out_dir, scenes, out_mp4, fps):
     """Delivery parity with the html tier so the WORKFLOW's critic + A/V gate have material: write out.srt
     (from the overlap-compressed scene timeline) and _keyframes/scene_NN.png (one mid-scene frame per beat,
     extracted from out.mp4) for the shot-critic filmstrip + `check_av`."""
@@ -60,16 +60,16 @@ def _remotion2_deliverables(out_dir, scenes, out_mp4, fps):
             mid = starts[i] + (sc["durF"] / fps) * 0.5
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "%.3f" % mid, "-i", out_mp4,
                             "-frames:v", "1", os.path.join(kdir, "scene_%02d.png" % (i + 1))], check=False)
-        print("[render_remotion2] wrote out.srt + %d keyframes (_keyframes/) for the shot-critic + A/V gate." % len(scenes))
+        print("[render_remotion] wrote out.srt + %d keyframes (_keyframes/) for the shot-critic + A/V gate." % len(scenes))
 
 
-def _render_remotion2(out_dir, data, sample=None, log="error"):
+def _render_remotion(out_dir, data, sample=None, log="error"):
     """Render via the bespoke-shot LIBRARY. Fails loud on a missing/unknown shot or missing audio."""
     if not shutil.which("npx"):
         raise RuntimeError("Node/npx not found — the Remotion tier needs Node.js.")
     if not os.path.isdir(os.path.join(_REMOTION2_DIR, "node_modules")):
-        raise RuntimeError("remotion2 deps not installed — run `cd %s && npm install` once." % _REMOTION2_DIR)
-    valid = _remotion2_shot_ids()
+        raise RuntimeError("remotion deps not installed — run `cd %s && npm install` once." % _REMOTION2_DIR)
+    valid = _remotion_shot_ids()
     slides = data.get("slides", [])
     if sample is not None:
         slides = [s for s in slides if s.get("index") == sample]
@@ -79,10 +79,10 @@ def _render_remotion2(out_dir, data, sample=None, log="error"):
     for s in slides:
         idx, shot = s.get("index"), s.get("shot")
         if not shot:
-            raise RuntimeError("scene #%s has no `shot` (a remotion2 register id) — run the shot-director "
-                               "step; valid ids are in remotion2/LIBRARY.md." % idx)
+            raise RuntimeError("scene #%s has no `shot` (a remotion register id) — run the shot-director "
+                               "step; valid ids are in remotion/LIBRARY.md." % idx)
         if valid and shot not in valid:
-            raise RuntimeError("scene #%s names unknown shot %r — see remotion2/LIBRARY.md." % (idx, shot))
+            raise RuntimeError("scene #%s names unknown shot %r — see remotion/LIBRARY.md." % (idx, shot))
         dur, audio = s.get("duration"), s.get("audio")
         if not dur or not audio:
             raise RuntimeError("scene #%s has no audio/duration — run tts.py before rendering." % idx)
@@ -92,7 +92,7 @@ def _render_remotion2(out_dir, data, sample=None, log="error"):
         caption = (s.get("narration") or s.get("script") or s.get("caption") or "").strip()
         scenes.append({"shot": shot, "props": props, "durF": int(round(dur * fps)),
                        "mp3": str(audio).replace(os.sep, "/"), "caption": caption})
-    props_path = os.path.join(out_dir, ".remotion2-props.json")
+    props_path = os.path.join(out_dir, ".remotion-props.json")
     with open(props_path, "w", encoding="utf-8") as f:
         json.dump({"scenes": scenes}, f, allow_nan=False, ensure_ascii=False)
     out_name = "sample.mp4" if sample is not None else "out.mp4"
@@ -102,21 +102,21 @@ def _render_remotion2(out_dir, data, sample=None, log="error"):
            "--props=" + os.path.abspath(props_path), "--public-dir=" + os.path.abspath(out_dir),
            "--gl=" + gl, "--log=" + log,
            "--timeout=" + str(int(os.environ.get("REMOTION_TIMEOUT_MS", "120000") or "120000"))]
-    print("[render_remotion2] %s: %d scene(s) -> %s"
+    print("[render_remotion] %s: %d scene(s) -> %s"
           % ("sample" if sample is not None else "full", len(scenes), out_mp4))
     try:
         subprocess.run(cmd, cwd=_REMOTION2_DIR, check=True)
     except subprocess.CalledProcessError:
         if any(a.startswith("--gl=") for a in cmd):
-            print("[render_remotion2] render failed with GL — retrying ONCE without --gl (software raster; slower).")
+            print("[render_remotion] render failed with GL — retrying ONCE without --gl (software raster; slower).")
             subprocess.run([a for a in cmd if not a.startswith("--gl=")], cwd=_REMOTION2_DIR, check=True)
         else:
             raise
     if sample is None:                                 # delivery parity: srt + critic keyframes (full render only)
         try:
-            _remotion2_deliverables(out_dir, scenes, out_mp4, fps)
+            _remotion_deliverables(out_dir, scenes, out_mp4, fps)
         except Exception as e:
-            print("[render_remotion2] deliverables (srt/keyframes) skipped: %s" % e)
+            print("[render_remotion] deliverables (srt/keyframes) skipped: %s" % e)
         meta = data.get("meta") or {}
         if meta.get("sound_design"):                   # opt-in SFX(+BGM) bed, post-render
             try:
@@ -127,29 +127,29 @@ def _render_remotion2(out_dir, data, sample=None, log="error"):
                     sfx_scenes[-1]["shots"] = [{"startFrame": 0}]
                 sfx.mix(out_dir, out_mp4, sfx_scenes, meta, fps)   # transition whooshes + reveal + meta.bgm
             except Exception as e:
-                print("[render_remotion2] sound_design skipped: %s" % e)
+                print("[render_remotion] sound_design skipped: %s" % e)
     return out_mp4
 
 
 def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="error", no_plan=False):
     """Render the whole deck to out.mp4 (+ out.srt / _keyframes / optional SFX), or one scene (sample=N) to
-    sample.mp4 for the sign-off checkpoint. Routes through the remotion2 bespoke-shot library. `vertical`/
+    sample.mp4 for the sign-off checkpoint. Routes through the remotion bespoke-shot library. `vertical`/
     `reduced_motion`/`no_plan` are accepted for CLI parity (the shot library authors its own 1080p framing)."""
     data = sb.load(os.path.join(out_dir, "storyboard.json"))
     _renderer = (data.get("meta") or {}).get("renderer")
-    if _renderer in ("remotion2", "remotion"):
-        return _render_remotion2(out_dir, data, sample=sample, log=log)
+    if _renderer == "remotion":
+        return _render_remotion(out_dir, data, sample=sample, log=log)
     if _renderer == "remotion-legacy":
         raise RuntimeError(
             "the legacy generic-scene Remotion tier has been REMOVED in the phase-3 cutover — set "
-            "meta.renderer='remotion2' (the bespoke-shot LIBRARY, remotion2/LIBRARY.md) and run the "
+            "meta.renderer='remotion' (the bespoke-shot LIBRARY, remotion/LIBRARY.md) and run the "
             "shot-director step. An old-tier storyboard (planes/stage/atmosphere) must be re-authored.")
-    raise RuntimeError("render_remotion handles only the Remotion tier (meta.renderer='remotion2'); got %r "
+    raise RuntimeError("render_remotion handles only the Remotion tier (meta.renderer='remotion'); got %r "
                        "— use render.py for the html/local tier." % _renderer)
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Render storyboard.json via the remotion2 bespoke-shot tier")
+    ap = argparse.ArgumentParser(description="Render storyboard.json via the remotion bespoke-shot tier")
     ap.add_argument("out_dir")
     ap.add_argument("--vertical", action="store_true")
     ap.add_argument("--sample", type=int, default=None, help="render only scene N -> sample.mp4 (sign-off)")

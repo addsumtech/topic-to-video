@@ -224,7 +224,7 @@ if __name__ == "__main__":                          # CLI: preview the cue plan 
     out_dir = sys.argv[1]
     data = json.load(open(os.path.join(out_dir, "storyboard.json")))
     fps = int((data.get("meta") or {}).get("fps", 30))
-    _TR = 12   # remotion2 cross-dissolve overlap (frames); the -TR keeps whooshes on the real transitions
+    _TR = 12   # remotion cross-dissolve overlap (frames); the -TR keeps whooshes on the real transitions
     scenes = [{"durationInFrames": max(1, int(round(float(s.get("duration") or 0) * fps)) - _TR)}
               for s in data.get("slides", [])]
     if scenes:

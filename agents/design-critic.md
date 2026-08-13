@@ -325,7 +325,7 @@ compositional pass — focal dominance + repeated-layout across the deck. Flag a
 fires; don't double-count the same page.)*
 
 ### D12 — Remotion tier → use the shot-critic
-The Remotion tier is now the **remotion2 bespoke-shot library**; a `meta.renderer:"remotion2"` film is reviewed by **`agents/shot-critic.md`** (register fit / family variety / faithful copy / decodability from the per-scene `_keyframes/` + `check_av`), NOT by this file. The legacy generic-scene cinematic dimension (depth planes / atmospheres / archetypes / shot_qa) was removed in the phase-3 cutover.
+The Remotion tier is now the **remotion bespoke-shot library**; a `meta.renderer:"remotion"` film is reviewed by **`agents/shot-critic.md`** (register fit / family variety / faithful copy / decodability from the per-scene `_keyframes/` + `check_av`), NOT by this file. The legacy generic-scene cinematic dimension (depth planes / atmospheres / archetypes / shot_qa) was removed in the phase-3 cutover.
 
 ## Output format
 

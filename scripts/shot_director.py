@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""shot_director — assign a remotion2 bespoke SHOT (register) + shot_props to every storyboard scene.
+"""shot_director — assign a remotion bespoke SHOT (register) + shot_props to every storyboard scene.
 
 The PRIMARY path is the `agents/shot-director.md` LLM agent (it writes good topic copy into shot_props and
 reasons about the "use when" per beat). This module is the DETERMINISTIC fallback / test scaffold: given the
 content_plan beats' `visual_intent`/`stage`/`climax`, it picks a register per beat while VARYING THE FAMILY
 (never two adjacent beats from the same family) so a film never reads as one look. It fills shot_props={} (the
 register's neutral defaults) — a real topic film should run the agent to get faithful topic copy + sourced
-numbers. See remotion2/LIBRARY.md for the catalogue.
+numbers. See remotion/LIBRARY.md for the catalogue.
 """
 import argparse, json, os, sys
 
@@ -59,7 +59,7 @@ def _pick(cands, last_family, used):
 def assign_shots(data, content_plan=None):
     """Fill each scene's `shot` + `shot_props` (={}). Returns the modified data. VARIES family across beats."""
     beats = {b.get("id"): b for b in (content_plan or {}).get("beats", [])}
-    data.setdefault("meta", {})["renderer"] = "remotion2"
+    data.setdefault("meta", {})["renderer"] = "remotion"
     last_family, used = None, set()
     for s in data.get("slides", []):
         beat = beats.get(s.get("index"), {})
@@ -78,7 +78,7 @@ def assign_shots(data, content_plan=None):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Assign remotion2 shots to storyboard scenes (deterministic fallback).")
+    ap = argparse.ArgumentParser(description="Assign remotion shots to storyboard scenes (deterministic fallback).")
     ap.add_argument("out_dir")
     a = ap.parse_args()
     sb_path = os.path.join(a.out_dir, "storyboard.json")

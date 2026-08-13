@@ -1,5 +1,5 @@
 {
-  "name": "slides-to-video-remotion2",
+  "name": "slides-to-video-remotion",
   "version": "0.1.0",
   "private": true,
   "description": "Redo of the cinematic tier: bespoke per-shot components (a library of diverse, Remotion-native design languages distilled from real product films). Reuses ../remotion/node_modules.",

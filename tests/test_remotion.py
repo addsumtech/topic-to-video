@@ -1,4 +1,4 @@
-"""Backstop for the remotion2 bespoke-shot tier (phase-3 integration): the shot registry stays in sync with the
+"""Backstop for the remotion bespoke-shot tier (phase-3 integration): the shot registry stays in sync with the
 library, the shot-director varies families, and validate.py enforces the shot contract."""
 import os, sys, json, copy
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
@@ -6,14 +6,14 @@ import validate as v
 import shot_director as sd
 import render_remotion as rr
 
-_SHOTS_DIR = os.path.join(os.path.dirname(__file__), "..", "remotion2", "src", "shots")
+_SHOTS_DIR = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "shots")
 _SHOT_IDS = {f[:-4] for f in os.listdir(_SHOTS_DIR) if f.endswith(".tsx")}
 
 
 def _deck(n=6):
-    """A minimal valid remotion2 storyboard with n scenes, each with a real shot + audio/duration."""
+    """A minimal valid remotion storyboard with n scenes, each with a real shot + audio/duration."""
     shots = ["CinematicTitle", "ExplodedSchematic", "CollaborativeCursors", "KnowledgeGraph", "MapRoutes", "LiquidChrome"]
-    return {"meta": {"renderer": "remotion2"},
+    return {"meta": {"renderer": "remotion"},
             "slides": [{"index": i + 1, "shot": shots[i % len(shots)], "shot_props": {},
                         "audio": f"audio/{i+1:02d}.mp3", "duration": 8.0, "narration": "A sentence."} for i in range(n)]}
 
@@ -21,7 +21,7 @@ def _deck(n=6):
 def test_registry_in_sync_with_shot_files():
     # every shot file is a valid id, and there are 50 of them (the whole library)
     assert len(_SHOT_IDS) == 50, _SHOT_IDS
-    assert rr._remotion2_shot_ids() == _SHOT_IDS
+    assert rr._remotion_shot_ids() == _SHOT_IDS
     # the FAMILY map covers every shot (shot_director can place any of them)
     missing = _SHOT_IDS - set(sd.FAMILY)
     assert not missing, "shots missing from shot_director.FAMILY: %s" % missing
@@ -43,7 +43,7 @@ def test_missing_shot_errors():
 
 def test_unknown_shot_errors():
     d = _deck(3)
-    d["slides"][1]["shot"] = "NotAShot"   # a present-but-invalid id is caught by _check_remotion2
+    d["slides"][1]["shot"] = "NotAShot"   # a present-but-invalid id is caught by _check_remotion
     r = v.evaluate(d, "/tmp")
     assert not r["ok"]
     assert any("unknown shot" in e for e in r["errors"])
@@ -70,5 +70,5 @@ def test_shot_director_varies_family():
     fams = [sd.FAMILY[s["shot"]] for s in data["slides"]]
     adj = sum(1 for a, b in zip(fams, fams[1:]) if a == b)
     assert adj == 0, "adjacent same-family repeats: %s" % list(zip([s["shot"] for s in data["slides"]], fams))
-    assert data["meta"]["renderer"] == "remotion2"
+    assert data["meta"]["renderer"] == "remotion"
     assert all(s["shot"] in _SHOT_IDS for s in data["slides"])

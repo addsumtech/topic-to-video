@@ -46,10 +46,10 @@ def _has_transcribe():
     return any(_has_module(m)() for m in ("whisper", "faster_whisper", "mlx_whisper"))
 
 def _has_remotion():
-    # the cinematic tier needs Node + the installed remotion2/ project (the bespoke-shot library)
+    # the cinematic tier needs Node + the installed remotion/ project (the bespoke-shot library)
     node = _common.have_tool("npx")
     installed = os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                           "..", "remotion2", "node_modules"))
+                                           "..", "remotion", "node_modules"))
     return node and installed
 
 CHECKS = [
@@ -64,7 +64,7 @@ CHECKS = [
     ("bundled font", False, _has_bundled_font,    "default Latin captions",          "restore assets/fonts/DejaVuSans.ttf"),
     ("OCR (tesseract)", False, _has_ocr,       "text out of SCANNED / image-only PDFs at step 3 (grounding material)", "brew install tesseract && pip install pytesseract (without it a scan can only be READ AS IMAGES — fine for a few pages, not for a long document)"),
     ("transcription", False, _has_transcribe,   "audio/video source material at step 3 (a recorded talk, podcast, screen capture)", "pip install openai-whisper (or faster-whisper / mlx-whisper). WITHOUT IT SPEECH IS UNREACHABLE — say so in the interview rather than discovering it mid-pipeline"),
-    ("remotion",    False, _has_remotion,         "bespoke-shot cinematic tier (meta.renderer=remotion2)", "install Node.js, then `cd remotion2 && npm install` (else use the default local renderer)"),
+    ("remotion",    False, _has_remotion,         "bespoke-shot cinematic tier (meta.renderer=remotion)", "install Node.js, then `cd remotion && npm install` (else use the default local renderer)"),
 ]
 
 

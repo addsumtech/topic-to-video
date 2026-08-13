@@ -1192,16 +1192,6 @@ def test_brand_bug_not_dict_is_error(tmp_path):
     r = _brand_eval(tmp_path, {"logo": _brand_asset(tmp_path), "placement": ["bug"], "bug": "tr"})
     assert r["ok"] is False and any("meta.brand.bug" in e and "not an object" in e for e in r["errors"])
 
-def test_brand_bug_on_remotion_warns(tmp_path):
-    # the remotion tier draws no corner bug — a branded remotion deck would validate clean and ship
-    # unmarked (drift-review find #5)
-    slides = [_slide_scene(tmp_path, 0)]
-    board = _board(str(tmp_path), slides,
-                   meta={"brand": {"logo": _brand_asset(tmp_path), "placement": ["bug"]},
-                         "renderer": "remotion"})
-    r = validate.evaluate(board, str(tmp_path))
-    assert any("remotion" in w and "bug" in w for w in r["warnings"])
-
 def test_brand_jpeg_logo_warns(tmp_path):
     r = _brand_eval(tmp_path, {"logo": _brand_asset(tmp_path, "assets/brand/logo.jpg")})
     assert any("JPEG" in w and "white box" in w for w in r["warnings"])
@@ -1697,23 +1687,6 @@ def test_cinematic_nonfinite_is_an_error_not_a_warning():
     _v._cinematic_fields(s, {"fps": 30}, "/tmp", "scene 1", e, w)
     assert any("layer 0 z is NaN/Infinity" in x for x in e)
     assert any("lens keyframe 0 dolly is NaN/Infinity" in x for x in e)
-
-
-def test_remotion_tier_warns_on_silently_dropped_looks():
-    import validate as _v
-    # 'blur' is the one seam LOOK the Remotion tier can't yet deliver exactly (P3 renders fade/slide/wipe;
-    # blur falls back to a cross-dissolve) — so it still warns; wipe/push/lift now render for real.
-    data = {"meta": {"fps": 30, "renderer": "remotion", "aspect": "9:16", "caption_mode": "band",
-                     "transition_style": "blur", "captions_karaoke": "auto"},
-            "slides": [{"index": 1, "type": "cinematic", "narration": "x", "duration": 6.0, "audio": "a.mp3",
-                        "layers": [{"kind": "panel", "z": 100}], "lens": [{"atFrame": 0}],
-                        "callouts": [{"box": [0, 0, 1, 1], "style": "box"}]}]}
-    w = _v.evaluate(data, "/tmp")["warnings"]
-    assert any("caption_mode:'band'" in x for x in w)
-    assert any("transition_style:'blur'" in x for x in w)
-    assert any("karaoke" in x for x in w)
-    assert any("callouts" in x and "cinematic path does not render" in x for x in w)
-    assert any("landscape-tuned" in x for x in w)
 
 
 def test_remotion_16x9_cinematic_deck_has_no_parity_warnings():

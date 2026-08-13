@@ -1,9 +1,9 @@
 # Design Director (art director)
 
 > **TIER ROUTER — read this first.**
-> - **`meta.renderer:"remotion2"` (or `"remotion"`) — the bespoke-shot film tier: STOP, this file is NOT the
+> - **`meta.renderer:"remotion"` — the bespoke-shot film tier: STOP, this file is NOT the
 >   design step.** Dispatch **`agents/shot-director.md`** instead — it assigns each beat a `shot` register
->   from `remotion2/LIBRARY.md` + faithful `shot_props` (the review gate is `agents/shot-critic.md`). The
+>   from `remotion/LIBRARY.md` + faithful `shot_props` (the review gate is `agents/shot-critic.md`). The
 >   "CINEMATIC tier" section below (atmosphere/template contest/archetypes/`type:"cinematic"` scenes) is the
 >   REMOVED legacy generic-scene tier — do not author it.
 > - **HTML/local deck (the DEFAULT — no `meta.renderer`): SKIP the entire "CINEMATIC tier" section**; use the
@@ -239,7 +239,7 @@ step). Use it for any beat whose logic isn't obvious from the table above, and t
 
 ## CINEMATIC tier (Remotion) — REMOVED
 
-The legacy generic-scene cinematic tier (atmospheres, cinematic templates, TRUE-3D archetypes, `type:"cinematic"` depth-plane scenes) was removed in the phase-3 cutover. The Remotion tier is now the **remotion2 bespoke-shot library**: a `meta.renderer:"remotion2"` film is NOT designed in this file — the **shot-director** (`agents/shot-director.md`) assigns each beat a `shot` register + `shot_props`, and the **shot-critic** (`agents/shot-critic.md`) reviews it. See `remotion2/LIBRARY.md`.
+The legacy generic-scene cinematic tier (atmospheres, cinematic templates, TRUE-3D archetypes, `type:"cinematic"` depth-plane scenes) was removed in the phase-3 cutover. The Remotion tier is now the **remotion bespoke-shot library**: a `meta.renderer:"remotion"` film is NOT designed in this file — the **shot-director** (`agents/shot-director.md`) assigns each beat a `shot` register + `shot_props`, and the **shot-critic** (`agents/shot-critic.md`) reviews it. See `remotion/LIBRARY.md`.
 
 ## Form selection — choose the form the content wants; keep a form ledger
 **Design is choosing, not matching.** For each `html` beat add a **`form`** field naming the chosen form

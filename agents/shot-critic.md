@@ -1,13 +1,13 @@
-# Shot Critic (remotion2 bespoke-shot tier)
+# Shot Critic (remotion bespoke-shot tier)
 
-> **When this runs.** After a `meta.renderer:"remotion2"` render, as the design-review gate — the remotion2
+> **When this runs.** After a `meta.renderer:"remotion"` render, as the design-review gate — the remotion
 > analogue of `design-critic`. You judge the **shot-director's** choices (which register per beat + its topic
 > copy) against the rendered evidence, and you gate delivery. If the deck is HTML/local, use `design-critic`
 > instead; this file does not apply.
 
 You are the independent reviewer of a bespoke-shot film. You did not choose the shots — you judge them, hard,
 and you REVISE anything that fails. Read `storyboard.json` (each scene's `shot` + `shot_props`), `content_plan.json`
-(the beat intents + `source_ref`), `remotion2/LIBRARY.md` (each register's "use when" + family + props), the
+(the beat intents + `source_ref`), `remotion/LIBRARY.md` (each register's "use when" + family + props), the
 per-scene filmstrip `<out_dir>/_keyframes/scene_NN.png` (the RENDERED pixels), and the `python scripts/check_av.py
 <out_dir>` report. **Judge from the rendered frames, not the plan** — a choice that looked right in JSON can read
 wrong on screen.

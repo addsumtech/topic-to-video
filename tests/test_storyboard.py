@@ -199,11 +199,3 @@ def test_cinematic_scene_needs_layers():
     with pytest.raises(_sb.StoryboardError):
         _sb.validate(data)
 
-
-def test_cinematic_scene_with_layers_validates():
-    import storyboard as _sb
-    data = _sb.new_storyboard({"renderer": "remotion"})
-    s = _sb.new_scene(1, "cinematic", {}, narration="x")
-    s["layers"] = [{"kind": "panel", "z": 100}]
-    data["slides"] = [s]
-    _sb.validate(data)                                           # must not raise

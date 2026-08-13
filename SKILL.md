@@ -141,26 +141,26 @@ TTS if the user gives an API key.
   cross-fades (a `reduced-motion.css` linked last), still deterministic + seekable. It's an
   authoring-time opt-in variant (a baked mp4 can't read the viewer's OS setting), and it busts the
   clip cache.
-- `scripts/render_remotion.py <out_dir>` with **`meta.renderer:"remotion2"`** — the **RECOMMENDED cinematic
+- `scripts/render_remotion.py <out_dir>` with **`meta.renderer:"remotion"`** — the **RECOMMENDED cinematic
   tier**: a **bespoke-shot LIBRARY** where every beat is a hand-written, topic-driven design language (50
-  registers catalogued in `remotion2/LIBRARY.md`), sequenced into a narrated film with cross-dissolve
+  registers catalogued in `remotion/LIBRARY.md`), sequenced into a narrated film with cross-dissolve
   transitions + scene-relative captions + per-scene edge-tts narration (served via `--public-dir=<out_dir>`).
   **Authoring:** the **shot-director** agent (`agents/shot-director.md`) reads `content_plan.json` +
-  `remotion2/LIBRARY.md` and writes, per scene, `shot` (a register id) + `shot_props` (the beat's topic copy)
+  `remotion/LIBRARY.md` and writes, per scene, `shot` (a register id) + `shot_props` (the beat's topic copy)
   — matching the beat's intent to a register's "use when" and **varying the FAMILY across the film** (no two
   adjacent beats read as one look). Deterministic fallback: `python scripts/shot_director.py <out_dir>`.
   **Faithfulness:** a register that shows a NUMBER (ChartLive/BeforeAfterSlider/VelocitySnap) MUST be given a
   SOURCED figure in `shot_props` — never its illustrative demo default (`validate.py` warns; see
   no-fabricated-stats). `validate.py` ERRORS on a missing/unknown `shot`. Each shot is standalone-renderable
-  (`cd remotion2 && npx remotion still src/index.ts <Id> out.png --frame=N --gl=angle`) and topic-driven via
+  (`cd remotion && npx remotion still src/index.ts <Id> out.png --frame=N --gl=angle`) and topic-driven via
   `--props='{...}'` (ASCII only — a multibyte `·` breaks the CLI arg). **`meta.sound_design:true`** (opt-in)
   adds a restrained SFX bed (transition whooshes pinned frame-exact to the cross-dissolves + a closing reveal)
   under the VO, plus `meta.bgm` (a path or `"auto"` synth pad) — **audition it before delivery (the pipeline
-  can't hear it)**. Needs the Node toolchain (one-time `cd remotion2 && npm install`); the html/local tier
+  can't hear it)**. Needs the Node toolchain (one-time `cd remotion && npm install`); the html/local tier
   (`render.py`) is untouched by this path.
-  **`meta.renderer:"remotion"` is an ALIAS for `remotion2`** (both render the bespoke-shot library). The old
+  **`meta.renderer:"remotion"` is an ALIAS for `remotion`** (both render the bespoke-shot library). The old
   generic-scene tier was REMOVED in the phase-3 cutover — `"remotion-legacy"` now errors with a migration hint.
-- `scripts/render_remotion.py <out_dir>` — the render CLI for the **remotion2 bespoke-shot tier** (see the bullet above). The legacy generic-scene Remotion tier (atmospheres / cinematic templates / TRUE-3D archetypes / `type:"cinematic"` scenes) was REMOVED in the phase-3 cutover — its scripts, reference docs, and tests were deleted; `meta.renderer:"remotion-legacy"` errors with a re-author hint.
+- `scripts/render_remotion.py <out_dir>` — the render CLI for the **remotion bespoke-shot tier** (see the bullet above). The legacy generic-scene Remotion tier (atmospheres / cinematic templates / TRUE-3D archetypes / `type:"cinematic"` scenes) was REMOVED in the phase-3 cutover — its scripts, reference docs, and tests were deleted; `meta.renderer:"remotion-legacy"` errors with a re-author hint.
 - `scripts/cues.py` — pure anchor→cue-time resolver: reads per-scene `audio/NN.words.json` (edge-tts per-word timings) and resolves each `data-cue` anchor phrase to an absolute timestamp, used by `render_html` for audio-synced HTML reveals.
 - `scripts/check_av.py <out_dir>` — deterministic A/V gate: probes `out.mp4` video-vs-audio duration + per-clip sample-rate uniformity across `.clips/`; exits non-zero on A/V drift above tolerance (0.3 s) or non-uniform rates. Run AFTER the full render (step 9) as a gate before delivery.
 - `scripts/doctor.py [--json]` — environment preflight: reports which tools/libraries are present (ffmpeg/ffprobe/PIL required; PyMuPDF/python-pptx/edge-tts/soffice/Chrome/font optional) and, for each missing one, the stage it gates + the install hint. Exits non-zero only when a REQUIRED dep is missing. Run once at the START (step 1).
@@ -364,10 +364,10 @@ figure), a non-singular `the_one_thing`, or a
      register that genuinely carries the video) is right for most runs; mention it only if the user wants
      a bolder or more restrained feel — the floor (clarity/faithfulness/AV/gates) is identical at every
      level. Set it here or leave the default; the design-director commits the register accordingly.
-     **Cinematic option (Remotion / remotion2):** if the user wants a **kinetic, bespoke-designed** film —
-     each beat its OWN hand-written design language from the 50-register library (`remotion2/LIBRARY.md`),
+     **Cinematic option (Remotion / remotion):** if the user wants a **kinetic, bespoke-designed** film —
+     each beat its OWN hand-written design language from the 50-register library (`remotion/LIBRARY.md`),
      narrated, with cross-dissolves — rather than the html designed-slide look, and the Remotion tier is
-     installed (doctor.py reports it), offer it and set `meta.renderer:"remotion2"`. The **shot-director**
+     installed (doctor.py reports it), offer it and set `meta.renderer:"remotion"`. The **shot-director**
      assigns each beat a `shot` register + faithful `shot_props`; it renders via `render_remotion.py` and is
      reviewed by the **shot-critic**. Keep a designed/html/chart deck on the default local renderer
      (`meta.renderer:"local"`) — the two tiers are two distinct LOOKS, not interchangeable.
@@ -636,9 +636,9 @@ figure), a non-singular `the_one_thing`, or a
      `<out_dir>/design_plan.json`** — `validate.py` flags a content_shape↔form mismatch + a missing
      `signature_concept`/`style_thesis`/`design_register` (and an invalid `meta.audacity`), and the
      **design-critic** (D1 fit, D2c creativity floor, **D2e whole-video register + motion personality**)
-     judges them. **CINEMATIC decks (`meta.renderer:"remotion2"`, alias `"remotion"` — the bespoke-shot film
+     judges them. **CINEMATIC decks (`meta.renderer:"remotion"`, alias `"remotion"` — the bespoke-shot film
      tier):** the design step is NOT this file — dispatch **`agents/shot-director.md`** instead (it assigns
-     each beat a `shot` register from `remotion2/LIBRARY.md` + faithful `shot_props`, VARYING the family; run
+     each beat a `shot` register from `remotion/LIBRARY.md` + faithful `shot_props`, VARYING the family; run
      `python scripts/shot_director.py <out_dir>` first for a deterministic family-varied skeleton, then the
      agent fills the topic copy). SKIP the HTML design plan for these decks (no `design_plan.json`). After the
      render, the review gate is **`agents/shot-critic.md`** (the design-critic analogue), judging register fit
@@ -831,7 +831,7 @@ figure), a non-singular `the_one_thing`, or a
    `python scripts/check_av.py <out_dir>`. A non-zero exit means A/V drift or non-uniform clip
    rates — fix the root cause (clear `.clips/`, fix audio or regenerate failing clips, and
    re-render) before delivering.
-   **For a `meta.renderer:"remotion2"` deck** (the bespoke-shot tier), `render_remotion.py` writes `out.srt`
+   **For a `meta.renderer:"remotion"` deck** (the bespoke-shot tier), `render_remotion.py` writes `out.srt`
    + `_keyframes/scene_NN.png` itself, and the HTML-only gates (`keyframe_qa`/`rhythm_qa`/`pedagogy_qa` — the
    last two still apply since they read `content_plan.json`) are replaced at the DESIGN layer by dispatching
    **`agents/shot-critic.md`** on those keyframes + the `check_av` report: it judges register fit, family

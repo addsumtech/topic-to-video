@@ -1072,12 +1072,12 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
             _camera_lurch(camera3d, [("yaw", 55, 28, False), ("radius", 0.55, 0.30, True), ("height", 0.6, 0.35, True)], tag, "camera3d", warnings)
 
 
-def _check_remotion2(slides, errors, warnings):
-    """Guardrails for the remotion2 bespoke-shot tier: every scene needs a valid `shot` id + object
+def _check_remotion(slides, errors, warnings):
+    """Guardrails for the remotion bespoke-shot tier: every scene needs a valid `shot` id + object
     `shot_props`; a NUMBER-bearing register left on its illustrative demo default is flagged (a real film must
     pass a SOURCED figure); adjacent same-FAMILY scenes are flagged (vary the design language). Ids auto-derived
-    from remotion2/src/shots so this never drifts from the library."""
-    shots_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion2", "src", "shots")
+    from remotion/src/shots so this never drifts from the library."""
+    shots_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src", "shots")
     valid = {f[:-4] for f in os.listdir(shots_dir) if f.endswith(".tsx")} if os.path.isdir(shots_dir) else set()
     NUM = {"ChartLive": "endVal", "BeforeAfterSlider": "metric", "VelocitySnap": "metric"}
     seq = []
@@ -1085,11 +1085,11 @@ def _check_remotion2(slides, errors, warnings):
         tag = "scene #%s" % s.get("index")
         shot = s.get("shot")
         if not shot:
-            errors.append(f"{tag}: meta.renderer='remotion2' but the scene has no `shot` (a register id) — run "
-                          f"the shot-director step; valid ids are in remotion2/LIBRARY.md")
+            errors.append(f"{tag}: meta.renderer='remotion' but the scene has no `shot` (a register id) — run "
+                          f"the shot-director step; valid ids are in remotion/LIBRARY.md")
             seq.append(None); continue
         if valid and shot not in valid:
-            errors.append(f"{tag}: unknown shot {shot!r} — see remotion2/LIBRARY.md for the valid ids")
+            errors.append(f"{tag}: unknown shot {shot!r} — see remotion/LIBRARY.md for the valid ids")
             seq.append(None); continue
         sp = s.get("shot_props")
         if sp is not None and not isinstance(sp, dict):
@@ -1103,7 +1103,7 @@ def _check_remotion2(slides, errors, warnings):
         fams = [_sd.FAMILY.get(x) if x else None for x in seq]
         for a, b, fa, fb in zip(seq, seq[1:], fams, fams[1:]):
             if fa and fa == fb:
-                warnings.append(f"remotion2: adjacent scenes {a}/{b} share family {fa} — vary the design "
+                warnings.append(f"remotion: adjacent scenes {a}/{b} share family {fa} — vary the design "
                                 f"language so the film doesn't read as one look")
     except Exception:
         pass
@@ -1131,8 +1131,8 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     slides = data["slides"]
     # REMOTION2 bespoke-shot tier — its own scene contract (shot id + props + family variety); the legacy
     # cinematic/HTML checks below don't apply to it, so guard and skip them.
-    if (meta.get("renderer") or "") == "remotion2":
-        _check_remotion2(slides, errors, warnings)
+    if (meta.get("renderer") or "") == "remotion":
+        _check_remotion(slides, errors, warnings)
         return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides)}
     # visual_style is the declared single source of truth — a typo/hallucinated key degrades silently to the
     # default look, so cross-check it against the catalog (theme.STYLE_PRESETS) independent of the plan file.
@@ -1607,7 +1607,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         # Absent -> warn (nudge the director to run the template contest); set-but-unknown -> error.
         if cine:
             _tpl = meta.get("cinematic_template")
-            # (legacy generic-scene tier, retained inert — the live Remotion tier is remotion2/shot-director)
+            # (legacy generic-scene tier, retained inert — the live Remotion tier is remotion/shot-director)
             _known = {"command-surface", "liquid-model", "molten-ledger", "aurora-bloom", "ignition-monument",
                       "doorway-gallery", "rakelight", "exploded-schematic", "defrag"}
             if _tpl is None:
