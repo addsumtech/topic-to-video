@@ -20,8 +20,8 @@ def _deck(n=6):
 
 
 def test_registry_in_sync_with_shot_files():
-    # every shot file is a valid id, and there are 50 of them (the whole library)
-    assert len(_SHOT_IDS) == 50, _SHOT_IDS
+    # every shot file is a valid id, and there are 60 of them (the whole library)
+    assert len(_SHOT_IDS) == 60, _SHOT_IDS
     assert rr._remotion_shot_ids() == _SHOT_IDS
     # the FAMILY map covers every shot (shot_director can place any of them)
     missing = _SHOT_IDS - set(sd.FAMILY)

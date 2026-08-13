@@ -52,6 +52,16 @@ import {BrutalistType} from './shots/BrutalistType';
 import {LightTrails} from './shots/LightTrails';
 import {DataOrrery} from './shots/DataOrrery';
 import {PhysicsStack} from './shots/PhysicsStack';
+import {OdometerRoll} from './shots/OdometerRoll';
+import {QuadSplit} from './shots/QuadSplit';
+import {CardFlip3D} from './shots/CardFlip3D';
+import {CubeRotate} from './shots/CubeRotate';
+import {GearTrain} from './shots/GearTrain';
+import {FractureIn} from './shots/FractureIn';
+import {PositioningMatrix} from './shots/PositioningMatrix';
+import {GaugeCluster} from './shots/GaugeCluster';
+import {BentoReveal} from './shots/BentoReveal';
+import {ConveyorBelt} from './shots/ConveyorBelt';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   CollaborativeCursors, CommandSummon, TemporalAccelerate, FocalIsolation, KineticManifesto, InfiniteCanvas,
@@ -61,6 +71,8 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   KnowledgeGraph, CinematicTitle, BlueprintGrid, SpotlightStage, AnalogTape, NeonGrid, SwissEditorial,
   ClayStack, LiquidFill, HalftonePop, PaperCutout, RadialBurst, SplitFlap, WireGlobe, LiquidGlass, HoloFoil,
   BokehPull, PixelBuild, BrutalistType, LightTrails, DataOrrery, PhysicsStack,
+  OdometerRoll, QuadSplit, CardFlip3D, CubeRotate, GearTrain,
+  FractureIn, PositioningMatrix, GaugeCluster, BentoReveal, ConveyorBelt,
 };
 
 export const SHOT_IDS = Object.keys(REGISTRY);

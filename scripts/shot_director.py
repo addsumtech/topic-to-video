@@ -15,34 +15,37 @@ import argparse, json, os, sys
 FAMILY = {
     "CollaborativeCursors": "A", "CommandSummon": "A", "TemporalAccelerate": "A", "VelocitySnap": "A",
     "CursorStory": "A", "ScreenBubble": "A", "AnswerStream": "A", "ChatThread": "A", "BlockAssembly": "A",
-    "CodeCompose": "A", "LiquidGlass": "A",
-    "InfiniteCanvas": "B", "TimelineTravel": "B", "MapRoutes": "B", "ExplodedSchematic": "B",
+    "CodeCompose": "A", "LiquidGlass": "A", "BentoReveal": "A",
+    "InfiniteCanvas": "B", "TimelineTravel": "B", "MapRoutes": "B", "ExplodedSchematic": "B", "CubeRotate": "B",
     "KineticManifesto": "C", "FocalIsolation": "C", "SwissEditorial": "C", "BrutalistType": "C",
     "LiquidChrome": "C", "HoloFoil": "C", "CinematicTitle": "C", "BokehPull": "C", "NeonGrid": "C",
     "AnalogTape": "C", "AsciiField": "C",
     "ChartLive": "D", "BlueprintGrid": "D", "KnowledgeGraph": "D", "WireGlobe": "D", "DataOrrery": "D",
-    "MaterialHero": "E",
+    "OdometerRoll": "D", "GaugeCluster": "D",
+    "MaterialHero": "E", "CardFlip3D": "E", "FractureIn": "E",
     "AuroraFlow": "F", "LiquidMorph": "F", "LiquidFill": "F", "ParticleForm": "F", "VoiceSignal": "F",
     "RadialBurst": "F", "LightTrails": "F",
     "IsometricAssembly": "G", "HandDrawn": "G", "CartoonPop": "G", "HalftonePop": "G", "ClayStack": "G",
     "PaperCutout": "G", "SpotlightStage": "G", "PixelBuild": "G",
-    "BeforeAfterSlider": "H",
-    "SplitFlap": "I", "PhysicsStack": "I",
+    "BeforeAfterSlider": "H", "QuadSplit": "H", "PositioningMatrix": "H",
+    "SplitFlap": "I", "PhysicsStack": "I", "GearTrain": "I", "ConveyorBelt": "I",
 }
 # candidates by visual_intent (ordered; the assigner picks the first whose family != the previous beat's)
 CANDIDATES = {
     # mostly family C (kinetic type/title), plus cross-family options (E/F/I/G) so two ADJACENT statement beats
     # can still land in different families instead of both being C.
     "statement": ["CinematicTitle", "FocalIsolation", "KineticManifesto", "SwissEditorial", "BrutalistType",
-                  "LiquidChrome", "NeonGrid", "HoloFoil", "MaterialHero", "AuroraFlow", "SplitFlap", "PixelBuild"],
-    "sequence": ["ExplodedSchematic", "TimelineTravel", "CommandSummon", "CodeCompose"],
+                  "LiquidChrome", "NeonGrid", "HoloFoil", "MaterialHero", "FractureIn", "AuroraFlow", "SplitFlap", "PixelBuild"],
+    "sequence": ["ExplodedSchematic", "TimelineTravel", "CubeRotate", "CommandSummon", "GearTrain", "ConveyorBelt", "CodeCompose"],
     "structure": ["CollaborativeCursors", "KnowledgeGraph", "MapRoutes", "DataOrrery", "WireGlobe",
-                  "BlueprintGrid", "IsometricAssembly"],
+                  "BlueprintGrid", "CubeRotate", "BentoReveal", "PositioningMatrix", "IsometricAssembly"],
     # mostly family A; cross-family options (I/G) so two ADJACENT list beats don't both land in A.
     "list": ["BlockAssembly", "TemporalAccelerate", "CursorStory", "AnswerStream", "SplitFlap", "PhysicsStack", "HandDrawn"],
-    "metric": ["ChartLive", "PhysicsStack", "BlueprintGrid", "BeforeAfterSlider"],
+    "metric": ["OdometerRoll", "ChartLive", "GaugeCluster", "PhysicsStack", "BlueprintGrid", "BeforeAfterSlider"],
+    # contrast/before-after — cross-family so two adjacent contrast beats differ (H comparison + I + E + C).
+    "contrast": ["BeforeAfterSlider", "QuadSplit", "PositioningMatrix", "CardFlip3D", "SplitFlap"],
 }
-CLIMAX = ["ParticleForm", "RadialBurst", "LightTrails", "SpotlightStage", "LiquidFill"]
+CLIMAX = ["ParticleForm", "RadialBurst", "FractureIn", "LightTrails", "SpotlightStage", "LiquidFill"]
 CLOSE = ["LiquidChrome", "HoloFoil", "CinematicTitle", "SwissEditorial"]
 FALLBACK = ["ChatThread", "AuroraFlow", "MaterialHero", "SplitFlap", "ClayStack", "AnalogTape"]
 

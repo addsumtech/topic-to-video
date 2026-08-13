@@ -1,4 +1,4 @@
-# Remotion2 — Bespoke Shot Library (50 design languages)
+# Remotion2 — Bespoke Shot Library (60 design languages)
 
 Each shot is a **hand-written, deterministic component** (`{default Component, DURATION}`) authored in
 1920×1080, driven by `useT()` (0→1) + the shared `runtime/motion.ts` kit. No generic template funnel —
@@ -20,12 +20,14 @@ Every shot accepts overridable copy via constants at the top of its file (wordma
 9. **BlockAssembly** — blocks snap in top-down (Notion). *Use: composing an output/doc.*
 10. **CodeCompose** — a live IDE types syntax-highlighted code, runs → ✓ done. *Use: it writes+runs the work.*
 11. **LiquidGlass** — Apple-2026 frosted-glass lens glides over a task list, settles → ✓. *Use: premium polish / focus.*
+56. **BentoReveal** — a bento grid (hero cell + mixed widgets) whose tiles pop in and assemble into a finished dashboard. *Use: the product surface / "your whole workspace".*
 
 ## B · Camera / space — a world larger than the frame
 12. **InfiniteCanvas** — deep zoom across a canvas (Miro). *Use: big-picture → detail.*
 13. **TimelineTravel** — pan a horizontal timeline. *Use: process / sequence.*
 14. **MapRoutes** — glowing routes hub→spokes on a night map. *Use: integrations / reach.*
 15. **ExplodedSchematic** — a pipeline explodes into labeled parts. *Use: how-it-works.*
+51. **CubeRotate** — content on the four faces of a 3D cube; the camera orbits and holds each face. *Use: one subject, several sides / a loop.*
 
 ## C · Kinetic type & title
 16. **KineticManifesto** — phrases rush the Z-axis. *Use: manifesto / values.*
@@ -46,9 +48,13 @@ Every shot accepts overridable copy via constants at the top of its file (wordma
 29. **KnowledgeGraph** — a node/edge constellation grows. *Use: connected workspace / second brain.*
 30. **WireGlobe** — rotating wireframe globe + integration nodes + arcs. *Use: global / connected to everything.*
 31. **DataOrrery** — labeled nodes ORBIT a core on tilted rings. *Use: your work in motion / ecosystem.*
+52. **OdometerRoll** — a big metric where every digit is a mechanical reel that spins through 0-9 and snaps, staggered. *Use: a single headline number, felt.*
+57. **GaugeCluster** — a panel of circular gauges sweep their arcs; the hero gauge's needle rises and its value locks. *Use: live status / health / a KPI panel.*
 
 ## E · 3D / material
 32. **MaterialHero** — real 3D torusKnot (R3F/WebGL), studio-lit. *Use: a hero object beat.*
+53. **CardFlip3D** — a row of cards flip 180° on Y (CSS 3D), a sheen at the seam, the payoff on the back. *Use: question → answer / before → after pairs.*
+58. **FractureIn** — 25 tiles fly in from scattered 3D space and lock centre-out into a hero poster, then the title resolves. *Use: many parts → one picture / a bold reveal.*
 
 ## F · Fluid / generative / light
 33. **AuroraFlow** — Stripe/Vercel flowing gradient blobs + type. *Use: calm premium ambient.*
@@ -71,10 +77,14 @@ Every shot accepts overridable copy via constants at the top of its file (wordma
 
 ## H · Comparison
 48. **BeforeAfterSlider** — slider wipes rough draft → board-ready. *Use: quality / transformation.*
+54. **QuadSplit** — the frame splits into a 2×2 of micro-panels (each a distinct accent + motif), then one hero panel takes the whole frame. *Use: four angles → the one that matters.*
+59. **PositioningMatrix** — a 2×2 axes map; item dots drift to their spots and the hero lands in its quadrant (ring + label). *Use: positioning / where things sit / who leads (qualitative).*
 
 ## I · Mechanical / tactile-physical
 49. **SplitFlap** — Solari flap board riffles + settles to the message. *Use: status flips to done / announce.*
 50. **PhysicsStack** — weighty bars DROP + bounce-settle into a chart. *Use: tactile results / a week of output.*
+55. **GearTrain** — interlocking gears mesh and turn in a chain (hubs carry the steps); the last gear locks the payoff. *Use: mechanism / one turn drives the next.*
+60. **ConveyorBelt** — items ride a scrolling belt through a stamp press and exit finished (✓). *Use: assembly line / "it just processes everything".*
 
 ---
 ## Generalization — every shot is topic-driven via props (defaults = the WorkBuddy demo)
@@ -103,9 +113,14 @@ in the film wrapper. Per-shot props:
 | HalftonePop | `burstTop, burstBottom, brand` · BrutalistType `titleTop, titleBottom, meta, statement1, statement2` |
 | CartoonPop / PixelBuild / ClayStack / LiquidFill / LightTrails / ParticleForm / AsciiField(`message`) | `label` |
 | PaperCutout `label, tagline` · RadialBurst `hub, tagline` · CodeCompose `filename` | |
+| OdometerRoll `value, label, unit` · CubeRotate `faces[], title` · GearTrain `items[], label, title` | |
+| QuadSplit `panels[{label}], heading, hero` · CardFlip3D `items[{front,back}], title` | |
+| GaugeCluster `value, unit, label, gauges[{label,fill}], title` · FractureIn `title, tagline, accent` | |
+| BentoReveal `title, hero, items[]` · ConveyorBelt `items[], title, doneLabel` | |
+| PositioningMatrix `title, xAxis[lo,hi], yAxis[lo,hi], items[{label,x,y,hero}]` | |
 | LiquidMorph | *(abstract — no topic text; generalizes as-is)* |
 
-**Faithfulness:** shots carrying a NUMBER (ChartLive, BeforeAfterSlider, VelocitySnap, BlueprintGrid's counter)
+**Faithfulness:** shots carrying a NUMBER (ChartLive, BeforeAfterSlider, VelocitySnap, OdometerRoll, GaugeCluster, BlueprintGrid's counter)
 ship an illustrative DEMO default — a real film MUST override it with a sourced figure (the WorkBuddy film passes
 `endVal:68, unit:"×"` for the Hy3 surge). Never present a demo number as a real stat (see no-fake-info rule).
 

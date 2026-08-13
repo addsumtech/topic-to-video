@@ -50,6 +50,16 @@ import {BrutalistType, DURATION as BT} from './shots/BrutalistType';
 import {LightTrails, DURATION as LT} from './shots/LightTrails';
 import {DataOrrery, DURATION as DO} from './shots/DataOrrery';
 import {PhysicsStack, DURATION as PS} from './shots/PhysicsStack';
+import {OdometerRoll, DURATION as ODR} from './shots/OdometerRoll';
+import {QuadSplit, DURATION as QS} from './shots/QuadSplit';
+import {CardFlip3D, DURATION as CF3} from './shots/CardFlip3D';
+import {CubeRotate, DURATION as CBR} from './shots/CubeRotate';
+import {GearTrain, DURATION as GT} from './shots/GearTrain';
+import {FractureIn, DURATION as FR} from './shots/FractureIn';
+import {PositioningMatrix, DURATION as PM} from './shots/PositioningMatrix';
+import {GaugeCluster, DURATION as GC} from './shots/GaugeCluster';
+import {BentoReveal, DURATION as BR} from './shots/BentoReveal';
+import {ConveyorBelt, DURATION as CVB} from './shots/ConveyorBelt';
 import {Film, WORKBUDDY_SCENES, filmDuration} from './Film';
 
 // Redo tier: each bespoke shot registers as its OWN Composition (video-shotcraft pattern), renderable
@@ -112,5 +122,15 @@ export const RemotionRoot: React.FC = () => (
     {F('LightTrails', LightTrails, LT)}
     {F('DataOrrery', DataOrrery, DO)}
     {F('PhysicsStack', PhysicsStack, PS)}
+    {F('OdometerRoll', OdometerRoll, ODR)}
+    {F('QuadSplit', QuadSplit, QS)}
+    {F('CardFlip3D', CardFlip3D, CF3)}
+    {F('CubeRotate', CubeRotate, CBR)}
+    {F('GearTrain', GearTrain, GT)}
+    {F('FractureIn', FractureIn, FR)}
+    {F('PositioningMatrix', PositioningMatrix, PM)}
+    {F('GaugeCluster', GaugeCluster, GC)}
+    {F('BentoReveal', BentoReveal, BR)}
+    {F('ConveyorBelt', ConveyorBelt, CVB)}
   </>
 );

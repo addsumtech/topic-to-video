@@ -1124,7 +1124,8 @@ def _check_remotion(meta, slides, errors, warnings):
     _check_shot_template(meta, errors, warnings)
     shots_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src", "shots")
     valid = {f[:-4] for f in os.listdir(shots_dir) if f.endswith(".tsx")} if os.path.isdir(shots_dir) else set()
-    NUM = {"ChartLive": "endVal", "BeforeAfterSlider": "metric", "VelocitySnap": "metric"}
+    NUM = {"ChartLive": "endVal", "BeforeAfterSlider": "metric", "VelocitySnap": "metric",
+           "OdometerRoll": "value", "GaugeCluster": "value"}
     seq = []
     for s in slides:
         tag = "scene #%s" % s.get("index")
