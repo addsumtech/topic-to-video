@@ -1,4 +1,4 @@
-# Remotion2 — Bespoke Shot Library (75 design languages)
+# Remotion2 — Bespoke Shot Library (100 design languages)
 
 Each shot is a **hand-written, deterministic component** (`{default Component, DURATION}`) authored in
 1920×1080, driven by `useT()` (0→1) + the shared `runtime/motion.ts` kit. No generic template funnel —
@@ -34,6 +34,7 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 15. **ExplodedSchematic** — a pipeline explodes into labeled parts. *Use: how-it-works.*
 51. **CubeRotate** — content on the four faces of a 3D cube; the camera orbits and holds each face. *Use: one subject, several sides / a loop.*
 62. **CrashZoom** — a wide overview grid holds, then the camera PUNCHES in on one target tile (speed lines) until it fills the frame. *Use: overview → the one that matters / zoom to the detail.*
+100. **TerrainFly** — a 3D wireframe heightmap terrain scrolls toward the viewer in perspective (hills drift from the horizon), grid coloured by elevation, fog + horizon glow. *Use: a landscape / journey / "new ground ahead".*
 
 ## C · Kinetic type & title
 16. **KineticManifesto** — phrases rush the Z-axis. *Use: manifesto / values.*
@@ -54,6 +55,7 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 29. **KnowledgeGraph** — a node/edge constellation grows. *Use: connected workspace / second brain.*
 30. **WireGlobe** — rotating wireframe globe + integration nodes + arcs. *Use: global / connected to everything.*
 31. **DataOrrery** — labeled nodes ORBIT a core on tilted rings. *Use: your work in motion / ecosystem.*
+90. **ChartRace** — horizontal bars grow at different rates and RE-RANK as they overtake (smooth soft-rank slide), counters ticking, leader glowing. *Use: who pulls ahead over time / a ranking race.* (number-bearing)
 52. **OdometerRoll** — a big metric where every digit is a mechanical reel that spins through 0-9 and snaps, staggered. *Use: a single headline number, felt.*
 57. **GaugeCluster** — a panel of circular gauges sweep their arcs; the hero gauge's needle rises and its value locks. *Use: live status / health / a KPI panel.*
 65. **HudReticle** — a sci-fi FUI: corner brackets snap around a subject, a dashed scan ring rotates, readouts type in, then LOCK (goes green). *Use: targeting / analysing / "locked on".*
@@ -74,6 +76,9 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 37. **VoiceSignal** — audio-reactive waveform. *Use: voice / listening.*
 38. **RadialBurst** — kaleidoscopic radial bloom to a hub. *Use: everything-at-once / celebration.*
 39. **LightTrails** — long-exposure neon ribbons trace a checkmark. *Use: "done in one motion" / kinetic flourish.*
+76. **MetaballMerge** — gooey liquid blobs orbit, MERGE into one mass and split through the classic SVG goo filter, a wordmark on the fluid. *Use: liquid-glass / fluid / "many drops, one flow".*
+84. **InkBloom** — a drop of ink DIFFUSES in water: feathery tendrils radiate + soft clouds spread (turbulence-displaced), blooming behind a wordmark on a pale ground. *Use: it spreads / reach / organic growth.*
+95. **LiquidMetal** — a chrome/mercury blob flows + merges (goo filter) with a banded reflection gradient, on a soft lavender/icy/beige palette, chrome wordmark on top. *Use: premium "liquid chrome, alive" hero (2026).*
 
 ## G · Illustrated / craft styles (the "style" axis)
 40. **IsometricAssembly** — iso raw block → machine → finished deliverable. *Use: pipeline as objects.*
@@ -85,6 +90,7 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 46. **SpotlightStage** — theatrical spotlight reveals PLAN→BUILD→SHIP. *Use: dramatic three-step.*
 47. **PixelBuild** — 8-bit pixel checkmark assembles + CRT HUD. *Use: retro-game / "level complete".*
 64. **RisoPrint** — a risograph wordmark on cream paper: pink + blue ink channels start misregistered and snap into registration (grain + halftone). *Use: warm hand-printed craft / a LIGHT-ground title.*
+85. **ComicPanels** — a comic page: action panels (speed-lines + burst captions) snap in one by one, building to a full-width SPLASH payoff panel. *Use: a process as a comic beat / playful sequence.*
 
 ## H · Comparison
 48. **BeforeAfterSlider** — slider wipes rough draft → board-ready. *Use: quality / transformation.*
@@ -104,6 +110,9 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 ## K · Generative — computed fields, not gradients
 68. **FlowField** — hundreds of streamlines trace a static curl field and draw on in waves, revealing an ambient generative field with a centred wordmark. *Use: flow / everything moving as one / ambient hero.*
 71. **LowPolyForm** — a jittered low-poly triangle mesh assembles centre-out, colour-graded across a duotone, with a wordmark over it. *Use: faceted crystalline hero / "many facets, one form".*
+83. **KaleidoMandala** — an N-fold mirror-symmetric kaleidoscope of shapes blooms + rotates with a colour cycle, settling behind a wordmark. *Use: order out of many / an ornate ambient hero.*
+88. **RidgeField** — stacked ridgeline curves (the "Unknown Pleasures" plot): peaked lines each filled to occlude those behind, rippling as a wave passes, revealing bottom-up. *Use: patterns in the noise / a data-landscape hero.*
+98. **GameOfLife** — Conway's cellular automaton evolves from a fixed seed (recomputed to the current generation each frame — deterministic + seekable), living cells glowing, a wordmark over the emergent order. *Use: simple rules → complex life / emergence.*
 
 ## L · Editorial / print — designed page systems
 (see also **RisoPrint** in G — a riso print title.)
@@ -112,12 +121,52 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 
 ## M · Glitch / digital-decay
 72. **GlitchDatamosh** — a word tears out of digital noise: RGB-split channels drift, displacement bands stutter, scanlines + block noise flicker, then the signal RESOLVES clean. *Use: digital / disruption / noise → clarity.*
+91. **CodeRain** — Matrix-style digital rain: glyph columns fall with a bright head + fading phosphor trail, a message resolving on a darkened core. *Use: "in the machine" / decode / a data stream.*
 
 ## N · Isometric — dioramas & worlds
 73. **IsoWorld** — an isometric diorama builds: a tiled ground draws in, then labelled iso-cube buildings rise in an outward ripple. *Use: your world / workspace-as-a-city / a system laid out.*
+89. **VoxelBuild** — an isometric object assembles VOXEL by voxel: shaded cubes drop in (staggered by depth) and stack into a 3D form (default: a checkmark). *Use: built block-by-block / a thing coming together.*
 
 ## O · Urban / signage
 75. **NeonTickerWall** — a night-city wall of signage: stacked LED tickers scroll at different speeds, neon flickers, a central marquee holds the message. *Use: launch / announcement / electric energy.*
+
+## P · Dimensional type — type as a physical body (3D / inflated / elastic)
+77. **InflateType** — big puffy 3D BALLOON letters inflate in with an over-bounce (glossy shaded fills + specular + soft shadows), then breathe. *Use: playful bold hero / soft-dimensional title.* (2026 inflated-3D-type)
+78. **ElasticType** — jelly letters DROP in and jiggle with a damped elastic squash-stretch, then a gummy wobble. *Use: springy playful title / "alive" copy.* (2026 elastic-type)
+
+## Q · Anti-design / maximalist
+79. **AntiDesignChaos** — a deliberately "wrong" maximalist collage: a huge clashing headline, scattered mismatched words, stickers, hand-drawn arrows + scribbles, on a loud ground. *Use: rebellious / youthful / disruptive statement.* (2026 anti-design)
+
+## R · AI / neural
+80. **NeuralField** — a neural network THINKS: layered nodes + edges light up as an activation front sweeps left→right until the output locks. *Use: AI reasons / a model at work / "it thinks".*
+
+## S · Scientific / molecular
+81. **DNAHelix** — a rotating double helix: two sine-phased strands of nodes with base-pair RUNGS, depth-shaded, assembling top-down. *Use: the blueprint / biotech / "encoded".*
+94. **AtomOrbital** — a nucleus of protons/neutrons with electron SHELLS: tilted elliptical orbits, electrons racing with glowing trails, the atom turning. *Use: fundamentals / "the core of it" / physics.*
+99. **MoleculeBallStick** — a ball-and-stick molecule (a hex ring + outer atoms) rotates in 3D: depth-sorted bond sticks + element-coloured spheres. *Use: chemistry / composition / "what it's made of".*
+
+## T · Circuit / hardware
+82. **CircuitTrace** — a PCB comes alive: copper traces route (Manhattan bends) and draw on, signal pulses race to a central chip that lights up. *Use: hardware / a system wired together / infrastructure.*
+
+## U · Audio / music
+86. **SpectrumPulse** — a circular audio spectrum: a ring of frequency bars dance to a synth beat (kick every 0.5s scales + brightens), wordmark pulsing at the core. *Use: music / rhythm / audio-reactive energy.* (deterministic visual, not tied to the real VO)
+
+## V · Cosmic / space
+87. **StarfieldWarp** — stars accelerate outward into a hyperspace streak, then DECELERATE as a wordmark blooms from the core light. *Use: launch / "the next era" / into the future.*
+
+## W · Organic / botanical
+92. **FractalTree** — a recursive tree GROWS from the ground, branches splitting depth by depth, then blossoms bloom at the tips. *Use: grow / branch out / "from one root, everything" (techno-natural).*
+
+## X · Weather / atmosphere
+93. **RainGlass** — a message behind a rain-blurred glass pane: droplets slide + streak while the soft-focus scene SHARPENS and the title resolves. *Use: a moody, atmospheric, material interlude.*
+
+## Y · Fire / energy
+96. **EmberFlame** — a wordmark forged in fire: flame licks flicker at the base, embers rise + fade, heat-glow blooms, the title glowing white-hot → red. *Use: passion / launch / "built with fire".*
+
+## Z · Textile / fabric
+97. **ClothWave** — a silk flag ripples on a travelling wave, strips shaded by slope for a sheen, the wordmark riding the ripple. *Use: soft power / elegance / a tactile fabric hero.*
+
+*(the single-letter families A–Z are full; add two-letter families AA+ when a new bold language needs one.)*
 
 ---
 ## Generalization — every shot is topic-driven via props (defaults = the WorkBuddy demo)
@@ -157,9 +206,19 @@ in the film wrapper. Per-shot props:
 | MagazineSpread `title, headline, deck, issue, accent` · RansomZine `word, tagline` · DataMonolith `items[], title, hero` | |
 | LowPolyForm `title, tagline, accent, accent2` · GlitchDatamosh `word, tagline, accent` · MorphForms `title, tagline` | |
 | IsoWorld `items[], title` · NeonTickerWall `headline, tickers[], accent` | |
+| MetaballMerge `title, tagline, accent, accent2` · InflateType `word, tagline` · ElasticType `word, tagline` | |
+| AntiDesignChaos `title, items[], tagline` · NeuralField `title, input, output` | |
+| DNAHelix `title, tagline` · CircuitTrace `title, chip, nodes[]` · KaleidoMandala `title, tagline, accent, accent2` | |
+| InkBloom `title, tagline, ink` · ComicPanels `panels[], splash, title` | |
+| SpectrumPulse `title, tagline, accent, accent2` · StarfieldWarp `title, tagline, accent` · RidgeField `title, tagline, accent` | |
+| VoxelBuild `title, tagline, accent` · ChartRace `data[{label,value,delay}], title, unit` | |
+| CodeRain `title, tagline` · FractalTree `title, tagline, branch, blossom` · RainGlass `title, tagline, accent` | |
+| AtomOrbital `title, tagline` · LiquidMetal `title, tagline` | |
+| EmberFlame `title, tagline` · ClothWave `title, tagline, accent, accent2` · GameOfLife `title, tagline, accent` | |
+| MoleculeBallStick `title, tagline` · TerrainFly `title, tagline` | |
 | LiquidMorph | *(abstract — no topic text; generalizes as-is)* |
 
-**Faithfulness:** shots carrying a NUMBER (ChartLive, BeforeAfterSlider, VelocitySnap, OdometerRoll, GaugeCluster, BlueprintGrid's counter)
+**Faithfulness:** shots carrying a NUMBER (ChartLive, BeforeAfterSlider, VelocitySnap, OdometerRoll, GaugeCluster, ChartRace, BlueprintGrid's counter)
 ship an illustrative DEMO default — a real film MUST override it with a sourced figure (the WorkBuddy film passes
 `endVal:68, unit:"×"` for the Hy3 surge). Never present a demo number as a real stat (see no-fake-info rule).
 

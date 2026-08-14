@@ -15,32 +15,46 @@ import argparse, json, os, sys
 # new families cost nothing. Current: A Product-UI · B Camera/space · C Kinetic type/title · D Data/technical ·
 # E 3D/spatial · F Fluid/generative · G Illustrated/craft · H Comparison · I Mechanical/physical ·
 # J Experimental type · K Generative · L Editorial/print · M Glitch/digital-decay · N Isometric ·
-# O Urban/signage. Mirrors LIBRARY.md.
+# O Urban/signage · P Dimensional type (3D/inflated/elastic) · Q Anti-design/maximalist · R AI/neural ·
+# S Scientific/molecular · T Circuit/hardware · U Audio/music · V Cosmic/space · W Organic/botanical ·
+# X Weather/atmosphere · Y Fire/energy · Z Textile/fabric. Mirrors LIBRARY.md. (A–Z full; open AA+ if needed.)
 FAMILY = {
     "CollaborativeCursors": "A", "CommandSummon": "A", "TemporalAccelerate": "A", "VelocitySnap": "A",
     "CursorStory": "A", "ScreenBubble": "A", "AnswerStream": "A", "ChatThread": "A", "BlockAssembly": "A",
     "CodeCompose": "A", "LiquidGlass": "A", "BentoReveal": "A",
     "InfiniteCanvas": "B", "TimelineTravel": "B", "MapRoutes": "B", "ExplodedSchematic": "B", "CubeRotate": "B",
-    "CrashZoom": "B",
+    "CrashZoom": "B", "TerrainFly": "B",
     "KineticManifesto": "C", "FocalIsolation": "C", "SwissEditorial": "C", "BrutalistType": "C",
     "LiquidChrome": "C", "HoloFoil": "C", "CinematicTitle": "C", "BokehPull": "C", "NeonGrid": "C",
     "AnalogTape": "C", "AsciiField": "C",
     "ChartLive": "D", "BlueprintGrid": "D", "KnowledgeGraph": "D", "WireGlobe": "D", "DataOrrery": "D",
-    "OdometerRoll": "D", "GaugeCluster": "D", "HudReticle": "D",
+    "OdometerRoll": "D", "GaugeCluster": "D", "HudReticle": "D", "ChartRace": "D",
     "MaterialHero": "E", "CardFlip3D": "E", "FractureIn": "E", "CardStack3D": "E", "DataMonolith": "E",
     "MorphForms": "E",
     "AuroraFlow": "F", "LiquidMorph": "F", "LiquidFill": "F", "ParticleForm": "F", "VoiceSignal": "F",
-    "RadialBurst": "F", "LightTrails": "F",
+    "RadialBurst": "F", "LightTrails": "F", "MetaballMerge": "F", "InkBloom": "F", "LiquidMetal": "F",
     "IsometricAssembly": "G", "HandDrawn": "G", "CartoonPop": "G", "HalftonePop": "G", "ClayStack": "G",
-    "PaperCutout": "G", "SpotlightStage": "G", "PixelBuild": "G", "RisoPrint": "G",
+    "PaperCutout": "G", "SpotlightStage": "G", "PixelBuild": "G", "RisoPrint": "G", "ComicPanels": "G",
     "BeforeAfterSlider": "H", "QuadSplit": "H", "PositioningMatrix": "H", "VersusSplit": "H",
     "SplitFlap": "I", "PhysicsStack": "I", "GearTrain": "I", "ConveyorBelt": "I",
     "VariableTypeMorph": "J",
-    "FlowField": "K", "LowPolyForm": "K",
+    "FlowField": "K", "LowPolyForm": "K", "KaleidoMandala": "K", "RidgeField": "K", "GameOfLife": "K",
     "MagazineSpread": "L", "RansomZine": "L",
-    "GlitchDatamosh": "M",
+    "GlitchDatamosh": "M", "CodeRain": "M",
     "IsoWorld": "N",
     "NeonTickerWall": "O",
+    "InflateType": "P", "ElasticType": "P",
+    "AntiDesignChaos": "Q",
+    "NeuralField": "R",
+    "DNAHelix": "S", "AtomOrbital": "S", "MoleculeBallStick": "S",
+    "CircuitTrace": "T",
+    "VoxelBuild": "N",
+    "SpectrumPulse": "U",
+    "StarfieldWarp": "V",
+    "FractalTree": "W",
+    "RainGlass": "X",
+    "EmberFlame": "Y",
+    "ClothWave": "Z",
 }
 # candidates by visual_intent (ordered; the assigner picks the first whose family != the previous beat's)
 CANDIDATES = {
@@ -49,18 +63,25 @@ CANDIDATES = {
     "statement": ["CinematicTitle", "VariableTypeMorph", "FocalIsolation", "KineticManifesto", "SwissEditorial",
                   "BrutalistType", "LiquidChrome", "NeonGrid", "HoloFoil", "RisoPrint", "MagazineSpread",
                   "RansomZine", "MaterialHero", "FractureIn", "HudReticle", "FlowField", "LowPolyForm",
-                  "GlitchDatamosh", "MorphForms", "NeonTickerWall", "AuroraFlow", "SplitFlap", "PixelBuild"],
-    "sequence": ["ExplodedSchematic", "TimelineTravel", "CubeRotate", "CommandSummon", "GearTrain", "ConveyorBelt", "IsoWorld", "CodeCompose"],
+                  "GlitchDatamosh", "MorphForms", "NeonTickerWall", "MetaballMerge", "InflateType", "ElasticType",
+                  "AntiDesignChaos", "DNAHelix", "KaleidoMandala", "InkBloom", "SpectrumPulse", "StarfieldWarp",
+                  "RidgeField", "CodeRain", "FractalTree", "RainGlass", "AtomOrbital", "LiquidMetal",
+                  "EmberFlame", "ClothWave", "GameOfLife", "MoleculeBallStick", "TerrainFly",
+                  "AuroraFlow", "SplitFlap", "PixelBuild"],
+    "sequence": ["ExplodedSchematic", "TimelineTravel", "CubeRotate", "CommandSummon", "GearTrain", "ConveyorBelt",
+                 "IsoWorld", "ComicPanels", "CircuitTrace", "CodeCompose"],
     "structure": ["CollaborativeCursors", "KnowledgeGraph", "CrashZoom", "MapRoutes", "DataOrrery", "WireGlobe",
-                  "BlueprintGrid", "CubeRotate", "BentoReveal", "IsoWorld", "PositioningMatrix", "DataMonolith", "CardStack3D", "IsometricAssembly"],
+                  "BlueprintGrid", "CubeRotate", "BentoReveal", "IsoWorld", "NeuralField", "CircuitTrace", "DNAHelix",
+                  "PositioningMatrix", "DataMonolith", "VoxelBuild", "CardStack3D", "IsometricAssembly"],
     # mostly family A; cross-family options (I/G/E) so two ADJACENT list beats don't both land in A.
     "list": ["BlockAssembly", "TemporalAccelerate", "CursorStory", "AnswerStream", "SplitFlap", "CardStack3D", "PhysicsStack", "HandDrawn"],
-    "metric": ["OdometerRoll", "ChartLive", "GaugeCluster", "DataMonolith", "PhysicsStack", "BlueprintGrid", "BeforeAfterSlider"],
+    "metric": ["OdometerRoll", "ChartLive", "ChartRace", "GaugeCluster", "DataMonolith", "PhysicsStack", "BlueprintGrid", "BeforeAfterSlider"],
     # contrast/before-after — cross-family so two adjacent contrast beats differ (H comparison + I + E + C).
     "contrast": ["BeforeAfterSlider", "VersusSplit", "QuadSplit", "PositioningMatrix", "CardFlip3D", "SplitFlap"],
 }
-CLIMAX = ["ParticleForm", "RadialBurst", "FractureIn", "MorphForms", "LightTrails", "SpotlightStage", "LiquidFill"]
-CLOSE = ["LiquidChrome", "HoloFoil", "CinematicTitle", "FlowField", "NeonTickerWall", "SwissEditorial"]
+CLIMAX = ["ParticleForm", "RadialBurst", "FractureIn", "MorphForms", "SpectrumPulse", "EmberFlame", "LightTrails", "SpotlightStage", "LiquidFill"]
+CLOSE = ["LiquidChrome", "HoloFoil", "CinematicTitle", "FlowField", "StarfieldWarp", "NeonTickerWall",
+         "KaleidoMandala", "InkBloom", "LiquidMetal", "RainGlass", "SwissEditorial"]
 FALLBACK = ["ChatThread", "AuroraFlow", "MaterialHero", "SplitFlap", "ClayStack", "AnalogTape"]
 
 

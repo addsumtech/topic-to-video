@@ -77,6 +77,31 @@ import {GlitchDatamosh} from './shots/GlitchDatamosh';
 import {IsoWorld} from './shots/IsoWorld';
 import {MorphForms} from './shots/MorphForms';
 import {NeonTickerWall} from './shots/NeonTickerWall';
+import {MetaballMerge} from './shots/MetaballMerge';
+import {InflateType} from './shots/InflateType';
+import {ElasticType} from './shots/ElasticType';
+import {AntiDesignChaos} from './shots/AntiDesignChaos';
+import {NeuralField} from './shots/NeuralField';
+import {DNAHelix} from './shots/DNAHelix';
+import {CircuitTrace} from './shots/CircuitTrace';
+import {KaleidoMandala} from './shots/KaleidoMandala';
+import {InkBloom} from './shots/InkBloom';
+import {ComicPanels} from './shots/ComicPanels';
+import {SpectrumPulse} from './shots/SpectrumPulse';
+import {StarfieldWarp} from './shots/StarfieldWarp';
+import {RidgeField} from './shots/RidgeField';
+import {VoxelBuild} from './shots/VoxelBuild';
+import {ChartRace} from './shots/ChartRace';
+import {CodeRain} from './shots/CodeRain';
+import {FractalTree} from './shots/FractalTree';
+import {RainGlass} from './shots/RainGlass';
+import {AtomOrbital} from './shots/AtomOrbital';
+import {LiquidMetal} from './shots/LiquidMetal';
+import {EmberFlame} from './shots/EmberFlame';
+import {ClothWave} from './shots/ClothWave';
+import {GameOfLife} from './shots/GameOfLife';
+import {MoleculeBallStick} from './shots/MoleculeBallStick';
+import {TerrainFly} from './shots/TerrainFly';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   CollaborativeCursors, CommandSummon, TemporalAccelerate, FocalIsolation, KineticManifesto, InfiniteCanvas,
@@ -91,6 +116,11 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   CardStack3D, CrashZoom, VersusSplit, RisoPrint, HudReticle,
   VariableTypeMorph, FlowField, MagazineSpread, RansomZine, DataMonolith,
   LowPolyForm, GlitchDatamosh, IsoWorld, MorphForms, NeonTickerWall,
+  MetaballMerge, InflateType, ElasticType, AntiDesignChaos, NeuralField,
+  DNAHelix, CircuitTrace, KaleidoMandala, InkBloom, ComicPanels,
+  SpectrumPulse, StarfieldWarp, RidgeField, VoxelBuild, ChartRace,
+  CodeRain, FractalTree, RainGlass, AtomOrbital, LiquidMetal,
+  EmberFlame, ClothWave, GameOfLife, MoleculeBallStick, TerrainFly,
 };
 
 export const SHOT_IDS = Object.keys(REGISTRY);

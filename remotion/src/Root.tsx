@@ -75,6 +75,31 @@ import {GlitchDatamosh, DURATION as GDM} from './shots/GlitchDatamosh';
 import {IsoWorld, DURATION as ISW} from './shots/IsoWorld';
 import {MorphForms, DURATION as MPF} from './shots/MorphForms';
 import {NeonTickerWall, DURATION as NTW} from './shots/NeonTickerWall';
+import {MetaballMerge, DURATION as MBM} from './shots/MetaballMerge';
+import {InflateType, DURATION as INF} from './shots/InflateType';
+import {ElasticType, DURATION as ELT} from './shots/ElasticType';
+import {AntiDesignChaos, DURATION as ADC} from './shots/AntiDesignChaos';
+import {NeuralField, DURATION as NRF} from './shots/NeuralField';
+import {DNAHelix, DURATION as DNA} from './shots/DNAHelix';
+import {CircuitTrace, DURATION as CIR} from './shots/CircuitTrace';
+import {KaleidoMandala, DURATION as KAL} from './shots/KaleidoMandala';
+import {InkBloom, DURATION as INK} from './shots/InkBloom';
+import {ComicPanels, DURATION as CMC} from './shots/ComicPanels';
+import {SpectrumPulse, DURATION as SPC} from './shots/SpectrumPulse';
+import {StarfieldWarp, DURATION as SFW} from './shots/StarfieldWarp';
+import {RidgeField, DURATION as RDG} from './shots/RidgeField';
+import {VoxelBuild, DURATION as VOX} from './shots/VoxelBuild';
+import {ChartRace, DURATION as CRC} from './shots/ChartRace';
+import {CodeRain, DURATION as CDR} from './shots/CodeRain';
+import {FractalTree, DURATION as FRT} from './shots/FractalTree';
+import {RainGlass, DURATION as RNG} from './shots/RainGlass';
+import {AtomOrbital, DURATION as ATM} from './shots/AtomOrbital';
+import {LiquidMetal, DURATION as LQM} from './shots/LiquidMetal';
+import {EmberFlame, DURATION as EMB} from './shots/EmberFlame';
+import {ClothWave, DURATION as CLW} from './shots/ClothWave';
+import {GameOfLife, DURATION as GOL} from './shots/GameOfLife';
+import {MoleculeBallStick, DURATION as MOL} from './shots/MoleculeBallStick';
+import {TerrainFly, DURATION as TRN} from './shots/TerrainFly';
 import {Film, WORKBUDDY_SCENES, filmDuration} from './Film';
 
 // Redo tier: each bespoke shot registers as its OWN Composition (video-shotcraft pattern), renderable
@@ -162,5 +187,30 @@ export const RemotionRoot: React.FC = () => (
     {F('IsoWorld', IsoWorld, ISW)}
     {F('MorphForms', MorphForms, MPF)}
     {F('NeonTickerWall', NeonTickerWall, NTW)}
+    {F('MetaballMerge', MetaballMerge, MBM)}
+    {F('InflateType', InflateType, INF)}
+    {F('ElasticType', ElasticType, ELT)}
+    {F('AntiDesignChaos', AntiDesignChaos, ADC)}
+    {F('NeuralField', NeuralField, NRF)}
+    {F('DNAHelix', DNAHelix, DNA)}
+    {F('CircuitTrace', CircuitTrace, CIR)}
+    {F('KaleidoMandala', KaleidoMandala, KAL)}
+    {F('InkBloom', InkBloom, INK)}
+    {F('ComicPanels', ComicPanels, CMC)}
+    {F('SpectrumPulse', SpectrumPulse, SPC)}
+    {F('StarfieldWarp', StarfieldWarp, SFW)}
+    {F('RidgeField', RidgeField, RDG)}
+    {F('VoxelBuild', VoxelBuild, VOX)}
+    {F('ChartRace', ChartRace, CRC)}
+    {F('CodeRain', CodeRain, CDR)}
+    {F('FractalTree', FractalTree, FRT)}
+    {F('RainGlass', RainGlass, RNG)}
+    {F('AtomOrbital', AtomOrbital, ATM)}
+    {F('LiquidMetal', LiquidMetal, LQM)}
+    {F('EmberFlame', EmberFlame, EMB)}
+    {F('ClothWave', ClothWave, CLW)}
+    {F('GameOfLife', GameOfLife, GOL)}
+    {F('MoleculeBallStick', MoleculeBallStick, MOL)}
+    {F('TerrainFly', TerrainFly, TRN)}
   </>
 );
