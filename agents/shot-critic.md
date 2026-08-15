@@ -55,6 +55,17 @@ graph/orrery anywhere, or one whose register mix ignores the chosen direction en
 soft/whole-film judgment — S2 family variety still wins over it; the direction is a lean, not a straitjacket). If
 no `meta.shot_template` is set, S7 is N/A.
 
+**S9 · SEAM RHYTHM (whole-film, from the storyboard — not the keyframes).** The renderer keeps every seam
+luminance-safe on its own; your job is the RHYTHM across the film. Read each scene's `transition_style`/`transition_in`
+mark: the marks should be BUDGETED (~2-3 in a ≥10-beat film — most seams ride the gentle default fade) and each
+should be SEMANTIC — a `clock`/`wipe` on a reveal, a `slide` on a forward push, a `dissolve` where the outgoing
+form becomes the incoming, a `carry` (collapse-to-line) on a continuity/resolve beat (and `carry` is the right way
+to make a NEEDED dark↔light turn read as continuity). A mark that contradicts its beat (a `slide` on a quiet
+close), or every seam marked (as monotonous as none), is a REVISE. Also eyeball the ground-luminance ARC (each
+shot's dark/mid/light): a film that flips dark↔light on nearly every beat STROBES — nudge the sequence toward
+runs/gradients. The mechanical gates already fire on over-budget marks and >60% hard-flips (`validate.py`
+warnings); S9 is the SEMANTIC judgment those can't make. This is a soft dimension — S3/S4 still win.
+
 ## Output
 For each flagged scene: `scene #N · Sx · <what's wrong on screen> · FIX: <the concrete change — a different
 `shot` id, or the `shot_props` key+value to set>`. End with a verdict: **PASS** (deliver) or **REVISE** (list the
