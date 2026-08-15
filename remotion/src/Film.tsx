@@ -151,21 +151,37 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
   }
 };
 
+// #camera — a subtle whole-film DRIFT (a slow breathing zoom + float) applied to the WORLD only; the HUD
+// (captions + the intro/outro veil) stays OUTSIDE it, immune (huashu's camera-rig discipline). Low amplitude
+// over a generous overscan (min scale ~1.025) so a pan can never reveal an edge; deterministic (pure fn of
+// frame, sin never Math.random). amp scales with meta.motion_personality; amp 0 disables (reduced-motion).
+const TWO_PI = Math.PI * 2;
+const cameraTransform = (frame: number, amp: number): string => {
+  if (amp <= 0) return 'none';
+  const s = 1 + amp * (0.035 + 0.010 * Math.sin((frame / 720) * TWO_PI));     // breathe, ~24s period
+  const x = amp * 6 * Math.sin((frame / 930) * TWO_PI + 1.3);                  // float — offset periods so it never repeats
+  const y = amp * 4 * Math.sin((frame / 810) * TWO_PI + 0.4);
+  return `scale(${s.toFixed(5)}) translate(${x.toFixed(2)}px, ${y.toFixed(2)}px)`;
+};
+
 // visible fallback if a storyboard names an unknown shot id (fail loud, never a silent blank)
 const Missing: React.FC<{id: string}> = ({id}) => (
   <AbsoluteFill style={{background: '#2a0a0a', alignItems: 'center', justifyContent: 'center',
     color: '#ff8a8a', font: '700 44px/1.4 monospace', textAlign: 'center'}}>unknown shot:<br />{id}</AbsoluteFill>
 );
 
-export const Film: React.FC<{scenes?: SceneSpec[]}> = ({scenes = WORKBUDDY_SCENES}) => {
+export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotion?: boolean}> =
+  ({scenes = WORKBUDDY_SCENES, camera = 1, reducedMotion = false}) => {
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
   const total = filmDuration(scenes);
+  const cam = cameraTransform(frame, reducedMotion ? 0 : Math.max(0, camera));
   const intro = interpolate(frame, [0, 12], [1, 0], {extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic)});
   const outro = interpolate(frame, [total - 16, total - 1], [0, 1], {extrapolateLeft: 'clamp'});
 
   return (
     <AbsoluteFill style={{backgroundColor: '#000'}}>
+      <AbsoluteFill style={{transform: cam}}>
       <TransitionSeries>
         {scenes.flatMap((sc, i) => {
           const C = REGISTRY[sc.shot];
@@ -186,6 +202,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]}> = ({scenes = WORKBUDDY_SCENE
           )];
         })}
       </TransitionSeries>
+      </AbsoluteFill>
       <AbsoluteFill style={{backgroundColor: '#05060a', opacity: Math.max(intro, outro), pointerEvents: 'none'}} />
       <CaptionTrack scenes={scenes} />
     </AbsoluteFill>

@@ -46,6 +46,20 @@ def _transition_in(slide):
     return dict(_TRANSITION_STYLE[style]) if style in _TRANSITION_STYLE else None
 
 
+# The #camera whole-film DRIFT amplitude, from meta.motion_personality (a tier name OR a raw multiplier;
+# default balanced=1.0). Film.tsx scales its subtle breathing zoom+float by this; 0 = still (reduced-motion).
+_MOTION_PERSONALITY = {"still": 0.0, "calm": 0.5, "gentle": 0.65, "balanced": 1.0, "lively": 1.3, "energetic": 1.6}
+
+
+def _camera_amp(meta):
+    mp = (meta or {}).get("motion_personality")
+    if isinstance(mp, bool):
+        mp = None
+    if isinstance(mp, (int, float)):
+        return max(0.0, float(mp))
+    return _MOTION_PERSONALITY.get(str(mp or "balanced").strip().lower(), 1.0)
+
+
 def available():
     """True if the Node toolchain + the installed remotion/ project are present."""
     return bool(shutil.which("npx")) and os.path.isdir(os.path.join(_REMOTION2_DIR, "node_modules"))
@@ -91,7 +105,7 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps):
         print("[render_remotion] wrote out.srt + %d keyframes (_keyframes/) for the shot-critic + A/V gate." % len(scenes))
 
 
-def _render_remotion(out_dir, data, sample=None, log="error"):
+def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=False):
     """Render via the bespoke-shot LIBRARY. Fails loud on a missing/unknown shot or missing audio."""
     if not shutil.which("npx"):
         raise RuntimeError("Node/npx not found — the Remotion tier needs Node.js.")
@@ -124,9 +138,12 @@ def _render_remotion(out_dir, data, sample=None, log="error"):
         if tin:
             scene["transitionIn"] = tin
         scenes.append(scene)
+    meta = data.get("meta") or {}
+    reduced = bool(reduced_motion or meta.get("reduced_motion"))
     props_path = os.path.join(out_dir, ".remotion-props.json")
     with open(props_path, "w", encoding="utf-8") as f:
-        json.dump({"scenes": scenes}, f, allow_nan=False, ensure_ascii=False)
+        json.dump({"scenes": scenes, "camera": _camera_amp(meta), "reducedMotion": reduced},
+                  f, allow_nan=False, ensure_ascii=False)
     out_name = "sample.mp4" if sample is not None else "out.mp4"
     out_mp4 = os.path.abspath(os.path.join(out_dir, out_name))
     gl = os.environ.get("REMOTION_GL") or ("angle" if sys.platform in ("darwin", "win32") else "swangle")
@@ -165,12 +182,13 @@ def _render_remotion(out_dir, data, sample=None, log="error"):
 
 def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="error", no_plan=False):
     """Render the whole deck to out.mp4 (+ out.srt / _keyframes / optional SFX), or one scene (sample=N) to
-    sample.mp4 for the sign-off checkpoint. Routes through the remotion bespoke-shot library. `vertical`/
-    `reduced_motion`/`no_plan` are accepted for CLI parity (the shot library authors its own 1080p framing)."""
+    sample.mp4 for the sign-off checkpoint. Routes through the remotion bespoke-shot library. `reduced_motion`
+    stills the #camera drift (accessibility); `vertical`/`no_plan` are accepted for CLI parity (the shot
+    library authors its own 1080p framing)."""
     data = sb.load(os.path.join(out_dir, "storyboard.json"))
     _renderer = (data.get("meta") or {}).get("renderer")
     if _renderer == "remotion":
-        return _render_remotion(out_dir, data, sample=sample, log=log)
+        return _render_remotion(out_dir, data, sample=sample, log=log, reduced_motion=reduced_motion)
     if _renderer == "remotion-legacy":
         raise RuntimeError(
             "the legacy generic-scene Remotion tier has been REMOVED in the phase-3 cutover — set "

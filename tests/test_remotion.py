@@ -49,6 +49,16 @@ def test_transition_in_mapping():
     assert rr._transition_in({"transition_in": {"type": "spin"}}) is None
 
 
+def test_camera_amp_from_motion_personality():
+    assert rr._camera_amp({}) == 1.0                                # default balanced
+    assert rr._camera_amp({"motion_personality": "calm"}) == 0.5
+    assert rr._camera_amp({"motion_personality": "energetic"}) == 1.6
+    assert rr._camera_amp({"motion_personality": "still"}) == 0.0   # a still tier disables the drift
+    assert rr._camera_amp({"motion_personality": 0.8}) == 0.8       # a raw multiplier passes through
+    assert rr._camera_amp({"motion_personality": -3}) == 0.0        # clamped non-negative
+    assert rr._camera_amp({"motion_personality": "bogus"}) == 1.0   # unknown tier -> balanced
+
+
 def test_color_arc_luma_and_flip():
     assert sd.shot_luma("KnowledgeGraph") == "dark"
     assert sd.shot_luma("BlockAssembly") == "light"
