@@ -49,6 +49,35 @@ def test_transition_in_mapping():
     assert rr._transition_in({"transition_in": {"type": "spin"}}) is None
 
 
+def test_color_arc_luma_and_flip():
+    assert sd.shot_luma("KnowledgeGraph") == "dark"
+    assert sd.shot_luma("BlockAssembly") == "light"
+    assert sd.shot_luma("NotAShot") == "dark"                       # safe default
+    assert sd._hard_flip("dark", "light") and not sd._hard_flip("dark", "mid")
+
+
+def test_pick_softens_luminance_streak():
+    cands = ["KnowledgeGraph", "BlockAssembly"]                     # dark, light
+    # after a flip (last_luma light), soften prefers the non-flip (light) candidate over the dark one
+    assert sd._pick(cands, None, set(), last_luma="light", soften=True) == "BlockAssembly"
+    # without soften, fit order is preserved (the first candidate wins)
+    assert sd._pick(cands, None, set(), last_luma="light", soften=False) == "KnowledgeGraph"
+
+
+def _remotion_deck(shots):
+    return {"meta": {"renderer": "remotion"},
+            "slides": [{"index": i + 1, "shot": sh, "shot_props": {}, "audio": f"audio/{i+1:02d}.mp3",
+                        "duration": 8.0, "narration": "A sentence."} for i, sh in enumerate(shots)]}
+
+
+def test_validate_warns_on_luminance_strobe():
+    strobe = ["KnowledgeGraph", "BlockAssembly", "MaterialHero", "BlueprintGrid", "MapRoutes", "HandDrawn"]
+    r = v.evaluate(_remotion_deck(strobe), "/tmp")                  # dark/light every seam -> strobe
+    assert r["ok"] and any("STROBES" in w for w in r["warnings"]), r["warnings"]
+    calm = ["CinematicTitle", "KnowledgeGraph", "MaterialHero", "MapRoutes", "FocalIsolation", "ParticleForm"]
+    assert not any("STROBES" in w for w in v.evaluate(_remotion_deck(calm), "/tmp")["warnings"])   # all dark -> calm
+
+
 def test_registry_in_sync_with_shot_files():
     # every shot file is a valid id, and there are 100 of them (the whole library)
     assert len(_SHOT_IDS) == 100, _SHOT_IDS

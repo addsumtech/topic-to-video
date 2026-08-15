@@ -95,6 +95,17 @@ back — commit registers that are memorable and unmistakably THIS film. For eac
    (Film's pickPresentation guards against a bright edge slamming over a dark scene), so don't spend a mark
    there. No spins, ever. (Mechanism: `render_remotion.py` maps `transition_style` → the Film `transitionIn`.)
 
+## Color-arc (a SOFT sequencing pass — after fit/family/boldness are settled)
+Each shot has a ground LUMINANCE (dark / mid / light — `remotion/src/runtime/shotLuma.ts`). A film that flips
+**dark↔light on nearly every beat STROBES**: even though each seam is smooth (the renderer forces a gentle fade
+across a jump), the whole-film brightness *pulse* reads restless. So sequence a luminance **ARC, not a strobe** —
+let brightness move in short **runs/gradients** (a few darks, then lift into the lighter beats, or the reverse),
+reserving a hard dark↔light flip for a **deliberate jolt** (a reveal, a tonal turn). This is a TIE-BREAK only: it
+never overrides register FIT, family variety, faithfulness, or boldness — when two equally-apt registers fit a
+beat, prefer the one whose ground continues the run. `validate.py` warns when >60% of seams hard-flip (a strobe);
+the deterministic fallback assigner already softens streaks. (The MARKED **carry** seam is the clean way to make
+a *needed* dark↔light turn read as continuity rather than a flip — see Rule 5.)
+
 ## Output
 Edit `storyboard.json`: set `meta.renderer:"remotion"` and, on every scene, `shot` (a valid id from
 `remotion/src/shots/*.tsx`) + `shot_props` (an object; `{}` = the register's WorkBuddy-neutral defaults, which

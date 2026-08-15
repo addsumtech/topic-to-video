@@ -1168,6 +1168,18 @@ def _check_remotion(meta, slides, errors, warnings):
                             f"all is as monotonous as marking none (shot-director Rule 5)")
     except Exception:
         pass
+    try:                                                   # color-arc: a dark<->light STROBE across the film
+        import shot_director as _sd2
+        lums = [_sd2.shot_luma(x) for x in seq if x]
+        flips = sum(1 for a, b in zip(lums, lums[1:]) if _sd2._hard_flip(a, b))
+        span = max(1, len(lums) - 1)
+        if len(lums) >= 6 and flips / span > 0.6:
+            warnings.append(f"remotion: {flips} of {span} seams hard-FLIP luminance (dark<->light) — the film "
+                            f"STROBES (each seam is smooth, but the whole-film brightness pulse reads restless); "
+                            f"sequence a calmer luminance ARC (runs/gradients via shotLuma), reserving a hard "
+                            f"flip for a deliberate jolt (shot-director color-arc)")
+    except Exception:
+        pass
 
 
 def evaluate(data, out_dir, pre_tts=False, vertical=False):

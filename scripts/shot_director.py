@@ -87,19 +87,51 @@ CLOSE = ["LiquidChrome", "HoloFoil", "CinematicTitle", "FlowField", "StarfieldWa
          "KaleidoMandala", "InkBloom", "LiquidMetal", "RainGlass", "SwissEditorial"]
 FALLBACK = ["ChatThread", "AuroraFlow", "MaterialHero", "SplitFlap", "ClayStack", "AnalogTape"]
 
+# COLOR-ARC: the ground-luminance of a shot, read from the SINGLE source (remotion/src/runtime/shotLuma.ts) so
+# it can never drift from what the renderer measures. A film that flips dark<->light on nearly every beat STROBES
+# (each seam is smooth after P2/P3, but the whole-film brightness pulse reads restless) — the assigner uses this
+# to break up strobe streaks, and validate warns when a sequence flips too often.
+_LUM_RANK = {"dark": 0, "mid": 1, "light": 2}
+_LUMA = None
 
-def _pick(cands, last_family, used, prefer=None):
+
+def shot_luma(shot):
+    """'dark' | 'mid' | 'light' for a shot (default 'dark'). Parses shotLuma.ts once; empty/degrades safely."""
+    global _LUMA
+    if _LUMA is None:
+        _LUMA = {}
+        try:
+            import re
+            p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                             "remotion", "src", "runtime", "shotLuma.ts")
+            body = open(p, encoding="utf-8").read().split("SHOT_LUMA")[1].split("{", 1)[1].split("};")[0]
+            _LUMA = dict(re.findall(r"(\w+):\s*'(dark|mid|light)'", body))
+        except Exception:
+            _LUMA = {}
+    return _LUMA.get(shot, "dark")
+
+
+def _hard_flip(a, b):
+    """True if two grounds are a dark<->light jump (the strobe unit); mid<->anything is a gradient, not a flip."""
+    if not a or not b:
+        return False
+    return abs(_LUM_RANK.get(a, 0) - _LUM_RANK.get(b, 0)) >= 2
+
+
+def _pick(cands, last_family, used, prefer=None, last_luma=None, soften=False):
     """First candidate whose family differs from the previous beat's; prefer unused registers. When `prefer`
     (the chosen template's family letters) is given, BIAS toward those families first — the template EMPHASIZES
-    families without ever forcing two adjacent beats into the same one (variety still wins)."""
+    families without ever forcing two adjacent beats into the same one (variety still wins). When `soften` (the
+    previous seam already hard-flipped luminance), a stable TIE-BREAK prefers a candidate that does NOT flip
+    again — smoothing the brightness arc WITHOUT overriding fit/family/freshness (they pre-order the pool)."""
     if prefer:
         order = {c: i for i, c in enumerate(cands)}
         cands = sorted(cands, key=lambda c: (FAMILY.get(c) not in prefer, order[c]))
-    fresh = [c for c in cands if FAMILY.get(c) != last_family and c not in used]
-    if fresh:
-        return fresh[0]
-    diff = [c for c in cands if FAMILY.get(c) != last_family]
-    return diff[0] if diff else cands[0]
+    pool = ([c for c in cands if FAMILY.get(c) != last_family and c not in used]
+            or [c for c in cands if FAMILY.get(c) != last_family] or list(cands))
+    if soften and last_luma is not None:
+        pool = sorted(pool, key=lambda c: _hard_flip(shot_luma(c), last_luma))   # stable: non-flips first
+    return pool[0]
 
 
 def _template_families(template):
@@ -121,7 +153,7 @@ def assign_shots(data, content_plan=None, template=None):
     data.setdefault("meta", {})["renderer"] = "remotion"
     if template:
         data["meta"]["shot_template"] = template
-    last_family, used = None, set()
+    last_family, used, last_luma, prev_flip = None, set(), None, False
     for s in data.get("slides", []):
         beat = beats.get(s.get("index"), {})
         intent = beat.get("visual_intent") or "statement"
@@ -131,10 +163,14 @@ def assign_shots(data, content_plan=None, template=None):
             cands = CLOSE
         else:
             cands = CANDIDATES.get(intent, FALLBACK)
-        shot = _pick(cands, last_family, used, prefer)
+        # color-arc: only SOFTEN after a flip (avoid a 2nd consecutive one) — isolated flips (contrast) survive
+        shot = _pick(cands, last_family, used, prefer, last_luma, soften=prev_flip)
         s["shot"], s["shot_props"] = shot, s.get("shot_props") or {}
         used.add(shot)
         last_family = FAMILY.get(shot)
+        lum = shot_luma(shot)
+        prev_flip = _hard_flip(lum, last_luma)
+        last_luma = lum
     return data
 
 
