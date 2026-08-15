@@ -19,6 +19,36 @@ def _deck(n=6):
                         "audio": f"audio/{i+1:02d}.mp3", "duration": 8.0, "narration": "A sentence."} for i in range(n)]}
 
 
+def test_shotluma_covers_all_shots():
+    # the film tier's luminance foundation (captions contrast + P2 dip) must know EVERY shot's ground —
+    # a new shot has to be MEASURED, not silently defaulted. (groundLum falls back to 'dark', but the map
+    # should be complete so the fallback is only for truly-new shots between renders.)
+    import re
+    ts = open(os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "runtime", "shotLuma.ts"), encoding="utf-8").read()
+    body = ts.split("SHOT_LUMA")[1].split("{", 1)[1].split("};")[0]
+    keys = set(re.findall(r"(\w+):\s*'(?:dark|mid|light)'", body))
+    missing = _SHOT_IDS - keys
+    assert not missing, "shotLuma.ts missing luminance for: %s" % sorted(missing)
+
+
+def test_transition_in_mapping():
+    # P2 seam grammar reaches REAL films: the storyboard's transition vocabulary → the Film `transitionIn` mark.
+    assert rr._transition_in({"transition_style": "slide"}) == {"type": "slide", "direction": "from-right"}
+    assert rr._transition_in({"transition_style": "lift"}) == {"type": "slide", "direction": "from-bottom"}
+    assert rr._transition_in({"transition_style": "wipe"})["type"] == "wipe"
+    assert rr._transition_in({"transition_style": "Clock-Wipe"}) == {"type": "clock"}    # case/alias-insensitive
+    assert rr._transition_in({"transition_style": "dissolve"}) == {"type": "dissolve"}
+    assert rr._transition_in({"transition_style": "carry"}) == {"type": "carry"}
+    assert rr._transition_in({"transition_style": "match-cut"}) == {"type": "carry"}   # alias
+    # non-kinetic styles + absent → None (the luminance-safe default fade, no mark)
+    for st_ in ("fade", "dip", "drift", "blur", "none", "", "bogus"):
+        assert rr._transition_in({"transition_style": st_}) is None, st_
+    assert rr._transition_in({}) is None
+    # an explicit remotion mark wins and is sanitized (unknown type ignored)
+    assert rr._transition_in({"transition_in": {"type": "wipe", "direction": "from-left"}}) == {"type": "wipe", "direction": "from-left"}
+    assert rr._transition_in({"transition_in": {"type": "spin"}}) is None
+
+
 def test_registry_in_sync_with_shot_files():
     # every shot file is a valid id, and there are 100 of them (the whole library)
     assert len(_SHOT_IDS) == 100, _SHOT_IDS
@@ -131,6 +161,20 @@ def test_validate_bold_audacity_requires_contest():
     # conservative may skip the contest entirely
     d["meta"]["audacity"] = "conservative"; d["meta"].pop("shot_template", None)
     assert v.evaluate(d, "/tmp")["ok"]
+
+
+def test_validate_warns_on_over_marked_seams():
+    # marking EVERY seam kinetic is as monotonous as marking none — validate warns past the budget
+    d = _deck(6)                                    # 6 scenes -> 5 seams -> budget max(3, 5//3)=3
+    for s in d["slides"][1:]:
+        s["transition_style"] = "slide"
+    r = v.evaluate(d, "/tmp")
+    assert r["ok"] and any("MARKED with a kinetic transition" in w for w in r["warnings"]), r["warnings"]
+    # a budgeted film (2 marks) stays clean
+    d2 = _deck(6)
+    d2["slides"][2]["transition_style"] = "clock"
+    d2["slides"][4]["transition_style"] = "dissolve"
+    assert not any("MARKED with a kinetic transition" in w for w in v.evaluate(d2, "/tmp")["warnings"])
 
 
 def test_keyframe_qa_remotion_flags_blank():

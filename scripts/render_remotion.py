@@ -17,6 +17,34 @@ import storyboard as sb
 _REMOTION2_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion")
 _REMOTION2_TR = 12   # cross-dissolve length in Film.tsx (frames) — the output timeline is compressed by this per cut
 
+# The MARKED-seam grammar (P2): a storyboard scene MARKS the transition INTO it. Only kinetic styles produce a
+# mark — everything else (fade/dip/drift/blur/none/absent) is the luminance-safe default fade in Film.tsx, and a
+# kinetic mark across a dark↔light gap is itself suppressed back to fade there (Film's pickPresentation). This
+# maps the deck's `transition_style` vocabulary (shared with the local tier) onto the bespoke transition set;
+# an explicit `transition_in:{type,direction}` on the scene wins outright (a direct remotion mark).
+_TRANSITION_STYLE = {
+    "slide": {"type": "slide", "direction": "from-right"}, "push": {"type": "slide", "direction": "from-right"},
+    "lift": {"type": "slide", "direction": "from-bottom"}, "slide-up": {"type": "slide", "direction": "from-bottom"},
+    "wipe": {"type": "wipe", "direction": "from-bottom"},
+    "clock": {"type": "clock"}, "clockwipe": {"type": "clock"}, "clock-wipe": {"type": "clock"},
+    "dissolve": {"type": "dissolve"},
+    "carry": {"type": "carry"}, "collapse": {"type": "carry"}, "line": {"type": "carry"}, "match-cut": {"type": "carry"},
+}
+_KINETIC_TYPES = {"slide", "wipe", "clock", "dissolve", "carry"}
+
+
+def _transition_in(slide):
+    """Map a storyboard scene's transition intent → the Film `transitionIn` mark (or None = the safe default fade).
+    Only a MARKED (kinetic) seam returns a value; the shot-director budgets ~2-3 per film for chapter breaks."""
+    ti = slide.get("transition_in")
+    if isinstance(ti, dict) and ti.get("type") in _KINETIC_TYPES:          # explicit remotion mark wins
+        out = {"type": ti["type"]}
+        if ti.get("direction"):
+            out["direction"] = ti["direction"]
+        return out
+    style = (slide.get("transition_style") or "").strip().lower()
+    return dict(_TRANSITION_STYLE[style]) if style in _TRANSITION_STYLE else None
+
 
 def available():
     """True if the Node toolchain + the installed remotion/ project are present."""
@@ -90,8 +118,12 @@ def _render_remotion(out_dir, data, sample=None, log="error"):
         if not isinstance(props, dict):
             raise RuntimeError("scene #%s `shot_props` must be an object." % idx)
         caption = (s.get("narration") or s.get("script") or s.get("caption") or "").strip()
-        scenes.append({"shot": shot, "props": props, "durF": int(round(dur * fps)),
-                       "mp3": str(audio).replace(os.sep, "/"), "caption": caption})
+        scene = {"shot": shot, "props": props, "durF": int(round(dur * fps)),
+                 "mp3": str(audio).replace(os.sep, "/"), "caption": caption}
+        tin = _transition_in(s)   # a MARKED seam (chapter break) → Film's kinetic transition; else the safe fade
+        if tin:
+            scene["transitionIn"] = tin
+        scenes.append(scene)
     props_path = os.path.join(out_dir, ".remotion-props.json")
     with open(props_path, "w", encoding="utf-8") as f:
         json.dump({"scenes": scenes}, f, allow_nan=False, ensure_ascii=False)

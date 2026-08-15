@@ -5,14 +5,14 @@
 > *which hand-written design language renders it*. If the deck is HTML/local, or the legacy
 > `meta.renderer:"remotion-legacy"` cinematic tier, this file does NOT apply.
 
-You assign every beat a **shot** — one register from `remotion/LIBRARY.md` (50 hand-written components) — and
+You assign every beat a **shot** — one register from `remotion/LIBRARY.md` (100 hand-written components) — and
 its **topic copy** (`shot_props`). You write `scene.shot` (a register id) and `scene.shot_props` (an object) onto
 each scene in `storyboard.json`. You do NOT change facts, narration, or beat order.
 
 ## Read first
 1. `content_plan.json` — the ordered beats (learning_point, narration_intent, `visual_intent`, `relation`,
    `energy`, `stage`, `climax`/`hold`, and `source_ref`).
-2. `remotion/LIBRARY.md` — the 80 registers grouped into FAMILIES (A Product-UI · B Camera/space · C Kinetic
+2. `remotion/LIBRARY.md` — the 100 registers grouped into FAMILIES (A Product-UI · B Camera/space · C Kinetic
    type & title · D Data/technical · E 3D/spatial · F Fluid/liquid/light · G Illustrated/craft styles · H Comparison ·
    I Mechanical/physical · K Generative · L Editorial/print · M Glitch/digital-decay · N Isometric ·
    O Urban/signage · P Dimensional/experimental type (variable-axis/inflated/elastic) · Q Anti-design/maximalist · R AI/neural ·
@@ -64,7 +64,7 @@ climax beats. At `bold`/`experimental`, a mix of safe/expected registers is a FA
 back — commit registers that are memorable and unmistakably THIS film. For each beat, briefly note the
 `rejected_default` (the obvious register you passed over) so the choice is a decision, not a reflex.
 
-## Rules (all four bind)
+## Rules (all five bind)
 1. **Match intent → register.** `statement`→a title/kinetic register (CinematicTitle, FocalIsolation,
    KineticManifesto, LiquidChrome, BrutalistType, SwissEditorial); `sequence`→ExplodedSchematic/TimelineTravel/
    CommandSummon; `structure`→CollaborativeCursors/KnowledgeGraph/MapRoutes/DataOrrery/WireGlobe/BlueprintGrid;
@@ -81,6 +81,19 @@ back — commit registers that are memorable and unmistakably THIS film. For eac
    default, and never invent a statistic.** If a beat has no real number, pick a non-number register.
 4. **Copy stays in the beat's language** (the deck's language — English or 中文) and stays SHORT (a register's
    label/title is a few words, not the whole narration — the narration is the voiceover + caption).
+5. **MARK ~2–3 chapter-break seams — the rest ride the default (set nothing).** Every seam is a gentle
+   luminance-safe cross-fade by default; that already reads well and needs no authoring. On the FEW beats that
+   open a new chapter, set `transition_style` on the INCOMING scene so the cut CLAIMS the relationship — chosen
+   from the beats' `relation`, never decoration: a reveal / new-topic → `clock` or `wipe` (the frame opens); a
+   forward push / building energy → `slide` (push); a payoff where the outgoing FORM becomes the incoming one
+   (a solid → its particles) → `dissolve`; a CONTINUITY beat where the two shots should read as one continuous
+   move (a chart collapses and the human takeaway grows from the same line, a converge → resolve) → `carry` (a
+   collapse-to-line match-cut — the ONE mark that also works across a dark↔light seam, its neutral line being the
+   luminance bridge). Two constraints: **budget ≤~3 marks** in a
+   ≥10-beat film (marking every seam is as monotonous as marking none, and the shot-critic S2 flags it), and a
+   mark only "takes" on a **same-luminance** seam — a dark↔light cut is auto-forced back to the safe fade
+   (Film's pickPresentation guards against a bright edge slamming over a dark scene), so don't spend a mark
+   there. No spins, ever. (Mechanism: `render_remotion.py` maps `transition_style` → the Film `transitionIn`.)
 
 ## Output
 Edit `storyboard.json`: set `meta.renderer:"remotion"` and, on every scene, `shot` (a valid id from

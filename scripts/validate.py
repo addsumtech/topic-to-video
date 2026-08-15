@@ -1157,6 +1157,17 @@ def _check_remotion(meta, slides, errors, warnings):
                                 f"language so the film doesn't read as one look")
     except Exception:
         pass
+    try:                                                   # marked-seam BUDGET: most seams ride the safe fade
+        import render_remotion as _rr
+        marked = sum(1 for s in slides[1:] if _rr._transition_in(s))   # scene 0 has no incoming seam
+        seams = max(0, len(slides) - 1)
+        budget = max(3, seams // 3)
+        if marked > budget:
+            warnings.append(f"remotion: {marked} of {seams} seams are MARKED with a kinetic transition (budget "
+                            f"~{budget}) — most seams should ride the luminance-safe default fade; marking them "
+                            f"all is as monotonous as marking none (shot-director Rule 5)")
+    except Exception:
+        pass
 
 
 def evaluate(data, out_dir, pre_tts=False, vertical=False):
