@@ -54,11 +54,17 @@ export const WORKBUDDY_SCENES: SceneSpec[] = WB_SHOTS.map((shot, i) => ({
   shot, props: WB_PROPS[i] ?? {}, durF: Math.round(WB_SEC[i] * 30), caption: CAPTIONS[i], transitionIn: WB_TRANS[i],
 }));
 
+// Split a caption into progressively-shown chunks. Splits on sentence enders — ASCII (.!?) AND CJK (。！？) —
+// so a 中文 caption chunks per sentence too (not one block). Short LATIN fragments merge into their neighbour
+// (the 22-char floor is a Latin measure); CJK sentences each stand alone (a full sentence is few chars but a
+// complete thought, and merging them by a Latin char-count would collapse them). Never empty. Deterministic.
+const isCJKText = (s: string): boolean => /[㐀-鿿぀-ヿ가-힯]/.test(s);
 const splitCaption = (text: string): string[] => {
-  const chunks = text.match(/[^.!?—]+[.!?]?(\s*—)?/g)?.map((c) => c.trim()).filter(Boolean) ?? [text];
+  const chunks = text.match(/[^.!?。！？—]+[.!?。！？]?(\s*—)?/g)?.map((c) => c.trim()).filter(Boolean) ?? [text];
   const merged: string[] = [];
   for (const c of chunks) {
-    if (merged.length && (merged[merged.length - 1].length < 22 || c.length < 22)) merged[merged.length - 1] += ' ' + c;
+    const prev = merged[merged.length - 1];
+    if (prev && !isCJKText(c) && !isCJKText(prev) && (prev.length < 22 || c.length < 22)) merged[merged.length - 1] += ' ' + c;
     else merged.push(c);
   }
   return merged;
