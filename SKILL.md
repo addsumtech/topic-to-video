@@ -638,26 +638,25 @@ figure), a non-singular `the_one_thing`, or a
      **design-critic** (D1 fit, D2c creativity floor, **D2e whole-video register + motion personality**)
      judges them. **CINEMATIC decks (`meta.renderer:"remotion"`, alias `"remotion"` — the bespoke-shot film
      tier):** the design step is NOT this file — dispatch **`agents/shot-director.md`** instead. It runs in
-     TWO parts. **① The shot-template CONTEST (the remotion analogue of 3.55 — the user picks a DIRECTION):**
-     a *direction* is a whole-film lean toward certain register FAMILIES (each beat is still its own design
-     language; the direction only EMPHASIZES families + sets the feel). `python scripts/shot_templates.py
-     --route "<topic>"` returns 3 fitting directions (product-demo/kinetic-editorial/cinematic-craft/
-     data-story/retro-playful/terminal-technical); render ONE representative still per direction so the user
-     compares REAL topic-bearing frames — pass `--out <out_dir>` and the CLI prints the exact copy-pasteable
-     `npx remotion still … --frame=110 --props='…'` command per direction (**`--frame=110` is REQUIRED — the
-     default frame 0 is un-started: a blank command palette, a half-formed wordmark; frame 110 is the settled
-     zone**), then montage the three; surface them to the USER via `AskUserQuestion` (option prompt); record
-     the pick as `meta.shot_template` +
-     `meta.shot_template_contest {candidates:[the 3 keys], winner:<pick>, user_pick:true}` (`validate.py` errors
-     on an unknown direction or malformed contest, warns if a template is set with no contest trace). **② The
-     per-beat assignment:** run `python scripts/shot_director.py <out_dir> --template <pick>` first for a
-     deterministic family-varied skeleton BIASED toward the chosen direction, then the shot-director agent fills
-     each beat's `shot` register (from `remotion/LIBRARY.md`) + faithful `shot_props` (topic copy), keeping the
-     family-variety pass. SKIP the HTML design plan for these decks (no `design_plan.json`). After the
-     render, the review gate is **`agents/shot-critic.md`** (the design-critic analogue), judging register fit
-     + family variety + faithful copy + decodability from the per-scene filmstrip `_keyframes/scene_NN.png`
-     that `render_remotion.py` writes + the `check_av` report; it REVISEs failing beats (the shot-director
-     re-assigns, re-render). A `shot`-based scene on the local renderer is a validate ERROR (it can't render there).
+     TWO parts. **① The shot-template CONTEST — full divergence+selection, the remotion analogue of 3.55:**
+     a *direction* is a whole-film ATMOSPHERE (a named look + a lean toward certain register FAMILIES + a hero;
+     each beat is still its own language). WIDTH scales by `meta.audacity` (`conservative` skips · `balanced` 3 ·
+     `bold` 5 · `experimental` 7): `python scripts/shot_templates.py --route "<topic>" --audacity <a> --out <out>`.
+     The 6 templates are SEEDS — the shot-director must **CONCEIVE bold, topic-specific directions** (not just
+     route the 6) to reach the width, forcing real divergence. Render ONE topic-bearing still per direction
+     (**`--frame=110` REQUIRED** — frame 0 is un-started); run the **diversity gate** `scripts/contest_diversity.py
+     <out>/_contest_*.png` (rediverge a clustered pair); **JUDGE** with `agents/shot-critic.md` in judge mode
+     (floor-break + rank → winner+runner-up); surface the judged finalists to the USER via `AskUserQuestion`;
+     record `meta.shot_template` + `meta.shot_template_contest {candidates, winner, user_pick, width, audacity,
+     judge_ranked}`. `validate.py` ERRORS a bold/experimental film with NO contest and checks width-vs-audacity.
+     **② The per-beat assignment:** run `python scripts/shot_director.py <out_dir> --template <seed-key>` for a
+     deterministic family-varied skeleton BIASED to the direction, then the shot-director agent fills each beat's
+     `shot` + faithful `shot_props`, keeping family-variety AND **boldness** (reach past the obvious register,
+     scaled by audacity; note each beat's `rejected_default`). SKIP the HTML design plan (no `design_plan.json`).
+     After the render, the review gate is **`agents/shot-critic.md`** (the design-critic analogue): S1 fit · S2
+     variety · S3 faithfulness · S4 decodability · S6 A/V **+ the deterministic `keyframe_qa_remotion.py` blank-
+     frame backstop** · **S8 boldness (audacity-scaled)** · S7 direction-adherence — from `_keyframes/scene_NN.png`
+     + `check_av`; it REVISEs failing beats (re-assign, re-render). A `shot`-based scene on the local renderer is a validate ERROR.
      **Build the storyboard by MERGING the two plans:** the design's `visual.type`+`props`
      become each scene; its `transition` becomes the per-scene edges; a `climax` beat's scene carries
      `props.climax:true` — the climax MARKER (`rhythm_qa` reads it); it also drives the key-number landing
@@ -845,11 +844,13 @@ figure), a non-singular `the_one_thing`, or a
    rates — fix the root cause (clear `.clips/`, fix audio or regenerate failing clips, and
    re-render) before delivering.
    **For a `meta.renderer:"remotion"` deck** (the bespoke-shot tier), `render_remotion.py` writes `out.srt`
-   + `_keyframes/scene_NN.png` itself, and the HTML-only gates (`keyframe_qa`/`rhythm_qa`/`pedagogy_qa` — the
-   last two still apply since they read `content_plan.json`) are replaced at the DESIGN layer by dispatching
-   **`agents/shot-critic.md`** on those keyframes + the `check_av` report: it judges register fit, family
-   variety, faithful copy (no demo-number/WorkBuddy-leftover), and decodability, and REVISEs failing beats
-   (the shot-director re-assigns → re-render). Deliver only after **shot-critic PASSES and `check_av` exits 0**.
+   + `_keyframes/scene_NN.png` itself; the html-only `keyframe_qa.py` (which returns 0 on a remotion deck) is
+   replaced by its remotion twin **`keyframe_qa_remotion.py <out_dir>`** (a deterministic blank-frame backstop on
+   the keyframes), while `rhythm_qa`/`pedagogy_qa` still apply (they read `content_plan.json`). At the DESIGN
+   layer, dispatch **`agents/shot-critic.md`** on those keyframes + the `check_av` + `keyframe_qa_remotion`
+   reports: it judges register fit, family variety, faithful copy (no demo-number/WorkBuddy-leftover),
+   decodability, and **boldness (S8, audacity-scaled)**, and REVISEs failing beats (the shot-director re-assigns →
+   re-render). Deliver only after **shot-critic PASSES and `check_av` + `keyframe_qa_remotion` exit 0**.
    **DELIVERY CRITERION — every gate, not two.** Deliver `out.mp4`,
    `out.srt`, and the editable `storyboard.json` only after **`validate.py`, `check_av.py`,
    `keyframe_qa.py`, `rhythm_qa.py` and `pedagogy_qa.py` ALL exit 0**. Naming only the first two is

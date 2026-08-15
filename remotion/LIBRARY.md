@@ -47,7 +47,7 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 23. **BokehPull** — cinematic focus-pull from bokeh haze to a crisp wordmark. *Use: reveal / "in focus".*
 24. **NeonGrid** — synthwave perspective grid + neon wordmark. *Use: energetic launch hero.*
 25. **AnalogTape** — VHS/CRT title (RGB split, scanlines, OSD). *Use: nostalgic / authentic.*
-26. **AsciiField** — phosphor char field decodes a word. *Use: code / hacker beat.*
+26. **AsciiField** — an AMBER phosphor char field that DECODES a word in place. *Use: code / hacker beat.* (amber + static decode — vs **CodeRain** M's green FALLING rain.)
 
 ## D · Data / technical
 27. **ChartLive** — glowing line+area draws, a counter ticks. *Use: a metric / result.*
@@ -68,12 +68,11 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 66. **DataMonolith** — a nighttime skyline of glowing data towers rises from a perspective grid floor (caps + reflections), the hero tower pulsing. *Use: data as architecture / scale / growth.*
 74. **MorphForms** — a rotating 3D point-cloud morphs sphere → cube → torus → sphere, depth-shaded (pure math, no WebGL). *Use: one idea, many shapes / an abstract kinetic hero.*
 
-## F · Fluid / generative / light
-33. **AuroraFlow** — Stripe/Vercel flowing gradient blobs + type. *Use: calm premium ambient.*
+## F · Fluid / liquid / light — physical-feeling liquids & light (vs K = computed algorithmic fields)
+33. **AuroraFlow** — Stripe/Vercel flowing gradient blobs + type. *Use: calm premium ambient (soft gradient BLOBS — cf. FlowField's discrete streamlines).*
 34. **LiquidMorph** — iridescent blob morphs through ask/draft/done glyphs. *Use: transformation.*
 35. **LiquidFill** — gooey vessel fills, % counts, checkmark. *Use: progress / completion.*
 36. **ParticleForm** — a point-cloud assembles into a check. *Use: many parts → one result.*
-37. **VoiceSignal** — audio-reactive waveform. *Use: voice / listening.*
 38. **RadialBurst** — kaleidoscopic radial bloom to a hub. *Use: everything-at-once / celebration.*
 39. **LightTrails** — long-exposure neon ribbons trace a checkmark. *Use: "done in one motion" / kinetic flourish.*
 76. **MetaballMerge** — gooey liquid blobs orbit, MERGE into one mass and split through the classic SVG goo filter, a wordmark on the fluid. *Use: liquid-glass / fluid / "many drops, one flow".*
@@ -81,7 +80,6 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 95. **LiquidMetal** — a chrome/mercury blob flows + merges (goo filter) with a banded reflection gradient, on a soft lavender/icy/beige palette, chrome wordmark on top. *Use: premium "liquid chrome, alive" hero (2026).*
 
 ## G · Illustrated / craft styles (the "style" axis)
-40. **IsometricAssembly** — iso raw block → machine → finished deliverable. *Use: pipeline as objects.*
 41. **HandDrawn** — riso ink sketch draws on (You→WorkBuddy→Done). *Use: human / hand-made.*
 42. **CartoonPop** — cel-shaded cartoon mascot zaps tasks → DONE! *Use: playful / friendly.*
 43. **HalftonePop** — comic Ben-Day pop-art burst "SHIP IT!". *Use: loud fun highlight.*
@@ -104,8 +102,7 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 55. **GearTrain** — interlocking gears mesh and turn in a chain (hubs carry the steps); the last gear locks the payoff. *Use: mechanism / one turn drives the next.*
 60. **ConveyorBelt** — items ride a scrolling belt through a stamp press and exit finished (✓). *Use: assembly line / "it just processes everything".*
 
-## J · Experimental type — typography as a living material
-67. **VariableTypeMorph** — one enormous word alive on its axes: a WEIGHT wave travels the letters while the word breathes on the WIDTH axis, over a duotone field. *Use: a bold expressive title / "type, alive".*
+*(J · Experimental type — RETIRED: its one shot folded into P; the letter J is free for a future language.)*
 
 ## K · Generative — computed fields, not gradients
 68. **FlowField** — hundreds of streamlines trace a static curl field and draw on in waves, revealing an ambient generative field with a centred wordmark. *Use: flow / everything moving as one / ambient hero.*
@@ -126,11 +123,13 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 ## N · Isometric — dioramas & worlds
 73. **IsoWorld** — an isometric diorama builds: a tiled ground draws in, then labelled iso-cube buildings rise in an outward ripple. *Use: your world / workspace-as-a-city / a system laid out.*
 89. **VoxelBuild** — an isometric object assembles VOXEL by voxel: shaded cubes drop in (staggered by depth) and stack into a 3D form (default: a checkmark). *Use: built block-by-block / a thing coming together.*
+40. **IsometricAssembly** — iso raw block → machine → finished deliverable (moved from G so all iso shots live in N). *Use: pipeline as objects.*
 
 ## O · Urban / signage
 75. **NeonTickerWall** — a night-city wall of signage: stacked LED tickers scroll at different speeds, neon flickers, a central marquee holds the message. *Use: launch / announcement / electric energy.*
 
-## P · Dimensional type — type as a physical body (3D / inflated / elastic)
+## P · Dimensional / experimental type — type as living/physical material (variable-axis · inflated · elastic)
+67. **VariableTypeMorph** — one enormous word alive on its axes: a WEIGHT wave travels the letters while the word breathes on the WIDTH axis, over a duotone field. *Use: a bold expressive title / "type, alive".* (folded in from the retired J family)
 77. **InflateType** — big puffy 3D BALLOON letters inflate in with an over-bounce (glossy shaded fills + specular + soft shadows), then breathe. *Use: playful bold hero / soft-dimensional title.* (2026 inflated-3D-type)
 78. **ElasticType** — jelly letters DROP in and jiggle with a damped elastic squash-stretch, then a gummy wobble. *Use: springy playful title / "alive" copy.* (2026 elastic-type)
 
@@ -142,7 +141,7 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 
 ## S · Scientific / molecular
 81. **DNAHelix** — a rotating double helix: two sine-phased strands of nodes with base-pair RUNGS, depth-shaded, assembling top-down. *Use: the blueprint / biotech / "encoded".*
-94. **AtomOrbital** — a nucleus of protons/neutrons with electron SHELLS: tilted elliptical orbits, electrons racing with glowing trails, the atom turning. *Use: fundamentals / "the core of it" / physics.*
+94. **AtomOrbital** — a nucleus of protons/neutrons with electron SHELLS: tilted elliptical orbits, electrons RACING with motion trails, the atom turning. *Use: fundamentals / "the core of it" / physics.* (electrons streak — vs **DataOrrery** D's slow labelled-node orrery.)
 99. **MoleculeBallStick** — a ball-and-stick molecule (a hex ring + outer atoms) rotates in 3D: depth-sorted bond sticks + element-coloured spheres. *Use: chemistry / composition / "what it's made of".*
 
 ## T · Circuit / hardware
@@ -150,6 +149,7 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 
 ## U · Audio / music
 86. **SpectrumPulse** — a circular audio spectrum: a ring of frequency bars dance to a synth beat (kick every 0.5s scales + brightens), wordmark pulsing at the core. *Use: music / rhythm / audio-reactive energy.* (deterministic visual, not tied to the real VO)
+37. **VoiceSignal** — an audio-reactive waveform through phases (moved from F; it's audio, not fluid — cf. SpectrumPulse). *Use: voice / listening / speech.*
 
 ## V · Cosmic / space
 87. **StarfieldWarp** — stars accelerate outward into a hyperspace streak, then DECELERATE as a wordmark blooms from the core light. *Use: launch / "the next era" / into the future.*

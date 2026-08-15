@@ -13,42 +13,56 @@ each scene in `storyboard.json`. You do NOT change facts, narration, or beat ord
 1. `content_plan.json` — the ordered beats (learning_point, narration_intent, `visual_intent`, `relation`,
    `energy`, `stage`, `climax`/`hold`, and `source_ref`).
 2. `remotion/LIBRARY.md` — the 80 registers grouped into FAMILIES (A Product-UI · B Camera/space · C Kinetic
-   type & title · D Data/technical · E 3D/spatial · F Fluid/generative · G Illustrated/craft styles · H Comparison ·
-   I Mechanical/physical · J Experimental type · K Generative · L Editorial/print · M Glitch/digital-decay ·
-   N Isometric · O Urban/signage · P Dimensional type · Q Anti-design/maximalist · R AI/neural ·
+   type & title · D Data/technical · E 3D/spatial · F Fluid/liquid/light · G Illustrated/craft styles · H Comparison ·
+   I Mechanical/physical · K Generative · L Editorial/print · M Glitch/digital-decay · N Isometric ·
+   O Urban/signage · P Dimensional/experimental type (variable-axis/inflated/elastic) · Q Anti-design/maximalist · R AI/neural ·
    S Scientific/molecular · T Circuit/hardware · U Audio/music · V Cosmic/space · W Organic/botanical ·
    X Weather/atmosphere · Y Fire/energy · Z Textile/fabric), each with a one-line **"use when"** and its
    **props** (the Generalization table). The family set is **OPEN** — A–Z are full, so if a beat wants a bold
    language that fits none of these, add a two-letter family (AA, AB, …).
 
-## Step 0 — the shot-template CONTEST (the user picks a DIRECTION)
-This is the remotion analogue of the html register-contest (SKILL.md 3.55). Before assigning per-beat shots,
-offer the user a **whole-film direction** to choose from — a *direction* is a coherent lean toward certain
-register FAMILIES (each beat is still its own design language; the template only EMPHASIZES families + sets the
-overall feel). The catalogue is `scripts/shot_templates.py` (product-demo · kinetic-editorial · cinematic-craft ·
-data-story · retro-playful · terminal-technical).
-1. **Route** the topic → 3 fitting candidates: `python scripts/shot_templates.py --route "<topic>" --out <out_dir>`.
-   Each candidate has a `pitch`, a HERO register, and a printed **copy-pasteable still command**.
-2. **Render one representative still per candidate** so the user compares REAL topic-bearing frames (never abstract
-   defaults): run the printed command for each — `cd remotion && npx remotion still src/index.ts <hero_id>
-   <out>/_contest_<k>.png --frame=110 --props='<json>'` — then montage the three. **`--frame=110` is REQUIRED:**
-   `remotion still` defaults to frame 0, where an animated shot is UN-STARTED (a blank command palette, a
-   half-formed wordmark); every hero is ≥150f so frame 110 (`shot_templates.CONTEST_FRAME`) is the settled zone.
-   The still carries the topic (the wordmark / label / filename IS the topic), so the frames differ by look, not
-   by placeholder.
-3. **User picks** one via AskUserQuestion (option prompt, never free-text). Record `meta.shot_template` = the pick
-   and `meta.shot_template_contest = {candidates:[the 3 keys], winner:<pick>, user_pick:true}` on the storyboard —
-   `validate.py` errors on an unknown direction or a malformed contest, and warns if a template is set with no
-   contest trace.
-4. **Apply it.** The chosen direction BIASES per-beat register selection toward its families (still never two
-   adjacent same-family): `python scripts/shot_director.py <out> --template <pick>` runs the deterministic
-   assigner with the bias, or apply the same lean by hand as you author `shot`s below.
+## Step 0 — the shot-template CONTEST (divergence + selection; the USER picks a DIRECTION)
+The full remotion analogue of the html register-contest (SKILL.md 3.55) — **divergence AND selection**, not just
+routing. A *direction* is a coherent whole-film ATMOSPHERE: a named look + a lean toward certain register FAMILIES
++ a hero register (each beat is still its own design language; the direction EMPHASIZES families + sets the feel).
+0. **Width by audacity (the risk budget).** `meta.audacity` scales HOW MANY directions diverge:
+   `conservative` → SKIP the contest (pick one direction directly) · `balanced` → 3 · `bold` → 5 · `experimental`
+   → 7. Get the width + seed palette: `python scripts/shot_templates.py --route "<topic>" --audacity <a> --out <out_dir>`.
+1. **CONCEIVE topic-specific directions — do NOT just route the 6 seeds.** The 6 templates (product-demo /
+   kinetic-editorial / cinematic-craft / data-story / retro-playful / terminal-technical) are a SEED PALETTE, not
+   the answer. Read the comprehension brief + `content_plan.json` and **invent bold, divergent, topic-conceived
+   atmospheres** for THIS subject (name each; pick its hero register + family lean + topic-bearing props). Reach
+   the audacity width by mixing fitting seeds with bespoke directions. Force DIVERGENCE — the candidates must
+   differ on look/motion/palette/silhouette, not be three flavours of the same. (A bespoke direction key is a
+   slug like `molten-ledger` — `validate` allows non-seed keys, warns so you confirm it's intentional.)
+2. **Render ONE representative still per direction** (real topic-bearing frames, never abstract defaults): for a
+   seed, run the printed command; for a bespoke one, `cd remotion && npx remotion still src/index.ts <hero_id>
+   <out>/_contest_<k>.png --frame=110 --props='<topic json>'`. **`--frame=110` is REQUIRED** (frame 0 is
+   un-started — a blank palette / half-formed wordmark; every hero ≥150f, so 110 = `CONTEST_FRAME` settled zone).
+3. **DIVERSITY gate (mechanical).** `python scripts/contest_diversity.py <out>/_contest_*.png` — a flagged pair
+   (clustered mode+palette+silhouette) means the divergence was theatre: REDIVERGE that pair (conceive a genuinely
+   different atmosphere) before showing the user.
+4. **JUDGE (the selection half).** Dispatch **`agents/shot-critic.md` in JUDGE mode** on the stills + the beats:
+   it disqualifies any floor-breaker (blank/garbled/off-brief/illegible), ranks the survivors, and names ONE
+   winner + a runner-up. A floor-breaking or off-brief candidate must NOT reach the user unranked.
+5. **USER picks** from the judged finalists via `AskUserQuestion` (option prompt, winner first with "(Recommended)";
+   include the still paths). Their pick is FINAL. Record on the storyboard:
+   `meta.shot_template = <pick>` + `meta.shot_template_contest = {candidates:[all keys], winner:<pick>,
+   user_pick:true, width:<N>, audacity:"<a>", judge_ranked:true}`. `validate.py` ERRORS a bold/experimental film
+   with NO contest, checks the width matches audacity, and that the winner is the chosen direction.
+6. **Apply it.** The chosen direction BIASES per-beat register selection toward its families (never two adjacent
+   same-family): `python scripts/shot_director.py <out> --template <seed-key>` for a seed, or apply the lean by
+   hand as you author `shot`s below.
 
-## The mandate
+## The mandate — clear AND bold
 For each beat ask *"what is the clearest hand-written LANGUAGE for THIS idea?"* — match the beat's intent to a
 register's "use when", never "which card layout". Then fill that register's props from the beat's own content so
 it speaks the topic, not WorkBuddy. **Lean toward the chosen `meta.shot_template`'s families** (Step 0) while
-keeping the family-variety rule — the direction colours the film without making it monotone.
+keeping the family-variety rule. **BOLDNESS is not optional — it scales with `meta.audacity`.** Clarity is the
+floor, not the ceiling: reach past the OBVIOUS register for the surprising-but-apt one, especially on the hero +
+climax beats. At `bold`/`experimental`, a mix of safe/expected registers is a FAILURE the shot-critic (S8) sends
+back — commit registers that are memorable and unmistakably THIS film. For each beat, briefly note the
+`rejected_default` (the obvious register you passed over) so the choice is a decision, not a reflex.
 
 ## Rules (all four bind)
 1. **Match intent → register.** `statement`→a title/kinetic register (CinematicTitle, FocalIsolation,

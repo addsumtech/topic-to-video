@@ -36,14 +36,21 @@ export const AtomOrbital: React.FC<{title?: string; tagline?: string}> = ({
                 fill={k % 2 ? CORE : '#ff8f5e'} opacity={0.95} style={{filter: `drop-shadow(0 0 8px ${CORE})`}} />;
             })}
           </g>
-          {/* electrons */}
+          {/* electrons — each RACES with a motion trail (reads as an atom, vs DataOrrery's static labelled nodes) */}
           {ORBITS.map((o, i) => [...Array(o.n)].map((_, k) => {
-            const ang = t * o.sp * 2.2 + (k / o.n) * Math.PI * 2 + i;
+            const base = t * o.sp * 2.2 + (k / o.n) * Math.PI * 2 + i;
             const tl = (o.tilt * Math.PI) / 180;
-            const ex0 = Math.cos(ang) * o.rx * build, ey0 = Math.sin(ang) * o.ry * build;
-            const ex = ex0 * Math.cos(tl) - ey0 * Math.sin(tl), ey = ex0 * Math.sin(tl) + ey0 * Math.cos(tl);
-            return <circle key={`${i}-${k}`} cx={ex} cy={ey} r={13} fill={o.col} opacity={clamp01(build)}
-              style={{filter: `drop-shadow(0 0 12px ${o.col})`}} />;
+            const pos = (a: number): [number, number] => {
+              const x0 = Math.cos(a) * o.rx * build, y0 = Math.sin(a) * o.ry * build;
+              return [x0 * Math.cos(tl) - y0 * Math.sin(tl), x0 * Math.sin(tl) + y0 * Math.cos(tl)];
+            };
+            const [ex, ey] = pos(base);
+            const dir = Math.sign(o.sp) || 1;
+            const trail = [ex, ey].join(',') + ' ' + [0.14, 0.3, 0.5, 0.74].map((d) => pos(base - d * dir).map((n) => n.toFixed(1)).join(',')).join(' ');
+            return <g key={`${i}-${k}`} opacity={clamp01(build)}>
+              <polyline points={trail} fill="none" stroke={o.col} strokeWidth={5} strokeLinecap="round" opacity={0.32} />
+              <circle cx={ex} cy={ey} r={13} fill={o.col} style={{filter: `drop-shadow(0 0 12px ${o.col})`}} />
+            </g>;
           }))}
         </g>
       </svg>

@@ -108,11 +108,12 @@ def test_template_biases_families_but_keeps_variety():
         assert in_dir >= len(seq) // 2, "%s: only %d/%d beats in-direction (%s)" % (tmpl, in_dir, len(seq), seq)
 
 
-def test_validate_errors_on_unknown_template():
+def test_validate_warns_on_bespoke_template():
+    # bespoke (topic-conceived) directions are ALLOWED — a non-seed key warns (heads-up), it does not error
     d = _deck(3)
-    d["meta"]["shot_template"] = "not-a-direction"
+    d["meta"]["shot_template"] = "molten-ledger-noir"
     r = v.evaluate(d, "/tmp")
-    assert not r["ok"] and any("not a known direction" in e for e in r["errors"])
+    assert r["ok"] and any("not one of the 6 SEED directions" in w for w in r["warnings"])
 
 
 def test_validate_warns_on_template_without_contest():
@@ -120,6 +121,24 @@ def test_validate_warns_on_template_without_contest():
     d["meta"]["shot_template"] = "data-story"
     r = v.evaluate(d, "/tmp")
     assert r["ok"] and any("no `meta.shot_template_contest`" in w for w in r["warnings"])
+
+
+def test_validate_bold_audacity_requires_contest():
+    d = _deck(3)
+    d["meta"]["audacity"] = "bold"; d["meta"]["shot_template"] = "data-story"
+    r = v.evaluate(d, "/tmp")
+    assert not r["ok"] and any("REQUIRES a `meta.shot_template_contest`" in e for e in r["errors"])
+    # conservative may skip the contest entirely
+    d["meta"]["audacity"] = "conservative"; d["meta"].pop("shot_template", None)
+    assert v.evaluate(d, "/tmp")["ok"]
+
+
+def test_keyframe_qa_remotion_flags_blank():
+    import keyframe_qa_remotion as kq
+    bad = kq.evaluate([("01", "/a", True, 3.0), ("02", "/b", True, 40.0), ("03", "/c", False, None)])
+    assert not bad["ok"] and bad["blank"][0]["scene"] == "01" and "03" in bad["missing"]
+    good = kq.evaluate([("01", "/a", True, 30.0), ("02", "/b", True, 40.0)])
+    assert good["ok"]
 
 
 def test_validate_contest_shape_and_winner():

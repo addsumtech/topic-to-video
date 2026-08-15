@@ -13,11 +13,16 @@ import argparse, json, os, sys
 # register -> family letter. The family set is OPEN-ENDED (not fixed at 9): add a NEW letter when a bold new
 # design language doesn't fit an existing bucket — the variety rule only cares that adjacent beats differ, so
 # new families cost nothing. Current: A Product-UI · B Camera/space · C Kinetic type/title · D Data/technical ·
-# E 3D/spatial · F Fluid/generative · G Illustrated/craft · H Comparison · I Mechanical/physical ·
-# J Experimental type · K Generative · L Editorial/print · M Glitch/digital-decay · N Isometric ·
-# O Urban/signage · P Dimensional type (3D/inflated/elastic) · Q Anti-design/maximalist · R AI/neural ·
-# S Scientific/molecular · T Circuit/hardware · U Audio/music · V Cosmic/space · W Organic/botanical ·
-# X Weather/atmosphere · Y Fire/energy · Z Textile/fabric. Mirrors LIBRARY.md. (A–Z full; open AA+ if needed.)
+# E 3D/spatial · F Fluid/liquid/light (physical-feeling liquids & light) · G Illustrated/craft · H Comparison ·
+# I Mechanical/physical · (J RETIRED — folded into P; letter free for a future language) ·
+# K Generative/computed-fields (algorithmic pattern fields) · L Editorial/print · M Glitch/digital-decay ·
+# N Isometric · O Urban/signage · P Dimensional/experimental type (type as living/physical material:
+# variable-axis morph, inflated, elastic) · Q Anti-design/maximalist · R AI/neural · S Scientific/molecular ·
+# T Circuit/hardware ·
+# U Audio/music · V Cosmic/space · W Organic/botanical · X Weather/atmosphere · Y Fire/energy · Z Textile/fabric.
+# Mirrors LIBRARY.md. (A–Z full; open AA+ if needed.) Boundary: F=physical liquids/light; K=computed algorithmic
+# fields — so a "generative" beat is never ambiguous. Post-audit (2026-08-15): VoiceSignal F→U (audio waveform),
+# IsometricAssembly G→N (all iso shots together), VariableTypeMorph J→P (J retired, one-shot subset of P).
 FAMILY = {
     "CollaborativeCursors": "A", "CommandSummon": "A", "TemporalAccelerate": "A", "VelocitySnap": "A",
     "CursorStory": "A", "ScreenBubble": "A", "AnswerStream": "A", "ChatThread": "A", "BlockAssembly": "A",
@@ -31,25 +36,23 @@ FAMILY = {
     "OdometerRoll": "D", "GaugeCluster": "D", "HudReticle": "D", "ChartRace": "D",
     "MaterialHero": "E", "CardFlip3D": "E", "FractureIn": "E", "CardStack3D": "E", "DataMonolith": "E",
     "MorphForms": "E",
-    "AuroraFlow": "F", "LiquidMorph": "F", "LiquidFill": "F", "ParticleForm": "F", "VoiceSignal": "F",
+    "AuroraFlow": "F", "LiquidMorph": "F", "LiquidFill": "F", "ParticleForm": "F",
     "RadialBurst": "F", "LightTrails": "F", "MetaballMerge": "F", "InkBloom": "F", "LiquidMetal": "F",
-    "IsometricAssembly": "G", "HandDrawn": "G", "CartoonPop": "G", "HalftonePop": "G", "ClayStack": "G",
+    "HandDrawn": "G", "CartoonPop": "G", "HalftonePop": "G", "ClayStack": "G",
     "PaperCutout": "G", "SpotlightStage": "G", "PixelBuild": "G", "RisoPrint": "G", "ComicPanels": "G",
     "BeforeAfterSlider": "H", "QuadSplit": "H", "PositioningMatrix": "H", "VersusSplit": "H",
     "SplitFlap": "I", "PhysicsStack": "I", "GearTrain": "I", "ConveyorBelt": "I",
-    "VariableTypeMorph": "J",
     "FlowField": "K", "LowPolyForm": "K", "KaleidoMandala": "K", "RidgeField": "K", "GameOfLife": "K",
     "MagazineSpread": "L", "RansomZine": "L",
     "GlitchDatamosh": "M", "CodeRain": "M",
-    "IsoWorld": "N",
+    "IsoWorld": "N", "VoxelBuild": "N", "IsometricAssembly": "N",
     "NeonTickerWall": "O",
-    "InflateType": "P", "ElasticType": "P",
+    "VariableTypeMorph": "P", "InflateType": "P", "ElasticType": "P",
     "AntiDesignChaos": "Q",
     "NeuralField": "R",
     "DNAHelix": "S", "AtomOrbital": "S", "MoleculeBallStick": "S",
     "CircuitTrace": "T",
-    "VoxelBuild": "N",
-    "SpectrumPulse": "U",
+    "SpectrumPulse": "U", "VoiceSignal": "U",
     "StarfieldWarp": "V",
     "FractalTree": "W",
     "RainGlass": "X",

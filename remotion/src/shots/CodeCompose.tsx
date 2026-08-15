@@ -10,7 +10,7 @@ export const DURATION = 165; // 5.5s
 type Tok = {t: string; c: string};
 const C = {kw: '#ff7bd5', fn: '#7ee0ff', str: '#9df2a0', com: '#6b7688', num: '#ffd88a', pl: '#d9e0ea', op: '#c8b6ff'};
 // hand-tokenized so highlighting is deterministic + correct (no fragile regex at render time)
-const LINES: Tok[][] = [
+const DEFAULT_LINES: Tok[][] = [
   [{t: '# WorkBuddy runs locally — on your machine', c: C.com}],
   [{t: 'def ', c: C.kw}, {t: 'handle', c: C.fn}, {t: '(task):', c: C.pl}],
   [{t: '    plan   = ', c: C.pl}, {t: 'buddy', c: C.fn}, {t: '.think(task)', c: C.pl}],
@@ -21,10 +21,13 @@ const LINES: Tok[][] = [
 const CHW = 20.4, LH = 58, FS = 34;
 const lineLen = (l: Tok[]) => l.reduce((s, k) => s + k.t.length, 0);
 
-export const CodeCompose: React.FC<{filename?: string}> = ({filename = 'workbuddy.py'} = {}) => {
+export const CodeCompose: React.FC<{filename?: string; lines?: (Tok[] | string)[]; status?: string}> = ({
+  filename = 'workbuddy.py', lines: LINESP, status: STATUS = '— shipped, on your machine'} = {}) => {
   const t = useT();
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
+  // topic code lines: default demo, or override — a plain string line is auto-coloured as plaintext.
+  const LINES: Tok[][] = (LINESP ?? DEFAULT_LINES).map((l) => (typeof l === 'string' ? [{t: l, c: C.pl}] : l));
   const total = LINES.reduce((s, l) => s + lineLen(l) + 1, 0);
   const shown = Math.floor(total * clamp01(seg(t, 0.06, 0.66)));
 
@@ -85,7 +88,7 @@ export const CodeCompose: React.FC<{filename?: string}> = ({filename = 'workbudd
         paddingLeft: 34, opacity: outT, borderRadius: '0 0 18px 18px'}}>
         <span style={{color: '#5a6577', font: '700 30px/1 "JetBrains Mono", monospace'}}>▶</span>
         <span style={{color: '#9df2a0', font: '700 32px/1 "JetBrains Mono", monospace'}}>✓ done</span>
-        <span style={{color: '#5a6577', font: '600 30px/1 "JetBrains Mono", monospace'}}>— shipped, on your machine</span>
+        <span style={{color: '#5a6577', font: '600 30px/1 "JetBrains Mono", monospace'}}>{STATUS}</span>
       </div>
     </AbsoluteFill>
   );

@@ -1,6 +1,7 @@
 // SHOT · ASCII Field — generative/terminal language (a 2026 procedural trend): a live monospace character
 // field flickers, a scan-wave sweeps and BRIGHTENS the glyphs it crosses, and a clean message decodes out of
-// the noise. Dark phosphor-green, code-native. Deterministic (each glyph = fn of cell + frame).
+// the noise. AMBER terminal phosphor (distinct from CodeRain's green Matrix rain) — this DECODES in place,
+// CodeRain FALLS. Code-native. Deterministic (each glyph = fn of cell + frame).
 
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
@@ -22,18 +23,18 @@ export const AsciiField: React.FC<{message?: string}> = ({message: MSG = DEFAULT
     const near = Math.max(0, 1 - Math.abs(r - scanY) / 3); // brighten near the scan-wave
     const base = 0.10 + 0.12 * hash01(r * 3.1 + c);
     const op = clamp01(base + near * 0.9);
-    const col = near > 0.4 ? '#8affc0' : '#1f7a4a';
+    const col = near > 0.4 ? '#ffc861' : '#7a531c';   // AMBER phosphor (distinct from CodeRain's green rain)
     cells.push(<text key={`${r}-${c}`} x={c * cw + 6} y={r * chh + 30} fill={col} fillOpacity={op}
       style={{font: '600 30px/1 "JetBrains Mono", ui-monospace, monospace'}}>{CH[flick]}</text>);
   }
   const decode = easeOutCubic(seg(t, 0.5, 0.78));
   return (
-    <AbsoluteFill style={{background: '#05100a'}}>
+    <AbsoluteFill style={{background: '#140b03'}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>{cells}</svg>
       {/* the decoded message resolving out of the noise */}
       <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{position: 'relative', font: '900 210px/1 "JetBrains Mono", monospace', color: '#c6ffdd',
-          letterSpacing: '0.04em', opacity: decode, textShadow: '0 0 40px rgba(80,255,160,.5)'}}>
+        <div style={{position: 'relative', font: '900 210px/1 "JetBrains Mono", monospace', color: '#ffe6b0',
+          letterSpacing: '0.04em', opacity: decode, textShadow: '0 0 40px rgba(255,190,90,.5)'}}>
           {MSG.split('').map((ch, i) => <span key={i} style={{opacity: clamp01((decode - i * 0.12) / 0.3)}}>{ch}</span>)}
         </div>
       </AbsoluteFill>

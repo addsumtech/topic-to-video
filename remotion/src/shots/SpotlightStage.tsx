@@ -14,16 +14,23 @@ export const SpotlightStage: React.FC<{items?: string[]; wordmark?: string}> = (
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const wy = H / 2 - 30;
-  const wordX = (i: number) => lerp(0.24, 0.76, i / (WORDS.length - 1)) * W;
+  // WIDTH-AWARE layout: spread the band + scale the font so words never overlap, whatever their count/length.
+  const n = WORDS.length;
+  const maxLen = Math.max(...WORDS.map((w) => w.length), 1);
+  const spread = n <= 1 ? 0 : Math.min(0.7, 0.3 + 0.1 * n); // cap so outer words stay on-frame
+  const bandA = 0.5 - spread / 2, bandB = 0.5 + spread / 2;
+  const wordX = (i: number) => (n <= 1 ? 0.5 : lerp(bandA, bandB, Math.min(i, n - 1) / (n - 1))) * W;
+  const gap = n <= 1 ? W * 0.6 : ((bandB - bandA) * W) / (n - 1);
+  const FS = Math.max(38, Math.min(132, (gap * 0.8) / (maxLen * 0.62))); // shrink so a word fits its slot (Playfair ~0.62 char-w)
 
-  // spotlight travels 0.24→0.5→0.76 (visiting each word) then centres + widens
+  // spotlight visits each word's slot (first three stops), then centres + widens
   const seg1 = seg(t, 0.08, 0.34), seg2 = seg(t, 0.34, 0.56), seg3 = seg(t, 0.56, 0.74), segW = seg(t, 0.76, 0.94);
-  let sx = wordX(0);
-  sx = lerp(wordX(0), wordX(1), easeInOutCubic(seg1));
-  if (seg2 > 0) sx = lerp(wordX(1), wordX(2), easeInOutCubic(seg2));
-  if (seg3 > 0) sx = lerp(wordX(2), W / 2, easeInOutCubic(seg3));
-  // start at word0 during intro
-  if (seg1 <= 0) sx = wordX(0);
+  const wx0 = wordX(0), wx1 = wordX(Math.min(1, n - 1)), wx2 = wordX(Math.min(2, n - 1));
+  let sx = wx0;
+  sx = lerp(wx0, wx1, easeInOutCubic(seg1));
+  if (seg2 > 0) sx = lerp(wx1, wx2, easeInOutCubic(seg2));
+  if (seg3 > 0) sx = lerp(wx2, W / 2, easeInOutCubic(seg3));
+  if (seg1 <= 0) sx = wx0;
   const rx = lerp(300, 1300, easeOutCubic(segW)); // widen at the end
   const ry = lerp(300, 820, easeOutCubic(segW));
 
@@ -50,7 +57,7 @@ export const SpotlightStage: React.FC<{items?: string[]; wordmark?: string}> = (
         const b = Math.max(lit, finalLit * 0.9);
         return (
           <div key={i} style={{position: 'absolute', left: wordX(i), top: wy, transform: 'translate(-50%,-50%)',
-            font: '800 132px/1 "Playfair Display", Georgia, serif', letterSpacing: '0.01em',
+            font: `800 ${FS}px/1 "Playfair Display", Georgia, serif`, letterSpacing: '0.01em', whiteSpace: 'nowrap',
             color: `rgba(${lerp(40, 250, b)},${lerp(36, 240, b)},${lerp(30, 222, b)},1)`,
             textShadow: b > 0.5 ? `0 0 60px rgba(255,220,150,${(b - 0.5) * 0.9})` : 'none'}}>{w}</div>
         );

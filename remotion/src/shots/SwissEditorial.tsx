@@ -12,8 +12,8 @@ const CREAM = '#f0ece1', INK = '#141414', RED = '#e8321f';
 const DEFAULT_WORDS = ['WORK.', 'SHIP.', 'DONE.'];
 const DEFAULT_TICKER = 'WORKBUDDY —— ON YOUR MACHINE —— YOUR AI TEAM —— NO CLOUD —— ';
 
-export const SwissEditorial: React.FC<{items?: string[]; ticker?: string}> = ({
-  items: WORDS = DEFAULT_WORDS, ticker: TICKER = DEFAULT_TICKER} = {}) => {
+export const SwissEditorial: React.FC<{items?: string[]; ticker?: string; wordmark?: string}> = ({
+  items: WORDS = DEFAULT_WORDS, ticker: TICKER = DEFAULT_TICKER, wordmark: MARK = 'WORKBUDDY™'} = {}) => {
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   // which word + its local reveal
@@ -34,7 +34,7 @@ export const SwissEditorial: React.FC<{items?: string[]; ticker?: string}> = ({
       </svg>
 
       {/* top labels */}
-      <div style={{position: 'absolute', left: 120, top: 104, color: INK, font: '700 26px/1 "JetBrains Mono", monospace', letterSpacing: '0.02em'}}>WORKBUDDY™</div>
+      <div style={{position: 'absolute', left: 120, top: 104, color: INK, font: '700 26px/1 "JetBrains Mono", monospace', letterSpacing: '0.02em'}}>{MARK}</div>
       <div style={{position: 'absolute', right: 120, top: 104, color: INK, font: '700 26px/1 "JetBrains Mono", monospace'}}>INDEX / {String(idx + 1).padStart(2, '0')}</div>
       <div style={{position: 'absolute', right: 120, top: 180, color: RED, font: '700 26px/1 "JetBrains Mono", monospace'}}>©2026 · LOCAL</div>
 

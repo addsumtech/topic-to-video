@@ -61,10 +61,24 @@ DEFAULT_ORDER = ["product-demo", "kinetic-editorial", "cinematic-craft"]   # a d
 # (reveal complete, exit not begun) for all six — ALWAYS render the contest still with `--frame=CONTEST_FRAME`.
 CONTEST_FRAME = 110
 
+# Contest WIDTH by audacity — mirrors the html register-contest (SKILL.md 3.55): the risk budget scales how
+# MANY directions diverge. conservative SKIPS the contest; the rest widen. These 6 templates are SEEDS — at
+# bold/experimental the shot-director CONCEIVES extra bespoke topic-specific directions to reach the width.
+AUDACITY_WIDTH = {"conservative": 0, "balanced": 3, "bold": 5, "experimental": 7}
 
-def route(topic, n=3):
-    """Return the best `n` template keys for the topic (whole-word keyword hits), padded with a diverse
-    fallback so there are always `n` distinct candidates for the contest."""
+
+def contest_width(audacity="balanced"):
+    """How many contest directions to offer, by the meta.audacity risk budget."""
+    return AUDACITY_WIDTH.get((audacity or "balanced").lower(), 3)
+
+
+def route(topic, n=None, audacity="balanced"):
+    """Return the best template SEEDS for the topic (whole-word keyword hits), padded with a diverse fallback.
+    Width = `n` if given, else contest_width(audacity). Only 6 templates exist, so a width >6 returns all 6 —
+    the shot-director then CONCEIVES the remaining directions bespoke to the topic (see shot-director.md Step 0)."""
+    n = n if n is not None else contest_width(audacity)
+    if n <= 0:
+        return []
     words = set(re.findall(r"[a-z0-9']+", (topic or "").lower()))
     scored = []
     for key, t in TEMPLATES.items():
@@ -100,12 +114,19 @@ def contest_still(key, topic):
 def main():
     ap = argparse.ArgumentParser(description="Route a topic to remotion shot-template DIRECTIONS for the contest.")
     ap.add_argument("--route", metavar="TOPIC", required=True, help="the film's topic / subject")
-    ap.add_argument("-n", type=int, default=3, help="number of candidate directions (default 3)")
+    ap.add_argument("-n", type=int, default=None, help="number of candidate directions (default: by --audacity)")
+    ap.add_argument("--audacity", default="balanced", choices=["conservative", "balanced", "bold", "experimental"],
+                    help="contest width: conservative skips · balanced 3 · bold 5 · experimental 7")
     ap.add_argument("--out", metavar="OUT_DIR", default=None, help="out_dir for the printed still-png paths")
     ap.add_argument("--json", action="store_true", help="emit candidates + contest stills as JSON")
     a = ap.parse_args()
-    cands = route(a.route, a.n)
+    cands = route(a.route, a.n, a.audacity)
     outdir = a.out or "<out_dir>"
+    if not cands:
+        print("[shot_templates] audacity=conservative → contest SKIPPED (pick one direction directly)."); return
+    if (a.n or contest_width(a.audacity)) > len(TEMPLATES):
+        print("[shot_templates] width %d > %d seed templates — CONCEIVE %d more bespoke topic-directions (Step 0)."
+              % (a.n or contest_width(a.audacity), len(TEMPLATES), (a.n or contest_width(a.audacity)) - len(TEMPLATES)))
     if a.json:
         out = []
         for k in cands:

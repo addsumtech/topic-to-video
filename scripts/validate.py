@@ -1073,37 +1073,41 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
 
 
 def _check_shot_template(meta, errors, warnings):
-    """The remotion analogue of the html register-contest gate (mirrors the `template_contest` checks): if a
-    whole-film `meta.shot_template` DIRECTION is set it must be a known shot_templates key; a recorded
-    `meta.shot_template_contest` must be a real divergence (>=2 candidate keys, the winner among them and ==
-    the chosen template, and a USER pick). A template with no contest trace is warned (the user should PICK)."""
+    """The remotion analogue of the html register-contest gate (mirrors the `template_contest` checks): a whole-
+    film `meta.shot_template` DIRECTION (one of the 6 seed keys OR a bespoke topic-conceived slug) with a
+    `meta.shot_template_contest` that is a real divergence — >=2 candidates, the winner among them and == the
+    chosen direction, a USER pick, and a WIDTH matching meta.audacity. A bold/experimental film with NO contest
+    is an ERROR (the divergence isn't optional there); conservative may skip; balanced warns."""
     tmpl = meta.get("shot_template")
+    aud = str(meta.get("audacity") or "balanced").lower()
     try:
         import shot_templates as _st
         keys = set(_st.TEMPLATES)
+        want_w = _st.contest_width(aud)
     except Exception:
-        keys = None
-    if tmpl is not None:
-        if keys and tmpl not in keys:
-            errors.append("meta.shot_template %r is not a known direction — see scripts/shot_templates.py "
-                          "(product-demo/kinetic-editorial/cinematic-craft/data-story/retro-playful/"
-                          "terminal-technical)" % tmpl)
+        keys, want_w = None, {"conservative": 0, "balanced": 3, "bold": 5, "experimental": 7}.get(aud, 3)
+    if tmpl is not None and keys and tmpl not in keys:
+        warnings.append("meta.shot_template %r is not one of the 6 SEED directions — assumed a bespoke topic-"
+                        "conceived direction (fine); confirm it's intentional, not a typo of a seed key" % tmpl)
     tc = meta.get("shot_template_contest")
     if tc is None:
-        if tmpl is not None:
+        if aud in ("bold", "experimental"):
+            errors.append("meta.audacity=%r REQUIRES a `meta.shot_template_contest` (>=%d topic-conceived "
+                          "directions, judged, user-picked) — the divergence+selection is not optional at this "
+                          "audacity (mirror the html register-contest 3.55)" % (aud, want_w))
+        elif tmpl is not None and aud != "conservative":
             warnings.append("meta.shot_template is set but no `meta.shot_template_contest` is recorded — the "
-                            "user should PICK the direction from rendered contest stills (mirror the html "
-                            "register-contest); record {candidates, winner, user_pick}")
+                            "user should PICK the direction from rendered contest stills; record "
+                            "{candidates, winner, user_pick, width, audacity}")
         return
     if not isinstance(tc, dict):
         errors.append("meta.shot_template_contest must be an object {candidates, winner, user_pick}"); return
     cands = tc.get("candidates")
     if not isinstance(cands, list) or len(cands) < 2:
         errors.append("meta.shot_template_contest needs >=2 `candidates` — a contest is a divergence")
-    elif keys:
-        bad = [c for c in cands if c not in keys]
-        if bad:
-            errors.append("meta.shot_template_contest.candidates has unknown direction(s) %s" % bad)
+    elif want_w and len(cands) < want_w:
+        warnings.append("meta.shot_template_contest offered %d candidate(s) but audacity=%r wants ~%d — widen "
+                        "the divergence (conceive more bespoke directions)" % (len(cands), aud, want_w))
     win = tc.get("winner")
     if win is not None and isinstance(cands, list) and win not in cands:
         errors.append("meta.shot_template_contest.winner %r is not among its candidates %s" % (win, cands))
