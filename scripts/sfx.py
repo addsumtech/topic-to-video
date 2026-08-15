@@ -108,17 +108,27 @@ def _write_wav(path, arr):
 # ── cue planning: pin cues to the video's BEATS (frame-exact), with restraint ─────────────────────────
 def plan_cues(scenes, fps):
     """Given a scene list (each with durationInFrames; optional shots[].startFrame), return a cue list
-    [(t_seconds, cue_name, gain)] aligned to beats: a whoosh at each scene transition (anticipatory, −2
-    frames), a focus tick at each interior shot arrival, a pop at each element's enter, and a reveal bell
-    at the LAST scene's final shot. Then applies restraint — caps density at ~4 cues / 10s, dropping the
-    lowest-priority (ticks/pops) first so the film breathes."""
+    [(t_seconds, cue_name, gain)] aligned to beats: a whoosh at each MARKED scene transition (anticipatory,
+    −2 frames; a plain cross-fade seam stays QUIET so the ear marks the same ~2-3 seams the eye does — the
+    carry match-cut gets a softer swell), a focus tick at each interior shot arrival, a pop at each element's
+    enter, and a reveal bell at the LAST scene's final shot. Then applies restraint — caps density at ~4 cues
+    / 10s, dropping the lowest-priority (ticks/pops) first so the film breathes."""
     cues = []                                       # (t, name, gain, priority) — lower priority dropped first
     t0 = 0.0
     n = len(scenes)
     for si, sc in enumerate(scenes):
         dur = float(sc.get("durationInFrames") or 0) / fps
-        if si > 0:                                  # scene transition — whoosh, 2 frames early (anticipation)
-            cues.append((max(0.0, t0 - 2.0 / fps), "whoosh", 0.5, 0))
+        if si > 0:                                  # scene transition — sound only the MARKED seams
+            tt = max(0.0, t0 - 2.0 / fps)           # 2 frames early (anticipation)
+            if "transitionIn" in sc:                # the seam grammar is DECLARED (remotion tier)
+                ti = sc.get("transitionIn")
+                if ti and ti.get("type") == "carry":
+                    cues.append((tt, "whoosh", 0.32, 1))    # a gentle match-cut swell (softer than a hard cut)
+                elif ti:                            # slide / wipe / clock — a motion whoosh
+                    cues.append((tt, "whoosh", 0.5, 0))
+                # else: an unmarked FADE seam — no cue (the fade is visually gentle; restraint)
+            else:                                   # grammar not declared (legacy caller) — unchanged behavior
+                cues.append((tt, "whoosh", 0.5, 0))
         shots = sc.get("shots") or []
         for k, sh in enumerate(shots):
             sf = float(sh.get("startFrame") or 0)

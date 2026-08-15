@@ -49,6 +49,21 @@ def test_transition_in_mapping():
     assert rr._transition_in({"transition_in": {"type": "spin"}}) is None
 
 
+def test_sfx_sounds_only_marked_seams():
+    import sfx                                                    # plan_cues is pure python (no numpy needed)
+    scenes = [{"durationInFrames": 120},
+              {"durationInFrames": 120, "transitionIn": None},                  # fade  -> silent
+              {"durationInFrames": 120, "transitionIn": {"type": "slide"}},     # slide -> whoosh 0.5
+              {"durationInFrames": 120, "transitionIn": None},                  # fade  -> silent
+              {"durationInFrames": 120, "transitionIn": {"type": "carry"}}]     # carry -> soft whoosh 0.32
+    whooshes = [round(g, 2) for (t, nm, g) in sfx.plan_cues(scenes, 30) if nm == "whoosh"]
+    assert len(whooshes) == 2, whooshes                          # only the 2 MARKED seams are sounded
+    assert 0.32 in whooshes and 0.5 in whooshes                  # carry = softer swell; slide = motion whoosh
+    # a legacy caller (no transitionIn key declared) keeps the old behavior: a whoosh at EVERY seam
+    legacy = [{"durationInFrames": 120} for _ in range(5)]
+    assert sum(1 for _, nm, _ in sfx.plan_cues(legacy, 30) if nm == "whoosh") == 4
+
+
 def test_camera_amp_from_motion_personality():
     assert rr._camera_amp({}) == 1.0                                # default balanced
     assert rr._camera_amp({"motion_personality": "calm"}) == 0.5

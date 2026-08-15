@@ -171,7 +171,9 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
             try:
                 import sfx
                 tr = _REMOTION2_TR                      # feed durationInFrames = durF-TR so cue times land on the
-                sfx_scenes = [{"durationInFrames": max(1, sc["durF"] - tr)} for sc in scenes]  # overlap-compressed timeline
+                # carry transitionIn per scene so the SFX marks the SAME seams the eye does (fades stay quiet)
+                sfx_scenes = [{"durationInFrames": max(1, sc["durF"] - tr), "transitionIn": sc.get("transitionIn")}
+                              for sc in scenes]         # overlap-compressed timeline
                 if sfx_scenes:                          # a closing reveal bell on the last beat
                     sfx_scenes[-1]["shots"] = [{"startFrame": 0}]
                 sfx.mix(out_dir, out_mp4, sfx_scenes, meta, fps)   # transition whooshes + reveal + meta.bgm
