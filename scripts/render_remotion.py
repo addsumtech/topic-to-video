@@ -46,18 +46,22 @@ def _transition_in(slide):
     return dict(_TRANSITION_STYLE[style]) if style in _TRANSITION_STYLE else None
 
 
-# The #camera whole-film DRIFT amplitude, from meta.motion_personality (a tier name OR a raw multiplier;
-# default balanced=1.0). Film.tsx scales its subtle breathing zoom+float by this; 0 = still (reduced-motion).
+# The #camera whole-film DRIFT amplitude. DEFAULT OFF (0 = still): every bespoke shot already animates itself
+# (pure fn of useT), so a global breathing zoom+float ON TOP reads as a constant per-frame SHAKE — a repeated
+# complaint. The drift is now OPT-IN via meta.camera_drift (a tier name OR a raw multiplier); absent = still.
+# motion_personality no longer auto-enables it (it belongs to the html/image tier's per-shot Ken Burns, not here).
 _MOTION_PERSONALITY = {"still": 0.0, "calm": 0.5, "gentle": 0.65, "balanced": 1.0, "lively": 1.3, "energetic": 1.6}
 
 
 def _camera_amp(meta):
-    mp = (meta or {}).get("motion_personality")
-    if isinstance(mp, bool):
-        mp = None
-    if isinstance(mp, (int, float)):
-        return max(0.0, float(mp))
-    return _MOTION_PERSONALITY.get(str(mp or "balanced").strip().lower(), 1.0)
+    cd = (meta or {}).get("camera_drift")
+    if isinstance(cd, bool):
+        return 1.0 if cd else 0.0
+    if isinstance(cd, (int, float)):
+        return max(0.0, float(cd))
+    if cd is None:
+        return 0.0                                   # still by default — no whole-film drift
+    return _MOTION_PERSONALITY.get(str(cd).strip().lower(), 0.0)
 
 
 def available():
@@ -140,10 +144,13 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
         scenes.append(scene)
     meta = data.get("meta") or {}
     reduced = bool(reduced_motion or meta.get("reduced_motion"))
+    props = {"scenes": scenes, "camera": _camera_amp(meta), "reducedMotion": reduced}
+    theme = meta.get("theme")                 # the per-topic atmosphere WORLD (motif + palette) behind every shot
+    if isinstance(theme, dict):
+        props["theme"] = theme
     props_path = os.path.join(out_dir, ".remotion-props.json")
     with open(props_path, "w", encoding="utf-8") as f:
-        json.dump({"scenes": scenes, "camera": _camera_amp(meta), "reducedMotion": reduced},
-                  f, allow_nan=False, ensure_ascii=False)
+        json.dump(props, f, allow_nan=False, ensure_ascii=False)
     out_name = "sample.mp4" if sample is not None else "out.mp4"
     out_mp4 = os.path.abspath(os.path.join(out_dir, out_name))
     gl = os.environ.get("REMOTION_GL") or ("angle" if sys.platform in ("darwin", "win32") else "swangle")

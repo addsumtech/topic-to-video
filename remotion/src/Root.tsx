@@ -4,6 +4,26 @@ import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors
 import {CommandSummon, DURATION as CS} from './shots/CommandSummon';
 import {TemporalAccelerate, DURATION as TA} from './shots/TemporalAccelerate';
 import {FocalIsolation, DURATION as FI} from './shots/FocalIsolation';
+import {KSpaceToImage, DURATION as KSI} from './shots/KSpaceToImage';
+import {MagnetizationTip, DURATION as MTP} from './shots/MagnetizationTip';
+import {InducedFID, DURATION as IFD} from './shots/InducedFID';
+import {GFactorNoise, DURATION as GFN} from './shots/GFactorNoise';
+import {UndersampledKspace, DURATION as UKS} from './shots/UndersampledKspace';
+import {ScanReconstruct, DURATION as SRC} from './shots/ScanReconstruct';
+import {RealVersus, DURATION as RVS} from './shots/RealVersus';
+import {SpinningProton, DURATION as SPN} from './shots/SpinningProton';
+import {PhaseEncodeStep, DURATION as PES} from './shots/PhaseEncodeStep';
+import {MRIPipeline, DURATION as MPL} from './shots/MRIPipeline';
+import {FrequencyEncode, DURATION as FEN} from './shots/FrequencyEncode';
+import {CompressedSensingEq, DURATION as CSE} from './shots/CompressedSensingEq';
+import {KSpaceReal, DURATION as KSR} from './shots/KSpaceReal';
+import {SpeedLimit, DURATION as SPL} from './shots/SpeedLimit';
+import {LarmorPrecession, DURATION as LPR} from './shots/LarmorPrecession';
+import {Aliasing, DURATION as ALI} from './shots/Aliasing';
+import {DiffusionDenoise, DURATION as DDN} from './shots/DiffusionDenoise';
+import {SpinsAlign, DURATION as SPA} from './shots/SpinsAlign';
+import {GradientTilt, DURATION as GRT} from './shots/GradientTilt';
+import {KSpaceAnatomy, DURATION as KAN} from './shots/KSpaceAnatomy';
 import {KineticManifesto, DURATION as KM} from './shots/KineticManifesto';
 import {InfiniteCanvas, DURATION as IC} from './shots/InfiniteCanvas';
 import {BlockAssembly, DURATION as BA} from './shots/BlockAssembly';
@@ -116,6 +136,26 @@ export const RemotionRoot: React.FC = () => (
     {F('CommandSummon', CommandSummon, CS)}
     {F('TemporalAccelerate', TemporalAccelerate, TA)}
     {F('FocalIsolation', FocalIsolation, FI)}
+    {F('KSpaceToImage', KSpaceToImage, KSI)}
+    {F('MagnetizationTip', MagnetizationTip, MTP)}
+    {F('InducedFID', InducedFID, IFD)}
+    {F('GFactorNoise', GFactorNoise, GFN)}
+    {F('UndersampledKspace', UndersampledKspace, UKS)}
+    {F('ScanReconstruct', ScanReconstruct, SRC)}
+    {F('RealVersus', RealVersus, RVS)}
+    {F('SpinningProton', SpinningProton, SPN)}
+    {F('PhaseEncodeStep', PhaseEncodeStep, PES)}
+    {F('MRIPipeline', MRIPipeline, MPL)}
+    {F('FrequencyEncode', FrequencyEncode, FEN)}
+    {F('CompressedSensingEq', CompressedSensingEq, CSE)}
+    {F('KSpaceReal', KSpaceReal, KSR)}
+    {F('SpeedLimit', SpeedLimit, SPL)}
+    {F('LarmorPrecession', LarmorPrecession, LPR)}
+    {F('Aliasing', Aliasing, ALI)}
+    {F('DiffusionDenoise', DiffusionDenoise, DDN)}
+    {F('SpinsAlign', SpinsAlign, SPA)}
+    {F('GradientTilt', GradientTilt, GRT)}
+    {F('KSpaceAnatomy', KSpaceAnatomy, KAN)}
     {F('KineticManifesto', KineticManifesto, KM)}
     {F('InfiniteCanvas', InfiniteCanvas, IC)}
     {F('BlockAssembly', BlockAssembly, BA)}

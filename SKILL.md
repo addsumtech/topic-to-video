@@ -358,8 +358,11 @@ figure), a non-singular `the_one_thing`, or a
      opacity; `image_source:openai` + `renderer:local` — Batch 3 then confirms the spend + style) ·
      **Cinematic (Remotion) — FREE** (a kinetic, bespoke-DESIGNED film — each beat its OWN hand-written
      design language from the register library `remotion/LIBRARY.md`, narrated, with luminance-safe seams
-     + a carry match-cut + a subtle camera drift; `renderer:remotion` — the shot-director assigns each
-     beat a `shot`+`shot_props`, it renders via `render_remotion.py`, reviewed by the shot-critic).
+     + a carry match-cut; each shot is FULL-BLEED (edge-to-edge, no borders) and the camera is LOCKED by
+     default — the shots animate themselves, so a whole-film drift is OFF unless `meta.camera_drift` opts in
+     (a global float on top of self-animating shots reads as a per-frame SHAKE); `renderer:remotion` — the
+     shot-director assigns each beat a `shot`+`shot_props`, it renders via `render_remotion.py`, reviewed by
+     the shot-critic).
      **Show the Cinematic button ONLY when `doctor.py` reports the remotion tier installed**; otherwise
      the two HTML options are the whole menu. Make the FREE-vs-PAID split visible in every label; never
      enable the generator without the user picking the AI tier here. (Other → a brand/theme/CSS to
@@ -671,16 +674,25 @@ figure), a non-singular `the_one_thing`, or a
      each beat is still its own language). WIDTH scales by `meta.audacity` (`conservative` skips · `balanced` 3 ·
      `bold` 5 · `experimental` 7): `python scripts/shot_templates.py --route "<topic>" --audacity <a> --out <out>`.
      The 6 templates are SEEDS — the shot-director must **CONCEIVE bold, topic-specific directions** (not just
-     route the 6) to reach the width, forcing real divergence. Render ONE topic-bearing still per direction
-     (**`--frame=110` REQUIRED** — frame 0 is un-started); run the **diversity gate** `scripts/contest_diversity.py
+     route the 6) to reach the width, forcing real divergence. **Render a short SAMPLE VIDEO per direction so the
+     user can SEE its look + MOTION** (a text pitch or a single still can't convey a design language — motion IS
+     the language): `python scripts/contest_sample.py --route "<topic>" --audacity <a> --out <out> --render` →
+     `_contest_<key>.mp4` (~6s each, hero + 2 representative registers through the real Film). Also render one
+     still per direction at **`--frame=110`** for the **diversity gate** `scripts/contest_diversity.py
      <out>/_contest_*.png` (rediverge a clustered pair); **JUDGE** with `agents/shot-critic.md` in judge mode
-     (floor-break + rank → winner+runner-up); surface the judged finalists to the USER via `AskUserQuestion`;
-     record `meta.shot_template` + `meta.shot_template_contest {candidates, winner, user_pick, width, audacity,
-     judge_ranked}`. `validate.py` ERRORS a bold/experimental film with NO contest and checks width-vs-audacity.
-     **② The per-beat assignment:** run `python scripts/shot_director.py <out_dir> --template <seed-key>` for a
+     (floor-break + rank → winner+runner-up); surface the judged finalists — **the sample videos** — to the USER
+     via `AskUserQuestion`; record `meta.shot_template` + `meta.shot_template_contest {candidates, winner,
+     user_pick, width, audacity, judge_ranked}`. `validate.py` ERRORS a bold/experimental film with NO contest
+     and checks width-vs-audacity.
+     **② The per-beat assignment:** **read `references/remotion-shot-authoring.md` FIRST** (the frame-craft floor +
+     the meaning mandate + the real-imagery tier + the anti-pattern catalogue — this is where future films fail
+     silently). Run `python scripts/shot_director.py <out_dir> --template <seed-key>` for a
      deterministic family-varied skeleton BIASED to the direction, then the shot-director agent fills each beat's
      `shot` + faithful `shot_props`, keeping family-variety AND **boldness** (reach past the obvious register,
-     scaled by audacity; note each beat's `rejected_default`). SKIP the HTML design plan (no `design_plan.json`).
+     scaled by audacity; note each beat's `rejected_default`), AND ensuring every shot ENCODES its beat (hide the
+     caption — does the visual still carry THIS idea?) and COHERES with the chosen direction (palette/motion/motif,
+     not a random stack). When no register encodes a topic-specific idea, BUILD a bespoke shot (real imagery where
+     the topic is concrete) rather than force a near-miss. SKIP the HTML design plan (no `design_plan.json`).
      After the render, the review gate is **`agents/shot-critic.md`** (the design-critic analogue): S1 fit · S2
      variety · S3 faithfulness · S4 decodability · S6 A/V **+ the deterministic `keyframe_qa_remotion.py` blank-
      frame backstop** · **S8 boldness (audacity-scaled)** · S7 direction-adherence — from `_keyframes/scene_NN.png`
@@ -874,11 +886,15 @@ figure), a non-singular `the_one_thing`, or a
    **For a `meta.renderer:"remotion"` deck** (the bespoke-shot tier), `render_remotion.py` writes `out.srt`
    + `_keyframes/scene_NN.png` itself; the html-only `keyframe_qa.py` (which returns 0 on a remotion deck) is
    replaced by its remotion twin **`keyframe_qa_remotion.py <out_dir>`** (a deterministic blank-frame backstop on
-   the keyframes), while `rhythm_qa`/`pedagogy_qa` still apply (they read `content_plan.json`). At the DESIGN
-   layer, dispatch **`agents/shot-critic.md`** on those keyframes + the `check_av` + `keyframe_qa_remotion`
-   reports: it judges register fit, family variety, faithful copy (no demo-number/WorkBuddy-leftover),
-   decodability, and **boldness (S8, audacity-scaled)**, and REVISEs failing beats (the shot-director re-assigns →
-   re-render). Deliver only after **shot-critic PASSES and `check_av` + `keyframe_qa_remotion` exit 0**.
+   the keyframes) PLUS **`frame_safe_qa.py <out_dir>`** — the FRAME-CRAFT gate: it ERRORs on on-frame content
+   bleeding off the action-safe edge (text/graphics OFF-FRAME) and WARNs on a brightness OUTLIER scene (a
+   white/bright shot in a dark film = palette clash). These are the exact failures eyeballing missed — a shot that
+   overflows or clashes now blocks. `rhythm_qa`/`pedagogy_qa` still apply (they read `content_plan.json`). At the
+   DESIGN layer, dispatch **`agents/shot-critic.md`** on those keyframes + the `check_av` + `keyframe_qa_remotion`
+   + `frame_safe_qa` reports: it judges register fit, family variety, faithful copy (no demo-number/WorkBuddy-
+   leftover), decodability, **MEANING (S10 — does each shot's design ENCODE its beat's idea, not just look good?)**,
+   and **boldness (S8, audacity-scaled)**, and REVISEs failing beats (the shot-director re-assigns → re-render).
+   Deliver only after **shot-critic PASSES and `check_av` + `keyframe_qa_remotion` + `frame_safe_qa` exit 0**.
    **DELIVERY CRITERION — every gate, not two.** Deliver `out.mp4`,
    `out.srt`, and the editable `storyboard.json` only after **`validate.py`, `check_av.py`,
    `keyframe_qa.py`, `rhythm_qa.py` and `pedagogy_qa.py` ALL exit 0**. Naming only the first two is

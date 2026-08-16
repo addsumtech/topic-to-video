@@ -5,6 +5,26 @@ import React from 'react';
 import {CollaborativeCursors} from './shots/CollaborativeCursors';
 import {CommandSummon} from './shots/CommandSummon';
 import {TemporalAccelerate} from './shots/TemporalAccelerate';
+import {KSpaceToImage} from './shots/KSpaceToImage';
+import {MagnetizationTip} from './shots/MagnetizationTip';
+import {InducedFID} from './shots/InducedFID';
+import {GFactorNoise} from './shots/GFactorNoise';
+import {UndersampledKspace} from './shots/UndersampledKspace';
+import {ScanReconstruct} from './shots/ScanReconstruct';
+import {RealVersus} from './shots/RealVersus';
+import {SpinningProton} from './shots/SpinningProton';
+import {PhaseEncodeStep} from './shots/PhaseEncodeStep';
+import {MRIPipeline} from './shots/MRIPipeline';
+import {FrequencyEncode} from './shots/FrequencyEncode';
+import {CompressedSensingEq} from './shots/CompressedSensingEq';
+import {KSpaceReal} from './shots/KSpaceReal';
+import {SpeedLimit} from './shots/SpeedLimit';
+import {LarmorPrecession} from './shots/LarmorPrecession';
+import {Aliasing} from './shots/Aliasing';
+import {DiffusionDenoise} from './shots/DiffusionDenoise';
+import {SpinsAlign} from './shots/SpinsAlign';
+import {GradientTilt} from './shots/GradientTilt';
+import {KSpaceAnatomy} from './shots/KSpaceAnatomy';
 import {FocalIsolation} from './shots/FocalIsolation';
 import {KineticManifesto} from './shots/KineticManifesto';
 import {InfiniteCanvas} from './shots/InfiniteCanvas';
@@ -104,6 +124,7 @@ import {MoleculeBallStick} from './shots/MoleculeBallStick';
 import {TerrainFly} from './shots/TerrainFly';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
+  KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy,
   CollaborativeCursors, CommandSummon, TemporalAccelerate, FocalIsolation, KineticManifesto, InfiniteCanvas,
   BlockAssembly, AnswerStream, ScreenBubble, VelocitySnap, CursorStory, ExplodedSchematic, MaterialHero,
   TimelineTravel, MapRoutes, ChatThread, BeforeAfterSlider, AuroraFlow, IsometricAssembly, LiquidMorph,

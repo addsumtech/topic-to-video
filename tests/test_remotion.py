@@ -6,6 +6,7 @@ import validate as v
 import shot_director as sd
 import shot_templates as st
 import render_remotion as rr
+import contest_sample as cs
 
 _SHOTS_DIR = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "shots")
 _SHOT_IDS = {f[:-4] for f in os.listdir(_SHOTS_DIR) if f.endswith(".tsx")}
@@ -64,14 +65,18 @@ def test_sfx_sounds_only_marked_seams():
     assert sum(1 for _, nm, _ in sfx.plan_cues(legacy, 30) if nm == "whoosh") == 4
 
 
-def test_camera_amp_from_motion_personality():
-    assert rr._camera_amp({}) == 1.0                                # default balanced
-    assert rr._camera_amp({"motion_personality": "calm"}) == 0.5
-    assert rr._camera_amp({"motion_personality": "energetic"}) == 1.6
-    assert rr._camera_amp({"motion_personality": "still"}) == 0.0   # a still tier disables the drift
-    assert rr._camera_amp({"motion_personality": 0.8}) == 0.8       # a raw multiplier passes through
-    assert rr._camera_amp({"motion_personality": -3}) == 0.0        # clamped non-negative
-    assert rr._camera_amp({"motion_personality": "bogus"}) == 1.0   # unknown tier -> balanced
+def test_camera_amp_is_opt_in_and_off_by_default():
+    # The whole-film DRIFT is OFF by default (bespoke shots animate themselves; a global float on top reads as
+    # a per-frame SHAKE). It is opt-in via meta.camera_drift; motion_personality no longer enables it.
+    assert rr._camera_amp({}) == 0.0                                # still by default — no drift
+    assert rr._camera_amp({"motion_personality": "lively"}) == 0.0  # motion_personality does NOT enable drift here
+    assert rr._camera_amp({"camera_drift": True}) == 1.0            # explicit opt-in (bool) -> balanced amp
+    assert rr._camera_amp({"camera_drift": False}) == 0.0
+    assert rr._camera_amp({"camera_drift": "calm"}) == 0.5
+    assert rr._camera_amp({"camera_drift": "energetic"}) == 1.6
+    assert rr._camera_amp({"camera_drift": 0.8}) == 0.8            # a raw multiplier passes through
+    assert rr._camera_amp({"camera_drift": -3}) == 0.0            # clamped non-negative
+    assert rr._camera_amp({"camera_drift": "bogus"}) == 0.0       # unknown tier -> off (default is still)
 
 
 def test_color_arc_luma_and_flip():
@@ -105,11 +110,25 @@ def test_validate_warns_on_luminance_strobe():
 
 def test_registry_in_sync_with_shot_files():
     # every shot file is a valid id, and there are 100 of them (the whole library)
-    assert len(_SHOT_IDS) == 100, _SHOT_IDS
+    assert len(_SHOT_IDS) == 120, _SHOT_IDS
     assert rr._remotion_shot_ids() == _SHOT_IDS
     # the FAMILY map covers every shot (shot_director can place any of them)
     missing = _SHOT_IDS - set(sd.FAMILY)
     assert not missing, "shots missing from shot_director.FAMILY: %s" % missing
+
+
+def test_contest_sample_builds_valid_film_props():
+    # the direction SAMPLE VIDEO (the user-choice mechanism): every candidate must build Film props whose scenes
+    # name REAL shot ids, carry the topic, lock the camera, and have positive durations.
+    for key in list(st.TEMPLATES) + ["a-bespoke-direction"]:      # seeds + a bespoke-key fallback
+        props = cs.build_props(key, "how an MRI image is made")
+        assert props["camera"] == 0, key                          # camera LOCKED in samples (no shake)
+        assert 2 <= len(props["scenes"]) <= 4, key
+        for sc in props["scenes"]:
+            assert sc["shot"] in _SHOT_IDS, (key, sc["shot"])     # only real registers
+            assert sc["durF"] > 0 and sc["caption"], key
+    # route() still returns candidates so the samples have something to render
+    assert cs.stpl.route("data analytics report", audacity="balanced")
 
 
 def test_valid_deck_passes():
@@ -229,6 +248,21 @@ def test_validate_warns_on_over_marked_seams():
     d2["slides"][2]["transition_style"] = "clock"
     d2["slides"][4]["transition_style"] = "dissolve"
     assert not any("MARKED with a kinetic transition" in w for w in v.evaluate(d2, "/tmp")["warnings"])
+
+
+def test_frame_safe_qa_flags_edge_bleed(tmp_path):
+    # the deterministic frame-craft gate the critic was missing: content off the safe edge = ERROR
+    import frame_safe_qa as fq
+    from PIL import Image
+    kd = tmp_path / "_keyframes"; kd.mkdir()
+    for i in range(1, 6):                                   # 5 clean dark scenes -> ok
+        Image.new("RGB", (1920, 1080), (8, 8, 12)).save(str(kd / ("scene_%02d.png" % i)))
+    assert fq.evaluate(str(tmp_path))["ok"]
+    bad = Image.new("RGB", (1920, 1080), (8, 8, 12))
+    bad.paste((240, 240, 240), (0, 0, 1920, 70))            # bright content in the top safe border = overflow
+    bad.save(str(kd / "scene_03.png"))
+    r = fq.evaluate(str(tmp_path))
+    assert not r["ok"] and any("OFF-FRAME" in e for e in r["errors"]), r
 
 
 def test_keyframe_qa_remotion_flags_blank():

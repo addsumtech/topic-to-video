@@ -13,9 +13,10 @@ per-scene filmstrip `<out_dir>/_keyframes/scene_NN.png` (the RENDERED pixels), a
 wrong on screen.
 
 ## JUDGE mode (the contest's selection half — Step 0)
-When the shot-director dispatches you on the **contest stills** (not a finished film), you are the SELECTION half
-of divergence+selection. Given the N contest stills (`<out>/_contest_*.png`) + the beats + `meta.audacity`: (1)
-DISQUALIFY any floor-breaker — a still that rendered blank/garbled, is off-brief for the topic, or is illegible;
+When the shot-director dispatches you on the **contest samples** (not a finished film), you are the SELECTION half
+of divergence+selection. Judge from the **sample VIDEOS** `<out>/_contest_*.mp4` (motion is the design language;
+the `_contest_*.png` stills are only for the mechanical diversity gate) + the beats + `meta.audacity`: (1)
+DISQUALIFY any floor-breaker — a sample that rendered blank/garbled, is off-brief for the topic, or is illegible;
 (2) RANK the survivors by how boldly + aptly each direction fits THIS topic at this audacity (a striking,
 topic-true atmosphere beats a safe generic one); (3) name ONE **winner** + a **runner-up** with one line each.
 A floor-breaking or off-brief candidate must never reach the user unranked. Output the ranking + the winner/runner-up;
@@ -65,6 +66,24 @@ close), or every seam marked (as monotonous as none), is a REVISE. Also eyeball 
 shot's dark/mid/light): a film that flips dark↔light on nearly every beat STROBES — nudge the sequence toward
 runs/gradients. The mechanical gates already fire on over-budget marks and >60% hard-flips (`validate.py`
 warnings); S9 is the SEMANTIC judgment those can't make. This is a soft dimension — S3/S4 still win.
+
+**S10 · MEANING (per scene) + FRAME-CRAFT (whole-film).** Two things eyeballing kept missing.
+**MEANING:** for each beat ask — does this shot's DESIGN *encode* the idea, or is it just dark-and-pretty
+decoration that happens to be on-topic? The litmus: *hide the caption — does the visual still carry THIS specific
+idea, and only this one?* A symmetric starburst for k-space (k-space IS radially symmetric), a conveyor of lines
+for slow serial acquisition, a rising line ONLY when the quantity genuinely rises — those ENCODE. A scrolling
+ticker for "frequency encoding," a generic glossy blob, an up-and-to-the-right line for a "slow/bad" point, a
+chart type that fights the message (line for independent categories) — those DECORATE or CONTRADICT: REVISE with
+the visual whose structure mirrors the content (symmetry/direction/accumulation/sparsity). Refinement (高级感) is
+required too, but never as a substitute for meaning. **FRAME-CRAFT (the floor in `references/remotion-shot-authoring.md`
+§A):** read the `frame_safe_qa.py` report — any OFF-FRAME edge-bleed is a hard REVISE (title/action-safe), and a
+brightness-OUTLIER scene (a white/bright shot in a dark film) is a palette-clash REVISE. Then EYEBALL each keyframe
+for the four defects the report can't see: (a) **BLACK BORDERS** — the shot background must reach all four edges;
+a uniform dark margin means something scaled the shot (regression); (b) **title-to-image spacing** — the title
+must not touch or overlap the hero image/panel (an image centered in the full frame rides up under the title; it
+belongs in the content zone via `fitContentSquare`); (c) **caption overlap** — the burned narration caption never
+sits on a shot's own on-frame text (only a small credit line may live in the bottom band); (d) **colliding labels**
+— two edge-anchored labels must not meet in the middle. Meaning + frame-craft are gates, not nice-to-haves.
 
 ## Output
 For each flagged scene: `scene #N · Sx · <what's wrong on screen> · FIX: <the concrete change — a different

@@ -17,6 +17,7 @@ import {clockWipe} from '@remotion/transitions/clock-wipe';
 import {dissolve} from '@remotion/transitions/dissolve';
 import {SceneDurationContext, clamp01} from './runtime/motion';
 import {groundLum, type Lum} from './runtime/shotLuma';
+import {Atmosphere, type Atmo} from './runtime/atmosphere';
 import {REGISTRY} from './registry';
 import {CAPTIONS} from './captions';
 
@@ -72,6 +73,12 @@ const splitCaption = (text: string): string[] => {
 
 const CAP_PAD = 4;   // clean-gap frames inside each scene's sole-visible window → guarantees exit-before-enter
 const CAP_FADE = 3;  // tiny in/out ramp WITHIN the window (never across a transition, so captions never double)
+// FRAME-CRAFT FLOOR. An earlier version scaled the WHOLE world to 0.86 to pull edge content inside action-safe —
+// but that shrank each shot's OWN full-bleed background too, so a ~14% margin of the near-black atmosphere showed
+// as BLACK BORDERS on the sides + bottom (the shot background must reach the frame edge). So the world now renders
+// FULL-BLEED (no scale, no lift); edge-safety is a per-SHOT contract that frame_safe_qa verifies deterministically,
+// and the bottom CAPTION_BAND is reserved by the SHOTS keeping content out of it — not by shrinking the picture.
+const CAPTION_BAND = 150;    // px at the bottom reserved for the caption; shots keep text above (H - CAPTION_BAND)
 
 // One global caption HUD. It shows AT MOST ONE caption — the one belonging to the scene whose sole-visible
 // window (between its two transitions) contains this frame — hard-cut, contrast-picked against that scene's
@@ -100,8 +107,8 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]}> = ({scenes}) => {
   return (
     <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', pointerEvents: 'none', opacity: op}}>
       <div style={{position: 'absolute', left: 0, right: 0, bottom: 0, height: 240, background: scrim}} />
-      <div style={{position: 'relative', maxWidth: 1500, margin: '0 auto 62px', padding: '0 60px', textAlign: 'center',
-        color: ink, font: '700 46px/1.28 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
+      <div style={{position: 'relative', maxWidth: 1400, margin: '0 auto 40px', padding: '0 60px', textAlign: 'center',
+        color: ink, font: '700 44px/1.26 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
         textShadow: shadow}}>{merged[idx]}</div>
     </AbsoluteFill>
   );
@@ -176,18 +183,20 @@ const Missing: React.FC<{id: string}> = ({id}) => (
     color: '#ff8a8a', font: '700 44px/1.4 monospace', textAlign: 'center'}}>unknown shot:<br />{id}</AbsoluteFill>
 );
 
-export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotion?: boolean}> =
-  ({scenes = WORKBUDDY_SCENES, camera = 1, reducedMotion = false}) => {
+export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotion?: boolean; theme?: Atmo}> =
+  ({scenes = WORKBUDDY_SCENES, camera = 0, reducedMotion = false, theme}) => {
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
   const total = filmDuration(scenes);
   const cam = cameraTransform(frame, reducedMotion ? 0 : Math.max(0, camera));
   const intro = interpolate(frame, [0, 12], [1, 0], {extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic)});
   const outro = interpolate(frame, [total - 16, total - 1], [0, 1], {extrapolateLeft: 'clamp'});
+  const bg = theme?.bg ?? '#05060a';
 
   return (
-    <AbsoluteFill style={{backgroundColor: '#000'}}>
-      <AbsoluteFill style={{transform: cam}}>
+    <AbsoluteFill style={{backgroundColor: bg}}>
+      <Atmosphere {...(theme ?? {})} intensity={reducedMotion ? 0.55 : (theme?.intensity ?? 1)} />
+      <AbsoluteFill style={cam === 'none' ? undefined : {transform: cam}}>
       <TransitionSeries>
         {scenes.flatMap((sc, i) => {
           const C = REGISTRY[sc.shot];
@@ -209,7 +218,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
         })}
       </TransitionSeries>
       </AbsoluteFill>
-      <AbsoluteFill style={{backgroundColor: '#05060a', opacity: Math.max(intro, outro), pointerEvents: 'none'}} />
+      <AbsoluteFill style={{backgroundColor: bg, opacity: Math.max(intro, outro), pointerEvents: 'none'}} />
       <CaptionTrack scenes={scenes} />
     </AbsoluteFill>
   );

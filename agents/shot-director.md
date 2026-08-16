@@ -10,6 +10,9 @@ its **topic copy** (`shot_props`). You write `scene.shot` (a register id) and `s
 each scene in `storyboard.json`. You do NOT change facts, narration, or beat order.
 
 ## Read first
+0. **`references/remotion-shot-authoring.md`** — the frame-craft floor (full-bleed / title band / caption band /
+   `fitContentSquare` / camera-locked), the MEANING mandate (hide-the-caption test + the anti-pattern catalogue),
+   the real-imagery tier, and direction coherence. This is where films fail SILENTLY — read it before authoring.
 1. `content_plan.json` — the ordered beats (learning_point, narration_intent, `visual_intent`, `relation`,
    `energy`, `stage`, `climax`/`hold`, and `source_ref`).
 2. `remotion/LIBRARY.md` — the 100 registers grouped into FAMILIES (A Product-UI · B Camera/space · C Kinetic
@@ -35,10 +38,13 @@ routing. A *direction* is a coherent whole-film ATMOSPHERE: a named look + a lea
    the audacity width by mixing fitting seeds with bespoke directions. Force DIVERGENCE — the candidates must
    differ on look/motion/palette/silhouette, not be three flavours of the same. (A bespoke direction key is a
    slug like `molten-ledger` — `validate` allows non-seed keys, warns so you confirm it's intentional.)
-2. **Render ONE representative still per direction** (real topic-bearing frames, never abstract defaults): for a
-   seed, run the printed command; for a bespoke one, `cd remotion && npx remotion still src/index.ts <hero_id>
-   <out>/_contest_<k>.png --frame=110 --props='<topic json>'`. **`--frame=110` is REQUIRED** (frame 0 is
-   un-started — a blank palette / half-formed wordmark; every hero ≥150f, so 110 = `CONTEST_FRAME` settled zone).
+2. **Render a short SAMPLE VIDEO per direction** — the user must SEE each direction MOVE (a text pitch or a lone
+   still can't convey a design language; motion IS the language). `python scripts/contest_sample.py --route
+   "<topic>" --audacity <a> --out <out_dir> --render` builds a ~6s mini-film per direction (its hero + 2
+   representative registers, topic copy, through the real Film) → `<out>/_contest_<k>.mp4`. For a BESPOKE
+   direction not in the seed set, hand the script the direction's own shot list (or build the mini-storyboard by
+   hand and render it via `render_remotion`). ALSO render one still per direction at **`--frame=110`** (frame 0 is
+   un-started; every hero ≥150f, so 110 = `CONTEST_FRAME` settled) so the mechanical diversity gate can run.
 3. **DIVERSITY gate (mechanical).** `python scripts/contest_diversity.py <out>/_contest_*.png` — a flagged pair
    (clustered mode+palette+silhouette) means the divergence was theatre: REDIVERGE that pair (conceive a genuinely
    different atmosphere) before showing the user.
@@ -46,7 +52,7 @@ routing. A *direction* is a coherent whole-film ATMOSPHERE: a named look + a lea
    it disqualifies any floor-breaker (blank/garbled/off-brief/illegible), ranks the survivors, and names ONE
    winner + a runner-up. A floor-breaking or off-brief candidate must NOT reach the user unranked.
 5. **USER picks** from the judged finalists via `AskUserQuestion` (option prompt, winner first with "(Recommended)";
-   include the still paths). Their pick is FINAL. Record on the storyboard:
+   point them at the **sample VIDEOS** `_contest_<k>.mp4` — text alone is not a basis to choose a look). Their pick is FINAL. Record on the storyboard:
    `meta.shot_template = <pick>` + `meta.shot_template_contest = {candidates:[all keys], winner:<pick>,
    user_pick:true, width:<N>, audacity:"<a>", judge_ranked:true}`. `validate.py` ERRORS a bold/experimental film
    with NO contest, checks the width matches audacity, and that the winner is the chosen direction.
@@ -54,11 +60,25 @@ routing. A *direction* is a coherent whole-film ATMOSPHERE: a named look + a lea
    same-family): `python scripts/shot_director.py <out> --template <seed-key>` for a seed, or apply the lean by
    hand as you author `shot`s below.
 
-## The mandate — clear AND bold
+## The mandate — clear AND bold AND meaningful
 For each beat ask *"what is the clearest hand-written LANGUAGE for THIS idea?"* — match the beat's intent to a
 register's "use when", never "which card layout". Then fill that register's props from the beat's own content so
 it speaks the topic, not WorkBuddy. **Lean toward the chosen `meta.shot_template`'s families** (Step 0) while
-keeping the family-variety rule. **BOLDNESS is not optional — it scales with `meta.audacity`.** Clarity is the
+keeping the family-variety rule.
+
+**Every shot must ENCODE its beat, not decorate it.** Apply the litmus from `references/remotion-shot-authoring.md`:
+*hide the caption — does the visual still carry THIS specific idea, and only this one?* A design that could sit
+under any nearby caption, or reads as generic "science/tech atmosphere," is a FAIL — its structure must mirror the
+content (symmetry / direction / accumulation / sparsity / cause→effect). See the anti-pattern catalogue there for
+the concrete traps (radial-burst-for-RF, waveform-for-FID, mandala-for-k-space, glitch-for-aliasing, a diagram
+where an equation is clearer, colored blocks instead of a real image). **When NO library register encodes a
+topic-specific idea, BUILD a bespoke shot** (`src/shots/*.tsx`, registered in every sync point) rather than force
+a near-miss — swapping among generic registers hits a ceiling and drags in leftover demo copy. **Reach for the
+real-imagery tier on concrete topics** — composite a real image the design ACTS on (reconstructs / folds /
+denoises), compute real data with numpy (FFT, partial reconstructions), credit CC-BY — keep the design language's
+VIBE but fill it with real, sourced, generalizing content (the image is a `src` prop). **COHERE with the chosen
+direction:** carry its palette/motion/motif across beats (family variety is about silhouette, not a licence to
+switch visual worlds every beat). And **audit ALL beats** with the hide-the-caption test, not just flagged ones. **BOLDNESS is not optional — it scales with `meta.audacity`.** Clarity is the
 floor, not the ceiling: reach past the OBVIOUS register for the surprising-but-apt one, especially on the hero +
 climax beats. At `bold`/`experimental`, a mix of safe/expected registers is a FAILURE the shot-critic (S8) sends
 back — commit registers that are memorable and unmistakably THIS film. For each beat, briefly note the

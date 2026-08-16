@@ -1,4 +1,4 @@
-# Remotion2 — Bespoke Shot Library (100 design languages)
+# Remotion2 — Bespoke Shot Library (120 design languages)
 
 Each shot is a **hand-written, deterministic component** (`{default Component, DURATION}`) authored in
 1920×1080, driven by `useT()` (0→1) + the shared `runtime/motion.ts` kit. No generic template funnel —
@@ -190,7 +190,15 @@ in the film wrapper. Per-shot props:
 | BlockAssembly | `title, callout, items` · BlueprintGrid `unit, tag, spec1, spec2, metricLabel` |
 | ChartLive | `endVal, unit, label` · BeforeAfterSlider `heading, metric, sub, beforeLabel, afterLabel` |
 | ScreenBubble | `appTitle, nav` · LiquidGlass `items, title` · TimelineTravel `nodes` · DataOrrery `items, hub` |
-| FocalIsolation | `focalLabel, items` · VelocitySnap `label, metric, unit` · VoiceSignal `phases` |
+| KSpaceToImage | `accent, accent2, label` — k-space→image inverse-FFT sweep (bespoke) · FocalIsolation | `focalLabel, items` · VelocitySnap `label, metric, unit` · VoiceSignal `phases` |
+<!-- MRI-physics bespoke family: each ENCODES a specific physics step (meaningful, not decorative), image-driven shots take a real `src`+`credit` and generalise via props. -->
+| SpinsAlign `accent,accent2,label` — random spins→net M₀ · LarmorPrecession `accent,accent2,label` — μ precesses B₀ at f₀=γB₀ · MagnetizationTip `accent,label` — resonant RF tips M into transverse |
+| InducedFID `accent,label` — decaying FID oscillation in the coil · GradientTilt `accent,accent2,label,cols` — field tilts, position→frequency · FrequencyEncode `accent,label` — columns pitch-ramp→FFT peaks |
+| PhaseEncodeStep `accent,label` — gradient blip fills k-space lines · KSpaceReal `src,label` — real FFT log-magnitude, kx/ky axes · SpeedLimit `accent,label` — gradient bar capped at slew-rate+PNS |
+| Aliasing `src,label,credit` — undersample→anatomy wraps (ghost) · GFactorNoise `accent,label` — R rises to cap, g-factor noise · UndersampledKspace `accent,label` — k-space lines removed |
+| CompressedSensingEq `accent,label` — typeset min‖Ψx‖₁ s.t.‖Fx−y‖₂≤ε · DiffusionDenoise `src,label,credit` — noise→real MRI, pinned to data · ScanReconstruct `src,label,credit,cols` — image rebuilds center-out |
+| MRIPipeline `src,label` — signal→encode→k-space→image · RealVersus `srcLeft,srcRight,labelLeft,labelRight,title,credit` — two real scans compared |
+| KSpaceAnatomy `srcK,srcLow,srcHigh,label,credit` — center=contrast / edges=detail, proven by center-only & edge-only partial reconstructions |
 | SplitFlap `rows` · PhysicsStack `items, label` · CollaborativeCursors `names` · WireGlobe `tagline` |
 | HalftonePop | `burstTop, burstBottom, brand` · BrutalistType `titleTop, titleBottom, meta, statement1, statement2` |
 | CartoonPop / PixelBuild / ClayStack / LiquidFill / LightTrails / ParticleForm / AsciiField(`message`) | `label` |
