@@ -1,4 +1,4 @@
-# Remotion2 — Bespoke Shot Library (120 design languages)
+# Remotion2 — Bespoke Shot Library (123 design languages)
 
 Each shot is a **hand-written, deterministic component** (`{default Component, DURATION}`) authored in
 1920×1080, driven by `useT()` (0→1) + the shared `runtime/motion.ts` kit. No generic template funnel —
@@ -199,6 +199,10 @@ in the film wrapper. Per-shot props:
 | CompressedSensingEq `accent,label` — typeset min‖Ψx‖₁ s.t.‖Fx−y‖₂≤ε · DiffusionDenoise `src,label,credit` — noise→real MRI, pinned to data · ScanReconstruct `src,label,credit,cols` — image rebuilds center-out |
 | MRIPipeline `src,label` — signal→encode→k-space→image · RealVersus `srcLeft,srcRight,labelLeft,labelRight,title,credit` — two real scans compared |
 | KSpaceAnatomy `srcK,srcLow,srcHigh,label,credit` — center=contrast / edges=detail, proven by center-only & edge-only partial reconstructions |
+<!-- General-purpose registers added for content-fit (adapt-not-text-swap) — each keeps a vibe but is designed around real content. -->
+| TensionScale `title,leftLabel,leftSub,rightLabel,rightSub,note,accent,accent2` — a balance held in PERMANENT equilibrium (two named forces, neither wins); use for a sustained unresolved tension, not a winner |
+| PlatformSurfaces `title,subtitle,tiles[{label,note,glyph}],accent,accent2` — a bento of product surfaces where each tile carries a MEANINGFUL glyph (chat/api/video/code/cursor), not a reused mini-chart; use for "one platform, many surfaces" |
+| OpenQuestions `kicker,questions[],footer,accent` — parallel open questions stacked under a descending scan-light + an unresolved caret (no arrows, no sequence); use for genuine open/unanswered questions |
 | SplitFlap `rows` · PhysicsStack `items, label` · CollaborativeCursors `names` · WireGlobe `tagline` |
 | HalftonePop | `burstTop, burstBottom, brand` · BrutalistType `titleTop, titleBottom, meta, statement1, statement2` |
 | CartoonPop / PixelBuild / ClayStack / LiquidFill / LightTrails / ParticleForm / AsciiField(`message`) | `label` |

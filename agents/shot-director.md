@@ -78,7 +78,20 @@ real-imagery tier on concrete topics** — composite a real image the design ACT
 denoises), compute real data with numpy (FFT, partial reconstructions), credit CC-BY — keep the design language's
 VIBE but fill it with real, sourced, generalizing content (the image is a `src` prop). **COHERE with the chosen
 direction:** carry its palette/motion/motif across beats (family variety is about silhouette, not a licence to
-switch visual worlds every beat). And **audit ALL beats** with the hide-the-caption test, not just flagged ones. **BOLDNESS is not optional — it scales with `meta.audacity`.** Clarity is the
+switch visual worlds every beat). And **audit ALL beats** with the hide-the-caption test, not just flagged ones.
+
+**ADAPT the register, don't text-swap its demo (临场设计优化 — see `references/remotion-shot-authoring.md` §B2).**
+A register's demo props are a MANNEQUIN: placeholder mini-widgets, generic glyphs, demo-length labels, a stock
+element count. Picking a register and only changing the words while keeping its demo furniture is the lazy move
+that ships generic beats — for EVERY beat, on EVERY topic, redesign the CONTENT to fit: swap placeholder motifs
+for ones that MEAN the item (a product tile shows that product's glyph, not a random chart), match the layout to
+the content's real SHAPE (parallel questions stack — they don't get sequence-arrows; a "loop" is a cycle, not a
+row), and **size for the REAL copy** — long labels overflow a box tuned to short demo words, offset arrows land
+on long phrases, a tiny marker vanishes (frame-craft §A.8). Litmus: *would this beat look the same on a totally
+different topic with only the words changed?* If yes, redesign it. When the register's STRUCTURE (not just its
+sizing) fights the content, BUILD a small variant that keeps its vibe; when it's only a demo-length assumption,
+FIX the shared register at the source so every future film benefits. Always still-render a shot with its ACTUAL
+props before trusting it (`npx remotion still … --props='<real props>'`). **BOLDNESS is not optional — it scales with `meta.audacity`.** Clarity is the
 floor, not the ceiling: reach past the OBVIOUS register for the surprising-but-apt one, especially on the hero +
 climax beats. At `bold`/`experimental`, a mix of safe/expected registers is a FAILURE the shot-critic (S8) sends
 back — commit registers that are memorable and unmistakably THIS film. For each beat, briefly note the

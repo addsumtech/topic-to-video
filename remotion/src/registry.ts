@@ -25,6 +25,9 @@ import {DiffusionDenoise} from './shots/DiffusionDenoise';
 import {SpinsAlign} from './shots/SpinsAlign';
 import {GradientTilt} from './shots/GradientTilt';
 import {KSpaceAnatomy} from './shots/KSpaceAnatomy';
+import {TensionScale} from './shots/TensionScale';
+import {PlatformSurfaces} from './shots/PlatformSurfaces';
+import {OpenQuestions} from './shots/OpenQuestions';
 import {FocalIsolation} from './shots/FocalIsolation';
 import {KineticManifesto} from './shots/KineticManifesto';
 import {InfiniteCanvas} from './shots/InfiniteCanvas';
@@ -124,7 +127,7 @@ import {MoleculeBallStick} from './shots/MoleculeBallStick';
 import {TerrainFly} from './shots/TerrainFly';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
-  KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy,
+  KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
   CollaborativeCursors, CommandSummon, TemporalAccelerate, FocalIsolation, KineticManifesto, InfiniteCanvas,
   BlockAssembly, AnswerStream, ScreenBubble, VelocitySnap, CursorStory, ExplodedSchematic, MaterialHero,
   TimelineTravel, MapRoutes, ChatThread, BeforeAfterSlider, AuroraFlow, IsometricAssembly, LiquidMorph,

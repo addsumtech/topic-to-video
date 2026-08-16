@@ -36,7 +36,7 @@ FAMILY = {
     "OdometerRoll": "D", "GaugeCluster": "D", "HudReticle": "D", "ChartRace": "D",
     "MaterialHero": "E", "CardFlip3D": "E", "FractureIn": "E", "CardStack3D": "E", "DataMonolith": "E",
     "MorphForms": "E", "KSpaceToImage": "E", "MagnetizationTip": "E",
-    "InducedFID": "U", "GFactorNoise": "M", "UndersampledKspace": "D", "ScanReconstruct": "G", "RealVersus": "H", "SpinningProton": "S", "PhaseEncodeStep": "D", "MRIPipeline": "B", "FrequencyEncode": "U", "CompressedSensingEq": "L", "KSpaceReal": "G", "SpeedLimit": "D", "LarmorPrecession": "S", "Aliasing": "M", "DiffusionDenoise": "F", "SpinsAlign": "M", "GradientTilt": "U", "KSpaceAnatomy": "H",
+    "InducedFID": "U", "GFactorNoise": "M", "UndersampledKspace": "D", "ScanReconstruct": "G", "RealVersus": "H", "SpinningProton": "S", "PhaseEncodeStep": "D", "MRIPipeline": "B", "FrequencyEncode": "U", "CompressedSensingEq": "L", "KSpaceReal": "G", "SpeedLimit": "D", "LarmorPrecession": "S", "Aliasing": "M", "DiffusionDenoise": "F", "SpinsAlign": "M", "GradientTilt": "U", "KSpaceAnatomy": "H", "TensionScale": "H", "PlatformSurfaces": "A", "OpenQuestions": "C",
     "AuroraFlow": "F", "LiquidMorph": "F", "LiquidFill": "F", "ParticleForm": "F",
     "RadialBurst": "F", "LightTrails": "F", "MetaballMerge": "F", "InkBloom": "F", "LiquidMetal": "F",
     "HandDrawn": "G", "CartoonPop": "G", "HalftonePop": "G", "ClayStack": "G",

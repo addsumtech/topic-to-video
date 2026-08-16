@@ -75,15 +75,26 @@ for slow serial acquisition, a rising line ONLY when the quantity genuinely rise
 ticker for "frequency encoding," a generic glossy blob, an up-and-to-the-right line for a "slow/bad" point, a
 chart type that fights the message (line for independent categories) — those DECORATE or CONTRADICT: REVISE with
 the visual whose structure mirrors the content (symmetry/direction/accumulation/sparsity). Refinement (高级感) is
-required too, but never as a substitute for meaning. **FRAME-CRAFT (the floor in `references/remotion-shot-authoring.md`
+required too, but never as a substitute for meaning.
+**CONTENT-FIT (§B2 — the register must be ADAPTED, not text-swapped):** flag any beat that kept its register's
+DEMO scaffolding — placeholder mini-widgets/generic glyphs that don't MEAN the item (a "product surfaces" tile
+showing a random bar chart instead of that product's glyph), or a layout whose relationship is WRONG for the
+content (sequence-arrows on parallel items, a linear row for a "loop", a short-word layout given long phrases).
+The test: *would this beat look identical on a different topic with only the words changed?* If yes → REVISE
+(redesign the content to fit, or build a variant that keeps the vibe). This is a per-scene gate, not a nit.
+**FRAME-CRAFT (the floor in `references/remotion-shot-authoring.md`
 §A):** read the `frame_safe_qa.py` report — any OFF-FRAME edge-bleed is a hard REVISE (title/action-safe), and a
 brightness-OUTLIER scene (a white/bright shot in a dark film) is a palette-clash REVISE. Then EYEBALL each keyframe
-for the four defects the report can't see: (a) **BLACK BORDERS** — the shot background must reach all four edges;
+for the defects the report can't see: (a) **BLACK BORDERS** — the shot background must reach all four edges;
 a uniform dark margin means something scaled the shot (regression); (b) **title-to-image spacing** — the title
 must not touch or overlap the hero image/panel (an image centered in the full frame rides up under the title; it
 belongs in the content zone via `fitContentSquare`); (c) **caption overlap** — the burned narration caption never
-sits on a shot's own on-frame text (only a small credit line may live in the bottom band); (d) **colliding labels**
-— two edge-anchored labels must not meet in the middle. Meaning + frame-craft are gates, not nice-to-haves.
+sits on a shot's own on-frame text (only a small credit line may live in the bottom band); (d) **colliding labels
+or markers** — two edge-anchored labels meeting in the middle, or an offset arrow landing ON a long phrase; (e)
+**text overflowing to the frame/box edge** on a long label a register sized for short demo words; (f) **a marker
+too small to read** (a hairline arrow between big elements). (d)–(f) are the demo-length failures of §A.8 — a shot
+that looked clean with its demo props but was given real, longer copy. Meaning + content-fit + frame-craft are
+gates, not nice-to-haves.
 
 ## Output
 For each flagged scene: `scene #N · Sx · <what's wrong on screen> · FIX: <the concrete change — a different

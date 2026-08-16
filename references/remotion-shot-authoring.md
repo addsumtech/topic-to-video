@@ -34,9 +34,18 @@ from `src/runtime/layout.ts` — do NOT hand-guess pixel positions.
    per-shot floating/breathing transform to the whole shot for "life"; animate the CONTENT, keep the frame still.
 7. **Determinism.** Pure function of `useT()`/frame. No `Date.now()`/`Math.random()`/argless `new Date()` — use
    `hash01(i)` for stable pseudo-randomness. Signed data must render signed; CJK copy must fit; aspect must adapt.
+8. **Size for the REAL content, not the demo.** Registers are tuned to their DEMO copy — short words
+   (`PLAN`/`BUILD`/`SHIP`), a fixed element count, a small marker. Real topic copy is longer and breaks that
+   tuning in three ways you must check on the RENDERED frame at real length: **text overflows to the frame edge**
+   (a 92px label sized for "Plan" runs off the box for "2025 - OpenAI Group PBC" → pad the container + shrink/wrap
+   + split long strings, e.g. a year badge + a label line); **elements collide** (connecting arrows offset for
+   short words land ON a long phrase → drop the arrows or make the offset adaptive); **a marker is too small to
+   read** (a 22px "→" between big cards → size markers to the composition). A shot that renders clean with its
+   demo props can still fail here — always still-render it with the ACTUAL props before trusting it.
 
-`frame_safe_qa.py` backstops #1–#3 partially (edge-bleed + palette-outlier); the rest are eyeballed by the
-shot-critic (S10). Getting them right structurally (via `layout.ts`) is cheaper than being caught.
+`frame_safe_qa.py` backstops #1–#3 partially (edge-bleed + palette-outlier); the rest — especially #8's overflow/
+collision/tiny-marker — are eyeballed by the shot-critic (S10). Getting them right structurally (via `layout.ts`
++ sizing for real content) is cheaper than being caught.
 
 ## B · Meaning — every design must ENCODE its beat
 
@@ -77,6 +86,40 @@ wrong thing is worse than a plain one that encodes the right thing.
   test on EVERY beat (举一反三) — the same reflex usually produced several. Fix the whole class.
 - **No fabricated data.** A number-bearing shot must carry a SOURCED figure (traces to `source_ref`), never its
   demo default and never an invented stat.
+
+## B2 · Adapt the register to the topic — don't text-swap the demo
+
+A register ships with **demo scaffolding**: placeholder mini-widgets, generic glyphs, a demo-length label set, a
+fixed element count, a stock layout. **That scaffolding is a mannequin, not your content.** The lazy move —
+picking a register and only changing the text while keeping its demo furniture — produces a beat that is
+on-topic in words but generic in design, and it is a REVISE. Per the user's rule: *keep the design language's
+FRAMEWORK and VIBE, but re-design the CONTENT so it actually fits THIS topic.* This is "临场设计优化" — adapt the
+language to the subject on the spot, every time, for every topic.
+
+**The litmus:** *would this beat look the same on a completely different topic with only the words swapped?* If
+yes, you text-swapped a template — redesign the content. Concretely:
+- **Replace placeholder motifs with meaningful ones.** A "product surfaces" bento that renders a RANDOM bar
+  chart / ring / sparkline per tile encodes nothing — each tile must carry a glyph that MEANS its item (API → `{ }`
+  braces, a video product → a play-frame, a coding agent → a code block, a browser agent → a cursor-on-window).
+  A tile's picture should be decodable as *that* thing with the label hidden.
+- **Match the layout to the content's SHAPE.** A register built for a short SEQUENCE with connecting arrows
+  (`PLAN → BUILD → SHIP`) is wrong for three PARALLEL open questions — the arrows assert an order that isn't
+  there and collide with the long text. Re-lay it out (stack them, drop the arrows) so the layout states the
+  right relationship. A "loop" must read as a CYCLE, not a linear row; a hierarchy as nesting, not a list.
+- **When the scaffolding FIGHTS the content, build a variant.** If adapting the props isn't enough because the
+  register's structure itself is wrong for the topic (fake-widget dashboard, short-word-with-arrows layout, a
+  linear row for a loop), write a small bespoke shot that keeps the register's VIBE (the bento pop, the
+  interrogation light, the mechanical coupling) but is designed around the real content. This is the line
+  between *using* a design language and *reskinning a demo*. (This session added `PlatformSurfaces` from
+  BentoReveal and `OpenQuestions` from SpotlightStage for exactly this reason; `TensionScale` for the mission
+  tension; and fixed CubeRotate/CardFlip3D's demo-length assumptions in place.)
+- **Prefer editing the shared register when the fix generalises.** A demo-length assumption (a fixed 92px label,
+  a 22px marker, an un-padded box, arrows offset for short words) is a BUG in the register, not just this beat —
+  fix it at the source (pad + wrap + split long strings; size the marker; make the arrow offset adaptive) so
+  every future film benefits. Build a NEW shot only when the *structure* differs, not merely the sizing.
+
+Both the shot-director (when authoring) and the shot-critic (S10) apply this — a beat that kept its register's
+demo scaffolding is flagged and redesigned, not shipped.
 
 ## C · Coherence — shots must fit the chosen DIRECTION
 

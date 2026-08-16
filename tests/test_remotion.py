@@ -110,7 +110,7 @@ def test_validate_warns_on_luminance_strobe():
 
 def test_registry_in_sync_with_shot_files():
     # every shot file is a valid id, and there are 100 of them (the whole library)
-    assert len(_SHOT_IDS) == 120, _SHOT_IDS
+    assert len(_SHOT_IDS) == 123, _SHOT_IDS
     assert rr._remotion_shot_ids() == _SHOT_IDS
     # the FAMILY map covers every shot (shot_director can place any of them)
     missing = _SHOT_IDS - set(sd.FAMILY)

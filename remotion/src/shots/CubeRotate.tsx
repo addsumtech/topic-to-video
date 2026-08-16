@@ -36,19 +36,22 @@ export const CubeRotate: React.FC<{faces?: string[]; title?: string}> = ({
           {sides.map((label, i) => {
             const tone = TONES[i % TONES.length];
             const active = i === k && arrive > 0.6;
+            const parts = label.split(' - ');                     // "2019 - Capped-profit" → big "2019" + label
+            const big = parts.length > 1 ? parts[0] : String(i + 1);
+            const small = parts.length > 1 ? parts.slice(1).join(' - ') : label;
             return (
-              <div key={i} style={{position: 'absolute', width: SIZE, height: SIZE,
+              <div key={i} style={{position: 'absolute', width: SIZE, height: SIZE, boxSizing: 'border-box', padding: 72,
                 transform: `rotateY(${i * 90}deg) translateZ(${SIZE / 2}px)`,
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
                 background: `linear-gradient(155deg, #161a2b, #0d1018)`,
                 border: `1px solid ${active ? tone : '#252a40'}`, borderRadius: 22,
                 boxShadow: active ? `inset 0 0 160px ${tone}22, 0 0 60px ${tone}44` : 'inset 0 0 120px #0006'}}>
-                <div style={{width: 92, height: 92, borderRadius: 22, marginBottom: 34,
+                <div style={{minWidth: 96, height: 96, borderRadius: 22, marginBottom: 30, padding: '0 20px',
                   background: `linear-gradient(150deg, ${tone}, #2b3ac6)`, boxShadow: `0 0 40px ${tone}66`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', font: '800 46px/1 Inter, system-ui, sans-serif'}}>{i + 1}</div>
-                <div style={{color: '#eef2ff', font: '800 92px/1 Inter, system-ui, sans-serif',
-                  letterSpacing: '-0.02em'}}>{label}</div>
+                  color: '#fff', font: '800 44px/1 Inter, system-ui, sans-serif', whiteSpace: 'nowrap'}}>{big}</div>
+                <div style={{color: '#eef2ff', font: '800 52px/1.08 Inter, system-ui, sans-serif',
+                  letterSpacing: '-0.02em', maxWidth: SIZE - 150}}>{small}</div>
               </div>
             );
           })}

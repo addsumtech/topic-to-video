@@ -58,8 +58,8 @@ export const CardFlip3D: React.FC<{items?: Item[]; title?: string}> = ({
                   textAlign: 'center', letterSpacing: '-0.02em'}}>{c.front}</div>
               </Face>
               <Face back tone={tone}>
-                <div style={{color: '#ffffffcc', font: '600 22px/1 "JetBrains Mono", monospace',
-                  letterSpacing: '0.14em', marginBottom: 22}}>→</div>
+                <div style={{color: tone, font: '800 54px/1 Inter, system-ui, sans-serif',
+                  marginBottom: 18, textShadow: `0 0 24px ${tone}99`}}>&#8595;</div>
                 <div style={{color: '#fff', font: '800 64px/1.02 Inter, system-ui, sans-serif',
                   textAlign: 'center', letterSpacing: '-0.02em'}}>{c.back}</div>
               </Face>

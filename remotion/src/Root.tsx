@@ -24,6 +24,9 @@ import {DiffusionDenoise, DURATION as DDN} from './shots/DiffusionDenoise';
 import {SpinsAlign, DURATION as SPA} from './shots/SpinsAlign';
 import {GradientTilt, DURATION as GRT} from './shots/GradientTilt';
 import {KSpaceAnatomy, DURATION as KAN} from './shots/KSpaceAnatomy';
+import {TensionScale, DURATION as TNS} from './shots/TensionScale';
+import {PlatformSurfaces, DURATION as PSF} from './shots/PlatformSurfaces';
+import {OpenQuestions, DURATION as OQS} from './shots/OpenQuestions';
 import {KineticManifesto, DURATION as KM} from './shots/KineticManifesto';
 import {InfiniteCanvas, DURATION as IC} from './shots/InfiniteCanvas';
 import {BlockAssembly, DURATION as BA} from './shots/BlockAssembly';
@@ -156,6 +159,9 @@ export const RemotionRoot: React.FC = () => (
     {F('SpinsAlign', SpinsAlign, SPA)}
     {F('GradientTilt', GradientTilt, GRT)}
     {F('KSpaceAnatomy', KSpaceAnatomy, KAN)}
+    {F('TensionScale', TensionScale, TNS)}
+    {F('PlatformSurfaces', PlatformSurfaces, PSF)}
+    {F('OpenQuestions', OpenQuestions, OQS)}
     {F('KineticManifesto', KineticManifesto, KM)}
     {F('InfiniteCanvas', InfiniteCanvas, IC)}
     {F('BlockAssembly', BlockAssembly, BA)}
