@@ -304,19 +304,36 @@ figure), a non-singular `the_one_thing`, or a
    the tiers available — fold them into the interview (e.g. no Chrome → the promoted HTML tier is
    unavailable and the deck falls back to the flat programmatic renderers, the no-Chrome safety net).
    Then run the **interview** — a small set of selectable questions that capture the
-   user's whole intention up front. **Rendering rule for options:** `AskUserQuestion` shows at
-   most **4 selectable buttons per question**; when a menu is richer, spell out the FULL menu in
-   the question text, make the most-common items the ≤4 buttons, and let the automatic **"Other"**
-   free-text accept any listed item by name — a menu that is naturally ≤4 shows every item as a
-   button. Ask the **core screen (Batch 1) always**; fire Batches 2–3 **only when a prior answer
-   triggers them**. A common free/default run finishes in the single Batch-1 screen.
+   user's whole intention up front.
+   **OPTIONS-FIRST (the interview's prime directive).** EVERY ask is an `AskUserQuestion` menu by
+   default — issue it as an actual `AskUserQuestion` tool CALL, never as a question typed into your
+   chat reply. A menu = 2–4 labeled options + the automatic **"Other"**. The ONLY asks that may be a
+   plain prompt are ones whose ANSWER is an irreducible free-text VALUE with no decision wrapped around
+   it: **the topic sentence, a file/dir PATH, an API key.** Everything else — including *do you have
+   source material?* and *do you have brand assets?* — is a DECISION, therefore a menu; the free-text
+   VALUE it then needs (a path, a hex) is a follow-up you collect ONLY AFTER the option is picked. If
+   you are about to type a `?` into your reply instead of calling `AskUserQuestion`, stop and convert
+   it to a menu.
+   **Rendering rule for options:** `AskUserQuestion` shows at most **4 selectable buttons per question**
+   (and up to **4 questions per call**); when a menu is richer, spell out the FULL menu in the question
+   text, make the most-common items the ≤4 buttons, and let the automatic **"Other"** free-text accept
+   any listed item by name — a menu that is naturally ≤4 shows every item as a button. Ask the **core
+   screens (Batch 1) always** — TWO `AskUserQuestion` calls (screen A = ①–④, screen B = ⑤ Voice +
+   ⑥ Grounding, plus ⑦ Brand when triggered); fire Batches 2–3 **only when a prior answer triggers
+   them**. A common free/default run finishes in those **two option screens**, with zero mandatory
+   free-text beyond the single topic line on a no-deck run.
 
-   **Batch 1 — core intent + essentials (ask every run; 5 core questions).** `AskUserQuestion`
-   shows ≤4 buttons/call, so fire Batch 1 as **two calls: screen A = ①–④, screen B = ⑤ Voice**.
+   **Batch 1 — core intent + essentials (ask every run).** Fire it as **two `AskUserQuestion` calls:
+   screen A = ①–④, screen B = ⑤ Voice + ⑥ Grounding (+ ⑦ Brand when triggered)** — per the batching
+   note above.
    **No-deck (make-from-scratch) runs — capture the topic FIRST:** if the user has a deck
-   (pptx/pdf/images) SKIP this (the deck IS the topic); with **no** input deck, before screen A ask a
-   plain prompt (not buttons) for the **topic + goal/takeaway** — it becomes the source the
-   content-planner + design-director build the deck from (with the grounding material below).
+   (pptx/pdf/images) SKIP this (the deck IS the topic); with **no** input deck, before screen A ask ONE
+   plain-text line for the **topic sentence** — a plain prompt ONLY because the topic is an irreducible
+   free-text VALUE (like a path or a key), not a decision. Keep it to that one line: the goal/takeaway
+   is captured by the **① Purpose** menu (don't re-ask it as free-text here), and the sentence becomes
+   the source the content-planner + design-director build the deck from. (If the conversation has
+   ALREADY surfaced candidate topics/angles, offer THEM as an `AskUserQuestion` menu with "Other" for
+   the user's own — only a contextless from-scratch run needs the bare plain line.)
    - **① Purpose** *(→ `arc_kind` + the planner's tone/audience `director_note`)* — what the video
      is for, and roughly who watches. Menu: **Teach/explain** (expository) · **Pitch/persuade**
      (narrative) · **How-to/walkthrough** (howto → expository) · **Research briefing** (reference →
@@ -329,48 +346,45 @@ figure), a non-singular `the_one_thing`, or a
      the default TTS voice). Menu: **Match the slides** (auto-detect the deck's language — the safe
      default) · **English** (`en`) · **中文** (`zh`) · plus **any BCP-47 via Other** (`ja`/`ko`/`es`/
      `fr`/`de`/… — or a *cross-language* voiceover where the narration language ≠ the slide language).
-     Set `meta.language` to the resolved code (never leave it `"auto"` at render). The narration
-     **voice engine** is the separate question **⑤** below.
-   - **③ Look / template — and whether to use the image generator** *(→ `meta.image_source`)* — the
-     deck's visual world. **The promoted free/paid looks are BOTH the Designed HTML tier** (bespoke
-     full-screen pages rendered by headless Chrome, per-beat `type:"html"`) — the real choice here is
-     whether AI-generated art goes BEHIND the pages, so **this question IS the explicit image-generation
-     decision:** the free look uses **NO** image generator (`image_source:none`); the AI look turns on
-     the OpenAI `gpt-image-2` generator (`image_source:openai`, **paid** — Batch 3 then confirms the
-     spend). Make that free-vs-paid split visible in every option label; never enable image generation
-     without the user picking the AI look here. Menu: **Designed HTML deck — FREE, no AI images** —
-     bespoke full-screen pages rendered by headless Chrome, needs Chrome (`image_source:none`, the
-     default) · **HTML + AI backdrops — PAID, uses image generation** — the SAME designed pages WITH a
-     generated hero cover + soft on-topic textures behind the glass cards at low opacity
-     (`image_source:openai`). (Other → a brand/theme/CSS to match.) The image generator only ever
-     produces **backgrounds/atmosphere behind HTML pages** — a
-     deck is never a bare slideshow of generated stills, and data always stays in real HTML/charts (the
-     "AI = background, code = data" split). **No Chrome?** the HTML tier is unavailable; the deck then
-     falls back automatically to the flat **programmatic** renderers (`title`/`chart`/`timeline`/
-     `compare`/`keypoints`, `scripts/scenes.py`) — that is a **no-Chrome safety net, NOT a promoted
-     look**, so don't offer it as a menu option. **Real (documentary) images — FREE, no API:**
-     independently of the tier above, for a **CONCRETE** topic
-     (a city, place, real system/product/organism/event) the design-director may pull REAL license-clean
-     photos/maps/diagrams from Wikimedia Commons (`scripts/imagefetch.py`) to DEMONSTRATE the subject
-     directly (a real rail map, a real cityscape) — treated to match the deck. It's decided per-beat, not
-     asked here; mention it when the topic is concrete (an abstract topic stays typographic/atmosphere).
-     The
-     **per-beat template FORMS** (hero-stat, before/after, timeline rail, system map, metric wall,
-     results table, figure focus, funnel, dashboard, case story, flywheel — see
-     `references/html-templates.md`) are chosen by the design-director per beat, NOT asked here.
-     **Audacity (optional, defaults `balanced`):** independently of the tier, `meta.audacity`
-     (`conservative`/`balanced`/`bold`/`experimental`) is the RISK BUDGET for the video's whole-video
-     expressive register — how far its look + MOTION + type push. Default `balanced` (solid base + one
-     register that genuinely carries the video) is right for most runs; mention it only if the user wants
-     a bolder or more restrained feel — the floor (clarity/faithfulness/AV/gates) is identical at every
-     level. Set it here or leave the default; the design-director commits the register accordingly.
-     **Cinematic option (Remotion / remotion):** if the user wants a **kinetic, bespoke-designed** film —
-     each beat its OWN hand-written design language from the 50-register library (`remotion/LIBRARY.md`),
-     narrated, with cross-dissolves — rather than the html designed-slide look, and the Remotion tier is
-     installed (doctor.py reports it), offer it and set `meta.renderer:"remotion"`. The **shot-director**
-     assigns each beat a `shot` register + faithful `shot_props`; it renders via `render_remotion.py` and is
-     reviewed by the **shot-critic**. Keep a designed/html/chart deck on the default local renderer
-     (`meta.renderer:"local"`) — the two tiers are two distinct LOOKS, not interchangeable.
+     Set `meta.language` to the resolved code (never leave it `"auto"` at render). On a **no-deck** run
+     'Match the slides' has nothing to detect — default the highlighted option to the **topic
+     sentence's own language** instead. The narration **voice engine** is the separate question **⑤**
+     below.
+   - **③ Look / tier** *(→ `meta.image_source` + `meta.renderer`)* — the deck's visual world, as a clean
+     TIER menu (this menu decides ONLY the tier; everything else below rides alongside it). Options:
+     **Designed HTML — FREE, no AI images** (bespoke full-screen pages rendered by headless Chrome;
+     `image_source:none` + `renderer:local`, the default) · **HTML + AI backdrops — PAID** (the SAME
+     designed pages WITH a generated hero cover + soft on-topic textures behind the glass cards at low
+     opacity; `image_source:openai` + `renderer:local` — Batch 3 then confirms the spend + style) ·
+     **Cinematic (Remotion) — FREE** (a kinetic, bespoke-DESIGNED film — each beat its OWN hand-written
+     design language from the register library `remotion/LIBRARY.md`, narrated, with luminance-safe seams
+     + a carry match-cut + a subtle camera drift; `renderer:remotion` — the shot-director assigns each
+     beat a `shot`+`shot_props`, it renders via `render_remotion.py`, reviewed by the shot-critic).
+     **Show the Cinematic button ONLY when `doctor.py` reports the remotion tier installed**; otherwise
+     the two HTML options are the whole menu. Make the FREE-vs-PAID split visible in every label; never
+     enable the generator without the user picking the AI tier here. (Other → a brand/theme/CSS to
+     match.) The three tiers are three distinct LOOKS, not interchangeable.
+     **These ride ALONGSIDE the tier — NOT menu items (don't cram them into the option prompt):**
+     • **Image doctrine (paid tier):** the generator only ever makes **backgrounds/atmosphere behind
+       HTML pages** — never a bare slideshow of generated stills; DATA always stays in real HTML/charts
+       (the "AI = background, code = data" split).
+     • **No Chrome?** the HTML tiers are unavailable; the deck falls back automatically to the flat
+       **programmatic** renderers (`title`/`chart`/`timeline`/`compare`/`keypoints`, `scripts/scenes.py`)
+       — a no-Chrome SAFETY NET, NOT a promoted look, so never offer it as a menu option.
+     • **Real (documentary) images — FREE, no API:** independently of the tier, for a **CONCRETE** topic
+       (a city, place, real system/product/organism/event) the design-director may pull REAL license-clean
+       photos/maps/diagrams from Wikimedia Commons (`scripts/imagefetch.py`) to DEMONSTRATE the subject
+       directly (a real rail map, a real cityscape) — treated to match the deck. Decided PER-BEAT, not
+       asked here; mention it when the topic is concrete (an abstract topic stays typographic/atmosphere).
+     • **Per-beat template FORMS** (hero-stat, before/after, timeline rail, system map, metric wall,
+       results table, figure focus, funnel, dashboard, case story, flywheel — `references/html-templates.md`)
+       are chosen by the design-director per beat, NOT asked here.
+     • **Audacity** (`meta.audacity` `conservative`/`balanced` default/`bold`/`experimental`) — the RISK
+       BUDGET for the video's whole-video expressive register (how far look + MOTION + type push).
+       `balanced` (solid base + one register that genuinely carries the video) is right for most runs;
+       raise or lower it ONLY if the user asks for a bolder/more restrained feel — the floor
+       (clarity/faithfulness/AV/gates) is identical at every level. Set it from a stated preference or
+       leave the default; NOT a menu item here.
    - **④ Length** *(→ `meta.target_seconds` AND `meta.aspect` — one decision)* — the finished
      runtime, which also fixes orientation/platform. Menu: **Vertical short ~30–45s** (9:16 —
      Shorts/Reels/TikTok) · **Quick explainer ~60–90s** (16:9) · **Standard ~2–3 min** (16:9) ·
@@ -382,7 +396,7 @@ figure), a non-singular `the_one_thing`, or a
      into beat count (**beats ≈ target_seconds/4**, with per-beat `est_seconds` summed to the target)
      and the design-director reads to scale hero/climax cadence — so it SUBSUMES the old per-slide
      pace ask (a per-slide ceiling, if ever wanted, is just `target_seconds / beats`).
-   - **⑤ Voice engine** *(→ `meta.voice`; its own screen B, since screen A already holds 4 buttons)* —
+   - **⑤ Voice engine** *(→ `meta.voice`; on screen B, since screen A already holds ①–④)* —
      the narration engine. Menu: **edge-tts** (free **default**, natural, needs network, accent-matched;
      the ONLY engine that emits per-word timings for word-exact caption/reveal sync) · **MiniMax**
      (paid, most natural, esp. **Chinese**; needs a key) · **OpenAI** (paid, premium neural; needs a
@@ -390,19 +404,25 @@ figure), a non-singular `the_one_thing`, or a
      State the tradeoff aloud: only edge-tts gives per-word timings, so say/MiniMax/OpenAI HTML reveals
      use the text-position estimate (tracks the voice's pacing, not word-exact). A cloud engine
      (MiniMax/OpenAI) then triggers **Batch 2** (key setup out-of-band + a voice-sample pick).
-   - **+ Grounding material** *(a plain prompt, NOT a selectable question — it doesn't fit 2–4
-     options)*: ask for **source material to ground the narration** — the paper PDF, the code repo,
-     a report or notes. Slides alone rarely say enough to narrate *well* (this is what step 3
-     depends on). If they have none, tell them you'll **web-research the topic** (the latest, as of
-     today) to ground and fact-check the script instead.
-   - **+ Brand assets** *(a plain prompt, asked ONLY when the topic is company/institution/
-     product-related or the user mentions a logo)*: "有品牌资产吗？(logo 文件、品牌色、亮/暗底变体、
-     用法规范)" — copy the logo file(s) to **`<out_dir>/assets/brand/`** (so the `meta.brand` paths
-     stay out_dir-relative), record them as `meta.brand` (the block is in Guardrails; the doctrine
-     split is the "Brand assets" section), and feed a stated brand colour to `theme.py --accent`
-     (an explicit accent is never nudged) — with NO stated colour, `theme.py` auto-samples the
-     accent from `meta.brand.logo` (see its `--brand-logo` entry), so just recording the block is
-     enough. No assets ⇒ no `brand` block — never fabricate one.
+   - **⑥ Grounding material** *(→ how step 3 gets its facts; a MENU on screen B next to Voice)* — how to
+     ground + fact-check the narration (slides/topic alone rarely say enough to narrate *well* — step 3
+     depends on this). Menu: **I'll share source material** (a paper/PDF, a code repo, a report, notes) ·
+     **Web-research it for me** (no material — I confirm the facts/numbers/names from the latest sources,
+     as of today, and fact-check the script) · **Both** (I have some — research the rest) · *(deck runs
+     only)* **The deck is enough** (rare; say the script will be thinner). Other → describe what
+     grounding exists. On **"I'll share"/"Both"**, the ONLY surviving free-text is the file/repo
+     **PATH(s)** — a one-line follow-up asked AFTER that option is picked (the path is an irreducible
+     value, not a decision).
+   - **⑦ Brand assets** *(a MENU on screen B; asked ONLY when the topic is company/institution/
+     product-related or the user mentions a logo)* — "有品牌资产吗？/ Any brand to match?" Menu: **Yes —
+     logo + brand colour** · **Accent colour only** (no logo) · **No brand** (default; never fabricate a
+     `brand` block). Other → usage rules / light-dark variants. On **"Yes"/"Accent"**, the ONLY surviving
+     free-text follow-up is the logo file **PATH(s)** and/or the brand **hex**: copy the logo file(s) to
+     **`<out_dir>/assets/brand/`** (so the `meta.brand` paths stay out_dir-relative), record them as
+     `meta.brand` (block in Guardrails; doctrine split in the "Brand assets" section), and feed a stated
+     brand colour to `theme.py --accent` (an explicit accent is never nudged) — with NO stated colour,
+     `theme.py` auto-samples the accent from `meta.brand.logo` (see its `--brand-logo` entry), so just
+     recording the block is enough. No assets ⇒ no `brand` block — never fabricate one.
 
    **Batch 2 — cloud-voice setup (ONLY if Batch 1 ⑤ Voice engine = MiniMax or OpenAI).** First get the API key
    **OUT OF BAND** — have them `export MINIMAX_API_KEY=…` / `export OPENAI_API_KEY=…` in their own
@@ -411,18 +431,23 @@ figure), a non-singular `the_one_thing`, or a
    in the transcript and tell them to **rotate it** afterward. Never write a key into
    `storyboard.json`, a script, a log, or any committed file — `tts.py` reads it from env / the key
    file only. Then, **by provider:**
-   - **MiniMax** → ask **gender** (Female / Male / Either — it selects which samples to synthesize).
-     Once the key is set, run `python scripts/voice_sample.py <out_dir> --gender <female|male>` — it
-     synthesizes a short sample per curated human-sounding candidate (natural/conversational, never
-     theatrical) into `<out_dir>/voice_samples/`. Have the user **listen and pick**, then set
-     `meta.voice = "minimax:<the pick>"` (and `meta.voice_gender`). Bare `minimax` uses the catalog
-     default for the gender. **Do NOT show OpenAI voice names to a MiniMax user.**
+   - **MiniMax** → ask **gender** as an `AskUserQuestion` menu (**Female · Male · Either** — it selects
+     which samples to synthesize). Once the key is set, run `python scripts/voice_sample.py <out_dir>
+     --gender <female|male>` — it synthesizes a short sample per curated human-sounding candidate
+     (natural/conversational, never theatrical) into `<out_dir>/voice_samples/`. The user LISTENS
+     out-of-band, then PICKS via an `AskUserQuestion` menu whose buttons are the candidate NAMES (≤4 as
+     buttons, the full list in the question text, "Other" accepts any name); set `meta.voice =
+     "minimax:<the pick>"` (and `meta.voice_gender`). Bare `minimax` uses the catalog default for the
+     gender. **Do NOT show OpenAI voice names to a MiniMax user.**
    - **OpenAI** → pick a **preset voice** directly (gender is implicit in the pick — don't ask it):
      buttons **Nova** · **Onyx** · **Shimmer** · **Alloy**; Echo · Fable via Other → set
      `meta.voice = "openai:<name>"`.
 
    **Batch 3 — AI imagery (ONLY if Batch 1 ③ = "HTML + AI backdrops", i.e. `image_source:openai`).**
-   Confirm the spend first, then ask:
+   The spend is confirmed by the **Image cost** menu itself — one of its options is **"Use free HTML
+   instead"** (flip ③ back to `image_source:none`, no spend), so PICKING a paid tier IS the go-ahead.
+   Never confirm the spend with a free-text "proceed?" prompt. Ask (one `AskUserQuestion` call, two
+   questions):
    - **Visual style** *(→ `meta.visual_style`; sets the whole deck's aesthetic register — see
      `references/visual-styles.md`)*. First DERIVE the most suitable style for THIS topic (the selection
      contest: domain · data-dense vs narrative · audience · purpose, minus the guardrail vetoes), then offer
@@ -433,9 +458,12 @@ figure), a non-singular `the_one_thing`, or a
      free-text brief (`"custom"`) or any listed style by name. If the user picks a style that COLLIDES with a
      somber/sensitive topic, don't silently render it — surface the restrained alternative via a follow-up
      question. Persists as `meta.visual_style` and overrides the director's auto-pick.
-   - **Image cost** (`meta.image_quality`): **Low** ~$0.01/img · **Medium** ~$0.04 (default) ·
-     **High** ~$0.17 (worth it for a hero cover). Set **`meta.image_size` FROM the aspect** — 9:16 →
-     `1024x1536`, else `1536x1024` — so a vertical deck gets portrait imagery, not landscape.
+   - **Image cost + spend gate** (`meta.image_quality`) — the menu that CONFIRMS the spend. Options:
+     **Low** ~$0.01/img · **Medium** ~$0.04 (default) · **High** ~$0.17 (worth it for a hero cover) ·
+     **Use free HTML instead** (declines the spend → set `image_source:none`, drop Batch 3). Picking a
+     paid tier is the go-ahead; there is no separate "proceed?" ask. Set **`meta.image_size` FROM the
+     aspect** — 9:16 → `1024x1536`, else `1536x1024` — so a vertical deck gets portrait imagery, not
+     landscape.
    **Imagery doctrine:** generated imagery is **generic b-roll** — no logos, faces, named things, or
    in-image text; it NEVER carries a fact (real content stays text/charts). **BUT generic ≠
    topic-neutral: every cover/background MUST visually evoke the VIDEO'S OWN SUBJECT** — a database-
