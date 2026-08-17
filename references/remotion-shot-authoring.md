@@ -29,9 +29,14 @@ from `src/runtime/layout.ts` — do NOT hand-guess pixel positions.
 5. **Edge-anchored labels must survive a resize.** Two labels anchored to a panel's left+right edges COLLIDE in
    the middle when the panel shrinks (a real bug after an image was made smaller). Anchor to a stable reference
    (frame-relative x, or one centered line with a separator), not the panel width.
-6. **Camera is LOCKED by default.** Every shot animates itself via `useT`. A whole-film camera DRIFT on top of
-   that reads as a per-frame **shake** — it is OFF by default (opt-in via `meta.camera_drift`). Do not add a
-   per-shot floating/breathing transform to the whole shot for "life"; animate the CONTENT, keep the frame still.
+6. **Camera is LOCKED by default; drive animation through `useT`.** Every shot animates itself via `useT` (the
+   shared 0→1 driver). A whole-film camera DRIFT on top of that reads as a per-frame **shake** — it is OFF by
+   default (opt-in via `meta.camera_drift`). Do not add a per-shot floating/breathing transform to the whole shot
+   for "life"; animate the CONTENT, keep the frame still. **Use `useT` (not `useCurrentFrame` directly) so your
+   shot respects `meta.reduced_motion`** — under reduced motion `useT` FREEZES at a settled value (0.86), so the
+   shot renders a static, fully-revealed frame (the accessibility cut); a shot that reads the frame directly keeps
+   animating and won't honor it. **Brand:** a `meta.brand.logo` renders as a persistent corner bug (Film-level),
+   so shots must not also draw a logo.
 7. **Determinism.** Pure function of `useT()`/frame. No `Date.now()`/`Math.random()`/argless `new Date()` — use
    `hash01(i)` for stable pseudo-randomness. Signed data must render signed; CJK copy must fit; aspect must adapt.
 9. **Author in FRACTIONS so the shot reflows to ANY aspect.** The Film Composition is aspect-driven: `meta.aspect`

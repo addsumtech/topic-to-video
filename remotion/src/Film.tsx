@@ -7,7 +7,7 @@
 // render_remotion.py drives this via --props; the WorkBuddy film is just the default. Deterministic.
 
 import React from 'react';
-import {AbsoluteFill, Audio, staticFile, useCurrentFrame, useVideoConfig, interpolate, Easing} from 'remotion';
+import {AbsoluteFill, Audio, Img, staticFile, useCurrentFrame, useVideoConfig, interpolate, Easing} from 'remotion';
 import {TransitionSeries, linearTiming} from '@remotion/transitions';
 import type {TransitionPresentation} from '@remotion/transitions';
 import {fade} from '@remotion/transitions/fade';
@@ -15,7 +15,7 @@ import {slide} from '@remotion/transitions/slide';
 import {wipe} from '@remotion/transitions/wipe';
 import {clockWipe} from '@remotion/transitions/clock-wipe';
 import {dissolve} from '@remotion/transitions/dissolve';
-import {SceneDurationContext, clamp01} from './runtime/motion';
+import {SceneDurationContext, ReducedMotionContext, clamp01} from './runtime/motion';
 import {groundLum, type Lum} from './runtime/shotLuma';
 import {Atmosphere, type Atmo} from './runtime/atmosphere';
 import {REGISTRY} from './registry';
@@ -189,8 +189,30 @@ const Missing: React.FC<{id: string}> = ({id}) => (
     color: '#ff8a8a', font: '700 44px/1.4 monospace', textAlign: 'center'}}>unknown shot:<br />{id}</AbsoluteFill>
 );
 
-export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotion?: boolean; theme?: Atmo; captions?: boolean}> =
-  ({scenes = WORKBUDDY_SCENES, camera = 0, reducedMotion = false, theme, captions = true}) => {
+// #brand — the user's REAL logo as a persistent corner BUG, drawn OUTSIDE the camera/shot layer on every scene, so
+// a branded remotion film actually carries the mark (the html tier's render-level bug, ported — remotion has no
+// separate cover/endcard PAGES, so a corner mark is how the logo appears at all). Top corners only (bottom = the
+// caption band). Prefers the dark-ground variant since the bespoke shots are mostly dark. placement:[] opts out.
+const BrandMark: React.FC<{brand?: any}> = ({brand}) => {
+  const {width, height} = useVideoConfig();
+  if (!brand || !brand.logo) return null;
+  const placement: string[] = Array.isArray(brand.placement) ? brand.placement : ['cover', 'endcard'];
+  if (!placement.length) return null;
+  const bug = brand.bug || {};
+  const src = brand.logo_dark || brand.logo;
+  const h = Math.max(24, (bug.height_frac ?? 0.045) * Math.min(width, height));
+  const m = (bug.margin_frac ?? 0.02) * width;
+  const side = bug.corner === 'tl' ? {left: m} : {right: m};
+  return (
+    <AbsoluteFill style={{pointerEvents: 'none'}}>
+      <Img src={staticFile(src)} style={{position: 'absolute', top: m, height: h, maxWidth: width * 0.35,
+        objectFit: 'contain', opacity: bug.opacity ?? 0.55, ...side}} />
+    </AbsoluteFill>
+  );
+};
+
+export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any}> =
+  ({scenes = WORKBUDDY_SCENES, camera = 0, reducedMotion = false, theme, captions = true, brand}) => {
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
   const total = filmDuration(scenes);
@@ -202,6 +224,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
   return (
     <AbsoluteFill style={{backgroundColor: bg}}>
       <Atmosphere {...(theme ?? {})} intensity={reducedMotion ? 0.55 : (theme?.intensity ?? 1)} />
+      <ReducedMotionContext.Provider value={reducedMotion}>
       <AbsoluteFill style={cam === 'none' ? undefined : {transform: cam}}>
       <TransitionSeries>
         {scenes.flatMap((sc, i) => {
@@ -224,8 +247,10 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
         })}
       </TransitionSeries>
       </AbsoluteFill>
+      </ReducedMotionContext.Provider>
       <AbsoluteFill style={{backgroundColor: bg, opacity: Math.max(intro, outro), pointerEvents: 'none'}} />
       {captions ? <CaptionTrack scenes={scenes} /> : null}
+      <BrandMark brand={brand} />
     </AbsoluteFill>
   );
 };

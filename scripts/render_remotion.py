@@ -149,6 +149,8 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
     aspect = "9:16" if vertical else str(meta.get("aspect") or "16:9")
     props = {"scenes": scenes, "camera": _camera_amp(meta), "reducedMotion": reduced, "aspect": aspect,
              "captions": bool(meta.get("captions", True))}
+    if isinstance(meta.get("brand"), dict) and meta["brand"].get("logo"):
+        props["brand"] = meta["brand"]     # served from out_dir via --public-dir; drawn as a persistent corner bug
     theme = meta.get("theme")                 # the per-topic atmosphere WORLD (motif + palette) behind every shot
     if isinstance(theme, dict):
         props["theme"] = theme

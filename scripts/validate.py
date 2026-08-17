@@ -1197,16 +1197,14 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
     # because evaluate() returns right after this function for a remotion deck).
     brand = meta.get("brand")
     if isinstance(brand, dict) and brand.get("logo"):
-        warnings.append("remotion: meta.brand is set but the remotion tier draws NO logo (no cover/endcard lockup, "
-                        "no corner bug) — the brand mark appears nowhere. Add a lockup/bug in Film.tsx, or drop "
-                        "meta.brand for a remotion film.")
-    if meta.get("captions") is False:
-        warnings.append("remotion: meta.captions:false is IGNORED — the remotion tier always burns the narration "
-                        "caption; there is no captions-off path yet.")
+        # the logo now renders as a persistent corner BUG (Film.tsx BrandMark); note the tier limitation.
+        warnings.append("remotion: meta.brand renders as a persistent corner BUG only — the remotion tier has no "
+                        "authored cover/endcard LOCKUP page (that's an html-tier concept). Confirm the corner mark "
+                        "reads on your grounds (it prefers logo_dark).")
     if meta.get("reduced_motion"):
-        warnings.append("remotion: meta.reduced_motion only stills the camera + atmosphere — the SHOTS still "
-                        "animate at full amplitude (no reducedMotion prop reaches them), so the accessibility "
-                        "variant is incomplete on this tier. Prefer the html/local tier for a true reduced-motion cut.")
+        warnings.append("remotion: meta.reduced_motion freezes the camera, atmosphere, AND the 122 useT-driven shots "
+                        "at a settled frame — but the ~10 shots that read useCurrentFrame directly still animate, so "
+                        "the variant is MOSTLY (not fully) reduced. Spot-check the film if strict reduced-motion is required.")
     if meta.get("sound_design"):
         bgm = meta.get("bgm")
         if out_dir and bgm and bgm != "auto" and not _exists(out_dir, bgm):

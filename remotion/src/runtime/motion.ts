@@ -13,11 +13,20 @@ export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 // (no provider) it falls back to the composition duration, so each shot still works as its own Composition.
 export const SceneDurationContext = React.createContext<number | null>(null);
 
-// Normalized time 0→1 across the shot (or the embedded scene).
+// REDUCED MOTION (accessibility). When on, useT() FREEZES at a settled value so the shot renders a static,
+// fully-revealed frame instead of animating — the flagship-tier equivalent of the html/image tier's static
+// variant. 0.86 lands in the "reveal complete, exit not begun" zone for the library's shots (mirrors the contest
+// still frame). Covers the 122 shots driven by useT; the ~10 that read useCurrentFrame directly are unaffected.
+export const ReducedMotionContext = React.createContext<boolean>(false);
+export const REDUCED_MOTION_T = 0.86;
+
+// Normalized time 0→1 across the shot (or the embedded scene). Frozen at REDUCED_MOTION_T under reduced motion.
 export function useT(): number {
   const frame = useCurrentFrame();
   const {durationInFrames} = useVideoConfig();
   const sceneDur = React.useContext(SceneDurationContext);
+  const reduced = React.useContext(ReducedMotionContext);
+  if (reduced) return REDUCED_MOTION_T;
   const dur = sceneDur ?? durationInFrames;
   return clamp01(frame / Math.max(1, dur - 1));
 }
