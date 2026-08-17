@@ -93,8 +93,10 @@ sits on a shot's own on-frame text (only a small credit line may live in the bot
 or markers** — two edge-anchored labels meeting in the middle, or an offset arrow landing ON a long phrase; (e)
 **text overflowing to the frame/box edge** on a long label a register sized for short demo words; (f) **a marker
 too small to read** (a hairline arrow between big elements). (d)–(f) are the demo-length failures of §A.8 — a shot
-that looked clean with its demo props but was given real, longer copy. Meaning + content-fit + frame-craft are
-gates, not nice-to-haves.
+that looked clean with its demo props but was given real, longer copy. (g) **ASPECT reflow (§A.9)** — on a
+non-16:9 film (`meta.aspect` / `--vertical`), still-render at the film's aspect and confirm each shot REFLOWED: a
+multi-column grid must STACK in portrait (not squeeze side-by-side), no wide element runs off-frame, content fills
+the taller frame. Meaning + content-fit + frame-craft (incl. aspect) are gates, not nice-to-haves.
 
 ## Output
 For each flagged scene: `scene #N · Sx · <what's wrong on screen> · FIX: <the concrete change — a different

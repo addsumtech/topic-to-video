@@ -158,6 +158,12 @@ TTS if the user gives an API key.
   under the VO, plus `meta.bgm` (a path or `"auto"` synth pad) — **audition it before delivery (the pipeline
   can't hear it)**. Needs the Node toolchain (one-time `cd remotion && npm install`); the html/local tier
   (`render.py`) is untouched by this path.
+  **Aspect:** the Film Composition is aspect-driven — `meta.aspect` (`16:9` default · `9:16` · `1:1` · `4:5` ·
+  `4:3`) or `--vertical` renders portrait `1080×1920` etc. (Root.tsx `calculateMetadata`). Shots author in W/H
+  FRACTIONS so they reflow; **on a non-16:9 film the shot-director must still-render each chosen shot at that
+  aspect and fix/swap any that don't reflow** (multi-column must STACK in portrait; wide elements must not run
+  off-frame) — see `references/remotion-shot-authoring.md` §A.9. Most centered/stacked/chart shots reflow as-is;
+  the library's fixed multi-column + wide-horizontal registers need this per-shot pass.
   **`meta.renderer:"remotion"` is an ALIAS for `remotion`** (both render the bespoke-shot library). The old
   generic-scene tier was REMOVED in the phase-3 cutover — `"remotion-legacy"` now errors with a migration hint.
 - `scripts/render_remotion.py <out_dir>` — the render CLI for the **remotion bespoke-shot tier** (see the bullet above). The legacy generic-scene Remotion tier (atmospheres / cinematic templates / TRUE-3D archetypes / `type:"cinematic"` scenes) was REMOVED in the phase-3 cutover — its scripts, reference docs, and tests were deleted; `meta.renderer:"remotion-legacy"` errors with a re-author hint.

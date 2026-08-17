@@ -51,9 +51,12 @@ export const PlatformSurfaces: React.FC<{
   const {width: W, height: H} = useVideoConfig();
   const t = useT();
   const TONES = [accent, accent2, '#e0b64b', '#c07bff', '#37d4a6'];
-  // hero panel on the left, a 2x2 (or 2xN) tile grid on the right
-  const hx = W * 0.06, hy = H * 0.26, hw = W * 0.36, hh = H * 0.5;
-  const gx = W * 0.47, gy = H * 0.2, gw = W * 0.47, gh = H * 0.62;
+  const portrait = W < H;
+  // LANDSCAPE: hero panel on the LEFT, a 2x2 tile grid on the RIGHT. PORTRAIT: hero STACKS on top, tiles fill below.
+  const hx = portrait ? W * 0.06 : W * 0.06, hy = portrait ? H * 0.11 : H * 0.26;
+  const hw = portrait ? W * 0.88 : W * 0.36, hh = portrait ? H * 0.2 : H * 0.5;
+  const gx = portrait ? W * 0.06 : W * 0.47, gy = portrait ? hy + hh + H * 0.03 : H * 0.2;
+  const gw = portrait ? W * 0.88 : W * 0.47, gh = portrait ? H * 0.58 : H * 0.62;
   const cols = 2, rows = Math.ceil(tiles.length / cols), tgap = 22;
   const tw = (gw - tgap) / cols, th = (gh - tgap * (rows - 1)) / rows;
   const heroE = easeOutBack(clamp01(seg(t, 0.04, 0.3)));

@@ -34,6 +34,18 @@ from `src/runtime/layout.ts` — do NOT hand-guess pixel positions.
    per-shot floating/breathing transform to the whole shot for "life"; animate the CONTENT, keep the frame still.
 7. **Determinism.** Pure function of `useT()`/frame. No `Date.now()`/`Math.random()`/argless `new Date()` — use
    `hash01(i)` for stable pseudo-randomness. Signed data must render signed; CJK copy must fit; aspect must adapt.
+9. **Author in FRACTIONS so the shot reflows to ANY aspect.** The Film Composition is aspect-driven: `meta.aspect`
+   (or `--vertical`) renders 16:9 `1920×1080` / 9:16 `1080×1920` / 1:1 / 4:5 / 4:3 (Root.tsx `calculateMetadata` +
+   render_remotion pass an `aspect` prop; preview a shot at portrait with `--props '{"aspect":"9:16"}'`). A shot
+   reads W/H from `useVideoConfig` and must lay out in **fractions of W/H** — never hardcoded 1920/1080 — so it
+   fills the frame at every aspect. Two things break in PORTRAIT and must be handled with `const portrait = W < H`:
+   (a) a **multi-column** layout (hero-left + tiles-right) must **STACK** (hero on top, tiles below) — a side-by-side
+   grid is unreadable at 1080 wide; (b) a **wide-horizontal** element (a beam, a versus-split, end-anchored boxes)
+   overflows or clusters tiny — cap box widths to stay on-frame, or re-lay it vertically. The caption band is
+   aspect-aware — reserve `captionBand(W,H)` / `contentBottom(W,H)` from `layout.ts` (a narrow frame needs a taller
+   band), not the fixed `CAPTION_BAND`; `fitContentSquare` already widens a hero image in portrait. **On a non-16:9
+   film, still-render EVERY chosen shot at that aspect and fix/swap any that don't reflow** — most centered / stacked
+   / chart shots are fine; the library's fixed multi-column + wide-horizontal registers need this pass.
 8. **Size for the REAL content, not the demo.** Registers are tuned to their DEMO copy — short words
    (`PLAN`/`BUILD`/`SHIP`), a fixed element count, a small marker. Real topic copy is longer and breaks that
    tuning in three ways you must check on the RENDERED frame at real length: **text overflows to the frame edge**

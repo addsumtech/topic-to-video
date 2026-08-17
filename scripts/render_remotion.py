@@ -109,7 +109,7 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps):
         print("[render_remotion] wrote out.srt + %d keyframes (_keyframes/) for the shot-critic + A/V gate." % len(scenes))
 
 
-def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=False):
+def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=False, vertical=False):
     """Render via the bespoke-shot LIBRARY. Fails loud on a missing/unknown shot or missing audio."""
     if not shutil.which("npx"):
         raise RuntimeError("Node/npx not found — the Remotion tier needs Node.js.")
@@ -144,7 +144,10 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
         scenes.append(scene)
     meta = data.get("meta") or {}
     reduced = bool(reduced_motion or meta.get("reduced_motion"))
-    props = {"scenes": scenes, "camera": _camera_amp(meta), "reducedMotion": reduced}
+    # ASPECT: --vertical or meta.aspect:"9:16" renders the Film Composition at 1080x1920 (Root.tsx calculateMetadata
+    # reads this `aspect` prop). Any of 16:9 / 9:16 / 1:1 / 4:5 / 4:3; unknown falls back to 16:9.
+    aspect = "9:16" if vertical else str(meta.get("aspect") or "16:9")
+    props = {"scenes": scenes, "camera": _camera_amp(meta), "reducedMotion": reduced, "aspect": aspect}
     theme = meta.get("theme")                 # the per-topic atmosphere WORLD (motif + palette) behind every shot
     if isinstance(theme, dict):
         props["theme"] = theme
@@ -192,12 +195,12 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
 def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="error", no_plan=False):
     """Render the whole deck to out.mp4 (+ out.srt / _keyframes / optional SFX), or one scene (sample=N) to
     sample.mp4 for the sign-off checkpoint. Routes through the remotion bespoke-shot library. `reduced_motion`
-    stills the #camera drift (accessibility); `vertical`/`no_plan` are accepted for CLI parity (the shot
-    library authors its own 1080p framing)."""
+    stills the #camera drift (accessibility); `vertical` (or meta.aspect) renders portrait 1080x1920 via the
+    aspect-aware Composition; `no_plan` is accepted for CLI parity."""
     data = sb.load(os.path.join(out_dir, "storyboard.json"))
     _renderer = (data.get("meta") or {}).get("renderer")
     if _renderer == "remotion":
-        return _render_remotion(out_dir, data, sample=sample, log=log, reduced_motion=reduced_motion)
+        return _render_remotion(out_dir, data, sample=sample, log=log, reduced_motion=reduced_motion, vertical=vertical)
     if _renderer == "remotion-legacy":
         raise RuntimeError(
             "the legacy generic-scene Remotion tier has been REMOVED in the phase-3 cutover — set "

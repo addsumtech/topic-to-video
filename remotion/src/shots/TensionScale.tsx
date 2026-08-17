@@ -21,7 +21,9 @@ export const TensionScale: React.FC<{
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
   const t = useT();
-  const cx = W * 0.5, fy = H * 0.52, L = W * 0.30;
+  const portrait = W < H;
+  const cx = W * 0.5, fy = portrait ? H * 0.46 : H * 0.52, L = portrait ? W * 0.30 : W * 0.30;
+  const capBw = portrait ? Math.min(W * 0.4, 432) : 540;   // keep the end-pans on-frame in a narrow portrait frame
   // a gentle, damped-but-continuing teeter — small amplitude so it reads as HELD tension, never tipping over
   const settle = clamp01(t * 3);                                  // beam appears, then teeters
   const th = 0.095 * settle * Math.sin(t * Math.PI * 2 * 1.15) * (0.62 + 0.38 * Math.sin(t * Math.PI * 2 * 0.5));
@@ -31,7 +33,7 @@ export const TensionScale: React.FC<{
 
   const pan = (x: number, y: number, label: string, sub: string, col: string, key: string) => {
     // box + font ADAPT to the real label length so long labels don't overflow (size-for-real-content)
-    const bw = Math.max(300, Math.min(540, Math.max(label.length * 13, sub.length * 8.5) + 44));
+    const bw = Math.max(portrait ? 260 : 300, Math.min(capBw, Math.max(label.length * 13, sub.length * 8.5) + 44));
     const lfs = Math.min(22, (bw - 30) / Math.max(1, label.length * 0.62));
     return (
     <g key={key} opacity={appear}>

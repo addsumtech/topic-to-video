@@ -19,9 +19,13 @@ import type React from 'react';
 
 export const TITLE_Y = 92;              // title top (px) — the shared header position for a shot's title <div>
 export const TITLE_BAND = 176;          // content must start BELOW this (title + a comfortable gap ~40px)
-export const CAPTION_BAND = 150;        // bottom px reserved for the Film's burned narration caption
+export const CAPTION_BAND = 150;        // bottom px reserved for the burned caption at 16:9 (landscape default)
 export const CONTENT_TOP = TITLE_BAND;  // top of the usable content zone
-export const contentBottom = (H: number) => H - CAPTION_BAND;   // bottom of the usable content zone
+// ASPECT-AWARE caption band: a NARROW frame (portrait/square/4:5) wraps the caption to more lines, so it needs a
+// TALLER reserved band. Shots + the Film should reserve `captionBand(W,H)`, not the fixed CAPTION_BAND, so content
+// clears the caption at every aspect. `contentBottom(W,H)` is the bottom of the usable content zone.
+export const captionBand = (W: number, H: number) => (W < 1400 ? 200 : CAPTION_BAND);
+export const contentBottom = (W: number, H: number) => H - captionBand(W, H);
 
 // The shared title style — use for a shot's top title so every shot's header reads identically (position,
 // size, weight, tracking). Spread it onto the title <div>; override `color`/`opacity` as needed.
@@ -39,9 +43,12 @@ export function fitContentSquare(
   {hFrac = 0.86, wFrac = 0.5, bottomReserve = 0}: {hFrac?: number; wFrac?: number; bottomReserve?: number} = {},
 ): {S: number; left: number; top: number} {
   const top0 = CONTENT_TOP;
-  const bottom0 = H - CAPTION_BAND - bottomReserve;
+  const bottom0 = H - captionBand(W, H) - bottomReserve;
   const zoneH = Math.max(1, bottom0 - top0);
-  const S = Math.min(zoneH * hFrac, W * wFrac);
+  // On a PORTRAIT frame the caller's landscape wFrac (often ~0.44) would leave a tiny square in a wide-open
+  // column — boost it so a hero image fills the portrait width, while landscape keeps the caller's value.
+  const wf = W < H ? Math.max(wFrac, 0.9) : wFrac;
+  const S = Math.min(zoneH * hFrac, W * wf);
   const top = top0 + (zoneH - S) / 2;          // centered in the content zone → a balanced gap above + below
   const left = (W - S) / 2;
   return {S, left, top};

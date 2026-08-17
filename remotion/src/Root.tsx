@@ -125,16 +125,30 @@ import {MoleculeBallStick, DURATION as MOL} from './shots/MoleculeBallStick';
 import {TerrainFly, DURATION as TRN} from './shots/TerrainFly';
 import {Film, WORKBUDDY_SCENES, filmDuration} from './Film';
 
+// ASPECT support: the Composition dims are chosen from an `aspect` prop via calculateMetadata (default 16:9), so
+// the SAME shots render at 9:16 / 1:1 / 4:5 without a separate composition. Shots read W/H from useVideoConfig and
+// must lay out in FRACTIONS (see references/remotion-shot-authoring.md §A) so they reflow to the frame.
+const ASPECTS: Record<string, [number, number]> = {
+  '16:9': [1920, 1080], '9:16': [1080, 1920], '1:1': [1080, 1080], '4:5': [1080, 1350], '4:3': [1440, 1080],
+};
+const dims = (aspect?: string) => {
+  const [width, height] = ASPECTS[String(aspect || '16:9')] || ASPECTS['16:9'];
+  return {width, height};
+};
+
 // Redo tier: each bespoke shot registers as its OWN Composition (video-shotcraft pattern), renderable
-// standalone for verification. A film later sequences chosen shots through the pipeline wrapper.
+// standalone for verification (pass --props '{"aspect":"9:16"}' to preview portrait). A film later sequences
+// chosen shots through the pipeline wrapper.
 const F = (id: string, C: React.FC<any>, d: number) => (
-  <Composition id={id} component={C} durationInFrames={d} fps={30} width={1920} height={1080} defaultProps={{}} />
+  <Composition id={id} component={C} durationInFrames={d} fps={30} width={1920} height={1080} defaultProps={{}}
+    calculateMetadata={({props}) => ({...dims((props as any).aspect)})} />
 );
 export const RemotionRoot: React.FC = () => (
   <>
     <Composition id="Film" component={Film} fps={30} width={1920} height={1080}
       defaultProps={{scenes: WORKBUDDY_SCENES}}
-      calculateMetadata={({props}) => ({durationInFrames: filmDuration((props as any).scenes ?? WORKBUDDY_SCENES)})} />
+      calculateMetadata={({props}) => ({durationInFrames: filmDuration((props as any).scenes ?? WORKBUDDY_SCENES),
+        ...dims((props as any).aspect)})} />
     {F('CollaborativeCursors', CollaborativeCursors, CC)}
     {F('CommandSummon', CommandSummon, CS)}
     {F('TemporalAccelerate', TemporalAccelerate, TA)}
