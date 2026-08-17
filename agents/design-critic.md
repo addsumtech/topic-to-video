@@ -160,6 +160,15 @@ OR a non-card form that fits in the wrong direction (D1 bidirectional), player-c
   and can NEVER override a floor finding. A register move that hurts the 3-second read or breaks a gate is
   redone in-register but in-bounds; the fix is "make it legible," never "make it safe/forgettable."
   (`validate.py` flags a missing/stub `design_register` as a mechanical hook.)
+- **D2f — Per-beat MEANING (the remotion S10 test, applied to EVERY beat — not just data beats).** For each beat
+  ask: *hide the caption — does the visual still carry THIS specific idea, and only this one?* A CONCEPTUAL /
+  statement / section beat can pass D1 (form fits shape), D2 (motif swap), and D2c (deck is inventive) while its
+  design is generic on-topic **decoration** that encodes nothing specific — the exact `design-must-be-meaningful`
+  failure. The visual's STRUCTURE must mirror the content (symmetry/direction/accumulation/sparsity/cause→effect),
+  and a placeholder scaffolding text-swapped from a template (the `临场设计优化` rule) is a REVISE. This is
+  per-BEAT and covers non-data beats explicitly (D1's "Fits vs Illuminates" only scoped data beats). When one beat
+  is found decorative, RE-AUDIT all beats (举一反三) — the same reflex usually produced several. Refinement (高级感)
+  is required too, but never as a substitute for meaning. A per-beat gate, not a nice-to-have.
 
 ### Register contest — judge mode (selection half of divergence+selection)
 When dispatched to judge register CANDIDATES (N one-frame PNGs + specs, BEFORE the full plan exists),

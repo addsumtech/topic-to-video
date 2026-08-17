@@ -381,6 +381,9 @@ def _figure_traceability(slides, out_dir, warnings):
         # statistic, which erodes the one gate that guards against invented numbers.
         if s.get("type") not in ("slide", "html"):
             texts.append(json.dumps(props, ensure_ascii=False))     # animated on-screen strings
+        sp = s.get("shot_props")
+        if sp:
+            texts.append(json.dumps(sp, ensure_ascii=False))        # remotion: figures shown via shot_props
         if props.get("html"):
             texts.append(_visible_text(out_dir, props["html"]))     # html-page on-screen text
         seen = set()
@@ -1119,7 +1122,7 @@ def _check_shot_template(meta, errors, warnings):
                         "direction (the contest exists so a human picks, not the model)")
 
 
-def _check_remotion(meta, slides, errors, warnings):
+def _check_remotion(meta, slides, errors, warnings, out_dir=None):
     """Guardrails for the remotion bespoke-shot tier: a valid whole-film `shot_template` direction (+ its
     contest trace); every scene needs a valid `shot` id + object `shot_props`; a NUMBER-bearing register left on
     its illustrative demo default is flagged (a real film must pass a SOURCED figure); adjacent same-FAMILY
@@ -1130,6 +1133,7 @@ def _check_remotion(meta, slides, errors, warnings):
     valid = {f[:-4] for f in os.listdir(shots_dir) if f.endswith(".tsx")} if os.path.isdir(shots_dir) else set()
     NUM = {"ChartLive": "endVal", "BeforeAfterSlider": "metric", "VelocitySnap": "metric",
            "OdometerRoll": "value", "GaugeCluster": "value", "ChartRace": "data"}
+    brief_nums = _brief_numbers(out_dir)     # figures a number-bearing shot must trace to (None = no brief)
     seq = []
     for s in slides:
         tag = "scene #%s" % s.get("index")
@@ -1147,6 +1151,15 @@ def _check_remotion(meta, slides, errors, warnings):
         if shot in NUM and (not isinstance(sp, dict) or NUM[shot] not in sp):
             warnings.append(f"{tag}: {shot} shows an ILLUSTRATIVE demo number by default — pass "
                             f"shot_props.{NUM[shot]} a SOURCED figure, or use a non-number register (no-fake-info)")
+        elif shot in NUM and brief_nums is not None:
+            # the value IS set — a bare counter (endVal:250) has no %/× unit so _figure_traceability can't see it;
+            # check its digits trace to brief.json evidence (a fabricated on-screen figure, else silent on remotion)
+            for n in re.findall(r"\d+(?:\.\d+)?", json.dumps(sp.get(NUM[shot]), ensure_ascii=False)):
+                if n not in brief_nums:
+                    warnings.append(f"{tag}: {shot} shows figure '{n}' (shot_props.{NUM[shot]}) not in brief.json "
+                                    f"evidence — every on-screen number must trace to the source; cite it, reframe, "
+                                    f"or use a non-number register (no invented figures)")
+                    break
         seq.append(shot)
     try:                                                   # family-variety: no two ADJACENT beats one look
         import shot_director as _sd
@@ -1180,6 +1193,32 @@ def _check_remotion(meta, slides, errors, warnings):
                             f"flip for a deliberate jolt (shot-director color-arc)")
     except Exception:
         pass
+    # PARITY — capabilities the HTML/local tier honors that the remotion tier silently DROPS (no gate saw these
+    # because evaluate() returns right after this function for a remotion deck).
+    brand = meta.get("brand")
+    if isinstance(brand, dict) and brand.get("logo"):
+        warnings.append("remotion: meta.brand is set but the remotion tier draws NO logo (no cover/endcard lockup, "
+                        "no corner bug) — the brand mark appears nowhere. Add a lockup/bug in Film.tsx, or drop "
+                        "meta.brand for a remotion film.")
+    if meta.get("captions") is False:
+        warnings.append("remotion: meta.captions:false is IGNORED — the remotion tier always burns the narration "
+                        "caption; there is no captions-off path yet.")
+    if meta.get("reduced_motion"):
+        warnings.append("remotion: meta.reduced_motion only stills the camera + atmosphere — the SHOTS still "
+                        "animate at full amplitude (no reducedMotion prop reaches them), so the accessibility "
+                        "variant is incomplete on this tier. Prefer the html/local tier for a true reduced-motion cut.")
+    if meta.get("sound_design"):
+        bgm = meta.get("bgm")
+        if out_dir and bgm and bgm != "auto" and not _exists(out_dir, bgm):
+            warnings.append(f"remotion: sound_design is on but bgm '{bgm}' does not exist — it will be dropped "
+                            f"silently; fix the path or use bgm:'auto'. AUDITION out.mp4 before delivery.")
+        else:
+            warnings.append("remotion: sound_design is on — the pipeline CANNOT hear the SFX/BGM mix; AUDITION "
+                            "out.mp4 before delivery (a wrong or absent bed ships silently).")
+    if str(meta.get("aspect") or "16:9") != "16:9":
+        warnings.append(f"remotion: meta.aspect='{meta.get('aspect')}' (non-16:9) — most library shots are 16:9-tuned; "
+                        f"still-render EACH chosen shot at this aspect and fix/swap any that don't reflow (multi-column "
+                        f"must STACK, wide elements must not run off-frame) — references/remotion-shot-authoring.md §A.9.")
 
 
 def evaluate(data, out_dir, pre_tts=False, vertical=False):
@@ -1202,10 +1241,20 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
 
     meta = data["meta"]
     slides = data["slides"]
+    # MIXED-VOICE (both tiers): tts.py records `meta._tts_mixed_voice` when a cloud/edge engine fell back to `say`
+    # on SOME scenes — a systemic failure that split the deck between two voices. It was written and read by
+    # nothing; surface it so a half-say/half-cloud deck can't ship silently (SKILL.md's ⚠️ MIXED-VOICE guidance).
+    _mv = meta.get("_tts_mixed_voice")
+    if _mv:
+        _n = len(_mv) if isinstance(_mv, (list, dict)) else _mv
+        warnings.append(f"MIXED-VOICE run: {_n} scene(s) fell back to a different TTS engine (meta._tts_mixed_voice) — "
+                        f"the deck is split between two voices; fix the engine and re-run tts.py, or set meta.voice to "
+                        f"one engine (edge:*/say:*) so every scene matches. Do NOT ship a two-voice deck.")
     # REMOTION2 bespoke-shot tier — its own scene contract (shot id + props + family variety); the legacy
     # cinematic/HTML checks below don't apply to it, so guard and skip them.
     if (meta.get("renderer") or "") == "remotion":
-        _check_remotion(meta, slides, errors, warnings)
+        _check_remotion(meta, slides, errors, warnings, out_dir)
+        _figure_traceability(slides, out_dir, warnings)   # %/×/$ figures in shot_props text must trace to brief.json
         return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides)}
     # visual_style is the declared single source of truth — a typo/hallucinated key degrades silently to the
     # default look, so cross-check it against the catalog (theme.STYLE_PRESETS) independent of the plan file.
@@ -1887,6 +1936,8 @@ def _design_plan_lints(out_dir, warnings, meta=None):
     if beats and isinstance(reg, dict) and reg:
         if not (isinstance(contest, dict) and contest):
             if aud in ("bold", "experimental"):
+                # (The remotion shot-template contest is a hard ERROR; this HTML lint stays a WARN because
+                # _design_plan_lints is warnings-only and the design-critic judge-mode is the real contest gate.)
                 warnings.append(f"register: audacity '{aud}' but design_plan records no register_contest — a "
                                 "single-shot register regresses to the safe mean; run the divergence contest "
                                 "(SKILL.md 'Register contest') and record {mode, candidates, winner, user_pick}")

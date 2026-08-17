@@ -147,7 +147,8 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
     # ASPECT: --vertical or meta.aspect:"9:16" renders the Film Composition at 1080x1920 (Root.tsx calculateMetadata
     # reads this `aspect` prop). Any of 16:9 / 9:16 / 1:1 / 4:5 / 4:3; unknown falls back to 16:9.
     aspect = "9:16" if vertical else str(meta.get("aspect") or "16:9")
-    props = {"scenes": scenes, "camera": _camera_amp(meta), "reducedMotion": reduced, "aspect": aspect}
+    props = {"scenes": scenes, "camera": _camera_amp(meta), "reducedMotion": reduced, "aspect": aspect,
+             "captions": bool(meta.get("captions", True))}
     theme = meta.get("theme")                 # the per-topic atmosphere WORLD (motif + palette) behind every shot
     if isinstance(theme, dict):
         props["theme"] = theme

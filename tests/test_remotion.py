@@ -108,6 +108,22 @@ def test_validate_warns_on_luminance_strobe():
     assert not any("STROBES" in w for w in v.evaluate(_remotion_deck(calm), "/tmp")["warnings"])   # all dark -> calm
 
 
+def test_shots_are_deterministic():
+    # §A.7: a shot must be a PURE fn of useT()/frame — no Date.now / Math.random / argless new Date() (they break
+    # resume + byte-stable renders). The enforcing test was lost (only a .pyc remained); restore it as a grep lint
+    # over every shot file so a newly-authored non-deterministic shot fails loud instead of flickering across renders.
+    import re
+    bad = {}
+    for f in sorted(os.listdir(_SHOTS_DIR)):
+        if not f.endswith(".tsx"):
+            continue
+        src = open(os.path.join(_SHOTS_DIR, f), encoding="utf-8").read()
+        hits = re.findall(r"\bDate\.now\s*\(|\bMath\.random\s*\(|\bnew Date\s*\(\s*\)", src)
+        if hits:
+            bad[f] = hits
+    assert not bad, "non-deterministic API in shots (breaks resume/determinism — use hash01/useT): %s" % bad
+
+
 def test_registry_in_sync_with_shot_files():
     # every shot file is a valid id, and there are 100 of them (the whole library)
     assert len(_SHOT_IDS) == 123, _SHOT_IDS

@@ -558,7 +558,19 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
         print(f"[keyframe_qa] {'OK' if errors == 0 else 'ISSUES'}  {len(report)} html page(s), "
               f"{errors} issue(s), {warns + len(deck_notes)} advisory(ies) [{mode}]; sheets -> {kf}/  "
               f"(open all.png to eyeball tofu/theme/reveals)")
-    return 1 if errors else 0
+    # FAIL-CLOSED on UNVERIFIED: a scene whose box-geometry floor could NOT be probed (no CDP, or a per-scene
+    # probe failure) is NOT a passing scene — SKILL.md's delivery criterion says so, and the sibling snapshot.py
+    # already exits 3 here. Reporting 0 when the geometry gate measured NOTHING is a fail-open the caller can't see.
+    unverified = [r for r in report if not r.get("probed")]
+    if errors:
+        return 1
+    if unverified:
+        if not as_json:
+            print(f"  [keyframe_qa] FAIL: {len(unverified)} scene(s) UNVERIFIED — the box-geometry floor "
+                  f"(overflow/clip/caption-zone) was NOT probed ({'no CDP' if not chrome else 'probe error'}); "
+                  f"an unverified scene is not a passing scene. Fix Chrome/CDP (set meta.chrome_path) and re-run.")
+        return 3
+    return 0
 
 
 if __name__ == "__main__":

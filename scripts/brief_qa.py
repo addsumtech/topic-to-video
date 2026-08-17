@@ -52,6 +52,14 @@ def evaluate(data, out_dir=None):
         if k not in data or _empty(data.get(k)):
             errors.append(f"brief.json missing/empty required key: `{k}`")
 
+    # `mechanism` must carry a CAUSAL chain (the required because/therefore), not merely be present — a mechanism
+    # is the HOW/WHY, not a restated summary. WARN (the semantic judge is critic-content C0).
+    mech = str(data.get("mechanism") or "")
+    if mech.strip() and not re.search(
+            r"\b(because|therefore|thus|hence|so that|which\s+(?:means|lets|gives)|leads?\s+to|so)\b|因为|所以|因此|从而", mech, re.I):
+        warnings.append("`mechanism` has no causal connective (because/therefore/thus/so · 因为/所以/因此/从而) — "
+                        "a mechanism is a ≥1 because→therefore chain (the load-bearing WHY), not a restated summary")
+
     ot = data.get("the_one_thing")
     if isinstance(ot, list):
         errors.append("`the_one_thing` is a list — it must be a SINGLE sentence the viewer leaves with")
@@ -132,6 +140,18 @@ def evaluate(data, out_dir=None):
                 warnings.append(f"time-sensitive claim with no `as_of` on any of its sources — "
                                 f"«{claim}» — record the date the figure was true (distinct from when "
                                 f"the page was fetched); a fetched page can itself be out of date")
+    else:
+        # No sources/ captured → every evidence source_ref resolves to NOTHING, so the figures behind the brief
+        # are UNVERIFIABLE. This is the single point a wrong INPUT yields a fully-green output: a fabricated number
+        # laundered into a ref like "web-verified#…" clears every gate. WARN (not ERROR — a material-PROVIDED brief
+        # may legitimately not have captured the material as a source), but a loud, addressable one.
+        _refd = [ev for ev in (data.get("evidence") or [])
+                 if isinstance(ev, dict) and not _empty(ev.get("source_ref"))]
+        if _refd:
+            warnings.append(f"{len(_refd)} evidence item(s) cite a source_ref but NO sources/ were captured — the "
+                            f"figures are UNVERIFIABLE (nothing to resolve against). If this brief was web-researched, "
+                            f"capture the source text (scripts/sources.py) so each figure is checkable; otherwise "
+                            f"every number rests only on memory (the one place a wrong input ships fully green).")
 
     for ev in (data.get("evidence") or []):
         if isinstance(ev, dict) and _empty(ev.get("source_ref")):

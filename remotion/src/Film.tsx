@@ -85,6 +85,7 @@ const CAPTION_BAND = 150;    // px at the bottom reserved for the caption; shots
 // ground luminance. Because the windows are disjoint, two captions can never coexist across a dissolve.
 const CaptionTrack: React.FC<{scenes: SceneSpec[]}> = ({scenes}) => {
   const frame = useCurrentFrame();
+  const {width} = useVideoConfig();
   let acc = 0;
   const starts = scenes.map((sc) => { const s = acc; acc += Math.max(1, Math.round(sc.durF)) - TR; return s; });
   let active = -1, ws = 0, we = 0;
@@ -97,8 +98,13 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]}> = ({scenes}) => {
   const sc = active >= 0 ? scenes[active] : undefined;
   if (!sc || !sc.caption) return null;
   const merged = splitCaption(sc.caption);
+  // WEIGHT each chunk's on-screen time by its LENGTH (not equal slices) — else a 3-word chunk lingers while a
+  // 20-word chunk races the voice. Advance idx by cumulative char-fraction of the caption.
+  const lens = merged.map((c) => Math.max(1, c.length));
+  const total = lens.reduce((a, b) => a + b, 0);
   const local = clamp01((frame - ws) / Math.max(1, we - ws));
-  const idx = Math.min(merged.length - 1, Math.floor(local * merged.length));
+  let idx = merged.length - 1, cum = 0;
+  for (let i = 0; i < merged.length; i++) { cum += lens[i] / total; if (local <= cum) { idx = i; break; } }
   const op = Math.min(clamp01((frame - ws) / CAP_FADE), clamp01((we - frame) / CAP_FADE));
   const lum = groundLum(sc.shot, sc.bgLum);
   const ink = lum === 'light' ? '#141414' : '#ffffff';
@@ -107,9 +113,9 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]}> = ({scenes}) => {
   return (
     <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', pointerEvents: 'none', opacity: op}}>
       <div style={{position: 'absolute', left: 0, right: 0, bottom: 0, height: 240, background: scrim}} />
-      <div style={{position: 'relative', maxWidth: 1400, margin: '0 auto 40px', padding: '0 60px', textAlign: 'center',
-        color: ink, font: '700 44px/1.26 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
-        textShadow: shadow}}>{merged[idx]}</div>
+      <div style={{position: 'relative', maxWidth: Math.min(1400, width - 80), margin: '0 auto 40px', padding: '0 60px', textAlign: 'center',
+        color: ink, font: '700 44px/1.26 Inter, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif',
+        letterSpacing: '-0.01em', textShadow: shadow}}>{merged[idx]}</div>
     </AbsoluteFill>
   );
 };
@@ -183,8 +189,8 @@ const Missing: React.FC<{id: string}> = ({id}) => (
     color: '#ff8a8a', font: '700 44px/1.4 monospace', textAlign: 'center'}}>unknown shot:<br />{id}</AbsoluteFill>
 );
 
-export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotion?: boolean; theme?: Atmo}> =
-  ({scenes = WORKBUDDY_SCENES, camera = 0, reducedMotion = false, theme}) => {
+export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotion?: boolean; theme?: Atmo; captions?: boolean}> =
+  ({scenes = WORKBUDDY_SCENES, camera = 0, reducedMotion = false, theme, captions = true}) => {
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
   const total = filmDuration(scenes);
@@ -219,7 +225,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
       </TransitionSeries>
       </AbsoluteFill>
       <AbsoluteFill style={{backgroundColor: bg, opacity: Math.max(intro, outro), pointerEvents: 'none'}} />
-      <CaptionTrack scenes={scenes} />
+      {captions ? <CaptionTrack scenes={scenes} /> : null}
     </AbsoluteFill>
   );
 };
