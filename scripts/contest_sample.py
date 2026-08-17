@@ -21,48 +21,79 @@ REMOTION_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "re
 FPS = 30
 SCENE_F = 75          # ~2.5s per sample scene; 3 scenes + TR overlap ≈ 6.5s total
 
-# Per SEED direction: the hero + two representative registers (its family lean), each mapped to TEXT-friendly
-# props so the sample carries the TOPIC without dragging in a register's number/demo-copy defaults (the sample is
-# about LOOK + MOTION, not faithfulness). A bespoke (non-seed) direction falls back to GENERIC below.
+_STOP = {"a", "an", "the", "of", "for", "to", "and", "or", "in", "on", "with", "how", "what", "why",
+         "is", "are", "it", "its", "about", "that", "this", "into", "as", "at", "by", "from"}
+
+
+def _kit(topic):
+    """Derive a TOPIC content kit from the route string so samples carry the topic, not a register's WorkBuddy demo:
+    a short title, a handful of distinct meaningful tokens (for nodes/spokes/names), a slug, and a tagline."""
+    import re
+    t = (topic or "").strip() or "your topic"          # whitespace-only also falls back to the placeholder
+    words = re.findall(r"[A-Za-z0-9][A-Za-z0-9'.+-]*", t)
+    toks = [w for w in words if w.lower() not in _STOP and len(w) > 1]
+    caps = [w for w in toks if w[0].isupper()]
+    title = (caps[0] if caps else (toks[0] if toks else t))[:22]
+    seen, items = set(), []
+    for w in toks:
+        k = w.lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        items.append(w if w[0].isupper() else w.capitalize())
+    items = items[:6] or ["Overview", "Signals", "Results"]
+    slug = "".join(c if c.isalnum() else "_" for c in title.lower()).strip("_") or "topic"
+    return {"title": title, "items": items, "slug": slug, "tag": t.lower()[:44], "up": title.upper()[:22]}
+
+
+# Per SEED direction: the hero + two representative registers (its family lean). Every register is given its REAL
+# content props (nodes/spokes/names/code lines/specs) filled from the topic kit — NOT just a title — so no
+# register falls back to its WorkBuddy demo. The sample is about LOOK + MOTION (illustrative copy is fine), but it
+# must read as THIS topic, never a leftover demo. A bespoke (non-seed) direction falls back to GENERIC below.
 def _sample_shots(key, topic):
-    t = (topic or "your topic").strip()
-    up = t.upper()[:22]
-    low = t.lower()[:40]
+    K = _kit(topic)
+    title, items, up, tag, slug = K["title"], K["items"], K["up"], K["tag"], K["slug"]
+    nodes = items[:5]
+    code = ["# %s" % slug, "from %s import model" % slug, "", "answer = model.run(prompt)", "print(answer)"]
     M = {
         "product-demo": [
-            ("CommandSummon", {"command": "Build the %s" % t[:36], "items": ["Plan it", "Pull the data", "Draft it", "Ship it"]}),
-            ("CollaborativeCursors", {"title": t[:36]}),
-            ("MapRoutes", {"tagline": low}),
+            ("CommandSummon", {"command": "Build the %s deck" % title, "items": ["Plan it", "Pull the data", "Draft it", "Ship it"]}),
+            ("CollaborativeCursors", {"names": items}),
+            ("MapRoutes", {"hub": title, "items": nodes}),
         ],
         "kinetic-editorial": [
-            ("LiquidChrome", {"word": up, "tagline": low}),
-            ("KineticManifesto", {"word": up, "tagline": low}),
-            ("SwissEditorial", {"word": up}),
+            ("LiquidChrome", {"word": up, "tagline": tag}),                                  # {word,tagline} — real props
+            ("KineticManifesto", {"phrases": [up + ".", (items[0] if items else title).upper() + ".",
+                                              (items[1] if len(items) > 1 else "the future").upper() + "."]}),  # {phrases[]}
+            ("SwissEditorial", {"items": [up, (items[0] if items else title).upper(), "SHIP"],
+                                "wordmark": up, "ticker": tag.upper() + " -- "}),             # {items,wordmark,ticker}
         ],
         "cinematic-craft": [
-            ("MaterialHero", {"title": t[:36]}),
-            ("ParticleForm", {"label": t[:28]}),
-            ("InkBloom", {"title": t[:28], "tagline": low}),
+            ("MaterialHero", {"title": title}),
+            ("ParticleForm", {"label": title}),
+            ("InkBloom", {"title": title, "tagline": tag}),
         ],
         "data-story": [
-            ("KnowledgeGraph", {"title": t[:36]}),
-            ("DataOrrery", {"title": t[:36]}),
-            ("WireGlobe", {"tagline": low}),
+            ("KnowledgeGraph", {"hub": title, "items": nodes}),
+            ("DataOrrery", {"hub": title, "items": nodes}),
+            ("WireGlobe", {"tagline": tag}),
         ],
         "retro-playful": [
-            ("NeonGrid", {"title": up, "tagline": low}),
-            ("PixelBuild", {"label": t[:24]}),
-            ("SplitFlap", {"rows": [up[:10], low[:10].upper(), "GO"]}),
+            ("NeonGrid", {"title": up, "tagline": tag}),
+            ("PixelBuild", {"label": "%s - COMPLETE" % up}),
+            ("SplitFlap", {"rows": [up[:10], (items[0] if items else "GO")[:10].upper(), "GO"]}),
         ],
         "terminal-technical": [
-            ("CodeCompose", {"filename": "".join(c if c.isalnum() else "_" for c in t.lower())[:22] + ".py"}),
+            ("CodeCompose", {"filename": slug + ".py", "lines": code, "status": "- shipped"}),
             ("AsciiField", {"message": up}),
-            ("BlueprintGrid", {"title": t[:36]}),
+            ("BlueprintGrid", {"unit": "%s.core" % slug, "tag": (items[0] if items else "spec"),
+                               "spec1": (items[1] if len(items) > 1 else "input"), "spec2": (items[2] if len(items) > 2 else "output"),
+                               "metricLabel": "on the models"}),
         ],
     }
-    generic = [("CinematicTitle", {"title": t[:36]}),
-               ("FocalIsolation", {"focalLabel": t[:24]}),
-               ("ParticleForm", {"label": t[:24]})]
+    generic = [("CinematicTitle", {"title": title}),
+               ("FocalIsolation", {"focalLabel": title}),
+               ("ParticleForm", {"label": title})]
     return M.get(key, generic)
 
 

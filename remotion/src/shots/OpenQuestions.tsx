@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
+import {CAPTION_BAND} from '../runtime/layout';
 
 export const DURATION = 170; // ~5.7s
 
@@ -49,8 +50,9 @@ export const OpenQuestions: React.FC<{kicker?: string; questions?: string[]; acc
         );
       })}
 
-      {/* footer: unresolved + a blinking caret (once all questions are up) */}
-      <div style={{position: 'absolute', left: 0, right: 0, top: topY + stepY * (n - 1) + H * 0.13, textAlign: 'center',
+      {/* footer: unresolved + a blinking caret (once all questions are up) — clamped ABOVE the caption band */}
+      <div style={{position: 'absolute', left: 0, right: 0,
+        top: Math.min(topY + stepY * (n - 1) + H * 0.12, H - CAPTION_BAND - 34), textAlign: 'center',
         opacity: easeOutCubic(seg(t, 0.78, 0.92)), color: accent, font: '600 24px/1 "JetBrains Mono", monospace', letterSpacing: '0.2em'}}>
         {footer}<span style={{opacity: Math.sin(t * Math.PI * 2 * 6) > 0 ? 1 : 0}}> _</span>
       </div>

@@ -29,14 +29,19 @@ export const TensionScale: React.FC<{
   const rx = cx + L * Math.cos(th), ry = fy - L * Math.sin(th);   // SCALE/MONEY arm end
   const appear = clamp01(t * 4);
 
-  const pan = (x: number, y: number, label: string, sub: string, col: string, key: string) => (
+  const pan = (x: number, y: number, label: string, sub: string, col: string, key: string) => {
+    // box + font ADAPT to the real label length so long labels don't overflow (size-for-real-content)
+    const bw = Math.max(300, Math.min(540, Math.max(label.length * 13, sub.length * 8.5) + 44));
+    const lfs = Math.min(22, (bw - 30) / Math.max(1, label.length * 0.62));
+    return (
     <g key={key} opacity={appear}>
       <line x1={x} y1={y} x2={x} y2={y + 28} stroke={`${col}aa`} strokeWidth={2} />
-      <rect x={x - 150} y={y + 28} width={300} height={78} rx={8} fill="#0d1117" stroke={col} strokeWidth={1.6} />
-      <text x={x} y={y + 60} textAnchor="middle" fill={col} fontSize="22" fontFamily="'JetBrains Mono', monospace" fontWeight={700}>{label}</text>
+      <rect x={x - bw / 2} y={y + 28} width={bw} height={78} rx={8} fill="#0d1117" stroke={col} strokeWidth={1.6} />
+      <text x={x} y={y + 60} textAnchor="middle" fill={col} fontSize={lfs} fontFamily="'JetBrains Mono', monospace" fontWeight={700}>{label}</text>
       <text x={x} y={y + 88} textAnchor="middle" fill="#9fb0c3" fontSize="16" fontFamily="Inter, sans-serif">{sub}</text>
     </g>
-  );
+    );
+  };
 
   return (
     <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 46%, #0c1016, #06070a)'}}>
