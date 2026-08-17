@@ -142,7 +142,7 @@ TTS if the user gives an API key.
   authoring-time opt-in variant (a baked mp4 can't read the viewer's OS setting), and it busts the
   clip cache.
 - `scripts/render_remotion.py <out_dir>` with **`meta.renderer:"remotion"`** — the **RECOMMENDED cinematic
-  tier**: a **bespoke-shot LIBRARY** where every beat is a hand-written, topic-driven design language (50
+  tier**: a **bespoke-shot LIBRARY** where every beat is a hand-written, topic-driven design language (the
   registers catalogued in `remotion/LIBRARY.md`), sequenced into a narrated film with cross-dissolve
   transitions + scene-relative captions + per-scene edge-tts narration (served via `--public-dir=<out_dir>`).
   **Authoring:** the **shot-director** agent (`agents/shot-director.md`) reads `content_plan.json` +
@@ -823,7 +823,8 @@ figure), a non-singular `the_one_thing`, or a
      creativity floor (D2c) + named visual style (D2d) + **whole-video register & motion personality
      (D2e — the up-pushing 差异感 axis: name the register in one phrase, is it CARRIED across the video,
      does the motion actually vary, did it survive build/fix; blandness = a finding, but it only pushes
-     UP and never overrides a floor)**, transition rhythm vs `relation` (D3), icons (D4),
+     UP and never overrides a floor)**, **per-beat MEANING (D2f — hide the caption: does the design ENCODE THIS
+     idea, not just decorate on-topic? applies to conceptual/statement beats too)**, transition rhythm vs `relation` (D3), icons (D4),
      composition/whitespace (D5), visual rhythm + a WOW beat (D6), squint/cover-text (D7), semantic
      colour (D8), motion discipline / no-GIF (D9), visual anti-slop (D10).
    **Overall PASS only when ALL THREE critics return PASS.** Apply the **UNION** of their required
@@ -903,7 +904,9 @@ figure), a non-singular `the_one_thing`, or a
    Deliver only after **shot-critic PASSES and `check_av` + `keyframe_qa_remotion` + `frame_safe_qa` exit 0**.
    **DELIVERY CRITERION — every gate, not two.** Deliver `out.mp4`,
    `out.srt`, and the editable `storyboard.json` only after **`validate.py`, `check_av.py`,
-   `keyframe_qa.py`, `rhythm_qa.py` and `pedagogy_qa.py` ALL exit 0**. Naming only the first two is
+   `keyframe_qa.py`, `rhythm_qa.py` and `pedagogy_qa.py` ALL exit 0** (on a `meta.renderer:"remotion"` deck,
+   `keyframe_qa_remotion.py` + `frame_safe_qa.py` + shot-critic PASS REPLACE `keyframe_qa.py`, which no-ops there).
+   Naming only the first two is
    how a deck shipped "all green" while the gates that actually look at the pages were never
    consulted. Also read `keyframe_qa`'s **deck advisories** (silhouette repetition, content-band
    uniformity) and any scene reported **UNVERIFIED** — an unverified scene is not a passing scene, it
@@ -964,8 +967,9 @@ figure), a non-singular `the_one_thing`, or a
   the NARROW canvas dimension (so 9:16 doesn't balloon it) and a banner wordmark is clamped to
   ~35% of the frame width (aspect kept); OVERLAID onto the composite (not baked into the frame — it
   must not ride the Ken Burns move) BEFORE the edge/transition filter so it dips with the seam (a
-  bug floating over a bg dip is wrong). The bug is a **local-renderer** feature — the remotion tier does not draw it
-  (`validate.py` warns on "bug" + `renderer:"remotion"`). The logo is NEVER stretched (preserve
+  bug floating over a bg dip is wrong). **The remotion tier ALSO draws the logo** — as a persistent corner bug
+  (`Film.tsx` BrandMark, on every scene subject to `placement`), served from the out_dir; it has no AUTHORED
+  cover/endcard lockup page (that's an html-tier concept), so a remotion `brand` shows only the bug. The logo is NEVER stretched (preserve
   aspect), never recolored, no effects.
 - **HTML pages tier:** `type:"html"` scenes render an authored page via headless Chrome
   (`render_html`), captured as seekable CSS reveals. Pages render only real content (faithful);

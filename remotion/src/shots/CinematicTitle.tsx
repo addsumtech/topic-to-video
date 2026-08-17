@@ -40,9 +40,11 @@ export const CinematicTitle: React.FC<{kicker?: string; title?: string; tagline?
         <div style={{opacity: clamp01(seg(t, 0.24, 0.5)), color: '#c69a63', font: '600 26px/1 "JetBrains Mono", monospace',
           letterSpacing: '0.5em', textTransform: 'uppercase', paddingLeft: '0.5em', marginBottom: 34,
           transform: `translateY(${(1 - titleUp) * 18}px)`}}>{KICKER}</div>
-        <div style={{opacity: titleUp, transform: `translateY(${(1 - titleUp) * 46}px)`,
-          color: '#f4efe6', font: '800 176px/0.98 "Playfair Display", Georgia, serif', letterSpacing: '-0.01em',
-          textShadow: '0 30px 90px #000, 0 2px 0 #ffffff22'}}>{TITLE}</div>
+        <div style={{opacity: titleUp, transform: `translateY(${(1 - titleUp) * 46}px)`, maxWidth: W * 0.9,
+          color: '#f4efe6',
+          // width-AND-length-aware so a long title / narrow (portrait|square) frame can't clip the wordmark
+          font: `800 ${Math.min(176, W * 0.13, (W * 0.86) / Math.max(1, String(TITLE).length * 0.52))}px/0.98 "Playfair Display", Georgia, serif`,
+          letterSpacing: '-0.01em', textShadow: '0 30px 90px #000, 0 2px 0 #ffffff22'}}>{TITLE}</div>
         <div style={{opacity: clamp01(seg(t, 0.55, 0.82)), color: '#8b93a3', font: '500 30px/1 "JetBrains Mono", monospace',
           letterSpacing: '0.36em', textTransform: 'uppercase', paddingLeft: '0.36em', marginTop: 30}}>{TAG}</div>
       </AbsoluteFill>

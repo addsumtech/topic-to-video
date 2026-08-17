@@ -203,10 +203,15 @@ const BrandMark: React.FC<{brand?: any}> = ({brand}) => {
   const h = Math.max(24, (bug.height_frac ?? 0.045) * Math.min(width, height));
   const m = (bug.margin_frac ?? 0.02) * width;
   const side = bug.corner === 'tl' ? {left: m} : {right: m};
+  // A plain <img> (NOT remotion's <Img>) for the decorative bug: <Img> uses delayRender() which TIMES OUT + crashes
+  // the whole render on a wrong/removed logo path (28s), even with onError. A plain <img> just renders nothing on a
+  // 404 (onError hides it) — a persistent DOM element stays loaded across frames after the first paint. validate.py
+  // still ERRORs on a missing brand asset pre-render; this is the runtime safety net (the html tier degrades too).
   return (
     <AbsoluteFill style={{pointerEvents: 'none'}}>
-      <Img src={staticFile(src)} style={{position: 'absolute', top: m, height: h, maxWidth: width * 0.35,
-        objectFit: 'contain', opacity: bug.opacity ?? 0.55, ...side}} />
+      <img src={staticFile(src)} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+        style={{position: 'absolute', top: m, height: h, maxWidth: width * 0.35, objectFit: 'contain',
+          opacity: bug.opacity ?? 0.55, ...side}} />
     </AbsoluteFill>
   );
 };

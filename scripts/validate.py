@@ -1213,10 +1213,15 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
         else:
             warnings.append("remotion: sound_design is on — the pipeline CANNOT hear the SFX/BGM mix; AUDITION "
                             "out.mp4 before delivery (a wrong or absent bed ships silently).")
-    if str(meta.get("aspect") or "16:9") != "16:9":
-        warnings.append(f"remotion: meta.aspect='{meta.get('aspect')}' (non-16:9) — most library shots are 16:9-tuned; "
-                        f"still-render EACH chosen shot at this aspect and fix/swap any that don't reflow (multi-column "
-                        f"must STACK, wide elements must not run off-frame) — references/remotion-shot-authoring.md §A.9.")
+    _asp = str(meta.get("aspect") or "16:9")
+    _ASPECTS = {"16:9", "9:16", "1:1", "4:5", "4:3"}     # keep in sync with remotion/src/Root.tsx ASPECTS
+    if _asp not in _ASPECTS:
+        errors.append(f"remotion: meta.aspect='{_asp}' is not supported {sorted(_ASPECTS)} — it would SILENTLY render "
+                      f"16:9 (Root.tsx dims() fallback); fix the typo or add the ratio to Root.tsx ASPECTS.")
+    elif _asp != "16:9":
+        warnings.append(f"remotion: meta.aspect='{_asp}' (non-16:9) — most library shots are 16:9-tuned; still-render "
+                        f"EACH chosen shot at this aspect and fix/swap any that don't reflow (multi-column must STACK, "
+                        f"wide elements must not run off-frame) — references/remotion-shot-authoring.md §A.9.")
 
 
 def evaluate(data, out_dir, pre_tts=False, vertical=False):
@@ -2016,9 +2021,9 @@ def _brand_lints(meta, slides, out_dir, errors, warnings):
                 errors.append(f"meta.brand.{_k} '{_p}' is an .svg with 'bug' in placement — the render "
                               f"bug is raster-composited and picks its variant by theme ground; export "
                               f"a png (keep the svg for the html lockups)")
-        if meta.get("renderer") == "remotion":
-            warnings.append("meta.brand placement includes 'bug' but meta.renderer is 'remotion' — the "
-                            "remotion tier does not draw the corner bug; use the local renderer or drop 'bug'")
+        # (the remotion tier NOW draws the logo as a persistent corner bug — Film.tsx BrandMark; the old
+        # "remotion doesn't draw the bug" warning that lived here is removed, and it was dead code anyway since a
+        # remotion deck returns from evaluate() before this HTML-path lint.)
         bug = brand.get("bug")
         if bug is not None and not isinstance(bug, dict):
             errors.append(f"meta.brand.bug {bug!r} is not an object — use "

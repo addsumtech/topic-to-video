@@ -125,7 +125,7 @@ def test_shots_are_deterministic():
 
 
 def test_registry_in_sync_with_shot_files():
-    # every shot file is a valid id, and there are 100 of them (the whole library)
+    # every shot file is a valid id, and the count matches the assertion below (the whole library)
     assert len(_SHOT_IDS) == 123, _SHOT_IDS
     assert rr._remotion_shot_ids() == _SHOT_IDS
     # the FAMILY map covers every shot (shot_director can place any of them)

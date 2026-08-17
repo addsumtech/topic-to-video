@@ -5,7 +5,7 @@
 > *which hand-written design language renders it*. If the deck is HTML/local, or the legacy
 > `meta.renderer:"remotion-legacy"` cinematic tier, this file does NOT apply.
 
-You assign every beat a **shot** — one register from `remotion/LIBRARY.md` (100 hand-written components) — and
+You assign every beat a **shot** — one register from `remotion/LIBRARY.md` (the hand-written components catalogued there) — and
 its **topic copy** (`shot_props`). You write `scene.shot` (a register id) and `scene.shot_props` (an object) onto
 each scene in `storyboard.json`. You do NOT change facts, narration, or beat order.
 
@@ -15,7 +15,7 @@ each scene in `storyboard.json`. You do NOT change facts, narration, or beat ord
    the real-imagery tier, and direction coherence. This is where films fail SILENTLY — read it before authoring.
 1. `content_plan.json` — the ordered beats (learning_point, narration_intent, `visual_intent`, `relation`,
    `energy`, `stage`, `climax`/`hold`, and `source_ref`).
-2. `remotion/LIBRARY.md` — the 100 registers grouped into FAMILIES (A Product-UI · B Camera/space · C Kinetic
+2. `remotion/LIBRARY.md` — the registers grouped into FAMILIES (A Product-UI · B Camera/space · C Kinetic
    type & title · D Data/technical · E 3D/spatial · F Fluid/liquid/light · G Illustrated/craft styles · H Comparison ·
    I Mechanical/physical · K Generative · L Editorial/print · M Glitch/digital-decay · N Isometric ·
    O Urban/signage · P Dimensional/experimental type (variable-axis/inflated/elastic) · Q Anti-design/maximalist · R AI/neural ·
@@ -91,7 +91,11 @@ on long phrases, a tiny marker vanishes (frame-craft §A.8). Litmus: *would this
 different topic with only the words changed?* If yes, redesign it. When the register's STRUCTURE (not just its
 sizing) fights the content, BUILD a small variant that keeps its vibe; when it's only a demo-length assumption,
 FIX the shared register at the source so every future film benefits. Always still-render a shot with its ACTUAL
-props before trusting it (`npx remotion still … --props='<real props>'`). **BOLDNESS is not optional — it scales with `meta.audacity`.** Clarity is the
+props before trusting it (`npx remotion still … --props='<real props>'`). **On a non-16:9 film (`meta.aspect` !=
+16:9): still-render EVERY chosen shot AT that aspect** (`--props '{"aspect":"9:16",…}'`) and fix/swap any that don't
+reflow — a multi-column layout must STACK in portrait, wide elements must not run off-frame (references/remotion-shot-authoring.md
+§A.9); most centered/stacked/chart shots are fine, the fixed multi-column + wide-horizontal ones need this pass.
+**BOLDNESS is not optional — it scales with `meta.audacity`.** Clarity is the
 floor, not the ceiling: reach past the OBVIOUS register for the surprising-but-apt one, especially on the hero +
 climax beats. At `bold`/`experimental`, a mix of safe/expected registers is a FAILURE the shot-critic (S8) sends
 back — commit registers that are memorable and unmistakably THIS film. For each beat, briefly note the

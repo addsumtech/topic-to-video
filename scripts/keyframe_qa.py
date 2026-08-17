@@ -543,6 +543,11 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
     if note:
         deck_notes.append(note)
 
+    # FAIL-CLOSED on UNVERIFIED: a scene whose box-geometry floor could NOT be probed (no CDP, or a per-scene
+    # probe failure) is NOT a passing scene — SKILL.md's delivery criterion says so, and the sibling snapshot.py
+    # already exits 3 here. Reporting 0 when the geometry gate measured NOTHING is a fail-open the caller can't see.
+    unverified = [r for r in report if not r.get("probed")]
+    status = "OK" if (errors == 0 and not unverified) else ("UNVERIFIED" if (errors == 0 and unverified) else "ISSUES")
     if as_json:
         print(json.dumps({"errors": errors, "warns": warns, "report": report,
                           "deck_advisories": deck_notes, "cdp": bool(chrome)}, indent=2))
@@ -555,13 +560,9 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
         for dn in deck_notes:
             print(f"  ! deck  {dn}")
         mode = "DOM+shots" if chrome else "shots-only (no CDP → overflow/centered unchecked)"
-        print(f"[keyframe_qa] {'OK' if errors == 0 else 'ISSUES'}  {len(report)} html page(s), "
+        print(f"[keyframe_qa] {status}  {len(report)} html page(s), "
               f"{errors} issue(s), {warns + len(deck_notes)} advisory(ies) [{mode}]; sheets -> {kf}/  "
               f"(open all.png to eyeball tofu/theme/reveals)")
-    # FAIL-CLOSED on UNVERIFIED: a scene whose box-geometry floor could NOT be probed (no CDP, or a per-scene
-    # probe failure) is NOT a passing scene — SKILL.md's delivery criterion says so, and the sibling snapshot.py
-    # already exits 3 here. Reporting 0 when the geometry gate measured NOTHING is a fail-open the caller can't see.
-    unverified = [r for r in report if not r.get("probed")]
     if errors:
         return 1
     if unverified:
