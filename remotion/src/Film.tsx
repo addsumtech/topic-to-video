@@ -83,7 +83,7 @@ const CAPTION_BAND = 150;    // px at the bottom reserved for the caption; shots
 // One global caption HUD. It shows AT MOST ONE caption — the one belonging to the scene whose sole-visible
 // window (between its two transitions) contains this frame — hard-cut, contrast-picked against that scene's
 // ground luminance. Because the windows are disjoint, two captions can never coexist across a dissolve.
-const CaptionTrack: React.FC<{scenes: SceneSpec[]}> = ({scenes}) => {
+const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string}> = ({scenes, groundBg}) => {
   const frame = useCurrentFrame();
   const {width} = useVideoConfig();
   let acc = 0;
@@ -108,11 +108,15 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]}> = ({scenes}) => {
   const op = Math.min(clamp01((frame - ws) / CAP_FADE), clamp01((we - frame) / CAP_FADE));
   const lum = groundLum(sc.shot, sc.bgLum);
   const ink = lum === 'light' ? '#141414' : '#ffffff';
-  const scrim = lum === 'light' ? 'linear-gradient(#0000, #f4f1eae0)' : 'linear-gradient(#0000, #00000099)';
-  const shadow = lum === 'light' ? '0 1px 8px #ffffffe0, 0 0 2px #fff' : '0 2px 10px #000c, 0 0 2px #000';
+  // The subtitle sits DIRECTLY on the frame's own background — there is NO scrim/bar rectangle behind it.
+  // The shots reserve the bottom CAPTION_BAND (content never reaches it), so the caption's ground is the
+  // frame's own clean atmosphere; the ink is contrast-picked (dark on light / white on dark). The only
+  // separation is a SUBTLE text-shadow in the frame's OWN ground colour (never a white/black halo — the html
+  // `overlay` mode had exactly that white-halo bug), just for anti-alias crispness where the ground varies.
+  const gb = groundBg && /^#[0-9a-fA-F]{6}$/.test(groundBg) ? groundBg : (lum === 'light' ? '#f4f1ea' : '#05060a');
+  const shadow = `0 1px 2px ${gb}e6, 0 0 1px ${gb}`;
   return (
     <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', pointerEvents: 'none', opacity: op}}>
-      <div style={{position: 'absolute', left: 0, right: 0, bottom: 0, height: 240, background: scrim}} />
       <div style={{position: 'relative', maxWidth: Math.min(1400, width - 80), margin: '0 auto 40px', padding: '0 60px', textAlign: 'center',
         color: ink, font: '700 44px/1.26 Inter, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif',
         letterSpacing: '-0.01em', textShadow: shadow}}>{merged[idx]}</div>
@@ -254,7 +258,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
       </AbsoluteFill>
       </ReducedMotionContext.Provider>
       <AbsoluteFill style={{backgroundColor: bg, opacity: Math.max(intro, outro), pointerEvents: 'none'}} />
-      {captions ? <CaptionTrack scenes={scenes} /> : null}
+      {captions ? <CaptionTrack scenes={scenes} groundBg={theme?.bg} /> : null}
       <BrandMark brand={brand} />
     </AbsoluteFill>
   );

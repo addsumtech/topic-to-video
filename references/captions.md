@@ -10,7 +10,7 @@ no special ffmpeg build needed.
 ## How the caption bar looks
 
 - **Position:** Centered, near the bottom of the frame.
-- **Background:** OVERLAY default: NO bar — contrast-picked ink with an opposite-luminance outline (band mode: a dedicated strip below the content).
+- **Background:** DEFAULT = `overlay`: NO strip/bar — the subtitle is burned DIRECTLY on the frame's own background (the frame fills the whole frame), text contrast-picked against the frame's real bottom ground, and the per-glyph outline is the frame's OWN ground colour (never a white/black halo). Content is kept clear of the caption zone so they never conflict. (`band` is the opt-in alt: a separate strip below the content, canvas grows.)
 - **Text:** White, horizontally centered within the bar.
 - **Font size:** ~4.0% of the NARROW dimension (`int(min(W,H) * 0.040)`; `meta.caption_scale` tunes) —
   captions are a reading aid, not a headline; they must not compete with the page's own type.
@@ -34,29 +34,30 @@ Captions are ON by default (`meta.captions: true`). To disable:
 When disabled, no caption bar is burned into the frame. The `out.srt` sidecar
 is **always** written either way, so viewers can still turn on soft subtitles.
 
-### Placement — overlay (default) vs a band BELOW the content
+### Placement — overlay (DEFAULT) vs a band BELOW the content
 
-`meta.caption_mode` controls WHERE the burned caption sits:
+`meta.caption_mode` controls WHERE the burned caption sits. The requirement is: the FRAME'S OWN background
+fills the whole frame and the subtitle sits DIRECTLY on it — **no separate solid strip/bar for the caption,
+no white/black halo** — in a colour that CONTRASTS the frame's real ground, with the LAYOUT keeping content
+clear of the caption zone so they never conflict. **`overlay` is the default** because it delivers exactly
+that:
 
-- **`"overlay"` (default):** **NO background bar** — the caption text is burned flush at the **very
-  bottom** of the W×H content in the deck's `--fg` ink with a subtle **opposite-luminance outline** (drawn
-  per glyph), and the karaoke word is contrast-picked vs the frame's own `--bg`. A flat strip — even a
-  theme-coloured one — reads as a heavy block, so there is none; the outline keeps the text legible over
-  ANY ground (empty frame, a tint, a photo) on any theme + aspect. The tradeoff: content that reaches the
-  bottom ~15% of the frame can sit *under* the caption. Authors must keep content clear of that
-  zone (heroes/airy beats are fine; a dense bottom-anchored beat can collide). This applies to BOTH
-  aspects; a top-anchored 9:16 deck (bottom zone empty) reads it as the frame's own footer.
-- **`"band"`:** the caption is drawn in a **dedicated strip BELOW the content**, so it
-  **never overlaps the slide**. The output canvas grows to `W×(H+band)` (a ~138 px strip at
-  1080p → 1920×1218). By default (`meta.caption_band` = `"flush"`) the strip **samples each scene's own
-  bottom-edge colour** and continues it, so it reads as that page's **bottom margin** — seamless whether
-  the slide ground is off-white, a tint, a full **accent-fill** (a red divider → a red strip), or a photo;
-  the text auto-flips to whichever of `--fg`/`--bg` contrasts that ground. Set `meta.caption_band` =
-  `"contrast"` for a fixed dark **subtitle bar** instead (`--fg` strip, `--bg` text). Contrast stays
-  legible either way. The band uses a slightly smaller face than the overlay bar (it has its own
-  strip, so it needn't shout). Content keeps the full 1080 — no bottom-clearance needed. Pick band
-  when the frame is dense or when a clean, un-obscured content area matters more than exact 16:9
-  output dimensions.
+- **`"overlay"` (DEFAULT):** **NO strip** — the caption is burned flush at the **very bottom** of the W×H
+  content (canvas stays exact 16:9). The ink is **the deck's OWN content colour for each scene's sampled
+  bottom ground** — `--fg` on a light/neutral page, `--on-accent` on a saturated/colored/dark fill — so the
+  subtitle text MATCHES the frame's content (a red **accent-fill** flood, whose content is white, gets a
+  WHITE caption; a cream page gets dark), NOT an independent max-contrast pick (which clashed — a dark
+  caption under white-on-red content). The per-glyph OUTLINE is **the frame's OWN sampled ground colour** —
+  invisible on the clean caption zone, a subtle hair only where the ground varies, NEVER a white bar. The
+  karaoke word is a distinct contrasting accent. The subtitle sits on the frame's own content background. **The only rule authors owe it:** keep content out of the bottom ~15% (heroes/airy
+  beats are fine; a dense bottom-anchored beat must leave the zone clear — `keyframe_qa` gates it). Applies
+  to BOTH aspects; a top-anchored 9:16 deck (bottom empty) reads it as the frame's own footer.
+- **`"band"` (opt-in alt):** the caption is drawn in a **dedicated strip BELOW the content**, so it never
+  overlaps and the canvas grows to `W×(H+band)` (a ~126–138 px strip at 1080p → e.g. 1920×1206). Reach for
+  it only when you deliberately want a separate footer region instead of the caption on the frame.
+  `meta.caption_band` = `"flush"` (default) **samples each scene's own bottom-edge colour** so the strip
+  reads as that page's bottom margin; `"contrast"` = a fixed dark `--fg` subtitle bar. The band uses a
+  slightly smaller face; content keeps the full 1080.
 
 `meta.caption_scale` (default 1.0) tunes the caption font in EITHER mode — e.g. `0.9` shrinks it a
 touch (and, in band mode, the strip shrinks with it).

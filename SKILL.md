@@ -101,17 +101,23 @@ TTS if the user gives an API key.
   (`auto` default | `off`). The highlight colour is **contrast-picked per scene** against the caption band's
   ground (prefers `--accent`, else `--accent2`/gold/high-contrast b/w) AND kept distinct from the
   neighbouring words — so the spoken word never vanishes into an accent-fill / same-colour band.
-  **Caption placement — `meta.caption_mode`:** `overlay` (default) burns the caption with **NO background
-  bar** — the text sits flush at the very bottom in the deck's `--fg` ink with a subtle opposite-luminance
-  **outline**, so it reads over ANY ground (empty frame, a tint, a photo) on any theme + aspect without a
-  heavy/ugly strip; the karaoke word is contrast-picked vs the frame's own `--bg`. Content must stay clear
-  of the bottom ~15%. `band` draws the caption in a
-  dedicated strip BELOW the content so it NEVER overlaps the slide — the canvas grows to `W×(H+~138px)`
-  (1920×1218 at 1080p). `meta.caption_band` picks the strip's look: `flush` (default) SAMPLES each
-  scene's own bottom-edge colour and continues it (seamless on off-white, a tint, a red accent-fill, or a
-  photo; text auto-flips to contrast); `contrast` = a fixed dark `--fg` strip + `--bg` text (subtitle bar). `meta.caption_scale` (default 1.0) tunes the caption
-  font (band face is a touch smaller). Reach for `band` on dense decks or when a clean content frame
-  matters more than exact 16:9 output dims (see `references/captions.md`).
+  **Caption placement — `meta.caption_mode` (DEFAULT `overlay`):** the caption requirement is: the FRAME'S
+  OWN BACKGROUND fills the whole frame and the subtitle sits DIRECTLY on it — **no separate solid strip/bar
+  for the caption, and no white/black halo** — in a colour that CONTRASTS the frame's real bottom ground,
+  with the LAYOUT keeping content clear of the caption zone so they never conflict, AND the subtitle TEXT in
+  the SAME colour the frame's own content uses on that ground. `overlay` delivers this: it keeps `W×H` (no
+  canvas growth, exact 16:9), burns the caption flush at the very bottom, and — keyed off each scene's
+  sampled bottom ground — the ink is **the deck's OWN content colour for that ground** (`--fg` on a
+  light/neutral page, `--on-accent` on a saturated/colored/dark fill — e.g. a red accent-fill flood gets
+  WHITE caption text to match its white content, NOT an independent max-contrast dark), the per-glyph
+  OUTLINE is **the frame's OWN sampled ground colour** (invisible on the clean caption zone, never a white
+  bar), and the karaoke word is a distinct contrasting accent. Authors MUST keep content out of the bottom
+  ~15% (keyframe_qa gates it) so the zone stays the frame's own clean ground. `band` is the OPT-IN alternative — a dedicated strip BELOW the content
+  (canvas grows to `W×(H+~126–138px)`) for when you deliberately want a separate footer region rather than
+  the caption on the frame; `meta.caption_band` `flush` (samples the scene's edge colour) | `contrast`
+  (fixed `--fg` bar). `meta.caption_scale` (default 1.0) tunes the caption font. Same rule on the remotion
+  tier: the caption draws on the frame's ground (NO scrim rectangle), contrast-picked, shots reserve the
+  band so nothing is occluded (see `references/captions.md`).
   **Timed callouts:** a callout carrying a `cue` anchor phrase (or an explicit `at` 0..1 fraction)
   appears at the moment its region is spoken — resolved via `cues` (edge word-times, else text-position
   estimate) — and holds to the clip end (a vanishing highlight reads as a glitch); untimed callouts
@@ -400,8 +406,10 @@ figure), a non-singular `the_one_thing`, or a
      **In-depth ~5 min+** (16:9) · Vertical long-form (9:16, longer) · Custom exact. Map the pick to
      `meta.target_seconds` (~40 / ~75 / ~150 / ~300; an explicit "4 minutes"→240 via Other) and
      `meta.aspect` (9:16 for a vertical option, else 16:9). **Captions are burned in by default**
-     (`captions:true`); (Other → captions OFF, per-word karaoke highlight, or a reduced-motion
-     accessibility variant). `meta.target_seconds` is exactly the field the **content-planner** turns
+     (`captions:true`, `caption_mode:"overlay"` — the subtitle sits on the frame's own background, no strip,
+     no white halo, content kept clear of the bottom ~15%; see "Caption placement" above); (Other →
+     captions OFF, per-word karaoke highlight, `caption_mode:"band"` for a separate footer strip, or a
+     reduced-motion accessibility variant). `meta.target_seconds` is exactly the field the **content-planner** turns
      into beat count (**beats ≈ target_seconds/4**, with per-beat `est_seconds` summed to the target)
      and the design-director reads to scale hero/climax cadence — so it SUBSUMES the old per-slide
      pace ask (a per-slide ceiling, if ever wanted, is just `target_seconds / beats`).

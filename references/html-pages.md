@@ -89,7 +89,17 @@ narration (R2 audio↔visual) and the facts (R1d/R1e).
 Also link `assets/html/motifs.css` (after `base.css`). Motifs are **atmosphere behind real
 content** — they assert no fact, so they stay decorative; the real data is the text/bars.
 
-**CSS motifs** — put backdrops as direct children of `<body>`, BEFORE `.stage` (content sits above):
+**CSS motifs** — put backdrops as direct children of `<body>`, BEFORE `.stage` (content sits above).
+> ⚠️ **A full-bleed backdrop MUST be OUTSIDE `.stage` AND fill the FULL frame (`position:absolute;top:0;
+> left:0;right:0;bottom:0` / `inset:0` — never height-capped).** Two reasons: (1) `keyframe_qa`/snapshot
+> measure `.stage` descendants, so a full-frame backdrop INSIDE `.stage` reads as content in the bottom
+> caption zone and FAILS the floor gate — the tempting "fix" of height-capping it to ~900px is the trap:
+> it leaves the bottom ~180px (the caption zone) a DIFFERENT shade, so the frame background is two-tone and
+> the burned caption sits on a visible lighter band (reads as an ugly separate "white background" behind
+> the subtitle). (2) The caption is burned ON the frame's own ground, so that ground must be ONE uniform
+> colour top-to-bottom. Outside `.stage`, the gate ignores the backdrop AND it can be full-frame — uniform
+> ground, caption seamless. This holds for the kit `.stock`/`.halftone`/`.marks` and any page-specific
+> tint/wash/flood (`.tint`/`.cool`/`.flood-body`/`.accent-fill` body, …) — all go outside `.stage`, full-frame.
 - `<div class="bg-stars"></div>` — a deterministic starfield.
 - `<div class="bg-glow blue" style="width:640px;height:640px;top:-120px;right:-120px"></div>` — a soft accent glow (position + size inline).
 - `<div class="ghost">165</div>` — an oversized faint number behind the content.

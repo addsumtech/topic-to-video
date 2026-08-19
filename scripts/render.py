@@ -218,11 +218,22 @@ def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None,
         fg = _theme_rgb(out, "--fg", (17, 17, 17))      # caller), with a subtle opposite-luminance OUTLINE — legible
         bg = _theme_rgb(out, "--bg", (244, 243, 238))   # over any ground (empty frame / tint / photo / letterbox).
         ground = tuple(band_bg) if band_bg is not None else bg   # the pixels actually under the caption
-        # keep the deck ink when it reads on that ground; else flip to --bg or pure b/w by MAX real contrast
-        base = tuple(max((fg, bg, (17, 17, 17), (245, 244, 240)),
-                         key=lambda c: _wcag_contrast(c, ground))) + (255,)
+        # Ink = the FRAME'S OWN content colour, so the subtitle reads as PART of the frame (not an independent
+        # max-contrast pick that clashes — a dark caption under white-on-coral content). The deck uses --fg on
+        # light/neutral grounds and --on-accent on saturated/colored/dark fills (a full accent-fill flood); pick
+        # by the sampled ground's luminance. Fall back to pure b/w ONLY if the chosen deck ink would starve
+        # (< AA-large 3:1) on an unusual mid-tone ground.
+        on_acc = _theme_rgb(out, "--on-accent", (255, 255, 255))
+        cand = fg if _rel_lum(ground) >= 0.5 else on_acc
+        base = (tuple(cand) if _wcag_contrast(cand, ground) >= 3.0
+                else max((17, 17, 17), (245, 244, 240), key=lambda c: _wcag_contrast(c, ground))) + (255,)
         hl_col = _karaoke_hl_rgb(out, ground, base[:3])          # spoken word contrasts the SAME real ground
-        halo = (245, 244, 240, 220) if _rel_lum(base[:3]) < 0.45 else (12, 12, 12, 225)   # outline = opposite of TEXT
+        # Outline = the FRAME'S OWN ground colour (NOT a white/black opposite-luminance halo, which read as an
+        # ugly solid "white background" behind the caption on a light frame). The subtitle sits directly on the
+        # frame's own content background: this outline is that SAME colour, so it's invisible on the clean
+        # caption zone and only a subtle hair where the ground varies — never a bar, never white. Authors keep
+        # content clear of the bottom ~15% (keyframe_qa gates it) so the zone is the frame's own clean ground.
+        halo = tuple(ground[:3]) + (235,)
         y0 = H - int(H * 0.02) - block_h        # flush to the very bottom edge
     y = y0 + pad
     def _put(xy, s, fill):                      # a caption line/word, with a thin outline when there's no bar
@@ -742,15 +753,17 @@ def _caption_band_fill(meta, content_frame=None):
     if rgb is None or max(rgb) < 8:                  # unreadable, OR a pure-black contain-fit LETTERBOX
         return _caption_band_colors(meta)            # bar (no real theme/scene ground is near-pure-black)
     out = (meta or {}).get("_out", ".")
-    fg = _theme_rgb(out, "--fg", (17, 17, 17)); bg = _theme_rgb(out, "--bg", (244, 243, 238))
+    fg = _theme_rgb(out, "--fg", (17, 17, 17)); on_acc = _theme_rgb(out, "--on-accent", (255, 255, 255))
     lum = _rel_lum(rgb)
 
     def _ratio(txt):
         a, b = sorted((_rel_lum(txt), lum))
         return (b + 0.05) / (a + 0.05)
-    text = fg if _ratio(fg) >= _ratio(bg) else bg    # the theme colour that contrasts the strip better
-    if _ratio(text) < 3.0:                           # AA-large floor: a saturated mid-tone strip could
-        text = max((0, 0, 0), (255, 255, 255), key=_ratio)   # starve both -> pure b/w by MAX contrast
+    # text = the FRAME'S OWN content ink (so the caption matches the frame, not an independent contrast pick):
+    # --fg on a light/neutral strip, --on-accent on a saturated/colored/dark one (a red accent-fill strip).
+    text = fg if lum >= 0.5 else on_acc
+    if _ratio(text) < 3.0:                            # AA-large floor: an unusual mid-tone strip could starve
+        text = max((0, 0, 0), (255, 255, 255), key=_ratio)   # the deck ink -> pure b/w by MAX contrast
     return "0x%02x%02x%02x" % tuple(rgb), text
 
 def _ffhex_rgb(s):
