@@ -1125,9 +1125,12 @@ def _check_shot_template(meta, errors, warnings):
 def _check_remotion(meta, slides, errors, warnings, out_dir=None):
     """Guardrails for the remotion bespoke-shot tier: a valid whole-film `shot_template` direction (+ its
     contest trace); every scene needs a valid `shot` id + object `shot_props`; a NUMBER-bearing register left on
-    its illustrative demo default is flagged (a real film must pass a SOURCED figure); adjacent same-FAMILY
-    scenes are flagged (vary the design language). Ids auto-derived from remotion/src/shots so this never drifts
-    from the library."""
+    its illustrative demo default is flagged (a real film must pass a SOURCED figure); a register left as a raw
+    TEXT-SWAP — empty `shot_props` or no recorded `shot_adaptation` — is flagged (keep the register's STYLE but
+    redesign its modules/components + content to THIS topic, §B2); adjacent same-FAMILY scenes are flagged (vary
+    the design language). Ids auto-derived from remotion/src/shots so this never drifts from the library.
+    The adapt lint is a PROXY (a script sees empty props + a missing note, never whether the components were
+    truly redesigned) — the SEMANTIC verdict is shot-critic S10 (the note vs the rendered pixels)."""
     _check_shot_template(meta, errors, warnings)
     shots_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src", "shots")
     valid = {f[:-4] for f in os.listdir(shots_dir) if f.endswith(".tsx")} if os.path.isdir(shots_dir) else set()
@@ -1160,6 +1163,22 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
                                     f"evidence — every on-screen number must trace to the source; cite it, reframe, "
                                     f"or use a non-number register (no invented figures)")
                     break
+        # ADAPT-don't-text-swap (§B2): keep the register's STYLE, redesign its modules/components + content for
+        # THIS topic. A script can't see a true redesign, but it CAN catch the crudest text-swap — empty props —
+        # and a missing/stub adaptation note; the SEMANTIC verdict is shot-critic S10 (the note vs the pixels).
+        props_empty = (not isinstance(sp, dict)) or (len(sp) == 0)
+        adapt = s.get("shot_adaptation")
+        adapt_ok = (isinstance(adapt, dict)
+                    and isinstance(adapt.get("redesigned"), str) and adapt["redesigned"].strip()
+                    and isinstance(adapt.get("topic_idea"), str) and adapt["topic_idea"].strip())
+        if props_empty:
+            warnings.append(f"{tag}: {shot} carries EMPTY shot_props — a raw text-swap keeps the register's demo "
+                            f"scaffolding (a mannequin), shipping a generic beat. Redesign its modules/components + "
+                            f"content for THIS topic and record shot_adaptation (adapt-don't-text-swap §B2)")
+        elif not adapt_ok:
+            warnings.append(f"{tag}: {shot} has no recorded shot_adaptation {{kept, redesigned, topic_idea}} — every "
+                            f"beat must KEEP the register's style but REDESIGN its modules/components + content for "
+                            f"THIS topic; record what you kept vs rebuilt so shot-critic S10 can verify it (§B2)")
         seq.append(shot)
     try:                                                   # family-variety: no two ADJACENT beats one look
         import shot_director as _sd

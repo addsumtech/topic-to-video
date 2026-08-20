@@ -109,9 +109,22 @@ wrong thing is worse than a plain one that encodes the right thing.
 A register ships with **demo scaffolding**: placeholder mini-widgets, generic glyphs, a demo-length label set, a
 fixed element count, a stock layout. **That scaffolding is a mannequin, not your content.** The lazy move —
 picking a register and only changing the text while keeping its demo furniture — produces a beat that is
-on-topic in words but generic in design, and it is a REVISE. Per the user's rule: *keep the design language's
-FRAMEWORK and VIBE, but re-design the CONTENT so it actually fits THIS topic.* This is "临场设计优化" — adapt the
-language to the subject on the spot, every time, for every topic.
+on-topic in words but generic in design, and it is a REVISE. Per the user's rule: *keep ONLY the design
+language's STYLE (its framework, vibe, motion, material), and re-design both the CONTENT **and the register's own
+MODULES/COMPONENTS** so the design actually represents THIS topic's content.* This is "临场设计优化" — adapt the
+language to the subject on the spot, every time, for every topic. **Rebuilding the components to fit the subject
+is the DEFAULT, not a special case** — the words changing is the *least* of it. **But it is a judgment call, not a
+blanket rewrite:** if a register's stock module/component ALREADY encodes THIS topic's content well, KEEP it —
+changing what already fits just to look different is as wrong as text-swapping, and throws away the register's
+proven strengths. Decide per module — does it carry the DEMO's meaning or THIS topic's? — keep the ones that fit,
+redesign the ones that don't. (This is why `shot_adaptation.kept` records the modules you kept, not just "style".)
+
+**Record the redesign, per scene, in `shot_adaptation` = `{kept, redesigned, topic_idea}`** (a REQUIRED field on
+every remotion scene): the STYLE you kept, the MODULES/components + content you rebuilt for this topic, and the
+topic-specific creative idea the shot now encodes. `validate.py` WARNs when it is missing or `shot_props` is empty
+(a raw text-swap); the shot-critic (S10) reads the note and checks it against the rendered frame. Writing it is
+what makes the redesign a decision instead of a reflex — a note you cannot fill honestly is a beat you have not
+actually adapted.
 
 **The litmus:** *would this beat look the same on a completely different topic with only the words swapped?* If
 yes, you text-swapped a template — redesign the content. Concretely:
@@ -123,11 +136,12 @@ yes, you text-swapped a template — redesign the content. Concretely:
   (`PLAN → BUILD → SHIP`) is wrong for three PARALLEL open questions — the arrows assert an order that isn't
   there and collide with the long text. Re-lay it out (stack them, drop the arrows) so the layout states the
   right relationship. A "loop" must read as a CYCLE, not a linear row; a hierarchy as nesting, not a list.
-- **When the scaffolding FIGHTS the content, build a variant.** If adapting the props isn't enough because the
-  register's structure itself is wrong for the topic (fake-widget dashboard, short-word-with-arrows layout, a
-  linear row for a loop), write a small bespoke shot that keeps the register's VIBE (the bento pop, the
-  interrogation light, the mechanical coupling) but is designed around the real content. This is the line
-  between *using* a design language and *reskinning a demo*. (This session added `PlatformSurfaces` from
+- **Build an in-style variant whenever the stock modules don't carry the idea — that's the NORMAL move, not a
+  last resort.** Don't reserve it for when the structure obviously "fights" the topic; reach for it any time the
+  register's stock modules don't already *encode* this beat's content. Write a small bespoke shot that keeps the
+  register's VIBE (the bento pop, the interrogation light, the mechanical coupling) but whose modules/components
+  are composed around the real content. This is the line between *using* a design language and *reskinning a
+  demo*. (This session added `PlatformSurfaces` from
   BentoReveal and `OpenQuestions` from SpotlightStage for exactly this reason; `TensionScale` for the mission
   tension; and fixed CubeRotate/CardFlip3D's demo-length assumptions in place.)
 - **Prefer editing the shared register when the fix generalises.** A demo-length assumption (a fixed 92px label,

@@ -153,6 +153,9 @@ TTS if the user gives an API key.
   transitions + scene-relative captions + per-scene edge-tts narration (served via `--public-dir=<out_dir>`).
   **Authoring:** the **shot-director** agent (`agents/shot-director.md`) reads `content_plan.json` +
   `remotion/LIBRARY.md` and writes, per scene, `shot` (a register id) + `shot_props` (the beat's topic copy)
+  + `shot_adaptation` (a REQUIRED `{kept, redesigned, topic_idea}` note — KEEP the register's style, REDESIGN its
+  modules/components + content for THIS topic, never a raw text-swap; `validate.py` warns on empty props or a
+  missing note, shot-critic S10 checks it against the render — see `references/remotion-shot-authoring.md` §B2)
   — matching the beat's intent to a register's "use when" and **varying the FAMILY across the film** (no two
   adjacent beats read as one look). Deterministic fallback: `python scripts/shot_director.py <out_dir>`.
   **Faithfulness:** a register that shows a NUMBER (ChartLive/BeforeAfterSlider/VelocitySnap) MUST be given a
@@ -702,14 +705,16 @@ figure), a non-singular `the_one_thing`, or a
      the meaning mandate + the real-imagery tier + the anti-pattern catalogue — this is where future films fail
      silently). Run `python scripts/shot_director.py <out_dir> --template <seed-key>` for a
      deterministic family-varied skeleton BIASED to the direction, then the shot-director agent fills each beat's
-     `shot` + faithful `shot_props`, keeping family-variety AND **boldness** (reach past the obvious register,
-     scaled by audacity; note each beat's `rejected_default`), AND ensuring every shot ENCODES its beat (hide the
-     caption — does the visual still carry THIS idea?) and COHERES with the chosen direction (palette/motion/motif,
-     not a random stack). When no register encodes a topic-specific idea, BUILD a bespoke shot (real imagery where
+     `shot` + faithful `shot_props` + `shot_adaptation` (keep the register's STYLE, REDESIGN its modules/components
+     + content for THIS topic — never a raw text-swap; §B2), keeping family-variety AND **boldness** (reach past
+     the obvious register, scaled by audacity; note each beat's `rejected_default`), AND ensuring every shot
+     ENCODES its beat (hide the caption — does the visual still carry THIS idea?) and COHERES with the chosen
+     direction (palette/motion/motif, not a random stack). When no register encodes a topic-specific idea, BUILD a bespoke shot (real imagery where
      the topic is concrete) rather than force a near-miss. SKIP the HTML design plan (no `design_plan.json`).
      After the render, the review gate is **`agents/shot-critic.md`** (the design-critic analogue): S1 fit · S2
      variety · S3 faithfulness · S4 decodability · S6 A/V **+ the deterministic `keyframe_qa_remotion.py` blank-
-     frame backstop** · **S8 boldness (audacity-scaled)** · S7 direction-adherence — from `_keyframes/scene_NN.png`
+     frame backstop** · **S8 boldness (audacity-scaled)** · **S10 meaning + content-fit (the `shot_adaptation`
+     note checked against the pixels — was the register redesigned, not text-swapped?)** · S7 direction-adherence — from `_keyframes/scene_NN.png`
      + `check_av`; it REVISEs failing beats (re-assign, re-render). A `shot`-based scene on the local renderer is a validate ERROR.
      **Build the storyboard by MERGING the two plans:** the design's `visual.type`+`props`
      become each scene; its `transition` becomes the per-scene edges; a `climax` beat's scene carries

@@ -80,17 +80,32 @@ VIBE but fill it with real, sourced, generalizing content (the image is a `src` 
 direction:** carry its palette/motion/motif across beats (family variety is about silhouette, not a licence to
 switch visual worlds every beat). And **audit ALL beats** with the hide-the-caption test, not just flagged ones.
 
-**ADAPT the register, don't text-swap its demo (临场设计优化 — see `references/remotion-shot-authoring.md` §B2).**
-A register's demo props are a MANNEQUIN: placeholder mini-widgets, generic glyphs, demo-length labels, a stock
-element count. Picking a register and only changing the words while keeping its demo furniture is the lazy move
-that ships generic beats — for EVERY beat, on EVERY topic, redesign the CONTENT to fit: swap placeholder motifs
-for ones that MEAN the item (a product tile shows that product's glyph, not a random chart), match the layout to
-the content's real SHAPE (parallel questions stack — they don't get sequence-arrows; a "loop" is a cycle, not a
-row), and **size for the REAL copy** — long labels overflow a box tuned to short demo words, offset arrows land
-on long phrases, a tiny marker vanishes (frame-craft §A.8). Litmus: *would this beat look the same on a totally
-different topic with only the words changed?* If yes, redesign it. When the register's STRUCTURE (not just its
-sizing) fights the content, BUILD a small variant that keeps its vibe; when it's only a demo-length assumption,
-FIX the shared register at the source so every future film benefits. Always still-render a shot with its ACTUAL
+**KEEP THE STYLE, REDESIGN THE REST — never text-swap a register's demo (临场设计优化 — see
+`references/remotion-shot-authoring.md` §B2).** A register is a STYLE (its vibe, motion, material, typographic
+attitude) wrapped around DEMO scaffolding — placeholder mini-widgets, generic glyphs, demo-length labels, a stock
+module count and layout. **Keep the style — and keep any stock module that ALREADY encodes THIS topic's content —
+and treat the REST of the demo scaffolding as a mannequin to rebuild.** The DEFAULT
+posture on EVERY beat, EVERY topic is to redesign both the CONTENT *and* the register's own MODULES/COMPONENTS so
+its structure *represents THIS topic's content* — not merely to change the words. Concretely: swap placeholder
+motifs for ones that MEAN the item (a product tile shows that product's glyph, not a random chart); re-shape the
+MODULES to the content's real relationship (parallel questions stack — they don't get sequence-arrows; a "loop"
+is a cycle, not a row; a hierarchy nests, not lists); add/drop/recompose components so the beat's specific idea
+is the thing on screen; and **size for the REAL copy** — long labels overflow a box tuned to short demo words,
+offset arrows land on long phrases, a tiny marker vanishes (frame-craft §A.8). Litmus: *would this beat look the
+same on a totally different topic with only the words changed?* If yes, you text-swapped — redesign it.
+**Judgment, not reflex — don't blindly rewrite what already fits.** If a register's stock module/component ALREADY
+expresses THIS beat's content well (its structure genuinely encodes the idea, not just the demo's), KEEP it —
+changing it only to look different is as wrong as text-swapping, and wastes the register's proven strengths. Decide
+per module: does it carry the DEMO's meaning or THIS topic's? Keep the ones that fit, redesign the ones that don't,
+and record BOTH sides in `shot_adaptation` (`kept` = the style + the modules that already fit; `redesigned` = what
+you rebuilt). **Building a small in-style variant is the NORMAL move, not a last resort:** whenever the register's stock modules don't
+carry the idea, write a variant that keeps its VIBE but is composed around the real content; only when the fix is
+a pure demo-length assumption (a fixed label width, an un-padded box) FIX the shared register at the source so
+every future film benefits. **Record the redesign per scene in `shot_adaptation` = `{kept, redesigned,
+topic_idea}`** — what STYLE you kept, which MODULES/components + content you rebuilt for this topic, and the
+topic-specific creative idea the shot now encodes. It is a REQUIRED artifact (validate.py WARNs when it's missing
+or `shot_props` is empty; shot-critic S10 checks the note against the rendered frame): writing it forces the
+redesign to be a decision, not a reflex. Always still-render a shot with its ACTUAL
 props before trusting it (`npx remotion still … --props='<real props>'`). **On a non-16:9 film (`meta.aspect` !=
 16:9): still-render EVERY chosen shot AT that aspect** (`--props '{"aspect":"9:16",…}'`) and fix/swap any that don't
 reflow — a multi-column layout must STACK in portrait, wide elements must not run off-frame (references/remotion-shot-authoring.md
@@ -145,9 +160,13 @@ a *needed* dark↔light turn read as continuity rather than a flip — see Rule 
 
 ## Output
 Edit `storyboard.json`: set `meta.renderer:"remotion"` and, on every scene, `shot` (a valid id from
-`remotion/src/shots/*.tsx`) + `shot_props` (an object; `{}` = the register's WorkBuddy-neutral defaults, which
-you should usually override with topic copy). Then record your choices for the critic: a short `shot_rationale`
-per scene (why this register, which family) is encouraged. `validate.py` errors on a missing/unknown `shot` or a
-number-bearing register left on its demo default; `render_remotion.py` renders the chosen shots through the
-data-driven `Film`. Keep a family-variety pass at the end: scan the shot sequence and swap any adjacent
-same-family pair for an equally-fitting register from a different family.
+`remotion/src/shots/*.tsx`) + `shot_props` (an object of TOPIC copy — never leave it `{}`, which ships the
+register's demo mannequin) + **`shot_adaptation` = `{kept, redesigned, topic_idea}`** (REQUIRED — the style AND
+any stock modules that ALREADY fit the topic that you kept, the modules/components + content you rebuilt for this
+topic, and the topic-specific idea the shot now encodes; per the KEEP-THE-STYLE-REDESIGN-THE-REST rule above —
+keep what fits, redesign what doesn't, don't blindly change everything). Then record your choices for the critic: a short
+`shot_rationale` per scene (why this register, which family) is encouraged. `validate.py` errors on a
+missing/unknown `shot` or a number-bearing register left on its demo default, and WARNs on empty `shot_props` or a
+missing `shot_adaptation` (a raw text-swap); `render_remotion.py` renders the chosen shots through the data-driven
+`Film`. Keep a family-variety pass at the end: scan the shot sequence and swap any adjacent same-family pair for
+an equally-fitting register from a different family.

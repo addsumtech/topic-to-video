@@ -76,12 +76,20 @@ ticker for "frequency encoding," a generic glossy blob, an up-and-to-the-right l
 chart type that fights the message (line for independent categories) — those DECORATE or CONTRADICT: REVISE with
 the visual whose structure mirrors the content (symmetry/direction/accumulation/sparsity). Refinement (高级感) is
 required too, but never as a substitute for meaning.
-**CONTENT-FIT (§B2 — the register must be ADAPTED, not text-swapped):** flag any beat that kept its register's
-DEMO scaffolding — placeholder mini-widgets/generic glyphs that don't MEAN the item (a "product surfaces" tile
-showing a random bar chart instead of that product's glyph), or a layout whose relationship is WRONG for the
-content (sequence-arrows on parallel items, a linear row for a "loop", a short-word layout given long phrases).
-The test: *would this beat look identical on a different topic with only the words changed?* If yes → REVISE
-(redesign the content to fit, or build a variant that keeps the vibe). This is a per-scene gate, not a nit.
+**CONTENT-FIT (§B2 — the register must be ADAPTED, not text-swapped):** every beat must KEEP the register's style
+but REDESIGN its modules/components + content for THIS topic. Read the scene's `shot_adaptation` = `{kept,
+redesigned, topic_idea}` (the shot-director's REQUIRED record) and VERIFY IT AGAINST THE PIXELS — this note vs the
+keyframe is the check no script can make: does the frame actually show the modules/components rebuilt for this
+content, and does the `topic_idea` read on screen? A MISSING or STUB `shot_adaptation` (validate.py WARNs it), or a
+note that CLAIMS a redesign the frame doesn't show — placeholder mini-widgets/generic glyphs that don't MEAN the
+item (a "product surfaces" tile showing a random bar chart instead of that product's glyph), or a layout whose
+relationship is WRONG for the content (sequence-arrows on parallel items, a linear row for a "loop", a short-word
+layout given long phrases) — is a REVISE. The test: *would this beat look identical on a different topic with only
+the words changed?* If yes → REVISE (rebuild the modules/content to fit, or build an in-style variant). This is a
+per-scene gate, not a nit. **But apply the director's own judgment — flag DEMO scaffolding, not originality.** A
+stock module the director KEPT because it already encodes THIS topic (recorded in `shot_adaptation.kept`) is
+correct, not a violation; do NOT demand a redesign for its own sake. What fails S10 is a module carrying the
+DEMO's generic meaning — never one that genuinely fits the content just because it shipped with the register.
 **FRAME-CRAFT (the floor in `references/remotion-shot-authoring.md`
 §A):** read the `frame_safe_qa.py` report — any OFF-FRAME edge-bleed is a hard REVISE (title/action-safe), and a
 brightness-OUTLIER scene (a white/bright shot in a dark film) is a palette-clash REVISE. Then EYEBALL each keyframe
