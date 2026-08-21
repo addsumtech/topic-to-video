@@ -165,6 +165,82 @@ languages:
   `data-story` film shows charts/graphs; a `terminal-technical` film shows code/schematics). shot-critic S7 gates
   this; it's a lean, not a straitjacket (S2 variety still wins).
 
+## C2 · Design DNA — the GLOBAL visual system (reuse the STRUCTURE, not the visual identity)
+
+The selected template is **NOT a set of reusable frames — it is the film's whole visual system.** A library
+register bundles two separable things: its **STRUCTURE** (composition + motion + information hierarchy — the
+reusable asset) and its **VISUAL IDENTITY** (typography, palette, container/border, decoration — hardcoded in the
+.tsx). The DNA architecture **pulls the identity OUT of the register into one film-wide `DesignDNA`** (`remotion/
+src/runtime/dna.tsx`) that every migrated register reads via **`useDNA()`**, so the SAME structure (a bar race, a
+gauge, a card stack) wears the film's system — "different compositions, one visual universe" (the remotion
+analogue of the html tier's `theme.css`). Reuse the structural idea, **never** copy the original visual identity.
+
+- **How it flows.** The shot-director expands the template into `meta.design_dna` (an explicit token artifact;
+  a built-in preset like `TERMINAL_DNA` auto-applies when only `meta.shot_template` is set). `render_remotion.py`
+  passes it to the `Film`, which provides a `DesignDNAContext`; each register reads `useDNA()`. **Backward-compatible
+  by construction:** a migrated register reads `dna?.token ?? <its original value>`, so with NO DNA it renders
+  byte-for-byte as before (the WorkBuddy default + un-themed films are untouched).
+- **Migrating a register (three levels — most shots are A+B, not C).** **A — swap tokens:** replace hardcoded
+  font/palette/radius/border with `dna?.fontMono/bg/bgGrad/accent/surface/... ?? original` (use the shadow trick:
+  rename a module `const ACC='…'` → `ACC0`, add `const dna = useDNA(); const ACC = dna?.accent ?? ACC0;` so every
+  downstream use inherits it). **B — add DNA cues:** render 2–3 shared grammar cues from `runtime/dna.tsx`
+  (`Caret`, `Breadcrumb`, `ScanGrid`, `StatusTag`, a `▸` prompt on the heading) — inert unless the DNA declares
+  them. **C — rebuild:** only when the structure fundamentally clashes (a serif cinematic flare, a chrome word) —
+  restyle it into the DNA (e.g. mono title + green-tinted chrome) or swap to a DNA-native register. **Watch for a
+  TDZ:** put `const dna = useDNA()` + any derived palette BEFORE the first use (a `const NODES = …PALETTE…` above
+  it breaks).
+- **Consistency ≠ repetition.** The DNA does NOT make every frame a terminal window — a metric/chart/diagram beat
+  inherits the type + palette + motion + 2–3 cues, it does NOT become a black-green box. Record the cues in
+  `shot_adaptation.theme_cues`; **shot-critic S11** audits per-frame coverage + the FINAL TEST (remove the obvious
+  themed shots — can a viewer still infer the design language? if no, the DNA hasn't propagated deeply enough).
+- **TWO UNIVERSAL mechanisms carry the DNA across EVERY shot with no per-shot edits (Film.tsx) — use these before
+  hand-editing 100 registers:** (1) **Global type** — Film injects `.dna-film * { font-family: <dna.fontMono>
+  !important }`, so a terminal film reads as MONOSPACE everywhere (overrides each shot's inline font-family, keeps
+  size/weight; scoped so captions keep their own font). Mono is the single strongest terminal signal and needs
+  ZERO per-register work. Do NOT try to swap fonts per-shot via a `${UI}` const — it breaks in a shot's nested
+  sub-components (they don't see the const → ReferenceError). (2) **Terminal chrome** — a per-scene
+  `chrome:{path,status}` frames each beat with a command-path breadcrumb (top-left) + a live status + caret
+  (top-right) via `runtime/dna.tsx` `TerminalChrome` (rendered by Film in each Sequence, inert unless the DNA has
+  `breadcrumb`). Author a DISTINCT path/status per beat (`~/hermes ▸ eval/tools` · `● 90% / 84%`) so it's the "one
+  terminal session" frame, NOT a repeated decoration. Per-register token migration (bg/accent) then only has to
+  handle the shot's OWN salient colours; type + chrome are already global.
+- **THE THREE-LAYER MODEL — style is a GRAMMAR, not a layout template (this is the #1 trap).** The failure mode
+  is BOTH directions: too weak = reskin the original component (a gauge tinted green); too strong = make EVERY
+  frame the same explicit terminal WINDOW (a black panel with `● ● ●` + `$ cmd` + a box). Both are wrong. Split
+  the style into three layers: **(1) Surface** — only 2-3 ANCHOR beats show an explicit terminal window (a boot,
+  a code editor, an ending `$ ready_`). **(2) Visual grammar (the important one)** — EVERY other beat inherits the
+  terminal DNA *without* a window box: mono type, a `$`/`❯` command line, cursor `▋`, `~/ ./ [01]` syntax, tree/
+  indent/`-`/`+`/box-drawing, CLI status — on the OPEN dark canvas, with a layout chosen PER CONTENT (a hero
+  number on void, an open bar readout, an open diff, an open timeline), so beats don't all look the same. **(3)
+  Motion grammar** — reveal via `command → execute → result`: a `$ eval` line types + runs, THEN the figure/chart/
+  diagram grows out as the OUTPUT (the output need NOT be in a box). The shared `runtime/dna.tsx` **`TermFrame`**
+  implements this: `framed` = the explicit window (anchors only), default = OPEN (typed command line → result on
+  open canvas). A terminal-native shot uses `TermFrame` and provides its content; DEFAULT to open.
+- **STYLE ASSIMILATION gate (run per shot before implementing).** Take the shot's content idea and deliberately
+  TRANSLATE it into the active DNA across ≥2-3 of: typography · layout (style logic, not a generic slide) ·
+  components (panels/labels/dividers/status primitives) · motion (enter/transform per the motion grammar) ·
+  transition · narrative metaphor (can the content be *expressed through* the design concept?). **Reject any shot
+  that could be dropped unchanged into a completely different style without anyone noticing.** Consistency does
+  NOT mean every frame looks the same — it means every frame FEELS designed by the same system.
+- **THIS ALL GENERALISES TO ANY STYLE — terminal is just the worked example.** The pipeline is style-agnostic:
+  *pick a template → extract its DNA → design each shot for its CONTENT → assimilate the shot into the DNA
+  (three-layer: a few explicit "container" frames, the rest inherit the grammar on open canvas, motion reveals
+  as the style's native action) → validate (S11 + the reject rule).* Only the REALIZATION differs per style:
+  - **DNA tokens** — `runtime/dna.tsx` ships presets for `terminal` · `editorial` · `product`/`apple` ·
+    `blueprint` (+ `neutral`); `dnaFromTemplate` maps a `shot_template` to one, or author `meta.design_dna`
+    explicitly. `uniformType:true` (terminal) → Film forces one font; a MIXED-type style (editorial serif+sans)
+    leaves it off and registers pick `fontDisplay`/`fontBody` per element.
+  - **Surface container** — terminal's is `TermFrame` (a window / an open `$` command line). Another style's is
+    its own: editorial = a kicker + hairline rule + column; product = a glass hero panel; blueprint = a
+    crop-marked drawing sheet. Use the explicit container on only 2-3 anchor beats.
+  - **Session chrome** — terminal's is `TerminalChrome` (a `~/path ▸` breadcrumb, gated on the DNA's
+    `breadcrumb` decoration so it's inert for other styles). Another style may have its own persistent frame
+    element (a running header / a page-number) or none.
+  - **Style-native component family** — terminal ships `Term*` (TermBars/Tree/Log/GitLog/Think/Counter/Table/
+    Diff) as the exemplar of "the metric/list/lineage/contrast idea, rebuilt in the style." For a style with NO
+    family yet, either build one the same way, OR use the library registers reading the DNA tokens + the
+    three-layer discipline — never a reskinned generic component (that fails the reject rule).
+
 ## D · Selecting the direction — show VIDEO samples, not text or a single still
 
 A direction is defined by its MOTION and feel; a text pitch (and even a single still) can't convey it — the user
@@ -185,4 +261,6 @@ the Node render budget is tight; default to samples.
 
 None of the above relaxes the floor. Before delivery: `validate.py` (structure/faithfulness), `check_av.py`
 (A/V sync), `keyframe_qa_remotion.py` (no blank frames), `frame_safe_qa.py` (edge-bleed + palette outlier), and
-the shot-critic (S1–S10). Meaning + frame-craft (S10) and direction-adherence (S7) are gates, not nice-to-haves.
+the shot-critic (S1–S11). Meaning + frame-craft (S10), direction-adherence (S7), and design-system coverage
+(S11 — the Design DNA runs through EVERY frame, per §C2) are gates, not nice-to-haves. `validate.py` also warns
+when a themed film has no `design_dna`/preset or a scene has no `theme_cues`.

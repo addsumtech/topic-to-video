@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 170; // ~5.7s
 const DEFAULT_RINGS = [
@@ -18,6 +19,7 @@ const DEFAULT_RINGS = [
 export const DataOrrery: React.FC<{items?: string[]; hub?: string}> = ({items, hub: HUB = 'WorkBuddy'} = {}) => {
   const RINGS = items ? DEFAULT_RINGS.map((r, i) => ({...r, label: items[i % items.length]})) : DEFAULT_RINGS;
   const t = useT();
+  const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2;
   const core = easeOutBack(seg(t, 0.02, 0.2));
@@ -28,7 +30,7 @@ export const DataOrrery: React.FC<{items?: string[]; hub?: string}> = ({items, h
   };
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 46%, #0e1330 0%, #070a1c 60%, #04050f 100%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(120% 120% at 50% 46%, #0e1330 0%, #070a1c 60%, #04050f 100%)'}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <defs>
           <filter id="og"><feGaussianBlur stdDeviation="6" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
@@ -71,10 +73,10 @@ export const DataOrrery: React.FC<{items?: string[]; hub?: string}> = ({items, h
         if (!n.front) return null;
         return <div key={i} style={{position: 'absolute', left: n.x, top: n.y + 26, transform: 'translateX(-50%)', opacity: on,
           padding: '4px 14px', borderRadius: 999, background: '#0b122acc', border: `1px solid ${r.c}66`,
-          color: '#dbe5f5', font: '600 24px/1 Inter, system-ui, sans-serif', whiteSpace: 'nowrap'}}>{r.label}</div>;
+          color: '#dbe5f5', font: `600 24px/1 Inter, system-ui, sans-serif`, whiteSpace: 'nowrap'}}>{r.label}</div>;
       })}
       <div style={{position: 'absolute', left: 0, right: 0, top: cy + 150, textAlign: 'center',
-        opacity: clamp01(seg(t, 0.18, 0.34)), color: '#eaf0ff', font: '800 40px/1 Inter, system-ui, sans-serif',
+        opacity: clamp01(seg(t, 0.18, 0.34)), color: '#eaf0ff', font: `800 40px/1 Inter, system-ui, sans-serif`,
         letterSpacing: '-0.01em', textShadow: '0 2px 20px #000'}}>{HUB}</div>
     </AbsoluteFill>
   );

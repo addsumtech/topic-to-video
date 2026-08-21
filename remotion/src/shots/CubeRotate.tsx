@@ -5,15 +5,17 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
 const BG = '#080a11';
-const TONES = ['#5b8cff', '#c07bff', '#ff6f91', '#31c9a6'];
+const TONES0 = ['#5b8cff', '#c07bff', '#ff6f91', '#31c9a6'];
 const SIZE = 660;
 
 export const CubeRotate: React.FC<{faces?: string[]; title?: string}> = ({
   faces: FACES = ['Plan', 'Build', 'Ship', 'Learn'], title: TITLE = 'The loop'} = {}) => {
   const t = useT();
+  const dna = useDNA(); const TONES = dna ? [dna.accent, dna.accent2, dna.dim, dna.accent] : TONES0;
   const {width: W, height: H} = useVideoConfig();
   const sides = FACES.slice(0, 4);
   const n = sides.length;
@@ -24,7 +26,7 @@ export const CubeRotate: React.FC<{faces?: string[]; title?: string}> = ({
   const angle = lerp(-(k - 1) * 90, -k * 90, arrive); // from previous face to this one, then hold
   const titleIn = easeOutCubic(seg(t, 0.03, 0.16));
   return (
-    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 36%, #12162c, ${BG} 70%)`,
+    <AbsoluteFill style={{background: dna?.bgGrad ?? `radial-gradient(120% 100% at 50% 36%, #12162c, ${BG} 70%)`,
       overflow: 'hidden'}}>
       <div style={{position: 'absolute', top: 80, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
         color: '#aeb6ca', font: '700 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.3em',
@@ -49,8 +51,8 @@ export const CubeRotate: React.FC<{faces?: string[]; title?: string}> = ({
                 <div style={{minWidth: 96, height: 96, borderRadius: 22, marginBottom: 30, padding: '0 20px',
                   background: `linear-gradient(150deg, ${tone}, #2b3ac6)`, boxShadow: `0 0 40px ${tone}66`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', font: '800 44px/1 Inter, system-ui, sans-serif', whiteSpace: 'nowrap'}}>{big}</div>
-                <div style={{color: '#eef2ff', font: '800 52px/1.08 Inter, system-ui, sans-serif',
+                  color: '#fff', font: `800 44px/1 Inter, system-ui, sans-serif`, whiteSpace: 'nowrap'}}>{big}</div>
+                <div style={{color: '#eef2ff', font: `800 52px/1.08 Inter, system-ui, sans-serif`,
                   letterSpacing: '-0.02em', maxWidth: SIZE - 150}}>{small}</div>
               </div>
             );

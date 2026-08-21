@@ -141,6 +141,9 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
         tin = _transition_in(s)   # a MARKED seam (chapter break) → Film's kinetic transition; else the safe fade
         if tin:
             scene["transitionIn"] = tin
+        chrome = s.get("chrome")   # DNA terminal chrome (command-path + status) framing this beat; remotion-only
+        if isinstance(chrome, dict):
+            scene["chrome"] = chrome
         scenes.append(scene)
     meta = data.get("meta") or {}
     reduced = bool(reduced_motion or meta.get("reduced_motion"))
@@ -154,6 +157,15 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
     theme = meta.get("theme")                 # the per-topic atmosphere WORLD (motif + palette) behind every shot
     if isinstance(theme, dict):
         props["theme"] = theme
+    # DESIGN DNA — the GLOBAL visual system every shot inherits (runtime/dna.ts). Prefer the EXPLICIT authored
+    # artifact meta.design_dna (a token object); else pass the template id so Film expands a preset via
+    # dnaFromTemplate (a terminal-technical deck with no authored DNA still gets TERMINAL_DNA). Absent both ->
+    # Film provides null and every shot renders its original hardcoded look (backward-compatible).
+    design_dna = meta.get("design_dna")
+    if isinstance(design_dna, dict):
+        props["dna"] = design_dna
+    elif meta.get("shot_template"):
+        props["template"] = str(meta["shot_template"])
     props_path = os.path.join(out_dir, ".remotion-props.json")
     with open(props_path, "w", encoding="utf-8") as f:
         json.dump(props, f, allow_nan=False, ensure_ascii=False)

@@ -5,12 +5,24 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic, hash01} from '../runtime/motion';
+import {useDNA, dnaHas, Caret} from '../runtime/dna';
 
 export const DURATION = 170; // ~5.7s
 export const CinematicTitle: React.FC<{kicker?: string; title?: string; tagline?: string}> = ({
   kicker: KICKER = 'A NEW KIND OF TEAMMATE', title: TITLE = 'WorkBuddy', tagline: TAG = 'your ai team · on your machine'} = {}) => {
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
+  // DESIGN DNA — a terminal system recolours the warm cinematic hero cool, swaps the serif for mono, drops the
+  // film-specific flare/letterbox, and adds a caret; with no DNA it stays the original cinematic title.
+  const dna = useDNA();
+  const bgBase = dna?.bg ?? '#05060a';
+  const roomGlow = dna ? 'radial-gradient(80% 70% at 62% 42%, #103128 0%, #0a1520 42%, #06080d 78%)'
+                       : 'radial-gradient(80% 70% at 62% 42%, #3a2a1c 0%, #14100c 42%, #05060a 78%)';
+  const moteCol = dna?.accent ?? '#ffe6c0';
+  const kickCol = dna?.accent ?? '#c69a63';
+  const titleFont = dna?.fontDisplay ?? '"Playfair Display", Georgia, serif';
+  const titleCol = dna?.fg ?? '#f4efe6';
+  const tagCol = dna?.dim ?? '#8b93a3';
   const bar = 132; // letterbox height
   const push = lerp(1.06, 1.14, easeOutCubic(t)); // slow Ken-Burns push
   const titleUp = easeOutExpo(seg(t, 0.16, 0.62));
@@ -18,10 +30,9 @@ export const CinematicTitle: React.FC<{kicker?: string; title?: string; tagline?
   const flareGlow = Math.sin(clamp01(seg(t, 0.2, 0.85)) * Math.PI); // rise then fall
 
   return (
-    <AbsoluteFill style={{background: '#05060a', overflow: 'hidden'}}>
-      {/* warm tungsten room-glow, pushed */}
-      <div style={{position: 'absolute', inset: 0, transform: `scale(${push})`,
-        background: 'radial-gradient(80% 70% at 62% 42%, #3a2a1c 0%, #14100c 42%, #05060a 78%)'}} />
+    <AbsoluteFill style={{background: bgBase, overflow: 'hidden'}}>
+      {/* room-glow, pushed (cool under a terminal DNA, warm tungsten otherwise) */}
+      <div style={{position: 'absolute', inset: 0, transform: `scale(${push})`, background: roomGlow}} />
 
       {/* dust motes drifting */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
@@ -31,26 +42,27 @@ export const CinematicTitle: React.FC<{kicker?: string; title?: string; tagline?
           const by = (hash01(i * 2) * H + t * (14 + hash01(i * 3) * 26)) % H;
           const r = 1.4 + hash01(i * 5) * 3;
           const op = 0.12 + 0.32 * hash01(i * 7);
-          return <circle key={i} cx={bx} cy={by} r={r} fill="#ffe6c0" opacity={op * (0.5 + 0.5 * flareGlow)} filter="url(#dust)" />;
+          return <circle key={i} cx={bx} cy={by} r={r} fill={moteCol} opacity={op * (0.5 + 0.5 * flareGlow)} filter="url(#dust)" />;
         })}
       </svg>
 
       {/* title block */}
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{opacity: clamp01(seg(t, 0.24, 0.5)), color: '#c69a63', font: '600 26px/1 "JetBrains Mono", monospace',
+        <div style={{opacity: clamp01(seg(t, 0.24, 0.5)), color: kickCol, font: '600 26px/1 "JetBrains Mono", monospace',
           letterSpacing: '0.5em', textTransform: 'uppercase', paddingLeft: '0.5em', marginBottom: 34,
-          transform: `translateY(${(1 - titleUp) * 18}px)`}}>{KICKER}</div>
+          transform: `translateY(${(1 - titleUp) * 18}px)`}}>{dnaHas(dna, 'prompt') ? '▸ ' : ''}{KICKER}</div>
         <div style={{opacity: titleUp, transform: `translateY(${(1 - titleUp) * 46}px)`, maxWidth: W * 0.9,
-          color: '#f4efe6',
+          color: titleCol, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
           // width-AND-length-aware so a long title / narrow (portrait|square) frame can't clip the wordmark
-          font: `800 ${Math.min(176, W * 0.13, (W * 0.86) / Math.max(1, String(TITLE).length * 0.52))}px/0.98 "Playfair Display", Georgia, serif`,
-          letterSpacing: '-0.01em', textShadow: '0 30px 90px #000, 0 2px 0 #ffffff22'}}>{TITLE}</div>
-        <div style={{opacity: clamp01(seg(t, 0.55, 0.82)), color: '#8b93a3', font: '500 30px/1 "JetBrains Mono", monospace',
+          font: `800 ${Math.min(176, W * 0.13, (W * 0.86) / Math.max(1, String(TITLE).length * 0.52))}px/0.98 ${titleFont}`,
+          letterSpacing: '-0.01em', textShadow: dna ? 'none' : '0 30px 90px #000, 0 2px 0 #ffffff22'}}>{TITLE}
+          {dnaHas(dna, 'cursor') ? <Caret color={dna!.accent} h={72} w={20} style={{marginLeft: 14}} /> : null}</div>
+        <div style={{opacity: clamp01(seg(t, 0.55, 0.82)), color: tagCol, font: '500 30px/1 "JetBrains Mono", monospace',
           letterSpacing: '0.36em', textTransform: 'uppercase', paddingLeft: '0.36em', marginTop: 30}}>{TAG}</div>
       </AbsoluteFill>
 
-      {/* anamorphic lens flare sweep */}
-      <svg width={W} height={H} style={{position: 'absolute', inset: 0, mixBlendMode: 'screen'}}>
+      {/* anamorphic lens flare sweep — a FILM cue; suppressed under a terminal DNA */}
+      {!dna ? <svg width={W} height={H} style={{position: 'absolute', inset: 0, mixBlendMode: 'screen'}}>
         <defs>
           <radialGradient id="core"><stop offset="0" stopColor="#fff7e8" stopOpacity="0.95" /><stop offset="1" stopColor="#fff7e8" stopOpacity="0" /></radialGradient>
           <linearGradient id="streak" x1="0" y1="0" x2="1" y2="0">
@@ -62,11 +74,11 @@ export const CinematicTitle: React.FC<{kicker?: string; title?: string; tagline?
           <ellipse cx={flareX} cy={H / 2} rx={70} ry={70} fill="url(#core)" />
           <ellipse cx={flareX} cy={H / 2} rx={16} ry={220} fill="url(#streak)" filter="url(#fb)" opacity={0.5} />
         </g>
-      </svg>
+      </svg> : null}
 
-      {/* letterbox bars */}
-      <div style={{position: 'absolute', top: 0, left: 0, right: 0, height: bar, background: '#000'}} />
-      <div style={{position: 'absolute', bottom: 0, left: 0, right: 0, height: bar, background: '#000'}} />
+      {/* letterbox bars — cinematic 2.39:1; a terminal is full-frame, so OFF under a terminal DNA */}
+      {!dna ? <><div style={{position: 'absolute', top: 0, left: 0, right: 0, height: bar, background: '#000'}} />
+      <div style={{position: 'absolute', bottom: 0, left: 0, right: 0, height: bar, background: '#000'}} /></> : null}
       {/* vignette */}
       <AbsoluteFill style={{background: 'radial-gradient(120% 100% at 50% 50%, #0000 52%, #000000cc 100%)', pointerEvents: 'none'}} />
     </AbsoluteFill>

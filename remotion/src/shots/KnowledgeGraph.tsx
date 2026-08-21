@@ -6,14 +6,17 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
-const NODE_PALETTE = ['#4c8dff', '#22d3c5', '#b06cff', '#ff8fc7', '#ffd23f', '#2fcb6e', '#ff6b6b'];
+const NODE_PALETTE0 = ['#4c8dff', '#22d3c5', '#b06cff', '#ff8fc7', '#ffd23f', '#2fcb6e', '#ff6b6b'];
 
 export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string}> = ({
   items = ['Docs', 'Code', 'Slack', 'Calendar', 'Email', 'Tasks', 'Notes'], hub: HUB = 'WorkBuddy'} = {}) => {
-  const NODES = items.map((label, i) => ({label, c: NODE_PALETTE[i % NODE_PALETTE.length]}));
   const t = useT();
+  const dna = useDNA();
+  const NODE_PALETTE = dna ? [dna.accent, dna.accent2, dna.dim, dna.accent, dna.accent2, dna.dim, dna.accent] : NODE_PALETTE0;
+  const NODES = items.map((label, i) => ({label, c: NODE_PALETTE[i % NODE_PALETTE.length]}));
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2;
   const drift = t * 0.18; // whole-graph slow rotate
@@ -25,11 +28,11 @@ export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string}> = ({
   };
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 45%, #0e1424 0%, #070a12 66%, #04060b 100%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(120% 120% at 50% 45%, #0e1424 0%, #070a12 66%, #04060b 100%)'}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <defs>
           <filter id="ng"><feGaussianBlur stdDeviation="6" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
-          <radialGradient id="halo"><stop offset="0" stopColor="#7aa2ff" stopOpacity="0.5" /><stop offset="1" stopColor="#7aa2ff" stopOpacity="0" /></radialGradient>
+          <radialGradient id="halo"><stop offset="0" stopColor={dna?.accent2 ?? "#7aa2ff"} stopOpacity="0.5" /><stop offset="1" stopColor={dna?.accent2 ?? "#7aa2ff"} stopOpacity="0" /></radialGradient>
         </defs>
 
         {/* spokes: center → node, drawn staggered */}
@@ -70,8 +73,8 @@ export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string}> = ({
           return (
             <g transform={`translate(${cx},${cy}) scale(${pop * pulse})`}>
               <circle r={92} fill="url(#halo)" />
-              <circle r={54} fill="#0b1220" stroke="#7aa2ff" strokeWidth={3} filter="url(#ng)" />
-              <circle r={30} fill="#4c8dff" filter="url(#ng)" />
+              <circle r={54} fill="#0b1220" stroke={dna?.accent2 ?? "#7aa2ff"} strokeWidth={3} filter="url(#ng)" />
+              <circle r={30} fill={dna?.accent ?? "#4c8dff"} filter="url(#ng)" />
             </g>
           );
         })()}
@@ -85,12 +88,12 @@ export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string}> = ({
         return (
           <div key={i} style={{position: 'absolute', left: p.x, top: p.y + 34, transform: 'translateX(-50%)', opacity: show,
             padding: '5px 14px', borderRadius: 999, background: '#0c1424cc', border: `1px solid ${n.c}66`,
-            color: '#dbe5f5', font: '600 24px/1 Inter, system-ui, sans-serif', whiteSpace: 'nowrap'}}>{n.label}</div>
+            color: '#dbe5f5', font: `600 24px/1 Inter, system-ui, sans-serif`, whiteSpace: 'nowrap'}}>{n.label}</div>
         );
       })}
       {/* center label */}
       <div style={{position: 'absolute', left: cx, top: cy + 96, transform: 'translateX(-50%)',
-        opacity: clamp01(seg(t, 0.16, 0.3)), color: '#eaf1ff', font: '800 34px/1 Inter, system-ui, sans-serif',
+        opacity: clamp01(seg(t, 0.16, 0.3)), color: '#eaf1ff', font: `800 34px/1 Inter, system-ui, sans-serif`,
         letterSpacing: '-0.01em', whiteSpace: 'nowrap'}}>{HUB}</div>
     </AbsoluteFill>
   );

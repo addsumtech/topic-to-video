@@ -5,15 +5,17 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutBack, easeOutCubic, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 120; // 4s — snappy
-const PUR = '#7C89FF', BG = '#0c0d14';
+const PUR0 = '#7C89FF', BG = '#0c0d14';
 
 type Piece = {x: number; y: number; w: number; h: number; dx: number; dy: number; at: number; c?: string};
 
 export const VelocitySnap: React.FC<{label?: string; metric?: string; unit?: string}> = ({
   label = 'Done.', metric = '0', unit = 'ms'} = {}) => {
   const t = useT();
+  const dna = useDNA(); const PUR = dna?.accent ?? PUR0;
   const {width: W} = useVideoConfig();
   // UI sits in the LEFT band; the big "0ms" gets a clear RIGHT band (no overlap).
   const cx = 130, cy = 300;
@@ -27,7 +29,7 @@ export const VelocitySnap: React.FC<{label?: string; metric?: string; unit?: str
   ];
   const doneAll = t > 0.44;
   return (
-    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 30%, #14162a, ${BG} 62%)`}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? `radial-gradient(120% 100% at 50% 30%, #14162a, ${BG} 62%)`}}>
       {pieces.map((p, i) => {
         const r = clamp01(seg(t, p.at, p.at + 0.14));
         const e = easeOutBack(r);

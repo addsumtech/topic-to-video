@@ -6,8 +6,9 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutExpo} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
-const BG = '#0a0c13', ACC = '#37d4a6';
+const BG = '#0a0c13', ACC0 = '#37d4a6';
 export const DURATION = 145; // ~4.8s
 
 const arcPath = (cx: number, cy: number, r: number, a0: number, a1: number) => {
@@ -44,21 +45,22 @@ export const GaugeCluster: React.FC<{value?: string; unit?: string; label?: stri
   value: VALUE = '98', unit: UNIT = '%', label: LABEL = 'uptime', title: TITLE = 'System health',
   gauges: SATS = [{label: 'latency', fill: 0.62}, {label: 'load', fill: 0.44}]} = {}) => {
   const t = useT();
+  const dna = useDNA(); const ACC = dna?.accent ?? ACC0;   // inherit the film's Design DNA (else original look)
   const {width: W, height: H} = useVideoConfig();
   const cy = H / 2 + 20, cx = W / 2;
   const heroFill = easeOutExpo(seg(t, 0.34, 0.78));
   const num = Math.round(parseFloat(String(VALUE).replace(/[^\d.]/g, '') || '0') * heroFill);
   const titleIn = easeOutCubic(seg(t, 0.03, 0.16));
   return (
-    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 40%, #12182c, ${BG} 72%)`}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? `radial-gradient(120% 100% at 50% 40%, #12182c, ${BG} 72%)`}}>
       <div style={{position: 'absolute', top: 74, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
         color: '#aeb6ca', font: '700 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.3em',
         textTransform: 'uppercase'}}>{TITLE}</div>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <Gauge cx={cx - 470} cy={cy} r={110} fill={easeOutExpo(seg(t, 0.12, 0.5)) * (SATS[0]?.fill ?? 0.6)}
-          tone="#5b8cff" label={SATS[0]?.label ?? ''} />
+          tone={dna?.accent2 ?? "#5b8cff"} label={SATS[0]?.label ?? ''} />
         <Gauge cx={cx + 470} cy={cy} r={110} fill={easeOutExpo(seg(t, 0.2, 0.58)) * (SATS[1]?.fill ?? 0.5)}
-          tone="#f6a531" label={SATS[1]?.label ?? ''} />
+          tone={dna?.dim ?? "#f6a531"} label={SATS[1]?.label ?? ''} />
         <Gauge cx={cx} cy={cy} r={210} fill={heroFill * clamp01(parseFloat(String(VALUE).replace(/[^\d.]/g, '') || '0') / 100)}
           tone={ACC} label={LABEL} big={String(num)} unit={UNIT} />
       </svg>

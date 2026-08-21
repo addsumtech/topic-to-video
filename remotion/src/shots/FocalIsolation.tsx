@@ -6,15 +6,17 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, easeOutBack, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 135; // 4.5s
-const ACCENT = '#2E7BFF', SPOT = '#ffe6ad';
+const ACCENT0 = '#2E7BFF', SPOT = '#ffe6ad';
 
 export const FocalIsolation: React.FC<{focalLabel?: string; items?: string[]}> = ({
   focalLabel = 'Your files · on your machine',
   items = ['Cloud drive', 'Shared server', 'Email', 'Someone’s laptop', 'YOUR MACHINE', 'A vendor', 'Chat export', 'Backup', 'The internet'],
 }) => {
   const t = useT();
+  const dna = useDNA(); const ACCENT = dna?.accent ?? ACCENT0;
   const {width: W, height: H} = useVideoConfig();
   const iso = easeOutCubic(seg(t, 0.32, 0.66)); // isolation progress
   const focal = 4; // centre item
@@ -23,7 +25,7 @@ export const FocalIsolation: React.FC<{focalLabel?: string; items?: string[]}> =
   const ox = (W - gridW) / 2, oy = (H - gridH) / 2 + 30;
   const fx = ox + (focal % cols) * (cw + gx) + cw / 2, fy = oy + Math.floor(focal / cols) * (ch + gy) + ch / 2;
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 45%, #1b2434, #0d131d)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(120% 120% at 50% 45%, #1b2434, #0d131d)'}}>
       {/* spotlight that lands on the focal item */}
       <div style={{position: 'absolute', left: fx - 520, top: fy - 520, width: 1040, height: 1040,
         background: `radial-gradient(closest-side, ${SPOT}${Math.round(28 * iso).toString(16).padStart(2, '0')}, transparent)`,

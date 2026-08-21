@@ -5,15 +5,17 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, easeOutBack, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
 
-const ACCENT = '#6E8BFF';
+const ACCENT0 = '#6E8BFF';
 const DEFAULT_ROWS = ['Plan the deck outline', 'Pull the Q3 numbers', 'Design 24 slides', 'Write the narrative', 'Export to your folder'];
 
 export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
   command = 'Build the Q3 board deck from ~/finance', items: ROWS = DEFAULT_ROWS} = {}) => {
   const t = useT();
+  const dna = useDNA(); const ACCENT = dna?.accent ?? ACCENT0;
   const {width: W, height: H} = useVideoConfig();
   // phases: palette in (0-.12) · type command (.12-.42) · Return flash (.46) · checklist spawns+ticks (.5-1)
   const inP = easeOutBack(seg(t, 0, 0.14));
@@ -25,7 +27,7 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
   const palScale = fired ? lerp(1, 0.94, easeOutCubic(seg(t, 0.46, 0.62))) : 1;
   const PW = 1180, PX = (W - PW) / 2;
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 100% at 50% 22%, #141a26, #090c12 60%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(120% 100% at 50% 22%, #141a26, #090c12 60%)'}}>
       {/* soft accent glow behind the palette */}
       <div style={{position: 'absolute', left: W / 2 - 420, top: 150, width: 840, height: 520,
         background: `radial-gradient(closest-side, ${ACCENT}22, transparent)`, filter: 'blur(30px)'}} />

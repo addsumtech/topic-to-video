@@ -5,21 +5,23 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 140; // ~4.7s
-const BG = '#0a0b12', ACC = '#5b8cff';
+const BG = '#0a0b12', ACC0 = '#5b8cff';
 const CELL = 236; // digit cell height
 
 export const OdometerRoll: React.FC<{value?: string; label?: string; unit?: string}> = ({
   value: VALUE = '1,240', label: LABEL = 'active teams this week', unit: UNIT = ''} = {}) => {
   const t = useT();
+  const dna = useDNA(); const ACC = dna?.accent ?? ACC0;
   useVideoConfig();
   const chars = String(VALUE).split('');
   const nDigits = chars.filter((c) => /\d/.test(c)).length;
   const labIn = easeOutCubic(seg(t, 0.05, 0.22));
   let di = -1; // running index across DIGIT chars only (for stagger)
   return (
-    <AbsoluteFill style={{background: `radial-gradient(130% 100% at 50% 34%, #141a36, ${BG} 66%)`,
+    <AbsoluteFill style={{background: dna?.bgGrad ?? `radial-gradient(130% 100% at 50% 34%, #141a36, ${BG} 66%)`,
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
       <div style={{opacity: labIn, color: '#8b93a8', font: '600 30px/1 "JetBrains Mono", monospace',
         letterSpacing: '0.32em', textTransform: 'uppercase', marginBottom: 44,
@@ -28,7 +30,7 @@ export const OdometerRoll: React.FC<{value?: string; label?: string; unit?: stri
       <div style={{display: 'flex', alignItems: 'flex-end', height: CELL}}>
         {chars.map((c, i) => {
           if (!/\d/.test(c)) {
-            return <div key={i} style={{font: '800 210px/1 Inter, system-ui, sans-serif', color: '#eef2ff',
+            return <div key={i} style={{font: `800 210px/1 Inter, system-ui, sans-serif`, color: '#eef2ff',
               padding: '0 4px', alignSelf: 'center'}}>{c}</div>;
           }
           di++;
@@ -51,7 +53,7 @@ export const OdometerRoll: React.FC<{value?: string; label?: string; unit?: stri
               <div style={{position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${offset}px)`}}>
                 {strip.map((n, k) => (
                   <div key={k} style={{height: CELL, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    font: '800 196px/1 Inter, system-ui, sans-serif',
+                    font: `800 196px/1 Inter, system-ui, sans-serif`,
                     color: k === strip.length - 1 && locked ? '#fff' : '#dbe3ff'}}>{n}</div>
                 ))}
               </div>
@@ -60,7 +62,7 @@ export const OdometerRoll: React.FC<{value?: string; label?: string; unit?: stri
             </div>
           );
         })}
-        {UNIT ? <div style={{font: '800 116px/1 Inter, system-ui, sans-serif', color: ACC,
+        {UNIT ? <div style={{font: `800 116px/1 Inter, system-ui, sans-serif`, color: ACC,
           marginLeft: 14, marginBottom: 22}}>{UNIT}</div> : null}
       </div>
 

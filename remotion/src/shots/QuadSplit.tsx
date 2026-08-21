@@ -5,10 +5,11 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeInOutCubic, easeOutBack} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
-const BG = '#0b0d14';
-const TONES = ['#5b8cff', '#ff5b7f', '#22c197', '#f6a531'];
+const BG0 = '#0b0d14';
+const TONES0 = ['#5b8cff', '#ff5b7f', '#22c197', '#f6a531'];
 
 // a small decodable motif per cell (bars / ring / dots / wave) — never mystery furniture
 const Motif: React.FC<{kind: number; c: string; g: number}> = ({kind, c, g}) => {
@@ -40,6 +41,7 @@ export const QuadSplit: React.FC<{panels?: {label?: string}[]; heading?: string;
   panels: PANELS = [{label: 'Faster'}, {label: 'Simpler'}, {label: 'Cheaper'}, {label: 'Safer'}],
   heading: HEADING = 'Four ways it wins', hero: HERO = 0} = {}) => {
   const t = useT();
+  const dna = useDNA(); const BG = dna?.bg ?? BG0; const TONES = dna ? [dna.accent, dna.accent2, dna.dim, dna.accent2] : TONES0;
   const {width: W, height: H} = useVideoConfig();
   const cells = PANELS.slice(0, 4);
   const heroIdx = Math.min(HERO, cells.length - 1);
@@ -48,7 +50,7 @@ export const QuadSplit: React.FC<{panels?: {label?: string}[]; heading?: string;
   const expand = easeInOutCubic(seg(t, 0.72, 0.97)); // hero takes the frame
   const headIn = clamp01(seg(t, 0.04, 0.16)) * (1 - clamp01(seg(t, 0.66, 0.74)));
   return (
-    <AbsoluteFill style={{background: BG}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? BG}}>
       {cells.map((p, i) => {
         const col = i % 2, row = Math.floor(i / 2);
         const enter = easeOutBack(clamp01(seg(t, 0.12 + i * 0.09, 0.34 + i * 0.09)));

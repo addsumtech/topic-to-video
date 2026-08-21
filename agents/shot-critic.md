@@ -106,11 +106,36 @@ non-16:9 film (`meta.aspect` / `--vertical`), still-render at the film's aspect 
 multi-column grid must STACK in portrait (not squeeze side-by-side), no wide element runs off-frame, content fills
 the taller frame. Meaning + content-fit + frame-craft (incl. aspect) are gates, not nice-to-haves.
 
+**S11 · DESIGN-SYSTEM COVERAGE (the Consistency Critic — whole-film + per-scene).** The selected template is a
+GLOBAL visual system (the `meta.design_dna`), not a decorative theme on one or two frames. Two checks:
+**Per scene:** identify **≥2–3 concrete elements that tie this shot to the Design DNA** — typography (does it use
+the DNA's mono/display font?), palette (the DNA `accent`/`bg`, not the register's original hue?), container/border
+style, motion personality, or an annotation cue (prompt `▸` / cursor / status / grid / mono metadata). Cross-check
+the scene's `shot_adaptation.theme_cues` against the RENDERED keyframe — are the claimed cues actually on screen? A
+shot that still wears its ORIGINAL identity (a serif cinematic title, an Apple-watch gauge, a rainbow chart) with
+<2 DNA connections is **visually disconnected → REVISE** (restyle it into the DNA via `useDNA()` tokens, or rebuild
+it; never leave it off-system because the component already existed).
+**Whole-film FINAL TEST (docx §9):** mentally REMOVE the 1–2 shots that are obviously the theme (a literal
+terminal/code shot). From the REMAINING shots alone, could a viewer still infer the film's design language? If NO,
+the DNA has not propagated deeply enough — name the disconnected shots and REVISE. The template must behave like a
+design grammar, not a coat of paint on a few frames.
+**Balance (docx §13) — consistency ≠ repetition:** do NOT demand every frame be a literal terminal window; a
+metric / diagram / chart beat satisfies S11 by inheriting the DNA's type + palette + motion + 2–3 cues, not by
+becoming a black-green box. Flag the OPPOSITE failure too — every shot an identical explicit style CONTAINER
+(the same terminal window / the same magazine spread) reads as monotony. Apply the **three-layer balance**
+(§C2, style-AGNOSTIC): only 2-3 anchor beats should show the explicit container; the rest must inherit the
+grammar on OPEN canvas with a PER-CONTENT layout + native action→result motion. And the **reject rule** — a shot
+that could be dropped unchanged into a completely DIFFERENT style unnoticed has NOT been assimilated → REVISE.
+This is a whole-film gate at `bold`/`experimental`, a strong nudge otherwise; it never overrides S3 (faithfulness)
+or S4 (legibility). `validate.py` backstops it mechanically (a themed film with no `design_dna`/preset, or a scene
+with no `theme_cues`).
+
 ## Output
 For each flagged scene: `scene #N · Sx · <what's wrong on screen> · FIX: <the concrete change — a different
 `shot` id, or the `shot_props` key+value to set>`. End with a verdict: **PASS** (deliver) or **REVISE** (list the
 scenes; the shot-director applies the fixes and re-renders those beats, then you re-review the changed frames).
 Be specific and evidence-based — cite the keyframe you saw. Consent to deliver only when S3 (faithfulness) and S6
-(A/V + keyframe_qa) are clean, no scene fails S1/S4, and — at `bold`/`experimental` — S8 (boldness) is satisfied.
+(A/V + keyframe_qa) are clean, no scene fails S1/S4, and — at `bold`/`experimental` — S8 (boldness) AND S11
+(design-system coverage — the Design DNA runs through EVERY frame, not just the themed ones) are satisfied.
 Silence is not consent: if a keyframe is missing, `check_av` or `keyframe_qa_remotion` didn't run, say so and
 withhold PASS until it does.

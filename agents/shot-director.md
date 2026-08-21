@@ -60,6 +60,39 @@ routing. A *direction* is a coherent whole-film ATMOSPHERE: a named look + a lea
    same-family): `python scripts/shot_director.py <out> --template <seed-key>` for a seed, or apply the lean by
    hand as you author `shot`s below.
 
+## Step 0.6 — Extract the Design DNA (the GLOBAL visual system every shot inherits)
+The chosen template is **NOT a set of reusable frames — it is the whole film's visual system.** Before authoring a
+single shot, expand the template into an explicit **Design DNA** and write it to `meta.design_dna` (a reviewable
+artifact, not just a label). The DNA is the *shared grammar* every shot wears; a library register contributes its
+STRUCTURE (composition + motion + information hierarchy), the DNA contributes the VISUAL IDENTITY. Required keys
+(match `remotion/src/runtime/dna.tsx` `DesignDNA`): `id` · `fontDisplay`/`fontMono`/`fontBody` · `bg`/`bgGrad`/
+`fg`/`dim`/`accent`/`accent2`/`onAccent`/`surface`/`surfaceBorder`/`line` · `radius`/`borderWidth` · `motion`
+(`type`/`execute`/`smooth`/`mechanical`) · `decoration` (`prompt`/`status`/`breadcrumb`/`cursor`/`scanline`/`grid`/
+`line-numbers`) · `uppercaseLabels`/`labelSpacing`. A **built-in preset** exists for known templates (terminal →
+`TERMINAL_DNA`), auto-applied by `render_remotion.py` when you set `meta.shot_template` and author no `design_dna`;
+authoring the explicit block is preferred (it's the reviewable Design DNA and lets you tune tokens). **The DNA is
+provided to the Film at render (a `DesignDNAContext`) and every migrated register reads it via `useDNA()`**, so one
+DNA makes 19 different compositions read as one visual universe — the remotion analogue of the html tier's
+`theme.css`. `validate.py` warns when a themed film has neither an explicit `design_dna` nor a preset-mapped template.
+**Consistency ≠ repetition:** the DNA does NOT make every frame a terminal window — a beat may be a big metric, a
+chart, a diagram; it just inherits the type/palette/container/motion/annotation grammar. Prefer subtle structural
+consistency over repetitive decoration (a shot needs 2–3 recognizable DNA cues, not a forced terminal box).
+
+## Step 0.7 — Style Assimilation + the three-layer model (run per shot, for ANY chosen style)
+The template is a GRAMMAR, not a layout template — and the trap cuts BOTH ways: too weak = reskin a generic
+register (a gauge tinted to the accent); too strong = make EVERY beat the same explicit style CONTAINER (for
+terminal, a black window box; for editorial, an identical magazine spread). Split the style into **three layers**
+(§C2): **(1) Surface** — only 2-3 ANCHOR beats show the explicit container (terminal window / glass hero /
+drawing sheet). **(2) Grammar** — every OTHER beat inherits the DNA (type, palette, the style's syntax/marks,
+status/annotation cues) on OPEN canvas, with a layout chosen PER CONTENT so beats don't all look alike. **(3)
+Motion** — reveal as the style's native ACTION → RESULT (terminal: `$ cmd` runs → output grows; product: a soft
+scale-in; blueprint: a measured draw-on). Then **ASSIMILATE each shot**: translate its content idea into the DNA
+across ≥2-3 of {typography, layout, components, motion, transition, narrative-metaphor}, and **reject any shot
+that could be dropped unchanged into a different style without anyone noticing.** For terminal use the `Term*`
+family + `TermFrame` (default OPEN, `framed` only on anchors); for a style with no family yet, build style-native
+shots the same way OR use the library registers reading the DNA tokens — never a reskinned generic component.
+This is style-AGNOSTIC: it holds for terminal, editorial, product/apple, blueprint, or any `meta.design_dna`.
+
 ## The mandate — clear AND bold AND meaningful
 For each beat ask *"what is the clearest hand-written LANGUAGE for THIS idea?"* — match the beat's intent to a
 register's "use when", never "which card layout". Then fill that register's props from the beat's own content so
@@ -161,10 +194,12 @@ a *needed* dark↔light turn read as continuity rather than a flip — see Rule 
 ## Output
 Edit `storyboard.json`: set `meta.renderer:"remotion"` and, on every scene, `shot` (a valid id from
 `remotion/src/shots/*.tsx`) + `shot_props` (an object of TOPIC copy — never leave it `{}`, which ships the
-register's demo mannequin) + **`shot_adaptation` = `{kept, redesigned, topic_idea}`** (REQUIRED — the style AND
-any stock modules that ALREADY fit the topic that you kept, the modules/components + content you rebuilt for this
-topic, and the topic-specific idea the shot now encodes; per the KEEP-THE-STYLE-REDESIGN-THE-REST rule above —
-keep what fits, redesign what doesn't, don't blindly change everything). Then record your choices for the critic: a short
+register's demo mannequin) + **`shot_adaptation` = `{kept, redesigned, topic_idea, theme_cues}`** (REQUIRED — the
+style AND any stock modules that ALREADY fit the topic that you kept, the modules/components + content you rebuilt
+for this topic, the topic-specific idea the shot now encodes, and — on a DNA-themed film — **`theme_cues`: the 2-3
+concrete cues that tie THIS shot to the global visual system** (e.g. `["mono heading","▸ prompt","terminal grid",
+"green accent"]`) so the Design DNA verifiably runs through every frame; per the KEEP-THE-STYLE-REDESIGN-THE-REST
+rule above — keep what fits, redesign what doesn't, don't blindly change everything). Then record your choices for the critic: a short
 `shot_rationale` per scene (why this register, which family) is encouraged. `validate.py` errors on a
 missing/unknown `shot` or a number-bearing register left on its demo default, and WARNs on empty `shot_props` or a
 missing `shot_adaptation` (a raw text-swap); `render_remotion.py` renders the chosen shots through the data-driven

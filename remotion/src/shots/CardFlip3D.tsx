@@ -5,9 +5,10 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
-const BG = '#0a0c13', ACC = '#6ea8ff';
+const BG = '#0a0c13', ACC0 = '#6ea8ff';
 
 type Item = {front?: string; back?: string};
 
@@ -26,6 +27,7 @@ export const CardFlip3D: React.FC<{items?: Item[]; title?: string}> = ({
   items: ITEMS = [{front: 'Manual', back: 'Automated'}, {front: 'Hours', back: 'Seconds'}, {front: 'Guesswork', back: 'Grounded'}],
   title: TITLE = 'What changes'} = {}) => {
   const t = useT();
+  const dna = useDNA(); const ACC = dna?.accent ?? ACC0;
   const {width: W} = useVideoConfig();
   const cards = ITEMS.slice(0, 4);
   const n = cards.length;
@@ -34,7 +36,7 @@ export const CardFlip3D: React.FC<{items?: Item[]; title?: string}> = ({
   const x0 = (W - rowW) / 2;
   const titleIn = easeOutCubic(seg(t, 0.04, 0.2));
   return (
-    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 40%, #12162b, ${BG} 68%)`}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? `radial-gradient(120% 100% at 50% 40%, #12162b, ${BG} 68%)`}}>
       <div style={{position: 'absolute', top: 96, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
         transform: `translateY(${(1 - titleIn) * 14}px)`, color: '#aeb6ca',
         font: '700 32px/1 "JetBrains Mono", monospace', letterSpacing: '0.26em', textTransform: 'uppercase'}}>{TITLE}</div>
@@ -54,13 +56,13 @@ export const CardFlip3D: React.FC<{items?: Item[]; title?: string}> = ({
               <Face tone={tone}>
                 <div style={{color: '#8b93a8', font: '600 22px/1 "JetBrains Mono", monospace',
                   letterSpacing: '0.14em', marginBottom: 22}}>{String(i + 1).padStart(2, '0')}</div>
-                <div style={{color: '#eef2ff', font: '800 64px/1.02 Inter, system-ui, sans-serif',
+                <div style={{color: '#eef2ff', font: `800 64px/1.02 Inter, system-ui, sans-serif`,
                   textAlign: 'center', letterSpacing: '-0.02em'}}>{c.front}</div>
               </Face>
               <Face back tone={tone}>
-                <div style={{color: tone, font: '800 54px/1 Inter, system-ui, sans-serif',
+                <div style={{color: tone, font: `800 54px/1 Inter, system-ui, sans-serif`,
                   marginBottom: 18, textShadow: `0 0 24px ${tone}99`}}>&#8595;</div>
-                <div style={{color: '#fff', font: '800 64px/1.02 Inter, system-ui, sans-serif',
+                <div style={{color: '#fff', font: `800 64px/1.02 Inter, system-ui, sans-serif`,
                   textAlign: 'center', letterSpacing: '-0.02em'}}>{c.back}</div>
               </Face>
               {sheen > 0.01 ? <div style={{position: 'absolute', inset: 0, borderRadius: 26, pointerEvents: 'none',

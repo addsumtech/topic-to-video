@@ -6,11 +6,13 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 export const LiquidChrome: React.FC<{word?: string; tagline?: string}> = ({
   word: WORD = 'DELIVERED', tagline: SUB = 'your ai team · on your machine'} = {}) => {
   const t = useT();
+  const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, baseY = H / 2 - 20;
   const flow = (t * 260) % 360;            // vertical band drift (loops via reflect)
@@ -26,18 +28,15 @@ export const LiquidChrome: React.FC<{word?: string; tagline?: string}> = ({
   );
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 130% at 50% 34%, #1a1e26 0%, #0a0c11 62%, #06070a 100%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(120% 130% at 50% 34%, #1a1e26 0%, #0a0c11 62%, #06070a 100%)'}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <defs>
           {/* flowing chrome: reflected vertical bands, translated over time */}
           <linearGradient id="chrome" gradientUnits="userSpaceOnUse" x1="0" y1={-180 + flow} x2="0" y2={180 + flow} spreadMethod="reflect">
-            <stop offset="0" stopColor="#20242c" />
-            <stop offset="0.28" stopColor="#c3ccd8" />
-            <stop offset="0.42" stopColor="#ffffff" />
-            <stop offset="0.52" stopColor="#8b95a3" />
-            <stop offset="0.66" stopColor="#e9eef4" />
-            <stop offset="0.82" stopColor="#454b56" />
-            <stop offset="1" stopColor="#141821" />
+            {/* metallic ramp — tinted to the Design DNA accent (a terminal "green chrome"), grey-metal otherwise */}
+            {(dna ? [['0', '#0a2019'], ['0.28', dna.accent], ['0.42', '#eafff6'], ['0.52', '#1c6b54'], ['0.66', dna.accent], ['0.82', '#0e3a2e'], ['1', '#05100c']]
+                  : [['0', '#20242c'], ['0.28', '#c3ccd8'], ['0.42', '#ffffff'], ['0.52', '#8b95a3'], ['0.66', '#e9eef4'], ['0.82', '#454b56'], ['1', '#141821']]
+             ).map(([o, c]) => <stop key={o} offset={o} stopColor={c} />)}
           </linearGradient>
           {/* specular sweep band */}
           <linearGradient id="spec" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0">
@@ -57,8 +56,8 @@ export const LiquidChrome: React.FC<{word?: string; tagline?: string}> = ({
 
         <g clipPath="url(#riseclip)" transform={`translate(0 ${(1 - settle) * 30}) `}>
           {/* chromatic-aberration fringe */}
-          <Word fill="#ff2d55" opacity={0.5} dx={-4} />
-          <Word fill="#22d3ee" opacity={0.5} dx={4} />
+          <Word fill={dna?.accent2 ?? '#ff2d55'} opacity={0.5} dx={-4} />
+          <Word fill={dna?.accent ?? '#22d3ee'} opacity={0.5} dx={4} />
           {/* chrome body */}
           <Word fill="url(#chrome)" />
           {/* specular sweep on top (screen) */}

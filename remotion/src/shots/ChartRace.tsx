@@ -6,10 +6,11 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 const BG = '#0a0c14';
-const TONES = ['#5b8cff', '#ff6f91', '#37d4a6', '#f6a531', '#c07bff', '#4dd0e1'];
+const TONES0 = ['#5b8cff', '#ff6f91', '#37d4a6', '#f6a531', '#c07bff', '#4dd0e1'];
 
 type Row = {label?: string; value?: number; delay?: number};
 
@@ -18,6 +19,7 @@ export const ChartRace: React.FC<{data?: Row[]; title?: string; unit?: string}> 
     {label: 'Charlie', value: 100, delay: 0.42}, {label: 'Delta', value: 64, delay: 0.1}, {label: 'Echo', value: 84, delay: 0.5}],
   title: TITLE = 'Who pulls ahead', unit: UNIT = ''} = {}) => {
   const t = useT();
+  const dna = useDNA(); const TONES = dna ? [dna.accent, dna.accent2, dna.dim, dna.accent, dna.accent2, dna.dim] : TONES0;
   const {width: W, height: H} = useVideoConfig();
   const rows = DATA.slice(0, 6);
   const maxVal = Math.max(...rows.map((r) => r.value ?? 0), 1);
@@ -34,7 +36,7 @@ export const ChartRace: React.FC<{data?: Row[]; title?: string; unit?: string}> 
     live.reduce((s, o) => (o.i === r.i ? s : s + sig((o.cur - r.cur) * 0.22)), 0);
   const titleIn = easeOutCubic(seg(t, 0.03, 0.16));
   return (
-    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 30% 20%, #12162a, ${BG} 72%)`, overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? `radial-gradient(120% 100% at 30% 20%, #12162a, ${BG} 72%)`, overflow: 'hidden'}}>
       <div style={{position: 'absolute', top: 90, left: x0 - 40, opacity: titleIn,
         color: '#aeb6ca', font: '700 34px/1 "JetBrains Mono", monospace', letterSpacing: '0.24em', textTransform: 'uppercase'}}>{TITLE}</div>
       {live.map((r) => {
@@ -55,7 +57,7 @@ export const ChartRace: React.FC<{data?: Row[]; title?: string; unit?: string}> 
               boxShadow: lead ? `0 0 30px ${tone}88` : 'none'}} />
             {/* value */}
             <div style={{position: 'absolute', left: bw + 20, top: 0, height: rowH - 22, display: 'flex', alignItems: 'center',
-              color: lead ? tone : '#8b93a8', font: '800 40px/1 Inter, system-ui, sans-serif'}}>
+              color: lead ? tone : '#8b93a8', font: `800 40px/1 Inter, system-ui, sans-serif`}}>
               {Math.round(r.cur)}{UNIT}</div>
           </div>
         );

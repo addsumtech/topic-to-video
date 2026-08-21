@@ -18,6 +18,7 @@ import {dissolve} from '@remotion/transitions/dissolve';
 import {SceneDurationContext, ReducedMotionContext, clamp01} from './runtime/motion';
 import {groundLum, type Lum} from './runtime/shotLuma';
 import {Atmosphere, type Atmo} from './runtime/atmosphere';
+import {DesignDNAContext, type DesignDNA, dnaFromTemplate, TerminalChrome} from './runtime/dna';
 import {REGISTRY} from './registry';
 import {CAPTIONS} from './captions';
 
@@ -26,6 +27,9 @@ import {CAPTIONS} from './captions';
 // camera{}, carry{}, transitionIn{}, audioCues[]) — all OPTIONAL + remotion-only, so the html tier is untouched.
 export type SceneSpec = {shot: string; props?: Record<string, unknown>; durF: number; mp3?: string;
   caption?: string; bgLum?: Lum;
+  // TERMINAL CHROME per scene (remotion + DNA only): a command-path + status readout the Film frames every beat
+  // with (see runtime/dna.tsx TerminalChrome). Optional; inert unless the active DNA speaks 'breadcrumb'.
+  chrome?: {path?: string; status?: string};
   // A MARKED seam (chapter break): the transition INTO this scene from the previous one. Optional +
   // remotion-only; unset = the luminance-safe default (a gentle cross-fade). A kinetic type is honored only
   // on a same/near-luminance seam — across a dark↔light gap it's suppressed back to fade (see pickPresentation).
@@ -220,21 +224,29 @@ const BrandMark: React.FC<{brand?: any}> = ({brand}) => {
   );
 };
 
-export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any}> =
-  ({scenes = WORKBUDDY_SCENES, camera = 0, reducedMotion = false, theme, captions = true, brand}) => {
+export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any; dna?: DesignDNA | null; template?: string}> =
+  ({scenes = WORKBUDDY_SCENES, camera = 0, reducedMotion = false, theme, captions = true, brand, dna, template}) => {
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
   const total = filmDuration(scenes);
   const cam = cameraTransform(frame, reducedMotion ? 0 : Math.max(0, camera));
   const intro = interpolate(frame, [0, 12], [1, 0], {extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic)});
   const outro = interpolate(frame, [total - 16, total - 1], [0, 1], {extrapolateLeft: 'clamp'});
-  const bg = theme?.bg ?? '#05060a';
+  // ONE Design DNA for the whole film (null = un-themed → every shot renders its original hardcoded look).
+  const activeDna = dna ?? dnaFromTemplate(template) ?? null;
+  const bg = theme?.bg ?? activeDna?.bg ?? '#05060a';
 
   return (
     <AbsoluteFill style={{backgroundColor: bg}}>
+      <DesignDNAContext.Provider value={activeDna}>
       <Atmosphere {...(theme ?? {})} intensity={reducedMotion ? 0.55 : (theme?.intensity ?? 1)} />
       <ReducedMotionContext.Provider value={reducedMotion}>
-      <AbsoluteFill style={cam === 'none' ? undefined : {transform: cam}}>
+      {/* GLOBAL TYPE — for a UNIFORM-TYPE DNA (e.g. terminal = all-mono) inject one font-family !important so
+          every shot speaks the type with zero per-shot edits (overrides inline family, keeps size/weight; scoped
+          to .dna-film so captions keep their own font). A MIXED-type style (editorial serif+sans, etc.) sets no
+          uniformType → NO override, and its registers pick fontDisplay vs fontBody per element. Generalizes. */}
+      {activeDna?.uniformType ? <style>{`.dna-film, .dna-film * { font-family: ${activeDna.fontMono} !important; }`}</style> : null}
+      <AbsoluteFill className="dna-film" style={cam === 'none' ? undefined : {transform: cam}}>
       <TransitionSeries>
         {scenes.flatMap((sc, i) => {
           const C = REGISTRY[sc.shot];
@@ -243,6 +255,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
             <TransitionSeries.Sequence key={`s${i}`} durationInFrames={durF}>
               <SceneDurationContext.Provider value={durF}>
                 <AbsoluteFill>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</AbsoluteFill>
+                <TerminalChrome dna={activeDna} path={sc.chrome?.path} status={sc.chrome?.status} W={width} H={height} />
               </SceneDurationContext.Provider>
               {sc.mp3 ? <Audio src={staticFile(sc.mp3)} /> : null}
             </TransitionSeries.Sequence>
@@ -260,6 +273,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
       <AbsoluteFill style={{backgroundColor: bg, opacity: Math.max(intro, outro), pointerEvents: 'none'}} />
       {captions ? <CaptionTrack scenes={scenes} groundBg={theme?.bg} /> : null}
       <BrandMark brand={brand} />
+      </DesignDNAContext.Provider>
     </AbsoluteFill>
   );
 };

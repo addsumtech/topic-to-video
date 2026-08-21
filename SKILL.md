@@ -151,11 +151,30 @@ TTS if the user gives an API key.
   tier**: a **bespoke-shot LIBRARY** where every beat is a hand-written, topic-driven design language (the
   registers catalogued in `remotion/LIBRARY.md`), sequenced into a narrated film with cross-dissolve
   transitions + scene-relative captions + per-scene edge-tts narration (served via `--public-dir=<out_dir>`).
-  **Authoring:** the **shot-director** agent (`agents/shot-director.md`) reads `content_plan.json` +
+  **GLOBAL VISUAL SYSTEM (Design DNA):** the chosen template is NOT a set of reusable frames — it is the film's
+  whole visual system. The **shot-director** FIRST expands it into an explicit **`meta.design_dna`** (an artifact:
+  type / palette / container / motion / annotation grammar — `remotion/src/runtime/dna.tsx` `DesignDNA`, terminal
+  preset `TERMINAL_DNA`). The DNA is provided to the Film at render (a `DesignDNAContext`) and every DNA-migrated
+  register READS it via `useDNA()`, so a library register contributes only its STRUCTURE and the DNA contributes
+  the VISUAL IDENTITY — 19 different compositions read as ONE visual universe (the remotion analogue of the html
+  tier's `theme.css`; reuse the structural idea, NOT the visual identity). No explicit `design_dna` + a preset-mapped
+  `shot_template` → `render_remotion.py` auto-applies the preset; neither → shots render their original hardcoded
+  looks (`validate.py` warns). **Three-layer model + Style Assimilation (style-AGNOSTIC — see references/remotion-
+  shot-authoring.md §C2 + shot-director Step 0.7):** consistency ≠ repetition. Only 2-3 ANCHOR beats show the
+  explicit style CONTAINER (terminal window / glass hero / drawing sheet); every OTHER beat inherits the DNA
+  grammar on OPEN canvas with a per-content layout, and reveals via the style's native action→result MOTION. Each
+  shot is ASSIMILATED into the DNA (≥2-3 of type/layout/components/motion/transition/metaphor); a shot that could
+  move to a different style unnoticed is rejected. This holds for ANY template — `runtime/dna.tsx` ships DNA
+  presets (terminal / editorial / product-apple / blueprint / neutral) + the reusable `TermFrame` (surface-vs-open
+  + action→result); terminal's `Term*` family is the worked example of style-native components. shot-critic **S11**
+  audits per-frame DNA coverage + monotony + the "remove the themed shots — can you still infer the design
+  language?" final test.
+  **Authoring:** the shot-director (`agents/shot-director.md`) reads `content_plan.json` +
   `remotion/LIBRARY.md` and writes, per scene, `shot` (a register id) + `shot_props` (the beat's topic copy)
-  + `shot_adaptation` (a REQUIRED `{kept, redesigned, topic_idea}` note — KEEP the register's style, REDESIGN its
-  modules/components + content for THIS topic, never a raw text-swap; `validate.py` warns on empty props or a
-  missing note, shot-critic S10 checks it against the render — see `references/remotion-shot-authoring.md` §B2)
+  + `shot_adaptation` (a REQUIRED `{kept, redesigned, topic_idea, theme_cues}` note — KEEP the register's style,
+  REDESIGN its modules/components + content for THIS topic, never a raw text-swap, and name the 2-3 `theme_cues`
+  tying the shot to the Design DNA; `validate.py` warns on empty props / a missing note / missing theme_cues,
+  shot-critic S10+S11 check it against the render — see `references/remotion-shot-authoring.md` §B2)
   — matching the beat's intent to a register's "use when" and **varying the FAMILY across the film** (no two
   adjacent beats read as one look). Deterministic fallback: `python scripts/shot_director.py <out_dir>`.
   **Faithfulness:** a register that shows a NUMBER (ChartLive/BeforeAfterSlider/VelocitySnap) MUST be given a

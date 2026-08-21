@@ -7,6 +7,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 import {titleStyle} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
@@ -46,10 +47,12 @@ export const PlatformSurfaces: React.FC<{
            {label: 'Sora', note: 'image + video', glyph: 'video'},
            {label: 'Codex', note: 'coding agent', glyph: 'code'},
            {label: 'Operator', note: 'browser agent', glyph: 'cursor'}],
-  accent = '#10a37f', accent2 = '#7aa2ff',
+  accent: accent0 = '#10a37f', accent2: accent20 = '#7aa2ff',
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
   const t = useT();
+  const dna = useDNA();
+  const accent = dna?.accent ?? accent0, accent2 = dna?.accent2 ?? accent20;
   const TONES = [accent, accent2, '#e0b64b', '#c07bff', '#37d4a6'];
   const portrait = W < H;
   // LANDSCAPE: hero panel on the LEFT, a 2x2 tile grid on the RIGHT. PORTRAIT: hero STACKS on top, tiles fill below.
@@ -62,7 +65,7 @@ export const PlatformSurfaces: React.FC<{
   const heroE = easeOutBack(clamp01(seg(t, 0.04, 0.3)));
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 100% at 28% 22%, #12162a, #0a0c12 72%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(120% 100% at 28% 22%, #12162a, #0a0c12 72%)'}}>
       <div style={{...titleStyle, top: 84, opacity: clamp01(t * 5)}}>{title}</div>
       {/* hero panel */}
       <div style={{position: 'absolute', left: hx, top: hy, width: hw, height: hh, borderRadius: 22,
@@ -71,8 +74,8 @@ export const PlatformSurfaces: React.FC<{
         padding: 48, display: 'flex', flexDirection: 'column', justifyContent: 'space-between'}}>
         <div style={{color: '#eafff7cc', font: '600 22px/1 "JetBrains Mono", monospace', letterSpacing: '0.14em'}}>THE PLATFORM</div>
         <div>
-          <div style={{color: '#fff', font: '800 60px/1.05 Inter, system-ui, sans-serif', letterSpacing: '-0.02em'}}>{title}</div>
-          <div style={{color: '#eafff7dd', font: '500 27px/1.3 Inter, system-ui, sans-serif', marginTop: 16}}>{subtitle}</div>
+          <div style={{color: '#fff', font: `800 60px/1.05 Inter, system-ui, sans-serif`, letterSpacing: '-0.02em'}}>{title}</div>
+          <div style={{color: '#eafff7dd', font: `500 27px/1.3 Inter, system-ui, sans-serif`, marginTop: 16}}>{subtitle}</div>
         </div>
       </div>
       {/* product tiles */}
@@ -91,8 +94,8 @@ export const PlatformSurfaces: React.FC<{
             boxShadow: `0 18px 44px #0006, inset 0 0 60px ${tone}0e`}}>
             <Glyph kind={tile.glyph || 'node'} c={tone} g={g} />
             <div>
-              <div style={{color: '#eef2ff', font: '800 34px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em'}}>{tile.label}</div>
-              {tile.note ? <div style={{color: '#9aa4ba', font: '500 20px/1.2 Inter, system-ui, sans-serif', marginTop: 8}}>{tile.note}</div> : null}
+              <div style={{color: '#eef2ff', font: `800 34px/1 Inter, system-ui, sans-serif`, letterSpacing: '-0.01em'}}>{tile.label}</div>
+              {tile.note ? <div style={{color: '#9aa4ba', font: `500 20px/1.2 Inter, system-ui, sans-serif`, marginTop: 8}}>{tile.note}</div> : null}
             </div>
           </div>
         );

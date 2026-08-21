@@ -5,14 +5,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeInOutCubic, easeOutCubic, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 const BG = '#090b12';
-const TONES = ['#5b8cff', '#ff6f91', '#37d4a6', '#f6a531', '#c07bff', '#4dd0e1'];
+const TONES0 = ['#5b8cff', '#ff6f91', '#37d4a6', '#f6a531', '#c07bff', '#4dd0e1'];
 
 export const CardStack3D: React.FC<{items?: string[]; title?: string}> = ({
   items: ITEMS = ['Docs', 'Chat', 'Tasks', 'Code', 'Data', 'Calls'], title: TITLE = 'All of it, in hand'} = {}) => {
   const t = useT();
+  const dna = useDNA(); const TONES = dna ? [dna.accent, dna.accent2, dna.dim, dna.accent, dna.accent2, dna.dim] : TONES0;
   const {width: W, height: H} = useVideoConfig();
   const cards = ITEMS.slice(0, 7);
   const n = cards.length;
@@ -21,7 +23,7 @@ export const CardStack3D: React.FC<{items?: string[]; title?: string}> = ({
   const fan = easeInOutCubic(seg(t, 0.58, 0.92));
   const titleIn = easeOutCubic(seg(t, 0.66, 0.86));
   return (
-    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 38%, #12162b, ${BG} 72%)`, overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? `radial-gradient(120% 100% at 50% 38%, #12162b, ${BG} 72%)`, overflow: 'hidden'}}>
       <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center', perspective: 1800}}>
         <div style={{position: 'relative', width: cw, height: ch, transformStyle: 'preserve-3d',
           transform: `translateY(${lerp(40, -30, fan)}px)`}}>
@@ -44,8 +46,8 @@ export const CardStack3D: React.FC<{items?: string[]; title?: string}> = ({
                 display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 34}}>
                 <div style={{width: 60, height: 60, borderRadius: 16, background: `linear-gradient(150deg, ${tone}, #2b3ac6)`,
                   boxShadow: `0 0 26px ${tone}66`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', font: '800 30px/1 Inter, system-ui, sans-serif'}}>{i + 1}</div>
-                <div style={{color: '#f4f7ff', font: '800 46px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.02em',
+                  color: '#fff', font: `800 30px/1 Inter, system-ui, sans-serif`}}>{i + 1}</div>
+                <div style={{color: '#f4f7ff', font: `800 46px/1 Inter, system-ui, sans-serif`, letterSpacing: '-0.02em',
                   textShadow: '0 2px 10px #000'}}>{label}</div>
               </div>
             );
@@ -54,7 +56,7 @@ export const CardStack3D: React.FC<{items?: string[]; title?: string}> = ({
       </AbsoluteFill>
       <div style={{position: 'absolute', bottom: 96, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
         transform: `translateY(${(1 - titleIn) * 16}px)`, color: '#dfe6ff',
-        font: '800 62px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.02em',
+        font: `800 62px/1 Inter, system-ui, sans-serif`, letterSpacing: '-0.02em',
         textShadow: '0 8px 30px #000'}}>{TITLE}</div>
     </AbsoluteFill>
   );

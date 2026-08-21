@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 type Item = {label?: string; x?: number; y?: number; hero?: boolean};
 
@@ -17,6 +18,7 @@ export const PositioningMatrix: React.FC<{
   items: ITEMS = [{label: 'A', x: 0.28, y: 0.34}, {label: 'B', x: 0.4, y: 0.6}, {label: 'C', x: 0.56, y: 0.3},
     {label: 'Us', x: 0.8, y: 0.82, hero: true}]} = {}) => {
   const t = useT();
+  const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const PLOT = 760, cx = W / 2, cy = H / 2 + 26;
   const x0 = cx - PLOT / 2, y0 = cy - PLOT / 2;
@@ -25,7 +27,7 @@ export const PositioningMatrix: React.FC<{
   const axis = easeOutCubic(seg(t, 0.08, 0.4));
   const titleIn = easeOutCubic(seg(t, 0.02, 0.16));
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 100% at 50% 42%, #12162a, #090b12 72%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(120% 100% at 50% 42%, #12162a, #090b12 72%)'}}>
       <div style={{position: 'absolute', top: 62, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
         color: '#aeb6ca', font: '700 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.3em',
         textTransform: 'uppercase'}}>{TITLE}</div>

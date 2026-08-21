@@ -85,6 +85,14 @@ import {PositioningMatrix} from './shots/PositioningMatrix';
 import {GaugeCluster} from './shots/GaugeCluster';
 import {BentoReveal} from './shots/BentoReveal';
 import {ConveyorBelt} from './shots/ConveyorBelt';
+import {TermBars} from './shots/TermBars';
+import {TermTree} from './shots/TermTree';
+import {TermLog} from './shots/TermLog';
+import {TermGitLog} from './shots/TermGitLog';
+import {TermCounter} from './shots/TermCounter';
+import {TermTable} from './shots/TermTable';
+import {TermDiff} from './shots/TermDiff';
+import {TermThink} from './shots/TermThink';
 import {CardStack3D} from './shots/CardStack3D';
 import {CrashZoom} from './shots/CrashZoom';
 import {VersusSplit} from './shots/VersusSplit';
@@ -137,6 +145,7 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   BokehPull, PixelBuild, BrutalistType, LightTrails, DataOrrery, PhysicsStack,
   OdometerRoll, QuadSplit, CardFlip3D, CubeRotate, GearTrain,
   FractureIn, PositioningMatrix, GaugeCluster, BentoReveal, ConveyorBelt,
+  TermBars, TermTree, TermLog, TermGitLog, TermCounter, TermTable, TermDiff, TermThink,
   CardStack3D, CrashZoom, VersusSplit, RisoPrint, HudReticle,
   VariableTypeMorph, FlowField, MagazineSpread, RansomZine, DataMonolith,
   LowPolyForm, GlitchDatamosh, IsoWorld, MorphForms, NeonTickerWall,

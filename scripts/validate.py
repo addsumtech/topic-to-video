@@ -1132,6 +1132,25 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
     The adapt lint is a PROXY (a script sees empty props + a missing note, never whether the components were
     truly redesigned) — the SEMANTIC verdict is shot-critic S10 (the note vs the rendered pixels)."""
     _check_shot_template(meta, errors, warnings)
+    # DESIGN DNA — the GLOBAL visual system every shot inherits (runtime/dna.tsx). A themed film should carry an
+    # explicit meta.design_dna artifact (the reviewable "Design DNA", docx Artifact A) OR a shot_template that maps
+    # to a built-in DNA preset; else every shot renders its OWN hardcoded identity and the film reads as "different
+    # compositions, different templates" (no global visual system). Keep _DNA_PRESETS in sync with DNA_PRESETS in
+    # remotion/src/runtime/dna.tsx.
+    _DNA_PRESETS = {"terminal-technical", "terminal", "neutral"}
+    _DNA_KEYS = ("fontDisplay", "fontMono", "bg", "fg", "accent", "surface")
+    design_dna = meta.get("design_dna")
+    if isinstance(design_dna, dict):
+        _miss = [k for k in _DNA_KEYS if not design_dna.get(k)]
+        if _miss:
+            warnings.append(f"meta.design_dna is missing core key(s) {_miss} — a Design DNA needs at least "
+                            f"{list(_DNA_KEYS)} so every shot can inherit its type + palette (runtime/dna.tsx).")
+    elif str(meta.get("shot_template") or "") not in _DNA_PRESETS:
+        warnings.append("remotion: NO Design DNA — no meta.design_dna, and meta.shot_template maps to no known DNA "
+                        "preset, so every shot renders its ORIGINAL hardcoded identity and the film reads as "
+                        "'different compositions, different templates'. Author meta.design_dna (Design DNA artifact) "
+                        "or pick a template with a preset (runtime/dna.tsx) so ONE visual system runs through every shot.")
+    _themed = isinstance(design_dna, dict) or str(meta.get("shot_template") or "") in _DNA_PRESETS  # DNA-themed film
     shots_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src", "shots")
     valid = {f[:-4] for f in os.listdir(shots_dir) if f.endswith(".tsx")} if os.path.isdir(shots_dir) else set()
     NUM = {"ChartLive": "endVal", "BeforeAfterSlider": "metric", "VelocitySnap": "metric",
@@ -1179,6 +1198,10 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
             warnings.append(f"{tag}: {shot} has no recorded shot_adaptation {{kept, redesigned, topic_idea}} — every "
                             f"beat must KEEP the register's style but REDESIGN its modules/components + content for "
                             f"THIS topic; record what you kept vs rebuilt so shot-critic S10 can verify it (§B2)")
+        elif _themed and not (isinstance(adapt.get("theme_cues"), (list, str)) and adapt.get("theme_cues")):
+            warnings.append(f"{tag}: {shot} on a DNA-themed film records no shot_adaptation.theme_cues — name the "
+                            f"2-3 concrete cues that tie THIS shot to the global visual system (Design DNA coverage "
+                            f"check); shot-critic S11 verifies them against the rendered frame.")
         seq.append(shot)
     try:                                                   # family-variety: no two ADJACENT beats one look
         import shot_director as _sd
