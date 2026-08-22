@@ -36,23 +36,37 @@ const formOf = <K extends keyof AtomForms>(dna: DesignDNA | null, k: K, fallback
 const T = (dna: DesignDNA | null) => dna ?? NEUTRAL_DNA;   // token source; never null downstream
 
 // ── Bar — a quantity ─────────────────────────────────────────────────────────────────────────────────
-export const Bar: React.FC<{value: number; label?: string; tag?: string; tone?: string;
-  width?: number; cells?: number; track?: boolean; fallbackForm?: NonNullable<AtomForms['bar']>}> =
-  ({value, label, tag, tone, width = 420, cells = 18, track = true, fallbackForm}) => {
+export const Bar: React.FC<{value: number; label?: string; tag?: string; tone?: string; ink?: string;
+  width?: number; height?: number; size?: number; labelWidth?: number | string; cells?: number;
+  track?: boolean; fallbackForm?: NonNullable<AtomForms['bar']>}> =
+  ({value, label, tag, tone, ink, width = 420, height, size, labelWidth = 92, cells = 18, track = true,
+    fallbackForm}) => {
     const dna = useDNA(); const d = T(dna); const form = formOf(dna, 'bar', fallbackForm);
     const v = Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
     const acc = tone ?? d.accent;
+    // ink lets a migrating shot keep its OWN label/value colour instead of the atom's defaults (dim label,
+    // accent-tinted value) — symmetric with Figure.ink/tone. Omit it and nothing changes from before.
+    const labelInk = ink ?? d.dim;
+    const tagInk = ink ?? acc;
+    // height overrides the bar element's own thickness in the graphical forms (solid/pixel) — default 18
+    // unchanged for anyone that doesn't pass it. ruled/dimension stay their own fixed thin-scale geometry
+    // regardless (a scale doesn't get "taller", its ticks would just look wrong at other proportions).
     const row: React.CSSProperties = {display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10};
-    const lab = label ? <span style={{color: d.dim, font: `500 20px/1 ${d.fontMono}`, minWidth: 92}}>{label}</span> : null;
-    const tg = tag ? <span style={{color: acc, font: `600 18px/1 ${d.fontMono}`, marginLeft: 12}}>{tag}</span> : null;
+    const lab = label ? <span style={{color: labelInk, font: `500 20px/1 ${d.fontMono}`, minWidth: labelWidth}}>{label}</span> : null;
+    const tg = tag ? <span style={{color: tagInk, font: `600 18px/1 ${d.fontMono}`, marginLeft: 12}}>{tag}</span> : null;
 
     if (form === 'block') {                       // terminal: a run of block characters
+      // block is TermBars' reference shot — its font runs at the SHOT's own size (default 22 for any other
+      // future caller), not a fixed one, so the migrated row keeps its original scale exactly.
+      const fs = size ?? 22;
       const on = Math.round(cells * v);
-      return <div style={{...row, font: `500 22px/1.4 ${d.fontMono}`}}>{lab}
+      const labB = label ? <span style={{color: labelInk, font: `500 ${fs}px/1.2 ${d.fontMono}`, minWidth: labelWidth}}>{label}</span> : null;
+      const tgB = tag ? <span style={{color: tagInk, font: `500 ${fs}px/1.2 ${d.fontMono}`, minWidth: '5ch', textAlign: 'right'}}>{tag}</span> : null;
+      return <div style={{...row, font: `500 ${fs}px/1.2 ${d.fontMono}`}}>{labB}
         <span style={{letterSpacing: '-2px'}}>
           <span style={{color: acc}}>{'█'.repeat(on)}</span>
-          <span style={{color: d.line}}>{'░'.repeat(cells - on)}</span>
-        </span>{tg}</div>;
+          <span style={{color: d.dim}}>{'░'.repeat(cells - on)}</span>
+        </span>{tgB}</div>;
     }
     if (form === 'ruled') {                       // editorial/data: a hairline scale with a filled run
       return <div style={{...row}}>{lab}
@@ -68,7 +82,7 @@ export const Bar: React.FC<{value: number; label?: string; tag?: string; tone?: 
       return <div style={{...row}}>{lab}
         <span style={{display: 'flex', gap: 3}}>
           {Array.from({length: pc}, (_, i) => (
-            <span key={i} style={{width: 14, height: 18, background: i < on ? acc : mix(d.surface, d.bg, .4)}} />
+            <span key={i} style={{width: 14, height: height ?? 18, background: i < on ? acc : mix(d.surface, d.bg, .4)}} />
           ))}
         </span>{tg}</div>;
     }
@@ -83,7 +97,7 @@ export const Bar: React.FC<{value: number; label?: string; tag?: string; tone?: 
         </span>{tg}</div>;
     }
     return <div style={{...row}}>{lab}                       {/* solid — the neutral form */}
-      <span style={{width, height: 18, borderRadius: d.radius, overflow: 'hidden',
+      <span style={{width, height: height ?? 18, borderRadius: d.radius, overflow: 'hidden',
         background: track ? mix(d.surface, d.bg, .3) : 'transparent'}}>
         <span style={{display: 'block', width: `${v * 100}%`, height: '100%', borderRadius: d.radius, background: acc}} />
       </span>{tg}</div>;
