@@ -128,18 +128,29 @@ shots already had to be repaired for exactly that). Every atom must be total: a 
 The `kicker` label form respects `dna.uppercaseLabels` / `dna.labelSpacing`; every form takes its colour
 from the DNA tokens as today.
 
-### 4 · Migration (9 shots)
+### 4 · Migration (8 shots)
 
-Chosen to cover the four highest-traffic atoms, and small enough that each one is rendered and looked at.
+The first list for this section was chosen by family and by shot NAME. Reading what the shots actually
+draw corrected it, and corrected a design assumption with it: **`Figure` — not `Bar` — is the
+high-value atom.** A horizontal quantity bar appears in only two shots library-wide; a big number
+appears in five.
 
-| atom | shots |
-|---|---|
-| bar | `ChartLive`, `ChartRace`, `BeforeAfterSlider`, `GaugeCluster`, **`TermBars`** (already the `block` form — becomes the reference implementation) |
-| figure | `OdometerRoll`, `VelocitySnap`, **`EdStat`** (already the `serif` form — reference implementation) |
-| list | `BlockAssembly` |
+| atom | reference implementation (migrated *inward* — its existing rendering becomes the shared form) | consumers |
+|---|---|---|
+| `bar` | **`TermBars`** → `block` | `ChartRace` |
+| `figure` | **`TermCounter`** → `mono` · **`EdStat`** → `serif` | `VelocitySnap`, `ChartLive` *(the headline metric only — its line/area chart is untouched)* |
+| `list` | **`TermTree`** → `tree` | `BlockAssembly` |
 
-`TermBars` and `EdStat` are migrated *inward*: their existing hand-written rendering becomes the `block`
-and `serif` forms of the shared atoms, so the two families stop being special cases.
+Excluded after reading them, with the reason (each would have been damaged, not improved):
+
+- `OdometerRoll` — the mechanical digit reel IS the design language; routing it through `Figure` would
+  delete the thing that makes it that shot.
+- `GaugeCluster` — a 270° arc instrument, not a bar.
+- `BeforeAfterSlider` — its little column chart is decorative furniture inside a mock slide, not the
+  shot's content atom.
+
+`Label`, `Divider` and `Marker` ship with no migration: they exist for new shots and for opportunistic
+use. That is deliberate — inventing consumers for them would be scope invented to justify the atom.
 
 New shots: the atoms are the default way to draw these parts. `agents/shot-critic.md` S1 gains one line
 — a new shot built from bars/figures/lists that does not use the atoms must say why.
