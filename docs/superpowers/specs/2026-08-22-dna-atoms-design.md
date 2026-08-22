@@ -99,9 +99,14 @@ Interface details that would otherwise be guessed:
   (e.g. `dimension`) ignores it rather than inventing one.
 - `Figure.value` accepts a string or a number and renders it **as given**. Count-up animation stays in
   the shot, which passes the current value each frame — the atom is a pure renderer, so it cannot break
-  a shot's timing.
+  a shot's timing. `unitScale` (default 0.36 of the figure size) exists because the library's shots size
+  their unit differently (ChartLive 0.48, EdStat 0.28); a migrating shot passes its own ratio so its
+  appearance does not change.
 - `List.root` is only meaningful to the `tree` form (the path it hangs the listing under); other forms
-  ignore it.
+  ignore it. `List.reveal` is a PER-ITEM array of 0..1, not one fraction — shots reveal items on their own
+  staggered easing, and a single prefix fraction would flatten that into a hard cut.
+- `Bar.cells` (default 18) is the cell count for the discrete forms (`block`, `pixel`); shots that already
+  choose a resolution pass theirs.
 - `Divider.width` is a length in px or a CSS length; a form that draws a full-width rule ignores it.
 
 ### 3 · Fallback (the rule that keeps the null-DNA guarantee)
@@ -128,7 +133,7 @@ shots already had to be repaired for exactly that). Every atom must be total: a 
 The `kicker` label form respects `dna.uppercaseLabels` / `dna.labelSpacing`; every form takes its colour
 from the DNA tokens as today.
 
-### 4 · Migration (8 shots)
+### 4 · Migration (7 shots)
 
 The first list for this section was chosen by family and by shot NAME. Reading what the shots actually
 draw corrected it, and corrected a design assumption with it: **`Figure` — not `Bar` — is the
@@ -139,7 +144,7 @@ appears in five.
 |---|---|---|
 | `bar` | **`TermBars`** → `block` | `ChartRace` |
 | `figure` | **`TermCounter`** → `mono` · **`EdStat`** → `serif` | `VelocitySnap`, `ChartLive` *(the headline metric only — its line/area chart is untouched)* |
-| `list` | **`TermTree`** → `tree` | `BlockAssembly` |
+| `list` | *(none — written fresh in `atoms.tsx`)* | `BlockAssembly` |
 
 Excluded after reading them, with the reason (each would have been damaged, not improved):
 
@@ -148,6 +153,9 @@ Excluded after reading them, with the reason (each would have been damaged, not 
 - `GaugeCluster` — a 270° arc instrument, not a bar.
 - `BeforeAfterSlider` — its little column chart is decorative furniture inside a mock slide, not the
   shot's content atom.
+- `TermTree` — found while writing the plan: its items are objects padded to a fixed name COLUMN, so it is
+  a columnar `ls` listing rather than a list. Routing it through `List` would drop the column. The `tree`
+  form is therefore written fresh in `atoms.tsx` with no reference shot to migrate inward.
 
 `Label`, `Divider` and `Marker` ship with no migration: they exist for new shots and for opportunistic
 use. That is deliberate — inventing consumers for them would be scope invented to justify the atom.
