@@ -22,6 +22,12 @@ const GENERIC: Record<string, string> = {
   'Playfair Display': 'serif',
   'Space Grotesk': 'sans-serif',
   Bangers: 'sans-serif',
+  Inter: 'sans-serif',
+  'Source Serif 4': 'serif',
+  'IBM Plex Sans': 'sans-serif',
+  'IBM Plex Mono': 'monospace',
+  'Bodoni Moda': 'serif',
+  'Baloo 2': 'sans-serif',
 };
 
 export const DURATION = 1;
@@ -49,6 +55,17 @@ export const FontProbe: React.FC<{ladder?: boolean; expectedRows?: number}> = ({
             `__probe_fonts: no generic fallback declared for "${f.family}" — add one, or this gate silently false-passes`,
           );
         }
+        // Always quote the family in the CSS value. A bare (unquoted) font-family value is only
+        // valid CSS when every space-separated token is a legal identifier — a token that is pure
+        // digits (e.g. the "4" in "Source Serif 4", the "2" in "Baloo 2") is NOT a legal identifier,
+        // so the unquoted form is invalid CSS and the browser drops the whole declaration, silently
+        // falling back to the inherited/UA default font. That default can coincidentally differ from
+        // tile B's bare generic (a false PASS — this hit "Baloo 2" until quoting was added, since
+        // Chromium's UA-default serif differs from the sans-serif generic) or coincidentally equal it
+        // (a hard, correctly-caught FAIL — this hit "Source Serif 4", whose UA-default fallback IS a
+        // serif, identical to tile B's bare "serif"). Quoting is always valid CSS, for every family
+        // name, so it is applied unconditionally rather than only for the names known to need it.
+        const quoted = `"${f.family}"`;
         return (
           <div key={f.family} style={{flex: 1, display: 'flex'}}>
             <div style={{flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -56,11 +73,11 @@ export const FontProbe: React.FC<{ladder?: boolean; expectedRows?: number}> = ({
               // this collapses onto tile B's generic (identical pixels, caught). Naming the family bare
               // with no fallback would instead resolve to Chromium's fixed UA-default face, which
               // differs from tile B's generic regardless of whether the real face loaded — a false pass.
-              fontFamily: `${f.family}, ${generic}`, fontWeight: ladder ? 300 : 700, fontSize: 64}}>
+              fontFamily: `${quoted}, ${generic}`, fontWeight: ladder ? 300 : 700, fontSize: 64}}>
               {SAMPLE}
             </div>
             <div style={{flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: ladder ? f.family : generic,
+              fontFamily: ladder ? quoted : generic,
               fontWeight: ladder ? 700 : 700, fontSize: 64}}>
               {SAMPLE}
             </div>

@@ -16,6 +16,12 @@ import spaceGroteskUrl from '../../../assets/fonts/SpaceGrotesk-VF.ttf';
 import playfairDisplayUrl from '../../../assets/fonts/PlayfairDisplay-VF.ttf';
 import jetBrainsMonoUrl from '../../../assets/fonts/JetBrainsMono-VF.ttf';
 import bangersUrl from '../../../assets/fonts/Bangers-Regular.ttf';
+import interUrl from '../../../assets/fonts/Inter-VF.ttf';
+import sourceSerif4Url from '../../../assets/fonts/SourceSerif4-VF.ttf';
+import ibmPlexSansUrl from '../../../assets/fonts/IBMPlexSans-VF.ttf';
+import ibmPlexMonoUrl from '../../../assets/fonts/IBMPlexMono-Regular.ttf';
+import bodoniModaUrl from '../../../assets/fonts/BodoniModa-VF.ttf';
+import baloo2Url from '../../../assets/fonts/Baloo2-VF.ttf';
 
 export type Face = {
   family: string;      // must match assets/html/base.css verbatim
@@ -30,6 +36,12 @@ export const FACES: Face[] = [
   {family: 'Playfair Display', file: 'PlayfairDisplay-VF.ttf', url: playfairDisplayUrl, weight: '400 900', variable: true},
   {family: 'JetBrains Mono', file: 'JetBrainsMono-VF.ttf', url: jetBrainsMonoUrl, weight: '100 800', variable: true},
   {family: 'Bangers', file: 'Bangers-Regular.ttf', url: bangersUrl, weight: '400', variable: false},
+  {family: 'Inter', file: 'Inter-VF.ttf', url: interUrl, weight: '100 900', variable: true},
+  {family: 'Source Serif 4', file: 'SourceSerif4-VF.ttf', url: sourceSerif4Url, weight: '200 900', variable: true},
+  {family: 'IBM Plex Sans', file: 'IBMPlexSans-VF.ttf', url: ibmPlexSansUrl, weight: '100 700', variable: true},
+  {family: 'IBM Plex Mono', file: 'IBMPlexMono-Regular.ttf', url: ibmPlexMonoUrl, weight: '400', variable: false},
+  {family: 'Bodoni Moda', file: 'BodoniModa-VF.ttf', url: bodoniModaUrl, weight: '400 900', variable: true},
+  {family: 'Baloo 2', file: 'Baloo2-VF.ttf', url: baloo2Url, weight: '400 800', variable: true},
 ];
 
 // One delayRender for the whole set: the first frame must not render in a fallback face.
