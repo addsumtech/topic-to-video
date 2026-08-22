@@ -84,38 +84,43 @@ export const Bar: React.FC<{value: number; label?: string; tag?: string; tone?: 
   };
 
 // ── Figure — one number ──────────────────────────────────────────────────────────────────────────────
-export const Figure: React.FC<{value: string | number; unit?: string; size?: number; unitScale?: number}> =
-  ({value, unit, size = 150, unitScale}) => {
+export const Figure: React.FC<{value: string | number; unit?: string; size?: number; unitScale?: number;
+  ink?: string; tone?: string}> =
+  ({value, unit, size = 150, unitScale, ink, tone}) => {
     const dna = useDNA(); const d = T(dna); const form = formOf(dna, 'figure');
     const txt = String(value ?? '');
+    // ink/tone let a migrating shot keep ITS OWN colours (each of the four reference shots painted its
+    // number differently, and none matched these defaults) — omit both and a DNA's own fg/accent speak.
+    const fg = ink ?? d.fg;
+    const acc = tone ?? d.accent;
     // Each form's DEFAULT unit ratio is its reference shot's ratio, so migrating that shot does not change
     // its appearance; any other shot passes `unitScale` explicitly for the same reason.
     const us = (dflt: number) => size * (unitScale ?? dflt);
     // Each form carries its OWN typography, matching the shot it is the reference for — a shared
     // letter-spacing here would silently re-set three migrating shots.
-    const base: React.CSSProperties = {display: 'flex', alignItems: 'baseline', gap: 10, color: d.fg,
+    const base: React.CSSProperties = {display: 'flex', alignItems: 'baseline', gap: 10, color: fg,
       fontVariantNumeric: 'tabular-nums'};
 
     if (form === 'mono') {
       // matches TermCounter, its reference shot: 800 weight, 0.9 leading, tight tracking, no prefix
       return <span style={{...base, font: `800 ${size}px/0.9 ${d.fontMono}`, letterSpacing: '-0.018em'}}>{txt}
-        {unit ? <span style={{color: d.accent, fontSize: us(.32)}}>{unit}</span> : null}</span>;
+        {unit ? <span style={{color: acc, fontSize: us(.32)}}>{unit}</span> : null}</span>;
     }
     if (form === 'serif') {
       // matches EdStat: NOT scaled — EdStat passes a width-aware size that exists to prevent overflow
       return <span style={{...base, font: `900 ${size}px/0.86 ${d.fontDisplay}`, letterSpacing: '-0.02em'}}>{txt}
-        {unit ? <span style={{color: d.accent, font: `700 ${us(.28)}px/1 ${d.fontDisplay}`}}>{unit}</span> : null}</span>;
+        {unit ? <span style={{color: acc, font: `700 ${us(.28)}px/1 ${d.fontDisplay}`}}>{unit}</span> : null}</span>;
     }
     if (form === 'segment') {                     // retro scoreboard: a dim ghost behind the live digits
       return <span style={{...base, position: 'relative', font: `700 ${size}px/1 ${d.fontMono}`, letterSpacing: '.06em'}}>
-        <span aria-hidden style={{position: 'absolute', left: 0, top: 0, color: mix(d.fg, d.bg, .86)}}>
+        <span aria-hidden style={{position: 'absolute', left: 0, top: 0, color: mix(fg, d.bg, .86)}}>
           {'8'.repeat(txt.length)}</span>
-        <span style={{position: 'relative', color: d.accent, textShadow: `0 0 18px ${d.accent}66`}}>{txt}</span>
+        <span style={{position: 'relative', color: acc, textShadow: `0 0 18px ${acc}66`}}>{txt}</span>
         {unit ? <span style={{color: d.dim, fontSize: us(.30)}}>{unit}</span> : null}</span>;
     }
     // display — the neutral form; 0.9 leading and -0.03em are what BOTH consumers (ChartLive, VelocitySnap) use
     return <span style={{...base, font: `800 ${size}px/0.9 ${d.fontDisplay}`, letterSpacing: '-0.03em'}}>{txt}
-      {unit ? <span style={{color: d.accent, fontSize: us(.48)}}>{unit}</span> : null}</span>;
+      {unit ? <span style={{color: acc, fontSize: us(.48)}}>{unit}</span> : null}</span>;
   };
 
 // ── List — an enumeration ────────────────────────────────────────────────────────────────────────────
