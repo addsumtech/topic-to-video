@@ -37,10 +37,9 @@ const T = (dna: DesignDNA | null) => dna ?? NEUTRAL_DNA;   // token source; neve
 
 // ── Bar — a quantity ─────────────────────────────────────────────────────────────────────────────────
 export const Bar: React.FC<{value: number; label?: string; tag?: string; tone?: string; ink?: string;
-  width?: number; height?: number; size?: number; labelWidth?: number | string; cells?: number;
-  track?: boolean; fallbackForm?: NonNullable<AtomForms['bar']>}> =
-  ({value, label, tag, tone, ink, width = 420, height, size, labelWidth = 92, cells = 18, track = true,
-    fallbackForm}) => {
+  dimInk?: string; width?: number; size?: number; labelWidth?: number | string; cells?: number;
+  fallbackForm?: NonNullable<AtomForms['bar']>}> =
+  ({value, label, tag, tone, ink, dimInk, width = 420, size, labelWidth = 92, cells = 18, fallbackForm}) => {
     const dna = useDNA(); const d = T(dna); const form = formOf(dna, 'bar', fallbackForm);
     const v = Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
     const acc = tone ?? d.accent;
@@ -48,24 +47,30 @@ export const Bar: React.FC<{value: number; label?: string; tag?: string; tone?: 
     // accent-tinted value) — symmetric with Figure.ink/tone. Omit it and nothing changes from before.
     const labelInk = ink ?? d.dim;
     const tagInk = ink ?? acc;
-    // height overrides the bar element's own thickness in the graphical forms (solid/pixel) — default 18
-    // unchanged for anyone that doesn't pass it. ruled/dimension stay their own fixed thin-scale geometry
-    // regardless (a scale doesn't get "taller", its ticks would just look wrong at other proportions).
-    const row: React.CSSProperties = {display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10};
-    const lab = label ? <span style={{color: labelInk, font: `500 20px/1 ${d.fontMono}`, minWidth: labelWidth}}>{label}</span> : null;
-    const tg = tag ? <span style={{color: tagInk, font: `600 18px/1 ${d.fontMono}`, marginLeft: 12}}>{tag}</span> : null;
+    // dimInk lets a migrating shot keep its OWN unfilled/track colour instead of the atom's default dim —
+    // symmetric with ink/tone. Omit it and nothing changes from before.
+    const dim = dimInk ?? d.dim;
+    // size lets a migrating shot's label/value keep its OWN scale instead of the atom's fixed defaults —
+    // every form honours it (not only block), so a label/value never breaks the 2:1 hierarchy against the
+    // shot's own surrounding type when the DNA switches which form is speaking.
+    const labSize = size ?? 20, tagSize = size ?? 18;
+    const row: React.CSSProperties = {display: 'flex', alignItems: 'center', gap: 14};
+    const lab = label ? <span style={{color: labelInk, font: `500 ${labSize}px/1 ${d.fontMono}`, minWidth: labelWidth}}>{label}</span> : null;
+    const tg = tag ? <span style={{color: tagInk, font: `600 ${tagSize}px/1 ${d.fontMono}`, marginLeft: 12}}>{tag}</span> : null;
 
-    if (form === 'block') {                       // terminal: a run of block characters
-      // block is TermBars' reference shot — its font runs at the SHOT's own size (default 22 for any other
-      // future caller), not a fixed one, so the migrated row keeps its original scale exactly.
+    if (form === 'block') {                       // terminal: a run of block characters — TermBars' reference shot
+      // block form runs at the SHOT's own size (default 22 for any other future caller) and at TermBars'
+      // own baseline/24px rhythm, not the shared row's centre/14px — this form exists to BE that shot,
+      // byte-identical, under a null DNA. No row marginBottom here either: vertical rhythm between rows is
+      // the SHOT's own (its `margin: i ? '30px 0 0' : 0`), not something this atom imposes.
       const fs = size ?? 22;
       const on = Math.round(cells * v);
-      const labB = label ? <span style={{color: labelInk, font: `500 ${fs}px/1.2 ${d.fontMono}`, minWidth: labelWidth}}>{label}</span> : null;
-      const tgB = tag ? <span style={{color: tagInk, font: `500 ${fs}px/1.2 ${d.fontMono}`, minWidth: '5ch', textAlign: 'right'}}>{tag}</span> : null;
-      return <div style={{...row, font: `500 ${fs}px/1.2 ${d.fontMono}`}}>{labB}
+      const labB = label ? <span style={{color: labelInk, minWidth: labelWidth}}>{label}</span> : null;
+      const tgB = tag ? <span style={{color: tagInk, minWidth: '5ch', textAlign: 'right'}}>{tag}</span> : null;
+      return <div style={{...row, alignItems: 'baseline', gap: 24, font: `500 ${fs}px/1.2 ${d.fontMono}`}}>{labB}
         <span style={{letterSpacing: '-2px'}}>
-          <span style={{color: acc}}>{'█'.repeat(on)}</span>
-          <span style={{color: d.dim}}>{'░'.repeat(cells - on)}</span>
+          <span style={{color: acc, textShadow: `0 0 16px ${acc}55`}}>{'█'.repeat(on)}</span>
+          <span style={{color: dim}}>{'░'.repeat(Math.max(0, cells - on))}</span>
         </span>{tgB}</div>;
     }
     if (form === 'ruled') {                       // editorial/data: a hairline scale with a filled run
@@ -77,12 +82,14 @@ export const Bar: React.FC<{value: number; label?: string; tag?: string; tone?: 
           ))}
         </span>{tg}</div>;
     }
-    if (form === 'pixel') {                       // retro: discrete cells
+    if (form === 'pixel') {                       // retro: discrete cells, sized to fill `width`
       const pc = Math.max(4, Math.min(cells, 24)), on = Math.round(pc * v);
+      const cellGap = 3;
+      const cellW = Math.max(2, (width - cellGap * (pc - 1)) / pc);
       return <div style={{...row}}>{lab}
-        <span style={{display: 'flex', gap: 3}}>
+        <span style={{display: 'flex', gap: cellGap, width}}>
           {Array.from({length: pc}, (_, i) => (
-            <span key={i} style={{width: 14, height: height ?? 18, background: i < on ? acc : mix(d.surface, d.bg, .4)}} />
+            <span key={i} style={{width: cellW, height: 18, background: i < on ? acc : mix(d.surface, d.bg, .4)}} />
           ))}
         </span>{tg}</div>;
     }
@@ -92,13 +99,16 @@ export const Bar: React.FC<{value: number; label?: string; tag?: string; tone?: 
           <span style={{position: 'absolute', left: 0, top: 9, width: `${v * 100}%`, height: 1.5, background: acc}} />
           <span style={{position: 'absolute', left: 0, top: 3, width: 1.5, height: 14, background: acc}} />
           <span style={{position: 'absolute', left: `${v * 100}%`, top: 3, width: 1.5, height: 14, background: acc}} />
-          <span style={{position: 'absolute', left: `${v * 100}%`, top: -6, color: acc,
-            font: `600 16px/1 ${d.fontMono}`, transform: 'translateX(-50%)'}}>{Math.round(v * 100)}</span>
+          {/* the tick's own inline number is a fallback annotation for a bar with no `tag` of its own —
+              printing it alongside a supplied `tag` would state the same quantity twice (a raw "62" next
+              to an already-formatted "142ms"), so it only appears when there is no tag to carry it. */}
+          {tag ? null : <span style={{position: 'absolute', left: `${v * 100}%`, top: -6, color: acc,
+            font: `600 16px/1 ${d.fontMono}`, transform: 'translateX(-50%)'}}>{Math.round(v * 100)}</span>}
         </span>{tg}</div>;
     }
     return <div style={{...row}}>{lab}                       {/* solid — the neutral form */}
-      <span style={{width, height: height ?? 18, borderRadius: d.radius, overflow: 'hidden',
-        background: track ? mix(d.surface, d.bg, .3) : 'transparent'}}>
+      <span style={{width, height: 18, borderRadius: d.radius, overflow: 'hidden',
+        background: mix(d.surface, d.bg, .3)}}>
         <span style={{display: 'block', width: `${v * 100}%`, height: '100%', borderRadius: d.radius, background: acc}} />
       </span>{tg}</div>;
   };
@@ -160,9 +170,8 @@ export const Figure: React.FC<{value: string | number; unit?: string; size?: num
 
 // ── List — an enumeration ────────────────────────────────────────────────────────────────────────────
 export const List: React.FC<{items: string[]; root?: string; reveal?: number[]; ink?: string; tone?: string;
-  marker?: boolean; gap?: number; size?: number; weight?: number | string; lineHeight?: number | string;
-  fallbackForm?: NonNullable<AtomForms['list']>}> =
-  ({items, root, reveal, ink, tone, marker = true, gap, size, weight, lineHeight, fallbackForm}) => {
+  marker?: boolean; fallbackForm?: NonNullable<AtomForms['list']>}> =
+  ({items, root, reveal, ink, tone, marker = true, fallbackForm}) => {
     const dna = useDNA(); const d = T(dna); const form = formOf(dna, 'list', fallbackForm);
     const shown = Array.isArray(items) ? items : [];
     // ink/tone let a migrating shot keep its OWN text/marker colour instead of the atom's defaults —
@@ -170,14 +179,8 @@ export const List: React.FC<{items: string[]; root?: string; reveal?: number[]; 
     const fg = ink ?? d.fg;
     const acc = tone ?? d.accent;
     // marker=false suppresses the form's own leading glyph (bullet dot / tree branch / index number) for a
-    // consumer that already supplies its OWN marker outside the atom (e.g. BlockAssembly's checkbox column)
-    // — without it, the atom would ADD a second marker the shot never had. Default true: unchanged for any
-    // caller that doesn't pass it.
-    // gap/size/weight/lineHeight override the bullet form's own per-item spacing and type (defaults below
-    // unchanged for any caller that omits them) — for a consumer rendering ONE item per call (its own outer
-    // wrapper already spaces the rows), the atom's own trailing marginBottom would otherwise add a second,
-    // uncalled-for gap on top of the shot's.
-    const bGap = gap ?? 10, bSize = size ?? 28, bWeight = weight ?? 500, bLH = lineHeight ?? 1.45;
+    // consumer that already supplies its OWN marker outside the atom — without it, the atom would ADD a
+    // second marker the shot never had. Default true: unchanged for any caller that doesn't pass it.
     // PER-ITEM reveal: shots stagger their items on their own easing, and one prefix fraction would
     // flatten that into a hard cut. Missing/NaN => fully shown.
     const op = (i: number) => {
@@ -210,8 +213,8 @@ export const List: React.FC<{items: string[]; root?: string; reveal?: number[]; 
     }
     return <div style={{color: fg}}>                                       {/* bullet — neutral */}
       {shown.map((it, i) => (
-        <div key={i} style={{display: 'flex', gap: 14, marginBottom: bGap, opacity: op(i),
-          font: `${bWeight} ${bSize}px/${bLH} ${d.fontBody}`}}>
+        <div key={i} style={{display: 'flex', gap: 14, marginBottom: 10, opacity: op(i),
+          font: `500 28px/1.45 ${d.fontBody}`}}>
           {marker ? <span style={{color: acc}}>•</span> : null}{it}</div>
       ))}</div>;
   };

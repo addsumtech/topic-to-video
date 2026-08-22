@@ -29,14 +29,13 @@ export const TermBars: React.FC<{cmd?: string; rows?: Row[]; note?: string; cell
           const start = 0.24 + i * 0.2;
           const g = easeOutCubic(clamp01(seg(t, start, start + 0.4)));
           const target = clamp01(r.fill ?? 0);
-          const filled = Math.round(cells * target * g);
           const pct = Math.round(100 * target * g);
           const done = g > 0.98;
           return (
             <div key={i} style={{display: 'flex', alignItems: 'baseline', gap: 24, margin: i ? '30px 0 0' : 0,
               font: `500 40px/1.2 ${mono}`, whiteSpace: 'pre', opacity: clamp01(seg(t, start - 0.04, start + 0.06))}}>
               <Bar value={target * g} label={r.label} tag={r.value ?? `${pct}%`} cells={cells}
-                size={40} tone={acc} ink={fg} labelWidth={`${pad}ch`} fallbackForm="block" />
+                size={40} tone={acc} ink={fg} dimInk={dim} labelWidth={`${pad}ch`} fallbackForm="block" />
               <span style={{color: done ? acc : dim, opacity: done ? 1 : 0.4, border: `1px solid ${done ? acc : dim}`,
                 borderRadius: 4, padding: '3px 11px', font: `700 22px/1 ${mono}`, marginLeft: 6}}>{r.tag ?? 'OK'}</span>
             </div>

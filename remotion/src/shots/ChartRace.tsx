@@ -7,7 +7,6 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
 import {useDNA, dnaPalette} from '../runtime/dna';
-import {Bar} from '../runtime/atoms';
 
 export const DURATION = 155; // ~5.2s
 const BG = '#0a0c14';
@@ -48,19 +47,14 @@ export const ChartRace: React.FC<{data?: Row[]; title?: string; unit?: string}> 
         const tone = TONES[r.i % TONES.length];
         return (
           <div key={r.i} style={{position: 'absolute', left: x0, top: y, width: barMax + 300, height: rowH - 22}}>
-            {/* label — kept as the shot's OWN positioned element (right:100%, sits left of x0): the Bar atom's
-                internal label lays out inline BEFORE its bar, which would shift every bar's start by that
-                row's own label width and break the shared x0 baseline every bar-length comparison depends on. */}
+            {/* label */}
             <div style={{position: 'absolute', right: '100%', top: 0, height: rowH - 22, paddingRight: 26,
               display: 'flex', alignItems: 'center', color: lead ? '#fff' : '#c7cee0',
               font: `${lead ? 800 : 600} 40px/1 Inter, system-ui, sans-serif`, whiteSpace: 'nowrap'}}>{r.label}</div>
-            {/* bar — routed through the Bar atom so its FORM (solid pill / ruled scale / dimensioned measure /
-                pixel cells) follows the active DNA. No label/tag passed in, for the reason above and because
-                the value counter's OWN motion (it trails the bar's live growing edge, not a fixed max-width
-                offset) is this shot's, not the atom's. */}
-            <div style={{position: 'absolute', left: 0, top: 0, height: rowH - 22, display: 'flex', alignItems: 'center'}}>
-              <Bar value={r.cur / maxVal} tone={tone} width={barMax} height={rowH - 22} track={false} />
-            </div>
+            {/* bar */}
+            <div style={{position: 'absolute', left: 0, top: 0, width: bw, height: rowH - 22, borderRadius: 12,
+              background: `linear-gradient(90deg, ${tone}, ${tone}cc)`,
+              boxShadow: lead ? `0 0 30px ${tone}88` : 'none'}} />
             {/* value */}
             <div style={{position: 'absolute', left: bw + 20, top: 0, height: rowH - 22, display: 'flex', alignItems: 'center',
               color: lead ? tone : '#8b93a8', font: `800 40px/1 Inter, system-ui, sans-serif`}}>
