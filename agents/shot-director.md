@@ -68,7 +68,8 @@ STRUCTURE (composition + motion + information hierarchy), the DNA contributes th
 (match `remotion/src/runtime/dna.tsx` `DesignDNA`): `id` · `fontDisplay`/`fontMono`/`fontBody` · `bg`/`bgGrad`/
 `fg`/`dim`/`accent`/`accent2`/`onAccent`/`surface`/`surfaceBorder`/`line` · `radius`/`borderWidth` · `motion`
 (`type`/`execute`/`smooth`/`mechanical`) · `decoration` (`prompt`/`status`/`breadcrumb`/`cursor`/`scanline`/`grid`/
-`line-numbers`) · `uppercaseLabels`/`labelSpacing`. A **built-in preset** exists for known templates (terminal →
+`line-numbers`) · `uppercaseLabels`/`labelSpacing` · `atoms` (the FORM each content atom speaks — see
+`remotion/src/runtime/atoms.tsx`). A **built-in preset** exists for known templates (terminal →
 `TERMINAL_DNA`), auto-applied by `render_remotion.py` when you set `meta.shot_template` and author no `design_dna`;
 authoring the explicit block is preferred (it's the reviewable Design DNA and lets you tune tokens). **The DNA is
 provided to the Film at render (a `DesignDNAContext`) and every migrated register reads it via `useDNA()`**, so one
@@ -92,9 +93,13 @@ value, and `validate.py` will name what is missing):
   "motion": "execute",
   "decoration": ["prompt", "status", "breadcrumb", "cursor", "scanline", "grid"],
   "uppercaseLabels": true, "labelSpacing": "0.12em",
-  "uniformType": true
+  "uniformType": true,
+  "atoms": {"bar":"block","figure":"mono","list":"tree","label":"prompt","divider":"scanline","marker":"caret"}
 }
 ```
+
+`atoms` declares which FORM this system speaks for each content part (see `remotion/src/runtime/atoms.tsx`);
+an omitted atom renders its neutral form, so a partial declaration is valid.
 
 Two keys are BEHAVIOUR-bearing, not decoration, so choose them deliberately:
 - **`id`** selects the film's native SEAM grammar (`terminal` → a console screen-clear sweep · `product`/`apple` →
