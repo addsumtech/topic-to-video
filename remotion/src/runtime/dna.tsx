@@ -71,9 +71,9 @@ export type DesignDNA = {
 // command→result→metadata hierarchy, typing/execution motion, prompt/cursor/status/scanline grammar.
 export const TERMINAL_DNA: DesignDNA = {
   id: 'terminal',
-  fontDisplay: '"JetBrains Mono", ui-monospace, monospace',
-  fontMono: '"JetBrains Mono", ui-monospace, monospace',
-  fontBody: '"JetBrains Mono", ui-monospace, monospace',
+  fontDisplay: '"JetBrains Mono", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", ui-monospace, monospace',
+  fontMono: '"JetBrains Mono", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", ui-monospace, monospace',
+  fontBody: '"JetBrains Mono", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", ui-monospace, monospace',
   bg: '#080b11',
   bgGrad: 'radial-gradient(130% 120% at 50% -8%, #0f1723, #06080d 72%)',
   fg: '#cdd7e4',
@@ -99,9 +99,9 @@ export const TERMINAL_DNA: DesignDNA = {
 // fallbacks already reproduce its own look, so this is mostly for reference / a mild default.
 export const NEUTRAL_DNA: DesignDNA = {
   id: 'neutral',
-  fontDisplay: 'Inter, system-ui, sans-serif',
-  fontMono: '"JetBrains Mono", ui-monospace, monospace',
-  fontBody: 'Inter, system-ui, sans-serif',
+  fontDisplay: 'Inter, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif',
+  fontMono: '"JetBrains Mono", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", ui-monospace, monospace',
+  fontBody: 'Inter, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif',
   bg: '#05060a',
   fg: '#e7ecf4',
   dim: '#8b93a8',
@@ -129,8 +129,9 @@ export const NEUTRAL_DNA: DesignDNA = {
 // accent, generous margins, rules/kickers/drop-caps grammar, smooth typographic reveals.
 export const EDITORIAL_DNA: DesignDNA = {
   id: 'editorial',
-  fontDisplay: '"Playfair Display", Georgia, serif', fontMono: '"JetBrains Mono", ui-monospace, monospace',
-  fontBody: 'Inter, system-ui, sans-serif',
+  fontDisplay: '"Playfair Display", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", Georgia, serif',
+  fontMono: '"JetBrains Mono", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", ui-monospace, monospace',
+  fontBody: '"Source Serif 4", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", Georgia, serif',
   bg: '#12100e', bgGrad: 'radial-gradient(120% 120% at 50% -6%, #1c1815, #0d0b09 74%)',
   fg: '#efe9df', dim: '#9a9084', accent: '#e2603f', accent2: '#c9a24b', onAccent: '#1a0f0b',
   surface: '#181512', surfaceBorder: '#33291f', line: '#2a2018',
@@ -141,8 +142,9 @@ export const EDITORIAL_DNA: DesignDNA = {
 // panels, soft shadows, ONE vivid accent, gentle scale/parallax reveals.
 export const PRODUCT_DNA: DesignDNA = {
   id: 'product',
-  fontDisplay: '"Space Grotesk", Inter, system-ui, sans-serif', fontMono: '"JetBrains Mono", ui-monospace, monospace',
-  fontBody: 'Inter, system-ui, sans-serif',
+  fontDisplay: '"Space Grotesk", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif',
+  fontMono: '"JetBrains Mono", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", ui-monospace, monospace',
+  fontBody: 'Inter, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif',
   bg: '#060709', bgGrad: 'radial-gradient(120% 120% at 50% 0%, #14161d, #060709 72%)',
   fg: '#f2f5fb', dim: '#8a93a5', accent: '#5b8cff', accent2: '#a06bff', onAccent: '#050810',
   surface: '#12141c', surfaceBorder: '#262b3a', line: '#20242f',
@@ -153,8 +155,9 @@ export const PRODUCT_DNA: DesignDNA = {
 // crop-marks + dimension lines + a measured grid, precise draw-on reveals.
 export const BLUEPRINT_DNA: DesignDNA = {
   id: 'blueprint',
-  fontDisplay: '"JetBrains Mono", ui-monospace, monospace', fontMono: '"JetBrains Mono", ui-monospace, monospace',
-  fontBody: 'Inter, system-ui, sans-serif',
+  fontDisplay: '"JetBrains Mono", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", ui-monospace, monospace',
+  fontMono: '"JetBrains Mono", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", ui-monospace, monospace',
+  fontBody: '"IBM Plex Sans", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif',
   bg: '#071018', bgGrad: 'radial-gradient(130% 120% at 50% -8%, #0b1c2b, #050b12 72%)',
   fg: '#cfe6f5', dim: '#5f7d92', accent: '#38b6ff', accent2: '#7fe0d0', onAccent: '#04121c',
   surface: '#0a1622', surfaceBorder: '#1d3a52', line: '#123048',
@@ -166,8 +169,9 @@ export const BLUEPRINT_DNA: DesignDNA = {
 // one amber key + a cool fill, soft filmic reveals. (direction: cinematic-craft)
 export const CINEMATIC_DNA: DesignDNA = {
   id: 'cinematic',
-  fontDisplay: '"Playfair Display", Georgia, serif', fontMono: '"JetBrains Mono", ui-monospace, monospace',
-  fontBody: 'Inter, system-ui, sans-serif',
+  fontDisplay: '"Bodoni Moda", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", Georgia, serif',
+  fontMono: '"JetBrains Mono", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", ui-monospace, monospace',
+  fontBody: 'Inter, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif',
   bg: '#08070a', bgGrad: 'radial-gradient(90% 80% at 62% 42%, #241a12, #0c0a0d 52%, #050406 82%)',
   fg: '#f4efe6', dim: '#9a8f83', accent: '#e8a13c', accent2: '#7fa8c9', onAccent: '#1a1006',
   surface: '#141014', surfaceBorder: '#2c2320', line: '#241d1d',
@@ -178,8 +182,9 @@ export const CINEMATIC_DNA: DesignDNA = {
 // grid, one signal colour + a comparison colour, precise mechanical reveals. (direction: data-story)
 export const DATA_DNA: DesignDNA = {
   id: 'data',
-  fontDisplay: 'Inter, system-ui, sans-serif', fontMono: '"JetBrains Mono", ui-monospace, monospace',
-  fontBody: 'Inter, system-ui, sans-serif',
+  fontDisplay: '"IBM Plex Sans", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif',
+  fontMono: '"IBM Plex Mono", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", ui-monospace, monospace',
+  fontBody: '"IBM Plex Sans", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif',
   bg: '#0a0f16', bgGrad: 'radial-gradient(120% 110% at 50% 0%, #13202c, #080d13 74%)',
   fg: '#e8eef6', dim: '#7d8a9b', accent: '#3ddc97', accent2: '#f2b544', onAccent: '#04140d',
   surface: '#111823', surfaceBorder: '#22303f', line: '#1a2431',
@@ -190,8 +195,9 @@ export const DATA_DNA: DesignDNA = {
 // stepped motion and scanline furniture. (direction: retro-playful)
 export const RETRO_DNA: DesignDNA = {
   id: 'retro',
-  fontDisplay: '"Baloo 2", Impact, system-ui, sans-serif', fontMono: '"JetBrains Mono", ui-monospace, monospace',
-  fontBody: 'Inter, system-ui, sans-serif',
+  fontDisplay: '"Baloo 2", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif',
+  fontMono: '"JetBrains Mono", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", ui-monospace, monospace',
+  fontBody: '"Baloo 2", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif',
   bg: '#140a1e', bgGrad: 'radial-gradient(120% 120% at 50% 100%, #37115a, #140a1e 62%, #0b0512 100%)',
   fg: '#ffeffb', dim: '#a78bbd', accent: '#ff2e88', accent2: '#22e3ff', onAccent: '#1a0410',
   surface: '#1e1030', surfaceBorder: '#40215f', line: '#2c1745',

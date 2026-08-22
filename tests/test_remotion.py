@@ -523,6 +523,50 @@ def test_fonts_ts_fails_loudly_on_a_load_error():
     assert "delayRender" in ts, "fonts.ts must delayRender until the faces are ready"
 
 
+_CJK_FAMILIES = ('PingFang SC', 'Hiragino Sans', 'Microsoft YaHei', 'Noto Sans CJK SC')
+
+
+def _font_stacks():
+    """Every fontDisplay/fontMono/fontBody string literal in dna.tsx."""
+    src = _dna_tsx()
+    return re.findall(r"font(?:Display|Mono|Body): '([^']+)'", src)
+
+
+def test_every_declared_family_is_actually_loaded():
+    """A preset may only name a face fonts.ts loads — otherwise it silently falls back, which is
+    the exact defect this layer exists to fix."""
+    loaded = set(re.findall(r"family: '([^']+)'", open(_FONTS_TS, encoding="utf-8").read()))
+    assert loaded, "could not parse FACES out of fonts.ts"
+    # Georgia ships with every macOS and Windows install, so it is a safe last-resort serif rather
+    # than a declared identity — which is exactly why it must never be a stack's FIRST entry.
+    generics = {'system-ui', 'sans-serif', 'serif', 'monospace', 'ui-monospace', 'cursive', 'fantasy', 'Georgia'}
+    for stack in _font_stacks():
+        for fam in [p.strip().strip('"') for p in stack.split(',')]:
+            if fam in generics or fam in _CJK_FAMILIES:
+                continue
+            assert fam in loaded, "dna.tsx names %r but fonts.ts does not load it" % fam
+
+
+def test_every_font_stack_has_a_cjk_fallback():
+    """None of these faces covers CJK; without a fallback, Chinese decks regress silently."""
+    stacks = _font_stacks()
+    assert len(stacks) >= 24, "expected 3 stacks x 8 presets, parsed %d" % len(stacks)
+    for stack in stacks:
+        assert any(c in stack for c in _CJK_FAMILIES), "no CJK fallback in %r" % stack
+
+
+def test_every_multiword_family_is_quoted_in_every_stack():
+    """A family name with a bare digit token ("Source Serif 4", "Baloo 2") is INVALID CSS unquoted:
+    the browser drops the declaration and silently falls back. The declared-implies-loaded test
+    strips quotes when it parses, so it structurally cannot see this class."""
+    for stack in _font_stacks():
+        for part in stack.split(','):
+            fam = part.strip()
+            if fam.startswith('"'):
+                continue
+            assert ' ' not in fam, "multi-word family %r must be quoted in stack %r" % (fam, stack)
+
+
 def test_tiles_differ_detects_identical_and_distinct_halves(tmp_path):
     """The gate's comparison must call identical halves 'same' and distinct halves 'different'.
     Tested on synthetic images so the unit test needs no render."""
