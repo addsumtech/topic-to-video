@@ -457,3 +457,22 @@ def test_validate_warns_on_an_unknown_atom_form():
     r = v.evaluate(d, "/tmp")
     assert r["ok"], r["errors"]                      # a warning, never an error — the runtime falls back
     assert any("sparkline" in w for w in r["warnings"]), r["warnings"]
+
+
+def test_atoms_are_total_across_every_dna_and_edge_case():
+    # Atoms render under every preset, with `atoms` missing entirely, and with unknown form values —
+    # and never emit the string "undefined" (an undefined token inside a `font:` shorthand paints nothing).
+    # Runs the real components through react-dom/server; the bundler strips types without checking them,
+    # so this is the only mechanical proof the components hold together.
+    import subprocess, tempfile, shutil
+    if not shutil.which("npx"):
+        import pytest; pytest.skip("npx unavailable")
+    remotion = os.path.join(os.path.dirname(__file__), "..", "remotion")
+    out = os.path.join(tempfile.gettempdir(), "atoms_probe.cjs")
+    b = subprocess.run(["npx", "esbuild", "src/runtime/__probe_atoms.tsx", "--bundle",
+                        "--platform=node", "--outfile=" + out, "--log-level=error"],
+                       cwd=remotion, capture_output=True, text=True)
+    assert b.returncode == 0, "esbuild failed:\n" + b.stdout + b.stderr
+    r = subprocess.run(["node", out], capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "PROBE OK" in r.stdout, r.stdout
