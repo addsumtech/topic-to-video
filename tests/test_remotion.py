@@ -377,12 +377,18 @@ def test_shot_luma_and_dna_ground_cover_the_library():
     assert not (_SHOT_IDS - measured), "shots missing a measured ground luminance: %s" % sorted(_SHOT_IDS - measured)
 
 
+# Compositions registered in Root.tsx via F() that are NOT bespoke shots and therefore intentionally
+# live outside remotion/src/shots/ — diagnostic probes, not selectable design languages. New entries
+# here must be justified the same way: not a shot, not in the shots dir, not in registry.ts.
+_ROOT_NON_SHOT_IDS = {"FontProbe"}
+
+
 def test_registry_root_and_shots_dir_are_in_sync():
     # test_registry_in_sync_with_shot_files compared the shots dir to itself; Root.tsx (standalone previews) and
     # registry.ts (what a film can select) were effectively ungated.
     root = open(os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "Root.tsx"), encoding="utf-8").read()
     reg = open(os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "registry.ts"), encoding="utf-8").read()
-    root_ids = set(re.findall(r"\{F\('([A-Za-z0-9_]+)'", root))
+    root_ids = set(re.findall(r"\{F\('([A-Za-z0-9_]+)'", root)) - _ROOT_NON_SHOT_IDS
     reg_ids = set(re.findall(r"from '\./shots/([A-Za-z0-9_]+)'", reg))
     assert reg_ids == _SHOT_IDS, "registry.ts vs shots/: %s" % sorted(reg_ids ^ _SHOT_IDS)
     assert root_ids == _SHOT_IDS, "Root.tsx (standalone previews) vs shots/: %s" % sorted(root_ids ^ _SHOT_IDS)
@@ -504,3 +510,24 @@ def test_fonts_ts_fails_loudly_on_a_load_error():
     ts = open(_FONTS_TS, encoding="utf-8").read()
     assert "cancelRender" in ts, "fonts.ts must cancelRender on a failed load"
     assert "delayRender" in ts, "fonts.ts must delayRender until the faces are ready"
+
+
+def test_tiles_differ_detects_identical_and_distinct_halves(tmp_path):
+    """The gate's comparison must call identical halves 'same' and distinct halves 'different'.
+    Tested on synthetic images so the unit test needs no render."""
+    from PIL import Image
+    import importlib.util
+    spec_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "font_gate.py")
+    spec = importlib.util.spec_from_file_location("font_gate", spec_path)
+    font_gate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(font_gate)
+
+    # row 0: both halves identical black; row 1: left black, right white
+    img = Image.new("RGB", (200, 200), "black")
+    for x in range(100, 200):
+        for y in range(100, 200):
+            img.putpixel((x, y), (255, 255, 255))
+    p = tmp_path / "probe.png"
+    img.save(p)
+
+    assert font_gate.tiles_differ(str(p), rows=2, cols=2) == [False, True]
