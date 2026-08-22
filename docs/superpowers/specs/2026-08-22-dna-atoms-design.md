@@ -6,9 +6,10 @@
 
 A Design DNA currently reaches a shot as *tokens* — colour, type, radius, motion character. For 132 of
 134 registered shots that means a themed film is a **recolour**: the components stay identical, only
-their hues change. Only `CinematicTitle` and `ConveyorBelt` change any structure with the DNA, and the
-component-level difference between styles lives entirely in the 11 style-native shots (`Term*`, `Ed*`),
-which are separate shots rather than variants of one.
+their hues change. A grep for a DNA-conditional branch (`dna.id` / `dnaHas(`) across `src/shots` returns
+exactly two files — `CinematicTitle` and `ConveyorBelt` — so everything else substitutes tokens and
+nothing more. The component-level difference between styles lives entirely in the 11 style-native shots
+(`Term*`, `Ed*`), which are separate shots rather than variants of one.
 
 The consequence, in the user's words: switching from `terminal` to `editorial` looks like the same frame
 in different colours, because it is.
@@ -28,8 +29,9 @@ under editorial, a dimensioned measure under blueprint, a pixel bar under retro.
 - **Making `atoms` mandatory.** A DNA that declares no atoms is valid and renders exactly as today.
 - **Bulk-migrating all ~58 atom-composable shots.** Nine shots are in scope (see Migration); the rest
   upgrade opportunistically when someone is already working in them.
-- **The `new_shot.py` scaffold.** A separate, not-yet-approved task. This design does not depend on it;
-  a new shot can import the atoms by hand.
+- **The `new_shot.py` scaffold.** A separate task that has been described but **not approved**; it must
+  not be implemented as part of this work. This design does not depend on it — a new shot can import the
+  atoms by hand.
 
 ## Approach (chosen)
 
@@ -91,6 +93,16 @@ New file `remotion/src/runtime/atoms.tsx`, a sibling of `dna.tsx`. Six component
 A shot declares *what the part is*, never how it looks. No atom takes a form as a prop — the form comes
 from the DNA. `tone` exists only so a shot can give one series a different hue (a hero bar); it never
 changes the form.
+
+Interface details that would otherwise be guessed:
+- `Bar.value` is a fraction `0..1`. `label` and `tag` are optional; a form that has no place for a tag
+  (e.g. `dimension`) ignores it rather than inventing one.
+- `Figure.value` accepts a string or a number and renders it **as given**. Count-up animation stays in
+  the shot, which passes the current value each frame — the atom is a pure renderer, so it cannot break
+  a shot's timing.
+- `List.root` is only meaningful to the `tree` form (the path it hangs the listing under); other forms
+  ignore it.
+- `Divider.width` is a length in px or a CSS length; a form that draws a full-width rule ignores it.
 
 ### 3 · Fallback (the rule that keeps the null-DNA guarantee)
 
