@@ -1130,6 +1130,18 @@ def _DNA_PRESETS_FOR_TEST():
             "cinematic-craft", "cinematic", "data-story", "data", "retro-playful", "retro"}
 
 
+# Mirror of AtomForms in remotion/src/runtime/dna.tsx. tests/test_remotion.py asserts the two stay equal —
+# drift means an authored DNA gets warned about a form the runtime actually supports, or a typo passes.
+_ATOM_FORMS = {
+    "bar": {"block", "solid", "ruled", "pixel", "dimension"},
+    "figure": {"mono", "serif", "display", "segment"},
+    "list": {"tree", "ruled", "bullet", "numbered"},
+    "label": {"prompt", "kicker", "spec", "chip"},
+    "divider": {"scanline", "hairline", "dimension", "dotted"},
+    "marker": {"caret", "triangle", "crosshair", "arrow"},
+}
+
+
 def _check_remotion(meta, slides, errors, warnings, out_dir=None):
     """Guardrails for the remotion bespoke-shot tier: a valid whole-film `shot_template` direction (+ its
     contest trace); every scene needs a valid `shot` id + object `shot_props`; a NUMBER-bearing register left on
@@ -1159,6 +1171,18 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
         if _miss:
             warnings.append(f"meta.design_dna is missing core key(s) {_miss} — a Design DNA needs at least "
                             f"{list(_DNA_KEYS)} so every shot can inherit its type + palette (runtime/dna.tsx).")
+        atoms = design_dna.get("atoms")
+        if atoms is not None and not isinstance(atoms, dict):
+            warnings.append("meta.design_dna.atoms must be an object mapping an atom to a form "
+                            "(e.g. {\"bar\": \"block\"}) — ignoring it; every atom will use its neutral form")
+        elif isinstance(atoms, dict):
+            for _k, _v in atoms.items():
+                if _k not in _ATOM_FORMS:
+                    warnings.append(f"meta.design_dna.atoms has unknown atom {_k!r} — known atoms are "
+                                    f"{sorted(_ATOM_FORMS)}; it will be ignored")
+                elif _v not in _ATOM_FORMS[_k]:
+                    warnings.append(f"meta.design_dna.atoms.{_k} = {_v!r} is not a form this atom implements "
+                                    f"({sorted(_ATOM_FORMS[_k])}) — it will render the neutral form instead")
     elif str(meta.get("shot_template") or "") not in _DNA_PRESETS:
         warnings.append("remotion: NO Design DNA — no meta.design_dna, and meta.shot_template maps to no known DNA "
                         "preset, so every shot renders its ORIGINAL hardcoded identity and the film reads as "
