@@ -87,7 +87,8 @@ const CAPTION_BAND = 150;    // px at the bottom reserved for the caption; shots
 // One global caption HUD. It shows AT MOST ONE caption — the one belonging to the scene whose sole-visible
 // window (between its two transitions) contains this frame — hard-cut, contrast-picked against that scene's
 // ground luminance. Because the windows are disjoint, two captions can never coexist across a dissolve.
-const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaBg?: string | null}> = ({scenes, groundBg, dnaBg}) => {
+const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaBg?: string | null;
+  dnaFontBody?: string | null}> = ({scenes, groundBg, dnaBg, dnaFontBody}) => {
   const frame = useCurrentFrame();
   const {width} = useVideoConfig();
   let acc = 0;
@@ -124,7 +125,7 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaBg?: st
   return (
     <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', pointerEvents: 'none', opacity: op}}>
       <div style={{position: 'relative', maxWidth: Math.min(1400, width - 80), margin: '0 auto 40px', padding: '0 60px', textAlign: 'center',
-        color: ink, font: '700 44px/1.26 Inter, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif',
+        color: ink, font: `700 44px/1.26 ${dnaFontBody ?? 'Inter, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif'}`,
         letterSpacing: '-0.01em', textShadow: shadow}}>{merged[idx]}</div>
     </AbsoluteFill>
   );
@@ -291,6 +292,12 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
           every shot speaks the type with zero per-shot edits (overrides inline family, keeps size/weight; scoped
           to .dna-film so captions keep their own font). A MIXED-type style (editorial serif+sans, etc.) sets no
           uniformType → NO override, and its registers pick fontDisplay vs fontBody per element. Generalizes. */}
+      {/* TYPE VARIABLES — the DNA's three faces, published to the shots as CSS custom properties.
+          Shots read them as `var(--f-body, <their original list>)`, so with NO DNA the variables are
+          unset, the original list applies, and the frame is pixel-identical to before this layer
+          existed (scripts/null_dna_pixel_gate.py proves it on real renders). A uniformType DNA's
+          `!important` rule below still wins, so terminal is unchanged. */}
+      {activeDna ? <style>{`.dna-film { --f-display: ${activeDna.fontDisplay}; --f-body: ${activeDna.fontBody}; --f-mono: ${activeDna.fontMono}; }`}</style> : null}
       {activeDna?.uniformType ? <style>{`.dna-film, .dna-film * { font-family: ${activeDna.fontMono} !important; }`}</style> : null}
       <AbsoluteFill className="dna-film" style={cam === 'none' ? undefined : {transform: cam}}>
       <TransitionSeries>
@@ -317,7 +324,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
       </AbsoluteFill>
       </ReducedMotionContext.Provider>
       <AbsoluteFill style={{backgroundColor: bg, opacity: Math.max(intro, outro), pointerEvents: 'none'}} />
-      {captions ? <CaptionTrack scenes={scenes} groundBg={theme?.bg ?? activeDna?.bg} dnaBg={activeDna?.bg} /> : null}
+      {captions ? <CaptionTrack scenes={scenes} groundBg={theme?.bg ?? activeDna?.bg} dnaBg={activeDna?.bg} dnaFontBody={activeDna?.fontBody} /> : null}
       <BrandMark brand={brand} />
       </DesignDNAContext.Provider>
     </AbsoluteFill>

@@ -586,3 +586,22 @@ def test_tiles_differ_detects_identical_and_distinct_halves(tmp_path):
     img.save(p)
 
     assert font_gate.tiles_differ(str(p), rows=2, cols=2) == [False, True]
+
+
+def _film_tsx():
+    return open(os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "Film.tsx"),
+                encoding="utf-8").read()
+
+
+def test_film_injects_the_three_type_variables():
+    src = _film_tsx()
+    for var in ("--f-display", "--f-body", "--f-mono"):
+        assert var in src, "Film.tsx does not inject %s" % var
+    assert ".dna-film {" in src or ".dna-film{" in src, "the type variables must be scoped to .dna-film"
+
+
+def test_caption_typography_follows_the_dna():
+    """The caption is on every frame; only its contrast was DNA-aware, never its typeface."""
+    src = _film_tsx()
+    assert "dnaFontBody" in src, "CaptionTrack must take the DNA body face"
+    assert "font: '700 44px/1.26 Inter" not in src, "the caption font is still hardcoded"
