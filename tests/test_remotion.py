@@ -1,6 +1,6 @@
 """Backstop for the remotion bespoke-shot tier (phase-3 integration): the shot registry stays in sync with the
 library, the shot-director varies families, and validate.py enforces the shot contract."""
-import os, sys, json, copy
+import os, re, sys, json, copy
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 import validate as v
 import shot_director as sd
@@ -318,3 +318,105 @@ def test_contest_frame_within_every_hero_duration():
         m = re.search(r"export const DURATION\s*=\s*(\d+)", src)
         assert m, hero
         assert st.CONTEST_FRAME < int(m.group(1)), "%s DURATION=%s <= CONTEST_FRAME" % (hero, m.group(1))
+
+
+# ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
+# Design DNA layer. Before these, the whole DNA system had ZERO assertions: an audit found a shot that called
+# useDNA() without importing it (a hard render crash) sitting green in the audit, a preset map that had silently
+# diverged from validate.py's copy, and a luminance table that went stale the moment shots took their ground from
+# the DNA. Each test below is a gate that CAN fail — that is the point.
+# ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
+import dna_audit as da                                                    # noqa: E402
+import gen_dna_ground as gdg                                              # noqa: E402
+
+_RUNTIME_DIR = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "runtime")
+
+
+def _dna_tsx():
+    return open(os.path.join(_RUNTIME_DIR, "dna.tsx"), encoding="utf-8").read()
+
+
+def test_no_shot_calls_useDNA_without_importing_it():
+    # MaterialHero shipped exactly this way: the codemod inserted the call, missed the import, and the shot threw
+    # `useDNA is not defined` on EVERY render (themed or not) while the audit's presence-grep scored it migrated.
+    broken = sorted(da.broken_shots() & da.registered_shots())
+    assert not broken, "shots call useDNA() without importing it (hard ReferenceError at render): %s" % broken
+
+
+def test_validate_dna_presets_match_the_runtime():
+    # validate.py keeps a python copy of DNA_PRESETS to decide whether a film is 'themed'. If the two drift, a
+    # themed film silently stops being gated (or an un-themed one gets nagged).
+    import re as _re
+    block = _dna_tsx().split("export const DNA_PRESETS")[1].split("};")[0]
+    runtime = {m.group(1) or m.group(2) for m in _re.finditer(r"^\s*'([^']+)'\s*:|^\s*([A-Za-z][\w-]*)\s*:", block, _re.M)}
+    runtime = {k for k in runtime if k}
+    missing = runtime - v._DNA_PRESETS_FOR_TEST()
+    assert not missing, "DNA presets known to the runtime but not to validate.py: %s" % sorted(missing)
+
+
+def test_every_direction_maps_to_a_dna_preset():
+    # A direction with no preset means picking it turns the entire global visual system OFF — and then validate
+    # nags about a missing DNA on a film the user configured correctly.
+    import re as _re
+    block = _dna_tsx().split("export const DNA_PRESETS")[1].split("};")[0]
+    keys = {m.group(1) or m.group(2) for m in _re.finditer(r"^\s*'([^']+)'\s*:|^\s*([A-Za-z][\w-]*)\s*:", block, _re.M)}
+    keys = {k for k in keys if k}
+    missing = set(st.TEMPLATES) - keys
+    assert not missing, "these selectable directions have no Design DNA preset: %s" % sorted(missing)
+
+
+def test_dna_ground_set_is_regenerated():
+    # DNA_GROUND tells the film which shots take their ground from the DNA, which is how captions pick contrast.
+    # A shot migrated later without regenerating it would render dark ink on a dark ground.
+    assert gdg.main(["--check"]) == 0, "shotLuma.ts DNA_GROUND is stale — run: python scripts/gen_dna_ground.py"
+
+
+def test_shot_luma_and_dna_ground_cover_the_library():
+    luma = open(os.path.join(_RUNTIME_DIR, "shotLuma.ts"), encoding="utf-8").read()
+    measured = set(re.findall(r"(\w+):\s*'(?:dark|mid|light)'", luma.split("SHOT_LUMA")[1].split("};")[0]))
+    assert not (_SHOT_IDS - measured), "shots missing a measured ground luminance: %s" % sorted(_SHOT_IDS - measured)
+
+
+def test_registry_root_and_shots_dir_are_in_sync():
+    # test_registry_in_sync_with_shot_files compared the shots dir to itself; Root.tsx (standalone previews) and
+    # registry.ts (what a film can select) were effectively ungated.
+    root = open(os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "Root.tsx"), encoding="utf-8").read()
+    reg = open(os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "registry.ts"), encoding="utf-8").read()
+    root_ids = set(re.findall(r"\{F\('([A-Za-z0-9_]+)'", root))
+    reg_ids = set(re.findall(r"from '\./shots/([A-Za-z0-9_]+)'", reg))
+    assert reg_ids == _SHOT_IDS, "registry.ts vs shots/: %s" % sorted(reg_ids ^ _SHOT_IDS)
+    assert root_ids == _SHOT_IDS, "Root.tsx (standalone previews) vs shots/: %s" % sorted(root_ids ^ _SHOT_IDS)
+
+
+def test_contest_samples_carry_the_direction_dna():
+    # The direction contest is how the user PICKS the film's look. A sample rendered without the DNA shows a film
+    # that will not be delivered.
+    for key in st.TEMPLATES:
+        props = cs.build_props(key, "a topic")
+        assert props.get("template") == key, "contest sample for %r does not carry its DNA" % key
+
+
+def test_null_dna_preserves_every_original_colour():
+    # The documented guarantee is that an UN-themed film renders as before. Mechanical proxy: every colour literal
+    # that existed before the DNA work must still be reachable in the shot (as the `??` fallback).
+    import subprocess
+    base = "2c973f6~1"                      # the commit before any Design DNA work
+    repo = os.path.join(os.path.dirname(__file__), "..")
+    if subprocess.run(["git", "-C", repo, "cat-file", "-e", base], capture_output=True).returncode != 0:
+        import pytest; pytest.skip("pre-DNA baseline commit not available")
+    hexes = re.compile(r"['\"]#[0-9a-fA-F]{3,8}['\"]")
+    def norm(h):
+        h = h.strip("'\"").lstrip("#").lower()
+        return "".join(c * 2 for c in h[:3]) if len(h) in (3, 4) else h[:6]
+    drift = {}
+    for f in sorted(os.listdir(_SHOTS_DIR)):
+        if not f.endswith(".tsx"):
+            continue
+        rel = "remotion/src/shots/" + f
+        r = subprocess.run(["git", "-C", repo, "show", f"{base}:{rel}"], capture_output=True, text=True)
+        if r.returncode != 0:
+            continue                        # a shot added after the baseline
+        gone = {norm(x) for x in hexes.findall(r.stdout)} - {norm(x) for x in hexes.findall(open(os.path.join(_SHOTS_DIR, f), encoding="utf-8").read())}
+        if gone:
+            drift[f] = sorted(gone)
+    assert not drift, "null-DNA drift — these original colours are no longer reachable: %s" % drift

@@ -5,14 +5,15 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, hash01} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, dnaPalette} from '../runtime/dna';
 
 export const DURATION = 160; // ~5.3s
-const COLORS = ['#ffd48a', '#8ab6ff', '#ff9ec9', '#8affce', '#c9a2ff', '#fff2c0'];
+const COLORS0 = ['#ffd48a', '#8ab6ff', '#ff9ec9', '#8affce', '#c9a2ff', '#fff2c0'];
 
 export const BokehPull: React.FC<{title?: string; tagline?: string}> = ({title = 'WorkBuddy', tagline = 'IN FOCUS'} = {}) => {
   const t = useT();
   const dna = useDNA();
+  const COLORS = dnaPalette(dna, 6) ?? COLORS0;   // derive the palette from the film's DNA (null DNA = the original)
   const {width: W, height: H} = useVideoConfig();
   const focus = easeInOutCubic(seg(t, 0.32, 0.72)); // 0 = all blurred, 1 = sharp
   const wordBlur = lerp(34, 0, focus);

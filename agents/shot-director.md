@@ -74,6 +74,38 @@ authoring the explicit block is preferred (it's the reviewable Design DNA and le
 provided to the Film at render (a `DesignDNAContext`) and every migrated register reads it via `useDNA()`**, so one
 DNA makes 19 different compositions read as one visual universe — the remotion analogue of the html tier's
 `theme.css`. `validate.py` warns when a themed film has neither an explicit `design_dna` nor a preset-mapped template.
+
+**A COMPLETE worked block — copy this shape and retune every value to the topic** (a partial DNA no longer crashes
+the render — Film normalises it through the neutral preset — but every key you omit silently borrows a neutral
+value, and `validate.py` will name what is missing):
+
+```json
+"design_dna": {
+  "id": "terminal",
+  "fontDisplay": "\"JetBrains Mono\", ui-monospace, monospace",
+  "fontMono": "\"JetBrains Mono\", ui-monospace, monospace",
+  "fontBody": "\"JetBrains Mono\", ui-monospace, monospace",
+  "bg": "#080b11", "bgGrad": "radial-gradient(120% 120% at 50% 0%, #0d141c, #05070b 72%)",
+  "fg": "#d7e3ef", "dim": "#5d7186", "accent": "#37d68a", "accent2": "#7ee0ff", "onAccent": "#03130c",
+  "surface": "#0d1219", "surfaceBorder": "#1d2a36", "line": "#16202b",
+  "radius": 4, "borderWidth": 1,
+  "motion": "execute",
+  "decoration": ["prompt", "status", "breadcrumb", "cursor", "scanline", "grid"],
+  "uppercaseLabels": true, "labelSpacing": "0.12em",
+  "uniformType": true
+}
+```
+
+Two keys are BEHAVIOUR-bearing, not decoration, so choose them deliberately:
+- **`id`** selects the film's native SEAM grammar (`terminal` → a console screen-clear sweep · `product`/`apple` →
+  a slide push · `editorial`/`blueprint` → a sheet wipe · anything else → the safe cross-fade). Use a known id
+  unless you want the neutral seam.
+- **`uniformType`** — `true` forces ONE font across every shot (right for a mono/terminal world; it is the single
+  strongest style signal). Leave it out for a MIXED-type system (editorial serif + sans, product geometric), where
+  each element picks `fontDisplay`/`fontBody` itself.
+
+All six selectable directions map to a built-in preset (`terminal-technical`, `kinetic-editorial`, `product-demo`,
+`cinematic-craft`, `data-story`, `retro-playful`), so `meta.shot_template` alone already themes the film.
 **Consistency ≠ repetition:** the DNA does NOT make every frame a terminal window — a beat may be a big metric, a
 chart, a diagram; it just inherits the type/palette/container/motion/annotation grammar. Prefer subtle structural
 consistency over repetitive decoration (a shot needs 2–3 recognizable DNA cues, not a forced terminal box).

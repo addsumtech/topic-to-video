@@ -36,6 +36,7 @@ export const LiquidGlass: React.FC<{items?: string[]; title?: string}> = ({items
   const bgc = dna?.bgGrad ?? dna?.bg ?? 'linear-gradient(140deg, #dfe8f7 0%, #eef1f6 45%, #f6ecf3 100%)';
   const FG = dna?.fg ?? '#1b2740', ORB1 = dna?.accent ?? '#7aa8ff', ORB2 = dna?.accent2 ?? '#ff9ec9';
   const CARD = dna ? '#ffffff14' : '#ffffffcc', CARDB = dna ? '#ffffff2e' : '#ffffff', GOOD = dna?.accent2 ?? '#2ee06a';
+  const ROW_INK = dna?.fg ?? '#26324c';        // the row label had its own ink — restore it exactly with no DNA
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const listX = W / 2 - 420, listY = 300, rowH = 150;
@@ -61,7 +62,7 @@ export const LiquidGlass: React.FC<{items?: string[]; title?: string}> = ({items
             borderRadius: 22, background: CARD, border: `1px solid ${CARDB}`, boxShadow: '0 10px 30px #8aa0c022',
             display: 'flex', alignItems: 'center', gap: 26, padding: '0 34px'}}>
             <div style={{width: 46, height: 46, borderRadius: 12, background: done ? GOOD : ['#7aa8ff', '#b58cff', '#ff9ec9', '#ffcf5a'][i]}} />
-            <div style={{color: FG, font: '600 44px/1 Inter, system-ui, sans-serif', textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.6 : 1}}>{r}</div>
+            <div style={{color: ROW_INK, font: '600 44px/1 Inter, system-ui, sans-serif', textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.6 : 1}}>{r}</div>
           </div>
         );
       })}

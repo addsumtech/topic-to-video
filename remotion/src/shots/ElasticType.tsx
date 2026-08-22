@@ -5,15 +5,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, dnaPalette} from '../runtime/dna';
 
 export const DURATION = 145; // ~4.8s
 const BG_D0 = '#141a2e';
-const TONES = ['#ff5b7f', '#5b8cff', '#37d4a6', '#f6a531', '#c07bff'];
+const TONES0 = ['#ff5b7f', '#5b8cff', '#37d4a6', '#f6a531', '#c07bff'];
 
 export const ElasticType: React.FC<{word?: string; tagline?: string}> = ({
   word: WORD = 'BOUNCE', tagline: TAG = 'springy, gummy, alive'} = {}) => {
   const dna = useDNA();
+  const TONES = dnaPalette(dna, 5) ?? TONES0;   // derive the palette from the film's DNA (null DNA = the original)
   const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();

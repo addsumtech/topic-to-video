@@ -5,19 +5,22 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic, hash01} from '../runtime/motion';
-import {useDNA, dnaHas, Caret} from '../runtime/dna';
+import {useDNA, dnaHas, Caret, mix} from '../runtime/dna';
 
 export const DURATION = 170; // ~5.7s
 export const CinematicTitle: React.FC<{kicker?: string; title?: string; tagline?: string}> = ({
   kicker: KICKER = 'A NEW KIND OF TEAMMATE', title: TITLE = 'WorkBuddy', tagline: TAG = 'your ai team · on your machine'} = {}) => {
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
-  // DESIGN DNA — a terminal system recolours the warm cinematic hero cool, swaps the serif for mono, drops the
-  // film-specific flare/letterbox, and adds a caret; with no DNA it stays the original cinematic title.
+  // DESIGN DNA — a themed system recolours the warm cinematic hero into the FILM'S OWN hue, swaps the serif for the
+  // DNA display face, drops the film-specific flare/letterbox, and adds a caret; with no DNA it stays the original.
+  // The room glow is DERIVED from the DNA (accent receding into the ground) — never a fixed hue, so it is right on
+  // an editorial/product/blueprint film, not only on the terminal one it was first written for.
   const dna = useDNA();
   const bgBase = dna?.bg ?? '#05060a';
-  const roomGlow = dna ? 'radial-gradient(80% 70% at 62% 42%, #103128 0%, #0a1520 42%, #06080d 78%)'
-                       : 'radial-gradient(80% 70% at 62% 42%, #3a2a1c 0%, #14100c 42%, #05060a 78%)';
+  const roomGlow = dna
+    ? `radial-gradient(80% 70% at 62% 42%, ${mix(dna.accent, dna.bg, 0.78)} 0%, ${mix(dna.bg, dna.accent, 0.1)} 42%, ${dna.bg} 78%)`
+    : 'radial-gradient(80% 70% at 62% 42%, #3a2a1c 0%, #14100c 42%, #05060a 78%)';
   const moteCol = dna?.accent ?? '#ffe6c0';
   const kickCol = dna?.accent ?? '#c69a63';
   const titleFont = dna?.fontDisplay ?? '"Playfair Display", Georgia, serif';

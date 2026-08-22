@@ -6,7 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack, hash01} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, dnaPalette} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
 const NODE_PALETTE0 = ['#4c8dff', '#22d3c5', '#b06cff', '#ff8fc7', '#ffd23f', '#2fcb6e', '#ff6b6b'];
@@ -15,7 +15,7 @@ export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string}> = ({
   items = ['Docs', 'Code', 'Slack', 'Calendar', 'Email', 'Tasks', 'Notes'], hub: HUB = 'WorkBuddy'} = {}) => {
   const t = useT();
   const dna = useDNA();
-  const NODE_PALETTE = dna ? [dna.accent, dna.accent2, dna.dim, dna.accent, dna.accent2, dna.dim, dna.accent] : NODE_PALETTE0;
+  const NODE_PALETTE = dnaPalette(dna, 7) ?? NODE_PALETTE0;
   const NODES = items.map((label, i) => ({label, c: NODE_PALETTE[i % NODE_PALETTE.length]}));
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2;

@@ -1122,6 +1122,14 @@ def _check_shot_template(meta, errors, warnings):
                         "direction (the contest exists so a human picks, not the model)")
 
 
+def _DNA_PRESETS_FOR_TEST():
+    """The preset ids validate treats as 'themed'. Exposed so tests/test_remotion.py can assert this set
+    still matches DNA_PRESETS in remotion/src/runtime/dna.tsx — the two copies drifting is a silent gate loss."""
+    return {"terminal-technical", "terminal", "neutral", "editorial", "kinetic-editorial",
+            "product", "product-demo", "apple", "blueprint",
+            "cinematic-craft", "cinematic", "data-story", "data", "retro-playful", "retro"}
+
+
 def _check_remotion(meta, slides, errors, warnings, out_dir=None):
     """Guardrails for the remotion bespoke-shot tier: a valid whole-film `shot_template` direction (+ its
     contest trace); every scene needs a valid `shot` id + object `shot_props`; a NUMBER-bearing register left on
@@ -1140,9 +1148,11 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
     # Keep in sync with DNA_PRESETS in remotion/src/runtime/dna.tsx (a themed film = any of these OR an explicit
     # meta.design_dna). Missing an editorial/product/blueprint key here would let those themed films dodge the
     # themed-only lints (theme_cues coverage + un-migrated-register), so the whole preset set must be listed.
-    _DNA_PRESETS = {"terminal-technical", "terminal", "neutral", "editorial", "kinetic-editorial",
-                    "product", "product-demo", "apple", "blueprint"}
-    _DNA_KEYS = ("fontDisplay", "fontMono", "bg", "fg", "accent", "surface")
+    _DNA_PRESETS = _DNA_PRESETS_FOR_TEST()
+    # every token a component actually reads — a partial DNA no longer crashes (Film coerces it through
+    # NEUTRAL_DNA) but it DOES silently borrow neutral values, so name what is missing.
+    _DNA_KEYS = ("fontDisplay", "fontMono", "fontBody", "bg", "fg", "dim", "accent", "accent2",
+                 "onAccent", "surface", "line", "decoration", "motion")
     design_dna = meta.get("design_dna")
     if isinstance(design_dna, dict):
         _miss = [k for k in _DNA_KEYS if not design_dna.get(k)]

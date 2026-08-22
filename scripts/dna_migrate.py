@@ -110,8 +110,22 @@ def _plan(src, shot):
                      lambda m: m.group(0) if "useDNA" in m.group(1) else f"import {{{m.group(1).strip()}, useDNA}} from '{m.group(2)}'",
                      out, count=1)
     else:
-        out = re.sub(r"(import .*from '\.\./runtime/motion';)",
-                     r"\1\nimport {useDNA} from '../runtime/dna';", out, count=1)
+        # NOT every shot imports from runtime/motion (a three.js shot, for instance). Anchor on the LAST import line
+        # instead; if even that is impossible, REFUSE the transform. Writing a file that calls useDNA() without
+        # importing it is a hard ReferenceError at render time, and dna_audit's `useDNA(` grep would still score it
+        # as migrated — a green tick on a broken shot. Fail loud instead. (MaterialHero was exactly this bug.)
+        if re.search(r"import .*from '\.\./runtime/motion';", out):
+            out = re.sub(r"(import .*from '\.\./runtime/motion';)",
+                         r"\1\nimport {useDNA} from '../runtime/dna';", out, count=1)
+        else:
+            _lines = out.split("\n")
+            _imports = [i for i, l in enumerate(_lines) if l.startswith("import ")]
+            if not _imports:
+                return None, "no import statement to anchor the useDNA import on — hand-migrate"
+            _lines.insert(_imports[-1] + 1, "import {useDNA} from '../runtime/dna';")
+            out = "\n".join(_lines)
+    if not re.search(r"import\s*\{[^}]*\buseDNA\b[^}]*\}\s*from\s*'\.{1,2}/runtime/dna'", out):
+        return None, "INTERNAL GUARD: transform would call useDNA() without importing it — refused"
     note = ", ".join(f"{n}->{t}" for n, t, _ in mapping)
     return out, note
 

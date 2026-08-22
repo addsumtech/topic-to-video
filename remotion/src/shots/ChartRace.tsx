@@ -6,7 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, dnaPalette} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 const BG = '#0a0c14';
@@ -19,7 +19,7 @@ export const ChartRace: React.FC<{data?: Row[]; title?: string; unit?: string}> 
     {label: 'Charlie', value: 100, delay: 0.42}, {label: 'Delta', value: 64, delay: 0.1}, {label: 'Echo', value: 84, delay: 0.5}],
   title: TITLE = 'Who pulls ahead', unit: UNIT = ''} = {}) => {
   const t = useT();
-  const dna = useDNA(); const TONES = dna ? [dna.accent, dna.accent2, dna.dim, dna.accent, dna.accent2, dna.dim] : TONES0;
+  const dna = useDNA(); const TONES = dnaPalette(dna, 6) ?? TONES0;
   const {width: W, height: H} = useVideoConfig();
   const rows = DATA.slice(0, 6);
   const maxVal = Math.max(...rows.map((r) => r.value ?? 0), 1);

@@ -9,7 +9,15 @@ An un-migrated register is not broken on its OWN (null DNA = its original look),
 it renders its hardcoded identity instead of the global visual system — that is exactly what the validate lint
 surfaces. This tool just makes the migration worklist VISIBLE (never a silent "done").
 
+MIGRATION DEPTH (`--depth`) is a HEURISTIC WORKLIST, never a verdict, and deliberately NOT wired into validate.py as
+a gate. It counts CHROMATIC hex literals painted on lines that never consult `dna`. Two honest caveats: (1) it
+over-counts when a fallback is passed as a function ARGUMENT rather than via `??` on the same line (e.g. ClayStack's
+`clay(0, '#f7b7a3', …)` fallbacks); (2) a high count is often CORRECT — syntax-highlight colours, CPK element
+colours, MRI physics vectors, per-collaborator cursor colours and other SEMANTIC or identity palettes must survive a
+theme. Read it as "where would a themed film still show this register's own hues", then judge each case.
+
 CLI:  python scripts/dna_audit.py            # summary + the un-migrated registered list, grouped by family
+      python scripts/dna_audit.py --depth    # + the partial / ground-only worklist with residual counts
       python scripts/dna_audit.py --json     # machine-readable
       python scripts/dna_audit.py --check     # exit 1 if any REGISTERED shot is un-migrated (for a completeness gate)
 """
@@ -31,9 +39,15 @@ def all_shot_files(remotion_dir=None):
     return {f[:-4] for f in os.listdir(d) if f.endswith(".tsx")}
 
 
-def dna_aware_shots(remotion_dir=None):
-    """Ids of shots whose source CALLS useDNA() — i.e. they read the Design DNA tokens and unify on a themed film.
-    Requires an actual call `useDNA(`, not just the import, so a dangling import doesn't count as migrated."""
+_USE_CALL = re.compile(r"\buseDNA\s*\(")
+_USE_IMPORT = re.compile(r"import\s*\{[^}]*\buseDNA\b[^}]*\}\s*from\s*'\.{1,2}/runtime/dna'")
+
+
+def broken_shots(remotion_dir=None):
+    """Ids that CALL useDNA() but never IMPORT it — a hard `useDNA is not defined` ReferenceError at render time.
+    A codemod that inserts the call but misses the import produces exactly this, and a naive `useDNA(` grep would
+    still score it as migrated: a green tick on a shot that cannot render. Surfaced separately, and never counted
+    as aware. (MaterialHero shipped in this state; the codemods now refuse the transform instead.)"""
     d = _shots_dir(remotion_dir)
     if not os.path.isdir(d):
         return set()
@@ -42,11 +56,31 @@ def dna_aware_shots(remotion_dir=None):
         if not f.endswith(".tsx"):
             continue
         try:
-            with open(os.path.join(d, f), encoding="utf-8") as fh:
-                if re.search(r"\buseDNA\s*\(", fh.read()):
-                    out.add(f[:-4])
+            src = open(os.path.join(d, f), encoding="utf-8").read()
         except OSError:
-            pass
+            continue
+        if _USE_CALL.search(src) and not _USE_IMPORT.search(src):
+            out.add(f[:-4])
+    return out
+
+
+def dna_aware_shots(remotion_dir=None):
+    """Ids of shots that read the Design DNA and therefore unify on a themed film. Requires BOTH an actual call
+    `useDNA(` AND the matching import — a call without the import is not 'migrated', it is BROKEN (see
+    broken_shots), and a dangling import without a call changes nothing."""
+    d = _shots_dir(remotion_dir)
+    if not os.path.isdir(d):
+        return set()
+    out = set()
+    for f in os.listdir(d):
+        if not f.endswith(".tsx"):
+            continue
+        try:
+            src = open(os.path.join(d, f), encoding="utf-8").read()
+        except OSError:
+            continue
+        if _USE_CALL.search(src) and _USE_IMPORT.search(src):
+            out.add(f[:-4])
     return out
 
 
@@ -65,16 +99,85 @@ def registered_shots(remotion_dir=None):
     return ids
 
 
+# A hex literal is FINE when it is the null-DNA fallback of a guarded expression (`dna?.x ?? '#hex'`, `dna ? a : '#hex'`)
+# or a `NAME0`/`NAME_D0` fallback declaration. It is a RESIDUAL when it is painted unconditionally — the shot reads the
+# DNA somewhere but still hardcodes THAT element, so a themed film only partly unifies. Counting residuals turns the
+# binary "reads useDNA" into a MIGRATION DEPTH, so a shallow migration can't hide behind a green tick.
+_HEX = re.compile(r"['\"]#[0-9a-fA-F]{3,8}['\"]")
+_FALLBACK_DECL = re.compile(r"^\s*(?:export\s+)?const\s+[A-Za-z_][A-Za-z0-9_]*(?:0|_D0)\s*(?::|=)")
+
+
+def _chromatic(hex_literal):
+    """True when a hex literal carries a HUE. Neutral black/white/grey (shadows, speculars, scrims, hairlines) are
+    physically correct under any DNA — counting them as 'un-migrated' would punish correct code, so they don't count."""
+    h = hex_literal.strip("'\"").lstrip("#")
+    if len(h) in (3, 4):
+        h = "".join(c + c for c in h[:3])
+    if len(h) < 6:
+        return False
+    try:
+        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    except ValueError:
+        return False
+    return (max(r, g, b) - min(r, g, b)) > 14      # >14 spread = a real hue, not a grey
+
+
+def residual_hardcodes(shot, remotion_dir=None):
+    """(residual_count, dna_reads) for one shot. `residual` = CHROMATIC hex literals on lines that never mention `dna`."""
+    f = os.path.join(_shots_dir(remotion_dir), shot + ".tsx")
+    try:
+        src = open(f, encoding="utf-8").read()
+    except OSError:
+        return (0, 0)
+    reads = len(re.findall(r"dna\?\.|dna \?|useDNA\s*\(", src))
+    residual = 0
+    for line in src.split("\n"):
+        st = line.strip()
+        if st.startswith("//") or st.startswith("*"):
+            continue
+        if _FALLBACK_DECL.match(line):          # a NAME0 fallback declaration — legitimate
+            continue
+        if "dna" in line:                       # the expression consults the DNA — guarded, fine
+            continue
+        residual += sum(1 for hx in _HEX.findall(line) if _chromatic(hx))
+    return (residual, reads)
+
+
+def depth(shot, remotion_dir=None):
+    """'deep' | 'partial' | 'ground-only' | 'none' — how far the DNA actually reaches into this shot."""
+    aware = shot in dna_aware_shots(remotion_dir)
+    if not aware:
+        return "none"
+    residual, reads = residual_hardcodes(shot, remotion_dir)
+    if reads <= 2 and residual > 0:
+        return "ground-only"
+    if residual >= 8:
+        return "partial"
+    return "deep"
+
+
 def audit(remotion_dir=None):
     reg = registered_shots(remotion_dir)
     aware = dna_aware_shots(remotion_dir)
     reg_aware = reg & aware
     reg_unmigrated = sorted(reg - aware)
+    aware_set = dna_aware_shots(remotion_dir)
+    by_depth = {"deep": [], "partial": [], "ground-only": [], "none": []}
+    detail = {}
+    for shot in sorted(reg):
+        residual, reads = residual_hardcodes(shot, remotion_dir)
+        d = "none" if shot not in aware_set else (
+            "ground-only" if reads <= 2 and residual > 0 else ("partial" if residual >= 8 else "deep"))
+        by_depth[d].append(shot)
+        detail[shot] = {"depth": d, "residual_hardcodes": residual, "dna_reads": reads}
     return {
         "registered": len(reg),
         "dna_aware": len(reg_aware),
         "unmigrated": reg_unmigrated,
         "unmigrated_count": len(reg_unmigrated),
+        "depth_counts": {k: len(v) for k, v in by_depth.items()},
+        "by_depth": by_depth,
+        "detail": detail,
     }
 
 
@@ -91,9 +194,17 @@ def main(argv):
     a = audit()
     if "--json" in argv:
         print(json.dumps(a, indent=2)); return 0
+    dc = a["depth_counts"]
     print(f"registered shots : {a['registered']}")
     print(f"DNA-aware        : {a['dna_aware']}")
     print(f"un-migrated      : {a['unmigrated_count']}")
+    print(f"migration depth  : deep {dc['deep']} | partial {dc['partial']} | ground-only {dc['ground-only']} | none {dc['none']}")
+    if "--depth" in sys.argv[1:]:
+        for d in ("partial", "ground-only"):
+            if a["by_depth"][d]:
+                print(f"\n{d} (a themed film only PARTLY unifies these — residual hardcoded colours):")
+                for sname in a["by_depth"][d]:
+                    print(f"  {sname:24s} residual={a['detail'][sname]['residual_hardcodes']:3d}  dna_reads={a['detail'][sname]['dna_reads']}")
     if a["unmigrated"]:
         by_fam = {}
         for s in a["unmigrated"]:
@@ -101,7 +212,10 @@ def main(argv):
         print("\nun-migrated registered shots (read a hardcoded palette; will not unify on a themed film):")
         for fam in sorted(by_fam):
             print(f"  [{fam}] " + " ".join(sorted(by_fam[fam])))
-    if "--check" in argv and a["unmigrated"]:
+    brk = sorted(broken_shots() & registered_shots())
+    if brk:
+        print("\n*** BROKEN — call useDNA() without importing it (hard ReferenceError at render): " + " ".join(brk))
+    if "--check" in argv and (a["unmigrated"] or brk):
         return 1
     return 0
 

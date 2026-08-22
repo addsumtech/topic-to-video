@@ -194,6 +194,14 @@ TTS if the user gives an API key.
   the library's fixed multi-column + wide-horizontal registers need this per-shot pass.
   **`meta.renderer:"remotion"` is an ALIAS for `remotion`** (both render the bespoke-shot library). The old
   generic-scene tier was REMOVED in the phase-3 cutover — `"remotion-legacy"` now errors with a migration hint.
+- **Design-DNA tooling (remotion tier).** `python scripts/dna_audit.py [--depth]` — which registered shots read the
+  film's Design DNA and HOW DEEPLY (deep / partial / ground-only); it also fails `--check` on a shot that calls
+  `useDNA()` without importing it (a hard render crash a presence-grep would score as migrated).
+  `python scripts/dna_smoke.py [--template <direction>]` — renders EVERY registered shot once in one themed film;
+  the only gate that catches a hook inserted into the wrong scope, since the bundler strips types unchecked. Run it
+  after any bulk shot change. `python scripts/gen_dna_ground.py` — regenerates `shotLuma.ts DNA_GROUND` (which
+  shots take their ground from the DNA, so captions contrast-pick against the ground the frame ACTUALLY has); a
+  test fails when it is stale. `scripts/dna_migrate.py` / `dna_migrate_bg.py` are the guarded migration codemods.
 - `scripts/render_remotion.py <out_dir>` — the render CLI for the **remotion bespoke-shot tier** (see the bullet above). The legacy generic-scene Remotion tier (atmospheres / cinematic templates / TRUE-3D archetypes / `type:"cinematic"` scenes) was REMOVED in the phase-3 cutover — its scripts, reference docs, and tests were deleted; `meta.renderer:"remotion-legacy"` errors with a re-author hint.
 - `scripts/cues.py` — pure anchor→cue-time resolver: reads per-scene `audio/NN.words.json` (edge-tts per-word timings) and resolves each `data-cue` anchor phrase to an absolute timestamp, used by `render_html` for audio-synced HTML reveals.
 - `scripts/check_av.py <out_dir>` — deterministic A/V gate: probes `out.mp4` video-vs-audio duration + per-clip sample-rate uniformity across `.clips/`; exits non-zero on A/V drift above tolerance (0.3 s) or non-uniform rates. Run AFTER the full render (step 9) as a gate before delivery.

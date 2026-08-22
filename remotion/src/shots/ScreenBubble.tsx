@@ -17,6 +17,8 @@ export const ScreenBubble: React.FC<{appTitle?: string; nav?: string[]}> = ({
   const dna = useDNA();
   const ACC = dna?.accent ?? BRAND, A2 = dna?.accent2 ?? '#EC4899', BG = dna?.bg ?? '#e9ebf2', SURF = dna?.surface ?? '#fff';
   const BAR = dna?.surface ?? '#f6f7fb', LINE = dna?.line ?? '#eef0f6', FG = dna?.fg ?? '#1b2333', DIM = dna?.dim ?? '#6b7180', ON = dna?.onAccent ?? '#fff';
+  // per-element originals (a null DNA must be byte-identical to the pre-DNA shot)
+  const TITLE_DIM = dna?.dim ?? '#8b90a3', ROW_BG = dna?.surface ?? '#fbfcfe', SUB_DIM = dna?.dim ?? '#98a0b0';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const SX = 150, SY = 130, SW = W - 300, SH = H - 300;
@@ -36,7 +38,7 @@ export const ScreenBubble: React.FC<{appTitle?: string; nav?: string[]}> = ({
         boxShadow: '0 40px 100px rgba(40,45,80,.22)', overflow: 'hidden'}}>
         <div style={{height: 66, background: BAR, borderBottom: `1px solid ${LINE}`, display: 'flex', alignItems: 'center', gap: 12, padding: '0 26px'}}>
           {['#ff5f57', '#febc2e', '#28c840'].map(c => <div key={c} style={{width: 16, height: 16, borderRadius: 8, background: c}} />)}
-          <div style={{marginLeft: 20, font: '600 26px/1 Inter', color: DIM}}>{appTitle}</div>
+          <div style={{marginLeft: 20, font: '600 26px/1 Inter', color: TITLE_DIM}}>{appTitle}</div>
         </div>
         <div style={{display: 'flex', height: SH - 66}}>
           <div style={{width: 300, borderRight: `1px solid ${LINE}`, padding: 26, display: 'flex', flexDirection: 'column', gap: 20}}>
@@ -52,10 +54,10 @@ export const ScreenBubble: React.FC<{appTitle?: string; nav?: string[]}> = ({
             </div>
             {/* the "created" deliverable row */}
             <div style={{marginTop: 40, opacity: clamp01(created), transform: `translateY(${lerp(24, 0, clamp01(created))}px)`,
-              padding: '30px 34px', borderRadius: 14, border: `1px solid ${LINE}`, background: BAR, display: 'flex', alignItems: 'center', gap: 24}}>
+              padding: '30px 34px', borderRadius: 14, border: `1px solid ${LINE}`, background: ROW_BG, display: 'flex', alignItems: 'center', gap: 24}}>
               <div style={{width: 54, height: 54, borderRadius: 12, background: `${ACC}22`}} />
               <div><div style={{font: '700 36px/1 Inter', color: FG}}>Q3 board deck</div>
-                <div style={{font: '500 26px/1 Inter', color: DIM, marginTop: 10}}>created just now</div></div>
+                <div style={{font: '500 26px/1 Inter', color: SUB_DIM, marginTop: 10}}>created just now</div></div>
             </div>
           </div>
         </div>

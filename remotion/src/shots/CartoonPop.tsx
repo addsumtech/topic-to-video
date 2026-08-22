@@ -6,15 +6,20 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
+import {useDNA, dnaPalette, mix, tint, shade} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
-const OUTLINE = '#1b2440';
-const SKY = '#8fd0ff';
-const BODY = '#4c8dff';
-const FACE = '#fdf6e3';
-const STAR = '#ffd23f';
-const GREEN = '#2fcb6e';
-const CONF = ['#ff6b6b', '#ffd23f', '#2fcb6e', '#4c8dff', '#b06cff', '#ff8fc7'];
+// LEVEL-C: cel-shading is a TECHNIQUE (thick ink outlines, flat fills, hard offset shadows, squash-&-stretch),
+// not a fixed palette — so on a themed DNA the whole cartoon re-hues into the film's world and the ink INVERTS to
+// a light outline (a dark-mode / night-scene cartoon, still unmistakably cel-shaded). Flats come from
+// dnaPalette() so the mascot, sun and accents stay 3 distinct hues. Null DNA = the original daylight cartoon.
+const OUTLINE0 = '#1b2440';
+const SKY0 = '#8fd0ff';
+const BODY0 = '#4c8dff';
+const FACE0 = '#fdf6e3';
+const STAR0 = '#ffd23f';
+const GREEN0 = '#2fcb6e';
+const CONF0 = ['#ff6b6b', '#ffd23f', '#2fcb6e', '#4c8dff', '#b06cff', '#ff8fc7'];
 
 // spiky comic starburst polygon
 function starburst(cx: number, cy: number, spikes: number, ro: number, ri: number, phase: number): string {
@@ -28,6 +33,16 @@ function starburst(cx: number, cy: number, spikes: number, ro: number, ri: numbe
 }
 
 export const CartoonPop: React.FC<{label?: string}> = ({label = 'DONE!'} = {}) => {
+  const dna = useDNA();
+  const P = dnaPalette(dna, 6);
+  const OUTLINE = dna?.fg ?? OUTLINE0;                       // ink inverts to a LIGHT outline on a dark ground
+  const BODY = P?.[0] ?? BODY0, GREEN = P?.[1] ?? GREEN0, STAR = P?.[2] ?? STAR0;
+  const FACE = dna ? shade(BODY, 0.72) : FACE0;              // face plate must contrast the (now light) eyes/ink
+  const SKYFILL = dna?.bgGrad ?? (dna ? dna.bg : null) ?? `linear-gradient(${SKY0}, #b9e4ff)`;
+  const CLOUD = dna ? mix(dna.fg, dna.bg, 0.16) : '#ffffff';
+  const GRASS = dna ? mix(BODY, dna.bg, 0.62) : '#a7e17f';   // the ground plane recedes toward the film's ground
+  const PAPER = dna ? mix(dna.fg, dna.bg, 0.12) : '#fffdf5', RULE = dna?.dim ?? '#c9ccd6';
+  const CONF = P ?? CONF0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2 + 30;
@@ -48,7 +63,7 @@ export const CartoonPop: React.FC<{label?: string}> = ({label = 'DONE!'} = {}) =
   const sx = 2 - sy;
 
   return (
-    <AbsoluteFill style={{background: `linear-gradient(${SKY}, #b9e4ff)`}}>
+    <AbsoluteFill style={{background: SKYFILL}}>
       {/* flat cartoon clouds drifting */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         {[{x: 300, y: 200, s: 1}, {x: 1500, y: 300, s: 1.3}, {x: 900, y: 150, s: 0.8}].map((c, i) => {
@@ -56,9 +71,9 @@ export const CartoonPop: React.FC<{label?: string}> = ({label = 'DONE!'} = {}) =
           const x = (c.x + dx) % (W + 400) - 100;
           return (
             <g key={i} transform={`translate(${x},${c.y}) scale(${c.s})`}>
-              <ellipse cx={0} cy={0} rx={110} ry={44} fill="#ffffff" />
-              <ellipse cx={70} cy={10} rx={70} ry={40} fill="#ffffff" />
-              <ellipse cx={-70} cy={12} rx={64} ry={36} fill="#ffffff" />
+              <ellipse cx={0} cy={0} rx={110} ry={44} fill={CLOUD} />
+              <ellipse cx={70} cy={10} rx={70} ry={40} fill={CLOUD} />
+              <ellipse cx={-70} cy={12} rx={64} ry={36} fill={CLOUD} />
             </g>
           );
         })}
@@ -68,7 +83,7 @@ export const CartoonPop: React.FC<{label?: string}> = ({label = 'DONE!'} = {}) =
 
       {/* ground */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
-        <path d={`M0,${H - 180} Q${W / 2},${H - 240} ${W},${H - 180} L${W},${H} L0,${H} Z`} fill="#a7e17f" stroke={OUTLINE} strokeWidth={8} />
+        <path d={`M0,${H - 180} Q${W / 2},${H - 240} ${W},${H - 180} L${W},${H} L0,${H} Z`} fill={GRASS} stroke={OUTLINE} strokeWidth={8} />
       </svg>
 
       {/* messy task papers (poof away on zap) */}
@@ -77,15 +92,15 @@ export const CartoonPop: React.FC<{label?: string}> = ({label = 'DONE!'} = {}) =
           {[0, 1, 2].map((i) => (
             <g key={i} transform={`translate(${i * 14},${-i * 20}) rotate(${(hash01(i + 3) - 0.5) * 16})`}>
               <rect x={16} y={16} width={200} height={250} rx={10} fill="#00000022" />
-              <rect x={0} y={0} width={200} height={250} rx={10} fill="#fffdf5" stroke={OUTLINE} strokeWidth={6} />
-              {[0, 1, 2, 3].map((k) => <rect key={k} x={26} y={40 + k * 44} width={148} height={12} rx={6} fill="#c9ccd6" />)}
+              <rect x={0} y={0} width={200} height={250} rx={10} fill={PAPER} stroke={OUTLINE} strokeWidth={6} />
+              {[0, 1, 2, 3].map((k) => <rect key={k} x={26} y={40 + k * 44} width={148} height={12} rx={6} fill={RULE} />)}
             </g>
           ))}
         </g>
         {/* poof puffs at zap */}
         {zap > 0 && [...Array(8)].map((_, i) => {
           const a = (i / 8) * Math.PI * 2, d = zap * 120;
-          return <circle key={i} cx={cx - 300 + Math.cos(a) * d} cy={cy - 40 + Math.sin(a) * d} r={lerp(30, 6, zap)} fill="#ffffff" stroke={OUTLINE} strokeWidth={5} opacity={1 - zap} />;
+          return <circle key={i} cx={cx - 300 + Math.cos(a) * d} cy={cy - 40 + Math.sin(a) * d} r={lerp(30, 6, zap)} fill={CLOUD} stroke={OUTLINE} strokeWidth={5} opacity={1 - zap} />;
         })}
       </svg>
 
@@ -93,7 +108,7 @@ export const CartoonPop: React.FC<{label?: string}> = ({label = 'DONE!'} = {}) =
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <g transform={`translate(${cx + 260},${cy - 120}) scale(${burst}) rotate(${t * 40})`}>
           <path d={starburst(0, 0, 14, 300, 150, 0)} fill={STAR} stroke={OUTLINE} strokeWidth={8} />
-          <path d={starburst(0, 0, 14, 250, 130, 0.2)} fill="#fff3c4" opacity={0.6} />
+          <path d={starburst(0, 0, 14, 250, 130, 0.2)} fill={dna ? tint(STAR, 0.55) : '#fff3c4'} opacity={0.6} />
         </g>
       </svg>
 

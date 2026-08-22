@@ -5,7 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeInOutCubic, easeOutCubic, hash01} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, dnaPalette} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 const BG = '#090b12';
@@ -14,7 +14,7 @@ const TONES0 = ['#5b8cff', '#ff6f91', '#37d4a6', '#f6a531', '#c07bff', '#4dd0e1'
 export const CardStack3D: React.FC<{items?: string[]; title?: string}> = ({
   items: ITEMS = ['Docs', 'Chat', 'Tasks', 'Code', 'Data', 'Calls'], title: TITLE = 'All of it, in hand'} = {}) => {
   const t = useT();
-  const dna = useDNA(); const TONES = dna ? [dna.accent, dna.accent2, dna.dim, dna.accent, dna.accent2, dna.dim] : TONES0;
+  const dna = useDNA(); const TONES = dnaPalette(dna, 6) ?? TONES0;
   const {width: W, height: H} = useVideoConfig();
   const cards = ITEMS.slice(0, 7);
   const n = cards.length;

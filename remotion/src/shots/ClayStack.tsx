@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack} from '../runtime/motion';
+import {useDNA, dnaPalette, tint, shade} from '../runtime/dna';
 
 export const DURATION = 160; // ~5.3s
 
@@ -30,13 +31,20 @@ const ClayBlock: React.FC<{x: number; y: number; w: number; h: number; base: str
   };
 
 export const ClayStack: React.FC<{label?: string}> = ({label = 'built, piece by piece'} = {}) => {
+  // LEVEL-C: claymation is a MATERIAL (matte body + top-light highlight + contact shade + soft cast shadow), not a
+  // fixed pastel set — each block's base comes from the DNA and its highlight/shade are TINT/SHADE of that base, so
+  // the clay still reads as clay in the film's hues. Null DNA = the original warm pastel stack.
+  const dna = useDNA();
+  const P = dnaPalette(dna, 3);
+  const clay = (i: number, base0: string, hi0: string, sh0: string) =>
+    P ? {base: P[i], hi: tint(P[i], 0.45), sh: shade(P[i], 0.3)} : {base: base0, hi: hi0, sh: sh0};
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, groundY = H * 0.72;
   const blocks = [
-    {w: 460, h: 168, base: '#f7b7a3', hi: '#ffd8c9', sh: '#d98a72', at: 0.08},
-    {w: 380, h: 156, base: '#b9a9f0', hi: '#ddd3fb', sh: '#8f7fd0', at: 0.24},
-    {w: 300, h: 146, base: '#9fe6c8', hi: '#cbf5e3', sh: '#6dbf9d', at: 0.4},
+    {w: 460, h: 168, ...clay(0, '#f7b7a3', '#ffd8c9', '#d98a72'), at: 0.08},
+    {w: 380, h: 156, ...clay(1, '#b9a9f0', '#ddd3fb', '#8f7fd0'), at: 0.24},
+    {w: 300, h: 146, ...clay(2, '#9fe6c8', '#cbf5e3', '#6dbf9d'), at: 0.4},
   ];
   let cursorY = groundY;
   const laid = blocks.map((b) => {const y = cursorY - b.h; cursorY = y; return {...b, x: cx - b.w / 2, y};});
@@ -44,7 +52,7 @@ export const ClayStack: React.FC<{label?: string}> = ({label = 'built, piece by 
   const topY = laid[laid.length - 1].y;
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 30%, #fff5ee 0%, #ffe9dd 55%, #f6d8c8 100%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(120% 120% at 50% 30%, #fff5ee 0%, #ffe9dd 55%, #f6d8c8 100%)'}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         {/* ground plane soft shadow */}
         <ellipse cx={cx} cy={groundY + 34} rx={360} ry={40} fill="#00000018" />
@@ -55,14 +63,14 @@ export const ClayStack: React.FC<{label?: string}> = ({label = 'built, piece by 
         {/* clay checkmark pops on top */}
         <g transform={`translate(${cx} ${topY - 90}) scale(${checkDrop})`} opacity={checkDrop > 0 ? 1 : 0}>
           <ellipse cx={0} cy={70} rx={70} ry={16} fill="#00000018" />
-          <path d="M-46,4 L-14,40 L52,-40" fill="none" stroke="#3fbf77" strokeWidth={34} strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M-46,4 L-14,40 L52,-40" fill="none" stroke="#8ef0b6" strokeWidth={12} strokeLinecap="round" strokeLinejoin="round" opacity={0.6} />
+          <path d="M-46,4 L-14,40 L52,-40" fill="none" stroke={dna?.accent2 ?? '#3fbf77'} strokeWidth={34} strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M-46,4 L-14,40 L52,-40" fill="none" stroke={dna ? tint(dna.accent2, 0.5) : '#8ef0b6'} strokeWidth={12} strokeLinecap="round" strokeLinejoin="round" opacity={0.6} />
         </g>
       </svg>
 
       {/* soft label */}
       <div style={{position: 'absolute', left: 0, right: 0, bottom: H * 0.12, textAlign: 'center',
-        opacity: clamp01(seg(t, 0.78, 0.95)), color: '#8a5b48', font: '800 46px/1 "Baloo 2", Inter, sans-serif'}}>{label}</div>
+        opacity: clamp01(seg(t, 0.78, 0.95)), color: dna?.dim ?? '#8a5b48', font: '800 46px/1 "Baloo 2", Inter, sans-serif'}}>{label}</div>
     </AbsoluteFill>
   );
 };

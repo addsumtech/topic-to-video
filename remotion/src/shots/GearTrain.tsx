@@ -5,11 +5,11 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic, easeOutBack} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, dnaPalette} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#0b0c11';
-const TONES = ['#5b8cff', '#f6a531', '#ff5b7f', '#22c197'];
+const TONES0 = ['#5b8cff', '#f6a531', '#ff5b7f', '#22c197'];
 const R = 156, TEETH = 12, SPACING = 278;
 
 const Gear: React.FC<{cx: number; cy: number; angle: number; tone: string; live: boolean}> = ({cx, cy, angle, tone, live}) => (
@@ -34,6 +34,7 @@ const Gear: React.FC<{cx: number; cy: number; angle: number; tone: string; live:
 export const GearTrain: React.FC<{items?: string[]; label?: string; title?: string}> = ({
   items: ITEMS = ['Trigger', 'Process', 'Deliver'], label: LABEL = 'Automatic', title: TITLE = 'How it runs'} = {}) => {
   const dna = useDNA();
+  const TONES = dnaPalette(dna, 4) ?? TONES0;   // derive the palette from the film's DNA (null DNA = the original)
   const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();

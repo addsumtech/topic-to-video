@@ -5,7 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, dnaPalette} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
 const BG = '#080a11';
@@ -15,7 +15,7 @@ const SIZE = 660;
 export const CubeRotate: React.FC<{faces?: string[]; title?: string}> = ({
   faces: FACES = ['Plan', 'Build', 'Ship', 'Learn'], title: TITLE = 'The loop'} = {}) => {
   const t = useT();
-  const dna = useDNA(); const TONES = dna ? [dna.accent, dna.accent2, dna.dim, dna.accent] : TONES0;
+  const dna = useDNA(); const TONES = dnaPalette(dna, 4) ?? TONES0;
   const {width: W, height: H} = useVideoConfig();
   const sides = FACES.slice(0, 4);
   const n = sides.length;

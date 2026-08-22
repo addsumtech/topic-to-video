@@ -6,7 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, mix, tint, shade} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 export const LiquidChrome: React.FC<{word?: string; tagline?: string}> = ({
@@ -33,8 +33,9 @@ export const LiquidChrome: React.FC<{word?: string; tagline?: string}> = ({
         <defs>
           {/* flowing chrome: reflected vertical bands, translated over time */}
           <linearGradient id="chrome" gradientUnits="userSpaceOnUse" x1="0" y1={-180 + flow} x2="0" y2={180 + flow} spreadMethod="reflect">
-            {/* metallic ramp — tinted to the Design DNA accent (a terminal "green chrome"), grey-metal otherwise */}
-            {(dna ? [['0', '#0a2019'], ['0.28', dna.accent], ['0.42', '#eafff6'], ['0.52', '#1c6b54'], ['0.66', dna.accent], ['0.82', '#0e3a2e'], ['1', '#05100c']]
+            {/* metallic ramp — the reflection bands are DERIVED from the DNA accent (chrome in the film's own hue,
+                whatever the style), grey-metal when there is no DNA */}
+            {(dna ? [['0', mix(dna.accent, dna.bg, 0.82)], ['0.28', dna.accent], ['0.42', tint(dna.accent, 0.86)], ['0.52', shade(dna.accent, 0.5)], ['0.66', dna.accent], ['0.82', mix(dna.accent, dna.bg, 0.62)], ['1', mix(dna.accent, dna.bg, 0.9)]]
                   : [['0', '#20242c'], ['0.28', '#c3ccd8'], ['0.42', '#ffffff'], ['0.52', '#8b95a3'], ['0.66', '#e9eef4'], ['0.82', '#454b56'], ['1', '#141821']]
              ).map(([o, c]) => <stop key={o} offset={o} stopColor={c} />)}
           </linearGradient>

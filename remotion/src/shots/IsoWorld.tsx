@@ -6,16 +6,17 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, dnaPalette} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
 const BG_D0 = '#0a0d1a';
-const TONES = ['#5b8cff', '#ff6f91', '#37d4a6', '#f6a531', '#c07bff', '#4dd0e1'];
+const TONES0 = ['#5b8cff', '#ff6f91', '#37d4a6', '#f6a531', '#c07bff', '#4dd0e1'];
 const G = 7, TW = 150, TH = 76;
 
 export const IsoWorld: React.FC<{items?: string[]; title?: string}> = ({
   items: ITEMS = ['Docs', 'Chat', 'Data', 'Code', 'Team'], title: TITLE = 'Your world, built'} = {}) => {
   const dna = useDNA();
+  const TONES = dnaPalette(dna, 6) ?? TONES0;   // derive the palette from the film's DNA (null DNA = the original)
   const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();

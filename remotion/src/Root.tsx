@@ -83,6 +83,17 @@ import {PositioningMatrix, DURATION as PM} from './shots/PositioningMatrix';
 import {GaugeCluster, DURATION as GC} from './shots/GaugeCluster';
 import {BentoReveal, DURATION as BR} from './shots/BentoReveal';
 import {ConveyorBelt, DURATION as CVB} from './shots/ConveyorBelt';
+import {TermBars, DURATION as TBAR} from './shots/TermBars';
+import {TermTree, DURATION as TTRE} from './shots/TermTree';
+import {TermLog, DURATION as TLOG} from './shots/TermLog';
+import {TermGitLog, DURATION as TGIT} from './shots/TermGitLog';
+import {TermCounter, DURATION as TCNT} from './shots/TermCounter';
+import {TermTable, DURATION as TTBL} from './shots/TermTable';
+import {TermDiff, DURATION as TDIF} from './shots/TermDiff';
+import {TermThink, DURATION as TTHK} from './shots/TermThink';
+import {EdStat, DURATION as EDST} from './shots/EdStat';
+import {EdTimeline, DURATION as EDTL} from './shots/EdTimeline';
+import {EdCompare, DURATION as EDCM} from './shots/EdCompare';
 import {CardStack3D, DURATION as CSK} from './shots/CardStack3D';
 import {CrashZoom, DURATION as CZ} from './shots/CrashZoom';
 import {VersusSplit, DURATION as VSU} from './shots/VersusSplit';
@@ -232,6 +243,17 @@ export const RemotionRoot: React.FC = () => (
     {F('GaugeCluster', GaugeCluster, GC)}
     {F('BentoReveal', BentoReveal, BR)}
     {F('ConveyorBelt', ConveyorBelt, CVB)}
+    {F('TermBars', TermBars, TBAR)}
+    {F('TermTree', TermTree, TTRE)}
+    {F('TermLog', TermLog, TLOG)}
+    {F('TermGitLog', TermGitLog, TGIT)}
+    {F('TermCounter', TermCounter, TCNT)}
+    {F('TermTable', TermTable, TTBL)}
+    {F('TermDiff', TermDiff, TDIF)}
+    {F('TermThink', TermThink, TTHK)}
+    {F('EdStat', EdStat, EDST)}
+    {F('EdTimeline', EdTimeline, EDTL)}
+    {F('EdCompare', EdCompare, EDCM)}
     {F('CardStack3D', CardStack3D, CSK)}
     {F('CrashZoom', CrashZoom, CZ)}
     {F('VersusSplit', VersusSplit, VSU)}

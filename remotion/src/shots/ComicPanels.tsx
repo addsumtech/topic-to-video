@@ -5,13 +5,22 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
+import {useDNA, dnaPalette} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
-const PAPER = '#f7f2e7', INK = '#141414';
-const POP = ['#ff3b6b', '#ffd23f', '#2b7bff', '#00b070'];
+// LEVEL-C: comic storytelling is the STRUCTURE (tilted panels, gutters, halftone wash, speed lines, a splash
+// payoff) — on a themed DNA the page INVERTS to dark stock with light ink and DNA-derived POP flats (an inked
+// night comic), keeping every panel legible. Null DNA = the original newsprint page.
+const PAPER0 = '#f7f2e7', INK0 = '#141414';
+const POP0 = ['#ff3b6b', '#ffd23f', '#2b7bff', '#00b070'];
 
 export const ComicPanels: React.FC<{panels?: string[]; splash?: string; title?: string}> = ({
   panels: PANELS = ['ZIP!', 'WHIRR', 'CLICK'], splash: SPLASH = 'DONE!', title: TITLE = 'How it goes down'} = {}) => {
+  const dna = useDNA();
+  const PAPER = dna?.bg ?? PAPER0, INK = dna?.fg ?? INK0;
+  const POP = dnaPalette(dna, 4) ?? POP0;
+  const HT = dna ? `${dna.fg}1a` : '#0000001a';          // halftone wash follows the ink
+  const SPLASHINK = dna?.onAccent ?? '#fff';             // type on the accent-filled splash panel
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const M = 70, gut = 22;
@@ -23,7 +32,7 @@ export const ComicPanels: React.FC<{panels?: string[]; splash?: string; title?: 
     <AbsoluteFill style={{background: PAPER, overflow: 'hidden'}}>
       {/* halftone wash */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0, opacity: 0.5}}>
-        <pattern id="cht" width={14} height={14} patternUnits="userSpaceOnUse"><circle cx={3} cy={3} r={1.4} fill="#0000001a" /></pattern>
+        <pattern id="cht" width={14} height={14} patternUnits="userSpaceOnUse"><circle cx={3} cy={3} r={1.4} fill={HT} /></pattern>
         <rect width={W} height={H} fill="url(#cht)" />
       </svg>
 
@@ -64,10 +73,10 @@ export const ComicPanels: React.FC<{panels?: string[]; splash?: string; title?: 
           {[...Array(28)].map((_, k) => {
             const a = (k / 28) * Math.PI * 2, r0 = 40, r1 = k % 2 ? 460 : 300, cx2 = (W - 2 * M) / 2, cy2 = rowH * 0.41;
             return <line key={k} x1={cx2 + Math.cos(a) * r0} y1={cy2 + Math.sin(a) * r0}
-              x2={cx2 + Math.cos(a) * r1} y2={cy2 + Math.sin(a) * r1} stroke="#ffffff" strokeWidth={3} opacity={0.16} />;
+              x2={cx2 + Math.cos(a) * r1} y2={cy2 + Math.sin(a) * r1} stroke={SPLASHINK} strokeWidth={3} opacity={0.16} />;
           })}
         </svg>
-        <div style={{position: 'relative', color: '#fff', fontFamily: 'Impact, system-ui, sans-serif', fontSize: 190,
+        <div style={{position: 'relative', color: SPLASHINK, fontFamily: 'Impact, system-ui, sans-serif', fontSize: 190,
           WebkitTextStroke: `6px ${INK}`, letterSpacing: '-0.02em', transform: 'rotate(-4deg)',
           textShadow: '8px 8px 0 #00000044'}}>{SPLASH}</div>
       </div>

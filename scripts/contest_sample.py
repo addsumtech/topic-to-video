@@ -107,7 +107,10 @@ def build_props(key, topic):
     # mark the 2nd seam so the sample also shows a marked transition (the direction's motion character)
     if len(scenes) > 1:
         scenes[1]["transitionIn"] = {"type": "dissolve"}
-    return {"camera": 0, "scenes": scenes}
+    # Carry the DIRECTION as `template` so the sample renders through that direction's DESIGN DNA — the user must
+    # approve the look they will actually get. Without it every sample rendered DNA-less (each register in its own
+    # hardcoded palette), i.e. the contest showed a film that no longer exists once the direction is chosen.
+    return {"camera": 0, "template": key, "scenes": scenes}
 
 
 def main():

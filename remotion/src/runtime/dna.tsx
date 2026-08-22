@@ -15,6 +15,7 @@
 
 import React from 'react';
 import {useCurrentFrame} from 'remotion';
+import {ReducedMotionContext} from './motion';
 import {clamp01} from './motion';
 
 export type DnaDecoration =
@@ -143,6 +144,40 @@ export const BLUEPRINT_DNA: DesignDNA = {
   radius: 3, borderWidth: 1, motion: 'mechanical', decoration: ['grid', 'line-numbers'], uppercaseLabels: true, labelSpacing: '0.12em',
 };
 
+// CINEMATIC — an atmospheric, tactile film world: a serif/grotesk display over near-black, warm practical light,
+// one amber key + a cool fill, soft filmic reveals. (direction: cinematic-craft)
+export const CINEMATIC_DNA: DesignDNA = {
+  id: 'cinematic',
+  fontDisplay: '"Playfair Display", Georgia, serif', fontMono: '"JetBrains Mono", ui-monospace, monospace',
+  fontBody: 'Inter, system-ui, sans-serif',
+  bg: '#08070a', bgGrad: 'radial-gradient(90% 80% at 62% 42%, #241a12, #0c0a0d 52%, #050406 82%)',
+  fg: '#f4efe6', dim: '#9a8f83', accent: '#e8a13c', accent2: '#7fa8c9', onAccent: '#1a1006',
+  surface: '#141014', surfaceBorder: '#2c2320', line: '#241d1d',
+  radius: 10, borderWidth: 1, motion: 'smooth', decoration: [], uppercaseLabels: false, labelSpacing: '0.06em',
+};
+// DATA — an evidence-forward analyst world: tabular-friendly sans + mono figures, deep slate ground, a measured
+// grid, one signal colour + a comparison colour, precise mechanical reveals. (direction: data-story)
+export const DATA_DNA: DesignDNA = {
+  id: 'data',
+  fontDisplay: 'Inter, system-ui, sans-serif', fontMono: '"JetBrains Mono", ui-monospace, monospace',
+  fontBody: 'Inter, system-ui, sans-serif',
+  bg: '#0a0f16', bgGrad: 'radial-gradient(120% 110% at 50% 0%, #13202c, #080d13 74%)',
+  fg: '#e8eef6', dim: '#7d8a9b', accent: '#3ddc97', accent2: '#f2b544', onAccent: '#04140d',
+  surface: '#111823', surfaceBorder: '#22303f', line: '#1a2431',
+  radius: 8, borderWidth: 1, motion: 'mechanical', decoration: ['grid'], uppercaseLabels: true, labelSpacing: '0.1em',
+};
+// RETRO — a nostalgic arcade/print world: chunky display face, deep plum ground, hot magenta + cyan, snappy
+// stepped motion and scanline furniture. (direction: retro-playful)
+export const RETRO_DNA: DesignDNA = {
+  id: 'retro',
+  fontDisplay: '"Baloo 2", Impact, system-ui, sans-serif', fontMono: '"JetBrains Mono", ui-monospace, monospace',
+  fontBody: 'Inter, system-ui, sans-serif',
+  bg: '#140a1e', bgGrad: 'radial-gradient(120% 120% at 50% 100%, #37115a, #140a1e 62%, #0b0512 100%)',
+  fg: '#ffeffb', dim: '#a78bbd', accent: '#ff2e88', accent2: '#22e3ff', onAccent: '#1a0410',
+  surface: '#1e1030', surfaceBorder: '#40215f', line: '#2c1745',
+  radius: 6, borderWidth: 2, motion: 'mechanical', decoration: ['scanline'], uppercaseLabels: true, labelSpacing: '0.14em',
+};
+
 export const DNA_PRESETS: Record<string, DesignDNA> = {
   'terminal-technical': TERMINAL_DNA,
   terminal: TERMINAL_DNA,
@@ -153,28 +188,48 @@ export const DNA_PRESETS: Record<string, DesignDNA> = {
   'product-demo': PRODUCT_DNA,
   apple: PRODUCT_DNA,
   blueprint: BLUEPRINT_DNA,
+  // every one of shot_templates.TEMPLATES maps to a DNA, so picking ANY direction gets the global visual system
+  // with zero authoring (tests/test_remotion.py asserts this stays true)
+  'cinematic-craft': CINEMATIC_DNA,
+  cinematic: CINEMATIC_DNA,
+  'data-story': DATA_DNA,
+  data: DATA_DNA,
+  'retro-playful': RETRO_DNA,
+  retro: RETRO_DNA,
 };
 
 // Expand a template id into a DNA preset (the fallback when meta.design_dna is not explicitly authored).
+/** Normalise an AUTHORED `meta.design_dna` (hand-written JSON, unvalidated at the type level) into a complete DNA:
+ *  missing tokens fall back to NEUTRAL_DNA rather than reaching a component as `undefined` (an `undefined` inside a
+ *  `font:` shorthand or a colour paints nothing). Pair with validate.py's missing-key warning, which still tells the
+ *  author what they left out — this only stops a partial DNA from breaking the render. */
+export const coerceDna = (dna?: Partial<DesignDNA> | null): DesignDNA | null =>
+  dna ? ({...NEUTRAL_DNA, ...dna, decoration: Array.isArray(dna.decoration) ? dna.decoration : NEUTRAL_DNA.decoration}) : null;
+
 export const dnaFromTemplate = (t?: string | null): DesignDNA | null =>
   (t ? DNA_PRESETS[t] ?? null : null);
 
 // ── Context / hook ───────────────────────────────────────────────────────────────────────────────────────────
 export const DesignDNAContext = React.createContext<DesignDNA | null>(null);
 export const useDNA = (): DesignDNA | null => React.useContext(DesignDNAContext);
-export const dnaHas = (dna: DesignDNA | null, d: DnaDecoration): boolean => !!dna && dna.decoration.includes(d);
+// TOTAL by construction: `decoration` is the only NESTED dereference of a DNA token in the tree, so a
+// hand-authored meta.design_dna that omits it used to crash every scene (TerminalChrome calls this first).
+// Every other token degrades to a fallback; this one must too.
+export const dnaHas = (dna: DesignDNA | null, d: DnaDecoration): boolean =>
+  !!dna && Array.isArray(dna.decoration) && dna.decoration.includes(d);
 
 // ── Reusable annotation cues (LEVEL-2 grammar) ───────────────────────────────────────────────────────────────
 // A blinking block caret — the terminal cursor. Deterministic (blinks on frame parity, not wall-clock).
 export const Caret: React.FC<{color?: string; h?: number; w?: number; style?: React.CSSProperties}> =
   ({color, h = 26, w = 12, style}) => {
     const frame = useCurrentFrame();
-    const on = Math.floor(frame / 16) % 2 === 0;
+    const reduced = React.useContext(ReducedMotionContext);      // accessibility: a frozen, settled frame
+    const on = reduced ? true : Math.floor(frame / 16) % 2 === 0;
     return <span style={{display: 'inline-block', width: w, height: h, marginLeft: 4, verticalAlign: 'text-bottom',
       background: color ?? '#3dd6a4', opacity: on ? 0.95 : 0.12, ...style}} />;
   };
 
-// A mono breadcrumb / command line, e.g. "~/hermes ▸ open-weights" — a LEVEL-2 cue a shot can drop top-left to
+// A mono breadcrumb / command line, e.g. "~/project ▸ open-weights" — a LEVEL-2 cue a shot can drop top-left to
 // belong to the terminal world without becoming a full terminal window. Renders nothing when the DNA has no
 // 'breadcrumb' in its decoration (so it's inert under NEUTRAL/no DNA).
 export const Breadcrumb: React.FC<{dna: DesignDNA | null; path: string; opacity?: number;
@@ -191,8 +246,9 @@ export const Breadcrumb: React.FC<{dna: DesignDNA | null; path: string; opacity?
 // A faint terminal grid + a single soft scanline — a LEVEL-1 background cue. Inert unless the DNA speaks 'grid'.
 export const ScanGrid: React.FC<{dna: DesignDNA | null; w: number; h: number}> = ({dna, w, h}) => {
   const frame = useCurrentFrame();
+  const reduced = React.useContext(ReducedMotionContext);
   if (!dnaHas(dna, 'grid')) return null;
-  const y = (frame * 2) % (h + 200) - 100;   // slow deterministic sweep
+  const y = reduced ? h * 0.5 : (frame * 2) % (h + 200) - 100;   // slow deterministic sweep (parked when reduced)
   return (
     <svg width={w} height={h} style={{position: 'absolute', inset: 0, pointerEvents: 'none'}} aria-hidden>
       <defs>
@@ -212,24 +268,32 @@ export const ScanGrid: React.FC<{dna: DesignDNA | null; w: number; h: number}> =
 // per-scene {path, status} so the text VARIES beat to beat (structural consistency, not repetitive decoration —
 // docx §13). Sits in the TOP safe corners (clear of centred content + the bottom caption band). Inert unless the
 // DNA speaks 'breadcrumb' — so it's on for terminal, off for a system that doesn't have CLI chrome.
-export const TerminalChrome: React.FC<{dna: DesignDNA | null; path?: string; status?: string; W: number; H: number}> =
-  ({dna, path, status, W, H}) => {
+export const TerminalChrome: React.FC<{dna: DesignDNA | null; path?: string; status?: string; root?: string;
+  W: number; H: number}> = ({dna, path, status, root = '~', W, H}) => {
     const frame = useCurrentFrame();
+    const reduced = React.useContext(ReducedMotionContext);
     if (!dnaHas(dna, 'breadcrumb')) return null;
-    const on = Math.floor(frame / 16) % 2 === 0;
+    const on = reduced ? true : Math.floor(frame / 16) % 2 === 0;
     const mono = dna!.fontMono, dim = dna!.dim, acc = dna!.accent, ls = dna!.labelSpacing;
+    // SCALE with the frame instead of assuming 1920×1080, and CLAMP each block to its half so a long path can
+    // never run into the status readout (or off a 1080-wide portrait frame). The corners are shared furniture:
+    // a shot that draws its own corner marks will sit under these, so keep them light and bounded.
+    const u = Math.min(W, H) / 1080;
+    const inset = Math.round(56 * u), top = Math.round(40 * u), fs = Math.max(14, Math.round(22 * u));
+    const cap: React.CSSProperties = {maxWidth: W / 2 - inset - 20, overflow: 'hidden', textOverflow: 'ellipsis'};
     return (
       <>
         {path ? (
-          <div style={{position: 'absolute', top: 42, left: 60, color: dim, opacity: 0.85,
-            font: `600 22px/1 ${mono}`, letterSpacing: ls, whiteSpace: 'nowrap'}}>
-            <span style={{color: acc}}>~/hermes</span> <span style={{opacity: 0.6}}>▸</span> {path}</div>
+          <div style={{position: 'absolute', top, left: inset, color: dim, opacity: 0.85,
+            font: `600 ${fs}px/1 ${mono}`, letterSpacing: ls, whiteSpace: 'nowrap', ...cap}}>
+            <span style={{color: acc}}>{root}</span> <span style={{opacity: 0.6}}>▸</span> {path}</div>
         ) : null}
         {status ? (
-          <div style={{position: 'absolute', top: 42, right: 60, color: dim, opacity: 0.85,
-            font: `600 20px/1 ${mono}`, letterSpacing: ls, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center'}}>
+          <div style={{position: 'absolute', top, right: inset, color: dim, opacity: 0.85,
+            font: `600 ${Math.max(13, fs - 2)}px/1 ${mono}`, letterSpacing: ls, whiteSpace: 'nowrap',
+            display: 'flex', alignItems: 'center', ...cap}}>
             <span style={{color: acc, marginRight: 8}}>●</span>{status}
-            <span style={{display: 'inline-block', width: 9, height: 17, marginLeft: 7,
+            <span style={{display: 'inline-block', width: Math.round(9 * u), height: Math.round(17 * u), marginLeft: 7,
               background: acc, opacity: on ? 0.9 : 0.12}} /></div>
         ) : null}
       </>
@@ -324,3 +388,73 @@ export const StatusTag: React.FC<{dna: DesignDNA | null; text: string; style?: R
       color: (dna ?? NEUTRAL_DNA).accent, border: `1px solid ${(dna ?? NEUTRAL_DNA).accent}`, borderRadius: 4,
       padding: '4px 9px', ...style}}>{text}</span>
   );
+
+// ── Colour utilities — DERIVE a palette from the DNA ──────────────────────────────────────────────────────────
+// Some registers are ILLUSTRATION: their look is carried by a whole multi-hue palette (a cartoon's sky/grass/
+// mascot, clay blocks, cut-paper depth planes, comic POP flats, a maximalist clash). Level-A token swaps can't
+// serve those — they need a FAMILY of colours generated from the DNA's two accents, keeping the technique (thick
+// ink outlines, matte clay shading, layered paper depth, Ben-Day flats) while re-hueing the world. These helpers
+// do that. All of them PASS THROUGH any value they can't parse (a gradient string, a css colour name, rgba()),
+// so a shot that feeds them a non-hex simply keeps its original colour instead of rendering black.
+
+const _hex = (c: string): [number, number, number] | null => {
+  if (typeof c !== 'string') return null;
+  const m = c.trim().replace(/^#/, '');
+  if (!/^[0-9a-fA-F]{3,8}$/.test(m)) return null;
+  const h = m.length === 3 || m.length === 4
+    ? m.slice(0, 3).split('').map((ch) => ch + ch).join('')
+    : m.length >= 6 ? m.slice(0, 6) : null;
+  if (!h) return null;
+  const n = parseInt(h, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+};
+const _out = (r: number, g: number, b: number) =>
+  '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+
+/** Blend two colours: f=0 → a, f=1 → b. Unparseable input passes `a` through. */
+export const mix = (a: string, b: string, f: number): string => {
+  const A = _hex(a), B = _hex(b);
+  if (!A || !B) return a;
+  return _out(A[0] + (B[0] - A[0]) * f, A[1] + (B[1] - A[1]) * f, A[2] + (B[2] - A[2]) * f);
+};
+/** Toward white (a lighter tint of the same hue) — clay highlights, paper lifts. */
+export const tint = (c: string, f: number): string => mix(c, '#ffffff', f);
+/** Toward black (a deeper shade) — clay contact shadow, receding paper planes. */
+export const shade = (c: string, f: number): string => mix(c, '#000000', f);
+
+/** Rotate a colour's HUE by `deg`, keeping its saturation/lightness — how a one-accent DNA grows a whole
+ *  illustration palette that still belongs to the film. */
+export const rotate = (c: string, deg: number): string => {
+  const P = _hex(c);
+  if (!P) return c;
+  const [r, g, b] = P.map((v) => v / 255) as [number, number, number];
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  let h = 0;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  if (d !== 0) {
+    h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h *= 60;
+  }
+  h = (((h + deg) % 360) + 360) % 360;
+  const C = (1 - Math.abs(2 * l - 1)) * s, X = C * (1 - Math.abs(((h / 60) % 2) - 1)), m2 = l - C / 2;
+  const seg6 = Math.floor(h / 60) % 6;
+  const rgb: [number, number, number] = [[C, X, 0], [X, C, 0], [0, C, X], [0, X, C], [X, 0, C], [C, 0, X]][seg6] as [number, number, number];
+  return _out((rgb[0] + m2) * 255, (rgb[1] + m2) * 255, (rgb[2] + m2) * 255);
+};
+
+/** N distinct, film-coherent hues for an illustration register: the DNA's two accents first (they ARE the film's
+ *  identity), then hue-rotations of the accent that stay in its saturation/lightness world. `null` DNA → null, so
+ *  a shot keeps its own hand-picked palette when no DNA is active (backward compatible). */
+export const dnaPalette = (dna: DesignDNA | null, n: number): string[] | null => {
+  if (!dna) return null;
+  const seed = [dna.accent, dna.accent2].filter(Boolean) as string[];
+  const out: string[] = [];
+  for (let i = 0; i < n; i++) {
+    if (i < seed.length) out.push(seed[i]);
+    else {
+      const base = seed[i % Math.max(1, seed.length)];
+      out.push(rotate(base, ((i - seed.length + 1) * 47) % 360));   // 47° steps: distinct, never a repeat cycle
+    }
+  }
+  return out;
+};

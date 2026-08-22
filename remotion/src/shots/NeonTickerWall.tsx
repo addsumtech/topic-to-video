@@ -5,17 +5,18 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, dnaPalette} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#05060d';
-const NEON = ['#ff2e88', '#00e5ff', '#ffe14d', '#8b5bff', '#39ff88'];
+const NEON0 = ['#ff2e88', '#00e5ff', '#ffe14d', '#8b5bff', '#39ff88'];
 
 export const NeonTickerWall: React.FC<{headline?: string; tickers?: string[]; accent?: string}> = ({
   headline: HEADLINE = 'NOW SHIPPING', tickers: TICKERS =
     ['BREAKING · IT WORKS · ', 'LIVE NOW · ', 'ALL SYSTEMS GO · ', 'SOLD OUT · ENCORE · '],
   accent: ACC = '#ff2e88'} = {}) => {
   const dna = useDNA();
+  const NEON = dnaPalette(dna, 5) ?? NEON0;   // derive the palette from the film's DNA (null DNA = the original)
   const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();

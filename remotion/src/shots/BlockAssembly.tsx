@@ -23,6 +23,8 @@ export const BlockAssembly: React.FC<{title?: string; callout?: string; items?: 
   const dna = useDNA();
   const BG = dna?.bg ?? '#faf9f7', FG = dna?.fg ?? INK, ACC = dna?.accent ?? ACCENT, GOOD = dna?.accent2 ?? '#12b76a';
   const MUTE = dna?.line ?? DIM, SURF = dna?.surface ?? '#fff', DIMc = dna?.dim ?? '#8b877d', ON = dna?.onAccent ?? '#fff';
+  // per-element fallbacks: these two had their OWN originals, so a null DNA must restore exactly those
+  const CHECK_EDGE = dna?.line ?? '#c9c5bc', DONE_INK = dna?.dim ?? '#9b968c';
   const t = useT();
   const {width: W} = useVideoConfig();
   const line = (w: string, c = MUTE) => <div style={{height: 20, borderRadius: 6, background: c, width: w}} />;
@@ -41,8 +43,8 @@ export const BlockAssembly: React.FC<{title?: string; callout?: string; items?: 
           <div style={{display: 'flex', flexDirection: 'column', gap: 20}}>
             {items.map((s, k) => (
               <div key={k} style={{display: 'flex', alignItems: 'center', gap: 20}}>
-                <div style={{width: 34, height: 34, borderRadius: 7, background: k < 2 ? GOOD : SURF, border: `2px solid ${k < 2 ? GOOD : MUTE}`, color: ON, font: '700 20px/30px Inter', textAlign: 'center'}}>{k < 2 ? '✓' : ''}</div>
-                <div style={{font: '600 38px/1 Inter,system-ui,sans-serif', color: k < 2 ? DIMc : FG, textDecoration: k < 2 ? 'line-through' : 'none'}}>{s}</div>
+                <div style={{width: 34, height: 34, borderRadius: 7, background: k < 2 ? GOOD : SURF, border: `2px solid ${k < 2 ? GOOD : CHECK_EDGE}`, color: ON, font: '700 20px/30px Inter', textAlign: 'center'}}>{k < 2 ? '✓' : ''}</div>
+                <div style={{font: '600 38px/1 Inter,system-ui,sans-serif', color: k < 2 ? DONE_INK : FG, textDecoration: k < 2 ? 'line-through' : 'none'}}>{s}</div>
               </div>
             ))}
           </div>

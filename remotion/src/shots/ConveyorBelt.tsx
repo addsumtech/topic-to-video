@@ -24,7 +24,9 @@ export const ConveyorBelt: React.FC<{items?: string[]; title?: string; doneLabel
   const cardBorder = dna?.surfaceBorder ?? '#333a52';
   const cardRadius = dna?.radius ?? 16;
   const labelFont = dna?.fontMono ?? 'Inter, system-ui, sans-serif';
-  const fg = dna?.fg ?? '#c7cee0', onAcc = dna?.onAccent ?? '#04120d', dim = dna?.dim ?? '#6b7488';
+  const fg = dna?.fg ?? '#c7cee0', dim = dna?.dim ?? '#6b7488';
+  // the stamped label and its sub-line had DIFFERENT original inks — keep both so a null DNA is byte-identical
+  const onAccLabel = dna?.onAccent ?? '#04120d', onAccSub = dna?.onAccent ?? '#04241a';
   const titleFont = dna?.fontMono ?? '"JetBrains Mono", monospace', titleCol = dna?.dim ?? '#aeb6ca';
   const beltBorder = dna?.surfaceBorder ?? '#262c40', treadCol = dna?.line ?? '#2a3048';
   const beltY = H / 2 + 60, beltH = 176, cx = W / 2;
@@ -89,9 +91,9 @@ export const ConveyorBelt: React.FC<{items?: string[]; title?: string; doneLabel
             background: c.stamped ? `linear-gradient(150deg, ${done}, ${done}cc)` : cardBg,
             border: `1px solid ${c.stamped ? 'transparent' : cardBorder}`,
             boxShadow: c.stamped ? `0 16px 40px ${done}44` : '0 12px 30px #0006'}}>
-            <div style={{color: c.stamped ? onAcc : fg, textAlign: 'center', maxWidth: 180,
+            <div style={{color: c.stamped ? onAccLabel : fg, textAlign: 'center', maxWidth: 180,
               wordBreak: 'break-word', font: `800 ${lfs}px/1.12 ${labelFont}`}}>{c.label}</div>
-            <div style={{color: c.stamped ? onAcc : dim, textAlign: 'center', maxWidth: 180,
+            <div style={{color: c.stamped ? onAccSub : dim, textAlign: 'center', maxWidth: 180,
               wordBreak: 'break-word', font: `700 ${sfs}px/1.15 ${dna?.fontMono ?? '"JetBrains Mono", monospace'}`}}>{sub}</div>
           </div>
         );

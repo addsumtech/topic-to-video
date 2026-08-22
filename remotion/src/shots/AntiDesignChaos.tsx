@@ -6,16 +6,25 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
+import {useDNA, dnaPalette} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
-const GROUND = '#f4e63a';
-const POP = ['#ff2e6e', '#1b1b1b', '#2b6bff', '#00c37a', '#8b2fff', '#ff7a1a'];
+// LEVEL-C: maximalism needs a CLASH, not one accent — dnaPalette() grows six distinct hues out of the DNA's two
+// accents, so the collage stays loud and mismatched while still belonging to the film; the ground/headline invert
+// on a dark DNA. Null DNA = the original yellow anti-design page.
+const GROUND0 = '#f4e63a';
+const POP0 = ['#ff2e6e', '#1b1b1b', '#2b6bff', '#00c37a', '#8b2fff', '#ff7a1a'];
 const FONTS = ['Impact, system-ui, sans-serif', '"Playfair Display", Georgia, serif',
   '"JetBrains Mono", monospace', '"Baloo 2", Inter, sans-serif', 'Georgia, serif'];
 
 export const AntiDesignChaos: React.FC<{title?: string; items?: string[]; tagline?: string}> = ({
   title: TITLE = 'RULES?', items: ITEMS = ['no grid', 'more!', 'why not', 'LOUD', 'oops', 'yes.'],
   tagline: TAG = 'break it on purpose'} = {}) => {
+  const dna = useDNA();
+  const GROUND = dna?.bg ?? GROUND0;
+  const POP = dnaPalette(dna, 6) ?? POP0;
+  const HEAD = dna?.fg ?? '#111';
+  const CHIP_BG = dna?.fg ?? '#111', CHIP_FG = dna?.bg ?? GROUND0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const bg = seg(t, 0, 0.12) > 0.5 || t > 0.12;
@@ -66,13 +75,13 @@ export const AntiDesignChaos: React.FC<{title?: string; items?: string[]; taglin
       {/* the loud headline, dead center but tilted */}
       <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
         <div style={{transform: `rotate(-6deg) scale(${easeOutBack(clamp01(seg(t, 0.3, 0.56)))})`,
-          fontFamily: 'Impact, system-ui, sans-serif', fontSize: 300, lineHeight: 0.9, color: '#111',
-          WebkitTextStroke: '6px #ff2e6e', letterSpacing: '-0.02em',
-          textShadow: '12px 12px 0 #2b6bff'}}>{TITLE}</div>
+          fontFamily: 'Impact, system-ui, sans-serif', fontSize: 300, lineHeight: 0.9, color: HEAD,
+          WebkitTextStroke: `6px ${POP[0]}`, letterSpacing: '-0.02em',
+          textShadow: `12px 12px 0 ${POP[2]}`}}>{TITLE}</div>
       </AbsoluteFill>
 
       <div style={{position: 'absolute', left: 60, bottom: 54, opacity: easeOutCubic(seg(t, 0.7, 0.9)),
-        transform: 'rotate(-3deg)', background: '#111', color: GROUND, padding: '10px 22px',
+        transform: 'rotate(-3deg)', background: CHIP_BG, color: CHIP_FG, padding: '10px 22px',
         font: '800 34px/1 "JetBrains Mono", monospace', letterSpacing: '0.1em'}}>{TAG}</div>
     </AbsoluteFill>
   );

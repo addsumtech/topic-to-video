@@ -5,7 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeInOutCubic, easeOutBack} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, dnaPalette} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
 const BG0 = '#0b0d14';
@@ -41,7 +41,7 @@ export const QuadSplit: React.FC<{panels?: {label?: string}[]; heading?: string;
   panels: PANELS = [{label: 'Faster'}, {label: 'Simpler'}, {label: 'Cheaper'}, {label: 'Safer'}],
   heading: HEADING = 'Four ways it wins', hero: HERO = 0} = {}) => {
   const t = useT();
-  const dna = useDNA(); const BG = dna?.bg ?? BG0; const TONES = dna ? [dna.accent, dna.accent2, dna.dim, dna.accent2] : TONES0;
+  const dna = useDNA(); const BG = dna?.bg ?? BG0; const TONES = dnaPalette(dna, 4) ?? TONES0;
   const {width: W, height: H} = useVideoConfig();
   const cells = PANELS.slice(0, 4);
   const heroIdx = Math.min(HERO, cells.length - 1);

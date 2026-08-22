@@ -16,9 +16,9 @@ import {wipe} from '@remotion/transitions/wipe';
 import {clockWipe} from '@remotion/transitions/clock-wipe';
 import {dissolve} from '@remotion/transitions/dissolve';
 import {SceneDurationContext, ReducedMotionContext, clamp01} from './runtime/motion';
-import {groundLum, type Lum} from './runtime/shotLuma';
+import {groundLum, dnaGroundLum, type Lum} from './runtime/shotLuma';
 import {Atmosphere, type Atmo} from './runtime/atmosphere';
-import {DesignDNAContext, type DesignDNA, dnaFromTemplate, TerminalChrome} from './runtime/dna';
+import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome} from './runtime/dna';
 import {REGISTRY} from './registry';
 import {CAPTIONS} from './captions';
 
@@ -29,7 +29,7 @@ export type SceneSpec = {shot: string; props?: Record<string, unknown>; durF: nu
   caption?: string; bgLum?: Lum;
   // TERMINAL CHROME per scene (remotion + DNA only): a command-path + status readout the Film frames every beat
   // with (see runtime/dna.tsx TerminalChrome). Optional; inert unless the active DNA speaks 'breadcrumb'.
-  chrome?: {path?: string; status?: string};
+  chrome?: {path?: string; status?: string; root?: string};
   // A MARKED seam (chapter break): the transition INTO this scene from the previous one. Optional +
   // remotion-only; unset = the luminance-safe default (a gentle cross-fade). A kinetic type is honored only
   // on a same/near-luminance seam — across a dark↔light gap it's suppressed back to fade (see pickPresentation).
@@ -87,7 +87,7 @@ const CAPTION_BAND = 150;    // px at the bottom reserved for the caption; shots
 // One global caption HUD. It shows AT MOST ONE caption — the one belonging to the scene whose sole-visible
 // window (between its two transitions) contains this frame — hard-cut, contrast-picked against that scene's
 // ground luminance. Because the windows are disjoint, two captions can never coexist across a dissolve.
-const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string}> = ({scenes, groundBg}) => {
+const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaBg?: string | null}> = ({scenes, groundBg, dnaBg}) => {
   const frame = useCurrentFrame();
   const {width} = useVideoConfig();
   let acc = 0;
@@ -110,7 +110,9 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string}> = ({scene
   let idx = merged.length - 1, cum = 0;
   for (let i = 0; i < merged.length; i++) { cum += lens[i] / total; if (local <= cum) { idx = i; break; } }
   const op = Math.min(clamp01((frame - ws) / CAP_FADE), clamp01((we - frame) / CAP_FADE));
-  const lum = groundLum(sc.shot, sc.bgLum);
+  // The DNA repaints most shots' grounds, so classify THIS frame's real ground (dnaGroundLum) — reading the
+  // measured pre-DNA constant here is what put dark ink on a themed dark ground.
+  const lum = dnaGroundLum(sc.shot, sc.bgLum, dnaBg);
   const ink = lum === 'light' ? '#141414' : '#ffffff';
   // The subtitle sits DIRECTLY on the frame's own background — there is NO scrim/bar rectangle behind it.
   // The shots reserve the bottom CAPTION_BAND (content never reaches it), so the caption's ground is the
@@ -188,6 +190,9 @@ const dnaDefaultSeam = (dna: DesignDNA | null, W: number, H: number): Transition
     case 'terminal': return screenClear(dna.bg, dna.accent);
     case 'product': case 'apple': return slide({direction: 'from-right'});
     case 'editorial': case 'blueprint': return wipe({direction: 'from-bottom'});
+    case 'data': return wipe({direction: 'from-left'});             // a measured sweep, like a chart redrawing
+    case 'retro': return slide({direction: 'from-bottom'});         // an arcade screen push
+    // 'cinematic' (and any unknown id) keep the gentle cross-fade — the filmic seam IS a dissolve.
     default: return null;
   }
 };
@@ -201,7 +206,7 @@ const LUM_RANK: Record<Lum, number> = {dark: 0, mid: 1, light: 2};
 // break; unmarked seams stay a fade. Every seam holds at TR frames so it rides the audio-breath silence
 // (A/V stays in sync); no spins, ever. Deterministic — pure fn of the two scenes' declared ground.
 const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number, dna: DesignDNA | null): TransitionPresentation<any> => {
-  const dLum = Math.abs(LUM_RANK[groundLum(next.shot, next.bgLum)] - LUM_RANK[groundLum(prev.shot, prev.bgLum)]);
+  const dLum = Math.abs(LUM_RANK[dnaGroundLum(next.shot, next.bgLum, dna?.bg)] - LUM_RANK[dnaGroundLum(prev.shot, prev.bgLum, dna?.bg)]);
   const want = next.transitionIn?.type ?? 'fade';
   // luminance guard: a dark↔light gap forces the gentle fade — EXCEPT carry, whose neutral bridge line IS the dip.
   const t = (dLum >= 2 && want !== 'carry') ? 'fade' : want;
@@ -274,7 +279,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
   const intro = interpolate(frame, [0, 12], [1, 0], {extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic)});
   const outro = interpolate(frame, [total - 16, total - 1], [0, 1], {extrapolateLeft: 'clamp'});
   // ONE Design DNA for the whole film (null = un-themed → every shot renders its original hardcoded look).
-  const activeDna = dna ?? dnaFromTemplate(template) ?? null;
+  const activeDna = coerceDna(dna) ?? dnaFromTemplate(template) ?? null;   // an authored DNA may be partial — normalise it
   const bg = theme?.bg ?? activeDna?.bg ?? '#05060a';
 
   return (
@@ -296,7 +301,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
             <TransitionSeries.Sequence key={`s${i}`} durationInFrames={durF}>
               <SceneDurationContext.Provider value={durF}>
                 <AbsoluteFill>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</AbsoluteFill>
-                <TerminalChrome dna={activeDna} path={sc.chrome?.path} status={sc.chrome?.status} W={width} H={height} />
+                <TerminalChrome dna={activeDna} path={sc.chrome?.path} status={sc.chrome?.status} root={sc.chrome?.root} W={width} H={height} />
               </SceneDurationContext.Provider>
               {sc.mp3 ? <Audio src={staticFile(sc.mp3)} /> : null}
             </TransitionSeries.Sequence>
@@ -312,7 +317,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
       </AbsoluteFill>
       </ReducedMotionContext.Provider>
       <AbsoluteFill style={{backgroundColor: bg, opacity: Math.max(intro, outro), pointerEvents: 'none'}} />
-      {captions ? <CaptionTrack scenes={scenes} groundBg={theme?.bg} /> : null}
+      {captions ? <CaptionTrack scenes={scenes} groundBg={theme?.bg ?? activeDna?.bg} dnaBg={activeDna?.bg} /> : null}
       <BrandMark brand={brand} />
       </DesignDNAContext.Provider>
     </AbsoluteFill>

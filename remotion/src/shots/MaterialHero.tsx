@@ -5,12 +5,12 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {ThreeCanvas} from '@remotion/three';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
 
 const Hero: React.FC = () => {
   const frame = useCurrentFrame();
-  const dna = useDNA();
   const yaw = frame * 0.02;
   const rimX = Math.sin(frame * 0.03) * 7; // the rake light sweeps
   const rimZ = 4 + Math.cos(frame * 0.03) * 2;
@@ -37,6 +37,7 @@ const Hero: React.FC = () => {
 };
 
 export const MaterialHero: React.FC<{title?: string}> = ({title = 'One tool. Your whole team.'} = {}) => {
+  const dna = useDNA();
   const {width, height} = useVideoConfig();
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 42%, #10131d, #05070c 72%)')}}>

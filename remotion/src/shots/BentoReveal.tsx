@@ -6,10 +6,10 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, dnaPalette, mix} from '../runtime/dna';
 
 const BG_D0 = '#0a0c12';
-const TONES = ['#5b8cff', '#ff6f91', '#37d4a6', '#f6a531', '#c07bff'];
+const TONES0 = ['#5b8cff', '#ff6f91', '#37d4a6', '#f6a531', '#c07bff'];
 export const DURATION = 150; // 5s
 
 const Widget: React.FC<{kind: number; c: string; g: number}> = ({kind, c, g}) => {
@@ -37,6 +37,7 @@ export const BentoReveal: React.FC<{title?: string; hero?: string; items?: strin
   title: TITLE = 'WorkBuddy', hero: HEROSUB = 'your workspace, assembled', items: ITEMS =
     ['Throughput', 'Coverage', 'Trend', 'Signals', 'Team', 'Auto-sync']} = {}) => {
   const dna = useDNA();
+  const TONES = dnaPalette(dna, 5) ?? TONES0;   // derive the palette from the film's DNA (null DNA = the original)
   const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
@@ -45,7 +46,7 @@ export const BentoReveal: React.FC<{title?: string; hero?: string; items?: strin
   // [col,row,wSpan,hSpan] on a 12×6 grid; index 0 is the hero cell
   const layout = [[0, 0, 6, 4], [6, 0, 3, 2], [9, 0, 3, 2], [6, 2, 6, 2], [0, 4, 3, 2], [3, 4, 3, 2], [6, 4, 6, 2]];
   return (
-    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 30% 20%, #12162a, ${BG} 72%)`}}>
+    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 30% 20%, ${dna ? mix(BG, dna.accent, 0.12) : '#12162a'}, ${BG} 72%)`}}>
       {layout.map((L, i) => {
         const [c, r, ws, hs] = L;
         const x = pad + c * u + gap / 2, y = pad + r * v + gap / 2;
@@ -58,8 +59,9 @@ export const BentoReveal: React.FC<{title?: string; hero?: string; items?: strin
         return (
           <div key={i} style={{position: 'absolute', left: x, top: y, width: w, height: h,
             opacity: clamp01(e * 1.4), transform: `scale(${lerp(0.86, 1, e)})`, transformOrigin: 'center',
-            background: hero ? `linear-gradient(150deg, ${tone}, #2c3ac0)` : 'linear-gradient(160deg, #14172480, #0d0f18)',
-            border: `1px solid ${hero ? 'transparent' : '#20243a'}`, borderRadius: 22, overflow: 'hidden',
+            background: hero ? `linear-gradient(150deg, ${tone}, ${dna ? mix(tone, BG, 0.55) : '#2c3ac0'})`
+              : (dna ? `linear-gradient(160deg, ${mix(dna.surface, BG, 0.35)}, ${BG})` : 'linear-gradient(160deg, #14172480, #0d0f18)'),
+            border: `1px solid ${hero ? 'transparent' : (dna?.line ?? '#20243a')}`, borderRadius: 22, overflow: 'hidden',
             padding: hero ? 54 : 34, display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
             boxShadow: '0 24px 60px #0006'}}>
             {hero ? (
@@ -72,7 +74,7 @@ export const BentoReveal: React.FC<{title?: string; hero?: string; items?: strin
               </>
             ) : (
               <>
-                <div style={{color: '#8b93a8', font: '600 22px/1 "JetBrains Mono", monospace', letterSpacing: '0.1em'}}>{ITEMS[(i - 1) % ITEMS.length]}</div>
+                <div style={{color: dna?.dim ?? '#8b93a8', font: '600 22px/1 "JetBrains Mono", monospace', letterSpacing: '0.1em'}}>{ITEMS[(i - 1) % ITEMS.length]}</div>
                 <div style={{alignSelf: 'flex-start'}}><Widget kind={(i - 1) % 6} c={tone} g={g} /></div>
               </>
             )}
