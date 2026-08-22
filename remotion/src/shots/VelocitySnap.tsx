@@ -48,7 +48,10 @@ export const VelocitySnap: React.FC<{label?: string; metric?: string; unit?: str
         </div>;
       })}
       <div style={{position: 'absolute', right: 150, top: 150, textAlign: 'right', opacity: easeOutCubic(seg(t, 0.4, 0.55))}}>
-        <div><Figure value={metric} unit={unit} ink="#fff" tone={PUR} size={120} unitScale={1} /></div>
+        {/* fallbackForm/fallbackFamily make explicit what previously worked only because NEUTRAL_DNA.fontDisplay
+            happens to match this shot's hardcoded Inter stack — a coincidence, not a contract, until now. */}
+        <div><Figure value={metric} unit={unit} ink="#fff" tone={PUR} size={120} unitScale={1}
+          fallbackForm="display" fallbackFamily="Inter, system-ui, sans-serif" /></div>
       </div>
     </AbsoluteFill>
   );

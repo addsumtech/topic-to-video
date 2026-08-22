@@ -27,8 +27,8 @@ export const TermCounter: React.FC<{cmd?: string; value?: string; unit?: string;
     <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(130% 120% at 50% -8%, #0f1723, #06080d 72%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
       <TermFrame dna={dna} cmd={cmd} t={t} framed={framed} align="center">
-        <div style={{display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 20}}>
-          <span style={{textShadow: `0 0 60px ${acc}44`}}>
+        <div style={{display: 'flex', alignItems: 'baseline', justifyContent: 'center'}}>
+          <span style={{textShadow: `0 0 60px ${acc}44`, fontVariantNumeric: 'tabular-nums'}}>
             <Figure value={shown} unit={unit} ink={acc} tone={dim} size={220} unitScale={56 / 220}
               gap={20} fallbackForm="mono" fallbackFamily={mono} />
           </span>

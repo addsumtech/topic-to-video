@@ -28,13 +28,17 @@ export const EdStat: React.FC<{kicker?: string; value?: string; unit?: string; c
   // (no reflow jitter as it counts up — intermediate strings are shorter, so they always fit). Unit may wrap below.
   const finalLen = fmt(num).length;
   const numSize = Math.max(108, Math.min(260, Math.floor(1120 / (finalLen * 0.6))));
+  // Figure's `serif` form defaults its unit to 0.28 of the FIGURE size unclamped — before atoms, EdStat
+  // clamped that ratio's OUTPUT to [32,64]px so the unit never got comically large on a short number or
+  // vanishingly small on a long one. Passing the ratio (not the px value) reproduces that clamp exactly.
+  const unitScale = Math.max(32, Math.min(64, Math.round(numSize * 0.28))) / numSize;
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(120% 120% at 50% -6%, #1c1815, #0d0b09 74%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
       <EdFrame dna={dna} kicker={kicker} t={t} framed={framed} align="left">
         <div style={{display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', maxWidth: '100%'}}>
-          <Figure value={shown} unit={unit} ink={fg} tone={acc} size={numSize} gap={22}
+          <Figure value={shown} unit={unit} ink={fg} tone={acc} size={numSize} unitScale={unitScale} gap={22}
             fallbackForm="serif" fallbackFamily='"Playfair Display", Georgia, serif' />
         </div>
         {caption ? <div style={{marginTop: 30, color: dim, font: `400 36px/1.4 ${body}`, maxWidth: 900}}>{caption}</div> : null}

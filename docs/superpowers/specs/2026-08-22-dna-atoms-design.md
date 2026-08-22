@@ -111,18 +111,33 @@ Interface details that would otherwise be guessed:
 
 ### 3 · Fallback (the rule that keeps the null-DNA guarantee)
 
-Each atom resolves its form as:
+**As implemented, resolution is a THREE-step order, not two** — the initial two-case sketch above did not
+yet account for a MIGRATED shot needing to keep its own pre-atoms look under no DNA. Each atom resolves its
+form as:
 
 ```ts
-const FORMS = ['block','solid','ruled','pixel','dimension'] as const;
-const NEUTRAL = 'solid';
-const f = dna?.atoms?.bar;
-const form = (FORMS as readonly string[]).includes(f as string) ? f! : NEUTRAL;
+const formOf = (dna, k, fallbackForm) => {
+  const f = dna?.atoms?.[k];
+  if (f && FORMS[k].includes(f)) return f;                                   // 1. the DNA's own declared form
+  if (fallbackForm && FORMS[k].includes(fallbackForm)) return fallbackForm;   // 2. the migrated shot's own form
+  return NEUTRAL[k];                                                         // 3. the atom's neutral form
+};
 ```
 
-Three cases must all reach the neutral form: **no DNA · no `atoms` · an unknown value.** Per-atom
-neutral forms: `bar → solid`, `figure → display`, `list → bullet`, `label → kicker`,
-`divider → hairline`, `marker → triangle`.
+1. **The DNA's own declared form always wins** when it declares one for that atom — this is the whole
+   point of the feature, and it wins even over a shot's `fallbackForm`.
+2. **`fallbackForm`** (plus `Figure`'s typeface counterpart, `fallbackFamily`) is how a MIGRATED reference
+   shot (`TermCounter` → `fallbackForm="mono"`, `EdStat` → `"serif"`, `TermBars` → `"block"`) keeps its OWN
+   pre-atoms look under a truly un-themed film, without weakening a themed DNA's authority over any other
+   (un-migrated) shot. An un-migrated shot never passes `fallbackForm` and so falls straight to step 3.
+3. **The atom's plain neutral form** is the final floor — reached with no DNA, no `atoms`, an unknown
+   value, AND no `fallbackForm`. Per-atom neutral forms: `bar → solid`, `figure → display`, `list →
+   bullet`, `label → kicker`, `divider → hairline`, `marker → triangle`.
+
+So "no DNA renders unchanged" is true for two DIFFERENT reasons depending on the shot: an un-migrated shot
+reaches step 3 (the neutral form, which is what the library always rendered); a migrated shot reaches step
+2 (its own `fallbackForm`, which is what THAT shot always rendered — not necessarily the neutral form).
+Conflating the two is exactly the mistake this fix wave corrected in the authoring reference.
 
 **The neutral form must render what the library renders today** — a rounded track with an accent fill,
 a tabular-numeral display figure, and so on. If it does not, migrating a shot to the atoms silently

@@ -4,9 +4,19 @@
 // real variant per style instead of a recolour.
 //
 // Two rules hold every atom together:
-//   1. TOTAL — no DNA, no `atoms`, or an unknown form all reach the NEUTRAL form. Never throw.
+//   1. TOTAL — every form resolves via `formOf` in this order: the DNA's OWN declared form for that atom →
+//      `fallbackForm` (a migrated shot's pre-atoms look, when it passes one) → the NEUTRAL form. No DNA, no
+//      `atoms`, an unknown value, or no `fallbackForm` each fall through to the next step. Never throw. A
+//      DNA that DOES declare a form always wins over `fallbackForm` — the DNA still decides.
 //   2. PURE — no remotion hooks and no internal animation, so a shot keeps ownership of timing and the
 //      atoms can be unit-tested outside a Composition. Anything time-varying takes a `phase` prop.
+//
+// THE API CONTRACT a migrating shot discovers (found by the three real migrations — TermCounter, EdStat,
+// TermBars — not invented ahead of time): a migrating shot must be able to pass its own **ink**, its own
+// **size** and, when its family differs from NEUTRAL's for that role, its own **fallbackFamily** — and each
+// form's DEFAULTS must be its reference shot's own values, so migrating that shot changes nothing under no
+// DNA. `Label`, `Divider` and `Marker` have never been migrated onto a real shot and therefore do not carry
+// these yet; the first migration onto one of them should ADD what it needs, not work around its absence.
 import React from 'react';
 import {useDNA, NEUTRAL_DNA, mix, type DesignDNA, type AtomForms} from './dna';
 
@@ -47,8 +57,11 @@ export const Bar: React.FC<{value: number; label?: string; tag?: string; tone?: 
     // accent-tinted value) — symmetric with Figure.ink/tone. Omit it and nothing changes from before.
     const labelInk = ink ?? d.dim;
     const tagInk = ink ?? acc;
-    // dimInk lets a migrating shot keep its OWN unfilled/track colour instead of the atom's default dim —
-    // symmetric with ink/tone. Omit it and nothing changes from before.
+    // dimInk lets a migrating shot keep its OWN unfilled-RUN colour instead of the atom's default dim —
+    // but only the `block` form actually has an unfilled run (the '░' cells) to colour with it. The other
+    // three forms each draw their "empty" differently on purpose (`ruled`'s scale is `d.line`, `pixel`'s
+    // off-cells are a surface/bg mix, `solid`'s track is a surface/bg mix) — those are each form's own
+    // considered look, not an oversight, so dimInk stays block-only rather than overriding them.
     const dim = dimInk ?? d.dim;
     // size lets a migrating shot's label/value keep its OWN scale instead of the atom's fixed defaults —
     // every form honours it (not only block), so a label/value never breaks the 2:1 hierarchy against the
@@ -138,10 +151,15 @@ export const Figure: React.FC<{value: string | number; unit?: string; size?: num
     // The unit is a PLAIN INLINE SIBLING by default — NO flex wrapper, no imposed gap — so a shot with no
     // opinion keeps its original inline text flow (and its original glyph shaping: flexbox measurably
     // shifts inter-digit spacing versus plain inline text). A shot that wants space between figure and
-    // unit passes `gap` explicitly; only then does this become an inline-flex row with that gap.
+    // unit passes `gap` explicitly; only then does this become an inline-flex row with that gap — and that
+    // row must still WRAP (flexWrap default is nowrap), the same as the plain-text flow it replaces, so a
+    // long number+unit pair wraps inside its column instead of running off it.
+    // fontVariantNumeric:'tabular-nums' is NOT a shared default — TermCounter and ChartLive had it before
+    // migrating, EdStat and VelocitySnap did not, so it is each of those two shots' own choice, applied by
+    // the shot around its <Figure> call (never inside this atom, which one form serves several shots).
     const base: React.CSSProperties = gap === undefined
-      ? {color: fg, fontVariantNumeric: 'tabular-nums'}
-      : {display: 'inline-flex', alignItems: 'baseline', gap, color: fg, fontVariantNumeric: 'tabular-nums'};
+      ? {color: fg}
+      : {display: 'inline-flex', flexWrap: 'wrap', alignItems: 'baseline', gap, color: fg};
 
     if (form === 'mono') {
       // matches TermCounter, its reference shot: 800 weight, 0.9 leading, tight tracking, no prefix
@@ -170,14 +188,18 @@ export const Figure: React.FC<{value: string | number; unit?: string; size?: num
 
 // ── List — an enumeration ────────────────────────────────────────────────────────────────────────────
 export const List: React.FC<{items: string[]; root?: string; reveal?: number[]; ink?: string; tone?: string;
-  marker?: boolean; fallbackForm?: NonNullable<AtomForms['list']>}> =
-  ({items, root, reveal, ink, tone, marker = true, fallbackForm}) => {
+  marker?: boolean; size?: number; fallbackForm?: NonNullable<AtomForms['list']>}> =
+  ({items, root, reveal, ink, tone, marker = true, size, fallbackForm}) => {
     const dna = useDNA(); const d = T(dna); const form = formOf(dna, 'list', fallbackForm);
     const shown = Array.isArray(items) ? items : [];
     // ink/tone let a migrating shot keep its OWN text/marker colour instead of the atom's defaults —
     // symmetric with Bar.ink/tone and Figure.ink/tone. Omit both and nothing changes from before.
     const fg = ink ?? d.fg;
     const acc = tone ?? d.accent;
+    // size lets a migrating shot's items keep their OWN scale instead of each form's fixed default — same
+    // fix as Bar.size (a 2:1 hierarchy break inside one frame is a real defect, not a style choice). Each
+    // form still DEFAULTS to its own pre-atoms value when a caller has no opinion.
+    const sz = (dflt: number) => size ?? dflt;
     // marker=false suppresses the form's own leading glyph (bullet dot / tree branch / index number) for a
     // consumer that already supplies its OWN marker outside the atom — without it, the atom would ADD a
     // second marker the shot never had. Default true: unchanged for any caller that doesn't pass it.
@@ -189,7 +211,7 @@ export const List: React.FC<{items: string[]; root?: string; reveal?: number[]; 
     };
 
     if (form === 'tree') {
-      return <div style={{font: `500 26px/1.7 ${d.fontMono}`, color: fg}}>
+      return <div style={{font: `500 ${sz(26)}px/1.7 ${d.fontMono}`, color: fg}}>
         {root ? <div style={{color: acc}}>{root}</div> : null}
         {shown.map((it, i) => (
           <div key={i} style={{opacity: op(i)}}>
@@ -200,21 +222,21 @@ export const List: React.FC<{items: string[]; root?: string; reveal?: number[]; 
       return <div style={{color: fg}}>
         {shown.map((it, i) => (
           <div key={i} style={{padding: '14px 0', borderTop: marker && i ? `1px solid ${d.line}` : 'none',
-            font: `500 30px/1.35 ${d.fontDisplay}`, opacity: op(i)}}>{it}</div>
+            font: `500 ${sz(30)}px/1.35 ${d.fontDisplay}`, opacity: op(i)}}>{it}</div>
         ))}</div>;
     }
     if (form === 'numbered') {
       return <div style={{color: fg}}>
         {shown.map((it, i) => (
           <div key={i} style={{display: 'flex', gap: 16, marginBottom: 10, opacity: op(i),
-            font: `500 26px/1.5 ${d.fontMono}`}}>
+            font: `500 ${sz(26)}px/1.5 ${d.fontMono}`}}>
             {marker ? <span style={{color: acc}}>{String(i + 1).padStart(2, '0')}</span> : null}{it}</div>
         ))}</div>;
     }
     return <div style={{color: fg}}>                                       {/* bullet — neutral */}
       {shown.map((it, i) => (
         <div key={i} style={{display: 'flex', gap: 14, marginBottom: 10, opacity: op(i),
-          font: `500 28px/1.45 ${d.fontBody}`}}>
+          font: `500 ${sz(28)}px/1.45 ${d.fontBody}`}}>
           {marker ? <span style={{color: acc}}>•</span> : null}{it}</div>
       ))}</div>;
   };
@@ -265,18 +287,21 @@ export const Marker: React.FC<{phase?: number; fallbackForm?: NonNullable<AtomFo
   ({phase = 1, fallbackForm}) => {
   const dna = useDNA(); const d = T(dna); const form = formOf(dna, 'marker', fallbackForm);
   const on = phase >= 0.5;                     // the SHOT supplies phase; atoms never read the frame
+  // phase affects EVERY form's opacity, not just caret's — a marker whose blink stops the moment the DNA
+  // switches to a different preset is a silent behaviour loss (phase=1's default keeps every form fully
+  // opaque, so a caller that never passes phase is unaffected).
   if (form === 'caret') {
     return <span style={{display: 'inline-block', width: 12, height: 24, background: d.accent,
       opacity: on ? .95 : .15, verticalAlign: 'text-bottom'}} />;
   }
   if (form === 'crosshair') {
-    return <span style={{display: 'inline-block', position: 'relative', width: 22, height: 22}}>
+    return <span style={{display: 'inline-block', position: 'relative', width: 22, height: 22, opacity: on ? 1 : .15}}>
       <span style={{position: 'absolute', left: 0, top: 10, width: 22, height: 1.5, background: d.accent}} />
       <span style={{position: 'absolute', left: 10, top: 0, width: 1.5, height: 22, background: d.accent}} />
     </span>;
   }
   if (form === 'arrow') {
-    return <span style={{color: d.accent, font: `700 24px/1 ${d.fontBody}`}}>→</span>;
+    return <span style={{color: d.accent, font: `700 24px/1 ${d.fontBody}`, opacity: on ? 1 : .15}}>→</span>;
   }
-  return <span style={{color: d.accent, font: `700 22px/1 ${d.fontBody}`}}>▸</span>;   /* triangle */
+  return <span style={{color: d.accent, font: `700 22px/1 ${d.fontBody}`, opacity: on ? 1 : .15}}>▸</span>;   /* triangle */
 };

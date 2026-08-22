@@ -238,25 +238,31 @@ analogue of the html tier's `theme.css`). Reuse the structural idea, **never** c
   the DNA declares which FORM it speaks for each (`dna.atoms.bar: 'block' | 'solid' | 'ruled' | 'pixel' |
   'dimension'`). A shot writes `<Bar value={0.88} label="Alpha" tag="PASS" />` and never names a form —
   the same declaration renders as `████░` on a terminal system, a ruled scale on an editorial one and a
-  dimensioned measure on a blueprint. Two rules keep them safe: they are TOTAL (no DNA, no `atoms`, or an
-  unknown value all reach the neutral form, which is what the library rendered before atoms existed — so
-  an un-themed film is unchanged) and PURE (no remotion hooks; anything time-varying, a count-up or a
-  blink, stays in the shot and arrives as a value or a `phase` prop, so the atom cannot break a shot's
-  timing). Use them for a new shot's bars, figures and lists. They are NOT for the generative, 3D, fluid
-  and illustration registers — a metaball field does not decompose into bars, and forcing it would destroy
-  what makes it that register.
+  dimensioned measure on a blueprint. Every atom resolves its form in ONE order, TOTAL and never throwing:
+  **the DNA's own declared form for that atom → `fallbackForm` → the atom's NEUTRAL form.** A DNA that
+  declares a form always wins — `fallbackForm` only fills the gap when the DNA has no opinion. It exists so
+  a **migrated** shot can keep its OWN pre-atoms look (`TermCounter` passes `fallbackForm="mono"`, `EdStat`
+  `"serif"`) under a truly un-themed film, without weakening a themed DNA's authority over an un-migrated
+  shot — a shot that never passes `fallbackForm` reaches the atom's plain neutral form under no DNA, same
+  as before atoms existed. `fallbackFamily` is `fallbackForm`'s typeface counterpart on `Figure`, needed
+  only because `NEUTRAL_DNA`'s own face doesn't always match a migrated shot's original one. They are also
+  PURE (no remotion hooks; anything time-varying, a count-up or a blink, stays in the shot and arrives as a
+  value or a `phase` prop, so the atom cannot break a shot's timing). Use them for a new shot's bars,
+  figures and lists. They are NOT for the generative, 3D, fluid and illustration registers — a metaball
+  field does not decompose into bars, and forcing it would destroy what makes it that register.
 
   In practice only `Figure` and `Bar` found real consumers. Four shots draw their headline number through
   `Figure`: `TermCounter` (the `mono` reference), `EdStat` (the `serif` reference), `ChartLive` (its
   headline metric only) and `VelocitySnap`. `Bar` has one shot, `TermBars`, which is its own `block`
   reference implementation and has no other consumer. `List` has no consumer at all in the current
-  library. Five shots were deliberately NOT migrated, each kept whole rather than damaged to fit:
+  library. Six shots were deliberately NOT migrated, each kept whole rather than damaged to fit:
   `OdometerRoll` (its mechanical digit reel IS its design language), `GaugeCluster` (a 270° arc, not a
-  bar), `TermTree` (a columnar `ls` listing whose items are padded to a name column, not a list),
-  `ChartRace` (reverted during review: the atom contributed only a rectangle while label, value, position
-  and ranking stayed in the shot, and the migration cost it its gradient and leader glow under every DNA)
-  and `BlockAssembly` (reverted during review: `List` per row contributed nothing but a `display:flex`,
-  which turned its strike-through rule pure black). The governing principle: **an atom must not damage the
+  bar), `BeforeAfterSlider` (its little column chart is decorative furniture inside a mock slide, not the
+  shot's content atom), `TermTree` (a columnar `ls` listing whose items are padded to a name column, not a
+  list), `ChartRace` (reverted during review: the atom contributed only a rectangle while label, value,
+  position and ranking stayed in the shot, and the migration cost it its gradient and leader glow under
+  every DNA) and `BlockAssembly` (reverted during review: `List` per row contributed nothing but a
+  `display:flex`, which turned its strike-through rule pure black). The governing principle: **an atom must not damage the
   register it is applied to.** Reach for the atoms when a shot's part really is a quantity, a figure or an
   enumeration; leave a register whole when its form IS its meaning.
 

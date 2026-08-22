@@ -1172,7 +1172,14 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
             warnings.append(f"meta.design_dna is missing core key(s) {_miss} — a Design DNA needs at least "
                             f"{list(_DNA_KEYS)} so every shot can inherit its type + palette (runtime/dna.tsx).")
         atoms = design_dna.get("atoms")
-        if atoms is not None and not isinstance(atoms, dict):
+        if atoms is None:
+            warnings.append("meta.design_dna declares no `atoms` — every shot's Bar/Figure/List/Label/"
+                            "Divider/Marker will render its NEUTRAL or `fallbackForm` (a migrated shot's "
+                            "own pre-atoms look), never a form this DNA speaks. A migrated shot (e.g. "
+                            "EdStat, TermCounter, TermBars) will keep its ORIGINAL form via fallbackForm "
+                            "even while every other token follows this DNA — add an `atoms` block "
+                            "(runtime/dna.tsx AtomForms) so the shots' content parts follow it too.")
+        elif not isinstance(atoms, dict):
             warnings.append("meta.design_dna.atoms must be an object mapping an atom to a form "
                             "(e.g. {\"bar\": \"block\"}) — ignoring it; every atom will use its neutral form")
         elif isinstance(atoms, dict):
