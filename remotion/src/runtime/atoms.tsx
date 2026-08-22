@@ -159,11 +159,25 @@ export const Figure: React.FC<{value: string | number; unit?: string; size?: num
   };
 
 // ── List — an enumeration ────────────────────────────────────────────────────────────────────────────
-export const List: React.FC<{items: string[]; root?: string; reveal?: number[];
+export const List: React.FC<{items: string[]; root?: string; reveal?: number[]; ink?: string; tone?: string;
+  marker?: boolean; gap?: number; size?: number; weight?: number | string; lineHeight?: number | string;
   fallbackForm?: NonNullable<AtomForms['list']>}> =
-  ({items, root, reveal, fallbackForm}) => {
+  ({items, root, reveal, ink, tone, marker = true, gap, size, weight, lineHeight, fallbackForm}) => {
     const dna = useDNA(); const d = T(dna); const form = formOf(dna, 'list', fallbackForm);
     const shown = Array.isArray(items) ? items : [];
+    // ink/tone let a migrating shot keep its OWN text/marker colour instead of the atom's defaults —
+    // symmetric with Bar.ink/tone and Figure.ink/tone. Omit both and nothing changes from before.
+    const fg = ink ?? d.fg;
+    const acc = tone ?? d.accent;
+    // marker=false suppresses the form's own leading glyph (bullet dot / tree branch / index number) for a
+    // consumer that already supplies its OWN marker outside the atom (e.g. BlockAssembly's checkbox column)
+    // — without it, the atom would ADD a second marker the shot never had. Default true: unchanged for any
+    // caller that doesn't pass it.
+    // gap/size/weight/lineHeight override the bullet form's own per-item spacing and type (defaults below
+    // unchanged for any caller that omits them) — for a consumer rendering ONE item per call (its own outer
+    // wrapper already spaces the rows), the atom's own trailing marginBottom would otherwise add a second,
+    // uncalled-for gap on top of the shot's.
+    const bGap = gap ?? 10, bSize = size ?? 28, bWeight = weight ?? 500, bLH = lineHeight ?? 1.45;
     // PER-ITEM reveal: shots stagger their items on their own easing, and one prefix fraction would
     // flatten that into a hard cut. Missing/NaN => fully shown.
     const op = (i: number) => {
@@ -172,33 +186,33 @@ export const List: React.FC<{items: string[]; root?: string; reveal?: number[];
     };
 
     if (form === 'tree') {
-      return <div style={{font: `500 26px/1.7 ${d.fontMono}`, color: d.fg}}>
-        {root ? <div style={{color: d.accent}}>{root}</div> : null}
+      return <div style={{font: `500 26px/1.7 ${d.fontMono}`, color: fg}}>
+        {root ? <div style={{color: acc}}>{root}</div> : null}
         {shown.map((it, i) => (
           <div key={i} style={{opacity: op(i)}}>
-            <span style={{color: d.dim}}>{i === shown.length - 1 ? '└─ ' : '├─ '}</span>{it}</div>
+            {marker ? <span style={{color: d.dim}}>{i === shown.length - 1 ? '└─ ' : '├─ '}</span> : null}{it}</div>
         ))}</div>;
     }
     if (form === 'ruled') {
-      return <div style={{color: d.fg}}>
+      return <div style={{color: fg}}>
         {shown.map((it, i) => (
-          <div key={i} style={{padding: '14px 0', borderTop: i ? `1px solid ${d.line}` : 'none',
+          <div key={i} style={{padding: '14px 0', borderTop: marker && i ? `1px solid ${d.line}` : 'none',
             font: `500 30px/1.35 ${d.fontDisplay}`, opacity: op(i)}}>{it}</div>
         ))}</div>;
     }
     if (form === 'numbered') {
-      return <div style={{color: d.fg}}>
+      return <div style={{color: fg}}>
         {shown.map((it, i) => (
           <div key={i} style={{display: 'flex', gap: 16, marginBottom: 10, opacity: op(i),
             font: `500 26px/1.5 ${d.fontMono}`}}>
-            <span style={{color: d.accent}}>{String(i + 1).padStart(2, '0')}</span>{it}</div>
+            {marker ? <span style={{color: acc}}>{String(i + 1).padStart(2, '0')}</span> : null}{it}</div>
         ))}</div>;
     }
-    return <div style={{color: d.fg}}>                                       {/* bullet — neutral */}
+    return <div style={{color: fg}}>                                       {/* bullet — neutral */}
       {shown.map((it, i) => (
-        <div key={i} style={{display: 'flex', gap: 14, marginBottom: 10, opacity: op(i),
-          font: `500 28px/1.45 ${d.fontBody}`}}>
-          <span style={{color: d.accent}}>•</span>{it}</div>
+        <div key={i} style={{display: 'flex', gap: 14, marginBottom: bGap, opacity: op(i),
+          font: `${bWeight} ${bSize}px/${bLH} ${d.fontBody}`}}>
+          {marker ? <span style={{color: acc}}>•</span> : null}{it}</div>
       ))}</div>;
   };
 

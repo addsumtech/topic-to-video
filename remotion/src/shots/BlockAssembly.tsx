@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutBack, easeOutCubic, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {List} from '../runtime/atoms';
 
 export const DURATION = 165; // 5.5s
 // LEVEL-C: the Notion-style light document flips with the DNA (page→bg, ink→fg, blocks/borders→line, accent) → a
@@ -44,7 +45,10 @@ export const BlockAssembly: React.FC<{title?: string; callout?: string; items?: 
             {items.map((s, k) => (
               <div key={k} style={{display: 'flex', alignItems: 'center', gap: 20}}>
                 <div style={{width: 34, height: 34, borderRadius: 7, background: k < 2 ? GOOD : SURF, border: `2px solid ${k < 2 ? GOOD : CHECK_EDGE}`, color: ON, font: '700 20px/30px Inter', textAlign: 'center'}}>{k < 2 ? '✓' : ''}</div>
-                <div style={{font: '600 38px/1 Inter,system-ui,sans-serif', color: k < 2 ? DONE_INK : FG, textDecoration: k < 2 ? 'line-through' : 'none'}}>{s}</div>
+                <div style={{textDecoration: k < 2 ? 'line-through' : 'none'}}>
+                  <List items={[s]} ink={k < 2 ? DONE_INK : FG} marker={false} gap={0}
+                    size={38} weight={600} lineHeight={1} />
+                </div>
               </div>
             ))}
           </div>
