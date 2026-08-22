@@ -2,6 +2,7 @@ import React from 'react';
 import {Composition} from 'remotion';
 import './runtime/fonts';  // side effect: loads the DNA typefaces for Film AND every standalone shot still
 import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
+import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
 import {CommandSummon, DURATION as CS} from './shots/CommandSummon';
 import {TemporalAccelerate, DURATION as TA} from './shots/TemporalAccelerate';
@@ -163,6 +164,7 @@ export const RemotionRoot: React.FC = () => (
       calculateMetadata={({props}) => ({durationInFrames: filmDuration((props as any).scenes ?? WORKBUDDY_SCENES),
         ...dims((props as any).aspect)})} />
     {F('FontProbe', FontProbe, FPR)}
+    {F('TypeSpecimen', TypeSpecimen, TSP)}
     {F('CollaborativeCursors', CollaborativeCursors, CC)}
     {F('CommandSummon', CommandSummon, CS)}
     {F('TemporalAccelerate', TemporalAccelerate, TA)}
