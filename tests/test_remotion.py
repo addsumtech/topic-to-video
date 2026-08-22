@@ -420,3 +420,59 @@ def test_null_dna_preserves_every_original_colour():
         if gone:
             drift[f] = sorted(gone)
     assert not drift, "null-DNA drift — these original colours are no longer reachable: %s" % drift
+
+
+def test_atom_form_enums_match_between_runtime_and_validate():
+    # validate.py keeps a python copy of the atom form enums. If the two drift, an authored DNA with a
+    # form the runtime supports gets warned about — or worse, a typo passes validation silently.
+    src = _dna_tsx()
+    block = src.split("export type AtomForms = {")[1].split("};")[0]
+    runtime = {}
+    for line in block.split("\n"):
+        m = re.match(r"\s*(\w+)\??:\s*(.+?);", line)
+        if m:
+            runtime[m.group(1)] = {v.strip().strip("'") for v in m.group(2).split("|")}
+    assert runtime, "could not parse AtomForms out of dna.tsx"
+    assert runtime == v._ATOM_FORMS, "AtomForms drift:\nruntime=%s\nvalidate=%s" % (runtime, v._ATOM_FORMS)
+
+
+def test_every_preset_declares_valid_atom_forms():
+    # A preset that declares a form the atoms do not implement renders the neutral form silently.
+    src = _dna_tsx()
+    bad = []
+    for m in re.finditer(r"atoms:\s*\{([^}]*)\}", src):
+        for k, val in re.findall(r"(\w+):\s*'([^']+)'", m.group(1)):
+            if k not in v._ATOM_FORMS or val not in v._ATOM_FORMS[k]:
+                bad.append((k, val))
+    assert not bad, "presets declare unknown atom forms: %s" % bad
+
+
+def test_validate_warns_on_an_unknown_atom_form():
+    d = _deck(2)
+    d["meta"]["design_dna"] = {"id": "x", "fontDisplay": "a", "fontMono": "a", "fontBody": "a",
+                               "bg": "#000", "fg": "#fff", "dim": "#888", "accent": "#0f0",
+                               "accent2": "#0ff", "onAccent": "#000", "surface": "#111",
+                               "line": "#222", "decoration": [], "motion": "smooth",
+                               "atoms": {"bar": "sparkline"}}
+    r = v.evaluate(d, "/tmp")
+    assert r["ok"], r["errors"]                      # a warning, never an error — the runtime falls back
+    assert any("sparkline" in w for w in r["warnings"]), r["warnings"]
+
+
+def test_atoms_are_total_across_every_dna_and_edge_case():
+    # Atoms render under every preset, with `atoms` missing entirely, and with unknown form values —
+    # and never emit the string "undefined" (an undefined token inside a `font:` shorthand paints nothing).
+    # Runs the real components through react-dom/server; the bundler strips types without checking them,
+    # so this is the only mechanical proof the components hold together.
+    import subprocess, tempfile, shutil
+    if not shutil.which("npx"):
+        import pytest; pytest.skip("npx unavailable")
+    remotion = os.path.join(os.path.dirname(__file__), "..", "remotion")
+    out = os.path.join(tempfile.gettempdir(), "atoms_probe.cjs")
+    b = subprocess.run(["npx", "esbuild", "src/runtime/__probe_atoms.tsx", "--bundle",
+                        "--platform=node", "--outfile=" + out, "--log-level=error"],
+                       cwd=remotion, capture_output=True, text=True)
+    assert b.returncode == 0, "esbuild failed:\n" + b.stdout + b.stderr
+    r = subprocess.run(["node", out], capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "PROBE OK" in r.stdout, r.stdout

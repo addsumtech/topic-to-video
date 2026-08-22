@@ -111,18 +111,33 @@ Interface details that would otherwise be guessed:
 
 ### 3 · Fallback (the rule that keeps the null-DNA guarantee)
 
-Each atom resolves its form as:
+**As implemented, resolution is a THREE-step order, not two** — the initial two-case sketch above did not
+yet account for a MIGRATED shot needing to keep its own pre-atoms look under no DNA. Each atom resolves its
+form as:
 
 ```ts
-const FORMS = ['block','solid','ruled','pixel','dimension'] as const;
-const NEUTRAL = 'solid';
-const f = dna?.atoms?.bar;
-const form = (FORMS as readonly string[]).includes(f as string) ? f! : NEUTRAL;
+const formOf = (dna, k, fallbackForm) => {
+  const f = dna?.atoms?.[k];
+  if (f && FORMS[k].includes(f)) return f;                                   // 1. the DNA's own declared form
+  if (fallbackForm && FORMS[k].includes(fallbackForm)) return fallbackForm;   // 2. the migrated shot's own form
+  return NEUTRAL[k];                                                         // 3. the atom's neutral form
+};
 ```
 
-Three cases must all reach the neutral form: **no DNA · no `atoms` · an unknown value.** Per-atom
-neutral forms: `bar → solid`, `figure → display`, `list → bullet`, `label → kicker`,
-`divider → hairline`, `marker → triangle`.
+1. **The DNA's own declared form always wins** when it declares one for that atom — this is the whole
+   point of the feature, and it wins even over a shot's `fallbackForm`.
+2. **`fallbackForm`** (plus `Figure`'s typeface counterpart, `fallbackFamily`) is how a MIGRATED reference
+   shot (`TermCounter` → `fallbackForm="mono"`, `EdStat` → `"serif"`, `TermBars` → `"block"`) keeps its OWN
+   pre-atoms look under a truly un-themed film, without weakening a themed DNA's authority over any other
+   (un-migrated) shot. An un-migrated shot never passes `fallbackForm` and so falls straight to step 3.
+3. **The atom's plain neutral form** is the final floor — reached with no DNA, no `atoms`, an unknown
+   value, AND no `fallbackForm`. Per-atom neutral forms: `bar → solid`, `figure → display`, `list →
+   bullet`, `label → kicker`, `divider → hairline`, `marker → triangle`.
+
+So "no DNA renders unchanged" is true for two DIFFERENT reasons depending on the shot: an un-migrated shot
+reaches step 3 (the neutral form, which is what the library always rendered); a migrated shot reaches step
+2 (its own `fallbackForm`, which is what THAT shot always rendered — not necessarily the neutral form).
+Conflating the two is exactly the mistake this fix wave corrected in the authoring reference.
 
 **The neutral form must render what the library renders today** — a rounded track with an accent fill,
 a tabular-numeral display figure, and so on. If it does not, migrating a shot to the atoms silently
@@ -133,7 +148,7 @@ shots already had to be repaired for exactly that). Every atom must be total: a 
 The `kicker` label form respects `dna.uppercaseLabels` / `dna.labelSpacing`; every form takes its colour
 from the DNA tokens as today.
 
-### 4 · Migration (7 shots)
+### 4 · Migration (5 shots, after two more were dropped during execution)
 
 The first list for this section was chosen by family and by shot NAME. Reading what the shots actually
 draw corrected it, and corrected a design assumption with it: **`Figure` — not `Bar` — is the
@@ -142,9 +157,15 @@ appears in five.
 
 | atom | reference implementation (migrated *inward* — its existing rendering becomes the shared form) | consumers |
 |---|---|---|
-| `bar` | **`TermBars`** → `block` | `ChartRace` |
 | `figure` | **`TermCounter`** → `mono` · **`EdStat`** → `serif` | `VelocitySnap`, `ChartLive` *(the headline metric only — its line/area chart is untouched)* |
-| `list` | *(none — written fresh in `atoms.tsx`)* | `BlockAssembly` |
+| `bar` | **`TermBars`** → `block` | *(none — `ChartRace` was dropped, see below)* |
+| `list` | *(none — written fresh in `atoms.tsx`)* | *(none — `BlockAssembly` was dropped, see below)* |
+
+**The honest outcome, recorded because it is the useful finding:** `Figure` is the atom that carries this
+idea — four shots, clean. `Bar` works for its own reference shot. `List` has no fit anywhere in the current
+134-shot library. That matches the count taken before any code was written (a big number appears in five
+shots, a horizontal bar in two), and it means the atoms' primary value is for shots written from now on,
+which get seven variants for free. Migrating the existing library was always the secondary goal.
 
 Excluded after reading them, with the reason (each would have been damaged, not improved):
 
@@ -156,6 +177,15 @@ Excluded after reading them, with the reason (each would have been damaged, not 
 - `TermTree` — found while writing the plan: its items are objects padded to a fixed name COLUMN, so it is
   a columnar `ls` listing rather than a list. Routing it through `List` would drop the column. The `tree`
   form is therefore written fresh in `atoms.tsx` with no reference shot to migrate inward.
+- `ChartRace` — found in review, after it had been migrated and measured. The atom ended up contributing a
+  single rectangle while the label, value, position and ranking all had to stay in the shot, and the cost
+  was the register itself: the gradient and the leader glow were gone under EVERY DNA, the counter detached
+  under the `block` form, and `dimension` printed a duplicate number. Three of its five props existed only
+  to switch the atom's opinions off — the shape of a bad fit. Reverted.
+- `BlockAssembly` — same review. `List` called once per row with every typographic knob overridden
+  contributed nothing but a `display:flex`, and that flex turned its strike-through rule pure black (the
+  decoration moved to a wrapper carrying no `color`, so it resolved `currentColor` to black — darker than
+  the page under a themed DNA). Its to-dos are checkbox rows the shot builds, not an enumeration. Reverted.
 
 `Label`, `Divider` and `Marker` ship with no migration: they exist for new shots and for opportunistic
 use. That is deliberate — inventing consumers for them would be scope invented to justify the atom.

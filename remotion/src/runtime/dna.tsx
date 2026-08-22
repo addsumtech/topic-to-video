@@ -21,6 +21,19 @@ import {clamp01} from './motion';
 export type DnaDecoration =
   | 'prompt' | 'status' | 'breadcrumb' | 'cursor' | 'scanline' | 'grid' | 'line-numbers';
 
+// Which FORM this design system speaks for each content atom. Same idea as `decoration` — a DNA declares
+// its vocabulary — extended from annotation cues to the parts a frame is built from. Every key is optional:
+// an omitted (or unknown) form falls back to the atom's neutral form, which is what the library rendered
+// before atoms existed. See runtime/atoms.tsx.
+export type AtomForms = {
+  bar?: 'block' | 'solid' | 'ruled' | 'pixel' | 'dimension';
+  figure?: 'mono' | 'serif' | 'display' | 'segment';
+  list?: 'tree' | 'ruled' | 'bullet' | 'numbered';
+  label?: 'prompt' | 'kicker' | 'spec' | 'chip';
+  divider?: 'scanline' | 'hairline' | 'dimension' | 'dotted';
+  marker?: 'caret' | 'triangle' | 'crosshair' | 'arrow';
+};
+
 export type DesignDNA = {
   id: string;
   // TYPOGRAPHY (css font shorthands / family lists)
@@ -50,6 +63,7 @@ export type DesignDNA = {
   // font-family !important. false/absent = a MIXED-type style (display ≠ body, e.g. editorial serif + sans) →
   // registers use fontDisplay/fontBody per element and NO global override. So the DNA generalizes past terminal.
   uniformType?: boolean;
+  atoms?: AtomForms;             // per-atom FORM this system speaks; omitted = the neutral form
 };
 
 // ── Presets ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -77,6 +91,7 @@ export const TERMINAL_DNA: DesignDNA = {
   uppercaseLabels: false,
   labelSpacing: '0.02em',
   uniformType: true,   // terminal = all-mono
+  atoms: {bar: 'block', figure: 'mono', list: 'tree', label: 'prompt', divider: 'scanline', marker: 'caret'},
 };
 
 // NEUTRAL — approximates the library's CURRENT common look (dark, Inter display, mono code, blue accent, soft
@@ -120,6 +135,7 @@ export const EDITORIAL_DNA: DesignDNA = {
   fg: '#efe9df', dim: '#9a9084', accent: '#e2603f', accent2: '#c9a24b', onAccent: '#1a0f0b',
   surface: '#181512', surfaceBorder: '#33291f', line: '#2a2018',
   radius: 2, borderWidth: 1, motion: 'smooth', decoration: ['grid'], uppercaseLabels: true, labelSpacing: '0.18em',
+  atoms: {bar: 'ruled', figure: 'serif', list: 'ruled', label: 'kicker', divider: 'hairline', marker: 'triangle'},
 };
 // PRODUCT — a clean Apple-like keynote world: geometric sans, near-black or soft-light ground, rounded glass
 // panels, soft shadows, ONE vivid accent, gentle scale/parallax reveals.
@@ -131,6 +147,7 @@ export const PRODUCT_DNA: DesignDNA = {
   fg: '#f2f5fb', dim: '#8a93a5', accent: '#5b8cff', accent2: '#a06bff', onAccent: '#050810',
   surface: '#12141c', surfaceBorder: '#262b3a', line: '#20242f',
   radius: 22, borderWidth: 1, motion: 'smooth', decoration: [], uppercaseLabels: false, labelSpacing: '0',
+  atoms: {bar: 'solid', figure: 'display', list: 'bullet', label: 'chip', divider: 'hairline', marker: 'triangle'},
 };
 // BLUEPRINT — an engineering-drawing world: mono/geometric type, deep blueprint-blue ground, thin cyan rules +
 // crop-marks + dimension lines + a measured grid, precise draw-on reveals.
@@ -142,6 +159,7 @@ export const BLUEPRINT_DNA: DesignDNA = {
   fg: '#cfe6f5', dim: '#5f7d92', accent: '#38b6ff', accent2: '#7fe0d0', onAccent: '#04121c',
   surface: '#0a1622', surfaceBorder: '#1d3a52', line: '#123048',
   radius: 3, borderWidth: 1, motion: 'mechanical', decoration: ['grid', 'line-numbers'], uppercaseLabels: true, labelSpacing: '0.12em',
+  atoms: {bar: 'dimension', figure: 'mono', list: 'numbered', label: 'spec', divider: 'dimension', marker: 'crosshair'},
 };
 
 // CINEMATIC — an atmospheric, tactile film world: a serif/grotesk display over near-black, warm practical light,
@@ -154,6 +172,7 @@ export const CINEMATIC_DNA: DesignDNA = {
   fg: '#f4efe6', dim: '#9a8f83', accent: '#e8a13c', accent2: '#7fa8c9', onAccent: '#1a1006',
   surface: '#141014', surfaceBorder: '#2c2320', line: '#241d1d',
   radius: 10, borderWidth: 1, motion: 'smooth', decoration: [], uppercaseLabels: false, labelSpacing: '0.06em',
+  atoms: {bar: 'solid', figure: 'serif', list: 'bullet', label: 'kicker', divider: 'hairline', marker: 'triangle'},
 };
 // DATA — an evidence-forward analyst world: tabular-friendly sans + mono figures, deep slate ground, a measured
 // grid, one signal colour + a comparison colour, precise mechanical reveals. (direction: data-story)
@@ -165,6 +184,7 @@ export const DATA_DNA: DesignDNA = {
   fg: '#e8eef6', dim: '#7d8a9b', accent: '#3ddc97', accent2: '#f2b544', onAccent: '#04140d',
   surface: '#111823', surfaceBorder: '#22303f', line: '#1a2431',
   radius: 8, borderWidth: 1, motion: 'mechanical', decoration: ['grid'], uppercaseLabels: true, labelSpacing: '0.1em',
+  atoms: {bar: 'ruled', figure: 'mono', list: 'numbered', label: 'spec', divider: 'hairline', marker: 'crosshair'},
 };
 // RETRO — a nostalgic arcade/print world: chunky display face, deep plum ground, hot magenta + cyan, snappy
 // stepped motion and scanline furniture. (direction: retro-playful)
@@ -176,6 +196,7 @@ export const RETRO_DNA: DesignDNA = {
   fg: '#ffeffb', dim: '#a78bbd', accent: '#ff2e88', accent2: '#22e3ff', onAccent: '#1a0410',
   surface: '#1e1030', surfaceBorder: '#40215f', line: '#2c1745',
   radius: 6, borderWidth: 2, motion: 'mechanical', decoration: ['scanline'], uppercaseLabels: true, labelSpacing: '0.14em',
+  atoms: {bar: 'pixel', figure: 'segment', list: 'bullet', label: 'chip', divider: 'dotted', marker: 'arrow'},
 };
 
 export const DNA_PRESETS: Record<string, DesignDNA> = {

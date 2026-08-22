@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, lerp} from '../runtime/motion';
 import {useDNA, TermFrame} from '../runtime/dna';
+import {Figure} from '../runtime/atoms';
 
 export const DURATION = 150;
 
@@ -26,10 +27,11 @@ export const TermCounter: React.FC<{cmd?: string; value?: string; unit?: string;
     <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(130% 120% at 50% -8%, #0f1723, #06080d 72%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
       <TermFrame dna={dna} cmd={cmd} t={t} framed={framed} align="center">
-        <div style={{display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 20}}>
-          <span style={{color: acc, font: `800 220px/0.9 ${mono}`, letterSpacing: '-4px', textShadow: `0 0 60px ${acc}44`,
-            fontVariantNumeric: 'tabular-nums'}}>{shown}</span>
-          {unit ? <span style={{color: dim, font: `600 56px/1 ${mono}`}}>{unit}</span> : null}
+        <div style={{display: 'flex', alignItems: 'baseline', justifyContent: 'center'}}>
+          <span style={{textShadow: `0 0 60px ${acc}44`, fontVariantNumeric: 'tabular-nums'}}>
+            <Figure value={shown} unit={unit} ink={acc} tone={dim} size={220} unitScale={56 / 220}
+              gap={20} fallbackForm="mono" fallbackFamily={mono} />
+          </span>
         </div>
         {note ? <div style={{marginTop: 34, color: dim, font: `500 34px/1.4 ${mono}`, textAlign: 'center'}}># {note}</div> : null}
       </TermFrame>

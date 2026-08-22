@@ -25,6 +25,8 @@ the shot-director surfaces the judged finalists to the user. (The rest of this f
 ## The dimensions (score each scene, then the whole film)
 **S1 · Register FIT.** Does the chosen `shot` express THIS beat's idea (match it to the register's LIBRARY
 "use when")? A statement beat on a data-chart register, or a climax on a flat list register, is a REVISE.
+If a NEW shot draws a quantity bar, a headline figure or a list without using `runtime/atoms.tsx`, it must
+say why — those parts have a per-DNA form and a hand-rolled one will not follow the film's system.
 **S2 · Family VARIETY (whole-film).** No two ADJACENT beats may share a family (A–Z in LIBRARY.md, an OPEN set — AA+ if extended); a ≥10-beat
 film should span ≥6 families and not lean on one. Two adjacent same-family beats = REVISE the second.
 **S3 · FAITHFULNESS (hard gate).** Every on-screen NUMBER must trace to the beat's `source_ref` — a register

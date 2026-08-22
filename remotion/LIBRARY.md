@@ -9,6 +9,12 @@ set (`runtime/dna.tsx`), so whichever direction is chosen, the whole film shares
 shot renders exactly its original look. Depth varies by shot — `python scripts/dna_audit.py --depth` reports it —
 and two families are STYLE-NATIVE, written for one DNA rather than adapted to it: **Term\*** (terminal) and
 **Ed\*** (editorial) below. See `references/remotion-shot-authoring.md` §C2 for the three-layer model.
+Four shots draw their headline number through the shared content atom `Figure` (`runtime/atoms.tsx`) —
+`TermCounter`, `EdStat`, `ChartLive`, `VelocitySnap` — and one, `TermBars`, draws its quantity through `Bar`;
+those parts change FORM with the DNA, not just colour. `List`/`Label`/`Divider`/`Marker` have no consumer
+yet in this library — they exist for new shots and opportunistic use. See
+`references/remotion-shot-authoring.md` §C2 "Content ATOMS" for the mechanism and the full list of shots
+deliberately left un-migrated.
 
 **Registering a new shot — every sync point** (a miss is silent; `tests/test_remotion.py` gates the starred ones):
 `src/shots/<Id>.tsx` → `src/registry.ts`\* → `src/Root.tsx`\* (standalone preview) → `runtime/shotLuma.ts`\*

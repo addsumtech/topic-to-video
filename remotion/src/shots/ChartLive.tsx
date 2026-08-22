@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {Figure} from '../runtime/atoms';
 
 export const DURATION = 150; // 5s
 const ACC_D0 = '#37E0A0';
@@ -47,7 +48,15 @@ export const ChartLive: React.FC<{endVal?: number; unit?: string; label?: string
       </svg>
       {/* headline metric counting up */}
       <div style={{position: 'absolute', left: 220, top: 150}}>
-        <div style={{font: '800 210px/0.9 Inter,system-ui,sans-serif', color: '#eafff4', letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums'}}>{val}<span style={{fontSize: 100, color: ACC}}>{unit}</span></div>
+        {/* fontVariantNumeric is THIS shot's own choice (Figure's shared base does not impose it) — kept
+            here, on the wrapper, exactly where it lived before the migration. unitScale is the EXACT ratio
+            (100/210) the original hardcoded unit size (100px) was, not the 0.476 float that rounded to
+            99.96px. fallbackForm/fallbackFamily make explicit what previously worked only because
+            NEUTRAL_DNA.fontDisplay happens to match this shot's hardcoded stack. */}
+        <div style={{fontVariantNumeric: 'tabular-nums'}}>
+          <Figure value={val} unit={unit} ink="#eafff4" tone={ACC} size={210} unitScale={100 / 210}
+            fallbackForm="display" fallbackFamily="Inter, system-ui, sans-serif" />
+        </div>
         <div style={{font: '600 42px/1 Inter,system-ui,sans-serif', color: '#6f8f83', marginTop: 6}}>{label}</div>
       </div>
     </AbsoluteFill>
