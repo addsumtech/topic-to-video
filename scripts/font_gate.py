@@ -10,7 +10,7 @@ asserts the light and heavy tiles differ, which catches a variable font loaded w
 Exit 0 = every face loaded and every variable face honours its weight range.
 Exit 1 = at least one face is silently falling back (the message names it).
 """
-import hashlib, os, re, subprocess, sys, tempfile
+import hashlib, json, os, re, subprocess, sys, tempfile
 
 from PIL import Image
 
@@ -41,10 +41,16 @@ def _families(ladder):
     return [f for f, v in faces if (v == "true" or not ladder)]
 
 
-def _render(out_png, ladder):
+def _render(out_png, ladder, expected_rows):
+    # expected_rows is cross-checked INSIDE FontProbe against FACES.filter(...).length — a count
+    # derived from real JS module evaluation, independent of this file's regex parse of fonts.ts. If
+    # the regex under- or over-counts (e.g. a future formatting change silently drops a line instead
+    # of matching nothing), the component throws by name and this render fails loudly instead of
+    # silently misaligning tiles_differ's crop grid against the wrong number of rows.
+    props = json.dumps({"ladder": ladder, "expectedRows": expected_rows})
     r = subprocess.run(
         ["npx", "remotion", "still", "src/index.ts", "FontProbe", out_png,
-         "--frame=0", "--gl=angle", "--props=" + ('{"ladder":true}' if ladder else '{"ladder":false}')],
+         "--frame=0", "--gl=angle", "--props=" + props],
         cwd=_REMOTION, capture_output=True, text=True)
     if r.returncode != 0:
         sys.exit("font_gate: probe render failed\n" + r.stderr[-2000:])
@@ -56,7 +62,7 @@ def main():
         for ladder in (False, True):
             fams = _families(ladder)
             png = os.path.join(td, "ladder.png" if ladder else "faces.png")
-            _render(png, ladder)
+            _render(png, ladder, expected_rows=len(fams))
             for fam, ok in zip(fams, tiles_differ(png, rows=len(fams))):
                 if not ok:
                     failures.append(

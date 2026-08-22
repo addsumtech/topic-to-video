@@ -377,10 +377,21 @@ def test_shot_luma_and_dna_ground_cover_the_library():
     assert not (_SHOT_IDS - measured), "shots missing a measured ground luminance: %s" % sorted(_SHOT_IDS - measured)
 
 
-# Compositions registered in Root.tsx via F() that are NOT bespoke shots and therefore intentionally
-# live outside remotion/src/shots/ — diagnostic probes, not selectable design languages. New entries
-# here must be justified the same way: not a shot, not in the shots dir, not in registry.ts.
-_ROOT_NON_SHOT_IDS = {"FontProbe"}
+def _root_shot_ids(root_src):
+    """Compositions registered via F() whose *component* is imported from './shots/' — i.e. real
+    bespoke shots, not diagnostic probes (which import from elsewhere, e.g. './runtime/'). Derived
+    from Root.tsx's own import graph rather than a hand-maintained exclusion list: a curated
+    exclusion set living inside a drift gate is exactly how the gate quietly stops detecting drift,
+    and a future probe (any component imported outside shots/) is excluded automatically without
+    editing this test."""
+    local_to_path = {}
+    for names, path in re.findall(r"^import \{([^}]+)\} from '(\.[^']+)';", root_src, re.MULTILINE):
+        for tok in names.split(","):
+            tok = tok.strip()
+            local = tok.split(" as ")[-1].strip() if " as " in tok else tok
+            local_to_path[local] = path
+    calls = re.findall(r"\{F\('([A-Za-z0-9_]+)',\s*([A-Za-z0-9_]+),", root_src)
+    return {comp_id for comp_id, comp_var in calls if local_to_path.get(comp_var, "").startswith("./shots/")}
 
 
 def test_registry_root_and_shots_dir_are_in_sync():
@@ -388,7 +399,7 @@ def test_registry_root_and_shots_dir_are_in_sync():
     # registry.ts (what a film can select) were effectively ungated.
     root = open(os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "Root.tsx"), encoding="utf-8").read()
     reg = open(os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "registry.ts"), encoding="utf-8").read()
-    root_ids = set(re.findall(r"\{F\('([A-Za-z0-9_]+)'", root)) - _ROOT_NON_SHOT_IDS
+    root_ids = _root_shot_ids(root)
     reg_ids = set(re.findall(r"from '\./shots/([A-Za-z0-9_]+)'", reg))
     assert reg_ids == _SHOT_IDS, "registry.ts vs shots/: %s" % sorted(reg_ids ^ _SHOT_IDS)
     assert root_ids == _SHOT_IDS, "Root.tsx (standalone previews) vs shots/: %s" % sorted(root_ids ^ _SHOT_IDS)

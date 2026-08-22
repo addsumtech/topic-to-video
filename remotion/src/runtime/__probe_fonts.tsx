@@ -26,8 +26,20 @@ const GENERIC: Record<string, string> = {
 
 export const DURATION = 1;
 
-export const FontProbe: React.FC<{ladder?: boolean}> = ({ladder = false}) => {
+export const FontProbe: React.FC<{ladder?: boolean; expectedRows?: number}> = ({ladder = false, expectedRows}) => {
   const rows = FACES.filter((f) => !ladder || f.variable);
+  // Cross-check against font_gate.py's regex parse of fonts.ts. That parse is fragile (a future
+  // formatting change could make it silently drop a line instead of matching nothing at all), and a
+  // row-count mismatch would misalign font_gate.py's crop grid against the ACTUAL rendered rows —
+  // corrupting every tile comparison instead of failing loudly. rows.length here comes from real JS
+  // module evaluation of FACES, not text-regex, so it is a genuinely independent count: throwing on
+  // a mismatch turns a silent misalignment into a hard, named render failure.
+  if (expectedRows !== undefined && rows.length !== expectedRows) {
+    throw new Error(
+      `__probe_fonts: font_gate.py expected ${expectedRows} row(s) but FontProbe actually rendered ${rows.length} — ` +
+        `its regex parse of fonts.ts has drifted from the real FACES array; fix the parse before trusting this gate`,
+    );
+  }
   return (
     <AbsoluteFill style={{background: '#fff', color: '#000', display: 'flex', flexDirection: 'column'}}>
       {rows.map((f) => {
@@ -40,7 +52,11 @@ export const FontProbe: React.FC<{ladder?: boolean}> = ({ladder = false}) => {
         return (
           <div key={f.family} style={{flex: 1, display: 'flex'}}>
             <div style={{flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: f.family, fontWeight: ladder ? 300 : 700, fontSize: 64}}>
+              // family THEN its generic — a real production font-stack. If the family fails to load,
+              // this collapses onto tile B's generic (identical pixels, caught). Naming the family bare
+              // with no fallback would instead resolve to Chromium's fixed UA-default face, which
+              // differs from tile B's generic regardless of whether the real face loaded — a false pass.
+              fontFamily: `${f.family}, ${generic}`, fontWeight: ladder ? 300 : 700, fontSize: 64}}>
               {SAMPLE}
             </div>
             <div style={{flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
