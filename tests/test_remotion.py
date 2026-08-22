@@ -476,3 +476,31 @@ def test_atoms_are_total_across_every_dna_and_edge_case():
     r = subprocess.run(["node", out], capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
     assert "PROBE OK" in r.stdout, r.stdout
+
+
+_FONTS_TS = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "runtime", "fonts.ts")
+_BASE_CSS = os.path.join(os.path.dirname(__file__), "..", "assets", "html", "base.css")
+
+
+def test_fonts_ts_loads_every_bundled_face_with_base_css_weights():
+    """The HTML tier already declares these faces. The remotion tier must name the SAME families
+    with the SAME weight ranges, or a variable font silently renders synthesised weights."""
+    css = open(_BASE_CSS, encoding="utf-8").read()
+    faces = re.findall(
+        r'@font-face\{font-family:"([^"]+)";src:url\("\.\./fonts/([^"]+)"\);font-weight:([^;]+);',
+        css,
+    )
+    assert len(faces) >= 4, "could not parse @font-face out of base.css (got %r)" % (faces,)
+    ts = open(_FONTS_TS, encoding="utf-8").read()
+    for family, filename, weight in faces:
+        assert "family: '%s'" % family in ts, "fonts.ts does not load %r" % family
+        assert filename in ts, "fonts.ts does not reference %r" % filename
+        assert "weight: '%s'" % weight.strip() in ts, (
+            "fonts.ts weight for %r drifted from base.css (%r)" % (family, weight.strip()))
+
+
+def test_fonts_ts_fails_loudly_on_a_load_error():
+    """A font that fails to load must abort the render. A silent fallback is the defect this fixes."""
+    ts = open(_FONTS_TS, encoding="utf-8").read()
+    assert "cancelRender" in ts, "fonts.ts must cancelRender on a failed load"
+    assert "delayRender" in ts, "fonts.ts must delayRender until the faces are ready"
