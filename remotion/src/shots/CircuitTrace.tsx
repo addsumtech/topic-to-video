@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 const BOARD = '#08130f', COPPER = '#2fd6a0', LIVE = '#7dffcf';
@@ -12,6 +13,7 @@ const BOARD = '#08130f', COPPER = '#2fd6a0', LIVE = '#7dffcf';
 export const CircuitTrace: React.FC<{title?: string; chip?: string; nodes?: string[]}> = ({
   title: TITLE = 'Wired together', chip: CHIP = 'CORE', nodes: NODES = ['IN', 'MEM', 'I/O', 'NET', 'PWR']} = {}) => {
   const t = useT();
+  const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2 + 10;
   const titleIn = easeOutCubic(seg(t, 0.03, 0.16));
@@ -24,7 +26,7 @@ export const CircuitTrace: React.FC<{title?: string; chip?: string; nodes?: stri
   });
   const lpath = (x1: number, y1: number, x2: number, y2: number) => `M${x1} ${y1} L${x1} ${y2} L${x2} ${y2}`;
   return (
-    <AbsoluteFill style={{background: `radial-gradient(130% 100% at 50% 42%, #0d2018, ${BOARD} 74%)`, overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? (`radial-gradient(130% 100% at 50% 42%, #0d2018, ${BOARD} 74%)`), overflow: 'hidden'}}>
       <div style={{position: 'absolute', top: 70, left: 0, right: 0, textAlign: 'center', opacity: titleIn, zIndex: 5,
         color: '#8fd8bf', font: '700 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
       {/* faint pad grid */}

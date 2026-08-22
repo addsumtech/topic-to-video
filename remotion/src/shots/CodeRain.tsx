@@ -5,13 +5,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
-const BG = '#020603', GREEN = '#28ff9a';
+const BG_D0 = '#020603', GREEN_D0 = '#28ff9a';
 const CHARS = 'ｱｲｳｴｵｶｷｸ01<>[]{}=+*#$%&ABCDEFHKNVXZ0123456789';
 
 export const CodeRain: React.FC<{title?: string; tagline?: string}> = ({
   title: TITLE = 'Decoded', tagline: TAG = 'meaning from the stream'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0, GREEN = dna?.accent ?? GREEN_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const COLW = 30, ROWS = Math.ceil(H / 34) + 2;

@@ -5,12 +5,15 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 160; // ~5.3s
-const BG = '#0a0713';
+const BG_D0 = '#0a0713';
 
 export const MetaballMerge: React.FC<{title?: string; tagline?: string; accent?: string; accent2?: string}> = ({
   title: TITLE = 'Fluid', tagline: TAG = 'many drops, one flow', accent: ACC = '#ff4fa3', accent2: ACC2 = '#7a5bff'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2;

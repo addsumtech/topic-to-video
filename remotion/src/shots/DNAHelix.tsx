@@ -5,12 +5,15 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 160; // ~5.3s
-const BG = '#060a10', A_T = '#37e0ff', G_C = '#ff5b9e', STRAND = '#7fe9c8';
+const BG_D0 = '#060a10', A_T = '#37e0ff', G_C = '#ff5b9e', STRAND = '#7fe9c8';
 
 export const DNAHelix: React.FC<{title?: string; tagline?: string}> = ({
   title: TITLE = 'Encoded', tagline: TAG = 'the blueprint of it all'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, top = 150, bottom = H - 150, M = 48;

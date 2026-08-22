@@ -5,12 +5,14 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, lerp, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
 
 export const LarmorPrecession: React.FC<{accent?: string; accent2?: string; label?: string}> = ({
   accent = '#22d3ee', accent2 = '#a78bfa', label = 'Larmor precession', } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   const cx = W * 0.5, oy = H * 0.62, L = Math.min(W, H) * 0.32, tilt = 0.5;   // fixed tilt from B0
   const ell = 0.34;                                                            // perspective squash of the cone base
@@ -25,7 +27,7 @@ export const LarmorPrecession: React.FC<{accent?: string; accent2?: string; labe
   const A = (o: number) => `${accent}${Math.round(clamp01(o) * 255).toString(16).padStart(2, '0')}`;
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 50%, #0b1120, #05060a)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 50%, #0b1120, #05060a)')}}>
       <svg width={W} height={H} style={{position: 'absolute'}}>
         {/* B0 axis */}
         <line x1={cx} y1={oy - L * 1.2} x2={cx} y2={oy + L * 0.3} stroke={A(0.55)} strokeWidth={1.8} strokeDasharray="3 6" />

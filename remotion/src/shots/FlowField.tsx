@@ -6,9 +6,10 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 160; // ~5.3s
-const BG = '#070a14';
+const BG_D0 = '#070a14';
 
 // static field angle at a point — a smooth curl from summed sinusoids (deterministic, no state)
 const angleAt = (x: number, y: number) =>
@@ -17,6 +18,8 @@ const angleAt = (x: number, y: number) =>
 export const FlowField: React.FC<{title?: string; tagline?: string; accent?: string; accent2?: string; lines?: number}> = ({
   title: TITLE = 'In flow', tagline: TAG = 'everything, moving as one', accent: ACC = '#38e0c8',
   accent2: ACC2 = '#7a5bff', lines: LINES = 150} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const N = Math.max(20, Math.min(220, LINES));

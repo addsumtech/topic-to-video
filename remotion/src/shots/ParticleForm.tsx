@@ -5,11 +5,14 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeInOutCubic, easeOutBack, clamp01, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
-const ACC = '#3FA9FF';
+const ACC_D0 = '#3FA9FF';
 
 export const ParticleForm: React.FC<{label?: string}> = ({label = 'Done.'} = {}) => {
+  const dna = useDNA();
+  const ACC = dna?.accent ?? ACC_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2 - 30, N = 150;

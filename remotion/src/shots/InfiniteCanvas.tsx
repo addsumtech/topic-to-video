@@ -5,8 +5,11 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, lerp, easeInOutCubic, easeOutBack, seg, clamp01, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
+// LEVEL-C: the Miro/Figjam board flips to a DARK canvas on a dark DNA (ground/grid/connectors/hub → DNA); the
+// pastel STICKIES + their dark text stay (colourful stickies are the board's identity, and pop on any ground).
 const STICKY = ['#FFD666', '#FFA8C5', '#8FC7FF', '#A9E5A0', '#C6B0FF', '#FFC48A'];
 const WORLD_W = 3600, WORLD_H = 2200;
 
@@ -15,10 +18,13 @@ type Node = {x: number; y: number; w: number; h: number; text: string; c: string
 export const InfiniteCanvas: React.FC<{hub?: string; items?: string[]}> = ({
   hub: hubText = 'Q3 Board Deck',
   items: labels = ['Market scan', 'Financials', 'Narrative', 'Slide design', 'Appendix', 'Review', 'Export', 'Sources']} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? '#f6f4ec', LINE = dna?.line ?? '#d8d2c2', LINE2 = dna?.line ?? '#c9c2b0';
+  const SURF = dna?.surface ?? '#ffffff', SURFB = dna?.line ?? '#e3ddcb', FG = dna?.fg ?? '#1b2333';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   // a central hub + branches (a project mapped out); positions deterministic on the big world
-  const hub: Node = {x: WORLD_W / 2 - 210, y: WORLD_H / 2 - 120, w: 420, h: 240, text: hubText, c: '#1b2333'};
+  const hub: Node = {x: WORLD_W / 2 - 210, y: WORLD_H / 2 - 120, w: 420, h: 240, text: hubText, c: FG};
   const nodes: Node[] = labels.map((text, i) => {
     const ang = (i / labels.length) * Math.PI * 2 + 0.4;
     const rad = 620 + hash01(i) * 260;
@@ -32,17 +38,17 @@ export const InfiniteCanvas: React.FC<{hub?: string; items?: string[]}> = ({
     transformOrigin: '0 0', transform: `translate(${W / 2 - fx * z}px, ${H / 2 - fy * z}px) scale(${z})`};
   const cx = hub.x + hub.w / 2, cy = hub.y + hub.h / 2;
   return (
-    <AbsoluteFill style={{background: '#f6f4ec'}}>
+    <AbsoluteFill style={{background: BG}}>
       <div style={world}>
         {/* dot grid */}
         <svg width={WORLD_W} height={WORLD_H} style={{position: 'absolute', inset: 0, opacity: 0.5}}>
-          {[...Array(45)].map((_, gx) => [...Array(28)].map((_, gy) => <circle key={`${gx}-${gy}`} cx={gx * 80 + 30} cy={gy * 80 + 30} r={2} fill="#d8d2c2" />))}
+          {[...Array(45)].map((_, gx) => [...Array(28)].map((_, gy) => <circle key={`${gx}-${gy}`} cx={gx * 80 + 30} cy={gy * 80 + 30} r={2} fill={LINE} />))}
         </svg>
         {/* connectors hub→node */}
         <svg width={WORLD_W} height={WORLD_H} style={{position: 'absolute', inset: 0}}>
           {nodes.map((n, i) => {
             const grow = clamp01((zt - 0.05 - i * 0.02) / 0.3);
-            return <line key={i} x1={cx} y1={cy} x2={lerp(cx, n.x + n.w / 2, grow)} y2={lerp(cy, n.y + n.h / 2, grow)} stroke="#c9c2b0" strokeWidth={3} />;
+            return <line key={i} x1={cx} y1={cy} x2={lerp(cx, n.x + n.w / 2, grow)} y2={lerp(cy, n.y + n.h / 2, grow)} stroke={LINE2} strokeWidth={3} />;
           })}
         </svg>
         {/* branch stickies */}
@@ -54,8 +60,8 @@ export const InfiniteCanvas: React.FC<{hub?: string; items?: string[]}> = ({
             font: '700 40px/1.15 Inter,system-ui,sans-serif', color: '#3a3320', textAlign: 'center', padding: 20}}>{n.text}</div>;
         })}
         {/* the hub */}
-        <div style={{position: 'absolute', left: hub.x, top: hub.y, width: hub.w, height: hub.h, background: '#ffffff',
-          border: '2px solid #e3ddcb', borderRadius: 18, boxShadow: '0 26px 60px rgba(80,70,40,.2)', display: 'flex',
+        <div style={{position: 'absolute', left: hub.x, top: hub.y, width: hub.w, height: hub.h, background: SURF,
+          border: `2px solid ${SURFB}`, borderRadius: 18, boxShadow: '0 26px 60px rgba(80,70,40,.2)', display: 'flex',
           alignItems: 'center', justifyContent: 'center', font: '800 56px/1.1 Inter,system-ui,sans-serif', color: hub.c, textAlign: 'center', padding: 24}}>{hub.text}</div>
       </div>
     </AbsoluteFill>

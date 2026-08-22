@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 const BG1 = '#26313f', BG2 = '#3a4a5e';
@@ -12,13 +13,14 @@ const BG1 = '#26313f', BG2 = '#3a4a5e';
 export const RainGlass: React.FC<{title?: string; tagline?: string; accent?: string}> = ({
   title: TITLE = 'Weather it', tagline: TAG = 'calm behind the storm', accent: ACC = '#9fd0ff'} = {}) => {
   const t = useT();
+  const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const sharpen = easeOutCubic(seg(t, 0.3, 0.8));
   const blur = lerp(22, 2, sharpen);
   const titleIn = easeOutCubic(seg(t, 0.28, 0.6));
   const streaks = 46, drops = 60;
   return (
-    <AbsoluteFill style={{background: `linear-gradient(160deg, ${BG1}, ${BG2})`, overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? (`linear-gradient(160deg, ${BG1}, ${BG2})`), overflow: 'hidden'}}>
       {/* soft-focus scene behind the glass (blurred bokeh + the message) */}
       <div style={{position: 'absolute', inset: 0, filter: `blur(${blur}px)`}}>
         <div style={{position: 'absolute', inset: 0,

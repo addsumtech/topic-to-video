@@ -185,10 +185,41 @@ analogue of the html tier's `theme.css`). Reuse the structural idea, **never** c
   rename a module `const ACC='…'` → `ACC0`, add `const dna = useDNA(); const ACC = dna?.accent ?? ACC0;` so every
   downstream use inherits it). **B — add DNA cues:** render 2–3 shared grammar cues from `runtime/dna.tsx`
   (`Caret`, `Breadcrumb`, `ScanGrid`, `StatusTag`, a `▸` prompt on the heading) — inert unless the DNA declares
-  them. **C — rebuild:** only when the structure fundamentally clashes (a serif cinematic flare, a chrome word) —
-  restyle it into the DNA (e.g. mono title + green-tinted chrome) or swap to a DNA-native register. **Watch for a
-  TDZ:** put `const dna = useDNA()` + any derived palette BEFORE the first use (a `const NODES = …PALETTE…` above
-  it breaks).
+  them. **C — rebuild:** when the structure fundamentally clashes (a serif cinematic flare, a chrome word) OR the
+  shot is a LIGHT-ground register (the codemod skips those) — restyle it into the DNA or swap to a DNA-native
+  register. The level-C pattern for a light-ground shot is **flip the WHOLE palette together**: derive `bg`/`fg`/
+  `accent`/`surface`/`onAccent` (+ `dim`/`line`) from the DNA with the originals as fallbacks, and route EVERY
+  ground, panel, ink and on-accent-text through them — so on a dark DNA the shot becomes a coherent dark version
+  (readable) instead of light-ink-on-light-ground (the level-A inversion), and null DNA is byte-for-byte the
+  original. Worked examples: `SwissEditorial.tsx` (a cream/ink/red poster → a dark editorial poster; the red ticker
+  band's text uses `onAccent`) and `ChatThread.tsx` (a light chat → a dark chat; the "you" bubble is `accent` with
+  `onAccent` text, the assistant bubble is `surface` with `fg` text — and the module-scope `Bubble` subcomponent
+  reads `useDNA` itself), `BlueprintGrid.tsx` (white graph paper → a dark engineering drawing; `paper→bg`, `ink→fg`,
+  `grid→line`; the `Draw` subcomponent reads `useDNA` and derives its default stroke INSIDE — a param default can't
+  reference the renamed const), and `RisoPrint.tsx` (its look is `multiply`-on-paper, which goes black-on-black on a
+  dark DNA — so it switches the blend to `screen` (ink ADDS light on the dark ground) with the two DNA accents as
+  the channels: when a shot's LOOK depends on a blend mode or a light ground, level-C adapts the TECHNIQUE, not just
+  the tokens). **Watch for a TDZ:** put `const dna = useDNA()` + any derived palette BEFORE the first use
+  (a `const NODES = …PALETTE…` above it breaks).
+- **Migration tooling + the gate that makes gaps non-silent.** The library is migrated INCREMENTALLY (100+ shots),
+  so the risk is a half-migrated library silently shipping an un-migrated register on a themed film. Three tools:
+  (1) **`python scripts/dna_audit.py`** — self-updating (greps the shots for `useDNA`) worklist of which registered
+  shots are DNA-aware vs still hardcoded, grouped by family; never a manual manifest that rots. (2) **`validate.py`
+  lint** — on a DNA-THEMED film (a `design_dna` or a preset `shot_template`), every scene whose `shot` never reads
+  `useDNA` WARNs (renders its own palette, breaking the global system) — so a gap surfaces instead of shipping
+  wrong. (3) **`python scripts/dna_migrate.py <ShotId>…`** — a CONSERVATIVE shadow-trick codemod for the CLEAN
+  pattern (named module colour consts + a single top-level component); it SKIPS anything it can't do safely
+  (module-scope sibling subcomponents, computed/inline-only palettes, style-locked registers like a synthwave
+  scene) and leaves those byte-identical for hand migration. It does LEVEL A only — after it, RENDER each migrated
+  shot under a themed DNA and LOOK (a green codemod is not a correct look; level-A recolours named tokens but a
+  shot with many inline hardcoded colours or an accent-as-prop-default needs a level-B hand pass). **The codemod
+  only migrates DARK-ground shots (`shotLuma` == 'dark').** Mechanically recolouring a LIGHT/mid-ground shot onto a
+  dark DNA INVERTS its contrast — it maps ink→`fg` (now light) while the usually-inline light ground stays put, so
+  text renders light-on-light (invisible). Light-ground registers (a chat UI, a swiss/editorial spread, a blueprint
+  on white paper, a riso/halftone print) are level-C HAND rebuilds — flip the whole ground + panels, or leave them
+  un-migrated (the lint honestly flags them) and don't pick them for a dark-themed film. **New style-
+  native family shots + Term*/Ed* must also be added to `runtime/shotLuma.ts` (ground luminance) and
+  `shot_director.FAMILY` (variety) — a `tests/test_remotion.py` gate fails if either is missing.**
 - **Consistency ≠ repetition.** The DNA does NOT make every frame a terminal window — a metric/chart/diagram beat
   inherits the type + palette + motion + 2–3 cues, it does NOT become a black-green box. Record the cues in
   `shot_adaptation.theme_cues`; **shot-critic S11** audits per-frame coverage + the FINAL TEST (remove the obvious
@@ -215,7 +246,13 @@ analogue of the html tier's `theme.css`). Reuse the structural idea, **never** c
   Motion grammar** — reveal via `command → execute → result`: a `$ eval` line types + runs, THEN the figure/chart/
   diagram grows out as the OUTPUT (the output need NOT be in a box). The shared `runtime/dna.tsx` **`TermFrame`**
   implements this: `framed` = the explicit window (anchors only), default = OPEN (typed command line → result on
-  open canvas). A terminal-native shot uses `TermFrame` and provides its content; DEFAULT to open.
+  open canvas). A terminal-native shot uses `TermFrame` and provides its content; DEFAULT to open. **The motion
+  layer also lives in the SEAMS + the reveal CHARACTER (built in Film.tsx / dna.tsx):** an UNMARKED cut becomes the
+  DNA's native action via `dnaDefaultSeam` (terminal → a `screenClear` — a bg dip + an accent scanline sweep, i.e.
+  the console redrawing; product → a push; editorial/blueprint → a page/sheet wipe), luminance-safe, with explicit
+  chapter marks still winning; and `dna.motion` (`type`/`execute`/`smooth`/`mechanical`) sets the reveal CHARACTER
+  (terminal results POP out, product eases, blueprint steps). So a themed film's cuts + reveals belong to its
+  world, not a generic fade — the analogue of the surface/grammar split, for TIME.
 - **STYLE ASSIMILATION gate (run per shot before implementing).** Take the shot's content idea and deliberately
   TRANSLATE it into the active DNA across ≥2-3 of: typography · layout (style logic, not a generic slide) ·
   components (panels/labels/dividers/status primitives) · motion (enter/transform per the motion grammar) ·
@@ -236,10 +273,20 @@ analogue of the html tier's `theme.css`). Reuse the structural idea, **never** c
   - **Session chrome** — terminal's is `TerminalChrome` (a `~/path ▸` breadcrumb, gated on the DNA's
     `breadcrumb` decoration so it's inert for other styles). Another style may have its own persistent frame
     element (a running header / a page-number) or none.
-  - **Style-native component family** — terminal ships `Term*` (TermBars/Tree/Log/GitLog/Think/Counter/Table/
-    Diff) as the exemplar of "the metric/list/lineage/contrast idea, rebuilt in the style." For a style with NO
-    family yet, either build one the same way, OR use the library registers reading the DNA tokens + the
-    three-layer discipline — never a reskinned generic component (that fails the reject rule).
+  - **Style-native component family** — a small set of shots that rebuild "the metric / list / lineage / contrast
+    idea" natively in the style. TWO families ship as worked exemplars, and they are the pattern to copy:
+    - **terminal → `Term*`** (TermBars/Tree/Log/GitLog/Think/Counter/Table/Diff) on `TermFrame` — a value counts up
+      as a command *executes*, a list is a `tree`/`ls`, a diff is `+/-` gutters.
+    - **editorial → `Ed*`** (EdStat / EdTimeline / EdCompare) on `EdFrame` — the SAME ideas as a magazine feature:
+      a pull-stat is a huge serif figure + kicker + rule; a lineage is a ruled dated chronology; a contrast is a
+      two-column spread with a dimmed foil vs a hero column. Reveals *ease* (never type/execute).
+    Building a new family = the same recipe: one `<Style>Frame` (its surface + open-canvas grammar + DNA-keyed
+    reveal character) + 2-4 shots reading `useDNA()`, each the native rebuild of a content shape — see EdStat/
+    EdTimeline/EdCompare (`src/shots/Ed*.tsx`) as the reference implementation. A **display shot that shows a big
+    number must be WIDTH-AWARE** (size the figure by its final string length; EdStat learned this when 5,000,000
+    ran off-frame) so it holds for real values, not just the short demo default. For a style with NO family yet,
+    build one this way OR use the library registers reading the DNA tokens + the three-layer discipline — never a
+    reskinned generic component (that fails the reject rule).
 
 ## D · Selecting the direction — show VIDEO samples, not text or a single still
 

@@ -6,8 +6,9 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
-const BG = '#0a0c12';
+const BG_D0 = '#0a0c12';
 const TONES = ['#5b8cff', '#ff6f91', '#37d4a6', '#f6a531', '#c07bff'];
 export const DURATION = 150; // 5s
 
@@ -35,6 +36,8 @@ const Widget: React.FC<{kind: number; c: string; g: number}> = ({kind, c, g}) =>
 export const BentoReveal: React.FC<{title?: string; hero?: string; items?: string[]}> = ({
   title: TITLE = 'WorkBuddy', hero: HEROSUB = 'your workspace, assembled', items: ITEMS =
     ['Throughput', 'Coverage', 'Trend', 'Signals', 'Team', 'Auto-sync']} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const pad = 120, gap = 22;

@@ -5,12 +5,15 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
-const BG = '#0b0402';
+const BG_D0 = '#0b0402';
 
 export const EmberFlame: React.FC<{title?: string; tagline?: string}> = ({
   title: TITLE = 'Ignite', tagline: TAG = 'built with fire'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, baseY = H * 0.66;

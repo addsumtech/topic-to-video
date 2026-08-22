@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
 
@@ -14,6 +15,7 @@ export const RealVersus: React.FC<{srcLeft?: string; srcRight?: string; labelLef
   srcLeft, srcRight, labelLeft = '', labelRight = '', title = '', credit = '', accent = '#22d3ee',
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   const S = Math.min(H * 0.5, W * 0.32);                    // each panel square
   const gap = 90, cx = W / 2;
@@ -33,7 +35,7 @@ export const RealVersus: React.FC<{srcLeft?: string; srcRight?: string; labelLef
   );
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 46%, #0b1120, #05060a)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 46%, #0b1120, #05060a)')}}>
       {title ? <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
         color: '#c9d6ea', font: "600 26px/1.1 'JetBrains Mono', monospace", letterSpacing: '0.18em',
         textTransform: 'uppercase', opacity: lerp(0.4, 1, clamp01(t * 4))}}>{title}</div> : null}

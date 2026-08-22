@@ -5,13 +5,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutBack, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 140; // ~4.7s
-const BG = '#0a0c13', ACC = '#5b8cff';
+const BG_D0 = '#0a0c13', ACC_D0 = '#5b8cff';
 
 export const CrashZoom: React.FC<{items?: string[]; label?: string; target?: number; title?: string}> = ({
   items: ITEMS = ['Inbox', 'Docs', 'Tasks', 'Chat', 'Focus', 'Data', 'Code', 'Team', 'Calls'],
   label: LABEL = 'One place for all of it', target: TARGET = 4, title: TITLE = 'Your workspace'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0, ACC = dna?.accent ?? ACC_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cols = 3, rows = Math.ceil(ITEMS.length / cols);

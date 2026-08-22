@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 180; // 6s
 
@@ -13,6 +14,7 @@ export const InducedFID: React.FC<{accent?: string; accent2?: string; label?: st
   accent = '#22d3ee', accent2 = '#a78bfa', label = 'The induced signal decays',
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   const midY = H * 0.52;
   const x0 = W * 0.16, x1 = W * 0.86, span = x1 - x0;
@@ -40,7 +42,7 @@ export const InducedFID: React.FC<{accent?: string; accent2?: string; label?: st
   const A = (o: number) => `${accent}${Math.round(clamp01(o) * 255).toString(16).padStart(2, '0')}`;
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 48%, #0b1120, #05060a)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 48%, #0b1120, #05060a)')}}>
       <svg width={W} height={H} style={{position: 'absolute'}}>
         {/* decay envelope */}
         <polyline points={envTop.join(' ')} fill="none" stroke={accent2} strokeWidth={1.3} strokeDasharray="2 7" opacity={0.4} />

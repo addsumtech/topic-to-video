@@ -5,11 +5,13 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, clamp01, seg, lerp} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 160; // ~5.3s
 
 export const AnalogTape: React.FC<{title?: string; tagline?: string}> = ({title: TITLE = 'WorkBuddy', tagline: TAGLINE = 'ON YOUR MACHINE'} = {}) => {
   const t = useT();
+  const dna = useDNA();
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
   const jit = Math.sin(frame * 0.9) * 1.6 + Math.sin(frame * 2.3) * 0.8; // tape wobble (px)
@@ -29,7 +31,7 @@ export const AnalogTape: React.FC<{title?: string; tagline?: string}> = ({title:
   );
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 42%, #4a2f18 0%, #241408 46%, #0b0704 100%)', overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 42%, #4a2f18 0%, #241408 46%, #0b0704 100%)'), overflow: 'hidden'}}>
       {/* content with RGB chromatic split (three offset copies) */}
       <Title dx={-split} color="#ff3b3b" blend="screen" />
       <Title dx={split} color="#38f0ff" blend="screen" />

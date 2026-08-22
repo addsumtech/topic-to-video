@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 import {captionBand} from '../runtime/layout';
 
 export const DURATION = 170; // ~5.7s
@@ -15,6 +16,7 @@ export const OpenQuestions: React.FC<{kicker?: string; questions?: string[]; acc
   accent = '#10a37f', footer = 'still unresolved',
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   const qs = questions.slice(0, 4);
   const n = qs.length;
@@ -23,7 +25,7 @@ export const OpenQuestions: React.FC<{kicker?: string; questions?: string[]; acc
   const scanY = lerp(topY - stepY * 0.5, topY + stepY * (n - 0.5), scanProg);
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 30%, #0d1119, #05060a 70%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 30%, #0d1119, #05060a 70%)')}}>
       {/* kicker */}
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center', opacity: clamp01(t * 5),
         color: '#8f9bb0', font: '600 26px/1 "JetBrains Mono", monospace', letterSpacing: '0.34em', textTransform: 'uppercase'}}>{kicker}</div>

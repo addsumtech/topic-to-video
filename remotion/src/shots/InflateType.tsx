@@ -5,13 +5,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
-const BG = '#0e1030';
+const BG_D0 = '#0e1030';
 const TONES = ['#ff6f9d', '#5b8cff', '#ffd24d', '#37e0c8', '#c07bff', '#ff8a4d'];
 
 export const InflateType: React.FC<{word?: string; tagline?: string}> = ({
   word: WORD = 'PUFFY', tagline: TAG = 'soft, bold, dimensional'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const letters = WORD.split('');

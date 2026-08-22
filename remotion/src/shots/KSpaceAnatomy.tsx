@@ -7,6 +7,7 @@
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 175; // ~5.8s
 
@@ -15,6 +16,7 @@ export const KSpaceAnatomy: React.FC<{srcK?: string; srcLow?: string; srcHigh?: 
   srcK, srcLow, srcHigh, accent = '#22d3ee', accent2 = '#a78bfa', label = 'Reading k-space', credit = '',
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   // phase A (center→contrast) then phase B (edges→detail)
   const pA = clamp01(seg(t, 0.12, 0.34));
@@ -31,7 +33,7 @@ export const KSpaceAnatomy: React.FC<{srcK?: string; srcLow?: string; srcHigh?: 
   );
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 44%, #0b1120, #05060a)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 44%, #0b1120, #05060a)')}}>
       {/* k-space (grayscale FFT magnitude) */}
       {panel(kx, ky, K, srcK, `${accent}66`, 1)}
       <svg width={W} height={H} style={{position: 'absolute', left: 0, top: 0}}>

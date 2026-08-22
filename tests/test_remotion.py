@@ -125,8 +125,9 @@ def test_shots_are_deterministic():
 
 
 def test_registry_in_sync_with_shot_files():
-    # every shot file is a valid id, and the count matches the assertion below (the whole library)
-    assert len(_SHOT_IDS) == 123, _SHOT_IDS
+    # every shot file is a valid id, and the count matches the assertion below (the whole library).
+    # 123 base + 8 terminal-native (Term*) + 3 editorial-native (Ed*) style-native family shots = 134.
+    assert len(_SHOT_IDS) == 134, _SHOT_IDS
     assert rr._remotion_shot_ids() == _SHOT_IDS
     # the FAMILY map covers every shot (shot_director can place any of them)
     missing = _SHOT_IDS - set(sd.FAMILY)
@@ -299,11 +300,13 @@ def test_validate_contest_shape_and_winner():
     d["meta"]["shot_template_contest"] = {"candidates": ["data-story", "product-demo"],
                                           "winner": "product-demo", "user_pick": True}
     assert any("winner" in e for e in v.evaluate(d, "/tmp")["errors"])
-    # well-formed contest -> clean
+    # well-formed contest -> no CONTEST-shape complaint. (Scope the grep to contest warnings: a non-DNA template
+    # like "data-story" also draws the orthogonal "NO Design DNA" warning — which legitimately contains the word
+    # shot_template — and that's a separate gate this test isn't about.)
     d["meta"]["shot_template_contest"] = {"candidates": ["data-story", "product-demo", "kinetic-editorial"],
                                           "winner": "data-story", "user_pick": True}
     r = v.evaluate(d, "/tmp")
-    assert r["ok"] and not any("shot_template" in w for w in r["warnings"]), r["warnings"]
+    assert r["ok"] and not any("shot_template_contest" in w for w in r["warnings"]), r["warnings"]
 
 
 def test_contest_frame_within_every_hero_duration():

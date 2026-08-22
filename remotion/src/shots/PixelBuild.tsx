@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 // pixel checkmark grid ('#' = lit)
@@ -25,6 +26,7 @@ const PX = 46;
 
 export const PixelBuild: React.FC<{label?: string}> = ({label = 'WORKBUDDY · COMPLETE'} = {}) => {
   const t = useT();
+  const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const cols = GRID[0].length, rows = GRID.length;
   const gw = cols * PX, gh = rows * PX;
@@ -33,7 +35,7 @@ export const PixelBuild: React.FC<{label?: string}> = ({label = 'WORKBUDDY · CO
   const banner = easeOutBack(seg(t, 0.7, 0.9));
 
   return (
-    <AbsoluteFill style={{background: '#0b0f2a', overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('#0b0f2a'), overflow: 'hidden'}}>
       {/* HUD */}
       <div style={{position: 'absolute', left: 60, top: 44, color: '#ffe14d', font: '700 42px/1 "Press Start 2P", "VT323", monospace', letterSpacing: '0.04em'}}>SCORE 9999</div>
       <div style={{position: 'absolute', right: 60, top: 44, color: '#ff5b7f', font: '700 42px/1 "VT323", monospace', letterSpacing: '0.04em'}}>1UP ▪▪▪</div>

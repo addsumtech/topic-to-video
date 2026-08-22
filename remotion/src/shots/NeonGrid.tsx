@@ -5,11 +5,14 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 160; // ~5.3s
-const MAG = '#ff2d95', CYAN = '#22e3ff';
+const MAG_D0 = '#ff2d95', CYAN_D0 = '#22e3ff';
 
 export const NeonGrid: React.FC<{title?: string; tagline?: string}> = ({title: TITLE = 'WORKBUDDY', tagline: TAGLINE = 'ON YOUR MACHINE'} = {}) => {
+  const dna = useDNA();
+  const MAG = dna?.accent ?? MAG_D0, CYAN = dna?.accent2 ?? CYAN_D0;
   const t = useT();
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();

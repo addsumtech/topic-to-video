@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 180; // 6s
 const SERIF = "'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif";
@@ -14,6 +15,7 @@ export const CompressedSensingEq: React.FC<{accent?: string; accent2?: string; l
   accent = '#22d3ee', accent2 = '#a78bfa', label = 'Compressed sensing',
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   const eqY = H * 0.46;
   const app = clamp01(seg(t, 0.08, 0.4));                   // the equation writes in
@@ -23,7 +25,7 @@ export const CompressedSensingEq: React.FC<{accent?: string; accent2?: string; l
   const span = (txt: string, color: string, o = 1) => <span style={{color, opacity: o}}>{txt}</span>;
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 44%, #0b1120, #05060a)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 44%, #0b1120, #05060a)')}}>
       {/* the equation */}
       <div style={{position: 'absolute', left: 0, right: 0, top: eqY, textAlign: 'center', opacity: app,
         font: `400 92px/1.1 ${SERIF}`, color: '#eef4fb', letterSpacing: '0.01em'}}>

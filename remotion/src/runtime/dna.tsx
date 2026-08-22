@@ -254,7 +254,11 @@ export const TermFrame: React.FC<{dna: DesignDNA | null; cmd?: string; t: number
     const typed = Math.round(chars.length * clamp01((t - 0.05) / Math.max(0.06, runAt - 0.09)));
     const shown = chars.slice(0, typed).join('');
     const running = typed >= chars.length;
-    const resIn = clamp01((t - runAt) / 0.12);
+    // MOTION grammar: the result reveals in the DNA's motion CHARACTER — a terminal 'type'/'execute' result POPS
+    // out (snappy settle, like a command finishing), 'mechanical' steps in, 'smooth' eases (product/editorial).
+    const raw = clamp01((t - runAt) / 0.12);
+    const resIn = d.motion === 'type' || d.motion === 'execute' ? 1 - Math.pow(1 - raw, 4)
+      : d.motion === 'mechanical' ? Math.round(raw * 5) / 5 : 1 - Math.pow(1 - raw, 3);
 
     if (framed) {
       return (
@@ -283,6 +287,34 @@ export const TermFrame: React.FC<{dna: DesignDNA | null; cmd?: string; t: number
           display: 'flex', flexDirection: 'column', alignItems: align === 'left' ? 'flex-start' : 'center'}}>{children}</div>
       </div>
     );
+  };
+
+// EDFRAME — the EDITORIAL analogue of TermFrame (proves the three-layer model generalises past terminal). Its
+// grammar is print, not CLI: a small uppercase letter-spaced KICKER + a hairline RULE + a serif headline zone,
+// generous margins, smooth typographic reveals. `framed` = a heavier "cover/spread" surface (a ruled border) for
+// the 2-3 anchor beats; default = OPEN (kicker + rule + content on the paper-dark ground). Reveals ease (the
+// editorial DNA's motion is 'smooth'), never type/execute. Use it exactly like TermFrame, for editorial shots.
+export const EdFrame: React.FC<{dna: DesignDNA | null; kicker?: string; t: number; framed?: boolean;
+  align?: 'center' | 'left'; children?: React.ReactNode}> =
+  ({dna, kicker = '', t, framed = false, align = 'left', children}) => {
+    const d = dna ?? NEUTRAL_DNA;
+    const disp = d.fontDisplay, acc = d.accent, dim = d.dim, ls = d.labelSpacing || '0.18em';
+    const kIn = clamp01(t / 0.14), ruleIn = clamp01((t - 0.08) / 0.18), bodyIn = 1 - Math.pow(1 - clamp01((t - 0.16) / 0.24), 3);
+    const inner = (
+      <div style={{width: 'min(84vw, 1300px)', display: 'flex', flexDirection: 'column',
+        alignItems: align === 'left' ? 'flex-start' : 'center', textAlign: align,
+        padding: framed ? '60px 72px' : 0, border: framed ? `1px solid ${d.surfaceBorder}` : 'none',
+        background: framed ? d.surface : 'transparent'}}>
+        {kicker ? <div style={{color: acc, font: `700 26px/1 ${d.fontBody}`, letterSpacing: ls,
+          textTransform: d.uppercaseLabels ? 'uppercase' : 'none', opacity: kIn,
+          transform: `translateY(${(1 - kIn) * -8}px)`}}>{kicker}</div> : null}
+        <div style={{height: 2, background: acc, width: `${ruleIn * (align === 'left' ? 120 : 90)}px`,
+          margin: `${kicker ? 22 : 0}px 0 40px`, opacity: 0.9}} />
+        <div style={{opacity: bodyIn, transform: `translateY(${(1 - bodyIn) * 20}px)`, width: '100%',
+          fontFamily: disp}}>{children}</div>
+      </div>
+    );
+    return inner;
   };
 
 // A small status tag, e.g. "PASS" / "DONE" — a LEVEL-2 cue for a shot's result state.

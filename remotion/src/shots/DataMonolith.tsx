@@ -6,13 +6,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 160; // ~5.3s
-const BG = '#06070e', ACC = '#4db8ff', ACC2 = '#a06bff';
+const BG_D0 = '#06070e', ACC_D0 = '#4db8ff', ACC2_D0 = '#a06bff';
 
 export const DataMonolith: React.FC<{items?: string[]; title?: string; hero?: number}> = ({
   items: ITEMS = ['Docs', 'Chat', 'Tasks', 'Data', 'Code', 'Calls', 'Team'],
   title: TITLE = 'Everything, to scale', hero: HERO = 3} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0, ACC = dna?.accent ?? ACC_D0, ACC2 = dna?.accent2 ?? ACC2_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const towers = ITEMS.slice(0, 9);
@@ -50,7 +53,7 @@ export const DataMonolith: React.FC<{items?: string[]; title?: string; hero?: nu
         const grow = easeOutExpo(clamp01(seg(t, 0.14 + i * 0.06, 0.5 + i * 0.06)));
         const th = maxH * (isHero ? Math.max(0.9, hFrac) : hFrac) * grow;
         const x = x0 + i * (bandW + gap);
-        const tone = isHero ? ACC : i % 2 ? ACC2 : '#3a6ad0';
+        const tone = isHero ? ACC : i % 2 ? ACC2 : (dna?.dim ?? '#3a6ad0');   // non-hero even bars → DNA dim (was a fixed blue that clashed on a themed film)
         const pulse = isHero && t > 0.6 ? 1 + 0.04 * Math.max(0, Math.sin((t - 0.6) * 9)) : 1;
         return (
           <div key={i}>

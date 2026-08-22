@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
 const WARN = '#ff5d6c';
@@ -14,6 +15,7 @@ export const SpeedLimit: React.FC<{accent?: string; label?: string}> = ({
   accent = '#22d3ee', label = "You can't just go faster",
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   const bx = W * 0.5, trackTop = H * 0.26, trackBot = H * 0.74, trackH = trackBot - trackTop;
   const hwY = trackTop + trackH * 0.28;                     // hardware ceiling (the binding one)
@@ -24,7 +26,7 @@ export const SpeedLimit: React.FC<{accent?: string; label?: string}> = ({
   const shake = blocked ? Math.sin(t * 60) * 2 : 0;
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 42%, #0b1120, #05060a)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 42%, #0b1120, #05060a)')}}>
       <svg width={W} height={H} style={{position: 'absolute'}}>
         <rect x={bx - 46} y={trackTop} width={92} height={trackH} rx={12} fill="#0a1424" stroke={`${accent}44`} strokeWidth={1.4} />
         <rect x={bx - 40 + shake} y={topY} width={80} height={trackBot - topY} rx={9} fill={blocked ? WARN : accent} opacity={0.9} />

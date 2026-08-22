@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
 const CY = '#3fe0ff';
@@ -12,6 +13,7 @@ const D2R = Math.PI / 180;
 
 export const WireGlobe: React.FC<{tagline?: string}> = ({tagline = 'connected to everything'} = {}) => {
   const t = useT();
+  const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2, R = 340;
   const rotY = t * 55 * D2R + 0.6; // spin
@@ -41,7 +43,7 @@ export const WireGlobe: React.FC<{tagline?: string}> = ({tagline = 'connected to
   const arcs: [number, number][] = [[0, 2], [1, 4], [3, 5], [2, 4]];
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 42%, #081426 0%, #050a16 60%, #03060e 100%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 42%, #081426 0%, #050a16 60%, #03060e 100%)')}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <defs><filter id="wg"><feGaussianBlur stdDeviation="5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
           <radialGradient id="atmo"><stop offset="0.72" stopColor="#0a1830" stopOpacity="0" /><stop offset="1" stopColor={CY} stopOpacity="0.28" /></radialGradient></defs>

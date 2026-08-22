@@ -5,11 +5,14 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeInOutCubic, easeOutCubic, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
-const NAVY = '#081726', CYAN = '#43C4E8', LINE = '#1f5f7d';
+const NAVY = '#081726', CYAN_D0 = '#43C4E8', LINE_D0 = '#1f5f7d';
 export const ExplodedSchematic: React.FC<{items?: string[]}> = ({
   items: STAGES = ['Instruction', 'Planner', 'Experts ×100', 'Your tools', 'Deliverable']} = {}) => {
+  const dna = useDNA();
+  const CYAN = dna?.accent ?? CYAN_D0, LINE = dna?.line ?? LINE_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const ex = easeInOutCubic(seg(t, 0.14, 0.62)); // explode progress

@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, lerp, clamp01, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 180; // 6s
 
@@ -12,6 +13,7 @@ export const SpinningProton: React.FC<{accent?: string; accent2?: string; label?
   accent = '#22d3ee', accent2 = '#a78bfa', label = 'A proton that spins like a tiny magnet',
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   const cx = W * 0.5, cy = H * 0.5 - 10, R = Math.min(W, H) * 0.075;
   const spin = t * Math.PI * 8;                              // the proton's spin
@@ -34,7 +36,7 @@ export const SpinningProton: React.FC<{accent?: string; accent2?: string; label?
   }
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 46%, #0b1120, #05060a)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 46%, #0b1120, #05060a)')}}>
       <svg width={W} height={H} style={{position: 'absolute'}}>
         {waters}
         {loops}

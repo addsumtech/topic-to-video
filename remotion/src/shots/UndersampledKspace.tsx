@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 180; // 6s
 
@@ -13,6 +14,7 @@ export const UndersampledKspace: React.FC<{accent?: string; accent2?: string; la
   accent = '#22d3ee', accent2 = '#a78bfa', label = 'Reconstruct from far fewer lines', keep = 6,
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   const gx = W * 0.16, gw = W * 0.68, gy = H * 0.2, gh = H * 0.52;   // k-space grid box
   const nLines = 42;
@@ -34,7 +36,7 @@ export const UndersampledKspace: React.FC<{accent?: string; accent2?: string; la
   const scans = Math.round(lerp(0, 167, clamp01(seg(t, 0.2, 0.85))));
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 40%, #0b1120, #05060a)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 40%, #0b1120, #05060a)')}}>
       <svg width={W} height={H} style={{position: 'absolute'}}>
         <rect x={gx - 14} y={gy - 14} width={gw + 28} height={gh + 28} rx={10} fill="none" stroke={accent} strokeWidth={1.4} opacity={0.35} />
         {lines}

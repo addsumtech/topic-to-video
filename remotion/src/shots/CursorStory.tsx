@@ -5,9 +5,10 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeCursor, easeOutBack, easeOutCubic, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 135; // 4.5s
-const RED = '#FF6B6B', BG = '#0d1017';
+const RED_D0 = '#FF6B6B', BG_D0 = '#0d1017';
 const DEFAULT_ROWS = ['Weekly report', 'Invoice batch', 'Q3 numbers', 'Vendor list', 'Meeting notes', 'Launch copy'];
 
 // cursor position along waypoints at a given (possibly past) time — used for the trail ghosts too.
@@ -23,6 +24,8 @@ function cursorAt(tt: number, W: number, H: number): [number, number] {
 }
 
 export const CursorStory: React.FC<{items?: string[]}> = ({items: ROWS = DEFAULT_ROWS} = {}) => {
+  const dna = useDNA();
+  const RED = dna?.accent ?? RED_D0, BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const [cx, cy] = cursorAt(t, W, H);

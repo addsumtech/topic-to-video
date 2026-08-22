@@ -6,19 +6,29 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
-const INK = '#1a2230', FAINT = '#c9d2de', ACC = '#2e6bff', MONO = '"JetBrains Mono", ui-monospace, monospace';
+// LEVEL-C: the whole blueprint flips with the DNA (paper→bg, ink→fg, grid→line, accent) so on a dark DNA it reads
+// as a dark engineering drawing instead of pale strokes on white (inversion). Draw + the main component each read
+// useDNA (Draw's stroke default can't reference the renamed const from the param scope — it derives inside).
+const INK0 = '#1a2230', FAINT0 = '#c9d2de', ACC0 = '#2e6bff', MONO = '"JetBrains Mono", ui-monospace, monospace';
 
 // stroke that draws itself over [a,b]
 const Draw: React.FC<{d: string; t: number; a: number; b: number; len: number; stroke?: string; sw?: number; dash?: string}> =
-  ({d, t, a, b, len, stroke = INK, sw = 2, dash}) => (
-    <path d={d} fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round"
-      strokeDasharray={dash ?? len} strokeDashoffset={dash ? 0 : len * (1 - easeOutCubic(seg(t, a, b)))} opacity={dash ? easeOutCubic(seg(t, a, b)) : 1} />
-  );
+  ({d, t, a, b, len, stroke, sw = 2, dash}) => {
+    const dna = useDNA();
+    const s = stroke ?? dna?.fg ?? INK0;
+    return (
+      <path d={d} fill="none" stroke={s} strokeWidth={sw} strokeLinecap="round"
+        strokeDasharray={dash ?? len} strokeDashoffset={dash ? 0 : len * (1 - easeOutCubic(seg(t, a, b)))} opacity={dash ? easeOutCubic(seg(t, a, b)) : 1} />
+    );
+  };
 
 export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: string; spec2?: string; metricLabel?: string}> = ({
   unit = 'workbuddy.unit', tag = 'local-only', spec1 = 'runs on your machine', spec2 = '0 cloud calls', metricLabel = 'on-device'} = {}) => {
+  const dna = useDNA();
+  const INK = dna?.fg ?? INK0, FAINT = dna?.line ?? FAINT0, ACC = dna?.accent ?? ACC0, BG = dna?.bg ?? '#f6f8fb';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2;
@@ -28,7 +38,7 @@ export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: strin
   const specN = Math.round(lerp(0, 100, easeOutCubic(seg(t, 0.55, 0.9)))); // a counting readout
 
   return (
-    <AbsoluteFill style={{background: '#f6f8fb'}}>
+    <AbsoluteFill style={{background: BG}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <defs>
           <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">

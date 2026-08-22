@@ -6,8 +6,11 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 145; // ~4.8s
+// LEVEL-C: the multi-colour torn-paper SCRAPS are the ransom-note's identity (kept — they pop on any surface); on a
+// dark DNA the ground becomes a dark table, the marker scrawl takes the accent, the tagline lifts to fg. Null=orig.
 const SCRAPS = ['#f2ead6', '#ffffff', '#ffd23f', '#ff5c8a', '#151515', '#c9a24b', '#7ac0ff'];
 const INKS = ['#151515', '#151515', '#151515', '#ffffff', '#ffd23f', '#151515', '#151515'];
 const FONTS = ['"Playfair Display", Georgia, serif', 'Impact, system-ui, sans-serif',
@@ -15,6 +18,8 @@ const FONTS = ['"Playfair Display", Georgia, serif', 'Impact, system-ui, sans-se
 
 export const RansomZine: React.FC<{word?: string; tagline?: string}> = ({
   word: WORD = 'STAY WEIRD', tagline: TAG = 'cut · paste · repeat'} = {}) => {
+  const dna = useDNA();
+  const bgc = dna?.bg ?? '#d9d4c7', MARK = dna?.accent ?? '#e8452e', TAGc = dna?.fg ?? '#151515';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const letters = WORD.split('');
@@ -29,7 +34,7 @@ export const RansomZine: React.FC<{word?: string; tagline?: string}> = ({
     return {ch, x, w, i};
   });
   return (
-    <AbsoluteFill style={{background: '#d9d4c7', overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: bgc, overflow: 'hidden'}}>
       {/* photocopy grain */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0, opacity: 0.16}}>
         <filter id="rz"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="4" />
@@ -63,12 +68,12 @@ export const RansomZine: React.FC<{word?: string; tagline?: string}> = ({
       {/* marker underline scrawl */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0, pointerEvents: 'none'}}>
         <path d={`M${(W - totalW) / 2 - 10} ${H / 2 + 150} q ${totalW / 4} 40 ${totalW / 2} 6 t ${totalW / 2 + 10} 2`}
-          fill="none" stroke="#e8452e" strokeWidth={12} strokeLinecap="round"
+          fill="none" stroke={MARK} strokeWidth={12} strokeLinecap="round"
           strokeDasharray={totalW + 60} strokeDashoffset={(totalW + 60) * (1 - marker)} opacity={0.9} />
       </svg>
 
       <div style={{position: 'absolute', left: 0, right: 0, bottom: 130, textAlign: 'center', opacity: tagIn,
-        color: '#151515', font: '800 34px/1 "JetBrains Mono", monospace', letterSpacing: '0.24em',
+        color: TAGc, font: '800 34px/1 "JetBrains Mono", monospace', letterSpacing: '0.24em',
         textTransform: 'uppercase'}}>{TAG}</div>
     </AbsoluteFill>
   );

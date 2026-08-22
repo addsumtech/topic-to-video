@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {useT, lerp, clamp01, seg} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 180; // 6s
 
@@ -12,6 +13,7 @@ export const MRIPipeline: React.FC<{src?: string; accent?: string; accent2?: str
   src, accent = '#22d3ee', accent2 = '#a78bfa', label = 'Always computed',
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   const names = ['signal', 'encoding', 'k-space', 'image'];
   const n = names.length, box = Math.min(W * 0.17, H * 0.34), gap = (W - n * box) / (n + 1);
@@ -42,7 +44,7 @@ export const MRIPipeline: React.FC<{src?: string; accent?: string; accent2?: str
   };
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 44%, #0b1120, #05060a)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 44%, #0b1120, #05060a)')}}>
       <svg width={W} height={H} style={{position: 'absolute'}}>
         {names.map((nm, i) => {
           const x = gap + i * (box + gap), p = on(i);

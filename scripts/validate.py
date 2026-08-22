@@ -1137,7 +1137,11 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
     # to a built-in DNA preset; else every shot renders its OWN hardcoded identity and the film reads as "different
     # compositions, different templates" (no global visual system). Keep _DNA_PRESETS in sync with DNA_PRESETS in
     # remotion/src/runtime/dna.tsx.
-    _DNA_PRESETS = {"terminal-technical", "terminal", "neutral"}
+    # Keep in sync with DNA_PRESETS in remotion/src/runtime/dna.tsx (a themed film = any of these OR an explicit
+    # meta.design_dna). Missing an editorial/product/blueprint key here would let those themed films dodge the
+    # themed-only lints (theme_cues coverage + un-migrated-register), so the whole preset set must be listed.
+    _DNA_PRESETS = {"terminal-technical", "terminal", "neutral", "editorial", "kinetic-editorial",
+                    "product", "product-demo", "apple", "blueprint"}
     _DNA_KEYS = ("fontDisplay", "fontMono", "bg", "fg", "accent", "surface")
     design_dna = meta.get("design_dna")
     if isinstance(design_dna, dict):
@@ -1153,6 +1157,11 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
     _themed = isinstance(design_dna, dict) or str(meta.get("shot_template") or "") in _DNA_PRESETS  # DNA-themed film
     shots_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src", "shots")
     valid = {f[:-4] for f in os.listdir(shots_dir) if f.endswith(".tsx")} if os.path.isdir(shots_dir) else set()
+    try:                          # which shots READ the Design DNA (self-updating grep of the source) — the rest
+        import dna_audit as _da   # wear a hardcoded palette and won't unify on a THEMED film (lint below)
+        _dna_aware = _da.dna_aware_shots()
+    except Exception:
+        _dna_aware = None         # audit unavailable → skip the migration lint rather than false-flag everything
     NUM = {"ChartLive": "endVal", "BeforeAfterSlider": "metric", "VelocitySnap": "metric",
            "OdometerRoll": "value", "GaugeCluster": "value", "ChartRace": "data"}
     brief_nums = _brief_numbers(out_dir)     # figures a number-bearing shot must trace to (None = no brief)
@@ -1202,6 +1211,15 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
             warnings.append(f"{tag}: {shot} on a DNA-themed film records no shot_adaptation.theme_cues — name the "
                             f"2-3 concrete cues that tie THIS shot to the global visual system (Design DNA coverage "
                             f"check); shot-critic S11 verifies them against the rendered frame.")
+        # UN-MIGRATED REGISTER on a themed film: a shot that never reads useDNA renders its OWN hardcoded palette,
+        # breaking the global visual system (the exact "different compositions, different templates" defect the DNA
+        # layer exists to fix). WARN (not ERROR): the fix is to migrate the shot (read dna tokens — see §C2 / the
+        # shadow trick) or pick a DNA-aware register. `python scripts/dna_audit.py` lists the full worklist.
+        if _themed and _dna_aware is not None and shot not in _dna_aware:
+            warnings.append(f"{tag}: {shot} is NOT Design-DNA-aware (never reads useDNA) — on this themed film it "
+                            f"renders its own hardcoded palette instead of the global visual system. Migrate it to "
+                            f"read the DNA tokens (§C2 / shadow trick) or pick a DNA-aware register "
+                            f"(`python scripts/dna_audit.py` for the worklist).")
         seq.append(shot)
     try:                                                   # family-variety: no two ADJACENT beats one look
         import shot_director as _sd

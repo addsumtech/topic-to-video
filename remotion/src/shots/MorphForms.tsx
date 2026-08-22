@@ -6,14 +6,17 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
-const BG = '#070912', ACC = '#5b8cff', ACC2 = '#c07bff';
+const BG_D0 = '#070912', ACC_D0 = '#5b8cff', ACC2_D0 = '#c07bff';
 const N = 260;
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 
 export const MorphForms: React.FC<{title?: string; tagline?: string}> = ({
   title: TITLE = 'One idea, many shapes', tagline: TAG = ''} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0, ACC = dna?.accent ?? ACC_D0, ACC2 = dna?.accent2 ?? ACC2_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   // three target shapes per point index

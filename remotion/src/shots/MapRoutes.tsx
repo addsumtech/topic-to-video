@@ -5,11 +5,13 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeInOutCubic, easeOutBack, clamp01, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
 export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: string}> = ({
   items: SPOKES = ['GitHub', 'Slack', 'Notion', 'Drive', 'Jira', 'Gmail'], hub: HUB = 'WorkBuddy', accent: TEAL = '#3FE0D0'} = {}) => {
   const t = useT();
+  const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const hx = W / 2, hy = H / 2 + 20, R = 460;
   const pts = SPOKES.map((_, i) => {
@@ -17,7 +19,7 @@ export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: strin
     return [hx + Math.cos(a) * R * 1.5, hy + Math.sin(a) * R] as [number, number];
   });
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(130% 130% at 50% 45%, #0d2033, #060d16 72%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(130% 130% at 50% 45%, #0d2033, #060d16 72%)')}}>
       {/* faint map grid / graticule */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0, opacity: 0.35}}>
         {[...Array(30)].map((_, i) => <line key={`v${i}`} x1={i * 70} y1={0} x2={i * 70} y2={H} stroke="#123049" strokeWidth={1} />)}

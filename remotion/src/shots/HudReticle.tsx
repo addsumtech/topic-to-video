@@ -6,13 +6,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
-const BG = '#070b0e', CYAN = '#37e0d4', GREEN = '#3affa0';
+const BG_D0 = '#070b0e', CYAN_D0 = '#37e0d4', GREEN_D0 = '#3affa0';
 
 export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?: string}> = ({
   target: TARGET = 'WorkBuddy', readouts: READOUTS = ['SIGNAL · strong', 'SCOPE · full workspace', 'STATUS · ready'],
   title: TITLE = 'Locking on'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0, CYAN = dna?.accent ?? CYAN_D0, GREEN = dna?.accent2 ?? GREEN_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2 + 10, R = 300;

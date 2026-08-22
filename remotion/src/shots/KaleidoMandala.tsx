@@ -5,13 +5,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
-const BG = '#0a0714';
+const BG_D0 = '#0a0714';
 const SEG = 12; // symmetry order
 
 export const KaleidoMandala: React.FC<{title?: string; tagline?: string; accent?: string; accent2?: string}> = ({
   title: TITLE = 'Symmetry', tagline: TAG = 'order out of many', accent: ACC = '#ff4fa3', accent2: ACC2 = '#37e0ff'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2;

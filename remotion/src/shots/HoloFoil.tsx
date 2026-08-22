@@ -5,10 +5,12 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 export const HoloFoil: React.FC<{word?: string; tagline?: string}> = ({word: WORD = 'WORKBUDDY', tagline: TAGLINE = 'YOUR AI TEAM'} = {}) => {
   const t = useT();
+  const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const angle = (t * 220) % 360;                 // rotating foil hue
   const sheen = lerp(-0.3, 1.3, (t * 0.8) % 1);  // specular band x
@@ -16,7 +18,7 @@ export const HoloFoil: React.FC<{word?: string; tagline?: string}> = ({word: WOR
   const foil = `conic-gradient(from ${angle}deg at 50% 50%, #ff5db2, #ffd45b, #5bffcf, #5bb4ff, #b45bff, #ff5db2)`;
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 40%, #14121c 0%, #0a0910 70%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 40%, #14121c 0%, #0a0910 70%)')}}>
       {/* faint foil wash on the backdrop */}
       <div style={{position: 'absolute', inset: 0, background: foil, opacity: 0.1, filter: 'blur(60px)'}} />
 

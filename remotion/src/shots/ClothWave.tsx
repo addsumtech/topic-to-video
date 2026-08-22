@@ -5,13 +5,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
-const BG = '#0c0f1a';
+const BG_D0 = '#0c0f1a';
 const STRIPS = 30;
 
 export const ClothWave: React.FC<{title?: string; tagline?: string; accent?: string; accent2?: string}> = ({
   title: TITLE = 'Flow', tagline: TAG = 'soft power, in motion', accent: ACC = '#4d7cff', accent2: ACC2 = '#b44dff'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const left = 160, right = W - 160, top = H / 2 - 300, cloth = 600, stripH = cloth / STRIPS;

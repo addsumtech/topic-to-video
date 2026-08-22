@@ -7,6 +7,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeCursor, easeOutCubic, easeInOutCubic, easeOutBack, clamp01, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 // A virtual camera over a LARGE canvas: interpolate {cx,cy,z} keyframes so the lens sweeps + dollies across
 // the board (the Miro/Figma "fly over the canvas" feel) instead of a flat, static, head-on grid.
@@ -30,12 +31,14 @@ const INK = '#1b2333', DIM = '#d7dde6', PANEL = '#ffffff';
 const PALETTE = ['#2E7BFF', '#12B76A', '#7C5CFF', '#F79009', '#EC4899', '#06AED4'];
 
 const Artifact: React.FC<{kind: Kind; p: number; color: string}> = ({kind, p, color}) => {
+  const dna = useDNA();
+  const DIMc = dna?.line ?? DIM;                 // placeholder fills follow the DNA's line tone
   if (kind === 'chart') {
     const hs = [0.5, 0.82, 0.4, 0.95, 0.62];
     return <svg width="340" height="176" style={{position: 'absolute', left: 22, top: 52}}>
       {hs.map((h, i) => {
         const bh = 140 * h * easeOutCubic(clamp01((p - i * 0.12) / 0.4));
-        return <rect key={i} x={14 + i * 64} y={150 - bh} width={44} height={bh} rx={5} fill={i === 3 ? color : DIM} />;
+        return <rect key={i} x={14 + i * 64} y={150 - bh} width={44} height={bh} rx={5} fill={i === 3 ? color : DIMc} />;
       })}
     </svg>;
   }
@@ -44,7 +47,7 @@ const Artifact: React.FC<{kind: Kind; p: number; color: string}> = ({kind, p, co
     for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
       const on = clamp01((p - (r * 4 + c) * 0.05) / 0.2);
       cells.push(<rect key={`${r}-${c}`} x={18 + c * 82} y={54 + r * 38} width={70} height={26} rx={5}
-        fill={r === 0 ? color : DIM} opacity={r === 0 ? 0.3 + 0.7 * on : 0.4 + 0.6 * on} />);
+        fill={r === 0 ? color : DIMc} opacity={r === 0 ? 0.3 + 0.7 * on : 0.4 + 0.6 * on} />);
     }
     return <svg width="360" height="190">{cells}</svg>;
   }
@@ -52,17 +55,19 @@ const Artifact: React.FC<{kind: Kind; p: number; color: string}> = ({kind, p, co
     return <div style={{position: 'absolute', left: 24, top: 54, right: 24}}>
       <div style={{height: 24, width: `${70 * easeOutCubic(clamp01(p / 0.3))}%`, background: color, borderRadius: 6}} />
       <div style={{height: 88, marginTop: 16, width: `${100 * easeOutCubic(clamp01((p - 0.25) / 0.5))}%`,
-        background: DIM, borderRadius: 8}} />
+        background: DIMc, borderRadius: 8}} />
     </div>;
   }
   const ws = [0.92, 0.78, 0.86, 0.6];
   return <div style={{position: 'absolute', left: 26, top: 58, right: 26, display: 'flex', flexDirection: 'column', gap: 17}}>
-    {ws.map((w, i) => <div key={i} style={{height: 13, borderRadius: 7, background: i === 1 ? color : DIM,
+    {ws.map((w, i) => <div key={i} style={{height: 13, borderRadius: 7, background: i === 1 ? color : DIMc,
       width: `${w * 100 * easeOutCubic(clamp01((p - i * 0.14) / 0.3))}%`}} />)}
   </div>;
 };
 
 const Artboard: React.FC<{b: Board; t: number}> = ({b, t}) => {
+  const dna = useDNA();
+  const PANELc = dna?.surface ?? PANEL, INKc = dna?.fg ?? INK, BORD = dna?.line ?? '#e5e9ef', GROUND = dna?.bg ?? '#fff';
   const w = 380, h = 250;
   const p = seg(t, b.arrive, b.arrive + BUILD);
   const active = t > b.arrive - 0.02 && t < b.arrive + BUILD + 0.14;
@@ -75,9 +80,9 @@ const Artboard: React.FC<{b: Board; t: number}> = ({b, t}) => {
   const cursorShown = t > Math.max(0, b.arrive - 0.30) && t < b.arrive + BUILD + 0.22;
   return <>
     <div style={{position: 'absolute', left: b.x, top: b.y, width: w, height: h, opacity: clamp01(appear),
-      transform: `scale(${0.92 + 0.08 * appear})`, transformOrigin: 'center', background: PANEL,
-      border: '1px solid #e5e9ef', borderRadius: 16, boxShadow: '0 22px 50px rgba(30,45,80,.16)'}}>
-      <div style={{position: 'absolute', left: 22, top: 18, font: '700 22px/1 Inter,system-ui,sans-serif', color: INK}}>{b.name}</div>
+      transform: `scale(${0.92 + 0.08 * appear})`, transformOrigin: 'center', background: PANELc,
+      border: `1px solid ${BORD}`, borderRadius: 16, boxShadow: '0 22px 50px rgba(30,45,80,.16)'}}>
+      <div style={{position: 'absolute', left: 22, top: 18, font: '700 22px/1 Inter,system-ui,sans-serif', color: INKc}}>{b.name}</div>
       <Artifact kind={b.kind} p={p} color={b.color} />
       {done && <div style={{position: 'absolute', right: 18, top: 16, width: 26, height: 26, borderRadius: 13,
         background: b.color, color: '#fff', font: '700 18px/26px Inter,sans-serif', textAlign: 'center'}}>✓</div>}
@@ -85,7 +90,7 @@ const Artboard: React.FC<{b: Board; t: number}> = ({b, t}) => {
         <div style={{position: 'absolute', inset: -3, border: `2px solid ${b.color}`, borderRadius: 18}} />
         {[[0, 0], [1, 0], [0, 1], [1, 1]].map(([hx, hy], k) =>
           <div key={k} style={{position: 'absolute', left: hx ? w - 6 : -6, top: hy ? h - 6 : -6, width: 12, height: 12,
-            background: '#fff', border: `2px solid ${b.color}`, borderRadius: 3}} />)}
+            background: GROUND, border: `2px solid ${b.color}`, borderRadius: 3}} />)}
       </>}
     </div>
     {cursorShown && (
@@ -101,6 +106,10 @@ const Artboard: React.FC<{b: Board; t: number}> = ({b, t}) => {
 export const CollaborativeCursors: React.FC<{names?: string[]}> = ({
   names = ['Market Research', 'Financial Analysis', 'Slide Design', 'Legal Drafting', 'Copywriting', 'Data Cleanup'],
 }) => {
+  // LEVEL-C: the Figma canvas flips to a DARK board on a dark DNA (ground/dots/panels/ink → DNA); the multi-colour
+  // collaborator cursors + selection boxes stay (colour IS each collaborator's identity — they pop on any ground).
+  const dna = useDNA();
+  const BG = dna?.bg ?? '#eef1f5', DOT = dna?.line ?? '#c7cedb';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const kinds: Kind[] = ['chart', 'chart', 'slide', 'doc', 'doc', 'table'];
@@ -123,9 +132,9 @@ export const CollaborativeCursors: React.FC<{names?: string[]}> = ({
   const world: React.CSSProperties = {position: 'absolute', left: 0, top: 0, width: WORLD_W, height: WORLD_H,
     transformOrigin: '0 0', transform: `translate(${W / 2 - cam.cx * cam.z}px, ${H / 2 - cam.cy * cam.z}px) scale(${cam.z})`};
   const dots = [];
-  for (let gx = 0; gx < 33; gx++) for (let gy = 0; gy < 20; gy++) dots.push(<circle key={`${gx}-${gy}`} cx={gx * 80 + 30} cy={gy * 80 + 30} r={1.8} fill="#c7cedb" />);
+  for (let gx = 0; gx < 33; gx++) for (let gy = 0; gy < 20; gy++) dots.push(<circle key={`${gx}-${gy}`} cx={gx * 80 + 30} cy={gy * 80 + 30} r={1.8} fill={DOT} />);
   return (
-    <AbsoluteFill style={{background: '#eef1f5'}}>
+    <AbsoluteFill style={{background: BG}}>
       <div style={world}>
         <svg width={WORLD_W} height={WORLD_H} style={{position: 'absolute', inset: 0, opacity: 0.7}}>{dots}</svg>
         {boards.map((b, i) => <Artboard key={i} b={b} t={t} />)}

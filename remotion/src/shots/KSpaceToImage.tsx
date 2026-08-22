@@ -8,6 +8,7 @@
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 180; // 6s
 
@@ -15,6 +16,7 @@ export const KSpaceToImage: React.FC<{accent?: string; accent2?: string; label?:
   accent = '#22d3ee', accent2 = '#a78bfa', label = 'inverse Fourier transform', src,
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   const cx = W / 2, cy = H / 2;
   // the FFT sweep: k-space on the right, image resolving on the left. Holds a beat of pure k-space, then sweeps.
@@ -42,7 +44,7 @@ export const KSpaceToImage: React.FC<{accent?: string; accent2?: string; label?:
     C ${cx - rx * 0.92} ${cy + ry * 0.55}, ${cx - rx * 0.95} ${cy - ry * 0.86}, ${cx} ${cy - ry * 0.86} Z`;
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 46%, #0b1120, #05060a)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 46%, #0b1120, #05060a)')}}>
       {/* k-space frequencies (shown to the RIGHT of the sweep front) */}
       <AbsoluteFill style={{clipPath: `inset(0 0 0 ${sweepX.toFixed(1)}px)`}}>
         <svg width={W} height={H} style={{position: 'absolute'}}>{dots}</svg>

@@ -5,13 +5,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
-const ACC = '#37E0A0';
+const ACC_D0 = '#37E0A0';
 const DATA = [0.28, 0.34, 0.30, 0.44, 0.52, 0.48, 0.62, 0.7, 0.66, 0.82, 0.9, 0.96];
 
 // Copy is overridable so a film can show a FAITHFUL, sourced figure (never a fabricated demo number).
 export const ChartLive: React.FC<{endVal?: number; unit?: string; label?: string}> = ({endVal = 128, unit = 'k', label = 'tasks handled this month'}) => {
+  const dna = useDNA();
+  const ACC = dna?.accent ?? ACC_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const X0 = 220, X1 = W - 220, Y0 = H - 300, Y1 = 300;

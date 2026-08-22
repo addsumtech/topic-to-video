@@ -5,15 +5,18 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 160; // ~5.3s
-const BG = '#0b120e';
+const BG_D0 = '#0b120e';
 const MAXD = 9;
 
 type Seg = {x1: number; y1: number; x2: number; y2: number; depth: number; w: number; leaf: boolean; seed: number};
 
 export const FractalTree: React.FC<{title?: string; tagline?: string; branch?: string; blossom?: string}> = ({
   title: TITLE = 'Grow', tagline: TAG = 'from one root, everything', branch: BR = '#9fb8a8', blossom: BL = '#ff8fc4'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const segs: Seg[] = [];

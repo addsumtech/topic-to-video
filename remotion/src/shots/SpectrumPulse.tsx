@@ -6,13 +6,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
-const BG = '#080611';
+const BG_D0 = '#080611';
 const BARS = 72;
 
 export const SpectrumPulse: React.FC<{title?: string; tagline?: string; accent?: string; accent2?: string}> = ({
   title: TITLE = 'On beat', tagline: TAG = 'it moves with you', accent: ACC = '#ff3b8b', accent2: ACC2 = '#41b8ff'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2;

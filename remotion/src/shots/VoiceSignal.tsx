@@ -5,9 +5,10 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
-const ACC = '#3FE0FF';
+const ACC_D0 = '#3FE0FF';
 const DEFAULT_PHASES = [{at: 0.05, label: 'Listening…'}, {at: 0.34, label: 'Working…'}, {at: 0.74, label: 'Done ✓'}];
 
 // deterministic pseudo-voice envelope + per-bar amplitude (stands in for real getAudioData in the demo)
@@ -17,6 +18,8 @@ function amp(i: number, frame: number, env: number): number {
 }
 
 export const VoiceSignal: React.FC<{phases?: {at: number; label: string}[]}> = ({phases: PHASES = DEFAULT_PHASES} = {}) => {
+  const dna = useDNA();
+  const ACC = dna?.accent ?? ACC_D0;
   const t = useT();
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();

@@ -5,12 +5,15 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
-const BG = '#ececec', INK = '#0a0a0a', ACC = '#ff3b00';
+const BG_D0 = '#ececec', INK_D0 = '#0a0a0a', ACC_D0 = '#ff3b00';
 
 export const BrutalistType: React.FC<{titleTop?: string; titleBottom?: string; meta?: string; statement1?: string; statement2?: string}> = ({
   titleTop = 'WORK', titleBottom = 'BUDDY.', meta = 'WORKBUDDY / LOCAL-FIRST', statement1 = 'NO CLOUD.', statement2 = 'NO NONSENSE.'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0, INK = dna?.fg ?? INK_D0, ACC = dna?.accent ?? ACC_D0;
   const t = useT();
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();

@@ -5,13 +5,17 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
-const BG = '#0a0d1c', ACC = '#37d68a';
+const BG_D0 = '#0a0d1c', ACC_D0 = '#37d68a';
 const TW = 96, TH = 54, VH = 66; // tile width/height + voxel rise height
 
 export const VoxelBuild: React.FC<{title?: string; tagline?: string; accent?: string}> = ({
-  title: TITLE = 'Built to last', tagline: TAG = 'block by block', accent: TONE = ACC} = {}) => {
+  title: TITLE = 'Built to last', tagline: TAG = 'block by block', accent: accentProp} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0, ACC = dna?.accent ?? ACC_D0;
+  const TONE = accentProp ?? ACC;   // prop wins; else the DNA accent (was a param default referencing the module const)
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2 - 40, cy = H / 2 - 40;

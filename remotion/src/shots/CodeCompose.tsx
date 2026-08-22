@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
 type Tok = {t: string; c: string};
@@ -24,6 +25,7 @@ const lineLen = (l: Tok[]) => l.reduce((s, k) => s + k.t.length, 0);
 export const CodeCompose: React.FC<{filename?: string; lines?: (Tok[] | string)[]; status?: string}> = ({
   filename = 'workbuddy.py', lines: LINESP, status: STATUS = '— shipped, on your machine'} = {}) => {
   const t = useT();
+  const dna = useDNA();
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
   // topic code lines: default demo, or override — a plain string line is auto-coloured as plaintext.
@@ -67,7 +69,7 @@ export const CodeCompose: React.FC<{filename?: string; lines?: (Tok[] | string)[
   const outT = clamp01(seg(t, 0.72, 0.9));
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 20%, #10151d, #080a0e 70%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 20%, #10151d, #080a0e 70%)')}}>
       {/* window */}
       <div style={{position: 'absolute', left: wx, top: wy, width: winW, height: winH, borderRadius: 18,
         background: '#0d1117', border: '1px solid #202836', boxShadow: '0 40px 120px #000a', overflow: 'hidden'}}>

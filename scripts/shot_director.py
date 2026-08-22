@@ -34,6 +34,10 @@ FAMILY = {
     "AnalogTape": "C", "AsciiField": "C",
     "ChartLive": "D", "BlueprintGrid": "D", "KnowledgeGraph": "D", "WireGlobe": "D", "DataOrrery": "D",
     "OdometerRoll": "D", "GaugeCluster": "D", "HudReticle": "D", "ChartRace": "D",
+    # terminal-native family (Term*) — one family so the adjacency-variety check discourages stacking terminal
+    # boxes (the three-layer "don't box every frame" goal); the terminal COHERENCE comes from the DNA layer, not this tag.
+    "TermBars": "D", "TermTree": "D", "TermLog": "D", "TermGitLog": "D", "TermCounter": "D",
+    "TermTable": "D", "TermDiff": "D", "TermThink": "D",
     "MaterialHero": "E", "CardFlip3D": "E", "FractureIn": "E", "CardStack3D": "E", "DataMonolith": "E",
     "MorphForms": "E", "KSpaceToImage": "E", "MagnetizationTip": "E",
     "InducedFID": "U", "GFactorNoise": "M", "UndersampledKspace": "D", "ScanReconstruct": "G", "RealVersus": "H", "SpinningProton": "S", "PhaseEncodeStep": "D", "MRIPipeline": "B", "FrequencyEncode": "U", "CompressedSensingEq": "L", "KSpaceReal": "G", "SpeedLimit": "D", "LarmorPrecession": "S", "Aliasing": "M", "DiffusionDenoise": "F", "SpinsAlign": "M", "GradientTilt": "U", "KSpaceAnatomy": "H", "TensionScale": "H", "PlatformSurfaces": "A", "OpenQuestions": "C",
@@ -45,6 +49,7 @@ FAMILY = {
     "SplitFlap": "I", "PhysicsStack": "I", "GearTrain": "I", "ConveyorBelt": "I",
     "FlowField": "K", "LowPolyForm": "K", "KaleidoMandala": "K", "RidgeField": "K", "GameOfLife": "K",
     "MagazineSpread": "L", "RansomZine": "L",
+    "EdStat": "L", "EdTimeline": "L", "EdCompare": "L",   # editorial-native family (Ed*) — grouped like Term* above
     "GlitchDatamosh": "M", "CodeRain": "M",
     "IsoWorld": "N", "VoxelBuild": "N", "IsometricAssembly": "N",
     "NeonTickerWall": "O",

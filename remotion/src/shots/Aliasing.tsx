@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 import {fitContentSquare} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
@@ -13,12 +14,13 @@ export const Aliasing: React.FC<{src?: string; accent?: string; label?: string; 
   src, accent = '#22d3ee', label = 'The anatomy folds onto itself', credit = '',
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   const {S, left, top} = fitContentSquare(W, H, {hFrac: 0.85, wFrac: 0.4, bottomReserve: 44});  // leaves room for the wrap-around note below
   const ghost = clamp01(seg(t, 0.2, 0.7));                   // the fold-over ghost grows as we undersample
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 46%, #0b1120, #05060a)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 46%, #0b1120, #05060a)')}}>
       <div style={{position: 'absolute', left, top, width: S, height: S, borderRadius: 6, overflow: 'hidden',
         boxShadow: `0 0 0 1.5px ${accent}88, 0 20px 60px #000a`}}>
         {src ? <Img src={staticFile(src)} style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : null}

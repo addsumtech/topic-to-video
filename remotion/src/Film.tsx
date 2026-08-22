@@ -154,6 +154,44 @@ const CarryPresentation = ({presentationProgress: p, presentationDirection, chil
 };
 const carry = (line?: string): TransitionPresentation<any> => ({component: CarryPresentation, props: {line}});
 
+// SCREEN-CLEAR — a TERMINAL-native seam (Motion grammar layer): the outgoing scene dips through the DNA bg while
+// a bright accent scanline SWEEPS down (a CRT/console refresh), then the incoming scene resolves. Luminance-SAFE
+// by construction (it dips through the bg, so a dark↔light pair never flashes). Subtle enough to be the DEFAULT
+// seam of a terminal film — the cut reads as "the terminal redrawing between outputs", not a generic fade.
+const ScreenClearPresentation = ({presentationProgress: p, presentationDirection, children, passedProps}: any) => {
+  const bg = passedProps?.bg ?? '#06080d', acc = passedProps?.accent ?? '#3dd6a4';
+  const isEnter = presentationDirection === 'entering';
+  const c = {extrapolateLeft: 'clamp' as const, extrapolateRight: 'clamp' as const};
+  const op = isEnter ? interpolate(p, [0.44, 0.62], [0, 1], c) : interpolate(p, [0.38, 0.56], [1, 0], c);
+  const veil = interpolate(p, [0.22, 0.5, 0.82], [0, 0.82, 0], c);        // dip through bg at mid
+  const sweepY = interpolate(p, [0.26, 0.74], [-0.08, 1.08], c);          // scanline sweeps top→bottom
+  const sweepOp = interpolate(p, [0.24, 0.5, 0.78], [0, 0.55, 0], c);
+  return (
+    <>
+      <AbsoluteFill style={{opacity: op}}>{children}</AbsoluteFill>
+      <AbsoluteFill style={{pointerEvents: 'none', background: bg, opacity: veil}} />
+      <AbsoluteFill style={{pointerEvents: 'none'}}>
+        <div style={{position: 'absolute', left: 0, right: 0, top: `${(sweepY * 100).toFixed(2)}%`, height: 3,
+          background: acc, opacity: sweepOp, boxShadow: `0 0 24px 4px ${acc}`}} />
+      </AbsoluteFill>
+    </>
+  );
+};
+const screenClear = (bg?: string, accent?: string): TransitionPresentation<any> => ({component: ScreenClearPresentation, props: {bg, accent}});
+
+// DNA-native DEFAULT seam (Motion grammar): an UNMARKED seam on a themed film becomes the STYLE's native action
+// instead of a generic fade — the analogue of the surface/grammar split for TIME. terminal → screen-clear;
+// product → a soft push; editorial/blueprint → a directional wipe (a page/sheet turn); else the gentle fade.
+const dnaDefaultSeam = (dna: DesignDNA | null, W: number, H: number): TransitionPresentation<any> | null => {
+  if (!dna) return null;
+  switch (dna.id) {
+    case 'terminal': return screenClear(dna.bg, dna.accent);
+    case 'product': case 'apple': return slide({direction: 'from-right'});
+    case 'editorial': case 'blueprint': return wipe({direction: 'from-bottom'});
+    default: return null;
+  }
+};
+
 const LUM_RANK: Record<Lum, number> = {dark: 0, mid: 1, light: 2};
 
 // The seam GRAMMAR. A seam is luminance-SAFE by default and SEMANTIC when marked. A ground-luminance gap of
@@ -162,12 +200,15 @@ const LUM_RANK: Record<Lum, number> = {dark: 0, mid: 1, light: 2};
 // On a same/near-luminance seam the EDL may MARK a kinetic move (slide/wipe/clock/dissolve) for a chapter
 // break; unmarked seams stay a fade. Every seam holds at TR frames so it rides the audio-breath silence
 // (A/V stays in sync); no spins, ever. Deterministic — pure fn of the two scenes' declared ground.
-const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number): TransitionPresentation<any> => {
+const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number, dna: DesignDNA | null): TransitionPresentation<any> => {
   const dLum = Math.abs(LUM_RANK[groundLum(next.shot, next.bgLum)] - LUM_RANK[groundLum(prev.shot, prev.bgLum)]);
   const want = next.transitionIn?.type ?? 'fade';
   // luminance guard: a dark↔light gap forces the gentle fade — EXCEPT carry, whose neutral bridge line IS the dip.
   const t = (dLum >= 2 && want !== 'carry') ? 'fade' : want;
   const dir = next.transitionIn?.direction;
+  // MOTION GRAMMAR: an UNMARKED (default) seam becomes the DNA's native action on a luminance-safe cut (a themed
+  // film's cuts belong to its world — terminal = screen-clear, etc.); explicit marks + the dark↔light fade win.
+  if (t === 'fade' && dLum < 2) { const s = dnaDefaultSeam(dna, W, H); if (s) return s; }
   switch (t) {
     case 'slide': return slide({direction: (dir as any) ?? 'from-right'});
     case 'wipe': return wipe({direction: (dir as any) ?? 'from-bottom'});
@@ -263,7 +304,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
           if (i === scenes.length - 1) return [seq];
           return [seq, (
             <TransitionSeries.Transition key={`t${i}`}
-              presentation={pickPresentation(sc, scenes[i + 1], width, height)}
+              presentation={pickPresentation(sc, scenes[i + 1], width, height, activeDna)}
               timing={linearTiming({durationInFrames: TR})} />
           )];
         })}

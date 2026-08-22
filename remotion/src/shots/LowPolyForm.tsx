@@ -6,13 +6,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
-const BG = '#080a14';
+const BG_D0 = '#080a14';
 const GX = 11, GY = 7;
 
 export const LowPolyForm: React.FC<{title?: string; tagline?: string; accent?: string; accent2?: string}> = ({
   title: TITLE = 'Faceted', tagline: TAG = 'many facets, one form', accent: ACC = '#5b8cff', accent2: ACC2 = '#ff5b9e'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cellW = W / GX, cellH = H / GY;

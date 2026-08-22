@@ -5,15 +5,18 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
-const BG = '#060812', CORE = '#ffd36e';
+const BG_D0 = '#060812', CORE = '#ffd36e';
 const ORBITS = [{rx: 340, ry: 120, tilt: 0, col: '#37e0ff', n: 2, sp: 1.0},
   {rx: 300, ry: 300, tilt: 60, col: '#ff5b9e', n: 3, sp: -0.8},
   {rx: 340, ry: 120, tilt: 120, col: '#8f7bff', n: 2, sp: 1.3}];
 
 export const AtomOrbital: React.FC<{title?: string; tagline?: string}> = ({
   title: TITLE = 'Elemental', tagline: TAG = 'the core of everything'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2 + 10;

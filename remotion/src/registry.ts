@@ -93,6 +93,9 @@ import {TermCounter} from './shots/TermCounter';
 import {TermTable} from './shots/TermTable';
 import {TermDiff} from './shots/TermDiff';
 import {TermThink} from './shots/TermThink';
+import {EdStat} from './shots/EdStat';
+import {EdTimeline} from './shots/EdTimeline';
+import {EdCompare} from './shots/EdCompare';
 import {CardStack3D} from './shots/CardStack3D';
 import {CrashZoom} from './shots/CrashZoom';
 import {VersusSplit} from './shots/VersusSplit';
@@ -146,6 +149,7 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   OdometerRoll, QuadSplit, CardFlip3D, CubeRotate, GearTrain,
   FractureIn, PositioningMatrix, GaugeCluster, BentoReveal, ConveyorBelt,
   TermBars, TermTree, TermLog, TermGitLog, TermCounter, TermTable, TermDiff, TermThink,
+  EdStat, EdTimeline, EdCompare,
   CardStack3D, CrashZoom, VersusSplit, RisoPrint, HudReticle,
   VariableTypeMorph, FlowField, MagazineSpread, RansomZine, DataMonolith,
   LowPolyForm, GlitchDatamosh, IsoWorld, MorphForms, NeonTickerWall,

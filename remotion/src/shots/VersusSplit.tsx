@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutExpo, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 
@@ -40,13 +41,14 @@ export const VersusSplit: React.FC<{left?: Side; right?: Side; winner?: number; 
   right: RIGHT = {label: 'After', points: ['One command', 'Seconds', 'Always caught']},
   winner: WINNER = 1, title: TITLE = 'The difference'} = {}) => {
   const t = useT();
+  const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const lEnter = easeOutExpo(seg(t, 0.08, 0.42));
   const rEnter = easeOutExpo(seg(t, 0.16, 0.5));
   const vs = easeOutBack(clamp01(seg(t, 0.46, 0.64)));
   const titleIn = easeOutCubic(seg(t, 0.02, 0.16));
   return (
-    <AbsoluteFill style={{background: '#0a0c12', overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('#0a0c12'), overflow: 'hidden'}}>
       {/* two grounds */}
       <div style={{position: 'absolute', inset: 0, background: 'linear-gradient(120deg, #141a2e 0%, #141a2e 50%, #1e1420 50%, #1e1420 100%)'}} />
       {/* diagonal seam */}

@@ -6,12 +6,15 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 140; // ~4.7s
-const BG = '#07070b';
+const BG_D0 = '#07070b';
 
 export const GlitchDatamosh: React.FC<{word?: string; tagline?: string; accent?: string}> = ({
   word: WORD = 'SIGNAL', tagline: TAG = 'noise, then clarity', accent: ACC = '#00e5ff'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   // glitch intensity: strong start, periodic bursts, resolves to ~0 by the end

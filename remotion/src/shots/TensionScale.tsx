@@ -7,6 +7,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, lerp, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 import {titleStyle} from '../runtime/layout';
 
 export const DURATION = 175; // ~5.8s
@@ -20,6 +21,7 @@ export const TensionScale: React.FC<{
   accent = '#10a37f', accent2 = '#7aa2ff',
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   const portrait = W < H;
   const cx = W * 0.5, fy = portrait ? H * 0.46 : H * 0.52, L = portrait ? W * 0.30 : W * 0.30;
@@ -46,7 +48,7 @@ export const TensionScale: React.FC<{
   };
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 46%, #0c1016, #06070a)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 46%, #0c1016, #06070a)')}}>
       <svg width={W} height={H} style={{position: 'absolute', left: 0, top: 0}}>
         {/* faint technical grid baseline */}
         <line x1={W * 0.12} y1={fy} x2={W * 0.88} y2={fy} stroke="#1a2230" strokeWidth={1} strokeDasharray="2 10" opacity={0.6} />

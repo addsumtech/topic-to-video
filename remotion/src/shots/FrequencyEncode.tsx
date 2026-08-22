@@ -7,6 +7,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 180; // 6s
 
@@ -14,6 +15,7 @@ export const FrequencyEncode: React.FC<{accent?: string; accent2?: string; label
   accent = '#22d3ee', accent2 = '#a78bfa', label = 'Position becomes frequency', cols = 7,
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   const gx = W * 0.14, gw = W * 0.72, colW = gw / cols;
   const rowY = H * 0.3, rowH = H * 0.2;
@@ -61,7 +63,7 @@ export const FrequencyEncode: React.FC<{accent?: string; accent2?: string; label
   }
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 44%, #0b1120, #05060a)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 44%, #0b1120, #05060a)')}}>
       <svg width={W} height={H} style={{position: 'absolute'}}>
         {/* gradient ramp arrow above the row: position → frequency */}
         <line x1={gx} y1={rowY - 26} x2={gx + gw} y2={rowY - 26} stroke={accent} strokeWidth={2} opacity={0.5 * p1} markerEnd="url(#fah)" />

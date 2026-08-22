@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
 const BLOBS = [
@@ -16,11 +17,12 @@ const BLOBS = [
 ];
 
 export const AuroraFlow: React.FC<{lines?: string[]}> = ({lines = ['Your AI team.', 'On your machine.']}) => {
+  const dna = useDNA();
   const t = useT();
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
   return (
-    <AbsoluteFill style={{background: '#0a0b12', overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: dna?.bg ?? '#0a0b12', overflow: 'hidden'}}>
       {/* the flowing aurora — drifting soft colour bodies that blend */}
       <AbsoluteFill style={{filter: 'blur(70px) saturate(1.3)'}}>
         {BLOBS.map((b, i) => {

@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, hash01, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
 const DEFAULT_BARS = [
@@ -15,6 +16,7 @@ const DEFAULT_BARS = [
 export const PhysicsStack: React.FC<{items?: string[]; label?: string}> = ({items, label = 'a week of shipping'} = {}) => {
   const BARS = items ? DEFAULT_BARS.map((b, i) => ({...b, label: items[i % items.length]})) : DEFAULT_BARS;
   const t = useT();
+  const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const groundY = H - 200, bw = 180, gap = 46;
   const totalW = BARS.length * bw + (BARS.length - 1) * gap;
@@ -29,7 +31,7 @@ export const PhysicsStack: React.FC<{items?: string[]; label?: string}> = ({item
   };
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 24%, #141a26 0%, #0a0d14 72%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 24%, #141a26 0%, #0a0d14 72%)')}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         {/* ground */}
         <line x1={80} y1={groundY} x2={W - 80} y2={groundY} stroke="#2a3446" strokeWidth={3} />

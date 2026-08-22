@@ -5,11 +5,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 160; // ~5.3s
 
 export const LiquidMetal: React.FC<{title?: string; tagline?: string}> = ({
   title: TITLE = 'Molten', tagline: TAG = 'chrome, but alive'} = {}) => {
+  // LEVEL-C: chrome IS chrome on any ground (the silver reflection gradient is the metal's identity, kept), so only
+  // the GROUND flips to the DNA (chrome reads even better on dark) + the tagline lifts to dim. Null DNA = original.
+  const dna = useDNA();
+  const bgc = dna?.bgGrad ?? dna?.bg ?? 'linear-gradient(160deg, #e9e3f5, #cfe0f2 55%, #f3ebdd)', TAGc = dna?.dim ?? '#4a5273';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2;
@@ -23,7 +28,7 @@ export const LiquidMetal: React.FC<{title?: string; tagline?: string}> = ({
   const titleIn = easeOutCubic(seg(t, 0.5, 0.74));
   const tagIn = easeOutCubic(seg(t, 0.62, 0.84));
   return (
-    <AbsoluteFill style={{background: 'linear-gradient(160deg, #e9e3f5, #cfe0f2 55%, #f3ebdd)', overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: bgc, overflow: 'hidden'}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <defs>
           <filter id="lmgoo">
@@ -52,7 +57,7 @@ export const LiquidMetal: React.FC<{title?: string; tagline?: string}> = ({
           WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent',
           WebkitTextStroke: '2px #2b3050',
           filter: 'drop-shadow(0 3px 0 #ffffffcc) drop-shadow(0 10px 22px #1a1f3aaa)'} as React.CSSProperties}>{TITLE}</div>
-        <div style={{opacity: tagIn, marginTop: 18, color: '#4a5273',
+        <div style={{opacity: tagIn, marginTop: 18, color: TAGc,
           font: '700 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.2em', textTransform: 'uppercase'}}>{TAG}</div>
       </AbsoluteFill>
     </AbsoluteFill>

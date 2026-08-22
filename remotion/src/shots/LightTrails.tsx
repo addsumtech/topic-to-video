@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 160; // ~5.3s
 
@@ -17,6 +18,7 @@ function checkPoint(u: number, W: number, H: number): [number, number] {
 
 export const LightTrails: React.FC<{label?: string}> = ({label = 'done in one motion'} = {}) => {
   const t = useT();
+  const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const checkD = `M${W / 2 - 300},${H / 2 - 20} L${W / 2 - 70},${H / 2 + 200} L${W / 2 + 360},${H / 2 - 260}`;
   const LEN = 1500;
@@ -33,7 +35,7 @@ export const LightTrails: React.FC<{label?: string}> = ({label = 'done in one mo
   };
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 46%, #0a1020 0%, #05070f 66%, #03040a 100%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 46%, #0a1020 0%, #05070f 66%, #03040a 100%)')}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <defs>
           <filter id="ltglow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="8" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>

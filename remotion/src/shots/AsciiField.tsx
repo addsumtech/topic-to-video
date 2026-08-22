@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, easeOutCubic, clamp01, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
 const CH = '01</>{}[]#*+=~.:$%&ABCDEFXYZ01'.split('');
@@ -13,6 +14,7 @@ const DEFAULT_MSG = 'DONE.';
 
 export const AsciiField: React.FC<{message?: string}> = ({message: MSG = DEFAULT_MSG} = {}) => {
   const frame = useCurrentFrame();
+  const dna = useDNA();
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cw = 34, chh = 40, cols = Math.ceil(W / cw), rows = Math.ceil(H / chh);
@@ -29,7 +31,7 @@ export const AsciiField: React.FC<{message?: string}> = ({message: MSG = DEFAULT
   }
   const decode = easeOutCubic(seg(t, 0.5, 0.78));
   return (
-    <AbsoluteFill style={{background: '#140b03'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('#140b03')}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>{cells}</svg>
       {/* the decoded message resolving out of the noise */}
       <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center'}}>

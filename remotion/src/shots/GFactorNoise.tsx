@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
 const WARN = '#ff5d6c';
@@ -14,6 +15,7 @@ export const GFactorNoise: React.FC<{accent?: string; label?: string}> = ({
   accent = '#22d3ee', label = 'Unfolding amplifies noise',
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   // R rises 1 → ~3 then holds at the cap (it can't usefully go further)
   const R = lerp(1, 3, clamp01(seg(t, 0.12, 0.8)));
@@ -33,7 +35,7 @@ export const GFactorNoise: React.FC<{accent?: string; label?: string}> = ({
   const rFrac = (R - 1) / 4;
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 42%, #0b1120, #05060a)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 42%, #0b1120, #05060a)')}}>
       {/* the noisy reconstructed tile */}
       <div style={{position: 'absolute', left: tx, top: ty, width: tw, height: th, borderRadius: 12,
         border: `2px solid ${noise > 0.75 ? WARN : accent}`, background: 'linear-gradient(160deg,#0e1b30,#0a1424)', overflow: 'hidden'}}>

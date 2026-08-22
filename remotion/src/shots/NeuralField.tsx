@@ -6,13 +6,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
-const BG = '#060a16', EDGE = '#1c2f57', LIVE = '#37e0ff', OUT = '#3affa0';
+const BG_D0 = '#060a16', EDGE = '#1c2f57', LIVE = '#37e0ff', OUT = '#3affa0';
 const LAYERS = [5, 8, 8, 3];
 
 export const NeuralField: React.FC<{title?: string; input?: string; output?: string}> = ({
   title: TITLE = 'It reasons', input: INLABEL = 'your prompt', output: OUTLABEL = 'the answer'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const L = LAYERS.length;

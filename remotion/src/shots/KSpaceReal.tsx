@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 180; // 6s
 
@@ -13,13 +14,14 @@ export const KSpaceReal: React.FC<{src?: string; accent?: string; label?: string
   src, accent = '#22d3ee', label = 'k-space — not a picture', credit = '',
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   const S = Math.min(H * 0.62, W * 0.42);
   const left = (W - S) / 2, top = (H - S) / 2 - 10, cx = left + S / 2, cy = top + S / 2;
   const app = clamp01(seg(t, 0.08, 0.5));
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 46%, #0b1120, #05060a)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 46%, #0b1120, #05060a)')}}>
       {/* the real k-space, tinted into the palette */}
       <div style={{position: 'absolute', left, top, width: S, height: S, borderRadius: 6, overflow: 'hidden',
         boxShadow: `0 0 0 1.5px ${accent}88, 0 20px 60px #000a`, opacity: app}}>

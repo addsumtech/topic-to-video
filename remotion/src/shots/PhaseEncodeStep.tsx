@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, lerp, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
 
@@ -12,6 +13,7 @@ export const PhaseEncodeStep: React.FC<{accent?: string; accent2?: string; label
   accent = '#22d3ee', accent2 = '#a78bfa', label = 'Phase encoding · one line per TR', steps = 16,
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   const cur = Math.min(steps - 1, Math.floor(clamp01(t) * steps));   // current phase-encode step
 
@@ -31,7 +33,7 @@ export const PhaseEncodeStep: React.FC<{accent?: string; accent2?: string; label
   const bx = W * 0.24, baseY = H * 0.5, barMax = H * 0.18;
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 42%, #0b1120, #05060a)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 42%, #0b1120, #05060a)')}}>
       <svg width={W} height={H} style={{position: 'absolute'}}>
         {/* k-space grid box */}
         <rect x={gx - 12} y={gy - 12} width={gw + 24} height={gh + 24} rx={8} fill="none" stroke={accent} strokeWidth={1.3} opacity={0.35} />

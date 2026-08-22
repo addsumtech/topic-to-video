@@ -5,13 +5,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
-const BG = '#07060d';
+const BG_D0 = '#07060d';
 const ROWS = 28, SAMP = 72;
 
 export const RidgeField: React.FC<{title?: string; tagline?: string; accent?: string}> = ({
   title: TITLE = 'Signals', tagline: TAG = 'patterns in the noise', accent: ACC = '#8de0ff'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const left = 260, right = W - 260, top = 190, rowGap = (H - 360) / ROWS;

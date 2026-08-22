@@ -6,13 +6,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
-const BG = '#03040c';
+const BG_D0 = '#03040c';
 const N = 240;
 
 export const StarfieldWarp: React.FC<{title?: string; tagline?: string; accent?: string}> = ({
   title: TITLE = 'Lightspeed', tagline: TAG = 'the next era, now', accent: ACC = '#8fb6ff'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2;

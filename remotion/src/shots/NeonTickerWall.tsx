@@ -5,15 +5,18 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
-const BG = '#05060d';
+const BG_D0 = '#05060d';
 const NEON = ['#ff2e88', '#00e5ff', '#ffe14d', '#8b5bff', '#39ff88'];
 
 export const NeonTickerWall: React.FC<{headline?: string; tickers?: string[]; accent?: string}> = ({
   headline: HEADLINE = 'NOW SHIPPING', tickers: TICKERS =
     ['BREAKING · IT WORKS · ', 'LIVE NOW · ', 'ALL SYSTEMS GO · ', 'SOLD OUT · ENCORE · '],
   accent: ACC = '#ff2e88'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const flick = (seed: number) => 0.6 + 0.4 * (hash01(seed + Math.floor(t * 12)) > 0.15 ? 1 : 0.3);

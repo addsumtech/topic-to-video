@@ -5,12 +5,14 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 170; // ~5.7s
 
 export const SpinsAlign: React.FC<{accent?: string; accent2?: string; label?: string}> = ({
   accent = '#22d3ee', accent2 = '#a78bfa', label = 'Spins align in the field', } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   const align = clamp01(seg(t, 0.15, 0.75));                 // 0 random → 1 field on
   const N = 60, arrows: React.ReactNode[] = [];
@@ -27,7 +29,7 @@ export const SpinsAlign: React.FC<{accent?: string; accent2?: string; label?: st
   const mBase = H * 0.78, mY = lerp(0, H * 0.15, align);
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 46%, #0b1120, #05060a)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 46%, #0b1120, #05060a)')}}>
       <svg width={W} height={H} style={{position: 'absolute'}}>
         <defs><marker id="sa" markerWidth="9" markerHeight="9" refX="3" refY="4.5" orient="auto"><path d="M0,0 L6,4.5 L0,9 Z" fill={accent} /></marker></defs>
         {/* B0 field direction (up) appears as it turns on */}

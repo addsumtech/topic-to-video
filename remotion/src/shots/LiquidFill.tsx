@@ -5,11 +5,13 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutBack} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 160; // ~5.3s
 
 export const LiquidFill: React.FC<{label?: string}> = ({label = 'on your machine'} = {}) => {
   const t = useT();
+  const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2, R = 300;
   const p = easeInOutCubic(seg(t, 0.1, 0.82));   // fill fraction
@@ -31,7 +33,7 @@ export const LiquidFill: React.FC<{label?: string}> = ({label = 'on your machine
   };
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 30%, #0d1830 0%, #060b18 70%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 30%, #0d1830 0%, #060b18 70%)')}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <defs>
           <clipPath id="vessel"><circle cx={cx} cy={cy} r={R} /></clipPath>

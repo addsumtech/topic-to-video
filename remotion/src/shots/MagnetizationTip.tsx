@@ -7,6 +7,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 180; // 6s
 
@@ -14,6 +15,7 @@ export const MagnetizationTip: React.FC<{accent?: string; accent2?: string; labe
   accent = '#22d3ee', accent2 = '#a78bfa', label = 'Resonance tips the magnetization',
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   const ox = W * 0.40, oy = H * 0.56;                       // origin of the vector frame (left-of-centre)
   const L = Math.min(W, H) * 0.34;                          // vector length
@@ -46,7 +48,7 @@ export const MagnetizationTip: React.FC<{accent?: string; accent2?: string; labe
   const A = (o: number) => `${accent}${Math.round(clamp01(o) * 255).toString(16).padStart(2, '0')}`;
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 42% 50%, #0b1120, #05060a)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 42% 50%, #0b1120, #05060a)')}}>
       <svg width={W} height={H} style={{position: 'absolute'}}>
         {/* B0 axis (vertical) + the transverse plane it tips into */}
         <line x1={ox} y1={oy - L * 1.15} x2={ox} y2={oy + L * 0.35} stroke={A(0.5)} strokeWidth={1.6} strokeDasharray="3 6" />

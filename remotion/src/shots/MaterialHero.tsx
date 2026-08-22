@@ -10,6 +10,7 @@ export const DURATION = 150; // 5s
 
 const Hero: React.FC = () => {
   const frame = useCurrentFrame();
+  const dna = useDNA();
   const yaw = frame * 0.02;
   const rimX = Math.sin(frame * 0.03) * 7; // the rake light sweeps
   const rimZ = 4 + Math.cos(frame * 0.03) * 2;
@@ -38,7 +39,7 @@ const Hero: React.FC = () => {
 export const MaterialHero: React.FC<{title?: string}> = ({title = 'One tool. Your whole team.'} = {}) => {
   const {width, height} = useVideoConfig();
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 42%, #10131d, #05070c 72%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 42%, #10131d, #05070c 72%)')}}>
       <ThreeCanvas width={width} height={height} camera={{position: [0, 0.4, 5], fov: 42}} style={{position: 'absolute', inset: 0}}>
         <Hero />
       </ThreeCanvas>

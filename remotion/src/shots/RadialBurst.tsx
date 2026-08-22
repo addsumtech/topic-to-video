@@ -5,12 +5,14 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
 const N = 14;
 
 export const RadialBurst: React.FC<{hub?: string; tagline?: string}> = ({hub: HUB = 'WorkBuddy', tagline = 'EVERYTHING, IN ORBIT'} = {}) => {
   const t = useT();
+  const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2;
   const spin = t * 26;
@@ -25,7 +27,7 @@ export const RadialBurst: React.FC<{hub?: string; tagline?: string}> = ({hub: HU
   ];
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 50%, #141032 0%, #0a0722 60%, #050318 100%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 50%, #141032 0%, #0a0722 60%, #050318 100%)')}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <defs><filter id="rg"><feGaussianBlur stdDeviation="5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter></defs>
         <g transform={`translate(${cx} ${cy}) rotate(${spin})`}>

@@ -33,6 +33,10 @@ export const SHOT_LUMA: Record<string, Lum> = {
   SpotlightStage: 'dark', StarfieldWarp: 'dark', SwissEditorial: 'light', TemporalAccelerate: 'light',
   TerrainFly: 'dark', TimelineTravel: 'light', VariableTypeMorph: 'dark', VelocitySnap: 'dark',
   VersusSplit: 'dark', VoiceSignal: 'dark', VoxelBuild: 'dark', WireGlobe: 'dark',
+  // terminal-native family (dark console ground) + editorial-native family (warm paper-DARK ground via EDITORIAL_DNA)
+  TermBars: 'dark', TermTree: 'dark', TermLog: 'dark', TermGitLog: 'dark', TermCounter: 'dark',
+  TermTable: 'dark', TermDiff: 'dark', TermThink: 'dark',
+  EdStat: 'dark', EdTimeline: 'dark', EdCompare: 'dark',
 };
 
 // the ground luminance for a scene: an explicit EDL `bgLum` wins, else the measured map, else 'dark'.

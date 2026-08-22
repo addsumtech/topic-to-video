@@ -7,6 +7,7 @@
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 import {fitContentSquare} from '../runtime/layout';
 
 export const DURATION = 180; // 6s
@@ -15,6 +16,7 @@ export const ScanReconstruct: React.FC<{src?: string; label?: string; credit?: s
   src, label = '', credit = '', accent = '#22d3ee', cols = 22,
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   const {S, left, top} = fitContentSquare(W, H, {hFrac: 0.85, wFrac: 0.44});  // centered in the content zone (clear of title + caption)
   const reveal = clamp01(seg(t, 0.06, 0.9));
@@ -35,7 +37,7 @@ export const ScanReconstruct: React.FC<{src?: string; label?: string; credit?: s
   const ringR = revealR * (S * 0.707);
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 46%, #0b1120, #05060a)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 46%, #0b1120, #05060a)')}}>
       <div style={{position: 'absolute', left, top, width: S, height: S, borderRadius: 6,
         overflow: 'hidden', boxShadow: `0 0 0 1px ${accent}66, 0 24px 80px #000a`}}>
         {src ? <Img src={staticFile(src)} style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : null}

@@ -5,13 +5,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
-const BG = '#060a09', LIVE = '#37ff9a';
+const BG_D0 = '#060a09', LIVE = '#37ff9a';
 const GX = 64, GY = 36;
 
 export const GameOfLife: React.FC<{title?: string; tagline?: string; accent?: string}> = ({
   title: TITLE = 'Emergent', tagline: TAG = 'simple rules, complex life', accent: ACC = LIVE} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cw = W / GX, ch = H / GY;

@@ -6,13 +6,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, easeInOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
-const BG = '#08080f';
+const BG_D0 = '#08080f';
 
 export const VariableTypeMorph: React.FC<{word?: string; kicker?: string; tagline?: string; accent?: string; accent2?: string}> = ({
   word: WORD = 'EXPRESSIVE', kicker: KICKER = 'type, alive', tagline: TAG = 'weight · width · in motion',
   accent: ACC = '#ff5b7f', accent2: ACC2 = '#5b8cff'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const letters = WORD.split('');

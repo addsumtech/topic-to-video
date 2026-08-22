@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
 const FORMS = ['ask', 'draft', 'analyse', 'done'];
@@ -38,12 +39,13 @@ const Glyph: React.FC<{form: string; op: number}> = ({form, op}) => {
 
 export const LiquidMorph: React.FC = () => {
   const t = useT();
+  const dna = useDNA();
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2 - 20;
   const idx = clamp01(seg(t, 0.06, 0.96)) * (FORMS.length - 1); // which form (fractional)
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 42%, #141326, #05060d 72%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 42%, #141326, #05060d 72%)')}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <defs>
           <linearGradient id="iri" x1="0" y1="0" x2="1" y2="1">

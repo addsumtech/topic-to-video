@@ -6,14 +6,19 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
-const PAPER = '#f3f0e8', INK = '#161512';
+const PAPER_D0 = '#f3f0e8', INK_D0 = '#161512';
 
 export const MagazineSpread: React.FC<{title?: string; headline?: string; deck?: string; issue?: string; accent?: string}> = ({
   title: TITLE = 'OBLIQUE', headline: HEADLINE = 'The quiet revolution in how we work',
   deck: DECK = 'A field guide to the tools reshaping the day', issue: ISSUE = 'ISSUE 07 — 2026',
-  accent: ACC = '#e8452e'} = {}) => {
+  accent: accentProp} = {}) => {
+  const dna = useDNA();
+  // accent is a PROP (an explicit override always wins); fall back to the DNA accent so a themed film unifies,
+  // then the register's own editorial red as the un-themed default — not a fixed red block on a terminal/blue film.
+  const PAPER = dna?.bg ?? PAPER_D0, INK = dna?.fg ?? INK_D0, ACC = accentProp ?? dna?.accent ?? '#e8452e';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const M = 150; // margin
@@ -36,7 +41,7 @@ export const MagazineSpread: React.FC<{title?: string; headline?: string; deck?:
       {/* hero colour block */}
       <div style={{position: 'absolute', right: M, top: 320, width: 560, height: 560,
         transform: `translateX(${(1 - block) * 120}px)`, opacity: block,
-        background: `linear-gradient(160deg, ${ACC}, #b0311f)`, boxShadow: '0 40px 80px #0002'}}>
+        background: `linear-gradient(160deg, ${ACC}, ${dna?.accent2 ?? '#b0311f'})`, boxShadow: '0 40px 80px #0002'}}>
         <div style={{position: 'absolute', left: 34, bottom: 30, color: '#fff',
           font: '700 26px/1.3 "JetBrains Mono", monospace', letterSpacing: '0.08em', opacity: clamp01(seg(t, 0.5, 0.66))}}>
           FEATURE<br />No. 01</div>

@@ -5,15 +5,18 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, easeOutBack, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
-const TEAL = '#22D3C5', BG = '#0b1220', PANEL = '#111a2b';
+const TEAL_D0 = '#22D3C5', BG_D0 = '#0b1220', PANEL_D0 = '#111a2b';
 const DEFAULT_Q = 'How do we cut Q3 costs?';
 const DEFAULT_A = 'Start with the three largest line items: consolidate vendor contracts [1], move compute to reserved capacity [2], and automate the monthly close [3].';
 const DEFAULT_SRC = [{t: 'Vendor audit', d: 'finance/'}, {t: 'Cloud cost report', d: 'infra/'}, {t: 'Monthly close checklist', d: 'ops/'}];
 
 export const AnswerStream: React.FC<{query?: string; answer?: string; sources?: {t: string; d: string}[]}> = ({
   query: Q = DEFAULT_Q, answer: A = DEFAULT_A, sources: SRC = DEFAULT_SRC} = {}) => {
+  const dna = useDNA();
+  const TEAL = dna?.accent ?? TEAL_D0, BG = dna?.bg ?? BG_D0, PANEL = dna?.surface ?? PANEL_D0;
   const t = useT();
   const {width: W} = useVideoConfig();
   const qIn = easeOutCubic(seg(t, 0, 0.14));

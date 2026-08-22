@@ -5,11 +5,17 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutBack} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
+// LEVEL-C: frosted glass IS translucent-white on any ground (kept — that's what glass looks like), so the GROUND
+// flips to the DNA (a dark-mode Apple glass UI), the UI cards become dark-frosted, ink→fg, orbs/✓→accents. Null=orig.
 const DEFAULT_ROWS = ['Draft the brief', 'Pull the numbers', 'Build the deck', 'Ship it'];
 
-const Glass: React.FC<{x: number; y: number; d: number; settled?: number}> = ({x, y, d, settled = 0}) => (
+const Glass: React.FC<{x: number; y: number; d: number; settled?: number}> = ({x, y, d, settled = 0}) => {
+  const dna = useDNA();
+  const check = dna?.accent2 ?? dna?.accent ?? '#2ee06a';
+  return (
   <div style={{position: 'absolute', left: x - d / 2, top: y - d / 2, width: d, height: d,
     borderRadius: '46% 54% 52% 48% / 50% 46% 54% 50%',
     backdropFilter: 'blur(6px) brightness(1.14) saturate(1.5)', WebkitBackdropFilter: 'blur(6px) brightness(1.14) saturate(1.5)',
@@ -20,11 +26,16 @@ const Glass: React.FC<{x: number; y: number; d: number; settled?: number}> = ({x
     <div style={{position: 'absolute', left: '10%', top: '8%', width: '52%', height: '30%', borderRadius: '50%',
       background: 'radial-gradient(closest-side, #ffffffcc, #ffffff00)', filter: 'blur(3px)'}} />
     {settled > 0.5 && <div style={{position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-      font: '800 90px/1 Inter, sans-serif', color: '#2ee06a', textShadow: '0 2px 10px #0006'}}>✓</div>}
+      font: '800 90px/1 Inter, sans-serif', color: check, textShadow: '0 2px 10px #0006'}}>✓</div>}
   </div>
-);
+  );
+};
 
 export const LiquidGlass: React.FC<{items?: string[]; title?: string}> = ({items: ROWS = DEFAULT_ROWS, title = 'Today’s plan'} = {}) => {
+  const dna = useDNA();
+  const bgc = dna?.bgGrad ?? dna?.bg ?? 'linear-gradient(140deg, #dfe8f7 0%, #eef1f6 45%, #f6ecf3 100%)';
+  const FG = dna?.fg ?? '#1b2740', ORB1 = dna?.accent ?? '#7aa8ff', ORB2 = dna?.accent2 ?? '#ff9ec9';
+  const CARD = dna ? '#ffffff14' : '#ffffffcc', CARDB = dna ? '#ffffff2e' : '#ffffff', GOOD = dna?.accent2 ?? '#2ee06a';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const listX = W / 2 - 420, listY = 300, rowH = 150;
@@ -34,23 +45,23 @@ export const LiquidGlass: React.FC<{items?: string[]; title?: string}> = ({items
   const settled = easeOutBack(seg(t, 0.78, 0.94));
 
   return (
-    <AbsoluteFill style={{background: 'linear-gradient(140deg, #dfe8f7 0%, #eef1f6 45%, #f6ecf3 100%)'}}>
+    <AbsoluteFill style={{background: bgc}}>
       {/* soft colour orbs for the glass to refract */}
       <div style={{position: 'absolute', left: '12%', top: '18%', width: 520, height: 520, borderRadius: '50%',
-        background: 'radial-gradient(closest-side, #7aa8ff66, #7aa8ff00)', filter: 'blur(20px)'}} />
+        background: `radial-gradient(closest-side, ${ORB1}66, ${ORB1}00)`, filter: 'blur(20px)'}} />
       <div style={{position: 'absolute', right: '10%', bottom: '14%', width: 560, height: 560, borderRadius: '50%',
-        background: 'radial-gradient(closest-side, #ff9ec966, #ff9ec900)', filter: 'blur(20px)'}} />
+        background: `radial-gradient(closest-side, ${ORB2}66, ${ORB2}00)`, filter: 'blur(20px)'}} />
 
       {/* the UI beneath */}
-      <div style={{position: 'absolute', left: listX, top: listY - 96, color: '#1b2740', font: '800 60px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.02em'}}>{title}</div>
+      <div style={{position: 'absolute', left: listX, top: listY - 96, color: FG, font: '800 60px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.02em'}}>{title}</div>
       {ROWS.map((r, i) => {
         const done = settled > 0.5 && i === 3;
         return (
           <div key={i} style={{position: 'absolute', left: listX, top: listY + i * rowH, width: 900, height: rowH - 26,
-            borderRadius: 22, background: '#ffffffcc', border: '1px solid #ffffff', boxShadow: '0 10px 30px #8aa0c022',
+            borderRadius: 22, background: CARD, border: `1px solid ${CARDB}`, boxShadow: '0 10px 30px #8aa0c022',
             display: 'flex', alignItems: 'center', gap: 26, padding: '0 34px'}}>
-            <div style={{width: 46, height: 46, borderRadius: 12, background: done ? '#2ee06a' : ['#7aa8ff', '#b58cff', '#ff9ec9', '#ffcf5a'][i]}} />
-            <div style={{color: '#26324c', font: '600 44px/1 Inter, system-ui, sans-serif', textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.6 : 1}}>{r}</div>
+            <div style={{width: 46, height: 46, borderRadius: 12, background: done ? GOOD : ['#7aa8ff', '#b58cff', '#ff9ec9', '#ffcf5a'][i]}} />
+            <div style={{color: FG, font: '600 44px/1 Inter, system-ui, sans-serif', textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.6 : 1}}>{r}</div>
           </div>
         );
       })}

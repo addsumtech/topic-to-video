@@ -5,13 +5,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 160; // ~5.3s
-const BG = '#070312', ACC = '#00e0c8', ACC2 = '#ff4fa3';
+const BG_D0 = '#070312', ACC_D0 = '#00e0c8', ACC2_D0 = '#ff4fa3';
 const GX = 40, GZ = 24;
 
 export const TerrainFly: React.FC<{title?: string; tagline?: string}> = ({
   title: TITLE = 'Cross it', tagline: TAG = 'new ground, ahead'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0, ACC = dna?.accent ?? ACC_D0, ACC2 = dna?.accent2 ?? ACC2_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, horizon = H * 0.42, focal = 460, camH = 2.2;

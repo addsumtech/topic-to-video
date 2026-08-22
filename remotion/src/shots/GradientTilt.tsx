@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 170; // ~5.7s
 
@@ -12,6 +13,7 @@ export const GradientTilt: React.FC<{accent?: string; accent2?: string; label?: 
   accent = '#22d3ee', accent2 = '#a78bfa', label = 'Position becomes frequency', cols = 11,
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
+  const dna = useDNA();
   const t = useT();
   const on = clamp01(seg(t, 0.18, 0.72));                    // 0 uniform field → 1 tilted ramp
   const gx = W * 0.16, gw = W * 0.68, colW = gw / cols, baseY = H * 0.66, maxH = H * 0.26;
@@ -27,7 +29,7 @@ export const GradientTilt: React.FC<{accent?: string; accent2?: string; label?: 
   }
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 44%, #0b1120, #05060a)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 44%, #0b1120, #05060a)')}}>
       <svg width={W} height={H} style={{position: 'absolute'}}>
         <line x1={gx} y1={baseY} x2={gx + gw} y2={baseY} stroke="#3a4658" strokeWidth={1.5} />
         {bars}

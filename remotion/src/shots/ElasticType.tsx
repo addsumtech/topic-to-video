@@ -5,13 +5,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 145; // ~4.8s
-const BG = '#141a2e';
+const BG_D0 = '#141a2e';
 const TONES = ['#ff5b7f', '#5b8cff', '#37d4a6', '#f6a531', '#c07bff'];
 
 export const ElasticType: React.FC<{word?: string; tagline?: string}> = ({
   word: WORD = 'BOUNCE', tagline: TAG = 'springy, gummy, alive'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const letters = WORD.split('');

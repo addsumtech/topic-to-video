@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 175; // ~5.8s
 const DEFAULT_WORDS = ['PLAN', 'BUILD', 'SHIP'];
@@ -12,6 +13,7 @@ const DEFAULT_WORDS = ['PLAN', 'BUILD', 'SHIP'];
 export const SpotlightStage: React.FC<{items?: string[]; wordmark?: string}> = ({
   items: WORDS = DEFAULT_WORDS, wordmark: WORDMARK = 'WORKBUDDY'} = {}) => {
   const t = useT();
+  const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const wy = H / 2 - 30;
   // WIDTH-AWARE layout: spread the band + scale the font so words never overlap, whatever their count/length.
@@ -35,7 +37,7 @@ export const SpotlightStage: React.FC<{items?: string[]; wordmark?: string}> = (
   const ry = lerp(300, 820, easeOutCubic(segW));
 
   return (
-    <AbsoluteFill style={{background: '#040404'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('#040404')}}>
       {/* floor sheen */}
       <div style={{position: 'absolute', left: 0, right: 0, bottom: 0, height: H * 0.4,
         background: 'linear-gradient(#0000, #0d0d10)'}} />

@@ -5,13 +5,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
-const BG = '#070a14';
+const BG_D0 = '#070a14';
 const ELEM = ['#6b7488', '#ff5b5b', '#5b8cff', '#e6ecff']; // C, O, N, H
 
 export const MoleculeBallStick: React.FC<{title?: string; tagline?: string}> = ({
   title: TITLE = 'Composed', tagline: TAG = 'the chemistry of it'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2 - 10, S = 220;

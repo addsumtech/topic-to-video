@@ -5,13 +5,16 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutExpo, hash01} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
-const BG = '#080a12';
+const BG_D0 = '#080a12';
 const COLS = 5, ROWS = 5, TW = 208, TH = 150;
 
 export const FractureIn: React.FC<{title?: string; tagline?: string; accent?: string}> = ({
   title: TITLE = 'One picture', tagline: TAG = 'from many moving parts', accent: ACC = '#5b8cff'} = {}) => {
+  const dna = useDNA();
+  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const gw = COLS * TW, gh = ROWS * TH;

@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, clamp01, hash01, easeOutBack} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 const CH = '▚ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789▸✓'.split('');
@@ -13,6 +14,7 @@ const DEFAULT_ROWS = ['WORKBUDDY', 'DELIVERED'];
 
 export const SplitFlap: React.FC<{rows?: string[]}> = ({rows: ROWS = DEFAULT_ROWS} = {}) => {
   const t = useT();
+  const dna = useDNA();
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
   const COLS = Math.max(...ROWS.map((r) => r.length));
@@ -48,7 +50,7 @@ export const SplitFlap: React.FC<{rows?: string[]}> = ({rows: ROWS = DEFAULT_ROW
   });
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 34%, #17171d 0%, #0a0a0e 72%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 34%, #17171d 0%, #0a0a0e 72%)')}}>
       {/* board backing plate */}
       <div style={{position: 'absolute', left: x0 - 30, top: y0 - 30, width: boardW + 60,
         height: ROWS.length * th + (ROWS.length - 1) * gap + 60, borderRadius: 22, background: '#050506',
