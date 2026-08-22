@@ -37,8 +37,8 @@ export const PixelBuild: React.FC<{label?: string}> = ({label = 'WORKBUDDY · CO
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('#0b0f2a'), overflow: 'hidden'}}>
       {/* HUD */}
-      <div style={{position: 'absolute', left: 60, top: 44, color: '#ffe14d', font: '700 42px/1 "Press Start 2P", "VT323", monospace', letterSpacing: '0.04em'}}>SCORE 9999</div>
-      <div style={{position: 'absolute', right: 60, top: 44, color: '#ff5b7f', font: '700 42px/1 "VT323", monospace', letterSpacing: '0.04em'}}>1UP ▪▪▪</div>
+      <div style={{position: 'absolute', left: 60, top: 44, color: '#ffe14d', font: '700 42px/1 var(--f-mono, "Press Start 2P", "VT323", monospace)', letterSpacing: '0.04em'}}>SCORE 9999</div>
+      <div style={{position: 'absolute', right: 60, top: 44, color: '#ff5b7f', font: '700 42px/1 var(--f-mono, "VT323", monospace)', letterSpacing: '0.04em'}}>1UP ▪▪▪</div>
 
       {/* the sprite */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}} shapeRendering="crispEdges">
@@ -68,7 +68,7 @@ export const PixelBuild: React.FC<{label?: string}> = ({label = 'WORKBUDDY · CO
 
       {/* COMPLETE banner */}
       <div style={{position: 'absolute', left: 0, right: 0, top: gy + gh + 30, textAlign: 'center', transform: `scale(${banner})`,
-        opacity: banner > 0 ? 1 : 0, color: '#ffe14d', font: '700 68px/1 "Press Start 2P", "VT323", monospace',
+        opacity: banner > 0 ? 1 : 0, color: '#ffe14d', font: '700 68px/1 var(--f-mono, "Press Start 2P", "VT323", monospace)',
         letterSpacing: '0.06em', textShadow: '5px 5px 0 #b23b00'}}>{label}</div>
 
       {/* CRT scanlines + vignette */}

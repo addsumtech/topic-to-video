@@ -43,8 +43,8 @@ export const CursorStory: React.FC<{items?: string[]}> = ({items: ROWS = DEFAULT
           <div key={i} style={{display: 'flex', alignItems: 'center', gap: 22, padding: '26px 30px', borderRadius: 12,
             marginBottom: 12, background: i === hi ? `${RED}1c` : '#141922', border: `1px solid ${i === hi ? RED : '#1e2531'}`}}>
             <div style={{width: 14, height: 14, borderRadius: 7, background: i <= hi && t > 0.6 ? '#59d98b' : '#3a4658'}} />
-            <div style={{font: '600 40px/1 Inter,system-ui,sans-serif', color: '#d6deea'}}>{r}</div>
-            {i === hi && <div style={{marginLeft: 'auto', font: '700 26px/1 Inter', color: RED}}>⌘K</div>}
+            <div style={{font: '600 40px/1 var(--f-body, Inter,system-ui,sans-serif)', color: '#d6deea'}}>{r}</div>
+            {i === hi && <div style={{marginLeft: 'auto', font: '700 26px/1 var(--f-body, Inter)', color: RED}}>⌘K</div>}
           </div>
         ))}
       </div>
@@ -52,15 +52,15 @@ export const CursorStory: React.FC<{items?: string[]}> = ({items: ROWS = DEFAULT
       {paletteOn && (
         <div style={{position: 'absolute', left: W / 2 - 460, top: 300, width: 920, background: 'rgba(20,24,32,.96)',
           border: `1px solid ${RED}55`, borderRadius: 18, boxShadow: '0 40px 100px rgba(0,0,0,.6)', padding: '30px 36px'}}>
-          <div style={{font: '500 42px/1 Inter', color: '#eef2f8'}}>Clean up all six ▍</div>
+          <div style={{font: '500 42px/1 var(--f-body, Inter)', color: '#eef2f8'}}>Clean up all six ▍</div>
         </div>
       )}
       {/* result toast after Return (jump-cut past the work) */}
       {done && (
         <div style={{position: 'absolute', left: W / 2 - 300, top: 340, width: 600, opacity: easeOutBack(seg(t, 0.74, 0.86)),
           background: '#12241a', border: '1px solid #1f6b3f', borderRadius: 16, padding: '34px 40px', textAlign: 'center'}}>
-          <div style={{font: '800 60px/1 Inter', color: '#59d98b'}}>Cleared · 6 tasks</div>
-          <div style={{font: '600 32px/1 Inter', color: '#89e0a8', marginTop: 12}}>in one keystroke</div>
+          <div style={{font: '800 60px/1 var(--f-body, Inter)', color: '#59d98b'}}>Cleared · 6 tasks</div>
+          <div style={{font: '600 32px/1 var(--f-body, Inter)', color: '#89e0a8', marginTop: 12}}>in one keystroke</div>
         </div>
       )}
       {/* keyboard chips */}
@@ -79,6 +79,6 @@ const Pointer: React.FC<{x: number; y: number; op: number}> = ({x, y, op}) => (
 );
 const KeyChip: React.FC<{x: number; y: number; label: string; c: string}> = ({x, y, label, c}) => (
   <div style={{position: 'absolute', left: x, top: y, padding: '10px 20px', borderRadius: 10, background: c,
-    color: '#0d1017', font: '800 34px/1 Inter,system-ui,sans-serif', boxShadow: '0 8px 20px rgba(0,0,0,.5)'}}>{label}</div>
+    color: '#0d1017', font: '800 34px/1 var(--f-body, Inter,system-ui,sans-serif)', boxShadow: '0 8px 20px rgba(0,0,0,.5)'}}>{label}</div>
 );
 export default CursorStory;

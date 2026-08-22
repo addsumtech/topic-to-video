@@ -41,8 +41,8 @@ export const TensionScale: React.FC<{
     <g key={key} opacity={appear}>
       <line x1={x} y1={y} x2={x} y2={y + 28} stroke={`${col}aa`} strokeWidth={2} />
       <rect x={x - bw / 2} y={y + 28} width={bw} height={78} rx={8} fill="#0d1117" stroke={col} strokeWidth={1.6} />
-      <text x={x} y={y + 60} textAnchor="middle" fill={col} fontSize={lfs} fontFamily="'JetBrains Mono', monospace" fontWeight={700}>{label}</text>
-      <text x={x} y={y + 88} textAnchor="middle" fill="#9fb0c3" fontSize="16" fontFamily="Inter, sans-serif">{sub}</text>
+      <text x={x} y={y + 60} textAnchor="middle" fill={col} fontSize={lfs} fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" fontWeight={700}>{label}</text>
+      <text x={x} y={y + 88} textAnchor="middle" fill="#9fb0c3" fontSize="16" fontFamily="var(--f-body, Inter, sans-serif)">{sub}</text>
     </g>
     );
   };
@@ -62,9 +62,9 @@ export const TensionScale: React.FC<{
         <circle cx={cx} cy={fy} r={9 + 3 * Math.sin(t * Math.PI * 2 * 1.15)} fill="#fff" opacity={0.9} />
         <circle cx={cx} cy={fy} r={20} fill="none" stroke={`${accent}`} strokeWidth={1.5} opacity={0.4 + 0.3 * Math.abs(Math.sin(t * Math.PI * 2 * 1.15))} />
         {/* equilibrium readout */}
-        <text x={cx} y={fy + 96} textAnchor="middle" fill="#67788c" fontSize="15" fontFamily="'JetBrains Mono', monospace" opacity={appear}>equilibrium: unresolved</text>
+        <text x={cx} y={fy + 96} textAnchor="middle" fill="#67788c" fontSize="15" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={appear}>equilibrium: unresolved</text>
         {/* bottom note (kept above the caption band) */}
-        <text x={cx} y={H * 0.82} textAnchor="middle" fill="#c9d6ea" fontSize="20" fontFamily="'JetBrains Mono', monospace" opacity={clamp01((t - 0.15) * 3)}>{note}</text>
+        <text x={cx} y={H * 0.82} textAnchor="middle" fill="#c9d6ea" fontSize="20" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01((t - 0.15) * 3)}>{note}</text>
       </svg>
       <div style={{...titleStyle, opacity: lerp(0.4, 1, clamp01(t * 4))}}>{title}</div>
     </AbsoluteFill>

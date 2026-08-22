@@ -26,7 +26,7 @@ const Glass: React.FC<{x: number; y: number; d: number; settled?: number}> = ({x
     <div style={{position: 'absolute', left: '10%', top: '8%', width: '52%', height: '30%', borderRadius: '50%',
       background: 'radial-gradient(closest-side, #ffffffcc, #ffffff00)', filter: 'blur(3px)'}} />
     {settled > 0.5 && <div style={{position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-      font: '800 90px/1 Inter, sans-serif', color: check, textShadow: '0 2px 10px #0006'}}>✓</div>}
+      font: '800 90px/1 var(--f-display, Inter, sans-serif)', color: check, textShadow: '0 2px 10px #0006'}}>✓</div>}
   </div>
   );
 };
@@ -54,7 +54,7 @@ export const LiquidGlass: React.FC<{items?: string[]; title?: string}> = ({items
         background: `radial-gradient(closest-side, ${ORB2}66, ${ORB2}00)`, filter: 'blur(20px)'}} />
 
       {/* the UI beneath */}
-      <div style={{position: 'absolute', left: listX, top: listY - 96, color: FG, font: '800 60px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.02em'}}>{title}</div>
+      <div style={{position: 'absolute', left: listX, top: listY - 96, color: FG, font: '800 60px/1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.02em'}}>{title}</div>
       {ROWS.map((r, i) => {
         const done = settled > 0.5 && i === 3;
         return (
@@ -62,7 +62,7 @@ export const LiquidGlass: React.FC<{items?: string[]; title?: string}> = ({items
             borderRadius: 22, background: CARD, border: `1px solid ${CARDB}`, boxShadow: '0 10px 30px #8aa0c022',
             display: 'flex', alignItems: 'center', gap: 26, padding: '0 34px'}}>
             <div style={{width: 46, height: 46, borderRadius: 12, background: done ? GOOD : ['#7aa8ff', '#b58cff', '#ff9ec9', '#ffcf5a'][i]}} />
-            <div style={{color: ROW_INK, font: '600 44px/1 Inter, system-ui, sans-serif', textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.6 : 1}}>{r}</div>
+            <div style={{color: ROW_INK, font: '600 44px/1 var(--f-body, Inter, system-ui, sans-serif)', textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.6 : 1}}>{r}</div>
           </div>
         );
       })}

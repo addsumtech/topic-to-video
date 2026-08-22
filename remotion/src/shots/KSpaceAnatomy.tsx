@@ -43,7 +43,7 @@ export const KSpaceAnatomy: React.FC<{srcK?: string; srcLow?: string; srcHigh?: 
         {/* outer ring = high spatial frequency → detail */}
         <circle cx={kcx} cy={kcy} r={K * 0.46} fill="none" stroke={accent2} strokeWidth={2.5} strokeDasharray="6 8"
           opacity={0.3 + 0.6 * pB} />
-        <text x={kx} y={ky - 16} fill="#c9d6ea" fontSize="22" fontFamily="'JetBrains Mono', monospace">k-space (spatial frequencies)</text>
+        <text x={kx} y={ky - 16} fill="#c9d6ea" fontSize="22" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">k-space (spatial frequencies)</text>
         {/* mapping arrows */}
         <line x1={kcx} y1={kcy} x2={px - 24} y2={py1 + P / 2} stroke={accent} strokeWidth={2} opacity={pA * 0.8} markerEnd="url(#kaA)" />
         <line x1={kx + K * 0.94} y1={kcy} x2={px - 24} y2={py2 + P / 2} stroke={accent2} strokeWidth={2} opacity={pB * 0.8} markerEnd="url(#kaB)" />
@@ -56,16 +56,16 @@ export const KSpaceAnatomy: React.FC<{srcK?: string; srcLow?: string; srcHigh?: 
       {panel(px, py1, P, srcLow, `${accent}88`, 0.25 + 0.75 * pA)}
       {panel(px, py2, P, srcHigh, `${accent2}88`, 0.25 + 0.75 * pB)}
       <svg width={W} height={H} style={{position: 'absolute', left: 0, top: 0}}>
-        <text x={px + P + 24} y={py1 + 34} fill={accent} fontSize="26" fontFamily="Inter, sans-serif" fontWeight={800} opacity={pA}>center = contrast</text>
-        <text x={px + P + 24} y={py1 + 66} fill="#9fb4cc" fontSize="19" fontFamily="Inter, sans-serif" opacity={pA}>low spatial frequency</text>
-        <text x={px + P + 24} y={py2 + 34} fill={accent2} fontSize="26" fontFamily="Inter, sans-serif" fontWeight={800} opacity={pB}>edges = detail</text>
-        <text x={px + P + 24} y={py2 + 66} fill="#9fb4cc" fontSize="19" fontFamily="Inter, sans-serif" opacity={pB}>high spatial frequency</text>
-        <text x={kx} y={ky + K + 40} fill="#8aa" fontSize="19" fontFamily="'JetBrains Mono', monospace" opacity={clamp01(seg(t, 0.06, 0.3))}>one point = a wave across the whole image</text>
+        <text x={px + P + 24} y={py1 + 34} fill={accent} fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800} opacity={pA}>center = contrast</text>
+        <text x={px + P + 24} y={py1 + 66} fill="#9fb4cc" fontSize="19" fontFamily="var(--f-body, Inter, sans-serif)" opacity={pA}>low spatial frequency</text>
+        <text x={px + P + 24} y={py2 + 34} fill={accent2} fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800} opacity={pB}>edges = detail</text>
+        <text x={px + P + 24} y={py2 + 66} fill="#9fb4cc" fontSize="19" fontFamily="var(--f-body, Inter, sans-serif)" opacity={pB}>high spatial frequency</text>
+        <text x={kx} y={ky + K + 40} fill="#8aa" fontSize="19" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01(seg(t, 0.06, 0.3))}>one point = a wave across the whole image</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
+        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
-      {credit ? <div style={{position: 'absolute', left: 20, bottom: 8, color: '#5f6b7d', font: "400 14px/1.3 Inter, sans-serif"}}>{credit}</div> : null}
+      {credit ? <div style={{position: 'absolute', left: 20, bottom: 8, color: '#5f6b7d', font: "400 14px/1.3 var(--f-body, Inter, sans-serif)"}}>{credit}</div> : null}
     </AbsoluteFill>
   );
 };

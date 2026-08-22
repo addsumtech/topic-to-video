@@ -38,19 +38,19 @@ export const CompressedSensingEq: React.FC<{accent?: string; accent2?: string; l
 
       {/* annotation: the sparse transform term */}
       <div style={{position: 'absolute', left: W * 0.2, top: eqY - 120, width: 300, textAlign: 'center', opacity: a1}}>
-        <div style={{color: accent, font: "700 24px/1.2 Inter, sans-serif"}}>sparse in a transform</div>
-        <div style={{color: '#8aa', font: "400 18px/1.3 Inter, sans-serif", marginTop: 4}}>L1 favors the fewest coefficients</div>
+        <div style={{color: accent, font: "700 24px/1.2 var(--f-body, Inter, sans-serif)"}}>sparse in a transform</div>
+        <div style={{color: '#8aa', font: "400 18px/1.3 var(--f-body, Inter, sans-serif)", marginTop: 4}}>L1 favors the fewest coefficients</div>
         <div style={{position: 'absolute', left: 150, top: 62, width: 2, height: 46, background: `${accent}88`}} />
       </div>
       {/* annotation: the data-consistency term */}
       <div style={{position: 'absolute', left: W * 0.5, top: eqY + 120, width: 360, textAlign: 'center', opacity: a2}}>
         <div style={{position: 'absolute', left: 180, top: -48, width: 2, height: 46, background: `${accent2}88`}} />
-        <div style={{color: accent2, font: "700 24px/1.2 Inter, sans-serif"}}>consistent with the measured k-space</div>
-        <div style={{color: '#8aa', font: "400 18px/1.3 Inter, sans-serif", marginTop: 4}}>random undersampling → noise-like aliasing</div>
+        <div style={{color: accent2, font: "700 24px/1.2 var(--f-body, Inter, sans-serif)"}}>consistent with the measured k-space</div>
+        <div style={{color: '#8aa', font: "400 18px/1.3 var(--f-body, Inter, sans-serif)", marginTop: 4}}>random undersampling → noise-like aliasing</div>
       </div>
 
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
+        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
     </AbsoluteFill>
   );

@@ -70,7 +70,7 @@ export const ClayStack: React.FC<{label?: string}> = ({label = 'built, piece by 
 
       {/* soft label */}
       <div style={{position: 'absolute', left: 0, right: 0, bottom: H * 0.12, textAlign: 'center',
-        opacity: clamp01(seg(t, 0.78, 0.95)), color: dna?.dim ?? '#8a5b48', font: '800 46px/1 "Baloo 2", Inter, sans-serif'}}>{label}</div>
+        opacity: clamp01(seg(t, 0.78, 0.95)), color: dna?.dim ?? '#8a5b48', font: '800 46px/1 var(--f-body, "Baloo 2", Inter, sans-serif)'}}>{label}</div>
     </AbsoluteFill>
   );
 };

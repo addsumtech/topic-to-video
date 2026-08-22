@@ -54,10 +54,10 @@ export const FractalTree: React.FC<{title?: string; tagline?: string; branch?: s
       </svg>
       <div style={{position: 'absolute', top: 120, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
         transform: `translateY(${(1 - titleIn) * 14}px)`, color: '#eafff2',
-        font: '800 120px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.03em', textShadow: '0 8px 40px #000'}}>{TITLE}</div>
+        font: '800 120px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em', textShadow: '0 8px 40px #000'}}>{TITLE}</div>
       <div style={{position: 'absolute', top: 268, left: 0, right: 0, textAlign: 'center',
         opacity: easeOutCubic(seg(t, 0.7, 0.9)), color: '#9fc4b0',
-        font: '600 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.16em'}}>{TAG}</div>
+        font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.16em'}}>{TAG}</div>
     </AbsoluteFill>
   );
 };

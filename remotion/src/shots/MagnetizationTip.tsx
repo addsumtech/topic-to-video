@@ -52,9 +52,9 @@ export const MagnetizationTip: React.FC<{accent?: string; accent2?: string; labe
       <svg width={W} height={H} style={{position: 'absolute'}}>
         {/* B0 axis (vertical) + the transverse plane it tips into */}
         <line x1={ox} y1={oy - L * 1.15} x2={ox} y2={oy + L * 0.35} stroke={A(0.5)} strokeWidth={1.6} strokeDasharray="3 6" />
-        <text x={ox + 12} y={oy - L * 1.05} fill="#9fb4cc" fontSize="26" fontFamily="Inter, sans-serif" fontWeight={700}>B₀</text>
+        <text x={ox + 12} y={oy - L * 1.05} fill="#9fb4cc" fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700}>B₀</text>
         <ellipse cx={ox} cy={oy} rx={L * 0.92} ry={L * 0.92 * ell} fill="none" stroke={accent2} strokeWidth={1.3} opacity={0.4} />
-        <text x={ox + L * 0.9} y={oy + L * ell + 26} fill="#8aa" fontSize="20" fontFamily="Inter, sans-serif">transverse plane</text>
+        <text x={ox + L * 0.9} y={oy + L * ell + 26} fill="#8aa" fontSize="20" fontFamily="var(--f-body, Inter, sans-serif)">transverse plane</text>
 
         {/* the spiral trace of M as it nutates */}
         {trace.length > 1 && <polyline points={trace.join(' ')} fill="none" stroke={accent} strokeWidth={2} opacity={0.5} />}
@@ -63,16 +63,16 @@ export const MagnetizationTip: React.FC<{accent?: string; accent2?: string; labe
         <line x1={ox} y1={oy} x2={mx} y2={my} stroke="#eaf6ff" strokeWidth={4} />
         <circle cx={mx} cy={my} r={9} fill="#eaf6ff" />
         <circle cx={mx} cy={my} r={20} fill="none" stroke={accent} strokeWidth={2} opacity={0.6} />
-        <text x={mx + 16} y={my - 10} fill="#eaf6ff" fontSize="26" fontFamily="Inter, sans-serif" fontWeight={800}>M</text>
+        <text x={mx + 16} y={my - 10} fill="#eaf6ff" fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800}>M</text>
 
         {/* the resonant RF field B1 — a single-frequency wave (the actual pulse) */}
         <polyline points={wave.join(' ')} fill="none" stroke={accent2} strokeWidth={2.5} opacity={0.9} />
-        <text x={rfx} y={rfy - 78} fill="#c9d6ea" fontSize="24" fontFamily="Inter, sans-serif" fontWeight={700}>RF pulse · B₁</text>
-        <text x={rfx} y={rfy + 92} fill={accent} fontSize="19" fontFamily="'JetBrains Mono', monospace" letterSpacing="1">at the Larmor frequency</text>
+        <text x={rfx} y={rfy - 78} fill="#c9d6ea" fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700}>RF pulse · B₁</text>
+        <text x={rfx} y={rfy + 92} fill={accent} fontSize="19" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" letterSpacing="1">at the Larmor frequency</text>
       </svg>
 
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
+        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
     </AbsoluteFill>
   );

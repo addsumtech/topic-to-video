@@ -57,7 +57,7 @@ export const ChartLive: React.FC<{endVal?: number; unit?: string; label?: string
           <Figure value={val} unit={unit} ink="#eafff4" tone={ACC} size={210} unitScale={100 / 210}
             fallbackForm="display" fallbackFamily="Inter, system-ui, sans-serif" />
         </div>
-        <div style={{font: '600 42px/1 Inter,system-ui,sans-serif', color: '#6f8f83', marginTop: 6}}>{label}</div>
+        <div style={{font: '600 42px/1 var(--f-body, Inter,system-ui,sans-serif)', color: '#6f8f83', marginTop: 6}}>{label}</div>
       </div>
     </AbsoluteFill>
   );

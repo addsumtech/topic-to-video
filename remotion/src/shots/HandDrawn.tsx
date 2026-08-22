@@ -58,7 +58,7 @@ export const HandDrawn: React.FC<{items?: string[]}> = ({items = ['You', 'WorkBu
         const show = clamp01((t - b.at - 0.14) / 0.2);
         return <div key={i} style={{position: 'absolute', left: b.x, top: y, width: bw, height: bh, display: 'flex',
           alignItems: 'center', justifyContent: 'center', opacity: show, transform: `rotate(${(hash01(i + 9) - 0.5) * 3}deg)`,
-          font: '800 56px/1.1 Inter,system-ui,sans-serif', color: INKc, textAlign: 'center'}}>{b.label}</div>;
+          font: '800 56px/1.1 var(--f-body, Inter,system-ui,sans-serif)', color: INKc, textAlign: 'center'}}>{b.label}</div>;
       })}
     </AbsoluteFill>
   );

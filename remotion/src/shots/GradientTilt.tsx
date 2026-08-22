@@ -35,15 +35,15 @@ export const GradientTilt: React.FC<{accent?: string; accent2?: string; label?: 
         {bars}
         {/* the tilt line B0 → ramp */}
         <line x1={gx} y1={baseY - 0.5 * maxH} x2={gx + gw} y2={baseY - lerp(0.5, 0.95, on) * maxH} stroke="#eaf6ff" strokeWidth={2.5} opacity={0.85} />
-        <text x={gx} y={baseY + 36} fill="#8aa" fontSize="20" fontFamily="'JetBrains Mono', monospace">position →</text>
-        <text x={gx} y={baseY - 0.5 * maxH - 14} fill="#9fb4cc" fontSize="18" fontFamily="Inter, sans-serif" opacity={1 - on}>uniform field</text>
-        <text x={gx} y={baseY + 12} fill={accent} fontSize="18" fontFamily="Inter, sans-serif" opacity={on}>low freq</text>
-        <text x={gx + gw} y={baseY - 0.95 * maxH - 12} textAnchor="end" fill={accent2} fontSize="18" fontFamily="Inter, sans-serif" opacity={on}>high freq</text>
+        <text x={gx} y={baseY + 36} fill="#8aa" fontSize="20" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">position →</text>
+        <text x={gx} y={baseY - 0.5 * maxH - 14} fill="#9fb4cc" fontSize="18" fontFamily="var(--f-body, Inter, sans-serif)" opacity={1 - on}>uniform field</text>
+        <text x={gx} y={baseY + 12} fill={accent} fontSize="18" fontFamily="var(--f-body, Inter, sans-serif)" opacity={on}>low freq</text>
+        <text x={gx + gw} y={baseY - 0.95 * maxH - 12} textAnchor="end" fill={accent2} fontSize="18" fontFamily="var(--f-body, Inter, sans-serif)" opacity={on}>high freq</text>
         {/* the three gradient coils */}
-        <text x={W * 0.5} y={H * 0.8} textAnchor="middle" fill="#c9d6ea" fontSize="22" fontFamily="'JetBrains Mono', monospace" opacity={clamp01(seg(t,0.05,0.3))}>coils  Gx · Gy · Gz    →    B = B₀ + G·x</text>
+        <text x={W * 0.5} y={H * 0.8} textAnchor="middle" fill="#c9d6ea" fontSize="22" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01(seg(t,0.05,0.3))}>coils  Gx · Gy · Gz    →    B = B₀ + G·x</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
+        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
     </AbsoluteFill>
   );

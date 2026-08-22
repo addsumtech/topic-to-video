@@ -49,10 +49,10 @@ export const GameOfLife: React.FC<{title?: string; tagline?: string; accent?: st
       <div style={{position: 'absolute', inset: 0, background: 'radial-gradient(40% 40% at 50% 50%, #060a09dd, #0000 72%)'}} />
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
         <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 14}px)`, color: '#eafff4',
-          font: '800 128px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.03em',
+          font: '800 128px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
           textShadow: `0 0 40px ${ACC}, 0 12px 40px #000`}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 20, color: ACC,
-          font: '600 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.2em', textShadow: `0 0 14px ${ACC}`}}>{TAG}</div>
+          font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.2em', textShadow: `0 0 14px ${ACC}`}}>{TAG}</div>
       </AbsoluteFill>
     </AbsoluteFill>
   );

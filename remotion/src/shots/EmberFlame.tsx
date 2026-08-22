@@ -57,13 +57,13 @@ export const EmberFlame: React.FC<{title?: string; tagline?: string}> = ({
       </svg>
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingBottom: 40}}>
         <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 16}px) scale(${1 + (flick - 0.85) * 0.15})`,
-          font: '900 168px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.03em',
+          font: '900 168px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
           background: 'linear-gradient(180deg, #fff7e0, #ffd24d 40%, #ff6a1e 72%, #ffb04d)',
           WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent',
           WebkitTextStroke: '2px #4a0f00',
           filter: 'drop-shadow(0 4px 10px #000d) drop-shadow(0 0 44px #ff6a1eaa)'} as React.CSSProperties}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 10, color: '#ffcf9a',
-          font: '700 32px/1 "JetBrains Mono", monospace', letterSpacing: '0.24em', textTransform: 'uppercase'}}>{TAG}</div>
+          font: '700 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.24em', textTransform: 'uppercase'}}>{TAG}</div>
       </AbsoluteFill>
     </AbsoluteFill>
   );

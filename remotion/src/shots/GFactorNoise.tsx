@@ -47,18 +47,18 @@ export const GFactorNoise: React.FC<{accent?: string; label?: string}> = ({
         <rect x={bx + bw * capFrac} y={by} width={bw * (1 - capFrac)} height={12} rx={6} fill={WARN} opacity={0.3} />
         <rect x={bx} y={by} width={bw * rFrac} height={12} rx={6} fill={R > 3.02 ? WARN : accent} />
         <line x1={bx + bw * capFrac} y1={by - 20} x2={bx + bw * capFrac} y2={by + 32} stroke={WARN} strokeWidth={2} strokeDasharray="4 4" />
-        <text x={bx + bw * capFrac} y={by - 28} fill={WARN} fontSize="20" fontFamily="'JetBrains Mono', monospace" textAnchor="middle">g-factor noise →</text>
+        <text x={bx + bw * capFrac} y={by - 28} fill={WARN} fontSize="20" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" textAnchor="middle">g-factor noise →</text>
         {[1, 2, 3, 4, 5].map((v) => (
-          <text key={v} x={bx + bw * ((v - 1) / 4)} y={by + 52} fill="#8aa" fontSize="20" fontFamily="'JetBrains Mono', monospace" textAnchor="middle">{v}×</text>
+          <text key={v} x={bx + bw * ((v - 1) / 4)} y={by + 52} fill="#8aa" fontSize="20" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" textAnchor="middle">{v}×</text>
         ))}
         {/* the live R read-out */}
-        <text x={bx + bw * rFrac} y={by - 22} fill="#eaf6ff" fontSize="40" fontFamily="Inter, sans-serif" fontWeight={800} textAnchor="middle">
+        <text x={bx + bw * rFrac} y={by - 22} fill="#eaf6ff" fontSize="40" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800} textAnchor="middle">
           {R.toFixed(1)}×</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
+        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}
-        <div style={{marginTop: 8, font: "600 22px/1 'JetBrains Mono', monospace", color: WARN, letterSpacing: '0.12em'}}>
+        <div style={{marginTop: 8, font: "600 22px/1 var(--f-mono, 'JetBrains Mono', monospace)", color: WARN, letterSpacing: '0.12em'}}>
           R = 2–3 max · never beyond the coil count</div>
       </div>
     </AbsoluteFill>

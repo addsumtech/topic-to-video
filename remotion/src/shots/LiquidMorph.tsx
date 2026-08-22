@@ -61,7 +61,7 @@ export const LiquidMorph: React.FC = () => {
       </svg>
       {/* current form label */}
       <div style={{position: 'absolute', left: 0, right: 0, top: cy + 300, textAlign: 'center'}}>
-        {FORMS.map((f, i) => <div key={i} style={{position: 'absolute', left: 0, right: 0, font: '800 64px/1 Inter,system-ui,sans-serif',
+        {FORMS.map((f, i) => <div key={i} style={{position: 'absolute', left: 0, right: 0, font: '800 64px/1 var(--f-display, Inter,system-ui,sans-serif)',
           color: '#fff', opacity: clamp01(1 - Math.abs(idx - i) * 1.4), textTransform: 'capitalize'}}>{f}.</div>)}
       </div>
     </AbsoluteFill>

@@ -35,7 +35,7 @@ export const CrashZoom: React.FC<{items?: string[]; label?: string; target?: num
   return (
     <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 40%, #12162a, ${BG} 72%)`, overflow: 'hidden'}}>
       <div style={{position: 'absolute', top: 60, left: 0, right: 0, textAlign: 'center',
-        opacity: titleIn * (1 - z), color: '#aeb6ca', font: '700 30px/1 "JetBrains Mono", monospace',
+        opacity: titleIn * (1 - z), color: '#aeb6ca', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)',
         letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
 
       <AbsoluteFill style={{transformOrigin: `${originX}px ${originY}px`, transform: `scale(${scale})`}}>
@@ -51,7 +51,7 @@ export const CrashZoom: React.FC<{items?: string[]; label?: string; target?: num
               border: `1px solid ${isT ? 'transparent' : '#20243a'}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: isT ? `0 20px 60px ${ACC}44` : '0 12px 30px #0006'}}>
-              <div style={{color: isT ? '#fff' : '#c7cee0', font: `800 ${isT ? 54 : 40}px/1 Inter, system-ui, sans-serif`,
+              <div style={{color: isT ? '#fff' : '#c7cee0', font: `800 ${isT ? 54 : 40}px/1 var(--f-body, Inter, system-ui, sans-serif)`,
                 letterSpacing: '-0.02em', textAlign: 'center'}}>
                 {isT && detail > 0.1 ? LABEL : it}
               </div>

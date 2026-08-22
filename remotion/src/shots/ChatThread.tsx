@@ -29,7 +29,7 @@ const Bubble: React.FC<{m: Msg; t: number}> = ({m, t}) => {
       opacity: clamp01(r), transform: `translateY(${lerp(30, 0, clamp01(r))}px)`}}>
       {!you && <div style={{width: 74, height: 74, borderRadius: 37, marginRight: 22, background: `linear-gradient(150deg,${A1},${A2c})`, flexShrink: 0}} />}
       <div style={{maxWidth: 880, padding: '30px 40px', borderRadius: 28, background: you ? A1 : SURF,
-        color: you ? ON : INKc, font: '500 46px/1.35 Inter,system-ui,sans-serif', borderBottomRightRadius: you ? 8 : 28, borderBottomLeftRadius: you ? 28 : 8}}>{m.text}</div>
+        color: you ? ON : INKc, font: '500 46px/1.35 var(--f-body, Inter,system-ui,sans-serif)', borderBottomRightRadius: you ? 8 : 28, borderBottomLeftRadius: you ? 28 : 8}}>{m.text}</div>
     </div>
   );
 };

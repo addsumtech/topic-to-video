@@ -39,12 +39,12 @@ export const DiffusionDenoise: React.FC<{src?: string; accent?: string; label?: 
         {Array.from({length: 8}).map((_, i) => (
           <rect key={i} x={left + i * (S / 8)} y={top + S + 20} width={S / 8 - 6} height={6} rx={3}
             fill={i < step ? accent : '#2a3446'} opacity={i < step ? 0.9 : 0.5} />))}
-        <text x={W / 2} y={top + S + 54} textAnchor="middle" fill="#8aa" fontSize="18" fontFamily="'JetBrains Mono', monospace">noise → image · denoising steps · <tspan fill={accent}>pinned to the measured data</tspan></text>
+        <text x={W / 2} y={top + S + 54} textAnchor="middle" fill="#8aa" fontSize="18" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">noise → image · denoising steps · <tspan fill={accent}>pinned to the measured data</tspan></text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
+        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
-      {credit ? <div style={{position: 'absolute', left: 20, bottom: 8, color: '#5f6b7d', font: "400 14px/1.3 Inter, sans-serif"}}>{credit}</div> : null}
+      {credit ? <div style={{position: 'absolute', left: 20, bottom: 8, color: '#5f6b7d', font: "400 14px/1.3 var(--f-body, Inter, sans-serif)"}}>{credit}</div> : null}
     </AbsoluteFill>
   );
 };

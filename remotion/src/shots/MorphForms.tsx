@@ -66,9 +66,9 @@ export const MorphForms: React.FC<{title?: string; tagline?: string}> = ({
       </svg>
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 120}}>
         <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 14}px)`, color: '#eaf0ff',
-          font: '800 76px/1.05 Inter, system-ui, sans-serif', letterSpacing: '-0.02em', textAlign: 'center',
+          font: '800 76px/1.05 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.02em', textAlign: 'center',
           textShadow: '0 8px 40px #000'}}>{TITLE}</div>
-        {TAG ? <div style={{opacity: titleIn, marginTop: 16, color: '#9fb0d0', font: '600 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.16em'}}>{TAG}</div> : null}
+        {TAG ? <div style={{opacity: titleIn, marginTop: 16, color: '#9fb0d0', font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.16em'}}>{TAG}</div> : null}
       </AbsoluteFill>
     </AbsoluteFill>
   );

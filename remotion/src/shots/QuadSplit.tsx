@@ -74,17 +74,17 @@ export const QuadSplit: React.FC<{panels?: {label?: string}[]; heading?: string;
             <div style={{display: 'flex', alignItems: 'center', gap: 18}}>
               <div style={{width: 16, height: 16, borderRadius: 5, background: tone,
                 boxShadow: `0 0 20px ${tone}`}} />
-              <div style={{color: '#7f879c', font: '600 24px/1 "JetBrains Mono", monospace',
+              <div style={{color: '#7f879c', font: '600 24px/1 var(--f-mono, "JetBrains Mono", monospace)',
                 letterSpacing: '0.14em'}}>{String(i + 1).padStart(2, '0')}</div>
             </div>
             <Motif kind={i % 4} c={tone} g={g} />
-            <div style={{color: '#f3f5ff', font: `800 ${lerp(56, 132, grow)}px/1 Inter, system-ui, sans-serif`,
+            <div style={{color: '#f3f5ff', font: `800 ${lerp(56, 132, grow)}px/1 var(--f-display, Inter, system-ui, sans-serif)`,
               letterSpacing: '-0.02em'}}>{p.label}</div>
           </div>
         );
       })}
       <div style={{position: 'absolute', top: 42, left: 0, right: 0, textAlign: 'center', opacity: headIn,
-        color: '#aeb6ca', font: '700 32px/1 "JetBrains Mono", monospace', letterSpacing: '0.28em',
+        color: '#aeb6ca', font: '700 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.28em',
         textTransform: 'uppercase'}}>{HEADING}</div>
     </AbsoluteFill>
   );

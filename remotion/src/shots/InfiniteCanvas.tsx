@@ -57,12 +57,12 @@ export const InfiniteCanvas: React.FC<{hub?: string; items?: string[]}> = ({
           return <div key={i} style={{position: 'absolute', left: n.x, top: n.y, width: n.w, height: n.h, background: n.c,
             borderRadius: 14, transform: `scale(${clamp01(ap)}) rotate(${(hash01(i + 3) - 0.5) * 6}deg)`, transformOrigin: 'center',
             boxShadow: '0 14px 30px rgba(80,70,40,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            font: '700 40px/1.15 Inter,system-ui,sans-serif', color: '#3a3320', textAlign: 'center', padding: 20}}>{n.text}</div>;
+            font: '700 40px/1.15 var(--f-body, Inter,system-ui,sans-serif)', color: '#3a3320', textAlign: 'center', padding: 20}}>{n.text}</div>;
         })}
         {/* the hub */}
         <div style={{position: 'absolute', left: hub.x, top: hub.y, width: hub.w, height: hub.h, background: SURF,
           border: `2px solid ${SURFB}`, borderRadius: 18, boxShadow: '0 26px 60px rgba(80,70,40,.2)', display: 'flex',
-          alignItems: 'center', justifyContent: 'center', font: '800 56px/1.1 Inter,system-ui,sans-serif', color: hub.c, textAlign: 'center', padding: 24}}>{hub.text}</div>
+          alignItems: 'center', justifyContent: 'center', font: '800 56px/1.1 var(--f-body, Inter,system-ui,sans-serif)', color: hub.c, textAlign: 'center', padding: 24}}>{hub.text}</div>
       </div>
     </AbsoluteFill>
   );

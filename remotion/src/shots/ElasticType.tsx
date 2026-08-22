@@ -40,14 +40,14 @@ export const ElasticType: React.FC<{word?: string; tagline?: string}> = ({
           return (
             <div key={i} style={{opacity: clamp01(drop * 1.5),
               transform: `translateY(${(1 - drop) * -220}px) scale(${sx}, ${sy})`, transformOrigin: 'center bottom',
-              margin: '0 4px', fontFamily: '"Baloo 2", Inter, system-ui, sans-serif', fontWeight: 900,
+              margin: '0 4px', fontFamily: 'var(--f-display, "Baloo 2", Inter, system-ui, sans-serif)', fontWeight: 900,
               fontSize: 230, lineHeight: 1, color: tone,
               textShadow: `0 10px 0 rgba(0,0,0,.16), 0 26px 40px rgba(0,0,0,.4)`}}>{ch}</div>
           );
         })}
       </div>
       <div style={{opacity: tagIn, transform: `translateY(${(1 - tagIn) * 12}px)`, marginTop: 48, color: '#c7d0ee',
-        font: '700 32px/1 "JetBrains Mono", monospace', letterSpacing: '0.24em', textTransform: 'uppercase'}}>{TAG}</div>
+        font: '700 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.24em', textTransform: 'uppercase'}}>{TAG}</div>
     </AbsoluteFill>
   );
 };

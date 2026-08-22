@@ -55,9 +55,9 @@ export const CodeCompose: React.FC<{filename?: string; lines?: (Tok[] | string)[
       if (col >= revealedHere) break;
     }
     rendered.push(
-      <text key={li} x={textX} y={yy} style={{font: `600 ${FS}px/1 "JetBrains Mono", ui-monospace, monospace`, whiteSpace: 'pre'}} dominantBaseline="hanging">{spans}</text>
+      <text key={li} x={textX} y={yy} style={{font: `600 ${FS}px/1 var(--f-mono, "JetBrains Mono", ui-monospace, monospace)`, whiteSpace: 'pre'}} dominantBaseline="hanging">{spans}</text>
     );
-    rendered.push(<text key={`g${li}`} x={gx + 40} y={yy} textAnchor="end" style={{font: `600 ${FS}px/1 "JetBrains Mono", monospace`}} fill="#39414d" dominantBaseline="hanging">{li + 1}</text>);
+    rendered.push(<text key={`g${li}`} x={gx + 40} y={yy} textAnchor="end" style={{font: `600 ${FS}px/1 var(--f-mono, "JetBrains Mono", monospace)`}} fill="#39414d" dominantBaseline="hanging">{li + 1}</text>);
     // caret lives on the last line that has begun revealing
     if (shown > before && revealedHere < chars) {caretX = textX + revealedHere * CHW; caretY = yy; caretLine = li;}
     else if (shown >= before + chars) {caretX = textX + chars * CHW; caretY = yy; caretLine = li;}
@@ -75,7 +75,7 @@ export const CodeCompose: React.FC<{filename?: string; lines?: (Tok[] | string)[
         background: '#0d1117', border: '1px solid #202836', boxShadow: '0 40px 120px #000a', overflow: 'hidden'}}>
         <div style={{height: 52, background: '#131a24', borderBottom: '1px solid #202836', display: 'flex', alignItems: 'center', gap: 10, paddingLeft: 20}}>
           {['#ff5f57', '#febc2e', '#28c840'].map((c) => <div key={c} style={{width: 14, height: 14, borderRadius: 7, background: c}} />)}
-          <div style={{marginLeft: 18, padding: '6px 16px', borderRadius: 8, background: '#0d1117', color: '#8b96a6', font: '600 24px/1 "JetBrains Mono", monospace'}}>{filename}</div>
+          <div style={{marginLeft: 18, padding: '6px 16px', borderRadius: 8, background: '#0d1117', color: '#8b96a6', font: '600 24px/1 var(--f-mono, "JetBrains Mono", monospace)'}}>{filename}</div>
         </div>
       </div>
       {/* code layer */}
@@ -88,9 +88,9 @@ export const CodeCompose: React.FC<{filename?: string; lines?: (Tok[] | string)[
       <div style={{position: 'absolute', left: wx, top: wy + winH - 96, width: winW, height: 96,
         borderTop: '1px solid #202836', background: '#0b1016', display: 'flex', alignItems: 'center', gap: 20,
         paddingLeft: 34, opacity: outT, borderRadius: '0 0 18px 18px'}}>
-        <span style={{color: '#5a6577', font: '700 30px/1 "JetBrains Mono", monospace'}}>▶</span>
-        <span style={{color: '#9df2a0', font: '700 32px/1 "JetBrains Mono", monospace'}}>✓ done</span>
-        <span style={{color: '#5a6577', font: '600 30px/1 "JetBrains Mono", monospace'}}>{STATUS}</span>
+        <span style={{color: '#5a6577', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)'}}>▶</span>
+        <span style={{color: '#9df2a0', font: '700 32px/1 var(--f-mono, "JetBrains Mono", monospace)'}}>✓ done</span>
+        <span style={{color: '#5a6577', font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)'}}>{STATUS}</span>
       </div>
     </AbsoluteFill>
   );

@@ -42,7 +42,7 @@ export const ParticleForm: React.FC<{label?: string}> = ({label = 'Done.'} = {})
         </g>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: cy + 300, textAlign: 'center',
-        opacity: clamp01((assembled - 0.7) / 0.2), font: '800 70px/1 Inter,system-ui,sans-serif', color: '#eaf2ff'}}>{label}</div>
+        opacity: clamp01((assembled - 0.7) / 0.2), font: '800 70px/1 var(--f-display, Inter,system-ui,sans-serif)', color: '#eaf2ff'}}>{label}</div>
     </AbsoluteFill>
   );
 };

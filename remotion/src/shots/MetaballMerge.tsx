@@ -54,10 +54,10 @@ export const MetaballMerge: React.FC<{title?: string; tagline?: string; accent?:
 
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
         <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 16}px)`, color: '#fff',
-          font: '800 150px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.03em',
+          font: '800 150px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
           textShadow: '0 6px 30px #000, 0 0 60px #000c, 0 2px 0 #ffffff40'}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 20, color: '#fff',
-          font: '600 32px/1 "JetBrains Mono", monospace', letterSpacing: '0.18em',
+          font: '600 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.18em',
           textShadow: '0 2px 14px #000, 0 0 24px #000c'}}>{TAG}</div>
       </AbsoluteFill>
     </AbsoluteFill>

@@ -38,17 +38,17 @@ export const ScreenBubble: React.FC<{appTitle?: string; nav?: string[]}> = ({
         boxShadow: '0 40px 100px rgba(40,45,80,.22)', overflow: 'hidden'}}>
         <div style={{height: 66, background: BAR, borderBottom: `1px solid ${LINE}`, display: 'flex', alignItems: 'center', gap: 12, padding: '0 26px'}}>
           {['#ff5f57', '#febc2e', '#28c840'].map(c => <div key={c} style={{width: 16, height: 16, borderRadius: 8, background: c}} />)}
-          <div style={{marginLeft: 20, font: '600 26px/1 Inter', color: TITLE_DIM}}>{appTitle}</div>
+          <div style={{marginLeft: 20, font: '600 26px/1 var(--f-body, Inter)', color: TITLE_DIM}}>{appTitle}</div>
         </div>
         <div style={{display: 'flex', height: SH - 66}}>
           <div style={{width: 300, borderRight: `1px solid ${LINE}`, padding: 26, display: 'flex', flexDirection: 'column', gap: 20}}>
             {nav.map((n, i) => <div key={i} style={{padding: '16px 20px', borderRadius: 10,
-              background: i === 2 ? `${ACC}22` : 'transparent', font: `${i === 2 ? 700 : 500} 30px/1 Inter`, color: i === 2 ? ACC : DIM}}>{n}</div>)}
+              background: i === 2 ? `${ACC}22` : 'transparent', font: `${i === 2 ? 700 : 500} 30px/1 var(--f-body, Inter)`, color: i === 2 ? ACC : DIM}}>{n}</div>)}
           </div>
           <div style={{flex: 1, padding: 44, position: 'relative'}}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-              <div style={{font: '800 52px/1 Inter', color: FG}}>{nav[2] ?? nav[nav.length - 1]}</div>
-              <div style={{position: 'relative', padding: '18px 30px', borderRadius: 12, background: ACC, color: ON, font: '700 32px/1 Inter'}}>+ New
+              <div style={{font: '800 52px/1 var(--f-body, Inter)', color: FG}}>{nav[2] ?? nav[nav.length - 1]}</div>
+              <div style={{position: 'relative', padding: '18px 30px', borderRadius: 12, background: ACC, color: ON, font: '700 32px/1 var(--f-body, Inter)'}}>+ New
                 {ripple > 0 && <div style={{position: 'absolute', inset: 0, borderRadius: 12, border: `3px solid ${ACC}`, transform: `scale(${1 + ripple})`, opacity: 1 - ripple}} />}
               </div>
             </div>
@@ -56,8 +56,8 @@ export const ScreenBubble: React.FC<{appTitle?: string; nav?: string[]}> = ({
             <div style={{marginTop: 40, opacity: clamp01(created), transform: `translateY(${lerp(24, 0, clamp01(created))}px)`,
               padding: '30px 34px', borderRadius: 14, border: `1px solid ${LINE}`, background: ROW_BG, display: 'flex', alignItems: 'center', gap: 24}}>
               <div style={{width: 54, height: 54, borderRadius: 12, background: `${ACC}22`}} />
-              <div><div style={{font: '700 36px/1 Inter', color: FG}}>Q3 board deck</div>
-                <div style={{font: '500 26px/1 Inter', color: SUB_DIM, marginTop: 10}}>created just now</div></div>
+              <div><div style={{font: '700 36px/1 var(--f-body, Inter)', color: FG}}>Q3 board deck</div>
+                <div style={{font: '500 26px/1 var(--f-body, Inter)', color: SUB_DIM, marginTop: 10}}>created just now</div></div>
             </div>
           </div>
         </div>
@@ -73,7 +73,7 @@ export const ScreenBubble: React.FC<{appTitle?: string; nav?: string[]}> = ({
         <div style={{position: 'absolute', left: 82, top: 46, width: 66, height: 66, borderRadius: 33, background: 'rgba(255,255,255,.9)'}} />
         <div style={{position: 'absolute', left: 48, top: 124, width: 134, height: 120, borderRadius: '60px 60px 0 0', background: 'rgba(255,255,255,.9)'}} />
         <div style={{position: 'absolute', left: 18, top: 18, display: 'flex', alignItems: 'center', gap: 8}}>
-          <div style={{width: 14, height: 14, borderRadius: 7, background: '#ff4d4d'}} /><div style={{font: '700 20px/1 Inter', color: '#fff'}}>REC</div>
+          <div style={{width: 14, height: 14, borderRadius: 7, background: '#ff4d4d'}} /><div style={{font: '700 20px/1 var(--f-body, Inter)', color: '#fff'}}>REC</div>
         </div>
       </div>
     </AbsoluteFill>

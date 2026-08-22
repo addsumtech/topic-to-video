@@ -50,7 +50,7 @@ export const GearTrain: React.FC<{items?: string[]; label?: string; title?: stri
   return (
     <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 40%, #14172a, ${BG} 70%)`}}>
       <div style={{position: 'absolute', top: 88, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
-        color: '#aeb6ca', font: '700 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.3em',
+        color: '#aeb6ca', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em',
         textTransform: 'uppercase'}}>{TITLE}</div>
 
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
@@ -73,10 +73,10 @@ export const GearTrain: React.FC<{items?: string[]; label?: string; title?: stri
         return (
           <div key={i} style={{position: 'absolute', left: cx, top: cy, transform: 'translate(-50%,-50%)',
             textAlign: 'center', opacity: on, width: R * 1.7}}>
-            <div style={{color: '#7f879c', font: '600 20px/1 "JetBrains Mono", monospace',
+            <div style={{color: '#7f879c', font: '600 20px/1 var(--f-mono, "JetBrains Mono", monospace)',
               letterSpacing: '0.14em', marginBottom: 8}}>{String(i + 1).padStart(2, '0')}</div>
             <div style={{color: isLast && locked ? '#fff' : '#e7ebf7',
-              font: '800 40px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em'}}>{g}</div>
+              font: '800 40px/1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em'}}>{g}</div>
           </div>
         );
       })}
@@ -85,7 +85,7 @@ export const GearTrain: React.FC<{items?: string[]; label?: string; title?: stri
       <div style={{position: 'absolute', left: x0 + (n - 1) * SPACING, top: cy - R - 96,
         transform: `translate(-50%,0) scale(${payoff})`, opacity: clamp01(payoff * 1.4),
         padding: '16px 34px', borderRadius: 999, background: 'linear-gradient(150deg, #22c197, #12916e)',
-        color: '#04120d', font: '800 40px/1 Inter, system-ui, sans-serif',
+        color: '#04120d', font: '800 40px/1 var(--f-body, Inter, system-ui, sans-serif)',
         boxShadow: '0 18px 50px #22c19755'}}>{LABEL}</div>
     </AbsoluteFill>
   );

@@ -48,10 +48,10 @@ export const StarfieldWarp: React.FC<{title?: string; tagline?: string; accent?:
         opacity: 0.4 + 0.6 * flash, pointerEvents: 'none'}} />
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
         <div style={{opacity: titleIn, transform: `scale(${lerp(1.3, 1, titleIn)})`, color: '#fff',
-          font: '800 128px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.03em',
+          font: '800 128px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
           textShadow: `0 0 60px ${ACC}, 0 0 120px ${ACC}88`}}>{TITLE}</div>
         <div style={{opacity: clamp01(seg(t, 0.82, 0.96)), marginTop: 20, color: '#c7d6ff',
-          font: '600 32px/1 "JetBrains Mono", monospace', letterSpacing: '0.2em'}}>{TAG}</div>
+          font: '600 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.2em'}}>{TAG}</div>
       </AbsoluteFill>
     </AbsoluteFill>
   );

@@ -48,10 +48,10 @@ export const ScanReconstruct: React.FC<{src?: string; label?: string; credit?: s
         </svg>
       </div>
       {label ? <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
+        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div> : null}
       {credit ? <div style={{position: 'absolute', left: 20, bottom: 8, color: '#5f6b7d',
-        font: "400 14px/1.3 Inter, system-ui, sans-serif", maxWidth: 520}}>{credit}</div> : null}
+        font: "400 14px/1.3 var(--f-body, Inter, system-ui, sans-serif)", maxWidth: 520}}>{credit}</div> : null}
     </AbsoluteFill>
   );
 };

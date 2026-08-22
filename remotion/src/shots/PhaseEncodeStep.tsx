@@ -38,19 +38,19 @@ export const PhaseEncodeStep: React.FC<{accent?: string; accent2?: string; label
         {/* k-space grid box */}
         <rect x={gx - 12} y={gy - 12} width={gw + 24} height={gh + 24} rx={8} fill="none" stroke={accent} strokeWidth={1.3} opacity={0.35} />
         {lines}
-        <text x={gx - 12} y={gy - 24} fill="#9fb4cc" fontSize="20" fontFamily="'JetBrains Mono', monospace">k-space</text>
-        <text x={gx + gw + 24} y={gy + gh * 0.5} fill="#eaf6ff" fontSize="52" fontFamily="Inter, sans-serif" fontWeight={800}>{cur + 1}<tspan fill={accent} fontSize="30">/{steps}</tspan></text>
-        <text x={gx + gw + 26} y={gy + gh * 0.5 + 32} fill="#8aa" fontSize="18" fontFamily="'JetBrains Mono', monospace">lines written</text>
+        <text x={gx - 12} y={gy - 24} fill="#9fb4cc" fontSize="20" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">k-space</text>
+        <text x={gx + gw + 24} y={gy + gh * 0.5} fill="#eaf6ff" fontSize="52" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800}>{cur + 1}<tspan fill={accent} fontSize="30">/{steps}</tspan></text>
+        <text x={gx + gw + 26} y={gy + gh * 0.5 + 32} fill="#8aa" fontSize="18" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">lines written</text>
 
         {/* gradient blip */}
         <line x1={bx - 70} y1={baseY} x2={bx + 70} y2={baseY} stroke="#3a4658" strokeWidth={1.5} />
         <rect x={bx - 30} y={amp < 0 ? baseY : baseY - Math.abs(amp) * barMax} width={60} height={Math.abs(amp) * barMax || 2}
           rx={4} fill={accent2} opacity={0.9} />
-        <text x={bx} y={baseY + barMax + 60} textAnchor="middle" fill="#c9d6ea" fontSize="22" fontFamily="Inter, sans-serif" fontWeight={700}>gradient blip</text>
-        <text x={bx} y={baseY - barMax - 22} textAnchor="middle" fill="#8aa" fontSize="17" fontFamily="'JetBrains Mono', monospace">±Gmax · steps each TR</text>
+        <text x={bx} y={baseY + barMax + 60} textAnchor="middle" fill="#c9d6ea" fontSize="22" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700}>gradient blip</text>
+        <text x={bx} y={baseY - barMax - 22} textAnchor="middle" fill="#8aa" fontSize="17" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">±Gmax · steps each TR</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
+        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
     </AbsoluteFill>
   );

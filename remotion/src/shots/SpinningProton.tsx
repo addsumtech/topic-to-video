@@ -44,7 +44,7 @@ export const SpinningProton: React.FC<{accent?: string; accent2?: string; label?
         <circle cx={cx} cy={cy} r={R} fill="url(#pgrad)" stroke="#eaf6ff" strokeWidth={2} />
         <defs><radialGradient id="pgrad" cx="42%" cy="38%" r="70%">
           <stop offset="0%" stopColor="#fff" /><stop offset="55%" stopColor={accent} /><stop offset="100%" stopColor="#1c6a86" /></radialGradient></defs>
-        <text x={cx} y={cy + 9} textAnchor="middle" fill="#04222c" fontSize={R * 0.8} fontFamily="Inter, sans-serif" fontWeight={800}>+</text>
+        <text x={cx} y={cy + 9} textAnchor="middle" fill="#04222c" fontSize={R * 0.8} fontFamily="var(--f-display, Inter, sans-serif)" fontWeight={800}>+</text>
         {/* spin arrow (angular momentum) — a curved arc around the pole */}
         <path d={`M ${cx - R * 1.5} ${cy - R * 1.7} A ${R * 1.5} ${R * 0.6} 0 1 1 ${cx + R * 1.5} ${cy - R * 1.7}`}
           fill="none" stroke={accent2} strokeWidth={2.5} markerEnd="url(#ah)"
@@ -55,11 +55,11 @@ export const SpinningProton: React.FC<{accent?: string; accent2?: string; label?
         <line x1={cx} y1={cy} x2={cx} y2={cy - R * 5.4} stroke="#eaf6ff" strokeWidth={3} markerEnd="url(#ah2)" />
         <defs><marker id="ah2" markerWidth="12" markerHeight="12" refX="4" refY="6" orient="auto">
           <path d="M0,0 L8,6 L0,12 Z" fill="#eaf6ff" /></marker></defs>
-        <text x={cx + 14} y={cy - R * 5} fill="#eaf6ff" fontSize="28" fontFamily="Inter, sans-serif" fontWeight={800}>μ</text>
-        <text x={cx} y={cy + R * 5.6} textAnchor="middle" fill="#8aa" fontSize="20" fontFamily="'JetBrains Mono', monospace">~70% water · ¹H</text>
+        <text x={cx + 14} y={cy - R * 5} fill="#eaf6ff" fontSize="28" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800}>μ</text>
+        <text x={cx} y={cy + R * 5.6} textAnchor="middle" fill="#8aa" fontSize="20" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">~70% water · ¹H</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
+        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
     </AbsoluteFill>
   );

@@ -73,7 +73,7 @@ export const RansomZine: React.FC<{word?: string; tagline?: string}> = ({
       </svg>
 
       <div style={{position: 'absolute', left: 0, right: 0, bottom: 130, textAlign: 'center', opacity: tagIn,
-        color: TAGc, font: '800 34px/1 "JetBrains Mono", monospace', letterSpacing: '0.24em',
+        color: TAGc, font: '800 34px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.24em',
         textTransform: 'uppercase'}}>{TAG}</div>
     </AbsoluteFill>
   );

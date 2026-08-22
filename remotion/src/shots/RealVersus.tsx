@@ -30,23 +30,23 @@ export const RealVersus: React.FC<{srcLeft?: string; srcRight?: string; labelLef
         {src ? <Img src={staticFile(src)} style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : null}
       </div>
       <div style={{position: 'absolute', left: x, top: py + S + 16, width: S, textAlign: 'center', opacity: prog,
-        color: '#dfe8f5', font: '700 30px/1.15 Inter, system-ui, sans-serif'}}>{label}</div>
+        color: '#dfe8f5', font: '700 30px/1.15 var(--f-body, Inter, system-ui, sans-serif)'}}>{label}</div>
     </>
   );
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 46%, #0b1120, #05060a)')}}>
       {title ? <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#c9d6ea', font: "600 26px/1.1 'JetBrains Mono', monospace", letterSpacing: '0.18em',
+        color: '#c9d6ea', font: "600 26px/1.1 var(--f-mono, 'JetBrains Mono', monospace)", letterSpacing: '0.18em',
         textTransform: 'uppercase', opacity: lerp(0.4, 1, clamp01(t * 4))}}>{title}</div> : null}
       {panel(srcLeft, lx, labelLeft, inL, -40)}
       {panel(srcRight, rx, labelRight, inR, 40)}
       <div style={{position: 'absolute', left: cx - 26, top: H / 2 - 34, width: 52, height: 52, borderRadius: 26,
         background: '#0b1120', border: `2px solid ${accent}`, color: '#eaf6ff', display: 'flex',
-        alignItems: 'center', justifyContent: 'center', font: '800 22px Inter, sans-serif',
+        alignItems: 'center', justifyContent: 'center', font: '800 22px var(--f-body, Inter, sans-serif)',
         opacity: clamp01(seg(t, 0.5, 0.62))}}>vs</div>
       {credit ? <div style={{position: 'absolute', left: 20, bottom: 8, color: '#5f6b7d',
-        font: "400 14px/1.3 Inter, system-ui, sans-serif"}}>{credit}</div> : null}
+        font: "400 14px/1.3 var(--f-body, Inter, system-ui, sans-serif)"}}>{credit}</div> : null}
     </AbsoluteFill>
   );
 };

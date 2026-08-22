@@ -75,14 +75,14 @@ export const AntiDesignChaos: React.FC<{title?: string; items?: string[]; taglin
       {/* the loud headline, dead center but tilted */}
       <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
         <div style={{transform: `rotate(-6deg) scale(${easeOutBack(clamp01(seg(t, 0.3, 0.56)))})`,
-          fontFamily: 'Impact, system-ui, sans-serif', fontSize: 300, lineHeight: 0.9, color: HEAD,
+          fontFamily: 'var(--f-display, Impact, system-ui, sans-serif)', fontSize: 300, lineHeight: 0.9, color: HEAD,
           WebkitTextStroke: `6px ${POP[0]}`, letterSpacing: '-0.02em',
           textShadow: `12px 12px 0 ${POP[2]}`}}>{TITLE}</div>
       </AbsoluteFill>
 
       <div style={{position: 'absolute', left: 60, bottom: 54, opacity: easeOutCubic(seg(t, 0.7, 0.9)),
         transform: 'rotate(-3deg)', background: CHIP_BG, color: CHIP_FG, padding: '10px 22px',
-        font: '800 34px/1 "JetBrains Mono", monospace', letterSpacing: '0.1em'}}>{TAG}</div>
+        font: '800 34px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.1em'}}>{TAG}</div>
     </AbsoluteFill>
   );
 };

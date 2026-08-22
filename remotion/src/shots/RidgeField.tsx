@@ -46,11 +46,11 @@ export const RidgeField: React.FC<{title?: string; tagline?: string; accent?: st
         })}
       </svg>
       <div style={{position: 'absolute', top: 74, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
-        color: '#fff', font: '800 92px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.02em',
+        color: '#fff', font: '800 92px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.02em',
         textShadow: '0 8px 40px #000'}}>{TITLE}</div>
       <div style={{position: 'absolute', bottom: 90, left: 0, right: 0, textAlign: 'center',
         opacity: easeOutCubic(seg(t, 0.62, 0.84)), color: '#9fb2d0',
-        font: '600 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.2em'}}>{TAG}</div>
+        font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.2em'}}>{TAG}</div>
     </AbsoluteFill>
   );
 };

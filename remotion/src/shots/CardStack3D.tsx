@@ -46,8 +46,8 @@ export const CardStack3D: React.FC<{items?: string[]; title?: string}> = ({
                 display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 34}}>
                 <div style={{width: 60, height: 60, borderRadius: 16, background: `linear-gradient(150deg, ${tone}, #2b3ac6)`,
                   boxShadow: `0 0 26px ${tone}66`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', font: `800 30px/1 Inter, system-ui, sans-serif`}}>{i + 1}</div>
-                <div style={{color: '#f4f7ff', font: `800 46px/1 Inter, system-ui, sans-serif`, letterSpacing: '-0.02em',
+                  color: '#fff', font: `800 30px/1 var(--f-body, Inter, system-ui, sans-serif)`}}>{i + 1}</div>
+                <div style={{color: '#f4f7ff', font: `800 46px/1 var(--f-body, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
                   textShadow: '0 2px 10px #000'}}>{label}</div>
               </div>
             );
@@ -56,7 +56,7 @@ export const CardStack3D: React.FC<{items?: string[]; title?: string}> = ({
       </AbsoluteFill>
       <div style={{position: 'absolute', bottom: 96, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
         transform: `translateY(${(1 - titleIn) * 16}px)`, color: '#dfe6ff',
-        font: `800 62px/1 Inter, system-ui, sans-serif`, letterSpacing: '-0.02em',
+        font: `800 62px/1 var(--f-body, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
         textShadow: '0 8px 30px #000'}}>{TITLE}</div>
     </AbsoluteFill>
   );

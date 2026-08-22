@@ -84,9 +84,9 @@ export const KSpaceToImage: React.FC<{accent?: string; accent2?: string; label?:
 
       {/* label (kept above the reserved caption band) */}
       <div style={{position: 'absolute', left: 0, right: 0, top: 96, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
+        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.35, 1, clamp01(t * 4))}}>{label}
-        <div style={{marginTop: 8, font: "500 22px/1 'JetBrains Mono', monospace", color: accent, letterSpacing: '0.14em'}}>
+        <div style={{marginTop: 8, font: "500 22px/1 var(--f-mono, 'JetBrains Mono', monospace)", color: accent, letterSpacing: '0.14em'}}>
           k-space&nbsp;&nbsp;→&nbsp;&nbsp;image</div>
       </div>
     </AbsoluteFill>

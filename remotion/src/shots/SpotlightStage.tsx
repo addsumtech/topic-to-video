@@ -59,7 +59,7 @@ export const SpotlightStage: React.FC<{items?: string[]; wordmark?: string}> = (
         const b = Math.max(lit, finalLit * 0.9);
         return (
           <div key={i} style={{position: 'absolute', left: wordX(i), top: wy, transform: 'translate(-50%,-50%)',
-            font: `800 ${FS}px/1 "Playfair Display", Georgia, serif`, letterSpacing: '0.01em', whiteSpace: 'nowrap',
+            font: `800 ${FS}px/1 var(--f-display, "Playfair Display", Georgia, serif)`, letterSpacing: '0.01em', whiteSpace: 'nowrap',
             color: `rgba(${lerp(40, 250, b)},${lerp(36, 240, b)},${lerp(30, 222, b)},1)`,
             textShadow: b > 0.5 ? `0 0 60px rgba(255,220,150,${(b - 0.5) * 0.9})` : 'none'}}>{w}</div>
         );
@@ -76,7 +76,7 @@ export const SpotlightStage: React.FC<{items?: string[]; wordmark?: string}> = (
       {/* wordmark appears at the widen */}
       <div style={{position: 'absolute', left: 0, right: 0, top: wy + 210, textAlign: 'center',
         opacity: easeOutCubic(seg(t, 0.84, 0.98)), color: '#f0e6d2',
-        font: '600 34px/1 "JetBrains Mono", monospace', letterSpacing: '0.4em', paddingLeft: '0.4em'}}>{WORDMARK}</div>
+        font: '600 34px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.4em', paddingLeft: '0.4em'}}>{WORDMARK}</div>
 
       {/* heavy vignette to hold the black stage */}
       <AbsoluteFill style={{background: 'radial-gradient(120% 100% at 50% 46%, #0000 40%, #000000ee 100%)', pointerEvents: 'none'}} />

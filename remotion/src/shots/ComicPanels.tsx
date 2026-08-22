@@ -56,9 +56,9 @@ export const ComicPanels: React.FC<{panels?: string[]; splash?: string; title?: 
                   stroke={INK} strokeWidth={2} opacity={0.14} />;
               })}
             </svg>
-            <div style={{position: 'relative', color: INK, fontFamily: 'Impact, system-ui, sans-serif', fontSize: 92,
+            <div style={{position: 'relative', color: INK, fontFamily: 'var(--f-display, Impact, system-ui, sans-serif)', fontSize: 92,
               WebkitTextStroke: `3px ${col}`, transform: 'rotate(-6deg)', letterSpacing: '-0.02em'}}>{cap}</div>
-            <div style={{position: 'absolute', top: 14, left: 18, color: INK, font: '800 26px/1 "JetBrains Mono", monospace'}}>{i + 1}</div>
+            <div style={{position: 'absolute', top: 14, left: 18, color: INK, font: '800 26px/1 var(--f-mono, "JetBrains Mono", monospace)'}}>{i + 1}</div>
           </div>
         );
       })}
@@ -76,7 +76,7 @@ export const ComicPanels: React.FC<{panels?: string[]; splash?: string; title?: 
               x2={cx2 + Math.cos(a) * r1} y2={cy2 + Math.sin(a) * r1} stroke={SPLASHINK} strokeWidth={3} opacity={0.16} />;
           })}
         </svg>
-        <div style={{position: 'relative', color: SPLASHINK, fontFamily: 'Impact, system-ui, sans-serif', fontSize: 190,
+        <div style={{position: 'relative', color: SPLASHINK, fontFamily: 'var(--f-display, Impact, system-ui, sans-serif)', fontSize: 190,
           WebkitTextStroke: `6px ${INK}`, letterSpacing: '-0.02em', transform: 'rotate(-4deg)',
           textShadow: '8px 8px 0 #00000044'}}>{SPLASH}</div>
       </div>

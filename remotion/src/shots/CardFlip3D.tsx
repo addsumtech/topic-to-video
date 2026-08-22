@@ -39,7 +39,7 @@ export const CardFlip3D: React.FC<{items?: Item[]; title?: string}> = ({
     <AbsoluteFill style={{background: dna?.bgGrad ?? `radial-gradient(120% 100% at 50% 40%, #12162b, ${BG} 68%)`}}>
       <div style={{position: 'absolute', top: 96, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
         transform: `translateY(${(1 - titleIn) * 14}px)`, color: '#aeb6ca',
-        font: '700 32px/1 "JetBrains Mono", monospace', letterSpacing: '0.26em', textTransform: 'uppercase'}}>{TITLE}</div>
+        font: '700 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.26em', textTransform: 'uppercase'}}>{TITLE}</div>
 
       <div style={{position: 'absolute', top: 300, left: 0, right: 0, height: ch, perspective: 1900}}>
         {cards.map((c, i) => {
@@ -54,15 +54,15 @@ export const CardFlip3D: React.FC<{items?: Item[]; title?: string}> = ({
               transformStyle: 'preserve-3d', opacity: rise,
               transform: `translateY(${(1 - rise) * 60}px) rotateY(${rot}deg)`}}>
               <Face tone={tone}>
-                <div style={{color: '#8b93a8', font: '600 22px/1 "JetBrains Mono", monospace',
+                <div style={{color: '#8b93a8', font: '600 22px/1 var(--f-mono, "JetBrains Mono", monospace)',
                   letterSpacing: '0.14em', marginBottom: 22}}>{String(i + 1).padStart(2, '0')}</div>
-                <div style={{color: '#eef2ff', font: `800 64px/1.02 Inter, system-ui, sans-serif`,
+                <div style={{color: '#eef2ff', font: `800 64px/1.02 var(--f-display, Inter, system-ui, sans-serif)`,
                   textAlign: 'center', letterSpacing: '-0.02em'}}>{c.front}</div>
               </Face>
               <Face back tone={tone}>
-                <div style={{color: tone, font: `800 54px/1 Inter, system-ui, sans-serif`,
+                <div style={{color: tone, font: `800 54px/1 var(--f-body, Inter, system-ui, sans-serif)`,
                   marginBottom: 18, textShadow: `0 0 24px ${tone}99`}}>&#8595;</div>
-                <div style={{color: '#fff', font: `800 64px/1.02 Inter, system-ui, sans-serif`,
+                <div style={{color: '#fff', font: `800 64px/1.02 var(--f-display, Inter, system-ui, sans-serif)`,
                   textAlign: 'center', letterSpacing: '-0.02em'}}>{c.back}</div>
               </Face>
               {sheen > 0.01 ? <div style={{position: 'absolute', inset: 0, borderRadius: 26, pointerEvents: 'none',

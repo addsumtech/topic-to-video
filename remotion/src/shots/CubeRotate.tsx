@@ -29,7 +29,7 @@ export const CubeRotate: React.FC<{faces?: string[]; title?: string}> = ({
     <AbsoluteFill style={{background: dna?.bgGrad ?? `radial-gradient(120% 100% at 50% 36%, #12162c, ${BG} 70%)`,
       overflow: 'hidden'}}>
       <div style={{position: 'absolute', top: 80, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
-        color: '#aeb6ca', font: '700 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.3em',
+        color: '#aeb6ca', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em',
         textTransform: 'uppercase'}}>{TITLE}</div>
 
       <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center', perspective: 2100}}>
@@ -51,8 +51,8 @@ export const CubeRotate: React.FC<{faces?: string[]; title?: string}> = ({
                 <div style={{minWidth: 96, height: 96, borderRadius: 22, marginBottom: 30, padding: '0 20px',
                   background: `linear-gradient(150deg, ${tone}, #2b3ac6)`, boxShadow: `0 0 40px ${tone}66`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', font: `800 44px/1 Inter, system-ui, sans-serif`, whiteSpace: 'nowrap'}}>{big}</div>
-                <div style={{color: '#eef2ff', font: `800 52px/1.08 Inter, system-ui, sans-serif`,
+                  color: '#fff', font: `800 44px/1 var(--f-body, Inter, system-ui, sans-serif)`, whiteSpace: 'nowrap'}}>{big}</div>
+                <div style={{color: '#eef2ff', font: `800 52px/1.08 var(--f-body, Inter, system-ui, sans-serif)`,
                   letterSpacing: '-0.02em', maxWidth: SIZE - 150}}>{small}</div>
               </div>
             );

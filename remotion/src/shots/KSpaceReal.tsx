@@ -33,16 +33,16 @@ export const KSpaceReal: React.FC<{src?: string; accent?: string; label?: string
         {/* kx / ky axes = spatial frequencies */}
         <line x1={left - 26} y1={cy} x2={left + S + 26} y2={cy} stroke={`${accent}55`} strokeWidth={1} opacity={app} />
         <line x1={cx} y1={top - 26} x2={cx} y2={top + S + 26} stroke={`${accent}55`} strokeWidth={1} opacity={app} />
-        <text x={left + S + 32} y={cy + 6} fill="#9fb4cc" fontSize="24" fontFamily="'JetBrains Mono', monospace" opacity={app}>kx</text>
-        <text x={cx - 8} y={top - 32} fill="#9fb4cc" fontSize="24" fontFamily="'JetBrains Mono', monospace" opacity={app}>ky</text>
-        <text x={cx} y={cy - S * 0.5 - 6} textAnchor="middle" fill="#8aa" fontSize="17" fontFamily="Inter, sans-serif" opacity={clamp01(seg(t,0.5,0.7))}>periphery = high freq · detail</text>
-        <text x={cx} y={cy + 8} textAnchor="middle" fill="#dfe8f5" fontSize="17" fontFamily="Inter, sans-serif" opacity={clamp01(seg(t,0.4,0.6))}>center = low freq</text>
-        <text x={cx} y={cy + S * 0.5 + 30} textAnchor="middle" fill="#8aa" fontSize="18" fontFamily="'JetBrains Mono', monospace" opacity={clamp01(seg(t,0.55,0.75))}>the image's spatial frequencies — not the image</text>
+        <text x={left + S + 32} y={cy + 6} fill="#9fb4cc" fontSize="24" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={app}>kx</text>
+        <text x={cx - 8} y={top - 32} fill="#9fb4cc" fontSize="24" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={app}>ky</text>
+        <text x={cx} y={cy - S * 0.5 - 6} textAnchor="middle" fill="#8aa" fontSize="17" fontFamily="var(--f-body, Inter, sans-serif)" opacity={clamp01(seg(t,0.5,0.7))}>periphery = high freq · detail</text>
+        <text x={cx} y={cy + 8} textAnchor="middle" fill="#dfe8f5" fontSize="17" fontFamily="var(--f-body, Inter, sans-serif)" opacity={clamp01(seg(t,0.4,0.6))}>center = low freq</text>
+        <text x={cx} y={cy + S * 0.5 + 30} textAnchor="middle" fill="#8aa" fontSize="18" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01(seg(t,0.55,0.75))}>the image's spatial frequencies — not the image</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
+        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
-      {credit ? <div style={{position: 'absolute', left: 20, bottom: 8, color: '#5f6b7d', font: "400 14px/1.3 Inter, sans-serif"}}>{credit}</div> : null}
+      {credit ? <div style={{position: 'absolute', left: 20, bottom: 8, color: '#5f6b7d', font: "400 14px/1.3 var(--f-body, Inter, sans-serif)"}}>{credit}</div> : null}
     </AbsoluteFill>
   );
 };

@@ -38,7 +38,7 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
         {/* input row */}
         <div style={{display: 'flex', alignItems: 'center', gap: 22, padding: '34px 40px', borderBottom: '1px solid #232c3d'}}>
           <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2.2"><circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" /></svg>
-          <div style={{font: '500 46px/1 Inter,system-ui,sans-serif', color: '#eef2f8', whiteSpace: 'pre'}}>
+          <div style={{font: '500 46px/1 var(--f-body, Inter,system-ui,sans-serif)', color: '#eef2f8', whiteSpace: 'pre'}}>
             {command.slice(0, typed)}<span style={{opacity: caretOn ? 1 : 0, color: ACCENT}}>|</span>
           </div>
         </div>
@@ -52,10 +52,10 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
                 opacity: clamp01(rev), transform: `translateX(${lerp(-20, 0, clamp01(rev))}px)`,
                 background: (!fired && i === 0) ? `${ACCENT}1e` : 'transparent'}}>
                 <div style={{width: 34, height: 34, borderRadius: 9, border: `2px solid ${tick ? '#59d98b' : '#3a475e'}`,
-                  background: tick ? '#59d98b' : 'transparent', color: '#0b0f17', font: '700 22px/30px Inter', textAlign: 'center'}}>{tick ? '✓' : ''}</div>
-                <div style={{font: '500 38px/1 Inter,system-ui,sans-serif', color: tick ? '#8f9bb0' : '#dfe6f0'}}>{r}</div>
+                  background: tick ? '#59d98b' : 'transparent', color: '#0b0f17', font: '700 22px/30px var(--f-body, Inter)', textAlign: 'center'}}>{tick ? '✓' : ''}</div>
+                <div style={{font: '500 38px/1 var(--f-body, Inter,system-ui,sans-serif)', color: tick ? '#8f9bb0' : '#dfe6f0'}}>{r}</div>
                 {i === 0 && !fired && <div style={{marginLeft: 'auto', padding: '8px 16px', borderRadius: 8, background: '#2a3346',
-                  font: '700 26px/1 Inter', color: ACCENT}}>↵ run</div>}
+                  font: '700 26px/1 var(--f-body, Inter)', color: ACCENT}}>↵ run</div>}
               </div>
             );
           })}

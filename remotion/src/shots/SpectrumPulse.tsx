@@ -49,9 +49,9 @@ export const SpectrumPulse: React.FC<{title?: string; tagline?: string; accent?:
       </svg>
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
         <div style={{opacity: titleIn, transform: `scale(${1 + beat * 0.03})`, color: '#fff',
-          font: '800 112px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.03em', textShadow: `0 0 40px ${ACC}66`}}>{TITLE}</div>
+          font: '800 112px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em', textShadow: `0 0 40px ${ACC}66`}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 18, color: '#c9b6e6',
-          font: '600 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.18em'}}>{TAG}</div>
+          font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.18em'}}>{TAG}</div>
       </AbsoluteFill>
     </AbsoluteFill>
   );

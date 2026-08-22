@@ -57,9 +57,9 @@ export const KaleidoMandala: React.FC<{title?: string; tagline?: string; accent?
       <div style={{position: 'absolute', inset: 0, background: 'radial-gradient(30% 30% at 50% 50%, #0a0714dd, #0000 72%)'}} />
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
         <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 14}px)`, color: '#fff',
-          font: '800 128px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.03em', textShadow: '0 10px 50px #000'}}>{TITLE}</div>
+          font: '800 128px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em', textShadow: '0 10px 50px #000'}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 20, color: '#e7d8ff',
-          font: '600 32px/1 "JetBrains Mono", monospace', letterSpacing: '0.18em', textShadow: '0 4px 20px #000'}}>{TAG}</div>
+          font: '600 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.18em', textShadow: '0 4px 20px #000'}}>{TAG}</div>
       </AbsoluteFill>
     </AbsoluteFill>
   );

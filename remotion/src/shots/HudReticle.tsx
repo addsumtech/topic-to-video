@@ -30,7 +30,7 @@ export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?:
   return (
     <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 45%, #0c151a, ${BG} 74%)`, overflow: 'hidden'}}>
       <div style={{position: 'absolute', top: 66, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
-        color: '#7fb6b2', font: '700 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
+        color: '#7fb6b2', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
 
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         {/* faint grid */}
@@ -60,9 +60,9 @@ export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?:
 
       {/* central subject */}
       <div style={{position: 'absolute', left: cx, top: cy, transform: `translate(-50%,-50%) scale(${lerp(0.9, 1, brackets)})`, textAlign: 'center'}}>
-        <div style={{color: '#eafffb', font: '800 84px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.02em',
+        <div style={{color: '#eafffb', font: '800 84px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.02em',
           textShadow: `0 0 40px ${col}66`}}>{TARGET}</div>
-        <div style={{marginTop: 14, color: col, font: '700 26px/1 "JetBrains Mono", monospace', letterSpacing: '0.3em',
+        <div style={{marginTop: 14, color: col, font: '700 26px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em',
           opacity: locked ? lockIn : 0.6 * clamp01(seg(t, 0.4, 0.6))}}>{locked ? '● LOCKED' : 'SCANNING…'}</div>
       </div>
 
@@ -71,7 +71,7 @@ export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?:
         {READOUTS.map((rd, i) => {
           const on = clamp01(seg(t, 0.42 + i * 0.1, 0.6 + i * 0.1));
           return <div key={i} style={{opacity: on, transform: `translateX(${(1 - on) * -16}px)`,
-            color: '#9fd6d0', font: '600 26px/1 "JetBrains Mono", monospace', letterSpacing: '0.08em',
+            color: '#9fd6d0', font: '600 26px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.08em',
             borderLeft: `3px solid ${col}`, paddingLeft: 14}}>{rd}</div>;
         })}
       </div>

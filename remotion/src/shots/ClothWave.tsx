@@ -47,14 +47,14 @@ export const ClothWave: React.FC<{title?: string; tagline?: string; accent?: str
             const lx = left + cloth * 0.5 + (i - letters.length / 2) * 96;
             const dy = wave(lx, STRIPS * 0.4);
             return <span key={i} style={{display: 'inline-block', transform: `translateY(${dy}px)`,
-              color: '#fff', font: '900 150px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.03em',
+              color: '#fff', font: '900 150px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
               textShadow: '0 8px 30px #000a'}}>{ch}</span>;
           })}
         </div>
       </AbsoluteFill>
       <div style={{position: 'absolute', bottom: 120, left: 0, right: 0, textAlign: 'center',
         opacity: easeOutCubic(seg(t, 0.62, 0.84)), color: '#c7d0ee',
-        font: '600 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.2em'}}>{TAG}</div>
+        font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.2em'}}>{TAG}</div>
     </AbsoluteFill>
   );
 };

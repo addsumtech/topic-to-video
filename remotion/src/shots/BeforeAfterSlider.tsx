@@ -21,14 +21,14 @@ const Slide: React.FC<{finished: boolean; heading?: string; metric?: string; sub
   const barC = (i: number) => finished ? (i === 3 ? GOOD : ACC) : DULLBAR;
   return (
     <div style={{position: 'absolute', inset: 0, background: finished ? SURF : BEFOREBG, padding: 120}}>
-      <div style={{font: `800 ${finished ? 96 : 92}px/1 Inter,system-ui,sans-serif`, color: title}}>{heading}</div>
+      <div style={{font: `800 ${finished ? 96 : 92}px/1 var(--f-display, Inter,system-ui,sans-serif)`, color: title}}>{heading}</div>
       <div style={{height: 8, width: finished ? 260 : 200, background: finished ? ACC : DULLBAR, borderRadius: 4, marginTop: 30}} />
       <svg width="1000" height="420" style={{marginTop: 70}}>
         {bars.map((h, i) => <rect key={i} x={20 + i * 180} y={380 - 340 * h} width={130} height={340 * h} rx={10} fill={barC(i)} />)}
       </svg>
       <div style={{display: 'flex', gap: 40, marginTop: 30}}>
-        <div><div style={{font: '800 84px/1 Inter', color: finished ? GOOD : DIM}}>{metric}</div>
-          <div style={{font: '600 34px/1 Inter', color: SUB, marginTop: 12}}>{sub}</div></div>
+        <div><div style={{font: '800 84px/1 var(--f-body, Inter)', color: finished ? GOOD : DIM}}>{metric}</div>
+          <div style={{font: '600 34px/1 var(--f-body, Inter)', color: SUB, marginTop: 12}}>{sub}</div></div>
       </div>
     </div>
   );
@@ -53,10 +53,10 @@ export const BeforeAfterSlider: React.FC<{heading?: string; metric?: string; sub
         </div>
         {/* slider handle */}
         <div style={{position: 'absolute', left: `${s * 100}%`, top: 0, bottom: 0, width: 4, background: HANDLE, boxShadow: '0 0 20px rgba(0,0,0,.25)'}}>
-          <div style={{position: 'absolute', left: -32, top: '50%', width: 64, height: 64, marginTop: -32, borderRadius: 32, background: HANDLE, boxShadow: '0 6px 20px rgba(0,0,0,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACC, font: '700 30px/1 Inter'}}>⟺</div>
+          <div style={{position: 'absolute', left: -32, top: '50%', width: 64, height: 64, marginTop: -32, borderRadius: 32, background: HANDLE, boxShadow: '0 6px 20px rgba(0,0,0,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACC, font: '700 30px/1 var(--f-body, Inter)'}}>⟺</div>
         </div>
-        <div style={{position: 'absolute', left: 40, bottom: 40, padding: '12px 26px', borderRadius: 10, background: CHIP, color: HANDLE, font: '700 30px/1 Inter'}}>{beforeLabel}</div>
-        <div style={{position: 'absolute', right: 40, bottom: 40, padding: '12px 26px', borderRadius: 10, background: ACC, color: ON, font: '700 30px/1 Inter'}}>{afterLabel}</div>
+        <div style={{position: 'absolute', left: 40, bottom: 40, padding: '12px 26px', borderRadius: 10, background: CHIP, color: HANDLE, font: '700 30px/1 var(--f-body, Inter)'}}>{beforeLabel}</div>
+        <div style={{position: 'absolute', right: 40, bottom: 40, padding: '12px 26px', borderRadius: 10, background: ACC, color: ON, font: '700 30px/1 var(--f-body, Inter)'}}>{afterLabel}</div>
       </div>
     </AbsoluteFill>
   );

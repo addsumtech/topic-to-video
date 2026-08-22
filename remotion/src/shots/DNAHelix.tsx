@@ -48,10 +48,10 @@ export const DNAHelix: React.FC<{title?: string; tagline?: string}> = ({
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>{items.map((it) => <g key={it.key}>{it.el}</g>)}</svg>
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none'}}>
         <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 16}px)`, color: '#eafffb',
-          font: '800 128px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.03em',
+          font: '800 128px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
           textShadow: `0 0 50px ${A_T}44, 0 12px 40px #000`}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 20, color: '#9fd6d0',
-          font: '600 32px/1 "JetBrains Mono", monospace', letterSpacing: '0.18em', textShadow: '0 4px 20px #000'}}>{TAG}</div>
+          font: '600 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.18em', textShadow: '0 4px 20px #000'}}>{TAG}</div>
       </AbsoluteFill>
     </AbsoluteFill>
   );

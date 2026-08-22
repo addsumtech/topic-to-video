@@ -68,7 +68,7 @@ export const LiquidFill: React.FC<{label?: string}> = ({label = 'on your machine
       {/* centre readout: % counting, then a checkmark */}
       <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
         {done < 0.15 ? (
-          <div style={{color: '#eaf6ff', font: '800 150px/1 Inter, system-ui, sans-serif', fontVariantNumeric: 'tabular-nums',
+          <div style={{color: '#eaf6ff', font: '800 150px/1 var(--f-display, Inter, system-ui, sans-serif)', fontVariantNumeric: 'tabular-nums',
             textShadow: '0 4px 30px #000a'}}>{pct}<span style={{fontSize: 70, opacity: 0.7}}>%</span></div>
         ) : (
           <svg width={360} height={360} viewBox="-180 -180 360 360" style={{transform: `scale(${easeOutBack(done)})`}}>
@@ -77,7 +77,7 @@ export const LiquidFill: React.FC<{label?: string}> = ({label = 'on your machine
         )}
       </AbsoluteFill>
       <div style={{position: 'absolute', left: 0, right: 0, top: cy + R + 70, textAlign: 'center',
-        color: '#8fb0d8', font: '600 34px/1 "JetBrains Mono", monospace', letterSpacing: '0.06em'}}>{label}</div>
+        color: '#8fb0d8', font: '600 34px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.06em'}}>{label}</div>
     </AbsoluteFill>
   );
 };

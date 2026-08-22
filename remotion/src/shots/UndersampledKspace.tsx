@@ -40,17 +40,17 @@ export const UndersampledKspace: React.FC<{accent?: string; accent2?: string; la
       <svg width={W} height={H} style={{position: 'absolute'}}>
         <rect x={gx - 14} y={gy - 14} width={gw + 28} height={gh + 28} rx={10} fill="none" stroke={accent} strokeWidth={1.4} opacity={0.35} />
         {lines}
-        <text x={gx - 14} y={gy - 26} fill="#9fb4cc" fontSize="22" fontFamily="'JetBrains Mono', monospace" letterSpacing="1">k-space · phase-encode lines</text>
+        <text x={gx - 14} y={gy - 26} fill="#9fb4cc" fontSize="22" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" letterSpacing="1">k-space · phase-encode lines</text>
         {/* live count of acquired lines */}
-        <text x={gx + gw + 40} y={gy + gh * 0.42} fill="#eaf6ff" fontSize="72" fontFamily="Inter, sans-serif" fontWeight={800}>
+        <text x={gx + gw + 40} y={gy + gh * 0.42} fill="#eaf6ff" fontSize="72" fontFamily="var(--f-display, Inter, sans-serif)" fontWeight={800}>
           {shownAcq}<tspan fill={accent} fontSize="40">/{total}</tspan></text>
-        <text x={gx + gw + 44} y={gy + gh * 0.42 + 40} fill="#8aa" fontSize="22" fontFamily="'JetBrains Mono', monospace">lines acquired</text>
-        <text x={gx + gw + 44} y={gy + gh * 0.42 + 96} fill={accent2} fontSize="26" fontFamily="Inter, sans-serif" fontWeight={700}>~4–8× undersampled</text>
+        <text x={gx + gw + 44} y={gy + gh * 0.42 + 40} fill="#8aa" fontSize="22" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">lines acquired</text>
+        <text x={gx + gw + 44} y={gy + gh * 0.42 + 96} fill={accent2} fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700}>~4–8× undersampled</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
+        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}
-        <div style={{marginTop: 8, font: "600 22px/1 'JetBrains Mono', monospace", color: '#8aa', letterSpacing: '0.1em'}}>
+        <div style={{marginTop: 8, font: "600 22px/1 var(--f-mono, 'JetBrains Mono', monospace)", color: '#8aa', letterSpacing: '0.1em'}}>
           deep network · trained on {scans}k scans</div>
       </div>
     </AbsoluteFill>

@@ -38,7 +38,7 @@ export const AuroraFlow: React.FC<{lines?: string[]}> = ({lines = ['Your AI team
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10}}>
         {lines.map((ln, i) => {
           const r = easeOutCubic(seg(t, 0.16 + i * 0.16, 0.16 + i * 0.16 + 0.34));
-          return <div key={i} style={{font: '900 150px/1.02 Inter,system-ui,sans-serif', color: '#fff', letterSpacing: '-0.03em',
+          return <div key={i} style={{font: '900 150px/1.02 var(--f-display, Inter,system-ui,sans-serif)', color: '#fff', letterSpacing: '-0.03em',
             opacity: clamp01(r), transform: `translateY(${lerp(40, 0, clamp01(r))}px)`, textShadow: '0 20px 80px rgba(0,0,0,.35)'}}>{ln}</div>;
         })}
       </AbsoluteFill>

@@ -59,10 +59,10 @@ export const RadialBurst: React.FC<{hub?: string; tagline?: string}> = ({hub: HU
       </svg>
 
       <div style={{position: 'absolute', left: 0, right: 0, top: cy + 130, textAlign: 'center',
-        opacity: clamp01(seg(t, 0.16, 0.32)), color: '#eae4ff', font: '800 40px/1 Inter, system-ui, sans-serif',
+        opacity: clamp01(seg(t, 0.16, 0.32)), color: '#eae4ff', font: '800 40px/1 var(--f-body, Inter, system-ui, sans-serif)',
         letterSpacing: '-0.01em', textShadow: '0 2px 20px #000'}}>{HUB}</div>
       <div style={{position: 'absolute', left: 0, right: 0, bottom: H * 0.1, textAlign: 'center',
-        opacity: clamp01(seg(t, 0.6, 0.82)), color: '#cbbfff', font: '600 34px/1 "JetBrains Mono", monospace',
+        opacity: clamp01(seg(t, 0.6, 0.82)), color: '#cbbfff', font: '600 34px/1 var(--f-mono, "JetBrains Mono", monospace)',
         letterSpacing: '0.4em', paddingLeft: '0.4em'}}>{tagline}</div>
     </AbsoluteFill>
   );

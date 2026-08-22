@@ -38,7 +38,7 @@ export const ChartRace: React.FC<{data?: Row[]; title?: string; unit?: string}> 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? `radial-gradient(120% 100% at 30% 20%, #12162a, ${BG} 72%)`, overflow: 'hidden'}}>
       <div style={{position: 'absolute', top: 90, left: x0 - 40, opacity: titleIn,
-        color: '#aeb6ca', font: '700 34px/1 "JetBrains Mono", monospace', letterSpacing: '0.24em', textTransform: 'uppercase'}}>{TITLE}</div>
+        color: '#aeb6ca', font: '700 34px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.24em', textTransform: 'uppercase'}}>{TITLE}</div>
       {live.map((r) => {
         const sr = softRank(r);
         const y = top + sr * rowH;
@@ -50,14 +50,14 @@ export const ChartRace: React.FC<{data?: Row[]; title?: string; unit?: string}> 
             {/* label */}
             <div style={{position: 'absolute', right: '100%', top: 0, height: rowH - 22, paddingRight: 26,
               display: 'flex', alignItems: 'center', color: lead ? '#fff' : '#c7cee0',
-              font: `${lead ? 800 : 600} 40px/1 Inter, system-ui, sans-serif`, whiteSpace: 'nowrap'}}>{r.label}</div>
+              font: `${lead ? 800 : 600} 40px/1 var(--f-body, Inter, system-ui, sans-serif)`, whiteSpace: 'nowrap'}}>{r.label}</div>
             {/* bar */}
             <div style={{position: 'absolute', left: 0, top: 0, width: bw, height: rowH - 22, borderRadius: 12,
               background: `linear-gradient(90deg, ${tone}, ${tone}cc)`,
               boxShadow: lead ? `0 0 30px ${tone}88` : 'none'}} />
             {/* value */}
             <div style={{position: 'absolute', left: bw + 20, top: 0, height: rowH - 22, display: 'flex', alignItems: 'center',
-              color: lead ? tone : '#8b93a8', font: `800 40px/1 Inter, system-ui, sans-serif`}}>
+              color: lead ? tone : '#8b93a8', font: `800 40px/1 var(--f-body, Inter, system-ui, sans-serif)`}}>
               {Math.round(r.cur)}{UNIT}</div>
           </div>
         );

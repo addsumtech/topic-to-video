@@ -20,9 +20,9 @@ const Glyph: React.FC<{kind: string; c: string; g: number}> = ({kind, c, g}) => 
   if (kind === 'chat') return (<svg width={96} height={72}>
     <rect x={2} y={2} width={62} height={40} rx={12} fill="none" stroke={c} strokeWidth={4} /><path d="M18,42 L18,56 L34,42" fill="none" stroke={c} strokeWidth={4} strokeLinejoin="round" />
     <rect x={40} y={30} width={54} height={34} rx={11} fill={`${c}22`} stroke={c} strokeWidth={3} /></svg>);
-  if (kind === 'api') return (<svg width={110} height={74}><text x={2} y={58} fill={c} style={{font: '800 68px/1 "JetBrains Mono", monospace'}}>{'{'}</text>
+  if (kind === 'api') return (<svg width={110} height={74}><text x={2} y={58} fill={c} style={{font: '800 68px/1 var(--f-mono, "JetBrains Mono", monospace)'}}>{'{'}</text>
     <circle cx={55} cy={37} r={7} fill={c} /><line x1={55} y1={12} x2={55} y2={62} stroke={c} strokeWidth={3} {...dash(50)} />
-    <text x={78} y={58} fill={c} style={{font: '800 68px/1 "JetBrains Mono", monospace'}}>{'}'}</text></svg>);
+    <text x={78} y={58} fill={c} style={{font: '800 68px/1 var(--f-mono, "JetBrains Mono", monospace)'}}>{'}'}</text></svg>);
   if (kind === 'video') return (<svg width={104} height={72}>
     <rect x={2} y={2} width={100} height={68} rx={10} fill="none" stroke={c} strokeWidth={4} />
     {[16, 34, 52, 70, 88].map((x) => <line key={x} x1={x} y1={2} x2={x} y2={12} stroke={c} strokeWidth={3} />)}
@@ -30,7 +30,7 @@ const Glyph: React.FC<{kind: string; c: string; g: number}> = ({kind, c, g}) => 
     <path d="M42,24 L68,37 L42,50 Z" fill={c} opacity={clamp01(g * 1.5)} /></svg>);
   if (kind === 'code') return (<svg width={112} height={72}>{[0, 1, 2].map((r) => {
     const w = [70, 96, 54][r]; return <rect key={r} x={2} y={6 + r * 22} width={w * clamp01(g * 1.4 - r * 0.15)} height={12} rx={6} fill={r === 1 ? c : `${c}88`} />;
-  })}<text x={112} y={52} textAnchor="end" fill={c} style={{font: '800 30px/1 "JetBrains Mono", monospace'}}>{'</>'}</text></svg>);
+  })}<text x={112} y={52} textAnchor="end" fill={c} style={{font: '800 30px/1 var(--f-mono, "JetBrains Mono", monospace)'}}>{'</>'}</text></svg>);
   if (kind === 'cursor') return (<svg width={100} height={78}>
     <rect x={2} y={2} width={96} height={62} rx={9} fill="none" stroke={c} strokeWidth={4} /><line x1={2} y1={20} x2={98} y2={20} stroke={c} strokeWidth={3} />
     <circle cx={12} cy={11} r={3} fill={c} /><circle cx={24} cy={11} r={3} fill={c} />
@@ -72,10 +72,10 @@ export const PlatformSurfaces: React.FC<{
         background: `linear-gradient(150deg, ${accent}, #0e5c46)`, boxShadow: '0 24px 60px #0008',
         opacity: clamp01(heroE * 1.4), transform: `scale(${lerp(0.9, 1, heroE)})`, transformOrigin: 'center',
         padding: 48, display: 'flex', flexDirection: 'column', justifyContent: 'space-between'}}>
-        <div style={{color: '#eafff7cc', font: '600 22px/1 "JetBrains Mono", monospace', letterSpacing: '0.14em'}}>THE PLATFORM</div>
+        <div style={{color: '#eafff7cc', font: '600 22px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.14em'}}>THE PLATFORM</div>
         <div>
-          <div style={{color: '#fff', font: `800 60px/1.05 Inter, system-ui, sans-serif`, letterSpacing: '-0.02em'}}>{title}</div>
-          <div style={{color: '#eafff7dd', font: `500 27px/1.3 Inter, system-ui, sans-serif`, marginTop: 16}}>{subtitle}</div>
+          <div style={{color: '#fff', font: `800 60px/1.05 var(--f-body, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em'}}>{title}</div>
+          <div style={{color: '#eafff7dd', font: `500 27px/1.3 var(--f-body, Inter, system-ui, sans-serif)`, marginTop: 16}}>{subtitle}</div>
         </div>
       </div>
       {/* product tiles */}
@@ -94,8 +94,8 @@ export const PlatformSurfaces: React.FC<{
             boxShadow: `0 18px 44px #0006, inset 0 0 60px ${tone}0e`}}>
             <Glyph kind={tile.glyph || 'node'} c={tone} g={g} />
             <div>
-              <div style={{color: '#eef2ff', font: `800 34px/1 Inter, system-ui, sans-serif`, letterSpacing: '-0.01em'}}>{tile.label}</div>
-              {tile.note ? <div style={{color: '#9aa4ba', font: `500 20px/1.2 Inter, system-ui, sans-serif`, marginTop: 8}}>{tile.note}</div> : null}
+              <div style={{color: '#eef2ff', font: `800 34px/1 var(--f-body, Inter, system-ui, sans-serif)`, letterSpacing: '-0.01em'}}>{tile.label}</div>
+              {tile.note ? <div style={{color: '#9aa4ba', font: `500 20px/1.2 var(--f-body, Inter, system-ui, sans-serif)`, marginTop: 8}}>{tile.note}</div> : null}
             </div>
           </div>
         );

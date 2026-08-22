@@ -48,11 +48,11 @@ export const TerrainFly: React.FC<{title?: string; tagline?: string}> = ({
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>{lines}</svg>
       <div style={{position: 'absolute', top: 96, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
         transform: `translateY(${(1 - titleIn) * 14}px)`, color: '#eafcff',
-        font: '800 120px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.03em',
+        font: '800 120px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
         textShadow: `0 0 44px ${ACC}88, 0 10px 40px #000`}}>{TITLE}</div>
       <div style={{position: 'absolute', top: 244, left: 0, right: 0, textAlign: 'center',
         opacity: easeOutCubic(seg(t, 0.3, 0.56)), color: '#c7b6ff',
-        font: '600 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.2em'}}>{TAG}</div>
+        font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.2em'}}>{TAG}</div>
     </AbsoluteFill>
   );
 };

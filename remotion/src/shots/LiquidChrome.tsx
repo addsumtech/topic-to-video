@@ -68,7 +68,7 @@ export const LiquidChrome: React.FC<{word?: string; tagline?: string}> = ({
 
       {/* refined sub-line, letter-spaced small caps */}
       <div style={{position: 'absolute', left: 0, right: 0, top: baseY + 190, textAlign: 'center',
-        opacity: clamp01(seg(t, 0.55, 0.8)), font: '500 30px/1 "JetBrains Mono", ui-monospace, monospace',
+        opacity: clamp01(seg(t, 0.55, 0.8)), font: '500 30px/1 var(--f-mono, "JetBrains Mono", ui-monospace, monospace)',
         color: '#9aa6b6', letterSpacing: '0.42em', textTransform: 'uppercase', paddingLeft: '0.42em'}}>{SUB}</div>
 
       {/* soft top vignette for depth */}

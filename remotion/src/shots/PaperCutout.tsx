@@ -70,12 +70,12 @@ export const PaperCutout: React.FC<{label?: string; tagline?: string}> = ({label
         return (
           <div style={{position: 'absolute', left: '50%', top: H * 0.42, transform: `translate(-50%, ${(1 - rise) * 120}px) rotate(-2deg)`, opacity: rise > 0 ? 1 : 0, filter: shadow}}>
             <div style={{background: CARD, border: `6px solid ${CARD_EDGE}`, borderRadius: 14, padding: '16px 54px',
-              font: '900 92px/1 "Baloo 2", Inter, sans-serif', color: CARD_INK, letterSpacing: '0.02em'}}>{label}</div>
+              font: '900 92px/1 var(--f-display, "Baloo 2", Inter, sans-serif)', color: CARD_INK, letterSpacing: '0.02em'}}>{label}</div>
           </div>
         );
       })()}
       <div style={{position: 'absolute', left: 0, right: 0, bottom: H * 0.08, textAlign: 'center',
-        opacity: clamp01(seg(t, 0.7, 0.9)), color: TAG, font: '800 40px/1 "Baloo 2", Inter, sans-serif',
+        opacity: clamp01(seg(t, 0.7, 0.9)), color: TAG, font: '800 40px/1 var(--f-body, "Baloo 2", Inter, sans-serif)',
         textShadow: `0 3px 0 ${TAG_SHADOW}`}}>{tagline}</div>
     </AbsoluteFill>
   );

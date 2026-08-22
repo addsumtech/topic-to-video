@@ -52,11 +52,11 @@ export const VoxelBuild: React.FC<{title?: string; tagline?: string; accent?: st
         })}
       </svg>
       <div style={{position: 'absolute', bottom: 150, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
-        color: '#eafff4', font: '800 88px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.02em',
+        color: '#eafff4', font: '800 88px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.02em',
         textShadow: '0 8px 40px #000'}}>{TITLE}</div>
       <div style={{position: 'absolute', bottom: 92, left: 0, right: 0, textAlign: 'center',
         opacity: easeOutCubic(seg(t, 0.72, 0.9)), color: '#9fd6bd',
-        font: '600 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.2em'}}>{TAG}</div>
+        font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.2em'}}>{TAG}</div>
     </AbsoluteFill>
   );
 };

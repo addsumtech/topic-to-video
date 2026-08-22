@@ -26,7 +26,7 @@ export const BrutalistType: React.FC<{titleTop?: string; titleBottom?: string; m
 
   const Head: React.FC<{color: string; dx: number; blend?: string}> = ({color, dx, blend}) => (
     <div style={{position: 'absolute', inset: 0, transform: `translateX(${dx}px)`, color, mixBlendMode: (blend as any) || 'normal',
-      font: '900 300px/0.82 "Archivo", "Helvetica Neue", Arial Narrow, sans-serif', letterSpacing: '-0.03em'}}>
+      font: '900 300px/0.82 var(--f-display, "Archivo", "Helvetica Neue", Arial Narrow, sans-serif)', letterSpacing: '-0.03em'}}>
       {titleTop}<br />{titleBottom}
     </div>
   );
@@ -39,8 +39,8 @@ export const BrutalistType: React.FC<{titleTop?: string; titleBottom?: string; m
       <div style={{position: 'absolute', right: 90, top: 158, width: 260, height: 120, background: ACC}} />
 
       {/* metadata */}
-      <div style={{position: 'absolute', left: 96, top: 100, color: INK, font: '800 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.02em'}}>{meta}</div>
-      <div style={{position: 'absolute', right: 100, top: 186, color: BG, font: '800 46px/1 "JetBrains Mono", monospace'}}>01/03</div>
+      <div style={{position: 'absolute', left: 96, top: 100, color: INK, font: '800 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.02em'}}>{meta}</div>
+      <div style={{position: 'absolute', right: 100, top: 186, color: BG, font: '800 46px/1 var(--f-mono, "JetBrains Mono", monospace)'}}>01/03</div>
 
       {/* headline (RGB-glitch stack) */}
       <div style={{position: 'absolute', left: 96, top: 300, width: W - 200, height: 720, transform: `translateY(${(1 - rise) * 60}px)`, opacity: rise}}>
@@ -55,7 +55,7 @@ export const BrutalistType: React.FC<{titleTop?: string; titleBottom?: string; m
       </div>
 
       {/* statement */}
-      <div style={{position: 'absolute', left: 96, bottom: 176, color: INK, font: '800 54px/1 "Archivo", Arial, sans-serif', letterSpacing: '-0.01em'}}>
+      <div style={{position: 'absolute', left: 96, bottom: 176, color: INK, font: '800 54px/1 var(--f-body, "Archivo", Arial, sans-serif)', letterSpacing: '-0.01em'}}>
         {statement1} <span style={{background: INK, color: BG, padding: '0 12px'}}>{statement2}</span>
       </div>
     </AbsoluteFill>

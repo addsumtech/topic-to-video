@@ -69,7 +69,7 @@ export const HalftonePop: React.FC<{burstTop?: string; burstBottom?: string; bra
 
       {/* burst text */}
       <div style={{position: 'absolute', left: cx, top: cy, transform: `translate(-50%,-50%) scale(${pop}) rotate(-8deg)`, textAlign: 'center'}}>
-        <div style={{font: '900 150px/0.86 "Bangers", "Anton", Impact, sans-serif', color: RED, WebkitTextStroke: `8px ${INK}`,
+        <div style={{font: '900 150px/0.86 var(--f-display, "Bangers", "Anton", Impact, sans-serif)', color: RED, WebkitTextStroke: `8px ${INK}`,
           paintOrder: 'stroke', letterSpacing: '0.01em'}}>{burstTop}<br />{burstBottom}</div>
       </div>
 
@@ -77,7 +77,7 @@ export const HalftonePop: React.FC<{burstTop?: string; burstBottom?: string; bra
       <div style={{position: 'absolute', left: 90, top: H - 250, transform: `rotate(-3deg) scale(${slam})`, transformOrigin: 'left center',
         opacity: slam > 0 ? 1 : 0}}>
         <div style={{background: CARD, border: `7px solid ${INK}`, boxShadow: `12px 12px 0 ${BLUE}`, padding: '20px 34px',
-          font: '800 52px/1.05 "Bangers", Anton, Impact, sans-serif', color: INK, letterSpacing: '0.02em'}}>
+          font: '800 52px/1.05 var(--f-body, "Bangers", Anton, Impact, sans-serif)', color: INK, letterSpacing: '0.02em'}}>
           MEANWHILE… <span style={{color: BLUE}}>{brand}</span> delivers.
         </div>
       </div>

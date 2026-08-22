@@ -28,7 +28,7 @@ export const OpenQuestions: React.FC<{kicker?: string; questions?: string[]; acc
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 30%, #0d1119, #05060a 70%)')}}>
       {/* kicker */}
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center', opacity: clamp01(t * 5),
-        color: '#8f9bb0', font: '600 26px/1 "JetBrains Mono", monospace', letterSpacing: '0.34em', textTransform: 'uppercase'}}>{kicker}</div>
+        color: '#8f9bb0', font: '600 26px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.34em', textTransform: 'uppercase'}}>{kicker}</div>
 
       {/* the descending scan light */}
       <div style={{position: 'absolute', left: 0, right: 0, top: scanY - 60, height: 120, pointerEvents: 'none',
@@ -45,7 +45,7 @@ export const OpenQuestions: React.FC<{kicker?: string; questions?: string[]; acc
         return (
           <div key={i} style={{position: 'absolute', left: 0, right: 0, top: yc, transform: 'translateY(-50%)', textAlign: 'center'}}>
             <span style={{color: `rgba(${lerp(70, 238, b)},${lerp(78, 244, b)},${lerp(92, 252, b)},1)`,
-              font: '700 62px/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em', opacity: clamp01(lit * 1.3),
+              font: '700 62px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em', opacity: clamp01(lit * 1.3),
               textShadow: glow > 0.3 ? `0 0 46px ${accent}${Math.round(glow * 140).toString(16).padStart(2, '0')}` : 'none'}}>
               {q}</span>
           </div>
@@ -55,7 +55,7 @@ export const OpenQuestions: React.FC<{kicker?: string; questions?: string[]; acc
       {/* footer: unresolved + a blinking caret (once all questions are up) — clamped ABOVE the caption band */}
       <div style={{position: 'absolute', left: 0, right: 0,
         top: Math.min(topY + stepY * (n - 1) + H * 0.12, H - captionBand(W, H) - 34), textAlign: 'center',
-        opacity: easeOutCubic(seg(t, 0.78, 0.92)), color: accent, font: '600 24px/1 "JetBrains Mono", monospace', letterSpacing: '0.2em'}}>
+        opacity: easeOutCubic(seg(t, 0.78, 0.92)), color: accent, font: '600 24px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.2em'}}>
         {footer}<span style={{opacity: Math.sin(t * Math.PI * 2 * 6) > 0 ? 1 : 0}}> _</span>
       </div>
     </AbsoluteFill>

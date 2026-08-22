@@ -28,7 +28,7 @@ export const CircuitTrace: React.FC<{title?: string; chip?: string; nodes?: stri
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? (`radial-gradient(130% 100% at 50% 42%, #0d2018, ${BOARD} 74%)`), overflow: 'hidden'}}>
       <div style={{position: 'absolute', top: 70, left: 0, right: 0, textAlign: 'center', opacity: titleIn, zIndex: 5,
-        color: '#8fd8bf', font: '700 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
+        color: '#8fd8bf', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
       {/* faint pad grid */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <g opacity={0.16}>{[...Array(28)].map((_, i) => [...Array(16)].map((__, j) =>
@@ -59,13 +59,13 @@ export const CircuitTrace: React.FC<{title?: string; chip?: string; nodes?: stri
         return <div key={i} style={{position: 'absolute', left: p.px, top: p.py, transform: `translate(-50%,-50%) scale(${on})`,
           opacity: clamp01(on), width: 116, height: 74, borderRadius: 10, background: '#0c241a',
           border: `2px solid ${COPPER}`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: LIVE, font: '800 26px/1 "JetBrains Mono", monospace', boxShadow: `0 0 24px ${COPPER}44`}}>{p.label}</div>;
+          color: LIVE, font: '800 26px/1 var(--f-mono, "JetBrains Mono", monospace)', boxShadow: `0 0 24px ${COPPER}44`}}>{p.label}</div>;
       })}
       {/* central chip */}
       <div style={{position: 'absolute', left: cx, top: cy, transform: `translate(-50%,-50%) scale(${chipIn})`,
         width: 260, height: 200, borderRadius: 14, background: 'linear-gradient(160deg, #103326, #0a1f17)',
         border: `3px solid ${LIVE}`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: '#eafff6', font: '900 56px/1 Inter, system-ui, sans-serif',
+        color: '#eafff6', font: '900 56px/1 var(--f-body, Inter, system-ui, sans-serif)',
         boxShadow: t > 0.5 ? `0 0 60px ${LIVE}66, inset 0 0 30px ${COPPER}44` : `0 0 20px ${COPPER}44`}}>
         {/* chip pins */}
         {[...Array(8)].map((_, k) => <div key={k} style={{position: 'absolute', top: -12, left: 24 + k * 28, width: 12, height: 12, background: COPPER}} />)}

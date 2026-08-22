@@ -41,7 +41,7 @@ export const SplitFlap: React.FC<{rows?: string[]}> = ({rows: ROWS = DEFAULT_ROW
           {/* hairline split */}
           <div style={{position: 'absolute', left: 0, right: 0, top: '50%', height: 2, background: '#000', opacity: 0.7}} />
           <div style={{position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            font: '800 108px/1 "Anton", Impact, sans-serif', color: settled ? '#ffcf4a' : '#c9a24a',
+            font: '800 108px/1 var(--f-display, "Anton", Impact, sans-serif)', color: settled ? '#ffcf4a' : '#c9a24a',
             opacity: settled ? 1 : 0.86, transform: `translateY(${(1 - justLanded) * 0}px)`,
             textShadow: settled ? '0 0 18px #ffcf4a55' : 'none'}}>{shown === ' ' ? '' : shown}</div>
         </div>
@@ -58,7 +58,7 @@ export const SplitFlap: React.FC<{rows?: string[]}> = ({rows: ROWS = DEFAULT_ROW
       {tiles}
       {/* header label */}
       <div style={{position: 'absolute', left: 0, right: 0, top: y0 - 100, textAlign: 'center',
-        color: '#6f7078', font: '700 26px/1 "JetBrains Mono", monospace', letterSpacing: '0.5em', paddingLeft: '0.5em'}}>STATUS · TODAY</div>
+        color: '#6f7078', font: '700 26px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.5em', paddingLeft: '0.5em'}}>STATUS · TODAY</div>
     </AbsoluteFill>
   );
 };

@@ -45,7 +45,7 @@ export const InflateType: React.FC<{word?: string; tagline?: string}> = ({
               transform: `translateY(${(1 - inf) * 40}px) scale(${sx}, ${sy})`, transformOrigin: 'center bottom',
               margin: '0 6px'}}>
               <span style={{display: 'block',
-                fontFamily: '"Baloo 2", Inter, system-ui, sans-serif', fontWeight: 900, fontSize: 240, lineHeight: 1,
+                fontFamily: 'var(--f-display, "Baloo 2", Inter, system-ui, sans-serif)', fontWeight: 900, fontSize: 240, lineHeight: 1,
                 letterSpacing: '-0.01em', color: tone,
                 background: `linear-gradient(180deg, #ffffff, ${tone} 42%, ${tone})`,
                 WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent',
@@ -59,7 +59,7 @@ export const InflateType: React.FC<{word?: string; tagline?: string}> = ({
         })}
       </div>
       <div style={{opacity: tagIn, transform: `translateY(${(1 - tagIn) * 12}px)`, marginTop: 54, color: '#c7d0ff',
-        font: '700 32px/1 "JetBrains Mono", monospace', letterSpacing: '0.24em', textTransform: 'uppercase'}}>{TAG}</div>
+        font: '700 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.24em', textTransform: 'uppercase'}}>{TAG}</div>
     </AbsoluteFill>
   );
 };

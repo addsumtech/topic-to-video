@@ -30,20 +30,20 @@ export const SpeedLimit: React.FC<{accent?: string; label?: string}> = ({
       <svg width={W} height={H} style={{position: 'absolute'}}>
         <rect x={bx - 46} y={trackTop} width={92} height={trackH} rx={12} fill="#0a1424" stroke={`${accent}44`} strokeWidth={1.4} />
         <rect x={bx - 40 + shake} y={topY} width={80} height={trackBot - topY} rx={9} fill={blocked ? WARN : accent} opacity={0.9} />
-        <text x={bx} y={trackBot + 40} textAnchor="middle" fill="#c9d6ea" fontSize="24" fontFamily="Inter, sans-serif" fontWeight={700}>gradient speed</text>
+        <text x={bx} y={trackBot + 40} textAnchor="middle" fill="#c9d6ea" fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700}>gradient speed</text>
 
         {/* two ceilings — labels OUTSIDE the track with room */}
         <line x1={bx - 210} y1={hwY} x2={bx + 210} y2={hwY} stroke={WARN} strokeWidth={2.5} strokeDasharray="6 5" opacity={clamp01(seg(t, 0.05, 0.3))} />
-        <text x={bx + 230} y={hwY + 6} fill={WARN} fontSize="24" fontFamily="Inter, sans-serif" fontWeight={700} opacity={clamp01(seg(t, 0.05, 0.3))}>hardware: slew-rate limit</text>
+        <text x={bx + 230} y={hwY + 6} fill={WARN} fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700} opacity={clamp01(seg(t, 0.05, 0.3))}>hardware: slew-rate limit</text>
         <line x1={bx - 180} y1={pnsY} x2={bx + 180} y2={pnsY} stroke="#f06ecb" strokeWidth={2} strokeDasharray="6 5" opacity={clamp01(seg(t, 0.1, 0.35))} />
-        <text x={bx + 200} y={pnsY + 6} fill="#ff8ad0" fontSize="24" fontFamily="Inter, sans-serif" fontWeight={700} opacity={clamp01(seg(t, 0.1, 0.35))}>patient: nerve stimulation</text>
+        <text x={bx + 200} y={pnsY + 6} fill="#ff8ad0" fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700} opacity={clamp01(seg(t, 0.1, 0.35))}>patient: nerve stimulation</text>
 
         {/* conclusion — left of the track, with room */}
-        <text x={bx - 250} y={trackTop + trackH * 0.55} textAnchor="end" fill="#eaf6ff" fontSize="30" fontFamily="Inter, sans-serif" fontWeight={800} opacity={clamp01(seg(t, 0.66, 0.86))}>blocked</text>
-        <text x={bx - 250} y={trackTop + trackH * 0.55 + 34} textAnchor="end" fill={accent} fontSize="24" fontFamily="Inter, sans-serif" opacity={clamp01(seg(t, 0.72, 0.9))}>→ skip k-space lines instead</text>
+        <text x={bx - 250} y={trackTop + trackH * 0.55} textAnchor="end" fill="#eaf6ff" fontSize="30" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800} opacity={clamp01(seg(t, 0.66, 0.86))}>blocked</text>
+        <text x={bx - 250} y={trackTop + trackH * 0.55 + 34} textAnchor="end" fill={accent} fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" opacity={clamp01(seg(t, 0.72, 0.9))}>→ skip k-space lines instead</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
+        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
     </AbsoluteFill>
   );

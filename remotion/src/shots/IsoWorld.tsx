@@ -40,7 +40,7 @@ export const IsoWorld: React.FC<{items?: string[]; title?: string}> = ({
   return (
     <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 34%, #131a33, ${BG} 74%)`, overflow: 'hidden'}}>
       <div style={{position: 'absolute', top: 76, left: 0, right: 0, textAlign: 'center', opacity: titleIn, zIndex: 5,
-        color: '#aeb6ca', font: '700 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
+        color: '#aeb6ca', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
 
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         {cells.map((c, idx) => {
@@ -80,7 +80,7 @@ export const IsoWorld: React.FC<{items?: string[]; title?: string}> = ({
           <div key={k} style={{position: 'absolute', left: c.sx, top: c.sy - TH / 2 - h - 54,
             transform: 'translate(-50%, 0)', opacity: on, zIndex: 4,
             padding: '8px 18px', borderRadius: 10, background: '#0e1426',
-            border: `1px solid ${c.tone}`, color: '#eef2ff', font: '700 26px/1 Inter, system-ui, sans-serif',
+            border: `1px solid ${c.tone}`, color: '#eef2ff', font: '700 26px/1 var(--f-body, Inter, system-ui, sans-serif)',
             whiteSpace: 'nowrap', boxShadow: '0 8px 24px #0008'}}>{c.label}</div>
         );
       })}

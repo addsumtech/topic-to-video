@@ -75,7 +75,7 @@ export const WireGlobe: React.FC<{tagline?: string}> = ({tagline = 'connected to
       </svg>
 
       <div style={{position: 'absolute', left: 0, right: 0, bottom: H * 0.12, textAlign: 'center',
-        opacity: clamp01(seg(t, 0.55, 0.8)), color: '#dff4ff', font: '800 44px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em'}}>
+        opacity: clamp01(seg(t, 0.55, 0.8)), color: '#dff4ff', font: '800 44px/1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em'}}>
         {tagline}<span style={{color: CY}}>.</span>
       </div>
     </AbsoluteFill>

@@ -33,10 +33,10 @@ const Gauge: React.FC<{cx: number; cy: number; r: number; fill: number; tone: st
       <circle cx={cx} cy={cy} r={r * 0.09} fill="#e7ebf7" />
       {big ? (
         <text x={cx} y={cy + r * 0.42} textAnchor="middle" fill="#fff"
-          style={{font: `800 ${r * 0.42}px Inter, system-ui, sans-serif`}}>{big}<tspan fill={tone} style={{font: `800 ${r * 0.24}px Inter`}}>{unit}</tspan></text>
+          style={{font: `800 ${r * 0.42}px var(--f-display, Inter, system-ui, sans-serif)`}}>{big}<tspan fill={tone} style={{font: `800 ${r * 0.24}px var(--f-display, Inter)`}}>{unit}</tspan></text>
       ) : null}
       <text x={cx} y={cy + r * 1.42} textAnchor="middle" fill="#8b93a8"
-        style={{font: '600 24px "JetBrains Mono", monospace', letterSpacing: '0.1em'}}>{label}</text>
+        style={{font: '600 24px var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.1em'}}>{label}</text>
     </g>
   );
 };
@@ -54,7 +54,7 @@ export const GaugeCluster: React.FC<{value?: string; unit?: string; label?: stri
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? `radial-gradient(120% 100% at 50% 40%, #12182c, ${BG} 72%)`}}>
       <div style={{position: 'absolute', top: 74, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
-        color: '#aeb6ca', font: '700 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.3em',
+        color: '#aeb6ca', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em',
         textTransform: 'uppercase'}}>{TITLE}</div>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <Gauge cx={cx - 470} cy={cy} r={110} fill={easeOutExpo(seg(t, 0.12, 0.5)) * (SATS[0]?.fill ?? 0.6)}

@@ -46,7 +46,7 @@ export const NeonTickerWall: React.FC<{headline?: string; tickers?: string[]; ac
             background: '#0a0c18', borderTop: `1px solid ${col}55`, borderBottom: `1px solid ${col}55`,
             opacity: flick(i * 3.3)}}>
             <div style={{position: 'absolute', whiteSpace: 'nowrap', top: 10, left: 0, transform: `translateX(${-shift}px)`,
-              color: col, font: '800 42px/1 "JetBrains Mono", monospace', letterSpacing: '0.06em',
+              color: col, font: '800 42px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.06em',
               textShadow: `0 0 14px ${col}`}}>{txt}</div>
           </div>
         );
@@ -57,7 +57,7 @@ export const NeonTickerWall: React.FC<{headline?: string; tickers?: string[]; ac
         <div style={{transform: `scale(${lerp(0.8, 1, marquee)})`, opacity: clamp01(marquee * 1.3),
           padding: '38px 66px', borderRadius: 18, background: '#07091a',
           border: `4px solid ${ACC}`, boxShadow: `0 0 60px ${ACC}88, inset 0 0 40px ${ACC}44`}}>
-          <div style={{color: '#fff', font: '900 128px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.02em',
+          <div style={{color: '#fff', font: '900 128px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.02em',
             textShadow: `0 0 30px ${ACC}, 0 0 60px ${ACC}`, opacity: flick(99)}}>{HEADLINE}</div>
         </div>
       </AbsoluteFill>

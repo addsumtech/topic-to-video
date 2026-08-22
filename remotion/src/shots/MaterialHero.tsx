@@ -45,7 +45,7 @@ export const MaterialHero: React.FC<{title?: string}> = ({title = 'One tool. You
         <Hero />
       </ThreeCanvas>
       <div style={{position: 'absolute', left: 0, right: 0, bottom: 250, textAlign: 'center'}}>
-        <div style={{font: '800 92px/1 Inter,system-ui,sans-serif', color: '#f2f5fb', letterSpacing: '-0.02em'}}>{title}</div>
+        <div style={{font: '800 92px/1 var(--f-display, Inter,system-ui,sans-serif)', color: '#f2f5fb', letterSpacing: '-0.02em'}}>{title}</div>
       </div>
     </AbsoluteFill>
   );

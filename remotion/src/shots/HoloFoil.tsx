@@ -25,17 +25,17 @@ export const HoloFoil: React.FC<{word?: string; tagline?: string}> = ({word: WOR
       {/* the holo wordmark */}
       <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column'}}>
         <div style={{position: 'relative', transform: `translateY(${(1 - rise) * 40}px)`, opacity: rise}}>
-          <div style={{font: '900 210px/0.9 "Antonio", Impact, sans-serif', letterSpacing: '0.01em',
+          <div style={{font: '900 210px/0.9 var(--f-display, "Antonio", Impact, sans-serif)', letterSpacing: '0.01em',
             background: foil, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
             filter: 'drop-shadow(0 8px 30px #ff5db255) drop-shadow(0 0 2px #fff8)'}}>{WORD}</div>
           {/* specular sheen overlay (screen) */}
-          <div style={{position: 'absolute', inset: 0, font: '900 210px/0.9 "Antonio", Impact, sans-serif',
+          <div style={{position: 'absolute', inset: 0, font: '900 210px/0.9 var(--f-display, "Antonio", Impact, sans-serif)',
             letterSpacing: '0.01em', mixBlendMode: 'screen',
             background: `linear-gradient(105deg, #fff0 ${(sheen - 0.12) * 100}%, #ffffffdd ${sheen * 100}%, #fff0 ${(sheen + 0.12) * 100}%)`,
             WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent'}}>{WORD}</div>
         </div>
         <div style={{marginTop: 30, opacity: clamp01(seg(t, 0.5, 0.76)), color: '#c9c2e0',
-          font: '600 32px/1 "JetBrains Mono", monospace', letterSpacing: '0.42em', paddingLeft: '0.42em'}}>{TAGLINE}</div>
+          font: '600 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.42em', paddingLeft: '0.42em'}}>{TAGLINE}</div>
       </AbsoluteFill>
 
       {/* sparkle glints */}

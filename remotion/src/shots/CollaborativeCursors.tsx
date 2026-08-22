@@ -82,10 +82,10 @@ const Artboard: React.FC<{b: Board; t: number}> = ({b, t}) => {
     <div style={{position: 'absolute', left: b.x, top: b.y, width: w, height: h, opacity: clamp01(appear),
       transform: `scale(${0.92 + 0.08 * appear})`, transformOrigin: 'center', background: PANELc,
       border: `1px solid ${BORD}`, borderRadius: 16, boxShadow: '0 22px 50px rgba(30,45,80,.16)'}}>
-      <div style={{position: 'absolute', left: 22, top: 18, font: '700 22px/1 Inter,system-ui,sans-serif', color: INKc}}>{b.name}</div>
+      <div style={{position: 'absolute', left: 22, top: 18, font: '700 22px/1 var(--f-body, Inter,system-ui,sans-serif)', color: INKc}}>{b.name}</div>
       <Artifact kind={b.kind} p={p} color={b.color} />
       {done && <div style={{position: 'absolute', right: 18, top: 16, width: 26, height: 26, borderRadius: 13,
-        background: b.color, color: '#fff', font: '700 18px/26px Inter,sans-serif', textAlign: 'center'}}>✓</div>}
+        background: b.color, color: '#fff', font: '700 18px/26px var(--f-body, Inter,sans-serif)', textAlign: 'center'}}>✓</div>}
       {active && <>
         <div style={{position: 'absolute', inset: -3, border: `2px solid ${b.color}`, borderRadius: 18}} />
         {[[0, 0], [1, 0], [0, 1], [1, 1]].map(([hx, hy], k) =>
@@ -97,7 +97,7 @@ const Artboard: React.FC<{b: Board; t: number}> = ({b, t}) => {
       <div style={{position: 'absolute', left: cx, top: cy, filter: 'drop-shadow(0 6px 12px rgba(30,45,80,.28))'}}>
         <svg width="30" height="36" viewBox="0 0 22 26"><path d="M2,2 L2,22 L7,17 L10,24 L13,23 L10,16 L17,16 Z" fill={b.color} stroke="#fff" strokeWidth="1.6" strokeLinejoin="round" /></svg>
         <div style={{position: 'absolute', left: 24, top: 20, padding: '6px 13px', borderRadius: 8, background: b.color,
-          color: '#fff', font: '700 21px/1 Inter,system-ui,sans-serif', whiteSpace: 'nowrap'}}>{b.name}</div>
+          color: '#fff', font: '700 21px/1 var(--f-body, Inter,system-ui,sans-serif)', whiteSpace: 'nowrap'}}>{b.name}</div>
       </div>
     )}
   </>;

@@ -53,14 +53,14 @@ export const PhysicsStack: React.FC<{items?: string[]; label?: string}> = ({item
               <rect x={x0 + i * (bw + gap)} y={top} width={bw} height={groundY - top} rx={14} fill={b.c} />
               <rect x={x0 + i * (bw + gap)} y={top} width={bw} height={Math.min(28, groundY - top)} rx={14} fill="#ffffff" opacity={0.22} />
               {/* label */}
-              <text x={x0 + i * (bw + gap) + bw / 2} y={groundY + 44} textAnchor="middle" fill="#8494a8" style={{font: '600 30px/1 Inter, system-ui, sans-serif'}}>{b.label}</text>
+              <text x={x0 + i * (bw + gap) + bw / 2} y={groundY + 44} textAnchor="middle" fill="#8494a8" style={{font: '600 30px/1 var(--f-body, Inter, system-ui, sans-serif)'}}>{b.label}</text>
             </g>
           );
         })}
       </svg>
 
       <div style={{position: 'absolute', left: 0, right: 0, top: 130, textAlign: 'center',
-        opacity: clamp01(seg(t, 0.7, 0.9)), color: '#eaf1ff', font: '800 56px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em'}}>
+        opacity: clamp01(seg(t, 0.7, 0.9)), color: '#eaf1ff', font: '800 56px/1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em'}}>
         {label}<span style={{color: '#ffd23f'}}>.</span>
       </div>
     </AbsoluteFill>

@@ -23,9 +23,9 @@ export const AnalogTape: React.FC<{title?: string; tagline?: string}> = ({title:
   const Title: React.FC<{dx: number; color: string; blend?: string}> = ({dx, color, blend}) => (
     <div style={{position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', transform: `translate(${dx + jit}px, ${jit * 0.4}px)`, mixBlendMode: (blend as any) || 'normal'}}>
-      <div style={{color, font: '800 168px/0.95 "Antonio", "Oswald", Impact, sans-serif', letterSpacing: '0.02em',
+      <div style={{color, font: '800 168px/0.95 var(--f-display, "Antonio", "Oswald", Impact, sans-serif)', letterSpacing: '0.02em',
         textTransform: 'uppercase', opacity: inT}}>{TITLE}</div>
-      <div style={{color, font: '600 34px/1 "JetBrains Mono", monospace', letterSpacing: '0.34em', marginTop: 22,
+      <div style={{color, font: '600 34px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.34em', marginTop: 22,
         opacity: clamp01(seg(t, 0.4, 0.7))}}>{TAGLINE}</div>
     </div>
   );
@@ -53,12 +53,12 @@ export const AnalogTape: React.FC<{title?: string; tagline?: string}> = ({title:
 
       {/* OSD — retro on-screen display */}
       <div style={{position: 'absolute', left: 60, top: 48, display: 'flex', alignItems: 'center', gap: 16,
-        font: '700 40px/1 "VT323", "JetBrains Mono", monospace', color: '#eafff0', letterSpacing: '0.06em'}}>
+        font: '700 40px/1 var(--f-mono, "VT323", "JetBrains Mono", monospace)', color: '#eafff0', letterSpacing: '0.06em'}}>
         <span style={{width: 22, height: 22, borderRadius: 11, background: '#ff2b2b', opacity: recOn ? 1 : 0.15}} />REC
       </div>
-      <div style={{position: 'absolute', right: 60, top: 48, font: '700 40px/1 "VT323", "JetBrains Mono", monospace', color: '#eafff0'}}>SP · AUG&nbsp;12&nbsp;2026</div>
-      <div style={{position: 'absolute', left: 60, bottom: 48, font: '700 44px/1 "VT323", "JetBrains Mono", monospace', color: '#eafff0', letterSpacing: '0.1em'}}>▶ PLAY</div>
-      <div style={{position: 'absolute', right: 60, bottom: 48, font: '700 40px/1 "VT323", "JetBrains Mono", monospace', color: '#eafff0'}}>{String(Math.floor(t * 12)).padStart(2, '0')}:{String(Math.floor((t * 12 * 60) % 60)).padStart(2, '0')}</div>
+      <div style={{position: 'absolute', right: 60, top: 48, font: '700 40px/1 var(--f-mono, "VT323", "JetBrains Mono", monospace)', color: '#eafff0'}}>SP · AUG&nbsp;12&nbsp;2026</div>
+      <div style={{position: 'absolute', left: 60, bottom: 48, font: '700 44px/1 var(--f-mono, "VT323", "JetBrains Mono", monospace)', color: '#eafff0', letterSpacing: '0.1em'}}>▶ PLAY</div>
+      <div style={{position: 'absolute', right: 60, bottom: 48, font: '700 40px/1 var(--f-mono, "VT323", "JetBrains Mono", monospace)', color: '#eafff0'}}>{String(Math.floor(t * 12)).padStart(2, '0')}:{String(Math.floor((t * 12 * 60) % 60)).padStart(2, '0')}</div>
 
       {/* CRT barrel vignette */}
       <AbsoluteFill style={{background: 'radial-gradient(110% 100% at 50% 50%, #0000 56%, #000000cc 100%)', pointerEvents: 'none'}} />

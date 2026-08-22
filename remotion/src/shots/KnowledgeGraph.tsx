@@ -88,12 +88,12 @@ export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string}> = ({
         return (
           <div key={i} style={{position: 'absolute', left: p.x, top: p.y + 34, transform: 'translateX(-50%)', opacity: show,
             padding: '5px 14px', borderRadius: 999, background: '#0c1424cc', border: `1px solid ${n.c}66`,
-            color: '#dbe5f5', font: `600 24px/1 Inter, system-ui, sans-serif`, whiteSpace: 'nowrap'}}>{n.label}</div>
+            color: '#dbe5f5', font: `600 24px/1 var(--f-body, Inter, system-ui, sans-serif)`, whiteSpace: 'nowrap'}}>{n.label}</div>
         );
       })}
       {/* center label */}
       <div style={{position: 'absolute', left: cx, top: cy + 96, transform: 'translateX(-50%)',
-        opacity: clamp01(seg(t, 0.16, 0.3)), color: '#eaf1ff', font: `800 34px/1 Inter, system-ui, sans-serif`,
+        opacity: clamp01(seg(t, 0.16, 0.3)), color: '#eaf1ff', font: `800 34px/1 var(--f-body, Inter, system-ui, sans-serif)`,
         letterSpacing: '-0.01em', whiteSpace: 'nowrap'}}>{HUB}</div>
     </AbsoluteFill>
   );

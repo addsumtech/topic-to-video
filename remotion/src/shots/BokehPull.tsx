@@ -44,10 +44,10 @@ export const BokehPull: React.FC<{title?: string; tagline?: string}> = ({title =
       {/* the resolving wordmark */}
       <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column'}}>
         <div style={{filter: `blur(${wordBlur}px)`, opacity: wordOp, color: '#f4f8ff',
-          font: '800 190px/0.92 "Playfair Display", Georgia, serif', letterSpacing: '-0.01em',
+          font: '800 190px/0.92 var(--f-display, "Playfair Display", Georgia, serif)', letterSpacing: '-0.01em',
           textShadow: '0 20px 80px #000'}}>{title}</div>
         <div style={{marginTop: 24, filter: `blur(${wordBlur * 0.5}px)`, opacity: clamp01(seg(t, 0.62, 0.84)),
-          color: '#9fb2cc', font: '600 32px/1 "JetBrains Mono", monospace', letterSpacing: '0.4em', paddingLeft: '0.4em'}}>{tagline}</div>
+          color: '#9fb2cc', font: '600 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.4em', paddingLeft: '0.4em'}}>{tagline}</div>
       </AbsoluteFill>
 
       {/* lens vignette */}

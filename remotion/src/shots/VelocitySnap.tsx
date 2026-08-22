@@ -44,7 +44,7 @@ export const VelocitySnap: React.FC<{label?: string; metric?: string; unit?: str
           background: p.c ? `linear-gradient(150deg, ${p.c}, #5a63d8)` : '#161826',
           border: `1px solid ${p.c ? 'transparent' : '#242741'}`, borderRadius: 16,
           boxShadow: '0 20px 50px rgba(0,0,0,.4)'}}>
-          {p.c && <div style={{position: 'absolute', left: 30, bottom: 26, font: '800 66px/1 Inter,system-ui,sans-serif', color: '#fff'}}>{label}</div>}
+          {p.c && <div style={{position: 'absolute', left: 30, bottom: 26, font: '800 66px/1 var(--f-display, Inter,system-ui,sans-serif)', color: '#fff'}}>{label}</div>}
         </div>;
       })}
       <div style={{position: 'absolute', right: 150, top: 150, textAlign: 'right', opacity: easeOutCubic(seg(t, 0.4, 0.55))}}>

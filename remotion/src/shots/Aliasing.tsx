@@ -32,14 +32,14 @@ export const Aliasing: React.FC<{src?: string; accent?: string; label?: string; 
       </div>
       <svg width={W} height={H} style={{position: 'absolute'}}>
         <line x1={left} y1={top + S / 2} x2={left + S} y2={top + S / 2} stroke={accent} strokeWidth={1.4} strokeDasharray="5 6" opacity={ghost * 0.7} />
-        <text x={left + S + 30} y={top + S * 0.28} fill="#ff8ad0" fontSize="24" fontFamily="Inter, sans-serif" fontWeight={700} opacity={ghost}>ghost:</text>
-        <text x={left + S + 30} y={top + S * 0.28 + 30} fill="#c9d6ea" fontSize="20" fontFamily="Inter, sans-serif" opacity={ghost}>a wrapped copy folds in</text>
-        <text x={left + S / 2} y={top + S + 34} textAnchor="middle" fill="#8aa" fontSize="19" fontFamily="'JetBrains Mono', monospace" opacity={clamp01(seg(t, 0.1, 0.4))}>undersample → Nyquist violated → wrap-around</text>
+        <text x={left + S + 30} y={top + S * 0.28} fill="#ff8ad0" fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700} opacity={ghost}>ghost:</text>
+        <text x={left + S + 30} y={top + S * 0.28 + 30} fill="#c9d6ea" fontSize="20" fontFamily="var(--f-body, Inter, sans-serif)" opacity={ghost}>a wrapped copy folds in</text>
+        <text x={left + S / 2} y={top + S + 34} textAnchor="middle" fill="#8aa" fontSize="19" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01(seg(t, 0.1, 0.4))}>undersample → Nyquist violated → wrap-around</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
+        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
-      {credit ? <div style={{position: 'absolute', left: 20, bottom: 8, color: '#5f6b7d', font: "400 14px/1.3 Inter, sans-serif"}}>{credit}</div> : null}
+      {credit ? <div style={{position: 'absolute', left: 20, bottom: 8, color: '#5f6b7d', font: "400 14px/1.3 var(--f-body, Inter, sans-serif)"}}>{credit}</div> : null}
     </AbsoluteFill>
   );
 };

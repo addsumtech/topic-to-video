@@ -58,7 +58,7 @@ export const LightTrails: React.FC<{label?: string}> = ({label = 'done in one mo
       </svg>
 
       <div style={{position: 'absolute', left: 0, right: 0, bottom: H * 0.12, textAlign: 'center',
-        opacity: clamp01(seg(t, 0.74, 0.94)), color: '#eaf4ff', font: '800 46px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em'}}>{label}</div>
+        opacity: clamp01(seg(t, 0.74, 0.94)), color: '#eaf4ff', font: '800 46px/1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em'}}>{label}</div>
     </AbsoluteFill>
   );
 };

@@ -23,7 +23,7 @@ export const GlitchDatamosh: React.FC<{word?: string; tagline?: string; accent?:
   const g = clamp01(base * (0.5 + 0.5 * burst));
   const step = Math.floor(t * 14);                       // stutter clock (deterministic)
   const wordStyle: React.CSSProperties = {position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
-    justifyContent: 'center', font: '900 240px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.03em'};
+    justifyContent: 'center', font: '900 240px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em'};
   const tagIn = easeOutCubic(seg(t, 0.7, 0.9));
   return (
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
@@ -60,7 +60,7 @@ export const GlitchDatamosh: React.FC<{word?: string; tagline?: string; accent?:
       <div style={{position: 'absolute', inset: 0, background: 'radial-gradient(120% 100% at 50% 50%, #0000 55%, #000a 100%)'}} />
 
       <div style={{position: 'absolute', left: 0, right: 0, bottom: 150, textAlign: 'center', opacity: tagIn,
-        color: ACC, font: '700 34px/1 "JetBrains Mono", monospace', letterSpacing: '0.3em', textTransform: 'uppercase',
+        color: ACC, font: '700 34px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em', textTransform: 'uppercase',
         textShadow: `0 0 20px ${ACC}`}}>{TAG}</div>
     </AbsoluteFill>
   );

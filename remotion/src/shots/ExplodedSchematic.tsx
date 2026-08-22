@@ -53,20 +53,20 @@ export const ExplodedSchematic: React.FC<{items?: string[]}> = ({
                 borderTop: hy ? 'none' : `2px solid ${CYAN}`, borderBottom: hy ? `2px solid ${CYAN}` : 'none',
                 borderLeft: hx ? 'none' : `2px solid ${CYAN}`, borderRight: hx ? `2px solid ${CYAN}` : 'none'}} />)}
               <div style={{position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                font: '800 34px/1.1 Inter,system-ui,sans-serif', color: hot ? '#eaffff' : '#9fc6d8', textAlign: 'center', padding: 16}}>{s}</div>
+                font: '800 34px/1.1 var(--f-body, Inter,system-ui,sans-serif)', color: hot ? '#eaffff' : '#9fc6d8', textAlign: 'center', padding: 16}}>{s}</div>
             </div>
             {/* leader line + numbered label below */}
             <svg width={W} height={H} style={{position: 'absolute', inset: 0, opacity: labelIn}}>
               <line x1={x} y1={cy + bh / 2} x2={x} y2={cy + bh / 2 + 70} stroke={LINE} strokeWidth={1.5} strokeDasharray="5 5" />
             </svg>
             <div style={{position: 'absolute', left: x - 90, top: cy + bh / 2 + 82, width: 180, textAlign: 'center', opacity: labelIn}}>
-              <div style={{font: '800 26px/1 Inter', color: CYAN}}>{String(i + 1).padStart(2, '0')}</div>
+              <div style={{font: '800 26px/1 var(--f-body, Inter)', color: CYAN}}>{String(i + 1).padStart(2, '0')}</div>
             </div>
           </div>
         );
       })}
       {/* corner spec HUD (top-right — keeps clear of the film's bottom caption zone) */}
-      <div style={{position: 'absolute', right: 90, top: 90, font: '600 28px/1.6 "JetBrains Mono",monospace', color: CYAN, opacity: 0.8, textAlign: 'right'}}>
+      <div style={{position: 'absolute', right: 90, top: 90, font: '600 28px/1.6 var(--f-mono, "JetBrains Mono",monospace)', color: CYAN, opacity: 0.8, textAlign: 'right'}}>
         SYSTEM · {STAGES.length} STAGES<br />ONE PROMPT → DELIVERED
       </div>
     </AbsoluteFill>

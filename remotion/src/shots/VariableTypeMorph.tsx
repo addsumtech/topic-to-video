@@ -32,7 +32,7 @@ export const VariableTypeMorph: React.FC<{word?: string; kicker?: string; taglin
         background: `radial-gradient(50% 60% at 30% 40%, ${ACC}, #0000 60%), radial-gradient(50% 60% at 72% 60%, ${ACC2}, #0000 60%)`}} />
 
       <div style={{opacity: kickIn, transform: `translateY(${(1 - kickIn) * 12}px)`, color: '#c7cee0',
-        font: '600 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.5em', textTransform: 'uppercase',
+        font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.5em', textTransform: 'uppercase',
         paddingLeft: '0.5em', marginBottom: 40, zIndex: 2}}>{KICKER}</div>
 
       <div style={{display: 'flex', alignItems: 'baseline', zIndex: 2}}>
@@ -49,7 +49,7 @@ export const VariableTypeMorph: React.FC<{word?: string; kicker?: string; taglin
             <span key={i} style={{display: 'inline-block', opacity: clamp01(entr * 1.4),
               transform: `translateY(${rise}px) scaleX(${widthAxis}) scaleY(${lerp(0.8, 1, entr)})`,
               transformOrigin: 'center bottom',
-              fontFamily: 'Inter, system-ui, sans-serif', fontWeight: weight,
+              fontFamily: 'var(--f-display, Inter, system-ui, sans-serif)', fontWeight: weight,
               fontSize: 210, lineHeight: 0.9, letterSpacing: '-0.02em',
               color: `color-mix(in oklab, ${ACC} ${Math.round((1 - hue) * 100)}%, ${ACC2})`,
               // enhancement if a variable font is present (harmless otherwise)
@@ -60,7 +60,7 @@ export const VariableTypeMorph: React.FC<{word?: string; kicker?: string; taglin
       </div>
 
       <div style={{opacity: tagIn, transform: `translateY(${(1 - tagIn) * 10}px)`, marginTop: 44, color: '#8b93a8',
-        font: '600 32px/1 "JetBrains Mono", monospace', letterSpacing: '0.24em', textTransform: 'uppercase', zIndex: 2}}>{TAG}</div>
+        font: '600 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.24em', textTransform: 'uppercase', zIndex: 2}}>{TAG}</div>
     </AbsoluteFill>
   );
 };

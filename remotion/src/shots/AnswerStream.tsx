@@ -29,13 +29,13 @@ export const AnswerStream: React.FC<{query?: string; answer?: string; sources?: 
       <div style={{position: 'absolute', left: X, top: 150, width: CW, opacity: qIn, transform: `translateY(${lerp(20, 0, qIn)}px)`,
         display: 'flex', alignItems: 'center', gap: 22}}>
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" /></svg>
-        <div style={{font: '700 62px/1.1 Inter,system-ui,sans-serif', color: '#eaf2ff'}}>{Q}</div>
+        <div style={{font: '700 62px/1.1 var(--f-body, Inter,system-ui,sans-serif)', color: '#eaf2ff'}}>{Q}</div>
       </div>
       {/* streaming answer */}
       <div style={{position: 'absolute', left: X, top: 300, width: CW}}>
-        <div style={{font: '500 50px/1.5 Inter,system-ui,sans-serif', color: '#c7d3e6'}}>
+        <div style={{font: '500 50px/1.5 var(--f-body, Inter,system-ui,sans-serif)', color: '#c7d3e6'}}>
           {A.slice(0, chars).split(/(\[\d\])/).map((seg2, i) => /\[\d\]/.test(seg2)
-            ? <span key={i} style={{display: 'inline-block', margin: '0 6px', padding: '2px 12px', borderRadius: 8, background: `${TEAL}22`, color: TEAL, font: '700 34px/1 Inter', verticalAlign: 'middle'}}>{seg2.replace(/[\[\]]/g, '')}</span>
+            ? <span key={i} style={{display: 'inline-block', margin: '0 6px', padding: '2px 12px', borderRadius: 8, background: `${TEAL}22`, color: TEAL, font: '700 34px/1 var(--f-body, Inter)', verticalAlign: 'middle'}}>{seg2.replace(/[\[\]]/g, '')}</span>
             : <span key={i}>{seg2}</span>)}
           {streaming && <span style={{color: TEAL}}>▍</span>}
         </div>
@@ -47,11 +47,11 @@ export const AnswerStream: React.FC<{query?: string; answer?: string; sources?: 
           return <div key={i} style={{flex: 1, opacity: clamp01(r), transform: `translateY(${lerp(24, 0, clamp01(r))}px)`,
             background: PANEL, border: '1px solid #22304a', borderRadius: 14, padding: '26px 28px'}}>
             <div style={{display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14}}>
-              <div style={{width: 26, height: 26, borderRadius: 7, background: TEAL, color: BG, font: '700 16px/26px Inter', textAlign: 'center'}}>{i + 1}</div>
+              <div style={{width: 26, height: 26, borderRadius: 7, background: TEAL, color: BG, font: '700 16px/26px var(--f-body, Inter)', textAlign: 'center'}}>{i + 1}</div>
               <div style={{width: 10, height: 10, borderRadius: 5, background: '#3a4a66'}} />
-              <div style={{font: '600 26px/1 Inter', color: '#7f8ea8'}}>{s.d}</div>
+              <div style={{font: '600 26px/1 var(--f-body, Inter)', color: '#7f8ea8'}}>{s.d}</div>
             </div>
-            <div style={{font: '700 36px/1.2 Inter,system-ui,sans-serif', color: '#eaf2ff'}}>{s.t}</div>
+            <div style={{font: '700 36px/1.2 var(--f-body, Inter,system-ui,sans-serif)', color: '#eaf2ff'}}>{s.t}</div>
           </div>;
         })}
       </div>

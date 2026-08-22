@@ -47,7 +47,7 @@ export const VoiceSignal: React.FC<{phases?: {at: number; label: string}[]}> = (
       </svg>
       {/* phase label */}
       <div style={{position: 'absolute', left: 0, right: 0, top: midY + 260, textAlign: 'center',
-        font: '800 66px/1 Inter,system-ui,sans-serif', color: t > 0.74 ? '#59f0b0' : '#dffaff'}}>{phase.label}</div>
+        font: '800 66px/1 var(--f-display, Inter,system-ui,sans-serif)', color: t > 0.74 ? '#59f0b0' : '#dffaff'}}>{phase.label}</div>
     </AbsoluteFill>
   );
 };

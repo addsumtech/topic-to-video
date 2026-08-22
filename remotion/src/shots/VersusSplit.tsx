@@ -19,7 +19,7 @@ const Panel: React.FC<{side: Side; enter: number; align: 'left' | 'right'; tone:
     display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: align === 'left' ? '0 0 0 130px' : '0 130px 0 0',
     alignItems: align === 'left' ? 'flex-start' : 'flex-end',
     background: win ? `linear-gradient(${align === 'left' ? 105 : 255}deg, ${tone}2e, #0000 70%)` : 'transparent'}}>
-    <div style={{color: win ? '#fff' : '#c7cee0', font: '800 92px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.03em',
+    <div style={{color: win ? '#fff' : '#c7cee0', font: '800 92px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
       textShadow: win ? `0 0 40px ${tone}88` : 'none'}}>{side.label}</div>
     <div style={{marginTop: 30, display: 'flex', flexDirection: 'column', gap: 18,
       alignItems: align === 'left' ? 'flex-start' : 'flex-end'}}>
@@ -27,12 +27,12 @@ const Panel: React.FC<{side: Side; enter: number; align: 'left' | 'right'; tone:
         const on = clamp01(seg(t, base + i * 0.08, base + 0.2 + i * 0.08));
         return <div key={i} style={{opacity: on, transform: `translateY(${(1 - on) * 10}px)`,
           display: 'flex', flexDirection: align === 'left' ? 'row' : 'row-reverse', alignItems: 'center', gap: 14,
-          color: '#aeb6ca', font: '600 32px/1 Inter, system-ui, sans-serif'}}>
+          color: '#aeb6ca', font: '600 32px/1 var(--f-body, Inter, system-ui, sans-serif)'}}>
           <span style={{color: tone, fontWeight: 800}}>{win ? '✓' : '•'}</span>{p}</div>;
       })}
     </div>
     {win ? <div style={{marginTop: 34, padding: '12px 28px', borderRadius: 999, background: tone, color: '#04120d',
-      font: '800 30px/1 Inter, system-ui, sans-serif', opacity: clamp01(seg(t, 0.8, 0.95))}}>WINNER</div> : null}
+      font: '800 30px/1 var(--f-body, Inter, system-ui, sans-serif)', opacity: clamp01(seg(t, 0.8, 0.95))}}>WINNER</div> : null}
   </div>
 );
 
@@ -56,7 +56,7 @@ export const VersusSplit: React.FC<{left?: Side; right?: Side; winner?: number; 
         transform: 'translateX(-50%) rotate(8deg)', boxShadow: '0 0 30px #000'}} />
 
       <div style={{position: 'absolute', top: 54, left: 0, right: 0, textAlign: 'center', opacity: titleIn, zIndex: 5,
-        color: '#aeb6ca', font: '700 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
+        color: '#aeb6ca', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
 
       <Panel side={LEFT} enter={lEnter} align="left" tone="#5b8cff" win={WINNER === 0} t={t} base={0.5} />
       <Panel side={RIGHT} enter={rEnter} align="right" tone="#37d4a6" win={WINNER === 1} t={t} base={0.56} />
@@ -66,7 +66,7 @@ export const VersusSplit: React.FC<{left?: Side; right?: Side; winner?: number; 
         width: 150, height: 150, borderRadius: '50%', background: 'radial-gradient(circle at 40% 35%, #2a3048, #12141f)',
         border: '3px solid #454d68', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 6,
         boxShadow: '0 20px 60px #000a'}}>
-        <div style={{color: '#fff', font: '900 58px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.02em'}}>VS</div>
+        <div style={{color: '#fff', font: '900 58px/1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.02em'}}>VS</div>
       </div>
     </AbsoluteFill>
   );

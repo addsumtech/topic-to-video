@@ -68,18 +68,18 @@ export const FrequencyEncode: React.FC<{accent?: string; accent2?: string; label
         {/* gradient ramp arrow above the row: position → frequency */}
         <line x1={gx} y1={rowY - 26} x2={gx + gw} y2={rowY - 26} stroke={accent} strokeWidth={2} opacity={0.5 * p1} markerEnd="url(#fah)" />
         <defs><marker id="fah" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill={accent} /></marker></defs>
-        <text x={gx} y={rowY - 34} fill="#8aa" fontSize="18" fontFamily="'JetBrains Mono', monospace" opacity={p1}>low freq</text>
-        <text x={gx + gw} y={rowY - 34} textAnchor="end" fill="#8aa" fontSize="18" fontFamily="'JetBrains Mono', monospace" opacity={p1}>high freq · readout gradient</text>
+        <text x={gx} y={rowY - 34} fill="#8aa" fontSize="18" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={p1}>low freq</text>
+        <text x={gx + gw} y={rowY - 34} textAnchor="end" fill="#8aa" fontSize="18" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={p1}>high freq · readout gradient</text>
         {colWaves}
         {/* summed readout */}
         <polyline points={sum.join(' ')} fill="none" stroke="#eaf6ff" strokeWidth={2.4} opacity={p2} />
-        <text x={gx} y={sumY - H * 0.11} fill="#c9d6ea" fontSize="18" fontFamily="Inter, sans-serif" opacity={p2}>one measured signal</text>
+        <text x={gx} y={sumY - H * 0.11} fill="#c9d6ea" fontSize="18" fontFamily="var(--f-body, Inter, sans-serif)" opacity={p2}>one measured signal</text>
         {/* FFT separates it back into columns */}
-        <text x={gx} y={specY - H * 0.13} fill={accent} fontSize="20" fontFamily="'JetBrains Mono', monospace" opacity={clamp01(seg(t,0.56,0.66))}>one Fourier transform → columns</text>
+        <text x={gx} y={specY - H * 0.13} fill={accent} fontSize="20" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01(seg(t,0.56,0.66))}>one Fourier transform → columns</text>
         {peaks}
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
+        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
     </AbsoluteFill>
   );

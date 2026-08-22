@@ -45,7 +45,7 @@ export const FocalIsolation: React.FC<{focalLabel?: string; items?: string[]}> =
             border: `${isF ? 2 : 1}px solid ${isF ? ACCENT : '#26303f'}`, borderRadius: 16,
             boxShadow: isF ? `0 0 0 6px ${ACCENT}22, 0 30px 70px rgba(0,0,0,.5)` : 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-            <div style={{font: `${isF ? 700 : 500} ${isF ? 40 : 32}px/1.15 Inter,system-ui,sans-serif`,
+            <div style={{font: `${isF ? 700 : 500} ${isF ? 40 : 32}px/1.15 var(--f-body, Inter,system-ui,sans-serif)`,
               color: isF ? '#eaf1ff' : '#7f8da3', textAlign: 'center', padding: '0 24px'}}>{label}</div>
           </div>
         );
@@ -55,7 +55,7 @@ export const FocalIsolation: React.FC<{focalLabel?: string; items?: string[]}> =
       {/* focal label */}
       {iso > 0.4 && (
         <div style={{position: 'absolute', left: 0, right: 0, top: fy + ch / 2 + 40, textAlign: 'center',
-          opacity: easeOutCubic(seg(t, 0.5, 0.7)), font: '700 44px/1 Inter,system-ui,sans-serif', color: '#eaf1ff'}}>{focalLabel}</div>
+          opacity: easeOutCubic(seg(t, 0.5, 0.7)), font: '700 44px/1 var(--f-body, Inter,system-ui,sans-serif)', color: '#eaf1ff'}}>{focalLabel}</div>
       )}
     </AbsoluteFill>
   );

@@ -55,14 +55,14 @@ export const InducedFID: React.FC<{accent?: string; accent2?: string; label?: st
         <ellipse cx={x0} cy={midY} rx={20} ry={40} fill="none" stroke={accent} strokeWidth={3} />
         <ellipse cx={x0} cy={midY} rx={11} ry={26} fill="none" stroke={accent} strokeWidth={2} opacity={0.6} />
         <circle cx={x0 + Math.cos(spin) * 22} cy={midY - 78 + Math.sin(spin) * 8} r={7} fill={accent} />
-        <text x={x0 - 6} y={midY + 74} fill="#9fb4cc" fontSize="20" fontFamily="Inter, sans-serif" fontWeight={600}>coil</text>
+        <text x={x0 - 6} y={midY + 74} fill="#9fb4cc" fontSize="20" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={600}>coil</text>
         {/* labels */}
-        <text x={x0 + span * 0.16} y={midY - H * 0.24 - 16} fill={accent} fontSize="19" fontFamily="'JetBrains Mono', monospace" letterSpacing="1">T2* decay</text>
+        <text x={x0 + span * 0.16} y={midY - H * 0.24 - 16} fill={accent} fontSize="19" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" letterSpacing="1">T2* decay</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
+        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}
-        <div style={{marginTop: 8, font: "500 22px/1 'JetBrains Mono', monospace", color: '#8aa', letterSpacing: '0.12em'}}>
+        <div style={{marginTop: 8, font: "500 22px/1 var(--f-mono, 'JetBrains Mono', monospace)", color: '#8aa', letterSpacing: '0.12em'}}>
           free induction decay</div>
       </div>
     </AbsoluteFill>

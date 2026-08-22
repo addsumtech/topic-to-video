@@ -29,7 +29,7 @@ export const DataMonolith: React.FC<{items?: string[]; title?: string; hero?: nu
   return (
     <AbsoluteFill style={{background: `radial-gradient(120% 90% at 50% 30%, #10162e, ${BG} 72%)`, overflow: 'hidden'}}>
       <div style={{position: 'absolute', top: 74, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
-        color: '#aeb6ca', font: '700 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.3em',
+        color: '#aeb6ca', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em',
         textTransform: 'uppercase', zIndex: 3}}>{TITLE}</div>
 
       {/* perspective floor grid */}
@@ -70,7 +70,7 @@ export const DataMonolith: React.FC<{items?: string[]; title?: string; hero?: nu
             {/* label */}
             <div style={{position: 'absolute', left: x, top: floorY + 22, width: bandW, textAlign: 'center',
               opacity: clamp01(seg(t, 0.3 + i * 0.05, 0.5 + i * 0.05)),
-              color: isHero ? '#fff' : '#8b93a8', font: `${isHero ? 800 : 600} 22px/1 Inter, system-ui, sans-serif`}}>{label}</div>
+              color: isHero ? '#fff' : '#8b93a8', font: `${isHero ? 800 : 600} 22px/1 var(--f-body, Inter, system-ui, sans-serif)`}}>{label}</div>
           </div>
         );
       })}

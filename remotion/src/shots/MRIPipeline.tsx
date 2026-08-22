@@ -51,7 +51,7 @@ export const MRIPipeline: React.FC<{src?: string; accent?: string; accent2?: str
           return <g key={nm}>
             <rect x={x} y={cy - box / 2} width={box} height={box} rx={10} fill="#0a1424" stroke={i === n - 1 ? accent : `${accent}66`} strokeWidth={1.6} opacity={0.35 + p * 0.65} />
             {i < n - 1 ? stageArt(i, x, p) : null}
-            <text x={x + box / 2} y={cy + box / 2 + 34} textAnchor="middle" fill="#c9d6ea" fontSize="24" fontFamily="Inter, sans-serif" fontWeight={700} opacity={p}>{nm}</text>
+            <text x={x + box / 2} y={cy + box / 2 + 34} textAnchor="middle" fill="#c9d6ea" fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700} opacity={p}>{nm}</text>
             {i < n - 1 ? <text x={x + box + gap / 2} y={cy + 8} textAnchor="middle" fill={accent} fontSize="34" opacity={on(i + 1)}>→</text> : null}
           </g>;
         })}
@@ -61,7 +61,7 @@ export const MRIPipeline: React.FC<{src?: string; accent?: string; accent2?: str
         width: box - 10, height: box - 10, borderRadius: 8, overflow: 'hidden', opacity: on(n - 1)}}>
         <Img src={staticFile(src)} style={{width: '100%', height: '100%', objectFit: 'cover'}} /></div> : null}
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
+        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
     </AbsoluteFill>
   );

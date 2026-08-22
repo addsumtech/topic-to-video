@@ -150,7 +150,7 @@ export const CartoonPop: React.FC<{label?: string}> = ({label = 'DONE!'} = {}) =
       {/* DONE! comic text */}
       <div style={{position: 'absolute', left: cx + 60, top: cy - 210, width: 400, textAlign: 'center',
         transform: `scale(${doneIn}) rotate(-8deg)`, transformOrigin: '50% 50%'}}>
-        <div style={{font: '900 130px/0.9 "Baloo 2", Inter, system-ui, sans-serif', color: GREEN,
+        <div style={{font: '900 130px/0.9 var(--f-display, "Baloo 2", Inter, system-ui, sans-serif)', color: GREEN,
           WebkitTextStroke: `9px ${OUTLINE}`, paintOrder: 'stroke', letterSpacing: '-0.01em'}}>{label}</div>
       </div>
 

@@ -27,7 +27,7 @@ export const AsciiField: React.FC<{message?: string}> = ({message: MSG = DEFAULT
     const op = clamp01(base + near * 0.9);
     const col = near > 0.4 ? '#ffc861' : '#7a531c';   // AMBER phosphor (distinct from CodeRain's green rain)
     cells.push(<text key={`${r}-${c}`} x={c * cw + 6} y={r * chh + 30} fill={col} fillOpacity={op}
-      style={{font: '600 30px/1 "JetBrains Mono", ui-monospace, monospace'}}>{CH[flick]}</text>);
+      style={{font: '600 30px/1 var(--f-mono, "JetBrains Mono", ui-monospace, monospace)'}}>{CH[flick]}</text>);
   }
   const decode = easeOutCubic(seg(t, 0.5, 0.78));
   return (
@@ -35,7 +35,7 @@ export const AsciiField: React.FC<{message?: string}> = ({message: MSG = DEFAULT
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>{cells}</svg>
       {/* the decoded message resolving out of the noise */}
       <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{position: 'relative', font: '900 210px/1 "JetBrains Mono", monospace', color: '#ffe6b0',
+        <div style={{position: 'relative', font: '900 210px/1 var(--f-mono, "JetBrains Mono", monospace)', color: '#ffe6b0',
           letterSpacing: '0.04em', opacity: decode, textShadow: '0 0 40px rgba(255,190,90,.5)'}}>
           {MSG.split('').map((ch, i) => <span key={i} style={{opacity: clamp01((decode - i * 0.12) / 0.3)}}>{ch}</span>)}
         </div>

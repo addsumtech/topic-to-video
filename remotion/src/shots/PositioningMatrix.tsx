@@ -29,7 +29,7 @@ export const PositioningMatrix: React.FC<{
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(120% 100% at 50% 42%, #12162a, #090b12 72%)'}}>
       <div style={{position: 'absolute', top: 62, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
-        color: '#aeb6ca', font: '700 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.3em',
+        color: '#aeb6ca', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em',
         textTransform: 'uppercase'}}>{TITLE}</div>
 
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
@@ -47,7 +47,7 @@ export const PositioningMatrix: React.FC<{
       {([[XA[1], px(1) + 6, cy - 12, 'left'], [XA[0], x0 - 6, cy - 12, 'right'],
          [YA[1], cx + 16, y0 - 4, 'left'], [YA[0], cx + 16, y0 + PLOT + 6, 'left']] as const).map((L, i) => (
         <div key={i} style={{position: 'absolute', left: L[1], top: L[2], transform: L[3] === 'right' ? 'translateX(-100%)' : undefined,
-          opacity: clamp01(seg(t, 0.3, 0.5)), color: '#8b93a8', font: '600 24px/1 "JetBrains Mono", monospace',
+          opacity: clamp01(seg(t, 0.3, 0.5)), color: '#8b93a8', font: '600 24px/1 var(--f-mono, "JetBrains Mono", monospace)',
           letterSpacing: '0.1em'}}>{L[0]}</div>
       ))}
 

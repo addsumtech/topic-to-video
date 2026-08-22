@@ -73,10 +73,10 @@ export const DataOrrery: React.FC<{items?: string[]; hub?: string}> = ({items, h
         if (!n.front) return null;
         return <div key={i} style={{position: 'absolute', left: n.x, top: n.y + 26, transform: 'translateX(-50%)', opacity: on,
           padding: '4px 14px', borderRadius: 999, background: '#0b122acc', border: `1px solid ${r.c}66`,
-          color: '#dbe5f5', font: `600 24px/1 Inter, system-ui, sans-serif`, whiteSpace: 'nowrap'}}>{r.label}</div>;
+          color: '#dbe5f5', font: `600 24px/1 var(--f-body, Inter, system-ui, sans-serif)`, whiteSpace: 'nowrap'}}>{r.label}</div>;
       })}
       <div style={{position: 'absolute', left: 0, right: 0, top: cy + 150, textAlign: 'center',
-        opacity: clamp01(seg(t, 0.18, 0.34)), color: '#eaf0ff', font: `800 40px/1 Inter, system-ui, sans-serif`,
+        opacity: clamp01(seg(t, 0.18, 0.34)), color: '#eaf0ff', font: `800 40px/1 var(--f-body, Inter, system-ui, sans-serif)`,
         letterSpacing: '-0.01em', textShadow: '0 2px 20px #000'}}>{HUB}</div>
     </AbsoluteFill>
   );

@@ -53,10 +53,10 @@ export const FractureIn: React.FC<{title?: string; tagline?: string; accent?: st
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         pointerEvents: 'none'}}>
         <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 20}px)`,
-          color: '#fff', font: '800 128px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.03em',
+          color: '#fff', font: '800 128px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
           textShadow: '0 20px 60px #000a'}}>{TITLE}</div>
         <div style={{opacity: clamp01(seg(t, 0.72, 0.9)), marginTop: 22, color: '#dfe6ff',
-          font: '600 34px/1 "JetBrains Mono", monospace', letterSpacing: '0.14em',
+          font: '600 34px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.14em',
           textShadow: '0 4px 20px #000'}}>{TAG}</div>
       </AbsoluteFill>
     </AbsoluteFill>

@@ -28,7 +28,7 @@ export const NeuralField: React.FC<{title?: string; input?: string; output?: str
   return (
     <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 44%, #0c1430, ${BG} 74%)`, overflow: 'hidden'}}>
       <div style={{position: 'absolute', top: 72, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
-        color: '#8fb6d8', font: '700 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
+        color: '#8fb6d8', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
 
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         {/* edges */}
@@ -63,10 +63,10 @@ export const NeuralField: React.FC<{title?: string; input?: string; output?: str
 
       {/* io labels */}
       <div style={{position: 'absolute', left: nodeX(0), top: midY + 330, transform: 'translateX(-50%)',
-        opacity: clamp01(seg(t, 0.1, 0.3)), color: '#9fb2c8', font: '600 26px/1 "JetBrains Mono", monospace',
+        opacity: clamp01(seg(t, 0.1, 0.3)), color: '#9fb2c8', font: '600 26px/1 var(--f-mono, "JetBrains Mono", monospace)',
         letterSpacing: '0.1em'}}>{INLABEL}</div>
       <div style={{position: 'absolute', left: nodeX(L - 1), top: midY + 330, transform: 'translateX(-50%)',
-        opacity: clamp01(seg(t, 0.72, 0.9)), color: OUT, font: '700 30px/1 "JetBrains Mono", monospace',
+        opacity: clamp01(seg(t, 0.72, 0.9)), color: OUT, font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)',
         letterSpacing: '0.1em', textShadow: `0 0 16px ${OUT}`}}>{OUTLABEL}</div>
     </AbsoluteFill>
   );

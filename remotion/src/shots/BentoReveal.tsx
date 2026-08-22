@@ -66,15 +66,15 @@ export const BentoReveal: React.FC<{title?: string; hero?: string; items?: strin
             boxShadow: '0 24px 60px #0006'}}>
             {hero ? (
               <>
-                <div style={{color: '#ffffffcc', font: '600 24px/1 "JetBrains Mono", monospace', letterSpacing: '0.14em'}}>DASHBOARD</div>
+                <div style={{color: '#ffffffcc', font: '600 24px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.14em'}}>DASHBOARD</div>
                 <div>
-                  <div style={{color: '#fff', font: '800 96px/1 Inter, system-ui, sans-serif', letterSpacing: '-0.03em'}}>{TITLE}</div>
-                  <div style={{color: '#ffffffdd', font: '500 32px/1.2 Inter, system-ui, sans-serif', marginTop: 16}}>{HEROSUB}</div>
+                  <div style={{color: '#fff', font: '800 96px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em'}}>{TITLE}</div>
+                  <div style={{color: '#ffffffdd', font: '500 32px/1.2 var(--f-body, Inter, system-ui, sans-serif)', marginTop: 16}}>{HEROSUB}</div>
                 </div>
               </>
             ) : (
               <>
-                <div style={{color: dna?.dim ?? '#8b93a8', font: '600 22px/1 "JetBrains Mono", monospace', letterSpacing: '0.1em'}}>{ITEMS[(i - 1) % ITEMS.length]}</div>
+                <div style={{color: dna?.dim ?? '#8b93a8', font: '600 22px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.1em'}}>{ITEMS[(i - 1) % ITEMS.length]}</div>
                 <div style={{alignSelf: 'flex-start'}}><Widget kind={(i - 1) % 6} c={tone} g={g} /></div>
               </>
             )}

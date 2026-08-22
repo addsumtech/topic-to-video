@@ -31,7 +31,7 @@ export const LarmorPrecession: React.FC<{accent?: string; accent2?: string; labe
       <svg width={W} height={H} style={{position: 'absolute'}}>
         {/* B0 axis */}
         <line x1={cx} y1={oy - L * 1.2} x2={cx} y2={oy + L * 0.3} stroke={A(0.55)} strokeWidth={1.8} strokeDasharray="3 6" />
-        <text x={cx + 12} y={oy - L * 1.1} fill="#9fb4cc" fontSize="26" fontFamily="Inter, sans-serif" fontWeight={700}>B₀</text>
+        <text x={cx + 12} y={oy - L * 1.1} fill="#9fb4cc" fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700}>B₀</text>
         {/* the precession cone base + the tip's circular path */}
         <ellipse cx={cx} cy={oy - L * Math.cos(tilt)} rx={L * Math.sin(tilt)} ry={L * Math.sin(tilt) * ell} fill="none" stroke={accent2} strokeWidth={1.3} opacity={0.4} />
         <line x1={cx} y1={oy} x2={cx + L * Math.sin(tilt)} y2={oy - L * Math.cos(tilt)} stroke={A(0.2)} strokeWidth={1} />
@@ -42,11 +42,11 @@ export const LarmorPrecession: React.FC<{accent?: string; accent2?: string; labe
         <line x1={cx} y1={oy} x2={mx} y2={my} stroke="#eaf6ff" strokeWidth={4} markerEnd="url(#lp)" />
         <defs><marker id="lp" markerWidth="12" markerHeight="12" refX="4" refY="6" orient="auto"><path d="M0,0 L8,6 L0,12 Z" fill="#eaf6ff" /></marker></defs>
         <circle cx={mx} cy={my} r={7} fill="#eaf6ff" />
-        <text x={mx + 14} y={my - 8} fill="#eaf6ff" fontSize="26" fontFamily="Inter, sans-serif" fontWeight={800}>μ</text>
-        <text x={cx} y={oy + L * 0.5 + 40} textAnchor="middle" fill={accent} fontSize="24" fontFamily="'JetBrains Mono', monospace">f₀ = γ·B₀ ≈ 42.58 MHz/T</text>
+        <text x={mx + 14} y={my - 8} fill="#eaf6ff" fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800}>μ</text>
+        <text x={cx} y={oy + L * 0.5 + 40} textAnchor="middle" fill={accent} fontSize="24" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">f₀ = γ·B₀ ≈ 42.58 MHz/T</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
+        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
     </AbsoluteFill>
   );

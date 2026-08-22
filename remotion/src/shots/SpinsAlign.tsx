@@ -34,16 +34,16 @@ export const SpinsAlign: React.FC<{accent?: string; accent2?: string; label?: st
         <defs><marker id="sa" markerWidth="9" markerHeight="9" refX="3" refY="4.5" orient="auto"><path d="M0,0 L6,4.5 L0,9 Z" fill={accent} /></marker></defs>
         {/* B0 field direction (up) appears as it turns on */}
         <line x1={W * 0.8} y1={H * 0.75} x2={W * 0.8} y2={H * 0.25} stroke={`${accent2}${Math.round(align * 160).toString(16).padStart(2, '0')}`} strokeWidth={2} strokeDasharray="4 6" />
-        <text x={W * 0.8 + 12} y={H * 0.27} fill="#9fb4cc" fontSize="24" fontFamily="Inter, sans-serif" fontWeight={700} opacity={align}>B₀</text>
+        <text x={W * 0.8 + 12} y={H * 0.27} fill="#9fb4cc" fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700} opacity={align}>B₀</text>
         {arrows}
         {/* the net magnetization that emerges from the tiny excess */}
         <line x1={W * 0.5} y1={mBase} x2={W * 0.5} y2={mBase - mY} stroke="#eaf6ff" strokeWidth={5} markerEnd="url(#sa2)" opacity={align} />
         <defs><marker id="sa2" markerWidth="12" markerHeight="12" refX="4" refY="6" orient="auto"><path d="M0,0 L8,6 L0,12 Z" fill="#eaf6ff" /></marker></defs>
-        <text x={W * 0.5 + 16} y={mBase - mY} fill="#eaf6ff" fontSize="24" fontFamily="Inter, sans-serif" fontWeight={800} opacity={align}>M₀</text>
-        <text x={W * 0.5} y={H * 0.84} textAnchor="middle" fill={accent} fontSize="20" fontFamily="'JetBrains Mono', monospace" opacity={align}>~3 in a million tip the balance → net signal</text>
+        <text x={W * 0.5 + 16} y={mBase - mY} fill="#eaf6ff" fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800} opacity={align}>M₀</text>
+        <text x={W * 0.5} y={H * 0.84} textAnchor="middle" fill={accent} fontSize="20" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={align}>~3 in a million tip the balance → net signal</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 Inter, system-ui, sans-serif', letterSpacing: '-0.01em',
+        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
     </AbsoluteFill>
   );

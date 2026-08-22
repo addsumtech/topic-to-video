@@ -67,9 +67,9 @@ export const IsometricAssembly: React.FC<{items?: [string, string, string]}> = (
         ))}
       </svg>
       {/* labels */}
-      <div style={{position: 'absolute', left: iso(inX - 40, y + 200, 0, ox, oy)[0] - 110, top: iso(inX - 40, y + 200, 0, ox, oy)[1], width: 200, textAlign: 'center', font: '700 38px/1.2 Inter,system-ui,sans-serif', color: L1}}>{items[0]}</div>
-      <div style={{position: 'absolute', left: iso(mx + mw / 2, y + 80, 0, ox, oy)[0] - 130, top: iso(mx + mw / 2, y + 80, 0, ox, oy)[1] - 300, width: 260, textAlign: 'center', font: '800 44px/1.15 Inter,system-ui,sans-serif', color: L2}}>{items[1]}</div>
-      <div style={{position: 'absolute', left: iso(outX, y + 200, 0, ox, oy)[0] - 60, top: iso(outX, y + 200, 0, ox, oy)[1] + 10, width: 260, font: '800 40px/1.2 Inter,system-ui,sans-serif', color: L3}}>{items[2]}</div>
+      <div style={{position: 'absolute', left: iso(inX - 40, y + 200, 0, ox, oy)[0] - 110, top: iso(inX - 40, y + 200, 0, ox, oy)[1], width: 200, textAlign: 'center', font: '700 38px/1.2 var(--f-body, Inter,system-ui,sans-serif)', color: L1}}>{items[0]}</div>
+      <div style={{position: 'absolute', left: iso(mx + mw / 2, y + 80, 0, ox, oy)[0] - 130, top: iso(mx + mw / 2, y + 80, 0, ox, oy)[1] - 300, width: 260, textAlign: 'center', font: '800 44px/1.15 var(--f-body, Inter,system-ui,sans-serif)', color: L2}}>{items[1]}</div>
+      <div style={{position: 'absolute', left: iso(outX, y + 200, 0, ox, oy)[0] - 60, top: iso(outX, y + 200, 0, ox, oy)[1] + 10, width: 260, font: '800 40px/1.2 var(--f-body, Inter,system-ui,sans-serif)', color: L3}}>{items[2]}</div>
     </AbsoluteFill>
   );
 };

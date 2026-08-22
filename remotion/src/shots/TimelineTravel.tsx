@@ -49,8 +49,8 @@ export const TimelineTravel: React.FC<{nodes?: {time: string; label: string}[]}>
                 boxShadow: done ? `0 0 0 8px ${ACCENT}22` : 'none', transform: `scale(${done ? 1.1 : 1})`}} />
               <div style={{position: 'absolute', left: nx - 190, top: up ? railY - 200 : railY + 70, width: 380,
                 textAlign: 'center', opacity: clamp01(pop), transform: `translateY(${lerp(up ? 20 : -20, 0, clamp01(pop))}px)`}}>
-                <div style={{font: '800 40px/1 Inter,system-ui,sans-serif', color: done ? ACCENT : DIM}}>{n.time}</div>
-                <div style={{font: '600 46px/1.15 Inter,system-ui,sans-serif', color: INK, marginTop: 12}}>{n.label}</div>
+                <div style={{font: '800 40px/1 var(--f-body, Inter,system-ui,sans-serif)', color: done ? ACCENT : DIM}}>{n.time}</div>
+                <div style={{font: '600 46px/1.15 var(--f-body, Inter,system-ui,sans-serif)', color: INK, marginTop: 12}}>{n.label}</div>
               </div>
             </div>
           );

@@ -45,8 +45,8 @@ export const TemporalAccelerate: React.FC<{items?: string[]}> = ({items: STEPS =
             return (
               <div key={i} style={{height: rowH, display: 'flex', alignItems: 'center', gap: 26}}>
                 <div style={{width: 46, height: 46, borderRadius: 12, background: passed ? GOOD : LINE,
-                  color: ON, font: '700 26px/46px Inter', textAlign: 'center'}}>{passed ? '✓' : ''}</div>
-                <div style={{font: '600 44px/1 Inter,system-ui,sans-serif', color: passed ? DIM : FG}}>{s}</div>
+                  color: ON, font: '700 26px/46px var(--f-body, Inter)', textAlign: 'center'}}>{passed ? '✓' : ''}</div>
+                <div style={{font: '600 44px/1 var(--f-body, Inter,system-ui,sans-serif)', color: passed ? DIM : FG}}>{s}</div>
               </div>
             );
           })}
@@ -54,9 +54,9 @@ export const TemporalAccelerate: React.FC<{items?: string[]}> = ({items: STEPS =
       </div>
       {/* the racing timer + counter (right) */}
       <div style={{position: 'absolute', right: 150, top: 300, textAlign: 'right'}}>
-        <div style={{font: '800 260px/0.9 Inter,system-ui,sans-serif', color: FG, letterSpacing: '-0.03em',
+        <div style={{font: '800 260px/0.9 var(--f-body, Inter,system-ui,sans-serif)', color: FG, letterSpacing: '-0.03em',
           fontVariantNumeric: 'tabular-nums'}}>{done ? '2.8' : elapsed}<span style={{fontSize: 120, color: ACC}}>s</span></div>
-        <div style={{font: '700 54px/1 Inter,system-ui,sans-serif', color: done ? GOOD : DIM, marginTop: 20,
+        <div style={{font: '700 54px/1 var(--f-body, Inter,system-ui,sans-serif)', color: done ? GOOD : DIM, marginTop: 20,
           transform: `scale(${done ? 0.94 + 0.06 * snap : 1})`, transformOrigin: 'right'}}>
           {done ? '12 / 12 · done' : `${Math.min(12, Math.floor(sf * 12 + 0.5))} / 12`}</div>
       </div>

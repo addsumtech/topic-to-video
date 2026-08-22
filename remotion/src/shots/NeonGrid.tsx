@@ -63,10 +63,10 @@ export const NeonGrid: React.FC<{title?: string; tagline?: string}> = ({title: T
       {/* neon chrome wordmark */}
       <div style={{position: 'absolute', left: 0, right: 0, top: hy - 250, textAlign: 'center',
         transform: `translateY(${(1 - titleUp) * 30}px)`, opacity: titleUp}}>
-        <div style={{font: '900 168px/0.9 "Antonio", Impact, sans-serif', letterSpacing: '0.02em',
+        <div style={{font: '900 168px/0.9 var(--f-display, "Antonio", Impact, sans-serif)', letterSpacing: '0.02em',
           background: 'linear-gradient(#fff, #a7e9ff 40%, #ff9ee0 60%, #ff2d95)', WebkitBackgroundClip: 'text',
           backgroundClip: 'text', color: 'transparent', WebkitTextStroke: `2px ${CYAN}`, filter: 'drop-shadow(0 0 24px #ff2d9599)'}}>{TITLE}</div>
-        <div style={{marginTop: 14, font: '700 30px/1 "JetBrains Mono", monospace', letterSpacing: '0.5em',
+        <div style={{marginTop: 14, font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.5em',
           paddingLeft: '0.5em', color: CYAN, opacity: clamp01(seg(t, 0.45, 0.72)), textShadow: `0 0 18px ${CYAN}`}}>{TAGLINE}</div>
       </div>
     </AbsoluteFill>

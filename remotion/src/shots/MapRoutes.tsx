@@ -48,12 +48,12 @@ export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: strin
         return <div key={i} style={{position: 'absolute', left: px, top: py, transform: `translate(-50%,-50%) scale(${clamp01(pop)})`}}>
           <div style={{position: 'absolute', left: -18, top: -18, width: 36, height: 36, borderRadius: 18, background: TEAL, boxShadow: `0 0 20px ${TEAL}`}} />
           <div style={{position: 'absolute', left: -18 * pulse, top: -18 * pulse, width: 36 * pulse, height: 36 * pulse, borderRadius: '50%', border: `2px solid ${TEAL}`, opacity: 2 - pulse}} />
-          <div style={{position: 'absolute', left: 34, top: -20, padding: '8px 16px', borderRadius: 8, background: 'rgba(10,25,35,.85)', border: `1px solid ${TEAL}55`, font: '700 26px/1 Inter', color: '#dffffa', whiteSpace: 'nowrap'}}>{SPOKES[i]}</div>
+          <div style={{position: 'absolute', left: 34, top: -20, padding: '8px 16px', borderRadius: 8, background: 'rgba(10,25,35,.85)', border: `1px solid ${TEAL}55`, font: '700 26px/1 var(--f-body, Inter)', color: '#dffffa', whiteSpace: 'nowrap'}}>{SPOKES[i]}</div>
         </div>;
       })}
       {/* the hub */}
       <div style={{position: 'absolute', left: hx, top: hy, transform: 'translate(-50%,-50%)'}}>
-        <div style={{width: 130, height: 130, borderRadius: 65, background: 'radial-gradient(circle,#fff,#8ff5e8 60%,#2fb5a5)', boxShadow: `0 0 60px ${TEAL}`, display: 'flex', alignItems: 'center', justifyContent: 'center', font: '800 30px/1 Inter', color: '#06322b', textAlign: 'center', padding: 8}}>{HUB}</div>
+        <div style={{width: 130, height: 130, borderRadius: 65, background: 'radial-gradient(circle,#fff,#8ff5e8 60%,#2fb5a5)', boxShadow: `0 0 60px ${TEAL}`, display: 'flex', alignItems: 'center', justifyContent: 'center', font: '800 30px/1 var(--f-body, Inter)', color: '#06322b', textAlign: 'center', padding: 8}}>{HUB}</div>
       </div>
     </AbsoluteFill>
   );
