@@ -605,3 +605,52 @@ def test_caption_typography_follows_the_dna():
     src = _film_tsx()
     assert "dnaFontBody" in src, "CaptionTrack must take the DNA body face"
     assert "font: '700 44px/1.26 Inter" not in src, "the caption font is still hardcoded"
+
+
+def _migrate_mod():
+    import importlib.util
+    p = os.path.join(os.path.dirname(__file__), "..", "scripts", "dna_migrate_type.py")
+    spec = importlib.util.spec_from_file_location("dna_migrate_type", p)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+def test_codemod_assigns_display_body_and_mono_by_size_and_family():
+    m = _migrate_mod()
+    out, rep = m.rewrite_font_decl("font: '800 200px/0.9 Inter, system-ui, sans-serif'")
+    assert out == "font: '800 200px/0.9 var(--f-display, Inter, system-ui, sans-serif)'"
+    assert rep[0]["role"] == "display" and rep[0]["size"] == 200.0
+
+    out, _ = m.rewrite_font_decl("font: '400 36px/1.4 Inter, system-ui, sans-serif'")
+    assert out == "font: '400 36px/1.4 var(--f-body, Inter, system-ui, sans-serif)'"
+
+    out, _ = m.rewrite_font_decl("font: '500 30px/1 \"JetBrains Mono\", ui-monospace, monospace'")
+    assert out == "font: '500 30px/1 var(--f-mono, \"JetBrains Mono\", ui-monospace, monospace)'"
+
+
+def test_codemod_rewrites_template_literals_whose_family_is_hardcoded():
+    """A template literal can interpolate the WEIGHT and still hardcode the family:
+    font: `${i === 2 ? 700 : 500} 30px/1 Inter`. Skipping every string containing ${ would miss
+    this whole class - 4 shots use exactly this shape."""
+    m = _migrate_mod()
+    out, rep = m.rewrite_font_decl("font: `${i === 2 ? 700 : 500} 30px/1 Inter`")
+    assert out == "font: `${i === 2 ? 700 : 500} 30px/1 var(--f-body, Inter)`"
+    assert rep[0]["role"] == "body"
+
+
+def test_codemod_skips_a_family_that_is_already_dynamic():
+    """`${disp}` is already reading the DNA (or a prop). Rewriting it would double-wrap."""
+    m = _migrate_mod()
+    out, rep = m.rewrite_font_decl("font: `${c.hero ? 500 : 400} 46px/1.3 ${disp}`")
+    assert out == "font: `${c.hero ? 500 : 400} 46px/1.3 ${disp}`"
+    assert rep == []
+
+
+def test_codemod_never_touches_an_svg_font_family_attribute():
+    """var() does not work in an XML presentation attribute. No shot uses one today; the guard keeps
+    it that way."""
+    m = _migrate_mod()
+    src = '<text font-family="Inter, sans-serif">x</text>'
+    out, rep = m.rewrite_font_decl(src)
+    assert out == src and rep == []
