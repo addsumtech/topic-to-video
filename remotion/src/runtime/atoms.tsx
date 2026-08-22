@@ -21,19 +21,25 @@ const FORMS = {
 const NEUTRAL = {bar: 'solid', figure: 'display', list: 'bullet',
                  label: 'kicker', divider: 'hairline', marker: 'triangle'} as const;
 
-/** The form this DNA speaks for `k` — or the neutral form when there is no DNA, no `atoms`, or a value the
- *  atom does not implement. The neutral form is what the library rendered before atoms existed. */
-const formOf = <K extends keyof AtomForms>(dna: DesignDNA | null, k: K): string => {
+/** The form this DNA speaks for `k` — or `fallbackForm` when the DNA declares no form for `k` at all — or
+ *  the neutral form when there is no DNA, no `atoms`, no `fallbackForm`, or a value the atom does not
+ *  implement. A DNA that DOES declare a form for `k` always wins over `fallbackForm` — the DNA still
+ *  decides. `fallbackForm` only fills the gap left by "no opinion", the same `dna?.token ?? ORIGINAL`
+ *  pattern used everywhere else in this runtime — so a shot can keep its own pre-atoms look under a truly
+ *  un-themed film without weakening a themed DNA's authority. */
+const formOf = <K extends keyof AtomForms>(dna: DesignDNA | null, k: K, fallbackForm?: NonNullable<AtomForms[K]>): string => {
   const f = dna?.atoms?.[k] as string | undefined;
-  return f && (FORMS[k] as readonly string[]).includes(f) ? f : NEUTRAL[k];
+  if (f && (FORMS[k] as readonly string[]).includes(f)) return f;
+  if (fallbackForm && (FORMS[k] as readonly string[]).includes(fallbackForm as string)) return fallbackForm as string;
+  return NEUTRAL[k];
 };
 const T = (dna: DesignDNA | null) => dna ?? NEUTRAL_DNA;   // token source; never null downstream
 
 // ── Bar — a quantity ─────────────────────────────────────────────────────────────────────────────────
 export const Bar: React.FC<{value: number; label?: string; tag?: string; tone?: string;
-  width?: number; cells?: number; track?: boolean}> =
-  ({value, label, tag, tone, width = 420, cells = 18, track = true}) => {
-    const dna = useDNA(); const d = T(dna); const form = formOf(dna, 'bar');
+  width?: number; cells?: number; track?: boolean; fallbackForm?: NonNullable<AtomForms['bar']>}> =
+  ({value, label, tag, tone, width = 420, cells = 18, track = true, fallbackForm}) => {
+    const dna = useDNA(); const d = T(dna); const form = formOf(dna, 'bar', fallbackForm);
     const v = Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
     const acc = tone ?? d.accent;
     const row: React.CSSProperties = {display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10};
@@ -85,48 +91,64 @@ export const Bar: React.FC<{value: number; label?: string; tag?: string; tone?: 
 
 // ── Figure — one number ──────────────────────────────────────────────────────────────────────────────
 export const Figure: React.FC<{value: string | number; unit?: string; size?: number; unitScale?: number;
-  ink?: string; tone?: string}> =
-  ({value, unit, size = 150, unitScale, ink, tone}) => {
-    const dna = useDNA(); const d = T(dna); const form = formOf(dna, 'figure');
+  ink?: string; tone?: string; gap?: number; fallbackForm?: NonNullable<AtomForms['figure']>; fallbackFamily?: string}> =
+  ({value, unit, size = 150, unitScale, ink, tone, gap, fallbackForm, fallbackFamily}) => {
+    const dna = useDNA(); const d = T(dna); const form = formOf(dna, 'figure', fallbackForm);
     const txt = String(value ?? '');
     // ink/tone let a migrating shot keep ITS OWN colours (each of the four reference shots painted its
     // number differently, and none matched these defaults) — omit both and a DNA's own fg/accent speak.
     const fg = ink ?? d.fg;
     const acc = tone ?? d.accent;
+    // fallbackFamily is fallbackForm's typeface counterpart. `d = T(dna)` substitutes NEUTRAL_DNA wholesale
+    // when there is truly no DNA — and NEUTRAL_DNA.fontDisplay is Inter (tuned to match the `display` form's
+    // OWN reference shots), so a shot whose fallbackForm points at 'mono'/'serif' can still lose its face
+    // under a null DNA even once the FORM resolves correctly (weight/leading right, family wrong). This is
+    // ONLY a stand-in for that one case — a themed DNA (declaring `atoms.figure` or not) always speaks its
+    // own `fontMono`/`fontDisplay`, same as before.
+    const fam = dna ? undefined : fallbackFamily;
     // Each form's DEFAULT unit ratio is its reference shot's ratio, so migrating that shot does not change
     // its appearance; any other shot passes `unitScale` explicitly for the same reason.
     const us = (dflt: number) => size * (unitScale ?? dflt);
     // Each form carries its OWN typography, matching the shot it is the reference for — a shared
     // letter-spacing here would silently re-set three migrating shots.
-    const base: React.CSSProperties = {display: 'flex', alignItems: 'baseline', gap: 10, color: fg,
-      fontVariantNumeric: 'tabular-nums'};
+    // The unit is a PLAIN INLINE SIBLING by default — NO flex wrapper, no imposed gap — so a shot with no
+    // opinion keeps its original inline text flow (and its original glyph shaping: flexbox measurably
+    // shifts inter-digit spacing versus plain inline text). A shot that wants space between figure and
+    // unit passes `gap` explicitly; only then does this become an inline-flex row with that gap.
+    const base: React.CSSProperties = gap === undefined
+      ? {color: fg, fontVariantNumeric: 'tabular-nums'}
+      : {display: 'inline-flex', alignItems: 'baseline', gap, color: fg, fontVariantNumeric: 'tabular-nums'};
 
     if (form === 'mono') {
       // matches TermCounter, its reference shot: 800 weight, 0.9 leading, tight tracking, no prefix
-      return <span style={{...base, font: `800 ${size}px/0.9 ${d.fontMono}`, letterSpacing: '-0.018em'}}>{txt}
+      return <span style={{...base, font: `800 ${size}px/0.9 ${fam ?? d.fontMono}`, letterSpacing: '-0.018em'}}>{txt}
         {unit ? <span style={{color: acc, fontSize: us(.32)}}>{unit}</span> : null}</span>;
     }
     if (form === 'serif') {
       // matches EdStat: NOT scaled — EdStat passes a width-aware size that exists to prevent overflow
-      return <span style={{...base, font: `900 ${size}px/0.86 ${d.fontDisplay}`, letterSpacing: '-0.02em'}}>{txt}
-        {unit ? <span style={{color: acc, font: `700 ${us(.28)}px/1 ${d.fontDisplay}`}}>{unit}</span> : null}</span>;
+      return <span style={{...base, font: `900 ${size}px/0.86 ${fam ?? d.fontDisplay}`, letterSpacing: '-0.02em'}}>{txt}
+        {unit ? <span style={{color: acc, font: `700 ${us(.28)}px/1 ${fam ?? d.fontDisplay}`}}>{unit}</span> : null}</span>;
     }
     if (form === 'segment') {                     // retro scoreboard: a dim ghost behind the live digits
-      return <span style={{...base, position: 'relative', font: `700 ${size}px/1 ${d.fontMono}`, letterSpacing: '.06em'}}>
+      // ink/tone mean the SAME thing here as in every other form — ink is the figure's own colour, tone is
+      // the unit's — so the live digits (and their glow) take `fg` (ink), and only the unit takes `acc`
+      // (tone). The ghost stays a muted mix, unaffected by tone.
+      return <span style={{...base, position: 'relative', font: `700 ${size}px/1 ${fam ?? d.fontMono}`, letterSpacing: '.06em'}}>
         <span aria-hidden style={{position: 'absolute', left: 0, top: 0, color: mix(fg, d.bg, .86)}}>
           {'8'.repeat(txt.length)}</span>
-        <span style={{position: 'relative', color: acc, textShadow: `0 0 18px ${acc}66`}}>{txt}</span>
-        {unit ? <span style={{color: d.dim, fontSize: us(.30)}}>{unit}</span> : null}</span>;
+        <span style={{position: 'relative', color: fg, textShadow: `0 0 18px ${fg}66`}}>{txt}</span>
+        {unit ? <span style={{color: acc, fontSize: us(.30)}}>{unit}</span> : null}</span>;
     }
     // display — the neutral form; 0.9 leading and -0.03em are what BOTH consumers (ChartLive, VelocitySnap) use
-    return <span style={{...base, font: `800 ${size}px/0.9 ${d.fontDisplay}`, letterSpacing: '-0.03em'}}>{txt}
+    return <span style={{...base, font: `800 ${size}px/0.9 ${fam ?? d.fontDisplay}`, letterSpacing: '-0.03em'}}>{txt}
       {unit ? <span style={{color: acc, fontSize: us(.48)}}>{unit}</span> : null}</span>;
   };
 
 // ── List — an enumeration ────────────────────────────────────────────────────────────────────────────
-export const List: React.FC<{items: string[]; root?: string; reveal?: number[]}> =
-  ({items, root, reveal}) => {
-    const dna = useDNA(); const d = T(dna); const form = formOf(dna, 'list');
+export const List: React.FC<{items: string[]; root?: string; reveal?: number[];
+  fallbackForm?: NonNullable<AtomForms['list']>}> =
+  ({items, root, reveal, fallbackForm}) => {
+    const dna = useDNA(); const d = T(dna); const form = formOf(dna, 'list', fallbackForm);
     const shown = Array.isArray(items) ? items : [];
     // PER-ITEM reveal: shots stagger their items on their own easing, and one prefix fraction would
     // flatten that into a hard cut. Missing/NaN => fully shown.
@@ -167,8 +189,8 @@ export const List: React.FC<{items: string[]; root?: string; reveal?: number[]}>
   };
 
 // ── Label — an eyebrow / tag ─────────────────────────────────────────────────────────────────────────
-export const Label: React.FC<{text: string}> = ({text}) => {
-  const dna = useDNA(); const d = T(dna); const form = formOf(dna, 'label');
+export const Label: React.FC<{text: string; fallbackForm?: NonNullable<AtomForms['label']>}> = ({text, fallbackForm}) => {
+  const dna = useDNA(); const d = T(dna); const form = formOf(dna, 'label', fallbackForm);
   const t = String(text ?? '');
   if (form === 'prompt') {
     return <span style={{font: `600 22px/1 ${d.fontMono}`, color: d.dim}}>
@@ -187,8 +209,9 @@ export const Label: React.FC<{text: string}> = ({text}) => {
 };
 
 // ── Divider — a separation ───────────────────────────────────────────────────────────────────────────
-export const Divider: React.FC<{width?: number | string}> = ({width = 120}) => {
-  const dna = useDNA(); const d = T(dna); const form = formOf(dna, 'divider');
+export const Divider: React.FC<{width?: number | string; fallbackForm?: NonNullable<AtomForms['divider']>}> =
+  ({width = 120, fallbackForm}) => {
+  const dna = useDNA(); const d = T(dna); const form = formOf(dna, 'divider', fallbackForm);
   if (form === 'scanline') {
     return <span style={{display: 'block', width, height: 2, background: d.accent, opacity: .55,
       boxShadow: `0 0 12px ${d.accent}55`}} />;
@@ -207,8 +230,9 @@ export const Divider: React.FC<{width?: number | string}> = ({width = 120}) => {
 };
 
 // ── Marker — a point of focus ────────────────────────────────────────────────────────────────────────
-export const Marker: React.FC<{phase?: number}> = ({phase = 1}) => {
-  const dna = useDNA(); const d = T(dna); const form = formOf(dna, 'marker');
+export const Marker: React.FC<{phase?: number; fallbackForm?: NonNullable<AtomForms['marker']>}> =
+  ({phase = 1, fallbackForm}) => {
+  const dna = useDNA(); const d = T(dna); const form = formOf(dna, 'marker', fallbackForm);
   const on = phase >= 0.5;                     // the SHOT supplies phase; atoms never read the frame
   if (form === 'caret') {
     return <span style={{display: 'inline-block', width: 12, height: 24, background: d.accent,

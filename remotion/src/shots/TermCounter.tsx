@@ -29,7 +29,8 @@ export const TermCounter: React.FC<{cmd?: string; value?: string; unit?: string;
       <TermFrame dna={dna} cmd={cmd} t={t} framed={framed} align="center">
         <div style={{display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 20}}>
           <span style={{textShadow: `0 0 60px ${acc}44`}}>
-            <Figure value={shown} unit={unit} ink={acc} tone={dim} size={220} unitScale={56 / 220} />
+            <Figure value={shown} unit={unit} ink={acc} tone={dim} size={220} unitScale={56 / 220}
+              gap={20} fallbackForm="mono" fallbackFamily={mono} />
           </span>
         </div>
         {note ? <div style={{marginTop: 34, color: dim, font: `500 34px/1.4 ${mono}`, textAlign: 'center'}}># {note}</div> : null}

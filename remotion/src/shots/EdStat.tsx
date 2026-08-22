@@ -33,8 +33,9 @@ export const EdStat: React.FC<{kicker?: string; value?: string; unit?: string; c
     <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(120% 120% at 50% -6%, #1c1815, #0d0b09 74%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
       <EdFrame dna={dna} kicker={kicker} t={t} framed={framed} align="left">
-        <div style={{display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 22, maxWidth: '100%'}}>
-          <Figure value={shown} unit={unit} ink={fg} tone={acc} size={numSize} />
+        <div style={{display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', maxWidth: '100%'}}>
+          <Figure value={shown} unit={unit} ink={fg} tone={acc} size={numSize} gap={22}
+            fallbackForm="serif" fallbackFamily='"Playfair Display", Georgia, serif' />
         </div>
         {caption ? <div style={{marginTop: 30, color: dim, font: `400 36px/1.4 ${body}`, maxWidth: 900}}>{caption}</div> : null}
       </EdFrame>
