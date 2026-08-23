@@ -144,13 +144,40 @@ _MIN_PLAUSIBLE_PX = 8.0
 # reads as body-register type, not a headline. `SplitFlap.tsx:44` was reviewed too and left exactly
 # as the codemod assigns it (`display`, 108px "Anton") — reviewers judged it genuinely ambiguous, so
 # it carries no override.
+#
+# Keyed by (filename, line) with NO staleness check on the line number alone: if a shot's lines
+# shift (an edit above the target line, a re-run against a differently-formatted source), the same
+# (file, line) pair would silently retarget whatever declaration now happens to sit on that line —
+# corrupting an unrelated role instead of the one the reviewers actually read. Each entry therefore
+# also records the EXACT original family list the reviewer read at that line (copied verbatim from
+# the pre-migration source); `rewrite_font_decl` asserts the declaration it is about to override
+# still has that exact family list before applying the override, and raises loudly if it doesn't
+# (see the `_ROLE_OVERRIDES` lookups in `sub`/`sub_svg` below) rather than silently mis-targeting.
 _ROLE_OVERRIDES = {
-    ("OdometerRoll.tsx", 33): "body",
-    ("OdometerRoll.tsx", 56): "body",
-    ("OdometerRoll.tsx", 65): "body",
-    ("TemporalAccelerate.tsx", 57): "body",
-    ("BeforeAfterSlider.tsx", 30): "body",
+    ("OdometerRoll.tsx", 33): ("body", "Inter, system-ui, sans-serif"),
+    ("OdometerRoll.tsx", 56): ("body", "Inter, system-ui, sans-serif"),
+    ("OdometerRoll.tsx", 65): ("body", "Inter, system-ui, sans-serif"),
+    ("TemporalAccelerate.tsx", 57): ("body", "Inter,system-ui,sans-serif"),
+    ("BeforeAfterSlider.tsx", 30): ("body", "Inter"),
 }
+
+
+def _resolve_role_override(filename, line, actual_family):
+    """Look up `_ROLE_OVERRIDES` for (filename, line), asserting the family list found there still
+    matches what the override was written for. Returns the override role, or None if there is no
+    override for this (filename, line). Raises AssertionError — loudly, not a silent skip — if an
+    override exists for this line but the family list has drifted, since applying it anyway would
+    silently retarget a declaration the reviewers never looked at."""
+    key = (filename, line)
+    if key not in _ROLE_OVERRIDES:
+        return None
+    role, expected_family = _ROLE_OVERRIDES[key]
+    if actual_family != expected_family:
+        raise AssertionError(
+            "_ROLE_OVERRIDES is stale: %s:%d was reviewed with family %r but the declaration there "
+            "now reads %r — the override no longer targets the line it was written for. Re-locate "
+            "or drop the override; do not apply it blindly." % (filename, line, expected_family, actual_family))
+    return role
 
 
 def _resolve_size(size_token):
@@ -223,8 +250,10 @@ def rewrite_font_decl(text, filename=None):
         size = _resolve_size(sh.group("size"))
         role = _role(families, size)
         line = text[: m.start()].count("\n") + 1
-        if filename is not None and (filename, line) in _ROLE_OVERRIDES:
-            role = _ROLE_OVERRIDES[(filename, line)]
+        if filename is not None:
+            override = _resolve_role_override(filename, line, families)
+            if override is not None:
+                role = override
         report.append({"line": line, "size": size, "role": role, "families": families, "kind": "font"})
         head = sh.group("head") + sh.group("size") + "px" + (sh.group("lh") or "")
         return "font: %s%s var(--f-%s, %s)%s" % (quote, head, role, families, quote)
@@ -241,8 +270,10 @@ def rewrite_font_decl(text, filename=None):
         line = out1[: m.start()].count("\n") + 1  # stable vs. `text`'s line numbers: font: rewrites
         # above never add/remove a newline, so a source line number computed against the once-
         # rewritten `out1` is identical to the number computed against the original `text`.
-        if filename is not None and (filename, line) in _ROLE_OVERRIDES:
-            role = _ROLE_OVERRIDES[(filename, line)]
+        if filename is not None:
+            override = _resolve_role_override(filename, line, family)
+            if override is not None:
+                role = override
         report.append({"line": line, "size": size, "role": role, "families": family, "kind": "svg-attr"})
         return 'fontFamily="var(--f-%s, %s)"' % (role, family)
 

@@ -23,7 +23,19 @@ SHOTS = ["EdStat", "TermCounter", "ChartLive", "VelocitySnap", "TermBars", "Know
          "CinematicTitle", "SwissEditorial", "MaterialHero", "BlueprintGrid", "ChatThread",
          "CodeCompose", "TermTable", "TermDiff", "AnswerStream", "TimelineTravel", "MapRoutes",
          "ExplodedSchematic", "NeonGrid", "ComicPanels",
-         "SpinningProton", "KSpaceReal", "MRIPipeline"]
+         "SpinningProton", "KSpaceReal", "MRIPipeline",
+         # Task 9 fix round: BlueprintGrid (already above) and CompressedSensingEq both hid a
+         # hardcoded font family behind a module-level const (MONO / SERIF) that the codemod
+         # misclassified as already-dynamic. CompressedSensingEq was missing from this sample
+         # entirely — added so the identity proof actually covers the fix. RisoPrint hid the same
+         # pattern behind a local `const font` (a full shorthand, not just a family list) that the
+         # codemod's `font:`-anchored scan couldn't even see as a candidate — found by the fix-round
+         # sweep the review asked for, not named in the original findings.
+         "CompressedSensingEq", "RisoPrint",
+         # Important-2 fix sites: LiquidChrome's `fontCss` and PositioningMatrix's hero/label font
+         # were hardcoded families parked under `unrecognized-font-decl` — added to the sample so the
+         # identity proof covers them too, not just the Critical-1 const-indirection sites.
+         "LiquidChrome", "PositioningMatrix"]
 
 
 def _hash_shot(shot, td):

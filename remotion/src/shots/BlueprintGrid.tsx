@@ -12,7 +12,7 @@ export const DURATION = 165; // 5.5s
 // LEVEL-C: the whole blueprint flips with the DNA (paper→bg, ink→fg, grid→line, accent) so on a dark DNA it reads
 // as a dark engineering drawing instead of pale strokes on white (inversion). Draw + the main component each read
 // useDNA (Draw's stroke default can't reference the renamed const from the param scope — it derives inside).
-const INK0 = '#1a2230', FAINT0 = '#c9d2de', ACC0 = '#2e6bff', MONO = '"JetBrains Mono", ui-monospace, monospace';
+const INK0 = '#1a2230', FAINT0 = '#c9d2de', ACC0 = '#2e6bff', MONO = 'var(--f-mono, "JetBrains Mono", ui-monospace, monospace)';
 
 // stroke that draws itself over [a,b]
 const Draw: React.FC<{d: string; t: number; a: number; b: number; len: number; stroke?: string; sw?: number; dash?: string}> =

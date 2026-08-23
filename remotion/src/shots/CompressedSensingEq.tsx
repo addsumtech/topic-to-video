@@ -9,7 +9,7 @@ import {useT, seg, lerp, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 
 export const DURATION = 180; // 6s
-const SERIF = "'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif";
+const SERIF = "var(--f-display, 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif)";
 
 export const CompressedSensingEq: React.FC<{accent?: string; accent2?: string; label?: string}> = ({
   accent = '#22d3ee', accent2 = '#a78bfa', label = 'Compressed sensing',

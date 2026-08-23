@@ -66,7 +66,7 @@ export const PositioningMatrix: React.FC<{
               boxShadow: hero ? `0 0 30px ${col}` : 'none', border: hero ? '3px solid #cdd8ff' : 'none'}} />
             {hero || (it.label && it.label.length > 1) ? (
               <div style={{position: 'absolute', left: size / 2 + 14, top: -4, whiteSpace: 'nowrap',
-                color: hero ? '#eef2ff' : '#8b93a8', font: `${hero ? '800' : '600'} ${hero ? 32 : 22}px/1 Inter, system-ui, sans-serif`}}>{it.label}</div>
+                color: hero ? '#eef2ff' : '#8b93a8', font: `${hero ? '800' : '600'} ${hero ? 32 : 22}px/1 var(--f-body, Inter, system-ui, sans-serif)`}}>{it.label}</div>
             ) : null}
           </div>
         );

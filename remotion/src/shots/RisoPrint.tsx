@@ -26,7 +26,7 @@ export const RisoPrint: React.FC<{title?: string; tagline?: string}> = ({
   const wob = (1 - reg) + 0.06 * Math.sin(t * 22) * clamp01(seg(t, 0.62, 1)); // residual print wobble
   const dx = lerp(46, 5, reg) + wob * 6, dy = lerp(26, 3, reg);
   const tagIn = easeOutCubic(seg(t, 0.58, 0.82));
-  const font = '900 210px/0.9 Inter, system-ui, sans-serif';
+  const font = '900 210px/0.9 var(--f-display, Inter, system-ui, sans-serif)';
   const Layer: React.FC<{c: string; ox: number; oy: number}> = ({c, ox, oy}) => (
     <div style={{position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
       transform: `translate(${ox}px, ${oy}px)`, mixBlendMode: blend, color: c, font, letterSpacing: '-0.03em'}}>{TITLE}</div>

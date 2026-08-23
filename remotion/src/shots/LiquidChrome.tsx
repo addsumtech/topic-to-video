@@ -20,7 +20,7 @@ export const LiquidChrome: React.FC<{word?: string; tagline?: string}> = ({
   const rise = easeOutExpo(seg(t, 0.05, 0.5));  // mercury rise-in
   const settle = easeOutCubic(seg(t, 0.05, 0.6));
   const fontPx = 260;
-  const fontCss = `900 ${fontPx}px/1 "Playfair Display", "Times New Roman", Georgia, serif`;
+  const fontCss = `900 ${fontPx}px/1 var(--f-display, "Playfair Display", "Times New Roman", Georgia, serif)`;
 
   const Word: React.FC<{fill: string; opacity?: number; dx?: number; dy?: number}> = ({fill, opacity = 1, dx = 0, dy = 0}) => (
     <text x={cx + dx} y={baseY + dy} textAnchor="middle" dominantBaseline="middle"
