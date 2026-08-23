@@ -292,7 +292,8 @@ analogue of the html tier's `theme.css`). Reuse the structural idea, **never** c
   !important }`, so a terminal film reads as MONOSPACE everywhere (overrides each shot's inline font-family, keeps
   size/weight; scoped so captions keep their own font). Mono is the single strongest terminal signal and needs
   ZERO per-register work. Do NOT try to swap fonts per-shot via a `${UI}` const — it breaks in a shot's nested
-  sub-components (they don't see the const → ReferenceError). (2) **Terminal chrome** — a per-scene
+  sub-components (they don't see the const → ReferenceError; see §C3 for the CSS-variable mechanism that carries a
+  MIXED-type style's `fontDisplay`/`fontBody`/`fontMono` per-shot with no such scope problem). (2) **Terminal chrome** — a per-scene
   `chrome:{path,status}` frames each beat with a command-path breadcrumb (top-left) + a live status + caret
   (top-right) via `runtime/dna.tsx` `TerminalChrome` (rendered by Film in each Sequence, inert unless the DNA has
   `breadcrumb`). Author a DISTINCT path/status per beat (`~/hermes ▸ eval/tools` · `● 90% / 84%`) so it's the "one
@@ -350,6 +351,59 @@ analogue of the html tier's `theme.css`). Reuse the structural idea, **never** c
     ran off-frame) so it holds for real values, not just the short demo default. For a style with NO family yet,
     build one this way OR use the library registers reading the DNA tokens + the three-layer discipline — never a
     reskinned generic component (that fails the reject rule).
+
+## C3 · Type — a shot's face comes from the DNA, never a bare family name
+
+Every one of the eight Design DNA directions declares its own `fontDisplay` / `fontBody` / `fontMono` — real,
+loaded typefaces, distinct per direction (an editorial serif display + text-serif body reads nothing like a
+terminal all-monospace system or a blueprint technical-grotesque). `Film.tsx` publishes them as three CSS custom
+properties, scoped to `.dna-film`, **only when a DNA is active**:
+
+```css
+.dna-film { --f-display: <dna.fontDisplay>; --f-body: <dna.fontBody>; --f-mono: <dna.fontMono>; }
+```
+
+**A shot must read its face through the variable, never write a bare family name:**
+
+```tsx
+font: `800 200px/0.9 var(--f-display, Inter, system-ui, sans-serif)`
+fontFamily: 'var(--f-mono, "JetBrains Mono", ui-monospace, monospace)'
+fontFamily="var(--f-body, Inter, sans-serif)"   // JSX/SVG presentation attribute — var() resolves here too
+```
+
+The text after the comma is the **fallback list** — the shot's own original hardcoded family list, unchanged.
+With no DNA active the variable is unset and the declaration resolves to exactly what an un-themed film rendered
+before this layer existed: this is what makes the no-regression claim pixel-checkable (`scripts/
+null_dna_pixel_gate.py`, 27 shots, currently passing), not merely asserted. Never drop the fallback list to save
+characters — it is the shot's entire un-themed identity.
+
+**A `uniformType: true` DNA (`terminal`) overrides all three variables by design.** Its global rule,
+`.dna-film, .dna-film * { font-family: <dna.fontMono> !important; }`, beats any `var()` inside a `font`/
+`fontFamily` value — so a terminal film is all-monospace regardless of what any individual shot's variable would
+otherwise resolve to. This is intended (terminal's whole identity IS one uniform face) and means a terminal render
+is a poor choice for VISUALLY verifying that the `--f-*` variables themselves are wired correctly — pick a
+MIXED-type direction (`editorial`, `blueprint`, …) for that check instead.
+
+**Four shapes actually carry a font family in this library — a shot may use any of them, but each must resolve
+through a variable:** the `font:` shorthand (single-, double-, or back-quoted), the `fontFamily:` CSS property, the
+JSX/SVG presentation attribute `fontFamily="…"` (17 shots / 62 declarations — `var()` resolves there too, confirmed
+on a real `npx remotion render`), and a module- or function-level `const` interpolated later (`const MONO =
+'var(--f-mono, "JetBrains Mono", ui-monospace, monospace)'`, then `` font: `600 24px/1 ${MONO}` `` — the `var(--f-`
+must live INSIDE the const itself, since a codemod or reviewer scanning for `${` treats the interpolation site as
+already-dynamic without ever looking at what the const holds). A per-letter randomized font array
+(`AntiDesignChaos`, `RansomZine` — each letter of a maximalist/ransom-note collage deliberately picks a different
+typeface) is the one legitimate exception: it must stay dynamic and is never wired to a single `--f-` variable.
+
+**Tooling:** `scripts/font_gate.py` (every declared face actually loads, not a silent fallback to its generic),
+`scripts/dna_migrate_type.py` (the codemod that rewrote 355 declarations across ~122 shots onto these variables),
+`scripts/null_dna_pixel_gate.py` (proves an un-themed render is pixel-identical before/after), `scripts/
+type_specimens.py` (renders a per-direction specimen sheet for a human to confirm the eight directions actually
+read as different typographic systems, not just different colours), and `scripts/dna_audit.py --type` (per-role
+reach report — how many of the 134 shots read `--f-display`/`--f-body`/`--f-mono`, the same tracked-metric
+discipline `dna_audit.py`'s DNA-awareness report already uses). `tests/test_remotion.py::
+test_every_shot_reads_the_type_variables_or_the_dna_directly` is the regression gate: it checks all four shapes
+above, not only the `font:` shorthand, so a future edit that reintroduces a hardcoded family in ANY of them fails
+the suite.
 
 ## D · Selecting the direction — show VIDEO samples, not text or a single still
 

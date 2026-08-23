@@ -83,9 +83,9 @@ value, and `validate.py` will name what is missing):
 ```json
 "design_dna": {
   "id": "terminal",
-  "fontDisplay": "\"JetBrains Mono\", ui-monospace, monospace",
-  "fontMono": "\"JetBrains Mono\", ui-monospace, monospace",
-  "fontBody": "\"JetBrains Mono\", ui-monospace, monospace",
+  "fontDisplay": "\"JetBrains Mono\", \"PingFang SC\", \"Hiragino Sans\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", ui-monospace, monospace",
+  "fontMono": "\"JetBrains Mono\", \"PingFang SC\", \"Hiragino Sans\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", ui-monospace, monospace",
+  "fontBody": "\"JetBrains Mono\", \"PingFang SC\", \"Hiragino Sans\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", ui-monospace, monospace",
   "bg": "#080b11", "bgGrad": "radial-gradient(120% 120% at 50% 0%, #0d141c, #05070b 72%)",
   "fg": "#d7e3ef", "dim": "#5d7186", "accent": "#37d68a", "accent2": "#7ee0ff", "onAccent": "#03130c",
   "surface": "#0d1219", "surfaceBorder": "#1d2a36", "line": "#16202b",
@@ -100,6 +100,15 @@ value, and `validate.py` will name what is missing):
 
 `atoms` declares which FORM this system speaks for each content part (see `remotion/src/runtime/atoms.tsx`);
 an omitted atom renders its neutral form, so a partial declaration is valid.
+
+**Every family named in `fontDisplay`/`fontMono`/`fontBody` must be one `remotion/src/runtime/fonts.ts` actually
+loads** — `Space Grotesk`, `Playfair Display`, `JetBrains Mono`, `Bangers`, `Inter`, `Source Serif 4`, `IBM Plex
+Sans`, `IBM Plex Mono`, `Bodoni Moda`, `Baloo 2`. A family outside that list silently falls back to the browser's
+generic (a test, `test_every_declared_family_is_actually_loaded`, catches this in the built-in presets, but a
+hand-authored `design_dna` is not covered by it). Every stack must also end with the CJK chain shown above plus a
+generic family, exactly as `TERMINAL_DNA` does — none of the ten loaded faces covers CJK, so a stack without the
+chain silently drops Chinese text to a system default. See `references/remotion-shot-authoring.md` §C3 for how
+this reaches the shots.
 
 Two keys are BEHAVIOUR-bearing, not decoration, so choose them deliberately:
 - **`id`** selects the film's native SEAM grammar (`terminal` → a console screen-clear sweep · `product`/`apple` →

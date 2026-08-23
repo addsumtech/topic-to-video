@@ -277,3 +277,30 @@ no single look dominates.
 **Motion vocab:** camera-over-world, Z-rush, blur-velocity, draw-on, clip-reveal, gooey-metaball, point-cloud
 assembly, parallax depth, squash-&-stretch, radial bloom, orbital motion, spotlight falloff, split-flap decode,
 chromatic split/glitch, focus-pull DoF, long-exposure trail, gravity bounce, backdrop-refraction, pixel-assemble.
+
+---
+
+## Type follows the film's DNA
+
+A shot never hardcodes its own typeface. Text reads `var(--f-display|body|mono, <original family list>)`,
+and `Film.tsx` publishes the active Design DNA's three faces onto those variables (scoped to `.dna-film`, only
+when a DNA is active) — so the SAME shot wears a different, real, loaded typeface per direction, and an
+un-themed render keeps its original fallback list pixel-for-pixel. See `references/remotion-shot-authoring.md`
+§C3 for the full mechanism, the four shapes a shot may carry a family in, and the tooling that keeps it that
+way. Each of the eight directions' stacks (display / body / mono; every stack also carries a CJK fallback chain
+not shown here):
+
+| direction | display | body | mono |
+|---|---|---|---|
+| `terminal` | JetBrains Mono | JetBrains Mono | JetBrains Mono |
+| `neutral` | Inter | Inter | JetBrains Mono |
+| `editorial` | Playfair Display | Source Serif 4 | JetBrains Mono |
+| `product` | Space Grotesk | Inter | JetBrains Mono |
+| `blueprint` | JetBrains Mono | IBM Plex Sans | JetBrains Mono |
+| `cinematic` | Bodoni Moda | Inter | JetBrains Mono |
+| `data` | IBM Plex Sans | IBM Plex Sans | IBM Plex Mono |
+| `retro` | Baloo 2 | Baloo 2 | JetBrains Mono |
+
+`terminal` additionally sets `uniformType: true`, so its global `!important` rule forces JetBrains Mono
+everywhere regardless of what any individual shot's variable would otherwise resolve to — the other seven
+directions are genuinely mixed-type (a distinct display face from the body face) and rely on the variables.

@@ -20,6 +20,7 @@ CLI:  python scripts/dna_audit.py            # summary + the un-migrated registe
       python scripts/dna_audit.py --depth    # + the partial / ground-only worklist with residual counts
       python scripts/dna_audit.py --json     # machine-readable
       python scripts/dna_audit.py --check     # exit 1 if any REGISTERED shot is un-migrated (for a completeness gate)
+      python scripts/dna_audit.py --type     # per-role (display/body/mono) TYPE reach across every shot
 """
 import os, re, sys, json
 
@@ -190,7 +191,38 @@ def _family_of(shot):
         return None
 
 
+_TYPE_ROLES = ("display", "body", "mono")
+
+
+def type_report(shots_dir):
+    """Per-role type reach across the library. The spec's baseline, before this layer, was
+    display 4 / body 3 / mono 10 of 134 shots - the tokens were declared and almost never read."""
+    reach = {r: set() for r in _TYPE_ROLES}
+    total = 0
+    for name in sorted(os.listdir(shots_dir)):
+        if not name.endswith(".tsx"):
+            continue
+        total += 1
+        src = open(os.path.join(shots_dir, name), encoding="utf-8").read()
+        for role in _TYPE_ROLES:
+            token = role.capitalize() if role != "display" else "Display"
+            if ("var(--f-%s" % role) in src or ("dna?.font%s" % token) in src:
+                reach[role].add(name)
+    print("type reach across %d shots:" % total)
+    for role in _TYPE_ROLES:
+        print("  %-8s %3d" % (role, len(reach[role])))
+    silent = [n for n in sorted(os.listdir(shots_dir))
+              if n.endswith(".tsx") and not any(n in reach[r] for r in _TYPE_ROLES)]
+    if silent:
+        print("  %d shots read no type token at all:" % len(silent))
+        for n in silent[:10]:
+            print("    " + n)
+    return 0
+
+
 def main(argv):
+    if "--type" in argv:
+        return type_report(_shots_dir())
     a = audit()
     if "--json" in argv:
         print(json.dumps(a, indent=2)); return 0

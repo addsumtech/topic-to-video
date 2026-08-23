@@ -647,10 +647,129 @@ def test_codemod_skips_a_family_that_is_already_dynamic():
     assert rep == []
 
 
-def test_codemod_never_touches_an_svg_font_family_attribute():
-    """var() does not work in an XML presentation attribute. No shot uses one today; the guard keeps
-    it that way."""
+def test_codemod_never_touches_a_kebab_case_svg_font_family_attribute():
+    """This is the XML/kebab-case spelling `font-family="..."`, which has zero occurrences in this
+    library (JSX only accepts the camelCase `fontFamily="..."` attribute name) - NOT the same claim
+    as "var() cannot apply to an SVG presentation attribute" (that belief was WRONG: a real `remotion
+    render` confirmed var() resolves correctly in the JSX `fontFamily="..."` spelling, and the codemod
+    rewrites 62 such declarations across 17 shots - see rewrite_font_decl's sub_svg). This test only
+    pins that the never-used kebab-case spelling is left untouched, which it is regardless."""
     m = _migrate_mod()
     src = '<text font-family="Inter, sans-serif">x</text>'
     out, rep = m.rewrite_font_decl(src)
     assert out == src and rep == []
+
+
+# ── Task 10 regression: no shot may re-hardcode a font family ───────────────────────────────────
+#
+# Task 9's codemod covers the shapes it recognises, but the migration this plan drove found FOUR
+# shapes a regex anchored only on the literal `font:` shorthand would miss entirely - each of which
+# actually existed, hardcoded, somewhere in this library before being migrated by hand:
+#   (a) a family in a DOUBLE-quoted `font: "..."` shorthand;
+#   (b) a family in a `fontFamily:` CSS property (a React inline-style key, a different declaration
+#       from the `font:` shorthand the codemod targets);
+#   (c) a family in the JSX SVG presentation attribute `fontFamily="..."` (17 shots / 62
+#       declarations carry this spelling; a real `remotion render` confirmed var() DOES resolve
+#       there and falls back correctly when unset);
+#   (d) a family assigned to a module- or function-level const and read later
+#       (`const MONO = '"JetBrains Mono", monospace'`) - invisible to anything anchored on the
+#       literal token `font:` or `fontFamily`, since NEITHER token appears anywhere on that line.
+#       Three real instances (BlueprintGrid, CompressedSensingEq, RisoPrint) were exactly this
+#       shape, and each was found only by a human-directed sweep, not by a gate.
+#
+# `_looks_like_font_family` is the "does this string read as a CSS font-family value" heuristic all
+# four detectors share below: it fires on a bare CSS generic family keyword (sans-serif, monospace,
+# ...) appearing as a WHOLE comma-separated token, or on one of the ten loaded family names
+# (word-bounded, so "Inter" can't match inside an unrelated longer word) - and never on a value that
+# already reads `var(--f-` (themed) or `${` (already dynamic - a prop or a DNA read).
+
+_GENERIC_FAMILY_TOKENS = {
+    "serif", "sans-serif", "monospace", "cursive", "fantasy",
+    "system-ui", "ui-serif", "ui-sans-serif", "ui-monospace",
+}
+_LOADED_FAMILIES = (
+    "Space Grotesk", "Playfair Display", "JetBrains Mono", "Bangers", "Inter",
+    "Source Serif 4", "IBM Plex Sans", "IBM Plex Mono", "Bodoni Moda", "Baloo 2",
+)
+_LOADED_FAMILY_RES = [re.compile(r"\b%s\b" % re.escape(fam), re.I) for fam in _LOADED_FAMILIES]
+
+
+def _looks_like_font_family(value):
+    if "var(--f-" in value or "${" in value:
+        return False
+    tokens = {t.strip().strip("'\"").lower() for t in value.split(",")}
+    if tokens & _GENERIC_FAMILY_TOKENS:
+        return True
+    return any(rx.search(value) for rx in _LOADED_FAMILY_RES)
+
+
+# (a) `font:` shorthand, any of the three quote styles (the plan's original test only recognised
+# `'`/`` ` ``). Requires a literal `<digits>px` in the body - mirrors dna_migrate_type.py's own
+# scope, so this test polices exactly what that codemod is responsible for.
+_FONT_SHORTHAND_RE = re.compile(
+    r"font: *(?:'([^'\n]*?\d+px[^'\n]*)'|`([^`\n]*?\d+px[^`\n]*)`|\"([^\"\n]*?\d+px[^\"\n]*)\")"
+)
+# (b) `fontFamily:` CSS property (React inline style key).
+_FONT_FAMILY_PROP_RE = re.compile(r"fontFamily:\s*(?:'([^'\n]*)'|\"([^\"\n]*)\"|`([^`\n]*)`)")
+# (c) `fontFamily="..."` JSX/SVG presentation attribute.
+_FONT_FAMILY_JSX_ATTR_RE = re.compile(r'fontFamily=(?:"([^"\n]*)"|\'([^\'\n]*)\')')
+# (d) a module- or function-level `const`/`let` binding whose value is a literal quoted string.
+# Scoped to STATEMENTS containing `const`/`let` (split on `;`, so a binding's `=` and its quoted
+# value may span a line break) rather than to single lines, so a wrapped declaration is still seen;
+# `dna?.fontDisplay ?? '...'` fallback reads never match `_BINDING_RE` at all, because its `=` is
+# followed by `dna?...`, not a quote character - no separate guard needed.
+_CONST_STMT_RE = re.compile(r"\b(?:const|let)\s")
+_BINDING_RE = re.compile(r"[A-Za-z_$][A-Za-z0-9_$]*\s*=\s*(?:'([^'\n]*)'|\"([^\"\n]*)\"|`([^`\n]*)`)")
+
+
+def _hardcoded_font_offenses(src):
+    """Every hardcoded-family occurrence in `src`, across the four shapes above. A non-empty result
+    names a real regression."""
+    offenses = []
+
+    for m in _FONT_SHORTHAND_RE.finditer(src):
+        body = next(g for g in m.groups() if g is not None)
+        idx = body.find("px")
+        tail = body[idx + 2:] if idx != -1 else ""
+        if _looks_like_font_family(tail):
+            offenses.append(("font: shorthand", m.group(0)[:80]))
+
+    for m in _FONT_FAMILY_PROP_RE.finditer(src):
+        value = next(g for g in m.groups() if g is not None)
+        if _looks_like_font_family(value):
+            offenses.append(("fontFamily: property", m.group(0)[:80]))
+
+    for m in _FONT_FAMILY_JSX_ATTR_RE.finditer(src):
+        value = next(g for g in m.groups() if g is not None)
+        if _looks_like_font_family(value):
+            offenses.append(("fontFamily= JSX attribute", m.group(0)[:80]))
+
+    for stmt in src.split(";"):
+        if not _CONST_STMT_RE.search(stmt):
+            continue
+        for m in _BINDING_RE.finditer(stmt):
+            value = next(g for g in m.groups() if g is not None)
+            if _looks_like_font_family(value):
+                offenses.append(("const/let font stack", m.group(0)[:80]))
+
+    return offenses
+
+
+def test_every_shot_reads_the_type_variables_or_the_dna_directly():
+    """After Layer C, a shot that renders text must get its face from the DNA - through a `var(--f-`
+    variable, or through useDNA() directly - never a hardcoded family. A shot that reintroduces a
+    hardcoded family in ANY of the four shapes `_hardcoded_font_offenses` checks (see above) is a
+    regression: Task 9 already migrated the library (355 declarations across ~122 shots), so this
+    must pass as-is. The remaining legitimate non-var() families are exempt by construction, not by
+    an allowlist: `dna?.fontX ?? '...'` fallback reads never match (their `=` is followed by
+    `dna?...`, not a quote), and the per-letter randomized `FONTS[...]` arrays in AntiDesignChaos /
+    RansomZine never match either (their elements are array items, never bound with `IDENT = `)."""
+    offenders = []
+    for name in sorted(os.listdir(_SHOTS_DIR)):
+        if not name.endswith(".tsx"):
+            continue
+        src = open(os.path.join(_SHOTS_DIR, name), encoding="utf-8").read()
+        offenses = _hardcoded_font_offenses(src)
+        if offenses:
+            offenders.append((name, offenses[:2]))
+    assert not offenders, "shots still hardcode a font family: %r" % offenders[:5]
