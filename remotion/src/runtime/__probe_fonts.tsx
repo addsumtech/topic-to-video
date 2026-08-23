@@ -3,6 +3,13 @@
 // tiles are pixel-identical — which is the single mechanical signal that a silent fallback happened.
 // Variable faces get a second probe: a weight ladder. A VF loaded without its weight range clamps,
 // so adjacent ladder steps collapse to identical pixels.
+//
+// KNOWN BLIND SPOT: this only detects a fallback to the bare GENERIC (serif/sans-serif/monospace). If
+// the family name also matches a font already installed on the render host, a failed loadFont() still
+// resolves tile A to THAT system font — a different face from tile B's generic, so the row still
+// "differs" and font_gate.py false-passes. Reproduced with "Baloo 2": macOS ships a system font of
+// that exact name (Baloo-Devanagari.ttc), so this probe cannot tell the bundled Google Baloo 2 apart
+// from Apple's Devanagari cut on such a host. See scripts/font_gate.py's module docstring.
 import React from 'react';
 import {AbsoluteFill} from 'remotion';
 import {FACES} from './fonts';

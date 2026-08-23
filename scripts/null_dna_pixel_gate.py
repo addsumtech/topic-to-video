@@ -5,8 +5,16 @@ Layer C's whole safety argument is that `var(--f-body, <original list>)` with th
 resolves to the original list. That is a claim about real CSS in a real browser, so it is checked by
 hashing real renders - not by asserting that a variable is present.
 
-  python3 scripts/null_dna_pixel_gate.py --save   before/    # hash N shots as they render today
-  python3 scripts/null_dna_pixel_gate.py --check  before/    # re-render and compare
+THIS IS A ONE-SHOT MIGRATION-VERIFICATION INSTRUMENT, NOT A STANDING CI GATE. No baseline is
+committed to this repo (the default store path is under /tmp, which is ephemeral and machine-local —
+hashes are exact SHA-256 digests of PNG bytes, sensitive to the render host's GL driver/font
+rasterizer, so a store saved on one machine should not be `--check`ed on another). There is nothing
+for `--check` to compare against unless YOU ran `--save` yourself, in this same environment, against
+the tree from before whatever change you are verifying. To use it around a change:
+
+  python3 scripts/null_dna_pixel_gate.py --save   /tmp/before.json   # on the pre-change tree
+  # ... make your change ...
+  python3 scripts/null_dna_pixel_gate.py --check  /tmp/before.json   # on the post-change tree
 
 Any differing shot is printed with its two hashes and the gate exits 1.
 """

@@ -204,13 +204,21 @@ TTS if the user gives an API key.
   test fails when it is stale. `scripts/dna_migrate.py` / `dna_migrate_bg.py` are the guarded migration codemods.
   `remotion/src/runtime/atoms.tsx` — the content atoms (bar / figure / list / label / divider / marker) whose FORM
   follows the DNA; a shot declares the part, never the form. **Type** — a shot's face comes from `var(--f-display|
-  body|mono, <original list>)`, never a bare family name (`references/remotion-shot-authoring.md` §C3):
-  `python scripts/font_gate.py` proves each declared face actually loads (not a silent fallback to its generic);
-  `python scripts/dna_migrate_type.py [--report|--apply]` is the codemod that rewrote hardcoded families onto
-  those variables; `python scripts/null_dna_pixel_gate.py --check <hashes.json>` proves an un-themed render stays
-  pixel-identical; `python scripts/type_specimens.py <out_dir>` renders a per-direction specimen sheet so a human
-  can confirm the directions actually read as different typographic systems; `python scripts/dna_audit.py --type`
-  reports per-role (display/body/mono) reach across the library, the same tracked-metric discipline as `--depth`.
+  body|mono, <original list>)`, never a bare family name (`references/remotion-shot-authoring.md` §C3). Loading
+  these faces was a one-time, deliberate visual change to EXISTING un-themed films too: before this layer,
+  `fonts.ts` loaded nothing, so declared families (including a shot's own un-themed fallback names) silently
+  rendered whatever the render host had installed; now they render the real bundled fonts (~42,779 px differ on
+  `EdStat` un-themed, pre-layer vs. now — see `remotion/LIBRARY.md`). `python scripts/font_gate.py` proves each
+  declared face actually loads (not a silent fallback to its generic — known blind spot: a family whose name
+  matches a font already on the render host, see the script's docstring); `python scripts/dna_migrate_type.py
+  [--report|--apply]` is the codemod that rewrote hardcoded families onto those variables; `python
+  scripts/null_dna_pixel_gate.py --save/--check <hashes.json>` is a ONE-SHOT migration-verification instrument
+  (not a standing CI gate — no baseline is committed to the repo) that proves an un-themed render stays
+  pixel-identical across a change you make: run `--save` yourself against the tree BEFORE your change, then
+  `--check` after; `python scripts/type_specimens.py <out_dir>` renders a per-direction specimen sheet so a
+  human can confirm the directions actually read as different typographic systems; `python scripts/dna_audit.py
+  --type` reports per-role (display/body/mono) reach across the library, the same tracked-metric discipline as
+  `--depth`.
 - `scripts/render_remotion.py <out_dir>` — the render CLI for the **remotion bespoke-shot tier** (see the bullet above). The legacy generic-scene Remotion tier (atmospheres / cinematic templates / TRUE-3D archetypes / `type:"cinematic"` scenes) was REMOVED in the phase-3 cutover — its scripts, reference docs, and tests were deleted; `meta.renderer:"remotion-legacy"` errors with a re-author hint.
 - `scripts/cues.py` — pure anchor→cue-time resolver: reads per-scene `audio/NN.words.json` (edge-tts per-word timings) and resolves each `data-cue` anchor phrase to an absolute timestamp, used by `render_html` for audio-synced HTML reveals.
 - `scripts/check_av.py <out_dir>` — deterministic A/V gate: probes `out.mp4` video-vs-audio duration + per-clip sample-rate uniformity across `.clips/`; exits non-zero on A/V drift above tolerance (0.3 s) or non-uniform rates. Run AFTER the full render (step 9) as a gate before delivery.

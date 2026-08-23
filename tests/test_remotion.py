@@ -500,14 +500,21 @@ _BASE_CSS = os.path.join(os.path.dirname(__file__), "..", "assets", "html", "bas
 
 
 def test_fonts_ts_loads_every_bundled_face_with_base_css_weights():
-    """The HTML tier already declares these faces. The remotion tier must name the SAME families
-    with the SAME weight ranges, or a variable font silently renders synthesised weights."""
+    """SCOPE: only the 4 faces base.css declares (Space Grotesk, Playfair Display, JetBrains Mono,
+    Bangers) — these are the faces the HTML tier already renders, so the remotion tier must name the
+    SAME families with the SAME weight ranges there, or a variable font silently renders synthesised
+    weights. This does NOT cover the other 6 faces fonts.ts loads (Inter, Source Serif 4, IBM Plex
+    Sans, IBM Plex Mono, Bodoni Moda, Baloo 2) — base.css has no @font-face for them at all, so there
+    is no second source of truth to check their weights against."""
     css = open(_BASE_CSS, encoding="utf-8").read()
     faces = re.findall(
         r'@font-face\{font-family:"([^"]+)";src:url\("\.\./fonts/([^"]+)"\);font-weight:([^;]+);',
         css,
     )
-    assert len(faces) >= 4, "could not parse @font-face out of base.css (got %r)" % (faces,)
+    # Exact count, not a floor: base.css names exactly 4 faces today. A floor (`>= 4`) would never
+    # fire again once the set grows past 4, silently going blind to a 5th @font-face this test was
+    # never updated to expect. If base.css legitimately grows, update this number deliberately.
+    assert len(faces) == 4, "expected exactly 4 @font-face rules in base.css, got %r" % (faces,)
     ts = open(_FONTS_TS, encoding="utf-8").read()
     for family, filename, weight in faces:
         assert "family: '%s'" % family in ts, "fonts.ts does not load %r" % family

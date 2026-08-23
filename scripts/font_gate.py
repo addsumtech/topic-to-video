@@ -9,6 +9,17 @@ asserts the light and heavy tiles differ, which catches a variable font loaded w
 
 Exit 0 = every face loaded and every variable face honours its weight range.
 Exit 1 = at least one face is silently falling back (the message names it).
+
+KNOWN BLIND SPOT: this gate cannot detect a silent fallback for a family whose exact name is ALSO a
+system font already installed on the render host — the fallback and the real face are then two
+different fonts with the same CSS family name, so tile A (family + generic) still differs from tile B
+(generic alone) even though loadFont() never actually loaded our file. Reproduced twice: macOS ships a
+"Baloo 2" (Baloo-Devanagari.ttc) as a system font, so deliberately dropping our Baloo 2 from
+`loadFont()` in fonts.ts still passes this gate — every other one of the nine faces IS caught, because
+none of them collides with an installed system font name. Practical exposure is limited (loadFont()
+registering the real face in document.fonts takes precedence at actual render time), but a FUTURE load
+failure for Baloo 2 specifically would render Apple's Devanagari cut instead of the bundled Google
+Baloo 2 and this gate would not notice. No general fix is known; noted here so it isn't silently lost.
 """
 import hashlib, json, os, re, subprocess, sys, tempfile
 

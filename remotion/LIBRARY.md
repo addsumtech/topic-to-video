@@ -285,9 +285,21 @@ chromatic split/glitch, focus-pull DoF, long-exposure trail, gravity bounce, bac
 A shot never hardcodes its own typeface. Text reads `var(--f-display|body|mono, <original family list>)`,
 and `Film.tsx` publishes the active Design DNA's three faces onto those variables (scoped to `.dna-film`, only
 when a DNA is active) — so the SAME shot wears a different, real, loaded typeface per direction, and an
-un-themed render keeps its original fallback list pixel-for-pixel. See `references/remotion-shot-authoring.md`
-§C3 for the full mechanism, the four shapes a shot may carry a family in, and the tooling that keeps it that
-way. Each of the eight directions' stacks (display / body / mono; every stack also carries a CJK fallback chain
+un-themed render keeps its original fallback list pixel-for-pixel *going forward from this layer*. See
+`references/remotion-shot-authoring.md` §C3 for the full mechanism, the four shapes a shot may carry a family
+in, and the tooling that keeps it that way.
+
+**This layer deliberately changed how existing un-themed films look, once.** Before it, `fonts.ts` loaded
+nothing, so every declared family (including the fallback names in an un-themed shot's own family list, e.g.
+"Playfair Display" or "JetBrains Mono") silently rendered whatever the host had installed instead — Georgia,
+SF Mono, etc. Now that these ten faces actually load, un-themed renders show the REAL declared faces for the
+first time. Measured on `EdStat` un-themed: ~42,779 pixels differ between the pre-layer commit and this one.
+That is correct and intended — it is the whole point of loading the fonts — but it means any render or
+screenshot made before this layer will not pixel-match a fresh un-themed render made after it, even with the
+same template and no DNA active. `scripts/null_dna_pixel_gate.py` only guards AFTER this point forward (see
+its docstring); it is not a claim that nothing changed relative to history.
+
+Each of the eight directions' stacks (display / body / mono; every stack also carries a CJK fallback chain
 not shown here):
 
 | direction | display | body | mono |
@@ -302,5 +314,8 @@ not shown here):
 | `retro` | Baloo 2 | Baloo 2 | JetBrains Mono |
 
 `terminal` additionally sets `uniformType: true`, so its global `!important` rule forces JetBrains Mono
-everywhere regardless of what any individual shot's variable would otherwise resolve to — the other seven
-directions are genuinely mixed-type (a distinct display face from the body face) and rely on the variables.
+everywhere regardless of what any individual shot's variable would otherwise resolve to. Of the other seven
+directions (all of which rely on the variables, per the table above): four (`editorial`, `product`, `blueprint`,
+`cinematic`) are genuinely mixed-type, with a distinct display face from the body face; the remaining three
+(`neutral`, `data`, `retro`) share ONE face for display and body but still diverge for mono, so no direction
+other than `terminal` is fully uniform across all three roles.

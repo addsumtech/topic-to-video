@@ -2,8 +2,12 @@
 // name resolved against whatever the render host had installed. On a machine without them, the
 // "editorial high-contrast serif" was Georgia and the terminal monospace was SF Mono, and output
 // therefore varied by machine — a determinism defect on a tier that otherwise pins seeds and hashes
-// clips. These are the same files, under the same family names, that assets/html/base.css already
-// declares for the HTML tier, so the two tiers name one set of faces.
+// clips. Only FOUR of the ten faces below (Space Grotesk, Playfair Display, JetBrains Mono, Bangers)
+// are shared with the HTML tier — those four must match assets/html/base.css verbatim (family, file,
+// weight range; test_fonts_ts_loads_every_bundled_face_with_base_css_weights checks it). The other
+// six (Inter, Source Serif 4, IBM Plex Sans, IBM Plex Mono, Bodoni Moda, Baloo 2) exist ONLY here —
+// base.css declares no @font-face for them, so the HTML tier does not render these directions'
+// fonts at all. The two tiers do NOT name one set of faces.
 //
 // The imports below are resolved by the bundler into asset URLs. staticFile() is deliberately NOT
 // used: render_remotion.py points --public-dir at the film's out_dir, and a standalone
@@ -24,7 +28,8 @@ import bodoniModaUrl from '../../../assets/fonts/BodoniModa-VF.ttf';
 import baloo2Url from '../../../assets/fonts/Baloo2-VF.ttf';
 
 export type Face = {
-  family: string;      // must match assets/html/base.css verbatim
+  family: string;      // for the 4 faces shared with the HTML tier, must match assets/html/base.css
+                        // verbatim; the other 6 are remotion-only and have no base.css counterpart
   file: string;        // filename under assets/fonts/, for the drift test
   url: string;         // bundler-emitted asset URL
   weight: string;      // a VF's full range, or a single weight for a static face
