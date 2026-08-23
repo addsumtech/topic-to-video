@@ -10,6 +10,59 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-22-dna-type-layer-design.md`
 
+## Corrections (added during Task 10, 2026-08-23)
+
+Tasks 1-9 are implemented and committed; while writing Task 10's documentation, the plan's author
+re-read this document against what was actually built and found five errors below. They are left
+in place with plain callouts at each site, marked **CORRECTION (Task 10)**, rather than silently
+edited away — this section is the index of every such callout.
+
+1. **`dna_smoke.py` takes `--template <id>`, not a positional argument.** `main()` only ever reads
+   `--template` via `opt("--template", "terminal-technical")`; a bare positional word after the
+   script name is never consulted and is silently ignored, so every `python3 scripts/dna_smoke.py
+   editorial` in this plan actually rendered under the **default** `terminal-technical` template,
+   not `editorial`. All 7 such invocations below have been corrected to the `--template` form.
+   Separately: `terminal-technical` sets `uniformType: true` (`TERMINAL_DNA` in `dna.tsx`), whose
+   global `font-family: … !important` rule overrides every `--f-*` variable by design — making it a
+   poor default template for verifying this layer specifically, since it cannot show whether a
+   `var()` actually resolved. Prefer a mixed-type template (`editorial`, `blueprint`, …) explicitly
+   whenever the point of the smoke render is to check typography.
+2. **Task 6's implied frame-extraction arithmetic is wrong.** Running `dna_smoke.py` at its default
+   `--frames 14` and treating shot *i* as occupying a clean, non-overlapping 14-frame slot (i.e.
+   centred at frame `i*14 + 7`) ignores that `Film.tsx` cross-dissolves consecutive shots over
+   `TR = 12` frames (`const TR = 12` in `Film.tsx`). With `TR` that close to the per-shot duration,
+   almost every frame in a 14-frames-per-shot smoke render is mid-blend between two shots and no
+   clean frame exists at all. See the corrected Task 6 Steps 1-3 below for the arithmetic that
+   actually produces one clean frame per shot.
+3. **Task 6 pointed `scripts/keyframe_qa.py` at remotion output; that script is HTML-tier only.**
+   `keyframe_qa.run()` immediately does `json.load(open(os.path.join(out_dir, "storyboard.json")))`
+   and then filters `slides` for `type == "html"` — it drives Chrome over `type:"html"` pages from
+   an HTML-tier storyboard. `dna_smoke.py`'s output is a single remotion-rendered `.mp4` file, which
+   has no `storyboard.json` at all, so pointing `keyframe_qa.py` at it does not produce a report of
+   any kind — it fails to find the file it requires. See the corrected Task 6 Steps 1-3 below for
+   the visual-sweep method actually used instead.
+4. **Task 7 Step 6 tells you to verify captions with `dna_smoke.py`, which hardcodes
+   `captions: False`** (`props = {"template": template, "captions": False, ...}` in
+   `dna_smoke.py`) — directly contradicting that same step's own instruction: "Do not skip this by
+   rendering with `captions:false`." Following the step as literally written cannot verify caption
+   typography at all. See the corrected Step 6 below, which renders the `Film` composition directly
+   from a props file carrying `captions: true`.
+5. **Both this plan (Task 8's `rewrite_font_decl` listing and comment, and Task 9 Step 4) and the
+   spec (§C2) state that an SVG presentation attribute cannot take `var()` and that the codemod must
+   skip it, migrating it by hand instead.** Both halves turned out to be wrong. The spelling that
+   actually exists in this codebase is the JSX attribute `fontFamily="…"` (17 shots, 62
+   declarations) — never the kebab-case XML spelling `font-family="…"`, which has zero occurrences
+   and is not even valid JSX. A probe against a real `npx remotion render` (not `still`) confirmed
+   `var()` **does** resolve inside `fontFamily="…"` and falls back correctly when unset. The actual
+   `scripts/dna_migrate_type.py` therefore rewrites these 62 declarations automatically
+   (`_SVG_FONTFAMILY_ATTR_RE` / `sub_svg`), not by hand. See the callouts at Task 8 and Task 9 Step 4
+   below.
+
+A sixth correction — a Risks class this plan's spec missed entirely (a font stack assigned to a
+`const` and interpolated later, invisible to any `font:`-anchored codemod) — is documented directly
+in the spec's Risks section, since it was never stated incorrectly here in the plan; it is listed
+here only so this index is complete.
+
 ## Global Constraints
 
 - Repo root is the skill directory; all paths below are relative to it. The remotion project lives in `remotion/` and reuses a sibling `node_modules` — always run `npx` commands from inside `remotion/`.
@@ -603,7 +656,7 @@ Expected: PASS, full file.
 
 - [ ] **Step 5: Verify the whole library still renders under the new stacks**
 
-Run: `python3 scripts/dna_smoke.py editorial`
+Run: `python3 scripts/dna_smoke.py --template editorial`
 Expected: exit 0.
 
 - [ ] **Step 6: Commit**
@@ -749,18 +802,59 @@ Real typefaces have different advance widths from the fallbacks that have been r
 
 The largest metric change is Georgia → Playfair Display, so `editorial` is the worst case.
 
-Run: `python3 scripts/dna_smoke.py editorial`
+> **CORRECTION (Task 10):** the original text here ran `dna_smoke.py editorial` (a positional
+> argument `dna_smoke.py` silently ignores — see the plan's Corrections section, item 1) at the
+> script's default `--frames 14`. Extracting one clean, non-blended frame per shot for a visual
+> sweep (Step 2 below) needs `--frames 30`: `Film.tsx` cross-dissolves consecutive shots over
+> `TR = 12` frames, and at `--frames 14` almost every frame in the render is mid-blend between two
+> shots — no clean frame exists at that duration.
+
+Run: `python3 scripts/dna_smoke.py --template editorial --frames 30 --out /tmp/dna_smoke_editorial.mp4`
 Expected: exit 0. A non-zero exit is a crash, not an overflow; fix it before proceeding.
 
-- [ ] **Step 2: Run the frame gates over the smoke output**
+- [ ] **Step 2: Visually sweep the smoke output for overflow**
 
-Run: `python3 scripts/keyframe_qa.py <the out_dir dna_smoke.py printed>`
-Expected: a report. Record every text-overflow and out-of-frame finding with its shot name.
+> **CORRECTION (Task 10):** the original text here ran `scripts/keyframe_qa.py <the out_dir
+> dna_smoke.py printed>`. That script is HTML-tier only — `keyframe_qa.run()` immediately loads
+> `<out_dir>/storyboard.json` and filters its `slides` for `type == "html"`; `dna_smoke.py`'s output
+> is a single remotion `.mp4`, not an HTML-tier storyboard directory, so pointed at it the script
+> cannot even find the file it requires. The method below (extract one clean frame per shot with
+> `ffmpeg`, montage, eyeball) is the visual-sweep actually used in place of `keyframe_qa.py` for this
+> task.
+
+With `--frames 30` and `TR = 12`, shot *i* occupies global frames `[i*18, i*18+30)` (stride
+`30 - TR = 18` — each shot's clean, non-blended window is the middle 6 frames, local `[12, 18)`; the
+crossfade IN from the previous shot occupies local `[0, 12)`, the crossfade OUT to the next shot
+occupies local `[18, 30)`). Sample the middle of that clean window, local frame 15, i.e. global frame
+`i*18 + 15`. At the composition's `fps = 30` (`Root.tsx`), that is the timestamp `t = (i*18+15)/30`
+seconds — usable directly as an `ffmpeg -ss` seek argument:
+
+```bash
+mkdir -p /tmp/type-sweep-editorial
+python3 - <<'EOF'
+import subprocess
+import dna_audit
+shots = sorted(dna_audit.registered_shots())
+for i, s in enumerate(shots):
+    t = (i * 18 + 15) / 30
+    subprocess.run(["ffmpeg", "-y", "-ss", f"{t:.4f}", "-i", "/tmp/dna_smoke_editorial.mp4",
+                     "-frames:v", "1", f"/tmp/type-sweep-editorial/{i:03d}_{s}.png"], check=True)
+EOF
+montage /tmp/type-sweep-editorial/*.png -tile 6x -geometry 320x180+2+2 /tmp/type-sweep-editorial/contact.png
+```
+
+Expected: open `contact.png` and read every tile. Record every text-overflow and out-of-frame
+finding with its shot name.
 
 - [ ] **Step 3: Repeat for the mono-display worst case**
 
-Run: `python3 scripts/dna_smoke.py blueprint` then `python3 scripts/keyframe_qa.py <that out_dir>`
-Expected: a second finding list. `blueprint` sets `fontDisplay` to JetBrains Mono, whose advance width is much wider than a proportional sans at the same size.
+> **CORRECTION (Task 10):** same fix as Step 1/2 — the original text ran `dna_smoke.py blueprint`
+> (positional, ignored) then `keyframe_qa.py <that out_dir>` (wrong tool for remotion output).
+
+Run: `python3 scripts/dna_smoke.py --template blueprint --frames 30 --out /tmp/dna_smoke_blueprint.mp4`
+then repeat Step 2's extract/montage/eyeball method against `/tmp/dna_smoke_blueprint.mp4`.
+Expected: a second finding list. `blueprint` sets `fontDisplay` to JetBrains Mono, whose advance
+width is much wider than a proportional sans at the same size.
 
 - [ ] **Step 4: Fix each implicated shot**
 
@@ -870,8 +964,31 @@ Expected: PASS, full file.
 
 - [ ] **Step 6: Render a captioned film and look at it**
 
-Run: `python3 scripts/dna_smoke.py terminal`
-Then open the first few keyframes. The caption must now be monospace on a terminal film, and must still be fully legible on its ground.
+> **CORRECTION (Task 10):** the original text here said to run `dna_smoke.py terminal` — but
+> `dna_smoke.py` hardcodes `"captions": False` in the props it builds (`props = {"template":
+> template, "captions": False, ...}`), directly contradicting the very next line's instruction not
+> to verify captions with captions disabled. `dna_smoke.py` cannot be used for this step at all;
+> render the `Film` composition directly instead, from a props file that sets `captions: true`.
+
+Run:
+
+```bash
+python3 - <<'EOF'
+import json, os, sys
+sys.path.insert(0, "scripts")
+import dna_audit
+shots = sorted(dna_audit.registered_shots())[:12]   # first dozen is enough to see the caption repeatedly
+props = {"template": "terminal", "captions": True,
+         "scenes": [{"shot": s, "durF": 60, "caption": "checking caption typography under the DNA"}
+                    for s in shots]}
+json.dump(props, open("/tmp/caption-check-props.json", "w"))
+EOF
+cd remotion && npx remotion render src/index.ts Film /tmp/caption-check.mp4 \
+    --props=/tmp/caption-check-props.json --gl=angle
+```
+
+Then open the first few frames of `/tmp/caption-check.mp4`. The caption must now be monospace on a
+terminal film, and must still be fully legible on its ground.
 
 **Do not skip this by rendering with `captions:false`.** A previous round of this work verified every render with captions disabled and therefore missed a caption defect entirely.
 
@@ -950,6 +1067,16 @@ def test_codemod_never_touches_an_svg_font_family_attribute():
     assert out == src and rep == []
 ```
 
+> **CORRECTION (Task 10):** the belief in this test's docstring — "var() does not work in an XML
+> presentation attribute" — is wrong (see the plan's Corrections section, item 5). It happens to
+> still be literally true of the exact string this test uses, `font-family="…"` (kebab-case), which
+> has zero occurrences anywhere in this library and isn't even valid JSX syntax — so the test itself
+> still passes and needed no code change. But the spelling that actually exists in this codebase is
+> the camelCase JSX attribute `fontFamily="…"` (17 shots, 62 declarations), and `var()` **does**
+> resolve there, confirmed on a real `npx remotion render`. Task 9 widened the codemod to rewrite
+> `fontFamily="…"` automatically; see Task 9 Step 4 below for where the plan's "migrate by hand"
+> instruction for that spelling was also wrong.
+
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `python3 -m pytest tests/test_remotion.py -k codemod -v`
@@ -1019,6 +1146,15 @@ def rewrite_font_decl(text):
 
     # An SVG font-family="..." attribute cannot take a var(); _DECL_RE only matches `font:` in a CSS
     # context, so attributes are excluded by construction. Asserted by a test.
+    #
+    # CORRECTION (Task 10): this belief turned out to be wrong for the spelling that actually exists
+    # in this codebase — the JSX attribute `fontFamily="…"` (not the kebab-case `font-family="…"`
+    # this comment describes, which has zero occurrences and isn't valid JSX). A probe against a real
+    # `npx remotion render` confirmed var() DOES resolve inside `fontFamily="…"` and falls back
+    # correctly when unset. Task 9 widened the real `scripts/dna_migrate_type.py` past this Task-8
+    # snapshot to rewrite it automatically (`_SVG_FONTFAMILY_ATTR_RE` / `sub_svg`, 62 declarations
+    # across 17 shots) instead of excluding it — see Task 9 Step 4 below, and the plan's Corrections
+    # section, item 5.
     return _DECL_RE.sub(sub, text), report
 
 
@@ -1169,9 +1305,31 @@ Expected: `rewrote <N> declarations across <M> shots`, with M around 93.
 
 - [ ] **Step 4: Migrate the seven `fontFamily:` shots by hand**
 
+> **CORRECTION (Task 10):** two errors in the original text of this step, found while re-reading it
+> against the actual result (neither is one of the plan's numbered Corrections — both are additional,
+> found only while writing Task 10's documentation):
+> 1. It lists `RansomZine.tsx` among the seven, but `RansomZine.tsx`'s only `fontFamily:` is
+>    `fontFamily: font` — an identifier, already dynamic, never a literal `fontFamily:` needing this
+>    step at all. It was never one of the seven; the real count of literal `fontFamily:` occurrences
+>    needing a by-hand decision is seven **without** it, all accounted for below.
+> 2. It says "these are display-type registers … use `--f-display`" without flagging that
+>    `AntiDesignChaos.tsx` carries **two** different `fontFamily:` sites, not one: the scattered
+>    chaos words read `fontFamily: FONTS[i % FONTS.length]` (a per-letter RANDOM pick across five
+>    typefaces — the whole point of the anti-design register — already dynamic, and must stay that
+>    way, never migrated to a single `--f-display`) and, separately, the big headline reads a literal
+>    `fontFamily: 'Impact, system-ui, sans-serif'`, which is the one this step actually migrates.
+>    `RansomZine.tsx` has the identical chaos-array pattern for the same reason (a ransom-note collage
+>    needs a different typeface per torn scrap) and must be left alone entirely — which is consistent
+>    with point 1: it was never in scope here.
+>
+> Also per the plan's Corrections section, item 5: `scripts/dna_migrate_type.py` as it exists today
+> does **not** need this step done by hand at all for the SVG/JSX `fontFamily="…"` spelling — Task 9
+> widened the codemod to rewrite that automatically. This step is only for the CSS `fontFamily:`
+> property, which genuinely was (and remains) out of the codemod's scope.
+
 The codemod handles `font:` shorthands only. These seven shots set `fontFamily:` separately, and each needs its role chosen by reading what the text is:
 
-`InflateType.tsx`, `ElasticType.tsx`, `AntiDesignChaos.tsx`, `VariableTypeMorph.tsx`, `ComicPanels.tsx`, `RansomZine.tsx` — these are display-type registers whose whole subject is large lettering; use `--f-display`. `CodeRain.tsx` renders falling code glyphs; use `--f-mono`.
+`InflateType.tsx`, `ElasticType.tsx`, `AntiDesignChaos.tsx` (the headline only — see the correction above), `VariableTypeMorph.tsx`, `ComicPanels.tsx` — these are display-type registers whose whole subject is large lettering; use `--f-display`. `CodeRain.tsx` renders falling code glyphs; use `--f-mono`.
 
 Rewrite each occurrence in the same shape the codemod uses:
 
@@ -1181,7 +1339,7 @@ fontFamily: 'Inter, system-ui, sans-serif'
 fontFamily: 'var(--f-display, Inter, system-ui, sans-serif)'
 ```
 
-Leave any `fontFamily` that already interpolates a value alone.
+Leave any `fontFamily` that already interpolates a value, or reads a per-letter random array, alone.
 
 - [ ] **Step 5: Run the pixel gate**
 
@@ -1197,7 +1355,7 @@ Open `/tmp/type-after/specimens.png` and compare against the Task 5 sheet. Body 
 
 - [ ] **Step 7: Run the full suite and the smoke test**
 
-Run: `python3 -m pytest tests/ -v && python3 scripts/dna_smoke.py editorial && python3 scripts/font_gate.py`
+Run: `python3 -m pytest tests/ -v && python3 scripts/dna_smoke.py --template editorial && python3 scripts/font_gate.py`
 Expected: all pass.
 
 - [ ] **Step 8: Commit**
@@ -1206,6 +1364,21 @@ Expected: all pass.
 git add scripts/null_dna_pixel_gate.py remotion/src/shots/
 git commit -m "feat(shots): read the DNA's typefaces through CSS variables"
 ```
+
+> **Note added during Task 10 (not a correction to text above — a record of what happened next):**
+> a review round after this commit found that `BlueprintGrid.tsx`'s `MONO` and
+> `CompressedSensingEq.tsx`'s `SERIF` module-level consts held literal font-family lists, interpolated
+> later as `${MONO}` / `${SERIF}` inside a `font:` template literal — the codemod's `"${" in families`
+> already-dynamic check saw the `${MONO}` wrapper and skipped the whole declaration without ever
+> looking at what `MONO` itself contained, leaving both shots DNA-blind for type. A full-library sweep
+> for the same shape (not trusting "exactly two") found a third, previously unreported instance,
+> `RisoPrint.tsx`'s local `const font` (consumed via the `font,` object-shorthand — invisible to the
+> codemod because that declaration never contains the literal substring `font:` at all). All three were
+> fixed by making the **const itself** carry `var(--f-ROLE, <original list>)`, plus two more
+> `unrecognized-font-decl` shots (`LiquidChrome.tsx`, `PositioningMatrix.tsx`) wrapped by hand, in a
+> follow-up commit not represented as its own task in this plan: `2da293e "fix(shots): wire
+> const-indirected and unrecognized hardcoded fonts to DNA vars"`. This is the same const-indirection
+> class the spec's Risks section was missing — see the spec's Risk 6.
 
 ---
 
@@ -1309,8 +1482,8 @@ git commit -m "docs: document the DNA type layer and report its reach"
 python3 -m pytest tests/ -v
 python3 scripts/font_gate.py
 python3 scripts/null_dna_pixel_gate.py --check /tmp/null-dna-hashes.json
-python3 scripts/dna_smoke.py editorial
-python3 scripts/dna_smoke.py terminal
+python3 scripts/dna_smoke.py --template editorial
+python3 scripts/dna_smoke.py --template terminal
 python3 scripts/dna_audit.py --type
 python3 scripts/type_specimens.py /tmp/type-final
 ```

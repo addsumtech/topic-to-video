@@ -242,6 +242,17 @@ stated in the docs.
 - **SVG presentation attributes.** `font-family="var(--f-body, …)"` does *not* work as an XML
   attribute. Only CSS contexts (`style={{...}}`, `<style>` blocks) may be rewritten; `font-family=`
   attributes must be skipped.
+
+  > **CORRECTION (Task 10, 2026-08-23):** this exclusion is wrong for the spelling that actually
+  > exists in this codebase. The kebab-case XML attribute `font-family="…"` this bullet describes
+  > has zero occurrences anywhere in the library and is not even valid JSX syntax (JSX requires the
+  > camelCase DOM property name). What every real occurrence in this library uses is the JSX
+  > attribute `fontFamily="…"` — 17 shots, 62 declarations — and a probe against a real `npx
+  > remotion render` (not `still`) confirmed `var()` **does** resolve there, falling back correctly
+  > when unset, exactly like any other CSS context. `scripts/dna_migrate_type.py` therefore rewrites
+  > `fontFamily="…"` automatically (`_SVG_FONTFAMILY_ATTR_RE` / `sub_svg`); it is not skipped, and
+  > was not migrated by hand. This correction is also recorded in the implementation plan's
+  > Corrections section (item 5) and at the corresponding callouts in Tasks 8-9.
 - Any family list passed to `canvas.measureText` or otherwise consumed by JavaScript rather than
   CSS.
 
@@ -302,6 +313,28 @@ reachability. A type gate that only checks "a var is present" would fail the sam
 
 5. **CJK regression.** Any new font string that loses its CJK chain silently breaks Chinese decks.
    Gate A3 covers the presets; the codemod must preserve the tail of every list it rewrites.
+
+6. **Const-indirected font stacks are invisible to a `font:`-anchored codemod.** *(Added Task 10,
+   2026-08-23 — a class this Risks section missed entirely when it was written.)* A shot can assign
+   a literal font-family list to a module- or function-level `const`, then interpolate that const
+   later inside a `font:` template literal (`` const MONO = '"JetBrains Mono", monospace'; … font:
+   `600 24px/1 ${MONO}` ``). The codemod's dynamic-family check sees `${MONO}` in the family
+   position and correctly treats it as "already reading something dynamic" — but never looks at
+   what `MONO` itself holds, so the const stays a hardcoded literal the DNA can never reach. A
+   variant is worse: the const can be consumed via an object-shorthand property (`` const font =
+   '900 210px/0.9 Inter, system-ui, sans-serif'; … style={{…, font, …}} ``) with no `font:` token
+   anywhere in the declaration at all, so even a scan built to catch the first variant misses this
+   one. Three real instances existed — `BlueprintGrid.tsx` (`MONO`), `CompressedSensingEq.tsx`
+   (`SERIF`), and `RisoPrint.tsx` (the object-shorthand `font` — the previously unreported third
+   instance, found only by sweeping the whole library for the pattern rather than trusting a
+   reported count of two). Each was found only by a human-directed sweep after the codemod had
+   already run, not by any gate; no static gate can prove a *negative* here ("no const anywhere
+   holds a font list") without essentially re-implementing a JS/TS parser. Mitigation actually used:
+   fix each const to itself carry `var(--f-ROLE, <original list>)`, so every interpolation site
+   inherits it with no other edit — and treat "sweep the whole library for this shape, don't trust
+   the last reported count" as a standing practice for any future codemod-completeness claim in this
+   plan's lineage. Task 10's regression test (`tests/test_remotion.py`) checks for this shape
+   directly, alongside the `font:` shorthand, so a future reintroduction is caught mechanically.
 
 ---
 
