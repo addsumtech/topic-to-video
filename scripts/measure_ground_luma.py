@@ -19,7 +19,7 @@ reported UNCLASSIFIED, never guessed.
   python3 scripts/measure_ground_luma.py --emit     # write DNA_GROUND_TOKEN into shotLuma.ts
   python3 scripts/measure_ground_luma.py --check    # non-zero when the committed table has drifted
 """
-import json, os, subprocess, sys, tempfile
+import json, os, re, subprocess, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from PIL import Image
 import dna_audit
@@ -129,7 +129,13 @@ def main(argv):
     if "--check" in argv:
         cur = open(os.path.join(_REMOTION, "src", "runtime", "shotLuma.ts"), encoding="utf-8").read()
         bad = []
+        # A declared-only entry is declared PRECISELY because the measurement cannot see its ground
+        # (content bleeds to the frame edge, so the border ring samples content). Comparing it against a
+        # measurement would make this gate cry wolf forever — and a gate that always warns is ignored.
+        declared_only = set(re.findall(r"^\s{2}(\w+):[^/\n]*//\s*declared-only", cur, re.M))
         for shot, tok in sorted(out.items()):
+            if shot in declared_only:
+                continue
             want = ("'%s'" % tok) if isinstance(tok, str) else ("[%s]" % ", ".join("'%s'" % x for x in tok))
             if ("  %s: %s," % (shot, want)) not in cur:
                 bad.append("%s -> %s" % (shot, tok if isinstance(tok, str) else "+".join(tok)))

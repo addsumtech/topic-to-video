@@ -15,7 +15,7 @@ import {slide} from '@remotion/transitions/slide';
 import {wipe} from '@remotion/transitions/wipe';
 import {clockWipe} from '@remotion/transitions/clock-wipe';
 import {dissolve} from '@remotion/transitions/dissolve';
-import {SceneDurationContext, ReducedMotionContext, clamp01} from './runtime/motion';
+import {SceneDurationContext, ReducedMotionContext, clamp01, SEAM_FRAMES} from './runtime/motion';
 import {groundLum, dnaGroundLum, dnaGroundY, groundGap, type Lum, type GroundColors} from './runtime/shotLuma';
 import {Atmosphere, type Atmo} from './runtime/atmosphere';
 import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome} from './runtime/dna';
@@ -35,7 +35,9 @@ export type SceneSpec = {shot: string; props?: Record<string, unknown>; durF: nu
   // on a same/near-luminance seam — across a dark↔light gap it's suppressed back to fade (see pickPresentation).
   transitionIn?: {type: 'fade' | 'slide' | 'wipe' | 'clock' | 'dissolve' | 'carry'; direction?: string}};
 
-const TR = 12; // cross-dissolve length (frames) — rides the ~0.42s narration breath so speech barely overlaps
+const TR = SEAM_FRAMES; // cross-dissolve length (frames) — rides the ~0.42s narration breath so speech barely
+// overlaps. Shared with runtime/motion's useT, which holds each shot STILL for exactly these frames at both
+// edges so a dissolve never runs over a moving shot.
 export const filmDuration = (scenes: SceneSpec[]) =>
   Math.max(1, scenes.reduce((a, s) => a + Math.max(1, Math.round(s.durF)), 0) - Math.max(0, scenes.length - 1) * TR);
 

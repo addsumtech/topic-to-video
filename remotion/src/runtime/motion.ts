@@ -21,6 +21,26 @@ export const ReducedMotionContext = React.createContext<boolean>(false);
 export const REDUCED_MOTION_T = 0.86;
 
 // Normalized time 0→1 across the shot (or the embedded scene). Frozen at REDUCED_MOTION_T under reduced motion.
+// SEAM_FRAMES must equal Film.tsx's cross-dissolve length. Exported so the two cannot drift: the whole
+// point below is that a shot is STILL for exactly the frames a dissolve is running over it.
+export const SEAM_FRAMES = 12;
+
+/** Normalized time 0→1 across the shot — but SETTLED at both edges.
+ *
+ *  Naively this was `frame / (dur - 1)`, so a shot animated right up to its last frame while the
+ *  cross-dissolve was already blending the next shot in over it, and the incoming shot began its
+ *  entrance while still半-transparent. Every seam therefore showed TWO shots at once with at least one
+ *  of them moving — the flicker. Measured on a sample: motion energy at the seams was ~11 against a
+ *  settled baseline of 0.12-0.5, i.e. 20-90x, and the incoming shot's entrance spiked to ~20 DURING
+ *  the dissolve.
+ *
+ *  Studio motion design cuts between SETTLED states, never mid-animation. So compress the shot's whole
+ *  0→1 into the window where no dissolve is running: hold t=0 while the incoming dissolve plays, animate
+ *  alone in the middle, hold t=1 (fully landed) while the outgoing dissolve plays. Content lands sooner
+ *  and holds longer, which is also better pacing.
+ *
+ *  The pad never eats more than a third of a scene, so a very short scene degrades to "animates faster",
+ *  never to "never animates". */
 export function useT(): number {
   const frame = useCurrentFrame();
   const {durationInFrames} = useVideoConfig();
@@ -28,7 +48,9 @@ export function useT(): number {
   const reduced = React.useContext(ReducedMotionContext);
   if (reduced) return REDUCED_MOTION_T;
   const dur = sceneDur ?? durationInFrames;
-  return clamp01(frame / Math.max(1, dur - 1));
+  const pad = Math.min(SEAM_FRAMES, Math.floor(Math.max(0, dur - 1) / 3));
+  const span = Math.max(1, dur - 1 - 2 * pad);
+  return clamp01((frame - pad) / span);
 }
 
 // Re-map a sub-window [a,b] of global t to a local 0→1 (for phase timing within a shot).
