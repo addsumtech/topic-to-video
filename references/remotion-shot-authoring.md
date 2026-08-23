@@ -371,6 +371,18 @@ fontFamily: 'var(--f-mono, "JetBrains Mono", ui-monospace, monospace)'
 fontFamily="var(--f-body, Inter, sans-serif)"   // JSX/SVG presentation attribute — var() resolves here too
 ```
 
+**There is a SECOND sanctioned mechanism, and 14 shots use it instead.** A shot that already calls
+`useDNA()` may read the face directly in JS — `const body = dna?.fontBody ?? 'Inter, system-ui, sans-serif'`
+— and interpolate it. The `Term*` family (8 shots), the `Ed*` family, `SwissEditorial`, `CinematicTitle`
+and `ConveyorBelt` all do this, with zero `var()`. It is equally valid: `dna_audit.py --type` counts both
+toward reach, and the regression test is named
+`test_every_shot_reads_the_type_variables_or_the_dna_directly` precisely because either satisfies it.
+
+Which to use: reach for the **variable** when the shot does not otherwise need the DNA object — it needs no
+hook, no import, and no component-scope reasoning. Reach for the **direct read** when the shot already holds
+`dna` and wants the face in JS (to measure it, to branch on it, or to pass it into a helper). What is NOT
+allowed is the third option: a bare family name that reads the DNA not at all.
+
 The text after the comma is the **fallback list** — the shot's own original hardcoded family list, unchanged.
 With no DNA active the variable is unset and the declaration resolves to exactly what an un-themed film rendered
 before this layer existed: this is what makes the no-regression claim pixel-checkable (`scripts/

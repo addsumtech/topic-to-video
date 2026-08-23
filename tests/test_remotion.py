@@ -371,6 +371,24 @@ def test_dna_ground_set_is_regenerated():
     assert gdg.main(["--check"]) == 0, "shotLuma.ts DNA_GROUND is stale — run: python scripts/gen_dna_ground.py"
 
 
+def test_dna_ground_includes_the_multi_declarator_shots():
+    """A PIN, deliberately independent of gen_dna_ground's own detector.
+
+    test_dna_ground_set_is_regenerated above calls that detector's --check, which compares the file
+    against the SAME function that produced it — so a detection GAP is invisible to it by
+    construction, and it reported "up to date" for months while four shots were missing. These four
+    declare their ground in a MULTI-DECLARATOR const (`const ACC = ..., BG = dna?.bg ?? '#fff';`),
+    the shape the old detector could not see. Captions pick their ink from this set, so a shot
+    missing here renders dark ink on a dark DNA ground — verified illegible on TimelineTravel before
+    the fix. Hardcoded on purpose: if a refactor narrows the detector again, this fails."""
+    src = open(os.path.join(_RUNTIME_DIR, "shotLuma.ts"), encoding="utf-8").read()
+    block = src.split("DNA_GROUND")[1]
+    for shot in ("BeforeAfterSlider", "BlueprintGrid", "ScreenBubble", "TimelineTravel"):
+        assert "'%s'" % shot in block, (
+            "%s paints its ground from the DNA but is missing from DNA_GROUND — captions will pick "
+            "the stale pre-DNA luminance and go illegible on a dark direction" % shot)
+
+
 def test_shot_luma_and_dna_ground_cover_the_library():
     luma = open(os.path.join(_RUNTIME_DIR, "shotLuma.ts"), encoding="utf-8").read()
     measured = set(re.findall(r"(\w+):\s*'(?:dark|mid|light)'", luma.split("SHOT_LUMA")[1].split("};")[0]))

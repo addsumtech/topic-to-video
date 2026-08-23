@@ -2,9 +2,23 @@
   "name": "slides-to-video-remotion",
   "version": "0.1.0",
   "private": true,
-  "description": "Redo of the cinematic tier: bespoke per-shot components (a library of diverse, Remotion-native design languages distilled from real product films). Reuses ../remotion/node_modules.",
+  "description": "Redo of the cinematic tier: bespoke per-shot components (a library of diverse, Remotion-native design languages distilled from real product films). Dependencies are declared and pinned so a fresh clone can `npm install` and render; previously this file was empty and the project relied on an ad-hoc node_modules, which broke the moment Root.tsx started importing @remotion/fonts unconditionally.",
   "scripts": {
     "studio": "remotion studio src/index.ts",
     "still": "remotion still src/index.ts"
+  },
+  "dependencies": {
+    "@react-three/fiber": "8.17.10",
+    "@remotion/cli": "4.0.486",
+    "@remotion/fonts": "4.0.486",
+    "@remotion/three": "4.0.486",
+    "@remotion/transitions": "4.0.486",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.486",
+    "three": "0.169.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.17"
   }
 }

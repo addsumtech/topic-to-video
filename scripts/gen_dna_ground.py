@@ -33,10 +33,21 @@ def dna_ground_shots():
         expr = m.group(1)
         if "dna" in expr:
             out.add(shot); continue
-        # one level of indirection: `background: BG` where `const BG = dna?.bg ?? …`
+        # one level of indirection: `background: BG` where `const BG = dna?.bg ?? …`.
+        # MULTI-DECLARATOR: shots routinely write `const ACCENT = dna?.accent ?? A0, BG = dna?.bg ?? '#fff';`
+        # The old pattern anchored on `const` and then scanned `[^=\n]*` for the identifier — which cannot
+        # cross the FIRST `=`, so any binding after the first one on its line was invisible. That silently
+        # dropped 4 shots (BeforeAfterSlider, BlueprintGrid, ScreenBubble, TimelineTravel) out of DNA_GROUND,
+        # and because --check compares the file against THIS SAME function, the staleness check reported
+        # "up to date" while the set was wrong. Scan each const/let statement and look for the binding
+        # anywhere inside it instead.
         for ident in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", expr):
-            d = re.search(r"(?:const|let)\s+[^=\n]*\b%s\b[^=\n]*=\s*([^;\n]+)" % re.escape(ident), src)
-            if d and "dna" in d.group(1):
+            hit = False
+            for stmt in re.finditer(r"(?:const|let)\s+([^;\n]+)", src):
+                b = re.search(r"\b%s\b\s*=\s*([^,;\n]+)" % re.escape(ident), stmt.group(1))
+                if b and "dna" in b.group(1):
+                    hit = True; break
+            if hit:
                 out.add(shot); break
     return out
 
