@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutExpo} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {fitText} from '@remotion/layout-utils';
 
 export const DURATION = 165; // 5.5s
 const CREAM = '#f0ece1', INK = '#141414', RED = '#e8321f';
@@ -31,6 +32,18 @@ export const SwissEditorial: React.FC<{items?: string[]; ticker?: string; wordma
   const local = seq - idx;                       // 0..1 within this word
   const reveal = easeOutExpo(clamp01(local / 0.4)); // clip-rise reveal at each snap
   const word = WORDS[idx];
+  // WIDTH-AWARE, MEASURED. This block used a fixed 340px with `nowrap` inside an `overflow:hidden` box, so any
+  // word past ~9 characters was SILENTLY TRUNCATED — "ONBOARDING." rendered as "ONBOARD", with no ellipsis and
+  // no error, and portrait roughly halved the safe length. The library's older fix for this shape is a magic
+  // ratio (EdStat uses len*0.6), but that cannot be right here: `disp` is the DNA's display face, and those
+  // range from Bodoni Moda to JetBrains Mono, whose advance widths differ enormously. So measure the real
+  // string in the real face instead. Sized off the LONGEST word so all beats share one size (the register's
+  // character — the words swap in place) and every one of them fits.
+  const longest = WORDS.reduce((a, b) => (String(b).length > String(a).length ? b : a), WORDS[0] ?? '');
+  const wordSize = Math.min(340, fitText({
+    text: String(longest), withinWidth: W - 240, fontFamily: disp, fontWeight: 900,
+    letterSpacing: '-0.04em', validateFontIsLoaded: true,
+  }).fontSize);
   const tick = (t * 420) % 1000;                 // ticker scroll (px)
 
   return (
@@ -50,7 +63,7 @@ export const SwissEditorial: React.FC<{items?: string[]; ticker?: string; wordma
       {/* massive flush-left snapping word (clip-rise reveal) */}
       <div style={{position: 'absolute', left: 120, top: H * 0.5, transform: 'translateY(-50%)', width: W - 240, height: 360, overflow: 'hidden'}}>
         <div style={{transform: `translateY(${(1 - reveal) * 360}px)`, color: FG,
-          font: `900 340px/0.86 ${disp}`, letterSpacing: '-0.04em', whiteSpace: 'nowrap'}}>
+          font: `900 ${wordSize}px/0.86 ${disp}`, letterSpacing: '-0.04em', whiteSpace: 'nowrap'}}>
           {word.slice(0, -1)}<span style={{color: ACC}}>{word.slice(-1)}</span>
         </div>
       </div>

@@ -6,12 +6,19 @@ import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {fitText} from '@remotion/layout-utils';
 
 export const DURATION = 160; // ~5.3s
 const MAG_D0 = '#ff2d95', CYAN_D0 = '#22e3ff';
 
 export const NeonGrid: React.FC<{title?: string; tagline?: string}> = ({title: TITLE = 'WORKBUDDY', tagline: TAGLINE = 'ON YOUR MACHINE'} = {}) => {
   const dna = useDNA();
+  // DIRECT READS, not `var(--f-display, …)`. fitText below measures in a detached node OUTSIDE .dna-film, where
+  // the CSS variables are undefined — it would have measured the FALLBACK face and returned a size for the wrong
+  // typeface. Reading the DNA in JS is the second sanctioned mechanism (references/remotion-shot-authoring.md
+  // §C3) and resolves to exactly the same string the var fallback gave when no DNA is active.
+  const dispFace = dna?.fontDisplay ?? '"Antonio", Impact, sans-serif';
+  const monoFace = dna?.fontMono ?? '"JetBrains Mono", monospace';
   const MAG = dna?.accent ?? MAG_D0, CYAN = dna?.accent2 ?? CYAN_D0;
   const t = useT();
   const frame = useCurrentFrame();
@@ -19,6 +26,20 @@ export const NeonGrid: React.FC<{title?: string; tagline?: string}> = ({title: T
   const hy = H * 0.46, cx = W / 2;
   const scroll = (t * 0.6) % (1 / 16);
   const titleUp = easeOutExpo(seg(t, 0.12, 0.5));
+
+  // The wordmark is centred full-bleed and the tagline carries 0.5em tracking; neither had any width guard, so a
+  // long title ran off-frame and a long tagline wrapped onto the sun artwork at 1:1. Measure both against the
+  // usable width (leave 120px of neon breathing room) and cap at the register's design sizes, so short copy is
+  // pixel-identical and only long copy shrinks.
+  const usable = W - 120;
+  const titleSize = Math.min(168, fitText({
+    text: String(TITLE), withinWidth: usable, fontFamily: dispFace, fontWeight: 900,
+    letterSpacing: '0.02em', validateFontIsLoaded: true,
+  }).fontSize);
+  const tagSize = Math.min(30, fitText({
+    text: String(TAGLINE), withinWidth: usable, fontFamily: monoFace, fontWeight: 700,
+    letterSpacing: '0.5em', validateFontIsLoaded: true,
+  }).fontSize);
 
   return (
     <AbsoluteFill style={{background: 'linear-gradient(#160726 0%, #2a0b3f 38%, #5b1063 47%, #12061f 55%, #0a0413 100%)'}}>
@@ -63,10 +84,10 @@ export const NeonGrid: React.FC<{title?: string; tagline?: string}> = ({title: T
       {/* neon chrome wordmark */}
       <div style={{position: 'absolute', left: 0, right: 0, top: hy - 250, textAlign: 'center',
         transform: `translateY(${(1 - titleUp) * 30}px)`, opacity: titleUp}}>
-        <div style={{font: '900 168px/0.9 var(--f-display, "Antonio", Impact, sans-serif)', letterSpacing: '0.02em',
+        <div style={{font: `900 ${titleSize}px/0.9 ${dispFace}`, letterSpacing: '0.02em',
           background: 'linear-gradient(#fff, #a7e9ff 40%, #ff9ee0 60%, #ff2d95)', WebkitBackgroundClip: 'text',
           backgroundClip: 'text', color: 'transparent', WebkitTextStroke: `2px ${CYAN}`, filter: 'drop-shadow(0 0 24px #ff2d9599)'}}>{TITLE}</div>
-        <div style={{marginTop: 14, font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.5em',
+        <div style={{marginTop: 14, font: `700 ${tagSize}px/1 ${monoFace}`, letterSpacing: '0.5em',
           paddingLeft: '0.5em', color: CYAN, opacity: clamp01(seg(t, 0.45, 0.72)), textShadow: `0 0 18px ${CYAN}`}}>{TAGLINE}</div>
       </div>
     </AbsoluteFill>

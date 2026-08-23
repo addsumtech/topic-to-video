@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA, dnaHas, Caret, mix} from '../runtime/dna';
+import {fitText} from '@remotion/layout-utils';
 
 export const DURATION = 170; // ~5.7s
 export const CinematicTitle: React.FC<{kicker?: string; title?: string; tagline?: string}> = ({
@@ -24,6 +25,14 @@ export const CinematicTitle: React.FC<{kicker?: string; title?: string; tagline?
   const moteCol = dna?.accent ?? '#ffe6c0';
   const kickCol = dna?.accent ?? '#c69a63';
   const titleFont = dna?.fontDisplay ?? '"Playfair Display", Georgia, serif';
+  // MEASURED, not estimated. The old formula guessed advance width as `len * 0.52`, which underestimates a
+  // high-contrast display face (Bodoni Moda) badly enough that a long title still wrapped to two lines — and
+  // the tagline's fixed marginTop then crowded that second line at 9:16. The guess cannot be fixed by tuning
+  // the constant, because `titleFont` is whichever face the active DNA declares. Measure the real string.
+  const titleFit = fitText({
+    text: String(TITLE), withinWidth: W * 0.86, fontFamily: titleFont, fontWeight: 800,
+    validateFontIsLoaded: true,
+  }).fontSize;
   const titleCol = dna?.fg ?? '#f4efe6';
   const tagCol = dna?.dim ?? '#8b93a3';
   const bar = 132; // letterbox height
@@ -57,7 +66,7 @@ export const CinematicTitle: React.FC<{kicker?: string; title?: string; tagline?
         <div style={{opacity: titleUp, transform: `translateY(${(1 - titleUp) * 46}px)`, maxWidth: W * 0.9,
           color: titleCol, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
           // width-AND-length-aware so a long title / narrow (portrait|square) frame can't clip the wordmark
-          font: `800 ${Math.min(176, W * 0.13, (W * 0.86) / Math.max(1, String(TITLE).length * 0.52))}px/0.98 ${titleFont}`,
+          font: `800 ${Math.min(176, W * 0.13, titleFit)}px/0.98 ${titleFont}`,
           letterSpacing: '-0.01em', textShadow: dna ? 'none' : '0 30px 90px #000, 0 2px 0 #ffffff22'}}>{TITLE}
           {dnaHas(dna, 'cursor') ? <Caret color={dna!.accent} h={72} w={20} style={{marginLeft: 14}} /> : null}</div>
         <div style={{opacity: clamp01(seg(t, 0.55, 0.82)), color: tagCol, font: '500 30px/1 var(--f-mono, "JetBrains Mono", monospace)',

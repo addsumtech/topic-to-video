@@ -371,6 +371,33 @@ def test_dna_ground_set_is_regenerated():
     assert gdg.main(["--check"]) == 0, "shotLuma.ts DNA_GROUND is stale — run: python scripts/gen_dna_ground.py"
 
 
+def test_display_type_is_measured_not_estimated():
+    """The three shots whose whole register is ONE huge word must size it by MEASURING the real string
+    in the real face, never by a magic advance-width ratio.
+
+    A ratio cannot be correct here: the display face comes from the active DNA and ranges from Bodoni
+    Moda to JetBrains Mono, whose advance widths differ enormously. SwissEditorial used a fixed 340px
+    with nowrap inside an overflow:hidden box and SILENTLY TRUNCATED anything past ~9 characters
+    ("ONBOARDING." rendered as "ONBOARD") with no ellipsis and no error; CinematicTitle's len*0.52
+    guess underestimated Bodoni Moda enough to wrap a long title onto a second line. Both are now
+    fitText from @remotion/layout-utils. validateFontIsLoaded is required so a measurement taken
+    before the faces load fails loudly instead of returning a size for the fallback typeface.
+
+    A general "no nowrap + hardcoded big font" scan finds zero hits today and would pass vacuously,
+    so this pin names the files instead."""
+    for shot in ("SwissEditorial", "NeonGrid", "CinematicTitle"):
+        src = open(os.path.join(_SHOTS_DIR, shot + ".tsx"), encoding="utf-8").read()
+        assert "from '@remotion/layout-utils'" in src, "%s does not import the measuring helper" % shot
+        # `"fitText" in src` would be satisfied by the import line alone, and even by a renamed
+        # `fitTextX(` — the first version of this test passed against a deliberately broken shot.
+        # Require an actual CALL.
+        assert re.search(r"\bfitText\(\{", src), (
+            "%s must MEASURE its display type (a fitText({...}) call), not estimate it" % shot)
+        assert "validateFontIsLoaded: true" in src, (
+            "%s measures without validateFontIsLoaded — a measurement taken before the faces load "
+            "silently sizes for the fallback typeface" % shot)
+
+
 def test_dna_ground_includes_the_multi_declarator_shots():
     """A PIN, deliberately independent of gen_dna_ground's own detector.
 
