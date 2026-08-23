@@ -30,20 +30,49 @@ def _kit(topic):
     a short title, a handful of distinct meaningful tokens (for nodes/spokes/names), a slug, and a tagline."""
     import re
     t = (topic or "").strip() or "your topic"          # whitespace-only also falls back to the placeholder
+    # CJK-AWARE. The ASCII-only tokenizer below is structurally blind to Chinese/Japanese/Korean: on
+    # "AI 编程助手为什么容易写出看起来对的代码" its only match is "AI", every other character is discarded,
+    # and `items` then fell through to the hardcoded English placeholders — so every contest sample for a
+    # CJK film silently carried a meaningless one-token wordmark plus "Overview / Signals / Results", while
+    # the script exited 0 and the diversity gate happily scored the result. Segment CJK on its own
+    # punctuation (：，。；、！？ and spaces), which is where a well-formed Chinese topic already breaks.
     words = re.findall(r"[A-Za-z0-9][A-Za-z0-9'.+-]*", t)
     toks = [w for w in words if w.lower() not in _STOP and len(w) > 1]
     caps = [w for w in toks if w[0].isupper()]
-    title = (caps[0] if caps else (toks[0] if toks else t))[:22]
-    seen, items = set(), []
-    for w in toks:
-        k = w.lower()
-        if k in seen:
-            continue
-        seen.add(k)
-        items.append(w if w[0].isupper() else w.capitalize())
-    items = items[:6] or ["Overview", "Signals", "Results"]
+    cjk = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]")
+    phrases = []
+    if cjk.search(t):
+        for seg in re.split(r"[：:，,。.；;、！!？?\s]+", t):
+            seg = seg.strip()
+            if seg and cjk.search(seg) and seg not in phrases:
+                phrases.append(seg)
+    if phrases:                                        # CJK topic: phrases ARE the words
+        short = [p for p in phrases if len(p) <= 8] or [p[:8] for p in phrases]
+        title = short[0][:12]
+        items, seen = [], set()
+        for cand in short + [p[:8] for p in phrases]:   # dedup AFTER truncation: two long phrases can
+            if cand and cand not in seen:               # truncate to the same 8 chars and did, shipping
+                seen.add(cand); items.append(cand)      # the identical token twice into a sample
+        items = items[:6]
+        up = title                                     # .upper() is a no-op on CJK; keep the phrase
+    else:
+        title = (caps[0] if caps else (toks[0] if toks else t))[:22]
+        seen, items = set(), []
+        for w in toks:
+            k = w.lower()
+            if k in seen:
+                continue
+            seen.add(k)
+            items.append(w if w[0].isupper() else w.capitalize())
+        items = items[:6]
+        up = title.upper()[:22]
+    if not items:
+        # FAIL LOUDLY. Substituting English placeholders here is what made the CJK breakage invisible:
+        # the samples rendered, the gate scored them, and nothing said the topic never arrived.
+        raise SystemExit("[contest_sample] could not derive any topic tokens from route %r — "
+                         "the samples would carry placeholder copy instead of your topic" % topic)
     slug = "".join(c if c.isalnum() else "_" for c in title.lower()).strip("_") or "topic"
-    return {"title": title, "items": items, "slug": slug, "tag": t.lower()[:44], "up": title.upper()[:22]}
+    return {"title": title, "items": items, "slug": slug, "tag": t[:44], "up": up}
 
 
 # Per SEED direction: the hero + two representative registers (its family lean). Every register is given its REAL
