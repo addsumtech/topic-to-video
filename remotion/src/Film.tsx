@@ -16,7 +16,7 @@ import {wipe} from '@remotion/transitions/wipe';
 import {clockWipe} from '@remotion/transitions/clock-wipe';
 import {dissolve} from '@remotion/transitions/dissolve';
 import {SceneDurationContext, ReducedMotionContext, clamp01} from './runtime/motion';
-import {groundLum, dnaGroundLum, type Lum} from './runtime/shotLuma';
+import {groundLum, dnaGroundLum, dnaGroundY, groundGap, type Lum, type GroundColors} from './runtime/shotLuma';
 import {Atmosphere, type Atmo} from './runtime/atmosphere';
 import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome} from './runtime/dna';
 import {REGISTRY} from './registry';
@@ -87,8 +87,8 @@ const CAPTION_BAND = 150;    // px at the bottom reserved for the caption; shots
 // One global caption HUD. It shows AT MOST ONE caption — the one belonging to the scene whose sole-visible
 // window (between its two transitions) contains this frame — hard-cut, contrast-picked against that scene's
 // ground luminance. Because the windows are disjoint, two captions can never coexist across a dissolve.
-const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaBg?: string | null;
-  dnaFontBody?: string | null}> = ({scenes, groundBg, dnaBg, dnaFontBody}) => {
+const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaColors?: GroundColors | null;
+  dnaFontBody?: string | null}> = ({scenes, groundBg, dnaColors, dnaFontBody}) => {
   const frame = useCurrentFrame();
   const {width} = useVideoConfig();
   let acc = 0;
@@ -113,7 +113,7 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaBg?: st
   const op = Math.min(clamp01((frame - ws) / CAP_FADE), clamp01((we - frame) / CAP_FADE));
   // The DNA repaints most shots' grounds, so classify THIS frame's real ground (dnaGroundLum) — reading the
   // measured pre-DNA constant here is what put dark ink on a themed dark ground.
-  const lum = dnaGroundLum(sc.shot, sc.bgLum, dnaBg);
+  const lum = dnaGroundLum(sc.shot, sc.bgLum, dnaColors);
   const ink = lum === 'light' ? '#141414' : '#ffffff';
   // The subtitle sits DIRECTLY on the frame's own background — there is NO scrim/bar rectangle behind it.
   // The shots reserve the bottom CAPTION_BAND (content never reaches it), so the caption's ground is the
@@ -207,14 +207,19 @@ const LUM_RANK: Record<Lum, number> = {dark: 0, mid: 1, light: 2};
 // break; unmarked seams stay a fade. Every seam holds at TR frames so it rides the audio-breath silence
 // (A/V stays in sync); no spins, ever. Deterministic — pure fn of the two scenes' declared ground.
 const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number, dna: DesignDNA | null): TransitionPresentation<any> => {
-  const dLum = Math.abs(LUM_RANK[dnaGroundLum(next.shot, next.bgLum, dna?.bg)] - LUM_RANK[dnaGroundLum(prev.shot, prev.bgLum, dna?.bg)]);
+  const dLum = Math.abs(LUM_RANK[dnaGroundLum(next.shot, next.bgLum, dna)] - LUM_RANK[dnaGroundLum(prev.shot, prev.bgLum, dna)]);
   const want = next.transitionIn?.type ?? 'fade';
   // luminance guard: a dark↔light gap forces the gentle fade — EXCEPT carry, whose neutral bridge line IS the dip.
-  const t = (dLum >= 2 && want !== 'carry') ? 'fade' : want;
+  // PERCEPTUAL guard. The bucket gap alone missed the real flashes: a near-black ground cutting to an
+  // accent flood scores dark->mid (gap 1) while the frame goes from ~20 to ~150 in display terms. Judge on
+  // the display-encoded distance when both grounds resolve, and keep the bucket rule as the fallback.
+  const gap = groundGap(dnaGroundY(prev.shot, dna), dnaGroundY(next.shot, dna));
+  const harsh = gap === null ? dLum >= 2 : gap >= 0.34;
+  const t = (harsh && want !== 'carry') ? 'fade' : want;
   const dir = next.transitionIn?.direction;
   // MOTION GRAMMAR: an UNMARKED (default) seam becomes the DNA's native action on a luminance-safe cut (a themed
   // film's cuts belong to its world — terminal = screen-clear, etc.); explicit marks + the dark↔light fade win.
-  if (t === 'fade' && dLum < 2) { const s = dnaDefaultSeam(dna, W, H); if (s) return s; }
+  if (t === 'fade' && !harsh) { const s = dnaDefaultSeam(dna, W, H); if (s) return s; }
   switch (t) {
     case 'slide': return slide({direction: (dir as any) ?? 'from-right'});
     case 'wipe': return wipe({direction: (dir as any) ?? 'from-bottom'});
@@ -324,7 +329,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
       </AbsoluteFill>
       </ReducedMotionContext.Provider>
       <AbsoluteFill style={{backgroundColor: bg, opacity: Math.max(intro, outro), pointerEvents: 'none'}} />
-      {captions ? <CaptionTrack scenes={scenes} groundBg={theme?.bg ?? activeDna?.bg} dnaBg={activeDna?.bg} dnaFontBody={activeDna?.fontBody} /> : null}
+      {captions ? <CaptionTrack scenes={scenes} groundBg={theme?.bg ?? activeDna?.bg} dnaColors={activeDna} dnaFontBody={activeDna?.fontBody} /> : null}
       <BrandMark brand={brand} />
       </DesignDNAContext.Provider>
     </AbsoluteFill>

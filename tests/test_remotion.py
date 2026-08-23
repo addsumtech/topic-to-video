@@ -327,7 +327,7 @@ def test_contest_frame_within_every_hero_duration():
 # the DNA. Each test below is a gate that CAN fail — that is the point.
 # ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
 import dna_audit as da                                                    # noqa: E402
-import gen_dna_ground as gdg                                              # noqa: E402
+# gen_dna_ground is RETIRED (see its docstring); the ground model is measured, not scanned.
 
 _RUNTIME_DIR = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "runtime")
 
@@ -365,10 +365,24 @@ def test_every_direction_maps_to_a_dna_preset():
     assert not missing, "these selectable directions have no Design DNA preset: %s" % sorted(missing)
 
 
-def test_dna_ground_set_is_regenerated():
-    # DNA_GROUND tells the film which shots take their ground from the DNA, which is how captions pick contrast.
-    # A shot migrated later without regenerating it would render dark ink on a dark ground.
-    assert gdg.main(["--check"]) == 0, "shotLuma.ts DNA_GROUND is stale — run: python scripts/gen_dna_ground.py"
+def test_every_registered_shot_has_a_measured_ground_token():
+    """Every shot must declare which DNA token it paints its ground from.
+
+    This replaces a --check that called gen_dna_ground's own detector: it compared the file against the
+    SAME function that produced it, so a detection gap was invisible by construction and it reported
+    "up to date" while the set was wrong. The PIXEL check now lives in
+    `python3 scripts/measure_ground_luma.py --check` (134 renders, too slow for pytest, run it like
+    font_gate.py). What belongs here is the cheap structural floor: full coverage and legal values."""
+    src = open(os.path.join(_RUNTIME_DIR, "shotLuma.ts"), encoding="utf-8").read()
+    block = src.split("DNA_GROUND_TOKEN")[1].split("};")[0]
+    entries = dict(re.findall(r"^\s{2}(\w+):\s*(\[[^\]]*\]|'[a-zA-Z]+')", block, re.M))
+    shots = set(da.registered_shots())
+    missing = sorted(shots - set(entries))
+    assert not missing, "shots with no measured ground token: %r" % missing[:6]
+    legal = {"bg", "bgGrad", "accent", "accent2", "surface"}
+    for shot, val in entries.items():
+        for tok in re.findall(r"'([a-zA-Z]+)'", val):
+            assert tok in legal, "%s declares an unknown ground token %r" % (shot, tok)
 
 
 def test_display_type_is_measured_not_estimated():
@@ -398,22 +412,19 @@ def test_display_type_is_measured_not_estimated():
             "silently sizes for the fallback typeface" % shot)
 
 
-def test_dna_ground_includes_the_multi_declarator_shots():
-    """A PIN, deliberately independent of gen_dna_ground's own detector.
+def test_multi_declarator_shots_are_measured_as_bg_grounded():
+    """These four declare their ground in a MULTI-DECLARATOR const (`const ACC = ..., BG = dna?.bg`).
 
-    test_dna_ground_set_is_regenerated above calls that detector's --check, which compares the file
-    against the SAME function that produced it — so a detection GAP is invisible to it by
-    construction, and it reported "up to date" for months while four shots were missing. These four
-    declare their ground in a MULTI-DECLARATOR const (`const ACC = ..., BG = dna?.bg ?? '#fff';`),
-    the shape the old detector could not see. Captions pick their ink from this set, so a shot
-    missing here renders dark ink on a dark DNA ground — verified illegible on TimelineTravel before
-    the fix. Hardcoded on purpose: if a refactor narrows the detector again, this fails."""
+    A source-scanning detector could not see past the first `=` on such a line and dropped all four,
+    which rendered dark caption ink on a dark DNA ground (verified illegible on TimelineTravel). The
+    model is now measured from pixels rather than scanned from source, so the shape that defeated the
+    scanner is irrelevant — but pin the outcome anyway: if a future change regresses these to anything
+    other than bg-grounded, captions on them go wrong again in exactly the same way."""
     src = open(os.path.join(_RUNTIME_DIR, "shotLuma.ts"), encoding="utf-8").read()
-    block = src.split("DNA_GROUND")[1]
+    block = src.split("DNA_GROUND_TOKEN")[1].split("};")[0]
     for shot in ("BeforeAfterSlider", "BlueprintGrid", "ScreenBubble", "TimelineTravel"):
-        assert "'%s'" % shot in block, (
-            "%s paints its ground from the DNA but is missing from DNA_GROUND — captions will pick "
-            "the stale pre-DNA luminance and go illegible on a dark direction" % shot)
+        assert "  %s: 'bg'," % shot in block, (
+            "%s is no longer measured as bg-grounded — captions pick ink against the wrong ground" % shot)
 
 
 def test_shot_luma_and_dna_ground_cover_the_library():
