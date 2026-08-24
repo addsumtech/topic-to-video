@@ -6,7 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutExpo, easeOutCubic} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, dnaPalette, mix, shade, tint} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 
@@ -47,10 +47,29 @@ export const VersusSplit: React.FC<{left?: Side; right?: Side; winner?: number; 
   const rEnter = easeOutExpo(seg(t, 0.16, 0.5));
   const vs = easeOutBack(clamp01(seg(t, 0.46, 0.64)));
   const titleIn = easeOutCubic(seg(t, 0.02, 0.16));
+  // The two panel tones and the split ground were hardcoded blue/teal, so on a themed film they OVERRODE
+  // the DNA across most of the frame — measured at 55% of the frame's chromatic ink sitting at hue 222 in a
+  // green/amber film, on three separate beats. Winner takes the film's primary accent, the other its
+  // second; with no DNA both fall back to the exact original literals, whichever side wins.
+  const vsPal = dnaPalette(dna, 2);
+  // The two sides must ALWAYS take different tones. Written as two independent ternaries on WINNER, a
+  // board that never set `winner` fell through both and handed BOTH sides the same colour — the split
+  // vanished into one flat ground and the palette check read "clean" because there was only one hue left.
+  const winLeft = WINNER === 0;
+  const toneL = vsPal ? vsPal[winLeft ? 0 : 1] : '#5b8cff';
+  const toneR = vsPal ? vsPal[winLeft ? 1 : 0] : '#37d4a6';
+  const ground = dna?.bg ?? '#0a0c12';
+  // 0.12 into a near-black ground left the two halves visually identical; the un-themed original separated
+  // them clearly (navy vs plum), so the themed one has to separate too — hue AND a little lightness.
+  // 0.22 lit the whole frame far brighter than the rest of a dark film; 0.11 keeps it in the film's
+  // luminance band (0.118 / 0.166 against the original's 0.103 / 0.090) while separating the two halves
+  // by 28 RGB — MORE distinguishable than the un-themed original's 18, not less.
+  const halfL = dna ? shade(mix(ground, toneL, 0.11), 0.10) : '#141a2e';
+  const halfR = dna ? tint(mix(ground, toneR, 0.11), 0.04) : '#1e1420';
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('#0a0c12'), overflow: 'hidden'}}>
       {/* two grounds */}
-      <div style={{position: 'absolute', inset: 0, background: 'linear-gradient(120deg, #141a2e 0%, #141a2e 50%, #1e1420 50%, #1e1420 100%)'}} />
+      <div style={{position: 'absolute', inset: 0, background: `linear-gradient(120deg, ${halfL} 0%, ${halfL} 50%, ${halfR} 50%, ${halfR} 100%)`}} />
       {/* diagonal seam */}
       <div style={{position: 'absolute', top: -60, bottom: -60, left: '50%', width: 6, background: '#0a0c12',
         transform: 'translateX(-50%) rotate(8deg)', boxShadow: '0 0 30px #000'}} />
@@ -58,13 +77,16 @@ export const VersusSplit: React.FC<{left?: Side; right?: Side; winner?: number; 
       <div style={{position: 'absolute', top: 54, left: 0, right: 0, textAlign: 'center', opacity: titleIn, zIndex: 5,
         color: '#aeb6ca', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
 
-      <Panel side={LEFT} enter={lEnter} align="left" tone="#5b8cff" win={WINNER === 0} t={t} base={0.5} />
-      <Panel side={RIGHT} enter={rEnter} align="right" tone="#37d4a6" win={WINNER === 1} t={t} base={0.56} />
+      <Panel side={LEFT} enter={lEnter} align="left" tone={toneL} win={WINNER === 0} t={t} base={0.5} />
+      <Panel side={RIGHT} enter={rEnter} align="right" tone={toneR} win={WINNER === 1} t={t} base={0.56} />
 
       {/* VS badge */}
       <div style={{position: 'absolute', left: '50%', top: '50%', transform: `translate(-50%,-50%) scale(${vs}) rotate(${lerp(-14, 0, vs)}deg)`,
-        width: 150, height: 150, borderRadius: '50%', background: 'radial-gradient(circle at 40% 35%, #2a3048, #12141f)',
-        border: '3px solid #454d68', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 6,
+        width: 150, height: 150, borderRadius: '50%',
+        background: dna ? `radial-gradient(circle at 40% 35%, ${dna.surface}, ${shade(dna.bg, 0.2)})`
+                        : 'radial-gradient(circle at 40% 35%, #2a3048, #12141f)',
+        border: `3px solid ${dna?.surfaceBorder ?? '#454d68'}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 6,
         boxShadow: '0 20px 60px #000a'}}>
         <div style={{color: '#fff', font: '900 58px/1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.02em'}}>VS</div>
       </div>

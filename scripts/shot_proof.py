@@ -36,8 +36,24 @@ _SHOTS = os.path.join(_REMOTION, "src", "shots")
 # many degrees". Computed per film from its DNA rather than hardcoded, so it works for any palette.
 HUE_TOLERANCE = 28
 OFF_SYSTEM_FRAC = 0.02      # >2% of the frame's chromatic ink outside the palette arc = a clash
-NARROW_FRAC = 0.45          # content bounding box narrower than this share of the frame = dead frame
-# (0.55 flagged a legitimately centred hero card at 53%; the real defect measured ~35%.)
+NARROW_FRAC = 0.45          # content narrower than this share of the frame …
+OFFSET_FRAC = 0.06          # … AND its centre this far off the frame's centre = a DEAD FRAME.
+# Width alone is not the defect. Measured on a real film, "narrow" split cleanly in two: seven beats were
+# narrow and dead-centre (a title, a cube, a counter — deliberate compositions), and four were narrow and
+# pushed to one side, which is the thing a reviewer actually described as "half the frame is dead".
+# Flagging on width alone reported 11 of 37 beats; a gate that cries wolf that often gets ignored.
+
+# Registers whose colour is a CONVENTION, not the film's palette: a diff's removals are red and its
+# additions green, a log's errors are red, an editor's syntax colours are its own system. Judging these
+# against the DNA reports the convention as a defect. Keep the list short and say why.
+SEMANTIC_COLOUR_SHOTS = {
+    "TermDiff": "a diff is red/green by convention",
+    "TermLog": "log levels are red/amber/green by convention",
+    "TermGitLog": "commit/branch colouring is a convention",
+    "CodeCompose": "syntax highlighting is its own colour system",
+    "CodeRain": "terminal phosphor colour is the register",
+    "AsciiField": "terminal phosphor colour is the register",
+}
 PROPS_SAME = 0.80           # two beats sharing a register with >=80% identical props = the same picture
 
 
@@ -273,17 +289,20 @@ def main(argv):
                 hs, _ = _hues(png)
                 if hs:
                     off = [h for h in hs if not _in_palette(h, dna_hues)]
-                    if len(off) / len(hs) > OFF_SYSTEM_FRAC:
+                    if len(off) / len(hs) > OFF_SYSTEM_FRAC and shot not in SEMANTIC_COLOUR_SHOTS:
                         import statistics
                         warns.append("beat %d (%s): %.0f%% of the frame's chromatic ink is outside the film's "
                                      "palette (median hue %.0f deg vs accents %s) — a hardcoded colour is "
                                      "overriding the DNA"
                                      % (beat, shot, 100 * len(off) / len(hs), statistics.median(off),
                                         [round(a) for a in dna_hues]))
-            _, _, frac = _content_box(png)
+            x0, x1, frac = _content_box(png)
             if frac and frac < NARROW_FRAC:
-                warns.append("beat %d (%s): content spans only %.0f%% of the frame width — the rest of the "
-                             "frame is dead" % (beat, shot, 100 * frac))
+                m2 = shot_still_qa.measure(png)
+                off = abs((x0 + x1) / 2 - m2["w"] / 2) / float(m2["w"])
+                if off > OFFSET_FRAC:
+                    warns.append("beat %d (%s): content spans %.0f%% of the width and sits %.0f%% off centre "
+                                 "— one side of the frame is dead" % (beat, shot, 100 * frac, 100 * off))
 
     for e in errors:
         print("  ERROR: " + e)

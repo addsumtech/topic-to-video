@@ -366,6 +366,10 @@ export const TermFrame: React.FC<{dna: DesignDNA | null; cmd?: string; t: number
     const resIn = d.motion === 'type' || d.motion === 'execute' ? 1 - Math.pow(1 - raw, 4)
       : d.motion === 'mechanical' ? Math.round(raw * 5) / 5 : 1 - Math.pow(1 - raw, 3);
 
+    // TermFrame's unframed box was a FIXED min(84vw, 1320px). With align='left', short content hugged
+    // ITS left edge, so a centred box left a large void on the right — measured at 22% content width
+    // sitting 23% off the frame's centre. The box now fits its content, which keeps terminal text
+    // left-aligned (it must be) while the block itself sits centred in the frame.
     if (framed) {
       return (
         <div style={{width: 'min(80vw, 1180px)', background: d.surface, border: `1px solid ${d.surfaceBorder}`,
@@ -381,7 +385,7 @@ export const TermFrame: React.FC<{dna: DesignDNA | null; cmd?: string; t: number
     }
     // OPEN — command line on the open canvas, result grows out below. No window box.
     return (
-      <div style={{width: 'min(84vw, 1320px)', fontFamily: mono, textAlign: align,
+      <div style={{width: 'fit-content', maxWidth: 'min(84vw, 1320px)', fontFamily: mono, textAlign: align,
         display: 'flex', flexDirection: 'column', alignItems: align === 'left' ? 'flex-start' : 'center'}}>
         <div style={{color: dim, font: `600 30px/1 ${mono}`, letterSpacing: d.labelSpacing, marginBottom: 40,
           opacity: clamp01(t / 0.06)}}>
