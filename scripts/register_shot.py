@@ -134,9 +134,18 @@ def register(shot, family=None, use_when=""):
         def _fam(s):
             if '"%s":' % shot in s:
                 return s
-            m = re.search(r'(\n\s+)("(\w+)": "%s",)' % re.escape(family), s)
+            # Insert on its OWN line, at the END of a line that already carries this family. Appending
+            # directly after a matched declaration put the new entry INSIDE a multi-declaration line, so a
+            # later line-oriented edit removed a neighbour along with it — which is exactly how
+            # "SharedBlindspot": "H" was silently deleted while cleaning up a probe.
+            m = None
+            for line in s.split("\n"):
+                if re.search(r'"\w+": "%s",' % re.escape(family), line):
+                    m = line
+                    break
             if m:
-                return s[:m.end()] + '%s"%s": "%s",' % (m.group(1), shot, family) + s[m.end():]
+                indent = re.match(r"\s*", m).group(0)
+                return s.replace(m, m + "\n" + indent + '"%s": "%s",' % (shot, family), 1)
             m2 = re.search(r"(FAMILY[^=]*=\s*\{\n)", s)
             if not m2:
                 return None

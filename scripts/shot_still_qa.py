@@ -30,6 +30,7 @@ CAPTION_FRAC_ERR = 0.05  # >this fraction of the caption band being ink = it col
 # Calibrated on real frames: clean shots measure 3.7-4.0%, a shot whose panel labels sit in the band
 # measures 6.0%, a shot whose hero panel fills it measures 40%.
 _INK_DELTA = 34         # a pixel this far from the band's own ground counts as ink
+_EDGE_DELTA = 60        # same idea for the action-safe border (frame_safe_qa.INK_DELTA)
 
 
 def _caption_band_px(w, h):
@@ -37,11 +38,22 @@ def _caption_band_px(w, h):
     return 200 if w < 1400 else 150
 
 
+def _ground_luma(px, w, h, step=6):
+    """The frame's own dominant luminance — its GROUND."""
+    hist = {}
+    for y in range(0, h, step):
+        for x in range(0, w, step):
+            k = px[x, y] // 8
+            hist[k] = hist.get(k, 0) + 1
+    return (max(hist, key=hist.get) * 8 + 4) if hist else 0
+
+
 def measure(path):
     from PIL import Image
     g = Image.open(path).convert("L")
     w, h = g.size
     px = g.load()
+    ground_all = _ground_luma(px, w, h)
     m = max(1, int(round(min(w, h) * MARGIN)))
     band = _caption_band_px(w, h)
     cap_top = h - band
@@ -50,11 +62,11 @@ def measure(path):
     for y in range(0, m, 2):                                  # top strip, full width
         for x in range(0, w, 2):
             tot += 1
-            bright += px[x, y] >= 120
+            bright += abs(px[x, y] - ground_all) > _EDGE_DELTA
     for y in range(m, cap_top, 2):                            # left + right strips, above the caption band
         for x in list(range(0, m, 2)) + list(range(w - m, w, 2)):
             tot += 1
-            bright += px[x, y] >= 120
+            bright += abs(px[x, y] - ground_all) > _EDGE_DELTA
     edge = bright / max(1, tot)
 
     # The band's OWN ground = its modal luminance; ink is whatever departs from it. Measuring against the

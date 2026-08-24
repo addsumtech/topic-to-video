@@ -1173,6 +1173,28 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
     # NEUTRAL_DNA) but it DOES silently borrow neutral values, so name what is missing.
     _DNA_KEYS = ("fontDisplay", "fontMono", "fontBody", "bg", "fg", "dim", "accent", "accent2",
                  "onAccent", "surface", "line", "decoration", "motion")
+    # PACING. meta.scene_pause is the silence a viewer HEARS between two scenes; tts.py converts it into a
+    # per-tier pad. It is unvalidated at your peril: a negative or tiny value silently reproduces the exact
+    # defect it was introduced to fix — a delivered film measured 0.18s at every seam, SHORTER than its own
+    # within-sentence comma pauses, which reads as the next scene cutting in before the sentence lands.
+    _sp = meta.get("scene_pause")
+    if _sp is not None:
+        try:
+            _spv = float(_sp)
+        except (TypeError, ValueError):
+            errors.append("meta.scene_pause must be a number of seconds, got %r" % (_sp,))
+            _spv = None
+        if _spv is not None:
+            if _spv < 0:
+                errors.append("meta.scene_pause is negative (%s) — it is a duration in seconds" % _spv)
+            elif _spv < 0.3:
+                warnings.append("meta.scene_pause %.2fs is shorter than a within-sentence comma pause — the "
+                                "gap between two scenes will read as no gap at all. ~0.5-0.7s is a breath; "
+                                "the default is %.2f." % (_spv, 0.55))
+            elif _spv > 1.2:
+                warnings.append("meta.scene_pause %.2fs is a long hold, not a breath — each scene will end on "
+                                "a frozen silent frame that reads as the video hanging. Reading time belongs "
+                                "in a slower meta.tts_speed." % _spv)
     design_dna = meta.get("design_dna")
     if isinstance(design_dna, str):
         # A STRING design_dna is a preset NAME. This used to reach coerceDna(), which spread the string's

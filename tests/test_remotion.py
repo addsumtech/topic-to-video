@@ -1091,3 +1091,60 @@ def test_the_library_can_grow_and_the_gates_say_so():
     assert not [x for x in e0 if "hardcodes" in x], e0
     src = open(os.path.join(_SHOTS_DIR, "OverlapSeparation.tsx"), encoding="utf-8").read()
     assert "两条分布几乎完全重合在一起" not in src        # the negative control below relies on this
+
+
+def test_frame_craft_and_voice_gates_work_on_inputs_they_were_not_tuned_on():
+    """Both were calibrated on ONE film — Chinese, dark ground, 16:9 — and both were wrong off it.
+
+    * frame_safe_qa (a DELIVERY gate) counted a pixel as content by ABSOLUTE brightness (>=120). Every
+      pixel of a light-ground shot clears that, so it reported "100.0% of the safe border is content" on
+      each scene and a light film could never ship. Measured against the frame's OWN ground it gives the
+      same answer on a dark frame and the right one on a light frame.
+    * voice_qa's sentence splitter listed 。！？!? but not a full stop, so on an English script nothing ever
+      split: sentence length silently measured whole BEATS, balanced-pair could never fire, and the
+      connective share was 0% by construction because the connective list was Chinese-only.
+    """
+    from PIL import Image, ImageDraw
+    import tempfile
+    import frame_safe_qa as fq
+    import shot_still_qa as sq
+    import voice_qa as vq
+
+    def _probe(ground, ink, bleed):
+        im = Image.new("RGB", (960, 540), ground)
+        d = ImageDraw.Draw(im)
+        d.rectangle([300, 200, 660, 340], fill=ink)          # content, comfortably inside
+        if bleed:
+            d.rectangle([0, 0, 28, 540], fill=ink)           # pushed into the action-safe border
+        f = os.path.join(tempfile.mkdtemp(), "f.png")
+        im.save(f)
+        return sq.measure(f)["edge"]
+
+    for ground, ink, label in [((10, 12, 20), (240, 240, 240), "dark"), ((236, 233, 226), (20, 20, 20), "light")]:
+        assert _probe(ground, ink, False) <= sq.EDGE_FRAC_ERR, "%s ground: a clean frame reads as overflow" % label
+        assert _probe(ground, ink, True) > sq.EDGE_FRAC_ERR, "%s ground: a real overflow is missed" % label
+    assert fq.INK_DELTA and not hasattr(fq, "BRIGHT"), "frame_safe_qa is back on an absolute brightness"
+
+    en = [(i, t) for i, t in enumerate([
+        "The code runs. Tests are green. But it is wrong.",
+        "A crash reports itself, so you never miss it; the other kind reads fine and says nothing.",
+        "So the green light measures how strong the tests are, not how correct the code is.",
+        "The difference is not that it got smarter, but that something actually ran."])]
+    r = vq.evaluate(en)
+    assert r["language"] == "en"
+    # The sharp test for the splitter: these beats hold 2-3 sentences each, so the sentence COUNT must
+    # exceed the beat count. Asserting on mean length instead passes even when nothing splits (an earlier
+    # draft of this test did exactly that, and the mutation sailed through).
+    n_sent = sum(len(vq._sentences(t, "en")) for _, t in en)
+    assert n_sent > len(en) + 1, "English never splits into sentences (%d sentences from %d beats)" % (n_sent, len(en))
+    assert r["metrics"]["connective_share"] > 0.4, "the English connective list never matches"
+    assert r["metrics"]["antithesis_share"] > 0.0, "the English antithesis forms never match"
+    # And the report must be IN English — checked on a script that actually TRIPS a warning, because a
+    # sample that trips none makes "no Chinese in the warnings" vacuously true.
+    flat_en = [(i, "The system runs a check. The check passes. The build ships.") for i in range(12)]
+    rf = vq.evaluate(flat_en)
+    assert rf["warnings"], "a deliberately flat English script tripped nothing"
+    assert all(not re.search(r"[一-鿿]", w) for w in rf["warnings"] + rf["notes"]), \
+        "an English script is being reported on in Chinese: %r" % rf["warnings"][:2]
+    zh = [(i, "写崩的会当场报错，你漏不掉。难的是另一种：读着合理，也不出声。") for i in range(4)]
+    assert vq.evaluate(zh)["language"] == "zh"

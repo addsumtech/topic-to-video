@@ -24,9 +24,24 @@ except Exception:
     Image = None
 
 MARGIN = 0.035          # action-safe outer border fraction to inspect (EBU R95 ~3.5%)
-BRIGHT = 120            # a pixel this bright (0-255) counts as "content", not dark atmosphere
+INK_DELTA = 60          # a pixel this far from the frame's OWN ground counts as content.
+# It used to be an ABSOLUTE brightness (>=120 = content), which is only true on a dark film. On a
+# light-ground shot every border pixel is >=120, so this gate — a hard DELIVERY gate — reported
+# "100.0% of the safe border is bright content" on every scene and a light film could never ship.
+# Measuring DEPARTURE from the frame's own ground gives the same answer on a dark frame and the
+# right one on a light frame.
 EDGE_FRAC_ERR = 0.045   # >this fraction of the (top+left+right) border being bright = an overflow ERROR
 CAPTION_BAND = 0.135    # bottom fraction reserved for captions — excluded from the edge check
+
+
+def _ground_luma(px, w, h, step=6):
+    """The frame's own dominant luminance — its GROUND."""
+    hist = {}
+    for y in range(0, h, step):
+        for x in range(0, w, step):
+            k = px[x, y] // 8
+            hist[k] = hist.get(k, 0) + 1
+    return (max(hist, key=hist.get) * 8 + 4) if hist else 0
 
 
 def _gray(im):
@@ -56,6 +71,7 @@ def evaluate(out_dir):
             warnings.append("%s: could not open (%s)" % (name, e)); lums.append(None); continue
         W, H = g.size
         px = g.load()
+        ground = _ground_luma(px, W, H)
         m = max(1, int(round(min(W, H) * MARGIN)))
         cap_top = int(round(H * (1 - CAPTION_BAND)))          # rows below this are the caption band (skip)
         # --- edge-bleed: sample the top strip + left/right strips (above the caption band) ---
@@ -64,20 +80,20 @@ def evaluate(out_dir):
         for y in range(0, m, step):                          # top strip (full width)
             for x in range(0, W, step):
                 tot += 1
-                if px[x, y] >= BRIGHT:
+                if abs(px[x, y] - ground) > INK_DELTA:
                     bright += 1
         for y in range(m, cap_top, step):                    # left + right strips (excluding caption band)
             for x in range(0, m, step):
                 tot += 1
-                if px[x, y] >= BRIGHT:
+                if abs(px[x, y] - ground) > INK_DELTA:
                     bright += 1
             for x in range(W - m, W, step):
                 tot += 1
-                if px[x, y] >= BRIGHT:
+                if abs(px[x, y] - ground) > INK_DELTA:
                     bright += 1
         frac = bright / max(1, tot)
         if frac > EDGE_FRAC_ERR:
-            errors.append("%s: %.1f%% of the safe border is bright content — text/graphics likely OFF-FRAME "
+            errors.append("%s: %.1f%% of the safe border is content — text/graphics likely OFF-FRAME "
                           "(action-safe overflow); inset or wrap the shot's edge elements" % (name, frac * 100))
         # --- scene mean luminance (for the outlier pass) ---
         # cheap mean over a subsample of the whole frame
