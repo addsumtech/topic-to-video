@@ -50,7 +50,12 @@ export const FACES: Face[] = [
 ];
 
 // One delayRender for the whole set: the first frame must not render in a fallback face.
-const handle = delayRender('loading DNA typefaces');
+// A GENEROUS timeout, not the default. These are local bundled assets and load in milliseconds on an idle
+// machine (measured: no-fonts vs ten-fonts renders of the same frame, 5523ms vs 5477ms). But Remotion opens
+// many tabs and each one loads the set; under a long high-concurrency render a starved tab blew past the
+// default and killed a 37-scene film at frame 1810. Failing the whole render because one tab was slow is
+// the wrong trade — cancelRender below still fires on a real load ERROR, which is the case that matters.
+const handle = delayRender('loading DNA typefaces', {timeoutInMilliseconds: 300000});
 Promise.all(
   FACES.map((f) => loadFont({family: f.family, url: f.url, weight: f.weight, format: 'truetype'})),
 )

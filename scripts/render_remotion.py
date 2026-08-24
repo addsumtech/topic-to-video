@@ -215,6 +215,12 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
            "--props=" + os.path.abspath(props_path), "--public-dir=" + os.path.abspath(out_dir),
            "--gl=" + gl, "--log=" + log,
            "--timeout=" + str(int(os.environ.get("REMOTION_TIMEOUT_MS", "120000") or "120000"))]
+    # CONCURRENCY. Remotion opens one browser tab per worker and EACH loads the film's fonts; on a loaded
+    # machine a starved tab can blow past its delayRender and kill a long render outright. REMOTION_CONCURRENCY
+    # lets a caller trade wall-clock for that safety without editing this file.
+    _conc = os.environ.get("REMOTION_CONCURRENCY")
+    if _conc:
+        cmd.append("--concurrency=" + str(int(_conc)))
     print("[render_remotion] %s: %d scene(s) -> %s"
           % ("sample" if sample is not None else "full", len(scenes), out_mp4))
     try:
