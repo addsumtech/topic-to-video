@@ -7,7 +7,7 @@ Voice spec in storyboard meta['voice']:
   "minimax:<voice_id>"  -> MiniMax T2A (very natural, esp. zh; needs MINIMAX_API_KEY); falls back
                            to say. "minimax" alone picks a voice by language+gender from the catalog.
 """
-import argparse, os
+import argparse, os, re
 import _common
 import storyboard as sb
 
@@ -331,6 +331,64 @@ def _detect_language(slides):
         return "zh"
     return "en"
 
+SCENE_PAUSE_DEFAULT = 0.55      # the silence a viewer should HEAR between two scenes
+
+
+def _seam_seconds(meta):
+    """How much of a scene's tail the RENDERER overlaps with the next scene, in seconds.
+
+    The remotion tier cross-dissolves scene i+1 over the last SEAM_FRAMES of scene i — AUDIO INCLUDED —
+    so on that tier the tail pad must cover the dissolve as well, or the pause the viewer hears is
+    (pad - dissolve). The html/local tier concatenates clips, so nothing is eaten there.
+
+    SEAM_FRAMES is PARSED from remotion/src/runtime/motion.ts rather than duplicated, so the two cannot
+    drift; if it cannot be read, fall back to the value that file has always carried.
+    """
+    if str((meta or {}).get("renderer", "")).lower() not in ("remotion", "remotion-bespoke"):
+        return 0.0
+    fps = 30
+    try:
+        fps = int((meta or {}).get("fps") or 30) or 30
+    except (TypeError, ValueError):
+        fps = 30
+    frames = 12
+    try:
+        src = open(os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "runtime", "motion.ts"),
+                   encoding="utf-8").read()
+        m = re.search(r"export const SEAM_FRAMES\s*=\s*(\d+)", src)
+        if m:
+            frames = int(m.group(1))
+    except OSError:
+        pass
+    return frames / float(fps)
+
+
+def _tail_pad(meta):
+    """Seconds of silence to append to a clip after its dead air is trimmed.
+
+    MEASURED, on a delivered 37-beat remotion film with the old flat 0.42s pad: every one of the 36 scene
+    seams carried 0.15-0.24s of silence (mean 0.18) while the narration's own WITHIN-sentence comma pauses
+    ran to 0.55s. The pause between two scenes was shorter than the pause between two clauses — backwards,
+    and it reads as the next scene cutting in before the sentence has landed. The cause was that the pad
+    and the 12-frame cross-dissolve were the same length, so the dissolve consumed the whole breath.
+
+    `meta.scene_pause` is therefore the AUDIBLE pause, and each tier converts it into a pad. An explicit
+    `meta.audio_breath` still means the RAW pad (unchanged behaviour for boards that set it deliberately).
+    """
+    raw = (meta or {}).get("audio_breath")
+    if raw is not None:
+        try:
+            return max(0.0, min(2.5, float(raw)))
+        except (TypeError, ValueError):
+            return SCENE_PAUSE_DEFAULT
+    try:
+        pause = float((meta or {}).get("scene_pause", SCENE_PAUSE_DEFAULT))
+    except (TypeError, ValueError):
+        pause = SCENE_PAUSE_DEFAULT
+    pause = max(0.0, min(1.5, pause))
+    return round(min(2.5, pause + _seam_seconds(meta)), 3)
+
+
 def _master(path, meta=None):
     """Loudness-normalise + trim TRAILING dead-air of a SPEECH clip, in place. Two problems at once:
     (1) raw TTS ships at wildly different loudness across providers/scenes with no master, so a
@@ -348,13 +406,7 @@ def _master(path, meta=None):
     if not _common.have_tool("ffmpeg"):
         return
     tmp = path + ".master" + os.path.splitext(path)[1]
-    # BREATH: the pad after the trimmed tail IS the between-scene pause. 0.12s proved abrupt in
-    # practice (speech hard-cut into the next page); ~0.42s reads as a natural sentence-end breath
-    # and gives the scene-edge transition silence to move in. meta.audio_breath tunes it.
-    try:
-        breath = max(0.0, min(1.5, float((meta or {}).get("audio_breath", 0.42))))
-    except (TypeError, ValueError):
-        breath = 0.42
+    breath = _tail_pad(meta)
     af = ("loudnorm=I=-14:TP=-1.5:LRA=11,"
           "areverse,silenceremove=start_periods=1:start_duration=0.06:"
           f"start_threshold=-45dB:detection=peak,areverse,apad=pad_dur={breath}")

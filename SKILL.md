@@ -32,10 +32,19 @@ TTS if the user gives an API key.
   **Every speech clip is MASTERED in place before its duration is measured:** loudness-normalised
   (EBU R128, I=-14) + trailing dead-air trimmed (tail-only — leading/internal timing untouched, so
   `words.json` word times stay valid), so levels are consistent across providers and the pacing gates
-  see speech, not dead air. The re-padded tail is the BETWEEN-SCENE BREATH — `meta.audio_breath`
-  (default 0.42s; 0.12s proved abrupt: speech hard-cut into the next page). Scene-edge transitions
-  ride this silence. Opt out of mastering with `meta.audio_master: false`.
-  **`audio_breath` is a BREATH, not a reading buffer — keep it ≤~0.5 s.** Padding it to 2–3 s to
+  see speech, not dead air. The re-padded tail carries the BETWEEN-SCENE PAUSE. Opt out of mastering
+  with `meta.audio_master: false`.
+  **`meta.scene_pause` (default 0.55s) is the pause the viewer HEARS between two scenes — not the pad.**
+  The two are different on the remotion tier, and conflating them shipped a real defect: that tier
+  cross-dissolves scene i+1 over the last `SEAM_FRAMES` (12 frames = 0.40s) of scene i, **audio
+  included**, so a flat 0.42s pad left **0.18s** of silence at every one of a 37-beat film's 36 seams —
+  *shorter than that film's own within-sentence comma pauses (up to 0.55s)*. The pause between two
+  scenes was shorter than the pause between two clauses, which reads as the next scene cutting in
+  before the sentence has landed. `tts.py` now converts `scene_pause` into a per-tier pad (remotion:
+  `scene_pause + SEAM_FRAMES/fps`, parsed from `runtime/motion.ts` so the two cannot drift; html: the
+  pause itself), so **both tiers sound the same**. `meta.audio_breath` still sets the RAW pad for a
+  board that deliberately wants one.
+  **`scene_pause` is a PAUSE, not a reading buffer — keep it ≤~0.9 s.** Padding it to 2–3 s to
   "give time to read" makes each scene end on a frozen, silent frame that reads as the video hanging;
   reading time belongs in a slower `meta.tts_speed`, not a long dead tail (see `tts_speed` below).
 - `scripts/theme.py <out_dir> [--mode light|dark] [--accent #hex] [--accent2 #hex] [--bg #hex] [--style <key>] [--brand-logo <png>]` —

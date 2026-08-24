@@ -354,3 +354,43 @@ def test_master_breath_is_tunable(tmp_path):
     da, db = _common.audio_duration(a), _common.audio_duration(b)
     assert 1.25 <= da <= 1.65                            # ~1.0 speech + 0.42 breath
     assert db - da > 0.3                                 # bigger breath -> audibly longer tail
+
+
+def test_scene_pause_is_what_the_viewer_hears_on_both_tiers():
+    # MEASURED REGRESSION on a delivered 37-beat remotion film: the tail pad and the cross-dissolve were
+    # both ~0.4s, and the dissolve overlaps the AUDIO, so every one of the 36 seams carried 0.15-0.24s of
+    # silence (mean 0.18) while the narration's own within-sentence comma pauses ran to 0.55s. The pause
+    # between two scenes was shorter than the pause between two clauses. `scene_pause` is now the AUDIBLE
+    # gap and each tier converts it to a pad; the two tiers must agree.
+    import os
+    import re as _re
+    import tts
+    # The truth about the dissolve is motion.ts, parsed HERE independently. Measuring the pad against
+    # tts._seam_seconds() would be self-referential: stubbing that function to 0 keeps the arithmetic
+    # consistent while the real film regresses to a 0.02s seam. (That mutation passed the first draft
+    # of this test.)
+    _mt = open(os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "runtime", "motion.ts"),
+               encoding="utf-8").read()
+    SEAM = int(_re.search(r"export const SEAM_FRAMES\s*=\s*(\d+)", _mt).group(1))
+
+    def _eats(meta):
+        return SEAM / float(meta.get("fps", 30)) if meta["renderer"] == "remotion" else 0.0
+
+    for pause in (0.35, 0.55, 0.9):
+        rem = {"renderer": "remotion", "fps": 30, "scene_pause": pause}
+        htm = {"renderer": "html", "fps": 30, "scene_pause": pause}
+        audible_rem = tts._tail_pad(rem) - _eats(rem)
+        audible_htm = tts._tail_pad(htm) - _eats(htm)
+        assert abs(audible_rem - pause) < 1e-6, (pause, audible_rem)
+        assert abs(audible_htm - pause) < 1e-6, (pause, audible_htm)
+        assert abs(audible_rem - audible_htm) < 1e-6, "the two tiers no longer sound the same"
+    # the remotion pad MUST exceed the dissolve, or the pause collapses to nothing
+    rem = {"renderer": "remotion", "fps": 30}
+    assert tts._tail_pad(rem) > _eats(rem) + 0.2, "default pad does not clear the dissolve"
+    # the seam length is READ from motion.ts, never duplicated — 24fps must halve it, not keep 0.40s
+    assert abs(tts._seam_seconds({"renderer": "remotion", "fps": 60})
+               - tts._seam_seconds({"renderer": "remotion", "fps": 30}) / 2) < 1e-6
+    # an explicit audio_breath stays the RAW pad (boards that set it meant the pad, not the pause)
+    assert abs(tts._tail_pad({"renderer": "remotion", "fps": 30, "audio_breath": 0.42}) - 0.42) < 1e-6
+    # the between-scene pause must be at least as long as a within-sentence pause, or it reads backwards
+    assert tts.SCENE_PAUSE_DEFAULT >= 0.5
