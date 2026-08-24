@@ -192,6 +192,14 @@ def evaluate(narrations):
     # read far better), but the line itself is not calibrated. Do NOT pad sentences to clear it — that is
     # precisely the "rule voice" this file warns about. If a script trips only this check and reads well
     # aloud, accept it and say so.
+    # Too little text to say anything about rhythm. A 0- or 1-beat film has CV 0.00 by construction, so
+    # firing the thresholds on it produces confident nonsense.
+    if len(sent) < 6 or len(narrations) < 3:
+        notes.append(("只有 %d 拍 / %d 个句子，样本太小，节奏指标不作判断。" if is_cjk else
+                      "only %d beat(s) / %d sentence(s) — too little text to judge rhythm; thresholds skipped.")
+                     % (len(narrations), len(sent)))
+        return {"metrics": m, "warnings": warnings, "vocab": vocab, "notes": notes,
+                "antithesis_beats": anti, "language": lang}
     if cv < 0.45:
         warnings.append(_MSG["uniform"][lang] % (cv, 0.45))
     if m["antithesis_share"] > 0.35:
@@ -217,22 +225,34 @@ def main(argv):
         print("[voice_qa] no storyboard.json in %s" % out_dir)
         return 2
     data = json.load(open(board, encoding="utf-8"))
-    nar = [(s.get("index", i), str(s.get("narration") or "")) for i, s in enumerate(data.get("slides", []))]
+    slides = data.get("slides") or []
+    if not isinstance(slides, list):
+        print("[voice_qa] storyboard.json has no usable `slides` list")
+        return 2
+    nar = [(s.get("index", i), str(s.get("narration") or ""))
+           for i, s in enumerate(slides) if isinstance(s, dict)]
     nar = [(i, t) for i, t in nar if t.strip()]
     r = evaluate(nar)
     if "--json" in argv:
         print(json.dumps(r, ensure_ascii=False, indent=1))
         return 0
     m = r["metrics"]
-    print("[voice_qa] %d beat(s), %s — 句长 mean=%.1f CV=%.2f | 否定对仗 %.0f%% | 连接词 %.0f%% | 警句收尾 %.0f%%"
+    head = ("[voice_qa] %d beat(s), %s — 句长 mean=%.1f CV=%.2f | 否定对仗 %.0f%% | 连接词 %.0f%% | 警句收尾 %.0f%%"
+            if r["language"] == "zh" else
+            "[voice_qa] %d beat(s), %s — sentence len mean=%.1f CV=%.2f | antithesis %.0f%% | connectives %.0f%% | aphorism endings %.0f%%")
+    print(head
           % (m["beats"], r["language"], m["sentence_len_mean"], m["sentence_len_cv"],
              100 * m["antithesis_share"], 100 * m["connective_share"], 100 * m["aphorism_ending_share"]))
-    print("           两句等长对置 %.0f%%" % (100 * m["balanced_pair_share"]))
+    print(("           两句等长对置 %.0f%%" if r["language"] == "zh" else
+           "           balanced pairs %.0f%%") % (100 * m["balanced_pair_share"]))
     for w in r["warnings"]:
         print("  warn : " + w)
     for nline in r["notes"]:
         print("  note : " + nline)
     print("[voice_qa] %s" % ("OK" if not r["warnings"] else "%d signal(s) to look at" % len(r["warnings"])))
+    # ADVISORY BY DESIGN: this always exits 0. The metrics mark places to LOOK, and a script that trips a
+    # check can still be the right script — failing the build on them would produce the "rule voice" the
+    # reference warns about. SKILL.md must therefore NOT list it among the gates that must exit 0.
     return 0
 
 

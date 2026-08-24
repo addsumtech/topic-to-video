@@ -1159,3 +1159,56 @@ def test_shot_proof_renders_at_the_films_own_aspect():
     assert 'payload["aspect"] = aspect' in src, "the film's aspect never reaches the still render"
     import shot_still_qa as sq
     assert sq._caption_band_px(1080, 1920) == 200 and sq._caption_band_px(1920, 1080) == 150
+
+
+def test_audit_repairs_hold():
+    """Six defects an independent audit reproduced, pinned so they cannot come back."""
+    import shot_proof as sp
+    import shot_still_qa as sq
+    import voice_qa as vq
+    from PIL import Image, ImageDraw
+    import tempfile
+
+    # (1) shot_defaults parsed only the RENAMED destructuring form, so it returned nothing for 72 of 136
+    #     registers — the demo-default check was blind on more than half the library and said nothing.
+    ids = [f[:-4] for f in os.listdir(_SHOTS_DIR) if f.endswith(".tsx")]
+    blind = [i for i in ids if not sp.shot_defaults(i)]
+    assert len(blind) < 25, "shot_defaults is blind on %d of %d registers" % (len(blind), len(ids))
+
+    # (2) the caption-band metric INVERTED on its own worst case: a panel covering the WHOLE band became
+    #     the band's ground and measured 0.0%, while covering HALF measured 50%.
+    def _band(mode):
+        W, H = 1920, 1080
+        band = sq._caption_band_px(W, H)
+        im = Image.new("RGB", (W, H), (10, 12, 20))
+        d = ImageDraw.Draw(im)
+        d.rectangle([400, 200, 1520, 620], fill=(60, 200, 150))
+        if mode == "half":
+            d.rectangle([0, H - band // 2, W, H], fill=(60, 200, 150))
+        if mode == "full":
+            d.rectangle([0, H - band, W, H], fill=(60, 200, 150))
+        f = os.path.join(tempfile.mkdtemp(), "f.png")
+        im.save(f)
+        return sq.measure(f)["caption"]
+    assert _band("clean") <= sq.CAPTION_FRAC_ERR
+    assert _band("half") > sq.CAPTION_FRAC_ERR
+    assert _band("full") >= _band("half"), "covering the WHOLE band must not measure cleaner than half"
+
+    # (3) _dna_hues assumed 6-digit hex and took the whole proof sheet down on any other CSS colour.
+    assert sp._dna_hues({"meta": {"design_dna": {"accent": "#c33", "accent2": "rebeccapurple"}}}) == [0.0]
+
+    # (4) a STRING design_dna was dropped on the way to the renderer — neither dna nor template reached
+    #     Film, so a board naming a preset rendered UNTHEMED while validate blessed the name.
+    rr_src = open(os.path.join(_SHOTS_DIR, "..", "..", "..", "scripts", "render_remotion.py"),
+                  encoding="utf-8").read()
+    assert 'isinstance(design_dna, str)' in rr_src, "a preset NAME never reaches the renderer again"
+
+    # (5) voice_qa crashed on a malformed slides list and fired confident thresholds on a 0-beat film.
+    d = tempfile.mkdtemp()
+    json.dump({"meta": {}, "slides": None}, open(os.path.join(d, "storyboard.json"), "w"))
+    assert vq.main([d]) in (0, 2)
+    assert not vq.evaluate([(0, "一句话。")])["warnings"], "thresholds fire on a 1-beat film"
+
+    # (6) register_shot.check() must see a structural gap, not merely the id somewhere in the file.
+    import register_shot as rs
+    assert rs.check("Term") and len(rs.check("Term")) == 6, "substring blindness is back"

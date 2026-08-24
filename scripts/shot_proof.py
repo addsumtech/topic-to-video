@@ -72,9 +72,17 @@ def shot_defaults(shot):
     stop = block.find("=> {")
     block = block[:stop if stop > 0 else 4000]
     out = {}
-    for pm in re.finditer(r"(\w+)\s*:\s*[A-Z_][A-Za-z0-9_]*\s*=\s*('([^']*)'|\"([^\"]*)\"|(-?[\d.]+))", block):
-        val = pm.group(3) if pm.group(3) is not None else (pm.group(4) if pm.group(4) is not None else pm.group(5))
-        out[pm.group(1)] = val
+    # TWO destructuring forms are in use across the library and only the RENAMED one was parsed, so this
+    # returned nothing at all for 72 of 136 registers — the demo-default check, this module's headline
+    # reason for existing, was blind on more than half the library and said nothing.
+    #   renamed:  title: TITLE = 'Your workspace'
+    #   plain:    title = 'Your workspace'
+    pats = [r"(\w+)\s*:\s*[A-Z_][A-Za-z0-9_]*\s*=\s*('([^']*)'|\"([^\"]*)\"|(-?[\d.]+))",
+            r"(?<![:\w])(\w+)\s*=\s*('([^']*)'|\"([^\"]*)\"|(-?[\d.]+))"]
+    for pat in pats:
+        for pm in re.finditer(pat, block):
+            val = pm.group(3) if pm.group(3) is not None else (pm.group(4) if pm.group(4) is not None else pm.group(5))
+            out.setdefault(pm.group(1), val)
     return out
 
 
@@ -263,9 +271,18 @@ def _dna_hues(board):
             accents = []
     out = []
     for c in accents:
-        if not c:
+        # An authored DNA may hold any CSS colour. Assuming 6-digit hex crashed the whole proof sheet on
+        # `#c33`, `rebeccapurple` or `rgb(...)` — a gate that dies is a gate that gets skipped.
+        txt = str(c or "").strip()
+        m6 = re.fullmatch(r"#?([0-9a-fA-F]{6})", txt)
+        m3 = re.fullmatch(r"#?([0-9a-fA-F]{3})", txt)
+        if m6:
+            hx = m6.group(1)
+        elif m3:
+            hx = "".join(ch * 2 for ch in m3.group(1))
+        else:
             continue
-        r, g, b = [int(c.lstrip("#")[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+        r, g, b = [int(hx[i:i + 2], 16) / 255 for i in (0, 2, 4)]
         out.append(colorsys.rgb_to_hls(r, g, b)[0] * 360)
     return out
 
@@ -343,6 +360,11 @@ def main(argv):
                                      % (beat, shot, 100 * len(off) / len(hs), statistics.median(off),
                                         [round(a) for a in dna_hues]))
             x0, x1, frac = _content_box(png)
+            if not frac:
+                # NOTHING departs from the ground: the beat rendered an empty frame. Guarding the
+                # dead-frame branch with `if frac and ...` let the emptiest possible result pass silently.
+                errors.append("beat %d (%s): the frame is EMPTY — nothing departs from the background"
+                              % (beat, shot))
             if frac and frac < NARROW_FRAC:
                 m2 = shot_still_qa.measure(png)
                 off = abs((x0 + x1) / 2 - m2["w"] / 2) / float(m2["w"])

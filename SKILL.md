@@ -1014,7 +1014,9 @@ figure), a non-singular `the_one_thing`, or a
    Deliver only after **shot-critic PASSES and `check_av` + `keyframe_qa_remotion` + `frame_safe_qa` exit 0**.
    **DELIVERY CRITERION — every gate, not two.** Deliver `out.mp4`,
    `out.srt`, and the editable `storyboard.json` only after **`validate.py`, `check_av.py`,
-   `keyframe_qa.py`, `rhythm_qa.py`, `pedagogy_qa.py` and `voice_qa.py` ALL exit 0** (on a `meta.renderer:"remotion"` deck,
+   `keyframe_qa.py`, `rhythm_qa.py` and `pedagogy_qa.py` ALL exit 0** (`voice_qa.py` is ADVISORY and always
+   exits 0 — read its signals and say which you accepted; failing a build on them would produce the
+   "rule voice" its reference warns about) (on a `meta.renderer:"remotion"` deck,
    `keyframe_qa_remotion.py` + `frame_safe_qa.py` + shot-critic PASS REPLACE `keyframe_qa.py`, which no-ops there).
    Naming only the first two is
    how a deck shipped "all green" while the gates that actually look at the pages were never

@@ -78,9 +78,16 @@ def measure(path):
             v = px[x, y]
             vals.append(v)
             hist[v // 8] = hist.get(v // 8, 0) + 1
-    ground = max(hist, key=hist.get) * 8 + 4 if hist else 0
-    ink = sum(1 for v in vals if abs(v - ground) > _INK_DELTA)
-    caption = ink / max(1, len(vals))
+    band_ground = max(hist, key=hist.get) * 8 + 4 if hist else 0
+    # INVERSION GUARD. Taking the band's OWN modal luminance as its ground is what makes this work on a
+    # light shot and a dark one — but it also means a panel that covers the WHOLE band BECOMES the ground,
+    # and the worst possible violation measured 0.0% while a half-covered band measured 50%. If the band's
+    # ground is not the FRAME's ground, the band is not the frame's clean background at all.
+    if abs(band_ground - ground_all) > _INK_DELTA:
+        caption = 1.0
+    else:
+        ink = sum(1 for v in vals if abs(v - band_ground) > _INK_DELTA)
+        caption = ink / max(1, len(vals))
     return {"w": w, "h": h, "edge": edge, "caption": caption, "band": band}
 
 

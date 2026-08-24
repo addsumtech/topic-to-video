@@ -203,6 +203,12 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
     design_dna = meta.get("design_dna")
     if isinstance(design_dna, dict):
         props["dna"] = design_dna
+    elif isinstance(design_dna, str) and design_dna.strip():
+        # A STRING design_dna is a preset NAME. It used to be dropped here — neither dna nor template
+        # reached the renderer, so a board that named a preset rendered completely UNTHEMED while
+        # validate.py cheerfully blessed the name. Film's coerceDna resolves a name and throws on one it
+        # does not know, so passing it through is both correct and loud.
+        props["dna"] = design_dna.strip()
     elif meta.get("shot_template"):
         props["template"] = str(meta["shot_template"])
     props_path = os.path.join(out_dir, ".remotion-props.json")
