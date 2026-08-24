@@ -121,6 +121,12 @@ def evaluate(narrations):
     # author found machine-sounding scored CV 0.30, balanced-pair 40%, connectives 11%, antithesis 24% —
     # and ZERO on every vocabulary list above. Those four numbers are what these thresholds sit around.
     # They mark where to LOOK; none of them is a target to drive to zero.
+    # NOTE ON THIS THRESHOLD: 0.45 is a judgement call, not a figure measured against human-written
+    # reference text. The measured contrast it is anchored to is real (a script that read as machine-made
+    # sat at 0.30; the same script rewritten with connectives and varied sentence length reached 0.39 and
+    # read far better), but the line itself is not calibrated. Do NOT pad sentences to clear it — that is
+    # precisely the "rule voice" this file warns about. If a script trips only this check and reads well
+    # aloud, accept it and say so.
     if cv < 0.45:
         warnings.append("句长过于齐整 CV=%.2f(<0.45)— 每拍都是同一种长度的短断句，读 37 遍就是模板。"
                         "让一部分句子长一点、把两句并成一句带转折的长句。" % cv)
