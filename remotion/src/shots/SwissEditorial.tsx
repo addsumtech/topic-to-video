@@ -42,7 +42,7 @@ export const SwissEditorial: React.FC<{items?: string[]; ticker?: string; wordma
   const longest = WORDS.reduce((a, b) => (String(b).length > String(a).length ? b : a), WORDS[0] ?? '');
   const wordSize = Math.min(340, fitText({
     text: String(longest), withinWidth: W - 240, fontFamily: disp, fontWeight: 900,
-    letterSpacing: '-0.04em', validateFontIsLoaded: true,
+    letterSpacing: '-0.04em',
   }).fontSize);
   const tick = (t * 420) % 1000;                 // ticker scroll (px)
 

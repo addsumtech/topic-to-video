@@ -31,7 +31,6 @@ export const CinematicTitle: React.FC<{kicker?: string; title?: string; tagline?
   // the constant, because `titleFont` is whichever face the active DNA declares. Measure the real string.
   const titleFit = fitText({
     text: String(TITLE), withinWidth: W * 0.86, fontFamily: titleFont, fontWeight: 800,
-    validateFontIsLoaded: true,
   }).fontSize;
   const titleCol = dna?.fg ?? '#f4efe6';
   const tagCol = dna?.dim ?? '#8b93a3';

@@ -34,11 +34,11 @@ export const NeonGrid: React.FC<{title?: string; tagline?: string}> = ({title: T
   const usable = W - 120;
   const titleSize = Math.min(168, fitText({
     text: String(TITLE), withinWidth: usable, fontFamily: dispFace, fontWeight: 900,
-    letterSpacing: '0.02em', validateFontIsLoaded: true,
+    letterSpacing: '0.02em',
   }).fontSize);
   const tagSize = Math.min(30, fitText({
     text: String(TAGLINE), withinWidth: usable, fontFamily: monoFace, fontWeight: 700,
-    letterSpacing: '0.5em', validateFontIsLoaded: true,
+    letterSpacing: '0.5em',
   }).fontSize);
 
   return (

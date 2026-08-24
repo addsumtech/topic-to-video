@@ -407,9 +407,14 @@ def test_display_type_is_measured_not_estimated():
         # Require an actual CALL.
         assert re.search(r"\bfitText\(\{", src), (
             "%s must MEASURE its display type (a fitText({...}) call), not estimate it" % shot)
-        assert "validateFontIsLoaded: true" in src, (
-            "%s measures without validateFontIsLoaded — a measurement taken before the faces load "
-            "silently sizes for the fallback typeface" % shot)
+        # validateFontIsLoaded must NOT be set. I originally pinned it as REQUIRED here, which pinned a
+        # harmful decision: the flag runs document.fonts.check() on the whole stack, and every DNA stack
+        # ends in system CJK fallbacks that are never registered in document.fonts, so it fails for a
+        # perfectly good stack — it crashed SwissEditorial on every themed Chinese film. The measurement
+        # is unaffected either way; scripts/font_gate.py is what actually proves the faces load.
+        assert "validateFontIsLoaded" not in src, (
+            "%s passes validateFontIsLoaded — it cannot work with a CJK-terminated stack and will crash "
+            "a themed Chinese film; font_gate.py is the real proof that faces load" % shot)
 
 
 def test_multi_declarator_shots_are_measured_as_bg_grounded():
