@@ -9,6 +9,11 @@ subtitle and the defect surfaced a render-hour later.
 Usage:
   python3 scripts/shot_still_qa.py a.png b.png ...        # exits non-zero on any violation
 
+RUN IT ON A SHOT STILL, NOT ON A DELIVERED KEYFRAME. A film's _keyframes/ have the narration caption
+already BURNED INTO the band, so the caption measure counts the subtitle itself and reports a collision
+that is not there (measured: a long CJK subtitle alone scores 5.2%, and 13.7% over a gradient ground).
+That is what frame_safe_qa.py excludes the band for. This script warns if you point it at a keyframe.
+
 Per still it reports:
   edge      %% of the action-safe border (top/left/right, EBU R95 3.5%%) that is bright content.
             >4.5%% means something is running OFF-FRAME.  [same rule + constants as frame_safe_qa.py]
@@ -72,6 +77,10 @@ def main(argv):
         print(__doc__.strip())
         return 2
     bad = 0
+    if any("_keyframes" in p for p in argv):
+        print("[shot_still_qa] WARNING: these look like delivered keyframes — the caption is already burned\n"
+              "                into the band, so caption-band ink is NOT meaningful here. Render the shot on\n"
+              "                its own (npx remotion still ...) and measure that instead.")
     for p in argv:
         try:
             r = measure(p)
