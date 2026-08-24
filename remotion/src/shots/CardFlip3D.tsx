@@ -28,9 +28,10 @@ const Face: React.FC<{children: React.ReactNode; back?: boolean; tone: string;
     boxShadow: '0 40px 90px #0008, inset 0 1px 0 #ffffff12'}}>{children}</div>
 );
 
-export const CardFlip3D: React.FC<{items?: Item[]; title?: string}> = ({
+export const CardFlip3D: React.FC<{items?: Item[]; title?: string; backLabel?: string}> = ({
   items: ITEMS = [{front: 'Manual', back: 'Automated'}, {front: 'Hours', back: 'Seconds'}, {front: 'Guesswork', back: 'Grounded'}],
-  title: TITLE = 'What changes'} = {}) => {
+  title: TITLE = 'What changes', backLabel: BACKLABEL = '实际'
+  } = {}) => {
   const t = useT();
   const dna = useDNA(); const ACC = dna?.accent ?? ACC0;
   // Four film-coherent hues instead of three hardcoded ones (pink/teal/amber), which is why a themed
@@ -43,15 +44,22 @@ export const CardFlip3D: React.FC<{items?: Item[]; title?: string}> = ({
   const dispFace = dna?.fontDisplay ?? 'Inter, system-ui, sans-serif';
   const cards = ITEMS.slice(0, 4);
   const n = cards.length;
-  const cw = 440, ch = 560, gap = 56;
+  const cw = 440, ch = 430, gap = 56;   // ch 560 -> 430: a single short line left ~70% of the card void
   // Fit the real string in the real face inside the card, up to two lines, capped at the register's 64px.
   // A fixed 64 broke a Chinese label mid-word here ("...不会失/败"); short Latin copy still hits the cap
   // and renders exactly as before. validateFontIsLoaded so a measurement taken before the faces load
   // fails loudly instead of silently sizing for the fallback typeface.
-  const faceSize = (txt?: string) => fitTextOnNLines({
-    text: String(txt ?? ''), maxLines: 2, maxBoxWidth: cw - 80, fontFamily: dispFace,
-    fontWeight: 800, maxFontSize: 64,
-  }).fontSize;
+  // ONE SIZE FOR ALL FACES. Fitting each string on its own made two PEER statements render at very
+  // different sizes (~46px vs ~30px), so the flip read as primary-and-subordinate when both cards are
+  // making the same kind of claim. Fit the LONGEST string and use that size everywhere.
+  const faceSize = React.useMemo(() => {
+    const all = cards.flatMap((c) => [String(c.front ?? ''), String(c.back ?? '')]).filter(Boolean);
+    const sizes = all.map((txt) => fitTextOnNLines({
+      text: txt, maxLines: 2, maxBoxWidth: cw - 80, fontFamily: dispFace,
+      fontWeight: 800, maxFontSize: 64,
+    }).fontSize);
+    return sizes.length ? Math.min(...sizes) : 64;
+  }, [cards, cw, dispFace]);
   const rowW = n * cw + (n - 1) * gap;
   const x0 = (W - rowW) / 2;
   const titleIn = easeOutCubic(seg(t, 0.04, 0.2));
@@ -79,13 +87,14 @@ export const CardFlip3D: React.FC<{items?: Item[]; title?: string}> = ({
               <Face tone={tone}>
                 <div style={{color: DIM, font: '600 22px/1 var(--f-mono, "JetBrains Mono", monospace)',
                   letterSpacing: '0.14em', marginBottom: 22}}>{String(i + 1).padStart(2, '0')}</div>
-                <div style={{color: INK, font: `800 ${faceSize(c.front)}px/1.18 ${dispFace}`,
+                <div style={{color: INK, font: `800 ${faceSize}px/1.18 ${dispFace}`,
                   textAlign: 'center', letterSpacing: '-0.02em'}}>{c.front}</div>
               </Face>
               <Face back tone={tone}>
-                <div style={{color: ON, font: `800 54px/1 var(--f-body, Inter, system-ui, sans-serif)`,
-                  marginBottom: 18, textShadow: `0 0 24px ${tone}99`}}>&#8595;</div>
-                <div style={{color: ON, font: `800 ${faceSize(c.back)}px/1.18 ${dispFace}`,
+                {/* was a bare ↓ pointing at nothing — undecodable furniture. A short label says what the back IS. */}
+                <div style={{color: ON, opacity: .72, font: `700 20px/1 var(--f-mono, "JetBrains Mono", monospace)`,
+                  letterSpacing: '.18em', marginBottom: 16}}>{BACKLABEL}</div>
+                <div style={{color: ON, font: `800 ${faceSize}px/1.18 ${dispFace}`,
                   textAlign: 'center', letterSpacing: '-0.02em'}}>{c.back}</div>
               </Face>
               {sheen > 0.01 ? <div style={{position: 'absolute', inset: 0, borderRadius: 26, pointerEvents: 'none',
