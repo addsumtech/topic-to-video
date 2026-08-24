@@ -31,6 +31,7 @@ design language doesn't fit an existing bucket, **open a new family letter** (ad
 beats differ). Novel and daring beats a clean taxonomy — reach past the obvious register.
 
 ## A · Product-UI / SaaS-film — motion of a working interface
+139. **PlatformSurfaces** — a bento of product tiles pops in beside one platform mark — many surfaces, one system. *Use: one platform, many surfaces / a product family.* `kicker, tiles[], mark`
 1. **CollaborativeCursors** — multiplayer cursors build a deliverable on an aligned grid. *Use: teamwork / "your AI team".*
 2. **CommandSummon** — command palette typed → checklist ticks. *Use: "just ask it" / invoke.*
 3. **TemporalAccelerate** — task list blurs past, a timer snaps. *Use: speed / time saved.*
@@ -45,6 +46,7 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 56. **BentoReveal** — a bento grid (hero cell + mixed widgets) whose tiles pop in and assemble into a finished dashboard. *Use: the product surface / "your whole workspace".*
 
 ## B · Camera / space — a world larger than the frame
+140. **MRIPipeline** — four stages flow left to right, each a small true rendering of that step rather than a generic card. *Use: a recap AS the real pipeline / signal → encode → k-space → image.* `src, accent, accent2, label`
 12. **InfiniteCanvas** — deep zoom across a canvas (Miro). *Use: big-picture → detail.*
 13. **TimelineTravel** — pan a horizontal timeline. *Use: process / sequence.*
 14. **MapRoutes** — glowing routes hub→spokes on a night map. *Use: integrations / reach.*
@@ -54,6 +56,7 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 100. **TerrainFly** — a 3D wireframe heightmap terrain scrolls toward the viewer in perspective (hills drift from the horizon), grid coloured by elevation, fog + horizon glow. *Use: a landscape / journey / "new ground ahead".*
 
 ## C · Kinetic type & title
+141. **OpenQuestions** — unresolved questions surface one at a time under a descending scan-light, then stand together unanswered. *Use: what is still open / limits and caveats / a closing that refuses to conclude.* `kicker, questions[], accent, footer`
 16. **KineticManifesto** — phrases rush the Z-axis. *Use: manifesto / values.*
 17. **FocalIsolation** — blur everything but the key phrase. *Use: one emphasis.*
 18. **SwissEditorial** — flush-left word snaps WORK→SHIP→DONE + marquee ticker. *Use: bold editorial brand.*
@@ -67,6 +70,9 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 26. **AsciiField** — an AMBER phosphor char field that DECODES a word in place. *Use: code / hacker beat.* (amber + static decode — vs **CodeRain** M's green FALLING rain.)
 
 ## D · Data / technical
+144. **UndersampledKspace** — a full Cartesian k-space with most phase-encode lines removed — what "4-8x too sparsely" looks like. *Use: sampling far below what the reconstruction needs.* `accent, accent2, label, keep`
+143. **SpeedLimit** — why the gradients cannot simply be driven faster, with the text held inside its layout. *Use: a hard physical limit on going faster.* `accent, label`
+142. **PhaseEncodeStep** — a phase-encode gradient blip steps through its amplitudes, one k-space line at a time. *Use: a parameter stepped through its range / one line acquired per step.* `accent, accent2, label, steps`
 27. **ChartLive** — glowing line+area draws, a counter ticks. *Use: a metric / result.*
 28. **BlueprintGrid** — Vercel blueprint: grid, dimension lines, crosshair, mono. *Use: spec / precision / local-only.*
 29. **KnowledgeGraph** — a node/edge constellation grows. *Use: connected workspace / second brain.*
@@ -92,6 +98,8 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 135. **OverlapSeparation** — two density curves per panel on a shared axis: the failing measure's two populations sit on top of each other with no threshold that divides them; the separating measure's split cleanly. *Use: this metric cannot tell these two apart, that one can / a proxy measure that does not discriminate.* Curves are a deterministic function of each population's mean+spread — no sampling. `kicker, title, fail{label,note,a{label,mean,spread},b{…}}, pass{…}, domain[lo,hi]`
 
 ## E · 3D / material
+146. **MagnetizationTip** — what an RF pulse actually does to the magnetization vector, shown on the real vector. *Use: an input tipping a system out of equilibrium.* `accent, accent2, label`
+145. **KSpaceToImage** — a vertical sweep computes the inverse Fourier transform, k-space resolving into the image. *Use: a transform made meaningful / raw data becoming a picture.* `accent, accent2, label, src`
 32. **MaterialHero** — real 3D torusKnot (R3F/WebGL), studio-lit. *Use: a hero object beat.*
 53. **CardFlip3D** — a row of cards flip 180° on Y (CSS 3D), a sheen at the seam, the payoff on the back. *Use: question → answer / before → after pairs.*
 58. **FractureIn** — 25 tiles fly in from scattered 3D space and lock centre-out into a hero poster, then the title resolves. *Use: many parts → one picture / a bold reveal.*
@@ -100,6 +108,7 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 74. **MorphForms** — a rotating 3D point-cloud morphs sphere → cube → torus → sphere, depth-shaded (pure math, no WebGL). *Use: one idea, many shapes / an abstract kinetic hero.*
 
 ## F · Fluid / liquid / light — physical-feeling liquids & light (vs K = computed algorithmic fields)
+151. **DiffusionDenoise** — a field of pure noise is iteratively denoised into the real image. *Use: generative reconstruction / noise resolving into signal.* `src, accent, label, credit`
 33. **AuroraFlow** — Stripe/Vercel flowing gradient blobs + type. *Use: calm premium ambient (soft gradient BLOBS — cf. FlowField's discrete streamlines).*
 34. **LiquidMorph** — iridescent blob morphs through ask/draft/done glyphs. *Use: transformation.*
 35. **LiquidFill** — gooey vessel fills, % counts, checkmark. *Use: progress / completion.*
@@ -111,6 +120,8 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 95. **LiquidMetal** — a chrome/mercury blob flows + merges (goo filter) with a banded reflection gradient, on a soft lavender/icy/beige palette, chrome wordmark on top. *Use: premium "liquid chrome, alive" hero (2026).*
 
 ## G · Illustrated / craft styles (the "style" axis)
+157. **ScanReconstruct** — a real fetched image is revealed by a reconstruction technique rather than a wipe. *Use: a real image revealed by the process that produces it.* `src, label, credit, accent, cols`
+156. **KSpaceReal** — the real FFT magnitude of an actual scan, not a decorative mandala. *Use: showing the real transform of real data.* `src, accent, label, credit`
 41. **HandDrawn** — riso ink sketch draws on (You→WorkBuddy→Done). *Use: human / hand-made.*
 42. **CartoonPop** — cel-shaded cartoon mascot zaps tasks → DONE! *Use: playful / friendly.*
 43. **HalftonePop** — comic Ben-Day pop-art burst "SHIP IT!". *Use: loud fun highlight.*
@@ -122,6 +133,9 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 85. **ComicPanels** — a comic page: action panels (speed-lines + burst captions) snap in one by one, building to a full-width SPLASH payoff panel. *Use: a process as a comic beat / playful sequence.*
 
 ## H · Comparison
+160. **TensionScale** — a beam teeters on a fulcrum and never settles — a trade-off with no resting point. *Use: two goods in permanent tension / a trade-off that cannot be resolved.* `title, leftLabel, leftSub, rightLabel, rightSub, note, accent, accent2`
+158. **RealVersus** — two real images side by side, the comparison carried by the photographs themselves. *Use: A vs B where real imagery makes the point.* `srcLeft, srcRight, labelLeft, labelRight, title, credit, accent`
+155. **KSpaceAnatomy** — the centre of k-space holds the overall contrast, the edges hold the detail — read on real data. *Use: how to READ a transformed space / centre vs edges.* `srcK, srcLow, srcHigh, accent, accent2, label, credit`
 48. **BeforeAfterSlider** — slider wipes rough draft → board-ready. *Use: quality / transformation.*
 54. **QuadSplit** — the frame splits into a 2×2 of micro-panels (each a distinct accent + motif), then one hero panel takes the whole frame. *Use: four angles → the one that matters.* Each panel takes an optional **`glyph`** naming the form that tile carries — `checks` (a suite passing) · `gutter` (covered vs untouched lines) · `peers` (two identical parties agreeing) · `review` (a pointer stopping on one line) · `bars` · `ring` · `dots` · `wave`. **Name one per panel**: omitted, the tile falls back to a motif picked by INDEX, which is decoration, not content — that is how one film shipped a bar chart under 「测试」 and a squiggle under 「人工评审」. An unknown name fails loudly.
 59. **PositioningMatrix** — a 2×2 axes map; item dots drift to their spots and the hero lands in its quadrant (ring + label). *Use: positioning / where things sit / who leads (qualitative).*
@@ -144,6 +158,7 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 98. **GameOfLife** — Conway's cellular automaton evolves from a fixed seed (recomputed to the current generation each frame — deterministic + seekable), living cells glowing, a wordmark over the emergent order. *Use: simple rules → complex life / emergence.*
 
 ## L · Editorial / print — designed page systems
+159. **CompressedSensingEq** — the concept as its actual constrained-optimisation equation, typeset rather than gestured at. *Use: a method that IS its equation / show the formula, not a metaphor.* `accent, accent2, label`
 (see also **RisoPrint** in G — a riso print title.)
 69. **MagazineSpread** — a designer editorial cover sets itself: serif masthead, hairline rule, hero colour block, a word-by-word feature headline, deck + column rules. *Use: an editorial section opener (LIGHT ground).*
 70. **RansomZine** — a punk cut-out ransom-note collage: each letter a torn paper scrap in a different colour + typeface, taped down askew, with a marker scrawl. *Use: loud DIY / anti-slick statement.*
@@ -156,6 +171,9 @@ Written FOR the editorial DNA (they read `EdFrame`: a kicker + hairline accent r
 134. **EdCompare** `kicker, left{head,body}, right{head,body,hero}` — a two-column spread, a dimmed foil vs a hero column. *Use: this vs that / the divide.*
 
 ## M · Glitch / digital-decay
+150. **Aliasing** — undersampled k-space makes the anatomy wrap around, folding one side onto the other — on the real scan. *Use: an artifact shown on real data / what breaks when you sample too little.* `src, accent, label, credit`
+149. **GFactorNoise** — as the acceleration factor rises, unfolding the aliased signal amplifies noise. *Use: why speeding up costs quality / a penalty that grows with the shortcut.* `accent, label`
+148. **SpinsAlign** — a cloud of spins pointing every which way settles into a net alignment. *Use: disorder resolving into order / many parts agreeing.* `accent, accent2, label`
 72. **GlitchDatamosh** — a word tears out of digital noise: RGB-split channels drift, displacement bands stutter, scanlines + block noise flicker, then the signal RESOLVES clean. *Use: digital / disruption / noise → clarity.*
 91. **CodeRain** — Matrix-style digital rain: glyph columns fall with a bright head + fading phosphor trail, a message resolving on a darkened core. *Use: "in the machine" / decode / a data stream.*
 
@@ -179,6 +197,7 @@ Written FOR the editorial DNA (they read `EdFrame`: a kicker + hairline accent r
 80. **NeuralField** — a neural network THINKS: layered nodes + edges light up as an activation front sweeps left→right until the output locks. *Use: AI reasons / a model at work / "it thinks".*
 
 ## S · Scientific / molecular
+147. **LarmorPrecession** — the magnetic moment sits tilted from B0 and precesses around it — precession, not orbits. *Use: a steady rotation set by a field / the fundamental frequency of a system.* `accent, accent2, label`
 138. **SpinningProton** — a single proton spins with its + charge, becoming a tiny magnet: field lines and the moment vector μ resolve, with bulk water supplying them all around. *Use: what a nucleus IS / spin and magnetism / the physical basis under an imaging beat.* `label, sublabel`
 81. **DNAHelix** — a rotating double helix: two sine-phased strands of nodes with base-pair RUNGS, depth-shaded, assembling top-down. *Use: the blueprint / biotech / "encoded".*
 94. **AtomOrbital** — a nucleus of protons/neutrons with electron SHELLS: tilted elliptical orbits, electrons RACING with motion trails, the atom turning. *Use: fundamentals / "the core of it" / physics.* (electrons streak — vs **DataOrrery** D's slow labelled-node orrery.)
@@ -188,6 +207,9 @@ Written FOR the editorial DNA (they read `EdFrame`: a kicker + hairline accent r
 82. **CircuitTrace** — a PCB comes alive: copper traces route (Manhattan bends) and draw on, signal pulses race to a central chip that lights up. *Use: hardware / a system wired together / infrastructure.*
 
 ## U · Audio / music
+154. **InducedFID** — precessing transverse magnetization sweeps past the coil and induces the real measured signal. *Use: the actual measured signal, not a decorative waveform.* `accent, accent2, label`
+153. **GradientTilt** — the field starts uniform everywhere, then a gradient tilts it so position becomes frequency. *Use: how a uniform field is made to carry position.* `accent, accent2, label, cols`
+152. **FrequencyEncode** — a readout gradient makes each column precess at its own frequency — the actual mechanism. *Use: position encoded as frequency / one axis read out at once.* `accent, accent2, label, cols`
 86. **SpectrumPulse** — a circular audio spectrum: a ring of frequency bars dance to a synth beat (kick every 0.5s scales + brightens), wordmark pulsing at the core. *Use: music / rhythm / audio-reactive energy.* (deterministic visual, not tied to the real VO)
 37. **VoiceSignal** — an audio-reactive waveform through phases (moved from F; it's audio, not fluid — cf. SpectrumPulse). *Use: voice / listening / speech.*
 

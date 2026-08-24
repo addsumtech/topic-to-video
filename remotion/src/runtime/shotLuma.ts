@@ -55,6 +55,9 @@ export const groundLum = (shot: string, bgLum?: Lum): Lum => bgLum ?? SHOT_LUMA[
 // pickPresentation's luminance-safe seam — so a dark->bright cut scored a ZERO gap and got no safety.
 // Measured on one such seam: mean frame luminance 20.8 -> 149.3 within 100ms. That is the flash.
 export type GroundToken = 'bg' | 'bgGrad' | 'accent' | 'accent2' | 'surface';
+// A NEWLY REGISTERED shot is written here PROVISIONALLY by scripts/register_shot.py, marked
+// `declared-only`, until measure_ground_luma.py replaces it with a measurement. Everything else is
+// measured.
 export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundToken | GroundToken[]>> = {
   Aliasing: 'bg',
   AnalogTape: 'bg',

@@ -92,11 +92,17 @@ def register(shot, family=None, use_when=""):
         if m2:
             return s[:m2.start(3)] + "  %s,\n" % shot + s[m2.start(3):]
         return None
-    out["registry.ts"] = _edit(os.path.join(_REM, "src", "registry.ts"),
-                               ["import {%s}" % shot, "\n  %s,\n" % shot], _registry, "registry")
+    # The presence test must match how entries ACTUALLY look: names share a line. Requiring the id alone
+    # on its own line could never be true for a real entry, so re-running appended a DUPLICATE key.
+    reg_path = os.path.join(_REM, "src", "registry.ts")
+    reg_present = not [x for x in check(shot) if x == "registry.ts"]
+    out["registry.ts"] = "already" if reg_present else _edit(reg_path, ["\x00never"], _registry, "registry")
 
     # Root.tsx — import with a DURATION alias + the F() preview row
-    alias = "D_" + shot.upper()[:10]
+    # The alias was "D_" + shot.upper()[:10], so any two ids sharing ten characters got the SAME binding.
+    # esbuild does not reject the duplicate import; it resolves both to one, and a shot silently renders
+    # at another shot's frame count — which every standalone consumer then measures at the wrong moment.
+    alias = "D_" + re.sub(r"[^A-Z0-9]", "", shot.upper())
 
     def _root(s):
         if ("from './shots/%s'" % shot) not in s:
@@ -110,8 +116,9 @@ def register(shot, family=None, use_when=""):
                 return None
             s = s[:m2.end()] + "\n    {F('%s', %s, %s)}" % (shot, shot, alias) + s[m2.end():]
         return s
-    out["Root.tsx"] = _edit(os.path.join(_REM, "src", "Root.tsx"),
-                            ["from './shots/%s'" % shot, "F('%s'" % shot], _root, "root")
+    root_present = not [x for x in check(shot) if x == "Root.tsx"]
+    out["Root.tsx"] = "already" if root_present else _edit(os.path.join(_REM, "src", "Root.tsx"),
+                                                           ["\x00never"], _root, "root")
 
     # shotLuma.ts — the coarse map AND the measured table (declared 'bg' until measured for real)
     def _luma(s):
@@ -123,7 +130,7 @@ def register(shot, family=None, use_when=""):
             m = re.search(r"(export const DNA_GROUND_TOKEN[^{]*\{\n)", s)
             if not m:
                 return None
-            s = (s[:m.end()] + "  %s: 'bg',   // declared on registration; run measure_ground_luma to confirm\n"
+            s = (s[:m.end()] + "  %s: 'bg',   // declared-only: provisional on registration — run measure_ground_luma to replace it\n"
                  % shot + s[m.end():])
         return s
     out["shotLuma.ts"] = _edit(os.path.join(_REM, "src", "runtime", "shotLuma.ts"),
@@ -150,8 +157,15 @@ def register(shot, family=None, use_when=""):
             if not m2:
                 return None
             return s[:m2.end()] + '    "%s": "%s",\n' % (shot, family) + s[m2.end():]
-        out["shot_director.FAMILY"] = _edit(os.path.join(_HERE, "shot_director.py"),
-                                            ['"%s":' % shot], _fam, "family")
+        fam_path = os.path.join(_HERE, "shot_director.py")
+        cur = re.search(r'"%s":\s*"([A-Z]{1,2})"' % re.escape(shot), open(fam_path, encoding="utf-8").read())
+        if cur and cur.group(1) != family:
+            # Silently keeping the old letter meant a re-registration that MEANT to move families did
+            # nothing, and said "registered everywhere".
+            out["shot_director.FAMILY"] = ("already, but as family %s — NOT %s. Change it by hand if you "
+                                           "meant to move it." % (cur.group(1), family))
+        else:
+            out["shot_director.FAMILY"] = _edit(fam_path, ['"%s": "%s"' % (shot, family)], _fam, "family")
 
     # LIBRARY.md — the catalogue entry the shot-director actually reads
     def _lib(s):
@@ -167,23 +181,45 @@ def register(shot, family=None, use_when=""):
             m = re.search(r"\n## %s · [^\n]*\n" % re.escape(family), s)
         if m:
             return s[:m.end()] + line + s[m.end():]
+        # No section for this family yet — CREATE one. Appending at the end of the file put the entry
+        # outside every section, where the catalogue's own structure hides it from the reader.
+        if family:
+            return s.rstrip() + "\n\n## %s · (new family — name it)\n%s" % (family, line)
         return s.rstrip() + "\n" + line
     out["LIBRARY.md"] = _edit(os.path.join(_REM, "LIBRARY.md"), ["**%s**" % shot], _lib, "library")
     return out
 
 
 def check(shot):
-    files = {
-        "src/shots/%s.tsx" % shot: os.path.join(_SHOTS, shot + ".tsx"),
-        "registry.ts": os.path.join(_REM, "src", "registry.ts"),
-        "Root.tsx": os.path.join(_REM, "src", "Root.tsx"),
-        "shotLuma.ts": os.path.join(_REM, "src", "runtime", "shotLuma.ts"),
-        "shot_director.py": os.path.join(_HERE, "shot_director.py"),
-        "LIBRARY.md": os.path.join(_REM, "LIBRARY.md"),
-    }
+    """Which sync points this shot is MISSING from.
+
+    Each file is checked for the STRUCTURE that makes the registration work, never for the id appearing
+    somewhere in the text. A naked `shot not in src` — which this function used to do — is satisfied by
+    the import line alone, so a registry.ts that kept `import {X}` but lost its entry in the REGISTRY map
+    reported "fully registered" while the film rendered a red `unknown shot` card in place of that beat.
+    It also reported 5 of 6 sync points present for ids that have never existed, because "Term" is a
+    substring of TermLog. This function is the only backstop for a capability whose failure mode is
+    silence, and validate.py's build-claim gate calls it, so a check that cannot fail is worse than none.
+    """
+    b = re.escape(shot)
+    checks = [
+        ("src/shots/%s.tsx" % shot, os.path.join(_SHOTS, shot + ".tsx"), None),
+        # imported AND present as a key in the exported REGISTRY object (a bare `X,` on its own or with
+        # neighbours, but as a whole word)
+        ("registry.ts", os.path.join(_REM, "src", "registry.ts"),
+         [r"import\s*\{\s*%s\s*\}\s*from\s*'\./shots/%s'" % (b, b), r"(?<![A-Za-z0-9_])%s\s*," % b]),
+        # imported with a DURATION alias AND wired into an F(...) preview row
+        ("Root.tsx", os.path.join(_REM, "src", "Root.tsx"),
+         [r"import\s*\{\s*%s\s*,\s*DURATION as \w+\s*\}" % b, r"F\('%s'\s*,\s*%s\s*," % (b, b)]),
+        # a coarse luma AND a ground token, each as its own key
+        ("shotLuma.ts", os.path.join(_REM, "src", "runtime", "shotLuma.ts"),
+         [r"(?<![A-Za-z0-9_])%s:\s*'(dark|light|mid)'" % b, r"(?<![A-Za-z0-9_])%s:\s*('(bg|surface|accent|accent2|line|fg)'|\[)" % b]),
+        ("shot_director.py", os.path.join(_HERE, "shot_director.py"), [r'"%s":\s*"[A-Z]{1,2}"' % b]),
+        ("LIBRARY.md", os.path.join(_REM, "LIBRARY.md"), [r"\*\*%s\*\*" % b]),
+    ]
     miss = []
-    for label, path in files.items():
-        if label.startswith("src/shots/"):
+    for label, path, pats in checks:
+        if pats is None:
             if not os.path.exists(path):
                 miss.append(label)
             continue
@@ -192,8 +228,10 @@ def check(shot):
         except OSError:
             miss.append(label)
             continue
-        if shot not in src:
-            miss.append(label)
+        for pat in pats:
+            if not re.search(pat, src):
+                miss.append(label)
+                break
     return miss
 
 
@@ -218,9 +256,17 @@ def main(argv):
     if not family:
         print("[register_shot] give a family letter (A-Z, or a new two-letter one): register_shot.py Id D --use-when '…'")
         return 2
+    use_when = re.sub(r"\s+", " ", use_when).strip()[:160]   # a newline here produced an invalid .tsx
     res = register(shot, family, use_when)
     for k, v in res.items():
         print("  %-28s %s" % (k, v))
+    failed = [k for k, v in res.items() if str(v).startswith("FAILED")]
+    if failed:
+        # Printing FAILED and then reporting success two lines later is how a wrapper reading the exit
+        # code sails past a half-registered shot.
+        print("[register_shot] %s — could not edit: %s. Nothing else is trustworthy; fix the anchor."
+              % (shot, ", ".join(failed)))
+        return 1
     miss = check(shot)
     print("[register_shot] %s — %s" % (shot, "registered everywhere" if not miss else "STILL MISSING: " + ", ".join(miss)))
     if not miss:
