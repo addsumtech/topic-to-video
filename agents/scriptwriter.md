@@ -82,8 +82,29 @@ knows the topic is explaining it to you — not like a press release or a chatbo
   "in conclusion" / "as we can see" / "it's worth noting" / "in today's world" / "let's dive in".
   No restating what you just said, no announcing structure, no over-hedging ("可能会 / 或许有助于 /
   may potentially"), no balanced-triplet padding ("又快又稳又强"). Don't lean on em-dashes.
+- **The AI-slop list above is the VOCABULARY layer, and it is not enough.** A delivered 37-beat
+  Chinese explainer obeyed every word-level rule on this page — zero hits on the whole blacklist —
+  and its author still called it 有 AI 味, because the machine signature had moved into the RHYTHM.
+  Measured on that script: sentence-length CV **0.30** (every sentence the same length), **40%** of
+  beats an `A。B。` pair of near-equal clauses set against each other, only **11%** of beats carrying
+  any connective at all, and the default move for a whole film was 「不是X，是Y」. Read once, clipped
+  antithesis is punchy; read thirty-seven times it is a template. So also:
+  - **Vary sentence length deliberately.** Let some beats be one longer sentence with a turn inside
+    it, others four words. Uniformity is the tell, not length.
+  - **Keep the connective tissue.** People say 但/所以/其实/结果/反而 (but/so/actually/turns out). A
+    script with none is not concise, it is unnatural — connectives are how a listener learns how two
+    facts relate.
+  - **Do not land every beat.** Most beats only deliver their fact. Save the aphorism for the two or
+    three that earned it, usually the thesis and the close.
+  - **Reserve 「不是X，是Y」 for a real correction** — where the listener actually holds the wrong
+    idea. Elsewhere it is decoration.
+  - **Let a subject in sometimes.** Unrelieved subject-dropping reads as caption copy, not speech.
 - **Read it back aloud (in your head).** If it sounds machine-generated, rewrite it the way a
   person would actually say it.
+- **Then run the gate:** `python3 scripts/voice_qa.py <out_dir>` reports both layers (vocabulary +
+  the rhythm distribution). Full rules and the honest limits are in `references/anti-ai-voice.md` —
+  read it before writing narration in any language. Its numbers mark where to LOOK, never a target:
+  rules remove only about half of AI flavour, and over-applying them produces its own "rule voice".
 
 **5. Stay strictly faithful — non-negotiable.**
 Every claim, number, name, and date must trace to a `source_ref` or the material. Invent nothing —

@@ -272,6 +272,17 @@ figure), a non-singular `the_one_thing`, or a
   three say how much that is worth. `source_ref` may be a **string or a list** (every ref in the list
   is still resolved; cross-sourcing a claim clears the corroboration warning). The STRUCTURAL floor so a hollow brief can't reach the planner —
   run at step 3.5 BEFORE dispatching `content-planner`. The SEMANTIC depth audit is `critic-content` C0.
+- `scripts/voice_qa.py <out_dir> [--json]` — deterministic **VOICE** gate on the narration: does it read
+  like a person or like a machine imitating one. Two families — the well-known zh/en AI-slop VOCABULARY
+  (随着…的不断发展 / 赋能 / 值得一提的是 / delve / "not just X, but Y"), and the RHYTHM tells every
+  checklist misses. The second family is why this exists: a delivered 37-beat Chinese explainer scored
+  **zero** on every vocabulary list and still read as machine-written, because the signature had moved —
+  sentence-length CV 0.30 (every sentence the same length), 40% of beats an `A。B。` balanced pair, only
+  11% carrying any connective at all. Read once that is punchy; read 37 times it is a template.
+  **Run it right after the script step and again after any rewrite, in EVERY language**, and read
+  `references/anti-ai-voice.md` before writing or revising narration. Its numbers mark where to LOOK —
+  published practice says rules remove only ~40–50% of AI flavour and that over-applying them produces
+  its own "rule voice", so the last pass is always a human read-aloud.
 - `scripts/pedagogy_qa.py <out_dir> [--json]` — deterministic PRE-render **teaching-order** gate: walks
   the concept-dependency DAG in `<out_dir>/content_plan.json` (`introduces`/`builds_on`/`stage` +
   `meta.assumed_known`) and ERRORs on a **concept used before it is introduced**; WARNs on an `introduces`
@@ -944,6 +955,12 @@ figure), a non-singular `the_one_thing`, or a
    **And run `python scripts/pedagogy_qa.py <out_dir>`** — the teaching-order gate: it ERRORs on a
    concept used before it is introduced (walks `content_plan.json`'s concept DAG). Fix every ERROR;
    it no-ops if `content_plan.json` wasn't persisted.
+   **And run `python scripts/voice_qa.py <out_dir>`** — the VOICE gate (see `references/anti-ai-voice.md`).
+   It reports the vocabulary tells AND the rhythm distribution (sentence-length CV, balanced-pair share,
+   connective share, antithesis share). Treat each number as a place to look, not a target: fix the beats
+   that genuinely read as template, leave the ones that trip a check and still sound like a person, and
+   say out loud which you accepted. Then READ THE WHOLE SCRIPT ALOUD — the metrics catch distribution,
+   only the read catches deadness.
    **For an HTML-tier deck, also run `python scripts/keyframe_qa.py <out_dir>`** — it screenshots
    every page at several reveal states into `<out_dir>/_keyframes/` and flags any BLANK page or
    content overflowing the 1080 canvas (open `_keyframes/all.png` and eyeball for tofu / off-theme /
@@ -970,7 +987,7 @@ figure), a non-singular `the_one_thing`, or a
    Deliver only after **shot-critic PASSES and `check_av` + `keyframe_qa_remotion` + `frame_safe_qa` exit 0**.
    **DELIVERY CRITERION — every gate, not two.** Deliver `out.mp4`,
    `out.srt`, and the editable `storyboard.json` only after **`validate.py`, `check_av.py`,
-   `keyframe_qa.py`, `rhythm_qa.py` and `pedagogy_qa.py` ALL exit 0** (on a `meta.renderer:"remotion"` deck,
+   `keyframe_qa.py`, `rhythm_qa.py`, `pedagogy_qa.py` and `voice_qa.py` ALL exit 0** (on a `meta.renderer:"remotion"` deck,
    `keyframe_qa_remotion.py` + `frame_safe_qa.py` + shot-critic PASS REPLACE `keyframe_qa.py`, which no-ops there).
    Naming only the first two is
    how a deck shipped "all green" while the gates that actually look at the pages were never
