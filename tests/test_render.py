@@ -551,14 +551,15 @@ def test_caption_overlay_default_unchanged(tmp_path):
 
 
 def test_caption_band_fill_samples_scene_ground(tmp_path):
-    # flush band continues THIS scene's own bottom colour: a red accent-fill frame -> red strip + light
-    # text; an off-white frame -> off-white strip + ink text; contrast -> dark bar; no frame -> flat --bg.
+    # flush band continues THIS scene's own bottom colour: a red accent-fill frame -> red strip + the deck's
+    # OWN ink for that ground (--on-accent, NOT an independent max-contrast pick); an off-white frame ->
+    # off-white strip + --fg ink; contrast -> dark bar; no frame -> flat --bg.
     from PIL import Image
-    (tmp_path / "theme.css").write_text(":root{--bg:#f4f3ee;--fg:#161412}")
+    (tmp_path / "theme.css").write_text(":root{--bg:#f4f3ee;--fg:#161412;--on-accent:#fffaf2}")
     meta = {"_out": str(tmp_path)}
     red = str(tmp_path / "red.png"); Image.new("RGB", (200, 120), (0xe2, 0x23, 0x1a)).save(red)
     bg, text = render._caption_band_fill(meta, red)
-    assert bg == "0xe2231a" and text == (0xf4, 0xf3, 0xee)      # strip matches red; text flips to light --bg
+    assert bg == "0xe2231a" and text == (0xff, 0xfa, 0xf2)      # strip matches red; ink = the deck's --on-accent
     ow = str(tmp_path / "ow.png"); Image.new("RGB", (200, 120), (0xf4, 0xf3, 0xee)).save(ow)
     bg2, text2 = render._caption_band_fill(meta, ow)
     assert bg2 == "0xf4f3ee" and text2 == (0x16, 0x14, 0x12)    # off-white strip + ink text
@@ -572,6 +573,10 @@ def test_caption_band_fill_samples_scene_ground(tmp_path):
     # a pure-black contain-fit LETTERBOX bar must NOT become a black strip -> fall back to the --bg fill
     blk = str(tmp_path / "blk.png"); Image.new("RGB", (80, 40), (0, 0, 0)).save(blk)
     assert render._caption_band_fill(meta, blk)[0] == "0xf4f3ee"
+    # a theme that never declared --on-accent still puts a LIGHT ink on a dark/saturated ground
+    (tmp_path / "no_oa").mkdir()
+    (tmp_path / "no_oa" / "theme.css").write_text(":root{--bg:#f4f3ee;--fg:#161412}")
+    assert render._caption_band_fill({"_out": str(tmp_path / "no_oa")}, red)[1] == (255, 255, 255)
 
 
 def test_fingerprint_includes_caption_placement():

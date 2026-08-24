@@ -746,7 +746,8 @@ def _sample_region_color(frame_path, top_frac=0.80):
 def _caption_band_fill(meta, content_frame=None):
     """(strip bg 0xRRGGBB, text rgb) for band mode. 'contrast' or no frame -> the flat fallback above.
     Default 'flush' SAMPLES this scene's bottom-edge colour (content_frame) so the strip continues the
-    slide exactly; the text is whichever of --fg/--bg contrasts that sampled ground better."""
+    slide exactly; the text is the frame's OWN ink for that ground (--fg on a light strip, --on-accent
+    on a dark/saturated one), with an AA-large contrast floor behind it."""
     if (meta or {}).get("caption_band") == "contrast" or not content_frame:
         return _caption_band_colors(meta)
     rgb = _sample_strip_color(content_frame)
