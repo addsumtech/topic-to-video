@@ -67,7 +67,14 @@ export const WORKBUDDY_SCENES: SceneSpec[] = WB_SHOTS.map((shot, i) => ({
 // complete thought, and merging them by a Latin char-count would collapse them). Never empty. Deterministic.
 const isCJKText = (s: string): boolean => /[㐀-鿿぀-ヿ가-힯]/.test(s);
 const splitCaption = (text: string): string[] => {
-  const chunks = text.match(/[^.!?。！？—]+[.!?。！？]?(\s*—)?/g)?.map((c) => c.trim()).filter(Boolean) ?? [text];
+  // A DECIMAL POINT is not a sentence end. The splitter treats `.` as a terminator, so "19.3 到 28.9%"
+  // broke into "19." / "3 到 28." / "9%。" and the caption on screen read 「pass@k 最多掉 19.」 — a
+  // number cut in half, on the beat carrying the film's headline figure. Shield digit-dot-digit behind a
+  // sentinel for the split, then restore it. Applies to any figure: 0.833, 2.39, 19.3.
+  const DEC = '\u0000';
+  const guarded = text.replace(/(\d)\.(\d)/g, `$1${DEC}$2`);
+  const chunks = guarded.match(/[^.!?。！？—]+[.!?。！？]?(\s*—)?/g)
+    ?.map((c) => c.trim().split(DEC).join('.')).filter(Boolean) ?? [text];
   const merged: string[] = [];
   for (const c of chunks) {
     const prev = merged[merged.length - 1];
