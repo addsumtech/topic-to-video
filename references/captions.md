@@ -139,3 +139,46 @@ The `.srt` will have two separate entries with exact timing.
 For vertical video (use `--vertical` flag), the caption bar sits higher
 above the bottom edge proportionally — safe for mobile display.
 The 6% bottom margin avoids the UI chrome on most platforms.
+
+---
+
+## CJK CAPTIONS — published numbers (distilled 2026-08-24)
+
+A Chinese caption is **not** an English caption translated into the same box. The Netflix Timed Text
+Style Guide is the only source found that publishes real per-script numbers, and they differ by more
+than a factor of two:
+
+| | chars / line | reading speed | source |
+|---|---|---|---|
+| English (Latin) | ≤ 42 | ≤ **20** chars/sec (adult), 17 (children's) | Netflix TTSG, published |
+| Simplified Chinese | ≤ **16** (18 SDH) | ≤ **9** chars/sec (adult), 7 (children's) | Netflix TTSG, published |
+
+So a Chinese line carries roughly **38% of the characters** and **45% of the reading-speed budget** of
+the English line it was translated from. Translating an English-density script 1:1 into the same box
+produces captions nobody can finish reading — and no width-based "wall of text" check can see it,
+because the box is not overflowing.
+
+Absolute bounds, any language: a caption shows for **≥ 0.833 s (5/6 s)** and **≤ 7 s**.
+
+`scripts/validate.py` gates all four of these (`MIN_CAPTION_SECONDS`, `MAX_CAPTION_SECONDS`,
+`CPS_CJK`/`CPS_LATIN`, `CJK_CHARS_PER_LINE`), choosing the script per caption from the text itself, so a
+mixed deck is judged line by line rather than by `meta.language`.
+
+### Setting CJK type
+- **Line-height ≥ 1.7 × font-size.** Han glyphs fill a full em-box; the Latin default of 1.2–1.26 is too
+  tight and two lines collide. `Film.tsx` picks 1.7 for a CJK caption and 1.26 for a Latin one, decided
+  per caption from its own text. *(W3C clreq / Typotheque, published)*
+- **Never apply negative letter-spacing to Han.** It pulls square glyphs into each other. The Latin
+  caption keeps its `-0.01em`; a CJK caption is set at `0`.
+- Gap between a Han character and adjacent Latin letters or digits: **≤ 0.25 × one CJK character width**.
+  *(W3C clreq, published)*
+- Latin set at the same nominal size as adjacent Han reads too small and should be scaled up when mixed
+  inline — **no numeric factor is published**, so this stays a judgement call, not a gate.
+
+### Two gaps worth knowing
+- **WCAG explicitly declines to define the CJK "large text" threshold.** It states that the CJK
+  equivalent is not the Latin 18 pt / 14 pt-bold figure, and then gives no number. So a contrast gate
+  must not reuse the Latin large-text exemption on a Chinese frame.
+- **No source gives a minimum pixel size for Han legibility.** Every source found says only that CJK
+  needs more pixels than Latin at the same nominal size — qualitative, with no multiplier. Anyone who
+  quotes you a number for this is quoting something unsourced.

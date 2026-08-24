@@ -124,11 +124,20 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaColors?
   // `overlay` mode had exactly that white-halo bug), just for anti-alias crispness where the ground varies.
   const gb = groundBg && /^#[0-9a-fA-F]{6}$/.test(groundBg) ? groundBg : (lum === 'light' ? '#f4f1ea' : '#05060a');
   const shadow = `0 1px 2px ${gb}e6, 0 0 1px ${gb}`;
+  // CJK LINE-HEIGHT + TRACKING. 1.26 with -0.01em tracking is a Latin setting; Han glyphs fill a full
+  // em-box, so screen-typesetting guidance for CJK puts line-height at >=1.7x (W3C clreq / Typotheque),
+  // and NEGATIVE tracking on Han is wrong — it pulls square glyphs into each other. Decide per caption
+  // from the text itself rather than from meta.language, so a mixed deck gets it right line by line.
+  const capText = merged[idx] ?? '';
+  const cjkChars = (capText.match(/[\u3040-\u9fff\uac00-\ud7af]/g) ?? []).length;
+  const isCJK = cjkChars * 2 >= capText.length && cjkChars > 0;
+  const capLead = isCJK ? 1.7 : 1.26;
+  const capTrack = isCJK ? '0' : '-0.01em';
   return (
     <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', pointerEvents: 'none', opacity: op}}>
       <div style={{position: 'relative', maxWidth: Math.min(1400, width - 80), margin: '0 auto 40px', padding: '0 60px', textAlign: 'center',
-        color: ink, font: `700 44px/1.26 ${dnaFontBody ?? 'Inter, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif'}`,
-        letterSpacing: '-0.01em', textShadow: shadow}}>{merged[idx]}</div>
+        color: ink, font: `700 44px/${capLead} ${dnaFontBody ?? 'Inter, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif'}`,
+        letterSpacing: capTrack, textShadow: shadow}}>{capText}</div>
     </AbsoluteFill>
   );
 };

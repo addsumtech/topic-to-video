@@ -360,3 +360,58 @@ A slide where the narration says "notice the reconstruction error in the top-rig
 The camera starts centered and drifts the anchor to the top-right
 (`x=0.8, y=0.2`) while zooming to 1.18, so the highlighted corner ends up
 centered in frame as the narration points to it.
+
+---
+
+## PUBLISHED SPEC NUMBERS (distilled 2026-08-24)
+
+Everything below is a NUMBER a published design system actually ships, with the source. Sources are
+captured under `<research>/sources/` (see `scripts/sources.py`). Where nothing is published, that is
+recorded too — an honest gap beats a confident invention, and two of the gaps below are load-bearing.
+
+### Durations
+- Entrance / on-screen move: **250–500 ms**, scaling with the transition's AREA (not just distance).
+  Full-screen 400–500 ms; small local 200–250 ms. *(Material, published)*
+- **An exit is always SHORTER than its matching entrance.** Material ships the pairs 500/200 and
+  400/200 ms. *(Material, published)*
+- Carbon's named steps: 70 (button) → 110 (fade) → 150 (default) → 240 (toast) → 400 (large expand) →
+  700 ms (hero). Scaling with distance is non-linear and the formula is **not disclosed**. *(Carbon, published)*
+- Micro-interaction ceiling: **90–120 ms**. *(Carbon, published)*
+- **Apple's HIG Motion page publishes no durations or curves at all** — it is qualitative only. Do not
+  cite "Apple does it this way" for a number; there is no number to cite.
+
+### Easing — and why it is asymmetric
+- Entering uses a DECELERATE curve (arrives at speed, settles): Material `cubic-bezier(0.05,0.7,0.1,1)`;
+  Carbon `(0,0,0.38,0.9)`. *(published)*
+- Exiting FOREVER uses an ACCELERATE curve (leaves at speed) — it signals "not retrievable":
+  Material `cubic-bezier(0.3,0,0.8,0.15)`; Carbon `(0.2,0,1,0.9)`. *(published)*
+- Exiting but RETRIEVABLE (a drawer) uses the entrance-style settle curve instead, implying recall.
+  Material and Carbon state this independently. *(published)*
+
+### Stagger
+- **20 ms between successive item entrances** — the same number from two independent primary sources
+  (Material's Choreography spec, Carbon's table-row spec). *(published)*
+- **The whole staggered sequence must finish within 500 ms.** With more items, shrink the per-item
+  offset to hold that ceiling — do not extend the sequence. *(Carbon, published)*
+- Published reveal ORDER: static shell → static body → dynamic data → primary action → data-viz.
+  *(Carbon, published)*
+
+### Seams
+- A shot must be SETTLED before a dissolve runs over it. Implemented in `runtime/motion.ts` `useT`,
+  which holds t=0 through the incoming dissolve and t=1 through the outgoing one — measured effect:
+  seam frame-to-frame variance fell from CV 0.244 to 0.016.
+- **A caption must never straddle a cut.** Start and end it on the shot's first/last frame; split the
+  line or move its start to the cut. *(BBC, published)*
+- A caption may not lead speech by >1.5 s, hang >1.5 s after it, or trail the audio by >2 s.
+  *(BBC, published)*
+- Two-axis moves: stagger the horizontal and vertical starts so the path resolves as a rounded corner.
+  Pure diagonal motion is called out as harsh. *(Carbon, published)*
+- Frame margins: action-safe **3.5%** per side, title/graphics-safe **5%** — SMPTE ST 2046-1 and EBU R95
+  agree exactly. At 1920×1080 that is 67/38 px and 96/54 px. `scripts/frame_safe_qa.py` already gates the
+  3.5% border. *(published)*
+
+### Restraint — the gap
+**No system surveyed (Material, Carbon, Fluent, Apple) publishes a numeric cap on how many elements may
+animate at once, or a motion budget per screen.** All four give qualitative guidance only ("if the motion
+is noticed, remove it"). So this cannot be turned into a threshold gate from published sources; the
+nearest enforceable proxies are the 500 ms stagger ceiling and the published reveal order above.

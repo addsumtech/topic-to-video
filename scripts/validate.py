@@ -34,7 +34,15 @@ PACE_CEILING_S = 8.0
 # A caption that needs more than this many wrapped lines is a wall of text on screen.
 MAX_CAPTION_LINES = 3
 # A burned caption flashed for less than this reads faster than a viewer can follow.
-MIN_CAPTION_SECONDS = 0.7
+# Netflix Timed Text Style Guide (published, primary) — the only source found that gives real numbers
+# for CJK, and they are NOT a translation of the Latin ones: Simplified Chinese caps at 9 characters per
+# second against English's 20, and 16 characters per line against 42. A Chinese caption therefore carries
+# roughly 38% of the characters and 45% of the reading-speed budget of the English line it came from, so an
+# English-density script translated 1:1 into the same box cannot be read.
+MIN_CAPTION_SECONDS = 0.833        # 5/6 s absolute floor, any length, any language
+MAX_CAPTION_SECONDS = 7.0          # ceiling — past this a caption reads as stuck
+CPS_CJK, CPS_LATIN = 9.0, 20.0     # adult reading speed, characters per second
+CJK_CHARS_PER_LINE = 16            # zh-Hans per-line ceiling
 # A Latin caption line that ends on a lone short word ("…to the / future") reads as a typo.
 DANGLING_WORD_MAX_CHARS = 8
 # A single cue denser than this is a wall even when it wraps to <= MAX_CAPTION_LINES (line count
@@ -1548,9 +1556,37 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                     warnings.append(f"{tag}: caption ends on a lone word \"{widow}\" — rephrase so the last line isn't a widow")
             # minimum on-screen time (needs the timed segments, so only after tts)
             if not pre_tts and s.get("duration"):
+                shown_floor = shown_cps = shown_ceil = False
                 for seg in rd._captions_for(s):
-                    if (seg.get("text") or "").strip() and (seg["end"] - seg["start"]) < MIN_CAPTION_SECONDS:
-                        warnings.append(f"{tag}: a caption shows for {seg['end'] - seg['start']:.2f}s (< {MIN_CAPTION_SECONDS}s) — too fast to read; merge chunks or lengthen the line")
+                    ct2 = (seg.get("text") or "").strip()
+                    if not ct2:
+                        continue
+                    dwell = seg["end"] - seg["start"]
+                    if not shown_floor and dwell < MIN_CAPTION_SECONDS:
+                        warnings.append(f"{tag}: a caption shows for {dwell:.2f}s (< {MIN_CAPTION_SECONDS}s, the published "
+                                        f"absolute floor) — too fast to read; merge chunks or lengthen the line")
+                        shown_floor = True
+                    # READING SPEED, per script. A CJK line needs more than twice the seconds-per-character
+                    # of a Latin one; the old width-only "wall of text" check could not see this at all.
+                    cjk = sum(1 for c in ct2 if '\u3040' <= c <= '\u9fff' or '\uac00' <= c <= '\ud7af')
+                    cps = CPS_CJK if cjk * 2 >= len(ct2) else CPS_LATIN
+                    need = len(ct2) / cps
+                    if not shown_cps and dwell + 1e-6 < need:
+                        warnings.append(f"{tag}: a caption of {len(ct2)} chars shows for {dwell:.2f}s but needs "
+                                        f"{need:.2f}s at {cps:.0f} chars/sec ({'CJK' if cps == CPS_CJK else 'Latin'}) — "
+                                        f"shorten the line or slow meta.tts_speed")
+                        shown_cps = True
+                    if not shown_ceil and dwell > MAX_CAPTION_SECONDS:
+                        warnings.append(f"{tag}: a caption holds {dwell:.1f}s (> {MAX_CAPTION_SECONDS:.0f}s) — split it; "
+                                        f"a line held that long reads as stuck")
+                        shown_ceil = True
+                    if cps == CPS_CJK:
+                        for ln in _caption_lines(ct2, meta, W, H):
+                            if len(ln.strip()) > CJK_CHARS_PER_LINE:
+                                warnings.append(f"{tag}: CJK caption line is {len(ln.strip())} chars "
+                                                f"(> {CJK_CHARS_PER_LINE}) — \"{ln.strip()[:20]}…\"")
+                                break
+                    if shown_floor and shown_cps and shown_ceil:
                         break
 
         # --- narration AI-tells (humanizer-informed): reads as machine-generated even if grammatical ---
