@@ -977,3 +977,52 @@ def test_standalone_shot_preview_can_carry_a_dna():
     f_def = root[root.index("const F = (id: string"):]
     f_def = f_def[:f_def.index(");")]
     assert "DnaPreview" in f_def, "F() no longer routes shots through the DNA-aware preview"
+
+
+def test_shot_proof_catches_the_mechanical_half_of_a_shot_review():
+    # A shot-critic pass over a finished film filed 15 findings; more than half were mechanical and could
+    # have been caught before the render. This gate exists so the critic spends its pass on judgment.
+    import shot_proof as sp
+
+    def board(slides):
+        return {"meta": {"renderer": "remotion", "shot_template": "data"}, "slides": slides}
+
+    # (a) a register's DEMO DEFAULT left in shot_props — this shipped on a delivered film's LAST frame,
+    #     where CardFlip3D's backLabel still read the register's sample word.
+    defs = sp.shot_defaults("CardFlip3D")
+    assert "backLabel" in defs and defs["backLabel"], "cannot read CardFlip3D's defaults any more"
+    leaked = board([{"index": 0, "shot": "CardFlip3D",
+                     "shot_props": {"title": "x", "backLabel": defs["backLabel"],
+                                    "items": [{"front": "a", "back": "b"}]}}])
+    _, w = sp.static_checks(leaked)
+    assert any("DEMO DEFAULT" in x for x in w), w
+    # setting real copy clears it
+    ok = json.loads(json.dumps(leaked))
+    ok["slides"][0]["shot_props"]["backLabel"] = "我们查到的"
+    _, w2 = sp.static_checks(ok)
+    assert not any("DEMO DEFAULT" in x for x in w2), w2
+
+    # (b) two beats rendering the SAME picture. The defect is shape-identical / value-DIFFERENT, so a
+    #     check that requires shared VALUES looks for the opposite of it and finds nothing (an earlier
+    #     draft of this test passed against exactly that broken check).
+    same = board([{"index": i, "shot": "CardFlip3D",
+                   "shot_props": {"title": "t%d" % i, "backLabel": "b%d" % i,
+                                  "items": [{"front": "f%d" % i, "back": "k%d" % i}]}} for i in range(3)])
+    _, w3 = sp.static_checks(same)
+    rep = [x for x in w3 if "same prop shape" in x]
+    assert rep and "1, 2, 3" in rep[0], w3
+    # genuinely different shapes (different item counts) must NOT be reported
+    varied = json.loads(json.dumps(same))
+    varied["slides"][1]["shot_props"]["items"] = [{"front": "a", "back": "b"}, {"front": "c", "back": "d"},
+                                                 {"front": "e", "back": "f"}]
+    varied["slides"][2]["shot_props"] = {"title": "z"}
+    _, w4 = sp.static_checks(varied)
+    assert not [x for x in w4 if "same prop shape" in x], w4
+
+    # (c) the palette test is an ARC between the two accents, not two points: a gradient blending accent
+    #     into accent2 passes through every hue between them and is in-system by construction.
+    data_hues = [154.0, 39.0]                      # the `data` DNA: green + amber
+    assert sp._in_palette(120.0, data_hues), "a green-to-amber blend must not read as off-system"
+    assert sp._in_palette(154.0, data_hues) and sp._in_palette(39.0, data_hues)
+    assert not sp._in_palette(207.0, data_hues), "cyan-blue must read as off-system in a green/amber film"
+    assert not sp._in_palette(280.0, data_hues)

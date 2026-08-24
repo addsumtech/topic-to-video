@@ -272,6 +272,19 @@ figure), a non-singular `the_one_thing`, or a
   three say how much that is worth. `source_ref` may be a **string or a list** (every ref in the list
   is still resolved; cross-sourcing a claim clears the corroboration warning). The STRUCTURAL floor so a hollow brief can't reach the planner —
   run at step 3.5 BEFORE dispatching `content-planner`. The SEMANTIC depth audit is `critic-content` C0.
+- `scripts/shot_proof.py <out_dir> [--stills]` — the **PROOF SHEET** for a `remotion` deck: the
+  mechanical half of a shot review, run BEFORE the full render. A shot-critic pass over a finished
+  37-beat film cost a render plus a long review and filed 15 findings; more than half were things a
+  script can decide. Static (~1s): a register's **demo default** left in `shot_props` (a card's
+  `backLabel` still reading the sample word on the film's closing frame), and **two beats rendering
+  the same picture** (same register, same prop shape, words swapped — reported grouped per register).
+  With `--stills` (~5s/beat) it renders each beat's shot at its settled frame INSIDE the film's DNA
+  (`--props='{"dna":"…"}'`) and adds: action-safe overflow, ink in the caption band, **colour
+  outside the film's palette** (the arc BETWEEN its two accents — a blend of the two is in-system by
+  construction), and a **dead frame** (content spanning <45% of the width). Run it after the
+  shot-director step and fix everything before rendering; the critic's pass is then spent on the half
+  a script cannot judge — meaning, content-fit, faithfulness, register fit. Passing is a FLOOR, not a
+  verdict.
 - `scripts/voice_qa.py <out_dir> [--json]` — deterministic **VOICE** gate on the narration: does it read
   like a person or like a machine imitating one. Two families — the well-known zh/en AI-slop VOCABULARY
   (随着…的不断发展 / 赋能 / 值得一提的是 / delve / "not just X, but Y"), and the RHYTHM tells every
@@ -955,6 +968,11 @@ figure), a non-singular `the_one_thing`, or a
    **And run `python scripts/pedagogy_qa.py <out_dir>`** — the teaching-order gate: it ERRORs on a
    concept used before it is introduced (walks `content_plan.json`'s concept DAG). Fix every ERROR;
    it no-ops if `content_plan.json` wasn't persisted.
+   **On a `meta.renderer:"remotion"` deck, run `python scripts/shot_proof.py <out_dir> --stills`
+   BEFORE the full render** — it catches, in ~3 minutes, the mechanical findings that otherwise cost
+   a 15-minute render plus a shot-critic pass to discover: a leftover register default, two beats
+   rendering the same picture, action-safe overflow, ink in the caption band, an off-palette colour,
+   a dead frame. Fix every ERROR and triage the warnings out loud, exactly as with validate.
    **And run `python scripts/voice_qa.py <out_dir>`** — the VOICE gate (see `references/anti-ai-voice.md`).
    It reports the vocabulary tells AND the rhythm distribution (sentence-length CV, balanced-pair share,
    connective share, antithesis share). Treat each number as a place to look, not a target: fix the beats
