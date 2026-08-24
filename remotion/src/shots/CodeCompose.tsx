@@ -22,6 +22,15 @@ const DEFAULT_LINES: Tok[][] = [
 const CHW = 20.4, LH = 58, FS = 34;
 const lineLen = (l: Tok[]) => l.reduce((s, k) => s + k.t.length, 0);
 
+// EAST-ASIAN WIDTH. The caret was positioned as `revealedChars * CHW`, one cell per character — but a Han
+// glyph occupies TWO cells in a monospace face, so on a CJK comment the caret drifted left and was drawn
+// THROUGH the middle of a character (splitting 测 into 氵and 则). Count wide codepoints as 2 cells.
+const isWide = (ch: string): boolean =>
+  /[\u1100-\u115f\u2e80-\ua4cf\uac00-\ud7a3\uf900-\ufaff\ufe30-\ufe6f\uff00-\uff60\uffe0-\uffe6]/.test(ch);
+const cells = (s: string): number => { let n = 0; for (const ch of s) n += isWide(ch) ? 2 : 1; return n; };
+const lineText = (line: Tok[] | string): string =>
+  typeof line === 'string' ? line : line.map((tk) => tk.t).join('');
+
 export const CodeCompose: React.FC<{filename?: string; lines?: (Tok[] | string)[]; status?: string}> = ({
   filename = 'workbuddy.py', lines: LINESP, status: STATUS = '— shipped, on your machine'} = {}) => {
   const t = useT();
@@ -59,8 +68,9 @@ export const CodeCompose: React.FC<{filename?: string; lines?: (Tok[] | string)[
     );
     rendered.push(<text key={`g${li}`} x={gx + 40} y={yy} textAnchor="end" style={{font: `600 ${FS}px/1 var(--f-mono, "JetBrains Mono", monospace)`}} fill="#39414d" dominantBaseline="hanging">{li + 1}</text>);
     // caret lives on the last line that has begun revealing
-    if (shown > before && revealedHere < chars) {caretX = textX + revealedHere * CHW; caretY = yy; caretLine = li;}
-    else if (shown >= before + chars) {caretX = textX + chars * CHW; caretY = yy; caretLine = li;}
+    const lt = lineText(line);
+    if (shown > before && revealedHere < chars) {caretX = textX + cells(lt.slice(0, revealedHere)) * CHW; caretY = yy; caretLine = li;}
+    else if (shown >= before + chars) {caretX = textX + cells(lt) * CHW; caretY = yy; caretLine = li;}
     acc += chars + 1; // + newline
   });
 
@@ -88,8 +98,15 @@ export const CodeCompose: React.FC<{filename?: string; lines?: (Tok[] | string)[
       <div style={{position: 'absolute', left: wx, top: wy + winH - 96, width: winW, height: 96,
         borderTop: '1px solid #202836', background: '#0b1016', display: 'flex', alignItems: 'center', gap: 20,
         paddingLeft: 34, opacity: outT, borderRadius: '0 0 18px 18px'}}>
-        <span style={{color: '#5a6577', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)'}}>▶</span>
-        <span style={{color: '#9df2a0', font: '700 32px/1 var(--f-mono, "JetBrains Mono", monospace)'}}>✓ done</span>
+        {/* was ▶ — a filled play triangle at the left of a bar reads as PLAYER CHROME on a video frame */}
+        <span style={{color: '#5a6577', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)'}}>$</span>
+        {/* ✓ is absent from JetBrains Mono and fell back to a hairline ∨ at a different stroke weight — on the
+            opening frame, and it IS the all-green pass signal this film disputes. Draw it so it cannot fall back. */}
+        <span style={{color: '#9df2a0', font: '700 32px/1 var(--f-mono, "JetBrains Mono", monospace)',
+          display: 'inline-flex', alignItems: 'center', gap: 10}}>
+          <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M3.5 11.5 L8.5 16.5 L18.5 5.5"
+            fill="none" stroke="#9df2a0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          done</span>
         <span style={{color: '#5a6577', font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)'}}>{STATUS}</span>
       </div>
     </AbsoluteFill>

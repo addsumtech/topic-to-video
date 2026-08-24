@@ -12,6 +12,7 @@ generic-scene Remotion machinery (atmospheres/templates/planes/ThreeScene) was R
 Requires the Node toolchain + `cd remotion && npm install` once (doctor.py reports availability).
 """
 import argparse, json, os, shutil, subprocess, sys
+import re
 import storyboard as sb
 
 _REMOTION2_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion")
@@ -75,6 +76,28 @@ def _remotion_shot_ids():
     return {f[:-4] for f in os.listdir(d) if f.endswith(".tsx")} if os.path.isdir(d) else set()
 
 
+
+_DEC = "\x00"
+
+
+def _split_caption(text):
+    """Mirror of Film.tsx splitCaption — same chunks, so the sidecar .srt matches the burn.
+
+    Includes the decimal guard: a `.` between two digits is not a sentence end, or a line quoting
+    "19.3 到 28.9%" breaks into "19." / "3 到 28." / "9%。"."""
+    guarded = re.sub(r"(\d)\.(\d)", lambda m: m.group(1) + _DEC + m.group(2), text or "")
+    raw = re.findall(r"[^.!?。！？—]+[.!?。！？]?(?:\s*—)?", guarded)
+    chunks = [c.strip().replace(_DEC, ".") for c in raw]
+    chunks = [c for c in chunks if c]
+    cjk = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]")
+    merged = []
+    for c in chunks:                                   # merge short LATIN neighbours, as the JS does
+        if merged and not cjk.search(c) and not cjk.search(merged[-1]) and (len(merged[-1]) < 22 or len(c) < 22):
+            merged[-1] += " " + c
+        else:
+            merged.append(c)
+    return merged
+
 def _srt_ts(t):
     ms = int(round(max(0.0, t) * 1000)); h, ms = divmod(ms, 3600000); m, ms = divmod(ms, 60000); s, ms = divmod(ms, 1000)
     return "%02d:%02d:%02d,%03d" % (h, m, s, ms)
@@ -89,15 +112,31 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps):
     for i, sc in enumerate(scenes):
         starts.append((acc - i * tr) / fps)
         acc += sc["durF"]
-    lines, n = [], 0                                   # SRT: scene-level (the narration) over each scene's solo span
+    # SRT must MIRROR THE BURN, not summarise it. It used to emit one scene-long cue carrying the whole
+    # narration while Film.tsx burns one chunk PER SENTENCE, each timed by its share of the characters — so
+    # the sidecar shipped cues up to 3x too long and mistimed against what a viewer actually saw. Reproduce
+    # Film.tsx's splitCaption (including its decimal guard) and its length-weighted chunk timing here.
+    half = tr // 2
+    lines, n = [], 0
     for i, sc in enumerate(scenes):
         cap = sc.get("caption")
         if not cap:
             continue
-        t0 = starts[i]
-        t1 = starts[i + 1] if i + 1 < len(scenes) else t0 + sc["durF"] / fps
-        n += 1
-        lines.append("%d\n%s --> %s\n%s\n" % (n, _srt_ts(t0), _srt_ts(max(t0 + 0.4, t1 - 0.05)), cap))
+        chunks = _split_caption(cap)
+        if not chunks:
+            continue
+        a = (starts[i] * fps) + (half if i > 0 else 14)         # window in FRAMES on the output timeline
+        b = (starts[i] * fps) + sc["durF"] - ((tr - half) if i + 1 < len(scenes) else 16)
+        span = max(1.0, b - a)
+        lens = [max(1, len(c)) for c in chunks]
+        tot = float(sum(lens))
+        cum = 0.0
+        for c, L in zip(chunks, lens):
+            f0 = a + span * (cum / tot)
+            cum += L
+            f1 = a + span * (cum / tot)
+            n += 1
+            lines.append("%d\n%s --> %s\n%s\n" % (n, _srt_ts(f0 / fps), _srt_ts(max(f0 / fps + 0.3, f1 / fps - 0.02)), c))
     with open(os.path.join(out_dir, "out.srt"), "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
     if shutil.which("ffmpeg") and os.path.exists(out_mp4):   # per-scene keyframes for the shot-critic

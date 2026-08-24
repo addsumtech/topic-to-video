@@ -105,8 +105,15 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaColors?
   let active = -1, ws = 0, we = 0;
   for (let i = 0; i < scenes.length; i++) {
     const dur = Math.max(1, Math.round(scenes[i].durF));
-    const a = starts[i] + (i > 0 ? TR : 14) + CAP_PAD;                       // clear the transition-in / intro
-    const b = starts[i] + dur - (i < scenes.length - 1 ? TR : 16) - CAP_PAD; // clear the transition-out / outro
+    // HAND OFF AT THE MIDDLE OF THE DISSOLVE, not outside it. Clearing the WHOLE transition at both ends
+    // plus CAP_PAD suppressed the caption for ~0.53s after every cut while the speech had already begun,
+    // and dropped it ~0.2s before the line ended — measured at ~0.7s of uncaptioned speech per beat, about
+    // 25s across a 37-beat film. Scene i+1 starts TR frames before scene i ends, so switching at the
+    // dissolve's midpoint keeps the windows DISJOINT (the original reason for the guard: two captions must
+    // never coexist) while making them GAPLESS — caption i ends on exactly the frame caption i+1 begins.
+    const half = Math.floor(TR / 2);
+    const a = starts[i] + (i > 0 ? half : 14);
+    const b = starts[i] + dur - (i < scenes.length - 1 ? TR - half : 16);
     if (frame >= a && frame <= b) { active = i; ws = a; we = b; break; }
   }
   const sc = active >= 0 ? scenes[active] : undefined;
