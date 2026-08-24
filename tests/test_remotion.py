@@ -841,3 +841,28 @@ def test_every_shot_reads_the_type_variables_or_the_dna_directly():
         if offenses:
             offenders.append((name, offenses[:2]))
     assert not offenders, "shots still hardcode a font family: %r" % offenders[:5]
+
+
+def test_crashzoom_punch_rests_inside_the_content_zone():
+    # REGRESSION (found on a delivered film): CrashZoom punched to (W / cw) * 0.98, which threw the
+    # neighbouring tiles off-frame at near-full opacity (frame_safe_qa: "5.4% of the safe border is bright
+    # content") and parked the hero card's own edge underneath the burned caption. The fix bounds the resting
+    # scale by the CONTENT ZONE. This test does not pin the literals — it re-derives the invariant from
+    # whatever budget factors the source currently declares, so widening them past the frame fails here.
+    import re
+    src = open(os.path.join(_SHOTS_DIR, "CrashZoom.tsx"), encoding="utf-8").read()
+    over = float(re.search(r"OVERSHOOT\s*=\s*([\d.]+)", src).group(1))
+    wf = float(re.search(r"W \* ([\d.]+) / tw", src).group(1))               # width budget, frame fractions
+    hf = float(re.search(r"\(zoneBot - zoneTop\) \* ([\d.]+) / th", src).group(1))   # height budget
+    fade = float(re.search(r"away = clamp01\(z \* ([\d.]+)\)", src).group(1))
+    SAFE = 0.035                                                            # EBU R95, same as frame_safe_qa
+    # the punch overshoots past its resting scale, so the BUDGET must leave room for the overshoot
+    assert wf * over <= 1 - 2 * SAFE, "hero can overrun the action-safe border (%.3f x %.2f)" % (wf, over)
+    assert hf * over <= 1.0, "hero can overrun the content zone into the caption band (%.3f x %.2f)" % (hf, over)
+    # the zone is measured off the frame + the real caption band, not hardcoded pixels
+    assert "captionBand(W, H)" in src and "zoneBot = H - CB" in src
+    assert "(W / cw)" not in src, "the unbounded punch is back"
+    # neighbours must be gone BEFORE they reach the border, not sliced in half by it while still legible
+    assert fade >= 2.0, "neighbour fade (z * %.1f) is too slow to clear the border during the punch" % fade
+    # long real copy must not overflow a card sized for the demo words
+    assert "fitTextOnNLines" in src, "CrashZoom type is not width-fitted"
