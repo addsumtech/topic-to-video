@@ -1148,3 +1148,14 @@ def test_frame_craft_and_voice_gates_work_on_inputs_they_were_not_tuned_on():
         "an English script is being reported on in Chinese: %r" % rf["warnings"][:2]
     zh = [(i, "写崩的会当场报错，你漏不掉。难的是另一种：读着合理，也不出声。") for i in range(4)]
     assert vq.evaluate(zh)["language"] == "zh"
+
+
+def test_shot_proof_renders_at_the_films_own_aspect():
+    # The proof sheet renders each shot standalone and measures its geometry. Without the film's aspect it
+    # rendered every shot at 1920x1080 and then judged the caption band (150px — the 16:9 value) and the
+    # content width against a frame a portrait film will never show.
+    src = open(os.path.join(os.path.dirname(__file__), "..", "scripts", "shot_proof.py"), encoding="utf-8").read()
+    assert 'aspect = board.get("meta", {}).get("aspect")' in src, "shot_proof no longer reads meta.aspect"
+    assert 'payload["aspect"] = aspect' in src, "the film's aspect never reaches the still render"
+    import shot_still_qa as sq
+    assert sq._caption_band_px(1080, 1920) == 200 and sq._caption_band_px(1920, 1080) == 150

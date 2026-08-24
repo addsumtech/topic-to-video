@@ -292,6 +292,7 @@ def main(argv):
         proof = os.path.join(out_dir, "_proof")
         os.makedirs(proof, exist_ok=True)
         dna_ref = board.get("meta", {}).get("design_dna") or board.get("meta", {}).get("shot_template")
+        aspect = board.get("meta", {}).get("aspect")
         for s in board.get("slides", []):
             beat = s.get("index", 0) + 1
             shot = s.get("shot")
@@ -308,6 +309,12 @@ def main(argv):
             payload = dict(s.get("shot_props") or {})
             if dna_ref:
                 payload["dna"] = dna_ref
+            # The proof sheet must render at the FILM'S aspect. Without this it rendered every shot at
+            # 1920x1080 and then measured the caption band (150px, the 16:9 value) and the content width
+            # against a frame the film will never show — a portrait film's proof sheet was checking
+            # geometry that does not exist.
+            if aspect:
+                payload["aspect"] = aspect
             json.dump(payload, open(pj, "w", encoding="utf-8"), ensure_ascii=False)
             png = os.path.join(proof, "beat_%02d.png" % beat)
             r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png,
