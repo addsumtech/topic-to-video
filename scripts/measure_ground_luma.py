@@ -106,7 +106,60 @@ def measure(shot, td):
     return border_luminance(png), None
 
 
+def _emit(table=None):
+    """Write the measured table into DNA_GROUND_TOKEN in shotLuma.ts.
+
+    The docstring has advertised `--emit` since this script was written and the flag was never
+    implemented: `--check` printed "re-run: ... --emit", and that re-run silently re-measured for ten
+    minutes and wrote the JSON again, leaving the table untouched. A documented command that does
+    nothing is worse than no command, because it looks like the table was updated.
+
+    `--apply-json` applies the already-measured remotion/_ground_luma.json without re-rendering.
+
+    A `// declared-only` entry is NEVER overwritten: it is declared precisely because the measurement
+    cannot see that shot's ground.
+    """
+    dest = os.path.join(_REMOTION, "src", "runtime", "shotLuma.ts")
+    if table is None:
+        jp = os.path.join(_REMOTION, "_ground_luma.json")
+        if not os.path.exists(jp):
+            print("no measurement to apply: %s is missing (run without --apply-json first)" % jp)
+            return 1
+        table = json.load(open(jp, encoding="utf-8"))["table"]
+    src = open(dest, encoding="utf-8").read()
+    head = "export const DNA_GROUND_TOKEN"
+    i = src.index(head)
+    j = src.index("\n};", i) + 3
+    block, kept, wrote = src[i:j], 0, 0
+    lines = []
+    for line in block.split("\n"):
+        m = re.match(r"^  (\w+):\s*(.+?),(\s*//.*)?$", line)
+        if not m:
+            lines.append(line); continue
+        shot, comment = m.group(1), (m.group(3) or "")
+        if "declared-only" in comment or shot not in table:
+            lines.append(line); kept += 1; continue
+        tok = table[shot]
+        want = ("'%s'" % tok) if isinstance(tok, str) else ("[%s]" % ", ".join("'%s'" % x for x in tok))
+        lines.append("  %s: %s,%s" % (shot, want, comment)); wrote += 1
+    known = {re.match(r"^  (\w+):", l).group(1) for l in block.split("\n") if re.match(r"^  (\w+):", l)}
+    added = sorted(set(table) - known)
+    if added:                                            # a NEW shot the table has never carried
+        tail = lines.pop()                               # the closing "};"
+        for shot in added:
+            tok = table[shot]
+            want = ("'%s'" % tok) if isinstance(tok, str) else ("[%s]" % ", ".join("'%s'" % x for x in tok))
+            lines.append("  %s: %s," % (shot, want))
+        lines.append(tail)
+    open(dest, "w", encoding="utf-8").write(src[:i] + "\n".join(lines) + src[j:])
+    print("DNA_GROUND_TOKEN: %d updated, %d added (%s), %d left as declared-only/unknown"
+          % (wrote, len(added), ", ".join(added) or "-", kept))
+    return 0
+
+
 def main(argv):
+    if "--apply-json" in argv:      # apply a PREVIOUS measurement; never re-render (that is --emit)
+        return _emit(None)
     only = None
     for a in argv:
         if a.startswith("--only"):
@@ -147,6 +200,8 @@ def main(argv):
             return 1
         print("DNA_GROUND_TOKEN matches the measured pixels (%d shots)" % len(out))
         return 0
+    if "--emit" in argv:
+        return _emit(out)
     dest = os.path.join(_HERE, "..", "remotion", "_ground_luma.json")
     if only:
         # A --only run is a SPOT CHECK; it must never overwrite the full-library table. It did once,

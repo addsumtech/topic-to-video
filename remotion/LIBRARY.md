@@ -89,6 +89,8 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 130. **TermDiff** `title, minus[], plus[]` — `-`/`+` gutters, red/green. *Use: before → after / what changed.*
 131. **TermThink** `prompt, thoughts[], answer` — a `<think>` stream resolving into an answer. *Use: reasoning made visible.*
 
+135. **OverlapSeparation** — two density curves per panel on a shared axis: the failing measure's two populations sit on top of each other with no threshold that divides them; the separating measure's split cleanly. *Use: this metric cannot tell these two apart, that one can / a proxy measure that does not discriminate.* Curves are a deterministic function of each population's mean+spread — no sampling. `kicker, title, fail{label,note,a{label,mean,spread},b{…}}, pass{…}, domain[lo,hi]`
+
 ## E · 3D / material
 32. **MaterialHero** — real 3D torusKnot (R3F/WebGL), studio-lit. *Use: a hero object beat.*
 53. **CardFlip3D** — a row of cards flip 180° on Y (CSS 3D), a sheen at the seam, the payoff on the back. *Use: question → answer / before → after pairs.*
@@ -121,9 +123,10 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 
 ## H · Comparison
 48. **BeforeAfterSlider** — slider wipes rough draft → board-ready. *Use: quality / transformation.*
-54. **QuadSplit** — the frame splits into a 2×2 of micro-panels (each a distinct accent + motif), then one hero panel takes the whole frame. *Use: four angles → the one that matters.*
+54. **QuadSplit** — the frame splits into a 2×2 of micro-panels (each a distinct accent + motif), then one hero panel takes the whole frame. *Use: four angles → the one that matters.* Each panel takes an optional **`glyph`** naming the form that tile carries — `checks` (a suite passing) · `gutter` (covered vs untouched lines) · `peers` (two identical parties agreeing) · `review` (a pointer stopping on one line) · `bars` · `ring` · `dots` · `wave`. **Name one per panel**: omitted, the tile falls back to a motif picked by INDEX, which is decoration, not content — that is how one film shipped a bar chart under 「测试」 and a squiggle under 「人工评审」. An unknown name fails loudly.
 59. **PositioningMatrix** — a 2×2 axes map; item dots drift to their spots and the hero lands in its quadrant (ring + label). *Use: positioning / where things sit / who leads (qualitative).*
 63. **VersusSplit** — a head-to-head split screen: two contenders slide in across a diagonal seam, a VS badge slams, the winner side glows. *Use: A vs B / this beats that (qualitative).*
+136. **SharedBlindspot** — a field of cases under two producers' blind regions: the same-source pair's regions coincide (the cases inside are missed by both), the independent pair's sit apart (between them the field is covered). *Use: correlated vs independent failure / "these two miss the same things" / why a same-source check cannot catch its own blind spot.* Positions are hash01-deterministic. `kicker, title, shared{label,a,b,note}, independent{label,a,b,note}, cases`
 
 ## I · Mechanical / tactile-physical
 49. **SplitFlap** — Solari flap board riffles + settles to the message. *Use: status flips to done / announce.*
@@ -244,7 +247,8 @@ in the film wrapper. Per-shot props:
 | CartoonPop / PixelBuild / ClayStack / LiquidFill / LightTrails / ParticleForm / AsciiField(`message`) | `label` |
 | PaperCutout `label, tagline` · RadialBurst `hub, tagline` · CodeCompose `filename` | |
 | OdometerRoll `value, label, unit` · CubeRotate `faces[], title` · GearTrain `items[], label, title` | |
-| QuadSplit `panels[{label}], heading, hero` · CardFlip3D `items[{front,back}], title` | |
+| QuadSplit `panels[{label,glyph}], heading, hero` · CardFlip3D `items[{front,back}], title, backLabel` | |
+| SharedBlindspot `kicker, title, shared{label,a,b,note}, independent{label,a,b,note}, cases` | |
 | GaugeCluster `value, unit, label, gauges[{label,fill}], title` · FractureIn `title, tagline, accent` | |
 | BentoReveal `title, hero, items[]` · ConveyorBelt `items[], title, doneLabel` | |
 | PositioningMatrix `title, xAxis[lo,hi], yAxis[lo,hi], items[{label,x,y,hero}]` | |

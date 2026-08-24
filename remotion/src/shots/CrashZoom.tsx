@@ -7,7 +7,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {fitTextOnNLines} from '@remotion/layout-utils';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutBack, easeOutCubic} from '../runtime/motion';
 import {captionBand} from '../runtime/layout';
-import {useDNA} from '../runtime/dna';
+import {useDNA, mix, shade} from '../runtime/dna';
 
 export const DURATION = 140; // ~4.7s
 const BG_D0 = '#0a0c13', ACC_D0 = '#5b8cff';
@@ -18,6 +18,10 @@ export const CrashZoom: React.FC<{items?: string[]; label?: string; target?: num
   label: LABEL = 'One place for all of it', target: TARGET = 4, title: TITLE = 'Your workspace'} = {}) => {
   const dna = useDNA();
   const BG = dna?.bg ?? BG_D0, ACC = dna?.accent ?? ACC_D0;
+  // The hero card's second gradient stop used to be a hardcoded '#2c3ac0'. On a themed film that stop
+  // OVERRODE the DNA: the card is ~25% of the frame, so a green/amber film got a royal-blue hero. Derive
+  // it from the film's own two hues; with no DNA the original blue is still exactly what renders.
+  const ACC_DEEP = dna ? shade(mix(ACC, dna.accent2 ?? ACC, 0.45), 0.3) : '#2c3ac0';
   const bodyFace = 'var(--f-body, Inter, system-ui, sans-serif)';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
@@ -88,7 +92,7 @@ export const CrashZoom: React.FC<{items?: string[]; label?: string; target?: num
             <div key={i} style={{position: 'absolute', left: gx + c * cw + 8, top: gy + r * ch + 8,
               width: tw, height: th, opacity: clamp01(enter * 1.4) * (isT ? 1 : 1 - away),
               transform: `scale(${lerp(0.9, 1, enter)})`, borderRadius: 18,
-              background: isT ? `linear-gradient(150deg, ${ACC}, #2c3ac0)` : 'linear-gradient(160deg, #14172480, #0d0f18)',
+              background: isT ? `linear-gradient(150deg, ${ACC}, ${ACC_DEEP})` : 'linear-gradient(160deg, #14172480, #0d0f18)',
               border: `1px solid ${isT ? 'transparent' : '#20243a'}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 24px',
               boxShadow: isT ? `0 20px 60px ${ACC}44` : '0 12px 30px #0006'}}>

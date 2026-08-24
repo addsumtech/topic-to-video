@@ -30,10 +30,7 @@
   "CommandSummon": "bg",
   "CompressedSensingEq": "bg",
   "ConveyorBelt": "bg",
-  "CrashZoom": [
-   "accent2",
-   "surface"
-  ],
+  "CrashZoom": "bg",
   "CubeRotate": "bg",
   "CursorStory": "bg",
   "DNAHelix": "bg",
@@ -83,6 +80,10 @@
   "LiquidGlass": "bg",
   "LiquidMetal": "bg",
   "LiquidMorph": "bg",
+  "LowPolyForm": [
+   "accent2",
+   "bg"
+  ],
   "MRIPipeline": "bg",
   "MagazineSpread": "bg",
   "MagnetizationTip": "bg",
@@ -96,6 +97,7 @@
   "NeuralField": "bg",
   "OdometerRoll": "bg",
   "OpenQuestions": "bg",
+  "OverlapSeparation": "bg",
   "PaperCutout": "bg",
   "ParticleForm": "bg",
   "PhaseEncodeStep": "bg",
@@ -112,6 +114,7 @@
   "RisoPrint": "bg",
   "ScanReconstruct": "bg",
   "ScreenBubble": "bg",
+  "SharedBlindspot": "bg",
   "SpectrumPulse": "bg",
   "SpeedLimit": "bg",
   "SpinningProton": "bg",
@@ -140,8 +143,6 @@
   "VoxelBuild": "bg",
   "WireGlobe": "bg"
  },
- "unclassified": [
-  "LowPolyForm"
- ],
+ "unclassified": [],
  "failed": []
 }

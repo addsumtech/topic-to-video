@@ -86,7 +86,7 @@ export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundToken | GroundToken
   CommandSummon: 'bg',
   CompressedSensingEq: 'bg',
   ConveyorBelt: 'bg',
-  CrashZoom: ['accent2', 'surface'],
+  CrashZoom: 'bg',
   CubeRotate: 'bg',
   CursorStory: 'bg',
   DNAHelix: 'bg',
@@ -190,6 +190,8 @@ export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundToken | GroundToken
   VoiceSignal: 'bg',
   VoxelBuild: 'bg',
   WireGlobe: 'bg',
+  OverlapSeparation: 'bg',
+  SharedBlindspot: 'bg',
 };
 
 /** The luminance CLASS of an actual colour (sRGB relative luminance), so a runtime ground can be classified the
