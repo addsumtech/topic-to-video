@@ -125,10 +125,16 @@ def test_shots_are_deterministic():
 
 
 def test_registry_in_sync_with_shot_files():
-    # every shot file is a valid id, and the count matches the assertion below (the whole library).
-    # 125 base + 8 terminal-native (Term*) + 3 editorial-native (Ed*) style-native family shots = 136.
-    assert len(_SHOT_IDS) == 136, _SHOT_IDS
+    # Every shot file must be registered at EVERY sync point. This used to assert a hardcoded library
+    # count, which caught nothing the checks below miss (a clean removal is a deliberate act, not an
+    # accident) and actively taxed the one thing the skill is supposed to be able to do: grow. Adding a
+    # register meant editing five files AND this number, so "no register can draw this beat" always lost
+    # to "settle for the closest one".
+    import register_shot
+    assert len(_SHOT_IDS) >= 130, "the library shrank unexpectedly: %d shots" % len(_SHOT_IDS)
     assert rr._remotion_shot_ids() == _SHOT_IDS
+    unregistered = {s: register_shot.check(s) for s in sorted(_SHOT_IDS) if register_shot.check(s)}
+    assert not unregistered, "shots missing from a sync point: %r" % unregistered
     # the FAMILY map covers every shot (shot_director can place any of them)
     missing = _SHOT_IDS - set(sd.FAMILY)
     assert not missing, "shots missing from shot_director.FAMILY: %s" % missing
@@ -1026,3 +1032,62 @@ def test_shot_proof_catches_the_mechanical_half_of_a_shot_review():
     assert sp._in_palette(154.0, data_hues) and sp._in_palette(39.0, data_hues)
     assert not sp._in_palette(207.0, data_hues), "cyan-blue must read as off-system in a green/amber film"
     assert not sp._in_palette(280.0, data_hues)
+
+
+def test_the_library_can_grow_and_the_gates_say_so():
+    # The skill is supposed to BUILD a register when no existing one carries a beat's argument. It never
+    # did, for two reasons this test pins: nothing asked (no fit judgement was recorded anywhere), and
+    # registering by hand meant five files of which four fail silently.
+    import register_shot as rs
+    import shot_proof as sp
+
+    # (a) the registration checker must actually SEE a missing sync point — it is the backstop for a
+    #     capability whose failure mode is silence.
+    assert not rs.check("CinematicTitle"), "a fully registered shot reports missing sync points"
+    assert set(rs.check("NoSuchRegisterHere")) >= {"registry.ts", "Root.tsx", "LIBRARY.md"}
+    # and its own presence-checks may never be empty: all(x in src for x in []) is vacuously True, which
+    # once made it report "already registered" while doing nothing.
+    try:
+        rs._edit(__file__, [], lambda s: s, "probe")
+        raise AssertionError("_edit accepted an empty check list")
+    except AssertionError as e:
+        assert "presence check" in str(e), e
+
+    # (b) validate must fire in BOTH directions: judgement never made, and judgement always "perfect".
+    def _board(fit_for):
+        b = {"meta": {"renderer": "remotion", "fps": 30, "shot_template": "data"},
+             "slides": [{"index": i, "shot": "CinematicTitle", "shot_props": {"title": "t%d" % i},
+                         "shot_adaptation": {"kept": "k", "redesigned": "r", "topic_idea": "t"},
+                         "audio": "audio/%02d.mp3" % i, "duration": 5.0, "narration": "一句话。"}
+                        for i in range(12)]}
+        for i, s in enumerate(b["slides"]):
+            v = fit_for(i)
+            if v:
+                s["shot_fit"] = {"verdict": v, "why": "w"}
+        return b
+
+    none_recorded = v.evaluate(_board(lambda i: None), "/tmp")["warnings"]
+    assert any("record no `shot_fit`" in w for w in none_recorded), none_recorded
+    all_fit = v.evaluate(_board(lambda i: "fit"), "/tmp")["warnings"]
+    assert any("signature of matching the catalogue" in w for w in all_fit), all_fit
+    mixed = v.evaluate(_board(lambda i: "adapt" if i % 3 else "fit"), "/tmp")["warnings"]
+    assert not [w for w in mixed if "shot_fit" in w or "catalogue" in w], mixed
+    # a build claim naming a register that is not registered everywhere is an ERROR
+    bad = _board(lambda i: "fit")
+    bad["slides"][0]["shot"] = "NotARegisteredShot"
+    bad["slides"][0]["shot_fit"] = {"verdict": "build", "why": "nothing carried it"}
+    errs = v.evaluate(bad, "/tmp")["errors"]
+    # Either message is correct: a shot with no .tsx at all trips the older unknown-shot check first. The
+    # case only THIS gate catches is a shot whose file exists but is missing from a sync point — the real
+    # SpinningProton bug, which sat registered everywhere except LIBRARY.md, invisible to the director.
+    assert any(("not registered in" in e) or ("unknown shot" in e) for e in errs), errs
+
+    # (c) a new register must be REUSABLE — the topic arrives through props. Welding the film's own prose
+    #     into the .tsx makes it a one-off wearing the library's clothes.
+    board = {"meta": {"renderer": "remotion"},
+             "slides": [{"index": 0, "shot": "OverlapSeparation", "shot_props": {},
+                         "narration": "两条分布几乎完全重合在一起"}]}
+    e0, _ = sp.static_checks(board)
+    assert not [x for x in e0 if "hardcodes" in x], e0
+    src = open(os.path.join(_SHOTS_DIR, "OverlapSeparation.tsx"), encoding="utf-8").read()
+    assert "两条分布几乎完全重合在一起" not in src        # the negative control below relies on this

@@ -195,7 +195,39 @@ climax beats. At `bold`/`experimental`, a mix of safe/expected registers is a FA
 back — commit registers that are memorable and unmistakably THIS film. For each beat, briefly note the
 `rejected_default` (the obvious register you passed over) so the choice is a decision, not a reflex.
 
-## Rules (all five bind)
+## Rules (all six bind)
+0. **Match the beat to a register — or BUILD one. Judge, per beat, and record the judgement.**
+   Before rule 1, ask what the beat is actually ARGUING and whether any register's *structure* already
+   carries that shape. Record the answer on the scene as **`shot_fit` = `{verdict, why}`**:
+   - **`fit`** — the register's own structure carries this argument as-is.
+   - **`adapt`** — the structure carries it; its modules/components get redesigned for this content (§B2).
+   - **`build`** — no register's structure carries it, so you AUTHOR A NEW ONE.
+
+   **The line between `adapt` and `build` is structure vs sizing** (`references/remotion-shot-authoring.md`):
+   redesigning a register's modules is `adapt`; needing a different *shape of argument* is `build`. The test
+   that settles it: could you fit this beat into the register only by **swapping its words**? Then the
+   register does not carry the argument — build.
+
+   **Building is one command, and cheap on purpose:**
+   ```
+   python3 scripts/register_shot.py <Id> <FamilyLetter> --use-when "<one line>"   # stub + all 5 sync points
+   # write the shot body, then:
+   python3 scripts/measure_ground_luma.py --only <Id>     # sanity-check its ground
+   python3 scripts/shot_proof.py <out_dir> --stills       # frame-craft, palette, reuse
+   ```
+   It used to mean editing five files by hand, four of which fail silently — which is exactly why in
+   practice nothing was ever built and every beat got matched to the closest existing register instead.
+
+   **A new register must be REUSABLE, not a one-off.** It carries an ARGUMENT SHAPE — "two populations a
+   measure cannot separate", "correlated vs independent failure" — with the topic arriving entirely through
+   props, so the next film making that kind of claim can reach for it and the library compounds. Its
+   DEFAULTS stay generic demo copy. `shot_proof.py` ERRORS if a register hardcodes this film's own prose.
+   Give it a family letter; if it fits none of A–Z, open a two-letter one (AA, AB, …) — the set is open.
+
+   `validate.py` warns when no beat records `shot_fit` (the judgement was never made, so "no register can
+   draw this" could never surface) and when EVERY beat records `fit` (on a topic-specific film, the
+   signature of matching the catalogue rather than judging it).
+
 1. **Match intent → register.** `statement`→a title/kinetic register (CinematicTitle, FocalIsolation,
    KineticManifesto, LiquidChrome, BrutalistType, SwissEditorial); `sequence`→ExplodedSchematic/TimelineTravel/
    CommandSummon; `structure`→CollaborativeCursors/KnowledgeGraph/MapRoutes/DataOrrery/WireGlobe/BlueprintGrid;
@@ -245,7 +277,9 @@ style AND any stock modules that ALREADY fit the topic that you kept, the module
 for this topic, the topic-specific idea the shot now encodes, and — on a DNA-themed film — **`theme_cues`: the 2-3
 concrete cues that tie THIS shot to the global visual system** (e.g. `["mono heading","▸ prompt","terminal grid",
 "green accent"]`) so the Design DNA verifiably runs through every frame; per the KEEP-THE-STYLE-REDESIGN-THE-REST
-rule above — keep what fits, redesign what doesn't, don't blindly change everything). Then record your choices for the critic: a short
+rule above — keep what fits, redesign what doesn't, don't blindly change everything). Also set **`shot_fit` = `{verdict: "fit"|"adapt"|"build", why}`** per scene (rule 0) — the judgement of
+whether a register's structure actually carries the beat's argument, and the ONLY thing that can surface
+"nothing in the library can draw this". Then record your choices for the critic: a short
 `shot_rationale` per scene (why this register, which family) is encouraged. `validate.py` errors on a
 missing/unknown `shot` or a number-bearing register left on its demo default, and WARNs on empty `shot_props` or a
 missing `shot_adaptation` (a raw text-swap); `render_remotion.py` renders the chosen shots through the data-driven

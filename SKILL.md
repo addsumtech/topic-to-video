@@ -272,6 +272,15 @@ figure), a non-singular `the_one_thing`, or a
   three say how much that is worth. `source_ref` may be a **string or a list** (every ref in the list
   is still resolved; cross-sourcing a claim clears the corroboration warning). The STRUCTURAL floor so a hollow brief can't reach the planner —
   run at step 3.5 BEFORE dispatching `content-planner`. The SEMANTIC depth audit is `critic-content` C0.
+- `scripts/register_shot.py <Id> <Family> --use-when "…"` — scaffold and register a NEW shot at every
+  sync point in ONE command (`src/shots/<Id>.tsx` stub + `registry.ts` + `Root.tsx` + `shotLuma.ts` +
+  `shot_director.FAMILY` + `LIBRARY.md`), `--check` verifies an existing one. **The library is meant to
+  GROW**: when a beat's argument has a shape no register carries, the director BUILDS one (shot-director
+  rule 0, `shot_fit.verdict == "build"`) instead of settling for the closest match. That never happened
+  in practice for a simple reason — registering by hand meant five files, four of which fail silently —
+  so the cost is now one command. A new register must be REUSABLE: it carries an ARGUMENT SHAPE with the
+  topic arriving through props (`shot_proof.py` ERRORS if a register hardcodes a film's own prose), so
+  the library compounds instead of filling with one-offs.
 - `scripts/shot_proof.py <out_dir> [--stills]` — the **PROOF SHEET** for a `remotion` deck: the
   mechanical half of a shot review, run BEFORE the full render. A shot-critic pass over a finished
   37-beat film cost a render plus a long review and filed 15 findings; more than half were things a

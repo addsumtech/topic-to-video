@@ -179,6 +179,7 @@ Written FOR the editorial DNA (they read `EdFrame`: a kicker + hairline accent r
 80. **NeuralField** — a neural network THINKS: layered nodes + edges light up as an activation front sweeps left→right until the output locks. *Use: AI reasons / a model at work / "it thinks".*
 
 ## S · Scientific / molecular
+138. **SpinningProton** — a single proton spins with its + charge, becoming a tiny magnet: field lines and the moment vector μ resolve, with bulk water supplying them all around. *Use: what a nucleus IS / spin and magnetism / the physical basis under an imaging beat.* `label, sublabel`
 81. **DNAHelix** — a rotating double helix: two sine-phased strands of nodes with base-pair RUNGS, depth-shaded, assembling top-down. *Use: the blueprint / biotech / "encoded".*
 94. **AtomOrbital** — a nucleus of protons/neutrons with electron SHELLS: tilted elliptical orbits, electrons RACING with motion trails, the atom turning. *Use: fundamentals / "the core of it" / physics.* (electrons streak — vs **DataOrrery** D's slow labelled-node orrery.)
 99. **MoleculeBallStick** — a ball-and-stick molecule (a hex ring + outer atoms) rotates in 3D: depth-sorted bond sticks + element-coloured spheres. *Use: chemistry / composition / "what it's made of".*

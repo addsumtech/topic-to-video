@@ -1225,6 +1225,7 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
            "OdometerRoll": "value", "GaugeCluster": "value", "ChartRace": "data"}
     brief_nums = _brief_numbers(out_dir)     # figures a number-bearing shot must trace to (None = no brief)
     seq = []
+    _fit_missing, _fit_verdicts = [], []     # the per-beat fit judgement (see the shot_fit block below)
     for s in slides:
         tag = "scene #%s" % s.get("index")
         shot = s.get("shot")
@@ -1270,6 +1271,38 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
             warnings.append(f"{tag}: {shot} on a DNA-themed film records no shot_adaptation.theme_cues — name the "
                             f"2-3 concrete cues that tie THIS shot to the global visual system (Design DNA coverage "
                             f"check); shot-critic S11 verifies them against the rendered frame.")
+        # FIT JUDGEMENT — the trigger for BUILDING a new register. The library can grow, and the authoring
+        # reference has always said so; in practice it never did, because nothing ever ASKED whether a beat's
+        # argument actually had a register. The director's own first rule was "match intent -> register", so
+        # every beat got matched to the closest existing one whether or not that register's structure could
+        # carry the claim. `shot_fit` makes the judgement explicit and reviewable:
+        #   fit   — the register's own structure already carries this beat's argument shape
+        #   adapt — the structure fits; its modules are redesigned for this content (§B2)
+        #   build — no register's structure carries it, so a NEW one was authored (scripts/register_shot.py)
+        fit = s.get("shot_fit")
+        verdict = (fit or {}).get("verdict") if isinstance(fit, dict) else None
+        if verdict is None:
+            _fit_missing.append(s.get("index"))
+        elif verdict not in ("fit", "adapt", "build"):
+            warnings.append(f"{tag}: shot_fit.verdict {verdict!r} is not one of fit/adapt/build")
+        else:
+            _fit_verdicts.append(verdict)
+            if verdict == "build":
+                # NOTE ON WHAT THIS CAN AND CANNOT CHECK: a "build" claim is not independently verifiable
+                # here — nothing in the board proves a register was authored for THIS film rather than
+                # picked from the catalogue and relabelled. What is checkable is that the claim is
+                # COHERENT (the named register really is registered everywhere) and that the register is
+                # REUSABLE rather than welded to one topic, which `shot_proof.py` measures against the
+                # film's own strings. Do not read a passing build claim as proof of anything more.
+                try:
+                    import register_shot as _rs
+                    _miss = _rs.check(shot)
+                except Exception:                       # noqa: BLE001 — never let the gate crash the run
+                    _miss = []
+                if _miss:
+                    errors.append(f"{tag}: shot_fit says a NEW register was built for this beat, but {shot} is "
+                                  f"not registered in {', '.join(_miss)} — run "
+                                  f"`python3 scripts/register_shot.py {shot} <FamilyLetter> --use-when '…'`")
         # UN-MIGRATED REGISTER on a themed film: a shot that never reads useDNA renders its OWN hardcoded palette,
         # breaking the global visual system (the exact "different compositions, different templates" defect the DNA
         # layer exists to fix). WARN (not ERROR): the fix is to migrate the shot (read dna tokens — see §C2 / the
@@ -1280,6 +1313,23 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
                             f"read the DNA tokens (§C2 / shadow trick) or pick a DNA-aware register "
                             f"(`python scripts/dna_audit.py` for the worklist).")
         seq.append(shot)
+    # WHOLE-FILM fit judgement. Two failure directions, and the gate has to watch BOTH:
+    #  * the judgement is never made — nothing records shot_fit, so "no register can draw this" can never
+    #    surface and the film is assembled purely by catalogue lookup;
+    #  * the judgement is made and is always "perfect" — every beat allegedly matched a register exactly,
+    #    which for a topic-specific film is the signature of matching rather than judging.
+    if _fit_missing:
+        warnings.append("remotion: %d of %d beats record no `shot_fit` {verdict: fit|adapt|build, why} — that "
+                        "judgement is the ONLY thing that can surface \"no register in the library carries this "
+                        "beat's argument\". Without it a film is assembled by catalogue lookup, and the library "
+                        "never grows (scenes %s)"
+                        % (len(_fit_missing), len(slides),
+                           ", ".join(str(x) for x in _fit_missing[:8]) + (" …" if len(_fit_missing) > 8 else "")))
+    elif len(slides) >= 10 and _fit_verdicts and all(v == "fit" for v in _fit_verdicts):
+        warnings.append("remotion: every one of %d beats records shot_fit 'fit' — no beat needed its modules "
+                        "redesigned and none needed a new register. On a topic-specific film that is the "
+                        "signature of matching the catalogue rather than judging it. Re-read the beats whose "
+                        "register you picked for its shape rather than its meaning." % len(slides))
     try:                                                   # family-variety: no two ADJACENT beats one look
         import shot_director as _sd
         fams = [_sd.FAMILY.get(x) if x else None for x in seq]

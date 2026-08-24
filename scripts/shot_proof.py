@@ -125,6 +125,45 @@ def static_checks(board):
         # earlier draft of this check did) looks for the opposite of the defect and finds nothing.
         seen.setdefault(shot, []).append((beat, tuple(sorted(flat))))
 
+    # A register WELDED TO ONE FILM. The library only compounds if a new register carries an ARGUMENT
+    # SHAPE ("two populations a measure cannot separate") with the topic arriving through props. If the
+    # film's own copy is baked into the .tsx as a literal, the register is a one-off dressed as a library
+    # entry: it inflates the catalogue and helps no later film. Checked against the film's OWN distinctive
+    # strings, so it needs no vocabulary list and works in any language.
+    # The topic set is built from the film's PROSE only. Prop VALUES are a mix of prose and API values —
+    # glyph names, hex colours, code samples, enum keys — and feeding those in flagged 'checks', 'gutter',
+    # 'f2b544' and even 'return' as "the film's own copy". A gate with false positives gets switched off.
+    topic = set()
+    for s in slides:
+        cand = [s.get("narration", "")]
+        for v in _flat(s.get("shot_props") or {}).values():
+            v = str(v)
+            if re.fullmatch(r"[0-9a-fA-F]{3,8}|#?[0-9a-fA-F]{6}|[a-z][a-zA-Z0-9_]*", v.strip()):
+                continue                       # an identifier, an enum value or a colour — not prose
+            cand.append(v)
+        for t in cand:
+            for run in re.findall(r"[\u4e00-\u9fff]{4,}", str(t)):
+                topic.add(run)
+            for phrase in re.findall(r"[A-Za-z][A-Za-z0-9'\-]+(?: [A-Za-z][A-Za-z0-9'\-]+){1,4}", str(t)):
+                if len(phrase) >= 10:
+                    topic.add(phrase)          # a PHRASE, never a lone token: one word is never proof
+    for shot in sorted({s.get("shot") for s in slides if s.get("shot")}):
+        try:
+            src = open(os.path.join(_SHOTS, shot + ".tsx"), encoding="utf-8").read()
+        except OSError:
+            continue
+        # Only the register's STRING LITERALS count. Matching the whole source flagged 'return' and
+        # 'reverse' — JS keywords that reached the topic set from a beat whose props legitimately carry a
+        # code sample. Topic copy welded into a register always appears as a literal, never as code.
+        body = "\n".join(l for l in src.split("\n") if not l.strip().startswith("//"))
+        lits = " ".join(re.findall(r"'([^'\n]{2,120})'|\"([^\"\n]{2,120})\"", body) and
+                        [a or b for a, b in re.findall(r"'([^'\n]{2,120})'|\"([^\"\n]{2,120})\"", body)])
+        welded = sorted({t for t in topic if len(t) >= 4 and t in lits})[:3]
+        if welded:
+            errors.append("%s hardcodes this film's own copy (%s) — a register must carry the ARGUMENT "
+                          "SHAPE with the topic arriving through props, or it is a one-off in the library's "
+                          "clothing. Move that text into shot_props." % (shot, ", ".join(repr(w) for w in welded)))
+
     # Report repetition GROUPED BY REGISTER — one line per register, not one per pair. A 37-beat film
     # produced seven pair-warnings, which reads as noise; "CardFlip3D carries beats 2, 27, 37 as the same
     # composition" is the sentence a person would actually write.
