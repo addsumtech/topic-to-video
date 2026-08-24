@@ -1174,6 +1174,16 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
     _DNA_KEYS = ("fontDisplay", "fontMono", "fontBody", "bg", "fg", "dim", "accent", "accent2",
                  "onAccent", "surface", "line", "decoration", "motion")
     design_dna = meta.get("design_dna")
+    if isinstance(design_dna, str):
+        # A STRING design_dna is a preset NAME. This used to reach coerceDna(), which spread the string's
+        # character indices over NEUTRAL_DNA and returned the neutral palette — the whole film rendered in
+        # the wrong design system, silently. The runtime now throws on an unknown name; catch it here, before
+        # a render that costs minutes.
+        if design_dna not in _DNA_PRESETS:
+            errors.append("meta.design_dna \"%s\" is not a known preset — expected one of %s (or an inline "
+                          "DNA object)." % (design_dna, sorted(_DNA_PRESETS)))
+    elif design_dna is not None and not isinstance(design_dna, dict):
+        errors.append("meta.design_dna must be a preset name or an object, got %s" % type(design_dna).__name__)
     if isinstance(design_dna, dict):
         _miss = [k for k in _DNA_KEYS if not design_dna.get(k)]
         if _miss:

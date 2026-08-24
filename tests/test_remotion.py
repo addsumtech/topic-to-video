@@ -126,8 +126,8 @@ def test_shots_are_deterministic():
 
 def test_registry_in_sync_with_shot_files():
     # every shot file is a valid id, and the count matches the assertion below (the whole library).
-    # 123 base + 8 terminal-native (Term*) + 3 editorial-native (Ed*) style-native family shots = 134.
-    assert len(_SHOT_IDS) == 134, _SHOT_IDS
+    # 125 base + 8 terminal-native (Term*) + 3 editorial-native (Ed*) style-native family shots = 136.
+    assert len(_SHOT_IDS) == 136, _SHOT_IDS
     assert rr._remotion_shot_ids() == _SHOT_IDS
     # the FAMILY map covers every shot (shot_director can place any of them)
     missing = _SHOT_IDS - set(sd.FAMILY)
@@ -866,3 +866,114 @@ def test_crashzoom_punch_rests_inside_the_content_zone():
     assert fade >= 2.0, "neighbour fade (z * %.1f) is too slow to clear the border during the punch" % fade
     # long real copy must not overflow a card sized for the demo words
     assert "fitTextOnNLines" in src, "CrashZoom type is not width-fitted"
+
+
+def _dna_presets():
+    """(id, accent, accent2, bg, fg) for every DNA preset declared in dna.tsx."""
+    import re
+    src = open(os.path.join(_SHOTS_DIR, "..", "runtime", "dna.tsx"), encoding="utf-8").read()
+    out = []
+    for m in re.finditer(r"id:\s*'([a-z0-9-]+)'", src):
+        tail = src[m.end():m.end() + 1200]
+        a = re.search(r"accent:\s*'(#[0-9a-fA-F]{6})'", tail)
+        b = re.search(r"accent2:\s*'(#[0-9a-fA-F]{6})'", tail)
+        g = re.search(r"bg:\s*'(#[0-9a-fA-F]{6})'", tail)
+        k = re.search(r"fg:\s*'(#[0-9a-fA-F]{6})'", tail)
+        if a and b and g and k:
+            out.append((m.group(1), a.group(1), b.group(1), g.group(1), k.group(1)))
+    return out
+
+
+def test_dna_palette_never_leaves_the_films_own_hues():
+    # REGRESSION: dnaPalette grew extra categorical tones with rotate(base, 47deg), which walks OUT of the
+    # film's palette — on the green+amber `data` DNA tone 3 landed on cyan-blue (197deg), and a blue tile duly
+    # shipped in a green film (shot-critic S11). 19 shots ask for n>=3. This re-derives the tones from the
+    # LADDER the source actually declares (mix() is a linear RGB lerp, replicated here), so changing the ladder
+    # to anything that leaves the seed arc — or that collapses two categories together — fails.
+    import re, colorsys
+    src = open(os.path.join(_SHOTS_DIR, "..", "runtime", "dna.tsx"), encoding="utf-8").read()
+    body = src[src.index("export const dnaPalette"):]
+    body = body[:body.index("\n};")]
+    code = "\n".join(l for l in body.split("\n") if not l.strip().startswith("//"))
+    assert "rotate(" not in code, "dnaPalette is back to deriving tones by hue rotation"
+    # the tones this test computes lift/press toward the DNA's own ink and ground; if the source stops
+    # doing that (pure white/black), the numbers below no longer describe what actually renders
+    assert "mix(base, dna.fg" in code and "mix(base, dna.bg" in code, \
+        "derived tones no longer stay on the film's own ink/ground"
+    ladder = [(float(a), float(b)) for a, b in
+              re.findall(r"\[(-?[\d.]+),\s*(-?[\d.]+)\]", src[src.index("_PAL_LADDER"):src.index("_PAL_LADDER") + 400])]
+    assert len(ladder) >= 4, ladder
+
+    def _hx(c):
+        c = c.lstrip("#"); return [int(c[i:i + 2], 16) for i in (0, 2, 4)]
+
+    def _mix(a, b, f):
+        A, B = _hx(a), _hx(b)
+        return "#%02x%02x%02x" % tuple(max(0, min(255, round(A[i] + (B[i] - A[i]) * f))) for i in range(3))
+
+    def _hue(c):
+        r, g, b = [v / 255 for v in _hx(c)]
+        return colorsys.rgb_to_hls(r, g, b)[0] * 360
+
+    def _arc(h, lo, hi):                       # is hue h inside the SHORTER arc between lo and hi?
+        d = (hi - lo) % 360
+        return (h - lo) % 360 <= d + 2 if d <= 180 else (h - hi) % 360 <= 360 - d + 2
+
+    for did, acc, acc2, bg, fg in _dna_presets():
+        tones = [acc, acc2]
+        for i in range(2, 8):
+            ratio, dl = ladder[(i - 2) % len(ladder)]
+            base = _mix(acc, acc2, ratio)
+            tones.append(_mix(base, fg, dl) if dl >= 0 else _mix(base, bg, -dl))
+        h0, h1 = _hue(acc), _hue(acc2)
+        for c in tones[2:]:
+            if max(_hx(c)) - min(_hx(c)) < 24:
+                continue                       # a near-neutral derived tone has no meaningful hue
+            assert _arc(_hue(c), h0, h1) or _arc(_hue(c), h1, h0), \
+                "%s: derived tone %s (hue %.0f) is outside the film's %.0f-%.0f arc" % (did, c, _hue(c), h0, h1)
+        worst = min(sum((x - y) ** 2 for x, y in zip(_hx(tones[i]), _hx(tones[j]))) ** 0.5
+                    for i in range(len(tones)) for j in range(i + 1, len(tones)))
+        assert worst >= 28, "%s: two palette tones are only %.0f apart in RGB — categories collapse" % (did, worst)
+        # every derived tone must also stay VISIBLE on the ground it is drawn on
+        vsbg = min(sum((x - y) ** 2 for x, y in zip(_hx(c), _hx(bg))) ** 0.5 for c in tones)
+        assert vsbg >= 60, "%s: a palette tone is only %.0f from its own bg — it disappears" % (did, vsbg)
+
+
+def test_string_design_dna_is_resolved_or_rejected_never_silently_neutral():
+    # SILENT-WRONG-OUTPUT REGRESSION: coerceDna() took `Partial<DesignDNA>` and was handed a preset NAME.
+    # Spreading a string yields {...NEUTRAL_DNA, '0':'t', '1':'e', ...} — so `design_dna: "terminal"` rendered
+    # the ENTIRE film in the neutral palette and reported nothing. The runtime now resolves a name and throws
+    # on an unknown one; validate.py catches it BEFORE a render that costs minutes.
+    src = open(os.path.join(_SHOTS_DIR, "..", "runtime", "dna.tsx"), encoding="utf-8").read()
+    body = src[src.index("export const coerceDna"):]
+    body = body[:body.index("\n};")]
+    assert "typeof dna === 'string'" in body and "throw new Error" in body, \
+        "coerceDna no longer resolves a preset name / no longer fails loudly on an unknown one"
+
+    def _board(dd):
+        b = {"meta": {"renderer": "remotion", "fps": 30},
+             "slides": [{"index": 1, "shot": "CinematicTitle", "shot_props": {},
+                         "audio": "audio/01.mp3", "duration": 5.0, "narration": "x"}]}
+        b["meta"]["design_dna"] = dd
+        return b
+
+    presets = set(v._DNA_PRESETS_FOR_TEST())
+    good = sorted(presets)[0]
+    assert not [e for e in v.evaluate(_board(good), "/tmp")["errors"] if "design_dna" in e], good
+    for bad in ("termnial", "", 123, ["terminal"]):
+        if bad == "":
+            continue                                   # falsy: no DNA declared at all, which is legal
+        hits = [e for e in v.evaluate(_board(bad), "/tmp")["errors"] if "design_dna" in e]
+        assert hits, "validate accepted design_dna=%r" % (bad,)
+
+
+def test_standalone_shot_preview_can_carry_a_dna():
+    # A shot rendered on its own had NO DesignDNAContext, so every shot fell back to its D0 constants and a
+    # palette bug was invisible until a full film render (that is how a royal-blue tile shipped in a green
+    # film). Root.tsx now previews a shot inside a named DNA via --props='{"dna":"data"}'.
+    root = open(os.path.join(_SHOTS_DIR, "..", "Root.tsx"), encoding="utf-8").read()
+    assert "DesignDNAContext.Provider" in root, "standalone previews are no longer DNA-aware"
+    assert "coerceDna" in root and "DnaPreview" in root
+    f_def = root[root.index("const F = (id: string"):]
+    f_def = f_def[:f_def.index(");")]
+    assert "DnaPreview" in f_def, "F() no longer routes shots through the DNA-aware preview"

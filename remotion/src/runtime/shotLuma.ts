@@ -15,7 +15,7 @@ export const SHOT_LUMA: Record<string, Lum> = {
   ChartRace: 'dark', ChatThread: 'light', CinematicTitle: 'dark', CircuitTrace: 'dark',
   ClayStack: 'light', ClothWave: 'dark', CodeCompose: 'dark', CodeRain: 'dark',
   CollaborativeCursors: 'light', ComicPanels: 'light', CommandSummon: 'dark', ConveyorBelt: 'dark',
-  CrashZoom: 'dark', CubeRotate: 'dark', CursorStory: 'dark', DNAHelix: 'dark',
+  CrashZoom: 'dark', OverlapSeparation: 'dark', SharedBlindspot: 'dark', CubeRotate: 'dark', CursorStory: 'dark', DNAHelix: 'dark',
   DataMonolith: 'dark', DataOrrery: 'dark', ElasticType: 'dark', EmberFlame: 'dark',
   ExplodedSchematic: 'dark', FlowField: 'dark', FocalIsolation: 'dark', FractalTree: 'dark',
   FractureIn: 'dark', GameOfLife: 'dark', GaugeCluster: 'dark', GearTrain: 'dark',

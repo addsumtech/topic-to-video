@@ -29,6 +29,7 @@ FAMILY = {
     "CodeCompose": "A", "LiquidGlass": "A", "BentoReveal": "A",
     "InfiniteCanvas": "B", "TimelineTravel": "B", "MapRoutes": "B", "ExplodedSchematic": "B", "CubeRotate": "B",
     "CrashZoom": "B", "TerrainFly": "B",
+    "OverlapSeparation": "D", "SharedBlindspot": "H",
     "KineticManifesto": "C", "FocalIsolation": "C", "SwissEditorial": "C", "BrutalistType": "C",
     "LiquidChrome": "C", "HoloFoil": "C", "CinematicTitle": "C", "BokehPull": "C", "NeonGrid": "C",
     "AnalogTape": "C", "AsciiField": "C",
@@ -86,7 +87,7 @@ CANDIDATES = {
     "list": ["BlockAssembly", "TemporalAccelerate", "CursorStory", "AnswerStream", "SplitFlap", "CardStack3D", "PhysicsStack", "HandDrawn"],
     "metric": ["OdometerRoll", "ChartLive", "ChartRace", "GaugeCluster", "DataMonolith", "PhysicsStack", "BlueprintGrid", "BeforeAfterSlider"],
     # contrast/before-after — cross-family so two adjacent contrast beats differ (H comparison + I + E + C).
-    "contrast": ["BeforeAfterSlider", "VersusSplit", "QuadSplit", "PositioningMatrix", "CardFlip3D", "SplitFlap"],
+    "contrast": ["BeforeAfterSlider", "VersusSplit", "QuadSplit", "SharedBlindspot", "PositioningMatrix", "CardFlip3D", "SplitFlap"],
 }
 CLIMAX = ["ParticleForm", "RadialBurst", "FractureIn", "MorphForms", "SpectrumPulse", "EmberFlame", "LightTrails", "SpotlightStage", "LiquidFill"]
 CLOSE = ["LiquidChrome", "HoloFoil", "CinematicTitle", "FlowField", "StarfieldWarp", "NeonTickerWall",

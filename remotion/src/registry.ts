@@ -98,6 +98,8 @@ import {EdTimeline} from './shots/EdTimeline';
 import {EdCompare} from './shots/EdCompare';
 import {CardStack3D} from './shots/CardStack3D';
 import {CrashZoom} from './shots/CrashZoom';
+import {OverlapSeparation} from './shots/OverlapSeparation';
+import {SharedBlindspot} from './shots/SharedBlindspot';
 import {VersusSplit} from './shots/VersusSplit';
 import {RisoPrint} from './shots/RisoPrint';
 import {HudReticle} from './shots/HudReticle';
@@ -151,6 +153,7 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   TermBars, TermTree, TermLog, TermGitLog, TermCounter, TermTable, TermDiff, TermThink,
   EdStat, EdTimeline, EdCompare,
   CardStack3D, CrashZoom, VersusSplit, RisoPrint, HudReticle,
+  OverlapSeparation, SharedBlindspot,
   VariableTypeMorph, FlowField, MagazineSpread, RansomZine, DataMonolith,
   LowPolyForm, GlitchDatamosh, IsoWorld, MorphForms, NeonTickerWall,
   MetaballMerge, InflateType, ElasticType, AntiDesignChaos, NeuralField,

@@ -230,8 +230,23 @@ export const DNA_PRESETS: Record<string, DesignDNA> = {
  *  missing tokens fall back to NEUTRAL_DNA rather than reaching a component as `undefined` (an `undefined` inside a
  *  `font:` shorthand or a colour paints nothing). Pair with validate.py's missing-key warning, which still tells the
  *  author what they left out — this only stops a partial DNA from breaking the render. */
-export const coerceDna = (dna?: Partial<DesignDNA> | null): DesignDNA | null =>
-  dna ? ({...NEUTRAL_DNA, ...dna, decoration: Array.isArray(dna.decoration) ? dna.decoration : NEUTRAL_DNA.decoration}) : null;
+export const coerceDna = (dna?: Partial<DesignDNA> | string | null): DesignDNA | null => {
+  if (!dna) return null;
+  // A STRING is a preset NAME. Spreading one produced {...NEUTRAL_DNA, '0':'t', '1':'e', ...}, so an authored
+  // `design_dna: "terminal"` rendered the ENTIRE film in the neutral palette and said nothing — the failure
+  // mode that hides longest. Resolve it, and fail loudly on a name that does not exist.
+  if (typeof dna === 'string') {
+    const preset = DNA_PRESETS[dna];
+    if (!preset) {
+      throw new Error(`unknown design_dna preset "${dna}" — expected one of: ${Object.keys(DNA_PRESETS).join(', ')}`);
+    }
+    return preset;
+  }
+  if (typeof dna !== 'object' || Array.isArray(dna)) {
+    throw new Error('design_dna must be a preset name or an object, got ' + typeof dna);
+  }
+  return {...NEUTRAL_DNA, ...dna, decoration: Array.isArray(dna.decoration) ? dna.decoration : NEUTRAL_DNA.decoration};
+};
 
 export const dnaFromTemplate = (t?: string | null): DesignDNA | null =>
   (t ? DNA_PRESETS[t] ?? null : null);
@@ -472,16 +487,28 @@ export const rotate = (c: string, deg: number): string => {
 /** N distinct, film-coherent hues for an illustration register: the DNA's two accents first (they ARE the film's
  *  identity), then hue-rotations of the accent that stay in its saturation/lightness world. `null` DNA → null, so
  *  a shot keeps its own hand-picked palette when no DNA is active (backward compatible). */
+// Extra tones step along the ladder BETWEEN the two DNA hues, light and dark — never outside them.
+// (mix ratio across the accent→accent2 arc, lightness delta: + tints, − shades.)
+const _PAL_LADDER: [number, number][] = [
+  [0.30, 0.44], [0.70, -0.38], [0.50, 0.70], [0.50, -0.62], [0.15, 0.14], [0.85, -0.14],
+];
 export const dnaPalette = (dna: DesignDNA | null, n: number): string[] | null => {
   if (!dna) return null;
   const seed = [dna.accent, dna.accent2].filter(Boolean) as string[];
+  if (!seed.length) return null;
   const out: string[] = [];
   for (let i = 0; i < n; i++) {
-    if (i < seed.length) out.push(seed[i]);
-    else {
-      const base = seed[i % Math.max(1, seed.length)];
-      out.push(rotate(base, ((i - seed.length + 1) * 47) % 360));   // 47° steps: distinct, never a repeat cycle
-    }
+    if (i < seed.length) { out.push(seed[i]); continue; }
+    // A film's palette IS its two DNA hues. Growing it by rotating hue (the old rotate(base, 47°)) walked
+    // straight out of the system: on the green+amber `data` DNA tone 3 landed on cyan-blue (197°), which is
+    // how a blue tile turned up in a green/amber film. Derive inside the seeds instead — a category stays
+    // distinguishable without introducing a colour the film never declared.
+    const [ratio, dl] = _PAL_LADDER[(i - seed.length) % _PAL_LADDER.length];
+    const base = seed.length > 1 ? mix(seed[0], seed[1], ratio) : seed[0];
+    // Lift toward the film's own INK and press toward its own GROUND — not pure white/black. A tone shaded
+    // to black on a dark film is invisible; this keeps every derived tone inside the system AND legible on
+    // the ground it will be drawn on (measured: >=88 RGB from bg on every preset).
+    out.push(dl >= 0 ? mix(base, dna.fg, dl) : mix(base, dna.bg, -dl));
   }
   return out;
 };

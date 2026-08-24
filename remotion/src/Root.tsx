@@ -1,5 +1,6 @@
 import React from 'react';
-import {Composition} from 'remotion';
+import {AbsoluteFill, Composition} from 'remotion';
+import {DesignDNAContext, coerceDna} from './runtime/dna';
 import './runtime/fonts';  // side effect: loads the DNA typefaces for Film AND every standalone shot still
 import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
@@ -99,6 +100,8 @@ import {EdTimeline, DURATION as EDTL} from './shots/EdTimeline';
 import {EdCompare, DURATION as EDCM} from './shots/EdCompare';
 import {CardStack3D, DURATION as CSK} from './shots/CardStack3D';
 import {CrashZoom, DURATION as CZ} from './shots/CrashZoom';
+import {OverlapSeparation, DURATION as OVS} from './shots/OverlapSeparation';
+import {SharedBlindspot, DURATION as SBS} from './shots/SharedBlindspot';
 import {VersusSplit, DURATION as VSU} from './shots/VersusSplit';
 import {RisoPrint, DURATION as RIP} from './shots/RisoPrint';
 import {HudReticle, DURATION as HUD} from './shots/HudReticle';
@@ -153,8 +156,25 @@ const dims = (aspect?: string) => {
 // Redo tier: each bespoke shot registers as its OWN Composition (video-shotcraft pattern), renderable
 // standalone for verification (pass --props '{"aspect":"9:16"}' to preview portrait). A film later sequences
 // chosen shots through the pipeline wrapper.
+// A standalone shot preview used to render with NO DesignDNA in scope, so every shot fell back to its own
+// D0 constants — which meant a palette bug could only ever be seen after a full film render. Passing
+// `--props='{"dna":"data"}'` (or a whole DNA object) now previews the shot inside the film's real design
+// system, and `aspect` previews the reflow. Absent both, behaviour is exactly as before.
+const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C, p}) => {
+  const {dna, aspect: _a, ...rest} = p as {dna?: unknown; aspect?: unknown};
+  const active = coerceDna(dna as never);   // a string is a preset name; an object is a partial DNA
+  const shot = <C {...rest} />;
+  if (!active) return shot;
+  return (
+    <DesignDNAContext.Provider value={active}>
+      <style>{`.dna-film { --f-display: ${active.fontDisplay}; --f-body: ${active.fontBody}; --f-mono: ${active.fontMono}; }`}</style>
+      <AbsoluteFill className="dna-film" style={{background: active.bgGrad ?? active.bg}}>{shot}</AbsoluteFill>
+    </DesignDNAContext.Provider>
+  );
+};
 const F = (id: string, C: React.FC<any>, d: number) => (
-  <Composition id={id} component={C} durationInFrames={d} fps={30} width={1920} height={1080} defaultProps={{}}
+  <Composition id={id} component={(p: Record<string, unknown>) => <DnaPreview C={C} p={p} />}
+    durationInFrames={d} fps={30} width={1920} height={1080} defaultProps={{}}
     calculateMetadata={({props}) => ({...dims((props as any).aspect)})} />
 );
 export const RemotionRoot: React.FC = () => (
@@ -261,6 +281,8 @@ export const RemotionRoot: React.FC = () => (
     {F('EdCompare', EdCompare, EDCM)}
     {F('CardStack3D', CardStack3D, CSK)}
     {F('CrashZoom', CrashZoom, CZ)}
+    {F('OverlapSeparation', OverlapSeparation, OVS)}
+    {F('SharedBlindspot', SharedBlindspot, SBS)}
     {F('VersusSplit', VersusSplit, VSU)}
     {F('RisoPrint', RisoPrint, RIP)}
     {F('HudReticle', HudReticle, HUD)}
