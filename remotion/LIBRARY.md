@@ -16,6 +16,16 @@ yet in this library — they exist for new shots and opportunistic use. See
 `references/remotion-shot-authoring.md` §C2 "Content ATOMS" for the mechanism and the full list of shots
 deliberately left un-migrated.
 
+<!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
+**Family census — 136 registers across 25 families.** D×21 · A×13 · C×12 · G×11 · F×10 · B×8 · E×8 · H×8 · L×6 · K×5 · M×5 · S×5 · U×5 · I×4 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
+
+**9 families hold two registers or fewer: O, Q, R, T, V, W, X, Y, Z.** That is a BUILD signal, not a menu. When a beat's
+argument wants one of those languages and the one register there does not carry it, the answer is
+`register_shot.py` — settling for the only member is how a film ends up with a beat whose design is
+merely adjacent to its meaning. The big families (D, A, C, G) are where a director drifts by default;
+notice when you are there because it fits, and when you are there because it was stocked.
+<!-- /FAMILY-CENSUS -->
+
 **Registering a new shot — every sync point** (a miss is silent; `tests/test_remotion.py` gates the starred ones):
 `src/shots/<Id>.tsx` → `src/registry.ts`\* → `src/Root.tsx`\* (standalone preview) → `runtime/shotLuma.ts`\*
 (measured ground luminance) → `scripts/shot_director.FAMILY`\* (variety) → this file → then

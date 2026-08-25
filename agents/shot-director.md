@@ -224,9 +224,18 @@ back — commit registers that are memorable and unmistakably THIS film. For eac
    DEFAULTS stay generic demo copy. `shot_proof.py` ERRORS if a register hardcodes this film's own prose.
    Give it a family letter; if it fits none of A–Z, open a two-letter one (AA, AB, …) — the set is open.
 
+   **A THIN FAMILY is a build signal, not a menu.** LIBRARY.md opens with a generated family census: nine
+   of the twenty-five families hold ONE register. So "vary the family" quietly pushes every film toward the
+   four big ones (D, A, C, G), and when a beat's argument wants a thin family there is nothing to choose
+   between — its single member either carries the argument or it does not. If it does not, that is the
+   clearest build case there is, and settling for the only member is how a beat ends up with a design that
+   is merely ADJACENT to its meaning. Notice which of the two reasons put you in a family: because it fits,
+   or because it was stocked.
+
    `validate.py` warns when no beat records `shot_fit` (the judgement was never made, so "no register can
    draw this" could never surface) and when EVERY beat records `fit` (on a topic-specific film, the
-   signature of matching the catalogue rather than judging it).
+   signature of matching the catalogue rather than judging it). `critic_brief.py` reports, to the reviewer,
+   whether the film built anything at all and which thin families it leaned on.
 
 1. **Match intent → register.** `statement`→a title/kinetic register (CinematicTitle, FocalIsolation,
    KineticManifesto, LiquidChrome, BrutalistType, SwissEditorial); `sequence`→ExplodedSchematic/TimelineTravel/

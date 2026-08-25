@@ -1411,3 +1411,17 @@ def test_the_second_audits_repairs_hold():
     sp_src = open(os.path.join(os.path.dirname(__file__), "..", "scripts", "shot_proof.py"),
                   encoding="utf-8").read()
     assert "out_dir = os.path.abspath(argv[0])" in sp_src
+
+
+def test_family_census_in_the_catalogue_is_current():
+    """The census is a DECISION input — it tells a director which families are one-deep, which is the
+    moment to build rather than settle. A stale one is worse than none, so it is generated and checked."""
+    import register_shot as rs
+    lib = open(os.path.join(_SHOTS_DIR, "..", "..", "LIBRARY.md"), encoding="utf-8").read()
+    block = rs.family_census_block()
+    assert block.strip() in lib, "the family census has drifted from shot_director.FAMILY"
+    import shot_director as sd
+    import collections
+    thin = sorted(f for f, n in collections.Counter(sd.FAMILY.values()).items() if n <= 2)
+    assert thin, "no thin families — recheck the census wording, which assumes some exist"
+    assert all(("%s," % f) in block or ("%s.**" % f) in block or (" %s " % f) in block for f in thin[:1])

@@ -37,7 +37,11 @@ export const OdometerRoll: React.FC<{value?: string; label?: string; unit?: stri
           const target = parseInt(c, 10);
           const spins = 2;                       // 2 full rotations then land (keeps the strip small)
           const total = spins * 10 + target;     // last strip cell === target
-          const start = 0.1 + di * 0.05, end = 0.52 + di * 0.07;
+          // LAND EARLY. With six digits the last one used to settle at t=0.87, and the delivery gate
+          // captures the MID-scene frame — so a sourced figure of 19.3-28.9 was delivered reading
+          // 19.3-16.5, digits caught mid-roll. A register that shows a number must be showing the
+          // RIGHT number by the frame anyone looks at.
+          const start = 0.06 + di * 0.03, end = 0.26 + di * 0.03;
           const r = easeOutExpo(seg(t, start, end));
           const offset = -r * total * CELL;
           const locked = t > end;

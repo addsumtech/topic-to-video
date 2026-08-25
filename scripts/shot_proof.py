@@ -56,6 +56,16 @@ SEMANTIC_COLOUR_SHOTS = {
 }
 PROPS_SAME = 0.80           # two beats sharing a register with >=80% identical props = the same picture
 
+# Registers that put a SOURCED FIGURE on screen. Every one of them animates it, and the delivery gate
+# captures the MID-scene frame — so "settles eventually" is not good enough: a film shipped with a
+# sourced 19.3-28.9 rendered as 19.3-16.5 and a sourced 19% rendered as 18%, digits caught mid-flight.
+FIGURE_SHOTS = ("OdometerRoll", "TermCounter", "EdStat", "GaugeCluster", "VelocitySnap",
+                "ChartLive", "BeforeAfterSlider", "ChartRace")
+FIGURE_SETTLE_BLOCK = 70    # max 32x32-block difference between the MID and SETTLED frames.
+# Measured: a figure that lands early scores 0-34; one still moving at the midpoint scores 115-232. A
+# whole-frame mean cannot separate them — one changed digit moves too few pixels (0.45 vs 0.00) — so the
+# statistic is the worst LOCAL block, not the average.
+
 
 def shot_defaults(shot):
     """{prop: default} for a registered shot — reads the file and delegates."""
@@ -220,6 +230,24 @@ def _in_palette(h, accents):
     return False
 
 
+def _block_diff(a, b):
+    """The worst 32x32 block's mean absolute difference between two frames.
+
+    The average over the whole frame cannot see one changed digit (0.45 vs 0.00 on a real case); the worst
+    local block can (114 vs 0)."""
+    from PIL import Image, ImageChops
+    d = ImageChops.difference(Image.open(a).convert("L"), Image.open(b).convert("L"))
+    w, h = d.size
+    px = d.load()
+    best = 0.0
+    for by in range(0, max(1, h - 32), 32):
+        for bx in range(0, max(1, w - 32), 32):
+            s = sum(px[bx + x, by + y] for y in range(0, 32, 4) for x in range(0, 32, 4)) / 64.0
+            if s > best:
+                best = s
+    return best
+
+
 def _hues(png, min_chroma=45, min_val=70):
     import colorsys
     from PIL import Image
@@ -352,6 +380,20 @@ def main(argv):
                 errors.append("beat %d (%s): the shot FAILED to render standalone — %s"
                               % (beat, shot, (r.stderr or "").strip().split("\n")[-1][:160]))
                 continue
+            # A figure-bearing register must be showing the RIGHT figure at the frame the gate captures.
+            if shot in FIGURE_SHOTS and dm:
+                mid_png = os.path.join(proof, "beat_%02d_mid.png" % beat)
+                rm = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, mid_png,
+                                     "--frame=%d" % int(int(dm.group(1)) * 0.5), "--gl=angle",
+                                     "--props=" + pj, "--log=error"],
+                                    cwd=_REMOTION, capture_output=True, text=True)
+                if rm.returncode == 0 and os.path.exists(mid_png):
+                    d = _block_diff(mid_png, png)
+                    if d > FIGURE_SETTLE_BLOCK:
+                        errors.append("beat %d (%s): the figure is still moving at the mid-scene frame "
+                                      "(block diff %.0f > %d) — that is the frame the delivery gate "
+                                      "captures, so the film ships an unsourced number"
+                                      % (beat, shot, d, FIGURE_SETTLE_BLOCK))
             m = shot_still_qa.measure(png)
             if m["edge"] > shot_still_qa.EDGE_FRAC_ERR:
                 errors.append("beat %d (%s): %.1f%% of the action-safe border is content — something is "

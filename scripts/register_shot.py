@@ -297,6 +297,47 @@ def missing_rules(shot, sources, filenames=()):
     return out
 
 
+def family_census_block():
+    """The catalogue's family census, generated from shot_director.FAMILY.
+
+    A director reading LIBRARY.md sees a long list of registers and no sense of how the families are
+    stocked. Nine of twenty-five hold ONE register, so "vary the family" quietly pushes every film toward
+    the four big ones, and a beat whose argument wants a thin family has no room to pick a better fit —
+    which is the moment to BUILD, not to settle for the only member.
+    """
+    import collections
+    sys.path.insert(0, _HERE)
+    import shot_director as sd
+    c = collections.Counter(sd.FAMILY.values())
+    rows = " · ".join("%s×%d" % (f, n) for f, n in sorted(c.items(), key=lambda x: (-x[1], x[0])))
+    thin = sorted(f for f, n in c.items() if n <= 2)
+    return (
+        "<!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->\n"
+        "**Family census — %d registers across %d families.** %s\n\n"
+        "**%d families hold two registers or fewer: %s.** That is a BUILD signal, not a menu. When a beat's\n"
+        "argument wants one of those languages and the one register there does not carry it, the answer is\n"
+        "`register_shot.py` — settling for the only member is how a film ends up with a beat whose design is\n"
+        "merely adjacent to its meaning. The big families (D, A, C, G) are where a director drifts by default;\n"
+        "notice when you are there because it fits, and when you are there because it was stocked.\n"
+        "<!-- /FAMILY-CENSUS -->\n" % (sum(c.values()), len(c), rows, len(thin), ", ".join(thin)))
+
+
+def refresh_family_census():
+    """Rewrite the census in LIBRARY.md. Called after every registration so it cannot go stale."""
+    p = os.path.join(_REM, "LIBRARY.md")
+    try:
+        src = open(p, encoding="utf-8").read()
+    except OSError:
+        return False
+    block = family_census_block()
+    if "<!-- FAMILY-CENSUS" not in src:
+        return False
+    new = re.sub(r"<!-- FAMILY-CENSUS.*?<!-- /FAMILY-CENSUS -->\n", lambda _m: block, src, flags=re.S)
+    if new != src:
+        open(p, "w", encoding="utf-8").write(new)
+    return True
+
+
 def check(shot):
     """Which sync points this shot is MISSING from.
 
@@ -365,6 +406,7 @@ def main(argv):
         print("[register_shot] %s — could not edit: %s. Nothing else is trustworthy; fix the anchor."
               % (shot, ", ".join(failed)))
         return 1
+    refresh_family_census()          # the census is a decision input; a stale one is worse than none
     miss = check(shot)
     print("[register_shot] %s — %s" % (shot, "registered everywhere" if not miss else "STILL MISSING: " + ", ".join(miss)))
     if not miss:

@@ -1,6 +1,6 @@
 // SHOT · TermCounter — a TERMINAL-NATIVE key figure. Default OPEN (grammar, no window box): a command executes
 // and ONE huge mono number counts up on the open canvas, unit + note below. `framed` = explicit terminal window.
-// Deterministic (count = fn of t; lands ~68% then holds so the figure registers).
+// Deterministic (count = fn of t; lands ~35% then holds — the delivery keyframe is the mid-scene frame).
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -19,7 +19,9 @@ export const TermCounter: React.FC<{cmd?: string; value?: string; unit?: string;
   const dim = dna?.dim ?? '#5f6b80', acc = dna?.accent ?? '#3dd6a4';
   const num = parseFloat(String(value).replace(/[^\d.]/g, '')) || 0;
   const decimals = (String(value).split('.')[1]?.replace(/[^\d]/g, '') || '').length;
-  const g = easeOutCubic(clamp01(seg(t, 0.24, 0.7)));
+  // Landed at t=0.70; the delivery gate captures the MID-scene frame, so a sourced 19% was delivered
+  // reading 18%. The count-up is the register's character — it just has to finish before anyone looks.
+  const g = easeOutCubic(clamp01(seg(t, 0.12, 0.35)));
   const cur = lerp(0, num, g);
   const shown = num >= 1000 ? Math.round(cur).toLocaleString('en-US') : cur.toFixed(decimals);
 

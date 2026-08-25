@@ -1243,8 +1243,11 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
         _dna_aware = _da.dna_aware_shots()
     except Exception:
         _dna_aware = None         # audit unavailable → skip the migration lint rather than false-flag everything
+    # Every register that puts a SOURCED FIGURE on screen. EdStat and TermCounter were missing, so two
+    # registers that display a headline number were exempt from the demo-default faithfulness check.
     NUM = {"ChartLive": "endVal", "BeforeAfterSlider": "metric", "VelocitySnap": "metric",
-           "OdometerRoll": "value", "GaugeCluster": "value", "ChartRace": "data"}
+           "OdometerRoll": "value", "GaugeCluster": "value", "ChartRace": "data",
+           "EdStat": "value", "TermCounter": "value"}
     brief_nums = _brief_numbers(out_dir)     # figures a number-bearing shot must trace to (None = no brief)
     seq = []
     _fit_missing, _fit_verdicts = [], []     # the per-beat fit judgement (see the shot_fit block below)

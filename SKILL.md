@@ -272,6 +272,14 @@ figure), a non-singular `the_one_thing`, or a
   three say how much that is worth. `source_ref` may be a **string or a list** (every ref in the list
   is still resolved; cross-sourcing a claim clears the corroboration warning). The STRUCTURAL floor so a hollow brief can't reach the planner —
   run at step 3.5 BEFORE dispatching `content-planner`. The SEMANTIC depth audit is `critic-content` C0.
+- `scripts/critic_brief.py <out_dir>` — assembles ONE file (`_critic_brief.md`) plus a CONTACT SHEET
+  (`_contact_sheet.png`, every beat numbered in a single image) for the shot-critic: the machine verdicts
+  already run with an explicit list of what NOT to re-judge, the catalogue entries for only the registers
+  this film uses, and the repetition / family / library-growth facts computed rather than eyeballed.
+  **Run it before dispatching the critic.** A review used to open 37 keyframes one at a time and re-read a
+  1200-line contract to re-derive things a script had already decided; the mechanical half is gated before
+  the render now, so the critic's pass is spent on meaning, faithfulness, register fit and the film's shape.
+  `scripts/contact_sheet.py` builds the sheet alone if you want it without the brief.
 - `scripts/register_shot.py <Id> <Family> --use-when "…"` — scaffold and register a NEW shot at every
   sync point in ONE command (`src/shots/<Id>.tsx` stub + `registry.ts` + `Root.tsx` + `shotLuma.ts` +
   `shot_director.FAMILY` + `LIBRARY.md`), `--check` verifies an existing one. **The library is meant to
