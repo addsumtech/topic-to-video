@@ -156,23 +156,58 @@ def assign_shots(data, content_plan=None, template=None):
     shot_templates key) is given, biases the register selection toward that template's families and records
     it as meta.shot_template."""
     prefer = _template_families(template)
-    beats = {b.get("id"): b for b in (content_plan or {}).get("beats", [])}
+    # content_plan beat ids are 1-BASED and storyboard scene indices are 0-BASED, so looking a scene up by
+    # its own index missed beat 1 entirely and handed every other scene the PREVIOUS beat's plan — its
+    # visual_intent, its climax flag, its relation. Silently, and with seven distinct intents in a real
+    # plan. Match by id, then by the 1-based offset, then by position, and say which in shot_fit.
+    _plan = (content_plan or {}).get("beats", []) or []
+    _by_id = {b.get("id"): b for b in _plan if b.get("id") is not None}
+
+    # The offset is decided ONCE for the whole plan, not per scene: scene indices 1..N are themselves
+    # valid beat ids, so trying id-then-id+1 per scene picks the wrong beat for every scene but the first.
+    _scene_ix = {s.get("index") for s in data.get("slides", [])}
+    if _by_id and _scene_ix and set(_by_id) == _scene_ix:
+        _offset, _how_matched = 0, "id"
+    elif _by_id and _scene_ix and set(_by_id) == {i + 1 for i in _scene_ix if i is not None}:
+        _offset, _how_matched = 1, "id = index + 1"
+    else:
+        _offset, _how_matched = None, "position"
+
+    def _beat_for(scene_index, pos):
+        if _offset is not None and (scene_index + _offset) in _by_id:
+            return _by_id[scene_index + _offset], _how_matched
+        if pos < len(_plan):
+            return _plan[pos], "position"
+        return {}, "no plan"
+
     data.setdefault("meta", {})["renderer"] = "remotion"
     if template:
         data["meta"]["shot_template"] = template
     last_family, used, last_luma, prev_flip = None, set(), None, False
-    for s in data.get("slides", []):
-        beat = beats.get(s.get("index"), {})
+    for pos, s in enumerate(data.get("slides", [])):
+        beat, matched_by = _beat_for(s.get("index"), pos)
         intent = beat.get("visual_intent") or "statement"
         if beat.get("climax"):
-            cands = CLIMAX
+            cands, how = CLIMAX, "climax list"
         elif beat.get("relation") == "close" or beat.get("hold"):
-            cands = CLOSE
+            cands, how = CLOSE, "close list"
+        elif intent in CANDIDATES:
+            cands, how = CANDIDATES[intent], "intent '%s'" % intent
         else:
-            cands = CANDIDATES.get(intent, FALLBACK)
+            cands, how = FALLBACK, "FALLBACK (no candidate list for intent '%s')" % intent
         # color-arc: only SOFTEN after a flip (avoid a 2nd consecutive one) — isolated flips (contrast) survive
         shot = _pick(cands, last_family, used, prefer, last_luma, soften=prev_flip)
         s["shot"], s["shot_props"] = shot, s.get("shot_props") or {}
+        # RECORD THAT NOBODY JUDGED THIS. The deterministic path matches an intent keyword to a candidate
+        # list; it cannot ask whether the register's STRUCTURE carries the beat's argument, which is the
+        # only question that can surface "nothing in the library can draw this". Leaving the field absent
+        # made "assigned mechanically" indistinguishable from "considered and found to fit", so the one
+        # judgement that grows the library could be skipped without a trace.
+        s["shot_fit"] = {"verdict": "unjudged",
+                         "why": "assigned deterministically by %s%s — no one judged whether this "
+                                "register's structure carries the beat's argument" %
+                                (how, ", reusing a register already in this film" if shot in used else ""),
+                         "assigned_by": how, "plan_matched_by": matched_by}
         used.add(shot)
         last_family = FAMILY.get(shot)
         lum = shot_luma(shot)

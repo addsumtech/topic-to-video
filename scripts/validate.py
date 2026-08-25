@@ -1308,7 +1308,7 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
         verdict = (fit or {}).get("verdict") if isinstance(fit, dict) else None
         if verdict is None:
             _fit_missing.append(s.get("index"))
-        elif verdict not in ("fit", "adapt", "build"):
+        elif verdict not in ("fit", "adapt", "build", "unjudged"):
             warnings.append(f"{tag}: shot_fit.verdict {verdict!r} is not one of fit/adapt/build")
         else:
             _fit_verdicts.append(verdict)
@@ -1350,6 +1350,48 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
                         "never grows (scenes %s)"
                         % (len(_fit_missing), len(slides),
                            ", ".join(str(x) for x in _fit_missing[:8]) + (" …" if len(_fit_missing) > 8 else "")))
+    # THE BUILD SIGNAL, AT THE DECISION. Nine of the library's twenty-five families hold a single
+    # register, so "vary the family" pushes every film toward the four big ones, and a beat whose argument
+    # wants a thin family has nothing to choose between: its one member either carries the argument or it
+    # does not. Leaning on a thin family AND building nothing is the shape of settling, and how hard that
+    # lands is the risk budget the author already chose — audacity.
+    try:
+        import shot_director as _sdx
+        import collections as _co
+        _famsize = _co.Counter(_sdx.FAMILY.values())
+        _thin_used = sorted({_sdx.FAMILY.get(x) for x in seq
+                             if _sdx.FAMILY.get(x) and _famsize[_sdx.FAMILY[x]] <= 2})
+        _reused = {x for x in seq if seq.count(x) > 1}
+        _thin_and_reused = sorted({x for x in seq
+                                   if x in _reused and _famsize.get(_sdx.FAMILY.get(x), 9) <= 2})
+    except Exception:
+        _thin_used, _thin_and_reused = [], []
+    _built = [v for v in _fit_verdicts if v == "build"]
+    _aud = str(meta.get("audacity") or "balanced").lower()
+    if _thin_used and not _built and _aud != "conservative":
+        _msg = ("remotion: this film leans on thin famil%s %s — %s only ONE register in the whole library — "
+                "and built nothing. When a beat's argument wants a language the library holds one example "
+                "of, there is nothing to choose between: either that register carries the argument or the "
+                "answer was `scripts/register_shot.py`. Record a `shot_fit` verdict of 'build' for the "
+                "beat(s) it applies to, or say in `why` what made the single member fit."
+                % ("y" if len(_thin_used) == 1 else "ies", ", ".join(_thin_used),
+                   "it holds" if len(_thin_used) == 1 else "each holds"))
+        if _aud in ("bold", "experimental"):
+            errors.append(_msg + " At audacity '%s' this is an ERROR: that setting is a request to push, "
+                                 "and settling for the only stocked option is the opposite." % _aud)
+        else:
+            warnings.append(_msg)
+    if _thin_and_reused:
+        warnings.append("remotion: %s sit(s) in a one- or two-register family AND carr%s more than one beat "
+                        "in this film — the strongest build case there is, because the second use had no "
+                        "alternative to move to." % (", ".join(_thin_and_reused),
+                                                     "y" if len(_thin_and_reused) > 1 else "ies"))
+    _unjudged = [v for v in _fit_verdicts if v == "unjudged"]
+    if _unjudged:
+        warnings.append("remotion: %d of %d beats carry shot_fit 'unjudged' — assigned deterministically, "
+                        "with nobody asking whether the register's structure carries the beat's argument. "
+                        "That question is the only thing that can surface \"nothing in the library can draw "
+                        "this\"." % (len(_unjudged), len(slides)))
     elif len(slides) >= 10 and _fit_verdicts and all(v == "fit" for v in _fit_verdicts):
         warnings.append("remotion: every one of %d beats records shot_fit 'fit' — no beat needed its modules "
                         "redesigned and none needed a new register. On a topic-specific film that is the "

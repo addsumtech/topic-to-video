@@ -41,6 +41,7 @@ MODULE_PATH = {
     "frame_safe_qa": os.path.join(_SCRIPTS, "frame_safe_qa.py"),
     "shot_proof": os.path.join(_SCRIPTS, "shot_proof.py"),
     "voice_qa": os.path.join(_SCRIPTS, "voice_qa.py"),
+    "shot_director": os.path.join(_SCRIPTS, "shot_director.py"),
 }
 
 
@@ -666,6 +667,77 @@ MUTANTS["shot_proof"] = {
     "palette compares to the endpoints only":
         ("    if len(accents) >= 2:", "    if False:"),
     "dead frame flags on width alone": ("OFFSET_FRAC = 0.06", "OFFSET_FRAC = 0.0"),
+}
+
+
+# ── shot_director: the plan actually reaching the beat it belongs to ─────────────────────────────────
+def _plan_board(n=6):
+    return ({"meta": {"renderer": "remotion"},
+             "slides": [{"index": i, "narration": "x", "duration": 5.0, "audio": "a.mp3"} for i in range(n)]},
+            {"beats": [{"id": i + 1, "visual_intent": ["statement", "metric", "contrast", "list",
+                                                       "structure", "sequence"][i]} for i in range(n)]})
+
+
+def _probe_plan_offset_is_decided_once(mod):
+    """content_plan beat ids are 1-BASED and scene indices 0-BASED.
+
+    Looking a scene up by its own index missed beat 1 and handed every other scene the PREVIOUS beat's
+    plan — its intent, its climax flag — silently. And deciding the offset PER SCENE does not fix it,
+    because scene indices 1..N are themselves valid beat ids, so the wrong branch keeps winning."""
+    board, plan = _plan_board()
+    mod.assign_shots(board, plan)
+    want = {b["id"]: b["visual_intent"] for b in plan["beats"]}
+    for s in board["slides"]:
+        fit = s.get("shot_fit") or {}
+        got = fit.get("assigned_by", "")
+        if got.startswith("intent "):
+            assert got == "intent '%s'" % want[s["index"] + 1], \
+                "scene %d got %r, the plan says %r" % (s["index"], got, want[s["index"] + 1])
+    assert {(s.get("shot_fit") or {}).get("plan_matched_by") for s in board["slides"]} == {"id = index + 1"}
+
+
+def _probe_zero_based_plan_still_matches(mod):
+    """A 0-based plan must still line up — the fix is an offset, not a hardcoded +1."""
+    board, plan = _plan_board()
+    for b in plan["beats"]:
+        b["id"] -= 1
+    mod.assign_shots(board, plan)
+    assert {(s.get("shot_fit") or {}).get("plan_matched_by") for s in board["slides"]} == {"id"}
+    want = {b["id"]: b["visual_intent"] for b in plan["beats"]}
+    for s in board["slides"]:
+        got = (s.get("shot_fit") or {}).get("assigned_by", "")
+        if got.startswith("intent "):
+            assert got == "intent '%s'" % want[s["index"]]
+
+
+def _probe_every_beat_records_that_nobody_judged(mod):
+    """The deterministic path cannot judge whether a register carries an argument. Leaving the field
+    ABSENT made 'assigned mechanically' indistinguishable from 'considered and found to fit'."""
+    board, plan = _plan_board()
+    mod.assign_shots(board, plan)
+    for s in board["slides"]:
+        fit = s.get("shot_fit")
+        assert isinstance(fit, dict) and fit.get("verdict") == "unjudged", \
+            "scene %d records no unjudged verdict: %r" % (s["index"], fit)
+        assert fit.get("why") and fit.get("assigned_by")
+
+
+PROBES["shot_director"] = {
+    "plan_offset_decided_once": _probe_plan_offset_is_decided_once,
+    "zero_based_plan_matches": _probe_zero_based_plan_still_matches,
+    "records_unjudged": _probe_every_beat_records_that_nobody_judged,
+}
+
+MUTANTS["shot_director"] = {
+    "offset decided per scene again":
+        ("        if _offset is not None and (scene_index + _offset) in _by_id:",
+         "        if scene_index in _by_id:"),
+    # "Hardcoded +1" means the 0-BASED case stops being detected, leaving the offset always 1. Mutating
+    # the second branch instead changes nothing, because a 0-based plan takes the first one and works.
+    "offset hardcoded to +1":
+        ("    if _by_id and _scene_ix and set(_by_id) == _scene_ix:", "    if False:"),
+    "the unjudged record is dropped":
+        ('        s["shot_fit"] = {"verdict": "unjudged",', '        s["_dropped"] = {"verdict": "unjudged",'),
 }
 
 

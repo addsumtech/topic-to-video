@@ -1425,3 +1425,36 @@ def test_family_census_in_the_catalogue_is_current():
     thin = sorted(f for f, n in collections.Counter(sd.FAMILY.values()).items() if n <= 2)
     assert thin, "no thin families — recheck the census wording, which assumes some exist"
     assert all(("%s," % f) in block or ("%s.**" % f) in block or (" %s " % f) in block for f in thin[:1])
+
+
+def test_build_signal_lands_at_the_decision_and_scales_with_audacity():
+    """Making a build POSSIBLE is not the same as making it happen.
+
+    The capability was cheap and the absence was visible, but nothing produced a build and the
+    deterministic path did not even record the judgement — so "assigned mechanically" and "considered and
+    found to fit" were indistinguishable. Now: every beat carries a verdict, and leaning on a
+    one-register family while building nothing costs what the author's audacity says it costs.
+    """
+    import shot_director as sd
+
+    def _board(aud, verdicts):
+        shots = ["NeuralField", "CircuitTrace"] + ["CinematicTitle", "TermTable", "EdStat", "VersusSplit",
+                                                   "CardFlip3D", "TermLog", "CubeRotate", "EdCompare"]
+        b = {"meta": {"renderer": "remotion", "fps": 30, "audacity": aud},
+             "slides": [{"index": i, "shot": shots[i % len(shots)], "shot_props": {"title": "t%d" % i},
+                         "shot_adaptation": {"kept": "k", "redesigned": "r", "topic_idea": "t"},
+                         "audio": "audio/%02d.mp3" % i, "duration": 5.0, "narration": "一句话。"}
+                        for i in range(12)]}
+        for i, s in enumerate(b["slides"]):
+            s["shot_fit"] = {"verdict": verdicts[i % len(verdicts)], "why": "w"}
+        return b
+
+    thin = [x for x in ("NeuralField", "CircuitTrace")
+            if sum(1 for f in sd.FAMILY.values() if f == sd.FAMILY[x]) <= 2]
+    assert thin, "the probe relies on these sitting in one-register families"
+    assert not [e for e in v.evaluate(_board("conservative", ["fit"]), "/tmp")["errors"] if "thin famil" in e]
+    assert not [w for w in v.evaluate(_board("conservative", ["fit"]), "/tmp")["warnings"] if "thin famil" in w]
+    assert [w for w in v.evaluate(_board("balanced", ["fit"]), "/tmp")["warnings"] if "thin famil" in w]
+    assert [e for e in v.evaluate(_board("bold", ["fit"]), "/tmp")["errors"] if "thin famil" in e]
+    assert not [e for e in v.evaluate(_board("bold", ["build", "fit"]), "/tmp")["errors"] if "thin famil" in e], \
+        "a film that DID build is still blocked"
