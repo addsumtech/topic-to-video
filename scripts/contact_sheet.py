@@ -34,8 +34,19 @@ def build(out_dir, cols=5, cell_w=320, out_path=None):
     except (OSError, ValueError):
         pass
 
+    # ADAPT THE GRID to the beat count. A fixed 5 columns turned a 120-beat film into a 4902px-tall strip,
+    # which any reader downsamples until the cells are unreadable — the opposite of a triage aid. Widen the
+    # grid and shrink the cell so the sheet stays roughly page-shaped whatever the film's length.
+    import math
+    if len(frames) > cols * 8:
+        cols = max(cols, int(math.ceil(math.sqrt(len(frames) * 1.4))))
     probe = Image.open(os.path.join(kdir, frames[0]))
     cell_h = max(1, round(cell_w * probe.size[1] / probe.size[0]))
+    rows_est = (len(frames) + cols - 1) // cols
+    if rows_est * (cell_h + 24) > 2600:                     # keep the sheet inside a readable envelope
+        scale = 2600.0 / (rows_est * (cell_h + 24))
+        cell_w = max(140, int(cell_w * scale))
+        cell_h = max(1, round(cell_w * probe.size[1] / probe.size[0]))
     label_h = 18
     rows = (len(frames) + cols - 1) // cols
     pad = 6

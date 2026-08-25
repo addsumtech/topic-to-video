@@ -59,8 +59,14 @@ PROPS_SAME = 0.80           # two beats sharing a register with >=80% identical 
 # Registers that put a SOURCED FIGURE on screen. Every one of them animates it, and the delivery gate
 # captures the MID-scene frame — so "settles eventually" is not good enough: a film shipped with a
 # sourced 19.3-28.9 rendered as 19.3-16.5 and a sourced 19% rendered as 18%, digits caught mid-flight.
-FIGURE_SHOTS = ("OdometerRoll", "TermCounter", "EdStat", "GaugeCluster", "VelocitySnap",
-                "ChartLive", "BeforeAfterSlider", "ChartRace")
+# ONLY the registers whose figure IS the frame's subject and whose only motion is that figure settling.
+# The check compares the whole mid frame against the settled one, so it cannot tell a still-rolling digit
+# from a chart that is legitimately still drawing: measured on their own demo props, ChartLive scores 201,
+# ChartRace 200, BeforeAfterSlider 207 and GaugeCluster 118 — every one of them would be BLOCKED for
+# animating exactly as designed. Those four display a figure too and are NOT covered here; separating the
+# number from the graphic needs a region this check does not have, so their figures remain the critic's
+# to verify. A gate that blocks four correct designs is worse than one that admits its reach.
+FIGURE_SHOTS = ("OdometerRoll", "TermCounter", "EdStat")
 FIGURE_SETTLE_BLOCK = 70    # max 32x32-block difference between the MID and SETTLED frames.
 # Measured: a figure that lands early scores 0-34; one still moving at the midpoint scores 115-232. A
 # whole-frame mean cannot separate them — one changed digit moves too few pixels (0.45 vs 0.00) — so the

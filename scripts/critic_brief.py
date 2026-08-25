@@ -68,6 +68,11 @@ def build(out_dir):
              % (len(slides), meta.get("language", "?"), meta.get("aspect", "16:9"),
                 meta.get("shot_template", "-"), meta.get("audacity", "balanced")))
     L.append("")
+    if str(meta.get("renderer", "")).lower() not in ("remotion", "remotion-bespoke"):
+        L.append("> **This deck is not a `remotion` film** (`renderer` = %r). The register, family and "
+                 "growth sections below are empty by construction, and the shot-tier gates no-op. Use "
+                 "`design-critic` for the HTML tier." % meta.get("renderer"))
+        L.append("")
     L.append("## 1 · Already decided by machine — do NOT re-judge these")
     L.append("")
     L.append("Read the verdicts; spend your pass on section 3.")
