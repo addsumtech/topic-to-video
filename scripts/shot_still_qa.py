@@ -22,6 +22,7 @@ Per still it reports:
             or an image there collides with the subtitle. >5%% is a violation.
 Both are measured against the frame's own ground, so a light shot and a dark shot are judged the same way.
 """
+import statistics
 import sys
 
 MARGIN = 0.035          # action-safe outer border fraction (EBU R95) — frame_safe_qa.py
@@ -31,6 +32,7 @@ CAPTION_FRAC_ERR = 0.05  # >this fraction of the caption band being ink = it col
 # measures 6.0%, a shot whose hero panel fills it measures 40%.
 _INK_DELTA = 34         # a pixel this far from the band's own ground counts as ink
 _EDGE_DELTA = 60        # same idea for the action-safe border (frame_safe_qa.INK_DELTA)
+_BAND_EDGE_STEP = 28    # a luminance step this hard at the band's top edge is a PANEL, not a gradient
 
 
 def _caption_band_px(w, h):
@@ -83,7 +85,19 @@ def measure(path):
     # light shot and a dark one — but it also means a panel that covers the WHOLE band BECOMES the ground,
     # and the worst possible violation measured 0.0% while a half-covered band measured 50%. If the band's
     # ground is not the FRAME's ground, the band is not the frame's clean background at all.
-    if abs(band_ground - ground_all) > _INK_DELTA:
+    # A band whose ground differs from the frame's is EITHER covered by a panel OR simply a different
+    # tone — a vertical gradient, a two-tone ground, a lower plate. The first inversion fix could not tell
+    # them apart and returned 1.0 for both, so a legitimate gradient became a blocking error. Structure is
+    # what separates them: content has edges, a ground does not.
+    # Distinguishing the two took three tries, and the discriminant is the band's TOP EDGE, not its
+    # flatness: a different-toned GROUND (a vertical gradient, a two-tone plate) arrives gradually, while
+    # a panel laid over the band has a hard step where it starts. Flatness alone said a flat panel was a
+    # ground; treating any tone difference as coverage said a gradient was a panel. Both were wrong in
+    # opposite directions and each produced a confident number.
+    above = [px[x, max(0, cap_top - 6)] for x in range(0, w, 4)]
+    below = [px[x, min(h - 1, cap_top + 6)] for x in range(0, w, 4)]
+    edge_step = abs((sum(above) / max(1, len(above))) - (sum(below) / max(1, len(below))))
+    if abs(band_ground - ground_all) > _INK_DELTA and edge_step > _BAND_EDGE_STEP:
         caption = 1.0
     else:
         ink = sum(1 for v in vals if abs(v - band_ground) > _INK_DELTA)

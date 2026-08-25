@@ -291,7 +291,9 @@ def main(argv):
     if not argv:
         print(__doc__.strip())
         return 2
-    out_dir = argv[0]
+    # The still renderer runs with cwd=remotion, so a RELATIVE out_dir made it write beside the bundle
+    # while existence was checked from the caller's directory — every beat then reported a failed render.
+    out_dir = os.path.abspath(argv[0])
     board_path = os.path.join(out_dir, "storyboard.json")
     if not os.path.exists(board_path):
         print("[shot_proof] no storyboard.json in %s" % out_dir)

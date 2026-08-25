@@ -1351,3 +1351,63 @@ def test_generalisation_of_the_registrar_and_the_voice_scripts():
     th = vq.evaluate([(i, "โค้ดทำงานได้ การทดสอบผ่าน") for i in range(4)])
     assert th["metrics"]["sentence_len_mean"] == 0
     assert any("cannot segment" in n or "无法切分" in n for n in th["notes"]), th["notes"]
+
+
+def test_the_second_audits_repairs_hold():
+    """Five defects the second audit reproduced, three of them in code written to fix the first audit."""
+    import register_shot as rs
+    import shot_still_qa as sq
+    from PIL import Image, ImageDraw
+    import tempfile
+
+    # (1) check() matched raw file text, so a REGISTRY entry that had been COMMENTED OUT still satisfied
+    #     it — the same silence the previous repair claimed to close, reached by another route. Every gate
+    #     was green while the film rendered a red `unknown shot` card over that beat.
+    src = "import {Zed} from './shots/Zed';\nexport const REGISTRY = {\n  Alpha,\n  // Zed,\n};\n"
+    assert "Zed" not in rs._uncommented(src).split("REGISTRY")[1], "comments are still matched"
+    assert "Alpha" in rs._uncommented(src)
+    assert "/*" not in rs._uncommented("a /* Zed */ b")
+
+    # (2) os.path.exists is case-blind on APFS: registering "Termlog" beside TermLog.tsx reported the file
+    #     present, wrote no stub, registered the id everywhere else and called it done.
+    assert "src/shots/Termlog.tsx" in rs.check("Termlog"), "a case-only id no longer reports its missing file"
+    assert not [x for x in rs.check("TermLog") if x.endswith("TermLog.tsx")]
+
+    # (3) The provisional ground token must NOT carry the `declared-only` marker: measure_ground_luma
+    #     treats that marker as "never overwrite", so every newly built register would have kept a GUESS
+    #     that no measurement replaces and no drift check flags — while the tool told the author it would
+    #     be measured.
+    reg_src = open(os.path.join(os.path.dirname(__file__), "..", "scripts", "register_shot.py"),
+                   encoding="utf-8").read()
+    provisional = [ln for ln in reg_src.split("\n") if "PROVISIONAL" in ln]
+    assert provisional and not any("declared-only:" in ln for ln in provisional), \
+        "the provisional entry is marked never-overwrite again"
+
+    # (4) The caption-band verdict must separate a COVERED band from one that is merely a different TONE.
+    #     Flatness alone called a flat panel a ground; treating any tone difference as coverage called a
+    #     gradient a panel. Both were confident and wrong in opposite directions.
+    W, H = 1920, 1080
+    band = sq._caption_band_px(W, H)
+
+    def _band(mode):
+        im = Image.new("RGB", (W, H), (10, 12, 20))
+        d = ImageDraw.Draw(im)
+        d.rectangle([400, 200, 1520, 620], fill=(60, 200, 150))
+        if mode == "gradient":
+            for y in range(H // 2, H):
+                v = int(10 + (y - H // 2) / (H / 2) * 70)
+                d.line([(0, y), (W, y)], fill=(v, v + 2, v + 10))
+        if mode == "covered":
+            d.rectangle([0, H - band, W, H], fill=(60, 200, 150))
+        f = os.path.join(tempfile.mkdtemp(), "f.png")
+        im.save(f)
+        return sq.measure(f)["caption"]
+    assert _band("clean") <= sq.CAPTION_FRAC_ERR
+    assert _band("gradient") <= sq.CAPTION_FRAC_ERR, "a gradient ground is being read as a covered band"
+    assert _band("covered") > sq.CAPTION_FRAC_ERR, "a fully covered band reads clean again"
+
+    # (5) --stills renders with cwd=remotion, so a RELATIVE out_dir wrote beside the bundle while existence
+    #     was checked from the caller's directory: every beat reported a failed render.
+    sp_src = open(os.path.join(os.path.dirname(__file__), "..", "scripts", "shot_proof.py"),
+                  encoding="utf-8").read()
+    assert "out_dir = os.path.abspath(argv[0])" in sp_src

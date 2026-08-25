@@ -153,7 +153,7 @@ def register(shot, family=None, use_when=""):
             m = re.search(r"(export const DNA_GROUND_TOKEN[^{]*\{\n)", s)
             if not m:
                 return None
-            s = (s[:m.end()] + "  %s: 'bg',   // declared-only: provisional on registration — run measure_ground_luma to replace it\n"
+            s = (s[:m.end()] + "  %s: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker\n"
                  % shot + s[m.end():])
         return s
     out["shotLuma.ts"] = _edit(os.path.join(_REM, "src", "runtime", "shotLuma.ts"),
@@ -213,6 +213,19 @@ def register(shot, family=None, use_when=""):
     return out
 
 
+def _uncommented(src):
+    """The file with // and /* */ comments removed.
+
+    check() matched raw file text, so a REGISTRY entry that had been COMMENTED OUT still satisfied it and
+    the shot reported "fully registered" — the exact silence this function exists to break, reached by a
+    different route than the substring bug it replaced. Its docstring's promise ("checked for the
+    STRUCTURE that makes the registration work, never for the id appearing somewhere in the text") is only
+    true once comments are gone.
+    """
+    src = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    return "\n".join(re.sub(r"//.*$", "", ln) for ln in src.split("\n"))
+
+
 def check(shot):
     """Which sync points this shot is MISSING from.
 
@@ -243,11 +256,15 @@ def check(shot):
     miss = []
     for label, path, pats in checks:
         if pats is None:
-            if not os.path.exists(path):
+            # os.path.exists is CASE-BLIND on APFS, the platform this skill runs on: registering "Termlog"
+            # while TermLog.tsx exists reported the file present, wrote no stub, registered the id in the
+            # other five files and called it done — and the Film rendered a red unknown-shot card.
+            d = os.path.dirname(path)
+            if os.path.basename(path) not in (os.listdir(d) if os.path.isdir(d) else []):
                 miss.append(label)
             continue
         try:
-            src = open(path, encoding="utf-8").read()
+            src = _uncommented(open(path, encoding="utf-8").read())
         except OSError:
             miss.append(label)
             continue
