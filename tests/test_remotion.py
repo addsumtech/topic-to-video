@@ -1093,6 +1093,104 @@ def test_the_library_can_grow_and_the_gates_say_so():
     assert "两条分布几乎完全重合在一起" not in src        # the negative control below relies on this
 
 
+def test_voice_qa_every_threshold_and_rule_is_load_bearing():
+    """A mutation audit disabled ELEVEN of twelve behaviours in this file and the suite stayed green:
+    every threshold could be turned off or flipped, the unit could be reversed, the decimal guard deleted,
+    the vocabulary list emptied. Hand-picked samples cannot catch that — each rule needs BOTH sides of its
+    own boundary probed. This walks THRESHOLDS itself, so a rule added later is covered the same way.
+    """
+    import voice_qa as vq
+
+    def fired(beats):
+        return set(vq.evaluate([(i, t) for i, t in enumerate(beats)])["fired"])
+
+    # 1. Every threshold must fire on one side of its boundary and stay silent on the other.
+    ZH_FIRE = {
+        # identical short sentences everywhere -> uniform; no connectives; two equal clauses per beat
+        "uniform_cv": ["测试是绿的。代码是错的。"] * 8,
+        "connective": ["测试是绿的。代码是错的。"] * 8,
+        # NOT two identical clauses: with equal lengths the tolerance cannot matter and BALANCED_TOL
+        # could be set to zero unnoticed. 6 vs 7 units is inside 0.30 and outside 0.00.
+        "balanced": ["测试全是绿的。代码其实是错的。"] * 8,
+        "antithesis": ["绿灯量的是测试有多强，而不是代码有多对。"] * 8,
+        # NOT every beat ending on the figure: at share 1.0 even a 0.99 threshold still fires, so the
+        # threshold could be disabled unnoticed. A ~0.5 share sits above 0.30 and below 0.99.
+        "aphorism": (["绿灯量的是测试有多强，而不是代码有多对。"] * 4 +
+                     ["我们又跑了一遍，边界上差了一个等号，于是补了个用例。"] * 4),
+    }
+    ZH_QUIET = [
+        "这段代码是 AI 写的，能跑，测试全绿，但它其实是错的，而且没有任何提示。",
+        "写崩的会当场报错。",
+        "所以我们又跑了一遍，结果发现边界上差了一个等号，于是补了个用例。",
+        "覆盖率只证明这行被执行过。",
+        "因为出题的和判卷的是同一个来源，错误模式也一样，所以互相看不见对方的盲区。",
+        "还没人做过受控比较。",
+        "有个数字到处在传，但我们查了那份报告，里面根本没有它，所以别当结论。",
+        "先弄坏它一次。",
+    ]
+    quiet = fired(ZH_QUIET)
+    for key, beats in ZH_FIRE.items():
+        assert key in fired(beats), "threshold %r never fires — it can be disabled unnoticed" % key
+        assert key not in quiet, "threshold %r fires on varied human-ish prose — it cannot distinguish" % key
+    assert set(ZH_FIRE) == set(vq.THRESHOLDS), \
+        "a threshold exists with no boundary probe: %r" % (set(vq.THRESHOLDS) - set(ZH_FIRE))
+
+    # 2. UNITS. A space-delimited script counts WORDS; a Han script counts CHARACTERS. Reversing them
+    #    changes every length-derived metric while every hand-picked sample still "looks fine".
+    lat, han = vq.profile_for("latin"), vq.profile_for("han")
+    assert vq._units("the code runs and it is wrong", lat) == 7
+    assert vq._units("这段代码能跑但是错的", han) == 10
+
+    # 3. SEGMENTATION. Each of these was wrong before: a sentence ENDING in a number never terminated,
+    #    and abbreviations/initials split mid-sentence while the comment claimed they did not.
+    for text, n, why in [("It dropped to 19.3. That is real.", 2, "sentence ending in a number"),
+                         ("Use e.g. a checklist. Then run it.", 2, "e.g. before lowercase"),
+                         ("Dr. Smith ran it twice. Nothing failed.", 2, "abbreviation before a capital"),
+                         ("We shipped it e.g. Redis. Then it broke.", 2, "e.g. before a capital"),
+                         ("J. Smith ran it twice. Nothing failed.", 2, "an initial before a capital"),
+                         ("The U.S. Army shipped it. It broke.", 2, "a dotted initialism before a capital"),
+                         ("pass@k fell 19.3 to 28.9 percent.", 1, "a decimal is not a stop"),
+                         ("One. Two! Three?", 3, "three terminators")]:
+        assert len(vq._sentences(text, lat)) == n, "%s: %r" % (why, vq._sentences(text, lat))
+
+    # 4. ANTITHESIS is the rhetorical FIGURE, not any negation, and English carries it on either side.
+    for t in ["The difference is not that it got smarter, but that something actually ran.",
+              "It measures how strong the tests are, not how correct the code is."]:
+        assert vq._antithesis_pairs(t, lat), "English antithesis form missed: %r" % t
+    for t in ["A crash reports itself, so you never miss it.", "That package does not exist.",
+              # These two DO match the surface pattern; only the parallelism ratio rejects them, so
+              # without such a case PARALLEL_RATIO could be raised to 99 unnoticed.
+              "It measures how strong the tests are and how carefully they were reviewed, not correctness.",
+              "The renderer, the caption burner and the audio master all ran cleanly, not once."]:
+        assert not vq._antithesis_pairs(t, lat), "ordinary negation counted as antithesis: %r" % t
+    assert vq._antithesis_pairs("差别不在它更聪明，而在真的跑了一遍。", han)
+    assert not vq._antithesis_pairs("训练时默认没人真的跑一遍。", han)
+
+    # 5. VOCABULARY tells must still be checked in both languages, and CJK half-width punctuation too.
+    en = vq.evaluate([(0, "We must delve into the tapestry of this realm."), (1, "x"), (2, "y")])
+    assert en["vocab"], "the English vocabulary list is empty"
+    zh = vq.evaluate([(0, "随着技术的不断发展,我们需要赋能业务。"), (1, "短句。"), (2, "另一句。")])
+    assert zh["vocab"], "the Chinese vocabulary list is empty"
+    assert any("半角" in w for w in zh["warnings"]), "the mixed-punctuation check is gone"
+
+    # 6. SCRIPT ROUTING. A script with no curated list must report UNAVAILABLE, never a confident 0%.
+    # KANJI-heavy on purpose: with a kana-heavy sample plain max() already picks kana, so the rule
+    # that makes Japanese Japanese would not be load-bearing and could be deleted unnoticed.
+    ja = vq.evaluate([(i, "実行結果は緑です。静的解析も問題を報告しません。") for i in range(4)])
+    assert ja["dominant_script"] == "kana"
+    assert ja["metrics"]["connective_share"] is None and ja["metrics"]["antithesis_share"] is None
+    ko = vq.evaluate([(i, "코드는 실행됩니다. 테스트는 통과합니다.") for i in range(4)])
+    assert ko["dominant_script"] == "hangul"
+    # a Chinese technical script full of Latin and digits must NOT be mistaken for English
+    zh_tech = vq.evaluate([(i, "把用例扩到约 80 倍再跑，pass@k 最多掉了 19.3 到 28.9%。") for i in range(4)])
+    assert zh_tech["dominant_script"] == "han", zh_tech["dominant_script"]
+
+    # 7. The report is written in the language of the script being judged.
+    flat_en = vq.evaluate([(i, "The system runs a check. The check passes. The build ships.") for i in range(12)])
+    assert flat_en["warnings"]
+    assert all(not re.search(r"[一-鿿]", w) for w in flat_en["warnings"] + flat_en["notes"])
+
+
 def test_frame_craft_and_voice_gates_work_on_inputs_they_were_not_tuned_on():
     """Both were calibrated on ONE film — Chinese, dark ground, 16:9 — and both were wrong off it.
 
@@ -1135,7 +1233,7 @@ def test_frame_craft_and_voice_gates_work_on_inputs_they_were_not_tuned_on():
     # The sharp test for the splitter: these beats hold 2-3 sentences each, so the sentence COUNT must
     # exceed the beat count. Asserting on mean length instead passes even when nothing splits (an earlier
     # draft of this test did exactly that, and the mutation sailed through).
-    n_sent = sum(len(vq._sentences(t, "en")) for _, t in en)
+    n_sent = sum(len(vq._sentences(t, vq.profile_for("latin"))) for _, t in en)
     assert n_sent > len(en) + 1, "English never splits into sentences (%d sentences from %d beats)" % (n_sent, len(en))
     assert r["metrics"]["connective_share"] > 0.4, "the English connective list never matches"
     assert r["metrics"]["antithesis_share"] > 0.0, "the English antithesis forms never match"

@@ -17,17 +17,31 @@ Two families of tell, because they fail differently:
 
     So this script measures the DISTRIBUTION, not just the words:
       - sentence-length CV (spread / mean). Machine-uniform prose sits low; a person's varies.
-      - antithesis density: the share of beats built on a NEGATION contrast (surface form only — it
-        under-reports contrast carried by meaning alone, so the human read is still required).
+      - antithesis density: the share of beats built on the rhetorical FIGURE — two comparable things set
+        against each other, one negated. Ordinary negation ("that package does not exist") is not the
+        figure and is filtered out by requiring the two sides to be parallel in length.
       - balanced-pair share: two or three clauses of near-equal length set against each other, which is
         the same move with no negation word in it and therefore invisible to every vocabulary list.
-      - connective density: the share of beats carrying any 但/所以/其实/不过 … at all.
-      - aphorism ending: the share of beats whose LAST sentence is a contrast/definition punchline.
+      - connective density: the share of beats carrying any 但/所以/其实 · but/so/actually … at all.
+      - aphorism ending: the share of beats whose LAST sentence lands the figure.
+
+    EVERYTHING BRANCHES ON SCRIPT, PER BEAT — never on one language flag for the whole film. What the
+    metrics actually need to know is what ends a sentence, whether words are space-delimited, and whether
+    a curated connective/antithesis list exists at all. Where one does not (kana, Hangul, Cyrillic today)
+    those two checks report UNAVAILABLE. They do NOT report 0%: a zero would be a claim about the writing
+    when it is a gap in this tool.
 
 HONEST LIMIT, and it matters: rules remove maybe half of it. Published practice reports 40-50%, and
 over-applying rules produces its own artificiality — a "rule voice" that dodges every listed pattern and
 still is not a person. Treat every number here as a place to LOOK, not a target to optimise. A beat that
 trips a check and reads well is fine; a beat that passes everything and reads dead is still dead.
+This script is ADVISORY and always exits 0.
+
+WHAT IS STILL NOT CALIBRATED: none of the five thresholds has been measured against a corpus of
+human-written narration. They are anchored to ONE case — a delivered film its author found
+machine-sounding — and to nothing else. The Latin figures are weaker still, because characters and words
+are not the same unit. Every threshold is a named constant in THRESHOLDS so a test can probe both sides
+of each boundary; that makes them load-bearing, not correct.
 """
 import json
 import os
@@ -55,38 +69,186 @@ EN_TELLS = {
 # Half-width punctuation sitting between CJK characters — a translation/rendering residue.
 MIXED_PUNCT = r"[一-鿿]\s*[,.;:?!]\s*[一-鿿]"
 
-# ── (B) rhythm tells ─────────────────────────────────────────────────────────────────────────────────
-# A negation CONTRAST, in the several surface forms a punchy explainer actually uses. The textbook
-# "不是X而是Y" is only one of them, which is why a checklist that greps for it alone reports zero.
-# PER LANGUAGE. The first version of this file was calibrated on a Chinese film and every rhythm pattern
-# below was Chinese-only — including the SENTENCE SPLITTER, which listed 。！？!? but not a full stop. On an
-# English script nothing ever split, so "sentence length" silently measured whole BEATS, "balanced pair"
-# could never fire, and the connective share was 0% on every English film by construction: three metrics
-# reporting confidently about something they were not measuring.
-ANTITHESIS = {
-    "zh": r"不是.{1,16}[，,。]?\s*(而是|是)|不在.{1,16}[，,。]?\s*在于|(?<![一-鿿])没(说|有).{1,16}[。，]|不看.{1,14}[。，]|不去.{1,14}[。，]|(?<![一-鿿])不(是|会|在)[^。]{0,14}。",
-    # English puts the negation on either side: "not X but Y" and, just as often, the TRAILING form
-    # "…how strong the tests are, not how correct the code is".
-    "en": r",\s*not\b|\bnot\b[^.;]{0,60}\bbut\b|\b(?:it'?s|is|was)\s+not\b[^.;]{0,40}(?:,|but)|\brather than\b|\bisn'?t (?:about|that)\b|\bnot (?:what|how|whether)\b",
+# ── (B) rhythm tells — driven by SCRIPT, not by a whole-film language flag ────────────────────────────
+# The first version decided ONE language for a whole film from a Han-character ratio, then branched two
+# ways. Three things were wrong with that and none of them announced itself:
+#   * Chinese technical narration is full of Latin and digits ("pass@k 最多掉了 19.3 到 28.9%"), so the
+#     ratio can fall under the threshold and route a Chinese film to the English rules.
+#   * The test was the CJK IDEOGRAPH range only, so kana-heavy Japanese, Hangul Korean, Cyrillic — every
+#     script that is not Han-dense — went to the English branch, where the connective list cannot match
+#     and the report announced "0% of beats carry any connective" as if it were a finding.
+#   * One flag for the film meant a mixed script was measured with the wrong splitter AND the wrong unit.
+# What the metrics actually branch on is not "which language" but three script properties: what ends a
+# sentence, whether words are space-delimited, and whether we HAVE a curated connective/antithesis list.
+# So: classify each BEAT by script, and carry those properties in a profile. Where no curated list exists
+# the check reports UNAVAILABLE — never 0%, which is a finding about the text rather than about us.
+_SCRIPT_RANGES = [
+    ("han", r"[\u4e00-\u9fff\u3400-\u4dbf]"),
+    ("kana", r"[\u3040-\u30ff]"),
+    ("hangul", r"[\uac00-\ud7af\u1100-\u11ff]"),
+    ("cyrillic", r"[\u0400-\u04ff]"),
+    ("greek", r"[\u0370-\u03ff]"),
+    ("arabic", r"[\u0600-\u06ff]"),
+    ("thai", r"[\u0e00-\u0e7f]"),
+    ("devanagari", r"[\u0900-\u097f]"),
+    ("latin", r"[A-Za-z\u00c0-\u024f]"),
+]
+
+# A profile says how to CUT the text and what we can legitimately say about it.
+#   unit            — 'char' for scripts written without spaces, 'word' for space-delimited ones
+#   enders          — the sentence terminators of that script
+#   connectives     — curated list, or None when we have none (then the check is UNAVAILABLE)
+#   antithesis      — (pattern, has-two-capture-groups) or None, same rule
+_PROFILES = {
+    "han": {"unit": "char", "enders": "。！？!?…", "smart_latin": False,
+            "connectives": r"但|可是|不过|所以|因为|于是|结果|而且|然后|其实|反而|只要|一旦|除非|哪怕",
+            # The two sides must be the two PARALLEL CONSTITUENTS, so each is bounded by a clause
+            # separator rather than "up to 24 characters back". Capturing the whole preceding half of the
+            # sentence made every real antithesis look lopsided and the parallelism filter threw them all
+            # out — 5 of 6 hand-judged contrasts were missed.
+            "antithesis": [
+                # 不是X，(而)是Y  ·  不在X，(而)在(于)Y
+                r"不(?:是|在)([^，。：；！？]{2,24})[，,]\s*(?:而是|而在|在于|是|在)([^。！？]{2,24})",
+                # X，(而/却/并/只)不是Y  ·  …不看Y  ·  …不找Y
+                r"([^，。：；！？]{2,24})[，,]\s*(?:而|却|并|只)?不(?:是|在|看|找|靠)([^。！？]{2,24})",
+                # X，没说/没有Y
+                r"([^，。：；！？]{2,24})[，,]\s*没(?:说|有)([^。！？]{2,24})",
+                # 不V X，(去)V Y — the verb repeats on both sides, which is the parallelism itself
+                r"不(.)([^，。：；！？]{2,20})[，,]\s*(?:而|却)?(?:去)?\1([^。！？]{2,20})",
+            ]},
+    "kana": {"unit": "char", "enders": "。！？!?", "smart_latin": False,
+             "connectives": None, "antithesis": None},
+    "latin": {"unit": "word", "enders": ".!?…", "smart_latin": True,
+              "connectives": r"\b(but|so|because|though|although|however|yet|actually|still|then|once|"
+                             r"unless|even if|which is why|turns out|that is why|instead)\b",
+              "antithesis": [r"\bnot\s+(.{2,60}?)\s*,?\s*but\s+(?:rather\s+)?(.{2,60})",
+                             r"([^,.;]{2,60}),\s*not\s+([^.;]{2,60})",
+                             r"\brather than\s+(.{2,60}?)\s*,\s*(.{2,60})"]},
+    "hangul": {"unit": "word", "enders": ".!?。", "smart_latin": False,
+               "connectives": None, "antithesis": None},
+    "cyrillic": {"unit": "word", "enders": ".!?…", "smart_latin": False,
+                 "connectives": None, "antithesis": None},
 }
-CONNECTIVES = {
-    "zh": r"但|可是|不过|所以|因为|于是|结果|而且|然后|其实|反而|只要|一旦|除非|哪怕",
-    "en": r"\b(but|so|because|though|although|however|yet|actually|still|then|once|unless|even if|which is why|turns out|that is why)\b",
+_DEFAULT_PROFILE = {"unit": "word", "enders": ".!?。！？", "smart_latin": False,
+                    "connectives": None, "antithesis": None}
+
+# Every threshold is a NAMED constant so a test can walk them and probe each boundary. Inline literals
+# are why a mutation audit could disable five thresholds one at a time and the suite stayed green.
+THRESHOLDS = {
+    "uniform_cv": 0.45,      # sentence-length CV BELOW this = template-uniform
+    "antithesis": 0.35,      # share of beats built on a negation contrast ABOVE this
+    "balanced": 0.35,        # share of beats that are a balanced pair ABOVE this
+    "connective": 0.30,      # share of beats carrying any connective BELOW this
+    "aphorism": 0.30,        # share of beats ending on an antithesis ABOVE this
 }
-# A full stop only ends a sentence when it is not sitting inside a number (19.3) or an abbreviation.
-SENT_SPLIT = {"zh": r"[。！？!?]+", "en": r"(?<!\d)[.!?]+(?!\d)|[。！？]+"}
+BALANCED_TOL = 0.30          # two clauses count as "equal length" within this fraction
+MIN_BEATS = 3                # below this there is not enough text to judge rhythm
+MIN_SENTENCES = 6
+PARALLEL_RATIO = 3.0         # the two sides of a real antithesis are comparable in length
+
+# Latin abbreviations that end in a period without ending the sentence.
+_ABBR = (r"e\.g|i\.e|etc|vs|cf|approx|al|Dr|Mr|Mrs|Ms|Prof|Sr|Jr|St|Fig|No|Inc|Ltd|Co|Jan|Feb|Mar|Apr|"
+         r"Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec")
+
+
+def _script_of(text):
+    """The dominant script of one beat, ignoring digits, spaces and shared punctuation."""
+    counts = {}
+    for name, rng in _SCRIPT_RANGES:
+        counts[name] = len(re.findall(rng, text))
+    total = sum(counts.values())
+    if not total:
+        return "latin"
+    top = max(counts, key=counts.get)
+    # Han and kana travel together in Japanese; kana is the tell, so any meaningful kana wins.
+    if counts.get("kana", 0) >= max(3, 0.15 * total):
+        return "kana"
+    return top
+
+
+def profile_for(script):
+    return _PROFILES.get(script, _DEFAULT_PROFILE)
 
 
 def _strip(t):
     return re.sub(r"[，。、；：！？「」（）()·,.;:!?\s]", "", t)
 
 
-def _sentences(t, lang="zh"):
-    return [s for s in re.split(SENT_SPLIT[lang], t) if s.strip()]
+def _latin_sentences(t):
+    r"""Sentence split for a space-delimited script.
+
+    The previous rule was `(?<!\d)[.!?]+(?!\d)`, which claimed in its own comment to handle
+    abbreviations and did not, and which broke in the other direction too: requiring a non-digit BEFORE
+    the stop meant a sentence that legitimately ENDS in a number ("It dropped to 19.3.") never
+    terminated. Split only where a terminator is followed by whitespace-then-capital or end of text, and
+    never inside a decimal, an initial, or a known abbreviation.
+    """
+    out, start = [], 0
+    for m in re.finditer(r"[.!?]+", t):
+        i, j = m.start(), m.end()
+        # (No separate decimal guard: the following-context rule below already refuses to split "19.3",
+        # because the character after that stop is a digit rather than whitespace. A guard that cannot
+        # change any outcome is dead code, and a test written for it would be theatre.)
+        before = t[:i]
+        if re.search(r"(?:^|[\s(\"'])(?:%s)$" % _ABBR, before, re.I):
+            continue                                              # e.g. / vs. / Dr.
+        # An initial or a dotted initialism: "J. Smith", "U.S. Army". Matching a SINGLE capital only was
+        # not enough — in "The U.S. Army" the S is preceded by a dot, not a space, so it split there.
+        if re.search(r"(?:^|\s)(?:[A-Z]\.)*[A-Z]$", before):
+            continue
+        rest = t[j:]
+        if rest.strip() and not re.match(r"\s+[\"'(\[]?[A-Z0-9]", rest):
+            continue                                              # not a sentence boundary
+        out.append(t[start:j])
+        start = j
+    tail = t[start:]
+    if tail.strip():
+        out.append(tail)
+    return [x.strip() for x in out if x.strip()]
 
 
-# The warnings are written in the language of the SCRIPT being judged: a Chinese report on an English film
-# is a report nobody reads.
+def _sentences(t, prof):
+    if prof.get("smart_latin"):
+        return _latin_sentences(t)
+    return [x.strip() for x in re.split(r"[%s]+" % re.escape(prof["enders"]), t) if x.strip()]
+
+
+def _units(t, prof):
+    if prof["unit"] == "char":
+        return len(_strip(t))
+    return len([w for w in re.split(r"\s+", t.strip()) if w])
+
+
+def _antithesis_pairs(text, prof):
+    """The antithesis pairs in one beat, AFTER requiring the two sides to be parallel.
+
+    Matching the negation alone made ordinary conversational negation ("so you never miss it", "it does
+    not exist") count as the rhetorical figure, which inflated the share on hand-written prose. The
+    figure sets two COMPARABLE things against each other; a bare negation has no counterpart. So both
+    captured sides must be non-trivial and within PARALLEL_RATIO of each other in length.
+    """
+    pats = prof.get("antithesis")
+    if not pats:
+        return None                                    # UNAVAILABLE for this script — not "zero"
+    hits = []
+    for pat in pats:
+        for m in re.finditer(pat, text, re.I):
+            if m.lastindex is None or m.lastindex < 2:
+                continue
+            # The two SIDES are the last two captures. Taking groups 1 and 2 broke the verb-repeat
+            # pattern, where group 1 is the repeated verb (one character) and the parallelism filter then
+            # threw the match out for being lopsided.
+            a = (m.group(m.lastindex - 1) or "").strip()
+            b = (m.group(m.lastindex) or "").strip()
+            la, lb = _units(a, prof), _units(b, prof)
+            if la < 1 or lb < 1:
+                continue
+            if max(la, lb) > PARALLEL_RATIO * max(1, min(la, lb)):
+                continue
+            hits.append((a, b))
+    return hits
+
+
 _MSG = {
     "uniform": {
         "zh": "句长过于齐整 CV=%.2f(<%.2f)— 每拍都是同一种长度的短断句，读一整片就是模板。"
@@ -130,89 +292,118 @@ _MSG = {
 
 
 def evaluate(narrations):
-    """narrations: list of (beat_index, text). Returns a report dict."""
-    warnings, notes = [], []
-    joined = "\n".join(t for _, t in narrations)
-    is_cjk = len(re.findall(r"[一-鿿]", joined)) > len(joined) * 0.3
-    lang = "zh" if is_cjk else "en"
+    """narrations: list of (beat_index, text). Returns a report dict.
 
-    # (A) vocabulary
+    Each beat is classified by SCRIPT and measured with that script's profile, so a mixed-script film is
+    not forced through one set of rules. A check with no curated list for a script reports UNAVAILABLE
+    rather than 0% — reporting zero would be a claim about the writing when it is a gap in this tool.
+    """
+    warnings, notes = [], []
+    beats = [(i, t, _script_of(t)) for i, t in narrations]
+    scripts = {}
+    for _, _, sc in beats:
+        scripts[sc] = scripts.get(sc, 0) + 1
+    dominant = max(scripts, key=scripts.get) if scripts else "latin"
+    lang = "zh" if dominant == "han" else "en"          # the language the REPORT is written in
+    if len(scripts) > 1:
+        notes.append(("本片混用了 %s 两种以上文种；每拍按自己的文种切分和计量。" if lang == "zh" else
+                      "this script mixes %s; each beat is segmented and counted by its own script.")
+                     % ", ".join("%s x%d" % (k, v) for k, v in sorted(scripts.items(), key=lambda x: -x[1])))
+
+    # (A) vocabulary — the list that matches the beat's own script
     vocab = {}
-    for name, pat in (ZH_TELLS if is_cjk else EN_TELLS).items():
-        hits = [(i, m.group(0)) for i, t in narrations for m in re.finditer(pat, t, re.I)]
+    for name, pat in (ZH_TELLS if dominant == "han" else EN_TELLS).items():
+        hits = [(i, m.group(0)) for i, t, _ in beats for m in re.finditer(pat, t, re.I)]
         if hits:
             vocab[name] = hits
             warnings.append("%s x%d — %s" % (name, len(hits), " / ".join(h[1] for h in hits[:3])))
-    if is_cjk:
-        mp = [(i, m.group(0)) for i, t in narrations for m in re.finditer(MIXED_PUNCT, t)]
+    if dominant == "han":
+        mp = [(i, m.group(0)) for i, t, _ in beats for m in re.finditer(MIXED_PUNCT, t)]
         if mp:
             warnings.append("半角标点混入中文 x%d — %s" % (len(mp), mp[0][1]))
 
-    # (B) rhythm
-    def _units(x):                     # Chinese counts characters; English counts WORDS
-        return len(_strip(x)) if is_cjk else len([w for w in re.split(r"\s+", x.strip()) if w])
-    sent = [_units(s) for _, t in narrations for s in _sentences(t, lang)]
-    cv = (statistics.pstdev(sent) / statistics.mean(sent)) if len(sent) > 1 and statistics.mean(sent) else 0.0
-    anti = [i for i, t in narrations if re.search(ANTITHESIS[lang], t, re.I)]
-    conn = [i for i, t in narrations if re.search(CONNECTIVES[lang], t, re.I)]
-    # BALANCED PAIR — the template the antithesis regex misses. "读着合理的那种不出声。写崩的立刻报错。"
-    # carries no negation word at all, yet it is the same machine move: two clauses of near-equal length
-    # set against each other, subject dropped. Measured structurally, so it needs no vocabulary list.
-    balanced = []
-    for i, t in narrations:
-        ls = [_units(s) for s in _sentences(t, lang)]
-        if 2 <= len(ls) <= 3 and min(ls) >= 4 and (max(ls) - min(ls)) <= 0.3 * max(ls):
+    # (B) rhythm — per beat, under that beat's profile
+    sent, balanced, anti, endsharp, conn = [], [], [], [], []
+    measurable_anti, measurable_conn = 0, 0
+    for i, t, sc in beats:
+        prof = profile_for(sc)
+        ss = _sentences(t, prof)
+        ls = [_units(x, prof) for x in ss]
+        sent.extend(ls)
+        if 2 <= len(ls) <= 3 and min(ls) >= 4 and (max(ls) - min(ls)) <= BALANCED_TOL * max(ls):
             balanced.append(i)
-    endsharp = []
-    for i, t in narrations:
-        ss = _sentences(t, lang)
-        if ss and re.search(ANTITHESIS[lang], ss[-1], re.I):
-            endsharp.append(i)
-    n = max(1, len(narrations))
+        pairs = _antithesis_pairs(t, prof)
+        if pairs is not None:
+            measurable_anti += 1
+            if pairs:
+                anti.append(i)
+            if ss and _antithesis_pairs(ss[-1], prof):
+                endsharp.append(i)
+        if prof.get("connectives"):
+            measurable_conn += 1
+            if re.search(prof["connectives"], t, re.I):
+                conn.append(i)
+    cv = (statistics.pstdev(sent) / statistics.mean(sent)) if len(sent) > 1 and statistics.mean(sent) else 0.0
+    n = max(1, len(beats))
     m = {
-        "beats": len(narrations),
+        "beats": len(beats),
+        "scripts": scripts,
         "sentence_len_mean": round(statistics.mean(sent), 1) if sent else 0,
         "sentence_len_cv": round(cv, 3),
-        "antithesis_share": round(len(anti) / n, 3),
-        "connective_share": round(len(conn) / n, 3),
-        "aphorism_ending_share": round(len(endsharp) / n, 3),
+        "antithesis_share": round(len(anti) / measurable_anti, 3) if measurable_anti else None,
+        "connective_share": round(len(conn) / measurable_conn, 3) if measurable_conn else None,
+        "aphorism_ending_share": round(len(endsharp) / measurable_anti, 3) if measurable_anti else None,
         "balanced_pair_share": round(len(balanced) / n, 3),
     }
-    # Thresholds are set against a REAL measured case: a delivered 37-beat Chinese explainer that its
-    # author found machine-sounding scored CV 0.30, balanced-pair 40%, connectives 11%, antithesis 24% —
-    # and ZERO on every vocabulary list above. Those four numbers are what these thresholds sit around.
-    # They mark where to LOOK; none of them is a target to drive to zero.
-    # NOTE ON THIS THRESHOLD: 0.45 is a judgement call, not a figure measured against human-written
-    # reference text — and it is LESS anchored for English than for Chinese, because the two count
-    # different units (Chinese characters vs English words) and the same number does not mean the same
-    # spread in both. Treat the English figure as directional only until someone measures it.
-    # ORIGINAL NOTE: 0.45 is a judgement call, not a figure measured against human-written
-    # reference text. The measured contrast it is anchored to is real (a script that read as machine-made
-    # sat at 0.30; the same script rewritten with connectives and varied sentence length reached 0.39 and
-    # read far better), but the line itself is not calibrated. Do NOT pad sentences to clear it — that is
-    # precisely the "rule voice" this file warns about. If a script trips only this check and reads well
-    # aloud, accept it and say so.
+    unsupported = sorted({sc for _, _, sc in beats if not profile_for(sc).get("connectives")})
+    if beats and unsupported and (m["connective_share"] is None or m["antithesis_share"] is None):
+        notes.append(("没有针对「%s」文种的连接词/对仗词表，这两项本次不作判断（报 0%% 会把工具的空白说成文本的问题）。"
+                      if lang == "zh" else
+                      "no curated connective/antithesis list for the '%s' script, so those two checks are "
+                      "UNAVAILABLE here — reporting 0%% would blame the writing for a gap in this tool.")
+                     % ", ".join(unsupported))
     # Too little text to say anything about rhythm. A 0- or 1-beat film has CV 0.00 by construction, so
     # firing the thresholds on it produces confident nonsense.
-    if len(sent) < 6 or len(narrations) < 3:
-        notes.append(("只有 %d 拍 / %d 个句子，样本太小，节奏指标不作判断。" if is_cjk else
+    if len(sent) < MIN_SENTENCES or len(beats) < MIN_BEATS:
+        notes.append(("只有 %d 拍 / %d 个句子，样本太小，节奏指标不作判断。" if lang == "zh" else
                       "only %d beat(s) / %d sentence(s) — too little text to judge rhythm; thresholds skipped.")
-                     % (len(narrations), len(sent)))
-        return {"metrics": m, "warnings": warnings, "vocab": vocab, "notes": notes,
-                "antithesis_beats": anti, "language": lang}
-    if cv < 0.45:
-        warnings.append(_MSG["uniform"][lang] % (cv, 0.45))
-    if m["antithesis_share"] > 0.35:
-        warnings.append(_MSG["antithesis"][lang] % (100 * m["antithesis_share"], 35))
-    if m["balanced_pair_share"] > 0.35:
-        warnings.append(_MSG["balanced"][lang] % (100 * m["balanced_pair_share"], 35))
-    if m["connective_share"] < 0.30:
-        warnings.append(_MSG["connective"][lang] % (100 * m["connective_share"], 30))
-    if m["aphorism_ending_share"] > 0.30:
-        warnings.append(_MSG["aphorism"][lang] % (100 * m["aphorism_ending_share"], 30))
+                     % (len(beats), len(sent)))
+        return {"metrics": m, "warnings": warnings, "vocab": vocab, "notes": notes, "fired": [],
+                "antithesis_beats": anti, "language": lang, "dominant_script": dominant}
+
+    # THRESHOLDS. Set against a REAL measured case: a delivered 37-beat Chinese explainer that its author
+    # found machine-sounding scored CV 0.30, balanced-pair 40%, connectives 11%, antithesis 24% — and ZERO
+    # on every vocabulary list above. Those four numbers are what these sit around.
+    #
+    # NOT CALIBRATED, and it matters twice over: 0.45 is a judgement call rather than a figure measured
+    # against human-written reference text, and it is LESS anchored for a space-delimited script than for
+    # Chinese because the two count different units (characters vs words) and the same number does not
+    # mean the same spread. Treat every figure as directional. Do NOT pad sentences to clear one — that is
+    # precisely the "rule voice" the reference warns about. A script that trips only this and reads well
+    # aloud should be accepted, out loud.
+    #
+    # They live in THRESHOLDS (a dict, not inline literals) so a test can walk every one of them and probe
+    # both sides of each boundary. A mutation audit disabled five inline thresholds one at a time and the
+    # whole suite stayed green.
+    fired = []                       # which thresholds decided to speak — the testable decision
+    if cv < THRESHOLDS["uniform_cv"]:
+        fired.append("uniform_cv")
+        warnings.append(_MSG["uniform"][lang] % (cv, THRESHOLDS["uniform_cv"]))
+    if m["antithesis_share"] is not None and m["antithesis_share"] > THRESHOLDS["antithesis"]:
+        fired.append("antithesis")
+        warnings.append(_MSG["antithesis"][lang] % (100 * m["antithesis_share"], 100 * THRESHOLDS["antithesis"]))
+    if m["balanced_pair_share"] > THRESHOLDS["balanced"]:
+        fired.append("balanced")
+        warnings.append(_MSG["balanced"][lang] % (100 * m["balanced_pair_share"], 100 * THRESHOLDS["balanced"]))
+    if m["connective_share"] is not None and m["connective_share"] < THRESHOLDS["connective"]:
+        fired.append("connective")
+        warnings.append(_MSG["connective"][lang] % (100 * m["connective_share"], 100 * THRESHOLDS["connective"]))
+    if m["aphorism_ending_share"] is not None and m["aphorism_ending_share"] > THRESHOLDS["aphorism"]:
+        fired.append("aphorism")
+        warnings.append(_MSG["aphorism"][lang] % (100 * m["aphorism_ending_share"], 100 * THRESHOLDS["aphorism"]))
     notes.append(_MSG["note"][lang])
-    return {"metrics": m, "warnings": warnings, "vocab": vocab, "notes": notes,
-            "antithesis_beats": anti, "language": "zh" if is_cjk else "en"}
+    return {"metrics": m, "warnings": warnings, "vocab": vocab, "notes": notes, "fired": fired,
+            "antithesis_beats": anti, "language": lang, "dominant_script": dominant}
 
 
 def main(argv):
@@ -237,12 +428,16 @@ def main(argv):
         print(json.dumps(r, ensure_ascii=False, indent=1))
         return 0
     m = r["metrics"]
-    head = ("[voice_qa] %d beat(s), %s — 句长 mean=%.1f CV=%.2f | 否定对仗 %.0f%% | 连接词 %.0f%% | 警句收尾 %.0f%%"
+    # A share is None when there is no curated list for that script (or nothing measurable at all).
+    # Multiplying it by 100 in the headline crashed the CLI on exactly those films.
+    def _pct(v):
+        return "n/a" if v is None else "%.0f%%" % (100 * v)
+    head = ("[voice_qa] %d beat(s), %s — 句长 mean=%.1f CV=%.2f | 否定对仗 %s | 连接词 %s | 警句收尾 %s"
             if r["language"] == "zh" else
-            "[voice_qa] %d beat(s), %s — sentence len mean=%.1f CV=%.2f | antithesis %.0f%% | connectives %.0f%% | aphorism endings %.0f%%")
+            "[voice_qa] %d beat(s), %s — sentence len mean=%.1f CV=%.2f | antithesis %s | connectives %s | aphorism endings %s")
     print(head
-          % (m["beats"], r["language"], m["sentence_len_mean"], m["sentence_len_cv"],
-             100 * m["antithesis_share"], 100 * m["connective_share"], 100 * m["aphorism_ending_share"]))
+          % (m["beats"], r["dominant_script"], m["sentence_len_mean"], m["sentence_len_cv"],
+             _pct(m["antithesis_share"]), _pct(m["connective_share"]), _pct(m["aphorism_ending_share"])))
     print(("           两句等长对置 %.0f%%" if r["language"] == "zh" else
            "           balanced pairs %.0f%%") % (100 * m["balanced_pair_share"]))
     for w in r["warnings"]:
