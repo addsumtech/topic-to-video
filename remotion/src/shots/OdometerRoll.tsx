@@ -11,8 +11,12 @@ export const DURATION = 140; // ~4.7s
 const BG = '#0a0b12', ACC0 = '#5b8cff';
 const CELL = 236; // digit cell height
 
-export const OdometerRoll: React.FC<{value?: string; label?: string; unit?: string}> = ({
-  value: VALUE = '1,240', label: LABEL = 'active teams this week', unit: UNIT = ''} = {}) => {
+export const OdometerRoll: React.FC<{value?: string; label?: string; unit?: string; roll?: boolean}> = ({
+  value: VALUE = '1,240', label: LABEL = 'active teams this week', unit: UNIT = '',
+  // `roll: false` locks the figure from the first frame. The roll IS this register's character, but a
+  // beat whose subject is a number that could not be sourced cannot afford a parade of invented digits
+  // on the way there — the same option EdStat carries, for the same reason.
+  roll: ROLL = true} = {}) => {
   const t = useT();
   const dna = useDNA(); const ACC = dna?.accent ?? ACC0;
   useVideoConfig();
@@ -42,10 +46,13 @@ export const OdometerRoll: React.FC<{value?: string; label?: string; unit?: stri
           // 19.3-16.5, digits caught mid-roll. A register that shows a number must be showing the
           // RIGHT number by the frame anyone looks at.
           const start = 0.06 + di * 0.03, end = 0.26 + di * 0.03;
-          const r = easeOutExpo(seg(t, start, end));
+          const r = ROLL ? easeOutExpo(seg(t, start, end)) : 1;
           const offset = -r * total * CELL;
-          const locked = t > end;
-          const pulse = locked
+          const locked = !ROLL || t > end;
+          // The landing pulse needs a landing. With roll:false there is none, and t - end is NEGATIVE, so
+          // exp(-(t-end)*7) AMPLIFIES instead of decaying — each later digit scaled up more than the one
+          // before it and the cells overlapped. Only a real landing pulses.
+          const pulse = (ROLL && locked)
             ? 1 + 0.05 * Math.max(0, Math.sin((t - end) * 26)) * Math.exp(-(t - end) * 7)
             : 1;
           const strip: number[] = [];

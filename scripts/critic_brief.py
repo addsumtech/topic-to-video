@@ -29,9 +29,16 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _REM = os.path.join(_HERE, "..", "remotion")
 
 
-def _run(script, out_dir, *args):
-    r = subprocess.run([sys.executable, os.path.join(_HERE, script), out_dir, *args],
-                       capture_output=True, text=True)
+def _run(script, out_dir, *args, timeout=240):
+    """Run one gate and return its output. A gate that hangs must not take the brief with it — the brief
+    is what a reviewer waits on, and six unbounded subprocesses is six ways to wait forever."""
+    try:
+        r = subprocess.run([sys.executable, os.path.join(_HERE, script), out_dir, *args],
+                           capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return "[%s] TIMED OUT after %ds — run it yourself before trusting this brief" % (script, timeout)
+    except OSError as e:
+        return "[%s] could not run: %s" % (script, e)
     return (r.stdout or "").strip() or (r.stderr or "").strip()[:400]
 
 
