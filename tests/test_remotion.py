@@ -1310,3 +1310,44 @@ def test_audit_repairs_hold():
     # (6) register_shot.check() must see a structural gap, not merely the id somewhere in the file.
     import register_shot as rs
     assert rs.check("Term") and len(rs.check("Term")) == 6, "substring blindness is back"
+
+
+def test_generalisation_of_the_registrar_and_the_voice_scripts():
+    """Both were written against the shapes that happened to be in front of them."""
+    import register_shot as rs
+    import voice_qa as vq
+
+    # (1) The REGISTRY insertion anchored on the SHAPE of the last line ("two comma-separated names"),
+    #     which is true of the hand-written file and false the moment this script has added one entry on
+    #     its own line — so registration worked exactly once and then failed forever, while the tool said
+    #     "FAILED (anchor not found)" and, before that was fixed too, still exited 0.
+    for label, src in [
+        ("hand-written, several names per line", "export const REGISTRY = {\n  Alpha, Beta,\n  Gamma,\n};\n"),
+        ("one name on its own line (what THIS tool leaves behind)",
+         "export const REGISTRY = {\n  Alpha, Beta,\n  NewOne,\n};\n"),
+        ("empty object", "export const REGISTRY = {\n};\n"),
+        ("type-annotated", "export const REGISTRY: Record<string, X> = {\n  Alpha,\n};\n"),
+    ]:
+        out = rs.insert_registry_entry(src, "Zed")
+        assert out and "\n  Zed,\n" in out and out.count("Zed") == 1, "%s: %r" % (label, out)
+    assert rs.insert_registry_entry("export const OTHER = {\n  Alpha,\n};\n", "Zed") is None
+
+    # (2) Scripts whose ranges were declared with no working profile. Devanagari has a danda, Arabic and
+    #     Greek their own question marks; without them a whole beat was ONE sentence however long it ran
+    #     and the length metrics reported a confident number for something never segmented.
+    for text, script, n_sent in [
+        ("कोड चलता है। परीक्षण हरे हैं। लेकिन यह गलत है।", "devanagari", 3),
+        ("الكود يعمل. الاختبارات خضراء. لكنه خاطئ؟", "arabic", 3),
+        ("Ο κώδικας τρέχει. Είναι λάθος;", "greek", 2),
+    ]:
+        assert vq._script_of(text) == script
+        prof = vq.profile_for(script)
+        assert not prof.get("unsupported"), "%s should be measurable" % script
+        assert len(vq._sentences(text, prof)) == n_sent, vq._sentences(text, prof)
+
+    # (3) Thai has no word spaces and no sentence mark; counting "words" gave 3 units for a paragraph.
+    #     A script we cannot segment must be EXCLUDED, not given a plausible-looking number.
+    assert vq.profile_for("thai").get("unsupported")
+    th = vq.evaluate([(i, "โค้ดทำงานได้ การทดสอบผ่าน") for i in range(4)])
+    assert th["metrics"]["sentence_len_mean"] == 0
+    assert any("cannot segment" in n or "无法切分" in n for n in th["notes"]), th["notes"]

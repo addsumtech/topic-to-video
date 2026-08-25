@@ -72,6 +72,32 @@ def _edit(path, checks, apply_fn, label):
     return "added"
 
 
+def insert_registry_entry(src, shot):
+    """Add `shot` as a key of the exported REGISTRY object, or None if the object cannot be found.
+
+    Anchored on the object's own closing brace, NOT on the shape of the line above it. The first version
+    required that line to hold two comma-separated names — true of the hand-written file, and false the
+    moment this script had added one entry on its own line. Registration therefore worked exactly once
+    and reported "FAILED (anchor not found)" every time after.
+    """
+    m = re.search(r"export const REGISTRY[^=]*=\s*\{", src)
+    if not m:
+        return None
+    depth, i = 0, m.end() - 1
+    while i < len(src):
+        if src[i] == "{":
+            depth += 1
+        elif src[i] == "}":
+            depth -= 1
+            if depth == 0:
+                break
+        i += 1
+    else:
+        return None
+    line_start = src.rfind("\n", 0, i) + 1
+    return src[:line_start] + "  %s,\n" % shot + src[line_start:]
+
+
 def register(shot, family=None, use_when=""):
     out = {}
     tsx = os.path.join(_SHOTS, shot + ".tsx")
@@ -88,10 +114,7 @@ def register(shot, family=None, use_when=""):
             if not m:
                 return None
             s = s[:m.end()] + "import {%s} from './shots/%s';\n" % (shot, shot) + s[m.end():]
-        m2 = re.search(r"\n(\s+)(\w+,\s*\w+,[^\n]*\n)(\};)", s)
-        if m2:
-            return s[:m2.start(3)] + "  %s,\n" % shot + s[m2.start(3):]
-        return None
+        return insert_registry_entry(s, shot)
     # The presence test must match how entries ACTUALLY look: names share a line. Requiring the id alone
     # on its own line could never be true for a real entry, so re-running appended a DUPLICATE key.
     reg_path = os.path.join(_REM, "src", "registry.ts")

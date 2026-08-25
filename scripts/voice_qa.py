@@ -128,9 +128,27 @@ _PROFILES = {
                "connectives": None, "antithesis": None},
     "cyrillic": {"unit": "word", "enders": ".!?…", "smart_latin": False,
                  "connectives": None, "antithesis": None},
+    # Each of these needs only its own sentence terminator to be measurable at all: the Devanagari danda,
+    # the Arabic question mark, the Greek question mark (which is the semicolon). Declaring the script
+    # range without them meant a Hindi beat was ONE sentence however long it ran, and the length metrics
+    # reported a confident number for something never segmented.
+    "devanagari": {"unit": "word", "enders": ".!?।", "smart_latin": False,
+                   "connectives": None, "antithesis": None},
+    "arabic": {"unit": "word", "enders": ".!?؟", "smart_latin": False,
+               "connectives": None, "antithesis": None},
+    "greek": {"unit": "word", "enders": ".!?;", "smart_latin": False,
+              "connectives": None, "antithesis": None},
+    # Thai is written WITHOUT word spaces and without a sentence-ending mark; its spaces are phrase
+    # breaks. Counting "words" there produced 3 units for a whole paragraph. Segmenting it needs a
+    # dictionary this script does not have, so it is marked UNSUPPORTED and its beats are left out of the
+    # length metrics rather than given a plausible-looking wrong number.
+    "thai": {"unit": "word", "enders": ".!?", "smart_latin": False,
+             "connectives": None, "antithesis": None, "unsupported": True},
 }
+# Anything with no profile at all: measurable only if it happens to be space-delimited and use ASCII
+# stops, which we cannot know. Treated as unsupported for the same reason as Thai.
 _DEFAULT_PROFILE = {"unit": "word", "enders": ".!?。！？", "smart_latin": False,
-                    "connectives": None, "antithesis": None}
+                    "connectives": None, "antithesis": None, "unsupported": True}
 
 # Every threshold is a NAMED constant so a test can walk them and probe each boundary. Inline literals
 # are why a mutation audit could disable five thresholds one at a time and the suite stayed green.
@@ -325,8 +343,12 @@ def evaluate(narrations):
     # (B) rhythm — per beat, under that beat's profile
     sent, balanced, anti, endsharp, conn = [], [], [], [], []
     measurable_anti, measurable_conn = 0, 0
+    unsupported_beats = []
     for i, t, sc in beats:
         prof = profile_for(sc)
+        if prof.get("unsupported"):
+            unsupported_beats.append((i, sc))
+            continue                     # no segmenter for this script — measure nothing rather than guess
         ss = _sentences(t, prof)
         ls = [_units(x, prof) for x in ss]
         sent.extend(ls)
@@ -355,7 +377,13 @@ def evaluate(narrations):
         "aphorism_ending_share": round(len(endsharp) / measurable_anti, 3) if measurable_anti else None,
         "balanced_pair_share": round(len(balanced) / n, 3),
     }
-    unsupported = sorted({sc for _, _, sc in beats if not profile_for(sc).get("connectives")})
+    if unsupported_beats:
+        notes.append(("有 %d 拍使用了本工具无法切分的文种(%s)，这些拍不参与任何节奏指标。" if lang == "zh" else
+                      "%d beat(s) are in a script this tool cannot segment (%s); they are left out of every "
+                      "rhythm metric rather than given a number.")
+                     % (len(unsupported_beats), ", ".join(sorted({sc for _, sc in unsupported_beats}))))
+    unsupported = sorted({sc for _, _, sc in beats
+                          if not profile_for(sc).get("unsupported") and not profile_for(sc).get("connectives")})
     if beats and unsupported and (m["connective_share"] is None or m["antithesis_share"] is None):
         notes.append(("没有针对「%s」文种的连接词/对仗词表，这两项本次不作判断（报 0%% 会把工具的空白说成文本的问题）。"
                       if lang == "zh" else
