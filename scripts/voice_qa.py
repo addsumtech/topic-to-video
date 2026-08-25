@@ -91,6 +91,9 @@ _SCRIPT_RANGES = [
     ("arabic", r"[\u0600-\u06ff]"),
     ("thai", r"[\u0e00-\u0e7f]"),
     ("devanagari", r"[\u0900-\u097f]"),
+    ("hebrew", r"[\u0590-\u05ff]"),
+    ("armenian", r"[\u0530-\u058f]"),
+    ("georgian", r"[\u10a0-\u10ff]"),
     ("latin", r"[A-Za-z\u00c0-\u024f]"),
 ]
 
@@ -176,7 +179,10 @@ def _script_of(text):
         counts[name] = len(re.findall(rng, text))
     total = sum(counts.values())
     if not total:
-        return "latin"
+        # No script matched at all — digits, punctuation or emoji only. Returning "latin" here routed
+        # Hebrew, Armenian, a numbers-only beat and an emoji-only beat through the ENGLISH rules and
+        # reported their sentence lengths and connective share as findings.
+        return "unknown"
     top = max(counts, key=counts.get)
     # Han and kana travel together in Japanese; kana is the tell, so any meaningful kana wins.
     if counts.get("kana", 0) >= max(3, 0.15 * total):
@@ -329,16 +335,19 @@ def evaluate(narrations):
                      % ", ".join("%s x%d" % (k, v) for k, v in sorted(scripts.items(), key=lambda x: -x[1])))
 
     # (A) vocabulary — the list that matches the beat's own script
+    # Each beat is scanned with ITS OWN script's list. Running only the dominant film's list meant an
+    # English beat inside a Chinese film was never checked at all — its "delve into the tapestry" went
+    # unreported — while the comment here claimed the opposite.
     vocab = {}
-    for name, pat in (ZH_TELLS if dominant == "han" else EN_TELLS).items():
-        hits = [(i, m.group(0)) for i, t, _ in beats for m in re.finditer(pat, t, re.I)]
+    for name, pat, script in ([(k, v, "han") for k, v in ZH_TELLS.items()] +
+                              [(k, v, "latin") for k, v in EN_TELLS.items()]):
+        hits = [(i, m.group(0)) for i, t, sc in beats if sc == script for m in re.finditer(pat, t, re.I)]
         if hits:
             vocab[name] = hits
             warnings.append("%s x%d — %s" % (name, len(hits), " / ".join(h[1] for h in hits[:3])))
-    if dominant == "han":
-        mp = [(i, m.group(0)) for i, t, _ in beats for m in re.finditer(MIXED_PUNCT, t)]
-        if mp:
-            warnings.append("半角标点混入中文 x%d — %s" % (len(mp), mp[0][1]))
+    mp = [(i, m.group(0)) for i, t, sc in beats if sc == "han" for m in re.finditer(MIXED_PUNCT, t)]
+    if mp:
+        warnings.append("半角标点混入中文 x%d — %s" % (len(mp), mp[0][1]))
 
     # (B) rhythm — per beat, under that beat's profile
     sent, balanced, anti, endsharp, conn = [], [], [], [], []
@@ -366,7 +375,11 @@ def evaluate(narrations):
             if re.search(prof["connectives"], t, re.I):
                 conn.append(i)
     cv = (statistics.pstdev(sent) / statistics.mean(sent)) if len(sent) > 1 and statistics.mean(sent) else 0.0
-    n = max(1, len(beats))
+    # The denominator is what was MEASURED, never the whole film. Dividing by every beat while skipping
+    # the unsegmentable ones diluted the result by exactly the beats the code had just declared excluded:
+    # four balanced beats among four Thai ones reported 0.50, not 1.00.
+    measured = len(beats) - len(unsupported_beats)
+    n = max(1, measured)
     m = {
         "beats": len(beats),
         "scripts": scripts,

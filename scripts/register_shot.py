@@ -226,6 +226,77 @@ def _uncommented(src):
     return "\n".join(re.sub(r"//.*$", "", ln) for ln in src.split("\n"))
 
 
+# The six sync points, each named by the RULE it enforces rather than by the file it lives in, so a test
+# can probe one rule at a time. Every rule here was, at some point, satisfiable without the registration
+# actually working — by a substring, by a comment, by a filename the OS matched case-insensitively.
+SYNC_LABEL = {
+    "tsx_file": "src/shots/%s.tsx",
+    "registry_import": "registry.ts", "registry_map": "registry.ts",
+    "root_import": "Root.tsx", "root_preview": "Root.tsx",
+    "luma_coarse": "shotLuma.ts", "luma_ground": "shotLuma.ts",
+    "family": "shot_director.py",
+    "library_entry": "LIBRARY.md",
+}
+_LUM_FALLBACK = ("dark", "mid", "light")
+_GROUND_FALLBACK = ("bg", "bgGrad", "accent", "accent2", "surface")
+
+
+def _union_values(src, type_name, fallback):
+    """The string members of a TypeScript union, read from the source so the checker cannot drift from it.
+
+    Hardcoding them drifted in BOTH directions at once: the ground-token alternation listed 'line' and
+    'fg', which are not GroundTokens at all, and omitted 'bgGrad', which is.
+    """
+    m = re.search(r"export type %s\s*=\s*([^;]+);" % re.escape(type_name), src or "")
+    vals = re.findall(r"'([^']+)'", m.group(1)) if m else []
+    return tuple(vals) or tuple(fallback)
+
+
+def sync_patterns(shot, luma_src=None):
+    """{rule: compiled-pattern-string} — the STRUCTURE each sync point must show for `shot`.
+
+    `tsx_file` has no pattern: it is a filename test, and deliberately a CASE-EXACT one.
+    """
+    b = re.escape(shot)
+    lums = "|".join(_union_values(luma_src, "Lum", _LUM_FALLBACK))
+    grounds = "|".join(_union_values(luma_src, "GroundToken", _GROUND_FALLBACK))
+    return {
+        "tsx_file": None,
+        "registry_import": r"import\s*\{\s*%s\s*\}\s*from\s*'\./shots/%s'" % (b, b),
+        "registry_map": r"(?<![A-Za-z0-9_])%s\s*," % b,
+        "root_import": r"import\s*\{\s*%s\s*,\s*DURATION as \w+\s*\}" % b,
+        "root_preview": r"F\('%s'\s*,\s*%s\s*," % (b, b),
+        "luma_coarse": r"(?<![A-Za-z0-9_])%s:\s*'(%s)'" % (b, lums),
+        "luma_ground": r"(?<![A-Za-z0-9_])%s:\s*('(%s)'|\[)" % (b, grounds),
+        "family": r'"%s":\s*"[A-Z]{1,2}"' % b,
+        # The catalogue ENTRY shape, not the id in bold anywhere: a bold cross-reference inside somebody
+        # else's entry satisfied the loose form, so a shot with no entry of its own read as documented.
+        "library_entry": r"^\d+\. \*\*%s\*\*" % b,
+    }
+
+
+def missing_rules(shot, sources, filenames=()):
+    """Which RULES `shot` fails, given file text per sync-point label and a directory listing.
+
+    Pure: no filesystem. `check()` supplies the real sources; a test supplies synthetic ones, which is the
+    only way to probe one rule at a time.
+    """
+    pats = sync_patterns(shot, sources.get("shotLuma.ts"))
+    out = []
+    for rule, pat in pats.items():
+        if rule == "tsx_file":
+            if ("%s.tsx" % shot) not in list(filenames):
+                out.append(rule)
+            continue
+        src = sources.get(SYNC_LABEL[rule])
+        if src is None:
+            out.append(rule)
+            continue
+        if not re.search(pat, _uncommented(src), re.M):
+            out.append(rule)
+    return out
+
+
 def check(shot):
     """Which sync points this shot is MISSING from.
 
@@ -233,46 +304,33 @@ def check(shot):
     somewhere in the text. A naked `shot not in src` — which this function used to do — is satisfied by
     the import line alone, so a registry.ts that kept `import {X}` but lost its entry in the REGISTRY map
     reported "fully registered" while the film rendered a red `unknown shot` card in place of that beat.
-    It also reported 5 of 6 sync points present for ids that have never existed, because "Term" is a
-    substring of TermLog. This function is the only backstop for a capability whose failure mode is
-    silence, and validate.py's build-claim gate calls it, so a check that cannot fail is worse than none.
+    Comments are stripped first, because a COMMENTED-OUT entry satisfied the structural form too. This is
+    the only backstop for a capability whose failure mode is silence, and validate.py's build-claim gate
+    calls it, so a check that cannot fail is worse than none.
     """
-    b = re.escape(shot)
-    checks = [
-        ("src/shots/%s.tsx" % shot, os.path.join(_SHOTS, shot + ".tsx"), None),
-        # imported AND present as a key in the exported REGISTRY object (a bare `X,` on its own or with
-        # neighbours, but as a whole word)
-        ("registry.ts", os.path.join(_REM, "src", "registry.ts"),
-         [r"import\s*\{\s*%s\s*\}\s*from\s*'\./shots/%s'" % (b, b), r"(?<![A-Za-z0-9_])%s\s*," % b]),
-        # imported with a DURATION alias AND wired into an F(...) preview row
-        ("Root.tsx", os.path.join(_REM, "src", "Root.tsx"),
-         [r"import\s*\{\s*%s\s*,\s*DURATION as \w+\s*\}" % b, r"F\('%s'\s*,\s*%s\s*," % (b, b)]),
-        # a coarse luma AND a ground token, each as its own key
-        ("shotLuma.ts", os.path.join(_REM, "src", "runtime", "shotLuma.ts"),
-         [r"(?<![A-Za-z0-9_])%s:\s*'(dark|light|mid)'" % b, r"(?<![A-Za-z0-9_])%s:\s*('(bg|surface|accent|accent2|line|fg)'|\[)" % b]),
-        ("shot_director.py", os.path.join(_HERE, "shot_director.py"), [r'"%s":\s*"[A-Z]{1,2}"' % b]),
-        ("LIBRARY.md", os.path.join(_REM, "LIBRARY.md"), [r"\*\*%s\*\*" % b]),
-    ]
-    miss = []
-    for label, path, pats in checks:
-        if pats is None:
-            # os.path.exists is CASE-BLIND on APFS, the platform this skill runs on: registering "Termlog"
-            # while TermLog.tsx exists reported the file present, wrote no stub, registered the id in the
-            # other five files and called it done — and the Film rendered a red unknown-shot card.
-            d = os.path.dirname(path)
-            if os.path.basename(path) not in (os.listdir(d) if os.path.isdir(d) else []):
-                miss.append(label)
-            continue
+    paths = {
+        "registry.ts": os.path.join(_REM, "src", "registry.ts"),
+        "Root.tsx": os.path.join(_REM, "src", "Root.tsx"),
+        "shotLuma.ts": os.path.join(_REM, "src", "runtime", "shotLuma.ts"),
+        "shot_director.py": os.path.join(_HERE, "shot_director.py"),
+        "LIBRARY.md": os.path.join(_REM, "LIBRARY.md"),
+    }
+    sources = {}
+    for label, path in paths.items():
         try:
-            src = _uncommented(open(path, encoding="utf-8").read())
+            sources[label] = open(path, encoding="utf-8").read()
         except OSError:
-            miss.append(label)
-            continue
-        for pat in pats:
-            if not re.search(pat, src):
-                miss.append(label)
-                break
-    return miss
+            sources[label] = None
+    # os.path.exists is CASE-BLIND on APFS, the platform this skill runs on: registering "Termlog" while
+    # TermLog.tsx exists reported the file present, wrote no stub, registered the id in the other five
+    # files and called it done — and the Film rendered a red unknown-shot card.
+    names = os.listdir(_SHOTS) if os.path.isdir(_SHOTS) else []
+    labels = []
+    for rule in missing_rules(shot, sources, names):
+        lab = SYNC_LABEL[rule] % shot if "%s" in SYNC_LABEL[rule] else SYNC_LABEL[rule]
+        if lab not in labels:
+            labels.append(lab)
+    return labels
 
 
 def main(argv):

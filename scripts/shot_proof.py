@@ -58,13 +58,19 @@ PROPS_SAME = 0.80           # two beats sharing a register with >=80% identical 
 
 
 def shot_defaults(shot):
-    """{prop: default} parsed from a shot's destructuring defaults. Strings and numbers only — enough to
-    catch a demo default left in place, which is what this is for."""
-    path = os.path.join(_SHOTS, shot + ".tsx")
+    """{prop: default} for a registered shot — reads the file and delegates."""
     try:
-        src = open(path, encoding="utf-8").read()
+        src = open(os.path.join(_SHOTS, shot + ".tsx"), encoding="utf-8").read()
     except OSError:
         return {}
+    return defaults_from_source(src, shot)
+
+
+def defaults_from_source(src, shot):
+    """{prop: default} parsed from a shot's destructuring defaults. Strings and numbers only — enough to
+    catch a demo default left in place, which is what this is for. Pure, so a test can feed it BOTH
+    destructuring forms; only the renamed one was parsed for a long time, which left 72 of 136 registers
+    unchecked by the module's headline rule."""
     m = re.search(r"export const %s\s*:\s*React\.FC<" % re.escape(shot), src)
     if not m:
         return {}
@@ -78,7 +84,10 @@ def shot_defaults(shot):
     #   renamed:  title: TITLE = 'Your workspace'
     #   plain:    title = 'Your workspace'
     pats = [r"(\w+)\s*:\s*[A-Z_][A-Za-z0-9_]*\s*=\s*('([^']*)'|\"([^\"]*)\"|(-?[\d.]+))",
-            r"(?<![:\w])(\w+)\s*=\s*('([^']*)'|\"([^\"]*)\"|(-?[\d.]+))"]
+            # The plain form's name must start lowercase: prop names are camelCase and the RENAMED form's
+            # alias is upper (`title: TITLE = 'x'`), so without this the alias came back as a phantom prop
+            # called TITLE that no board can ever set.
+            r"(?<![:\w])([a-z]\w*)\s*=\s*('([^']*)'|\"([^\"]*)\"|(-?[\d.]+))"]
     for pat in pats:
         for pm in re.finditer(pat, block):
             val = pm.group(3) if pm.group(3) is not None else (pm.group(4) if pm.group(4) is not None else pm.group(5))
@@ -145,10 +154,10 @@ def static_checks(board):
     for s in slides:
         cand = [s.get("narration", "")]
         for v in _flat(s.get("shot_props") or {}).values():
-            v = str(v)
-            if re.fullmatch(r"[0-9a-fA-F]{3,8}|#?[0-9a-fA-F]{6}|[a-z][a-zA-Z0-9_]*", v.strip()):
-                continue                       # an identifier, an enum value or a colour — not prose
-            cand.append(v)
+            # (No identifier/hex filter here: the extractors below take CJK runs of 4+ and Latin PHRASES
+            # of two or more words, so a lone enum value or colour can never enter the topic set anyway.
+            # A guard that cannot change an outcome is dead code, and a test written for it is theatre.)
+            cand.append(str(v))
         for t in cand:
             for run in re.findall(r"[\u4e00-\u9fff]{4,}", str(t)):
                 topic.add(run)
