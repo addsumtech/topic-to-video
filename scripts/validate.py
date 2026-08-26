@@ -24,6 +24,7 @@ def _disp_width(s):
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _common
 import storyboard as sb
+import re
 import render as rd                       # caption-fit + font helpers, reused verbatim
 import cues as _cues                      # anchor matcher (timed-callout cues + reveal alignment)
 
@@ -1151,6 +1152,119 @@ _ATOM_FORMS = {
 
 
 
+
+
+def _idiom_world(meta, slides, errors, warnings):
+    """A register speaks some world's vocabulary. The film must be in that world.
+
+    Family says what a shot LOOKS like; provenance says WHOSE language it is. A `$ diff` gutter, a bento
+    dashboard and a command palette are the vocabulary of developer tooling and SaaS — legible, well made,
+    and wrong for a canal city, a piece of music or a court case. Nothing in the pipeline knew that, so a
+    35-beat city documentary shipped 16 beats speaking product, every one of them passing its own gates.
+
+    So: each register carries a provenance (shot_director.PROVENANCE); the film declares which worlds its
+    subject belongs to (`meta.idiom_world`); a beat drawing from an undeclared world is an ERROR that names
+    both sides. That converts "this design feels inappropriate" — a thing only a reviewer used to catch —
+    into something the pipeline refuses.
+
+    WHAT IT CANNOT DO, stated so nobody trusts it too far: it catches a whole vocabulary arriving from the
+    wrong world. It does NOT catch one beat misusing an in-world idiom. An industrial conveyor belt is
+    legitimate in a harbour film and still wrong for people cycling to a station; that is a per-beat meaning
+    judgement and stays with the shot-critic.
+    """
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import shot_director as _sd
+        PROV, WORLDS = _sd.PROVENANCE, set(_sd.IDIOM_WORLDS)
+    except Exception:
+        return
+    declared = meta.get("idiom_world")
+    if not declared:
+        used = sorted({PROV.get(s.get("shot")) for s in slides if PROV.get(s.get("shot"))})
+        warnings.append(
+            "remotion: no meta.idiom_world — the film never said which worlds its subject's visual language "
+            "belongs to, so nothing checks whether its registers speak them. This film currently draws from: "
+            "%s. Declare the ones that belong (agents/shot-director.md step 0.5)." % ", ".join(used))
+        return
+    if isinstance(declared, str):
+        declared = [declared]
+    bad = [w for w in declared if w not in WORLDS]
+    if bad:
+        errors.append("meta.idiom_world names unknown world(s) %s — known: %s"
+                      % (", ".join(repr(b) for b in bad), ", ".join(sorted(WORLDS))))
+        return
+    ok = set(declared)
+    off = []
+    for s in slides:
+        shot = s.get("shot")
+        w = PROV.get(shot)
+        if w and w not in ok:
+            off.append((int(s.get("index", 0)) + 1, shot, w))
+    for beat, shot, w in off[:10]:
+        errors.append("remotion: beat %d uses %s, whose visual language comes from %r — a world this film "
+                      "did not declare (%s). Either the beat wants a form from one of the film's own worlds, "
+                      "or the world genuinely belongs to the subject and should be declared."
+                      % (beat, shot, w, ", ".join(sorted(ok))))
+    if len(off) > 10:
+        errors.append("remotion: %d more beat(s) draw from undeclared worlds" % (len(off) - 10))
+
+def _form_vocabulary(meta, slides, errors, warnings):
+    """Every beat must name which of the SUBJECT'S OWN forms it realises.
+
+    A design language has two layers. The direction contest conceives the ATMOSPHERE from the topic —
+    palette, type, motion. The FORM VOCABULARY is the other one: what kind of object each frame IS. A
+    dictionary entry, a stratigraphic column, a ledger, a departure board, a score, a docket, a patent plate.
+    That layer used to arrive from the catalogue, which means whatever the catalogue is mostly made of
+    became every film's vocabulary. A city documentary came out of an AI-product library speaking
+    developer-tool: six terminal shots, a SaaS dashboard under a children's book character, a factory
+    conveyor belt for people cycling to a station — 16 of 35 beats, every one passing its own gates.
+
+    Prose in an agent file could not stop that; nothing checked it. This does. `meta.form_vocabulary` is the
+    derivation, and each beat's `shot_fit.form` must name one entry of it, so a register cannot be assigned
+    without saying which form OF THIS SUBJECT it is. Shopping the catalogue then fails at the gate rather
+    than at the review.
+    """
+    vocab = meta.get("form_vocabulary")
+    if not vocab:
+        warnings.append(
+            "remotion: no meta.form_vocabulary — the film never derived what KIND of object each frame "
+            "should be from its own subject, so its forms came from whatever the catalogue happens to hold. "
+            "See agents/shot-director.md step 0.5; name 6-10 forms the subject is actually recorded in.")
+        return
+    names = set()
+    for i, f in enumerate(vocab if isinstance(vocab, list) else []):
+        if isinstance(f, dict):
+            n = str(f.get("form") or "").strip()
+            if not n:
+                errors.append("meta.form_vocabulary[%d] has no `form` name" % i)
+            else:
+                names.add(n)
+            if not str(f.get("carries") or "").strip():
+                warnings.append("meta.form_vocabulary[%d] (%s) does not say what argument it CARRIES — a "
+                                "form without an argument shape is a picture style, not a vocabulary entry"
+                                % (i, n or "?"))
+        elif isinstance(f, str) and f.strip():
+            names.add(f.strip())
+    if len(names) < 4:
+        warnings.append("meta.form_vocabulary names only %d form(s) — a subject worth a film is recorded in "
+                        "more ways than that; a short list forces the catalogue back in" % len(names))
+    missing, unknown = [], []
+    for s in slides:
+        beat = int(s.get("index", 0)) + 1
+        form = str(((s.get("shot_fit") or {}).get("form")) or "").strip()
+        if not form:
+            missing.append(beat)
+        elif form not in names:
+            unknown.append((beat, form))
+    if missing:
+        errors.append(
+            "remotion: %d beat(s) name no `shot_fit.form` — a register was assigned without saying which of "
+            "this subject's own forms it realises, which is how the catalogue supplies the vocabulary "
+            "unnoticed (beats %s)" % (len(missing), ", ".join(str(b) for b in missing[:12])))
+    for beat, form in unknown[:8]:
+        errors.append("remotion: beat %d names form %r, which is not in meta.form_vocabulary — either add it "
+                      "to the derivation or pick a form the film actually derived" % (beat, form))
+
 def _shot_truncation(meta, slides, errors, warnings):
     """A shot whose clip is far shorter than its natural pace plays RUSHED.
 
@@ -1548,6 +1662,8 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     if (meta.get("renderer") or "") == "remotion":
         _check_remotion(meta, slides, errors, warnings, out_dir)
         _shot_truncation(meta, slides, errors, warnings)
+        _form_vocabulary(meta, slides, errors, warnings)
+        _idiom_world(meta, slides, errors, warnings)
         _figure_traceability(slides, out_dir, warnings)   # %/×/$ figures in shot_props text must trace to brief.json
         return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides)}
     # visual_style is the declared single source of truth — a typo/hallucinated key degrades silently to the

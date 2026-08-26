@@ -7,6 +7,9 @@ export type Lum = 'dark' | 'mid' | 'light';
 // (KSpaceToImage added below with the map — a purpose-built dark shot)
 
 export const SHOT_LUMA: Record<string, Lum> = {
+  ProfileGrowth: 'dark',
+  TechnicalPlate: 'dark',
+  Inscription: 'dark',
   MuseumLabel: 'dark',
   TallyLedger: 'dark',
   PlanPalimpsest: 'dark',
@@ -66,6 +69,9 @@ export type GroundToken = 'bg' | 'bgGrad' | 'accent' | 'accent2' | 'surface';
 // `declared-only`, until measure_ground_luma.py replaces it with a measurement. Everything else is
 // measured.
 export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundToken | GroundToken[]>> = {
+  ProfileGrowth: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
+  TechnicalPlate: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
+  Inscription: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
   MuseumLabel: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
   TallyLedger: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
   PlanPalimpsest: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker

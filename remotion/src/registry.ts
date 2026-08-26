@@ -145,6 +145,9 @@ import {StrataColumn} from './shots/StrataColumn';
 import {PlanPalimpsest} from './shots/PlanPalimpsest';
 import {TallyLedger} from './shots/TallyLedger';
 import {MuseumLabel} from './shots/MuseumLabel';
+import {Inscription} from './shots/Inscription';
+import {TechnicalPlate} from './shots/TechnicalPlate';
+import {ProfileGrowth} from './shots/ProfileGrowth';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
@@ -175,6 +178,9 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   PlanPalimpsest,
   TallyLedger,
   MuseumLabel,
+  Inscription,
+  TechnicalPlate,
+  ProfileGrowth,
 };
 
 export const SHOT_IDS = Object.keys(REGISTRY);

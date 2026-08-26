@@ -191,6 +191,32 @@ TTS if the user gives an API key.
   + action→result); terminal's `Term*` family is the worked example of style-native components. shot-critic **S11**
   audits per-frame DNA coverage + monotony + the "remove the themed shots — can you still infer the design
   language?" final test.
+  **FORMS COME FROM THE SUBJECT, NOT FROM THE CATALOGUE.** A design language has two layers: the ATMOSPHERE
+  (palette/type/motion — the direction contest conceives that from the topic) and the **FORM VOCABULARY**,
+  meaning what kind of OBJECT each frame is: a dictionary entry, a stratigraphic column, a ledger, a
+  departure board, a score, a docket, a patent plate. That second layer used to arrive from `LIBRARY.md`,
+  which meant **whatever the catalogue was mostly made of became every film's vocabulary** — a city
+  documentary came out of this library speaking developer-tool (six terminal shots, a SaaS dashboard under a
+  children's book character, a factory conveyor belt for people cycling to a station: 16 of 35 beats, every
+  one passing its own gates). So the director now DERIVES 6–10 forms from the subject BEFORE opening the
+  catalogue (`agents/shot-director.md` step 0.5), records them as `meta.form_vocabulary`, and each beat names
+  the one it realises in `shot_fit.form`. Two gates make it stick: `validate.py` ERRORS on a beat with no
+  `shot_fit.form` or one outside the derivation, and — because every register carries a `PROVENANCE`, the
+  world its idiom comes from (`product-ui`, `developer-tooling`, `print-editorial`, `survey-archive`,
+  `industrial`, `scientific`, `photographic`, `craft-handmade`, …; `scripts/shot_director.PROVENANCE`) — it
+  ERRORS on a beat drawing from a world the film did not declare in `meta.idiom_world`. **What that cannot
+  catch:** one beat misusing an IN-world idiom (an industrial belt is fine in a harbour film and still wrong
+  for people cycling to a station). That stays the shot-critic's S10 meaning judgement. When a derived form
+  has no register, **BUILD it** — the normal case on a subject the library has not met, and how families J
+  (survey: map plate, strata column, plan palimpsest, growth profile, technical plate) and JA (archive:
+  gazetteer entry, tally ledger, museum label, inscription) came to exist.
+  **`meta.design_dna.motif` — the film's MATERIAL.** Every register draws its own structure and nothing else,
+  so a themed film is a set of clean but bare frames: right palette, right type, no material. A motif states
+  the subject's own surface once and every frame inherits it — `coursing` (a built subject) · `waterline` ·
+  `graticule` (mapped/measured) · `hatch` (printed) · `deckle` (written) · `contour` · `staff` (notation) —
+  drawn by `runtime/motif.tsx` above the shots and below the caption, blended as ink on paper (`multiply` on
+  a light ground, `screen` on a dark one) so it never prints across the type. Keep it near 0.05: removing it
+  should make the film look flatter without anyone being able to name what left.
   **Authoring:** the shot-director (`agents/shot-director.md`) reads `content_plan.json` +
   `remotion/LIBRARY.md` and writes, per scene, `shot` (a register id) + `shot_props` (the beat's topic copy)
   + `shot_adaptation` (a REQUIRED `{kept, redesigned, topic_idea, theme_cues}` note — KEEP the register's style,

@@ -1055,15 +1055,23 @@ def test_the_library_can_grow_and_the_gates_say_so():
 
     # (b) validate must fire in BOTH directions: judgement never made, and judgement always "perfect".
     def _board(fit_for):
-        b = {"meta": {"renderer": "remotion", "fps": 30, "shot_template": "data"},
+        # a board that is COMPLIANT apart from the thing each case is probing — so a complaint that shows up
+        # here is the one the assertion is about, not an unrelated part of the contract going unmet
+        b = {"meta": {"renderer": "remotion", "fps": 30, "shot_template": "data",
+                      "form_vocabulary": [{"form": "title card", "carries": "a stated claim"},
+                                          {"form": "ruled table", "carries": "two things compared"},
+                                          {"form": "field note", "carries": "an observation, dated"},
+                                          {"form": "wall chart", "carries": "a series, at a glance"}],
+                      "idiom_world": ["motion-graphics"]},
              "slides": [{"index": i, "shot": "CinematicTitle", "shot_props": {"title": "t%d" % i},
                          "shot_adaptation": {"kept": "k", "redesigned": "r", "topic_idea": "t"},
                          "audio": "audio/%02d.mp3" % i, "duration": 5.0, "narration": "一句话。"}
                         for i in range(12)]}
         for i, s in enumerate(b["slides"]):
             v = fit_for(i)
+            s["shot_fit"] = {"form": "title card"}
             if v:
-                s["shot_fit"] = {"verdict": v, "why": "w"}
+                s["shot_fit"].update({"verdict": v, "why": "w"})
         return b
 
     none_recorded = v.evaluate(_board(lambda i: None), "/tmp")["warnings"]

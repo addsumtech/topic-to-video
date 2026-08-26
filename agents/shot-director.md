@@ -60,6 +60,58 @@ routing. A *direction* is a coherent whole-film ATMOSPHERE: a named look + a lea
    same-family): `python scripts/shot_director.py <out> --template <seed-key>` for a seed, or apply the lean by
    hand as you author `shot`s below.
 
+## Step 0.5 — DERIVE THE FORM VOCABULARY (do this BEFORE you open the catalogue)
+
+**The single most important step, and the one this tier used to skip.** Step 0 conceives the film's
+ATMOSPHERE from the topic — palette, type, motion. But a design language has a second layer, and it is the
+one viewers judge as *appropriate* or *not*: the **FORM VOCABULARY**, meaning what kind of OBJECT each frame
+is. A dictionary entry. A stratigraphic column. A ledger. A departure board. A score. A docket. A patient
+chart. A patent plate.
+
+Until now that layer arrived from `LIBRARY.md`. That is backwards, and it fails in a way nobody catches
+without a human: **whatever the catalogue is mostly made of becomes every film's vocabulary.** This library
+grew from AI-product films, so a city documentary came out of it speaking developer-tool — six terminal
+shots (`$ dig --oudegracht`, `$ diff 1674 1826`, a `<think>` block), a SaaS dashboard under a children's
+book character, a factory conveyor belt for people cycling to a station. 16 of 35 beats. Every register
+passed its own gates. The defect was the ORDER OF OPERATIONS: shop first, then patch what the reviewer
+objects to.
+
+So: derive the vocabulary from the SUBJECT first, and only then ask whether the library happens to hold any
+of it.
+
+### How
+Read the comprehension brief and answer one question: **how is this subject actually recorded, measured,
+argued about and experienced, by the people whose subject it is?** Name **6–10 concrete FORMS**. For each:
+
+```json
+{"form": "stratigraphic column",
+ "carries": "what lies under this ground, in order — a claim about DEPTH",
+ "looks_like": "surface at the top, layers to their own thickness, depths ruled off at the left"}
+```
+
+Rules that make this a derivation rather than a shopping list:
+1. **Each form must be a real artefact or instrument someone in that world would recognise** — not a generic
+   chart type. "A bar chart" is not a form. "A tide gauge", "a docket entry", "a piano roll", "a museum
+   label", "an exhibit sticker", "a flight strip", "a knitting chart" are forms.
+2. **At least half must be forms this library does NOT already have.** If everything you name is already a
+   register, you shopped. Go back to the brief.
+3. **Write it to `meta.form_vocabulary`** — the whole list, as the artifact it is.
+
+### Then, per beat
+Choose the FORM first, from your own list. Only then ask the catalogue:
+* a register already carries that form → use it, adapted (`shot_fit.verdict: "fit"`/`"adapt"`);
+* nothing does → **BUILD it** (`"build"`, `scripts/register_shot.py`). This is the normal case on a subject
+  the library has not met, not an emergency.
+* Record which form the beat realises: **`shot_fit.form` MUST name one of `meta.form_vocabulary`.**
+  `validate.py` ERRORS on a beat whose `shot_fit.form` is missing or not in the list — which is what stops
+  the catalogue from quietly supplying the vocabulary again.
+
+### What this is not
+It is not a licence to build 35 one-offs. A form used once is a one-off; a form used across films is a
+register. Build the FORM, give it an argument shape and props, and it joins the library for every later film
+— that is how family J (survey: gazetteer entry, map plate, strata column, plan palimpsest, tally ledger,
+museum label) came to exist, one film too late.
+
 ## Step 0.6 — Extract the Design DNA (the GLOBAL visual system every shot inherits)
 The chosen template is **NOT a set of reusable frames — it is the whole film's visual system.** Before authoring a
 single shot, expand the template into an explicit **Design DNA** and write it to `meta.design_dna` (a reviewable

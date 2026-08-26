@@ -64,6 +64,11 @@ export type DesignDNA = {
   // registers use fontDisplay/fontBody per element and NO global override. So the DNA generalizes past terminal.
   uniformType?: boolean;
   atoms?: AtomForms;             // per-atom FORM this system speaks; omitted = the neutral form
+  // THE FILM'S MATERIAL. One topic-derived surface stated once and inherited by every frame — masonry
+  // coursing for a built subject, a waterline for a place made of water, a survey graticule for a mapped
+  // one. Without it a themed film is a set of clean bare diagrams: right palette, right type, no material.
+  // See runtime/motif.tsx; omitted = no motif, which is a legitimate choice for a deliberately austere film.
+  motif?: {kind?: string; ink?: string; opacity?: number; scale?: number};
 };
 
 // ── Presets ────────────────────────────────────────────────────────────────────────────────────────────────

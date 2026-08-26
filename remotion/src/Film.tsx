@@ -21,6 +21,7 @@ import {Atmosphere, type Atmo} from './runtime/atmosphere';
 import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome} from './runtime/dna';
 import {REGISTRY} from './registry';
 import {CAPTIONS} from './captions';
+import {FilmMotifLayer} from './runtime/motif';
 
 // The scene EDL. `bgLum` is the first of the shot-director-emitted continuity fields (an explicit ground-
 // luminance override; falls back to the measured shotLuma map). Future phases grow this schema (accent,
@@ -353,6 +354,9 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
       </TransitionSeries>
       </AbsoluteFill>
       </ReducedMotionContext.Provider>
+      {/* the film's MATERIAL — above the shots (each paints its own opaque ground) and below the caption,
+          so it never competes with the words the viewer is reading */}
+      <FilmMotifLayer motif={activeDna?.motif as any} dna={activeDna} W={width} H={height} />
       <AbsoluteFill style={{backgroundColor: bg, opacity: Math.max(intro, outro), pointerEvents: 'none'}} />
       {captions ? <CaptionTrack scenes={scenes} groundBg={theme?.bg ?? activeDna?.bg} dnaColors={activeDna} dnaFontBody={activeDna?.fontBody} /> : null}
       <BrandMark brand={brand} />
