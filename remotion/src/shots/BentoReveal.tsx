@@ -33,8 +33,11 @@ const Widget: React.FC<{kind: number; c: string; g: number}> = ({kind, c, g}) =>
     <circle cx={on ? 74 : 22} cy={32} r={16} fill="#fff" /></svg>);
 };
 
-export const BentoReveal: React.FC<{title?: string; hero?: string; items?: string[]}> = ({
-  title: TITLE = 'WorkBuddy', hero: HEROSUB = 'your workspace, assembled', items: ITEMS =
+export const BentoReveal: React.FC<{title?: string; hero?: string; items?: string[]; heroKicker?: string}> = ({
+  title: TITLE = 'WorkBuddy', hero: HEROSUB = 'your workspace, assembled',
+  // The hero cell's kicker used to be the literal string 'DASHBOARD', hardcoded — so every film that
+  // reached for this register printed a product-demo word onto its own frame whatever it was about.
+  heroKicker: HEROKICKER = 'DASHBOARD', items: ITEMS =
     ['Throughput', 'Coverage', 'Trend', 'Signals', 'Team', 'Auto-sync']} = {}) => {
   const dna = useDNA();
   const TONES = dnaPalette(dna, 5) ?? TONES0;   // derive the palette from the film's DNA (null DNA = the original)
@@ -66,7 +69,9 @@ export const BentoReveal: React.FC<{title?: string; hero?: string; items?: strin
             boxShadow: '0 24px 60px #0006'}}>
             {hero ? (
               <>
-                <div style={{color: '#ffffffcc', font: '600 24px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.14em'}}>DASHBOARD</div>
+                <div style={{color: dna?.onAccent ?? '#ffffffcc',
+                  font: '600 24px/1 var(--f-mono, "JetBrains Mono", monospace)',
+                  letterSpacing: dna?.labelSpacing ?? '0.14em'}}>{HEROKICKER}</div>
                 <div>
                   <div style={{color: '#fff', font: '800 96px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em'}}>{TITLE}</div>
                   <div style={{color: '#ffffffdd', font: '500 32px/1.2 var(--f-body, Inter, system-ui, sans-serif)', marginTop: 16}}>{HEROSUB}</div>
