@@ -394,3 +394,70 @@ def test_scene_pause_is_what_the_viewer_hears_on_both_tiers():
     assert abs(tts._tail_pad({"renderer": "remotion", "fps": 30, "audio_breath": 0.42}) - 0.42) < 1e-6
     # the between-scene pause must be at least as long as a within-sentence pause, or it reads backwards
     assert tts.SCENE_PAUSE_DEFAULT >= 0.5
+
+
+def test_a_clip_ends_in_a_decay_not_a_cliff():
+    """Reported as "every frame's last sentence sounds stopped rather than finished".
+
+    Mastering trimmed the trailing silence at -45dB — which removes the whole natural decay of the last
+    syllable — and then spliced ABSOLUTE silence onto the cut. Measured on three delivered clips, the
+    envelope fell 64, 88 and 67 dB inside one 20ms window; at 5ms the worst single step was 42 dB, from
+    -12 (clearly audible) straight to -49. A voice does not stop like that, and the ear hears the cut.
+
+    This runs the real mastering chain over a synthetic clip that ends abruptly and measures the shape.
+    """
+    import array
+    import math
+    import subprocess
+    import tempfile
+    import tts
+    if not _common.have_tool("ffmpeg"):
+        import pytest
+        pytest.skip("ffmpeg not available")
+    d = tempfile.mkdtemp()
+    clip = os.path.join(d, "c.wav")
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
+                    "-i", "sine=frequency=300:duration=1.2:sample_rate=48000", clip], check=True)
+    tts._master(clip, {"renderer": "remotion", "fps": 30})
+
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", clip, "-ac", "1", "-ar", "48000",
+                          "-f", "s16le", "-"], capture_output=True).stdout
+    x = array.array("h")
+    x.frombytes(raw)
+    win = int(0.005 * 48000)
+    env = []
+    for i in range(0, len(x) - win, win):
+        pk = max((abs(v) for v in x[i:i + win]), default=0)
+        env.append(20 * math.log10(pk / 32768.0) if pk else -99.0)
+    assert env, "the mastered clip decoded to nothing"
+    audible = [i for i, v in enumerate(env) if v > -60]
+    assert audible, "no audible content survived mastering"
+    last = max(audible)
+    tail = env[max(0, last - 11):last + 2]
+    worst = max(tail[i] - tail[i + 1] for i in range(len(tail) - 1))
+    assert worst < 25, ("the tail falls %.0f dB in one 5ms step — that is a cut, not a decay: %s"
+                        % (worst, [round(v) for v in tail]))
+    # and the decay must actually reach inaudibility before the clip is cut
+    assert min(tail) < -40, "the clip is still audible where it ends: %s" % [round(v) for v in tail]
+
+    # THE TRIM THRESHOLD is load-bearing too, but only on a signal that HAS a decay tail — a pure tone
+    # has nothing between -58 and -45 to preserve, so the synthetic clip above cannot see it. On one that
+    # decays, trimming at -45 throws away 105ms of real tail that -58 keeps.
+    dec = os.path.join(d, "decay.wav")
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
+                    "-i", "sine=frequency=300:duration=1.5:sample_rate=48000",
+                    "-af", "afade=t=out:st=0.6:d=0.9:curve=exp", dec], check=True)
+    tts._master(dec, {"renderer": "remotion", "fps": 30})
+    raw2 = subprocess.run(["ffmpeg", "-v", "error", "-i", dec, "-ac", "1", "-ar", "48000",
+                           "-f", "s16le", "-"], capture_output=True).stdout
+    y = array.array("h")
+    y.frombytes(raw2)
+    env2 = []
+    for i in range(0, len(y) - win, win):
+        pk = max((abs(v) for v in y[i:i + win]), default=0)
+        env2.append(20 * math.log10(pk / 32768.0) if pk else -99.0)
+    kept = max(i for i, v in enumerate(env2) if v > -60) * 0.005
+    # Measured through the real chain (loudnorm shifts the levels, so these are not the raw-signal
+    # numbers): -45dB keeps 0.795s of this fixture, -58dB keeps 0.895s, -70dB keeps 0.985s.
+    assert kept > 0.85, ("only %.3fs of a decaying signal survived the trim — the threshold is cutting "
+                         "into the natural tail (-45dB keeps 0.795s here, -58dB keeps 0.895s)" % kept)

@@ -407,9 +407,24 @@ def _master(path, meta=None):
         return
     tmp = path + ".master" + os.path.splitext(path)[1]
     breath = _tail_pad(meta)
+    # THE TAIL IS A DECAY, NOT A CLIFF. Trimming at -45dB removed the whole natural decay of the last
+    # syllable and apad then spliced ABSOLUTE silence onto the cut, so a clip went from -11dB — clearly
+    # audible speech — to -99dB inside one 20ms window. Measured on three delivered clips: drops of 64,
+    # 88 and 67 dB at the seam. That is heard as the sentence being stopped rather than ending.
+    # Two changes, both needed: trim at a lower threshold so more of the real decay survives, and fade the
+    # last moments into the silence so there is no discontinuity left at all. The fade is applied in the
+    # REVERSED domain (a fade-IN at the reversed start == a fade-out on the tail), which needs no
+    # knowledge of the clip's length.
     af = ("loudnorm=I=-14:TP=-1.5:LRA=11,"
           "areverse,silenceremove=start_periods=1:start_duration=0.06:"
-          f"start_threshold=-45dB:detection=peak,areverse,apad=pad_dur={breath}")
+          "start_threshold=-58dB:detection=peak,"
+          # d=0.10 with an EXPONENTIAL curve, chosen by measuring the tail shape rather than by taste: a
+          # decaying sound IS exponential in amplitude, so this is the shape a voice actually dies away in.
+          # Measured over the last 55ms — linear 0.06: -29 then -70 (a 41dB step while still audible);
+          # linear 0.10: -34 -56 -68; exponential 0.10: -25 -33 -38 -40 -49 -49 -54 -65, already inaudible
+          # before the cut and finishing on an 11dB step at -54.
+          "afade=t=in:st=0:d=0.10:curve=exp,"
+          f"areverse,apad=pad_dur={breath}")
     try:
         _common.run(["ffmpeg", "-y", "-i", path, "-af", af, "-map_metadata", "-1", tmp])
         # only adopt the mastered clip if it's a real, non-degenerate result (guards the pathological
