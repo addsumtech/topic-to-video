@@ -36,7 +36,7 @@ export const ChartRace: React.FC<{data?: Row[]; title?: string; unit?: string}> 
     live.reduce((s, o) => (o.i === r.i ? s : s + sig((o.cur - r.cur) * 0.22)), 0);
   const titleIn = easeOutCubic(seg(t, 0.03, 0.16));
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? `radial-gradient(120% 100% at 30% 20%, #12162a, ${BG} 72%)`, overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? `radial-gradient(120% 100% at 30% 20%, #12162a, ${BG} 72%)`, overflow: 'hidden'}}>
       <div style={{position: 'absolute', top: 90, left: x0 - 40, opacity: titleIn,
         color: '#aeb6ca', font: '700 34px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.24em', textTransform: 'uppercase'}}>{TITLE}</div>
       {live.map((r) => {

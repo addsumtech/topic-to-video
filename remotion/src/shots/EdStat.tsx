@@ -120,7 +120,7 @@ export const EdStat: React.FC<{kicker?: string; value?: string; unit?: string; c
   const descPad = Math.round(numSize * DESCENDER_RESERVE);
 
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? BG_D0,
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG_D0,
       // FULL-BLEED ground (the padding is border-box, so it only moves the flex CENTRE — it never insets the
       // background). Centring on the raw frame put a tall pull-stat's caption into the burned-caption band at
       // narrow aspects; centre it in the CONTENT ZONE instead.

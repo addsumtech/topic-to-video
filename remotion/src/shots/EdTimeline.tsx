@@ -21,7 +21,7 @@ export const EdTimeline: React.FC<{kicker?: string; entries?: Entry[]; framed?: 
   const fg = dna?.fg ?? '#efe9df', dim = dna?.dim ?? '#9a9084', acc = dna?.accent ?? '#e2603f', line = dna?.line ?? '#2a2018';
 
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(120% 120% at 50% -6%, #1c1815, #0d0b09 74%)',
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(120% 120% at 50% -6%, #1c1815, #0d0b09 74%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
       <EdFrame dna={dna} kicker={kicker} t={t} framed={framed} align="left">
         <div style={{width: '100%', maxWidth: 1100}}>

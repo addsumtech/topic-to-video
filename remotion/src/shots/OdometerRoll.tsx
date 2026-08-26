@@ -25,7 +25,7 @@ export const OdometerRoll: React.FC<{value?: string; label?: string; unit?: stri
   const labIn = easeOutCubic(seg(t, 0.05, 0.22));
   let di = -1; // running index across DIGIT chars only (for stagger)
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? `radial-gradient(130% 100% at 50% 34%, #141a36, ${BG} 66%)`,
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? `radial-gradient(130% 100% at 50% 34%, #141a36, ${BG} 66%)`,
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
       <div style={{opacity: labIn, color: '#8b93a8', font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)',
         letterSpacing: '0.32em', textTransform: 'uppercase', marginBottom: 44,

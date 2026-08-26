@@ -64,7 +64,7 @@ export const CardFlip3D: React.FC<{items?: Item[]; title?: string; backLabel?: s
   const x0 = (W - rowW) / 2;
   const titleIn = easeOutCubic(seg(t, 0.04, 0.2));
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? `radial-gradient(120% 100% at 50% 40%, #12162b, ${BG} 68%)`}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? `radial-gradient(120% 100% at 50% 40%, #12162b, ${BG} 68%)`}}>
       <div style={{position: 'absolute', top: 96, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
         transform: `translateY(${(1 - titleIn) * 14}px)`, color: '#aeb6ca',
         font: '700 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.26em', textTransform: 'uppercase'}}>{TITLE}</div>

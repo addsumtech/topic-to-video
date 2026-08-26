@@ -25,7 +25,7 @@ export const TermLog: React.FC<{cmd?: string; lines?: Line[]; framed?: boolean}>
   const glyph = (k?: string) => k === 'ok' ? {c: acc, s: '✓'} : k === 'info' ? {c: dim, s: '#'} : {c: acc2, s: '→'};
 
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(130% 120% at 50% -8%, #0f1723, #06080d 72%)',
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(130% 120% at 50% -8%, #0f1723, #06080d 72%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
       <TermFrame dna={dna} cmd={cmd} t={t} framed={framed} align="left">
         <div style={{font: `500 40px/1.85 ${mono}`}}>

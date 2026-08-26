@@ -283,7 +283,7 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
   }).fontSize, [HEADING, W, monoFace, headSpacing, headCase]);
 
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? BG}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG}}>
       {cells.map((p, i) => {
         const spanned = n === 3 && i === 2;               // a 3-panel deck: the last one spans the bottom row
         const col = i % cols, row = Math.floor(i / cols);

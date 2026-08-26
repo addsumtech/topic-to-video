@@ -25,7 +25,7 @@ export const FocalIsolation: React.FC<{focalLabel?: string; items?: string[]}> =
   const ox = (W - gridW) / 2, oy = (H - gridH) / 2 + 30;
   const fx = ox + (focal % cols) * (cw + gx) + cw / 2, fy = oy + Math.floor(focal / cols) * (ch + gy) + ch / 2;
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(120% 120% at 50% 45%, #1b2434, #0d131d)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(120% 120% at 50% 45%, #1b2434, #0d131d)'}}>
       {/* spotlight that lands on the focal item */}
       <div style={{position: 'absolute', left: fx - 520, top: fy - 520, width: 1040, height: 1040,
         background: `radial-gradient(closest-side, ${SPOT}${Math.round(28 * iso).toString(16).padStart(2, '0')}, transparent)`,

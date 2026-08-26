@@ -52,7 +52,7 @@ export const GaugeCluster: React.FC<{value?: string; unit?: string; label?: stri
   const num = Math.round(parseFloat(String(VALUE).replace(/[^\d.]/g, '') || '0') * heroFill);
   const titleIn = easeOutCubic(seg(t, 0.03, 0.16));
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? `radial-gradient(120% 100% at 50% 40%, #12182c, ${BG} 72%)`}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? `radial-gradient(120% 100% at 50% 40%, #12182c, ${BG} 72%)`}}>
       <div style={{position: 'absolute', top: 74, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
         color: '#aeb6ca', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em',
         textTransform: 'uppercase'}}>{TITLE}</div>

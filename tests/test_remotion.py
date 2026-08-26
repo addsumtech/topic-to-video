@@ -1458,3 +1458,26 @@ def test_build_signal_lands_at_the_decision_and_scales_with_audacity():
     assert [e for e in v.evaluate(_board("bold", ["fit"]), "/tmp")["errors"] if "thin famil" in e]
     assert not [e for e in v.evaluate(_board("bold", ["build", "fit"]), "/tmp")["errors"] if "thin famil" in e], \
         "a film that DID build is still blocked"
+
+
+def test_no_shot_falls_back_past_the_dna_background():
+    """A DNA that sets `bg` but not the OPTIONAL `bgGrad` must still paint the film's ground.
+
+    Found by rendering a light paper DNA: 28 registers wrote `dna?.bgGrad ?? <hardcoded dark>`, so with
+    seven of the eight shipped presets — none of which define `bgGrad` — the DNA's own `bg` never applied
+    at all. It went unseen because every preset's bg AND every hardcoded fallback are dark, so the wrong
+    ground looked approximately right. The first light DNA renders dark-ground ink on a dark ground: text
+    that is simply not there. The chain must be bgGrad -> bg -> the shot's own D0 fallback.
+    """
+    import glob
+    import os
+    import re
+    d = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "shots")
+    bad = []
+    for f in sorted(glob.glob(os.path.join(d, "*.tsx"))):
+        src = open(f, encoding="utf-8").read()
+        # every bgGrad read must be followed by a dna lookup, not straight to a literal/constant
+        if re.search(r"dna\?\.bgGrad \?\? (?!dna)", src):
+            bad.append(os.path.basename(f))
+    assert not bad, ("these registers skip dna.bg and paint their own ground, so a DNA without the "
+                     "optional bgGrad is ignored: %s" % ", ".join(bad))

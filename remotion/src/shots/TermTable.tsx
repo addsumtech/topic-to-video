@@ -206,7 +206,7 @@ export const TermTable: React.FC<{cmd?: string; headers?: string[]; rows?: strin
   };
 
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? BG_D0}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG_D0}}>
       <div style={{position: 'absolute', left, top, width: winW,
         background: framed ? SURFACE : 'transparent',
         border: framed ? `1px solid ${BORDER}` : 'none', borderRadius: framed ? (dna?.radius ?? 8) : 0,

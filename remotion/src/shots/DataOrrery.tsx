@@ -30,7 +30,7 @@ export const DataOrrery: React.FC<{items?: string[]; hub?: string}> = ({items, h
   };
 
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(120% 120% at 50% 46%, #0e1330 0%, #070a1c 60%, #04050f 100%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(120% 120% at 50% 46%, #0e1330 0%, #070a1c 60%, #04050f 100%)'}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <defs>
           <filter id="og"><feGaussianBlur stdDeviation="6" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>

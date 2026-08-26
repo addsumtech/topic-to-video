@@ -27,7 +27,7 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
   const palScale = fired ? lerp(1, 0.94, easeOutCubic(seg(t, 0.46, 0.62))) : 1;
   const PW = 1180, PX = (W - PW) / 2;
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(120% 100% at 50% 22%, #141a26, #090c12 60%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(120% 100% at 50% 22%, #141a26, #090c12 60%)'}}>
       {/* soft accent glow behind the palette */}
       <div style={{position: 'absolute', left: W / 2 - 420, top: 150, width: 840, height: 520,
         background: `radial-gradient(closest-side, ${ACCENT}22, transparent)`, filter: 'blur(30px)'}} />

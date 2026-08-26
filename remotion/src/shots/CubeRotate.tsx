@@ -129,7 +129,7 @@ export const CubeRotate: React.FC<{faces?: string[]; title?: string}> = ({
   const angle = lerp(-(k - 1) * 90, -k * 90, arrive); // from previous face to this one, then hold
   const titleIn = easeOutCubic(seg(t, 0.03, 0.16));
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? GRAD_D0, overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? GRAD_D0, overflow: 'hidden'}}>
       <div style={{position: 'absolute', top: TITLE_Y, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
         color: DIM, font: `700 ${titleSize}px/1.1 ${monoFace}`, letterSpacing: dna?.labelSpacing ?? '0.3em',
         textTransform: dna && !dna.uppercaseLabels ? 'none' : 'uppercase'}}>{TITLE}</div>

@@ -27,7 +27,7 @@ export const PositioningMatrix: React.FC<{
   const axis = easeOutCubic(seg(t, 0.08, 0.4));
   const titleIn = easeOutCubic(seg(t, 0.02, 0.16));
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(120% 100% at 50% 42%, #12162a, #090b12 72%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(120% 100% at 50% 42%, #12162a, #090b12 72%)'}}>
       <div style={{position: 'absolute', top: 62, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
         color: '#aeb6ca', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em',
         textTransform: 'uppercase'}}>{TITLE}</div>

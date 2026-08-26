@@ -38,7 +38,7 @@ export const CartoonPop: React.FC<{label?: string}> = ({label = 'DONE!'} = {}) =
   const OUTLINE = dna?.fg ?? OUTLINE0;                       // ink inverts to a LIGHT outline on a dark ground
   const BODY = P?.[0] ?? BODY0, GREEN = P?.[1] ?? GREEN0, STAR = P?.[2] ?? STAR0;
   const FACE = dna ? shade(BODY, 0.72) : FACE0;              // face plate must contrast the (now light) eyes/ink
-  const SKYFILL = dna?.bgGrad ?? (dna ? dna.bg : null) ?? `linear-gradient(${SKY0}, #b9e4ff)`;
+  const SKYFILL = dna?.bgGrad ?? dna?.bg ?? (dna ? dna.bg : null) ?? `linear-gradient(${SKY0}, #b9e4ff)`;
   const CLOUD = dna ? mix(dna.fg, dna.bg, 0.16) : '#ffffff';
   const GRASS = dna ? mix(BODY, dna.bg, 0.62) : '#a7e17f';   // the ground plane recedes toward the film's ground
   const PAPER = dna ? mix(dna.fg, dna.bg, 0.12) : '#fffdf5', RULE = dna?.dim ?? '#c9ccd6';

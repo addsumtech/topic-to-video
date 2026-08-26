@@ -28,7 +28,7 @@ export const LiquidChrome: React.FC<{word?: string; tagline?: string}> = ({
   );
 
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(120% 130% at 50% 34%, #1a1e26 0%, #0a0c11 62%, #06070a 100%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(120% 130% at 50% 34%, #1a1e26 0%, #0a0c11 62%, #06070a 100%)'}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <defs>
           {/* flowing chrome: reflected vertical bands, translated over time */}

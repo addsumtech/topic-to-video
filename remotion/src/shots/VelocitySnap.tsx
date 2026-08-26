@@ -30,7 +30,7 @@ export const VelocitySnap: React.FC<{label?: string; metric?: string; unit?: str
   ];
   const doneAll = t > 0.44;
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? `radial-gradient(120% 100% at 50% 30%, #14162a, ${BG} 62%)`}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? `radial-gradient(120% 100% at 50% 30%, #14162a, ${BG} 62%)`}}>
       {pieces.map((p, i) => {
         const r = clamp01(seg(t, p.at, p.at + 0.14));
         const e = easeOutBack(r);

@@ -19,7 +19,7 @@ export const TermDiff: React.FC<{cmd?: string; leftLabel?: string; rightLabel?: 
   const all = [...minus.map((x) => ({s: '-', c: red, text: x})), ...plus.map((x) => ({s: '+', c: acc, text: x}))];
 
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(130% 120% at 50% -8%, #0f1723, #06080d 72%)',
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(130% 120% at 50% -8%, #0f1723, #06080d 72%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
       <TermFrame dna={dna} cmd={cmd} t={t} framed={framed} align="left">
         <div style={{font: `500 40px/1.4 ${mono}`, width: '100%'}}>

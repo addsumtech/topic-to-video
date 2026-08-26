@@ -31,7 +31,7 @@ export const EdCompare: React.FC<{kicker?: string; left?: Col; right?: Col; fram
   };
 
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(120% 120% at 50% -6%, #1c1815, #0d0b09 74%)',
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(120% 120% at 50% -6%, #1c1815, #0d0b09 74%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
       <EdFrame dna={dna} kicker={kicker} t={t} framed={framed} align="left">
         <div style={{display: 'flex', gap: 64, width: '100%', maxWidth: 1200, alignItems: 'stretch'}}>

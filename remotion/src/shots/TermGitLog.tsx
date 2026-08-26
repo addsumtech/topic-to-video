@@ -22,7 +22,7 @@ export const TermGitLog: React.FC<{cmd?: string; commits?: Commit[]; framed?: bo
   const refW = Math.max(...commits.map((c) => [...(c.ref ?? '')].length), 4);
 
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(130% 120% at 50% -8%, #0f1723, #06080d 72%)',
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(130% 120% at 50% -8%, #0f1723, #06080d 72%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
       <TermFrame dna={dna} cmd={cmd} t={t} framed={framed} align="left">
         <div style={{font: `500 38px/1 ${mono}`, whiteSpace: 'pre'}}>

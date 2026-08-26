@@ -135,7 +135,7 @@ export const TermBars: React.FC<{cmd?: string; title?: string; rows?: Row[]; not
   const ticks = [0, 0.25, 0.5, 0.75, 1];
 
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? BG_D0}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG_D0}}>
       {title ? (
         <div style={{...titleStyle, color: fg, font: `700 ${titleSize}px/1.15 ${disp}`,
           letterSpacing: '-0.01em', padding: '0 8%', opacity: clamp01(t * 7)}}>{title}</div>

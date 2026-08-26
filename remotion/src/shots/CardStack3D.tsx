@@ -23,7 +23,7 @@ export const CardStack3D: React.FC<{items?: string[]; title?: string}> = ({
   const fan = easeInOutCubic(seg(t, 0.58, 0.92));
   const titleIn = easeOutCubic(seg(t, 0.66, 0.86));
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? `radial-gradient(120% 100% at 50% 38%, #12162b, ${BG} 72%)`, overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? `radial-gradient(120% 100% at 50% 38%, #12162b, ${BG} 72%)`, overflow: 'hidden'}}>
       <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center', perspective: 1800}}>
         <div style={{position: 'relative', width: cw, height: ch, transformStyle: 'preserve-3d',
           transform: `translateY(${lerp(40, -30, fan)}px)`}}>

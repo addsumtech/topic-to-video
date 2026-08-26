@@ -19,7 +19,7 @@ export const ConveyorBelt: React.FC<{items?: string[]; title?: string; doneLabel
   // DESIGN DNA — inherit the film's visual system (or the shot's original look when no DNA is provided).
   const dna = useDNA();
   const done = dna?.accent ?? DONE;
-  const bgStyle = dna?.bgGrad ?? `radial-gradient(120% 100% at 50% 34%, #14172a, ${BG} 72%)`;
+  const bgStyle = dna?.bgGrad ?? dna?.bg ?? `radial-gradient(120% 100% at 50% 34%, #14172a, ${BG} 72%)`;
   const cardBg = dna?.surface ?? 'linear-gradient(150deg, #232838, #171b28)';
   const cardBorder = dna?.surfaceBorder ?? '#333a52';
   const cardRadius = dna?.radius ?? 16;

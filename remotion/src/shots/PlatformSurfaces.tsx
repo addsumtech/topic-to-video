@@ -65,7 +65,7 @@ export const PlatformSurfaces: React.FC<{
   const heroE = easeOutBack(clamp01(seg(t, 0.04, 0.3)));
 
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? 'radial-gradient(120% 100% at 28% 22%, #12162a, #0a0c12 72%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(120% 100% at 28% 22%, #12162a, #0a0c12 72%)'}}>
       <div style={{...titleStyle, top: 84, opacity: clamp01(t * 5)}}>{title}</div>
       {/* hero panel */}
       <div style={{position: 'absolute', left: hx, top: hy, width: hw, height: hh, borderRadius: 22,
