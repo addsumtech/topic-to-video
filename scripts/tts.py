@@ -7,7 +7,7 @@ Voice spec in storyboard meta['voice']:
   "minimax:<voice_id>"  -> MiniMax T2A (very natural, esp. zh; needs MINIMAX_API_KEY); falls back
                            to say. "minimax" alone picks a voice by language+gender from the catalog.
 """
-import argparse, os, re
+import argparse, os, re, subprocess
 import _common
 import storyboard as sb
 
@@ -363,7 +363,53 @@ def _seam_seconds(meta):
     return frames / float(fps)
 
 
-def _tail_pad(meta):
+SENTENCE_PAUSE_RATIO = 1.7   # a scene break must be this much longer than the clip's own sentence break
+MAX_SCENE_PAUSE = 1.5        # ...but never a hold; reading time belongs in tts_speed, not in dead air
+
+
+def _longest_internal_pause(path):
+    """The longest silence INSIDE a clip — its own sentence boundary, as this voice actually renders it.
+
+    Returns None when there is nothing to measure (one short sentence, or no ffmpeg).
+    """
+    if not _common.have_tool("ffmpeg"):
+        return None
+    try:
+        out = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", path, "-af",
+                              "silencedetect=noise=-55dB:d=0.12", "-f", "null", "-"],
+                             capture_output=True, text=True).stderr
+        dur = _common.audio_duration(path) or 0.0
+    except Exception:                                       # noqa: BLE001 — never break synthesis over this
+        return None
+    starts = [float(x) for x in re.findall(r"silence_start: ([-\d.]+)", out)]
+    ends = [float(x) for x in re.findall(r"silence_end: ([-\d.]+)", out)]
+    inner = []
+    for st in starts:
+        after = [e for e in ends if e > st]
+        if not after:
+            continue                                        # runs to the end: that is the tail, not a pause
+        en = after[0]
+        if st > 0.15 and en < dur - 0.15:                    # strictly inside the speech
+            inner.append(en - st)
+    return max(inner) if inner else None
+
+
+def _film_sentence_pause(paths):
+    """How long THIS voice, in THIS language, at THIS rate holds a FULL STOP — measured on the film.
+
+    Per clip we take its own longest internal pause; across the film we take the 75th percentile of
+    those. Why not the median: roughly half the beats are one sentence, so their longest internal pause
+    is a comma (~0.2s) and the median lands between the two populations, describing neither. Why not the
+    max: one dramatic pause would then set every seam in the film. Returns None when nothing is
+    measurable (every beat a single unbroken clause, or no ffmpeg) — the caller falls back to the floor.
+    """
+    tops = sorted(x for x in (_longest_internal_pause(p) for p in paths) if x)
+    if not tops:
+        return None
+    return tops[min(len(tops) - 1, int(round(0.75 * (len(tops) - 1))))]
+
+
+def _tail_pad(meta, ref=None):
     """Seconds of silence to append to a clip after its dead air is trimmed.
 
     MEASURED, on a delivered 37-beat remotion film with the old flat 0.42s pad: every one of the 36 scene
@@ -385,11 +431,20 @@ def _tail_pad(meta):
         pause = float((meta or {}).get("scene_pause", SCENE_PAUSE_DEFAULT))
     except (TypeError, ValueError):
         pause = SCENE_PAUSE_DEFAULT
-    pause = max(0.0, min(1.5, pause))
+    pause = max(0.0, min(MAX_SCENE_PAUSE, pause))
+    # SELF-CALIBRATING. A fixed number cannot know how long THIS voice, in THIS language, at THIS rate
+    # leaves at a full stop — and a scene break that is barely longer than a sentence break inside a beat
+    # reads as one continuous read. Measured on a delivered film: the seam was 0.72s against a 0.57s
+    # in-beat sentence pause, only 27% longer, for a change of picture AND argument. So meta.scene_pause
+    # is the FLOOR and the target is a multiple of what this voice actually does at a full stop.
+    # The reference is FILM-WIDE on purpose: derived per clip, a two-sentence beat would get a 1.0s seam
+    # and a one-sentence beat 0.55s — the seam would vary for a reason no viewer can perceive.
+    if ref:
+        pause = max(pause, min(MAX_SCENE_PAUSE, SENTENCE_PAUSE_RATIO * ref))
     return round(min(2.5, pause + _seam_seconds(meta)), 3)
 
 
-def _master(path, meta=None):
+def _master(path, meta=None, ref=None):
     """Loudness-normalise + trim TRAILING dead-air of a SPEECH clip, in place. Two problems at once:
     (1) raw TTS ships at wildly different loudness across providers/scenes with no master, so a
     carefully-placed climax has no consistent sonic level; (2) the trailing tail (esp. say/openai/
@@ -406,7 +461,7 @@ def _master(path, meta=None):
     if not _common.have_tool("ffmpeg"):
         return
     tmp = path + ".master" + os.path.splitext(path)[1]
-    breath = _tail_pad(meta)
+    breath = _tail_pad(meta, ref=ref)
     # THE TAIL IS A DECAY, NOT A CLIFF. Trimming at -45dB removed the whole natural decay of the last
     # syllable and apad then spliced ABSOLUTE silence onto the cut, so a clip went from -11dB — clearly
     # audible speech — to -99dB inside one 20ms window. Measured on three delivered clips: drops of 64,
@@ -453,6 +508,7 @@ def synthesize(out_dir, only=None):
 
     fell_back = []        # indices that dropped to the say fallback (a cloud/edge failure)
     used_primary = []     # indices that actually used the requested non-say provider
+    pending = []          # (slide, path) awaiting mastering — the tail pad is a film-wide measurement
     for s in data["slides"]:
         if only is not None and s["index"] != only:
             continue
@@ -496,8 +552,7 @@ def synthesize(out_dir, only=None):
         if ok_primary:
             used_primary.append(s["index"])
         s["audio"] = rel
-        _master(dest, data["meta"])   # level + trim TAIL before we measure — pacing must see speech, not dead air
-        s["duration"] = round(_common.audio_duration(dest), 3)
+        pending.append((s, dest))   # mastered below, once the film's own sentence pause is known
         # Only edge-tts emits per-word timings. For any other provider (say/openai/minimax) drop a
         # leftover words.json from a PRIOR edge run — otherwise render_html would cue reveals off
         # stale timings that don't match this audio. (The fallback branch above also handles it.)
@@ -505,6 +560,21 @@ def synthesize(out_dir, only=None):
             wj = os.path.join(audio_dir, f"{s['index']:02d}.words.json")
             if os.path.exists(wj):
                 os.remove(wj)
+
+    # MASTER LAST. Level + tail-trim must happen before we measure a duration (pacing must see speech,
+    # not dead air), but the tail PAD is derived from the whole film's sentence pause — so the clips wait
+    # here until every one of them exists to be measured. On a --only re-synth the already-delivered
+    # clips still supply the reference (their pause is internal; the pad sits past it).
+    ref = _film_sentence_pause([os.path.join(out_dir, s["audio"]) for s in data["slides"]
+                                if s.get("audio") and os.path.exists(os.path.join(out_dir, s["audio"]))])
+    for s, dest in pending:
+        _master(dest, data["meta"], ref=ref)
+        s["duration"] = round(_common.audio_duration(dest), 3)
+    if pending:
+        print("[tts] scene pause %.2fs audible (film full-stop %s x%.1f, floor %.2f)"
+              % (_tail_pad(data["meta"], ref=ref) - _seam_seconds(data["meta"]),
+                 ("%.2fs" % ref) if ref else "unmeasurable", SENTENCE_PAUSE_RATIO,
+                 float(data["meta"].get("scene_pause", SCENE_PAUSE_DEFAULT))))
 
     # MIXED-VOICE guard: a cloud/edge run that fell back to `say` on SOME (not all) scenes ships an
     # INCONSISTENT narration voice (and mixed sample rates the render must normalize). This happens on a

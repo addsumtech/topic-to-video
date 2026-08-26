@@ -13,7 +13,6 @@
 // used: render_remotion.py points --public-dir at the film's out_dir, and a standalone
 // `npx remotion still` has a different public dir again, so a bundled asset is the only path that
 // works for both.
-import {loadFont} from '@remotion/fonts';
 import {cancelRender, continueRender, delayRender} from 'remotion';
 
 import spaceGroteskUrl from '../../../assets/fonts/SpaceGrotesk-VF.ttf';
@@ -55,9 +54,20 @@ export const FACES: Face[] = [
 // many tabs and each one loads the set; under a long high-concurrency render a starved tab blew past the
 // default and killed a 37-scene film at frame 1810. Failing the whole render because one tab was slow is
 // the wrong trade — cancelRender below still fires on a real load ERROR, which is the case that matters.
+//
+// The faces are loaded through the FontFace API DIRECTLY rather than through @remotion/fonts'
+// loadFont. loadFont opens its OWN delayRender per face, and that one takes the CLI's global
+// --timeout (120s) — the generous timeout above governed only our handle, not the ten hidden ones
+// underneath it. A 37-scene film then died at exactly the failure this comment describes:
+//   delayRender() "Loading font Space Grotesk (url: …)" was called but not cleared after 118000ms
+// with the bundled asset sitting on local disk the whole time. One handle, one timeout, ours.
 const handle = delayRender('loading DNA typefaces', {timeoutInMilliseconds: 300000});
 Promise.all(
-  FACES.map((f) => loadFont({family: f.family, url: f.url, weight: f.weight, format: 'truetype'})),
+  FACES.map(async (f) => {
+    const face = new FontFace(f.family, `url(${f.url}) format('truetype')`, {weight: f.weight});
+    await face.load();
+    document.fonts.add(face);
+  }),
 )
   .then(() => continueRender(handle))
   .catch((err) => cancelRender(err));

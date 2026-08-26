@@ -44,6 +44,19 @@ TTS if the user gives an API key.
   `scene_pause + SEAM_FRAMES/fps`, parsed from `runtime/motion.ts` so the two cannot drift; html: the
   pause itself), so **both tiers sound the same**. `meta.audio_breath` still sets the RAW pad for a
   board that deliberately wants one.
+  **The pause is MEASURED against the film's own full stop; `scene_pause` is only the FLOOR.** A fixed
+  number cannot be right: how long a full stop lasts is a property of the voice, the language and the
+  rate, none of which the skill chooses. Fixed at 0.55s it shipped a second, subtler version of the same
+  defect — a seam of 0.72s against that film's own **0.57s within-beat sentence break**, only 27% longer
+  for a change of picture, argument AND register, heard as each beat's last sentence being stopped rather
+  than finished. So `tts.py` measures every clip's longest internal silence, takes the **75th percentile
+  across the whole film** (`_film_sentence_pause` — the median lands between the one-sentence and
+  two-sentence beats and describes neither; the max would let one dramatic pause set every seam) and
+  targets **1.7×** that, floored at `scene_pause` and capped at `MAX_SCENE_PAUSE` (1.5s) so it stays a
+  pause. The reference is film-wide on purpose: per clip, a two-sentence beat would get a ~1.0s seam and
+  a one-sentence beat 0.55s — the rhythm would change for a reason no viewer can perceive. A film with no
+  measurable full stop (every beat one unbroken clause) falls back to the floor. `tts.py` prints the
+  number it derived.
   **`scene_pause` is a PAUSE, not a reading buffer — keep it ≤~0.9 s.** Padding it to 2–3 s to
   "give time to read" makes each scene end on a frozen, silent frame that reads as the video hanging;
   reading time belongs in a slower `meta.tts_speed`, not a long dead tail (see `tts_speed` below).

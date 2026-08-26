@@ -461,3 +461,84 @@ def test_a_clip_ends_in_a_decay_not_a_cliff():
     # numbers): -45dB keeps 0.795s of this fixture, -58dB keeps 0.895s, -70dB keeps 0.985s.
     assert kept > 0.85, ("only %.3fs of a decaying signal survived the trim — the threshold is cutting "
                          "into the natural tail (-45dB keeps 0.795s here, -58dB keeps 0.895s)" % kept)
+
+
+def _paused_clip(path, gap, lead=0.8, tail=0.8):
+    """A speech stand-in with ONE internal pause of `gap` seconds — a two-sentence beat."""
+    dur = lead + gap + tail
+    _common.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=%s" % dur,
+                 "-af", "volume=enable='between(t,%s,%s)':volume=0" % (lead, lead + gap),
+                 "-ar", "24000", "-ac", "1", path])
+
+
+@pytest.mark.skipif(not _common.have_tool("ffmpeg"), reason="needs ffmpeg")
+def test_the_scene_pause_is_measured_against_the_films_own_full_stop(tmp_path):
+    """Reported as "每个 frame 的最后一句都有种被立即停止的感觉" AFTER the fixed pause landed.
+
+    Measured on that delivered film: a within-beat sentence break ran 0.57s and the seam between two
+    BEATS ran 0.72s — 27% longer for a change of picture, argument and register. A fixed number cannot
+    be right here, because how long a full stop lasts is a property of the voice, the language and the
+    rate, none of which the skill picks. So the pause is derived from what this film's own narration
+    does at a full stop.
+    """
+    gap = 0.50
+    clips = []
+    for i, g in enumerate((0.20, 0.20, gap, gap)):        # half the beats are one sentence (comma-only)
+        p = str(tmp_path / ("c%d.mp3" % i))
+        _paused_clip(p, g)
+        clips.append(p)
+    ref = tts._film_sentence_pause(clips)
+    # the FULL STOP, not the comma and not the mean of the two populations
+    assert abs(ref - gap) < 0.08, (ref, gap)
+
+    meta = {"renderer": "html", "fps": 30}
+    audible = tts._tail_pad(meta, ref=ref)
+    assert audible > 1.6 * gap, "a scene break no longer clears a sentence break: %.2f" % audible
+
+    # THE RATIO IS LOAD-BEARING: at 1.0 the seam collapses back onto the floor and this film would
+    # sound exactly like the one that was reported.
+    import contextlib
+    keep = tts.SENTENCE_PAUSE_RATIO
+    try:
+        tts.SENTENCE_PAUSE_RATIO = 1.0
+        assert tts._tail_pad(meta, ref=ref) < 1.6 * gap
+    finally:
+        tts.SENTENCE_PAUSE_RATIO = keep
+    del contextlib
+
+    # THE FLOOR IS LOAD-BEARING: a film of single unbroken clauses measures nothing, and must still
+    # get its scene pause rather than none.
+    flat = str(tmp_path / "flat.mp3")
+    _tone_clip(flat, tone_s=1.4)
+    assert tts._film_sentence_pause([flat]) is None
+    assert abs(tts._tail_pad(meta, ref=None) - tts.SCENE_PAUSE_DEFAULT) < 1e-6
+
+    # AND IT IS A PAUSE, NOT A HOLD: one dramatic 3s silence must not freeze every scene of the film.
+    assert tts._tail_pad(meta, ref=3.0) <= tts.MAX_SCENE_PAUSE + 1e-6
+
+
+@pytest.mark.skipif(not _common.have_tool("ffmpeg"), reason="needs ffmpeg")
+def test_every_seam_in_a_film_gets_the_same_pause(tmp_path, monkeypatch):
+    """Derived per clip, a two-sentence beat would get a 0.97s seam and a one-sentence beat 0.55s —
+    the rhythm would change for a reason no viewer can perceive. The reference is film-wide."""
+    import json as _json
+    out = _proj(tmp_path)
+    board = _json.load(open(os.path.join(out, "storyboard.json"), encoding="utf-8"))
+    board["meta"]["renderer"] = "html"
+    _json.dump(board, open(os.path.join(out, "storyboard.json"), "w", encoding="utf-8"))
+    made = {}                                              # ONE beat has a full stop inside; the rest do not
+
+    def fake_say(text, dest, voice):
+        gap = 0.55 if not made else 0.15
+        _paused_clip(dest, gap)
+        made[os.path.splitext(os.path.basename(dest))[0]] = gap
+
+    monkeypatch.setattr(tts, "_have_edge", lambda: False)
+    monkeypatch.setattr(tts, "_say", fake_say)
+    data = tts.synthesize(out)
+    speech = 0.8 + 0.8                                     # _paused_clip's two tones; the gap sits between
+    tails = [s["duration"] - speech - made["%02d" % s["index"]]
+             for s in data["slides"] if "%02d" % s["index"] in made]
+    assert len(tails) >= 2, made
+    assert max(tails) - min(tails) < 0.06, ("the seam changed length between beats", tails)
+    assert min(tails) > 1.6 * 0.55 - 0.12, ("the film-wide full stop was not used", tails)
