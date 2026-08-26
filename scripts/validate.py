@@ -1150,6 +1150,60 @@ _ATOM_FORMS = {
 }
 
 
+
+def _shot_truncation(meta, slides, errors, warnings):
+    """A shot whose clip is far shorter than its natural pace plays RUSHED.
+
+    NOT truncation. `useT()` normalises over the REAL scene duration (Film.tsx supplies it through
+    SceneDurationContext), so a shot always reaches its settled state whatever the clip length — a short
+    clip just animates faster. A first version of this check treated `DURATION` as "frames the shot needs"
+    and reported eight beats as cut off; they were not. `DURATION` is only the standalone-preview length.
+
+    What IS real: a register authored to breathe over 5.6s and handed 3.5s plays its whole language 1.6x
+    fast, then cuts. That reads as hurried rather than as a shot landing. It is a pacing signal, so it
+    warns and never blocks — the answer is a longer line for that beat or a register with a calmer
+    natural pace, and sometimes the compression is fine.
+    """
+    import glob as _glob
+    shots_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "remotion", "src", "shots")
+    need = {}
+    for f in _glob.glob(os.path.join(shots_dir, "*.tsx")):
+        try:
+            m = re.search(r"export const DURATION\s*=\s*(\d+)", open(f, encoding="utf-8").read())
+        except OSError:
+            continue
+        if m:
+            need[os.path.basename(f)[:-4]] = int(m.group(1))
+    if not need:
+        return
+    fps = float(meta.get("fps", 30) or 30)
+    seam = _seam_frames()
+    for s in slides:
+        shot = s.get("shot")
+        n = need.get(shot)
+        dur = s.get("duration")
+        if not n or not isinstance(dur, (int, float)) or not dur:
+            continue
+        have = int(round(float(dur) * fps)) - seam
+        ratio = n / max(1.0, float(have))
+        if ratio < 1.35:                     # under a third faster than authored: not worth mentioning
+            continue
+        beat = int(s.get("index", 0)) + 1
+        warnings.append(
+            "remotion: beat %d (%s) plays %.1fx faster than the register's natural pace (clip %d frames vs an "
+            "authored %d) — its whole design language happens in a rush and then cuts. Give the beat a longer "
+            "line, or a register that settles more calmly." % (beat, shot, ratio, have, n))
+
+
+def _seam_frames(default=12):
+    """SEAM_FRAMES from runtime/motion.ts — the cross-dissolve the next scene overlaps onto this one."""
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "remotion", "src", "runtime", "motion.ts")
+    try:
+        m = re.search(r"export const SEAM_FRAMES\s*=\s*(\d+)", open(p, encoding="utf-8").read())
+        return int(m.group(1)) if m else default
+    except OSError:
+        return default
+
 def _check_remotion(meta, slides, errors, warnings, out_dir=None):
     """Guardrails for the remotion bespoke-shot tier: a valid whole-film `shot_template` direction (+ its
     contest trace); every scene needs a valid `shot` id + object `shot_props`; a NUMBER-bearing register left on
@@ -1493,6 +1547,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # cinematic/HTML checks below don't apply to it, so guard and skip them.
     if (meta.get("renderer") or "") == "remotion":
         _check_remotion(meta, slides, errors, warnings, out_dir)
+        _shot_truncation(meta, slides, errors, warnings)
         _figure_traceability(slides, out_dir, warnings)   # %/×/$ figures in shot_props text must trace to brief.json
         return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides)}
     # visual_style is the declared single source of truth — a typo/hallucinated key degrades silently to the

@@ -24,6 +24,12 @@ import argparse, json, os, sys
 # fields — so a "generative" beat is never ambiguous. Post-audit (2026-08-15): VoiceSignal F→U (audio waveform),
 # IsometricAssembly G→N (all iso shots together), VariableTypeMorph J→P (J retired, one-shot subset of P).
 FAMILY = {
+    "GazetteerEntry": "J",
+    "MuseumLabel": "J",
+    "TallyLedger": "J",
+    "PlanPalimpsest": "J",
+    "StrataColumn": "J",
+    "MapPlate": "J",
     "CollaborativeCursors": "A", "CommandSummon": "A", "TemporalAccelerate": "A", "VelocitySnap": "A",
     "CursorStory": "A", "ScreenBubble": "A", "AnswerStream": "A", "ChatThread": "A", "BlockAssembly": "A",
     "CodeCompose": "A", "LiquidGlass": "A", "BentoReveal": "A",

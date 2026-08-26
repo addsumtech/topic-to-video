@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack, hash01} from '../runtime/motion';
+import {captionBand} from '../runtime/layout';
 import {useDNA, mix} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
@@ -74,7 +75,8 @@ export const PaperCutout: React.FC<{label?: string; tagline?: string}> = ({label
           </div>
         );
       })()}
-      <div style={{position: 'absolute', left: 0, right: 0, bottom: H * 0.08, textAlign: 'center',
+      {/* was bottom: H*0.08 — under the burned caption. Lifted clear of the reserved band. */}
+      <div style={{position: 'absolute', left: 0, right: 0, bottom: captionBand(W, H) + H * 0.03, textAlign: 'center',
         opacity: clamp01(seg(t, 0.7, 0.9)), color: TAG, font: '800 40px/1 var(--f-body, "Baloo 2", Inter, sans-serif)',
         textShadow: `0 3px 0 ${TAG_SHADOW}`}}>{tagline}</div>
     </AbsoluteFill>

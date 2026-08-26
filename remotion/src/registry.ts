@@ -139,6 +139,12 @@ import {GameOfLife} from './shots/GameOfLife';
 import {MoleculeBallStick} from './shots/MoleculeBallStick';
 import {TerrainFly} from './shots/TerrainFly';
 import {SectionRoute} from './shots/SectionRoute';
+import {GazetteerEntry} from './shots/GazetteerEntry';
+import {MapPlate} from './shots/MapPlate';
+import {StrataColumn} from './shots/StrataColumn';
+import {PlanPalimpsest} from './shots/PlanPalimpsest';
+import {TallyLedger} from './shots/TallyLedger';
+import {MuseumLabel} from './shots/MuseumLabel';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
@@ -163,6 +169,12 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   CodeRain, FractalTree, RainGlass, AtomOrbital, LiquidMetal,
   EmberFlame, ClothWave, GameOfLife, MoleculeBallStick, TerrainFly,
   SectionRoute,
+  GazetteerEntry,
+  MapPlate,
+  StrataColumn,
+  PlanPalimpsest,
+  TallyLedger,
+  MuseumLabel,
 };
 
 export const SHOT_IDS = Object.keys(REGISTRY);

@@ -7,6 +7,12 @@ export type Lum = 'dark' | 'mid' | 'light';
 // (KSpaceToImage added below with the map — a purpose-built dark shot)
 
 export const SHOT_LUMA: Record<string, Lum> = {
+  MuseumLabel: 'dark',
+  TallyLedger: 'dark',
+  PlanPalimpsest: 'dark',
+  StrataColumn: 'dark',
+  MapPlate: 'dark',
+  GazetteerEntry: 'dark',
   SectionRoute: 'dark',
   KSpaceToImage: 'dark', MagnetizationTip: 'dark', InducedFID: 'dark', GFactorNoise: 'dark', UndersampledKspace: 'dark', ScanReconstruct: 'dark', RealVersus: 'dark', SpinningProton: 'dark', PhaseEncodeStep: 'dark', MRIPipeline: 'dark', FrequencyEncode: 'dark', CompressedSensingEq: 'dark', KSpaceReal: 'dark', SpeedLimit: 'dark', LarmorPrecession: 'dark', Aliasing: 'dark', DiffusionDenoise: 'dark', SpinsAlign: 'dark', GradientTilt: 'dark', KSpaceAnatomy: 'dark', TensionScale: 'dark', PlatformSurfaces: 'dark', OpenQuestions: 'dark',
   AnalogTape: 'dark', AnswerStream: 'dark', AntiDesignChaos: 'light', AsciiField: 'dark',
@@ -60,6 +66,12 @@ export type GroundToken = 'bg' | 'bgGrad' | 'accent' | 'accent2' | 'surface';
 // `declared-only`, until measure_ground_luma.py replaces it with a measurement. Everything else is
 // measured.
 export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundToken | GroundToken[]>> = {
+  MuseumLabel: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
+  TallyLedger: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
+  PlanPalimpsest: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
+  StrataColumn: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
+  MapPlate: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
+  GazetteerEntry: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
   SectionRoute: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
   Aliasing: 'bg',
   AnalogTape: 'bg',

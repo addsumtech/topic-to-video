@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutExpo} from '../runtime/motion';
+import {captionBand} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
 import {fitText} from '@remotion/layout-utils';
 
@@ -14,8 +15,12 @@ const CREAM = '#f0ece1', INK = '#141414', RED = '#e8321f';
 const DEFAULT_WORDS = ['WORK.', 'SHIP.', 'DONE.'];
 const DEFAULT_TICKER = 'WORKBUDDY —— ON YOUR MACHINE —— YOUR AI TEAM —— NO CLOUD —— ';
 
-export const SwissEditorial: React.FC<{items?: string[]; ticker?: string; wordmark?: string}> = ({
-  items: WORDS = DEFAULT_WORDS, ticker: TICKER = DEFAULT_TICKER, wordmark: MARK = 'WORKBUDDY™'} = {}) => {
+export const SwissEditorial: React.FC<{items?: string[]; ticker?: string; wordmark?: string;
+  colophon?: string}> = ({
+  items: WORDS = DEFAULT_WORDS, ticker: TICKER = DEFAULT_TICKER, wordmark: MARK = 'WORKBUDDY™',
+  // was the literal '©2026 · LOCAL', printed onto every film that used this register whatever it was
+  // about. A corner mark nobody can decode is furniture; pass one that means something, or nothing.
+  colophon: COLOPHON = ''} = {}) => {
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   // LEVEL-C DNA migration: the WHOLE palette flips together (ground + ink + accent + on-accent), so on a dark DNA
@@ -58,7 +63,10 @@ export const SwissEditorial: React.FC<{items?: string[]; ticker?: string; wordma
       {/* top labels */}
       <div style={{position: 'absolute', left: 120, top: 104, color: FG, font: `700 26px/1 ${mono}`, letterSpacing: '0.02em'}}>{MARK}</div>
       <div style={{position: 'absolute', right: 120, top: 104, color: FG, font: `700 26px/1 ${mono}`}}>INDEX / {String(idx + 1).padStart(2, '0')}</div>
-      <div style={{position: 'absolute', right: 120, top: 180, color: ACC, font: `700 26px/1 ${mono}`}}>©2026 · LOCAL</div>
+      {COLOPHON ? (
+        <div style={{position: 'absolute', right: 120, top: 180, color: ACC,
+          font: `700 26px/1 ${mono}`}}>{COLOPHON}</div>
+      ) : null}
 
       {/* massive flush-left snapping word (clip-rise reveal) */}
       <div style={{position: 'absolute', left: 120, top: H * 0.5, transform: 'translateY(-50%)', width: W - 240, height: 360, overflow: 'hidden'}}>
@@ -74,12 +82,19 @@ export const SwissEditorial: React.FC<{items?: string[]; ticker?: string; wordma
       </div>
 
       {/* marquee ticker band (accent) */}
-      <div style={{position: 'absolute', left: 0, right: 0, bottom: 90, height: 96, background: ACC, display: 'flex', alignItems: 'center', overflow: 'hidden'}}>
+      {/* The ticker band used to sit at bottom:90 — INSIDE the 150px the renderer reserves for the burned
+          caption, so the subtitle was printed onto a moving accent bar on every film that used this
+          register. Lifting it clear then put it through the snapped words instead, so it is now drawn
+          ONLY when there is a ticker to run: an empty ticker is a band with nothing in it, and a band with
+          nothing in it is furniture. */}
+      {TICKER ? (
+      <div style={{position: 'absolute', left: 0, right: 0, bottom: captionBand(W, H) + 24, height: 96, background: ACC, display: 'flex', alignItems: 'center', overflow: 'hidden'}}>
         <div style={{transform: `translateX(${-tick}px)`, whiteSpace: 'nowrap', color: ON,
           font: `800 48px/1 ${disp}`, letterSpacing: '0.02em'}}>
           {TICKER.repeat(6)}
         </div>
       </div>
+      ) : null}
     </AbsoluteFill>
   );
 };

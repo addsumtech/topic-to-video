@@ -17,7 +17,7 @@ yet in this library — they exist for new shots and opportunistic use. See
 deliberately left un-migrated.
 
 <!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
-**Family census — 137 registers across 25 families.** D×21 · A×13 · C×12 · G×11 · F×10 · B×8 · E×8 · H×8 · L×6 · I×5 · K×5 · M×5 · S×5 · U×5 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
+**Family census — 143 registers across 26 families.** D×21 · A×13 · C×12 · G×11 · F×10 · B×8 · E×8 · H×8 · J×6 · L×6 · I×5 · K×5 · M×5 · S×5 · U×5 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
 
 **9 families hold two registers or fewer: O, Q, R, T, V, W, X, Y, Z.** That is a BUILD signal, not a menu. When a beat's
 argument wants one of those languages and the one register there does not carry it, the answer is
@@ -357,3 +357,11 @@ directions (all of which rely on the variables, per the table above): four (`edi
 `cinematic`) are genuinely mixed-type, with a distinct display face from the body face; the remaining three
 (`neutral`, `data`, `retro`) share ONE face for display and body but still diverge for mono, so no direction
 other than `terminal` is fully uniform across all three roles.
+
+## J · (new family — name it)
+167. **MuseumLabel** — a real object beside its museum label — name, date, provenance, accession — when the thing itself is the evidence *Use: a real object beside its museum label — name, date, provenance, accession — when the thing itself is the evidence*
+166. **TallyLedger** — a hand-ruled ledger counting something into a total, in strokes rather than digits — a count somebody actually made *Use: a hand-ruled ledger counting something into a total, in strokes rather than digits — a count somebody actually made*
+165. **PlanPalimpsest** — two plans registered over each other — the footprint of what was here under the outline of what is here now *Use: two plans registered over each other — the footprint of what was here under the outline of what is here now*
+164. **StrataColumn** — a stratigraphic column read top-down: what lies under this ground, layer by layer, with depths and finds *Use: a stratigraphic column read top-down: what lies under this ground, layer by layer, with depths and finds*
+163. **MapPlate** — an engraved map plate: a graticule, a place mark, leader-lined labels and a scale bar — where a thing sits, and optionally what converges on it *Use: an engraved map plate: a graticule, a place mark, leader-lined labels and a scale bar — where a thing sits, and optionally what converges on it*
+162. **GazetteerEntry** — a NAME defined the way a gazetteer or dictionary defines one — headword, pronunciation, etymology, numbered senses — when the meaning of the word IS the argumen *Use: a NAME defined the way a gazetteer or dictionary defines one — headword, pronunciation, etymology, numbered senses — when the meaning of the word IS the argumen*

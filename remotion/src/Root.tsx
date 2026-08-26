@@ -5,6 +5,12 @@ import './runtime/fonts';  // side effect: loads the DNA typefaces for Film AND 
 import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
+import {MuseumLabel, DURATION as D_MUSEUMLABEL} from './shots/MuseumLabel';
+import {TallyLedger, DURATION as D_TALLYLEDGER} from './shots/TallyLedger';
+import {PlanPalimpsest, DURATION as D_PLANPALIMPSEST} from './shots/PlanPalimpsest';
+import {StrataColumn, DURATION as D_STRATACOLUMN} from './shots/StrataColumn';
+import {MapPlate, DURATION as D_MAPPLATE} from './shots/MapPlate';
+import {GazetteerEntry, DURATION as D_GAZETTEERENTRY} from './shots/GazetteerEntry';
 import {SectionRoute, DURATION as D_SECTIONROUTE} from './shots/SectionRoute';
 import {CommandSummon, DURATION as CS} from './shots/CommandSummon';
 import {TemporalAccelerate, DURATION as TA} from './shots/TemporalAccelerate';
@@ -323,5 +329,11 @@ export const RemotionRoot: React.FC = () => (
     {F('MoleculeBallStick', MoleculeBallStick, MOL)}
     {F('TerrainFly', TerrainFly, TRN)}
     {F('SectionRoute', SectionRoute, D_SECTIONROUTE)}
+    {F('GazetteerEntry', GazetteerEntry, D_GAZETTEERENTRY)}
+    {F('MapPlate', MapPlate, D_MAPPLATE)}
+    {F('StrataColumn', StrataColumn, D_STRATACOLUMN)}
+    {F('PlanPalimpsest', PlanPalimpsest, D_PLANPALIMPSEST)}
+    {F('TallyLedger', TallyLedger, D_TALLYLEDGER)}
+    {F('MuseumLabel', MuseumLabel, D_MUSEUMLABEL)}
   </>
 );
