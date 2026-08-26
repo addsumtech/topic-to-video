@@ -17,7 +17,7 @@ yet in this library — they exist for new shots and opportunistic use. See
 deliberately left un-migrated.
 
 <!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
-**Family census — 136 registers across 25 families.** D×21 · A×13 · C×12 · G×11 · F×10 · B×8 · E×8 · H×8 · L×6 · K×5 · M×5 · S×5 · U×5 · I×4 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
+**Family census — 137 registers across 25 families.** D×21 · A×13 · C×12 · G×11 · F×10 · B×8 · E×8 · H×8 · L×6 · I×5 · K×5 · M×5 · S×5 · U×5 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
 
 **9 families hold two registers or fewer: O, Q, R, T, V, W, X, Y, Z.** That is a BUILD signal, not a menu. When a beat's
 argument wants one of those languages and the one register there does not carry it, the answer is
@@ -153,6 +153,7 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 136. **SharedBlindspot** — a field of cases under two producers' blind regions: the same-source pair's regions coincide (the cases inside are missed by both), the independent pair's sit apart (between them the field is covered). *Use: correlated vs independent failure / "these two miss the same things" / why a same-source check cannot catch its own blind spot.* Positions are hash01-deterministic. `kicker, title, shared{label,a,b,note}, independent{label,a,b,note}, cases`
 
 ## I · Mechanical / tactile-physical
+161. **SectionRoute** — a load travels a ROUTE through a layered cross-section — the indirect route climbs and drops through levels it did not need, the direct route cuts straight thro *Use: a load travels a ROUTE through a layered cross-section — the indirect route climbs and drops through levels it did not need, the direct route cuts straight thro*
 49. **SplitFlap** — Solari flap board riffles + settles to the message. *Use: status flips to done / announce.*
 50. **PhysicsStack** — weighty bars DROP + bounce-settle into a chart. *Use: tactile results / a week of output.*
 55. **GearTrain** — interlocking gears mesh and turn in a chain (hubs carry the steps); the last gear locks the payoff. *Use: mechanism / one turn drives the next.*

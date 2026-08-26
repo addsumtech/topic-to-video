@@ -138,6 +138,7 @@ import {ClothWave} from './shots/ClothWave';
 import {GameOfLife} from './shots/GameOfLife';
 import {MoleculeBallStick} from './shots/MoleculeBallStick';
 import {TerrainFly} from './shots/TerrainFly';
+import {SectionRoute} from './shots/SectionRoute';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
@@ -161,6 +162,7 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   SpectrumPulse, StarfieldWarp, RidgeField, VoxelBuild, ChartRace,
   CodeRain, FractalTree, RainGlass, AtomOrbital, LiquidMetal,
   EmberFlame, ClothWave, GameOfLife, MoleculeBallStick, TerrainFly,
+  SectionRoute,
 };
 
 export const SHOT_IDS = Object.keys(REGISTRY);

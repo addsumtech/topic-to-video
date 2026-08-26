@@ -5,6 +5,7 @@ import './runtime/fonts';  // side effect: loads the DNA typefaces for Film AND 
 import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
+import {SectionRoute, DURATION as D_SECTIONROUTE} from './shots/SectionRoute';
 import {CommandSummon, DURATION as CS} from './shots/CommandSummon';
 import {TemporalAccelerate, DURATION as TA} from './shots/TemporalAccelerate';
 import {FocalIsolation, DURATION as FI} from './shots/FocalIsolation';
@@ -321,5 +322,6 @@ export const RemotionRoot: React.FC = () => (
     {F('GameOfLife', GameOfLife, GOL)}
     {F('MoleculeBallStick', MoleculeBallStick, MOL)}
     {F('TerrainFly', TerrainFly, TRN)}
+    {F('SectionRoute', SectionRoute, D_SECTIONROUTE)}
   </>
 );
