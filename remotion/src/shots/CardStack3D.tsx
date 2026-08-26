@@ -8,13 +8,35 @@ import {useT, seg, lerp, clamp01, easeOutBack, easeInOutCubic, easeOutCubic, has
 import {useDNA, dnaPalette} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
+
+/** Relative luminance of a #rgb/#rrggbb, used only to pick a depth cue that suits the card's own ground. */
+function _lum(hex: string): number {
+  const h = hex.replace('#', '');
+  const f = h.length === 3 ? h.split('').map((c) => c + c).join('') : h.slice(0, 6);
+  const n = parseInt(f, 16);
+  if (!isFinite(n)) return 0;
+  return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+}
+// D0 — the no-DNA fallbacks. The card SURFACE used to be hardcoded here, which meant a light-ground film
+// got navy cards on paper: 94% of the frame's chromatic ink outside the film's palette. A card is a
+// container, so its fill, its border and its ink belong to the DNA exactly like any other surface.
 const BG = '#090b12';
+const CARD_D0 = '#1c2233', CARD2_D0 = '#0f1320', BORD_D0 = '#ffffff28';
+const INK_D0 = '#f4f7ff', TITLE_D0 = '#dfe6ff';
 const TONES0 = ['#5b8cff', '#ff6f91', '#37d4a6', '#f6a531', '#c07bff', '#4dd0e1'];
 
 export const CardStack3D: React.FC<{items?: string[]; title?: string}> = ({
   items: ITEMS = ['Docs', 'Chat', 'Tasks', 'Code', 'Data', 'Calls'], title: TITLE = 'All of it, in hand'} = {}) => {
   const t = useT();
   const dna = useDNA(); const TONES = dnaPalette(dna, 6) ?? TONES0;
+  const CARD = dna?.surface ?? CARD_D0, BORD = dna?.surfaceBorder ?? BORD_D0;
+  const INK = dna?.fg ?? INK_D0, ONACC = dna?.onAccent ?? '#fff';
+  const RAD = dna?.radius ?? 24;
+  // On a light surface the original heavy black shadows read as grime, so the depth cue scales with how
+  // dark the card actually is rather than being a fixed near-black.
+  const deep = !dna || _lum(CARD) < 0.5;
+  const SHADOW = deep ? '0 40px 90px #0009, inset 0 1px 0 #ffffff14, 0 0 0 1px #0006'
+                      : '0 26px 54px #1f180e26, inset 0 1px 0 #ffffff80';
   const {width: W, height: H} = useVideoConfig();
   const cards = ITEMS.slice(0, 7);
   const n = cards.length;
@@ -41,23 +63,26 @@ export const CardStack3D: React.FC<{items?: string[]; title?: string}> = ({
               <div key={i} style={{position: 'absolute', left: 0, top: 0, width: cw, height: ch, opacity: clamp01(rise * 1.5),
                 transformStyle: 'preserve-3d', transformOrigin: 'bottom center',
                 transform: `translate3d(${tx}px, ${lerp(120, 0, rise) + ty}px, ${i * 2}px) rotateZ(${rz}deg) rotateY(${ry}deg)`,
-                borderRadius: 24, background: `linear-gradient(160deg, #1c2233, #0f1320), linear-gradient(160deg, ${tone}1c, #0000)`,
-                border: `1px solid ${tone}66`, boxShadow: `0 40px 90px #0009, inset 0 1px 0 #ffffff14, 0 0 0 1px #0006`,
+                borderRadius: RAD, background: `linear-gradient(160deg, ${CARD}, ${deep ? CARD2_D0 : CARD}), linear-gradient(160deg, ${tone}1c, #0000)`,
+                border: `1px solid ${BORD}`, boxShadow: SHADOW,
                 display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 34}}>
-                <div style={{width: 60, height: 60, borderRadius: 16, background: `linear-gradient(150deg, ${tone}, #2b3ac6)`,
+                {/* the second stop used to be a fixed blue, which put an off-system colour on every card
+                    however the film was themed; it now runs to the DNA's own second accent. */}
+                <div style={{width: 60, height: 60, borderRadius: Math.min(16, RAD * 8),
+                  background: `linear-gradient(150deg, ${tone}, ${dna?.accent2 ?? '#2b3ac6'})`,
                   boxShadow: `0 0 26px ${tone}66`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', font: `800 30px/1 var(--f-body, Inter, system-ui, sans-serif)`}}>{i + 1}</div>
-                <div style={{color: '#f4f7ff', font: `800 46px/1 var(--f-body, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
-                  textShadow: '0 2px 10px #000'}}>{label}</div>
+                  color: ONACC, font: `800 30px/1 var(--f-body, Inter, system-ui, sans-serif)`}}>{i + 1}</div>
+                <div style={{color: INK, font: `800 46px/1 var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
+                  textShadow: deep ? '0 2px 10px #000' : 'none'}}>{label}</div>
               </div>
             );
           })}
         </div>
       </AbsoluteFill>
       <div style={{position: 'absolute', bottom: 96, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
-        transform: `translateY(${(1 - titleIn) * 16}px)`, color: '#dfe6ff',
-        font: `800 62px/1 var(--f-body, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
-        textShadow: '0 8px 30px #000'}}>{TITLE}</div>
+        transform: `translateY(${(1 - titleIn) * 16}px)`, color: dna?.fg ?? TITLE_D0,
+        font: `800 62px/1 var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
+        textShadow: deep ? '0 8px 30px #000' : 'none'}}>{TITLE}</div>
     </AbsoluteFill>
   );
 };

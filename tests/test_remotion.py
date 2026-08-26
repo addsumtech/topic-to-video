@@ -1481,3 +1481,18 @@ def test_no_shot_falls_back_past_the_dna_background():
             bad.append(os.path.basename(f))
     assert not bad, ("these registers skip dna.bg and paint their own ground, so a DNA without the "
                      "optional bgGrad is ignored: %s" % ", ".join(bad))
+
+
+def test_shot_proof_serves_the_films_public_dir_to_standalone_stills():
+    """Without --public-dir, staticFile() resolves to a path that does not exist, so every register in
+    the real-image tier (ScanReconstruct, RealVersus, the scan shots) failed to render and the proof
+    sheet reported a hard ERROR for beats that are correct in the film. It also meant the gate could
+    not see the image class most likely to be wrong — a fetched photo of the wrong subject."""
+    import os
+    p = os.path.join(os.path.dirname(__file__), "..", "scripts", "shot_proof.py")
+    src = open(p, encoding="utf-8").read()
+    stills = src.count('"still", "src/index.ts"')
+    assert stills >= 2, "expected the still render call sites to be found, got %d" % stills
+    assert src.count('"--public-dir=" + os.path.abspath(out_dir)') == stills, (
+        "every standalone still shot_proof renders must be served the film's out_dir, or the "
+        "real-image registers can never render")

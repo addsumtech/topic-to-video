@@ -493,18 +493,23 @@ def test_the_scene_pause_is_measured_against_the_films_own_full_stop(tmp_path):
 
     meta = {"renderer": "html", "fps": 30}
     audible = tts._tail_pad(meta, ref=ref)
-    assert audible > 1.6 * gap, "a scene break no longer clears a sentence break: %.2f" % audible
+    assert audible > gap + 0.3, "a scene break no longer clears a sentence break: %.2f" % audible
 
-    # THE RATIO IS LOAD-BEARING: at 1.0 the seam collapses back onto the floor and this film would
+    # THE BREATH IS LOAD-BEARING: at 0 the seam collapses back onto the floor and this film would
     # sound exactly like the one that was reported.
-    import contextlib
-    keep = tts.SENTENCE_PAUSE_RATIO
+    keep = tts.SENTENCE_PAUSE_BREATH
     try:
-        tts.SENTENCE_PAUSE_RATIO = 1.0
+        tts.SENTENCE_PAUSE_BREATH = 0.0
         assert tts._tail_pad(meta, ref=ref) < 1.6 * gap
     finally:
-        tts.SENTENCE_PAUSE_RATIO = keep
-    del contextlib
+        tts.SENTENCE_PAUSE_BREATH = keep
+
+    # AND IT IS AN INCREMENT, NOT A MULTIPLE. A multiple compounds whatever the base is: tuned to 1.7 on a
+    # voice whose full stop runs 0.57s (-> 0.97s), it asks a 0.90s-stop voice for 1.53s, which reads as the
+    # film stopping. The gap between a generous voice and a terse one must stay roughly one breath, not
+    # scale with the voice.
+    terse, generous = tts._tail_pad(meta, ref=0.57), tts._tail_pad(meta, ref=0.90)
+    assert abs((generous - terse) - 0.33) < 0.02, (terse, generous)
 
     # THE FLOOR IS LOAD-BEARING: a film of single unbroken clauses measures nothing, and must still
     # get its scene pause rather than none.
@@ -541,4 +546,4 @@ def test_every_seam_in_a_film_gets_the_same_pause(tmp_path, monkeypatch):
              for s in data["slides"] if "%02d" % s["index"] in made]
     assert len(tails) >= 2, made
     assert max(tails) - min(tails) < 0.06, ("the seam changed length between beats", tails)
-    assert min(tails) > 1.6 * 0.55 - 0.12, ("the film-wide full stop was not used", tails)
+    assert min(tails) > 0.55 + 0.3 - 0.12, ("the film-wide full stop was not used", tails)

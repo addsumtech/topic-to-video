@@ -363,8 +363,8 @@ def _seam_seconds(meta):
     return frames / float(fps)
 
 
-SENTENCE_PAUSE_RATIO = 1.7   # a scene break must be this much longer than the clip's own sentence break
-MAX_SCENE_PAUSE = 1.5        # ...but never a hold; reading time belongs in tts_speed, not in dead air
+SENTENCE_PAUSE_BREATH = 0.45  # a scene break is the film's own full stop PLUS a breath
+MAX_SCENE_PAUSE = 1.5         # ...but never a hold; reading time belongs in tts_speed, not in dead air
 
 
 def _longest_internal_pause(path):
@@ -436,11 +436,17 @@ def _tail_pad(meta, ref=None):
     # leaves at a full stop — and a scene break that is barely longer than a sentence break inside a beat
     # reads as one continuous read. Measured on a delivered film: the seam was 0.72s against a 0.57s
     # in-beat sentence pause, only 27% longer, for a change of picture AND argument. So meta.scene_pause
-    # is the FLOOR and the target is a multiple of what this voice actually does at a full stop.
+    # is the FLOOR and the target is what this voice actually does at a full stop, PLUS a breath.
+    # An INCREMENT, not a multiple, and that distinction is load-bearing. The first version multiplied by
+    # 1.7, tuned on a Chinese voice whose full stop runs 0.57s -> 0.97s, which sounded right. Then an
+    # English voice measured 0.90s at a full stop and the same rule asked for 1.53s: a multiple compounds
+    # whatever the base already is, so a voice that pauses generously got a scene break that reads as the
+    # film stopping. A breath is a fixed thing a listener needs on top of the stop they just heard, and it
+    # lands at 1.02s / 1.35s for those two voices -- the first unchanged, the second no longer a hold.
     # The reference is FILM-WIDE on purpose: derived per clip, a two-sentence beat would get a 1.0s seam
     # and a one-sentence beat 0.55s — the seam would vary for a reason no viewer can perceive.
     if ref:
-        pause = max(pause, min(MAX_SCENE_PAUSE, SENTENCE_PAUSE_RATIO * ref))
+        pause = max(pause, min(MAX_SCENE_PAUSE, ref + SENTENCE_PAUSE_BREATH))
     return round(min(2.5, pause + _seam_seconds(meta)), 3)
 
 
@@ -571,9 +577,9 @@ def synthesize(out_dir, only=None):
         _master(dest, data["meta"], ref=ref)
         s["duration"] = round(_common.audio_duration(dest), 3)
     if pending:
-        print("[tts] scene pause %.2fs audible (film full-stop %s x%.1f, floor %.2f)"
+        print("[tts] scene pause %.2fs audible (film full-stop %s + %.2fs breath, floor %.2f)"
               % (_tail_pad(data["meta"], ref=ref) - _seam_seconds(data["meta"]),
-                 ("%.2fs" % ref) if ref else "unmeasurable", SENTENCE_PAUSE_RATIO,
+                 ("%.2fs" % ref) if ref else "unmeasurable", SENTENCE_PAUSE_BREATH,
                  float(data["meta"].get("scene_pause", SCENE_PAUSE_DEFAULT))))
 
     # MIXED-VOICE guard: a cloud/edge run that fell back to `say` on SOME (not all) scenes ships an

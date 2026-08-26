@@ -379,8 +379,15 @@ def main(argv):
                 payload["aspect"] = aspect
             json.dump(payload, open(pj, "w", encoding="utf-8"), ensure_ascii=False)
             png = os.path.join(proof, "beat_%02d.png" % beat)
+            # --public-dir is NOT optional here. Every register in the real-image tier resolves its
+            # picture through staticFile(), which without a public dir points at a path that does not
+            # exist — so those shots ALWAYS failed to render and this gate reported a hard error for a
+            # beat that is fine in the film. Worse, it meant the proof sheet was blind to exactly the
+            # class most likely to carry a wrong or broken image. The film render passes the out_dir;
+            # so does this.
             r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png,
-                                "--frame=%d" % frame, "--gl=angle", "--props=" + pj, "--log=error"],
+                                "--frame=%d" % frame, "--gl=angle", "--props=" + pj, "--log=error",
+                                "--public-dir=" + os.path.abspath(out_dir)],
                                cwd=_REMOTION, capture_output=True, text=True)
             if r.returncode != 0 or not os.path.exists(png):
                 errors.append("beat %d (%s): the shot FAILED to render standalone — %s"
@@ -391,7 +398,8 @@ def main(argv):
                 mid_png = os.path.join(proof, "beat_%02d_mid.png" % beat)
                 rm = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, mid_png,
                                      "--frame=%d" % int(int(dm.group(1)) * 0.5), "--gl=angle",
-                                     "--props=" + pj, "--log=error"],
+                                     "--props=" + pj, "--log=error",
+                                     "--public-dir=" + os.path.abspath(out_dir)],
                                     cwd=_REMOTION, capture_output=True, text=True)
                 if rm.returncode == 0 and os.path.exists(mid_png):
                     d = _block_diff(mid_png, png)
