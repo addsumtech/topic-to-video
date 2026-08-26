@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Scaffold and REGISTER a new bespoke shot at every sync point, in one command.
 
-  python3 scripts/register_shot.py <Id> <FamilyLetter> --use-when "<one line>"
+  python3 scripts/register_shot.py <Id> <FamilyLetter> --use-when "<one line>" --provenance <world>
+      <world> = which world this shot's IDIOM comes from — the idiom-world gate reads it, and a
+      register with none is silently exempt from it (see shot_director.IDIOM_WORLDS)
   python3 scripts/register_shot.py <Id> --check          # verify an existing shot is fully registered
 
 WHY THIS EXISTS. The library can grow — `references/remotion-shot-authoring.md` has said so from the start
@@ -98,7 +100,7 @@ def insert_registry_entry(src, shot):
     return src[:line_start] + "  %s,\n" % shot + src[line_start:]
 
 
-def register(shot, family=None, use_when=""):
+def register(shot, family=None, use_when="", provenance=""):
     out = {}
     tsx = os.path.join(_SHOTS, shot + ".tsx")
     if not os.path.exists(tsx):
@@ -190,6 +192,21 @@ def register(shot, family=None, use_when=""):
         else:
             out["shot_director.FAMILY"] = _edit(fam_path, ['"%s": "%s"' % (shot, family)], _fam, "family")
 
+    # shot_director.PROVENANCE — which WORLD this shot's idiom comes from. A register that is registered
+    # everywhere but carries no provenance is silently EXEMPT from the idiom-world gate: validate looks the
+    # shot up, gets nothing, and skips it. That would have made the gate decay to nothing as the library
+    # grew, since every newly built register would arrive untagged. So it is a sync point like the others.
+    if provenance:
+        def _prov(s):
+            if '"%s":' % shot in s.split("PROVENANCE = {", 1)[-1].split("\n}", 1)[0]:
+                return s
+            m = re.search(r"(PROVENANCE = \{\n)", s)
+            if not m:
+                return None
+            return s[:m.end()] + '    %-26s %r,\n' % ('"%s":' % shot, provenance) + s[m.end():]
+        fam_path = os.path.join(_HERE, "shot_director.py")
+        out["shot_director.PROVENANCE"] = _edit(fam_path, ['"%s": %r' % (shot, provenance)], _prov, "provenance")
+
     # LIBRARY.md — the catalogue entry the shot-director actually reads
     def _lib(s):
         if "**%s**" % shot in s:
@@ -235,6 +252,7 @@ SYNC_LABEL = {
     "root_import": "Root.tsx", "root_preview": "Root.tsx",
     "luma_coarse": "shotLuma.ts", "luma_ground": "shotLuma.ts",
     "family": "shot_director.py",
+    "provenance": "shot_director.py",
     "library_entry": "LIBRARY.md",
 }
 _LUM_FALLBACK = ("dark", "mid", "light")
@@ -269,6 +287,7 @@ def sync_patterns(shot, luma_src=None):
         "luma_coarse": r"(?<![A-Za-z0-9_])%s:\s*'(%s)'" % (b, lums),
         "luma_ground": r"(?<![A-Za-z0-9_])%s:\s*('(%s)'|\[)" % (b, grounds),
         "family": r'"%s":\s*"[A-Z]{1,2}"' % b,
+        "provenance": r'"%s":\s*\x27[a-z-]+\x27' % b,
         # The catalogue ENTRY shape, not the id in bold anywhere: a bold cross-reference inside somebody
         # else's entry satisfied the loose form, so a shot with no entry of its own read as documented.
         "library_entry": r"^\d+\. \*\*%s\*\*" % b,
@@ -392,11 +411,22 @@ def main(argv):
         i = argv.index("--use-when")
         if i + 1 < len(argv):
             use_when = argv[i + 1]
+    provenance = ""
+    if "--provenance" in argv:
+        i = argv.index("--provenance")
+        if i + 1 < len(argv):
+            provenance = argv[i + 1].strip()
+    if provenance:
+        import shot_director as _sd
+        if provenance not in _sd.IDIOM_WORLDS:
+            print("[register_shot] --provenance %r is not a known idiom world. Known: %s"
+                  % (provenance, ", ".join(_sd.IDIOM_WORLDS)))
+            return 2
     if not family:
         print("[register_shot] give a family letter (A-Z, or a new two-letter one): register_shot.py Id D --use-when '…'")
         return 2
     use_when = re.sub(r"\s+", " ", use_when).strip()[:160]   # a newline here produced an invalid .tsx
-    res = register(shot, family, use_when)
+    res = register(shot, family, use_when, provenance)
     for k, v in res.items():
         print("  %-28s %s" % (k, v))
     failed = [k for k, v in res.items() if str(v).startswith("FAILED")]

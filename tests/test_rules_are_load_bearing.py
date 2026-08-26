@@ -73,7 +73,10 @@ def _zed_sources():
         "shotLuma.ts": ("export type Lum = 'dark' | 'mid' | 'light';\n"
                         "export type GroundToken = 'bg' | 'bgGrad' | 'accent' | 'accent2' | 'surface';\n"
                         "  Zed: 'dark',\n  Zed: 'bgGrad',\n"),
-        "shot_director.py": '    "Zed": "D",\n',
+        # shot_director carries BOTH the family letter and the idiom world; a registration missing
+        # either one is incomplete, and the provenance half is the one that decays silently (an untagged
+        # register is skipped by the idiom-world gate rather than refused).
+        "shot_director.py": '    "Zed": "D",\n    "Zed": \'survey-archive\',\n',
         "LIBRARY.md": "12. **Zed** — a probe. *Use: probing.*\n",
     }
 
@@ -87,6 +90,7 @@ _ZED_BREAK = {
     "luma_coarse": ("shotLuma.ts", "  Zed: 'dark',\n"),
     "luma_ground": ("shotLuma.ts", "  Zed: 'bgGrad',\n"),
     "family": ("shot_director.py", '    "Zed": "D",\n'),
+    "provenance": ("shot_director.py", '    "Zed": \'survey-archive\',\n'),
     "library_entry": ("LIBRARY.md", "12. **Zed** — a probe. *Use: probing.*\n"),
 }
 
@@ -799,3 +803,98 @@ def test_all_mutants_at_once_are_caught(module):
         except Exception:
             return
     raise AssertionError("%s survives ALL %d of its mutants at once" % (module, applied))
+
+
+def test_the_idiom_world_gate_actually_refuses_the_wrong_world():
+    """The gate that converts "this design feels inappropriate" into a refusal.
+
+    Its whole value is the ERROR path, and that path was never exercised when it was written: the film it
+    was built for declared eight of the thirteen worlds, which happened to cover every register it used, so
+    every run looked green whether or not the check worked. Each branch is exercised here, including the one
+    that made the check decay silently — a register with no PROVENANCE entry, which validate looks up, gets
+    nothing for, and skips. Every register built after the table was written would have arrived untagged.
+    """
+    import os
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    import shot_director as sd
+    import validate as v
+
+    def board(**over):
+        m = {"renderer": "remotion", "fps": 30, "shot_template": "data",
+             "form_vocabulary": [{"form": "a", "carries": "x"}, {"form": "b", "carries": "x"},
+                                 {"form": "c", "carries": "x"}, {"form": "d", "carries": "x"}],
+             "idiom_world": ["survey-archive"]}
+        m.update(over)
+        return {"meta": m, "slides": [
+            {"index": i, "shot": "MapPlate", "shot_props": {"place": "X"},
+             "shot_adaptation": {"kept": "k", "redesigned": "r", "topic_idea": "t"},
+             "shot_fit": {"verdict": "adapt", "why": "w", "form": "a"},
+             "audio": "audio/%02d.mp3" % i, "duration": 5.0, "narration": "A line."} for i in range(4)]}
+
+    def errs(b):
+        return v.evaluate(b, "/tmp")["errors"]
+
+    assert not errs(board()), errs(board())
+
+    # a beat speaking a world the film did not declare
+    b = board()
+    b["slides"][1]["shot"] = "TermDiff"
+    assert any("comes from" in e and "developer-tooling" in e for e in errs(b)), \
+        "a terminal idiom in a survey film must be refused"
+
+    # a declared world that does not exist
+    assert any("unknown world" in e for e in errs(board(idiom_world=["not-a-world"])))
+
+    # THE DECAY PATH: an untagged register must be a finding, not a silent pass
+    saved = sd.PROVENANCE.pop("MapPlate")
+    try:
+        b = board(idiom_world=["print-editorial"])          # MapPlate's real world is NOT declared
+        assert any("no PROVENANCE" in e for e in errs(b)), \
+            "an untagged register is exempt from the gate by accident, so it must be reported"
+    finally:
+        sd.PROVENANCE["MapPlate"] = saved
+
+    # and every register in the library carries one, or the gate is already partly decorative
+    untagged = sorted(k for k in sd.FAMILY if k not in sd.PROVENANCE)
+    assert not untagged, "registers with no idiom world: %s" % ", ".join(untagged[:8])
+
+
+def test_every_beat_must_name_a_form_the_film_derived():
+    """The step that stops the catalogue supplying the vocabulary. Both failure directions are exercised:
+    a beat that names no form at all, and one that names a form the film never derived."""
+    import os
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    import validate as v
+
+    def board(mutate=None):
+        b = {"meta": {"renderer": "remotion", "fps": 30, "shot_template": "data",
+                      "form_vocabulary": [{"form": "map plate", "carries": "where"},
+                                          {"form": "ledger", "carries": "a count"},
+                                          {"form": "section", "carries": "levels"},
+                                          {"form": "label", "carries": "evidence"}],
+                      "idiom_world": ["survey-archive"]},
+             "slides": [{"index": i, "shot": "MapPlate", "shot_props": {"place": "X"},
+                         "shot_adaptation": {"kept": "k", "redesigned": "r", "topic_idea": "t"},
+                         "shot_fit": {"verdict": "adapt", "why": "w", "form": "map plate"},
+                         "audio": "audio/%02d.mp3" % i, "duration": 5.0, "narration": "A line."}
+                        for i in range(4)]}
+        if mutate:
+            mutate(b)
+        return b
+
+    assert not v.evaluate(board(), "/tmp")["errors"]
+
+    def drop(b):
+        del b["slides"][2]["shot_fit"]["form"]
+    assert any("name no `shot_fit.form`" in e for e in v.evaluate(board(drop), "/tmp")["errors"])
+
+    def invent(b):
+        b["slides"][1]["shot_fit"]["form"] = "a form nobody derived"
+    assert any("not in meta.form_vocabulary" in e for e in v.evaluate(board(invent), "/tmp")["errors"])
+
+    # and a film that never derived anything is told so
+    def strip(b):
+        del b["meta"]["form_vocabulary"]
+    assert any("no meta.form_vocabulary" in w for w in v.evaluate(board(strip), "/tmp")["warnings"])

@@ -185,19 +185,28 @@ export const FilmMotifLayer: React.FC<{motif?: FilmMotif; dna?: DesignDNA | null
       );
     }
 
-    // deckle — paper tooth: a fine, position-derived speckle that reads as grain, not noise
-    const cell = px(Math.min(W, H) * 0.012 / k);
+    // deckle — paper tooth: a fine, position-derived speckle that reads as grain, not noise.
+    //
+    // The first version kept 26% of cells and drew 1-3px dots, which measured 0.7% of pixels changed
+    // against a no-motif render — visually nothing. A motif that claims to be there and is not is worse
+    // than declaring none, because the film looks unmaterialled and the setting says otherwise. The grain
+    // now covers most cells with a dot scaled to the cell, which measures in the same band as the other
+    // kinds while still reading as tooth rather than as noise.
+    const cell = px(Math.min(W, H) * 0.010 / k);
     const cols = Math.ceil(W / cell), rows = Math.ceil(H / cell);
+    const dot = Math.max(2, Math.round(cell * 0.55));
     return (
       <AbsoluteFill style={{...common, overflow: 'hidden'}}>
         {Array.from({length: rows}).map((_, r) =>
           Array.from({length: cols}).map((__, c) => {
             // a deterministic hash of the cell, so the grain is identical on every render
             const h = ((c * 374761393 + r * 668265263) ^ 0x5bf03635) >>> 0;
-            if ((h % 100) > 26) return null;
-            const s = 1 + (h % 3);
-            return <div key={`${c}-${r}`} style={{position: 'absolute', left: c * cell + (h % cell),
-              top: r * cell + ((h >> 8) % cell), width: s, height: s, background: ink}} />;
+            if ((h % 100) > 72) return null;
+            const s = dot + (h % 2);
+            return <div key={`${c}-${r}`} style={{position: 'absolute',
+              left: c * cell + (h % Math.max(1, cell - dot)),
+              top: r * cell + ((h >> 8) % Math.max(1, cell - dot)),
+              width: s, height: s, background: ink, opacity: 0.5 + (h >> 16 & 63) / 128}} />;
           }))}
       </AbsoluteFill>
     );

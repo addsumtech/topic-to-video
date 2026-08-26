@@ -79,8 +79,13 @@ export const TechnicalPlate: React.FC<{
   const fieldH = bottom - top;
   const fieldW = Math.min(W * 0.52, fieldH * 1.45);
   const fx0 = (W - fieldW) / 2, fy0 = top;
-  const ux = (u: number) => fx0 + u * fieldW;
-  const uy = (v: number) => fy0 + v * fieldH;
+  // The object is drawn in SQUARE unit space. Mapping u by fieldW and v by fieldH independently destroys
+  // its proportions the moment the sheet is not ~1.45:1 — at 9:16 the default bicycle came out with its two
+  // wheels overlapping. The drawing keeps its shape and is centred in the sheet; only the SHEET reflows.
+  const unit = Math.min(fieldW, fieldH);
+  const ox = fx0 + (fieldW - unit) / 2, oy = fy0 + (fieldH - unit) / 2;
+  const ux = (u: number) => ox + u * unit;
+  const uy = (v: number) => oy + v * unit;
 
   const sheet = easeOutCubic(clamp01(seg(t, 0.02, 0.18)));
   const draw = clamp01(seg(t, 0.14, 0.62));
@@ -110,7 +115,7 @@ export const TechnicalPlate: React.FC<{
         const on = easeOutCubic(clamp01(draw * nS - i));
         if (on <= 0) return null;
         if (st.kind === 'circle') {
-          const r = st.r * fieldH;
+          const r = st.r * unit;
           return (
             <div key={i} style={{position: 'absolute', left: ux(st.x) - r, top: uy(st.y) - r,
               width: r * 2, height: r * 2, borderRadius: '50%',
@@ -121,7 +126,7 @@ export const TechnicalPlate: React.FC<{
         if (st.kind === 'bar') {
           return (
             <div key={i} style={{position: 'absolute', left: ux(st.x), top: uy(st.y),
-              width: st.w * fieldW * on, height: Math.max(2, st.h * fieldH),
+              width: st.w * unit * on, height: Math.max(2, st.h * unit),
               background: st.fill ? FG : 'transparent',
               border: st.fill ? 'none' : `${lw}px solid ${FG}`, opacity: on}} />
           );

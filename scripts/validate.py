@@ -1194,12 +1194,22 @@ def _idiom_world(meta, slides, errors, warnings):
                       % (", ".join(repr(b) for b in bad), ", ".join(sorted(WORLDS))))
         return
     ok = set(declared)
-    off = []
+    off, untagged = [], []
     for s in slides:
         shot = s.get("shot")
         w = PROV.get(shot)
-        if w and w not in ok:
+        if w is None:
+            # A register with no provenance is SILENTLY EXEMPT from this gate — validate looks it up, gets
+            # nothing and moves on. That is how the check would have decayed to nothing as the library grew,
+            # so an untagged register is a finding about the LIBRARY, not a pass for the beat.
+            if shot:
+                untagged.append((int(s.get("index", 0)) + 1, shot))
+        elif w not in ok:
             off.append((int(s.get("index", 0)) + 1, shot, w))
+    for beat, shot in untagged[:6]:
+        errors.append("remotion: beat %d uses %s, which carries no PROVENANCE in shot_director.py — an "
+                      "untagged register is exempt from this gate by accident. Register it with "
+                      "`register_shot.py %s <Family> --provenance <world>`." % (beat, shot, shot))
     for beat, shot, w in off[:10]:
         errors.append("remotion: beat %d uses %s, whose visual language comes from %r — a world this film "
                       "did not declare (%s). Either the beat wants a form from one of the film's own worlds, "

@@ -51,9 +51,12 @@ export const GazetteerEntry: React.FC<{
   const hair = Math.max(1, Math.round(W * 0.0011));
 
   const items = SENSES.slice(0, 4);
-  // the senses share the space under the etymology; the last one gets the accent because it is the claim
-  const senseTop = top + H * 0.30;
-  const gap = Math.max(H * 0.075, (bottom - senseTop) / Math.max(1, items.length));
+  // Every vertical measure below is a fraction of the CONTENT ZONE, not of the frame. Using H directly left
+  // a 570px hole between the etymology and the first sense at 9:16, because the same 0.30 of a 1920-tall
+  // frame is nothing like 0.30 of a 1080-tall one. The zone is what the layout actually has to fill.
+  const zone = bottom - top;
+  const senseTop = top + zone * 0.34;
+  const gap = Math.min(zone * 0.20, Math.max(zone * 0.11, (bottom - senseTop) / Math.max(1, items.length)));
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG_D0, color: FG}}>
@@ -69,11 +72,11 @@ export const GazetteerEntry: React.FC<{
           letterSpacing: '0.04em'}}>{pronunciation}</div>
       ) : null}
 
-      <div style={{position: 'absolute', left, top: top + H * 0.175, width: (W - left - right) * rule,
+      <div style={{position: 'absolute', left, top: top + zone * 0.20, width: (W - left - right) * rule,
         height: hair * 2, background: ACC}} />
 
       {origin ? (
-        <div style={{position: 'absolute', left, top: top + H * 0.205, right,
+        <div style={{position: 'absolute', left, top: top + zone * 0.235, right,
           opacity: orig, font: `italic 400 ${Math.round(W * 0.0225)}px/1.4 ${disp}`, color: DIM}}>{origin}</div>
       ) : null}
 

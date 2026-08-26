@@ -84,7 +84,9 @@ export const ProfileGrowth: React.FC<{
           letterSpacing: '0.06em'}}>{ground}</div>
       ) : null}
 
-      {/* every state, centred on the same axis and cut down from the same line. Earlier ones stay. */}
+      {/* TWO PASSES, and the order is load-bearing. Drawing each state's fill and then its label meant the
+          NEXT state's fill — larger by construction — covered the previous label, so every inner state was
+          annotated invisibly. Fills first, all labels above them. */}
       {states.map((st, i) => {
         const a = 0.20 + i * (0.52 / n);
         const on = easeOutCubic(clamp01(seg(t, a, a + 0.52 / n + 0.06)));
@@ -95,17 +97,24 @@ export const ProfileGrowth: React.FC<{
         // the ghosts: earlier profiles keep a faint fill, the current one is drawn in the accent
         const fill = last ? ACC : (mix ? mix(SURF, ACC, 0.10 + 0.08 * i) : SURF);
         return (
-          <React.Fragment key={i}>
-            <div style={{position: 'absolute', left: x, top: baseY - h * on, width: w, height: h * on,
-              background: fill, opacity: last ? 0.30 : 0.55,
-              border: `${last ? hair * 3 : hair}px solid ${last ? ACC : LINE}`,
-              borderBottom: 'none', boxSizing: 'border-box'}} />
-            {/* each state is measured across, the way a section is dimensioned */}
-            <div style={{position: 'absolute', left: x, top: baseY - h * on - Math.round(W * 0.020),
-              width: w, opacity: on, textAlign: 'center',
-              font: `${last ? 700 : 500} ${Math.round(W * (last ? 0.017 : 0.0135))}px/1.2 ${mono}`,
-              color: last ? ACC : DIM, letterSpacing: '0.05em'}}>{st.label}</div>
-          </React.Fragment>
+          <div key={'f' + i} style={{position: 'absolute', left: x, top: baseY - h * on, width: w,
+            height: h * on, background: fill, opacity: last ? 0.30 : 0.55,
+            border: `${last ? hair * 3 : hair}px solid ${last ? ACC : LINE}`,
+            borderBottom: 'none', boxSizing: 'border-box'}} />
+        );
+      })}
+      {states.map((st, i) => {
+        const a = 0.20 + i * (0.52 / n);
+        const on = easeOutCubic(clamp01(seg(t, a, a + 0.52 / n + 0.06)));
+        if (on <= 0) return null;
+        const last = i === n - 1;
+        const w = (st.w ?? 0.3) * fieldW, h = (st.h ?? 0.4) * fieldH;
+        const x = fx + fieldW / 2 - w / 2;
+        return (
+          <div key={'l' + i} style={{position: 'absolute', left: x, top: baseY - h * on - Math.round(W * 0.021),
+            width: w, opacity: on, textAlign: 'center',
+            font: `${last ? 700 : 600} ${Math.round(W * (last ? 0.017 : 0.0135))}px/1.2 ${mono}`,
+            color: last ? ACC : FG, letterSpacing: '0.05em'}}>{st.label}</div>
         );
       })}
 
