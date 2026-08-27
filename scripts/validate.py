@@ -1221,6 +1221,54 @@ def _idiom_world(meta, slides, errors, warnings):
 _KNOWN_DNA_IDS = {'terminal', 'product', 'apple', 'editorial', 'blueprint', 'data', 'retro'}
 
 
+def _caption_legibility(meta, slides, errors, warnings, out_dir=None):
+    """Would this film's captions be squeezed under the size a viewer can actually read?
+
+    The renderer caps the caption's type at whatever fits the reserved band, which is a guarantee that it
+    never overlaps the picture — but a guarantee that degrades SILENTLY. An unbroken 120-character sentence
+    at 16:9 fits by shrinking to 22px, about 2% of frame height, which is present and illegible. So the
+    arithmetic is repeated here, where the narration text and the aspect are both visible, and it is said
+    out loud instead.
+    """
+    try:
+        from _caption_band import caption_band_px, caption_size_px, _fracs, aspect_wh
+    except Exception:
+        return
+    W, H = aspect_wh(meta.get("aspect"))
+    band, ideal = caption_band_px(W, H), caption_size_px(W, H)
+    f = _fracs()
+    margin = int(round(min(W, H) * f["CAPTION_MARGIN_FRAC"]))
+    measure = min(1600, W - 120)
+    floor = 0.042 * min(W, H)                      # below this the caption is present but not readable
+    worst = []
+    for i, sl in enumerate(slides, 1):
+        text = (sl.get("narration") or sl.get("caption") or "").strip()
+        if not text:
+            continue
+        # the renderer splits on sentence ends and then on clause boundaries; the worst CHUNK is what sets
+        # the size, so approximate that split rather than measuring the whole paragraph
+        chunks = [c for c in re.split(r"(?<=[.!?。！？])\s+", text) if c.strip()] or [text]
+        for c in chunks:
+            cjk = len(re.findall(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]", c)) * 2 >= len(c) and len(c) > 0
+            lead = f["CAPTION_LEAD"] * (1.7 / 1.26 if cjk else 1.0)
+            per = max(8, int(measure / (ideal * (1.0 if cjk else 0.52))))
+            # a long chunk gets cut at a clause boundary first — only a clause-free run stays whole
+            if len(c) > per * f["CAPTION_LINES"] and re.search(r"[,;，；、]", c):
+                c = max(re.split(r"[,;，；、]", c), key=len)
+            lines = max(1, -(-len(c) // per))
+            fit = max(12, min(ideal, int((band - margin) / (lead * lines))))
+            if fit < floor:
+                worst.append((i, fit, lines))
+                break
+    if worst:
+        i, fit, lines = min(worst, key=lambda x: x[1])
+        warnings.append(
+            "%d beat(s) carry a caption that will be squeezed to %dpx (%.1f%% of frame height) to fit the "
+            "reserved band — present but not readable; worst is beat %d at %d lines. Shorten the line, or "
+            "break it at a clause the renderer can cut on (a comma), or raise meta.aspect's room."
+            % (len(worst), fit, fit / min(W, H) * 100, i, lines))
+
+
 def _film_language(meta, slides, errors, warnings):
     """Is the film's own CUT vocabulary actually being used, or is every seam the anonymous default?
 
@@ -1236,7 +1284,10 @@ def _film_language(meta, slides, errors, warnings):
     n = len(slides)
     if n < 12:
         return                                  # too short for punctuation to mean anything
-    marked = [i for i, s in enumerate(slides) if s.get("transition_in") or s.get("transition_style")]
+    # from beat 1: there is no seam before the first shot, so a mark there counts nothing and made the
+    # message read "20 of 19 cuts are MARKED"
+    marked = [i for i, s in enumerate(slides)
+              if i > 0 and (s.get("transition_in") or s.get("transition_style"))]
     dna = meta.get("design_dna") or {}
     native = (dna.get("seam") or {}).get("type")
     if not marked:
@@ -1250,7 +1301,15 @@ def _film_language(meta, slides, errors, warnings):
         warnings.append(
             "%d of %d cuts are MARKED — a marked seam is punctuation and only reads as punctuation while it "
             "is rare. Budget ~2-3 per film and let the rest be the default cut." % (len(marked), n - 1))
-    if not native and _KNOWN_DNA_IDS and str(dna.get("id") or "") not in _KNOWN_DNA_IDS:
+    seam_vocab = {"wipe", "slide", "clock", "dissolve", "screen-clear", "fade"}
+    if native and native not in seam_vocab:
+        warnings.append(
+            "meta.design_dna.seam.type '%s' is not one of %s — Film.tsx silently falls back to the preset "
+            "switch, so the declared cut never happens and the film looks like it was ignored."
+            % (native, "/".join(sorted(seam_vocab))))
+    # A film with NO design_dna at all is a different (and separately reported) situation; calling it a
+    # "bespoke direction named None" was a confusing message for a real state.
+    if dna and not native and str(dna.get("id") or "") not in _KNOWN_DNA_IDS:
         warnings.append(
             "meta.design_dna.id '%s' is a bespoke direction with no `seam` declared, so its %d unmarked cuts "
             "fall through to a generic cross-fade that belongs to no design language. Declare the direction's "
@@ -1717,6 +1776,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         _form_vocabulary(meta, slides, errors, warnings)
         _idiom_world(meta, slides, errors, warnings)
         _film_language(meta, slides, errors, warnings)
+        _caption_legibility(meta, slides, errors, warnings, out_dir)
         _figure_traceability(slides, out_dir, warnings)   # %/×/$ figures in shot_props text must trace to brief.json
         return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides)}
     # visual_style is the declared single source of truth — a typo/hallucinated key degrades silently to the

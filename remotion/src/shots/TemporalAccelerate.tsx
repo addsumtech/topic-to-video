@@ -15,7 +15,11 @@ const DEFAULT_STEPS = ['Read the brief', 'Pull the numbers', 'Clean the data', '
   'Design the slides', 'Write the narrative', 'Add the appendix', 'Proof the copy', 'Format the export',
   'Package the files', 'Deliver to folder'];
 
-export const TemporalAccelerate: React.FC<{items?: string[]}> = ({items: STEPS = DEFAULT_STEPS} = {}) => {
+// `seconds` is the elapsed time the FILM measured. No default: the timer used to race 0.0 -> 2.8 off the
+// clock and land on a hardcoded '2.8s', so every film that reached for this register reported the same
+// invented duration. The race still runs — the NUMERAL only appears when there is a real figure for it.
+export const TemporalAccelerate: React.FC<{items?: string[]; seconds?: number | null}> = ({
+  items: STEPS = DEFAULT_STEPS, seconds = null} = {}) => {
   const dna = useDNA();
   const BG = dna?.bg ?? '#f3f4f7', ACC = dna?.accent ?? HOT, GOOD = dna?.accent2 ?? '#12b76a', FG = dna?.fg ?? '#1b2333';
   const DIM = dna?.dim ?? '#98a2b3', LINE = dna?.line ?? '#dfe3ea', ON = dna?.onAccent ?? '#fff';
@@ -28,7 +32,7 @@ export const TemporalAccelerate: React.FC<{items?: string[]}> = ({items: STEPS =
   const blur = t > 0.06 && t < 0.82 ? 26 * vel : 0;
   const travel = sf * (visN - 4) * rowH; // leave the last few settled in view at the end
   const done = t > 0.84;
-  const elapsed = (lerp(0, 2.8, sf)).toFixed(1);
+  const elapsed = seconds == null ? null : (lerp(0, seconds, sf)).toFixed(1);
   const snap = done ? easeOutBack(seg(t, 0.84, 0.98)) : 0;
   return (
     <AbsoluteFill style={{background: BG}}>
@@ -54,11 +58,15 @@ export const TemporalAccelerate: React.FC<{items?: string[]}> = ({items: STEPS =
       </div>
       {/* the racing timer + counter (right) */}
       <div style={{position: 'absolute', right: 150, top: 300, textAlign: 'right'}}>
-        <div style={{font: '800 260px/0.9 var(--f-body, Inter,system-ui,sans-serif)', color: FG, letterSpacing: '-0.03em',
-          fontVariantNumeric: 'tabular-nums'}}>{done ? '2.8' : elapsed}<span style={{fontSize: 120, color: ACC}}>s</span></div>
+        {elapsed == null ? null : (
+          <div style={{font: '800 260px/0.9 var(--f-body, Inter,system-ui,sans-serif)', color: FG, letterSpacing: '-0.03em',
+            fontVariantNumeric: 'tabular-nums'}}>{done ? (seconds as number).toFixed(1) : elapsed}<span style={{fontSize: 120, color: ACC}}>s</span></div>
+        )}
         <div style={{font: '700 54px/1 var(--f-body, Inter,system-ui,sans-serif)', color: done ? GOOD : DIM, marginTop: 20,
           transform: `scale(${done ? 0.94 + 0.06 * snap : 1})`, transformOrigin: 'right'}}>
-          {done ? '12 / 12 · done' : `${Math.min(12, Math.floor(sf * 12 + 0.5))} / 12`}</div>
+          {/* counts the list it is actually showing. It counted a hardcoded 12 either way, so a film with
+              five steps watched a counter run to twelve. */}
+          {done ? `${visN} / ${visN} · done` : `${Math.min(visN, Math.floor(sf * visN + 0.5))} / ${visN}`}</div>
       </div>
     </AbsoluteFill>
   );

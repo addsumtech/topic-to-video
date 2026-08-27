@@ -18,6 +18,9 @@ reported UNCLASSIFIED, never guessed.
   python3 scripts/measure_ground_luma.py --only A,B # measure a few (method check)
   python3 scripts/measure_ground_luma.py --emit     # write DNA_GROUND_TOKEN into shotLuma.ts
   python3 scripts/measure_ground_luma.py --check    # non-zero when the committed table has drifted
+  python3 scripts/measure_ground_luma.py --luma            # measure SHOT_LUMA (each shot on its OWN defaults)
+  python3 scripts/measure_ground_luma.py --luma --emit     # write it into shotLuma.ts
+  python3 scripts/measure_ground_luma.py --luma --check    # non-zero when SHOT_LUMA has drifted
 """
 import json, os, re, subprocess, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -26,6 +29,7 @@ import dna_audit
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _REMOTION = os.path.join(_HERE, "..", "remotion")
+_SHOTLUMA = os.path.join(_REMOTION, "src", "runtime", "shotLuma.ts")
 
 # Tokens chosen so their RELATIVE LUMINANCES are far apart and unambiguous.
 PROBE_TOKENS = {"bg": "#050505", "surface": "#7a7a7a", "accent2": "#b4b4b4", "accent": "#fafafa"}
@@ -106,6 +110,78 @@ def measure(shot, td):
     return border_luminance(png), None
 
 
+# ── SHOT_LUMA: the shot's OWN ground class, with no DNA at all ───────────────────────────────────────────
+# DNA_GROUND_TOKEN above answers "which DNA token does this shot paint its ground from". SHOT_LUMA answers
+# a different question — "how bright is this shot on its OWN defaults" — and is the fallback the film reads
+# when there is no DNA, plus the input to the shot-director's luminance variety.
+#
+# It was never derivable. `register_shot.py` writes `'dark'` for every new register as a placeholder and
+# nothing ever came back to correct it, so a register was born with a confident value that looked exactly
+# like a measurement. Nine registers added in one session were all cream-coloured and all declared dark;
+# the luminance guard that exists to stop a bright-over-dark flash was reading the opposite of the truth.
+#
+# The empty band between the two populations is wide — measured across the library, `dark` shots sit at or
+# below 0.042 relative luminance and `light` shots at or above 0.463 — so the thresholds are not a tuning
+# choice, they sit in a gap with nothing in it.
+LUMA_DARK_MAX = 0.06
+LUMA_LIGHT_MIN = 0.40
+
+
+def luma_bucket(lum):
+    return "dark" if lum < LUMA_DARK_MAX else ("light" if lum > LUMA_LIGHT_MIN else "mid")
+
+
+def measure_own(shot, td):
+    """The shot's ground with NO DNA — its own default palette, which is what SHOT_LUMA describes."""
+    png = os.path.join(td, "own_" + shot + ".png")
+    r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png,
+                        "--frame=110", "--gl=angle", "--timeout=90000"],
+                       cwd=_REMOTION, capture_output=True, text=True)
+    if r.returncode != 0:                       # a shorter shot: fall back to a frame it certainly has
+        r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png,
+                            "--frame=30", "--gl=angle", "--timeout=90000"],
+                           cwd=_REMOTION, capture_output=True, text=True)
+    if not os.path.exists(png):
+        return None, (r.stderr or "")[-300:]
+    return border_luminance(png), None
+
+
+def read_shot_luma():
+    src = open(_SHOTLUMA, encoding="utf-8").read()
+    body = src.split("SHOT_LUMA")[1].split("{", 1)[1].split("};")[0]
+    return dict(re.findall(r"(\w+):\s*'(dark|mid|light)'", body))
+
+
+def write_shot_luma(measured):
+    """Rewrite SHOT_LUMA from a measurement. Only touches entries the measurement covers."""
+    src = open(_SHOTLUMA, encoding="utf-8").read()
+    head, rest = src.split("export const SHOT_LUMA", 1)
+    body, tail = rest.split("};", 1)
+    n = [0]
+
+    def fix(m):
+        name, val = m.group(1), m.group(2)
+        want = measured.get(name)
+        if want and want != val:
+            n[0] += 1
+            # NO trailing comment. Appending `// measured` to an entry that SHARES A LINE with others
+            # commented its line-mates out — two shots vanished from the table and the sync test caught it.
+            # The value is the record; a note that can eat its neighbours is not worth having.
+            return "%s: '%s'," % (name, want)
+        return m.group(0)
+
+    body = re.sub(r"(\w+):\s*'(dark|mid|light)',(?:\s*//[^\n]*)?", fix, body)
+    open(_SHOTLUMA, "w", encoding="utf-8").write(head + "export const SHOT_LUMA" + body + "};" + tail)
+    return n[0]
+
+
+def provisional_shots():
+    """Entries `register_shot.py` wrote as a placeholder and nobody measured."""
+    src = open(_SHOTLUMA, encoding="utf-8").read()
+    body = src.split("export const SHOT_LUMA", 1)[1].split("};", 1)[0]
+    return sorted(re.findall(r"(\w+):\s*'(?:dark|mid|light)',\s*//\s*PROVISIONAL", body))
+
+
 def _emit(table=None):
     """Write the measured table into DNA_GROUND_TOKEN in shotLuma.ts.
 
@@ -157,7 +233,55 @@ def _emit(table=None):
     return 0
 
 
+def _main_shot_luma(argv):
+    """Measure SHOT_LUMA — each shot rendered on its OWN defaults, no DNA."""
+    only = None
+    for a in argv:
+        if a.startswith("--only"):
+            only = a.split("=", 1)[1].split(",") if "=" in a else None
+    shots = only or sorted(dna_audit.registered_shots())
+    declared = read_shot_luma()
+    measured, failed = {}, []
+    with tempfile.TemporaryDirectory() as td:
+        for i, sh in enumerate(shots, 1):
+            lum, err = measure_own(sh, td)
+            if err is not None or lum is None:
+                failed.append(sh)
+                print("  [%3d/%d] %-24s RENDER FAILED" % (i, len(shots), sh))
+                continue
+            b = luma_bucket(lum)
+            measured[sh] = b
+            flag = "" if declared.get(sh) == b else "   <- declared %r" % declared.get(sh)
+            print("  [%3d/%d] %-24s %-5s (rel-lum %.3f)%s" % (i, len(shots), sh, b, lum, flag))
+
+    drift = sorted(k for k, v in measured.items() if declared.get(k) != v)
+    prov = provisional_shots()
+    if prov:
+        print("[shot_luma] %d entry(ies) are still PROVISIONAL placeholders written by register_shot.py "
+              "(never measured): %s" % (len(prov), ", ".join(prov)))
+    if failed:
+        print("[shot_luma] %d shot(s) would not render; their entries are UNCHANGED: %s"
+              % (len(failed), ", ".join(failed)))
+    if "--emit" in argv:
+        n = write_shot_luma(measured)
+        print("[shot_luma] wrote %d corrected entry(ies) into shotLuma.ts" % n)
+        return 0
+    if "--check" in argv:
+        if drift or prov:
+            print("[shot_luma] FAIL — %d declared value(s) disagree with the pixels%s. Re-run with --emit."
+                  % (len(drift), " and %d are unmeasured placeholders" % len(prov) if prov else ""))
+            for k in drift:
+                print("    %-24s declared %-5s  measured %s" % (k, declared.get(k), measured[k]))
+            return 1
+        print("[shot_luma] OK  %d shot(s), declaration matches the pixels" % len(measured))
+        return 0
+    print("[shot_luma] %d measured, %d disagree with the committed table" % (len(measured), len(drift)))
+    return 0
+
+
 def main(argv):
+    if "--luma" in argv:
+        return _main_shot_luma(argv)
     if "--apply-json" in argv:      # apply a PREVIOUS measurement; never re-render (that is --emit)
         return _emit(None)
     only = None

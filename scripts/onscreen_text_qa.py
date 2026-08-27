@@ -82,6 +82,16 @@ def _prop_default_text(body):
     return out
 
 
+def _intrinsic_readout(body):
+    """A register whose numeric readout belongs to its FORM, not to any topic.
+
+    A tape deck shows a running timecode; a frame counter counts frames. Those are the numeric analogue of
+    the REC light in INTRINSIC_TEXT: they are the instrument depicting itself, not a measurement of the
+    subject. Declared, never guessed:  export const INTRINSIC_READOUT = true;
+    """
+    return re.search(r"INTRINSIC_READOUT\s*(?::[^=]*)?=\s*true", body) is not None
+
+
 def _intrinsic(body):
     """Text the register declares as belonging to its own form."""
     m = re.search(r"INTRINSIC_TEXT\s*(?::[^=]*)?=\s*\[(.*?)\]", body, re.S)
@@ -106,6 +116,23 @@ def scan(path):
         if t and _WORDY.search(t) and not _CSS.search(t) and not _CODE.search(t):
             found.add(t)
     return sorted(found - known)
+
+
+def _free_ids(text):
+    """Identifiers that are genuinely REFERENCED — not property accesses, not object keys.
+
+    Both distinctions were learned from false reports. `tok.t.slice(...)` is a token's text field, and
+    `{t: 0.5}` is an object whose KEY happens to be `t`; reading either as the clock variable made the
+    checker accuse a register of fabricating a statistic out of its own data. A checker that cries wolf on
+    the library's own code is one nobody runs a second time.
+    """
+    out = set()
+    for m in re.finditer(r"(?<![.\w$])([A-Za-z_$][\w$]*)", text):
+        before = text[:m.start()].rstrip()
+        if re.match(r"\s*:", text[m.end():]) and (before.endswith("{") or before.endswith(",")):
+            continue                     # an object key, not a reference (a ternary's `? x :` is preceded by ?)
+        out.add(m.group(1))
+    return out
 
 
 def _prop_names(body):
@@ -143,6 +170,8 @@ def unsourced_numbers(path):
     left alone — a JSX fragment or an accumulator array is not a fabricated statistic.
     """
     body = _strip_comments(open(path, encoding="utf-8").read())
+    if _intrinsic_readout(body):
+        return []
     props = _prop_names(body)
     locs = {m.group(1): m.group(2)
             for m in re.finditer(r"\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*([^;\n]*)", body)}
@@ -150,13 +179,49 @@ def unsourced_numbers(path):
     for _ in range(8):                       # fixpoint: props -> locals -> locals -> ...
         before = len(derived)
         for n, init in locs.items():
-            if set(re.findall(r"[A-Za-z_$][\w$]*", init)) & (props | derived):
+            if _free_ids(init) & (props | derived):
                 derived.add(n)
         if len(derived) == before:
             break
     slots = (set(re.findall(r">\s*\{([A-Za-z_$][\w$]*)\}", body))
              | set(re.findall(r"\{([A-Za-z_$][\w$]*)\}\s*<", body)))
     out = []
+
+    # THE INLINE FORM OF THE SAME DEFECT. The pass below follows NAMED locals, which is how the two known
+    # cases happened to be written. Written inline — `<div>{Math.round(t * 100)}%</div>` — it is the exact
+    # same fabricated percentage and the named-local walk cannot see it, so the fix would have covered the
+    # two instances and not the class.
+    #
+    # The rule here is narrower and stronger: an expression rendered on screen that depends on the CLOCK and
+    # on no prop is, definitionally, a number computed from how far the shot has played. That is never a
+    # measurement of anything. Keeping it to clock-dependence is what keeps `{i + 1}` — an ordinal, a
+    # position in a list, intrinsic to the form the way an axis tick is — out of the report.
+    clock = {"t", "frame"}
+    for _ in range(8):                       # locals derived from the clock are themselves the clock
+        before = len(clock)
+        for n, init in locs.items():
+            if _free_ids(init) & clock:
+                clock.add(n)
+        if len(clock) == before:
+            break
+    for expr in (set(re.findall(r">\s*\{([^{}<>]{3,90})\}", body))
+                 | set(re.findall(r"\{([^{}<>]{3,90})\}\s*<", body))):
+        expr = expr.strip()
+        if re.fullmatch(r"[A-Za-z_$][\w$]*", expr):
+            continue                         # a bare identifier — the named-local walk owns that case
+        ids = _free_ids(expr)
+        # It must PRODUCE a number. A bare digit is not enough: `tok.t.slice(0, take)` is a typewriter
+        # reveal — the `0` is an argument index — and reporting it as a fabricated statistic is the kind of
+        # noise that gets a checker switched off. String operations are excluded outright.
+        if re.search(r"\.(slice|split|join|replace|substring|substr|repeat|concat|trim)\(", expr):
+            continue
+        if not re.search(r"\bMath\.\w+\(|\blerp\(|\.toFixed\(|\d", expr):
+            continue                         # not numeric
+        if ids & (props | derived):
+            continue                         # the film feeds it
+        if ids & clock:
+            out.append(("<inline>", expr[:60]))
+
     for n in sorted(slots):
         init = locs.get(n)
         if init is None or n in derived or n in props:

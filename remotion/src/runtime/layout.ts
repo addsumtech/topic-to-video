@@ -28,6 +28,8 @@ export const TITLE_BAND = 176;          // content must start BELOW this (title 
 export const CAPTION_SIZE_FRAC = 0.052;   // caption type as a fraction of min(W,H) — 56px at 1080
 export const CAPTION_LINES = 2;           // the band must hold a two-line caption without touching content
 export const CAPTION_LEAD = 1.26;
+export const CAPTION_LEAD_CJK = 1.7;      // CJK needs more leading; the band is sized on the LATIN
+                                          // lead and the caption fits itself to the band (Film.tsx)
 export const CAPTION_MARGIN_FRAC = 0.037; // the block's own bottom margin
 export const CAPTION_GAP_FRAC = 0.042;    // clear air between the content zone and the caption block
 export const CAPTION_BAND = 150;        // legacy landscape number; prefer captionBand(W, H)

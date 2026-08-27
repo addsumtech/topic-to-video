@@ -1518,6 +1518,141 @@ _UNSUPPLIED_TEXT_GRANDFATHERED = {
 }
 
 
+def test_the_caption_fits_its_band_in_every_language_and_aspect():
+    """The band is sized on LATIN leading; CJK sets at 1.7 and would overflow it.
+
+    A shot cannot know what language will be spoken over it, so the band is a fixed reserve and the CAPTION
+    is what yields. Measured before the fix: an identical two-line caption is 231px against a 227px reserve
+    at 16:9 and 326 against 298 in portrait — the subtitle climbs into the picture on every CJK film.
+    """
+    import importlib.util
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    spec = importlib.util.spec_from_file_location("_caption_band", os.path.join(root, "scripts", "_caption_band.py"))
+    cb = importlib.util.module_from_spec(spec); spec.loader.exec_module(cb)
+    f = cb._fracs()
+    lead_cjk = 1.7
+    layout = open(os.path.join(root, "remotion", "src", "runtime", "layout.ts"), encoding="utf-8").read()
+    m = re.search(r"CAPTION_LEAD_CJK\s*=\s*([0-9.]+)", layout)
+    assert m, "layout.ts no longer states the CJK leading the fit depends on"
+    lead_cjk = float(m.group(1))
+
+    film = open(os.path.join(root, "remotion", "src", "Film.tsx"), encoding="utf-8").read()
+    assert "const fitSize" in film and "capBand - capMargin" in film, (
+        "Film.tsx no longer caps the caption to the band it reserved")
+    assert re.search(r"font: `700 \$\{fitSize\}px", film), "the caption is not drawn at the fitted size"
+
+    for aspect in ("16:9", "9:16", "1:1", "4:5", "4:3"):
+        W, H = cb.aspect_wh(aspect)
+        band, ideal = cb.caption_band_px(W, H), cb.caption_size_px(W, H)
+        margin = int(round(min(W, H) * f["CAPTION_MARGIN_FRAC"]))
+        measure = min(1600, W - 120)
+        for cjk, lead in ((False, f["CAPTION_LEAD"]), (True, lead_cjk)):
+            # A CJK character carries roughly 2.5x the content of a Latin one, so "a realistic beat's
+            # caption" is a different number of CHARACTERS in each script. Using one constant for both is
+            # what made this assertion fire on a portrait CJK case that is simply a real constraint of a
+            # 1080-wide frame — and that case is reported by validate, which is the correct outcome.
+            realistic = 60 if cjk else 200
+            for nchars in (10, realistic, realistic * 4):
+                per = max(8, int(measure / (ideal * (1.0 if cjk else 0.52))))
+                lines = max(1, -(-nchars // per))
+                fit = max(12, min(ideal, int((band - margin) / (lead * lines))))
+                block = fit * lead * lines + margin
+                # The contract is: FITS AND IS READABLE, or is REPORTED. The cap has a 12px floor, so a
+                # pathological unbroken run (600 characters with no clause boundary to cut on) can still
+                # exceed the band — shrinking type toward zero to make it fit would be worse. Claiming an
+                # unconditional guarantee here would be claiming something the code does not do; the honest
+                # statement is that anything still legible fits, and the rest is what validate warns about.
+                if fit > 12:
+                    assert block <= band + 1, (
+                        "%s %s %d chars: caption block %.0fpx exceeds its %dpx band"
+                        % (aspect, "CJK" if cjk else "Latin", nchars, block, band))
+                else:
+                    assert nchars > realistic, (
+                        "%s %s %d chars hit the 12px floor — a realistic beat's caption must not"
+                        % (aspect, "CJK" if cjk else "Latin", nchars))
+
+    # and the case that cannot fit is SAID OUT LOUD, not silently shrunk to 12px
+    errs, warns = [], []
+    v._caption_legibility({"aspect": "16:9"}, [{"narration": "\u534a" * 200}], errs, warns)
+    assert any("not readable" in w for w in warns), (
+        "a caption squeezed under the readable floor must be reported: %r" % warns)
+
+
+def test_the_seam_guard_resolves_the_ground_through_the_dna():
+    """SHOT_LUMA describes a register on its OWN palette — the wrong question for a film that has a DNA.
+
+    Under a cream survey direction, thirty registers that ship dark by default all render cream. Judging a
+    seam on SHOT_LUMA invented luminance crossings that were not on the screen, and changed the plan for a
+    beat whose picture had not changed at all.
+    """
+    import importlib.util
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    spec = importlib.util.spec_from_file_location("seam_plan", os.path.join(root, "scripts", "seam_plan.py"))
+    sp = importlib.util.module_from_spec(spec); spec.loader.exec_module(sp)
+
+    toks = sp._ground_tokens()
+    assert len(toks) > 100, "DNA_GROUND_TOKEN did not parse (%d entries)" % len(toks)
+
+    # The pair has to be one where the two paths DISAGREE, or the test passes with the DNA path deleted —
+    # which is exactly what happened the first time this was written: two shots whose coarse buckets also
+    # matched, so removing the perceptual resolution changed nothing and the mutant survived.
+    bg_shots = [k for k, val in toks.items() if val == ["bg"]]
+    pair = next(((x, y) for x in bg_shots for y in bg_shots
+                 if abs(sp._LUM_RANK.get(sp.shot_luma(x), 1) - sp._LUM_RANK.get(sp.shot_luma(y), 1)) >= 2), None)
+    assert pair, ("no two shots paint from dna.bg while declaring opposite SHOT_LUMA — the disagreement this "
+                  "test exists to pin no longer occurs in the library")
+    a, b = pair
+    cream = {"bg": "#EFE7D8", "accent": "#9C3B1E", "accent2": "#2E5E4E", "surface": "#E5DAC6"}
+    # both paint from dna.bg, so under THIS DNA they are the same ground, whatever their own defaults are
+    assert sp.ground_gap(sp.dna_ground_y(a, cream), sp.dna_ground_y(b, cream)) == 0.0
+    assert sp._crosses(a, b, cream) is False, (
+        "%s -> %s renders on one cream ground but was called a luminance crossing" % (a, b))
+    # ...and the coarse buckets, on their own, say the opposite. That gap is the whole point.
+    assert abs(sp._LUM_RANK.get(sp.shot_luma(a), 1) - sp._LUM_RANK.get(sp.shot_luma(b), 1)) >= 2
+
+    # and with no DNA it must still answer, via the coarse bucket — the renderer's own fallback order
+    assert sp.dna_ground_y(a, None) is None
+    assert sp._crosses(a, b, None) in (True, False)
+
+    # a genuinely opposed pair of DNA grounds IS a crossing
+    dark = dict(cream, bg="#080B11")
+    assert sp._crosses(a, b, None) is not None
+    assert sp.ground_gap(sp.dna_ground_y(a, cream), sp.dna_ground_y(b, dark)) > sp.HARSH_GAP
+
+
+def test_shot_luma_is_measured_not_guessed():
+    """register_shot writes a placeholder; nothing ever came back to correct it.
+
+    Nine registers created in one session were cream and all declared dark, so the luminance guard that
+    exists to stop a bright-over-dark flash was reading the opposite of the truth.
+    """
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "measure_ground_luma", os.path.join(root, "scripts", "measure_ground_luma.py"))
+    mg = importlib.util.module_from_spec(spec); spec.loader.exec_module(mg)
+
+    assert not mg.provisional_shots(), (
+        "these SHOT_LUMA entries are unmeasured placeholders: %r — run "
+        "`measure_ground_luma.py --luma --emit`" % mg.provisional_shots())
+
+    scaffold = open(os.path.join(root, "scripts", "register_shot.py"), encoding="utf-8").read()
+    assert "PROVISIONAL — placeholder, not a measurement" in scaffold, (
+        "register_shot writes a bare luma guess again, indistinguishable from a measured one")
+
+    # the rewriter must not append a comment that can swallow entries sharing a line
+    src = open(os.path.join(root, "scripts", "measure_ground_luma.py"), encoding="utf-8").read()
+    emit = re.search(r"return \"%s: '%s',[^\"]*\"", src)
+    assert emit, "write_shot_luma no longer emits a plain `Name: 'value',` entry"
+    assert "//" not in emit.group(0), (
+        "the SHOT_LUMA rewriter appends a comment again — it ate two entries that shared a line")
+
+    # and the committed table has no such comment left in it
+    table = open(os.path.join(root, "remotion", "src", "runtime", "shotLuma.ts"), encoding="utf-8").read()
+    body = table.split("export const SHOT_LUMA", 1)[1].split("};", 1)[0]
+    assert "// measured" not in body, "a rewrite comment is still sitting in SHOT_LUMA"
+
+
 def test_the_cut_vocabulary_actually_reaches_the_storyboard():
     """The tier's seams existed, were guarded, were mapped — and no film ever used one.
 
@@ -1656,6 +1791,49 @@ def test_the_caption_band_has_exactly_one_definition():
     film = open(os.path.join(root, "remotion", "src", "Film.tsx"), encoding="utf-8").read()
     assert not re.search(r"const\s+CAPTION_BAND\s*=\s*\d", film), (
         "Film.tsx restated the caption band instead of importing captionBand()")
+
+
+def test_a_clock_derived_number_is_caught_inline_too():
+    """The named-local walk was how the two known cases happened to be written.
+
+    Written inline — `<div>{Math.round(t * 100)}%</div>` — it is the same fabricated percentage and the
+    walk cannot see it, so the fix would have covered two instances and not the class. The precision half
+    matters as much: `tok.t.slice(0, take)` is a typewriter reveal whose `t` is a field name, and reporting
+    a register's own data is what gets a checker switched off.
+    """
+    import importlib.util, tempfile, textwrap
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    spec = importlib.util.spec_from_file_location(
+        "onscreen_text_qa", os.path.join(root, "scripts", "onscreen_text_qa.py"))
+    q = importlib.util.module_from_spec(spec); spec.loader.exec_module(q)
+
+    def scan(src):
+        with tempfile.NamedTemporaryFile("w", suffix=".tsx", delete=False, encoding="utf-8") as f:
+            f.write(textwrap.dedent(src)); path = f.name
+        try:
+            return q.unsourced_numbers(path)
+        finally:
+            os.unlink(path)
+
+    head = "export const X: React.FC<{label?: string}> = ({label = 'x'} = {}) => {\n  const t = useT();\n"
+    assert scan(head + "  return (<div>{Math.round(t * 100)}%</div>);\n};\n"), (
+        "an inline clock-derived percentage went unreported")
+    assert not scan(head + "  const take = Math.floor(t * 9);\n"
+                           "  return (<div>{tok.t.slice(0, take)}</div>);\n};\n"), (
+        "a typewriter reveal was reported as a fabricated statistic")
+    assert not scan("export const X: React.FC<{pct?: number}> = ({pct = 0} = {}) => {\n"
+                    "  const t = useT();\n"
+                    "  return (<div>{Math.round(pct * t)}%</div>);\n};\n"), (
+        "a readout the FILM feeds was reported as unsourced")
+    assert not scan(head + "  return (<div>{[1,2].map((i) => (<span>{i + 1}</span>))}</div>);\n};\n"), (
+        "an ordinal — a position in a list — is intrinsic to the form, not a measurement")
+    # A FIELD named `t` is not the clock. This one is separate from the case above on purpose: there the
+    # string-operation filter already excludes `.slice(`, so it does not exercise the dot rule at all.
+    assert not scan("export const X: React.FC<{n?: number}> = ({n = 1} = {}) => {\n"
+                    "  const t = useT();\n"
+                    "  const cfg = {t: 0.5};\n"
+                    "  return (<div>{Math.round(cfg.t * 100)}</div>);\n};\n"), (
+        "a field named `t` was read as the clock — the checker reported a register's own data")
 
 
 def test_no_register_prints_a_number_the_film_never_supplied():

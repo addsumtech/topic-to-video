@@ -9,6 +9,11 @@ import {useDNA} from '../runtime/dna';
 
 export const DURATION = 160; // ~5.3s
 
+// The running timecode below is the TAPE DECK DEPICTING ITSELF — a counter on a transport counts transport
+// time, the way a REC light is lit. It is not a measurement of any topic, so it is declared rather than
+// left to look like a fabricated figure.
+export const INTRINSIC_READOUT = true;
+
 // This register's own vocabulary — the labels that belong to the FORM the way an axis belongs to a
 // graph, not sample copy about a topic. Declared so onscreen_text_qa can tell them apart from the
 // demo furniture that used to print on every film (WORKBUDDY, DASHBOARD, x:960 y:540).

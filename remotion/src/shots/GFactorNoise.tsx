@@ -19,14 +19,17 @@ export const INTRINSIC_TEXT = [
 ];
 const WARN = '#ff5d6c';
 
-export const GFactorNoise: React.FC<{accent?: string; label?: string}> = ({
-  accent = '#22d3ee', label = 'Unfolding amplifies noise',
+// `factor` is the amplification the FILM measured. No default: the read-out used to count 1.0x -> 3.0x off
+// the clock and print the result as though it had been measured, on whatever topic reached for the register.
+// The grain still grows either way — that is the illustration; the NUMBER is a claim and needs a source.
+export const GFactorNoise: React.FC<{accent?: string; label?: string; factor?: number | null}> = ({
+  accent = '#22d3ee', label = 'Unfolding amplifies noise', factor = null,
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
-  // R rises 1 → ~3 then holds at the cap (it can't usefully go further)
-  const R = lerp(1, 3, clamp01(seg(t, 0.12, 0.8)));
+  // R rises to the supplied factor (or, with none, to the illustrative cap that drives the grain only)
+  const R = lerp(1, factor == null ? 3 : factor, clamp01(seg(t, 0.12, 0.8)));
   const noise = clamp01((R - 1) / 2.6);                     // noise grows with R
 
   // a small reconstructed tile that gets grainier as R rises
@@ -59,9 +62,11 @@ export const GFactorNoise: React.FC<{accent?: string; label?: string}> = ({
         {[1, 2, 3, 4, 5].map((v) => (
           <text key={v} x={bx + bw * ((v - 1) / 4)} y={by + 52} fill="#8aa" fontSize="20" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" textAnchor="middle">{v}×</text>
         ))}
-        {/* the live R read-out */}
-        <text x={bx + bw * rFrac} y={by - 22} fill="#eaf6ff" fontSize="40" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800} textAnchor="middle">
-          {R.toFixed(1)}×</text>
+        {/* the live R read-out — drawn only when the film supplied a measured factor */}
+        {factor == null ? null : (
+          <text x={bx + bw * rFrac} y={by - 22} fill="#eaf6ff" fontSize="40" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800} textAnchor="middle">
+            {R.toFixed(1)}×</text>
+        )}
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
         color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',

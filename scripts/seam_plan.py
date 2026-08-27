@@ -43,6 +43,68 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from shot_director import shot_luma                                   # noqa: E402
 
+_SHOTLUMA = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "..", "remotion", "src", "runtime", "shotLuma.ts")
+_GROUND_TOKEN = None
+
+
+def _ground_tokens():
+    """DNA_GROUND_TOKEN — which DNA token(s) each shot MEASURABLY paints its ground from."""
+    global _GROUND_TOKEN
+    if _GROUND_TOKEN is None:
+        _GROUND_TOKEN = {}
+        try:
+            import re
+            body = open(_SHOTLUMA, encoding="utf-8").read().split("DNA_GROUND_TOKEN", 1)[1]
+            body = body.split("{", 1)[1].split("};")[0]
+            for name, val in re.findall(r"(\w+):\s*(\[[^\]]*\]|'[a-zA-Z0-9_]+')", body):
+                toks = re.findall(r"'([a-zA-Z0-9_]+)'", val)
+                if toks:
+                    _GROUND_TOKEN[name] = toks
+        except Exception:
+            _GROUND_TOKEN = {}
+    return _GROUND_TOKEN
+
+
+def _rel_lum(hex_colour):
+    """sRGB relative luminance of a #rgb / #rrggbb, or None if it is not a plain colour."""
+    import re
+    m = re.fullmatch(r"#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})", str(hex_colour or "").strip())
+    if not m:
+        return None
+    h = m.group(1)
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    def ch(v):
+        c = int(v, 16) / 255.0
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    return 0.2126 * ch(h[0:2]) + 0.7152 * ch(h[2:4]) + 0.0722 * ch(h[4:6])
+
+
+def dna_ground_y(shot, dna):
+    """The shot's ACTUAL ground luminance under this film's DNA — the Python mirror of dnaGroundY.
+
+    SHOT_LUMA describes a register on its OWN default palette, which is the right answer only for a film
+    that has no DNA. Every bespoke-shot film HAS one, and under it a register paints from a DNA token: on a
+    cream survey direction, thirty registers that ship dark by default all render cream. Judging the seam on
+    SHOT_LUMA therefore invented luminance crossings that are not on the screen — and, after the table was
+    corrected, changed the plan for a beat where the picture had not changed at all.
+    """
+    toks = _ground_tokens().get(shot)
+    if not dna or not toks:
+        return None
+    ys = [_rel_lum(dna.get(t)) for t in toks]
+    if any(y is None for y in ys):
+        return None
+    return sum(ys) / len(ys)
+
+
+def ground_gap(a, b):
+    """Perceptual (display-encoded) distance between two grounds — the number a seam judges on."""
+    if a is None or b is None:
+        return None
+    return abs(a ** (1 / 2.2) - b ** (1 / 2.2))
+
 # relation → the cut that makes that claim. `continuation` is deliberately absent: it is the one relation
 # whose honest cut is no cut at all.
 SEAM_BY_RELATION = {
@@ -62,13 +124,25 @@ def _budget(n):
     return 2 if n < 20 else 3
 
 
-def _crosses(prev_shot, shot):
-    """Would Film.tsx force this seam back to a fade? (its luminance guard, mirrored)"""
+# the same threshold Film.tsx's pickPresentation judges on
+HARSH_GAP = 0.34
+
+
+def _crosses(prev_shot, shot, dna=None):
+    """Would Film.tsx force this seam back to a fade? (its luminance guard, mirrored exactly)
+
+    Perceptual first — resolving each shot's ground through the film's DNA, which is what the renderer
+    actually draws — and only falling back to the coarse dark/mid/light bucket when a ground does not
+    resolve, which is the same order of preference the renderer uses.
+    """
+    gap = ground_gap(dna_ground_y(prev_shot, dna), dna_ground_y(shot, dna))
+    if gap is not None:
+        return gap >= HARSH_GAP
     a, b = _LUM_RANK.get(shot_luma(prev_shot), 1), _LUM_RANK.get(shot_luma(shot), 1)
     return abs(a - b) >= 2
 
 
-def plan(slides):
+def plan(slides, dna=None):
     """→ {beat_index: {"type": ..., "why": ...}} for the beats that should carry a marked seam.
 
     Beat 0 is never a candidate: there is no seam before the first shot.
@@ -79,7 +153,7 @@ def plan(slides):
         seam = SEAM_BY_RELATION.get(rel)
         if not seam:
             continue
-        crossing = _crosses(slides[i - 1].get("shot"), slides[i].get("shot"))
+        crossing = _crosses(slides[i - 1].get("shot"), slides[i].get("shot"), dna)
         if crossing:
             # only the carry survives the luminance guard; anything else would be silently discarded
             seam = dict(CROSSING_SEAM)
@@ -130,7 +204,7 @@ def main(argv):
         print("[seam_plan] %d beat(s) already carry an authored seam (%s) — leaving them alone"
               % (len(already), ", ".join(str(i + 1) for i in already)))
 
-    marks = plan(slides)
+    marks = plan(slides, board.get("meta", {}).get("design_dna"))
     if not marks:
         print("[seam_plan] no beat declares new-topic / payoff / close — every seam stays the default cut. "
               "That is a legitimate film (one unbroken argument), but check the `relation` field is set.")

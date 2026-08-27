@@ -14,7 +14,8 @@ import {fade} from '@remotion/transitions/fade';
 import {slide} from '@remotion/transitions/slide';
 import {wipe} from '@remotion/transitions/wipe';
 import {clockWipe} from '@remotion/transitions/clock-wipe';
-import {captionBand, CAPTION_SIZE_FRAC, CAPTION_MARGIN_FRAC, CAPTION_LINES} from './runtime/layout';
+import {captionBand, CAPTION_SIZE_FRAC, CAPTION_MARGIN_FRAC, CAPTION_LINES,
+        CAPTION_LEAD, CAPTION_LEAD_CJK} from './runtime/layout';
 import {dissolve} from '@remotion/transitions/dissolve';
 import {SceneDurationContext, ReducedMotionContext, clamp01, SEAM_FRAMES} from './runtime/motion';
 import {groundLum, dnaGroundLum, dnaGroundY, groundGap, type Lum, type GroundColors} from './runtime/shotLuma';
@@ -196,12 +197,23 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaColors?
   const capText = merged[idx] ?? '';
   const cjkChars = (capText.match(/[\u3040-\u9fff\uac00-\ud7af]/g) ?? []).length;
   const isCJK = cjkChars * 2 >= capText.length && cjkChars > 0;
-  const capLead = isCJK ? 1.7 : 1.26;
+  const capLead = isCJK ? CAPTION_LEAD_CJK : CAPTION_LEAD;
   const capTrack = isCJK ? '0' : '-0.01em';
+  // THE CAPTION FITS THE BAND IT WAS GIVEN. The band is a static reserve every shot lays out against, and it
+  // is sized on the LATIN leading — a shot cannot know what language will be spoken over it. CJK sets at 1.7
+  // leading, so the identical two-line caption is 231px against a 227px reserve, and in portrait 326 against
+  // 298: the subtitle climbs into the picture on every CJK film. Growing the band for the worst case would
+  // take that space from every Latin film instead, so the CAPTION yields — its size is capped at whatever
+  // fits, which is a guarantee rather than an estimate and holds for any language, length and aspect. In the
+  // ordinary Latin two-line case the cap is well above the ideal size and nothing changes.
+  const capBand = captionBand(width, height);
+  const perLine = Math.max(8, Math.floor(capMeasure / (capSize * (isCJK ? 1.0 : 0.52))));
+  const capLines = Math.max(1, Math.ceil(capText.length / perLine));
+  const fitSize = Math.max(12, Math.min(capSize, Math.floor((capBand - capMargin) / (capLead * capLines))));
   return (
     <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', pointerEvents: 'none', opacity: op}}>
       <div style={{position: 'relative', maxWidth: capMeasure, margin: `0 auto ${capMargin}px`, padding: '0 60px', textAlign: 'center',
-        color: ink, font: `700 ${capSize}px/${capLead} ${dnaFontBody ?? 'Inter, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif'}`,
+        color: ink, font: `700 ${fitSize}px/${capLead} ${dnaFontBody ?? 'Inter, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif'}`,
         letterSpacing: capTrack, textShadow: shadow}}>{capText}</div>
     </AbsoluteFill>
   );

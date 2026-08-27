@@ -20,6 +20,23 @@ _LAYOUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 _KEYS = ("CAPTION_SIZE_FRAC", "CAPTION_LINES", "CAPTION_LEAD",
          "CAPTION_MARGIN_FRAC", "CAPTION_GAP_FRAC")
 
+_ROOT_TSX = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "..", "remotion", "src", "Root.tsx")
+
+
+def aspect_wh(aspect=None):
+    """Frame dimensions for a `meta.aspect`, read from Root.tsx's ASPECTS — the renderer's own table.
+
+    Restating it here is how the caption band got four disagreeing copies. One definition, parsed.
+    """
+    src = open(_ROOT_TSX, encoding="utf-8").read()
+    m = re.search(r"const ASPECTS[^{]*\{(.*?)\}", src, re.S)
+    if not m:
+        raise RuntimeError("ASPECTS not found in %s — it defines the frame sizes and is read here" % _ROOT_TSX)
+    table = {k: (int(w), int(h))
+             for k, w, h in re.findall(r"'([^']+)':\s*\[\s*(\d+)\s*,\s*(\d+)\s*\]", m.group(1))}
+    return table.get(str(aspect or "16:9"), table.get("16:9", (1920, 1080)))
+
 
 def _fracs(path=None):
     src = open(path or _LAYOUT, encoding="utf-8").read()

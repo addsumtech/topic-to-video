@@ -243,6 +243,16 @@ TTS if the user gives an API key.
   rendered value must trace back to a prop, or the readout is not drawn at all. **A measurement gets a prop
   with NO default** — unlike copy, where the literal becomes the default — because a defaulted number is
   still a fabricated number on every film that omits it.
+  A number that belongs to the FORM rather than the topic — a tape deck's running timecode, a frame counter
+  — is declared like intrinsic text: `export const INTRINSIC_READOUT = true;`. And **`SHOT_LUMA` in
+  `shotLuma.ts` must be MEASURED, never guessed**: `register_shot.py` writes `'dark'` as a placeholder for
+  every new register and nothing used to come back for it, so nine cream-coloured registers all declared
+  themselves dark and the luminance guard that exists to stop a bright-over-dark flash was reading the
+  opposite of the truth. The placeholder is marked `PROVISIONAL` now and
+  **`python3 scripts/measure_ground_luma.py --luma [--emit|--check]`** renders each shot on its own defaults
+  and derives the value from the pixels. (`SHOT_LUMA` describes a register on its OWN palette — under a film's
+  DNA the same register may paint an entirely different ground, which is why the seam guard resolves through
+  `DNA_GROUND_TOKEN` first and falls back to this bucket only when it cannot.)
   `python3 scripts/onscreen_text_qa.py` reports all three, plus type sized in bare px (which does not scale: a
   44px caption is 2.3% of a 1920-wide frame and 4.1% of a 1080-wide portrait one). A test ratchets the
   count so the library cannot regrow it. **Never invent a number** — a readout comes from props or is

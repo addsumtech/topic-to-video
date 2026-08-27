@@ -48,7 +48,12 @@ STUB = '''// SHOT · {id} — {use_when}
 //    1920x1080 frame printed beside a cathedral as though it measured it; `{specN}`, counting 0->100 off
 //    the clock, printed "100%" over a beat whose claim was that the nave was NEVER finished. The second
 //    one has no letters in it, so no word-scan can see it — `unsourced_numbers()` traces provenance
-//    instead: a rendered value reaches back to a prop, or the readout does not render.
+//    instead: a rendered value reaches back to a prop, or the readout does not render. It catches the inline
+//    form too (`{Math.round(t * 100)}%`), because a number computed from the CLOCK measures nothing. If a
+//    numeral genuinely belongs to the FORM — a tape deck's timecode, a frame counter — declare it:
+//       export const INTRINSIC_READOUT = true;
+//    And your entry in shotLuma.ts is written as 'dark' PROVISIONALLY: run
+//    `python3 scripts/measure_ground_luma.py --luma --emit` to replace the guess with the pixels.
 //
 // 3. A LABEL BESIDE A POINT MUST BE CLAMPED INTO ITS BOX. Choosing a side by `x > 0.5` reads the point's
 //    half, not the room left, so a point near an edge pushes its label out of the container. Use
@@ -173,7 +178,14 @@ def register(shot, family=None, use_when="", provenance=""):
     # shotLuma.ts — the coarse map AND the measured table (declared 'bg' until measured for real)
     def _luma(s):
         if ("\n  %s: " % shot) not in s.split("DNA_GROUND_TOKEN")[0]:
-            s = re.sub(r"(export const SHOT_LUMA[^{]*\{\n)", r"\g<1>  %s: 'dark',\n" % shot, s, count=1)
+            # PROVISIONAL, and it says so. This used to write a bare `'dark',` — a guess that looked exactly
+            # like the measured entries around it, so nothing could tell them apart and nobody came back. Nine
+            # registers created in one session were cream-coloured and all declared dark, and the luminance
+            # guard that exists to prevent a bright-over-dark flash was reading the opposite of the truth.
+            # Marked, `measure_ground_luma.py --luma --check` can see it is unmeasured and say so.
+            s = re.sub(r"(export const SHOT_LUMA[^{]*\{\n)",
+                       r"\g<1>  %s: 'dark',   // PROVISIONAL — placeholder, not a measurement; run "
+                       r"measure_ground_luma.py --luma --emit\n" % shot, s, count=1)
         tail = s.split("DNA_GROUND_TOKEN", 1)
         if len(tail) == 2 and ("\n  %s: " % shot) not in tail[1]:
             s = s.replace("DNA_GROUND_TOKEN", "DNA_GROUND_TOKEN", 1)
