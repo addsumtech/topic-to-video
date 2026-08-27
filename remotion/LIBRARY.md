@@ -17,7 +17,7 @@ yet in this library — they exist for new shots and opportunistic use. See
 deliberately left un-migrated.
 
 <!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
-**Family census — 146 registers across 27 families.** D×21 · A×13 · C×12 · G×11 · F×10 · B×8 · E×8 · H×8 · L×6 · I×5 · J×5 · K×5 · M×5 · S×5 · U×5 · JA×4 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
+**Family census — 147 registers across 27 families.** D×21 · A×13 · C×12 · G×11 · F×10 · H×9 · B×8 · E×8 · L×6 · I×5 · J×5 · K×5 · M×5 · S×5 · U×5 · JA×4 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
 
 **9 families hold two registers or fewer: O, Q, R, T, V, W, X, Y, Z.** That is a BUILD signal, not a menu. When a beat's
 argument wants one of those languages and the one register there does not carry it, the answer is
@@ -359,6 +359,7 @@ directions (all of which rely on the variables, per the table above): four (`edi
 other than `terminal` is fully uniform across all three roles.
 
 ## J · (new family — name it)
+171. **PhotoPlate** — a real photograph mounted as a plate, with the film's own numbered marks placed at points IN it, arriving as the narration names them; the marks ride a lifted plane so they read as placed ON the print. *Use: the photograph IS the evidence and the film points at parts of it — a building, a machine, a street, a specimen.* `src, title, caption, marks[{n,x,y,label}], credit`
 170. **ProfileGrowth** — the same cross-section redrawn at successive states, each larger than the last with the earlier ones ghosted behind — when a thing became something else by bein *Use: the same cross-section redrawn at successive states, each larger than the last with the earlier ones ghosted behind — when a thing became something else by bein*
 169. **TechnicalPlate** — an ordinary object IS the mechanism — drawn as a numbered technical elevation with callout leaders and a parts key, the way a patent plate or a parts catalogue  *Use: an ordinary object IS the mechanism — drawn as a numbered technical elevation with callout leaders and a parts key, the way a patent plate or a parts catalogue *
 168. **Inscription** — a moment somebody thought worth cutting into stone — incised dated capitals on a dressed face, with chisel shadow; when the beat is a date that was COMMEMORATED *Use: a moment somebody thought worth cutting into stone — incised dated capitals on a dressed face, with chisel shadow; when the beat is a date that was COMMEMORATED*

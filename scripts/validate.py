@@ -1269,6 +1269,55 @@ def _caption_legibility(meta, slides, errors, warnings, out_dir=None):
             % (len(worst), fit, fit / min(W, H) * 100, i, lines))
 
 
+def _image_attribution(slides, out_dir, errors, warnings):
+    """Every license-clean image must be credited to the person who actually made it.
+
+    `imagefetch.py` writes a sidecar `<file>.json` with the real artist and licence, and nothing compared it
+    against what the film puts on screen. Two defects on one board: a credit naming the wrong photographer
+    entirely, and a two-image beat carrying ONE credit line — so the second image was uncredited and its
+    licence misstated. The second had already shipped.
+
+    This is an ERROR, not a warning. A CC-BY attribution is the condition the work is licensed under, and a
+    wrong one is not a typo — it credits someone else's photograph to a stranger.
+    """
+    if not out_dir:
+        return
+    for i, sl in enumerate(slides, 1):
+        props = sl.get("shot_props") or {}
+        if not isinstance(props, dict):
+            continue
+        blob = json.dumps(props, ensure_ascii=False)
+        credits = " ".join(str(v) for k, v in props.items()
+                           if "credit" in str(k).lower() and isinstance(v, str))
+        for rel in sorted(set(re.findall(r'"((?:media|assets)/[^"]+\.(?:jpg|jpeg|png|webp))"', blob, re.I))):
+            side = os.path.join(out_dir, rel + ".json")
+            if not os.path.exists(side):
+                continue                       # a hand-supplied image has nothing to check against
+            try:
+                meta = json.load(open(side, encoding="utf-8"))
+            except Exception:
+                continue
+            artist = str(meta.get("artist") or "").strip()
+            lic = str(meta.get("license") or "").strip()
+            # Match on NAME TOKENS, not the exact string. Commons writes an artist as 'Koning, J.P. de
+            # (fotograaf)' while a credit line reads 'J.P. de Koning' — the same person, and an exact
+            # substring test called it uncredited. A checker that fails on correct attributions gets
+            # switched off, and then the wrong ones ship too.
+            _ROLE = {"fotograaf", "photographer", "own", "work", "unknown", "anonymous", "user"}
+            toks = [w for w in re.findall(r"[^\W\d_]{3,}", artist, re.UNICODE) if w.lower() not in _ROLE]
+            got = sum(1 for w in toks if w.lower() in credits.lower())
+            named = bool(toks) and got >= max(1, (len(toks) + 1) // 2)
+            if artist and not named:
+                errors.append(
+                    "beat %d shows %s but does not credit its author. The sidecar says %r; the beat's "
+                    "credit reads %r. A CC licence requires the actual creator to be named."
+                    % (i, rel, artist, credits[:90] or "(nothing)"))
+            elif lic and lic.lower() not in credits.lower():
+                warnings.append(
+                    "beat %d credits %s to the right author but states no matching licence (sidecar says "
+                    "%r)." % (i, rel, lic))
+
+
 def _film_language(meta, slides, errors, warnings):
     """Is the film's own CUT vocabulary actually being used, or is every seam the anonymous default?
 
@@ -1805,6 +1854,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         _form_vocabulary(meta, slides, errors, warnings)
         _idiom_world(meta, slides, errors, warnings)
         _film_language(meta, slides, errors, warnings)
+        _image_attribution(slides, out_dir, errors, warnings)
         _caption_legibility(meta, slides, errors, warnings, out_dir)
         _figure_traceability(slides, out_dir, warnings)   # %/×/$ figures in shot_props text must trace to brief.json
         return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides)}

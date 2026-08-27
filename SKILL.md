@@ -186,6 +186,19 @@ TTS if the user gives an API key.
   invisible and a mark only reads as punctuation while it stays rare), keeping them ≥5 beats apart and
   luminance-safe; and `validate.py` WARNS when a film of ≥12 beats carries no mark at all, or when more than
   ~1-in-8 are marked. An explicit authored `transition_in` always wins over the plan.
+  **REAL IMAGERY IS EVIDENCE, SO GIVE IT THE FRAME.** `imagefetch.py` returns license-clean photographs of
+  the ACTUAL subject, and the tier used to spend them as insets: measured on a delivered film about a
+  physical city, the real images occupied 5.3%, 8.5% and 16.3% of the frame — the evidence was a footnote in
+  a film of drawings. **`PhotoPlate`** is the shape that was missing: the photograph mounted as a plate that
+  IS the frame (~32%+, aspect-capped so an arbitrary image is not cropped to a slit), with the film's own
+  numbered marks placed at points in it and arriving as the narration names them. Reach for it on a CONCRETE
+  topic whenever the claim is "look at the actual thing"; the library's other image registers answer
+  different questions (ScanReconstruct = revealed by its process, MuseumLabel = cited beside a catalogue
+  label, RealVersus = A against B).
+  **Attribution is a licence condition, not a caption.** `validate.py` now ERRORS when a beat shows a
+  `media/*` file whose sidecar names an author the beat does not credit — matched on name TOKENS, because
+  Commons writes 'Koning, J.P. de (fotograaf)' where a credit reads 'J.P. de Koning'. This caught a credit
+  naming the wrong photographer entirely. Take the credit FROM the sidecar; never type it from memory.
   **SPACE — depth and a motivated camera (`remotion/src/runtime/depth.tsx`).** Two things, and both are
   measured rather than assumed. **Depth is 2D on purpose:** a text-dense shot under
   `perspective(1200px) translateZ(50px)` loses 38% of its glyph edge strength and is plainly fuzzy, because a

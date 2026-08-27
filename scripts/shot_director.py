@@ -26,6 +26,7 @@ import argparse, json, os, sys
 FAMILY = {
     "GazetteerEntry": "JA",
     "ProfileGrowth": "J",
+    "PhotoPlate": "H",
     "TechnicalPlate": "J",
     "Inscription": "JA",
     "MuseumLabel": "JA",
@@ -89,6 +90,7 @@ FAMILY = {
 # conveyor belt is legitimate in a harbour film and still wrong for people cycling to a station. That
 # judgement is the shot-critic's (S10 meaning), and no table can make it.
 PROVENANCE = {
+    "PhotoPlate":              'photographic',
     "Aliasing":                'scientific',
     "AnalogTape":              'motion-graphics',
     "AnswerStream":            'product-ui',

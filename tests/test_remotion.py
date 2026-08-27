@@ -1713,6 +1713,76 @@ def test_depth_is_built_from_cues_that_survive_rasterization():
                    "is indistinguishable from one that was never written")
 
 
+def test_a_credited_image_is_credited_to_the_person_who_made_it():
+    """A CC attribution is the condition the work is licensed under, not a caption.
+
+    Caught a beat crediting a photograph to the wrong photographer entirely — the name had been carried
+    over from a throwaway test prop. `imagefetch.py` writes the real artist into a sidecar and nothing
+    compared the two.
+    """
+    import tempfile, shutil
+    td = tempfile.mkdtemp()
+    try:
+        os.makedirs(os.path.join(td, "media"))
+        json.dump({"artist": "Hansmuller", "license": "CC BY-SA 4.0"},
+                  open(os.path.join(td, "media", "a.jpg.json"), "w", encoding="utf-8"))
+        json.dump({"artist": "Koning, J.P. de (fotograaf)", "license": "CC BY-SA 4.0"},
+                  open(os.path.join(td, "media", "b.jpg.json"), "w", encoding="utf-8"))
+
+        def run(props):
+            e, w = [], []
+            v._image_attribution([{"shot_props": props}], td, e, w)
+            return e, w
+
+        e, _ = run({"src": "media/a.jpg", "credit": "Jan dijkstra - CC BY-SA 4.0"})
+        assert e and "does not credit its author" in e[0], e
+
+        e, w = run({"src": "media/a.jpg", "credit": "Hansmuller - CC BY-SA 4.0 - Wikimedia Commons"})
+        assert not e and not w, (e, w)
+
+        # NAME TOKENS, not an exact string: Commons writes 'Koning, J.P. de (fotograaf)' where a credit
+        # reads 'J.P. de Koning'. An exact-substring test called that uncredited, and a checker that fails
+        # on correct attributions gets switched off — after which the wrong ones ship too.
+        e, _ = run({"src": "media/b.jpg", "credit": "J.P. de Koning - CC BY-SA 4.0"})
+        assert not e, e
+
+        # a TWO-image beat must credit both
+        e, _ = run({"srcLeft": "media/a.jpg", "srcRight": "media/b.jpg",
+                    "credit": "Hansmuller - CC BY-SA 4.0"})
+        assert e and "media/b.jpg" in e[0], e
+
+        # the right author, the wrong licence -> a warning, not an error
+        e, w = run({"src": "media/a.jpg", "credit": "Hansmuller - CC0"})
+        assert not e and w and "licence" in w[0], (e, w)
+
+        # a hand-supplied image with no sidecar has nothing to check against
+        e, w = run({"src": "media/nosuch.jpg", "credit": ""})
+        assert not e and not w
+    finally:
+        shutil.rmtree(td, ignore_errors=True)
+
+
+def test_photoplate_gives_the_photograph_the_frame():
+    """The register that exists so real imagery stops being an inset."""
+    src = open(os.path.join(_ROOT_TSX_DIR, "shots", "PhotoPlate.tsx"), encoding="utf-8").read()
+    body = re.sub(r"//[^\n]*", "", src)
+    assert "MAX_PLATE_ASPECT" in body, "the plate's aspect is uncapped — an arbitrary photo becomes a slit"
+    assert "DEPTH.lifted" in body and "Plane" in body, (
+        "the marks no longer ride a lifted plane — the one place depth is native in this library")
+    assert "placeLabel(" in body, "a mark near an edge can push its chip off the picture it points into"
+    # every measure sized off the narrow dimension, per the scaffold's own rule
+    assert not re.search(r"font: `[^`]*\$\{Math\.round\(W \* 0\.0", body), (
+        "PhotoPlate sizes type off W — at 1080-wide portrait that produced 15px labels")
+    # caption and credit STACK; a fixed offset drew the credit through a wrapped caption's second line
+    assert "capLines" in body and "marginTop" in body, "the plate caption and its credit no longer stack"
+
+    import shot_director as sd
+    assert sd.FAMILY.get("PhotoPlate") == "H", (
+        "PhotoPlate is filed in family %r — its provenance is photographic, and filing it with the measured "
+        "drawings tripped the adjacent-family gate on the first film that used it" % sd.FAMILY.get("PhotoPlate"))
+    assert sd.PROVENANCE.get("PhotoPlate") == "photographic"
+
+
 def test_the_two_camera_layers_cannot_stack_past_the_caption_band():
     """The film-wide ambient drift and the per-beat move MULTIPLY, and the cap could not see the other one.
 

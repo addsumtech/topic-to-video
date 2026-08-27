@@ -45,11 +45,11 @@ STUB = '''// SHOT · {id} — {use_when}
 //
 // 2. NEVER INVENT A NUMBER — and give a measurement a prop with NO DEFAULT, unlike copy. A readout, a
 //    coordinate, a measurement comes from props or is not drawn. `x:960 y:540` was the centre of a
-//    1920x1080 frame printed beside a cathedral as though it measured it; `{specN}`, counting 0->100 off
+//    1920x1080 frame printed beside a cathedral as though it measured it; `{{specN}}`, counting 0->100 off
 //    the clock, printed "100%" over a beat whose claim was that the nave was NEVER finished. The second
 //    one has no letters in it, so no word-scan can see it — `unsourced_numbers()` traces provenance
 //    instead: a rendered value reaches back to a prop, or the readout does not render. It catches the inline
-//    form too (`{Math.round(t * 100)}%`), because a number computed from the CLOCK measures nothing. If a
+//    form too (`{{Math.round(t * 100)}}%`), because a number computed from the CLOCK measures nothing. If a
 //    numeral genuinely belongs to the FORM — a tape deck's timecode, a frame counter — declare it:
 //       export const INTRINSIC_READOUT = true;
 //    And your entry in shotLuma.ts is written as 'dark' PROVISIONALLY: run
@@ -197,6 +197,22 @@ def register(shot, family=None, use_when="", provenance=""):
         return s
     out["shotLuma.ts"] = _edit(os.path.join(_REM, "src", "runtime", "shotLuma.ts"),
                                ["%s: 'dark'," % shot, "%s: 'bg'," % shot], _luma, "luma")
+
+    # A family whose existing members ALL come from a different idiom world is almost certainly the wrong
+    # shelf. PhotoPlate was filed into the measured-drawing family on its author's say-so even though its
+    # provenance is `photographic`, and the first film to use it tripped the adjacent-family gate — the
+    # taxonomy error surfaced as a composition warning three steps downstream.
+    if family and provenance:
+        try:
+            import shot_director as _sd
+            peers = [n for n, f in _sd.FAMILY.items() if f == family and n != shot]
+            worlds = {_sd.PROVENANCE.get(n) for n in peers if _sd.PROVENANCE.get(n)}
+            if peers and worlds and provenance not in worlds:
+                print("  note: family %s currently holds only %s registers, and this one is %r — check it "
+                      "is the right shelf before the adjacency gate finds out for you."
+                      % (family, "/".join(sorted(worlds)), provenance))
+        except Exception:
+            pass
 
     # shot_director.FAMILY
     if family:
