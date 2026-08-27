@@ -80,7 +80,6 @@ export const Plane: React.FC<{
         // A lifted plane is never blurred (lift > 0 means depth < 0, so `blur` is already 0 there), which is
         // why the shadow child below is never inside a blur pass.
         filter: blur > 0.2 ? `blur(${blur.toFixed(2)}px)` : undefined,
-        willChange: 'transform',
         ...style,
       }}
     >
@@ -99,12 +98,18 @@ export const Plane: React.FC<{
 
 export type CameraMove = 'push' | 'pull' | 'hold';
 
+// WHEN the move runs, not just how far. Starting at t=0 was measured to waste it: a shot reveals its own
+// content over roughly t 0.05-0.45, and a 0 -> 0.78 push is ~70% finished by the time there is anything to
+// look closer AT — only 30% of the move is visible on settled content, which is the part a viewer reads as
+// a camera. Waiting until the reveal is underway puts 91% of it there instead. It still ARRIVES before the
+// end and holds, because a move that is still running when the next shot blends over it reads as a bump.
+export const CAMERA_START = 0.28;
+export const CAMERA_SPAN = 0.60;    // arrives at 0.88, then rests
+
 /** The scale a scene's camera is at, 0..1 of its move. Pure function of normalized time. */
 export const cameraAt = (move: CameraMove, t: number): number => {
   if (move === 'hold') return 0;
-  // arrive by ~78% and HOLD. A move that runs to the last frame is still moving when the next shot starts
-  // blending over it, and a move that returns to where it began is a wobble, not a statement.
-  const p = easeInOutCubic(clamp01(t / 0.78));
+  const p = easeInOutCubic(clamp01((t - CAMERA_START) / CAMERA_SPAN));
   return move === 'push' ? p : 1 - p;
 };
 
@@ -119,12 +124,15 @@ export const cameraAt = (move: CameraMove, t: number): number => {
 export const SceneCamera: React.FC<{
   move?: CameraMove;
   amount?: number;
+  // the largest EXTRA scale the film-wide ambient drift is adding on top of this move. The two layers
+  // multiply, so the per-beat budget has to be whatever the drift has not already spent.
+  driftExtra?: number;
   children?: React.ReactNode;
-}> = ({move = 'hold', amount, children}) => {
+}> = ({move = 'hold', amount, driftExtra = 0, children}) => {
   const {width: W, height: H} = useVideoConfig();
   const reduced = React.useContext(ReducedMotionContext);
   const t = useT();
-  const cap = maxCameraPush(W, H);
+  const cap = maxCameraPush(W, H, driftExtra);
   const amp = reduced ? 0 : Math.max(0, Math.min(amount ?? 0.045, cap));
   const push = amp > 0 ? cameraAt(move, t) : 0;
   const scale = 1 + amp * push;

@@ -1689,9 +1689,20 @@ def test_depth_is_built_from_cues_that_survive_rasterization():
         assert banned not in body, (
             "runtime/depth.tsx uses %s — that promotes the layer and softens every word on it" % banned)
 
-    # the camera move is rest -> arrive -> hold, never a wobble that returns to where it began
-    m = re.search(r"const p = easeInOutCubic\(clamp01\(t / ([0-9.]+)\)\)", depth)
-    assert m and 0.5 < float(m.group(1)) < 0.95, "the camera no longer arrives before the shot ends"
+    # The move must run WHERE THE VIEWER CAN SEE IT and still arrive before the shot ends. Measured: a shot
+    # reveals over roughly t 0.05-0.45, so a move starting at 0 is ~70% spent before there is anything to
+    # look at, and only 30% of it lands on settled content.
+    start = re.search(r"CAMERA_START = ([0-9.]+)", depth)
+    span = re.search(r"CAMERA_SPAN = ([0-9.]+)", depth)
+    assert start and span, "the camera's timing is no longer stated as named constants"
+    s0, sp = float(start.group(1)), float(span.group(1))
+    assert 0.15 <= s0 <= 0.45, "the camera starts at %.2f — before the shot has anything to show" % s0
+    assert s0 + sp <= 0.95, "the camera is still moving at %.2f, when the next shot blends over it" % (s0 + sp)
+    # and the visible share: from the moment content has settled (~0.45) to the end
+    ease = lambda x: 4 * x ** 3 if x < 0.5 else 1 - (-2 * x + 2) ** 3 / 2
+    at = lambda t: ease(max(0.0, min(1.0, (t - s0) / sp)))
+    assert at(0.97) - at(0.45) >= 0.6, (
+        "only %.0f%% of the camera move happens after the content has settled" % ((at(0.97) - at(0.45)) * 100))
 
     # and it must be EXERCISED — a primitive nothing imports is one that was never built
     import glob as _glob
@@ -1700,6 +1711,62 @@ def test_depth_is_built_from_cues_that_survive_rasterization():
              if re.search(r"from '\.\./runtime/depth'", open(f, encoding="utf-8").read())]
     assert users, ("runtime/depth.tsx is imported by no register — a capability that never reaches a frame "
                    "is indistinguishable from one that was never written")
+
+
+def test_the_two_camera_layers_cannot_stack_past_the_caption_band():
+    """The film-wide ambient drift and the per-beat move MULTIPLY, and the cap could not see the other one.
+
+    Measured: with the drift at full amplitude, a per-beat push of 8% drives the lowest content 51px down
+    into a 46px gap — the camera quietly re-creating the overlap the reserved band exists to prevent.
+    """
+    layout = open(os.path.join(_ROOT_TSX_DIR, "runtime", "layout.ts"), encoding="utf-8").read()
+    assert re.search(r"maxCameraPush = \(W: number, H: number, driftExtra", layout), (
+        "the push cap no longer accounts for the film-wide drift stacked on top of it")
+    depth = open(os.path.join(_ROOT_TSX_DIR, "runtime", "depth.tsx"), encoding="utf-8").read()
+    assert "maxCameraPush(W, H, driftExtra)" in depth, "SceneCamera no longer passes the drift to the cap"
+    film = open(os.path.join(_ROOT_TSX_DIR, "Film.tsx"), encoding="utf-8").read()
+    assert "DRIFT_MAX_EXTRA" in film and "driftExtra={" in film, (
+        "Film no longer tells the per-beat camera how much the ambient drift is already spending")
+
+    # the arithmetic itself: at every drift level the two together stay inside the gap
+    H, CT, band, blockH = 1080, 176, 227, 181
+    gap, zoneH = band - blockH, H - CT - band
+    for drift_extra in (0.0, 0.0225, 0.045):
+        cap = max(0.0, ((gap - (H / 2) * drift_extra) / (zoneH / 2)) * 0.75)
+        travel = (H / 2) * drift_extra + (zoneH / 2) * cap
+        assert travel <= gap + 0.5, (
+            "drift %.4f + a push at the cap travels %.0fpx into a %.0fpx gap" % (drift_extra, travel, gap))
+
+
+def test_validate_sees_a_camera_the_renderer_would_drop():
+    """An unknown move is silently discarded by render_remotion, so the author's intent vanishes unseen."""
+    board_meta = {"renderer": "remotion", "design_dna": {"id": "terminal"}}
+    slides = [{"shot": "MapPlate", "relation": "continuation"} for _ in range(20)]
+    slides[9]["transition_in"] = {"type": "clock"}
+    slides[2] = dict(slides[2], camera={"move": "orbit", "amount": 3})
+    slides[5] = dict(slides[5], camera={"move": "push", "amount": 9})
+    errs, warns = [], []
+    v._film_language(board_meta, slides, errs, warns)
+    assert any("silently drop" in w for w in warns), warns
+    assert any("outside 0-0.2" in w for w in warns), warns
+
+    ok = [{"shot": "MapPlate", "relation": "continuation"} for _ in range(20)]
+    ok[9]["transition_in"] = {"type": "clock"}
+    ok[3] = dict(ok[3], camera={"move": "push", "amount": 0.045})
+    e2, w2 = [], []
+    v._film_language(board_meta, ok, e2, w2)
+    assert not any("camera" in w for w in w2), w2
+
+
+def test_a_depth_plane_does_not_ask_to_be_promoted():
+    """`will-change: transform` is a request to composite the layer — the very thing that softens text.
+
+    Measured here it changed nothing (93.2 edge strength either way, crops indistinguishable), so it buys
+    no smoothness and costs GPU memory on every plane in every shot. Removed, and kept out.
+    """
+    depth = open(os.path.join(_ROOT_TSX_DIR, "runtime", "depth.tsx"), encoding="utf-8").read()
+    assert "willChange" not in depth, (
+        "runtime/depth.tsx asks for layer promotion again — measured to buy nothing and cost memory")
 
 
 def test_a_camera_push_cannot_drive_content_into_the_caption_band():

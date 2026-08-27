@@ -341,6 +341,10 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
 // over a generous overscan (min scale ~1.025) so a pan can never reveal an edge; deterministic (pure fn of
 // frame, sin never Math.random). amp scales with meta.motion_personality; amp 0 disables (reduced-motion).
 const TWO_PI = Math.PI * 2;
+// The largest EXTRA scale the drift can add (0.035 + 0.010 at the sine's peak). Named so the per-beat
+// camera's budget can subtract it instead of the two layers silently multiplying past what the caption
+// band can absorb — and so it cannot drift from the expression below.
+export const DRIFT_MAX_EXTRA = 0.045;
 const cameraTransform = (frame: number, amp: number): string => {
   if (amp <= 0) return 'none';
   const s = 1 + amp * (0.035 + 0.010 * Math.sin((frame / 720) * TWO_PI));     // breathe, ~24s period
@@ -418,7 +422,8 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
           const seq = (
             <TransitionSeries.Sequence key={`s${i}`} durationInFrames={durF}>
               <SceneDurationContext.Provider value={durF}>
-                <SceneCamera move={sc.camera?.move} amount={sc.camera?.amount}>
+                <SceneCamera move={sc.camera?.move} amount={sc.camera?.amount}
+                             driftExtra={(reducedMotion ? 0 : Math.max(0, camera)) * DRIFT_MAX_EXTRA}>
                   <AbsoluteFill>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</AbsoluteFill>
                 </SceneCamera>
                 <TerminalChrome dna={activeDna} path={sc.chrome?.path} status={sc.chrome?.status} root={sc.chrome?.root} W={width} H={height} />

@@ -52,11 +52,16 @@ export const contentBottom = (W: number, H: number) => H - captionBand(W, H);
 // as long as that travel stays inside the gap, the burned subtitle never has shot content sitting on it.
 // Derived rather than chosen, so a change to the caption's type size moves this with it instead of leaving
 // a stale constant that used to be safe.
-export const maxCameraPush = (W: number, H: number) => {
+// `driftExtra` is the largest EXTRA scale the film-wide ambient drift adds on top of this. The two camera
+// layers multiply, and the per-beat cap could not see the other one: with the drift at full amplitude a
+// per-beat push of 8% already drives the lowest content 51px down into a 46px gap. Measured, not guessed.
+// The drift scales about the FRAME centre, so its travel is H/2 x driftExtra; the beat scales about the
+// content zone, so its travel is zoneH/2 x amount. The beat gets whatever the drift has not already spent.
+export const maxCameraPush = (W: number, H: number, driftExtra = 0) => {
   const band = captionBand(W, H);
   const base = Math.min(W, H);
   const blockH = base * (CAPTION_SIZE_FRAC * CAPTION_LEAD * CAPTION_LINES + CAPTION_MARGIN_FRAC);
-  const gap = Math.max(0, band - blockH);
+  const gap = Math.max(0, band - blockH) - (H / 2) * Math.max(0, driftExtra);
   const zoneH = Math.max(1, H - CONTENT_TOP - band);
   return Math.max(0, (gap / (zoneH / 2)) * 0.75);   // 3/4 of the headroom — the last quarter is not worth spending
 };

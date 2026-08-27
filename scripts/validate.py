@@ -1301,6 +1301,35 @@ def _film_language(meta, slides, errors, warnings):
         warnings.append(
             "%d of %d cuts are MARKED — a marked seam is punctuation and only reads as punctuation while it "
             "is rare. Budget ~2-3 per film and let the rest be the default cut." % (len(marked), n - 1))
+    # A camera move the tier does not have is DROPPED by render_remotion — silently, so the author's
+    # intent vanishes with no signal at all. Measured: `{"move":"orbit","amount":3}` produced not one word.
+    cam_vocab = {"push", "pull", "hold"}
+    bad_cam, wild_amt = [], []
+    for i, sl in enumerate(slides, 1):
+        c = sl.get("camera")
+        if c is None:
+            continue
+        if not isinstance(c, dict) or str(c.get("move", "")).strip().lower() not in cam_vocab:
+            bad_cam.append(i)
+            continue
+        try:
+            a = float(c.get("amount")) if c.get("amount") is not None else None
+        except (TypeError, ValueError):
+            wild_amt.append(i)
+            continue
+        if a is not None and not (0 < a <= 0.2):
+            wild_amt.append(i)
+    if bad_cam:
+        warnings.append(
+            "beat(s) %s carry a `camera` the renderer will silently drop — the move must be one of %s. "
+            "A dropped move looks exactly like a beat nobody wrote a camera for."
+            % (", ".join(map(str, bad_cam[:8])), "/".join(sorted(cam_vocab))))
+    if wild_amt:
+        warnings.append(
+            "beat(s) %s give `camera.amount` a value outside 0-0.2; SceneCamera clamps it to what the "
+            "caption band can absorb, so the number on the page is not the move on the screen."
+            % ", ".join(map(str, wild_amt[:8])))
+
     seam_vocab = {"wipe", "slide", "clock", "dissolve", "screen-clear", "fade"}
     if native and native not in seam_vocab:
         warnings.append(
