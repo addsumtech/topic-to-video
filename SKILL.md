@@ -351,7 +351,7 @@ figure), a non-singular `the_one_thing`, or a
   so the cost is now one command. A new register must be REUSABLE: it carries an ARGUMENT SHAPE with the
   topic arriving through props (`shot_proof.py` ERRORS if a register hardcodes a film's own prose), so
   the library compounds instead of filling with one-offs.
-- `scripts/shot_proof.py <out_dir> [--stills]` — the **PROOF SHEET** for a `remotion` deck: the
+- `scripts/shot_proof.py <out_dir> [--no-stills]` — the **PROOF SHEET** for a `remotion` deck: the
   mechanical half of a shot review, run BEFORE the full render. A shot-critic pass over a finished
   37-beat film cost a render plus a long review and filed 15 findings; more than half were things a
   script can decide. Static (~1s): a register's **demo default** left in `shot_props` (a card's
@@ -1047,7 +1047,7 @@ figure), a non-singular `the_one_thing`, or a
    **And run `python scripts/pedagogy_qa.py <out_dir>`** — the teaching-order gate: it ERRORs on a
    concept used before it is introduced (walks `content_plan.json`'s concept DAG). Fix every ERROR;
    it no-ops if `content_plan.json` wasn't persisted.
-   **On a `meta.renderer:"remotion"` deck, run `python scripts/shot_proof.py <out_dir> --stills`
+   **On a `meta.renderer:"remotion"` deck, run `python scripts/shot_proof.py <out_dir>`
    BEFORE the full render** — it catches, in ~3 minutes, the mechanical findings that otherwise cost
    a 15-minute render plus a shot-critic pass to discover: a leftover register default, two beats
    rendering the same picture, action-safe overflow, ink in the caption band, an off-palette colour,

@@ -47,9 +47,12 @@ const BIKE: Stroke[] = [
   {kind: 'line', x: 0.36, y: 0.36, x2: 0.34, y2: 0.24},
   {kind: 'bar', x: 0.28, y: 0.22, w: 0.12, h: 0.026, fill: true},
 ];
+// Placeholder callouts, deliberately generic. These read 'the last mile' / 'no timetable' — the exact copy
+// of the beat this register was written during — so the register shipped one film's argument as its default
+// and any later film that forgot to set `parts` silently inherited it.
 const BIKE_PARTS: Part[] = [
-  {n: 1, label: 'the last mile', x: 0.20, y: 0.66, side: 'left'},
-  {n: 2, label: 'no timetable', x: 0.62, y: 0.34, side: 'right'},
+  {n: 1, label: 'the part that does the work', x: 0.20, y: 0.66, side: 'left'},
+  {n: 2, label: 'the part that steers', x: 0.62, y: 0.34, side: 'right'},
 ];
 
 export const TechnicalPlate: React.FC<{

@@ -1264,7 +1264,10 @@ def test_shot_proof_renders_at_the_films_own_aspect():
     assert 'aspect = board.get("meta", {}).get("aspect")' in src, "shot_proof no longer reads meta.aspect"
     assert 'payload["aspect"] = aspect' in src, "the film's aspect never reaches the still render"
     import shot_still_qa as sq
-    assert sq._caption_band_px(1080, 1920) == 200 and sq._caption_band_px(1920, 1080) == 150
+    # the RELATIONSHIP, not the literals — the numbers belong to runtime/layout.ts and change with the
+    # caption's type size; pinning them here made this test a second copy of the constant.
+    assert sq._caption_band_px(1080, 1920) > sq._caption_band_px(1920, 1080)
+    assert sq._caption_band_px(1920, 1080) > 2 * sq.caption_size_px(1920, 1080)
 
 
 def test_audit_repairs_hold():
@@ -1513,6 +1516,62 @@ def test_shot_proof_serves_the_films_public_dir_to_standalone_stills():
 _UNSUPPLIED_TEXT_GRANDFATHERED = {
     "Aliasing", "CursorStory", "DataOrrery", "HalftonePop", "OverlapSeparation", "ScreenBubble",
 }
+
+
+def test_shot_proofs_rendered_checks_are_not_opt_in():
+    """An opt-in gate is not a detector.
+
+    The rendered half of the proof sheet — the only half that can see what a frame LOOKS like — sat behind
+    `--stills`. A delivered film had two registers drawing their own subtitle inside the band reserved for
+    the burned caption; this script owns exactly that measurement, it was run, and it printed
+    "OK (static only)". Nobody sees the flag they did not pass.
+    """
+    src = open(os.path.join(os.path.dirname(__file__), "..", "scripts", "shot_proof.py"),
+               encoding="utf-8").read()
+    assert 'if "--no-stills" not in argv:' in src, (
+        "the rendered checks must run by default; --no-stills is the opt-OUT")
+    assert 'if "--stills" in argv:' not in src, (
+        "shot_proof still gates its rendered checks behind an opt-in --stills flag")
+
+    skill = open(os.path.join(os.path.dirname(__file__), "..", "SKILL.md"), encoding="utf-8").read()
+    assert "shot_proof.py <out_dir> --stills" not in skill, (
+        "SKILL.md still tells the author to pass --stills, which no longer exists")
+
+
+def test_the_caption_band_has_exactly_one_definition():
+    """Four files had to agree on the band's height and nothing made them.
+
+    `runtime/layout.ts` (150), `Film.tsx` (150), `frame_safe_qa.py` (0.135 of H = 146px) and
+    `shot_still_qa.py` (200/150) each carried their own copy. They agreed only by coincidence, and the
+    coincidence ends the moment the caption's type size changes: the renderer reserves a taller band while
+    both gates keep measuring the old one, so a shot label can sit in the new band, overlap the caption, and
+    pass. This asserts the duplicates are gone and the survivors derive.
+    """
+    import importlib.util
+    root = os.path.join(os.path.dirname(__file__), "..")
+    spec = importlib.util.spec_from_file_location(
+        "_caption_band", os.path.join(root, "scripts", "_caption_band.py"))
+    cb = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cb)
+
+    # the TS is the definition, and it must still expose the fractions this module parses
+    for w, h in [(1920, 1080), (1080, 1920), (1080, 1080)]:
+        assert cb.caption_band_px(w, h) > cb.caption_size_px(w, h) * 2, (
+            "the band at %dx%d cannot hold two lines of its own caption type" % (w, h))
+
+    # the caption must clear the readability floor a 1080p film needs in a phone-sized window
+    assert cb.caption_size_px(1920, 1080) >= 0.05 * 1080, (
+        "caption type is %dpx at 1080p, under the 5%% floor" % cb.caption_size_px(1920, 1080))
+
+    # and NO file may carry its own copy of the number any more
+    for rel in ("scripts/frame_safe_qa.py", "scripts/shot_still_qa.py"):
+        src = open(os.path.join(root, rel), encoding="utf-8").read()
+        assert "caption_band_px" in src, "%s no longer derives the band" % rel
+        assert not re.search(r"CAPTION_BAND\s*=\s*0?\.\d", src), (
+            "%s restated the caption band as a literal fraction" % rel)
+    film = open(os.path.join(root, "remotion", "src", "Film.tsx"), encoding="utf-8").read()
+    assert not re.search(r"const\s+CAPTION_BAND\s*=\s*\d", film), (
+        "Film.tsx restated the caption band instead of importing captionBand()")
 
 
 def test_no_register_prints_a_number_the_film_never_supplied():

@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {captionBand} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#ececec', INK_D0 = '#0a0a0a', ACC_D0 = '#ff3b00';
@@ -31,11 +32,17 @@ export const BrutalistType: React.FC<{titleTop?: string; titleBottom?: string; m
     </div>
   );
 
+  const BAND = captionBand(W, H);
+
   return (
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
       {/* hard rules + accent block */}
       <div style={{position: 'absolute', left: 90, right: 90, top: 150, height: 8, background: INK}} />
-      <div style={{position: 'absolute', left: 90, right: 90, bottom: 150, height: 8, background: INK}} />
+      {/* The lower rule and the statement below used to be pinned at bottom:150 / bottom:176 — literal pixels
+          that happened to clear the burned caption while the reserved band was 150px, and sat straight inside
+          it the moment the band grew. They are measured from the BAND now, so the statement stays out of the
+          subtitle at any caption size and any aspect. */}
+      <div style={{position: 'absolute', left: 90, right: 90, bottom: BAND + 26, height: 8, background: INK}} />
       <div style={{position: 'absolute', right: 90, top: 158, width: 260, height: 120, background: ACC}} />
 
       {/* metadata */}
@@ -55,7 +62,7 @@ export const BrutalistType: React.FC<{titleTop?: string; titleBottom?: string; m
       </div>
 
       {/* statement */}
-      <div style={{position: 'absolute', left: 96, bottom: 176, color: INK, font: '800 54px/1 var(--f-body, "Archivo", Arial, sans-serif)', letterSpacing: '-0.01em'}}>
+      <div style={{position: 'absolute', left: 96, bottom: BAND + 52, color: INK, font: '800 54px/1 var(--f-body, "Archivo", Arial, sans-serif)', letterSpacing: '-0.01em'}}>
         {statement1} <span style={{background: INK, color: BG, padding: '0 12px'}}>{statement2}</span>
       </div>
     </AbsoluteFill>

@@ -34,10 +34,16 @@ _INK_DELTA = 34         # a pixel this far from the band's own ground counts as 
 _EDGE_DELTA = 60        # same idea for the action-safe border (frame_safe_qa.INK_DELTA)
 _BAND_EDGE_STEP = 28    # a luminance step this hard at the band's top edge is a PANEL, not a gradient
 
+from _caption_band import caption_band_px, caption_size_px   # noqa: E402  (the ONE definition of the band)
+
 
 def _caption_band_px(w, h):
-    """The bottom band the renderer reserves for the burned caption — runtime/layout.ts captionBand()."""
-    return 200 if w < 1400 else 150
+    """The bottom band the renderer reserves for the burned caption.
+
+    Read from `runtime/layout.ts` rather than restated. This number lived as a literal in four places and
+    nothing made them agree; a caption-size change silently left the QA measuring the old band.
+    """
+    return caption_band_px(w, h)
 
 
 def _ground_luma(px, w, h, step=6):

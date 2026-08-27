@@ -14,6 +14,7 @@ import {fade} from '@remotion/transitions/fade';
 import {slide} from '@remotion/transitions/slide';
 import {wipe} from '@remotion/transitions/wipe';
 import {clockWipe} from '@remotion/transitions/clock-wipe';
+import {captionBand, CAPTION_SIZE_FRAC, CAPTION_MARGIN_FRAC, CAPTION_LINES} from './runtime/layout';
 import {dissolve} from '@remotion/transitions/dissolve';
 import {SceneDurationContext, ReducedMotionContext, clamp01, SEAM_FRAMES} from './runtime/motion';
 import {groundLum, dnaGroundLum, dnaGroundY, groundGap, type Lum, type GroundColors} from './runtime/shotLuma';
@@ -85,6 +86,40 @@ const splitCaption = (text: string): string[] => {
   return merged;
 };
 
+// FIT THE CAPTION TO THE BAND IT WAS GIVEN — not the other way round.
+//
+// The band reserves CAPTION_LINES lines. A single long SENTENCE is one chunk however long it is, so a
+// 100-character line wrapped to THREE lines, overflowed the two-line reserve, and climbed into the picture:
+// a delivered frame had the caption printed straight through the shot's own subtitle. Widening the measure
+// alone does not fix it, because there is always a longer sentence.
+//
+// So an over-long chunk is split at its best CLAUSE boundary (comma / semicolon / dash — a place a reader
+// already pauses), nearest the middle so neither half is a scrap. Capacity is estimated from the type size
+// and the measure: Latin advance averages ~0.52em, CJK is monospaced at 1em. The estimate is calibrated
+// against real renders — a 100-char Latin caption at 56px in a 1400px measure is predicted 3 lines and
+// rendered 3 lines. Deterministic, and it degrades to the original chunk when there is no boundary to cut on.
+const CLAUSE = /[,;，；、]|\s—\s/g;
+const fitCaption = (chunks: string[], size: number, measure: number, lines: number): string[] => {
+  const out: string[] = [];
+  const cap = (t: string) => Math.max(8, Math.floor(measure / (size * (isCJKText(t) ? 1.0 : 0.52))));
+  const split = (t: string, depth: number): void => {
+    const budget = cap(t) * lines;
+    if (t.length <= budget || depth > 2) { out.push(t); return; }
+    const mid = t.length / 2;
+    let best = -1;
+    CLAUSE.lastIndex = 0;
+    for (let m = CLAUSE.exec(t); m; m = CLAUSE.exec(t)) {
+      const at = m.index + m[0].length;
+      if (at > 4 && at < t.length - 4 && (best < 0 || Math.abs(at - mid) < Math.abs(best - mid))) best = at;
+    }
+    if (best < 0) { out.push(t); return; }          // nothing to cut on — better one long chunk than a word sliced
+    split(t.slice(0, best).trim(), depth + 1);
+    split(t.slice(best).trim(), depth + 1);
+  };
+  chunks.forEach((c) => split(c, 0));
+  return out;
+};
+
 const CAP_PAD = 4;   // clean-gap frames inside each scene's sole-visible window → guarantees exit-before-enter
 const CAP_FADE = 3;  // tiny in/out ramp WITHIN the window (never across a transition, so captions never double)
 // FRAME-CRAFT FLOOR. An earlier version scaled the WHOLE world to 0.86 to pull edge content inside action-safe —
@@ -92,7 +127,10 @@ const CAP_FADE = 3;  // tiny in/out ramp WITHIN the window (never across a trans
 // as BLACK BORDERS on the sides + bottom (the shot background must reach the frame edge). So the world now renders
 // FULL-BLEED (no scale, no lift); edge-safety is a per-SHOT contract that frame_safe_qa verifies deterministically,
 // and the bottom CAPTION_BAND is reserved by the SHOTS keeping content out of it — not by shrinking the picture.
-const CAPTION_BAND = 150;    // px at the bottom reserved for the caption; shots keep text above (H - CAPTION_BAND)
+// The band is NOT a number here any more. It lived as a literal 150 in this file, another literal in
+// runtime/layout.ts, 0.135 in frame_safe_qa.py and a third copy in shot_still_qa.py — four places that had to
+// agree and nothing that made them. It is derived from the caption's own type size in runtime/layout.ts now,
+// and a test holds the Python copies to it.
 
 // One global caption HUD. It shows AT MOST ONE caption — the one belonging to the scene whose sole-visible
 // window (between its two transitions) contains this frame — hard-cut, contrast-picked against that scene's
@@ -101,12 +139,15 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaColors?
   dnaFontBody?: string | null}> = ({scenes, groundBg, dnaColors, dnaFontBody}) => {
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
-  // The caption used to be a flat 44px whatever the frame was. Two problems, both reported from a delivered
-  // film: at 16:9 it sat close enough to the content above to read as one block with it, and at 9:16 — where
-  // the frame is only 1080 wide — the same 44px is proportionally half again as large. It is sized off the
-  // NARROW dimension now (the same rule the image tier already used) and set a notch smaller, which also
-  // buys the gap: the caption is bottom-anchored, so a smaller block starts lower.
-  const capSize = Math.round(Math.min(width, height) * 0.0352);
+  // The caption used to be a flat 44px whatever the frame was: at 9:16 — where the frame is only 1080 wide —
+  // the same 44px is proportionally half again as large. It is sized off the NARROW dimension now.
+  //
+  // It was then set a notch SMALLER to answer "subtitle is too close to the content", which worked (a shorter
+  // bottom-anchored block starts lower) but bought the gap with legibility: measured on a delivered frame the
+  // caption was 37px of ink, 3.4% of frame height, against a 5.2% floor for a 1080p film watched in a
+  // phone-sized window. The gap is paid for out of the reserved BAND now instead of out of the type.
+  const capSize = Math.round(Math.min(width, height) * CAPTION_SIZE_FRAC);
+  const capMargin = Math.round(Math.min(width, height) * CAPTION_MARGIN_FRAC);
   let acc = 0;
   const starts = scenes.map((sc) => { const s = acc; acc += Math.max(1, Math.round(sc.durF)) - TR; return s; });
   let active = -1, ws = 0, we = 0;
@@ -125,7 +166,10 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaColors?
   }
   const sc = active >= 0 ? scenes[active] : undefined;
   if (!sc || !sc.caption) return null;
-  const merged = splitCaption(sc.caption);
+  // the measure the caption actually wraps in — must match the <div> below, or the fit is estimated against
+  // a width the browser never used
+  const capMeasure = Math.min(1600, width - 120);
+  const merged = fitCaption(splitCaption(sc.caption), capSize, capMeasure, CAPTION_LINES);
   // WEIGHT each chunk's on-screen time by its LENGTH (not equal slices) — else a 3-word chunk lingers while a
   // 20-word chunk races the voice. Advance idx by cumulative char-fraction of the caption.
   const lens = merged.map((c) => Math.max(1, c.length));
@@ -156,7 +200,7 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaColors?
   const capTrack = isCJK ? '0' : '-0.01em';
   return (
     <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', pointerEvents: 'none', opacity: op}}>
-      <div style={{position: 'relative', maxWidth: Math.min(1400, width - 80), margin: '0 auto 40px', padding: '0 60px', textAlign: 'center',
+      <div style={{position: 'relative', maxWidth: capMeasure, margin: `0 auto ${capMargin}px`, padding: '0 60px', textAlign: 'center',
         color: ink, font: `700 ${capSize}px/${capLead} ${dnaFontBody ?? 'Inter, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif'}`,
         letterSpacing: capTrack, textShadow: shadow}}>{capText}</div>
     </AbsoluteFill>

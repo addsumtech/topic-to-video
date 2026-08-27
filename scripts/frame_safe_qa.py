@@ -31,7 +31,10 @@ INK_DELTA = 60          # a pixel this far from the frame's OWN ground counts as
 # Measuring DEPARTURE from the frame's own ground gives the same answer on a dark frame and the
 # right one on a light frame.
 EDGE_FRAC_ERR = 0.045   # >this fraction of the (top+left+right) border being bright = an overflow ERROR
-CAPTION_BAND = 0.135    # bottom fraction reserved for captions — excluded from the edge check
+# The caption band is read from runtime/layout.ts, not restated. As a literal 0.135 here it silently
+# disagreed with the renderer the moment the caption's type size changed, and this gate then measured a
+# band 80px shallower than the one the film actually reserves.
+from _caption_band import caption_band_px          # noqa: E402
 
 
 def _ground_luma(px, w, h, step=6):
@@ -73,7 +76,7 @@ def evaluate(out_dir):
         px = g.load()
         ground = _ground_luma(px, W, H)
         m = max(1, int(round(min(W, H) * MARGIN)))
-        cap_top = int(round(H * (1 - CAPTION_BAND)))          # rows below this are the caption band (skip)
+        cap_top = H - caption_band_px(W, H)                   # rows below this are the caption band (skip)
         # --- edge-bleed: sample the top strip + left/right strips (above the caption band) ---
         bright = tot = 0
         step = 2                                              # subsample for speed

@@ -3,7 +3,8 @@
 
 Run:
   python3 scripts/shot_proof.py <out_dir>              # static checks only (~1s)
-  python3 scripts/shot_proof.py <out_dir> --stills     # + render one settled still per beat (~5s/beat)
+  python3 scripts/shot_proof.py <out_dir>              # static + RENDERED checks (~5s/beat) — the default
+  python3 scripts/shot_proof.py <out_dir> --no-stills  # source-only, for a fast pass while authoring
 
 WHY. A shot-critic pass over a finished 37-beat film cost a full render plus a long review and filed 15
 findings. Sorting them by kind, more than half were things a script can decide:
@@ -348,7 +349,17 @@ def main(argv):
 
     errors, warns = static_checks(board)
 
-    if "--stills" in argv:
+    # THE RENDERED CHECKS RUN BY DEFAULT.
+    #
+    # They used to be behind `--stills`, and an opt-in gate is not a detector. The consequence was concrete:
+    # two registers in a delivered film parked their own subtitle inside the band the renderer reserves for
+    # the burned caption, this script owns the check that measures exactly that, it was run — and it printed
+    # "OK (static only)". Nobody sees the flag they did not pass. The band violation was found by a human
+    # looking at a frame, which is the one review that does not scale.
+    #
+    # The static checks read source; only a RENDER can see what the frame actually looks like, which is the
+    # half that matters. `--no-stills` still exists for a fast source-only pass while authoring.
+    if "--no-stills" not in argv:
         import shot_still_qa
         dna_hues = _dna_hues(board)
         proof = os.path.join(out_dir, "_proof")
@@ -445,7 +456,7 @@ def main(argv):
         print("  warn : " + w)
     print("[shot_proof] %s  %d error(s), %d warning(s)%s"
           % ("FAIL" if errors else "OK", len(errors), len(warns),
-             "" if "--stills" in argv else "  (static only — add --stills for the rendered checks)"))
+             "  (static only — drop --no-stills for the rendered checks)" if "--no-stills" in argv else ""))
     return 1 if errors else 0
 
 

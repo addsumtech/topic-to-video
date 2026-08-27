@@ -298,9 +298,17 @@ def _probe_caption_band_verdicts(mod):
 
 
 def _probe_caption_band_follows_the_frame(mod):
-    """The reserved band is the renderer's, and it differs by aspect."""
-    assert mod._caption_band_px(1080, 1920) == 200
-    assert mod._caption_band_px(1920, 1080) == 150
+    """The reserved band is the renderer's, and it differs by aspect.
+
+    This used to pin the two literals (200 / 150). That made the probe a copy of the constant rather than a
+    test of the rule, so it broke the moment the renderer changed the band — reporting a failure in the QA
+    when the QA was correctly following the renderer. It asserts the RELATIONSHIP now: a narrow frame wraps
+    the caption to more lines and therefore reserves MORE than a wide one, and both must be tall enough to
+    hold the caption type the renderer will actually draw.
+    """
+    narrow, wide = mod._caption_band_px(1080, 1920), mod._caption_band_px(1920, 1080)
+    assert narrow > wide, "a narrow frame wraps to more lines and must reserve more, not less"
+    assert wide > 2 * mod.caption_size_px(1920, 1080), "the band cannot hold two lines of its own caption"
 
 
 def _probe_edge_excludes_the_caption_band(mod):
@@ -356,7 +364,7 @@ MUTANTS["shot_still_qa"] = {
         ("    if abs(band_ground - ground_all) > _INK_DELTA and edge_step > _BAND_EDGE_STEP:",
          "    if False:"),
     "band width no longer follows the frame":
-        ("    return 200 if w < 1400 else 150", "    return 150"),
+        ("    return caption_band_px(w, h)", "    return 150"),
     "the caption band is swept as part of the border":
         ("    for y in range(m, cap_top, 2):                            # left + right strips, above the caption band",
          "    for y in range(m, h, 2):"),

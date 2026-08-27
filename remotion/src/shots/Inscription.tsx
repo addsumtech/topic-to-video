@@ -28,7 +28,10 @@ export const Inscription: React.FC<{
   foot?: string;         // a small line under the face, in the film's own voice rather than the stone's
   face?: string;         // override the stone tone; defaults to a darker cut of the DNA's surface
 }> = ({
-  lines: LINES = ['THE FIRST STONE', 'WAS LAID HERE'],
+  // A demo default must read as a PLACEHOLDER. 'THE FIRST STONE' was lifted straight from the film this
+  // register was written during, so the register carried one film's copy as its own and the demo-default
+  // check could not tell a film that set the prop from one that forgot.
+  lines: LINES = ['THE WORDS CUT HERE', 'AND WHAT THEY MARK'],
   date = '',
   foot = '',
   face = ''} = {}) => {

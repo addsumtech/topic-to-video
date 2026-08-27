@@ -19,12 +19,28 @@ import type React from 'react';
 
 export const TITLE_Y = 92;              // title top (px) — the shared header position for a shot's title <div>
 export const TITLE_BAND = 176;          // content must start BELOW this (title + a comfortable gap ~40px)
-export const CAPTION_BAND = 150;        // bottom px reserved for the burned caption at 16:9 (landscape default)
+// The caption BAND is derived from the caption's own type size, not guessed. It has to hold two wrapped lines
+// of `CAPTION_SIZE_FRAC` type plus the block's bottom margin plus a real GAP, or the caption reads as part of
+// the content above it — which is exactly what a viewer reported: "subtitle is too close to the content".
+// Shrinking the type closed that gap by starting the block lower, but it also dropped the caption to 3.4% of
+// frame height, under the 5.2% floor that keeps a 1080p film readable in a phone-sized window. Both are fixed
+// by paying for the gap out of the BAND instead of out of the type.
+export const CAPTION_SIZE_FRAC = 0.052;   // caption type as a fraction of min(W,H) — 56px at 1080
+export const CAPTION_LINES = 2;           // the band must hold a two-line caption without touching content
+export const CAPTION_LEAD = 1.26;
+export const CAPTION_MARGIN_FRAC = 0.037; // the block's own bottom margin
+export const CAPTION_GAP_FRAC = 0.042;    // clear air between the content zone and the caption block
+export const CAPTION_BAND = 150;        // legacy landscape number; prefer captionBand(W, H)
 export const CONTENT_TOP = TITLE_BAND;  // top of the usable content zone
 // ASPECT-AWARE caption band: a NARROW frame (portrait/square/4:5) wraps the caption to more lines, so it needs a
 // TALLER reserved band. Shots + the Film should reserve `captionBand(W,H)`, not the fixed CAPTION_BAND, so content
 // clears the caption at every aspect. `contentBottom(W,H)` is the bottom of the usable content zone.
-export const captionBand = (W: number, H: number) => (W < 1400 ? 200 : CAPTION_BAND);
+export const captionBand = (W: number, H: number) => {
+  const base = Math.min(W, H);
+  // a NARROW frame wraps the same sentence to more lines, so it reserves one extra line
+  const lines = CAPTION_LINES + (W < 1400 ? 1 : 0);
+  return Math.round(base * (CAPTION_SIZE_FRAC * CAPTION_LEAD * lines + CAPTION_MARGIN_FRAC + CAPTION_GAP_FRAC));
+};
 export const contentBottom = (W: number, H: number) => H - captionBand(W, H);
 
 // The shared title style — use for a shot's top title so every shot's header reads identically (position,

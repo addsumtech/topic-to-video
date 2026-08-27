@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {captionBand} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 const PAPER_D0 = '#f3f0e8', INK_D0 = '#161512';
@@ -27,6 +28,8 @@ export const MagazineSpread: React.FC<{sectionLabel?: string; title?: string; he
   const rule = easeOutCubic(seg(t, 0.2, 0.5));
   const block = easeOutExpo(seg(t, 0.34, 0.6));
   const words = HEADLINE.split(' ');
+  const BAND = captionBand(W, H);
+
   return (
     <AbsoluteFill style={{background: PAPER, overflow: 'hidden', color: INK}}>
       {/* masthead */}
@@ -60,10 +63,13 @@ export const MagazineSpread: React.FC<{sectionLabel?: string; title?: string; he
         })}
       </div>
 
-      {/* deck + body column rules */}
-      <div style={{position: 'absolute', left: M, bottom: 190, width: 720, opacity: clamp01(seg(t, 0.72, 0.9)),
+      {/* deck + body column rules.
+          The deck, the body rules and the folio were pinned at bottom:190 / 96 / 84 — literal pixels that
+          cleared the burned caption only while the reserved band happened to be 150px. The folio at 84 sat
+          inside the band the moment it grew. All three are measured from the BAND now. */}
+      <div style={{position: 'absolute', left: M, bottom: BAND + 62, width: 720, opacity: clamp01(seg(t, 0.72, 0.9)),
         font: 'italic 600 34px/1.35 var(--f-body, "Playfair Display", Georgia, serif)', color: '#3a352c'}}>{DECK}</div>
-      <div style={{position: 'absolute', left: M, bottom: 96, display: 'flex', gap: 40}}>
+      <div style={{position: 'absolute', left: M, bottom: BAND + 18, display: 'flex', gap: 40}}>
         {[0, 1, 2].map((c) => (
           <div key={c} style={{display: 'flex', flexDirection: 'column', gap: 9}}>
             {[...Array(4)].map((_, r) => {
@@ -74,7 +80,7 @@ export const MagazineSpread: React.FC<{sectionLabel?: string; title?: string; he
         ))}
       </div>
       {/* folio */}
-      <div style={{position: 'absolute', right: M, bottom: 84, font: '700 24px/1 var(--f-mono, "JetBrains Mono", monospace)',
+      <div style={{position: 'absolute', right: M, bottom: BAND + 8, font: '700 24px/1 var(--f-mono, "JetBrains Mono", monospace)',
         letterSpacing: '0.1em', opacity: clamp01(seg(t, 0.6, 0.8))}}>{TITLE}.CO — 01</div>
     </AbsoluteFill>
   );

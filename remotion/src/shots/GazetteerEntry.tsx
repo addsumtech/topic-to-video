@@ -51,33 +51,53 @@ export const GazetteerEntry: React.FC<{
   const hair = Math.max(1, Math.round(W * 0.0011));
 
   const items = SENSES.slice(0, 4);
-  // Every vertical measure below is a fraction of the CONTENT ZONE, not of the frame. Using H directly left
-  // a 570px hole between the etymology and the first sense at 9:16, because the same 0.30 of a 1920-tall
-  // frame is nothing like 0.30 of a 1080-tall one. The zone is what the layout actually has to fill.
+  // A DERIVED STACK, not magic fractions. Every line here used to be placed at its own fraction of something
+  // — the headword at `top`, the pronunciation at `top + W*0.070`, the rule at `top + zone*0.20`, the
+  // etymology at `top + zone*0.235`. Fractions of two different quantities, hand-tuned until they happened
+  // not to touch at 16:9. They touched the moment anything moved: the reserved caption band grew, the zone
+  // shrank, the zone-relative lines slid up under the W-relative one, and the pronunciation printed straight
+  // through the etymology on a delivered frame. Re-tuning the fractions only moves the collision.
+  //
+  // So each line is placed BELOW the one before it, from that line's own measured height. Nothing can
+  // overlap, at any aspect, with or without the optional lines, because the positions are a running sum.
   const zone = bottom - top;
-  const senseTop = top + zone * 0.34;
-  const gap = Math.min(zone * 0.20, Math.max(zone * 0.11, (bottom - senseTop) / Math.max(1, items.length)));
+  const headSize = Math.round(W * 0.062);
+  const pronSize = Math.round(W * 0.0165);
+  const origSize = Math.round(W * 0.0225);
+  const step = Math.round(W * 0.010);              // the rhythm unit between blocks
+  const yHead = top;
+  const yPron = yHead + Math.round(headSize * 1.02) + step;
+  const yRule = yPron + (pronunciation ? Math.round(pronSize * 1.3) + step : 0);
+  const yOrig = yRule + step;
+  const senseTop = yOrig + (origin ? Math.round(origSize * 1.4) + step : 0) + step;
+  const gap = Math.max(Math.round(origSize * 1.6),
+                       Math.min(zone * 0.20, (bottom - senseTop) / Math.max(1, items.length)));
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG_D0, color: FG}}>
       {/* headword */}
-      <div style={{position: 'absolute', left, top, right,
+      <div style={{position: 'absolute', left, top: yHead, right,
         opacity: head, transform: `translateY(${(1 - head) * 12}px)`,
-        font: `700 ${Math.round(W * 0.062)}px/1.02 ${disp}`, letterSpacing: '-0.015em'}}>{headword}</div>
+        font: `700 ${headSize}px/1.02 ${disp}`, letterSpacing: '-0.015em'}}>{headword}</div>
 
-      {/* pronunciation, set on the same baseline family a real entry uses */}
+      {/* pronunciation, set on the same baseline family a real entry uses.
+          Its y is ZONE-relative like every other line in this entry. It used to be `top + W*0.070` while the
+          rule below it was `top + zone*0.20` — two different coordinate spaces stacked vertically, which is
+          only ever stable by luck. The luck ran out when the reserved caption band grew: the zone shrank, the
+          zone-relative lines slid up, the W-relative one did not, and the pronunciation printed straight
+          through the etymology. Within one shot, vertical positions share ONE space. */}
       {pronunciation ? (
-        <div style={{position: 'absolute', left, top: top + Math.round(W * 0.070), opacity: orig,
-          font: `400 ${Math.round(W * 0.0165)}px/1.3 ${mono}`, color: DIM,
+        <div style={{position: 'absolute', left, top: yPron, opacity: orig,
+          font: `400 ${pronSize}px/1.3 ${mono}`, color: DIM,
           letterSpacing: '0.04em'}}>{pronunciation}</div>
       ) : null}
 
-      <div style={{position: 'absolute', left, top: top + zone * 0.20, width: (W - left - right) * rule,
+      <div style={{position: 'absolute', left, top: yRule, width: (W - left - right) * rule,
         height: hair * 2, background: ACC}} />
 
       {origin ? (
-        <div style={{position: 'absolute', left, top: top + zone * 0.235, right,
-          opacity: orig, font: `italic 400 ${Math.round(W * 0.0225)}px/1.4 ${disp}`, color: DIM}}>{origin}</div>
+        <div style={{position: 'absolute', left, top: yOrig, right,
+          opacity: orig, font: `italic 400 ${origSize}px/1.4 ${disp}`, color: DIM}}>{origin}</div>
       ) : null}
 
       {/* the senses, numbered, arriving in order */}
