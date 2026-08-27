@@ -1218,6 +1218,48 @@ def _idiom_world(meta, slides, errors, warnings):
     if len(off) > 10:
         errors.append("remotion: %d more beat(s) draw from undeclared worlds" % (len(off) - 10))
 
+_KNOWN_DNA_IDS = {'terminal', 'product', 'apple', 'editorial', 'blueprint', 'data', 'retro'}
+
+
+def _film_language(meta, slides, errors, warnings):
+    """Is the film's own CUT vocabulary actually being used, or is every seam the anonymous default?
+
+    The remotion tier ships five kinetic seams, a luminance guard that protects them, and a `carry`
+    match-cut that reads as continuity rather than a swap. A delivered 35-beat film used none of them:
+    all 34 cuts were the default cross-fade, because nothing in the authoring path ever wrote
+    `transition_in` — the key was not in the storyboard at all. Everything worked; nothing was reached.
+
+    That is the failure this warns about. It is a WARNING, not an error: a film whose argument really is
+    one unbroken line is entitled to leave every cut invisible. But it must be a decision someone made,
+    and `scripts/seam_plan.py` derives a defensible plan from the `relation` field the board already has.
+    """
+    n = len(slides)
+    if n < 12:
+        return                                  # too short for punctuation to mean anything
+    marked = [i for i, s in enumerate(slides) if s.get("transition_in") or s.get("transition_style")]
+    dna = meta.get("design_dna") or {}
+    native = (dna.get("seam") or {}).get("type")
+    if not marked:
+        warnings.append(
+            "%d beats and not one MARKED seam — every cut is the anonymous default. The tier implements "
+            "clock/slide/wipe/dissolve and `carry` (a collapse-to-line match-cut that reads as continuity), "
+            "and the board already says which beats are new-topic / payoff / close. Run "
+            "`python3 scripts/seam_plan.py <out_dir>` to derive ~2-3 marked cuts from that, or set them by "
+            "hand; leave it bare only if the film is deliberately one unbroken line." % n)
+    elif len(marked) > max(4, n // 8):
+        warnings.append(
+            "%d of %d cuts are MARKED — a marked seam is punctuation and only reads as punctuation while it "
+            "is rare. Budget ~2-3 per film and let the rest be the default cut." % (len(marked), n - 1))
+    if not native and _KNOWN_DNA_IDS and str(dna.get("id") or "") not in _KNOWN_DNA_IDS:
+        warnings.append(
+            "meta.design_dna.id '%s' is a bespoke direction with no `seam` declared, so its %d unmarked cuts "
+            "fall through to a generic cross-fade that belongs to no design language. Declare the direction's "
+            "own native action, e.g. design_dna.seam:{type:'wipe',direction:'from-bottom'} for a "
+            "sheet-laid-over-sheet world, or {type:'fade'} to say plainly that a plain cut is the intent."
+            % (dna.get("id"), max(0, n - 1 - len(marked))))
+
+
+
 def _form_vocabulary(meta, slides, errors, warnings):
     """Every beat must name which of the SUBJECT'S OWN forms it realises.
 
@@ -1674,6 +1716,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         _shot_truncation(meta, slides, errors, warnings)
         _form_vocabulary(meta, slides, errors, warnings)
         _idiom_world(meta, slides, errors, warnings)
+        _film_language(meta, slides, errors, warnings)
         _figure_traceability(slides, out_dir, warnings)   # %/×/$ figures in shot_props text must trace to brief.json
         return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides)}
     # visual_style is the declared single source of truth — a typo/hallucinated key degrades silently to the

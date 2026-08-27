@@ -69,6 +69,13 @@ export type DesignDNA = {
   // one. Without it a themed film is a set of clean bare diagrams: right palette, right type, no material.
   // See runtime/motif.tsx; omitted = no motif, which is a legitimate choice for a deliberately austere film.
   motif?: {kind?: string; ink?: string; opacity?: number; scale?: number};
+  // THE FILM'S NATIVE CUT. An unmarked seam becomes the design system's own action rather than a generic
+  // cross-fade — the analogue of the surface/grammar split, applied to TIME. The presets get theirs from a
+  // switch in Film.tsx (terminal = screen-clear, editorial = a sheet laid down), but a BESPOKE direction had
+  // no way to declare one, so every topic-conceived film fell through to the same anonymous fade: a 35-beat
+  // film shipped with all 34 of its cuts identical and belonging to nobody's design language.
+  // Vocabulary: 'wipe' | 'slide' | 'clock' | 'dissolve' | 'screen-clear' | 'fade' (fade = deliberately plain).
+  seam?: {type?: string; direction?: string};
 };
 
 // ── Presets ────────────────────────────────────────────────────────────────────────────────────────────────

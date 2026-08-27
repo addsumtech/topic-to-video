@@ -173,6 +173,24 @@ TTS if the user gives an API key.
   tier**: a **bespoke-shot LIBRARY** where every beat is a hand-written, topic-driven design language (the
   registers catalogued in `remotion/LIBRARY.md`), sequenced into a narrated film with cross-dissolve
   transitions + scene-relative captions + per-scene edge-tts narration (served via `--public-dir=<out_dir>`).
+  **THE CUT IS PART OF THE DESIGN — and it has to be authored, not assumed.** The tier implements five seams:
+  `clock` `slide` `wipe` `dissolve` and **`carry`**, a collapse-to-line match-cut that reads as CONTINUITY
+  rather than a swap and is the one seam allowed to cross a dark↔light boundary (its neutral bridge line IS
+  the luminance dip; every other kinetic mark placed on such a boundary is silently forced back to a fade by
+  `Film.tsx`'s guard). **None of that reaches a film unless something writes `transition_in`.** A delivered
+  35-beat film shipped with all 34 cuts identical because the key was never in the storyboard at all — the
+  capability was complete and unreached, which is indistinguishable from absent. Two things close it:
+  **`python3 scripts/seam_plan.py <out_dir>`** derives ~2-3 MARKED seams from the `relation` each beat already
+  declares (`new-topic` → `clock`, the frame opens onto a different subject · `payoff` → `dissolve`, setup and
+  result share the screen · `close` → `carry`; `continuation` is never marked, because most cuts should be
+  invisible and a mark only reads as punctuation while it stays rare), keeping them ≥5 beats apart and
+  luminance-safe; and `validate.py` WARNS when a film of ≥12 beats carries no mark at all, or when more than
+  ~1-in-8 are marked. An explicit authored `transition_in` always wins over the plan.
+  **`meta.design_dna.seam`** sets the film's NATIVE cut — what an *unmarked* seam becomes. The five shipped
+  presets get theirs from a switch (terminal → screen-clear, editorial/blueprint → a sheet laid down), but a
+  **bespoke direction matched no case and fell through to an anonymous cross-fade**, so declare it:
+  `seam:{type:'wipe',direction:'from-bottom'}` for a sheet-over-sheet world, or `{type:'fade'}` to say plainly
+  that a plain cut is the intent.
   **GLOBAL VISUAL SYSTEM (Design DNA):** the chosen template is NOT a set of reusable frames — it is the film's
   whole visual system. The **shot-director** FIRST expands it into an explicit **`meta.design_dna`** (an artifact:
   type / palette / container / motion / annotation grammar — `remotion/src/runtime/dna.tsx` `DesignDNA`, terminal

@@ -263,6 +263,19 @@ const screenClear = (bg?: string, accent?: string): TransitionPresentation<any> 
 // product → a soft push; editorial/blueprint → a directional wipe (a page/sheet turn); else the gentle fade.
 const dnaDefaultSeam = (dna: DesignDNA | null, W: number, H: number): TransitionPresentation<any> | null => {
   if (!dna) return null;
+  // A DECLARED seam wins over the preset switch below. Without this a bespoke `id` — which is what every
+  // topic-conceived direction has — matched no case and fell through to the anonymous cross-fade, so the
+  // native-cut idea only ever worked for the five shipped presets.
+  const d = dna.seam?.type;
+  if (d && d !== 'fade') {
+    const dir = dna.seam?.direction;
+    if (d === 'screen-clear') return screenClear(dna.bg, dna.accent);
+    if (d === 'slide') return slide({direction: (dir as any) ?? 'from-right'});
+    if (d === 'wipe') return wipe({direction: (dir as any) ?? 'from-bottom'});
+    if (d === 'clock') return clockWipe({width: W, height: H});
+    if (d === 'dissolve') return fade();
+  }
+  if (dna.seam?.type === 'fade') return null;      // an explicit, deliberate plain cut
   switch (dna.id) {
     case 'terminal': return screenClear(dna.bg, dna.accent);
     case 'product': case 'apple': return slide({direction: 'from-right'});

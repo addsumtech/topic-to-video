@@ -1518,6 +1518,90 @@ _UNSUPPLIED_TEXT_GRANDFATHERED = {
 }
 
 
+def test_the_cut_vocabulary_actually_reaches_the_storyboard():
+    """The tier's seams existed, were guarded, were mapped — and no film ever used one.
+
+    `Film.tsx` implements clock/slide/wipe/dissolve plus `carry` (a collapse-to-line match-cut),
+    `render_remotion.py` maps `transition_in` onto them, and a luminance guard protects them. A delivered
+    35-beat film still shipped with all 34 cuts identical, because nothing in the authoring path ever wrote
+    the field. This pins the two halves of the fix: a planner that derives marks from the `relation` the
+    board already carries, and a validator that notices when a long film has none.
+    """
+    import importlib.util
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    spec = importlib.util.spec_from_file_location("seam_plan", os.path.join(root, "scripts", "seam_plan.py"))
+    sp = importlib.util.module_from_spec(spec); spec.loader.exec_module(sp)
+
+    # a 30-beat film whose relations are mostly continuation, with real chapter breaks
+    slides = [{"shot": "MapPlate", "relation": "continuation"} for _ in range(30)]
+    slides[0]["relation"] = "open"
+    for i in (7, 15, 23):
+        slides[i]["relation"] = "new-topic"
+    slides[11]["relation"] = "payoff"
+    slides[29]["relation"] = "close"
+    marks = sp.plan(slides)
+
+    assert marks, "the planner derived no seam from a board that declares chapter breaks"
+    assert len(marks) <= 3, "a marked seam is punctuation; %d of them is a style" % len(marks)
+    assert 0 not in marks, "beat 0 has no seam before it"
+    ks = sorted(marks)
+    # An ABSOLUTE floor, not `>= sp.MIN_GAP`. Asserting against the module's own constant makes the test a
+    # copy of it: drop MIN_GAP to 0 and the assertion passes while marks pile up next to each other. A test
+    # that moves with the value it is checking is not checking anything.
+    assert sp.MIN_GAP >= 4, "the spacing rule was weakened below the point where a mark reads as punctuation"
+    assert all(b - a >= 4 for a, b in zip(ks, ks[1:])), (
+        "two marks landed within 4 beats — punctuation that close reads as a style: %r" % ks)
+    for i, m in marks.items():
+        rel = slides[i]["relation"]
+        assert rel in sp.SEAM_BY_RELATION, "marked a %r seam, which is not a claim about anything" % rel
+        assert m["type"] in ("clock", "dissolve", "carry", "slide", "wipe")
+
+    # `continuation` is never marked — the one relation whose honest cut is no cut
+    only_cont = [{"shot": "MapPlate", "relation": "continuation"} for _ in range(30)]
+    assert sp.plan(only_cont) == {}, "an unbroken argument must keep every cut invisible"
+
+    # a seam that would cross a dark/light boundary becomes `carry` — anything else is silently
+    # discarded by Film.tsx's luminance guard, which would look like the planner did nothing
+    import shot_director as sd
+    dark = next((n for n in sd.PROVENANCE if sd.shot_luma(n) == "dark"), None)
+    light = next((n for n in sd.PROVENANCE if sd.shot_luma(n) == "light"), None)
+    if dark and light:
+        cross = [{"shot": light, "relation": "continuation"} for _ in range(30)]
+        cross[0]["relation"] = "open"
+        cross[15] = {"shot": dark, "relation": "new-topic"}
+        got = sp.plan(cross).get(15)
+        assert got and got["type"] == "carry", (
+            "a mark across a dark/light boundary must be the carry, not %r — the guard discards the rest" % got)
+
+
+def test_validate_notices_a_film_that_never_uses_its_own_cuts():
+    board = {"meta": {"renderer": "remotion", "design_dna": {"id": "bespoke-thing"}},
+             "slides": [{"shot": "MapPlate", "relation": "continuation"} for _ in range(20)]}
+    errs, warns = [], []
+    v._film_language(board["meta"], board["slides"], errs, warns)
+    assert not errs, "this is a warning, not an error — a deliberately unbroken film is legitimate"
+    assert any("not one MARKED seam" in w for w in warns), warns
+    assert any("bespoke direction with no `seam`" in w for w in warns), warns
+
+    # marks present + a declared native cut -> silent
+    ok = {"meta": {"renderer": "remotion",
+                   "design_dna": {"id": "bespoke-thing", "seam": {"type": "wipe"}}},
+          "slides": [{"shot": "MapPlate", "relation": "continuation"} for _ in range(20)]}
+    ok["slides"][9]["transition_in"] = {"type": "clock"}
+    errs2, warns2 = [], []
+    v._film_language(ok["meta"], ok["slides"], errs2, warns2)
+    assert not warns2, warns2
+
+    # and it complains the OTHER way when every cut is marked
+    loud = {"meta": {"renderer": "remotion",
+                     "design_dna": {"id": "terminal"}},
+            "slides": [{"shot": "MapPlate", "relation": "new-topic",
+                        "transition_in": {"type": "clock"}} for _ in range(20)]}
+    errs3, warns3 = [], []
+    v._film_language(loud["meta"], loud["slides"], errs3, warns3)
+    assert any("only reads as punctuation while it" in w for w in warns3), warns3
+
+
 def test_shot_proofs_rendered_checks_are_not_opt_in():
     """An opt-in gate is not a detector.
 
