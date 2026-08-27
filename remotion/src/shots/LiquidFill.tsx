@@ -9,14 +9,17 @@ import {useDNA} from '../runtime/dna';
 
 export const DURATION = 160; // ~5.3s
 
-export const LiquidFill: React.FC<{label?: string}> = ({label = 'on your machine'} = {}) => {
+// `pct` has NO default: the numeral used to be Math.round(p * 100), i.e. the ANIMATION's own progress
+// printed as a statistic, so the vessel always reported "100%" of whatever the film happened to be about.
+// The fluid still fills on its own; the numeral appears only when the film has a figure to put there.
+export const LiquidFill: React.FC<{label?: string; pct?: number | null}> = ({
+  label = 'on your machine', pct = null} = {}) => {
   const t = useT();
   const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2, R = 300;
   const p = easeInOutCubic(seg(t, 0.1, 0.82));   // fill fraction
   const level = cy + R - 2 * R * p;               // liquid surface y
-  const pct = Math.round(p * 100);
   const done = seg(t, 0.82, 1);
 
   // wave surface path across the vessel bbox, clipped to the circle
@@ -65,12 +68,12 @@ export const LiquidFill: React.FC<{label?: string}> = ({label = 'on your machine
         <circle cx={cx} cy={cy} r={R} fill="none" stroke="#7fd8ff" strokeWidth={2} opacity={0.5} filter="url(#lglow)" />
       </svg>
 
-      {/* centre readout: % counting, then a checkmark */}
+      {/* centre readout: the film's figure, counted up WITH the fill, then a checkmark */}
       <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-        {done < 0.15 ? (
+        {done < 0.15 ? (pct == null ? null : (
           <div style={{color: '#eaf6ff', font: '800 150px/1 var(--f-display, Inter, system-ui, sans-serif)', fontVariantNumeric: 'tabular-nums',
-            textShadow: '0 4px 30px #000a'}}>{pct}<span style={{fontSize: 70, opacity: 0.7}}>%</span></div>
-        ) : (
+            textShadow: '0 4px 30px #000a'}}>{Math.round(pct * p)}<span style={{fontSize: 70, opacity: 0.7}}>%</span></div>
+        )) : (
           <svg width={360} height={360} viewBox="-180 -180 360 360" style={{transform: `scale(${easeOutBack(done)})`}}>
             <path d="M-88,6 L-26,74 L96,-78" fill="none" stroke="#eafff8" strokeWidth={34} strokeLinecap="round" strokeLinejoin="round" />
           </svg>

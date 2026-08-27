@@ -43,9 +43,12 @@ STUB = '''// SHOT · {id} — {use_when}
 //       export const INTRINSIC_TEXT = ['REC', '▶ PLAY'];
 //    `scripts/onscreen_text_qa.py` reports violations; a test holds the line.
 //
-// 2. NEVER INVENT A NUMBER. A readout, a coordinate, a measurement must come from props or be absent. The
-//    literal `x:960 y:540` was the centre of a 1920x1080 frame printed beside a cathedral as though it
-//    measured it.
+// 2. NEVER INVENT A NUMBER — and give a measurement a prop with NO DEFAULT, unlike copy. A readout, a
+//    coordinate, a measurement comes from props or is not drawn. `x:960 y:540` was the centre of a
+//    1920x1080 frame printed beside a cathedral as though it measured it; `{specN}`, counting 0->100 off
+//    the clock, printed "100%" over a beat whose claim was that the nave was NEVER finished. The second
+//    one has no letters in it, so no word-scan can see it — `unsourced_numbers()` traces provenance
+//    instead: a rendered value reaches back to a prop, or the readout does not render.
 //
 // 3. A LABEL BESIDE A POINT MUST BE CLAMPED INTO ITS BOX. Choosing a side by `x > 0.5` reads the point's
 //    half, not the room left, so a point near an edge pushes its label out of the container. Use

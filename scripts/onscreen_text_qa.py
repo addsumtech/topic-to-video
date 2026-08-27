@@ -108,6 +108,66 @@ def scan(path):
     return sorted(found - known)
 
 
+def _prop_names(body):
+    """The register's own prop bindings — including a renamed one (`layers: LAYERS = ...` binds LAYERS)."""
+    m = re.search(r"=\s*\(\{(.*)\}\s*=\s*\{\}\)", body, re.S)
+    if not m:
+        return set()
+    out = set()
+    for part in re.split(r",(?![^\[\{]*[\]\}])", m.group(1)):
+        part = part.strip()
+        if not part:
+            continue
+        mm = re.match(r"([A-Za-z_$][\w$]*)\s*:\s*([A-Za-z_$][\w$]*)", part)
+        if mm:
+            out |= {mm.group(1), mm.group(2)}
+            continue
+        mm = re.match(r"([A-Za-z_$][\w$]*)", part)
+        if mm:
+            out.add(mm.group(1))
+    return out
+
+
+def unsourced_numbers(path):
+    """NUMBERS printed on screen that no prop feeds — the class the text scan above cannot see.
+
+    `x:960 y:540` was caught by reading it as text. `{specN}` is not text: it is an identifier in a JSX
+    slot, and `const specN = Math.round(lerp(0, 100, easeOutCubic(seg(t, ...))))` computes a percentage
+    from the CLOCK. It counted to 100% over a beat whose whole claim was that the cathedral's nave was
+    never built, and it would have printed a confident percentage over any topic that ever used the
+    register. A word-shaped scan cannot see it: there are no letters in `100%`.
+
+    So this follows PROVENANCE instead of shape. A local const is FILM-DERIVED if it mentions a prop, or
+    mentions another film-derived local (to a fixpoint). A numeric local that is rendered in a JSX slot
+    and is NOT film-derived is a number the film never supplied, and is reported. Non-numeric locals are
+    left alone — a JSX fragment or an accumulator array is not a fabricated statistic.
+    """
+    body = _strip_comments(open(path, encoding="utf-8").read())
+    props = _prop_names(body)
+    locs = {m.group(1): m.group(2)
+            for m in re.finditer(r"\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*([^;\n]*)", body)}
+    derived = set()
+    for _ in range(8):                       # fixpoint: props -> locals -> locals -> ...
+        before = len(derived)
+        for n, init in locs.items():
+            if set(re.findall(r"[A-Za-z_$][\w$]*", init)) & (props | derived):
+                derived.add(n)
+        if len(derived) == before:
+            break
+    slots = (set(re.findall(r">\s*\{([A-Za-z_$][\w$]*)\}", body))
+             | set(re.findall(r"\{([A-Za-z_$][\w$]*)\}\s*<", body)))
+    out = []
+    for n in sorted(slots):
+        init = locs.get(n)
+        if init is None or n in derived or n in props:
+            continue
+        # numeric-looking only: a digit or an arithmetic helper, and not a JSX fragment
+        if "<" in init or not re.search(r"\bMath\.|\blerp\(|\d", init):
+            continue
+        out.append((n, init.strip()[:60]))
+    return out
+
+
 def fixed_px_font_sites(path):
     """Font sizes written as a bare px literal, which do not scale with the frame.
 
@@ -123,7 +183,7 @@ def fixed_px_font_sites(path):
 
 def main(argv):
     names = argv or [os.path.basename(f)[:-4] for f in sorted(glob.glob(os.path.join(_SHOTS, "*.tsx")))]
-    total, dirty, fixed_px = 0, 0, {}
+    total, dirty, fixed_px, unsourced = 0, 0, {}, 0
     for n in names:
         p = os.path.join(_SHOTS, n + ".tsx")
         if not os.path.exists(p):
@@ -137,6 +197,11 @@ def main(argv):
             dirty += 1
             total += len(hits)
             print("  %-24s %s" % (n, " · ".join(repr(h) for h in hits[:6])))
+        nums = unsourced_numbers(p)
+        if nums:
+            unsourced += len(nums)
+            for ident, init in nums:
+                print("  %-24s NUMBER %s = %s" % (n, ident, init))
     print("[onscreen_text] %d register(s) print text the film never supplied (%d string(s))."
           % (dirty, total))
     if dirty:
@@ -144,6 +209,10 @@ def main(argv):
               "film then renders identically, and shot_proof's demo-default check starts seeing it. If the "
               "text belongs to the register's own form (an axis label, a REC light), declare it instead: "
               "export const INTRINSIC_TEXT = [...].")
+    if unsourced:
+        print("[onscreen_text] %d rendered NUMBER(s) no prop feeds — computed from the clock and printed as "
+              "though measured. Give the readout a prop and draw it only when supplied; a number is real or "
+              "it is absent." % unsourced)
     if fixed_px:
         n = sum(fixed_px.values())
         print("[onscreen_text] %d register(s) size type in bare px (%d sites) — that type does not scale "

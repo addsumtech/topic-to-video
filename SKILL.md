@@ -218,7 +218,14 @@ TTS if the user gives an API key.
   written into the JSX is invisible to it — there is no default to differ from, and it prints on every film
   that ever uses that register. So: **every word comes from a prop**, or is declared as belonging to the
   form (`export const INTRINSIC_TEXT = ['REC', '▶ PLAY']` — an axis label, a status light).
-  `python3 scripts/onscreen_text_qa.py` reports both, plus type sized in bare px (which does not scale: a
+  The same rule binds NUMBERS, and there a word-scan is blind: `BlueprintGrid` rendered `{specN}`, where
+  `specN` counted `0 → 100` off the clock, so it printed a confident **100%** over a beat whose claim was
+  that the cathedral's nave was *never finished* — and would have printed one over any topic that reached
+  for the register. `100%` has no letters in it. So the check follows PROVENANCE instead of shape: a
+  rendered value must trace back to a prop, or the readout is not drawn at all. **A measurement gets a prop
+  with NO default** — unlike copy, where the literal becomes the default — because a defaulted number is
+  still a fabricated number on every film that omits it.
+  `python3 scripts/onscreen_text_qa.py` reports all three, plus type sized in bare px (which does not scale: a
   44px caption is 2.3% of a 1920-wide frame and 4.1% of a 1080-wide portrait one). A test ratchets the
   count so the library cannot regrow it. **Never invent a number** — a readout comes from props or is
   absent. And **a label beside a point is clamped into its box** with `placeLabel()` from `runtime/layout`:

@@ -1515,6 +1515,32 @@ _UNSUPPLIED_TEXT_GRANDFATHERED = {
 }
 
 
+def test_no_register_prints_a_number_the_film_never_supplied():
+    """A percentage counted off the CLOCK is a fabricated statistic, and no word-scan can see it.
+
+    `BlueprintGrid` printed `{specN}` where `const specN = Math.round(lerp(0, 100, easeOutCubic(...)))` —
+    a confident 100% over a beat whose claim was that the nave was NEVER finished, and it would have
+    printed over any topic that reached for the register. There are no letters in `100%`, so the text
+    ratchet below is blind to it; provenance is what catches it.
+    """
+    import glob
+    import importlib.util
+    root = os.path.join(os.path.dirname(__file__), "..")
+    spec = importlib.util.spec_from_file_location(
+        "onscreen_text_qa", os.path.join(root, "scripts", "onscreen_text_qa.py"))
+    qa = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(qa)
+    offenders = {}
+    for f in sorted(glob.glob(os.path.join(root, "remotion", "src", "shots", "*.tsx"))):
+        hits = qa.unsourced_numbers(f)
+        if hits:
+            offenders[os.path.basename(f)[:-4]] = hits
+    assert not offenders, (
+        "these registers print a number computed from the clock, not from the film: %r. "
+        "Give the readout a prop with NO default and draw it only when supplied — a number is real or "
+        "it is absent." % offenders)
+
+
 def test_no_register_prints_text_the_film_never_supplied():
     """A register may only put words on screen that came from props — or that it DECLARES as its own form.
 

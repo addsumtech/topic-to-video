@@ -26,11 +26,16 @@ const Draw: React.FC<{d: string; t: number; a: number; b: number; len: number; s
   };
 
 export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: string; spec2?: string;
+  // `metric` is the percentage in the corner. It has NO default on purpose: it used to count 0->100 off
+  // the clock, so every film using this register printed a confident "100%" it had never been given —
+  // over a beat arguing the cathedral's nave was NEVER finished, which is the opposite claim. A measured
+  // figure comes from the film or the corner stays empty.
+  metric?: number | null;
   metricLabel?: string;
   // A real measurement to set beside the crosshair, or nothing. NEVER a screen coordinate.
   readout?: string}> = ({
   unit = 'workbuddy.unit', tag = 'local-only', spec1 = 'runs on your machine', spec2 = '0 cloud calls',
-  metricLabel = 'on-device', readout = ''} = {}) => {
+  metric = null, metricLabel = '', readout = ''} = {}) => {
   const dna = useDNA();
   const INK = dna?.fg ?? INK0, FAINT = dna?.line ?? FAINT0, ACC = dna?.accent ?? ACC0, BG = dna?.bg ?? '#f6f8fb';
   const t = useT();
@@ -39,7 +44,8 @@ export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: strin
   // module box
   const mw = 720, mh = 380, mx = cx - mw / 2, my = cy - mh / 2;
   const sub = clamp01(seg(t, 0.4, 0.7)); // sub-blocks appear
-  const specN = Math.round(lerp(0, 100, easeOutCubic(seg(t, 0.55, 0.9)))); // a counting readout
+  // the supplied figure, counted UP to its own value — the motion is the register's, the number is the film's
+  const specN = metric == null ? null : Math.round(lerp(0, metric, easeOutCubic(seg(t, 0.55, 0.9))));
 
   return (
     <AbsoluteFill style={{background: BG}}>
@@ -110,11 +116,15 @@ export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: strin
         <div key={i} style={{position: 'absolute', left: l.x, top: l.y, transform: l.anchor === 'center' ? 'translateX(-50%)' : 'none',
           color: '#48566a', font: `600 22px/1 ${MONO}`, opacity: easeOutCubic(seg(t, 0.6, 0.86)), whiteSpace: 'nowrap'}}>{l.txt}</div>
       ))}
-      {/* a counting spec readout, top-right */}
-      <div style={{position: 'absolute', right: 120, top: 120, textAlign: 'right', opacity: clamp01(seg(t, 0.55, 0.78))}}>
-        <div style={{color: INK, font: `800 80px/1 ${MONO}`, fontVariantNumeric: 'tabular-nums'}}>{specN}<span style={{color: ACC}}>%</span></div>
-        <div style={{color: '#5b6675', font: `600 22px/1 ${MONO}`, marginTop: 6}}>{metricLabel}</div>
-      </div>
+      {/* a counting spec readout, top-right — drawn only when the film supplied a figure */}
+      {specN == null ? null : (
+        <div style={{position: 'absolute', right: 120, top: 120, textAlign: 'right', opacity: clamp01(seg(t, 0.55, 0.78))}}>
+          <div style={{color: INK, font: `800 80px/1 ${MONO}`, fontVariantNumeric: 'tabular-nums'}}>{specN}<span style={{color: ACC}}>%</span></div>
+          {metricLabel ? (
+            <div style={{color: '#5b6675', font: `600 22px/1 ${MONO}`, marginTop: 6}}>{metricLabel}</div>
+          ) : null}
+        </div>
+      )}
     </AbsoluteFill>
   );
 };
