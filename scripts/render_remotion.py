@@ -47,6 +47,31 @@ def _transition_in(slide):
     return dict(_TRANSITION_STYLE[style]) if style in _TRANSITION_STYLE else None
 
 
+_CAMERA_MOVES = ("push", "pull", "hold")
+
+
+def _camera(slide):
+    """Map a storyboard scene's MOTIVATED camera move → the Film `camera` mark (or None = hold).
+
+    Written inline in the scene loop first, where it referenced a variable that does not exist in that
+    scope; nothing executed it until a full film render, and the gates meanwhile reported green against the
+    previous out.mp4. Extracted so it can be called — and tested — on its own.
+    """
+    cam = (slide or {}).get("camera")
+    if not isinstance(cam, dict):
+        return None
+    move = str(cam.get("move", "")).strip().lower()
+    if move not in _CAMERA_MOVES:
+        return None
+    out = {"move": move}
+    try:
+        if cam.get("amount") is not None:
+            out["amount"] = float(cam["amount"])
+    except (TypeError, ValueError):
+        pass                                          # a bad amount falls back to the default, never crashes
+    return out
+
+
 # The #camera whole-film DRIFT amplitude. DEFAULT OFF (0 = still): every bespoke shot already animates itself
 # (pure fn of useT), so a global breathing zoom+float ON TOP reads as a constant per-frame SHAKE — a repeated
 # complaint. The drift is now OPT-IN via meta.camera_drift (a tier name OR a raw multiplier); absent = still.
@@ -180,6 +205,9 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
         tin = _transition_in(s)   # a MARKED seam (chapter break) → Film's kinetic transition; else the safe fade
         if tin:
             scene["transitionIn"] = tin
+        cam = _camera(s)          # a MOTIVATED per-beat move (push/pull); absent = hold
+        if cam:
+            scene["camera"] = cam
         chrome = s.get("chrome")   # DNA terminal chrome (command-path + status) framing this beat; remotion-only
         if isinstance(chrome, dict):
             scene["chrome"] = chrome

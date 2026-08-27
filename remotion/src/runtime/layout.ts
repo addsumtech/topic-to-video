@@ -45,6 +45,22 @@ export const captionBand = (W: number, H: number) => {
 };
 export const contentBottom = (W: number, H: number) => H - captionBand(W, H);
 
+// The largest camera push that CANNOT drive a shot's lowest content into the caption band.
+//
+// A scene camera scales the shot about the centre of the content zone, so the zone's bottom edge travels
+// down by half the zone's height times the push. The band holds the caption block plus a gap of clear air;
+// as long as that travel stays inside the gap, the burned subtitle never has shot content sitting on it.
+// Derived rather than chosen, so a change to the caption's type size moves this with it instead of leaving
+// a stale constant that used to be safe.
+export const maxCameraPush = (W: number, H: number) => {
+  const band = captionBand(W, H);
+  const base = Math.min(W, H);
+  const blockH = base * (CAPTION_SIZE_FRAC * CAPTION_LEAD * CAPTION_LINES + CAPTION_MARGIN_FRAC);
+  const gap = Math.max(0, band - blockH);
+  const zoneH = Math.max(1, H - CONTENT_TOP - band);
+  return Math.max(0, (gap / (zoneH / 2)) * 0.75);   // 3/4 of the headroom — the last quarter is not worth spending
+};
+
 // The shared title style — use for a shot's top title so every shot's header reads identically (position,
 // size, weight, tracking). Spread it onto the title <div>; override `color`/`opacity` as needed.
 export const titleStyle: React.CSSProperties = {

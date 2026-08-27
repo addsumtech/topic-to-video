@@ -1653,6 +1653,93 @@ def test_shot_luma_is_measured_not_guessed():
     assert "// measured" not in body, "a rewrite comment is still sitting in SHOT_LUMA"
 
 
+_ROOT_TSX_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "remotion", "src")
+
+
+def test_the_camera_reaches_the_film():
+    """The mapping was written inline in the scene loop against a variable that is not in that scope.
+
+    Nothing ran it until a full film render — and while it was broken, the delivery gates reported green,
+    because they were measuring the PREVIOUS out.mp4. A gate that reads an artifact says nothing about the
+    code that failed to rebuild it.
+    """
+    assert rr._camera({"camera": {"move": "push", "amount": 0.045}}) == {"move": "push", "amount": 0.045}
+    assert rr._camera({"camera": {"move": "PULL"}}) == {"move": "pull"}       # case is the author's business
+    assert rr._camera({"camera": {"move": "orbit"}}) is None                  # not in this tier's vocabulary
+    assert rr._camera({"camera": {"move": "push", "amount": "x"}}) == {"move": "push"}   # never crashes
+    for junk in ({"camera": "nope"}, {"camera": None}, {}, None):
+        assert rr._camera(junk) is None
+
+    film = open(os.path.join(_ROOT_TSX_DIR, "Film.tsx"), encoding="utf-8").read()
+    assert "<SceneCamera" in film, "Film.tsx no longer wraps the shot in a scene camera"
+    assert "camera?: {move?: CameraMove" in film, "SceneSpec no longer carries a per-beat camera"
+
+
+def test_depth_is_built_from_cues_that_survive_rasterization():
+    """Measured on this renderer, not assumed.
+
+    A text-dense shot under `perspective(1200px) translateZ(50px)` lost 38% of its glyph edge strength and
+    is plainly fuzzy; the same shot under a plain 2D `scale` is indistinguishable from the baseline. A
+    3D-composited layer is promoted, rasterized once at layout size and upscaled. So depth here is size,
+    focus, shadow and parallax — and the primitive must not quietly reintroduce Z.
+    """
+    depth = open(os.path.join(_ROOT_TSX_DIR, "runtime", "depth.tsx"), encoding="utf-8").read()
+    body = re.sub(r"//[^\n]*", "", depth)                       # the WHY is in the comments; check the code
+    for banned in ("perspective(", "translateZ(", "rotateX(", "rotateY("):
+        assert banned not in body, (
+            "runtime/depth.tsx uses %s — that promotes the layer and softens every word on it" % banned)
+
+    # the camera move is rest -> arrive -> hold, never a wobble that returns to where it began
+    m = re.search(r"const p = easeInOutCubic\(clamp01\(t / ([0-9.]+)\)\)", depth)
+    assert m and 0.5 < float(m.group(1)) < 0.95, "the camera no longer arrives before the shot ends"
+
+    # and it must be EXERCISED — a primitive nothing imports is one that was never built
+    import glob as _glob
+    shots = _glob.glob(os.path.join(_ROOT_TSX_DIR, "shots", "*.tsx"))
+    users = [os.path.basename(f)[:-4] for f in shots
+             if re.search(r"from '\.\./runtime/depth'", open(f, encoding="utf-8").read())]
+    assert users, ("runtime/depth.tsx is imported by no register — a capability that never reaches a frame "
+                   "is indistinguishable from one that was never written")
+
+
+def test_a_camera_push_cannot_drive_content_into_the_caption_band():
+    """The camera scales the shot, so it can push the lowest content down onto the burned subtitle.
+
+    That would have quietly re-created the overlap the reserved band exists to prevent. The cap is derived
+    from the layout, so a change to the caption's type size moves it instead of leaving a stale constant.
+    """
+    layout = open(os.path.join(_ROOT_TSX_DIR, "runtime", "layout.ts"), encoding="utf-8").read()
+    assert "export const maxCameraPush" in layout, "the push cap is no longer derived from the layout"
+    depth = open(os.path.join(_ROOT_TSX_DIR, "runtime", "depth.tsx"), encoding="utf-8").read()
+    assert "maxCameraPush" in depth and "Math.min(amount ?? " in depth, (
+        "SceneCamera no longer clamps its amount to what the caption band can absorb")
+    # The EXPRESSION, not the presence of the words. `CONTENT_TOP` survives in the import line, so a check
+    # for the identifier anywhere in the file passes happily while the origin is back at the frame centre.
+    m = re.search(r"const originY = ([^;]+);", depth)
+    assert m, "SceneCamera no longer computes a transform origin"
+    assert "CONTENT_TOP" in m.group(1) and "contentBottom" in m.group(1), (
+        "the camera scales about %r — about the frame centre a push drives the lowest content down into the "
+        "band reserved for the burned caption" % m.group(1).strip())
+    assert "transformOrigin" in depth
+
+    import importlib.util
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    spec = importlib.util.spec_from_file_location("_caption_band", os.path.join(root, "scripts", "_caption_band.py"))
+    cb = importlib.util.module_from_spec(spec); spec.loader.exec_module(cb)
+    f = cb._fracs()
+    for aspect in ("16:9", "9:16", "1:1", "4:5", "4:3"):
+        W, H = cb.aspect_wh(aspect)
+        band = cb.caption_band_px(W, H)
+        base = min(W, H)
+        blockH = base * (f["CAPTION_SIZE_FRAC"] * f["CAPTION_LEAD"] * f["CAPTION_LINES"] + f["CAPTION_MARGIN_FRAC"])
+        gap = max(0.0, band - blockH)
+        zoneH = max(1, H - 176 - band)
+        cap = max(0.0, (gap / (zoneH / 2)) * 0.75)
+        assert cap > 0.02, "%s leaves no room for any camera move at all (cap %.3f)" % (aspect, cap)
+        assert (zoneH / 2) * cap <= gap + 0.5, (
+            "%s: a push at the cap travels %.0fpx into a %.0fpx gap" % (aspect, (zoneH / 2) * cap, gap))
+
+
 def test_the_cut_vocabulary_actually_reaches_the_storyboard():
     """The tier's seams existed, were guarded, were mapped — and no film ever used one.
 

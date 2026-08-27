@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Plan the film's MARKED seams — the ~2-3 cuts that mean something — and write them into the storyboard.
+"""Plan the film's MARKED seams and its MOTIVATED camera moves, and write them into the storyboard.
 
-  python3 scripts/seam_plan.py <out_dir>            # plan and write `transition_in` on the chosen beats
+  python3 scripts/seam_plan.py <out_dir>            # plan and write `transition_in` + `camera` on the beats
   python3 scripts/seam_plan.py <out_dir> --dry-run  # print the plan, change nothing
+  python3 scripts/seam_plan.py <out_dir> --no-camera # seams only
 
 WHY THIS EXISTS. The remotion tier already had the whole apparatus: `Film.tsx` implements five kinetic
 seams including `carry`, a collapse-to-line match-cut that reads as CONTINUITY rather than a swap;
@@ -186,6 +187,54 @@ def plan(slides, dna=None):
     return chosen
 
 
+# ── the camera ──────────────────────────────────────────────────────────────────────────────────────────
+# A camera move needs a CAUSE. The tier's previous camera was a film-wide sinusoidal drift with no
+# relationship to anything being said, and motion with no cause reads as a wobble the moment a viewer
+# notices it — which is what happened, and why it was switched off entirely. Switching it off was an
+# over-correction: the fix for noise is removing the noise, not removing the camera.
+#
+# So a move is derived from what the beat is FOR, and only for the beats that are for something:
+#
+#   payoff  -> push   the beat where the argument lands. Look closer at what is on screen.
+#   close   -> pull   the last beat. Here is the whole of it.
+#   opener  -> pull   the establishing beat, for the same reason, from the other end of the film.
+#
+# Everything else HOLDS. A film where the camera is always moving has no camera at all, in the same way
+# that a film where every cut is marked has no punctuation — so the budget is deliberately small and the
+# moves are spread apart.
+CAMERA_BY_RELATION = {"payoff": "push", "close": "pull"}
+CAMERA_AMOUNT = 0.045          # gentle; SceneCamera clamps it to what the caption band can absorb
+CAMERA_MIN_GAP = 4             # beats between two moving beats
+
+
+def plan_camera(slides):
+    """→ {beat_index: {"move": ..., "why": ...}} for the beats that should move."""
+    n = len(slides)
+    if n < 6:
+        return {}
+    cands = []
+    for i, sl in enumerate(slides):
+        rel = (sl.get("relation") or "").strip().lower()
+        move = CAMERA_BY_RELATION.get(rel)
+        if move is None and i == 0:
+            move, rel = "pull", "opener"          # the establishing beat opens outward
+        if not move:
+            continue
+        why = {"push": "the beat where the argument lands — look closer at what is on screen",
+               "pull": "here is the whole of it"}[move]
+        cands.append(({"close": 0, "opener": 1, "payoff": 2}.get(rel, 3), i, move, why))
+
+    budget = max(2, min(4, n // 9))
+    chosen = {}
+    for rank, i, move, why in sorted(cands, key=lambda c: (c[0], c[1])):
+        if len(chosen) >= budget:
+            break
+        if any(abs(i - j) < CAMERA_MIN_GAP for j in chosen):
+            continue
+        chosen[i] = {"move": move, "why": why}
+    return chosen
+
+
 def main(argv):
     if not argv:
         print(__doc__.strip().splitlines()[2])
@@ -220,10 +269,21 @@ def main(argv):
         if not dry:
             s["transition_in"] = {"type": m["type"]}
 
+    cams = {} if "--no-camera" in argv else plan_camera(slides)
+    for i, c in sorted(cams.items()):
+        sl = slides[i]
+        if sl.get("camera"):
+            print("  beat %-3d skip camera (authored)" % (i + 1))
+            continue
+        print("  beat %-3d %s camera %-5s %s" % (i + 1, "would" if dry else "set", c["move"], c["why"]))
+        if not dry:
+            sl["camera"] = {"move": c["move"], "amount": CAMERA_AMOUNT}
+
     if not dry:
         json.dump(board, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    print("[seam_plan] %d marked seam(s) of %d cut(s)%s"
-          % (len(marks), max(0, len(slides) - 1), " (dry run — nothing written)" if dry else ""))
+    print("[seam_plan] %d marked seam(s) of %d cut(s), %d moving beat(s) of %d%s"
+          % (len(marks), max(0, len(slides) - 1), len(cams), len(slides),
+             " (dry run — nothing written)" if dry else ""))
     return 0
 
 

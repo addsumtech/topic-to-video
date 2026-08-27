@@ -186,6 +186,23 @@ TTS if the user gives an API key.
   invisible and a mark only reads as punctuation while it stays rare), keeping them ≥5 beats apart and
   luminance-safe; and `validate.py` WARNS when a film of ≥12 beats carries no mark at all, or when more than
   ~1-in-8 are marked. An explicit authored `transition_in` always wins over the plan.
+  **SPACE — depth and a motivated camera (`remotion/src/runtime/depth.tsx`).** Two things, and both are
+  measured rather than assumed. **Depth is 2D on purpose:** a text-dense shot under
+  `perspective(1200px) translateZ(50px)` loses 38% of its glyph edge strength and is plainly fuzzy, because a
+  3D-composited layer is promoted, rasterized once at layout size and GPU-upscaled; the same shot under a
+  plain 2D `scale` is indistinguishable from the baseline. (video-shotcraft answers this with layout-level
+  CSS `zoom`; the answer here is not to put text on a Z plane.) So `<Plane depth={DEPTH.behind}>` builds depth
+  from the cues that survive — SIZE, FOCUS, SHADOW, PARALLAX — and the type stays sharp. Use it only where it
+  ENCODES the beat: `PlanPalimpsest` puts the earlier survey one plane back because "two plans in register on
+  the same ground" is the register's whole claim and a flat drawing can only assert it. A shot that scatters
+  things across planes for the look of it is decoration.
+  **The camera is per-BEAT and motivated.** The film-wide sinusoidal drift (`meta.camera_drift`) has no
+  relationship to anything being said, which is exactly why it reads as a wobble once noticed — it stays off
+  by default. `slide.camera:{move:'push'|'pull'|'hold'}` moves for a reason: `payoff` → push (look closer at
+  what is here), `close`/opener → pull (here is the whole of it), everything else holds. `seam_plan.py` derives
+  ~2-4 moving beats from `relation` alongside the seams. Moves ride `useT()`, so a cut never happens over a
+  moving camera, and the amount is clamped by `maxCameraPush()` — a push scales about the CONTENT zone, and
+  without that clamp it would drive the lowest content down onto the burned caption.
   **`meta.design_dna.seam`** sets the film's NATIVE cut — what an *unmarked* seam becomes. The five shipped
   presets get theirs from a switch (terminal → screen-clear, editorial/blueprint → a sheet laid down), but a
   **bespoke direction matched no case and fell through to an anonymous cross-fade**, so declare it:

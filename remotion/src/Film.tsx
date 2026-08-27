@@ -20,6 +20,7 @@ import {dissolve} from '@remotion/transitions/dissolve';
 import {SceneDurationContext, ReducedMotionContext, clamp01, SEAM_FRAMES} from './runtime/motion';
 import {groundLum, dnaGroundLum, dnaGroundY, groundGap, type Lum, type GroundColors} from './runtime/shotLuma';
 import {Atmosphere, type Atmo} from './runtime/atmosphere';
+import {SceneCamera, type CameraMove} from './runtime/depth';
 import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome} from './runtime/dna';
 import {REGISTRY} from './registry';
 import {CAPTIONS} from './captions';
@@ -36,7 +37,11 @@ export type SceneSpec = {shot: string; props?: Record<string, unknown>; durF: nu
   // A MARKED seam (chapter break): the transition INTO this scene from the previous one. Optional +
   // remotion-only; unset = the luminance-safe default (a gentle cross-fade). A kinetic type is honored only
   // on a same/near-luminance seam — across a dark↔light gap it's suppressed back to fade (see pickPresentation).
-  transitionIn?: {type: 'fade' | 'slide' | 'wipe' | 'clock' | 'dissolve' | 'carry'; direction?: string}};
+  transitionIn?: {type: 'fade' | 'slide' | 'wipe' | 'clock' | 'dissolve' | 'carry'; direction?: string};
+  // A MOTIVATED camera move for THIS beat: `push` (look closer at what is here), `pull` (here is the whole
+  // of it), `hold` (most beats). Optional; absent = hold. This is not the film-wide ambient drift below —
+  // that one had no relationship to anything being said, which is precisely why it read as a wobble.
+  camera?: {move?: CameraMove; amount?: number}};
 
 const TR = SEAM_FRAMES; // cross-dissolve length (frames) — rides the ~0.42s narration breath so speech barely
 // overlaps. Shared with runtime/motion's useT, which holds each shot STILL for exactly these frames at both
@@ -413,7 +418,9 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
           const seq = (
             <TransitionSeries.Sequence key={`s${i}`} durationInFrames={durF}>
               <SceneDurationContext.Provider value={durF}>
-                <AbsoluteFill>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</AbsoluteFill>
+                <SceneCamera move={sc.camera?.move} amount={sc.camera?.amount}>
+                  <AbsoluteFill>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</AbsoluteFill>
+                </SceneCamera>
                 <TerminalChrome dna={activeDna} path={sc.chrome?.path} status={sc.chrome?.status} root={sc.chrome?.root} W={width} H={height} />
               </SceneDurationContext.Provider>
               {sc.mp3 ? <Audio src={staticFile(sc.mp3)} /> : null}

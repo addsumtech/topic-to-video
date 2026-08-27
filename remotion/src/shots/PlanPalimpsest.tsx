@@ -14,6 +14,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, easeOutExpo} from '../runtime/motion';
 import {captionBand, CONTENT_TOP} from '../runtime/layout';
+import {Plane, DEPTH} from '../runtime/depth';
 import {useDNA} from '../runtime/dna';
 
 export const DURATION = 160;
@@ -77,7 +78,14 @@ export const PlanPalimpsest: React.FC<{
         textTransform: (dna?.uppercaseLabels ?? true) ? 'uppercase' : 'none'}}>{kicker}</div>
 
       {/* THE LOWER PLAN — a BUILDING footprint, not a filled box: two rows of piers inside a wall, so
-          the eye reads masonry. It sits INSIDE the later boundary, which is the whole point. */}
+          the eye reads masonry. It sits INSIDE the later boundary, which is the whole point.
+          It also sits ONE PLANE BACK. That is not atmosphere: this register's entire claim is that two
+          surveys are in REGISTER on the same ground, and a flat drawing can only assert it — the eye has
+          no reason to read one as under the other. A plane's worth of separation gives it one, and when
+          the beat's camera moves, the two drift by different amounts, which is what a viewer already knows
+          to read as "these are at different distances". The labels stay on the subject plane, because they
+          are the film speaking ABOUT the plans, not part of either. */}
+      <Plane depth={DEPTH.behind}>
       {Array.from({length: n}).map((_, i) => {
         const on = clamp01(under * n - i);
         const bx = x0 + i * bayW;
@@ -97,6 +105,7 @@ export const PlanPalimpsest: React.FC<{
       {/* the outer wall of the lower plan, drawn with real thickness */}
       <div style={{position: 'absolute', left: x0, top: y0, width: pw * under, height: ph,
         border: `${hair * 4}px solid ${ACC}`, boxSizing: 'border-box', opacity: 0.9}} />
+      </Plane>
 
       {/* THE UPPER PLAN — the later ground, DASHED and larger, enclosing the footprint in register.
           Dashed because it is an edge you cannot see on site: the square has no wall. */}

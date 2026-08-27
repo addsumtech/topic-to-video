@@ -1,0 +1,144 @@
+// DEPTH + CAMERA — space that MEANS something, without the rasterization penalty.
+//
+// WHY THIS IS 2D. The obvious way to build depth is `perspective()` + `translateZ()`. Measured on this
+// library's own renderer, on a text-dense shot: a plain 2D `scale` left glyph edge strength at 86 against a
+// 91 baseline — and the small drop is entirely explained by the glyphs being LARGER, not softer; magnified
+// crops are indistinguishable. The same shot under `perspective(1200px) translateZ(50px)` dropped to 56, a
+// 38% loss that is plainly fuzzy to the eye. A 3D-composited layer gets promoted, rasterized once at layout
+// size and GPU-upscaled, so every word on it softens; a 2D transform is repainted at final resolution each
+// frame. (This is the defect video-shotcraft documents as Q2 and answers with layout-level CSS `zoom`; the
+// answer here is not to put text on a Z plane in the first place.)
+//
+// So depth is built from the cues that survive: SIZE, FOCUS, SHADOW and PARALLAX. For parallel planes —
+// which is what an explanatory diagram has — those carry the whole reading, and the type stays sharp. A
+// shot that genuinely needs converging perspective (a receding wall) can still reach for a 3D transform,
+// but it must not carry text it expects anyone to read.
+//
+// WHY IT MUST MEAN SOMETHING. Depth here is not atmosphere. The near plane is what the narration is
+// talking about NOW; the far plane is the context it sits in. Hide the caption and the arrangement should
+// still say which is which. A shot that scatters things across planes for the look of it is decoration and
+// belongs in neither this file nor the film.
+
+import React from 'react';
+import {useVideoConfig} from 'remotion';
+import {useT, ReducedMotionContext, clamp01, easeInOutCubic} from './motion';
+import {CONTENT_TOP, contentBottom, maxCameraPush} from './layout';
+
+// ── depth planes ────────────────────────────────────────────────────────────────────────────────────────
+// Named, because a bare number says nothing about what the author meant. `subject` is the plane the beat is
+// about and is always the one in focus; everything else is measured from it.
+export const DEPTH = {
+  lifted: -1,     // above the ground — casts a shadow: a thing placed ON the page, not printed into it
+  subject: 0,     // what the narration is talking about now. Sharp, full size, full parallax.
+  behind: 1,      // one step back — still legible, slightly soft
+  context: 2,     // the setting the subject sits in
+  far: 3,         // background material; never carries anything that must be read
+};
+
+const DOF_PER_UNIT = 0.0016;      // blur per depth unit, as a fraction of min(W,H) — ~1.7px at 1080
+const SIZE_PER_UNIT = 0.014;      // further planes are slightly smaller
+const PARALLAX_PER_UNIT = 0.30;   // how much of the camera's move a plane is EXEMPT from, per depth unit
+
+export type CameraState = {push: number; amount: number};
+export const CameraContext = React.createContext<CameraState>({push: 0, amount: 0});
+export const useCamera = () => React.useContext(CameraContext);
+
+/** A depth plane. Everything inside reads as sitting at `depth` relative to the subject plane. */
+export const Plane: React.FC<{
+  depth?: number;
+  children?: React.ReactNode;
+  style?: React.CSSProperties;
+  className?: string;
+}> = ({depth = 0, children, style, className}) => {
+  const {width: W, height: H} = useVideoConfig();
+  const {push, amount} = useCamera();
+  const base = Math.min(W, H);
+
+  // FOCUS. Only planes BEHIND the subject soften; a lifted plane is nearer, and nearer is not blurrier in
+  // any lens a viewer has ever looked through — it would read as a mistake.
+  const blur = Math.max(0, depth) * DOF_PER_UNIT * base;
+  // SIZE. A further plane is smaller. Small, because this compounds with parallax below.
+  const size = 1 - depth * SIZE_PER_UNIT;
+  // PARALLAX. The Film scales the whole scene by (1 + amount*push). A plane further back should move LESS,
+  // so it counter-scales by its share of that move. depth 0 moves with the camera exactly; depth 3 keeps
+  // most of its position. This is what makes the planes read as separated rather than as one flat picture
+  // that happens to have a blurred region.
+  const counter = 1 - amount * push * PARALLAX_PER_UNIT * depth;
+  // SHADOW. Only a LIFTED plane casts one, and its softness follows how far it is lifted. A shadow under
+  // something that is not lifted is the single commonest tell of decoration-grade depth.
+  const lift = Math.max(0, -depth);
+  const shadow = lift > 0
+    ? `0 ${(lift * base * 0.010).toFixed(1)}px ${(lift * base * 0.022).toFixed(1)}px rgba(0,0,0,${(0.16 * lift).toFixed(3)})`
+    : undefined;
+
+  return (
+    <div
+      className={className}
+      style={{
+        position: 'absolute', inset: 0,
+        transform: `scale(${(size * counter).toFixed(5)})`,
+        // A lifted plane is never blurred (lift > 0 means depth < 0, so `blur` is already 0 there), which is
+        // why the shadow child below is never inside a blur pass.
+        filter: blur > 0.2 ? `blur(${blur.toFixed(2)}px)` : undefined,
+        willChange: 'transform',
+        ...style,
+      }}
+    >
+      {shadow ? <div style={{position: 'absolute', inset: 0, boxShadow: shadow, pointerEvents: 'none'}} /> : null}
+      {children}
+    </div>
+  );
+};
+
+// ── the camera ──────────────────────────────────────────────────────────────────────────────────────────
+// A MOTIVATED move, not ambient drift. The film-wide sinusoidal breathe this replaces had no relationship
+// to anything being said, which is exactly why it reads as a wobble the moment a viewer notices it: motion
+// with no cause is noise. A push says LOOK CLOSER at what is on screen; a pull says HERE IS THE WHOLE OF
+// IT. Both start and end at rest, and both ride useT(), which is already held still for the frames a
+// dissolve is running — so a cut never happens over a moving camera.
+
+export type CameraMove = 'push' | 'pull' | 'hold';
+
+/** The scale a scene's camera is at, 0..1 of its move. Pure function of normalized time. */
+export const cameraAt = (move: CameraMove, t: number): number => {
+  if (move === 'hold') return 0;
+  // arrive by ~78% and HOLD. A move that runs to the last frame is still moving when the next shot starts
+  // blending over it, and a move that returns to where it began is a wobble, not a statement.
+  const p = easeInOutCubic(clamp01(t / 0.78));
+  return move === 'push' ? p : 1 - p;
+};
+
+/**
+ * Wraps ONE scene's shot: applies the camera's 2D scale and publishes the push so `Plane`s can parallax.
+ *
+ * The transform origin is the centre of the CONTENT ZONE, not of the frame. Scaling about the frame centre
+ * pushes the shot's lowest content downward into the band reserved for the burned caption — the camera
+ * would have quietly re-created the overlap the band exists to prevent. `maxCameraPush()` derives the
+ * largest move that cannot do this from the layout itself, and the amount is clamped to it.
+ */
+export const SceneCamera: React.FC<{
+  move?: CameraMove;
+  amount?: number;
+  children?: React.ReactNode;
+}> = ({move = 'hold', amount, children}) => {
+  const {width: W, height: H} = useVideoConfig();
+  const reduced = React.useContext(ReducedMotionContext);
+  const t = useT();
+  const cap = maxCameraPush(W, H);
+  const amp = reduced ? 0 : Math.max(0, Math.min(amount ?? 0.045, cap));
+  const push = amp > 0 ? cameraAt(move, t) : 0;
+  const scale = 1 + amp * push;
+  const originY = (CONTENT_TOP + contentBottom(W, H)) / 2;
+
+  return (
+    <CameraContext.Provider value={{push, amount: amp}}>
+      <div style={{
+        position: 'absolute', inset: 0,
+        transform: scale === 1 ? undefined : `scale(${scale.toFixed(5)})`,
+        transformOrigin: `50% ${originY.toFixed(1)}px`,
+      }}>
+        {children}
+      </div>
+    </CameraContext.Provider>
+  );
+};
