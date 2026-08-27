@@ -41,7 +41,9 @@ const Glyph: React.FC<{kind: string; c: string; g: number}> = ({kind, c, g}) => 
 
 export const PlatformSurfaces: React.FC<{
   title?: string; subtitle?: string; tiles?: Tile[]; accent?: string; accent2?: string;
+  markLabel?: string;
 }> = ({
+  markLabel = 'THE PLATFORM',
   title = 'One platform, not one app', subtitle = 'everything runs on the same models',
   tiles = [{label: 'API', note: 'developers build on it', glyph: 'api'},
            {label: 'Sora', note: 'image + video', glyph: 'video'},
@@ -72,7 +74,7 @@ export const PlatformSurfaces: React.FC<{
         background: `linear-gradient(150deg, ${accent}, #0e5c46)`, boxShadow: '0 24px 60px #0008',
         opacity: clamp01(heroE * 1.4), transform: `scale(${lerp(0.9, 1, heroE)})`, transformOrigin: 'center',
         padding: 48, display: 'flex', flexDirection: 'column', justifyContent: 'space-between'}}>
-        <div style={{color: '#eafff7cc', font: '600 22px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.14em'}}>THE PLATFORM</div>
+        <div style={{color: '#eafff7cc', font: '600 22px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.14em'}}>{markLabel}</div>
         <div>
           <div style={{color: '#fff', font: `800 60px/1.05 var(--f-body, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em'}}>{title}</div>
           <div style={{color: '#eafff7dd', font: `500 27px/1.3 var(--f-body, Inter, system-ui, sans-serif)`, marginTop: 16}}>{subtitle}</div>

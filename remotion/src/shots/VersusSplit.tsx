@@ -10,6 +10,13 @@ import {useDNA, dnaPalette, mix, shade, tint} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 
+// This register's own vocabulary — the labels that belong to the FORM the way an axis belongs to a
+// graph, not sample copy about a topic. Declared so onscreen_text_qa can tell them apart from the
+// demo furniture that used to print on every film (WORKBUDDY, DASHBOARD, x:960 y:540).
+export const INTRINSIC_TEXT = [
+  'WINNER',
+];
+
 type Side = {label?: string; points?: string[]};
 
 const Panel: React.FC<{side: Side; enter: number; align: 'left' | 'right'; tone: string; win: boolean; t: number; base: number}> = ({

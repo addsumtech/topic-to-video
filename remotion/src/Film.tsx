@@ -100,7 +100,13 @@ const CAPTION_BAND = 150;    // px at the bottom reserved for the caption; shots
 const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaColors?: GroundColors | null;
   dnaFontBody?: string | null}> = ({scenes, groundBg, dnaColors, dnaFontBody}) => {
   const frame = useCurrentFrame();
-  const {width} = useVideoConfig();
+  const {width, height} = useVideoConfig();
+  // The caption used to be a flat 44px whatever the frame was. Two problems, both reported from a delivered
+  // film: at 16:9 it sat close enough to the content above to read as one block with it, and at 9:16 — where
+  // the frame is only 1080 wide — the same 44px is proportionally half again as large. It is sized off the
+  // NARROW dimension now (the same rule the image tier already used) and set a notch smaller, which also
+  // buys the gap: the caption is bottom-anchored, so a smaller block starts lower.
+  const capSize = Math.round(Math.min(width, height) * 0.0352);
   let acc = 0;
   const starts = scenes.map((sc) => { const s = acc; acc += Math.max(1, Math.round(sc.durF)) - TR; return s; });
   let active = -1, ws = 0, we = 0;
@@ -151,7 +157,7 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaColors?
   return (
     <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', pointerEvents: 'none', opacity: op}}>
       <div style={{position: 'relative', maxWidth: Math.min(1400, width - 80), margin: '0 auto 40px', padding: '0 60px', textAlign: 'center',
-        color: ink, font: `700 44px/${capLead} ${dnaFontBody ?? 'Inter, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif'}`,
+        color: ink, font: `700 ${capSize}px/${capLead} ${dnaFontBody ?? 'Inter, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif'}`,
         letterSpacing: capTrack, textShadow: shadow}}>{capText}</div>
     </AbsoluteFill>
   );

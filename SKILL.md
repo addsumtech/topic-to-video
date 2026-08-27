@@ -210,7 +210,23 @@ TTS if the user gives an API key.
   has no register, **BUILD it** — the normal case on a subject the library has not met, and how families J
   (survey: map plate, strata column, plan palimpsest, growth profile, technical plate) and JA (archive:
   gazetteer entry, tally ledger, museum label, inscription) came to exist.
-  **`meta.design_dna.motif` — the film's MATERIAL.** Every register draws its own structure and nothing else,
+  **A register may only put on screen what the FILM supplied.** Four times in one review a viewer found
+  words that had nothing to do with the subject — `WORKBUDDY` on a title card, `©2026 · LOCAL` in a corner,
+  `DASHBOARD` over a children's book character, `x:960 y:540` (the centre of a 1920×1080 frame) beside a
+  cathedral as though it measured it. Every gate was green each time, for one reason: `shot_proof`'s
+  demo-default check compares a beat's props against the register's prop DEFAULTS, so a string literal
+  written into the JSX is invisible to it — there is no default to differ from, and it prints on every film
+  that ever uses that register. So: **every word comes from a prop**, or is declared as belonging to the
+  form (`export const INTRINSIC_TEXT = ['REC', '▶ PLAY']` — an axis label, a status light).
+  `python3 scripts/onscreen_text_qa.py` reports both, plus type sized in bare px (which does not scale: a
+  44px caption is 2.3% of a 1920-wide frame and 4.1% of a 1080-wide portrait one). A test ratchets the
+  count so the library cannot regrow it. **Never invent a number** — a readout comes from props or is
+  absent. And **a label beside a point is clamped into its box** with `placeLabel()` from `runtime/layout`:
+  choosing a side by `x > 0.5` reads the point's half rather than the room left, so a point near an edge
+  pushes its label out of the container — two city names crossed a map plate's border that way. No raster
+  check can catch that one, because text crossing a drawn border and a full-bleed field reaching the frame
+  edge are the same pixels; it is prevented at the source instead.
+    **`meta.design_dna.motif` — the film's MATERIAL.** Every register draws its own structure and nothing else,
   so a themed film is a set of clean but bare frames: right palette, right type, no material. A motif states
   the subject's own surface once and every frame inherits it — `coursing` (a built subject) · `waterline` ·
   `graticule` (mapped/measured) · `hatch` (printed) · `deckle` (written) · `contour` · `staff` (notation) —

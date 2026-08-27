@@ -24,7 +24,8 @@ function jaggedBurst(cx: number, cy: number, n: number, ro: number, ri: number):
   return 'M' + pts.join('L') + 'Z';
 }
 
-export const HalftonePop: React.FC<{burstTop?: string; burstBottom?: string; brand?: string}> = ({
+export const HalftonePop: React.FC<{lead?: string; burstTop?: string; burstBottom?: string; brand?: string}> = ({
+  lead = 'MEANWHILE…',
   burstTop = 'SHIP', burstBottom = 'IT!', brand = 'WorkBuddy'} = {}) => {
   const dna = useDNA();
   const YEL = dna?.bg ?? YEL0, RED = dna?.accent ?? RED0, INK = dna?.fg ?? INK0, BLUE = dna?.accent2 ?? BLUE0;

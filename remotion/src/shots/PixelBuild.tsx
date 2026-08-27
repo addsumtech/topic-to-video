@@ -24,7 +24,8 @@ const GRID = [
 ];
 const PX = 46;
 
-export const PixelBuild: React.FC<{label?: string}> = ({label = 'WORKBUDDY · COMPLETE'} = {}) => {
+export const PixelBuild: React.FC<{hud?: string; label?: string}> = ({
+  hud = 'SCORE 9999',label = 'WORKBUDDY · COMPLETE'} = {}) => {
   const t = useT();
   const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
@@ -37,7 +38,7 @@ export const PixelBuild: React.FC<{label?: string}> = ({label = 'WORKBUDDY · CO
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('#0b0f2a'), overflow: 'hidden'}}>
       {/* HUD */}
-      <div style={{position: 'absolute', left: 60, top: 44, color: '#ffe14d', font: '700 42px/1 var(--f-mono, "Press Start 2P", "VT323", monospace)', letterSpacing: '0.04em'}}>SCORE 9999</div>
+      <div style={{position: 'absolute', left: 60, top: 44, color: '#ffe14d', font: '700 42px/1 var(--f-mono, "Press Start 2P", "VT323", monospace)', letterSpacing: '0.04em'}}>{hud}</div>
       <div style={{position: 'absolute', right: 60, top: 44, color: '#ff5b7f', font: '700 42px/1 var(--f-mono, "VT323", monospace)', letterSpacing: '0.04em'}}>1UP ▪▪▪</div>
 
       {/* the sprite */}

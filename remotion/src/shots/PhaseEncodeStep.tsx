@@ -9,6 +9,15 @@ import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
 
+// This register's own vocabulary — the labels that belong to the FORM the way an axis belongs to a
+// graph, not sample copy about a topic. Declared so onscreen_text_qa can tell them apart from the
+// demo furniture that used to print on every film (WORKBUDDY, DASHBOARD, x:960 y:540).
+export const INTRINSIC_TEXT = [
+  'k-space',
+  'lines written',
+  '±Gmax · steps each TR',
+];
+
 export const PhaseEncodeStep: React.FC<{accent?: string; accent2?: string; label?: string; steps?: number}> = ({
   accent = '#22d3ee', accent2 = '#a78bfa', label = 'Phase encoding · one line per TR', steps = 16,
 } = {}) => {

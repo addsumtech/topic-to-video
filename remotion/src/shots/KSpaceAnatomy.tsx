@@ -11,6 +11,16 @@ import {useDNA} from '../runtime/dna';
 
 export const DURATION = 175; // ~5.8s
 
+// This register's own vocabulary — the labels that belong to the FORM the way an axis belongs to a
+// graph, not sample copy about a topic. Declared so onscreen_text_qa can tell them apart from the
+// demo furniture that used to print on every film (WORKBUDDY, DASHBOARD, x:960 y:540).
+export const INTRINSIC_TEXT = [
+  'edges = detail',
+  'high spatial frequency',
+  'low spatial frequency',
+  'one point = a wave across the whole image',
+];
+
 export const KSpaceAnatomy: React.FC<{srcK?: string; srcLow?: string; srcHigh?: string;
   accent?: string; accent2?: string; label?: string; credit?: string}> = ({
   srcK, srcLow, srcHigh, accent = '#22d3ee', accent2 = '#a78bfa', label = 'Reading k-space', credit = '',

@@ -32,6 +32,28 @@ _SHOTS = os.path.join(_REM, "src", "shots")
 STUB = '''// SHOT · {id} — {use_when}
 // A NEW register: the ARGUMENT SHAPE lives here, the topic arrives entirely through props, so any later
 // film making the same kind of claim can reach for it. Replace this stub with the real design.
+//
+// THREE RULES THIS TIER LEARNED THE HARD WAY — all three shipped past every gate before they were caught
+// by a viewer, so they are stated here where they are unavoidable:
+//
+// 1. EVERY WORD ON SCREEN COMES FROM A PROP. Never write copy as a literal in the JSX. A literal has no
+//    default to differ from, so shot_proof's demo-default check cannot see it, and it prints on every film
+//    that ever uses this register — `WORKBUDDY`, `DASHBOARD`, `©2026 · LOCAL`, `x:960 y:540` all shipped
+//    that way. If a word genuinely belongs to the FORM (an axis label, a REC light), declare it:
+//       export const INTRINSIC_TEXT = ['REC', '▶ PLAY'];
+//    `scripts/onscreen_text_qa.py` reports violations; a test holds the line.
+//
+// 2. NEVER INVENT A NUMBER. A readout, a coordinate, a measurement must come from props or be absent. The
+//    literal `x:960 y:540` was the centre of a 1920x1080 frame printed beside a cathedral as though it
+//    measured it.
+//
+// 3. A LABEL BESIDE A POINT MUST BE CLAMPED INTO ITS BOX. Choosing a side by `x > 0.5` reads the point's
+//    half, not the room left, so a point near an edge pushes its label out of the container. Use
+//    `placeLabel(x, x0, x1, labelW, gap)` from runtime/layout. No raster check can catch this one: text
+//    crossing a drawn border and a full-bleed field reaching the frame edge are the same pixels.
+//
+// And size type off `Math.min(W, H)`, never a bare px literal — a 44px caption is 2.3% of a 1920-wide
+// frame and 4.1% of a 1080-wide portrait one.
 
 import React from 'react';
 import {{AbsoluteFill, useVideoConfig}} from 'remotion';

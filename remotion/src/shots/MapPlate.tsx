@@ -13,7 +13,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic} from '../runtime/motion';
-import {captionBand, CONTENT_TOP} from '../runtime/layout';
+import {captionBand, CONTENT_TOP, placeLabel} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
 
 export const DURATION = 160;
@@ -28,6 +28,7 @@ export const MapPlate: React.FC<{
   place?: string;                 // the mark at the centre — the subject of the plate
   marks?: Mark[];                 // outer places, positioned in plate fractions
   routes?: boolean;               // draw hairlines from each mark INTO the centre
+  channel?: {label?: string; from?: [number, number]; to?: [number, number]; width?: number};
   scaleLabel?: string;
   note?: string;
 }> = ({
@@ -36,6 +37,7 @@ export const MapPlate: React.FC<{
   marks: MARKS = [{label: 'north', x: 0.5, y: 0.1}, {label: 'west', x: 0.12, y: 0.55},
                   {label: 'east', x: 0.88, y: 0.55}, {label: 'south', x: 0.5, y: 0.92}],
   routes = true,
+  channel,
   scaleLabel = '',
   note = ''} = {}) => {
   const dna = useDNA();
@@ -93,6 +95,37 @@ export const MapPlate: React.FC<{
         );
       })}
 
+      {/* a CHANNEL driven through the plate — a cut, a river, a corridor. Drawn under the marks, with the
+          double bank a survey draws a waterway with, so it reads as a route and not as a highlight bar. */}
+      {channel ? (() => {
+        const a = channel.from ?? [0.10, 0.18], b = channel.to ?? [0.90, 0.86];
+        const x1 = fx(a[0]), y1 = fy(a[1]), x2 = fx(b[0]), y2 = fy(b[1]);
+        const on = easeOutCubic(clamp01(seg(t, 0.30, 0.62)));
+        const len = Math.hypot(x2 - x1, y2 - y1) * on;
+        const ang = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+        const cw = Math.max(hair * 4, (channel.width ?? 0.02) * PW);
+        // A QUARTER along, not the midpoint. The centre of a plate is where the subject's own mark lives by
+        // construction, so a channel label at 50% lands on top of the place name every time.
+        const mx = x1 + (x2 - x1) * 0.26, my = y1 + (y2 - y1) * 0.26;
+        return (
+          <React.Fragment>
+            <div style={{position: 'absolute', left: x1, top: y1 - cw / 2, width: len, height: cw,
+              background: ACC2, opacity: 0.22, transformOrigin: '0 50%', transform: `rotate(${ang}deg)`}} />
+            {[-1, 1].map((sd) => (
+              <div key={sd} style={{position: 'absolute', left: x1, top: y1 - cw / 2 + (sd > 0 ? cw : 0),
+                width: len, height: hair * 2, background: ACC2,
+                transformOrigin: '0 50%', transform: `rotate(${ang}deg)`}} />
+            ))}
+            {channel.label ? (
+              <div style={{position: 'absolute', left: mx - W * 0.09, top: my + cw, width: W * 0.18,
+                textAlign: 'center', opacity: on,
+                font: `500 ${Math.round(W * 0.0135)}px/1.3 ${mono}`, color: ACC2,
+                letterSpacing: '0.06em'}}>{channel.label}</div>
+            ) : null}
+          </React.Fragment>
+        );
+      })() : null}
+
       {/* routes running INTO the centre — convergence, in the plate's own dialect */}
       {routes && MARKS.slice(0, 8).map((m, i) => {
         const st = 0.46 + i * 0.045;
@@ -113,17 +146,22 @@ export const MapPlate: React.FC<{
         const st = 0.44 + i * 0.045;
         const on = easeOutCubic(clamp01(seg(t, st, st + 0.14)));
         const x = fx(m.x ?? 0.5), y = fy(m.y ?? 0.5);
-        const rightSide = (m.x ?? 0.5) > 0.5;
+        // The side is chosen by WHERE THERE IS ROOM, not by which half of the plate the mark sits in. Keyed
+        // on the half, a mark near the right edge got a right-hand label that ran straight out of the plate
+        // — Groningen and Maastricht both crossed the border in a delivered film. A label is clamped inside
+        // the plate as well, so no combination of positions can push one out.
+        const labW = Math.min(W * 0.15, PW * 0.30);
+        const gap = dot + Math.round(W * 0.006);
+        const {left, align} = placeLabel(x, px0 + hair * 2, px1 - hair * 2, labW, gap);
+        const rightSide = align === 'left';
         return (
           <React.Fragment key={'m' + i}>
             <div style={{position: 'absolute', left: x - dot / 2, top: y - dot / 2, width: dot, height: dot,
               borderRadius: dot, background: FG, opacity: on}} />
-            <div style={{position: 'absolute', top: y - Math.round(W * 0.012),
-              left: rightSide ? x + dot : undefined, right: rightSide ? undefined : W - x + dot,
-              textAlign: rightSide ? 'left' : 'right', width: W * 0.14, opacity: on,
+            <div style={{position: 'absolute', top: y - Math.round(W * 0.012), left, width: labW,
+              textAlign: rightSide ? 'left' : 'right', opacity: on,
               font: `500 ${Math.round(W * 0.0135)}px/1.25 ${mono}`, color: DIM,
-              paddingLeft: rightSide ? Math.round(W * 0.006) : 0,
-              paddingRight: rightSide ? 0 : Math.round(W * 0.006)}}>{m.label}</div>
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{m.label}</div>
           </React.Fragment>
         );
       })}

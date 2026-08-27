@@ -12,7 +12,8 @@ export const DURATION = 155; // ~5.2s
 const CH = '▚ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789▸✓'.split('');
 const DEFAULT_ROWS = ['WORKBUDDY', 'DELIVERED'];
 
-export const SplitFlap: React.FC<{rows?: string[]}> = ({rows: ROWS = DEFAULT_ROWS} = {}) => {
+export const SplitFlap: React.FC<{kicker?: string; rows?: string[]}> = ({
+  kicker = 'STATUS · TODAY',rows: ROWS = DEFAULT_ROWS} = {}) => {
   const t = useT();
   const dna = useDNA();
   const frame = useCurrentFrame();
@@ -58,7 +59,7 @@ export const SplitFlap: React.FC<{rows?: string[]}> = ({rows: ROWS = DEFAULT_ROW
       {tiles}
       {/* header label */}
       <div style={{position: 'absolute', left: 0, right: 0, top: y0 - 100, textAlign: 'center',
-        color: '#6f7078', font: '700 26px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.5em', paddingLeft: '0.5em'}}>STATUS · TODAY</div>
+        color: '#6f7078', font: '700 26px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.5em', paddingLeft: '0.5em'}}>{kicker}</div>
     </AbsoluteFill>
   );
 };

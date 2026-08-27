@@ -9,6 +9,13 @@ import {useDNA} from '../runtime/dna';
 
 export const DURATION = 170; // ~5.7s
 
+// This register's own vocabulary — the labels that belong to the FORM the way an axis belongs to a
+// graph, not sample copy about a topic. Declared so onscreen_text_qa can tell them apart from the
+// demo furniture that used to print on every film (WORKBUDDY, DASHBOARD, x:960 y:540).
+export const INTRINSIC_TEXT = [
+  '~3 in a million tip the balance → net signal',
+];
+
 export const SpinsAlign: React.FC<{accent?: string; accent2?: string; label?: string}> = ({
   accent = '#22d3ee', accent2 = '#a78bfa', label = 'Spins align in the field', } = {}) => {
   const {width: W, height: H} = useVideoConfig();

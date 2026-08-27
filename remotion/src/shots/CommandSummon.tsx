@@ -9,6 +9,13 @@ import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
 
+// This register's own vocabulary — the labels that belong to the FORM the way an axis belongs to a
+// graph, not sample copy about a topic. Declared so onscreen_text_qa can tell them apart from the
+// demo furniture that used to print on every film (WORKBUDDY, DASHBOARD, x:960 y:540).
+export const INTRINSIC_TEXT = [
+  '↵ run',
+];
+
 const ACCENT0 = '#6E8BFF';
 const DEFAULT_ROWS = ['Plan the deck outline', 'Pull the Q3 numbers', 'Design 24 slides', 'Write the narrative', 'Export to your folder'];
 

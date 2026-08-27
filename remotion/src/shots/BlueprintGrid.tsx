@@ -25,8 +25,12 @@ const Draw: React.FC<{d: string; t: number; a: number; b: number; len: number; s
     );
   };
 
-export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: string; spec2?: string; metricLabel?: string}> = ({
-  unit = 'workbuddy.unit', tag = 'local-only', spec1 = 'runs on your machine', spec2 = '0 cloud calls', metricLabel = 'on-device'} = {}) => {
+export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: string; spec2?: string;
+  metricLabel?: string;
+  // A real measurement to set beside the crosshair, or nothing. NEVER a screen coordinate.
+  readout?: string}> = ({
+  unit = 'workbuddy.unit', tag = 'local-only', spec1 = 'runs on your machine', spec2 = '0 cloud calls',
+  metricLabel = 'on-device', readout = ''} = {}) => {
   const dna = useDNA();
   const INK = dna?.fg ?? INK0, FAINT = dna?.line ?? FAINT0, ACC = dna?.accent ?? ACC0, BG = dna?.bg ?? '#f6f8fb';
   const t = useT();
@@ -98,7 +102,10 @@ export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: strin
       {[
         {x: cx, y: my + mh + 70, txt: spec1, anchor: 'center'},
         {x: mx + mw + 76, y: cy, txt: spec2, anchor: 'left'},
-        {x: cx + 34, y: cy + 6, txt: `x:960  y:540`, anchor: 'left'},
+        // Was the literal x:960 y:540 — the centre of a 1920x1080 frame, printed beside the subject as
+        // though it measured it. It measured nothing, it was wrong at any other resolution, and it
+        // appeared on every film that reached for this register. A readout is real or it is absent.
+        ...(readout ? [{x: cx + 34, y: cy + 6, txt: readout, anchor: 'left' as const}] : []),
       ].map((l, i) => (
         <div key={i} style={{position: 'absolute', left: l.x, top: l.y, transform: l.anchor === 'center' ? 'translateX(-50%)' : 'none',
           color: '#48566a', font: `600 22px/1 ${MONO}`, opacity: easeOutCubic(seg(t, 0.6, 0.86)), whiteSpace: 'nowrap'}}>{l.txt}</div>

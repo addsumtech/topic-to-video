@@ -8,6 +8,13 @@ import {useT, seg, clamp01} from '../runtime/motion';
 import {useDNA, TermFrame} from '../runtime/dna';
 
 export const DURATION = 165;
+
+// This register's own vocabulary — the labels that belong to the FORM the way an axis belongs to a
+// graph, not sample copy about a topic. Declared so onscreen_text_qa can tell them apart from the
+// demo furniture that used to print on every film (WORKBUDDY, DASHBOARD, x:960 y:540).
+export const INTRINSIC_TEXT = [
+  '← HEAD',
+];
 type Commit = {hash?: string; ref?: string; msg?: string};
 
 export const TermGitLog: React.FC<{cmd?: string; commits?: Commit[]; framed?: boolean}> = ({

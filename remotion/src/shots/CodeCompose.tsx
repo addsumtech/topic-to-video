@@ -31,7 +31,8 @@ const cells = (s: string): number => { let n = 0; for (const ch of s) n += isWid
 const lineText = (line: Tok[] | string): string =>
   typeof line === 'string' ? line : line.map((tk) => tk.t).join('');
 
-export const CodeCompose: React.FC<{filename?: string; lines?: (Tok[] | string)[]; status?: string}> = ({
+export const CodeCompose: React.FC<{doneLabel?: string; filename?: string; lines?: (Tok[] | string)[]; status?: string}> = ({
+  doneLabel = 'done',
   filename = 'workbuddy.py', lines: LINESP, status: STATUS = '— shipped, on your machine'} = {}) => {
   const t = useT();
   const dna = useDNA();

@@ -22,10 +22,12 @@ export const DURATION = 160;
 const BG_D0 = '#efe7d8', FG_D0 = '#241d14', DIM_D0 = '#6e6152';
 const ACC_D0 = '#9c3b1e', LINE_D0 = '#cdbfa7';
 
+// `ghost` marks a part that is NOT THERE — demolished, never built, proposed. A plate that can only draw
+// what exists cannot make the commonest argument a plate is used for: what is missing from this object.
 type Stroke =
-  | {kind: 'circle'; x: number; y: number; r: number; w?: number}
-  | {kind: 'line'; x: number; y: number; x2: number; y2: number; w?: number}
-  | {kind: 'bar'; x: number; y: number; w: number; h: number; fill?: boolean};
+  | {kind: 'circle'; x: number; y: number; r: number; w?: number; ghost?: boolean}
+  | {kind: 'line'; x: number; y: number; x2: number; y2: number; w?: number; ghost?: boolean}
+  | {kind: 'bar'; x: number; y: number; w: number; h: number; fill?: boolean; ghost?: boolean};
 
 type Part = {n?: number; label?: string; x?: number; y?: number; side?: 'left' | 'right'};
 
@@ -119,16 +121,17 @@ export const TechnicalPlate: React.FC<{
           return (
             <div key={i} style={{position: 'absolute', left: ux(st.x) - r, top: uy(st.y) - r,
               width: r * 2, height: r * 2, borderRadius: '50%',
-              border: `${Math.max(2, Math.round((st.w ?? 1) * lw))}px solid ${FG}`,
-              opacity: on, transform: `scale(${0.85 + 0.15 * on})`}} />
+              border: `${Math.max(2, Math.round((st.w ?? 1) * lw))}px ${st.ghost ? 'dashed' : 'solid'} ${st.ghost ? DIM : FG}`,
+              opacity: on * (st.ghost ? 0.6 : 1), transform: `scale(${0.85 + 0.15 * on})`}} />
           );
         }
         if (st.kind === 'bar') {
           return (
             <div key={i} style={{position: 'absolute', left: ux(st.x), top: uy(st.y),
               width: st.w * unit * on, height: Math.max(2, st.h * unit),
-              background: st.fill ? FG : 'transparent',
-              border: st.fill ? 'none' : `${lw}px solid ${FG}`, opacity: on}} />
+              background: st.fill ? (st.ghost ? DIM : FG) : 'transparent',
+              border: st.fill ? 'none' : `${lw}px ${st.ghost ? 'dashed' : 'solid'} ${st.ghost ? DIM : FG}`,
+              opacity: on * (st.ghost ? 0.55 : 1)}} />
           );
         }
         const x1 = ux(st.x), y1 = uy(st.y), x2 = ux(st.x2), y2 = uy(st.y2);
@@ -136,7 +139,10 @@ export const TechnicalPlate: React.FC<{
         const ang = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
         return (
           <div key={i} style={{position: 'absolute', left: x1, top: y1 - lw / 2, width: len,
-            height: Math.max(2, Math.round((st.w ?? 1) * lw)), background: FG,
+            height: Math.max(2, Math.round((st.w ?? 1) * lw)),
+            background: st.ghost ? 'transparent' : FG,
+            borderTop: st.ghost ? `${Math.max(2, Math.round((st.w ?? 1) * lw))}px dashed ${DIM}` : undefined,
+            opacity: st.ghost ? 0.6 : 1,
             transformOrigin: '0 50%', transform: `rotate(${ang}deg)`}} />
         );
       })}

@@ -9,6 +9,16 @@ import {useT, seg, lerp, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 
 export const DURATION = 180; // 6s
+
+// This register's own vocabulary — the labels that belong to the FORM the way an axis belongs to a
+// graph, not sample copy about a topic. Declared so onscreen_text_qa can tell them apart from the
+// demo furniture that used to print on every film (WORKBUDDY, DASHBOARD, x:960 y:540).
+export const INTRINSIC_TEXT = [
+  'L1 favors the fewest coefficients',
+  'consistent with the measured k-space',
+  'random undersampling → noise-like aliasing',
+  'sparse in a transform',
+];
 const SERIF = "var(--f-display, 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif)";
 
 export const CompressedSensingEq: React.FC<{accent?: string; accent2?: string; label?: string}> = ({

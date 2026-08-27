@@ -53,3 +53,28 @@ export function fitContentSquare(
   const left = (W - S) / 2;
   return {S, left, top};
 }
+
+/** Where a label goes beside a point, WITHOUT leaving the box it belongs to.
+ *
+ * The recurring bug this exists for: a label is placed by `mark.x > 0.5 ? right : left` and given a fixed
+ * width. That reads the point's HALF, not the room actually left, so any point near an edge gets a label
+ * pushed straight out of its container — two city names crossed a map plate's border in a delivered film,
+ * and a flap board's rows ran off the frame the same way. No raster check can catch it: text crossing a
+ * DRAWN border and a full-bleed field reaching the frame edge are the same pixels.
+ *
+ * So the fix is at the source. Pass the point, the box it must stay inside, and the label's width; get back
+ * a left edge that is clamped into the box and the side the text should align to.
+ *
+ * @param x     the point the label annotates, in px
+ * @param x0,x1 the box the label must stay inside, in px
+ * @param labelW the label's width in px
+ * @param gap   clearance between the point and the label
+ */
+export function placeLabel(x: number, x0: number, x1: number, labelW: number, gap: number):
+  {left: number; align: 'left' | 'right'} {
+  const roomRight = (x1 - x) - gap;
+  // side by ROOM, not by which half of the box the point sits in
+  const align: 'left' | 'right' = (roomRight >= labelW || (x - x0) < labelW) ? 'left' : 'right';
+  const raw = align === 'left' ? x + gap : x - gap - labelW;
+  return {left: Math.max(x0, Math.min(raw, x1 - labelW)), align};
+}

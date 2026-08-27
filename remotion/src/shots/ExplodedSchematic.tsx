@@ -9,7 +9,8 @@ import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
 const NAVY = '#081726', CYAN_D0 = '#43C4E8', LINE_D0 = '#1f5f7d';
-export const ExplodedSchematic: React.FC<{items?: string[]}> = ({
+export const ExplodedSchematic: React.FC<{caption?: string; items?: string[]}> = ({
+  caption = 'ONE PROMPT → DELIVERED',
   items: STAGES = ['Instruction', 'Planner', 'Experts ×100', 'Your tools', 'Deliverable']} = {}) => {
   const dna = useDNA();
   const CYAN = dna?.accent ?? CYAN_D0, LINE = dna?.line ?? LINE_D0;

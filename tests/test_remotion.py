@@ -1504,3 +1504,48 @@ def test_shot_proof_serves_the_films_public_dir_to_standalone_stills():
     assert src.count('"--public-dir=" + os.path.abspath(out_dir)') == stills, (
         "every standalone still shot_proof renders must be served the film's out_dir, or the "
         "real-image registers can never render")
+
+
+# Registers that still print text the film never supplied. This list may SHRINK and must never grow: it is
+# the ratchet that stops the library regrowing the defect a viewer found four times in one review —
+# WORKBUDDY on a title card, ©2026 · LOCAL in a corner, DASHBOARD over a children's book character, and
+# x:960 y:540 beside a cathedral, all invisible to every gate because none of them was a prop.
+_UNSUPPLIED_TEXT_GRANDFATHERED = {
+    "Aliasing", "CursorStory", "DataOrrery", "HalftonePop", "OverlapSeparation", "ScreenBubble",
+}
+
+
+def test_no_register_prints_text_the_film_never_supplied():
+    """A register may only put words on screen that came from props — or that it DECLARES as its own form.
+
+    shot_proof's demo-default check compares a beat's shot_props against the register's prop DEFAULTS, so a
+    string literal written straight into the JSX is invisible to it: there is no default to differ from, and
+    it prints on every film that ever uses the register whatever that film is about. This is the check that
+    sees those, and the grandfather list is what keeps the count going one way.
+
+    Two escapes, both explicit: make the literal a prop whose default is the literal (existing films render
+    identically, and the demo-default check starts covering it), or declare it as intrinsic to the form —
+    an axis label, a REC light — with `export const INTRINSIC_TEXT = [...]`.
+    """
+    import glob
+    import os
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    import onscreen_text_qa as q
+
+    shots = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "shots")
+    dirty = set()
+    for f in sorted(glob.glob(os.path.join(shots, "*.tsx"))):
+        if q.scan(f):
+            dirty.add(os.path.basename(f)[:-4])
+
+    added = sorted(dirty - _UNSUPPLIED_TEXT_GRANDFATHERED)
+    assert not added, (
+        "these registers print text no film supplied: %s. Make each literal a prop whose default is the "
+        "literal, or declare it in INTRINSIC_TEXT if it belongs to the register's own form. Run "
+        "`python3 scripts/onscreen_text_qa.py` to see them." % ", ".join(added))
+
+    cleaned = sorted(_UNSUPPLIED_TEXT_GRANDFATHERED - dirty)
+    assert not cleaned, ("these registers are clean now — remove them from "
+                         "_UNSUPPLIED_TEXT_GRANDFATHERED so the ratchet keeps holding: %s"
+                         % ", ".join(cleaned))

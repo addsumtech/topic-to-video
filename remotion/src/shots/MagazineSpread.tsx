@@ -11,7 +11,8 @@ import {useDNA} from '../runtime/dna';
 export const DURATION = 165; // 5.5s
 const PAPER_D0 = '#f3f0e8', INK_D0 = '#161512';
 
-export const MagazineSpread: React.FC<{title?: string; headline?: string; deck?: string; issue?: string; accent?: string}> = ({
+export const MagazineSpread: React.FC<{sectionLabel?: string; title?: string; headline?: string; deck?: string; issue?: string; accent?: string}> = ({
+  sectionLabel = 'FEATURE',
   title: TITLE = 'OBLIQUE', headline: HEADLINE = 'The quiet revolution in how we work',
   deck: DECK = 'A field guide to the tools reshaping the day', issue: ISSUE = 'ISSUE 07 — 2026',
   accent: accentProp} = {}) => {
