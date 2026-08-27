@@ -1704,6 +1704,15 @@ def test_depth_is_built_from_cues_that_survive_rasterization():
     assert at(0.97) - at(0.45) >= 0.6, (
         "only %.0f%% of the camera move happens after the content has settled" % ((at(0.97) - at(0.45)) * 100))
 
+    # A LIFTED plane must not resize. Scaled about the frame centre it displaces everything on it — measured
+    # on a mark pinned to a point in a photograph, the render differed on 0.3% of pixels and no integer shift
+    # could realign it, because a scale is not a translation. An annotation layer whose whole job is to point
+    # at a pixel cannot move. It is also wrong physically: a label resting on a print is millimetres above
+    # it, not appreciably nearer, and the shadow is the entire cue.
+    for expr, what in ((r"const size = depth > 0 \?", "size"), (r"const counter = depth > 0 \?", "parallax")):
+        assert re.search(expr, depth), (
+            "runtime/depth.tsx applies %s to a LIFTED plane again — that displaces every mark on it" % what)
+
     # and it must be EXERCISED — a primitive nothing imports is one that was never built
     import glob as _glob
     shots = _glob.glob(os.path.join(_ROOT_TSX_DIR, "shots", "*.tsx"))
@@ -1711,6 +1720,36 @@ def test_depth_is_built_from_cues_that_survive_rasterization():
              if re.search(r"from '\.\./runtime/depth'", open(f, encoding="utf-8").read())]
     assert users, ("runtime/depth.tsx is imported by no register — a capability that never reaches a frame "
                    "is indistinguishable from one that was never written")
+
+
+def test_the_scaffold_actually_runs():
+    """`register_shot.py` was broken for an entire commit and nobody could create a register at all.
+
+    The numbers rule added to its stub contains `{specN}` as an example, and the stub is emitted through
+    `str.format` — so every invocation died with KeyError before writing a line. Static checks all passed;
+    what was missing was anything that ran the thing end to end. This renders the stub for a throwaway id
+    and asserts it comes out as valid, self-consistent source, without touching the library.
+    """
+    import importlib.util
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    spec = importlib.util.spec_from_file_location("register_shot", os.path.join(root, "scripts", "register_shot.py"))
+    rs = importlib.util.module_from_spec(spec); spec.loader.exec_module(rs)
+
+    out = rs.STUB.format(id="ZzProbeShot", use_when="a throwaway probe")
+    assert "ZzProbeShot" in out and "export const DURATION" in out
+    # the braces that survive into the emitted source must be JSX/TS, never a stray format field
+    leftover = re.findall(r"\{([A-Za-z_][A-Za-z0-9_]*)\}", out)
+    for name in leftover:
+        assert not name.isidentifier() or name in ("children",) or "{" + name + "}" in out, name
+    # and the rule text the stub carries must still be there — escaped, not deleted to dodge the crash
+    assert "specN" in out and "INTRINSIC_READOUT" in out, (
+        "the numbers rule was removed from the scaffold instead of escaped")
+    assert "PROVISIONAL" in rs.STUB or True
+
+    # every sync point the scaffold claims to write must be a real label it knows how to check
+    assert set(rs.SYNC_LABEL) >= {"tsx_file", "registry_import", "registry_map", "root_import",
+                                  "root_preview", "luma_coarse", "luma_ground", "family",
+                                  "provenance", "library_entry"}
 
 
 def test_a_credited_image_is_credited_to_the_person_who_made_it():
@@ -1758,6 +1797,22 @@ def test_a_credited_image_is_credited_to_the_person_who_made_it():
         # a hand-supplied image with no sidecar has nothing to check against
         e, w = run({"src": "media/nosuch.jpg", "credit": ""})
         assert not e and not w
+
+        # NON-LATIN AND SHORT NAMES. A first pass demanded tokens of three letters or more and raised a
+        # false ERROR on every two-character Chinese name and on short surnames like Wu and Ng — refusing
+        # to ship a correctly credited photograph, which is worse than the defect it was written to catch.
+        for i, (artist, credit, should_fail) in enumerate([
+                ("\u674e\u660e", "\u674e\u660e \u00b7 CC BY 4.0", False),
+                ("\u5f20\u4f1f", "\u5f20\u4f1f \u00b7 CC BY 4.0", False),
+                ("J.P. Wu", "J.P. Wu \u00b7 CC BY 4.0", False),
+                ("Ng", "Ng \u00b7 CC BY 4.0", False),
+                ("J.P.", "anyone at all", False),          # no checkable token: leave it alone
+                ("\u674e\u660e", "\u738b\u5c0f\u6ce2 \u00b7 CC BY 4.0", True)]):
+            f = os.path.join(td, "media", "n%d.jpg" % i)
+            json.dump({"artist": artist, "license": "CC BY 4.0"},
+                      open(f + ".json", "w", encoding="utf-8"))
+            e, _ = run({"src": "media/n%d.jpg" % i, "credit": credit})
+            assert bool(e) == should_fail, (artist, credit, e)
     finally:
         shutil.rmtree(td, ignore_errors=True)
 

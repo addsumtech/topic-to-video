@@ -1303,11 +1303,20 @@ def _image_attribution(slides, out_dir, errors, warnings):
             # (fotograaf)' while a credit line reads 'J.P. de Koning' — the same person, and an exact
             # substring test called it uncredited. A checker that fails on correct attributions gets
             # switched off, and then the wrong ones ship too.
-            _ROLE = {"fotograaf", "photographer", "own", "work", "unknown", "anonymous", "user"}
-            toks = [w for w in re.findall(r"[^\W\d_]{3,}", artist, re.UNICODE) if w.lower() not in _ROLE]
-            got = sum(1 for w in toks if w.lower() in credits.lower())
-            named = bool(toks) and got >= max(1, (len(toks) + 1) // 2)
-            if artist and not named:
+            #
+            # Tokens are CJK RUNS plus Latin words of two letters or more, because a first pass demanding
+            # three letters raised a false ERROR on every two-character Chinese name and on short surnames
+            # like Wu and Ng — refusing to ship a correctly credited photograph, which is worse than the
+            # defect it was written to catch. A name that yields no tokens at all (initials only) is not
+            # checkable and is left alone rather than failed.
+            _ROLE = {"fotograaf", "photographer", "fotograf", "own", "work", "unknown", "anonymous", "user"}
+            bare = re.sub(r"\([^)]*\)", " ", artist)
+            cjk = re.findall(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]+", bare)
+            latin = [w for w in re.findall(r"[A-Za-zÀ-ÿ]{2,}", bare) if w.lower() not in _ROLE]
+            hit_cjk = all(w in credits for w in cjk)
+            hit_lat = (not latin) or sum(1 for w in latin if w.lower() in credits.lower()) >= max(1, (len(latin) + 1) // 2)
+            named = bool(cjk or latin) and hit_cjk and hit_lat
+            if artist and (cjk or latin) and not named:
                 errors.append(
                     "beat %d shows %s but does not credit its author. The sidecar says %r; the beat's "
                     "credit reads %r. A CC licence requires the actual creator to be named."

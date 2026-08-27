@@ -71,6 +71,7 @@ export const PhotoPlate: React.FC<{
   // only wide enough for the plate's own rule and its caption — the point of this register is that the
   // photograph is large enough to be READ, not acknowledged.
   const top = CONTENT_TOP + H * 0.01;
+  const MAX_PLATE_ASPECT = 2.3;      // capped on the WIDE side: an uncapped plate came out a 2.78:1 slit
   // The space under the plate is DERIVED from the type that goes in it, not guessed. As a flat fraction of
   // H it held one line, and the caption wraps to two on any narrow frame — the credit was then drawn at a
   // fixed offset straight through the caption's second line. Positions under here are a running sum, the
@@ -83,17 +84,33 @@ export const PhotoPlate: React.FC<{
   // that height is the whole point of the register. Estimated from the measure the caption wraps in, the
   // same way the burned caption's own fit is estimated; capped at two, because a plate caption longer than
   // that is a paragraph and belongs in the narration.
-  const capMeasureW = Math.min(W - W * 0.17, (H - CONTENT_TOP) * 2.1);
-  const capPerLine = Math.max(8, Math.floor(capMeasureW / (capSize * 0.52)));
-  const capLines = Math.max(1, Math.min(2, Math.ceil(String(caption || '').length / capPerLine)));
-  const capH = capGap + Math.round(capSize * 1.25 * capLines)
-             + (credit ? Math.round(creditSize * 1.85) : 0) + capGap;
+  // The plate's width and the caption's line count depend on each other: the caption wraps in the plate's
+  // width, and the space reserved for it sets the plate's height, which sets its width. A first pass broke
+  // the loop with a standing approximation and got a width 30% too wide — it believed 68 characters fitted
+  // on a line where 52 do, so a 55-character caption was estimated at one line, reserved one, and then
+  // CLIPPED by the line clamp with no signal at all. Two passes settle it: assume one line, derive the real
+  // plate, re-count, and if it turned out to be two, derive again against the narrower plate.
+  const capText = String(caption || '');
+  // CJK sets one glyph per em; Latin averages about half. Estimating a CJK caption at the Latin advance
+  // halves its apparent length.
+  const cjkShare = capText.length
+    ? capText.replace(/[^\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '').length / capText.length : 0;
+  const advance = 0.52 + 0.48 * cjkShare;
+  const reserveFor = (lines: number) =>
+    capGap + Math.round(capSize * 1.25 * lines) + (credit ? Math.round(creditSize * 1.85) : 0) + capGap;
+  const plateWidthFor = (lines: number) => {
+    const h = Math.max(1, (H - captionBand(W, H) - reserveFor(lines)) - top);
+    return Math.min(W - W * 0.17, h * MAX_PLATE_ASPECT);
+  };
+  const linesIn = (w: number) =>
+    Math.max(1, Math.min(2, Math.ceil(capText.length / Math.max(8, Math.floor(w / (capSize * advance))))));
+  const capLines = linesIn(plateWidthFor(linesIn(plateWidthFor(1))));
+  const capH = reserveFor(capLines);
   const bottom = H - captionBand(W, H) - capH;
   // The plate takes the content zone, but its ASPECT is capped. Left to fill the width it came out at
   // 2.78:1 on a 16:9 frame — a cinemascope slit that happened to suit this photograph and would have cut
   // the subject out of a portrait one. The cap is on the WIDE side only: a tall frame wants a tall plate,
   // and cropping a landscape photograph to it is what a portrait film asks for anyway.
-  const MAX_PLATE_ASPECT = 2.3;
   const PH = Math.max(1, bottom - top);
   const PW = Math.min(W - W * 0.17, PH * MAX_PLATE_ASPECT);
   const px0 = (W - PW) / 2, px1 = px0 + PW;
@@ -145,7 +162,12 @@ export const PhotoPlate: React.FC<{
           const text = String(m.label ?? '');
           // the chip is measured from its own text, then clamped inside the PLATE — a mark near an edge
           // must not push its label off the picture it is pointing into
-          const chipW = Math.min(PW * 0.42, chipPad * 2 + text.length * chipFont * 0.54 + chipFont * 1.6);
+          // same advance problem as the caption: a CJK label is one glyph per em, so the Latin estimate
+          // makes its chip half as wide as it needs and the label wraps into a tall stack
+          const mShare = text.length
+            ? text.replace(/[^\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '').length / text.length : 0;
+          const chipW = Math.min(PW * 0.42,
+            chipPad * 2 + text.length * chipFont * (0.54 + 0.46 * mShare) + chipFont * 1.6);
           const gap = dot + Math.round(W * 0.008);
           const {left, align} = placeLabel(mx, px0 + hair * 3, px1 - hair * 3, chipW, gap);
           const leftSide = align !== 'left';
@@ -176,9 +198,11 @@ export const PhotoPlate: React.FC<{
       {/* what the plate IS, and the licence line it requires — ONE flow block, so the credit sits under
           whatever the caption turned out to be rather than at an offset that assumed one line. */}
       <div style={{position: 'absolute', left: px0, top: bottom + capGap, width: PW, opacity: land}}>
-        <div style={{font: `700 ${capSize}px/1.25 ${disp}`, color: FG,
-          display: '-webkit-box', WebkitLineClamp: capLines, WebkitBoxOrient: 'vertical',
-          overflow: 'hidden'}}>{caption}</div>
+        {/* Clamped by HEIGHT rather than by the `-webkit-box` + line-clamp idiom: it does the same job
+            without depending on a legacy box model, and the reserve above is already computed in these
+            same units, so the two cannot disagree. */}
+        <div style={{font: `700 ${capSize}px/1.25 ${disp}`, color: FG, width: '100%',
+          maxHeight: Math.round(capSize * 1.25 * capLines), overflow: 'hidden'}}>{caption}</div>
         {credit ? (
           <div style={{marginTop: Math.round(creditSize * 0.5), opacity: 0.85,
             font: `400 ${creditSize}px/1.35 ${mono}`, color: DIM}}>{credit}</div>

@@ -57,13 +57,18 @@ export const Plane: React.FC<{
   // FOCUS. Only planes BEHIND the subject soften; a lifted plane is nearer, and nearer is not blurrier in
   // any lens a viewer has ever looked through — it would read as a mistake.
   const blur = Math.max(0, depth) * DOF_PER_UNIT * base;
-  // SIZE. A further plane is smaller. Small, because this compounds with parallax below.
-  const size = 1 - depth * SIZE_PER_UNIT;
+  // SIZE — for planes BEHIND only. A lifted plane scaled about the frame centre DISPLACES everything on
+  // it: measured, a mark pinned to a point in a photograph moved 29px, about its own width, and stopped
+  // pointing at the thing it named. That is fatal for the one job an annotation layer has. It is also
+  // wrong physically — a label resting on a print is a few millimetres above it, not appreciably nearer,
+  // and the SHADOW is the whole cue. So a lifted plane keeps its registration and casts a shadow; only
+  // depth BEHIND the subject changes size, where nothing is registered to anything.
+  const size = depth > 0 ? 1 - depth * SIZE_PER_UNIT : 1;
   // PARALLAX. The Film scales the whole scene by (1 + amount*push). A plane further back should move LESS,
   // so it counter-scales by its share of that move. depth 0 moves with the camera exactly; depth 3 keeps
   // most of its position. This is what makes the planes read as separated rather than as one flat picture
   // that happens to have a blurred region.
-  const counter = 1 - amount * push * PARALLAX_PER_UNIT * depth;
+  const counter = depth > 0 ? 1 - amount * push * PARALLAX_PER_UNIT * depth : 1;
   // SHADOW. Only a LIFTED plane casts one, and its softness follows how far it is lifted. A shadow under
   // something that is not lifted is the single commonest tell of decoration-grade depth.
   const lift = Math.max(0, -depth);
