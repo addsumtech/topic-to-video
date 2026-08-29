@@ -1313,8 +1313,17 @@ def _image_attribution(slides, out_dir, errors, warnings):
             # defect it was written to catch. A name that yields no tokens at all (initials only) is not
             # checkable and is left alone rather than failed.
             _ROLE = {"fotograaf", "photographer", "fotograf", "own", "work", "unknown", "anonymous", "user"}
-            bare = re.sub(r"\([^)]*\)", " ", artist)
-            cjk = re.findall(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]+", bare)
+            # THE NAME, NOT THE PAGE. Commons often stores the artist as a name followed by a paragraph of
+            # boilerplate — "Donald Trung Quoc Don (Chữ Hán: 徵國單) - Wikimedia Commons - © CC BY-SA 4.0
+            # International.(Want to use this image?)Original publication…". Requiring every substantial
+            # token of THAT rejects a credit that names the author perfectly, which is the false positive
+            # this gate must never produce: it blocks delivery on correct attribution. Cut at the first
+            # boilerplate marker and check the name.
+            name = re.split(r"\s[-–—]\s|©|\(Want\b|Original publication|\bWikimedia\b|[\r\n]", artist)[0]
+            bare = re.sub(r"\([^)]*\)", " ", name)[:80]
+            # CJK is read from the NAME including any parenthesised form (a Chinese name often sits
+            # in brackets beside its romanisation), but only from the name, never the boilerplate.
+            cjk = re.findall(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]+", name[:80])
             latin = [w for w in re.findall(r"[A-Za-zÀ-ÿ]{2,}", bare) if w.lower() not in _ROLE]
             # EVERY substantial token must be present, not half of them. A half-match passes the credit
             # 'Massimo Smith' for a photograph by Massimo Catarinella — the right first name and the wrong

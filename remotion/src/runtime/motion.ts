@@ -24,6 +24,8 @@ export const REDUCED_MOTION_T = 0.86;
 // SEAM_FRAMES must equal Film.tsx's cross-dissolve length. Exported so the two cannot drift: the whole
 // point below is that a shot is STILL for exactly the frames a dissolve is running over it.
 export const SEAM_FRAMES = 12;
+// The t a shot is HELD at while the incoming dissolve runs over it — see useT below.
+export const ENTRY_T = 0.06;
 
 /** Normalized time 0→1 across the shot — but SETTLED at both edges.
  *
@@ -50,7 +52,15 @@ export function useT(): number {
   const dur = sceneDur ?? durationInFrames;
   const pad = Math.min(SEAM_FRAMES, Math.floor(Math.max(0, dur - 1) / 3));
   const span = Math.max(1, dur - 1 - 2 * pad);
-  return clamp01((frame - pad) / span);
+  // ENTRY_T, not 0. The incoming shot is HELD for `pad` frames while the dissolve runs over it — which is
+  // what stopped the seam flicker, and stays. But holding at exactly 0 means it is held at NOTHING: every
+  // register's first reveal step has not begun, so a cut resolves onto an empty page. Measured across a
+  // delivered film's seams, mid-dissolve ink fell to 0.63% against a 3.10% settled frame — no cut in the
+  // film ever cut between two images. Held at a small positive t the shot is still perfectly STILL (the
+  // value is constant across the pad, so the flicker fix is untouched), but what is held is its composed
+  // skeleton — ground, frame, kicker — rather than a blank. Registers reveal content from ~0.1 onward, so
+  // this lands after the shell and before anything the eye would see move.
+  return clamp01(ENTRY_T + (1 - ENTRY_T) * ((frame - pad) / span));
 }
 
 // Re-map a sub-window [a,b] of global t to a local 0→1 (for phase timing within a shot).

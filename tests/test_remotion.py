@@ -1578,7 +1578,10 @@ def test_the_caption_fits_its_band_in_every_language_and_aspect():
     film = open(os.path.join(root, "remotion", "src", "Film.tsx"), encoding="utf-8").read()
     assert "const fitSize" in film and "capBand - capMargin" in film, (
         "Film.tsx no longer caps the caption to the band it reserved")
-    assert re.search(r"font: `700 \$\{fitSize\}px", film), "the caption is not drawn at the fitted size"
+    # matches any WEIGHT: the point is that the caption is drawn at the FITTED size, not at capSize. The
+    # weight is a separate decision (it moved 700 -> 600 so the subtitle stops out-shouting the picture)
+    # and pinning it here made a type choice look like a fit regression.
+    assert re.search(r"font: `\d00 \$\{fitSize\}px", film), "the caption is not drawn at the fitted size"
 
     for aspect in ("16:9", "9:16", "1:1", "4:5", "4:3"):
         W, H = cb.aspect_wh(aspect)
@@ -1887,7 +1890,8 @@ def test_the_two_camera_layers_cannot_stack_past_the_caption_band():
     assert re.search(r"maxCameraPush = \(W: number, H: number, driftExtra", layout), (
         "the push cap no longer accounts for the film-wide drift stacked on top of it")
     depth = open(os.path.join(_ROOT_TSX_DIR, "runtime", "depth.tsx"), encoding="utf-8").read()
-    assert "maxCameraPush(W, H, driftExtra)" in depth, "SceneCamera no longer passes the drift to the cap"
+    assert "maxCameraPush(W, H, driftExtra, driftTranslate)" in depth, (
+        "SceneCamera no longer passes BOTH halves of the drift to the cap")
     film = open(os.path.join(_ROOT_TSX_DIR, "Film.tsx"), encoding="utf-8").read()
     assert "DRIFT_MAX_EXTRA" in film and "driftExtra={" in film, (
         "Film no longer tells the per-beat camera how much the ambient drift is already spending")
@@ -1895,11 +1899,16 @@ def test_the_two_camera_layers_cannot_stack_past_the_caption_band():
     # the arithmetic itself: at every drift level the two together stay inside the gap
     H, CT, band, blockH = 1080, 176, 227, 181
     gap, zoneH = band - blockH, H - CT - band
-    for drift_extra in (0.0, 0.0225, 0.045):
-        cap = max(0.0, ((gap - (H / 2) * drift_extra) / (zoneH / 2)) * 0.75)
-        travel = (H / 2) * drift_extra + (zoneH / 2) * cap
+    # The drift TRANSLATES as well as scales, and downward translation spends the same headroom — counted
+    # now, so the budget is derived from everything that spends it rather than from part of it.
+    for drift_amt in (0.0, 0.5, 1.0):
+        drift_extra, drift_ty = drift_amt * 0.045, drift_amt * 4
+        cap = max(0.0, ((gap - (H / 2) * drift_extra - drift_ty) / (zoneH / 2)) * 0.75)
+        travel = (H / 2) * drift_extra + drift_ty + (zoneH / 2) * cap
         assert travel <= gap + 0.5, (
-            "drift %.4f + a push at the cap travels %.0fpx into a %.0fpx gap" % (drift_extra, travel, gap))
+            "drift %.2f + a push at the cap travels %.0fpx into a %.0fpx gap" % (drift_amt, travel, gap))
+    layout = open(os.path.join(_ROOT_TSX_DIR, "runtime", "layout.ts"), encoding="utf-8").read()
+    assert "driftTranslate" in layout, "the cap ignores the drift's downward translate again"
 
 
 def test_validate_sees_a_camera_the_renderer_would_drop():
@@ -1969,6 +1978,28 @@ def test_a_camera_push_cannot_drive_content_into_the_caption_band():
         assert cap > 0.02, "%s leaves no room for any camera move at all (cap %.3f)" % (aspect, cap)
         assert (zoneH / 2) * cap <= gap + 0.5, (
             "%s: a push at the cap travels %.0fpx into a %.0fpx gap" % (aspect, (zoneH / 2) * cap, gap))
+
+
+def test_the_caption_band_debt_may_shrink_and_never_grow():
+    """The band grew from 150px to 227px, and the library was never re-measured against it.
+
+    Measured across all 147 registers: 22 put content into the band and 6 reach past the action-safe
+    border. Several of those are legitimately FULL-BLEED — a generative field's ground IS the frame, and
+    its own texture reads as ink to this gate — but several put a readable ELEMENT there: a strapline, a
+    ticker row, a panel edge that the burned subtitle then sits on. Naming the set is what stops it being
+    rediscovered every few weeks; ratcheting it is what stops it growing while nobody is looking.
+    """
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    import glob as _glob
+    manifest = json.load(open(os.path.join(root, "remotion", "band_debt.json"), encoding="utf-8"))
+    known = set(manifest["registers"])
+    shots = {os.path.basename(f)[:-4]
+             for f in _glob.glob(os.path.join(root, "remotion", "src", "shots", "*.tsx"))}
+    stale = known - shots
+    assert not stale, "band_debt.json names registers that no longer exist: %r" % sorted(stale)
+    assert len(known) <= 28, (
+        "the recorded caption-band debt is %d registers; it is a ratchet and may only shrink" % len(known))
+    assert manifest.get("_why"), "the debt manifest lost the explanation of what it records"
 
 
 def test_every_remotion_capability_is_reachable_from_the_authoring_path():

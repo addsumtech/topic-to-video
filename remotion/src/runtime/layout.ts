@@ -66,9 +66,12 @@ export const contentBottom = (W: number, H: number) => H - captionBand(W, H);
 // per-beat push of 8% already drives the lowest content 51px down into a 46px gap. Measured, not guessed.
 // The drift scales about the FRAME centre, so its travel is H/2 x driftExtra; the beat scales about the
 // content zone, so its travel is zoneH/2 x amount. The beat gets whatever the drift has not already spent.
-export const maxCameraPush = (W: number, H: number, driftExtra = 0) => {
+// `driftTranslate` is the film-wide drift's downward y-amplitude in px (Film.DRIFT_MAX_TRANSLATE_Y scaled
+// by the drift amount). It spends the same headroom the scale does and was simply not counted.
+export const maxCameraPush = (W: number, H: number, driftExtra = 0, driftTranslate = 0) => {
   const band = captionBand(W, H);
-  const gap = Math.max(0, band - captionBlockH(W, H)) - (H / 2) * Math.max(0, driftExtra);
+  const gap = Math.max(0, band - captionBlockH(W, H))
+            - (H / 2) * Math.max(0, driftExtra) - Math.max(0, driftTranslate);
   const zoneH = Math.max(1, H - CONTENT_TOP - band);
   return Math.max(0, (gap / (zoneH / 2)) * 0.75);   // 3/4 of the headroom — the last quarter is not worth spending
 };

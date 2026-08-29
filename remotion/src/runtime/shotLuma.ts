@@ -70,17 +70,17 @@ export type GroundToken = 'bg' | 'bgGrad' | 'accent' | 'accent2' | 'surface';
 // `declared-only`, until measure_ground_luma.py replaces it with a measurement. Everything else is
 // measured.
 export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundToken | GroundToken[]>> = {
-  PhotoPlate: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
-  ProfileGrowth: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
-  TechnicalPlate: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
-  Inscription: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
-  MuseumLabel: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
-  TallyLedger: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
-  PlanPalimpsest: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
-  StrataColumn: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
-  MapPlate: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
-  GazetteerEntry: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
-  SectionRoute: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
+  PhotoPlate: 'bg',
+  ProfileGrowth: 'bg',
+  TechnicalPlate: 'bg',
+  Inscription: 'bg',
+  MuseumLabel: 'bg',
+  TallyLedger: 'bg',
+  PlanPalimpsest: 'bg',
+  StrataColumn: 'bg',
+  MapPlate: 'bg',
+  GazetteerEntry: 'bg',
+  SectionRoute: 'bg',
   Aliasing: 'bg',
   AnalogTape: 'bg',
   AnswerStream: 'bg',

@@ -176,10 +176,20 @@ def write_shot_luma(measured):
 
 
 def provisional_shots():
-    """Entries `register_shot.py` wrote as a placeholder and nobody measured."""
+    """Entries `register_shot.py` wrote as a placeholder and nobody measured — in EITHER table.
+
+    This scanned SHOT_LUMA alone, while the scaffold writes a placeholder into DNA_GROUND_TOKEN too — and
+    that is the table the seam guard actually reads on a themed film (`dnaGroundY`). So the half that
+    decides whether a cut flashes was exempt from the check written to stop exactly that.
+    """
     src = open(_SHOTLUMA, encoding="utf-8").read()
-    body = src.split("export const SHOT_LUMA", 1)[1].split("};", 1)[0]
-    return sorted(re.findall(r"(\w+):\s*'(?:dark|mid|light)',\s*//\s*PROVISIONAL", body))
+    out = []
+    for table in ("export const SHOT_LUMA", "export const DNA_GROUND_TOKEN"):
+        if table not in src:
+            continue
+        body = src.split(table, 1)[1].split("};", 1)[0]
+        out += re.findall(r"(\w+):\s*(?:'[\w-]+'|\[[^\]]*\]),\s*//\s*PROVISIONAL", body)
+    return sorted(set(out))
 
 
 def _emit(table=None):
@@ -213,10 +223,23 @@ def _emit(table=None):
         if not m:
             lines.append(line); continue
         shot, comment = m.group(1), (m.group(3) or "")
-        if "declared-only" in comment or shot not in table:
+        # PROVISIONAL FIRST, and match the declared-only sentinel EXACTLY. The provisional marker's own
+        # text reads "... NOT the declared-only marker" — so a substring test for "declared-only" matched
+        # the very comment that says it is not one, and every placeholder was skipped as if it were a
+        # deliberate declaration. Eleven entries stayed unmeasured through repeated --emit runs that
+        # reported success. A sentinel you can only detect by substring is a sentinel that will one day
+        # appear inside the prose explaining it.
+        if "PROVISIONAL" not in comment and re.search(r"//\s*declared-only", comment):
+            lines.append(line); kept += 1; continue
+        if shot not in table:
             lines.append(line); kept += 1; continue
         tok = table[shot]
         want = ("'%s'" % tok) if isinstance(tok, str) else ("[%s]" % ", ".join("'%s'" % x for x in tok))
+        # A MEASURED ENTRY IS NO LONGER PROVISIONAL. The marker survived an --emit that CONFIRMED the
+        # placeholder's guess, so eleven entries stayed flagged as unmeasured after being measured — and a
+        # flag that outlives the thing it warns about trains everyone to ignore it. Dropped on write.
+        if "PROVISIONAL" in comment:
+            comment = ""
         lines.append("  %s: %s,%s" % (shot, want, comment)); wrote += 1
     known = {re.match(r"^  (\w+):", l).group(1) for l in block.split("\n") if re.match(r"^  (\w+):", l)}
     added = sorted(set(table) - known)

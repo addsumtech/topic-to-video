@@ -204,9 +204,20 @@ export const PhotoPlate: React.FC<{
           const chipW = Math.min(chipMax,
             chipPad * 2 + text.length * chipFont * (0.54 + 0.46 * mShare) + chipFont * 1.6);
           const gap = dot + Math.round(W * 0.008);
-          const boundL = marginated ? W * 0.045 : px0 + hair * 3;
-          const boundR = marginated ? W - W * 0.045 : px1 - hair * 3;
-          const {left, align} = placeLabel(mx, boundL, boundR, chipW, gap);
+          // WHEN THERE IS A MARGIN, THE CHIP GOES INTO IT — beside the plate, not on top of it. Placed
+          // merely on "the side with more room", a chip sits immediately next to its own mark and therefore
+          // ON the picture: the film's opening frame had the label "the only sign most people read" printed
+          // across the station sign it was pointing at. A callout in the margin with a leader running in is
+          // both the classic form and the only one that cannot occlude its own subject.
+          let left: number, align: 'left' | 'right';
+          if (marginated) {
+            const useRight = roomR >= roomL;
+            left = useRight ? px1 + gap : Math.max(W * 0.045, px0 - gap - chipW);
+            align = useRight ? 'left' : 'right';
+          } else {
+            const p = placeLabel(mx, px0 + hair * 3, px1 - hair * 3, chipW, gap);
+            left = p.left; align = p.align;
+          }
           const leftSide = align !== 'left';
           return (
             <React.Fragment key={i}>

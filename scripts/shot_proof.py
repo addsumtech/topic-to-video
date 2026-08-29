@@ -299,6 +299,26 @@ def _content_box(png, thresh=26):
     return (x0, x1, (x1 - x0) / float(w)) if x1 > x0 else (0, 0, 0.0)
 
 
+def _content_ink(png):
+    """What fraction of the CONTENT ZONE departs from the frame's own ground — the beat's visual density."""
+    try:
+        from PIL import Image
+        import numpy as _np
+    except Exception:
+        return None
+    try:
+        a = _np.asarray(Image.open(png).convert("L"), dtype=_np.int16)
+    except Exception:
+        return None
+    h, w = a.shape
+    from _caption_band import caption_band_px
+    zone = a[176:max(177, h - caption_band_px(w, h)), :]
+    if zone.size == 0:
+        return None
+    mode = _np.bincount(zone.astype(_np.uint8).ravel(), minlength=256).argmax()
+    return float((_np.abs(zone - mode) > 25).mean() * 100)
+
+
 def _dna_hues(board):
     """The film's own accent hues, from its DNA — the palette everything else is judged against."""
     import colorsys
@@ -368,6 +388,9 @@ def main(argv):
     if "--no-stills" not in argv:
         import shot_still_qa
         dna_hues = _dna_hues(board)
+        inks, ink_by_beat = [], []
+        beat_by_index = {i + 1: (sl.get("shot_props") or {})
+                         for i, sl in enumerate(board.get("slides", []))}
         proof = os.path.join(out_dir, "_proof")
         os.makedirs(proof, exist_ok=True)
         dna_ref = board.get("meta", {}).get("design_dna") or board.get("meta", {}).get("shot_template")
@@ -432,7 +455,17 @@ def main(argv):
             if m["caption"] > shot_still_qa.CAPTION_FRAC_ERR:
                 errors.append("beat %d (%s): %.1f%% ink in the caption band — the burned subtitle will sit "
                               "on the shot's own content" % (beat, shot, 100 * m["caption"]))
-            if dna_hues:
+            # A BEAT SHOWING A PHOTOGRAPH CANNOT PASS A PALETTE CHECK THAT COUNTS THE PHOTOGRAPH. The
+            # metric is meant to catch a register hardcoding an ink the DNA never chose; it was measuring
+            # the sky in a Wikimedia photo as "a hardcoded colour overriding the DNA" and reporting 73% on
+            # a beat whose own ink was 0% off-palette. No register change can move a photograph's sky, and
+            # none should — it is the real evidence the beat exists to show. So a beat that supplies an
+            # image is exempt: what is left to police there is its drawn ink, and the frame cannot separate
+            # the two without knowing where the image sits.
+            beat_props = (beat_by_index.get(beat) or {})
+            shows_image = any(isinstance(v, str) and re.search(r"\.(jpe?g|png|webp|avif)$", v, re.I)
+                              for v in beat_props.values())
+            if dna_hues and not shows_image:
                 hs, _ = _hues(png)
                 if hs:
                     off = [h for h in hs if not _in_palette(h, dna_hues)]
@@ -449,12 +482,41 @@ def main(argv):
                 # dead-frame branch with `if frac and ...` let the emptiest possible result pass silently.
                 errors.append("beat %d (%s): the frame is EMPTY — nothing departs from the background"
                               % (beat, shot))
+            try:
+                _a = shot_still_qa._load(png) if hasattr(shot_still_qa, "_load") else None
+            except Exception:
+                _a = None
+            _ink = _content_ink(png)
+            if _ink is not None:
+                inks.append(_ink); ink_by_beat.append((beat, _ink))
             if frac and frac < NARROW_FRAC:
                 m2 = shot_still_qa.measure(png)
                 off = abs((x0 + x1) / 2 - m2["w"] / 2) / float(m2["w"])
                 if off > OFFSET_FRAC:
                     warns.append("beat %d (%s): content spans %.0f%% of the width and sits %.0f%% off centre "
                                  "— one side of the frame is dead" % (beat, shot, 100 * frac, 100 * off))
+
+    # THE FILM'S TONAL REGISTER, measured across every beat rather than judged one frame at a time. A
+    # film whose frames are all nearly empty and whose few dense ones are outliers has no register — it
+    # reads as a slideshow of captions with occasional graphics. Measured on a delivered film: median 5.6%
+    # of the content zone carried ink, with a 1.1%-67.7% spread, i.e. most beats were a line of type on a
+    # page. No per-beat check can see that; only the distribution can, so it is computed here where every
+    # beat's still already exists.
+    if inks:
+        inks_sorted = sorted(inks)
+        med = inks_sorted[len(inks_sorted) // 2]
+        lo, hi = inks_sorted[0], inks_sorted[-1]
+        thin = [b for b, v in ink_by_beat if v < 3.0]
+        if med < 6.0:
+            warns.append("the film's TONAL REGISTER is thin: median %.1f%% of the content zone carries ink "
+                         "(range %.1f-%.1f%%), and %d beat(s) are under 3%%. A film of near-empty frames has "
+                         "no register — the caption carries it and the design is a garnish. Give the "
+                         "sparsest beats something the sentence does not already say."
+                         % (med, lo, hi, len(thin)))
+        elif hi > 12 * max(0.5, med):
+            warns.append("the film's ink ranges %.1f-%.1f%% of the content zone around a %.1f%% median — the "
+                         "dense beats read as a different film from the sparse ones. Vary within a band, not "
+                         "by an order of magnitude." % (lo, hi, med))
 
     for e in errors:
         print("  ERROR: " + e)

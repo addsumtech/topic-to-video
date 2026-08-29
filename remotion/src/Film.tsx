@@ -239,7 +239,12 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaColors?
   return (
     <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', pointerEvents: 'none', opacity: op}}>
       <div style={{position: 'relative', maxWidth: capMeasure, margin: `0 auto ${capMargin}px`, padding: '0 60px', textAlign: 'center',
-        color: ink, font: `700 ${fitSize}px/${capLead} ${dnaFontBody ?? 'Inter, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif'}`,
+        // WEIGHT 600, NOT 700. The caption is already in the DNA's body face, but at 700 it was the
+        // heaviest thing on screen — heavier than the display headlines it sits under — so the frame's own
+        // hierarchy read second to its subtitle. Its legibility floor is about SIZE (>=5% of frame height,
+        // unchanged at 56px) and contrast (unchanged), not weight; 600 keeps both and stops the caption
+        // out-shouting the picture it is describing.
+        color: ink, font: `600 ${fitSize}px/${capLead} ${dnaFontBody ?? 'Inter, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif'}`,
         // A single unbreakable token — a URL, a long compound, a hash — has no space to wrap at, so it ran
         // off BOTH frame edges. The off-frame gate cannot see it either: it excludes the caption band by
         // construction, which is the only place the caption is. Breaking anywhere is the lesser evil; a
@@ -396,6 +401,11 @@ const TWO_PI = Math.PI * 2;
 // camera's budget can subtract it instead of the two layers silently multiplying past what the caption
 // band can absorb — and so it cannot drift from the expression below.
 export const DRIFT_MAX_EXTRA = 0.045;
+// The drift also TRANSLATES, and downward translation eats the same headroom the scale does. The per-beat
+// budget subtracted only the scale, so the two layers together could travel ~4px further toward the caption
+// than the cap believed. Small, but it is the difference between a derived bound and an approximate one —
+// and this is the third time in this file a budget was computed from part of what spends it.
+export const DRIFT_MAX_TRANSLATE_Y = 4;
 const cameraTransform = (frame: number, amp: number): string => {
   if (amp <= 0) return 'none';
   const s = 1 + amp * (0.035 + 0.010 * Math.sin((frame / 720) * TWO_PI));     // breathe, ~24s period
@@ -485,7 +495,8 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
             <TransitionSeries.Sequence key={`s${i}`} durationInFrames={durF}>
               <SceneDurationContext.Provider value={durF}>
                 <SceneCamera move={sc.camera?.move} amount={sc.camera?.amount}
-                             driftExtra={(reducedMotion ? 0 : Math.max(0, camera)) * DRIFT_MAX_EXTRA}>
+                             driftExtra={(reducedMotion ? 0 : Math.max(0, camera)) * DRIFT_MAX_EXTRA}
+                             driftTranslate={(reducedMotion ? 0 : Math.max(0, camera)) * DRIFT_MAX_TRANSLATE_Y}>
                   <AbsoluteFill>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</AbsoluteFill>
                 </SceneCamera>
                 <TerminalChrome dna={activeDna} path={sc.chrome?.path} status={sc.chrome?.status} root={sc.chrome?.root} W={width} H={height} />

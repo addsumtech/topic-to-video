@@ -237,7 +237,12 @@ def plan(slides, dna=None):
 # that a film where every cut is marked has no punctuation — so the budget is deliberately small and the
 # moves are spread apart.
 CAMERA_BY_RELATION = {"payoff": "push", "close": "pull"}
-CAMERA_AMOUNT = 0.045          # gentle; SceneCamera clamps it to what the caption band can absorb
+# NO AMOUNT. The planner used to write 0.045 on every move — a number chosen once at 16:9 and then clamped
+# everywhere else, so the same authored intent was 45% of the available headroom at 16:9 and 96% of it at
+# 9:16. Left unset, SceneCamera derives three-quarters of whatever the caption band can absorb at THIS
+# aspect and THIS drift, which is the same gesture everywhere. An author who wants a specific amount still
+# sets one and it still wins.
+CAMERA_AMOUNT = None
 CAMERA_MIN_GAP = 4             # beats between two moving beats
 
 
@@ -274,7 +279,22 @@ def plan_camera(slides):
         except Exception:
             return True                      # unknown provenance is not a reason to refuse the move
 
-    budget = max(2, min(4, n // 9))
+    # A LONG BEAT HOLDS, AND A HOLD IS WHERE A MOVE BELONGS. Ranking on `relation` alone never asked whether
+    # a beat actually needed one: measured on a delivered film, 25% of its running time was a frozen picture,
+    # and not one of the eight longest-held beats had a camera. A register finishes revealing well before a
+    # long beat ends, so DURATION relative to the film's own median is the signal available before a render.
+    # It ranks BELOW the argument-driven moves — a push still means "look closer", not "this beat was long" —
+    # and only spends budget the relations did not.
+    durs = sorted(float(sl.get("duration") or 0) for sl in slides)
+    med = durs[len(durs) // 2] if durs else 0
+    if med > 0:
+        for i, sl in enumerate(slides):
+            if i == 0 or any(c[1] == i for c in cands):
+                continue
+            if float(sl.get("duration") or 0) >= med * 1.35 and _rewards_a_push(sl.get("shot")):
+                cands.append((3, i, "push", "a long hold on a frame with something to look closer at"))
+
+    budget = max(2, min(5, round(n / 8)))
     chosen = {}
     # within a rank, a push onto a detail-bearing frame outranks a push onto a text one
     cands.sort(key=lambda c: (c[0], 0 if (c[2] != "push" or _rewards_a_push(slides[c[1]].get("shot"))) else 1, c[1]))
@@ -329,7 +349,8 @@ def main(argv):
             continue
         print("  beat %-3d %s camera %-5s %s" % (i + 1, "would" if dry else "set", c["move"], c["why"]))
         if not dry:
-            sl["camera"] = {"move": c["move"], "amount": CAMERA_AMOUNT}
+            sl["camera"] = {"move": c["move"]} if CAMERA_AMOUNT is None else \
+                {"move": c["move"], "amount": CAMERA_AMOUNT}
 
     if not dry:
         json.dump(board, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)

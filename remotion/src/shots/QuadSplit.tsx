@@ -318,7 +318,12 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
   // GEOMETRY. Everything lives in the CONTENT ZONE — never the whole frame — so the bottom row and the
   // expanded hero both stop clear of the burned caption band. Fractions of W/H, so it reflows at any aspect.
   const zoneTop = CONTENT_TOP;
-  const zoneBot = contentBottom(W, H);
+  // The grid ends ABOVE the caption band with room for its own drop shadow. `contentBottom` is the band's
+  // first pixel, so a bottom row placed flush against it put its shadow — and, once the quad is HELD and
+  // the row no longer clears out, its card edge — inside the burned subtitle: measured 11.7% ink in the
+  // band on a beat that had always been fine while the row faded away before anyone could see it.
+  const shadowRoom = Math.round(Math.min(W, H) * 0.022);
+  const zoneBot = contentBottom(W, H) - shadowRoom;
   const zoneH = Math.max(200, zoneBot - zoneTop);
   const gap = Math.round(Math.min(W, H) * 0.018);
   const cols = n <= 1 ? 1 : 2;

@@ -139,13 +139,19 @@ export const SceneCamera: React.FC<{
   // the largest EXTRA scale the film-wide ambient drift is adding on top of this move. The two layers
   // multiply, so the per-beat budget has to be whatever the drift has not already spent.
   driftExtra?: number;
+  driftTranslate?: number;
   children?: React.ReactNode;
-}> = ({move = 'hold', amount, driftExtra = 0, children}) => {
+}> = ({move = 'hold', amount, driftExtra = 0, driftTranslate = 0, children}) => {
   const {width: W, height: H} = useVideoConfig();
   const reduced = React.useContext(ReducedMotionContext);
   const t = useT();
-  const cap = maxCameraPush(W, H, driftExtra);
-  const amp = reduced ? 0 : Math.max(0, Math.min(amount ?? 0.045, cap));
+  const cap = maxCameraPush(W, H, driftExtra, driftTranslate);
+  // THE DEFAULT AMOUNT IS DERIVED FROM THE ROOM, not hand-set. 0.045 was a number chosen once at 16:9 and
+  // then clamped everywhere else — at 9:16 the cap is 4.7%, so the "default" was 96% of the maximum there
+  // and 45% of it at 16:9: the same authored intent produced two different moves. Three-quarters of the
+  // cap is the same fraction of the available headroom at every aspect and every drift level, which is
+  // what "a gentle push" should mean.
+  const amp = reduced ? 0 : Math.max(0, Math.min(amount ?? cap * 0.75, cap));
   const push = amp > 0 ? cameraAt(move, t) : 0;
   const scale = 1 + amp * push;
   const originY = (CONTENT_TOP + contentBottom(W, H)) / 2;

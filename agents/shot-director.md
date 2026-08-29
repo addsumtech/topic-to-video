@@ -268,7 +268,8 @@ back — commit registers that are memorable and unmistakably THIS film. For eac
    python3 scripts/register_shot.py <Id> <FamilyLetter> --use-when "<one line>"   # stub + all 5 sync points
    # write the shot body, then:
    python3 scripts/measure_ground_luma.py --only <Id>     # sanity-check its ground
-   python3 scripts/shot_proof.py <out_dir> --stills       # frame-craft, palette, reuse
+   python3 scripts/shot_proof.py <out_dir>                # frame-craft, palette, reuse (rendered by
+                                                        # default now; --no-stills for a fast source-only pass)
    ```
    It used to mean editing five files by hand, four of which fail silently — which is exactly why in
    practice nothing was ever built and every beat got matched to the closest existing register instead.

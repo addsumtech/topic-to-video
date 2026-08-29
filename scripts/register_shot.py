@@ -67,6 +67,15 @@ import React from 'react';
 import {{AbsoluteFill, useVideoConfig}} from 'remotion';
 import {{useT, seg, clamp01, easeOutCubic}} from '../runtime/motion';
 import {{captionBand, CONTENT_TOP}} from '../runtime/layout';
+// import {{Plane, DEPTH}} from '../runtime/depth';   // DEPTH, when the beat's argument IS about depth
+//   <Plane depth={{DEPTH.behind}}>…</Plane> puts a layer one step back: smaller, softer, and it parallaxes
+//   against the camera. `DEPTH.lifted` puts one ON the surface — it keeps its registration exactly (it must,
+//   if it is annotating a point) and casts a drop-shadow that follows the content's own alpha.
+//   It is 2D on purpose: measured on this renderer, a text-dense shot under perspective+translateZ lost 38%
+//   of its glyph edge strength and reads fuzzy; the same shot under a 2D scale is indistinguishable from
+//   the baseline. Use it only where it ENCODES the beat — PlanPalimpsest puts the earlier survey one plane
+//   back because "two plans in register on the same ground" is that register's whole claim. Scattering
+//   things across planes for the look of it is decoration, and this library treats that as a defect.
 import {{useDNA}} from '../runtime/dna';
 
 export const DURATION = 150; // 5s

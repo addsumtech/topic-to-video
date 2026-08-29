@@ -205,6 +205,16 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps):
             at = starts[i] + settled / fps
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "%.3f" % at, "-i", out_mp4,
                             "-frames:v", "1", os.path.join(kdir, "scene_%02d.png" % (i + 1))], check=False)
+            # ALSO a MOTION frame, in _keyframes/motion/. The settled frame is the right one for every
+            # frame-craft question — is anything colliding, off-frame, illegible — but it is the wrong one
+            # for every MOTION question, because by definition nothing is moving in it. Reviewing motion
+            # from settled frames is how a delivered film's reveal timing went unexamined for six rounds.
+            # Cheap (one more ffmpeg seek per beat) and kept in a subdirectory so nothing that globs
+            # scene_*.png picks it up by accident.
+            mdir = os.path.join(kdir, "motion"); os.makedirs(mdir, exist_ok=True)
+            mid = starts[i] + (pad + 0.42 * max(1, durF - 2 * pad)) / fps
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "%.3f" % mid, "-i", out_mp4,
+                            "-frames:v", "1", os.path.join(mdir, "scene_%02d.png" % (i + 1))], check=False)
         print("[render_remotion] wrote out.srt + %d keyframes (_keyframes/) for the shot-critic + A/V gate." % len(scenes))
 
 

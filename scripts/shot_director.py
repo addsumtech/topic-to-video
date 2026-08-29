@@ -421,7 +421,8 @@ def main():
         for i, c in cams.items():
             sl = data["slides"][i]
             if not sl.get("camera"):
-                sl["camera"] = {"move": c["move"], "amount": seam_plan.CAMERA_AMOUNT}
+                sl["camera"] = ({"move": c["move"]} if seam_plan.CAMERA_AMOUNT is None
+                                else {"move": c["move"], "amount": seam_plan.CAMERA_AMOUNT})
         print("[shot_director] %d marked seam(s), %d moving beat(s)" % (len(marks), len(cams)))
     except Exception as e:                       # a board with no `relation` is a legitimate film, not a crash
         print("[shot_director] seam/camera plan skipped: %s" % e)
