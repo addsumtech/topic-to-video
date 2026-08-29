@@ -1289,7 +1289,10 @@ def _image_attribution(slides, out_dir, errors, warnings):
         blob = json.dumps(props, ensure_ascii=False)
         credits = " ".join(str(v) for k, v in props.items()
                            if "credit" in str(k).lower() and isinstance(v, str))
-        for rel in sorted(set(re.findall(r'"((?:media|assets)/[^"]+\.(?:jpg|jpeg|png|webp))"', blob, re.I))):
+        # ANY relative image path, not only `media/` and `assets/`. A film is free to organise its files, and
+        # a beat whose photograph sits in `photos/` or `img/2024/` was invisible to this gate entirely —
+        # the licence condition does not depend on the directory someone chose.
+        for rel in sorted(set(re.findall(r'"((?!https?:)[^"\s]+\.(?:jpg|jpeg|png|webp|avif))"', blob, re.I))):
             side = os.path.join(out_dir, rel + ".json")
             if not os.path.exists(side):
                 continue                       # a hand-supplied image has nothing to check against
@@ -1313,8 +1316,16 @@ def _image_attribution(slides, out_dir, errors, warnings):
             bare = re.sub(r"\([^)]*\)", " ", artist)
             cjk = re.findall(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]+", bare)
             latin = [w for w in re.findall(r"[A-Za-zÀ-ÿ]{2,}", bare) if w.lower() not in _ROLE]
+            # EVERY substantial token must be present, not half of them. A half-match passes the credit
+            # 'Massimo Smith' for a photograph by Massimo Catarinella — the right first name and the wrong
+            # photographer, which is precisely the defect this gate exists to catch, and a false NEGATIVE is
+            # far worse here than the false positives fixed earlier: it ships the breach silently.
+            # Particles and initials (de, van, der, J, P) are dropped from the requirement because Commons
+            # and a credit line order them differently; if a name is nothing BUT particles, they are all
+            # that is left to check and they are required.
+            need = [w for w in latin if len(w) >= 3] or latin
             hit_cjk = all(w in credits for w in cjk)
-            hit_lat = (not latin) or sum(1 for w in latin if w.lower() in credits.lower()) >= max(1, (len(latin) + 1) // 2)
+            hit_lat = all(w.lower() in credits.lower() for w in need)
             named = bool(cjk or latin) and hit_cjk and hit_lat
             if artist and (cjk or latin) and not named:
                 errors.append(
@@ -1387,6 +1398,33 @@ def _film_language(meta, slides, errors, warnings):
             "beat(s) %s give `camera.amount` a value outside 0-0.2; SceneCamera clamps it to what the "
             "caption band can absorb, so the number on the page is not the move on the screen."
             % ", ".join(map(str, wild_amt[:8])))
+
+    # THE TWO CAMERA LAYERS COMPETE FOR ONE BUDGET. The film-wide ambient drift and the per-beat move both
+    # scale the picture toward the caption band, so `maxCameraPush` hands the beat only what the drift has
+    # not spent. Measured at 16:9: drift 1.0 leaves 4.8%, drift 1.5 leaves 2.1% — under the 0.045 default —
+    # and drift 2.0 leaves nothing at all, silently clamping every authored move to zero. An author who set
+    # both would see no camera and no reason why.
+    try:
+        drift = float(meta.get("camera_drift") or 0)
+    except (TypeError, ValueError):
+        drift = 0.0
+    moving = [i for i, sl in enumerate(slides, 1) if isinstance(sl.get("camera"), dict)
+              and str(sl["camera"].get("move", "")).lower() in ("push", "pull")]
+    if drift > 0 and moving:
+        from _caption_band import aspect_wh as _awh, caption_band_px as _band, _fracs as _fr
+        W, H = _awh(meta.get("aspect"))
+        f = _fr()
+        blockH = min(W, H) * (f["CAPTION_SIZE_FRAC"] * f["CAPTION_LEAD"]
+                              * (f["CAPTION_LINES"] + (1 if W < 1400 else 0)) + f["CAPTION_MARGIN_FRAC"])
+        headroom = (_band(W, H) - blockH) - (H / 2) * (drift * 0.045)
+        zoneH = max(1, H - 176 - _band(W, H))
+        cap = max(0.0, (headroom / (zoneH / 2)) * 0.75)
+        if cap < 0.045:
+            warnings.append(
+                "meta.camera_drift %.2f leaves the per-beat camera only %.1f%% of push before it would "
+                "reach the caption, so the %d authored move(s) are clamped%s. The two layers scale the same "
+                "picture toward the same band — pick one: the ambient drift, or the motivated per-beat move."
+                % (drift, cap * 100, len(moving), " to nothing" if cap <= 0.001 else ""))
 
     seam_vocab = {"wipe", "slide", "clock", "dissolve", "screen-clear", "fade"}
     if native and native not in seam_vocab:

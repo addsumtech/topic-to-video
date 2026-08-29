@@ -67,6 +67,39 @@ def _ground_tokens():
     return _GROUND_TOKEN
 
 
+_DNA_TSX = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "..", "remotion", "src", "runtime", "dna.tsx")
+_PRESETS = None
+
+
+def _resolve_dna(dna):
+    """A film's `meta.design_dna` may be a token OBJECT or a PRESET NAME — the renderer accepts both
+    (`coerceDna` in runtime/dna.tsx). The planner only handled the object and raised AttributeError on the
+    string, so a film on any of the shipped directions fell into the caller's except-branch and silently
+    got no seams and no camera at all. Worse than a crash: the renderer WOULD have resolved that preset, so
+    treating it as "no DNA" would put the planner back out of step with the guard it exists to mirror.
+    Resolved from the same table the renderer reads.
+    """
+    global _PRESETS
+    if isinstance(dna, dict) or dna is None:
+        return dna
+    if not isinstance(dna, str):
+        return None
+    if _PRESETS is None:
+        import re as _re
+        src = open(_DNA_TSX, encoding="utf-8").read()
+        consts = {}
+        for name, body in _re.findall(r"export const ([A-Z_]+_DNA)[^=]*=\s*\{(.*?)\n\};", src, _re.S):
+            consts[name] = {k: v for k, v in _re.findall(r"(\w+):\s*'([^']*)'", body)}
+        m = _re.search(r"export const DNA_PRESETS[^{]*\{(.*?)\n\};", src, _re.S)
+        _PRESETS = {}
+        if m:
+            for key, const in _re.findall(r"'?([\w-]+)'?:\s*([A-Z_]+_DNA)", m.group(1)):
+                if const in consts:
+                    _PRESETS[key] = consts[const]
+    return _PRESETS.get(dna)
+
+
 def _rel_lum(hex_colour):
     """sRGB relative luminance of a #rgb / #rrggbb, or None if it is not a plain colour."""
     import re
@@ -144,6 +177,7 @@ def _crosses(prev_shot, shot, dna=None):
 
 
 def plan(slides, dna=None):
+    dna = _resolve_dna(dna)
     """→ {beat_index: {"type": ..., "why": ...}} for the beats that should carry a marked seam.
 
     Beat 0 is never a candidate: there is no seam before the first shot.
@@ -224,9 +258,27 @@ def plan_camera(slides):
                "pull": "here is the whole of it"}[move]
         cands.append(({"close": 0, "opener": 1, "payoff": 2}.get(rel, 3), i, move, why))
 
+    # A PUSH NEEDS SOMETHING TO PUSH INTO. The planner used to rank on relation and beat index alone, so a
+    # "look closer" push could land on a beat whose frame is two ruled rows of text — magnifying nothing,
+    # which is a move a viewer reads as a wobble rather than as attention. A register's PROVENANCE says
+    # what world its form comes from, and the image-, drawing- and instrument-bearing worlds are the ones
+    # that reward being looked at closely; an editorial or product-UI frame is already as legible as it
+    # will get. A pull is unaffected — pulling back to show the whole of something works on any frame.
+    DETAIL = {"photographic", "survey-archive", "scientific", "industrial", "natural-world",
+              "craft-handmade", "data-viz"}
+
+    def _rewards_a_push(shot):
+        try:
+            from shot_director import PROVENANCE
+            return PROVENANCE.get(shot) in DETAIL
+        except Exception:
+            return True                      # unknown provenance is not a reason to refuse the move
+
     budget = max(2, min(4, n // 9))
     chosen = {}
-    for rank, i, move, why in sorted(cands, key=lambda c: (c[0], c[1])):
+    # within a rank, a push onto a detail-bearing frame outranks a push onto a text one
+    cands.sort(key=lambda c: (c[0], 0 if (c[2] != "push" or _rewards_a_push(slides[c[1]].get("shot"))) else 1, c[1]))
+    for rank, i, move, why in sorted(cands, key=lambda c: (c[0], 0 if (c[2] != "push" or _rewards_a_push(slides[c[1]].get("shot"))) else 1, c[1])):
         if len(chosen) >= budget:
             break
         if any(abs(i - j) < CAMERA_MIN_GAP for j in chosen):

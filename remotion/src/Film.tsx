@@ -114,6 +114,12 @@ const fitCaption = (chunks: string[], size: number, measure: number, lines: numb
     let best = -1;
     CLAUSE.lastIndex = 0;
     for (let m = CLAUSE.exec(t); m; m = CLAUSE.exec(t)) {
+      // A SEPARATOR INSIDE A NUMBER IS NOT A CLAUSE BOUNDARY. `378,140` and `19.3` carry a thousands
+      // separator and a decimal point, and cutting there guillotines the figure across two lines —
+      // "the register today counts 378," / "140 residents". This is the same defect as the one already
+      // guarded in splitCaption above, reproduced here because the two functions scan for different
+      // things and only one of them knew. A digit on both sides means it belongs to the number.
+      if (/\d/.test(t[m.index - 1] ?? '') && /\d/.test(t[m.index + m[0].length] ?? '')) continue;
       const at = m.index + m[0].length;
       if (at > 4 && at < t.length - 4 && (best < 0 || Math.abs(at - mid) < Math.abs(best - mid))) best = at;
     }

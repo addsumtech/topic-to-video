@@ -34,6 +34,28 @@ _TRANSITION_STYLE = {
 _KINETIC_TYPES = {"slide", "wipe", "clock", "dissolve", "carry"}
 
 
+# The runtime's own settled point, parsed from motion.ts so the two cannot drift: a keyframe must be the
+# frame `useT()` calls "reveal complete, exit not begun", or every visual review reads an unfinished shot.
+def _settled_t():
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "remotion", "src", "runtime", "motion.ts")
+    m = re.search(r"REDUCED_MOTION_T\s*=\s*([0-9.]+)", open(p, encoding="utf-8").read())
+    if not m:
+        raise RuntimeError("REDUCED_MOTION_T not found in %s — it defines the settled frame read here" % p)
+    return float(m.group(1))
+
+
+def _seam_frames():
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "remotion", "src", "runtime", "motion.ts")
+    m = re.search(r"SEAM_FRAMES\s*=\s*(\d+)", open(p, encoding="utf-8").read())
+    if not m:
+        raise RuntimeError("SEAM_FRAMES not found in %s" % p)
+    return int(m.group(1))
+
+
+SETTLED_T = _settled_t()
+SEAM_FRAMES = _seam_frames()
+
+
 def _transition_in(slide):
     """Map a storyboard scene's transition intent → the Film `transitionIn` mark (or None = the safe default fade).
     Only a MARKED (kinetic) seam returns a value; the shot-director budgets ~2-3 per film for chapter breaks."""
@@ -166,9 +188,22 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps):
         f.write("\n".join(lines))
     if shutil.which("ffmpeg") and os.path.exists(out_mp4):   # per-scene keyframes for the shot-critic
         kdir = os.path.join(out_dir, "_keyframes"); os.makedirs(kdir, exist_ok=True)
+        # THE SETTLED FRAME, not the midpoint. A keyframe used to be taken at t=0.5 of the beat — but a
+        # register reveals its content over roughly the first half of its animated span, so half the
+        # keyframes showed a shot that had not finished drawing. Everything downstream reads these: the
+        # shot-critic, keyframe_qa, and a human eyeballing the contact sheet. Measured consequence: a
+        # delivered film's thesis beat was reviewed as "sliced mid-glyph" when the settled frame is clean,
+        # and several real collisions went unseen because the colliding element had not appeared yet.
+        #
+        # `useT()` holds the shot still for `pad` frames at each edge and animates 0→1 between them, and
+        # the library already names 0.86 as "reveal complete, exit not begun" (motion.ts REDUCED_MOTION_T).
+        # Mirrored here so the keyframe IS the frame the runtime calls settled.
         for i, sc in enumerate(scenes):
-            mid = starts[i] + (sc["durF"] / fps) * 0.5
-            subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "%.3f" % mid, "-i", out_mp4,
+            durF = max(1, int(sc["durF"]))
+            pad = min(SEAM_FRAMES, (durF - 1) // 3)
+            settled = pad + SETTLED_T * max(1, durF - 2 * pad)
+            at = starts[i] + settled / fps
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "%.3f" % at, "-i", out_mp4,
                             "-frames:v", "1", os.path.join(kdir, "scene_%02d.png" % (i + 1))], check=False)
         print("[render_remotion] wrote out.srt + %d keyframes (_keyframes/) for the shot-critic + A/V gate." % len(scenes))
 
@@ -199,6 +234,18 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
         props = s.get("shot_props") or {}
         if not isinstance(props, dict):
             raise RuntimeError("scene #%s `shot_props` must be an object." % idx)
+        # A PhotoPlate frames the WHOLE photograph, so it needs the picture's proportions. Read from the
+        # file here rather than asked of the author: measured, a portrait photograph in the register's
+        # default landscape plate lost 67% of its height, and since `marks` are plate fractions the crop
+        # also moved every mark off the thing it named.
+        if shot == "PhotoPlate" and isinstance(props.get("src"), str) and not props.get("imageAspect"):
+            try:
+                from PIL import Image as _Im
+                with _Im.open(os.path.join(out_dir, props["src"])) as _im:
+                    if _im.height:
+                        props = dict(props, imageAspect=round(_im.width / _im.height, 4))
+            except Exception:
+                pass                          # a missing or unreadable file is the renderer's problem, not ours
         caption = (s.get("narration") or s.get("script") or s.get("caption") or "").strip()
         scene = {"shot": shot, "props": props, "durF": int(round(dur * fps)),
                  "mp3": str(audio).replace(os.sep, "/"), "caption": caption}

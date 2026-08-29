@@ -42,7 +42,11 @@ export const PhotoPlate: React.FC<{
   src?: string;             // the real photograph, relative to the film's public dir
   title?: string;           // the plate's kicker
   caption?: string;         // what the plate IS — set under it, in the display face
-  marks?: Mark[];           // things to point at, in fractions of the PLATE (0..1)
+  marks?: Mark[];           // things to point at, in fractions of the PLATE — which frames the WHOLE image
+  // The photograph's own width/height. render_remotion.py fills it from the file, so the plate can take the
+  // picture's proportions and show all of it. Absent, the plate falls back to a landscape default and the
+  // image is cropped to fill — which is the behaviour this prop exists to end.
+  imageAspect?: number;
   credit?: string;          // the licence line a license-clean image requires
 }> = ({
   src,
@@ -50,6 +54,7 @@ export const PhotoPlate: React.FC<{
   caption = 'the thing itself',
   marks: MARKS = [{x: 0.32, y: 0.44, label: 'what to notice here'},
                   {x: 0.72, y: 0.62, label: 'and here'}],
+  imageAspect,
   credit = ''} = {}) => {
   const dna = useDNA();
   const t = useT();
@@ -71,7 +76,19 @@ export const PhotoPlate: React.FC<{
   // only wide enough for the plate's own rule and its caption — the point of this register is that the
   // photograph is large enough to be READ, not acknowledged.
   const top = CONTENT_TOP + H * 0.01;
-  const MAX_PLATE_ASPECT = 2.3;      // capped on the WIDE side: an uncapped plate came out a 2.78:1 slit
+  // THE PLATE TAKES THE PHOTOGRAPH'S OWN PROPORTIONS. A fixed landscape plate plus `objectFit: cover` threw
+  // away whatever did not fit: measured on a delivered film, a 1280x1707 portrait photograph in a 2.3:1
+  // plate lost 67.4% of its HEIGHT — and the beat's whole claim was that the street and the wharf below it
+  // are visible in one picture. It also silently broke this register's core promise, since `marks` are
+  // fractions of the plate and a crop makes a plate fraction point somewhere else in the photograph.
+  // Framing the image at its own aspect means nothing is cropped and the two spaces coincide.
+  // Still capped on BOTH sides: a panorama would become a slit and a very tall image would leave the frame
+  // mostly empty, so an extreme original is cropped a little rather than dictating the whole composition.
+  const MAX_PLATE_ASPECT = 2.3;
+  const MIN_PLATE_ASPECT = 0.62;
+  const plateAspect = imageAspect && isFinite(imageAspect) && imageAspect > 0
+    ? Math.max(MIN_PLATE_ASPECT, Math.min(MAX_PLATE_ASPECT, imageAspect))
+    : MAX_PLATE_ASPECT;
   // The space under the plate is DERIVED from the type that goes in it, not guessed. As a flat fraction of
   // H it held one line, and the caption wraps to two on any narrow frame — the credit was then drawn at a
   // fixed offset straight through the caption's second line. Positions under here are a running sum, the
@@ -100,10 +117,11 @@ export const PhotoPlate: React.FC<{
     capGap + Math.round(capSize * 1.25 * lines) + (credit ? Math.round(creditSize * 1.85) : 0) + capGap;
   const plateWidthFor = (lines: number) => {
     const h = Math.max(1, (H - captionBand(W, H) - reserveFor(lines)) - top);
-    return Math.min(W - W * 0.17, h * MAX_PLATE_ASPECT);
+    return Math.min(W - W * 0.17, h * plateAspect);
   };
-  const linesIn = (w: number) =>
-    Math.max(1, Math.min(2, Math.ceil(capText.length / Math.max(8, Math.floor(w / (capSize * advance))))));
+  const linesIn = (w0: number) =>
+    Math.max(1, Math.min(2, Math.ceil(capText.length
+      / Math.max(8, Math.floor(Math.max(w0, W * 0.46) / (capSize * advance))))));
   const capLines = linesIn(plateWidthFor(linesIn(plateWidthFor(1))));
   const capH = reserveFor(capLines);
   const bottom = H - captionBand(W, H) - capH;
@@ -112,8 +130,15 @@ export const PhotoPlate: React.FC<{
   // the subject out of a portrait one. The cap is on the WIDE side only: a tall frame wants a tall plate,
   // and cropping a landscape photograph to it is what a portrait film asks for anyway.
   const PH = Math.max(1, bottom - top);
-  const PW = Math.min(W - W * 0.17, PH * MAX_PLATE_ASPECT);
-  const px0 = (W - PW) / 2, px1 = px0 + PW;
+  const PW = Math.min(W - W * 0.17, PH * plateAspect);
+  // A NARROW plate sits LEFT, not centred. Centred, it leaves two thin margins and the callouts all
+  // choose the same one anyway (placeLabel picks by room, and every mark had more room on one side), so
+  // the frame came out with a dead half. Left-weighted, the picture and its margin of notes read as one
+  // composition — which is what an annotated plate has always been. A plate wide enough to need no margin
+  // stays centred, because then the callouts sit inside it.
+  const needsMargin = PW < W * 0.58;
+  const px0 = needsMargin ? W * 0.085 : (W - PW) / 2;
+  const px1 = px0 + PW;
 
   const plate = easeOutCubic(clamp01(seg(t, 0.02, 0.26)));
   const land = easeOutExpo(clamp01(seg(t, 0.68, 0.90)));
@@ -126,7 +151,7 @@ export const PhotoPlate: React.FC<{
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG_D0, color: FG}}>
       {title ? (
-        <div style={{position: 'absolute', left: px0, top: CONTENT_TOP - H * 0.055, opacity: plate,
+        <div style={{position: 'absolute', left: Math.min(px0, W * 0.085), top: CONTENT_TOP - H * 0.055, opacity: plate,
           font: `600 ${Math.round(base * 0.022)}px/1.2 ${mono}`, color: ACC,
           letterSpacing: dna?.labelSpacing ?? '0.14em',
           textTransform: (dna?.uppercaseLabels ?? true) ? 'uppercase' : 'none'}}>{title}</div>
@@ -166,10 +191,22 @@ export const PhotoPlate: React.FC<{
           // makes its chip half as wide as it needs and the label wraps into a tall stack
           const mShare = text.length
             ? text.replace(/[^\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '').length / text.length : 0;
-          const chipW = Math.min(PW * 0.42,
+          // A CHIP IS SIZED AND CLAMPED AGAINST THE ROOM IT HAS, which is not always the plate. Once the
+          // plate takes a PORTRAIT photograph's proportions it is narrow, and a chip capped at 42% of it
+          // came out a few characters wide — the labels stacked one word per line and covered the picture
+          // they were annotating. A tall plate leaves wide margins, and a callout in the margin with a
+          // leader running into the plate is what an annotated plate has always looked like. So the chip
+          // is measured against the frame and clamped into the CONTENT width, and the leader crosses the
+          // plate edge to reach its mark.
+          const roomL = px0 - W * 0.045, roomR = W - px1 - W * 0.045;
+          const marginated = Math.max(roomL, roomR) > W * 0.16;
+          const chipMax = marginated ? Math.min(W * 0.24, Math.max(roomL, roomR)) : PW * 0.42;
+          const chipW = Math.min(chipMax,
             chipPad * 2 + text.length * chipFont * (0.54 + 0.46 * mShare) + chipFont * 1.6);
           const gap = dot + Math.round(W * 0.008);
-          const {left, align} = placeLabel(mx, px0 + hair * 3, px1 - hair * 3, chipW, gap);
+          const boundL = marginated ? W * 0.045 : px0 + hair * 3;
+          const boundR = marginated ? W - W * 0.045 : px1 - hair * 3;
+          const {left, align} = placeLabel(mx, boundL, boundR, chipW, gap);
           const leftSide = align !== 'left';
           return (
             <React.Fragment key={i}>
@@ -197,7 +234,10 @@ export const PhotoPlate: React.FC<{
 
       {/* what the plate IS, and the licence line it requires — ONE flow block, so the credit sits under
           whatever the caption turned out to be rather than at an offset that assumed one line. */}
-      <div style={{position: 'absolute', left: px0, top: bottom + capGap, width: PW, opacity: land}}>
+      {/* The caption block keeps a readable measure even when the plate is narrow — it describes the plate,
+          it is not part of it, and squeezing it to a portrait plate's width truncated it mid-phrase. */}
+      <div style={{position: 'absolute', left: px0, top: bottom + capGap,
+        width: Math.max(PW, W * 0.46), opacity: land}}>
         {/* Clamped by HEIGHT rather than by the `-webkit-box` + line-clamp idiom: it does the same job
             without depending on a legacy box model, and the reserve above is already computed in these
             same units, so the two cannot disagree. */}

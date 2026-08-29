@@ -37,12 +37,18 @@ export const CONTENT_TOP = TITLE_BAND;  // top of the usable content zone
 // ASPECT-AWARE caption band: a NARROW frame (portrait/square/4:5) wraps the caption to more lines, so it needs a
 // TALLER reserved band. Shots + the Film should reserve `captionBand(W,H)`, not the fixed CAPTION_BAND, so content
 // clears the caption at every aspect. `contentBottom(W,H)` is the bottom of the usable content zone.
-export const captionBand = (W: number, H: number) => {
-  const base = Math.min(W, H);
-  // a NARROW frame wraps the same sentence to more lines, so it reserves one extra line
-  const lines = CAPTION_LINES + (W < 1400 ? 1 : 0);
-  return Math.round(base * (CAPTION_SIZE_FRAC * CAPTION_LEAD * lines + CAPTION_MARGIN_FRAC + CAPTION_GAP_FRAC));
-};
+// The line count the band reserves for. A NARROW frame wraps the same sentence to more lines, so it
+// reserves one extra. Exported because `maxCameraPush` below has to subtract the SAME block: it used
+// CAPTION_LINES flat while the band reserved one more, so at 9:16 it believed there was 2.6x the headroom
+// there is (12.1% against a true 4.7%) and would have let an authored camera push content onto the
+// subtitle. Two places deriving the same quantity from the same fractions and disagreeing on the count is
+// the shape this file exists to prevent.
+export const captionLines = (W: number) => CAPTION_LINES + (W < 1400 ? 1 : 0);
+export const captionBlockH = (W: number, H: number) =>
+  Math.min(W, H) * (CAPTION_SIZE_FRAC * CAPTION_LEAD * captionLines(W) + CAPTION_MARGIN_FRAC);
+
+export const captionBand = (W: number, H: number) =>
+  Math.round(captionBlockH(W, H) + Math.min(W, H) * CAPTION_GAP_FRAC);
 export const contentBottom = (W: number, H: number) => H - captionBand(W, H);
 
 // The largest camera push that CANNOT drive a shot's lowest content into the caption band.
@@ -59,9 +65,7 @@ export const contentBottom = (W: number, H: number) => H - captionBand(W, H);
 // content zone, so its travel is zoneH/2 x amount. The beat gets whatever the drift has not already spent.
 export const maxCameraPush = (W: number, H: number, driftExtra = 0) => {
   const band = captionBand(W, H);
-  const base = Math.min(W, H);
-  const blockH = base * (CAPTION_SIZE_FRAC * CAPTION_LEAD * CAPTION_LINES + CAPTION_MARGIN_FRAC);
-  const gap = Math.max(0, band - blockH) - (H / 2) * Math.max(0, driftExtra);
+  const gap = Math.max(0, band - captionBlockH(W, H)) - (H / 2) * Math.max(0, driftExtra);
   const zoneH = Math.max(1, H - CONTENT_TOP - band);
   return Math.max(0, (gap / (zoneH / 2)) * 0.75);   // 3/4 of the headroom — the last quarter is not worth spending
 };
