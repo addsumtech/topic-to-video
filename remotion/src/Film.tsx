@@ -16,9 +16,8 @@ import {wipe} from '@remotion/transitions/wipe';
 import {clockWipe} from '@remotion/transitions/clock-wipe';
 import {captionBand, CAPTION_SIZE_FRAC, CAPTION_MARGIN_FRAC, CAPTION_LINES,
         CAPTION_LEAD, CAPTION_LEAD_CJK} from './runtime/layout';
-import {dissolve} from '@remotion/transitions/dissolve';
 import {SceneDurationContext, ReducedMotionContext, clamp01, SEAM_FRAMES} from './runtime/motion';
-import {groundLum, dnaGroundLum, dnaGroundY, groundGap, type Lum, type GroundColors} from './runtime/shotLuma';
+import {groundLum, dnaGroundLum, dnaGroundY, groundGap, lumValue, type Lum, type GroundColors} from './runtime/shotLuma';
 import {Atmosphere, type Atmo} from './runtime/atmosphere';
 import {SceneCamera, type CameraMove} from './runtime/depth';
 import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome} from './runtime/dna';
@@ -232,6 +231,11 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaColors?
 // by design, not an accidental flash). Deterministic (pure fn of presentationProgress); works for ANY pair.
 const CarryPresentation = ({presentationProgress: p, presentationDirection, children, passedProps}: any) => {
   const line = (passedProps && passedProps.line) || '#9aa0aa';
+  // The collapse takes BOTH scenes to opacity 0 at the midpoint, so for a few frames the seam shows
+  // whatever sits behind the TransitionSeries. That must be this film's own ground, painted here, and
+  // never simply "whatever is behind" — which is how a cream film came to flash near-black at its
+  // closing cut. Only the ENTERING half paints it, so the two halves cannot double-darken.
+  const ground = (passedProps && passedProps.ground) || undefined;
   const isEnter = presentationDirection === 'entering';
   const ease = {extrapolateLeft: 'clamp' as const, extrapolateRight: 'clamp' as const, easing: Easing.inOut(Easing.cubic)};
   const scaleY = isEnter ? interpolate(p, [0.5, 1], [0.006, 1], ease) : interpolate(p, [0, 0.5], [1, 0.006], ease);
@@ -240,6 +244,7 @@ const CarryPresentation = ({presentationProgress: p, presentationDirection, chil
   const lineOp = interpolate(p, [0.15, 0.5, 0.85], [0, 1, 0], clampBoth);
   return (
     <>
+      {ground && isEnter ? <AbsoluteFill style={{backgroundColor: ground}} /> : null}
       <AbsoluteFill style={{transform: `scaleY(${scaleY})`, transformOrigin: 'center', opacity: op}}>{children}</AbsoluteFill>
       <AbsoluteFill style={{pointerEvents: 'none'}}>
         <div style={{position: 'absolute', left: 0, right: 0, top: '50%', height: 2, marginTop: -1,
@@ -248,7 +253,8 @@ const CarryPresentation = ({presentationProgress: p, presentationDirection, chil
     </>
   );
 };
-const carry = (line?: string): TransitionPresentation<any> => ({component: CarryPresentation, props: {line}});
+const carry = (line?: string, ground?: string): TransitionPresentation<any> =>
+  ({component: CarryPresentation, props: {line, ground}});
 
 // SCREEN-CLEAR — a TERMINAL-native seam (Motion grammar layer): the outgoing scene dips through the DNA bg while
 // a bright accent scanline SWEEPS down (a CRT/console refresh), then the incoming scene resolves. Luminance-SAFE
@@ -304,6 +310,13 @@ const dnaDefaultSeam = (dna: DesignDNA | null, W: number, H: number): Transition
   }
 };
 
+// The colour of the carry's bridge line, picked against the film's own ground rather than assumed dark.
+const carryLine = (dna: DesignDNA | null): string | undefined => {
+  const y = dna ? lumValue(dna.bg) : null;
+  if (y === null) return dna?.line;
+  return y > 0.35 ? (dna?.accent ?? dna?.fg) : '#e8edf5';
+};
+
 const LUM_RANK: Record<Lum, number> = {dark: 0, mid: 1, light: 2};
 
 // The seam GRAMMAR. A seam is luminance-SAFE by default and SEMANTIC when marked. A ground-luminance gap of
@@ -330,8 +343,19 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
     case 'slide': return slide({direction: (dir as any) ?? 'from-right'});
     case 'wipe': return wipe({direction: (dir as any) ?? 'from-bottom'});
     case 'clock': return clockWipe({width: W, height: H});
-    case 'dissolve': return dissolve();
-    case 'carry': return carry();
+    // `dissolve` is a CROSS-DISSOLVE — setup and result share the screen for a moment. It is NOT
+    // @remotion/transitions/dissolve, which despite the name is a WebGL FILM-BURN (red/yellow flame
+    // colours, and it renders through html-in-canvas). Measured on this renderer: a dissolve seam
+    // between two cream shots rendered at mean luminance 11 on frames whose scenes measure 226 — a
+    // full black hole where the seam should be. It also meant `dissolve` named two different things
+    // depending on which path reached it, since dnaDefaultSeam already mapped the word to fade().
+    // One word, one meaning, and the meaning is the film one.
+    case 'dissolve': return fade();
+    // The bridge line is the thing the eye TRACKS across the cut, so it has to be visible against this
+    // film's ground — `dna.line` is a hairline grey chosen to sit quietly inside a drawing, and on a
+    // cream ground it disappeared entirely, leaving a collapse to nothing. Contrast-picked: the accent
+    // on a light ground (it is the film's own emphasis colour), a pale neutral on a dark one.
+    case 'carry': return carry(carryLine(dna), dna?.bg);
     default: return fade();
   }
 };
@@ -401,7 +425,18 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
   return (
     <AbsoluteFill style={{backgroundColor: bg}}>
       <DesignDNAContext.Provider value={activeDna}>
-      <Atmosphere {...(theme ?? {})} intensity={reducedMotion ? 0.55 : (theme?.intensity ?? 1)} />
+      {/* THE ATMOSPHERE MUST BELONG TO THIS FILM. With no explicit `theme` it fell back to its own
+          defaults — a near-black field with a cyan/violet dot lattice, the palette of the MRI films this
+          component was written for. On a cream survey film that is another film's world sitting under
+          every frame, invisible only because the shots above it are opaque. The moment anything went
+          transparent it appeared: the `carry` seam at the closing cut measured mean luminance 226 -> 14
+          -> 229 in a third of a second, a black flash of a palette this film has never used. A themed
+          film now derives its atmosphere from its own DNA, so there is nothing foreign to reveal. */}
+      <Atmosphere
+        {...(theme ?? (activeDna
+          ? {bg: activeDna.bg, accent: activeDna.accent, accent2: activeDna.accent2, motif: 'plain' as const}
+          : {}))}
+        intensity={reducedMotion ? 0.55 : (theme?.intensity ?? 1)} />
       <ReducedMotionContext.Provider value={reducedMotion}>
       {/* GLOBAL TYPE — for a UNIFORM-TYPE DNA (e.g. terminal = all-mono) inject one font-family !important so
           every shot speaks the type with zero per-shot edits (overrides inline family, keeps size/weight; scoped

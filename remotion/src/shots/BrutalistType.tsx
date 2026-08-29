@@ -25,14 +25,26 @@ export const BrutalistType: React.FC<{titleTop?: string; titleBottom?: string; m
   const slice = glitch > 0.3;
   const rise = easeOutExpo(seg(t, 0.06, 0.4));
 
+  const BAND = captionBand(W, H);
+  // THE HEADLINE IS SIZED FROM THE ROOM IT HAS, not fixed at 300px. Two lines at 300px/0.82 stand 492px
+  // tall; the space between the top rule and the statement is whatever the caption band leaves, and once
+  // the band grew that space fell below what the type needed — so "1674" descended straight through
+  // "A TORNADO CAME THROUGH THE CITY" and beat 23 of a delivered film shipped as an unreadable blot.
+  // Constraining the BOX did not help: a box does not shrink its text. The size does.
+  // The divisor is 2 lines x 0.82 leading PLUS the ink that overflows the line box. A display face set at
+  // 0.82 line-height has a natural line box nearer 1.2, so roughly 0.2em of each glyph hangs outside the
+  // box the layout reserves — sizing on 2*0.82 alone left the block ending 13px above the statement and
+  // the ink still crossing it. 1.88 is 2*0.82 + 0.24, measured against the rendered frame.
+  const headTop = 300, headGap = 24;
+  const headRoom = Math.max(80, (H - (BAND + 52)) - headTop - headGap);
+  const headSize = Math.min(300, Math.floor(headRoom / 1.88));
+
   const Head: React.FC<{color: string; dx: number; blend?: string}> = ({color, dx, blend}) => (
     <div style={{position: 'absolute', inset: 0, transform: `translateX(${dx}px)`, color, mixBlendMode: (blend as any) || 'normal',
-      font: '900 300px/0.82 var(--f-display, "Archivo", "Helvetica Neue", Arial Narrow, sans-serif)', letterSpacing: '-0.03em'}}>
+      font: `900 ${headSize}px/0.82 var(--f-display, "Archivo", "Helvetica Neue", Arial Narrow, sans-serif)`, letterSpacing: '-0.03em'}}>
       {titleTop}<br />{titleBottom}
     </div>
   );
-
-  const BAND = captionBand(W, H);
 
   return (
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
@@ -50,7 +62,13 @@ export const BrutalistType: React.FC<{titleTop?: string; titleBottom?: string; m
       <div style={{position: 'absolute', right: 100, top: 186, color: BG, font: '800 46px/1 var(--f-mono, "JetBrains Mono", monospace)'}}>01/03</div>
 
       {/* headline (RGB-glitch stack) */}
-      <div style={{position: 'absolute', left: 96, top: 300, width: W - 200, height: 720, transform: `translateY(${(1 - rise) * 60}px)`, opacity: rise}}>
+      {/* The headline box ENDS where the statement begins. It was a fixed 720px tall from y=300 — which
+          reached y=1020, straight through the statement line. That was tolerable while the statement sat at
+          bottom:176; raising it to clear the grown caption band moved it to y≈801, into the middle of the
+          headline's own glyphs, and beat 23 of a delivered film became an unreadable blot of "1674" over
+          "A TORNADO CAME". Derived from the statement's position, so the two cannot collide again. */}
+      <div style={{position: 'absolute', left: 96, top: headTop, width: W - 200, height: headRoom,
+        transform: `translateY(${(1 - rise) * 60}px)`, opacity: rise}}>
         {glitch > 0.1 && <Head color="#ff004c" dx={-shift} blend="multiply" />}
         {glitch > 0.1 && <Head color="#00e5ff" dx={shift} blend="multiply" />}
         <Head color={INK} dx={0} />

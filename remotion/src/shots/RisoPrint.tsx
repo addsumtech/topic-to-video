@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {lumValue} from '../runtime/shotLuma';
 
 export const DURATION = 145; // ~4.8s
 const PAPER = '#f2ecdd', PINK = '#ff5c8a', BLUE = '#2b52d6';
@@ -20,8 +21,14 @@ export const RisoPrint: React.FC<{title?: string; tagline?: string}> = ({
   // split, legible) and use the DNA's two accents as the channels. Null DNA = the original pink/blue on cream.
   const dna = useDNA();
   const BG = dna?.bg ?? PAPER, C1 = dna?.accent2 ?? BLUE, C2 = dna?.accent ?? PINK;
-  const MARK = dna?.fg ?? '#1a1a1a', tagC = dna?.dim ?? '#2a2a2a', htDot = dna ? '#ffffff1e' : '#00000022';
-  const blend = dna ? 'screen' : 'multiply';                             // ink adds light on a dark ground
+  const MARK = dna?.fg ?? '#1a1a1a', tagC = dna?.dim ?? '#2a2a2a', htDot = (lumValue(dna?.bg ?? PAPER) ?? 0) < 0.35 ? '#ffffff1e' : '#00000022';
+  // BLEND BY THE GROUND, not by whether a DNA exists. `screen` adds light — correct for ink glowing on a
+  // dark ground, and exactly wrong on a pale one, where it makes the ink lighter than the paper. Branching
+  // on `dna ? ...` meant every LIGHT design system got the dark-ground blend: this film's closing wordmark
+  // rendered at 1.13:1 against its own cream, i.e. invisible, and the last five seconds of the film were an
+  // empty field. A risograph on cream paper is `multiply`; that is what the register is named after.
+  const groundY = lumValue(dna?.bg ?? PAPER) ?? 0;
+  const blend = groundY < 0.35 ? 'screen' : 'multiply';
   const reg = easeOutBack(clamp01(seg(t, 0.16, 0.62)));                  // misregistered → registered
   const wob = (1 - reg) + 0.06 * Math.sin(t * 22) * clamp01(seg(t, 0.62, 1)); // residual print wobble
   const dx = lerp(46, 5, reg) + wob * 6, dy = lerp(26, 3, reg);

@@ -71,9 +71,17 @@ export const Plane: React.FC<{
   const counter = depth > 0 ? 1 - amount * push * PARALLAX_PER_UNIT * depth : 1;
   // SHADOW. Only a LIFTED plane casts one, and its softness follows how far it is lifted. A shadow under
   // something that is not lifted is the single commonest tell of decoration-grade depth.
+  //
+  // It is a `drop-shadow` FILTER, not a `box-shadow`. The first version painted a box-shadow onto a child
+  // spanning the whole plane — and a plane IS the whole frame, so a non-inset box-shadow drew entirely
+  // outside the frame and painted ZERO pixels. Combined with a lifted plane correctly not resizing, the
+  // component became a total no-op: a with-Plane and a without-Plane render of PhotoPlate differed on
+  // 0.000% of pixels. (That measurement was taken and read as proof the fix worked. It was proof the
+  // component did nothing.) `drop-shadow` follows the ALPHA of the content, so each chip, ring and leader
+  // gets its own shadow — which is what "these marks are lying on the print" actually looks like.
   const lift = Math.max(0, -depth);
   const shadow = lift > 0
-    ? `0 ${(lift * base * 0.010).toFixed(1)}px ${(lift * base * 0.022).toFixed(1)}px rgba(0,0,0,${(0.16 * lift).toFixed(3)})`
+    ? `drop-shadow(0 ${(lift * base * 0.006).toFixed(1)}px ${(lift * base * 0.008).toFixed(1)}px rgba(0,0,0,${(0.30 * lift).toFixed(3)}))`
     : undefined;
 
   return (
@@ -82,13 +90,12 @@ export const Plane: React.FC<{
       style={{
         position: 'absolute', inset: 0,
         transform: `scale(${(size * counter).toFixed(5)})`,
-        // A lifted plane is never blurred (lift > 0 means depth < 0, so `blur` is already 0 there), which is
-        // why the shadow child below is never inside a blur pass.
-        filter: blur > 0.2 ? `blur(${blur.toFixed(2)}px)` : undefined,
+        // A lifted plane is never blurred and a receding one never casts a shadow (they are opposite signs
+        // of `depth`), so these two never need to compose — but they share one `filter`, so write it once.
+        filter: blur > 0.2 ? `blur(${blur.toFixed(2)}px)` : shadow,
         ...style,
       }}
     >
-      {shadow ? <div style={{position: 'absolute', inset: 0, boxShadow: shadow, pointerEvents: 'none'}} /> : null}
       {children}
     </div>
   );

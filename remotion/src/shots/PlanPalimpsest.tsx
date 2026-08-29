@@ -47,7 +47,12 @@ export const PlanPalimpsest: React.FC<{
   const hair = Math.max(1, Math.round(W * 0.0012));
 
   const top = CONTENT_TOP + H * 0.03;
-  const bottom = H - captionBand(W, H) - H * 0.11;   // the two legends sit under the plan
+  // The legend under the plan is a swatch + label + date + a NOTE that wraps to two lines, and H*0.11 (119px
+  // at 1080) holds about half of that. The overflow used to fall into empty page; once the caption band grew
+  // it fell under the burned subtitle instead, and beat 26 of a delivered film shipped with its last legend
+  // line printed through. Reserved from the type that goes in it, like every other block in this library.
+  const legendH = Math.round(W * 0.020 + W * 0.0145 + W * 0.0135 * 2 * 1.4 + H * 0.045);
+  const bottom = H - captionBand(W, H) - legendH;
   const pw = Math.min(W * 0.44, (bottom - top) * 1.6);
   const ph = (bottom - top) * 0.76;
   const x0 = (W - pw) / 2, y0 = top + (bottom - top) * 0.12;

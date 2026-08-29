@@ -26,6 +26,7 @@ It is a floor, not a verdict: passing here says nothing about whether the film i
 import json
 import os
 import re
+from onscreen_text_qa import _strip_comments   # the ONE comment stripper
 import subprocess
 import sys
 
@@ -189,7 +190,12 @@ def static_checks(board):
         # Only the register's STRING LITERALS count. Matching the whole source flagged 'return' and
         # 'reverse' — JS keywords that reached the topic set from a beat whose props legitimately carry a
         # code sample. Topic copy welded into a register always appears as a literal, never as code.
-        body = "\n".join(l for l in src.split("\n") if not l.strip().startswith("//"))
+        # Strip BOTH comment forms. Filtering only lines that START with `//` left every continuation line
+        # of a `/* … */` or JSX `{/* … */}` block in the text, so a comment DOCUMENTING a defect — quoting
+        # the very copy it was about — was read as that copy being welded into the register. A false ERROR
+        # blocks delivery on correct code, which is worse than the defect the check exists to catch, and it
+        # is the second time this shape has appeared today. One implementation, shared.
+        body = _strip_comments(src)
         lits = " ".join(re.findall(r"'([^'\n]{2,120})'|\"([^\"\n]{2,120})\"", body) and
                         [a or b for a, b in re.findall(r"'([^'\n]{2,120})'|\"([^\"\n]{2,120})\"", body)])
         welded = sorted({t for t in topic if len(t) >= 4 and t in lits})[:3]
