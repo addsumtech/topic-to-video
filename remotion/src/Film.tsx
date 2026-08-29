@@ -103,10 +103,23 @@ const splitCaption = (text: string): string[] => {
 // and the measure: Latin advance averages ~0.52em, CJK is monospaced at 1em. The estimate is calibrated
 // against real renders — a 100-char Latin caption at 56px in a 1400px measure is predicted 3 lines and
 // rendered 3 lines. Deterministic, and it degrades to the original chunk when there is no boundary to cut on.
+// THE ADVANCE BELONGS TO THE FONT, not to one font. Both estimates below were calibrated on Inter and
+// then applied to whatever face the film's DNA supplies. Measured on this renderer at 56px: this film's
+// IBM Plex Sans averages 0.452-0.478 em on real prose — so 0.52 is conservative and safe — but the
+// `terminal` DNA sets ALL type to JetBrains Mono, where the same sentence measures 0.588. There the
+// estimate UNDER-counts, the caption wraps to more lines than the fit assumed, and it overflows the band
+// it was supposed to be guaranteed to fit. CJK measures 0.995, so 1.0 was already right.
+const MONO_FACE = /mono|code|consol|courier|menlo|iosevka/i;
+const advanceFor = (text: string, fontStack?: string, uniform?: boolean): number => {
+  if (isCJKText(text)) return 1.0;
+  return (uniform || (fontStack && MONO_FACE.test(fontStack))) ? 0.62 : 0.52;
+};
+
 const CLAUSE = /[,;，；、]|\s—\s/g;
-const fitCaption = (chunks: string[], size: number, measure: number, lines: number): string[] => {
+const fitCaption = (chunks: string[], size: number, measure: number, lines: number,
+                    fontStack?: string, uniform?: boolean): string[] => {
   const out: string[] = [];
-  const cap = (t: string) => Math.max(8, Math.floor(measure / (size * (isCJKText(t) ? 1.0 : 0.52))));
+  const cap = (t: string) => Math.max(8, Math.floor(measure / (size * advanceFor(t, fontStack, uniform))));
   const split = (t: string, depth: number): void => {
     const budget = cap(t) * lines;
     if (t.length <= budget || depth > 2) { out.push(t); return; }
@@ -147,7 +160,10 @@ const CAP_FADE = 3;  // tiny in/out ramp WITHIN the window (never across a trans
 // window (between its two transitions) contains this frame — hard-cut, contrast-picked against that scene's
 // ground luminance. Because the windows are disjoint, two captions can never coexist across a dissolve.
 const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaColors?: GroundColors | null;
-  dnaFontBody?: string | null}> = ({scenes, groundBg, dnaColors, dnaFontBody}) => {
+  dnaFontBody?: string | null;
+  // a UNIFORM-TYPE DNA sets every element to one face (terminal = all-mono), which changes the caption's
+  // advance and so the number of lines it wraps to
+  dnaUniform?: boolean}> = ({scenes, groundBg, dnaColors, dnaFontBody, dnaUniform}) => {
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
   // The caption used to be a flat 44px whatever the frame was: at 9:16 — where the frame is only 1080 wide —
@@ -180,7 +196,7 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaColors?
   // the measure the caption actually wraps in — must match the <div> below, or the fit is estimated against
   // a width the browser never used
   const capMeasure = Math.min(1600, width - 120);
-  const merged = fitCaption(splitCaption(sc.caption), capSize, capMeasure, CAPTION_LINES);
+  const merged = fitCaption(splitCaption(sc.caption), capSize, capMeasure, CAPTION_LINES, dnaFontBody, dnaUniform);
   // WEIGHT each chunk's on-screen time by its LENGTH (not equal slices) — else a 3-word chunk lingers while a
   // 20-word chunk races the voice. Advance idx by cumulative char-fraction of the caption.
   const lens = merged.map((c) => Math.max(1, c.length));
@@ -217,13 +233,18 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaColors?
   // fits, which is a guarantee rather than an estimate and holds for any language, length and aspect. In the
   // ordinary Latin two-line case the cap is well above the ideal size and nothing changes.
   const capBand = captionBand(width, height);
-  const perLine = Math.max(8, Math.floor(capMeasure / (capSize * (isCJK ? 1.0 : 0.52))));
+  const perLine = Math.max(8, Math.floor(capMeasure / (capSize * advanceFor(capText, dnaFontBody, dnaUniform))));
   const capLines = Math.max(1, Math.ceil(capText.length / perLine));
   const fitSize = Math.max(12, Math.min(capSize, Math.floor((capBand - capMargin) / (capLead * capLines))));
   return (
     <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', pointerEvents: 'none', opacity: op}}>
       <div style={{position: 'relative', maxWidth: capMeasure, margin: `0 auto ${capMargin}px`, padding: '0 60px', textAlign: 'center',
         color: ink, font: `700 ${fitSize}px/${capLead} ${dnaFontBody ?? 'Inter, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif'}`,
+        // A single unbreakable token — a URL, a long compound, a hash — has no space to wrap at, so it ran
+        // off BOTH frame edges. The off-frame gate cannot see it either: it excludes the caption band by
+        // construction, which is the only place the caption is. Breaking anywhere is the lesser evil; a
+        // guillotined word is at least still on the frame.
+        overflowWrap: 'anywhere', wordBreak: 'break-word',
         letterSpacing: capTrack, textShadow: shadow}}>{capText}</div>
     </AbsoluteFill>
   );
@@ -486,7 +507,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
           so it never competes with the words the viewer is reading */}
       <FilmMotifLayer motif={activeDna?.motif as any} dna={activeDna} W={width} H={height} />
       <AbsoluteFill style={{backgroundColor: bg, opacity: Math.max(intro, outro), pointerEvents: 'none'}} />
-      {captions ? <CaptionTrack scenes={scenes} groundBg={theme?.bg ?? activeDna?.bg} dnaColors={activeDna} dnaFontBody={activeDna?.fontBody} /> : null}
+      {captions ? <CaptionTrack scenes={scenes} groundBg={theme?.bg ?? activeDna?.bg} dnaColors={activeDna} dnaFontBody={activeDna?.fontBody} dnaUniform={activeDna?.uniformType} /> : null}
       <BrandMark brand={brand} />
       </DesignDNAContext.Provider>
     </AbsoluteFill>

@@ -32,7 +32,9 @@ export const CAPTION_LEAD_CJK = 1.7;      // CJK needs more leading; the band is
                                           // lead and the caption fits itself to the band (Film.tsx)
 export const CAPTION_MARGIN_FRAC = 0.037; // the block's own bottom margin
 export const CAPTION_GAP_FRAC = 0.042;    // clear air between the content zone and the caption block
-export const CAPTION_BAND = 150;        // legacy landscape number; prefer captionBand(W, H)
+// (The old flat `CAPTION_BAND = 150` export is gone. It had no importers left and sat in the one file every
+// register author reads before deciding where their content ends — the literal that produced the whole
+// class of "cleared a 150px band, sat inside the grown one" defects, still on offer.)
 export const CONTENT_TOP = TITLE_BAND;  // top of the usable content zone
 // ASPECT-AWARE caption band: a NARROW frame (portrait/square/4:5) wraps the caption to more lines, so it needs a
 // TALLER reserved band. Shots + the Film should reserve `captionBand(W,H)`, not the fixed CAPTION_BAND, so content
@@ -43,7 +45,8 @@ export const CONTENT_TOP = TITLE_BAND;  // top of the usable content zone
 // there is (12.1% against a true 4.7%) and would have let an authored camera push content onto the
 // subtitle. Two places deriving the same quantity from the same fractions and disagreeing on the count is
 // the shape this file exists to prevent.
-export const captionLines = (W: number) => CAPTION_LINES + (W < 1400 ? 1 : 0);
+export const CAPTION_NARROW_W = 1400;   // below this the caption wraps to one more line
+export const captionLines = (W: number) => CAPTION_LINES + (W < CAPTION_NARROW_W ? 1 : 0);
 export const captionBlockH = (W: number, H: number) =>
   Math.min(W, H) * (CAPTION_SIZE_FRAC * CAPTION_LEAD * captionLines(W) + CAPTION_MARGIN_FRAC);
 

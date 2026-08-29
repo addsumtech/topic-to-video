@@ -17,8 +17,10 @@ import re
 _LAYOUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                        "..", "remotion", "src", "runtime", "layout.ts")
 
+# The narrow-frame threshold is parsed too. It was a literal 1400 in BOTH this file and layout.ts —
+# a "one definition" mirror that shared the fractions and quietly duplicated the rule that uses them.
 _KEYS = ("CAPTION_SIZE_FRAC", "CAPTION_LINES", "CAPTION_LEAD",
-         "CAPTION_MARGIN_FRAC", "CAPTION_GAP_FRAC")
+         "CAPTION_MARGIN_FRAC", "CAPTION_GAP_FRAC", "CAPTION_NARROW_W")
 
 _ROOT_TSX = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "..", "remotion", "src", "Root.tsx")
@@ -65,7 +67,7 @@ def caption_band_px(w, h):
     more line's worth of height — the same rule the TS applies.
     """
     f = _fracs()
-    lines = f["CAPTION_LINES"] + (1 if w < 1400 else 0)
+    lines = f["CAPTION_LINES"] + (1 if w < f["CAPTION_NARROW_W"] else 0)
     return int(round(min(w, h) * (f["CAPTION_SIZE_FRAC"] * f["CAPTION_LEAD"] * lines
                                   + f["CAPTION_MARGIN_FRAC"] + f["CAPTION_GAP_FRAC"])))
 

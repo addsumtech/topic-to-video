@@ -150,18 +150,41 @@ export const MapPlate: React.FC<{
         // on the half, a mark near the right edge got a right-hand label that ran straight out of the plate
         // — Groningen and Maastricht both crossed the border in a delivered film. A label is clamped inside
         // the plate as well, so no combination of positions can push one out.
-        const labW = Math.min(W * 0.15, PW * 0.30);
+        // A LABEL IS SHOWN, NOT GUILLOTINED. The box was a flat min(W*0.15, PW*0.30) with `nowrap` and
+        // `text-overflow: ellipsis`, so anything past about fifteen characters was silently cut — a
+        // delivered film shipped "a university since 1636" and "and everyone passing through" as stubs.
+        // A place name is short; a NOTE about a place is not, and both arrive through the same prop.
+        // The box is measured from the text now (CJK sets one glyph per em, Latin about half), capped at a
+        // third of the plate, and wraps to two lines rather than losing words.
+        const lab = String(m.label ?? '');
+        const labCjk = lab.length
+          ? lab.replace(/[^\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '').length / lab.length : 0;
+        const labFont = Math.round(W * 0.0135);
+        const labW = Math.max(W * 0.09,
+          Math.min(PW * 0.34, lab.length * labFont * (0.52 + 0.48 * labCjk) * 0.62 + labFont));
         const gap = dot + Math.round(W * 0.006);
         const {left, align} = placeLabel(x, px0 + hair * 2, px1 - hair * 2, labW, gap);
         const rightSide = align === 'left';
+        // AND IT MUST NOT LAND ON THE SUBJECT'S OWN NAME. The centre name is the one thing on the plate
+        // that is always there and always in the same place, and nothing stopped a mark's label from
+        // sitting on top of it — the label side is chosen by room at the plate's edges, which knows
+        // nothing about the middle. Where the two boxes would meet, the label steps clear vertically,
+        // away from the centre, which is always the shorter move.
+        const nameH = Math.round(W * 0.030) * 1.2, nameTop = cy + dot * 2.4;
+        const labTop0 = y - Math.round(W * 0.012);
+        const labH = labFont * 2.6;
+        const hits = left < cx + W * 0.13 && left + labW > cx - W * 0.13
+          && labTop0 < nameTop + nameH && labTop0 + labH > nameTop;
+        const labTop = hits ? (y < cy ? nameTop - nameH * 0.35 - labH : nameTop + nameH + nameH * 0.25) : labTop0;
         return (
           <React.Fragment key={'m' + i}>
             <div style={{position: 'absolute', left: x - dot / 2, top: y - dot / 2, width: dot, height: dot,
               borderRadius: dot, background: FG, opacity: on}} />
-            <div style={{position: 'absolute', top: y - Math.round(W * 0.012), left, width: labW,
+            <div style={{position: 'absolute', top: labTop, left, width: labW,
               textAlign: rightSide ? 'left' : 'right', opacity: on,
-              font: `500 ${Math.round(W * 0.0135)}px/1.25 ${mono}`, color: DIM,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{m.label}</div>
+              font: `500 ${labFont}px/1.25 ${mono}`, color: DIM,
+              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+              overflow: 'hidden'}}>{m.label}</div>
           </React.Fragment>
         );
       })}

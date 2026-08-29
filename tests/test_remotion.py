@@ -1518,6 +1518,45 @@ _UNSUPPLIED_TEXT_GRANDFATHERED = {
 }
 
 
+def test_the_caption_advance_follows_the_font_the_film_actually_uses():
+    """The fit was calibrated on one face and applied to whatever the DNA supplies.
+
+    Measured on this renderer at 56px on real prose: this film's IBM Plex Sans averages 0.452-0.478 em, so
+    the assumed 0.52 is conservative and safe — but the `terminal` DNA sets every element to JetBrains Mono,
+    where the same sentence measures 0.588. There the estimate UNDER-counts, the caption wraps to more lines
+    than the fit assumed, and it overflows the band it is supposed to be guaranteed to fit. CJK measures
+    0.995, so 1.0 was already right.
+    """
+    film = open(os.path.join(_ROOT_TSX_DIR, "Film.tsx"), encoding="utf-8").read()
+    m = re.search(r"const advanceFor = \(text: string, fontStack\?: string, uniform\?: boolean\)", film)
+    assert m, "the caption's advance is a bare constant again, not a function of the font"
+    body = re.sub(r"//[^\n]*", "", film)
+    assert not re.search(r"isCJKText\(t\) \? 1\.0 : 0\.52", body), (
+        "fitCaption still hardcodes the Inter advance")
+    assert not re.search(r"isCJK \? 1\.0 : 0\.52", body), "the line estimate still hardcodes it"
+
+    # the mono branch must be WIDER than the proportional one, and both must bracket the measurements
+    mono = float(re.search(r"\? (0\.\d+) : 0\.52", film).group(1))
+    assert 0.58 <= mono <= 0.70, "the monospace advance %.2f does not bracket the measured 0.588" % mono
+    # and uniformType must actually reach the caption, or the terminal case is unfixed
+    assert "dnaUniform" in film and "uniformType" in film, (
+        "the DNA's uniform-type flag never reaches the caption, so an all-mono film is still mis-estimated")
+
+
+def test_the_caption_band_threshold_is_not_restated():
+    """A "one definition" mirror that shares the fractions and duplicates the rule using them is not one."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    ts = open(os.path.join(root, "remotion", "src", "runtime", "layout.ts"), encoding="utf-8").read()
+    py = open(os.path.join(root, "scripts", "_caption_band.py"), encoding="utf-8").read()
+    assert "CAPTION_NARROW_W" in ts and "CAPTION_NARROW_W" in py, (
+        "the narrow-frame threshold is not shared between the renderer and its Python mirror")
+    assert not re.search(r"w\s*<\s*1400", py), "_caption_band.py restates the threshold as a literal"
+    # and the literal that produced the whole "cleared a 150px band" defect class is gone from the file
+    # every register author reads
+    assert not re.search(r"^export const CAPTION_BAND\s*=", ts, re.M), (
+        "layout.ts still offers a flat CAPTION_BAND literal to register authors")
+
+
 def test_the_caption_fits_its_band_in_every_language_and_aspect():
     """The band is sized on LATIN leading; CJK sets at 1.7 and would overflow it.
 

@@ -7,10 +7,24 @@
 //   gutter  a code gutter, covered vs uncovered     → coverage / what the tests never touched
 //   peers   two badges producing the same answer    → cross-check / peer agreement (AI 互检)
 //   review  a reviewer's cursor on a line of code   → human review / someone reads it
-//   bars · ring · dots · wave                       → the neutral quantity/progress/set/trend motifs
-// Omitting `glyph` keeps the historical behaviour (motif = panel INDEX → bars/ring/dots/wave), so films
-// authored before glyphs existed render exactly as they did. An UNKNOWN glyph name throws rather than
-// silently drawing the wrong picture — a typo must not ship as a bar chart labelled "human review".
+// and four NEUTRAL MARKS for a panel whose content is simply "one of the four" — no measurement in any of them:
+//   bars    identical strokes standing on one rule    → a RUN of like things along a line
+//   ring    complete rings + a crosshair              → a PLACE, one located thing
+//   dots    a quincunx lattice of equal points        → a FIELD of like things
+//   wave    parallel rules, one profile repeated      → a FLOW
+// Omitting `glyph` keeps the historical behaviour (mark = panel INDEX → bars/ring/dots/wave), so films
+// authored before glyphs existed keep their tile-to-form assignment. An UNKNOWN glyph name throws rather
+// than silently drawing the wrong picture — a typo must not ship as a bar chart labelled "human review".
+//
+// NO GLYPH HERE CARRIES A FIGURE. The register's argument is "four things, one frame": the mark tells the
+// four apart, it does not measure them. The four neutral forms USED to be a 72%-filled gauge, a five-bar
+// column chart, a 12-slot counter and a trend line — every one of those numbers computed from the clock,
+// none supplied by a prop, all sitting under a film-supplied label. Beat 7 of the Utrecht film shipped a
+// 270°-of-360° arc (measured on the hero frame) captioned "Castellum Traiectum", which a viewer reads as a
+// measurement OF that fort. They are now marks whose SHAPE says "category": complete rings, identical
+// strokes, a lattice of equal points, parallel rules — nothing with a variable extent to read off. A panel
+// that genuinely has a quantity belongs in a quantity register that takes the number as a prop; this one
+// would have to invent it, so it draws none.
 //
 // FRAME-CRAFT: the grid lives strictly inside [CONTENT_TOP, contentBottom(W,H)] and the expanded hero stops
 // at contentBottom too, so the burned caption band stays the shot's own clean ground for the WHOLE shot.
@@ -29,8 +43,8 @@ const BG_D0 = '#0b0d14';
 const TONES_D0 = ['#5b8cff', '#ff5b7f', '#22c197', '#f6a531'];
 const INK_D0 = '#f3f5ff', DIM_D0 = '#7f879c', HEAD_D0 = '#aeb6ca';
 const SURF_D0 = '#141724', EDGE_D0 = '#20243a';
-const TRACK_D0 = '#ffffff18';   // the ring's unfilled track (the register's original value)
-const OFF_D0 = '#ffffff14';     // an unfilled dot (the register's original value)
+const TRACK_D0 = '#ffffff18';   // a secondary hairline: the mark's outer ring, a pending badge
+const OFF_D0 = '#ffffff14';     // the faintest rule: the lattice the field of points sits on
 const SOFT_D0 = '#ffffff2e';    // secondary marks — code lines a glyph has not highlighted
 
 export type QuadGlyph = 'bars' | 'ring' | 'dots' | 'wave' | 'checks' | 'gutter' | 'peers' | 'review';
@@ -50,8 +64,8 @@ type Ink = {
   c: string;      // this panel's tone
   warn: string;   // the "not verified" tone (the film's second accent; dim when the tone IS that accent)
   soft: string;   // secondary marks — inactive code lines, rules
-  track: string;  // an unfilled ring track / a pending badge
-  off: string;    // an unfilled dot
+  track: string;  // a secondary hairline — the survey mark's outer ring, a pending badge
+  off: string;    // the faintest rule — the lattice under the field of points
   ink: string;    // primary ink
   ground: string; // the ground these marks sit on
 };
@@ -65,37 +79,92 @@ const Glyph: React.FC<Ink & {kind: QuadGlyph; g: number}> = ({kind, g, c, warn, 
     <svg viewBox={vb} width="100%" height="100%" preserveAspectRatio="xMinYMid meet">{children}</svg>
   );
 
-  // ── quantity: five bars rising ────────────────────────────────────────────────────────────────────────
-  if (kind === 'bars') return box('0 0 220 120', [0, 1, 2, 3, 4].map((b) => {
-    const h = (28 + ((b * 37) % 70)) * clamp01(g * 1.4 - b * 0.08);
-    return <rect key={b} x={b * 44} y={120 - h} width={30} height={h} rx={5} fill={c} />;
-  }));
+  // ── PLACE: a survey mark — two COMPLETE rings and a crosshair ─────────────────────────────────────────
+  // Was a gauge: `strokeDashoffset = C * (1 - 0.72 * g)`, i.e. an arc that settles at 72% of the circle with
+  // its unfilled track drawn behind it — the canonical "this much of the whole" idiom. Measured on the beat-7
+  // hero frame it inked 270° of 360° (75% of the circumference) under the label "Castellum Traiectum", which
+  // reads as a figure about that fort. No prop supplied it. Both circles now CLOSE, so there is no arc and no
+  // track: what is left is a located point, which is all a panel index ever meant.
+  if (kind === 'ring') {
+    const a = clamp01(g * 2.2);                            // the mark lands whole — never a partial sweep
+    const tick = easeOutCubic(clamp01((g - 0.3) * 2.2));   // then the crosshair extends through it
+    return box('0 0 140 140', (
+      <>
+        <circle cx={70} cy={70} r={56} fill="none" stroke={track} strokeWidth={6} opacity={a} />
+        <circle cx={70} cy={70} r={34} fill="none" stroke={c} strokeWidth={10} opacity={a} />
+        <circle cx={70} cy={70} r={10} fill={c} opacity={a} />
+        {[[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy], k) => (
+          <line key={k} x1={70 + dx * 40} y1={70 + dy * 40}
+            x2={70 + dx * (40 + 26 * tick)} y2={70 + dy * (40 + 26 * tick)}
+            stroke={c} strokeWidth={5} strokeLinecap="round" opacity={a} />
+        ))}
+      </>
+    ));
+  }
 
-  // ── proportion: a ring filling ────────────────────────────────────────────────────────────────────────
-  if (kind === 'ring') return box('0 0 140 140', (
+  // ── RUN: identical strokes standing on one rule ───────────────────────────────────────────────────────
+  // Was a column chart: five bars at `28 + ((b * 37) % 70)` → 28·65·32·69·36, a 2.5:1 spread of values the
+  // clock made up (measured mid-shot at 30·71·64·63·30 px). Under "The limes bank" that is five readings of
+  // the bank. Every stroke is now the SAME height and the same width, so there is nothing to compare: the
+  // form says "a run of like things along a line" — which is what a listed series of sites is. They arrive
+  // by OPACITY, never by growing, because a stagger that grows heights makes every intermediate frame a
+  // chart again.
+  if (kind === 'bars') return box('0 0 220 120', (
     <>
-      <circle cx={70} cy={70} r={54} fill="none" stroke={track} strokeWidth={12} />
-      <circle cx={70} cy={70} r={54} fill="none" stroke={c} strokeWidth={12} strokeLinecap="round"
-        strokeDasharray={2 * Math.PI * 54} strokeDashoffset={2 * Math.PI * 54 * (1 - 0.72 * g)}
-        transform="rotate(-90 70 70)" />
+      <line x1={4} y1={108} x2={216} y2={108} stroke={soft} strokeWidth={3} opacity={clamp01(g * 3)} />
+      {[...Array(7)].map((_, k) => (
+        <rect key={k} x={8 + k * 30.5} y={22} width={15} height={82} rx={2}
+          fill={c} opacity={clamp01((g - k * 0.07) * 5)} />
+      ))}
     </>
   ));
 
-  // ── a set filling up ──────────────────────────────────────────────────────────────────────────────────
-  if (kind === 'dots') return box('0 0 200 120', [...Array(12)].map((_, k) => (
-    <circle key={k} cx={16 + (k % 6) * 34} cy={30 + Math.floor(k / 6) * 60} r={12}
-      fill={k / 12 < g ? c : off} />
-  )));
+  // ── FIELD: a lattice of identical points ──────────────────────────────────────────────────────────────
+  // Was a 12-slot counter: `fill = k / 12 < g ? c : off` — at beat 7's frame 90 exactly 9 of 12 dots were
+  // inked under "A Roman road", a countable 9-of-12 that no prop ever stated. Now every point is present and
+  // identical, the rows are OFFSET (a quincunx never reads as a filling meter, which is always one straight
+  // uniform row), and they arrive together on one opacity ramp: no frame has a filled count to read.
+  if (kind === 'dots') {
+    const a = clamp01(g * 1.8);
+    const grow = easeOutCubic(clamp01(g * 1.6));
+    // Each row's rule is threaded through ITS OWN points — a flat 6..194 span left a bare hairline stub
+    // sticking out past the last point of the un-offset row (measured ~18 glyph units, plainly visible on the
+    // dark no-DNA ground), which reads as an empty slot the row failed to fill. The rule is the lattice, so it
+    // ends where the lattice does.
+    const cxOf = (k: number, row: number) => 10 + k * 31 + row * 15.5;
+    return box('0 0 200 120', (
+      <>
+        {[0, 1].map((row) => (
+          <line key={`r${row}`} x1={cxOf(0, row)} y1={30 + row * 60} x2={cxOf(5, row)} y2={30 + row * 60}
+            stroke={off} strokeWidth={2} opacity={a} />
+        ))}
+        {[...Array(12)].map((_, k) => {
+          const row = Math.floor(k / 6);
+          return <circle key={k} cx={cxOf(k % 6, row)} cy={30 + row * 60} r={11 * grow} fill={c} opacity={a} />;
+        })}
+      </>
+    ));
+  }
 
-  // ── a trend drawing itself ────────────────────────────────────────────────────────────────────────────
+  // ── FLOW: parallel rules, one profile repeated ────────────────────────────────────────────────────────
+  // Was a trend: one polyline whose amplitude was `34 * clamp01(g * 1.3 - k / 40)`, so it rose and decayed
+  // across the box — a series with a shape to interpret, captioned "A river channel". The same profile is now
+  // drawn THREE times at one amplitude and wiped on together (pathLength=1, so the dash maths needs no
+  // measured length): three identical rules are a hatch, and a hatch has no reading. Structure, not extent.
   if (kind === 'wave') {
-    const pts = [...Array(24)].map((_, k) => {
-      const x = (k / 23) * 220;
-      const y = 60 - Math.sin(k * 0.6) * 34 * clamp01(g * 1.3 - k / 40);
-      return `${x},${y}`;
+    const p = easeOutCubic(clamp01(g * 1.5));
+    const d = [...Array(49)].map((_, k) => {
+      const x = (k / 48) * 212;
+      const y = -Math.sin((k / 48) * Math.PI * 4) * 13;
+      return `${k ? 'L' : 'M'}${x.toFixed(2)},${y.toFixed(2)}`;
     }).join(' ');
     return box('0 0 220 120', (
-      <polyline points={pts} fill="none" stroke={c} strokeWidth={5} strokeLinecap="round" />
+      <g transform="translate(4 0)">
+        {[34, 60, 86].map((y, k) => (
+          <path key={k} d={d} transform={`translate(0 ${y})`} fill="none" stroke={c} strokeWidth={5}
+            strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - p} />
+        ))}
+      </g>
     ));
   }
 
@@ -214,7 +283,12 @@ export type QuadPanel = {label?: string; glyph?: string};
 
 const DEFAULT_PANELS: QuadPanel[] = [{label: 'Faster'}, {label: 'Simpler'}, {label: 'Cheaper'}, {label: 'Safer'}];
 
-export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?: number}> = ({
+// `hero: null` HOLDS THE QUAD. The register's documented use is "four angles -> the one that matters", and
+// the expansion is the second half of that argument. But a beat whose claim is simply THERE ARE FOUR ends
+// on a frame showing one, which contradicts the sentence being spoken over it — a delivered film's
+// "four World Heritage sites sit inside this one city" settled on a single card. The same 2x2 assembly
+// serves both arguments; only the ending differs, so the ending is the thing that became a choice.
+export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?: number | null}> = ({
   panels: PANELS = DEFAULT_PANELS, heading: HEADING = 'Four ways it wins', hero: HERO = 0} = {}) => {
   const t = useT();
   const dna = useDNA();
@@ -238,7 +312,8 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
   const {width: W, height: H} = useVideoConfig();
   const cells = (PANELS && PANELS.length ? PANELS : DEFAULT_PANELS).slice(0, 4);
   const n = cells.length;
-  const heroIdx = Math.max(0, Math.min(Math.round(HERO) || 0, n - 1));
+  const holdQuad = HERO === null;
+  const heroIdx = Math.max(0, Math.min(Math.round(HERO || 0) || 0, n - 1));
 
   // GEOMETRY. Everything lives in the CONTENT ZONE — never the whole frame — so the bottom row and the
   // expanded hero both stop clear of the burned caption band. Fractions of W/H, so it reflows at any aspect.
@@ -253,11 +328,16 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
   const safe = Math.round(Math.min(W, H) * 0.05);
   const eX = safe, eY = safe, eW = W - 2 * safe, eH = Math.max(200, zoneBot - safe);
 
-  const expand = easeInOutCubic(seg(t, 0.72, 0.97));       // hero takes the frame
+  const expand = holdQuad ? 0 : easeInOutCubic(seg(t, 0.72, 0.97));   // hero takes the frame (unless held)
   // The other three CLEAR OUT BEFORE the hero crosses them. Fading them on the expand curve meant the hero's
   // label and glyph rode over three still-visible panels for ~10 frames — a glyph/type mash mid-shot.
-  const clearOut = easeOutCubic(seg(t, 0.70, 0.80));
-  const headIn = clamp01(seg(t, 0.04, 0.16)) * (1 - clamp01(seg(t, 0.66, 0.74)));
+  // Held, nothing clears and the heading stays: the four ARE the frame, so there is no hero for them to get
+  // out of the way of. Stopping only the expansion left the other three still fading out on their own
+  // timeline, so the beat ended on a single card sitting in a quadrant — the same contradiction, differently.
+  const clearOut = holdQuad ? 0 : easeOutCubic(seg(t, 0.70, 0.80));
+  const headIn = holdQuad
+    ? clamp01(seg(t, 0.04, 0.16))
+    : clamp01(seg(t, 0.04, 0.16)) * (1 - clamp01(seg(t, 0.66, 0.74)));
 
   // TYPE IS WIDTH-FITTED, twice: once for the quadrant box and once for the expanded hero box, then lerped.
   // A hardcoded 56/132px overflowed the panel the moment the label was real Chinese copy instead of "Safer".
