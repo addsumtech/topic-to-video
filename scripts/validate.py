@@ -1396,13 +1396,19 @@ def _film_language(meta, slides, errors, warnings):
             % (native, "/".join(sorted(seam_vocab))))
     # A film with NO design_dna at all is a different (and separately reported) situation; calling it a
     # "bespoke direction named None" was a confusing message for a real state.
-    if dna and not native and str(dna.get("id") or "") not in _KNOWN_DNA_IDS:
+    # A DECLARED native seam applies to every UNMARKED cut, which is nearly all of them. On a film whose
+    # shots share a ground it made 32 of 34 cuts kinetic, and the 2 deliberate chapter marks then read
+    # exactly like the 32 that mean nothing — the film lost its punctuation to the thing meant to give it
+    # a voice. So this is not something to nag an author into. A gentle cross-fade is the filmic default
+    # and is a good answer; `seam` is for a world with a genuine native ACTION (a terminal clearing its
+    # screen), and the warning now fires the other way.
+    if native and native != 'fade' and len(marked) and (n - 1 - len(marked)) > 6 * len(marked):
         warnings.append(
-            "meta.design_dna.id '%s' is a bespoke direction with no `seam` declared, so its %d unmarked cuts "
-            "fall through to a generic cross-fade that belongs to no design language. Declare the direction's "
-            "own native action, e.g. design_dna.seam:{type:'wipe',direction:'from-bottom'} for a "
-            "sheet-laid-over-sheet world, or {type:'fade'} to say plainly that a plain cut is the intent."
-            % (dna.get("id"), max(0, n - 1 - len(marked))))
+            "meta.design_dna.seam makes all %d unmarked cuts kinetic while only %d are MARKED — a mark only "
+            "reads as punctuation when the cuts around it do not. Either drop the native seam (a plain "
+            "cross-fade is the correct default, not a missing decision) or accept that this film's cuts are "
+            "a texture rather than a structure."
+            % (max(0, n - 1 - len(marked)), len(marked)))
 
 
 

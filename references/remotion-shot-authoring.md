@@ -21,6 +21,20 @@ from `src/runtime/layout.ts` — do NOT hand-guess pixel positions.
 3. **Caption band.** The Film burns the caption in the bottom `CAPTION_BAND` px. Keep the shot's own text/labels
    out of `[H - CAPTION_BAND, H]` — the ONLY allowed thing down there is a small `credit` line at `bottom:8`.
    A shot label at `0.9·H` WILL overlap the caption.
+   **The band is `captionBand(W, H)`, not the constant.** `CAPTION_BAND = 150` is a legacy landscape number kept
+   for compatibility; the live reserve is DERIVED from the caption's own type size — **227px at 1080p landscape,
+   298px at 9:16** (a narrow frame wraps the same sentence to an extra line). Take every content bottom edge from
+   `captionBand(W, H)` / `contentBottom(W, H)` — never a literal `bottom: N` (the small credit line above is the
+   one exception). That rule is the fallout of GROWING the band: a viewer read the caption as part of the content
+   above it, and the gap was paid for out of the BAND rather than out of the type — shrinking the type had dropped
+   the caption to 3.4% of frame height, under the 5.2% floor that keeps a 1080p film readable in a phone-sized
+   window. Run across all 146 registers afterwards, 26 sat inside the band, 13 of them newly — each had safely
+   cleared the old 150px. BrutalistType and MagazineSpread were pinned at a literal `bottom:N`; PlanPalimpsest's
+   fixed `H*0.11` legend reserve, which used to overflow into empty page, began overflowing under the subtitle. A
+   literal that is safe today is a defect the next layout change ships for you. The derived band is a reserve you
+   can trust: it is sized on the LATIN lead and the caption fits ITSELF to it (a CJK or over-long caption shrinks
+   rather than growing the band), and both `fitContentSquare` and `maxCameraPush` measure from it — so the beat's
+   camera cannot push your lowest content into it either.
 4. **Center a hero image/panel in the CONTENT ZONE, not the whole frame.** A square centered in the full frame
    rides up UNDER the title (an MRI sized `0.72·H` and centered literally overlapped its title). Use
    `fitContentSquare(W, H, {hFrac, wFrac, bottomReserve})` — it returns `{S, left, top}` centered in
@@ -64,6 +78,44 @@ from `src/runtime/layout.ts` — do NOT hand-guess pixel positions.
 collision/tiny-marker — are eyeballed by the shot-critic (S10). Getting them right structurally (via `layout.ts`
 + sizing for real content) is cheaper than being caught.
 
+## A2 · Depth — planes, only where the beat actually has a foreground and a background
+
+`<Plane depth={DEPTH.behind}>` (`src/runtime/depth.tsx`) separates a shot into parallel planes. `DEPTH` is named
+rather than numeric because a bare number says nothing about what the author meant: `lifted` (−1 — above the
+ground, casts a shadow), `subject` (0 — what the narration is talking about NOW, always the plane in focus),
+`behind`, `context`, `far`.
+
+**It is 2D on purpose**, built only from SIZE, FOCUS, SHADOW and PARALLAX. Measured on this library's own
+renderer, on a text-dense shot: glyph edge strength 91 baseline, 86 under a plain 2D `scale` (and that drop is
+entirely the glyphs being LARGER, not softer — magnified crops are indistinguishable), and **56 under
+`perspective(1200px) translateZ(50px)`: a 38% loss that is plainly fuzzy to the eye**, because a 3D-composited
+layer is promoted, rasterized once at layout size and GPU-upscaled, while a 2D transform is repainted at final
+resolution every frame. A shot that genuinely needs converging perspective (a receding wall) may still reach for
+a 3D transform — but it must not carry text anyone is expected to read.
+
+**A plane must ENCODE the beat.** Near is what the narration is on NOW; far is the context it sits in. Apply the
+hide-the-caption test to the ARRANGEMENT: with the words gone, does the stacking still say which is subject and
+which is setting? Splitting things across planes for the look of it is decoration. Both live users are structural
+claims, not atmosphere:
+- **PlanPalimpsest** puts the earlier survey one plane BACK because "two surveys in register on the same ground"
+  is that register's whole claim. Flat, it can only assert it — the eye has no reason to read one as under the
+  other; a plane's separation gives it one, and when the beat's camera moves the two drift by different amounts,
+  which a viewer already knows how to read as distance. Its labels stay on `subject`: they are the film speaking
+  ABOUT the plans, not part of either.
+- **PhotoPlate** LIFTS its numbered marks off the print. A mark the film added is not part of the photograph, and
+  the shadow is the thing that says so.
+
+**Never scale a lifted layer yourself** — `Plane` shrinks planes BEHIND the subject only, and that asymmetry is
+load-bearing. Scaling a lifted plane about the frame centre DISPLACES everything on it: measured, a mark pinned
+to a point in a photograph moved 29px, about its own width, and stopped pointing at the thing it named — fatal
+for the one job an annotation layer has. A lifted plane keeps its registration and carries an alpha-following
+`drop-shadow` instead, so each chip, ring and leader gets its own shadow, which is what "these marks are lying on
+the print" actually looks like.
+
+Parallax is the only cue that needs the beat's camera to move (`scene.camera` — a storyboard field, not something
+a register sets); size, focus and shadow carry the reading on a held beat. So a plane split is worth building
+either way, and reads strongest on a beat that also earns a push.
+
 ## B · Meaning — every design must ENCODE its beat
 
 The dominant failure mode is a shot that is **dark-and-pretty and vaguely on-topic but encodes nothing specific**.
@@ -98,7 +150,11 @@ wrong thing is worse than a plain one that encodes the right thing.
   fetch a license-clean real photo via `imagefetch.py`. A real image the design ACTS ON (reconstructs, folds,
   denoises) both teaches and looks premium. Keep the design language's VIBE/technique but fill it with real,
   substantive, sourced content — and it must generalize: the image is a `src` prop, so the same shot serves any
-  topic. Credit CC-BY on screen.
+  topic. Credit CC-BY on screen. **Take the credit from the sidecar, never from memory** — `imagefetch.py`
+  writes a `<file>.json` beside each image naming the real author + licence, and `validate.py` ERRORs when a beat
+  shows an image whose sidecar author it does not credit. A shot therefore receives its credit as a PROP (like the
+  `src`) and never hardcodes one: a hardcoded credit is both a wrong attribution the moment the image is swapped
+  and, since it is a real person's name, a fabricated fact.
 - **Audit ALL beats, not just the ones flagged.** When one shot is found decorative, re-run the hide-the-caption
   test on EVERY beat (举一反三) — the same reflex usually produced several. Fix the whole class.
 - **No fabricated data.** A number-bearing shot must carry a SOURCED figure (traces to `source_ref`), never its

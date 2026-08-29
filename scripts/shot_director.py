@@ -403,6 +403,29 @@ def main():
     data = json.load(open(sb_path, encoding="utf-8"))
     cp = json.load(open(cp_path, encoding="utf-8")) if os.path.isfile(cp_path) else None
     assign_shots(data, cp, template=a.template)
+
+    # THE FILM'S CUTS AND CAMERA, on this path too. This fallback used to emit only `shot` and
+    # `shot_props`, so a film made without the LLM shot-director got a register per beat and nothing else:
+    # 34 identical cuts and a camera that never moved. Those capabilities were fully built, tested and
+    # documented and reached no film, which is indistinguishable from never having written them. The
+    # planner derives both from the `relation` each beat already declares, skips anything already
+    # authored, and is deterministic — so running it here changes nothing for a board that has its own.
+    try:
+        import seam_plan
+        marks = seam_plan.plan(data.get("slides", []), (data.get("meta") or {}).get("design_dna"))
+        cams = seam_plan.plan_camera(data.get("slides", []))
+        for i, m in marks.items():
+            sl = data["slides"][i]
+            if not (sl.get("transition_in") or sl.get("transition_style")):
+                sl["transition_in"] = {"type": m["type"]}
+        for i, c in cams.items():
+            sl = data["slides"][i]
+            if not sl.get("camera"):
+                sl["camera"] = {"move": c["move"], "amount": seam_plan.CAMERA_AMOUNT}
+        print("[shot_director] %d marked seam(s), %d moving beat(s)" % (len(marks), len(cams)))
+    except Exception as e:                       # a board with no `relation` is a legitimate film, not a crash
+        print("[shot_director] seam/camera plan skipped: %s" % e)
+
     json.dump(data, open(sb_path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     seq = [(s.get("index"), s.get("shot"), FAMILY.get(s.get("shot"))) for s in data.get("slides", [])]
     print("[shot_director] assigned %d scenes (family-varied):" % len(seq))

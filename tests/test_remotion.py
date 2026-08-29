@@ -1932,6 +1932,58 @@ def test_a_camera_push_cannot_drive_content_into_the_caption_band():
             "%s: a push at the cap travels %.0fpx into a %.0fpx gap" % (aspect, (zoneH / 2) * cap, gap))
 
 
+def test_every_remotion_capability_is_reachable_from_the_authoring_path():
+    """A capability nothing in the authoring path reaches is indistinguishable from one never written.
+
+    Nine commits added four capabilities to this tier and left `agents/` and `references/` untouched — a
+    zero-line diff — so an agent following the documented workflow to make a new film would have used none
+    of them, and the deterministic fallback emitted only `shot`/`shot_props`. Every gate stayed green
+    because a gate reads the artifact, not the path that failed to produce it.
+
+    Two halves, because either alone is passable while the capability stays unreachable: the DOCUMENTS an
+    author reads must name it, and the deterministic path must actually emit it.
+    """
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    docs = {}
+    for rel in ("SKILL.md", "agents/shot-director.md", "agents/shot-critic.md",
+                "references/remotion-shot-authoring.md"):
+        docs[rel] = open(os.path.join(root, rel), encoding="utf-8").read()
+    everything = "\n".join(docs.values())
+
+    # Per DOCUMENT, not the union. A dispatched agent reads its OWN brief; naming a capability only in
+    # SKILL.md leaves the agent that must actually use it none the wiser, which is how a zero-line diff to
+    # agents/ went unnoticed. Each capability is required where the person who must ACT on it will read it.
+    required = [
+        ("agents/shot-director.md", "design_dna.seam",
+         "the storyboard author sets the film's native cut, and must know not setting it is the right answer"),
+        ("agents/shot-director.md", "camera",
+         "the per-beat camera is a storyboard field; nobody else can decide which beat earns a move"),
+        ("agents/shot-director.md", "PhotoPlate",
+         "reaching for real imagery is a register-SELECTION decision"),
+        ("agents/shot-critic.md", "camera",
+         "nothing reviews the camera, so a film can carry a nonsense one and pass"),
+        ("references/remotion-shot-authoring.md", "Plane",
+         "depth is a thing a REGISTER does; its author reads this file before writing one"),
+        ("references/remotion-shot-authoring.md", "captionBand",
+         "a register derives its bottom edge from the band, and a literal bottom:N is the defect that shipped"),
+        ("SKILL.md", "scripts/seam_plan.py <out_dir>`",
+         "the planner has to be an invocable pipeline STEP, not prose in a tier description"),
+    ]
+    missing = [(f, n, why) for f, n, why in required if n not in docs[f]]
+    assert not missing, "\n".join(
+        "%s does not name %r — %s" % (f, n, why) for f, n, why in missing)
+
+    # and the deterministic fallback must emit both fields, on a board that declares relations
+    import importlib.util, tempfile, json as _json
+    spec = importlib.util.spec_from_file_location("shot_director_probe",
+                                                  os.path.join(root, "scripts", "shot_director.py"))
+    sd = importlib.util.module_from_spec(spec); spec.loader.exec_module(sd)
+    src = open(os.path.join(root, "scripts", "shot_director.py"), encoding="utf-8").read()
+    assert "import seam_plan" in src and "plan_camera" in src, (
+        "the deterministic shot-director no longer plans the film's cuts and camera, so a film made "
+        "without the LLM agent gets a register per beat and nothing else")
+
+
 def test_the_cut_vocabulary_actually_reaches_the_storyboard():
     """The tier's seams existed, were guarded, were mapped — and no film ever used one.
 
@@ -1995,13 +2047,26 @@ def test_validate_notices_a_film_that_never_uses_its_own_cuts():
     v._film_language(board["meta"], board["slides"], errs, warns)
     assert not errs, "this is a warning, not an error — a deliberately unbroken film is legitimate"
     assert any("not one MARKED seam" in w for w in warns), warns
-    assert any("bespoke direction with no `seam`" in w for w in warns), warns
+    # The gate used to ALSO nag a bespoke direction into declaring a native `seam`. Measured on a delivered
+    # film, taking that advice turned 31 of 34 cuts kinetic and the 3 deliberate marks then read exactly
+    # like the 31 that meant nothing — the film lost its punctuation to the feature meant to give it a
+    # voice. So the warning fires the other way now, and a plain cross-fade is a finished decision.
+    assert not any("bespoke direction with no `seam`" in w for w in warns), (
+        "validate still pushes an author toward a native seam, which is what removed a film's punctuation")
 
-    # marks present + a declared native cut -> silent
+    swamped = {"renderer": "remotion", "design_dna": {"id": "x", "seam": {"type": "wipe"}}}
+    sl = [{"shot": "MapPlate", "relation": "continuation"} for _ in range(20)]
+    sl[9]["transition_in"] = {"type": "clock"}
+    e4, w4 = [], []
+    v._film_language(swamped, sl, e4, w4)
+    assert any("reads as punctuation" in w for w in w4), w4
+
+    # marks present, and PROPORTIONATE to the cuts the declared seam makes kinetic -> silent
     ok = {"meta": {"renderer": "remotion",
                    "design_dna": {"id": "bespoke-thing", "seam": {"type": "wipe"}}},
           "slides": [{"shot": "MapPlate", "relation": "continuation"} for _ in range(20)]}
-    ok["slides"][9]["transition_in"] = {"type": "clock"}
+    for i in (4, 9, 14):
+        ok["slides"][i]["transition_in"] = {"type": "clock"}
     errs2, warns2 = [], []
     v._film_language(ok["meta"], ok["slides"], errs2, warns2)
     assert not warns2, warns2

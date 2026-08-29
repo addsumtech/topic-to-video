@@ -166,6 +166,9 @@ Two keys are BEHAVIOUR-bearing, not decoration, so choose them deliberately:
 - **`id`** selects the film's native SEAM grammar (`terminal` → a console screen-clear sweep · `product`/`apple` →
   a slide push · `editorial`/`blueprint` → a sheet wipe · anything else → the safe cross-fade). Use a known id
   unless you want the neutral seam.
+  This reaches EVERY UNMARKED cut, which is nearly all of them, so read Rule 5 before you lean on it: a native
+  cut on all of them erases the ~2–3 marked ones, and the plain cross-fade is the CORRECT default for most
+  films rather than a decision left unmade. `"seam": {"type": "fade"}` opts a preset id back out.
 - **`uniformType`** — `true` forces ONE font across every shot (right for a mono/terminal world; it is the single
   strongest style signal). Leave it out for a MIXED-type system (editorial serif + sans, product geometric), where
   each element picks `fontDisplay`/`fontBody` itself.
@@ -295,6 +298,20 @@ back — commit registers that are memorable and unmistakably THIS film. For eac
    `list`→BlockAssembly/TemporalAccelerate; `metric`→ChartLive/BlueprintGrid(counter)/PhysicsStack. The `climax`
    beat gets a payoff register (ParticleForm/RadialBurst/LightTrails/SpotlightStage/LiquidFill); the `close`/`hold`
    beat gets a premium title (LiquidChrome/HoloFoil/CinematicTitle/SwissEditorial). Use the "use when" as the map.
+
+   **A CONCRETE topic can want a real PHOTOGRAPH as the register itself, not as a texture behind one.** When the
+   beat's claim is *look at the actual thing*, reach for **PhotoPlate** (LIBRARY 171): the photograph IS the
+   frame, and the film's own numbered marks sit at points IN it, arriving as the narration names them — so the
+   picture carries the argument instead of illustrating it. The library's other image registers answer different
+   questions: **ScanReconstruct** = revealed by its own process · **MuseumLabel** = the object beside its
+   catalogue label · **RealVersus** = A against B. Decide this HERE, at register selection: on a delivered film
+   about a physical city, with license-clean photographs available, real images occupied 5.3% / 8.5% / 16.3% of
+   the frame — the evidence shipped as a footnote to a drawing of itself. Fetch with `python3
+   scripts/imagefetch.py "<subject>" <out_dir>/media/<name>.jpg` (license-clean Wikimedia; it writes the sidecar
+   `<name>.jpg.json` beside the file, naming the real author + licence). **Take the credit FROM that sidecar —
+   never type one from memory** (`imagefetch.attribution_line()` builds it): `validate.py` ERRORS on a beat
+   showing an image whose sidecar author it does not credit, because a wrong CC-BY line credits someone else's
+   photograph to a stranger.
 2. **Vary the FAMILY across the film — never two ADJACENT beats from the same family.** This is what stops the
    film reading as one look. Spread across ≥6 families in a ≥10-beat film; feature the 3D register (MaterialHero)
    and one illustrated/craft style at most once or twice.
@@ -319,6 +336,39 @@ back — commit registers that are memorable and unmistakably THIS film. For eac
    (Film's pickPresentation guards against a bright edge slamming over a dark scene), so don't spend a mark
    there. No spins, ever. (Mechanism: `render_remotion.py` maps `transition_style` → the Film `transitionIn`.)
 
+   **The film's NATIVE cut is OPT-IN, and NOT setting it is the right answer for most films.**
+   `meta.design_dna.seam` — and a preset `meta.design_dna.id`, Step 0.6 — replaces every UNMARKED cut with the
+   design system's own move. Measured on a delivered film: it turned 31 of 34 cuts kinetic, so the 3 deliberate
+   marks read exactly like the 31 that meant nothing — the film LOST its punctuation to the feature meant to give
+   it a voice. A plain cross-fade on the unmarked cuts is the CORRECT default and a finished decision, not a
+   missing one. Declare a `seam` only for a world with a genuine native ACTION (a terminal clearing its screen);
+   on a preset id whose world has none, opt back out with `"seam": {"type": "fade"}`. `validate.py` warns when a
+   declared seam swamps the marks.
+
+   **Mark by MEANING — completeness is not your problem.** `python3 scripts/seam_plan.py <out_dir>` runs after
+   you, as a verify-and-fill pass: it derives marks from each beat's `relation`, and SKIPS any beat you already
+   marked (an explicit mark always wins, so it never competes with you). It exists because a delivered 35-beat
+   film used none of the vocabulary — all 34 seams the anonymous default — and it mirrors the renderer's
+   luminance guard: on a dark↔light seam it marks the `carry` instead, the one cut whose bridge line survives
+   that guard, rather than a kinetic mark Film.tsx would silently downgrade to a fade.
+
+## The camera — a move needs a CAUSE (per beat, budget 2–4)
+A scene may carry **`camera` = `{move: "push"|"pull"|"hold", amount: 0.045}`**. This is not a Ken Burns drift:
+the tier's earlier camera was a film-wide sinusoidal wander with no relationship to anything being said, and
+motion with no cause reads as a wobble the moment a viewer notices it — which is why it was switched off
+entirely, an over-correction. So derive the move from what the beat is FOR:
+- **`payoff` → `push`** — the beat where the argument lands: look closer at what is here.
+- **`close`, and the OPENING beat → `pull`** — here is the whole of it, from either end of the film.
+- **everything else HOLDS** (set nothing). Budget **2–4 moving beats in a whole film, spaced apart** — a film
+  whose camera always moves has no camera, exactly as a film that marks every seam has no punctuation.
+
+**Spend a push only on a frame that HOLDS something to look closer AT.** A shot reveals over roughly t 0.05–0.45,
+which is why the move runs 0.28–0.88 — it rides `useT()`, so it never runs over a cut and it lands on SETTLED
+content, and `amount` is clamped to what the caption band can absorb. A push into two rows of text magnifies
+nothing; a push into a photograph, a plate, a schematic with detail in it is the beat worth spending on. Check
+what the beat's shot actually holds before marking it. `seam_plan.py` fills these on the same rule and skips any
+beat you authored.
+
 ## Color-arc (a SOFT sequencing pass — after fit/family/boldness are settled)
 Each shot has a ground LUMINANCE (dark / mid / light — `remotion/src/runtime/shotLuma.ts`). A film that flips
 **dark↔light on nearly every beat STROBES**: even though each seam is smooth (the renderer forces a gentle fade
@@ -340,7 +390,7 @@ concrete cues that tie THIS shot to the global visual system** (e.g. `["mono hea
 "green accent"]`) so the Design DNA verifiably runs through every frame; per the KEEP-THE-STYLE-REDESIGN-THE-REST
 rule above — keep what fits, redesign what doesn't, don't blindly change everything). Also set **`shot_fit` = `{verdict: "fit"|"adapt"|"build", why}`** per scene (rule 0) — the judgement of
 whether a register's structure actually carries the beat's argument, and the ONLY thing that can surface
-"nothing in the library can draw this". Then record your choices for the critic: a short
+"nothing in the library can draw this". On the FEW beats that earn them, also set `transition_style` (Rule 5) and `camera` (the camera section); `python3 scripts/seam_plan.py <out_dir>` then fills the beats you left and skips every one you authored. Then record your choices for the critic: a short
 `shot_rationale` per scene (why this register, which family) is encouraged. `validate.py` errors on a
 missing/unknown `shot` or a number-bearing register left on its demo default, and WARNs on empty `shot_props` or a
 missing `shot_adaptation` (a raw text-swap); `render_remotion.py` renders the chosen shots through the data-driven

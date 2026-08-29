@@ -925,6 +925,17 @@ figure), a non-singular `the_one_thing`, or a
      ENCODES its beat (hide the caption — does the visual still carry THIS idea?) and COHERES with the chosen
      direction (palette/motion/motif, not a random stack). When no register encodes a topic-specific idea, BUILD a bespoke shot (real imagery where
      the topic is concrete) rather than force a near-miss. SKIP the HTML design plan (no `design_plan.json`).
+     **③ Then run `python scripts/seam_plan.py <out_dir>` — the film's CUTS and CAMERA.** It is a
+     verify-and-fill pass, not a competitor: it SKIPS every beat the shot-director already marked, so
+     authored intent always wins. What it adds is the half an author cannot do by reading — it mirrors the
+     renderer's luminance guard, which silently downgrades a kinetic mark placed across a dark↔light
+     boundary (a mark spent there simply vanishes), and it derives 2-4 MOTIVATED camera beats from the
+     `relation` each beat already declares (payoff → push, close/opener → pull, everything else holds).
+     Skipping this step is how a 35-beat film shipped with all 34 of its cuts identical and a camera that
+     never moved, while every gate stayed green: the capability was complete, tested, documented — and
+     unreached, which on screen is the same as absent. `validate.py` warns when a film of ≥12 beats carries
+     no marked seam at all, and warns the other way when a declared `design_dna.seam` makes so many cuts
+     kinetic that the marks stop being punctuation.
      After the render, the review gate is **`agents/shot-critic.md`** (the design-critic analogue): S1 fit · S2
      variety · S3 faithfulness · S4 decodability · S6 A/V **+ the deterministic `keyframe_qa_remotion.py` blank-
      frame backstop** · **S8 boldness (audacity-scaled)** · **S10 meaning + content-fit (the `shot_adaptation`

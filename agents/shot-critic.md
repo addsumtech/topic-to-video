@@ -29,6 +29,10 @@ ENCODES the beat, whether every number is sourced, whether the register's struct
 was merely the closest thing in the catalogue, and whether the film has a shape. Sections S1, S3, S5, S7,
 S8, S9 and the MEANING/CONTENT-FIT half of S10 below are yours. S2, S6 and S10's frame-craft list are the
 machines'; they remain documented so you know what is covered, not so you re-run them.
+S12 (camera) and S13 (real imagery) are yours too, and are the newest holes: `validate.py` checks only that
+an authored `camera` is one of push/pull/hold with an amount in 0-0.2, and nothing anywhere asks whether a
+film about a physical thing ever shows the thing. So a film can move its camera on beats that had no reason
+for one, or footnote its photographs at thumbnail size, and pass every gate.
 
 **Growth is part of the verdict.** The brief reports whether this film BUILT any register and which of the
 families it used are one-register families. A film that used a thin family and settled for its only member —
@@ -90,6 +94,21 @@ close), or every seam marked (as monotonous as none), is a REVISE. Also eyeball 
 shot's dark/mid/light): a film that flips dark↔light on nearly every beat STROBES — nudge the sequence toward
 runs/gradients. The mechanical gates already fire on over-budget marks and >60% hard-flips (`validate.py`
 warnings); S9 is the SEMANTIC judgment those can't make. This is a soft dimension — S3/S4 still win.
+**The DECLARED native seam is what erases S9.** `meta.design_dna.seam` sets the film's cut for every
+UNMARKED seam — which is nearly all of them. On a delivered film it turned 31 of 34 cuts kinetic, and the 3
+deliberate marks then read exactly like the 31 that mean nothing: the film lost its punctuation to the
+feature meant to give it a voice. So when `design_dna.seam` is set, judge it against the marks. It is OPT-IN,
+for a world with a genuine native ACTION at the cut (a terminal clearing its screen); absent that action the
+correct answer is to DROP it — a plain cross-fade default is a decision and a good one, not a missing
+decision. `validate.py` warns when a declared seam swamps the marks; whether the world really has that action
+is yours. Two mechanics to read the marks correctly: `dissolve` now renders a true cross-dissolve (it used to
+render a black hole — the installed @remotion/transitions/dissolve is a WebGL film-burn — so an older
+complaint about it is stale), and the renderer's luminance guard silently DOWNGRADES a kinetic mark placed
+across a dark↔light boundary back to a fade — every type EXCEPT `carry`, whose bridge line IS the dip. So a
+`slide`/`wipe`/`clock`/`dissolve` on a crossing seam is not on screen at all: count it as unmarked, say where
+the punctuation actually went, and FIX = make it a `carry` or move it. `python3 scripts/seam_plan.py
+<out_dir>` is the verify-and-fill pass for a film with no marks at all — it skips every beat the author
+marked, so it never competes with a deliberate choice.
 
 **S10 · MEANING (per scene) + FRAME-CRAFT (whole-film).** Two things eyeballing kept missing.
 **MEANING:** for each beat ask — does this shot's DESIGN *encode* the idea, or is it just dark-and-pretty
@@ -153,6 +172,45 @@ that could be dropped unchanged into a completely DIFFERENT style unnoticed has 
 This is a whole-film gate at `bold`/`experimental`, a strong nudge otherwise; it never overrides S3 (faithfulness)
 or S4 (legibility). `validate.py` backstops it mechanically (a themed film with no `design_dna`/preset, or a scene
 with no `theme_cues`).
+
+**S12 · CAMERA MOTIVATION (whole-film, from the storyboard + the keyframes).** A beat may carry
+`camera: {move: 'push'|'pull'|'hold', amount}`. The renderer clamps the amount to what the caption band can
+absorb — a push scales about the CONTENT zone, and unclamped it would drive the shot's lowest content down
+onto the burned caption — and rides the move on `useT()`, so a cut never happens over a moving camera.
+`validate.py` checks only the vocabulary (push/pull/hold, amount 0-0.2); whether the move had a reason is
+yours. Three checks: **(a) MOTIVE** — a `push` belongs on the beat where the argument LANDS (look closer at
+what is here), a `pull` on the opening beat and on the close (here is the whole of it). A move on a beat that
+is merely the next one in the list is a wobble, and motion with no cause is exactly why this tier's earlier
+film-wide sinusoidal drift had to be switched off: FIX = `camera.move: "hold"`. **(b) BUDGET** — 2-4 moving
+beats in a film. A film whose camera always moves has no camera, in the same way a film where every cut is
+marked has no punctuation. **(c) SUBJECT** — the move must land on SETTLED content that repays it. A shot
+reveals over roughly t 0.05-0.45 and the camera runs 0.28-0.88 for that reason, so by the time the push
+arrives the frame is finished: for those 2-4 beats only, open the keyframe and ask what it is pushing INTO. A
+push on two rows of text magnifies two rows of text; spend it on a beat whose frame HOLDS something — a
+photograph, a built figure, a diagram with parts. FIX = move the push to the beat that has one, or hold.
+Also: a ≥12-beat film with NO `camera` on any beat is a DECISION (a static register mix, a reduced-motion
+delivery), and should read as one; if nothing explains it, say the film left its camera unrun and name the
+payoff/close beats that should have carried it — `python3 scripts/seam_plan.py <out_dir>` derives a plan from
+the beats' `relation` field and skips any beat already authored, so "we didn't get to it" is not a reason.
+Soft dimension: S3/S4 still win.
+
+**S13 · REAL IMAGERY (whole-film — concrete topics only).** N/A when the subject is abstract (a method, an
+argument, a quantity with no photographable body). On a CONCRETE topic — a place, an object, a machine, a
+specimen, a system with a physical body — and where the fetched images in the out_dir carry `<file>.json`
+sidecars (i.e. `scripts/imagefetch.py` already found license-clean ones), ask whether the photographs CARRY
+the film or footnote it. The measurement that produced this check: a delivered film about a physical city,
+with clean images available, used real photographs at 5.3% / 8.5% / 16.3% of the frame — three thumbnails
+dropped into layouts, the evidence demoted to a garnish. **Floor: at least ONE beat on which a photograph IS
+the frame, and two where the fetch returned several** — it reads as the subject at roughly ⅓ of the frame or
+more, not a tile inside a card grid. Estimate from the contact-sheet cell; open the full keyframe only when
+it is borderline. The register for it is **PhotoPlate** (LIBRARY 171): the photograph is the evidence and the
+film's own numbered marks land at points IN it as the narration names them. Its neighbours answer different
+questions — `ScanReconstruct` (revealed by its own process), `MuseumLabel` (cited beside a catalogue label),
+`RealVersus` (A against B) — so a beat using one of those to dodge the floor is answering a question the beat
+did not ask. A concrete-topic film that shows no real image anywhere while sidecars sit unused is a REVISE:
+name the 2-3 beats whose claim is "look at the actual thing". CREDITS are machine-decided — `validate.py`
+ERRORs when a beat shows a sidecar'd image whose author it fails to name — so read that verdict rather than
+re-checking it, and never repair one by typing a photographer's name from memory: it comes from `<file>.json`.
 
 ## Output
 For each flagged scene: `scene #N · Sx · <what's wrong on screen> · FIX: <the concrete change — a different
