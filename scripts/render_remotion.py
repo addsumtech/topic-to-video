@@ -36,24 +36,44 @@ _KINETIC_TYPES = {"slide", "wipe", "clock", "dissolve", "carry"}
 
 # The runtime's own settled point, parsed from motion.ts so the two cannot drift: a keyframe must be the
 # frame `useT()` calls "reveal complete, exit not begun", or every visual review reads an unfinished shot.
-def _settled_t():
+def _motion_const(name):
     p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "remotion", "src", "runtime", "motion.ts")
-    m = re.search(r"REDUCED_MOTION_T\s*=\s*([0-9.]+)", open(p, encoding="utf-8").read())
+    m = re.search(r"\b%s\s*=\s*([0-9.]+)" % name, open(p, encoding="utf-8").read())
     if not m:
-        raise RuntimeError("REDUCED_MOTION_T not found in %s — it defines the settled frame read here" % p)
+        raise RuntimeError("%s not found in %s — the keyframe frame is derived from it" % (name, p))
     return float(m.group(1))
 
 
-def _seam_frames():
-    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "remotion", "src", "runtime", "motion.ts")
-    m = re.search(r"SEAM_FRAMES\s*=\s*(\d+)", open(p, encoding="utf-8").read())
-    if not m:
-        raise RuntimeError("SEAM_FRAMES not found in %s" % p)
-    return int(m.group(1))
+def _settled_t():
+    return _motion_const("REDUCED_MOTION_T")
 
 
 SETTLED_T = _settled_t()
-SEAM_FRAMES = _seam_frames()
+SEAM_FRAMES = int(_motion_const("SEAM_FRAMES"))
+ENTRY_T = _motion_const("ENTRY_T")
+
+
+def frame_at_t(durF, t):
+    """The frame at which `useT()` returns `t`. One inversion, used by everything that needs a moment."""
+    durF = max(1, int(durF))
+    pad = min(SEAM_FRAMES, (durF - 1) // 3)
+    span = max(1, durF - 1 - 2 * pad)
+    u = (float(t) - ENTRY_T) / max(1e-6, 1 - ENTRY_T)
+    return pad + max(0.0, min(1.0, u)) * span
+
+
+def settled_frame(durF):
+    """The frame at which `useT()` returns SETTLED_T — inverted from useT, not re-derived beside it.
+
+    This used to be `pad + SETTLED_T * (durF - 2*pad)`, which mirrored an earlier useT and then quietly
+    stopped mirroring it twice over: useT's span is `dur - 1 - 2*pad`, and it now maps its progress through
+    ENTRY_T (a shot is HELD at its composed skeleton rather than at nothing while the dissolve runs). The
+    keyframe was landing at t=0.875 on a normal beat and t=0.984 on a short one — past the settled state and
+    into the exit, on the very frame every visual gate and the shot-critic read. Two places computing the
+    same quantity is the failure this codebase keeps paying for; there is one now, and it is an inversion of
+    the definition rather than a copy of it.
+    """
+    return frame_at_t(durF, SETTLED_T)
 
 
 def _transition_in(slide):
@@ -201,8 +221,7 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps):
         for i, sc in enumerate(scenes):
             durF = max(1, int(sc["durF"]))
             pad = min(SEAM_FRAMES, (durF - 1) // 3)
-            settled = pad + SETTLED_T * max(1, durF - 2 * pad)
-            at = starts[i] + settled / fps
+            at = starts[i] + settled_frame(durF) / fps
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "%.3f" % at, "-i", out_mp4,
                             "-frames:v", "1", os.path.join(kdir, "scene_%02d.png" % (i + 1))], check=False)
             # ALSO a MOTION frame, in _keyframes/motion/. The settled frame is the right one for every
@@ -212,7 +231,7 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps):
             # Cheap (one more ffmpeg seek per beat) and kept in a subdirectory so nothing that globs
             # scene_*.png picks it up by accident.
             mdir = os.path.join(kdir, "motion"); os.makedirs(mdir, exist_ok=True)
-            mid = starts[i] + (pad + 0.42 * max(1, durF - 2 * pad)) / fps
+            mid = starts[i] + frame_at_t(durF, 0.42) / fps
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "%.3f" % mid, "-i", out_mp4,
                             "-frames:v", "1", os.path.join(mdir, "scene_%02d.png" % (i + 1))], check=False)
         print("[render_remotion] wrote out.srt + %d keyframes (_keyframes/) for the shot-critic + A/V gate." % len(scenes))

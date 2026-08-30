@@ -374,6 +374,10 @@ def main(argv):
         return 0
 
     errors, warns = static_checks(board)
+    # Hoisted out of the rendered-checks branch below: the tonal summary reads them unconditionally, so
+    # defining them only when stills are rendered made `--no-stills` — the fast path this file's own usage
+    # line recommends while authoring — die with an UnboundLocalError.
+    inks, ink_by_beat = [], []
 
     # THE RENDERED CHECKS RUN BY DEFAULT.
     #
@@ -388,7 +392,6 @@ def main(argv):
     if "--no-stills" not in argv:
         import shot_still_qa
         dna_hues = _dna_hues(board)
-        inks, ink_by_beat = [], []
         beat_by_index = {i + 1: (sl.get("shot_props") or {})
                          for i, sl in enumerate(board.get("slides", []))}
         proof = os.path.join(out_dir, "_proof")
@@ -482,10 +485,6 @@ def main(argv):
                 # dead-frame branch with `if frac and ...` let the emptiest possible result pass silently.
                 errors.append("beat %d (%s): the frame is EMPTY — nothing departs from the background"
                               % (beat, shot))
-            try:
-                _a = shot_still_qa._load(png) if hasattr(shot_still_qa, "_load") else None
-            except Exception:
-                _a = None
             _ink = _content_ink(png)
             if _ink is not None:
                 inks.append(_ink); ink_by_beat.append((beat, _ink))

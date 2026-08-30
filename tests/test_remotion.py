@@ -2002,6 +2002,64 @@ def test_the_caption_band_debt_may_shrink_and_never_grow():
     assert manifest.get("_why"), "the debt manifest lost the explanation of what it records"
 
 
+def test_the_keyframe_is_the_frame_useT_calls_settled():
+    """The Python that picks a keyframe must INVERT useT, not re-derive a formula beside it.
+
+    It re-derived one, and then stopped mirroring the runtime twice over: useT's span is `dur - 1 - 2*pad`
+    (not `dur - 2*pad`), and it now remaps its progress through ENTRY_T because a shot is HELD at its
+    composed skeleton rather than at nothing while the dissolve runs. The keyframe was landing at t=0.875 on
+    a normal beat and t=0.984 on a short one — past the settled state and into the exit — on the very frame
+    every visual gate and the shot-critic read. Checked by round-tripping through the runtime's own mapping.
+    """
+    import importlib.util
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    spec = importlib.util.spec_from_file_location(
+        "render_remotion_probe", os.path.join(root, "scripts", "render_remotion.py"))
+    rr = importlib.util.module_from_spec(spec); spec.loader.exec_module(rr)
+
+    motion = open(os.path.join(root, "remotion", "src", "runtime", "motion.ts"), encoding="utf-8").read()
+    for name, got in (("ENTRY_T", rr.ENTRY_T), ("REDUCED_MOTION_T", rr.SETTLED_T),
+                      ("SEAM_FRAMES", rr.SEAM_FRAMES)):
+        m = re.search(r"\b%s\s*=\s*([0-9.]+)" % name, motion)
+        assert m and abs(float(m.group(1)) - got) < 1e-9, (
+            "%s drifted from motion.ts: python has %r" % (name, got))
+
+    def use_t(frame, dur):                      # the runtime's mapping, transcribed from motion.ts
+        pad = min(rr.SEAM_FRAMES, (dur - 1) // 3)
+        span = max(1, dur - 1 - 2 * pad)
+        p = max(0.0, min(1.0, (frame - pad) / span))       # the clamp is on the PROGRESS
+        return rr.ENTRY_T + (1 - rr.ENTRY_T) * p
+
+    for dur in (20, 30, 60, 139, 176, 400):
+        for t in (0.42, rr.SETTLED_T):
+            f = rr.frame_at_t(dur, t)
+            assert abs(use_t(f, dur) - t) < 1e-6, (
+                "dur %d: frame_at_t(%.2f) = %.2f, but useT there is %.4f" % (dur, t, f, use_t(f, dur)))
+
+    # The HOLD is the property ENTRY_T exists for, and it was silently false: written as
+    # `clamp01(ENTRY_T + (1 - ENTRY_T) * p)`, the negative progress of the hold frames dragged the sum below
+    # zero and clamp01 pinned it to 0 — so t ramped 0 -> 0.03 -> 0.06 across the pad and the shot was held
+    # at the blank state the change was written to eliminate. Rendered proof: PhotoPlate's dissolve window
+    # measured 0.00% / 0.00% / 0.07% ink at frames 0/4/8 against 0.63% settled, and is now a constant 0.63%.
+    for dur in (20, 60, 150):
+        pad = min(rr.SEAM_FRAMES, (dur - 1) // 3)
+        held = {round(use_t(f, dur), 9) for f in range(pad)}
+        assert held == {round(rr.ENTRY_T, 9)}, (
+            "dur %d: useT is not HELD across its %d dissolve frames — it takes %s" % (dur, pad, sorted(held)))
+
+    # Stripped of comments FIRST. The prose two lines up quotes the broken form verbatim to explain it, and
+    # a bare substring check matched that quote — the gate went red against the documentation of the bug it
+    # was written to catch. (Same shape as the still-QA check that matched a PROVISIONAL comment's own
+    # disclaimer.) A gate that reads comments is not reading code.
+    motion_src = re.sub(r"/\*.*?\*/", "", re.sub(r"//[^\n]*", "", motion), flags=re.S)
+    assert "clamp01(ENTRY_T" not in motion_src, (
+        "the clamp is back OUTSIDE the remap, which pins the hold frames to 0 and makes ENTRY_T a no-op")
+
+    src = open(os.path.join(root, "scripts", "render_remotion.py"), encoding="utf-8").read()
+    assert "SETTLED_T * max(1, durF - 2 * pad)" not in src, (
+        "the old re-derived keyframe formula is back beside the inversion")
+
+
 def test_every_remotion_capability_is_reachable_from_the_authoring_path():
     """A capability nothing in the authoring path reaches is indistinguishable from one never written.
 

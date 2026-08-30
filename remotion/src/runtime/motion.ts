@@ -60,7 +60,15 @@ export function useT(): number {
   // value is constant across the pad, so the flicker fix is untouched), but what is held is its composed
   // skeleton — ground, frame, kicker — rather than a blank. Registers reveal content from ~0.1 onward, so
   // this lands after the shell and before anything the eye would see move.
-  return clamp01(ENTRY_T + (1 - ENTRY_T) * ((frame - pad) / span));
+  //
+  // The clamp goes on the PROGRESS, not on the remapped value. Written the other way round —
+  // `clamp01(ENTRY_T + (1 - ENTRY_T) * p)` — the negative progress of the hold frames drags the sum BELOW
+  // zero and clamp01 pins it to 0, so ENTRY_T was a complete no-op at exactly the edge it was written for:
+  // t ramped 0 -> 0.0299 -> 0.06 across the pad instead of resting at 0.06, and the shot was held at the
+  // blank state after all. The claim two paragraphs up that "the value is constant across the pad" was
+  // false as written, and the 0.63% mid-dissolve ink quoted there was re-measured AFTER the change and had
+  // not moved — the number was the proof it had not worked, read as the motivation for it.
+  return ENTRY_T + (1 - ENTRY_T) * clamp01((frame - pad) / span);
 }
 
 // Re-map a sub-window [a,b] of global t to a local 0→1 (for phase timing within a shot).
