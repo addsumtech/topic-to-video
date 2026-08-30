@@ -941,6 +941,14 @@ figure), a non-singular `the_one_thing`, or a
      frame backstop** · **S8 boldness (audacity-scaled)** · **S10 meaning + content-fit (the `shot_adaptation`
      note checked against the pixels — was the register redesigned, not text-swapped?)** · S7 direction-adherence — from `_keyframes/scene_NN.png`
      + `check_av`; it REVISEs failing beats (re-assign, re-render). A `shot`-based scene on the local renderer is a validate ERROR.
+     **The critic's verdict is a LEDGER, and the delivery pass is a fresh subagent.** Every dimension gets a
+     row in `<out>/_critic_ledger.json` — the clean ones too, each citing the keyframe or brief line it rests
+     on — and `python3 scripts/critic_ledger.py <out_dir>` must exit 0. Reporting only the FLAGGED beats made
+     a dimension nobody looked at indistinguishable from one checked and found clean. Then, before delivery,
+     dispatch `agents/shot-critic.md` as a subagent whose ENTIRE input is the `<out_dir>` path — no rationale,
+     no summary of what you fixed, no steer about where to look — and gate on
+     `python3 scripts/critic_ledger.py <out_dir> --final`, which REFUSES a ledger the film's own maker wrote.
+     The maker holds the intent, and the intent is what makes a wrong frame look right.
      **Build the storyboard by MERGING the two plans:** the design's `visual.type`+`props`
      become each scene; its `transition` becomes the per-scene edges; a `climax` beat's scene carries
      `props.climax:true` — the climax MARKER (`rhythm_qa` reads it); it also drives the key-number landing
@@ -1150,7 +1158,10 @@ figure), a non-singular `the_one_thing`, or a
    + `frame_safe_qa` reports: it judges register fit, family variety, faithful copy (no demo-number/WorkBuddy-
    leftover), decodability, **MEANING (S10 — does each shot's design ENCODE its beat's idea, not just look good?)**,
    and **boldness (S8, audacity-scaled)**, and REVISEs failing beats (the shot-director re-assigns → re-render).
-   Deliver only after **shot-critic PASSES and `check_av` + `keyframe_qa_remotion` + `frame_safe_qa` exit 0**.
+   Deliver only after **shot-critic PASSES and `check_av` + `keyframe_qa_remotion` + `frame_safe_qa` exit 0**
+   — and that PASS must be an INDEPENDENT one: re-dispatch the critic as a fresh subagent given only the
+   `<out_dir>` path, then `python3 scripts/critic_ledger.py <out_dir> --final` (exit 0 required; it refuses an
+   in-context ledger, a ledger missing any dimension, and one pinned to a different render's contact sheet).
    **DELIVERY CRITERION — every gate, not two.** Deliver `out.mp4`,
    `out.srt`, and the editable `storyboard.json` only after **`validate.py`, `check_av.py`,
    `keyframe_qa.py`, `rhythm_qa.py` and `pedagogy_qa.py` ALL exit 0** (`voice_qa.py` is ADVISORY and always

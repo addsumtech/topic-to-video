@@ -2060,6 +2060,119 @@ def test_the_keyframe_is_the_frame_useT_calls_settled():
         "the old re-derived keyframe formula is back beside the inversion")
 
 
+def _critic_ledger():
+    import importlib.util
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    spec = importlib.util.spec_from_file_location(
+        "critic_ledger_probe", os.path.join(root, "scripts", "critic_ledger.py"))
+    mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+    return mod, root
+
+
+def test_every_critic_rule_carries_a_REAL_precedent():
+    """A rule states what to do; its precedent states what went wrong, which is what generalises.
+
+    And the precedent must be CHECKABLE, because "never fabricate" is a standing rule that nothing enforced:
+    an invented incident reads exactly like a real one. Each precedent names the commit that repaired it, and
+    this test resolves every hash against the repository's own history — so a fabricated precedent cannot be
+    committed. A dimension with no real incident says so in as many words and is scored as weaker evidence;
+    that admission is the honest form, not a hole to be filled with something plausible.
+    """
+    import subprocess
+    mod, root = _critic_ledger()
+    declared = [d for d, _ in mod.dimensions()]
+    pre = mod.precedents()
+
+    missing = [d for d in declared if d not in pre]
+    assert not missing, (
+        "%s carry neither a `**Precedent — `hash`:**` nor an explicit `**Precedent — none on record.**` — a "
+        "rule with no incident behind it cannot be generalised to a topic nobody has seen" % ", ".join(missing))
+
+    if subprocess.run(["git", "-C", root, "rev-parse", "--git-dir"],
+                      capture_output=True).returncode != 0:
+        return                                    # installed without history; nothing to resolve against
+    for sid, h in sorted(pre.items()):
+        if h is None:
+            continue
+        r = subprocess.run(["git", "-C", root, "cat-file", "-t", h], capture_output=True, text=True)
+        assert r.stdout.strip() == "commit", (
+            "%s cites precedent %s, which is not a commit in this repository — a precedent that cannot be "
+            "resolved is indistinguishable from an invented one" % (sid, h))
+
+
+def test_the_ledger_requires_every_dimension_and_refuses_a_bare_consent(tmp_path):
+    """The critic reported only FLAGGED beats, so "looked at and clean" and "never looked at" were one artifact.
+
+    Silence is not consent was written in the critic's own file — as prose, addressed to the only party it
+    could not audit. These are the refusals that make it mechanical, each exercised against a real out_dir.
+    """
+    import json
+    from PIL import Image
+    mod, root = _critic_ledger()
+    out = str(tmp_path)
+    Image.new("RGB", (64, 64), (30, 40, 60)).save(os.path.join(out, mod.CONTACT_SHEET))
+    os.makedirs(os.path.join(out, "_keyframes"), exist_ok=True)
+    Image.new("RGB", (32, 32), (200, 200, 200)).save(os.path.join(out, "_keyframes", "scene_03.png"))
+    lp = os.path.join(out, mod.LEDGER_NAME)
+    dims = [d for d, _ in mod.dimensions()]
+
+    def write(**over):
+        led = {"reviewer": "independent", "verdict": "PASS",
+               "contact_sheet_sha256": mod.sha256_of(os.path.join(out, mod.CONTACT_SHEET)),
+               "rows": [{"id": d, "verdict": "pass", "evidence": "_keyframes/scene_03.png"} for d in dims]}
+        led.update(over)
+        json.dump(led, open(lp, "w", encoding="utf-8"), indent=2)
+
+    # no ledger at all — the old behaviour, where producing nothing was a passing review
+    assert mod.validate(out)[0], "a review that produced no ledger must not pass"
+
+    write()
+    assert not mod.validate(out)[0], mod.validate(out)[0]
+    assert not mod.validate(out, final=True)[0]
+
+    # a dimension that was never looked at is a MISSING ROW, not an absence of complaint
+    write(rows=[r for r in json.load(open(lp))["rows"] if r["id"] != dims[-1]])
+    assert any(dims[-1] in e for e in mod.validate(out)[0]), "a missing dimension must fail"
+
+    # a bare verdict with nothing behind it
+    write(rows=[{"id": d, "verdict": "pass", "evidence": ""} for d in dims])
+    assert len(mod.validate(out)[0]) >= len(dims), "every un-evidenced verdict must fail"
+
+    # evidence naming a frame that does not exist — specific-looking, pointing at nothing
+    write(rows=[{"id": d, "verdict": "pass", "evidence": "_keyframes/scene_99.png"} for d in dims])
+    assert any("scene_99" in e for e in mod.validate(out)[0])
+
+    # pinned to a DIFFERENT render than the one in out_dir
+    write(contact_sheet_sha256="0" * 64)
+    assert any("does not match" in e for e in mod.validate(out)[0])
+
+    # a failing dimension cannot be carried by a PASS, and must arrive with a fix
+    rows = [{"id": d, "verdict": "pass", "evidence": "_keyframes/scene_03.png"} for d in dims]
+    rows[0] = {"id": dims[0], "verdict": "fail", "evidence": "_keyframes/scene_03.png"}
+    write(rows=rows)
+    errs = mod.validate(out)[0]
+    assert any("no FIX" in e for e in errs) and any("PASS while" in e for e in errs)
+
+    # the DELIVERY review may not be the film's own maker
+    write(reviewer="in-context")
+    assert not mod.validate(out)[0], "in-context is fine while iterating"
+    assert any("confirmation bias" in e for e in mod.validate(out, final=True)[0]), (
+        "--final must refuse a ledger written by the maker")
+
+
+def test_the_ledger_reads_its_dimensions_from_the_critic_rather_than_a_copy(tmp_path):
+    """A hardcoded S1..S13 would let a NEW dimension be written and never required — the shape this repo
+    has paid for repeatedly (a caption band in four disagreeing copies, an opt-in gate that reported 0 on
+    the very deck that motivated it). Adding a dimension to the critic's file must make the gate demand it.
+    """
+    mod, root = _critic_ledger()
+    src = open(os.path.join(root, "agents", "shot-critic.md"), encoding="utf-8").read()
+    fake = str(tmp_path / "critic.md")
+    open(fake, "w", encoding="utf-8").write(src + "\n**S99 · A DIMENSION INVENTED BY THIS TEST.** body\n")
+    assert "S99" in [d for d, _ in mod.dimensions(fake)], (
+        "a dimension added to the critic's file is not picked up — the list is a copy, not a reading")
+
+
 def test_every_remotion_capability_is_reachable_from_the_authoring_path():
     """A capability nothing in the authoring path reaches is indistinguishable from one never written.
 
@@ -2096,6 +2209,10 @@ def test_every_remotion_capability_is_reachable_from_the_authoring_path():
          "a register derives its bottom edge from the band, and a literal bottom:N is the defect that shipped"),
         ("SKILL.md", "scripts/seam_plan.py <out_dir>`",
          "the planner has to be an invocable pipeline STEP, not prose in a tier description"),
+        ("SKILL.md", "critic_ledger.py <out_dir> --final",
+         "the independent delivery review has to be a gate in the workflow, not advice inside the critic"),
+        ("agents/shot-critic.md", "critic_ledger.py",
+         "the critic is the party that must WRITE the ledger; unnamed in its own brief it will not"),
     ]
     missing = [(f, n, why) for f, n, why in required if n not in docs[f]]
     assert not missing, "\n".join(

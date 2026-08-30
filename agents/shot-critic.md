@@ -49,26 +49,71 @@ A floor-breaking or off-brief candidate must never reach the user unranked. Outp
 the shot-director surfaces the judged finalists to the user. (The rest of this file is REVIEW mode — a finished film.)
 
 ## The dimensions (score each scene, then the whole film)
+
+**Each rule below is RULE + PRECEDENT + a question to ask yourself.** The precedent is the delivered film
+that produced the rule, named by the commit that repaired it — so you can read what the failure actually
+looked like on screen rather than inferring it from an abstraction, and recognise the same shape on a topic
+nobody has seen yet. A rule marked *Precedent — none on record* is doctrine: no film has failed it in a way
+anyone wrote down, so treat it as the weakest evidence here and record a real one when you find it. Numbers
+are append-only; a retired dimension keeps its number.
+
+**Every dimension gets a verdict, including the ones you find clean.** Fill `_critic_ledger.json` — one row
+per dimension, each with the evidence it rests on — and gate on it:
+
+```
+python3 scripts/critic_ledger.py <out_dir> --emit-template   # skeleton, every dimension listed
+python3 scripts/critic_ledger.py <out_dir>                   # after you fill it
+```
+
+The old output asked only for the FLAGGED scenes, which made a dimension you never looked at and a dimension
+you checked and found clean produce the same artifact: nothing. The ledger makes an unexamined dimension a
+missing row. It refuses a bare verdict (cite the keyframe or the brief line), and it refuses a ledger whose
+`contact_sheet_sha256` is not this render's — so a verdict cannot be written from a memory of an earlier one.
+
 **S1 · Register FIT.** Does the chosen `shot` express THIS beat's idea (match it to the register's LIBRARY
 "use when")? A statement beat on a data-chart register, or a climax on a flat list register, is a REVISE.
 If a NEW shot draws a quantity bar, a headline figure or a list without using `runtime/atoms.tsx`, it must
 say why — those parts have a per-DNA form and a hand-rolled one will not follow the film's system.
+
+> **Precedent — `18371d5`:** A city documentary came out of this library speaking developer-tool: six terminal shots (`$ dig --oudegracht`, `$ diff 1674 1826`), a SaaS dashboard under a children's-book character, product cards for a municipal bicycle garage. 16 of 35 beats, every one passing its own gates. The cause was the ORDER OF OPERATIONS — atmosphere was derived from the topic, form vocabulary was taken from the catalogue, so whatever the catalogue is mostly made of became every film's vocabulary.
+> **Ask yourself:** Name the form this beat's SUBJECT is actually recorded, measured or argued about in. Is that what is on screen, or is it the nearest thing the catalogue had?
+
 **S2 · Family VARIETY (whole-film).** No two ADJACENT beats may share a family (A–Z in LIBRARY.md, an OPEN set — AA+ if extended); a ≥10-beat
 film should span ≥6 families and not lean on one. Two adjacent same-family beats = REVISE the second.
+
+> **Precedent — `3685843`:** Same film. The cause was a selection RULE, not taste: registers were picked by "renders correctly on paper" instead of "belongs to this subject", and this library's centre of gravity is AI-product films — so that filter returned Term* and product registers for a place.
+> **Ask yourself:** Which family is this film leaning on, and did it CHOOSE that family or default into it?
+
 **S3 · FAITHFULNESS (hard gate).** Every on-screen NUMBER must trace to the beat's `source_ref` — a register
 that shows a figure (ChartLive/BeforeAfterSlider/VelocitySnap/BlueprintGrid counter) left on its **demo default**
 (128k / +18% / 0ms / WorkBuddy's 68×) on a DIFFERENT topic is a hard REVISE (pass a sourced figure or switch to a
 non-number register). No invented stats, quotes, or sources. And **no WorkBuddy-leftover copy** — a non-WorkBuddy
 film with "WorkBuddy"/"on your machine"/"Hy3" on screen means `shot_props` wasn't filled: REVISE.
+
+> **Precedent — `890c09b`:** BlueprintGrid printed a counter driven off the CLOCK rather than off a prop: a confident **100%** above the caption "what was drawn vs what was raised", on the beat whose entire claim is that the cathedral's nave was never finished. It asserted the opposite of the argument it was illustrating. The text scan could not see it — `100%` has no letters in it.
+> **Ask yourself:** For every number on this frame, which key of `shot_props` did it come from? If you cannot name the key, the film did not supply the number.
+
 **S4 · DECODABILITY (from the keyframe).** Each shot must read in ~1 s: the focal element is legible, on-frame
 labels are real words (not lorem/mystery furniture), the caption sits clear of the content and is readable over
 the scene's ground (light OR dark). A blank/half-drawn/garbled frame is a REVISE.
+
+> **Precedent — `d8bb983`:** QuadSplit laid its 2×2 over the whole frame height and put each tile's label at the tile's bottom, so the bottom row's labels sat INSIDE the burned caption band with the subtitle rendered on top of them, and the grid bled past the bottom edge.
+> **Ask yourself:** Cover the caption. Can you still read every label — and is anything touching the bottom band?
+
 **S5 · COPY register.** `shot_props` text is SHORT (a title/label, not the whole narration — that's the VO +
 caption) and in the deck's language (English or 中文, matching `meta.language`).
+
+> **Precedent — `c19efd2`:** A Chinese route string matched only `AI` under an ASCII-only token regex; every other character was discarded and the copy fell through to hardcoded English placeholders (`Overview` / `Signals` / `Results`). The script exited 0, wrote three sample videos, and the diversity gate scored them.
+> **Ask yourself:** Is every word on this frame in the film's language, and did the FILM supply it?
+
 **S6 · A/V + deterministic keyframe QA.** `check_av` must pass (video/audio in sync, no truncation) AND
 `python scripts/keyframe_qa_remotion.py <out_dir>` must pass — the machine backstop behind your eyes: it fails
 loud on any scene keyframe that rendered BLANK / near-uniform (a malformed prop, a regressed bundle, a frozen
 empty beat). Run it before you consent; a FAIL blocks delivery.
+
+> **Precedent — `8a3938f`:** `shot_still_qa` pointed at delivered `_keyframes/` counts the burned subtitle itself as content: a long CJK line alone scored 5.2% and 13.7% band ink, both reported as collisions that were not there. I read that false signal myself before checking the frames.
+> **Ask yourself:** Did each gate run on the RIGHT artifact — and did I look at the frame before believing its number?
+
 **S8 · BOLDNESS / novelty (whole-film, audacity-scaled).** Mirrors the html design-critic's creativity floor.
 Is the film's register mix BOLD and memorable for its `meta.audacity`, or did it settle for the safe/obvious
 register on beat after beat? At `bold`/`experimental` a timid, expected mix (every statement a plain title, every
@@ -76,6 +121,10 @@ metric a bar chart) is a REVISE — name the beats that played it safe and the s
 should reach for. The hero + climax beats especially must be unmistakably THIS film, not a default. At
 `conservative`/`balanced` this is a nudge, not a gate. (Clarity S4/faithfulness S3 still win — bold never means
 illegible or invented.)
+
+> **Precedent — `27a52fa`:** "Build a register instead of settling for the nearest one" existed as a written doctrine, a cheap capability and two consumers — and nothing anywhere WROTE the field, so the "nobody recorded a judgement" warning fired on every default run by construction. A doctrine with no trigger is not a rule.
+> **Ask yourself:** On the hero and climax beats: what was the bolder option, and what stopped it being taken?
+
 **S7 · DIRECTION adherence (whole-film).** If `meta.shot_template` is set (the user's chosen direction from the
 contest), the film should visibly LEAN toward that direction's families (scripts/shot_templates.py: e.g. data-story
 → D/F/H, terminal-technical → A/C/D, retro-playful → C/G/I) — its hero register or an equivalent should carry the
@@ -83,6 +132,9 @@ opener/climax, and the majority of beats should sit in-direction. A film tagged 
 graph/orrery anywhere, or one whose register mix ignores the chosen direction entirely, is a REVISE (this is a
 soft/whole-film judgment — S2 family variety still wins over it; the direction is a lean, not a straitjacket). If
 no `meta.shot_template` is set, S7 is N/A.
+
+> **Precedent — none on record.** This is doctrine, not case law: no delivered film has failed S7 in a way anyone recorded. Its verdict carries less weight than the rest of this file, and if you catch a real failure here, write it down as one.
+> **Ask yourself:** Name the direction's families, then count the beats that actually sit in them.
 
 **S9 · SEAM RHYTHM (whole-film, from the storyboard — not the keyframes).** The renderer keeps every seam
 luminance-safe on its own; your job is the RHYTHM across the film. Read each scene's `transition_style`/`transition_in`
@@ -109,6 +161,9 @@ across a dark↔light boundary back to a fade — every type EXCEPT `carry`, who
 the punctuation actually went, and FIX = make it a `carry` or move it. `python3 scripts/seam_plan.py
 <out_dir>` is the verify-and-fill pass for a film with no marks at all — it skips every beat the author
 marked, so it never competes with a deliberate choice.
+
+> **Precedent — `515cc8b`:** A delivered 35-beat film used NONE of the five seams this tier implements: all 34 cuts were the same anonymous cross-fade, because nothing in the authoring path ever wrote `transition_in` — the key was not in the storyboard at all.
+> **Ask yourself:** Which cuts are marked, what does each mark CLAIM about its two beats, and did the luminance guard silently downgrade any of them to a fade?
 
 **S10 · MEANING (per scene) + FRAME-CRAFT (whole-film).** Two things eyeballing kept missing.
 **MEANING:** for each beat ask — does this shot's DESIGN *encode* the idea, or is it just dark-and-pretty
@@ -149,6 +204,9 @@ non-16:9 film (`meta.aspect` / `--vertical`), still-render at the film's aspect 
 multi-column grid must STACK in portrait (not squeeze side-by-side), no wide element runs off-frame, content fills
 the taller frame. Meaning + content-fit + frame-craft (incl. aspect) are gates, not nice-to-haves.
 
+> **Precedent — `d8bb983`:** EdStat's figure counted up, so the one beat about a number that could NOT be sourced displayed 17% and then 56% for ~2.8s while the narration said 60%. TermBars settled so late that its mid-scene frame drew the HARD row SHORTER than the medium one at the exact moment the narration said the opposite.
+> **Ask yourself:** Hide the caption: does the visual carry THIS idea and only this one — and does it still carry it at the frame the viewer actually sees, not just at the end?
+
 **S11 · DESIGN-SYSTEM COVERAGE (the Consistency Critic — whole-film + per-scene).** The selected template is a
 GLOBAL visual system (the `meta.design_dna`), not a decorative theme on one or two frames. Two checks:
 **Per scene:** identify **≥2–3 concrete elements that tie this shot to the Design DNA** — typography (does it use
@@ -173,6 +231,9 @@ This is a whole-film gate at `bold`/`experimental`, a strong nudge otherwise; it
 or S4 (legibility). `validate.py` backstops it mechanically (a themed film with no `design_dna`/preset, or a scene
 with no `theme_cues`).
 
+> **Precedent — `2e72980`:** `dnaPalette` grew categorical tones with a 47° hue rotation, which walks OUT of the film's palette: on the green+amber DNA, tone 3 landed on cyan-blue, and 19 registers ask for n≥3. Separately, a shot rendered standalone had no `DesignDNAContext` at all, so a palette bug was literally invisible until a full film render.
+> **Ask yourself:** Point at a colour, a typeface and a corner treatment on this frame and name the DNA token each came from.
+
 **S12 · CAMERA MOTIVATION (whole-film, from the storyboard + the keyframes).** A beat may carry
 `camera: {move: 'push'|'pull'|'hold', amount}`. The renderer clamps the amount to what the caption band can
 absorb — a push scales about the CONTENT zone, and unclamped it would drive the shot's lowest content down
@@ -193,6 +254,9 @@ delivery), and should read as one; if nothing explains it, say the film left its
 payoff/close beats that should have carried it — `python3 scripts/seam_plan.py <out_dir>` derives a plan from
 the beats' `relation` field and skips any beat already authored, so "we didn't get to it" is not a reason.
 Soft dimension: S3/S4 still win.
+
+> **Precedent — `0dfde89`:** 4 of 146 registers used a 3D rotation, none used focus, and the camera had been switched off entirely — space is this tier's whole claim over the HTML one, and it had none.
+> **Ask yourself:** What does this beat's camera move CLAIM? Would a viewer who could not hear the narration know why the frame moved?
 
 **S13 · REAL IMAGERY (whole-film — concrete topics only).** N/A when the subject is abstract (a method, an
 argument, a quantity with no photographable body). On a CONCRETE topic — a place, an object, a machine, a
@@ -219,5 +283,22 @@ scenes; the shot-director applies the fixes and re-renders those beats, then you
 Be specific and evidence-based — cite the keyframe you saw. Consent to deliver only when S3 (faithfulness) and S6
 (A/V + keyframe_qa) are clean, no scene fails S1/S4, and — at `bold`/`experimental` — S8 (boldness) AND S11
 (design-system coverage — the Design DNA runs through EVERY frame, not just the themed ones) are satisfied.
-Silence is not consent: if a keyframe is missing, `check_av` or `keyframe_qa_remotion` didn't run, say so and
-withhold PASS until it does.
+
+**And write the ledger — the verdict is the ledger, not the prose.** Every dimension gets a row, the clean
+ones too, each citing what the verdict rests on; `python3 scripts/critic_ledger.py <out_dir>` must exit 0.
+"Silence is not consent" was addressed, as prose, to the only party it could not audit; the ledger is the
+version of that sentence a later reader can check.
+
+**The DELIVERY review is a fresh subagent, not you.** Whoever directed the shots cannot be its first reviewer:
+the maker holds the intent, and the intent is what makes a wrong frame look right. (Measured in this repo: a
+seam fix was landed, the incoming shot measured 0.63% ink against 0.63% settled, and the number proving it had
+NOT worked was written into the code as the motivation for it. A reviewer holding no memory of intending it
+reads that frame as what it was — blank.) So before delivery, dispatch this file as a subagent whose ENTIRE
+input is the `<out_dir>` path — no design rationale, no summary of what was fixed, no list of what to look at
+— and let it reach its own verdict; it records `reviewer: "independent"`, and
+`python3 scripts/critic_ledger.py <out_dir> --final` REFUSES an in-context ledger. Reviewing in-context is
+fine while iterating; it is not what the user is handed.
+
+> **Precedent — `e385da7`:** On a delivered film about a physical city the real photographs occupied 5.3%, 8.5% and 16.3% of the frame — the evidence was a footnote in a film of drawings. And the proof sheet was blind to the class most likely to be wrong: that same run fetched three images and two were of the wrong city (`e68c174`).
+> **Ask yourself:** Does the film ever SHOW the thing it is about at a size that lets it be read — and is the thing shown the right one?
+
