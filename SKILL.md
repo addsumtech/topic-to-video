@@ -313,7 +313,15 @@ TTS if the user gives an API key.
   `--props='{...}'` (ASCII only — a multibyte `·` breaks the CLI arg). **`meta.sound_design:true`** (opt-in)
   adds a restrained SFX bed (transition whooshes pinned frame-exact to the cross-dissolves + a closing reveal)
   under the VO, plus `meta.bgm` (a path or `"auto"` synth pad) — **audition it before delivery (the pipeline
-  can't hear it)**. Needs the Node toolchain (one-time `cd remotion && npm install`); the html/local tier
+  can't hear it)**. **"Frame-exact" is now MEASURED, not assumed:** the cue times were computed to the frame
+  (a seam whoosh lands 2 frames EARLY on purpose) and then handed to an encoder nobody had checked, while the
+  only audio gate (`check_av`) compares total stream durations with a 0.3s tolerance — nine frames, and blind
+  to where a cue sits against its cut either way. `mix()` now sends a click through the real filtergraph
+  before every mix and subtracts whatever it finds, so a different ffmpeg or an added filter is corrected for
+  instead of silently shifting the bed; `python3 scripts/sfx.py --calibrate` prints the number and exits
+  non-zero past half a frame. Measured on this chain it is **0.000 frames** — the reference implementation's
+  1.27-frame AAC-priming compensation is THEIRS, and hardcoding it here would have introduced the error it
+  was meant to remove. Needs the Node toolchain (one-time `cd remotion && npm install`); the html/local tier
   (`render.py`) is untouched by this path.
   **Aspect:** the Film Composition is aspect-driven — `meta.aspect` (`16:9` default · `9:16` · `1:1` · `4:5` ·
   `4:3`) or `--vertical` renders portrait `1080×1920` etc. (Root.tsx `calculateMetadata`). Shots author in W/H

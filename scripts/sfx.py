@@ -16,6 +16,7 @@ voiceover. Cannot be auditioned by the pipeline; the operator should listen befo
 import math
 import os
 import shutil
+import tempfile
 import struct
 import subprocess
 import sys
@@ -169,6 +170,100 @@ def build_sfx_track(cues, total_seconds, out_wav):
     return True
 
 
+# ── the audio chain, and how far it actually MOVES a sound ────────────────────────────────────────────
+
+def filtergraph(dur, has_bgm):
+    """The one filtergraph. `mix()` renders through it and `measure_offset()` measures through it.
+
+    Written twice, the probe would certify a chain the film does not use — which is the whole failure this
+    module was audited for. A cue's time is computed frame-exactly (a seam whoosh lands 2 frames early, on
+    purpose) and then handed to an encoder nobody had ever measured.
+    """
+    fc = ["[1:a]highpass=f=%d,volume=1.0[sfx]" % _SFX_HP]
+    mix_ins, n_in = "[0:a][sfx]", 2
+    if has_bgm:
+        fc.append("[2:a]lowpass=f=%d,afade=in:st=0:d=0.3,afade=out:st=%.2f:d=1.5,volume=%.2f[bgm]"
+                  % (_BGM_LP, max(0.0, dur - 1.5), _BGM_VOL))
+        mix_ins, n_in = "[0:a][bgm][sfx]", 3
+    fc.append("%samix=inputs=%d:duration=first:normalize=0,loudnorm=I=%.1f:TP=-1.5:LRA=11[a]"
+              % (mix_ins, n_in, _TARGET_LUFS))
+    return ";".join(fc)
+
+
+PROBE_AT = 2.0                  # where the probe click is placed, in seconds
+PROBE_SECONDS = 5.0
+MAX_SANE_SHIFT = 2.0            # frames — beyond this the measurement is not believed, and says so
+
+
+def measure_offset(fps=30, has_bgm=False, workdir=None):
+    """Send a click through the REAL chain and report how far it moved, in seconds. None if unmeasurable.
+
+    WHY THIS IS MEASURED AND NOT ASSUMED. The obvious move was to copy a compensation constant: the
+    reference implementation measured its own encoder holding a click back by 2032 samples (~1.27 frames at
+    30fps) and subtracts that. Measured HERE — container start_time, two-input and three-input graphs,
+    clicks at 0.5s / 2.0s / 4.2s — this chain moves a sound by exactly 0 samples: ffmpeg signals the AAC
+    priming and the decoder skips it, and loudnorm in this configuration adds no net delay. Subtracting a
+    borrowed 1.27 frames would have INTRODUCED the error it was meant to remove.
+    """
+    if np is None or not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
+        return None
+    tmp = workdir or tempfile.mkdtemp(prefix="sfx_cal_")
+    try:
+        n = int(PROBE_SECONDS * SR)
+        click = np.zeros(n, dtype=np.float32); click[int(PROBE_AT * SR)] = 1.0
+        _write_wav(os.path.join(tmp, "click.wav"), click)
+        _write_wav(os.path.join(tmp, "silent.wav"), np.zeros(n, dtype=np.float32))
+        base = os.path.join(tmp, "base.mp4")
+        # The probe's base is built like a delivered film: H.264 video plus an already-baked AAC voice track,
+        # because it is that SECOND encode of an existing audio stream the cue has to survive.
+        subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
+                        "-i", "color=c=black:s=320x180:r=%d:d=%g" % (fps, PROBE_SECONDS),
+                        "-i", os.path.join(tmp, "silent.wav"), "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                        "-c:a", "aac", "-b:a", "192k", "-shortest", base], check=True)
+        ins = ["-i", base, "-i", os.path.join(tmp, "click.wav")]
+        if has_bgm:
+            _write_wav(os.path.join(tmp, "bgm.wav"), np.zeros(n, dtype=np.float32))
+            ins += ["-i", os.path.join(tmp, "bgm.wav")]
+        mixed = os.path.join(tmp, "mixed.mp4")
+        subprocess.run(["ffmpeg", "-y", "-v", "error"] + ins +
+                       ["-filter_complex", filtergraph(PROBE_SECONDS, has_bgm), "-map", "0:v", "-map", "[a]",
+                        "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", mixed], check=True)
+        back = os.path.join(tmp, "back.wav")
+        subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", mixed, "-ac", "1", "-ar", str(SR),
+                        "-f", "wav", back], check=True)
+        with wave.open(back, "rb") as w:
+            a = np.frombuffer(w.readframes(w.getnframes()), dtype="<i2").astype(np.float32)
+        if not len(a) or float(np.max(np.abs(a))) <= 0:
+            return None
+        # The AUDIO's own timeline is only half the question. A container that starts the two streams at
+        # different times shifts every cue against the picture without moving it inside its own track, so
+        # the stream offset is added rather than assumed to be zero.
+        return (int(np.argmax(np.abs(a))) / float(SR) - PROBE_AT) + _stream_skew(mixed)
+    except Exception:
+        return None
+    finally:
+        if workdir is None:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
+def _stream_skew(mp4):
+    """audio start_time - video start_time, in seconds. A sound correct inside its own track still arrives
+    late if the container starts that track late."""
+    try:
+        r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,start_time",
+                            "-of", "csv=p=0", mp4], capture_output=True, text=True, check=True)
+        st = {}
+        for line in r.stdout.strip().splitlines():
+            kind, _, val = line.partition(",")
+            try:
+                st[kind.strip()] = float(val)
+            except ValueError:
+                pass
+        return st.get("audio", 0.0) - st.get("video", 0.0)
+    except Exception:
+        return 0.0
+
+
 # ── the mix: frequency-isolated two-track under the voiceover, muxed back into the video ──────────────
 def mix(out_dir, mp4, scenes, meta, fps):
     """Post-render: overlay the SFX track (+ optional BGM) onto out.mp4's baked voiceover using huashu's
@@ -182,7 +277,7 @@ def mix(out_dir, mp4, scenes, meta, fps):
     cues = plan_cues(scenes, fps)
     sdir = os.path.join(out_dir, ".sfx"); os.makedirs(sdir, exist_ok=True)
     sfx_wav = os.path.join(sdir, "_sfx.wav")
-    if not (cues and build_sfx_track(cues, dur, sfx_wav)):
+    if not cues:
         print("[sfx] no cues planned — video unchanged"); return False
 
     # optional BGM: an author track (meta.bgm=path) or a synthesized pad (meta.bgm='auto')
@@ -193,16 +288,27 @@ def mix(out_dir, mp4, scenes, meta, fps):
     elif isinstance(bgm, str) and bgm and os.path.exists(os.path.join(out_dir, bgm)):
         bgm_wav = os.path.join(out_dir, bgm)
 
-    inputs = ["-i", mp4, "-i", sfx_wav]
-    fc = ["[1:a]highpass=f=%d,volume=1.0[sfx]" % _SFX_HP]
-    mix_ins = "[0:a][sfx]"; n_in = 2
-    if bgm_wav:
-        inputs += ["-i", bgm_wav]
-        fc.append("[2:a]lowpass=f=%d,afade=in:st=0:d=0.3,afade=out:st=%.2f:d=1.5,volume=%.2f[bgm]"
-                   % (_BGM_LP, max(0.0, dur - 1.5), _BGM_VOL))
-        mix_ins = "[0:a][bgm][sfx]"; n_in = 3
-    fc.append("%samix=inputs=%d:duration=first:normalize=0,loudnorm=I=%.1f:TP=-1.5:LRA=11[a]"
-              % (mix_ins, n_in, _TARGET_LUFS))
+    # SELF-CALIBRATING, never a borrowed constant. The chain is measured as it is about to be used, so a
+    # different ffmpeg, a codec change or an added filter is corrected for instead of silently shifting every
+    # cue. Measured 0.00 frames here; a measurement beyond MAX_SANE_SHIFT is not trusted and says so out loud
+    # rather than dragging the cues somewhere arbitrary.
+    lat = measure_offset(fps, has_bgm=bool(bgm_wav))
+    if lat is None:
+        print("[sfx] WARNING: could not measure the audio chain's offset — cues placed uncompensated")
+        lat = 0.0
+    elif abs(lat) * fps > MAX_SANE_SHIFT:
+        print("[sfx] WARNING: measured offset %+.2f frames is beyond the sane range — NOT compensating; "
+              "the mix is unchanged but the cue timing is suspect" % (lat * fps))
+        lat = 0.0
+    else:
+        print("[sfx] audio chain offset %+.2f frames%s" % (lat * fps, " (compensated)" if lat else ""))
+    if lat:
+        cues = [(max(0.0, t - lat), name, g) for (t, name, g) in cues]
+    if not build_sfx_track(cues, dur, sfx_wav):
+        print("[sfx] could not build the cue track — video unchanged"); return False
+
+    inputs = ["-i", mp4, "-i", sfx_wav] + (["-i", bgm_wav] if bgm_wav else [])
+    fc = [filtergraph(dur, bool(bgm_wav))]
     out2 = os.path.join(out_dir, "_snd.mp4")
     cmd = ["ffmpeg", "-y", "-v", "error"] + inputs + ["-filter_complex", ";".join(fc),
            "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", out2]
@@ -231,6 +337,25 @@ def _probe_duration(mp4):
 
 if __name__ == "__main__":                          # CLI: preview the cue plan for a deck (renderer-agnostic)
     import json
+    if "--calibrate" in sys.argv[1:]:
+        # `python3 scripts/sfx.py --calibrate` — send a click through the real chain and report where it
+        # comes out. This is the one number nothing in this pipeline had ever measured: cues are planned to
+        # the frame, and then handed to an encoder on trust.
+        fps = 30
+        for a in sys.argv[1:]:
+            if a.startswith("--fps="):
+                fps = int(a.split("=", 1)[1])
+        bad = False
+        for has_bgm in (False, True):
+            off = measure_offset(fps, has_bgm=has_bgm)
+            label = "SFX + BGM" if has_bgm else "SFX only "
+            if off is None:
+                print("[sfx] %s  UNMEASURABLE (needs numpy + ffmpeg + ffprobe)" % label); bad = True
+            else:
+                print("[sfx] %s  %+.4fs  = %+.3f frames @%dfps%s"
+                      % (label, off, off * fps, fps, "" if abs(off) * fps < 0.5 else "   <-- OVER HALF A FRAME"))
+                bad = bad or abs(off) * fps >= 0.5
+        sys.exit(1 if bad else 0)
     out_dir = sys.argv[1]
     data = json.load(open(os.path.join(out_dir, "storyboard.json")))
     fps = int((data.get("meta") or {}).get("fps", 30))

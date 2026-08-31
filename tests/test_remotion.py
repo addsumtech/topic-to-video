@@ -2243,6 +2243,9 @@ def test_every_remotion_capability_is_reachable_from_the_authoring_path():
          "the independent delivery review has to be a gate in the workflow, not advice inside the critic"),
         ("agents/shot-critic.md", "critic_ledger.py",
          "the critic is the party that must WRITE the ledger; unnamed in its own brief it will not"),
+        ("SKILL.md", "scripts/sfx.py --calibrate",
+         "the audio chain's offset is measurable only if the workflow says how; unnamed it goes back to "
+         "being assumed, which is what it was"),
     ]
     missing = [(f, n, why) for f, n, why in required if n not in docs[f]]
     assert not missing, "\n".join(
