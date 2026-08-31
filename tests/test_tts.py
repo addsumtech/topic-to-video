@@ -407,7 +407,9 @@ def test_a_clip_ends_in_a_decay_not_a_cliff():
     This runs the real mastering chain over a synthetic clip that ends abruptly and measures the shape.
     """
     import array
+    import inspect
     import math
+    import re
     import subprocess
     import tempfile
     import tts
@@ -447,8 +449,21 @@ def test_a_clip_ends_in_a_decay_not_a_cliff():
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
                     "-i", "sine=frequency=300:duration=1.5:sample_rate=48000",
                     "-af", "afade=t=out:st=0.6:d=0.9:curve=exp", dec], check=True)
-    tts._master(dec, {"renderer": "remotion", "fps": 30})
-    raw2 = subprocess.run(["ffmpeg", "-v", "error", "-i", dec, "-ac", "1", "-ar", "48000",
+    # ISOLATE THE TRIM. This used to run the whole master chain and measure what survived — which
+    # measures the FADE as much as the threshold, because the fade attenuates the last fifth of a second
+    # by design. Lengthening the die-away from 0.10s to 0.18s (a real repair, made because the endings
+    # were heard as stopping dead) dropped this number 0.895 -> 0.845 and turned the test red for doing
+    # its job. A test whose assertion names one thing and whose measurement includes another will fail on
+    # the next correct change too. So the trim runs here WITHOUT the fade, with the threshold read out of
+    # tts.py so the two cannot drift.
+    m = re.search(r"start_threshold=(-?\d+)dB", inspect.getsource(tts._master))
+    assert m, "the trim threshold is no longer written as start_threshold=<n>dB in tts._master"
+    trim_only = ("loudnorm=I=-14:TP=-1.5:LRA=11,areverse,"
+                 "silenceremove=start_periods=1:start_duration=0.06:"
+                 "start_threshold=%sdB:detection=peak,areverse" % m.group(1))
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", dec, "-af", trim_only,
+                    "-map_metadata", "-1", dec + ".trim.wav"], check=True)
+    raw2 = subprocess.run(["ffmpeg", "-v", "error", "-i", dec + ".trim.wav", "-ac", "1", "-ar", "48000",
                            "-f", "s16le", "-"], capture_output=True).stdout
     y = array.array("h")
     y.frombytes(raw2)
@@ -457,10 +472,12 @@ def test_a_clip_ends_in_a_decay_not_a_cliff():
         pk = max((abs(v) for v in y[i:i + win]), default=0)
         env2.append(20 * math.log10(pk / 32768.0) if pk else -99.0)
     kept = max(i for i, v in enumerate(env2) if v > -60) * 0.005
-    # Measured through the real chain (loudnorm shifts the levels, so these are not the raw-signal
-    # numbers): -45dB keeps 0.795s of this fixture, -58dB keeps 0.895s, -70dB keeps 0.985s.
-    assert kept > 0.85, ("only %.3fs of a decaying signal survived the trim — the threshold is cutting "
-                         "into the natural tail (-45dB keeps 0.795s here, -58dB keeps 0.895s)" % kept)
+    # Measured through the TRIM ALONE (loudnorm shifts the levels, so these are not raw-signal numbers,
+    # and they are not the old whole-chain numbers either — isolating the fade moved every one of them):
+    # -45dB keeps 0.860s of this fixture, -58dB keeps 0.975s, -70dB keeps 1.060s. The bar sits between the
+    # first two, so a regression to -45 fails and the shipped -58 passes with room.
+    assert kept > 0.92, ("only %.3fs of a decaying signal survived the trim — the threshold is cutting "
+                         "into the natural tail (-45dB keeps 0.860s here, -58dB keeps 0.975s)" % kept)
 
 
 def _paused_clip(path, gap, lead=0.8, tail=0.8):
