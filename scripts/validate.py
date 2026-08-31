@@ -1239,7 +1239,13 @@ def _caption_legibility(meta, slides, errors, warnings, out_dir=None):
     f = _fracs()
     margin = int(round(min(W, H) * f["CAPTION_MARGIN_FRAC"]))
     measure = min(1600, W - 120)
-    floor = 0.042 * min(W, H)                      # below this the caption is present but not readable
+    # DERIVED FROM THE AUTHORED SIZE, not restated. This was a hardcoded `0.042 * min(W, H)` — which is a
+    # third file holding an opinion about caption type, and the moment layout.ts lowered its own fraction to
+    # 0.042 the two numbers collided and this warned on every beat of a correctly-authored film. The check
+    # is about SQUEEZING: the renderer shrinks a caption that will not otherwise fit its band, and past some
+    # point the shrink makes it unreadable. So the floor is a fraction OF the authored size — a caption at
+    # full size can never trip it, and one squeezed below 85% always does, whatever the film's type scale.
+    floor = 0.85 * ideal
     worst = []
     for i, sl in enumerate(slides, 1):
         text = (sl.get("narration") or sl.get("caption") or "").strip()

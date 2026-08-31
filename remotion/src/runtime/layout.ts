@@ -25,7 +25,14 @@ export const TITLE_BAND = 176;          // content must start BELOW this (title 
 // Shrinking the type closed that gap by starting the block lower, but it also dropped the caption to 3.4% of
 // frame height, under the 5.2% floor that keeps a 1080p film readable in a phone-sized window. Both are fixed
 // by paying for the gap out of the BAND instead of out of the type.
-export const CAPTION_SIZE_FRAC = 0.052;   // caption type as a fraction of min(W,H) — 56px at 1080
+export const CAPTION_SIZE_FRAC = 0.042;   // caption type as a fraction of min(W,H) — 45px at 1080
+// 0.052 (56px) was this tier's own number and an OUTLIER: the html tier had already deliberated its
+// way down to 0.040, with the reason written beside it — "captions are a reading aid, not a headline;
+// they should sit quietly". The two tiers were 30% apart on the same decision, and the louder one was
+// the one nobody had revisited. Reported by a viewer as simply too large. Everything downstream is
+// derived: the reserved band falls with it (227px -> 190px at 16:9), which hands the shots back the
+// space rather than taking any away, and scripts/_caption_band.py parses this value so every Python
+// gate follows without a second edit.
 export const CAPTION_LINES = 2;           // the band must hold a two-line caption without touching content
 export const CAPTION_LEAD = 1.26;
 export const CAPTION_LEAD_CJK = 1.7;      // CJK needs more leading; the band is sized on the LATIN

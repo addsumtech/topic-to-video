@@ -3,96 +3,72 @@
   "_measured_against": "band = captionBand(W,H) at 1920x1080 = 227px; thresholds shot_still_qa CAPTION_FRAC_ERR / EDGE_FRAC_ERR",
   "registers": {
     "AntiDesignChaos": {
-      "band": 6.75,
+      "band": 6.84,
       "edge": 0.0
     },
     "AsciiField": {
-      "band": 8.14,
-      "edge": 0.0
-    },
-    "AtomOrbital": {
-      "band": 5.03,
+      "band": 9.08,
       "edge": 0.0
     },
     "AuroraFlow": {
-      "band": 54.28,
-      "edge": 15.07
+      "band": 53.04,
+      "edge": 14.85
     },
     "BeforeAfterSlider": {
-      "band": 22.53,
-      "edge": 0.0
-    },
-    "CartoonPop": {
-      "band": 6.12,
-      "edge": 0.0
-    },
-    "ClothWave": {
-      "band": 7.06,
+      "band": 25.56,
       "edge": 0.0
     },
     "ComicPanels": {
-      "band": 44.28,
+      "band": 38.43,
       "edge": 0.0
     },
     "FlowField": {
-      "band": 4.54,
-      "edge": 9.7
+      "band": 4.51,
+      "edge": 9.59
     },
     "FractureIn": {
-      "band": 10.58,
+      "band": 5.21,
       "edge": 0.0
     },
     "GameOfLife": {
-      "band": 11.83,
-      "edge": 12.75
+      "band": 11.56,
+      "edge": 12.66
     },
     "HalftonePop": {
-      "band": 29.62,
-      "edge": 35.09
+      "band": 27.28,
+      "edge": 35.14
     },
     "InfiniteCanvas": {
-      "band": 9.76,
-      "edge": 0.71
+      "band": 9.7,
+      "edge": 0.7
     },
     "IsometricAssembly": {
-      "band": 7.17,
+      "band": 5.84,
       "edge": 0.0
     },
     "MaterialHero": {
-      "band": 11.77,
-      "edge": 3.33
-    },
-    "MoleculeBallStick": {
-      "band": 5.48,
-      "edge": 0.0
+      "band": 11.14,
+      "edge": 3.28
     },
     "MorphForms": {
-      "band": 6.85,
+      "band": 7.05,
       "edge": 0.0
     },
     "NeonTickerWall": {
-      "band": 14.81,
-      "edge": 1.31
+      "band": 16.08,
+      "edge": 1.29
     },
     "PaperCutout": {
-      "band": 22.14,
-      "edge": 7.01
-    },
-    "PhysicsStack": {
-      "band": 6.77,
-      "edge": 0.0
+      "band": 16.39,
+      "edge": 8.35
     },
     "PixelBuild": {
-      "band": 37.33,
+      "band": 42.56,
       "edge": 0.0
     },
     "RadialBurst": {
-      "band": 5.25,
-      "edge": 2.06
-    },
-    "RidgeField": {
-      "band": 6.26,
-      "edge": 0.0
+      "band": 5.58,
+      "edge": 2.03
     },
     "SwissEditorial": {
       "band": 0.0,

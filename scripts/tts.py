@@ -409,7 +409,34 @@ def _film_sentence_pause(paths):
     return tops[min(len(tops) - 1, int(round(0.75 * (len(tops) - 1))))]
 
 
-def _tail_pad(meta, ref=None):
+def _lead_silence(path):
+    """Seconds of silence BEFORE the first word of a clip. Never trimmed — trimming the head would move
+    every word time in `NN.words.json` and desync the karaoke caption — so it has to be SUBTRACTED from
+    the tail pad instead, or it is added to the pause the viewer hears."""
+    try:
+        out = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", path, "-af",
+                              "silencedetect=noise=-55dB:d=0.05", "-f", "null", "-"],
+                             capture_output=True, text=True).stderr
+    except Exception:
+        return 0.0
+    m = re.search(r"silence_start:\s*(-?[\d.]+)[\s\S]*?silence_end:\s*([\d.]+)", out)
+    if not m:
+        return 0.0
+    start, end = float(m.group(1)), float(m.group(2))
+    return round(end, 3) if start <= 0.02 else 0.0
+
+
+def _film_lead_silence(paths):
+    """The film's own median leading silence — one number, so every seam is corrected by the same amount."""
+    leads = [_lead_silence(p) for p in paths if os.path.exists(p)]
+    leads = [x for x in leads if x > 0]
+    if not leads:
+        return 0.0
+    leads.sort()
+    return round(leads[len(leads) // 2], 3)
+
+
+def _tail_pad(meta, ref=None, lead=0.0):
     """Seconds of silence to append to a clip after its dead air is trimmed.
 
     MEASURED, on a delivered 37-beat remotion film with the old flat 0.42s pad: every one of the 36 scene
@@ -447,10 +474,19 @@ def _tail_pad(meta, ref=None):
     # and a one-sentence beat 0.55s — the seam would vary for a reason no viewer can perceive.
     if ref:
         pause = max(pause, min(MAX_SCENE_PAUSE, ref + SENTENCE_PAUSE_BREATH))
-    return round(min(2.5, pause + _seam_seconds(meta)), 3)
+    # SUBTRACT THE NEXT CLIP'S LEADING SILENCE. The pause a viewer hears runs from the last word of one
+    # beat to the first word of the next, and every TTS clip opens with a little silence of its own — the
+    # head is deliberately never trimmed, because moving it would shift every word time in words.json and
+    # desync the karaoke caption. That silence was simply never counted: measured on a delivered 30-beat
+    # film, the pipeline printed "scene pause 0.75s audible" while the film's seams ran 0.98-1.00s, because
+    # each clip opened with 0.191s of its own. The printed number was not the number, on every film this
+    # skill has made. A floor keeps two clips from butting up against each other if a voice ever opens
+    # with a very long lead.
+    pad = pause + _seam_seconds(meta) - max(0.0, lead)
+    return round(min(2.5, max(0.15 + _seam_seconds(meta), pad)), 3)
 
 
-def _master(path, meta=None, ref=None):
+def _master(path, meta=None, ref=None, lead=0.0):
     """Loudness-normalise + trim TRAILING dead-air of a SPEECH clip, in place. Two problems at once:
     (1) raw TTS ships at wildly different loudness across providers/scenes with no master, so a
     carefully-placed climax has no consistent sonic level; (2) the trailing tail (esp. say/openai/
@@ -467,7 +503,7 @@ def _master(path, meta=None, ref=None):
     if not _common.have_tool("ffmpeg"):
         return
     tmp = path + ".master" + os.path.splitext(path)[1]
-    breath = _tail_pad(meta, ref=ref)
+    breath = _tail_pad(meta, ref=ref, lead=lead)
     # THE TAIL IS A DECAY, NOT A CLIFF. Trimming at -45dB removed the whole natural decay of the last
     # syllable and apad then spliced ABSOLUTE silence onto the cut, so a clip went from -11dB — clearly
     # audible speech — to -99dB inside one 20ms window. Measured on three delivered clips: drops of 64,
@@ -573,14 +609,17 @@ def synthesize(out_dir, only=None):
     # clips still supply the reference (their pause is internal; the pad sits past it).
     ref = _film_sentence_pause([os.path.join(out_dir, s["audio"]) for s in data["slides"]
                                 if s.get("audio") and os.path.exists(os.path.join(out_dir, s["audio"]))])
+    lead = _film_lead_silence([os.path.join(out_dir, s["audio"]) for s in data["slides"]
+                               if s.get("audio") and os.path.exists(os.path.join(out_dir, s["audio"]))])
     for s, dest in pending:
-        _master(dest, data["meta"], ref=ref)
+        _master(dest, data["meta"], ref=ref, lead=lead)
         s["duration"] = round(_common.audio_duration(dest), 3)
     if pending:
-        print("[tts] scene pause %.2fs audible (film full-stop %s + %.2fs breath, floor %.2f)"
-              % (_tail_pad(data["meta"], ref=ref) - _seam_seconds(data["meta"]),
+        print("[tts] scene pause %.2fs audible (film full-stop %s + %.2fs breath, floor %.2f; "
+              "next clip's own lead %.2fs subtracted)"
+              % (_tail_pad(data["meta"], ref=ref, lead=lead) - _seam_seconds(data["meta"]) + lead,
                  ("%.2fs" % ref) if ref else "unmeasurable", SENTENCE_PAUSE_BREATH,
-                 float(data["meta"].get("scene_pause", SCENE_PAUSE_DEFAULT))))
+                 float(data["meta"].get("scene_pause", SCENE_PAUSE_DEFAULT)), lead))
 
     # MIXED-VOICE guard: a cloud/edge run that fell back to `say` on SOME (not all) scenes ships an
     # INCONSISTENT narration voice (and mixed sample rates the render must normalize). This happens on a

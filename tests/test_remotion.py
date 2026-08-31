@@ -2013,7 +2013,7 @@ def test_the_caption_band_debt_may_shrink_and_never_grow():
     # slots, so four more registers could join the debt and the "ratchet" would stay green. A ratchet with
     # slack is not a ratchet. When the debt genuinely shrinks, this number comes down in the same commit;
     # raising it is the deliberate act it should always have been.
-    assert len(known) <= 24, (
+    assert len(known) <= 18, (
         "the recorded caption-band debt is %d registers; it is a ratchet and may only shrink" % len(known))
 
     # Every entry must actually BE in debt. A register repaired but left in the list makes the debt look
@@ -2462,9 +2462,15 @@ def test_the_caption_band_has_exactly_one_definition():
         assert cb.caption_band_px(w, h) > cb.caption_size_px(w, h) * 2, (
             "the band at %dx%d cannot hold two lines of its own caption type" % (w, h))
 
-    # the caption must clear the readability floor a 1080p film needs in a phone-sized window
-    assert cb.caption_size_px(1920, 1080) >= 0.05 * 1080, (
-        "caption type is %dpx at 1080p, under the 5%% floor" % cb.caption_size_px(1920, 1080))
+    # The caption must still clear a readability floor in a phone-sized window — but the floor is 4%, not
+    # the 5% it started at, and the change is evidence-led rather than taste. Two things: the VIEWER of a
+    # delivered film said the caption was simply too large, which outranks a floor nobody ever measured;
+    # and this tier's 5% was an outlier inside the skill — the html tier had already reasoned its way to
+    # 0.040 with the reason written beside it ("captions are a reading aid, not a headline"). 4% is the
+    # value that tier has shipped for a long time, so it is the floor both tiers can be held to; remotion
+    # sits just above it at 0.042. Lower it further only with a real legibility measurement.
+    assert cb.caption_size_px(1920, 1080) >= 0.04 * 1080, (
+        "caption type is %dpx at 1080p, under the 4%% floor" % cb.caption_size_px(1920, 1080))
 
     # and NO file may carry its own copy of the number any more
     for rel in ("scripts/frame_safe_qa.py", "scripts/shot_still_qa.py"):
