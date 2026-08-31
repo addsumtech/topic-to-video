@@ -276,6 +276,7 @@ name the 2-3 beats whose claim is "look at the actual thing". CREDITS are machin
 ERRORs when a beat shows a sidecar'd image whose author it fails to name — so read that verdict rather than
 re-checking it, and never repair one by typing a photographer's name from memory: it comes from `<file>.json`.
 
+
 ## Output
 For each flagged scene: `scene #N · Sx · <what's wrong on screen> · FIX: <the concrete change — a different
 `shot` id, or the `shot_props` key+value to set>`. End with a verdict: **PASS** (deliver) or **REVISE** (list the
@@ -301,4 +302,21 @@ fine while iterating; it is not what the user is handed.
 
 > **Precedent — `e385da7`:** On a delivered film about a physical city the real photographs occupied 5.3%, 8.5% and 16.3% of the frame — the evidence was a footnote in a film of drawings. And the proof sheet was blind to the class most likely to be wrong: that same run fetched three images and two were of the wrong city (`e68c174`).
 > **Ask yourself:** Does the film ever SHOW the thing it is about at a size that lets it be read — and is the thing shown the right one?
+
+**S14 · GROWTH — did the film BUILD, or only choose?** The catalogue is a starting vocabulary, not the
+set of things this tier can say. `meta.form_vocabulary` is the film's derivation of how its OWN subject is
+recorded (shot-director step 0.5), and rule 2 there requires at least half of it to be forms this library has
+never held — so on a subject the library has not met, `shot_fit.verdict: "build"` is the NORMAL case, not an
+emergency. Judge it: name the beats whose form the catalogue could not carry, and say whether the film built
+for them or settled for the nearest register and let the adaptation note paper over the gap. A film that used
+a one- or two-register family and took its only member — when that member's structure did not carry the
+beat's argument — should have built. `validate.py` warns when the declared vocabulary is mostly names the
+library already has; whether the FORMS are really this subject's is yours.
+> **Precedent — `27a52fa`:** "Build a register instead of settling for the nearest one" existed as a written
+> doctrine, a cheap capability and two consumers — and nothing anywhere WROTE the field, so the "nobody
+> recorded a judgement" warning fired on every default run by construction. This dimension was itself
+> unnumbered prose in this file's opening section until the verdict ledger made every NUMBERED dimension
+> mandatory: growth became the one judgement that could still be skipped without a trace, which is exactly
+> the shape it describes.
+> **Ask yourself:** Which beat's form did the catalogue not have — and what did the film do about it?
 

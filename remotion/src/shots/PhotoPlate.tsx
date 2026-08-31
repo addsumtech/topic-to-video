@@ -38,6 +38,8 @@ const ACC_D0 = '#9c3b1e', LINE_D0 = '#cdbfa7', SURF_D0 = '#f6f1e6';
 
 type Mark = {x?: number; y?: number; label?: string; n?: number};
 
+const CHIP_MEASURE = 24;   // characters per line — a callout is a phrase, not a paragraph
+
 export const PhotoPlate: React.FC<{
   src?: string;             // the real photograph, relative to the film's public dir
   title?: string;           // the plate's kicker
@@ -168,11 +170,19 @@ export const PhotoPlate: React.FC<{
         ? text.replace(/[^\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '').length / text.length : 0;
       const roomL = px0 - W * 0.045, roomR = W - px1 - W * 0.045;
       const marginated = Math.max(roomL, roomR) > W * 0.16;
-      const chipMax = marginated ? Math.min(W * 0.24, Math.max(roomL, roomR)) : PW * 0.42;
+
       // The chip's face is the DNA's MONO stack, and its advance comes from the one place that measured
       // it. A local 0.54 here was neither the mono 0.62 nor the proportional 0.52 — it belonged to no
       // font, and it under-predicted the wrap of every callout this register has ever drawn.
       const adv = chipFont * (latinAdvance(mono) * (1 - mShare) + CJK_ADVANCE * mShare);
+      // A MEASURE IS COUNTED IN CHARACTERS, not in frame width. `W * 0.24` was picked at 1920 (461px, a
+      // comfortable chip) and silently became 259px at a 1080-wide portrait or 4:5 frame — about thirteen
+      // characters, so the labels stacked one word per line in a margin that had 453px to give. That is the
+      // same cramping `marginated` was introduced to cure, reintroduced by the cap meant to bound it. Bound
+      // it by the type instead and it holds at any frame size and any type scale.
+      const chipMax = marginated
+        ? Math.min(chipPad * 2 + CHIP_MEASURE * adv, Math.max(roomL, roomR))
+        : PW * 0.42;
       const chipW = Math.min(chipMax, chipPad * 2 + text.length * adv + chipFont * 1.6);
       const mx = px0 + clamp01(m.x ?? 0.5) * PW;
       const my = top + clamp01(m.y ?? 0.5) * PH;
@@ -220,6 +230,7 @@ export const PhotoPlate: React.FC<{
       }
       return {m, i, mx, my, cy: my, chipW, chipH, left, align, text};
     });
+    
 
     const yMin = top, yMax = bottom;
     const need = items.reduce((a, it) => a + it.chipH, 0) + Math.max(0, items.length - 1) * (hair * 6);
@@ -284,6 +295,10 @@ export const PhotoPlate: React.FC<{
           if (on <= 0) return null;
           const leftSide = align !== 'left';
           const nearX = leftSide ? left + chipW : left;
+          // A mark with no label drew an EMPTY chip with a leader running to it: a rectangle carrying nothing,
+          // which is precisely the frame furniture a viewer cannot decode in a second. The ring still marks
+          // the point — that is the mark's whole job — and the label that was never supplied is not invented.
+          const labelled = text.trim().length > 0 || m.n != null;
           return (
             <React.Fragment key={i}>
               {/* THE LEADER IS AN ELBOW, because the chip no longer sits at its mark's height. It runs
@@ -291,11 +306,11 @@ export const PhotoPlate: React.FC<{
                   the classic annotated-plate form, and the only one that stays unambiguous once two marks
                   close together have had their labels moved apart. When a chip did not move, the vertical
                   leg is zero-length and this draws exactly the straight leader it always did. */}
-              <div style={{position: 'absolute', top: my - hair,
+              {labelled ? <div style={{position: 'absolute', top: my - hair,
                 left: leftSide ? nearX : mx, width: Math.max(0, leftSide ? mx - nearX : left - mx),
-                height: hair * 2, background: ACC, opacity: on * 0.9}} />
-              <div style={{position: 'absolute', left: nearX - hair, top: Math.min(my, cy),
-                width: hair * 2, height: Math.abs(cy - my), background: ACC, opacity: on * 0.9}} />
+                height: hair * 2, background: ACC, opacity: on * 0.9}} /> : null}
+              {labelled ? <div style={{position: 'absolute', left: nearX - hair, top: Math.min(my, cy),
+                width: hair * 2, height: Math.abs(cy - my), background: ACC, opacity: on * 0.9}} /> : null}
               {/* the point itself — a ring, so it marks WITHOUT covering what it marks */}
               <div style={{position: 'absolute', left: mx - dot, top: my - dot, width: dot * 2, height: dot * 2,
                 borderRadius: dot * 2, border: `${hair * 3}px solid ${ACC}`, opacity: on,
@@ -309,13 +324,20 @@ export const PhotoPlate: React.FC<{
                   when the estimate came in short, and as `minHeight` it left an empty line of dead space
                   whenever the estimate (deliberately conservative, so a caption can never overflow its band)
                   came in long. Centred on `cy`, a box shorter than its slot stays inside it. */}
+              {labelled ? (
               <div style={{position: 'absolute', left, top: cy, width: chipW, transform: 'translateY(-50%)',
                 opacity: on, background: SURF, border: `${hair}px solid ${LINE}`,
                 padding: `${chipPad}px ${chipPad * 1.4}px`, boxSizing: 'border-box',
                 font: `600 ${chipFont}px/1.25 ${mono}`, color: FG,
+                // A label is whatever the film supplied, and an unbreakable one is not exotic: a URL, a file
+                // path, a binomial, a German compound. CSS will not break a word on its own, so a 52-character
+                // run walked straight out of its box and across the frame to the far margin — the chip's width
+                // was respected by the layout and ignored by the text. The wrap simulation already COUNTS such
+                // a word as breaking inside itself; this is what makes the browser agree.
+                overflowWrap: 'anywhere',
                 textAlign: leftSide ? 'right' : 'left'}}>
                 {m.n != null ? <span style={{color: ACC}}>{m.n}&nbsp;&nbsp;</span> : null}{text}
-              </div>
+              </div>) : null}
             </React.Fragment>
           );
         })}

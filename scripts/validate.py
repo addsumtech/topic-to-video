@@ -1459,6 +1459,44 @@ def _film_language(meta, slides, errors, warnings):
 
 
 
+_FORM_TOKENS = re.compile(r"[A-Z]+(?![a-z])|[A-Z][a-z0-9]*|[a-z0-9]+")
+
+
+def _catalogue_forms(names):
+    """{declared form: the register whose name it already is} — the shopped half of a form vocabulary.
+
+    Tokenised on case boundaries so `StrataColumn` reads as {strata, column}, and matched by prefix so a
+    subject's "stratigraphic column" is recognised as the register's "strata column". A form counts as the
+    catalogue's when at least two of its tokens match one register's, or when a single-word form is a
+    single-word register outright.
+    """
+    shots = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "remotion", "src", "shots")
+    if not os.path.isdir(shots):
+        return {}
+    reg = {}
+    for f in os.listdir(shots):
+        if f.endswith(".tsx"):
+            reg[f[:-4]] = [t.lower() for t in _FORM_TOKENS.findall(f[:-4])]
+
+    def pref(a, b):
+        return a == b or (len(a) >= 4 and len(b) >= 4 and (a.startswith(b) or b.startswith(a)))
+
+    out = {}
+    for form in names:
+        ft = [t.lower() for t in _FORM_TOKENS.findall(str(form).replace("-", " "))]
+        if not ft:
+            continue
+        best = None
+        for rname, rt in reg.items():
+            m = sum(1 for t in ft if any(pref(t, r) for r in rt))
+            if m >= 2 or (len(ft) == 1 and m == 1 and len(rt) == 1):
+                if best is None or m > best[1]:
+                    best = (rname, m)
+        if best:
+            out[form] = best[0]
+    return out
+
+
 def _form_vocabulary(meta, slides, errors, warnings):
     """Every beat must name which of the SUBJECT'S OWN forms it realises.
 
@@ -1499,6 +1537,27 @@ def _form_vocabulary(meta, slides, errors, warnings):
     if len(names) < 4:
         warnings.append("meta.form_vocabulary names only %d form(s) — a subject worth a film is recorded in "
                         "more ways than that; a short list forces the catalogue back in" % len(names))
+
+    # ── DID IT DERIVE, OR DID IT SHOP? ──────────────────────────────────────────────────────────────────
+    # Everything above checks that the derivation was DECLARED. None of it checks that it was a derivation.
+    # A film could name six forms that are simply the names of six existing registers, point every beat at
+    # one of them, and pass — the catalogue supplying the vocabulary again, now with paperwork. The
+    # shot-director's rule 2 ("at least half must be forms this library does NOT already have; if everything
+    # you name is already a register, you shopped") was the one rule that distinguishes the two, and it was
+    # the only one with nothing behind it.
+    #
+    # A register's FILE NAME is its form name (StrataColumn, MuseumLabel, DepartureBoard), so the overlap is
+    # measurable. Warning, not error: a real subject can genuinely be recorded in a form the library already
+    # holds, and a museum label is a museum label. So it names the evidence and lets a human overrule it.
+    shopped = _catalogue_forms(names)
+    if names and len(shopped) * 2 > len(names):
+        warnings.append(
+            "remotion: %d of %d forms in meta.form_vocabulary are names the library ALREADY has (%s) — that "
+            "is a shopping list wearing a derivation's clothes. Re-read the comprehension brief and ask how "
+            "this subject is recorded by the people whose subject it is; at least half the vocabulary should "
+            "be forms this library has never held (agents/shot-director.md step 0.5, rule 2)."
+            % (len(shopped), len(names),
+               "; ".join("%s = %s" % (f, r) for f, r in sorted(shopped.items())[:6])))
     missing, unknown = [], []
     for s in slides:
         beat = int(s.get("index", 0)) + 1

@@ -2099,6 +2099,64 @@ def _critic_ledger():
     return mod, root
 
 
+def test_a_form_vocabulary_that_is_really_a_shopping_list_is_caught():
+    """Everything else about the derivation checked that it was DECLARED, not that it was a derivation.
+
+    The gate required `meta.form_vocabulary` to exist, every entry to be named, and every beat to point at
+    one. A film could satisfy all of that by naming six existing REGISTERS as its subject's forms — the
+    catalogue supplying the vocabulary again, now with paperwork. The shot-director's rule 2 ("at least half
+    must be forms this library does NOT already have; if everything you name is already a register, you
+    shopped") is the only rule that tells the two apart, and it was the only one with nothing behind it.
+
+    A register's file name IS its form name, so the overlap is measurable. Warning, not error: a subject can
+    genuinely be recorded in a form the library holds, so it names the evidence and a human can overrule it.
+    """
+    import importlib.util as _il
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sp = _il.spec_from_file_location("validate_probe", os.path.join(root, "scripts", "validate.py"))
+    v = _il.module_from_spec(sp); sp.loader.exec_module(v)
+
+    shots = os.path.join(root, "remotion", "src", "shots")
+    have = sorted(f[:-4] for f in os.listdir(shots) if f.endswith(".tsx"))[:6]
+    assert len(have) >= 6, "need registers to build the shopped case from"
+    # a vocabulary that is simply six register names, spelled as prose
+    shopped = [re.sub(r"(?<!^)(?=[A-Z])", " ", n).lower() for n in have]
+    # forms a subject is recorded in that this library has never held
+    derived = ["tide gauge", "docket entry", "flight strip", "knitting chart", "piano roll",
+               "exhibit sticker"]
+
+    for label, vocab, expect in (("shopped", shopped, True), ("derived", derived, False)):
+        errs, warns = [], []
+        v._form_vocabulary({"form_vocabulary": [{"form": f, "carries": "x"} for f in vocab]},
+                           [{"index": i, "shot_fit": {"form": f}} for i, f in enumerate(vocab)],
+                           errs, warns)
+        flagged = any("shopping list" in w for w in warns)
+        assert flagged is expect, (
+            "%s vocabulary: expected shopping-list warning=%s, got %s (%r)" % (label, expect, flagged, warns))
+        assert not errs, "%s vocabulary should not ERROR: %r" % (label, errs)
+
+
+def test_photoplate_callouts_hold_at_inputs_they_were_not_tuned_on():
+    """Rendered checks found these; these are the invariants that keep them found.
+
+    Each was a real frame: a 52-character unbroken label walked out of its chip and across the frame to the
+    far margin (CSS does not break a word on its own, and the chip had no `overflowWrap` while the film's
+    caption did); a mark with an empty label drew an empty rectangle with a leader running to it — furniture
+    a viewer cannot decode; and the chip's width cap, `W * 0.24`, was chosen at 1920 and became thirteen
+    characters at a 1080-wide portrait frame, stacking one word per line inside a margin that had 453px to
+    give — the same cramping the margin layout was introduced to cure.
+    """
+    src = open(os.path.join(_ROOT_TSX_DIR, "shots", "PhotoPlate.tsx"), encoding="utf-8").read()
+    assert "overflowWrap: 'anywhere'" in src, (
+        "a callout chip must break an unbreakable label instead of letting it leave the box")
+    assert "const labelled =" in src and "{labelled ?" in src, (
+        "an unlabelled mark draws an empty chip again — the ring alone marks the point")
+    assert not re.search(r"marginated \?\s*Math\.min\(W \* 0\.24", src), (
+        "the chip measure is bounded by frame width again; it must be bounded by CHARACTERS so it holds at "
+        "portrait and 4:5")
+    assert "CHIP_MEASURE" in src, "the character measure is gone"
+
+
 def test_every_critic_rule_carries_a_REAL_precedent():
     """A rule states what to do; its precedent states what went wrong, which is what generalises.
 
