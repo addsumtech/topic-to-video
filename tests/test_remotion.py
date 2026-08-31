@@ -1514,7 +1514,11 @@ def test_shot_proof_serves_the_films_public_dir_to_standalone_stills():
 # WORKBUDDY on a title card, ©2026 · LOCAL in a corner, DASHBOARD over a children's book character, and
 # x:960 y:540 beside a cathedral, all invisible to every gate because none of them was a prop.
 _UNSUPPLIED_TEXT_GRANDFATHERED = {
-    "Aliasing", "CursorStory", "DataOrrery", "HalftonePop", "OverlapSeparation", "ScreenBubble",
+    "Aliasing",
+    "DataOrrery",
+    "HalftonePop",
+    "OverlapSeparation",
+    "ScreenBubble",
 }
 
 
