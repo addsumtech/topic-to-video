@@ -23,7 +23,7 @@
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, easeOutExpo} from '../runtime/motion';
-import {captionBand, CONTENT_TOP, placeLabel} from '../runtime/layout';
+import {captionBand, CONTENT_TOP, placeLabel, latinAdvance, CJK_ADVANCE} from '../runtime/layout';
 import {Plane, DEPTH} from '../runtime/depth';
 import {useDNA} from '../runtime/dna';
 
@@ -148,6 +148,106 @@ export const PhotoPlate: React.FC<{
 
   const shown = MARKS.slice(0, 5);
 
+  // ── LAYING THE CALLOUTS OUT AGAINST EACH OTHER ────────────────────────────────────────────────────────
+  // Each chip used to be centred on its own mark and nothing else. Marks are wherever the SUBJECT put them,
+  // so on any photograph with two features close together the labels landed on top of one another: rendered
+  // with three marks 6% apart, the first chip was entirely hidden behind the third and the second's closing
+  // words showed through it. That is the decodability floor failing, silently, on content the register is
+  // specifically for — a photograph is annotated densely where the interesting part is.
+  //
+  // So the chips are laid out as a COLUMN that wants to be at its marks' heights: preferred position first,
+  // then a downward sweep that pushes any overlap apart, then an upward sweep if that ran past the bottom.
+  // Both sweeps stay inside the plate's own vertical extent, so a chip can never drift into the caption
+  // block or the burned-subtitle band. When nothing collides, every chip keeps exactly the height it asked
+  // for and this is a no-op.
+  const laidOut = (() => {
+    const gap = dot + Math.round(W * 0.008);
+    const items = shown.map((m, i) => {
+      const text = String(m.label ?? '');
+      const mShare = text.length
+        ? text.replace(/[^\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '').length / text.length : 0;
+      const roomL = px0 - W * 0.045, roomR = W - px1 - W * 0.045;
+      const marginated = Math.max(roomL, roomR) > W * 0.16;
+      const chipMax = marginated ? Math.min(W * 0.24, Math.max(roomL, roomR)) : PW * 0.42;
+      // The chip's face is the DNA's MONO stack, and its advance comes from the one place that measured
+      // it. A local 0.54 here was neither the mono 0.62 nor the proportional 0.52 — it belonged to no
+      // font, and it under-predicted the wrap of every callout this register has ever drawn.
+      const adv = chipFont * (latinAdvance(mono) * (1 - mShare) + CJK_ADVANCE * mShare);
+      const chipW = Math.min(chipMax, chipPad * 2 + text.length * adv + chipFont * 1.6);
+      const mx = px0 + clamp01(m.x ?? 0.5) * PW;
+      const my = top + clamp01(m.y ?? 0.5) * PH;
+      // The SAME advance estimate that sized the chip, reused to predict how the text wraps inside it —
+      // one estimate, so the height cannot disagree with the width it was derived from.
+      const inner = Math.max(1, chipW - chipPad * 2.8);
+      // GREEDY WORD WRAP, simulated — not total-width / line-width. CSS breaks at word boundaries, so a
+      // line ends wherever the next word does not fit, and the ideal-packing estimate is optimistic by up
+      // to a word per line. It under-counted by one on a 44-character label, and the extra line was CLIPPED
+      // by the box height derived from the same count. The chip's face is MONOSPACE, so simulating the
+      // break is not an approximation: per-character advance is a constant, taken from runtime/layout's
+      // measured table — the same number that sized the chip, so height cannot disagree with width.
+      const w1 = (ch: string) => chipFont * (/[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(ch)
+        ? CJK_ADVANCE : latinAdvance(mono));
+      const wordW = (s2: string) => s2.split('').reduce((a, c) => a + w1(c), 0);
+      // Standard greedy: the space BEFORE a word is paid only if the word joins the current line. Charging
+      // it unconditionally counted a trailing space that CSS drops at a break, and over-counted by a line on
+      // a label that fitted — the box then carried an empty line's worth of dead space under its last word.
+      const spaceW = w1(' ');
+      let lines = 1, used = m.n != null ? adv * 3 : 0;
+      for (const word of text.split(/\s+/)) {
+        if (!word) continue;
+        const ww = wordW(word);
+        // A word wider than the whole line breaks INSIDE itself (which is what a CJK run does at every
+        // glyph), so it costs the lines it needs rather than one impossible one.
+        if (ww > inner) {
+          const total = used + ww;
+          lines += Math.ceil(total / inner) - 1;
+          used = total % inner;
+          continue;
+        }
+        const cost = (used > 0 ? spaceW : 0) + ww;
+        if (used + cost > inner) {lines += 1; used = ww;} else {used += cost;}
+      }
+      lines = Math.max(1, lines);
+      const chipH = Math.ceil(lines * chipFont * 1.25 + chipPad * 2 + hair * 2);
+      let left: number, align: 'left' | 'right';
+      if (marginated) {
+        const useRight = roomR >= roomL;
+        left = useRight ? px1 + gap : Math.max(W * 0.045, px0 - gap - chipW);
+        align = useRight ? 'left' : 'right';
+      } else {
+        const p = placeLabel(mx, px0 + hair * 3, px1 - hair * 3, chipW, gap);
+        left = p.left; align = p.align;
+      }
+      return {m, i, mx, my, cy: my, chipW, chipH, left, align, text};
+    });
+
+    const yMin = top, yMax = bottom;
+    const need = items.reduce((a, it) => a + it.chipH, 0) + Math.max(0, items.length - 1) * (hair * 6);
+    const order = items.map((_, k) => k).sort((a, b) => items[a].my - items[b].my);
+    if (need > yMax - yMin) {
+      // More label than plate. Nothing can keep them all apart, so spread them EVENLY instead of letting
+      // them pile up at whatever heights the marks happened to have — cramped and readable in order beats
+      // three labels in one place.
+      const step = (yMax - yMin) / items.length;
+      order.forEach((k, r) => {items[k].cy = yMin + step * (r + 0.5);});
+      return items;
+    }
+    const pad = hair * 6;
+    let cursor = yMin;
+    for (const k of order) {                       // downward sweep: never start above the previous bottom
+      const it = items[k];
+      it.cy = Math.max(it.my, cursor + it.chipH / 2);
+      cursor = it.cy + it.chipH / 2 + pad;
+    }
+    cursor = yMax;
+    for (let r = order.length - 1; r >= 0; r--) {  // upward sweep: pull the stack back inside the bottom
+      const it = items[order[r]];
+      it.cy = Math.min(it.cy, cursor - it.chipH / 2);
+      cursor = it.cy - it.chipH / 2 - pad;
+    }
+    return items;
+  })();
+
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG_D0, color: FG}}>
       {title ? (
@@ -178,60 +278,38 @@ export const PhotoPlate: React.FC<{
           They ride a LIFTED plane: a label the film has added is not part of the photograph, and the
           shadow is what says so. */}
       <Plane depth={DEPTH.lifted}>
-        {shown.map((m, i) => {
+        {laidOut.map(({m, i, mx, my, cy, chipW, chipH, left, align, text}) => {
           const st = 0.30 + i * (0.42 / Math.max(1, shown.length));
           const on = easeOutCubic(clamp01(seg(t, st, st + 0.20)));
           if (on <= 0) return null;
-          const mx = px0 + clamp01(m.x ?? 0.5) * PW;
-          const my = top + clamp01(m.y ?? 0.5) * PH;
-          const text = String(m.label ?? '');
-          // the chip is measured from its own text, then clamped inside the PLATE — a mark near an edge
-          // must not push its label off the picture it is pointing into
-          // same advance problem as the caption: a CJK label is one glyph per em, so the Latin estimate
-          // makes its chip half as wide as it needs and the label wraps into a tall stack
-          const mShare = text.length
-            ? text.replace(/[^\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '').length / text.length : 0;
-          // A CHIP IS SIZED AND CLAMPED AGAINST THE ROOM IT HAS, which is not always the plate. Once the
-          // plate takes a PORTRAIT photograph's proportions it is narrow, and a chip capped at 42% of it
-          // came out a few characters wide — the labels stacked one word per line and covered the picture
-          // they were annotating. A tall plate leaves wide margins, and a callout in the margin with a
-          // leader running into the plate is what an annotated plate has always looked like. So the chip
-          // is measured against the frame and clamped into the CONTENT width, and the leader crosses the
-          // plate edge to reach its mark.
-          const roomL = px0 - W * 0.045, roomR = W - px1 - W * 0.045;
-          const marginated = Math.max(roomL, roomR) > W * 0.16;
-          const chipMax = marginated ? Math.min(W * 0.24, Math.max(roomL, roomR)) : PW * 0.42;
-          const chipW = Math.min(chipMax,
-            chipPad * 2 + text.length * chipFont * (0.54 + 0.46 * mShare) + chipFont * 1.6);
-          const gap = dot + Math.round(W * 0.008);
-          // WHEN THERE IS A MARGIN, THE CHIP GOES INTO IT — beside the plate, not on top of it. Placed
-          // merely on "the side with more room", a chip sits immediately next to its own mark and therefore
-          // ON the picture: the film's opening frame had the label "the only sign most people read" printed
-          // across the station sign it was pointing at. A callout in the margin with a leader running in is
-          // both the classic form and the only one that cannot occlude its own subject.
-          let left: number, align: 'left' | 'right';
-          if (marginated) {
-            const useRight = roomR >= roomL;
-            left = useRight ? px1 + gap : Math.max(W * 0.045, px0 - gap - chipW);
-            align = useRight ? 'left' : 'right';
-          } else {
-            const p = placeLabel(mx, px0 + hair * 3, px1 - hair * 3, chipW, gap);
-            left = p.left; align = p.align;
-          }
           const leftSide = align !== 'left';
+          const nearX = leftSide ? left + chipW : left;
           return (
             <React.Fragment key={i}>
-              {/* the leader, from the chip to the point */}
+              {/* THE LEADER IS AN ELBOW, because the chip no longer sits at its mark's height. It runs
+                  horizontally out of the point, then turns and rises or falls to the chip it belongs to —
+                  the classic annotated-plate form, and the only one that stays unambiguous once two marks
+                  close together have had their labels moved apart. When a chip did not move, the vertical
+                  leg is zero-length and this draws exactly the straight leader it always did. */}
               <div style={{position: 'absolute', top: my - hair,
-                left: leftSide ? left + chipW : mx, width: Math.max(0, leftSide ? mx - (left + chipW) : left - mx),
+                left: leftSide ? nearX : mx, width: Math.max(0, leftSide ? mx - nearX : left - mx),
                 height: hair * 2, background: ACC, opacity: on * 0.9}} />
+              <div style={{position: 'absolute', left: nearX - hair, top: Math.min(my, cy),
+                width: hair * 2, height: Math.abs(cy - my), background: ACC, opacity: on * 0.9}} />
               {/* the point itself — a ring, so it marks WITHOUT covering what it marks */}
               <div style={{position: 'absolute', left: mx - dot, top: my - dot, width: dot * 2, height: dot * 2,
                 borderRadius: dot * 2, border: `${hair * 3}px solid ${ACC}`, opacity: on,
                 transform: `scale(${0.5 + 0.5 * on})`}} />
-              {/* centred on the mark by TRANSFORM, not by half a line's height: the chip wraps to two lines
-                  whenever the label is long, and a one-line assumption hangs it below the point it names. */}
-              <div style={{position: 'absolute', left, top: my, width: chipW, transform: 'translateY(-50%)',
+              {/* Placed at the height the layout pass gave it — which is its mark's height whenever nothing
+                  else wanted that space. Centring every chip on its own mark by transform ignored the other
+                  chips entirely: three marks a few percent apart put three labels in the same place, and the
+                  first was completely buried under the third. */}
+              {/* The predicted height RESERVES the slot; the box itself is sized by its own text. Forcing the
+                  prediction onto the box was wrong in both directions — as `height` it CLIPPED the last line
+                  when the estimate came in short, and as `minHeight` it left an empty line of dead space
+                  whenever the estimate (deliberately conservative, so a caption can never overflow its band)
+                  came in long. Centred on `cy`, a box shorter than its slot stays inside it. */}
+              <div style={{position: 'absolute', left, top: cy, width: chipW, transform: 'translateY(-50%)',
                 opacity: on, background: SURF, border: `${hair}px solid ${LINE}`,
                 padding: `${chipPad}px ${chipPad * 1.4}px`, boxSizing: 'border-box',
                 font: `600 ${chipFont}px/1.25 ${mono}`, color: FG,

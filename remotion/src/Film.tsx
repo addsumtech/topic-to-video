@@ -15,7 +15,7 @@ import {slide} from '@remotion/transitions/slide';
 import {wipe} from '@remotion/transitions/wipe';
 import {clockWipe} from '@remotion/transitions/clock-wipe';
 import {captionBand, CAPTION_SIZE_FRAC, CAPTION_MARGIN_FRAC, CAPTION_LINES,
-        CAPTION_LEAD, CAPTION_LEAD_CJK} from './runtime/layout';
+        CAPTION_LEAD, CAPTION_LEAD_CJK, CJK_ADVANCE, latinAdvance} from './runtime/layout';
 import {SceneDurationContext, ReducedMotionContext, clamp01, SEAM_FRAMES} from './runtime/motion';
 import {groundLum, dnaGroundLum, dnaGroundY, groundGap, lumValue, type Lum, type GroundColors} from './runtime/shotLuma';
 import {Atmosphere, type Atmo} from './runtime/atmosphere';
@@ -109,11 +109,8 @@ const splitCaption = (text: string): string[] => {
 // `terminal` DNA sets ALL type to JetBrains Mono, where the same sentence measures 0.588. There the
 // estimate UNDER-counts, the caption wraps to more lines than the fit assumed, and it overflows the band
 // it was supposed to be guaranteed to fit. CJK measures 0.995, so 1.0 was already right.
-const MONO_FACE = /mono|code|consol|courier|menlo|iosevka/i;
-const advanceFor = (text: string, fontStack?: string, uniform?: boolean): number => {
-  if (isCJKText(text)) return 1.0;
-  return (uniform || (fontStack && MONO_FACE.test(fontStack))) ? 0.62 : 0.52;
-};
+const advanceFor = (text: string, fontStack?: string, uniform?: boolean): number =>
+  isCJKText(text) ? CJK_ADVANCE : latinAdvance(fontStack, uniform);
 
 const CLAUSE = /[,;，；、]|\s—\s/g;
 const fitCaption = (chunks: string[], size: number, measure: number, lines: number,

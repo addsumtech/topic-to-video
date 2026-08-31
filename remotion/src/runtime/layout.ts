@@ -127,3 +127,18 @@ export function placeLabel(x: number, x0: number, x1: number, labelW: number, ga
   const raw = align === 'left' ? x + gap : x - gap - labelW;
   return {left: Math.max(x0, Math.min(raw, x1 - labelW)), align};
 }
+
+// ── TYPE ADVANCE ────────────────────────────────────────────────────────────────────────────────────────
+// How wide a character is, as a fraction of the type size. Measured, not guessed: IBM Plex Sans averages
+// 0.452-0.478 em on real prose so 0.52 is conservative; JetBrains Mono measures 0.588 on the same sentence,
+// so a mono face needs 0.62 or every fit-estimate under-counts and the text overflows what it was promised.
+// CJK measures 0.995.
+//
+// It lives HERE because two files were predicting the same wrap with different numbers. Film.tsx had the
+// measured pair; PhotoPlate's callouts had a third value, 0.54, applied to a MONOSPACE chip — so the chip's
+// own layout pass predicted two lines where three were drawn, and the third line was cut off by the box
+// height derived from the same count. A duplicated constant is a bug with a delay.
+export const MONO_FACE = /mono|code|consol|courier|menlo|iosevka/i;
+export const CJK_ADVANCE = 1.0;
+export const latinAdvance = (fontStack?: string, uniform?: boolean) =>
+  (uniform || (fontStack && MONO_FACE.test(fontStack))) ? 0.62 : 0.52;

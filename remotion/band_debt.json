@@ -1,102 +1,104 @@
 {
- "_why": "Registers whose own content reaches into the band the renderer reserves for the burned caption, or past the action-safe border. Measured by scripts/shot_still_qa.py on a standalone still of each register at its demo defaults. Some are legitimately FULL-BLEED — a generative field's ground IS the frame, and its own texture counts as ink here — but several put a readable ELEMENT there: a strapline, a ticker row, a panel edge. This file exists so the debt is named rather than rediscovered, and tests/test_remotion.py asserts the list may SHRINK and never GROW.",
- "_measured_against": "band = captionBand(W,H) at 1920x1080 = 227px; thresholds shot_still_qa CAPTION_FRAC_ERR / EDGE_FRAC_ERR",
- "registers": {
-  "AntiDesignChaos": {
-   "band": 6.8,
-   "edge": 0.0
+  "_why": "Registers whose own content reaches into the band the renderer reserves for the burned caption, or past the action-safe border. Measured by scripts/shot_still_qa.py on a standalone still of each register at its demo defaults. Some are legitimately FULL-BLEED — a generative field's ground IS the frame, and its own texture counts as ink here — but several put a readable ELEMENT there: a strapline, a ticker row, a panel edge. This file exists so the debt is named rather than rediscovered, and tests/test_remotion.py asserts the list may SHRINK and never GROW.",
+  "_measured_against": "band = captionBand(W,H) at 1920x1080 = 227px; thresholds shot_still_qa CAPTION_FRAC_ERR / EDGE_FRAC_ERR",
+  "registers": {
+    "AntiDesignChaos": {
+      "band": 6.75,
+      "edge": 0.0
+    },
+    "AsciiField": {
+      "band": 8.14,
+      "edge": 0.0
+    },
+    "AtomOrbital": {
+      "band": 5.03,
+      "edge": 0.0
+    },
+    "AuroraFlow": {
+      "band": 54.28,
+      "edge": 15.07
+    },
+    "BeforeAfterSlider": {
+      "band": 22.53,
+      "edge": 0.0
+    },
+    "CartoonPop": {
+      "band": 6.12,
+      "edge": 0.0
+    },
+    "ClothWave": {
+      "band": 7.06,
+      "edge": 0.0
+    },
+    "ComicPanels": {
+      "band": 44.28,
+      "edge": 0.0
+    },
+    "FlowField": {
+      "band": 4.54,
+      "edge": 9.7
+    },
+    "FractureIn": {
+      "band": 10.58,
+      "edge": 0.0
+    },
+    "GameOfLife": {
+      "band": 11.83,
+      "edge": 12.75
+    },
+    "HalftonePop": {
+      "band": 29.62,
+      "edge": 35.09
+    },
+    "InfiniteCanvas": {
+      "band": 9.76,
+      "edge": 0.71
+    },
+    "IsometricAssembly": {
+      "band": 7.17,
+      "edge": 0.0
+    },
+    "MaterialHero": {
+      "band": 11.77,
+      "edge": 3.33
+    },
+    "MoleculeBallStick": {
+      "band": 5.48,
+      "edge": 0.0
+    },
+    "MorphForms": {
+      "band": 6.85,
+      "edge": 0.0
+    },
+    "NeonTickerWall": {
+      "band": 14.81,
+      "edge": 1.31
+    },
+    "PaperCutout": {
+      "band": 22.14,
+      "edge": 7.01
+    },
+    "PhysicsStack": {
+      "band": 6.77,
+      "edge": 0.0
+    },
+    "PixelBuild": {
+      "band": 37.33,
+      "edge": 0.0
+    },
+    "RadialBurst": {
+      "band": 5.25,
+      "edge": 2.06
+    },
+    "RidgeField": {
+      "band": 6.26,
+      "edge": 0.0
+    },
+    "SwissEditorial": {
+      "band": 0.0,
+      "edge": 4.8
+    }
   },
-  "AsciiField": {
-   "band": 6.5,
-   "edge": 0.0
-  },
-  "AtomOrbital": {
-   "band": 5.0,
-   "edge": 0.0
-  },
-  "AuroraFlow": {
-   "band": 54.3,
-   "edge": 14.3
-  },
-  "BeforeAfterSlider": {
-   "band": 22.5,
-   "edge": 0.0
-  },
-  "CartoonPop": {
-   "band": 5.8,
-   "edge": 0.0
-  },
-  "ClothWave": {
-   "band": 5.4,
-   "edge": 0.0
-  },
-  "ComicPanels": {
-   "band": 44.3,
-   "edge": 0.0
-  },
-  "FlowField": {
-   "band": 4.6,
-   "edge": 9.7
-  },
-  "FractureIn": {
-   "band": 10.6,
-   "edge": 0.0
-  },
-  "GameOfLife": {
-   "band": 12.2,
-   "edge": 18.2
-  },
-  "HalftonePop": {
-   "band": 29.7,
-   "edge": 35.1
-  },
-  "InfiniteCanvas": {
-   "band": 9.8,
-   "edge": 0.7
-  },
-  "IsometricAssembly": {
-   "band": 6.7,
-   "edge": 0.0
-  },
-  "MaterialHero": {
-   "band": 11.9,
-   "edge": 3.4
-  },
-  "MoleculeBallStick": {
-   "band": 5.6,
-   "edge": 0.0
-  },
-  "MorphForms": {
-   "band": 6.8,
-   "edge": 0.0
-  },
-  "NeonTickerWall": {
-   "band": 19.1,
-   "edge": 2.7
-  },
-  "PaperCutout": {
-   "band": 22.2,
-   "edge": 7.1
-  },
-  "PhysicsStack": {
-   "band": 6.8,
-   "edge": 0.0
-  },
-  "PixelBuild": {
-   "band": 37.3,
-   "edge": 0.0
-  },
-  "RadialBurst": {
-   "band": 5.2,
-   "edge": 2.1
-  },
-  "RidgeField": {
-   "band": 5.1,
-   "edge": 0.0
-  },
-  "SwissEditorial": {
-   "band": 0.0,
-   "edge": 5.1
-  }
- }
+  "_regenerate": "python3 scripts/band_debt.py --write",
+  "_measured_at": "the frame useT() calls SETTLED (REDUCED_MOTION_T), derived per register from its own exported DURATION — the frame every visual gate reads"
 }

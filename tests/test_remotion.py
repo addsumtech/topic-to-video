@@ -1528,17 +1528,25 @@ def test_the_caption_advance_follows_the_font_the_film_actually_uses():
     0.995, so 1.0 was already right.
     """
     film = open(os.path.join(_ROOT_TSX_DIR, "Film.tsx"), encoding="utf-8").read()
-    m = re.search(r"const advanceFor = \(text: string, fontStack\?: string, uniform\?: boolean\)", film)
-    assert m, "the caption's advance is a bare constant again, not a function of the font"
+    # The rule LIVES in runtime/layout.ts now, because PhotoPlate's callouts were predicting the same wrap
+    # with a third number (0.54, on a monospace chip — neither the mono 0.62 nor the proportional 0.52), and
+    # clipped their last line. This test follows the definition rather than the file it used to sit in.
+    layout = open(os.path.join(_ROOT_TSX_DIR, "runtime", "layout.ts"), encoding="utf-8").read()
+    assert re.search(r"export const latinAdvance = \(fontStack\?: string, uniform\?: boolean\)", layout), (
+        "the advance rule is not exported from layout.ts, so each caller is free to invent its own again")
+    assert "latinAdvance" in film, "Film.tsx no longer uses the shared advance rule"
     body = re.sub(r"//[^\n]*", "", film)
     assert not re.search(r"isCJKText\(t\) \? 1\.0 : 0\.52", body), (
         "fitCaption still hardcodes the Inter advance")
     assert not re.search(r"isCJK \? 1\.0 : 0\.52", body), "the line estimate still hardcodes it"
 
     # the mono branch must be WIDER than the proportional one, and both must bracket the measurements
-    mono = float(re.search(r"\? (0\.\d+) : 0\.52", film).group(1))
+    mono = float(re.search(r"\? (0\.\d+) : 0\.52", layout).group(1))
     assert 0.58 <= mono <= 0.70, "the monospace advance %.2f does not bracket the measured 0.588" % mono
     # and uniformType must actually reach the caption, or the terminal case is unfixed
+    assert re.search(r"latinAdvance\(mono\)", open(
+        os.path.join(_ROOT_TSX_DIR, "shots", "PhotoPlate.tsx"), encoding="utf-8").read()), (
+        "PhotoPlate's callouts predict their own wrap again instead of using the measured rule")
     assert "dnaUniform" in film and "uniformType" in film, (
         "the DNA's uniform-type flag never reaches the caption, so an all-mono film is still mis-estimated")
 
@@ -1997,9 +2005,31 @@ def test_the_caption_band_debt_may_shrink_and_never_grow():
              for f in _glob.glob(os.path.join(root, "remotion", "src", "shots", "*.tsx"))}
     stale = known - shots
     assert not stale, "band_debt.json names registers that no longer exist: %r" % sorted(stale)
-    assert len(known) <= 28, (
+    # EXACTLY the current count, not a round number above it. It was 28 against 24 recorded — four spare
+    # slots, so four more registers could join the debt and the "ratchet" would stay green. A ratchet with
+    # slack is not a ratchet. When the debt genuinely shrinks, this number comes down in the same commit;
+    # raising it is the deliberate act it should always have been.
+    assert len(known) <= 24, (
         "the recorded caption-band debt is %d registers; it is a ratchet and may only shrink" % len(known))
+
+    # Every entry must actually BE in debt. A register repaired but left in the list makes the debt look
+    # larger than it is and the ratchet harder to move; the manifest is a measurement, not a memory.
+    import importlib.util as _il
+    _sp = _il.spec_from_file_location("ssq_probe", os.path.join(root, "scripts", "shot_still_qa.py"))
+    _ssq = _il.module_from_spec(_sp); _sp.loader.exec_module(_ssq)
+    stale = [n for n, v in manifest["registers"].items()
+             if v["band"] <= _ssq.CAPTION_FRAC_ERR * 100 - 0.05
+             and v["edge"] <= _ssq.EDGE_FRAC_ERR * 100 - 0.05]
+    assert not stale, ("band_debt.json records %r as in debt, but their measurements are under both "
+                       "thresholds — re-run %s" % (sorted(stale), "scripts/band_debt.py --write"))
+
     assert manifest.get("_why"), "the debt manifest lost the explanation of what it records"
+    # The numbers were decorative: nothing read them, so three registers' debt grew unnoticed (AsciiField
+    # 6.5 -> 8.1, ClothWave 5.4 -> 7.1, RidgeField 5.1 -> 6.3). They are checkable now only because there is
+    # a command that reproduces them; a manifest that does not name it is back to being a memory.
+    regen = manifest.get("_regenerate", "")
+    assert "band_debt.py" in regen and os.path.exists(os.path.join(root, "scripts", "band_debt.py")), (
+        "band_debt.json must name the command that regenerates it, and that command must exist")
 
 
 def test_the_keyframe_is_the_frame_useT_calls_settled():
