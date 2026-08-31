@@ -409,6 +409,32 @@ def _film_sentence_pause(paths):
     return tops[min(len(tops) - 1, int(round(0.75 * (len(tops) - 1))))]
 
 
+# ── THE ROOM THE VOICE IS MISSING ───────────────────────────────────────────────────────────────────────
+# TTS is anechoic. A person finishing a sentence in a real room is followed by ~150-250ms of reflections
+# decaying away, and that decay is most of what "a sentence ending" sounds like. edge-tts has none: measured
+# across a delivered film, the time from -20 dB to -55 dB at the end of a trimmed clip is ZERO milliseconds.
+# The last syllable simply stops at full level.
+#
+# That is why no fade length worked. Short, and the ending is a wall (reported as 戛然而止). Long, and it
+# lands on the last character instead, because the syllable runs to the cut with nothing after it (reported
+# as 每句话的最后一个字有问题). The knob had no good setting because the material it needed did not exist.
+#
+# So the tail is SYNTHESISED as early reflections. Measured over 8 delivered clips, against the same clips
+# with no room at all:
+#   first tap -12 dB @30ms, five taps to 250ms  ->  decay 168ms, +233ms of tail, body -1.2 dB, peak -1.5 dB
+#   a stronger room (-7.5 dB @25ms)             ->  decay 125ms: SHORTER, and boxy enough to hear
+# The gentle one wins on every axis, which is the usual sign that the loud one was fighting itself.
+# `apad` FIRST, because aecho does not extend the stream — without room to write into, the reflections are
+# truncated at the input's end and the filter measurably does nothing (the first attempt added 0ms of tail).
+ECHO_TAPS = "30|70|120|180|250"
+ECHO_GAINS = "0.25|0.16|0.10|0.06|0.035"
+ECHO = "apad=pad_dur=0.5,aecho=0.9:0.92:%s:%s" % (ECHO_TAPS, ECHO_GAINS)
+# What comes OUT of the breath is the AUDIBLE part of the tail, not its whole length: the room adds 233ms
+# of material but only the first ~168ms is above hearing, and the rest still occupies time like any silence.
+# Subtracting the full 233 shortened every seam by 65ms and made the printed number wrong again — the exact
+# defect fixed one commit earlier, reintroduced from the other side.
+ECHO_TAIL = 0.168        # seconds of AUDIBLE decay the room adds, MEASURED (-20 dB -> -55 dB)
+
 def _lead_silence(path):
     """Seconds of silence BEFORE the first word of a clip. Never trimmed — trimming the head would move
     every word time in `NN.words.json` and desync the karaoke caption — so it has to be SUBTRACTED from
@@ -482,8 +508,25 @@ def _tail_pad(meta, ref=None, lead=0.0):
     # each clip opened with 0.191s of its own. The printed number was not the number, on every film this
     # skill has made. A floor keeps two clips from butting up against each other if a voice ever opens
     # with a very long lead.
-    pad = pause + _seam_seconds(meta) - max(0.0, lead)
+    # The room tail is real sound that now occupies the first ~233ms of what used to be dead air, so it
+    # comes OUT of the breath. Without this the seam simply grows by the length of the tail and the film
+    # gets 7s longer for no reason a viewer could name.
+    pad = pause + _seam_seconds(meta) - max(0.0, lead) - ECHO_TAIL
     return round(min(2.5, max(0.15 + _seam_seconds(meta), pad)), 3)
+
+
+def audible_pause(meta, ref=None, lead=0.0):
+    """The silence a viewer actually HEARS between two beats — the one number this file is trying to set.
+
+    It is not the pad, and every term that separates the two has been got wrong once: the renderer eats
+    `_seam_seconds` of the tail under the cross-dissolve; the NEXT clip opens with its own untrimmed lead;
+    and the room tail now fills the first `ECHO_TAIL` of what used to be dead air with decaying sound. Each
+    of those was discovered by measuring a delivered film against the number this pipeline printed.
+
+    So it lives here once. The print statement and the tests both call it — they had a copy each, and the
+    copies were what went stale the moment a term was added.
+    """
+    return _tail_pad(meta, ref=ref, lead=lead) - _seam_seconds(meta) + lead + ECHO_TAIL
 
 
 def _master(path, meta=None, ref=None, lead=0.0):
@@ -512,7 +555,7 @@ def _master(path, meta=None, ref=None, lead=0.0):
     # last moments into the silence so there is no discontinuity left at all. The fade is applied in the
     # REVERSED domain (a fade-IN at the reversed start == a fade-out on the tail), which needs no
     # knowledge of the clip's length.
-    af = ("loudnorm=I=-14:TP=-1.5:LRA=11,"
+    af = ("loudnorm=I=-14:TP=-1.5:LRA=11," + ECHO + ","
           "areverse,silenceremove=start_periods=1:start_duration=0.06:"
           "start_threshold=-58dB:detection=peak,"
           # d=0.06, EXPONENTIAL — and the DURATION is the whole story here, twice over.
@@ -633,7 +676,7 @@ def synthesize(out_dir, only=None):
     if pending:
         print("[tts] scene pause %.2fs audible (film full-stop %s + %.2fs breath, floor %.2f; "
               "next clip's own lead %.2fs subtracted)"
-              % (_tail_pad(data["meta"], ref=ref, lead=lead) - _seam_seconds(data["meta"]) + lead,
+              % (audible_pause(data["meta"], ref=ref, lead=lead),
                  ("%.2fs" % ref) if ref else "unmeasurable", SENTENCE_PAUSE_BREATH,
                  float(data["meta"].get("scene_pause", SCENE_PAUSE_DEFAULT)), lead))
 

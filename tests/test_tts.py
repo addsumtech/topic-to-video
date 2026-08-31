@@ -379,8 +379,10 @@ def test_scene_pause_is_what_the_viewer_hears_on_both_tiers():
     for pause in (0.35, 0.55, 0.9):
         rem = {"renderer": "remotion", "fps": 30, "scene_pause": pause}
         htm = {"renderer": "html", "fps": 30, "scene_pause": pause}
-        audible_rem = tts._tail_pad(rem) - _eats(rem)
-        audible_htm = tts._tail_pad(htm) - _eats(htm)
+        # ONE definition, called — not re-derived here. Both of these lines used to restate the formula
+        # and both went stale the moment the room tail was added to the chain.
+        audible_rem = tts.audible_pause(rem)
+        audible_htm = tts.audible_pause(htm)
         assert abs(audible_rem - pause) < 1e-6, (pause, audible_rem)
         assert abs(audible_htm - pause) < 1e-6, (pause, audible_htm)
         assert abs(audible_rem - audible_htm) < 1e-6, "the two tiers no longer sound the same"
@@ -480,6 +482,54 @@ def test_a_clip_ends_in_a_decay_not_a_cliff():
                          "into the natural tail (-45dB keeps 0.860s here, -58dB keeps 0.975s)" % kept)
 
 
+def test_the_ending_has_a_room_to_decay_into():
+    """The fix that actually worked, and the one nothing was guarding.
+
+    TTS is anechoic. A person finishing a sentence in a room is followed by 150-250ms of reflections dying
+    away, and that decay is most of what an ending sounds like. Measured on a delivered film, the time from
+    -20 dB to -55 dB at the end of a trimmed edge-tts clip was ZERO milliseconds — the last syllable stops
+    at full level. That is why no fade length worked: short and the ending is a wall (reported as 戛然而止),
+    long and it lands on the last character instead (reported as 每句话的最后一个字有问题). The knob had no
+    good setting because the material it needed did not exist.
+
+    Synthesised early reflections give it that material. Measured after the change: 140ms of decay on the
+    delivered clips, and the film's total silence fell from 28% to 14% because the tail now occupies what
+    used to be dead air. Removing the room passes every other test in this file, which is why this one
+    exists.
+    """
+    import array
+    import math
+    import subprocess
+    import tempfile
+    import tts
+    if not _common.have_tool("ffmpeg"):
+        import pytest
+        pytest.skip("ffmpeg not available")
+    d = tempfile.mkdtemp()
+    clip = os.path.join(d, "abrupt.wav")
+    # a tone that stops dead at full level: exactly what a trimmed TTS clip does
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
+                    "-i", "sine=frequency=300:duration=1.0:sample_rate=48000", clip], check=True)
+    tts._master(clip, {"renderer": "remotion", "fps": 30})
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", clip, "-ac", "1", "-ar", "48000",
+                          "-f", "s16le", "-"], capture_output=True).stdout
+    x = array.array("h"); x.frombytes(raw)
+    end = max((i for i in range(len(x)) if abs(x[i]) > 2), default=len(x) - 1) + 1
+    win = int(0.005 * 48000)
+    prof = []
+    for j in range(80, 0, -1):
+        i = end - j * win
+        seg = x[max(0, i):i + win]
+        pk = max((abs(v) for v in seg), default=0)
+        prof.append(20 * math.log10(pk / 32768.0) if pk else -99.0)
+    loud = max((i for i, v in enumerate(prof) if v > -20), default=0)
+    quiet = max((i for i, v in enumerate(prof) if v > -55), default=len(prof) - 1)
+    decay_ms = (quiet - loud) * 5
+    assert decay_ms >= 60, (
+        "the ending decays from -20 dB to -55 dB in %d ms — an anechoic clip stops dead at full level and "
+        "no fade length can fix that; the room tail is what gives the ending somewhere to go" % decay_ms)
+
+
 def test_the_fade_does_not_eat_the_last_syllable():
     """The other half of the same knob, and the two pull against each other.
 
@@ -550,7 +600,7 @@ def test_the_scene_pause_is_measured_against_the_films_own_full_stop(tmp_path):
     assert abs(ref - gap) < 0.08, (ref, gap)
 
     meta = {"renderer": "html", "fps": 30}
-    audible = tts._tail_pad(meta, ref=ref)
+    audible = tts.audible_pause(meta, ref=ref)
     assert audible > gap + 0.3, "a scene break no longer clears a sentence break: %.2f" % audible
 
     # THE BREATH IS LOAD-BEARING: at 0 the seam collapses back onto the floor and this film would
@@ -558,7 +608,7 @@ def test_the_scene_pause_is_measured_against_the_films_own_full_stop(tmp_path):
     keep = tts.SENTENCE_PAUSE_BREATH
     try:
         tts.SENTENCE_PAUSE_BREATH = 0.0
-        assert tts._tail_pad(meta, ref=ref) < 1.6 * gap
+        assert tts.audible_pause(meta, ref=ref) < 1.6 * gap
     finally:
         tts.SENTENCE_PAUSE_BREATH = keep
 
@@ -566,7 +616,7 @@ def test_the_scene_pause_is_measured_against_the_films_own_full_stop(tmp_path):
     # voice whose full stop runs 0.57s (-> 0.97s), it asks a 0.90s-stop voice for 1.53s, which reads as the
     # film stopping. The gap between a generous voice and a terse one must stay roughly one breath, not
     # scale with the voice.
-    terse, generous = tts._tail_pad(meta, ref=0.57), tts._tail_pad(meta, ref=0.90)
+    terse, generous = tts.audible_pause(meta, ref=0.57), tts.audible_pause(meta, ref=0.90)
     assert abs((generous - terse) - 0.33) < 0.02, (terse, generous)
 
     # THE FLOOR IS LOAD-BEARING: a film of single unbroken clauses measures nothing, and must still
@@ -574,10 +624,10 @@ def test_the_scene_pause_is_measured_against_the_films_own_full_stop(tmp_path):
     flat = str(tmp_path / "flat.mp3")
     _tone_clip(flat, tone_s=1.4)
     assert tts._film_sentence_pause([flat]) is None
-    assert abs(tts._tail_pad(meta, ref=None) - tts.SCENE_PAUSE_DEFAULT) < 1e-6
+    assert abs(tts.audible_pause(meta, ref=None) - tts.SCENE_PAUSE_DEFAULT) < 1e-6
 
     # AND IT IS A PAUSE, NOT A HOLD: one dramatic 3s silence must not freeze every scene of the film.
-    assert tts._tail_pad(meta, ref=3.0) <= tts.MAX_SCENE_PAUSE + 1e-6
+    assert tts.audible_pause(meta, ref=3.0) <= tts.MAX_SCENE_PAUSE + 1e-6
 
 
 @pytest.mark.skipif(not _common.have_tool("ffmpeg"), reason="needs ffmpeg")
