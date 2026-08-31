@@ -113,6 +113,104 @@ def defaults_from_source(src, shot):
     return out
 
 
+def exported_props(shot):
+    """The prop names a shot's EXPORTED component actually accepts, or None if it cannot be read.
+
+    WHY THIS IS A GATE. A prop the register does not have is silently dropped by React, and the register
+    then draws its own default — so a beat can carry perfectly good topic copy under the wrong key and put
+    the register's DEMO WORDS on screen instead. It happened on this library's own first real film: the
+    spine beat and the closing beat both passed `text` to KineticManifesto, whose prop is `phrases`, so the
+    two most important frames in a Chinese film rendered the English demo line "YOUR AI TEAM." The mistake
+    is easy to make from the outside, because most of these files declare an inner helper component FIRST —
+    read the wrong `React.FC<{...}>` and you get a private interface that no board can address.
+    """
+    try:
+        src = open(os.path.join(_SHOTS, shot + ".tsx"), encoding="utf-8").read()
+    except OSError:
+        return None
+    m = re.search(r"export const %s\s*:\s*React\.FC<\{" % re.escape(shot), src)
+    if not m:
+        return None
+    st, depth = m.end() - 1, 0
+    end = st
+    for k in range(st, len(src)):
+        if src[k] == "{":
+            depth += 1
+        elif src[k] == "}":
+            depth -= 1
+            if depth == 0:
+                end = k
+                break
+    blk = re.sub(r"//[^\n]*", "", src[st + 1:end])
+    keys, depth, cur = [], 0, ""
+    for ch in blk:
+        if ch in "{[(":
+            depth += 1
+        elif ch in "}])":
+            depth -= 1
+        if ch == ";" and depth == 0:
+            keys.append(cur); cur = ""
+        else:
+            cur += ch
+    keys.append(cur)
+    out = set()
+    for k in keys:
+        mm = re.match(r"\s*([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*:", k)
+        if mm:
+            out.add(mm.group(1))
+    return out
+
+
+_LATIN_WORD = re.compile(r"[A-Za-z][A-Za-z'-]{1,}")
+# A default that is a VALUE, not copy — a colour, a CSS length, an easing name. The first version of this
+# check counted `ff` and `fa` inside `#ff4fa3` as two English words and reported a hex accent as "English
+# demo copy" on beat 9. A gate that cries wolf is worse than no gate: it teaches the author to skim.
+_NOT_COPY = re.compile(r"^\s*(#[0-9a-fA-F]{3,8}|rgba?\(|hsla?\(|[\d.]+(px|em|rem|%|s|ms|deg)?|"
+                       r"var\(|linear-gradient|radial-gradient|ease|ease-in|ease-out|none|auto)\s*$")
+
+
+def _is_demo_copy(v):
+    """True when a default STRING is prose the viewer would read, not a value the renderer would consume."""
+    if _NOT_COPY.match(v or ""):
+        return False
+    words = _LATIN_WORD.findall(v or "")
+    # Prose has at least two Latin words AND whitespace between them; `#ff4fa3` has neither.
+    return len(words) >= 2 and any(ch.isspace() for ch in (v or ""))
+
+
+def default_copy(shot):
+    """{prop: [default strings it will draw]} — including a default that is a NAMED module constant.
+
+    `shot_defaults` reads literal defaults, which is enough to spot a demo word left in a prop the board
+    DID set. This answers the other half: what a register prints when the board sets nothing. Those
+    defaults are demo copy by construction, and on a film in another language they are the register talking
+    over the film — `SwissEditorial`'s untouched ticker scrolled "WORKBUDDY -- ON YOUR MACHINE -- YOUR AI
+    TEAM -- NO CLOUD" across a Chinese beat, and NO CLOUD contradicted the film's own sources.
+    """
+    try:
+        src = open(os.path.join(_SHOTS, shot + ".tsx"), encoding="utf-8").read()
+    except OSError:
+        return {}
+    consts = {}
+    for cm in re.finditer(r"const\s+([A-Z][A-Z0-9_]*)\s*(?::[^=]+)?=\s*(\[[^\]]*\]|'[^']*'|\"[^\"]*\")", src):
+        consts[cm.group(1)] = re.findall(r"'([^']*)'|\"([^\"]*)\"", cm.group(2))
+    m = re.search(r"export const %s\s*:\s*React\.FC<" % re.escape(shot), src)
+    if not m:
+        return {}
+    blk = src[m.end():]
+    stop = blk.find("=> {")
+    blk = blk[:stop if stop > 0 else 4000]
+    out = {}
+    for pm in re.finditer(r"(\w+)\s*:\s*[A-Z_][A-Za-z0-9_]*\s*=\s*([A-Z][A-Z0-9_]*|\[[^\]]*\]|'[^']*')", blk):
+        prop, raw = pm.group(1), pm.group(2)
+        vals = consts.get(raw) if raw in consts else re.findall(r"'([^']*)'", raw)
+        flat = [a or b for pair in (vals or []) for a, b in ([pair] if isinstance(pair, tuple) else [(pair, "")])]
+        flat = [x for x in flat if x]
+        if flat:
+            out[prop] = flat
+    return out
+
+
 def _flat(v, prefix=""):
     """Flatten shot_props to {path: scalar} so two beats' props can be compared and scanned."""
     out = {}
@@ -137,6 +235,35 @@ def static_checks(board):
         props = s.get("shot_props") or {}
         if not shot:
             continue
+        # (0) A PROP THE REGISTER DOES NOT HAVE. React drops it silently and the register draws its own
+        # default instead, so a beat carrying perfect topic copy under the wrong key ships the DEMO words.
+        # Both of this film's most important frames — its spine and its close — passed `text` to a register
+        # whose prop is `phrases`, and rendered the English demo line "YOUR AI TEAM." in a Chinese film.
+        iface = exported_props(shot)
+        if iface is not None:
+            unknown = sorted(k for k in props if k not in iface)
+            if unknown:
+                errors.append("beat %d (%s): %s is not a prop of this register (it takes %s) — React drops "
+                              "it and the register draws its own DEMO copy instead"
+                              % (beat, shot, ", ".join(repr(u) for u in unknown), ", ".join(sorted(iface))))
+
+        # (0b) A prop left UNSET whose default is demo copy in another language. This passes every key
+        # check by construction: the prop name is right, it is simply absent. SwissEditorial's untouched
+        # ticker scrolled "WORKBUDDY -- ON YOUR MACHINE -- YOUR AI TEAM -- NO CLOUD" across a Chinese beat,
+        # and NO CLOUD contradicted that film's own sources. Only fires on a film whose language is not
+        # English, and only for a default carrying two or more Latin WORDS — a one-word 'REC' belongs to
+        # the form and is declared as INTRINSIC_TEXT.
+        lang = str((board.get("meta") or {}).get("language") or "").lower()
+        if lang and not lang.startswith("en"):
+            for key, vals in default_copy(shot).items():
+                if key in props:
+                    continue
+                latin = [v for v in vals if _is_demo_copy(v)]
+                if latin:
+                    errors.append("beat %d (%s): '%s' is unset, so the register draws its own English demo "
+                                  "copy %r on a %s film — pass the prop"
+                                  % (beat, shot, key, latin[0][:60], lang))
+
         # (1) a register's DEMO DEFAULT left in place on a real topic
         defs = shot_defaults(shot)
         flat = _flat(props)

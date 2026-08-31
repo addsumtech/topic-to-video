@@ -17,9 +17,10 @@ const Block: React.FC<{i: number; t: number; children: React.ReactNode}> = ({i, 
   return <div style={{opacity: clamp01(r), transform: `translateY(${lerp(46, 0, clamp01(r))}px)`, marginBottom: 30}}>{children}</div>;
 };
 
-export const BlockAssembly: React.FC<{title?: string; callout?: string; items?: string[]}> = ({
+export const BlockAssembly: React.FC<{title?: string; callout?: string; items?: string[]; tableHeaders?: string[]}> = ({
   title = 'Q3 Board Deck', callout = 'Goal: a board-ready deck from the Q3 numbers, by Friday.',
-  items = ['Pull the financials', 'Draft the narrative', 'Design 24 slides']} = {}) => {
+  items = ['Pull the financials', 'Draft the narrative', 'Design 24 slides'],
+  tableHeaders: TABLE_HEADERS = ['', '', '']} = {}) => {
   const dna = useDNA();
   const BG = dna?.bg ?? '#faf9f7', FG = dna?.fg ?? INK, ACC = dna?.accent ?? ACCENT, GOOD = dna?.accent2 ?? '#12b76a';
   const MUTE = dna?.line ?? DIM, SURF = dna?.surface ?? '#fff', DIMc = dna?.dim ?? '#8b877d', ON = dna?.onAccent ?? '#fff';
@@ -53,7 +54,7 @@ export const BlockAssembly: React.FC<{title?: string; callout?: string; items?: 
           <div style={{border: `1px solid ${MUTE}`, borderRadius: 12, overflow: 'hidden'}}>
             {[0, 1, 2].map(r => <div key={r} style={{display: 'flex', borderBottom: r < 2 ? `1px solid ${MUTE}` : 'none'}}>
               {[0, 1, 2].map(c => <div key={c} style={{flex: 1, padding: '22px 26px', borderRight: c < 2 ? `1px solid ${MUTE}` : 'none',
-                font: `${r === 0 ? 700 : 500} 30px/1 var(--f-body, Inter)`, color: r === 0 ? FG : DIMc}}>{r === 0 ? ['Metric', 'Q2', 'Q3'][c] : ['—', '—', '—'][c]}</div>)}
+                font: `${r === 0 ? 700 : 500} 30px/1 var(--f-body, Inter)`, color: r === 0 ? FG : DIMc}}>{r === 0 ? (TABLE_HEADERS[c] ?? '') : '—'}</div>)}
             </div>)}
           </div>
         </Block>

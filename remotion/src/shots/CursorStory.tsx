@@ -23,7 +23,7 @@ function cursorAt(tt: number, W: number, H: number): [number, number] {
   return [x, y];
 }
 
-export const CursorStory: React.FC<{items?: string[]}> = ({items: ROWS = DEFAULT_ROWS} = {}) => {
+export const CursorStory: React.FC<{items?: string[]; doneLabel?: string; doneNote?: string; command?: string}> = ({items: ROWS = DEFAULT_ROWS, doneLabel: DONE = '', doneNote: DONE_NOTE = '', command: CMD = ''} = {}) => {
   const dna = useDNA();
   const RED = dna?.accent ?? RED_D0, BG = dna?.bg ?? BG_D0;
   const t = useT();
@@ -52,15 +52,19 @@ export const CursorStory: React.FC<{items?: string[]}> = ({items: ROWS = DEFAULT
       {paletteOn && (
         <div style={{position: 'absolute', left: W / 2 - 460, top: 300, width: 920, background: 'rgba(20,24,32,.96)',
           border: `1px solid ${RED}55`, borderRadius: 18, boxShadow: '0 40px 100px rgba(0,0,0,.6)', padding: '30px 36px'}}>
-          <div style={{font: '500 42px/1 var(--f-body, Inter)', color: '#eef2f8'}}>Clean up all six ▍</div>
+          <div style={{font: '500 42px/1 var(--f-body, Inter)', color: '#eef2f8'}}>{CMD}{'\u258d'}</div>
         </div>
       )}
       {/* result toast after Return (jump-cut past the work) */}
       {done && (
         <div style={{position: 'absolute', left: W / 2 - 300, top: 340, width: 600, opacity: easeOutBack(seg(t, 0.74, 0.86)),
           background: '#12241a', border: '1px solid #1f6b3f', borderRadius: 16, padding: '34px 40px', textAlign: 'center'}}>
-          <div style={{font: '800 60px/1 var(--f-body, Inter)', color: '#59d98b'}}>Cleared · 6 tasks</div>
-          <div style={{font: '600 32px/1 var(--f-body, Inter)', color: '#89e0a8', marginTop: 12}}>in one keystroke</div>
+          {/* THE RESULT LINE COMES FROM THE FILM. These two were literals — `Cleared · 6 tasks` and
+              `in one keystroke` — so every film that reached for this register printed English, and the
+              「6」 was a count nobody supplied. No default on doneLabel: a number is not invented, so with
+              nothing passed the block simply does not draw. */}
+          {DONE ? <div style={{font: '800 60px/1 var(--f-body, Inter)', color: '#59d98b'}}>{DONE}</div> : null}
+          {DONE_NOTE ? <div style={{font: '600 32px/1 var(--f-body, Inter)', color: '#89e0a8', marginTop: 12}}>{DONE_NOTE}</div> : null}
         </div>
       )}
       {/* keyboard chips */}

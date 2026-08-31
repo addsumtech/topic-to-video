@@ -8,12 +8,17 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 
+// A reticle SCANS and then LOCKS: those two states are the form, not the topic — so they are
+// declared here AND exposed as props, because a Chinese film should be able to say them in Chinese.
+export const INTRINSIC_TEXT = ['SCANNING…', '● LOCKED'];
+
 export const DURATION = 150; // 5s
 const BG_D0 = '#070b0e', CYAN_D0 = '#37e0d4', GREEN_D0 = '#3affa0';
 
-export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?: string}> = ({
+export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?: string; scanLabel?: string; lockLabel?: string}> = ({
   target: TARGET = 'WorkBuddy', readouts: READOUTS = ['SIGNAL · strong', 'SCOPE · full workspace', 'STATUS · ready'],
-  title: TITLE = 'Locking on'} = {}) => {
+  title: TITLE = 'Locking on',
+  scanLabel: SCAN_LABEL = 'SCANNING…', lockLabel: LOCK_LABEL = '● LOCKED'} = {}) => {
   const dna = useDNA();
   const BG = dna?.bg ?? BG_D0, CYAN = dna?.accent ?? CYAN_D0, GREEN = dna?.accent2 ?? GREEN_D0;
   const t = useT();
@@ -63,7 +68,7 @@ export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?:
         <div style={{color: '#eafffb', font: '800 84px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.02em',
           textShadow: `0 0 40px ${col}66`}}>{TARGET}</div>
         <div style={{marginTop: 14, color: col, font: '700 26px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em',
-          opacity: locked ? lockIn : 0.6 * clamp01(seg(t, 0.4, 0.6))}}>{locked ? '● LOCKED' : 'SCANNING…'}</div>
+          opacity: locked ? lockIn : 0.6 * clamp01(seg(t, 0.4, 0.6))}}>{locked ? LOCK_LABEL : SCAN_LABEL}</div>
       </div>
 
       {/* side readouts */}

@@ -1366,8 +1366,21 @@ def _film_language(meta, slides, errors, warnings):
     # message read "20 of 19 cuts are MARKED"
     marked = [i for i, s in enumerate(slides)
               if i > 0 and (s.get("transition_in") or s.get("transition_style"))]
-    dna = meta.get("design_dna") or {}
+    # `meta.design_dna` is EITHER an inline DNA object OR a preset NAME — both are documented, both are
+    # accepted by coerceDna() on the TS side, and the string form is validated a few hundred lines below.
+    # This check read it as a dict unconditionally and crashed the whole gate with an AttributeError the
+    # first time a film declared its DNA the short way. A validator that dies on a legal board is worse
+    # than the defect it was looking for: nothing downstream of it ran.
+    dna_raw = meta.get("design_dna")
+    dna = dna_raw if isinstance(dna_raw, dict) else {}
     native = (dna.get("seam") or {}).get("type")
+    if isinstance(dna_raw, str) and dna_raw:
+        # A preset carries its OWN native seam (terminal clears the screen, editorial lays a sheet down),
+        # so the swamping check below cannot see it from here. Say so rather than reporting a clean run.
+        warnings.append(
+            "meta.design_dna is the preset %r, whose NATIVE seam this check cannot resolve — the "
+            "\"declared seam swamps the marks\" test below is therefore only measuring the %d authored "
+            "mark(s). Declare `seam` inline if you need that checked." % (dna_raw, len(marked)))
     if not marked:
         warnings.append(
             "%d beats and not one MARKED seam — every cut is the anonymous default. The tier implements "

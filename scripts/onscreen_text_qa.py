@@ -110,6 +110,20 @@ def scan(path):
         t = t.strip()
         if t and _WORDY.search(t) and not _CSS.search(t) and not _CODE.search(t):
             found.add(t)
+    # A literal inside a JSX EXPRESSION CONTAINER. The tag-text pass above excludes `{}` by construction,
+    # so `{r === 0 ? ['Metric', 'Q2', 'Q3'][c] : ...}` was invisible to the one gate whose whole job is to
+    # find words a register prints on every film. It put an empty English metrics table onto a Chinese
+    # film's CLIMAX frame, and this module reported that register as clean.
+    for expr in re.findall(r">\s*\{([^<]{0,400}?)\}\s*<", body):
+        for m in _STR.finditer(expr):
+            t = (m.group(1) or m.group(2) or m.group(3) or "").strip()
+            # A container also holds IDENTIFIERS — `dnaHas(dna, 'prompt')` is a feature key, not a word on
+            # screen, and reporting it would train the reader to skim this list. Copy a viewer reads is
+            # capitalised, spaced, or non-ASCII; a bare lowercase word is a key.
+            if not t or not (any(c.isupper() for c in t) or " " in t or any(ord(c) > 127 for c in t)):
+                continue
+            if _WORDY.search(t) and not _CSS.search(t) and not _CODE.search(t):
+                found.add(t)
     # a literal assigned to a text-bearing key
     for t in re.findall(r"(?:txt|label|text|children|word|title|caption)\s*:\s*[`'\"]([^`'\"$]{4,60})[`'\"]", body):
         t = t.strip()
