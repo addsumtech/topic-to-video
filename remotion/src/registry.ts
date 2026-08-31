@@ -149,6 +149,7 @@ import {Inscription} from './shots/Inscription';
 import {TechnicalPlate} from './shots/TechnicalPlate';
 import {ProfileGrowth} from './shots/ProfileGrowth';
 import {PhotoPlate} from './shots/PhotoPlate';
+import {GrantedTree} from './shots/GrantedTree';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
@@ -183,6 +184,7 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   TechnicalPlate,
   ProfileGrowth,
   PhotoPlate,
+  GrantedTree,
 };
 
 export const SHOT_IDS = Object.keys(REGISTRY);

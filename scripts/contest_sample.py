@@ -25,6 +25,25 @@ _STOP = {"a", "an", "the", "of", "for", "to", "and", "or", "in", "on", "with", "
          "is", "are", "it", "its", "about", "that", "this", "into", "as", "at", "by", "from"}
 
 
+# CJK function words that carry no subject on their own. A topic phrase made only of these is not a topic.
+_CJK_FUNCTION = set("的了是在和与把被为对从到就都也还很更最之其而或即如若则也吗呢吧啊让使给向于以及但由并且个只有些这那什么怎么为什么")
+
+
+def _cap_run(run, cjk):
+    """A content run, length-capped — but a LATIN word is never cut. The 8-character cap is a CJK measure
+    (about the width of a readable node label); applied to `WorkBuddy` it produced `WorkBudd`, a fragment
+    that is not the product's name and not a word."""
+    run = run.strip()
+    if len(run) < 2:
+        return None
+    return run[:8] if cjk.search(run) else run[:22]
+
+
+def _cjk_content(seg):
+    """The CONTENT characters of a CJK segment — what is left once function words are removed."""
+    return [c for c in seg if c not in _CJK_FUNCTION and not c.isspace()]
+
+
 def _kit(topic):
     """Derive a TOPIC content kit from the route string so samples carry the topic, not a register's WorkBuddy demo:
     a short title, a handful of distinct meaningful tokens (for nodes/spokes/names), a slug, and a tagline."""
@@ -42,19 +61,54 @@ def _kit(topic):
     cjk = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]")
     phrases = []
     if cjk.search(t):
-        for seg in re.split(r"[：:，,。.；;、！!？?\s]+", t):
+        # Segment on PUNCTUATION, not whitespace. In a mixed topic the spaces separate SCRIPTS, not
+        # clauses — "WorkBuddy 让 AI 在你的电脑上把活干完" split on whitespace yields the standalone
+        # fragment "让", which is a grammatical particle and was then shorter than every real phrase, so
+        # it won the `len <= 8` filter and became the film's wordmark. Three contest samples went out
+        # showing a giant chrome 「让」, `Build the 让 deck`, and a 3D hero labelled 「让」 — the user would
+        # have been comparing three directions on one meaningless character, and every gate was green.
+        for seg in re.split(r"[：:，,。.；;、！!？?]+", t):
             seg = seg.strip()
             if seg and cjk.search(seg) and seg not in phrases:
                 phrases.append(seg)
+        # CJK has no stop-word list here the way Latin does, so a function word could be picked as a
+        # topic token. These carry no subject on their own; a phrase that is ONLY these is dropped.
+        phrases = [p for p in phrases if len(_cjk_content(p)) >= 2]
     if phrases:                                        # CJK topic: phrases ARE the words
-        short = [p for p in phrases if len(p) <= 8] or [p[:8] for p in phrases]
-        title = short[0][:12]
+        # NEVER build a token by TRUNCATION. Cutting a long phrase to 8 characters produced `WorkBudd`
+        # and `AI 编程助手为` — fragments that are not words in any language, printed as a film's nodes and
+        # spokes. When no phrase is short enough, split it at its FUNCTION WORDS, which is where Chinese
+        # actually breaks (的/了/是/在/把/让…), and keep the content runs. "在你的电脑上把活干完" becomes
+        # 电脑上 · 活干完 rather than a mid-word slice.
+        short = [p for p in phrases if len(p) <= 8]
+        if not short:
+            for ph in phrases:
+                run = ""
+                for ch in ph:
+                    if ch in _CJK_FUNCTION or ch.isspace():
+                        cand = _cap_run(run, cjk)
+                        if cand and cand not in short:
+                            short.append(cand)
+                        run = ""
+                    else:
+                        run += ch
+                cand = _cap_run(run, cjk)
+                if cand and cand not in short:
+                    short.append(cand)
+        if not short:                                  # a phrase of nothing but function words
+            short = [p[:8] for p in phrases]
+        # A capitalised LATIN name in a mixed topic IS the wordmark — it is the product's own name, and
+        # the CJK branch used to discard every Latin token, so "WorkBuddy 让 AI …" lost "WorkBuddy".
+        title = (caps[0][:22] if caps else short[0][:12])
         items, seen = [], set()
-        for cand in short + [p[:8] for p in phrases]:   # dedup AFTER truncation: two long phrases can
-            if cand and cand not in seen:               # truncate to the same 8 chars and did, shipping
-                seen.add(cand); items.append(cand)      # the identical token twice into a sample
+        for cand in short:                              # content runs only — no truncated fragments
+            if cand and cand not in seen:
+                seen.add(cand); items.append(cand)
         items = items[:6]
         up = title                                     # .upper() is a no-op on CJK; keep the phrase
+        if caps and caps[0] not in items:              # the product's own name leads the token list too
+            items = [caps[0]] + [i for i in items if i != caps[0]]
+            items = items[:6]
     else:
         title = (caps[0] if caps else (toks[0] if toks else t))[:22]
         seen, items = set(), []
