@@ -515,12 +515,19 @@ def _master(path, meta=None, ref=None, lead=0.0):
     af = ("loudnorm=I=-14:TP=-1.5:LRA=11,"
           "areverse,silenceremove=start_periods=1:start_duration=0.06:"
           "start_threshold=-58dB:detection=peak,"
-          # d=0.10 with an EXPONENTIAL curve, chosen by measuring the tail shape rather than by taste: a
-          # decaying sound IS exponential in amplitude, so this is the shape a voice actually dies away in.
-          # Measured over the last 55ms — linear 0.06: -29 then -70 (a 41dB step while still audible);
-          # linear 0.10: -34 -56 -68; exponential 0.10: -25 -33 -38 -40 -49 -49 -54 -65, already inaudible
-          # before the cut and finishing on an 11dB step at -54.
-          "afade=t=in:st=0:d=0.10:curve=exp,"
+          # d=0.18, EXPONENTIAL. The curve is right — a decaying sound is exponential in amplitude — but
+          # 0.10 was too SHORT, and the measurement that chose it could not have seen why: it looked at the
+          # last 55ms, which is inside the fade. Widen the window and the defect is obvious. Isolating the
+          # fade's own attenuation (faded minus unfaded, per 20ms, so the syllable structure cancels):
+          #   d=0.10 — nothing until 120ms out, then -6 -27 -47 -67: a 21 dB-per-20ms wall
+          #   d=0.15 — begins 160ms out, ~13 dB/20ms
+          #   d=0.18 — begins 180ms out, ~11 dB/20ms   <- half the slope, over 60ms longer
+          #   d=0.22 — gentler still, but the final syllable's peak drops -6.6 -> -21.6 dB: the last word
+          #            of every sentence goes with it
+          # A viewer of a delivered film described the endings as 戛然而止 — stopping dead — with 0.10 in
+          # place, and the numbers say exactly that: full speech level to inaudible in four frames. At 0.18
+          # the last syllable loses about 2 dB, which is not audible, and the die-away is twice as long.
+          "afade=t=in:st=0:d=0.18:curve=exp,"
           f"areverse,apad=pad_dur={breath}")
     try:
         _common.run(["ffmpeg", "-y", "-i", path, "-af", af, "-map_metadata", "-1", tmp])
