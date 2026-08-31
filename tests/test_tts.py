@@ -480,6 +480,47 @@ def test_a_clip_ends_in_a_decay_not_a_cliff():
                          "into the natural tail (-45dB keeps 0.860s here, -58dB keeps 0.975s)" % kept)
 
 
+def test_the_fade_does_not_eat_the_last_syllable():
+    """The other half of the same knob, and the two pull against each other.
+
+    A clip's final syllable runs right up to where the trim cuts — measured across a delivered film, 28 of
+    30 clips end above -50 dB, so the trim cuts the syllable rather than finding a decay to keep. That means
+    the tail fade lands ON the last character. Widened to 0.18s to cure endings heard as stopping dead, it
+    attenuated the syllable's body by 78 dB: a median 52% of the final syllable sat inside the fade and on
+    four clips the whole of it did. The viewer's next report was 每句话的最后一个字有问题.
+
+    Measured on 12 delivered clips, as attenuation applied 60ms from the end, where the character still is:
+        0.06 exp —   0.0 dB   (and the clip still finishes at -77 dB: inaudible, no splice step)
+        0.08 exp — -21.3 dB
+        0.18 exp — -78.1 dB   (the character is gone)
+
+    THIS IS A SOURCE-LEVEL GUARD, AND DELIBERATELY SO. Three behavioural versions were written first and all
+    three measured something other than the fade: one anchored the mastered clip on its last non-zero
+    sample, which the fade itself moves, so every duration read identically; one compared mastered against
+    original and measured loudnorm's ~8 dB gain; one used a tail-vs-body ratio inside the file, which
+    discriminated in a standalone probe and then did not under pytest, because the synthetic tone's detected
+    end shifts by 28ms with the fade and carries the measuring point out of it. A test that cannot be shown
+    to fail on the defect is not evidence, and shipping one that merely looks behavioural is worse than
+    stating plainly what this checks. The numbers above come from real clips; the behavioural half of this
+    knob is pinned by its sibling above, which fails if the ending stops being inaudible.
+    """
+    import inspect
+    import re as _re
+    import tts
+    m = _re.search(r"afade=t=in:st=0:d=([\d.]+):curve=(\w+)", inspect.getsource(tts._master))
+    assert m, "the tail fade is no longer written as afade=t=in:st=0:d=<n>:curve=<c> in tts._master"
+    d, curve = float(m.group(1)), m.group(2)
+    assert d <= 0.08, (
+        "the tail fade is %.2fs — past 0.08 it reaches into the final syllable (measured: -21 dB at 0.08, "
+        "-78 dB at 0.18), and the last character of every sentence goes with it" % d)
+    assert d >= 0.03, (
+        "the tail fade is %.2fs — too short to carry the ending to inaudibility; its sibling test measures "
+        "that directly" % d)
+    assert curve == "exp", (
+        "curve=%s: only the exponential reaches true silence inside a window this short — tri and qsin "
+        "finish at -52/-48 dB, which leaves a step at the splice" % curve)
+
+
 def _paused_clip(path, gap, lead=0.8, tail=0.8):
     """A speech stand-in with ONE internal pause of `gap` seconds — a two-sentence beat."""
     dur = lead + gap + tail
