@@ -1692,6 +1692,18 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
                 warnings.append("meta.scene_pause %.2fs is a long hold, not a breath — each scene will end on "
                                 "a frozen silent frame that reads as the video hanging. Reading time belongs "
                                 "in a slower meta.tts_speed." % _spv)
+    # A film-energy WAIVER is legitimate, and it is also the one lever that turns film_energy_qa green
+    # without changing a frame. Announce it at the FIRST gate, not only at the last: a waiver the author
+    # wrote is a decision; a waiver that has quietly outlived the film it was written for is a hole.
+    _ew = meta.get("energy_waiver")
+    if _ew is not None:
+        if not isinstance(_ew, str) or not _ew.strip():
+            errors.append("meta.energy_waiver must be a non-empty reason — it waives the motion/density/light "
+                          "floors, so it has to say why this film is deliberately quiet")
+        else:
+            warnings.append("meta.energy_waiver is set, so film_energy_qa's motion/density/light floors are "
+                            "ACCEPTED rather than met: %r. Confirm this still describes the current cut."
+                            % _ew.strip()[:120])
     design_dna = meta.get("design_dna")
     if isinstance(design_dna, str):
         # A STRING design_dna is a preset NAME. This used to reach coerceDna(), which spread the string's

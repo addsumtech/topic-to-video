@@ -42,6 +42,7 @@ MODULE_PATH = {
     "shot_proof": os.path.join(_SCRIPTS, "shot_proof.py"),
     "voice_qa": os.path.join(_SCRIPTS, "voice_qa.py"),
     "shot_director": os.path.join(_SCRIPTS, "shot_director.py"),
+    "film_energy_qa": os.path.join(_SCRIPTS, "film_energy_qa.py"),
 }
 
 
@@ -750,6 +751,105 @@ MUTANTS["shot_director"] = {
         ("    if _by_id and _scene_ix and set(_by_id) == _scene_ix:", "    if False:"),
     "the unjudged record is dropped":
         ('        s["shot_fit"] = {"verdict": "unjudged",', '        s["_dropped"] = {"verdict": "unjudged",'),
+}
+
+
+# ── film_energy_qa: the three floors that make "this could have been HTML" a red number ─────────────
+# The measurement needs ffmpeg and a real film; the RULES do not. These probes hand `check()` a
+# synthesised measurement, so a floor can be disabled one at a time and the failure names which one.
+# The end-to-end claim — that the instrument separates a real slideshow from a real film — is proved
+# against rendered fixtures in tests/test_film_energy_qa.py, not here.
+_SLIDESHOW = {"seconds": 163.0, "motion_p50": 0.0004, "motion_p75": 0.0023, "motion_p90": 0.0085,
+              "ink_median": 0.043, "luma_range": 0.079}           # the delivered WorkBuddy film, measured
+_ALIVE = {"seconds": 81.0, "motion_p50": 0.0181, "motion_p75": 0.0481, "motion_p90": 0.1169,
+          "ink_median": 0.361, "luma_range": 0.903}               # Figma's Config film, measured
+
+
+def _energy(mod, measurement, board=None):
+    """Run check() over a temp out_dir with `measurement` substituted for the real ffmpeg pass."""
+    import json as _json
+    d = tempfile.mkdtemp()
+    open(os.path.join(d, "out.mp4"), "wb").write(b"\0")           # existence is all check() asks of it
+    if board is not None:
+        _json.dump(board, open(os.path.join(d, "storyboard.json"), "w", encoding="utf-8"))
+    mod.measure = lambda path: measurement
+    return mod.check(d)
+
+
+def _probe_slideshow_fails_all_three(mod):
+    errs, _warns, _m = _energy(mod, _SLIDESHOW)
+    blob = " ".join(errs)
+    for word in ("MOTION", "DENSITY", "LIGHT"):
+        assert word in blob, "a film measured at slideshow level was not flagged for %s: %r" % (word, errs)
+
+
+def _probe_a_real_film_passes(mod):
+    # The POSITIVE control. Without it, floors raised until nothing can pass would read as a working
+    # gate — the same failure as a gate that never fires, wearing the opposite costume.
+    errs, _warns, _m = _energy(mod, _ALIVE)
+    assert not errs, "a measured launch film fails the floors derived from it: %r" % errs
+
+
+def _probe_floors_stay_under_every_reference(mod):
+    for name, (motion, ink, luma) in mod.REFERENCE.items():
+        assert mod.MOTION_P75_FLOOR <= motion, "%s sits under the motion floor" % name
+        assert mod.INK_FLOOR <= ink, "%s sits under the ink floor" % name
+        assert mod.LUMA_RANGE_FLOOR <= luma, "%s sits under the light floor" % name
+
+
+def _probe_a_blank_waiver_is_not_a_waiver(mod):
+    errs, _warns, _m = _energy(mod, _SLIDESHOW, board={"meta": {"energy_waiver": "   "}})
+    assert errs, "an empty `energy_waiver` waived the gate — a waiver must carry a reason"
+
+
+def _probe_a_written_waiver_downgrades_to_warning(mod):
+    errs, warns, _m = _energy(mod, _SLIDESHOW, board={"meta": {"energy_waiver": "a held single frame, by design"}})
+    assert not errs and warns, "a reasoned waiver must accept the film and keep the numbers visible"
+
+
+def _probe_a_missing_film_is_not_a_pass(mod):
+    errs, _warns, _m = mod.check(tempfile.mkdtemp())
+    assert errs, "no out.mp4 reported as clean — an unmeasured film is not a passing film"
+
+
+def _probe_an_undecodable_film_is_not_a_pass(mod):
+    d = tempfile.mkdtemp()
+    open(os.path.join(d, "out.mp4"), "wb").write(b"\0")
+    mod.measure = lambda path: None
+    errs, _warns, _m = mod.check(d)
+    assert errs, "a film that could not be decoded reported as clean"
+
+
+PROBES["film_energy_qa"] = {
+    "slideshow_fails_all_three": _probe_slideshow_fails_all_three,
+    "a_real_film_passes": _probe_a_real_film_passes,
+    "floors_stay_under_every_reference": _probe_floors_stay_under_every_reference,
+    "blank_waiver_is_not_a_waiver": _probe_a_blank_waiver_is_not_a_waiver,
+    "written_waiver_downgrades": _probe_a_written_waiver_downgrades_to_warning,
+    "missing_film_is_not_a_pass": _probe_a_missing_film_is_not_a_pass,
+    "undecodable_film_is_not_a_pass": _probe_an_undecodable_film_is_not_a_pass,
+}
+
+MUTANTS["film_energy_qa"] = {
+    "the motion floor is disabled":
+        ("MOTION_P75_FLOOR = 0.0037", "MOTION_P75_FLOOR = 0.0"),
+    "the density floor is disabled":
+        ("INK_FLOOR = 0.12", "INK_FLOOR = 0.0"),
+    "the light floor is disabled":
+        ("LUMA_RANGE_FLOOR = 0.135", "LUMA_RANGE_FLOOR = 0.0"),
+    # The opposite failure, and the one a threshold gate slides into on its own: floors raised until
+    # the gate is decoration nobody can satisfy. Only the positive control catches this.
+    "the floors are raised past the reference films":
+        ("MOTION_P75_FLOOR = 0.0037", "MOTION_P75_FLOOR = 0.9"),
+    "a waiver needs no reason":
+        ('waiver = (meta.get("energy_waiver") or "").strip()',
+         'waiver = "waived" if "energy_waiver" in meta else ""'),
+    "a missing film passes":
+        ('return ["no out.mp4 — this gate reads the delivered film, so it runs after the render"], [], None',
+         "return [], [], None"),
+    "an undecodable film passes":
+        ('return ["could not decode %s (needs ffmpeg + numpy)" % mp4], [], None',
+         "return [], [], None"),
 }
 
 

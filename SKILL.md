@@ -365,6 +365,7 @@ TTS if the user gives an API key.
   `--depth`.
 - `scripts/render_remotion.py <out_dir>` — the render CLI for the **remotion bespoke-shot tier** (see the bullet above). The legacy generic-scene Remotion tier (atmospheres / cinematic templates / TRUE-3D archetypes / `type:"cinematic"` scenes) was REMOVED in the phase-3 cutover — its scripts, reference docs, and tests were deleted; `meta.renderer:"remotion-legacy"` errors with a re-author hint.
 - `scripts/cues.py` — pure anchor→cue-time resolver: reads per-scene `audio/NN.words.json` (edge-tts per-word timings) and resolves each `data-cue` anchor phrase to an absolute timestamp, used by `render_html` for audio-synced HTML reveals.
+- `scripts/film_energy_qa.py <out_dir>` — the **FILM-ENERGY gate** (remotion tier, post-render): measures `out.mp4`'s frame-diff p75, median ink coverage and luminance span, and ERRORs under floors set at HALF the lowest of four measured official launch films (Apple / OpenAI / Figma / Anthropic — the table and the derivation are in the script). It answers the one question no other gate asks: **does this film use the fact that it is a film?** Every other gate judges a frame; a 30-beat film once passed all of them while measuring 3.3x under the quietest reference on motion, 5.6x on density and 3.4x on light — i.e. something the html tier could have rendered for a fraction of the cost. A deliberately quiet film declares `meta.energy_waiver` with a REASON (the numbers stay printed as warnings); silence is not a waiver.
 - `scripts/check_av.py <out_dir>` — deterministic A/V gate: probes `out.mp4` video-vs-audio duration + per-clip sample-rate uniformity across `.clips/`; exits non-zero on A/V drift above tolerance (0.3 s) or non-uniform rates. Run AFTER the full render (step 9) as a gate before delivery.
 - `scripts/doctor.py [--json]` — environment preflight: reports which tools/libraries are present (ffmpeg/ffprobe/PIL required; PyMuPDF/python-pptx/edge-tts/soffice/Chrome/font optional) and, for each missing one, the stage it gates + the install hint. Exits non-zero only when a REQUIRED dep is missing. Run once at the START (step 1).
 - `scripts/validate.py <out_dir> [--pre-tts] [--vertical] [--json]` — deterministic PRE-render gate on `storyboard.json` (runs in ~1s): structural contract, duplicate indices, every referenced image/audio/html-page/`file://` asset + `theme.css` exists on disk, caption craft (no wall of text, no widow, ≥0.7s on screen — see `references/captions.md`), motion sanity (zoom delta + zoom-past-1.25 + callout-framing — see `references/motion-grammar.md`), per-point reveal↔voice alignment (each point spoken-% vs shown-% → leads/lags warning, cued or paced), an **animation-TRUNCATION gate** (a cued element starts at its cue and runs for its own `animation-duration`; when `cue + duration > scene duration` the render freezes it mid-flight and hard-cuts — a connector stopping in mid-air. ERROR under ~90% complete, WARN above, reporting the exact duration to set. `.draw` at 1.4s is the usual casualty, double the `--dur` .7s every other reveal uses; durations are parsed from base.css/motifs.css so they can't drift. **This is the ONLY gate that sees it** — `keyframe_qa`'s `?p=` sheet renders in blind-envelope mode where p=1.0 means "every animation finished" by construction), a **composition-gate ABSTENTION** (anchor/balance are read off the `.stage`'s flex signature + a few
@@ -1173,12 +1174,16 @@ figure), a non-singular `the_one_thing`, or a
    the keyframes) PLUS **`frame_safe_qa.py <out_dir>`** — the FRAME-CRAFT gate: it ERRORs on on-frame content
    bleeding off the action-safe edge (text/graphics OFF-FRAME) and WARNs on a brightness OUTLIER scene (a
    white/bright shot in a dark film = palette clash). These are the exact failures eyeballing missed — a shot that
-   overflows or clashes now blocks. `rhythm_qa`/`pedagogy_qa` still apply (they read `content_plan.json`). At the
+   overflows or clashes now blocks. PLUS **`film_energy_qa.py <out_dir>`** — the FILM-ENERGY gate: motion,
+   density and light measured against real launch films (see the scripts list). It is the only gate that
+   judges the FILM rather than a frame, and the only one that can catch a delivery which is correct in
+   every frame and inert as a film. `rhythm_qa`/`pedagogy_qa` still apply (they read `content_plan.json`). At the
    DESIGN layer, dispatch **`agents/shot-critic.md`** on those keyframes + the `check_av` + `keyframe_qa_remotion`
    + `frame_safe_qa` reports: it judges register fit, family variety, faithful copy (no demo-number/WorkBuddy-
    leftover), decodability, **MEANING (S10 — does each shot's design ENCODE its beat's idea, not just look good?)**,
    and **boldness (S8, audacity-scaled)**, and REVISEs failing beats (the shot-director re-assigns → re-render).
-   Deliver only after **shot-critic PASSES and `check_av` + `keyframe_qa_remotion` + `frame_safe_qa` exit 0**
+   Deliver only after **shot-critic PASSES and `check_av` + `keyframe_qa_remotion` + `frame_safe_qa` +
+   `film_energy_qa` exit 0**
    — and that PASS must be an INDEPENDENT one: re-dispatch the critic as a fresh subagent given only the
    `<out_dir>` path, then `python3 scripts/critic_ledger.py <out_dir> --final` (exit 0 required; it refuses an
    in-context ledger, a ledger missing any dimension, and one pinned to a different render's contact sheet).
@@ -1187,7 +1192,8 @@ figure), a non-singular `the_one_thing`, or a
    `keyframe_qa.py`, `rhythm_qa.py` and `pedagogy_qa.py` ALL exit 0** (`voice_qa.py` is ADVISORY and always
    exits 0 — read its signals and say which you accepted; failing a build on them would produce the
    "rule voice" its reference warns about) (on a `meta.renderer:"remotion"` deck,
-   `keyframe_qa_remotion.py` + `frame_safe_qa.py` + shot-critic PASS REPLACE `keyframe_qa.py`, which no-ops there).
+   `keyframe_qa_remotion.py` + `frame_safe_qa.py` + `film_energy_qa.py` + shot-critic PASS REPLACE
+`keyframe_qa.py`, which no-ops there).
    Naming only the first two is
    how a deck shipped "all green" while the gates that actually look at the pages were never
    consulted. Also read `keyframe_qa`'s **deck advisories** (silhouette repetition, content-band
