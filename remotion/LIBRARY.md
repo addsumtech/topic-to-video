@@ -17,7 +17,7 @@ yet in this library — they exist for new shots and opportunistic use. See
 deliberately left un-migrated.
 
 <!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
-**Family census — 148 registers across 27 families.** D×21 · A×14 · C×12 · G×11 · F×10 · H×9 · B×8 · E×8 · L×6 · I×5 · J×5 · K×5 · M×5 · S×5 · U×5 · JA×4 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
+**Family census — 149 registers across 27 families.** D×21 · A×15 · C×12 · G×11 · F×10 · H×9 · B×8 · E×8 · L×6 · I×5 · J×5 · K×5 · M×5 · S×5 · U×5 · JA×4 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
 
 **9 families hold two registers or fewer: O, Q, R, T, V, W, X, Y, Z.** That is a BUILD signal, not a menu. When a beat's
 argument wants one of those languages and the one register there does not carry it, the answer is
@@ -67,6 +67,7 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 100. **TerrainFly** — a 3D wireframe heightmap terrain scrolls toward the viewer in perspective (hills drift from the horizon), grid coloured by elevation, fog + horizon glow. *Use: a landscape / journey / "new ground ahead".*
 
 ## C · Kinetic type & title
+173. **LastLeg** — the run covers almost the whole distance and stops — an automation that handles nine steps of ten, a funnel that drops at the end, a coverage map with a hole *Use: the run covers almost the whole distance and stops — an automation that handles nine steps of ten, a funnel that drops at the end, a coverage map with a hole*
 141. **OpenQuestions** — unresolved questions surface one at a time under a descending scan-light, then stand together unanswered. *Use: what is still open / limits and caveats / a closing that refuses to conclude.* `kicker, questions[], accent, footer`
 16. **KineticManifesto** — phrases rush the Z-axis. *Use: manifesto / values.*
 17. **FocalIsolation** — blur everything but the key phrase. *Use: one emphasis.*
