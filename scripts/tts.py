@@ -433,7 +433,9 @@ ECHO = "apad=pad_dur=0.5,aecho=0.9:0.92:%s:%s" % (ECHO_TAPS, ECHO_GAINS)
 # of material but only the first ~168ms is above hearing, and the rest still occupies time like any silence.
 # Subtracting the full 233 shortened every seam by 65ms and made the printed number wrong again — the exact
 # defect fixed one commit earlier, reintroduced from the other side.
-ECHO_TAIL = 0.168        # seconds of AUDIBLE decay the room adds, MEASURED (-20 dB -> -55 dB)
+ECHO_TAIL = 0.178        # seconds of AUDIBLE decay at a sentence end, MEASURED (-20 dB -> -55 dB) across
+                         # the 30 delivered clips: the source's own decay (kept by the -85dB trim) plus the
+                         # room. It was 168 when the trim was still deleting the natural half.
 
 def _lead_silence(path):
     """Seconds of silence BEFORE the first word of a clip. Never trimmed — trimming the head would move
@@ -547,17 +549,29 @@ def _master(path, meta=None, ref=None, lead=0.0):
         return
     tmp = path + ".master" + os.path.splitext(path)[1]
     breath = _tail_pad(meta, ref=ref, lead=lead)
-    # THE TAIL IS A DECAY, NOT A CLIFF. Trimming at -45dB removed the whole natural decay of the last
-    # syllable and apad then spliced ABSOLUTE silence onto the cut, so a clip went from -11dB — clearly
-    # audible speech — to -99dB inside one 20ms window. Measured on three delivered clips: drops of 64,
-    # 88 and 67 dB at the seam. That is heard as the sentence being stopped rather than ending.
+    # THE TAIL IS A DECAY, NOT A CLIFF — and the trim threshold is what decides whether one survives.
+    #
+    # -45dB removed the whole natural decay and apad spliced absolute silence onto the cut: a clip went
+    # from -11dB to -99dB inside one 20ms window. Lowering it to -58 was supposed to fix that, and did not:
+    # measured through each stage on the same clip, loudnorm leaves a proper tail (... -64 -75 -78 -76 -81)
+    # and the -58 trim then deletes 0.57s of it, ending the clip at -22dB. Across engines the decay a
+    # source actually HAS was being thrown away:
+    #     edge zh  55ms -> 5ms      edge en 130ms -> 10ms      edge ja  ~ -> 45ms      say zh 35ms -> 0ms
+    # At -85dB the same clips keep it (60 / 70 / 100 / 0 ms) and finish at -75 to -78dB instead of -23.
+    # The cost is 48ms of retained noise floor per clip — 1.5s across a 30-beat film — against a decay that
+    # is REAL rather than synthesised, on every engine and language tested.
+    #
+    # The synthesised room below still earns its place: `say` has no decay to preserve at any threshold
+    # (0ms even at -85), so the room is the floor for engines that simply stop dead. With both, measured
+    # with the fade in place: edge zh 190ms / -73dB, edge en 215 / -71, edge ja 200 / -72, say zh 180 / -76
+    # — every source better than either half alone.
     # Two changes, both needed: trim at a lower threshold so more of the real decay survives, and fade the
     # last moments into the silence so there is no discontinuity left at all. The fade is applied in the
     # REVERSED domain (a fade-IN at the reversed start == a fade-out on the tail), which needs no
     # knowledge of the clip's length.
     af = ("loudnorm=I=-14:TP=-1.5:LRA=11," + ECHO + ","
           "areverse,silenceremove=start_periods=1:start_duration=0.06:"
-          "start_threshold=-58dB:detection=peak,"
+          "start_threshold=-85dB:detection=peak,"
           # d=0.06, EXPONENTIAL — and the DURATION is the whole story here, twice over.
           #
           # 0.10 shipped and the endings were heard as 戛然而止, stopping dead. Widening to 0.18 fixed that

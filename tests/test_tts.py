@@ -475,11 +475,14 @@ def test_a_clip_ends_in_a_decay_not_a_cliff():
         env2.append(20 * math.log10(pk / 32768.0) if pk else -99.0)
     kept = max(i for i, v in enumerate(env2) if v > -60) * 0.005
     # Measured through the TRIM ALONE (loudnorm shifts the levels, so these are not raw-signal numbers,
-    # and they are not the old whole-chain numbers either — isolating the fade moved every one of them):
-    # -45dB keeps 0.860s of this fixture, -58dB keeps 0.975s, -70dB keeps 1.060s. The bar sits between the
-    # first two, so a regression to -45 fails and the shipped -58 passes with room.
-    assert kept > 0.92, ("only %.3fs of a decaying signal survived the trim — the threshold is cutting "
-                         "into the natural tail (-45dB keeps 0.860s here, -58dB keeps 0.975s)" % kept)
+    # and they are not the whole-chain numbers either — isolating the fade moved every one of them):
+    #   -45dB keeps 0.860s of this fixture   -58dB keeps 0.975s   -70/-85/-99dB all keep 1.060s
+    # The bar was 0.92, calibrated when -58 was shipped — which let a regression from -85 back to -58 pass.
+    # Measured on real speech, that regression deletes the decay the source actually has (edge zh 55ms -> 5,
+    # edge en 130 -> 10, say zh 35 -> 0) and ends the clip at -22dB instead of -75. The bar sits above
+    # -58's 0.975 now, so only a threshold low enough to keep a real tail passes.
+    assert kept > 1.02, ("only %.3fs of a decaying signal survived the trim — the threshold is cutting "
+                         "into the natural tail (-58dB keeps 0.975s here, -85dB keeps 1.060s)" % kept)
 
 
 def test_the_ending_has_a_room_to_decay_into():
@@ -499,6 +502,7 @@ def test_the_ending_has_a_room_to_decay_into():
     """
     import array
     import math
+    import re
     import subprocess
     import tempfile
     import tts
@@ -525,6 +529,18 @@ def test_the_ending_has_a_room_to_decay_into():
     loud = max((i for i, v in enumerate(prof) if v > -20), default=0)
     quiet = max((i for i, v in enumerate(prof) if v > -55), default=len(prof) - 1)
     decay_ms = (quiet - loud) * 5
+    # BOTH TIERS, and that is a property of the code rather than a coincidence worth relying on. The room
+    # lives in _master, which every tier's clips pass through, and the html tier was never exempt — its
+    # clips stop just as dead; the seam there is simply longer, which masks it rather than fixing it. A
+    # renderer branch inside _master would silently take the room away from one tier, so the absence of one
+    # is asserted here alongside the behaviour it produces.
+    import inspect
+    master_src = re.sub(r"#[^\n]*", "", inspect.getsource(tts._master))
+    assert "renderer" not in master_src, (
+        "_master branches on the renderer — the ending treatment must be identical on both tiers, or one "
+        "of them quietly keeps the defect")
+    assert tts._seam_seconds({"renderer": "html", "fps": 30}) == 0.0, "the html tier is no longer seamless"
+
     assert decay_ms >= 60, (
         "the ending decays from -20 dB to -55 dB in %d ms — an anechoic clip stops dead at full level and "
         "no fade length can fix that; the room tail is what gives the ending somewhere to go" % decay_ms)
