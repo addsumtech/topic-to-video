@@ -336,6 +336,13 @@ TTS if the user gives an API key.
   aspect and fix/swap any that don't reflow** (multi-column must STACK in portrait; wide elements must not run
   off-frame) — see `references/remotion-shot-authoring.md` §A.9. Most centered/stacked/chart shots reflow as-is;
   the library's fixed multi-column + wide-horizontal registers need this per-shot pass.
+  **That pass is now MECHANICAL, and it is not a rare problem.** `python3 scripts/text_safe_qa.py --library
+  --aspect=9:16` measured **68 findings across 24 of 149 registers** where 16:9 reports zero — every one a
+  LEFT/RIGHT cut, i.e. a 1920-wide layout that never narrows. About one register in six is unsafe in
+  portrait, so "it reflows" is a claim to verify per beat, never a property of the library. Delivery is
+  already covered — `text_safe_qa <out_dir>` audits each beat at the board's own `meta.aspect` — but run the
+  library sweep BEFORE promising a vertical film, so the shot-director picks from the safe pool instead of
+  discovering the cuts at the gate.
   **`meta.renderer:"remotion"` is an ALIAS for `remotion`** (both render the bespoke-shot library). The old
   generic-scene tier was REMOVED in the phase-3 cutover — `"remotion-legacy"` now errors with a migration hint.
 - **Design-DNA tooling (remotion tier).** `python scripts/dna_audit.py [--depth]` — which registered shots read the
@@ -365,6 +372,7 @@ TTS if the user gives an API key.
   `--depth`.
 - `scripts/render_remotion.py <out_dir>` — the render CLI for the **remotion bespoke-shot tier** (see the bullet above). The legacy generic-scene Remotion tier (atmospheres / cinematic templates / TRUE-3D archetypes / `type:"cinematic"` scenes) was REMOVED in the phase-3 cutover — its scripts, reference docs, and tests were deleted; `meta.renderer:"remotion-legacy"` errors with a re-author hint.
 - `scripts/cues.py` — pure anchor→cue-time resolver: reads per-scene `audio/NN.words.json` (edge-tts per-word timings) and resolves each `data-cue` anchor phrase to an absolute timestamp, used by `render_html` for audio-synced HTML reveals.
+- **Before authoring or critiquing a remotion beat — and ALWAYS when a film measures as inert, when a gate blocks a full-bleed / cropped-type frame, or when you are about to argue about what "cinematic" means — read `references/launch-film-study.md`.** Four official launch films (Apple / OpenAI / Figma / Anthropic) downloaded and measured with one instrument against a film this skill delivered: which of them a DOM compositor can actually reach (Figma's — it is fully generative and tops the motion and light columns), the three moves to steal, why the old action-safe gate was inverted, and — the part that costs the most to relearn — the five ways a frame passes every energy floor and is still not finished.
 - `scripts/text_safe_qa.py <out_dir>` (or `--library`) — the **TEXT-SAFE gate** (remotion tier): asks the DOM, at each beat's settled frame, whether any TYPE is cut off by the canvas. It replaces `frame_safe_qa`'s EDGE-BLEED **error**, which was measurably INVERTED — the three registers whose type is genuinely cut read 1.00%/1.45%/4.40%, all UNDER its 4.5% error floor, while four deliberately full-bleed registers (9.6–35.2%) were all blocked, as would be 100% of the sampled frames of OpenAI's launch film, 57% of Figma's and 57% of Anthropic's. Coverage runs OPPOSITE to the defect, so no threshold fixes it. A **deliberate** frame-break needs no waiver: text clipped by an `overflow:hidden` ancestor SMALLER than the frame (a marquee, a mask, a crop window) is the author's intent, and a travelling world or a character texture marks its layer `data-bleed` with a written `data-bleed:` reason beside it (a test requires the reason). Full-bleed GRAPHICS are never a finding — only type can be destroyed by an edge. **This is what makes Figma-grade framing legal here**: full-bleed, floods, and type cropped by a container are now shippable.
 - `scripts/film_energy_qa.py <out_dir>` — the **FILM-ENERGY gate** (remotion tier, post-render): measures `out.mp4`'s frame-diff p75, median ink coverage and luminance span, and ERRORs under floors set at HALF the lowest of four measured official launch films (Apple / OpenAI / Figma / Anthropic — the table and the derivation are in the script). It answers the one question no other gate asks: **does this film use the fact that it is a film?** Every other gate judges a frame; a 30-beat film once passed all of them while measuring 3.3x under the quietest reference on motion, 5.6x on density and 3.4x on light — i.e. something the html tier could have rendered for a fraction of the cost. A deliberately quiet film declares `meta.energy_waiver` with a REASON (the numbers stay printed as warnings); silence is not a waiver.
 - `scripts/check_av.py <out_dir>` — deterministic A/V gate: probes `out.mp4` video-vs-audio duration + per-clip sample-rate uniformity across `.clips/`; exits non-zero on A/V drift above tolerance (0.3 s) or non-uniform rates. Run AFTER the full render (step 9) as a gate before delivery.
@@ -1181,7 +1189,8 @@ figure), a non-singular `the_one_thing`, or a
    judges the FILM rather than a frame, and the only one that can catch a delivery which is correct in
    every frame and inert as a film. `rhythm_qa`/`pedagogy_qa` still apply (they read `content_plan.json`). At the
    DESIGN layer, dispatch **`agents/shot-critic.md`** on those keyframes + the `check_av` + `keyframe_qa_remotion`
-   + `frame_safe_qa` reports: it judges register fit, family variety, faithful copy (no demo-number/WorkBuddy-
+   + `text_safe_qa` + `film_energy_qa` + (advisory) `frame_safe_qa` reports: it judges register fit, family
+   variety, faithful copy (no demo-number/WorkBuddy-
    leftover), decodability, **MEANING (S10 — does each shot's design ENCODE its beat's idea, not just look good?)**,
    and **boldness (S8, audacity-scaled)**, and REVISEs failing beats (the shot-director re-assigns → re-render).
    Deliver only after **shot-critic PASSES and `check_av` + `keyframe_qa_remotion` + `text_safe_qa` +

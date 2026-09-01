@@ -407,8 +407,10 @@ recorded too — an honest gap beats a confident invention, and two of the gaps 
 - Two-axis moves: stagger the horizontal and vertical starts so the path resolves as a rounded corner.
   Pure diagonal motion is called out as harsh. *(Carbon, published)*
 - Frame margins: action-safe **3.5%** per side, title/graphics-safe **5%** — SMPTE ST 2046-1 and EBU R95
-  agree exactly. At 1920×1080 that is 67/38 px and 96/54 px. `scripts/frame_safe_qa.py` already gates the
-  3.5% border. *(published)*
+  agree exactly. At 1920×1080 that is 67/38 px and 96/54 px. These are a guide for TYPE, not a prohibition on
+  imagery: `scripts/frame_safe_qa.py` used to gate the 3.5% border and was measured to be inverted (it blocked
+  full-bleed technique and missed every real cut). `scripts/text_safe_qa.py` now asks the DOM whether any type is
+  actually cut; graphics may bleed. *(published; the gate note updated 2026-09-01)*
 
 ### Restraint — the gap
 **No system surveyed (Material, Carbon, Fluent, Apple) publishes a numeric cap on how many elements may

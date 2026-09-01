@@ -200,8 +200,13 @@ export const LastLeg: React.FC<{
         boxShadow: `0 0 ${Math.round(base * 0.07)}px ${ACC}`}} />
 
       {/* the UNCOVERED tail, named, standing in the dark */}
+      {/* CLAMPED into the frame. The head starts at the track's overrunning origin, so with nothing carried
+          yet the label was positioned off-frame left and vanished — an author passing `gapLabel` saw no label
+          and no complaint. Degrade visibly: if the carry covers everything, the label sits at the right
+          margin and reads as the contradiction it is, rather than being dropped. */}
       {gapLabel ? (
-        <div style={{position: 'absolute', left: headX + Math.round(base * 0.03),
+        <div style={{position: 'absolute',
+          left: Math.min(Math.max(headX + base * 0.03, W * 0.05), W * 0.74),
           top: trackY + railH * 3, opacity: gapIn, color: FG,
           font: `800 ${Math.round(base * 0.042)}px/1.2 ${body}`,
           borderLeft: `${Math.max(2, Math.round(base * 0.004))}px solid ${FG}`,

@@ -2,6 +2,7 @@
 """Does this film USE the fact that it is a film? — a post-render gate on out.mp4.
 
     python3 scripts/film_energy_qa.py <out_dir>
+    python3 scripts/film_energy_qa.py --reference <dir>   # re-measure the four films the floors come from
 
 WHY THIS EXISTS. The remotion tier's whole claim over the html tier is TIME: motion, cutting, light that
 changes. A delivered 30-beat film was described by its own author as something the html tier could have
@@ -32,6 +33,7 @@ is intended, a gradient is not content, but it means a deliberately atmospheric 
 film can be right; `meta.energy_waiver` accepts one, and requires a written reason, because the discipline
 this codebase runs on is that an accepted warning is a decision someone made rather than one that defaulted.
 """
+import glob
 import json
 import os
 import subprocess
@@ -41,27 +43,81 @@ import sys
 MOTION_P75_FLOOR = 0.0037     # lowest reference 0.0075 (OpenAI, a talking-head film — the quietest kind)
 INK_FLOOR = 0.12              # lowest reference 0.243 (Apple: dark frames, one lit subject)
 LUMA_RANGE_FLOOR = 0.135      # lowest reference 0.270 (Apple)
+MIN_FRAMES = 8                # below this there are too few frame-diffs for a p75 to mean anything
 
-REFERENCE = {                 # kept here so a later reader can re-derive the floors rather than trust them
+# The four films the floors are derived from, and the file each was measured from. A record nobody can
+# regenerate is not a measurement, it is a memory — so `--reference <dir>` re-measures them and reports drift.
+# The films are not in the repo (they are not ours to redistribute); the command names what to put in the
+# directory, and says so plainly when a file is absent instead of quietly measuring three of four.
+REFERENCE = {
     "Apple iPhone 17 Pro": (0.0357, 0.243, 0.270),
     "OpenAI Codex Micro": (0.0075, 0.644, 0.330),
     "Figma Config": (0.0481, 0.361, 0.903),
     "Anthropic Keep thinking": (0.0381, 0.421, 0.350),
 }
+REFERENCE_FILES = {
+    "Apple iPhone 17 Pro": "apple_hw",
+    "OpenAI Codex Micro": "openai",
+    "Figma Config": "figma",
+    "Anthropic Keep thinking": "anthropic",
+}
+REFERENCE_DRIFT = 0.02        # re-encodes and re-downloads move these a little; a real drift moves them more
 
 
-def measure(path, fps=12, w=192, h=108):
-    """Greyscale frame-difference, ink coverage and luminance spread. Same instrument for every film."""
+def verify_reference(directory):
+    """Re-measure each reference film found in `directory` and report drift from the recorded table."""
+    rows, missing = [], []
+    for name, stem in sorted(REFERENCE_FILES.items()):
+        hits = sorted(glob.glob(os.path.join(directory, stem + ".*")))
+        if not hits:
+            missing.append("%s (expected %s.* in %s)" % (name, stem, directory))
+            continue
+        m = measure(hits[0])
+        if not isinstance(m, dict):
+            missing.append("%s (%s could not be measured)" % (name, os.path.basename(hits[0])))
+            continue
+        got = (m["motion_p75"], m["ink_median"], m["luma_range"])
+        rows.append((name, REFERENCE[name], got, max(abs(a - b) for a, b in zip(REFERENCE[name], got))))
+    return rows, missing
+
+
+def probe_size(path):
+    out = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v", "-show_entries",
+                          "stream=width,height", "-of", "csv=p=0", path], capture_output=True, text=True).stdout
+    try:
+        w, h = [int(x) for x in out.strip().rstrip(",").split(",")[:2]]
+        return (w, h) if w > 0 and h > 0 else None
+    except (ValueError, IndexError):
+        return None
+
+
+def measure(path, fps=12, long_side=192):
+    """Greyscale frame-difference, ink coverage and luminance spread. Same instrument for every film.
+
+    The sampling frame PRESERVES ASPECT. Forcing every film into 192x108 squashes a portrait one, and
+    squashing blends neighbouring pixels, which lowers local contrast and so undercounts ink: measured on the
+    same shot rendered three ways, the forced scale read 2.2 points low at 9:16 and 1.4 low at 1:1. Small, but
+    systematically in the direction that makes a vertical film harder to pass than a landscape one — a bias
+    with no defensible reason behind it.
+    """
     try:
         import numpy as np
     except ImportError:
         return None
+    size = probe_size(path)
+    if not size:
+        return None
+    W0, H0 = size
+    if W0 >= H0:
+        w, h = long_side, max(2, int(round(long_side * H0 / W0)) // 2 * 2)
+    else:
+        h, w = long_side, max(2, int(round(long_side * W0 / H0)) // 2 * 2)
     raw = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-vf",
                           "fps=%d,scale=%d:%d" % (fps, w, h), "-pix_fmt", "gray", "-f", "rawvideo", "-"],
                          capture_output=True).stdout
     n = len(raw) // (w * h)
-    if n < 8:
-        return None
+    if n < MIN_FRAMES:
+        return n                                     # an INT, not None: the caller says which failure it was
     F = np.frombuffer(raw[:n * w * h], dtype=np.uint8).reshape(n, h, w).astype(np.float32) / 255.0
     d = np.abs(np.diff(F, axis=0)).mean(axis=(1, 2))
     ink = [float((np.abs(f - np.median(f)) > 0.10).mean()) for f in F[::2]]
@@ -88,8 +144,13 @@ def check(out_dir):
         except Exception:                                        # noqa: BLE001 - a broken board is another gate's job
             meta = {}
     m = measure(mp4)
+    if isinstance(m, int):
+        # Say WHICH failure this is. "needs ffmpeg + numpy" on a film that decoded perfectly well and is
+        # simply half a second long sends the reader to install tools they already have.
+        return ["%s decoded only %d sampled frame(s) — under %d, a p75 over three differences describes "
+                "nothing. Measure a film, not a flash." % (os.path.basename(mp4), m, MIN_FRAMES)], [], None
     if m is None:
-        return ["could not decode %s (needs ffmpeg + numpy)" % mp4], [], None
+        return ["could not decode %s — check ffmpeg/ffprobe are installed and the file is a video" % mp4], [], None
 
     errs, warns = [], []
     # p75 rather than p90: measured across the corpus, p90's lowest reference sits close enough to a
@@ -123,8 +184,24 @@ def check(out_dir):
 def main(argv):
     if not argv:
         print(__doc__.strip().splitlines()[0])
-        print("usage: film_energy_qa.py <out_dir>")
+        print("usage: film_energy_qa.py <out_dir> | --reference <dir>")
         return 2
+    if argv[0] == "--reference":
+        if len(argv) < 2:
+            print("[film_energy] --reference needs a directory holding %s"
+                  % ", ".join(sorted(v + ".*" for v in REFERENCE_FILES.values())))
+            return 2
+        rows, missing = verify_reference(os.path.abspath(argv[1]))
+        for name, rec, got, drift in rows:
+            print("[film_energy] %-26s recorded %.4f/%.3f/%.3f  measured %.4f/%.3f/%.3f  drift %.4f%s"
+                  % (name, rec[0], rec[1], rec[2], got[0], got[1], got[2], drift,
+                     "" if drift <= REFERENCE_DRIFT else "  ← the floors rest on this"))
+        for m in missing:
+            print("[film_energy] MISSING %s" % m)
+        bad = [r for r in rows if r[3] > REFERENCE_DRIFT]
+        print("[film_energy] %s  %d film(s) re-measured, %d drifted, %d missing"
+              % ("FAIL" if (bad or missing) else "OK", len(rows), len(bad), len(missing)))
+        return 1 if (bad or missing) else 0
     out_dir = os.path.abspath(argv[0])
     errs, warns, m = check(out_dir)
     if m:

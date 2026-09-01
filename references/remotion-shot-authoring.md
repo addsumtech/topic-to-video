@@ -74,7 +74,8 @@ from `src/runtime/layout.ts` — do NOT hand-guess pixel positions.
    read** (a 22px "→" between big cards → size markers to the composition). A shot that renders clean with its
    demo props can still fail here — always still-render it with the ACTUAL props before trusting it.
 
-`frame_safe_qa.py` backstops #1–#3 partially (edge-bleed + palette-outlier); the rest — especially #8's overflow/
+`text_safe_qa.py` backstops #1–#3 exactly for TYPE (it asks the DOM, so a full-bleed graphic is not a finding and a
+cut word always is); `frame_safe_qa.py` adds an advisory palette-outlier read; the rest — especially #8's overflow/
 collision/tiny-marker — are eyeballed by the shot-critic (S10). Getting them right structurally (via `layout.ts`
 + sizing for real content) is cheaper than being caught.
 
@@ -517,7 +518,9 @@ icon-capable — so wiring a new one brings it under the gate the same day.
 ## E · The gates still bind
 
 None of the above relaxes the floor. Before delivery: `validate.py` (structure/faithfulness), `check_av.py`
-(A/V sync), `keyframe_qa_remotion.py` (no blank frames), `frame_safe_qa.py` (edge-bleed + palette outlier), and
+(A/V sync), `keyframe_qa_remotion.py` (no blank frames), `text_safe_qa.py` (no type cut by the canvas),
+`film_energy_qa.py` (the film moves, is dense, and has light — floors from four measured launch films;
+`frame_safe_qa.py` is advisory only), and
 the shot-critic (S1–S11). Meaning + frame-craft (S10), direction-adherence (S7), and design-system coverage
 (S11 — the Design DNA runs through EVERY frame, per §C2) are gates, not nice-to-haves. `validate.py` also warns
 when a themed film has no `design_dna`/preset or a scene has no `theme_cues`.

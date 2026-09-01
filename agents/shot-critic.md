@@ -189,8 +189,12 @@ stock module the director KEPT because it already encodes THIS topic (recorded i
 correct, not a violation; do NOT demand a redesign for its own sake. What fails S10 is a module carrying the
 DEMO's generic meaning — never one that genuinely fits the content just because it shipped with the register.
 **FRAME-CRAFT (the floor in `references/remotion-shot-authoring.md`
-§A):** read the `frame_safe_qa.py` report — any OFF-FRAME edge-bleed is a hard REVISE (title/action-safe), and a
-brightness-OUTLIER scene (a white/bright shot in a dark film) is a palette-clash REVISE. Then EYEBALL each keyframe
+§A):** read the `text_safe_qa.py` report — any TYPE cut off by the canvas is a hard REVISE. Note what is NOT a
+finding, and must not be treated as one: a full-bleed field or flood, and type cropped by a container the author
+built (a marquee, a mask, a crop window). `frame_safe_qa.py`'s border reading is ADVISORY — its EDGE-BLEED error
+was measured to be inverted (it passed all three known cut cases and blocked all four deliberate full-bleeds), so
+rejecting a frame for border ink now rejects the technique, not the defect. A brightness-OUTLIER scene (a
+white/bright shot in a dark film) is still a palette-clash REVISE. Then EYEBALL each keyframe
 for the defects the report can't see: (a) **BLACK BORDERS** — the shot background must reach all four edges;
 a uniform dark margin means something scaled the shot (regression); (b) **title-to-image spacing** — the title
 must not touch or overlap the hero image/panel (an image centered in the full frame rides up under the title; it

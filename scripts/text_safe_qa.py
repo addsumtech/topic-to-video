@@ -3,6 +3,7 @@
 
     python3 scripts/text_safe_qa.py <out_dir>      # audit this film's beats, with their real copy
     python3 scripts/text_safe_qa.py --library      # sweep every register at its default props
+    python3 scripts/text_safe_qa.py --library --aspect=9:16     # ...at the aspect the film actually ships at
 
 WHY THIS REPLACES A PIXEL GATE. `frame_safe_qa.py`'s EDGE-BLEED check asks how much ink sits in the outer
 border and calls a high answer an overflow. Measured on real cases, it is INVERTED:
@@ -115,14 +116,17 @@ def scan_film(out_dir):
     return findings, checked
 
 
-def scan_library(limit=None):
+def scan_library(limit=None, aspect=None):
+    """Sweep the catalogue. `aspect` matters: a register laid out for 16:9 can hold its type comfortably and
+    still clip it at 9:16, which is the failure mode a portrait film meets and a landscape sweep never sees."""
     durs = durations()
     names = sorted(durs)[: limit or None]
     tmp = os.path.join(os.environ.get("TMPDIR", "/tmp"), "_textsafe_lib.png")
+    base = {"aspect": aspect} if aspect else {}
     findings = []
     for i, n in enumerate(names, 1):
         frame = int(round(rr.frame_at_t(durs[n], rr.SETTLED_T)))
-        for v in audit_shot(n, {}, frame, tmp):
+        for v in audit_shot(n, dict(base), frame, tmp):
             findings.append("%s: %s" % (n, _describe(v)))
         if i % 20 == 0:
             print("  swept %d/%d" % (i, len(names)), flush=True)
@@ -136,8 +140,9 @@ def main(argv):
         return 2
     if argv[0] == "--library":
         limit = next((int(a.split("=", 1)[1]) for a in argv if a.startswith("--limit=")), None)
-        findings, n = scan_library(limit)
-        scope = "%d registers at default props" % n
+        aspect = next((a.split("=", 1)[1] for a in argv if a.startswith("--aspect=")), None)
+        findings, n = scan_library(limit, aspect)
+        scope = "%d registers at default props%s" % (n, " · aspect %s" % aspect if aspect else "")
     else:
         findings, n = scan_film(os.path.abspath(argv[0]))
         scope = "%d beats" % n

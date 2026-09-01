@@ -825,7 +825,39 @@ def _probe_an_undecodable_film_is_not_a_pass(mod):
     assert errs, "a film that could not be decoded reported as clean"
 
 
+def _probe_a_film_too_short_to_measure_is_not_a_pass(mod):
+    d = tempfile.mkdtemp()
+    open(os.path.join(d, "out.mp4"), "wb").write(b"\0")
+    mod.measure = lambda path: 5                       # an INT = decoded, but only 5 sampled frames
+    errs, _warns, _m = mod.check(d)
+    assert errs, "a half-second clip reported as a clean film"
+    assert any("frame" in e for e in errs), "the error does not say the film was too SHORT: %r" % errs
+
+
+def _probe_the_sampling_frame_follows_the_films_shape(mod):
+    """A portrait film must be sampled portrait. Squashing it to 192x108 undercounts its ink."""
+    seen = {}
+
+    class R:
+        returncode, stdout, stderr = 0, "1080,1920,\n", ""
+
+    def run(cmd, **kw):
+        if "ffprobe" in cmd[0]:
+            return R()
+        seen["vf"] = cmd[cmd.index("-vf") + 1]
+        out = R()
+        out.stdout = b""
+        return out
+    mod.subprocess = types.SimpleNamespace(run=run)
+    mod.measure(os.path.join(tempfile.mkdtemp(), "x.mp4"))
+    assert "scale=" in seen.get("vf", ""), seen
+    w, h = [int(v) for v in seen["vf"].split("scale=")[1].split(":")[:2]]
+    assert h > w, "a 1080x1920 film was sampled %dx%d — landscape, so its ink is undercounted" % (w, h)
+
+
 PROBES["film_energy_qa"] = {
+    "short_film_is_not_a_pass": _probe_a_film_too_short_to_measure_is_not_a_pass,
+    "sampling_follows_the_shape": _probe_the_sampling_frame_follows_the_films_shape,
     "slideshow_fails_all_three": _probe_slideshow_fails_all_three,
     "a_real_film_passes": _probe_a_real_film_passes,
     "floors_stay_under_every_reference": _probe_floors_stay_under_every_reference,
@@ -853,8 +885,16 @@ MUTANTS["film_energy_qa"] = {
         ('return ["no out.mp4 — this gate reads the delivered film, so it runs after the render"], [], None',
          "return [], [], None"),
     "an undecodable film passes":
-        ('return ["could not decode %s (needs ffmpeg + numpy)" % mp4], [], None',
+        ('return ["could not decode %s — check ffmpeg/ffprobe are installed and the file is a video" % mp4], [], None',
          "return [], [], None"),
+    "a film too short to measure passes":
+        ('    if isinstance(m, int):', "    if False:"),
+    # The sampling frame must follow the film's shape. Forcing 192x108 squashes a portrait film, and squashing
+    # blends pixels, which UNDERCOUNTS ink — measured 2.2 points low at 9:16 — biasing the gate against
+    # vertical films for no reason anyone chose.
+    "the sampling frame stops following the aspect":
+        ("        h, w = long_side, max(2, int(round(long_side * W0 / H0)) // 2 * 2)",
+         "        h, w = 108, 192"),
 }
 
 
