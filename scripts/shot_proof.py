@@ -113,6 +113,31 @@ def defaults_from_source(src, shot):
     return out
 
 
+def demo_content_props(shot):
+    """{prop: CONST} for props whose default is a NAMED module constant — the register's own demo CONTENT.
+
+    The text checks above catch demo COPY. They cannot see demo GEOMETRY: TechnicalPlate's `strokes` defaults
+    to `BIKE`, so a beat about enterprise data isolation that did not pass strokes drew a bicycle, full size,
+    in the middle of the frame. No string was involved, so nothing said a word.
+
+    The rule generalises past drawings: a prop you did not pass whose default is a named constant means the
+    REGISTER is supplying the content, not the film. Precise rather than noisy — 20 such props across the
+    whole library.
+    """
+    try:
+        src = open(os.path.join(_SHOTS, shot + ".tsx"), encoding="utf-8").read()
+    except OSError:
+        return {}
+    m = re.search(r"export const %s\s*:\s*React\.FC<" % re.escape(shot), src)
+    if not m:
+        return {}
+    blk = src[m.end():]
+    stop = blk.find("=> {")
+    blk = blk[:stop if stop > 0 else 4000]
+    return {pm.group(1): pm.group(2)
+            for pm in re.finditer(r"(\w+)\s*:\s*[A-Z_][A-Za-z0-9_]*\s*=\s*([A-Z][A-Z0-9_]{2,})\b", blk)}
+
+
 def icon_capable(shot):
     """True when a register can draw a real icon per item — DERIVED from the source, never a hardcoded list.
 
@@ -297,6 +322,16 @@ def static_checks(board):
                     errors.append("beat %d (%s): '%s' is unset, so the register draws its own English demo "
                                   "copy %r on a %s film — pass the prop"
                                   % (beat, shot, key, latin[0][:60], lang))
+
+        # (0b2) THE REGISTER'S OWN DEMO CONTENT, where no text is involved. A prop left unset whose default
+        # is a named constant means the register supplies the content: TechnicalPlate drew a BICYCLE, full
+        # size and centred, on a beat about enterprise data isolation, because `strokes` was not passed. The
+        # copy checks are blind to it — there is no string to compare.
+        for key, const in demo_content_props(shot).items():
+            if key not in props:
+                errors.append("beat %d (%s): '%s' is unset, so the register draws its own demo content "
+                              "(`%s`) — pass the prop or choose a register whose form this beat supplies"
+                              % (beat, shot, key, const))
 
         # (0c) A CATEGORY LIST WITH NO ICONS. An icon-capable register falls back to an abstract mark chosen
         # by INDEX — the same four shapes in the same order on every film, whatever the labels say. A ring

@@ -2174,6 +2174,37 @@ def test_photoplate_callouts_hold_at_inputs_they_were_not_tuned_on():
     assert "CHIP_MEASURE" in src, "the character measure is gone"
 
 
+def test_a_register_drawing_its_own_demo_object_is_caught():
+    """The copy checks are blind to demo GEOMETRY, and a bicycle went out because of it.
+
+    A contest sample for a beat about enterprise data isolation rendered TechnicalPlate without passing
+    `strokes`, whose default is `BIKE` — so a full-size bicycle sat in the middle of the frame. No string was
+    involved, so every text check said the beat was clean. The rule generalises past drawings: a prop left
+    unset whose default is a NAMED module constant means the REGISTER is supplying the content, not the
+    film. Precise rather than noisy — 20 such props across the whole library.
+    """
+    import importlib.util
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    spec = importlib.util.spec_from_file_location(
+        "shot_proof_demo", os.path.join(root, "scripts", "shot_proof.py"))
+    sp = importlib.util.module_from_spec(spec); spec.loader.exec_module(sp)
+
+    assert sp.demo_content_props("TechnicalPlate").get("strokes") == "BIKE", (
+        "the bicycle default is no longer detected — this is the case the check was written for")
+    assert sp.demo_content_props("ChatThread").get("messages") == "DEFAULT_MSGS"
+
+    board = {"meta": {"language": "zh"}, "slides": [
+        {"index": 0, "shot": "TechnicalPlate", "shot_props": {"kicker": "隔离图版", "object": "五个维度"}}]}
+    errs, _ = sp.static_checks(board)
+    assert any("BIKE" in e for e in errs), (
+        "a beat that lets TechnicalPlate draw its own bicycle passes: %r" % errs)
+
+    board["slides"][0]["shot_props"]["strokes"] = [{"d": "M0 0"}]
+    board["slides"][0]["shot_props"]["parts"] = [{"label": "知识库"}]
+    errs2, _ = sp.static_checks(board)
+    assert not any("BIKE" in e for e in errs2), errs2
+
+
 def test_the_direction_router_states_its_shortfall_instead_of_padding_it():
     """A slot that looks filled makes "conceive the rest" unreachable.
 
