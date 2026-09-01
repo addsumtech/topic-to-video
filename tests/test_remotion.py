@@ -286,8 +286,12 @@ def test_validate_warns_on_over_marked_seams():
     assert not any("MARKED with a kinetic transition" in w for w in v.evaluate(d2, "/tmp")["warnings"])
 
 
-def test_frame_safe_qa_flags_edge_bleed(tmp_path):
-    # the deterministic frame-craft gate the critic was missing: content off the safe edge = ERROR
+def test_frame_safe_qa_reports_a_flooded_border_without_blocking_it(tmp_path):
+    # This test used to require an ERROR on border ink. That contract was measurably backwards: border
+    # coverage is HIGH for a deliberate full-bleed field and LOW for a word the canvas actually cut (1.00%,
+    # 1.45% and 4.40% on the three known cut cases, all under the 4.5% floor). The border measure is now
+    # advisory — it must still SEE the flood, and must no longer refuse to deliver the technique.
+    # `text_safe_qa.py` asks the DOM whether any TYPE is cut, which is the question this was approximating.
     import frame_safe_qa as fq
     from PIL import Image
     kd = tmp_path / "_keyframes"; kd.mkdir()
@@ -298,7 +302,8 @@ def test_frame_safe_qa_flags_edge_bleed(tmp_path):
     bad.paste((240, 240, 240), (0, 0, 1920, 70))            # bright content in the top safe border = overflow
     bad.save(str(kd / "scene_03.png"))
     r = fq.evaluate(str(tmp_path))
-    assert not r["ok"] and any("OFF-FRAME" in e for e in r["errors"]), r
+    assert r["ok"], "the border measure is blocking delivery again"
+    assert any("safe border carries content" in w for w in r["warnings"]), r
 
 
 def test_keyframe_qa_remotion_flags_blank():

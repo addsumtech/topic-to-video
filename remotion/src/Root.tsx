@@ -1,5 +1,6 @@
 import React from 'react';
 import {AbsoluteFill, Composition} from 'remotion';
+import {TextSafeAudit} from './runtime/textSafe';
 import {DesignDNAContext, coerceDna} from './runtime/dna';
 import './runtime/fonts';  // side effect: loads the DNA typefaces for Film AND every standalone shot still
 import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
@@ -175,7 +176,8 @@ const dims = (aspect?: string) => {
 const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C, p}) => {
   const {dna, aspect: _a, ...rest} = p as {dna?: unknown; aspect?: unknown};
   const active = coerceDna(dna as never);   // a string is a preset name; an object is a partial DNA
-  const shot = <C {...rest} />;
+  const audit = <TextSafeAudit enabled={Boolean((p as {textSafe?: unknown}).textSafe)} />;
+  const shot = <><C {...rest} />{audit}</>;
   if (!active) return shot;
   return (
     <DesignDNAContext.Provider value={active}>

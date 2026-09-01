@@ -22,6 +22,7 @@ import {Atmosphere, type Atmo} from './runtime/atmosphere';
 import {SceneCamera, type CameraMove} from './runtime/depth';
 import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome} from './runtime/dna';
 import {REGISTRY} from './registry';
+import {TextSafeAudit} from './runtime/textSafe';
 import {CAPTIONS} from './captions';
 import {FilmMotifLayer} from './runtime/motif';
 
@@ -444,8 +445,8 @@ const BrandMark: React.FC<{brand?: any}> = ({brand}) => {
   );
 };
 
-export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any; dna?: DesignDNA | null; template?: string}> =
-  ({scenes = WORKBUDDY_SCENES, camera = 0, reducedMotion = false, theme, captions = true, brand, dna, template}) => {
+export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any; dna?: DesignDNA | null; template?: string; textSafe?: boolean}> =
+  ({scenes = WORKBUDDY_SCENES, camera = 0, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false}) => {
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
   const total = filmDuration(scenes);
@@ -458,6 +459,9 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
 
   return (
     <AbsoluteFill style={{backgroundColor: bg}}>
+      {/* Opt-in DOM audit — inert without the prop. Mounted on the FILM as well as on each shot preview so
+          the caption HUD and the film's own furniture are audited too, not only the registers. */}
+      <TextSafeAudit enabled={Boolean(textSafe)} />
       <DesignDNAContext.Provider value={activeDna}>
       {/* THE ATMOSPHERE MUST BELONG TO THIS FILM. With no explicit `theme` it fell back to its own
           defaults — a near-black field with a cyan/violet dot lattice, the palette of the MRI films this

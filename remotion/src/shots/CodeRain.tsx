@@ -24,7 +24,9 @@ export const CodeRain: React.FC<{title?: string; tagline?: string}> = ({
   const glyph = (c: number, r: number) => CHARS[Math.floor(hash01(c * 12.9 + r * 7.1 + Math.floor(t * 9)) * CHARS.length)];
   return (
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
-      <svg width={W} height={H} style={{position: 'absolute', inset: 0, fontFamily: 'var(--f-mono, monospace)'}}>
+      {/* data-bleed: the rain IS the texture. Glyphs falling past the bottom edge is the effect, not a
+          layout that failed to fit — text_safe_qa would otherwise report ~45 half-cut characters a frame. */}
+      <svg data-bleed width={W} height={H} style={{position: 'absolute', inset: 0, fontFamily: 'var(--f-mono, monospace)'}}>
         {[...Array(cols)].map((_, c) => {
           const speed = 0.6 + hash01(c * 3.3) * 1.4, off = hash01(c * 9.7) * ROWS;
           const head = ((t * speed * ROWS + off) % (ROWS + 14));

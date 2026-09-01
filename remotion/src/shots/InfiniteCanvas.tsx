@@ -39,7 +39,9 @@ export const InfiniteCanvas: React.FC<{hub?: string; items?: string[]}> = ({
   const cx = hub.x + hub.w / 2, cy = hub.y + hub.h / 2;
   return (
     <AbsoluteFill style={{background: BG}}>
-      <div style={world}>
+      {/* data-bleed: the WORLD is larger than the frame by definition — this shot is a viewport panning
+          over a canvas, so nodes outside the viewport are the premise, not a layout that overflowed. */}
+      <div data-bleed style={world}>
         {/* dot grid */}
         <svg width={WORLD_W} height={WORLD_H} style={{position: 'absolute', inset: 0, opacity: 0.5}}>
           {[...Array(45)].map((_, gx) => [...Array(28)].map((_, gy) => <circle key={`${gx}-${gy}`} cx={gx * 80 + 30} cy={gy * 80 + 30} r={2} fill={LINE} />))}

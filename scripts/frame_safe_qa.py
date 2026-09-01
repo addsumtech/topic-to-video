@@ -9,12 +9,15 @@ Both are mechanically detectable on the rendered `_keyframes/scene_NN.png`, so t
 than eyeballing. The Film's content-inset should keep the outer border clear (atmosphere only); this backstops
 that structurally and catches any regression or any shot that still bleeds to the edge.
 
-  EDGE-BLEED (ERROR): the outer action-safe border (top/left/right — NOT the bottom caption band) should be
-    low-contrast atmosphere. Bright, structured content there means something overflowed the safe box.
+  EDGE-BLEED (WARN, was an ERROR): how much of the outer border (top/left/right — NOT the bottom caption
+    band) carries content. It was a hard delivery gate on the theory that border ink means an overflow. That
+    theory is measurably backwards — see the comment at the check — so it now reports rather than blocks, and
+    `text_safe_qa.py` asks the DOM the question this one was trying to answer by inference.
   BRIGHTNESS OUTLIER (WARN): a scene whose mean luminance deviates far from the deck median = a palette clash
     (e.g. a white-ground shot dropped into a dark film) — the exact "white grid / white bloom" defect.
 
-Exit non-zero on any EDGE-BLEED error. Run alongside keyframe_qa_remotion before delivery. No CV deps beyond PIL.
+This gate is therefore ADVISORY on its own: read its warnings, and let `text_safe_qa.py` be the gate
+that blocks. Run both alongside keyframe_qa_remotion before delivery. No CV deps beyond PIL.
 """
 import os, sys, glob, json, statistics
 
@@ -96,8 +99,18 @@ def evaluate(out_dir):
                     bright += 1
         frac = bright / max(1, tot)
         if frac > EDGE_FRAC_ERR:
-            errors.append("%s: %.1f%% of the safe border is content — text/graphics likely OFF-FRAME "
-                          "(action-safe overflow); inset or wrap the shot's edge elements" % (name, frac * 100))
+            # A WARNING, not a delivery ERROR. Measured against real cases this test is INVERTED: the three
+            # registers whose type is genuinely cut by the canvas read 1.00%, 1.45% and 4.40% — all UNDER
+            # this threshold — while four deliberately full-bleed registers read 9.6%, 12.7%, 14.1% and
+            # 35.2% and were all blocked. It would also refuse 100% of the sampled frames of OpenAI's launch
+            # film, 57% of Figma's and 57% of Anthropic's, while passing all 30 frames of a film that
+            # measured as inert. Coverage runs OPPOSITE to the defect (a cut word is a thin band; a flood is
+            # a solid field), so no threshold fixes it. `text_safe_qa.py` asks the DOM instead, exactly.
+            # What this number still reports honestly is that the shot floods its border — worth seeing,
+            # never worth blocking a technique for.
+            warnings.append("%s: %.1f%% of the safe border carries content. If that is a full-bleed field or "
+                            "flood it is FINE (this measure cannot tell them apart — see text_safe_qa.py, "
+                            "which asks the DOM whether any TYPE is actually cut)" % (name, frac * 100))
         # --- scene mean luminance (for the outlier pass) ---
         # cheap mean over a subsample of the whole frame
         s = c = 0

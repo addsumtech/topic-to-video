@@ -43,6 +43,7 @@ MODULE_PATH = {
     "voice_qa": os.path.join(_SCRIPTS, "voice_qa.py"),
     "shot_director": os.path.join(_SCRIPTS, "shot_director.py"),
     "film_energy_qa": os.path.join(_SCRIPTS, "film_energy_qa.py"),
+    "text_safe_qa": os.path.join(_SCRIPTS, "text_safe_qa.py"),
 }
 
 
@@ -340,8 +341,12 @@ def _probe_delivery_gate_on_both_grounds(mod):
     for ground, ink, label in [(DARK, (240, 240, 240), "dark"), (LIGHT, (20, 20, 20), "light")]:
         ok = mod.evaluate(_fsq_dir(mod, ground=ground, ink=ink))
         bad = mod.evaluate(_fsq_dir(mod, ground=ground, ink=ink, bleed=True))
-        assert not ok["errors"], "%s ground: a clean film cannot be delivered (%r)" % (label, ok["errors"][:1])
-        assert bad["errors"], "%s ground: a real overflow is not blocked" % label
+        assert not ok["errors"] and not ok["warnings"], \
+            "%s ground: a clean film draws a complaint (%r)" % (label, (ok["errors"] + ok["warnings"])[:1])
+        # The border measure is ADVISORY now — it cannot tell a cut word from a full-bleed flood (see
+        # frame_safe_qa's own comment), so it must still SEE a flooded border and must no longer block on it.
+        assert bad["warnings"], "%s ground: a flooded border is not even reported" % label
+        assert not bad["errors"], "%s ground: the border measure is blocking delivery again" % label
 
 
 PROBES["shot_still_qa"] = {
@@ -850,6 +855,84 @@ MUTANTS["film_energy_qa"] = {
     "an undecodable film passes":
         ('return ["could not decode %s (needs ffmpeg + numpy)" % mp4], [], None',
          "return [], [], None"),
+}
+
+
+# ── text_safe_qa: the rules around the DOM audit's ONE channel back from a render ────────────────────
+# The audit itself lives in TypeScript and is proved by tests/test_text_safe_qa.py against real renders.
+# What lives here is the python half: the payload must survive the trace it travels in, a render that never
+# ran must not read as clean, and the props must reach the renderer as a FILE with the audit armed.
+def _fake_run(mod, returncode=0, stderr="", stdout=""):
+    seen = {}
+
+    class R:
+        pass
+    r = R()
+    r.returncode, r.stdout, r.stderr = returncode, stdout, stderr
+
+    def run(cmd, **kw):
+        seen["cmd"] = cmd
+        return r
+    mod.subprocess = types.SimpleNamespace(run=run)
+    return seen
+
+
+def _probe_a_failed_render_is_a_finding(mod):
+    _fake_run(mod, returncode=1, stderr="Error: bundle failed")
+    out = mod.audit_shot("Z", {}, 10, os.path.join(tempfile.mkdtemp(), "x.png"))
+    assert out, "a render that never produced a frame reported as clean"
+
+
+def _probe_a_clean_render_is_clean(mod):
+    _fake_run(mod, returncode=0)
+    assert mod.audit_shot("Z", {}, 10, os.path.join(tempfile.mkdtemp(), "x.png")) == []
+
+
+def _probe_the_payload_survives_its_stack_trace(mod):
+    import json as _json
+    payload = [{"out": {"right": 848}, "text": "A]B", "tag": "div", "cls": "", "font": "104px Inter"}]
+    _fake_run(mod, returncode=1,
+              stderr="at cancelRender\nError: " + mod.TAG + _json.dumps(payload) + "\n  at f (b.js:1:1) [x]\n")
+    got = mod.audit_shot("Z", {}, 10, os.path.join(tempfile.mkdtemp(), "x.png"))
+    assert got == payload, "payload lost in the trace around it: %r" % (got,)
+
+
+def _probe_props_reach_the_render_as_a_file_with_the_audit_armed(mod):
+    import json as _json
+    seen = _fake_run(mod, returncode=0)
+    mod.audit_shot("Z", {"title": "\u6700\u540e\u4e00\u516c\u91cc"}, 10,
+                   os.path.join(tempfile.mkdtemp(), "x.png"))
+    pf = [c for c in seen["cmd"] if str(c).startswith("--props=")]
+    assert pf, "no --props reached the renderer: %r" % (seen["cmd"],)
+    path = str(pf[0]).split("=", 1)[1]
+    assert os.path.exists(path), "props were passed inline, not as a file — CJK copy breaks the argument"
+    data = _json.load(open(path, encoding="utf-8"))
+    assert data.get("textSafe") is True, "the render was made without arming the audit"
+    assert data.get("title") == "\u6700\u540e\u4e00\u516c\u91cc"
+
+
+PROBES["text_safe_qa"] = {
+    "failed_render_is_a_finding": _probe_a_failed_render_is_a_finding,
+    "clean_render_is_clean": _probe_a_clean_render_is_clean,
+    "payload_survives_its_trace": _probe_the_payload_survives_its_stack_trace,
+    "props_by_file_audit_armed": _probe_props_reach_the_render_as_a_file_with_the_audit_armed,
+}
+
+MUTANTS["text_safe_qa"] = {
+    "a render that never ran passes":
+        ('        return [{"text": "(render failed: %s)" % (blob.strip().splitlines() or ["?"])[-1][:160], "out": {}}]',
+         "        return []"),
+    "the audit is never armed":
+        ('    payload["textSafe"] = True', '    payload["textSafe"] = False'),
+    "the payload is ignored":
+        ("    if TAG in blob:", "    if False:"),
+    # The bug a test drove out: a hand-rolled bracket scan closes on the first ']' in the copy.
+    "the payload end is guessed instead of parsed":
+        ("            found, _end = json.JSONDecoder().raw_decode(raw)\n            return found",
+         "            return json.loads(raw[:raw.index(']') + 1])"),
+    "props go inline on the command line":
+        ('                        "--props=" + os.path.abspath(pf)],',
+         '                        "--props=" + json.dumps(payload)],'),
 }
 
 

@@ -135,7 +135,9 @@ export const CollaborativeCursors: React.FC<{names?: string[]}> = ({
   for (let gx = 0; gx < 33; gx++) for (let gy = 0; gy < 20; gy++) dots.push(<circle key={`${gx}-${gy}`} cx={gx * 80 + 30} cy={gy * 80 + 30} r={1.8} fill={DOT} />);
   return (
     <AbsoluteFill style={{background: BG}}>
-      <div style={world}>
+      {/* data-bleed: the camera DOLLIES IN to the middle-bottom board by the end, so the outer boards are
+          cropped by the frame at rest. That is the move, not a layout that overflowed. */}
+      <div data-bleed style={world}>
         <svg width={WORLD_W} height={WORLD_H} style={{position: 'absolute', inset: 0, opacity: 0.7}}>{dots}</svg>
         {boards.map((b, i) => <Artboard key={i} b={b} t={t} />)}
       </div>

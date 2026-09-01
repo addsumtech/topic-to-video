@@ -33,7 +33,9 @@ export const TimelineTravel: React.FC<{nodes?: {time: string; label: string}[]}>
   const passedX = camX; // nodes to the left of the lens centre are "done"
   return (
     <AbsoluteFill style={{background: BG}}>
-      <div style={{position: 'absolute', left: wx, top: 0, width: worldW, height: H}}>
+      {/* data-bleed: the WORLD travels past the frame — that is the shot. Stops already visited leave to the
+          left and stops still ahead wait to the right; both are off-frame on purpose. */}
+      <div data-bleed style={{position: 'absolute', left: wx, top: 0, width: worldW, height: H}}>
         {/* the rail: a dim base + a bright progress fill up to the camera */}
         <div style={{position: 'absolute', left: x0, top: railY - 3, width: worldW - x0 * 2, height: 6, background: RAIL, borderRadius: 3}} />
         <div style={{position: 'absolute', left: x0, top: railY - 3, width: Math.max(0, Math.min(worldW - x0 * 2, passedX - x0)), height: 6, background: ACCENT, borderRadius: 3}} />

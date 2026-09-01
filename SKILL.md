@@ -365,6 +365,7 @@ TTS if the user gives an API key.
   `--depth`.
 - `scripts/render_remotion.py <out_dir>` — the render CLI for the **remotion bespoke-shot tier** (see the bullet above). The legacy generic-scene Remotion tier (atmospheres / cinematic templates / TRUE-3D archetypes / `type:"cinematic"` scenes) was REMOVED in the phase-3 cutover — its scripts, reference docs, and tests were deleted; `meta.renderer:"remotion-legacy"` errors with a re-author hint.
 - `scripts/cues.py` — pure anchor→cue-time resolver: reads per-scene `audio/NN.words.json` (edge-tts per-word timings) and resolves each `data-cue` anchor phrase to an absolute timestamp, used by `render_html` for audio-synced HTML reveals.
+- `scripts/text_safe_qa.py <out_dir>` (or `--library`) — the **TEXT-SAFE gate** (remotion tier): asks the DOM, at each beat's settled frame, whether any TYPE is cut off by the canvas. It replaces `frame_safe_qa`'s EDGE-BLEED **error**, which was measurably INVERTED — the three registers whose type is genuinely cut read 1.00%/1.45%/4.40%, all UNDER its 4.5% error floor, while four deliberately full-bleed registers (9.6–35.2%) were all blocked, as would be 100% of the sampled frames of OpenAI's launch film, 57% of Figma's and 57% of Anthropic's. Coverage runs OPPOSITE to the defect, so no threshold fixes it. A **deliberate** frame-break needs no waiver: text clipped by an `overflow:hidden` ancestor SMALLER than the frame (a marquee, a mask, a crop window) is the author's intent, and a travelling world or a character texture marks its layer `data-bleed` with a written `data-bleed:` reason beside it (a test requires the reason). Full-bleed GRAPHICS are never a finding — only type can be destroyed by an edge. **This is what makes Figma-grade framing legal here**: full-bleed, floods, and type cropped by a container are now shippable.
 - `scripts/film_energy_qa.py <out_dir>` — the **FILM-ENERGY gate** (remotion tier, post-render): measures `out.mp4`'s frame-diff p75, median ink coverage and luminance span, and ERRORs under floors set at HALF the lowest of four measured official launch films (Apple / OpenAI / Figma / Anthropic — the table and the derivation are in the script). It answers the one question no other gate asks: **does this film use the fact that it is a film?** Every other gate judges a frame; a 30-beat film once passed all of them while measuring 3.3x under the quietest reference on motion, 5.6x on density and 3.4x on light — i.e. something the html tier could have rendered for a fraction of the cost. A deliberately quiet film declares `meta.energy_waiver` with a REASON (the numbers stay printed as warnings); silence is not a waiver.
 - `scripts/check_av.py <out_dir>` — deterministic A/V gate: probes `out.mp4` video-vs-audio duration + per-clip sample-rate uniformity across `.clips/`; exits non-zero on A/V drift above tolerance (0.3 s) or non-uniform rates. Run AFTER the full render (step 9) as a gate before delivery.
 - `scripts/doctor.py [--json]` — environment preflight: reports which tools/libraries are present (ffmpeg/ffprobe/PIL required; PyMuPDF/python-pptx/edge-tts/soffice/Chrome/font optional) and, for each missing one, the stage it gates + the install hint. Exits non-zero only when a REQUIRED dep is missing. Run once at the START (step 1).
@@ -1171,10 +1172,11 @@ figure), a non-singular `the_one_thing`, or a
    **For a `meta.renderer:"remotion"` deck** (the bespoke-shot tier), `render_remotion.py` writes `out.srt`
    + `_keyframes/scene_NN.png` itself; the html-only `keyframe_qa.py` (which returns 0 on a remotion deck) is
    replaced by its remotion twin **`keyframe_qa_remotion.py <out_dir>`** (a deterministic blank-frame backstop on
-   the keyframes) PLUS **`frame_safe_qa.py <out_dir>`** — the FRAME-CRAFT gate: it ERRORs on on-frame content
-   bleeding off the action-safe edge (text/graphics OFF-FRAME) and WARNs on a brightness OUTLIER scene (a
-   white/bright shot in a dark film = palette clash). These are the exact failures eyeballing missed — a shot that
-   overflows or clashes now blocks. PLUS **`film_energy_qa.py <out_dir>`** — the FILM-ENERGY gate: motion,
+   the keyframes) PLUS **`text_safe_qa.py <out_dir>`** — the FRAME-CRAFT gate: it ERRORs when any
+   TYPE is cut off by the canvas, asked of the DOM rather than inferred from border ink (see the scripts list;
+   the pixel version it replaces was inverted, blocking full-bleed technique and missing every real cut).
+   **`frame_safe_qa.py <out_dir>`** stays as an ADVISORY read — a flooded border and a brightness OUTLIER
+   scene (a white/bright shot in a dark film = palette clash) are worth seeing, never worth blocking. PLUS **`film_energy_qa.py <out_dir>`** — the FILM-ENERGY gate: motion,
    density and light measured against real launch films (see the scripts list). It is the only gate that
    judges the FILM rather than a frame, and the only one that can catch a delivery which is correct in
    every frame and inert as a film. `rhythm_qa`/`pedagogy_qa` still apply (they read `content_plan.json`). At the
@@ -1182,8 +1184,8 @@ figure), a non-singular `the_one_thing`, or a
    + `frame_safe_qa` reports: it judges register fit, family variety, faithful copy (no demo-number/WorkBuddy-
    leftover), decodability, **MEANING (S10 — does each shot's design ENCODE its beat's idea, not just look good?)**,
    and **boldness (S8, audacity-scaled)**, and REVISEs failing beats (the shot-director re-assigns → re-render).
-   Deliver only after **shot-critic PASSES and `check_av` + `keyframe_qa_remotion` + `frame_safe_qa` +
-   `film_energy_qa` exit 0**
+   Deliver only after **shot-critic PASSES and `check_av` + `keyframe_qa_remotion` + `text_safe_qa` +
+   `film_energy_qa` exit 0** (`frame_safe_qa` is advisory — read it, say which warnings you accepted)
    — and that PASS must be an INDEPENDENT one: re-dispatch the critic as a fresh subagent given only the
    `<out_dir>` path, then `python3 scripts/critic_ledger.py <out_dir> --final` (exit 0 required; it refuses an
    in-context ledger, a ledger missing any dimension, and one pinned to a different render's contact sheet).
@@ -1192,8 +1194,8 @@ figure), a non-singular `the_one_thing`, or a
    `keyframe_qa.py`, `rhythm_qa.py` and `pedagogy_qa.py` ALL exit 0** (`voice_qa.py` is ADVISORY and always
    exits 0 — read its signals and say which you accepted; failing a build on them would produce the
    "rule voice" its reference warns about) (on a `meta.renderer:"remotion"` deck,
-   `keyframe_qa_remotion.py` + `frame_safe_qa.py` + `film_energy_qa.py` + shot-critic PASS REPLACE
-`keyframe_qa.py`, which no-ops there).
+   `keyframe_qa_remotion.py` + `text_safe_qa.py` + `film_energy_qa.py` + shot-critic PASS REPLACE
+`keyframe_qa.py`, which no-ops there; `frame_safe_qa.py` is advisory).
    Naming only the first two is
    how a deck shipped "all green" while the gates that actually look at the pages were never
    consulted. Also read `keyframe_qa`'s **deck advisories** (silhouette repetition, content-band

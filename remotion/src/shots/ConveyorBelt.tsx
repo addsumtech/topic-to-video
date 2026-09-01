@@ -85,7 +85,9 @@ export const ConveyorBelt: React.FC<{items?: string[]; title?: string; doneLabel
         const lfs = lLen <= 6 ? 30 : lLen <= 10 ? 23 : lLen <= 16 ? 18 : 15;
         const sfs = sLen <= 8 ? 18 : sLen <= 16 ? 15 : 13;
         return (
-          <div key={k} style={{position: 'absolute', left: c.x, top: beltY + beltH / 2, transform: 'translate(-50%,-50%)',
+          // data-bleed: a card LEAVING the belt at the frame edge is what a conveyor is. The label is not
+          // being lost, it is being carried away, and it was fully legible for the seconds before this.
+          <div key={k} data-bleed style={{position: 'absolute', left: c.x, top: beltY + beltH / 2, transform: 'translate(-50%,-50%)',
             width: 208, minHeight: 116, padding: '12px 14px', boxSizing: 'border-box', borderRadius: cardRadius,
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 7,
             background: c.stamped ? `linear-gradient(150deg, ${done}, ${done}cc)` : cardBg,
