@@ -298,6 +298,13 @@ TTS if the user gives an API key.
   drawn by `runtime/motif.tsx` above the shots and below the caption, blended as ink on paper (`multiply` on
   a light ground, `screen` on a dark one) so it never prints across the type. Keep it near 0.05: removing it
   should make the film look flatter without anyone being able to name what left.
+  **ICONS ARE THE DEFAULT ON A LABELLED LIST.** `remotion/src/runtime/icons.tsx` is one coherent line family
+  (same 24-grid / 2-stroke / round caps as the html tier, so both read as one system). Before it, a register
+  with a list drew an abstract mark chosen by INDEX — the same four shapes in the same order on every film,
+  whatever the labels said. Pass `icon` per entry (`panels[].icon`, `items[].icon`); `shot_proof` WARNS on a
+  labelled list of 2+ entries with none, and the reasons that survive are categorical (a headline figure the
+  icon would compete with, a motif-dominant frame), never "it looked fine". See
+  `references/remotion-shot-authoring.md` "Icons".
   **Authoring:** the shot-director (`agents/shot-director.md`) reads `content_plan.json` +
   `remotion/LIBRARY.md` and writes, per scene, `shot` (a register id) + `shot_props` (the beat's topic copy)
   + `shot_adaptation` (a REQUIRED `{kept, redesigned, topic_idea, theme_cues}` note — KEEP the register's style,

@@ -2161,6 +2161,41 @@ def test_photoplate_callouts_hold_at_inputs_they_were_not_tuned_on():
     assert "CHIP_MEASURE" in src, "the character measure is gone"
 
 
+def test_a_labelled_list_without_icons_is_reported():
+    """A register with a list used to draw an abstract mark chosen by INDEX.
+
+    The same four shapes in the same order on every film, whatever the labels said — a ring beside 「开表格」
+    teaches a viewer nothing, and CardStack3D put the card's ORDINAL in a coloured chip. Icons are the
+    default for category content here, so their absence is what needs a reason; this is the thing that asks
+    for it. Which registers can take one is READ from the source, so wiring a new one brings it under the
+    gate the same day rather than whenever somebody remembers a list.
+    """
+    import importlib.util
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    spec = importlib.util.spec_from_file_location(
+        "shot_proof_icons", os.path.join(root, "scripts", "shot_proof.py"))
+    sp = importlib.util.module_from_spec(spec); spec.loader.exec_module(sp)
+
+    assert sp.icon_capable("QuadSplit") and sp.icon_capable("CardStack3D"), (
+        "the icon-capable set is derived from `runtime/icons` imports and no longer finds the wired ones")
+    assert not sp.icon_capable("KnowledgeGraph"), "a register that draws no icon is reported as capable"
+
+    bare = sp.icons_missing("QuadSplit", {"panels": [{"label": "A"}, {"label": "B", "icon": "file"}]})
+    assert bare == ["panels/A"], bare
+    assert not sp.icons_missing("QuadSplit", {"panels": [{"label": "A", "icon": "table"},
+                                                         {"label": "B", "icon": "file"}]})
+    # a single item is a hero, not a list — an icon there is a different decision
+    assert not sp.icons_missing("QuadSplit", {"panels": [{"label": "A"}]})
+
+    # and the family itself: every name the shots reference must exist, or the render throws mid-film
+    icons = open(os.path.join(root, "remotion", "src", "runtime", "icons.tsx"), encoding="utf-8").read()
+    names = set(re.findall(r"^  ([a-z]+):\s*<>", icons, re.M))
+    assert len(names) >= 20, "the icon family shrank to %d — a thin set forces decorative reuse" % len(names)
+    for shot in ("QuadSplit", "CardStack3D"):
+        src = open(os.path.join(root, "remotion", "src", "shots", shot + ".tsx"), encoding="utf-8").read()
+        assert "IconName" in src, "%s imports Icon without its name type, so a typo is not caught" % shot
+
+
 def test_every_critic_rule_carries_a_REAL_precedent():
     """A rule states what to do; its precedent states what went wrong, which is what generalises.
 

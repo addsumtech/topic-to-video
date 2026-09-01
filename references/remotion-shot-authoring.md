@@ -489,6 +489,31 @@ through the real `Film` (real transitions, captions, motion). Montage/present th
 `meta.shot_template` + `meta.shot_template_contest` as before. A single still remains the cheap fallback only when
 the Node render budget is tight; default to samples.
 
+
+## Icons — the default for category content, not a garnish
+
+This tier had none. A register with a list drew an abstract mark per row — QuadSplit's `bars`/`ring`/
+`dots`/`wave`, CardStack3D's numbered chip — and the mark was chosen by INDEX, so the same shapes appeared
+in the same order on every film whatever the labels said. A viewer reads 「开表格」 beside a ring and learns
+nothing from the ring. That is furniture that happens to be on the frame.
+
+`runtime/icons.tsx` is one coherent line family — same 24-unit grid, 2-unit stroke, round caps as the html
+tier's set, so a film reads as one identity system across both. Import `Icon` and `IconName`; an unknown
+name THROWS, because a silently-missing icon leaves a hole the layout still reserves.
+
+**The rule, carried over from `references/icons.md`:** an icon must answer **what is this · what does it do ·
+why pay attention** BEFORE the viewer reads the text. If it answers none, cut it. Pick by the ROLE the row
+plays, not by the picture its word suggests.
+
+**Icons are the DEFAULT for a labelled list**, so their ABSENCE is what needs a reason. `shot_proof` warns
+on a labelled list of 2+ entries passed to an icon-capable register with no `icon` on them. The reasons that
+survive that warning are categorical, not "it looked fine": a headline FIGURE is the focal point and an icon
+beside it competes; a motif-dominant frame where the register's own form is the content; a frame where the
+icon would be larger than its title. Never emoji.
+
+Which registers can take one is READ from the source — a register that imports `runtime/icons` is
+icon-capable — so wiring a new one brings it under the gate the same day.
+
 ## E · The gates still bind
 
 None of the above relaxes the floor. Before delivery: `validate.py` (structure/faithfulness), `check_av.py`

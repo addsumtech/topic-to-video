@@ -34,6 +34,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {fitTextOnNLines} from '@remotion/layout-utils';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeInOutCubic, easeOutBack, hash01} from '../runtime/motion';
 import {useDNA, dnaPalette, mix} from '../runtime/dna';
+import {Icon, type IconName} from '../runtime/icons';
 import {CONTENT_TOP, TITLE_Y, contentBottom} from '../runtime/layout';
 
 export const DURATION = 150; // 5s
@@ -279,7 +280,7 @@ const legibleTone = (c: string, ground: string, ink: string): string => {
   return out;
 };
 
-export type QuadPanel = {label?: string; glyph?: string};
+export type QuadPanel = {label?: string; glyph?: string; icon?: IconName};
 
 const DEFAULT_PANELS: QuadPanel[] = [{label: 'Faster'}, {label: 'Simpler'}, {label: 'Cheaper'}, {label: 'Safer'}];
 
@@ -424,8 +425,18 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
               alignItems: 'center', justifyContent: 'flex-start'}}>
               <div style={{width: '100%', height: '100%', maxWidth: Math.min(glyphW, W * 0.82),
                 maxHeight: Math.min(glyphH, H * 0.46)}}>
-                <Glyph kind={glyphFor(p?.glyph, i)} g={g} c={tone} warn={warn} soft={SOFT} track={TRACK} off={OFF}
-                  ink={INK} ground={BG} />
+                {/* AN ICON WHEN THE PANEL NAMES A THING, the abstract glyph otherwise. The glyph set is
+                    chosen by INDEX when unspecified, so the same four shapes appeared in the same order on
+                    every film whatever the labels said — a ring beside 「开表格」 teaches a viewer nothing.
+                    An icon answers what this is before the label is read; that is the whole test in
+                    references/icons.md. `glyph` still works untouched, so no existing film moves. */}
+                {p?.icon
+                  ? <div style={{width: '100%', height: '100%', display: 'flex',
+                      alignItems: 'center', justifyContent: 'flex-start'}}>
+                      <Icon name={p.icon} size={Math.min(glyphH, H * 0.46, glyphW)} ink={tone} weight={1.9} />
+                    </div>
+                  : <Glyph kind={glyphFor(p?.glyph, i)} g={g} c={tone} warn={warn} soft={SOFT} track={TRACK} off={OFF}
+                      ink={INK} ground={BG} />}
               </div>
             </div>
 

@@ -113,6 +113,40 @@ def defaults_from_source(src, shot):
     return out
 
 
+def icon_capable(shot):
+    """True when a register can draw a real icon per item — DERIVED from the source, never a hardcoded list.
+
+    A register gains icon support by importing runtime/icons, so asking the file is what keeps this honest:
+    the next register to be wired is covered the day it is wired, and a list here would have gone stale on
+    the first one somebody added.
+    """
+    try:
+        src = open(os.path.join(_SHOTS, shot + ".tsx"), encoding="utf-8").read()
+    except OSError:
+        return False
+    return "runtime/icons" in src
+
+
+_ICON_LIST_KEYS = ("panels", "items", "rows", "nodes", "faces")
+
+
+def icons_missing(shot, props):
+    """The labelled entries a beat passed to an icon-capable register WITHOUT an icon."""
+    if not icon_capable(shot):
+        return []
+    out = []
+    for key in _ICON_LIST_KEYS:
+        v = props.get(key)
+        if not isinstance(v, list) or len(v) < 2:
+            continue
+        for entry in v:
+            label = entry.get("label") if isinstance(entry, dict) else (entry if isinstance(entry, str) else None)
+            icon = entry.get("icon") if isinstance(entry, dict) else None
+            if label and not icon:
+                out.append("%s/%s" % (key, label))
+    return out
+
+
 def exported_props(shot):
     """The prop names a shot's EXPORTED component actually accepts, or None if it cannot be read.
 
@@ -263,6 +297,19 @@ def static_checks(board):
                     errors.append("beat %d (%s): '%s' is unset, so the register draws its own English demo "
                                   "copy %r on a %s film — pass the prop"
                                   % (beat, shot, key, latin[0][:60], lang))
+
+        # (0c) A CATEGORY LIST WITH NO ICONS. An icon-capable register falls back to an abstract mark chosen
+        # by INDEX — the same four shapes in the same order on every film, whatever the labels say. A ring
+        # beside 「开表格」 teaches a viewer nothing; an icon answers what the row IS before the label is
+        # read, which is the whole test in references/icons.md. Icons are the DEFAULT for category content
+        # here, so their absence is what needs a reason, not their presence.
+        bare = icons_missing(shot, props)
+        if bare:
+            warns.append("beat %d (%s): %d labelled item(s) carry no `icon`, so the register draws its "
+                         "index-chosen abstract mark instead — %s. Name the icon for each (see "
+                         "runtime/icons.tsx ICON_NAMES), or say why this beat is one where an icon would "
+                         "compete (a headline figure, a motif-dominant frame)."
+                         % (beat, shot, len(bare), ", ".join(bare[:4])))
 
         # (1) a register's DEMO DEFAULT left in place on a real topic
         defs = shot_defaults(shot)
