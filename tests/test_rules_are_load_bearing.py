@@ -44,6 +44,7 @@ MODULE_PATH = {
     "shot_director": os.path.join(_SCRIPTS, "shot_director.py"),
     "film_energy_qa": os.path.join(_SCRIPTS, "film_energy_qa.py"),
     "text_safe_qa": os.path.join(_SCRIPTS, "text_safe_qa.py"),
+    "register_energy": os.path.join(_SCRIPTS, "register_energy.py"),
 }
 
 
@@ -973,6 +974,49 @@ MUTANTS["text_safe_qa"] = {
     "props go inline on the command line":
         ('                        "--props=" + os.path.abspath(pf)],',
          '                        "--props=" + json.dumps(payload)],'),
+}
+
+
+# ── register_energy: the library-wide diagnostic's two load-bearing rules ────────────────────────────
+def _probe_floors_are_derived_not_restated(mod):
+    """Move film_energy_qa's floor and the ranking must move with it.
+
+    Checking equality would pass a hardcoded copy of today's numbers, which is exactly the failure: a
+    diagnostic that keeps ranking against a private copy after the real gate moved. So the probe CHANGES the
+    source of truth and requires the derived value to follow."""
+    mod.fe.MOTION_P75_FLOOR = 0.4242
+    got = mod.floors()
+    assert got["motion_p75"] == 0.4242, (
+        "floors() returned %r — it is not reading film_energy_qa, it is carrying its own copy" % (got,))
+
+
+def _probe_an_unmeasured_register_is_not_a_passing_one(mod):
+    """A register that failed to render is ABSENT from the ranking, and absence reads as 'fine'."""
+    import json as _json
+    d = tempfile.mkdtemp()
+    path = os.path.join(d, "m.json")
+    _json.dump({"_regenerate": "x", "_basis": "x",
+                "_floors": {"motion_p75": 0.0037, "ink_median": 0.12, "luma_range": 0.135},
+                "_failed": ["Zed (render blew up)"],
+                "registers": {"Alpha": {"motion_p75": 0.9, "ink_median": 0.9, "luma_range": 0.9,
+                                        "seconds": 5.0}}},
+               open(path, "w", encoding="utf-8"))
+    mod.MANIFEST = path
+    rc = mod.main(["--report"])
+    assert rc == 1, "a manifest with an UNMEASURED register reported success (exit %r)" % rc
+
+
+PROBES["register_energy"] = {
+    "floors_are_derived": _probe_floors_are_derived_not_restated,
+    "unmeasured_is_not_passing": _probe_an_unmeasured_register_is_not_a_passing_one,
+}
+
+MUTANTS["register_energy"] = {
+    "the floors become a private copy":
+        ('    return {"motion_p75": fe.MOTION_P75_FLOOR, "ink_median": fe.INK_FLOOR, "luma_range": fe.LUMA_RANGE_FLOOR}',
+         '    return {"motion_p75": 0.0037, "ink_median": 0.12, "luma_range": 0.135}'),
+    "an unmeasured register reads as fine":
+        ("    return 1 if unknown else 0", "    return 0"),
 }
 
 
