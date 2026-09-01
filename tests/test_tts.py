@@ -39,7 +39,12 @@ def _proj(tmp_path):
 def test_edge_catalog_resolution():
     assert tts.resolve_edge_voice("en", "UK", "male") == "en-GB-RyanNeural"
     assert tts.resolve_edge_voice("zh", "Mainland", "female") == "zh-CN-XiaoxiaoNeural"
-    assert tts.resolve_edge_voice("en") == "en-US-AriaNeural"      # default accent + gender
+    # READ from the catalogue, not restated. Pinning the literal name made three tests fail the moment a
+    # default was replaced for a measured reason — they check the RESOLUTION CHAIN (default accent, default
+    # gender), and the name is the catalogue's business. Which voice is allowed to be the default is a
+    # separate question, checked by its own test against the F0 measurements.
+    _EN = tts.EDGE_VOICE_CATALOG["en"]["US"]["female"]
+    assert tts.resolve_edge_voice("en") == _EN                     # default accent + gender
     assert tts.resolve_edge_voice("ja", gender="male") == "ja-JP-KeitaNeural"
     assert tts.resolve_edge_voice("EN-us", "uk") == "en-GB-SoniaNeural"  # case-insensitive
     assert tts.resolve_edge_voice("xx") is None                   # unknown language
@@ -70,7 +75,8 @@ def test_edge_failure_falls_back_to_language_matched_say(tmp_path, monkeypatch):
 
 def test_resolve_voice_auto_prefers_edge(monkeypatch):
     monkeypatch.setattr(tts, "_have_edge", lambda: True)
-    assert tts._resolve_voice({"voice": "auto", "language": "en"}) == "edge:en-US-AriaNeural"
+    assert tts._resolve_voice({"voice": "auto", "language": "en"}) == (
+        "edge:" + tts.EDGE_VOICE_CATALOG["en"]["US"]["female"])
     assert tts._resolve_voice({"voice": "auto", "language": "zh"}) == "edge:zh-CN-XiaoxiaoNeural"
 
 def test_resolve_voice_auto_falls_back_to_say(monkeypatch):
@@ -106,7 +112,7 @@ def test_synthesize_uses_edge_when_resolved(tmp_path, monkeypatch):
 
     res = tts.synthesize(out)
     assert made, "edge synthesis was not called"
-    assert made[0][1] == "en-US-AriaNeural"
+    assert made[0][1] == tts.EDGE_VOICE_CATALOG["en"]["US"]["female"]
     assert made[0][2] == "+0%"                       # default speed -> no rate change
     assert all(s["audio"].endswith(".mp3") for s in res["slides"])
     assert all(s["duration"] == 1.0 for s in res["slides"])
@@ -483,6 +489,58 @@ def test_a_clip_ends_in_a_decay_not_a_cliff():
     # -58's 0.975 now, so only a threshold low enough to keep a real tail passes.
     assert kept > 1.02, ("only %.3fs of a decaying signal survived the trim — the threshold is cutting "
                          "into the natural tail (-58dB keeps 0.975s here, -85dB keeps 1.060s)" % kept)
+
+
+# F0 standard deviation in semitones, measured over voiced frames on ONE identical sentence per voice
+# (zh and en each got their own). A flat contour is where machine-ness lives, so this is the axis the
+# default was chosen on. Not a quality score: it measures whether a voice is FLAT, and cannot tell natural
+# from theatrical — which is why the shortlist went to a listener before anything shipped.
+_VOICE_F0_SD = {
+    "zh-CN-YunjianNeural": 6.93, "zh-CN-YunyangNeural": 6.88, "zh-CN-YunxiNeural": 4.61,
+    "zh-CN-XiaoxiaoNeural": 4.05, "zh-CN-XiaoyiNeural": 3.62,
+    "en-US-EmmaNeural": 4.89, "en-US-AndrewNeural": 4.77, "en-US-GuyNeural": 4.06,
+    "en-US-MichelleNeural": 3.74, "en-US-AvaNeural": 3.49, "en-US-AriaNeural": 3.38,
+    "en-US-JennyNeural": 2.82, "en-US-BrianNeural": 2.54,
+}
+
+
+def test_the_default_edge_voice_is_not_one_of_the_flat_ones():
+    """The en/zh defaults were the oldest generation in the catalogue and nobody had gone back.
+
+    Microsoft's list splits into News/Novel announcers (Aria, Guy, Yunxi — what this table was built from)
+    and a Conversation/Copilot set written for dialogue (Ava, Emma, Andrew, Brian). Read aloud, the
+    announcers are the ones that sound read. Measured on one identical sentence per language, the shipped
+    defaults sat well down the pitch-movement ranking: Aria 3.38 against Emma's 4.89, Guy 4.06 against
+    Andrew's 4.77, Yunxi 4.61 against Yunyang's 6.88.
+
+    This pins the EVIDENCE rather than the name — a different voice may well be better, and should be able
+    to ship without editing a test, but not one already measured flatter than what it replaces. The
+    generation label is deliberately not the rule either: Brian is a Copilot voice and measured flattest of
+    all thirteen, so "newer" would have been the wrong criterion.
+    """
+    import tts
+    # what each slot shipped BEFORE this change — the floor a replacement may not fall under. Deliberately
+    # not "must be the highest measured": Yunjian scores 6.93, above the chosen Yunyang's 6.88, and was
+    # rejected anyway because Passion/Sports energy is not naturalness. A floor blocks the regression this
+    # test exists for without pretending the metric can rank the top of the field.
+    # The floor is the value a replacement must BEAT, not the value it replaced — set to the old
+    # measurement it must clear. Written as ">= the old value" the first time, reverting to the old voice
+    # passed by construction: a floor a candidate satisfies by BEING the thing you moved away from is not
+    # a floor. The one unchanged slot keeps its own number.
+    was = {("en", "female"): 3.5,    # must beat en-US-AriaNeural's 3.38
+           ("en", "male"): 4.2,      # must beat en-US-GuyNeural's 4.06
+           ("zh", "female"): 4.05,   # zh-CN-XiaoxiaoNeural — unchanged, and the best of a thin field
+           ("zh", "male"): 4.8}      # must beat zh-CN-YunxiNeural's 4.61
+    for lang, accent in (("en", "US"), ("zh", "Mainland")):
+        for gender in ("female", "male"):
+            v = tts.EDGE_VOICE_CATALOG[lang][accent][gender]
+            sd = _VOICE_F0_SD.get(v)
+            assert sd is not None, (
+                "%s/%s default is %s, which has never been measured — synthesise one sentence with it and "
+                "add its F0 sd here before shipping it as a default" % (lang, gender, v))
+            assert sd >= was[(lang, gender)], (
+                "%s/%s ships %s at F0 sd %.2f, below the %.2f the previous default measured — that is a "
+                "regression toward the announcer voices this table was moved off" % (lang, gender, v, sd, was[(lang, gender)]))
 
 
 def test_the_ending_has_a_room_to_decay_into():

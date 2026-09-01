@@ -259,14 +259,32 @@ def _resolve_say_voice(name, language):
 # Curated edge-tts neural voices: language -> accent -> {female, male} -> voice id.
 # "_default" names the accent used when none is given. Escape hatch for anything not
 # here: `python -m edge_tts --list-voices` and set meta.voice = "edge:<id>" directly.
+#
+# THE en/zh DEFAULTS WERE THE OLDEST GENERATION, and nobody had gone back. Microsoft's catalogue now
+# splits into two eras: the News/Novel announcers this table was built from (Aria, Guy, Yunxi) and a
+# Conversation/Copilot set written for dialogue (Ava, Emma, Andrew, Brian). Read aloud, the announcer
+# voices are the ones that sound read.
+#
+# Chosen by measuring pitch movement on one identical sentence per voice — F0 standard deviation in
+# semitones over voiced frames, because a flat contour is where machine-ness actually lives:
+#     zh male    Yunyang 6.88   Yunjian 6.93   Yunxi 4.61 (was the default)
+#     zh female  Xiaoxiao 4.05  Xiaoyi 3.62               -> Xiaoxiao already the best of a thin field
+#     en female  Emma 4.89      Aria 3.38 (was)  Ava 3.49  Jenny 2.82
+#     en male    Andrew 4.77    Guy 4.06 (was)   Brian 2.54
+# The metric only measures whether a voice is FLAT; it cannot tell natural from theatrical, which is why
+# Yunjian (6.93, tagged Passion/Sports) was not taken over Yunyang (6.88, Professional/Reliable) and why
+# the shortlist went to the user with samples rather than being decided from the numbers alone. Brian is
+# the useful counter-example: a Copilot-generation voice that measured flattest of all, so the generation
+# label is not the criterion either.
+# Only en-US and zh-CN Mainland change; the other accents have no Conversation-generation voice to move to.
 EDGE_VOICE_CATALOG = {
     "en": {"_default": "US",
-           "US": {"female": "en-US-AriaNeural", "male": "en-US-GuyNeural"},
+           "US": {"female": "en-US-EmmaNeural", "male": "en-US-AndrewNeural"},
            "UK": {"female": "en-GB-SoniaNeural", "male": "en-GB-RyanNeural"},
            "AU": {"female": "en-AU-NatashaNeural", "male": "en-AU-WilliamNeural"},
            "IN": {"female": "en-IN-NeerjaNeural", "male": "en-IN-PrabhatNeural"}},
     "zh": {"_default": "Mainland",
-           "Mainland": {"female": "zh-CN-XiaoxiaoNeural", "male": "zh-CN-YunxiNeural"},
+           "Mainland": {"female": "zh-CN-XiaoxiaoNeural", "male": "zh-CN-YunyangNeural"},
            "HK": {"female": "zh-HK-HiuMaanNeural", "male": "zh-HK-WanLungNeural"},
            "TW": {"female": "zh-TW-HsiaoChenNeural", "male": "zh-TW-YunJheNeural"}},
     "ja": {"_default": "JP", "JP": {"female": "ja-JP-NanamiNeural", "male": "ja-JP-KeitaNeural"}},
