@@ -196,6 +196,28 @@ def build_props(key, topic):
     return {"camera": 0, "template": key, "scenes": scenes}
 
 
+def build_props_conceived(spec, topic):
+    """A Film props dict for a direction the AUTHOR conceived, rendered through the same path as a seed.
+
+    Without this, conceiving a direction had no way to reach the screen, so the catalogue's fallback padding
+    was the path of least resistance — and that is exactly how an off-topic option got onto the ballot.
+    `dna` names the preset the look is built in (the sample must render in the DNA the film would actually
+    get); `shots` is the [ShotId, props] list, i.e. the direction stated as frames rather than as a pitch.
+    """
+    shots = [(s[0], s[1]) for s in (spec.get("shots") or [])]
+    if not shots:
+        raise SystemExit("[contest_sample] conceived direction %r has no `shots` — a direction that cannot be "
+                         "rendered is a pitch, and the whole point of the contest is that the user SEES it."
+                         % spec.get("key"))
+    pitch = spec.get("pitch") or "a conceived direction"
+    caps = ["%s — %s" % (topic, spec.get("key", "conceived")), pitch[:70], "one film, this look"]
+    scenes = [{"shot": sid, "props": props, "durF": SCENE_F, "caption": caps[i % len(caps)]}
+              for i, (sid, props) in enumerate(shots)]
+    if len(scenes) > 1:
+        scenes[1]["transitionIn"] = {"type": spec.get("seam", "dissolve")}
+    return {"camera": 0, "template": spec.get("dna", "neutral"), "scenes": scenes}
+
+
 def main():
     ap = argparse.ArgumentParser(description="Render a short sample video per shot-template direction.")
     ap.add_argument("--route", metavar="TOPIC", required=True)
@@ -203,18 +225,47 @@ def main():
     ap.add_argument("--audacity", default="balanced", choices=["conservative", "balanced", "bold", "experimental"])
     ap.add_argument("--out", metavar="OUT_DIR", required=True)
     ap.add_argument("--render", action="store_true", help="actually run the renders (else just print the commands)")
+    ap.add_argument("--conceived", metavar="FILE", default=None,
+                    help="JSON list of directions YOU conceived for this subject: "
+                         "[{key, pitch, dna, shots:[[ShotId, {props}], ...]}]. The seed catalogue can only "
+                         "match what it has keywords for; everything else is authored, and this is how an "
+                         "authored direction reaches the same render path as a seed.")
     a = ap.parse_args()
-    cands = stpl.route(a.route, a.n, a.audacity)
-    if not cands:
+    width = a.n if a.n is not None else stpl.contest_width(a.audacity)
+    if width <= 0:
         print("[contest_sample] audacity=conservative → contest SKIPPED (pick one direction directly)."); return
+    seeds = stpl.matched_seeds(a.route)[:width]
+    conceived = []
+    if a.conceived:
+        conceived = json.load(open(a.conceived, encoding="utf-8"))
+        if isinstance(conceived, dict):
+            conceived = [conceived]
     out_dir = os.path.abspath(a.out)
     os.makedirs(out_dir, exist_ok=True)
-    total_f = max(1, len(_sample_shots(cands[0], a.route)) * SCENE_F)
+
+    # THE GAP IS THE POINT, and it used to be invisible. route() padded the shortfall from a fixed fallback
+    # order, so a film about an AI office agent was offered `cinematic-craft` — a 3D torus knot — as a
+    # considered direction when it was there because the list needed a third row. A slot that looks filled
+    # makes the skill's own instruction ("the six templates are SEEDS; CONCEIVE the rest for this topic")
+    # unreachable. So the shortfall is stated instead of filled.
+    gap = max(0, width - len(seeds) - len(conceived))
+    if gap:
+        print("[contest_sample] ⚠️  %d of %d directions are NOT covered. The seed catalogue matched %d for "
+              "%r%s.\n    Those slots are yours to CONCEIVE for this subject — a direction is an ATMOSPHERE "
+              "(a named look + the register families it leans on + a hero), not a row in a table. Write them "
+              "as JSON and pass --conceived; padding the ballot with whatever came next in a list is what "
+              "produced options a viewer called 毫无关联."
+              % (gap, width, len(seeds), a.route, "" if seeds else " (nothing keyed to this topic)"))
+    if not seeds and not conceived:
+        return
+
+    cands = [(k, None) for k in seeds] + [(c.get("key", "conceived-%d" % i), c) for i, c in enumerate(conceived, 1)]
+    total_f = max(1, len((cands[0][1] or {}).get("shots") or _sample_shots(cands[0][0], a.route)) * SCENE_F)
     print("[contest_sample] %d direction sample(s) for %r → _contest_<key>.mp4 (~%.1fs each):"
           % (len(cands), a.route, total_f / FPS))
     made = []
-    for k in cands:
-        props = build_props(k, a.route)
+    for k, spec in cands:
+        props = build_props_conceived(spec, a.route) if spec else build_props(k, a.route)
         pjson = os.path.join(out_dir, "_contest_%s.props.json" % k)
         with open(pjson, "w") as f:
             json.dump(props, f, ensure_ascii=False)

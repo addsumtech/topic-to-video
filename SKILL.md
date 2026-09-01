@@ -920,7 +920,12 @@ figure), a non-singular `the_one_thing`, or a
      each beat is still its own language). WIDTH scales by `meta.audacity` (`conservative` skips · `balanced` 3 ·
      `bold` 5 · `experimental` 7): `python scripts/shot_templates.py --route "<topic>" --audacity <a> --out <out>`.
      The 6 templates are SEEDS — the shot-director must **CONCEIVE bold, topic-specific directions** (not just
-     route the 6) to reach the width, forcing real divergence. **Render a short SAMPLE VIDEO per direction so the
+     route the 6) to reach the width, forcing real divergence. **The router no longer pretends otherwise:** it
+     returns only genuine keyword matches and PRINTS the shortfall, where it used to pad from a fixed fallback
+     order and put an unrelated direction on the ballot (a 3D craft look offered for an AI-office-agent film;
+     the scoring was ASCII-only, so a CJK topic matched nothing and got the padding every time). A conceived
+     direction reaches the same render path via `contest_sample.py --conceived <file.json>` —
+     `[{key, pitch, dna, seam, shots: [[ShotId, {props}], ...]}]`, a direction stated as FRAMES. **Render a short SAMPLE VIDEO per direction so the
      user can SEE its look + MOTION** (a text pitch or a single still can't convey a design language — motion IS
      the language): `python scripts/contest_sample.py --route "<topic>" --audacity <a> --out <out> --render` →
      `_contest_<key>.mp4` (~6s each, hero + 2 representative registers through the real Film). Also render one

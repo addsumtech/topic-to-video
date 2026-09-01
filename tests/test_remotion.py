@@ -209,16 +209,29 @@ def _cp10():
                                  "statement", "structure", "list", "metric", "statement"])]}
 
 
-def test_route_returns_n_distinct_and_hero_valid():
+def test_route_returns_only_real_matches_and_every_hero_is_renderable():
+    """This used to assert route() ALWAYS returns n — which is the padding contract, written down.
+
+    "Always fill the ballot" is what put a 3D torus knot in front of a viewer choosing the look of a film
+    about an AI office agent: the third slot was filled from a fixed fallback order because it had to be.
+    A test that requires the ballot to be full makes the skill's own instruction — the six templates are
+    SEEDS, conceive the rest for this topic — impossible to obey. The contract now is: return what genuinely
+    matched, distinct, never more than n, every one renderable; `conceive_gap` accounts for the rest.
+    """
     for topic in ["quarterly market analytics report", "indie pixel platformer game",
                   "developer CLI for kubernetes", "a lifestyle wellness brand"]:
         cands = st.route(topic, 3)
-        assert len(cands) == 3 and len(set(cands)) == 3, cands       # always 3 distinct
+        assert len(cands) <= 3 and len(set(cands)) == len(cands), cands
         assert all(c in st.TEMPLATES for c in cands)
+        assert st.conceive_gap(topic, n=3) == 3 - len(cands), (
+            "the shortfall must be the slots left to conceive, or the author is never told what is owed")
         for c in cands:
             hero, props = st.contest_still(c, topic)
             assert hero in _SHOT_IDS, hero                            # the contest still is renderable
             assert isinstance(props, dict)
+    # a topic with a strong keyword must still MATCH — dropping the padding must not drop the routing
+    assert "data-story" in st.route("quarterly market analytics report", 3)
+    assert "retro-playful" in st.route("indie pixel platformer game", 3)
 
 
 def test_template_biases_families_but_keeps_variety():
@@ -2159,6 +2172,43 @@ def test_photoplate_callouts_hold_at_inputs_they_were_not_tuned_on():
         "the chip measure is bounded by frame width again; it must be bounded by CHARACTERS so it holds at "
         "portrait and 4:5")
     assert "CHIP_MEASURE" in src, "the character measure is gone"
+
+
+def test_the_direction_router_states_its_shortfall_instead_of_padding_it():
+    """A slot that looks filled makes "conceive the rest" unreachable.
+
+    route() padded the contest to its width from a fixed fallback order, so a film about an AI office agent
+    was offered `cinematic-craft` — a 3D torus knot — as one of three considered directions. It was there
+    because the list needed a third row. The viewer's words were 有的还是感觉毫无关联. And the scoring that
+    should have prevented it tokenised with `[a-z0-9']+`, which finds nothing in Chinese, Japanese or
+    Korean: every CJK topic scored zero on every template and fell through to the padding by construction.
+    """
+    import importlib.util
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    spec = importlib.util.spec_from_file_location(
+        "shot_templates_probe", os.path.join(root, "scripts", "shot_templates.py"))
+    st = importlib.util.module_from_spec(spec); spec.loader.exec_module(st)
+
+    # a topic the catalogue has nothing for returns NOTHING, and says how many are owed
+    none_topic = "一支关于宋代茶盏釉色的短片"
+    assert st.matched_seeds(none_topic) == [], (
+        "the router still invents matches for a topic it has no keywords for: %r" % st.matched_seeds(none_topic))
+    assert st.conceive_gap(none_topic, n=3) == 3
+
+    # CJK must be able to MATCH — the whole failure was that it never could
+    zh = st.matched_seeds("一部讲终端与命令行的技术片")
+    assert "terminal-technical" in zh, ("a Chinese topic still matches nothing — the scoring is ASCII-only "
+                                        "again and every CJK film falls through: %r" % zh)
+    assert st.matched_seeds("How database indexes actually work"), "Latin scoring regressed"
+
+    # and nothing may quietly fill the gap
+    src = open(os.path.join(root, "scripts", "shot_templates.py"), encoding="utf-8").read()
+    body = src[src.index("def matched_seeds"):src.index("def conceive_gap")]
+    assert "DEFAULT_ORDER" not in body, "matched_seeds pads from the fallback order again"
+
+    cs = open(os.path.join(root, "scripts", "contest_sample.py"), encoding="utf-8").read()
+    assert "--conceived" in cs and "build_props_conceived" in cs, (
+        "there is no way to RENDER a conceived direction, so padding is the path of least resistance again")
 
 
 def test_a_labelled_list_without_icons_is_reported():

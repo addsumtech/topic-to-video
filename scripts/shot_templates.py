@@ -16,6 +16,7 @@ TEMPLATES = {
         "pitch": "clean SaaS product film — UI in motion, data that draws, a camera over your workspace",
         "families": ["A", "D", "B"],
         "hero": "CommandSummon",
+        "keywords_zh": ['产品', '工具', '平台', '应用', '软件', '助手', '智能体', '自动化', '效率', '办公', '工作台', '仪表盘', '流程'],
         "keywords": ["software", "app", "tool", "saas", "product", "platform", "workflow", "dashboard",
                      "api", "automation", "productivity", "assistant", "agent", "cloud", "no-code", "crm"],
     },
@@ -23,6 +24,7 @@ TEMPLATES = {
         "pitch": "bold type-forward film — kinetic statements, editorial grids, a chrome/neon wordmark",
         "families": ["C", "H"],
         "hero": "LiquidChrome",
+        "keywords_zh": ['宣言', '观点', '主张', '品牌', '发布', '口号', '态度'],
         "keywords": ["brand", "manifesto", "launch", "pitch", "vision", "idea", "announce", "campaign",
                      "fashion", "design", "agency", "statement", "identity", "rebrand", "positioning"],
     },
@@ -30,6 +32,7 @@ TEMPLATES = {
         "pitch": "atmospheric, tactile film — a real 3D hero, fluid light, hand-made craft textures",
         "families": ["E", "F", "G"],
         "hero": "MaterialHero",
+        "keywords_zh": ['工艺', '材质', '手工', '质感', '器物', '匠', '实物', '自然'],
         "keywords": ["story", "consumer", "lifestyle", "food", "travel", "art", "craft", "emotion", "people",
                      "community", "nature", "health", "wellness", "sustainability", "human", "experience"],
     },
@@ -37,6 +40,7 @@ TEMPLATES = {
         "pitch": "evidence-forward film — live charts, a knowledge graph, an orrery of your metrics",
         "families": ["D", "F", "H"],
         "hero": "ChartLive",
+        "keywords_zh": ['数据', '指标', '增长', '统计', '图表', '分析', '实验', '结果', '测量'],
         "keywords": ["data", "analytics", "metrics", "research", "report", "study", "finance", "market",
                      "growth", "results", "science", "statistics", "insight", "benchmark", "survey", "trend"],
     },
@@ -44,6 +48,7 @@ TEMPLATES = {
         "pitch": "nostalgic, fun film — a pixel build, a neon grid, a split-flap board, cartoon pops",
         "families": ["C", "G", "I"],
         "hero": "NeonGrid",
+        "keywords_zh": ['复古', '像素', '怀旧', '游戏', '趣味', '八十年代'],
         "keywords": ["game", "gaming", "fun", "culture", "meme", "kids", "youth", "music", "entertainment",
                      "retro", "nostalgia", "playful", "social", "creator", "arcade", "toy"],
     },
@@ -51,6 +56,7 @@ TEMPLATES = {
         "pitch": "code-native film — a live IDE, a decoding terminal, an exploded schematic",
         "families": ["A", "C", "D"],
         "hero": "CodeCompose",
+        "keywords_zh": ['终端', '命令行', '代码', '编译', '日志', '内核', '协议', '系统', '编程'],
         "keywords": ["dev", "developer", "code", "engineering", "infrastructure", "ml", "model", "cli",
                      "terminal", "open source", "protocol", "system", "technical", "security", "database", "llm"],
     },
@@ -79,19 +85,49 @@ def route(topic, n=None, audacity="balanced"):
     n = n if n is not None else contest_width(audacity)
     if n <= 0:
         return []
-    words = set(re.findall(r"[a-z0-9']+", (topic or "").lower()))
+    return matched_seeds(topic)[:n]
+
+
+def matched_seeds(topic):
+    """The seeds this topic ACTUALLY matches, best first. Never padded.
+
+    TWO DEFECTS MET HERE AND PRODUCED A FABRICATED OPTION. The scoring tokenised with `[a-z0-9']+`, which
+    finds nothing in a Chinese topic — "WorkBuddy 让 AI 在你的电脑上把活干完" yields `workbuddy` and `ai` and
+    that is all — so a CJK film was routed essentially unscored. Then the result was PADDED to the contest
+    width from a fixed fallback order. On a film about an AI office agent that put `cinematic-craft` on the
+    ballot: a 3D torus knot, offered to the user as a considered direction when it was there because the
+    list needed a third row. The viewer's words were 有的还是感觉毫无关联.
+
+    Padding is the worse half. The skill already says the seeds are SEEDS and that the remaining directions
+    must be CONCEIVED for the topic; silently filling the gap with whatever came next in a list makes that
+    instruction unreachable, because the slot looks filled. So this returns what genuinely matched and
+    `conceive_gap()` says how many are still owed."""
+    t = (topic or "").lower()
+    words = set(re.findall(r"[a-z0-9']+", t))
     scored = []
-    for key, t in TEMPLATES.items():
-        hits = sum(1 for kw in t["keywords"] if (" " in kw and kw in (topic or "").lower()) or kw in words)
+    for key, tpl in TEMPLATES.items():
+        hits = 0
+        for kw in tpl["keywords"]:
+            if " " in kw:
+                hits += 1 if kw in t else 0
+            else:
+                hits += 1 if kw in words else 0
+        # CJK carries no spaces, so a keyword can only be found by SUBSTRING. Without this every Chinese,
+        # Japanese and Korean topic scored zero on every template and fell entirely through to the padding.
+        for kw in tpl.get("keywords_zh", ()):
+            hits += 1 if kw in (topic or "") else 0
         scored.append((hits, key))
     scored.sort(key=lambda x: (-x[0], list(TEMPLATES).index(x[1])))
-    out = [k for h, k in scored if h > 0][:n]
-    for k in DEFAULT_ORDER + list(TEMPLATES):     # pad to n with distinct fallbacks
-        if len(out) >= n:
-            break
-        if k not in out:
-            out.append(k)
-    return out[:n]
+    return [k for h, k in scored if h > 0]
+
+
+def conceive_gap(topic, n=None, audacity="balanced"):
+    """How many directions the author still owes, beyond what the seed catalogue could match.
+
+    This number is the point of the change: a gap of 2 means two directions must be CONCEIVED for this
+    subject, not that two rows of a table are empty."""
+    n = n if n is not None else contest_width(audacity)
+    return max(0, n - len(matched_seeds(topic)))
 
 
 def contest_still(key, topic):

@@ -31,6 +31,16 @@ routing. A *direction* is a coherent whole-film ATMOSPHERE: a named look + a lea
 0. **Width by audacity (the risk budget).** `meta.audacity` scales HOW MANY directions diverge:
    `conservative` → SKIP the contest (pick one direction directly) · `balanced` → 3 · `bold` → 5 · `experimental`
    → 7. Get the width + seed palette: `python scripts/shot_templates.py --route "<topic>" --audacity <a> --out <out_dir>`.
+      **It returns only what the catalogue GENUINELY matched, and prints how many directions you still owe.**
+      It used to pad the shortfall from a fixed fallback order, which put a 3D torus knot on the ballot of a
+      film about an AI office agent — offered as a considered direction when it was there because the list
+      needed a third row, and a viewer said so. The keyword scoring was also ASCII-only, so every Chinese,
+      Japanese and Korean topic scored zero on every template and fell entirely through to that padding.
+      A gap is now stated, not filled: those slots are YOURS to conceive. Render a conceived direction
+      through the same path as a seed with
+      `python scripts/contest_sample.py --route "<topic>" --out <out> --conceived <file.json> --render`,
+      where the file is `[{key, pitch, dna, seam, shots: [[ShotId, {props}], ...]}]` — a direction stated as
+      FRAMES, because the contest exists so the user can SEE it, and a pitch cannot be seen.
 1. **CONCEIVE topic-specific directions — do NOT just route the 6 seeds.** The 6 templates (product-demo /
    kinetic-editorial / cinematic-craft / data-story / retro-playful / terminal-technical) are a SEED PALETTE, not
    the answer. Read the comprehension brief + `content_plan.json` and **invent bold, divergent, topic-conceived
