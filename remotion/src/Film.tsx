@@ -17,7 +17,9 @@ import {clockWipe} from '@remotion/transitions/clock-wipe';
 import {captionBand, CAPTION_SIZE_FRAC, CAPTION_MARGIN_FRAC, CAPTION_LINES,
         CAPTION_LEAD, CAPTION_LEAD_CJK, CJK_ADVANCE, latinAdvance} from './runtime/layout';
 import {SceneDurationContext, ReducedMotionContext, clamp01, SEAM_FRAMES} from './runtime/motion';
-import {groundLum, dnaGroundLum, dnaGroundY, groundGap, lumValue, type Lum, type GroundColors} from './runtime/shotLuma';
+import {groundLum, dnaGroundLum, dnaGroundY, groundGap, lumValue, lumFromY, type Lum, type GroundColors} from './runtime/shotLuma';
+import {BeatGround, groundAt, captionInk, hexGround, LIGHT_KEY_Y, CAPTION_INK_DARK, CAPTION_INK_LIGHT,
+        type SceneGroundDecl} from './runtime/light';
 import {Atmosphere, type Atmo} from './runtime/atmosphere';
 import {SceneCamera, type CameraMove} from './runtime/depth';
 import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome} from './runtime/dna';
@@ -29,7 +31,11 @@ import {FilmMotifLayer} from './runtime/motif';
 // The scene EDL. `bgLum` is the first of the shot-director-emitted continuity fields (an explicit ground-
 // luminance override; falls back to the measured shotLuma map). Future phases grow this schema (accent,
 // camera{}, carry{}, transitionIn{}, audioCues[]) — all OPTIONAL + remotion-only, so the html tier is untouched.
-export type SceneSpec = {shot: string; props?: Record<string, unknown>; durF: number; mp3?: string;
+export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, unknown>; durF: number; mp3?: string;
+  // `bgLum` DESCRIBES the ground this beat paints (a hint for the caption ink and the seam guard); the
+  // `ground` / `key` fields it now sits beside COMMAND one (they repaint the frame — runtime/light.tsx).
+  // Both are kept and the Film refuses a beat that declares two disagreeing answers, because a hint that
+  // silently becomes a command is how `bgLum:'light'` came to mean "a still-dark frame".
   caption?: string; bgLum?: Lum;
   // TERMINAL CHROME per scene (remotion + DNA only): a command-path + status readout the Film frames every beat
   // with (see runtime/dna.tsx TerminalChrome). Optional; inert unless the active DNA speaks 'breadcrumb'.
@@ -157,11 +163,14 @@ const CAP_FADE = 3;  // tiny in/out ramp WITHIN the window (never across a trans
 // One global caption HUD. It shows AT MOST ONE caption — the one belonging to the scene whose sole-visible
 // window (between its two transitions) contains this frame — hard-cut, contrast-picked against that scene's
 // ground luminance. Because the windows are disjoint, two captions can never coexist across a dissolve.
-const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaColors?: GroundColors | null;
+const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: DesignDNA | null;
   dnaFontBody?: string | null;
   // a UNIFORM-TYPE DNA sets every element to one face (terminal = all-mono), which changes the caption's
   // advance and so the number of lines it wraps to
-  dnaUniform?: boolean}> = ({scenes, groundBg, dnaColors, dnaFontBody, dnaUniform}) => {
+  dnaUniform?: boolean;
+  // the caption HUD is a sibling of the ReducedMotionContext provider (it must stay top-level so two
+  // captions cannot coexist across a dissolve), so the flag is handed to it rather than read from context
+  reduced?: boolean}> = ({scenes, groundBg, dna, dnaFontBody, dnaUniform, reduced}) => {
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
   // The caption used to be a flat 44px whatever the frame was: at 9:16 — where the frame is only 1080 wide —
@@ -203,16 +212,31 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dnaColors?
   let idx = merged.length - 1, cum = 0;
   for (let i = 0; i < merged.length; i++) { cum += lens[i] / total; if (local <= cum) { idx = i; break; } }
   const op = Math.min(clamp01((frame - ws) / CAP_FADE), clamp01((we - frame) / CAP_FADE));
+  // THE INK FOLLOWS THE GROUND THAT IS ACTUALLY ON THE FRAME, INCLUDING WITHIN A RAMP.
   // The DNA repaints most shots' grounds, so classify THIS frame's real ground (dnaGroundLum) — reading the
-  // measured pre-DNA constant here is what put dark ink on a themed dark ground.
-  const lum = dnaGroundLum(sc.shot, sc.bgLum, dnaColors);
-  const ink = lum === 'light' ? '#141414' : '#ffffff';
+  // measured pre-DNA constant here is what put dark ink on a themed dark ground. A beat may now also re-ground
+  // ITSELF, and may ramp its exposure across the dark/light boundary mid-shot, so the pick is re-resolved every
+  // frame from the same pure function the beat's own provider uses. This HUD is a top-level sibling by
+  // construction (that is what stops two captions coexisting across a dissolve), so it cannot read the beat's
+  // context and has to ask the question rather than be told the answer — one definition, two callers.
+  const beatG = groundAt(dna ?? null, sc, frame - starts[active], Math.max(1, Math.round(sc.durF)), sc.shot, reduced);
+  // Which token this shot grounds on is MEASURED (DNA_GROUND_TOKEN), so an accent-flooded register is judged
+  // on its flood and not on a `bg` it never paints; `g.y` is the fallback when that token is a gradient.
+  const beatY = beatG ? (dnaGroundY(sc.shot, beatG) ?? beatG.y) : null;
+  const lum = dnaGroundLum(sc.shot, sc.bgLum, dna);
+  const ink = beatY === null ? (lum === 'light' ? CAPTION_INK_DARK : CAPTION_INK_LIGHT) : captionInk(beatY);
   // The subtitle sits DIRECTLY on the frame's own background — there is NO scrim/bar rectangle behind it.
   // The shots reserve the bottom CAPTION_BAND (content never reaches it), so the caption's ground is the
   // frame's own clean atmosphere; the ink is contrast-picked (dark on light / white on dark). The only
   // separation is a SUBTLE text-shadow in the frame's OWN ground colour (never a white/black halo — the html
   // `overlay` mode had exactly that white-halo bug), just for anti-alias crispness where the ground varies.
-  const gb = groundBg && /^#[0-9a-fA-F]{6}$/.test(groundBg) ? groundBg : (lum === 'light' ? '#f4f1ea' : '#05060a');
+  // ONE DEFINITION OF "A HEX GROUND" (light.tsx `hexGround`), because there were two and they disagreed:
+  // this line tested six digits while the ground vocabulary accepted three-to-eight, so a beat grounded
+  // `#fff` painted a white frame and then shadowed its caption in the FILM's near-black — measured at +77%
+  // mid-grey fringe pixels against the identical `#ffffff` beat. It also canonicalises, which is what makes
+  // the alpha concatenation below safe rather than lucky.
+  const gbSrc = beatG ? beatG.bg : groundBg;
+  const gb = hexGround(gbSrc) ?? (lum === 'light' ? '#f4f1ea' : '#05060a');
   const shadow = `0 1px 2px ${gb}e6, 0 0 1px ${gb}`;
   // CJK LINE-HEIGHT + TRACKING. 1.26 with -0.01em tracking is a Latin setting; Han glyphs fill a full
   // em-box, so screen-typesetting guidance for CJK puts line-height at >=1.7x (W3C clreq / Typotheque),
@@ -340,11 +364,15 @@ const dnaDefaultSeam = (dna: DesignDNA | null, W: number, H: number): Transition
   }
 };
 
-// The colour of the carry's bridge line, picked against the film's own ground rather than assumed dark.
-const carryLine = (dna: DesignDNA | null): string | undefined => {
-  const y = dna ? lumValue(dna.bg) : null;
-  if (y === null) return dna?.line;
-  return y > 0.35 ? (dna?.accent ?? dna?.fg) : '#e8edf5';
+// The colour of the carry's bridge line, picked against the ground it is drawn on rather than assumed dark.
+// Takes the BEAT's resolved ground when there is one (the film DNA otherwise): the bridge line is the thing
+// the eye tracks across the cut, and a pale neutral drawn on a beat that re-grounded to paper is a collapse
+// to nothing — the same defect the cream-film fix below already caught once at the film level.
+type SeamColors = {bg?: string | null; accent?: string | null; fg?: string | null; line?: string | null};
+const carryLine = (g: SeamColors | null): string | undefined => {
+  const y = g ? lumValue(g.bg) : null;
+  if (y === null) return g?.line ?? undefined;
+  return y > LIGHT_KEY_Y ? (g?.accent ?? g?.fg ?? undefined) : '#e8edf5';
 };
 
 const LUM_RANK: Record<Lum, number> = {dark: 0, mid: 1, light: 2};
@@ -355,14 +383,19 @@ const LUM_RANK: Record<Lum, number> = {dark: 0, mid: 1, light: 2};
 // On a same/near-luminance seam the EDL may MARK a kinetic move (slide/wipe/clock/dissolve) for a chapter
 // break; unmarked seams stay a fade. Every seam holds at TR frames so it rides the audio-breath silence
 // (A/V stays in sync); no spins, ever. Deterministic — pure fn of the two scenes' declared ground.
-const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number, dna: DesignDNA | null): TransitionPresentation<any> => {
-  const dLum = Math.abs(LUM_RANK[dnaGroundLum(next.shot, next.bgLum, dna)] - LUM_RANK[dnaGroundLum(prev.shot, prev.bgLum, dna)]);
+// `prevG`/`nextG` are the grounds the two beats paint AT THE SEAM — the leaving beat's last frame and the
+// entering beat's first. They are the film DNA for a beat that declares no ground of its own, which is what
+// keeps every existing film's seam decisions identical; for a re-grounded beat they are the only honest
+// input, since the film-wide ground the guard used to read is no longer what is on either frame.
+const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number, dna: DesignDNA | null,
+                          prevG: GroundColors | null, nextG: GroundColors | null): TransitionPresentation<any> => {
+  const dLum = Math.abs(LUM_RANK[dnaGroundLum(next.shot, next.bgLum, nextG)] - LUM_RANK[dnaGroundLum(prev.shot, prev.bgLum, prevG)]);
   const want = next.transitionIn?.type ?? 'fade';
   // luminance guard: a dark↔light gap forces the gentle fade — EXCEPT carry, whose neutral bridge line IS the dip.
   // PERCEPTUAL guard. The bucket gap alone missed the real flashes: a near-black ground cutting to an
   // accent flood scores dark->mid (gap 1) while the frame goes from ~20 to ~150 in display terms. Judge on
   // the display-encoded distance when both grounds resolve, and keep the bucket rule as the fallback.
-  const gap = groundGap(dnaGroundY(prev.shot, dna), dnaGroundY(next.shot, dna));
+  const gap = groundGap(dnaGroundY(prev.shot, prevG), dnaGroundY(next.shot, nextG));
   const harsh = gap === null ? dLum >= 2 : gap >= 0.34;
   const t = (harsh && want !== 'carry') ? 'fade' : want;
   const dir = next.transitionIn?.direction;
@@ -385,7 +418,7 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
     // film's ground — `dna.line` is a hairline grey chosen to sit quietly inside a drawing, and on a
     // cream ground it disappeared entirely, leaving a collapse to nothing. Contrast-picked: the accent
     // on a light ground (it is the film's own emphasis colour), a pale neutral on a dark one.
-    case 'carry': return carry(carryLine(dna), dna?.bg);
+    case 'carry': return carry(carryLine(nextG as SeamColors | null), nextG?.bg ?? undefined);
     default: return fade();
   }
 };
@@ -410,6 +443,15 @@ const cameraTransform = (frame: number, amp: number): string => {
   const x = amp * 6 * Math.sin((frame / 930) * TWO_PI + 1.3);                  // float — offset periods so it never repeats
   const y = amp * 4 * Math.sin((frame / 810) * TWO_PI + 0.4);
   return `scale(${s.toFixed(5)}) translate(${x.toFixed(2)}px, ${y.toFixed(2)}px)`;
+};
+
+// The terminal chrome drawn in THIS BEAT's ground tokens. It used to be handed the film DNA directly, so on a
+// beat that re-grounds to paper the breadcrumb kept the dark film's `dim` grey and vanished. It reads the DNA
+// from context instead — which inside a Sequence is the beat's — so it re-exposes with everything else. With
+// no per-beat ground the context value IS the film DNA object, so this renders exactly what it did before.
+const BeatChrome: React.FC<{chrome?: SceneSpec['chrome']; W: number; H: number}> = ({chrome, W, H}) => {
+  const dna = React.useContext(DesignDNAContext);
+  return <TerminalChrome dna={dna} path={chrome?.path} status={chrome?.status} root={chrome?.root} W={W} H={H} />;
 };
 
 // visible fallback if a storyboard names an unknown shot id (fail loud, never a silent blank)
@@ -456,9 +498,42 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
   // ONE Design DNA for the whole film (null = un-themed → every shot renders its original hardcoded look).
   const activeDna = coerceDna(dna) ?? dnaFromTemplate(template) ?? null;   // an authored DNA may be partial — normalise it
   const bg = theme?.bg ?? activeDna?.bg ?? '#05060a';
+  // THE GROUND EACH BEAT ACTUALLY PAINTS, at the frame the film tier needs it: 'in' = its first frame, 'out'
+  // = its last. Those are the two frames a seam is really cutting between, and the two ends the intro/outro
+  // veil has to match. A beat that declares nothing resolves to null and every caller falls back to the
+  // film-wide DNA, which is what it read before this existed.
+  const edgeGround = (sc: SceneSpec | undefined, edge: 'in' | 'out') => {
+    if (!sc) return null;
+    const d = Math.max(1, Math.round(sc.durF));
+    return groundAt(activeDna, sc, edge === 'in' ? 0 : d - 1, d, sc.shot, reducedMotion);
+  };
+  // A beat may DESCRIBE its ground (`bgLum` — the hint the caption pick and the seam guard read) and also
+  // COMMAND one (`ground`/`key` — which repaints). When the two disagree the film is telling itself two
+  // stories and the one on screen is not the one the caption believes: exactly the staleness that put dark
+  // ink on a dark themed ground. Refuse it here, once per frame over the whole EDL, rather than let a hint
+  // quietly outvote the pixels. Checked in both directions (in/out) so a ramp cannot start honest and end wrong.
+  scenes.forEach((sc, i) => {
+    if (!sc.bgLum || (sc.ground === undefined && !sc.key)) return;
+    for (const edge of ['in', 'out'] as const) {
+      const g = edgeGround(sc, edge);
+      if (g && lumFromY(g.y) !== sc.bgLum) {
+        throw new Error(`scene ${i} (${sc.shot}) declares bgLum:'${sc.bgLum}' but the ground it paints at its ` +
+          `${edge === 'in' ? 'first' : 'last'} frame is ${g.bg} (${lumFromY(g.y)}, Y=${g.y.toFixed(3)}). ` +
+          'A description that disagrees with what is painted sends the caption ink and the seam guard to the ' +
+          'wrong answer — drop the bgLum, or name the ground you meant.');
+      }
+    }
+  });
+  // The root fill and the intro/outro veil are the FIRST and LAST beat's grounds, not one film-wide colour.
+  // A film that opens on paper used to fade in from the film's near-black — a flash of a ground the film
+  // never shows, which is the same defect the atmosphere fix below was written for, one layer up.
+  const firstBg = edgeGround(scenes[0], 'in')?.bg;
+  const lastBg = edgeGround(scenes[scenes.length - 1], 'out')?.bg;
+  const rootBg = theme?.bg ?? firstBg ?? bg;
+  const veilBg = outro > intro ? (theme?.bg ?? lastBg ?? bg) : rootBg;
 
   return (
-    <AbsoluteFill style={{backgroundColor: bg}}>
+    <AbsoluteFill style={{backgroundColor: rootBg}}>
       {/* Opt-in DOM audit — inert without the prop. Mounted on the FILM as well as on each shot preview so
           the caption HUD and the film's own furniture are audited too, not only the registers. */}
       <TextSafeAudit enabled={Boolean(textSafe)} />
@@ -495,12 +570,22 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
           const seq = (
             <TransitionSeries.Sequence key={`s${i}`} durationInFrames={durF}>
               <SceneDurationContext.Provider value={durF}>
-                <SceneCamera move={sc.camera?.move} amount={sc.camera?.amount}
-                             driftExtra={(reducedMotion ? 0 : Math.max(0, camera)) * DRIFT_MAX_EXTRA}
-                             driftTranslate={(reducedMotion ? 0 : Math.max(0, camera)) * DRIFT_MAX_TRANSLATE_Y}>
-                  <AbsoluteFill>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</AbsoluteFill>
-                </SceneCamera>
-                <TerminalChrome dna={activeDna} path={sc.chrome?.path} status={sc.chrome?.status} root={sc.chrome?.root} W={width} H={height} />
+                {/* THE GROUND IS RESOLVED HERE, PER BEAT. This provider is the whole mechanism: the design
+                    DNA used to be provided once OUTSIDE the TransitionSeries, so `bg` was a film-wide
+                    constant and no beat could change the light. Providing it inside the Sequence — with
+                    this beat's ground over the film's system — re-grounds every register that reads those
+                    tokens, measured at 148 of 149, with no per-register edit. The outer provider is kept
+                    for the film-level furniture that sits outside every Sequence (caption HUD, motif,
+                    brand); this one shadows it for the beat. A beat that declares no ground provides the
+                    film DNA object itself, so this is a no-op and the frame is bit-for-bit unchanged. */}
+                <BeatGround dna={activeDna} scene={sc} durF={durF} shot={sc.shot}>
+                  <SceneCamera move={sc.camera?.move} amount={sc.camera?.amount}
+                               driftExtra={(reducedMotion ? 0 : Math.max(0, camera)) * DRIFT_MAX_EXTRA}
+                               driftTranslate={(reducedMotion ? 0 : Math.max(0, camera)) * DRIFT_MAX_TRANSLATE_Y}>
+                    <AbsoluteFill>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</AbsoluteFill>
+                  </SceneCamera>
+                  <BeatChrome chrome={sc.chrome} W={width} H={height} />
+                </BeatGround>
               </SceneDurationContext.Provider>
               {sc.mp3 ? <Audio src={staticFile(sc.mp3)} /> : null}
             </TransitionSeries.Sequence>
@@ -508,7 +593,8 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
           if (i === scenes.length - 1) return [seq];
           return [seq, (
             <TransitionSeries.Transition key={`t${i}`}
-              presentation={pickPresentation(sc, scenes[i + 1], width, height, activeDna)}
+              presentation={pickPresentation(sc, scenes[i + 1], width, height, activeDna,
+                edgeGround(sc, 'out') ?? activeDna, edgeGround(scenes[i + 1], 'in') ?? activeDna)}
               timing={linearTiming({durationInFrames: TR})} />
           )];
         })}
@@ -518,8 +604,8 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
       {/* the film's MATERIAL — above the shots (each paints its own opaque ground) and below the caption,
           so it never competes with the words the viewer is reading */}
       <FilmMotifLayer motif={activeDna?.motif as any} dna={activeDna} W={width} H={height} />
-      <AbsoluteFill style={{backgroundColor: bg, opacity: Math.max(intro, outro), pointerEvents: 'none'}} />
-      {captions ? <CaptionTrack scenes={scenes} groundBg={theme?.bg ?? activeDna?.bg} dnaColors={activeDna} dnaFontBody={activeDna?.fontBody} dnaUniform={activeDna?.uniformType} /> : null}
+      <AbsoluteFill style={{backgroundColor: veilBg, opacity: Math.max(intro, outro), pointerEvents: 'none'}} />
+      {captions ? <CaptionTrack scenes={scenes} groundBg={theme?.bg ?? activeDna?.bg} dna={activeDna} dnaFontBody={activeDna?.fontBody} dnaUniform={activeDna?.uniformType} reduced={reducedMotion} /> : null}
       <BrandMark brand={brand} />
       </DesignDNAContext.Provider>
     </AbsoluteFill>

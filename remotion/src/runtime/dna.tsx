@@ -34,6 +34,20 @@ export type AtomForms = {
   marker?: 'caret' | 'triangle' | 'crosshair' | 'arrow';
 };
 
+// A GROUND — one colour WORLD a film owns, as a beat can name it. Only `bg` is required: the film already
+// owns its two inks and its two accents, so every other token is DERIVED from them for that ground
+// (runtime/light.tsx `groundFrom`). That is deliberate — a ground has to be a one-word authoring decision
+// ("this beat is on paper") and not a second palette that has to be kept in sync with the first.
+export type GroundSpec = {
+  bg: string;            // the solid ground. MUST be a hex: the caption ink, the seam luminance guard and
+                         // the exposure key are all derived from its luminance, and light.tsx throws rather
+                         // than let an unresolvable ground put them back to guessing.
+  bgGrad?: string;       // an optional TREATMENT painted over it (a css background value), as `bgGrad` above
+  fg?: string;           // ink override; default = whichever of the film's own fg/bg measures more contrast
+  accent?: string;       // accent override; default = the film's accent, exposure-adjusted for this ground
+  name?: string;         // authoring/debug label only — never rendered
+};
+
 export type DesignDNA = {
   id: string;
   // TYPOGRAPHY (css font shorthands / family lists)
@@ -76,6 +90,14 @@ export type DesignDNA = {
   // film shipped with all 34 of its cuts identical and belonging to nobody's design language.
   // Vocabulary: 'wipe' | 'slide' | 'clock' | 'dissolve' | 'screen-clear' | 'fade' (fade = deliberately plain).
   seam?: {type?: string; direction?: string};
+  // THE FILM'S GROUNDS. A film had exactly one, and it was near-black in all eight presets (the brightest,
+  // editorial, is Y=0.0053), so a 30-beat film painted one identical ground thirty times: measured library
+  // luminance range 0.013 against Figma's 0.903. A beat names one of these by index and the whole frame
+  // re-grounds, because 148 of the 149 registers paint from `bg` (shotLuma's DNA_GROUND_TOKEN). OMITTED is
+  // not "no grounds": light.tsx `filmGrounds` then DERIVES a set from what the film already declares — its
+  // native ground, its opposite exposure key, and a chromatic ground per accent — so every film has a
+  // ground vocabulary with no authoring at all, and nothing here is a copy of a colour stated above.
+  grounds?: GroundSpec[];
 };
 
 // ── Presets ────────────────────────────────────────────────────────────────────────────────────────────────

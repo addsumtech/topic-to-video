@@ -107,6 +107,51 @@ it is not budget:
 The audit's full 17-item ranked plan, with per-item evidence and acceptance tests, is the source for the work
 that follows; the four above are the ones that map onto the three measured axes.
 
+## What was closed, measured end to end (2026-09-02)
+
+The delivered 30-beat film, re-rendered with a light arc authored by `scripts/light_plan.py` and NO edit to
+any register:
+
+| | motion p75 | ink | luminance range | light arc |
+|---|---|---|---|---|
+| as delivered | 0.0023 | 4.3% | 0.079 | 0.0% |
+| **+ an authored light arc** | 0.0022 | 5.2% | **0.899** | **14.3%** |
+| floor | 0.0037 | 12% | 0.135 | 1.9% |
+| Figma | 0.0481 | 36.1% | 0.903 | 42.5% |
+| Anthropic | 0.0381 | 42.1% | 0.350 | 19.1% |
+| Apple | 0.0357 | 24.3% | 0.270 | 3.8% |
+| OpenAI | 0.0075 | 64.4% | 0.330 | 6.0% |
+
+**Light is closed.** The arc now measures above Apple's and OpenAI's, and it is not gameable: the arc axis
+exists precisely because the range is (a blank white rectangle appended to a film took its range from 0.097
+to 0.910 while nothing in it changed). **Motion and density did not move** — a change of ground does not
+touch either, and both remain 1.7x and 2.3x under their floors. One axis of three; the gate still fails the
+film, correctly.
+
+### The gate you cannot delegate
+
+`film_energy_qa` says the arc landed. Opening the frames says something the numbers cannot: on the beat at
+t=26s the hub label `全场景` went from **17.41:1** on the film's native dark to **1.07:1** on the light key —
+it is a ghost. `KnowledgeGraph` hardcodes that label's colour instead of reading the DNA's ink, so it passed
+the ground-reach sweep's three pixel criteria (the band, the field classification, the moved fraction) and
+then lost a word.
+
+That is the standing limit of the allow list, and it is written into `scripts/measure_ground_reach.py`: the
+sweep measures whether a declared ground BECOMES THE FRAME, not whether every glyph on it survives. The
+`INK_REFUSED` list beside it is HAND-WRITTEN, every entry carries its measurement, and a register's absence
+from it means *not yet looked at* — never *checked and safe*. The entry above was found by rendering a whole
+film and looking at it, which is how the next one should be expected to turn up too.
+
+### Reverted rather than shipped
+
+A parallel "frame law" change (opt-in full-bleed regions, a title band that could be declined, a declared-crop
+audit) was built, reviewed, fixed and then **reverted**. After two rounds it still failed at its own
+documented defaults — `grid`/`split` returned regions carrying a mask that faded their CONTENT to zero from
+63% of frame height down, and an independent probe found `grid(1920,1080,2,2)` returning one cell instead of
+four — while its crop path had *weakened* an existing delivery gate, and nothing used any of it. Full bleed
+and frame-cropped type were already legal; what that change added was convenience, and an unused convenience
+that is wrong at its defaults is debt, not capability.
+
 ## The floors, and what passing them does not buy you
 
 `scripts/film_energy_qa.py` errors below **half the lowest reference** on each axis — motion p75 ≥ 0.0037,

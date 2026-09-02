@@ -223,23 +223,105 @@ export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundToken | GroundToken
   SharedBlindspot: 'bg',
 };
 
+/** WHICH REGISTERS A DECLARED PER-BEAT GROUND ACTUALLY REACHES — measured from renders, not inferred.
+ *
+ *  The table above records which DNA token each shot paints its ground from, and says `bg` for 148 of 149.
+ *  It is matched from a border ring, so it has FALSE POSITIVES: ExplodedSchematic paints a hardcoded navy
+ *  gradient and never reads a ground token at all, yet is recorded as `bg`-grounded. That was harmless while
+ *  every preset ground was near-black and nothing ever moved. The moment a beat can re-ground (runtime/
+ *  light.tsx) it stops being harmless: the caption's ink is picked from the ground the beat DECLARED, so on
+ *  a register that does not follow, the ink flips to dark over pixels that are still black.
+ *
+ *  MEASUREMENT — scripts/measure_ground_reach.py, which is the whole point of this comment being short.
+ *  The first version of this table was produced by a script that was never committed, so a load-bearing
+ *  safety guard existed only as prose and could not be re-derived by anyone. Run:
+ *
+ *      python3 scripts/measure_ground_reach.py --check     # does the committed set still match the pixels
+ *      python3 scripts/measure_ground_reach.py --emit      # rewrite it from a fresh sweep
+ *
+ *  Each registered shot is rendered as a one-beat film twice — under a #ffffff ground and a #000000 one,
+ *  installed exactly as light.tsx installs a declared ground — and three things are read from the pair:
+ *  the caption BAND deserves the ink the declared ground picks; the CONTENT region's median luminance
+ *  classifies with the ground; and most of the frame actually MOVES between the two. The script carries the
+ *  thresholds and their justification.
+ *
+ *  MEASURED 2026-09-02 over all 149 registers: 104 follow, 45 do not. The first sweep asked only the BAND
+ *  question and put 137 here — the 33 it wrongly admitted are registers where the declared ground never
+ *  becomes the frame (GearTrain paints its own vignette over it: content median 0.240 under a gallery
+ *  white, so the white survives as a rim) or where the register's own hardcoded type is destroyed by it
+ *  (GlitchDatamosh's display word is #ffffff and measures 1.14:1 on paper — the frame is empty).
+ *
+ *  WHAT THIS SET DOES NOT MEAN. It means "the declared ground becomes this register's frame". It does NOT
+ *  mean every glyph on that frame survives: the sweep reads pixels, and pixels cannot tell a white glyph
+ *  that vanished on paper from a white glyph on a coloured chip that did not (three metrics were tried and
+ *  each misranked a register verified by eye — see the script). The registers whose own type was hand-
+ *  measured illegible are refused BY NAME in the script's INK_REFUSED table, which is certainly incomplete:
+ *  a register on this list has been shown to hand its frame to the ground, not to keep its type readable on
+ *  it. The remaining coverage needs each text run's own colour against the pixels behind it, which is a DOM
+ *  measurement (runtime/textSafe.tsx already enumerates the runs and does not yet report their colours).
+ *
+ *  It is an ALLOW list. A newly registered shot is refused a ground until someone measures it, which is the
+ *  safe direction — the failure it prevents is an unreadable frame in a delivered film.
+ *  tests/test_ground_light.py holds the coverage floor.
+ */
+export const GROUND_FOLLOWS_MEASURED: ReadonlySet<string> = new Set([
+  'Aliasing', 'AnalogTape', 'AntiDesignChaos', 'AsciiField',
+  'BeforeAfterSlider', 'BentoReveal', 'BlockAssembly', 'BlueprintGrid',
+  'BokehPull', 'BrutalistType', 'CardFlip3D', 'CardStack3D',
+  'CartoonPop', 'ChartRace', 'ChatThread', 'CinematicTitle',
+  'CircuitTrace', 'ClayStack', 'CollaborativeCursors', 'ComicPanels',
+  'CommandSummon', 'CompressedSensingEq', 'ConveyorBelt', 'CubeRotate',
+  'DataOrrery', 'DiffusionDenoise', 'EdCompare', 'EdStat',
+  'EdTimeline', 'FrequencyEncode', 'GFactorNoise', 'GaugeCluster',
+  'GazetteerEntry', 'GradientTilt', 'GrantedTree', 'HalftonePop',
+  'HandDrawn', 'InducedFID', 'InfiniteCanvas', 'InkBloom',
+  'Inscription', 'IsometricAssembly', 'KSpaceAnatomy', 'KSpaceReal',
+  'KSpaceToImage', 'LarmorPrecession', 'LightTrails', 'LiquidFill',
+  'LiquidGlass', 'LiquidMetal', 'LiquidMorph', 'MRIPipeline',
+  'MagazineSpread', 'MagnetizationTip', 'MapPlate', 'MapRoutes',
+  'MuseumLabel', 'NeuralField', 'OdometerRoll', 'OpenQuestions',
+  'OverlapSeparation', 'PaperCutout', 'PhaseEncodeStep', 'PhotoPlate',
+  'PhysicsStack', 'PixelBuild', 'PlanPalimpsest', 'PositioningMatrix',
+  'ProfileGrowth', 'QuadSplit', 'RadialBurst', 'RainGlass',
+  'RansomZine', 'RealVersus', 'RisoPrint', 'ScanReconstruct',
+  'ScreenBubble', 'SectionRoute', 'SharedBlindspot', 'SpeedLimit',
+  'SpinningProton', 'SpinsAlign', 'SplitFlap', 'StrataColumn',
+  'SwissEditorial', 'TallyLedger', 'TechnicalPlate', 'TemporalAccelerate',
+  'TensionScale', 'TermBars', 'TermCounter', 'TermDiff',
+  'TermGitLog', 'TermLog', 'TermTable', 'TermThink',
+  'TermTree', 'TimelineTravel', 'UndersampledKspace', 'VariableTypeMorph',
+  'VelocitySnap', 'VersusSplit', 'WireGlobe',
+]);
+
+/** Does a declared ground reach this register? An unknown id answers false, so an unmeasured register is
+ *  refused rather than silently allowed. */
+export const groundFollows = (shot?: string | null): boolean =>
+  typeof shot === 'string' && GROUND_FOLLOWS_MEASURED.has(shot);
+
+/** Is this id a register these measurements know AT ALL? `groundFollows` answers false for two different
+ *  things — a measured register that does not follow a ground, and a typo — and light.tsx used to report
+ *  both as "this register does not follow one", which sends the author to re-measure the reach table for a
+ *  shot that does not exist. DNA_GROUND_TOKEN is the right table to ask: it carries one entry per REGISTERED
+ *  shot (test_remotion.py holds that floor), and asking the registry from here would be a cycle — the
+ *  registry imports every shot, and every shot imports this file. */
+export const isRegisteredShot = (shot?: string | null): boolean =>
+  typeof shot === 'string' && Object.prototype.hasOwnProperty.call(DNA_GROUND_TOKEN, shot);
+
+/** THE bucket boundaries. `Y > 0.5 ? 'light' : Y > 0.18 ? 'mid' : 'dark'` was written out three times in
+ *  this file — inside lumOf, inside dnaGroundLum, and again as an inline compare in the caption pick — for
+ *  the same question asked by the caption ink, the seam guard and the register ledger. Per-beat grounds
+ *  (runtime/light.tsx) added a fourth caller, and four copies of a threshold is how the caption band came to
+ *  disagree with itself in four files. One definition; the numbers live here. */
+export const LIGHT_LUM_Y = 0.5;
+export const MID_LUM_Y = 0.18;
+export const lumFromY = (Y: number): Lum => (Y > LIGHT_LUM_Y ? 'light' : Y > MID_LUM_Y ? 'mid' : 'dark');
+
 /** The luminance CLASS of an actual colour (sRGB relative luminance), so a runtime ground can be classified the
  *  same way the measured map classifies a rendered frame. Returns null for anything unparseable (a gradient
  *  string, rgba(), a css name) — callers then fall back to the measured constant. */
 export const lumOf = (color?: string | null): Lum | null => {
-  if (typeof color !== 'string') return null;
-  const m = color.trim().replace(/^#/, '');
-  if (!/^[0-9a-fA-F]{3,8}$/.test(m)) return null;
-  const h = m.length === 3 || m.length === 4 ? m.slice(0, 3).split('').map((c) => c + c).join('')
-          : m.length >= 6 ? m.slice(0, 6) : null;
-  if (!h) return null;
-  const n = parseInt(h, 16);
-  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
-    const c = v / 255;
-    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-  });
-  const Y = 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
-  return Y > 0.5 ? 'light' : Y > 0.18 ? 'mid' : 'dark';
+  const Y = lumValue(color);
+  return Y === null ? null : lumFromY(Y);
 };
 
 /** The ground luminance a SCENE actually renders with — the value captions and seam grammar must contrast against.
@@ -303,8 +385,7 @@ export const dnaGroundLum = (shot: string, bgLum?: Lum, dna?: GroundColors | nul
       ys.push(y);
     }
     if (ys.length) {
-      const Y = ys.reduce((a, b) => a + b, 0) / ys.length;
-      return Y > 0.5 ? 'light' : Y > 0.18 ? 'mid' : 'dark';
+      return lumFromY(ys.reduce((a, b) => a + b, 0) / ys.length);
     }
   }
   return groundLum(shot);
