@@ -297,6 +297,19 @@ frame, every region's AREA is its share, and it measures 52.6% ink / 100% footpr
 as film. It is the sixth register in the library to clear all three, and the first for its shape. Process and
 mechanism are still at zero.
 
+**Asked structurally, the gap is worse than the prose suggested.** Clustering by keywords is unreliable in
+both directions — a narrow vocabulary put "process" at 12 registers, a wide one at 39, and the wide one was
+catching ANIMATION verbs ("assemble", "build", "then") rather than process arguments. Asked of the PROPS
+instead — which registers accept an ordered list of steps — the library had **two**, and neither does this:
+VoiceSignal's `phases` are audio segments and PhaseEncodeStep's `steps` is a count. A film that wanted to say
+"this happens in five steps, and here they are" had no register to say it in at all.
+
+`InOrder` fills that: the steps tile the zone, the one the film is on expands and the rest compress, and the
+expansion TRAVELS as the narration advances — so the density, the motion and the argument are one object.
+Measured as film: ink 37.9%, footprint 100%, motion 0.0079, light 0.153, all three floors clear. The library
+now has **seven** registers clearing all three, up from five, and two of the three explanatory shapes have
+one. Mechanism is still at zero.
+
 The acceptance bar for any of these has to be BOTH: over the density floor **and** past the hide-the-caption
 test. Otherwise what gets added is the tenth mood register, and those are exactly what pulls
 `density_advice.py`'s suggestions off the argument.

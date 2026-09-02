@@ -152,6 +152,7 @@ import {PhotoPlate} from './shots/PhotoPlate';
 import {GrantedTree} from './shots/GrantedTree';
 import {LastLeg} from './shots/LastLeg';
 import {MadeOf} from './shots/MadeOf';
+import {InOrder} from './shots/InOrder';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
@@ -189,6 +190,7 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   GrantedTree,
   LastLeg,
   MadeOf,
+  InOrder,
 };
 
 export const SHOT_IDS = Object.keys(REGISTRY);

@@ -103,7 +103,20 @@ def measure(path):
     above = [px[x, max(0, cap_top - 6)] for x in range(0, w, 4)]
     below = [px[x, min(h - 1, cap_top + 6)] for x in range(0, w, 4)]
     edge_step = abs((sum(above) / max(1, len(above))) - (sum(below) / max(1, len(below))))
-    if abs(band_ground - ground_all) > _INK_DELTA and edge_step > _BAND_EDGE_STEP:
+    # FOURTH TRY, and the one the previous three could not have seen: a register that COMPOSES TO FILL puts
+    # content across the whole zone and stops exactly at the band, which produces the same hard top edge a
+    # laid-over panel does. Measured on InOrder — whose caption band is uniformly the film's own ground, min
+    # == max == median == 0.027, zero content — this rule returned 1.0. As registers get denser it would
+    # return 1.0 for all of them, and `band_debt.py` would fill with debt that is not there.
+    #
+    # What the rule is actually for is a fill introduced FOR the caption — the separate strip this project
+    # forbids. So the discriminant is whether the band is the film's OWN outer ground: sampled from the top
+    # strip, which the layout law already reserves and which a register is told to keep clear. A band that
+    # matches it had nothing drawn on it, however far it sits from the frame's overall median.
+    top = [px[x, min(h - 1, max(2, int(h * 0.02)))] for x in range(0, w, 4)]
+    outer_ground = sorted(top)[len(top) // 2]
+    is_own_ground = abs(band_ground - outer_ground) <= _INK_DELTA
+    if abs(band_ground - ground_all) > _INK_DELTA and edge_step > _BAND_EDGE_STEP and not is_own_ground:
         caption = 1.0
     else:
         ink = sum(1 for v in vals if abs(v - band_ground) > _INK_DELTA)

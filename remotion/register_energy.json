@@ -61,6 +61,7 @@
     "HandDrawn": "433eb1301de19c26",
     "HoloFoil": "d87c36493cdb0f93",
     "HudReticle": "3e8e7d588e263c58",
+    "InOrder": "4f2180fb1ca943e8",
     "InducedFID": "15d222f99bc06518",
     "InfiniteCanvas": "dc69b0276119d729",
     "InflateType": "41d6735177d6129d",
@@ -580,6 +581,13 @@
       "luma_range": 0.007,
       "seconds": 5.0,
       "footprint": 0.461
+    },
+    "InOrder": {
+      "motion_p75": 0.0079,
+      "ink_median": 0.379,
+      "luma_range": 0.153,
+      "seconds": 6.0,
+      "footprint": 1.0
     },
     "InducedFID": {
       "motion_p75": 0.0002,

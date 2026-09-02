@@ -256,7 +256,16 @@ def _frame(mod, ground, ink, *, w=1920, h=1080, bleed=False, band=None, gradient
     if band == "half":
         d.rectangle([0, h - bp // 2, w, h], fill=ink)
     if band == "tone":
-        d.rectangle([0, h - bp, w, h], fill=tuple(min(255, c + 60) for c in ground))
+        # AWAY from the ground, in whichever direction has room. It only ever brightened, so on a LIGHT
+        # ground `c + 60` clamped at 255 and the "distinct plate" was the ground itself — the caption-bar
+        # rule had never actually been exercised on a light film, and a new probe found it by failing.
+        lift = 60 if sum(ground) / 3 < 128 else -60
+        d.rectangle([0, h - bp, w, h], fill=tuple(max(0, min(255, c + lift)) for c in ground))
+    if band == "filled-zone":
+        # A register that COMPOSES TO FILL: content across the whole content zone, stopping exactly at the
+        # band, which leaves the band as the film's OWN ground. The frame's overall median is then the
+        # content, not the ground — the shape that made the previous rule return 1.0 on a correct frame.
+        d.rectangle([0, int(h * .16), w, h - bp], fill=ink)
     if text:
         # Deliberately at the band's LEFT EDGE, inside the action-safe strip's x-range: ink drawn further
         # in proves nothing, because the strip only samples the outer ~3.5% of the width. A probe that
@@ -350,7 +359,23 @@ def _probe_delivery_gate_on_both_grounds(mod):
         assert not bad["errors"], "%s ground: the border measure is blocking delivery again" % label
 
 
+def _probe_a_filled_zone_is_not_a_caption_bar(mod):
+    """A register that fills the content zone and stops at the band leaves the band as the FILM'S OWN
+    ground — and the previous rule read exactly that as a laid-over panel, because both produce a hard step
+    at the band's top edge. Measured on a real one: InOrder's band is uniformly 0.027, min == max ==
+    median, nothing drawn on it, and the rule returned 1.0. As registers get denser it would have returned
+    1.0 for all of them, filling band_debt.json with debt that is not there."""
+    f = mod.CAPTION_FRAC_ERR
+    for ground, ink in ((DARK, (90, 130, 235)), (LIGHT, (30, 40, 70))):
+        assert mod.measure(_frame(mod, ground, ink, band="filled-zone"))["caption"] <= f, \
+            "a content zone filled to the band edge is read as a caption bar"
+    # and the thing the rule is actually for must still be caught, on both grounds
+    assert mod.measure(_frame(mod, DARK, (60, 200, 150), band="tone"))["caption"] > f
+    assert mod.measure(_frame(mod, LIGHT, (20, 24, 30), band="tone"))["caption"] > f
+
+
 PROBES["shot_still_qa"] = {
+    "a_filled_zone_is_not_a_caption_bar": _probe_a_filled_zone_is_not_a_caption_bar,
     "edge_on_both_grounds": _probe_edge_on_both_grounds,
     "caption_band_verdicts": _probe_caption_band_verdicts,
     "caption_band_follows_the_frame": _probe_caption_band_follows_the_frame,
@@ -365,10 +390,15 @@ MUTANTS["shot_still_qa"] = {
     "edge threshold never fires": ("EDGE_FRAC_ERR = 0.045", "EDGE_FRAC_ERR = 9.9"),
     "caption threshold never fires": ("CAPTION_FRAC_ERR = 0.05", "CAPTION_FRAC_ERR = 9.9"),
     "any tone difference counts as coverage":
-        ("    if abs(band_ground - ground_all) > _INK_DELTA and edge_step > _BAND_EDGE_STEP:",
+        ("    if abs(band_ground - ground_all) > _INK_DELTA and edge_step > _BAND_EDGE_STEP and not is_own_ground:",
          "    if abs(band_ground - ground_all) > _INK_DELTA:"),
+    # The fourth version's own rule. Without it, every register that fills the content zone and leaves the
+    # band as the film's ground reads as a caption BAR — measured 1.0 on InOrder, whose band is uniformly
+    # 0.027, min == max == median, with nothing drawn on it at all.
+    "a register's own ground counts as a caption bar":
+        ("and edge_step > _BAND_EDGE_STEP and not is_own_ground:", "and edge_step > _BAND_EDGE_STEP:"),
     "coverage never detected":
-        ("    if abs(band_ground - ground_all) > _INK_DELTA and edge_step > _BAND_EDGE_STEP:",
+        ("    if abs(band_ground - ground_all) > _INK_DELTA and edge_step > _BAND_EDGE_STEP and not is_own_ground:",
          "    if False:"),
     "band width no longer follows the frame":
         ("    return caption_band_px(w, h)", "    return 150"),
