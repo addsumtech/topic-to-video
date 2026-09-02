@@ -128,6 +128,38 @@ to 0.910 while nothing in it changed). **Motion and density did not move** — a
 touch either, and both remain 1.7x and 2.3x under their floors. One axis of three; the gate still fails the
 film, correctly.
 
+### Motion: what a camera can and cannot buy
+
+Two hypotheses were MEASURED before either was built, and the first was refuted:
+
+**Hard cuts are not the lever.** Removing cut frames from each film's frame-diff series barely moves p75 —
+Figma 0.0481 → 0.0419, Anthropic 0.0381 → 0.0305, Apple 0.0357 → 0.0324, ours 0.0022 → 0.0018. Cuts are ~6%
+of frames and sit above p75. Our film already cuts 32 times a minute against Apple's 27.8. **The gap is in
+the other 94% of frames**: Figma's non-cut p75 is 0.0419 against our 0.0018, 23x. Building the per-seam
+hard-cut primitive would have bought nothing.
+
+**A camera is the lever, but only if it TRANSLATES.** Measured on the delivered film:
+
+| | motion p75 |
+|---|---|
+| as delivered | 0.0023 |
+| the existing scale-only camera, stamped on all 30 beats | 0.0029 |
+| a lateral pan on all 30 beats | **0.0037** |
+| floor | 0.0037 |
+| Apple / Figma non-cut | 0.0324 / 0.0419 |
+
+A scale about the content-zone centre barely moves the pixels near that centre, which is where a composed
+frame's content sits; and an ease-in-out spends most of its frames at the flat ends. `SceneCamera` gained a
+`pan`, budgeted from the overscan the push already buys so it cannot reveal an edge, travelling at constant
+velocity through the middle and at rest at both ends.
+
+**It lands the film EXACTLY on the floor, and that is all.** 0.0037 against Apple's 0.0324 non-cut — a tenth.
+Passing this floor means "not a slideshow", never "launch-grade". And the pan is OFF unless a beat asks: this
+codebase carries a recorded history of shake complaints (the whole-film ambient drift was made opt-in and
+defaults to still for that reason), and nothing here can yet certify that a pan on every beat reads as a
+camera rather than as restlessness. The number it produces is honest; whether it is *good* is a question the
+instruments in this repo cannot answer, and it is left to a human eye rather than stamped on by default.
+
 ### The gate you cannot delegate
 
 `film_energy_qa` says the arc landed. Opening the frames says something the numbers cannot: on the beat at

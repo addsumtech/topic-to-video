@@ -47,7 +47,7 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // A MOTIVATED camera move for THIS beat: `push` (look closer at what is here), `pull` (here is the whole
   // of it), `hold` (most beats). Optional; absent = hold. This is not the film-wide ambient drift below —
   // that one had no relationship to anything being said, which is precisely why it read as a wobble.
-  camera?: {move?: CameraMove; amount?: number}};
+  camera?: {move?: CameraMove; amount?: number; pan?: [number, number]}};
 
 const TR = SEAM_FRAMES; // cross-dissolve length (frames) — rides the ~0.42s narration breath so speech barely
 // overlaps. Shared with runtime/motion's useT, which holds each shot STILL for exactly these frames at both
@@ -579,7 +579,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
                     brand); this one shadows it for the beat. A beat that declares no ground provides the
                     film DNA object itself, so this is a no-op and the frame is bit-for-bit unchanged. */}
                 <BeatGround dna={activeDna} scene={sc} durF={durF} shot={sc.shot}>
-                  <SceneCamera move={sc.camera?.move} amount={sc.camera?.amount}
+                  <SceneCamera move={sc.camera?.move} amount={sc.camera?.amount} pan={sc.camera?.pan}
                                driftExtra={(reducedMotion ? 0 : Math.max(0, camera)) * DRIFT_MAX_EXTRA}
                                driftTranslate={(reducedMotion ? 0 : Math.max(0, camera)) * DRIFT_MAX_TRANSLATE_Y}>
                     <AbsoluteFill>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</AbsoluteFill>

@@ -111,6 +111,16 @@ def _camera(slide):
             out["amount"] = float(cam["amount"])
     except (TypeError, ValueError):
         pass                                          # a bad amount falls back to the default, never crashes
+    # A lateral TRAVEL, in fractions of the overscan the push already buys (runtime/depth.tsx SceneCamera).
+    # Measured: a scale-only camera stamped on every beat of a 30-beat film moved its frame-diff p75 from
+    # 0.0022 to 0.0029, still under the floor, against 0.0112 for the same film under a constant-velocity
+    # pan. A malformed pan is dropped here and REFUSED by the runtime, so it cannot become a silent hold.
+    pan = cam.get("pan")
+    if isinstance(pan, (list, tuple)) and len(pan) == 2:
+        try:
+            out["pan"] = [float(pan[0]), float(pan[1])]
+        except (TypeError, ValueError):
+            pass
     return out
 
 

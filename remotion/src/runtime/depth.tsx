@@ -119,6 +119,35 @@ export const CAMERA_START = 0.28;
 export const CAMERA_SPAN = 0.60;    // arrives at 0.88, then rests
 
 /** The scale a scene's camera is at, 0..1 of its move. Pure function of normalized time. */
+/** A pan's position over the shot: a gentle ramp that is CONSTANT-velocity through the middle, starting and
+ *  ending at rest so a cross-dissolve never runs over a moving frame. -0.5..0.5 so the travel is centred. */
+export const panAt = (t: number): number => {
+  const e = 0.12;                                   // the eased fraction at each end
+  const u = clamp01(t);
+  // Three pieces that JOIN: accelerate to unit speed over e, hold it, decelerate over e. Written as a
+  // shorthand first, its third piece did not meet the second — the travel ended at 0.636 instead of 0.5 and
+  // the frame jumped at the hand-over. The distance covered is (1 - 2e) at speed plus e/2 at each end.
+  const p = u < e
+    ? (u * u) / (2 * e)
+    : u <= 1 - e
+      ? e / 2 + (u - e)
+      : (1 - 1.5 * e) + ((u - (1 - e)) - ((u - (1 - e)) * (u - (1 - e))) / (2 * e));
+  return p / (1 - e) - 0.5;                         // centred: -0.5 at rest, +0.5 at rest
+};
+
+/** A pan request, validated. Returns null for "no pan"; THROWS on a shape that cannot be a direction, so a
+ *  malformed prop is a loud failure rather than a camera that silently holds. */
+export const clampPan = (pan: unknown): [number, number] | null => {
+  if (pan === undefined || pan === null) return null;
+  if (!Array.isArray(pan) || pan.length !== 2 || !pan.every((v) => typeof v === 'number' && isFinite(v))) {
+    throw new Error(`SceneCamera pan must be [x, y] with two finite numbers in -1..1, got ${JSON.stringify(pan)}`);
+  }
+  const [x, y] = pan as [number, number];
+  if (x === 0 && y === 0) return null;
+  const clamp1 = (v: number) => Math.max(-1, Math.min(1, v));
+  return [clamp1(x), clamp1(y)];
+};
+
 export const cameraAt = (move: CameraMove, t: number): number => {
   if (move === 'hold') return 0;
   const p = easeInOutCubic(clamp01((t - CAMERA_START) / CAMERA_SPAN));
@@ -136,12 +165,28 @@ export const cameraAt = (move: CameraMove, t: number): number => {
 export const SceneCamera: React.FC<{
   move?: CameraMove;
   amount?: number;
+  /**
+   * A lateral TRAVEL across the shot, as a fraction (-1..1 per axis) of the overscan the push already buys.
+   *
+   * WHY THIS EXISTS, measured. A scale-only camera barely moves a frame: pixels near the transform origin
+   * travel almost nothing, and most of a composed frame's content sits near the middle. Stamping a camera on
+   * every one of a 30-beat film's beats took its frame-diff p75 from 0.0022 to 0.0029 — a 32% gain, still
+   * under the 0.0037 floor, against 0.0112 measured for the same film under a constant-velocity pan. The
+   * missing operation is a translate, not a bigger zoom.
+   *
+   * SAFE BY CONSTRUCTION, which is why it needs no cap of its own: at scale s the layer covers (s-1)/2 of
+   * the frame beyond each edge, and the travel is budgeted from exactly that, so a pan can never reveal an
+   * edge or push content further toward the caption band than `maxCameraPush` already allows. A pan asked
+   * for on a HOLD gets the same base overscan a gentle push would have used, so it is a real move and not a
+   * silent no-op — a camera that quietly does nothing is the failure this runtime keeps finding.
+   */
+  pan?: [number, number];
   // the largest EXTRA scale the film-wide ambient drift is adding on top of this move. The two layers
   // multiply, so the per-beat budget has to be whatever the drift has not already spent.
   driftExtra?: number;
   driftTranslate?: number;
   children?: React.ReactNode;
-}> = ({move = 'hold', amount, driftExtra = 0, driftTranslate = 0, children}) => {
+}> = ({move = 'hold', amount, pan, driftExtra = 0, driftTranslate = 0, children}) => {
   const {width: W, height: H} = useVideoConfig();
   const reduced = React.useContext(ReducedMotionContext);
   const t = useT();
@@ -153,14 +198,30 @@ export const SceneCamera: React.FC<{
   // what "a gentle push" should mean.
   const amp = reduced ? 0 : Math.max(0, Math.min(amount ?? cap * 0.75, cap));
   const push = amp > 0 ? cameraAt(move, t) : 0;
-  const scale = 1 + amp * push;
+  // A pan needs overscan to travel in. On a HOLD the push provides none, so the pan brings its own — the
+  // same three-quarters-of-the-cap a gentle push would have taken, held CONSTANT so the frame does not also
+  // zoom. Reduced motion zeroes it with everything else.
+  const px = reduced ? 0 : clampPan(pan);
+  const panning = px !== null;
+  const base = panning && amp * push < amp * 0.5 ? amp : 0;
+  const scale = 1 + Math.max(amp * push, base);
+  const over = (scale - 1) / 2;                     // fraction of the frame available beyond EACH edge
+  // Near-LINEAR travel. An ease-in-out spends most of its frames at the flat ends, which is where the
+  // measured motion went missing; a gentle constant drift is what a Ken Burns move actually is.
+  const trav = panning ? panAt(t) : 0;
+  const tx = panning ? px[0] * over * W * trav : 0;
+  const ty = panning ? px[1] * over * H * trav : 0;
   const originY = (CONTENT_TOP + contentBottom(W, H)) / 2;
+  const xf = [
+    tx || ty ? `translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px)` : '',
+    scale === 1 ? '' : `scale(${scale.toFixed(5)})`,
+  ].filter(Boolean).join(' ');
 
   return (
     <CameraContext.Provider value={{push, amount: amp}}>
       <div style={{
         position: 'absolute', inset: 0,
-        transform: scale === 1 ? undefined : `scale(${scale.toFixed(5)})`,
+        transform: xf || undefined,
         transformOrigin: `50% ${originY.toFixed(1)}px`,
       }}>
         {children}
