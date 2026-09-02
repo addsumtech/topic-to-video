@@ -38,19 +38,56 @@ def _license_ok(lic):
     return any(h in l for h in _OK_LICENSE)
 
 
-def _http_json(params, timeout=30):
-    url = _API + "?" + urllib.parse.urlencode(params)
+def _http_json(params, timeout=30, api=None):
+    url = (api or _API) + "?" + urllib.parse.urlencode(params)
     req = urllib.request.Request(url, headers={"User-Agent": _UA})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.load(r)
 
 
-def search(query, limit=10, width=1600):
+def resolve_concept(term, timeout=12):
+    """The Wikidata entity a term names — {qid, label, description} — or None.
+
+    WHY. A plain Commons text search matches the FILE PAGE's words, so an abstract term lands on whatever
+    document happens to use it. Measured: `imagefetch.py "trust"` returned a 1911 political cartoon,
+    '"GOOD TRUST" "BAD TRUST" in Tariff Alley', from The Masses — licence-clean, high resolution, and about
+    a different sense of the word.
+
+    ADVISORY ONLY — DO NOT AUTO-APPLY. Resolution is unreliable and was measured to be: the top entity for
+    "trust" is Q1641993, a FRENCH ROCK BAND, so wiring this into fetch() would have replaced one wrong
+    picture with a worse one; and multi-word phrases ("bicycle workshop", "office worker computer") resolve
+    to nothing at all. Even with a hand-verified QID the depicts filter is not clearly better: on
+    "magnetic resonance imaging" (Q161238) the plain text search returned an angiogram and an MRI slice while
+    the filtered search returned a Bruker scanner and two menstrual-cup studies. So this returns the
+    candidate WITH its description for a caller to JUDGE, and `search(depicts=...)` takes a QID a caller has
+    already decided on. Automatic relevance for an abstract term is not solved here, and pretending it is
+    would put a confidently wrong photograph on a frame.
+    """
+    try:
+        d = _http_json({"action": "wbsearchentities", "format": "json", "language": "en",
+                        "uselang": "en", "type": "item", "limit": 1, "search": term},
+                       api="https://www.wikidata.org/w/api.php", timeout=timeout)
+    except Exception:                                            # noqa: BLE001 — offline is not a failure here
+        return None
+    hits = d.get("search") or []
+    if not hits:
+        return None
+    h = hits[0]
+    return {"qid": h.get("id"), "label": h.get("label"), "description": h.get("description")}
+
+
+def search(query, limit=10, width=1600, depicts=None):
     """Search Commons files (namespace 6) for `query`; return candidate dicts with a renderable URL
-    (SVG is auto-rendered to a PNG thumb by Commons), mime, license and attribution."""
+    (SVG is auto-rendered to a PNG thumb by Commons), mime, license and attribution.
+
+    `depicts` is a Wikidata QID. When given, the search is restricted to files that DECLARE they depict it
+    (`haswbstatement:P180=<qid>`), which is a statement about the picture rather than about the words on its
+    file page — the difference between a photograph of the subject and a document that mentions it.
+    """
+    term = ("haswbstatement:P180=%s " % depicts + query) if depicts else query
     d = _http_json({
         "action": "query", "format": "json", "generator": "search", "gsrnamespace": 6,
-        "gsrsearch": query, "gsrlimit": limit, "prop": "imageinfo",
+        "gsrsearch": term, "gsrlimit": limit, "prop": "imageinfo",
         "iiprop": "url|extmetadata|mime|size", "iiurlwidth": width,
     })
     out = []

@@ -184,6 +184,44 @@ four — while its crop path had *weakened* an existing delivery gate, and nothi
 and frame-cropped type were already legal; what that change added was convenience, and an unused convenience
 that is wrong at its defaults is debt, not capability.
 
+## Density: why our frames are empty (measured 2026-09-02)
+
+Five lenses — reference-frame segmentation, web research, our own library, and the image pipeline — produced
+29 findings. Two of the most plausible were then REFUTED by experiment, which is the part worth keeping:
+
+**Refuted: the containers are invisible.** All eight DNA presets define `surface` — the documented "container
+fill" — within 0.083 of their own `bg` in the gate's colour model, every one under the 0.10 ink threshold
+(editorial is 0.020). The theory was that every panel a register draws contributes nothing. Raising
+`product`'s surface from Δ0.052 to Δ0.16 and re-rendering four container-bearing registers moved the ink by
+**+0.0 to +0.8 points** (BentoReveal 23.3→23.4, TermTable 1.0→1.0). The containers are not invisible; they are
+mostly small or absent. A change that would have altered every film's look was not made.
+
+**Refuted: we show too few items.** TermTable with 2 stub rows measures 1.1%; with 5 real rows 4.0%; with 12
+real rows across 4 columns **4.7%** — 4.3x for six times the content, and still under half the floor.
+
+**What is actually true.** Text at reading size barely inks a frame. The reference films' ink is opaque
+planes and photographs: median feature thickness figma 31.7px, apple 40.8px, openai 57.0px, against our
+hairlines. And a full-bleed real photograph, measured on the same instrument, contributes **42.7%–83.0%** —
+above Apple's 24.3% on its own. Only ~11 of 149 registers can hold an image at all, `remotion/public/` does
+not exist in the checkout, and `PhotoPlate` measures 0.7% because it renders an empty plate.
+
+So density is not a token problem and not a count problem. It is: **compose to FILL rather than to fit**
+(`fitContentSquare` returns a 605px square on a 1920px frame; layout.ts reserves 35% of frame height and is
+entirely exclusion zones), **give marks mass**, and **put real pictures in the frame**.
+
+### The image channel's honest limit
+
+`imagefetch.py` works on concrete subjects and fails on abstract ones, reproduced here: `"trust"` returns a
+1911 political cartoon (*"GOOD TRUST" "BAD TRUST" in Tariff Alley*, from The Masses) and `"office worker
+computer"` returns a 1970s archive photograph. A Wikidata `depicts` (P180) filter was proposed as the fix and
+does not survive testing: the top entity for "trust" is **Q1641993, a French rock band**, so auto-resolution
+would replace one wrong picture with a worse one; multi-word phrases resolve to nothing; and even with a
+hand-verified QID the filtered search was not better (on Q161238 the plain search returned an angiogram and
+an MRI slice, the filtered one a Bruker scanner and two menstrual-cup studies). `search(depicts=...)` exists
+as a precise channel for a caller who has already judged the entity. Nothing resolves a term automatically,
+and automatic relevance for an abstract term is **unsolved here** — which bounds how far this lever can go on
+a topic like a specific software product, of which Commons has no pictures at all.
+
 ## The floors, and what passing them does not buy you
 
 `scripts/film_energy_qa.py` errors below **half the lowest reference** on each axis — motion p75 ≥ 0.0037,

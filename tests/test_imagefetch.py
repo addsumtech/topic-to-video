@@ -104,3 +104,28 @@ def test_fetch_returns_none_when_nothing_license_clean(tmp_path, monkeypatch):
     monkeypatch.setattr(F, "search", lambda q, limit=12, width=1600: [
         {"title": "x", "url": "u", "mime": "image/jpeg", "license": "All rights reserved", "artist": "", "credit": "", "source": "", "width": 1600, "height": 1000}])
     assert F.fetch("q", str(tmp_path / "n.png")) is None
+
+
+def test_the_depicts_filter_is_a_parameter_and_never_applied_on_its_own():
+    """A caller may restrict a search to files that DECLARE they depict a QID. Nothing resolves a term to a
+    QID automatically, because resolution was measured to be unreliable — the top entity for "trust" is a
+    French rock band — and a confidently wrong photograph is worse than a vaguely right one."""
+    import inspect
+    src = inspect.getsource(F.fetch)
+    assert "resolve_concept" not in src, (
+        "fetch() resolves a concept automatically; the measured failure in resolve_concept's docstring says "
+        "why that puts a wrong picture on a frame")
+    assert "depicts" in inspect.signature(F.search).parameters
+
+
+def test_search_builds_a_depicts_query_only_when_given_one(monkeypatch):
+    seen = {}
+
+    def fake(params, timeout=30, api=None):
+        seen["q"] = params.get("gsrsearch")
+        return {"query": {"pages": {}}}
+    monkeypatch.setattr(F, "_http_json", fake)
+    F.search("a cat")
+    assert seen["q"] == "a cat"
+    F.search("a cat", depicts="Q146")
+    assert seen["q"].startswith("haswbstatement:P180=Q146 "), seen["q"]
