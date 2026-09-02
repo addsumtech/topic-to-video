@@ -116,6 +116,7 @@
     "RainGlass": "c88b336cf53f5736",
     "RansomZine": "c3a7d21ad94f78ad",
     "RealVersus": "c1111fbd5b952b0c",
+    "RestsOn": "c4dab9fee7246c4b",
     "RidgeField": "9cb428697613aaa3",
     "RisoPrint": "b3dbc5a31fabec6a",
     "ScanReconstruct": "d8ab9463281e9d25",
@@ -966,6 +967,13 @@
       "luma_range": 0.0,
       "seconds": 5.5,
       "footprint": 0.001
+    },
+    "RestsOn": {
+      "motion_p75": 0.0064,
+      "ink_median": 0.476,
+      "luma_range": 0.216,
+      "seconds": 5.8,
+      "footprint": 0.635
     },
     "RidgeField": {
       "motion_p75": 0.0098,

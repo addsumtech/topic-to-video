@@ -6,6 +6,7 @@ import './runtime/fonts';  // side effect: loads the DNA typefaces for Film AND 
 import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
+import {RestsOn, DURATION as D_RESTSON} from './shots/RestsOn';
 import {InOrder, DURATION as D_INORDER} from './shots/InOrder';
 import {MadeOf, DURATION as D_MADEOF} from './shots/MadeOf';
 import {LastLeg, DURATION as D_LASTLEG} from './shots/LastLeg';
@@ -353,5 +354,6 @@ export const RemotionRoot: React.FC = () => (
     {F('LastLeg', LastLeg, D_LASTLEG)}
     {F('MadeOf', MadeOf, D_MADEOF)}
     {F('InOrder', InOrder, D_INORDER)}
+    {F('RestsOn', RestsOn, D_RESTSON)}
   </>
 );

@@ -306,9 +306,20 @@ VoiceSignal's `phases` are audio segments and PhaseEncodeStep's `steps` is a cou
 
 `InOrder` fills that: the steps tile the zone, the one the film is on expands and the rest compress, and the
 expansion TRAVELS as the narration advances — so the density, the motion and the argument are one object.
-Measured as film: ink 37.9%, footprint 100%, motion 0.0079, light 0.153, all three floors clear. The library
-now has **seven** registers clearing all three, up from five, and two of the three explanatory shapes have
-one. Mechanism is still at zero.
+Measured as film: ink 37.9%, footprint 100%, motion 0.0079, light 0.153, all three floors clear.
+
+`RestsOn` closes the third. MECHANISM was the hardest because it is a RELATION, relations are conventionally
+drawn as boxes and arrows, and a line has no area — which is exactly why the five registers answering "why
+does this happen" measured a median of 2.4% ink. The relation had to become a REGION, so here it is LOAD: the
+phenomenon spans only as wide as the reason directly beneath it, each deeper reason is broader, and the stack
+assembles from the root upward — which is both the explanatory order and where the motion comes from. Measured
+as film: ink 47.6%, motion 0.0064, light 0.216.
+
+**The library now has eight registers clearing all three floors, up from five, and all three explanatory
+shapes have one.** The three additions differ in what their geometry MEANS, which is what stops them being
+one register with three skins: MadeOf's axis is share (area = proportion), InOrder's is time (equal bands,
+travelling focus), RestsOn's is depth of explanation (width = how foundational, built bottom-up). A film that
+swapped one for another would be making a different claim.
 
 The acceptance bar for any of these has to be BOTH: over the density floor **and** past the hide-the-caption
 test. Otherwise what gets added is the tenth mood register, and those are exactly what pulls

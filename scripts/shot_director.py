@@ -41,6 +41,7 @@ FAMILY = {
     "InfiniteCanvas": "B", "TimelineTravel": "B", "MapRoutes": "B", "ExplodedSchematic": "B", "CubeRotate": "B",
     "CrashZoom": "B", "TerrainFly": "B",
     "OverlapSeparation": "D", "SharedBlindspot": "H",
+    "RestsOn": "D",
     "InOrder": "D",
     "MadeOf": "D",
     "KineticManifesto": "C", "FocalIsolation": "C", "SwissEditorial": "C", "BrutalistType": "C",
@@ -94,6 +95,7 @@ FAMILY = {
 # conveyor belt is legitimate in a harbour film and still wrong for people cycling to a station. That
 # judgement is the shot-critic's (S10 meaning), and no table can make it.
 PROVENANCE = {
+    "RestsOn":                 'data-viz',
     "InOrder":                 'data-viz',
     "MadeOf":                  'data-viz',
     "LastLeg":                 'product-ui',
