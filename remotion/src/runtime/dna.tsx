@@ -502,6 +502,129 @@ export const tint = (c: string, f: number): string => mix(c, '#ffffff', f);
 /** Toward black (a deeper shade) — clay contact shadow, receding paper planes. */
 export const shade = (c: string, f: number): string => mix(c, '#000000', f);
 
+/** The colour model the DENSITY instrument measures in (PIL 'L' = 0.299R+0.587G+0.114B), which is NOT the
+ *  sRGB relative luminance `lumValue` answers with. Two different questions — "how light does this look to
+ *  an eye" and "will a difference here be counted as content" — with different weights. */
+export const pilL = (hex: string): number => {
+  const m = hex.replace('#', '');
+  if (m.length !== 6) return 0;
+  const v = [0, 2, 4].map((i) => parseInt(m.slice(i, i + 2), 16));
+  return (0.299 * v[0] + 0.587 * v[1] + 0.114 * v[2]) / 255;
+};
+
+/** The step a filled region must clear to READ as a region rather than as the ground. */
+export const TONE_MIN_STEP = 0.10;
+
+/**
+ * A filled region derived from the ground toward `toward`, mixed far enough to actually separate.
+ *
+ * WHY THIS IS DERIVED AND NOT A CONSTANT. Registers pick a mix fraction by eye and it is systematically too
+ * small: measured on the six sparsest registers a delivered film used, two of them (VersusSplit, CardStack3D)
+ * span more than half the frame and still ink at 3% — every region they paint sits within 0.10 of the ground,
+ * so the composition is there and invisible. VersusSplit's own comment records the reasoning that produced
+ * it: a mix of 0.22 was cut to 0.11 because it "lit the whole frame far brighter than the rest of a dark
+ * film". That premise is now false — the reference launch films span 0.270 to 0.903 in luminance, this
+ * runtime gives every beat its own ground, and the delivery gate REWARDS a film whose light moves.
+ *
+ * So the fraction is walked up a ladder until the result is measurably a different surface, and no further:
+ * `minStep` in the instrument's own colour model, never a number chosen by eye. Hue comes from `toward`, so
+ * a register keeps its own colour argument; only separation is enforced.
+ */
+/** sRGB relative luminance — the EYE's model, for legibility decisions. Distinct from `pilL`, which is the
+ *  density instrument's model; using the instrument's weights to pick ink would optimise for the gate. */
+export const relLum = (hex: string): number => {
+  const m = hex.replace('#', '');
+  if (m.length !== 6) return 0;
+  const c = [0, 2, 4].map((i) => parseInt(m.slice(i, i + 2), 16) / 255);
+  const f = c.map((v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
+  return 0.2126 * f[0] + 0.7152 * f[1] + 0.0722 * f[2];
+};
+
+/**
+ * The most legible of `candidates` ON `bg`, by MEASURED contrast.
+ *
+ * WHY MEASURED AND NOT THRESHOLDED. The tempting shortcut is to branch on how far a fill was mixed — "if the
+ * overlay alpha is past half, use the dark ink". A review of this codebase caught exactly that in another
+ * register: an ink picked from an overlay's alpha rather than from the composited luminance left two of
+ * three labels unreadable, because alpha is not tone. This asks the only question that matters.
+ */
+export const readableOn = (bg: string, ...candidates: string[]): string => {
+  const b = relLum(bg);
+  let best = candidates[0], bestC = -1;
+  for (const c of candidates) {
+    const y = relLum(c);
+    const ratio = (Math.max(y, b) + 0.05) / (Math.min(y, b) + 0.05);
+    if (ratio > bestC) { bestC = ratio; best = c; }
+  }
+  return best;
+};
+
+/** WCAG contrast between two colours. */
+export const contrastOf = (a: string, b: string): number => {
+  const x = relLum(a), y = relLum(b);
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+};
+
+/**
+ * A SECOND ink tier on `bg` — dimmer than `ink`, but never below `minRatio`.
+ *
+ * WHY A FLOOR AND NOT A FRACTION. A fixed mix toward the ground is a contrast bet that depends on how light
+ * the ground is, and it loses on exactly the grounds this work is introducing: mixing a strong ink 28%
+ * toward a mid-blue half took a register's secondary text from 4.54:1 to 2.57:1, measured on the render.
+ * This dims as far as the floor allows and stops there, so "secondary" never becomes "unreadable" on a
+ * surface the author has not seen yet.
+ */
+export const dimOn = (bg: string, ink: string, minRatio: number = 4.5): string => {
+  let best = ink;
+  for (let f = 0.06; f <= 0.7 + 1e-9; f += 0.04) {
+    const c = mix(ink, bg, f);
+    if (contrastOf(c, bg) < minRatio) break;
+    best = c;
+  }
+  return best;
+};
+
+/**
+ * TWO filled regions that separate FROM EACH OTHER, for a shot whose argument is a division.
+ *
+ * WHY A SECOND FUNCTION. Ink is measured against the frame's OWN median, so when two regions cover the whole
+ * frame the median lands between them and each is only half the pair's difference away from it. Deriving
+ * both from the ground therefore changes nothing: VersusSplit spans 53% of the frame, and separating each
+ * half from the ground moved it from 3.2% to 3.3%. What has to separate is the PAIR — by twice the step, so
+ * each side clears it against the midpoint they create.
+ */
+export const separatedPair = (ground: string, towardA: string, towardB: string,
+                              minStep: number = TONE_MIN_STEP): [string, string] => {
+  const a = separated(ground, towardA, minStep * 0.8);
+  const need = minStep * 2.2;
+  try {
+    return [a, separated(a, towardB, need)];
+  } catch {
+    // HUE CANNOT ALWAYS CARRY THE SEPARATION, so exposure does. Measured: on #0a0c12 the first half lands
+    // at #18223a and the second accent #b8412e is only 0.21 away at full mix — under the 0.22 two regions
+    // covering a frame need. Rather than throw on a legitimate pair of accents, separate by LIGHTNESS
+    // toward whichever pole has headroom and put the hue back as a light tint, so the register keeps its
+    // colour argument and the two sides still read as two.
+    const pole = readableOn(a, '#ffffff', '#05070c');
+    const b0 = separated(a, pole, need);
+    const tinted = mix(b0, towardB, 0.12);
+    return [a, Math.abs(pilL(tinted) - pilL(a)) >= need ? tinted : b0];
+  }
+};
+
+export const separated = (ground: string, toward: string,
+                          minStep: number = TONE_MIN_STEP, max: number = 0.85): string => {
+  const g = pilL(ground);
+  for (let f = 0.08; f <= max + 1e-9; f += 0.03) {
+    const c = mix(ground, toward, f);
+    if (Math.abs(pilL(c) - g) >= minStep) return c;
+  }
+  // The ladder ran out: `toward` is the ground's own value. Fail loud — a register asking for a second
+  // surface and silently getting the ground back is the invisible-container failure this exists to end.
+  throw new Error(`separated(): mixing ${ground} toward ${toward} never reaches a ${minStep} step in the `
+    + 'density model — they are the same tone, so this would paint a region that is not there.');
+};
+
 /** Rotate a colour's HUE by `deg`, keeping its saturation/lightness — how a one-accent DNA grows a whole
  *  illustration palette that still belongs to the film. */
 export const rotate = (c: string, deg: number): string => {

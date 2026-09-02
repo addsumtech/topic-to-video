@@ -34,6 +34,10 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _REMOTION = os.path.join(_ROOT, "remotion")
 _SHOTS = os.path.join(_REMOTION, "src", "shots")
 MANIFEST = os.path.join(_REMOTION, "register_energy.json")
+# Below this footprint an empty frame is empty because the COMPOSITION is small; above it, because the
+# composition spans the frame and has no tone. Set between the two clusters measured on the sparsest
+# registers a delivered film used (9-19% against 53-57%), which is where the gap actually is.
+FOOTPRINT_SPLIT = 0.35
 REGEN = "python3 scripts/register_energy.py"
 
 
@@ -53,6 +57,33 @@ def durations():
         if m:
             out[os.path.basename(f)[:-4]] = int(m.group(1))
     return out
+
+
+def footprint(png):
+    """What FRACTION OF THE FRAME the register's content spans — its ink's bounding box.
+
+    Ink alone cannot tell the two ways a frame is empty apart, and they need opposite fixes. Measured on the
+    six sparsest registers a delivered film used:
+
+        TermTree      ink 1.1%  footprint  9.0%   |  CardStack3D  ink 2.9%  footprint 57.1%
+        QuadSplit     ink 3.9%  footprint 11.3%   |  VersusSplit  ink 3.2%  footprint 53.2%
+
+    The left column is content composed at a ninth of the frame — the fix is to fill it. The right column
+    already spans the frame and is TONELESS: every element sits within 0.10 of the ground, so the composition
+    is there and invisible. CardStack3D paints its cards from `dna.surface` and VersusSplit paints two halves
+    outright; neither needs a new layout, both need real tone. One number cannot ask for both.
+    """
+    try:
+        import numpy as np
+        from PIL import Image
+    except ImportError:
+        return None
+    a = np.asarray(Image.open(png).convert("L").resize((192, 108))).astype(np.float32) / 255.0
+    ink = np.abs(a - np.median(a)) > 0.10
+    if not ink.any():
+        return 0.0
+    ys, xs = np.nonzero(ink)
+    return float(((xs.max() - xs.min() + 1) * (ys.max() - ys.min() + 1)) / (192 * 108))
 
 
 def render_one(name, mp4):
@@ -96,8 +127,14 @@ def main(argv):
                        "ink_median": round(m["ink_median"], 3),
                        "luma_range": round(m["luma_range"], 3),
                        "seconds": round(m["seconds"], 1)}
-            if stills:
-                stills_from(mp4, stills, n, durs[n])
+            # The settled still, for the footprint. Written whether or not --stills was asked for, into a
+            # temp dir if not: a diagnosis that cannot distinguish "too small" from "too flat" sends every
+            # register the same advice, and the two need opposite work.
+            sd = stills or os.path.join(tmp, "_fp")
+            stills_from(mp4, sd, n, durs[n])
+            fp = footprint(os.path.join(sd, "%s_b.png" % n))
+            if fp is not None:
+                rows[n]["footprint"] = round(fp, 3)
             if i % 10 == 0:
                 print("  measured %d/%d" % (i, len(names)), flush=True)
         if failed:
@@ -123,6 +160,16 @@ def main(argv):
     def fails(r):
         return ((r["motion_p75"] < fl["motion_p75"]) + (r["ink_median"] < fl["ink_median"])
                 + (r["luma_range"] < fl["luma_range"]))
+
+    def why(r):
+        """Which KIND of empty, when it is empty. The two need opposite fixes, so naming one is the
+        difference between directable work and a number."""
+        if r["ink_median"] >= fl["ink_median"]:
+            return ""
+        fp = r.get("footprint")
+        if fp is None:
+            return "?"
+        return "small" if fp < FOOTPRINT_SPLIT else "flat"
     ranked = sorted(regs.items(), key=lambda kv: (-fails(kv[1]), kv[1]["motion_p75"]))
     n3 = sum(1 for _, r in ranked if fails(r) == 3)
     n2 = sum(1 for _, r in ranked if fails(r) == 2)
@@ -134,12 +181,16 @@ def main(argv):
         print("[register_energy] %d register(s) UNMEASURED — absent from the ranking below, not passing it: %s"
               % (len(unknown), ", ".join(u.split(" ")[0] for u in unknown)))
     print("[register_energy] under all three: %d · two: %d · one: %d · clear: %d" % (n3, n2, n1, n0))
-    print("\n%-24s %8s %7s %7s  %s" % ("register", "motion", "ink", "light", "under"))
+    print("\n%-24s %8s %7s %7s %7s  %-4s %s"
+          % ("register", "motion", "ink", "light", "footprnt", "why", "under"))
     for n, r in ranked[:40]:
         marks = "".join(m for m, bad in (("M", r["motion_p75"] < fl["motion_p75"]),
                                          ("D", r["ink_median"] < fl["ink_median"]),
                                          ("L", r["luma_range"] < fl["luma_range"])) if bad)
-        print("%-24s %8.4f %6.1f%% %7.3f  %s" % (n, r["motion_p75"], r["ink_median"] * 100, r["luma_range"], marks or "-"))
+        print("%-24s %8.4f %6.1f%% %7.3f %7s  %-4s %s"
+              % (n, r["motion_p75"], r["ink_median"] * 100, r["luma_range"],
+                 "-" if r.get("footprint") is None else "%.0f%%" % (r["footprint"] * 100),
+                 why(r), marks or "-"))
     return 1 if unknown else 0
 
 

@@ -233,6 +233,44 @@ So density is not a token problem and not a count problem. It is: **compose to F
 (`fitContentSquare` returns a 605px square on a 1920px frame; layout.ts reserves 35% of frame height and is
 entirely exclusion zones), **give marks mass**, and **put real pictures in the frame**.
 
+### The rules that DO transfer, and what applying one actually cost
+
+Density has no shared mechanism, but it has shared RULES, and they came out of measurement rather than taste.
+They live in `runtime/dna.tsx` as `separated` / `separatedPair` / `readableOn` / `dimOn` / `contrastOf`, and
+`register_energy.py` gained the axis that tells an author WHICH rule a register needs:
+
+**Footprint — the ink's bounding box** — separates the two ways a frame is empty, which need opposite fixes:
+
+| | ink | footprint | |
+|---|---|---|---|
+| TermTree | 1.1% | 9.0% | **small** — composed at a ninth of the frame |
+| QuadSplit | 3.9% | 11.3% | small |
+| TimelineTravel | 1.5% | 14.4% | small |
+| GrantedTree | 1.8% | 18.6% | small |
+| VersusSplit | 3.2% | 53.2% | **flat** — spans the frame, every region within 0.10 of the ground |
+| CardStack3D | 2.9% | 57.1% | flat |
+
+**A worked example, and it took five iterations.** VersusSplit already paints two halves; its own comment
+records a previous author cutting the mix from 0.22 to 0.11 because a brighter frame would leave "the rest of
+a dark film" behind — a premise this runtime has since falsified. Fixing it:
+
+1. `separated()` each half from the ground → 3.2% → **3.3%**. Ink is measured against the frame's OWN median,
+   and two halves covering the frame CREATE that median between them.
+2. `separatedPair()` — separate from each other by twice the step → **51.1%**. And the right column's text
+   dropped to 2.57:1, because the register reads its ink tokens once, for the ground it used to have.
+3. `readableOn()` + a fixed 28% dim → still 2.63:1. A fraction is a bet on how light the ground is.
+4. `dimOn()` with a 4.5:1 floor, picked against the half → better, still weak: a winning panel paints
+   `${tone}2e` OVER its half, so the text sits on a composite the picker never saw. Pick against that.
+5. The WINNER chip made from the accent → `separated()` THREW, correctly: the half had been mixed toward
+   that same accent, so they are one tone. The chip steps toward whichever pole has headroom instead.
+
+Final: **3.2% → 51.1%**, above Figma's 36.1%, with every primary element legible — and byte-identical with no
+DNA, because `test_null_dna_preserves_every_original_colour` is a contract worth keeping and the derivation
+belongs where a design system is present.
+
+That is what one register costs. There are roughly a hundred more, and `scripts/density_advice.py` says which
+ones a given film is actually starved by.
+
 ### The image channel's honest limit
 
 `imagefetch.py` works on concrete subjects and fails on abstract ones, reproduced here: `"trust"` returns a
