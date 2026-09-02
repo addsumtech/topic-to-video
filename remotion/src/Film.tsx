@@ -492,7 +492,20 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
   const total = filmDuration(scenes);
-  const cam = cameraTransform(frame, reducedMotion ? 0 : Math.max(0, camera));
+  // NO SHAKE, structurally. `cameraTransform` is three sines with different periods on scale, x and y —
+  // an OSCILLATION, which is why it was made opt-in and defaults to still after repeated complaints. A
+  // beat's `pan` is monotone by construction (runtime/depth.tsx panAt: a ramp that only ever advances), so
+  // a pan alone cannot shake. Travel PLUS oscillation can, and that combination is refused rather than
+  // rendered: the two are different intentions and a film should pick one.
+  const ambient = reducedMotion ? 0 : Math.max(0, camera);
+  if (ambient > 0 && (scenes || []).some((s) => s && s.camera && s.camera.pan)) {
+    throw new Error(
+      'this film declares BOTH a whole-film camera drift (meta.camera_drift) and a per-beat camera pan. ' +
+      'The drift oscillates and the pan travels; together they read as shake, which this project has ' +
+      'already shipped once and had reported. Keep the per-beat pans and drop meta.camera_drift, or keep ' +
+      'the drift and drop the pans.');
+  }
+  const cam = cameraTransform(frame, ambient);
   const intro = interpolate(frame, [0, 12], [1, 0], {extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic)});
   const outro = interpolate(frame, [total - 16, total - 1], [0, 1], {extrapolateLeft: 'clamp'});
   // ONE Design DNA for the whole film (null = un-themed → every shot renders its original hardcoded look).

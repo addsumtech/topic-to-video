@@ -99,3 +99,42 @@ def test_the_travel_is_constant_velocity_through_the_middle():
     s = out["series"]
     steps = [b - a for a, b in zip(s, s[1:])][8:-8]
     assert max(steps) - min(steps) < max(steps) * 0.05, "the middle of the travel is not steady: %r" % steps
+
+
+def test_the_travel_can_never_oscillate():
+    """SHAKE IS OSCILLATION, not movement. A monotone travel cannot shake however large it is, so this is the
+    property that makes the guarantee — pinned over a fine sampling, not eyeballed on a contact sheet."""
+    out = run_probe("""
+      out.series = [];
+      for (let i = 0; i <= 600; i++) out.series.push(C.panAt(i / 600));
+    """)
+    s = out["series"]
+    back = [(a, b) for a, b in zip(s, s[1:]) if b < a - 1e-12]
+    assert not back, "the travel reverses %d time(s) — that is a shake: %r" % (len(back), back[:3])
+
+
+def test_a_film_cannot_declare_both_an_oscillating_drift_and_a_travelling_pan(tmp_path):
+    """The whole-film drift is three sines; a pan is a ramp. Together they read as shake, and Film.tsx
+    refuses the combination. Driven through a REAL render rather than a source grep — a grep would pass on a
+    file that mentions the words and no longer throws, which is the shape of check this repo keeps finding
+    broken."""
+    if not shutil.which("npx") or not os.path.isdir(os.path.join(REMOTION, "node_modules")):
+        pytest.skip("remotion toolchain unavailable")
+
+    def render(drift):
+        props = tmp_path / ("p%s.json" % drift)
+        props.write_text(json.dumps({
+            "scenes": [{"shot": "LastLeg", "durF": 60, "caption": "x",
+                        "camera": {"move": "push", "pan": [0.6, 0.2]}},
+                       {"shot": "LastLeg", "durF": 60, "caption": "y"}],
+            "camera": drift, "aspect": "16:9", "captions": True}), encoding="utf-8")
+        r = subprocess.run(["npx", "remotion", "still", "src/index.ts", "Film",
+                            str(tmp_path / ("out%s.png" % drift)), "--frame=30",
+                            "--props=" + str(props), "--gl=angle", "--log=error"],
+                           cwd=REMOTION, capture_output=True, text=True)
+        return (r.stdout or "") + (r.stderr or ""), os.path.exists(tmp_path / ("out%s.png" % drift))
+
+    blob, made = render(1.0)
+    assert not made and "read as shake" in blob, "drift + pan rendered instead of being refused"
+    _blob, made = render(0.0)
+    assert made, "a pan on its own must still render"
