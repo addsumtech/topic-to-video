@@ -205,6 +205,30 @@ hairlines. And a full-bleed real photograph, measured on the same instrument, co
 above Apple's 24.3% on its own. Only ~11 of 149 registers can hold an image at all, `remotion/public/` does
 not exist in the checkout, and `PhotoPlate` measures 0.7% because it renders an empty plate.
 
+### Four shared levers built, measured and refuted
+
+Two more were tried after the two above, and the fourth is the instructive one:
+
+* **A divided ground painted UNDER the shot: invisible.** 148 of 149 registers paint their own full-frame
+  ground from `dna.bg`, so an underlay is covered. The per-beat ground works precisely because it changes
+  `dna.bg` and the REGISTER repaints itself.
+* **A divided ground sent through `bgGrad`** — the token 143 registers already pipe into a CSS background —
+  **works on the number and fails on the frame.** One declaration took a beat from 5.7% to 14.4% ink, over
+  the floor, with zero register edits. Then I looked at it: the register's card straddles the boundary and
+  ignores it, so the second ground renders as a coloured MARGIN around a card. The declaration even carried
+  a required `reason` ("left is what it does for you, right is what it leaves you") and the frame said none
+  of it — a required reason cannot make 149 registers respect a line they do not know about. Reverted.
+
+**There is no shared density lever.** The measured conclusion after four attempts is that density is
+per-register composition work. What generalises is DIRECTION, not a mechanism, which is what
+`scripts/density_advice.py` does: every family holds both starved and dense registers — F spans 1.3%
+(DiffusionDenoise) to 63.9% (AuroraFlow), A spans 1.7% (GrantedTree) to 47.9% (LastLeg), G spans 0.0%
+(ScanReconstruct) to 61.3% (PaperCutout) — so a starved beat usually has a denser neighbour on the same
+shelf, the one substitution that does not change the film's visual language. On the delivered film it
+reports 27 of 30 beats under the floor and names alternatives for 25 of them. It offers CANDIDATES: a
+register is chosen because it encodes the beat's idea, and picking whatever measures densest is how a film
+ends up carrying ink no viewer can decode.
+
 So density is not a token problem and not a count problem. It is: **compose to FILL rather than to fit**
 (`fitContentSquare` returns a 605px square on a 1920px frame; layout.ts reserves 35% of frame height and is
 entirely exclusion zones), **give marks mass**, and **put real pictures in the frame**.
