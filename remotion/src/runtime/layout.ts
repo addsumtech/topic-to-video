@@ -75,6 +75,17 @@ export const contentBottom = (W: number, H: number) => H - captionBand(W, H);
 // content zone, so its travel is zoneH/2 x amount. The beat gets whatever the drift has not already spent.
 // `driftTranslate` is the film-wide drift's downward y-amplitude in px (Film.DRIFT_MAX_TRANSLATE_Y scaled
 // by the drift amount). It spends the same headroom the scale does and was simply not counted.
+/** The vertical slack, in px, between the reserved caption band and the block the caption actually needs —
+ *  the room a camera has to move content DOWN before it starts pushing it under the burned subtitle.
+ *
+ *  `maxCameraPush` already derives a zoom cap from this number; a PAN needed the same protection and did not
+ *  have it. Measured on a delivered film: a beat panned downward put its register's own title on top of the
+ *  caption, both unreadable. A pan's overscan budget guarantees no frame EDGE is revealed; it says nothing
+ *  about the one band that is reserved for something else. */
+export const captionSlackPx = (W: number, H: number, driftExtra = 0, driftTranslate = 0) =>
+  Math.max(0, Math.max(0, captionBand(W, H) - captionBlockH(W, H))
+              - (H / 2) * Math.max(0, driftExtra) - Math.max(0, driftTranslate));
+
 export const maxCameraPush = (W: number, H: number, driftExtra = 0, driftTranslate = 0) => {
   const band = captionBand(W, H);
   const gap = Math.max(0, band - captionBlockH(W, H))

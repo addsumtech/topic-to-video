@@ -22,7 +22,7 @@
 import React from 'react';
 import {useVideoConfig} from 'remotion';
 import {useT, ReducedMotionContext, clamp01, easeInOutCubic} from './motion';
-import {CONTENT_TOP, contentBottom, maxCameraPush} from './layout';
+import {CONTENT_TOP, contentBottom, maxCameraPush, captionSlackPx} from './layout';
 
 // ── depth planes ────────────────────────────────────────────────────────────────────────────────────────
 // Named, because a bare number says nothing about what the author meant. `subject` is the plane the beat is
@@ -210,7 +210,14 @@ export const SceneCamera: React.FC<{
   // measured motion went missing; a gentle constant drift is what a Ken Burns move actually is.
   const trav = panning ? panAt(t) : 0;
   const tx = panning ? px[0] * over * W * trav : 0;
-  const ty = panning ? px[1] * over * H * trav : 0;
+  // THE VERTICAL COMPONENT IS BOUNDED BY THE CAPTION BAND, not only by the overscan. The overscan budget
+  // guarantees no frame EDGE is revealed and says nothing about the one band reserved for something else:
+  // measured on a delivered film, a beat panned downward put the register's own title on top of the burned
+  // subtitle and made both unreadable. The caption rides a HUD track that does not move with the camera, so
+  // only the scene can close that gap — and it must not.
+  const downRoom = captionSlackPx(W, H, driftExtra, driftTranslate);
+  const tyRaw = panning ? px[1] * over * H * trav : 0;
+  const ty = Math.min(tyRaw, downRoom);              // upward travel is unconstrained; downward is not
   const originY = (CONTENT_TOP + contentBottom(W, H)) / 2;
   const xf = [
     tx || ty ? `translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px)` : '',
