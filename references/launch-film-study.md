@@ -268,6 +268,38 @@ Final: **3.2% → 51.1%**, above Figma's 36.1%, with every primary element legib
 DNA, because `test_null_dna_preserves_every_original_colour` is a contract worth keeping and the derivation
 belongs where a design system is present.
 
+### The diagnostic was measuring a mode no film uses
+
+Found by auditing my own work, and it is the most consequential correction in this file:
+`register_energy.py` swept with NO `--props`, which renders the UN-THEMED fallback — the branch a register
+takes when `useDNA()` returns null. That is the path `test_null_dna_preserves_every_original_colour`
+deliberately freezes, so the three registers improved for themed films measured in the manifest exactly as
+they had before the work. CardStack3D read **0.6%** in the committed sweep on the same day it measured
+**32.2%** under `dna=product`, and nothing anywhere said the two numbers were about different renders.
+
+Re-swept on the themed path (`--dna=product`, now the default; `--dna=none` measures the fallback):
+
+| | un-themed (old basis) | themed (correct basis) |
+|---|---|---|
+| VersusSplit | 2.0% | **50.9%** |
+| CardStack3D | 0.6% | **6.7%** |
+| TermTree | 1.0% | 2.4% |
+| library median | 4.8% | 4.8% |
+| under all three floors | 92/149 | 88/149 |
+
+The aggregate barely moves — most registers do not branch on the DNA for their density — but for anything
+that HAS been worked on, the two bases differ by an order of magnitude, which is exactly when a diagnostic
+is trusted most.
+
+**A video median and a settled still answer different questions.** CardStack3D measures 6.7% as film and
+32.2% as a still, because its cards fly in over the shot and the median frame has fewer of them. Neither is
+wrong; the manifest records the film number, which is the one a viewer experiences.
+
+**And a record nobody can tell is stale is a lie with a timestamp.** The manifest now carries each register's
+source hash, `--check` reports which rows no longer describe their source without rendering anything, and
+`density_advice.py` REFUSES to advise from a stale sweep — it would otherwise have named one of the densest
+registers in the library as a starved beat's problem.
+
 ### Three registers done, and what each class actually buys
 
 | register | class | before | after | |

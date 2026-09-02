@@ -4,6 +4,8 @@
     python3 scripts/register_energy.py            # measure all, write the manifest, print the ranking
     python3 scripts/register_energy.py --only A,B  # a few
     python3 scripts/register_energy.py --report    # re-print the ranking from the manifest, render nothing
+    python3 scripts/register_energy.py --check     # which rows no longer describe their source (no renders)
+    python3 scripts/register_energy.py --dna=none  # ...measured un-themed instead (the fallback path)
 
 WHY. `film_energy_qa.py` judges a delivered FILM. It found one this skill shipped measuring 3.3x under the
 quietest reference launch film on motion, 5.6x on density and 3.4x on light — but a film is only as alive as
@@ -20,6 +22,7 @@ It also writes three frames per register (early / settled / late) into `--stills
 at what the numbers are describing instead of trusting them.
 """
 import glob
+import hashlib
 import json
 import os
 import re
@@ -39,6 +42,37 @@ MANIFEST = os.path.join(_REMOTION, "register_energy.json")
 # registers a delivered film used (9-19% against 53-57%), which is where the gap actually is.
 FOOTPRINT_SPLIT = 0.35
 REGEN = "python3 scripts/register_energy.py"
+
+
+def source_hashes():
+    """{register: sha256 of its .tsx}. A measured row describes the SOURCE it was rendered from, and nothing
+    said so: three registers were rewritten and the committed manifest went on reporting 0.6%, 2.0% and 1.0%
+    against measured 32.2%, 51.1% and 2.4%, while `density_advice.py` — which reads this file — kept offering
+    one of the densest registers in the library as a starved beat's problem. A record nobody can tell is
+    stale is not a record, it is a lie with a timestamp."""
+    out = {}
+    for f in sorted(glob.glob(os.path.join(_SHOTS, "*.tsx"))):
+        out[os.path.basename(f)[:-4]] = hashlib.sha256(open(f, "rb").read()).hexdigest()[:16]
+    return out
+
+
+def stale(data):
+    """[(register, why)] for rows that no longer describe their source. Costs no renders, so it can run
+    anywhere — which is the point: a check that needs 149 renders is a check nobody runs."""
+    now = source_hashes()
+    rows = data.get("registers") or {}
+    was = data.get("_source") or {}
+    out = []
+    for n in sorted(rows):
+        if n not in now:
+            out.append((n, "the register is gone"))
+        elif n not in was:
+            out.append((n, "measured before source hashes were recorded"))
+        elif was[n] != now[n]:
+            out.append((n, "source changed since it was measured"))
+    for n in sorted(set(now) - set(rows)):
+        out.append((n, "never measured"))
+    return out
 
 
 def floors():
@@ -86,9 +120,20 @@ def footprint(png):
     return float(((xs.max() - xs.min() + 1) * (ys.max() - ys.min() + 1)) / (192 * 108))
 
 
-def render_one(name, mp4):
-    r = subprocess.run(["npx", "remotion", "render", "src/index.ts", name, mp4,
-                        "--gl=angle", "--log=error"], capture_output=True, text=True, cwd=_REMOTION)
+# EVERY DELIVERED FILM HAS A DESIGN SYSTEM, and this swept without one. `npx remotion render <Id>` with no
+# --props renders the un-themed fallback: the branch a register takes when `useDNA()` returns null. That is
+# the path `test_null_dna_preserves_every_original_colour` deliberately freezes, so a register improved for
+# themed films measures here exactly as it did before — CardStack3D read 0.6% in this manifest on the same
+# day it measured 32.2% under `dna=product`, and nothing said the two numbers were about different renders.
+# A diagnostic that measures a mode no film uses is worse than none: it is confidently about the wrong thing.
+DEFAULT_DNA = "product"
+
+
+def render_one(name, mp4, dna=DEFAULT_DNA):
+    cmd = ["npx", "remotion", "render", "src/index.ts", name, mp4, "--gl=angle", "--log=error"]
+    if dna:
+        cmd.append("--props=" + json.dumps({"dna": dna}))
+    r = subprocess.run(cmd, capture_output=True, text=True, cwd=_REMOTION)
     return os.path.exists(mp4), ((r.stdout or "") + (r.stderr or "")).strip().splitlines()[-1:] or [""]
 
 
@@ -102,10 +147,24 @@ def stills_from(mp4, out_dir, name, durF, fps=30):
 
 
 def main(argv):
+    if "--check" in argv:
+        # CHEAP ON PURPOSE. Re-measuring is 149 video renders; comparing hashes is a read. The expensive
+        # check is the one that does not get run before a commit.
+        data = json.load(open(MANIFEST, encoding="utf-8"))
+        rows = stale(data)
+        for n, why in rows:
+            print("[register_energy] STALE %-24s %s" % (n, why))
+        print("[register_energy] %s  %d of %d row(s) no longer describe their source%s"
+              % ("FAIL" if rows else "OK", len(rows), len(data.get("registers") or {}),
+                 " — re-run `%s`" % REGEN if rows else ""))
+        return 1 if rows else 0
     if "--report" in argv:
         data = json.load(open(MANIFEST, encoding="utf-8"))
     else:
         only = next((a.split("=", 1)[1].split(",") for a in argv if a.startswith("--only=")), None)
+        dna = next((a.split("=", 1)[1] for a in argv if a.startswith("--dna=")), DEFAULT_DNA)
+        if dna in ("", "none"):
+            dna = None
         stills = next((a.split("=", 1)[1] for a in argv if a.startswith("--stills=")), None)
         tmp = os.path.join(os.environ.get("TMPDIR", "/tmp"), "_register_energy")
         os.makedirs(tmp, exist_ok=True)
@@ -115,7 +174,7 @@ def main(argv):
         for i, n in enumerate(names, 1):
             mp4 = os.path.join(tmp, n + ".mp4")
             if not os.path.exists(mp4):
-                ok, tail = render_one(n, mp4)
+                ok, tail = render_one(n, mp4, dna)
                 if not ok:
                     failed.append("%s (%s)" % (n, tail[0][:100]))
                     continue
@@ -143,7 +202,11 @@ def main(argv):
             for f in failed:
                 print("    " + f)
         data = {"_regenerate": REGEN,
-                "_basis": "each register rendered as VIDEO at its own DURATION with its DEFAULT props, 16:9",
+                "_source": {n: h for n, h in source_hashes().items() if n in rows},
+                "_basis": ("each register rendered as VIDEO at its own DURATION, 16:9, under dna=%s — the "
+                           "themed path, because every delivered film has a design system and the un-themed "
+                           "fallback is a mode none of them use" % (dna or "none")),
+                "_dna": dna,
                 "_floors": floors(),
                 # RECORDED, not just printed. A register that failed to render has no energy reading, and an
                 # absent row in a ranking reads as "fine" — the exact silent-improvement failure band_debt.py

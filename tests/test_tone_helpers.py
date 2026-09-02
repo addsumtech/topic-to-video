@@ -121,3 +121,50 @@ def test_the_two_colour_models_are_kept_apart():
     """)
     diffs = [abs(p - r) for _c, p, r in out["rows"]]
     assert max(diffs) > 0.1, "pilL and relLum agree everywhere — one of them is not what it claims: %r" % out
+
+
+def test_an_ink_that_straddles_a_division_is_judged_on_its_WORST_ground():
+    """`readableOn` maximises contrast against ONE surface, which is the wrong question for a centred title
+    over a diptych — it will pick an ink that is excellent on one half and invisible on the other. Measured
+    on the literal VersusSplit used to carry: 2.51:1 on the dark key and 1.07:1 on the light one."""
+    out = probe("""
+      const pairs = [['#141e33', '#9c3b2f'], ['#e8e2f4', '#8ea2f0'], ['#141e33', '#d8d2c4']];
+      const cands = ['#ffffff', '#05070c', '#8d8d8d'];
+      out.rows = pairs.map(([a, b]) => {
+        const one = D.readableOn(a, ...cands);
+        const both = D.readableOnAll([a, b], ...cands);
+        return [a, b, one, both,
+                Math.min(D.contrastOf(one, a), D.contrastOf(one, b)),
+                Math.min(D.contrastOf(both, a), D.contrastOf(both, b))];
+      });
+    """)
+    for a, b, _one, _both, worstOne, worstBoth in out["rows"]:
+        assert worstBoth >= worstOne - 1e-9, (
+            "readableOnAll did worse on %s/%s: %.2f vs %.2f" % (a, b, worstBoth, worstOne))
+    assert any(r[5] > r[4] + 0.3 for r in out["rows"]), (
+        "on none of these pairs did judging the worst ground change the pick — the fixture no longer "
+        "exercises the difference: %r" % (out["rows"],))
+
+
+def test_a_division_across_the_key_boundary_has_no_legible_ink_at_all():
+    """The honest limit, and the reason `light.tsx` refuses a field whose key differs from its ground: with
+    one half near-black and the other near-white, EVERY candidate is unreadable on one of them. A helper that
+    returned a confident answer here would be lying."""
+    out = probe("""
+      const cands = ['#ffffff', '#05070c', '#8d8d8d', '#6a6a6a', '#b4b4b4'];
+      out.worst = Math.max(...cands.map((c) =>
+        Math.min(D.contrastOf(c, '#0a0c12'), D.contrastOf(c, '#f4f0e6'))));
+    """)
+    assert out["worst"] < 4.5, (
+        "a cross-key division now has a legible ink at %.2f:1 — if that is real, light.tsx's refusal of a "
+        "cross-key field should be revisited" % out["worst"])
+
+
+def test_surfaceOn_leaves_a_colour_that_is_already_a_surface_alone():
+    """It must not repaint an author's deliberate choice — only rescue one the ground swallows."""
+    out = probe("""
+      out.already = D.surfaceOn('#060709', '#8ea2f0');
+      out.rescued = D.surfaceOn('#060709', '#12141c');
+    """)
+    assert out["already"] == "#8ea2f0"
+    assert out["rescued"] != "#12141c"

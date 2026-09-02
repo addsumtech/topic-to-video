@@ -566,6 +566,23 @@ export const contrastOf = (a: string, b: string): number => {
 };
 
 /**
+ * The ink most legible across SEVERAL grounds at once — for an element that straddles a division.
+ *
+ * `readableOn` maximises contrast against one surface, which is the wrong question for a centred title over
+ * a diptych: it will happily pick an ink that is excellent on one half and invisible on the other. Measured
+ * on VersusSplit, whose title is centred across its seam, a literal `#aeb6ca` read 2.51:1 on the dark key
+ * and 1.07:1 on the light one. This maximises the WORST case instead, which is the only one a viewer sees.
+ */
+export const readableOnAll = (bgs: string[], ...candidates: string[]): string => {
+  let best = candidates[0], bestWorst = -1;
+  for (const c of candidates) {
+    const worst = Math.min(...bgs.map((b) => contrastOf(c, b)));
+    if (worst > bestWorst) { bestWorst = worst; best = c; }
+  }
+  return best;
+};
+
+/**
  * A SECOND ink tier on `bg` — dimmer than `ink`, but never below `minRatio`.
  *
  * WHY A FLOOR AND NOT A FRACTION. A fixed mix toward the ground is a contrast bet that depends on how light

@@ -6,7 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutExpo, easeOutCubic} from '../runtime/motion';
-import {useDNA, dnaPalette, mix, shade, tint, separated, separatedPair, readableOn, dimOn, TONE_MIN_STEP} from '../runtime/dna';
+import {useDNA, dnaPalette, mix, shade, tint, separated, separatedPair, readableOn, readableOnAll, dimOn, TONE_MIN_STEP} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 
@@ -80,6 +80,10 @@ export const VersusSplit: React.FC<{left?: Side; right?: Side; winner?: number; 
   const rEnter = easeOutExpo(seg(t, 0.16, 0.5));
   const vs = easeOutBack(clamp01(seg(t, 0.46, 0.64)));
   const titleIn = easeOutCubic(seg(t, 0.02, 0.16));
+  // The title is CENTRED ACROSS THE SEAM, so it sits on both halves and an ink chosen for one is
+  // wrong for the other. Measured on the literal it replaces: 2.51:1 on the dark key, 1.07:1 on the
+  // light one — invisible. `readableOnAll` maximises the WORST of the two, which is the only case a
+  // viewer sees. Un-themed keeps its original literal.
   // The two panel tones and the split ground were hardcoded blue/teal, so on a themed film they OVERRODE
   // the DNA across most of the frame — measured at 55% of the frame's chromatic ink sitting at hue 222 in a
   // green/amber film, on three separate beats. Winner takes the film's primary accent, the other its
@@ -108,6 +112,7 @@ export const VersusSplit: React.FC<{left?: Side; right?: Side; winner?: number; 
   // and two halves that cover the whole frame CREATE that median between them — separating each from the
   // ground moved this register from 3.2% to 3.3%. The pair has to separate from each other.
   const [halfL, halfR] = dna ? separatedPair(ground, toneL, toneR) : ['#141a2e', '#1e1420'];
+  const titleInk = dna ? readableOnAll([halfL, halfR], '#ffffff', '#05070c') : '#aeb6ca';
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('#0a0c12'), overflow: 'hidden'}}>
       {/* two grounds */}
@@ -117,7 +122,7 @@ export const VersusSplit: React.FC<{left?: Side; right?: Side; winner?: number; 
         transform: 'translateX(-50%) rotate(8deg)', boxShadow: '0 0 30px #000'}} />
 
       <div style={{position: 'absolute', top: 54, left: 0, right: 0, textAlign: 'center', opacity: titleIn, zIndex: 5,
-        color: '#aeb6ca', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
+        color: titleInk, font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
 
       <Panel side={LEFT} enter={lEnter} align="left" tone={toneL} win={WINNER === 0} t={t} base={0.5} ground={halfL} themed={Boolean(dna)} />
       <Panel side={RIGHT} enter={rEnter} align="right" tone={toneR} win={WINNER === 1} t={t} base={0.56} ground={halfR} themed={Boolean(dna)} />

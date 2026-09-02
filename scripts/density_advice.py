@@ -36,20 +36,35 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import film_energy_qa as fe                                      # noqa: E402
+import register_energy as re                                     # noqa: E402
 import shot_director as sd                                       # noqa: E402
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MANIFEST = os.path.join(_ROOT, "remotion", "register_energy.json")
 
 
-def measured():
-    """{register: ink_median}, from the committed sweep. Fails loud if the sweep is missing — advising from
-    a manifest that is not there would be advice with nothing behind it."""
+def measured(strict=True):
+    """{register: ink_median}, from the committed sweep. Fails loud if the sweep is missing OR STALE.
+
+    Stale is the dangerous one, and it happened: three registers were rewritten to 32.2%, 51.1% and 2.4%
+    while the manifest still read 0.6%, 2.0% and 1.0%, so this would have named one of the densest registers
+    in the library as a starved beat's problem and offered it alternatives. Advice from a record that no
+    longer describes the code is worse than no advice, because it reads as measured.
+    """
     if not os.path.exists(MANIFEST):
         raise RuntimeError("no %s — run `python3 scripts/register_energy.py` first; this advises from "
                            "measured pixels, never from an opinion about a register" % MANIFEST)
     d = json.load(open(MANIFEST, encoding="utf-8"))
-    return {k: v["ink_median"] for k, v in (d.get("registers") or {}).items()}
+    rows = {k: v["ink_median"] for k, v in (d.get("registers") or {}).items()}
+    if strict:
+        bad = re.stale(d)
+        if bad:
+            raise RuntimeError(
+                "%d of %d measured row(s) no longer describe their register's source (%s%s). Re-run "
+                "`python3 scripts/register_energy.py` — advice from a stale sweep reads as measured and is "
+                "not." % (len(bad), len(rows), ", ".join(n for n, _ in bad[:4]),
+                          ", …" if len(bad) > 4 else ""))
+    return rows
 
 
 def alternatives(shot, ink, floor, limit=3):
