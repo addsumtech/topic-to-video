@@ -83,6 +83,42 @@ export const maxCameraPush = (W: number, H: number, driftExtra = 0, driftTransla
   return Math.max(0, (gap / (zoneH / 2)) * 0.75);   // 3/4 of the headroom — the last quarter is not worth spending
 };
 
+/**
+ * The font size at which a MONOSPACE block fills its box — the "small" half of the density diagnosis.
+ *
+ * Ink and footprint separate the two ways a frame is empty, and they need opposite fixes: measured on the
+ * registers a delivered film was starved by, TermTree spans 9.0% of the frame, QuadSplit 11.3%,
+ * TimelineTravel 14.4% — composed at a ninth of the picture, with a type size written as a literal that does
+ * not move when the frame does. A terminal tree set at 40px on a 1920-wide frame is not restraint, it is a
+ * size chosen once at one resolution.
+ *
+ * Monospace is exactly solvable, which is why this is a helper and not a guess: every glyph advances the
+ * same fraction of the size (~0.6 for the JetBrains/ui-monospace stack this runtime uses) and the line box
+ * is the leading. So the size that fills a box is a division, not a measurement pass — deterministic, and
+ * therefore frame-seekable like everything else here.
+ *
+ * `fill` leaves air on purpose: 1.0 would put the block against the box's edges.
+ */
+export const MONO_ADVANCE = 0.6;
+
+/** The box a shot may compose in: below the title band, above the caption band. The exclusion constants
+ *  already exist as CONTENT_TOP and captionBand(); this is the same two numbers stated as the POSITIVE
+ *  answer, because "where may I not be" is what every helper here answered and it is not what a register
+ *  composing to fill needs to ask. */
+export const contentZoneBox = (W: number, H: number): {width: number; height: number; top: number} => ({
+  width: W, top: CONTENT_TOP, height: Math.max(1, H - CONTENT_TOP - captionBand(W, H)),
+});
+
+export function fitMono(
+  chars: number, lines: number, box: {width: number; height: number},
+  {fill = 0.86, lead = 1.6, min = 18, max = 200}: {fill?: number; lead?: number; min?: number; max?: number} = {},
+): number {
+  const c = Math.max(1, chars), l = Math.max(1, lines);
+  const byWidth = (box.width * fill) / (c * MONO_ADVANCE);
+  const byHeight = (box.height * fill) / (l * lead);
+  return Math.max(min, Math.min(max, Math.floor(Math.min(byWidth, byHeight))));
+}
+
 // The shared title style — use for a shot's top title so every shot's header reads identically (position,
 // size, weight, tracking). Spread it onto the title <div>; override `color`/`opacity` as needed.
 export const titleStyle: React.CSSProperties = {

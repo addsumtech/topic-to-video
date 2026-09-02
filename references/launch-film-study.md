@@ -268,6 +268,29 @@ Final: **3.2% → 51.1%**, above Figma's 36.1%, with every primary element legib
 DNA, because `test_null_dna_preserves_every_original_colour` is a contract worth keeping and the derivation
 belongs where a design system is present.
 
+### Three registers done, and what each class actually buys
+
+| register | class | before | after | |
+|---|---|---|---|---|
+| VersusSplit | flat | 3.2% | **51.1%** | two halves that separate from EACH OTHER |
+| CardStack3D | flat | 2.9% | **32.2%** | a container fill that clears its own ground |
+| TermTree | small | 1.1% | 2.4% | footprint 9.0% → 26.4%, and ink barely moves |
+
+**The `flat` class closes; the `small` class does not close on its own.** Filling the frame fixed TermTree's
+composition — a terminal tree set at a literal 40px occupied a ninth of a 1920-wide frame, and now it reads
+at the scale the frame deserves — but ink went 1.1% → 2.4%, because text at reading size barely inks
+anything. A text-dominant register needs BOTH: fill the frame AND put a surface under the type. That is the
+rule the three of them together establish, and neither number alone would have found it.
+
+Two more things the work turned up, both invisible from the outside:
+
+* **The step must be measured against the frame's median, not the ground TOKEN, and those differ.** A
+  register painting `bgGrad` (a radial field) had a median of 0.067 where its `bg` token is 0.027 — and the
+  median then rose again as the cards themselves lifted it. Derived to exactly 0.10, a card face covering
+  26% of the frame missed being counted by 0.007. `surfaceOn` therefore clears with 1.5x headroom.
+* **A gradient is a surface only where all of it is one.** Fixing CardStack3D's first colour stop and leaving
+  its second — a hardcoded near-black — moved it 2.9% → 3.1%. Both stops cleared: 32.2%.
+
 That is what one register costs. There are roughly a hundred more, and `scripts/density_advice.py` says which
 ones a given film is actually starved by.
 

@@ -6,7 +6,7 @@ import React from 'react';
 import {Icon, type IconName} from '../runtime/icons';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeInOutCubic, easeOutCubic, hash01} from '../runtime/motion';
-import {useDNA, dnaPalette} from '../runtime/dna';
+import {useDNA, dnaPalette, surfaceOn, shade} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 
@@ -33,7 +33,19 @@ export const CardStack3D: React.FC<{items?: StackItem[]; title?: string}> = ({
   const t = useT();
   const {width: WIDTH} = useVideoConfig();
   const dna = useDNA(); const TONES = dnaPalette(dna, 6) ?? TONES0;
-  const CARD = dna?.surface ?? CARD_D0, BORD = dna?.surfaceBorder ?? BORD_D0;
+  // The card is a CONTAINER, and the token it is painted from is invisible on its own ground: all eight
+  // presets define `surface` within 0.083 of their `bg` in the density model (product: 0.052), so a
+  // stack of six cards measured 2.9% ink while spanning 57% of the frame. `surfaceOn` keeps the
+  // system's own hue and pushes it off the ground far enough to be a card. Un-themed is untouched.
+  const CARD = dna ? surfaceOn(dna.bg, dna.surface) : CARD_D0;
+  const BORD = dna?.surfaceBorder ?? BORD_D0;
+  // The gradient's SECOND stop was a hardcoded near-black, which pulled the card back to the ground
+  // whatever the first stop became: fixing only `CARD` moved this register 2.9% -> 3.0%. Derived from
+  // the card itself, the whole face stays a surface. Un-themed keeps the original literal.
+  // BOTH stops are pushed clear, not just the first. Deriving only `CARD` and then shading the second
+  // stop 16% darker put most of each card's face back under the threshold — 2.9% -> 3.1%. A gradient
+  // is a surface only where all of it is one.
+  const CARD2 = dna ? surfaceOn(dna.bg, shade(CARD, 0.16)) : CARD2_D0;
   const INK = dna?.fg ?? INK_D0, ONACC = dna?.onAccent ?? '#fff';
   const RAD = dna?.radius ?? 24;
   // On a light surface the original heavy black shadows read as grime, so the depth cue scales with how
@@ -84,7 +96,7 @@ export const CardStack3D: React.FC<{items?: StackItem[]; title?: string}> = ({
               <div key={i} style={{position: 'absolute', left: 0, top: 0, width: cw, height: ch, opacity: clamp01(rise * 1.5),
                 transformStyle: 'preserve-3d', transformOrigin: 'bottom center',
                 transform: `translate3d(${tx}px, ${lerp(120, 0, rise) + ty}px, ${i * 2}px) rotateZ(${rz}deg) rotateY(${ry}deg)`,
-                borderRadius: RAD, background: `linear-gradient(160deg, ${CARD}, ${deep ? CARD2_D0 : CARD}), linear-gradient(160deg, ${tone}1c, #0000)`,
+                borderRadius: RAD, background: `linear-gradient(160deg, ${CARD}, ${CARD2}), linear-gradient(160deg, ${tone}1c, #0000)`,
                 border: `1px solid ${BORD}`, boxShadow: SHADOW,
                 display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 34}}>
                 {/* the second stop used to be a fixed blue, which put an off-system colour on every card

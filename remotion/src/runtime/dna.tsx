@@ -585,6 +585,41 @@ export const dimOn = (bg: string, ink: string, minRatio: number = 4.5): string =
 };
 
 /**
+ * A CONTAINER FILL that keeps its hue and is guaranteed to be a surface.
+ *
+ * The failure this fixes is library-wide, not per-register: all eight DNA presets define `surface` — the
+ * documented container fill — within 0.083 of their own `bg` in the density instrument's colour model, and
+ * `editorial` within 0.020. Every panel, card and plate painted straight from that token is a container the
+ * measurement cannot see, and mostly one an eye cannot either.
+ *
+ * The token is NOT simply raised — that was tried and rejected: a global step of 0.16 moved four
+ * container-bearing registers by +0.0 to +0.8 points, because the shift is wrong for a light film, wrong
+ * for a chromatic ground, and changes every existing frame. This derives the fill from the ground the
+ * container is ACTUALLY on, pushing `hint` away along whichever pole has room so the hue survives and the
+ * step is met. A register asks for it where it paints; nothing changes underneath one that does not.
+ */
+export const SURFACE_HEADROOM = 1.5;
+
+/** ...with HEADROOM by default, because the reference drifts. The step is measured against a ground TOKEN,
+ *  while the instrument measures against the rendered frame's own median — and those differ: a register
+ *  painting `bgGrad` (a radial field, not a flat fill) had a median of 0.067 where its `bg` token is 0.027,
+ *  and the median then rose again as the cards themselves lifted it. Derived to exactly 0.10, a card face
+ *  covering 26% of the frame missed being counted by 0.007. A container should clear the line, not sit on
+ *  it. */
+export const surfaceOn = (ground: string, hint: string,
+                          minStep: number = TONE_MIN_STEP * SURFACE_HEADROOM): string => {
+  const g = pilL(ground);
+  if (Math.abs(pilL(hint) - g) >= minStep) return hint;      // already a surface — leave the author's colour
+  const pole = readableOn(ground, '#ffffff', '#05070c');
+  for (let f = 0.06; f <= 0.9 + 1e-9; f += 0.03) {
+    const c = mix(hint, pole, f);
+    if (Math.abs(pilL(c) - g) >= minStep) return c;
+  }
+  throw new Error(`surfaceOn(): ${hint} cannot be pushed off ${ground} by ${minStep} — the ground is at the `
+    + 'pole, so a container needs a different colour, not more of this one.');
+};
+
+/**
  * TWO filled regions that separate FROM EACH OTHER, for a shot whose argument is a division.
  *
  * WHY A SECOND FUNCTION. Ink is measured against the frame's OWN median, so when two regions cover the whole
