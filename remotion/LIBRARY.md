@@ -17,7 +17,7 @@ yet in this library — they exist for new shots and opportunistic use. See
 deliberately left un-migrated.
 
 <!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
-**Family census — 149 registers across 27 families.** D×21 · A×15 · C×12 · G×11 · F×10 · H×9 · B×8 · E×8 · L×6 · I×5 · J×5 · K×5 · M×5 · S×5 · U×5 · JA×4 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
+**Family census — 150 registers across 27 families.** D×22 · A×15 · C×12 · G×11 · F×10 · H×9 · B×8 · E×8 · L×6 · I×5 · J×5 · K×5 · M×5 · S×5 · U×5 · JA×4 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
 
 **9 families hold two registers or fewer: O, Q, R, T, V, W, X, Y, Z.** That is a BUILD signal, not a menu. When a beat's
 argument wants one of those languages and the one register there does not carry it, the answer is
@@ -82,6 +82,7 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 26. **AsciiField** — an AMBER phosphor char field that DECODES a word in place. *Use: code / hacker beat.* (amber + static decode — vs **CodeRain** M's green FALLING rain.)
 
 ## D · Data / technical
+174. **MadeOf** — the whole IS the frame and divides into what it is made of: a slice-and-dice partition where every region's AREA is its share, labelled and figured, filling the content zone edge to edge. Its density is its claim, not a field behind one. *Use: what a thing is made of — a composition breakdown, a budget, a corpus by source, a system by subsystem, an effort by where it went. Needs real shares: an area that means nothing cannot be drawn.*
 144. **UndersampledKspace** — a full Cartesian k-space with most phase-encode lines removed — what "4-8x too sparsely" looks like. *Use: sampling far below what the reconstruction needs.* `accent, accent2, label, keep`
 143. **SpeedLimit** — why the gradients cannot simply be driven faster, with the text held inside its layout. *Use: a hard physical limit on going faster.* `accent, label`
 142. **PhaseEncodeStep** — a phase-encode gradient blip steps through its amplitudes, one k-space line at a time. *Use: a parameter stepped through its range / one line acquired per step.* `accent, accent2, label, steps`

@@ -263,6 +263,44 @@ So density is not a token problem and not a count problem. It is: **compose to F
 (`fitContentSquare` returns a 605px square on a 1920px frame; layout.ts reserves 35% of frame height and is
 entirely exclusion zones), **give marks mass**, and **put real pictures in the frame**.
 
+### What the library cannot SAY — the gap that is a capability gap, not a count gap
+
+Clustering all 138 catalogued registers by the ARGUMENT their "use when" describes, and crossing that with
+the measured density:
+
+| argument shape | registers | median ink | over the 12% floor |
+|---|---|---|---|
+| process / pipeline | 12 | 4.0% | **0** |
+| structure / what it is made of | **3** | 4.8% | **0** |
+| cause / mechanism | 5 | 2.4% | **0** |
+| comparison | 9 | 5.4% | 2 |
+| quantity | 13 | 4.3% | 4 |
+| collection | 17 | 4.8% | 4 |
+| described by LOOK, not argument | 68 | 5.7% | **17** |
+
+**The library is dense exactly where it says nothing and empty exactly where it says something.** Of the 32
+registers that clear the floor, nine are described by MOOD — "calm premium ambient" (AuroraFlow 64%), "warm
+storybook" (PaperCutout 34%), "playful / friendly" (CartoonPop 30%) — and get their pixels from a field or a
+texture. Only FIVE were both dense and argumentative. Meanwhile the registers that carry a real subject are
+the emptiest in the library: PhotoPlate 0.6% ("the photograph IS the evidence" — it renders an empty plate),
+MuseumLabel 0.9%, AtomOrbital 1.2%, PositioningMatrix 0.7%.
+
+By idiom world it says the same thing: `scientific` (23 registers) has **zero** over the floor, so does
+`developer-tooling` (13); `photographic` (3) has a median of **0.0%**. The dense worlds are
+`motion-graphics` (44, of which 15 clear) and `craft-handmade`. **Every world that carries real subject
+matter is starved.**
+
+So the answer to "should the library be bigger" is no in general — 88 of 149 already fail all three floors,
+and adding breadth adds work — and yes very specifically: registers for the EXPLANATORY shapes whose density
+comes from the content rather than from a field. `MadeOf` is the first (structure): the whole fills the
+frame, every region's AREA is its share, and it measures 52.6% ink / 100% footprint / all three floors clear
+as film. It is the sixth register in the library to clear all three, and the first for its shape. Process and
+mechanism are still at zero.
+
+The acceptance bar for any of these has to be BOTH: over the density floor **and** past the hide-the-caption
+test. Otherwise what gets added is the tenth mood register, and those are exactly what pulls
+`density_advice.py`'s suggestions off the argument.
+
 ### The rules that DO transfer, and what applying one actually cost
 
 Density has no shared mechanism, but it has shared RULES, and they came out of measurement rather than taste.

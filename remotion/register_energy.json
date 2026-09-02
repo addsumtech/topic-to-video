@@ -84,6 +84,7 @@
     "LiquidMorph": "6c34fc2dda7bc529",
     "LowPolyForm": "12dd4ff926422f61",
     "MRIPipeline": "0187f39d851029b6",
+    "MadeOf": "f7e6adb97929ff57",
     "MagazineSpread": "8a8e60cf54d0f92c",
     "MagnetizationTip": "bcb5712679a23d9c",
     "MapPlate": "61d3ba885473183c",
@@ -740,6 +741,13 @@
       "luma_range": 0.009,
       "seconds": 6.0,
       "footprint": 0.523
+    },
+    "MadeOf": {
+      "motion_p75": 0.0088,
+      "ink_median": 0.526,
+      "luma_range": 0.323,
+      "seconds": 5.5,
+      "footprint": 1.0
     },
     "MagazineSpread": {
       "motion_p75": 0.002,
