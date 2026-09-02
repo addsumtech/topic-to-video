@@ -87,3 +87,64 @@ def test_the_cli_exits_non_zero_on_a_slideshow(slideshow):
                          slideshow], capture_output=True, text=True)
     assert rc.returncode == 1, rc.stdout + rc.stderr
     assert "FAIL" in rc.stdout
+
+@pytest.fixture(scope="module")
+def one_bright_block(tmp_path_factory):
+    """A dark film with ONE flat bright passage — the exact shape that broke the light axis.
+
+    Appending four seconds of a blank white rectangle to a 56-second film took its measured luminance RANGE
+    from 0.0972 to 0.9101: past the floor by 6.7x, landing on Figma's own number, with every other frame
+    byte-identical. A blank rectangle is not a luminance arc, and a gate that cannot say so is decoration.
+    """
+    # The film must be LONG for the attack to work: the axis is a RATE over adjacent seconds, so one change
+    # in fifteen seconds is 7.1% (a real, if minimal, arc) while one change in sixty seconds is 1.7%. A short
+    # fixture would not reproduce what actually shipped.
+    d = tmp_path_factory.mktemp("bright_block")
+    _render(str(d / "out.mp4"), [
+        "-f", "lavfi", "-i", "color=c=0x0a0f16:s=320x180:r=24:d=56",
+        "-f", "lavfi", "-i", "color=c=0xf2f2f2:s=320x180:r=24:d=4",
+        "-filter_complex", "[0:v]setsar=1[a];[1:v]setsar=1[b];[a][b]concat=n=2:v=1:a=0[v]",
+        "-map", "[v]"])
+    return str(d)
+
+
+@pytest.fixture(scope="module")
+def light_that_works(tmp_path_factory):
+    """The same amount of bright footage, DISTRIBUTED — light that actually changes across the film."""
+    d = tmp_path_factory.mktemp("light_works")
+    parts = []
+    for i in range(5):
+        parts += ["-f", "lavfi", "-i", "color=c=0x0a0f16:s=320x180:r=24:d=2",
+                  "-f", "lavfi", "-i", "color=c=0xf2f2f2:s=320x180:r=24:d=1"]
+    chain = "".join("[%d:v]setsar=1[p%d];" % (i, i) for i in range(10))
+    chain += "".join("[p%d]" % i for i in range(10)) + "concat=n=10:v=1:a=0[v]"
+    _render(str(d / "out.mp4"), parts + ["-filter_complex", chain, "-map", "[v]"])
+    return str(d)
+
+
+def test_one_bright_passage_clears_the_range_and_is_still_caught(one_bright_block):
+    """The regression this axis exists for: RANGE says excellent, and nothing in the film moves."""
+    errs, _warns, m = g.check(one_bright_block)
+    assert m["luma_range"] >= g.LUMA_RANGE_FLOOR, (
+        "the fixture no longer reproduces the attack — its range is %.3f" % m["luma_range"])
+    assert m["luma_steps"] < g.LUMA_STEP_FLOOR
+    assert any("LIGHT ARC" in e for e in errs), errs
+
+
+def test_light_distributed_through_the_film_clears_the_arc(light_that_works):
+    """The POSITIVE control. Without it, an arc floor set above anything reachable would look like a gate."""
+    _errs, _warns, m = g.check(light_that_works)
+    assert m["luma_steps"] >= g.LUMA_STEP_FLOOR, (
+        "light that changes ten times in fifteen seconds reads as %r" % (m["luma_steps"],))
+
+
+def test_the_arc_floor_sits_under_every_reference_film():
+    for name, rec in g.REFERENCE.items():
+        assert len(rec) == 4, "%s has no recorded light-steps value" % name
+        assert g.LUMA_STEP_FLOOR <= rec[3], "%s sits under the arc floor" % name
+
+
+def test_a_film_too_short_for_an_arc_says_so_instead_of_scoring_zero(slideshow):
+    """Zero would read as 'measured, and the light never moves'. Not asking is a different claim."""
+    m = g.measure(os.path.join(slideshow, "out.mp4"), fps=12)
+    assert m["luma_windows"] >= g.MIN_WINDOWS or m["luma_steps"] is None

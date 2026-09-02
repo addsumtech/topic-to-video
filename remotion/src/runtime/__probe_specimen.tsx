@@ -13,6 +13,7 @@
 import React from 'react';
 import {AbsoluteFill} from 'remotion';
 import {DesignDNAContext, DNA_PRESETS} from './dna';
+import {CropType} from './textSafe';
 import {REGISTRY} from '../registry';
 
 export const DURATION = 150;
@@ -32,3 +33,26 @@ export const TypeSpecimen: React.FC<{shot?: string; dnaId?: string}> = ({
   );
 };
 export default TypeSpecimen;
+
+
+// CROP SPECIMEN — the end-to-end fixture for the declared-crop decodability floor.
+//
+// The floor's browser-driven test used to be aimed at CinematicTitle, a production register that had been
+// migrated to <CropType> as a demonstration. That migration was reverted (its crop did nothing for a short
+// title, its wordmark left its own rail, and it failed shot_proof at default props), and the test went with
+// it — which is the wrong coupling either way: a gate's end-to-end proof should not depend on a production
+// register keeping a particular design. This specimen declares a crop and nothing else, so the test drives
+// the real DOM path through a browser while the library stays free to change.
+export const CROP_SPECIMEN_DURATION = 60;
+
+export const CropSpecimen: React.FC<{word?: string; keep?: number; edge?: 'left' | 'right'}> = ({
+  word = 'SUPERCALIFRAGILISTICEXPIALIDOCIOUS', keep = 0.25, edge = 'right'}) => (
+  <AbsoluteFill style={{background: '#07090f', color: '#eef2f8'}}>
+    <div style={{position: 'absolute', top: '30%', left: 0, right: 0}}>
+      <CropType reason="the specimen exists to be cropped" keep={keep} edge={edge}
+        fontFamily="Inter, system-ui, sans-serif" fontWeight={900} maxSize={320}>
+        {word}
+      </CropType>
+    </div>
+  </AbsoluteFill>
+);

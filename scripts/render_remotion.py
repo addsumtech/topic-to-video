@@ -237,19 +237,15 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps):
         print("[render_remotion] wrote out.srt + %d keyframes (_keyframes/) for the shot-critic + A/V gate." % len(scenes))
 
 
-def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=False, vertical=False):
-    """Render via the bespoke-shot LIBRARY. Fails loud on a missing/unknown shot or missing audio."""
-    if not shutil.which("npx"):
-        raise RuntimeError("Node/npx not found — the Remotion tier needs Node.js.")
-    if not os.path.isdir(os.path.join(_REMOTION2_DIR, "node_modules")):
-        raise RuntimeError("remotion deps not installed — run `cd %s && npm install` once." % _REMOTION2_DIR)
-    valid = _remotion_shot_ids()
-    slides = data.get("slides", [])
-    if sample is not None:
-        slides = [s for s in slides if s.get("index") == sample]
-        if not slides:
-            raise RuntimeError("no scene with index %s to sample" % sample)
-    fps, scenes = 30, []
+def build_scenes(slides, out_dir, valid, fps=30):
+    """The storyboard -> Film SceneSpec[] translation, on its own so it can be TESTED without a render.
+
+    It was inline in _render_remotion, which meant the only way to check that a storyboard field reaches
+    the Film was to render a film. That is how `ground`/`key` came to be forwarded by nothing: the runtime
+    could re-ground every register, and a delivered film could still only ever be one near-black, because
+    the translation nobody could test had never learned the fields.
+    """
+    scenes = []
     for s in slides:
         idx, shot = s.get("index"), s.get("shot")
         if not shot:
@@ -287,7 +283,34 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
         chrome = s.get("chrome")   # DNA terminal chrome (command-path + status) framing this beat; remotion-only
         if isinstance(chrome, dict):
             scene["chrome"] = chrome
+        # THE BEAT'S GROUND. Without these two lines the whole per-beat light system is unreachable from a
+        # storyboard: runtime/light.tsx can re-ground every register, Film.tsx provides the DNA inside each
+        # Sequence, and a delivered film could still only ever be one near-black. A capability the authoring
+        # path cannot name is indistinguishable from a capability that was never built — the same shape as an
+        # opt-in gate that never fires. `ground` names WHICH ground (an index into the film's grounds, a named
+        # preset, a #hex, an inline spec, or a {from,to} ramp); `key` names the EXPOSURE when the beat does
+        # not name a specific one. `bgLum` stays what it always was, a DESCRIPTION for the caption pick.
+        for _f in ("ground", "key"):
+            if s.get(_f) is not None:
+                scene[_f] = s[_f]
         scenes.append(scene)
+    return scenes
+
+
+def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=False, vertical=False):
+    """Render via the bespoke-shot LIBRARY. Fails loud on a missing/unknown shot or missing audio."""
+    if not shutil.which("npx"):
+        raise RuntimeError("Node/npx not found — the Remotion tier needs Node.js.")
+    if not os.path.isdir(os.path.join(_REMOTION2_DIR, "node_modules")):
+        raise RuntimeError("remotion deps not installed — run `cd %s && npm install` once." % _REMOTION2_DIR)
+    valid = _remotion_shot_ids()
+    slides = data.get("slides", [])
+    if sample is not None:
+        slides = [s for s in slides if s.get("index") == sample]
+        if not slides:
+            raise RuntimeError("no scene with index %s to sample" % sample)
+    fps = 30
+    scenes = build_scenes(slides, out_dir, valid, fps)
     meta = data.get("meta") or {}
     reduced = bool(reduced_motion or meta.get("reduced_motion"))
     # ASPECT: --vertical or meta.aspect:"9:16" renders the Film Composition at 1080x1920 (Root.tsx calculateMetadata

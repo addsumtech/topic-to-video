@@ -1154,6 +1154,99 @@ _ATOM_FORMS = {
 
 
 
+def _ground_preset_names():
+    """The named grounds, PARSED from remotion/src/runtime/light.tsx rather than restated here.
+
+    This repo's caption band once existed as four disagreeing copies, and the scar is why. Returns None when
+    the block cannot be found, and the caller then declines to judge a name rather than inventing a verdict
+    from a stale list — a validator that refuses a legal ground because it is reading the wrong file is worse
+    than one that says nothing.
+    """
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    path = os.path.join(root, "remotion", "src", "runtime", "light.tsx")
+    try:
+        src = open(path, encoding="utf-8").read()
+    except OSError:
+        return None
+    m = re.search(r"export const GROUND_PRESETS[^{]*\{(.*?)\n\};", src, re.S)
+    if not m:
+        return None
+    names = set(re.findall(r"^\s{2}([A-Za-z][A-Za-z0-9_]*)\s*:", m.group(1), re.M))
+    return names or None
+
+
+def _ground_ref_error(ref, where, presets):
+    """One GroundRef, judged. Returns an error string or None. Mirrors light.tsx resolveRef's vocabulary:
+    an index into the film's grounds, a named preset, a #hex, or an inline {bg,...} spec."""
+    if isinstance(ref, bool):
+        return "%s must be an index, a named ground, a #hex or a {bg:...} spec — got a boolean" % where
+    if isinstance(ref, int):
+        return None if ref >= 0 else "%s is a negative ground index (%d)" % (where, ref)
+    if isinstance(ref, float):
+        return "%s is a ground INDEX, so it must be a whole number — got %r" % (where, ref)
+    if isinstance(ref, str):
+        if re.fullmatch(r"#[0-9a-fA-F]{3,8}", ref):
+            return None
+        if presets is None or ref in presets:
+            return None
+        return ("%s names the ground %r, which is not one of %s and is not a #hex. A typo here does not fail "
+                "— it silently paints a different beat." % (where, ref, "/".join(sorted(presets))))
+    if isinstance(ref, dict):
+        if not str(ref.get("bg") or "").strip():
+            return "%s is an inline ground with no `bg` — the one field a ground cannot derive" % where
+        return None
+    return "%s must be an index, a named ground, a #hex or a {bg:...} spec — got %s" % (where, type(ref).__name__)
+
+
+def _beat_grounds(slides, errors, warnings):
+    """`slide.ground` / `slide.key` — the per-beat exposure the delivery path now forwards.
+
+    Both are COMMANDS that repaint the frame (runtime/light.tsx), which is what separates them from `bgLum`,
+    a description the caption pick reads. The runtime throws on a malformed one, but a render is minutes away
+    and a typo in `key` is the expensive kind: any value that is not the film's own key re-lights the beat, so
+    `'ligth'` renders a film nobody asked for rather than failing. Catch it here, before the render.
+    """
+    presets = _ground_preset_names()
+    seen_ground = 0
+    for s in slides:
+        beat = int(s.get("index", 0)) + 1
+        k = s.get("key")
+        if k is not None and k not in ("dark", "light"):
+            errors.append("remotion: beat %d has key %r — the only exposures are 'dark' and 'light'. Any "
+                          "other value is a typo that re-lights the beat instead of failing." % (beat, k))
+        g = s.get("ground")
+        if g is None:
+            continue
+        seen_ground += 1
+        if isinstance(g, dict) and ("from" in g or "to" in g):
+            for half in ("from", "to"):
+                if half not in g:
+                    errors.append("remotion: beat %d declares a ground RAMP with no `%s`" % (beat, half))
+                    continue
+                e = _ground_ref_error(g[half], "remotion: beat %d ground.%s" % (beat, half), presets)
+                if e:
+                    errors.append(e)
+            at = g.get("at")
+            if at is not None:
+                ok = (isinstance(at, (list, tuple)) and len(at) == 2
+                      and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in at)
+                      and 0 <= at[0] < at[1] <= 1)
+                if not ok:
+                    errors.append("remotion: beat %d ground.at must be two rising fractions in 0..1, got %r "
+                                  "— a malformed window used to poison every colour on the frame" % (beat, at))
+        else:
+            e = _ground_ref_error(g, "remotion: beat %d ground" % beat, presets)
+            if e:
+                errors.append(e)
+    # A film that declares ONE ground has an exposure change, not an arc. film_energy_qa measures the arc as
+    # the fraction of adjacent seconds whose light moves, precisely because a single bright passage scored
+    # 0.910 on the old range measure while nothing in the film changed.
+    if 0 < seen_ground < 3 and len(slides) >= 8:
+        warnings.append("remotion: %d beat(s) of %d declare a `ground`. One bright passage is not a "
+                        "luminance ARC — film_energy_qa measures how often the light moves, and a film that "
+                        "re-grounds once will still read as unlit." % (seen_ground, len(slides)))
+
+
 def _idiom_world(meta, slides, errors, warnings):
     """A register speaks some world's vocabulary. The film must be in that world.
 
@@ -2005,6 +2098,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         _shot_truncation(meta, slides, errors, warnings)
         _form_vocabulary(meta, slides, errors, warnings)
         _idiom_world(meta, slides, errors, warnings)
+        _beat_grounds(slides, errors, warnings)
         _film_language(meta, slides, errors, warnings)
         _image_attribution(slides, out_dir, errors, warnings)
         _caption_legibility(meta, slides, errors, warnings, out_dir)

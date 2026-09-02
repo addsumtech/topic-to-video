@@ -73,6 +73,40 @@ than waived — worth knowing because each will bite anything similar:
 * A cut smaller than a third of a glyph destroys nothing: 27 findings on one ASCII character field, four on a
   glitch register's 5 px offsets.
 
+## The library measured as film, not as stills (2026-09-01)
+
+Every visual gate here reads a STILL. `scripts/register_energy.py` renders all 149 registers as VIDEO at their
+own DURATION with their own default props and measures the same three axes:
+
+| axis | library median | floor | under floor | reference |
+|---|---|---|---|---|
+| motion p75 | 0.0015 | 0.0037 | **102/149 (68%)** | Figma 0.0481 |
+| median ink | 4.8% | 12% | **117/149 (79%)** | Apple 24.3% |
+| luminance range | 0.013 | 0.135 | **143/149 (96%)** | Apple 0.270 |
+
+**Under all three: 92. Under two: 34. Under one: 18. Clear: 5** — FractureIn, LastLeg, LowPolyForm, ClothWave,
+CrashZoom. The inert film this skill shipped was therefore not a bad use of the library; it was a faithful one.
+
+An independent seven-lens audit against the reference frames found the mechanical cause of the largest gap, and
+it is not budget:
+
+* **The ground is one film-wide constant, and it is always near-black.** `DesignDNA` carries a single `bg`, and
+  the brightest ground the whole eight-preset vocabulary can name is relative luminance Y=0.0053. `SceneSpec`
+  can declare a shot, props, a duration, a caption, a transition and a camera move — **no colour at all**.
+  `bgLum`, the field named for this, is a hint the caption ink and the seam guard read; it never repaints a
+  pixel. `Film.tsx` resolves the ground once outside the whole `TransitionSeries`, so a 30-beat film paints the
+  same near-black thirty times. That is 0.079 against Figma's 0.903, from a missing field.
+* It compounds: **applying a DNA deletes the library's light half.** SHOT_LUMA measures 112 dark / 35 light /
+  2 mid, and every light register grounds on `bg`, so SwissEditorial — black type on cream by identity —
+  renders white-on-near-black under `dna=product`.
+* The frame is a polite box: `TITLE_BAND` reserves 176px and the caption band 200, leaving 65% of frame height,
+  and `fitContentSquare` returns a 605px square on a 1920px frame.
+* There is no hard cut: every seam is the same 12-frame dissolve, and an exposure change is treated as a hazard
+  the seam logic suppresses.
+
+The audit's full 17-item ranked plan, with per-item evidence and acceptance tests, is the source for the work
+that follows; the four above are the ones that map onto the three measured axes.
+
 ## The floors, and what passing them does not buy you
 
 `scripts/film_energy_qa.py` errors below **half the lowest reference** on each axis — motion p75 ≥ 0.0037,

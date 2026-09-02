@@ -4,7 +4,7 @@ import {TextSafeAudit} from './runtime/textSafe';
 import {DesignDNAContext, coerceDna} from './runtime/dna';
 import './runtime/fonts';  // side effect: loads the DNA typefaces for Film AND every standalone shot still
 import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
-import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
+import {TypeSpecimen, DURATION as TSP, CropSpecimen, CROP_SPECIMEN_DURATION} from './runtime/__probe_specimen';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
 import {LastLeg, DURATION as D_LASTLEG} from './shots/LastLeg';
 import {GrantedTree, DURATION as D_GRANTEDTREE} from './shots/GrantedTree';
@@ -200,6 +200,7 @@ export const RemotionRoot: React.FC = () => (
         ...dims((props as any).aspect)})} />
     {F('FontProbe', FontProbe, FPR)}
     {F('TypeSpecimen', TypeSpecimen, TSP)}
+    {F('CropSpecimen', CropSpecimen, CROP_SPECIMEN_DURATION)}
     {F('CollaborativeCursors', CollaborativeCursors, CC)}
     {F('CommandSummon', CommandSummon, CS)}
     {F('TemporalAccelerate', TemporalAccelerate, TA)}

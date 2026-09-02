@@ -766,9 +766,13 @@ MUTANTS["shot_director"] = {
 # The end-to-end claim — that the instrument separates a real slideshow from a real film — is proved
 # against rendered fixtures in tests/test_film_energy_qa.py, not here.
 _SLIDESHOW = {"seconds": 163.0, "motion_p50": 0.0004, "motion_p75": 0.0023, "motion_p90": 0.0085,
-              "ink_median": 0.043, "luma_range": 0.079}           # the delivered WorkBuddy film, measured
+              "ink_median": 0.043, "luma_range": 0.079, "luma_steps": 0.000, "luma_windows": 163}
 _ALIVE = {"seconds": 81.0, "motion_p50": 0.0181, "motion_p75": 0.0481, "motion_p90": 0.1169,
-          "ink_median": 0.361, "luma_range": 0.903}               # Figma's Config film, measured
+          "ink_median": 0.361, "luma_range": 0.903, "luma_steps": 0.425, "luma_windows": 81}
+# The gaming case, MEASURED: the delivered film with four seconds of a blank white rectangle appended. Every
+# other frame identical; the luminance RANGE goes from 0.097 to 0.910 and clears its floor by 6.7x.
+_GAMED = {"seconds": 60.0, "motion_p50": 0.0005, "motion_p75": 0.0025, "motion_p90": 0.0089,
+          "ink_median": 0.047, "luma_range": 0.910, "luma_steps": 0.017, "luma_windows": 60}
 
 
 def _energy(mod, measurement, board=None):
@@ -789,6 +793,13 @@ def _probe_slideshow_fails_all_three(mod):
         assert word in blob, "a film measured at slideshow level was not flagged for %s: %r" % (word, errs)
 
 
+def _probe_a_bright_passage_is_not_a_luminance_arc(mod):
+    """One flat white block moves the RANGE to Figma's own number while nothing in the film changes."""
+    errs, _warns, _m = _energy(mod, _GAMED)
+    assert any("LIGHT ARC" in e for e in errs), (
+        "a film whose light moves once in sixty seconds passed the light gate: %r" % errs)
+
+
 def _probe_a_real_film_passes(mod):
     # The POSITIVE control. Without it, floors raised until nothing can pass would read as a working
     # gate — the same failure as a gate that never fires, wearing the opposite costume.
@@ -797,10 +808,11 @@ def _probe_a_real_film_passes(mod):
 
 
 def _probe_floors_stay_under_every_reference(mod):
-    for name, (motion, ink, luma) in mod.REFERENCE.items():
+    for name, (motion, ink, luma, steps) in mod.REFERENCE.items():
         assert mod.MOTION_P75_FLOOR <= motion, "%s sits under the motion floor" % name
         assert mod.INK_FLOOR <= ink, "%s sits under the ink floor" % name
         assert mod.LUMA_RANGE_FLOOR <= luma, "%s sits under the light floor" % name
+        assert mod.LUMA_STEP_FLOOR <= steps, "%s sits under the light-arc floor" % name
 
 
 def _probe_a_blank_waiver_is_not_a_waiver(mod):
@@ -857,6 +869,7 @@ def _probe_the_sampling_frame_follows_the_films_shape(mod):
 
 
 PROBES["film_energy_qa"] = {
+    "a_bright_passage_is_not_an_arc": _probe_a_bright_passage_is_not_a_luminance_arc,
     "short_film_is_not_a_pass": _probe_a_film_too_short_to_measure_is_not_a_pass,
     "sampling_follows_the_shape": _probe_the_sampling_frame_follows_the_films_shape,
     "slideshow_fails_all_three": _probe_slideshow_fails_all_three,
@@ -875,6 +888,12 @@ MUTANTS["film_energy_qa"] = {
         ("INK_FLOOR = 0.12", "INK_FLOOR = 0.0"),
     "the light floor is disabled":
         ("LUMA_RANGE_FLOOR = 0.135", "LUMA_RANGE_FLOOR = 0.0"),
+    "the light-arc floor is disabled":
+        ("LUMA_STEP_FLOOR = 0.019", "LUMA_STEP_FLOOR = 0.0"),
+    "any flicker counts as a change of light":
+        ("LUMA_STEP_DELTA = 0.12", "LUMA_STEP_DELTA = 0.0001"),
+    "a film too short for an arc scores zero instead of unknown":
+        ("             if len(win) >= MIN_WINDOWS else None)", "             if True else None)"),
     # The opposite failure, and the one a threshold gate slides into on its own: floors raised until
     # the gate is decoration nobody can satisfy. Only the positive control catches this.
     "the floors are raised past the reference films":

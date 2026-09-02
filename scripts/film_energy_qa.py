@@ -12,13 +12,31 @@ tell. Every other gate here asks whether a frame is correct. None asked whether 
 THE FLOORS COME FROM REAL FILMS, not from taste. Four official product launch films were downloaded and
 measured with the same instrument as the deck under test — greyscale at 12fps, 192x108:
 
-    film                     frame-diff p75   median ink   luminance range
-    Apple  iPhone 17 Pro           0.0357        24.3%          0.270
-    OpenAI Codex Micro             0.0075        64.4%          0.330
-    Figma  Config launches         0.0481        36.1%          0.903
-    Anthropic Keep thinking        0.0381        42.1%          0.350
-    ---------------------------------------------------------------------
-    the film that prompted this    0.0023         4.3%          0.079
+    film                     frame-diff p75   median ink   luminance range   light STEPS
+    Apple  iPhone 17 Pro           0.0357        24.3%          0.270            0.038
+    OpenAI Codex Micro             0.0075        64.4%          0.330            0.060
+    Figma  Config launches         0.0481        36.1%          0.903            0.425
+    Anthropic Keep thinking        0.0381        42.1%          0.350            0.191
+    -------------------------------------------------------------------------------------
+    the film that prompted this    0.0023         4.3%          0.079            0.000
+
+WHY THERE IS A FOURTH AXIS, added after the third was shown to be gameable. `luminance range` is p95 - p5
+over the whole film, so it asks only whether the film CONTAINS a bright frame and a dark frame. It does not
+ask whether light ever does anything. Measured: taking the 56s film above and appending FOUR SECONDS of a
+flat white rectangle moves its range from 0.0972 to 0.9101 — clearing the floor by 6.7x and landing on
+Figma's number — while every other frame is byte-identical. A blank rectangle is not a luminance arc.
+
+`light steps` is the fraction of ADJACENT one-second windows whose mean luminance differs by >= 0.12. It asks
+how often the light CHANGES, which is the property the range was standing in for. On the same three films:
+
+    56s film as delivered      range 0.0972   steps 0.000
+    + one 4s white block       range 0.9101   steps 0.017   <- range says excellent, steps says nothing moved
+    bright beats DISTRIBUTED   range 0.9097   steps 0.133   <- the same range, and light that actually works
+
+Two candidate statistics were tried and REJECTED on the same corpus rather than adopted on intuition: a
+robust sigma (MAD x 1.4826) of the window means put our delivered film at 0.0398 against OpenAI's 0.0399 —
+no separation at all — and the window IQR passed our film at half the lowest reference. Both are recorded
+here so the next person does not re-derive them.
 
 Three of those four are largely LIVE ACTION (Apple adds offline PBR renders), which a DOM compositor cannot
 reach and should not chase. Figma's is the reachable one: entirely generative, no camera, and unambiguously
@@ -44,16 +62,22 @@ MOTION_P75_FLOOR = 0.0037     # lowest reference 0.0075 (OpenAI, a talking-head 
 INK_FLOOR = 0.12              # lowest reference 0.243 (Apple: dark frames, one lit subject)
 LUMA_RANGE_FLOOR = 0.135      # lowest reference 0.270 (Apple)
 MIN_FRAMES = 8                # below this there are too few frame-diffs for a p75 to mean anything
+# The light ARC. Floor is half the lowest reference (Apple 0.038) like the others; the delta is the size of a
+# change worth calling one, and the window is a second because launch films cut every 0.75-3s.
+LUMA_STEP_FLOOR = 0.019
+LUMA_STEP_DELTA = 0.12
+LUMA_WINDOW_SECONDS = 1
+MIN_WINDOWS = 4               # under four seconds there is no arc to measure, and saying so beats guessing
 
 # The four films the floors are derived from, and the file each was measured from. A record nobody can
 # regenerate is not a measurement, it is a memory — so `--reference <dir>` re-measures them and reports drift.
 # The films are not in the repo (they are not ours to redistribute); the command names what to put in the
 # directory, and says so plainly when a file is absent instead of quietly measuring three of four.
-REFERENCE = {
-    "Apple iPhone 17 Pro": (0.0357, 0.243, 0.270),
-    "OpenAI Codex Micro": (0.0075, 0.644, 0.330),
-    "Figma Config": (0.0481, 0.361, 0.903),
-    "Anthropic Keep thinking": (0.0381, 0.421, 0.350),
+REFERENCE = {                 # (motion_p75, ink_median, luma_range, luma_steps)
+    "Apple iPhone 17 Pro": (0.0357, 0.243, 0.270, 0.038),
+    "OpenAI Codex Micro": (0.0075, 0.644, 0.330, 0.060),
+    "Figma Config": (0.0481, 0.361, 0.903, 0.425),
+    "Anthropic Keep thinking": (0.0381, 0.421, 0.350, 0.191),
 }
 REFERENCE_FILES = {
     "Apple iPhone 17 Pro": "apple_hw",
@@ -76,7 +100,7 @@ def verify_reference(directory):
         if not isinstance(m, dict):
             missing.append("%s (%s could not be measured)" % (name, os.path.basename(hits[0])))
             continue
-        got = (m["motion_p75"], m["ink_median"], m["luma_range"])
+        got = (m["motion_p75"], m["ink_median"], m["luma_range"], m["luma_steps"] or 0.0)
         rows.append((name, REFERENCE[name], got, max(abs(a - b) for a, b in zip(REFERENCE[name], got))))
     return rows, missing
 
@@ -122,6 +146,12 @@ def measure(path, fps=12, long_side=192):
     d = np.abs(np.diff(F, axis=0)).mean(axis=(1, 2))
     ink = [float((np.abs(f - np.median(f)) > 0.10).mean()) for f in F[::2]]
     lum = F.mean(axis=(1, 2))
+    k = max(1, int(round(fps * LUMA_WINDOW_SECONDS)))
+    win = [float(lum[i:i + k].mean()) for i in range(0, len(lum) - k + 1, k)]
+    # None, not 0.0, when the film is too short to have an arc: a zero here would read as "measured, and it
+    # never moves", which is a different and much worse claim than "not long enough to ask".
+    steps = (sum(1 for a, b in zip(win, win[1:]) if abs(b - a) >= LUMA_STEP_DELTA) / (len(win) - 1)
+             if len(win) >= MIN_WINDOWS else None)
     return {
         "seconds": n / fps,
         "motion_p50": float(np.percentile(d, 50)),
@@ -129,6 +159,8 @@ def measure(path, fps=12, long_side=192):
         "motion_p90": float(np.percentile(d, 90)),
         "ink_median": float(np.median(ink)),
         "luma_range": float(np.percentile(lum, 95) - np.percentile(lum, 5)),
+        "luma_steps": steps,
+        "luma_windows": len(win),
     }
 
 
@@ -170,6 +202,16 @@ def check(out_dir):
         errs.append("LIGHT: luminance spans %.3f across the film, under the %.3f floor (half of Apple's "
                     "0.270; Figma's is 0.903). Nothing gets brighter or darker — the film has no light, "
                     "only a palette." % (m["luma_range"], LUMA_RANGE_FLOOR))
+    if m["luma_steps"] is None:
+        warns.append("LIGHT ARC: only %d one-second windows — too short to ask whether the light moves."
+                     % m["luma_windows"])
+    elif m["luma_steps"] < LUMA_STEP_FLOOR:
+        errs.append("LIGHT ARC: only %.1f%% of adjacent seconds change exposure by %.2f, under the %.1f%% "
+                    "floor (half of Apple's 3.8%%; Figma reaches 42.5%%). A wide luminance RANGE with no "
+                    "steps is one bright passage in an otherwise unlit film — measured, appending four "
+                    "seconds of a blank white rectangle to a film takes its range from 0.097 to 0.910 and "
+                    "leaves this number at 0.017. Light has to work across the film, not once."
+                    % (m["luma_steps"] * 100, LUMA_STEP_DELTA, LUMA_STEP_FLOOR * 100))
 
     waiver = (meta.get("energy_waiver") or "").strip()
     if errs and waiver:
@@ -193,8 +235,8 @@ def main(argv):
             return 2
         rows, missing = verify_reference(os.path.abspath(argv[1]))
         for name, rec, got, drift in rows:
-            print("[film_energy] %-26s recorded %.4f/%.3f/%.3f  measured %.4f/%.3f/%.3f  drift %.4f%s"
-                  % (name, rec[0], rec[1], rec[2], got[0], got[1], got[2], drift,
+            print("[film_energy] %-26s recorded %.4f/%.3f/%.3f/%.3f  measured %.4f/%.3f/%.3f/%.3f  drift %.4f%s"
+                  % (name, rec[0], rec[1], rec[2], rec[3], got[0], got[1], got[2], got[3], drift,
                      "" if drift <= REFERENCE_DRIFT else "  ← the floors rest on this"))
         for m in missing:
             print("[film_energy] MISSING %s" % m)
@@ -205,11 +247,12 @@ def main(argv):
     out_dir = os.path.abspath(argv[0])
     errs, warns, m = check(out_dir)
     if m:
-        print("[film_energy] %.0fs  motion p50/p75/p90 %.4f/%.4f/%.4f  ink %.1f%%  light %.3f"
+        print("[film_energy] %.0fs  motion p50/p75/p90 %.4f/%.4f/%.4f  ink %.1f%%  light %.3f  arc %s"
               % (m["seconds"], m["motion_p50"], m["motion_p75"], m["motion_p90"],
-                 m["ink_median"] * 100, m["luma_range"]))
-        print("              reference floors: motion p75 >= %.4f · ink >= %.0f%% · light >= %.3f"
-              % (MOTION_P75_FLOOR, INK_FLOOR * 100, LUMA_RANGE_FLOOR))
+                 m["ink_median"] * 100, m["luma_range"],
+                 "n/a" if m["luma_steps"] is None else "%.1f%%" % (m["luma_steps"] * 100)))
+        print("              reference floors: motion p75 >= %.4f · ink >= %.0f%% · light >= %.3f · arc >= %.1f%%"
+              % (MOTION_P75_FLOOR, INK_FLOOR * 100, LUMA_RANGE_FLOOR, LUMA_STEP_FLOOR * 100))
     for w in warns:
         print("[film_energy] WARN  %s" % w)
     for e in errs:
