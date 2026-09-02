@@ -96,3 +96,43 @@ def test_a_film_of_one_section_is_reported_as_not_an_arc(capsys, tmp_path):
     lp.main([str(d)])
     out = capsys.readouterr().out
     assert "not an arc" in out, out
+
+
+def test_write_refuses_without_an_explicit_acceptance(tmp_path, capsys):
+    """The arc moved every number the right way and made three of six sampled beats WORSE on a real render.
+    A pass that can do that must not be one flag away from stamping a film — the flag has to say out loud
+    that someone read the finding."""
+    d = tmp_path / "film"
+    d.mkdir()
+    (d / "storyboard.json").write_text(json.dumps(
+        {"slides": [_b(0, "new-topic"), _b(1, "new-topic"), _b(2, "close")]}), encoding="utf-8")
+    rc = lp.main([str(d), "--write"])
+    out = capsys.readouterr().out
+    assert rc == 2, "a bare --write stamped the film"
+    assert "REFUSING" in out and "WORSE" in out, out
+    board = json.loads((d / "storyboard.json").read_text(encoding="utf-8"))
+    assert all("ground" not in s for s in board["slides"]), "it wrote anyway"
+
+
+def test_write_with_acceptance_still_works(tmp_path):
+    """Refusing is not the same as removing it: an author who has looked can still use it."""
+    d = tmp_path / "film2"
+    d.mkdir()
+    (d / "storyboard.json").write_text(json.dumps(
+        {"slides": [_b(i, "new-topic", shot="Alpha") for i in range(3)]}), encoding="utf-8")
+    import unittest.mock as m
+    with m.patch.object(lp, "ground_followers", lambda: FOLLOWERS):
+        rc = lp.main([str(d), "--write", "--accept-risk"])
+    assert rc == 0
+    board = json.loads((d / "storyboard.json").read_text(encoding="utf-8"))
+    assert any("ground" in s for s in board["slides"])
+
+
+def test_the_proposal_says_it_is_a_proposal_every_time(tmp_path, capsys):
+    d = tmp_path / "film3"
+    d.mkdir()
+    (d / "storyboard.json").write_text(json.dumps(
+        {"slides": [_b(i, "new-topic") for i in range(3)]}), encoding="utf-8")
+    lp.main([str(d)])
+    out = capsys.readouterr().out
+    assert "A PROPOSAL, not a plan" in out and "worse picture" in out, out

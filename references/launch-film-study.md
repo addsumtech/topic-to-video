@@ -122,6 +122,36 @@ any register:
 | Apple | 0.0357 | 24.3% | 0.270 | 3.8% |
 | OpenAI | 0.0075 | 64.4% | 0.330 | 6.0% |
 
+### …and then the frames were compared, and the arc was taken off the default path
+
+The numbers above are real and the film is NOT uniformly better. Rendered and put side by side against the
+delivered version, **three of six sampled beats were WORSE**:
+
+* the title card went from white type on near-black to black type on a washed pale ground — it lost its
+  impact and reads as unfinished;
+* a deliberately sparse terminal beat put its one line of type on a large WHITE field, where the emptiness is
+  more glaring, not less;
+* a beat whose register title already sat low enough to touch the burned caption became unreadable — two
+  whites on near-black are still separable, the same two on a mid-blue ground are mush.
+
+**The cause is structural, not tuning.** `light_plan.py` assigns a ground from the ARGUMENT — where the
+content plan says the film turns — and knows nothing about whether the register on that beat was COMPOSED for
+a light ground. `GROUND_FOLLOWS_MEASURED` checks that a declared ground reaches the caption band, the content
+field and a fraction of moved pixels; it does not check that the frame still holds together. **A register can
+follow a ground perfectly and be a worse picture on it.**
+
+So the CAPABILITY stays (per-beat grounds, both exposure keys, 30 preset×key combinations with zero throws)
+and the AUTOMATIC ASSIGNMENT came off the default path: `light_plan.py` proposes, prints that it is a
+proposal, and `--write` refuses without `--accept-risk`. A pass that can move every number the right way while
+making frames worse must not be one flag away from stamping a film.
+
+A worked error from the same investigation, kept because it is the more useful half: seeing the title/caption
+collision, I hypothesised that the camera PAN had pushed content down, and bounded the pan by the caption
+slack. That bound is correct and stays — a pan really can close that gap — but it did **not** fix the frame.
+The collision was already in the delivered film; only the new ground made it fatal. A fix that lands next to
+a bug it does not fix is the easiest thing in the world to mistake for a fix. (`band_debt.json`, the sweep
+that exists to catch exactly this, does not list that register.)
+
 **Light is closed.** The arc now measures above Apple's and OpenAI's, and it is not gameable: the arc axis
 exists precisely because the range is (a blank white rectangle appended to a film took its range from 0.097
 to 0.910 while nothing in it changed). **Motion and density did not move** — a change of ground does not

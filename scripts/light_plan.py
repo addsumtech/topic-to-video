@@ -1,8 +1,29 @@
 #!/usr/bin/env python3
 """Author the film's LIGHT as an argument, not a timer — stamp a per-beat ground onto the storyboard.
 
-    python3 scripts/light_plan.py <out_dir>            # show the arc it would author, write nothing
-    python3 scripts/light_plan.py <out_dir> --write    # stamp `ground` / `key` onto the slides
+    python3 scripts/light_plan.py <out_dir>                          # propose an arc, write nothing
+    python3 scripts/light_plan.py <out_dir> --write --accept-risk    # stamp it anyway (read below first)
+
+WHAT THIS PASS WAS MEASURED TO DO TO A REAL FILM, and why `--write` now needs a flag someone has to type.
+Run on the shipped 30-beat film and rendered, the arc moved the numbers exactly as designed — luminance range
+0.079 -> 0.895, light arc 0.0% -> 14.9%, both into the reference band. Then the frames were compared side by
+side against the delivered film, and THREE OF SIX SAMPLED BEATS WERE WORSE:
+
+  * the title card went from white type on near-black to black type on a washed pale ground — it lost its
+    impact and read as unfinished;
+  * a deliberately sparse terminal beat put its single line of type on a large WHITE field, where the
+    emptiness is more glaring, not less;
+  * a beat whose register title already sat low enough to touch the burned caption became unreadable: two
+    whites on near-black are still separable, the same two on a mid-blue ground are mush.
+
+THE CAUSE IS STRUCTURAL, not a tuning problem. This pass assigns a ground from the ARGUMENT (where the
+content plan says the film turns) and knows nothing about whether the register on that beat was COMPOSED for
+a light ground. `GROUND_FOLLOWS_MEASURED` checks that a declared ground reaches the caption band, the content
+field and a fraction of moved pixels — it does not check that the frame still holds together. A register can
+follow a ground perfectly and be a worse picture on it.
+
+So this proposes, and a human looks. `--write` alone refuses; `--write --accept-risk` says you have read the
+above and will open every re-grounded beat.
 
 WHY THIS EXISTS. `runtime/light.tsx` can re-ground any beat and `render_remotion.py` now forwards the fields,
 so a film CAN have light. Nothing made one. A capability nothing reaches is indistinguishable from a
@@ -129,17 +150,27 @@ def main(argv):
             print("   %2d %-22s SKIP  %s" % (r["index"], r["shot"] or "?", r["skip"]))
         else:
             print("   %2d %-22s ground %d  %s" % (r["index"], r["shot"] or "?", r["ground"], r["why"]))
+    print("[light_plan] A PROPOSAL, not a plan. Open every beat above before shipping it: this pass reads "
+          "the argument, not the composition, and a register can follow a ground perfectly and be a worse "
+          "picture on it.")
     if changes < 2:
         # Said out loud rather than silently accepted: one exposure change is not an arc, and the delivery
         # gate measures the arc, not the range.
         print("[light_plan] WARNING only %d change(s) — that is a re-ground, not an arc. Most beats are "
               "continuations of one section, or their registers do not follow a ground." % changes)
+    if "--write" in argv and "--accept-risk" not in argv:
+        print("[light_plan] REFUSING to write. Rendered on a real film this arc made three of six sampled "
+              "beats WORSE while moving every number the right way (see this file's header). It assigns a "
+              "ground from the argument and cannot know whether the register on that beat was composed for "
+              "one. Re-run with `--write --accept-risk` and open every beat it re-grounds.")
+        return 2
     if "--write" in argv:
         n = apply(board, rows)
         json.dump(board, open(path, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
         print("[light_plan] stamped %d beat(s) into %s" % (n, path))
     else:
-        print("[light_plan] nothing written — re-run with --write")
+        print("[light_plan] nothing written — `--write --accept-risk` stamps it, after you have "
+              "opened the beats above")
     return 0
 
 
