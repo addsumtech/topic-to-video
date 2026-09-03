@@ -45,6 +45,7 @@ MODULE_PATH = {
     "film_energy_qa": os.path.join(_SCRIPTS, "film_energy_qa.py"),
     "text_safe_qa": os.path.join(_SCRIPTS, "text_safe_qa.py"),
     "register_energy": os.path.join(_SCRIPTS, "register_energy.py"),
+    "demo_copy_qa": os.path.join(_SCRIPTS, "demo_copy_qa.py"),
 }
 
 
@@ -1033,8 +1034,15 @@ def _probe_floors_are_derived_not_restated(mod):
     Checking equality would pass a hardcoded copy of today's numbers, which is exactly the failure: a
     diagnostic that keeps ranking against a private copy after the real gate moved. So the probe CHANGES the
     source of truth and requires the derived value to follow."""
-    mod.fe.MOTION_P75_FLOOR = 0.4242
-    got = mod.floors()
+    # `mod.fe` is the SHARED film_energy_qa module — `load()` re-execs register_energy but its import
+    # returns the one cached instance — so an unrestored edit here silently moves the delivery gate's floor
+    # for every test that runs afterwards.
+    was = mod.fe.MOTION_P75_FLOOR
+    try:
+        mod.fe.MOTION_P75_FLOOR = 0.4242
+        got = mod.floors()
+    finally:
+        mod.fe.MOTION_P75_FLOOR = was
     assert got["motion_p75"] == 0.4242, (
         "floors() returned %r — it is not reading film_energy_qa, it is carrying its own copy" % (got,))
 
@@ -1055,9 +1063,87 @@ def _probe_an_unmeasured_register_is_not_a_passing_one(mod):
     assert rc == 1, "a manifest with an UNMEASURED register reported success (exit %r)" % rc
 
 
+def _probe_the_fixture_list_is_derived_from_the_call_sites(mod):
+    """Four registers refuse to draw without a real image. If the sweep stops supplying one, they are not
+    measured as weak — they are recorded as FAILURES, and their real densities (37.2 / 28.9 / 16.5 / 25.7%)
+    vanish from the record that tells authors which registers to reach for."""
+    ev = mod.evidence_props()
+    assert ev, "the sweep supplies no fixture — every guarded register will be recorded as unmeasurable"
+    assert all(v for v in ev.values()), "a guarded register got an empty prop set: %r" % (ev,)
+
+
+def _probe_the_render_cache_distinguishes_two_design_systems(mod):
+    """Keyed by NAME alone, the cache re-measured pre-fixture footage for four registers and would serve
+    product-DNA video to an editorial sweep while the manifest announced editorial."""
+    import json as _json
+    seen = []
+
+    def fake_render(name, mp4, dna=None, extra=None):
+        seen.append(mp4)
+        open(mp4, "wb").close()
+        return True, [""]
+
+    d = tempfile.mkdtemp()
+    mod.MANIFEST = os.path.join(d, "m.json")
+    mod.durations = lambda: {"Alpha": 150}
+    mod.render_one = fake_render
+    mod.stills_from = lambda *a, **k: None
+    mod.footprint = lambda *a, **k: 0.4
+    # A FRESH cache per invocation: this probe runs once for the real module and once per mutant, and the
+    # sweep's cache lives under $TMPDIR — so without this the second run finds the first run's files, calls
+    # render_one zero times, and the probe reports a cache failure that is its own leftovers. Restoring
+    # fe.measure matters for the same reason the floors probe restores its floor.
+    was_tmp, was_measure = os.environ.get("TMPDIR"), mod.fe.measure
+    os.environ["TMPDIR"] = d
+    try:
+        mod.fe.measure = lambda *a, **k: {"motion_p75": 0.5, "ink_median": 0.5, "luma_range": 0.5,
+                                          "seconds": 5.0}
+        mod.main(["--dna=product"])
+        mod.main(["--dna=editorial"])
+    finally:
+        mod.fe.measure = was_measure
+        if was_tmp is None:
+            os.environ.pop("TMPDIR", None)
+        else:
+            os.environ["TMPDIR"] = was_tmp
+    assert len(seen) == 2 and seen[0] != seen[1], (
+        "the same cached video was reused across two design systems: %r" % (seen,))
+
+
+def _probe_a_partial_sweep_reaches_the_record(mod):
+    """--only once OVERWROTE all 149 rows; the fix for that stopped it writing at all, so a register that
+    was repaired and re-measured could never correct its own row."""
+    import json as _json
+    d = tempfile.mkdtemp()
+    path = os.path.join(d, "m.json")
+    _json.dump({"_dna": "product", "_floors": mod.floors(), "_failed": [], "_source": {},
+                "registers": {"Old": {"motion_p75": 1, "ink_median": 1, "luma_range": 1, "seconds": 5},
+                              "Alpha": {"motion_p75": 0, "ink_median": 0.006, "luma_range": 0,
+                                        "seconds": 5}}},
+               open(path, "w", encoding="utf-8"))
+    mod.MANIFEST = path
+    mod.durations = lambda: {"Alpha": 150, "Old": 150}
+    mod.render_one = lambda *a, **k: (True, [""])
+    mod.stills_from = lambda *a, **k: None
+    mod.footprint = lambda *a, **k: 0.4
+    was_measure = mod.fe.measure
+    try:
+        mod.fe.measure = lambda *a, **k: {"motion_p75": 0.5, "ink_median": 0.372, "luma_range": 0.5,
+                                          "seconds": 5.0}
+        mod.main(["--only=Alpha"])
+    finally:
+        mod.fe.measure = was_measure
+    out = _json.load(open(path, encoding="utf-8"))
+    assert out["registers"]["Alpha"]["ink_median"] == 0.372, "the re-measure never reached the record"
+    assert out["registers"]["Old"]["ink_median"] == 1, "the partial sweep clobbered a row it never rendered"
+
+
 PROBES["register_energy"] = {
     "floors_are_derived": _probe_floors_are_derived_not_restated,
     "unmeasured_is_not_passing": _probe_an_unmeasured_register_is_not_a_passing_one,
+    "fixture_is_derived": _probe_the_fixture_list_is_derived_from_the_call_sites,
+    "cache_separates_design_systems": _probe_the_render_cache_distinguishes_two_design_systems,
+    "partial_sweep_reaches_the_record": _probe_a_partial_sweep_reaches_the_record,
 }
 
 MUTANTS["register_energy"] = {
@@ -1066,8 +1152,75 @@ MUTANTS["register_energy"] = {
          '    return {"motion_p75": 0.0037, "ink_median": 0.12, "luma_range": 0.135}'),
     "an unmeasured register reads as fine":
         ("    return 1 if unknown else 0", "    return 0"),
+    "the guarded registers are swept with no image":
+        ("    return out\n\n\ndef ensure_fixture():", "    return {}\n\n\ndef ensure_fixture():"),
+    "the render cache forgets what it rendered":
+        ('            mp4 = os.path.join(tmp, "%s.%s.mp4" % (n, key))',
+         '            mp4 = os.path.join(tmp, n + ".mp4")'),
+    "a partial sweep is discarded instead of merged":
+        ('        if only:\n            # MERGE a targeted re-measure',
+         '        if only:\n            return 0\n            # MERGE a targeted re-measure'),
 }
 
+
+
+# ── demo_copy_qa: a register must not print its own demo copy as content ─────────────────────────────
+_DEMO_SRC = """
+export const Demo: React.FC<{title?: string; marks?: {n: number; label: string}[]}> = ({
+  title = 'WorkBuddy', marks = [{n: 1, label: 'what to notice here'}], accent = '#22d3ee',
+  align = 'center',
+} = {}) => {
+  return <svg fill="none" strokeLinecap="round" transform="rotate(-90 55 55)"><text>hi</text></svg>;
+};
+"""
+
+
+def _probe_demo_copy_is_read_from_the_signature(mod):
+    """A gate that invents findings gets switched off. Regexed to the first `} = {})`, the parser ran past a
+    props type containing an object literal and reported SVG attributes from the JSX as demo copy."""
+    got = mod.demo_defaults(_DEMO_SRC, "Demo")
+    assert got.get("title") == "WorkBuddy" and "what to notice here" in got.get("marks", ""), got
+    for attr in ("fill", "strokeLinecap", "transform"):
+        assert attr not in got, "%r came from the component body, not the signature: %r" % (attr, got)
+
+
+def _probe_configuration_is_not_mistaken_for_copy(mod):
+    """No viewer reads '#22d3ee' off the frame, and the DNA overrides it anyway — flagging it would make
+    every themed beat a finding."""
+    got = mod.demo_defaults(_DEMO_SRC, "Demo")
+    assert "accent" not in got, "a colour was reported as demo copy"
+    assert "align" not in got, "a CSS keyword ('center') was reported as demo copy"
+
+
+def _probe_a_partially_supplied_beat_is_caught(mod):
+    """Empty props were already caught by validate; the beat that ships English demo labels onto a Chinese
+    frame is the one that LOOKS authored."""
+    lib = {"Reg": {"title": "WorkBuddy", "items": "['Throughput']"}}
+    board = {"slides": [{"index": 4, "shot": "Reg", "shot_props": {"title": "the film's own words"}}]}
+    found = mod.audit_board(board, lib)
+    assert [(f[1], f[2]) for f in found] == [("Reg", "items")], found
+    assert mod.audit_board({"slides": [{"index": 4, "shot": "Reg",
+                                        "shot_props": {"title": "x", "items": []}}]}, lib) == [], (
+        "an explicitly emptied prop was reported — the opt-out is gone")
+
+
+PROBES["demo_copy_qa"] = {
+    "read_from_the_signature": _probe_demo_copy_is_read_from_the_signature,
+    "configuration_is_not_copy": _probe_configuration_is_not_mistaken_for_copy,
+    "partial_props_are_caught": _probe_a_partially_supplied_beat_is_caught,
+}
+
+MUTANTS["demo_copy_qa"] = {
+    # The real bug this rule fixes is OVER-running the destructure into the component body, where every
+    # JSX attribute looks like `name = "value"`. Under-running is caught by the same probe's marks assertion.
+    "the destructure has no end, so the component body counts as props":
+        ("    depth, j = 0, start", "    return src[start + 1:]\n    depth, j = 0, start"),
+    "colours and css keywords count as copy":
+        ('            if re.search(r"[A-Za-z]{3}", v) and not _NOT_COPY.match(v):',
+         '            if re.search(r"[A-Za-z]{3}", v):'),
+    "an absent prop stops being a finding":
+        ("            if prop not in props:", "            if False:"),
+}
 
 def _all(kind):
     return [(m, k) for m, d in kind.items() for k in d]
@@ -1151,7 +1304,7 @@ def test_the_idiom_world_gate_actually_refuses_the_wrong_world():
              "idiom_world": ["survey-archive"]}
         m.update(over)
         return {"meta": m, "slides": [
-            {"index": i, "shot": "MapPlate", "shot_props": {"place": "X"},
+            {"index": i, "shot": "MapPlate", "shot_props": {"place": "X", "marks": []},
              "shot_adaptation": {"kept": "k", "redesigned": "r", "topic_idea": "t"},
              "shot_fit": {"verdict": "adapt", "why": "w", "form": "a"},
              "audio": "audio/%02d.mp3" % i, "duration": 5.0, "narration": "A line."} for i in range(4)]}
@@ -1199,7 +1352,7 @@ def test_every_beat_must_name_a_form_the_film_derived():
                                           {"form": "section", "carries": "levels"},
                                           {"form": "label", "carries": "evidence"}],
                       "idiom_world": ["survey-archive"]},
-             "slides": [{"index": i, "shot": "MapPlate", "shot_props": {"place": "X"},
+             "slides": [{"index": i, "shot": "MapPlate", "shot_props": {"place": "X", "marks": []},
                          "shot_adaptation": {"kept": "k", "redesigned": "r", "topic_idea": "t"},
                          "shot_fit": {"verdict": "adapt", "why": "w", "form": "map plate"},
                          "audio": "audio/%02d.mp3" % i, "duration": 5.0, "narration": "A line."}

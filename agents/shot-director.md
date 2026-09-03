@@ -394,7 +394,12 @@ a *needed* dark↔light turn read as continuity rather than a flip — see Rule 
 ## Output
 Edit `storyboard.json`: set `meta.renderer:"remotion"` and, on every scene, `shot` (a valid id from
 `remotion/src/shots/*.tsx`) + `shot_props` (an object of TOPIC copy — never leave it `{}`, which ships the
-register's demo mannequin) + **`shot_adaptation` = `{kept, redesigned, topic_idea, theme_cues}`** (REQUIRED — the
+register's demo mannequin). **Fill EVERY copy prop the register has, or set the ones you want blank to `""`
+(`[]` for a list).** Every register carries illustrative defaults so it can be previewed standalone, and an
+omitted prop PRINTS them: a delivered Chinese film gave BentoReveal its own `title`/`hero`/`heroKicker` and no
+`items`, so six of the frame's seven cells read *Throughput / Coverage / Trend / Signals / Team / Auto-sync* —
+English demo labels presented as that product's own. `validate.py` now ERRORS on it and names the exact copy;
+`python3 scripts/demo_copy_qa.py <out_dir>` lists it, and `--library` shows what each register would print. + **`shot_adaptation` = `{kept, redesigned, topic_idea, theme_cues}`** (REQUIRED — the
 style AND any stock modules that ALREADY fit the topic that you kept, the modules/components + content you rebuilt
 for this topic, the topic-specific idea the shot now encodes, and — on a DNA-themed film — **`theme_cues`: the 2-3
 concrete cues that tie THIS shot to the global visual system** (e.g. `["mono heading","▸ prompt","terminal grid",
@@ -403,7 +408,8 @@ rule above — keep what fits, redesign what doesn't, don't blindly change every
 whether a register's structure actually carries the beat's argument, and the ONLY thing that can surface
 "nothing in the library can draw this". On the FEW beats that earn them, also set `transition_style` (Rule 5) and `camera` (the camera section); `python3 scripts/seam_plan.py <out_dir>` then fills the beats you left and skips every one you authored. Then record your choices for the critic: a short
 `shot_rationale` per scene (why this register, which family) is encouraged. `validate.py` errors on a
-missing/unknown `shot` or a number-bearing register left on its demo default, and WARNs on empty `shot_props` or a
+missing/unknown `shot`, a number-bearing register left on its demo default, or ANY copy prop left to its demo
+default on a partly-filled beat, and WARNs on empty `shot_props` or a
 missing `shot_adaptation` (a raw text-swap); `render_remotion.py` renders the chosen shots through the data-driven
 `Film`. Keep a family-variety pass at the end: scan the shot sequence and swap any adjacent same-family pair for
 an equally-fitting register from a different family.

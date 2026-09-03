@@ -315,7 +315,11 @@ TTS if the user gives an API key.
   adjacent beats read as one look). Deterministic fallback: `python scripts/shot_director.py <out_dir>`.
   **Faithfulness:** a register that shows a NUMBER (ChartLive/BeforeAfterSlider/VelocitySnap) MUST be given a
   SOURCED figure in `shot_props` — never its illustrative demo default (`validate.py` warns; see
-  no-fabricated-stats). `validate.py` ERRORS on a missing/unknown `shot`. Each shot is standalone-renderable
+  no-fabricated-stats). `validate.py` ERRORS on a missing/unknown `shot`, and on a partly-filled beat that leaves any copy prop
+  to its demo default (the register's illustrative text renders as content — a real film shipped six English
+  demo labels onto a Chinese frame with every gate green; `scripts/demo_copy_qa.py <out_dir>` lists them, and
+  the FOUR evidence registers — PhotoPlate/ScanReconstruct/RealVersus/MuseumLabel — REFUSE to render without a
+  real image rather than drawing an empty plate). Each shot is standalone-renderable
   (`cd remotion && npx remotion still src/index.ts <Id> out.png --frame=N --gl=angle`) and topic-driven via
   `--props='{...}'` (ASCII only — a multibyte `·` breaks the CLI arg). **`meta.sound_design:true`** (opt-in)
   adds a restrained SFX bed (transition whooshes pinned frame-exact to the cross-dissolves + a closing reveal)

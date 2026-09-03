@@ -345,6 +345,9 @@ def _brief_numbers(out_dir):
     Collecting from `evidence` (NOT the whole brief) is deliberate: a figure must come from a cited
     fact, not from a rhetorical framing that lives in the thesis / misconceptions / why_it_matters — an
     invented "43%" placed only in a punchy framing (not in cited evidence) must still be caught."""
+    if not out_dir:
+        return None            # `_check_remotion(out_dir=None)` is a documented call shape; joining None
+                               # raised TypeError instead, so the whole remotion check died on it
     try:
         b = json.load(open(os.path.join(out_dir, "brief.json"), encoding="utf-8"))
     except (OSError, ValueError):
@@ -1740,6 +1743,25 @@ def _seam_frames(default=12):
     except OSError:
         return default
 
+def _demo_copy_library():
+    """{register: {prop: the copy its default prints}} — PARSED from each register's signature.
+
+    Parsed, not listed, for the reason the `NUM` map right below documents in its own comment: a restated
+    list of registers went stale and two number-bearing registers sat exempt from the faithfulness check. The
+    same list for copy would be 136 registers and 267 props, and wrong the day someone adds a register."""
+    global _DEMO_COPY_CACHE
+    if _DEMO_COPY_CACHE is None:
+        try:
+            import demo_copy_qa
+            _DEMO_COPY_CACHE = demo_copy_qa.library()
+        except Exception:
+            _DEMO_COPY_CACHE = {}      # unavailable → skip rather than false-flag every beat
+    return _DEMO_COPY_CACHE
+
+
+_DEMO_COPY_CACHE = None
+
+
 def _check_remotion(meta, slides, errors, warnings, out_dir=None):
     """Guardrails for the remotion bespoke-shot tier: a valid whole-film `shot_template` direction (+ its
     contest trace); every scene needs a valid `shot` id + object `shot_props`; a NUMBER-bearing register left on
@@ -1886,6 +1908,30 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
         adapt_ok = (isinstance(adapt, dict)
                     and isinstance(adapt.get("redesigned"), str) and adapt["redesigned"].strip()
                     and isinstance(adapt.get("topic_idea"), str) and adapt["topic_idea"].strip())
+        # DEMO COPY that ships as content. Empty props are the crude case and were already caught; the
+        # dangerous case is PARTIAL props, which read as authored. A delivered Chinese film about a real
+        # product shipped BentoReveal with title/hero/heroKicker in its own words and no `items` — so six of
+        # the frame's seven cells printed the register's English demo labels (Throughput / Coverage / Trend /
+        # Signals / Team / Auto-sync) and every gate was green. That register's own source comments record the
+        # same bug being fixed once before, for `heroKicker`; the fix turned the hardcoded word into a prop,
+        # which moved the default one level down and left the hole exactly where it was.
+        # An ERROR, not a warning: the empty plate says nothing, this says something FALSE.
+        _props_empty = (not isinstance(sp, dict)) or (len(sp) == 0)
+        if isinstance(sp, dict) and shot in _demo_copy_library():
+            _left = [(p, c) for p, c in sorted(_demo_copy_library()[shot].items()) if p not in sp]
+            if _left and _props_empty:
+                # An empty-props beat already HAS a finding below (the mannequin warning), and it names the
+                # right problem. Stacking a second, longer error on the same beat teaches the author nothing
+                # — but the warning never said what would actually be READ off the frame, so say that.
+                warnings.append(f"{tag}: {shot} with empty shot_props will PRINT its demo copy: "
+                                + "; ".join(f"{p}={c}" for p, c in _left[:4])
+                                + (" …" if len(_left) > 4 else ""))
+                _left = []
+            for prop, copy in _left:
+                off = "[]" if copy.startswith("[") else '""'
+                errors.append(f"{tag}: {shot} was given no `{prop}`, so the register's DEMO COPY prints on "
+                              f"the delivered frame: {copy}. Write this beat's own copy, or set "
+                              f"`shot_props.{prop}` to {off} to draw nothing there.")
         if props_empty:
             warnings.append(f"{tag}: {shot} carries EMPTY shot_props — a raw text-swap keeps the register's demo "
                             f"scaffolding (a mannequin), shipping a generic beat. Redesign its modules/components + "
