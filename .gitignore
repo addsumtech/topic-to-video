@@ -8,3 +8,7 @@ tests/fixtures/images/
 # per-project render caches (generated; never commit)
 .assets/
 .clips/
+
+# the energy sweep DRAWS its stand-in photograph (register_energy.ensure_fixture) rather than
+# committing one — a repo-resident fake photo eventually gets mistaken for content
+remotion/public/

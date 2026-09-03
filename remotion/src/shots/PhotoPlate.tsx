@@ -22,6 +22,7 @@
 
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
+import {requireEvidence} from '../runtime/evidence';
 import {useT, seg, clamp01, easeOutCubic, easeOutExpo} from '../runtime/motion';
 import {captionBand, CONTENT_TOP, placeLabel, latinAdvance, CJK_ADVANCE} from '../runtime/layout';
 import {Plane, DEPTH} from '../runtime/depth';
@@ -58,6 +59,7 @@ export const PhotoPlate: React.FC<{
                   {x: 0.72, y: 0.62, label: 'and here'}],
   imageAspect,
   credit = ''} = {}) => {
+  requireEvidence('PhotoPlate', 'src', src, 'the real photograph this plate frames and points at');
   const dna = useDNA();
   const t = useT();
   const {width: W, height: H} = useVideoConfig();

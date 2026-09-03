@@ -14,6 +14,7 @@
 
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
+import {requireEvidence} from '../runtime/evidence';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
 import {CONTENT_TOP, TITLE_Y, contentBottom} from '../runtime/layout';
 import {lumValue} from '../runtime/shotLuma';
@@ -34,6 +35,7 @@ export const RealVersus: React.FC<{srcLeft?: string; srcRight?: string; labelLef
   title?: string; credit?: string; accent?: string}> = ({
   srcLeft, srcRight, labelLeft = '', labelRight = '', title = '', credit = '', accent,
 } = {}) => {
+  requireEvidence('RealVersus', 'srcLeft', srcLeft, 'the left-hand photograph of the pair being compared');
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();

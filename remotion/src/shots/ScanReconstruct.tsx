@@ -6,6 +6,7 @@
 
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
+import {requireEvidence} from '../runtime/evidence';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {fitContentSquare} from '../runtime/layout';
@@ -15,6 +16,7 @@ export const DURATION = 180; // 6s
 export const ScanReconstruct: React.FC<{src?: string; label?: string; credit?: string; accent?: string; cols?: number}> = ({
   src, label = '', credit = '', accent = '#22d3ee', cols = 22,
 } = {}) => {
+  requireEvidence('ScanReconstruct', 'src', src, 'the real image being reconstructed');
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();

@@ -94,7 +94,7 @@
     "MetaballMerge": "dcc18b956a651bc9",
     "MoleculeBallStick": "a97fb383045e503a",
     "MorphForms": "d768ee317789a51a",
-    "MuseumLabel": "28f9d6eafccf3778",
+    "MuseumLabel": "bf70a488a8c27326",
     "NeonGrid": "c95b036c5c54b939",
     "NeonTickerWall": "d5531d22c6d9e9df",
     "NeuralField": "c5aeb7d4ee0587e8",
@@ -104,7 +104,7 @@
     "PaperCutout": "a429ab7a74b36607",
     "ParticleForm": "8877fe4cac24faee",
     "PhaseEncodeStep": "a4a625cf5a8d2709",
-    "PhotoPlate": "42079cdf17e1280b",
+    "PhotoPlate": "97517fb0b102d76e",
     "PhysicsStack": "051dd4cd8bd5d1e9",
     "PixelBuild": "4878a40a0974ccee",
     "PlanPalimpsest": "fd50ffc92dcf09e3",
@@ -115,11 +115,11 @@
     "RadialBurst": "f11e43c19cb621dc",
     "RainGlass": "c88b336cf53f5736",
     "RansomZine": "c3a7d21ad94f78ad",
-    "RealVersus": "c1111fbd5b952b0c",
+    "RealVersus": "43fd53ecb3b9cb6e",
     "RestsOn": "c4dab9fee7246c4b",
     "RidgeField": "9cb428697613aaa3",
     "RisoPrint": "b3dbc5a31fabec6a",
-    "ScanReconstruct": "d8ab9463281e9d25",
+    "ScanReconstruct": "8568f493f0cf44ee",
     "ScreenBubble": "bbd73da0fdf3f58b",
     "SectionRoute": "08a2b34808d6a718",
     "SharedBlindspot": "6647e7dd5f19b433",
@@ -156,6 +156,15 @@
   },
   "_basis": "each register rendered as VIDEO at its own DURATION, 16:9, under dna=product — the themed path, because every delivered film has a design system and the un-themed fallback is a mode none of them use",
   "_dna": "product",
+  "_fixture": {
+    "registers": [
+      "MuseumLabel",
+      "PhotoPlate",
+      "RealVersus",
+      "ScanReconstruct"
+    ],
+    "why": "these refuse to draw without a real artefact (runtime/evidence.ts); measured with a deterministic stand-in so the row describes the register rather than an empty box"
+  },
   "_floors": {
     "motion_p75": 0.0037,
     "ink_median": 0.12,
@@ -815,11 +824,11 @@
       "footprint": 0.365
     },
     "MuseumLabel": {
-      "motion_p75": 0.0001,
-      "ink_median": 0.009,
-      "luma_range": 0.008,
+      "motion_p75": 0.0003,
+      "ink_median": 0.257,
+      "luma_range": 0.09,
       "seconds": 5.5,
-      "footprint": 0.041
+      "footprint": 0.509
     },
     "NeonGrid": {
       "motion_p75": 0.0001,
@@ -885,11 +894,11 @@
       "footprint": 0.486
     },
     "PhotoPlate": {
-      "motion_p75": 0.0001,
-      "ink_median": 0.006,
-      "luma_range": 0.011,
+      "motion_p75": 0.0009,
+      "ink_median": 0.372,
+      "luma_range": 0.131,
       "seconds": 5.8,
-      "footprint": 0.247
+      "footprint": 0.446
     },
     "PhysicsStack": {
       "motion_p75": 0.0059,
@@ -962,11 +971,11 @@
       "footprint": 0.359
     },
     "RealVersus": {
-      "motion_p75": 0.0001,
-      "ink_median": 0.0,
-      "luma_range": 0.0,
+      "motion_p75": 0.0048,
+      "ink_median": 0.289,
+      "luma_range": 0.16,
       "seconds": 5.5,
-      "footprint": 0.001
+      "footprint": 0.313
     },
     "RestsOn": {
       "motion_p75": 0.0064,
@@ -990,11 +999,11 @@
       "footprint": 0.833
     },
     "ScanReconstruct": {
-      "motion_p75": 0.0005,
-      "ink_median": 0.0,
-      "luma_range": 0.002,
+      "motion_p75": 0.0029,
+      "ink_median": 0.165,
+      "luma_range": 0.099,
       "seconds": 6.0,
-      "footprint": 0.0
+      "footprint": 0.177
     },
     "ScreenBubble": {
       "motion_p75": 0.0002,

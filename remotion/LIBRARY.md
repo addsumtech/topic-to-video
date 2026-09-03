@@ -135,7 +135,17 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 95. **LiquidMetal** — a chrome/mercury blob flows + merges (goo filter) with a banded reflection gradient, on a soft lavender/icy/beige palette, chrome wordmark on top. *Use: premium "liquid chrome, alive" hero (2026).*
 
 ## G · Illustrated / craft styles (the "style" axis)
-157. **ScanReconstruct** — a real fetched image is revealed by a reconstruction technique rather than a wipe. *Use: a real image revealed by the process that produces it.* `src, label, credit, accent, cols`
+> **The four EVIDENCE registers — PhotoPlate · ScanReconstruct · RealVersus · MuseumLabel — take a real
+> photograph and REFUSE to render without one.** Their whole premise is that the artefact carries the
+> argument; given no `src` they used to draw the furniture around an absent picture — an outlined empty
+> box with callout chips pointing at nothing — and the render succeeded, so nothing said the frame was
+> empty. Measured that way they were the four sparsest rows in this library (0.0–0.9% ink); measured with
+> the image they are built for, 16.5–37.2%. Fetch one first:
+> `python3 scripts/imagefetch.py "<subject>" <out_dir>/media/<name>.jpg`, set the prop to the path
+> relative to `<out_dir>`, and take the credit from the sidecar. If the beat is not about a real
+> artefact, it wants a different register.
+
+157. **ScanReconstruct** — a real fetched image is revealed by a reconstruction technique rather than a wipe. *Use: a real image revealed by the process that produces it.* `src` **(REQUIRED)**`, label, credit, accent, cols`
 156. **KSpaceReal** — the real FFT magnitude of an actual scan, not a decorative mandala. *Use: showing the real transform of real data.* `src, accent, label, credit`
 41. **HandDrawn** — riso ink sketch draws on (You→WorkBuddy→Done). *Use: human / hand-made.*
 42. **CartoonPop** — cel-shaded cartoon mascot zaps tasks → DONE! *Use: playful / friendly.*
@@ -149,7 +159,7 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 
 ## H · Comparison
 160. **TensionScale** — a beam teeters on a fulcrum and never settles — a trade-off with no resting point. *Use: two goods in permanent tension / a trade-off that cannot be resolved.* `title, leftLabel, leftSub, rightLabel, rightSub, note, accent, accent2`
-158. **RealVersus** — two real images side by side, the comparison carried by the photographs themselves. *Use: A vs B where real imagery makes the point.* `srcLeft, srcRight, labelLeft, labelRight, title, credit, accent`
+158. **RealVersus** — two real images side by side, the comparison carried by the photographs themselves. *Use: A vs B where real imagery makes the point.* `srcLeft`/`srcRight` **(REQUIRED)**`, labelLeft, labelRight, title, credit, accent`
 155. **KSpaceAnatomy** — the centre of k-space holds the overall contrast, the edges hold the detail — read on real data. *Use: how to READ a transformed space / centre vs edges.* `srcK, srcLow, srcHigh, accent, accent2, label, credit`
 48. **BeforeAfterSlider** — slider wipes rough draft → board-ready. *Use: quality / transformation.*
 54. **QuadSplit** — the frame splits into a 2×2 of micro-panels (each a distinct accent + motif), then one hero panel takes the whole frame. *Use: four angles → the one that matters; or, with `hero: null`, simply THERE ARE FOUR — the expansion is the second half of the argument and a beat that only claims the four should not end showing one.* Each panel takes an optional **`glyph`** naming the form that tile carries — `checks` (a suite passing) · `gutter` (covered vs untouched lines) · `peers` (two identical parties agreeing) · `review` (a pointer stopping on one line) · `bars` · `ring` · `dots` · `wave`. **Name one per panel**: omitted, the tile falls back to a motif picked by INDEX, which is decoration, not content — that is how one film shipped a bar chart under 「测试」 and a squiggle under 「人工评审」. An unknown name fails loudly.
@@ -157,7 +167,7 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 63. **VersusSplit** — a head-to-head split screen: two contenders slide in across a diagonal seam, a VS badge slams, the winner side glows. *Use: A vs B / this beats that (qualitative).*
 136. **SharedBlindspot** — a field of cases under two producers' blind regions: the same-source pair's regions coincide (the cases inside are missed by both), the independent pair's sit apart (between them the field is covered). *Use: correlated vs independent failure / "these two miss the same things" / why a same-source check cannot catch its own blind spot.* Positions are hash01-deterministic. `kicker, title, shared{label,a,b,note}, independent{label,a,b,note}, cases`
 
-171. **PhotoPlate** — a real photograph mounted as a plate, with the film's own numbered marks placed at points IN it, arriving as the narration names them; the marks ride a lifted plane so they read as placed ON the print. *Use: the photograph IS the evidence and the film points at parts of it — a building, a machine, a street, a specimen.* `src, title, caption, marks[{n,x,y,label}], credit`
+171. **PhotoPlate** — a real photograph mounted as a plate, with the film's own numbered marks placed at points IN it, arriving as the narration names them; the marks ride a lifted plane so they read as placed ON the print. *Use: the photograph IS the evidence and the film points at parts of it — a building, a machine, a street, a specimen.* `src` **(REQUIRED — refuses to render without a real image)**`, title, caption, marks[{n,x,y,label}], credit`
 ## I · Mechanical / tactile-physical
 161. **SectionRoute** — a load travels a ROUTE through a layered cross-section — the indirect route climbs and drops through levels it did not need, the direct route cuts straight thro *Use: a load travels a ROUTE through a layered cross-section — the indirect route climbs and drops through levels it did not need, the direct route cuts straight thro*
 49. **SplitFlap** — Solari flap board riffles + settles to the message. *Use: status flips to done / announce.*
@@ -368,7 +378,7 @@ other than `terminal` is fully uniform across all three roles.
 170. **ProfileGrowth** — the same cross-section redrawn at successive states, each larger than the last with the earlier ones ghosted behind — when a thing became something else by bein *Use: the same cross-section redrawn at successive states, each larger than the last with the earlier ones ghosted behind — when a thing became something else by bein*
 169. **TechnicalPlate** — an ordinary object IS the mechanism — drawn as a numbered technical elevation with callout leaders and a parts key, the way a patent plate or a parts catalogue  *Use: an ordinary object IS the mechanism — drawn as a numbered technical elevation with callout leaders and a parts key, the way a patent plate or a parts catalogue *
 168. **Inscription** — a moment somebody thought worth cutting into stone — incised dated capitals on a dressed face, with chisel shadow; when the beat is a date that was COMMEMORATED *Use: a moment somebody thought worth cutting into stone — incised dated capitals on a dressed face, with chisel shadow; when the beat is a date that was COMMEMORATED*
-167. **MuseumLabel** — a real object beside its museum label — name, date, provenance, accession — when the thing itself is the evidence *Use: a real object beside its museum label — name, date, provenance, accession — when the thing itself is the evidence*
+167. **MuseumLabel** (`src` **REQUIRED**) — a real object beside its museum label — name, date, provenance, accession — when the thing itself is the evidence *Use: a real object beside its museum label — name, date, provenance, accession — when the thing itself is the evidence*
 166. **TallyLedger** — a hand-ruled ledger counting something into a total, in strokes rather than digits — a count somebody actually made *Use: a hand-ruled ledger counting something into a total, in strokes rather than digits — a count somebody actually made*
 165. **PlanPalimpsest** — two plans registered over each other — the footprint of what was here under the outline of what is here now *Use: two plans registered over each other — the footprint of what was here under the outline of what is here now*
 164. **StrataColumn** — a stratigraphic column read top-down: what lies under this ground, layer by layer, with depths and finds *Use: a stratigraphic column read top-down: what lies under this ground, layer by layer, with depths and finds*

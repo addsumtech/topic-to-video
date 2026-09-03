@@ -12,6 +12,7 @@
 
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
+import {requireEvidence} from '../runtime/evidence';
 import {useT, seg, clamp01, easeOutCubic, easeOutExpo} from '../runtime/motion';
 import {captionBand, CONTENT_TOP} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
@@ -37,6 +38,7 @@ export const MuseumLabel: React.FC<{
   accession = '',
   body = '',
   credit = ''} = {}) => {
+  requireEvidence('MuseumLabel', 'src', src, 'the real object this label stands beside');
   const dna = useDNA();
   const t = useT();
   const {width: W, height: H} = useVideoConfig();

@@ -44,6 +44,67 @@ FOOTPRINT_SPLIT = 0.35
 REGEN = "python3 scripts/register_energy.py"
 
 
+_FIXTURE_REL = "_energy_fixture.png"
+
+
+def evidence_props():
+    """{register: {prop: fixture path}} — DERIVED from each shot's own `requireEvidence(...)` call.
+
+    Four registers exist to put a real photograph on the frame and now REFUSE to draw without one
+    (runtime/evidence.ts). Sweeping them with default props would therefore record four permanent failures,
+    and sweeping them BEFORE that guard existed recorded something worse: PhotoPlate at 0.6% and RealVersus
+    at 0.0%, which are measurements of an empty box, not of a register. An empty plate measured as a register
+    is a lie the sweep was telling.
+
+    The list is parsed, not restated: a fifth register that adopts the guard is measured with a fixture the
+    day it does, and one that drops it stops being special without anyone remembering to edit this file."""
+    out = {}
+    for f in sorted(glob.glob(os.path.join(_SHOTS, "*.tsx"))):
+        src = open(f, encoding="utf-8").read()
+        n = os.path.basename(f)[:-4]
+        for m in re.finditer(r"requireEvidence\(\s*'([A-Za-z0-9]+)'\s*,\s*'([A-Za-z0-9]+)'", src):
+            out.setdefault(m.group(1), {})[m.group(2)] = _FIXTURE_REL
+        if n in out:
+            # a paired register (srcLeft/srcRight) guards only one of them; fill every src-shaped prop it
+            # declares, or half the frame is still the hole this exists to end
+            head = re.search(r"export const %s: React\.FC<\{(.*?)\}> =" % n, src, re.S)
+            if head:
+                for pm in re.finditer(r"\b(src[A-Za-z0-9]*)\s*\?\s*:", head.group(1)):
+                    out[n][pm.group(1)] = _FIXTURE_REL
+    return out
+
+
+def ensure_fixture():
+    """A deterministic stand-in photograph in remotion/public/, drawn rather than committed.
+
+    Drawn from a fixed formula so two sweeps on two machines measure the same pixels, and NOT a real
+    photograph: the sweep is measuring what a register does with an image, not which image."""
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        return None
+    pub = os.path.join(_REMOTION, "public")
+    os.makedirs(pub, exist_ok=True)
+    path = os.path.join(pub, _FIXTURE_REL)
+    if os.path.exists(path):
+        return _FIXTURE_REL
+    w, h = 1400, 933
+    im = Image.new("RGB", (w, h))
+    px = im.load()
+    for y in range(h):
+        for x in range(w):
+            # a smooth field plus a coarse grid: mid-tone overall, with structure, like a photograph's
+            v = 60 + int(90 * (x / w)) + int(50 * (y / h))
+            if (x // 70 + y // 70) % 2 == 0:
+                v = min(255, v + 34)
+            px[x, y] = (v, min(255, int(v * 0.94)), min(255, int(v * 0.86)))
+    d = ImageDraw.Draw(im)
+    d.ellipse([w * 0.28, h * 0.24, w * 0.72, h * 0.78], fill=(232, 226, 214))
+    d.rectangle([w * 0.08, h * 0.66, w * 0.30, h * 0.92], fill=(38, 42, 52))
+    im.save(path)
+    return _FIXTURE_REL
+
+
 def source_hashes():
     """{register: sha256 of its .tsx}. A measured row describes the SOURCE it was rendered from, and nothing
     said so: three registers were rewritten and the committed manifest went on reporting 0.6%, 2.0% and 1.0%
@@ -129,10 +190,14 @@ def footprint(png):
 DEFAULT_DNA = "product"
 
 
-def render_one(name, mp4, dna=DEFAULT_DNA):
+def render_one(name, mp4, dna=DEFAULT_DNA, extra=None):
     cmd = ["npx", "remotion", "render", "src/index.ts", name, mp4, "--gl=angle", "--log=error"]
+    props = {}
     if dna:
-        cmd.append("--props=" + json.dumps({"dna": dna}))
+        props["dna"] = dna
+    props.update(extra or {})
+    if props:
+        cmd.append("--props=" + json.dumps(props))
     r = subprocess.run(cmd, capture_output=True, text=True, cwd=_REMOTION)
     return os.path.exists(mp4), ((r.stdout or "") + (r.stderr or "")).strip().splitlines()[-1:] or [""]
 
@@ -170,11 +235,21 @@ def main(argv):
         os.makedirs(tmp, exist_ok=True)
         durs = durations()
         names = [n for n in sorted(durs) if not only or n in only]
+        ensure_fixture()
+        ev = evidence_props()
+        hashes = source_hashes()
         rows, failed = {}, []
         for i, n in enumerate(names, 1):
-            mp4 = os.path.join(tmp, n + ".mp4")
+            # CACHE KEY = everything the pixels depend on. Keyed by NAME alone, this cache re-measured
+            # pre-fixture footage for four registers whose renders had changed underneath it, and it would
+            # just as silently serve `--dna=product` video to a `--dna=editorial` sweep while `_basis`
+            # announced editorial. A cache nobody can tell is stale is the same lie as a manifest nobody can
+            # tell is stale — and this file already refuses the second one.
+            key = hashlib.sha256(json.dumps(
+                [hashes.get(n, ""), dna, ev.get(n)], sort_keys=True).encode()).hexdigest()[:10]
+            mp4 = os.path.join(tmp, "%s.%s.mp4" % (n, key))
             if not os.path.exists(mp4):
-                ok, tail = render_one(n, mp4, dna)
+                ok, tail = render_one(n, mp4, dna, ev.get(n))
                 if not ok:
                     failed.append("%s (%s)" % (n, tail[0][:100]))
                     continue
@@ -207,15 +282,43 @@ def main(argv):
                            "themed path, because every delivered film has a design system and the un-themed "
                            "fallback is a mode none of them use" % (dna or "none")),
                 "_dna": dna,
+                "_fixture": {"registers": sorted(ev), "why": "these refuse to draw without a real artefact "
+                             "(runtime/evidence.ts); measured with a deterministic stand-in so the row "
+                             "describes the register rather than an empty box"},
                 "_floors": floors(),
                 # RECORDED, not just printed. A register that failed to render has no energy reading, and an
                 # absent row in a ranking reads as "fine" — the exact silent-improvement failure band_debt.py
                 # refuses. Keeping the names in the artifact makes the hole visible to whoever reads it next.
                 "_failed": sorted(failed),
                 "registers": dict(sorted(rows.items()))}
-        if not only:
-            json.dump(data, open(MANIFEST, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
-            print("[register_energy] wrote %s" % MANIFEST)
+        if only:
+            # MERGE a targeted re-measure into the record instead of dropping it. Refusing to write at all
+            # (the previous behaviour, itself a fix for --only OVERWRITING all 149 rows) made a partial sweep
+            # unable to correct the very rows it had just measured — so a register could be fixed, measured
+            # at 37%, and the manifest would keep reporting 0.6% forever.
+            try:
+                prev = json.load(open(MANIFEST, encoding="utf-8"))
+            except (OSError, ValueError):
+                prev = None
+            if prev and prev.get("_dna") != dna:
+                # A row's numbers only mean anything beside rows rendered the same way. Blending a
+                # product-DNA measurement into an editorial manifest would produce a table whose rows are
+                # not comparable, which is worse than no table.
+                print("[register_energy] REFUSING to merge: manifest was swept under dna=%r, this run used "
+                      "%r. Re-sweep in full, or pass --dna=%s." % (prev.get("_dna"), dna, prev.get("_dna")))
+                return 1
+            if prev:
+                merged = dict(prev["registers"]); merged.update(rows)
+                src = dict(prev.get("_source") or {})
+                src.update({n: h for n, h in hashes.items() if n in rows})
+                # a register that now renders is no longer a hole; one that now fails becomes one
+                keep = [f for f in (prev.get("_failed") or []) if f.split(" (")[0] not in names]
+                data["registers"] = dict(sorted(merged.items()))
+                data["_source"] = src
+                data["_failed"] = sorted(keep + failed)
+        json.dump(data, open(MANIFEST, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
+        print("[register_energy] wrote %s (%d rows%s)"
+              % (MANIFEST, len(data["registers"]), ", merged" if only else ""))
 
     regs = data["registers"]
     fl = data["_floors"]
