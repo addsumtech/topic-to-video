@@ -1157,6 +1157,28 @@ _ATOM_FORMS = {
 
 
 
+def _ground_followers():
+    """Registers a declared ground may be applied to, PARSED from GROUND_FOLLOWS_MEASURED in
+    remotion/src/runtime/shotLuma.ts (the allow list runtime/light.tsx consults; 103 of 152 registers).
+
+    The runtime already REFUSES a ground on a register that does not follow one — but it refuses mid-render,
+    minutes in, which is exactly the cost measure_ground_reach.py's own docstring says this check exists to
+    avoid. Same discipline as _ground_preset_names: parsed, and None when unreadable, so a validator reading
+    the wrong file says nothing rather than refusing a legal beat.
+    """
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    path = os.path.join(root, "remotion", "src", "runtime", "shotLuma.ts")
+    try:
+        src = open(path, encoding="utf-8").read()
+    except OSError:
+        return None
+    m = re.search(r"GROUND_FOLLOWS_MEASURED[^=]*=\s*(?:new Set\()?\[(.*?)\]", src, re.S)
+    if not m:
+        return None
+    names = set(re.findall(r"'([A-Za-z0-9_]+)'", m.group(1)))
+    return names or None
+
+
 def _ground_preset_names():
     """The named grounds, PARSED from remotion/src/runtime/light.tsx rather than restated here.
 
@@ -1210,6 +1232,7 @@ def _beat_grounds(slides, errors, warnings):
     `'ligth'` renders a film nobody asked for rather than failing. Catch it here, before the render.
     """
     presets = _ground_preset_names()
+    followers = _ground_followers()
     seen_ground = 0
     for s in slides:
         beat = int(s.get("index", 0)) + 1
@@ -1220,6 +1243,18 @@ def _beat_grounds(slides, errors, warnings):
         g = s.get("ground")
         if g is None:
             continue
+        # A ground on a register that does not FOLLOW one is refused by the runtime — but mid-render, so the
+        # author pays minutes to learn it. Caught here, it costs a second.
+        shot = s.get("shot")
+        if followers and shot and shot not in followers:
+            errors.append(
+                "remotion: beat %d declares a `ground` on %s, which does not follow one — under a declared "
+                "ground its own content keeps its luminance, so the frame would be part the ground you asked "
+                "for and part the register's own, and the burned caption would pick ink for the half that is "
+                "not there. Move the ground to a neighbouring beat whose register follows (103 of the "
+                "library do; the list is GROUND_FOLLOWS_MEASURED in remotion/src/runtime/shotLuma.ts), or "
+                "make %s paint from the DNA tokens and re-measure with "
+                "`python3 scripts/measure_ground_reach.py --emit`." % (beat, shot, shot))
         seen_ground += 1
         if isinstance(g, dict) and ("from" in g or "to" in g):
             for half in ("from", "to"):
@@ -1248,6 +1283,27 @@ def _beat_grounds(slides, errors, warnings):
         warnings.append("remotion: %d beat(s) of %d declare a `ground`. One bright passage is not a "
                         "luminance ARC — film_energy_qa measures how often the light moves, and a film that "
                         "re-grounds once will still read as unlit." % (seen_ground, len(slides)))
+    elif seen_ground == 0 and len(slides) >= 8:
+        # THE CASE THAT ACTUALLY SHIPS, and it used to pass in silence: the warning above began at `0 <`, so a
+        # film that never re-grounds AT ALL — every beat on one flat ground from first frame to last — was the
+        # one shape nothing mentioned. It is not a rare shape. Swept across the library, 142 of 152 registers
+        # measure under the delivery gate's light floor (median luma_range 0.016 against a floor of 0.135 and
+        # reference launch films at 0.27-0.90), because a register holds ONE ground by design: a film's light
+        # comes from moving BETWEEN beats, and nothing was moving.
+        #
+        # A WARNING, not an error. Where the light goes is a directorial decision — the automatic arc was
+        # built and deliberately withdrawn from the default path (light_plan.py --write refuses without
+        # --accept-risk). This says the decision was never made, which is different from making it and
+        # choosing to stay dark; a film that means to be monotone declares meta.energy_waiver with a reason.
+        warnings.append(
+            "remotion: no beat declares a `ground` — %d beats on ONE flat exposure, first frame to last. "
+            "A register holds one ground by design; a FILM's light comes from moving between them, and "
+            "film_energy_qa measures how often it moves. The vocabulary needs no setup: `ground: 0` is the "
+            "film's own ground, `1` its opposite key (dark film -> a lit frame), `2`+ one chromatic ground "
+            "per accent — or name one of %s. Put 3-6 beats somewhere else, on the beats where the ARGUMENT "
+            "turns (a payoff, a section break, a before/after), and say so in shot_adaptation. If the film "
+            "means to be monotone, declare meta.energy_waiver with a reason."
+            % (len(slides), "/".join(sorted(presets)) if presets else "the named presets"))
 
 
 def _idiom_world(meta, slides, errors, warnings):

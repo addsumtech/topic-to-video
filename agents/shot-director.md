@@ -323,6 +323,27 @@ back — commit registers that are memorable and unmistakably THIS film. For eac
    never type one from memory** (`imagefetch.attribution_line()` builds it): `validate.py` ERRORS on a beat
    showing an image whose sidecar author it does not credit, because a wrong CC-BY line credits someone else's
    photograph to a stranger.
+2. **Give the film somewhere for the LIGHT to go — `scene.ground`, on 3-6 beats.** A register holds ONE
+   ground by design; a film's light comes from moving BETWEEN beats, and if no beat re-grounds, the film runs
+   on one flat exposure from first frame to last. That is what ships today: swept across the library, 142 of
+   152 registers measure under the delivery gate's light floor (median luminance span 0.016 against a floor of
+   0.135, and reference launch films at 0.27-0.90). `validate.py` now warns when a film of 8+ beats declares
+   none, and again when it declares fewer than three (one bright passage is an exposure change, not an arc).
+   **The vocabulary needs no setup:** `ground: 0` is the film's own ground, `1` its opposite key (a dark film
+   gets a lit frame, and every register re-inks itself for it — type, dim and accent are all re-derived), and
+   `2`+ one chromatic ground per accent; or name a preset (`paper`, `gallery`, `clay`, `olive`), a `#hex`, or
+   an inline `{bg}`. A beat can also RAMP within itself — `ground: {from: 0, to: 1, at: [0.3, 0.7]}` — which
+   is the move for a before/after or a covered/uncovered beat, where the light and the argument become the
+   same fact. **Only a register that FOLLOWS a ground may carry one** — 103 of the 152 do (the allow list is
+   `GROUND_FOLLOWS_MEASURED` in `remotion/src/runtime/shotLuma.ts`); a register that paints its own fixed
+   luminance would leave the frame half your ground and half its own, so `validate.py` ERRORS on it by name
+   before the render rather than the runtime throwing minutes in. Move the ground to a neighbouring beat.
+   **Measured end to end** on a six-beat film: two ground declarations took its luminance span from 0.103
+   (under the delivery floor of 0.135) to 0.871 — the top of the reference launch films' 0.27-0.90 — with the
+   anti-gaming step axis going 0.0 -> 0.185, i.e. the light genuinely moves rather than one bright passage
+   inflating the range. **Move on the beats where the ARGUMENT turns** (a payoff, a section break, the reveal), never on
+   a schedule, and name the move in that beat's `shot_adaptation`. A film that genuinely means to stay
+   monotone declares `meta.energy_waiver` with a reason — silence is not a decision.
 2. **Vary the FAMILY across the film — never two ADJACENT beats from the same family.** This is what stops the
    film reading as one look. Spread across ≥6 families in a ≥10-beat film; feature the 3D register (MaterialHero)
    and one illustrated/craft style at most once or twice.
