@@ -34,6 +34,15 @@ export const KSpaceAnatomy: React.FC<{srcK?: string; srcLow?: string; srcHigh?: 
   const K = 400, kx = W * 0.09, ky = H * 0.30;                 // the k-space panel (left)
   const P = 300, px = W * 0.56, py1 = H * 0.28, py2 = H * 0.28 + P + 40; // two recon panels (right, stacked)
   const kcx = kx + K / 2, kcy = ky + K / 2;
+  // Each recon panel's annotation sits to its RIGHT — when the room for it exists. Decided by the room, not
+  // by naming aspects: a 1080-wide portrait frame leaves 156px where the labels need ~260, and the sweep
+  // caught 'center = contrast' 65px off the edge. With no side room the labels drop UNDER their panel,
+  // which a portrait frame has the height to afford.
+  const sideRoom = W - (px + P) - 24;
+  const under = sideRoom < 270;
+  const lx = () => (under ? px : px + P + 24);
+  const ly1 = (line: number) => (under ? py1 + P + 30 + line * 30 : py1 + 34 + line * 32);
+  const ly2 = (line: number) => (under ? py2 + P + 30 + line * 30 : py2 + 34 + line * 32);
 
   const panel = (x: number, y: number, s: number, src: string | undefined, ring: string, op: number) => (
     <div style={{position: 'absolute', left: x, top: y, width: s, height: s, borderRadius: 6, overflow: 'hidden',
@@ -66,10 +75,10 @@ export const KSpaceAnatomy: React.FC<{srcK?: string; srcLow?: string; srcHigh?: 
       {panel(px, py1, P, srcLow, `${accent}88`, 0.25 + 0.75 * pA)}
       {panel(px, py2, P, srcHigh, `${accent2}88`, 0.25 + 0.75 * pB)}
       <svg width={W} height={H} style={{position: 'absolute', left: 0, top: 0}}>
-        <text x={px + P + 24} y={py1 + 34} fill={accent} fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800} opacity={pA}>center = contrast</text>
-        <text x={px + P + 24} y={py1 + 66} fill="#9fb4cc" fontSize="19" fontFamily="var(--f-body, Inter, sans-serif)" opacity={pA}>low spatial frequency</text>
-        <text x={px + P + 24} y={py2 + 34} fill={accent2} fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800} opacity={pB}>edges = detail</text>
-        <text x={px + P + 24} y={py2 + 66} fill="#9fb4cc" fontSize="19" fontFamily="var(--f-body, Inter, sans-serif)" opacity={pB}>high spatial frequency</text>
+        <text x={lx()} y={ly1(0)} fill={accent} fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800} opacity={pA}>center = contrast</text>
+        <text x={lx()} y={ly1(1)} fill="#9fb4cc" fontSize="19" fontFamily="var(--f-body, Inter, sans-serif)" opacity={pA}>low spatial frequency</text>
+        <text x={lx()} y={ly2(0)} fill={accent2} fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800} opacity={pB}>edges = detail</text>
+        <text x={lx()} y={ly2(1)} fill="#9fb4cc" fontSize="19" fontFamily="var(--f-body, Inter, sans-serif)" opacity={pB}>high spatial frequency</text>
         <text x={kx} y={ky + K + 40} fill="#8aa" fontSize="19" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01(seg(t, 0.06, 0.3))}>one point = a wave across the whole image</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',

@@ -21,7 +21,7 @@ export const CircuitTrace: React.FC<{title?: string; chip?: string; nodes?: stri
   // satellite pads around the core, each with an L-shaped trace to the core
   const pads = NODES.slice(0, 6).map((label, i) => {
     const ang = (i / Math.max(1, NODES.length)) * Math.PI * 2 - Math.PI / 2;
-    const px = cx + Math.cos(ang) * 560, py = cy + Math.sin(ang) * 320;
+    const px = cx + Math.cos(ang) * Math.min(560, W / 2 - 130), py = cy + Math.sin(ang) * 320;
     return {label, px, py, i, ang};
   });
   const lpath = (x1: number, y1: number, x2: number, y2: number) => `M${x1} ${y1} L${x1} ${y2} L${x2} ${y2}`;

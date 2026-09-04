@@ -8,6 +8,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {lumValue} from '../runtime/shotLuma';
+import {bottomInset} from '../runtime/layout';
 
 export const DURATION = 145; // ~4.8s
 const PAPER = '#f2ecdd', PINK = '#ff5c8a', BLUE = '#2b52d6';
@@ -64,7 +65,7 @@ export const RisoPrint: React.FC<{title?: string; tagline?: string}> = ({
         </svg>
       ))}
 
-      <div style={{position: 'absolute', left: 0, right: 0, bottom: 210, textAlign: 'center', opacity: tagIn,
+      <div style={{position: 'absolute', left: 0, right: 0, bottom: bottomInset(W, H, 210), textAlign: 'center', opacity: tagIn,
         transform: `translateY(${(1 - tagIn) * 12}px)`, color: tagC,
         font: '700 34px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.22em', textTransform: 'uppercase'}}>{TAG}</div>
     </AbsoluteFill>

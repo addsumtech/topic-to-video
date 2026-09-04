@@ -39,7 +39,7 @@ export const BlockAssembly: React.FC<{title?: string; callout?: string; items?: 
           renderer burns the caption over — em-dash placeholders under a subtitle. The page yields as a PAGE,
           keeping every block's rhythm, instead of one row being nudged away from its table. */}
       <div style={{position: 'absolute', left: (W - 1120) / 2, top: 150, width: 1120,
-        transform: `scale(${Math.min(1, (contentBottom(W, H) - 150) / DOC_H)})`, transformOrigin: '50% 0'}}>
+        transform: `scale(${Math.min(1, (contentBottom(W, H) - 150) / DOC_H, (W * 0.94) / 1120)})`, transformOrigin: '50% 0'}}>
         <Block i={0} t={t}><div style={{font: '800 92px/1 var(--f-display, Inter,system-ui,sans-serif)', color: FG}}>{title}</div></Block>
         <Block i={1} t={t}><div style={{display: 'flex', flexDirection: 'column', gap: 16}}>{line('96%')}{line('88%')}{line('72%')}</div></Block>
         <Block i={2} t={t}>

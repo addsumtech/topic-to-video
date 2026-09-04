@@ -524,3 +524,21 @@ None of the above relaxes the floor. Before delivery: `validate.py` (structure/f
 the shot-critic (S1–S11). Meaning + frame-craft (S10), direction-adherence (S7), and design-system coverage
 (S11 — the Design DNA runs through EVERY frame, per §C2) are gates, not nice-to-haves. `validate.py` also warns
 when a themed film has no `design_dna`/preset or a scene has no `theme_cues`.
+
+## Width is a constraint, not a given
+
+Twenty-three registers cut type at 9:16 because a size was chosen for the text and the frame it was authored
+on. The rules that came out of fixing all of them:
+
+- **Fixed px is a bet on one frame.** Derive from `W` (and the content zone) or wrap in
+  `Math.min(authored, fitted)`. `layout.ts` has the primitives: `fitTextPx(text, W, base, {track})` for a
+  display line (CJK counts at full width; tracking counts), `bottomInset`/`bottomTextY` for closing lines,
+  `contentBottom`/`CONTENT_TOP` for the zone.
+- **Stack when the side room is gone, and decide by the ROOM, not by naming aspects**
+  (`const under = W - (panelRight + gap) < needed;`). A portrait frame is tall exactly where it is narrow.
+- **The face that renders is the DNA's font, not your fallback stack's** — never tune an advance to a face
+  the film will not ship.
+- **Scale a composed scene as a whole** (IsometricAssembly, BlockAssembly) rather than nudging one element
+  away from the group it belongs to — and MEASURE the scene's extent off a render before scaling; two
+  guessed extents cost real density before the ruler came out.
+

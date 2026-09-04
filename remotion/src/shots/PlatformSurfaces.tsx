@@ -8,7 +8,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {titleStyle} from '../runtime/layout';
+import {titleStyle, contentBottom} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 
@@ -61,7 +61,9 @@ export const PlatformSurfaces: React.FC<{
   const hx = portrait ? W * 0.06 : W * 0.06, hy = portrait ? H * 0.11 : H * 0.26;
   const hw = portrait ? W * 0.88 : W * 0.36, hh = portrait ? H * 0.2 : H * 0.5;
   const gx = portrait ? W * 0.06 : W * 0.47, gy = portrait ? hy + hh + H * 0.03 : H * 0.2;
-  const gw = portrait ? W * 0.88 : W * 0.47, gh = portrait ? H * 0.58 : H * 0.62;
+  const gw = portrait ? W * 0.88 : W * 0.47;
+  // as tall as the zone allows, never into the caption band ('browser agent' sat 39px inside it at 9:16)
+  const gh = Math.min(portrait ? H * 0.58 : H * 0.62, contentBottom(W, H) - gy);
   const cols = 2, rows = Math.ceil(tiles.length / cols), tgap = 22;
   const tw = (gw - tgap) / cols, th = (gh - tgap * (rows - 1)) / rows;
   const heroE = easeOutBack(clamp01(seg(t, 0.04, 0.3)));

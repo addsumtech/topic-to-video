@@ -67,6 +67,15 @@ export const Aliasing: React.FC<{src?: string; accent?: string; label?: string; 
   const dna = useDNA();
   const t = useT();
   const {S, left, top} = fitContentSquare(W, H, {hFrac: 0.85, wFrac: 0.4, bottomReserve: 44});  // leaves room for the wrap-around note below
+  // STACK when the side is too narrow, decided by the ROOM, not by naming aspects: the ghost annotation
+  // needs ~260px beside the plate, which a 1080-wide portrait frame does not have (it rode 196px off the
+  // edge). Portrait frames are tall where they are narrow, so the annotation goes UNDER the plate and the
+  // Nyquist note steps down to make room.
+  const sideRoom = W - (left + S) - 30;
+  const stacked = sideRoom < 270;
+  const gx = stacked ? left : left + S + 30;
+  const gy = stacked ? top + S + 40 : top + S * 0.28;
+  const noteY = stacked ? top + S + 118 : top + S + 34;
   const ghost = clamp01(seg(t, 0.2, 0.7));                   // the fold-over ghost grows as we undersample
 
   // ONE plate, drawn three times: the base and its two wrapped copies must be the same picture, or the
@@ -92,9 +101,9 @@ export const Aliasing: React.FC<{src?: string; accent?: string; label?: string; 
       </div>
       <svg width={W} height={H} style={{position: 'absolute'}}>
         <line x1={left} y1={top + S / 2} x2={left + S} y2={top + S / 2} stroke={accent} strokeWidth={1.4} strokeDasharray="5 6" opacity={ghost * 0.7} />
-        <text x={left + S + 30} y={top + S * 0.28} fill="#ff8ad0" fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700} opacity={ghost}>ghost:</text>
-        <text x={left + S + 30} y={top + S * 0.28 + 30} fill="#c9d6ea" fontSize="20" fontFamily="var(--f-body, Inter, sans-serif)" opacity={ghost}>a wrapped copy folds in</text>
-        <text x={left + S / 2} y={top + S + 34} textAnchor="middle" fill="#8aa" fontSize="19" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01(seg(t, 0.1, 0.4))}>undersample → Nyquist violated → wrap-around</text>
+        <text x={gx} y={gy} fill="#ff8ad0" fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700} opacity={ghost}>ghost:</text>
+        <text x={gx} y={gy + 30} fill="#c9d6ea" fontSize="20" fontFamily="var(--f-body, Inter, sans-serif)" opacity={ghost}>a wrapped copy folds in</text>
+        <text x={left + S / 2} y={noteY} textAnchor="middle" fill="#8aa" fontSize="19" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01(seg(t, 0.1, 0.4))}>undersample → Nyquist violated → wrap-around</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
         color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',

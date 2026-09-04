@@ -37,7 +37,11 @@ export const CompressedSensingEq: React.FC<{accent?: string; accent2?: string; l
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 44%, #0b1120, #05060a)')}}>
       {/* the equation */}
+      {/* the typeset line is ~1560px wide at full size (MEASURED off a scale(0.5) render — the first fix
+          used 1260 read off a mid-line glyph's overflow and still clipped the ε). Scaled to the frame, a
+          portrait width gets the same equation smaller instead of losing its norm bars off both edges. */}
       <div style={{position: 'absolute', left: 0, right: 0, top: eqY, textAlign: 'center', opacity: app,
+        transform: `scale(${Math.min(1, (W * 0.94) / 1600)})`, transformOrigin: '50% 50%',
         font: `400 92px/1.1 ${SERIF}`, color: '#eef4fb', letterSpacing: '0.01em'}}>
         {span('min', '#9fb4cc')}&nbsp;&nbsp;
         {span('‖', '#cfe0f2')}{span('Ψx', accent)}{span('‖', '#cfe0f2')}<span style={{fontSize: 44, verticalAlign: 'sub', color: '#cfe0f2'}}>1</span>

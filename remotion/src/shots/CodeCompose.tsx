@@ -44,7 +44,7 @@ export const CodeCompose: React.FC<{doneLabel?: string; filename?: string; lines
   const shown = Math.floor(total * clamp01(seg(t, 0.06, 0.66)));
 
   // window geometry
-  const winW = 1180, winH = 620, wx = (W - winW) / 2, wy = (H - winH) / 2 - 30;
+  const winW = Math.min(1180, Math.round(W * 0.94)), winH = 620, wx = (W - winW) / 2, wy = (H - winH) / 2 - 30;
   const gx = wx + 40, gy = wy + 118, textX = gx + 64;
 
   // per-line reveal (clean, single pass) + caret at the true typing head

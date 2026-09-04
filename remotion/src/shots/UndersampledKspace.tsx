@@ -26,6 +26,12 @@ export const UndersampledKspace: React.FC<{accent?: string; accent2?: string; la
   const dna = useDNA();
   const t = useT();
   const gx = W * 0.16, gw = W * 0.68, gy = H * 0.2, gh = H * 0.52;   // k-space grid box
+  // the acquired-lines counter sits to the grid's right when the room exists; on a narrow frame it steps
+  // UNDER the grid (the sweep caught '~4-8x undersampled' 135px off a portrait edge)
+  const cRoom = W - (gx + gw) - 40;
+  const cUnder = cRoom < 240;   // 16:9 leaves 267px and has always fit; 9:16 leaves 133 and never can
+  const cX = cUnder ? gx : gx + gw + 40;
+  const cY = (line: number) => (cUnder ? gy + gh + 64 + line * 46 : gy + gh * 0.42 + line * 46);
   const nLines = 42;
   const drop = clamp01(seg(t, 0.15, 0.75));                 // how far the removal has progressed
 
@@ -51,10 +57,10 @@ export const UndersampledKspace: React.FC<{accent?: string; accent2?: string; la
         {lines}
         <text x={gx - 14} y={gy - 26} fill="#9fb4cc" fontSize="22" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" letterSpacing="1">k-space · phase-encode lines</text>
         {/* live count of acquired lines */}
-        <text x={gx + gw + 40} y={gy + gh * 0.42} fill="#eaf6ff" fontSize="72" fontFamily="var(--f-display, Inter, sans-serif)" fontWeight={800}>
+        <text x={cX} y={cY(0)} fill="#eaf6ff" fontSize="72" fontFamily="var(--f-display, Inter, sans-serif)" fontWeight={800}>
           {shownAcq}<tspan fill={accent} fontSize="40">/{total}</tspan></text>
-        <text x={gx + gw + 44} y={gy + gh * 0.42 + 40} fill="#8aa" fontSize="22" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">lines acquired</text>
-        <text x={gx + gw + 44} y={gy + gh * 0.42 + 96} fill={accent2} fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700}>~4–8× undersampled</text>
+        <text x={cX + 4} y={cY(0) + 40} fill="#8aa" fontSize="22" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">lines acquired</text>
+        <text x={cX + 4} y={cY(0) + 96} fill={accent2} fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700}>~4–8× undersampled</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
         color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',

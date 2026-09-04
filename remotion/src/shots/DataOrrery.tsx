@@ -22,11 +22,14 @@ export const DataOrrery: React.FC<{items?: string[]; hub?: string}> = ({items, h
   const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2;
+  // the widest orbit is 800px of rx plus a ~90px label chip — scaled to the frame's half-width so the
+  // outer ring's node label cannot ride off a narrow edge
+  const rk = Math.min(1, (W / 2 - 110) / 800);
   const core = easeOutBack(seg(t, 0.02, 0.2));
 
   const nodeAt = (r: typeof RINGS[number]) => {
     const a = r.base + t * r.speed * Math.PI * 2;
-    return {x: cx + Math.cos(a) * r.rx, y: cy + Math.sin(a) * r.ry, front: Math.sin(a) >= 0};
+    return {x: cx + Math.cos(a) * (r.rx * rk), y: cy + Math.sin(a) * (r.ry * rk), front: Math.sin(a) >= 0};
   };
 
   return (
@@ -40,7 +43,7 @@ export const DataOrrery: React.FC<{items?: string[]; hub?: string}> = ({items, h
         {/* orbit rings (tilted ellipses) appear staggered */}
         {RINGS.map((r, i) => {
           const on = easeOutCubic(seg(t, 0.1 + i * 0.08, 0.34 + i * 0.08));
-          return <ellipse key={`e${i}`} cx={cx} cy={cy} rx={r.rx} ry={r.ry} fill="none" stroke={r.c} strokeWidth={1.6} strokeOpacity={0.28 * on} />;
+          return <ellipse key={`e${i}`} cx={cx} cy={cy} rx={r.rx * rk} ry={r.ry * rk} fill="none" stroke={r.c} strokeWidth={1.6} strokeOpacity={0.28 * on} />;
         })}
 
         {/* nodes BEHIND the core */}

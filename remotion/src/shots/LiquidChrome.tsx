@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic} from '../runtime/motion';
 import {useDNA, mix, tint, shade} from '../runtime/dna';
+import {fitTextPx} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
 export const LiquidChrome: React.FC<{word?: string; tagline?: string}> = ({
@@ -19,7 +20,7 @@ export const LiquidChrome: React.FC<{word?: string; tagline?: string}> = ({
   const sweep = lerp(-0.3, 1.3, (t * 0.9) % 1); // specular highlight x position 0..1
   const rise = easeOutExpo(seg(t, 0.05, 0.5));  // mercury rise-in
   const settle = easeOutCubic(seg(t, 0.05, 0.6));
-  const fontPx = 260;
+  const fontPx = fitTextPx(WORD, W, 260, {track: -0.02});   // width-fitted: fixed 260 lost ~95px per edge at 9:16
   const fontCss = `900 ${fontPx}px/1 var(--f-display, "Playfair Display", "Times New Roman", Georgia, serif)`;
 
   const Word: React.FC<{fill: string; opacity?: number; dx?: number; dy?: number}> = ({fill, opacity = 1, dx = 0, dy = 0}) => (

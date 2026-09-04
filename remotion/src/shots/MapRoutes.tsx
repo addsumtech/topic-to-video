@@ -22,9 +22,12 @@ export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: strin
   const SPOKE_ROOM = 44;                                     // the label that rides each spoke's end
   const hx = W / 2, hy = (zTop + zBot) / 2;
   const R = Math.min(460, (zBot - zTop) / 2 - SPOKE_ROOM);
+  // the spokes fan out on an ellipse 1.5R wide — cap that axis by the frame, or the east/west labels ride
+  // 176-190px off a portrait frame's edges
+  const Rx = Math.min(R * 1.5, W / 2 - 150);
   const pts = SPOKES.map((_, i) => {
     const a = (i / SPOKES.length) * Math.PI * 2 - Math.PI / 2;
-    return [hx + Math.cos(a) * R * 1.5, hy + Math.sin(a) * R] as [number, number];
+    return [hx + Math.cos(a) * Rx, hy + Math.sin(a) * R] as [number, number];
   });
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(130% 130% at 50% 45%, #0d2033, #060d16 72%)')}}>

@@ -22,7 +22,7 @@ export const AnswerStream: React.FC<{query?: string; answer?: string; sources?: 
   const qIn = easeOutCubic(seg(t, 0, 0.14));
   const chars = Math.floor(A.length * easeOutCubic(seg(t, 0.2, 0.78)));
   const streaming = t > 0.2 && t < 0.8;
-  const CW = 1300, X = (W - CW) / 2;
+  const CW = Math.min(1300, Math.round(W * 0.92)), X = (W - CW) / 2;   // the column yields to a narrow frame
   return (
     <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 18%, #14203a, ${BG} 62%)`, padding: 0}}>
       {/* query */}

@@ -25,7 +25,10 @@ export const FocalIsolation: React.FC<{focalLabel?: string; items?: string[]}> =
   // grid was centred in the frame, so the bottom row — 'The internet' among them — sat in the strip the
   // renderer burns the caption over. The row height yields; the gutters and the column rhythm do not.
   const zTop = CONTENT_TOP, zBot = contentBottom(W, H);
-  const cols = 3, cw = 380, gx = 90, gy = 90;
+  // the grid also yields to the WIDTH: three fixed 380px cells + gutters are 1320px, wider than a portrait
+  // frame is; two item labels were riding 51px and 13px off its edges
+  const cols = 3, gx = 90, gy = 90;
+  const cw = Math.min(380, Math.floor((W * 0.94 - (cols - 1) * gx) / cols));
   const ch = Math.min(220, ((zBot - zTop) - 2 * gy) / 3);
   const gridW = cols * cw + (cols - 1) * gx, gridH = 3 * ch + 2 * gy;
   const ox = (W - gridW) / 2, oy = zTop + ((zBot - zTop) - gridH) / 2;

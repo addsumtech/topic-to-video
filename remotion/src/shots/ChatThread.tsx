@@ -43,7 +43,8 @@ export const ChatThread: React.FC<{messages?: Msg[]}> = ({messages: MSGS = DEFAU
   const nextWb = MSGS.find((m) => m.side === 'wb' && t > m.at - 0.12 && t < m.at);
   return (
     <AbsoluteFill style={{background: BG}}>
-      <div style={{position: 'absolute', left: (W - 1500) / 2, top: 170, width: 1500}}>
+      <div style={{position: 'absolute', left: (W - Math.min(1500, W * 0.94)) / 2, top: 170,
+        width: Math.min(1500, W * 0.94)}}>
         {MSGS.map((m, i) => (t > m.at - 0.02 ? <Bubble key={i} m={m} t={t} /> : null))}
         {nextWb && (
           <div style={{display: 'flex', alignItems: 'center', gap: 22, marginBottom: 34}}>

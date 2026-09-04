@@ -44,7 +44,10 @@ export const CardFlip3D: React.FC<{items?: Item[]; title?: string; backLabel?: s
   const dispFace = dna?.fontDisplay ?? 'Inter, system-ui, sans-serif';
   const cards = ITEMS.slice(0, 4);
   const n = cards.length;
-  const cw = 440, ch = 430, gap = 56;   // ch 560 -> 430: a single short line left ~70% of the card void
+  const gap = 56;
+  // the card yields to the frame: three fixed 440s + gaps are 1432px, wider than a portrait frame
+  const cw = Math.min(440, Math.floor((W * 0.94 - (cards.length - 1) * gap) / Math.max(1, cards.length)));
+  const ch = Math.round(cw * (430 / 440));   // ch 560 -> 430: a single short line left ~70% of the card void
   // Fit the real string in the real face inside the card, up to two lines, capped at the register's 64px.
   // A fixed 64 broke a Chinese label mid-word here ("...不会失/败"); short Latin copy still hits the cap
   // and renders exactly as before. validateFontIsLoaded so a measurement taken before the faces load

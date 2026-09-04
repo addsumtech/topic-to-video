@@ -107,7 +107,11 @@ export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: strin
       </div>
       {[
         {x: cx, y: my + mh + 70, txt: spec1, anchor: 'center'},
-        {x: mx + mw + 76, y: cy, txt: spec2, anchor: 'left'},
+        // beside the machine when the room exists; under it (second line, below spec1) when it does not —
+        // '0 cloud calls' rode 68px off a portrait frame's edge
+        (W - (mx + mw + 76) > 240
+          ? {x: mx + mw + 76, y: cy, txt: spec2, anchor: 'left'}
+          : {x: cx, y: my + mh + 112, txt: spec2, anchor: 'center'}),
         // Was the literal x:960 y:540 — the centre of a 1920x1080 frame, printed beside the subject as
         // though it measured it. It measured nothing, it was wrong at any other resolution, and it
         // appeared on every film that reached for this register. A readout is real or it is absent.

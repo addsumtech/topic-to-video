@@ -97,6 +97,33 @@ export const bottomInset = (W: number, H: number, wanted = 0) =>
 export const bottomTextY = (W: number, H: number) =>
   contentBottom(W, H) - Math.round(Math.min(W, H) * 0.012);
 
+/**
+ * The largest font size at which `text` fits the frame's WIDTH — the missing constraint behind most of the
+ * portrait findings.
+ *
+ * A display title sized `900 210px` fits 'WORKBUDDY' at 1920 wide and loses 107px off EACH edge at 1080,
+ * because the size was chosen for the text and the frame it was authored on, and nothing related it to the
+ * width it actually ships at. Swept at 9:16, twenty-three registers were cutting type this way.
+ *
+ * Estimated, not measured — a DOM measure cannot run at style-computation time — so the advance is a
+ * deliberate overestimate (better a hair small than clipped), and CJK counts at full width: geometry that
+ * assumes Latin advances is how a Chinese deck once measured 46% short (the slide-maker's CJK bug, re-learned
+ * here on purpose). Tracking is part of width: a 0.42em-tracked tagline is half tracking by length.
+ */
+export const fitTextPx = (
+  text: string, W: number, base: number,
+  opts: {usable?: number; adv?: number; track?: number} = {},
+): number => {
+  // The DEFAULT advance is deliberately generous, and callers should rarely lower it: the face that
+  // actually renders is the DNA's display font, not whatever the register's fallback stack names — a call
+  // tuned to condensed Antonio (0.52) shipped Space Grotesk and still clipped 85px per edge.
+  const {usable = 0.9, adv = 0.72, track = 0} = opts;
+  const chars = [...String(text || ' ')];
+  const wLen = chars.reduce(
+    (n, ch) => n + (/[\u2e80-\u9fff\uf900-\ufaff\uff01-\uff60\u3000-\u303f]/.test(ch) ? 1.05 : adv) + track, 0);
+  return Math.max(12, Math.min(base, Math.floor((W * usable) / Math.max(0.1, wLen))));
+};
+
 // The largest camera push that CANNOT drive a shot's lowest content into the caption band.
 //
 // A scene camera scales the shot about the centre of the content zone, so the zone's bottom edge travels

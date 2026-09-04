@@ -38,7 +38,7 @@ export const CursorStory: React.FC<{items?: string[]; doneLabel?: string; doneNo
   return (
     <AbsoluteFill style={{background: `radial-gradient(120% 100% at 40% 20%, #161b26, ${BG} 60%)`}}>
       {/* the list UI */}
-      <div style={{position: 'absolute', left: LX, top: LY, width: 900, opacity: paletteOn ? 0.35 : 1, transition: 'none'}}>
+      <div style={{position: 'absolute', left: LX, top: LY, width: Math.min(900, W - LX - 40), opacity: paletteOn ? 0.35 : 1, transition: 'none'}}>
         {ROWS.map((r, i) => (
           <div key={i} style={{display: 'flex', alignItems: 'center', gap: 22, padding: '26px 30px', borderRadius: 12,
             marginBottom: 12, background: i === hi ? `${RED}1c` : '#141922', border: `1px solid ${i === hi ? RED : '#1e2531'}`}}>
@@ -50,7 +50,7 @@ export const CursorStory: React.FC<{items?: string[]; doneLabel?: string; doneNo
       </div>
       {/* command palette that jump-cuts in */}
       {paletteOn && (
-        <div style={{position: 'absolute', left: W / 2 - 460, top: 300, width: 920, background: 'rgba(20,24,32,.96)',
+        <div style={{position: 'absolute', left: W / 2 - Math.min(460, W * 0.44), top: 300, width: Math.min(920, W * 0.88), background: 'rgba(20,24,32,.96)',
           border: `1px solid ${RED}55`, borderRadius: 18, boxShadow: '0 40px 100px rgba(0,0,0,.6)', padding: '30px 36px'}}>
           <div style={{font: '500 42px/1 var(--f-body, Inter)', color: '#eef2f8'}}>{CMD}{'\u258d'}</div>
         </div>

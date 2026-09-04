@@ -19,7 +19,11 @@ export const SplitFlap: React.FC<{kicker?: string; rows?: string[]}> = ({
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
   const COLS = Math.max(...ROWS.map((r) => r.length));
-  const tw = 150, th = 178, gap = 14;
+  // The tile yields to the frame: at 150px fixed, a nine-column board is 1462px wide — fine at 1920, and
+  // 191px of letters off each edge of a 1080-wide portrait frame. Everything on the tile scales with it.
+  const tw = Math.min(150, Math.floor((W * 0.92 - (COLS - 1) * 14) / COLS));
+  const th = Math.round(tw * (178 / 150)), gap = 14;
+  const glyphPx = Math.round(tw * (108 / 150));
   const boardW = COLS * tw + (COLS - 1) * gap;
   const x0 = (W - boardW) / 2, y0 = (H - (ROWS.length * th + (ROWS.length - 1) * gap)) / 2;
 
@@ -42,7 +46,7 @@ export const SplitFlap: React.FC<{kicker?: string; rows?: string[]}> = ({
           {/* hairline split */}
           <div style={{position: 'absolute', left: 0, right: 0, top: '50%', height: 2, background: '#000', opacity: 0.7}} />
           <div style={{position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            font: '800 108px/1 var(--f-display, "Anton", Impact, sans-serif)', color: settled ? '#ffcf4a' : '#c9a24a',
+            font: `800 ${glyphPx}px/1 var(--f-display, "Anton", Impact, sans-serif)`, color: settled ? '#ffcf4a' : '#c9a24a',
             opacity: settled ? 1 : 0.86, transform: `translateY(${(1 - justLanded) * 0}px)`,
             textShadow: settled ? '0 0 18px #ffcf4a55' : 'none'}}>{shown === ' ' ? '' : shown}</div>
         </div>

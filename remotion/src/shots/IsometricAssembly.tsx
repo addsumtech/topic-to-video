@@ -55,7 +55,8 @@ export const IsometricAssembly: React.FC<{items?: [string, string, string]}> = (
   const SCENE_TOP_OFF = 16;                                  // ink begins this far BELOW the belt origin
   const SCENE_DROP = 683;                                    // ink ends this far below it
   const oy = zTop - SCENE_TOP_OFF;
-  const k = Math.min(1, (zBot - zTop) / (SCENE_DROP - SCENE_TOP_OFF));
+  const SCENE_HALF_W = 900;                                  // measured: max |iso x - ox| incl. the pad labels
+  const k = Math.min(1, (zBot - zTop) / (SCENE_DROP - SCENE_TOP_OFF), (W * 0.95) / (2 * SCENE_HALF_W));
   // three parts flow through, staggered; a part is HIDDEN while inside the machine, and emerges COLOURED.
   const parts = [0, 1, 2].map((i) => {
     const p = clamp01((t - 0.06 - i * 0.26) / 0.8);

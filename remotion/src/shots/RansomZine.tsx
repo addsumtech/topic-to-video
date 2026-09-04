@@ -25,12 +25,18 @@ export const RansomZine: React.FC<{word?: string; tagline?: string}> = ({
   const {width: W, height: H} = useVideoConfig();
   const letters = WORD.split('');
   const n = letters.length;
-  const totalW = letters.reduce((s, ch) => s + (ch === ' ' ? 60 : 150), 0);
+  // The scrap yields to the frame: at a fixed 150 a ten-letter word is 1500px of paper — fine at 1920, and
+  // 135px of letters off each edge at 1080-wide portrait. Everything on the scrap scales with it.
+  const scrapW = Math.min(150, Math.floor((W * 0.94) / Math.max(1, letters.reduce(
+    (c, ch) => c + (ch === ' ' ? 0.4 : 1), 0))));
+  const spaceW = Math.round(scrapW * 0.4);
+  const scrapK = scrapW / 150;
+  const totalW = letters.reduce((s, ch) => s + (ch === ' ' ? spaceW : scrapW), 0);
   let cx = (W - totalW) / 2;
   const tagIn = easeOutCubic(seg(t, 0.66, 0.86));
   const marker = easeOutCubic(seg(t, 0.6, 0.86));
   const scraps = letters.map((ch, i) => {
-    const w = ch === ' ' ? 60 : 150;
+    const w = ch === ' ' ? spaceW : scrapW;
     const x = cx; cx += w;
     return {ch, x, w, i};
   });
@@ -52,9 +58,9 @@ export const RansomZine: React.FC<{word?: string; tagline?: string}> = ({
         const paper = SCRAPS[Math.floor(hash01(s.i * 3.1) * SCRAPS.length)];
         const ink = INKS[SCRAPS.indexOf(paper)] ?? '#151515';
         const font = FONTS[Math.floor(hash01(s.i * 5.9) * FONTS.length)];
-        const sz = 108 + Math.floor(hash01(s.i * 2.2) * 26);
+        const sz = Math.round((108 + Math.floor(hash01(s.i * 2.2) * 26)) * scrapK);
         return (
-          <div key={s.i} style={{position: 'absolute', left: s.x + 14, top: H / 2 - 90, width: s.w - 20, height: 180,
+          <div key={s.i} style={{position: 'absolute', left: s.x + Math.round(14 * scrapK), top: H / 2 - Math.round(90 * scrapK), width: s.w - Math.round(20 * scrapK), height: Math.round(180 * scrapK),
             opacity: clamp01(drop * 1.5), transform: `translateY(${(1 - drop) * -140}px) rotate(${rot * drop}deg)`,
             transformOrigin: 'center', background: paper, boxShadow: '0 14px 26px #00000055',
             display: 'flex', alignItems: 'center', justifyContent: 'center'}}>

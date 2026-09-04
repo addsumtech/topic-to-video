@@ -18,8 +18,10 @@ export const ExplodedSchematic: React.FC<{caption?: string; items?: string[]}> =
   const {width: W, height: H} = useVideoConfig();
   const ex = easeInOutCubic(seg(t, 0.14, 0.62)); // explode progress
   const cy = H / 2 - 40, bw = 260, bh = 200;
-  const spread = 340; // final gap between part centres
   const n = STAGES.length, mid = (n - 1) / 2;
+  // the OUTERMOST part centre sits mid*spread from centre and carries a 260px box — solve for the spread
+  // that keeps that box (plus its 20px of caption slack) inside the frame, whatever the part count
+  const spread = Math.min(340, (W * 0.47 - bw / 2 - 20) / Math.max(1, mid)); // final gap between part centres
   return (
     <AbsoluteFill style={{background: `radial-gradient(130% 130% at 50% 40%, #0d2236, ${NAVY} 70%)`}}>
       {/* faint blueprint grid */}
