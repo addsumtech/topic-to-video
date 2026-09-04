@@ -27,6 +27,7 @@ import {REGISTRY} from './registry';
 import {TextSafeAudit} from './runtime/textSafe';
 import {CAPTIONS} from './captions';
 import {FilmMotifLayer} from './runtime/motif';
+import {FilmFinishLayer} from './runtime/finish';
 
 // The scene EDL. `bgLum` is the first of the shot-director-emitted continuity fields (an explicit ground-
 // luminance override; falls back to the measured shotLuma map). Future phases grow this schema (accent,
@@ -617,6 +618,10 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
       {/* the film's MATERIAL — above the shots (each paints its own opaque ground) and below the caption,
           so it never competes with the words the viewer is reading */}
       <FilmMotifLayer motif={activeDna?.motif as any} dna={activeDna} W={width} H={height} />
+      {/* the film's OPTICS — grain, corner falloff, a key direction — above the material, below the caption:
+          grain over burned type reads as compression, and the caption's contrast maths assume the ground it
+          measured. Static by construction (runtime/finish.tsx), so nothing here can pump or drift. */}
+      <FilmFinishLayer dna={activeDna} />
       <AbsoluteFill style={{backgroundColor: veilBg, opacity: Math.max(intro, outro), pointerEvents: 'none'}} />
       {captions ? <CaptionTrack scenes={scenes} groundBg={theme?.bg ?? activeDna?.bg} dna={activeDna} dnaFontBody={activeDna?.fontBody} dnaUniform={activeDna?.uniformType} reduced={reducedMotion} /> : null}
       <BrandMark brand={brand} />

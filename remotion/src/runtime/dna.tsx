@@ -90,6 +90,13 @@ export type DesignDNA = {
   // film shipped with all 34 of its cuts identical and belonging to nobody's design language.
   // Vocabulary: 'wipe' | 'slide' | 'clock' | 'dissolve' | 'screen-clear' | 'fade' (fade = deliberately plain).
   seam?: {type?: string; direction?: string};
+  /**
+   * The film's photographic finish (grain / vignette / key direction) — see runtime/finish.tsx. Preset-tuned,
+   * with a mild default on NEUTRAL so every AUTHORED partial DNA inherits one through coerceDna's spread; a
+   * film opts out with `'none'`. Only the UN-THEMED path has none at all — optics are part of a design
+   * system's voice, and the null-DNA rule keeps machinery out of the original look.
+   */
+  finish?: import('./finish').FilmFinish | 'none';
   // THE FILM'S GROUNDS. A film had exactly one, and it was near-black in all eight presets (the brightest,
   // editorial, is Y=0.0053), so a 30-beat film painted one identical ground thirty times: measured library
   // luminance range 0.013 against Figma's 0.903. A beat names one of these by index and the whole frame
@@ -126,6 +133,7 @@ export const TERMINAL_DNA: DesignDNA = {
   labelSpacing: '0.02em',
   uniformType: true,   // terminal = all-mono
   atoms: {bar: 'block', figure: 'mono', list: 'tree', label: 'prompt', divider: 'scanline', marker: 'caret'},
+  finish: {grain: 0.04, vignette: 0.3, light: 'none'},   // a CRT: strong edge falloff, no key — the tube IS the light
 };
 
 // NEUTRAL — approximates the library's CURRENT common look (dark, Inter display, mono code, blue accent, soft
@@ -151,6 +159,11 @@ export const NEUTRAL_DNA: DesignDNA = {
   decoration: [],
   uppercaseLabels: false,
   labelSpacing: '0',
+  // The MILD default optics — and, because coerceDna spreads every authored PARTIAL DNA over this preset,
+  // the finish every real film inherits unless it says otherwise. That routing is the point: the
+  // shot-director writes meta.design_dna as an OBJECT, so a finish that lived only on the named presets
+  // would ship on preset-string films (mostly tests) and never on an actual delivery.
+  finish: {grain: 0.04, vignette: 0.18, light: 'top'},
 };
 
 // The following are TOKEN presets so `dnaFromTemplate` generalises past terminal — they give any topic ONE
@@ -171,6 +184,7 @@ export const EDITORIAL_DNA: DesignDNA = {
   surface: '#181512', surfaceBorder: '#33291f', line: '#2a2018',
   radius: 2, borderWidth: 1, motion: 'smooth', decoration: ['grid'], uppercaseLabels: true, labelSpacing: '0.18em',
   atoms: {bar: 'ruled', figure: 'serif', list: 'ruled', label: 'kicker', divider: 'hairline', marker: 'triangle'},
+  finish: {grain: 0.07, vignette: 0.2, light: 'top'},    // paper tooth + a reading lamp from above
 };
 // PRODUCT — a clean Apple-like keynote world: geometric sans, near-black or soft-light ground, rounded glass
 // panels, soft shadows, ONE vivid accent, gentle scale/parallax reveals.
@@ -184,6 +198,7 @@ export const PRODUCT_DNA: DesignDNA = {
   surface: '#12141c', surfaceBorder: '#262b3a', line: '#20242f',
   radius: 22, borderWidth: 1, motion: 'smooth', decoration: [], uppercaseLabels: false, labelSpacing: '0',
   atoms: {bar: 'solid', figure: 'display', list: 'bullet', label: 'chip', divider: 'hairline', marker: 'triangle'},
+  finish: {grain: 0.05, vignette: 0.24, light: 'top'},   // keynote stage light: soft key, gentle falloff
 };
 // BLUEPRINT — an engineering-drawing world: mono/geometric type, deep blueprint-blue ground, thin cyan rules +
 // crop-marks + dimension lines + a measured grid, precise draw-on reveals.
@@ -197,6 +212,7 @@ export const BLUEPRINT_DNA: DesignDNA = {
   surface: '#0a1622', surfaceBorder: '#1d3a52', line: '#123048',
   radius: 3, borderWidth: 1, motion: 'mechanical', decoration: ['grid', 'line-numbers'], uppercaseLabels: true, labelSpacing: '0.12em',
   atoms: {bar: 'dimension', figure: 'mono', list: 'numbered', label: 'spec', divider: 'dimension', marker: 'crosshair'},
+  finish: {grain: 0.04, vignette: 0.16, light: 'top'},   // a drawing board under an even lamp — barely lit, mostly flat
 };
 
 // CINEMATIC — an atmospheric, tactile film world: a serif/grotesk display over near-black, warm practical light,
@@ -211,6 +227,7 @@ export const CINEMATIC_DNA: DesignDNA = {
   surface: '#141014', surfaceBorder: '#2c2320', line: '#241d1d',
   radius: 10, borderWidth: 1, motion: 'smooth', decoration: [], uppercaseLabels: false, labelSpacing: '0.06em',
   atoms: {bar: 'solid', figure: 'serif', list: 'bullet', label: 'kicker', divider: 'hairline', marker: 'triangle'},
+  finish: {grain: 0.08, vignette: 0.34, light: 'top'},   // the most photographic system: real tooth, deep falloff
 };
 // DATA — an evidence-forward analyst world: tabular-friendly sans + mono figures, deep slate ground, a measured
 // grid, one signal colour + a comparison colour, precise mechanical reveals. (direction: data-story)
@@ -224,6 +241,7 @@ export const DATA_DNA: DesignDNA = {
   surface: '#111823', surfaceBorder: '#22303f', line: '#1a2431',
   radius: 8, borderWidth: 1, motion: 'mechanical', decoration: ['grid'], uppercaseLabels: true, labelSpacing: '0.1em',
   atoms: {bar: 'ruled', figure: 'mono', list: 'numbered', label: 'spec', divider: 'hairline', marker: 'crosshair'},
+  finish: {grain: 0.03, vignette: 0.14, light: 'none'},  // evidence wants the flattest field that still reads as printed
 };
 // RETRO — a nostalgic arcade/print world: chunky display face, deep plum ground, hot magenta + cyan, snappy
 // stepped motion and scanline furniture. (direction: retro-playful)
@@ -237,6 +255,7 @@ export const RETRO_DNA: DesignDNA = {
   surface: '#1e1030', surfaceBorder: '#40215f', line: '#2c1745',
   radius: 6, borderWidth: 2, motion: 'mechanical', decoration: ['scanline'], uppercaseLabels: true, labelSpacing: '0.14em',
   atoms: {bar: 'pixel', figure: 'segment', list: 'bullet', label: 'chip', divider: 'dotted', marker: 'arrow'},
+  finish: {grain: 0.06, vignette: 0.3, light: 'none'},   // an arcade cabinet: tube falloff, phosphor grain, no key
 };
 
 export const DNA_PRESETS: Record<string, DesignDNA> = {
