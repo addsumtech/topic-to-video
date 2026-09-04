@@ -5,7 +5,7 @@
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
-import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack, hash01} from '../runtime/motion';
+import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack, hash01, life} from '../runtime/motion';
 import {useDNA, dnaPalette} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 
@@ -18,7 +18,7 @@ export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string}> = ({
   const dna = useDNA();
   const NODE_PALETTE = dnaPalette(dna, 7) ?? NODE_PALETTE0;
   const NODES = items.map((label, i) => ({label, c: NODE_PALETTE[i % NODE_PALETTE.length]}));
-  const {width: W, height: H} = useVideoConfig();
+  const {width: W, height: H, durationInFrames, fps} = useVideoConfig();
   // Centred on the CONTENT ZONE, not the frame, and scaled to it. Centred on H/2 with a fixed radius the
   // lowest node landed inside the strip the renderer burns the caption over, so a node label and a subtitle
   // drew on top of each other. Deriving both from the zone also makes the layout right at aspects the fixed
@@ -31,11 +31,20 @@ export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string}> = ({
   // inside the band — close enough to look fixed and not be.
   const NODE_ROOM = 34 + (24 + 5 * 2 + 2) + 8;
   const rScale = Math.min(1, ((zBot - zTop) / 2 - NODE_ROOM) / 430);
-  const drift = t * 0.18; // whole-graph slow rotate
+  // A LIVING SYSTEM KEEPS TURNING. At 0.18 rad across the whole clip this was ten degrees in five seconds —
+  // a rotation nobody can see, so the register measured 0.0005 frame difference and read as a still diagram.
+  // Rotation is not translation, so it stays invisible to scripts/shake_qa.py; and one revolution takes
+  // ~35s, far slower than anything that could read as a wobble.
+  const drift = t * 0.9;    // whole-graph slow rotate
   const pos = (i: number) => {
     const a = (i / NODES.length) * Math.PI * 2 - Math.PI / 2 + drift + (hash01(i) - 0.5) * 0.12;
     const R = (360 + hash01(i * 2) * 70) * rScale;
-    const bob = Math.sin(t * Math.PI * 2 + i) * 8;
+    // Each node breathes on its OWN period, so the constellation lives rather than turning as one rigid
+    // wheel — periods seconds apart, an order of magnitude below anything that reads as vibration. The
+    // AMPLITUDE is the authored 8px, unchanged: the diagnosed defect was a rotation nobody could see, and
+    // enlarging an amplitude nobody complained about is exactly the unjustified step by which "living"
+    // becomes "wobbling". A first pass raised it to 13px for no reason and it was put back.
+    const bob = (life(t, durationInFrames, fps, 5 + (i % 4) * 1.3, i * 0.19) - 0.5) * 16;
     return {x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R + bob};
   };
 

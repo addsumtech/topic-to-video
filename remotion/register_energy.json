@@ -9,7 +9,7 @@
     "AtomOrbital": "0ca96b9c5c3eae7d",
     "AuroraFlow": "76c112e5c39d1bdd",
     "BeforeAfterSlider": "25a8e9d6daf2ab52",
-    "BentoReveal": "796c85c510cc21bc",
+    "BentoReveal": "4d8651c59f097366",
     "BlockAssembly": "bdff041cf5338a6e",
     "BlueprintGrid": "fb50d9a1296ba934",
     "BokehPull": "c98e3200533ca056",
@@ -74,7 +74,7 @@
     "KSpaceToImage": "2c1042519541a276",
     "KaleidoMandala": "58f62c6a55ef1473",
     "KineticManifesto": "7802773cc01bbe40",
-    "KnowledgeGraph": "687186d0c83628e8",
+    "KnowledgeGraph": "1df8c6b2ecb53644",
     "LarmorPrecession": "24cf69297ad90160",
     "LastLeg": "e9595e3b5784a0e1",
     "LightTrails": "b1051547d26404c6",
@@ -684,11 +684,11 @@
       "footprint": 0.0
     },
     "KnowledgeGraph": {
-      "motion_p75": 0.0006,
-      "ink_median": 0.019,
+      "motion_p75": 0.0014,
+      "ink_median": 0.02,
       "luma_range": 0.007,
       "seconds": 5.5,
-      "footprint": 0.17
+      "footprint": 0.165
     },
     "LarmorPrecession": {
       "motion_p75": 0.002,

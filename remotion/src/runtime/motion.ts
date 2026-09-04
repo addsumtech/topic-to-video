@@ -91,3 +91,47 @@ export function hash01(seed: number): number {
   const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
   return x - Math.floor(x);
 }
+
+// ── CONTINUING LIFE ───────────────────────────────────────────────────────────────────────────────────
+//
+// WHAT THIS IS FOR. Frame difference measured by quarter of each register's own clip says the motion
+// deficit is not the camera and not the reveal — it is the HOLD. CinematicTitle runs 0.0015 -> 0.0009 ->
+// 0.0001 -> 0.0000; BentoReveal 0.0061 -> 0.0006 -> 0.0005 -> 0.0002. Most registers finish their argument
+// in the first half of the clip and then show a STILL PHOTOGRAPH for the rest, while the narration keeps
+// going. MorphForms, the one register that clears the delivery floor comfortably, is the one that never
+// stops developing. A frozen frame is a screenshot; this tier is supposed to be film.
+//
+// WHAT IT IS NOT. It is not a drift applied to every register to raise a number — that would be movement
+// that means nothing, which this repo's own design rule forbids ("hide the caption: does the frame still
+// carry THIS idea?"). It is a primitive for a register to keep doing the thing it already does: a dashboard
+// whose gauges keep reading, a graph whose nodes keep orbiting, a counter that keeps counting.
+//
+// WHY IT CANNOT SHAKE, STRUCTURALLY. `life()` is a slow, continuous phase — one cycle over SECONDS — meant
+// to drive a property of CONTENT, never a transform of the whole frame. Two guarantees follow. Global: the
+// frame does not translate, so scripts/shake_qa.py (which measures global translation) is blind to it by
+// construction, and no amount of it can trip that gate. Local: within any half-second window a cycle this
+// slow is monotone, so even applied to a whole-frame transform it would read as travel, not vibration —
+// the ratio that separates the two would still say "travelling". The period floor is enforced, not
+// documented: `life()` THROWS below MIN_LIFE_PERIOD_S rather than letting a caller tune its way into a
+// vibration.
+export const MIN_LIFE_PERIOD_S = 3;
+
+/**
+ * A continuous 0→1→0 phase for a register's settled state, at `periodS` seconds per cycle.
+ *
+ * @param t        the shot's normalized time from useT()
+ * @param durF     the shot's duration in frames (useVideoConfig().durationInFrames)
+ * @param fps      frames per second
+ * @param periodS  seconds per full cycle — at least MIN_LIFE_PERIOD_S
+ * @param phase    0..1 offset, so several elements can live out of step with each other
+ */
+export function life(t: number, durF: number, fps: number, periodS = 6, phase = 0): number {
+  if (!(periodS >= MIN_LIFE_PERIOD_S)) {
+    throw new Error(
+      `life() period ${periodS}s is below MIN_LIFE_PERIOD_S (${MIN_LIFE_PERIOD_S}s). Faster than this stops ` +
+      'reading as a thing continuing to happen and starts reading as a wobble, which is the defect this ' +
+      'tier has shipped before. Drive more elements, or a larger amplitude, rather than a shorter period.');
+  }
+  const seconds = t * (durF / Math.max(1, fps));
+  return 0.5 - 0.5 * Math.cos((2 * Math.PI * (seconds / periodS + phase)));
+}

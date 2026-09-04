@@ -183,6 +183,44 @@ def measure(path):
     }
 
 
+def flicker(path, fps=SAMPLE_FPS, long_side=320, noise=0.012):
+    """LOCAL jitter: per pixel, how often does the intensity REVERSE direction?
+
+    `measure()` above is about the camera and says so — content moving inside a still frame is invisible to
+    it by design. A reader is then entitled to ask what checks THAT, because "the frame does not translate"
+    is not the same claim as "nothing on it feels jittery". This is the other half: a slow breathe is a
+    smooth ramp and reverses almost never; a vibration flips sign several times a second everywhere it
+    touches.
+
+    A DIAGNOSTIC, NOT A GATE, and the reason is in the numbers. Measured on the same controls as `measure`:
+    a locked film runs 2.5% of moving pixels above 3Hz, 1px jitter runs 30.7%, 3px jitter 38.6% — but a beat
+    whose cells are still SNAPPING IN legitimately runs 21%, because a fast reveal is high-frequency by
+    nature and is exactly right. The classes overlap, so there is no threshold here that would not either
+    pass real jitter or refuse a real reveal. What it is good for is BEFORE and AFTER on the same beat: it
+    is how the `life()` changes were cleared (KnowledgeGraph 9.2% -> 9.6%, BentoReveal 20.7% -> 21.3%, i.e.
+    unchanged), and it is how the next one should be.
+    """
+    try:
+        import numpy as np
+    except ImportError:
+        return None
+    F = _frames(path, fps=fps, long_side=long_side)
+    if F is None:
+        return None
+    d = np.diff(F, axis=0)
+    live = np.abs(d) > noise                      # only where the pixel is actually changing
+    sgn = np.sign(d)
+    flips = (sgn[1:] * sgn[:-1] < 0) & live[1:] & live[:-1]
+    moving = live[1:].sum(axis=0)
+    rate = np.where(moving > 4, flips.sum(axis=0) / np.maximum(moving, 1) * fps, np.nan)
+    vals = rate[~np.isnan(rate)]
+    if vals.size == 0:
+        return {"pixels": 0, "p50": None, "p95": None, "over_3hz": None}
+    return {"pixels": int(vals.size), "p50": round(float(np.percentile(vals, 50)), 2),
+            "p95": round(float(np.percentile(vals, 95)), 2),
+            "over_3hz": round(float((vals > 3).mean()), 3)}
+
+
 def main(argv):
     if not argv:
         print(__doc__.strip().splitlines()[0])
@@ -211,6 +249,12 @@ def main(argv):
     if bad:
         print("  The frame is walking a long path and ending up where it started — that is vibration, not a "
               "move. A camera move must TRAVEL: one direction, eased, over at least half a second.")
+    fl = flicker(path)
+    if fl and fl["pixels"]:
+        print("[shake_qa] local flicker (DIAGNOSTIC, not a threshold): %.0f%% of moving pixels reverse above "
+              "3Hz, p95 %.1f/s. Reference: locked 2.5%%, a beat mid-reveal 21%%, 1px jitter 31%%. Compare it "
+              "BEFORE and AFTER a change to the same beat; the classes overlap too much to gate on."
+              % (100 * fl["over_3hz"], fl["p95"]))
     return 1 if bad else 0
 
 
