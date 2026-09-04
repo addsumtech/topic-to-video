@@ -12,7 +12,7 @@
     "BentoReveal": "4d8651c59f097366",
     "BlockAssembly": "bdff041cf5338a6e",
     "BlueprintGrid": "fb50d9a1296ba934",
-    "BokehPull": "c98e3200533ca056",
+    "BokehPull": "e704c0e6107b7247",
     "BrutalistType": "3bbf5fc34c948898",
     "CardFlip3D": "4da5d9b85ffe9344",
     "CardStack3D": "2607a6d43fae5f69",
@@ -72,7 +72,7 @@
     "KSpaceAnatomy": "eb34e5acdf77c835",
     "KSpaceReal": "4f25df423bf923f5",
     "KSpaceToImage": "2c1042519541a276",
-    "KaleidoMandala": "58f62c6a55ef1473",
+    "KaleidoMandala": "8b300fba2d2eb3a0",
     "KineticManifesto": "7802773cc01bbe40",
     "KnowledgeGraph": "1df8c6b2ecb53644",
     "LarmorPrecession": "24cf69297ad90160",
@@ -81,7 +81,7 @@
     "LiquidChrome": "d00591ac2ab5f959",
     "LiquidFill": "fe1619c4ca392e34",
     "LiquidGlass": "accfc1c8596e3614",
-    "LiquidMetal": "609d5b1398b48fa6",
+    "LiquidMetal": "a86c00cbae21ba70",
     "LiquidMorph": "6c34fc2dda7bc529",
     "LowPolyForm": "12dd4ff926422f61",
     "MRIPipeline": "0187f39d851029b6",
@@ -91,7 +91,7 @@
     "MapPlate": "61d3ba885473183c",
     "MapRoutes": "9f555ab5740c1998",
     "MaterialHero": "dc5388355f7bc3d8",
-    "MetaballMerge": "dcc18b956a651bc9",
+    "MetaballMerge": "7b7aeaaf60fafe20",
     "MoleculeBallStick": "090419c1766f55f9",
     "MorphForms": "61e36bb63b9739c5",
     "MuseumLabel": "bf70a488a8c27326",
@@ -125,7 +125,7 @@
     "SharedBlindspot": "6647e7dd5f19b433",
     "SpectrumPulse": "e387b704a426da52",
     "SpeedLimit": "0a6a61b917bd87f6",
-    "SpinningProton": "d5d219be1411059f",
+    "SpinningProton": "b0c90dc804a23d33",
     "SpinsAlign": "14bf18061ca72d30",
     "SplitFlap": "1e7be69038b2277d",
     "SpotlightStage": "cc6e230004802ad0",
@@ -250,9 +250,9 @@
       "footprint": 0.833
     },
     "BokehPull": {
-      "motion_p75": 0.0015,
-      "ink_median": 0.069,
-      "luma_range": 0.009,
+      "motion_p75": 0.0016,
+      "ink_median": 0.07,
+      "luma_range": 0.008,
       "seconds": 5.3,
       "footprint": 0.11
     },
@@ -670,9 +670,9 @@
       "footprint": 0.153
     },
     "KaleidoMandala": {
-      "motion_p75": 0.0052,
-      "ink_median": 0.095,
-      "luma_range": 0.034,
+      "motion_p75": 0.0053,
+      "ink_median": 0.093,
+      "luma_range": 0.036,
       "seconds": 5.2,
       "footprint": 0.426
     },
@@ -733,11 +733,11 @@
       "footprint": 0.418
     },
     "LiquidMetal": {
-      "motion_p75": 0.0048,
-      "ink_median": 0.088,
-      "luma_range": 0.062,
+      "motion_p75": 0.0072,
+      "ink_median": 0.083,
+      "luma_range": 0.067,
       "seconds": 5.3,
-      "footprint": 0.106
+      "footprint": 0.112
     },
     "LiquidMorph": {
       "motion_p75": 0.0016,
@@ -803,11 +803,11 @@
       "footprint": 0.561
     },
     "MetaballMerge": {
-      "motion_p75": 0.0046,
-      "ink_median": 0.108,
-      "luma_range": 0.069,
+      "motion_p75": 0.0068,
+      "ink_median": 0.105,
+      "luma_range": 0.078,
       "seconds": 5.3,
-      "footprint": 0.138
+      "footprint": 0.15
     },
     "MoleculeBallStick": {
       "motion_p75": 0.0042,
@@ -1041,7 +1041,7 @@
       "footprint": 0.389
     },
     "SpinningProton": {
-      "motion_p75": 0.0003,
+      "motion_p75": 0.0004,
       "ink_median": 0.027,
       "luma_range": 0.002,
       "seconds": 6.0,

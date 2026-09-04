@@ -4,7 +4,7 @@
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
-import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
+import {useT, seg, lerp, clamp01, easeOutCubic, hash01, radians} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 
 export const DURATION = 160; // ~5.3s
@@ -16,13 +16,13 @@ export const LiquidMetal: React.FC<{title?: string; tagline?: string}> = ({
   const dna = useDNA();
   const bgc = dna?.bgGrad ?? dna?.bg ?? 'linear-gradient(160deg, #e9e3f5, #cfe0f2 55%, #f3ebdd)', TAGc = dna?.dim ?? '#4a5273';
   const t = useT();
-  const {width: W, height: H} = useVideoConfig();
+  const {width: W, height: H, durationInFrames, fps} = useVideoConfig();
   const cx = W / 2, cy = H / 2;
   const gather = easeOutCubic(seg(t, 0.16, 0.55));
   const blobs = [...Array(8)].map((_, i) => {
     const ang = i / 8 * Math.PI * 2 + t * (0.5 + hash01(i) * 0.4);
-    const spread = lerp(380 + hash01(i * 3) * 150, 150, gather) * (0.8 + 0.22 * Math.sin(t * 2.2 + i));
-    const r = lerp(120, 185, hash01(i * 7)) * (0.85 + 0.2 * Math.sin(t * 3 + i * 2));
+    const spread = lerp(380 + hash01(i * 3) * 150, 150, gather) * (0.8 + 0.22 * Math.sin(radians(t, durationInFrames, fps, 6, i)));
+    const r = lerp(120, 185, hash01(i * 7)) * (0.85 + 0.2 * Math.sin(radians(t, durationInFrames, fps, 4.5, i * 2)));
     return {x: cx + Math.cos(ang) * spread, y: cy + Math.sin(ang) * spread * 0.66, r};
   });
   const titleIn = easeOutCubic(seg(t, 0.5, 0.74));

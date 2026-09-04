@@ -4,7 +4,7 @@
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
-import {useT, lerp, clamp01, hash01} from '../runtime/motion';
+import {useT, lerp, clamp01, hash01, radians} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {bottomTextY} from '../runtime/layout';
 
@@ -13,7 +13,7 @@ export const DURATION = 180; // 6s
 export const SpinningProton: React.FC<{accent?: string; accent2?: string; label?: string}> = ({
   accent = '#22d3ee', accent2 = '#a78bfa', label = 'A proton that spins like a tiny magnet',
 } = {}) => {
-  const {width: W, height: H} = useVideoConfig();
+  const {width: W, height: H, durationInFrames, fps} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
   const cx = W * 0.5, cy = H * 0.5 - 10, R = Math.min(W, H) * 0.075;
@@ -24,7 +24,7 @@ export const SpinningProton: React.FC<{accent?: string; accent2?: string; label?
   for (let i = 1; i <= 4; i++) {
     const w = R * (0.8 + i * 0.85), h = R * (1.6 + i * 1.5);
     loops.push(<ellipse key={i} cx={cx} cy={cy} rx={w} ry={h} fill="none" stroke={accent} strokeWidth={1.4}
-      opacity={0.34 - i * 0.05} transform={`rotate(${Math.sin(t * 1.2) * 4} ${cx} ${cy})`} />);
+      opacity={0.34 - i * 0.05} transform={`rotate(${Math.sin(radians(t, durationInFrames, fps, 4)) * 4} ${cx} ${cy})`} />);
   }
   // faint background water molecules (bulk H₂O)
   const waters: React.ReactNode[] = [];

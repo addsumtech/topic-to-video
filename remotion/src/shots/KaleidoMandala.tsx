@@ -4,7 +4,7 @@
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
-import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack, hash01} from '../runtime/motion';
+import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack, hash01, radians} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
@@ -16,7 +16,7 @@ export const KaleidoMandala: React.FC<{title?: string; tagline?: string; accent?
   const dna = useDNA();
   const BG = dna?.bg ?? BG_D0;
   const t = useT();
-  const {width: W, height: H} = useVideoConfig();
+  const {width: W, height: H, durationInFrames, fps} = useVideoConfig();
   const cx = W / 2, cy = H / 2;
   const bloom = easeOutBack(clamp01(seg(t, 0.06, 0.5)));
   const spin = t * 26;
@@ -24,7 +24,7 @@ export const KaleidoMandala: React.FC<{title?: string; tagline?: string; accent?
   const wedge = [...Array(5)].map((_, k) => {
     const r = lerp(90, 460, k / 4) * bloom;
     const col = k % 2 ? ACC : ACC2;
-    const wob = 1 + 0.1 * Math.sin(t * 3 + k);
+    const wob = 1 + 0.1 * Math.sin(radians(t, durationInFrames, fps, 5, k));
     return {r, col, k, wob};
   });
   const titleIn = easeOutCubic(seg(t, 0.52, 0.76));
@@ -39,7 +39,7 @@ export const KaleidoMandala: React.FC<{title?: string; tagline?: string; accent?
             return (
               <g key={s} transform={`rotate(${rot}) scale(${mir}, 1)`}>
                 {wedge.map((w) => {
-                  const hueShift = (Math.sin(t * 2 + w.k) + 1) / 2;
+                  const hueShift = (Math.sin(radians(t, durationInFrames, fps, 8, w.k)) + 1) / 2;
                   const col = w.k % 3 === 0 ? `color-mix(in oklab, ${ACC} ${Math.round(hueShift * 100)}%, ${ACC2})` : w.col;
                   const petalW = 46 * w.wob;
                   return <g key={w.k}>

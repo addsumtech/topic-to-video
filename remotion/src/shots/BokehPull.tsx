@@ -4,7 +4,7 @@
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
-import {useT, seg, lerp, clamp01, easeInOutCubic, hash01} from '../runtime/motion';
+import {useT, seg, lerp, clamp01, easeInOutCubic, hash01, radians} from '../runtime/motion';
 import {useDNA, dnaPalette} from '../runtime/dna';
 
 export const DURATION = 160; // ~5.3s
@@ -14,7 +14,7 @@ export const BokehPull: React.FC<{title?: string; tagline?: string}> = ({title =
   const t = useT();
   const dna = useDNA();
   const COLORS = dnaPalette(dna, 6) ?? COLORS0;   // derive the palette from the film's DNA (null DNA = the original)
-  const {width: W, height: H} = useVideoConfig();
+  const {width: W, height: H, durationInFrames, fps} = useVideoConfig();
   const focus = easeInOutCubic(seg(t, 0.32, 0.72)); // 0 = all blurred, 1 = sharp
   const wordBlur = lerp(34, 0, focus);
   const wordOp = clamp01(seg(t, 0.36, 0.66));
@@ -32,7 +32,7 @@ export const BokehPull: React.FC<{title?: string; tagline?: string}> = ({title =
         </defs>
         <g filter="url(#soft)">
           {[...Array(30)].map((_, i) => {
-            const bx = (hash01(i) * 1.2 - 0.1) * W + Math.sin(t * 1.2 + i) * 30;
+            const bx = (hash01(i) * 1.2 - 0.1) * W + Math.sin(radians(t, durationInFrames, fps, 7, i)) * 30;
             const by = ((hash01(i * 2) * H + t * (10 + hash01(i * 3) * 24)) % (H * 1.2)) - H * 0.1;
             const big = lerp(130, 26, focus) * (0.5 + hash01(i * 5));
             const op = lerp(0.55, 0.2, focus) * (0.5 + 0.5 * hash01(i * 7));

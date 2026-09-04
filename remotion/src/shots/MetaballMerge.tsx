@@ -4,7 +4,7 @@
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
-import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
+import {useT, seg, lerp, clamp01, easeOutCubic, hash01, radians} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 
 export const DURATION = 160; // ~5.3s
@@ -15,13 +15,13 @@ export const MetaballMerge: React.FC<{title?: string; tagline?: string; accent?:
   const dna = useDNA();
   const BG = dna?.bg ?? BG_D0;
   const t = useT();
-  const {width: W, height: H} = useVideoConfig();
+  const {width: W, height: H, durationInFrames, fps} = useVideoConfig();
   const cx = W / 2, cy = H / 2;
   const gather = easeOutCubic(seg(t, 0.2, 0.55));                 // spread → merged (stays a big soft mass)
   const balls = [...Array(10)].map((_, i) => {
     const ang = i / 10 * Math.PI * 2 + t * (0.6 + hash01(i) * 0.5);
-    const spread = lerp(430 + hash01(i * 3) * 170, 175, gather) * (0.8 + 0.25 * Math.sin(t * 2 + i));
-    const r = lerp(120, 190, hash01(i * 7)) * (0.85 + 0.22 * Math.sin(t * 3 + i * 2));
+    const spread = lerp(430 + hash01(i * 3) * 170, 175, gather) * (0.8 + 0.25 * Math.sin(radians(t, durationInFrames, fps, 6, i)));
+    const r = lerp(120, 190, hash01(i * 7)) * (0.85 + 0.22 * Math.sin(radians(t, durationInFrames, fps, 4.5, i * 2)));
     return {x: cx + Math.cos(ang) * spread, y: cy + Math.sin(ang) * spread * 0.68, r};
   });
   const titleIn = easeOutCubic(seg(t, 0.5, 0.74));

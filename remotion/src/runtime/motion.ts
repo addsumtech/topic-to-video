@@ -135,3 +135,22 @@ export function life(t: number, durF: number, fps: number, periodS = 6, phase = 
   const seconds = t * (durF / Math.max(1, fps));
   return 0.5 - 0.5 * Math.cos((2 * Math.PI * (seconds / periodS + phase)));
 }
+
+/**
+ * A continuous ANGLE in radians for the same clock — `life()`'s sibling, for oscillators written as
+ * `Math.sin(...)` rather than as a 0→1 modulator.
+ *
+ * THE BUG THIS FIXES IS SYSTEMATIC, not a preference. Across the library, thirteen oscillators are written
+ * `Math.sin(t * k)` with k between 1.2 and 5 — which reads like radians per second and is nothing of the
+ * kind, because `t` runs 0→1 across the WHOLE clip. `Math.sin(t * 2)` delivers two radians of phase in five
+ * seconds: a third of one cycle. Every one of them was authored as "this keeps breathing" and every one of
+ * them renders as a slow one-way drift, which is a large part of why registers measure as frozen. The fix
+ * is to say the period in the unit a period is actually in.
+ */
+export function radians(t: number, durF: number, fps: number, periodS = 6, phase = 0): number {
+  if (!(periodS >= MIN_LIFE_PERIOD_S)) {
+    throw new Error(`radians() period ${periodS}s is below MIN_LIFE_PERIOD_S (${MIN_LIFE_PERIOD_S}s) — see life().`);
+  }
+  const seconds = t * (durF / Math.max(1, fps));
+  return 2 * Math.PI * (seconds / periodS) + phase;
+}

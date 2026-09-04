@@ -199,6 +199,13 @@ def flicker(path, fps=SAMPLE_FPS, long_side=320, noise=0.012):
     pass real jitter or refuse a real reveal. What it is good for is BEFORE and AFTER on the same beat: it
     is how the `life()` changes were cleared (KnowledgeGraph 9.2% -> 9.6%, BentoReveal 20.7% -> 21.3%, i.e.
     unchanged), and it is how the next one should be.
+
+    THE NOISE FLOOR MATTERS ON SOFT CONTENT, and the default over-reads there. A register built from heavily
+    blurred fields (metaballs, glow, particles) has pixels drifting by tiny amounts everywhere, and near the
+    floor the sign of the derivative flips on compression noise rather than on motion. At the default 0.012
+    MetaballMerge reads 50% — above the 1px-jitter reference — before anything is changed. At `noise=0.03`,
+    where the locked/jitter references still separate cleanly (3% against 25%), it reads 9%. So on a soft
+    register, run it at 0.03 and read the BEFORE/AFTER rather than the absolute number.
     """
     try:
         import numpy as np
