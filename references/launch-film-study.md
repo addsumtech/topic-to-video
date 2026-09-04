@@ -481,3 +481,61 @@ the POOL a portrait film is choosing from — roughly one register in six is uns
 reflows" as a claim to verify per beat, never as a property of the library.
 
     python3 scripts/text_safe_qa.py --library --aspect=9:16     # before promising a vertical film
+
+## The motion axis: shake is the cheapest way to pass the motion gate
+
+Measured on this repo's own renders, `film_energy_qa`'s motion score cannot tell the best use of movement
+from the worst:
+
+| film                         | motion_p75 |
+|------------------------------|-----------:|
+| locked camera                |     0.0036 |
+| the same film, 1px jitter    |     0.0051 |
+| the same film, 3px jitter    |     0.0077 |
+
+The delivery floor is 0.0037. A film sitting under it clears it at **double** by vibrating, and the gate
+turns greener as the defect arrives. That is why the camera has been locked by default since the shake
+repair: the lock is a floor on shake AND a ceiling on motion, and the ceiling could not be raised while the
+floor was assumed rather than measured.
+
+`scripts/shake_qa.py` measures it. The discriminant is a RATIO, not a magnitude — over half-second windows,
+does the frame TRAVEL (path ≈ net displacement) or VIBRATE (long path, no net)? Calibrated on eight rendered
+controls:
+
+| control                                   | wander p90 | windows shaking | verdict |
+|-------------------------------------------|-----------:|----------------:|---------|
+| locked camera                             |       1.15 |              2% | ok      |
+| smooth pan (real travel)                  |       1.53 |              4% | ok      |
+| chaotic generative content, locked camera |       3.22 |              3% | ok      |
+| minimal title card, locked camera         |       1.05 |              0% | ok      |
+| sub-pixel shake (0.5px)                   |      23.42 |             67% | SHAKE   |
+| jitter 1px                                |      21.42 |             73% | SHAKE   |
+| jitter 3px                                |      27.30 |             80% | SHAKE   |
+| minimal title card + 1px                  |      17.65 |             78% | SHAKE   |
+
+Global translation is the measured quantity, so content moving INSIDE a still frame is invisible to it by
+design — which is also the finding that says where the motion axis can safely grow.
+
+## Where the motion actually dies: reveal, then freeze
+
+Frame difference by quarter of each register's own clip:
+
+| register          | Q1     | Q2     | Q3     | Q4     | p75    |
+|-------------------|--------|--------|--------|--------|--------|
+| CinematicTitle    | 0.0015 | 0.0009 | 0.0001 | 0.0000 | 0.0003 |
+| BentoReveal       | 0.0061 | 0.0006 | 0.0005 | 0.0002 | 0.0008 |
+| ClayStack         | 0.0098 | 0.0121 | 0.0008 | 0.0002 | 0.0058 |
+| ChartLive         | 0.0030 | 0.0055 | 0.0029 | 0.0000 | 0.0042 |
+| KnowledgeGraph    | 0.0002 | 0.0004 | 0.0005 | 0.0003 | 0.0005 |
+| MorphForms        | 0.0168 | 0.0309 | 0.0148 | 0.0151 | 0.0275 |
+
+The deficit is not the camera and it is not the reveal — it is the HOLD. Most registers finish their
+argument in the first half of the clip and then show a still photograph for the rest, while the narration
+keeps going. MorphForms, the one that clears the floor comfortably, is the one that never stops developing.
+
+A uniform drift added to all 152 registers would raise the number and would be decoration — the frame would
+move without meaning anything, which this repo's own design rule forbids. The direction that is both safe
+(invisible to shake_qa) and honest is per-register CONTINUING LIFE: a dashboard whose gauges keep reading, a
+graph whose nodes keep orbiting, a field that keeps flowing. A frozen frame is a screenshot; this tier is
+supposed to be film.
+
