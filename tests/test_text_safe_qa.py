@@ -31,6 +31,15 @@ def _audit(shot, props, tmp_path):
     return g.audit_shot(shot, props, g.durations()[shot] // 2, str(tmp_path / "probe.png"))
 
 
+def _audit_settled(shot, props, tmp_path):
+    """At the frame `useT()` calls SETTLED — the frame every visual gate and the shot-critic read, and the
+    only one where a title that animates in has finished arriving. Mid-clip, CardStack3D's title has not
+    reached its resting place yet and the band finding is genuinely absent."""
+    import render_remotion as rr
+    frame = int(round(rr.frame_at_t(g.durations()[shot], rr.SETTLED_T)))
+    return g.audit_shot(shot, props, frame, str(tmp_path / "probe.png"))
+
+
 @_NEEDS_RENDER
 def test_type_the_layout_cannot_hold_is_caught(tmp_path):
     """THE positive control: copy longer than the layout assumed is the accident this exists for, and it is
@@ -109,3 +118,49 @@ def test_every_register_the_audit_exempts_says_why():
             if "data-bleed:" not in before:          # the reason is written as a `data-bleed: ...` note
                 bare.append(os.path.basename(f))
     assert not bare, "data-bleed with no written reason in: %s" % sorted(set(bare))
+
+
+@_NEEDS_RENDER
+def test_type_sitting_in_the_caption_band_is_caught(tmp_path):
+    """The second question, and the one pixels could not answer.
+
+    CardStack3D set its title 'All of it, in hand' wholly inside the strip the renderer reserves for the
+    burned caption, so the caption drew straight through it. `band_debt.py` measured that band as an ink
+    FRACTION and read 2.1% — under its threshold — while AuroraFlow, a generative field whose ground
+    legitimately covers the frame, read 53%. The instrument ranked the harmless case 25x above the fatal one
+    and the collision sat outside the manifest entirely. Type has a box; this asks the box.
+
+    THE CONTROL IS AsciiField, NOT the register that prompted this. Written against CardStack3D, this test
+    passed for exactly as long as that defect survived and then failed as a consequence of fixing it — a
+    positive control must not be a bug report. AsciiField draws a full-frame field of characters: its ground
+    IS the frame, so type in the band is what it is FOR and the finding is permanent. (If AsciiField ever
+    stops being full-bleed, move the control to another full-bleed character register rather than deleting
+    it — an audit that reports nothing is indistinguishable from one that cannot report.)"""
+    found = _audit_settled("AsciiField", {"dna": "product"}, tmp_path)
+    hit = [v for v in found if v.get("band")]
+    assert hit, "a full-frame character field reported no type in the caption band: %r" % (found,)
+    assert max(v["band"] for v in hit) > 20, "reported only %spx into a 227px band" % hit[0]["band"]
+
+
+@_NEEDS_RENDER
+def test_a_register_that_respects_the_band_stays_quiet(tmp_path):
+    """The other half. If every register reported band debt, the finding would carry no information — and
+    the reserved strip is 21% of the frame's height, so a rule that fires on any low content would."""
+    assert not [v for v in _audit_settled("CinematicTitle", {"dna": "product"}, tmp_path) if v.get("band")]
+
+
+def test_the_finding_says_which_defect_it_is():
+    """The two defects want opposite fixes — text off the canvas is a layout that did not fit, text in the
+    band is a layout that fit into space it does not own — and the message used to name neither."""
+    assert "CUT OFF" in g._describe({"text": "x", "out": {"right": 40}})
+    band = g._describe({"text": "All of it, in hand", "band": 79})
+    assert "CAPTION BAND" in band and "79" in band and "burned caption" in band
+
+
+def test_the_library_sweep_measures_the_mode_films_actually_ship():
+    """Bare props render the un-themed fallback, and the Design DNA sets the type family and therefore every
+    metric this audit measures. register_energy.py made exactly this mistake and reported one register at
+    0.6% the same day it measured 32.2% themed."""
+    import inspect
+    src = inspect.getsource(g.scan_library)
+    assert 'base["dna"] = dna' in src and g.DEFAULT_DNA, src

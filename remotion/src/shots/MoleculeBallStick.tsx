@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {bottomInset} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#070a14';
@@ -61,7 +62,7 @@ export const MoleculeBallStick: React.FC<{title?: string; tagline?: string}> = (
           </g>;
         })}
       </svg>
-      <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 110}}>
+      <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: bottomInset(W, H, 110)}}>
         <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 14}px)`, color: '#eaf2ff',
           font: '800 104px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em', textShadow: '0 8px 40px #000'}}>{TITLE}</div>
         <div style={{opacity: easeOutCubic(seg(t, 0.62, 0.84)), marginTop: 16, color: '#9fb2d0',

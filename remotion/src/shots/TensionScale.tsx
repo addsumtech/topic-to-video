@@ -8,7 +8,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, lerp, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {titleStyle} from '../runtime/layout';
+import {titleStyle, bottomTextY} from '../runtime/layout';
 
 export const DURATION = 175; // ~5.8s
 
@@ -71,7 +71,7 @@ export const TensionScale: React.FC<{
         {/* equilibrium readout */}
         <text x={cx} y={fy + 96} textAnchor="middle" fill="#67788c" fontSize="15" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={appear}>equilibrium: unresolved</text>
         {/* bottom note (kept above the caption band) */}
-        <text x={cx} y={H * 0.82} textAnchor="middle" fill="#c9d6ea" fontSize="20" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01((t - 0.15) * 3)}>{note}</text>
+        <text x={cx} y={Math.min(H * 0.82, bottomTextY(W, H))} textAnchor="middle" fill="#c9d6ea" fontSize="20" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01((t - 0.15) * 3)}>{note}</text>
       </svg>
       <div style={{...titleStyle, opacity: lerp(0.4, 1, clamp01(t * 4))}}>{title}</div>
     </AbsoluteFill>

@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {bottomInset} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 const BG_D0 = '#070912', ACC_D0 = '#5b8cff', ACC2_D0 = '#c07bff';
@@ -64,7 +65,7 @@ export const MorphForms: React.FC<{title?: string; tagline?: string}> = ({
             style={{filter: depth > 0.7 ? `drop-shadow(0 0 6px ${col})` : undefined}} />;
         })}
       </svg>
-      <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 120}}>
+      <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: bottomInset(W, H, 120)}}>
         <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 14}px)`, color: '#eaf0ff',
           font: '800 76px/1.05 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.02em', textAlign: 'center',
           textShadow: '0 8px 40px #000'}}>{TITLE}</div>

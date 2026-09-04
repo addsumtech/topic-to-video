@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, easeOutBack, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 
 export const DURATION = 135; // 4.5s
 const ACCENT0 = '#2E7BFF', SPOT = '#ffe6ad';
@@ -20,9 +21,14 @@ export const FocalIsolation: React.FC<{focalLabel?: string; items?: string[]}> =
   const {width: W, height: H} = useVideoConfig();
   const iso = easeOutCubic(seg(t, 0.32, 0.66)); // isolation progress
   const focal = 4; // centre item
-  const cols = 3, cw = 380, ch = 220, gx = 90, gy = 90;
+  // The grid is fitted to the CONTENT ZONE. Three 220px rows and two 90px gutters are 840px tall and the
+  // grid was centred in the frame, so the bottom row — 'The internet' among them — sat in the strip the
+  // renderer burns the caption over. The row height yields; the gutters and the column rhythm do not.
+  const zTop = CONTENT_TOP, zBot = contentBottom(W, H);
+  const cols = 3, cw = 380, gx = 90, gy = 90;
+  const ch = Math.min(220, ((zBot - zTop) - 2 * gy) / 3);
   const gridW = cols * cw + (cols - 1) * gx, gridH = 3 * ch + 2 * gy;
-  const ox = (W - gridW) / 2, oy = (H - gridH) / 2 + 30;
+  const ox = (W - gridW) / 2, oy = zTop + ((zBot - zTop) - gridH) / 2;
   const fx = ox + (focal % cols) * (cw + gx) + cw / 2, fy = oy + Math.floor(focal / cols) * (ch + gy) + ch / 2;
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(120% 120% at 50% 45%, #1b2434, #0d131d)'}}>

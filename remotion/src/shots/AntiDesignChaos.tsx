@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA, dnaPalette} from '../runtime/dna';
+import {bottomInset} from '../runtime/layout';
 
 export const DURATION = 150; // 5s
 // LEVEL-C: maximalism needs a CLASH, not one accent — dnaPalette() grows six distinct hues out of the DNA's two
@@ -80,7 +81,7 @@ export const AntiDesignChaos: React.FC<{title?: string; items?: string[]; taglin
           textShadow: `12px 12px 0 ${POP[2]}`}}>{TITLE}</div>
       </AbsoluteFill>
 
-      <div style={{position: 'absolute', left: 60, bottom: 54, opacity: easeOutCubic(seg(t, 0.7, 0.9)),
+      <div style={{position: 'absolute', left: 60, bottom: bottomInset(W, H, 54), opacity: easeOutCubic(seg(t, 0.7, 0.9)),
         transform: 'rotate(-3deg)', background: CHIP_BG, color: CHIP_FG, padding: '10px 22px',
         font: '800 34px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.1em'}}>{TAG}</div>
     </AbsoluteFill>

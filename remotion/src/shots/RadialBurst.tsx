@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {bottomInset} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 const N = 14;
@@ -61,7 +62,7 @@ export const RadialBurst: React.FC<{hub?: string; tagline?: string}> = ({hub: HU
       <div style={{position: 'absolute', left: 0, right: 0, top: cy + 130, textAlign: 'center',
         opacity: clamp01(seg(t, 0.16, 0.32)), color: '#eae4ff', font: '800 40px/1 var(--f-body, Inter, system-ui, sans-serif)',
         letterSpacing: '-0.01em', textShadow: '0 2px 20px #000'}}>{HUB}</div>
-      <div style={{position: 'absolute', left: 0, right: 0, bottom: H * 0.1, textAlign: 'center',
+      <div style={{position: 'absolute', left: 0, right: 0, bottom: bottomInset(W, H, H * 0.1), textAlign: 'center',
         opacity: clamp01(seg(t, 0.6, 0.82)), color: '#cbbfff', font: '600 34px/1 var(--f-mono, "JetBrains Mono", monospace)',
         letterSpacing: '0.4em', paddingLeft: '0.4em'}}>{tagline}</div>
     </AbsoluteFill>

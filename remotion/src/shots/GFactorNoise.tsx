@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {contentBottom} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 
@@ -42,7 +43,9 @@ export const GFactorNoise: React.FC<{accent?: string; label?: string; factor?: n
   }
 
   // the R track: green usable zone (≤3) then a red g-factor zone
-  const bx = W * 0.24, bw = W * 0.52, by = H * 0.78, capFrac = 3 / 5;   // track spans R = 1..5
+  // the track's tick labels hang below it; both come off the content zone's floor rather than 78% of a frame
+  const by = Math.min(H * 0.78, contentBottom(W, H) - 78);
+  const bx = W * 0.24, bw = W * 0.52, capFrac = 3 / 5;   // track spans R = 1..5
   const rFrac = (R - 1) / 4;
 
   return (

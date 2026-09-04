@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack, hash01} from '../runtime/motion';
 import {useDNA, dnaPalette} from '../runtime/dna';
+import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 const NODE_PALETTE0 = ['#4c8dff', '#22d3c5', '#b06cff', '#ff8fc7', '#ffd23f', '#2fcb6e', '#ff6b6b'];
@@ -18,11 +19,22 @@ export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string}> = ({
   const NODE_PALETTE = dnaPalette(dna, 7) ?? NODE_PALETTE0;
   const NODES = items.map((label, i) => ({label, c: NODE_PALETTE[i % NODE_PALETTE.length]}));
   const {width: W, height: H} = useVideoConfig();
-  const cx = W / 2, cy = H / 2;
+  // Centred on the CONTENT ZONE, not the frame, and scaled to it. Centred on H/2 with a fixed radius the
+  // lowest node landed inside the strip the renderer burns the caption over, so a node label and a subtitle
+  // drew on top of each other. Deriving both from the zone also makes the layout right at aspects the fixed
+  // radius was never checked against.
+  const zTop = CONTENT_TOP, zBot = contentBottom(W, H);
+  const cx = W / 2, cy = (zTop + zBot) / 2;
+  // 430 is the largest radius the spread below can produce. NODE_ROOM is what hangs BELOW a node's centre,
+  // summed from the pieces rather than estimated: the label's 34px offset, its 24px type with 5px padding
+  // top and bottom and a 1px border, and the 8px vertical bob. Estimated at 46 it left 'Calendar' 14px
+  // inside the band — close enough to look fixed and not be.
+  const NODE_ROOM = 34 + (24 + 5 * 2 + 2) + 8;
+  const rScale = Math.min(1, ((zBot - zTop) / 2 - NODE_ROOM) / 430);
   const drift = t * 0.18; // whole-graph slow rotate
   const pos = (i: number) => {
     const a = (i / NODES.length) * Math.PI * 2 - Math.PI / 2 + drift + (hash01(i) - 0.5) * 0.12;
-    const R = 360 + hash01(i * 2) * 70;
+    const R = (360 + hash01(i * 2) * 70) * rScale;
     const bob = Math.sin(t * Math.PI * 2 + i) * 8;
     return {x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R + bob};
   };

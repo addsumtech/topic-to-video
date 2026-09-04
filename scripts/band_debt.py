@@ -28,11 +28,16 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import render_remotion as rr                                    # noqa: E402  (needs the path above)
 import shot_still_qa as q                                       # noqa: E402
+import text_safe_qa as tsq                                      # noqa: E402
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _SHOTS = os.path.join(_ROOT, "remotion", "src", "shots")
 _MANIFEST = os.path.join(_ROOT, "remotion", "band_debt.json")
 REGEN = "python3 scripts/band_debt.py --write"
+# Themed, for the reason register_energy.py records: the Design DNA sets the type family and therefore the
+# geometry this measures, and EVERY delivered film has one. Measured bare, the manifest describes a fallback
+# mode no film ships.
+DNA = "product"
 
 
 def durations():
@@ -45,27 +50,64 @@ def durations():
 
 
 def measure_all(png_dir, quiet=False):
-    """Render every register at its settled frame into png_dir, then measure. Returns {name: {band, edge}}."""
+    """Render every register at its settled frame into png_dir, then measure. Returns {name: {band, edge, text}}.
+
+    THREE numbers, because two of them cannot see the worst case. `band`/`edge` are ink FRACTIONS, and a line
+    of type is a tiny fraction of a 227px strip: CardStack3D sets its title wholly inside the caption band and
+    measures 2.1%, under the threshold, while AuroraFlow — a generative field whose ground legitimately
+    covers the frame — measures 53%. The instrument ranked the harmless case 25x above the fatal one, so a
+    register that collides with every burned caption sat outside the manifest entirely.
+
+    `text` is px of the register's own TYPE reaching down into that strip, asked of the DOM (textSafe.tsx)
+    rather than of pixels. Any value at all is debt: unlike a ground, type in the band is not a look, it is
+    two pieces of copy drawn on top of each other.
+    """
     os.makedirs(png_dir, exist_ok=True)
     durs = durations()
     names = [os.path.basename(f)[:-4] for f in sorted(glob.glob(os.path.join(_SHOTS, "*.tsx")))]
     missing = [n for n in names if n not in durs]
     if missing:
         raise RuntimeError("no exported DURATION for %s — the settled frame is derived from it" % missing[:5])
+    # The four evidence registers REFUSE to render without a real image (runtime/evidence.ts), and
+    # measure_all treats a failed render as an unknown debt and raises. Same drawn fixture the energy and
+    # text sweeps use, from the same parsed call sites.
+    try:
+        import register_energy as _re
+        _re.ensure_fixture()
+        evidence = _re.evidence_props()
+    except Exception:
+        evidence = {}
     debt, failed = {}, []
     for i, n in enumerate(names):
         png = os.path.join(png_dir, n + ".png")
+        side = png + ".textsafe.json"
+        frame = int(round(rr.frame_at_t(durs[n], rr.SETTLED_T)))
+        # The ARMED render first: it produces the png when the register is clean, so the common case costs
+        # one render for both measurements rather than two. When it finds something it CANCELS the render
+        # (that is the audit's only channel home) and no png exists — then, and only then, render again.
+        props = dict(evidence.get(n) or {}); props["dna"] = DNA
+        if not (os.path.exists(png) and os.path.exists(side)):
+            viol = tsq.audit_shot(n, props, frame, png)
+            json.dump(viol, open(side, "w", encoding="utf-8"), ensure_ascii=False)
+        else:
+            viol = json.load(open(side, encoding="utf-8"))
         if not os.path.exists(png):
-            frame = int(round(rr.frame_at_t(durs[n], rr.SETTLED_T)))
             subprocess.run(["npx", "remotion", "still", "src/index.ts", n, png,
-                            "--frame=%d" % frame, "--gl=angle", "--log=error"],
+                            "--frame=%d" % frame, "--gl=angle", "--log=error",
+                            "--props=" + json.dumps(props)],
                            capture_output=True, text=True, cwd=os.path.join(_ROOT, "remotion"))
         if not os.path.exists(png):
             failed.append(n)
             continue
         r = q.measure(png)
-        if r["caption"] > q.CAPTION_FRAC_ERR or r["edge"] > q.EDGE_FRAC_ERR:
+        in_band = max([v.get("band") or 0 for v in viol], default=0)
+        if r["caption"] > q.CAPTION_FRAC_ERR or r["edge"] > q.EDGE_FRAC_ERR or in_band:
             debt[n] = {"band": round(r["caption"] * 100, 2), "edge": round(r["edge"] * 100, 2)}
+            if in_band:
+                # the piece of copy, so a reader can see WHAT collides without re-rendering
+                worst = max(viol, key=lambda v: v.get("band") or 0)
+                debt[n]["text"] = in_band
+                debt[n]["says"] = (worst.get("text") or "")[:60]
         if not quiet and (i + 1) % 25 == 0:
             print("  measured %d/%d" % (i + 1, len(names)), flush=True)
     if failed:
@@ -91,12 +133,15 @@ def main(argv):
     gone = sorted(set(prev) - set(new))
     fresh = sorted(set(new) - set(prev))
     worse = [(n, prev[n], new[n]) for n in sorted(set(prev) & set(new))
-             if new[n]["band"] > prev[n]["band"] + 0.5 or new[n]["edge"] > prev[n]["edge"] + 0.5]
+             if new[n]["band"] > prev[n]["band"] + 0.5 or new[n]["edge"] > prev[n]["edge"] + 0.5
+             or (new[n].get("text") or 0) > (prev[n].get("text") or 0)]
     print("[band_debt] recorded %d, measured %d" % (len(prev), len(new)))
     for n in gone:
         print("  FIXED   %s (was band %.1f%% edge %.1f%%)" % (n, prev[n]["band"], prev[n]["edge"]))
     for n in fresh:
-        print("  NEW     %s band %.1f%% edge %.1f%%" % (n, new[n]["band"], new[n]["edge"]))
+        print("  NEW     %s band %.1f%% edge %.1f%%%s"
+              % (n, new[n]["band"], new[n]["edge"],
+                 "  TEXT %spx into the band: %r" % (new[n]["text"], new[n]["says"]) if new[n].get("text") else ""))
     for n, o, w in worse:
         print("  GREW    %s band %.1f -> %.1f, edge %.1f -> %.1f" % (n, o["band"], w["band"], o["edge"], w["edge"]))
 

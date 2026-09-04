@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA, dnaPalette} from '../runtime/dna';
+import {contentBottom} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#05060d';
@@ -22,9 +23,13 @@ export const NeonTickerWall: React.FC<{headline?: string; tickers?: string[]; ac
   const {width: W, height: H} = useVideoConfig();
   const flick = (seed: number) => 0.6 + 0.4 * (hash01(seed + Math.floor(t * 12)) > 0.15 ? 1 : 0.3);
   const marquee = easeOutBack(clamp01(seg(t, 0.24, 0.5)));
+  // The lower rows were pinned to the FRAME's bottom, so the last one ran straight through the strip the
+  // renderer burns the caption over — a scrolling marquee under a subtitle. Pinned to the content zone's
+  // floor instead, keeping the spacing they were authored with (32/142/224px up from the floor).
+  const floor = contentBottom(W, H);
   const strips = [
     {y: 90, sp: 1, dir: 1}, {y: 210, sp: 1.7, dir: -1}, {y: 300, sp: 1.2, dir: 1},
-    {y: H - 320, sp: 1.5, dir: -1}, {y: H - 210, sp: 1, dir: 1}, {y: H - 96, sp: 2.1, dir: -1},
+    {y: floor - 288, sp: 1.5, dir: -1}, {y: floor - 178, sp: 1, dir: 1}, {y: floor - 64, sp: 2.1, dir: -1},
   ];
   return (
     <AbsoluteFill style={{background: `radial-gradient(120% 90% at 50% 46%, #0c0f22, ${BG} 76%)`, overflow: 'hidden'}}>

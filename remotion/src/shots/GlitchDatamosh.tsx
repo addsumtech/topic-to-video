@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {bottomInset} from '../runtime/layout';
 
 export const DURATION = 140; // ~4.7s
 const BG_D0 = '#07070b';
@@ -59,7 +60,7 @@ export const GlitchDatamosh: React.FC<{word?: string; tagline?: string; accent?:
         background: 'repeating-linear-gradient(#0000 0 3px, #00000066 3px 4px)'}} />
       <div style={{position: 'absolute', inset: 0, background: 'radial-gradient(120% 100% at 50% 50%, #0000 55%, #000a 100%)'}} />
 
-      <div style={{position: 'absolute', left: 0, right: 0, bottom: 150, textAlign: 'center', opacity: tagIn,
+      <div style={{position: 'absolute', left: 0, right: 0, bottom: bottomInset(W, H, 150), textAlign: 'center', opacity: tagIn,
         color: ACC, font: '700 34px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em', textTransform: 'uppercase',
         textShadow: `0 0 20px ${ACC}`}}>{TAG}</div>
     </AbsoluteFill>

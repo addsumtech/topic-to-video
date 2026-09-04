@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, lerp, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {bottomTextY} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 
@@ -43,7 +44,7 @@ export const LarmorPrecession: React.FC<{accent?: string; accent2?: string; labe
         <defs><marker id="lp" markerWidth="12" markerHeight="12" refX="4" refY="6" orient="auto"><path d="M0,0 L8,6 L0,12 Z" fill="#eaf6ff" /></marker></defs>
         <circle cx={mx} cy={my} r={7} fill="#eaf6ff" />
         <text x={mx + 14} y={my - 8} fill="#eaf6ff" fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800}>μ</text>
-        <text x={cx} y={oy + L * 0.5 + 40} textAnchor="middle" fill={accent} fontSize="24" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">f₀ = γ·B₀ ≈ 42.58 MHz/T</text>
+        <text x={cx} y={Math.min(oy + L * 0.5 + 40, bottomTextY(W, H))} textAnchor="middle" fill={accent} fontSize="24" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">f₀ = γ·B₀ ≈ 42.58 MHz/T</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
         color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',

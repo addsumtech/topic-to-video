@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutBack, easeOutCubic, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {contentBottom} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 // LEVEL-C: the Notion-style light document flips with the DNA (page→bg, ink→fg, blocks/borders→line, accent) → a
@@ -17,6 +18,8 @@ const Block: React.FC<{i: number; t: number; children: React.ReactNode}> = ({i, 
   return <div style={{opacity: clamp01(r), transform: `translateY(${lerp(46, 0, clamp01(r))}px)`, marginBottom: 30}}>{children}</div>;
 };
 
+const DOC_H = 760;   // the composed stack's height at scale 1, measured from its top at 150
+
 export const BlockAssembly: React.FC<{title?: string; callout?: string; items?: string[]; tableHeaders?: string[]}> = ({
   title = 'Q3 Board Deck', callout = 'Goal: a board-ready deck from the Q3 numbers, by Friday.',
   items = ['Pull the financials', 'Draft the narrative', 'Design 24 slides'],
@@ -27,11 +30,16 @@ export const BlockAssembly: React.FC<{title?: string; callout?: string; items?: 
   // per-element fallbacks: these two had their OWN originals, so a null DNA must restore exactly those
   const CHECK_EDGE = dna?.line ?? '#c9c5bc', DONE_INK = dna?.dim ?? '#9b968c';
   const t = useT();
-  const {width: W} = useVideoConfig();
+  const {width: W, height: H} = useVideoConfig();
   const line = (w: string, c = MUTE) => <div style={{height: 20, borderRadius: 6, background: c, width: w}} />;
   return (
     <AbsoluteFill style={{background: BG}}>
-      <div style={{position: 'absolute', left: (W - 1120) / 2, top: 150, width: 1120}}>
+      {/* The document is a fixed stack of blocks, so its height is a constant of the composition rather than
+          something the component can measure. At full size the table's last row sat 13px inside the strip the
+          renderer burns the caption over — em-dash placeholders under a subtitle. The page yields as a PAGE,
+          keeping every block's rhythm, instead of one row being nudged away from its table. */}
+      <div style={{position: 'absolute', left: (W - 1120) / 2, top: 150, width: 1120,
+        transform: `scale(${Math.min(1, (contentBottom(W, H) - 150) / DOC_H)})`, transformOrigin: '50% 0'}}>
         <Block i={0} t={t}><div style={{font: '800 92px/1 var(--f-display, Inter,system-ui,sans-serif)', color: FG}}>{title}</div></Block>
         <Block i={1} t={t}><div style={{display: 'flex', flexDirection: 'column', gap: 16}}>{line('96%')}{line('88%')}{line('72%')}</div></Block>
         <Block i={2} t={t}>

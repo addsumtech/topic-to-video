@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {bottomTextY} from '../runtime/layout';
 
 export const DURATION = 170; // ~5.7s
 
@@ -47,7 +48,7 @@ export const SpinsAlign: React.FC<{accent?: string; accent2?: string; label?: st
         <line x1={W * 0.5} y1={mBase} x2={W * 0.5} y2={mBase - mY} stroke="#eaf6ff" strokeWidth={5} markerEnd="url(#sa2)" opacity={align} />
         <defs><marker id="sa2" markerWidth="12" markerHeight="12" refX="4" refY="6" orient="auto"><path d="M0,0 L8,6 L0,12 Z" fill="#eaf6ff" /></marker></defs>
         <text x={W * 0.5 + 16} y={mBase - mY} fill="#eaf6ff" fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800} opacity={align}>M₀</text>
-        <text x={W * 0.5} y={H * 0.84} textAnchor="middle" fill={accent} fontSize="20" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={align}>~3 in a million tip the balance → net signal</text>
+        <text x={W * 0.5} y={Math.min(H * 0.84, bottomTextY(W, H))} textAnchor="middle" fill={accent} fontSize="20" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={align}>~3 in a million tip the balance → net signal</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
         color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',

@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutBack} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {contentBottom} from '../runtime/layout';
 
 export const DURATION = 160; // ~5.3s
 
@@ -79,7 +80,7 @@ export const LiquidFill: React.FC<{label?: string; pct?: number | null}> = ({
           </svg>
         )}
       </AbsoluteFill>
-      <div style={{position: 'absolute', left: 0, right: 0, top: cy + R + 70, textAlign: 'center',
+      <div style={{position: 'absolute', left: 0, right: 0, top: Math.min(cy + R + 70, contentBottom(W, H) - 52), textAlign: 'center',
         color: '#8fb0d8', font: '600 34px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.06em'}}>{label}</div>
     </AbsoluteFill>
   );

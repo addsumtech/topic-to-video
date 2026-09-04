@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeInOutCubic, easeOutBack, clamp01, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: string}> = ({
@@ -13,7 +14,14 @@ export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: strin
   const t = useT();
   const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
-  const hx = W / 2, hy = H / 2 + 20, R = 460;
+  // Centred on the CONTENT ZONE, not the frame, and scaled to it. Centred on H/2 with a fixed radius the
+  // lowest node landed inside the strip the renderer burns the caption over, so a node label and a subtitle
+  // drew on top of each other. Deriving both from the zone also makes the layout right at aspects the fixed
+  // radius was never checked against.
+  const zTop = CONTENT_TOP, zBot = contentBottom(W, H);
+  const SPOKE_ROOM = 44;                                     // the label that rides each spoke's end
+  const hx = W / 2, hy = (zTop + zBot) / 2;
+  const R = Math.min(460, (zBot - zTop) / 2 - SPOKE_ROOM);
   const pts = SPOKES.map((_, i) => {
     const a = (i / SPOKES.length) * Math.PI * 2 - Math.PI / 2;
     return [hx + Math.cos(a) * R * 1.5, hy + Math.sin(a) * R] as [number, number];

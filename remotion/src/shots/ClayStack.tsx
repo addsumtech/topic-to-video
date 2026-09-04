@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack} from '../runtime/motion';
 import {useDNA, dnaPalette, tint, shade} from '../runtime/dna';
+import {bottomInset} from '../runtime/layout';
 
 export const DURATION = 160; // ~5.3s
 
@@ -69,7 +70,7 @@ export const ClayStack: React.FC<{label?: string}> = ({label = 'built, piece by 
       </svg>
 
       {/* soft label */}
-      <div style={{position: 'absolute', left: 0, right: 0, bottom: H * 0.12, textAlign: 'center',
+      <div style={{position: 'absolute', left: 0, right: 0, bottom: bottomInset(W, H, H * 0.12), textAlign: 'center',
         opacity: clamp01(seg(t, 0.78, 0.95)), color: dna?.dim ?? '#8a5b48', font: '800 46px/1 var(--f-body, "Baloo 2", Inter, sans-serif)'}}>{label}</div>
     </AbsoluteFill>
   );

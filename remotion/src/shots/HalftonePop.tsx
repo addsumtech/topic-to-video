@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutExpo} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {bottomInset} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
 // LEVEL-C: pop-art print is the TECHNIQUE (Ben-Day dots, radial speed lines, a jagged burst, thick panel rule,
@@ -75,7 +76,7 @@ export const HalftonePop: React.FC<{lead?: string; burstTop?: string; burstBotto
       </div>
 
       {/* caption box slams in */}
-      <div style={{position: 'absolute', left: 90, top: H - 250, transform: `rotate(-3deg) scale(${slam})`, transformOrigin: 'left center',
+      <div style={{position: 'absolute', left: 90, bottom: bottomInset(W, H, 140), transform: `rotate(-3deg) scale(${slam})`, transformOrigin: 'left center',
         opacity: slam > 0 ? 1 : 0}}>
         <div style={{background: CARD, border: `7px solid ${INK}`, boxShadow: `12px 12px 0 ${BLUE}`, padding: '20px 34px',
           font: '800 52px/1.05 var(--f-body, "Bangers", Anton, Impact, sans-serif)', color: INK, letterSpacing: '0.02em'}}>

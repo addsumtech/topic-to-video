@@ -1,78 +1,76 @@
 {
-  "_why": "Registers whose own content reaches into the band the renderer reserves for the burned caption, or past the action-safe border. Measured by scripts/shot_still_qa.py on a standalone still of each register at its demo defaults. Some are legitimately FULL-BLEED — a generative field's ground IS the frame, and its own texture counts as ink here — but several put a readable ELEMENT there: a strapline, a ticker row, a panel edge. This file exists so the debt is named rather than rediscovered, and tests/test_remotion.py asserts the list may SHRINK and never GROW.",
-  "_measured_against": "band = captionBand(W,H) at 1920x1080 = 227px; thresholds shot_still_qa CAPTION_FRAC_ERR / EDGE_FRAC_ERR",
+  "_why": "Registers whose own content reaches into the band the renderer reserves for the burned caption, or past the action-safe border. Some are legitimately FULL-BLEED — a generative field's ground IS the frame, and a caption sits on that ground the way it sits on any other. TYPE is different: a title in the band is two pieces of copy drawn on top of each other, which is why `text` is measured separately and why any value at all counts. The fraction cannot see it: CardStack3D set its title wholly inside the band and measured 2.1%, under the threshold, while AuroraFlow's legitimate field measured 53%. Swept that way, 32 of 152 registers were placing copy in the band and none of them was in this file. Measured by scripts/band_debt.py --write on a standalone still of each register at its demo defaults, at the frame useT() calls SETTLED.",
+  "_measured_against": "band/edge = ink FRACTIONS (thresholds shot_still_qa CAPTION_FRAC_ERR / EDGE_FRAC_ERR); band = captionBand(W,H) at 1920x1080 = 227px. `text` = px of the register's own TYPE reaching into that band, asked of the DOM (runtime/textSafe.tsx) — ANY value is debt. Rendered under dna=product, the themed path every delivered film uses.",
   "registers": {
-    "AntiDesignChaos": {
-      "band": 6.84,
-      "edge": 0.0
-    },
     "AsciiField": {
-      "band": 9.08,
-      "edge": 0.0
+      "band": 10.17,
+      "edge": 0.0,
+      "text": 39,
+      "says": "Z"
     },
     "AuroraFlow": {
-      "band": 53.04,
-      "edge": 14.85
+      "band": 55.84,
+      "edge": 13.74
     },
-    "BeforeAfterSlider": {
-      "band": 25.56,
-      "edge": 0.0
+    "CartoonPop": {
+      "band": 100.0,
+      "edge": 2.38
     },
     "ComicPanels": {
-      "band": 38.43,
+      "band": 38.01,
       "edge": 0.0
     },
     "FlowField": {
-      "band": 4.51,
-      "edge": 9.59
+      "band": 4.46,
+      "edge": 9.55
     },
     "FractureIn": {
       "band": 5.21,
       "edge": 0.0
     },
     "GameOfLife": {
-      "band": 11.56,
-      "edge": 12.66
+      "band": 11.5,
+      "edge": 12.63
     },
     "HalftonePop": {
-      "band": 27.28,
-      "edge": 35.14
+      "band": 18.76,
+      "edge": 35.82
+    },
+    "InOrder": {
+      "band": 0.0,
+      "edge": 17.7
     },
     "InfiniteCanvas": {
-      "band": 9.7,
-      "edge": 0.7
+      "band": 15.42,
+      "edge": 18.87
     },
-    "IsometricAssembly": {
-      "band": 5.84,
-      "edge": 0.0
+    "LastLeg": {
+      "band": 0.02,
+      "edge": 33.99
+    },
+    "MadeOf": {
+      "band": 0.0,
+      "edge": 33.97
     },
     "MaterialHero": {
       "band": 11.14,
       "edge": 3.28
     },
-    "MorphForms": {
-      "band": 7.05,
-      "edge": 0.0
-    },
-    "NeonTickerWall": {
-      "band": 16.08,
-      "edge": 1.29
-    },
     "PaperCutout": {
-      "band": 16.39,
-      "edge": 8.35
+      "band": 0.0,
+      "edge": 8.31
     },
     "PixelBuild": {
       "band": 42.56,
       "edge": 0.0
     },
-    "RadialBurst": {
-      "band": 5.58,
-      "edge": 2.03
-    },
     "SwissEditorial": {
       "band": 0.0,
-      "edge": 4.8
+      "edge": 4.81
+    },
+    "VersusSplit": {
+      "band": 62.84,
+      "edge": 41.63
     }
   },
   "_regenerate": "python3 scripts/band_debt.py --write",

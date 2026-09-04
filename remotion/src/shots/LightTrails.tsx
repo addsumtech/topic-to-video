@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {bottomInset} from '../runtime/layout';
 
 export const DURATION = 160; // ~5.3s
 
@@ -57,7 +58,7 @@ export const LightTrails: React.FC<{label?: string}> = ({label = 'done in one mo
         {draw > 0.01 && draw < 0.99 && <circle cx={hx} cy={hy} r={16} fill="#ffffff" filter="url(#ltglow)" />}
       </svg>
 
-      <div style={{position: 'absolute', left: 0, right: 0, bottom: H * 0.12, textAlign: 'center',
+      <div style={{position: 'absolute', left: 0, right: 0, bottom: bottomInset(W, H, H * 0.12), textAlign: 'center',
         opacity: clamp01(seg(t, 0.74, 0.94)), color: '#eaf4ff', font: '800 46px/1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em'}}>{label}</div>
     </AbsoluteFill>
   );

@@ -24,6 +24,7 @@
 // runs to the edge loses nothing a viewer needed. Only TYPE carries meaning that a frame edge can destroy.
 import React from 'react';
 import {cancelRender, continueRender, delayRender} from 'remotion';
+import {captionBand} from './layout';
 
 /** Prefix on the render-cancelling error, so a caller can find the JSON payload in the CLI's stderr. */
 export const TEXT_SAFE_TAG = 'TEXT-SAFE-VIOLATIONS ';
@@ -31,6 +32,17 @@ export const TEXT_SAFE_TAG = 'TEXT-SAFE-VIOLATIONS ';
 export type Violation = {
   /** how far past each canvas edge the visible box reaches, in px (only sides > 0 are reported) */
   out: {left?: number; top?: number; right?: number; bottom?: number};
+  /**
+   * px this text reaches DOWN into the strip the renderer reserves for the burned caption.
+   *
+   * A second question, same walk, because pixels cannot answer it. `band_debt.py` measures the band as a
+   * FRACTION OF ITS AREA THAT IS INK, and a line of type is a tiny fraction of a 227px strip: CardStack3D
+   * sets its title 'All of it, in hand' wholly inside the band and measures 2.1%, while AuroraFlow — a
+   * generative field whose ground legitimately covers the frame — measures 53%. The instrument ranked the
+   * harmless case 25x above the fatal one and neither crossed the threshold, so the collision was invisible
+   * and the caption burns straight through the title. Type has a box; ask the box.
+   */
+  band?: number;
   text: string;
   tag: string;
   cls: string;
@@ -154,9 +166,16 @@ export const auditTextSafety = (root: Element, frame: DOMRect): Violation[] => {
     (Object.keys(over) as (keyof typeof over)[]).forEach((k) => {
       if (over[k] > floor) sides[k] = Math.round(over[k]);
     });
-    if (!Object.keys(sides).length) return;
+    // The caption strip is not a canvas edge — text inside it is not cut, it is COLLIDING with copy that
+    // will be burned over it later. Same glyph-scaled floor, so a descender grazing the boundary is not a
+    // finding and a whole title sitting in it is.
+    const bandTop = frame.bottom - captionBand(frame.width, frame.height);
+    const intoBand = r.bottom - bandTop;
+    const band = intoBand > floor ? Math.round(Math.min(intoBand, r.height)) : 0;
+    if (!Object.keys(sides).length && !band) return;
     out.push({
       out: sides,
+      ...(band ? {band} : {}),
       text: text.length > 48 ? text.slice(0, 48) + '…' : text,
       tag: el.tagName.toLowerCase(),
       cls: (el.getAttribute('class') ?? '').slice(0, 40),

@@ -61,6 +61,42 @@ export const captionBand = (W: number, H: number) =>
   Math.round(captionBlockH(W, H) + Math.min(W, H) * CAPTION_GAP_FRAC);
 export const contentBottom = (W: number, H: number) => H - captionBand(W, H);
 
+/**
+ * The smallest bottom inset a shot's own closing line may use — its floor, not its position.
+ *
+ * WHY THIS EXISTS. Swept at the settled frame, 32 of 152 registers set copy INSIDE the strip the renderer
+ * reserves for the burned caption: 'All of it, in hand', 'built, piece by piece', 'soft power, in motion' —
+ * taglines the caption then draws straight through. Exactly ONE of them used `contentBottom`. The rest wrote
+ * a number: `bottom: 96`, `bottom: H * 0.12`, `bottom: 150`. Every one of those numbers is smaller than the
+ * 227px band at 1080, and none of them is wrong in a way its author could see, because the caption is burned
+ * later by a different program.
+ *
+ * `bottomInset(W, H, wanted)` keeps the author's intent when it already clears the band and raises it when it
+ * does not, so the fix is one call rather than a re-derivation — and it holds at aspects the number was never
+ * checked against, where the band is a different size entirely.
+ *
+ * ONE TRAP, learned the expensive way: Remotion's `AbsoluteFill` sets `height: '100%'` alongside its four
+ * insets, so a `bottom` passed to it is silently ignored — the box stays full height and a passed `top` only
+ * pushes it DOWN. Constraining an AbsoluteFill means setting `height`. The symptom is a re-measurement
+ * identical to the pixel, which is what a change having no effect looks like.
+ */
+export const BOTTOM_GAP_FRAC = 0.02;
+export const bottomInset = (W: number, H: number, wanted = 0) =>
+  Math.max(wanted, captionBand(W, H) + Math.round(Math.min(W, H) * BOTTOM_GAP_FRAC));
+
+/**
+ * The lowest BASELINE an `<svg><text>` may sit on — `bottomInset`'s counterpart for SVG.
+ *
+ * Half this library's diagram registers hang a line of explanation under the figure at an authored `y` like
+ * `H * 0.84` or `oy + L * 0.5 + 40`. Those are all fine numbers for the picture and all below the caption
+ * band, because the band did not exist in the author's head — it is applied later, by the renderer. Wrapped
+ * in `Math.min(authored, bottomTextY(W, H))` the relationship survives wherever it fits and yields where it
+ * does not. The offset is a descender's worth of room, not a guess: a baseline exactly on the boundary puts
+ * the glyph tails inside it.
+ */
+export const bottomTextY = (W: number, H: number) =>
+  contentBottom(W, H) - Math.round(Math.min(W, H) * 0.012);
+
 // The largest camera push that CANNOT drive a shot's lowest content into the caption band.
 //
 // A scene camera scales the shot about the centre of the content zone, so the zone's bottom edge travels

@@ -2,7 +2,7 @@
 """Is any TYPE being cut off by the frame? — asked of the DOM, per beat.
 
     python3 scripts/text_safe_qa.py <out_dir>      # audit this film's beats, with their real copy
-    python3 scripts/text_safe_qa.py --library      # sweep every register at its default props
+    python3 scripts/text_safe_qa.py --library      # sweep every register (dna=product, the themed path)
     python3 scripts/text_safe_qa.py --library --aspect=9:16     # ...at the aspect the film actually ships at
 
 WHY THIS REPLACES A PIXEL GATE. `frame_safe_qa.py`'s EDGE-BLEED check asks how much ink sits in the outer
@@ -86,8 +86,17 @@ def audit_shot(shot, props, frame, tmp_png):
 
 
 def _describe(v):
+    """Name the DEFECT, not just the string. A finding that prints a line of copy and a font size leaves the
+    reader to work out what is wrong with it, and the two defects this audit reports want opposite fixes:
+    text off the canvas is a layout that did not fit, text in the caption band is a layout that fit into
+    space it does not own."""
+    parts = []
     sides = ", ".join("%s %spx" % (k, val) for k, val in sorted((v.get("out") or {}).items()))
-    return "%r %s%s" % (v.get("text", ""), "cut off — " + sides if sides else "",
+    if sides:
+        parts.append("CUT OFF — " + sides)
+    if v.get("band"):
+        parts.append("IN THE CAPTION BAND by %spx — the burned caption draws over it" % v["band"])
+    return "%r %s%s" % (v.get("text", ""), "; ".join(parts),
                         "  [%s]" % v["font"] if v.get("font") else "")
 
 
@@ -116,17 +125,39 @@ def scan_film(out_dir):
     return findings, checked
 
 
-def scan_library(limit=None, aspect=None):
+DEFAULT_DNA = "product"
+
+
+def scan_library(limit=None, aspect=None, dna=DEFAULT_DNA):
     """Sweep the catalogue. `aspect` matters: a register laid out for 16:9 can hold its type comfortably and
-    still clip it at 9:16, which is the failure mode a portrait film meets and a landscape sweep never sees."""
+    still clip it at 9:16, which is the failure mode a portrait film meets and a landscape sweep never sees.
+
+    `dna` matters for the same reason it does in register_energy.py: the Design DNA sets the type family and
+    therefore every metric this audit measures, and EVERY delivered film has one. Sweeping with bare props
+    measures the un-themed fallback, a mode no film ships."""
     durs = durations()
     names = sorted(durs)[: limit or None]
     tmp = os.path.join(os.environ.get("TMPDIR", "/tmp"), "_textsafe_lib.png")
-    base = {"aspect": aspect} if aspect else {}
+    base = {}
+    if aspect:
+        base["aspect"] = aspect
+    if dna:
+        base["dna"] = dna
+    # The four evidence registers REFUSE to render without a real image (runtime/evidence.ts), so a bare
+    # sweep reports them as four render failures — a true statement about the sweep and a useless one about
+    # the registers. Same fixture the energy sweep uses, from the same parsed call sites: one definition.
+    try:
+        import register_energy as _re
+        _re.ensure_fixture()
+        evidence = _re.evidence_props()
+    except Exception:
+        evidence = {}
     findings = []
     for i, n in enumerate(names, 1):
         frame = int(round(rr.frame_at_t(durs[n], rr.SETTLED_T)))
-        for v in audit_shot(n, dict(base), frame, tmp):
+        props = dict(base)
+        props.update(evidence.get(n) or {})
+        for v in audit_shot(n, props, frame, tmp):
             findings.append("%s: %s" % (n, _describe(v)))
         if i % 20 == 0:
             print("  swept %d/%d" % (i, len(names)), flush=True)
@@ -141,8 +172,12 @@ def main(argv):
     if argv[0] == "--library":
         limit = next((int(a.split("=", 1)[1]) for a in argv if a.startswith("--limit=")), None)
         aspect = next((a.split("=", 1)[1] for a in argv if a.startswith("--aspect=")), None)
-        findings, n = scan_library(limit, aspect)
-        scope = "%d registers at default props%s" % (n, " · aspect %s" % aspect if aspect else "")
+        dna = next((a.split("=", 1)[1] for a in argv if a.startswith("--dna=")), DEFAULT_DNA)
+        if dna in ("", "none"):
+            dna = None
+        findings, n = scan_library(limit, aspect, dna)
+        scope = "%d registers at default props · dna=%s%s" % (n, dna or "none",
+                                                              " · aspect %s" % aspect if aspect else "")
     else:
         findings, n = scan_film(os.path.abspath(argv[0]))
         scope = "%d beats" % n

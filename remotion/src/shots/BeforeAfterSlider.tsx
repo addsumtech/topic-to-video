@@ -5,6 +5,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeInOutCubic, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 
 export const DURATION = 150; // 5s
 // LEVEL-C: the previewed "slide" surfaces + accents follow the DNA → a DARK slide being refined on a dark DNA (the
@@ -40,7 +41,13 @@ export const BeforeAfterSlider: React.FC<{heading?: string; metric?: string; sub
   const ACC = dna?.accent ?? ACCENT, BG = dna?.bg ?? '#e7e9ef', HANDLE = dna?.fg ?? '#fff', ON = dna?.onAccent ?? '#fff', CHIP = dna?.surface ?? 'rgba(30,35,55,.5)';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
-  const CW = 1500, CH = 900, X = (W - CW) / 2, Y = (H - CH) / 2 + 20;
+  // The panel is sized to the zone the shot OWNS. At 1500x900 fixed it hung 157px into the caption band and
+  // carried its 'Rough draft' / 'Board-ready' chips and its headline figure down there with it — four of this
+  // library's 73 band collisions came from this one panel. Fixed pixels also make it wrong at every aspect
+  // but the one it was drawn on.
+  const zoneTop = CONTENT_TOP, zoneBot = contentBottom(W, H);
+  const CW = Math.min(1500, W * 0.86), CH = Math.min(900, zoneBot - zoneTop);
+  const X = (W - CW) / 2, Y = zoneTop + (zoneBot - zoneTop - CH) / 2;
   const s = lerp(0.14, 0.86, easeInOutCubic(seg(t, 0.12, 0.9))); // slider fraction
   return (
     <AbsoluteFill style={{background: BG}}>

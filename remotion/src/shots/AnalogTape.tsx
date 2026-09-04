@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, clamp01, seg, lerp} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {bottomInset} from '../runtime/layout';
 
 export const DURATION = 160; // ~5.3s
 
@@ -70,8 +71,8 @@ export const AnalogTape: React.FC<{title?: string; tagline?: string}> = ({title:
         <span style={{width: 22, height: 22, borderRadius: 11, background: '#ff2b2b', opacity: recOn ? 1 : 0.15}} />REC
       </div>
       <div style={{position: 'absolute', right: 60, top: 48, font: '700 40px/1 var(--f-mono, "VT323", "JetBrains Mono", monospace)', color: '#eafff0'}}>SP · AUG&nbsp;12&nbsp;2026</div>
-      <div style={{position: 'absolute', left: 60, bottom: 48, font: '700 44px/1 var(--f-mono, "VT323", "JetBrains Mono", monospace)', color: '#eafff0', letterSpacing: '0.1em'}}>▶ PLAY</div>
-      <div style={{position: 'absolute', right: 60, bottom: 48, font: '700 40px/1 var(--f-mono, "VT323", "JetBrains Mono", monospace)', color: '#eafff0'}}>{String(Math.floor(t * 12)).padStart(2, '0')}:{String(Math.floor((t * 12 * 60) % 60)).padStart(2, '0')}</div>
+      <div style={{position: 'absolute', left: 60, bottom: bottomInset(W, H, 48), font: '700 44px/1 var(--f-mono, "VT323", "JetBrains Mono", monospace)', color: '#eafff0', letterSpacing: '0.1em'}}>▶ PLAY</div>
+      <div style={{position: 'absolute', right: 60, bottom: bottomInset(W, H, 48), font: '700 40px/1 var(--f-mono, "VT323", "JetBrains Mono", monospace)', color: '#eafff0'}}>{String(Math.floor(t * 12)).padStart(2, '0')}:{String(Math.floor((t * 12 * 60) % 60)).padStart(2, '0')}</div>
 
       {/* CRT barrel vignette */}
       <AbsoluteFill style={{background: 'radial-gradient(110% 100% at 50% 50%, #0000 56%, #000000cc 100%)', pointerEvents: 'none'}} />

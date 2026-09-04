@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {bottomInset} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 const CY = '#3fe0ff';
@@ -74,7 +75,7 @@ export const WireGlobe: React.FC<{tagline?: string}> = ({tagline = 'connected to
         })}
       </svg>
 
-      <div style={{position: 'absolute', left: 0, right: 0, bottom: H * 0.12, textAlign: 'center',
+      <div style={{position: 'absolute', left: 0, right: 0, bottom: bottomInset(W, H, H * 0.12), textAlign: 'center',
         opacity: clamp01(seg(t, 0.55, 0.8)), color: '#dff4ff', font: '800 44px/1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em'}}>
         {tagline}<span style={{color: CY}}>.</span>
       </div>

@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, hash01, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {contentBottom} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 const DEFAULT_BARS = [
@@ -18,7 +19,11 @@ export const PhysicsStack: React.FC<{items?: string[]; label?: string}> = ({item
   const t = useT();
   const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
-  const groundY = H - 200, bw = 180, gap = 46;
+  // The ground line the bars stand on is the content zone's floor minus the labels that hang under it, not
+  // a fixed 200px off the frame — the day labels were landing in the caption band.
+  const LABEL_ROOM = 76;
+  const groundY = Math.min(H - 200, contentBottom(W, H) - LABEL_ROOM);
+  const bw = 180, gap = 46;
   const totalW = BARS.length * bw + (BARS.length - 1) * gap;
   const x0 = (W - totalW) / 2;
 

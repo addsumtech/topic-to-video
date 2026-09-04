@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 
 type Item = {label?: string; x?: number; y?: number; hero?: boolean};
 
@@ -20,7 +21,14 @@ export const PositioningMatrix: React.FC<{
   const t = useT();
   const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
-  const PLOT = 760, cx = W / 2, cy = H / 2 + 26;
+  // Centred on the CONTENT ZONE, not the frame, and scaled to it. Centred on H/2 with a fixed radius the
+  // lowest node landed inside the strip the renderer burns the caption over, so a node label and a subtitle
+  // drew on top of each other. Deriving both from the zone also makes the layout right at aspects the fixed
+  // radius was never checked against.
+  const zTop = CONTENT_TOP, zBot = contentBottom(W, H);
+  const AXIS_ROOM = 52;                                      // the axis end label under the plot
+  const PLOT = Math.min(760, (zBot - zTop) - AXIS_ROOM * 2);
+  const cx = W / 2, cy = (zTop + zBot) / 2;
   const x0 = cx - PLOT / 2, y0 = cy - PLOT / 2;
   const px = (x: number) => x0 + clamp01(x) * PLOT;
   const py = (y: number) => y0 + (1 - clamp01(y)) * PLOT; // y up

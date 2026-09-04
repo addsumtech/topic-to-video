@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {bottomInset} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#0c0f1a';
@@ -52,7 +53,7 @@ export const ClothWave: React.FC<{title?: string; tagline?: string; accent?: str
           })}
         </div>
       </AbsoluteFill>
-      <div style={{position: 'absolute', bottom: 120, left: 0, right: 0, textAlign: 'center',
+      <div style={{position: 'absolute', bottom: bottomInset(W, H, 120), left: 0, right: 0, textAlign: 'center',
         opacity: easeOutCubic(seg(t, 0.62, 0.84)), color: '#c7d0ee',
         font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.2em'}}>{TAG}</div>
     </AbsoluteFill>

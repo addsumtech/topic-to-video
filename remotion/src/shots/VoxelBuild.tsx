@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {bottomInset} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#0a0d1c', ACC_D0 = '#37d68a';
@@ -51,10 +52,10 @@ export const VoxelBuild: React.FC<{title?: string; tagline?: string; accent?: st
           );
         })}
       </svg>
-      <div style={{position: 'absolute', bottom: 150, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
+      <div style={{position: 'absolute', bottom: bottomInset(W, H, 92) + 58, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
         color: '#eafff4', font: '800 88px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.02em',
         textShadow: '0 8px 40px #000'}}>{TITLE}</div>
-      <div style={{position: 'absolute', bottom: 92, left: 0, right: 0, textAlign: 'center',
+      <div style={{position: 'absolute', bottom: bottomInset(W, H, 92), left: 0, right: 0, textAlign: 'center',
         opacity: easeOutCubic(seg(t, 0.72, 0.9)), color: '#9fd6bd',
         font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.2em'}}>{TAG}</div>
     </AbsoluteFill>

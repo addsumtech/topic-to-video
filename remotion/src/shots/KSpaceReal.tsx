@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 
 export const DURATION = 180; // 6s
 
@@ -24,8 +25,15 @@ export const KSpaceReal: React.FC<{src?: string; accent?: string; label?: string
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
-  const S = Math.min(H * 0.62, W * 0.42);
-  const left = (W - S) / 2, top = (H - S) / 2 - 10, cx = left + S / 2, cy = top + S / 2;
+  // Centred in the CONTENT ZONE, not in the frame, and reserving room for the line it hangs under itself.
+  // Centred in the frame, the square's own caption — "the image's spatial frequencies — not the image" —
+  // landed inside the strip the renderer burns the real caption over. Deriving from the zone also makes the
+  // square correct at aspects where H * 0.62 is meaningless.
+  const zoneTop = CONTENT_TOP, zoneBot = contentBottom(W, H);
+  const labelRoom = Math.round(Math.min(W, H) * 0.05);
+  const S = Math.max(120, Math.min(zoneBot - zoneTop - labelRoom, W * 0.42));
+  const left = (W - S) / 2, top = zoneTop + (zoneBot - labelRoom - zoneTop - S) / 2;
+  const cx = left + S / 2, cy = top + S / 2;
   const app = clamp01(seg(t, 0.08, 0.5));
 
   return (

@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutBack, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 const A = Math.PI / 6;
@@ -36,9 +37,25 @@ export const IsometricAssembly: React.FC<{items?: [string, string, string]}> = (
   const GLOW = dna?.accent ?? '#5B8CFF', L1 = dna?.dim ?? '#8791a3', L2 = dna?.fg ?? '#2b3450', L3 = dna?.accent2 ?? '#12a561';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
-  const ox = W / 2 - 140, oy = 330;
+  const ox = W / 2 - 140;
   const y = 70, beltLen = 1040, mx = 440, mw = 200;   // machine occupies [mx, mx+mw] on the belt
   const inX = 60, outStart = mx + mw + 40, outX = beltLen - 40;
+  // THE WHOLE SCENE IS SCALED TO THE CONTENT ZONE. An isometric projection drops (x + y)·sin(30°) below its
+  // origin, so the far end of a 1040-long belt lands 635px down; with `oy` fixed at 330 the 'Delivered ✓'
+  // pad label sat 49px inside the strip the renderer burns the caption over. Nudging that one label would
+  // have broken it away from the pad it names, and the scene does not fit at full size — so the scene
+  // yields, uniformly, and every element keeps its relationship to every other.
+  const zTop = CONTENT_TOP, zBot = contentBottom(W, H);
+  // MOVE FIRST, SCALE ONLY IF IT STILL DOES NOT FIT — and both numbers MEASURED off a render, not reasoned
+  // from the projection. The scene's ink runs from 16px below the belt origin to 683px below it: 667px, and
+  // the content zone at 16:9 is 677px. So it fits exactly as drawn, and all it ever needed was to be moved
+  // up; at `oy = 330` it hung 160px past the zone while the top of the zone sat empty. Two guesses at these
+  // constants cost real density before the ruler came out — scaling the whole scene took it from 8.9% ink to
+  // 6.2%, and a wrong guess at the rise took it to 4.5%.
+  const SCENE_TOP_OFF = 16;                                  // ink begins this far BELOW the belt origin
+  const SCENE_DROP = 683;                                    // ink ends this far below it
+  const oy = zTop - SCENE_TOP_OFF;
+  const k = Math.min(1, (zBot - zTop) / (SCENE_DROP - SCENE_TOP_OFF));
   // three parts flow through, staggered; a part is HIDDEN while inside the machine, and emerges COLOURED.
   const parts = [0, 1, 2].map((i) => {
     const p = clamp01((t - 0.06 - i * 0.26) / 0.8);
@@ -50,6 +67,7 @@ export const IsometricAssembly: React.FC<{items?: [string, string, string]}> = (
   const busy = parts.some((pt) => pt.inside && pt.p < 1);
   return (
     <AbsoluteFill style={{background: bgc}}>
+     <div style={{position: 'absolute', inset: 0, transform: `scale(${k})`, transformOrigin: `50% ${zTop}px`}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         {/* conveyor slab */}
         <Cuboid x={0} y={y} z={-22} w={beltLen} d={150} h={22} top="#cdd4e1" ox={ox} oy={oy} />
@@ -70,6 +88,7 @@ export const IsometricAssembly: React.FC<{items?: [string, string, string]}> = (
       <div style={{position: 'absolute', left: iso(inX - 40, y + 200, 0, ox, oy)[0] - 110, top: iso(inX - 40, y + 200, 0, ox, oy)[1], width: 200, textAlign: 'center', font: '700 38px/1.2 var(--f-body, Inter,system-ui,sans-serif)', color: L1}}>{items[0]}</div>
       <div style={{position: 'absolute', left: iso(mx + mw / 2, y + 80, 0, ox, oy)[0] - 130, top: iso(mx + mw / 2, y + 80, 0, ox, oy)[1] - 300, width: 260, textAlign: 'center', font: '800 44px/1.15 var(--f-body, Inter,system-ui,sans-serif)', color: L2}}>{items[1]}</div>
       <div style={{position: 'absolute', left: iso(outX, y + 200, 0, ox, oy)[0] - 60, top: iso(outX, y + 200, 0, ox, oy)[1] + 10, width: 260, font: '800 40px/1.2 var(--f-body, Inter,system-ui,sans-serif)', color: L3}}>{items[2]}</div>
+     </div>
     </AbsoluteFill>
   );
 };

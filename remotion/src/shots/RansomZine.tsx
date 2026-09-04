@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {bottomInset} from '../runtime/layout';
 
 export const DURATION = 145; // ~4.8s
 // LEVEL-C: the multi-colour torn-paper SCRAPS are the ransom-note's identity (kept — they pop on any surface); on a
@@ -72,7 +73,7 @@ export const RansomZine: React.FC<{word?: string; tagline?: string}> = ({
           strokeDasharray={totalW + 60} strokeDashoffset={(totalW + 60) * (1 - marker)} opacity={0.9} />
       </svg>
 
-      <div style={{position: 'absolute', left: 0, right: 0, bottom: 130, textAlign: 'center', opacity: tagIn,
+      <div style={{position: 'absolute', left: 0, right: 0, bottom: bottomInset(W, H, 130), textAlign: 'center', opacity: tagIn,
         color: TAGc, font: '800 34px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.24em',
         textTransform: 'uppercase'}}>{TAG}</div>
     </AbsoluteFill>
