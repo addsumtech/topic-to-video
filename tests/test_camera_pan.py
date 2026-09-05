@@ -6,9 +6,21 @@ existing camera on every beat of the delivered 30-beat film took its frame-diff 
 under the 0.0037 floor — while the same film under a constant-velocity lateral pan measured 0.0040. The
 missing operation was a translate.
 
-It is OFF unless asked for. This codebase carries a recorded history of shake complaints — the whole-film
-ambient drift was made opt-in and defaults to still for exactly that reason — so a pan that appeared on its
-own would be a regression, not a feature.
+THE DEFAULT WAS REVERSED, deliberately and with evidence, after the shake instrumentation existed. The old
+rule here read "a pan that appeared on its own would be a regression, not a feature" — correct for its time,
+because shake could not then be proven absent, so the only safe camera was none: a floor on shake bought
+with a ceiling on motion. What changed is that the ceiling's cost became measurable and the floor became
+provable. Measured on the same six-beat themed film: the planner's punctuation covers ~10% of a real film's
+runtime while the p75 delivery gate needs motion on >25% of frames (mathematically out of reach); the
+ambient drift adds +9%; the camera BED — bedPan()'s slow lateral drift on beats nobody authored a camera
+for — takes the film from 0.0035 to 0.0042 (over the 0.0037 floor) at wander p90 1.46 with local flicker
+DOWN (17% -> 15%), byte-identical across renders, and an un-themed film pixel-identical to before. Shake is
+now refused structurally (panAt is monotone: within a beat the frame travels, never vibrates) and checked
+per delivery (scripts/shake_qa.py), instead of being prevented by keeping the camera dead.
+
+Everything below still holds: an AUTHORED camera — even `hold` — wins outright, the pan stays monotone,
+edge-safe and caption-bounded, reduced motion zeroes it, and the ambient drift and the bed refuse to
+coexist.
 """
 import json
 import os
@@ -138,3 +150,35 @@ def test_a_film_cannot_declare_both_an_oscillating_drift_and_a_travelling_pan(tm
     assert not made and "read as shake" in blob, "drift + pan rendered instead of being refused"
     _blob, made = render(0.0)
     assert made, "a pan on its own must still render"
+
+
+def test_the_bed_rules_are_exactly_the_promised_ones():
+    """bedPan is the reversal's contract: WHO gets the default drift, pinned as behaviour."""
+    out = run_probe("""
+try {
+  out.themed = C.bedPan(2, true, 0, null);
+  out.unthemed = C.bedPan(2, false, 0, null);
+  out.authored = C.bedPan(2, true, 0, {move: 'hold'});
+  out.drifting = C.bedPan(2, true, 1.0, null);
+  out.disabled = C.bedPan(2, true, 0, null, false);
+  out.again = C.bedPan(2, true, 0, null);
+  out.next = C.bedPan(3, true, 0, null);
+} catch (e) { fail('bed', e); }
+""")
+    assert out["themed"] and out["themed"]["bed"] is True, out
+    assert out["unthemed"] is None, "an un-themed film grew a camera (null-DNA rule)"
+    assert out["authored"] is None, "an authored camera — even hold — must win outright"
+    assert out["drifting"] is None, "the bed coexisted with the ambient drift (the shake guard's case)"
+    assert out["disabled"] is None, "meta.camera_bed:false did not switch it off"
+    assert out["again"] == out["themed"], "the bed is not deterministic"
+    dx2, dx3 = out["themed"]["pan"][0], out["next"]["pan"][0]
+    assert dx2 * dx3 < 0, "adjacent beats drift the same way — one long pan a cut keeps interrupting"
+    assert out["themed"]["pan"][1] < 0, "the bed drifts DOWNWARD — that is the caption's direction"
+
+
+def test_the_bed_amplitude_stays_under_a_motivated_move():
+    """Punctuation stays punctuation only while the bed is quieter than a move with a cause."""
+    import re
+    src = open(os.path.join(RUNTIME, "depth.tsx"), encoding="utf-8").read()
+    m = re.search(r"BED_AMOUNT_FRAC = ([\d.]+)", src)
+    assert m and float(m.group(1)) < 0.75, "the bed takes as much of the cap as a motivated move"

@@ -21,7 +21,7 @@
 
 import React from 'react';
 import {useVideoConfig} from 'remotion';
-import {useT, ReducedMotionContext, clamp01, easeInOutCubic} from './motion';
+import {useT, ReducedMotionContext, clamp01, easeInOutCubic, hash01} from './motion';
 import {CONTENT_TOP, contentBottom, maxCameraPush, captionSlackPx} from './layout';
 
 // ── depth planes ────────────────────────────────────────────────────────────────────────────────────────
@@ -148,6 +148,50 @@ export const clampPan = (pan: unknown): [number, number] | null => {
   return [clamp1(x), clamp1(y)];
 };
 
+/**
+ * The camera BED — the default stance of a beat nobody authored a camera for: a slow, near-linear lateral
+ * drift, the same gesture the html tier has always shipped as its Ken Burns floor.
+ *
+ * WHY THE DEFAULT CHANGED, with the numbers. The lock ("a pan that appeared on its own would be a
+ * regression") dates from when shake could not be proven absent, so the only safe camera was none — a floor
+ * on shake bought by a ceiling on motion. Both instruments now exist (scripts/shake_qa.py: global wander;
+ * flicker(): local reversals), and the measurements are unambiguous: the planner's punctuation alone covers
+ * 2-4 beats of a 20-30 beat film (~10% of runtime) while the delivery gate's p75 needs motion on >25% of
+ * frames — mathematically out of reach; the whole-film ambient drift moves the number +9%; a scale-only
+ * push stamped on every beat +32% (recorded above `pan`); a lateral pan reached 0.0112 against the 0.0037
+ * floor. The missing operation was a translate on the beats that hold.
+ *
+ * WHY IT CANNOT BE THE OLD SHAKE, structurally rather than by promise: `panAt` is a monotone three-piece
+ * ramp (pinned by test_camera_pan), so within any beat the frame TRAVELS — path equals net displacement,
+ * wander ~1, the exact signature shake_qa calls clean; direction changes only at a cut, where continuity is
+ * not expected. The travel is bounded by the overscan (no edge is ever revealed) and by captionSlackPx
+ * downward (the burned caption's band is not the camera's to spend). Amplitude is derived from the same cap
+ * as everything else, at BED_AMOUNT_FRAC of it — deliberately under the 0.75 a motivated move takes, so
+ * punctuation stays punctuation.
+ *
+ * WHO GETS IT: themed films only (the null-DNA rule keeps machinery out of the un-themed look), beats with
+ * NO authored camera (an authored move — even `hold` — wins outright), never under reduced motion, and
+ * never alongside the whole-film ambient drift (two beds are the coexistence the shake guard exists to
+ * refuse). `meta.camera_bed: false` switches it off film-wide.
+ */
+export const BED_AMOUNT_FRAC = 0.45;
+export const bedPan = (
+  index: number,
+  themed: boolean,
+  ambientAmp: number,
+  authored?: {move?: CameraMove; amount?: number; pan?: [number, number]} | null,
+  enabled = true,
+): {pan: [number, number]; bed: true} | null => {
+  if (!enabled || !themed || ambientAmp > 0 || authored) return null;
+  // Deterministic per-beat direction: lateral alternates so two adjacent holds do not read as one long
+  // drift a cut interrupted; the vertical component drifts UPWARD only, because downward is the caption's
+  // direction and, although the clamp would stop it, a bed that leans on a safety clamp is a bed designed
+  // wrong. hash01 keeps the amplitude from being metronomic without ever being random.
+  const dx = (index % 2 === 0 ? 1 : -1) * (0.5 + 0.25 * hash01(index * 7 + 1));
+  const dy = -(0.1 + 0.12 * hash01(index * 13 + 5));
+  return {pan: [dx, dy], bed: true};
+};
+
 export const cameraAt = (move: CameraMove, t: number): number => {
   if (move === 'hold') return 0;
   const p = easeInOutCubic(clamp01((t - CAMERA_START) / CAMERA_SPAN));
@@ -186,7 +230,9 @@ export const SceneCamera: React.FC<{
   driftExtra?: number;
   driftTranslate?: number;
   children?: React.ReactNode;
-}> = ({move = 'hold', amount, pan, driftExtra = 0, driftTranslate = 0, children}) => {
+  /** this camera is the BED: derive the smaller BED_AMOUNT_FRAC of the cap instead of a move's 0.75 */
+  bed?: boolean;
+}> = ({move = 'hold', amount, pan, driftExtra = 0, driftTranslate = 0, bed = false, children}) => {
   const {width: W, height: H} = useVideoConfig();
   const reduced = React.useContext(ReducedMotionContext);
   const t = useT();
@@ -196,7 +242,7 @@ export const SceneCamera: React.FC<{
   // and 45% of it at 16:9: the same authored intent produced two different moves. Three-quarters of the
   // cap is the same fraction of the available headroom at every aspect and every drift level, which is
   // what "a gentle push" should mean.
-  const amp = reduced ? 0 : Math.max(0, Math.min(amount ?? cap * 0.75, cap));
+  const amp = reduced ? 0 : Math.max(0, Math.min(amount ?? cap * (bed ? BED_AMOUNT_FRAC : 0.75), cap));
   const push = amp > 0 ? cameraAt(move, t) : 0;
   // A pan needs overscan to travel in. On a HOLD the push provides none, so the pan brings its own — the
   // same three-quarters-of-the-cap a gentle push would have taken, held CONSTANT so the frame does not also

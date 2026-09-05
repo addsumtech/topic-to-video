@@ -233,9 +233,14 @@ def plan(slides, dna=None):
 #   close   -> pull   the last beat. Here is the whole of it.
 #   opener  -> pull   the establishing beat, for the same reason, from the other end of the film.
 #
-# Everything else HOLDS. A film where the camera is always moving has no camera at all, in the same way
-# that a film where every cut is marked has no punctuation — so the budget is deliberately small and the
-# moves are spread apart.
+# Everything else gets the BED, not a hold. This comment used to read "everything else HOLDS — a film where
+# the camera is always moving has no camera at all", and that absolutism conflated two different things.
+# What kills punctuation is uniform AMPLITUDE, not uniform presence: the reference launch films' cameras
+# are never dead, and their marked moves still read, because the ever-present layer sits far below them.
+# So the hierarchy is now explicit — Film.tsx gives every unauthored beat a barely-perceptible lateral
+# drift (depth.tsx bedPan: monotone, edge-safe, caption-bounded, 45% of the cap against a move's 75%,
+# themed films only, `meta.camera_bed: false` to refuse), and THIS planner still owns the moves that mean
+# something. The budget below stays small for exactly that reason: these are the punctuation.
 CAMERA_BY_RELATION = {"payoff": "push", "close": "pull"}
 # NO AMOUNT. The planner used to write 0.045 on every move — a number chosen once at 16:9 and then clamped
 # everywhere else, so the same authored intent was 45% of the available headroom at 16:9 and 96% of it at

@@ -21,7 +21,7 @@ import {groundLum, dnaGroundLum, dnaGroundY, groundGap, lumValue, lumFromY, type
 import {BeatGround, groundAt, captionInk, hexGround, LIGHT_KEY_Y, CAPTION_INK_DARK, CAPTION_INK_LIGHT,
         type SceneGroundDecl} from './runtime/light';
 import {Atmosphere, type Atmo} from './runtime/atmosphere';
-import {SceneCamera, type CameraMove} from './runtime/depth';
+import {SceneCamera, bedPan, type CameraMove} from './runtime/depth';
 import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome} from './runtime/dna';
 import {REGISTRY} from './registry';
 import {TextSafeAudit} from './runtime/textSafe';
@@ -488,8 +488,8 @@ const BrandMark: React.FC<{brand?: any}> = ({brand}) => {
   );
 };
 
-export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any; dna?: DesignDNA | null; template?: string; textSafe?: boolean}> =
-  ({scenes = WORKBUDDY_SCENES, camera = 0, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false}) => {
+export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: boolean; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any; dna?: DesignDNA | null; template?: string; textSafe?: boolean}> =
+  ({scenes = WORKBUDDY_SCENES, camera = 0, cameraBed = true, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false}) => {
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
   const total = filmDuration(scenes);
@@ -593,7 +593,12 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; reducedMotio
                     brand); this one shadows it for the beat. A beat that declares no ground provides the
                     film DNA object itself, so this is a no-op and the frame is bit-for-bit unchanged. */}
                 <BeatGround dna={activeDna} scene={sc} durF={durF} shot={sc.shot}>
-                  <SceneCamera move={sc.camera?.move} amount={sc.camera?.amount} pan={sc.camera?.pan}
+                  {/* the camera BED: a beat nobody authored a camera for drifts gently instead of sitting
+                      dead — see bedPan's header for the measurements and the guarantees. An authored camera
+                      (even 'hold') wins outright; un-themed films and drifting films get none. */}
+                  <SceneCamera move={sc.camera?.move} amount={sc.camera?.amount}
+                    pan={sc.camera?.pan ?? bedPan(i, !!activeDna, ambient, sc.camera, cameraBed)?.pan}
+                    bed={!sc.camera && !!bedPan(i, !!activeDna, ambient, sc.camera, cameraBed)}
                                driftExtra={(reducedMotion ? 0 : Math.max(0, camera)) * DRIFT_MAX_EXTRA}
                                driftTranslate={(reducedMotion ? 0 : Math.max(0, camera)) * DRIFT_MAX_TRANSLATE_Y}>
                     <AbsoluteFill>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</AbsoluteFill>
