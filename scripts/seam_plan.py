@@ -146,8 +146,20 @@ SEAM_BY_RELATION = {
     "payoff": {"type": "dissolve"},
     "close": {"type": "carry"},
 }
-# the seam that is allowed to cross a dark↔light boundary — its bridge line is the luminance dip
+# THE SEAMS ALLOWED TO CROSS A DARK↔LIGHT BOUNDARY, and why each is allowed.
+#
+# `carry` earns it by drawing a neutral bridge line — the line IS the luminance dip, so the eye tracks it
+# instead of being flashed. `focus` earns it differently and more cheaply: a rack focus redistributes light
+# without adding or removing any, so it cannot flash by construction, whatever the two grounds are.
+#
+# `focus` is also the only seam in this vocabulary that happens in DEPTH rather than in the plane, which is
+# the gap that put it here. Measured against the video-shotcraft library (218 shots, same stack), three of
+# its six hand-off recipes are built on depth and this tier had none — every seam we shipped moved pixels
+# sideways or faded them, and a film whose cuts are all planar reads as pages replacing pages.
 CROSSING_SEAM = {"type": "carry"}
+# A CROSSING seam on a `payoff`, where a dissolve would be forced back to a plain fade: the argument lands,
+# and the focus carrying from one frame to the next is a stronger claim than a cross-fade anyway.
+CROSSING_PAYOFF_SEAM = {"type": "focus"}
 
 MIN_GAP = 5          # beats between two marked seams, so a mark stays punctuation
 _LUM_RANK = {"dark": 0, "mid": 1, "light": 2}
@@ -190,9 +202,16 @@ def plan(slides, dna=None):
             continue
         crossing = _crosses(slides[i - 1].get("shot"), slides[i].get("shot"), dna)
         if crossing:
-            # only the carry survives the luminance guard; anything else would be silently discarded
-            seam = dict(CROSSING_SEAM)
-            why = "%s across a dark/light boundary — carry is the seam whose bridge line IS the dip" % rel
+            # Two seams survive the luminance guard, and they are not interchangeable. A `payoff` is the beat
+            # where the argument lands, so the crossing form of it should still say "this became that":
+            # `focus` does — the eye rides the focal plane from one frame into the next — and it cannot flash,
+            # because racking focus redistributes light rather than adding any. Everything else that crosses
+            # becomes the carry, whose bridge line IS the dip. Before this, every crossing seam collapsed to
+            # the same carry whatever it was claiming.
+            seam = dict(CROSSING_PAYOFF_SEAM if rel == "payoff" else CROSSING_SEAM)
+            why = ("payoff across a dark/light boundary — focus relay carries the eye through the cut "
+                   "without a flash" if rel == "payoff" else
+                   "%s across a dark/light boundary — carry is the seam whose bridge line IS the dip" % rel)
         else:
             seam = dict(seam)
             why = {"new-topic": "opens outward onto a different subject",

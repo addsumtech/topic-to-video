@@ -539,3 +539,57 @@ move without meaning anything, which this repo's own design rule forbids. The di
 graph whose nodes keep orbiting, a field that keeps flowing. A frozen frame is a screenshot; this tier is
 supposed to be film.
 
+## What a mature peer library does that this one does not (measured, 2026-09-05)
+
+`video-shotcraft` (218 implemented shots / 157 catalogue cards) was downloaded and compared item by item. It
+runs the SAME stack — Remotion 4 + React, CSS 3D on both sides, no three.js in either shot library — so the
+comparison is like for like rather than an impression.
+
+| | video-shotcraft | this tier |
+|---|---:|---:|
+| shots | 218 | 152 |
+| median lines per shot | 135 | 77 |
+| any 3D | 38 (17%) | 11 (7%) |
+| `perspective` | 34 | 10 |
+| `rotateX` (pitch) | 24 | **2** |
+| `blur()` | 76 (35%) | 17 (11%) |
+| `spring` | 24 | **3** |
+| seam vocabulary | 18 transition cards + 6 hand-off recipes | 5, all planar |
+
+### The three capability gaps
+
+1. **The camera has push and pull; it has no SPACE.** Their `basic-3d-scene` is one formula —
+   `camera = stepTransform.inverse()` — with cards posed anywhere in 3D and the camera flying to align with
+   each. Paging becomes travel through the idea's space. `cube-navigation`, `terminal-3d` and `flying-words`
+   (keywords rushing past the lens down a z tunnel) build on it. Our `SceneCamera` is scale + 2D translate;
+   `rotateX` appears in two registers in the whole library.
+2. **Focus is not part of our language.** Theirs is structural: `depth-layer-moves` builds depth from three
+   parallax coefficients (0.35 / 0.7 / 1.4) plus fore/background blur plus desaturation, with the rule
+   "without the blur/saturation anchor it reads as stickers flying"; a fake dolly-zoom pins the subject while
+   the background swells 1→2.25. Our blur is almost entirely frosted-glass panels; no register uses focus as
+   an argument.
+3. **Every seam we ship is planar.** Three of their six hand-off recipes are built on depth: through-dark
+   flight, focus relay (the focal plane IS the cut point), portal wipe. Their stated bar: "no acclaimed
+   launch film cuts bare, ever." The focus relay has since been borrowed — see Film.tsx FocusRelayPresentation.
+
+### The form of their documentation is itself a capability
+
+Every shot card is: one-line identity / when to use / duration / energy / motion core / **a parameter table
+where each row carries the FEEL of turning that knob** / **known traps** / reference implementation. And
+their `aesthetic-rules.md` is CASE LAW: every rule is (an executable sentence) + (the case: the user's own
+words and the rework history) + (a self-check question), numbered R/Q/S/C/P, never renumbered, append-only,
+and walked item by item at acceptance with a `N ✓` / `N ✗(where)` report. Deliberate violations must be
+written down.
+
+This repo has at least as much hard-won case knowledge — it is in commit messages and docstrings, where no
+reviewer walks it. That is the gap worth closing next, and it is not a shot.
+
+### Where this tier is ahead, for the record
+
+`textShadow` 48 vs 9, `drop-shadow` 24 vs 13, `burst`/`trail` higher. More importantly it has things they do
+not: a Design DNA carrying one visual system across a whole film, per-beat re-grounding (`light.tsx`), and
+measured gates — `film_energy_qa`, `shake_qa` (+ `flicker`), `clock_qa`, `text_safe_qa`. Their equivalent of
+Q3 ("keep the camera steady — no handheld shake") is a doctrine enforced by review; ours is an instrument
+calibrated on eight controls. Their R2 ("uniform motion reads as cheap PowerPoint") was checked against this
+library and found clean: zero raw-`t` lerps, 121 of 152 registers using an easing.
+

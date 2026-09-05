@@ -38,6 +38,28 @@ export const DEPTH = {
 const DOF_PER_UNIT = 0.0016;      // blur per depth unit, as a fraction of min(W,H) — ~1.7px at 1080
 const SIZE_PER_UNIT = 0.014;      // further planes are slightly smaller
 const PARALLAX_PER_UNIT = 0.30;   // how much of the camera's move a plane is EXEMPT from, per depth unit
+// THE SATURATION ANCHOR. A receding plane loses a little colour as well as a little sharpness — atmospheric
+// perspective, the oldest depth cue there is. Borrowed from a peer library's depth case law, which states
+// the failure it prevents in one line: without the blur AND saturation anchors, layered planes read as
+// stickers flying rather than as depth. This tier had the blur and not the saturation.
+const DESAT_PER_UNIT = 0.045;     // measured against their 0.92 at their far layer
+// FOREGROUND DEFOCUS. The comment this replaces said a lifted plane is never blurred, because "nearer is
+// not blurrier in any lens a viewer has ever looked through". That is wrong, and it is the reason this
+// tier's depth reads flat: in any shallow depth of field, a plane in FRONT of the focal plane is exactly
+// as defocused as one behind it — a foreground element sweeping past the lens is the classic soft frame.
+// Their own layer recipe blurs the 1.4x foreground by 3px while the reading layer stays perfectly sharp.
+//
+// It is deliberately gentler per unit than the background's, and it has a DEAD ZONE: the first unit of lift
+// stays sharp. That is what keeps an annotation resting on a print — this tier's actual use of a lifted
+// plane, where legibility is the whole job — untouched, while a plane lifted far enough to be read as
+// "between the camera and the subject" softens.
+const FG_DOF_PER_UNIT = 0.0011;
+const FG_DOF_DEAD_ZONE = 1.0;     // lift below this is an annotation resting on the subject: never blurred
+// The lateral travel a drifting plane takes per depth unit, as a fraction of min(W,H). Small: this is the
+// ambient separation that makes layers read as layers, not a move. A foreground plane (negative depth) is
+// given 1.6x of it, because a plane nearer the lens travels further across the frame for the same camera
+// movement — that ratio IS the parallax.
+const DRIFT_PER_UNIT = 0.018;
 
 export type CameraState = {push: number; amount: number};
 export const CameraContext = React.createContext<CameraState>({push: 0, amount: 0});
@@ -46,10 +68,15 @@ export const useCamera = () => React.useContext(CameraContext);
 /** A depth plane. Everything inside reads as sitting at `depth` relative to the subject plane. */
 export const Plane: React.FC<{
   depth?: number;
+  /**
+   * Opt in to an ambient lateral DRIFT in this plane's own depth ratio, so the planes separate on a beat
+   * whose camera holds. 1 is the house amount; the subject plane (depth 0) never moves whatever this says.
+   */
+  drift?: number;
   children?: React.ReactNode;
   style?: React.CSSProperties;
   className?: string;
-}> = ({depth = 0, children, style, className}) => {
+}> = ({depth = 0, drift = 0, children, style, className}) => {
   const {width: W, height: H} = useVideoConfig();
   const {push, amount} = useCamera();
   const base = Math.min(W, H);
@@ -57,6 +84,7 @@ export const Plane: React.FC<{
   // FOCUS. Only planes BEHIND the subject soften; a lifted plane is nearer, and nearer is not blurrier in
   // any lens a viewer has ever looked through — it would read as a mistake.
   const blur = Math.max(0, depth) * DOF_PER_UNIT * base;
+  const desat = Math.max(0, depth) * DESAT_PER_UNIT;
   // SIZE — for planes BEHIND only. A lifted plane scaled about the frame centre DISPLACES everything on
   // it: measured, a mark pinned to a point in a photograph moved 29px, about its own width, and stopped
   // pointing at the thing it named. That is fatal for the one job an annotation layer has. It is also
@@ -69,6 +97,25 @@ export const Plane: React.FC<{
   // most of its position. This is what makes the planes read as separated rather than as one flat picture
   // that happens to have a blurred region.
   const counter = depth > 0 ? 1 - amount * push * PARALLAX_PER_UNIT * depth : 1;
+  // ...AND PARALLAX NEEDS A DRIVE, WHICH THE CAMERA MAY NOT BE PROVIDING. The counter-scale above is a
+  // share of `amount * push`: on a beat whose camera holds, push is 0, and every plane counter-scales by
+  // exactly 1. The separation the component exists to create simply does not happen — the planes differ in
+  // blur and in nothing else, which is a blurred region, not depth.
+  //
+  // The peer library's layer recipe drives its planes from an independent lateral `drive`, not from a zoom,
+  // with coefficients 0.35 / 0.7 / 1.4 — a background that lags, a reading layer that carries the shot, a
+  // foreground that overtakes. `drift` is that drive: a slow lateral travel in the plane's own depth ratio,
+  // opt-in per plane, and it is the only thing here that moves a plane on a held beat.
+  //
+  // It CANNOT vibrate: the travel is a single monotone ramp across the beat (no reversal within a shot), so
+  // the frame's displacement path equals its net displacement — the signature scripts/shake_qa.py measures
+  // as clean. And the subject plane (depth 0) is exempt by construction: `driftPx` is scaled by the depth
+  // ratio, which is zero there, so the layer the viewer is reading never moves.
+  const t = useT();                                   // unconditional: a hook inside a ternary is a hook violation
+  const reducedMotion = React.useContext(ReducedMotionContext);
+  const driftPx = (drift && !reducedMotion)
+    ? drift * (depth >= 0 ? depth : depth * 1.6) * base * DRIFT_PER_UNIT * panAt(t)
+    : 0;
   // SHADOW. Only a LIFTED plane casts one, and its softness follows how far it is lifted. A shadow under
   // something that is not lifted is the single commonest tell of decoration-grade depth.
   //
@@ -80,6 +127,8 @@ export const Plane: React.FC<{
   // component did nothing.) `drop-shadow` follows the ALPHA of the content, so each chip, ring and leader
   // gets its own shadow — which is what "these marks are lying on the print" actually looks like.
   const lift = Math.max(0, -depth);
+  // the foreground's own defocus, past the dead zone that protects annotations
+  const fgBlur = Math.max(0, lift - FG_DOF_DEAD_ZONE) * FG_DOF_PER_UNIT * base;
   const shadow = lift > 0
     ? `drop-shadow(0 ${(lift * base * 0.006).toFixed(1)}px ${(lift * base * 0.008).toFixed(1)}px rgba(0,0,0,${(0.30 * lift).toFixed(3)}))`
     : undefined;
@@ -89,10 +138,16 @@ export const Plane: React.FC<{
       className={className}
       style={{
         position: 'absolute', inset: 0,
-        transform: `scale(${(size * counter).toFixed(5)})`,
-        // A lifted plane is never blurred and a receding one never casts a shadow (they are opposite signs
-        // of `depth`), so these two never need to compose — but they share one `filter`, so write it once.
-        filter: blur > 0.2 ? `blur(${blur.toFixed(2)}px)` : shadow,
+        transform: `${driftPx ? `translateX(${driftPx.toFixed(2)}px) ` : ''}scale(${(size * counter).toFixed(5)})`,
+        // One `filter`, composed from whichever cues this depth actually has. A receding plane recedes in
+        // sharpness AND in colour; a lifted one casts a shadow and, once it is far enough forward to be
+        // between the camera and the subject, defocuses too.
+        filter: [
+          blur > 0.2 ? `blur(${blur.toFixed(2)}px)` : '',
+          desat > 0.01 ? `saturate(${(1 - desat).toFixed(3)})` : '',
+          fgBlur > 0.2 ? `blur(${fgBlur.toFixed(2)}px)` : '',
+          shadow ?? '',
+        ].filter(Boolean).join(' ') || undefined,
         ...style,
       }}
     >

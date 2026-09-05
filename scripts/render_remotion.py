@@ -31,7 +31,10 @@ _TRANSITION_STYLE = {
     "dissolve": {"type": "dissolve"},
     "carry": {"type": "carry"}, "collapse": {"type": "carry"}, "line": {"type": "carry"}, "match-cut": {"type": "carry"},
 }
-_KINETIC_TYPES = {"slide", "wipe", "clock", "dissolve", "carry"}
+# `focus` is the depth seam (Film.tsx FocusRelayPresentation) — the rack-focus hand-off. It belongs here or
+# a storyboard that asks for it is silently downgraded to a fade, which is the exact "built but unreachable"
+# failure this file's `transition_in` docstring was written about.
+_KINETIC_TYPES = {"slide", "wipe", "clock", "dissolve", "carry", "focus"}
 
 
 # The runtime's own settled point, parsed from motion.ts so the two cannot drift: a keyframe must be the

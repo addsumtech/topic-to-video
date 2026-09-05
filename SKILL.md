@@ -108,7 +108,15 @@ TTS if the user gives an API key.
   override the meta default per scene; the design plan maps the beat's `relation` to it (continuation →
   hard cut; new-topic/payoff/close → an in-edge on the opener PLUS an out-edge on the predecessor —
   a dip needs both sides, validate lints unpaired edges) — see `references/motion-grammar.md`
-  "Transition rhythm". **Transition STYLE — `meta.transition_style`** (`dip` default | `fadethrough` studio-timed dip |
+  "Transition rhythm". **A DEPTH seam — `transition_in:{type:'focus'}`:** the rack-focus hand-off, the only cut in this
+  vocabulary that happens in DEPTH rather than in the plane. The leaving beat slides OUT of the focal
+  plane while the arriving one pulls INTO it, STAGGERED (they must not start on the same frame — that
+  reads as one blurred screen, not a hand-off), with the opacity crossing late so the focus carries the
+  cut rather than a dissolve wearing a blur. It cannot flash — racking focus redistributes light rather
+  than adding any — so it is one of the two seams (with `carry`) allowed across a dark↔light boundary,
+  and `seam_plan` routes a CROSSING `payoff` to it. Borrowed, with its parameters, from the
+  video-shotcraft library's hand-off case law.
+  **Transition STYLE — `meta.transition_style`** (`dip` default | `fadethrough` studio-timed dip |
   `drift` breath-with-direction | `push` horizontal page-push | `lift` vertical page-turn | `wipe`
   bg-sheet sweep | `blur` rack-defocus coda): what a seam LOOKS like, chosen ONCE per deck from the
   register's motion personality — a transition is a CLAIM about how two beats relate, never decoration
