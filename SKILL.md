@@ -76,6 +76,17 @@ TTS if the user gives an API key.
   emits **`--grain-amount`** per style — a printed/filmic style (risograph/manga/watercolor/terminal/
   noir/cartographic) gets a subtle fixed-seed **film grain** (motifs.css `body::after`, auto-applied,
   FREE tier), clean styles stay crisp at 0; a data-heavy page opts out with `<body class="no-grain">`.
+- `scripts/dna_from_deck.py <out_dir> [--pptx deck.pptx] [--mode light|dark] [--dry-run] [--force]` — the
+  remotion tier's **Design DNA from the deck's OWN theme**: reads the pptx theme (`scripts/pptx_theme.py`:
+  scheme colours with sysClr resolved, major/minor typefaces, the master ground through its clrMap, the master
+  most slides use) and the rendered frames (pixel-weighted, spread through the deck), and writes a complete
+  `meta.design_dna` object with a `provenance` block naming where each token came from. Ground from the
+  frames, ink at WCAG 7:1, a custom theme's accents at 3:1 with the hue kept, typefaces classified onto the
+  faces `runtime/fonts.ts` bundles (the deck's Calibri cannot ship, its class can), the form grammar following
+  that class. An Office-default theme is detected and demoted so no film goes Office-blue by accident. Never
+  overwrites an authored DNA object (`--force`); fails loudly with nothing to derive from. Run it after ingest
+  and before the shot-director, which retunes the object; `validate.py` warns when a custom-themed pptx ships
+  under a preset. The html tier's `theme.py` is untouched — its palette still comes from frames/logo/flags.
 - `scripts/imagegen.py <out_dir> [--key KEY]` — OPTIONAL paid step: generate AI **background/atmosphere
   art** via OpenAI `gpt-image-2` for scenes/pages that carry an `image_prompt`, cached under `.assets/`
   (re-runs are free). Auto-uses the Codex CLI (no key) when installed, else needs

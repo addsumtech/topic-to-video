@@ -67,7 +67,9 @@ def ingest(input_path, out_dir, dpi=150):
     if not frame_paths:
         raise ValueError(f"no slides found in {input_path}")
 
-    data = sb.new_storyboard()
+    # the deck itself is recorded: dna_from_deck.py reads a pptx's theme (colours, fonts, master ground) to
+    # derive the remotion tier's Design DNA, and it needs to know which file the frames came from
+    data = sb.new_storyboard({"source": os.path.abspath(input_path)})
     for i, fp in enumerate(frame_paths, 1):
         note = notes[i - 1] if notes and i - 1 < len(notes) else ""
         rel = os.path.relpath(fp, out_dir)

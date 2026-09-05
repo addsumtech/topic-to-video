@@ -1876,6 +1876,25 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
                             "ACCEPTED rather than met: %r. Confirm this still describes the current cut."
                             % _ew.strip()[:120])
     design_dna = meta.get("design_dna")
+    # THE DECK IS THE BRAND. When the film was ingested from a pptx whose theme is NOT Office's default, its
+    # colours and typefaces were chosen by someone — and a preset DNA (or none) paints over them with a
+    # direction's generic identity. `dna_from_deck.py` reads that theme (and the rendered frames) into a
+    # Design DNA; a hand-authored object is left alone, because authoring is a decision too.
+    _src = str(meta.get("source") or "")
+    if _src.lower().endswith(".pptx") and os.path.exists(_src) and not isinstance(design_dna, dict):
+        try:
+            import pptx_theme as _pt
+            _t = _pt.read(_src)
+        except Exception:                                        # noqa: BLE001 — a diagnostic never blocks
+            _t = None
+        if _t and not _t.get("default_theme"):
+            warnings.append("remotion: the source deck carries its OWN theme (%r: accent %s, %s / %s) but the film "
+                            "wears %s — run `python3 scripts/dna_from_deck.py <out_dir>` so the film carries the "
+                            "deck's brand, then retune the object it writes if you must."
+                            % (_t.get("scheme"), (_t.get("colors") or {}).get("accent1"),
+                               ((_t.get("fonts") or {}).get("major") or {}).get("latin") or "?",
+                               ((_t.get("fonts") or {}).get("minor") or {}).get("latin") or "?",
+                               ("the preset %r" % design_dna) if design_dna else "no design_dna"))
     if isinstance(design_dna, str):
         # A STRING design_dna is a preset NAME. This used to reach coerceDna(), which spread the string's
         # character indices over NEUTRAL_DNA and returned the neutral palette — the whole film rendered in

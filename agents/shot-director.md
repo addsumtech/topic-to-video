@@ -138,6 +138,22 @@ provided to the Film at render (a `DesignDNAContext`) and every migrated registe
 DNA makes 19 different compositions read as one visual universe — the remotion analogue of the html tier's
 `theme.css`. `validate.py` warns when a themed film has neither an explicit `design_dna` nor a preset-mapped template.
 
+**Start from the DECK, not from a preset, whenever the film came from a pptx.** The deck already carries a visual
+identity — its theme's twelve scheme colours and major/minor typefaces, its master ground, and the look its
+slides actually render — and a preset paints over all of it with a direction's generic palette. Run
+`python3 scripts/dna_from_deck.py <out_dir>` (it finds the deck through `meta.source`; `--pptx` names one; `--mode
+dark|light` overrides the frames' reading; `--dry-run` only prints). It writes a complete `meta.design_dna` object
+whose `provenance` says where every token came from: the ground from the rendered frames (a theme's lt1 is
+white even when every slide sits on a dark picture), the ink pushed to WCAG 7:1, a CUSTOM theme's accent1/most-
+distant accent nudged to 3:1, the typefaces CLASSIFIED (Lora → serif → Playfair Display + Source Serif 4;
+Calibri → humanist → Inter; Consolas → mono → JetBrains Mono, with the terminal grammar) onto the faces
+`fonts.ts` bundles, and the atoms/radius/label grammar following that class. An Office-DEFAULT theme (Office
+blue, Calibri) never chose its colours, so there the frames decide and the note says so. Then RETUNE the object
+like any authored DNA — it is the starting point that already looks like the client, not the end of the
+judgement. `validate.py` warns when a pptx with a custom theme ships under a preset. Verified on real decks: a
+Philips-blue research template came out Philips blue with white type and an orange counter-accent, rendered
+through BentoReveal and SwissEditorial without a line of authoring.
+
 **A COMPLETE worked block — copy this shape and retune every value to the topic** (a partial DNA no longer crashes
 the render — Film normalises it through the neutral preset — but every key you omit silently borrows a neutral
 value, and `validate.py` will name what is missing):

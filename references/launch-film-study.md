@@ -619,3 +619,12 @@ on the delivered film is 0.95s, and the first word arrives at 0.20s. Lengthening
 pad change — Film.tsx and the SRT mirror time each beat's caption chunks over the clip, not the speech, so a
 longer tail would drag the last captions late. The correct version times captions over the speech span
 (tts.py knows the pad it added); it is a follow-up with its own render check, not part of the skeleton.
+- **The deck as the brand** (`scripts/dna_from_deck.py`, `scripts/pptx_theme.py`): their films are built from the
+  product's own identity; ours painted every deck with a direction's preset. The pptx theme (scheme colours
+  with sysClr resolved, major/minor faces, the master ground through its clrMap) and the rendered frames
+  (pixel-weighted, spread through the deck; the accent from a hue histogram of the saturated pixels) now
+  become a complete `meta.design_dna` with a provenance block. Verified by rendering: a Philips-blue research
+  deck came out Philips blue with white type and an orange counter through BentoReveal and SwissEditorial; a
+  violet-branded WorkBuddy deck (Office-default theme, so the frames decided) came out violet on warm white.
+  Two sampler defects were caught by looking, not by tests: an unweighted palette read a white deck as dark,
+  and a six-colour quantisation reported a violet brand as teal.
