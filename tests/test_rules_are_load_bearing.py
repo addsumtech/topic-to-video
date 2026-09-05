@@ -46,6 +46,7 @@ MODULE_PATH = {
     "text_safe_qa": os.path.join(_SCRIPTS, "text_safe_qa.py"),
     "register_energy": os.path.join(_SCRIPTS, "register_energy.py"),
     "demo_copy_qa": os.path.join(_SCRIPTS, "demo_copy_qa.py"),
+    "energy_skeleton": os.path.join(_SCRIPTS, "energy_skeleton.py"),
 }
 
 
@@ -1224,6 +1225,100 @@ MUTANTS["demo_copy_qa"] = {
 
 def _all(kind):
     return [(m, k) for m, d in kind.items() for k in d]
+
+# ── energy_skeleton: the five skeleton rules, and the picker that reads them ─────────────────────
+# A synthetic six-register library, so one rule can be removed at a time. Cuts and floor are handed in
+# directly: quiet < 0.0025 <= steady < 0.005 <= kinetic; the delivery floor sits inside "steady".
+_ES_MOTION = {"Still": 0.0002, "Calm": 0.0010, "Mid": 0.0025, "Live": 0.0050, "Wild": 0.0150, "Blaze": 0.0300}
+_ES_ARGS = dict(motion=_ES_MOTION, floor=0.0037, quiet_cut=0.0025, kinetic_cut=0.0050)
+
+
+def _es_kinds(mod, slides):
+    return [f["kind"] for f in mod.findings(slides, **_ES_ARGS)]
+
+
+def _probe_high_on_quiet(mod):
+    assert "high-on-quiet" in _es_kinds(mod, [{"shot": "Still", "energy": "high"}])
+    assert "high-on-quiet" not in _es_kinds(mod, [{"shot": "Live", "energy": "high"}])
+
+
+def _probe_peak_under_floor(mod):
+    assert "peak-under-floor" in _es_kinds(mod, [{"shot": "Mid", "energy": "peak"}]), "0.0025 is under the 0.0037 floor"
+    assert "peak-under-floor" not in _es_kinds(mod, [{"shot": "Live", "energy": "peak"}])
+
+
+def _probe_low_on_kinetic(mod):
+    assert "low-on-kinetic" in _es_kinds(mod, [{"shot": "Wild", "energy": "low"}])
+    assert "low-on-kinetic" not in _es_kinds(mod, [{"shot": "Calm", "energy": "low"}])
+
+
+def _probe_run_of_kinetic(mod):
+    run = [{"shot": n, "energy": "medium"} for n in ("Live", "Wild", "Blaze")]
+    assert "run-of-kinetic" in _es_kinds(mod, run), "three kinetic registers in a row read as noise"
+    assert "run-of-kinetic" not in _es_kinds(mod, run[:2] + [{"shot": "Calm", "energy": "medium"}] + run[2:])
+
+
+def _probe_summit_off_peak(mod):
+    assert "summit-off-peak" in _es_kinds(mod, [{"shot": "Blaze", "energy": "medium"}, {"shot": "Live", "energy": "peak"}])
+    assert "summit-off-peak" not in _es_kinds(mod, [{"shot": "Live", "energy": "medium"}, {"shot": "Blaze", "energy": "peak"}])
+
+
+def _probe_medium_never_mismatches(mod):
+    assert not [k for k in _es_kinds(mod, [{"shot": "Still", "energy": "medium"}, {"shot": "Blaze", "energy": "medium"}])
+                if k in mod.HARD]
+
+
+def _probe_bands(mod):
+    assert mod.band_for("medium", 0.0025, 0.005, 0.0037) == (0.0, float("inf"))
+    assert mod.band_for("high", 0.0025, 0.005, 0.0037)[0] == 0.0025
+    assert mod.band_for("low", 0.0025, 0.005, 0.0037)[1] == 0.005
+    assert mod.band_for("peak", 0.0025, 0.005, 0.0037)[0] == 0.0037, "the peak band starts at the delivery floor"
+
+
+PROBES["energy_skeleton"] = {
+    "high_on_quiet": _probe_high_on_quiet,
+    "peak_under_floor": _probe_peak_under_floor,
+    "low_on_kinetic": _probe_low_on_kinetic,
+    "run_of_kinetic": _probe_run_of_kinetic,
+    "summit_off_peak": _probe_summit_off_peak,
+    "medium_never_mismatches": _probe_medium_never_mismatches,
+    "bands": _probe_bands,
+}
+
+MUTANTS["energy_skeleton"] = {
+    "high-on-quiet rule removed": ('        if e in ("high", "peak") and m < quiet_cut:', "        if False:"),
+    "peak-under-floor rule removed": ('        if e == "peak" and m < floor:', "        if False:"),
+    "low-on-kinetic rule removed": ('        if e == "low" and m >= kinetic_cut:', "        if False:"),
+    "a run is never long enough": ("RUN = 3 ", "RUN = 999 "),
+    "the summit is never elsewhere": ("SUMMIT_RATIO = 1.5 ", "SUMMIT_RATIO = 1e9 "),
+    "the peak band forgets the floor": ('        return (max(quiet_cut, floor), float("inf"))',
+                                        '        return (quiet_cut, float("inf"))'),
+}
+
+
+def _probe_picker_prefers_the_band(mod):
+    """shot_director._pick: with a band and the sweep, an in-band candidate beats an earlier out-of-band one."""
+    assert mod._pick(["Still", "Live"], None, set(), band=(0.0025, float("inf")), motion=_ES_MOTION) == "Live"
+    assert mod._pick(["Live", "Still"], None, set(), band=(0.0, 0.0025), motion=_ES_MOTION) == "Still"
+    assert mod._pick(["Still", "Live"], None, set()) == "Still", "no band: the pool's own order stands"
+
+
+def _probe_peak_takes_the_liveliest(mod):
+    assert mod._pick(["Live", "Blaze", "Wild"], None, set(), band=(0.0037, float("inf")), motion=_ES_MOTION,
+                     summit=True) == "Blaze"
+    assert mod._pick(["Live", "Blaze", "Wild"], None, set(), band=(0.0037, float("inf")), motion=_ES_MOTION) == "Live"
+
+
+PROBES["shot_director"]["picker_prefers_the_band"] = _probe_picker_prefers_the_band
+PROBES["shot_director"]["peak_takes_the_liveliest"] = _probe_peak_takes_the_liveliest
+MUTANTS["shot_director"]["the band is ignored in the pick"] = (
+    "    pool = sorted(pool, key=lambda c: (not in_band(c), lively(c), flips(c)))",
+    "    pool = sorted(pool, key=lambda c: (False, lively(c), flips(c)))")
+MUTANTS["shot_director"]["the peak is not the liveliest"] = (
+    '    lively = (lambda c: -motion.get(c, 0.0)) if (summit and motion) else (lambda c: 0.0)',
+    '    lively = (lambda c: 0.0)')
+
+
 
 
 @pytest.mark.parametrize("module,rule", _all(PROBES))

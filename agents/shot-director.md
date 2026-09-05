@@ -303,6 +303,20 @@ back — commit registers that are memorable and unmistakably THIS film. For eac
    signature of matching the catalogue rather than judging it). `critic_brief.py` reports, to the reviewer,
    whether the film built anything at all and which thin families it leaned on.
 
+0. **Fill the SKELETON first, then pick the cards.** Every beat already declares an `energy` (low / medium /
+   high / peak) and the library's sweep measures a motion per register (`remotion/register_energy.json`,
+   `motion_p75`). Read the beat's energy BEFORE choosing its register: a `high` or `peak` beat never takes a
+   register from the library's stillest third; the `peak` beat takes the film's LIVELIEST register, above the
+   delivery motion floor — the summit belongs to the argument's peak and nowhere else; a `low` beat (the sparse
+   hold, the close) never takes one from the liveliest third; and kinetic registers ALTERNATE with steady ones,
+   never three in a row (a mature peer library's case: "连续高能量读作嘈杂" — consecutive high energy reads as
+   noise; alternation and breathing beats ARE the rhythm). Measured on a delivered 30-beat film whose director
+   could not see energy: the plan's climax landed on a register under the motion floor, four HIGH beats on the
+   stillest fifth, and the film's visual summit on a MEDIUM beat nine minutes early. After assigning, run
+   `python3 scripts/energy_skeleton.py <out_dir>`: it prints the declared skeleton against the measured curve
+   and names in-band, unused alternatives for each mismatch (`validate.py` repeats them as warnings). Its
+   findings are candidates — a beat's real motion also depends on props, ground, camera and length — so check
+   the beat, then swap the register or re-declare the energy; never leave the two disagreeing.
 1. **Match intent → register.** `statement`→a title/kinetic register (CinematicTitle, FocalIsolation,
    KineticManifesto, LiquidChrome, BrutalistType, SwissEditorial); `sequence`→ExplodedSchematic/TimelineTravel/
    CommandSummon; `structure`→CollaborativeCursors/KnowledgeGraph/MapRoutes/DataOrrery/WireGlobe/BlueprintGrid;

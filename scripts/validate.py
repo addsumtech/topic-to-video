@@ -2162,6 +2162,27 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
         warnings.append(f"remotion: meta.aspect='{_asp}' (non-16:9) — most library shots are 16:9-tuned; still-render "
                         f"EACH chosen shot at this aspect and fix/swap any that don't reflow (multi-column must STACK, "
                         f"wide elements must not run off-frame) — references/remotion-shot-authoring.md §A.9.")
+    # THE ENERGY SKELETON. The plan declares an `energy` per beat; the library sweep measures a motion per
+    # register; nothing between the planner and the register picker used to read the first against the
+    # second. Measured on a delivered film: the plan's climax sat on a register UNDER the delivery motion
+    # floor and four HIGH beats on the library's stillest fifth (scripts/energy_skeleton.py has the table).
+    # Warnings, not errors — a finding is a candidate, since a beat's real motion also depends on its props,
+    # ground, camera and length — and each names in-band, unused alternatives.
+    if slides and any(s.get("shot") for s in slides):
+        try:
+            import energy_skeleton as _es
+            _fs, _cv, _why = _es.check_slides(slides, _es.load_plan(out_dir) if out_dir else None)
+        except Exception as e:                                       # noqa: BLE001 — never let a diagnostic block
+            _es, _fs, _cv, _why = None, [], None, "energy_skeleton failed: %s" % e
+        if _why:
+            warnings.append("remotion: energy skeleton NOT checked — %s" % _why)
+        elif _fs:
+            _hard = [f for f in _fs if f["kind"] in _es.HARD]
+            for f in _hard[:6] + [f for f in _fs if f["kind"] not in _es.HARD]:
+                warnings.append("remotion: energy skeleton — %s" % _es.describe(f))
+            if len(_hard) > 6:
+                warnings.append("remotion: energy skeleton — %d more beat(s) contradict their declared energy; "
+                                "run python3 scripts/energy_skeleton.py <out_dir> for the full curve" % (len(_hard) - 6))
 
 
 def evaluate(data, out_dir, pre_tts=False, vertical=False):

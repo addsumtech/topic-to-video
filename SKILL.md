@@ -417,6 +417,17 @@ TTS if the user gives an API key.
   in SECONDS; both enforce a 3s floor by throwing. **Its findings are CANDIDATES, not work orders**: render
   the register before and after and keep the change only where the settled-half motion moves (three of four
   were reverted this way). It is a FIDELITY fix, not the motion axis's lever — that is the camera bed.
+- `scripts/energy_skeleton.py <out_dir>` — the **ENERGY-SKELETON check** (remotion tier, pre-render, no render
+  needed). The content-planner declares an `energy` per beat and the library sweep measures a motion per
+  register; this prints the declared skeleton against the measured curve and names each beat whose register
+  contradicts its energy — a HIGH/PEAK beat on the stillest third, the PEAK under the delivery motion floor, a
+  LOW hold on the liveliest third, three kinetic beats in a row, the film's summit off its peak — with in-band,
+  unused alternatives from the beat's own intent pool. Learned from a mature peer library's rule "fill the
+  skeleton first, then pick the cards": on a delivered film the picker that could not see energy put the plan's
+  climax on a register UNDER the motion floor. `validate.py` repeats the findings as warnings; the deterministic
+  `shot_director.py` prefers an in-band register and gives the peak the liveliest one (on that film's plan: 5
+  hard findings → 0, family variety unchanged). Findings are candidates: a beat's real motion also depends on
+  props, ground, camera and length.
 - `scripts/shake_qa.py <out_dir>` — the **SHAKE gate** (remotion tier, post-render), and the precondition for
   any work on the motion axis. `film_energy_qa`'s motion score is the p75 frame difference, which rises for a
   push, for a reveal, **and for a frame vibrating in place** — measured on this repo's own renders, a locked

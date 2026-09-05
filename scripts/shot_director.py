@@ -310,19 +310,28 @@ def _hard_flip(a, b):
     return abs(_LUM_RANK.get(a, 0) - _LUM_RANK.get(b, 0)) >= 2
 
 
-def _pick(cands, last_family, used, prefer=None, last_luma=None, soften=False):
+def _pick(cands, last_family, used, prefer=None, last_luma=None, soften=False, band=None, motion=None, summit=False):
     """First candidate whose family differs from the previous beat's; prefer unused registers. When `prefer`
     (the chosen template's family letters) is given, BIAS toward those families first — the template EMPHASIZES
-    families without ever forcing two adjacent beats into the same one (variety still wins). When `soften` (the
-    previous seam already hard-flipped luminance), a stable TIE-BREAK prefers a candidate that does NOT flip
-    again — smoothing the brightness arc WITHOUT overriding fit/family/freshness (they pre-order the pool)."""
+    families without ever forcing two adjacent beats into the same one (variety still wins). When `band`
+    (the beat's energy band from energy_skeleton.band_for) and the library's measured `motion` are given, a
+    register INSIDE the band comes first — the plan's skeleton decides which of the fitting, fresh, varied
+    candidates is taken, so a beat declared high is not handed one of the library's stillest registers. When
+    `soften` (the previous seam already hard-flipped luminance), a stable TIE-BREAK prefers a candidate that
+    does NOT flip again — smoothing the brightness arc WITHOUT overriding fit/family/freshness/energy (they
+    pre-order the pool)."""
     if prefer:
         order = {c: i for i, c in enumerate(cands)}
         cands = sorted(cands, key=lambda c: (FAMILY.get(c) not in prefer, order[c]))
     pool = ([c for c in cands if FAMILY.get(c) != last_family and c not in used]
             or [c for c in cands if FAMILY.get(c) != last_family] or list(cands))
-    if soften and last_luma is not None:
-        pool = sorted(pool, key=lambda c: _hard_flip(shot_luma(c), last_luma))   # stable: non-flips first
+    in_band = (lambda c: c in motion and band[0] <= motion[c] < band[1]) if (band and motion) else (lambda c: True)
+    flips = (lambda c: _hard_flip(shot_luma(c), last_luma)) if (soften and last_luma is not None) else (lambda c: False)
+    # `summit`: this is the PEAK beat, and the film's most kinetic register belongs on it — the liveliest
+    # in-band candidate, not the first. Otherwise the summit lands wherever a medium beat happened to draw
+    # a lively register, which is what a delivered film measured (energy_skeleton.py, summit-off-peak).
+    lively = (lambda c: -motion.get(c, 0.0)) if (summit and motion) else (lambda c: 0.0)
+    pool = sorted(pool, key=lambda c: (not in_band(c), lively(c), flips(c)))       # stable: band, summit, non-flips
     return pool[0]
 
 
@@ -368,10 +377,23 @@ def assign_shots(data, content_plan=None, template=None):
     data.setdefault("meta", {})["renderer"] = "remotion"
     if template:
         data["meta"]["shot_template"] = template
+    # THE SKELETON FIRST. The plan declares an energy per beat; the library's sweep measures a motion per
+    # register. Read both here so the pick below prefers a register in the beat's band — measured on a
+    # delivered film, the picker that could not see energy put the plan's climax on a register under the
+    # delivery motion floor and four HIGH beats on the library's stillest fifth (energy_skeleton.py).
+    try:
+        import energy_skeleton as _es
+        _motion, _floor, _qc, _kc, _why = _es.load_sweep()
+    except Exception:                                # no sweep = no band; the pick is unchanged, never wrong
+        _es, _motion, _why = None, None, "energy_skeleton unavailable"
+    if _why:
+        print("[shot_director] energy skeleton not applied: %s" % _why)
     last_family, used, last_luma, prev_flip = None, set(), None, False
     for pos, s in enumerate(data.get("slides", [])):
         beat, matched_by = _beat_for(s.get("index"), pos)
         intent = beat.get("visual_intent") or "statement"
+        _energy = _es.declared(s, beat) if _motion else None
+        band = _es.band_for(_energy, _qc, _kc, _floor) if _motion else None
         if beat.get("climax"):
             cands, how = CLIMAX, "climax list"
         elif beat.get("relation") == "close" or beat.get("hold"):
@@ -381,7 +403,8 @@ def assign_shots(data, content_plan=None, template=None):
         else:
             cands, how = FALLBACK, "FALLBACK (no candidate list for intent '%s')" % intent
         # color-arc: only SOFTEN after a flip (avoid a 2nd consecutive one) — isolated flips (contrast) survive
-        shot = _pick(cands, last_family, used, prefer, last_luma, soften=prev_flip)
+        shot = _pick(cands, last_family, used, prefer, last_luma, soften=prev_flip, band=band, motion=_motion,
+                     summit=(_energy == "peak"))
         s["shot"], s["shot_props"] = shot, s.get("shot_props") or {}
         # RECORD THAT NOBODY JUDGED THIS. The deterministic path matches an intent keyword to a candidate
         # list; it cannot ask whether the register's STRUCTURE carries the beat's argument, which is the

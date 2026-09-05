@@ -593,3 +593,29 @@ Q3 ("keep the camera steady — no handheld shake") is a doctrine enforced by re
 calibrated on eight controls. Their R2 ("uniform motion reads as cheap PowerPoint") was checked against this
 library and found clean: zero raw-`t` lerps, 121 of 152 registers using an easing.
 
+
+### Borrowed since, and how (2026-09-05)
+
+Three pieces of the peer library's case law were taken as ESSENCE, each landing on the authoring path and
+each verified on a real film rather than on its own exit code:
+
+- **Depth** (`4b4e8ce`): the `focus` seam (a rack-focus relay between two beats) and the Plane anchors our
+  planes lacked (desaturation, foreground defocus with a dead zone, drift per depth unit). Verified by direct
+  pixel A/B, after two self-made depth metrics failed their positive controls and were dropped.
+- **The sound sentence** (`5322966`): cues chosen by PICTURE KIND, never UI event — their "太像游戏了" case.
+  The film's close lands riser → impact → sparkle instead of a bell; the SFX bus is split in-graph into a
+  >800 Hz and a <110 Hz band so the impact's body survives while the voice band is untouched; a scored film
+  also ships an `out.nobgm.mp4` twin. Auditioned by measurement on a 30-beat narrated film (riser in the seam
+  pause, impact in the silence before the closing line, true peak −1.5 dBTP).
+- **The energy skeleton** (`scripts/energy_skeleton.py`): their "fill the skeleton first, then pick the
+  cards" and "连续高能量读作嘈杂". The plan already declared an energy per beat and the sweep already measured a
+  motion per register; nothing read one against the other, and a delivered film's climax sat on a register
+  under the motion floor. Now `validate.py` reports the mismatches with alternatives, and the deterministic
+  director prefers an in-band register and gives the peak the liveliest (5 hard findings → 0 on that plan).
+
+Their hold/rest rule (R1: ≥1s hold at the open and the sign-off; R3: "the first version is always too
+fast") was measured rather than ported: interior seams already get a derived pause (tts.py), the ending hold
+on the delivered film is 0.95s, and the first word arrives at 0.20s. Lengthening either is NOT a one-line
+pad change — Film.tsx and the SRT mirror time each beat's caption chunks over the clip, not the speech, so a
+longer tail would drag the last captions late. The correct version times captions over the speech span
+(tts.py knows the pad it added); it is a follow-up with its own render check, not part of the skeleton.

@@ -1,0 +1,290 @@
+#!/usr/bin/env python3
+"""energy_skeleton — does the film's VISUAL energy follow the energy its plan wrote? (pre-render, no render)
+
+    python3 scripts/energy_skeleton.py <out_dir>            # the curve, the findings, the alternatives
+    python3 scripts/energy_skeleton.py <out_dir> --json
+
+WHY THIS EXISTS. The content-planner writes an energy skeleton for every film — each beat carries `energy`
+(low / medium / high / peak) and the plan carries a `rhythm` line like "第7拍重重落下 → 第23拍高潮拉长 → 末拍稀疏".
+The shot-director then chooses a register per beat by intent and family variety, and nothing in between ever
+reads the skeleton. Measured on a delivered 30-beat film, using the library's own per-register motion sweep:
+
+    beat  4  CinematicTitle   declared HIGH   motion 0.0004   (the library's quietest fifth)
+    beat 17  GrantedTree      declared HIGH   motion 0.0003
+    beat 23  DataMonolith     declared PEAK   motion 0.0034   (UNDER the delivery motion floor, 0.0037)
+    beat 24  StrataColumn     declared HIGH   motion 0.0006
+    beat 25  TermTable        declared HIGH   motion 0.0002
+    beat  9  MetaballMerge    declared MEDIUM motion 0.0068   (the film's most kinetic register)
+
+The plan's climax was one of the film's stillest beats and its visual summit sat on a medium beat nine
+minutes earlier. Nobody chose that; the register picker simply could not see energy. This is the gap a
+mature peer library closes with a rule its authors call "fill the skeleton first, then pick the cards":
+allocate the film's energy per slot BEFORE choosing a shot for the slot, alternate kinetic and steady beats
+("连续高能量读作嘈杂" — consecutive high energy reads as noise), and never omit the two ends — the open
+holds, the close lands.
+
+WHAT THIS MEASURES, AND WHAT IT CANNOT. A register's motion here is `motion_p75` from the library sweep
+(`register_energy.py`): the p75 frame difference of the register rendered with its evidence props on one
+DNA. A beat's real motion also depends on its props, its ground, its camera and its length, so a finding
+is a CANDIDATE with a named cause, not a work order. The bands are the library's own terciles — "quiet" is
+the stillest third of what the director could have picked, "kinetic" the liveliest third — so the check
+asks only whether a high beat was handed one of the still registers when livelier ones existed. `medium`
+never mismatches. And a stale sweep produces no findings at all, with a reason: a finding built on a
+measurement of a different library is worse than none.
+
+THE RULES (each one a line in `findings()`, each with its case):
+
+  high-on-quiet     a HIGH or PEAK beat on a register in the quiet third            (beats 4/17/24/25 above)
+  peak-under-floor  the PEAK beat on a register under the delivery motion floor     (beat 23 above)
+  low-on-kinetic    a LOW beat (the sparse hold, the close) on a kinetic register   (the close that fidgets)
+  run-of-kinetic    three or more kinetic registers in a row                        (the peer's noise case)
+  summit-off-peak   the film's most kinetic register is not on its peak beat        (beat 9 above)
+
+Deterministic; reads the storyboard and the sweep, writes nothing. `validate.py` reports the same findings
+as warnings; `shot_director.py` uses `band_for()` to prefer an in-band register on the deterministic path.
+"""
+import json
+import os
+import sys
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _HERE)
+
+ENERGIES = ("low", "medium", "high", "peak")
+HARD = ("high-on-quiet", "peak-under-floor", "low-on-kinetic")   # the mismatches that set the exit code
+RUN = 3                    # kinetic beats in a row that read as noise
+SUMMIT_RATIO = 1.5         # another beat this much more kinetic than the peak beat = the summit is elsewhere
+SPARK = " ▁▂▃▄▅▆▇█"
+
+
+def load_sweep():
+    """({register: motion_p75}, floor, quiet_cut, kinetic_cut, why_none). The sweep is the library's own
+    measurement; when it is missing or stale there is no basis, and the reason is returned instead."""
+    try:
+        import register_energy as reg
+        data = json.load(open(reg.MANIFEST, encoding="utf-8"))
+        # `stale()` names the rows that no longer describe their source. One new or edited register must not
+        # switch the whole check off, so only THOSE rows are dropped (a beat on one is reported as unmeasured);
+        # past a quarter of the library the sweep no longer describes the library, and there is no basis.
+        stale_rows = dict(reg.stale(data))
+        rows = data["registers"]
+        if len(stale_rows) > max(3, len(rows) // 4):
+            return None, None, None, None, ("the register sweep is STALE for %d registers — run "
+                                            "`python3 scripts/register_energy.py`" % len(stale_rows))
+        motion = {n: float(r["motion_p75"]) for n, r in rows.items() if "motion_p75" in r and n not in stale_rows}
+        floor = float(data["_floors"]["motion_p75"])
+    except Exception as e:                                          # noqa: BLE001 — any failure = no basis
+        return None, None, None, None, "no usable register sweep (%s)" % e
+    if len(motion) < 6:
+        return None, None, None, None, "the register sweep holds %d registers — too few for bands" % len(motion)
+    vals = sorted(motion.values())
+    q = lambda p: vals[int(round(p * (len(vals) - 1)))]           # noqa: E731
+    return motion, floor, q(1 / 3.0), q(2 / 3.0), None
+
+
+def band_for(energy, quiet_cut, kinetic_cut, floor):
+    """(lo, hi) motion bounds a register should sit in for a declared energy. `medium` is unconstrained."""
+    e = (energy or "medium").lower()
+    if e == "low":
+        return (0.0, kinetic_cut)
+    if e == "high":
+        return (quiet_cut, float("inf"))
+    if e == "peak":
+        return (max(quiet_cut, floor), float("inf"))
+    return (0.0, float("inf"))
+
+
+def declared(slide, beat=None):
+    """The beat's declared energy: the storyboard's own field, else the plan's; a climax is a peak; a close
+    with nothing declared is the sparse hold (low); everything else medium."""
+    for src in (slide, beat or {}):
+        e = str(src.get("energy") or "").lower()
+        if e in ENERGIES:
+            return e
+    if (beat or {}).get("climax") or slide.get("climax"):
+        return "peak"
+    if (slide.get("relation") or (beat or {}).get("relation")) == "close":
+        return "low"
+    return "medium"
+
+
+def _beats_by_position(plan, slides):
+    """content_plan beats matched to slides the way shot_director does: by id, then id = index + 1, then position."""
+    beats = (plan or {}).get("beats") or []
+    by_id = {b.get("id"): b for b in beats if b.get("id") is not None}
+    idx = [s.get("index") for s in slides]
+    if by_id and set(by_id) == set(idx):
+        return [by_id.get(i, {}) for i in idx]
+    if by_id and set(by_id) == {i + 1 for i in idx if i is not None}:
+        return [by_id.get((i or 0) + 1, {}) for i in idx]
+    return [beats[p] if p < len(beats) else {} for p in range(len(slides))]
+
+
+def _alternatives(slide, beat, lo, hi, motion, used, families, k=3):
+    """Up to k registers the beat could take instead: from its intent's candidate pool (or the climax / close
+    list), inside the band, not already in the film, and from a family unlike the beat's neighbours."""
+    try:
+        import shot_director as sd
+    except Exception:                                               # noqa: BLE001
+        return []
+    intent = (beat or {}).get("visual_intent") or slide.get("visual_intent")
+    if declared(slide, beat) == "peak":
+        pool = list(sd.CLIMAX)
+    elif (slide.get("relation") or (beat or {}).get("relation")) == "close":
+        pool = list(sd.CLOSE)
+    else:
+        pool = list(sd.CANDIDATES.get(intent, [])) or list(motion)
+    out = [c for c in pool if c in motion and lo <= motion[c] < hi and c not in used
+           and sd.FAMILY.get(c) not in families]
+    if not out:                                                     # the pool has nothing in band: widen
+        out = [c for c in sorted(motion, key=lambda n: motion[n]) if lo <= motion[c] < hi and c not in used
+               and sd.FAMILY.get(c) not in families]
+    return out[:k]
+
+
+def findings(slides, motion, floor, quiet_cut, kinetic_cut, plan=None):
+    """The list of dicts described in the module docstring. Empty when the film follows its skeleton."""
+    try:
+        import shot_director as sd
+        fam = sd.FAMILY
+    except Exception:                                               # noqa: BLE001
+        fam = {}
+    beats = _beats_by_position(plan, slides)
+    used = {s.get("shot") for s in slides}
+    rows = []
+    for i, s in enumerate(slides):
+        shot = s.get("shot")
+        m = motion.get(shot)
+        rows.append({"beat": i + 1, "shot": shot, "energy": declared(s, beats[i]), "motion": m})
+    out = []
+    for i, r in enumerate(rows):
+        if r["motion"] is None:
+            continue
+        e, m = r["energy"], r["motion"]
+        kind = None
+        if e in ("high", "peak") and m < quiet_cut:
+            kind = "high-on-quiet"
+        if e == "peak" and m < floor:
+            kind = "peak-under-floor"                                # the stronger claim wins the line
+        if e == "low" and m >= kinetic_cut:
+            kind = "low-on-kinetic"
+        if kind:
+            lo, hi = band_for(e, quiet_cut, kinetic_cut, floor)
+            near = {fam.get(rows[j]["shot"]) for j in (i - 1, i + 1) if 0 <= j < len(rows)}
+            out.append(dict(r, kind=kind, band=(lo, hi if hi != float("inf") else None),
+                            alternatives=_alternatives(slides[i], beats[i], lo, hi, motion, used, near)))
+    # a run of kinetic registers reads as noise whatever each beat declared
+    run = []
+    for r in rows + [{"motion": None}]:
+        if r["motion"] is not None and r["motion"] >= kinetic_cut:
+            run.append(r)
+            continue
+        if len(run) >= RUN:
+            out.append({"kind": "run-of-kinetic", "beats": [x["beat"] for x in run],
+                        "shots": [x["shot"] for x in run], "energy": None, "motion": None, "beat": run[0]["beat"],
+                        "shot": run[0]["shot"], "alternatives": []})
+        run = []
+    # the summit belongs to the peak beat
+    peaks = [r for r in rows if r["energy"] == "peak" and r["motion"] is not None]
+    if peaks:
+        pk = max(peaks, key=lambda r: r["motion"])
+        top = max((r for r in rows if r["motion"] is not None), key=lambda r: r["motion"])
+        if top["beat"] != pk["beat"] and top["motion"] > SUMMIT_RATIO * max(pk["motion"], 1e-9):
+            out.append({"kind": "summit-off-peak", "beat": top["beat"], "shot": top["shot"], "energy": top["energy"],
+                        "motion": top["motion"], "peak_beat": pk["beat"], "peak_shot": pk["shot"],
+                        "peak_motion": pk["motion"], "alternatives": []})
+    return out
+
+
+def curve(slides, motion, quiet_cut, kinetic_cut, plan=None):
+    """Two aligned strings: the declared skeleton (L/m/H/P per beat) and the measured register motion as a
+    sparkline. Reading them together is the whole check."""
+    beats = _beats_by_position(plan, slides)
+    dec, meas = [], []
+    for s, b in zip(slides, beats):
+        e = declared(s, b)
+        dec.append({"low": "L", "medium": "m", "high": "H", "peak": "P"}[e])
+        m = motion.get(s.get("shot"))
+        if m is None:
+            meas.append("?")
+        else:
+            lvl = min(8, int(8 * min(1.0, m / max(kinetic_cut * 2.5, 1e-9))))
+            meas.append(SPARK[max(1, lvl)])
+    return "".join(dec), "".join(meas)
+
+
+def check_slides(slides, plan=None):
+    """(findings, curve_pair, why_none) for a storyboard's slides — what validate.py calls on the board it holds."""
+    motion, floor, qc, kc, why = load_sweep()
+    if why:
+        return [], None, why
+    return findings(slides, motion, floor, qc, kc, plan), curve(slides, motion, qc, kc, plan), None
+
+
+def load_plan(out_dir):
+    p = os.path.join(out_dir, "content_plan.json")
+    if os.path.exists(p):
+        try:
+            return json.load(open(p, encoding="utf-8"))
+        except Exception:                                           # noqa: BLE001
+            return None
+    return None
+
+
+def check(out_dir):
+    """(findings, curve_pair, why_none) for an out_dir — the CLI entry point."""
+    data = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
+    return check_slides(data.get("slides") or [], load_plan(out_dir))
+
+
+def describe(f):
+    """One human line per finding, with the fix that is actually available."""
+    if f["kind"] == "run-of-kinetic":
+        return ("beats %s are %d kinetic registers in a row (%s) — consecutive high energy reads as noise; "
+                "hand one of them a steady register so the run alternates"
+                % ("-".join(str(b) for b in f["beats"]), len(f["beats"]), ", ".join(f["shots"])))
+    if f["kind"] == "summit-off-peak":
+        return ("the film's most kinetic register is %s on beat %d (%s, motion %.4f), not the peak beat %d "
+                "(%s, %.4f) — the visual summit is somewhere the argument does not peak; swap them or give "
+                "the peak a livelier register"
+                % (f["shot"], f["beat"], f["energy"], f["motion"], f["peak_beat"], f["peak_shot"], f["peak_motion"]))
+    why = {"high-on-quiet": "declared %s, and %s is in the library's stillest third",
+           "peak-under-floor": "declared %s, and %s is under the delivery motion floor",
+           "low-on-kinetic": "declared %s (a hold), and %s is in the library's liveliest third"}[f["kind"]]
+    alt = ("; in band and unused: %s" % ", ".join(f["alternatives"])) if f["alternatives"] else \
+        "; nothing in this intent's pool sits in band — widen the pool or change the declared energy"
+    return "beat %d (%s) motion %.4f: %s%s" % (f["beat"], f["shot"], f["motion"],
+                                               why % (f["energy"].upper(), f["shot"]), alt)
+
+
+def main(argv):
+    if not argv or argv[0].startswith("-"):
+        print(__doc__.split("\n\n")[0]); return 2
+    fs, cv, why = check(argv[0])
+    if "--json" in argv:
+        print(json.dumps({"findings": fs, "curve": cv, "basis": why or "ok"}, ensure_ascii=False, indent=2))
+        return 1 if any(f["kind"] in HARD for f in fs) else 0
+    if why:
+        print("[energy_skeleton] NOT CHECKED: %s" % why); return 0
+    data = json.load(open(os.path.join(argv[0], "storyboard.json"), encoding="utf-8"))
+    unassigned = sum(1 for s in (data.get("slides") or []) if not s.get("shot"))
+    unmeasured = cv[1].count("?") - unassigned
+    if unassigned:
+        print("[energy_skeleton] %d beat(s) have no register yet (shown as ?) — run the shot-director first" % unassigned)
+    if unmeasured > 0:
+        print("[energy_skeleton] %d beat(s) sit on registers the sweep has not measured (shown as ?)" % unmeasured)
+    print("[energy_skeleton] declared  %s" % cv[0])
+    print("[energy_skeleton] measured  %s   (L/m/H/P = plan; bars = register motion, full = 2.5x the kinetic cut)"
+          % cv[1])
+    if not fs:
+        print("[energy_skeleton] the registers follow the plan's skeleton"); return 0
+    for f in fs:
+        print("  %-17s %s" % (f["kind"], describe(f)))
+    hard = sum(f["kind"] in HARD for f in fs)
+    print("[energy_skeleton] %d finding(s), %d hard. Findings are candidates: a beat's real motion also depends on "
+          "props, ground, camera and length — check the beat, then swap or re-declare." % (len(fs), hard))
+    return 1 if hard else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
