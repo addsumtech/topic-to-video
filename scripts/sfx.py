@@ -34,6 +34,7 @@ _SEED = 20260802
 # huashu golden ratios
 _BGM_VOL = 0.45
 _SFX_HP = 800          # SFX highpass (Hz) — push to the presence band
+_SFX_LP = 110          # SFX LOW band (Hz) — an impact's body, kept under the voice's fundamentals
 _BGM_LP = 4000         # BGM lowpass (Hz) — keep it under the SFX
 _TARGET_LUFS = -14.0
 
@@ -75,6 +76,35 @@ def cue(name):
         n = int(0.12 * SR); t = np.arange(n) / SR
         f = np.linspace(880, 320, n); ph = 2 * np.pi * np.cumsum(f) / SR
         return _norm(np.sin(ph) * _env(n, 0.002, 0.05)) * 0.6
+    # ── THE FILM VOCABULARY. Borrowed from a mature peer library's sound case law, where the first version
+    # chose SFX by UI EVENT (click / drop / confirmation) and the user killed it in one listen: "太像游戏了" —
+    # it sounded like a game. Film sound is chosen by PICTURE KIND, not event: whoosh (a move), impact (a
+    # landing), riser (the build before it), sparkle (the afterglow). The three below complete that set; the
+    # event cues above are kept so nothing already authored changes, but the planner no longer closes a film
+    # on a bell.
+    if name == "riser":                            # the build: bright noise climbing for ~1.2s into the hit
+        n = int(1.2 * SR); t = np.arange(n) / SR
+        climb = (t / 1.2) ** 1.6                                   # accelerating, like tension
+        f = 300 + 2200 * climb; ph = 2 * np.pi * np.cumsum(f) / SR
+        body = rng.standard_normal(n) + 0.35 * np.sin(ph)
+        # ONE climb, not two: the first draft multiplied the body by `climb` and then enveloped it by `climb`
+        # again, and measured through the real chain the first 0.4s of the build sat 54dB down — inaudible,
+        # so the "1.2s riser" was a 0.5s swell. The envelope alone climbs; its floor is where the ear picks
+        # the build up (-16dB under its end).
+        return _norm(body * (0.15 + 0.85 * climb)) * 0.55
+    if name == "impact":                           # the landing: a bright crack over a low body
+        n = int(0.55 * SR); t = np.arange(n) / SR
+        crack = rng.standard_normal(n) * _env(n, 0.001, 0.035)      # the transient — survives the SFX highpass
+        f = 62.0 * np.exp(-t / 0.12) + 34.0                          # the body: a pitch-dropping thump
+        ph = 2 * np.pi * np.cumsum(f) / SR
+        body = np.sin(ph) * _env(n, 0.002, 0.22)                     # lives under 110Hz — the LOW bus carries it
+        return _norm(0.55 * crack + 1.0 * body) * 0.95
+    if name == "sparkle":                          # the afterglow: high partials shimmering out over ~1.4s
+        n = int(1.4 * SR); t = np.arange(n) / SR
+        parts = [4200.0, 5600.0, 7100.0, 8900.0]
+        x = sum(np.sin(2 * np.pi * f * t + i) * (0.7 ** i) * (1 + 0.35 * np.sin(2 * np.pi * (5.5 + i) * t))
+                for i, f in enumerate(parts))
+        return _norm(x * np.exp(-t / 0.45) * _env(n, 0.01, 1.0)) * 0.42
     if name == "reveal":                           # the hero / brand landing (a soft bell)
         n = int(0.95 * SR); t = np.arange(n) / SR
         parts = [880.0, 1320.0, 1760.0, 2640.0]
@@ -106,31 +136,49 @@ def _write_wav(path, arr):
         w.writeframes(pcm)
 
 
+# The closing sentence's shape, in FRAMES relative to the landing (their template: f945 → f980 → f1005).
+SENTENCE_RISER_LEAD = 35
+SENTENCE_SPARKLE_LAG = 25
+SPARKLE_MIN_TAIL_S = 0.6     # the sparkle must have this much film left to ring into
+
+
 # ── cue planning: pin cues to the video's BEATS (frame-exact), with restraint ─────────────────────────
 def plan_cues(scenes, fps):
     """Given a scene list (each with durationInFrames; optional shots[].startFrame), return a cue list
     [(t_seconds, cue_name, gain)] aligned to beats: a whoosh at each MARKED scene transition (anticipatory,
     −2 frames; a plain cross-fade seam stays QUIET so the ear marks the same ~2-3 seams the eye does — the
     carry match-cut gets a softer swell), a focus tick at each interior shot arrival, a pop at each element's
-    enter, and a reveal bell at the LAST scene's final shot. Then applies restraint — caps density at ~4 cues
-    / 10s, dropping the lowest-priority (ticks/pops) first so the film breathes."""
+    enter, and the CLOSING SENTENCE (riser → impact → sparkle) at the LAST scene's final shot. Then applies
+    restraint — caps density at ~4 cues / 10s, dropping the lowest-priority (ticks/pops) first so the film
+    breathes; the sentence is one landing and costs the cap ONE slot."""
     cues = []                                       # (t, name, gain, priority) — lower priority dropped first
     t0 = 0.0
     n = len(scenes)
+    land = None                                     # the closing landing, in seconds — set by the last scene
     for si, sc in enumerate(scenes):
         dur = float(sc.get("durationInFrames") or 0) / fps
+        shots = sc.get("shots") or []
+        seam_cue = None
         if si > 0:                                  # scene transition — sound only the MARKED seams
             tt = max(0.0, t0 - 2.0 / fps)           # 2 frames early (anticipation)
             if "transitionIn" in sc:                # the seam grammar is DECLARED (remotion tier)
                 ti = sc.get("transitionIn")
                 if ti and ti.get("type") == "carry":
-                    cues.append((tt, "whoosh", 0.32, 1))    # a gentle match-cut swell (softer than a hard cut)
+                    seam_cue = (tt, "whoosh", 0.32, 1)      # a gentle match-cut swell (softer than a hard cut)
                 elif ti:                            # slide / wipe / clock — a motion whoosh
-                    cues.append((tt, "whoosh", 0.5, 0))
+                    seam_cue = (tt, "whoosh", 0.5, 0)
                 # else: an unmarked FADE seam — no cue (the fade is visually gentle; restraint)
             else:                                   # grammar not declared (legacy caller) — unchanged behavior
-                cues.append((tt, "whoosh", 0.5, 0))
-        shots = sc.get("shots") or []
+                seam_cue = (tt, "whoosh", 0.5, 0)
+        if si == n - 1 and shots:
+            land = t0 + float(shots[-1].get("startFrame") or 0) / fps
+            # The film's real caller lands the close on the last scene's ARRIVAL (its one shot starts at frame
+            # 0), which puts the impact ON the seam. Then the riser IS that seam's sound — build across the cut,
+            # land — and a whoosh two frames before an impact would be two sounds for one move. Dropped.
+            if seam_cue is not None and abs(land - t0) <= 3.0 / fps:
+                seam_cue = None
+        if seam_cue is not None:
+            cues.append(seam_cue)
         for k, sh in enumerate(shots):
             sf = float(sh.get("startFrame") or 0)
             if k > 0:                               # camera arrives on a new subject — focus
@@ -139,16 +187,36 @@ def plan_cues(scenes, fps):
             en = el.get("enterAtFrame")
             if isinstance(en, (int, float)) and en > 0 and el.get("kind") not in ("grid", "floor", "fill"):
                 cues.append((t0 + float(en) / fps, "pop", 0.4, 3))
-        if si == n - 1 and shots:                   # the closing hero / reveal bell
-            cues.append((t0 + float(shots[-1].get("startFrame") or 0) / fps, "reveal", 0.7, 1))
         t0 += dur
     total = t0 or 1.0
+    sentence = []
+    if land is not None:
+        # THE CLOSING SENTENCE — riser → impact → sparkle, the film's one big landing. The peer library's
+        # template pins it at f945 → f980 → f1005 (a 35f build, a 25f afterglow) and records it as the one
+        # passage never changed after the sound direction was set: build, land, glow, in that order, the
+        # impact being the film's loudest SFX. It replaces the bell that used to sit here — a bell is the
+        # pluck/bloop timbre class their case law calls a game sound. The riser starts BEFORE the landing even
+        # when that is inside the previous scene: a build that crosses the cut is the point of a build. The
+        # sparkle is the sentence's full stop and needs room to ring; a film that ends within its lag pulls it
+        # in, and a film with no room at all drops it and says so — a sparkle cut off by the end is a glitch,
+        # not a shorter sparkle.
+        sentence.append((max(0.0, land - SENTENCE_RISER_LEAD / fps), "riser", 0.5, 0))
+        sentence.append((land, "impact", 0.95, 0))
+        sp = min(land + SENTENCE_SPARKLE_LAG / fps, total - SPARKLE_MIN_TAIL_S)
+        if sp > land:
+            # 0.30, not louder: measured on a real narrated film the sparkle's partials (4-9kHz) sat at the same
+            # energy as the closing narration's sibilance band; the glow is under the voice, never beside it.
+            sentence.append((sp, "sparkle", 0.30, 0))
+        else:
+            print("[sfx] closing sparkle dropped: the film ends %.2fs after its landing (needs %.1fs to ring)"
+                  % (total - land, SPARKLE_MIN_TAIL_S))
     cap = max(2, int(round((total / 10.0) * 4)))    # <=4 cues per 10s (huashu density band)
+    if sentence:
+        cap = max(1, cap - 1)                       # the sentence is ONE landing — one slot, never three
     if len(cues) > cap:                             # restraint: drop lowest-priority (highest number) first
         cues.sort(key=lambda c: (c[3], c[0]))
-        cues = sorted(cues[:cap], key=lambda c: c[0])
-    else:
-        cues.sort(key=lambda c: c[0])
+        cues = cues[:cap]
+    cues = sorted(cues + sentence, key=lambda c: c[0])
     return [(t, name, g) for (t, name, g, _p) in cues]
 
 
@@ -179,12 +247,20 @@ def filtergraph(dur, has_bgm):
     module was audited for. A cue's time is computed frame-exactly (a seam whoosh lands 2 frames early, on
     purpose) and then handed to an encoder nobody had ever measured.
     """
-    fc = ["[1:a]highpass=f=%d,volume=1.0[sfx]" % _SFX_HP]
-    mix_ins, n_in = "[0:a][sfx]", 2
+    # TWO BANDS FROM ONE INPUT. The SFX bus has always been highpassed at 800Hz so it sits above the voice —
+    # and an impact's body is a 35-60Hz thump, which that highpass deletes entirely: a landing would ship
+    # as a click. It is split INSIDE the graph rather than fed as a second file so that the probe keeps
+    # measuring exactly the chain the film renders through (a broadband click lands in both bands), and so
+    # `amix` stays written once. The low band sits UNDER the voice (fundamentals from ~85Hz up, intelligibility
+    # in 300Hz-4kHz), which is the same isolation argument as the high band from the other side.
+    fc = ["[1:a]asplit[sh][sl]",
+          "[sh]highpass=f=%d,volume=1.0[sfxhi]" % _SFX_HP,
+          "[sl]lowpass=f=%d,volume=1.0[sfxlo]" % _SFX_LP]
+    mix_ins, n_in = "[0:a][sfxhi][sfxlo]", 3
     if has_bgm:
         fc.append("[2:a]lowpass=f=%d,afade=in:st=0:d=0.3,afade=out:st=%.2f:d=1.5,volume=%.2f[bgm]"
                   % (_BGM_LP, max(0.0, dur - 1.5), _BGM_VOL))
-        mix_ins, n_in = "[0:a][bgm][sfx]", 3
+        mix_ins, n_in = "[0:a][bgm][sfxhi][sfxlo]", 4
     fc.append("%samix=inputs=%d:duration=first:normalize=0,loudnorm=I=%.1f:TP=-1.5:LRA=11[a]"
               % (mix_ins, n_in, _TARGET_LUFS))
     return ";".join(fc)
@@ -314,6 +390,17 @@ def mix(out_dir, mp4, scenes, meta, fps):
            "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", out2]
     try:
         subprocess.run(cmd, check=True)
+        if bgm_wav:
+            # TWO DELIVERIES FROM ONE TIMELINE. A film with a BGM also ships a `.nobgm.mp4` twin — same cues,
+            # same frames, no music — so the user can score it themselves without a re-render. Borrowed from
+            # the peer library's delivery rule for scored films; the twin is a second pass through the same
+            # graph with the BGM input absent, never a separate timeline.
+            twin = os.path.splitext(mp4)[0] + ".nobgm.mp4"
+            cmd2 = ["ffmpeg", "-y", "-v", "error", "-i", mp4, "-i", sfx_wav, "-filter_complex",
+                    filtergraph(dur, False), "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac",
+                    "-b:a", "192k", twin]
+            subprocess.run(cmd2, check=True)
+            print("[sfx] no-BGM twin -> %s" % os.path.basename(twin))
         shutil.move(out2, mp4)
         print("[sfx] mixed %d cue(s)%s -> %s" % (len(cues), " + BGM" if bgm_wav else "", os.path.basename(mp4)))
         return True
@@ -363,7 +450,7 @@ if __name__ == "__main__":                          # CLI: preview the cue plan 
     scenes = [{"durationInFrames": max(1, int(round(float(s.get("duration") or 0) * fps)) - _TR)}
               for s in data.get("slides", [])]
     if scenes:
-        scenes[-1]["shots"] = [{"startFrame": 0}]   # closing reveal bell
+        scenes[-1]["shots"] = [{"startFrame": 0}]   # the closing sentence lands on the last beat's arrival
     cs = plan_cues(scenes, fps)
     print("planned %d cues:" % len(cs))
     for (t, name, g) in cs:

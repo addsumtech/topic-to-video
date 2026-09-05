@@ -330,9 +330,16 @@ TTS if the user gives an API key.
   real image rather than drawing an empty plate). Each shot is standalone-renderable
   (`cd remotion && npx remotion still src/index.ts <Id> out.png --frame=N --gl=angle`) and topic-driven via
   `--props='{...}'` (ASCII only — a multibyte `·` breaks the CLI arg). **`meta.sound_design:true`** (opt-in)
-  adds a restrained SFX bed (transition whooshes pinned frame-exact to the cross-dissolves + a closing reveal)
-  under the VO, plus `meta.bgm` (a path or `"auto"` synth pad) — **audition it before delivery (the pipeline
-  can't hear it)**. **"Frame-exact" is now MEASURED, not assumed:** the cue times were computed to the frame
+  adds a restrained SFX bed under the VO: transition whooshes pinned frame-exact to the marked seams, and the
+  film's one **closing sentence — riser → impact → sparkle** (a 35-frame build that crosses the last cut, the
+  landing on the close's arrival as the film's loudest SFX, a 25-frame afterglow), the shape a mature peer
+  library pins its payoff with. Cues are chosen by PICTURE KIND (a move, a landing, a build, a glow), never by
+  UI event — event-semantic clicks/bells read as a game, which is why the close no longer rings a bell. The
+  impact's body lives under 110 Hz, so the SFX bus is split in-graph into a >800 Hz band and a <110 Hz band,
+  both outside the voice's 300 Hz–3 kHz (measured: the low bus adds nothing there). `meta.bgm` (a path or
+  `"auto"` synth pad) scores it, and a scored film also ships an `out.nobgm.mp4` twin — same cues, same
+  frames, no music — so the user can score it themselves without a re-render. **Audition it before delivery
+  (the pipeline can't hear it).** **"Frame-exact" is now MEASURED, not assumed:** the cue times were computed to the frame
   (a seam whoosh lands 2 frames EARLY on purpose) and then handed to an encoder nobody had checked, while the
   only audio gate (`check_av`) compares total stream durations with a 0.3s tolerance — nine frames, and blind
   to where a cue sits against its cut either way. `mix()` now sends a click through the real filtergraph

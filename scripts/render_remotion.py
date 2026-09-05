@@ -394,9 +394,9 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
                 # carry transitionIn per scene so the SFX marks the SAME seams the eye does (fades stay quiet)
                 sfx_scenes = [{"durationInFrames": max(1, sc["durF"] - tr), "transitionIn": sc.get("transitionIn")}
                               for sc in scenes]         # overlap-compressed timeline
-                if sfx_scenes:                          # a closing reveal bell on the last beat
+                if sfx_scenes:                          # the closing sentence lands on the last beat's arrival
                     sfx_scenes[-1]["shots"] = [{"startFrame": 0}]
-                sfx.mix(out_dir, out_mp4, sfx_scenes, meta, fps)   # transition whooshes + reveal + meta.bgm
+                sfx.mix(out_dir, out_mp4, sfx_scenes, meta, fps)   # whooshes + riser/impact/sparkle + meta.bgm
             except Exception as e:
                 print("[render_remotion] sound_design skipped: %s" % e)
     return out_mp4
