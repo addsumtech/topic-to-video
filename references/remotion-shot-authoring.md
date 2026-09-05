@@ -542,3 +542,19 @@ on. The rules that came out of fixing all of them:
   away from the group it belongs to — and MEASURE the scene's extent off a render before scaling; two
   guessed extents cost real density before the ruler came out.
 
+## `t` is not seconds
+
+`useT()` returns 0→1 across the whole clip. Every constant written against it is therefore a TOTAL, not a
+rate, and this is the single most repeated defect in the library — nine registers shipped an oscillator that
+never completed one cycle, each authored as "this keeps breathing" and each rendering as a slow one-way
+drift.
+
+- **A period goes in SECONDS**: `radians(t, durationInFrames, fps, periodS, phase)` for an angle,
+  `life(t, durationInFrames, fps, periodS, phase)` for a 0→1 modulator. Both throw below a 3s period, so a
+  caller cannot tune their way into a vibration.
+- **`clamp01(t * k)` is fine** — a saturating fade-in is a reveal, not an oscillator.
+- **Run `python3 scripts/clock_qa.py`** after adding a register. It cross-references the scan with the
+  measured sweep, so it names a symptom and a cause together.
+- **Correcting a clock is a fidelity fix, not a motion fix.** Where the driven element is small the measured
+  motion barely moves; render before and after and revert the edit if the number does not.
+

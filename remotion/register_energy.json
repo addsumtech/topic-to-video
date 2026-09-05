@@ -48,7 +48,7 @@
     "FocalIsolation": "708dd8a45be78eb3",
     "FractalTree": "41f04871037bef2f",
     "FractureIn": "e9d9d8e7aa4ab4b9",
-    "FrequencyEncode": "94accfcfa8d0592f",
+    "FrequencyEncode": "deffe91b7c0c1538",
     "GFactorNoise": "5724331f2fcbfd37",
     "GameOfLife": "b7769d1fce0f1c1e",
     "GaugeCluster": "57f9cc16c99dc41c",
@@ -502,7 +502,7 @@
       "footprint": 0.376
     },
     "FrequencyEncode": {
-      "motion_p75": 0.0012,
+      "motion_p75": 0.0017,
       "ink_median": 0.056,
       "luma_range": 0.011,
       "seconds": 6.0,

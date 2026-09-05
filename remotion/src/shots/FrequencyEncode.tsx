@@ -6,7 +6,7 @@
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
-import {useT, seg, lerp, clamp01} from '../runtime/motion';
+import {useT, seg, lerp, clamp01, radians} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 
 export const DURATION = 180; // 6s
@@ -24,7 +24,7 @@ export const INTRINSIC_TEXT = [
 export const FrequencyEncode: React.FC<{accent?: string; accent2?: string; label?: string; cols?: number}> = ({
   accent = '#22d3ee', accent2 = '#a78bfa', label = 'Position becomes frequency', cols = 7,
 } = {}) => {
-  const {width: W, height: H} = useVideoConfig();
+  const {width: W, height: H, durationInFrames, fps} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
   const gx = W * 0.14, gw = W * 0.72, colW = gw / cols;
@@ -44,7 +44,11 @@ export const FrequencyEncode: React.FC<{accent?: string; accent2?: string; label
     const pts: string[] = [];
     for (let x = 6; x <= colW - 6; x += 2) {
       const u = (x - 6) / (colW - 12);
-      pts.push(`${(cx0 + x).toFixed(1)},${(rowY + rowH / 2 - Math.sin(u * f * Math.PI * 2 + t * 6) * rowH * 0.34 * p1).toFixed(1)}`);
+      // THE TEMPORAL PHASE, in seconds. Authored as `t * 6` — which reads like radians per second and is
+      // not: `t` runs 0→1 across the whole clip, so the readout waveform advanced 0.95 of one cycle in five
+      // seconds and a frequency encode that never completes an oscillation is not encoding a frequency.
+      // Measured before and after on the settled half: 0.00097 -> 0.00119 frame difference, +23%.
+      pts.push(`${(cx0 + x).toFixed(1)},${(rowY + rowH / 2 - Math.sin(u * f * Math.PI * 2 + radians(t, durationInFrames, fps, 4)) * rowH * 0.34 * p1).toFixed(1)}`);
     }
     colWaves.push(<g key={i}>
       <rect x={cx0 + 2} y={rowY} width={colW - 4} height={rowH} rx={5} fill="#0a1424" stroke={`${accent}55`} strokeWidth={1} opacity={0.5 + p1 * 0.5} />
@@ -56,7 +60,7 @@ export const FrequencyEncode: React.FC<{accent?: string; accent2?: string; label
   const sum: string[] = [];
   for (let x = 0; x <= gw; x += 2) {
     let y = 0;
-    for (let i = 0; i < cols; i++) y += Math.sin((x / gw) * freqOf(i) * Math.PI * 2 + t * 6);
+    for (let i = 0; i < cols; i++) y += Math.sin((x / gw) * freqOf(i) * Math.PI * 2 + radians(t, durationInFrames, fps, 4));
     sum.push(`${(gx + x).toFixed(1)},${(sumY - (y / cols) * H * 0.10 * p2).toFixed(1)}`);
   }
 
