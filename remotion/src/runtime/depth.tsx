@@ -224,10 +224,19 @@ export const clampPan = (pan: unknown): [number, number] | null => {
  * as everything else, at BED_AMOUNT_FRAC of it — deliberately under the 0.75 a motivated move takes, so
  * punctuation stays punctuation.
  *
+ * WHY IT IS OPT-IN AGAIN (2026-09-06). Everything above is still true of the MEASUREMENT and none of it
+ * was enough. Shipped as the default, the bed drifts every beat nobody authored a camera for — 21 of 25 on
+ * the first real film — and a viewer's first note was that the type slides sideways all film. shake_qa is
+ * right that it is not shake (wander ~1, it travels), and that is exactly the point: a clean slow pan on
+ * every beat is a legible defect that no shake instrument is looking for. The number it was built to move
+ * is a floor on MOTION, and motion was never the same question as "does this look right". So the bed is
+ * now reached by `meta.camera_bed: true`, and a film's motion comes from its shots and its 2-4 motivated
+ * moves. Keep the machinery: on a film that is genuinely still, one line switches it on.
+ *
  * WHO GETS IT: themed films only (the null-DNA rule keeps machinery out of the un-themed look), beats with
  * NO authored camera (an authored move — even `hold` — wins outright), never under reduced motion, and
  * never alongside the whole-film ambient drift (two beds are the coexistence the shake guard exists to
- * refuse). `meta.camera_bed: false` switches it off film-wide.
+ * refuse). `meta.camera_bed: true` switches it ON film-wide (it is OFF by default).
  */
 export const BED_AMOUNT_FRAC = 0.45;
 export const bedPan = (

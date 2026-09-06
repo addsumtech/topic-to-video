@@ -366,7 +366,8 @@ TTS if the user gives an API key.
   punctuation (push/pull with causes) stays legible above it. Measured: the reference 6-beat film went
   0.0035 -> 0.0042 motion_p75 (over the 0.0037 floor) with shake_qa wander 1.46 and local flicker DOWN.
   An authored camera (even `hold`) wins outright; un-themed films are pixel-untouched (null-DNA rule);
-  reduced motion zeroes it; it refuses to coexist with `meta.camera_drift`; `meta.camera_bed: false` is the
+  reduced motion zeroes it; it refuses to coexist with `meta.camera_drift`; **It is OFF by default** — shipped as the default it drifted 21 of a film's 25 beats and read as
+  the type sliding sideways for the whole runtime (the motion number rose; the film looked worse). `meta.camera_bed: true` is the
   film-wide opt-out.
   **FINISH (film optics, DEFAULT ON for themed films):** every themed film carries a photographic finish —
   deterministic grain, corner falloff, a key-light direction — from `design_dna.finish` (preset-tuned in
@@ -428,6 +429,20 @@ TTS if the user gives an API key.
   in SECONDS; both enforce a 3s floor by throwing. **Its findings are CANDIDATES, not work orders**: render
   the register before and after and keep the change only where the settled-half motion moves (three of four
   were reverted this way). It is a FIDELITY fix, not the motion axis's lever — that is the camera bed.
+- `scripts/cjk_type_qa.py --library` (or `<out_dir>`) — the **CJK TYPE gate** (remotion tier, pre-render).
+  Renders each register with CHINESE copy shaped to its own prop signature and asks the DOM whether the type
+  collides: `leading` (one element's own wrapped lines overlapping — never intentional, an ERROR) and
+  `overlap` (two elements' type crossing — sometimes the technique, so a candidate). It exists because a
+  delivered Chinese film had two registers set their copy into an unreadable pile while every gate was
+  green: `text_safe_qa` asks whether type falls OFF the canvas, and this copy stayed inside the frame. The
+  cause is one thing — the library is authored with short English demo strings, and `line-height: 0.82` is
+  confident Latin display typography and a collision in Chinese, because Latin glyphs sit inside their em
+  box and CJK glyphs fill it. The fix lives in `remotion/src/runtime/cjkType.ts`: `leading(text, latin)`
+  raises the leading to `CJK_MIN_LEADING` **only when the copy is actually CJK**, and `fitIfCJK` shrinks a
+  size only then — so an English film renders exactly as it did. **Run it before authoring a CJK film**, and
+  when adding a register that sets tight leading on author-supplied text. Its positive control is synthetic
+  and permanent (`TypeCollisionProbe`), because the first controls were two real registers and stopped
+  working the moment both were repaired.
 - `scripts/energy_skeleton.py <out_dir>` — the **ENERGY-SKELETON check** (remotion tier, pre-render, no render
   needed). The content-planner declares an `energy` per beat and the library sweep measures a motion per
   register; this prints the declared skeleton against the measured curve and names each beat whose register

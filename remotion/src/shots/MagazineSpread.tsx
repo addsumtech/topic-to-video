@@ -7,7 +7,8 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {captionBand} from '../runtime/layout';
+import {captionBand, fitTextPx} from '../runtime/layout';
+import {leading, fitIfCJK} from '../runtime/cjkType';
 
 export const DURATION = 165; // 5.5s
 const PAPER_D0 = '#f3f0e8', INK_D0 = '#161512';
@@ -24,6 +25,11 @@ export const MagazineSpread: React.FC<{sectionLabel?: string; title?: string; he
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const M = 150; // margin
+  // The headline column. A LATIN headline keeps 116px and wraps as designed — a giant feature headline in a
+  // narrow column is the composition. A CJK headline of the same sense is far wider, wraps to three lines
+  // and runs down through the standfirst, so there it is fitted instead. fitIfCJK decides from the copy.
+  const HEAD_W = W - 2 * M - 640;
+  const headPx = fitIfCJK(HEADLINE, 116, (t, base) => fitTextPx(t, HEAD_W, base, {usable: 1.9}));
   const mast = easeOutExpo(seg(t, 0.05, 0.34));
   const rule = easeOutCubic(seg(t, 0.2, 0.5));
   const block = easeOutExpo(seg(t, 0.34, 0.6));
@@ -54,8 +60,14 @@ export const MagazineSpread: React.FC<{sectionLabel?: string; title?: string; he
       </div>
 
       {/* giant feature headline, word by word */}
+      {/* The headline is FITTED to its column, not set at a fixed 116px: the column is W-2M-640 wide and a
+          Chinese headline of the same sense is much wider than its English demo copy, so the fixed size
+          wrapped to three lines and ran into the deck. fitTextPx counts CJK at full width. */}
       <div style={{position: 'absolute', left: M, top: 470, width: W - 2 * M - 640,
-        font: '800 116px/0.98 var(--f-display, "Playfair Display", Georgia, serif)', letterSpacing: '-0.015em'}}>
+        // 0.98 reads as a tight editorial headline in Latin and collides in Chinese (see runtime/cjkType).
+        // The SIZE is fitted too: a Chinese headline of the same word count is far wider, and at a fixed
+        // 116px it wrapped to three lines that ran down through the standfirst below.
+        font: `800 ${headPx}px/${leading(HEADLINE, 0.98)} var(--f-display, "Playfair Display", Georgia, serif)`, letterSpacing: '-0.015em'}}>
         {words.map((w, i) => {
           const on = easeOutCubic(clamp01(seg(t, 0.44 + i * 0.06, 0.62 + i * 0.06)));
           return <span key={i} style={{display: 'inline-block', marginRight: '0.28em', opacity: on,
@@ -80,8 +92,11 @@ export const MagazineSpread: React.FC<{sectionLabel?: string; title?: string; he
         ))}
       </div>
       {/* folio */}
+      {/* A folio is one line by definition. It composes the film's own title, and a CJK title is wide
+          enough to wrap it — which put line 2 inside line 1 at 24px/1. nowrap is the honest fix: if the
+          title is too long for the corner, the folio runs to the margin rather than stacking on itself. */}
       <div style={{position: 'absolute', right: M, bottom: BAND + 8, font: '700 24px/1 var(--f-mono, "JetBrains Mono", monospace)',
-        letterSpacing: '0.1em', opacity: clamp01(seg(t, 0.6, 0.8))}}>{TITLE}.CO — 01</div>
+        letterSpacing: '0.1em', whiteSpace: 'nowrap', opacity: clamp01(seg(t, 0.6, 0.8))}}>{TITLE}.CO — 01</div>
     </AbsoluteFill>
   );
 };

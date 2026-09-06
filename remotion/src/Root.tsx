@@ -177,10 +177,30 @@ const dims = (aspect?: string) => {
 // D0 constants — which meant a palette bug could only ever be seen after a full film render. Passing
 // `--props='{"dna":"data"}'` (or a whole DNA object) now previews the shot inside the film's real design
 // system, and `aspect` previews the reflow. Absent both, behaviour is exactly as before.
+
+// A PERMANENT POSITIVE CONTROL for scripts/cjk_type_qa.py.
+//
+// The gate's first controls were two real registers that had broken a real film. They worked exactly once:
+// the moment both were repaired the controls reported "not caught" and the instrument could no longer prove
+// it detects anything. A control that depends on production code STAYING broken is not a control. This
+// composition is deliberately mis-set — Chinese copy at 0.55 leading, which stacks its own lines — so the
+// detector always has something it must find, and nothing anyone might fix removes it.
+export const TypeCollisionProbe: React.FC = () => (
+  <div style={{position: 'absolute', inset: 0, background: '#fff', padding: 80}}>
+    <div style={{width: 700, color: '#000',
+      font: '800 96px/0.55 var(--f-display, Inter, system-ui, sans-serif)'}}>
+      它自主拆解任务并在你授权的目录里真正动文件
+    </div>
+  </div>
+);
+
+
 const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C, p}) => {
   const {dna, aspect: _a, ...rest} = p as {dna?: unknown; aspect?: unknown};
   const active = coerceDna(dna as never);   // a string is a preset name; an object is a partial DNA
-  const audit = <TextSafeAudit enabled={Boolean((p as {textSafe?: unknown}).textSafe)} />;
+  const _p = p as {textSafe?: unknown; typeCollisions?: unknown};
+  const audit = <TextSafeAudit enabled={Boolean(_p.textSafe || _p.typeCollisions)}
+                               mode={_p.typeCollisions ? 'collisions' : 'safe'} />;
   const shot = <><C {...rest} />{audit}</>;
   if (!active) return shot;
   return (
@@ -201,6 +221,7 @@ export const RemotionRoot: React.FC = () => (
       defaultProps={{scenes: WORKBUDDY_SCENES}}
       calculateMetadata={({props}) => ({durationInFrames: filmDuration((props as any).scenes ?? WORKBUDDY_SCENES),
         ...dims((props as any).aspect)})} />
+    {F('TypeCollisionProbe', TypeCollisionProbe, 165)}
     {F('FontProbe', FontProbe, FPR)}
     {F('TypeSpecimen', TypeSpecimen, TSP)}
     {F('CollaborativeCursors', CollaborativeCursors, CC)}

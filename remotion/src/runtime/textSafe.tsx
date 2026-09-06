@@ -143,6 +143,138 @@ const visibleRect = (el: Element, frame: DOMRect): DOMRect | null => {
   return new DOMRect(l, t, ri - l, b - t);
 };
 
+/** Prefix on the collision payload, so a caller can find it in the CLI's stderr. */
+export const TYPE_COLLISION_TAG = 'TYPE-COLLISIONS ';
+
+export type Collision = {
+  /** `leading` — one element's own wrapped LINES overlap each other. `overlap` — two elements' type collides. */
+  kind: 'leading' | 'overlap';
+  /** how deep the collision runs, in px */
+  depth: number;
+  text: string;
+  other?: string;
+  font: string;
+  cls: string;
+};
+
+// A line box is the glyph em box, which is TALLER than the visible letters, so tight leading makes boxes
+// touch on purpose: line-height 0.85 on a Latin display face overlaps ~0.15em and looks intended, because
+// Latin glyphs sit well inside their box. CJK glyphs fill it. That is the whole defect: the same 0.85 that
+// reads as confident Latin typography puts Chinese strokes on top of each other. Scaled to the font so it
+// means the same at 30px and at 240px, and set above the Latin-tight case so only real collisions report.
+const LEADING_OVERLAP_FRAC = 0.30;
+// Two elements' type overlapping is sometimes a technique (a brutalist stack, a glitch's offset copies), so
+// a graze is not a finding — the intersection has to eat a real share of the smaller box before it counts.
+const OVERLAP_AREA_FRAC = 0.22;
+const MIN_OVERLAP_PX = 6;
+// Two rects on ONE line (a CJK run and a Latin run sharing a baseline) overlap vertically almost entirely;
+// two stacked lines overlap by a fraction at most. 0.6 sits well clear of both.
+const SAME_LINE_FRAC = 0.6;
+
+/**
+ * Per-LINE boxes of an element's own text.
+ *
+ * `getClientRects()` does NOT return one rect per line — it returns one per FONT RUN, and a mixed
+ * CJK+Latin string is at least two runs on the same line, set in different faces with different box
+ * heights. Comparing those raw rects reported a folio reading `交付可验收的成果.CO — 01` — visibly one
+ * clean line — as a 31px collision, which is exactly the kind of false positive that teaches a reader to
+ * stop believing a gate. So runs are grouped into LINES first: two rects belong to the same line when
+ * their vertical ranges overlap by most of the smaller one's height, which is true of two faces on a
+ * shared baseline and false of two stacked lines.
+ */
+const lineRects = (el: Element): DOMRect[] => {
+  const doc = el.ownerDocument;
+  if (!doc?.createRange) return [];
+  const runs: DOMRect[] = [];
+  el.childNodes.forEach((n) => {
+    if (n.nodeType !== 3 || !(n.textContent ?? '').trim()) return;
+    const range = doc.createRange();
+    range.selectNodeContents(n);
+    Array.from(range.getClientRects()).forEach((r) => {
+      if (r.width > 0 && r.height > 0) runs.push(r as DOMRect);
+    });
+    range.detach?.();
+  });
+  runs.sort((a, b) => a.top - b.top);
+  const lines: {top: number; bottom: number; left: number; right: number}[] = [];
+  runs.forEach((r) => {
+    const cur = lines[lines.length - 1];
+    if (cur) {
+      const overlap = Math.min(cur.bottom, r.bottom) - Math.max(cur.top, r.top);
+      const smaller = Math.min(cur.bottom - cur.top, r.height);
+      if (smaller > 0 && overlap / smaller > SAME_LINE_FRAC) {   // same baseline, another face
+        cur.top = Math.min(cur.top, r.top);
+        cur.bottom = Math.max(cur.bottom, r.bottom);
+        cur.left = Math.min(cur.left, r.left);
+        cur.right = Math.max(cur.right, r.right);
+        return;
+      }
+    }
+    lines.push({top: r.top, bottom: r.bottom, left: r.left, right: r.right});
+  });
+  return lines.map((l) => new DOMRect(l.left, l.top, l.right - l.left, l.bottom - l.top));
+};
+
+/**
+ * Is any TYPE colliding with other type? — the question a CJK film needs and no existing gate asks.
+ *
+ * `auditTextSafety` asks whether type falls OFF the canvas. A film in Chinese fails a different way: the
+ * copy is still inside the frame and still unreadable, because a register sized for short English words
+ * wrapped a Chinese sentence into three lines set at a leading that assumed one. Measured on a real film,
+ * three registers broke exactly this way in one evening — KineticManifesto, BrutalistType and
+ * MagazineSpread — and text_safe passed all three, correctly: nothing was cut.
+ *
+ * Two kinds, and they are not equally certain. An element whose OWN wrapped lines overlap is never intended
+ * (nobody sets a paragraph to collide with itself), so `leading` is a defect. Two DIFFERENT elements
+ * overlapping is sometimes the technique, so `overlap` is a candidate for a human to look at.
+ */
+export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] => {
+  const win = root.ownerDocument?.defaultView;
+  if (!win) return [];
+  const out: Collision[] = [];
+  const boxes: {el: Element; r: DOMRect; text: string; font: string; cls: string}[] = [];
+  root.querySelectorAll('*').forEach((el) => {
+    const text = hasOwnText(el);
+    if (!text) return;
+    const cs = win.getComputedStyle(el);
+    if (parseFloat(cs.opacity || '1') < MIN_OPACITY || cs.visibility === 'hidden') return;
+    const size = parseFloat(cs.fontSize || '16');
+    const r = visibleRect(el, frame);
+    if (!r || r.width <= 0 || r.height <= 0) return;
+    const font = `${cs.fontSize} ${(cs.fontFamily || '').split(',')[0]}`;
+    const cls = (el.getAttribute('class') ?? '').slice(0, 40);
+    const short = text.length > 40 ? text.slice(0, 40) + '…' : text;
+    // 1. this element's own lines, against each other
+    const lines = lineRects(el);
+    let worst = 0;
+    for (let i = 1; i < lines.length; i++) {
+      const gap = lines[i - 1].bottom - lines[i].top;      // > 0 means the boxes overlap
+      if (gap > worst) worst = gap;
+    }
+    if (worst > size * LEADING_OVERLAP_FRAC) {
+      out.push({kind: 'leading', depth: Math.round(worst), text: short, font, cls});
+    }
+    boxes.push({el, r, text: short, font, cls});
+  });
+  // 2. element against element — skip any pair where one contains the other (a label inside its own card
+  //    is not a collision; its box is supposed to be inside)
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i], b = boxes[j];
+      if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+      const w = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);
+      const h = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
+      if (w <= MIN_OVERLAP_PX || h <= MIN_OVERLAP_PX) continue;
+      const area = w * h;
+      const smaller = Math.min(a.r.width * a.r.height, b.r.width * b.r.height);
+      if (smaller <= 0 || area / smaller < OVERLAP_AREA_FRAC) continue;
+      out.push({kind: 'overlap', depth: Math.round(Math.min(w, h)), text: a.text, other: b.text,
+                font: a.font, cls: a.cls});
+    }
+  }
+  return out;
+};
+
 /** Every text element whose VISIBLE box crosses the canvas edge, with no ancestor claiming the clip. */
 export const auditTextSafety = (root: Element, frame: DOMRect): Violation[] => {
   const win = root.ownerDocument?.defaultView;
@@ -193,7 +325,7 @@ export const auditTextSafety = (root: Element, frame: DOMRect): Violation[] => {
  * its caller. That makes a violation loud and per-scene: `scripts/text_safe_qa.py` renders each beat on its
  * own and collects the failures rather than stopping at the first.
  */
-export const TextSafeAudit: React.FC<{enabled?: boolean}> = ({enabled = false}) => {
+export const TextSafeAudit: React.FC<{enabled?: boolean; mode?: 'safe' | 'collisions'}> = ({enabled = false, mode = 'safe'}) => {
   const ref = React.useRef<HTMLDivElement>(null);
   const [handle] = React.useState(() =>
     enabled ? delayRender('text-safe audit', {timeoutInMilliseconds: 60000}) : null);
@@ -216,7 +348,21 @@ export const TextSafeAudit: React.FC<{enabled?: boolean}> = ({enabled = false}) 
         continueRender(handle);
         return;
       }
-      const viol = auditTextSafety(host.ownerDocument.body, host.getBoundingClientRect());
+      const frame = host.getBoundingClientRect();
+      const body = host.ownerDocument.body;
+      if (mode === 'collisions') {
+        const hits = auditTypeCollisions(body, frame);
+        if (hits.length) {
+          const head = hits.slice(0, MAX_REPORTED);
+          if (hits.length > head.length) {
+            head.push({kind: 'overlap', depth: 0, text: `…and ${hits.length - head.length} more`,
+                       font: '', cls: ''});
+          }
+          cancelRender(new Error(TYPE_COLLISION_TAG + JSON.stringify(head)));
+        } else continueRender(handle);
+        return;
+      }
+      const viol = auditTextSafety(body, frame);
       if (viol.length) {
         const head = viol.slice(0, MAX_REPORTED);
         if (viol.length > head.length) {
@@ -229,7 +375,7 @@ export const TextSafeAudit: React.FC<{enabled?: boolean}> = ({enabled = false}) 
     return () => {
       dead = true;
     };
-  }, [enabled, handle]);
+  }, [enabled, handle, mode]);
 
   if (!enabled) return null;
   // Its own box IS the canvas rect — measured rather than assumed, so the audit is correct at any aspect

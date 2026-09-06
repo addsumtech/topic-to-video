@@ -152,6 +152,17 @@ def test_a_film_cannot_declare_both_an_oscillating_drift_and_a_travelling_pan(tm
     assert made, "a pan on its own must still render"
 
 
+def test_the_bed_is_off_unless_a_film_asks_for_it():
+    """The bed is OPT-IN. It shipped as the DEFAULT, drifted 21 of a film's 25 beats, and the first viewer's
+    first note was that the type slides sideways for the whole film — a defect no shake instrument looks for,
+    precisely because it is not shake (wander ~1: it travels, cleanly). The number it was built to move was
+    film_energy's motion p75, and motion was never the same question as "does this look right". The default
+    lives in render_remotion.py, so that is what this pins."""
+    src = open(os.path.join(_HERE, "..", "scripts", "render_remotion.py"), encoding="utf-8").read()
+    assert '"cameraBed": meta.get("camera_bed") is True' in src, \
+        "the camera bed must be OPT-IN (`is True`), not opt-out (`is not False`)"
+
+
 def test_the_bed_rules_are_exactly_the_promised_ones():
     """bedPan is the reversal's contract: WHO gets the default drift, pinned as behaviour."""
     out = run_probe("""
@@ -169,7 +180,7 @@ try {
     assert out["unthemed"] is None, "an un-themed film grew a camera (null-DNA rule)"
     assert out["authored"] is None, "an authored camera — even hold — must win outright"
     assert out["drifting"] is None, "the bed coexisted with the ambient drift (the shake guard's case)"
-    assert out["disabled"] is None, "meta.camera_bed:false did not switch it off"
+    assert out["disabled"] is None, "the enabled flag did not switch it off"
     assert out["again"] == out["themed"], "the bed is not deterministic"
     dx2, dx3 = out["themed"]["pan"][0], out["next"]["pan"][0]
     assert dx2 * dx3 < 0, "adjacent beats drift the same way — one long pan a cut keeps interrupting"

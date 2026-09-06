@@ -4,9 +4,10 @@
 
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
+import {leading} from '../runtime/cjkType';
 import {useT, seg, lerp, clamp01, easeOutExpo} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {captionBand} from '../runtime/layout';
+import {captionBand, fitTextPx} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#ececec', INK_D0 = '#0a0a0a', ACC_D0 = '#ff3b00';
@@ -35,13 +36,27 @@ export const BrutalistType: React.FC<{titleTop?: string; titleBottom?: string; m
   // 0.82 line-height has a natural line box nearer 1.2, so roughly 0.2em of each glyph hangs outside the
   // box the layout reserves — sizing on 2*0.82 alone left the block ending 13px above the statement and
   // the ink still crossing it. 1.88 is 2*0.82 + 0.24, measured against the rendered frame.
+  // THE STATEMENT'S HEIGHT IS MEASURED, NOT ASSUMED. The derivation above reserves the headline's room from
+  // where the statement STARTS — which is only correct while the statement is one line. Its demo copy is
+  // ("NO CLOUD." / "NO NONSENSE."), and a Chinese sentence of ordinary length wraps to three lines that grow
+  // UPWARD from a bottom-anchored box, straight back through the headline this derivation just protected.
+  // So the statement is fitted to the width it has, and the lines it then needs are what the headline
+  // subtracts. Latin copy is unchanged: a short phrase still fits on one line at 54px.
+  const stateSize = fitTextPx(`${statement1} ${statement2}`, W - 192, 54, {usable: 1.0});
+  const stateLines = Math.max(1, Math.ceil(fitTextPx(`${statement1} ${statement2}`, W - 192, 54,
+    {usable: 1.0}) === 54 ? 1 : 2));
+  const stateH = Math.ceil(stateSize * leading([statement1, statement2], 1) * stateLines);
   const headTop = 300, headGap = 24;
-  const headRoom = Math.max(80, (H - (BAND + 52)) - headTop - headGap);
+  const headRoom = Math.max(80, (H - (BAND + 52 + stateH)) - headTop - headGap);
   const headSize = Math.min(300, Math.floor(headRoom / 1.88));
 
   const Head: React.FC<{color: string; dx: number; blend?: string}> = ({color, dx, blend}) => (
     <div style={{position: 'absolute', inset: 0, transform: `translateX(${dx}px)`, color, mixBlendMode: (blend as any) || 'normal',
-      font: `900 ${headSize}px/0.82 var(--f-display, "Archivo", "Helvetica Neue", Arial Narrow, sans-serif)`, letterSpacing: '-0.03em'}}>
+      // 0.82 is the point of a brutalist stack IN LATIN — capitals have no descenders, so the lines close
+      // up and nothing touches. CJK glyphs fill their em box, so the same 0.82 laid these two title blocks
+      // straight into each other on a real Chinese film. `leading` raises the floor only when the copy is
+      // actually CJK, so the Latin stack renders byte-for-byte as before.
+      font: `900 ${headSize}px/${leading([titleTop, titleBottom], 0.82)} var(--f-display, "Archivo", "Helvetica Neue", Arial Narrow, sans-serif)`, letterSpacing: '-0.03em'}}>
       {titleTop}<br />{titleBottom}
     </div>
   );
@@ -80,7 +95,7 @@ export const BrutalistType: React.FC<{titleTop?: string; titleBottom?: string; m
       </div>
 
       {/* statement */}
-      <div style={{position: 'absolute', left: 96, bottom: BAND + 52, color: INK, font: '800 54px/1 var(--f-body, "Archivo", Arial, sans-serif)', letterSpacing: '-0.01em'}}>
+      <div style={{position: 'absolute', left: 96, right: 96, bottom: BAND + 52, color: INK, font: `800 ${stateSize}px/${leading([statement1, statement2], 1)} var(--f-body, "Archivo", Arial, sans-serif)`, letterSpacing: '-0.01em'}}>
         {statement1} <span style={{background: INK, color: BG, padding: '0 12px'}}>{statement2}</span>
       </div>
     </AbsoluteFill>

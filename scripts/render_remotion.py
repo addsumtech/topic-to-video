@@ -332,7 +332,14 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
     props = {"scenes": scenes, "camera": _camera_amp(meta),
              # the camera BED (Film-side default Ken Burns on unauthored beats, themed films only) is ON
              # unless the board switches it off — `meta.camera_bed: false` is the film-wide opt-out
-             "cameraBed": meta.get("camera_bed") is not False,
+             # OPT-IN, not opt-out. The bed was introduced to lift film_energy's motion p75 from 0.0035 to
+             # 0.0042, and it did — by putting a slow lateral pan on EVERY beat that had no authored camera
+             # (21 of 25 on the film that exposed this). Watched rather than measured, that reads as the type
+             # sliding sideways for the whole film. The viewer who said so was right and the number was not
+             # wrong, it was answering a different question: "does the film move" is not "does the film look
+             # like it is drifting". A default that has to be switched off after you notice it is a default
+             # set backwards, so it is now `meta.camera_bed: true` for a film that genuinely wants the floor.
+             "cameraBed": meta.get("camera_bed") is True,
              "reducedMotion": reduced, "aspect": aspect,
              "captions": bool(meta.get("captions", True))}
     if isinstance(meta.get("brand"), dict) and meta["brand"].get("logo"):
