@@ -303,8 +303,10 @@ TTS if the user gives an API key.
   DNA the same register may paint an entirely different ground, which is why the seam guard resolves through
   `DNA_GROUND_TOKEN` first and falls back to this bucket only when it cannot.)
   `python3 scripts/onscreen_text_qa.py` reports all three, plus type sized in bare px (which does not scale: a
-  44px caption is 2.3% of a 1920-wide frame and 4.1% of a 1080-wide portrait one). A test ratchets the
-  count so the library cannot regrow it. **Never invent a number** — a readout comes from props or is
+  44px caption is 2.3% of a 1920-wide frame and 4.1% of a 1080-wide portrait one), plus **a prop the register
+  declares and never reads** and **a prop default it also writes as a bare literal** — two shapes of the same
+  lie, in which the film's copy is accepted and silently discarded while a hardcoded word draws instead.
+  A test ratchets the count so the library cannot regrow it. **Never invent a number** — a readout comes from props or is
   absent. And **a label beside a point is clamped into its box** with `placeLabel()` from `runtime/layout`:
   choosing a side by `x > 0.5` reads the point's half rather than the room left, so a point near an edge
   pushes its label out of the container — two city names crossed a map plate's border that way. No raster

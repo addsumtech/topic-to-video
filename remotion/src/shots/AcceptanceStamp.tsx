@@ -106,7 +106,11 @@ export const AcceptanceStamp: React.FC<Props> = ({
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: `0 ${Math.round(U * 0.03)}px`,
         boxSizing: 'border-box', textAlign: 'center',
         opacity: clamp01(enter), transform: `translateX(${lerp(dx > 0 ? U * 0.16 : -U * 0.16, 0, enter)}px)`}}>
-        <div style={{color: FG, font: `600 ${px}px/${leading(text, 1.25)} var(--f-body, system-ui, sans-serif)`}}>
+        {/* `text-wrap: balance` because Chinese breaks between any two glyphs: a condition one unit too
+            wide for its card drops a character or two onto a line of its own, which reads as a typo
+            rather than as a line break. Latin balances too and is only ever improved by it. */}
+        <div style={{color: FG, textWrap: 'balance',
+          font: `600 ${px}px/${leading(text, 1.25)} var(--f-body, system-ui, sans-serif)`}}>
           {text}
         </div>
         {/* the tick: drawn, not a glyph, so it needs no font and cannot become tofu */}
@@ -141,7 +145,7 @@ export const AcceptanceStamp: React.FC<Props> = ({
         opacity: 0.35 + 0.65 * clamp01(both + fill),
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: `0 ${Math.round(U * 0.04)}px`, textAlign: 'center'}}>
-        <div style={{color: fill > 0.2 ? FG : DIM,
+        <div style={{color: fill > 0.2 ? FG : DIM, textWrap: 'balance',
           font: `700 ${resPx}px/${leading(result, 1.2)} var(--f-display, system-ui, sans-serif)`}}>{result}</div>
       </div>
 

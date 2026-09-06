@@ -469,7 +469,10 @@ export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] 
  * Deliberately bounded: this answers a question about LABELS, so anything past `limit` characters returns
  * null rather than paying for a paragraph.
  */
-const charLines = (el: Element, lineH: number, limit = 40): string[][] | null => {
+// `limit` sits ABOVE the caller's own 40-character gate on purpose: at 40 a label of exactly 40
+// characters trips the bound on its last glyph and comes back unmeasured, which is the quiet kind of
+// skip this file exists to avoid.
+const charLines = (el: Element, lineH: number, limit = 48): string[][] | null => {
   const doc = el.ownerDocument;
   if (!doc?.createRange || !(lineH > 0)) return null;
   const nodes: Text[] = [];
