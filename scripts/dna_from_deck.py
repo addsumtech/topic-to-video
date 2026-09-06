@@ -89,7 +89,7 @@ _CLASS_FORM = {
                         "marker": "triangle"}, "radius": 2, "motion": "smooth", "decoration": ["grid"],
               "uppercaseLabels": True, "labelSpacing": "0.18em"},
     "sans":  {"atoms": {"bar": "solid", "figure": "display", "list": "bullet", "label": "chip", "divider": "hairline",
-                        "marker": "triangle"}, "radius": 14, "motion": "smooth", "decoration": [],
+                        "marker": "triangle"}, "radius": 14, "motion": "smooth", "decoration": ["grid"],
               "uppercaseLabels": False, "labelSpacing": "0.04em"},
 }
 

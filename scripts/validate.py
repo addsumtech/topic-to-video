@@ -1866,6 +1866,12 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
     # A film-energy WAIVER is legitimate, and it is also the one lever that turns film_energy_qa green
     # without changing a frame. Announce it at the FIRST gate, not only at the last: a waiver the author
     # wrote is a decision; a waiver that has quietly outlived the film it was written for is a hole.
+    _v = meta.get("voice")
+    if isinstance(_v, str) and _v.strip().lower() in ("edge", "openai", "minimax"):
+        errors.append("meta.voice=%r is a bare ENGINE name, and tts.py reads everything before the first ':' as "
+                      "the engine — with no colon the whole string is a macOS `say` VOICE name, so the film "
+                      "would be narrated by the offline robotic voice with no per-word timings. Write "
+                      "\"%s:<voice-name>\" (e.g. \"edge:zh-CN-XiaoxiaoNeural\") or \"auto\"." % (_v, _v.strip().lower()))
     _ew = meta.get("energy_waiver")
     if _ew is not None:
         if not isinstance(_ew, str) or not _ew.strip():
