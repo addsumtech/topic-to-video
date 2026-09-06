@@ -1886,6 +1886,32 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
                       "Han, or Japanese kanji outside GB2312. Replace the characters, or re-subset the "
                       "faces (assets/fonts/NOTO-SC-SUBSET-NOTE.txt says how)."
                       % (len(_uncov), " ".join("%s (U+%04X)" % (c, cp) for c, cp in _uncov[:12])))
+    # ...AND A CJK FILM WHOSE FONT STACKS NAME NO BUNDLED FACE IS NOT USING THEM AT ALL. The subsets were
+    # bundled for determinism — the same film renders the same on any machine — and a stack that lists only
+    # system families (PingFang, YaHei, Songti) falls through to whatever the render box happens to have.
+    # This is not hypothetical: the presets in runtime/dna.tsx were given the subsets and `dna_from_deck.py`
+    # was not, so the ONE path a real Chinese film takes was the one path that never reached them.
+    _dna_obj = meta.get("design_dna") if isinstance(meta.get("design_dna"), dict) else None
+    if _txt.strip() and _dna_obj:
+        try:
+            import cjk_type_qa as _cq2
+            _bundled = [f for f, has in (_cq2.bundled_cjk_coverage() or []) if has]
+        except Exception:                                # noqa: BLE001 — a diagnostic never blocks
+            _bundled = []
+        _fams = {re.sub(r"-Subset$", "", os.path.splitext(os.path.basename(f))[0]).replace("-", " ")
+                 for f in _bundled}
+        _fams |= {"Noto Sans SC", "Noto Serif SC"}
+        if _bundled and _cq2._HAS_CJK.search(_txt):
+            _blind = [k for k in ("fontDisplay", "fontBody", "fontMono")
+                      if isinstance(_dna_obj.get(k), str) and _dna_obj[k]
+                      and not any('"%s"' % f in _dna_obj[k] for f in _fams)]
+            if _blind:
+                warnings.append(
+                    "remotion: this film's copy is CJK and meta.design_dna names no BUNDLED CJK face in %s — "
+                    "every Chinese glyph will be drawn by whatever font the render machine has installed, so "
+                    "the film's typography is not reproducible and the Design DNA does nothing to it. Put "
+                    "\"Noto Sans SC\" (or \"Noto Serif SC\" in a serif world) at the head of the CJK chain."
+                    % ", ".join(_blind))
     _v = meta.get("voice")
     if isinstance(_v, str) and _v.strip().lower() in ("edge", "openai", "minimax"):
         errors.append("meta.voice=%r is a bare ENGINE name, and tts.py reads everything before the first ':' as "

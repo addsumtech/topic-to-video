@@ -441,7 +441,12 @@ TTS if the user gives an API key.
   CJK film. (Width is the wrong metric for CJK, since every Han glyph is one em wide; the proof is shape —
   the same DNA's Chinese title changed at IoU 0.689 once the faces were bundled.) A character OUTSIDE the
   subset would be an empty box beside correct type, so `validate.py` refuses a board holding one and names
-  it; Hangul and rare/classical Han are not covered (`assets/fonts/NOTO-SC-SUBSET-NOTE.txt`).
+  it; Hangul and rare/classical Han are not covered (`assets/fonts/NOTO-SC-SUBSET-NOTE.txt`). The faces only
+  do anything if a stack NAMES them: `validate.py` warns when a CJK film's `meta.design_dna` lists system
+  families only, because then every Chinese glyph is drawn by whatever the render machine has installed and
+  the film is not reproducible. `dna_from_deck.py` puts the subsets at the head of every chain it builds
+  (the serif worlds take `Noto Serif SC`) — it did not, which made the one path a real Chinese film takes
+  the one path that never reached them.
 - `scripts/onscreen_text_qa.py` — library hygiene, exit 0 always. Text a register prints that no film
   supplied, NUMBERS no prop feeds, **props a register DECLARES and never reads**, and **a prop default the
   register also writes as a bare literal** (which makes the prop look wired when it is not). The last two

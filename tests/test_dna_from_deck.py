@@ -306,3 +306,29 @@ def test_the_serif_worlds_take_the_serif_subset():
     import dna_from_deck as d
     assert '"Noto Serif SC"' in d._stack("Playfair Display", "Georgia, serif")
     assert '"Noto Sans SC"' in d._stack("Inter", "system-ui, sans-serif")
+
+
+def test_validate_warns_when_a_cjk_film_names_no_bundled_face():
+    """The gate for the same hole one level up: a hand-authored or older DNA can still list only system
+    families, and then the film's typography is whatever the render machine happens to have. Controlled in
+    both directions, and silent on an English film — the faces are irrelevant there."""
+    import sys
+    import os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    import validate as v
+
+    def board(stack, lang="zh", copy="交付可验收的成果"):
+        return {"meta": {"renderer": "remotion", "title": "t", "language": lang,
+                         "design_dna": {"id": "x", "fontDisplay": stack, "fontBody": stack,
+                                        "fontMono": stack, "bg": "#fff", "fg": "#111"}},
+                "slides": [{"index": 0, "shot": "ChatThread", "shot_props": {"title": copy},
+                            "narration": copy}]}
+
+    def warns(b):
+        return [w for w in v.evaluate(b, "/tmp", pre_tts=True)["warnings"] if "BUNDLED CJK face" in w]
+
+    sysonly = '"Inter", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif'
+    bundled = '"Inter", "Noto Sans SC", "PingFang SC", system-ui, sans-serif'
+    assert warns(board(sysonly)), "a CJK film with only system faces must be told"
+    assert not warns(board(bundled)), "naming the bundled face must silence it"
+    assert not warns(board(sysonly, "en", "An accepted result")), "an English film must never see this"
