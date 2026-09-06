@@ -24,9 +24,15 @@ import cjk_type_qa as c          # noqa: E402
 # ── the fixture generator: it must actually feed each register its own props ────────────────────────
 def test_props_are_shaped_from_the_register_s_own_signature():
     props, untestable = c.cjk_props("MagazineSpread")
-    assert set(props) >= {"sectionLabel", "title", "headline", "deck"}, props
+    assert set(props) >= {"sectionLabel", "title", "headline", "deck", "contents"}, props
     assert not untestable, untestable
-    assert all(c._ROLE and isinstance(v, str) for v in props.values())
+    # A value is COPY: a string, or a list of them (`contents` is the register's index list). The first
+    # version of this asserted `isinstance(v, str)` and broke the day a register grew a list prop, which
+    # is a test pinning the fixture's incidental shape rather than the rule it exists for.
+    def copyish(v):
+        return isinstance(v, str) or (isinstance(v, list) and v and all(isinstance(x, str) for x in v))
+    assert all(copyish(v) for v in props.values()), props
+    assert all(c._HAS_CJK.search(v if isinstance(v, str) else v[0]) for v in props.values()), props
 
 
 def test_a_role_gets_copy_of_the_length_that_actually_wraps():
