@@ -131,9 +131,17 @@ def cjk_props(name):
     props, untestable = {}, []
     for prop, ty in sig.items():
         t = ty.replace(" ", "")
-        if prop in ("accent", "accent2", "src", "imageAspect", "aspect", "dna"):
-            continue                                   # colours / images / plumbing, not copy
-        if t.startswith("string[]") or t.startswith("(string|"):
+        if prop in ("accent", "accent2", "imageAspect", "aspect", "dna") or re.match(r"^src[A-Z]?", prop):
+            # colours / images / plumbing, not copy. The `src` test is a PREFIX: KSpaceAnatomy declares
+            # srcK / srcLow / srcHigh, an exact-match skip fed all three a Chinese sentence as a URL, and
+            # the register reported as a RENDER FAILURE for it. evidence_props() fills them properly.
+            continue
+        if t.startswith("string[][]"):
+            # a TABLE, and it must be routed BEFORE the plain string[] rule that startswith() also matches:
+            # TermTable took a flat list, threw `(r ?? []).map is not a function`, and reported as a RENDER
+            # FAILURE — a fixture bug wearing a register's name.
+            props[prop] = _ARRAY_SHAPES.get(prop, [list(_ITEMS[:2]), list(_ITEMS[2:4])])
+        elif t.startswith("string[]") or t.startswith("(string|"):
             props[prop] = list(_ITEMS[:4])
         elif t.startswith("string"):
             props[prop] = _string_for(prop)
@@ -147,6 +155,8 @@ def cjk_props(name):
                 untestable.append(prop)
             else:
                 props[prop] = shaped
+        elif prop in _ARRAY_SHAPES:
+            props[prop] = _ARRAY_SHAPES[prop]            # an OBJECT-shaped prop (a side, a group, a range)
         else:
             untestable.append(prop)
     return props, untestable
@@ -168,10 +178,47 @@ _ARRAY_SHAPES = {
     "rows": [["自动拆解任务", "规划执行步骤"], ["调用工具执行", "交付可验收成果"]],
     "headers": ["它做什么", "产出是什么"],
     "marks": [],
+    # ── the object shapes the first sweep could not feed. 14 registers reported UNTESTED, which the gate's
+    # own doctrine calls the place this defect hides — a register nobody can feed is never checked. Each
+    # shape is written from the register's own type declaration, because a WRONG shape renders nothing and
+    # would read as "this register is fine in Chinese".
+    "data": [{"label": "自动拆解任务", "value": 62, "delay": 0}, {"label": "规划执行步骤", "value": 48, "delay": 0.1},
+             {"label": "交付可验收成果", "value": 81, "delay": 0.2}],
+    "lines": [{"text": "读取授权目录里的表格", "kind": "run"}, {"text": "按类型分类归档", "kind": "ok"},
+              {"text": "交付可验收的成果", "kind": "info"}],
+    "left": {"label": "传统 AI 对话", "points": ["只能对话，提供建议", "输出文字回复", "单步骤简单任务"],
+             "head": "传统 AI 对话", "body": "只能对话，提供建议，输出的是文字回复", "hero": False},
+    "right": {"label": "WorkBuddy", "points": ["能够实际执行任务", "交付可验收的结果", "多步骤复杂任务"],
+              "head": "WorkBuddy", "body": "能够实际执行任务，交付可验收的结果", "hero": True},
+    "entries": [{"date": "第一步", "title": "自动拆解任务", "note": "把一句话拆成可执行的步骤"},
+                {"date": "第二步", "title": "调用工具执行", "note": "在授权目录里真正动文件"}],
+    "gauges": [{"label": "自动拆解任务", "fill": 0.72}, {"label": "规划执行步骤", "fill": 0.55}],
+    "items": list(_ITEMS[:4]),
+    "fail": {"label": "只回答问题", "note": "产出停在文字上", "a": None, "b": None},
+    "pass": {"label": "交付成果", "note": "产出落进文件里", "a": None, "b": None},
+    "domain": [0, 100],
+    "tiles": [{"label": "自动拆解任务", "note": "把一句话拆开"}, {"label": "调用工具执行", "note": "在授权目录里"},
+              {"label": "交付可验收成果", "note": "产出是文件"}],
+    "xAxis": ["只回答", "真执行"],
+    "yAxis": ["单步骤", "多步骤"],
+    "states": [{"label": "只回答问题", "w": 0.4, "h": 0.35, "note": "产出停在文字"},
+               {"label": "交付可验收成果", "w": 0.8, "h": 0.7, "note": "产出落进文件"}],
+    "shared": {"label": "两者都会的", "a": "理解自然语言", "b": "生成文字内容", "note": "这一半不是分界线"},
+    "independent": {"label": "只有它会的", "a": "在授权目录里动文件", "b": "交付可验收的成果",
+                    "note": "这一半才是"},
+    "phases": [{"at": 0.15, "label": "听懂一句话"}, {"at": 0.45, "label": "拆解并规划"},
+               {"at": 0.78, "label": "交付可验收成果"}],
+    "commits": [{"hash": "a1b2c3d", "ref": "主线", "msg": "自动拆解任务并规划步骤"},
+                {"hash": "e4f5a6b", "ref": "", "msg": "在授权目录里读写文件"}],
 }
 
 
 def _shape_array(prop, ty):
+    t = ty.replace(" ", "")
+    if prop == "items" and t.startswith("[string,string,string]"):
+        return list(_ITEMS[:3])                          # a fixed-arity tuple, not an open list
+    if prop == "lines" and "Tok" in ty:
+        return ["读取授权目录里的表格", "按类型分类归档", "交付可验收的成果"]   # (Tok[] | string)[]
     if prop in _ARRAY_SHAPES:
         return _ARRAY_SHAPES[prop]
     if prop == "rows" and "string[]" in ty.replace(" ", ""):
@@ -235,7 +282,8 @@ def audit(shot, props, frame, tmp, dna=DEFAULT_DNA, aspect=None):
     with open(pf, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, ensure_ascii=False, allow_nan=False)
     r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, tmp,
-                        "--frame=%d" % frame, "--gl=angle", "--log=error", "--props=" + os.path.abspath(pf)],
+                        "--frame=%d" % frame, "--gl=angle", "--log=error", "--props=" + os.path.abspath(pf),
+                        "--public-dir=" + os.path.join(_REMOTION, "public")],
                        cwd=_REMOTION, capture_output=True, text=True)
     err = (r.stderr or "") + (r.stdout or "")
     if TAG in err:
@@ -250,15 +298,33 @@ def audit(shot, props, frame, tmp, dna=DEFAULT_DNA, aspect=None):
     return []
 
 
+def evidence_props():
+    """{register: {prop: fixture}} — the registers that REFUSE to draw without a real photograph.
+
+    Five reported as RENDER FAILURES in the first sweep, which is the same lie `register_energy` records
+    about measuring an empty plate: the register is fine, the fixture was missing. Reuse that module's
+    deterministic drawn stand-in rather than keeping a second copy of the idea.
+    """
+    try:
+        import register_energy as reg
+        reg.ensure_fixture()
+        return reg.evidence_props()
+    except Exception:                                    # noqa: BLE001 — no fixture is not a verdict
+        return {}
+
+
 def sweep(names, dna=DEFAULT_DNA, aspect=None, film_props=None):
     """{shot: {'hits': [...], 'untestable': [...], 'failed': bool}}"""
     durs = durations()
+    ev = evidence_props()
     out = {}
     tmp = os.path.join(_REMOTION, ".cjk_type_probe.png")
     for n in names:
         props, untestable = (film_props.get(n), []) if film_props else cjk_props(n)
         if props is None:
             props, untestable = cjk_props(n)
+        if n in ev:
+            props = dict(props, **ev[n])                 # a plate register needs its picture to draw at all
         frame = int(durs.get(n, 150) * 0.88)
         hits = audit(n, props, frame, tmp, dna, aspect)
         out[n] = {"hits": hits or [], "untestable": untestable, "failed": hits is None}

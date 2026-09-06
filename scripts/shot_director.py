@@ -35,6 +35,7 @@ FAMILY = {
     "StrataColumn": "J",
     "MapPlate": "J",
     "CollaborativeCursors": "A", "CommandSummon": "A", "TemporalAccelerate": "A", "VelocitySnap": "A",
+    "AcceptanceStamp": "A",
     "GrantedTree": "A",
     "CursorStory": "A", "ScreenBubble": "A", "AnswerStream": "A", "ChatThread": "A", "BlockAssembly": "A",
     "CodeCompose": "A", "LiquidGlass": "A", "BentoReveal": "A",
@@ -95,6 +96,7 @@ FAMILY = {
 # conveyor belt is legitimate in a harbour film and still wrong for people cycling to a station. That
 # judgement is the shot-critic's (S10 meaning), and no table can make it.
 PROVENANCE = {
+    "AcceptanceStamp":         'product-ui',
     "RestsOn":                 'data-viz',
     "InOrder":                 'data-viz',
     "MadeOf":                  'data-viz',

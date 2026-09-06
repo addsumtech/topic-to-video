@@ -34,7 +34,11 @@ export const OdometerRoll: React.FC<{value?: string; label?: string; unit?: stri
       <div style={{display: 'flex', alignItems: 'flex-end', height: CELL}}>
         {chars.map((c, i) => {
           if (!/\d/.test(c)) {
-            return <div key={i} style={{font: `800 210px/1 var(--f-body, Inter, system-ui, sans-serif)`, color: '#eef2ff',
+            // The NON-DIGIT glyph — the '+' on a '100+', the comma on a '1,240' — was a hardcoded near-white
+            // (#eef2ff), chosen for this register's own near-black ground. On a light DNA it is white on
+            // white: a delivered film showed a sourced '100+' that a viewer read as exactly 100, because the
+            // plus was invisible. It is the same character class as the digits and now takes the same ink.
+            return <div key={i} style={{font: `800 210px/1 var(--f-body, Inter, system-ui, sans-serif)`, color: dna?.fg ?? '#eef2ff',
               padding: '0 4px', alignSelf: 'center'}}>{c}</div>;
           }
           di++;

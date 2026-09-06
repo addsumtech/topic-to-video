@@ -1,5 +1,6 @@
 {
  "table": {
+  "AcceptanceStamp": "bg",
   "Aliasing": "bg",
   "AnalogTape": "bg",
   "AnswerStream": "bg",
@@ -56,10 +57,14 @@
   "GlitchDatamosh": "bg",
   "GradientTilt": "bg",
   "GrantedTree": "bg",
-  "HalftonePop": "bg",
+  "HalftonePop": [
+   "accent2",
+   "bg"
+  ],
   "HandDrawn": "bg",
   "HoloFoil": "bg",
   "HudReticle": "bg",
+  "InOrder": "bg",
   "InducedFID": "bg",
   "InfiniteCanvas": "bg",
   "InflateType": "bg",
@@ -71,10 +76,6 @@
   "KSpaceReal": "bg",
   "KSpaceToImage": "bg",
   "KaleidoMandala": "bg",
-  "KineticManifesto": [
-   "accent",
-   "accent2"
-  ],
   "KnowledgeGraph": "bg",
   "LarmorPrecession": "bg",
   "LastLeg": "bg",
@@ -89,6 +90,7 @@
    "bg"
   ],
   "MRIPipeline": "bg",
+  "MadeOf": "bg",
   "MagazineSpread": "bg",
   "MagnetizationTip": "bg",
   "MapPlate": "bg",
@@ -97,7 +99,6 @@
   "MetaballMerge": "bg",
   "MoleculeBallStick": "bg",
   "MorphForms": "bg",
-  "MuseumLabel": "bg",
   "NeonGrid": "bg",
   "NeonTickerWall": "bg",
   "NeuralField": "bg",
@@ -107,7 +108,6 @@
   "PaperCutout": "bg",
   "ParticleForm": "bg",
   "PhaseEncodeStep": "bg",
-  "PhotoPlate": "bg",
   "PhysicsStack": "bg",
   "PixelBuild": "bg",
   "PlanPalimpsest": "bg",
@@ -118,10 +118,9 @@
   "RadialBurst": "bg",
   "RainGlass": "bg",
   "RansomZine": "bg",
-  "RealVersus": "bg",
+  "RestsOn": "bg",
   "RidgeField": "bg",
   "RisoPrint": "bg",
-  "ScanReconstruct": "bg",
   "ScreenBubble": "bg",
   "SectionRoute": "bg",
   "SharedBlindspot": "bg",
@@ -151,11 +150,18 @@
   "UndersampledKspace": "bg",
   "VariableTypeMorph": "bg",
   "VelocitySnap": "bg",
-  "VersusSplit": "bg",
   "VoiceSignal": "bg",
   "VoxelBuild": "bg",
   "WireGlobe": "bg"
  },
- "unclassified": [],
- "failed": []
+ "unclassified": [
+  "KineticManifesto",
+  "VersusSplit"
+ ],
+ "failed": [
+  "MuseumLabel",
+  "PhotoPlate",
+  "RealVersus",
+  "ScanReconstruct"
+ ]
 }

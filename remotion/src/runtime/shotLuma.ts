@@ -7,6 +7,7 @@ export type Lum = 'dark' | 'mid' | 'light';
 // (KSpaceToImage added below with the map — a purpose-built dark shot)
 
 export const SHOT_LUMA: Record<string, Lum> = {
+  AcceptanceStamp: 'dark',   // PROVISIONAL — placeholder, not a measurement; run measure_ground_luma.py --luma --emit
   RestsOn: 'dark',
   InOrder: 'dark',
   MadeOf: 'dark',
@@ -75,6 +76,7 @@ export type GroundToken = 'bg' | 'bgGrad' | 'accent' | 'accent2' | 'surface';
 // `declared-only`, until measure_ground_luma.py replaces it with a measurement. Everything else is
 // measured.
 export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundToken | GroundToken[]>> = {
+  AcceptanceStamp: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
   RestsOn: 'bg',
   InOrder: 'bg',
   MadeOf: 'bg',

@@ -42,6 +42,35 @@ def test_object_shaped_array_props_are_written_out_not_guessed():
     assert not untestable, "a shape this gate cannot feed must be REPORTED, not silently skipped"
 
 
+def test_every_register_in_the_library_can_be_fed_chinese():
+    """The first sweep left 14 registers UNTESTED because their object-shaped props had no fixture — and the
+    gate's own doctrine says a register nobody can feed is exactly where this defect hides. Each shape is
+    written from the register's own type declaration, because a WRONG shape renders nothing and would read
+    as 'this register is fine in Chinese'."""
+    import glob
+    names = sorted(os.path.basename(f)[:-4]
+                   for f in glob.glob(os.path.join(_ROOT, "remotion", "src", "shots", "*.tsx")))
+    assert len(names) > 140
+    holes = {n: c.cjk_props(n)[1] for n in names}
+    holes = {n: v for n, v in holes.items() if v}
+    assert not holes, "no CJK copy can be shaped for: %r" % holes
+
+
+def test_a_table_prop_is_routed_before_the_plain_list_rule():
+    """`string[][]` also startsWith `string[]`. Routed by the flat rule, TermTable took a list of strings,
+    threw `(r ?? []).map is not a function`, and reported as a RENDER FAILURE — a fixture bug wearing a
+    register's name. Five more 'failures' were the same class."""
+    props, _ = c.cjk_props("TermTable")
+    assert isinstance(props["rows"][0], list), props["rows"][:1]
+
+
+def test_image_props_are_never_fed_chinese_text():
+    """KSpaceAnatomy declares srcK / srcLow / srcHigh. An exact-match skip on 'src' fed all three a Chinese
+    sentence as a URL and the register 'failed to render'."""
+    props, _ = c.cjk_props("KSpaceAnatomy")
+    assert not [k for k in props if k.startswith("src")], props
+
+
 def test_an_unfeedable_prop_is_reported_rather_than_passing_silently(monkeypatch):
     monkeypatch.setitem(c._ARRAY_SHAPES, "nodes", None)
     monkeypatch.delitem(c._ARRAY_SHAPES, "nodes")

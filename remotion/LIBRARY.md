@@ -41,6 +41,7 @@ design language doesn't fit an existing bucket, **open a new family letter** (ad
 beats differ). Novel and daring beats a clean taxonomy — reach past the obvious register.
 
 ## A · Product-UI / SaaS-film — motion of a working interface
+177. **AcceptanceStamp** — two necessary conditions, and the result only exists when BOTH land — a claim of the form 'A x B = C, and neither alone is enough' *Use: two necessary conditions, and the result only exists when BOTH land — a claim of the form 'A x B = C, and neither alone is enough'*
 172. **GrantedTree** — 一个主体的权限边界要被看见：一棵目录/结构树，其中被授权的一支被框住并可操作，其余灰掉——用在「它能碰到哪里、碰不到哪里」这类边界拍上 *Use: 一个主体的权限边界要被看见：一棵目录/结构树，其中被授权的一支被框住并可操作，其余灰掉——用在「它能碰到哪里、碰不到哪里」这类边界拍上*
 139. **PlatformSurfaces** — a bento of product tiles pops in beside one platform mark — many surfaces, one system. *Use: one platform, many surfaces / a product family.* `kicker, tiles[], mark`
 1. **CollaborativeCursors** — multiplayer cursors build a deliverable on an aligned grid. *Use: teamwork / "your AI team".*
