@@ -17,7 +17,7 @@ yet in this library — they exist for new shots and opportunistic use. See
 deliberately left un-migrated.
 
 <!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
-**Family census — 153 registers across 27 families.** D×24 · A×16 · C×12 · G×11 · F×10 · H×9 · B×8 · E×8 · L×6 · I×5 · J×5 · K×5 · M×5 · S×5 · U×5 · JA×4 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
+**Family census — 154 registers across 27 families.** D×24 · A×16 · C×12 · G×11 · F×10 · H×9 · B×8 · E×8 · L×7 · I×5 · J×5 · K×5 · M×5 · S×5 · U×5 · JA×4 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
 
 **9 families hold two registers or fewer: O, Q, R, T, V, W, X, Y, Z.** That is a BUILD signal, not a menu. When a beat's
 argument wants one of those languages and the one register there does not carry it, the answer is
@@ -385,3 +385,4 @@ other than `terminal` is fully uniform across all three roles.
 164. **StrataColumn** — a stratigraphic column read top-down: what lies under this ground, layer by layer, with depths and finds *Use: a stratigraphic column read top-down: what lies under this ground, layer by layer, with depths and finds*
 163. **MapPlate** — an engraved map plate: a graticule, a place mark, leader-lined labels and a scale bar — where a thing sits, and optionally what converges on it *Use: an engraved map plate: a graticule, a place mark, leader-lined labels and a scale bar — where a thing sits, and optionally what converges on it*
 162. **GazetteerEntry** — a NAME defined the way a gazetteer or dictionary defines one — headword, pronunciation, etymology, numbered senses — when the meaning of the word IS the argumen *Use: a NAME defined the way a gazetteer or dictionary defines one — headword, pronunciation, etymology, numbered senses — when the meaning of the word IS the argumen*
+178. **PaperSlot** — a scored card with cut slots, and one paper tag drops into each: matte stock, a real double shadow, and no two tags landing quite straight. *Use: several things joining one standard, said by HAND rather than by engineering.*

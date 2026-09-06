@@ -59,6 +59,7 @@ import {VelocitySnap, DURATION as VS} from './shots/VelocitySnap';
 import {CursorStory, DURATION as CST} from './shots/CursorStory';
 import {ExplodedSchematic, DURATION as ES} from './shots/ExplodedSchematic';
 import {MaterialHero, DURATION as MH} from './shots/MaterialHero';
+import {PaperSlot, DURATION as PSL} from './shots/PaperSlot';
 import {TimelineTravel, DURATION as TT} from './shots/TimelineTravel';
 import {MapRoutes, DURATION as MR} from './shots/MapRoutes';
 import {ChatThread, DURATION as CT} from './shots/ChatThread';
@@ -340,6 +341,7 @@ export const RemotionRoot: React.FC = () => (
     {F('CursorStory', CursorStory, CST)}
     {F('ExplodedSchematic', ExplodedSchematic, ES)}
     {F('MaterialHero', MaterialHero, MH)}
+    {F('PaperSlot', PaperSlot, PSL)}
     {F('TimelineTravel', TimelineTravel, TT)}
     {F('MapRoutes', MapRoutes, MR)}
     {F('ChatThread', ChatThread, CT)}

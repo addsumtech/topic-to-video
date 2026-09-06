@@ -41,7 +41,7 @@ export const SHOT_LUMA: Record<string, Lum> = {
   IsoWorld: 'dark', IsometricAssembly: 'light', KaleidoMandala: 'dark', KineticManifesto: 'mid',
   KnowledgeGraph: 'dark', LightTrails: 'dark', LiquidChrome: 'dark', LiquidFill: 'dark',
   LiquidGlass: 'light', LiquidMetal: 'light', LiquidMorph: 'dark', LowPolyForm: 'mid',
-  MagazineSpread: 'light', MapRoutes: 'dark', MaterialHero: 'dark', MetaballMerge: 'dark',
+  MagazineSpread: 'light', PaperSlot: 'light', MapRoutes: 'dark', MaterialHero: 'dark', MetaballMerge: 'dark',
   MoleculeBallStick: 'dark', MorphForms: 'dark', NeonGrid: 'dark', NeonTickerWall: 'dark',
   NeuralField: 'dark', OdometerRoll: 'dark', PaperCutout: 'light', ParticleForm: 'dark',
   PhysicsStack: 'dark', PixelBuild: 'dark', PositioningMatrix: 'dark', QuadSplit: 'dark',
@@ -173,6 +173,7 @@ export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundToken | GroundToken
   LowPolyForm: 'bg',   // declared-only: the measurement ABSTAINED here (content bleeds to the frame edge, so the border ring samples content, not ground). Source says `const BG = dna?.bg`.
   MRIPipeline: 'bg',
   MagazineSpread: 'bg',
+  PaperSlot: 'bg',
   MagnetizationTip: 'bg',
   MapRoutes: 'bg',
   MaterialHero: 'bg',
