@@ -857,6 +857,14 @@ def _probe_a_written_waiver_downgrades_to_warning(mod):
     assert not errs and warns, "a reasoned waiver must accept the film and keep the numbers visible"
 
 
+def _probe_a_waiver_does_not_absolve_axes_it_never_named(mod):
+    """The hole this closes shipped: a reasoned DENSITY waiver silently excused a MOTION failure that
+    appeared later from an unrelated change."""
+    errs, warns, _m = _energy(mod, _SLIDESHOW, board={"meta": {"energy_waiver": {"density": "sparse by design"}}})
+    assert any(e.startswith("MOTION") for e in errs), "an axis nobody reasoned about must stay gated"
+    assert any("DENSITY" in w for w in warns), "the named axis IS waived, and says so"
+
+
 def _probe_a_missing_film_is_not_a_pass(mod):
     errs, _warns, _m = mod.check(tempfile.mkdtemp())
     assert errs, "no out.mp4 reported as clean — an unmeasured film is not a passing film"
@@ -908,6 +916,7 @@ PROBES["film_energy_qa"] = {
     "a_real_film_passes": _probe_a_real_film_passes,
     "floors_stay_under_every_reference": _probe_floors_stay_under_every_reference,
     "blank_waiver_is_not_a_waiver": _probe_a_blank_waiver_is_not_a_waiver,
+    "waiver_is_per_axis": _probe_a_waiver_does_not_absolve_axes_it_never_named,
     "written_waiver_downgrades": _probe_a_written_waiver_downgrades_to_warning,
     "missing_film_is_not_a_pass": _probe_a_missing_film_is_not_a_pass,
     "undecodable_film_is_not_a_pass": _probe_an_undecodable_film_is_not_a_pass,
@@ -930,9 +939,17 @@ MUTANTS["film_energy_qa"] = {
     # the gate is decoration nobody can satisfy. Only the positive control catches this.
     "the floors are raised past the reference films":
         ("MOTION_P75_FLOOR = 0.0037", "MOTION_P75_FLOOR = 0.9"),
+    # The waiver became PER-AXIS, so the reason requirement moved into parse_waiver. Same rule, same
+    # mutant: make the presence of the key enough and the written reason optional.
     "a waiver needs no reason":
-        ('waiver = (meta.get("energy_waiver") or "").strip()',
-         'waiver = "waived" if "energy_waiver" in meta else ""'),
+        ('        return {str(k).strip().upper(): str(v).strip() for k, v in raw.items() if str(v).strip()}, ""\n'
+         '    if isinstance(raw, str):\n        return {}, raw.strip()',
+         '        return {str(k).strip().upper(): "waived" for k in raw}, ""\n'
+         '    if isinstance(raw, str):\n        return {}, (raw.strip() or "waived")'),
+    # ...and the new rule the per-axis shape introduced: a waiver must not absolve axes it never named.
+    "one axis waives every axis":
+        ('        reason = per_axis.get(axis) or (blanket if blanket else "")',
+         '        reason = (per_axis and "waived") or (blanket if blanket else "")'),
     "a missing film passes":
         ('return ["no out.mp4 — this gate reads the delivered film, so it runs after the render"], [], None',
          "return [], [], None"),
