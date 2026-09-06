@@ -213,12 +213,37 @@ def check(out_dir):
                     "leaves this number at 0.017. Light has to work across the film, not once."
                     % (m["luma_steps"] * 100, LUMA_STEP_DELTA, LUMA_STEP_FLOOR * 100))
 
-    waiver = (meta.get("energy_waiver") or "").strip()
-    if errs and waiver:
-        warns = ["ACCEPTED by meta.energy_waiver: %s" % waiver] + ["waived — " + e for e in errs]
-        errs = []
-    elif errs:
-        errs.append("If this film is deliberately quiet, say so in `meta.energy_waiver` with the reason. "
+    # THE WAIVER IS PER-AXIS. It used to be one string that turned off all four floors at once, and that
+    # shipped a real hole within a day of being used: a waiver written about DENSITY — with a reasoned
+    # paragraph about a deck's warm-white design language — silently excused a MOTION failure that appeared
+    # later, from an unrelated change. One stated reason must not absolve the axes nobody reasoned about.
+    #
+    # A plain string still waives everything (that is what existing boards mean by it) but now SAYS so, and
+    # an object waives exactly the axes it names: {"density": "…"} leaves motion gated.
+    raw = meta.get("energy_waiver")
+    per_axis, blanket = {}, ""
+    if isinstance(raw, dict):
+        per_axis = {str(k).strip().upper(): str(v).strip() for k, v in raw.items() if str(v).strip()}
+    elif isinstance(raw, str):
+        blanket = raw.strip()
+    kept, waived = [], []
+    for e in errs:
+        axis = e.split(":", 1)[0].strip().upper()
+        reason = per_axis.get(axis) or (blanket if blanket else "")
+        if reason:
+            waived.append("waived (%s) — %s" % (axis, e))
+        else:
+            kept.append(e)
+    if waived:
+        head = ("ACCEPTED by meta.energy_waiver: %s" % blanket) if blanket else \
+            "ACCEPTED by meta.energy_waiver for %s" % ", ".join(sorted(per_axis))
+        if blanket and kept:
+            head += "  (a plain-string waiver covers EVERY axis — name the axes instead to keep the rest gated)"
+        warns = [head] + waived + warns
+    errs = kept
+    if errs:
+        errs.append("If this film is deliberately quiet, say so in `meta.energy_waiver` with the reason — a "
+                    "STRING waives every axis, an object like {\"density\": \"…\"} waives only what it names. "
                     "A waiver is a decision someone made; silence is one that defaulted.")
     return errs, warns, m
 

@@ -83,7 +83,8 @@ _MED = "办公的产物本身就是文件，不是一段还要你二次加工的
 _ITEMS = ["自动拆解任务", "规划执行步骤", "调用工具执行", "交付可验收成果", "沉淀为可复用技能"]
 
 _ROLE = [
-    (r"^(kicker|meta|unit|issue|sectionLabel|wordmark|colophon|doneLabel|tag|cmd|root|hub|time)$", _SHORT),
+    (r"^(kicker|meta|unit|issue|sectionLabel|wordmark|colophon|doneLabel|tag|cmd|root|hub|time|date|"
+     r"hash|ref|status|filename|glyph|kind|side)$", _SHORT),
     (r"^(label|heading|focalLabel|titleTop|titleBottom|word|value|query)$", _LABEL),
     (r"^(title|hero|headline|name)$", _TITLE),
     (r"^(tagline|caption|deck|answer|note|callout|heroNote|statement1|statement2|pitch|body)$", _LONG),
@@ -150,7 +151,7 @@ def cjk_props(name):
         elif t.startswith("number") or t.startswith("number|null"):
             continue
         elif "[]" in t:
-            shaped = _shape_array(prop, ty)
+            shaped = _shape_from_type(prop, ty, src) or _shape_array(prop, ty)
             if shaped is None:
                 untestable.append(prop)
             else:
@@ -213,6 +214,65 @@ _ARRAY_SHAPES = {
 }
 
 
+# A number that is plainly a 0..1 fraction gets one; anything else gets a small count. No figure this gate
+# invents ever reaches a film — these props exist only to make the register DRAW so its type can be measured.
+def _synth_field(name, ty):
+    t = ty.replace(" ", "").rstrip(";")
+    if t.startswith("string"):
+        return _string_for(name)
+    if t.startswith("number"):
+        # a 0..1 field given a 3 breaks the animation it drives (a `delay` of 3 puts the row off the clip),
+        # and a magnitude given a 0.62 draws nothing. Name decides which, since the type cannot.
+        if re.search(r"^(at|delay|start|end|fill|frac|ratio|opacity|w|h|x|y|progress)$", name, re.I):
+            return 0.45
+        return 62
+    if t.startswith("boolean"):
+        return name in ("find", "hero", "done", "ok")
+    m = re.match(r"^'([^']+)'", t)                       # a string-literal union: take the first member
+    return m.group(1) if m else _string_for(name)
+
+
+def _alias_fields(src, alias):
+    """{field: type} for `type Alias = {a?: string; b?: number}` declared in the register's own source."""
+    m = re.search(r"(?:export\s+)?type\s+%s\s*=\s*\{(.*?)\}\s*;" % re.escape(alias), src, re.S)
+    if not m:
+        return None
+    out = {}
+    for chunk in m.group(1).split(";"):
+        f = re.match(r"\s*([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*:\s*(.+)", chunk.replace("\n", " "), re.S)
+        if f:
+            out[f.group(1)] = f.group(2).strip()
+    return out or None
+
+
+def _shape_from_type(prop, ty, src, n=3):
+    """Build the array a register actually declares, FROM ITS OWN TYPE.
+
+    The first version of this file kept a table keyed by prop NAME, and that is wrong in a way that hides
+    the defect it exists to find: `items` is declared by many registers with different element shapes, so a
+    list of strings handed to TermTree (whose items are {name, note, tag}) renders EMPTY ROWS without
+    throwing — 0.67% ink — and the gate reported the register clean. That is the same lie as measuring an
+    empty plate. Reading the alias means a new register is fed correctly the day it is written.
+    """
+    t = ty.replace(" ", "")
+    m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\[\]$", t)                       # Item[]
+    if m:
+        fields = _alias_fields(src, m.group(1))
+        if fields:
+            return [{k: _synth_field(k, v) for k, v in fields.items()} for _ in range(n)]
+        return None
+    m = re.match(r"^\{(.+)\}\[\]$", t)                                      # an INLINE object array
+    if m:
+        fields = {}
+        for chunk in m.group(1).split(";"):
+            f = re.match(r"([A-Za-z_][A-Za-z0-9_]*)\??:(.+)", chunk)
+            if f:
+                fields[f.group(1)] = f.group(2)
+        if fields:
+            return [{k: _synth_field(k, v) for k, v in fields.items()} for _ in range(n)]
+    return None
+
+
 def _shape_array(prop, ty):
     t = ty.replace(" ", "")
     if prop == "items" and t.startswith("[string,string,string]"):
@@ -271,6 +331,54 @@ def durations():
     return out
 
 
+# An ABSOLUTE ink floor cannot separate these classes and the first version's 2% proved it: a wrong-fed
+# TermTree measured 0.67%, but a correctly-fed TermLog is 2.65% and EdTimeline 3.84% — a log and a timeline
+# are legitimately sparse, and the honest margin between "sparse" and "empty" is too narrow to name. So the
+# comparison is RELATIVE: re-render the same register with its OWN defaults and compare. A fixture that
+# reached the register draws about as much as its demo copy does; one that did not draws a fraction of it.
+SUSPECT_INK = 0.05          # below this, ask the second question — above it, nothing was missed
+# ...and this much less ink than its own defaults means the fixture never landed. MEASURED on TermTree, the
+# register that exposed the hole, at the same frame and DNA:
+#     correct fixture 6.14%   wrong-shaped fixture 0.63%   its own defaults 1.39%
+#     -> correct = 4.42x defaults,  wrong = 0.45x defaults
+# The first threshold was 0.45 and sat exactly ON the wrong case, so the negative control still reported
+# clean. 0.75 separates them with margin on both sides. A correctly-fed register draws roughly what its demo
+# copy draws or more — CJK glyphs are wider than the short English samples the library ships with.
+UNFED_RATIO = 0.75
+
+
+def _ink_fraction(png):
+    try:
+        from PIL import Image
+        import numpy as np
+        a = np.asarray(Image.open(png).convert("L"), dtype=float)
+        return float((np.abs(a - np.median(a)) > 25).mean())
+    except Exception:                                    # noqa: BLE001 — no measurement is not a verdict
+        return 1.0
+
+
+def _default_ink(shot, frame, tmp, dna, aspect):
+    """The same register at the same frame with ITS OWN default props — the yardstick for 'did the fixture
+    reach it'. Rendered only when a probe looks suspiciously empty, so it costs nothing on a healthy sweep."""
+    pf = tmp + ".base.json"
+    payload = {"dna": dna}
+    if aspect:
+        payload["aspect"] = aspect
+    with open(pf, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False)
+    png = tmp + ".base.png"
+    r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png, "--frame=%d" % frame,
+                        "--gl=angle", "--log=error", "--props=" + os.path.abspath(pf),
+                        "--public-dir=" + os.path.join(_REMOTION, "public")],
+                       cwd=_REMOTION, capture_output=True, text=True)
+    try:
+        return _ink_fraction(png) if r.returncode == 0 and os.path.exists(png) else None
+    finally:
+        for f in (pf, png):
+            if os.path.exists(f):
+                os.remove(f)
+
+
 def audit(shot, props, frame, tmp, dna=DEFAULT_DNA, aspect=None):
     """[] clean · [collision…] · None when the render itself failed."""
     payload = dict(props)
@@ -295,6 +403,17 @@ def audit(shot, props, frame, tmp, dna=DEFAULT_DNA, aspect=None):
             return [{"kind": "leading", "depth": 0, "text": "(unparseable payload)", "font": "", "cls": ""}]
     if r.returncode != 0:
         return None
+    # A WRONG-SHAPED FIXTURE DOES NOT ALWAYS THROW. Handed a list of strings where it declares
+    # {name, note, tag}, TermTree drew empty rows — 0.67% ink — and this gate called it clean. That is the
+    # same lie as measuring an empty plate: nothing collided because nothing was drawn. So a probe that
+    # renders almost nothing is reported as UNFED, never as a pass.
+    got = _ink_fraction(tmp)
+    if got < SUSPECT_INK:
+        base = _default_ink(shot, frame, tmp, dna, aspect)
+        if base is not None and base > 0 and got < base * UNFED_RATIO:
+            return [{"kind": "unfed", "depth": 0,
+                     "text": "(drew %.2f%% ink against %.2f%% on its own defaults — the fixture did not "
+                             "reach this register)" % (got * 100, base * 100), "font": "", "cls": ""}]
     return []
 
 
@@ -345,6 +464,27 @@ CONTROLS_GOOD = ["CinematicTitle", "TermTable", "QuadSplit", "KineticManifesto",
                  "MagazineSpread", "BrutalistType"]
 
 
+def unfed_control():
+    """The guard that catches a fixture which never reached its register — proved on a REAL wrong shape.
+
+    It regressed once already: the first threshold landed exactly on the measured wrong case and the control
+    reported clean. Handing TermTree a list of strings where it declares {name, note, tag} is the actual bug
+    that shipped, so that is what this replays."""
+    wrong = {"cmd": _SHORT, "root": _SHORT, "items": list(_ITEMS[:3])}
+    tmp = os.path.join(_REMOTION, ".cjk_type_probe.png")
+    hit = audit("TermTree", wrong, 145, tmp) or []
+    right, _ = cjk_props("TermTree")
+    ok = audit("TermTree", right, 145, tmp) or []
+    for f in (tmp, tmp + ".props.json"):
+        if os.path.exists(f):
+            os.remove(f)
+    caught = any(h["kind"] == "unfed" for h in hit)
+    clean = not any(h["kind"] == "unfed" for h in ok)
+    print("   wrong-shaped fixture  %s" % ("reported UNFED" if caught else "reported clean   <- NOT CAUGHT"))
+    print("   correct fixture       %s" % ("clean" if clean else "reported UNFED   <- FALSE POSITIVE"))
+    return caught and clean
+
+
 def controls():
     """Prove the instrument separates the classes before anyone believes a sweep."""
     res = sweep(CONTROLS_BAD + CONTROLS_GOOD)
@@ -357,7 +497,9 @@ def controls():
     for n in CONTROLS_GOOD:
         print("   known-GOOD %-18s %d leading collision(s)%s"
               % (n, len(good[n]), "   <- FALSE POSITIVE" if good[n] else ""))
-    ok = all(bad[n] for n in CONTROLS_BAD) and not any(good[n] for n in CONTROLS_GOOD)
+    print("[cjk_type] CONTROLS — and the guard for a fixture that never reaches its register:")
+    fed = unfed_control()
+    ok = all(bad[n] for n in CONTROLS_BAD) and not any(good[n] for n in CONTROLS_GOOD) and fed
     print("[cjk_type] controls %s" % ("PASS — the instrument separates them" if ok else "FAIL — do not trust a sweep yet"))
     return 0 if ok else 1
 
@@ -394,6 +536,7 @@ def main(argv):
     lead = {n: h for n, h in lead.items() if h}
     over = {n: [h for h in v["hits"] if h["kind"] == "overlap"] for n, v in res.items()}
     over = {n: h for n, h in over.items() if h}
+    unfed = {n: v for n, v in res.items() if any(h["kind"] == "unfed" for h in v["hits"])}
     failed = [n for n, v in res.items() if v["failed"]]
     untest = {n: v["untestable"] for n, v in res.items() if v["untestable"]}
     if not a.json:
@@ -419,11 +562,15 @@ def main(argv):
             print("\nNOT TESTED — no CJK copy could be shaped for these props (add the shape to _ARRAY_SHAPES):")
             for n in sorted(untest)[:14]:
                 print("    %-22s %s" % (n, ", ".join(untest[n])))
+        if unfed:
+            print("\nDREW ALMOST NOTHING — the fixture did not reach these registers, so a clean result here "
+                  "would\n  be a measurement of an empty frame, not of the register:\n    %s"
+                  % ", ".join(sorted(unfed)[:16]))
         if failed:
             print("\nFAILED TO RENDER: %s" % ", ".join(sorted(failed)[:14]))
         if not lead:
             print("\nNo register sets Chinese copy into itself.")
-    return 1 if lead else 0
+    return 1 if (lead or unfed) else 0
 
 
 if __name__ == "__main__":

@@ -81,6 +81,44 @@ def test_a_written_waiver_accepts_the_slideshow_and_keeps_the_numbers(slideshow)
         os.remove(os.path.join(slideshow, "storyboard.json"))
 
 
+def test_a_waiver_named_for_one_axis_does_not_absolve_the_others(slideshow):
+    """The hole this closes shipped within a day of the waiver being used: a paragraph reasoning about
+    DENSITY — a deck's warm-white design language — silently excused a MOTION failure that appeared later
+    from an unrelated change (the camera bed going opt-in). One stated reason must not absolve the axes
+    nobody reasoned about."""
+    board = {"meta": {"energy_waiver": {"density": "this deck's own warm-white design language is sparse"}}}
+    json.dump(board, open(os.path.join(slideshow, "storyboard.json"), "w", encoding="utf-8"))
+    try:
+        errs, warns, _m = g.check(slideshow)
+        assert any(e.startswith("MOTION") for e in errs), "motion was never reasoned about; it stays gated"
+        assert any("waived (DENSITY)" in w for w in warns), "the named axis IS waived, and says so"
+        assert not any(e.startswith("DENSITY") for e in errs)
+    finally:
+        os.remove(os.path.join(slideshow, "storyboard.json"))
+
+
+def test_a_plain_string_waiver_still_covers_every_axis_and_says_so(slideshow):
+    """Existing boards mean 'all of it' by a string, so that behaviour is kept — but it now announces the
+    breadth instead of leaving a reader to assume it was per-axis."""
+    board = {"meta": {"energy_waiver": "one held frame is the point of this piece"}}
+    json.dump(board, open(os.path.join(slideshow, "storyboard.json"), "w", encoding="utf-8"))
+    try:
+        errs, warns, _m = g.check(slideshow)
+        assert not errs
+        assert any("waived (MOTION)" in w for w in warns), "a waiver must name what it waived"
+    finally:
+        os.remove(os.path.join(slideshow, "storyboard.json"))
+
+
+def test_an_unnamed_axis_is_told_how_to_be_waived_narrowly(slideshow):
+    json.dump({"meta": {}}, open(os.path.join(slideshow, "storyboard.json"), "w", encoding="utf-8"))
+    try:
+        errs, _w, _m = g.check(slideshow)
+        assert any('"density"' in e and "waives only what it names" in e for e in errs), errs[-1:]
+    finally:
+        os.remove(os.path.join(slideshow, "storyboard.json"))
+
+
 def test_the_cli_exits_non_zero_on_a_slideshow(slideshow):
     import sys
     rc = subprocess.run([sys.executable, os.path.join(os.path.dirname(g.__file__), "film_energy_qa.py"),

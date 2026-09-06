@@ -83,6 +83,81 @@ def test_colours_and_images_are_not_fed_chinese():
     assert "accent" not in props and "accent2" not in props
 
 
+# ── the CJK leading floor, RUN — not grepped ───────────────────────────────────────────────────────
+def _run_probe(body):
+    """Bundle `body` against the REAL cjkType.ts and run it, so this tests BEHAVIOUR, not the presence of
+    source text. Same shape as tests/test_camera_pan.py's probe."""
+    import shutil as _sh, subprocess as _sp, tempfile as _tf
+    if not _sh.which("npx") or not _sh.which("node"):
+        pytest.skip("npx/node unavailable")
+    rem = os.path.join(_ROOT, "remotion")
+    if not os.path.isdir(os.path.join(rem, "node_modules")):
+        pytest.skip("remotion/node_modules not installed")
+    tmp = _tf.mkdtemp(prefix="cjk_probe_")
+    try:
+        entry = os.path.join(tmp, "probe.ts")
+        header = ("import * as C from %s;\nconst out: any = {};\n"
+                  % json.dumps(os.path.join(rem, "src", "runtime", "cjkType")))
+        open(entry, "w", encoding="utf-8").write(header + body + "\nconsole.log(JSON.stringify(out));\n")
+        outf = os.path.join(tmp, "probe.cjs")
+        b = _sp.run(["npx", "esbuild", entry, "--bundle", "--platform=node", "--outfile=" + outf,
+                     "--log-level=error"], cwd=rem, capture_output=True, text=True)
+        assert b.returncode == 0, b.stdout + b.stderr
+        r = _sp.run(["node", outf], cwd=rem, capture_output=True, text=True)
+        assert r.returncode == 0, r.stdout + r.stderr
+        return json.loads(r.stdout.strip().splitlines()[-1])
+    finally:
+        _sh.rmtree(tmp, ignore_errors=True)
+
+
+def test_has_cjk_covers_every_script_a_film_might_use():
+    """zh-Hans, zh-Hant, kana, kanji, Hangul and CJK punctuation are all CJK; Latin, digits and emoji are
+    not. A detector that misses Japanese would leave a Japanese film with the defect this floor exists for."""
+    out = _run_probe("""
+      const cases: [string, string][] = [
+        ['zh_hans', '交付可验收的成果'], ['zh_hant', '交付可驗收的成果'], ['kana', 'おつかれさまです'],
+        ['kanji', '納品物'], ['hangul', '전달물'], ['cjk_punct', '交付，然后。'], ['fullwidth', '（授权）'],
+        ['latin', 'An accepted result'], ['digits', '100+ experts'], ['emoji', 'done'], ['empty', ''],
+      ];
+      cases.forEach(([k, v]) => { out[k] = C.hasCJK(v); });
+      out.notAString = C.hasCJK(42 as never);
+    """)
+    for k in ("zh_hans", "zh_hant", "kana", "kanji", "hangul", "cjk_punct", "fullwidth"):
+        assert out[k] is True, k
+    for k in ("latin", "digits", "emoji", "empty", "notAString"):
+        assert out[k] is False, k
+
+
+def test_leading_raises_for_cjk_and_never_touches_latin():
+    out = _run_probe("""
+      out.latinTight   = C.leading('WORK BUDDY', 0.82);
+      out.cjkTight     = C.leading('自主循环', 0.82);
+      out.cjkAlready   = C.leading('自主循环', 1.4);
+      out.arrayAnyCJK  = C.leading(['WORK', '自主循环'], 0.82);
+      out.arrayNoCJK   = C.leading(['WORK', 'BUDDY'], 0.82);
+      out.emptyArray   = C.leading([], 0.82);
+      out.undef        = C.leading(undefined, 0.82);
+      out.floor        = C.CJK_MIN_LEADING;
+    """)
+    assert out["latinTight"] == 0.82, "a Latin stack must render byte-for-byte as before"
+    assert out["cjkTight"] == out["floor"] > 1.0
+    assert out["cjkAlready"] == 1.4, "the floor RAISES; it never lowers an author's larger value"
+    assert out["arrayAnyCJK"] == out["floor"], "one CJK string in the block raises the whole block"
+    assert out["arrayNoCJK"] == 0.82 and out["emptyArray"] == 0.82 and out["undef"] == 0.82
+
+
+def test_fit_if_cjk_leaves_latin_at_its_designed_size():
+    out = _run_probe("""
+      const half = (t: string, base: number) => base / 2;
+      out.latin = C.fitIfCJK('An accepted result', 116, half);
+      out.cjk   = C.fitIfCJK('交付可验收的成果', 116, half);
+      out.mixed = C.fitIfCJK('WorkBuddy 是全场景 AI 工作台', 116, half);
+      out.undef = C.fitIfCJK(undefined, 116, half);
+    """)
+    assert out["latin"] == 116 and out["undef"] == 116, "Latin keeps the register's own size"
+    assert out["cjk"] == 58 and out["mixed"] == 58, "mixed copy counts as CJK — the CJK half is what wraps"
+
+
 # ── the CJK leading floor, in the runtime the registers actually import ─────────────────────────────
 def _cjk_type_src():
     return open(os.path.join(_ROOT, "remotion", "src", "runtime", "cjkType.ts"), encoding="utf-8").read()

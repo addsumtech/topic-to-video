@@ -224,8 +224,17 @@ export const clampPan = (pan: unknown): [number, number] | null => {
  * as everything else, at BED_AMOUNT_FRAC of it — deliberately under the 0.75 a motivated move takes, so
  * punctuation stays punctuation.
  *
- * WHY IT IS OPT-IN AGAIN (2026-09-06). Everything above is still true of the MEASUREMENT and none of it
- * was enough. Shipped as the default, the bed drifts every beat nobody authored a camera for — 21 of 25 on
+ * WHY IT IS OPT-IN AGAIN (2026-09-06), AND THE NUMBER ABOVE DOES NOT REPRODUCE. The bed's whole case is the
+ * +0.0007 recorded above (0.0035 -> 0.0042 on the film that motivated it). Re-measured as a CONTROLLED
+ * pair — the same six-beat cut of a real film, rendered twice, the bed flag the only difference:
+ *
+ *     motion p50   0.0009 -> 0.0012      motion p75   0.0025 -> 0.0026      motion p90   0.0135 -> 0.0135
+ *
+ * +0.0001 on the gated statistic, 4%, not 20%. Whatever the original figure was measuring, it was not the
+ * bed alone. So the trade the bed was justified by does not exist: it buys almost nothing on the number and
+ * it costs a slow lateral drift on every beat nobody authored a camera for — 21 of 25 on the first real
+ * film, whose viewer's first note was that the type slides sideways all runtime. Everything below is still
+ * true of what the bed DOES. Shipped as the default, the bed drifts every beat nobody authored a camera for — 21 of 25 on
  * the first real film — and a viewer's first note was that the type slides sideways all film. shake_qa is
  * right that it is not shake (wander ~1, it travels), and that is exactly the point: a clean slow pan on
  * every beat is a legible defect that no shake instrument is looking for. The number it was built to move

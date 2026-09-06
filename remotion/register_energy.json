@@ -13,10 +13,10 @@
     "BlockAssembly": "bdff041cf5338a6e",
     "BlueprintGrid": "fb50d9a1296ba934",
     "BokehPull": "e704c0e6107b7247",
-    "BrutalistType": "3bbf5fc34c948898",
+    "BrutalistType": "c4fe2bcc2e7deb0d",
     "CardFlip3D": "4da5d9b85ffe9344",
     "CardStack3D": "2607a6d43fae5f69",
-    "CartoonPop": "6dd3e75217208b6d",
+    "CartoonPop": "e7d517a0d59c7403",
     "ChartLive": "784e033e321432de",
     "ChartRace": "f4ce513bdd68655c",
     "ChatThread": "e15e3dd384e2f0a9",
@@ -86,7 +86,7 @@
     "LowPolyForm": "12dd4ff926422f61",
     "MRIPipeline": "0187f39d851029b6",
     "MadeOf": "f7e6adb97929ff57",
-    "MagazineSpread": "8a8e60cf54d0f92c",
+    "MagazineSpread": "04dc4c260e005d04",
     "MagnetizationTip": "bcb5712679a23d9c",
     "MapPlate": "61d3ba885473183c",
     "MapRoutes": "9f555ab5740c1998",
@@ -98,7 +98,7 @@
     "NeonGrid": "c95b036c5c54b939",
     "NeonTickerWall": "35b8fc9222da8eb2",
     "NeuralField": "c5aeb7d4ee0587e8",
-    "OdometerRoll": "b51574cf008cfa03",
+    "OdometerRoll": "18842557e54a6b07",
     "OpenQuestions": "e1eb14e0973e97e5",
     "OverlapSeparation": "fa8aeba055142cb4",
     "PaperCutout": "a429ab7a74b36607",
@@ -152,7 +152,8 @@
     "VersusSplit": "47a8ed54c3fd0cd2",
     "VoiceSignal": "3a3f942e9c6a06dd",
     "VoxelBuild": "e3eea6dafbab7a1b",
-    "WireGlobe": "e43b15ea846bc538"
+    "WireGlobe": "e43b15ea846bc538",
+    "AcceptanceStamp": "295ae579a469fe5e"
   },
   "_basis": "each register rendered as VIDEO at its own DURATION, 16:9, under dna=product — the themed path, because every delivered film has a design system and the un-themed fallback is a mode none of them use",
   "_dna": "product",
@@ -172,6 +173,13 @@
   },
   "_failed": [],
   "registers": {
+    "AcceptanceStamp": {
+      "motion_p75": 0.0005,
+      "ink_median": 0.015,
+      "luma_range": 0.011,
+      "seconds": 5.5,
+      "footprint": 0.207
+    },
     "Aliasing": {
       "motion_p75": 0.0005,
       "ink_median": 0.103,
@@ -257,9 +265,9 @@
       "footprint": 0.11
     },
     "BrutalistType": {
-      "motion_p75": 0.0049,
-      "ink_median": 0.168,
-      "luma_range": 0.069,
+      "motion_p75": 0.0042,
+      "ink_median": 0.151,
+      "luma_range": 0.057,
       "seconds": 5.2,
       "footprint": 0.638
     },
