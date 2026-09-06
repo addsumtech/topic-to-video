@@ -2429,6 +2429,18 @@ def test_every_remotion_capability_is_reachable_from_the_authoring_path():
         ("SKILL.md", "scripts/sfx.py --calibrate",
          "the audio chain's offset is measurable only if the workflow says how; unnamed it goes back to "
          "being assumed, which is what it was"),
+        # Three gates were BUILT, tested, documented in the scripts list — and named nowhere in the run a
+        # film actually follows, which this repo has already recorded twice as indistinguishable from never
+        # having built them (seam_plan reached none of a 35-beat film's cuts; Plane reached 2 of 152
+        # registers). A gate in a catalogue nobody is told to open is a gate that does not exist.
+        ("SKILL.md", "scripts/cjk_type_qa.py <out_dir>",
+         "the CJK type gate must be a STEP on a Chinese film; text_safe_qa cannot see the defect it catches"),
+        ("SKILL.md", "scripts/energy_skeleton.py <out_dir>",
+         "the plan's energy per beat reaches the register picker only if the workflow says to check it"),
+        ("SKILL.md", "scripts/dna_from_deck.py <out_dir>",
+         "the deck's own brand reaches the film only if the run is told to derive it before the director"),
+        ("agents/shot-director.md", "cjk_type_qa",
+         "the author who writes a register's props is the party who must know the copy can collide"),
     ]
     missing = [(f, n, why) for f, n, why in required if n not in docs[f]]
     assert not missing, "\n".join(

@@ -1293,10 +1293,23 @@ figure), a non-singular `the_one_thing`, or a
    leftover), decodability, **MEANING (S10 — does each shot's design ENCODE its beat's idea, not just look good?)**,
    and **boldness (S8, audacity-scaled)**, and REVISEs failing beats (the shot-director re-assigns → re-render).
    Deliver only after **shot-critic PASSES and `check_av` + `keyframe_qa_remotion` + `text_safe_qa` +
-   `film_energy_qa` exit 0 + `shake_qa` exit 0** (the two are a PAIR: the first refuses a film that does not move, the second refuses one that moves without going anywhere, and passing the first by tripping the second is the specific failure this tier has shipped before) (`frame_safe_qa` is advisory — read it, say which warnings you accepted)
+   `cjk_type_qa` exit 0 (on a CJK film) + `film_energy_qa` exit 0 + `shake_qa` exit 0** (the two are a PAIR: the first refuses a film that does not move, the second refuses one that moves without going anywhere, and passing the first by tripping the second is the specific failure this tier has shipped before) (`frame_safe_qa` is advisory — read it, say which warnings you accepted)
    — and that PASS must be an INDEPENDENT one: re-dispatch the critic as a fresh subagent given only the
    `<out_dir>` path, then `python3 scripts/critic_ledger.py <out_dir> --final` (exit 0 required; it refuses an
    in-context ledger, a ledger missing any dimension, and one pinned to a different render's contact sheet).
+   **BEFORE the render, on a `meta.renderer:"remotion"` film, run the two PRE-render checks this tier grew
+   after shipping films that passed everything and still read wrong.** Neither costs a render of the film:
+   • `python3 scripts/energy_skeleton.py <out_dir>` — the plan declares an `energy` per beat and the sweep
+     measures a motion per register; nothing used to read one against the other, and a delivered film put
+     its climax on a register UNDER the delivery motion floor. Fix the beats it names or re-declare them.
+   • `python3 scripts/cjk_type_qa.py <out_dir>` — **required when `meta.language` is CJK.** The library is
+     authored with short English demo copy, and a face set at `line-height: 0.82` is confident Latin
+     typography and a collision in Chinese. `text_safe_qa` cannot see it (nothing is cut off — the copy sits
+     inside the frame and is unreadable), which is exactly how two registers shipped a pile of overlapping
+     type in a delivered film.
+   **And when the film came from a pptx** whose theme is not Office's default, run
+   `python3 scripts/dna_from_deck.py <out_dir>` BEFORE the shot-director so the film carries the deck's own
+   brand rather than a direction's preset; `validate.py` warns when it did not.
    **DELIVERY CRITERION — every gate, not two.** Deliver `out.mp4`,
    `out.srt`, and the editable `storyboard.json` only after **`validate.py`, `check_av.py`,
    `keyframe_qa.py`, `rhythm_qa.py` and `pedagogy_qa.py` ALL exit 0** (`voice_qa.py` is ADVISORY and always

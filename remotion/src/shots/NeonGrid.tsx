@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, hash01} from '../runtime/motion';
+import {leading} from '../runtime/cjkType';
 import {useDNA} from '../runtime/dna';
 import {fitText} from '@remotion/layout-utils';
 
@@ -84,7 +85,7 @@ export const NeonGrid: React.FC<{title?: string; tagline?: string}> = ({title: T
       {/* neon chrome wordmark */}
       <div style={{position: 'absolute', left: 0, right: 0, top: hy - 250, textAlign: 'center',
         transform: `translateY(${(1 - titleUp) * 30}px)`, opacity: titleUp}}>
-        <div style={{font: `900 ${titleSize}px/0.9 ${dispFace}`, letterSpacing: '0.02em',
+        <div style={{font: `900 ${titleSize}px/${leading(TITLE, 0.9)} ${dispFace}`, letterSpacing: '0.02em',
           background: 'linear-gradient(#fff, #a7e9ff 40%, #ff9ee0 60%, #ff2d95)', WebkitBackgroundClip: 'text',
           backgroundClip: 'text', color: 'transparent', WebkitTextStroke: `2px ${CYAN}`, filter: 'drop-shadow(0 0 24px #ff2d9599)'}}>{TITLE}</div>
         <div style={{marginTop: 14, font: `700 ${tagSize}px/1 ${monoFace}`, letterSpacing: '0.5em',

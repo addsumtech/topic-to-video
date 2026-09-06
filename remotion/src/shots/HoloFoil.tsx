@@ -9,6 +9,7 @@ import {useDNA} from '../runtime/dna';
 import {fitTextPx} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
+// CJK-EXEMPT (tight leading, no floor): the word is sized by fitTextPx to one line, so there is never a second line to collide with.
 export const HoloFoil: React.FC<{word?: string; tagline?: string}> = ({word: WORD = 'WORKBUDDY', tagline: TAGLINE = 'YOUR AI TEAM'} = {}) => {
   const t = useT();
   const dna = useDNA();

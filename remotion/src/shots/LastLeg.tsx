@@ -42,6 +42,7 @@ const DEFAULT_LEGS: Leg[] = [
   {label: 'check', carried: true}, {label: 'send', carried: false},
 ];
 
+// CJK-EXEMPT (tight leading, no floor): the display line is whiteSpace:'nowrap' — it cannot wrap, so its lines cannot collide.
 export const LastLeg: React.FC<{
   kicker?: string;      // what this frame is about
   display?: string;     // the one big word; cropped by the frame on purpose

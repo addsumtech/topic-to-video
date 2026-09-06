@@ -6,8 +6,9 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutExpo} from '../runtime/motion';
+import {leading, fitIfCJK} from '../runtime/cjkType';
 import {useDNA} from '../runtime/dna';
-import {bottomInset} from '../runtime/layout';
+import {bottomInset, fitTextPx} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
 // LEVEL-C: pop-art print is the TECHNIQUE (Ben-Day dots, radial speed lines, a jagged burst, thick panel rule,
@@ -36,6 +37,11 @@ export const HalftonePop: React.FC<{lead?: string; burstTop?: string; burstBotto
   const CARD = dna?.surface ?? '#fff';        // the caption box stock
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
+  // THE BURST IS FITTED WHEN THE COPY IS CJK. 150px is the comic punch and it is right for "BOOM!";
+  // a Chinese line of ordinary length at that size is roughly twice the frame wide and ran off every
+  // edge. fitIfCJK leaves the Latin burst at exactly 150px and steps a CJK one down to what fits.
+  const burstPx = fitIfCJK([burstTop, burstBottom].join(""), 150,
+    (t2, base) => fitTextPx(t2, W * 0.62, base, {usable: 1.0}));
   const cx = W / 2, cy = H / 2 - 20;
   const pop = easeOutBack(seg(t, 0.14, 0.4));
   const lines = easeOutExpo(seg(t, 0.08, 0.5));
@@ -71,7 +77,7 @@ export const HalftonePop: React.FC<{lead?: string; burstTop?: string; burstBotto
 
       {/* burst text */}
       <div style={{position: 'absolute', left: cx, top: cy, transform: `translate(-50%,-50%) scale(${pop}) rotate(-8deg)`, textAlign: 'center'}}>
-        <div style={{font: '900 150px/0.86 var(--f-display, "Bangers", "Anton", Impact, sans-serif)', color: RED, WebkitTextStroke: `8px ${INK}`,
+        <div style={{font: `900 ${burstPx}px/${leading([burstTop, burstBottom], 0.86)} var(--f-display, "Bangers", "Anton", Impact, sans-serif)`, color: RED, WebkitTextStroke: `8px ${INK}`,
           paintOrder: 'stroke', letterSpacing: '0.01em'}}>{burstTop}<br />{burstBottom}</div>
       </div>
 

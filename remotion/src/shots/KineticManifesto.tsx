@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, clamp01} from '../runtime/motion';
+import {leading} from '../runtime/cjkType';
 import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
@@ -26,7 +27,7 @@ const Word: React.FC<{text: string; start: number; span: number; t: number; hero
   const blur = lp < 0.16 ? 18 * (1 - lp / 0.16) : lp > 0.66 ? 26 * ((lp - 0.66) / 0.34) : 0;
   return (
     <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-      <div style={{font: '900 200px/0.95 var(--f-display, Inter,system-ui,sans-serif)', letterSpacing: '-0.03em', textAlign: 'center',
+      <div style={{font: `900 200px/${leading(text, 0.95)} var(--f-display, Inter,system-ui,sans-serif)`, letterSpacing: '-0.03em', textAlign: 'center',
         color: hero ? heroC : normC, opacity: op, transform: `scale(${scale})`,
         filter: blur > 0.5 ? `blur(${blur}px)` : undefined, textShadow: '0 20px 60px rgba(0,0,0,.25)',
         maxWidth: '82%', padding: '0 60px'}}>{text}</div>

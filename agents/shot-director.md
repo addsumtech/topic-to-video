@@ -377,6 +377,16 @@ back — commit registers that are memorable and unmistakably THIS film. For eac
 2. **Vary the FAMILY across the film — never two ADJACENT beats from the same family.** This is what stops the
    film reading as one look. Spread across ≥6 families in a ≥10-beat film; feature the 3D register (MaterialHero)
    and one illustrated/craft style at most once or twice.
+2b. **On a CJK film, check the TYPE after you fill the props — `python3 scripts/cjk_type_qa.py <out_dir>`.**
+   The library is authored with short English demo copy, and a face set at `line-height: 0.82` is confident
+   Latin typography and a COLLISION in Chinese: Latin glyphs sit inside their em box, CJK glyphs fill it.
+   `text_safe_qa` cannot see this — nothing is cut off; the copy sits inside the frame and is unreadable —
+   which is how two registers shipped a pile of overlapping type in a delivered film while every gate was
+   green. The gate renders each of your beats with ITS OWN copy and asks the DOM. A `leading` finding is a
+   defect (an element's own wrapped lines colliding is never intended); an `overlap` finding is a candidate,
+   since some registers stack type on purpose. The fix is usually not a different register: pass the copy
+   through `leading(text, latin)` from `runtime/cjkType.ts`, which raises the floor ONLY for CJK so the
+   register's Latin typography is untouched.
 3. **Fill props from the beat, faithfully.** Put the beat's real nouns into the register's props (its wordmark,
    `items`, `hub`, chat `messages`, `nodes`, etc. — see the LIBRARY props table). **Any register that shows a
    NUMBER (ChartLive `endVal`, BeforeAfterSlider `metric`, VelocitySnap `metric`, BlueprintGrid counter) MUST be

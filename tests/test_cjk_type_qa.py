@@ -204,6 +204,47 @@ def test_the_two_repaired_registers_still_go_through_the_floor(register, call):
     assert call in src, "%s stopped using the CJK leading floor" % register
 
 
+def test_every_register_with_tight_leading_uses_the_floor_or_says_why_it_cannot_wrap():
+    """THE CLASS, closed at the source rather than watched by a sweep.
+
+    A face set below ~1.05 is confident Latin display typography and a collision in Chinese. Three registers
+    shipped that way; fixing those three fixes three instances. So the rule is stated here instead: a
+    register that sets tight leading must EITHER pass its copy through `leading()` — which raises only for
+    CJK, so its Latin typography is untouched — OR declare, in one line, why its type cannot wrap at all
+    (nowrap, fitted to a single line, or a numeric readout). Silence is not an option, which is the same
+    discipline INTRINSIC_TEXT and requireEvidence run elsewhere in this library.
+
+    Checked statically so it costs nothing and cannot be skipped; `cjk_type_qa --library` remains the
+    MEASUREMENT, and this is the thing that stops register 154 from reintroducing it.
+    """
+    import glob
+    offenders = []
+    for f in sorted(glob.glob(os.path.join(_ROOT, "remotion", "src", "shots", "*.tsx"))):
+        src = open(f, encoding="utf-8").read()
+        if not re.search(r"px/(0\.\d+|1\.0[0-4])[\s`']", src):
+            continue
+        if "runtime/cjkType" in src or "CJK-EXEMPT" in src:
+            continue
+        offenders.append(os.path.basename(f)[:-4])
+    assert not offenders, (
+        "these set a leading under 1.05 on type that can wrap, without the CJK floor and without saying why "
+        "it cannot wrap: %s. Either pass the copy through `leading(text, latin)` from runtime/cjkType, or "
+        "add a `// CJK-EXEMPT (tight leading, no floor): <reason>` line above the component." % offenders)
+
+
+def test_the_declared_exemptions_are_the_ones_that_really_cannot_wrap():
+    """An exemption must be TRUE, not merely written. Each declared one is checked against the property it
+    claims, so a comment cannot become a way to opt out of the rule."""
+    import glob
+    for f in sorted(glob.glob(os.path.join(_ROOT, "remotion", "src", "shots", "*.tsx"))):
+        src = open(f, encoding="utf-8").read()
+        if "CJK-EXEMPT" not in src:
+            continue
+        name = os.path.basename(f)[:-4]
+        assert re.search(r"nowrap|fitTextPx|NUMERAL|numeral", src), \
+            "%s claims a CJK exemption but shows no nowrap, no one-line fit and no numeric readout" % name
+
+
 # ── the CONTROL contract — the part that already failed twice ───────────────────────────────────────
 def test_the_positive_control_is_synthetic_not_a_real_register():
     """The first controls were the two registers that had broken a film. They worked exactly once: repairing

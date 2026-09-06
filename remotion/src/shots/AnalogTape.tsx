@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, clamp01, seg, lerp} from '../runtime/motion';
+import {leading} from '../runtime/cjkType';
 import {useDNA} from '../runtime/dna';
 import {bottomInset} from '../runtime/layout';
 
@@ -37,7 +38,7 @@ export const AnalogTape: React.FC<{title?: string; tagline?: string}> = ({title:
   const Title: React.FC<{dx: number; color: string; blend?: string}> = ({dx, color, blend}) => (
     <div style={{position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', transform: `translate(${dx + jit}px, ${jit * 0.4}px)`, mixBlendMode: (blend as any) || 'normal'}}>
-      <div style={{color, font: '800 168px/0.95 var(--f-display, "Antonio", "Oswald", Impact, sans-serif)', letterSpacing: '0.02em',
+      <div style={{color, font: `800 168px/${leading(TITLE, 0.95)} var(--f-display, "Antonio", "Oswald", Impact, sans-serif)`, letterSpacing: '0.02em',
         textTransform: 'uppercase', opacity: inT}}>{TITLE}</div>
       <div style={{color, font: '600 34px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.34em', marginTop: 22,
         opacity: clamp01(seg(t, 0.4, 0.7))}}>{TAGLINE}</div>

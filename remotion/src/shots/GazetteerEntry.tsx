@@ -12,6 +12,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic} from '../runtime/motion';
+import {leading} from '../runtime/cjkType';
 import {captionBand, CONTENT_TOP} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
 
@@ -78,7 +79,7 @@ export const GazetteerEntry: React.FC<{
       {/* headword */}
       <div style={{position: 'absolute', left, top: yHead, right,
         opacity: head, transform: `translateY(${(1 - head) * 12}px)`,
-        font: `700 ${headSize}px/1.02 ${disp}`, letterSpacing: '-0.015em'}}>{headword}</div>
+        font: `700 ${headSize}px/${leading(headword, 1.02)} ${disp}`, letterSpacing: '-0.015em'}}>{headword}</div>
 
       {/* pronunciation, set on the same baseline family a real entry uses.
           Its y is ZONE-relative like every other line in this entry. It used to be `top + W*0.070` while the

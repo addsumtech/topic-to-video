@@ -18,6 +18,7 @@ const DEFAULT_STEPS = ['Read the brief', 'Pull the numbers', 'Clean the data', '
 // `seconds` is the elapsed time the FILM measured. No default: the timer used to race 0.0 -> 2.8 off the
 // clock and land on a hardcoded '2.8s', so every film that reached for this register reported the same
 // invented duration. The race still runs — the NUMERAL only appears when there is a real figure for it.
+// CJK-EXEMPT (tight leading, no floor): the tight-leading element renders a NUMERAL (elapsed / seconds), never author copy.
 export const TemporalAccelerate: React.FC<{items?: string[]; seconds?: number | null}> = ({
   items: STEPS = DEFAULT_STEPS, seconds = null} = {}) => {
   const dna = useDNA();

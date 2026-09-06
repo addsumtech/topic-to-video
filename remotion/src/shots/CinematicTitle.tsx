@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic, hash01} from '../runtime/motion';
+import {leading} from '../runtime/cjkType';
 import {useDNA, dnaHas, Caret, mix} from '../runtime/dna';
 import {fitText} from '@remotion/layout-utils';
 
@@ -65,7 +66,7 @@ export const CinematicTitle: React.FC<{kicker?: string; title?: string; tagline?
         <div style={{opacity: titleUp, transform: `translateY(${(1 - titleUp) * 46}px)`, maxWidth: W * 0.9,
           color: titleCol, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
           // width-AND-length-aware so a long title / narrow (portrait|square) frame can't clip the wordmark
-          font: `800 ${Math.min(176, W * 0.13, titleFit)}px/0.98 ${titleFont}`,
+          font: `800 ${Math.min(176, W * 0.13, titleFit)}px/${leading(TITLE, 0.98)} ${titleFont}`,
           letterSpacing: '-0.01em', textShadow: dna ? 'none' : '0 30px 90px #000, 0 2px 0 #ffffff22'}}>{TITLE}
           {dnaHas(dna, 'cursor') ? <Caret color={dna!.accent} h={72} w={20} style={{marginLeft: 14}} /> : null}</div>
         <div style={{opacity: clamp01(seg(t, 0.55, 0.82)), color: tagCol, font: '500 30px/1 var(--f-mono, "JetBrains Mono", monospace)',
