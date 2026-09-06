@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01} from '../runtime/motion';
+import {leading} from '../runtime/cjkType';
 import {useDNA, EdFrame} from '../runtime/dna';
 
 export const DURATION = 165;
@@ -31,7 +32,7 @@ export const EdTimeline: React.FC<{kicker?: string; entries?: Entry[]; framed?: 
             return (
               <div key={i} style={{display: 'flex', gap: 40, alignItems: 'baseline', padding: '26px 0',
                 borderTop: i ? `1px solid ${line}` : 'none', opacity: show, transform: `translateY(${(1 - show) * 14}px)`}}>
-                <span style={{color: acc, font: `700 40px/1 ${disp}`, minWidth: '3ch'}}>{e.date}</span>
+                <span style={{color: acc, font: `700 40px/${leading(e.date, 1)} ${disp}`, minWidth: '3ch'}}>{e.date}</span>
                 <div>
                   <div style={{color: fg, font: `700 52px/1.1 ${disp}`, letterSpacing: '-0.01em'}}>{e.title}</div>
                   {e.note ? <div style={{color: dim, font: `400 30px/1.4 ${body}`, marginTop: 8}}>{e.note}</div> : null}

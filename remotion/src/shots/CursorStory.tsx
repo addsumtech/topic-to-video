@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeCursor, easeOutBack, easeOutCubic, clamp01} from '../runtime/motion';
+import {leading} from '../runtime/cjkType';
 import {useDNA} from '../runtime/dna';
 
 export const DURATION = 135; // 4.5s
@@ -64,7 +65,7 @@ export const CursorStory: React.FC<{items?: string[]; doneLabel?: string; doneNo
               「6」 was a count nobody supplied. No default on doneLabel: a number is not invented, so with
               nothing passed the block simply does not draw. */}
           {DONE ? <div style={{font: '800 60px/1 var(--f-body, Inter)', color: '#59d98b'}}>{DONE}</div> : null}
-          {DONE_NOTE ? <div style={{font: '600 32px/1 var(--f-body, Inter)', color: '#89e0a8', marginTop: 12}}>{DONE_NOTE}</div> : null}
+          {DONE_NOTE ? <div style={{font: `600 32px/${leading(DONE_NOTE, 1)} var(--f-body, Inter)`, color: '#89e0a8', marginTop: 12}}>{DONE_NOTE}</div> : null}
         </div>
       )}
       {/* keyboard chips */}

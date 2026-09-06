@@ -1,6 +1,7 @@
 import React from 'react';
 import {AbsoluteFill, Composition} from 'remotion';
 import {TextSafeAudit} from './runtime/textSafe';
+import {CJK_MIN_LEADING} from './runtime/cjkType';
 import {DesignDNAContext, coerceDna} from './runtime/dna';
 import './runtime/fonts';  // side effect: loads the DNA typefaces for Film AND every standalone shot still
 import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
@@ -243,6 +244,27 @@ export const BalancedLineProbe: React.FC = () => (
   </div>
 );
 
+// THE LEADING FLOOR, AND ITS BOUNDARY. `tight` reports wrapped Chinese set below CJK_MIN_LEADING, and the
+// first version compared the ratio alone: `line-height: 1.06` is a used value the browser rounds to whole
+// pixels, so the ratio reads 1.0599… and two registers that already MEET the floor were reported, at a
+// shortfall of 0px and 1px. The second probe here is set at EXACTLY the floor and must come back clean —
+// that is the case that went wrong, and it is the one a threshold change would break again.
+const FLOOR_COPY = '它自主拆解任务并在你授权的目录里真正动文件把重复动作沉淀成技能';
+
+export const TightLeadingProbe: React.FC = () => (
+  <div style={{position: 'absolute', inset: 0, background: '#fff', padding: 80}}>
+    <div style={{width: 900, color: '#000',
+      font: '700 72px/0.95 var(--f-display, Inter, system-ui, sans-serif)'}}>{FLOOR_COPY}</div>
+  </div>
+);
+
+export const FlooredLeadingProbe: React.FC = () => (
+  <div style={{position: 'absolute', inset: 0, background: '#fff', padding: 80}}>
+    <div style={{width: 900, color: '#000',
+      font: `700 72px/${CJK_MIN_LEADING} var(--f-display, Inter, system-ui, sans-serif)`}}>{FLOOR_COPY}</div>
+  </div>
+);
+
 const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C, p}) => {
   const {dna, aspect: _a, ...rest} = p as {dna?: unknown; aspect?: unknown};
   const active = coerceDna(dna as never);   // a string is a preset name; an object is a partial DNA
@@ -278,6 +300,8 @@ export const RemotionRoot: React.FC = () => (
     {F('TiltedTypeCleanProbe', TiltedTypeCleanProbe, 165)}
     {F('OrphanLineProbe', OrphanLineProbe, 165)}
     {F('BalancedLineProbe', BalancedLineProbe, 165)}
+    {F('TightLeadingProbe', TightLeadingProbe, 165)}
+    {F('FlooredLeadingProbe', FlooredLeadingProbe, 165)}
     {F('FontProbe', FontProbe, FPR)}
     {F('TypeSpecimen', TypeSpecimen, TSP)}
     {F('CollaborativeCursors', CollaborativeCursors, CC)}

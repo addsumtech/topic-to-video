@@ -184,6 +184,9 @@ export type Collision = {
 // leading and the ink is still nowhere near. 0.45 of the box sits above that and below the real cases
 // (CartoonPop 0.65, the synthetic probe 0.72).
 const LEADING_OVERLAP_FRAC = 0.45;
+// The least missing air worth naming, in px. Below this the shortfall is the browser rounding a used
+// `line-height` to whole pixels, not a register that set its type tight.
+const TIGHT_MIN_PX = 1.0;
 // Two elements' type overlapping is sometimes a technique (a brutalist stack, a glitch's offset copies), so
 // a graze is not a finding — the intersection has to eat a real share of the smaller box before it counts.
 const OVERLAP_AREA_FRAC = 0.22;
@@ -415,9 +418,18 @@ export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] 
       // `px/1` — 97 of the 153 registers — was invisible to it, and `CardStack3D` shipped a three-line
       // Chinese card label at exactly 1.0. A measurement does not need the leading to be spelled a
       // particular way.
+      //
+      // MEASURED IN PIXELS OF MISSING AIR, with a one-pixel floor, because the ratio comparison alone
+      // reports registers that already MEET the floor. `line-height: 1.06` on a 243px face is a used value
+      // the browser rounds to whole pixels, so the ratio reads 1.0599… and `< 1.06` is true — `BrutalistType`
+      // and `HalftonePop` both pass their copy through `leading()` and both were reported, at a shortfall of
+      // 0px and 1px. A finding about missing air that names zero pixels of it is a false positive, and this
+      // is exactly the kind that teaches a reader to stop believing a gate. The real cases are not close to
+      // the boundary: `CardStack3D` at 46px/1.0 was 2.8px short and `MapRoutes` at 30px/1.0 was 1.8px.
       const fs = parseFloat(cs.fontSize || ''), lh = parseFloat(cs.lineHeight || '');
-      if (isFinite(fs) && fs > 0 && isFinite(lh) && lh / fs < CJK_MIN_LEADING) {
-        out.push({kind: 'tight', depth: Math.round((CJK_MIN_LEADING - lh / fs) * fs), text: short, font, cls,
+      const shortPx = isFinite(fs) && fs > 0 && isFinite(lh) ? (CJK_MIN_LEADING - lh / fs) * fs : 0;
+      if (shortPx > TIGHT_MIN_PX) {
+        out.push({kind: 'tight', depth: Math.round(shortPx), text: short, font, cls,
                   ...(rot ? {rot: true} : {})});
       }
     }

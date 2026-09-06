@@ -40,6 +40,13 @@ string against a sentinel stack instead false-positived on every monospace face 
 JetBrains Mono and in the generic monospace) and still missed the case it was built for. The question is
 answered exactly and statically by `bundled_cjk_coverage()` below — read the font files, not the layout.
 
+RUN IT SERIALLY. A library sweep is 153 browser renders and the obvious speed-up is to shard it across
+processes. Measured: four concurrent shards reported FIVE registers as RENDER FAILURES that render fine on
+their own, called TWELVE registers "drew almost nothing" that draw fine on their own — and MISSED findings
+the serial re-run then reported (`TermBars` tight and orphaned, `FocalIsolation` orphaned). A starved render
+produces a partial frame, and every measurement here is of a frame. So the concurrency does not just cost
+accuracy at the margin; it moves findings in both directions, which is the one thing a gate may not do.
+
 THE COPY IT USES. Real registers take real props, so a fixture is generated per register from its own
 declared prop signature: a `kicker` gets a short label, a `tagline` gets a sentence, an `items` array gets
 list entries — Chinese throughout, at the lengths a real film actually writes. A register whose props this
@@ -113,7 +120,42 @@ _ROLE = [
 ]
 
 
-def _string_for(prop):
+# A READOUT IS A NUMBER, and copy is the wrong fixture for one. `VelocitySnap` hands its `metric` to the
+# shared `Figure` atom, which sets numerals at 0.86-0.9 leading — correct for digits, and reported as tight
+# Chinese the moment the fixture fed it a sentence. `TermCounter` simply drew nothing for a `value` it
+# could not read as a number. Neither is a register defect; both are this file feeding prose to a dial.
+# Detected from the register's own source rather than from a list of prop names, because `value` is real
+# copy on some registers and a dial on others.
+_READOUT = "88"
+
+
+def _is_readout(prop, local, src):
+    """Does this register read the prop as a NUMBER?
+
+    The strongest signal is the register's own DEFAULT: `value = '100'` says the field is a dial, in the
+    declaration, without pattern-matching a body that may reach the number three different ways
+    (`parseFloat(String(value)...)`, `<Figure value={shown}`, `.toLocaleString()`).
+    """
+    if not src or not local:
+        return False
+    dflt = re.search(r"\b%s\s*(?::\s*[A-Za-z_$][\w$]*\s*)?=\s*'([^']*)'" % re.escape(prop), src)
+    if dflt and re.fullmatch(r"[\d][\d.,%+\-\s]*", dflt.group(1).strip()):
+        return True
+    esc = re.escape(local)
+    return bool(re.search(r"<Figure\b[^>]*\bvalue=\{%s\b" % esc, src, re.S)
+                or re.search(r"\b(?:Number|parseFloat|parseInt)\([^)]*\b%s\b" % esc, src)
+                or re.search(r"\b%s\s*\.\s*toLocaleString\(" % esc, src))
+
+
+def _local_of(prop, src):
+    """The identifier a prop BINDS to — `metric: METRIC = …` renders through METRIC, not through `metric`."""
+    m = re.search(r"\b%s\s*:\s*([A-Za-z_$][\w$]*)" % re.escape(prop), src or "")
+    return m.group(1) if m else prop
+
+
+def _string_for(prop, local=None, src=""):
+    if _is_readout(prop, local or prop, src):
+        return _READOUT
     for pat, val in _ROLE:
         if re.match(pat, prop):
             return val
@@ -167,7 +209,7 @@ def cjk_props(name):
         elif t.startswith("string[]") or t.startswith("(string|"):
             props[prop] = list(_ITEMS[:4])
         elif t.startswith("string"):
-            props[prop] = _string_for(prop)
+            props[prop] = _string_for(prop, _local_of(prop, src), src)
         elif t.startswith("boolean"):
             continue
         elif t.startswith("number") or t.startswith("number|null"):
@@ -274,7 +316,7 @@ def _named_union_member(alias, src):
 def _synth_field(name, ty, src=""):
     t = ty.replace(" ", "").rstrip(";")
     if t.startswith("string"):
-        return _string_for(name)
+        return _string_for(name, name, src)
     if t.startswith("number"):
         # a 0..1 field given a 3 breaks the animation it drives (a `delay` of 3 puts the row off the clip),
         # and a magnitude given a 0.62 draws nothing. Name decides which, since the type cannot.
@@ -290,7 +332,7 @@ def _synth_field(name, ty, src=""):
     if m:                                                # a NAMED type — resolve it, never invent copy
         member = _named_union_member(m.group(1), src)
         return member if member is not None else _OMIT
-    return _string_for(name)
+    return _string_for(name, name, src)
 
 
 def _alias_fields(src, alias):
@@ -306,10 +348,26 @@ def _alias_fields(src, alias):
     return out or None
 
 
+# A field that names a COLOUR is not copy, at any nesting depth. The top-level skip covered `accent` and
+# `accent2`; a row's own `tone` sat below it, so `TermBars` was handed a Chinese sentence as the colour of
+# every bar. Omitted, so the register keeps its own default.
+_NON_COPY_FIELDS = re.compile(r"^(tone|color|colour|accent\d?|bg|background|ink|hue|fill|shade|stroke)$", re.I)
+# ...and a DATA ROW's readout is a number. A row that also declares a numeric `pct` or `fill` is a measured
+# row, so its `value` is the figure beside the bar — `TermBars` drew nothing for the word it was given.
+_ROW_READOUT = re.compile(r"^(value|amount|metric|count|total|num)$", re.I)
+
+
 def _shaped_row(fields, src):
     """One element of a shaped array, with every field this cannot honour left out rather than guessed."""
+    measured = any(re.match(r"^(pct|fill|ratio|frac|percent)$", k, re.I)
+                   and str(v).replace(" ", "").startswith("number") for k, v in fields.items())
     row = {}
     for k, v in fields.items():
+        if _NON_COPY_FIELDS.match(k) and str(v).replace(" ", "").startswith("string"):
+            continue
+        if measured and _ROW_READOUT.match(k) and str(v).replace(" ", "").startswith("string"):
+            row[k] = _READOUT
+            continue
         val = _synth_field(k, v, src)
         if val is not _OMIT:
             row[k] = val
@@ -454,6 +512,8 @@ SUSPECT_INK = 0.05          # below this, ask the second question — above it, 
 # Kept as the FALLBACK arbiter only — for a register this fixture could shape no CJK copy for, where there
 # is nothing to look for in the DOM and the ink yardstick is all that is left.
 UNFED_RATIO = 0.75
+# HALF the copy gone means the register was not reached; a few strings gone means it dropped them.
+UNFED_MISSING_FRAC = 0.5
 
 
 def _ink_fraction(png):
@@ -604,8 +664,21 @@ def audit(shot, props, frame, tmp, dna=DEFAULT_DNA, aspect=None):
                              "the screen failed — nothing is known about this frame)" % (got * 100)}]
         if not missing:
             return []
-        return [{"kind": "unfed", "depth": 0, "font": "", "cls": "",
-                 "text": "(drew %.2f%% ink, and %d of %d strings it was given never reached the screen: %s)"
+        # HOW MUCH OF THE COPY VANISHED DECIDES WHAT THIS IS, and the first version made one claim for both.
+        # A register that drew 9 of the 11 strings it was given HAS been reached — it capped a list, or a
+        # panel is conditional on a prop the fixture cannot shape. Saying "the fixture did not reach this
+        # register" of that frame is false, and it failed the gate for it. Saying nothing is worse: a
+        # register that silently drops copy a film supplied is worth knowing about. So they are two
+        # findings. Measured on the four the library actually has: KineticManifesto 2 of 4 at 0.00% ink
+        # (its phrases have flown past the probe frame — nothing is on screen), against EdCompare 2 of 11,
+        # TermCounter 1 of 4 and TermTable 1 of 10, which all drew.
+        frac = len(missing) / float(len(fed))
+        if frac >= UNFED_MISSING_FRAC:
+            return [{"kind": "unfed", "depth": 0, "font": "", "cls": "",
+                     "text": "(drew %.2f%% ink, and %d of %d strings it was given never reached the screen: "
+                             "%s)" % (got * 100, len(missing), len(fed), " / ".join(missing[:3]))}]
+        return [{"kind": "dropped", "depth": 0, "font": "", "cls": "",
+                 "text": "(drew %.2f%% ink and dropped %d of %d strings: %s)"
                          % (got * 100, len(missing), len(fed), " / ".join(missing[:3]))}]
     # No CJK copy was fed at all (a register whose props this fixture could not shape), so fall back to the
     # ink yardstick — a comparison against its own defaults is all that is left to ask.
@@ -662,10 +735,12 @@ def sweep(names, dna=DEFAULT_DNA, aspect=None, film_props=None):
 # rather than a coincidence.
 CONTROLS_BAD = {"TypeCollisionProbe": "leading",          # Chinese at 0.55 leading
                 "TiltedTypeCollisionProbe": "leading",    # the same, on a 13° tilt
-                "OrphanLineProbe": "orphan"}              # 15 characters in a box 7 wide: 7 / 7 / 1
+                "OrphanLineProbe": "orphan",              # 15 characters in a box 7 wide: 7 / 7 / 1
+                "TightLeadingProbe": "tight"}             # wrapped Chinese at 0.95
 # {probe: the kind its partner produces, which this one must NOT}
 CONTROLS_CLEAN = {"TiltedTypeCleanProbe": "leading",      # well-set, same tilt
-                  "BalancedLineProbe": "orphan"}          # the same copy with `text-wrap: balance`
+                  "BalancedLineProbe": "orphan",          # the same copy with `text-wrap: balance`
+                  "FlooredLeadingProbe": "tight"}         # the same copy at EXACTLY the floor
 # KineticManifesto is deliberately here on the GOOD side — see the header. It reports clean and that is the
 # right answer; it was a mis-diagnosis off a single mid-flythrough frame.
 # REAL registers that must not report a `leading` collision — the two repaired ones included, so a
@@ -767,6 +842,8 @@ def main(argv):
     # A rotated element the orientation-free instrument could not read is not a pass — it is an element
     # NOTHING is known about. It fails, because the only way to reach it is a renderer that cannot measure
     # font metrics, and then every rotated register in the sweep is unmeasured and the run means nothing.
+    drop = {n: [h for h in v["hits"] if h["kind"] == "dropped"] for n, v in res.items()}
+    drop = {n: h for n, h in drop.items() if h}
     unmeas = {n: [h for h in v["hits"] if h["kind"] == "unmeasured"] for n, v in res.items()}
     unmeas = {n: h for n, h in unmeas.items() if h}
     failed = [n for n, v in res.items() if v["failed"]]
@@ -812,6 +889,12 @@ def main(argv):
             print("\nDREW ALMOST NOTHING — the fixture did not reach these registers, so a clean result here "
                   "would\n  be a measurement of an empty frame, not of the register:\n    %s"
                   % ", ".join(sorted(unfed)[:16]))
+        if drop:
+            print("\nDREW A SPARSE FRAME AND DROPPED SOME OF THE COPY — the register was reached, and some "
+                  "of what it\n  was given did not appear (a capped list, or a panel conditional on a prop). "
+                  "A report, not a failure:")
+            for n in sorted(drop):
+                print("    %-22s %s" % (n, drop[n][0]["text"]))
         if unmeas:
             print("\nCOULD NOT BE MEASURED — these are drawn on a TILT and the orientation-free instrument "
                   "could not\n  read them, so this run says nothing about them either way:")

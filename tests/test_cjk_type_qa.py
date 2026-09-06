@@ -563,9 +563,66 @@ def _probe_kind(name, kind, props=None):
 
 def test_every_synthetic_control_has_a_one_property_twin():
     """A catch is only evidence when its twin, differing in one property, comes back clean."""
-    assert set(c.CONTROLS_BAD.values()) == {"leading", "orphan"}
+    assert set(c.CONTROLS_BAD.values()) == {"leading", "orphan", "tight"}
     assert set(c.CONTROLS_CLEAN.values()) <= set(c.CONTROLS_BAD.values())
     root = open(os.path.join(_ROOT, "remotion", "src", "Root.tsx"), encoding="utf-8").read()
     for n in list(c.CONTROLS_BAD) + list(c.CONTROLS_CLEAN):
         assert "{F('%s', %s, " % (n, n) in root, n
     assert "ORPHAN_COPY" in root, "both orphan probes must set the SAME copy, or they are not a pair"
+
+
+# ── the leading floor's BOUNDARY, and the two claims about a sparse frame ───────────────────────────
+@_NEEDS_REMOTION
+def test_copy_set_exactly_at_the_floor_is_not_reported_as_under_it():
+    """The failure this pins shipped in the gate itself. `tight` compared the RATIO, and `line-height: 1.06`
+    is a used value the browser rounds to whole pixels, so the ratio reads 1.0599… — two registers that pass
+    their copy through `leading()` were reported, at a shortfall of 0px and 1px. A finding about missing air
+    that names none of it is the kind of false positive that teaches a reader to ignore a gate."""
+    assert _probe_kind("TightLeadingProbe", "tight"), "copy at 0.95 must be caught"
+    assert not _probe_kind("FlooredLeadingProbe", "tight"), "copy at exactly the floor must be clean"
+
+
+def test_the_tight_finding_has_a_pixel_floor_not_just_a_ratio():
+    dom = open(_TEXTSAFE, encoding="utf-8").read()
+    assert "TIGHT_MIN_PX" in dom and "shortPx > TIGHT_MIN_PX" in dom, \
+        "the shortfall must be measured in pixels of missing air, with a floor"
+
+
+def test_a_register_that_dropped_a_little_copy_is_not_called_unreached():
+    """Two different claims, and the first version made one for both. A register that drew 9 of the 11
+    strings it was given HAS been reached; saying the fixture never reached it is false, and it failed the
+    gate for it. Saying nothing is worse — silently dropped copy is worth knowing about."""
+    assert 0 < c.UNFED_MISSING_FRAC <= 0.5
+    src = open(os.path.join(_ROOT, "scripts", "cjk_type_qa.py"), encoding="utf-8").read()
+    assert '"kind": "dropped"' in src and "DREW A SPARSE FRAME" in src
+    assert "A report, not a failure" in src
+
+
+# ── the fixture must not feed prose to a dial, or copy to a colour ──────────────────────────────────
+def test_a_numeric_readout_is_fed_a_numeral_not_a_sentence():
+    """`VelocitySnap` hands its metric to the shared `Figure` atom, which sets numerals at 0.86 leading —
+    correct for digits, and reported as tight Chinese the moment the fixture fed it a sentence. `TermCounter`
+    simply drew nothing for a value it could not read as a number. Detected from the register's OWN default,
+    because `value` is real copy on some registers and a dial on others."""
+    for name, prop in (("VelocitySnap", "metric"), ("TermCounter", "value"), ("EdStat", "value"),
+                       ("OdometerRoll", "value")):
+        props, _ = c.cjk_props(name)
+        assert props.get(prop) == c._READOUT, "%s.%s = %r" % (name, prop, props.get(prop))
+    # ...and a field that is real copy keeps its Chinese
+    assert c._HAS_CJK.search(c.cjk_props("MagazineSpread")[0]["headline"])
+
+
+def test_a_colour_field_is_never_fed_copy_at_any_depth():
+    """The top-level skip covered `accent`; a ROW's own `tone` sat below it, so `TermBars` was handed a
+    Chinese sentence as the colour of every bar."""
+    row = c.cjk_props("TermBars")[0]["rows"][0]
+    assert "tone" not in row, row
+    assert row.get("value") == c._READOUT, "a measured row's value is its readout"
+    assert c._HAS_CJK.search(row["label"]), "the row's LABEL is still copy"
+
+
+def test_the_sweep_records_that_it_must_run_serially():
+    """Four concurrent shards reported five registers as render failures that render fine alone, called
+    twelve 'drew almost nothing' that draw fine alone, and MISSED findings the serial run then reported."""
+    src = open(os.path.join(_ROOT, "scripts", "cjk_type_qa.py"), encoding="utf-8").read()
+    assert "RUN IT SERIALLY" in src and "TermBars" in src

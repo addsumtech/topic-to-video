@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic} from '../runtime/motion';
+import {leading} from '../runtime/cjkType';
 import {useDNA} from '../runtime/dna';
 
 // A reticle SCANS and then LOCKS: those two states are the form, not the topic — so they are
@@ -65,7 +66,7 @@ export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?:
 
       {/* central subject */}
       <div style={{position: 'absolute', left: cx, top: cy, transform: `translate(-50%,-50%) scale(${lerp(0.9, 1, brackets)})`, textAlign: 'center'}}>
-        <div style={{color: '#eafffb', font: '800 84px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.02em',
+        <div style={{color: '#eafffb', font: `800 84px/${leading(TARGET, 1)} var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
           textShadow: `0 0 40px ${col}66`}}>{TARGET}</div>
         <div style={{marginTop: 14, color: col, font: '700 26px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em',
           opacity: locked ? lockIn : 0.6 * clamp01(seg(t, 0.4, 0.6))}}>{locked ? LOCK_LABEL : SCAN_LABEL}</div>

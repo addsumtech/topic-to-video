@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, life} from '../runtime/motion';
+import {leading} from '../runtime/cjkType';
 import {useDNA, dnaPalette, mix} from '../runtime/dna';
 
 const BG_D0 = '#0a0c12';
@@ -89,7 +90,8 @@ export const BentoReveal: React.FC<{title?: string; hero?: string; items?: strin
                   font: '600 24px/1 var(--f-mono, "JetBrains Mono", monospace)',
                   letterSpacing: dna?.labelSpacing ?? '0.14em'}}>{HEROKICKER}</div>
                 <div>
-                  <div style={{color: '#fff', font: '800 96px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em'}}>{TITLE}</div>
+                  <div style={{color: '#fff', textWrap: 'balance',
+                    font: `800 96px/${leading(TITLE, 1)} var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.03em'}}>{TITLE}</div>
                   <div style={{color: '#ffffffdd', font: '500 32px/1.2 var(--f-body, Inter, system-ui, sans-serif)', marginTop: 16}}>{HEROSUB}</div>
                 </div>
               </>

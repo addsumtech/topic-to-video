@@ -209,6 +209,7 @@ export const TermBars: React.FC<{cmd?: string; title?: string; rows?: Row[]; not
           </div>
 
           {note ? <div style={{marginTop: Math.round(barSize * 0.85), color: dim,
+            textWrap: 'balance',
             font: `500 ${Math.round(barSize * 0.68)}px/1.3 ${mono}`}}># {note}</div> : null}
         </TermFrame>
       </div>

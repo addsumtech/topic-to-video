@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
+import {leading} from '../runtime/cjkType';
 import {useDNA, dnaPalette, shade} from '../runtime/dna';
 import {fitTextOnNLines} from '@remotion/layout-utils';
 
@@ -95,7 +96,7 @@ export const CardFlip3D: React.FC<{items?: Item[]; title?: string; backLabel?: s
               </Face>
               <Face back tone={tone}>
                 {/* was a bare ↓ pointing at nothing — undecodable furniture. A short label says what the back IS. */}
-                <div style={{color: ON, opacity: .72, font: `700 20px/1 var(--f-mono, "JetBrains Mono", monospace)`,
+                <div style={{color: ON, opacity: .72, font: `700 20px/${leading(BACKLABEL, 1)} var(--f-mono, "JetBrains Mono", monospace)`,
                   letterSpacing: '.18em', marginBottom: 16}}>{BACKLABEL}</div>
                 <div style={{color: ON, font: `800 ${faceSize}px/1.18 ${dispFace}`,
                   textAlign: 'center', letterSpacing: '-0.02em'}}>{c.back}</div>

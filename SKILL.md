@@ -469,7 +469,12 @@ TTS if the user gives an API key.
   instrument was wrong in BOTH directions on tilted type (a well-set block read as a 148px collision, a
   mis-set one read as clean). A frame that draws almost nothing is arbitrated by asking the DOM which of
   the strings it was fed actually reached the screen, never by comparing its ink with the register's
-  demo defaults. It exists because a
+  demo defaults — and HOW MUCH of the copy vanished decides which of two things it says: half or more gone
+  is `unfed` (the fixture never reached the register, an ERROR), a few gone is `dropped` (the register was
+  reached and capped a list or hid a conditional panel, a report). **Run it serially.** Four concurrent
+  shards reported five registers as render failures that render fine alone, called twelve "drew almost
+  nothing" that draw fine alone, and MISSED findings the serial run then reported: a starved render makes a
+  partial frame, and every measurement here is of a frame. It exists because a
   delivered Chinese film had two registers set their copy into an unreadable pile while every gate was
   green: `text_safe_qa` asks whether type falls OFF the canvas, and this copy stayed inside the frame. The
   cause is one thing — the library is authored with short English demo strings, and `line-height: 0.82` is

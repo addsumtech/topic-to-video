@@ -54,7 +54,7 @@ export const FocalIsolation: React.FC<{focalLabel?: string; items?: string[]}> =
             border: `${isF ? 2 : 1}px solid ${isF ? ACCENT : '#26303f'}`, borderRadius: 16,
             boxShadow: isF ? `0 0 0 6px ${ACCENT}22, 0 30px 70px rgba(0,0,0,.5)` : 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-            <div style={{font: `${isF ? 700 : 500} ${isF ? 40 : 32}px/1.15 var(--f-body, Inter,system-ui,sans-serif)`,
+            <div style={{textWrap: 'balance', font: `${isF ? 700 : 500} ${isF ? 40 : 32}px/1.15 var(--f-body, Inter,system-ui,sans-serif)`,
               color: isF ? '#eaf1ff' : '#7f8da3', textAlign: 'center', padding: '0 24px'}}>{label}</div>
           </div>
         );

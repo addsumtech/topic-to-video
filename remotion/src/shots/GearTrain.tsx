@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic, easeOutBack} from '../runtime/motion';
+import {leading} from '../runtime/cjkType';
 import {useDNA, dnaPalette} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
@@ -76,7 +77,7 @@ export const GearTrain: React.FC<{items?: string[]; label?: string; title?: stri
             <div style={{color: '#7f879c', font: '600 20px/1 var(--f-mono, "JetBrains Mono", monospace)',
               letterSpacing: '0.14em', marginBottom: 8}}>{String(i + 1).padStart(2, '0')}</div>
             <div style={{color: isLast && locked ? '#fff' : '#e7ebf7',
-              font: '800 40px/1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em'}}>{g}</div>
+              font: `800 40px/${leading(g, 1)} var(--f-body, Inter, system-ui, sans-serif)`, letterSpacing: '-0.01em'}}>{g}</div>
           </div>
         );
       })}
