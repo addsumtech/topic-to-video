@@ -65,6 +65,18 @@ export const AcceptanceStamp: React.FC<Props> = ({
   const top = CONTENT_TOP, bottom = H - captionBand(W, H);
   const midY = (top + bottom) / 2;
 
+  // EXACTLY TWO, LOUDLY. The whole register is a CONJUNCTION: two things hold, in no order, and the result
+  // does not exist in a partial form. Given one it drew an empty second card; given three it dropped the
+  // third without a word — both are frames that look composed and say something false, which is the failure
+  // this library's evidence guard exists to end (runtime/evidence.ts). A beat with three conditions is a
+  // list, and wants a list register.
+  if (!Array.isArray(conditions) || conditions.filter((x) => String(x ?? '').trim()).length !== 2) {
+    throw new Error(
+      `AcceptanceStamp needs exactly TWO non-empty \`conditions\`, got ` +
+      `${Array.isArray(conditions) ? conditions.length : typeof conditions}. This register draws a ` +
+      `conjunction — A and B, in no order, and the result does not exist unless both hold. One condition ` +
+      `is not a conjunction and three is a list; either wants a different register.`);
+  }
   const a = String(conditions[0] ?? '');
   const b = String(conditions[1] ?? '');
   // the two conditions arrive, then tick, then the result fills and takes the stamp
