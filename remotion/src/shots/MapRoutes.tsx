@@ -5,8 +5,9 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeInOutCubic, easeOutBack, clamp01, hash01} from '../runtime/motion';
+import {leading, fitIfCJK} from '../runtime/cjkType';
 import {useDNA} from '../runtime/dna';
-import {CONTENT_TOP, contentBottom} from '../runtime/layout';
+import {CONTENT_TOP, contentBottom, fitTextPx} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: string}> = ({
@@ -64,7 +65,12 @@ export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: strin
       })}
       {/* the hub */}
       <div style={{position: 'absolute', left: hx, top: hy, transform: 'translate(-50%,-50%)'}}>
-        <div style={{width: 130, height: 130, borderRadius: 65, background: 'radial-gradient(circle,#fff,#8ff5e8 60%,#2fb5a5)', boxShadow: `0 0 60px ${TEAL}`, display: 'flex', alignItems: 'center', justifyContent: 'center', font: '800 30px/1 var(--f-body, Inter)', color: '#06322b', textAlign: 'center', padding: 8}}>{HUB}</div>
+        {/* THE HUB LABEL IS FITTED AND BALANCED. A 130px disc holds a short English word at 30px and drops a
+          single Chinese character onto a second line the moment the label is one unit wider: a delivered
+          film's hub read 「MCP 协」 over a line holding just 「议」, at a leading with no air in it either.
+          `fitIfCJK` shrinks only CJK copy (English keeps the size the disc was designed at), `leading`
+          only ever raises, and `balance` splits what still has to wrap into even lines. */}
+      <div style={{width: 130, height: 130, borderRadius: 65, background: 'radial-gradient(circle,#fff,#8ff5e8 60%,#2fb5a5)', boxShadow: `0 0 60px ${TEAL}`, display: 'flex', alignItems: 'center', justifyContent: 'center', font: `800 ${fitIfCJK(HUB, 30, (t, base) => fitTextPx(t, 114, base, {usable: 1.0}))}px/${leading(HUB, 1)} var(--f-body, Inter)`, color: '#06322b', textAlign: 'center', textWrap: 'balance', padding: 8}}>{HUB}</div>
       </div>
     </AbsoluteFill>
   );
