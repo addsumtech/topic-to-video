@@ -17,7 +17,7 @@ yet in this library — they exist for new shots and opportunistic use. See
 deliberately left un-migrated.
 
 <!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
-**Family census — 152 registers across 27 families.** D×24 · A×15 · C×12 · G×11 · F×10 · H×9 · B×8 · E×8 · L×6 · I×5 · J×5 · K×5 · M×5 · S×5 · U×5 · JA×4 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
+**Family census — 153 registers across 27 families.** D×24 · A×16 · C×12 · G×11 · F×10 · H×9 · B×8 · E×8 · L×6 · I×5 · J×5 · K×5 · M×5 · S×5 · U×5 · JA×4 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
 
 **9 families hold two registers or fewer: O, Q, R, T, V, W, X, Y, Z.** That is a BUILD signal, not a menu. When a beat's
 argument wants one of those languages and the one register there does not carry it, the answer is

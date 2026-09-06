@@ -389,6 +389,13 @@ def family_census_block():
     import collections
     sys.path.insert(0, _HERE)
     import shot_director as sd
+    # RE-READ, do not trust the import. `register()` edits shot_director.py in this same process, and if
+    # the module was imported BEFORE that edit — which it is, the family-peer hint at registration time
+    # imports it — `sd.FAMILY` is the pre-edit dict from the module cache. The census was then rewritten
+    # from stale memory and reported one register fewer than the file holds, which is exactly the drift the
+    # sync test then failed on: a generator that cannot see the edit it was called to record.
+    import importlib
+    sd = importlib.reload(sd)
     c = collections.Counter(sd.FAMILY.values())
     rows = " · ".join("%s×%d" % (f, n) for f, n in sorted(c.items(), key=lambda x: (-x[1], x[0])))
     thin = sorted(f for f, n in c.items() if n <= 2)

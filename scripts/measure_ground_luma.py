@@ -160,9 +160,18 @@ def write_shot_luma(measured):
     n = [0]
 
     def fix(m):
-        name, val = m.group(1), m.group(2)
+        name, val, comment = m.group(1), m.group(2), (m.group(3) or "")
         want = measured.get(name)
-        if want and want != val:
+        if not want:
+            return m.group(0)
+        # A CONFIRMED PLACEHOLDER IS STILL A MEASURED ONE. This only rewrote entries whose value CHANGED,
+        # so a scaffold placeholder the measurement happened to agree with kept its `// PROVISIONAL — never
+        # measured` marker for ever, and `test_shot_luma_is_measured_not_guessed` could then never be
+        # satisfied except by changing the register's design. AcceptanceStamp hit it on its first day: its
+        # own ground is dark, the placeholder guessed dark, and --emit reported "wrote 0 entries" while the
+        # test kept failing. The DNA_GROUND_TOKEN half of this file already drops the marker on write; this
+        # half now does too, because "never measured" is a claim about history, not about the value.
+        if want != val or "PROVISIONAL" in comment:
             n[0] += 1
             # NO trailing comment. Appending `// measured` to an entry that SHARES A LINE with others
             # commented its line-mates out — two shots vanished from the table and the sync test caught it.
@@ -170,7 +179,7 @@ def write_shot_luma(measured):
             return "%s: '%s'," % (name, want)
         return m.group(0)
 
-    body = re.sub(r"(\w+):\s*'(dark|mid|light)',(?:\s*//[^\n]*)?", fix, body)
+    body = re.sub(r"(\w+):\s*'(dark|mid|light)',(\s*//[^\n]*)?", fix, body)
     open(_SHOTLUMA, "w", encoding="utf-8").write(head + "export const SHOT_LUMA" + body + "};" + tail)
     return n[0]
 
