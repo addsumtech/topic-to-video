@@ -55,6 +55,23 @@ ONE MORE FALSE POSITIVE IS WORTH RECORDING, because it nearly shipped. `getClien
 per FONT RUN, not per line, and a mixed CJK+Latin string is at least two runs sharing a baseline in two
 different faces. Compared raw, a folio reading `交付可验收的成果.CO — 01` — visibly one clean line — was
 reported as a 31px collision. Runs are grouped into lines first.
+
+AND ONE THAT DID SHIP, WHICH IS WORSE. A client rect is AXIS-ALIGNED, so for type drawn on a TILT it is the
+bounding box of a tilted line — taller than the line by `width·|sin θ|`. `CardStack3D` fans its cards ±13°,
+and a card label whose three Chinese lines are visibly separate was reported on a delivered film as a 64px
+collision; the same label in the same register with ONE card, where the fan angle is zero, reported clean.
+The whole 64px was the tilt. Mutating the rotation guard out proves the instrument was wrong in BOTH
+directions on tilted type — a well-set tilted block read as a 148px collision, and a deliberately mis-set
+one read as clean, because consecutive tilted boxes overlap enough to be grouped into a single line. 27 of
+the 153 registers rotate something. Rotated type is now measured with an instrument that has no orientation
+at all (`metricLeading`: the font's own box height against the resolved `line-height`), and two permanent
+synthetic probes — `TiltedTypeCollisionProbe` and `TiltedTypeCleanProbe` — hold it to both answers.
+
+THE "DREW NOTHING" GUARD LEARNED THE SAME LESSON. Its first arbiter compared a suspicious frame's ink with
+the register's own demo defaults, and it convicted the first legitimately sparse frame it met: a four-panel
+`QuadSplit` on a warm-white product palette, 3% ink, all five of its strings plainly on screen. Ink is a
+proxy; the DOM knows the answer. Low ink is still the cheap TRIGGER, but the verdict now comes from asking
+the render which of the strings we fed actually reached the screen (`auditFedText`).
 """
 import argparse
 import glob
@@ -80,7 +97,12 @@ _LABEL = "自主循环"
 _TITLE = "交付可验收的成果"
 _LONG = "它自主拆解任务、在你授权的目录里真正动文件，并把重复动作沉淀成可复用的技能"
 _MED = "办公的产物本身就是文件，不是一段还要你二次加工的文字"
-_ITEMS = ["自动拆解任务", "规划执行步骤", "调用工具执行", "交付可验收成果", "沉淀为可复用技能"]
+# LIST ENTRIES ARE THE LENGTH A REAL FILM WRITES, WHICH IS LONGER THAN A DEMO LABEL — and that is the
+# whole precondition for the defect. At 6 characters these never wrapped in a card or a panel, so the
+# sweep reported `CardStack3D` clean and the same register broke on a delivered film whose card read
+# 「行业 Buddy 应用 · 更新日志 5.5.0」. Mixed lengths, because a real list has both.
+_ITEMS = ["自动拆解任务", "规划执行步骤并调用工具", "在授权目录里真正动文件", "交付可验收的成果",
+          "把重复动作沉淀成可复用技能"]
 
 _ROLE = [
     (r"^(kicker|meta|unit|issue|sectionLabel|wordmark|colophon|doneLabel|tag|cmd|root|hub|time|date|"
@@ -216,7 +238,40 @@ _ARRAY_SHAPES = {
 
 # A number that is plainly a 0..1 fraction gets one; anything else gets a small count. No figure this gate
 # invents ever reaches a film — these props exist only to make the register DRAW so its type can be measured.
-def _synth_field(name, ty):
+# A field whose type this cannot honour is OMITTED, never guessed at. `_synth_field` returns it.
+_OMIT = object()
+
+_UNION_CACHE = {}
+
+
+def _named_union_member(alias, src):
+    """The first member of `type Alias = 'a' | 'b' | …`, wherever that alias is declared.
+
+    A field typed as a NAMED alias is not copy and must not be fed a sentence. QuadSplit's panels declare
+    `icon?: IconName`, the shaper handed it a Chinese sentence, and the Icon registry threw — correctly, it
+    is written to fail loud. The register then reported as a RENDER FAILURE, which the controls counted as
+    a clean known-GOOD, so the sweep was quietly measuring 29 registers and calling it 30. Resolve the
+    alias instead: the register's own source first, then the runtime it imports from.
+    """
+    if alias in _UNION_CACHE:
+        return _UNION_CACHE[alias]
+    pool = [src] if src else []
+    pool += [open(f, encoding="utf-8").read()
+             for f in sorted(glob.glob(os.path.join(_REMOTION, "src", "runtime", "*.ts*")))]
+    got = None
+    for text in pool:
+        m = re.search(r"(?:export\s+)?type\s+%s\s*=\s*([^;]+);" % re.escape(alias), text, re.S)
+        if not m:
+            continue
+        lit = re.search(r"'([^']+)'", m.group(1))
+        if lit:
+            got = lit.group(1)
+            break
+    _UNION_CACHE[alias] = got
+    return got
+
+
+def _synth_field(name, ty, src=""):
     t = ty.replace(" ", "").rstrip(";")
     if t.startswith("string"):
         return _string_for(name)
@@ -228,8 +283,14 @@ def _synth_field(name, ty):
         return 62
     if t.startswith("boolean"):
         return name in ("find", "hero", "done", "ok")
-    m = re.match(r"^'([^']+)'", t)                       # a string-literal union: take the first member
-    return m.group(1) if m else _string_for(name)
+    m = re.match(r"^'([^']+)'", t)                       # an INLINE string-literal union: first member
+    if m:
+        return m.group(1)
+    m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)(\|undefined)?$", t)
+    if m:                                                # a NAMED type — resolve it, never invent copy
+        member = _named_union_member(m.group(1), src)
+        return member if member is not None else _OMIT
+    return _string_for(name)
 
 
 def _alias_fields(src, alias):
@@ -243,6 +304,16 @@ def _alias_fields(src, alias):
         if f:
             out[f.group(1)] = f.group(2).strip()
     return out or None
+
+
+def _shaped_row(fields, src):
+    """One element of a shaped array, with every field this cannot honour left out rather than guessed."""
+    row = {}
+    for k, v in fields.items():
+        val = _synth_field(k, v, src)
+        if val is not _OMIT:
+            row[k] = val
+    return row
 
 
 def _shape_from_type(prop, ty, src, n=3):
@@ -259,7 +330,7 @@ def _shape_from_type(prop, ty, src, n=3):
     if m:
         fields = _alias_fields(src, m.group(1))
         if fields:
-            return [{k: _synth_field(k, v) for k, v in fields.items()} for _ in range(n)]
+            return [_shaped_row(fields, src) for _ in range(n)]
         return None
     m = re.match(r"^\{(.+)\}\[\]$", t)                                      # an INLINE object array
     if m:
@@ -269,7 +340,7 @@ def _shape_from_type(prop, ty, src, n=3):
             if f:
                 fields[f.group(1)] = f.group(2)
         if fields:
-            return [{k: _synth_field(k, v) for k, v in fields.items()} for _ in range(n)]
+            return [_shaped_row(fields, src) for _ in range(n)]
     return None
 
 
@@ -368,6 +439,10 @@ def durations():
 # are legitimately sparse, and the honest margin between "sparse" and "empty" is too narrow to name. So the
 # comparison is RELATIVE: re-render the same register with its OWN defaults and compare. A fixture that
 # reached the register draws about as much as its demo copy does; one that did not draws a fraction of it.
+# Han, kana, Hangul and CJK punctuation — the same set `runtime/cjkType.ts` tests for, so the gate and
+# the registers cannot drift apart on what "is this Chinese" means.
+_HAS_CJK = re.compile("[\u1100-\u11ff\u2e80-\u9fff\uac00-\ud7af\uf900-\ufaff\ufe30-\ufe4f\uff00-\uffef]")
+
 SUSPECT_INK = 0.05          # below this, ask the second question — above it, nothing was missed
 # ...and this much less ink than its own defaults means the fixture never landed. MEASURED on TermTree, the
 # register that exposed the hole, at the same frame and DNA:
@@ -376,6 +451,8 @@ SUSPECT_INK = 0.05          # below this, ask the second question — above it, 
 # The first threshold was 0.45 and sat exactly ON the wrong case, so the negative control still reported
 # clean. 0.75 separates them with margin on both sides. A correctly-fed register draws roughly what its demo
 # copy draws or more — CJK glyphs are wider than the short English samples the library ships with.
+# Kept as the FALLBACK arbiter only — for a register this fixture could shape no CJK copy for, where there
+# is nothing to look for in the DOM and the ink yardstick is all that is left.
 UNFED_RATIO = 0.75
 
 
@@ -411,8 +488,80 @@ def _default_ink(shot, frame, tmp, dna, aspect):
                 os.remove(f)
 
 
+FED_TAG = "FED-TEXT "
+
+# A MEASUREMENT TAKEN WHILE THE INSTRUMENT IS BEING TAKEN APART IS NOT A MEASUREMENT. The load-bearing test
+# for the rotation guard proves itself by MUTATING `runtime/textSafe.tsx` on disk for the length of two
+# renders. A sweep running at the same time renders against whatever is in the file at that instant, so it
+# would report numbers from the broken instrument and look exactly like a normal run. This happened. The
+# mutator holds this sentinel; every render refuses while it is there, loudly, instead of returning a lie.
+_MUTATING = os.path.join(_REMOTION, ".textsafe-mutating")
+
+
+def _refuse_if_instrument_is_mutated():
+    """The sentinel names the PID that OWNS the mutation, so the mutator's own two renders go through and
+    every other process stops. A sentinel that simply existed would have to be dropped for those renders,
+    which is the whole window it was meant to cover."""
+    try:
+        owner = open(_MUTATING, encoding="utf-8").read().strip()
+    except OSError:
+        return
+    if owner != str(os.getpid()):
+        raise RuntimeError(
+            "remotion/src/runtime/textSafe.tsx is deliberately mutated right now — pid %s holds %s — so a "
+            "render started here would measure the broken instrument and look like a normal run. Wait for "
+            "that run to finish, or delete the sentinel if a crash left it behind."
+            % (owner or "?", _MUTATING))
+
+
+def _string_leaves(obj, out=None):
+    """Every string anywhere in a props tree — the copy a register was actually handed."""
+    if out is None:
+        out = []
+    if isinstance(obj, str):
+        out.append(obj)
+    elif isinstance(obj, dict):
+        for v in obj.values():
+            _string_leaves(v, out)
+    elif isinstance(obj, (list, tuple)):
+        for v in obj:
+            _string_leaves(v, out)
+    return out
+
+
+def _fed_missing(shot, props, frame, tmp, dna, aspect, fed):
+    """Which of `fed` never reached the DOM — asked of the render, not inferred from ink.
+
+    Returns a list, or None when the question could not be put (the render failed). One extra render, and
+    only when a frame already looks suspiciously empty."""
+    pf = tmp + ".fed.json"
+    payload = dict(props)
+    payload["fedText"] = fed
+    payload["dna"] = dna
+    if aspect:
+        payload["aspect"] = aspect
+    with open(pf, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False, allow_nan=False)
+    png = tmp + ".fed.png"
+    r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png, "--frame=%d" % frame,
+                        "--gl=angle", "--log=error", "--props=" + os.path.abspath(pf),
+                        "--public-dir=" + os.path.join(_REMOTION, "public")],
+                       cwd=_REMOTION, capture_output=True, text=True)
+    for f in (pf, png):
+        if os.path.exists(f):
+            os.remove(f)
+    err = (r.stderr or "") + (r.stdout or "")
+    if FED_TAG not in err:
+        return None
+    try:
+        return (json.JSONDecoder().raw_decode(err.split(FED_TAG, 1)[1])[0] or {}).get("missing")
+    except json.JSONDecodeError:
+        return None
+
+
 def audit(shot, props, frame, tmp, dna=DEFAULT_DNA, aspect=None):
     """[] clean · [collision…] · None when the render itself failed."""
+    _refuse_if_instrument_is_mutated()
     payload = dict(props)
     payload["typeCollisions"] = True
     payload["dna"] = dna
@@ -440,12 +589,31 @@ def audit(shot, props, frame, tmp, dna=DEFAULT_DNA, aspect=None):
     # same lie as measuring an empty plate: nothing collided because nothing was drawn. So a probe that
     # renders almost nothing is reported as UNFED, never as a pass.
     got = _ink_fraction(tmp)
-    if got < SUSPECT_INK:
-        base = _default_ink(shot, frame, tmp, dna, aspect)
-        if base is not None and base > 0 and got < base * UNFED_RATIO:
-            return [{"kind": "unfed", "depth": 0,
-                     "text": "(drew %.2f%% ink against %.2f%% on its own defaults — the fixture did not "
-                             "reach this register)" % (got * 100, base * 100), "font": "", "cls": ""}]
+    if got >= SUSPECT_INK:
+        return []
+    # LOW INK IS THE TRIGGER, NOT THE VERDICT. Comparing the ink against the register's own demo defaults
+    # was the first arbiter and it convicted the first legitimately sparse frame it met: four `QuadSplit`
+    # panels on a warm-white product palette, 3% ink, every one of its five strings plainly on screen. Ask
+    # the DOM which of the strings we fed actually reached the screen — that is the question, exactly.
+    fed = [x for x in _string_leaves(props) if _HAS_CJK.search(x)]
+    if fed:
+        missing = _fed_missing(shot, props, frame, tmp, dna, aspect, fed)
+        if missing is None:
+            return [{"kind": "unfed", "depth": 0, "font": "", "cls": "",
+                     "text": "(drew %.2f%% ink and the re-render that would say whether its copy reached "
+                             "the screen failed — nothing is known about this frame)" % (got * 100)}]
+        if not missing:
+            return []
+        return [{"kind": "unfed", "depth": 0, "font": "", "cls": "",
+                 "text": "(drew %.2f%% ink, and %d of %d strings it was given never reached the screen: %s)"
+                         % (got * 100, len(missing), len(fed), " / ".join(missing[:3]))}]
+    # No CJK copy was fed at all (a register whose props this fixture could not shape), so fall back to the
+    # ink yardstick — a comparison against its own defaults is all that is left to ask.
+    base = _default_ink(shot, frame, tmp, dna, aspect)
+    if base is not None and base > 0 and got < base * UNFED_RATIO:
+        return [{"kind": "unfed", "depth": 0,
+                 "text": "(drew %.2f%% ink against %.2f%% on its own defaults — the fixture did not "
+                         "reach this register)" % (got * 100, base * 100), "font": "", "cls": ""}]
     return []
 
 
@@ -489,10 +657,10 @@ def sweep(names, dna=DEFAULT_DNA, aspect=None, film_props=None):
 # copy at 0.55 leading). The first version used the two real registers that had broken a real film, and it
 # worked exactly once — the moment both were repaired the controls reported "not caught" and the instrument
 # could no longer show it detects anything. A control that needs production code to STAY broken is not one.
-CONTROLS_BAD = ["TypeCollisionProbe"]
+CONTROLS_BAD = ["TypeCollisionProbe", "TiltedTypeCollisionProbe"]
 # KineticManifesto is deliberately here on the GOOD side — see the header. It reports clean and that is the
 # right answer; it was a mis-diagnosis off a single mid-flythrough frame.
-CONTROLS_GOOD = ["CinematicTitle", "TermTable", "QuadSplit", "KineticManifesto",
+CONTROLS_GOOD = ["TiltedTypeCleanProbe", "CinematicTitle", "TermTable", "QuadSplit", "KineticManifesto",
                  "MagazineSpread", "BrutalistType"]
 
 
@@ -522,16 +690,23 @@ def controls():
     res = sweep(CONTROLS_BAD + CONTROLS_GOOD)
     bad = {n: [h for h in res[n]["hits"] if h["kind"] == "leading"] for n in CONTROLS_BAD}
     good = {n: [h for h in res[n]["hits"] if h["kind"] == "leading"] for n in CONTROLS_GOOD}
+    # A CONTROL THAT NEVER RENDERED IS NOT A CONTROL. `QuadSplit` threw on a fixture that fed a Chinese
+    # sentence to an icon name, and a failed render carries no hits — so it read as "known-GOOD, 0
+    # collisions" and the controls passed while measuring one register fewer than they claimed.
+    dead = [n for n in CONTROLS_BAD + CONTROLS_GOOD if res[n]["failed"]]
     print("[cjk_type] CONTROLS — a synthetic mis-set frame it must catch, and registers it must not flag:")
     for n in CONTROLS_BAD:
-        print("   known-BAD  %-18s %d leading collision(s)%s"
+        print("   known-BAD  %-24s %d leading collision(s)%s"
               % (n, len(bad[n]), "" if bad[n] else "   <- NOT CAUGHT"))
     for n in CONTROLS_GOOD:
-        print("   known-GOOD %-18s %d leading collision(s)%s"
-              % (n, len(good[n]), "   <- FALSE POSITIVE" if good[n] else ""))
+        print("   known-GOOD %-24s %s"
+              % (n, "DID NOT RENDER   <- NOT A CONTROL" if res[n]["failed"]
+                 else "%d leading collision(s)%s" % (len(good[n]),
+                                                     "   <- FALSE POSITIVE" if good[n] else "")))
     print("[cjk_type] CONTROLS — and the guard for a fixture that never reaches its register:")
     fed = unfed_control()
-    ok = all(bad[n] for n in CONTROLS_BAD) and not any(good[n] for n in CONTROLS_GOOD) and fed
+    ok = (all(bad[n] for n in CONTROLS_BAD) and not any(good[n] for n in CONTROLS_GOOD)
+          and not dead and fed)
     print("[cjk_type] controls %s" % ("PASS — the instrument separates them" if ok else "FAIL — do not trust a sweep yet"))
     return 0 if ok else 1
 
@@ -568,7 +743,14 @@ def main(argv):
     lead = {n: h for n, h in lead.items() if h}
     over = {n: [h for h in v["hits"] if h["kind"] == "overlap"] for n, v in res.items()}
     over = {n: h for n, h in over.items() if h}
+    tight = {n: [h for h in v["hits"] if h["kind"] == "tight"] for n, v in res.items()}
+    tight = {n: h for n, h in tight.items() if h}
     unfed = {n: v for n, v in res.items() if any(h["kind"] == "unfed" for h in v["hits"])}
+    # A rotated element the orientation-free instrument could not read is not a pass — it is an element
+    # NOTHING is known about. It fails, because the only way to reach it is a renderer that cannot measure
+    # font metrics, and then every rotated register in the sweep is unmeasured and the run means nothing.
+    unmeas = {n: [h for h in v["hits"] if h["kind"] == "unmeasured"] for n, v in res.items()}
+    unmeas = {n: h for n, h in unmeas.items() if h}
     failed = [n for n, v in res.items() if v["failed"]]
     untest = {n: v["untestable"] for n, v in res.items() if v["untestable"]}
     if not a.json:
@@ -590,6 +772,13 @@ def main(argv):
             for n in sorted(over, key=lambda k: -len(over[k]))[:14]:
                 h = over[n][0]
                 print("    %-22s %d pair(s)  «%s» × «%s»" % (n, len(over[n]), h["text"], h.get("other", "")))
+        if tight:
+            print("\nWRAPPED CHINESE UNDER THE LEADING FLOOR — nothing collides, and there is no air either "
+                  "(fix with\n  `leading(text, latin)` from runtime/cjkType; the call is a no-op on Latin "
+                  "copy):")
+            for n in sorted(tight, key=lambda k: -max(h["depth"] for h in tight[k]))[:20]:
+                h = max(tight[n], key=lambda x: x["depth"])
+                print("    %-22s %s  «%s»" % (n, h["font"], h["text"]))
         if untest:
             print("\nNOT TESTED — no CJK copy could be shaped for these props (add the shape to _ARRAY_SHAPES):")
             for n in sorted(untest)[:14]:
@@ -598,11 +787,16 @@ def main(argv):
             print("\nDREW ALMOST NOTHING — the fixture did not reach these registers, so a clean result here "
                   "would\n  be a measurement of an empty frame, not of the register:\n    %s"
                   % ", ".join(sorted(unfed)[:16]))
+        if unmeas:
+            print("\nCOULD NOT BE MEASURED — these are drawn on a TILT and the orientation-free instrument "
+                  "could not\n  read them, so this run says nothing about them either way:")
+            for n in sorted(unmeas)[:14]:
+                print("    %-22s %s  «%s»" % (n, unmeas[n][0].get("why", "?"), unmeas[n][0]["text"]))
         if failed:
             print("\nFAILED TO RENDER: %s" % ", ".join(sorted(failed)[:14]))
         if not lead:
             print("\nNo register sets Chinese copy into itself.")
-    return 1 if (lead or unfed) else 0
+    return 1 if (lead or unfed or unmeas) else 0
 
 
 if __name__ == "__main__":

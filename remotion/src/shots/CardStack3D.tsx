@@ -8,6 +8,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeInOutCubic, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA, dnaPalette, surfaceOn, shade} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom} from '../runtime/layout';
+import {leading} from '../runtime/cjkType';
 
 export const DURATION = 155; // ~5.2s
 
@@ -141,7 +142,10 @@ export const CardStack3D: React.FC<{items?: StackItem[]; title?: string}> = ({
                       given, so nothing authored before this moves. */}
                   {icon ? <Icon name={icon} size={32} ink={ONACC} weight={2.1} /> : i + 1}
                 </div>
-                <div style={{color: INK, font: `800 46px/1 var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
+                {/* A card label is a short noun in English and wraps to three lines in Chinese, where
+                    `line-height: 1` puts stroke on stroke — CJK glyphs fill their em box. `leading` only
+                    ever raises, so the Latin design is byte-for-byte unchanged. */}
+                <div style={{color: INK, font: `800 46px/${leading(label, 1)} var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
                   textShadow: deep ? '0 2px 10px #000' : 'none'}}>{label}</div>
               </div>
             );
@@ -151,7 +155,7 @@ export const CardStack3D: React.FC<{items?: StackItem[]; title?: string}> = ({
       <div style={{position: 'absolute', top: titleTop, height: titleH, left: 0, right: 0, textAlign: 'center',
         opacity: titleIn, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
         transform: `translateY(${(1 - titleIn) * 16}px)`, color: dna?.fg ?? TITLE_D0,
-        font: `800 ${titleSize}px/1 var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
+        font: `800 ${titleSize}px/${leading(TITLE, 1)} var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
         textShadow: deep ? '0 8px 30px #000' : 'none'}}>{TITLE}</div>
     </AbsoluteFill>
   );

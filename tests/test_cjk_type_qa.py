@@ -216,6 +216,13 @@ def test_every_register_with_tight_leading_uses_the_floor_or_says_why_it_cannot_
 
     Checked statically so it costs nothing and cannot be skipped; `cjk_type_qa --library` remains the
     MEASUREMENT, and this is the thing that stops register 154 from reintroducing it.
+
+    WHERE THIS RULE STOPS, deliberately. The pattern below requires a DECIMAL point, so `px/1` — exactly
+    1.0, and used by 97 of the 153 registers — is outside it. That is not an oversight to fix by widening
+    the regex: most of those 97 set a single word, a numeral or a chip that cannot wrap, and a static test
+    cannot tell those from a card label. `CardStack3D` was in that blind spot and shipped a three-line
+    Chinese label at 1.0 on a delivered film. The MEASUREMENT covers it instead: the sweep reports `tight`
+    for copy that actually wrapped below `CJK_MIN_LEADING`, which needs no guess about what can wrap.
     """
     import glob
     offenders = []
@@ -249,7 +256,8 @@ def test_the_declared_exemptions_are_the_ones_that_really_cannot_wrap():
 def test_the_positive_control_is_synthetic_not_a_real_register():
     """The first controls were the two registers that had broken a film. They worked exactly once: repairing
     both made the controls report 'not caught', and the instrument could no longer show it detects anything."""
-    assert c.CONTROLS_BAD == ["TypeCollisionProbe"], c.CONTROLS_BAD
+    assert c.CONTROLS_BAD and all(n.endswith("Probe") for n in c.CONTROLS_BAD), c.CONTROLS_BAD
+    assert "TypeCollisionProbe" in c.CONTROLS_BAD
     root = open(os.path.join(_ROOT, "remotion", "src", "Root.tsx"), encoding="utf-8").read()
     assert "TypeCollisionProbe" in root and "0.55" in root, \
         "the probe must exist and stay deliberately mis-set"
@@ -365,3 +373,145 @@ def test_controls_separate_the_classes():
     r = subprocess.run([sys.executable, os.path.join(_ROOT, "scripts", "cjk_type_qa.py"), "--controls"],
                        capture_output=True, text=True, cwd=_ROOT, timeout=900)
     assert "controls PASS" in r.stdout, r.stdout[-2000:]
+
+
+# ── tilted type: the instrument was wrong in BOTH directions, so both are pinned ────────────────────
+_TEXTSAFE = os.path.join(_ROOT, "remotion", "src", "runtime", "textSafe.tsx")
+_NEEDS_REMOTION = pytest.mark.skipif(not os.path.isdir(os.path.join(_ROOT, "remotion", "node_modules")),
+                                     reason="needs the remotion toolchain")
+
+
+def _probe_leading(name, props=None):
+    """The leading findings a probe reports, through the real render path."""
+    tmp = os.path.join(_ROOT, "remotion", ".cjk_type_test.png")
+    try:
+        hits = c.audit(name, props or {}, 145, tmp, "product")
+        assert hits is not None, "%s failed to render" % name
+        return [h for h in hits if h["kind"] in ("leading", "unmeasured")]
+    finally:
+        for f in (tmp, tmp + ".props.json"):
+            if os.path.exists(f):
+                os.remove(f)
+
+
+@_NEEDS_REMOTION
+def test_the_rotation_guard_is_load_bearing_in_both_directions():
+    """Remove it and the instrument does not merely get noisier — it inverts.
+
+    A client rect is axis-aligned, so a tilted line's rect is its BOUNDING BOX: consecutive rects of
+    well-set copy overlap by `width·|sin θ|` (a false finding), and they overlap each other enough to be
+    grouped into one line, which leaves a genuinely mis-set block with nothing to compare (a missed one).
+    Measured at 13 degrees: the clean probe read as a 148px collision and the broken one read as clean.
+    """
+    assert not _probe_leading("TiltedTypeCleanProbe"), "well-set tilted copy must be clean"
+    assert _probe_leading("TiltedTypeCollisionProbe"), "mis-set tilted copy must be caught"
+    src = open(_TEXTSAFE, encoding="utf-8").read()
+    old = "const rotatedUnder = (el: Element, win: Window): boolean => {\n  let node"
+    assert old in src, "the rotation guard moved — update this mutant"
+    # Announce the mutation: any OTHER run of this gate refuses while the sentinel is there rather than
+    # quietly reporting numbers taken from the broken instrument. `_probe_leading` is called through the
+    # same `audit()`, so the sentinel is dropped for the two renders that are meant to see the mutant.
+    with open(c._MUTATING, "w", encoding="utf-8") as fh:
+        fh.write(str(os.getpid()))
+    try:
+        open(_TEXTSAFE, "w", encoding="utf-8").write(
+            src.replace(old, old.replace("{\n  let node", "{\n  if (1) return false;\n  let node"), 1))
+        blind_clean = _probe_leading("TiltedTypeCleanProbe")
+        blind_bad = _probe_leading("TiltedTypeCollisionProbe")
+    finally:
+        open(_TEXTSAFE, "w", encoding="utf-8").write(src)
+        if os.path.exists(c._MUTATING):
+            os.remove(c._MUTATING)
+    assert blind_clean, "without the guard the clean tilted probe must report a (false) collision"
+    assert not blind_bad, "without the guard the mis-set tilted probe must be MISSED"
+
+
+def test_the_tilted_probes_are_synthetic_and_permanent():
+    """A control that needs a production register to stay broken works exactly once. Both tilted probes
+    live in Root.tsx beside the original, take no props, and are registered as compositions."""
+    root = open(os.path.join(_ROOT, "remotion", "src", "Root.tsx"), encoding="utf-8").read()
+    for n in ("TiltedTypeCollisionProbe", "TiltedTypeCleanProbe"):
+        assert "export const %s: React.FC = () =>" % n in root, n
+        assert "{F('%s', %s, " % (n, n) in root, n
+    assert "TiltedTypeCollisionProbe" in c.CONTROLS_BAD and "TiltedTypeCleanProbe" in c.CONTROLS_GOOD
+
+
+# ── "drew nothing": the verdict comes from the DOM, not from an ink ratio ───────────────────────────
+def test_only_cjk_copy_is_looked_for_on_screen():
+    """Icon names, colour tokens and asset paths are strings a register never prints. Looking for them
+    would report every register that takes one as having dropped copy."""
+    assert c._string_leaves({"a": "x", "b": ["y", {"c": "z"}], "n": 4}) == ["x", "y", "z"]
+    assert bool(c._HAS_CJK.search("文档")) and not c._HAS_CJK.search("doc") and not c._HAS_CJK.search("5.5.0")
+
+
+@_NEEDS_REMOTION
+def test_a_sparse_frame_whose_copy_is_on_screen_is_not_reported_as_unfed():
+    """The false positive that put this on a delivered film's report: four `QuadSplit` panels on a
+    warm-white palette draw ~3% ink, under the suspicion floor, with every string plainly visible."""
+    film = {"heading": "办公的产物，本身就是文件", "hero": None,
+            "panels": [{"label": "文档"}, {"label": "表格"}, {"label": "演示 PPT"}, {"label": "数据分析"}]}
+    tmp = os.path.join(_ROOT, "remotion", ".cjk_type_test_qs.png")
+    try:
+        hits = c.audit("QuadSplit", film, 145, tmp, "product")
+        assert hits == [], hits
+    finally:
+        for f in (tmp, tmp + ".props.json"):
+            if os.path.exists(f):
+                os.remove(f)
+
+
+@_NEEDS_REMOTION
+def test_a_wrong_shaped_fixture_is_still_caught_and_now_names_what_vanished():
+    """The case the guard exists for: TermTree declares {name, note, tag} and drawing it from a list of
+    bare strings yields empty rows. The verdict must name the strings that never reached the screen."""
+    tmp = os.path.join(_ROOT, "remotion", ".cjk_type_test_tt.png")
+    try:
+        hits = c.audit("TermTree", {"cmd": c._SHORT, "root": c._SHORT, "items": list(c._ITEMS[:3])}, 145, tmp)
+        unfed = [h for h in (hits or []) if h["kind"] == "unfed"]
+        assert unfed, hits
+        assert "never reached the screen" in unfed[0]["text"], unfed[0]["text"]
+        assert c._ITEMS[0] in unfed[0]["text"], unfed[0]["text"]
+    finally:
+        for f in (tmp, tmp + ".props.json"):
+            if os.path.exists(f):
+                os.remove(f)
+
+
+# ── the fixture must not invent values for fields that are not copy ─────────────────────────────────
+def test_a_named_type_alias_is_resolved_not_filled_with_a_sentence():
+    """`QuadSplit` declares `icon?: IconName`. The shaper used to hand that field a Chinese sentence, the
+    icon registry threw (as it is written to), and the register reported as a RENDER FAILURE — which the
+    controls then counted as a clean known-GOOD. A named type is resolved to a real member of its union."""
+    props, _ = c.cjk_props("QuadSplit")
+    icons = [p.get("icon") for p in props["panels"]]
+    assert icons and all(i and not c._HAS_CJK.search(i) for i in icons), icons
+    assert c._named_union_member("IconName", "") == "file"
+
+
+def test_an_unresolvable_field_is_left_out_rather_than_guessed():
+    assert c._synth_field("whatever", "SomeTypeNobodyDeclared") is c._OMIT
+    assert c._shaped_row({"a": "string", "b": "SomeTypeNobodyDeclared"}, "") == {"a": c._string_for("a")}
+
+
+def test_a_control_that_did_not_render_is_not_counted_as_clean():
+    """A failed render carries no hits, so the known-GOOD side passed on a register that never drew. The
+    controls now require every control to have rendered."""
+    src = open(os.path.join(_ROOT, "scripts", "cjk_type_qa.py"), encoding="utf-8").read()
+    assert "DID NOT RENDER" in src and "and not dead and fed" in src
+
+
+def test_list_fixture_copy_is_long_enough_to_wrap():
+    """The precondition for the whole defect. At six characters a card label never wrapped, so the sweep
+    reported CardStack3D clean while the same register broke on a delivered film."""
+    assert max(len(x) for x in c._ITEMS) >= 10, c._ITEMS
+    assert min(len(x) for x in c._ITEMS) <= 7, "a real list has short entries too"
+
+
+def test_the_measured_sweep_covers_what_the_static_rule_cannot():
+    """The two halves of the same rule: the static test refuses a NEW register written below 1.05, and the
+    sweep reports any register whose Chinese actually wrapped below the floor — including at exactly 1.0,
+    which the static pattern cannot judge."""
+    dom = open(os.path.join(_ROOT, "remotion", "src", "runtime", "textSafe.tsx"), encoding="utf-8").read()
+    assert "CJK_MIN_LEADING" in dom and "kind: 'tight'" in dom, \
+        "the sweep must measure the floor it shares with the registers, not a second copy of the number"
+    assert "hasCJK(text)" in dom, "the report is for CJK copy only — Latin display type keeps its leading"

@@ -25,6 +25,7 @@
 import React from 'react';
 import {cancelRender, continueRender, delayRender} from 'remotion';
 import {captionBand} from './layout';
+import {CJK_MIN_LEADING, hasCJK} from './cjkType';
 
 /** Prefix on the render-cancelling error, so a caller can find the JSON payload in the CLI's stderr. */
 export const TEXT_SAFE_TAG = 'TEXT-SAFE-VIOLATIONS ';
@@ -145,16 +146,28 @@ const visibleRect = (el: Element, frame: DOMRect): DOMRect | null => {
 
 /** Prefix on the collision payload, so a caller can find it in the CLI's stderr. */
 export const TYPE_COLLISION_TAG = 'TYPE-COLLISIONS ';
+/** Prefix on the reached-the-screen payload. */
+export const FED_TEXT_TAG = 'FED-TEXT ';
 
 export type Collision = {
-  /** `leading` — one element's own wrapped LINES overlap each other. `overlap` — two elements' type collides. */
-  kind: 'leading' | 'overlap';
+  /**
+   * `leading` — one element's own wrapped LINES overlap each other. `overlap` — two elements' type collides.
+   * `tight` — WRAPPED Chinese set below the library's own CJK leading floor: nothing overlaps, and there is
+   * no air between the lines either. `unmeasured` — the element is drawn under a rotation AND the
+   * rotation-free instrument could not read it, so NOTHING is known about it either way (see
+   * `metricLeading`). Never silently dropped.
+   */
+  kind: 'leading' | 'overlap' | 'tight' | 'unmeasured';
   /** how deep the collision runs, in px */
   depth: number;
   text: string;
   other?: string;
   font: string;
   cls: string;
+  /** set when the element is drawn under a rotation, so a reader knows which instrument produced `depth` */
+  rot?: boolean;
+  /** on `unmeasured`, why */
+  why?: string;
 };
 
 // How much two consecutive line boxes may overlap before it is a collision, as a fraction of the LINE BOX's
@@ -222,6 +235,92 @@ const lineRects = (el: Element): DOMRect[] => {
   return lines.map((l) => new DOMRect(l.left, l.top, l.right - l.left, l.bottom - l.top));
 };
 
+// ── ROTATED TYPE ────────────────────────────────────────────────────────────────────────────────────────
+//
+// A client rect is AXIS-ALIGNED. For type drawn straight that is the line box, and comparing consecutive
+// rects is a measurement. For type drawn on a TILT it is the bounding box of a tilted line, which is taller
+// than the line by `width·|sin θ|` — so consecutive rects of perfectly-set copy overlap enormously and the
+// rect instrument reports a collision that is not there.
+//
+// This shipped. `CardStack3D` fans its cards on the Z axis (±13° at three cards), and a card label set at
+// `46px/1` — tight, but its three lines are visibly separate — was reported as a 64px collision on a real
+// film. The same label in the same register with ONE card, where the fan angle is 0, reported clean. The
+// whole 64px was the tilt. 27 of the library's 153 registers rotate something.
+//
+// So a rotated element is measured with an instrument that has no orientation at all: the font's own box
+// height (canvas `fontBoundingBox*`, which is layout- and transform-free) against the resolved
+// `line-height`. That is the same quantity the rect path measures — a client rect's height IS the font box —
+// so one threshold covers both, and the two paths agree where they overlap (checked in the controls).
+const ROT_EPS = 0.02;   // ≈1.1°, below which the inflation is sub-pixel at the sizes this library sets
+
+/** Does any transform up this element's chain rotate or skew it? Cheap, and deliberately over-inclusive. */
+const rotatedUnder = (el: Element, win: Window): boolean => {
+  let node: Element | null = el;
+  while (node) {
+    const cs = win.getComputedStyle(node);
+    const tr = cs.transform;
+    if (tr && tr !== 'none' && tr.indexOf('(') > 0) {
+      const n = tr.slice(tr.indexOf('(') + 1, tr.lastIndexOf(')')).split(',').map((x) => parseFloat(x) || 0);
+      // matrix(a,b,c,d,e,f) → the off-diagonals are 1,2. matrix3d is column-major 4×4: the terms that can
+      // tilt the PROJECTED box are m12/m21 (in-plane) and m13/m31/m23/m32 (out-of-plane, which tilt it once
+      // a `perspective` ancestor turns the quad into a trapezoid).
+      const idx = n.length === 6 ? [1, 2] : n.length === 16 ? [1, 4, 2, 8, 6, 9] : [];
+      if (idx.some((i) => Math.abs(n[i]) > ROT_EPS)) return true;
+    }
+    const rot = (cs as unknown as {rotate?: string}).rotate;   // the `rotate` longhand, independent of `transform`
+    if (rot && rot !== 'none' && !/^(0deg|0rad|0turn|0grad|0)$/.test(rot.trim())) return true;
+    node = node.parentElement;
+  }
+  return false;
+};
+
+let _ctx: CanvasRenderingContext2D | null | undefined;
+const measureCtx = (doc: Document): CanvasRenderingContext2D | null => {
+  if (_ctx === undefined) _ctx = doc.createElement('canvas').getContext('2d');
+  return _ctx ?? null;
+};
+
+/**
+ * Leading overlap of a ROTATED element, read without touching a single client rect.
+ *
+ * Returns the overlap depth in px and the font box it is a fraction of, or a reason it could not be read.
+ * A block that does not wrap has no leading collision by definition, so the wrap test comes first — and it
+ * is done in LAYOUT pixels (`clientWidth`, immune to transforms) against a canvas measurement of the same
+ * string in the same face.
+ */
+const metricLeading = (
+  el: Element, cs: CSSStyleDeclaration, text: string,
+): {depth: number; box: number; wraps: boolean} | {why: string} => {
+  const ctx = measureCtx(el.ownerDocument);
+  if (!ctx) return {why: 'no 2d canvas in this renderer'};
+  const lineH = parseFloat(cs.lineHeight || '');
+  // `normal` IS the font's own leading, which is the one value that cannot collide with itself.
+  if (!isFinite(lineH) || lineH <= 0) return {depth: 0, box: 0, wraps: false};
+  ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize}/${cs.lineHeight} ${cs.fontFamily}`;
+  const ls = (ctx as unknown as {letterSpacing?: string});
+  if ('letterSpacing' in ctx) ls.letterSpacing = cs.letterSpacing === 'normal' ? '0px' : cs.letterSpacing;
+  const m = ctx.measureText(text);
+  const asc = (m as unknown as {fontBoundingBoxAscent?: number}).fontBoundingBoxAscent;
+  const desc = (m as unknown as {fontBoundingBoxDescent?: number}).fontBoundingBoxDescent;
+  if (typeof asc !== 'number' || typeof desc !== 'number' || !(asc + desc > 0)) {
+    return {why: 'this renderer reports no fontBoundingBox metrics'};
+  }
+  // The width a line has to fill before it wraps is the CONTAINING BLOCK's, and for an INLINE element
+  // `clientWidth` is 0 — the case `HalftonePop` reported as unmeasurable. Walk out to the first ancestor
+  // that has a layout width; that is the box the text actually wraps inside. Layout values throughout, so
+  // the tilt never enters the measurement.
+  let avail = 0;
+  for (let n: Element | null = el; n && !(avail > 0); n = n.parentElement) {
+    const w = (n as HTMLElement).clientWidth;
+    if (!(w > 0)) continue;
+    const c = n === el ? cs : (el.ownerDocument.defaultView?.getComputedStyle(n) ?? cs);
+    avail = w - (parseFloat(c.paddingLeft || '0') || 0) - (parseFloat(c.paddingRight || '0') || 0);
+  }
+  if (!(avail > 0)) return {why: 'no layout width anywhere up the chain to test wrapping against'};
+  if (m.width <= avail + 1 && text.indexOf('\n') < 0) return {depth: 0, box: 0, wraps: false};
+  return {depth: asc + desc - lineH, box: asc + desc, wraps: true};
+};
+
 /**
  * Is any TYPE colliding with other type? — the question a CJK film needs and no existing gate asks.
  *
@@ -239,7 +338,7 @@ export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] 
   const win = root.ownerDocument?.defaultView;
   if (!win) return [];
   const out: Collision[] = [];
-  const boxes: {el: Element; r: DOMRect; text: string; font: string; cls: string}[] = [];
+  const boxes: {el: Element; r: DOMRect; text: string; font: string; cls: string; rot: boolean}[] = [];
   root.querySelectorAll('*').forEach((el) => {
     const text = hasOwnText(el);
     if (!text) return;
@@ -250,20 +349,47 @@ export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] 
     const font = `${cs.fontSize} ${(cs.fontFamily || '').split(',')[0]}`;
     const cls = (el.getAttribute('class') ?? '').slice(0, 40);
     const short = text.length > 40 ? text.slice(0, 40) + '…' : text;
-    // 1. this element's own lines, against each other
-    const lines = lineRects(el);
-    let worst = 0, box = 0;
-    for (let i = 1; i < lines.length; i++) {
-      const gap = lines[i - 1].bottom - lines[i].top;      // > 0 means the boxes overlap
-      if (gap > worst) {
-        worst = gap;
-        box = Math.min(lines[i - 1].height, lines[i].height);
+    // 1. this element's own lines, against each other. Rotated type gets the orientation-free instrument —
+    //    its client rects are bounding boxes of tilted lines and overlap by construction.
+    const rot = rotatedUnder(el, win);
+    let worst = 0, box = 0, wraps = false;
+    if (rot) {
+      const m = metricLeading(el, cs, text);
+      if ('why' in m) {
+        out.push({kind: 'unmeasured', depth: 0, text: short, font, cls, rot: true, why: m.why});
+      } else {
+        worst = m.depth; box = m.box; wraps = m.wraps;
+      }
+    } else {
+      const lines = lineRects(el);
+      wraps = lines.length > 1;
+      for (let i = 1; i < lines.length; i++) {
+        const gap = lines[i - 1].bottom - lines[i].top;    // > 0 means the boxes overlap
+        if (gap > worst) {
+          worst = gap;
+          box = Math.min(lines[i - 1].height, lines[i].height);
+        }
       }
     }
     if (box > 0 && worst > box * LEADING_OVERLAP_FRAC) {
-      out.push({kind: 'leading', depth: Math.round(worst), text: short, font, cls});
+      out.push({kind: 'leading', depth: Math.round(worst), text: short, font, cls, ...(rot ? {rot: true} : {})});
+    } else if (wraps && hasCJK(text)) {
+      // BELOW THE FLOOR BUT NOT YET A PILE. `leading` only fires once lines eat into each other, which is
+      // the broken end of a spectrum. `line-height: 1` is the other end: CJK glyphs fill their em box, so
+      // wrapped lines abut with no air at all — tight, readable, and below the floor the library states for
+      // itself (`CJK_MIN_LEADING`). It is reported, not failed, because nothing is destroyed.
+      //
+      // It exists because the STATIC rule could not see this case: its regex required a decimal point, so
+      // `px/1` — 97 of the 153 registers — was invisible to it, and `CardStack3D` shipped a three-line
+      // Chinese card label at exactly 1.0. A measurement does not need the leading to be spelled a
+      // particular way.
+      const fs = parseFloat(cs.fontSize || ''), lh = parseFloat(cs.lineHeight || '');
+      if (isFinite(fs) && fs > 0 && isFinite(lh) && lh / fs < CJK_MIN_LEADING) {
+        out.push({kind: 'tight', depth: Math.round((CJK_MIN_LEADING - lh / fs) * fs), text: short, font, cls,
+                  ...(rot ? {rot: true} : {})});
+      }
     }
-    boxes.push({el, r, text: short, font, cls});
+    boxes.push({el, r, text: short, font, cls, rot});
   });
   // 2. element against element — skip any pair where one contains the other (a label inside its own card
   //    is not a collision; its box is supposed to be inside)
@@ -277,11 +403,57 @@ export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] 
       const area = w * h;
       const smaller = Math.min(a.r.width * a.r.height, b.r.width * b.r.height);
       if (smaller <= 0 || area / smaller < OVERLAP_AREA_FRAC) continue;
+      // A tilted element's box is its bounding box, so a pair involving one overlaps more than the ink
+      // does. `overlap` is advisory either way; the flag says which numbers to discount.
       out.push({kind: 'overlap', depth: Math.round(Math.min(w, h)), text: a.text, other: b.text,
-                font: a.font, cls: a.cls});
+                font: a.font, cls: a.cls, ...(a.rot || b.rot ? {rot: true} : {})});
     }
   }
   return out;
+};
+
+/**
+ * Which of the strings a caller FED this register never reached the screen?
+ *
+ * WHY IT IS ASKED OF THE DOM. A gate that hands a register a wrong-shaped fixture gets a frame drawn from
+ * `undefined` — empty rows, blank cards — and every measurement of that frame is a measurement of an empty
+ * plate. The first guard for it compared the frame's INK against the register's own demo defaults, which is
+ * a proxy for the question and got the answer wrong on the first legitimately sparse frame it met: a
+ * four-panel `QuadSplit` on a warm-white product palette drew 3% and was reported as never fed, with all
+ * five of its strings plainly on screen. The DOM knows the real answer exactly.
+ *
+ * MATCHING IS DELIBERATELY LOOSE, because reaching the screen is not the same as surviving unchanged. A
+ * register may set one character per element, fit a headline down, or truncate a long line — all of which
+ * are the register working. So a string counts as arrived when it appears whole, OR when most of its
+ * characters do. Only copy that is essentially absent is reported.
+ */
+const FED_CHAR_COVERAGE = 0.6;
+export const auditFedText = (root: Element, fed: unknown[]): string[] => {
+  const norm = (s: string) => s.replace(/\s+/g, '');
+  let all = '';
+  root.querySelectorAll('*').forEach((el) => {
+    all += hasOwnText(el);
+  });
+  const hay = norm(all);
+  const pool = new Map<string, number>();
+  for (const ch of hay) pool.set(ch, (pool.get(ch) ?? 0) + 1);
+  const missing: string[] = [];
+  fed.forEach((raw) => {
+    const n = norm(String(raw ?? ''));
+    if (!n) return;
+    if (hay.indexOf(n) >= 0) return;
+    const left = new Map(pool);
+    let hit = 0;
+    for (const ch of n) {
+      const c = left.get(ch) ?? 0;
+      if (c > 0) {
+        hit += 1;
+        left.set(ch, c - 1);
+      }
+    }
+    if (hit / n.length < FED_CHAR_COVERAGE) missing.push(n.length > 40 ? n.slice(0, 40) + '\u2026' : n);
+  });
+  return missing;
 };
 
 /** Every text element whose VISIBLE box crosses the canvas edge, with no ancestor claiming the clip. */
@@ -334,7 +506,8 @@ export const auditTextSafety = (root: Element, frame: DOMRect): Violation[] => {
  * its caller. That makes a violation loud and per-scene: `scripts/text_safe_qa.py` renders each beat on its
  * own and collects the failures rather than stopping at the first.
  */
-export const TextSafeAudit: React.FC<{enabled?: boolean; mode?: 'safe' | 'collisions'}> = ({enabled = false, mode = 'safe'}) => {
+export const TextSafeAudit: React.FC<{enabled?: boolean; mode?: 'safe' | 'collisions' | 'fed';
+  fed?: unknown[]}> = ({enabled = false, mode = 'safe', fed}) => {
   const ref = React.useRef<HTMLDivElement>(null);
   const [handle] = React.useState(() =>
     enabled ? delayRender('text-safe audit', {timeoutInMilliseconds: 60000}) : null);
@@ -359,6 +532,12 @@ export const TextSafeAudit: React.FC<{enabled?: boolean; mode?: 'safe' | 'collis
       }
       const frame = host.getBoundingClientRect();
       const body = host.ownerDocument.body;
+      // `fed` ALWAYS cancels: its answer is the empty list as often as not, and a still render has no other
+      // channel back to its caller. The caller asks for this mode only when it already has a reason to.
+      if (mode === 'fed') {
+        cancelRender(new Error(FED_TEXT_TAG + JSON.stringify({missing: auditFedText(body, fed ?? [])})));
+        return;
+      }
       if (mode === 'collisions') {
         const hits = auditTypeCollisions(body, frame);
         if (hits.length) {
@@ -384,7 +563,7 @@ export const TextSafeAudit: React.FC<{enabled?: boolean; mode?: 'safe' | 'collis
     return () => {
       dead = true;
     };
-  }, [enabled, handle, mode]);
+  }, [enabled, handle, mode, fed]);
 
   if (!enabled) return null;
   // Its own box IS the canvas rect — measured rather than assumed, so the audit is correct at any aspect

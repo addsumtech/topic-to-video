@@ -444,8 +444,16 @@ TTS if the user gives an API key.
   it; Hangul and rare/classical Han are not covered (`assets/fonts/NOTO-SC-SUBSET-NOTE.txt`).
 - `scripts/cjk_type_qa.py --library` (or `<out_dir>`) — the **CJK TYPE gate** (remotion tier, pre-render).
   Renders each register with CHINESE copy shaped to its own prop signature and asks the DOM whether the type
-  collides: `leading` (one element's own wrapped lines overlapping — never intentional, an ERROR) and
-  `overlap` (two elements' type crossing — sometimes the technique, so a candidate). It exists because a
+  collides: `leading` (one element's own wrapped lines overlapping — never intentional, an ERROR),
+  `overlap` (two elements' type crossing — sometimes the technique, so a candidate), `tight` (wrapped
+  Chinese below the library's own `CJK_MIN_LEADING` — nothing collides and there is no air either, a
+  report), and `unmeasured` (drawn on a tilt and unreadable by the orientation-free instrument — an ERROR,
+  because nothing is known about it either way). Type drawn on a TILT is measured from font metrics, not
+  from client rects: a rect is axis-aligned, so a rotated line's rect is its bounding box, and the rect
+  instrument was wrong in BOTH directions on tilted type (a well-set block read as a 148px collision, a
+  mis-set one read as clean). A frame that draws almost nothing is arbitrated by asking the DOM which of
+  the strings it was fed actually reached the screen, never by comparing its ink with the register's
+  demo defaults. It exists because a
   delivered Chinese film had two registers set their copy into an unreadable pile while every gate was
   green: `text_safe_qa` asks whether type falls OFF the canvas, and this copy stayed inside the frame. The
   cause is one thing — the library is authored with short English demo strings, and `line-height: 0.82` is

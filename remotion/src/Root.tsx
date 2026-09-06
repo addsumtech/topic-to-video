@@ -195,13 +195,43 @@ export const TypeCollisionProbe: React.FC = () => (
   </div>
 );
 
+// THE SAME TWO CLASSES, ON A TILT — because a client rect is axis-aligned and a rotated line's bounding box
+// is taller than the line, so on tilted type the rect instrument reports a collision whether or not one
+// exists. It did: `CardStack3D` fans its cards ±13° and a visibly-separated 46px/1 label was reported as a
+// 64px collision on a real film. These two hold the instrument to both answers under rotation — the mis-set
+// block must still be CAUGHT, and the well-set one must come back CLEAN. Both are synthetic and permanent,
+// so neither depends on a production register staying broken (or staying fixed).
+const TILT: React.CSSProperties = {transform: 'rotate(-13deg)', transformOrigin: 'center'};
+
+export const TiltedTypeCollisionProbe: React.FC = () => (
+  <div style={{position: 'absolute', inset: 0, background: '#fff', padding: 80}}>
+    <div style={{width: 700, color: '#000', ...TILT,
+      font: '800 96px/0.55 var(--f-display, Inter, system-ui, sans-serif)'}}>
+      它自主拆解任务并在你授权的目录里真正动文件
+    </div>
+  </div>
+);
+
+export const TiltedTypeCleanProbe: React.FC = () => (
+  <div style={{position: 'absolute', inset: 0, background: '#fff', padding: 80}}>
+    <div style={{width: 700, color: '#000', ...TILT,
+      font: '800 96px/1.3 var(--f-display, Inter, system-ui, sans-serif)'}}>
+      它自主拆解任务并在你授权的目录里真正动文件
+    </div>
+  </div>
+);
+
 
 const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C, p}) => {
   const {dna, aspect: _a, ...rest} = p as {dna?: unknown; aspect?: unknown};
   const active = coerceDna(dna as never);   // a string is a preset name; an object is a partial DNA
-  const _p = p as {textSafe?: unknown; typeCollisions?: unknown};
-  const audit = <TextSafeAudit enabled={Boolean(_p.textSafe || _p.typeCollisions)}
-                               mode={_p.typeCollisions ? 'collisions' : 'safe'} />;
+  const _p = p as {textSafe?: unknown; typeCollisions?: unknown; fedText?: unknown};
+  // `fedText` asks a THIRD question of the same walk: of the strings the caller fed this register, which
+  // never reached the screen? It is how a gate tells a legitimately sparse frame from one drawn out of
+  // `undefined` — see `auditFedText`.
+  const mode = _p.fedText ? 'fed' as const : _p.typeCollisions ? 'collisions' as const : 'safe' as const;
+  const audit = <TextSafeAudit enabled={Boolean(_p.textSafe || _p.typeCollisions || _p.fedText)}
+                               mode={mode} fed={Array.isArray(_p.fedText) ? _p.fedText : []} />;
   const shot = <><C {...rest} />{audit}</>;
   if (!active) return shot;
   return (
@@ -223,6 +253,8 @@ export const RemotionRoot: React.FC = () => (
       calculateMetadata={({props}) => ({durationInFrames: filmDuration((props as any).scenes ?? WORKBUDDY_SCENES),
         ...dims((props as any).aspect)})} />
     {F('TypeCollisionProbe', TypeCollisionProbe, 165)}
+    {F('TiltedTypeCollisionProbe', TiltedTypeCollisionProbe, 165)}
+    {F('TiltedTypeCleanProbe', TiltedTypeCleanProbe, 165)}
     {F('FontProbe', FontProbe, FPR)}
     {F('TypeSpecimen', TypeSpecimen, TSP)}
     {F('CollaborativeCursors', CollaborativeCursors, CC)}
