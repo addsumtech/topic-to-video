@@ -14,8 +14,12 @@ export const DURATION = 155; // ~5.2s
 const PAPER0 = '#f7f2e7', INK0 = '#141414';
 const POP0 = ['#ff3b6b', '#ffd23f', '#2b7bff', '#00b070'];
 
-export const ComicPanels: React.FC<{panels?: string[]; splash?: string; title?: string}> = ({
-  panels: PANELS = ['ZIP!', 'WHIRR', 'CLICK'], splash: SPLASH = 'DONE!', title: TITLE = 'How it goes down'} = {}) => {
+// `title` USED TO BE DECLARED HERE AND WAS NEVER DRAWN. A strip is panels and a splash; the frame is full
+// from margin to margin and there is nowhere a title could go without taking a panel's room. A prop that is
+// accepted and discarded is worse than a missing one — the film's copy disappears with no error anywhere —
+// so the signature says what the register actually renders.
+export const ComicPanels: React.FC<{panels?: string[]; splash?: string}> = ({
+  panels: PANELS = ['ZIP!', 'WHIRR', 'CLICK'], splash: SPLASH = 'DONE!'} = {}) => {
   const dna = useDNA();
   const PAPER = dna?.bg ?? PAPER0, INK = dna?.fg ?? INK0;
   const POP = dnaPalette(dna, 4) ?? POP0;

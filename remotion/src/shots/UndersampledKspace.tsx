@@ -19,8 +19,14 @@ export const INTRINSIC_TEXT = [
   '~4–8× undersampled',
 ];
 
-export const UndersampledKspace: React.FC<{accent?: string; accent2?: string; label?: string; keep?: number}> = ({
+export const UndersampledKspace: React.FC<{accent?: string; accent2?: string; label?: string; keep?: number;
+  method?: string; unit?: string}> = ({
   accent = '#22d3ee', accent2 = '#a78bfa', label = 'Reconstruct from far fewer lines', keep = 6,
+  // A CLAIM ABOUT A METHOD, written straight into the JSX: `deep network · trained on {scans}k scans`
+  // printed on every film that ever reached for this register, whatever the film's method actually was,
+  // and the count beside it is the register's own. Both halves are props now, each defaulting to the words
+  // it replaced, so existing films render identically and a film that trains on something else can say so.
+  method = 'deep network · trained on', unit = 'k scans',
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
@@ -66,7 +72,7 @@ export const UndersampledKspace: React.FC<{accent?: string; accent2?: string; la
         color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}
         <div style={{marginTop: 8, font: "600 22px/1 var(--f-mono, 'JetBrains Mono', monospace)", color: '#8aa', letterSpacing: '0.1em'}}>
-          deep network · trained on {scans}k scans</div>
+          {method} {scans}{unit}</div>
       </div>
     </AbsoluteFill>
   );

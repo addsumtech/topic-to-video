@@ -188,7 +188,7 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 ## L · Editorial / print — designed page systems
 159. **CompressedSensingEq** — the concept as its actual constrained-optimisation equation, typeset rather than gestured at. *Use: a method that IS its equation / show the formula, not a metaphor.* `accent, accent2, label`
 (see also **RisoPrint** in G — a riso print title.)
-69. **MagazineSpread** — a designer editorial cover sets itself: serif masthead, hairline rule, hero colour block, a word-by-word feature headline, deck + column rules. *Use: an editorial section opener (LIGHT ground).*
+69. **MagazineSpread** — a designer editorial cover sets itself: serif masthead, hairline rule, hero colour block, a word-by-word feature headline, deck, and an optional `contents` index. *Use: an editorial section opener (LIGHT ground).*
 70. **RansomZine** — a punk cut-out ransom-note collage: each letter a torn paper scrap in a different colour + typeface, taped down askew, with a marker scrawl. *Use: loud DIY / anti-slick statement.*
 
 ### L · editorial-NATIVE family (`Ed*`) — the print idioms themselves

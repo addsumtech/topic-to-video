@@ -17,6 +17,10 @@ import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155;
 
+// The LEGEND of a tally chart: what one stroke stands for. A tally without its unit is a pile of marks,
+// so this belongs to the form exactly as an axis label belongs to a graph.
+export const INTRINSIC_TEXT = ['one stroke ='];
+
 const BG_D0 = '#efe7d8', FG_D0 = '#241d14', DIM_D0 = '#6e6152';
 const ACC_D0 = '#9c3b1e', LINE_D0 = '#cdbfa7';
 

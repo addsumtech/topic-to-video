@@ -8,6 +8,10 @@ import {useT, seg, lerp, clamp01, easeOutBack} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
+
+// An arcade HUD's own furniture. `1UP` and its three credit pips are what an arcade screen READS like —
+// the form depicting itself, not copy about any topic. Declared so onscreen_text_qa can tell the two apart.
+export const INTRINSIC_TEXT = ['1UP ▪▪▪'];
 // pixel checkmark grid ('#' = lit)
 const GRID = [
   '................',

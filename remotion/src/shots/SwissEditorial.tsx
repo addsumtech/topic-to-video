@@ -11,6 +11,10 @@ import {useDNA} from '../runtime/dna';
 import {fitText} from '@remotion/layout-utils';
 
 export const DURATION = 165; // 5.5s
+
+// The index marker of a Swiss editorial grid — the mark that says "this is a numbered index", the way a
+// folio rule says "this is a page". It names no topic.
+export const INTRINSIC_TEXT = ['INDEX /'];
 const CREAM = '#f0ece1', INK = '#141414', RED = '#e8321f';
 const DEFAULT_WORDS = ['WORK.', 'SHIP.', 'DONE.'];
 const DEFAULT_TICKER = 'WORKBUDDY —— ON YOUR MACHINE —— YOUR AI TEAM —— NO CLOUD —— ';

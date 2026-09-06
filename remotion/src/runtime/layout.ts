@@ -124,6 +124,35 @@ export const fitTextPx = (
   return Math.max(12, Math.min(base, Math.floor((W * usable) / Math.max(0.1, wLen))));
 };
 
+/**
+ * The largest size at which a WRAPPED block still fits a W×H box — the two-dimensional `fitTextPx`.
+ *
+ * `fitTextPx` fits one line to a width, which is the wrong question for a headline: a feature headline is
+ * MEANT to wrap, and what goes wrong is that it wraps one line too many and lands on whatever sits below.
+ * `MagazineSpread` shipped exactly that on its own English demo copy — a three-line headline whose last
+ * line sat on the standfirst — and the CJK repair fitted the Chinese path only, so the register was fixed
+ * in the language it had been reported in and broken in the one it was written in.
+ *
+ * The line count is estimated from the same advance model `fitTextPx` uses, so both agree about how wide
+ * a character is. `usable` carries the safety margin: Latin cannot break inside a word, so a line packs a
+ * little less than the estimate says.
+ */
+export const fitBlockPx = (
+  text: string, W: number, H: number, base: number,
+  opts: {usable?: number; adv?: number; track?: number; leading?: number; min?: number} = {},
+): number => {
+  const {usable = 0.92, adv = 0.72, track = 0, leading: lh = 1.1, min = 12} = opts;
+  const chars = [...String(text || ' ')];
+  const units = chars.reduce(
+    (n, ch) => n + (/[\u2e80-\u9fff\uf900-\ufaff\uff01-\uff60\u3000-\u303f]/.test(ch) ? 1.05 : adv) + track, 0);
+  const width = Math.max(1, W * usable);
+  for (let px = Math.floor(base); px >= min; px--) {
+    const lines = Math.max(1, Math.ceil((units * px) / width));
+    if (lines * px * lh <= H) return px;
+  }
+  return min;
+};
+
 // The largest camera push that CANNOT drive a shot's lowest content into the caption band.
 //
 // A scene camera scales the shot about the centre of the content zone, so the zone's bottom edge travels

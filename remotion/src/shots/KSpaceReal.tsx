@@ -15,6 +15,9 @@ export const DURATION = 180; // 6s
 // graph, not sample copy about a topic. Declared so onscreen_text_qa can tell them apart from the
 // demo furniture that used to print on every film (WORKBUDDY, DASHBOARD, x:960 y:540).
 export const INTRINSIC_TEXT = [
+  // the two AXES of a k-space plot. They belong to the diagram exactly as `x` and `y` belong to a graph.
+  'kx',
+  'ky',
   'periphery = high freq · detail',
   "the image's spatial frequencies — not the image",
 ];

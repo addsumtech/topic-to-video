@@ -9,8 +9,10 @@ import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
 const NAVY = '#081726', CYAN_D0 = '#43C4E8', LINE_D0 = '#1f5f7d';
-export const ExplodedSchematic: React.FC<{caption?: string; items?: string[]}> = ({
-  caption = 'ONE PROMPT → DELIVERED',
+export const ExplodedSchematic: React.FC<{caption?: string; label?: string; unit?: string; items?: string[]}> = ({
+  // `caption` was DECLARED and never read — the corner block wrote its own English out in full. Each
+  // piece is a prop now, defaulting to the literal it replaced.
+  caption = 'ONE PROMPT → DELIVERED', label = 'SYSTEM', unit = 'STAGES',
   items: STAGES = ['Instruction', 'Planner', 'Experts ×100', 'Your tools', 'Deliverable']} = {}) => {
   const dna = useDNA();
   const CYAN = dna?.accent ?? CYAN_D0, LINE = dna?.line ?? LINE_D0;
@@ -70,7 +72,7 @@ export const ExplodedSchematic: React.FC<{caption?: string; items?: string[]}> =
       })}
       {/* corner spec HUD (top-right — keeps clear of the film's bottom caption zone) */}
       <div style={{position: 'absolute', right: 90, top: 90, font: '600 28px/1.6 var(--f-mono, "JetBrains Mono",monospace)', color: CYAN, opacity: 0.8, textAlign: 'right'}}>
-        SYSTEM · {STAGES.length} STAGES<br />ONE PROMPT → DELIVERED
+        {label} · {STAGES.length} {unit}<br />{caption}
       </div>
     </AbsoluteFill>
   );

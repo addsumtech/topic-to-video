@@ -442,6 +442,13 @@ TTS if the user gives an API key.
   the same DNA's Chinese title changed at IoU 0.689 once the faces were bundled.) A character OUTSIDE the
   subset would be an empty box beside correct type, so `validate.py` refuses a board holding one and names
   it; Hangul and rare/classical Han are not covered (`assets/fonts/NOTO-SC-SUBSET-NOTE.txt`).
+- `scripts/onscreen_text_qa.py` — library hygiene, exit 0 always. Text a register prints that no film
+  supplied, NUMBERS no prop feeds, **props a register DECLARES and never reads**, and **a prop default the
+  register also writes as a bare literal** (which makes the prop look wired when it is not). The last two
+  were added after `MagazineSpread` declared `sectionLabel`, printed the word FEATURE into its JSX instead,
+  and put an English word on a Chinese film's frame that no prop could reach — `validate.py` warns about
+  EMPTY props and `shot_proof` compares props with defaults, and a dead prop passes both. Both classes are
+  held at zero by `tests/test_remotion.py`.
 - `scripts/cjk_type_qa.py --library` (or `<out_dir>`) — the **CJK TYPE gate** (remotion tier, pre-render).
   Renders each register with CHINESE copy shaped to its own prop signature and asks the DOM whether the type
   collides: `leading` (one element's own wrapped lines overlapping — never intentional, an ERROR),

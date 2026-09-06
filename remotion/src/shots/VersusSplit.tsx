@@ -15,6 +15,9 @@ export const DURATION = 155; // ~5.2s
 // demo furniture that used to print on every film (WORKBUDDY, DASHBOARD, x:960 y:540).
 export const INTRINSIC_TEXT = [
   'WINNER',
+  // the FORM's own operator, the way `×` is AcceptanceStamp's: a versus split without a VS is a
+  // two-column layout, not a comparison.
+  'VS',
 ];
 
 type Side = {label?: string; points?: string[]};

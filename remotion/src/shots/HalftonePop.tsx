@@ -26,8 +26,11 @@ function jaggedBurst(cx: number, cy: number, n: number, ro: number, ri: number):
   return 'M' + pts.join('L') + 'Z';
 }
 
-export const HalftonePop: React.FC<{lead?: string; burstTop?: string; burstBottom?: string; brand?: string}> = ({
-  lead = 'MEANWHILE…',
+export const HalftonePop: React.FC<{lead?: string; tail?: string; burstTop?: string; burstBottom?: string; brand?: string}> = ({
+  // `lead` was DECLARED and never read: the strip drew the words MEANWHILE… and delivers. straight into
+  // the JSX, so a film could set the prop and watch its copy vanish. Both halves are props now, each
+  // defaulting to the literal it replaced, so every existing film renders identically.
+  lead = 'MEANWHILE…', tail = 'delivers.',
   burstTop = 'SHIP', burstBottom = 'IT!', brand = 'WorkBuddy'} = {}) => {
   const dna = useDNA();
   const YEL = dna?.bg ?? YEL0, RED = dna?.accent ?? RED0, INK = dna?.fg ?? INK0, BLUE = dna?.accent2 ?? BLUE0;
@@ -86,7 +89,7 @@ export const HalftonePop: React.FC<{lead?: string; burstTop?: string; burstBotto
         opacity: slam > 0 ? 1 : 0}}>
         <div style={{background: CARD, border: `7px solid ${INK}`, boxShadow: `12px 12px 0 ${BLUE}`, padding: '20px 34px',
           font: '800 52px/1.05 var(--f-body, "Bangers", Anton, Impact, sans-serif)', color: INK, letterSpacing: '0.02em'}}>
-          MEANWHILE… <span style={{color: BLUE}}>{brand}</span> delivers.
+          {lead} <span style={{color: BLUE}}>{brand}</span> {tail}
         </div>
       </div>
 

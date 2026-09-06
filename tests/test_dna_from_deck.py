@@ -271,3 +271,38 @@ def test_real_workbuddy_deck_is_office_default():
         pytest.skip("real deck not on this machine")
     t = pptx_theme.read(_REAL["workbuddy"])
     assert t["default_theme"] and t["fonts"]["major"]["latin"] == "Calibri"
+
+
+def test_every_derived_font_stack_names_a_bundled_cjk_face_before_a_system_one():
+    """The bundling was done for determinism: the same film renders the same on any machine. A DNA derived
+    from a deck builds its OWN stacks and did not name the bundled subsets at all, so the one path a real
+    Chinese film takes fell through to whatever the render machine had installed — PingFang on a Mac,
+    something else everywhere else. `runtime/dna.tsx`'s presets had been fixed; this file had not."""
+    import re
+    import sys
+    import os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    import dna_from_deck as d
+
+    bundled = d.loaded_families()
+    assert {"Noto Sans SC", "Noto Serif SC"} <= bundled, (
+        "fonts.ts no longer bundles the CJK subsets — %s" % sorted(bundled))
+    for face, generic in (("Playfair Display", "Georgia, serif"), ("Inter", "system-ui, sans-serif"),
+                          ("JetBrains Mono", "ui-monospace, monospace"),
+                          ("Source Serif 4", "Georgia, serif")):
+        stack = d._stack(face, generic)
+        names = re.findall(r'"([^"]+)"', stack)
+        cjk = [n for n in names if "SC" in n or "YaHei" in n or "Hiragino" in n or "SimSun" in n]
+        assert cjk, stack
+        assert cjk[0] in bundled, (
+            "%s falls through to a SYSTEM face (%s) before any bundled one: %s" % (face, cjk[0], stack))
+
+
+def test_the_serif_worlds_take_the_serif_subset():
+    """A serif Latin face over a sans Chinese one is two typefaces pretending to be one."""
+    import sys
+    import os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    import dna_from_deck as d
+    assert '"Noto Serif SC"' in d._stack("Playfair Display", "Georgia, serif")
+    assert '"Noto Sans SC"' in d._stack("Inter", "system-ui, sans-serif")

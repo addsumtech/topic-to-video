@@ -52,7 +52,15 @@ import theme as th                                            # noqa: E402 — t
 import pptx_theme                                             # noqa: E402
 
 FONTS_TS = os.path.join(_HERE, "..", "remotion", "src", "runtime", "fonts.ts")
-CJK = '"PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC"'
+# THE BUNDLED FACE COMES FIRST, or the deck-derived DNA does not have a CJK typeface at all — it has
+# whatever the render machine happens to have installed. The presets in runtime/dna.tsx were given the
+# bundled Noto subsets when they were added to fonts.ts; this file builds its own stacks and was not, so
+# the ONE path a real Chinese film takes (a DNA derived from its own pptx) was the one path that never
+# reached them. A serif world takes the serif subset so the Chinese and the Latin agree about what a serif
+# is. `test_dna_from_deck` holds both against fonts.ts.
+CJK_SANS = '"Noto Sans SC", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Noto Sans CJK SC"'
+CJK_SERIF = '"Noto Serif SC", "Songti SC", "SimSun", "Noto Serif CJK SC"'
+CJK = CJK_SANS          # kept as the default for callers that do not know the class
 
 # typeface NAME → class. Substring matches on the lower-cased name; first hit wins, so the specific
 # (didone, mono, rounded) come before the broad (serif, sans).
@@ -112,7 +120,9 @@ def loaded_families():
 
 
 def _stack(face, generic):
-    return '"%s", %s, %s' % (face, CJK, generic)
+    """`"Face", <the CJK chain for this world>, <generic>` — the serif worlds get the serif subset."""
+    cjk = CJK_SERIF if "serif" in generic and "sans-serif" not in generic else CJK_SANS
+    return '"%s", %s, %s' % (face, cjk, generic)
 
 
 def _q(rgb):

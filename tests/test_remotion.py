@@ -498,6 +498,17 @@ def test_contest_samples_carry_the_direction_dna():
         assert props.get("template") == key, "contest sample for %r does not carry its DNA" % key
 
 
+# A colour can also leave because the ELEMENT that used it was deliberately deleted, which is a different
+# thing from a literal being swapped for a DNA token and is the one case the diff above cannot tell apart.
+# Each entry names what went and why.
+_NULL_DNA_DELETED = {
+    # MagazineSpread drew three columns of 5px rules at 13% black as a stand-in for body text. On a
+    # rendered frame twelve grey bars read as a page that has not finished loading, and a viewer can decode
+    # none of them; a cover carries an index, not body columns. Replaced by a real contents list.
+    "MagazineSpread.tsx": {"000000"},
+}
+
+
 def test_null_dna_preserves_every_original_colour():
     # The documented guarantee is that an UN-themed film renders as before. Mechanical proxy: every colour literal
     # that existed before the DNA work must still be reachable in the shot (as the `??` fallback).
@@ -518,7 +529,9 @@ def test_null_dna_preserves_every_original_colour():
         r = subprocess.run(["git", "-C", repo, "show", f"{base}:{rel}"], capture_output=True, text=True)
         if r.returncode != 0:
             continue                        # a shot added after the baseline
-        gone = {norm(x) for x in hexes.findall(r.stdout)} - {norm(x) for x in hexes.findall(open(os.path.join(_SHOTS_DIR, f), encoding="utf-8").read())}
+        gone = ({norm(x) for x in hexes.findall(r.stdout)}
+                - {norm(x) for x in hexes.findall(open(os.path.join(_SHOTS_DIR, f), encoding="utf-8").read())}
+                - _NULL_DNA_DELETED.get(f, set()))
         if gone:
             drift[f] = sorted(gone)
     assert not drift, "null-DNA drift — these original colours are no longer reachable: %s" % drift
@@ -1534,7 +1547,6 @@ def test_shot_proof_serves_the_films_public_dir_to_standalone_stills():
 _UNSUPPLIED_TEXT_GRANDFATHERED = {
     "Aliasing",
     "DataOrrery",
-    "HalftonePop",
     "OverlapSeparation",
     "ScreenBubble",
 }
@@ -2719,3 +2731,43 @@ def test_no_register_prints_text_the_film_never_supplied():
     assert not cleaned, ("these registers are clean now — remove them from "
                          "_UNSUPPLIED_TEXT_GRANDFATHERED so the ratchet keeps holding: %s"
                          % ", ".join(cleaned))
+
+
+def test_no_register_declares_a_prop_it_never_reads():
+    """A DEAD PROP is worse than a missing one: the film's copy is accepted and discarded with no error.
+
+    `MagazineSpread` declared `sectionLabel` and printed the word FEATURE into its JSX instead, so a Chinese
+    film's section label vanished and an English word appeared on the delivered frame. Three more registers
+    had the same shape — CodeCompose's `doneLabel`, ExplodedSchematic's `caption`, HalftonePop's `lead` —
+    each declared beside a literal that says the same thing. Every existing check assumes a declared prop is
+    drawn: `validate.py` warns about EMPTY props, `shot_proof` compares props against defaults. A dead prop
+    passes all of them.
+    """
+    import glob
+    import os
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    import onscreen_text_qa as q
+
+    shots = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "shots")
+    bad = {os.path.basename(f)[:-4]: q.dead_props(f)
+           for f in sorted(glob.glob(os.path.join(shots, "*.tsx"))) if q.dead_props(f)}
+    assert not bad, ("these registers declare a prop they never read: %s. Draw it, or delete it from the "
+                     "signature." % bad)
+
+
+def test_no_register_shadows_its_own_prop_default_with_a_literal():
+    """The other half of the same defect, and the one that hides it. When a register writes a prop's default
+    AND the same words as a bare literal, the prop looks wired and is not — and the literal is indexed as
+    "the register's own default" by every check that looks at defaults."""
+    import glob
+    import os
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    import onscreen_text_qa as q
+
+    shots = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "shots")
+    bad = {os.path.basename(f)[:-4]: q.hardcoded_defaults(f)
+           for f in sorted(glob.glob(os.path.join(shots, "*.tsx"))) if q.hardcoded_defaults(f)}
+    assert not bad, ("these registers write a prop's default as a bare literal too, so the prop cannot "
+                     "override it: %s" % bad)

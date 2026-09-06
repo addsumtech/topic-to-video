@@ -43,8 +43,13 @@ _CSS = re.compile(r"(px|%|em|rem|deg|vh|vw|#[0-9a-fA-F]{3,8}|gradient|solid|dash
                   r"|relative|flex|center|left|right|column|row|hidden|nowrap|pointer|inherit|monospace"
                   r"|serif|sans-serif|translate|rotate|scale|blur|ease|linear|normal|bold|italic)")
 # a fragment of code my reader picked up rather than copy
-_CODE = re.compile(r"(&&|\|\||=>|\breturn\b|\.\w+\(|[{}();]|\bconst\b|\?\.|\d\.\d{2,}|\?\s|\s:\s)")
-_WORDY = re.compile(r"[A-Za-z]{3,}")
+_CODE = re.compile(r"(&&|\|\||=>|\breturn\b|\.\w+\(|[{}();`$]|\bconst\b|\?\.|\d\.\d{2,}|\?\s?$"
+                   r"|\?\s|\s:\s|===|!==|^\s*[:,]|\b[a-z]{2}-[A-Z]{2}\b)")
+# TWO letters, not three. An abbreviation is copy: `No. 01` beside a Chinese headline, and `.CO — 01`
+# composed into a fake domain, are exactly the class this file exists for, and both were silently dropped
+# by a three-letter floor. `_CSS` and `_CODE` already carry the noise filtering; this only has to say
+# "some letters are present", so a lone `·` or `—` (a form's own mark) still passes untouched.
+_WORDY = re.compile(r"[A-Za-z]{2,}")
 # Each quote style matched to its OWN closer. A single character class on both ends pairs the CLOSING
 # quote of one string with the OPENING quote of the next, so `'north', x: 0.5, ... 'west'` yielded the
 # code between them and none of the actual strings — every default in a list looked unsupplied.
@@ -100,16 +105,47 @@ def _intrinsic(body):
     return _strings(m.group(1))
 
 
+# A JSX text segment: everything between a `>` and the next `<`, allowing (non-nested) expression
+# containers inside it, because a literal often sits right next to one.
+_JSX_SEG = re.compile(r">((?:[^<>{}]|\{[^{}]*\})*)<")
+
+
+def hardcoded_defaults(path):
+    """Strings a register writes BOTH as a prop default and as a bare literal on screen.
+
+    A default exists to be overridden; a literal cannot be. When the same word is both, the register looks
+    parameterised and is not — `MagazineSpread` declares `sectionLabel = 'FEATURE'` and then prints the word
+    FEATURE into its image block, so a Chinese film carries an English word no prop can reach and every
+    check reads it as the register's own default. Nothing else in the pipeline asks this question.
+    """
+    src = _strip_comments(open(path, encoding="utf-8").read())
+    defaults = _prop_default_text(src) - _intrinsic(src)
+    if not defaults:
+        return []
+    literal = set()
+    for seg in _JSX_SEG.finditer(src):
+        for t in re.split(r"\{[^{}]*\}", seg.group(1)):
+            if t.strip():
+                literal.add(t.strip())
+    return sorted(defaults & literal)
+
+
 def scan(path):
     src = open(path, encoding="utf-8").read()
     body = _strip_comments(src)
     known = _prop_default_text(body) | _intrinsic(body)
     found = set()
-    # literal text between tags — an expression container {..} is excluded by the character class
-    for t in re.findall(r">([^<>{}]{4,60})<", body):
-        t = t.strip()
-        if t and _WORDY.search(t) and not _CSS.search(t) and not _CODE.search(t):
-            found.add(t)
+    # LITERAL TEXT BETWEEN TAGS, INCLUDING TEXT THAT SITS BESIDE AN EXPRESSION CONTAINER. The first version
+    # excluded `{}` with a character class, which also excluded every literal that shares a text node with
+    # one — and that is where the worst of them live: `{TITLE}.CO — 01` composes a fake DOMAIN out of the
+    # film's own title, and on a Chinese film a delivered frame read 「答得更好，交付没变.CO — 01」. The gate
+    # whose whole job is to find words a register prints on every film could not see it. Segments may hold
+    # containers now; the containers are removed and whatever text remains is the literal.
+    for seg in _JSX_SEG.finditer(body):
+        for t in re.split(r"\{[^{}]*\}", seg.group(1)):
+            t = t.strip()
+            if 2 <= len(t) <= 60 and _WORDY.search(t) and not _CSS.search(t) and not _CODE.search(t):
+                found.add(t)
     # A literal inside a JSX EXPRESSION CONTAINER. The tag-text pass above excludes `{}` by construction,
     # so `{r === 0 ? ['Metric', 'Q2', 'Q3'][c] : ...}` was invisible to the one gate whose whole job is to
     # find words a register prints on every film. It put an empty English metrics table onto a Chinese
@@ -167,6 +203,64 @@ def _prop_names(body):
         if mm:
             out.add(mm.group(1))
     return out
+
+
+def _bindings(body):
+    """[(propName, localName)] from the destructuring, split on TOP-LEVEL commas only.
+
+    Quotes count as depth, and that is not fussiness: a default of `'springy, gummy, alive'` split into
+    three "props" and two of them were reported as never read.
+    """
+    m = re.search(r"=\s*\(\{(.*?)\}\s*=\s*\{\}\)", body, re.S)
+    if not m:
+        return []
+    parts, depth, quote, cur = [], 0, "", ""
+    for ch in m.group(1):
+        if quote:
+            if ch == quote:
+                quote = ""
+        elif ch in "'\"`":
+            quote = ch
+        elif ch in "{[(":
+            depth += 1
+        elif ch in "}])":
+            depth -= 1
+        elif ch == "," and depth == 0:
+            parts.append(cur)
+            cur = ""
+            continue
+        cur += ch
+    parts.append(cur)
+    out = []
+    for part in parts:
+        mm = re.match(r"^\s*([A-Za-z_$][\w$]*)\s*(?::\s*([A-Za-z_$][\w$]*))?\s*(=|$)", part)
+        if mm:
+            out.append((mm.group(1), mm.group(2) or mm.group(1)))
+    return out
+
+
+def dead_props(path):
+    """Props a register DECLARES and never reads — copy a film supplies that vanishes without a word.
+
+    `MagazineSpread` declared `sectionLabel` and drew the word FEATURE into its JSX instead, so a Chinese
+    film's `sectionLabel` was accepted and discarded and an English word appeared on the frame. Nothing in
+    the pipeline asked this: `validate.py` warns about EMPTY props, `shot_proof` compares props against
+    defaults — both assume that a declared prop is drawn. A dead prop passes every one of them.
+    """
+    body = _strip_comments(open(path, encoding="utf-8").read())
+    # ANCHORED ON THE REGISTER'S OWN DECLARATION. An unanchored search finds the first `({…} = {})` in the
+    # file, which on four registers is an inner helper — and their helper's locals were reported as the
+    # register's dead props.
+    name = os.path.basename(path)[:-4]
+    m = re.search(r"export const %s: React\.FC<.*?>\s*=\s*\(\{" % re.escape(name), body, re.S)
+    if not m:
+        return []
+    body = body[m.start():]
+    m2 = re.search(r"=\s*\(\{.*?\}\s*=\s*\{\}\)", body, re.S)
+    if not m2:
+        return []
+    after = body[m2.end():]
+    return sorted({p for p, local in _bindings(body) if not re.search(r"\b%s\b" % re.escape(local), after)})
 
 
 def unsourced_numbers(path):
@@ -263,6 +357,7 @@ def fixed_px_font_sites(path):
 def main(argv):
     names = argv or [os.path.basename(f)[:-4] for f in sorted(glob.glob(os.path.join(_SHOTS, "*.tsx")))]
     total, dirty, fixed_px, unsourced = 0, 0, {}, 0
+    dead, shadowed = {}, {}
     for n in names:
         p = os.path.join(_SHOTS, n + ".tsx")
         if not os.path.exists(p):
@@ -276,6 +371,12 @@ def main(argv):
             dirty += 1
             total += len(hits)
             print("  %-24s %s" % (n, " · ".join(repr(h) for h in hits[:6])))
+        d = dead_props(p)
+        if d:
+            dead[n] = d
+        sh = hardcoded_defaults(p)
+        if sh:
+            shadowed[n] = sh
         nums = unsourced_numbers(p)
         if nums:
             unsourced += len(nums)
@@ -288,6 +389,20 @@ def main(argv):
               "film then renders identically, and shot_proof's demo-default check starts seeing it. If the "
               "text belongs to the register's own form (an axis label, a REC light), declare it instead: "
               "export const INTRINSIC_TEXT = [...].")
+    if dead:
+        print("[onscreen_text] %d register(s) DECLARE a prop they never read — a film's copy is accepted "
+              "and\n                discarded without a word:" % len(dead))
+        for n in sorted(dead):
+            print("  %-24s %s" % (n, ", ".join(dead[n])))
+        print("                Draw the prop, or delete it from the signature. `MagazineSpread` declared "
+              "`sectionLabel`\n                and printed the word FEATURE into its JSX, so a Chinese "
+              "film carried an English word\n                no prop could reach and every other check "
+              "read it as the register's own default.")
+    if shadowed:
+        print("[onscreen_text] %d register(s) write a prop's DEFAULT as a bare literal too, so the prop "
+              "cannot\n                override it:" % len(shadowed))
+        for n in sorted(shadowed):
+            print("  %-24s %s" % (n, " · ".join(repr(x) for x in shadowed[n][:6])))
     if unsourced:
         print("[onscreen_text] %d rendered NUMBER(s) no prop feeds — computed from the clock and printed as "
               "though measured. Give the readout a prop and draw it only when supplied; a number is real or "

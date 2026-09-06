@@ -107,7 +107,7 @@ export const CodeCompose: React.FC<{doneLabel?: string; filename?: string; lines
           display: 'inline-flex', alignItems: 'center', gap: 10}}>
           <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M3.5 11.5 L8.5 16.5 L18.5 5.5"
             fill="none" stroke="#9df2a0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          done</span>
+          {doneLabel}</span>
         <span style={{color: '#5a6577', font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)'}}>{STATUS}</span>
       </div>
     </AbsoluteFill>
