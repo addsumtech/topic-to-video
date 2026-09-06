@@ -15,6 +15,12 @@ import {AbsoluteFill} from 'remotion';
 import {FACES} from './fonts';
 
 const SAMPLE = 'Handgloves 0123';
+// A CJK face proven only on Latin glyphs is not proven. Both tiles in a row use the same string, so the
+// comparison is unchanged; only the characters it is made of are the ones the face exists to draw.
+const SAMPLE_FOR: Record<string, string> = {
+  'Noto Sans SC': '交付可验收的成果 0123',
+  'Noto Serif SC': '交付可验收的成果 0123',
+};
 
 // The generic each family must be distinguishable FROM. A mono face compared against `monospace`
 // on a machine whose default mono IS the face would false-pass; these generics are deliberately the
@@ -35,6 +41,11 @@ const GENERIC: Record<string, string> = {
   'IBM Plex Mono': 'monospace',
   'Bodoni Moda': 'serif',
   'Baloo 2': 'sans-serif',
+  // The CJK subsets were added to FACES and NOT here, and `font_gate.py` has refused to run ever since —
+  // the gate that proves a bundled face actually draws was dark for the whole time the newest faces were
+  // in the build. A family missing from this map throws on purpose; the failure was correct and unread.
+  'Noto Sans SC': 'sans-serif',
+  'Noto Serif SC': 'serif',
 };
 
 export const DURATION = 1;
@@ -81,12 +92,12 @@ export const FontProbe: React.FC<{ladder?: boolean; expectedRows?: number}> = ({
               // with no fallback would instead resolve to Chromium's fixed UA-default face, which
               // differs from tile B's generic regardless of whether the real face loaded — a false pass.
               fontFamily: `${quoted}, ${generic}`, fontWeight: ladder ? 300 : 700, fontSize: 64}}>
-              {SAMPLE}
+              {SAMPLE_FOR[f.family] ?? SAMPLE}
             </div>
             <div style={{flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontFamily: ladder ? quoted : generic,
               fontWeight: ladder ? 700 : 700, fontSize: 64}}>
-              {SAMPLE}
+              {SAMPLE_FOR[f.family] ?? SAMPLE}
             </div>
           </div>
         );

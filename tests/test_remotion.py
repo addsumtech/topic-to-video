@@ -2771,3 +2771,46 @@ def test_no_register_shadows_its_own_prop_default_with_a_literal():
            for f in sorted(glob.glob(os.path.join(shots, "*.tsx"))) if q.hardcoded_defaults(f)}
     assert not bad, ("these registers write a prop's default as a bare literal too, so the prop cannot "
                      "override it: %s" % bad)
+
+
+def test_every_bundled_face_can_honour_the_weight_range_it_declares():
+    """`fonts.ts` tells the browser what each face covers, and the browser BELIEVES it.
+
+    The CJK subsets were the STATIC Regular files while the table declared them `'400 700', variable: true`.
+    Told the face covers the range, Chrome draws 800-weight Chinese at 400 instead of synthesising a bold,
+    so a delivered film's masthead came back visibly LIGHTER than the same frame drawn in the system
+    fallback the bundling replaced — the opposite of the point. Read the files.
+    """
+    import os
+    import re
+    try:
+        from fontTools.ttLib import TTFont
+    except ImportError:
+        import pytest
+        pytest.skip("fontTools unavailable")
+
+    root = os.path.join(os.path.dirname(__file__), "..")
+    ts = open(os.path.join(root, "remotion", "src", "runtime", "fonts.ts"), encoding="utf-8").read()
+    rows = re.findall(r"\{family: '([^']+)', file: '([^']+)'.*?weight: '([^']+)', variable: (true|false)\}", ts)
+    assert len(rows) >= 10, "the FACES table moved — %d rows parsed" % len(rows)
+    bad = []
+    for family, fname, weight, variable in rows:
+        path = os.path.join(root, "assets", "fonts", fname)
+        if not os.path.exists(path):
+            bad.append("%s: %s is missing" % (family, fname))
+            continue
+        f = TTFont(path, lazy=True)
+        axis = next((a for a in f["fvar"].axes if a.axisTag == "wght"), None) if "fvar" in f else None
+        declared = [float(x) for x in weight.split()]
+        if variable == "true":
+            if axis is None:
+                bad.append("%s declares a variable %s and the file has no weight axis" % (family, weight))
+            elif len(declared) == 2 and (declared[0] < axis.minValue or declared[1] > axis.maxValue):
+                bad.append("%s declares %s, the file's axis is %g-%g"
+                           % (family, weight, axis.minValue, axis.maxValue))
+        else:
+            static = f["OS/2"].usWeightClass
+            if len(declared) != 1 or abs(declared[0] - static) > 1:
+                bad.append("%s declares %s, the static file is %d" % (family, weight, static))
+        f.close()
+    assert not bad, "these declarations promise more than the file carries: %s" % bad

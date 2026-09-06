@@ -60,8 +60,15 @@ export const FACES: Face[] = [
   // 10.05MB -> 2.20MB and 14.10MB -> 3.05MB. A character outside that set would render as tofu, so
   // cjk_type_qa.subset_coverage() reads the font file and validate.py refuses a board holding one, naming
   // the character — a glyph the face cannot draw is an empty box beside correct type, and reads as a bug.
-  {family: 'Noto Sans SC', file: 'NotoSansSC-Subset.ttf', url: notoSansSCUrl, weight: '400 700', variable: true},
-  {family: 'Noto Serif SC', file: 'NotoSerifSC-Subset.ttf', url: notoSerifSCUrl, weight: '400 700', variable: true},
+  //
+  // AND THEY ARE THE VARIABLE CUTS, which is not a detail. The first subsets were the STATIC Regular files
+  // and this table declared them `'400 700', variable: true` — a lie the browser believes: told the face
+  // covers the range, it draws 800-weight Chinese at 400 instead of synthesising a bold. A delivered film's
+  // masthead came back visibly lighter than the same frame drawn in the system fallback, which is the
+  // opposite of what bundling a face is for. `tests/test_remotion.py` now reads the files and refuses a
+  // declaration the file cannot honour.
+  {family: 'Noto Sans SC', file: 'NotoSansSC-Subset.ttf', url: notoSansSCUrl, weight: '100 900', variable: true},
+  {family: 'Noto Serif SC', file: 'NotoSerifSC-Subset.ttf', url: notoSerifSCUrl, weight: '200 900', variable: true},
 ];
 
 // One delayRender for the whole set: the first frame must not render in a fallback face.
