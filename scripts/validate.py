@@ -1866,6 +1866,26 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
     # A film-energy WAIVER is legitimate, and it is also the one lever that turns film_energy_qa green
     # without changing a frame. Announce it at the FIRST gate, not only at the last: a waiver the author
     # wrote is a decision; a waiver that has quietly outlived the film it was written for is a hole.
+    # A CJK CHARACTER THE BUNDLED FACES CANNOT DRAW IS A HOLE IN THE FRAME. The faces are subset to
+    # GB2312 (every character normal Chinese prose uses), so a rare surname or a classical form renders as
+    # a blank box beside correct type — which reads as a rendering bug and which no other gate looks at.
+    # Asked of the font file, before the render, where it costs nothing.
+    _txt = " ".join([str(meta.get("title") or "")] +
+                    [str(sl.get("narration") or "") + " " + json.dumps(sl.get("shot_props") or {},
+                                                                       ensure_ascii=False)
+                     for sl in slides])
+    try:
+        import cjk_type_qa as _cq
+        _uncov = _cq.subset_coverage(_txt)
+    except Exception:                                    # noqa: BLE001 — a diagnostic never blocks
+        _uncov = None
+    if _uncov:
+        errors.append("remotion: %d character(s) in this film's copy are outside the bundled CJK subset and "
+                      "would render as an empty box: %s. The bundled faces cover GB2312 (all normal "
+                      "Simplified Chinese) plus kana, punctuation and Latin — NOT Hangul, rare/classical "
+                      "Han, or Japanese kanji outside GB2312. Replace the characters, or re-subset the "
+                      "faces (assets/fonts/NOTO-SC-SUBSET-NOTE.txt says how)."
+                      % (len(_uncov), " ".join("%s (U+%04X)" % (c, cp) for c, cp in _uncov[:12])))
     _v = meta.get("voice")
     if isinstance(_v, str) and _v.strip().lower() in ("edge", "openai", "minimax"):
         errors.append("meta.voice=%r is a bare ENGINE name, and tts.py reads everything before the first ':' as "

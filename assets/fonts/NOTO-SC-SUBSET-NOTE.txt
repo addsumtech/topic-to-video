@@ -1,0 +1,15 @@
+Noto Sans SC / Noto Serif SC — SIL Open Font License 1.1 (Google / Adobe). See OFL-NotoSC.txt.
+
+SUBSET, and what it covers:
+  GB2312's 6763 Han   every character normal Simplified Chinese prose uses
+  hiragana + katakana  so a Japanese film sets its kana (its kanji are covered where they overlap GB2312)
+  CJK punctuation, fullwidth forms, Latin, digits
+  = 7563 codepoints.  10.05MB -> 2.20MB (sans) and 14.10MB -> 3.05MB (serif).
+
+NOT covered: Hangul syllables (11,172 of them would add several MB), rare/classical Han, and Japanese
+kanji outside GB2312. Those are not silent — `cjk_type_qa.subset_coverage()` reads the font file and
+`validate.py` refuses a board containing one, naming the character, because a glyph the face cannot draw
+is an empty box beside correct type and reads as a rendering bug rather than as missing copy.
+
+The character set is DERIVED, not copied from a list: U+4E00..U+9FFF filtered through Python's own gb2312
+codec, plus the ranges above.

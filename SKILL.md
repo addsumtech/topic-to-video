@@ -432,6 +432,16 @@ TTS if the user gives an API key.
   in SECONDS; both enforce a 3s floor by throwing. **Its findings are CANDIDATES, not work orders**: render
   the register before and after and keep the change only where the settled-half motion moves (three of four
   were reverted this way). It is a FIDELITY fix, not the motion axis's lever — that is the camera bed.
+- **CJK TYPE — the renderer bundles a Chinese sans AND a Chinese serif** (`Noto Sans SC` / `Noto Serif SC`,
+  SIL OFL, subset to GB2312 + kana: 2.2 MB and 3.0 MB). Before that, ten Latin faces were loaded and none
+  carried a Han glyph, so every Chinese character was drawn by whatever the render machine had installed —
+  the same determinism defect `runtime/fonts.ts` exists to end, left in place for CJK. Measured on one
+  register across the two DNAs whose display faces differ most: **English 1480 px vs 1573 px, Chinese
+  1383 px vs 1383 px** — the Design DNA's typography, the first token it declares, did nothing at all on a
+  CJK film. (Width is the wrong metric for CJK, since every Han glyph is one em wide; the proof is shape —
+  the same DNA's Chinese title changed at IoU 0.689 once the faces were bundled.) A character OUTSIDE the
+  subset would be an empty box beside correct type, so `validate.py` refuses a board holding one and names
+  it; Hangul and rare/classical Han are not covered (`assets/fonts/NOTO-SC-SUBSET-NOTE.txt`).
 - `scripts/cjk_type_qa.py --library` (or `<out_dir>`) — the **CJK TYPE gate** (remotion tier, pre-render).
   Renders each register with CHINESE copy shaped to its own prop signature and asks the DOM whether the type
   collides: `leading` (one element's own wrapped lines overlapping — never intentional, an ERROR) and

@@ -299,13 +299,53 @@ def test_the_bundled_faces_are_measured_for_cjk_coverage():
     assert all(isinstance(h, bool) for _, h in cov)
 
 
+def test_a_cjk_face_is_bundled_so_the_dna_typography_reaches_chinese():
+    """The finding this closes: ten Latin faces were bundled and none carried a Han glyph, so every Chinese
+    character was drawn by whatever the render machine had. Measured on one register across the two DNAs
+    whose display faces differ most — English 1480 vs 1573px, Chinese 1383 vs 1383px. Width is the WRONG
+    metric for CJK (every Han glyph is one em wide, so two faces give identical widths); the proof is the
+    SHAPE, and the same DNA's Chinese title changed at IoU 0.689 once the faces were bundled."""
+    cov = c.bundled_cjk_coverage()
+    if cov is None:
+        pytest.skip("fontTools not installed")
+    drawing = [f for f, has in cov if has]
+    assert len(drawing) >= 2, "a CJK sans AND a CJK serif must be bundled, or a serif DNA is sans in Chinese"
+    ts = open(os.path.join(_ROOT, "remotion", "src", "runtime", "fonts.ts"), encoding="utf-8").read()
+    for fam in ("Noto Sans SC", "Noto Serif SC"):
+        assert "family: '%s'" % fam in ts, "%s is on disk but fonts.ts does not load it" % fam
+    dna = open(os.path.join(_ROOT, "remotion", "src", "runtime", "dna.tsx"), encoding="utf-8").read()
+    import re as _re
+    naked = _re.findall(r'(?<!SC", )"PingFang SC"', dna)
+    assert not naked, ("%d DNA font stack(s) still reach a system CJK font before a bundled one — those "
+                       "render differently on another machine" % len(naked))
+
+
+def test_a_character_the_subset_cannot_draw_is_refused_by_name():
+    """The subset is GB2312 + kana, which is normal prose and not every character that exists. A glyph the
+    face cannot draw is an empty box beside correct type and reads as a rendering bug, so it is refused with
+    the character named rather than shipped."""
+    if c.subset_coverage("交付") is None:
+        pytest.skip("fontTools not installed")
+    assert c.subset_coverage("交付可验收的成果，办公的产物本身就是文件。") == []
+    assert c.subset_coverage("おつかれさまです") == [], "kana is in the subset — ja is an offered language"
+    rare = c.subset_coverage("龘")
+    assert rare and rare[0][0] == "龘"
+    import sys as _s
+    _s.path.insert(0, os.path.join(_ROOT, "scripts"))
+    import validate as v
+    board = {"meta": {"renderer": "remotion", "title": "t", "language": "zh"},
+             "slides": [{"index": 0, "shot": "ChatThread", "shot_props": {}, "narration": "龘字交付"}]}
+    hits = [e for e in v.evaluate(board, "/tmp", pre_tts=True)["errors"] if "bundled CJK subset" in e]
+    assert hits and "龘" in hits[0], hits
+
+
 def test_the_gate_says_so_when_no_bundled_face_can_draw_chinese():
     """The finding this records: fonts.ts bundles ten Latin faces and no CJK one, so every Chinese glyph is
     drawn by whatever the render machine has. Measured on one register across two DNAs whose display faces
     are as different as the library holds — English 1480 vs 1573px, Chinese 1383 vs 1383px."""
     src = open(os.path.join(_ROOT, "scripts", "cjk_type_qa.py"), encoding="utf-8").read()
     assert "1383" in src and "1573" in src, "the measurement that proves it must travel with the claim"
-    assert "NONE of the %d bundled faces" in src
+    assert "NONE of the %d bundled faces" in src, "the warning must survive for a repo that drops the faces"
 
 
 def test_the_withdrawn_dom_detector_is_recorded_not_silently_dropped():

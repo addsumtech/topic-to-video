@@ -286,6 +286,38 @@ def _shape_array(prop, ty):
     return None
 
 
+def subset_coverage(text):
+    """[(char, codepoint)] for characters the BUNDLED CJK faces cannot draw — they would render as tofu.
+
+    The faces are subset to GB2312's 6763 Han plus kana, punctuation and Latin (10.05MB -> 2.20MB and
+    14.10MB -> 3.05MB), which is every character normal Chinese prose uses and not every character that
+    exists. A rare surname, a classical form or a Japanese kana would be a HOLE in the frame that no
+    other gate looks at — a blank box beside correct type reads as a rendering bug, not as missing copy.
+    So it is asked of the font file itself rather than assumed from the subset list.
+    """
+    faces = [os.path.join(_ROOT, "assets", "fonts", f)
+             for f in ("NotoSansSC-Subset.ttf", "NotoSerifSC-Subset.ttf")]
+    try:
+        from fontTools.ttLib import TTFont
+    except ImportError:
+        return None                                      # no measurement is not a verdict
+    covered = set()
+    for f in faces:
+        if os.path.exists(f):
+            covered |= set(TTFont(f, lazy=True).getBestCmap())
+    if not covered:
+        return None
+    out, seen = [], set()
+    for ch in str(text or ""):
+        cp = ord(ch)
+        if cp < 0x2E80 or ch in seen:                    # Latin/digits are covered by the Latin faces
+            continue
+        seen.add(ch)
+        if cp not in covered:
+            out.append((ch, cp))
+    return out
+
+
 def bundled_cjk_coverage():
     """[(face, has_cjk)] — can any face the renderer BUNDLES draw Chinese at all?
 

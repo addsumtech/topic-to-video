@@ -25,6 +25,8 @@ import ibmPlexSansUrl from '../../../assets/fonts/IBMPlexSans-VF.ttf';
 import ibmPlexMonoUrl from '../../../assets/fonts/IBMPlexMono-Regular.ttf';
 import bodoniModaUrl from '../../../assets/fonts/BodoniModa-VF.ttf';
 import baloo2Url from '../../../assets/fonts/Baloo2-VF.ttf';
+import notoSansSCUrl from '../../../assets/fonts/NotoSansSC-Subset.ttf';
+import notoSerifSCUrl from '../../../assets/fonts/NotoSerifSC-Subset.ttf';
 
 export type Face = {
   family: string;      // for the 4 faces shared with the HTML tier, must match assets/html/base.css
@@ -46,6 +48,20 @@ export const FACES: Face[] = [
   {family: 'IBM Plex Mono', file: 'IBMPlexMono-Regular.ttf', url: ibmPlexMonoUrl, weight: '400', variable: false},
   {family: 'Bodoni Moda', file: 'BodoniModa-VF.ttf', url: bodoniModaUrl, weight: '400 900', variable: true},
   {family: 'Baloo 2', file: 'Baloo2-VF.ttf', url: baloo2Url, weight: '400 800', variable: true},
+  // THE CJK FACES. Ten Latin faces were bundled and none of them carries a single Han glyph, so every
+  // Chinese character in every film was drawn by whatever the render machine happened to have — the exact
+  // determinism defect the header above says this file exists to end, left in place for CJK. Measured on
+  // one register across the two DNAs whose display faces differ most: the same title in English rendered
+  // 1480px and 1573px wide (the face doing its job) and the same title in Chinese rendered 1383px in BOTH
+  // — 0px apart, one system fallback drawing for both. On a CJK film the Design DNA's typography, the
+  // first token it declares, did nothing at all.
+  //
+  // SIL OFL, subset to GB2312's 6763 Han plus kana, CJK punctuation, fullwidth forms, Latin and digits:
+  // 10.05MB -> 2.20MB and 14.10MB -> 3.05MB. A character outside that set would render as tofu, so
+  // cjk_type_qa.subset_coverage() reads the font file and validate.py refuses a board holding one, naming
+  // the character — a glyph the face cannot draw is an empty box beside correct type, and reads as a bug.
+  {family: 'Noto Sans SC', file: 'NotoSansSC-Subset.ttf', url: notoSansSCUrl, weight: '400 700', variable: true},
+  {family: 'Noto Serif SC', file: 'NotoSerifSC-Subset.ttf', url: notoSerifSCUrl, weight: '400 700', variable: true},
 ];
 
 // One delayRender for the whole set: the first frame must not render in a fallback face.
