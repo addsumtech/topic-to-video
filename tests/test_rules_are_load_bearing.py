@@ -114,6 +114,16 @@ def _probe_sync_rule(rule):
     return probe
 
 
+def _probe_the_next_step_hint_names_both_emits(mod):
+    """The scaffold writes a placeholder into SHOT_LUMA *and* DNA_GROUND_TOKEN, and each is written by a
+    different mode of measure_ground_luma. The old hint named one command that measures and writes nothing,
+    so following the tool's own instructions left the register flagged 'never measured' for ever — and
+    test_shot_luma_is_measured_not_guessed then failed with no way to satisfy it."""
+    hint = mod.next_steps("Zed")
+    assert "--luma --emit" in hint, "the hint must name the SHOT_LUMA emit"
+    assert "--only Zed --emit" in hint, "the hint must name the DNA_GROUND_TOKEN emit too"
+
+
 def _probe_comments_are_not_code(mod):
     src, files = _zed_sources(), ["Zed.tsx"]
     src["registry.ts"] = src["registry.ts"].replace("  Alpha, Zed,\n", "  Alpha,\n  // Zed,\n")
@@ -187,6 +197,7 @@ PROBES = {
         token_vocabulary=_probe_token_vocabulary_follows_the_type,
         union_beats_the_fallback=_probe_union_beats_the_fallback,
         registry_insert_idempotent=_probe_registry_insert_survives_its_own_output,
+        next_step_names_both_emits=_probe_the_next_step_hint_names_both_emits,
     ),
 }
 
@@ -921,6 +932,14 @@ PROBES["film_energy_qa"] = {
     "missing_film_is_not_a_pass": _probe_a_missing_film_is_not_a_pass,
     "undecodable_film_is_not_a_pass": _probe_an_undecodable_film_is_not_a_pass,
 }
+
+MUTANTS["register_shot"] = dict(MUTANTS.get("register_shot", {}), **{
+    # Following the tool's own next-step hint must FINISH the job. The old hint named one command that
+    # measures and writes nothing, so a new register stayed flagged 'never measured' for ever.
+    "the next-step hint forgets the second emit":
+        ("    python3 scripts/measure_ground_luma.py --only %(s)s --emit          # DNA_GROUND_TOKEN\\n",
+         ""),
+})
 
 MUTANTS["film_energy_qa"] = {
     "the motion floor is disabled":

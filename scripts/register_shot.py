@@ -16,10 +16,16 @@ existing registers whether or not one of them could actually carry its argument.
 
 This makes it one command, so "no register can draw this" stops being a reason to settle.
 
-AFTER RUNNING IT: write the shot's body (the stub renders its own name), then
-  python3 scripts/measure_ground_luma.py --only <Id>      # sanity-check its ground
-  python3 scripts/measure_ground_luma.py && … --apply-json # fold it into the measured table
-  python3 scripts/shot_proof.py <out_dir> --stills         # frame-craft + palette + reuse checks
+AFTER RUNNING IT: write the shot's body (the stub renders its own name), then run BOTH emits — the scaffold
+writes a placeholder into TWO tables (SHOT_LUMA and DNA_GROUND_TOKEN) and each has its own mode, so one
+command leaves the other still flagged 'never measured' and `test_shot_luma_is_measured_not_guessed` failing:
+  python3 scripts/measure_ground_luma.py --only <Id> --luma --emit   # SHOT_LUMA: its ground with NO DNA
+  python3 scripts/measure_ground_luma.py --only <Id> --emit          # DNA_GROUND_TOKEN: which token it paints from
+  python3 scripts/shot_proof.py <out_dir>                            # frame-craft + palette + reuse checks
+  python3 scripts/cjk_type_qa.py --only <Id>                         # does its type hold up in Chinese?
+(The earlier text here named `--only <Id>` alone, which MEASURES and writes nothing, and an `--apply-json`
+flag that does not exist. Following it left both placeholders in place with no hint that anything was left
+to do — the first new register in a while is what found that.)
 """
 import os
 import re
@@ -410,6 +416,25 @@ def family_census_block():
         "<!-- /FAMILY-CENSUS -->\n" % (sum(c.values()), len(c), rows, len(thin), ", ".join(thin)))
 
 
+# BOTH emits, named explicitly, as a module CONSTANT rather than a literal inside print().
+#
+# The scaffold places a placeholder in SHOT_LUMA *and* in DNA_GROUND_TOKEN; each is written by a different
+# mode of measure_ground_luma, and the old one-command hint left a new register permanently flagged as
+# unmeasured with the sync test failing and no way to satisfy it. It lives here so a probe can READ it: a
+# check that opens this file from disk cannot be mutated, so the rule it guards is not load-bearing and the
+# mutation harness says so.
+NEXT_STEPS = (
+    "  next: write the shot body, then BOTH of:\n"
+    "    python3 scripts/measure_ground_luma.py --only %(s)s --luma --emit   # SHOT_LUMA\n"
+    "    python3 scripts/measure_ground_luma.py --only %(s)s --emit          # DNA_GROUND_TOKEN\n"
+    "    python3 scripts/cjk_type_qa.py --only %(s)s                         # does its type hold in Chinese?"
+)
+
+
+def next_steps(shot):
+    return NEXT_STEPS % {"s": shot}
+
+
 def refresh_family_census():
     """Rewrite the census in LIBRARY.md. Called after every registration so it cannot go stale."""
     p = os.path.join(_REM, "LIBRARY.md")
@@ -509,7 +534,7 @@ def main(argv):
     miss = check(shot)
     print("[register_shot] %s — %s" % (shot, "registered everywhere" if not miss else "STILL MISSING: " + ", ".join(miss)))
     if not miss:
-        print("  next: write the shot body, then `python3 scripts/measure_ground_luma.py --only %s`" % shot)
+        print(next_steps(shot))
     return 1 if miss else 0
 
 
