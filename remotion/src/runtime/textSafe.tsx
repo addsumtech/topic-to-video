@@ -157,12 +157,19 @@ export type Collision = {
   cls: string;
 };
 
-// A line box is the glyph em box, which is TALLER than the visible letters, so tight leading makes boxes
-// touch on purpose: line-height 0.85 on a Latin display face overlaps ~0.15em and looks intended, because
-// Latin glyphs sit well inside their box. CJK glyphs fill it. That is the whole defect: the same 0.85 that
-// reads as confident Latin typography puts Chinese strokes on top of each other. Scaled to the font so it
-// means the same at 30px and at 240px, and set above the Latin-tight case so only real collisions report.
-const LEADING_OVERLAP_FRAC = 0.30;
+// How much two consecutive line boxes may overlap before it is a collision, as a fraction of the LINE BOX's
+// own height.
+//
+// Measured against the line box, not against `fontSize`, and that is not a detail. A register drawn inside a
+// scaled or 3D-transformed container reports rects in SCALED pixels while `getComputedStyle().fontSize`
+// stays unscaled, so a fontSize-relative threshold reads the zoom as a collision: `InfiniteCanvas` (a
+// camera-zoomed canvas) was reported at 14px on "40px Inter" and its type is visibly clean, and three more
+// small findings had the same shape. Both numbers here come from the same rects, so the scale cancels.
+//
+// A CJK glyph box runs to roughly 1.35em even at line-height 1.0, so consecutive boxes touch at ordinary
+// leading and the ink is still nowhere near. 0.45 of the box sits above that and below the real cases
+// (CartoonPop 0.65, the synthetic probe 0.72).
+const LEADING_OVERLAP_FRAC = 0.45;
 // Two elements' type overlapping is sometimes a technique (a brutalist stack, a glitch's offset copies), so
 // a graze is not a finding — the intersection has to eat a real share of the smaller box before it counts.
 const OVERLAP_AREA_FRAC = 0.22;
@@ -238,7 +245,6 @@ export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] 
     if (!text) return;
     const cs = win.getComputedStyle(el);
     if (parseFloat(cs.opacity || '1') < MIN_OPACITY || cs.visibility === 'hidden') return;
-    const size = parseFloat(cs.fontSize || '16');
     const r = visibleRect(el, frame);
     if (!r || r.width <= 0 || r.height <= 0) return;
     const font = `${cs.fontSize} ${(cs.fontFamily || '').split(',')[0]}`;
@@ -246,12 +252,15 @@ export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] 
     const short = text.length > 40 ? text.slice(0, 40) + '…' : text;
     // 1. this element's own lines, against each other
     const lines = lineRects(el);
-    let worst = 0;
+    let worst = 0, box = 0;
     for (let i = 1; i < lines.length; i++) {
       const gap = lines[i - 1].bottom - lines[i].top;      // > 0 means the boxes overlap
-      if (gap > worst) worst = gap;
+      if (gap > worst) {
+        worst = gap;
+        box = Math.min(lines[i - 1].height, lines[i].height);
+      }
     }
-    if (worst > size * LEADING_OVERLAP_FRAC) {
+    if (box > 0 && worst > box * LEADING_OVERLAP_FRAC) {
       out.push({kind: 'leading', depth: Math.round(worst), text: short, font, cls});
     }
     boxes.push({el, r, text: short, font, cls});

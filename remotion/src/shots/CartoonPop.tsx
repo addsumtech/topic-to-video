@@ -5,6 +5,7 @@
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
+import {leading} from '../runtime/cjkType';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA, dnaPalette, mix, tint, shade} from '../runtime/dna';
 
@@ -150,7 +151,10 @@ export const CartoonPop: React.FC<{label?: string}> = ({label = 'DONE!'} = {}) =
       {/* DONE! comic text */}
       <div style={{position: 'absolute', left: cx + 60, top: cy - 210, width: 400, textAlign: 'center',
         transform: `scale(${doneIn}) rotate(-8deg)`, transformOrigin: '50% 50%'}}>
-        <div style={{font: '900 130px/0.9 var(--f-display, "Baloo 2", Inter, system-ui, sans-serif)', color: GREEN,
+        {/* 0.9 is the comic-poster punch in Latin, where caps have no descenders. In Chinese the two
+            wrapped lines crash into each other (measured 84px of a 130px line box). The floor lifts only
+            for CJK, so the Latin poster keeps its punch exactly. */}
+        <div style={{font: `900 130px/${leading(label, 0.9)} var(--f-display, "Baloo 2", Inter, system-ui, sans-serif)`, color: GREEN,
           WebkitTextStroke: `9px ${OUTLINE}`, paintOrder: 'stroke', letterSpacing: '-0.01em'}}>{label}</div>
       </div>
 

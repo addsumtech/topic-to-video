@@ -105,11 +105,55 @@ def test_kinetic_manifesto_is_a_negative_control_and_the_misdiagnosis_is_recorde
     assert "KineticManifesto" in c.__doc__ and "innocent" in c.__doc__
 
 
+def test_the_overlap_is_measured_against_the_line_box_so_scale_cancels():
+    """A register drawn inside a scaled or 3D-transformed container reports rects in SCALED pixels while
+    getComputedStyle().fontSize stays unscaled. Measured against fontSize, the zoom itself read as a
+    collision: InfiniteCanvas (a camera-zoomed canvas) was reported at 14px on '40px Inter' with visibly
+    clean type, and three more findings had the same shape — 5 of the sweep's 6 were this artifact."""
+    src = open(os.path.join(_ROOT, "remotion", "src", "runtime", "textSafe.tsx"), encoding="utf-8").read()
+    assert "box * LEADING_OVERLAP_FRAC" in src, "the threshold must be relative to the LINE BOX"
+    assert "size * LEADING_OVERLAP_FRAC" not in src, "a fontSize-relative threshold reads zoom as collision"
+    assert "InfiniteCanvas" in src, "the case that proved it must travel with the fix"
+
+
+def test_cartoon_pop_goes_through_the_floor_too():
+    src = open(os.path.join(_ROOT, "remotion", "src", "shots", "CartoonPop.tsx"), encoding="utf-8").read()
+    assert "leading(label, 0.9)" in src
+
+
 def test_font_runs_are_grouped_into_lines_before_they_are_compared():
     """getClientRects() returns one rect per FONT RUN. A mixed CJK+Latin string is two runs on one baseline,
     and compared raw a folio reading `交付可验收的成果.CO — 01` was reported as a 31px collision."""
     src = open(os.path.join(_ROOT, "remotion", "src", "runtime", "textSafe.tsx"), encoding="utf-8").read()
     assert "SAME_LINE_FRAC" in src and "per FONT RUN" in src
+
+
+# ── the static half: can any bundled face draw Chinese at all? ─────────────────────────────────────
+def test_the_bundled_faces_are_measured_for_cjk_coverage():
+    cov = c.bundled_cjk_coverage()
+    if cov is None:
+        pytest.skip("fontTools not installed")
+    assert len(cov) >= 10, cov
+    assert all(isinstance(h, bool) for _, h in cov)
+
+
+def test_the_gate_says_so_when_no_bundled_face_can_draw_chinese():
+    """The finding this records: fonts.ts bundles ten Latin faces and no CJK one, so every Chinese glyph is
+    drawn by whatever the render machine has. Measured on one register across two DNAs whose display faces
+    are as different as the library holds — English 1480 vs 1573px, Chinese 1383 vs 1383px."""
+    src = open(os.path.join(_ROOT, "scripts", "cjk_type_qa.py"), encoding="utf-8").read()
+    assert "1383" in src and "1573" in src, "the measurement that proves it must travel with the claim"
+    assert "NONE of the %d bundled faces" in src
+
+
+def test_the_withdrawn_dom_detector_is_recorded_not_silently_dropped():
+    """`document.fonts.check()` counts fallbacks and returned true for Chinese in Space Grotesk; measuring
+    against a sentinel stack false-positived on every monospace face. Both are recorded so the next person
+    does not rebuild them."""
+    src = open(os.path.join(_ROOT, "scripts", "cjk_type_qa.py"), encoding="utf-8").read()
+    assert "WITHDRAWN" in src and "fonts.check()" in src
+    dom = open(os.path.join(_ROOT, "remotion", "src", "runtime", "textSafe.tsx"), encoding="utf-8").read()
+    assert "SENTINEL_FALLBACK" not in dom and "measureIn" not in dom, "the noisy detector must be gone"
 
 
 # ── end to end: the instrument must separate its classes ───────────────────────────────────────────

@@ -33,6 +33,12 @@ WHAT IT MEASURES, and how sure each answer is:
             paragraph to collide with itself — so this is an ERROR.
   overlap   TWO different elements' type overlaps. Sometimes the technique (a brutalist stack, a glitch's
             offset copies), so this is reported for a human to look at, never as a failure.
+A THIRD FINDING WAS ATTEMPTED IN THE DOM AND WITHDRAWN, which is worth recording. "Does the DECLARED face
+actually draw this text" cannot be asked of `document.fonts.check()` — it answers "are the fonts needed to
+render this loaded", counting fallbacks, and returned true for Chinese set in Space Grotesk. Measuring the
+string against a sentinel stack instead false-positived on every monospace face (a `$` is the same width in
+JetBrains Mono and in the generic monospace) and still missed the case it was built for. The question is
+answered exactly and statically by `bundled_cjk_coverage()` below — read the font files, not the layout.
 
 THE COPY IT USES. Real registers take real props, so a fixture is generated per register from its own
 declared prop signature: a `kicker` gets a short label, a `tagline` gets a sentence, an `items` array gets
@@ -173,6 +179,42 @@ def _shape_array(prop, ty):
     return None
 
 
+def bundled_cjk_coverage():
+    """[(face, has_cjk)] — can any face the renderer BUNDLES draw Chinese at all?
+
+    This is the static half of the CJK floor, and it is the bigger half. `remotion/src/runtime/fonts.ts`
+    exists because the tier "used to load NOTHING: every family named in a DNA was a bare CSS family name
+    resolved against whatever the render host had installed... output therefore varied by machine — a
+    determinism defect on a tier that otherwise pins seeds and hashes clips." That was fixed for Latin and
+    left exactly as it was for CJK: none of the bundled faces carries a single Han glyph, so every Chinese
+    character in every film is drawn by whatever the machine happens to have.
+
+    MEASURED CONSEQUENCE, on one register and two DNAs whose display faces are as different as the library
+    holds (editorial = Playfair Display, a didone serif; product = Space Grotesk, a geometric sans):
+
+        the same title in English    1480px wide vs 1573px      — 93px apart, the face is doing its job
+        the same title in Chinese    1383px wide vs 1383px      —  0px apart, the same fallback drew both
+
+    So on a CJK film the Design DNA's TYPOGRAPHY — the first token it declares, and by its own documentation
+    the strongest style signal it has — does nothing at all. Every direction renders Chinese identically.
+    """
+    import glob as _g
+    try:
+        from fontTools.ttLib import TTFont
+    except ImportError:
+        return None
+    probe = (0x4E00, 0x6587, 0x4EF6, 0x81EA, 0x5FAA)      # 一 文 件 自 循
+    out = []
+    for f in sorted(_g.glob(os.path.join(_ROOT, "assets", "fonts", "*.ttf")) +
+                    _g.glob(os.path.join(_ROOT, "assets", "fonts", "*.otf"))):
+        try:
+            cmap = TTFont(f, lazy=True).getBestCmap()
+            out.append((os.path.basename(f), all(cp in cmap for cp in probe)))
+        except Exception:                                 # noqa: BLE001 — an unreadable face is not a verdict
+            continue
+    return out
+
+
 def durations():
     out = {}
     for f in sorted(glob.glob(os.path.join(_SHOTS, "*.tsx"))):
@@ -289,6 +331,13 @@ def main(argv):
     failed = [n for n, v in res.items() if v["failed"]]
     untest = {n: v["untestable"] for n, v in res.items() if v["untestable"]}
     if not a.json:
+        cov = bundled_cjk_coverage()
+        if cov is not None and not any(has for _, has in cov):
+            print("[cjk_type] NONE of the %d bundled faces can draw Chinese — every CJK glyph in every film "
+                  "is\n           set by whatever font the render machine has installed, so the Design DNA's "
+                  "typography\n           does nothing on a CJK film (measured: 0px apart across two DNAs; "
+                  "93px in English).\n           Bundle a CJK face in assets/fonts + runtime/fonts.ts to fix "
+                  "it." % len(cov))
         print("[cjk_type] %d register(s) rendered with Chinese copy" % (len(res) - len(failed)))
         if lead:
             print("\nLINES COLLIDING WITH THEMSELVES — a wrapped Chinese line set at a Latin leading:")
