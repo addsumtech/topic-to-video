@@ -433,7 +433,8 @@ def test_the_tilted_probes_are_synthetic_and_permanent():
     for n in ("TiltedTypeCollisionProbe", "TiltedTypeCleanProbe"):
         assert "export const %s: React.FC = () =>" % n in root, n
         assert "{F('%s', %s, " % (n, n) in root, n
-    assert "TiltedTypeCollisionProbe" in c.CONTROLS_BAD and "TiltedTypeCleanProbe" in c.CONTROLS_GOOD
+    assert c.CONTROLS_BAD["TiltedTypeCollisionProbe"] == "leading"
+    assert c.CONTROLS_CLEAN["TiltedTypeCleanProbe"] == "leading"
 
 
 # ── "drew nothing": the verdict comes from the DOM, not from an ink ratio ───────────────────────────
@@ -515,3 +516,47 @@ def test_the_measured_sweep_covers_what_the_static_rule_cannot():
     assert "CJK_MIN_LEADING" in dom and "kind: 'tight'" in dom, \
         "the sweep must measure the floor it shares with the registers, not a second copy of the number"
     assert "hasCJK(text)" in dom, "the report is for CJK copy only — Latin display type keeps its leading"
+
+
+# ── the orphaned last line ──────────────────────────────────────────────────────────────────────────
+@_NEEDS_REMOTION
+def test_a_single_character_last_line_is_caught_and_balance_fixes_it():
+    """The pair is the whole point: two probes differing in ONE property. Chinese breaks between any two
+    glyphs, so a label a unit too wide for its box drops one character onto a line of its own — a delivered
+    film's card read 「Craft · 直接开」 over a line holding just 「干」. `text-wrap: balance` is the fix, and
+    the twin proves the detector is reading the break rather than the copy."""
+    bad = _probe_kind("OrphanLineProbe", "orphan")
+    assert bad and bad[0]["other"] == "录", bad
+    assert not _probe_kind("BalancedLineProbe", "orphan"), "balanced copy must come back clean"
+
+
+@_NEEDS_REMOTION
+def test_the_orphan_detector_reads_lines_correctly_under_rotation():
+    """It has to: the register that exposed the defect fans its cards on a tilt, so an axis-aligned line
+    grouping would not have found it at all. The line direction is measured from the copy itself."""
+    hits = _probe_kind("CardStack3D", "orphan",
+                       {"title": "三种工作模式",
+                        "items": ["Craft · 直接开干", "Plan · 确认后再动", "Ask · 不碰文件"]})
+    assert not hits, "CardStack3D balances its card labels now: %s" % hits
+
+
+def _probe_kind(name, kind, props=None):
+    tmp = os.path.join(_ROOT, "remotion", ".cjk_type_kind.png")
+    try:
+        hits = c.audit(name, props or {}, 145, tmp, "product")
+        assert hits is not None, "%s failed to render" % name
+        return [h for h in hits if h["kind"] == kind]
+    finally:
+        for f in (tmp, tmp + ".props.json"):
+            if os.path.exists(f):
+                os.remove(f)
+
+
+def test_every_synthetic_control_has_a_one_property_twin():
+    """A catch is only evidence when its twin, differing in one property, comes back clean."""
+    assert set(c.CONTROLS_BAD.values()) == {"leading", "orphan"}
+    assert set(c.CONTROLS_CLEAN.values()) <= set(c.CONTROLS_BAD.values())
+    root = open(os.path.join(_ROOT, "remotion", "src", "Root.tsx"), encoding="utf-8").read()
+    for n in list(c.CONTROLS_BAD) + list(c.CONTROLS_CLEAN):
+        assert "{F('%s', %s, " % (n, n) in root, n
+    assert "ORPHAN_COPY" in root, "both orphan probes must set the SAME copy, or they are not a pair"

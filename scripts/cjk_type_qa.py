@@ -657,10 +657,20 @@ def sweep(names, dna=DEFAULT_DNA, aspect=None, film_props=None):
 # copy at 0.55 leading). The first version used the two real registers that had broken a real film, and it
 # worked exactly once — the moment both were repaired the controls reported "not caught" and the instrument
 # could no longer show it detects anything. A control that needs production code to STAY broken is not one.
-CONTROLS_BAD = ["TypeCollisionProbe", "TiltedTypeCollisionProbe"]
+# {probe: the finding KIND it must produce}. Each is synthetic, permanent and paired below with a probe
+# that differs in exactly one property and must come back clean — which is what makes a catch evidence
+# rather than a coincidence.
+CONTROLS_BAD = {"TypeCollisionProbe": "leading",          # Chinese at 0.55 leading
+                "TiltedTypeCollisionProbe": "leading",    # the same, on a 13° tilt
+                "OrphanLineProbe": "orphan"}              # 15 characters in a box 7 wide: 7 / 7 / 1
+# {probe: the kind its partner produces, which this one must NOT}
+CONTROLS_CLEAN = {"TiltedTypeCleanProbe": "leading",      # well-set, same tilt
+                  "BalancedLineProbe": "orphan"}          # the same copy with `text-wrap: balance`
 # KineticManifesto is deliberately here on the GOOD side — see the header. It reports clean and that is the
 # right answer; it was a mis-diagnosis off a single mid-flythrough frame.
-CONTROLS_GOOD = ["TiltedTypeCleanProbe", "CinematicTitle", "TermTable", "QuadSplit", "KineticManifesto",
+# REAL registers that must not report a `leading` collision — the two repaired ones included, so a
+# regression in either shows up here.
+CONTROLS_GOOD = ["CinematicTitle", "TermTable", "QuadSplit", "KineticManifesto",
                  "MagazineSpread", "BrutalistType"]
 
 
@@ -687,17 +697,23 @@ def unfed_control():
 
 def controls():
     """Prove the instrument separates the classes before anyone believes a sweep."""
-    res = sweep(CONTROLS_BAD + CONTROLS_GOOD)
-    bad = {n: [h for h in res[n]["hits"] if h["kind"] == "leading"] for n in CONTROLS_BAD}
+    names = list(CONTROLS_BAD) + list(CONTROLS_CLEAN) + CONTROLS_GOOD
+    res = sweep(names)
+    bad = {n: [h for h in res[n]["hits"] if h["kind"] == k] for n, k in CONTROLS_BAD.items()}
+    clean = {n: [h for h in res[n]["hits"] if h["kind"] == k] for n, k in CONTROLS_CLEAN.items()}
     good = {n: [h for h in res[n]["hits"] if h["kind"] == "leading"] for n in CONTROLS_GOOD}
     # A CONTROL THAT NEVER RENDERED IS NOT A CONTROL. `QuadSplit` threw on a fixture that fed a Chinese
     # sentence to an icon name, and a failed render carries no hits — so it read as "known-GOOD, 0
     # collisions" and the controls passed while measuring one register fewer than they claimed.
-    dead = [n for n in CONTROLS_BAD + CONTROLS_GOOD if res[n]["failed"]]
-    print("[cjk_type] CONTROLS — a synthetic mis-set frame it must catch, and registers it must not flag:")
-    for n in CONTROLS_BAD:
-        print("   known-BAD  %-24s %d leading collision(s)%s"
-              % (n, len(bad[n]), "" if bad[n] else "   <- NOT CAUGHT"))
+    dead = [n for n in names if res[n]["failed"]]
+    print("[cjk_type] CONTROLS — synthetic frames it must catch, their one-property-different twins it must "
+          "not, and\n           real registers it must not flag:")
+    for n, k in CONTROLS_BAD.items():
+        print("   known-BAD  %-24s %d %s finding(s)%s"
+              % (n, len(bad[n]), k, "" if bad[n] else "   <- NOT CAUGHT"))
+    for n, k in CONTROLS_CLEAN.items():
+        print("   its twin   %-24s %d %s finding(s)%s"
+              % (n, len(clean[n]), k, "   <- FALSE POSITIVE" if clean[n] else ""))
     for n in CONTROLS_GOOD:
         print("   known-GOOD %-24s %s"
               % (n, "DID NOT RENDER   <- NOT A CONTROL" if res[n]["failed"]
@@ -705,8 +721,8 @@ def controls():
                                                      "   <- FALSE POSITIVE" if good[n] else "")))
     print("[cjk_type] CONTROLS — and the guard for a fixture that never reaches its register:")
     fed = unfed_control()
-    ok = (all(bad[n] for n in CONTROLS_BAD) and not any(good[n] for n in CONTROLS_GOOD)
-          and not dead and fed)
+    ok = (all(bad[n] for n in CONTROLS_BAD) and not any(clean[n] for n in CONTROLS_CLEAN)
+          and not any(good[n] for n in CONTROLS_GOOD) and not dead and fed)
     print("[cjk_type] controls %s" % ("PASS — the instrument separates them" if ok else "FAIL — do not trust a sweep yet"))
     return 0 if ok else 1
 
@@ -745,6 +761,8 @@ def main(argv):
     over = {n: h for n, h in over.items() if h}
     tight = {n: [h for h in v["hits"] if h["kind"] == "tight"] for n, v in res.items()}
     tight = {n: h for n, h in tight.items() if h}
+    orph = {n: [h for h in v["hits"] if h["kind"] == "orphan"] for n, v in res.items()}
+    orph = {n: h for n, h in orph.items() if h}
     unfed = {n: v for n, v in res.items() if any(h["kind"] == "unfed" for h in v["hits"])}
     # A rotated element the orientation-free instrument could not read is not a pass — it is an element
     # NOTHING is known about. It fails, because the only way to reach it is a renderer that cannot measure
@@ -779,6 +797,13 @@ def main(argv):
             for n in sorted(tight, key=lambda k: -max(h["depth"] for h in tight[k]))[:20]:
                 h = max(tight[n], key=lambda x: x["depth"])
                 print("    %-22s %s  «%s»" % (n, h["font"], h["text"]))
+        if orph:
+            print("\nA LAST LINE HOLDING ONE CHARACTER — Chinese breaks between any two glyphs, so a label a "
+                  "unit too\n  wide for its box drops one onto a line of its own (fix with "
+                  "`textWrap: 'balance'` on the label):")
+            for n in sorted(orph)[:20]:
+                h = orph[n][0]
+                print("    %-22s «%s» ends on a line holding «%s»" % (n, h["text"], h.get("other", "?")))
         if untest:
             print("\nNOT TESTED — no CJK copy could be shaped for these props (add the shape to _ARRAY_SHAPES):")
             for n in sorted(untest)[:14]:

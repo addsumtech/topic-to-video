@@ -144,8 +144,12 @@ export const CardStack3D: React.FC<{items?: StackItem[]; title?: string}> = ({
                 </div>
                 {/* A card label is a short noun in English and wraps to three lines in Chinese, where
                     `line-height: 1` puts stroke on stroke — CJK glyphs fill their em box. `leading` only
-                    ever raises, so the Latin design is byte-for-byte unchanged. */}
+                    ever raises, so the Latin design is byte-for-byte unchanged.
+                    `text-wrap: balance` for the other half of the same problem: Chinese breaks between any
+                    two glyphs, so a label one unit too wide drops a single character onto a line of its own
+                    — this card read 「Craft · 直接开」 over a line holding just 「干」 on a delivered film. */}
                 <div style={{color: INK, font: `800 46px/${leading(label, 1)} var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
+                  textWrap: 'balance',
                   textShadow: deep ? '0 2px 10px #000' : 'none'}}>{label}</div>
               </div>
             );
@@ -154,7 +158,7 @@ export const CardStack3D: React.FC<{items?: StackItem[]; title?: string}> = ({
       </AbsoluteFill>
       <div style={{position: 'absolute', top: titleTop, height: titleH, left: 0, right: 0, textAlign: 'center',
         opacity: titleIn, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-        transform: `translateY(${(1 - titleIn) * 16}px)`, color: dna?.fg ?? TITLE_D0,
+        transform: `translateY(${(1 - titleIn) * 16}px)`, color: dna?.fg ?? TITLE_D0, textWrap: 'balance',
         font: `800 ${titleSize}px/${leading(TITLE, 1)} var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
         textShadow: deep ? '0 8px 30px #000' : 'none'}}>{TITLE}</div>
     </AbsoluteFill>

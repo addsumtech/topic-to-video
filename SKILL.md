@@ -447,7 +447,9 @@ TTS if the user gives an API key.
   collides: `leading` (one element's own wrapped lines overlapping — never intentional, an ERROR),
   `overlap` (two elements' type crossing — sometimes the technique, so a candidate), `tight` (wrapped
   Chinese below the library's own `CJK_MIN_LEADING` — nothing collides and there is no air either, a
-  report), and `unmeasured` (drawn on a tilt and unreadable by the orientation-free instrument — an ERROR,
+  report), `orphan` (a wrapped Chinese label whose LAST LINE holds one character — Chinese breaks between
+  any two glyphs, so a label a unit too wide for its box drops one onto a line of its own; fix it with
+  `textWrap: 'balance'` on that element), and `unmeasured` (drawn on a tilt and unreadable by the orientation-free instrument — an ERROR,
   because nothing is known about it either way). Type drawn on a TILT is measured from font metrics, not
   from client rects: a rect is axis-aligned, so a rotated line's rect is its bounding box, and the rect
   instrument was wrong in BOTH directions on tilted type (a well-set block read as a 148px collision, a

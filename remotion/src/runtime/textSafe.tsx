@@ -153,11 +153,12 @@ export type Collision = {
   /**
    * `leading` — one element's own wrapped LINES overlap each other. `overlap` — two elements' type collides.
    * `tight` — WRAPPED Chinese set below the library's own CJK leading floor: nothing overlaps, and there is
-   * no air between the lines either. `unmeasured` — the element is drawn under a rotation AND the
+   * no air between the lines either. `orphan` — a wrapped Chinese label whose LAST LINE holds a single
+   * character, which reads as a typo rather than as a line break. `unmeasured` — the element is drawn under a rotation AND the
    * rotation-free instrument could not read it, so NOTHING is known about it either way (see
    * `metricLeading`). Never silently dropped.
    */
-  kind: 'leading' | 'overlap' | 'tight' | 'unmeasured';
+  kind: 'leading' | 'overlap' | 'tight' | 'orphan' | 'unmeasured';
   /** how deep the collision runs, in px */
   depth: number;
   text: string;
@@ -253,25 +254,47 @@ const lineRects = (el: Element): DOMRect[] => {
 // so one threshold covers both, and the two paths agree where they overlap (checked in the controls).
 const ROT_EPS = 0.02;   // ≈1.1°, below which the inflation is sub-pixel at the sizes this library sets
 
-/** Does any transform up this element's chain rotate or skew it? Cheap, and deliberately over-inclusive. */
-const rotatedUnder = (el: Element, win: Window): boolean => {
+/** Is THIS element's own transform a rotation or a skew? */
+const selfRotated = (cs: CSSStyleDeclaration): boolean => {
+  const tr = cs.transform;
+  if (tr && tr !== 'none' && tr.indexOf('(') > 0) {
+    const n = tr.slice(tr.indexOf('(') + 1, tr.lastIndexOf(')')).split(',').map((x) => parseFloat(x) || 0);
+    // matrix(a,b,c,d,e,f) → the off-diagonals are 1,2. matrix3d is column-major 4×4: the terms that can
+    // tilt the PROJECTED box are m12/m21 (in-plane) and m13/m31/m23/m32 (out-of-plane, which tilt it once
+    // a `perspective` ancestor turns the quad into a trapezoid).
+    const idx = n.length === 6 ? [1, 2] : n.length === 16 ? [1, 4, 2, 8, 6, 9] : [];
+    if (idx.some((i) => Math.abs(n[i]) > ROT_EPS)) return true;
+  }
+  const rot = (cs as unknown as {rotate?: string}).rotate;   // the `rotate` longhand, independent of `transform`
+  return Boolean(rot && rot !== 'none' && !/^(0deg|0rad|0turn|0grad|0)$/.test(rot.trim()));
+};
+
+/**
+ * Does any transform up this element's chain rotate or skew it? Deliberately over-inclusive.
+ *
+ * MEMOISED PER AUDIT, because the naive walk is quadratic in a way this library actually reaches: a
+ * character FIELD draws a thousand text elements and each walk repeats its ancestors' `getComputedStyle`,
+ * which is the expensive call. An element's answer is its own transform OR its parent's answer, so one
+ * cache turns the whole tree into a single pass.
+ */
+const rotatedUnder = (el: Element, win: Window, memo: Map<Element, boolean>): boolean => {
+  const chain: Element[] = [];
   let node: Element | null = el;
+  let acc = false;
   while (node) {
-    const cs = win.getComputedStyle(node);
-    const tr = cs.transform;
-    if (tr && tr !== 'none' && tr.indexOf('(') > 0) {
-      const n = tr.slice(tr.indexOf('(') + 1, tr.lastIndexOf(')')).split(',').map((x) => parseFloat(x) || 0);
-      // matrix(a,b,c,d,e,f) → the off-diagonals are 1,2. matrix3d is column-major 4×4: the terms that can
-      // tilt the PROJECTED box are m12/m21 (in-plane) and m13/m31/m23/m32 (out-of-plane, which tilt it once
-      // a `perspective` ancestor turns the quad into a trapezoid).
-      const idx = n.length === 6 ? [1, 2] : n.length === 16 ? [1, 4, 2, 8, 6, 9] : [];
-      if (idx.some((i) => Math.abs(n[i]) > ROT_EPS)) return true;
+    const hit = memo.get(node);
+    if (hit !== undefined) {
+      acc = hit;
+      break;
     }
-    const rot = (cs as unknown as {rotate?: string}).rotate;   // the `rotate` longhand, independent of `transform`
-    if (rot && rot !== 'none' && !/^(0deg|0rad|0turn|0grad|0)$/.test(rot.trim())) return true;
+    chain.push(node);
     node = node.parentElement;
   }
-  return false;
+  for (let i = chain.length - 1; i >= 0; i--) {
+    acc = acc || selfRotated(win.getComputedStyle(chain[i]));
+    memo.set(chain[i], acc);
+  }
+  return acc;
 };
 
 let _ctx: CanvasRenderingContext2D | null | undefined;
@@ -296,7 +319,15 @@ const metricLeading = (
   const lineH = parseFloat(cs.lineHeight || '');
   // `normal` IS the font's own leading, which is the one value that cannot collide with itself.
   if (!isFinite(lineH) || lineH <= 0) return {depth: 0, box: 0, wraps: false};
+  // A font string the canvas REFUSES is not an error — the browser silently keeps the previous value, and
+  // the whole measurement would then be of 10px sans-serif and read as an enormous overlap. Assign, then
+  // read back the size it actually took.
   ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize}/${cs.lineHeight} ${cs.fontFamily}`;
+  const want = parseFloat(cs.fontSize || '');
+  const took = parseFloat((/(\d+(?:\.\d+)?)px/.exec(ctx.font) ?? [])[1] ?? '');
+  if (!(isFinite(want) && isFinite(took) && Math.abs(took - want) < 0.51)) {
+    return {why: `the canvas would not take this face (asked ${cs.fontSize}, measuring "${ctx.font}")`};
+  }
   const ls = (ctx as unknown as {letterSpacing?: string});
   if ('letterSpacing' in ctx) ls.letterSpacing = cs.letterSpacing === 'normal' ? '0px' : cs.letterSpacing;
   const m = ctx.measureText(text);
@@ -339,6 +370,7 @@ export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] 
   if (!win) return [];
   const out: Collision[] = [];
   const boxes: {el: Element; r: DOMRect; text: string; font: string; cls: string; rot: boolean}[] = [];
+  const rotMemo = new Map<Element, boolean>();
   root.querySelectorAll('*').forEach((el) => {
     const text = hasOwnText(el);
     if (!text) return;
@@ -351,7 +383,7 @@ export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] 
     const short = text.length > 40 ? text.slice(0, 40) + '…' : text;
     // 1. this element's own lines, against each other. Rotated type gets the orientation-free instrument —
     //    its client rects are bounding boxes of tilted lines and overlap by construction.
-    const rot = rotatedUnder(el, win);
+    const rot = rotatedUnder(el, win, rotMemo);
     let worst = 0, box = 0, wraps = false;
     if (rot) {
       const m = metricLeading(el, cs, text);
@@ -389,6 +421,19 @@ export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] 
                   ...(rot ? {rot: true} : {})});
       }
     }
+    // A LAST LINE HOLDING ONE CHARACTER. Chinese breaks between any two characters, so a label one unit too
+    // wide for its box drops a single glyph onto a line of its own, which reads as a typo rather than as a
+    // line break: a delivered film's card said 「Craft · 直接开」 over a line holding just 「干」. Nothing is
+    // cut and nothing collides, so no other gate can see it. `text-wrap: balance` is the fix in the
+    // register; this is how you find them.
+    if (wraps && hasCJK(text) && text.length <= 40) {
+      const lines = charLines(el, parseFloat(cs.lineHeight || ''));
+      const tail = lines && lines.length > 1 ? lines[lines.length - 1] : null;
+      if (tail && tail.length === 1 && hasCJK(tail[0])) {
+        out.push({kind: 'orphan', depth: 1, text: short, font, cls, other: tail[0],
+                  ...(rot ? {rot: true} : {})});
+      }
+    }
     boxes.push({el, r, text: short, font, cls, rot});
   });
   // 2. element against element — skip any pair where one contains the other (a label inside its own card
@@ -410,6 +455,64 @@ export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] 
     }
   }
   return out;
+};
+
+/**
+ * An element's own characters, grouped into the LINES they were actually laid out on.
+ *
+ * WHY NOT `getClientRects()` GROUPED BY `top`. Because the library rotates type, and under a tilt every
+ * axis-aligned quantity lies (see ROTATED TYPE above). The direction of a line is not assumed here — it is
+ * MEASURED from the copy, as the median direction between consecutive characters, most pairs of which are
+ * neighbours on one line whatever the tilt. Characters are then grouped by their distance along the
+ * PERPENDICULAR of that direction, which is the line advance in any orientation.
+ *
+ * Deliberately bounded: this answers a question about LABELS, so anything past `limit` characters returns
+ * null rather than paying for a paragraph.
+ */
+const charLines = (el: Element, lineH: number, limit = 40): string[][] | null => {
+  const doc = el.ownerDocument;
+  if (!doc?.createRange || !(lineH > 0)) return null;
+  const nodes: Text[] = [];
+  el.childNodes.forEach((n) => {
+    if (n.nodeType === 3 && (n.textContent ?? '').trim()) nodes.push(n as Text);
+  });
+  const chars: {ch: string; cx: number; cy: number}[] = [];
+  for (const n of nodes) {
+    const t = n.textContent ?? '';
+    for (let i = 0; i < t.length; i++) {
+      if (chars.length >= limit) return null;
+      const r = doc.createRange();
+      r.setStart(n, i);
+      r.setEnd(n, i + 1);
+      const b = r.getBoundingClientRect();
+      r.detach?.();
+      if (b.width <= 0 || b.height <= 0) continue;       // a collapsed space at a line break
+      chars.push({ch: t[i], cx: b.left + b.width / 2, cy: b.top + b.height / 2});
+    }
+  }
+  if (chars.length < 4) return null;
+  const angles: number[] = [];
+  for (let i = 1; i < chars.length; i++) {
+    const dx = chars[i].cx - chars[i - 1].cx, dy = chars[i].cy - chars[i - 1].cy;
+    if (Math.abs(dx) + Math.abs(dy) < 0.5) continue;
+    let a = Math.atan2(dy, dx);
+    if (a > Math.PI / 2) a -= Math.PI;                    // direction, not heading: fold to (-90°, 90°]
+    if (a <= -Math.PI / 2) a += Math.PI;
+    angles.push(a);
+  }
+  if (!angles.length) return null;
+  angles.sort((x, y) => x - y);
+  const th = angles[Math.floor(angles.length / 2)];       // the median: line-internal steps outvote breaks
+  const px = -Math.sin(th), py = Math.cos(th);            // the perpendicular — the direction lines advance
+  const lines: string[][] = [];
+  let last = NaN;
+  chars.forEach((c) => {
+    const s = c.cx * px + c.cy * py;
+    if (!isFinite(last) || Math.abs(s - last) > lineH * 0.5) lines.push([]);
+    last = s;
+    lines[lines.length - 1].push(c.ch);
+  });
+  return lines;
 };
 
 /**

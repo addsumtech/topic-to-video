@@ -222,6 +222,27 @@ export const TiltedTypeCleanProbe: React.FC = () => (
 );
 
 
+// A LAST LINE HOLDING ONE CHARACTER, and the one-property fix. Chinese breaks between any two glyphs, so a
+// label a single unit too wide for its box drops one character onto a line of its own — a delivered film's
+// card read 「Craft · 直接开」 over a line holding just 「干」. Fifteen characters in a box seven wide is that
+// shape exactly: 7 / 7 / 1. The second probe is the same copy with `text-wrap: balance`, and it must come
+// back clean, which is what makes the first one evidence rather than a coincidence.
+const ORPHAN_COPY = '它自主拆解任务并在你授权的目录';
+
+export const OrphanLineProbe: React.FC = () => (
+  <div style={{position: 'absolute', inset: 0, background: '#fff', padding: 80}}>
+    <div style={{width: 700, color: '#000',
+      font: '800 96px/1.3 var(--f-display, Inter, system-ui, sans-serif)'}}>{ORPHAN_COPY}</div>
+  </div>
+);
+
+export const BalancedLineProbe: React.FC = () => (
+  <div style={{position: 'absolute', inset: 0, background: '#fff', padding: 80}}>
+    <div style={{width: 700, color: '#000', textWrap: 'balance',
+      font: '800 96px/1.3 var(--f-display, Inter, system-ui, sans-serif)'}}>{ORPHAN_COPY}</div>
+  </div>
+);
+
 const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C, p}) => {
   const {dna, aspect: _a, ...rest} = p as {dna?: unknown; aspect?: unknown};
   const active = coerceDna(dna as never);   // a string is a preset name; an object is a partial DNA
@@ -255,6 +276,8 @@ export const RemotionRoot: React.FC = () => (
     {F('TypeCollisionProbe', TypeCollisionProbe, 165)}
     {F('TiltedTypeCollisionProbe', TiltedTypeCollisionProbe, 165)}
     {F('TiltedTypeCleanProbe', TiltedTypeCleanProbe, 165)}
+    {F('OrphanLineProbe', OrphanLineProbe, 165)}
+    {F('BalancedLineProbe', BalancedLineProbe, 165)}
     {F('FontProbe', FontProbe, FPR)}
     {F('TypeSpecimen', TypeSpecimen, TSP)}
     {F('CollaborativeCursors', CollaborativeCursors, CC)}
