@@ -164,6 +164,24 @@ def measure(path, fps=12, long_side=192):
     }
 
 
+AXES = ("MOTION", "DENSITY", "LIGHT", "LIGHT ARC")
+
+
+def parse_waiver(raw):
+    """({AXIS: reason}, blanket_reason) — the ONE reading of meta.energy_waiver.
+
+    `validate.py` had its own copy that assumed a string, so the day this became per-axis a legitimate
+    object-shaped waiver was rejected at the board while the gate accepted it. Two copies of one rule is how
+    the caption band became four disagreeing numbers in this repo; there is one copy now and validate imports
+    it.
+    """
+    if isinstance(raw, dict):
+        return {str(k).strip().upper(): str(v).strip() for k, v in raw.items() if str(v).strip()}, ""
+    if isinstance(raw, str):
+        return {}, raw.strip()
+    return {}, ""
+
+
 def check(out_dir):
     mp4 = os.path.join(out_dir, "out.mp4")
     if not os.path.exists(mp4):
@@ -187,6 +205,12 @@ def check(out_dir):
     errs, warns = [], []
     # p75 rather than p90: measured across the corpus, p90's lowest reference sits close enough to a
     # slideshow that a half-floor would let one through. p75 separates them by 3.3x.
+    # WHAT MOVES THIS NUMBER, AND WHAT DOES NOT — measured on one 161s film, so nobody repeats the trials:
+    #   the camera BED (a slow lateral pan on every unauthored beat)   +0.0005   and it reads as drifting type
+    #   SIX motivated camera pushes at the documented 0.045 amplitude   0.0000   exactly no change
+    # A 4.5% scale over six seconds is far below this statistic's own threshold frame to frame, so camera
+    # amplitude at any tasteful level cannot reach it. Only the CONTENT moving does. When a film is under
+    # this floor the honest levers are livelier registers or a stated waiver — not a bigger camera.
     if m["motion_p75"] < MOTION_P75_FLOOR:
         errs.append("MOTION: frame-diff p75 is %.4f, under the %.4f floor (half the quietest reference "
                     "film's %.4f). Three quarters of this film's frames are within %.2f%% of the frame "
@@ -220,12 +244,7 @@ def check(out_dir):
     #
     # A plain string still waives everything (that is what existing boards mean by it) but now SAYS so, and
     # an object waives exactly the axes it names: {"density": "…"} leaves motion gated.
-    raw = meta.get("energy_waiver")
-    per_axis, blanket = {}, ""
-    if isinstance(raw, dict):
-        per_axis = {str(k).strip().upper(): str(v).strip() for k, v in raw.items() if str(v).strip()}
-    elif isinstance(raw, str):
-        blanket = raw.strip()
+    per_axis, blanket = parse_waiver(meta.get("energy_waiver"))
     kept, waived = [], []
     for e in errs:
         axis = e.split(":", 1)[0].strip().upper()

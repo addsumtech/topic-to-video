@@ -1874,13 +1874,30 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
                       "\"%s:<voice-name>\" (e.g. \"edge:zh-CN-XiaoxiaoNeural\") or \"auto\"." % (_v, _v.strip().lower()))
     _ew = meta.get("energy_waiver")
     if _ew is not None:
-        if not isinstance(_ew, str) or not _ew.strip():
-            errors.append("meta.energy_waiver must be a non-empty reason — it waives the motion/density/light "
-                          "floors, so it has to say why this film is deliberately quiet")
+        # The waiver is PER-AXIS, and this reads it through film_energy_qa's own parser rather than a second
+        # copy — a copy here that still assumed a string rejected a legitimate object the day the gate began
+        # accepting one.
+        try:
+            import film_energy_qa as _fe
+            _axes, _blanket = _fe.parse_waiver(_ew)
+            _known = set(_fe.AXES)
+        except Exception:                                # noqa: BLE001
+            _axes, _blanket, _known = ({}, _ew if isinstance(_ew, str) else "", set())
+        if not _axes and not _blanket:
+            errors.append("meta.energy_waiver must be a non-empty reason, or an object naming the axes it "
+                          "waives (e.g. {\"density\": \"why\"}) — it switches a delivery floor off, so it has "
+                          "to say why")
+        elif _blanket:
+            warnings.append("meta.energy_waiver is a plain STRING, so it waives EVERY film-energy floor "
+                            "(motion, density, light, arc) — not only the one you reasoned about. Name the "
+                            "axes instead to keep the rest gated: %r" % _blanket[:100])
         else:
-            warnings.append("meta.energy_waiver is set, so film_energy_qa's motion/density/light floors are "
-                            "ACCEPTED rather than met: %r. Confirm this still describes the current cut."
-                            % _ew.strip()[:120])
+            _bad = sorted(a for a in _axes if _known and a not in _known)
+            if _bad:
+                errors.append("meta.energy_waiver names axis/axes %s that no floor is called — expected any "
+                              "of %s, so this waiver silently covers nothing" % (_bad, sorted(_known)))
+            warnings.append("meta.energy_waiver ACCEPTS rather than meets: %s. Confirm each still describes "
+                            "the current cut." % ", ".join(sorted(set(_axes) - set(_bad))))
     design_dna = meta.get("design_dna")
     # THE DECK IS THE BRAND. When the film was ingested from a pptx whose theme is NOT Office's default, its
     # colours and typefaces were chosen by someone — and a preset DNA (or none) paints over them with a

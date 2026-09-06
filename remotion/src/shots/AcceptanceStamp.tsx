@@ -77,12 +77,12 @@ export const AcceptanceStamp: React.FC<Props> = ({
   const land = easeOutBack(clamp01(seg(t, 0.66, 0.80)));
   const noteIn = clamp01(seg(t, 0.80, 0.92));
 
-  const cardW = Math.round(U * 0.335), cardH = Math.round(U * 0.155);
-  const gap = Math.round(U * 0.085);
-  const condY = Math.round(midY - U * 0.215);
-  const resW = Math.round(U * 0.50), resH = Math.round(U * 0.215);
-  const resY = Math.round(midY - U * 0.005);
-  const labelPx = (s: string) => fitTextPx(s, cardW - Math.round(U * 0.055), Math.round(U * 0.044),
+  const cardW = Math.round(U * 0.385), cardH = Math.round(U * 0.165);
+  const gap = Math.round(U * 0.075);
+  const condY = Math.round(midY - U * 0.245);
+  const resW = Math.round(U * 0.56), resH = Math.round(U * 0.235);
+  const resY = Math.round(midY - U * 0.035);
+  const labelPx = (s: string) => fitTextPx(s, cardW - Math.round(U * 0.055), Math.round(U * 0.050),
     {usable: 1.15});
 
   const Condition: React.FC<{text: string; enter: number; tick: number; dx: number}> = ({
@@ -109,7 +109,7 @@ export const AcceptanceStamp: React.FC<Props> = ({
     );
   };
 
-  const resPx = fitTextPx(result, resW - Math.round(U * 0.08), Math.round(U * 0.062), {usable: 1.0});
+  const resPx = fitTextPx(result, resW - Math.round(U * 0.08), Math.round(U * 0.072), {usable: 1.0});
   return (
     <AbsoluteFill style={{background: BG}}>
       <Condition text={a} enter={inA} tick={tickA} dx={-(cardW / 2 + gap / 2)} />
@@ -139,14 +139,14 @@ export const AcceptanceStamp: React.FC<Props> = ({
         transform: `rotate(-13deg) scale(${lerp(1.5, 1, land)})`, opacity: clamp01(land * 1.2),
         border: `${Math.max(3, Math.round(U * 0.005))}px solid ${ACC}`, borderRadius: Math.round(U * 0.012),
         padding: `${Math.round(U * 0.012)}px ${Math.round(U * 0.026)}px`, color: ACC,
-        font: `800 ${fitTextPx(stamp, U * 0.30, Math.round(U * 0.042), {usable: 1.0})}px/${leading(stamp, 1.1)} var(--f-display, system-ui, sans-serif)`,
+        font: `800 ${fitTextPx(stamp, U * 0.30, Math.round(U * 0.048), {usable: 1.0})}px/${leading(stamp, 1.1)} var(--f-display, system-ui, sans-serif)`,
         letterSpacing: '0.04em'}}>{stamp}</div>
 
       {note ? (
         <div style={{position: 'absolute', top: resY + resH + Math.round(U * 0.05), left: 0, right: 0,
           textAlign: 'center', color: DIM, opacity: clamp01(noteIn),
           padding: `0 ${Math.round(W * 0.12)}px`,
-          font: `500 ${Math.round(U * 0.028)}px/${leading(note, 1.45)} var(--f-body, system-ui, sans-serif)`}}>
+          font: `500 ${Math.round(U * 0.031)}px/${leading(note, 1.45)} var(--f-body, system-ui, sans-serif)`}}>
           {note}
         </div>
       ) : null}

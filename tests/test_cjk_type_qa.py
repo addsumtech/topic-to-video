@@ -72,10 +72,27 @@ def test_image_props_are_never_fed_chinese_text():
 
 
 def test_an_unfeedable_prop_is_reported_rather_than_passing_silently(monkeypatch):
-    monkeypatch.setitem(c._ARRAY_SHAPES, "nodes", None)
-    monkeypatch.delitem(c._ARRAY_SHAPES, "nodes")
-    _, untestable = c.cjk_props("TimelineTravel")
-    assert "nodes" in untestable, "a register nobody can feed is exactly where this defect hides"
+    """Deleting the hand table no longer makes a prop unfeedable — shapes come from the register's own type
+    now, which is the point. So the contract under test is the REMAINING one: a prop whose shape cannot be
+    resolved by EITHER route is reported, never silently skipped, because a register nobody can feed is
+    exactly where this defect hides."""
+    # TermTree declares `items?: Item[]` — a NAMED alias, so blinding the alias reader leaves no route.
+    # (TimelineTravel's nodes are an INLINE object type and are resolved by the other branch, which is why
+    # this test names a register whose shape actually depends on the alias.)
+    monkeypatch.setattr(c, "_alias_fields", lambda src, alias: None)
+    monkeypatch.setattr(c, "_ARRAY_SHAPES", {})
+    _, untestable = c.cjk_props("TermTree")
+    assert "items" in untestable
+
+
+def test_the_type_derived_shape_survives_losing_the_hand_table(monkeypatch):
+    """The hand table is an OVERRIDE for what the parser cannot reach, not the source of truth. Keyed by
+    prop NAME it was actively wrong: `items` is declared by many registers with different element shapes."""
+    monkeypatch.setattr(c, "_ARRAY_SHAPES", {})
+    props, untestable = c.cjk_props("TimelineTravel")
+    assert not untestable and isinstance(props["nodes"][0], dict) and "label" in props["nodes"][0]
+    tree, _ = c.cjk_props("TermTree")
+    assert set(tree["items"][0]) == {"name", "note", "tag"}, "shaped from TermTree's OWN type alias"
 
 
 def test_colours_and_images_are_not_fed_chinese():

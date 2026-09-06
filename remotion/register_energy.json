@@ -153,7 +153,7 @@
     "VoiceSignal": "3a3f942e9c6a06dd",
     "VoxelBuild": "e3eea6dafbab7a1b",
     "WireGlobe": "e43b15ea846bc538",
-    "AcceptanceStamp": "295ae579a469fe5e"
+    "AcceptanceStamp": "6b2bfc04c87fac3f"
   },
   "_basis": "each register rendered as VIDEO at its own DURATION, 16:9, under dna=product — the themed path, because every delivered film has a design system and the un-themed fallback is a mode none of them use",
   "_dna": "product",
@@ -174,11 +174,11 @@
   "_failed": [],
   "registers": {
     "AcceptanceStamp": {
-      "motion_p75": 0.0005,
-      "ink_median": 0.015,
-      "luma_range": 0.011,
+      "motion_p75": 0.0008,
+      "ink_median": 0.017,
+      "luma_range": 0.014,
       "seconds": 5.5,
-      "footprint": 0.207
+      "footprint": 0.239
     },
     "Aliasing": {
       "motion_p75": 0.0005,

@@ -119,6 +119,38 @@ def test_an_unnamed_axis_is_told_how_to_be_waived_narrowly(slideshow):
         os.remove(os.path.join(slideshow, "storyboard.json"))
 
 
+def test_validate_and_the_gate_read_the_waiver_through_ONE_parser(tmp_path):
+    """validate.py kept its own copy that assumed a string, so the day the gate began accepting an object a
+    legitimate per-axis waiver was rejected at the board and accepted by the gate. Two copies of one rule is
+    how this repo's caption band became four disagreeing numbers."""
+    import sys as _s
+    _s.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
+    import validate as v
+    src = open(os.path.join(os.path.dirname(g.__file__), "validate.py"), encoding="utf-8").read()
+    assert "_fe.parse_waiver" in src, "validate must not re-implement the waiver reading"
+    board = {"meta": {"renderer": "remotion", "title": "t", "energy_waiver": {"density": "the deck is sparse"}},
+             "slides": [{"index": 0, "shot": "ChatThread", "shot_props": {}, "narration": "one"}]}
+    r = v.evaluate(board, str(tmp_path), pre_tts=True)
+    assert not [e for e in r["errors"] if "energy_waiver" in e], r["errors"]
+
+
+def test_a_mistyped_axis_is_an_error_not_a_waiver_that_covers_nothing(tmp_path):
+    import sys as _s
+    _s.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
+    import validate as v
+    board = {"meta": {"renderer": "remotion", "title": "t", "energy_waiver": {"desnity": "typo"}},
+             "slides": [{"index": 0, "shot": "ChatThread", "shot_props": {}, "narration": "one"}]}
+    r = v.evaluate(board, str(tmp_path), pre_tts=True)
+    assert [e for e in r["errors"] if "no floor is called" in e], r["errors"]
+
+
+def test_the_negative_result_travels_with_the_motion_floor():
+    """Six motivated camera pushes at the documented 0.045 amplitude moved motion p75 by 0.0000 on a real
+    161s film. Recorded so nobody repeats the trial expecting a bigger camera to reach this statistic."""
+    src = open(os.path.join(os.path.dirname(g.__file__), "film_energy_qa.py"), encoding="utf-8").read()
+    assert "0.0000   exactly no change" in src and "+0.0005" in src
+
+
 def test_the_cli_exits_non_zero_on_a_slideshow(slideshow):
     import sys
     rc = subprocess.run([sys.executable, os.path.join(os.path.dirname(g.__file__), "film_energy_qa.py"),
