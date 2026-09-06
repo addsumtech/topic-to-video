@@ -412,7 +412,10 @@ def test_the_rotation_guard_is_load_bearing_in_both_directions():
     assert not _probe_leading("TiltedTypeCleanProbe"), "well-set tilted copy must be clean"
     assert _probe_leading("TiltedTypeCollisionProbe"), "mis-set tilted copy must be caught"
     src = open(_TEXTSAFE, encoding="utf-8").read()
-    old = "const rotatedUnder = (el: Element, win: Window): boolean => {\n  let node"
+    # The mutant disables the guard at its root — `selfRotated`, which every path consults. Anchored there
+    # rather than on `rotatedUnder`'s signature, which changed once already when the walk was memoised; the
+    # anchor going stale is what this harness is built to REFUSE rather than silently pass.
+    old = "const selfRotated = (cs: CSSStyleDeclaration): boolean => {\n  const tr = cs.transform;"
     assert old in src, "the rotation guard moved — update this mutant"
     # Announce the mutation: any OTHER run of this gate refuses while the sentinel is there rather than
     # quietly reporting numbers taken from the broken instrument. `_probe_leading` is called through the
@@ -421,7 +424,7 @@ def test_the_rotation_guard_is_load_bearing_in_both_directions():
         fh.write(str(os.getpid()))
     try:
         open(_TEXTSAFE, "w", encoding="utf-8").write(
-            src.replace(old, old.replace("{\n  let node", "{\n  if (1) return false;\n  let node"), 1))
+            src.replace(old, old.replace("{\n  const tr", "{\n  if (1) return false;\n  const tr"), 1))
         blind_clean = _probe_leading("TiltedTypeCleanProbe")
         blind_bad = _probe_leading("TiltedTypeCollisionProbe")
     finally:
