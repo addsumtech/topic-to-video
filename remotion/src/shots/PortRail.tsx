@@ -26,7 +26,8 @@ import {ThreeCanvas} from '@remotion/three';
 import {useDNA, dnaPalette} from '../runtime/dna';
 import {project, yawPoint, type Vec3} from '../runtime/project3d';
 import {AimCamera} from '../runtime/aimCamera';
-import {captionBand, CONTENT_TOP, fitTextPx} from '../runtime/layout';
+import {captionBand, CONTENT_TOP, fitTextPx, fitBlockPx, textWidthPx} from '../runtime/layout';
+import {frameCamera, boxCorners} from '../runtime/fitCamera';
 import {leading} from '../runtime/cjkType';
 import {useT, seg, clamp01, easeOutBack, easeInOutCubic, lerp} from '../runtime/motion';
 
@@ -164,6 +165,12 @@ export const PortRail: React.FC<{standard?: string; items?: string[]; note?: str
   const DIM = dna?.dim ?? DIM_D0;
   const ACC = dna?.accent ?? ACC_D0;
   const TONES = dnaPalette(dna, 6) ?? TONES0;
+  // The halo behind a label is THE GROUND'S OWN COLOUR, softened — not black. Black is invisible on a dark
+  // stage (where it was written and looked fine) and a grey smudge behind dark type on a paper-ground DNA,
+  // which is the same declaration reading as craft in one film and as a printing fault in the next. Taking
+  // it from the ground needs no light/dark branch: it is always the colour the type is sitting on.
+  const SOLID = dna?.bg ?? BG_D0;
+  const HALO = /^#[0-9a-f]{6}$/i.test(SOLID) ? `${SOLID}cc` : SOLID;
   const list = ITEMS.filter((x) => String(x ?? '').trim()).slice(0, 6);
   // A RAIL WITH NOTHING ON IT still composes — a lit bar with a title under it — and argues nothing. That is
   // the silent-wrong-output this library's evidence guard exists to end, so it throws instead.
@@ -178,30 +185,114 @@ export const PortRail: React.FC<{standard?: string; items?: string[]; note?: str
   const band = H - captionBand(W, H);
   // A row needs a wide frame; anything squarer or taller stands the rail up instead.
   const vert = W / H < 1.25;
-  // SIZED FROM THE CAMERA MATHS, not by eye. A 34 degree vertical fov shows 2*d*tan(17 deg) of world height,
-  // so a six-module stack 3.0 units tall wants a lens about 9.5 units back to sit at half the frame — the
-  // first guess put it at 6.15 and ran three modules and their labels off the bottom edge. The aim sits
-  // BELOW the stack's centre, which lifts the stack in frame and leaves the lower third for the copy.
   const span = vert ? Math.min(2.6, 0.52 * n) : SPAN;
-  const aim: Vec3 = vert ? [0.55, -0.62, 0] : AIM;
+  const pad = Math.round(U * 0.035);
+
+  // THE COPY IS MEASURED BEFORE THE CAMERA IS CHOSEN, because the copy is one of the frame's walls.
+  // Sized after the fact it has nowhere to go: the block was clamped up above the caption band, the rail was
+  // already there, and the title printed across its own machined face. A title over the object is not a
+  // near-miss to be nudged — it is the frame telling you the object was never given a smaller share of it.
+  const titlePx = fitTextPx(STANDARD, W * 0.62, Math.round(U * 0.050), {usable: 1.0});
+  const notePx = Math.round(U * 0.029);
+  const copyH = Math.round(titlePx * 1.6) + (NOTE ? Math.round(notePx * 2.9) : 0);
+
+  // ONE SIZE FOR EVERY LABEL — a first, conservative estimate of it, because the room a label really gets is
+  // the module PITCH and the pitch is not known until the camera is. This pass only has to be big enough to
+  // reserve honestly; the size is fitted again against the measured pitch once the frame is chosen, and can
+  // only come down. Fitted per label instead, six tags print at five sizes.
+  const labelW = vert ? Math.round(W * 0.30) : Math.round(Math.min(W * 0.22, (W * 0.86) / n));
+  const labelBase = Math.round(U * 0.030);
+  const labelH = Math.round(labelBase * 2.6);     // two lines plus leading — the room a label needs to exist
+  const labelPx = list.reduce(
+    (px, txt) => Math.min(px, fitBlockPx(txt, labelW, labelH, labelBase, {usable: 1.0, leading: 1.15})),
+    labelBase);
+
+  // WHAT THE FRAME MUST HOLD, as points, so the fit is asked of the projection rather than of a formula.
+  // Both ends of the travel are included: fitted at the seated pose alone, the waiting modules are cut by
+  // the top edge for the first third of the shot, which is the defect a still cannot see.
+  const railHalf: Vec3 = vert ? [0.15, (span + 1.15) / 2, 0.43] : [(span + 1.15) / 2, 0.15, 0.43];
+  const modHalf: Vec3 = [0.28, 0.21, 0.31];
+  const posAt = (i: number, travel: number): Vec3 => vert
+    ? [travel, slotAt(i, n, span, true), 0]
+    : [slotAt(i, n, span), travel, 0];
+  const seated: Vec3[] = boxCorners([0, 0, 0], railHalf);
+  const moving: Vec3[] = [];
+  for (let i = 0; i < n; i++) {
+    seated.push(...boxCorners(posAt(i, 0.365), modHalf));
+    moving.push(...boxCorners(posAt(i, LIFT), modHalf));
+    // THE LABELS ARE PART OF THE OBJECT as far as framing is concerned. Left out, the fit centres the metal
+    // alone and the column of type hangs off one side of a frame that is empty on the other — which is what
+    // a square cut looked like: the rail pinned left, half the picture unused, the labels pointing into it.
+    seated.push(vert
+      ? [0.365 + 0.62, slotAt(i, n, span, true), 0]
+      : [slotAt(i, n, span), 0.365 + 0.30, 0]);
+  }
+  // TWO CLAIMS ON THE FRAME, not one. The settled shot is what a viewer reads, so it clears the caption band,
+  // the copy block and the row of labels. A module still on its way owes none of that — its label is not
+  // drawn until it is nearly home — and only has to be on screen. Charged the settled reservations, the
+  // travelling pose shrank the whole composition by a third to protect type that did not exist yet.
+  const marginX = Math.round(W * 0.05);
+  // The box stops where the LABEL's own room begins: its anchor is the left edge of a column upright, and the
+  // BOTTOM of a two-line block when the rail lies down, so the room each needs is reserved on that side and
+  // the anchor itself is what has to land inside.
+  const labelRunPx = Math.min(labelW, Math.ceil(list.reduce(
+    (w, txt) => Math.max(w, textWidthPx(txt, labelPx)), 0)));
+  const settledBox = {
+    left: marginX,
+    right: W - marginX - (vert ? labelRunPx + pad : 0),
+    top: CONTENT_TOP + (vert ? pad : labelH),
+    bottom: band - pad - (copyH + pad),
+  };
+  // ON SCREEN, not inside the content zone. A module still descending owes the top zone nothing either: it
+  // is passing through. Held to CONTENT_TOP it became the binding constraint and shrank the settled row by a
+  // third — the shot was sized by where things START. The defect the lift was tuned against was different and
+  // worse: modules PARKED half-cut by the top edge for the first third of the shot.
+  const movingBox = {left: Math.round(W * 0.02), right: W - Math.round(W * 0.02),
+                     top: Math.round(H * 0.012), bottom: band};
+  const groups = [{pts: seated, box: settledBox}, {pts: moving, box: movingBox}];
+  // Only the DIRECTION of these is a design decision now — the look-down angle the shot is composed at. How
+  // far back the lens sits is solved against the box above, so the same view survives every aspect instead
+  // of being a constant that happened to frame 16:9.
+  const rest: Vec3 = vert ? [0.55, 0.55, 9.5] : CAM;
+  const aim0: Vec3 = vert ? [0.55, -0.62, 0] : AIM;
+  const dir: Vec3 = [rest[0] - aim0[0], rest[1] - aim0[1], rest[2] - aim0[2]];
   // A SLOW PUSH ACROSS THE WHOLE SHOT. The seating is staggered, so past the last module's window nothing in
   // the frame moved at all — a third of the shot was a photograph, and it read as one. A product shot answers
   // this the way a product shot always has: the lens keeps closing on the subject, so the frame is alive even
-  // when the subject has stopped. It is one continuous eased move, never a lurch, and the camera the labels
-  // are projected from is this same moving camera, so the type stays welded to the metal.
-  const rest: Vec3 = vert ? [0.55, 0.55, 9.5] : CAM;
-  // The move is centred on the framing the shot was composed at rather than added in front of it: a push that
-  // only ever backs OFF spends most of its frames wider than the composition, and the measured ink fell for
-  // it. This opens a little wide and closes a little tight, so the average is the frame that was designed.
-  const push = lerp(1.07, 0.97, easeInOutCubic(t));
-  const cam: Vec3 = [aim[0] + (rest[0] - aim[0]) * push,
-                     aim[1] + (rest[1] - aim[1]) * push,
-                     aim[2] + (rest[2] - aim[2]) * push];
+  // when the subject has stopped. The fit is solved for the TIGHTEST end of that move, so the closest frame
+  // of the push is the one that was checked and every other frame has room to spare.
+  const PUSH_IN = 0.97, PUSH_OUT = 1.07;
+  const fitted = frameCamera(groups, aim0, dir, FOV, W, H, Math.hypot(dir[0], dir[1], dir[2]));
+  const aim = fitted.aim;
+  const base = fitted.dist / PUSH_IN;
+  const push = lerp(PUSH_OUT, PUSH_IN, easeInOutCubic(t));
+  const u = base * push / Math.hypot(dir[0], dir[1], dir[2]);
+  const cam: Vec3 = [aim[0] + dir[0] * u, aim[1] + dir[1] * u, aim[2] + dir[2] * u];
+
+  // THE LABEL IS SIZED TO THE PITCH IT ACTUALLY GETS, which is only knowable once the camera is chosen.
+  //
+  // A width picked from the frame is a guess about the row: at six modules `W * 0.86 / n` reserved 275px per
+  // label while perspective gave each one 250px, so 'Shared calendars' and 'Internal knowledge base' printed
+  // into each other — one register showing two neighbouring ideas as a single run of words. So the row is
+  // measured after the fit: project two adjacent slots, take the gap between them, and fit every label into
+  // that. The size can only come DOWN from the one the frame was reserved for, so the reservation stays
+  // valid — a second pass that could grow the type would invalidate the box it was fitted against.
+  const pitchPx = (() => {
+    if (n < 2) return vert ? H : W;
+    const a = project(posAt(0, 0.365), cam, aim, FOV, W, H);
+    const b = project(posAt(1, 0.365), cam, aim, FOV, W, H);
+    if (!a || !b) return vert ? H : W;
+    return Math.abs(vert ? b.y - a.y : b.x - a.x);
+  })();
+  const labelBoxW = vert ? labelW : Math.max(Math.round(U * 0.06), Math.round(pitchPx - pad));
+  const labelBoxH = vert ? Math.min(labelH, Math.max(labelBase, Math.round(pitchPx - pad * 0.5))) : labelH;
+  const labelFitted = list.reduce(
+    (px, txt) => Math.min(px, fitBlockPx(txt, labelBoxW, labelBoxH, labelPx, {usable: 1.0, leading: 1.15})),
+    labelPx);
 
   // A label rides its own module, straight up. On a rail that direction is clear for every module at once,
   // and it is CLAMPED to the content zone: a projected label follows its object wherever perspective puts it,
   // and the band at the bottom is the one region of the frame a shot does not own.
-  const pad = Math.round(U * 0.035);
   const labels = list.map((text, i) => {
     const s = seatAt(t, i, n);
     const travel = lerp(LIFT, 0.365, s);
@@ -209,15 +300,12 @@ export const PortRail: React.FC<{standard?: string; items?: string[]; note?: str
     // the next module in the stack is.
     const p = vert
       ? yawPoint([travel + 0.62, slotAt(i, n, span, true), 0], yaw)
-      : yawPoint([slotAt(i, n, span), travel + 0.52, 0], yaw);
+      : yawPoint([slotAt(i, n, span), travel + 0.30, 0], yaw);
     const at = project(p, cam, aim, FOV, W, H);
     if (!at) return {text, i, s, at: null};
     return {text, i, s,
-      at: {x: at.x, y: Math.min(Math.max(at.y, CONTENT_TOP + pad), band - pad), depth: at.depth}};
+      at: {x: at.x, y: Math.min(Math.max(at.y, CONTENT_TOP + labelH), band - pad), depth: at.depth}};
   });
-
-  const titlePx = Math.round(U * 0.050);
-  const notePx = Math.round(U * 0.029);
 
   return (
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
@@ -230,12 +318,15 @@ export const PortRail: React.FC<{standard?: string; items?: string[]; note?: str
       {/* A label appears only once its module is most of the way home. Drawn from the first frame, the ones
           still waiting rode above the row and read as debris. */}
       {labels.map(({text, i, s, at}) => at ? (
-        <div key={i} style={{position: 'absolute', left: at.x, top: at.y, width: Math.round(W * 0.15),
+        <div key={i} style={{position: 'absolute', left: at.x, top: at.y, width: labelBoxW,
           transform: vert ? 'translate(0, -50%)' : 'translate(-50%, -100%)',
           textAlign: vert ? 'left' : 'center', textWrap: 'balance',
           opacity: clamp01(s * 2.6 - 1.25), color: FG,
-          font: `700 ${Math.round(U * 0.030)}px/${leading(text, 1.15)} var(--f-body, system-ui, sans-serif)`,
-          textShadow: '0 2px 14px #000c'}}>{text}</div>
+          font: `700 ${labelFitted}px/${leading(text, 1.15)} var(--f-body, system-ui, sans-serif)`,
+          // the halo is the GROUND's own colour, not black. A black glow is invisible on a dark stage and a
+          // grey smudge behind dark type on a paper one — the same declaration reading as craft in one film
+          // and as a printing fault in the next.
+          textShadow: `0 2px 14px ${HALO}`}}>{text}</div>
       ) : null)}
 
       {/* THE NAME AND THE NOTE ARE STACKED FROM ONE MEASURED ANCHOR — the rail's own front-bottom edge,

@@ -2868,29 +2868,49 @@ def test_a_webgl_shot_aims_the_gl_camera_where_its_labels_think_it_aims():
     DOM label is displaced by the aim offset: on PortRail's portrait cut all six labels sat 215px above their
     own modules, each landing on its NEIGHBOUR, which is a frame that reads as correct and is not.
 
-    It cost two registers before it was found, so it is checked rather than remembered. A WebGL shot that
-    projects DOM labels must either aim at the origin — where r3f already points — or render `<AimCamera>`.
+    The rule is UNCONDITIONAL — a shot that projects DOM type out of a WebGL scene renders `<AimCamera>`, even
+    when it aims at the origin r3f would have picked anyway. The first cut of this test tried to be clever and
+    exempt origin-aimed shots by parsing the third argument of `project(...)` with a regex; that regex read
+    fragments of the FIRST argument (`'0]'`, `'Math.sin(mid) * r]'`) and so could never grant the exemption it
+    existed for. It passed for the wrong reason, and would have cried wolf at the first shot that did aim at
+    the origin. An exemption nobody can compute is worse than no exemption: `AimCamera` also pins the camera
+    POSITION, which every moving-camera shot needs whatever its aim, so there is nothing to exempt.
     """
     import glob
     import os
-    import re
 
     shots = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "shots")
-    ORIGIN = re.compile(r"^\s*\[\s*0\s*,\s*0\s*,\s*0\s*\]\s*$")
     unaimed = []
     for path in sorted(glob.glob(os.path.join(shots, "*.tsx"))):
         src = open(path, encoding="utf-8").read()
         if "ThreeCanvas" not in src and "@react-three/fiber" not in src:
             continue
-        # only shots that place DOM type from the scene can be wrong about the aim
-        targets = re.findall(r"\bproject\(\s*[^,]+,\s*[^,]+,\s*([^,]+),", src)
-        if not targets:
+        # only shots that place DOM type from the scene can be wrong about the camera
+        if "project(" not in src:
             continue
-        if all(ORIGIN.match(t) for t in targets):
-            continue
-        if "AimCamera" not in src:
+        # the RENDERED element, never the bare name: an import line alone satisfies `"AimCamera" in src`,
+        # so a shot that imports the helper and never renders it reported clean. `register_shot.check` had
+        # exactly this bug once and says so in its own docstring; this test had it too, and only a mutation
+        # caught it — reading the assertion is not the same as watching it fail.
+        if "<AimCamera" not in src:
             unaimed.append(os.path.basename(path)[:-4])
     assert not unaimed, (
-        "these WebGL shots project DOM labels from a camera aim that r3f never applies (it looks at the "
-        "world origin), so every label is displaced by the aim offset: %s. Render <AimCamera at={AIM}/> "
-        "inside the canvas, or aim at [0, 0, 0]." % ", ".join(unaimed))
+        "these WebGL shots project DOM labels from a camera r3f never applies (it sets the position from the "
+        "`camera` prop and then looks at the world origin), so every label can be displaced by the aim "
+        "offset: %s. Render <AimCamera at={AIM} from={CAM}/> inside the canvas." % ", ".join(unaimed))
+
+
+def test_aim_camera_sets_both_halves_of_the_camera_it_is_given():
+    """The helper is only worth having if it OWNS the camera. It exists because `<ThreeCanvas camera={...}>`
+    sets one half of the camera and leaves the other to a default; a helper that fixed the aim and left the
+    position to that same prop would rebuild the identical split it was written to close — and a shot whose
+    camera MOVES would then render from a stale position while its labels used the live one."""
+    import os
+
+    src = open(os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "runtime", "aimCamera.tsx"),
+               encoding="utf-8").read()
+    assert "camera.position.set(" in src, "AimCamera must set the camera POSITION, not only its aim"
+    assert "camera.lookAt(" in src, "AimCamera must set the camera's AIM"
+    assert "updateMatrixWorld" in src, (
+        "a camera whose position or aim changed has a stale world matrix until it is updated, and the frame "
+        "is drawn from that matrix")

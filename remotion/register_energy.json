@@ -155,7 +155,7 @@
     "WireGlobe": "e43b15ea846bc538",
     "AcceptanceStamp": "4a18f8ad3f01861e",
     "PaperSlot": "a3712ccd34b40d25",
-    "PortRail": "9df5887ad4771e82"
+    "PortRail": "ac1aa51b951c36cf"
   },
   "_basis": "each register rendered as VIDEO at its own DURATION, 16:9, under dna=product — the themed path, because every delivered film has a design system and the un-themed fallback is a mode none of them use",
   "_dna": "product",
@@ -946,11 +946,11 @@
       "footprint": 0.524
     },
     "PortRail": {
-      "motion_p75": 0.0049,
-      "ink_median": 0.125,
-      "luma_range": 0.009,
+      "motion_p75": 0.0042,
+      "ink_median": 0.119,
+      "luma_range": 0.008,
       "seconds": 5.5,
-      "footprint": 0.41
+      "footprint": 0.381
     },
     "PositioningMatrix": {
       "motion_p75": 0.0001,

@@ -110,6 +110,24 @@ export const bottomTextY = (W: number, H: number) =>
  * assumes Latin advances is how a Chinese deck once measured 46% short (the slide-maker's CJK bug, re-learned
  * here on purpose). Tracking is part of width: a 0.42em-tracked tagline is half tracking by length.
  */
+const CJK_CH = /[\u2e80-\u9fff\uf900-\ufaff\uff01-\uff60\u3000-\u303f]/;
+
+/**
+ * How wide one line of `text` runs at `px`, in the SAME advance model the fitters use.
+ *
+ * Exported because a caller that needs a width — how much of the frame to reserve for a column of labels —
+ * would otherwise restate the model, and a second copy of an estimate is a second answer. Reserving a
+ * fixed fraction instead is what pushed PortRail's standing rail into the left quarter of a square frame:
+ * a 324px column held for labels that ran 140px.
+ */
+export const textWidthPx = (
+  text: string, px: number, opts: {adv?: number; track?: number} = {},
+): number => {
+  const {adv = 0.72, track = 0} = opts;
+  const units = [...String(text || ' ')].reduce((n, ch) => n + (CJK_CH.test(ch) ? 1.05 : adv) + track, 0);
+  return units * px;
+};
+
 export const fitTextPx = (
   text: string, W: number, base: number,
   opts: {usable?: number; adv?: number; track?: number} = {},
@@ -118,9 +136,7 @@ export const fitTextPx = (
   // actually renders is the DNA's display font, not whatever the register's fallback stack names — a call
   // tuned to condensed Antonio (0.52) shipped Space Grotesk and still clipped 85px per edge.
   const {usable = 0.9, adv = 0.72, track = 0} = opts;
-  const chars = [...String(text || ' ')];
-  const wLen = chars.reduce(
-    (n, ch) => n + (/[\u2e80-\u9fff\uf900-\ufaff\uff01-\uff60\u3000-\u303f]/.test(ch) ? 1.05 : adv) + track, 0);
+  const wLen = textWidthPx(text, 1, {adv, track});
   return Math.max(12, Math.min(base, Math.floor((W * usable) / Math.max(0.1, wLen))));
 };
 
@@ -142,9 +158,7 @@ export const fitBlockPx = (
   opts: {usable?: number; adv?: number; track?: number; leading?: number; min?: number} = {},
 ): number => {
   const {usable = 0.92, adv = 0.72, track = 0, leading: lh = 1.1, min = 12} = opts;
-  const chars = [...String(text || ' ')];
-  const units = chars.reduce(
-    (n, ch) => n + (/[\u2e80-\u9fff\uf900-\ufaff\uff01-\uff60\u3000-\u303f]/.test(ch) ? 1.05 : adv) + track, 0);
+  const units = textWidthPx(text, 1, {adv, track});
   const width = Math.max(1, W * usable);
   for (let px = Math.floor(base); px >= min; px--) {
     const lines = Math.max(1, Math.ceil((units * px) / width));
