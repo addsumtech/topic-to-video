@@ -2857,3 +2857,40 @@ def test_a_register_that_says_3D_can_back_the_claim():
     assert not overclaiming, (
         "these manifest entries say 3D with no WebGL, no CSS 3D transform and no statement of what they "
         "actually do: %s. Either back the claim or name the technique." % ", ".join(sorted(overclaiming)))
+
+
+def test_a_webgl_shot_aims_the_gl_camera_where_its_labels_think_it_aims():
+    """TWO CAMERAS THAT DISAGREE PRODUCE A CORRECT-LOOKING FRAME WITH THE WRONG WORDS ON IT.
+
+    react-three-fiber points a camera it created at the world ORIGIN. `<ThreeCanvas camera={{position, fov}}>`
+    says where the lens is and how wide it is, and nothing about where it looks — so a shot composed around
+    any other aim renders from one camera and labels from another. Nothing throws. The picture is fine. Every
+    DOM label is displaced by the aim offset: on PortRail's portrait cut all six labels sat 215px above their
+    own modules, each landing on its NEIGHBOUR, which is a frame that reads as correct and is not.
+
+    It cost two registers before it was found, so it is checked rather than remembered. A WebGL shot that
+    projects DOM labels must either aim at the origin — where r3f already points — or render `<AimCamera>`.
+    """
+    import glob
+    import os
+    import re
+
+    shots = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "shots")
+    ORIGIN = re.compile(r"^\s*\[\s*0\s*,\s*0\s*,\s*0\s*\]\s*$")
+    unaimed = []
+    for path in sorted(glob.glob(os.path.join(shots, "*.tsx"))):
+        src = open(path, encoding="utf-8").read()
+        if "ThreeCanvas" not in src and "@react-three/fiber" not in src:
+            continue
+        # only shots that place DOM type from the scene can be wrong about the aim
+        targets = re.findall(r"\bproject\(\s*[^,]+,\s*[^,]+,\s*([^,]+),", src)
+        if not targets:
+            continue
+        if all(ORIGIN.match(t) for t in targets):
+            continue
+        if "AimCamera" not in src:
+            unaimed.append(os.path.basename(path)[:-4])
+    assert not unaimed, (
+        "these WebGL shots project DOM labels from a camera aim that r3f never applies (it looks at the "
+        "world origin), so every label is displaced by the aim offset: %s. Render <AimCamera at={AIM}/> "
+        "inside the canvas, or aim at [0, 0, 0]." % ", ".join(unaimed))

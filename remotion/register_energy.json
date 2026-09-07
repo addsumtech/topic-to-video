@@ -64,7 +64,7 @@
     "InOrder": "4f2180fb1ca943e8",
     "InducedFID": "15d222f99bc06518",
     "InfiniteCanvas": "dc69b0276119d729",
-    "InflateType": "41d6735177d6129d",
+    "InflateType": "ed9b8803fd857720",
     "InkBloom": "e4283c601d217a0b",
     "Inscription": "ec15a539f8ea68e1",
     "IsoWorld": "40d9c38baf760b52",
@@ -90,9 +90,9 @@
     "MagnetizationTip": "bcb5712679a23d9c",
     "MapPlate": "61d3ba885473183c",
     "MapRoutes": "e5acb15caef6c665",
-    "MaterialHero": "c7360525ad118326",
+    "MaterialHero": "34b95d421b10a6e7",
     "MetaballMerge": "7b7aeaaf60fafe20",
-    "MoleculeBallStick": "090419c1766f55f9",
+    "MoleculeBallStick": "3e220d914b4e131c",
     "MorphForms": "61e36bb63b9739c5",
     "MuseumLabel": "bf70a488a8c27326",
     "NeonGrid": "27bf5a81bc95fc67",
@@ -144,17 +144,18 @@
     "TermTable": "7e5416298eddde3b",
     "TermThink": "0d6a226922b983e6",
     "TermTree": "f9148d442e75d3ee",
-    "TerrainFly": "82e156932610e2f8",
+    "TerrainFly": "13f0ea2465ef43be",
     "TimelineTravel": "bd1da2d5a70d4e3f",
     "UndersampledKspace": "805cddb0a0f5e6d4",
     "VariableTypeMorph": "3d8e57d383890d09",
     "VelocitySnap": "5141d1a0ce3ae9d3",
     "VersusSplit": "ecbd1b6e9f5af9db",
     "VoiceSignal": "3a3f942e9c6a06dd",
-    "VoxelBuild": "e3eea6dafbab7a1b",
+    "VoxelBuild": "dd3eca4893b4a81b",
     "WireGlobe": "e43b15ea846bc538",
     "AcceptanceStamp": "4a18f8ad3f01861e",
-    "PaperSlot": "a3712ccd34b40d25"
+    "PaperSlot": "a3712ccd34b40d25",
+    "PortRail": "9df5887ad4771e82"
   },
   "_basis": "each register rendered as VIDEO at its own DURATION, 16:9, under dna=product — the themed path, because every delivered film has a design system and the un-themed fallback is a mode none of them use",
   "_dna": "product",
@@ -805,8 +806,8 @@
       "footprint": 0.313
     },
     "MaterialHero": {
-      "motion_p75": 0.0146,
-      "ink_median": 0.146,
+      "motion_p75": 0.0137,
+      "ink_median": 0.143,
       "luma_range": 0.043,
       "seconds": 5.0,
       "footprint": 0.545
@@ -943,6 +944,13 @@
       "luma_range": 0.055,
       "seconds": 5.5,
       "footprint": 0.524
+    },
+    "PortRail": {
+      "motion_p75": 0.0049,
+      "ink_median": 0.125,
+      "luma_range": 0.009,
+      "seconds": 5.5,
+      "footprint": 0.41
     },
     "PositioningMatrix": {
       "motion_p75": 0.0001,

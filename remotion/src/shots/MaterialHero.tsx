@@ -26,6 +26,7 @@ import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {ThreeCanvas} from '@remotion/three';
 import {useDNA, dnaPalette} from '../runtime/dna';
 import {project, yawPoint, type Vec3} from '../runtime/project3d';
+import {AimCamera} from '../runtime/aimCamera';
 import {captionBand, CONTENT_TOP, fitTextPx} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 import {useT, seg, clamp01, easeOutCubic, easeOutBack, lerp} from '../runtime/motion';
@@ -46,12 +47,34 @@ const TUBE = 0.235;         // how thick each arc is
 // into it twice: the near arc is huge and low, crossing the copy block, while the far arc is a
 // sliver. Seen from above the circle reads as a circle, every arc is the same size, and the labels
 // can sit around it evenly instead of being flung to the frame corners.
-const CAM: Vec3 = [0, 3.95, 3.48];
+const CAM0: Vec3 = [0, 3.95, 3.48];
 // aimed at the ring itself; the object is lifted in world space instead, which keeps the lower
 // third of the frame clear for the copy without tilting the lens off the subject.
 const AIM: Vec3 = [0, 0.58, 0];
 const RING_Y = 0.58;   // the ring's height, so the frame's lower third stays free
 const FOV = 32;
+
+// THE LENS BACKS OFF UNTIL THE RING FITS THE FRAME IT WAS GIVEN. A circle has the same width whatever the
+// aspect, so a camera framed on 16:9 runs it straight off both edges of a 9:16 cut — two arcs sliced away and
+// their labels pointing at nothing. The distance is therefore SOLVED, not tuned: a vertical fov of `FOV`
+// shows `2*d*tan(FOV/2) * (W/H)` of world width, so `d` is whatever makes that at least the ring's diameter
+// plus a margin. The direction is untouched, so every aspect gets the same look-down-on-it view, just framed.
+const OUTER = RING_R + TUBE;
+const camAt = (W: number, H: number): Vec3 => {
+  const tanW = Math.tan((FOV * Math.PI) / 360) * (W / H);
+  const back: Vec3 = [CAM0[0] - AIM[0], CAM0[1] - AIM[1], CAM0[2] - AIM[2]];
+  const base = Math.hypot(back[0], back[1], back[2]);
+  const k = Math.max(1, (OUTER * 1.16) / tanW / base);
+  return [AIM[0] + back[0] * k, AIM[1] + back[1] * k, AIM[2] + back[2] * k];
+};
+/** How many pixels one world unit spans across the frame at the ring's own depth — used to size the copy
+ *  that lives in the ring's HOLE, which is a hole in the OBJECT and so scales with the object, not the frame. */
+const pxPerUnit = (W: number, H: number) => {
+  const tanW = Math.tan((FOV * Math.PI) / 360) * (W / H);
+  const cam = camAt(W, H);
+  const d = Math.hypot(cam[0] - AIM[0], cam[1] - AIM[1], cam[2] - AIM[2]);
+  return W / 2 / (d * tanW);
+};
 const YAW = (frame: number) => Math.sin(frame * 0.0075) * 0.20;   // a slow settle, not a turntable spin
 
 /** Each arc's arrival, staggered so the eye can follow one piece at a time. */
@@ -66,6 +89,9 @@ const Scene: React.FC<{n: number; tones: string[]; t: number}> = ({n, tones, t})
   const gap = 0.055;                                   // a hair of air between arcs, so the parts stay parts
   return (
     <>
+      {/* r3f aims a camera it made at the world origin; every label here is placed from AIM. Without this the
+          two cameras disagree by the aim offset and the whole label ring rides above its own arcs. */}
+      <AimCamera at={AIM} />
       {/* A key that carves the form, a cool fill so the shadow side is not black, and a warm rake that
           sweeps — the rake is what makes a turned metal surface read as turned rather than as flat shading. */}
       <ambientLight intensity={0.52} />
@@ -143,6 +169,7 @@ export const MaterialHero: React.FC<{title?: string; items?: string[]; note?: st
   const n = list.length;
   const U = Math.min(W, H);
   const yaw = YAW(frame);
+  const CAM = camAt(W, H);
 
   // A LABEL IS PUSHED OUT IN SCREEN SPACE, NOT IN WORLD SPACE.
   //
@@ -151,8 +178,15 @@ export const MaterialHero: React.FC<{title?: string; items?: string[]; note?: st
   // threw the bottom labels a long way from their metal and one of them clean off the frame. Projecting the
   // arc AND the ring's centre, then pushing along the 2D vector between them by a fixed number of PIXELS,
   // gives every label the same visual gap from its own arc whatever the camera is doing.
+  //
+  // THE GAP IS MEASURED FROM THE ARC'S SILHOUETTE, NOT FROM ITS CENTRELINE. A fixed push off the centreline
+  // gives the same gap only where the tube is the same size on screen, and on a ring seen from above it is
+  // not: the near arcs are both closer AND turned broadside, so the bottom labels came out printed on their
+  // own metal while the far ones floated. So the tube's cross-section is sampled, projected, and the label
+  // starts where the metal actually ENDS in this frame — which needs no per-camera tuning to stay true.
   const hub = project([0, RING_Y, 0], CAM, AIM, FOV, W, H);
-  const OUT_PX = Math.round(Math.min(W, H) * 0.115);
+  const GAP_PX = Math.round(Math.min(W, H) * 0.030);
+  const RIM = 16;
   const labels = list.map((text, i) => {
     const s = seatAt(t, i, n);
     const mid = arcMid(i, n);
@@ -161,6 +195,15 @@ export const MaterialHero: React.FC<{title?: string; items?: string[]; note?: st
     if (!at || !hub) return {text, i, s, at: null};
     const dx = at.x - hub.x, dy = at.y - hub.y;
     const len = Math.hypot(dx, dy) || 1;
+    let reach = len;
+    for (let k = 0; k < RIM; k++) {
+      const a = (k / RIM) * Math.PI * 2;
+      const rr = r + Math.cos(a) * TUBE;
+      const rim = project(yawPoint([Math.cos(mid) * rr, RING_Y + Math.sin(a) * TUBE, Math.sin(mid) * rr], yaw),
+                          CAM, AIM, FOV, W, H);
+      if (rim) reach = Math.max(reach, ((rim.x - hub.x) * dx + (rim.y - hub.y) * dy) / len);
+    }
+    const OUT_PX = reach - len + GAP_PX;
     // ...AND KEPT INSIDE THE ZONE IT IS ALLOWED. A projected label follows its object wherever perspective
     // puts it, and the arcs nearest the lens sit low: two of six landed under the burned subtitle, which is
     // the one region of the frame a shot does not own. Clamped, a label can be crowded but never hidden.
@@ -179,7 +222,10 @@ export const MaterialHero: React.FC<{title?: string; items?: string[]; note?: st
   // the name of the whole thing at the centre of its parts and the collision cannot happen — and the frame
   // stops being an object with a caption under it and becomes one composition.
   const centre = project([0, RING_Y, 0], CAM, AIM, FOV, W, H);
-  const titlePx = fitTextPx(TITLE, W * 0.30, Math.round(U * 0.044), {usable: 1.0});
+  // the copy is fitted to the HOLE's real width in this frame, not to a fraction of the frame: at 9:16 a
+  // frame-relative box shrank the name of the whole thing to a caption while the hole beside it sat empty.
+  const holeW = (RING_R - TUBE) * 2 * pxPerUnit(W, H);
+  const titlePx = fitTextPx(TITLE, holeW * 0.74, Math.round(U * 0.044), {usable: 1.0});
   const notePx = Math.round(U * 0.024);
   const band = H - captionBand(W, H);
 

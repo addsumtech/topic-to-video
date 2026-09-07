@@ -107,6 +107,7 @@ import {VariableTypeMorph} from './shots/VariableTypeMorph';
 import {FlowField} from './shots/FlowField';
 import {MagazineSpread} from './shots/MagazineSpread';
 import {PaperSlot} from './shots/PaperSlot';
+import {PortRail} from './shots/PortRail';
 import {RansomZine} from './shots/RansomZine';
 import {DataMonolith} from './shots/DataMonolith';
 import {LowPolyForm} from './shots/LowPolyForm';
@@ -172,7 +173,7 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   EdStat, EdTimeline, EdCompare,
   CardStack3D, CrashZoom, VersusSplit, RisoPrint, HudReticle,
   OverlapSeparation, SharedBlindspot,
-  VariableTypeMorph, FlowField, MagazineSpread, PaperSlot, RansomZine, DataMonolith,
+  VariableTypeMorph, FlowField, MagazineSpread, PaperSlot, PortRail, RansomZine, DataMonolith,
   LowPolyForm, GlitchDatamosh, IsoWorld, MorphForms, NeonTickerWall,
   MetaballMerge, InflateType, ElasticType, AntiDesignChaos, NeuralField,
   DNAHelix, CircuitTrace, KaleidoMandala, InkBloom, ComicPanels,

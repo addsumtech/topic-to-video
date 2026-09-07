@@ -66,7 +66,7 @@ FAMILY = {
     "SplitFlap": "I", "PhysicsStack": "I", "GearTrain": "I", "ConveyorBelt": "I",
     "SectionRoute": "I",
     "FlowField": "K", "LowPolyForm": "K", "KaleidoMandala": "K", "RidgeField": "K", "GameOfLife": "K",
-    "MagazineSpread": "L", "PaperSlot": "L", "RansomZine": "L",
+    "MagazineSpread": "L", "PaperSlot": "L", "PortRail": "B", "RansomZine": "L",
     "EdStat": "L", "EdTimeline": "L", "EdCompare": "L",   # editorial-native family (Ed*) — grouped like Term* above
     "GlitchDatamosh": "M", "CodeRain": "M",
     "IsoWorld": "N", "VoxelBuild": "N", "IsometricAssembly": "N",
@@ -186,6 +186,7 @@ PROVENANCE = {
     "MRIPipeline":             'scientific',
     "MagazineSpread":          'print-editorial',
     "PaperSlot":               'paper-craft',
+    "PortRail":                'product-hardware',
     "MagnetizationTip":        'scientific',
     "MapPlate":                'survey-archive',
     "MapRoutes":               'motion-graphics',
