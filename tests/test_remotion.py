@@ -506,6 +506,11 @@ _NULL_DNA_DELETED = {
     # rendered frame twelve grey bars read as a page that has not finished loading, and a viewer can decode
     # none of them; a cover carries an index, not body columns. Replaced by a real contents list.
     "MagazineSpread.tsx": {"000000"},
+    # MaterialHero drew a torus knot in its own blue-and-tungsten palette. The knot is gone: it took a single
+    # `title` prop, so no film could affect its shape, and a hero object that cannot encode the beat is a
+    # stock image rendered expensively. The ring that replaced it is built from `items` and takes its colour
+    # from the DNA, so these six literals left with the object they described.
+    "MaterialHero.tsx": {"141a28", "141a33", "6f83bf", "8fa6d8", "ffc978", "ffffff"},
 }
 
 

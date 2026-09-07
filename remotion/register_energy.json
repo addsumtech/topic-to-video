@@ -90,7 +90,7 @@
     "MagnetizationTip": "bcb5712679a23d9c",
     "MapPlate": "61d3ba885473183c",
     "MapRoutes": "e5acb15caef6c665",
-    "MaterialHero": "dc5388355f7bc3d8",
+    "MaterialHero": "c7360525ad118326",
     "MetaballMerge": "7b7aeaaf60fafe20",
     "MoleculeBallStick": "090419c1766f55f9",
     "MorphForms": "61e36bb63b9739c5",
@@ -805,11 +805,11 @@
       "footprint": 0.313
     },
     "MaterialHero": {
-      "motion_p75": 0.0115,
-      "ink_median": 0.295,
-      "luma_range": 0.026,
+      "motion_p75": 0.0146,
+      "ink_median": 0.146,
+      "luma_range": 0.043,
       "seconds": 5.0,
-      "footprint": 0.561
+      "footprint": 0.545
     },
     "MetaballMerge": {
       "motion_p75": 0.0068,

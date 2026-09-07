@@ -116,7 +116,7 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 ## E · 3D / material
 146. **MagnetizationTip** — what an RF pulse actually does to the magnetization vector, shown on the real vector. *Use: an input tipping a system out of equilibrium.* `accent, accent2, label`
 145. **KSpaceToImage** — a vertical sweep computes the inverse Fourier transform, k-space resolving into the image. *Use: a transform made meaningful / raw data becoming a picture.* `accent, accent2, label, src`
-32. **MaterialHero** — real 3D torusKnot (R3F/WebGL), studio-lit. *Use: a hero object beat.*
+32. **MaterialHero** — real WebGL (R3F): the film's own parts arrive from off-frame and close into ONE turned metal ring under a sweeping rake-light, with the whole thing named in the ring's hole. Give it five parts and the ring closes with five arcs; the form cannot say more than the props do. *Use: a hero beat whose claim is that separate capabilities are one thing.*
 53. **CardFlip3D** — a row of cards flip 180° on Y (CSS 3D), a sheen at the seam, the payoff on the back. *Use: question → answer / before → after pairs.*
 58. **FractureIn** — 25 tiles fly in from scattered 3D space and lock centre-out into a hero poster, then the title resolves. *Use: many parts → one picture / a bold reveal.*
 61. **CardStack3D** — cards spring up into a pile, then fan out into a 3D arc (tone-edged), labels facing camera. *Use: a deck of capabilities → laid out in hand.*
@@ -273,7 +273,7 @@ in the film wrapper. Per-shot props:
 | CinematicTitle | `kicker, title, tagline` |
 | LiquidChrome / HoloFoil | `word, tagline` |
 | AnalogTape / NeonGrid / BokehPull | `title, tagline` |
-| MaterialHero | `title` · MapRoutes/KnowledgeGraph/InfiniteCanvas `items, hub` (Map also `accent`) |
+| MaterialHero | `title, items, note` · MapRoutes/KnowledgeGraph/InfiniteCanvas `items, hub` (Map also `accent`) |
 | SwissEditorial | `items, ticker` · SpotlightStage `items, wordmark` · KineticManifesto `phrases` · AuroraFlow `lines` |
 | ExplodedSchematic / HandDrawn / CursorStory / TemporalAccelerate / IsometricAssembly | `items` |
 | ChatThread `messages` · AnswerStream `query, answer, sources` · CommandSummon `command, items` | |
