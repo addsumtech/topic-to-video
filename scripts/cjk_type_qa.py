@@ -315,6 +315,15 @@ def _named_union_member(alias, src):
 
 def _synth_field(name, ty, src=""):
     t = ty.replace(" ", "").rstrip(";")
+    # A LIST FIELD IS TESTED BEFORE THE SCALAR IT IS SPELLED WITH. `"string[]".startswith("string")` is true,
+    # so a `string[]` INSIDE an object row was filled with one sentence: `SurfaceCarousel`'s
+    # `{label, page, items: string[]}` came back with `items` as a bare string, the register called
+    # `.filter` on it, and the sweep printed "SurfaceCarousel FAILED TO RENDER" — a fixture bug wearing a
+    # register's name, which is the whole thing this synthesiser exists to stop.
+    if t.startswith("string[]"):
+        return list(_ITEMS[:3])
+    if t.startswith("number[]"):
+        return [3, 5, 4, 8, 7, 11, 9, 14]
     if t.startswith("string"):
         return _string_for(name, name, src)
     if t.startswith("number"):

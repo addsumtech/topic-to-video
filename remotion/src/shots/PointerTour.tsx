@@ -1,0 +1,141 @@
+// SHOT · Pointer Tour — one screen, one continuous camera, and a cursor that walks the viewer to each place
+// on it in turn, leaving a click where it stops.
+//
+// WHAT IT ARGUES, and why it is not four cuts. Cutting to four features says "here are four things" and
+// throws away the one claim a product most needs to make: that they are four parts of the SAME place. Every
+// cut costs the viewer a beat of re-orientation, and after the fourth they still could not tell you where the
+// reports live relative to the settings. A single camera that travels between the stops makes the spatial
+// relationship a fact on screen, and the cursor is the viewer's own attention standing in for them — it goes
+// where they should look, and clicking is how it says "this one".
+//
+// HOW THE CURSOR AND THE CAMERA STAY WELDED. Both read `runtime/pageCam2D`: the lens is a transform on the
+// page, and the cursor is ordinary DOM placed by `pageToScreen` from the SAME camera — so it cannot drift
+// off the thing it is pointing at, and it stays crisp and constant-sized instead of being scaled up with the
+// page. The stops themselves come from `uiCardRects`, the same function that draws the cards, so "fly to the
+// third card" aims at the rectangle the third card is actually in rather than at a number written twice.
+
+import React from 'react';
+import {AbsoluteFill, useVideoConfig} from 'remotion';
+import {useT, seg, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
+import {useDNA} from '../runtime/dna';
+import {UiSurface, uiCardRects, type UiContent} from '../runtime/uiSurface';
+import {PageCam2D, camAt, pageToScreen, fitScale, clampToPage, type CamKey} from '../runtime/pageCam2D';
+
+export const DURATION = 180; // 6.0s
+
+const BG_D0 = '#dfe3ea', ACC_D0 = '#5b6b86';
+const OPEN = 0.12;        // the overview holds this long — long enough to read "this is one screen"
+const STEP = 0.20;        // per stop: the move plus the pause on arrival
+const MOVE = 0.12;        // how much of a step is travel; the rest is the pause that makes it a visit
+
+export const PointerTour: React.FC<{
+  screen?: string;
+  items?: string[];
+  nav?: string[];
+}> = ({screen: SCREEN = 'Workspace',
+  items: ITEMS = ['Overview', 'Reports', 'Records', 'Settings', 'Team', 'Billing'],
+  nav: NAV = ['Home', 'Overview', 'Reports', 'Records', 'Team', 'Settings']} = {}) => {
+  const dna = useDNA();
+  const t = useT();
+  const {width: W, height: H} = useVideoConfig();
+  const BG = dna?.bgGrad ?? dna?.bg ?? BG_D0;
+  const ACC = dna?.accent ?? ACC_D0;
+  const U = Math.min(W, H);
+
+  const list = (ITEMS ?? []).filter((x) => String(x ?? '').trim());
+  if (!list.length) {
+    throw new Error(
+      'PointerTour needs at least one non-empty `items` entry. The whole form is a cursor visiting named ' +
+      'places on one screen; with nothing to visit it flies an empty page, which composes and argues nothing.');
+  }
+
+  // THE PAGE IS BIGGER THAN THE FRAME ON PURPOSE — that is what makes this a fly-over rather than a zoom.
+  // Sized off the frame's LONG side so a portrait cut gets the same landscape window rather than a squeezed
+  // one; the camera then does the work of fitting it.
+  const pageW = Math.round(Math.max(W, H) * 1.40);
+  const pageH = Math.round(pageW / 1.55);
+  const cards = uiCardRects(pageW, pageH, true);
+  const stops = list.slice(0, Math.min(4, cards.length));
+  const n = stops.length;
+
+  // The route, as a list of places to look. Each stop gets the same travel and the same pause, because an
+  // even step is what reads as walking a room; uneven ones read as the camera hunting for something.
+  const keys: CamKey[] = [
+    {at: 0, x: pageW / 2, y: pageH / 2, s: fitScale(W, H, pageW, pageH)},
+    {at: OPEN, x: pageW / 2, y: pageH / 2, s: fitScale(W, H, pageW, pageH)},
+  ];
+  // A stop is INSIDE the screen, so the close-up is never allowed to be wider than the screen itself: at 9:16
+  // the card-relative scale left the page 75px short of the frame and a strip of backdrop ran along the top
+  // and bottom of every stop, which reads as the window having come loose from the shot.
+  const cover = Math.max(W / pageW, H / pageH);
+  const closeS = (r: {w: number; h: number}) => Math.max(cover, Math.min(W * 0.60 / r.w, H * 0.60 / r.h));
+  stops.forEach((_, i) => {
+    const r = cards[i];
+    const arrive = OPEN + i * STEP + MOVE;
+    keys.push({at: arrive, x: r.x + r.w / 2, y: r.y + r.h / 2, s: closeS(r)});
+    keys.push({at: arrive + (STEP - MOVE), x: r.x + r.w / 2, y: r.y + r.h / 2, s: closeS(r)});
+  });
+  // Clamped AFTER interpolating, not per key: a lens that only obeys the page at its stops still drifts off
+  // the edge on the way between two of them, and the frame with the fault in it is the one nobody rendered.
+  const cam = clampToPage(camAt(keys, t, easeInOutCubic), W, H, pageW, pageH);
+
+  // THE CURSOR AND THE CAMERA ARE ONE SYSTEM. The cursor's PAGE position runs on a table with the same
+  // timings as the lens, so the two arrive together and, during a move, the pointer holds its place on the
+  // frame instead of sliding across it. Picking the cursor's target by "whichever stop we have passed"
+  // instead — the obvious way, and the way this was first written — teleports it to the next card at the
+  // instant the move BEGINS, while the lens is still on the previous one: for the length of the travel the
+  // pointer is somewhere off the side of the frame, and it is the shot's only actor.
+  //
+  // It is drawn in SCREEN space, at a fixed size. Living inside the page and scaled with it, a cursor stops
+  // reading as the UI layer and starts reading as a picture of one.
+  // `keys` is [overview, overview-hold, then per stop: arrive, hold-end], so a key's stop is fixed by its
+  // index. During the overview the pointer waits at the middle of the page and travels in with the lens.
+  const stopOf = (idx: number) => (idx < 2 ? -1 : Math.floor((idx - 2) / 2));
+  const cursorKeys: CamKey[] = keys.map((k, idx) => {
+    const i = stopOf(idx);
+    if (i < 0) return {at: k.at, x: pageW / 2, y: pageH * 0.58, s: 1};
+    const r = cards[i];
+    return {at: k.at, x: r.x + r.w * 0.58, y: r.y + r.h * 0.62, s: 1};
+  });
+  const cur = camAt(cursorKeys, t, easeInOutCubic);
+  const target = pageToScreen(cam, W, H, cur.x, cur.y);
+  const curPx = Math.round(U * 0.055);
+  const shown = clamp01(seg(t, OPEN * 0.6, OPEN));
+
+  // A ripple is fired at each arrival — the beat that says "this one", and the shot's only percussion.
+  const ripples = stops.map((_, i) => {
+    const at = OPEN + i * STEP + MOVE;
+    const u = seg(t, at, at + 0.055);
+    return {i, u: u > 0 && u < 1 ? easeOutCubic(u) : (t >= at + 0.055 ? 1 : 0), live: t >= at && t < at + 0.055};
+  });
+
+  const content: UiContent = {title: SCREEN, nav: NAV, items: list};
+
+  return (
+    <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
+      <PageCam2D cam={cam} W={W} H={H} pageW={pageW} pageH={pageH}>
+        <UiSurface page="cards" W={pageW} H={pageH} dna={dna} content={content} seed={7} />
+      </PageCam2D>
+
+      {ripples.filter((r) => r.live).map((r) => {
+        const rect = cards[r.i];
+        const c = pageToScreen(cam, W, H, rect.x + rect.w * 0.58, rect.y + rect.h * 0.62);
+        const d = Math.round(U * 0.055) * (0.3 + r.u * 1.6);
+        return (
+          <div key={r.i} style={{position: 'absolute', left: c.x - d / 2, top: c.y - d / 2, width: d, height: d,
+            borderRadius: '50%', border: `${Math.max(2, Math.round(U * 0.004))}px solid ${ACC}`,
+            opacity: 1 - r.u}} />
+        );
+      })}
+
+      {/* the cursor itself: a plain arrow with a drop shadow, sized once in screen pixels */}
+      <svg width={curPx} height={curPx} viewBox="0 0 24 24"
+        style={{position: 'absolute', left: target.x, top: target.y, opacity: shown,
+          filter: 'drop-shadow(0 2px 3px rgba(12,16,24,.45))'}}>
+        <path d="M4 2 L4 19 L8.6 14.6 L11.4 21 L14.3 19.7 L11.6 13.6 L18 13.4 Z"
+          fill={dna?.fg ?? '#1c2029'} stroke="#fff" strokeWidth="1.4" strokeLinejoin="round" />
+      </svg>
+    </AbsoluteFill>
+  );
+};
+export default PointerTour;

@@ -105,15 +105,52 @@ def ensure_fixture():
     return _FIXTURE_REL
 
 
+_IMPORT = re.compile(r"""^\s*import\s[^'"]*['"](\.[^'"]+)['"]""", re.M)
+
+
+def _deps(path, seen=None):
+    """Every project file a register's picture is drawn from — its own source and, transitively, the runtime
+    modules it imports.
+
+    Hashing the .tsx alone was right while every register drew itself. It stopped being right the moment two
+    of them shared a visual primitive: `uiSurface` decides what `SurfaceCarousel` and `PointerTour` actually
+    look like, so editing it changes both pictures while leaving both hashes untouched — a row that reads as
+    measured and describes a frame that no longer exists. That is the exact failure this function was written
+    to end, one level up. Following the imports keeps the answer precise instead of invalidating the whole
+    manifest whenever anything in `runtime/` moves.
+    """
+    seen = set() if seen is None else seen
+    path = os.path.realpath(path)
+    if path in seen or not os.path.exists(path):
+        return seen
+    seen.add(path)
+    try:
+        src = open(path, encoding="utf-8").read()
+    except OSError:
+        return seen
+    base = os.path.dirname(path)
+    for rel in _IMPORT.findall(src):
+        for ext in (".tsx", ".ts", "/index.tsx", "/index.ts", ""):
+            cand = os.path.join(base, rel + ext)
+            if os.path.isfile(cand):
+                _deps(cand, seen)
+                break
+    return seen
+
+
 def source_hashes():
-    """{register: sha256 of its .tsx}. A measured row describes the SOURCE it was rendered from, and nothing
-    said so: three registers were rewritten and the committed manifest went on reporting 0.6%, 2.0% and 1.0%
-    against measured 32.2%, 51.1% and 2.4%, while `density_advice.py` — which reads this file — kept offering
-    one of the densest registers in the library as a starved beat's problem. A record nobody can tell is
-    stale is not a record, it is a lie with a timestamp."""
+    """{register: sha256 over its .tsx AND the runtime modules it imports}. A measured row describes the
+    SOURCE it was rendered from, and nothing said so: three registers were rewritten and the committed
+    manifest went on reporting 0.6%, 2.0% and 1.0% against measured 32.2%, 51.1% and 2.4%, while
+    `density_advice.py` — which reads this file — kept offering one of the densest registers in the library as
+    a starved beat's problem. A record nobody can tell is stale is not a record, it is a lie with a
+    timestamp."""
     out = {}
     for f in sorted(glob.glob(os.path.join(_SHOTS, "*.tsx"))):
-        out[os.path.basename(f)[:-4]] = hashlib.sha256(open(f, "rb").read()).hexdigest()[:16]
+        h = hashlib.sha256()
+        for dep in sorted(_deps(f)):
+            h.update(open(dep, "rb").read())
+        out[os.path.basename(f)[:-4]] = h.hexdigest()[:16]
     return out
 
 

@@ -89,10 +89,18 @@ def classify(lum, lums, tol=0.06):
             cands.append(((a, b), (lums[a] + lums[b]) / 2.0))
     ranked = sorted(cands, key=lambda kv: abs(kv[1] - lum))
     best, second = ranked[0], ranked[1]
-    if abs(best[1] - lum) > tol:
-        return None, abs(best[1] - lum)
-    if abs(second[1] - lum) - abs(best[1] - lum) < 0.03:
-        return None, abs(best[1] - lum)      # genuinely ambiguous — do not guess
+    be, se = abs(best[1] - lum), abs(second[1] - lum)
+    if be > tol:
+        return None, be
+    # SEPARATION IS ABSOLUTE *OR* RELATIVE, and it needs both tests because each one alone misjudges at one
+    # end of the range. The flat 0.03 margin this used to carry refuses the clearest answers there are: a
+    # ground measuring 0.198 matched `surface` (0.195) to three thousandths and the runner-up to thirty-one —
+    # ten times worse — and was still declared ambiguous, because two small numbers cannot differ by 0.03.
+    # Replacing it with a ratio alone is worse in the other direction, and the docstring above names the case
+    # that proves it: KineticManifesto's 0.665 sits 0.041 from the accent/accent2 mix and 0.090 from the next
+    # candidate — clearly separated, and yet inside any 2x ratio. So either test may carry it.
+    if not (se - be >= 0.03 or se >= be * 3):
+        return None, be                      # genuinely ambiguous — do not guess
     tok = best[0][0] if len(best[0]) == 1 else list(best[0])
     return tok, abs(best[1] - lum)
 

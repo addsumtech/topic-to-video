@@ -7,6 +7,7 @@ import './runtime/fonts';  // side effect: loads the DNA typefaces for Film AND 
 import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
+import {PointerTour, DURATION as D_POINTERTOUR} from './shots/PointerTour';
 import {SurfaceCarousel, DURATION as D_SURFACECAROUSEL} from './shots/SurfaceCarousel';
 import {AcceptanceStamp, DURATION as D_ACCEPTANCESTAMP} from './shots/AcceptanceStamp';
 import {RestsOn, DURATION as D_RESTSON} from './shots/RestsOn';
@@ -463,5 +464,6 @@ export const RemotionRoot: React.FC = () => (
     {F('RestsOn', RestsOn, D_RESTSON)}
     {F('AcceptanceStamp', AcceptanceStamp, D_ACCEPTANCESTAMP)}
     {F('SurfaceCarousel', SurfaceCarousel, D_SURFACECAROUSEL)}
+    {F('PointerTour', PointerTour, D_POINTERTOUR)}
   </>
 );

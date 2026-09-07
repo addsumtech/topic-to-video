@@ -289,6 +289,21 @@ analogue of the html tier's `theme.css`). Reuse the structural idea, **never** c
   shade are `tint`/`shade` of a DNA hue (ClayStack), a cut-paper diorama keeps its depth logic when each plane is
   `mix(accent, bg, f)` a step deeper (PaperCutout). Colour that is SEMANTIC or identity — CPK element colours,
   MRI physics vectors, syntax highlighting, per-collaborator cursors — must survive the theme untouched.
+- **The PRODUCT itself — `runtime/uiSurface.tsx` + `runtime/pageCam2D.tsx`.** For a beat that is *about a
+  piece of software*, this library used to have nothing: no window chrome outside the terminal, no sidebar in
+  any register. `<UiSurface page="cards|chart|table|form" W H dna content />` draws an application window from
+  the DNA — chrome, nav rail, and one of four page shapes — and it takes CONTENT (the topic's own nav, card
+  titles, rows), because a frame of anonymous grey bars fails the decodability rule by construction. Bars are
+  the per-element FALLBACK and the rule is a size one: an element draws type only where its own type would
+  clear a legibility floor, so the same surface holds up filling the frame and 250px wide in a carousel. It
+  invents nothing — the chart plots `series` as given and draws no line without it. `uiCardRects(W, H)` gives
+  back the rectangles it will draw, so a camera can aim at "the third card" instead of at a number written
+  twice. `PageCam2D` moves a lens over a page bigger than the frame, and — the half that matters —
+  `pageToScreen(cam, ...)` says where a page point LANDED, so a cursor, a label or a ripple can be ordinary
+  DOM welded to the thing it points at. `clampToPage` keeps a close-up from showing the void beside the page.
+  Worked examples: `SurfaceCarousel` (a queue of screens) and `PointerTour` (one screen, one camera, a cursor
+  walking it).
+
 - **Content ATOMS — the same part, a different form per DNA.** Colour tokens make a themed film coherent;
   they do not make a register *look like another style*, because the components stay identical. The atoms
   close that gap: `runtime/atoms.tsx` exports `Bar`, `Figure`, `List`, `Label`, `Divider`, `Marker`, and

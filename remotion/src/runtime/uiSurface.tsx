@@ -23,6 +23,7 @@
 
 import React from 'react';
 import {hash01} from './motion';
+import {fitBlockPx} from './layout';
 import {type DesignDNA} from './dna';
 
 export type UiPage = 'cards' | 'chart' | 'table' | 'form';
@@ -35,6 +36,31 @@ export type UiContent = {
 };
 
 const PAGES: UiPage[] = ['cards', 'chart', 'table', 'form'];
+
+// THE GEOMETRY IS EXPORTED, because something else has to be able to AIM at it.
+//
+// A camera that flies to "the third card" needs the third card's rectangle, and there are exactly two ways to
+// get one: read it from the component that draws it, or write the number down twice. video-shotcraft solved
+// the same problem with a `live-layout.json` sidecar beside a baked screenshot; the honest version here is
+// that the drawing and the aiming call ONE function. A second copy of a rectangle is a second answer, and it
+// goes stale the first time the padding changes.
+export const uiChromeH = (W: number, H: number) =>
+  Math.round(Math.max(Math.min(W, H) * 0.075, Math.max(2, Math.round(Math.min(W, H) * 0.022)) * 2.4));
+export const uiPad = (W: number) => Math.round(W * 0.030);
+export const uiNavW = (W: number, H: number, nav = true) =>
+  nav && W > Math.min(W, H) * 0.9 ? Math.round(W * 0.20) : 0;
+
+/** Where the `cards` page puts its six cards, in the surface's own coordinates. */
+export const uiCardRects = (W: number, H: number, nav = true, cols = 3, rows = 2) => {
+  const pad = uiPad(W), x0 = uiNavW(W, H, nav), y0 = uiChromeH(W, H);
+  const bw = W - x0 - pad * 2, bh = H - y0 - pad * 2;
+  const cw = (bw - pad * (cols - 1)) / cols, ch = (bh - pad * (rows - 1)) / rows;
+  const out: {x: number; y: number; w: number; h: number}[] = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    out.push({x: x0 + pad + c * (cw + pad), y: y0 + pad + r * (ch + pad), w: cw, h: ch});
+  }
+  return out;
+};
 
 // Below this a glyph is a smudge, and a smudge that looks like a word is worse than an honest bar.
 const READABLE_PX = 11;
@@ -81,20 +107,31 @@ export const UiSurface: React.FC<{
 
   const u = Math.min(W, H);
   const barH = Math.max(2, Math.round(u * 0.022));
-  const pad = Math.round(W * 0.030);
-  const chromeH = Math.round(Math.max(u * 0.075, barH * 2.4));
-  const navW = nav && W > u * 0.9 ? Math.round(W * 0.20) : 0;
+  const pad = uiPad(W);
+  const chromeH = uiChromeH(W, H);
+  const navW = uiNavW(W, H, nav);
   const inner = {x: navW, y: chromeH, w: W - navW, h: H - chromeH};
 
   // ONE legibility decision, asked per element and never per shot: `type(px)` returns a real string only when
   // it would clear the floor, so a surface that shrinks degrades element by element instead of all at once.
   const type = (px: number) => px >= READABLE_PX;
   const navPx = Math.round(u * 0.042);
-  const cardPx = Math.round(u * 0.048);
   const rowPx = Math.round(u * 0.040);
 
-  const items = (content.items ?? []).filter((x) => String(x ?? '').trim());
-  const navs = (content.nav ?? []).filter((x) => String(x ?? '').trim());
+  // A WRONG SHAPE SAYS WHAT IT IS. Handed a bare string where a list belongs — which a fixture generator
+  // reading a named element type does, because it can see the field and not its type — `.filter` throws from
+  // inside this file and the register is reported as "failed to render". The register was fine; the caller
+  // passed the wrong thing, and the error should say so.
+  const listOf = (v: unknown, prop: string): string[] => {
+    if (v == null) return [];
+    if (!Array.isArray(v)) {
+      throw new Error(`UiSurface: \`content.${prop}\` must be an array of strings, got ` +
+        `${typeof v === 'string' ? `the string ${JSON.stringify(v.slice(0, 40))}` : typeof v}.`);
+    }
+    return v.filter((x) => String(x ?? '').trim());
+  };
+  const items = listOf(content.items, 'items');
+  const navs = listOf(content.nav, 'nav');
   const wid = (i: number, lo: number, hi: number) => Math.round(lo + hash01(seed * 31 + i) * (hi - lo));
 
   const Chrome = (
@@ -130,28 +167,66 @@ export const UiSurface: React.FC<{
     </div>
   ) : null;
 
-  const Cards = (
-    <div style={{position: 'absolute', left: inner.x + pad, top: inner.y + pad,
-      width: inner.w - pad * 2, height: inner.h - pad * 2,
-      // the grid FILLS its page. Sized to its content it left the bottom half of every window empty, which
-      // reads as a page that failed to load rather than as a product with six things on it.
-      display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(2, 1fr)', gap: pad}}>
-      {Array.from({length: 6}).map((_, i) => {
+  // Drawn from `uiCardRects`, absolutely, rather than from a CSS grid — the grid produces the same picture
+  // and produces it somewhere only the browser knows, which is no use to a camera that has to fly to card 3.
+  const Cards = (() => {
+    const rects = uiCardRects(W, H, !!navW);
+    // ONE SIZE, FITTED TO THE CARD. A fixed size is a bet that every label is short, and Chinese calls it:
+    // «规划执行步骤并调用工具» ran straight out of its card and printed across «自动拆解任务» in the next one —
+    // two features rendered as one run of glyphs. Fitted per card instead, six cards print at five sizes.
+    // The title gets a DECLARED share of the card and is fitted to it. Two things were wrong the first time,
+    // and the Chinese render showed both at once — «规划执行步骤并调用工具» came out as «规划执行/步骤并调»,
+    // a feature name cut off mid-phrase:
+    //   * `usable: 1.0` threw away the margin that exists because the face which actually renders is the
+    //     DNA's, not the fallback stack this file names. layout.ts says so in as many words.
+    //   * the card had no budget for its title at all — the bars below it are laid out at their natural
+    //     size, so a two-line heading simply pushed itself under the card's own `overflow: hidden`.
+    // Now the title's box is stated, the filler yields to it, and the size comes down until the whole label
+    // is inside. A label that is shown at all is shown whole.
+    const innerH = rects[0].h - Math.round(pad * 0.7) * 2;
+    const titleBox = {w: rects[0].w - Math.round(pad * 0.7) * 2, h: Math.round(innerH * 0.34)};
+    const cardPx = items.slice(0, rects.length).reduce(
+      (px, txt) => Math.min(px, fitBlockPx(txt, titleBox.w, titleBox.h, Math.round(u * 0.048),
+        {usable: 0.92, leading: 1.15})),
+      Math.round(u * 0.048));
+    return (
+    <>
+      {rects.map((r, i) => {
         const label = items[i];
         return (
-          <div key={i} style={{border: `${bw}px solid ${line}`, borderRadius: Math.round(radius * 0.6),
-            padding: Math.round(pad * 0.7), display: 'flex', flexDirection: 'column',
-            gap: Math.round(barH * 0.9), justifyContent: 'flex-start',
-            background: i === 0 ? accent : 'transparent', opacity: i === 0 ? 0.14 : 1}}>
+          <div key={i} style={{position: 'absolute', left: r.x, top: r.y, width: r.w, height: r.h,
+            border: `${bw}px solid ${line}`, borderRadius: Math.round(radius * 0.6),
+            padding: Math.round(pad * 0.7), boxSizing: 'border-box',
+            display: 'flex', flexDirection: 'column', gap: Math.round(barH * 1.1),
+            // THE TINT GOES ON THE FILL, NOT ON THE ELEMENT. `opacity: 0.14` fades the card's own TITLE with
+            // it, so the one card a shot has selected is the one card you cannot read — the highlight erasing
+            // exactly what it was highlighting.
+            background: i === 0 ? `${accent}22` : 'transparent'}}>
             {label && type(cardPx) ? (
-              <div style={{color: fg, font: `700 ${cardPx}px/1.2 ${body}`, overflow: 'hidden'}}>{label}</div>
-            ) : <Bar w={wid(i, inner.w * 0.10, inner.w * 0.20)} h={barH} c={fg} o={0.7} />}
-            <Bar w={wid(i + 9, inner.w * 0.08, inner.w * 0.17)} h={barH} c={dim} o={0.35} />
+              <div style={{color: fg, font: `700 ${cardPx}px/1.15 ${body}`, flex: '0 0 auto',
+                maxHeight: titleBox.h, overflow: 'hidden',
+                // a CJK line breaks between any two glyphs, so a label a unit too wide drops one onto a
+                // line of its own; balancing spreads the overflow instead of orphaning it
+                textWrap: 'balance'}}>{label}</div>
+            ) : <Bar w={wid(i, r.w * 0.30, r.w * 0.62)} h={barH} c={fg} o={0.7} />}
+            <Bar w={wid(i + 9, r.w * 0.24, r.w * 0.52)} h={barH} c={dim} o={0.35} />
+            {/* A card that a camera can fly INTO has to survive being looked at. Title-and-one-bar reads as a
+                finished tile at overview scale and as an empty box in close-up, which is the moment the shot
+                is asking the viewer to lean in. Three ranged rules are texture from far away and lines of
+                content up close — and they claim nothing, which a made-up number would. */}
+            {/* the filler YIELDS: it is what a longer heading takes its room from, not the other way round */}
+            <div style={{marginTop: Math.round(barH * 1.4), display: 'flex', flexDirection: 'column',
+              gap: Math.round(barH * 1.1), flex: '1 1 auto', minHeight: 0, overflow: 'hidden'}}>
+              {[0, 1, 2].map((k) => (
+                <Bar key={k} w={wid(i * 3 + k + 21, r.w * 0.34, r.w * 0.80)} h={barH} c={dim} o={0.22} />
+              ))}
+            </div>
           </div>
         );
       })}
-    </div>
-  );
+    </>
+    );
+  })();
 
   // The chart plots what it is given and nothing else. With no `series` it draws the SHAPE of a chart — a
   // baseline and a grid — and no line, because a curve with no data behind it is a claim about a trend.

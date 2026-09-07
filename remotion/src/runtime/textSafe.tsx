@@ -124,7 +124,12 @@ const visibleRect = (el: Element, frame: DOMRect): DOMRect | null => {
     const cs = win.getComputedStyle(node);
     if (cs.display === 'none' || cs.visibility === 'hidden') return null;
     if (parseFloat(cs.opacity || '1') < MIN_OPACITY) return null;
-    if (node !== el && (cs.overflowX !== 'visible' || cs.overflowY !== 'visible')) {
+    // The element's OWN overflow clips too, and skipping it was a real false positive: a nav label with
+    // `overflow: hidden; text-overflow: ellipsis` paints «在授权目...» inside its rail, while `inkRect`
+    // measures the whole uncut string — a rect reaching into the panel beside it, reported as two pieces of
+    // type colliding when nothing of the sort is on the frame. A gate that names phantom collisions is a
+    // gate people learn to scroll past.
+    if (cs.overflowX !== 'visible' || cs.overflowY !== 'visible') {
       const c = node.getBoundingClientRect();
       // Remotion's own AbsoluteFill sets `overflow: hidden`, so every shot's root is a clipping ancestor.
       // Counting it would read the FRAME as an author's deliberate crop and exempt the entire film — which

@@ -17,7 +17,7 @@ yet in this library — they exist for new shots and opportunistic use. See
 deliberately left un-migrated.
 
 <!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
-**Family census — 156 registers across 27 families.** D×24 · A×17 · C×12 · G×11 · F×10 · B×9 · H×9 · E×8 · L×7 · I×5 · J×5 · K×5 · M×5 · S×5 · U×5 · JA×4 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
+**Family census — 157 registers across 27 families.** D×24 · A×17 · C×12 · G×11 · B×10 · F×10 · H×9 · E×8 · L×7 · I×5 · J×5 · K×5 · M×5 · S×5 · U×5 · JA×4 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
 
 **9 families hold two registers or fewer: O, Q, R, T, V, W, X, Y, Z.** That is a BUILD signal, not a menu. When a beat's
 argument wants one of those languages and the one register there does not carry it, the answer is
@@ -59,6 +59,7 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 56. **BentoReveal** — a bento grid (hero cell + mixed widgets) whose tiles pop in and assemble into a finished dashboard. *Use: the product surface / "your whole workspace".*
 
 ## B · Camera / space — a world larger than the frame
+181. **PointerTour** — one application screen (`runtime/uiSurface`) larger than the frame, and a single continuous camera (`runtime/pageCam2D`) that flies to each named place on it in turn while a cursor arrives with it and leaves a click ripple. *Use: several features that live in ONE place — when four cuts would make the viewer re-locate themselves four times and still not learn where anything is.* `screen, items[], nav[]`
 140. **MRIPipeline** — four stages flow left to right, each a small true rendering of that step rather than a generic card. *Use: a recap AS the real pipeline / signal → encode → k-space → image.* `src, accent, accent2, label`
 12. **InfiniteCanvas** — deep zoom across a canvas (Miro). *Use: big-picture → detail.*
 13. **TimelineTravel** — pan a horizontal timeline. *Use: process / sequence.*
