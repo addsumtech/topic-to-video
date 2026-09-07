@@ -2819,3 +2819,41 @@ def test_every_bundled_face_can_honour_the_weight_range_it_declares():
                 bad.append("%s declares %s, the static file is %d" % (family, weight, static))
         f.close()
     assert not bad, "these declarations promise more than the file carries: %s" % bad
+
+
+def test_a_register_that_says_3D_can_back_the_claim():
+    """A LIBRARY THAT SAYS 3D AND IS NOT IS WHY NOBODY COULD FIND THE 3D IN IT.
+
+    A viewer said they had never seen the 3D work. They were right, and the manifest was part of why: nine
+    entries said "3D", and four of them had no camera, no perspective transform and no WebGL. Two of those
+    four do real three-dimensional arithmetic and project it by hand, one is isometric (a 2D drawing
+    convention with no vanishing point), and one is gradient shading — all legitimate techniques, none of
+    them the thing the word promises.
+
+    So the rule is not "only WebGL may say 3D". It is that the claim must be BACKED: real WebGL, a real CSS
+    3D transform, or the entry naming its own technique, the way `MorphForms` always did with "pure math, no
+    WebGL". Naming it costs a clause and buys a reader who can trust the catalogue.
+    """
+    import glob
+    import os
+    import re
+
+    root = os.path.join(os.path.dirname(__file__), "..")
+    lib = open(os.path.join(root, "remotion", "LIBRARY.md"), encoding="utf-8").read()
+    rows = dict(re.findall(r"^\d+\. \*\*(\w+)\*\*(.*)$", lib, re.M))
+    shots = os.path.join(root, "remotion", "src", "shots")
+    known = {os.path.basename(f)[:-4] for f in glob.glob(os.path.join(shots, "*.tsx"))}
+
+    DECLARES = re.compile(r"not WebGL|no WebGL|pure math|projected by hand|hand-rolled|2D shading", re.I)
+    REAL_3D = re.compile(r"preserve-3d|perspective:|perspective=\{|rotateX\(|rotateY\(")
+    overclaiming = []
+    for name, text in rows.items():
+        if name not in known or not re.search(r"\b3D\b", text):
+            continue
+        src = open(os.path.join(shots, name + ".tsx"), encoding="utf-8").read()
+        webgl = "@remotion/three" in src or "@react-three/fiber" in src
+        if not (webgl or REAL_3D.search(src) or DECLARES.search(text)):
+            overclaiming.append(name)
+    assert not overclaiming, (
+        "these manifest entries say 3D with no WebGL, no CSS 3D transform and no statement of what they "
+        "actually do: %s. Either back the claim or name the technique." % ", ".join(sorted(overclaiming)))

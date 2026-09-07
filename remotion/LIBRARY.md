@@ -65,7 +65,7 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 15. **ExplodedSchematic** — a pipeline explodes into labeled parts. *Use: how-it-works.*
 51. **CubeRotate** — content on the four faces of a 3D cube; the camera orbits and holds each face. *Use: one subject, several sides / a loop.*
 62. **CrashZoom** — a wide overview grid holds, then the camera PUNCHES in on one target tile (speed lines) until it fills the frame. *Use: overview → the one that matters / zoom to the detail.*
-100. **TerrainFly** — a 3D wireframe heightmap terrain scrolls toward the viewer in perspective (hills drift from the horizon), grid coloured by elevation, fog + horizon glow. *Use: a landscape / journey / "new ground ahead".*
+100. **TerrainFly** — a wireframe heightmap scrolls toward the viewer under a hand-rolled perspective projection (not WebGL) (hills drift from the horizon), grid coloured by elevation, fog + horizon glow. *Use: a landscape / journey / "new ground ahead".*
 
 ## C · Kinetic type & title
 173. **LastLeg** — the run covers almost the whole distance and stops — an automation that handles nine steps of ten, a funnel that drops at the end, a coverage map with a hole *Use: the run covers almost the whole distance and stops — an automation that handles nine steps of ten, a funnel that drops at the end, a coverage map with a hole*
@@ -207,7 +207,7 @@ Written FOR the editorial DNA (they read `EdFrame`: a kicker + hairline accent r
 
 ## N · Isometric — dioramas & worlds
 73. **IsoWorld** — an isometric diorama builds: a tiled ground draws in, then labelled iso-cube buildings rise in an outward ripple. *Use: your world / workspace-as-a-city / a system laid out.*
-89. **VoxelBuild** — an isometric object assembles VOXEL by voxel: shaded cubes drop in (staggered by depth) and stack into a 3D form (default: a checkmark). *Use: built block-by-block / a thing coming together.*
+89. **VoxelBuild** — an ISOMETRIC object assembles voxel by voxel: shaded cubes drop in (staggered by depth) and stack into a form (default: a checkmark). *Use: built block-by-block / a thing coming together.*
 40. **IsometricAssembly** — iso raw block → machine → finished deliverable (moved from G so all iso shots live in N). *Use: pipeline as objects.*
 
 ## O · Urban / signage
@@ -215,7 +215,7 @@ Written FOR the editorial DNA (they read `EdFrame`: a kicker + hairline accent r
 
 ## P · Dimensional / experimental type — type as living/physical material (variable-axis · inflated · elastic)
 67. **VariableTypeMorph** — one enormous word alive on its axes: a WEIGHT wave travels the letters while the word breathes on the WIDTH axis, over a duotone field. *Use: a bold expressive title / "type, alive".* (folded in from the retired J family)
-77. **InflateType** — big puffy 3D BALLOON letters inflate in with an over-bounce (glossy shaded fills + specular + soft shadows), then breathe. *Use: playful bold hero / soft-dimensional title.* (2026 inflated-3D-type)
+77. **InflateType** — big puffy BALLOON letters inflate in with an over-bounce, then breathe. The volume is 2D shading — gradients, speculars and a contact shadow, no camera and no perspective. *Use: playful bold hero / soft-dimensional title.*
 78. **ElasticType** — jelly letters DROP in and jiggle with a damped elastic squash-stretch, then a gummy wobble. *Use: springy playful title / "alive" copy.* (2026 elastic-type)
 
 ## Q · Anti-design / maximalist
@@ -229,7 +229,7 @@ Written FOR the editorial DNA (they read `EdFrame`: a kicker + hairline accent r
 138. **SpinningProton** — a single proton spins with its + charge, becoming a tiny magnet: field lines and the moment vector μ resolve, with bulk water supplying them all around. *Use: what a nucleus IS / spin and magnetism / the physical basis under an imaging beat.* `label, sublabel`
 81. **DNAHelix** — a rotating double helix: two sine-phased strands of nodes with base-pair RUNGS, depth-shaded, assembling top-down. *Use: the blueprint / biotech / "encoded".*
 94. **AtomOrbital** — a nucleus of protons/neutrons with electron SHELLS: tilted elliptical orbits, electrons RACING with motion trails, the atom turning. *Use: fundamentals / "the core of it" / physics.* (electrons streak — vs **DataOrrery** D's slow labelled-node orrery.)
-99. **MoleculeBallStick** — a ball-and-stick molecule (a hex ring + outer atoms) rotates in 3D: depth-sorted bond sticks + element-coloured spheres. *Use: chemistry / composition / "what it's made of".*
+99. **MoleculeBallStick** — a ball-and-stick molecule (a hex ring + outer atoms) rotates in real 3D geometry projected by hand (not WebGL): depth-sorted bond sticks + element-coloured spheres. *Use: chemistry / composition / "what it's made of".*
 
 ## T · Circuit / hardware
 82. **CircuitTrace** — a PCB comes alive: copper traces route (Manhattan bends) and draw on, signal pulses race to a central chip that lights up. *Use: hardware / a system wired together / infrastructure.*

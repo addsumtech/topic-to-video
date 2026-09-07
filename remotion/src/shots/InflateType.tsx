@@ -1,6 +1,11 @@
-// SHOT · Inflate Type — big puffy 3D BALLOON letters inflate into place with an over-bounce, glossy shaded
-// fills + specular highlights + soft contact shadows, then a gentle breathing wobble. The 2026 inflated-3D
-// typography trend (family P · dimensional type). Deterministic (inflate + wobble = fn of t).
+// SHOT · Inflate Type — big puffy BALLOON letters inflate into place with an over-bounce, glossy shaded
+// fills + specular highlights + soft contact shadows, then a gentle breathing wobble. The 2026 inflated
+// typography trend (family P · dimensional type).
+//
+// THE TECHNIQUE IS 2D SHADING, and the header used to say "3D" — which is the claim that made a viewer
+// look for 3D in this library and not find it. There is no camera, no perspective and no depth buffer
+// here: the volume is gradients, highlights and a contact shadow, done well. That is a real technique and
+// worth naming as itself.) Deterministic (inflate + wobble = fn of t).
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';

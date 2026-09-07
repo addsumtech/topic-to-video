@@ -1,5 +1,8 @@
-// SHOT · Molecule Ball-Stick — a ball-and-stick molecule (a hex ring + outer atoms) rotates in 3D: bonds are
-// depth-sorted sticks, atoms are depth-shaded spheres coloured by element, assembling with a spin. A chemistry
+// SHOT · Molecule Ball-Stick — a ball-and-stick molecule (a hex ring + outer atoms) rotates in REAL 3D
+// geometry projected BY HAND (`proj()` below, not WebGL): bonds are depth-sorted sticks, atoms are
+// depth-shaded spheres coloured by element, assembling with a spin. The positions are genuinely three-
+// dimensional and the sorting is genuine; only the renderer is 2D, and saying so is the difference between
+// a technique and a claim. A chemistry
 // register (family S · scientific/molecular). Deterministic (rotation = fn of t; positions fixed).
 
 import React from 'react';

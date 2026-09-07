@@ -1,5 +1,8 @@
-// SHOT · Terrain Fly — a 3D wireframe heightmap terrain scrolls toward the viewer in perspective (hills drift
-// in from the horizon), grid lines coloured by elevation, fog into a glowing horizon, a wordmark above. A
+// SHOT · Terrain Fly — a wireframe heightmap scrolls toward the viewer under a HAND-ROLLED perspective
+// projection (`proj()` below, not WebGL): hills drift in from the horizon, grid lines are coloured by
+// elevation, fog closes into a glowing horizon, a wordmark sits above. The heights and the perspective are
+// real arithmetic; only the renderer is 2D, and naming that is what stops "3D" being a claim the library
+// cannot keep. A
 // camera/landscape register (family B · camera/space). Deterministic (heights = summed sines of x, z+t).
 
 import React from 'react';

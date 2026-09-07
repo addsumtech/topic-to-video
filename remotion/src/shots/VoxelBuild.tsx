@@ -1,5 +1,7 @@
-// SHOT · Voxel Build — an isometric object assembles VOXEL by voxel: cubes drop in from above (staggered by
-// depth) and stack into a 3D checkmark, each a shaded iso cube (top/left/right). Playful voxel craft, true iso
+// SHOT · Voxel Build — an ISOMETRIC object assembles voxel by voxel: cubes drop in from above (staggered by
+// depth) and stack into a checkmark, each a shaded iso cube (top/left/right). Isometric is a 2D drawing
+// convention with no camera and no vanishing point — a legitimate one, and not the same thing as 3D, which
+// is what this header used to call it. Playful voxel craft, true iso
 // (family N · isometric). Deterministic (cube drop = fn of t + fixed shape).
 
 import React from 'react';
