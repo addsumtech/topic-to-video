@@ -119,10 +119,10 @@
     "RadialBurst": "d35cd8cb6eb83a64",
     "RainGlass": "4cfb6313a34e9726",
     "RansomZine": "50e8c2c75b957b80",
-    "RealVersus": "05cdd3c870d2ab9d",
+    "RealVersus": "a6aaad1ed6f9aa2b",
     "RestsOn": "ae8bf2ebaff62796",
     "RidgeField": "9dd7320014438079",
-    "RisoPrint": "bcd244d894a9a9d6",
+    "RisoPrint": "ac569d45094fb329",
     "ScanReconstruct": "0b42285d1c27f97f",
     "ScreenBubble": "9ec2867d4c7c7b40",
     "SectionRoute": "2b7ae6b810e5aad0",
@@ -157,13 +157,15 @@
     "VersusSplit": "610789578664ca03",
     "VoiceSignal": "4e12c2cdc5a27a88",
     "VoxelBuild": "5ab63d989b467bfc",
-    "WireGlobe": "586e83fb5fed09bd"
+    "WireGlobe": "586e83fb5fed09bd",
+    "PageWrite": "2bdb711f21c5bef1"
   },
   "_basis": "each register rendered as VIDEO at its own DURATION, 16:9, under dna=product — the themed path, because every delivered film has a design system and the un-themed fallback is a mode none of them use",
   "_dna": "product",
   "_fixture": {
     "registers": [
       "MuseumLabel",
+      "PageWrite",
       "PhotoPlate",
       "RealVersus",
       "ScanReconstruct"
@@ -883,6 +885,13 @@
       "luma_range": 0.031,
       "seconds": 5.0,
       "footprint": 0.577
+    },
+    "PageWrite": {
+      "motion_p75": 0.0085,
+      "ink_median": 0.083,
+      "luma_range": 0.258,
+      "seconds": 5.5,
+      "footprint": 1.0
     },
     "PaperCutout": {
       "motion_p75": 0.0008,

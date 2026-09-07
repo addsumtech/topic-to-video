@@ -55,7 +55,11 @@ def test_the_sweep_derives_its_fixture_list_from_the_call_sites():
     """A restated list drifts: a fifth register adopting the guard would be swept without a fixture and
     recorded as a permanent failure, and one dropping it would keep a fixture nothing asked for."""
     ev = reg.evidence_props()
-    assert set(ev) == {"PhotoPlate", "RealVersus", "ScanReconstruct", "MuseumLabel"}, ev
+    # FIVE now: `PageWrite` adopted the guard, and its evidence is a captured PAGE — a texture AND the boxes
+    # measured from the same load, because a screenshot with no layout can be panned across and never
+    # animated. Which registers need that is read from their own signatures too, not listed in the code.
+    assert set(ev) == {"PhotoPlate", "RealVersus", "ScanReconstruct", "MuseumLabel", "PageWrite"}, ev
+    assert set(ev["PageWrite"]) >= {"src", "blocks", "pageW", "pageH", "bg"}, ev["PageWrite"]
     # a paired register guards ONE prop; both halves must be filled or half the frame is still the hole
     assert set(ev["RealVersus"]) == {"srcLeft", "srcRight"}, ev["RealVersus"]
     # the names may appear in prose (this history is worth keeping); what must not exist is a name in the
@@ -64,7 +68,7 @@ def test_the_sweep_derives_its_fixture_list_from_the_call_sites():
     body = inspect.getsource(reg.evidence_props)
     parts = body.split('"""')
     code = "\n".join(l.split("#")[0] for l in (parts[0] + parts[2]).splitlines())
-    for n in ("PhotoPlate", "RealVersus", "ScanReconstruct", "MuseumLabel"):
+    for n in ("PhotoPlate", "RealVersus", "ScanReconstruct", "MuseumLabel", "PageWrite"):
         assert n not in code, "evidence_props hardcodes %s instead of parsing the call sites" % n
 
 
@@ -83,13 +87,25 @@ def test_the_fixture_is_drawn_not_committed_and_is_deterministic(tmp_path, monke
 
 
 def test_the_measured_rows_describe_the_register_not_an_empty_box():
-    """The regression this whole file exists for. If these fall back under the delivery floor, the sweep has
-    stopped supplying the fixture and the manifest is lying about the library again."""
+    """The regression this whole file exists for: if the sweep stops supplying the fixture, these rows go
+    back to describing an empty box and the manifest lies about the library again.
+
+    The EVIDENCE differs by register and so does the symptom. A photograph register handed nothing draws a
+    frame that is nearly all ground — measured at 0.0-0.6% ink — so the ink floor catches it. A register whose
+    evidence is a captured PAGE does not get that far: it throws, so it has no row at all and appears in
+    `_failed`. Asserting the ink floor on it would be asserting the wrong thing about the right worry, and it
+    would fail honestly — a real page is mostly its own flat ground, which is what `ink_median` measures the
+    absence of."""
     data = json.load(open(reg.MANIFEST, encoding="utf-8"))
-    assert sorted(data["_fixture"]["registers"]) == ["MuseumLabel", "PhotoPlate", "RealVersus",
-                                                     "ScanReconstruct"]
+    listed = sorted(data["_fixture"]["registers"])
+    assert listed == ["MuseumLabel", "PageWrite", "PhotoPlate", "RealVersus", "ScanReconstruct"], listed
     floor = data["_floors"]["ink_median"]
-    for n in data["_fixture"]["registers"]:
+    for n in listed:
+        assert n not in data.get("_failed", []), (
+            "%s failed to render, so the sweep is not reaching it with its fixture" % n)
+        assert n in data["registers"], "%s has no measured row at all" % n
+        if "blocks" in reg.evidence_props().get(n, {}):
+            continue                    # a captured page: reaching it at all is the thing being checked
         assert data["registers"][n]["ink_median"] >= floor, (
             "%s is back under the ink floor — it was measured as an empty plate" % n)
 

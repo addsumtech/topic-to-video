@@ -160,6 +160,30 @@ def _remotion_shot_ids():
 _DEC = "\x00"
 
 
+def _caption_word_spans(out_dir, audio, caption):
+    """[{t, a, b}] for this beat's caption, or [] when there is no word timing to be had.
+
+    Empty is a real answer and the caller must treat it as one: `say`/MiniMax emit no boundaries at all, and
+    a beat whose caption was rewritten after the synth will not match. Both cases fall back to the estimated
+    chunk timing that was there before, which is worse and still works — the failure this must never make is
+    inventing times, because a caption confidently lit on the wrong word is harder to spot than one that
+    simply drifts.
+    """
+    if not caption:
+        return []
+    wp = os.path.splitext(os.path.join(out_dir, str(audio)))[0] + ".words.json"
+    try:
+        with open(wp, encoding="utf-8") as fh:
+            words = json.load(fh)
+    except (OSError, ValueError):
+        return []
+    try:
+        import cues as _cues
+        return _cues.word_spans(words, caption)
+    except Exception:
+        return []
+
+
 def _split_caption(text):
     """Mirror of Film.tsx splitCaption — same chunks, so the sidecar .srt matches the burn.
 
@@ -287,6 +311,15 @@ def build_scenes(slides, out_dir, valid, fps=30):
         caption = (s.get("narration") or s.get("script") or s.get("caption") or "").strip()
         scene = {"shot": shot, "props": props, "durF": int(round(dur * fps)),
                  "mp3": str(audio).replace(os.sep, "/"), "caption": caption}
+        # THE VOICE'S OWN WORD TIMES, WHICH THIS TIER HAS NEVER SEEN. `tts.py` has written
+        # `audio/NN.words.json` since edge-tts was adopted, and only the html renderer ever read it: the
+        # remotion caption advances its chunks by CHARACTER PROPORTION of the beat, which is a guess that a
+        # short clause and a long one are spoken at the same rate. They are not, and the caption drifts off
+        # the voice inside a single beat. Located as character ranges (cues.word_spans) so the timing
+        # survives whatever the renderer chunks the caption into.
+        spans = _caption_word_spans(out_dir, audio, caption)
+        if spans:
+            scene["capWords"] = spans
         tin = _transition_in(s)   # a MARKED seam (chapter break) → Film's kinetic transition; else the safe fade
         if tin:
             scene["transitionIn"] = tin

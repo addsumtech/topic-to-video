@@ -38,6 +38,10 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // Both are kept and the Film refuses a beat that declares two disagreeing answers, because a hint that
   // silently becomes a command is how `bgLum:'light'` came to mean "a still-dark frame".
   caption?: string; bgLum?: Lum;
+  // THE VOICE'S OWN WORD TIMES, as character ranges into `caption` (scripts/cues.word_spans). Ranges rather
+  // than word indices because this tier re-chunks the caption to fit its band, and an index into "word 3 of
+  // chunk 2" means something different after every re-wrap while an offset into the string does not.
+  capWords?: {t: number; a: number; b: number}[];
   // TERMINAL CHROME per scene (remotion + DNA only): a command-path + status readout the Film frames every beat
   // with (see runtime/dna.tsx TerminalChrome). Optional; inert unless the active DNA speaks 'breadcrumb'.
   chrome?: {path?: string; status?: string; root?: string};
@@ -173,7 +177,7 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
   // captions cannot coexist across a dissolve), so the flag is handed to it rather than read from context
   reduced?: boolean}> = ({scenes, groundBg, dna, dnaFontBody, dnaUniform, reduced}) => {
   const frame = useCurrentFrame();
-  const {width, height} = useVideoConfig();
+  const {width, height, fps} = useVideoConfig();
   // The caption used to be a flat 44px whatever the frame was: at 9:16 — where the frame is only 1080 wide —
   // the same 44px is proportionally half again as large. It is sized off the NARROW dimension now.
   //
@@ -212,6 +216,38 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
   const local = clamp01((frame - ws) / Math.max(1, we - ws));
   let idx = merged.length - 1, cum = 0;
   for (let i = 0; i < merged.length; i++) { cum += lens[i] / total; if (local <= cum) { idx = i; break; } }
+
+  // WHERE EACH CHUNK SITS IN THE CAPTION. Every chunk is a trimmed slice of `caption` in order, so a moving
+  // cursor locates them exactly — and that is what lets a word time, which is an offset into the whole
+  // caption, be found inside whatever this tier happened to wrap the caption into.
+  const at: {a: number; b: number}[] = [];
+  { let cur = 0;
+    for (const c of merged) {
+      const f = sc.caption.indexOf(c, cur);
+      const a = f >= 0 ? f : cur;
+      at.push({a, b: a + c.length});
+      cur = a + c.length;
+    } }
+
+  // THE CAPTION FOLLOWS THE VOICE WHEN THE VOICE SAID WHERE IT WAS. Without word times the chunk index comes
+  // from the CHARACTER PROPORTION of the beat elapsed — a guess that a short clause and a long one are
+  // spoken at the same rate, which they are not, so the caption drifts off the speech inside a single beat.
+  // `tts.py` has written these times since edge-tts was adopted and only the html renderer ever read them.
+  const spoken = sc.capWords ?? [];
+  let lit = -1;                                  // char offset the voice has reached, -1 = not yet known
+  if (spoken.length) {
+    const t = (frame - starts[active]) / fps;
+    let k = -1;
+    for (let i = 0; i < spoken.length; i++) if (spoken[i].t <= t) k = i; else break;
+    if (k >= 0) {
+      lit = spoken[k].b;
+      // the chunk holding the word being spoken — the LAST one that starts at or before it, so a word in
+      // the gap between two chunks (punctuation the wrap ate) stays on the chunk it was spoken in
+      for (let i = 0; i < at.length; i++) if (at[i].a <= spoken[k].a) idx = i;
+    } else {
+      idx = 0;                                   // the voice has not reached the first word yet
+    }
+  }
   const op = Math.min(clamp01((frame - ws) / CAP_FADE), clamp01((we - frame) / CAP_FADE));
   // THE INK FOLLOWS THE GROUND THAT IS ACTUALLY ON THE FRAME, INCLUDING WITHIN A RAMP.
   // The DNA repaints most shots' grounds, so classify THIS frame's real ground (dnaGroundLum) — reading the
@@ -273,7 +309,20 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
         // construction, which is the only place the caption is. Breaking anywhere is the lesser evil; a
         // guillotined word is at least still on the frame.
         overflowWrap: 'anywhere', wordBreak: 'break-word',
-        letterSpacing: capTrack, textShadow: shadow}}>{capText}</div>
+        letterSpacing: capTrack, textShadow: shadow}}>
+        {/* WHAT HAS BEEN SAID IS DARKER THAN WHAT HAS NOT. The treatment is opacity on the caption's OWN
+            ink rather than a second colour, which is the one version that cannot fail a contrast check on
+            an unknown ground: the lit half is exactly the ink the pick above chose, and the half still to
+            come is the same ink held back. A coloured highlight is offered on top of that, and only when
+            the DNA's accent is actually readable on this frame's ground — never instead of it. */}
+        {lit < 0 ? capText : (() => {
+          const cut = Math.max(0, Math.min(capText.length, lit - at[idx].a));
+          return (<>
+            <span>{capText.slice(0, cut)}</span>
+            <span style={{opacity: 0.42}}>{capText.slice(cut)}</span>
+          </>);
+        })()}
+      </div>
     </AbsoluteFill>
   );
 };

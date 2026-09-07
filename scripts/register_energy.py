@@ -47,6 +47,38 @@ REGEN = "python3 scripts/register_energy.py"
 _FIXTURE_REL = "_energy_fixture.png"
 
 
+# A register whose evidence is more than one image. `PageWrite` films a CAPTURED page and needs both halves
+# of that capture — the texture and the boxes measured from the same load — so a `src` alone leaves it
+# throwing. Written out rather than inferred, for the reason `cjk_type_qa._ARRAY_SHAPES` gives: a wrong shape
+# renders nothing and reads as "this register is fine". The demo artefact is a page THIS repo generated
+# (public/textures/demo-report.html), captured by scripts/capture_page.py — never a customer's document.
+def _page_fixture():
+    """The demo capture, STAGED into the public dir the way the drawn fixture is.
+
+    It lives tracked under `remotion/fixtures/` and is copied into `public/textures/` on demand, because
+    `remotion/public/` is git-ignored on purpose — it is the per-film staging directory, wiped and refilled
+    by every render. A fixture committed into a disposable directory is one a fresh clone does not have, and
+    the way that fails is a permanent "PageWrite RENDER FAILED" that reads as a broken register.
+
+    The artefact is a page THIS repo generates (`fixtures/demo-report.html`, captured by
+    scripts/capture_page.py) — never a customer's document.
+    """
+    import shutil
+    src_dir = os.path.join(_REMOTION, "fixtures")
+    dst_dir = os.path.join(_REMOTION, "public", "textures")
+    try:
+        with open(os.path.join(src_dir, "demo-report.layout.json"), encoding="utf-8") as fh:
+            d = json.load(fh)
+        os.makedirs(dst_dir, exist_ok=True)
+        png = os.path.join(dst_dir, "demo-report.png")
+        if not os.path.exists(png):
+            shutil.copy2(os.path.join(src_dir, "demo-report.png"), png)
+    except (OSError, ValueError):
+        return None
+    return {"src": "textures/demo-report.png", "pageW": d["pageW"], "pageH": d["pageH"],
+            "bg": d.get("bg", "#ffffff"), "blocks": d["blocks"]}
+
+
 def evidence_props():
     """{register: {prop: fixture path}} — DERIVED from each shot's own `requireEvidence(...)` call.
 
@@ -71,6 +103,15 @@ def evidence_props():
             if head:
                 for pm in re.finditer(r"\b(src[A-Za-z0-9]*)\s*\?\s*:", head.group(1)):
                     out[n][pm.group(1)] = _FIXTURE_REL
+    # A register whose evidence is a CAPTURED PAGE needs both halves of that capture, and which ones those
+    # are is read from their own signatures rather than listed here — a restated list drifts, which is the
+    # whole reason the block above parses the call sites instead of naming them.
+    page = _page_fixture()
+    if page:
+        for n in list(out):
+            sig = open(os.path.join(_SHOTS, n + ".tsx"), encoding="utf-8").read()
+            if re.search(r"\bblocks\s*\?\s*:\s*\w*Block\[\]", sig):
+                out[n] = dict(page)      # a page texture and its boxes, not the photograph stand-in
     return out
 
 

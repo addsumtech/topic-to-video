@@ -141,3 +141,50 @@ def estimate_cues_from_text(anchors, narration, duration):
             raw[i] = (pref[pos] / L) * dur if L else 0.0
             cur = max(cur, pos + len(a))
     return _fill(raw, n, dur)
+
+
+def word_spans(words, text, min_frac=0.5):
+    """[{'t': seconds, 'a': start, 'b': end}] — each spoken token located as a CHARACTER RANGE in `text`.
+
+    WHY CHARACTER RANGES AND NOT WORD INDICES. A caption is chunked for the screen, and every tier chunks it
+    differently: the html tier wraps to its own measure, the remotion tier splits again to fit a band. An
+    index into "the third word of chunk two" means something different in each of them and nothing at all
+    after a re-wrap. An offset into the caption STRING survives every chunking, because each chunk is a slice
+    of that string — so a renderer can locate whatever it is drawing with `indexOf` and ask which span is lit.
+
+    It also carries CJK, which is the case that forced word-level timing to be a span in the first place:
+    Chinese has no spaces, so a space-split index cannot exist, while edge-tts still emits a boundary per
+    token. Matching the token as a substring gives both languages one answer.
+
+    The matching is SEQUENTIAL and forgiving in one direction only. Tokens arrive in spoken order, which is
+    display order, so the cursor only moves forward. A token that is not at the cursor is usually one edge
+    normalised (it speaks "1.5" as 一点五, "$30" as thirty dollars); binding it to a far-forward duplicate
+    would light the wrong word early and starve every token in between, so a distant hit is taken only with
+    CORROBORATION — the token after it must also appear beyond it. Otherwise the token is skipped and the
+    slack widens, stepping past the text it stood for.
+
+    Returns [] when too few tokens match (`min_frac` of them), which a caller must treat as "no word timing
+    here" rather than as "the words are all at zero".
+    """
+    toks = [(str(w.get("w") or "").strip(), float(w.get("t") or 0)) for w in (words or [])]
+    toks = [(w, t) for w, t in toks if w]
+    if not toks or not text:
+        return []
+    out, pos, slack, i = [], 0, 4, 0
+    while i < len(toks):
+        tok, t0 = toks[i]
+        f = text.find(tok, pos)
+        if f < 0 or (f - pos) > slack:
+            nxt = toks[i + 1][0] if i + 1 < len(toks) else None
+            corroborated = (f >= 0 and nxt is not None and text.find(nxt, f + len(tok)) >= 0)
+            if not corroborated:
+                i += 1
+                slack += 6
+                continue
+        out.append({"t": round(t0, 3), "a": f, "b": f + len(tok)})
+        pos = f + len(tok)
+        slack = 4
+        i += 1
+    if len(out) < max(3, int(len(toks) * min_frac)):
+        return []                      # matching too weak to be trusted — say nothing rather than guess
+    return out

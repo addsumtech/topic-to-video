@@ -105,10 +105,30 @@ def classify(lum, lums, tol=0.06):
     return tok, abs(best[1] - lum)
 
 
-def measure(shot, td):
+# THE EVIDENCE REGISTERS ARE MEASURABLE, AND WERE BEING WRITTEN OFF. Five registers REFUSE to draw without
+# a real artefact (runtime/evidence.ts) — which is the point of them — and both probes here rendered them on
+# default props, so every sweep reported the same four (now five) as "RENDER FAILED" and left their ground
+# tokens as declarations nobody has ever checked. A permanent failure line in a gate's output is worse than a
+# gap: it is the line people learn to skip, and it was hiding the fact that those tokens are unverified.
+# `register_energy` already builds the fixtures for exactly this; using them is one import.
+def _fixture_props():
+    try:
+        sys.path.insert(0, _HERE)
+        import register_energy
+        register_energy.ensure_fixture()
+        return register_energy.evidence_props()
+    except Exception:
+        return {}
+
+
+def measure(shot, td, fixtures=None):
     props = os.path.join(td, "p.json")
     png = os.path.join(td, shot + ".png")
-    json.dump({"scenes": [{"shot": shot, "durF": 150}], "dna": PROBE_DNA,
+    scene = {"shot": shot, "durF": 150}
+    ev = (fixtures or {}).get(shot)
+    if ev:
+        scene["props"] = ev
+    json.dump({"scenes": [scene], "dna": PROBE_DNA,
                "captions": False, "camera": 0}, open(props, "w"))
     r = subprocess.run(["npx", "remotion", "still", "src/index.ts", "Film", png,
                         "--frame=110", "--gl=angle", "--timeout=90000", "--props=" + props],
@@ -139,15 +159,21 @@ def luma_bucket(lum):
     return "dark" if lum < LUMA_DARK_MAX else ("light" if lum > LUMA_LIGHT_MIN else "mid")
 
 
-def measure_own(shot, td):
+def measure_own(shot, td, fixtures=None):
     """The shot's ground with NO DNA — its own default palette, which is what SHOT_LUMA describes."""
     png = os.path.join(td, "own_" + shot + ".png")
+    extra = []
+    ev = (fixtures or {}).get(shot)
+    if ev:
+        pf = os.path.join(td, "own_" + shot + ".props.json")
+        json.dump(ev, open(pf, "w"))
+        extra = ["--props=" + pf]
     r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png,
-                        "--frame=110", "--gl=angle", "--timeout=90000"],
+                        "--frame=110", "--gl=angle", "--timeout=90000"] + extra,
                        cwd=_REMOTION, capture_output=True, text=True)
     if r.returncode != 0:                       # a shorter shot: fall back to a frame it certainly has
         r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png,
-                            "--frame=30", "--gl=angle", "--timeout=90000"],
+                            "--frame=30", "--gl=angle", "--timeout=90000"] + extra,
                            cwd=_REMOTION, capture_output=True, text=True)
     if not os.path.exists(png):
         return None, (r.stderr or "")[-300:]
@@ -280,11 +306,12 @@ def _main_shot_luma(argv):
         if a.startswith("--only"):
             only = a.split("=", 1)[1].split(",") if "=" in a else None
     shots = only or sorted(dna_audit.registered_shots())
+    fixtures = _fixture_props()
     declared = read_shot_luma()
     measured, failed = {}, []
     with tempfile.TemporaryDirectory() as td:
         for i, sh in enumerate(shots, 1):
-            lum, err = measure_own(sh, td)
+            lum, err = measure_own(sh, td, fixtures)
             if err is not None or lum is None:
                 failed.append(sh)
                 print("  [%3d/%d] %-24s RENDER FAILED" % (i, len(shots), sh))
@@ -329,12 +356,13 @@ def main(argv):
         if a.startswith("--only"):
             only = a.split("=", 1)[1].split(",") if "=" in a else None
     shots = only or sorted(dna_audit.registered_shots())
+    fixtures = _fixture_props()
     lums = token_lums()
     print("probe token luminances: " + ", ".join("%s=%.3f" % (k, v) for k, v in sorted(lums.items(), key=lambda kv: kv[1])))
     out, unclassified, failed = {}, [], []
     with tempfile.TemporaryDirectory() as td:
         for i, s in enumerate(shots, 1):
-            lum, err = measure(s, td)
+            lum, err = measure(s, td, fixtures)
             if err is not None:
                 failed.append(s); print("  [%3d/%d] %-24s RENDER FAILED" % (i, len(shots), s)); continue
             tok, d = classify(lum, lums)
