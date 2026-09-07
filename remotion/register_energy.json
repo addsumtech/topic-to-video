@@ -155,7 +155,8 @@
     "WireGlobe": "e43b15ea846bc538",
     "AcceptanceStamp": "4a18f8ad3f01861e",
     "PaperSlot": "a3712ccd34b40d25",
-    "PortRail": "ac1aa51b951c36cf"
+    "PortRail": "ac1aa51b951c36cf",
+    "SurfaceCarousel": "2a2472d588936cd9"
   },
   "_basis": "each register rendered as VIDEO at its own DURATION, 16:9, under dna=product — the themed path, because every delivered film has a design system and the un-themed fallback is a mode none of them use",
   "_dna": "product",
@@ -1105,6 +1106,13 @@
       "luma_range": 0.034,
       "seconds": 5.2,
       "footprint": 0.442
+    },
+    "SurfaceCarousel": {
+      "motion_p75": 0.0222,
+      "ink_median": 0.043,
+      "luma_range": 0.007,
+      "seconds": 4.0,
+      "footprint": 0.635
     },
     "SwissEditorial": {
       "motion_p75": 0.0054,

@@ -157,6 +157,7 @@ import {MadeOf} from './shots/MadeOf';
 import {InOrder} from './shots/InOrder';
 import {RestsOn} from './shots/RestsOn';
 import {AcceptanceStamp} from './shots/AcceptanceStamp';
+import {SurfaceCarousel} from './shots/SurfaceCarousel';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
@@ -197,6 +198,7 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   InOrder,
   RestsOn,
   AcceptanceStamp,
+  SurfaceCarousel,
 };
 
 export const SHOT_IDS = Object.keys(REGISTRY);
