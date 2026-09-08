@@ -35,6 +35,7 @@ FAMILY = {
     "StrataColumn": "J",
     "MapPlate": "J",
     "CollaborativeCursors": "A", "CommandSummon": "A", "TemporalAccelerate": "A", "VelocitySnap": "A",
+    "GlowPick": "A",
     "SurfaceCarousel": "A",
     "AcceptanceStamp": "A",
     "GrantedTree": "A",
@@ -49,6 +50,7 @@ FAMILY = {
     "InOrder": "D",
     "MadeOf": "D",
     "KineticManifesto": "C", "FocalIsolation": "C", "SwissEditorial": "C", "BrutalistType": "C",
+    "SourceDeal": "C",
     "LastLeg": "A",
     "LiquidChrome": "C", "HoloFoil": "C", "CinematicTitle": "C", "BokehPull": "C", "NeonGrid": "C",
     "AnalogTape": "C", "AsciiField": "C",
@@ -99,6 +101,8 @@ FAMILY = {
 # conveyor belt is legitimate in a harbour film and still wrong for people cycling to a station. That
 # judgement is the shot-critic's (S10 meaning), and no table can make it.
 PROVENANCE = {
+    "SourceDeal":              'product-demo',
+    "GlowPick":                'product-demo',
     "PageWrite":               'product-demo',
     "PointerTour":             'product-demo',
     "SurfaceCarousel":         'product-demo',

@@ -196,7 +196,10 @@ def cjk_props(name):
     props, untestable = {}, []
     for prop, ty in sig.items():
         t = ty.replace(" ", "")
-        if prop in ("accent", "accent2", "imageAspect", "aspect", "dna") or re.match(r"^src[A-Z]?", prop):
+        # `page` selects WHICH page shape a surface draws (cards / chart / table / form) — plumbing, like
+        # `aspect` and `dna`, not copy. Left off this list it was reported as untestable on every register
+        # that takes one, which is a permanent line in the gate's output that means nothing.
+        if prop in ("accent", "accent2", "imageAspect", "aspect", "dna", "page") or re.match(r"^src[A-Z]?", prop):
             # colours / images / plumbing, not copy. The `src` test is a PREFIX: KSpaceAnatomy declares
             # srcK / srcLow / srcHigh, an exact-match skip fed all three a Chinese sentence as a URL, and
             # the register reported as a RENDER FAILURE for it. evidence_props() fills them properly.

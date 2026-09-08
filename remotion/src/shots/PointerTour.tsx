@@ -15,7 +15,7 @@
 // third card" aims at the rectangle the third card is actually in rather than at a number written twice.
 
 import React from 'react';
-import {AbsoluteFill, useVideoConfig} from 'remotion';
+import {AbsoluteFill, useVideoConfig, staticFile} from 'remotion';
 import {useT, seg, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {UiSurface, uiCardRects, type UiContent} from '../runtime/uiSurface';
@@ -28,13 +28,52 @@ const OPEN = 0.12;        // the overview holds this long — long enough to rea
 const STEP = 0.20;        // per stop: the move plus the pause on arrival
 const MOVE = 0.12;        // how much of a step is travel; the rest is the pause that makes it a visit
 
+export type TourBlock = {x: number; y: number; w: number; h: number; tag?: string; text?: string};
+
+/** Which places on a CAPTURED page are worth visiting: LEAVES, biggest first, none overlapping, read order.
+ *
+ *  A capture returns every measurable box, which is the DOM again and not a route. Ranking them by area — the
+ *  obvious rule, and the one written here first — tours the CONTAINERS: on a three-column report the four
+ *  largest boxes are the nav, the main column and the sidebar, so the camera flew to the centre of a column
+ *  and the cursor pointed at the white space in the middle of it. A container is exactly "a box with other
+ *  candidate boxes inside it", so that is what disqualifies one; what is left are the things a reader would
+ *  actually point at, and among those, area is a fair proxy for importance. */
+const tourStops = (blocks: TourBlock[], pageW: number, max = 4): TourBlock[] => {
+  const hit = (a: TourBlock, b: TourBlock) =>
+    a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  const holds = (a: TourBlock, b: TourBlock) =>            // a fully contains b, and is not b itself
+    a !== b && a.x <= b.x && a.y <= b.y && a.x + a.w >= b.x + b.w && a.y + a.h >= b.y + b.h;
+  const cand = blocks.filter((b) => b.w > pageW * 0.14 && b.h >= 14);
+  // Containment is judged against EVERY block, not against the candidates. A nav rail holding five links
+  // that are each too narrow to be a stop contains no CANDIDATE, so testing within the shortlist called it a
+  // leaf and toured it — the camera flew to the middle of a column and the cursor pointed at white space.
+  // And the threshold is TWO children, not one: a paragraph with a link in it is not a container, it is a
+  // paragraph, and dropping it would throw away the body of the page.
+  const leaves = cand.filter((b) => blocks.filter((o) => holds(b, o)).length < 2);
+  const kept: TourBlock[] = [];
+  for (const b of [...leaves].sort((p, q) => q.w * q.h - p.w * p.h)) {
+    if (kept.length >= max) break;
+    if (!kept.some((k) => hit(k, b))) kept.push(b);
+  }
+  return kept.sort((a, b) => a.y - b.y || a.x - b.x);
+};
+
 export const PointerTour: React.FC<{
   screen?: string;
   items?: string[];
   nav?: string[];
+  // A CAPTURED page instead of a drawn one. The argument is identical either way — several places on ONE
+  // screen and the path between them — so this is the same register with a different subject, not a second
+  // one. Given a capture it films that; given none it draws a surface, which is what a beat about a product
+  // that does not exist yet has to do.
+  src?: string;
+  pageW?: number;
+  pageH?: number;
+  blocks?: TourBlock[];
 }> = ({screen: SCREEN = 'Workspace',
   items: ITEMS = ['Overview', 'Reports', 'Records', 'Settings', 'Team', 'Billing'],
-  nav: NAV = ['Home', 'Overview', 'Reports', 'Records', 'Team', 'Settings']} = {}) => {
+  nav: NAV = ['Home', 'Overview', 'Reports', 'Records', 'Team', 'Settings'],
+  src: SRC, pageW: SRC_W, pageH: SRC_H, blocks: SRC_BLOCKS} = {}) => {
   const dna = useDNA();
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
@@ -42,20 +81,33 @@ export const PointerTour: React.FC<{
   const ACC = dna?.accent ?? ACC_D0;
   const U = Math.min(W, H);
 
+  const captured = !!(SRC && SRC_BLOCKS && SRC_BLOCKS.length && SRC_W && SRC_H);
   const list = (ITEMS ?? []).filter((x) => String(x ?? '').trim());
-  if (!list.length) {
+  if (!captured && !list.length) {
     throw new Error(
-      'PointerTour needs at least one non-empty `items` entry. The whole form is a cursor visiting named ' +
-      'places on one screen; with nothing to visit it flies an empty page, which composes and argues nothing.');
+      'PointerTour needs either a capture (`src` + `blocks` + `pageW`/`pageH`, from scripts/capture_page.py) ' +
+      'or at least one non-empty `items` entry. The whole form is a cursor visiting places on one screen; ' +
+      'with neither it flies an empty page, which composes and argues nothing.');
+  }
+  if (SRC && !(SRC_BLOCKS && SRC_BLOCKS.length)) {
+    throw new Error(
+      'PointerTour was given `src` without `blocks`. With the picture and no boxes it can only pan across a ' +
+      'screenshot — there is nothing to fly TO — and the layout json sits beside the texture the capture ' +
+      'wrote. Passing one without the other is the state where the shot looks composed and visits nothing.');
   }
 
   // THE PAGE IS BIGGER THAN THE FRAME ON PURPOSE — that is what makes this a fly-over rather than a zoom.
   // Sized off the frame's LONG side so a portrait cut gets the same landscape window rather than a squeezed
   // one; the camera then does the work of fitting it.
-  const pageW = Math.round(Math.max(W, H) * 1.40);
-  const pageH = Math.round(pageW / 1.55);
-  const cards = uiCardRects(pageW, pageH, true);
-  const stops = list.slice(0, Math.min(4, cards.length));
+  const pageW = captured ? SRC_W! : Math.round(Math.max(W, H) * 1.40);
+  const pageH = captured ? SRC_H! : Math.round(pageW / 1.55);
+  const cards = captured ? tourStops(SRC_BLOCKS!, pageW) : uiCardRects(pageW, pageH, true);
+  if (!cards.length) {
+    throw new Error(
+      'PointerTour found nothing on the captured page big enough to visit — every box was under 14% of the ' +
+      'page width. A tour of a page with no landmarks is a camera wandering, so it says so instead.');
+  }
+  const stops = captured ? cards : list.slice(0, Math.min(4, cards.length));
   const n = stops.length;
 
   // The route, as a list of places to look. Each stop gets the same travel and the same pause, because an
@@ -114,7 +166,12 @@ export const PointerTour: React.FC<{
   return (
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
       <PageCam2D cam={cam} W={W} H={H} pageW={pageW} pageH={pageH}>
-        <UiSurface page="cards" W={pageW} H={pageH} dna={dna} content={content} seed={7} />
+        {captured ? (
+          <img src={staticFile(SRC!)} width={pageW} height={pageH} alt=""
+            style={{display: 'block', width: pageW, height: pageH}} />
+        ) : (
+          <UiSurface page="cards" W={pageW} H={pageH} dna={dna} content={content} seed={7} />
+        )}
       </PageCam2D>
 
       {ripples.filter((r) => r.live).map((r) => {

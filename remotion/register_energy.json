@@ -111,7 +111,7 @@
     "PixelBuild": "55bf49826a3d722c",
     "PlanPalimpsest": "217bc9bee1687443",
     "PlatformSurfaces": "02f58dfcfa9fab5e",
-    "PointerTour": "322dbf1d765416c3",
+    "PointerTour": "d15f58fc7830a77f",
     "PortRail": "ba83fe1c244a9178",
     "PositioningMatrix": "0e93a56b943496ad",
     "ProfileGrowth": "aa4596f9e61deae6",
@@ -119,10 +119,10 @@
     "RadialBurst": "d35cd8cb6eb83a64",
     "RainGlass": "4cfb6313a34e9726",
     "RansomZine": "50e8c2c75b957b80",
-    "RealVersus": "a6aaad1ed6f9aa2b",
+    "RealVersus": "1cbf87c532b7d175",
     "RestsOn": "ae8bf2ebaff62796",
     "RidgeField": "9dd7320014438079",
-    "RisoPrint": "ac569d45094fb329",
+    "RisoPrint": "9c18fef38a8dae6c",
     "ScanReconstruct": "0b42285d1c27f97f",
     "ScreenBubble": "9ec2867d4c7c7b40",
     "SectionRoute": "2b7ae6b810e5aad0",
@@ -135,7 +135,7 @@
     "SpotlightStage": "8a4cfea96a812a3e",
     "StarfieldWarp": "1c54f7a02ee49a4c",
     "StrataColumn": "6526785f4dc5395d",
-    "SurfaceCarousel": "a791987bd5dd578b",
+    "SurfaceCarousel": "7214bbfe0de392ec",
     "SwissEditorial": "059cc5ddb89baeee",
     "TallyLedger": "757858a593574f75",
     "TechnicalPlate": "f450c5d61b108c8d",
@@ -158,7 +158,9 @@
     "VoiceSignal": "4e12c2cdc5a27a88",
     "VoxelBuild": "5ab63d989b467bfc",
     "WireGlobe": "586e83fb5fed09bd",
-    "PageWrite": "2bdb711f21c5bef1"
+    "PageWrite": "2bdb711f21c5bef1",
+    "GlowPick": "2d2018dfe0dc6bc9",
+    "SourceDeal": "934a69acd21ed2c8"
   },
   "_basis": "each register rendered as VIDEO at its own DURATION, 16:9, under dna=product — the themed path, because every delivered film has a design system and the un-themed fallback is a mode none of them use",
   "_dna": "product",
@@ -563,6 +565,13 @@
       "luma_range": 0.012,
       "seconds": 4.7,
       "footprint": 0.152
+    },
+    "GlowPick": {
+      "motion_p75": 0.0027,
+      "ink_median": 0.034,
+      "luma_range": 0.01,
+      "seconds": 3.2,
+      "footprint": 0.306
     },
     "GradientTilt": {
       "motion_p75": 0.0012,
@@ -1068,6 +1077,13 @@
       "seconds": 5.0,
       "footprint": 0.605
     },
+    "SourceDeal": {
+      "motion_p75": 0.002,
+      "ink_median": 0.005,
+      "luma_range": 0.013,
+      "seconds": 5.8,
+      "footprint": 0.232
+    },
     "SpectrumPulse": {
       "motion_p75": 0.0014,
       "ink_median": 0.077,
@@ -1126,7 +1142,7 @@
     },
     "SurfaceCarousel": {
       "motion_p75": 0.0235,
-      "ink_median": 0.051,
+      "ink_median": 0.052,
       "luma_range": 0.007,
       "seconds": 4.0,
       "footprint": 0.635

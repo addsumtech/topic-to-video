@@ -24,6 +24,7 @@
 import React from 'react';
 import {hash01} from './motion';
 import {fitBlockPx} from './layout';
+import {leading} from './cjkType';
 import {type DesignDNA} from './dna';
 
 export type UiPage = 'cards' | 'chart' | 'table' | 'form';
@@ -64,6 +65,11 @@ export const uiCardRects = (W: number, H: number, nav = true, cols = 3, rows = 2
 
 // Below this a glyph is a smudge, and a smudge that looks like a word is worse than an honest bar.
 const READABLE_PX = 11;
+
+// EVERY LINE THIS FILE SETS GOES THROUGH `leading()`. The leadings were written as literals — `/1` on the
+// window title, `/1.2` on a nav entry — which are Latin values, and Han glyphs fill a full em-box: the CJK
+// gate reported the chrome title at 18px set solid, tight by 1.1px, and every register drawing a surface
+// inherited it at once. `leading()` is a no-op on Latin copy, so there is no cost to always asking.
 
 // The fallback world, for a standalone preview with no DNA. The surface is separated from the ground on
 // PURPOSE and by a measurable amount: the first pass put a #f7f8fa window on a #f2f3f5 page, which is a
@@ -144,7 +150,7 @@ export const UiSurface: React.FC<{
       ))}
       <div style={{flex: 1}} />
       {content.title && type(Math.round(chromeH * 0.42)) ? (
-        <div style={{color: dim, font: `600 ${Math.round(chromeH * 0.42)}px/1 ${body}`,
+        <div style={{color: dim, font: `600 ${Math.round(chromeH * 0.42)}px/${leading(content.title ?? '', 1.15)} ${body}`,
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: W * 0.5}}>
           {content.title}</div>
       ) : <Bar w={Math.round(W * 0.16)} h={barH} c={dim} o={0.35} />}
@@ -160,7 +166,7 @@ export const UiSurface: React.FC<{
         const label = navs[i];
         const on = i === 1;
         return label && type(navPx) ? (
-          <div key={i} style={{color: on ? accent : dim, font: `${on ? 700 : 500} ${navPx}px/1.2 ${body}`,
+          <div key={i} style={{color: on ? accent : dim, font: `${on ? 700 : 500} ${navPx}px/${leading(label, 1.2)} ${body}`,
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>{label}</div>
         ) : <Bar key={i} w={wid(i, navW * 0.42, navW * 0.78)} h={barH} c={on ? accent : dim} o={on ? 0.9 : 0.4} />;
       })}
@@ -203,7 +209,7 @@ export const UiSurface: React.FC<{
             // exactly what it was highlighting.
             background: i === 0 ? `${accent}22` : 'transparent'}}>
             {label && type(cardPx) ? (
-              <div style={{color: fg, font: `700 ${cardPx}px/1.15 ${body}`, flex: '0 0 auto',
+              <div style={{color: fg, font: `700 ${cardPx}px/${leading(label, 1.15)} ${body}`, flex: '0 0 auto',
                 maxHeight: titleBox.h, overflow: 'hidden',
                 // a CJK line breaks between any two glyphs, so a label a unit too wide drops one onto a
                 // line of its own; balancing spreads the overflow instead of orphaning it
@@ -263,7 +269,7 @@ export const UiSurface: React.FC<{
           <div key={i} style={{display: 'flex', alignItems: 'center', gap: pad,
             borderBottom: isForm ? 'none' : `${bw}px solid ${line}`, paddingBottom: Math.round(u * 0.018)}}>
             {label && type(rowPx) ? (
-              <div style={{flex: 1, color: fg, font: `500 ${rowPx}px/1.2 ${body}`, whiteSpace: 'nowrap',
+              <div style={{flex: 1, color: fg, font: `500 ${rowPx}px/${leading(label, 1.2)} ${body}`, whiteSpace: 'nowrap',
                 overflow: 'hidden', textOverflow: 'ellipsis'}}>{label}</div>
             ) : <div style={{flex: 1}}><Bar w={wid(i, inner.w * 0.22, inner.w * 0.55)} h={barH} c={fg} o={0.6} /></div>}
             {isForm ? (
