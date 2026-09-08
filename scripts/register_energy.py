@@ -179,6 +179,24 @@ def _deps(path, seen=None):
     return seen
 
 
+def source_hash(name):
+    """sha256 over ONE register's .tsx and every runtime module it imports, read NOW.
+
+    Read now, and per register, because a full sweep is a two-and-a-half hour render and the source can move
+    under it. Hashing the whole library once at the start and again at the end both lie, in opposite
+    directions: the first records a hash for pixels rendered from a later edit, the second — which this file
+    did — records the FINAL source against pixels rendered from the earlier one, so the row looks fresh and
+    is not, and `stale()` reports nothing. That is the exact failure this hash exists to catch, produced by
+    the code that writes it. Hashing immediately before the render makes the recorded hash describe the
+    bytes the render actually read, whatever happens to the file afterwards.
+    """
+    f = os.path.join(_SHOTS, name + ".tsx")
+    h = hashlib.sha256()
+    for dep in sorted(_deps(f)):
+        h.update(open(dep, "rb").read())
+    return h.hexdigest()[:16]
+
+
 def source_hashes():
     """{register: sha256 over its .tsx AND the runtime modules it imports}. A measured row describes the
     SOURCE it was rendered from, and nothing said so: three registers were rewritten and the committed
@@ -186,13 +204,8 @@ def source_hashes():
     `density_advice.py` — which reads this file — kept offering one of the densest registers in the library as
     a starved beat's problem. A record nobody can tell is stale is not a record, it is a lie with a
     timestamp."""
-    out = {}
-    for f in sorted(glob.glob(os.path.join(_SHOTS, "*.tsx"))):
-        h = hashlib.sha256()
-        for dep in sorted(_deps(f)):
-            h.update(open(dep, "rb").read())
-        out[os.path.basename(f)[:-4]] = h.hexdigest()[:16]
-    return out
+    return {os.path.basename(f)[:-4]: source_hash(os.path.basename(f)[:-4])
+            for f in sorted(glob.glob(os.path.join(_SHOTS, "*.tsx")))}
 
 
 def stale(data):
@@ -315,9 +328,10 @@ def main(argv):
         names = [n for n in sorted(durs) if not only or n in only]
         ensure_fixture()
         ev = evidence_props()
-        hashes = source_hashes()
+        hashes = {}                     # filled per register, at the moment its pixels are made — see source_hash
         rows, failed = {}, []
         for i, n in enumerate(names, 1):
+            hashes[n] = source_hash(n)
             # CACHE KEY = everything the pixels depend on. Keyed by NAME alone, this cache re-measured
             # pre-fixture footage for four registers whose renders had changed underneath it, and it would
             # just as silently serve `--dna=product` video to a `--dna=editorial` sweep while `_basis`
@@ -355,7 +369,8 @@ def main(argv):
             for f in failed:
                 print("    " + f)
         data = {"_regenerate": REGEN,
-                "_source": {n: h for n, h in source_hashes().items() if n in rows},
+                # the hash each row was RENDERED from, not a fresh read of the tree — see source_hash
+                "_source": {n: h for n, h in hashes.items() if n in rows},
                 "_basis": ("each register rendered as VIDEO at its own DURATION, 16:9, under dna=%s — the "
                            "themed path, because every delivered film has a design system and the un-themed "
                            "fallback is a mode none of them use" % (dna or "none")),

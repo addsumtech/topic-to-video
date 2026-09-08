@@ -17,6 +17,7 @@ import {clockWipe} from '@remotion/transitions/clock-wipe';
 import {captionBand, CAPTION_SIZE_FRAC, CAPTION_MARGIN_FRAC, CAPTION_LINES,
         CAPTION_LEAD, CAPTION_LEAD_CJK, CJK_ADVANCE, latinAdvance} from './runtime/layout';
 import {SceneDurationContext, ReducedMotionContext, clamp01, SEAM_FRAMES} from './runtime/motion';
+import {NarrationContext} from './runtime/voice';
 import {groundLum, dnaGroundLum, dnaGroundY, groundGap, lumValue, lumFromY, type Lum, type GroundColors} from './runtime/shotLuma';
 import {BeatGround, groundAt, captionInk, hexGround, LIGHT_KEY_Y, CAPTION_INK_DARK, CAPTION_INK_LIGHT,
         type SceneGroundDecl} from './runtime/light';
@@ -687,6 +688,12 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
           const seq = (
             <TransitionSeries.Sequence key={`s${i}`} durationInFrames={durF}>
               <SceneDurationContext.Provider value={durF}>
+                {/* THE BEAT'S OWN VOICE, offered to whatever wants to draw it. `<Audio>` below plays this same
+                    file; providing the path here is what lets an audio-reactive register analyse exactly what
+                    the viewer is hearing, with no prop the shot-director has to know about. A beat with no
+                    narration provides null and those registers fall back to their synthetic voice, which is
+                    also what a standalone still gets — see runtime/voice.tsx. */}
+                <NarrationContext.Provider value={sc.mp3 ?? null}>
                 {/* THE GROUND IS RESOLVED HERE, PER BEAT. This provider is the whole mechanism: the design
                     DNA used to be provided once OUTSIDE the TransitionSeries, so `bg` was a film-wide
                     constant and no beat could change the light. Providing it inside the Sequence — with
@@ -708,6 +715,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                   </SceneCamera>
                   <BeatChrome chrome={sc.chrome} W={width} H={height} />
                 </BeatGround>
+                </NarrationContext.Provider>
               </SceneDurationContext.Provider>
               {sc.mp3 ? <Audio src={staticFile(sc.mp3)} /> : null}
             </TransitionSeries.Sequence>

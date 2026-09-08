@@ -17,7 +17,8 @@
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig, staticFile} from 'remotion';
-import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic, easeOutBack} from '../runtime/motion';
+import {useT, useAnimSpan, springAt, SPRING_SEAT, seg, lerp, clamp01, easeInOutCubic,
+        easeOutCubic} from '../runtime/motion';
 import {useDNA, readableOn} from '../runtime/dna';
 import {UiSurface, type UiContent} from '../runtime/uiSurface';
 import {captionBand, CONTENT_TOP, fitTextPx, fitBlockPx, textWidthPx} from '../runtime/layout';
@@ -54,7 +55,8 @@ export const SourceDeal: React.FC<{
   notes: NOTES = [], doc: DOC = [], src: SRC, pageW: SRC_W, pageH: SRC_H, blocks: SRC_BLOCKS} = {}) => {
   const dna = useDNA();
   const t = useT();
-  const {width: W, height: H} = useVideoConfig();
+  const {width: W, height: H, fps} = useVideoConfig();
+  const span = useAnimSpan();
   const BG = dna?.bgGrad ?? dna?.bg ?? BG_D0;
   const FG = dna?.fg ?? FG_D0;
   const DIM = dna?.dim ?? DIM_D0;
@@ -161,10 +163,13 @@ export const SourceDeal: React.FC<{
       {/* THE CONCLUSIONS, dealt */}
       {list.map((label, i) => {
         const f = T0[i];
-        // two curves, deliberately unequal: the pill is SEEN before it is SETTLED, which is what makes it
-        // read as landing rather than as fading in
+        // TWO CURVES, DELIBERATELY UNEQUAL: the pill is SEEN before it is SETTLED, which is what makes it
+        // read as landing rather than as fading in. The settle is a SPRING, not an eased curve — the
+        // reference card's own note is that the overshoot is the手感 of a card dealt onto a table and that
+        // an eased version "变成平淡的浮上来". A spring also gives the pill mass, so its landing is a
+        // property of the object rather than of one curve every element in the library shares.
         const o = easeOutCubic(clamp01(seg(t, f, f + 0.035)));
-        const b = easeOutBack(clamp01(seg(t, f, f + 0.062)));
+        const b = springAt(t, span, fps, f, SPRING_SEAT);
         const note = NOTES[i];
         const cs = f + 0.05;
         const ce = (i + 1 < n ? T0[i + 1] - 0.03 : 0.98);

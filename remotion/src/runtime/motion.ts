@@ -3,7 +3,7 @@
 // pattern (Apache-2.0): a normalized-time hook + easing/seg/lerp + a frame-stable hash.
 
 import React from 'react';
-import {useCurrentFrame, useVideoConfig} from 'remotion';
+import {useCurrentFrame, useVideoConfig, spring, type SpringConfig} from 'remotion';
 
 export const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -69,6 +69,58 @@ export function useT(): number {
   // false as written, and the 0.63% mid-dissolve ink quoted there was re-measured AFTER the change and had
   // not moved — the number was the proof it had not worked, read as the motivation for it.
   return ENTRY_T + (1 - ENTRY_T) * clamp01((frame - pad) / span);
+}
+
+/** How many frames the shot's own 0→1 actually spans — the same window `useT` compresses into.
+ *
+ *  Exported because anything driven by REAL time rather than by a normalized ramp needs it: a spring is a
+ *  physical simulation in frames, and running one against the composition's frame counter would animate it
+ *  straight through the cross-dissolve that `useT` exists to keep still. */
+export function useAnimSpan(): number {
+  const {durationInFrames} = useVideoConfig();
+  const sceneDur = React.useContext(SceneDurationContext);
+  const dur = sceneDur ?? durationInFrames;
+  const pad = Math.min(SEAM_FRAMES, Math.floor(Math.max(0, dur - 1) / 3));
+  return Math.max(1, dur - 1 - 2 * pad);
+}
+
+/** The library's default spring: a settled arrival with a small, honest overshoot. */
+export const SPRING_LAND: SpringConfig = {damping: 14, stiffness: 120, mass: 1, overshootClamping: false};
+/** A heavier landing — a part seating into a socket, a card dealt onto a table. */
+export const SPRING_SEAT: SpringConfig = {damping: 16, stiffness: 110, mass: 1.1, overshootClamping: false};
+/** A light pop — a tick, a chip, a badge. */
+export const SPRING_POP: SpringConfig = {damping: 10, stiffness: 260, mass: 1, overshootClamping: false};
+
+/**
+ * A SPRING on the shot's own clock, starting at normalized time `a`.
+ *
+ * WHY A SPRING AND NOT ANOTHER EASING. This library animated 160 registers with hand-rolled cubics, and the
+ * closest thing it had to an arrival was `easeOutBack` — one fixed curve, so every element in every shot
+ * lands with the same weight. The reference library this was measured against writes its landings in mass
+ * and damping instead, and its own parameter notes say why: "落进框内是语义关键", "发牌落桌的手感；换
+ * outCubic 会变成平淡的浮上来". The OVERSHOOT is the meaning — a thing that settles past its mark and comes
+ * back reads as having weight; a thing that eases into place reads as being faded in.
+ *
+ * It is driven by `useT`, not by the raw frame, and that is not a detail: `useT` compresses the shot's whole
+ * animation into the window where no cross-dissolve is running and freezes it under reduced motion. A spring
+ * on the composition's own frame counter would keep bouncing through the seam — which is the exact flicker
+ * `useT` was written to end — and would ignore the accessibility freeze.
+ */
+export const springAt = (t: number, span: number, fps: number, a = 0,
+                        config: SpringConfig = SPRING_LAND): number =>
+  spring({frame: Math.max(0, (t - a) * span), fps, config});
+
+/**
+ * The hook form, for a single spring. A STAGGERED LIST must use `springAt` instead, with `useT()`,
+ * `useAnimSpan()` and `fps` read once above the loop: a hook called per item inside `.map()` is a hook
+ * whose call count depends on the data, and the one thing a staggered deal changes between films is how
+ * many things are dealt.
+ */
+export function useSpringAt(a = 0, config: SpringConfig = SPRING_LAND): number {
+  const t = useT();
+  const {fps} = useVideoConfig();
+  const span = useAnimSpan();
+  return springAt(t, span, fps, a, config);
 }
 
 // Re-map a sub-window [a,b] of global t to a local 0→1 (for phase timing within a shot).

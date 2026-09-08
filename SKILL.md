@@ -228,6 +228,18 @@ TTS if the user gives an API key.
   ENCODES the beat: `PlanPalimpsest` puts the earlier survey one plane back because "two plans in register on
   the same ground" is the register's whole claim and a flat drawing can only assert it. A shot that scatters
   things across planes for the look of it is decoration.
+  **FOCUS is the depth cue that says which one matters (`runtime/focus.ts`).** `focusAt(d, U)` returns one
+  recession — opacity, blur, brightness and scale together, blur as a fraction of the frame's short side — so a
+  film's off-focus material recedes the same way in every shot instead of each one inventing three numbers;
+  `focusFilter` returns NOTHING in focus, so sharp type is never promoted to a filter layer. Reach for it
+  whenever a shot shows several things and means one: `SurfaceCarousel`'s corridor, and `PointerTour`, which
+  needs it most — a flat interface under a moving camera reads as a page scrolling until the part the lens is
+  not on goes soft.
+  **SOUND — a register can read the film's own narration (`runtime/voice.tsx`).** `<Voice samples={n}>{({bars,
+  level}) => …}</Voice>` analyses the BEAT's mp3 (the Film provides it; nothing to author), so an audio
+  register goes quiet when the speaker does. Standalone stills and the energy sweep get a deterministic
+  synthetic voice with the same shape, gaps included, so the still stays evidence about the film.
+  `VoiceSignal` (a mirrored bank) and `SpectrumPulse` (a ring) are the worked examples.
   **The camera is per-BEAT and motivated.** The film-wide sinusoidal drift (`meta.camera_drift`) has no
   relationship to anything being said, which is exactly why it reads as a wobble once noticed — it stays off
   by default. `slide.camera:{move:'push'|'pull'|'hold'}` moves for a reason: `payoff` → push (look closer at
@@ -434,6 +446,14 @@ TTS if the user gives an API key.
   in SECONDS; both enforce a 3s floor by throwing. **Its findings are CANDIDATES, not work orders**: render
   the register before and after and keep the change only where the settled-half motion moves (three of four
   were reverted this way). It is a FIDELITY fix, not the motion axis's lever — that is the camera bed.
+- **ARRIVALS have weight — `springAt` / `useSpringAt` (`runtime/motion.ts`).** 160 registers animated with
+  hand-rolled cubics, so every element in every shot landed on the same curve. Three presets name the three
+  jobs — `SPRING_LAND` (arriving), `SPRING_SEAT` (taking its place in a row), `SPRING_POP` (appearing, and
+  deliberately past 1.0) — and the OVERSHOOT is the point: a thing that settles past its mark has mass, one
+  that eases into place has been faded in. They run on `useT`'s window via `useAnimSpan()`, so a spring is
+  settled across the frames the cross-dissolve runs over, and freezes under reduced motion like every other
+  clock here. In a stagger loop call the pure `springAt(t, span, fps, delay, config)` — hooks cannot be
+  called per item. `SourceDeal` (pills dealt) and `PortRail` (modules seating) are the worked examples.
 - **CJK TYPE — the renderer bundles a Chinese sans AND a Chinese serif** (`Noto Sans SC` / `Noto Serif SC`,
   SIL OFL, subset to GB2312 + kana: 2.2 MB and 3.0 MB). Before that, ten Latin faces were loaded and none
   carried a Han glyph, so every Chinese character was drawn by whatever the render machine had installed —

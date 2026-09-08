@@ -19,6 +19,7 @@ import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic, easeOutExpo} fro
 import {useDNA} from '../runtime/dna';
 import {UiSurface, type UiPage, type UiContent} from '../runtime/uiSurface';
 import {captionBand, CONTENT_TOP, fitTextPx} from '../runtime/layout';
+import {focusAt, focusFilter} from '../runtime/focus';
 import {leading} from '../runtime/cjkType';
 
 export const DURATION = 120; // 4.0s
@@ -41,7 +42,7 @@ const BEATS = [
 // labels shipped onto a Chinese frame. The gate that hunts exactly that could not tell the two apart and
 // errored on every correct beat, which is worse than the bug — an author's only way out was to switch a
 // prop off. A prop whose default may or may not be read is a prop with two meanings.
-export type Surface = {page?: UiPage; items?: string[]; nav?: string[]};
+export type Surface = {page?: UiPage; items?: string[]; nav?: string[]; series?: number[]};
 
 export const SurfaceCarousel: React.FC<{
   surfaces?: Surface[];
@@ -114,19 +115,36 @@ export const SurfaceCarousel: React.FC<{
         // each edge. A non-wrapping row empties itself at the end and the corridor stops being a corridor.
         const w = ((trackX - i * SP) % RING + RING * 1.5) % RING - RING / 2;
         const d = Math.min(1, Math.abs(w) / SP);            // 0 = centre stage, 1 = a neighbour at the edge
-        const scale = lerp(0.62, 1, 1 - d);
-        const fade = lerp(0.78, 1, clamp01((1 - d) * 2.4));
+        // THE RECESSION IS THE SHARED LENS, not this shot's own three numbers. Scale, opacity, brightness and
+        // blur were four literals here, and the next register wanting a corridor would have written a fifth
+        // set — so a film's off-focus material would recede differently in every shot that had any. One
+        // function means it reads as one lens. `focusAt` also darkens, which this did not: a neighbour that
+        // is paler but just as bright reads as translucent rather than as further away.
+        const f = focusAt(d, U);
+        const scale = f.scale;
+        const fade = Math.min(1, f.opacity * 1.35);        // this corridor keeps its neighbours more present
         // the neighbours fall AWAY from the axis they travel on, so the corridor has a floor as well as a
         // direction; drifting along the same axis would just read as uneven spacing.
         const sink = d * (vert ? panelW : panelH) * 0.30;
-        const blur = d * (U * 0.0022);
-        const page: UiPage = s.page ?? PAGES[i % PAGES.length];
-        const content: UiContent = {title: s.label, nav: s.nav ?? NAV, items: s.items};
+        // A CHART IS ONLY OFFERED TO A SURFACE THAT HAS DATA. `UiSurface` refuses to invent a series — right,
+        // and it means an un-supplied chart page draws a baseline and a grid and nothing else. In the demo
+        // that put an EMPTY WINDOW on centre stage for a third of the shot, which reads as the register
+        // having failed rather than as a product with a chart in it. So the rotation skips the chart for a
+        // surface that was given no `series`, and the author who has real numbers gets the chart by passing
+        // them. Neither half works alone: without the pass-through the chart is unreachable, and without the
+        // skip the default is an empty box.
+        const wanted = PAGES[i % PAGES.length];
+        const hasData = Array.isArray(s.series) && s.series.some((v) => typeof v === 'number' && isFinite(v));
+        // The stand-in is the FORM page, not the table: the rotation already ends on a table, and two
+        // identical-looking screens side by side in a corridor whose whole claim is "several surfaces"
+        // argues against itself. cards · form · table · form has no two neighbours alike, ring included.
+        const page: UiPage = s.page ?? (wanted === 'chart' && !hasData ? 'form' : wanted);
+        const content: UiContent = {title: s.label, nav: s.nav ?? NAV, items: s.items, series: s.series};
         return (
           <div key={i} style={{position: 'absolute',
             left: vert ? cx + sink : cx + w, top: vert ? cy + w : cy + sink,
             transform: `translate(-50%, -50%) scale(${scale})`, opacity: fade,
-            filter: blur > 0.15 ? `blur(${blur}px)` : undefined,
+            filter: focusFilter(f),
             zIndex: 1 - d > 0.5 ? 2 : 1}}>
             {/* the pill sinks FASTER than its panel, so a neighbour's label settles onto its own window
                 instead of floating in the gap between two of them */}

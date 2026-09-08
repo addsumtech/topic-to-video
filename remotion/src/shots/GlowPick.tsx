@@ -48,11 +48,14 @@ export const GlowPick: React.FC<{
   items?: string[];
   nav?: string[];
   page?: UiPage;
+  /** the chart page plots THESE and invents nothing — a `page: 'chart'` with no series draws an
+   *  empty plate, so pass the beat's real numbers or choose another page. */
+  series?: number[];
   target?: number;
   note?: string;
 }> = ({screen: SCREEN = 'Overview', items: ITEMS = ['Runs', 'Queue', 'Alerts', 'Sources', 'Access', 'Audit'],
   nav: NAV = ['Home', 'Overview', 'Runs', 'Sources', 'Team', 'Settings'],
-  page: PAGE = 'cards', target: TARGET = 4, note: NOTE = ''} = {}) => {
+  page: PAGE = 'cards', series: SERIES, target: TARGET = 4, note: NOTE = ''} = {}) => {
   const dna = useDNA();
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
@@ -120,7 +123,7 @@ export const GlowPick: React.FC<{
   // The outline STARTS where the light landed. Written as a fixed corner it looks identical on the frame the
   // border is complete and wrong on every frame before it — the hand-off is the point of the shot.
   const startFrac = clamp01((roam.x * surfW - tgt.x) / Math.max(1, tgt.w)) * 0.25 + 0.5;
-  const content: UiContent = {title: SCREEN, nav: NAV, items: list};
+  const content: UiContent = {title: SCREEN, nav: NAV, items: list, series: SERIES};
   // CONVERGED, NOT VANISHED. The reference converges to 1.0px on a 480-wide design stage, which is about
   // 4px at 1920 — taken literally the border thinned to 1.2px and disappeared, so the shot ended on a card
   // with nothing around it and the whole hand-off was for nothing.

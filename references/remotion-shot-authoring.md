@@ -304,6 +304,35 @@ analogue of the html tier's `theme.css`). Reuse the structural idea, **never** c
   Worked examples: `SurfaceCarousel` (a queue of screens) and `PointerTour` (one screen, one camera, a cursor
   walking it).
 
+- **PHYSICS instead of a curve — `springAt` / `useSpringAt` in `runtime/motion.ts`.** An eased ramp always
+  arrives; a spring OVERSHOOTS and settles, which is what reads as weight. Three presets name the three jobs:
+  `SPRING_LAND` (something arriving), `SPRING_SEAT` (something taking its place in a row — heavier, less
+  overshoot), `SPRING_POP` (something appearing — sharp, deliberately past 1.0). They are driven by `useT`'s
+  window, not by the raw frame: `useAnimSpan()` is how many frames the shot's own 0→1 actually spans, so a
+  spring is settled across the frames the cross-dissolve runs over, exactly like every eased register. Use the
+  pure `springAt(t, span, fps, delay, config)` inside a stagger loop — hooks cannot be called per item.
+  Worked examples: `SourceDeal` (pills dealt onto a rail) and `PortRail` (modules seating into a frame).
+
+- **DEPTH as a signal — `runtime/focus.ts`.** `focusAt(distance, U)` returns the one recession every shot
+  should share: opacity, blur, brightness and scale together, because a neighbour that is paler but just as
+  bright reads as translucent rather than as further away. `focusFilter(f)` returns `undefined` when the thing
+  IS in focus — never `blur(0px)` — so sharp type is not promoted to its own compositing layer and resampled.
+  The blur is a fraction of the frame's short side, not a literal: the 2.2px that looks right on a 480-wide
+  design stage is invisible at 1920. `focusDist(dist, spread)` normalises a distance and returns 0, not NaN,
+  when a shot has only one object. Worked example: `SurfaceCarousel`'s corridor.
+
+- **The FILM'S OWN VOICE — `runtime/voice.tsx`.** `<Voice samples={n}>{({bars, level, live}) => …}</Voice>`
+  hands a register the beat's real narration, analysed with `@remotion/media-utils`: `Film.tsx` provides the
+  scene's mp3 through `NarrationContext`, so nothing has to be authored per beat. It is a render prop and not
+  a hook because `useAudioData` throws on a falsy src and hooks cannot be conditional — standalone stills and
+  the energy sweep have no narration and get a deterministic SYNTHETIC voice with the same shape, gaps
+  included. Levels are normalised against the CLIP's peak, so silence reads as silence and a 20 dB quieter
+  recording draws the same picture, and tilt-compensated across frequency the way any spectrum analyser
+  is — without that, a voice's rolloff draws three tall bars and a flat line, which is a bass meter, not
+  a picture of speech; a per-frame normalisation would make a pause as tall as a shout, which is
+  precisely how `VoiceSignal` spent months claiming to be audio-reactive while drawing three sines of the
+  frame number. Worked examples: `VoiceSignal` (a mirrored bank) and `SpectrumPulse` (a ring).
+
 - **Content ATOMS — the same part, a different form per DNA.** Colour tokens make a themed film coherent;
   they do not make a register *look like another style*, because the components stay identical. The atoms
   close that gap: `runtime/atoms.tsx` exports `Bar`, `Figure`, `List`, `Label`, `Divider`, `Marker`, and

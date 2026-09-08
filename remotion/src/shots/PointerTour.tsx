@@ -21,6 +21,7 @@ import {useDNA} from '../runtime/dna';
 import {UiSurface, uiCardRects, type UiContent} from '../runtime/uiSurface';
 import {captionBand} from '../runtime/layout';
 import {PageCam2D, camAt, pageToScreen, fitScale, clampToPage, type CamKey} from '../runtime/pageCam2D';
+import {focusAt} from '../runtime/focus';
 
 export const DURATION = 180; // 6.0s
 
@@ -171,17 +172,39 @@ export const PointerTour: React.FC<{
 
   const content: UiContent = {title: SCREEN, nav: NAV, items: list};
 
+  // THE GRAZE. A flat interface under a moving camera reads as a page SCROLLING, not as a surface being
+  // examined — every part of it equally sharp is the one thing no real lens does, and it is why a fly-over of
+  // a screenshot can look like a slideshow with a pan on it. So the page is drawn twice: sharp, and again
+  // softened with a hole cut where the lens is looking. What the cursor is pointing at is in focus; the rest
+  // of the page falls away, which is what says "this part" without an arrow saying it.
+  //
+  // The blur is the shared lens at a HEAVIER setting than the carousel's, and deliberately: there the
+  // out-of-focus material also shrinks and fades, so the blur is the third cue; here the periphery is the
+  // same page at the same size and brightness, so the blur is the only one. It arrives with the tour rather
+  // than at frame 0 — during the opening overview the whole page IS the subject, and defocusing its edges
+  // then would just look like a lens fault.
+  const dof = easeOutCubic(clamp01(seg(t, OPEN * 0.7, OPEN + STEP * 0.35)));
+  const dofPx = focusAt(1, U, {blurFrac: 0.008}).blurPx;
+  const sharpR = U * 0.30, softR = U * 0.78;
+  const mask = `radial-gradient(circle at ${Math.round(target.x)}px ${Math.round(target.y)}px, `
+    + `transparent 0px, transparent ${Math.round(sharpR)}px, #000 ${Math.round(softR)}px)`;
+  const page = captured ? (
+    <img src={staticFile(SRC!)} width={pageW} height={pageH} alt=""
+      style={{display: 'block', width: pageW, height: pageH}} />
+  ) : (
+    <UiSurface page="cards" W={pageW} H={pageH} dna={dna} content={content} seed={7} />
+  );
+
   return (
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
       <div style={{position: 'absolute', left: 0, top: 0, width: W, height: VIEW_H, overflow: 'hidden'}}>
-      <PageCam2D cam={cam} W={W} H={VIEW_H} pageW={pageW} pageH={pageH}>
-        {captured ? (
-          <img src={staticFile(SRC!)} width={pageW} height={pageH} alt=""
-            style={{display: 'block', width: pageW, height: pageH}} />
-        ) : (
-          <UiSurface page="cards" W={pageW} H={pageH} dna={dna} content={content} seed={7} />
-        )}
-      </PageCam2D>
+      <PageCam2D cam={cam} W={W} H={VIEW_H} pageW={pageW} pageH={pageH}>{page}</PageCam2D>
+      {dof > 0.002 ? (
+        <div style={{position: 'absolute', inset: 0, opacity: dof, filter: `blur(${dofPx.toFixed(2)}px)`,
+          WebkitMaskImage: mask, maskImage: mask}}>
+          <PageCam2D cam={cam} W={W} H={VIEW_H} pageW={pageW} pageH={pageH}>{page}</PageCam2D>
+        </div>
+      ) : null}
       </div>
 
       {ripples.filter((r) => r.live).map((r) => {

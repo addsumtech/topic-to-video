@@ -29,7 +29,8 @@ import {AimCamera} from '../runtime/aimCamera';
 import {captionBand, CONTENT_TOP, fitTextPx, fitBlockPx, textWidthPx} from '../runtime/layout';
 import {frameCamera, boxCorners} from '../runtime/fitCamera';
 import {leading} from '../runtime/cjkType';
-import {useT, seg, clamp01, easeOutBack, easeInOutCubic, lerp} from '../runtime/motion';
+import {useT, useAnimSpan, springAt, SPRING_SEAT, seg, clamp01, easeInOutCubic,
+        lerp} from '../runtime/motion';
 
 export const DURATION = 165; // 5.5s
 
@@ -73,13 +74,19 @@ const floorAt = (vert: boolean, span: number) => (vert ? -(span / 2) - 0.75 : -0
  *  IT IS A SEATING, NOT A DRIFT. Spread over a quarter of the shot each module crossed its gap so slowly
  *  that the measured frame-to-frame motion sat under the library's own floor — and the picture agreed with
  *  the number: a part that eases into a socket over a second and a half reads as floating, not as clicking
- *  home. Halving each window and lengthening the approach makes the same move decisive, and still leaves the
- *  last third of the shot at rest for the note. */
-const seatAt = (t: number, i: number, n: number) =>
-  easeOutBack(clamp01(seg(t, 0.08 + (i / Math.max(1, n)) * 0.52, 0.24 + (i / Math.max(1, n)) * 0.52)));
+ *  home.
+ *
+ *  IT IS A SPRING, because the argument of this whole register is that a part SEATS. `easeOutBack` gave it
+ *  one fixed overshoot, the same one every other element in the library lands with; a spring gives the
+ *  module mass, so what the eye reads is the weight of the thing arriving rather than a curve applied to it.
+ *  Driven off the shot's own clock (`useT`/`useAnimSpan`), so it stays perfectly still through the seam
+ *  the cross-dissolve runs over. */
+const seatAt = (t: number, span: number, fps: number, i: number, n: number) =>
+  springAt(t, span, fps, 0.08 + (i / Math.max(1, n)) * 0.52, SPRING_SEAT);
 
 const Scene: React.FC<{n: number; tones: string[]; accent: string; floor: string; vert: boolean;
-  span: number; t: number; aim: Vec3; cam: Vec3}> = ({n, tones, accent, floor, vert, span, t, aim, cam}) => {
+  span: number; t: number; aim: Vec3; cam: Vec3; animSpan: number; fps: number}> =
+  ({n, tones, accent, floor, vert, span, t, aim, cam, animSpan, fps}) => {
   const frame = useCurrentFrame();
   return (
     <>
@@ -113,7 +120,7 @@ const Scene: React.FC<{n: number; tones: string[]; accent: string; floor: string
         </mesh>
 
         {Array.from({length: n}).map((_, i) => {
-          const s = seatAt(t, i, n);
+          const s = seatAt(t, animSpan, fps, i, n);
           return (
             <group key={i} position={vert
               ? [lerp(LIFT, 0.365, s), slotAt(i, n, span, true), 0]
@@ -159,7 +166,8 @@ export const PortRail: React.FC<{standard?: string; items?: string[]; note?: str
   const dna = useDNA();
   const t = useT();
   const frame = useCurrentFrame();
-  const {width: W, height: H} = useVideoConfig();
+  const {width: W, height: H, fps} = useVideoConfig();
+  const animSpan = useAnimSpan();
   const BG = dna?.bgGrad ?? dna?.bg ?? BG_D0;
   const FG = dna?.fg ?? FG_D0;
   const DIM = dna?.dim ?? DIM_D0;
@@ -294,7 +302,7 @@ export const PortRail: React.FC<{standard?: string; items?: string[]; note?: str
   // and it is CLAMPED to the content zone: a projected label follows its object wherever perspective puts it,
   // and the band at the bottom is the one region of the frame a shot does not own.
   const labels = list.map((text, i) => {
-    const s = seatAt(t, i, n);
+    const s = seatAt(t, animSpan, fps, i, n);
     const travel = lerp(LIFT, 0.365, s);
     // Upright, a label sits ABOVE its module; on the standing rail it sits BESIDE it, because above is where
     // the next module in the stack is.
@@ -312,7 +320,7 @@ export const PortRail: React.FC<{standard?: string; items?: string[]; note?: str
       <ThreeCanvas width={W} height={H} camera={{position: cam, fov: FOV}} shadows
         style={{position: 'absolute', inset: 0}}>
         <Scene n={n} tones={TONES} accent={ACC} floor={dna?.bg ?? BG_D0} vert={vert} span={span} t={t}
-          aim={aim} cam={cam} />
+          aim={aim} cam={cam} animSpan={animSpan} fps={fps} />
       </ThreeCanvas>
 
       {/* A label appears only once its module is most of the way home. Drawn from the first frame, the ones
