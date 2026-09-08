@@ -2778,6 +2778,46 @@ def test_the_reader_does_not_mistake_an_arrow_function_for_a_tag():
         "text inside a fragment is no longer seen")
 
 
+def test_no_draw_on_declares_its_own_path_length():
+    """A stroke drawn on with `stroke-dasharray` needs the path's LENGTH, and nine call sites used to guess it.
+
+    The guess fails silently and in one direction. Drawn length is `declared x p`, capped at the real length:
+    declared TOO LARGE and the stroke completes at `real / declared` and then holds; declared TOO SMALL and
+    at p=1 only part of the path is ever inked, so the frame ships with half a line on it. Measured on this
+    library before the fix, `MapRoutes` declared 1600 for routes 280-460 long — every route finished drawing
+    between p=0.17 and p=0.29 of its own reveal window and sat still for the remaining three quarters, on a
+    register whose premise is "routes DRAW between pins". `WireGlobe` completed at 0.31; the rest at 0.83-0.91.
+
+    `drawOn()` uses `pathLength={1}`, which asks SVG to scale the element's own length to 1, so a dash of 1 is
+    the whole path whatever it is — exact for a path built from props at render time, for a polyline and for a
+    circle alike, and with no number left to get wrong.
+
+    The rule is narrow on purpose: a dasharray that is a single NUMERIC LITERAL beside a dashoffset is a
+    guess. A dasharray built from the geometry is not, and four registers legitimately do that — an
+    orthogonal L's Manhattan distance, a rectangle's perimeter, N steps of length STEP, a 50-unit line — so
+    the check must not sweep those up. A two-number dasharray is a dash PATTERN, not a reveal, and is left
+    alone.
+    """
+    import glob
+    import os
+    import re
+    shots = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "shots")
+    guessed = []
+    for f in sorted(glob.glob(os.path.join(shots, "*.tsx"))):
+        src = open(f, encoding="utf-8").read()
+        for m in re.finditer(r"strokeDasharray=(?:\{\s*([0-9.]+)\s*\}|\"([0-9.]+)\")", src):
+            # `pathLength` in the same element makes the literal a NORMALISED one, not a guess — it is the
+            # hand-written form of what `drawOn` returns, and forbidding it would forbid correct code.
+            window = src[max(0, m.start() - 240):m.start() + 240]
+            if "strokeDashoffset" in window and "pathLength" not in window:
+                guessed.append("%s: strokeDasharray=%s" % (
+                    os.path.basename(f)[:-4], m.group(1) or m.group(2)))
+    assert not guessed, (
+        "these draw-ons declare a path length as a literal, which is a guess about geometry the element "
+        "already knows: %s. Use `drawOn(p)` from runtime/draw — it sets pathLength={1} so the number is "
+        "never needed." % "; ".join(guessed))
+
+
 def test_no_register_declares_a_prop_it_never_reads():
     """A DEAD PROP is worse than a missing one: the film's copy is accepted and discarded with no error.
 

@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
+import {drawOn} from '../runtime/draw';
 import {useDNA} from '../runtime/dna';
 import {bottomInset} from '../runtime/layout';
 
@@ -51,7 +52,7 @@ export const LightTrails: React.FC<{label?: string}> = ({label = 'done in one mo
 
         {/* the check being traced */}
         <path d={checkD} fill="none" stroke="url(#ltc)" strokeWidth={16} strokeLinecap="round" strokeLinejoin="round"
-          strokeDasharray={LEN} strokeDashoffset={LEN * (1 - draw)} filter="url(#ltglow)" />
+          {...drawOn(draw)} filter="url(#ltglow)" />
         {/* full-bloom glow at the end */}
         {bloom > 0 && <path d={checkD} fill="none" stroke="#eaffff" strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" opacity={bloom} filter="url(#ltglow)" />}
         {/* travelling head */}

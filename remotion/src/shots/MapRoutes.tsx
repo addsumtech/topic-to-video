@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeInOutCubic, easeOutBack, clamp01, hash01} from '../runtime/motion';
+import {drawOn} from '../runtime/draw';
 import {leading, fitIfCJK} from '../runtime/cjkType';
 import {useDNA} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitTextPx} from '../runtime/layout';
@@ -43,11 +44,10 @@ export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: strin
           const midx = (hx + px) / 2, midy = (hy + py) / 2 - 140;
           const d = `M${hx},${hy} Q${midx},${midy} ${px},${py}`;
           const draw = clamp01((easeInOutCubic(seg(t, 0.12, 0.7)) - i * 0.03) / 0.4);
-          const len = 1600;
           const pk = clamp01((t - 0.3 - i * 0.05) / 0.5); // packet position 0→1
           const bx = lerp(hx, px, pk), by = lerp(hy, py, pk) - Math.sin(pk * Math.PI) * 140;
           return <g key={i}>
-            <path d={d} fill="none" stroke={TEAL} strokeWidth={3} strokeOpacity={0.9} strokeDasharray={len} strokeDashoffset={len * (1 - draw)}
+            <path d={d} fill="none" stroke={TEAL} strokeWidth={3} strokeOpacity={0.9} {...drawOn(draw)}
               style={{filter: `drop-shadow(0 0 8px ${TEAL})`}} />
             {t > 0.3 + i * 0.05 && pk < 1 && <circle cx={bx} cy={by} r={7} fill="#eafffb" style={{filter: `drop-shadow(0 0 10px ${TEAL})`}} />}
           </g>;

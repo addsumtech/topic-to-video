@@ -33,6 +33,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {fitTextOnNLines} from '@remotion/layout-utils';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeInOutCubic, easeOutBack, hash01} from '../runtime/motion';
+import {drawOn} from '../runtime/draw';
 import {useDNA, dnaPalette, mix} from '../runtime/dna';
 import {Icon, type IconName} from '../runtime/icons';
 import {CONTENT_TOP, TITLE_Y, contentBottom} from '../runtime/layout';
@@ -163,7 +164,7 @@ const Glyph: React.FC<Ink & {kind: QuadGlyph; g: number}> = ({kind, g, c, warn, 
       <g transform="translate(4 0)">
         {[34, 60, 86].map((y, k) => (
           <path key={k} d={d} transform={`translate(0 ${y})`} fill="none" stroke={c} strokeWidth={5}
-            strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - p} />
+            strokeLinecap="round" {...drawOn(p)} />
         ))}
       </g>
     ));
@@ -179,7 +180,7 @@ const Glyph: React.FC<Ink & {kind: QuadGlyph; g: number}> = ({kind, g, c, warn, 
           stroke={p > 0.05 ? c : track} strokeWidth={4} opacity={0.4 + 0.6 * p} />
         <polyline points={`${cx - 11},${cy + 1} ${cx - 3.5},${cy + 9} ${cx + 12},${cy - 9}`} fill="none"
           stroke={c} strokeWidth={6} strokeLinecap="round" strokeLinejoin="round"
-          strokeDasharray={42} strokeDashoffset={42 * (1 - p)} />
+          {...drawOn(p)} />
       </g>
     );
   }));
@@ -230,7 +231,7 @@ const Glyph: React.FC<Ink & {kind: QuadGlyph; g: number}> = ({kind, g, c, warn, 
         <circle cx={120} cy={61} r={19} fill={ground} stroke={c} strokeWidth={3} opacity={seal} />
         <polyline points="112,61 118,67.5 129,54" fill="none" stroke={c} strokeWidth={5}
           strokeLinecap="round" strokeLinejoin="round"
-          strokeDasharray={30} strokeDashoffset={30 * (1 - seal)} />
+          {...drawOn(seal)} />
       </>
     ));
   }

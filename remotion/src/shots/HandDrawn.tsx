@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, hash01} from '../runtime/motion';
+import {drawOn} from '../runtime/draw';
 import {useDNA} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 
@@ -20,10 +21,10 @@ function roughRect(x: number, y: number, w: number, h: number, s: number): strin
   return `M${x + j(1)},${y + j(2)} L${x + w + j(3)},${y + j(4)} L${x + w + j(5)},${y + h + j(6)} L${x + j(7)},${y + h + j(8)} Z`;
 }
 
-const Sketch: React.FC<{d: string; t: number; at: number; color: string; len?: number; sw?: number}> = ({d, t, at, color, len = 900, sw = 5}) => {
+const Sketch: React.FC<{d: string; t: number; at: number; color: string; sw?: number}> = ({d, t, at, color, sw = 5}) => {
   const draw = clamp01((t - at) / 0.2);
   return <path d={d} fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round"
-    strokeDasharray={len} strokeDashoffset={len * (1 - draw)} />;
+    {...drawOn(draw)} />;
 };
 
 export const HandDrawn: React.FC<{items?: string[]}> = ({items = ['You', 'WorkBuddy', 'Done ✓']} = {}) => {
@@ -72,7 +73,7 @@ export const HandDrawn: React.FC<{items?: string[]}> = ({items = ['You', 'WorkBu
                 const yA = boxes[i].y + bh + 8, yB = boxes[i + 1].y - 8, mx = W / 2;
                 return `M${mx},${yA} C${mx + 46},${yA + 30} ${mx - 36},${yB - 30} ${mx},${yB} M${mx - 16},${yB - 26} L${mx},${yB} L${mx + 16},${yB - 26}`;
               })();
-          return <Sketch key={i} d={d} t={t} at={boxes[i].at + 0.16} color={INKc} len={500} sw={4} />;
+          return <Sketch key={i} d={d} t={t} at={boxes[i].at + 0.16} color={INKc} sw={4} />;
         })}
       </svg>
       {/* labels (slightly rotated for a hand feel) */}

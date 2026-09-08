@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
+import {drawOn} from '../runtime/draw';
 import {useDNA, dnaPalette} from '../runtime/dna';
 import {bottomInset} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
@@ -54,7 +55,7 @@ export const AntiDesignChaos: React.FC<{title?: string; items?: string[]; taglin
           const on = clamp01(seg(t, 0.3 + i * 0.08, 0.6 + i * 0.08));
           const col = POP[(i + 2) % POP.length];
           return <path key={'a' + i} d={`M${x} ${y} q 80 -60 150 -10 t 120 20`} fill="none" stroke={col}
-            strokeWidth={9} strokeLinecap="round" strokeDasharray={320} strokeDashoffset={320 * (1 - on)}
+            strokeWidth={9} strokeLinecap="round" {...drawOn(on)}
             transform={`rotate(${(hash01(i) - 0.5) * 50} ${x} ${y})`} />;
         })}
       </svg>

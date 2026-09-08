@@ -1,11 +1,11 @@
 {
   "_regenerate": "python3 scripts/register_energy.py",
   "_source": {
-    "AcceptanceStamp": "a2be2a40945617b9",
+    "AcceptanceStamp": "88009d5825628a56",
     "Aliasing": "052d74b62a6fa6e4",
     "AnalogTape": "ef20b2778c50624b",
     "AnswerStream": "e606f18662b15589",
-    "AntiDesignChaos": "de052015c9f961f4",
+    "AntiDesignChaos": "653b411f66dcf3c1",
     "AsciiField": "547737cc8f782eec",
     "AtomOrbital": "cac235a06d608cd8",
     "AuroraFlow": "012e15cd7636bc5c",
@@ -60,7 +60,7 @@
     "GradientTilt": "9de807f8fbd45bd8",
     "GrantedTree": "5d2f3b5d1114be14",
     "HalftonePop": "0bf4fa9af1d22169",
-    "HandDrawn": "74b54f3f459b29b0",
+    "HandDrawn": "23d59df4c597d44a",
     "HoloFoil": "f48f37de2e09c4f3",
     "HudReticle": "9d8dee30eaa1a58a",
     "InOrder": "c8cfb95f560631ff",
@@ -79,7 +79,7 @@
     "KnowledgeGraph": "3f525fa862f370b1",
     "LarmorPrecession": "ac33f54c1bbe52e4",
     "LastLeg": "a7d058142c9fdbaf",
-    "LightTrails": "9fff656e1ef27e7c",
+    "LightTrails": "57567c8195bc143a",
     "LiquidChrome": "a9a2f1ea7ae7dfcf",
     "LiquidFill": "f8a2528287fb5f28",
     "LiquidGlass": "a1c36d4e251db47c",
@@ -91,7 +91,7 @@
     "MagazineSpread": "ca681327f7f7a242",
     "MagnetizationTip": "4bb021a1b683ac2a",
     "MapPlate": "a50b8488b9fe860c",
-    "MapRoutes": "28e5c670710846ee",
+    "MapRoutes": "a466e8ac36e1357f",
     "MaterialHero": "eaa867dba0010691",
     "MetaballMerge": "5c41d270edd9401f",
     "MoleculeBallStick": "9752ecf118b6ab00",
@@ -117,7 +117,7 @@
     "PortRail": "e3ae8fe6b219c507",
     "PositioningMatrix": "cddf82421cacffda",
     "ProfileGrowth": "fdbf200a4bacf0bc",
-    "QuadSplit": "06aec39866ede594",
+    "QuadSplit": "e2597fc288a49465",
     "RadialBurst": "49649bf6206a06f5",
     "RainGlass": "4ddba5c9855d65d1",
     "RansomZine": "349ac00198259e73",
@@ -160,7 +160,7 @@
     "VersusSplit": "ddd7f0045fc19c01",
     "VoiceSignal": "26a8e02f06790e29",
     "VoxelBuild": "8809b4b9c5e84c1f",
-    "WireGlobe": "e118f08ea2e425ac"
+    "WireGlobe": "3830b71b3104d2ff"
   },
   "_basis": "each register rendered as VIDEO at its own DURATION, 16:9, under dna=product — the themed path, because every delivered film has a design system and the un-themed fallback is a mode none of them use",
   "_dna": "product",
@@ -596,10 +596,10 @@
     },
     "HandDrawn": {
       "motion_p75": 0.0004,
-      "ink_median": 0.023,
-      "luma_range": 0.011,
+      "ink_median": 0.025,
+      "luma_range": 0.017,
       "seconds": 5.5,
-      "footprint": 0.192
+      "footprint": 0.193
     },
     "HoloFoil": {
       "motion_p75": 0.0037,
@@ -728,7 +728,7 @@
       "footprint": 1.0
     },
     "LightTrails": {
-      "motion_p75": 0.0033,
+      "motion_p75": 0.0031,
       "ink_median": 0.023,
       "luma_range": 0.016,
       "seconds": 5.3,
@@ -1296,7 +1296,7 @@
     },
     "WireGlobe": {
       "motion_p75": 0.0012,
-      "ink_median": 0.032,
+      "ink_median": 0.029,
       "luma_range": 0.008,
       "seconds": 5.5,
       "footprint": 0.25

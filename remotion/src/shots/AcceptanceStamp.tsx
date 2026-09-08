@@ -21,6 +21,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, easeOutBack, lerp} from '../runtime/motion';
+import {drawOn} from '../runtime/draw';
 import {captionBand, CONTENT_TOP, fitTextPx} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 import {useDNA} from '../runtime/dna';
@@ -119,7 +120,7 @@ export const AcceptanceStamp: React.FC<Props> = ({
           <circle cx="20" cy="20" r="18" fill={ACC} />
           <path d="M11 20.5 L17.5 27 L29 14" fill="none" stroke={dna?.onAccent ?? '#fff'} strokeWidth="4"
             strokeLinecap="round" strokeLinejoin="round"
-            strokeDasharray="30" strokeDashoffset={30 * (1 - clamp01(tick))} />
+            {...drawOn(clamp01(tick))} />
         </svg>
       </div>
     );

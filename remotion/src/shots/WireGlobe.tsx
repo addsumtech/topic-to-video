@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack} from '../runtime/motion';
+import {drawOn} from '../runtime/draw';
 import {useDNA} from '../runtime/dna';
 import {bottomInset} from '../runtime/layout';
 
@@ -63,7 +64,7 @@ export const WireGlobe: React.FC<{tagline?: string}> = ({tagline = 'connected to
           const draw = easeOutCubic(seg(t, 0.42 + k * 0.08, 0.6 + k * 0.08));
           if (pa.z < -0.2 && pb.z < -0.2) return null;
           return <path key={k} d={`M${pa.x},${pa.y} Q${mx},${my} ${pb.x},${pb.y}`} fill="none" stroke="#8ff0ff"
-            strokeWidth={2.4} strokeOpacity={0.9} strokeDasharray={1400} strokeDashoffset={1400 * (1 - draw)} filter="url(#wg)" />;
+            strokeWidth={2.4} strokeOpacity={0.9} {...drawOn(draw)} filter="url(#wg)" />;
         })}
 
         {/* nodes */}
