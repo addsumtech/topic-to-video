@@ -349,13 +349,28 @@ def unsourced_numbers(path):
 
 
 def fixed_px_font_sites(path):
-    """Font sizes written as a bare px literal, which do not scale with the frame.
+    """Font sizes written as a bare px literal.
 
-    The shot tier was written at 16:9. A `44px` caption is 2.3% of a 1920-wide frame and 4.1% of a
-    1080-wide portrait one, so the same register's type is half again as large at 9:16 — the defect the
-    burned caption itself shipped with. 291 sites across 128 registers carry this, so it is REPORTED rather
-    than enforced: a blanket rewrite of that size cannot be verified in one pass, and the layouts around
-    them already reflow through fractions. New registers are held to the rule by tests.
+    WHAT IS TRUE. The shot tier was written at 16:9, and a `44px` caption is 2.3% of a 1920-wide frame and
+    4.1% of a 1080-wide portrait one — the same type takes half again as much of a narrow frame. That is a
+    proportion problem, and it is real.
+
+    WHAT THIS USED TO PRESCRIBE, AND WHY IT WAS A NO-OP. The advice was "size off `min(W, H)`". Every aspect
+    this renderer supports is 1080 on its short side — 1920x1080, 1080x1920, 1080x1080, 1080x1350, 1440x1080
+    (`Root.tsx` ASPECTS) — so `min(W, H)` is the constant 1080, and `U * 0.0407` is 44px at every one of
+    them, exactly like writing `44px`. The remedy changed nothing, which is worse than no remedy: it reads
+    as work done. Type that must hold a MEASURE is fitted to a width — `fitTextPx(text, W * frac, base)`
+    from runtime/layout, content-aware as well as width-aware; type that should simply be smaller in a
+    narrower frame divides by a dimension that actually varies, which is W.
+
+    AND IT CLAIMED A GUARD IT DID NOT HAVE: "New registers are held to the rule by tests." There was no
+    such test, and there never had been — the module docstring's promise covers the UNSUPPLIED-TEXT ratchet
+    above, which is real, and this line borrowed its authority.
+
+    So this stays REPORTED, and reported as what it is: a proportion note, not a defect list. The instrument
+    that answers the question directly is `text_safe_qa --library --aspect=9:16` — it measures whether type
+    actually leaves its box or lands in the caption band in portrait, and currently reports zero findings
+    across all 160 registers.
     """
     body = _strip_comments(open(path, encoding="utf-8").read())
     return len(re.findall(r"font:\s*[`'\"][^`'\"]*?\b\d{2,3}px\s*/", body))
@@ -416,9 +431,11 @@ def main(argv):
               "it is absent." % unsourced)
     if fixed_px:
         n = sum(fixed_px.values())
-        print("[onscreen_text] %d register(s) size type in bare px (%d sites) — that type does not scale "
-              "with the frame, so it is proportionally ~1.8x larger at 9:16. Reported, not enforced; new "
-              "registers should size off min(W, H)." % (len(fixed_px), n))
+        print("[onscreen_text] %d register(s) size type in bare px (%d sites) — the same type takes ~1.8x as "
+              "much of a 1080-wide portrait frame as of a 1920-wide one. A PROPORTION note, not a defect "
+              "list: min(W,H) is 1080 at EVERY supported aspect, so sizing off it changes nothing. Fit type "
+              "that must hold a measure with fitTextPx(text, W * frac, base); `text_safe_qa --aspect=9:16` "
+              "answers this directly." % (len(fixed_px), n))
     return 0
 
 

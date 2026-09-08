@@ -2994,3 +2994,36 @@ def test_aim_camera_sets_both_halves_of_the_camera_it_is_given():
     assert "updateMatrixWorld" in src, (
         "a camera whose position or aim changed has a stale world matrix until it is updated, and the frame "
         "is drawn from that matrix")
+
+
+def test_the_aspect_table_is_what_makes_min_wh_a_constant():
+    """`onscreen_text_qa` used to tell authors to size type off `min(W, H)`, and that advice changed nothing.
+
+    Every aspect this renderer supports is 1080 on its short side, so `min(W, H)` is a constant and
+    `U * frac` is the same pixel value as the bare literal it replaces — a remedy that reads as work done and
+    moves no pixel. (The proportion problem the advisory describes is real; the fix for it is a WIDTH-derived
+    measure, which is what `fitTextPx` takes.) The advisory now says so, and this is the fact it rests on: if
+    an aspect is ever added whose short side is not 1080 — a 4K tier, say — that reasoning stops holding and
+    this test is the place it surfaces, rather than the wording quietly going stale.
+    """
+    import os
+    import re
+    root = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "Root.tsx")
+    src = open(root, encoding="utf-8").read()
+    m = re.search(r"ASPECTS[^=]*=\s*\{(.+?)\}", src, re.S)
+    assert m, "the ASPECTS table moved; the advisory's reasoning depends on it"
+    pairs = re.findall(r"'([^']+)':\s*\[\s*(\d+)\s*,\s*(\d+)\s*\]", m.group(1))
+    assert len(pairs) >= 4, pairs
+    shorts = {name: min(int(w), int(h)) for name, w, h in pairs}
+    assert set(shorts.values()) == {1080}, (
+        "an aspect no longer has a 1080 short side, so min(W,H) is not a constant any more and "
+        "onscreen_text_qa's note about it needs rewriting: %r" % shorts)
+    qa = open(os.path.join(os.path.dirname(__file__), "..", "scripts", "onscreen_text_qa.py"),
+              encoding="utf-8").read()
+    assert "sizing off it changes nothing" in qa, (
+        "the advisory is back to prescribing min(W, H), which is a no-op at every supported aspect")
+    # NOT a negative match on the old wording: the corrected docstring QUOTES the false claim in order to
+    # explain it, and a check that forbids the words forbids the explanation too. Pin the correction instead.
+    assert "There was no\n    such test" in qa or "There was no such test" in qa, (
+        "the docstring no longer records that its 'held to the rule by tests' claim was false — the very "
+        "shape this file exists to catch")
