@@ -230,6 +230,34 @@ export const TiltedTypeCleanProbe: React.FC = () => (
 );
 
 
+// TYPE INSIDE THE CAPTION BAND — the band audit's own positive control, and the reason it is synthetic.
+//
+// It used to be `AsciiField`, a register that drew a full-frame character field, and the test that used it
+// wrote down the risk: "a positive control must not be a bug report". It became one anyway. AsciiField was
+// putting 224 glyphs under the burned subtitle at 9:16 — a real defect — and fixing it took the control away
+// with it, so the audit that proves the gate can SEE a band collision started reporting nothing, which is
+// indistinguishable from a gate that cannot report at all.
+//
+// So the control is a probe: type deliberately placed inside the strip the renderer reserves, in a
+// composition nobody will ever "fix". Paired with `CaptionBandCleanProbe`, which sets the same line in the
+// content zone and must come back clean — a detector that fires on everything proves as little as one that
+// fires on nothing.
+const BAND_PROBE_TEXT = 'this line sits in the caption band';
+export const CaptionBandProbe: React.FC = () => (
+  <div style={{position: 'absolute', inset: 0, background: '#fff'}}>
+    <div style={{position: 'absolute', left: 80, right: 80, bottom: 24, color: '#000',
+      font: '700 48px/1.2 var(--f-body, Inter, system-ui, sans-serif)'}}>{BAND_PROBE_TEXT}</div>
+  </div>
+);
+
+export const CaptionBandCleanProbe: React.FC = () => (
+  <div style={{position: 'absolute', inset: 0, background: '#fff'}}>
+    <div style={{position: 'absolute', left: 80, right: 80, top: 200, color: '#000',
+      font: '700 48px/1.2 var(--f-body, Inter, system-ui, sans-serif)'}}>{BAND_PROBE_TEXT}</div>
+  </div>
+);
+
+
 // A LAST LINE HOLDING ONE CHARACTER, and the one-property fix. Chinese breaks between any two glyphs, so a
 // label a single unit too wide for its box drops one character onto a line of its own — a delivered film's
 // card read 「Craft · 直接开」 over a line holding just 「干」. Fifteen characters in a box seven wide is that
@@ -305,6 +333,8 @@ export const RemotionRoot: React.FC = () => (
     {F('TypeCollisionProbe', TypeCollisionProbe, 165)}
     {F('TiltedTypeCollisionProbe', TiltedTypeCollisionProbe, 165)}
     {F('TiltedTypeCleanProbe', TiltedTypeCleanProbe, 165)}
+    {F('CaptionBandProbe', CaptionBandProbe, 165)}
+    {F('CaptionBandCleanProbe', CaptionBandCleanProbe, 165)}
     {F('OrphanLineProbe', OrphanLineProbe, 165)}
     {F('BalancedLineProbe', BalancedLineProbe, 165)}
     {F('TightLeadingProbe', TightLeadingProbe, 165)}

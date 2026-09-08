@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, easeOutCubic, clamp01, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {contentBottom} from '../runtime/layout';
 
 export const DURATION = 150; // 5s
 const CH = '01</>{}[]#*+=~.:$%&ABCDEFXYZ01'.split('');
@@ -17,7 +18,20 @@ export const AsciiField: React.FC<{message?: string}> = ({message: MSG = DEFAULT
   const dna = useDNA();
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
-  const cw = 34, chh = 40, cols = Math.ceil(W / cw), rows = Math.ceil(H / chh);
+  const U = Math.min(W, H);
+  // THE FIELD STOPS WHERE THE CAPTION STARTS. It used to run to the bottom of the frame, so at 9:16 the
+  // type-safety gate found 224 glyphs sitting inside the caption band — the burned subtitle printed over a
+  // moving field of amber characters. The glyphs are noise, not copy, but the viewer still has to read a
+  // sentence through them, and every other register in this library reserves that strip. It is the shot's
+  // own ground down there now, which is exactly what the caption is drawn on.
+  const bottom = contentBottom(W, H);
+  // Sized off the frame's short side rather than in bare pixels, so a cell is a cell at any aspect.
+  const cw = Math.max(8, Math.round(U * 0.0315)), chh = Math.max(10, Math.round(U * 0.037));
+  // WHOLE ROWS ONLY. Ceil left the last row straddling the boundary and the svg clipped it through the
+  // middle of the glyphs — a row of half-characters along the band, which reads as a broken render rather
+  // than as an edge. The field ends on a row it can draw.
+  const cols = Math.ceil(W / cw), rows = Math.max(1, Math.floor(bottom / chh));
+  const fieldH = rows * chh;
   const scanY = (t * 1.3 - 0.15) * rows; // the sweep row
   const cells = [];
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
@@ -26,22 +40,24 @@ export const AsciiField: React.FC<{message?: string}> = ({message: MSG = DEFAULT
     const base = 0.10 + 0.12 * hash01(r * 3.1 + c);
     const op = clamp01(base + near * 0.9);
     const col = near > 0.4 ? '#ffc861' : '#7a531c';   // AMBER phosphor (distinct from CodeRain's green rain)
-    cells.push(<text key={`${r}-${c}`} x={c * cw + 6} y={r * chh + 30} fill={col} fillOpacity={op}
-      style={{font: '600 30px/1 var(--f-mono, "JetBrains Mono", ui-monospace, monospace)'}}>{CH[flick]}</text>);
+    cells.push(<text key={`${r}-${c}`} x={c * cw + 6} y={r * chh + Math.round(chh * 0.75)} fill={col} fillOpacity={op}
+      style={{font: `600 ${Math.round(U * 0.0278)}px/1 var(--f-mono, "JetBrains Mono", ui-monospace, monospace)`}}>{CH[flick]}</text>);
   }
   const decode = easeOutCubic(seg(t, 0.5, 0.78));
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('#140b03')}}>
-      <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>{cells}</svg>
+      <svg width={W} height={fieldH} style={{position: 'absolute', left: 0, top: 0}}>{cells}</svg>
       {/* the decoded message resolving out of the noise */}
-      <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{position: 'relative', font: '900 210px/1 var(--f-mono, "JetBrains Mono", monospace)', color: '#ffe6b0',
+      {/* the message centres in the CONTENT zone, with the field — centred in the whole frame it would sit
+          low of the field's own middle, and lower still at 9:16 where the reserved band is deepest */}
+      <AbsoluteFill style={{top: 0, height: fieldH, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+        <div style={{position: 'relative', font: `900 ${Math.round(U * 0.194)}px/1 var(--f-mono, "JetBrains Mono", monospace)`, color: '#ffe6b0',
           letterSpacing: '0.04em', opacity: decode, textShadow: '0 0 40px rgba(255,190,90,.5)'}}>
           {MSG.split('').map((ch, i) => <span key={i} style={{opacity: clamp01((decode - i * 0.12) / 0.3)}}>{ch}</span>)}
         </div>
       </AbsoluteFill>
       {/* scanline glow */}
-      <div style={{position: 'absolute', left: 0, right: 0, top: (scanY / rows) * H - 2, height: 4, background: 'rgba(120,255,180,.5)', filter: 'blur(3px)'}} />
+      <div style={{position: 'absolute', left: 0, right: 0, top: (scanY / rows) * fieldH - 2, height: 4, background: 'rgba(120,255,180,.5)', filter: 'blur(3px)'}} />
     </AbsoluteFill>
   );
 };

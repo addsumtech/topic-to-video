@@ -182,16 +182,25 @@ def test_type_sitting_in_the_caption_band_is_caught(tmp_path):
     legitimately covers the frame, read 53%. The instrument ranked the harmless case 25x above the fatal one
     and the collision sat outside the manifest entirely. Type has a box; this asks the box.
 
-    THE CONTROL IS AsciiField, NOT the register that prompted this. Written against CardStack3D, this test
-    passed for exactly as long as that defect survived and then failed as a consequence of fixing it — a
-    positive control must not be a bug report. AsciiField draws a full-frame field of characters: its ground
-    IS the frame, so type in the band is what it is FOR and the finding is permanent. (If AsciiField ever
-    stops being full-bleed, move the control to another full-bleed character register rather than deleting
-    it — an audit that reports nothing is indistinguishable from one that cannot report.)"""
-    found = _audit_settled("AsciiField", {"dna": "product"}, tmp_path)
+    THE CONTROL IS SYNTHETIC, and it took two goes to get there. Written against CardStack3D, this test
+    passed for exactly as long as that defect survived and then failed when it was fixed. It was moved to
+    AsciiField, a full-frame character field — whose own docstring warned "a positive control must not be a
+    bug report" and then became one: AsciiField was putting 224 glyphs under the burned subtitle at 9:16,
+    that was fixed, and this test went quiet. A gate reporting nothing is indistinguishable from a gate that
+    cannot report.
+
+    `CaptionBandProbe` puts a line in the reserved strip on purpose, in a composition nobody will ever fix.
+    Its twin sets the same line in the content zone and must come back clean — the pairing is the point: a
+    detector that fires on everything proves as little as one that fires on nothing."""
+    # the probes live in Root.tsx, not in src/shots, so `durations()` does not know them — and they are
+    # static, so any frame is the settled one
+    found = g.audit_shot("CaptionBandProbe", {"dna": "product"}, 82, str(tmp_path / "band.png"))
     hit = [v for v in found if v.get("band")]
-    assert hit, "a full-frame character field reported no type in the caption band: %r" % (found,)
+    assert hit, "type placed inside the caption band was not reported: %r" % (found,)
     assert max(v["band"] for v in hit) > 20, "reported only %spx into a 227px band" % hit[0]["band"]
+    clean = [v for v in g.audit_shot("CaptionBandCleanProbe", {"dna": "product"}, 82,
+                                     str(tmp_path / "clean.png")) if v.get("band")]
+    assert not clean, "the same line ABOVE the band was reported too — the audit fires on anything: %r" % clean
 
 
 @_NEEDS_RENDER
@@ -216,3 +225,90 @@ def test_the_library_sweep_measures_the_mode_films_actually_ship():
     import inspect
     src = inspect.getsource(g.scan_library)
     assert 'base["dna"] = dna' in src and g.DEFAULT_DNA, src
+
+
+def test_a_face_that_comes_from_the_dna_is_never_measured_as_a_constant():
+    """A register whose type size is fitted to a MEASURED width must measure the face that actually renders.
+
+    `CompressedSensingEq` sets its equation in `var(--f-display)` — the FILM's face, not the register's. Its
+    width was first guessed (1600px), then "measured" off a still (1352px), and the second number was worse
+    than the first: a plain `remotion still` renders the fallback serif while every real film renders the
+    DNA's own face, and the product DNA's Space Grotesk is wider. The gate went from 1 finding to 5.
+
+    There is no correct constant here — the width is a property of a typeface the register does not choose.
+    `fitText` measures the real one, and the family must be read from the DNA in JS: it measures in a
+    detached node outside `.dna-film`, where `var(--f-display)` is undefined, so passing the CSS var
+    measures the fallback again and reproduces the same bug one layer down (the trap `NeonGrid` documents).
+    """
+    import glob
+    import re
+    shots = os.path.join(_REMOTION, "src", "shots")
+    bad = []
+    for f in sorted(glob.glob(os.path.join(shots, "*.tsx"))):
+        src = open(f, encoding="utf-8").read()
+        # a CSS var can reach the call through a constant, which is how the first version of this check
+        # passed on `fontFamily: SERIF` — the name carries the var, the call site does not show it
+        varconst = {m.group(1) for m in re.finditer(r"const\s+([A-Za-z_$][\w$]*)\s*=\s*[^;]*var\(--f-", src)}
+        for m in re.finditer(r"fitText\(\{", src):
+            call = src[m.start():m.start() + 400]
+            fam = re.search(r"fontFamily:\s*([^,\n]+)", call)
+            if not fam:
+                continue
+            expr = fam.group(1).strip()
+            if "var(--f-" in expr or any(re.search(r"\b%s\b" % re.escape(v), expr) for v in varconst):
+                bad.append("%s: fitText measures %s" % (os.path.basename(f), expr))
+    assert not bad, (
+        "fitText was given a CSS variable, which is undefined in the node it measures in:\n  " +
+        "\n  ".join(bad))
+
+
+def test_the_equation_is_fitted_and_not_scaled():
+    """`transform: scale()` does not change layout. Scaled down, the line still LAYS OUT at full width, so it
+    overflows its box, `text-align: center` centres a box the glyphs have spilled out of, and the audit reads
+    rects nowhere near the ink — measured, 198px of margin on one side against 24px on the other. Fitting the
+    font size makes the line genuinely narrower, so picture and rects agree."""
+    src = open(os.path.join(_REMOTION, "src", "shots", "CompressedSensingEq.tsx"), encoding="utf-8").read()
+    eq = src[src.index("const eqY"):src.index("return (")]
+    # CODE, not the prose beside it. The comment here explains why the transform was wrong, so matching the
+    # bare word would fail on the very explanation of the fix — the same way `data-echo` in a comment made
+    # its own check pass vacuously two commits ago.
+    code = "\n".join(l.split("//")[0] for l in eq.splitlines())
+    assert "fitText(" in code, "the equation no longer measures its own line"
+    assert "transform" not in code, "the equation is back to being scaled by a transform"
+    assert "dna?.fontDisplay" in code, "the measured face is not the film's"
+
+
+def test_the_corridors_bleed_exemption_never_covers_its_subject():
+    """`SurfaceCarousel` shows its neighbours partly on purpose — that IS the queue — so at 9:16 the panel
+    above centre stage runs off the top with its nav labels, and the audit reported 8 strings cut off. The
+    composition is right and so was the gate, which is what the bleed exemption is for.
+
+    But the exemption is placed per panel, and the one it must never cover is the panel the shot is ABOUT.
+    Marked wholesale the register would stop being audited at all, and the screen on centre stage — the one
+    the viewer is asked to read — is exactly the one that must never bleed. The proof at render time is the
+    9:16 library sweep; this is the cheap guard that the marking stayed CONDITIONAL."""
+    src = open(os.path.join(_REMOTION, "src", "shots", "SurfaceCarousel.tsx"), encoding="utf-8").read()
+    code = "\n".join(l.split("//")[0] for l in src.splitlines())
+    assert "data-bleed" in code, "the corridor no longer declares its partly-shown neighbours"
+    mark = code[code.index("data-bleed") - 200:code.index("data-bleed") + 80]
+    assert "subject" in mark, (
+        "the bleed exemption is unconditional — the centre panel is exempt too, so the subject of the shot "
+        "is no longer audited:\n%s" % mark)
+    assert "const subject" in code, "nothing computes which panel is on centre stage"
+
+
+def test_the_character_field_stops_at_the_caption_band():
+    """AsciiField drew its field to the bottom of the frame, so 224 glyphs sat under the burned subtitle at
+    9:16 — the viewer reading a sentence through a moving field of characters. The glyphs are noise rather
+    than copy, but every other register in this library reserves that strip and the caption is drawn on the
+    shot's own ground. Whole rows only: `ceil` left the last row straddling the boundary and the svg clipped
+    it through the middle of the glyphs, which reads as a broken render rather than as an edge."""
+    src = open(os.path.join(_REMOTION, "src", "shots", "AsciiField.tsx"), encoding="utf-8").read()
+    code = "\n".join(l.split("//")[0] for l in src.splitlines())
+    assert "contentBottom(" in code, "the field no longer asks where the caption band starts"
+    rows = [l for l in code.splitlines() if "rows =" in l]
+    assert rows, "no row count found"
+    assert all("bottom" in l for l in rows), (
+        "the field's row count is not bounded by the content zone: %r" % rows)
+    assert all("Math.floor" in l for l in rows), (
+        "rows are rounded UP, so the last one is drawn half-clipped: %r" % rows)

@@ -7,6 +7,12 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {fitText} from '@remotion/layout-utils';
+
+// The equation as PLAIN TEXT, for measurement only — the same glyphs and gaps the JSX below sets, so what
+// is measured is what is drawn. Keep the two in step: a measurement of a different string is a fit for a
+// different line.
+const EQ_TEXT = 'min\u00a0\u00a0‖Ψx‖1\u00a0\u00a0\u00a0subject\u00a0to\u00a0\u00a0\u00a0‖Fx−y‖2\u00a0≤\u00a0ε';
 
 export const DURATION = 180; // 6s
 
@@ -28,6 +34,31 @@ export const CompressedSensingEq: React.FC<{accent?: string; accent2?: string; l
   const dna = useDNA();
   const t = useT();
   const eqY = H * 0.46;
+  // FIT BY TYPE SIZE, NOT BY TRANSFORM, AND MEASURE THE FACE THAT ACTUALLY RENDERS.
+  //
+  // Two mistakes, both made here, both worth keeping written down. First: `transform: scale()` does not
+  // change LAYOUT. The line still lays out at its full width inside a narrower frame, so it overflows its
+  // box, `text-align: center` centres a box the glyphs have already spilled out of, and the type gate reads
+  // rects nowhere near the ink — measured, a 9:16 render put the equation 198px from the left edge and 24px
+  // from the right. Setting the font SIZE makes the line genuinely narrower: it fits, it centres, and every
+  // rect is where its glyph is.
+  //
+  // Second, and the reason there is no constant here any more: I replaced the guessed natural width with one
+  // MEASURED off a still — and measured it under the wrong typeface. `SERIF` resolves to `var(--f-display)`,
+  // so the face is the FILM'S, and a plain `remotion still` renders the fallback serif while the sweep runs
+  // the product DNA's Space Grotesk, which is wider. A fixed natural width is wrong by construction for any
+  // register whose face comes from the DNA. `fitText` measures the real one — read from the DNA in JS, not
+  // through the CSS var, because it measures in a detached node outside `.dna-film` where the var is
+  // undefined (the same trap NeonGrid documents).
+  //
+  // The small runs (the subscripts and the italic "subject to") are measured at the FULL size, which
+  // over-counts them and lands the line a little inside its budget. That is the safe direction: the cost is
+  // a few percent of width, the alternative is a glyph over the edge.
+  const eqFace = dna?.fontDisplay ?? "'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif";
+  const EQ_PX = Math.min(92, fitText({
+    text: EQ_TEXT, withinWidth: W * 0.94, fontFamily: eqFace, fontWeight: 400, letterSpacing: '0.01em',
+  }).fontSize);
+  const SUB_PX = Math.round(EQ_PX * (44 / 92));
   const app = clamp01(seg(t, 0.08, 0.4));                   // the equation writes in
   const a1 = clamp01(seg(t, 0.42, 0.62));                   // annotate the sparse term
   const a2 = clamp01(seg(t, 0.6, 0.82));                    // annotate the data-consistency term
@@ -37,17 +68,26 @@ export const CompressedSensingEq: React.FC<{accent?: string; accent2?: string; l
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 44%, #0b1120, #05060a)')}}>
       {/* the equation */}
-      {/* the typeset line is ~1560px wide at full size (MEASURED off a scale(0.5) render — the first fix
-          used 1260 read off a mid-line glyph's overflow and still clipped the ε). Scaled to the frame, a
-          portrait width gets the same equation smaller instead of losing its norm bars off both edges. */}
+      {/* THE LINE IS ITS OWN BOX. It used to be laid out inside a full-width div, and a line wider than the
+          div does not wrap here (every gap is an &nbsp;) — it OVERFLOWS. Two things followed. The composition
+          was off-centre: measured on a 9:16 render the ink sat 198px from the left edge and 24px from the
+          right, because what `text-align: center` centred was a box the glyphs had already spilled out of.
+          And the type-safety gate reported the ε cut off by 75px when the painted glyph was 24px INSIDE the
+          frame — a client rect on an inline box inside an overflowing, transformed line is not where the ink
+          is. An inline-block shrink-wraps to the line's true width, so the centring is真 and the rect is honest.
+
+          NATURAL WIDTH, MEASURED: 1352px. The old 1600 was a guess that scaled the equation down to 79% of
+          the width it was given — the frame budget is 94%, and at 1352 it uses it. (Measured off the ink
+          extent of a 16:9 still, where the scale is 1: x=284..1635.) */}
       <div style={{position: 'absolute', left: 0, right: 0, top: eqY, textAlign: 'center', opacity: app,
-        transform: `scale(${Math.min(1, (W * 0.94) / 1600)})`, transformOrigin: '50% 50%',
-        font: `400 92px/1.1 ${SERIF}`, color: '#eef4fb', letterSpacing: '0.01em'}}>
+        font: `400 ${EQ_PX}px/1.1 ${SERIF}`, color: '#eef4fb', letterSpacing: '0.01em'}}>
+        <span style={{display: 'inline-block', whiteSpace: 'nowrap'}}>
         {span('min', '#9fb4cc')}&nbsp;&nbsp;
-        {span('‖', '#cfe0f2')}{span('Ψx', accent)}{span('‖', '#cfe0f2')}<span style={{fontSize: 44, verticalAlign: 'sub', color: '#cfe0f2'}}>1</span>
-        &nbsp;&nbsp;&nbsp;<span style={{font: `italic 400 44px/1 ${SERIF}`, color: '#9fb4cc'}}>subject&nbsp;to</span>&nbsp;&nbsp;&nbsp;
-        {span('‖', '#cfe0f2')}{span('Fx−y', accent2)}{span('‖', '#cfe0f2')}<span style={{fontSize: 44, verticalAlign: 'sub', color: '#cfe0f2'}}>2</span>
+        {span('‖', '#cfe0f2')}{span('Ψx', accent)}{span('‖', '#cfe0f2')}<span style={{fontSize: SUB_PX, verticalAlign: 'sub', color: '#cfe0f2'}}>1</span>
+        &nbsp;&nbsp;&nbsp;<span style={{font: `italic 400 ${SUB_PX}px/1 ${SERIF}`, color: '#9fb4cc'}}>subject&nbsp;to</span>&nbsp;&nbsp;&nbsp;
+        {span('‖', '#cfe0f2')}{span('Fx−y', accent2)}{span('‖', '#cfe0f2')}<span style={{fontSize: SUB_PX, verticalAlign: 'sub', color: '#cfe0f2'}}>2</span>
         &nbsp;{span('≤', '#9fb4cc')}&nbsp;{span('ε', '#9fb4cc')}
+        </span>
       </div>
 
       {/* annotation: the sparse transform term */}

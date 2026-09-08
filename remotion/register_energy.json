@@ -6,7 +6,7 @@
     "AnalogTape": "ef20b2778c50624b",
     "AnswerStream": "939729daea573dea",
     "AntiDesignChaos": "8a9dc85dbba809f4",
-    "AsciiField": "69853351eef8bc57",
+    "AsciiField": "547737cc8f782eec",
     "AtomOrbital": "cac235a06d608cd8",
     "AuroraFlow": "012e15cd7636bc5c",
     "BeforeAfterSlider": "2a72a3c109dc62db",
@@ -30,7 +30,7 @@
     "CollaborativeCursors": "5900554ff9318738",
     "ComicPanels": "e0d5f59aa39aa8e0",
     "CommandSummon": "0023b07b2a105e48",
-    "CompressedSensingEq": "be3eb9dba92b46e2",
+    "CompressedSensingEq": "7bf2e3016fbfaac2",
     "ConveyorBelt": "bdb52a9f4f87a9a7",
     "CrashZoom": "e988519e5cec14ef",
     "CubeRotate": "47076aa146fb5080",
@@ -138,7 +138,7 @@
     "SpotlightStage": "a348efee31239bd7",
     "StarfieldWarp": "dfc798cb467c909e",
     "StrataColumn": "dc7ddb4f6dc6c6d9",
-    "SurfaceCarousel": "c8f950c153228bd9",
+    "SurfaceCarousel": "473932058c801d15",
     "SwissEditorial": "f184512bf5048f99",
     "TallyLedger": "0b3e86ce999f338a",
     "TechnicalPlate": "8202181e6c19f38c",
@@ -217,11 +217,11 @@
       "footprint": 0.64
     },
     "AsciiField": {
-      "motion_p75": 0.0123,
+      "motion_p75": 0.0112,
       "ink_median": 0.044,
-      "luma_range": 0.032,
+      "luma_range": 0.03,
       "seconds": 5.0,
-      "footprint": 0.051
+      "footprint": 0.052
     },
     "AtomOrbital": {
       "motion_p75": 0.002,

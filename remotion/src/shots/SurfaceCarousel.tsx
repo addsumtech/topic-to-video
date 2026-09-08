@@ -108,6 +108,18 @@ export const SurfaceCarousel: React.FC<{
 
   const cx = Math.round(W / 2), cy = Math.round(zoneTop + zoneH / 2);
 
+  // WHICH PANEL IS THE SUBJECT. The corridor's whole argument is that its neighbours are only PARTLY there —
+  // a queue you can see the ends of. In portrait that means the panel above centre stage really does run off
+  // the top of the frame, taking its nav labels with it, and the type-safety gate reported exactly that: 8
+  // strings cut off at 9:16. The gate is right and so is the composition, which is what the bleed exemption
+  // exists for.
+  //
+  // But the exemption is put on the NEIGHBOURS only, never on the panel the shot is about. Marked wholesale
+  // this register would stop being audited at all, and the one frame that matters — the screen on centre
+  // stage, the one the viewer is asked to read — is precisely the one that must never bleed.
+  const offsets = list.map((_, i) => ((trackX - i * SP) % RING + RING * 1.5) % RING - RING / 2);
+  const subject = offsets.reduce((best, w, i) => (Math.abs(w) < Math.abs(offsets[best]) ? i : best), 0);
+
   return (
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
       {list.map((s, i) => {
@@ -141,7 +153,11 @@ export const SurfaceCarousel: React.FC<{
         const page: UiPage = s.page ?? (wanted === 'chart' && !hasData ? 'form' : wanted);
         const content: UiContent = {title: s.label, nav: s.nav ?? NAV, items: s.items, series: s.series};
         return (
-          <div key={i} style={{position: 'absolute',
+          <div key={i}
+            // data-bleed: a NEIGHBOUR in the queue, shown partly on purpose — see `subject` above. The panel
+            // on centre stage carries no marker and is audited like any other shot's content.
+            {...(i === subject ? {} : {'data-bleed': true})}
+            style={{position: 'absolute',
             left: vert ? cx + sink : cx + w, top: vert ? cy + w : cy + sink,
             transform: `translate(-50%, -50%) scale(${scale})`, opacity: fade,
             filter: focusFilter(f),
