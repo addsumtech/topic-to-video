@@ -51,9 +51,11 @@ def run_probe(body):
         header = (
             "import * as L from %s;\n"
             "import * as D from %s;\n"
+            "import * as S from %s;\n"
             "const out: any = {};\n"
             "const fail = (k: string, e: unknown) => { out[k] = {threw: String(e)}; };\n"
-        ) % (json.dumps(os.path.join(RUNTIME, "light")), json.dumps(os.path.join(RUNTIME, "dna")))
+        ) % (json.dumps(os.path.join(RUNTIME, "light")), json.dumps(os.path.join(RUNTIME, "dna")),
+             json.dumps(os.path.join(RUNTIME, "shotLuma")))
         open(entry, "w", encoding="utf-8").write(header + body + "\nconsole.log(JSON.stringify(out));\n")
         out = os.path.join(tmp, "probe.cjs")
         b = subprocess.run(["npx", "esbuild", entry, "--bundle", "--platform=node",
@@ -788,3 +790,36 @@ def test_the_reach_measurement_covers_the_registers_own_ink_not_only_the_caption
         assert "threw" in r[shot], "%s is still handed a ground it cannot honour" % shot
     for shot in ("SwissEditorial", "ChatThread", "BlueprintGrid"):
         assert r[shot].get("ok"), "%s was refused a ground it does follow: %r" % (shot, r[shot])
+
+
+def test_a_ground_that_is_a_colour_resolves_without_a_dna():
+    """A GROUND THE REGISTER PAINTS ITSELF is not a token, and the table has to be able to say so.
+
+    `PaperSlot` adopts the film's ground only when it is light enough to pass for stock, and every one of the
+    eight shipped presets is dark — so under all of them it prints on its own `#efe9dd`. Declared as `'bg'`,
+    the caption HUD resolved the film's near-black and drew #ffffff on that paper: measured 1.22:1 in a
+    rendered frame, legible only as the hollow outline behind it, and the seam guard scored a cut into it at
+    a gap of ~0 while the pixels went 0.002 -> 0.811.
+
+    Two properties, and the second is what makes the first load-bearing: a literal answers with NO palette
+    at all (that is what makes it literal), while a token declaration still answers `null` without one.
+    """
+    r = run_probe("""
+      out.litY      = S.dnaGroundY('PaperSlot', null);
+      out.litLum    = S.dnaGroundLum('PaperSlot', undefined, null);
+      out.litOnDark = S.dnaGroundLum('PaperSlot', undefined, D.DNA_PRESETS['terminal']);
+      out.tokenY    = S.dnaGroundY('SwissEditorial', null);
+      out.tokenDark = S.dnaGroundLum('SwissEditorial', undefined, D.DNA_PRESETS['terminal']);
+    """)
+    assert r["litY"] is not None, (
+        "dnaGroundY answered null for a ground declared as a colour — the caption ink then falls back to the "
+        "coarse bucket for a register whose exact luminance the table knows")
+    assert abs(r["litY"] - 0.8185) < 0.002, "a literal ground did not resolve to its own luminance: %r" % r["litY"]
+    assert r["litLum"] == "light", "a light literal classified as %r" % r["litLum"]
+    assert r["litOnDark"] == "light", (
+        "PaperSlot reports %r under a dark preset — that is the value that put white caption ink on its "
+        "paper" % r["litOnDark"])
+    # the control: without it the test passes with the literal branch deleted, because a `bg` declaration
+    # under a dark preset ALSO answers 'dark' and the shot-vs-token distinction would never be exercised
+    assert r["tokenY"] is None, "a TOKEN declaration resolved with no DNA — then nothing is literal"
+    assert r["tokenDark"] == "dark"

@@ -105,7 +105,7 @@
     "OverlapSeparation": "e8b6f6a2bddebdf4",
     "PageWrite": "e5c6874e381c8bf6",
     "PaperCutout": "60d76e337e92e85a",
-    "PaperSlot": "f222de680a528b1d",
+    "PaperSlot": "5337840fa5c89137",
     "ParticleForm": "d08a8256e91479ee",
     "PhaseEncodeStep": "d2b369520c70d94d",
     "PhotoPlate": "88e228eb4426ed73",
@@ -121,10 +121,10 @@
     "RadialBurst": "49649bf6206a06f5",
     "RainGlass": "4ddba5c9855d65d1",
     "RansomZine": "349ac00198259e73",
-    "RealVersus": "a7606d32eadf2adc",
+    "RealVersus": "ef0663d28ccc725b",
     "RestsOn": "89d0f3e9fdfe74fc",
     "RidgeField": "68c9d0ecb4418f19",
-    "RisoPrint": "c1cd8f05d31b1856",
+    "RisoPrint": "2bc09f2039280fc4",
     "ScanReconstruct": "1d99ae0755c9b3fb",
     "ScreenBubble": "a889c82420de48d8",
     "SectionRoute": "9b8a8a2d3c1038e1",
@@ -910,11 +910,11 @@
       "footprint": 0.796
     },
     "PaperSlot": {
-      "motion_p75": 0.0013,
-      "ink_median": 0.015,
-      "luma_range": 0.002,
+      "motion_p75": 0.0019,
+      "ink_median": 0.024,
+      "luma_range": 0.003,
       "seconds": 5.5,
-      "footprint": 0.202
+      "footprint": 0.26
     },
     "ParticleForm": {
       "motion_p75": 0.0008,

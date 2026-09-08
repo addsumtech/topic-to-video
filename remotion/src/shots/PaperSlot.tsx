@@ -19,21 +19,20 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useDNA, dnaPalette} from '../runtime/dna';
 import {captionBand, CONTENT_TOP, fitTextPx} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
+// ONE DEFINITION OF "LIGHT". This asked with its own naive byte-average and its own 0.55, while the
+// caption ink and the seam guard ask with gamma-correct relative luminance against LIGHT_LUM_Y — so
+// a ground could be stock to this register and `mid` to them. Same question, same answer.
+import {lumValue, LIGHT_LUM_Y} from '../runtime/shotLuma';
 import {useT, seg, clamp01, easeOutCubic, easeOutBack, lerp, hash01} from '../runtime/motion';
 
 export const DURATION = 165; // 5.5s
 
-const PAPER_D0 = '#efe9dd', INK_D0 = '#211d18', DIM_D0 = '#7d7466';
-
-/** Relative luminance of a #rgb/#rrggbb — used only to ask whether a DNA's ground can pass for paper. */
-function _lum(hex: string): number {
-  const h = String(hex || '').replace('#', '');
-  if (!/^[0-9a-fA-F]{3,8}$/.test(h)) return 0;
-  const f = h.length === 3 ? h.split('').map((c) => c + c).join('') : h.slice(0, 6);
-  const n = parseInt(f, 16);
-  if (!isFinite(n)) return 0;
-  return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
-}
+/** THE STOCK THIS REGISTER PRINTS ON when the film's own ground is not paper. Exported because
+ *  runtime/shotLuma's DNA_GROUND_TOKEN has to name the same colour — that table is what the caption ink
+ *  and the seam guard read, and a shot whose ground is a literal must say so there or both of them
+ *  answer for a `bg` this register never paints. A test pins the two to the same hex. */
+export const PAPER_STOCK = '#efe9dd';
+const INK_D0 = '#211d18', DIM_D0 = '#7d7466';
 const TONES0 = ['#c2603f', '#3f7a63', '#c99a2e', '#6b5aa6', '#a8486a', '#3c7fa0'];
 
 export const PaperSlot: React.FC<{hub?: string; items?: string[]; note?: string}> = ({
@@ -45,14 +44,23 @@ export const PaperSlot: React.FC<{hub?: string; items?: string[]; note?: string}
   // `MagazineSpread` takes `dna.bg` outright, which is right for it because an editorial cover is whatever
   // stock the film is printed on. Here the whole argument is that something was CUT and DROPPED IN, and a
   // black sheet of paper says nothing of the kind — on a dark DNA the register would keep its form and lose
-  // its meaning. So the film's ground is adopted when it is light enough to read as stock, and otherwise
-  // this stays paper and only the INK follows the film. A register that quietly becomes unreadable under
+  // its meaning. So the film's ground is adopted when it is light enough to read as stock — and the INK
+  // follows the film only where that adoption happened. A register that quietly becomes unreadable under
   // half the presets is worse than one that declares which half it belongs to.
+  //
+  // THE TWO QUESTIONS ARE "IS THE PAPER LIGHT" AND "IS THE PAPER THE FILM'S GROUND", and collapsing them
+  // into one flag is what made this register unreadable. `onPaper = lum(PAPER) > 0.5` is TRUE IN BOTH
+  // BRANCHES — the adopted ground is light by the test that adopted it, and the fallback stock is light
+  // because it is paper — so the ink followed the DNA even when the DNA had been REJECTED as too dark to
+  // be stock, and `dna.fg` on a dark preset is a LIGHT ink. Measured under `terminal`: the caption fill
+  // rendered #ffffff on this register's #efe9dd paper, a contrast of 1.22:1, legible only as the hollow
+  // outline the HUD draws behind it — and all eight shipped presets are dark, so that was every film.
+  // Ask the question that actually decides it: did we adopt the film's ground?
   const bg = dna?.bg ?? '';
-  const PAPER = _lum(bg) > 0.55 ? bg : PAPER_D0;
-  const onPaper = _lum(PAPER) > 0.5;
-  const INK = onPaper && dna ? dna.fg : INK_D0;
-  const DIM = onPaper && dna ? dna.dim : DIM_D0;
+  const adopted = (lumValue(bg) ?? 0) > LIGHT_LUM_Y;
+  const PAPER = adopted ? bg : PAPER_STOCK;
+  const INK = adopted && dna ? dna.fg : INK_D0;
+  const DIM = adopted && dna ? dna.dim : DIM_D0;
   const TONES = dnaPalette(dna, 6) ?? TONES0;
   const list = ITEMS.filter((x) => String(x ?? '').trim()).slice(0, 6);
   // A CARD WITH NO TAGS still composes — a clean sheet with a title under it — and says nothing at all.

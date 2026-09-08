@@ -399,12 +399,19 @@ def test_every_registered_shot_has_a_measured_ground_token():
     font_gate.py). What belongs here is the cheap structural floor: full coverage and legal values."""
     src = open(os.path.join(_RUNTIME_DIR, "shotLuma.ts"), encoding="utf-8").read()
     block = src.split("DNA_GROUND_TOKEN")[1].split("};")[0]
-    entries = dict(re.findall(r"^\s{2}(\w+):\s*(\[[^\]]*\]|'[a-zA-Z]+')", block, re.M))
+    entries = dict(re.findall(r"^\s{2}(\w+):\s*(\[[^\]]*\]|'#?[a-zA-Z0-9]+')", block, re.M))
     shots = set(da.registered_shots())
     missing = sorted(shots - set(entries))
     assert not missing, "shots with no measured ground token: %r" % missing[:6]
     legal = {"bg", "bgGrad", "accent", "accent2", "surface"}
     for shot, val in entries.items():
+        # A '#rrggbb' ENTRY IS A GROUND THE SHOT PAINTS ITSELF, not a token — legal, and it has to BE a
+        # colour. Read as a token it would fail the legality check; read loosely it would let 'paper' or
+        # '#nope' through and the caption ink would resolve to nothing on a register that never says so.
+        if val.startswith("'#"):
+            assert re.fullmatch(r"'#([0-9a-f]{3}|[0-9a-f]{6})'", val), (
+                "%s declares a literal ground that is not a lowercase #rgb/#rrggbb colour: %s" % (shot, val))
+            continue
         for tok in re.findall(r"'([a-zA-Z]+)'", val):
             assert tok in legal, "%s declares an unknown ground token %r" % (shot, tok)
 
@@ -3027,3 +3034,106 @@ def test_the_aspect_table_is_what_makes_min_wh_a_constant():
     assert "There was no\n    such test" in qa or "There was no such test" in qa, (
         "the docstring no longer records that its 'held to the rule by tests' claim was false — the very "
         "shape this file exists to catch")
+
+
+def test_paper_slot_names_the_same_stock_in_both_files():
+    """The register's paper and the ground table's literal are the SAME colour, or the caption is picked
+    against a ground nothing paints. They cannot be one binding — shotLuma.ts is a leaf that python parses
+    and must not import a shot — so the agreement is pinned here instead."""
+    shot = open(os.path.join(os.path.dirname(_RUNTIME_DIR), "shots", "PaperSlot.tsx"), encoding="utf-8").read()
+    m = re.search(r"export const PAPER_STOCK = '(#[0-9a-f]{3,6})'", shot)
+    assert m, "PaperSlot no longer exports PAPER_STOCK — the table's literal has nothing to agree with"
+    luma = open(os.path.join(_RUNTIME_DIR, "shotLuma.ts"), encoding="utf-8").read()
+    block = luma.split("DNA_GROUND_TOKEN")[1].split("};")[0]
+    assert "  PaperSlot: '%s'," % m.group(1) in block, (
+        "DNA_GROUND_TOKEN declares a different ground for PaperSlot than the register paints (%s)" % m.group(1))
+
+
+def test_paper_slot_follows_the_film_ink_only_where_it_took_the_film_ground():
+    """THE BUG WAS ONE FLAG ANSWERING TWO QUESTIONS. `onPaper = lum(PAPER) > 0.5` is true in both branches —
+    the adopted ground is light by the test that adopted it, the fallback stock is light because it is paper
+    — so the ink followed `dna.fg` even on the presets whose ground had just been REJECTED as too dark to be
+    stock. Measured under `terminal`: the register's own title rendered at 1.19:1 on its paper, and every
+    shipped preset is dark. The ink must key off the ADOPTION, not off the paper's luminance."""
+    src = open(os.path.join(os.path.dirname(_RUNTIME_DIR), "shots", "PaperSlot.tsx"), encoding="utf-8").read()
+    code = "\n".join(l for l in src.split("\n") if not l.lstrip().startswith(("//", "*", "/*")))
+    assert re.search(r"const adopted = .*LIGHT_LUM_Y", code), (
+        "PaperSlot no longer decides adoption against the shared LIGHT_LUM_Y — a register with its own "
+        "threshold can call a ground stock that lumFromY calls 'mid'")
+    for tok in ("INK", "DIM"):
+        assert re.search(r"const %s = adopted && dna \?" % tok, code), (
+            "%s is not keyed off the adoption — that is exactly the collapse that made the ink unreadable" % tok)
+    assert "onPaper" not in code, "the flag that answered two questions is back"
+
+
+def test_the_flash_threshold_has_exactly_one_definition():
+    """0.34 was written out in three files — Film.tsx's guard, seam_plan.py's mirror of it, and (once the
+    ground gate started judging declarations) a fourth would have followed. A planner that disagrees with the
+    renderer about what a flash is plans seams the renderer then overrides, silently."""
+    luma = open(os.path.join(_RUNTIME_DIR, "shotLuma.ts"), encoding="utf-8").read()
+    assert re.search(r"export const HARSH_GROUND_GAP\s*=\s*0\.34\s*;", luma)
+    film = open(os.path.join(os.path.dirname(_RUNTIME_DIR), "Film.tsx"), encoding="utf-8").read()
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # 0.34 is a perfectly ordinary keyframe elsewhere; what must not exist is a GROUND GAP compared to a
+    # number, in any of the three files that judge one.
+    restated = re.compile(r"\bgap\w*\s*[<>]=?\s*0?\.\d")
+    for label, path, cmt in (("Film.tsx", os.path.join(os.path.dirname(_RUNTIME_DIR), "Film.tsx"), ("//", "*", "/*")),
+                             ("seam_plan.py", os.path.join(root, "scripts", "seam_plan.py"), ("#",)),
+                             ("measure_ground_luma.py", os.path.join(root, "scripts", "measure_ground_luma.py"), ("#",))):
+        body = "\n".join(l for l in open(path, encoding="utf-8").read().split("\n")
+                         if not l.lstrip().startswith(cmt))
+        assert "HARSH_GROUND_GAP" in body, "%s does not read the threshold from the runtime" % label
+        hit = restated.search(body)
+        assert not hit, "%s compares a ground gap to its own literal: %r" % (label, hit.group(0))
+    assert "HARSH_GROUND_GAP" in film
+
+
+def _ground_gate():
+    import importlib.util
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    spec = importlib.util.spec_from_file_location(
+        "measure_ground_luma", os.path.join(root, "scripts", "measure_ground_luma.py"))
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+def test_the_ground_gate_judges_the_entries_it_cannot_name_a_token_for():
+    """UNCLASSIFIED USED TO MEAN UNCHECKED, and that is how the worst entry in the table survived.
+
+    `--check` compared only the shots the classifier could put a token on and skipped the rest — so the
+    entries most likely to be wrong were the only ones nobody checked. PaperSlot's border measured 0.811
+    under the probe while it declared `bg` (0.002 there); the classifier could name no token for a paper
+    that is not in the palette, the loop skipped it, and the gate printed "matches the measured pixels".
+
+    A classifier that cannot NAME the token can still ask whether the DECLARED one is anywhere near the
+    pixels, and it is judged at the seam guard's own threshold: an entry off by that much can flip the
+    guard by itself, which is what separates a defect from a rounding error. These are the three real
+    measurements from that sweep — one wrong, two merely unnameable — so the rule has to separate them.
+    """
+    m = _ground_gate()
+    luma = open(os.path.join(_RUNTIME_DIR, "shotLuma.ts"), encoding="utf-8").read()
+    decl, lums, harsh = m.declared_tokens(luma), m.token_lums(), m.harsh_gap(luma)
+
+    def gap(name, measured, override=None):
+        d = override if override is not None else decl[name]
+        pred = m._rel_lum(d) if isinstance(d, str) else m._declared_y(d, lums)
+        return m._gap(measured, pred)
+
+    # the defect, as it was declared when it shipped
+    assert gap("PaperSlot", 0.811, ["bg"]) >= harsh, (
+        "a ground declared 'bg' and measured at 0.811 is not reported — this is the entry that drew "
+        "#ffffff caption ink on #efe9dd paper")
+    # and as it is declared now
+    assert gap("PaperSlot", 0.811) < harsh, "the literal PaperSlot now declares disagrees with its pixels"
+    # NO CRY WOLF. Both of these are genuinely unnameable and genuinely fine: KineticManifesto floods a
+    # gradient, whose mean luminance is not the mean of its endpoints' (the runtime's model, kept on
+    # purpose so the gate judges the number the film computes); VersusSplit paints two halves and the
+    # border ring's median reports whichever half is larger. A gate that flagged these would be ignored.
+    assert gap("KineticManifesto", 0.644) < harsh
+    assert gap("VersusSplit", 0.036) < harsh
+
+    # every declaration in the table must be resolvable, or the gate is judging some entries and not others
+    unresolvable = [k for k, v in decl.items()
+                    if not isinstance(v, str) and m._declared_y(v, lums) is None]
+    assert not unresolvable, "the probe cannot predict a ground for: %r" % unresolvable[:6]

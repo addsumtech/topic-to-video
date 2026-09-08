@@ -105,6 +105,64 @@ def classify(lum, lums, tol=0.06):
     return tok, abs(best[1] - lum)
 
 
+# ── READING THE TABLE BACK, so the gate can judge what it could not classify ─────────────────────────────
+# `--check` used to compare only the shots `classify` could NAME a token for and skip the rest, which meant
+# the entries most likely to be wrong were the only ones nobody checked. These read the declaration itself
+# and turn it into the number its two consumers use, so an unnameable ground is still an answerable question.
+
+def _rel_lum(hexstr):
+    """Relative luminance of '#rgb' / '#rrggbb' — the same value shotLuma.ts's lumValue() returns."""
+    h = str(hexstr).lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    return _srgb_lum(tuple(int(h[i:i + 2], 16) for i in (0, 2, 4)))
+
+
+def _gap(a, b):
+    """Display-encoded distance between two ground luminances — what Film.tsx's seam guard judges on."""
+    return abs(a ** (1 / 2.2) - b ** (1 / 2.2))
+
+
+def declared_tokens(src):
+    """{shot: [token, ...] | '#rrggbb'} exactly as DNA_GROUND_TOKEN currently declares it."""
+    body = src.split("DNA_GROUND_TOKEN", 1)[1].split("{", 1)[1].split("};")[0]
+    out = {}
+    for name, val in re.findall(r"^\s{2}(\w+):\s*(\[[^\]]*\]|'#?[a-zA-Z0-9]+')", body, re.M):
+        lit = re.fullmatch(r"'(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6})'", val)
+        if lit:
+            out[name] = lit.group(1)
+            continue
+        toks = re.findall(r"'([a-zA-Z0-9]+)'", val)
+        if toks:
+            out[name] = toks
+    return out
+
+
+def harsh_gap(src):
+    """Film.tsx's flash threshold, read from the runtime instead of re-typed here."""
+    m = re.search(r"export const HARSH_GROUND_GAP\s*=\s*([0-9.]+)\s*;", src)
+    if not m:
+        raise SystemExit("[measure_ground_luma] runtime/shotLuma.ts no longer exports HARSH_GROUND_GAP — "
+                         "this gate judges a declaration against the seam guard's own threshold and cannot "
+                         "invent one")
+    return float(m.group(1))
+
+
+def _declared_y(decl, lums):
+    """The ground luminance a TOKEN declaration predicts under the probe.
+
+    Deliberately the RUNTIME's model — dnaGroundY averages the token luminances — and not a better one, so
+    the gate judges the number the film will actually compute. A token the probe does not carry (`bgGrad`)
+    returns None and is reported as unresolvable rather than scored against a guess.
+    """
+    if not decl or isinstance(decl, str):
+        return None
+    ys = [lums.get(t) for t in decl]
+    if any(y is None for y in ys):
+        return None
+    return sum(ys) / len(ys)
+
+
 # THE EVIDENCE REGISTERS ARE MEASURABLE, AND WERE BEING WRITTEN OFF. Five registers REFUSE to draw without
 # a real artefact (runtime/evidence.ts) — which is the point of them — and both probes here rendered them on
 # default props, so every sweep reported the same four (now five) as "RENDER FAILED" and left their ground
@@ -274,6 +332,13 @@ def _emit(table=None):
         # appear inside the prose explaining it.
         if "PROVISIONAL" not in comment and re.search(r"//\s*declared-only", comment):
             lines.append(line); kept += 1; continue
+        # A LITERAL IS SELF-IDENTIFYING, and that is why it is not guarded by a comment. The sentinel bug
+        # recorded above happened because a marker had to be spelled right in prose; `'#efe9dd'` cannot be
+        # mis-spelled into a token. The measurement can never produce a literal (it only names probe
+        # tokens), so writing over one would silently replace a ground the register paints unconditionally
+        # with whichever token the probe happened to sit nearest.
+        if re.match(r"^'#[0-9a-fA-F]{3,6}'$", m.group(2).strip()):
+            lines.append(line); kept += 1; continue
         if shot not in table:
             lines.append(line); kept += 1; continue
         tok = table[shot]
@@ -359,12 +424,13 @@ def main(argv):
     fixtures = _fixture_props()
     lums = token_lums()
     print("probe token luminances: " + ", ".join("%s=%.3f" % (k, v) for k, v in sorted(lums.items(), key=lambda kv: kv[1])))
-    out, unclassified, failed = {}, [], []
+    out, unclassified, failed, meas = {}, [], [], {}
     with tempfile.TemporaryDirectory() as td:
         for i, s in enumerate(shots, 1):
             lum, err = measure(s, td, fixtures)
             if err is not None:
                 failed.append(s); print("  [%3d/%d] %-24s RENDER FAILED" % (i, len(shots), s)); continue
+            meas[s] = lum
             tok, d = classify(lum, lums)
             if tok is None:
                 unclassified.append((s, lum)); print("  [%3d/%d] %-24s lum=%.3f  UNCLASSIFIED" % (i, len(shots), s, lum))
@@ -373,24 +439,71 @@ def main(argv):
     print("\nmeasured %d · unclassified %d · failed %d" % (len(out), len(unclassified), len(failed)))
     if "--check" in argv:
         cur = open(os.path.join(_REMOTION, "src", "runtime", "shotLuma.ts"), encoding="utf-8").read()
-        bad = []
+        bad, off, ok_lit, ok_unc = [], [], 0, 0
         # A declared-only entry is declared PRECISELY because the measurement cannot see its ground
         # (content bleeds to the frame edge, so the border ring samples content). Comparing it against a
         # measurement would make this gate cry wolf forever — and a gate that always warns is ignored.
         declared_only = set(re.findall(r"^\s{2}(\w+):[^/\n]*//\s*declared-only", cur, re.M))
-        for shot, tok in sorted(out.items()):
+        declared = declared_tokens(cur)
+        harsh = harsh_gap(cur)
+        for shot in sorted(meas):
             if shot in declared_only:
                 continue
-            want = ("'%s'" % tok) if isinstance(tok, str) else ("[%s]" % ", ".join("'%s'" % x for x in tok))
-            if ("  %s: %s," % (shot, want)) not in cur:
-                bad.append("%s -> %s" % (shot, tok if isinstance(tok, str) else "+".join(tok)))
-        if bad:
-            print("DNA_GROUND_TOKEN has DRIFTED from the pixels (%d shot(s)):" % len(bad))
-            for b in bad:
-                print("  " + b)
+            decl, lum = declared.get(shot), meas[shot]
+            # A LITERAL DECLARATION IS CHECKED AS A LUMINANCE, always — never against the probe's tokens.
+            # It says "this shot paints THIS colour whatever the palette is", so the only honest question is
+            # whether the pixels are that colour; asking which token it resembles would report drift on a
+            # register that is behaving exactly as declared, the moment a probe token drifted near it.
+            if isinstance(decl, str):
+                pred = _rel_lum(decl)
+                d = _gap(lum, pred)
+                if d >= harsh:
+                    off.append((shot, lum, pred, d))
+                else:
+                    ok_lit += 1
+                continue
+            if shot in out:
+                tok = out[shot]
+                want = ("'%s'" % tok) if isinstance(tok, str) else ("[%s]" % ", ".join("'%s'" % x for x in tok))
+                if ("  %s: %s," % (shot, want)) not in cur:
+                    bad.append("%s -> %s" % (shot, tok if isinstance(tok, str) else "+".join(tok)))
+                continue
+            # UNCLASSIFIED USED TO MEAN UNCHECKED, and that is how the worst entry in the table survived.
+            # `PaperSlot` prints on its own stock under every dark preset, so its border measured 0.811
+            # while it declared `bg` (0.002 under this probe) — a ground the classifier could not name a
+            # token for, so the loop below skipped it and the gate printed "matches the measured pixels".
+            # The caption ink read that `bg` and drew #ffffff on #efe9dd paper: 1.22:1, in a delivered
+            # frame. A classifier that cannot NAME the token can still say whether the DECLARED one is
+            # anywhere near the pixels, and that is the question the two consumers actually ask.
+            pred = _declared_y(decl, lums)
+            if pred is None:
+                off.append((shot, lum, None, None))
+                continue
+            d = _gap(lum, pred)
+            if d >= harsh:
+                off.append((shot, lum, pred, d))
+            else:
+                ok_unc += 1
+        if bad or off:
+            if bad:
+                print("DNA_GROUND_TOKEN has DRIFTED from the pixels (%d shot(s)):" % len(bad))
+                for b in bad:
+                    print("  " + b)
+            if off:
+                print("DNA_GROUND_TOKEN declares a ground the pixels contradict (%d shot(s)) — the seam "
+                      "guard calls a cut a flash at %.2f, so an entry off by that much can flip it alone:"
+                      % (len(off), harsh))
+                for shot, lum, pred, d in off:
+                    if pred is None:
+                        print("  %-24s measured %.3f, declaration %r cannot be resolved"
+                              % (shot, lum, declared.get(shot)))
+                    else:
+                        print("  %-24s measured %.3f, declared %s = %.3f  (display gap %.3f)"
+                              % (shot, lum, declared.get(shot), pred, d))
             print("re-run: python3 scripts/measure_ground_luma.py --emit")
             return 1
-        print("DNA_GROUND_TOKEN matches the measured pixels (%d shots)" % len(out))
+        print("DNA_GROUND_TOKEN matches the measured pixels (%d classified, %d literal, %d unclassified "
+              "but consistent with their declaration)" % (len(out), ok_lit, ok_unc))
         return 0
     if "--emit" in argv:
         return _emit(out)

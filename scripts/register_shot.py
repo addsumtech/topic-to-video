@@ -353,7 +353,10 @@ def sync_patterns(shot, luma_src=None):
         "root_import": r"import\s*\{\s*%s\s*,\s*DURATION as \w+\s*\}" % b,
         "root_preview": r"F\('%s'\s*,\s*%s\s*," % (b, b),
         "luma_coarse": r"(?<![A-Za-z0-9_])%s:\s*'(%s)'" % (b, lums),
-        "luma_ground": r"(?<![A-Za-z0-9_])%s:\s*('(%s)'|\[)" % (b, grounds),
+        # A GROUND MAY BE A COLOUR, not a token: a register that paints its own stock whatever the palette is
+        # (PaperSlot) declares `'#efe9dd'` there, and reading only the GroundToken union reported it as
+        # never registered — a sync check that fails on a correct table is a sync check people switch off.
+        "luma_ground": r"(?<![A-Za-z0-9_])%s:\s*('(%s)'|'#[0-9a-fA-F]{3,6}'|\[)" % (b, grounds),
         "family": r'"%s":\s*"[A-Z]{1,2}"' % b,
         "provenance": r'"%s":\s*\x27[a-z-]+\x27' % b,
         # The catalogue ENTRY shape, not the id in bold anywhere: a bold cross-reference inside somebody

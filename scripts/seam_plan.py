@@ -38,6 +38,7 @@ Deterministic: same storyboard in, same marks out. The shot-director may overrid
 """
 import json
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -55,10 +56,18 @@ def _ground_tokens():
     if _GROUND_TOKEN is None:
         _GROUND_TOKEN = {}
         try:
-            import re
             body = open(_SHOTLUMA, encoding="utf-8").read().split("DNA_GROUND_TOKEN", 1)[1]
             body = body.split("{", 1)[1].split("};")[0]
-            for name, val in re.findall(r"(\w+):\s*(\[[^\]]*\]|'[a-zA-Z0-9_]+')", body):
+            # A '#rrggbb' VALUE IS A GROUND, NOT A TOKEN — PaperSlot prints on its own stock whenever the
+            # film's ground is too dark to pass for paper, which is every shipped preset. The old pattern
+            # accepted only [a-zA-Z0-9_] inside the quotes, so that entry matched nothing and the shot
+            # dropped out of this map silently — and a shot missing here is a seam judged on SHOT_LUMA's
+            # three buckets instead of a luminance the table knows exactly.
+            for name, val in re.findall(r"(\w+):\s*(\[[^\]]*\]|'#?[a-zA-Z0-9_]+')", body):
+                lit = re.fullmatch(r"'(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6})'", val)
+                if lit:
+                    _GROUND_TOKEN[name] = lit.group(1)          # a literal colour
+                    continue
                 toks = re.findall(r"'([a-zA-Z0-9_]+)'", val)
                 if toks:
                     _GROUND_TOKEN[name] = toks
@@ -125,6 +134,9 @@ def dna_ground_y(shot, dna):
     corrected, changed the plan for a beat where the picture had not changed at all.
     """
     toks = _ground_tokens().get(shot)
+    # A literal ground resolves with no DNA at all — that is what makes it literal.
+    if isinstance(toks, str):
+        return _rel_lum(toks)
     if not dna or not toks:
         return None
     ys = [_rel_lum(dna.get(t)) for t in toks]
@@ -170,8 +182,22 @@ def _budget(n):
     return 2 if n < 20 else 3
 
 
-# the same threshold Film.tsx's pickPresentation judges on
-HARSH_GAP = 0.34
+def _harsh_gap():
+    """The seam guard's flash threshold, READ from runtime/shotLuma.ts rather than re-typed.
+
+    "The same threshold Film.tsx judges on" was a comment, and a comment is not a mechanism: three files
+    carried the literal 0.34 and nothing would have failed if one of them had been tuned. It is one exported
+    constant now, and this reads it — so a planner that disagrees with the renderer about what a flash is
+    becomes impossible rather than merely unlikely."""
+    m = re.search(r"export const HARSH_GROUND_GAP\s*=\s*([0-9.]+)\s*;",
+                  open(_SHOTLUMA, encoding="utf-8").read())
+    if not m:
+        raise SystemExit("[seam_plan] runtime/shotLuma.ts no longer exports HARSH_GROUND_GAP — the seam "
+                         "planner cannot mirror a guard whose threshold it cannot read")
+    return float(m.group(1))
+
+
+HARSH_GAP = _harsh_gap()
 
 
 def _crosses(prev_shot, shot, dna=None):

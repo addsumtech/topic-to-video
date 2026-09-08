@@ -77,10 +77,23 @@ export const groundLum = (shot: string, bgLum?: Lum): Lum => bgLum ?? SHOT_LUMA[
 // pickPresentation's luminance-safe seam — so a dark->bright cut scored a ZERO gap and got no safety.
 // Measured on one such seam: mean frame luminance 20.8 -> 149.3 within 100ms. That is the flash.
 export type GroundToken = 'bg' | 'bgGrad' | 'accent' | 'accent2' | 'surface';
+// A GROUND THAT IS NOT A TOKEN AT ALL. `PaperSlot` adopts the film's ground only when it is light enough to
+// pass for stock and otherwise prints on its own paper — so under all eight shipped presets (every one of
+// them dark) its ground is a FIXED colour that no DNA token names. Declared as `'bg'`, the caption ink read
+// the film's near-black and drew #ffffff on #efe9dd paper: 1.22:1, measured. A static table cannot express
+// "bg, but floored at paper", and it does not have to — a literal is right in BOTH branches, because the
+// branch that adopts `bg` only does so when `bg` is itself light (same LIGHT_LUM_Y both sides), so the
+// bucket agrees by construction and the residual is the distance between two light colours.
+export type GroundLiteral = `#${string}`;
+export type GroundSpec = GroundToken | GroundToken[] | GroundLiteral;
+
+/** The COLOUR a table entry names, when it names a colour rather than a token. */
+const literalGround = (tok: GroundSpec | undefined): string | null =>
+  typeof tok === 'string' && tok.charCodeAt(0) === 35 ? tok : null;
 // A NEWLY REGISTERED shot is written here PROVISIONALLY by scripts/register_shot.py, marked
 // `declared-only`, until measure_ground_luma.py replaces it with a measurement. Everything else is
 // measured.
-export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundToken | GroundToken[]>> = {
+export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
   SourceDeal: 'bg',
   GlowPick: 'bg',
   PageWrite: 'bg',
@@ -183,7 +196,7 @@ export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundToken | GroundToken
   LowPolyForm: 'bg',   // declared-only: the measurement ABSTAINED here (content bleeds to the frame edge, so the border ring samples content, not ground). Source says `const BG = dna?.bg`.
   MRIPipeline: 'bg',
   MagazineSpread: 'bg',
-  PaperSlot: 'bg',
+  PaperSlot: '#efe9dd',   // its own stock — shots/PaperSlot PAPER_STOCK; a literal, not a token
   MagnetizationTip: 'bg',
   MapRoutes: 'bg',
   MaterialHero: 'bg',
@@ -375,6 +388,11 @@ export const lumValue = (color?: string | null): number | null => {
  *  seam: mean frame luminance 20.8 -> 149.3 within 100ms. Compare these numbers instead of the buckets. */
 export const dnaGroundY = (shot: string, dna?: GroundColors | null): number | null => {
   const tok = DNA_GROUND_TOKEN[shot];
+  // A FIXED GROUND NEEDS NO DNA TO RESOLVE — that is what makes it fixed. Answering `null` here because no
+  // palette was handed in would push the caller onto the coarse bucket for a shot whose exact luminance is
+  // known, which is the direction that loses seams.
+  const lit = literalGround(tok);
+  if (lit !== null) return lumValue(lit);
   if (!dna || !tok) return null;
   const names = Array.isArray(tok) ? tok : [tok];
   const ys: number[] = [];
@@ -386,6 +404,14 @@ export const dnaGroundY = (shot: string, dna?: GroundColors | null): number | nu
   return ys.reduce((a, b) => a + b, 0) / ys.length;
 };
 
+/** THE DISTANCE AT WHICH A CUT IS A FLASH, in display-encoded terms. Film.tsx rewrites a seam to a fade at
+ *  or above it. It lives here with the other two thresholds because it is also the number that says when a
+ *  WRONG entry in DNA_GROUND_TOKEN matters: a declaration whose luminance is off by this much can flip the
+ *  guard's answer by itself, which is what makes it a defect rather than a rounding error — so
+ *  scripts/measure_ground_luma.py --check reads this constant to judge the entries the classifier cannot
+ *  name, instead of exempting them (it exempted PaperSlot, whose ground was off by 0.837). */
+export const HARSH_GROUND_GAP = 0.34;
+
 /** Perceptual (display-encoded) distance between two grounds, 0..1 — the number a seam should judge on. */
 export const groundGap = (a: number | null, b: number | null): number | null =>
   a === null || b === null ? null : Math.abs(Math.pow(a, 1 / 2.2) - Math.pow(b, 1 / 2.2));
@@ -393,6 +419,11 @@ export const groundGap = (a: number | null, b: number | null): number | null =>
 export const dnaGroundLum = (shot: string, bgLum?: Lum, dna?: GroundColors | null): Lum => {
   if (bgLum) return bgLum;
   const tok = DNA_GROUND_TOKEN[shot];
+  const lit = literalGround(tok);
+  if (lit !== null) {
+    const y = lumValue(lit);
+    if (y !== null) return lumFromY(y);
+  }
   if (dna && tok) {
     // Resolve the token(s) this shot MEASURABLY paints its ground from — averaging a two-token mix,
     // because a gradient flood's ground luminance is neither endpoint. Passing only `dna.bg` here (the

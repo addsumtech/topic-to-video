@@ -18,7 +18,8 @@ import {captionBand, CAPTION_SIZE_FRAC, CAPTION_MARGIN_FRAC, CAPTION_LINES,
         CAPTION_LEAD, CAPTION_LEAD_CJK, CJK_ADVANCE, latinAdvance} from './runtime/layout';
 import {SceneDurationContext, ReducedMotionContext, clamp01, SEAM_FRAMES} from './runtime/motion';
 import {NarrationContext} from './runtime/voice';
-import {groundLum, dnaGroundLum, dnaGroundY, groundGap, lumValue, lumFromY, type Lum, type GroundColors} from './runtime/shotLuma';
+import {groundLum, dnaGroundLum, dnaGroundY, groundGap, HARSH_GROUND_GAP, lumValue, lumFromY,
+        type Lum, type GroundColors} from './runtime/shotLuma';
 import {BeatGround, groundAt, captionInk, hexGround, LIGHT_KEY_Y, CAPTION_INK_DARK, CAPTION_INK_LIGHT,
         type SceneGroundDecl} from './runtime/light';
 import {Atmosphere, type Atmo} from './runtime/atmosphere';
@@ -498,7 +499,7 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
   // accent flood scores dark->mid (gap 1) while the frame goes from ~20 to ~150 in display terms. Judge on
   // the display-encoded distance when both grounds resolve, and keep the bucket rule as the fallback.
   const gap = groundGap(dnaGroundY(prev.shot, prevG), dnaGroundY(next.shot, nextG));
-  const harsh = gap === null ? dLum >= 2 : gap >= 0.34;
+  const harsh = gap === null ? dLum >= 2 : gap >= HARSH_GROUND_GAP;
   const CANNOT_FLASH = new Set(['carry', 'focus']);
   const t = (harsh && !CANNOT_FLASH.has(want)) ? 'fade' : want;
   const dir = next.transitionIn?.direction;
