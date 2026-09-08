@@ -111,7 +111,7 @@
     "PixelBuild": "55bf49826a3d722c",
     "PlanPalimpsest": "217bc9bee1687443",
     "PlatformSurfaces": "02f58dfcfa9fab5e",
-    "PointerTour": "d15f58fc7830a77f",
+    "PointerTour": "1dd60415a2fd2bca",
     "PortRail": "ba83fe1c244a9178",
     "PositioningMatrix": "0e93a56b943496ad",
     "ProfileGrowth": "aa4596f9e61deae6",
@@ -135,7 +135,7 @@
     "SpotlightStage": "8a4cfea96a812a3e",
     "StarfieldWarp": "1c54f7a02ee49a4c",
     "StrataColumn": "6526785f4dc5395d",
-    "SurfaceCarousel": "7214bbfe0de392ec",
+    "SurfaceCarousel": "e7e693971337d7b0",
     "SwissEditorial": "059cc5ddb89baeee",
     "TallyLedger": "757858a593574f75",
     "TechnicalPlate": "f450c5d61b108c8d",
@@ -158,9 +158,9 @@
     "VoiceSignal": "4e12c2cdc5a27a88",
     "VoxelBuild": "5ab63d989b467bfc",
     "WireGlobe": "586e83fb5fed09bd",
-    "PageWrite": "2bdb711f21c5bef1",
+    "PageWrite": "af809809e48f93aa",
     "GlowPick": "2d2018dfe0dc6bc9",
-    "SourceDeal": "934a69acd21ed2c8"
+    "SourceDeal": "50fb7d370fdf0ea4"
   },
   "_basis": "each register rendered as VIDEO at its own DURATION, 16:9, under dna=product — the themed path, because every delivered film has a design system and the un-themed fallback is a mode none of them use",
   "_dna": "product",
@@ -896,11 +896,11 @@
       "footprint": 0.577
     },
     "PageWrite": {
-      "motion_p75": 0.0085,
-      "ink_median": 0.083,
-      "luma_range": 0.258,
+      "motion_p75": 0.0099,
+      "ink_median": 0.347,
+      "luma_range": 0.315,
       "seconds": 5.5,
-      "footprint": 1.0
+      "footprint": 0.52
     },
     "PaperCutout": {
       "motion_p75": 0.0008,
@@ -966,11 +966,11 @@
       "footprint": 0.524
     },
     "PointerTour": {
-      "motion_p75": 0.0184,
-      "ink_median": 0.099,
+      "motion_p75": 0.0009,
+      "ink_median": 0.075,
       "luma_range": 0.026,
       "seconds": 6.0,
-      "footprint": 0.672
+      "footprint": 0.61
     },
     "PortRail": {
       "motion_p75": 0.0042,
@@ -1078,11 +1078,11 @@
       "footprint": 0.605
     },
     "SourceDeal": {
-      "motion_p75": 0.002,
-      "ink_median": 0.005,
-      "luma_range": 0.013,
+      "motion_p75": 0.0022,
+      "ink_median": 0.006,
+      "luma_range": 0.016,
       "seconds": 5.8,
-      "footprint": 0.232
+      "footprint": 0.227
     },
     "SpectrumPulse": {
       "motion_p75": 0.0014,

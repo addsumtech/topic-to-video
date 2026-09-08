@@ -1203,9 +1203,9 @@ MUTANTS["register_energy"] = {
 
 # ── demo_copy_qa: a register must not print its own demo copy as content ─────────────────────────────
 _DEMO_SRC = """
-export const Demo: React.FC<{title?: string; marks?: {n: number; label: string}[]}> = ({
+export const Demo: React.FC<{title?: string; page?: UiPage; marks?: {n: number; label: string}[]}> = ({
   title = 'WorkBuddy', marks = [{n: 1, label: 'what to notice here'}], accent = '#22d3ee',
-  align = 'center',
+  align = 'center', page = 'cards',
 } = {}) => {
   return <svg fill="none" strokeLinecap="round" transform="rotate(-90 55 55)"><text>hi</text></svg>;
 };
@@ -1227,6 +1227,10 @@ def _probe_configuration_is_not_mistaken_for_copy(mod):
     got = mod.demo_defaults(_DEMO_SRC, "Demo")
     assert "accent" not in got, "a colour was reported as demo copy"
     assert "align" not in got, "a CSS keyword ('center') was reported as demo copy"
+    # A SELECTOR is configuration too, and it does not look like one: `page = 'cards'` is an ordinary word
+    # whose type says it chooses a layout. Counted as copy it errors every beat using the register, and the
+    # only escape the message offers is setting the prop to "" — which draws no page at all.
+    assert "page" not in got, "a typed selector ('page: UiPage') was reported as demo copy"
 
 
 def _probe_a_partially_supplied_beat_is_caught(mod):
@@ -1253,8 +1257,14 @@ MUTANTS["demo_copy_qa"] = {
     "the destructure has no end, so the component body counts as props":
         ("    depth, j = 0, start", "    return src[start + 1:]\n    depth, j = 0, start"),
     "colours and css keywords count as copy":
-        ('            if re.search(r"[A-Za-z]{3}", v) and not _NOT_COPY.match(v):',
-         '            if re.search(r"[A-Za-z]{3}", v):'),
+        ('            if re.search(r"[A-Za-z]{3}", v) and not _NOT_COPY.match(v) and _is_copy(m.group(1)):',
+         '            if re.search(r"[A-Za-z]{3}", v) and _is_copy(m.group(1)):'),
+    # The other half of the same line: a prop TYPED as a selector (`page?: UiPage`) defaults to a word that
+    # is never drawn, and counting it as copy errors every beat that uses the register while offering the
+    # author no way out but to switch the page off.
+    "a selector's default counts as copy":
+        ('            if re.search(r"[A-Za-z]{3}", v) and not _NOT_COPY.match(v) and _is_copy(m.group(1)):',
+         '            if re.search(r"[A-Za-z]{3}", v) and not _NOT_COPY.match(v):'),
     "an absent prop stops being a finding":
         ("            if prop not in props:", "            if False:"),
 }

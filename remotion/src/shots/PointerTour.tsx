@@ -19,6 +19,7 @@ import {AbsoluteFill, useVideoConfig, staticFile} from 'remotion';
 import {useT, seg, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {UiSurface, uiCardRects, type UiContent} from '../runtime/uiSurface';
+import {captionBand} from '../runtime/layout';
 import {PageCam2D, camAt, pageToScreen, fitScale, clampToPage, type CamKey} from '../runtime/pageCam2D';
 
 export const DURATION = 180; // 6.0s
@@ -77,6 +78,13 @@ export const PointerTour: React.FC<{
   const dna = useDNA();
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
+  // THE CAMERA FILLS THE CONTENT ZONE, NOT THE FRAME. A page camera that covers the whole frame puts the
+  // page's own type into the caption band, and the burned subtitle then lands on it — measured on a real
+  // film, this shot's band ground read 0.95 mid-beat (a white page) against a film that declares itself
+  // dark, so the caption was white on white and unreadable, and one beat later the same band was 0.03.
+  // No static declaration can follow a ground that flips inside one shot; reserving the band means the
+  // caption always sits on the film's own ground, which is the contract every other register keeps.
+  const VIEW_H = H - captionBand(W, H);
   const BG = dna?.bgGrad ?? dna?.bg ?? BG_D0;
   const ACC = dna?.accent ?? ACC_D0;
   const U = Math.min(W, H);
@@ -113,14 +121,14 @@ export const PointerTour: React.FC<{
   // The route, as a list of places to look. Each stop gets the same travel and the same pause, because an
   // even step is what reads as walking a room; uneven ones read as the camera hunting for something.
   const keys: CamKey[] = [
-    {at: 0, x: pageW / 2, y: pageH / 2, s: fitScale(W, H, pageW, pageH)},
-    {at: OPEN, x: pageW / 2, y: pageH / 2, s: fitScale(W, H, pageW, pageH)},
+    {at: 0, x: pageW / 2, y: pageH / 2, s: fitScale(W, VIEW_H, pageW, pageH)},
+    {at: OPEN, x: pageW / 2, y: pageH / 2, s: fitScale(W, VIEW_H, pageW, pageH)},
   ];
   // A stop is INSIDE the screen, so the close-up is never allowed to be wider than the screen itself: at 9:16
   // the card-relative scale left the page 75px short of the frame and a strip of backdrop ran along the top
   // and bottom of every stop, which reads as the window having come loose from the shot.
-  const cover = Math.max(W / pageW, H / pageH);
-  const closeS = (r: {w: number; h: number}) => Math.max(cover, Math.min(W * 0.60 / r.w, H * 0.60 / r.h));
+  const cover = Math.max(W / pageW, VIEW_H / pageH);
+  const closeS = (r: {w: number; h: number}) => Math.max(cover, Math.min(W * 0.60 / r.w, VIEW_H * 0.60 / r.h));
   stops.forEach((_, i) => {
     const r = cards[i];
     const arrive = OPEN + i * STEP + MOVE;
@@ -129,7 +137,7 @@ export const PointerTour: React.FC<{
   });
   // Clamped AFTER interpolating, not per key: a lens that only obeys the page at its stops still drifts off
   // the edge on the way between two of them, and the frame with the fault in it is the one nobody rendered.
-  const cam = clampToPage(camAt(keys, t, easeInOutCubic), W, H, pageW, pageH);
+  const cam = clampToPage(camAt(keys, t, easeInOutCubic), W, VIEW_H, pageW, pageH);
 
   // THE CURSOR AND THE CAMERA ARE ONE SYSTEM. The cursor's PAGE position runs on a table with the same
   // timings as the lens, so the two arrive together and, during a move, the pointer holds its place on the
@@ -150,7 +158,7 @@ export const PointerTour: React.FC<{
     return {at: k.at, x: r.x + r.w * 0.58, y: r.y + r.h * 0.62, s: 1};
   });
   const cur = camAt(cursorKeys, t, easeInOutCubic);
-  const target = pageToScreen(cam, W, H, cur.x, cur.y);
+  const target = pageToScreen(cam, W, VIEW_H, cur.x, cur.y);
   const curPx = Math.round(U * 0.055);
   const shown = clamp01(seg(t, OPEN * 0.6, OPEN));
 
@@ -165,7 +173,8 @@ export const PointerTour: React.FC<{
 
   return (
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
-      <PageCam2D cam={cam} W={W} H={H} pageW={pageW} pageH={pageH}>
+      <div style={{position: 'absolute', left: 0, top: 0, width: W, height: VIEW_H, overflow: 'hidden'}}>
+      <PageCam2D cam={cam} W={W} H={VIEW_H} pageW={pageW} pageH={pageH}>
         {captured ? (
           <img src={staticFile(SRC!)} width={pageW} height={pageH} alt=""
             style={{display: 'block', width: pageW, height: pageH}} />
@@ -173,10 +182,11 @@ export const PointerTour: React.FC<{
           <UiSurface page="cards" W={pageW} H={pageH} dna={dna} content={content} seed={7} />
         )}
       </PageCam2D>
+      </div>
 
       {ripples.filter((r) => r.live).map((r) => {
         const rect = cards[r.i];
-        const c = pageToScreen(cam, W, H, rect.x + rect.w * 0.58, rect.y + rect.h * 0.62);
+        const c = pageToScreen(cam, W, VIEW_H, rect.x + rect.w * 0.58, rect.y + rect.h * 0.62);
         const d = Math.round(U * 0.055) * (0.3 + r.u * 1.6);
         return (
           <div key={r.i} style={{position: 'absolute', left: c.x - d / 2, top: c.y - d / 2, width: d, height: d,

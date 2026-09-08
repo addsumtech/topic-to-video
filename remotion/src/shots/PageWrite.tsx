@@ -21,6 +21,7 @@ import {AbsoluteFill, useVideoConfig, staticFile} from 'remotion';
 import {useT, seg, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {requireEvidence} from '../runtime/evidence';
+import {captionBand} from '../runtime/layout';
 import {PageCam2D, camAt, pageToScreen, fitScale, clampToPage, type CamKey} from '../runtime/pageCam2D';
 
 export const DURATION = 165; // 5.5s
@@ -42,6 +43,13 @@ export const PageWrite: React.FC<{
   const dna = useDNA();
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
+  // THE CAMERA FILLS THE CONTENT ZONE, NOT THE FRAME. A page camera that covers the whole frame puts the
+  // page's own type into the caption band, and the burned subtitle then lands on it — measured on a real
+  // film, this shot's band ground read 0.95 mid-beat (a white page) against a film that declares itself
+  // dark, so the caption was white on white and unreadable, and one beat later the same band was 0.03.
+  // No static declaration can follow a ground that flips inside one shot; reserving the band means the
+  // caption always sits on the film's own ground, which is the contract every other register keeps.
+  const VIEW_H = H - captionBand(W, H);
   const ACC = dna?.accent ?? ACC_D0;
   // The premise IS the real page. Without one this draws a camera move over an empty rectangle, which
   // composes perfectly and says nothing — so it refuses, in the library's own words.
@@ -67,13 +75,13 @@ export const PageWrite: React.FC<{
   const first = body[0];
   const keys: CamKey[] = [
     {at: 0, x: first.x + first.w / 2, y: first.y + first.h / 2,
-     s: Math.min(W * 0.72 / Math.max(1, first.w), fitScale(W, H, pageW, pageH) * 2.6)},
+     s: Math.min(W * 0.72 / Math.max(1, first.w), fitScale(W, VIEW_H, pageW, pageH) * 2.6)},
     {at: 0.10, x: first.x + first.w / 2, y: first.y + first.h / 2,
-     s: Math.min(W * 0.72 / Math.max(1, first.w), fitScale(W, H, pageW, pageH) * 2.6)},
-    {at: 0.80, x: pageW / 2, y: pageH / 2, s: fitScale(W, H, pageW, pageH)},
-    {at: 1, x: pageW / 2, y: pageH / 2, s: fitScale(W, H, pageW, pageH)},
+     s: Math.min(W * 0.72 / Math.max(1, first.w), fitScale(W, VIEW_H, pageW, pageH) * 2.6)},
+    {at: 0.80, x: pageW / 2, y: pageH / 2, s: fitScale(W, VIEW_H, pageW, pageH)},
+    {at: 1, x: pageW / 2, y: pageH / 2, s: fitScale(W, VIEW_H, pageW, pageH)},
   ];
-  const cam = clampToPage(camAt(keys, t, easeInOutCubic), W, H, pageW, pageH);
+  const cam = clampToPage(camAt(keys, t, easeInOutCubic), W, VIEW_H, pageW, pageH);
 
   // the caret rides the leading edge of whichever block is being written — ONE of them, ever. Two carets on
   // a page is two people typing, which is not what the shot is claiming.
@@ -85,7 +93,8 @@ export const PageWrite: React.FC<{
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? '#0b0d12', overflow: 'hidden'}}>
-      <PageCam2D cam={cam} W={W} H={H} pageW={pageW} pageH={pageH}>
+      <div style={{position: 'absolute', left: 0, top: 0, width: W, height: VIEW_H, overflow: 'hidden'}}>
+      <PageCam2D cam={cam} W={W} H={VIEW_H} pageW={pageW} pageH={pageH}>
         <img src={staticFile(texture)} width={pageW} height={pageH} alt=""
           style={{display: 'block', width: pageW, height: pageH}} />
         {body.map((b, i) => {
@@ -98,13 +107,14 @@ export const PageWrite: React.FC<{
           );
         })}
       </PageCam2D>
+      </div>
 
       {/* the caret is SCREEN space and a fixed width, so it stays a pen nib rather than growing with the
           page as the camera pulls out */}
       {writing >= 0 ? (() => {
         const b = body[writing];
         const u = easeOutCubic(clamp01(seg(t, 0.06 + writing * step, 0.06 + writing * step + span)));
-        const p = pageToScreen(cam, W, H, b.x + b.w * u, b.y + b.h / 2);
+        const p = pageToScreen(cam, W, VIEW_H, b.x + b.w * u, b.y + b.h / 2);
         const h = Math.max(6, b.h * cam.s * 0.92);
         return <div style={{position: 'absolute', left: p.x - 1, top: p.y - h / 2,
           width: Math.max(2, Math.round(Math.min(W, H) * 0.0035)), height: h, background: ACC}} />;

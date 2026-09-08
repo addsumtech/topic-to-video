@@ -18,7 +18,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig, staticFile} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic, easeOutBack} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, readableOn} from '../runtime/dna';
 import {UiSurface, type UiContent} from '../runtime/uiSurface';
 import {captionBand, CONTENT_TOP, fitTextPx, fitBlockPx, textWidthPx} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
@@ -87,15 +87,15 @@ export const SourceDeal: React.FC<{
   // ragged shapes read as three unrelated labels rather than as a set being dealt from one place — the same
   // rule that makes sibling labels share one type size, applied to the container. Widest label decides.
   const pillW = Math.min(Math.round(list.reduce((w, s2) => Math.max(w, textWidthPx(s2, pillPx)), 0)
-    + pillH * 1.1 + pillPx * 0.76), Math.round(W * (vert ? 0.80 : 0.38)));
+    + pillH * 1.1 + pillPx * 0.76), Math.round(W * (vert ? 0.80 : 0.44)));
   const notePx = Math.round(U * 0.026);
   const noteH = Math.round(notePx * 2.6);
   const rowH = pillH + (NOTES.length ? noteH + Math.round(pad * 0.4) : 0) + Math.round(pad * 0.5);
 
   const zoneTop = CONTENT_TOP;
   const zoneH = Math.max(Math.round(U * 0.25), band - zoneTop - pad);
-  const dealW = vert ? Math.round(W * 0.82) : Math.round(W * 0.40);
-  const docW = vert ? Math.round(W * 0.86) : Math.round(W * 0.52);
+  const dealW = vert ? Math.round(W * 0.82) : Math.round(W * 0.46);
+  const docW = vert ? Math.round(W * 0.86) : Math.round(W * 0.62);
   const docH = vert ? Math.round(Math.min(zoneH * 0.44, docW / 1.5)) : Math.round(Math.min(zoneH, docW / 0.86));
   const docX = vert ? Math.round((W - docW) / 2) : Math.round(W * 0.03);
   const docY = zoneTop;
@@ -181,7 +181,11 @@ export const SourceDeal: React.FC<{
               padding: `0 ${Math.round(pillH * 0.55)}px`, borderRadius: 999, whiteSpace: 'nowrap',
               transform: `translateY(${(1 - b) * pillH * 0.32}px) scale(${lerp(0.94, 1, b)})`,
               background: SURF, border: `${Math.max(1, Math.round(U * 0.0016))}px solid ${LINE}`,
-              color: dna?.fg && dna.surface ? '#1c2029' : '#1c2029',
+              // A TERNARY WITH TWO IDENTICAL BRANCHES is a decision that was never made: this read
+              // `dna?.fg && dna.surface ? '#1c2029' : '#1c2029'` and so painted near-black text whatever the
+              // ground was — on a dark DNA's surface the conclusions were black on near-black. No typecheck
+              // can see it and no text gate measures contrast; it took looking at the delivered film.
+              color: readableOn(SURF),
               font: `700 ${pillPx}px/${leading(label, 1.15)} var(--f-body, system-ui, sans-serif)`}}>
               <span style={{width: Math.round(pillPx * 0.34), height: Math.round(pillPx * 0.34),
                 borderRadius: '50%', background: ACC, marginRight: Math.round(pillPx * 0.42)}} />

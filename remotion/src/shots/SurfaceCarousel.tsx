@@ -35,7 +35,13 @@ const BEATS = [
   {at: 0.688, run: 0.150, tail: 0},
 ];
 
-export type Surface = {label?: string; page?: UiPage; items?: string[]; nav?: string[]};
+// ONE PROP PER JOB. `items` names the surfaces — always, in every form of this register — and `surfaces`
+// only says what each panel SHOWS. They were interchangeable once, and that made `items`' demo default
+// unknowable statically: supplied through `surfaces`, the default never printed; not supplied, six English
+// labels shipped onto a Chinese frame. The gate that hunts exactly that could not tell the two apart and
+// errored on every correct beat, which is worse than the bug — an author's only way out was to switch a
+// prop off. A prop whose default may or may not be read is a prop with two meanings.
+export type Surface = {page?: UiPage; items?: string[]; nav?: string[]};
 
 export const SurfaceCarousel: React.FC<{
   surfaces?: Surface[];
@@ -51,20 +57,14 @@ export const SurfaceCarousel: React.FC<{
   const ACC = dna?.accent ?? ACC_D0;
   const U = Math.min(W, H);
 
-  // Either shape of prop is accepted, because a director naming four features should not have to author four
-  // objects to do it; the rich form exists for when the panels carry the topic's own rows.
-  const given: Surface[] = SURFACES && SURFACES.length
-    ? SURFACES
-    : (ITEMS ?? []).map((label): Surface => ({label}));
-  const list: Surface[] = given
-    .filter((s) => String(s?.label ?? '').trim() || (s?.items ?? []).length)
-    .slice(0, 6);
-  if (!list.length) {
+  const labels = (ITEMS ?? []).filter((x) => String(x ?? '').trim()).slice(0, 6);
+  if (!labels.length) {
     throw new Error(
-      'SurfaceCarousel needs at least one entry in `surfaces` or `items`. The whole form is a queue of the ' +
-      "product's own screens stepping past; with nothing in the queue it draws an empty corridor, which " +
-      'composes and argues nothing.');
+      'SurfaceCarousel needs at least one non-empty `items` entry — the names of the surfaces. The whole ' +
+      "form is a queue of the product's own screens stepping past; with nothing in the queue it draws an " +
+      'empty corridor, which composes and argues nothing.');
   }
+  const list = labels.map((label, i): Surface & {label: string} => ({label, ...(SURFACES?.[i] ?? {})}));
   const n = list.length;
 
   // ROOM FIRST, THEN THE PANEL. The pills ride above the panels and the caption band is not the shot's, so

@@ -61,6 +61,35 @@ def _destructure(src, name):
     return None
 
 
+_PROPS_TYPE = re.compile(r"export const %s:\s*React\.FC<\{")
+
+
+def _declared_types(src, name):
+    """{prop: declared type} from the component's own props generic, brace-matched.
+
+    Read so a SELECTOR can be told from COPY. `page?: UiPage` defaults to `'cards'`, which is a string that
+    reads like a word and is never drawn — it names which page shape a surface renders. Flagged as demo copy
+    it produced an error on every beat that used the register, and the author's only way out was to set the
+    prop to "" and get no page at all. A default is only copy if the prop is TYPED as copy.
+    """
+    m = _PROPS_TYPE.sub("", "", count=0) if False else re.search(
+        r"export const %s:\s*React\.FC<\{" % re.escape(name), src)
+    if not m:
+        return {}
+    i, depth = m.end() - 1, 0
+    for j in range(m.end() - 1, len(src)):
+        depth += src[j] == "{"
+        depth -= src[j] == "}"
+        if depth == 0:
+            i = j
+            break
+    body = src[m.end():i]
+    out = {}
+    for pm in re.finditer(r"(\w+)\s*\??\s*:\s*([^;]+);", body):
+        out[pm.group(1)] = pm.group(2).strip()
+    return out
+
+
 def demo_defaults(src, name):
     """{prop: default} for props whose default is COPY — text a viewer would read as content.
 
@@ -69,6 +98,10 @@ def demo_defaults(src, name):
     block = _destructure(src, name)
     if block is None:
         return {}
+    types = _declared_types(src, name)
+    def _is_copy(prop):
+        t = (types.get(prop) or "string").replace(" ", "")
+        return t.startswith("string") or t.startswith("(string")
     out, k = {}, 0
     while k < len(block):
         m = re.compile(r"(\w+)\s*(?::\s*\w+\s*)?=\s*").match(block, k)
@@ -83,7 +116,7 @@ def demo_defaults(src, name):
                 continue
             v = rest[1:end]
             k += end + 1
-            if re.search(r"[A-Za-z]{3}", v) and not _NOT_COPY.match(v):
+            if re.search(r"[A-Za-z]{3}", v) and not _NOT_COPY.match(v) and _is_copy(m.group(1)):
                 out[m.group(1)] = v
         elif rest[:1] == "[":
             depth, e = 0, 0
