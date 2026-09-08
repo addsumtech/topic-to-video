@@ -6,26 +6,24 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
 import {drawOn} from '../runtime/draw';
+import {pointAt} from '../runtime/alongPath';
 import {useDNA} from '../runtime/dna';
 import {bottomInset} from '../runtime/layout';
 
 export const DURATION = 160; // ~5.3s
 
-// sample a quadratic/cubic-ish check path at u∈[0,1] → point (for the head dot)
-function checkPoint(u: number, W: number, H: number): [number, number] {
-  const A: [number, number] = [W / 2 - 300, H / 2 - 20], B: [number, number] = [W / 2 - 70, H / 2 + 200], C: [number, number] = [W / 2 + 360, H / 2 - 260];
-  if (u < 0.4) {const k = u / 0.4; return [lerp(A[0], B[0], k), lerp(A[1], B[1], k)];}
-  const k = (u - 0.4) / 0.6; return [lerp(B[0], C[0], k), lerp(B[1], C[1], k)];
-}
 
 export const LightTrails: React.FC<{label?: string}> = ({label = 'done in one motion'} = {}) => {
   const t = useT();
   const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const checkD = `M${W / 2 - 300},${H / 2 - 20} L${W / 2 - 70},${H / 2 + 200} L${W / 2 + 360},${H / 2 - 260}`;
-  const LEN = 1500;
   const draw = easeInOutCubic(seg(t, 0.16, 0.72));
-  const [hx, hy] = checkPoint(clamp01(draw), W, H);
+  // THE HEAD IS ON THE TIP OF ITS OWN STROKE. It used to be placed by a hand-split of the checkmark at
+  // u=0.4 — but the two legs are 318 and 630 units, so the elbow is at 33.6% of the length, and the head
+  // lagged the tip of the stroke it is supposed to be leading by up to 61px. The stroke is revealed by arc
+  // length (see runtime/draw), so the head is read the same way and the two cannot drift apart.
+  const {x: hx, y: hy} = pointAt(checkD, draw);
   const bloom = easeOutCubic(seg(t, 0.72, 0.92));
 
   // ambient swoosh ribbons (parallax)

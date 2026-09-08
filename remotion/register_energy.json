@@ -79,7 +79,7 @@
     "KnowledgeGraph": "3f525fa862f370b1",
     "LarmorPrecession": "ac33f54c1bbe52e4",
     "LastLeg": "a7d058142c9fdbaf",
-    "LightTrails": "57567c8195bc143a",
+    "LightTrails": "a7d1d2fe8b595895",
     "LiquidChrome": "a9a2f1ea7ae7dfcf",
     "LiquidFill": "f8a2528287fb5f28",
     "LiquidGlass": "a1c36d4e251db47c",
@@ -91,7 +91,7 @@
     "MagazineSpread": "ca681327f7f7a242",
     "MagnetizationTip": "4bb021a1b683ac2a",
     "MapPlate": "a50b8488b9fe860c",
-    "MapRoutes": "a466e8ac36e1357f",
+    "MapRoutes": "f3ed885cd4dd824e",
     "MaterialHero": "eaa867dba0010691",
     "MetaballMerge": "5c41d270edd9401f",
     "MoleculeBallStick": "9752ecf118b6ab00",
@@ -812,7 +812,7 @@
       "footprint": 0.234
     },
     "MapRoutes": {
-      "motion_p75": 0.0007,
+      "motion_p75": 0.0006,
       "ink_median": 0.037,
       "luma_range": 0.008,
       "seconds": 5.5,

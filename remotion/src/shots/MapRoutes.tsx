@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeInOutCubic, easeOutBack, clamp01, hash01} from '../runtime/motion';
 import {drawOn} from '../runtime/draw';
+import {pointAt} from '../runtime/alongPath';
 import {leading, fitIfCJK} from '../runtime/cjkType';
 import {useDNA} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitTextPx} from '../runtime/layout';
@@ -45,7 +46,10 @@ export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: strin
           const d = `M${hx},${hy} Q${midx},${midy} ${px},${py}`;
           const draw = clamp01((easeInOutCubic(seg(t, 0.12, 0.7)) - i * 0.03) / 0.4);
           const pk = clamp01((t - 0.3 - i * 0.05) / 0.5); // packet position 0→1
-          const bx = lerp(hx, px, pk), by = lerp(hy, py, pk) - Math.sin(pk * Math.PI) * 140;
+          // ON the route, not beside it. `lerp(hub, pin) - sin` is a second, different model of a curve the
+          // `d` string above already describes exactly; measured against the route's own arc length the
+          // packet rode up to 140px off the line it is supposed to be travelling down.
+          const {x: bx, y: by} = pointAt(d, pk);
           return <g key={i}>
             <path d={d} fill="none" stroke={TEAL} strokeWidth={3} strokeOpacity={0.9} {...drawOn(draw)}
               style={{filter: `drop-shadow(0 0 8px ${TEAL})`}} />
