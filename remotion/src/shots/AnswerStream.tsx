@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, easeOutBack, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {leading} from '../runtime/cjkType';
 
 export const DURATION = 165; // 5.5s
 const TEAL_D0 = '#22D3C5', BG_D0 = '#0b1220', PANEL_D0 = '#111a2b';
@@ -49,7 +50,7 @@ export const AnswerStream: React.FC<{query?: string; answer?: string; sources?: 
             <div style={{display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14}}>
               <div style={{width: 26, height: 26, borderRadius: 7, background: TEAL, color: BG, font: '700 16px/26px var(--f-body, Inter)', textAlign: 'center'}}>{i + 1}</div>
               <div style={{width: 10, height: 10, borderRadius: 5, background: '#3a4a66'}} />
-              <div style={{font: '600 26px/1 var(--f-body, Inter)', color: '#7f8ea8'}}>{s.d}</div>
+              <div style={{font: `600 26px/${leading(s.d, 1)} var(--f-body, Inter)`, color: '#7f8ea8'}}>{s.d}</div>
             </div>
             <div style={{font: '700 36px/1.2 var(--f-body, Inter,system-ui,sans-serif)', color: '#eaf2ff'}}>{s.t}</div>
           </div>;

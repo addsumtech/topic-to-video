@@ -155,7 +155,7 @@ export const CartoonPop: React.FC<{label?: string}> = ({label = 'DONE!'} = {}) =
             wrapped lines crash into each other (measured 84px of a 130px line box). The floor lifts only
             for CJK, so the Latin poster keeps its punch exactly. */}
         <div style={{font: `900 130px/${leading(label, 0.9)} var(--f-display, "Baloo 2", Inter, system-ui, sans-serif)`, color: GREEN,
-          WebkitTextStroke: `9px ${OUTLINE}`, paintOrder: 'stroke', letterSpacing: '-0.01em'}}>{label}</div>
+          WebkitTextStroke: `9px ${OUTLINE}`, paintOrder: 'stroke', letterSpacing: '-0.01em', textWrap: 'balance'}}>{label}</div>
       </div>
 
       {/* confetti */}

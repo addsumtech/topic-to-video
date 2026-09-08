@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {leading} from '../runtime/cjkType';
 
 export const DURATION = 160; // ~5.3s
 const BG_D0 = '#06070e', ACC_D0 = '#4db8ff', ACC2_D0 = '#a06bff';
@@ -70,7 +71,7 @@ export const DataMonolith: React.FC<{items?: string[]; title?: string; hero?: nu
             {/* label */}
             <div style={{position: 'absolute', left: x, top: floorY + 22, width: bandW, textAlign: 'center',
               opacity: clamp01(seg(t, 0.3 + i * 0.05, 0.5 + i * 0.05)),
-              color: isHero ? '#fff' : '#8b93a8', font: `${isHero ? 800 : 600} 22px/1 var(--f-body, Inter, system-ui, sans-serif)`}}>{label}</div>
+              color: isHero ? '#fff' : '#8b93a8', font: `${isHero ? 800 : 600} 22px/${leading(label, 1)} var(--f-body, Inter, system-ui, sans-serif)`}}>{label}</div>
           </div>
         );
       })}

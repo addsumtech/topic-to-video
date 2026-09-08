@@ -94,7 +94,7 @@ export const ConveyorBelt: React.FC<{items?: string[]; title?: string; doneLabel
             border: `1px solid ${c.stamped ? 'transparent' : cardBorder}`,
             boxShadow: c.stamped ? `0 16px 40px ${done}44` : '0 12px 30px #0006'}}>
             <div style={{color: c.stamped ? onAccLabel : fg, textAlign: 'center', maxWidth: 180,
-              wordBreak: 'break-word', font: `800 ${lfs}px/1.12 ${labelFont}`}}>{c.label}</div>
+              wordBreak: 'break-word', textWrap: 'balance', font: `800 ${lfs}px/1.12 ${labelFont}`}}>{c.label}</div>
             <div style={{color: c.stamped ? onAccSub : dim, textAlign: 'center', maxWidth: 180,
               wordBreak: 'break-word', font: `700 ${sfs}px/1.15 ${dna?.fontMono ?? '"JetBrains Mono", monospace'}`}}>{sub}</div>
           </div>

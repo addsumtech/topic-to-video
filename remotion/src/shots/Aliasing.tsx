@@ -13,9 +13,17 @@ export const DURATION = 165; // 5.5s
 // This register's own vocabulary — the labels that belong to the FORM the way an axis belongs to a
 // graph, not sample copy about a topic. Declared so onscreen_text_qa can tell them apart from the
 // demo furniture that used to print on every film (WORKBUDDY, DASHBOARD, x:960 y:540).
+// THE DIAGRAM'S OWN TERMS. Two of these were already declared; the other two belong with them and were
+// simply missed. `ghost:` is the LABEL of the annotation whose explanation sits directly beneath it — half
+// an annotation translatable and half not would be worse than either. `synthetic phantom` is the register
+// keeping the promise it makes to itself twenty lines down ("never let a drawn ellipse pass for a scan"): it
+// marks the picture as DRAWN whenever no real scan was supplied, so it is provenance, not copy, and a film
+// must not be able to word it away.
 export const INTRINSIC_TEXT = [
+  'ghost:',
   'a wrapped copy folds in',
   'undersample → Nyquist violated → wrap-around',
+  'synthetic phantom',
 ];
 
 /**

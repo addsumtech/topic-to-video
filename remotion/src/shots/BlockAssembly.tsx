@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutBack, easeOutCubic, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {leading} from '../runtime/cjkType';
 import {contentBottom} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
@@ -40,12 +41,12 @@ export const BlockAssembly: React.FC<{title?: string; callout?: string; items?: 
           keeping every block's rhythm, instead of one row being nudged away from its table. */}
       <div style={{position: 'absolute', left: (W - 1120) / 2, top: 150, width: 1120,
         transform: `scale(${Math.min(1, (contentBottom(W, H) - 150) / DOC_H, (W * 0.94) / 1120)})`, transformOrigin: '50% 0'}}>
-        <Block i={0} t={t}><div style={{font: '800 92px/1 var(--f-display, Inter,system-ui,sans-serif)', color: FG}}>{title}</div></Block>
+        <Block i={0} t={t}><div style={{font: `800 92px/${leading(title, 1)} var(--f-display, Inter,system-ui,sans-serif)`, textWrap: 'balance', color: FG}}>{title}</div></Block>
         <Block i={1} t={t}><div style={{display: 'flex', flexDirection: 'column', gap: 16}}>{line('96%')}{line('88%')}{line('72%')}</div></Block>
         <Block i={2} t={t}>
           <div style={{display: 'flex', gap: 22, padding: '30px 34px', borderRadius: 14, background: `${ACC}22`, borderLeft: `5px solid ${ACC}`}}>
             <div style={{font: '700 40px/1 var(--f-body, Inter)', color: ACC}}>i</div>
-            <div style={{font: '600 36px/1.35 var(--f-body, Inter,system-ui,sans-serif)', color: FG}}>{callout}</div>
+            <div style={{font: '600 36px/1.35 var(--f-body, Inter,system-ui,sans-serif)', textWrap: 'balance', color: FG}}>{callout}</div>
           </div>
         </Block>
         <Block i={3} t={t}>
@@ -53,7 +54,7 @@ export const BlockAssembly: React.FC<{title?: string; callout?: string; items?: 
             {items.map((s, k) => (
               <div key={k} style={{display: 'flex', alignItems: 'center', gap: 20}}>
                 <div style={{width: 34, height: 34, borderRadius: 7, background: k < 2 ? GOOD : SURF, border: `2px solid ${k < 2 ? GOOD : CHECK_EDGE}`, color: ON, font: '700 20px/30px var(--f-body, Inter)', textAlign: 'center'}}>{k < 2 ? '✓' : ''}</div>
-                <div style={{font: '600 38px/1 var(--f-body, Inter,system-ui,sans-serif)', color: k < 2 ? DONE_INK : FG, textDecoration: k < 2 ? 'line-through' : 'none'}}>{s}</div>
+                <div style={{font: `600 38px/${leading(s, 1)} var(--f-body, Inter,system-ui,sans-serif)`, textWrap: 'balance', color: k < 2 ? DONE_INK : FG, textDecoration: k < 2 ? 'line-through' : 'none'}}>{s}</div>
               </div>
             ))}
           </div>
@@ -62,7 +63,7 @@ export const BlockAssembly: React.FC<{title?: string; callout?: string; items?: 
           <div style={{border: `1px solid ${MUTE}`, borderRadius: 12, overflow: 'hidden'}}>
             {[0, 1, 2].map(r => <div key={r} style={{display: 'flex', borderBottom: r < 2 ? `1px solid ${MUTE}` : 'none'}}>
               {[0, 1, 2].map(c => <div key={c} style={{flex: 1, padding: '22px 26px', borderRight: c < 2 ? `1px solid ${MUTE}` : 'none',
-                font: `${r === 0 ? 700 : 500} 30px/1 var(--f-body, Inter)`, color: r === 0 ? FG : DIMc}}>{r === 0 ? (TABLE_HEADERS[c] ?? '') : '—'}</div>)}
+                font: `${r === 0 ? 700 : 500} 30px/${leading(TABLE_HEADERS[c], 1)} var(--f-body, Inter)`, textWrap: 'balance', color: r === 0 ? FG : DIMc}}>{r === 0 ? (TABLE_HEADERS[c] ?? '') : '—'}</div>)}
             </div>)}
           </div>
         </Block>

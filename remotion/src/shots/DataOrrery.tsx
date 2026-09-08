@@ -7,21 +7,34 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {focusAt, focusFilter} from '../runtime/focus';
 
 export const DURATION = 170; // ~5.7s
-const DEFAULT_RINGS = [
-  {rx: 300, ry: 96, speed: 1.0, base: 0.2, label: 'Docs', c: '#4c8dff'},
-  {rx: 470, ry: 150, speed: -0.7, base: 2.4, label: 'Code', c: '#22d3c5'},
-  {rx: 640, ry: 205, speed: 0.5, base: 4.1, label: 'Tasks', c: '#b06cff'},
-  {rx: 800, ry: 262, speed: -0.38, base: 1.0, label: 'Comms', c: '#ff8fc7'},
+// THE ORBITS carry geometry only. Their labels used to live here too — four English words in a module
+// const, which is not a prop default and so was invisible to the demo-default check: every film that omitted
+// `items` printed Docs / Code / Tasks / Comms whatever it was about, and nothing anywhere said so. Moved
+// into the signature the render is identical and the words are finally visible to the gate that hunts them.
+const RING_GEOM = [
+  {rx: 300, ry: 96, speed: 1.0, base: 0.2, c: '#4c8dff'},
+  {rx: 470, ry: 150, speed: -0.7, base: 2.4, c: '#22d3c5'},
+  {rx: 640, ry: 205, speed: 0.5, base: 4.1, c: '#b06cff'},
+  {rx: 800, ry: 262, speed: -0.38, base: 1.0, c: '#ff8fc7'},
 ];
 
-export const DataOrrery: React.FC<{items?: string[]; hub?: string}> = ({items, hub: HUB = 'WorkBuddy'} = {}) => {
-  const RINGS = items ? DEFAULT_RINGS.map((r, i) => ({...r, label: items[i % items.length]})) : DEFAULT_RINGS;
+export const DataOrrery: React.FC<{items?: string[]; hub?: string}> = ({
+  items = ['Docs', 'Code', 'Tasks', 'Comms'], hub: HUB = 'WorkBuddy'} = {}) => {
+  const labels = (items ?? []).map((x) => String(x ?? '').trim()).filter(Boolean);
+  if (!labels.length) {
+    throw new Error(
+      'DataOrrery needs at least one non-empty `items` entry — the things that orbit. With nothing to ' +
+      'orbit it draws a glowing core and four empty chips, which composes and argues nothing.');
+  }
+  const RINGS = RING_GEOM.map((r, i) => ({...r, label: labels[i % labels.length]}));
   const t = useT();
   const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2;
+  const U = Math.min(W, H);
   // the widest orbit is 800px of rx plus a ~90px label chip — scaled to the frame's half-width so the
   // outer ring's node label cannot ride off a narrow edge
   const rk = Math.min(1, (W / 2 - 110) / 800);
@@ -29,7 +42,9 @@ export const DataOrrery: React.FC<{items?: string[]; hub?: string}> = ({items, h
 
   const nodeAt = (r: typeof RINGS[number]) => {
     const a = r.base + t * r.speed * Math.PI * 2;
-    return {x: cx + Math.cos(a) * (r.rx * rk), y: cy + Math.sin(a) * (r.ry * rk), front: Math.sin(a) >= 0};
+    const sa = Math.sin(a);
+    // 0 at the front of the orbit, 1 at the back — the distance the focus lens reads
+    return {x: cx + Math.cos(a) * (r.rx * rk), y: cy + sa * (r.ry * rk), front: sa >= 0, depth: (1 - sa) / 2};
   };
 
   return (
@@ -70,13 +85,24 @@ export const DataOrrery: React.FC<{items?: string[]; hub?: string}> = ({items, h
         })}
       </svg>
 
-      {/* node labels (front only, HTML) */}
+      {/* NODE LABELS — they RECEDE behind the core, they do not vanish.
+          `if (!n.front) return null` dropped a label the instant its node crossed behind, and the orbits are
+          slow enough that most of them are behind most of the time: at the SETTLED frame — the one every
+          visual gate and the shot-critic read — exactly one of the four was drawn. A register whose whole
+          form is "a labelled node per orbit" was showing one label, and the CJK sweep reported it as having
+          drawn almost nothing, which was true and not for the reason it assumed.
+          Depth is what `runtime/focus` says: dimmer, softer, darker, smaller — the same recession the rest of
+          the library uses, at its default curve, so a node on the far side reads as far rather than as gone. */}
       {RINGS.map((r, i) => {
         const n = nodeAt(r); const on = clamp01(seg(t, 0.3 + i * 0.08, 0.46 + i * 0.08));
-        if (!n.front) return null;
-        return <div key={i} style={{position: 'absolute', left: n.x, top: n.y + 26, transform: 'translateX(-50%)', opacity: on,
-          padding: '4px 14px', borderRadius: 999, background: '#0b122acc', border: `1px solid ${r.c}66`,
-          color: '#dbe5f5', font: `600 24px/1 var(--f-body, Inter, system-ui, sans-serif)`, whiteSpace: 'nowrap'}}>{r.label}</div>;
+        const f = focusAt(n.depth, U);
+        return <div key={i} style={{position: 'absolute', left: n.x, top: n.y + U * 0.024,
+          transform: `translateX(-50%) scale(${f.scale})`, opacity: on * f.opacity, filter: focusFilter(f),
+          zIndex: n.front ? 2 : 1,
+          padding: `${Math.round(U * 0.004)}px ${Math.round(U * 0.013)}px`, borderRadius: 999,
+          background: '#0b122acc', border: `1px solid ${r.c}66`, color: '#dbe5f5',
+          font: `600 ${Math.round(U * 0.022)}px/1 var(--f-body, Inter, system-ui, sans-serif)`,
+          whiteSpace: 'nowrap'}}>{r.label}</div>;
       })}
       <div style={{position: 'absolute', left: 0, right: 0, top: cy + 150, textAlign: 'center',
         opacity: clamp01(seg(t, 0.18, 0.34)), color: '#eaf0ff', font: `800 40px/1 var(--f-body, Inter, system-ui, sans-serif)`,

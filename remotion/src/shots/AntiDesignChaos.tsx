@@ -8,6 +8,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA, dnaPalette} from '../runtime/dna';
 import {bottomInset} from '../runtime/layout';
+import {leading} from '../runtime/cjkType';
 
 export const DURATION = 150; // 5s
 // LEVEL-C: maximalism needs a CLASH, not one accent — dnaPalette() grows six distinct hues out of the DNA's two
@@ -68,7 +69,7 @@ export const AntiDesignChaos: React.FC<{title?: string; items?: string[]; taglin
         return (
           <div key={i} style={{position: 'absolute', left: x, top: y, opacity: clamp01(pop * 1.4),
             transform: `rotate(${rot * pop}deg) scale(${pop})`, color: col,
-            fontFamily: FONTS[i % FONTS.length], fontWeight: 900, fontSize: sz, lineHeight: 1,
+            fontFamily: FONTS[i % FONTS.length], fontWeight: 900, fontSize: sz, lineHeight: leading(w, 1),
             textShadow: '3px 3px 0 #00000022', whiteSpace: 'nowrap'}}>{w}</div>
         );
       })}
@@ -76,7 +77,7 @@ export const AntiDesignChaos: React.FC<{title?: string; items?: string[]; taglin
       {/* the loud headline, dead center but tilted */}
       <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
         <div style={{transform: `rotate(-6deg) scale(${easeOutBack(clamp01(seg(t, 0.3, 0.56)))})`,
-          fontFamily: 'var(--f-display, Impact, system-ui, sans-serif)', fontSize: 300, lineHeight: 0.9, color: HEAD,
+          fontFamily: 'var(--f-display, Impact, system-ui, sans-serif)', fontSize: 300, lineHeight: leading(TITLE, 0.9), color: HEAD,
           WebkitTextStroke: `6px ${POP[0]}`, letterSpacing: '-0.02em',
           textShadow: `12px 12px 0 ${POP[2]}`}}>{TITLE}</div>
       </AbsoluteFill>

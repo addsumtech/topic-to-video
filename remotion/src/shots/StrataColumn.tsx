@@ -163,7 +163,7 @@ export const StrataColumn: React.FC<{
               <>
                 <div style={{position: 'absolute', left: scaleX, top: y - Math.round(W * 0.009),
                   width: colX - scaleX - Math.round(W * 0.008), textAlign: 'right', opacity: on,
-                  font: `500 ${Math.round(W * 0.0135)}px/1.2 ${mono}`, color: DIM}}>{L.depth}</div>
+                  font: `500 ${Math.round(W * 0.0135)}px/1.2 ${mono}`, textWrap: 'balance', color: DIM}}>{L.depth}</div>
                 <div style={{position: 'absolute', left: colX - Math.round(W * 0.008), top: y,
                   width: Math.round(W * 0.008) * on, height: hair, background: LINE}} />
               </>
@@ -172,10 +172,10 @@ export const StrataColumn: React.FC<{
             <div style={{position: 'absolute', left: labX, top: y + h * 0.5 - Math.round(W * 0.020),
               right: W * 0.07, opacity: on,
               font: `${isFind ? 700 : 500} ${Math.round(W * (isFind ? 0.026 : 0.0225))}px/1.25 ${disp}`,
-              color: isFind ? ACC : FG}}>{L.label}
+              color: isFind ? ACC : FG, textWrap: 'balance'}}>{L.label}
               {L.note ? (
                 <div style={{font: `400 ${Math.round(W * 0.0145)}px/1.4 var(--f-body, system-ui, sans-serif)`,
-                  color: DIM, marginTop: Math.round(W * 0.004)}}>{L.note}</div>
+                  color: DIM, textWrap: 'balance', marginTop: Math.round(W * 0.004)}}>{L.note}</div>
               ) : null}
             </div>
           </React.Fragment>
@@ -190,7 +190,7 @@ export const StrataColumn: React.FC<{
           <div style={{position: 'absolute', left: scaleX, top: foot - Math.round(W * 0.009),
             width: colX - scaleX - Math.round(W * 0.008), textAlign: 'right',
             opacity: easeOutCubic(clamp01(seg(t, 0.74, 0.90))),
-            font: `500 ${Math.round(W * 0.0135)}px/1.2 ${mono}`, color: DIM}}>{base}</div>
+            font: `500 ${Math.round(W * 0.0135)}px/1.2 ${mono}`, textWrap: 'balance', color: DIM}}>{base}</div>
           <div style={{position: 'absolute', left: colX - Math.round(W * 0.008), top: foot,
             width: Math.round(W * 0.008) * easeOutCubic(clamp01(seg(t, 0.74, 0.90))),
             height: hair, background: LINE}} />
@@ -210,7 +210,7 @@ export const StrataColumn: React.FC<{
         <div style={{position: 'absolute', left: W * 0.08, right: W * 0.07, top: bottom + H * 0.015,
           opacity: easeOutExpo(clamp01(seg(t, 0.82, 0.96))),
           font: `400 ${Math.round(W * 0.0125)}px/1.4 ${mono}`, color: DIM,
-          letterSpacing: '0.05em'}}>{note}</div>
+          letterSpacing: '0.05em', textWrap: 'balance'}}>{note}</div>
       ) : null}
     </AbsoluteFill>
   );

@@ -107,7 +107,14 @@ def _intrinsic(body):
 
 # A JSX text segment: everything between a `>` and the next `<`, allowing (non-nested) expression
 # containers inside it, because a literal often sits right next to one.
-_JSX_SEG = re.compile(r">((?:[^<>{}]|\{[^{}]*\})*)<")
+# A JSX TEXT SEGMENT NEVER STARTS AT THE `>` OF AN ARROW. `(p) => p.spread <= 0.5` is ordinary TypeScript,
+# and read as markup it yields the "copy" `p.spread` — which is what this gate reported about
+# `OverlapSeparation`, a register that prints no such thing. A false name on a list whose whole value is that
+# it is short and true teaches the reader to skim it, so the fix is on the instrument, not a suppression.
+#
+# Only `=` is excluded, and deliberately only `=`: `/>` opens real text (`<Foo /> then words <`), and `<>`
+# is a fragment whose children are real text. Excluding either would lose findings this exists for.
+_JSX_SEG = re.compile(r"(?<!=)>((?:[^<>{}]|\{[^{}]*\})*)<")
 
 
 def hardcoded_defaults(path):

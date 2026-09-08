@@ -1549,12 +1549,17 @@ def test_shot_proof_serves_the_films_public_dir_to_standalone_stills():
 # the ratchet that stops the library regrowing the defect a viewer found four times in one review —
 # WORKBUDDY on a title card, ©2026 · LOCAL in a corner, DASHBOARD over a children's book character, and
 # x:960 y:540 beside a cathedral, all invisible to every gate because none of them was a prop.
-_UNSUPPLIED_TEXT_GRANDFATHERED = {
-    "Aliasing",
-    "DataOrrery",
-    "OverlapSeparation",
-    "ScreenBubble",
-}
+# OverlapSeparation came off this list without a line of the register changing: it was never printing
+# anything: the READER was. `(p) => p.spread <= 0.5` is ordinary TypeScript, and a JSX-segment regex that
+# starts at any `>` reads the arrow as a tag and `p.spread` as copy. A wrong name on a list whose whole value
+# is that it is short and true is worse than a missing one — it teaches the reader to skim.
+# EMPTY, and the ratchet is what keeps it that way. Each of the last three was a different judgement, not a
+# blanket one: DataOrrery's four orbit labels were a prop's defaults hiding in a module const (moved into the
+# signature — same render, now visible to the demo-default check); ScreenBubble's document name and status
+# line became props while `REC` stayed intrinsic, because a screen recording says it is recording in the
+# three letters every recorder uses; Aliasing's two additions joined the two physics lines it had ALREADY
+# declared, since half an annotation translatable and half not is worse than either.
+_UNSUPPLIED_TEXT_GRANDFATHERED: set = set()
 
 
 def test_the_caption_advance_follows_the_font_the_film_actually_uses():
@@ -2736,6 +2741,41 @@ def test_no_register_prints_text_the_film_never_supplied():
     assert not cleaned, ("these registers are clean now — remove them from "
                          "_UNSUPPLIED_TEXT_GRANDFATHERED so the ratchet keeps holding: %s"
                          % ", ".join(cleaned))
+
+
+def test_the_reader_does_not_mistake_an_arrow_function_for_a_tag():
+    """The gate's list is only useful while every name on it is real.
+
+    `OverlapSeparation` sat on the grandfather list for printing `p.spread` — a string it does not contain.
+    The segment reader started at the `>` of `=>` and read ` p.spread ` as the text between two tags. Nothing
+    downstream could tell that finding from a true one, and a register was recorded as defective for a line
+    of ordinary TypeScript.
+
+    The exclusion is exactly one character wide, and the two it must NOT exclude are the point: `/>` really
+    does open text (`<Foo /> then words <`), and `<>` is a fragment whose children really are text. Losing
+    either would trade a false positive for false negatives, which is the worse trade for this gate."""
+    import os
+    import sys
+    import tempfile
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    import onscreen_text_qa as q
+
+    def scan(src):
+        with tempfile.NamedTemporaryFile("w", suffix=".tsx", delete=False, encoding="utf-8") as f:
+            f.write(src)
+            path = f.name
+        try:
+            return set(q.scan(path))
+        finally:
+            os.unlink(path)
+
+    assert not scan("const f = (p: Pop) => p.spread <= 0.5;\n"), "an arrow function was read as markup"
+    assert not scan("const g = (a: Big) => a.mean < 1 && a.mean > 0;\n"), "a comparison was read as markup"
+    # and the two shapes the exclusion must leave alone
+    assert "then words" in scan("const A = () => (<div><Foo /> then words <Bar /></div>);\n"), (
+        "text after a self-closing tag is no longer seen")
+    assert "in a fragment" in scan("const B = () => (<>in a fragment<Bar /></>);\n"), (
+        "text inside a fragment is no longer seen")
 
 
 def test_no_register_declares_a_prop_it_never_reads():

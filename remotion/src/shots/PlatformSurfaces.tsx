@@ -8,6 +8,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {leading} from '../runtime/cjkType';
 import {titleStyle, contentBottom} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
@@ -76,10 +77,10 @@ export const PlatformSurfaces: React.FC<{
         background: `linear-gradient(150deg, ${accent}, #0e5c46)`, boxShadow: '0 24px 60px #0008',
         opacity: clamp01(heroE * 1.4), transform: `scale(${lerp(0.9, 1, heroE)})`, transformOrigin: 'center',
         padding: 48, display: 'flex', flexDirection: 'column', justifyContent: 'space-between'}}>
-        <div style={{color: '#eafff7cc', font: '600 22px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.14em'}}>{markLabel}</div>
+        <div style={{color: '#eafff7cc', font: `600 22px/${leading(markLabel, 1)} var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.14em'}}>{markLabel}</div>
         <div>
-          <div style={{color: '#fff', font: `800 60px/1.05 var(--f-body, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em'}}>{title}</div>
-          <div style={{color: '#eafff7dd', font: `500 27px/1.3 var(--f-body, Inter, system-ui, sans-serif)`, marginTop: 16}}>{subtitle}</div>
+          <div style={{color: '#fff', font: `800 60px/1.05 var(--f-body, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em', textWrap: 'balance'}}>{title}</div>
+          <div style={{color: '#eafff7dd', font: `500 27px/1.3 var(--f-body, Inter, system-ui, sans-serif)`, textWrap: 'balance', marginTop: 16}}>{subtitle}</div>
         </div>
       </div>
       {/* product tiles */}
@@ -98,8 +99,8 @@ export const PlatformSurfaces: React.FC<{
             boxShadow: `0 18px 44px #0006, inset 0 0 60px ${tone}0e`}}>
             <Glyph kind={tile.glyph || 'node'} c={tone} g={g} />
             <div>
-              <div style={{color: '#eef2ff', font: `800 34px/1 var(--f-body, Inter, system-ui, sans-serif)`, letterSpacing: '-0.01em'}}>{tile.label}</div>
-              {tile.note ? <div style={{color: '#9aa4ba', font: `500 20px/1.2 var(--f-body, Inter, system-ui, sans-serif)`, marginTop: 8}}>{tile.note}</div> : null}
+              <div style={{color: '#eef2ff', font: `800 34px/1 var(--f-body, Inter, system-ui, sans-serif)`, letterSpacing: '-0.01em', textWrap: 'balance'}}>{tile.label}</div>
+              {tile.note ? <div style={{color: '#9aa4ba', font: `500 20px/1.2 var(--f-body, Inter, system-ui, sans-serif)`, textWrap: 'balance', marginTop: 8}}>{tile.note}</div> : null}
             </div>
           </div>
         );

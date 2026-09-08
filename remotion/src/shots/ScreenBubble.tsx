@@ -6,12 +6,19 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeCursor, easeOutBack, easeOutCubic, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {leading} from '../runtime/cjkType';
 
 export const DURATION = 165; // 5.5s
 const BRAND = '#6C5CE7';
 
-export const ScreenBubble: React.FC<{appTitle?: string; nav?: string[]}> = ({
-  appTitle = 'workbuddy — untitled', nav = ['Home', 'Projects', 'Deliverables', 'Team']} = {}) => {
+// THE REC DOT IS THE INSTRUMENT DEPICTING ITSELF — a screen recording says it is recording, in the three
+// letters every recorder uses, and no film would translate it any more than it would translate the mac
+// traffic lights beside it. Everything else a viewer reads here is the FILM's, and now says so.
+export const INTRINSIC_TEXT = ['REC'];
+
+export const ScreenBubble: React.FC<{appTitle?: string; nav?: string[]; deliverable?: string; note?: string}> = ({
+  appTitle = 'workbuddy — untitled', nav = ['Home', 'Projects', 'Deliverables', 'Team'],
+  deliverable = 'Q3 board deck', note = 'created just now'} = {}) => {
   // LEVEL-C: the app-window chrome follows the DNA → a DARK-MODE app on a dark DNA (window=surface, ink=fg, brand=
   // accent), the original light app on null DNA. The mac traffic-lights + REC dot stay (universal, iconic on both).
   const dna = useDNA();
@@ -43,7 +50,10 @@ export const ScreenBubble: React.FC<{appTitle?: string; nav?: string[]}> = ({
         <div style={{display: 'flex', height: SH - 66}}>
           <div style={{width: 300, borderRight: `1px solid ${LINE}`, padding: 26, display: 'flex', flexDirection: 'column', gap: 20}}>
             {nav.map((n, i) => <div key={i} style={{padding: '16px 20px', borderRadius: 10,
-              background: i === 2 ? `${ACC}22` : 'transparent', font: `${i === 2 ? 700 : 500} 30px/1 var(--f-body, Inter)`, color: i === 2 ? ACC : DIM}}>{n}</div>)}
+              background: i === 2 ? `${ACC}22` : 'transparent',
+              // a nav label wraps on a Chinese film, and `/1` stacks the two lines with no air between them
+              font: `${i === 2 ? 700 : 500} 30px/${leading(n, 1)} var(--f-body, Inter)`,
+              color: i === 2 ? ACC : DIM}}>{n}</div>)}
           </div>
           <div style={{flex: 1, padding: 44, position: 'relative'}}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
@@ -56,8 +66,8 @@ export const ScreenBubble: React.FC<{appTitle?: string; nav?: string[]}> = ({
             <div style={{marginTop: 40, opacity: clamp01(created), transform: `translateY(${lerp(24, 0, clamp01(created))}px)`,
               padding: '30px 34px', borderRadius: 14, border: `1px solid ${LINE}`, background: ROW_BG, display: 'flex', alignItems: 'center', gap: 24}}>
               <div style={{width: 54, height: 54, borderRadius: 12, background: `${ACC}22`}} />
-              <div><div style={{font: '700 36px/1 var(--f-body, Inter)', color: FG}}>Q3 board deck</div>
-                <div style={{font: '500 26px/1 var(--f-body, Inter)', color: SUB_DIM, marginTop: 10}}>created just now</div></div>
+              <div><div style={{font: `700 36px/${leading(deliverable, 1)} var(--f-body, Inter)`, color: FG}}>{deliverable}</div>
+                <div style={{font: `500 26px/${leading(note, 1)} var(--f-body, Inter)`, color: SUB_DIM, marginTop: 10}}>{note}</div></div>
             </div>
           </div>
         </div>

@@ -111,6 +111,14 @@ _MED = "办公的产物本身就是文件，不是一段还要你二次加工的
 _ITEMS = ["自动拆解任务", "规划执行步骤并调用工具", "在授权目录里真正动文件", "交付可验收的成果",
           "把重复动作沉淀成可复用技能"]
 
+# One pool per length ROLE. The first entry of each is the base string the rest of this file already used,
+# so a single-row fixture renders exactly what it rendered before.
+_SHORT_V = [_SHORT, "自动归档", "按类型分流", "沉淀为技能"]
+_LABEL_V = [_LABEL, "扩张阶段", "稳定运行", "交付验收"]
+_MED_V = [_MED, "规划执行步骤并调用工具", "在授权目录里真正动文件", "交付可验收的成果"]
+_LONG_V = [_LONG, "它读取你授权的目录，按类型分流并归档，最后交付一份可验收的成果",
+           "重复三次以上的动作会被沉淀成技能，下一次不必再从头讲一遍"]
+
 _ROLE = [
     (r"^(kicker|meta|unit|issue|sectionLabel|wordmark|colophon|doneLabel|tag|cmd|root|hub|time|date|"
      r"hash|ref|status|filename|glyph|kind|side)$", _SHORT),
@@ -153,13 +161,33 @@ def _local_of(prop, src):
     return m.group(1) if m else prop
 
 
-def _string_for(prop, local=None, src=""):
+# ROW N GETS A DIFFERENT SENTENCE FROM ROW N-1.
+#
+# Every row of a synthesised object array used to carry the identical string, and that made a whole section
+# of this report untrustworthy: `ProfileGrowth` stacks a label above each growth state, and three of them
+# handed «自主循环» three times sit at the same x with adjacent heights, so the audit reported them
+# overlapping each other. Rendered with three DIFFERENT labels — which is what any real film supplies — the
+# composition is clean. The register was never wrong; the fixture was repeating itself and the instrument was
+# reading the repetition as a collision.
+#
+# The variants keep the ROLE (a label stays label-length, a note stays note-length) so what is measured is
+# still the shape the register declared — only the words differ, which is the one thing that must.
+def _variant(text, i):
+    if not i or not isinstance(text, str) or text is _READOUT:
+        return text
+    for pool in (_SHORT_V, _LABEL_V, _MED_V, _LONG_V):
+        if text in pool:
+            return pool[i % len(pool)]
+    return text
+
+
+def _string_for(prop, local=None, src="", i=0):
     if _is_readout(prop, local or prop, src):
         return _READOUT
     for pat, val in _ROLE:
         if re.match(pat, prop):
-            return val
-    return _MED
+            return _variant(val, i)
+    return _variant(_MED, i)
 
 
 def prop_signature(name):
@@ -316,7 +344,7 @@ def _named_union_member(alias, src):
     return got
 
 
-def _synth_field(name, ty, src=""):
+def _synth_field(name, ty, src="", i=0):
     t = ty.replace(" ", "").rstrip(";")
     # A LIST FIELD IS TESTED BEFORE THE SCALAR IT IS SPELLED WITH. `"string[]".startswith("string")` is true,
     # so a `string[]` INSIDE an object row was filled with one sentence: `SurfaceCarousel`'s
@@ -328,7 +356,7 @@ def _synth_field(name, ty, src=""):
     if t.startswith("number[]"):
         return [3, 5, 4, 8, 7, 11, 9, 14]
     if t.startswith("string"):
-        return _string_for(name, name, src)
+        return _string_for(name, name, src, i)
     if t.startswith("number"):
         # a 0..1 field given a 3 breaks the animation it drives (a `delay` of 3 puts the row off the clip),
         # and a magnitude given a 0.62 draws nothing. Name decides which, since the type cannot.
@@ -369,7 +397,7 @@ _NON_COPY_FIELDS = re.compile(r"^(tone|color|colour|accent\d?|bg|background|ink|
 _ROW_READOUT = re.compile(r"^(value|amount|metric|count|total|num)$", re.I)
 
 
-def _shaped_row(fields, src):
+def _shaped_row(fields, src, i=0):
     """One element of a shaped array, with every field this cannot honour left out rather than guessed."""
     measured = any(re.match(r"^(pct|fill|ratio|frac|percent)$", k, re.I)
                    and str(v).replace(" ", "").startswith("number") for k, v in fields.items())
@@ -380,7 +408,7 @@ def _shaped_row(fields, src):
         if measured and _ROW_READOUT.match(k) and str(v).replace(" ", "").startswith("string"):
             row[k] = _READOUT
             continue
-        val = _synth_field(k, v, src)
+        val = _synth_field(k, v, src, i)
         if val is not _OMIT:
             row[k] = val
     return row
@@ -400,7 +428,7 @@ def _shape_from_type(prop, ty, src, n=3):
     if m:
         fields = _alias_fields(src, m.group(1))
         if fields:
-            return [_shaped_row(fields, src) for _ in range(n)]
+            return [_shaped_row(fields, src, i) for i in range(n)]
         return None
     m = re.match(r"^\{(.+)\}\[\]$", t)                                      # an INLINE object array
     if m:
@@ -410,7 +438,7 @@ def _shape_from_type(prop, ty, src, n=3):
             if f:
                 fields[f.group(1)] = f.group(2)
         if fields:
-            return [_shaped_row(fields, src) for _ in range(n)]
+            return [_shaped_row(fields, src, i) for i in range(n)]
     return None
 
 

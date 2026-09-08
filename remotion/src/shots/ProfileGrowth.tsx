@@ -114,7 +114,7 @@ export const ProfileGrowth: React.FC<{
           <div key={'l' + i} style={{position: 'absolute', left: x, top: baseY - h * on - Math.round(W * 0.021),
             width: w, opacity: on, textAlign: 'center',
             font: `${last ? 700 : 600} ${Math.round(W * (last ? 0.017 : 0.0135))}px/1.2 ${mono}`,
-            color: last ? ACC : FG, letterSpacing: '0.05em'}}>{st.label}</div>
+            color: last ? ACC : FG, letterSpacing: '0.05em', textWrap: 'balance'}}>{st.label}</div>
         );
       })}
 
@@ -122,13 +122,13 @@ export const ProfileGrowth: React.FC<{
       {states[n - 1]?.note ? (
         <div style={{position: 'absolute', left: fx, top: bottom + H * 0.045, width: fieldW,
           textAlign: 'center', opacity: land,
-          font: `700 ${Math.round(W * 0.026)}px/1.25 ${disp}`, color: FG}}>{states[n - 1].note}</div>
+          font: `700 ${Math.round(W * 0.026)}px/1.25 ${disp}`, textWrap: 'balance', color: FG}}>{states[n - 1].note}</div>
       ) : null}
       {note ? (
         <div style={{position: 'absolute', left: fx, top: bottom + H * 0.045 + Math.round(W * 0.030),
           width: fieldW, textAlign: 'center', opacity: land * 0.9,
           font: `400 ${Math.round(W * 0.0135)}px/1.4 var(--f-body, system-ui, sans-serif)`,
-          color: DIM}}>{note}</div>
+          color: DIM, textWrap: 'balance'}}>{note}</div>
       ) : null}
     </AbsoluteFill>
   );
