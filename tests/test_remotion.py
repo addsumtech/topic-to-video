@@ -2470,7 +2470,22 @@ def test_every_remotion_capability_is_reachable_from_the_authoring_path():
          "the deck's own brand reaches the film only if the run is told to derive it before the director"),
         ("agents/shot-director.md", "cjk_type_qa",
          "the author who writes a register's props is the party who must know the copy can collide"),
+        # A FOURTH: the ground-token gate was documented in its own docstring and named nowhere a run or a
+        # register author reads — while the two files they DO read pointed at `gen_dna_ground.py`, RETIRED
+        # and exiting 2, and at `DNA_GROUND`, a boolean set that no longer exists. The instruction that
+        # would have caught PaperSlot was dead text in the one file its author opens.
+        ("references/remotion-shot-authoring.md", "measure_ground_luma.py",
+         "the register author is the party who changes a ground; the table is a claim about pixels and "
+         "only they know it moved"),
+        ("SKILL.md", "scripts/measure_ground_luma.py --check",
+         "the ground-token gate has to be an invocable library-maintenance step, not a docstring"),
     ]
+    retired = [("SKILL.md", "gen_dna_ground.py"), ("references/remotion-shot-authoring.md", "gen_dna_ground.py")]
+    for f, name in retired:
+        for line in docs[f].split("\n"):
+            if name in line:
+                assert "RETIRED" in line or "RETIRED" in docs[f][max(0, docs[f].index(line) - 200):docs[f].index(line) + 400], (
+                    "%s tells the reader to run %s without saying it is retired: %r" % (f, name, line.strip()))
     missing = [(f, n, why) for f, n, why in required if n not in docs[f]]
     assert not missing, "\n".join(
         "%s does not name %r — %s" % (f, n, why) for f, n, why in missing)

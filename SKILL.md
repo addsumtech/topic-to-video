@@ -411,9 +411,12 @@ TTS if the user gives an API key.
   `useDNA()` without importing it (a hard render crash a presence-grep would score as migrated).
   `python scripts/dna_smoke.py [--template <direction>]` — renders EVERY registered shot once in one themed film;
   the only gate that catches a hook inserted into the wrong scope, since the bundler strips types unchecked. Run it
-  after any bulk shot change. `python scripts/gen_dna_ground.py` — regenerates `shotLuma.ts DNA_GROUND` (which
-  shots take their ground from the DNA, so captions contrast-pick against the ground the frame ACTUALLY has); a
-  test fails when it is stale. `scripts/dna_migrate.py` / `dna_migrate_bg.py` are the guarded migration codemods.
+  after any bulk shot change. `python3 scripts/measure_ground_luma.py --check` — verifies `shotLuma.ts`'s
+  `DNA_GROUND_TOKEN` (WHICH DNA token each shot paints its ground from, so captions contrast-pick against the
+  ground the frame ACTUALLY has) against 160 renders. `gen_dna_ground.py` is RETIRED and exits 2: it wrote a
+  BOOLEAN set meaning "grounds on the DNA", which was then read as "…so its luminance is luminance(dna.bg)"
+  — false for any shot grounded in another token, and its `--check` compared the file against its own
+  detector, so a detection gap was invisible by construction. `scripts/dna_migrate.py` / `dna_migrate_bg.py` are the guarded migration codemods.
   `remotion/src/runtime/atoms.tsx` — the content atoms (bar / figure / list / label / divider / marker) whose FORM
   follows the DNA; a shot declares the part, never the form. **Type** — a shot's face comes from `var(--f-display|
   body|mono, <original list>)`, never a bare family name (`references/remotion-shot-authoring.md` §C3). Loading
@@ -469,6 +472,19 @@ TTS if the user gives an API key.
   the film is not reproducible. `dna_from_deck.py` puts the subsets at the head of every chain it builds
   (the serif worlds take `Noto Serif SC`) — it did not, which made the one path a real Chinese film takes
   the one path that never reached them.
+- `scripts/measure_ground_luma.py --check` — the **GROUND-TOKEN gate** (library maintenance, ~15 min: 160
+  renders). Which DNA token each register paints its ground from is what the caption ink and the seam guard
+  both read, and it is MEASURED, not declared: every register is rendered under a probe DNA whose tokens sit
+  far apart in luminance and the frame's border is matched against them. Run it after changing any
+  register's GROUND — the whole table is a claim about pixels, and a claim nobody re-measures is a
+  declaration. It also judges the entries it cannot put a token on (a gradient flood, a split screen, a
+  register that paints its own stock) by asking whether the DECLARED ground is anywhere near the pixels,
+  at the seam guard's own `HARSH_GROUND_GAP` — because skipping those is how `PaperSlot` shipped declaring
+  `bg` while printing on `#efe9dd`, and the caption drew #ffffff on it at 1.22:1 under every preset while
+  the gate printed "matches the measured pixels (157 shots)" of a 160-shot library. A ground that is not a
+  token at all is written as a literal (`PaperSlot: '#efe9dd'`) and checked as a luminance.
+  `--luma --check` is the OTHER table (`SHOT_LUMA`, each register on its own defaults, no DNA); they answer
+  different questions and both are run.
 - `scripts/onscreen_text_qa.py` — library hygiene, exit 0 always. Text a register prints that no film
   supplied, NUMBERS no prop feeds, **props a register DECLARES and never reads**, and **a prop default the
   register also writes as a bare literal** (which makes the prop look wired when it is not). The last two
