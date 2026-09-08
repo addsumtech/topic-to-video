@@ -120,6 +120,58 @@ def test_every_register_the_audit_exempts_says_why():
     assert not bare, "data-bleed with no written reason in: %s" % sorted(set(bare))
 
 
+def test_an_echo_hides_a_duplicate_and_never_the_original():
+    """`data-echo` is the second way to silence these gates, and the more dangerous one: `data-bleed` says
+    "this type leaves the frame on purpose", while `data-echo` says "do not measure this type at all".
+
+    It exists because `PointerTour` draws its page TWICE — sharp, and softened with a hole where the lens is
+    looking — so every label really does sit on top of an identical copy of itself, and the collision audit
+    reported exactly that: two boxes, same rect, on every string. A true finding and a useless one, and a
+    register that always cries wolf is a register whose gate output nobody reads.
+
+    The guarantee that keeps it from being a hole: the SHARP copy carries no marker, so every string is still
+    audited exactly once. A register that marked its only copy would be hiding type from the gates, which is
+    the failure this asserts against.
+    """
+    import glob
+    import re
+    shots = os.path.join(_REMOTION, "src", "shots")
+    for f in sorted(glob.glob(os.path.join(shots, "*.tsx"))):
+        src = open(f, encoding="utf-8").read()
+        # the ATTRIBUTE, not the word in the comment beside it — counting prose as a use is how a check
+        # like this passes on a register that marks everything and explains it twice
+        marks = list(re.finditer(r"(?<![`\w-])data-echo(?![`\w:-])", src))
+        if not marks:
+            continue
+        name = os.path.basename(f)
+        # a duplicate is only a duplicate if the thing it duplicates is also drawn, unmarked
+        copies = src.count("<PageCam2D")
+        assert copies == 0 or len(marks) < copies, (
+            "%s marks %d of its %d page copies as echoes — nothing is left to measure"
+            % (name, len(marks), copies))
+        for m in marks:
+            before = src[max(0, m.start() - 500):m.start()]
+            assert "data-echo" in before or "echo" in before.lower(), (
+                "%s uses data-echo with no written reason beside it" % name)
+        # and it must be hidden from assistive tech too: a duplicate nobody reads twice on screen is one no
+        # screen reader should announce twice either
+        assert "aria-hidden data-echo" in src or "data-echo aria-hidden" in src, (
+            "%s hides a duplicate from the gates but not from a screen reader" % name)
+
+
+def test_the_audit_actually_honours_the_echo_marker():
+    """The rule has to live in the walker, not only in the register. Checked at source because the audit runs
+    in the render browser: every walker that collects text must skip an echo, or one of the three gates goes
+    on double-counting while the other two do not — the worst of both."""
+    src = open(os.path.join(_REMOTION, "src", "runtime", "textSafe.tsx"), encoding="utf-8").read()
+    assert "const isEcho" in src and "[data-echo]" in src, "textSafe no longer knows what an echo is"
+    walkers = [b for b in src.split("root.querySelectorAll('*')")[1:]]
+    assert len(walkers) >= 3, "the walker count changed — re-check which audits collect text"
+    for i, w in enumerate(walkers):
+        assert "isEcho(el)" in w[:400], (
+            "walker #%d collects text without skipping echoes, so it measures the page twice" % (i + 1))
+
+
 @_NEEDS_RENDER
 def test_type_sitting_in_the_caption_band_is_caught(tmp_path):
     """The second question, and the one pixels could not answer.

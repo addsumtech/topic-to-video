@@ -373,6 +373,22 @@ const metricLeading = (
  * (nobody sets a paragraph to collide with itself), so `leading` is a defect. Two DIFFERENT elements
  * overlapping is sometimes the technique, so `overlap` is a candidate for a human to look at.
  */
+/** A SECOND rendering of type this frame already shows — not new type, and not the viewer's to read twice.
+ *
+ *  `PointerTour` draws its page twice, sharp and softened, and masks the soft copy so the part the lens is
+ *  not on falls out of focus. Every label therefore exists twice at the same place, and the collision audit
+ *  correctly reported each one overlapping itself: two boxes, same rect, different elements. The gate was not
+ *  wrong — the frame really does hold two copies — but the finding is noise, and noise on a register is how a
+ *  gate stops being read at all.
+ *
+ *  So a duplicate declares itself. The rule is deliberately narrow and named for what it means: `data-echo`
+ *  marks a subtree whose type is ALREADY MEASURED elsewhere on the same frame. It is not a way to hide type
+ *  from the gates — `tests/test_text_safe_qa.py` pins that PointerTour's sharp copy is unmarked, so every
+ *  string it draws is still audited exactly once. An element must also carry `aria-hidden`, because a
+ *  duplicate nobody should read twice is a duplicate no screen reader should announce twice either.
+ */
+const isEcho = (el: Element): boolean => !!el.closest?.('[data-echo]');
+
 export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] => {
   const win = root.ownerDocument?.defaultView;
   if (!win) return [];
@@ -382,6 +398,7 @@ export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] 
   root.querySelectorAll('*').forEach((el) => {
     const text = hasOwnText(el);
     if (!text) return;
+    if (isEcho(el)) return;                           // already measured on its sharp original
     const cs = win.getComputedStyle(el);
     if (parseFloat(cs.opacity || '1') < MIN_OPACITY || cs.visibility === 'hidden') return;
     const r = visibleRect(el, frame);
@@ -555,6 +572,7 @@ export const auditFedText = (root: Element, fed: unknown[]): string[] => {
   const norm = (s: string) => s.replace(/\s+/g, '');
   let all = '';
   root.querySelectorAll('*').forEach((el) => {
+    if (isEcho(el)) return;                           // counting a duplicate twice cannot make copy arrive
     all += hasOwnText(el);
   });
   const hay = norm(all);
@@ -587,6 +605,7 @@ export const auditTextSafety = (root: Element, frame: DOMRect): Violation[] => {
   root.querySelectorAll('*').forEach((el) => {
     const text = hasOwnText(el);
     if (!text) return;
+    if (isEcho(el)) return;                           // already measured on its sharp original
     if (el.closest?.('[data-bleed]')) return;         // an explicit, rare escape from a clip
     const r = visibleRect(el, frame);
     if (!r) return;

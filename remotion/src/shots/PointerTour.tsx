@@ -200,8 +200,11 @@ export const PointerTour: React.FC<{
       <div style={{position: 'absolute', left: 0, top: 0, width: W, height: VIEW_H, overflow: 'hidden'}}>
       <PageCam2D cam={cam} W={W} H={VIEW_H} pageW={pageW} pageH={pageH}>{page}</PageCam2D>
       {dof > 0.002 ? (
-        <div style={{position: 'absolute', inset: 0, opacity: dof, filter: `blur(${dofPx.toFixed(2)}px)`,
-          WebkitMaskImage: mask, maskImage: mask}}>
+        // `data-echo`: every string in here is the SAME string the sharp copy above already draws, at the
+        // same place. Without the marker the type gates measure the page twice and report each label
+        // colliding with itself — a true observation and a useless one. See runtime/textSafe.tsx.
+        <div aria-hidden data-echo style={{position: 'absolute', inset: 0, opacity: dof,
+          filter: `blur(${dofPx.toFixed(2)}px)`, WebkitMaskImage: mask, maskImage: mask}}>
           <PageCam2D cam={cam} W={W} H={VIEW_H} pageW={pageW} pageH={pageH}>{page}</PageCam2D>
         </div>
       ) : null}

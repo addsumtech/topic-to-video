@@ -118,6 +118,12 @@ def test_the_flyover_grazes_its_page_instead_of_scrolling_it():
     assert src.count("<PageCam2D") == 2, "the page is not drawn twice, so there is nothing to defocus"
     assert "maskImage" in src and "WebkitMaskImage" in src, (
         "the soft copy is not masked (and an unprefixed mask alone is not enough for the render browser)")
+    # and the soft copy must declare itself a DUPLICATE. Without that the type gates walk the page twice and
+    # report every label colliding with its own copy — measured, on this register, the moment the second copy
+    # was added: 2 pairs of «交付可验收的成果» × «交付可验收的成果». True, useless, and the kind of noise that
+    # teaches an author to stop reading a gate.
+    assert "aria-hidden data-echo" in src, (
+        "the defocus copy is not marked `data-echo`, so every string on this page is audited twice")
     # the mask must follow the CURSOR, not sit at a fixed point: the whole claim is that the thing being
     # pointed at is the thing in focus
     mask = src[src.index("const mask ="):src.index("const page =")]
