@@ -3137,3 +3137,68 @@ def test_the_ground_gate_judges_the_entries_it_cannot_name_a_token_for():
     unresolvable = [k for k, v in decl.items()
                     if not isinstance(v, str) and m._declared_y(v, lums) is None]
     assert not unresolvable, "the probe cannot predict a ground for: %r" % unresolvable[:6]
+
+
+def test_no_register_inks_its_type_with_a_colour_its_own_ground_is_painted_from():
+    """THE PAYOFF LINE WAS COLOURED WITH ITS OWN BACKGROUND, and nothing could see it.
+
+    `KineticManifesto` floods `linear-gradient(135deg, accent, accent2)` and inked its hero word `accent2` —
+    the colour the gradient reaches at its far end. Measured across all eight shipped presets: 1.00:1 exactly
+    there, 1.03–2.08:1 at the flood's middle where the word sits; read off a rendered `terminal` frame,
+    1.55:1, against 9.15:1 after. HERO is the LAST phrase, so the film ended on the one line nobody could
+    read. No gate reported it — the caption's ink has had an instrument since the ground table was measured,
+    the REGISTER's ink has none — and it was found by looking at a still rendered for another reason.
+
+    So make the ground table carry it. Which token each register paints its ground from is MEASURED
+    (DNA_GROUND_TOKEN, from pixels), and a word inked with that same token is the background wearing a
+    typeface. The rule is not "low contrast" — that needs the pixels behind each run — it is the one case
+    the measurement already knows about, stated exactly.
+
+    POSITIVE CONTROL: run against `git show HEAD~:...KineticManifesto.tsx` this fires on `dna.accent2`. A
+    rule that reports nothing on the library and nothing on the defect that motivated it is not a rule.
+    """
+    import importlib.util
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    spec = importlib.util.spec_from_file_location(
+        "measure_ground_luma", os.path.join(root, "scripts", "measure_ground_luma.py"))
+    mgl = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mgl)
+    decl = mgl.declared_tokens(open(os.path.join(_RUNTIME_DIR, "shotLuma.ts"), encoding="utf-8").read())
+
+    def inked_with(code, tok):
+        return (re.search(r"color:\s*dna\??\.%s\b" % tok, code)
+                or re.search(r"const\s+\w*(?:[Cc]olor|INK|Ink|ink|C)\s*=\s*dna\??\.%s\b" % tok, code))
+
+    bad = []
+    for shot, tok in sorted(decl.items()):
+        if isinstance(tok, str):
+            continue                                  # a literal ground names no DNA token to collide with
+        path = os.path.join(os.path.dirname(_RUNTIME_DIR), "shots", shot + ".tsx")
+        if not os.path.exists(path):
+            continue
+        code = "\n".join(l for l in open(path, encoding="utf-8").read().split("\n")
+                          if not l.lstrip().startswith(("//", "*", "/*")))
+        for t in tok:
+            if inked_with(code, t):
+                bad.append("%s inks with dna.%s and grounds on %s" % (shot, t, "+".join(tok)))
+    assert not bad, (
+        "a register paints type in a colour its own ground is painted from — at that point of the ground "
+        "the word IS the background:\n  " + "\n  ".join(bad) +
+        "\nIf the type genuinely sits on something else (a panel over the ground), that is a claim about "
+        "pixels: render the frame and measure the run against what is behind it before relaxing this.")
+
+
+def test_kinetic_manifesto_keeps_an_emphasis_it_can_afford():
+    """The hero's pop cannot be a second HUE here — the ground IS the two accents, and `onAccent` is the only
+    token the DNA contract guarantees against them (5.9–10.1:1 measured across the presets; `fg` is 1.67:1
+    there, `bg` a different near-black indistinguishable from `onAccent`). The phrases never share the screen
+    either — each Word returns null outside its window — so the emphasis was never a comparison. It is size,
+    and shrinking the others is the safe direction: the type is 200px in an 82%-wide box, where a longer
+    phrase (a CJK one especially) already wraps."""
+    src = open(os.path.join(os.path.dirname(_RUNTIME_DIR), "shots", "KineticManifesto.tsx"),
+               encoding="utf-8").read()
+    code = "\n".join(l for l in src.split("\n") if not l.lstrip().startswith(("//", "*", "/*")))
+    assert "onAccent" in code, "the one token guaranteed to read on an accent flood is no longer used"
+    m = re.search(r"const settle = hero[^;]*?:\s*([0-9.]+)", code)
+    assert m, "the hero has no emphasis left — something has to carry it"
+    assert float(m.group(1)) < 1.0, "the emphasis inverted: the hero must be the one at full size"

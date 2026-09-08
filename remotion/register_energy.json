@@ -75,7 +75,7 @@
     "KSpaceReal": "5b6b29a432e6a496",
     "KSpaceToImage": "35d29be2bed75b30",
     "KaleidoMandala": "2b558db602e46e59",
-    "KineticManifesto": "1075cd1dbd089781",
+    "KineticManifesto": "94eb6b199e78ed91",
     "KnowledgeGraph": "3f525fa862f370b1",
     "LarmorPrecession": "ac33f54c1bbe52e4",
     "LastLeg": "a7d058142c9fdbaf",
@@ -700,11 +700,11 @@
       "footprint": 0.426
     },
     "KineticManifesto": {
-      "motion_p75": 0.0145,
-      "ink_median": 0.052,
-      "luma_range": 0.079,
+      "motion_p75": 0.0188,
+      "ink_median": 0.059,
+      "luma_range": 0.063,
       "seconds": 5.0,
-      "footprint": 0.0
+      "footprint": 0.162
     },
     "KnowledgeGraph": {
       "motion_p75": 0.0014,
