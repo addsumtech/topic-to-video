@@ -3248,3 +3248,47 @@ def test_the_type_sweep_reads_its_aspect_list_from_the_renderer():
     assert 'keep in sync with remotion/src/Root.tsx ASPECTS' not in v, (
         "validate.py restates the aspect list behind a 'keep in sync' comment again — a comment is not a "
         "mechanism")
+
+
+def test_no_register_draws_a_container_whose_content_never_arrived():
+    """AN EMPTY GREEN BOX, DRAWN OVER A ROW OF THE LIST IT SITS ON, AT 16:9.
+
+    `CursorStory`'s result toast is gated on `done` — a time, not a prop — while both of its lines are
+    gated on props that have no default, deliberately: the register's own comment says "a number is not
+    invented, so with nothing passed the block simply does not draw". It drew. On default props the toast
+    rendered its background, its border and its 34px of padding with nothing inside, over 'Invoice batch',
+    on the aspect every film ships. Every gate was green: it is not text, so the type sweeps cannot see it,
+    and it is not a ground, so the luminance ones cannot either. It was found by looking at a still.
+
+    The rule is checkable, and this is the scanner that finds it: a container that draws CHROME on one
+    condition while every text child inside it waits on a different prop. Against `git show` of the
+    pre-fix source it returns CursorStory; against the library it returns nothing.
+    """
+    import glob
+
+    def blocks(src):
+        for m in re.finditer(r"\{([A-Za-z_][\w.]*(?:\s*&&\s*[A-Za-z_][\w.]*)*)\s*&&\s*\(", src):
+            i, d = m.end() - 1, 0
+            for j in range(i, len(src)):
+                if src[j] == "(":
+                    d += 1
+                elif src[j] == ")":
+                    d -= 1
+                    if d == 0:
+                        yield m.group(1), src[i:j]
+                        break
+
+    bad = []
+    for f in sorted(glob.glob(os.path.join(os.path.dirname(_RUNTIME_DIR), "shots", "*.tsx"))):
+        src = open(f, encoding="utf-8").read()
+        for cond, body in blocks(src):
+            if not re.search(r"(background|border):", body):
+                continue
+            inner = re.findall(r"\{(\w+)\s*\?\s*<", body)
+            if inner and all(re.search(r"\b%s\b" % p, cond) is None for p in inner):
+                bad.append("%s: a container drawn on `%s` holds only %s"
+                           % (os.path.basename(f)[:-4], cond.strip(), "/".join(sorted(set(inner)))))
+    assert not bad, (
+        "a register draws a panel whose every line is waiting on a prop that may never arrive — on default "
+        "props it is a coloured rectangle with nothing in it, and it is drawn OVER whatever it lands on:\n  "
+        + "\n  ".join(bad) + "\nGate the container on the same content its children are gated on.")

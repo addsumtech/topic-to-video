@@ -62,7 +62,12 @@ export const CursorStory: React.FC<{items?: string[]; doneLabel?: string; doneNo
         </div>
       )}
       {/* result toast after Return (jump-cut past the work) */}
-      {done && (
+      {/* AND THE CONTAINER IS GATED ON THE SAME THING ITS LINES ARE. The comment below says "with nothing
+          passed the block simply does not draw" and it drew: `done` is a TIME, so on default props the
+          toast rendered its background, border and 34px of padding with nothing inside, over the second
+          row of its own list, at 16:9. No gate can see it — it is not text, so the type sweeps are blind to
+          it, and it is not a ground, so the luminance ones are too. It took looking at a still. */}
+      {done && (DONE || DONE_NOTE) && (
         <div style={{position: 'absolute', left: W / 2 - 300, top: 340, width: 600, opacity: easeOutBack(seg(t, 0.74, 0.86)),
           background: '#12241a', border: '1px solid #1f6b3f', borderRadius: 16, padding: '34px 40px', textAlign: 'center'}}>
           {/* THE RESULT LINE COMES FROM THE FILM. These two were literals — `Cleared · 6 tasks` and
