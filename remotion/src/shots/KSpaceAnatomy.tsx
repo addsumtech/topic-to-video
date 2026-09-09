@@ -8,6 +8,7 @@ import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 
 export const DURATION = 175; // ~5.8s
 
@@ -32,14 +33,25 @@ export const KSpaceAnatomy: React.FC<{srcK?: string; srcLow?: string; srcHigh?: 
   const pA = clamp01(seg(t, 0.12, 0.34));
   const pB = clamp01(seg(t, 0.5, 0.72));
   const K = 400, kx = W * 0.09, ky = H * 0.30;                 // the k-space panel (left)
-  const P = 300, px = W * 0.56, py1 = H * 0.28, py2 = H * 0.28 + P + 40; // two recon panels (right, stacked)
-  const kcx = kx + K / 2, kcy = ky + K / 2;
+  const px = W * 0.56;
   // Each recon panel's annotation sits to its RIGHT — when the room for it exists. Decided by the room, not
   // by naming aspects: a 1080-wide portrait frame leaves 156px where the labels need ~260, and the sweep
   // caught 'center = contrast' 65px off the edge. With no side room the labels drop UNDER their panel,
   // which a portrait frame has the height to afford.
-  const sideRoom = W - (px + P) - 24;
+  const sideRoom = W - (px + 300) - 24;
   const under = sideRoom < 270;
+  // AND WHEN THEY DROP UNDER, THEY NEED THE ROOM THEY TAKE. The stacked branch kept the side-by-side
+  // spacing — 40px between panels — while putting two label rows 30 and 60 below the first one, so panel
+  // one's labels were drawn ON panel two at 9:16, and at 1:1 the second panel and both its labels ran past
+  // the caption band entirely ('edges = detail' printed through the subtitle). The column is sized from the
+  // content zone in that branch: two panels, each with its label block, and one gap.
+  const LBL = 70;                                   // rows at +30 and +60 below a panel, to the deepest ink
+  const GAPV = 26;
+  const zoneBot = contentBottom(W, H);
+  const P = under ? Math.min(300, Math.floor((zoneBot - CONTENT_TOP - 2 * LBL - GAPV) / 2)) : 300;
+  const py1 = under ? Math.min(H * 0.28, zoneBot - (2 * P + 2 * LBL + GAPV)) : H * 0.28;
+  const py2 = under ? py1 + P + LBL + GAPV : H * 0.28 + P + 40;
+  const kcx = kx + K / 2, kcy = ky + K / 2;
   const lx = () => (under ? px : px + P + 24);
   const ly1 = (line: number) => (under ? py1 + P + 30 + line * 30 : py1 + 34 + line * 32);
   const ly2 = (line: number) => (under ? py2 + P + 30 + line * 30 : py2 + 34 + line * 32);

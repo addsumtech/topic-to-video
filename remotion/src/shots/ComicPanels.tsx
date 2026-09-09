@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
 import {useDNA, dnaPalette} from '../runtime/dna';
+import {contentBottom} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
 // LEVEL-C: comic storytelling is the STRUCTURE (tilted panels, gutters, halftone wash, speed lines, a splash
@@ -28,7 +29,12 @@ export const ComicPanels: React.FC<{panels?: string[]; splash?: string}> = ({
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const M = 70, gut = 22;
-  const rowH = (H - 2 * M - gut) * 0.52, topY = M;
+  // THE PAGE IS TWO ROWS AND THE SECOND IS 0.82 OF THE FIRST, so the page is 1.82 rows deep from `topY` —
+  // and `rowH` was a flat 0.52 of the FRAME's height, which reaches past the caption band (81px of 'DONE!'
+  // inside it at 1:1, and the bottom plate crossing it even at 16:9, where only the lettering's centring
+  // kept the gate quiet). A comic page is laid out to its plate, not to the paper it is printed on.
+  const topY = M;
+  const rowH = Math.min((H - 2 * M - gut) * 0.52, (contentBottom(W, H) - topY - gut) / 1.82);
   const cols = Math.max(1, PANELS.length);
   const colW = (W - 2 * M - (cols - 1) * gut) / cols;
   const splashIn = easeOutBack(clamp01(seg(t, 0.6, 0.84)));

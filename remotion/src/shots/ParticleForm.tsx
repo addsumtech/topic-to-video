@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeInOutCubic, easeOutBack, clamp01, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {contentBottom, inkBlockH} from '../runtime/layout';
 
 export const DURATION = 150; // 5s
 const ACC_D0 = '#3FA9FF';
@@ -15,7 +16,15 @@ export const ParticleForm: React.FC<{label?: string}> = ({label = 'Done.'} = {})
   const ACC = dna?.accent ?? ACC_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
-  const cx = W / 2, cy = H / 2 - 30, N = 150;
+  const LABEL = 70;               // `800 70px/1`
+  const cyRaw = H / 2 - 30;
+  // THE WHOLE COMPOSITION SLIDES UP BY EXACTLY WHAT DID NOT FIT. The label hangs a flat 300 below centre
+  // and the centre is a flat fraction of the height, so on the three aspects nobody had swept the word
+  // landed inside the caption band (66px at 1:1). Moving the label alone would break its relationship to
+  // the checkmark it names — the particles assemble INTO it — so the anchor moves and everything built
+  // from it follows. `over` is 0 at 16:9 and 9:16, which is why those two are untouched.
+  const over = Math.max(0, cyRaw + 300 + inkBlockH(LABEL) - contentBottom(W, H));
+  const cx = W / 2, cy = cyRaw - over, N = 150;
   // checkmark target polyline
   const A: [number, number] = [cx - 300, cy - 10], B: [number, number] = [cx - 90, cy + 200], C: [number, number] = [cx + 360, cy - 280];
   const l1 = Math.hypot(B[0] - A[0], B[1] - A[1]), l2 = Math.hypot(C[0] - B[0], C[1] - B[1]);
@@ -42,7 +51,7 @@ export const ParticleForm: React.FC<{label?: string}> = ({label = 'Done.'} = {})
         </g>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: cy + 300, textAlign: 'center',
-        opacity: clamp01((assembled - 0.7) / 0.2), font: '800 70px/1 var(--f-display, Inter,system-ui,sans-serif)', color: '#eaf2ff'}}>{label}</div>
+        opacity: clamp01((assembled - 0.7) / 0.2), font: `800 ${LABEL}px/1 var(--f-display, Inter,system-ui,sans-serif)`, color: '#eaf2ff'}}>{label}</div>
     </AbsoluteFill>
   );
 };

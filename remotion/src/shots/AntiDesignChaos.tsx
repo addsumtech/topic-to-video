@@ -9,6 +9,7 @@ import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../ru
 import {drawOn} from '../runtime/draw';
 import {useDNA, dnaPalette} from '../runtime/dna';
 import {bottomInset} from '../runtime/layout';
+import {contentBottom, inkBlockH} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 
 export const DURATION = 150; // 5s
@@ -62,11 +63,17 @@ export const AntiDesignChaos: React.FC<{title?: string; items?: string[]; taglin
 
       {/* scattered mismatched words */}
       {ITEMS.map((w, i) => {
-        const x = 160 + hash01(i * 2.3 + 1) * (W - 520), y = 180 + hash01(i * 8.1 + 2) * (H - 420);
+        const sz0 = 60 + hash01(i * 3.7) * 90;
+        // THE SCATTER IS RANDOM, ITS BOX IS NOT. `H - 420` was the whole frame minus a 16:9 margin, so a
+        // word could land anywhere down to H-240 — 77px of 'no grid' inside the caption band at 1:1. Chaos
+        // is the point of this register; drawing under the subtitle is not.
+        const x = 160 + hash01(i * 2.3 + 1) * (W - 520);
+        const yBot = Math.max(180, contentBottom(W, H) - inkBlockH(sz0));
+        const y = 180 + hash01(i * 8.1 + 2) * Math.max(0, Math.min(H - 420, yBot - 180));
         const pop = easeOutBack(clamp01(seg(t, 0.16 + i * 0.07, 0.4 + i * 0.07)));
         const rot = (hash01(i * 6.6) - 0.5) * 44;
         const col = POP[(i + 1) % POP.length];
-        const sz = 60 + hash01(i * 3.7) * 90;
+        const sz = sz0;
         return (
           <div key={i} style={{position: 'absolute', left: x, top: y, opacity: clamp01(pop * 1.4),
             transform: `rotate(${rot * pop}deg) scale(${pop})`, color: col,

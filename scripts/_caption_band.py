@@ -26,17 +26,28 @@ _ROOT_TSX = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "..", "remotion", "src", "Root.tsx")
 
 
-def aspect_wh(aspect=None):
-    """Frame dimensions for a `meta.aspect`, read from Root.tsx's ASPECTS — the renderer's own table.
+def aspect_table():
+    """{name: (W, H)} — every aspect the renderer supports, read from Root.tsx's own ASPECTS.
 
-    Restating it here is how the caption band got four disagreeing copies. One definition, parsed.
+    Exported because the LIST matters on its own, not only a lookup: the register library was swept for
+    type safety at 16:9 and 9:16 and at neither of the other three for as long as they have been offered.
+    A sweep that enumerates its own aspects goes stale the day a sixth is added; one that reads the table
+    cannot.
     """
     src = open(_ROOT_TSX, encoding="utf-8").read()
     m = re.search(r"const ASPECTS[^{]*\{(.*?)\}", src, re.S)
     if not m:
         raise RuntimeError("ASPECTS not found in %s — it defines the frame sizes and is read here" % _ROOT_TSX)
-    table = {k: (int(w), int(h))
-             for k, w, h in re.findall(r"'([^']+)':\s*\[\s*(\d+)\s*,\s*(\d+)\s*\]", m.group(1))}
+    return {k: (int(w), int(h))
+            for k, w, h in re.findall(r"'([^']+)':\s*\[\s*(\d+)\s*,\s*(\d+)\s*\]", m.group(1))}
+
+
+def aspect_wh(aspect=None):
+    """Frame dimensions for a `meta.aspect`, read from Root.tsx's ASPECTS — the renderer's own table.
+
+    Restating it here is how the caption band got four disagreeing copies. One definition, parsed.
+    """
+    table = aspect_table()
     return table.get(str(aspect or "16:9"), table.get("16:9", (1920, 1080)))
 
 

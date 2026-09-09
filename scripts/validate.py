@@ -2242,7 +2242,15 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
             warnings.append("remotion: sound_design is on — the pipeline CANNOT hear the SFX/BGM mix; AUDITION "
                             "out.mp4 before delivery (a wrong or absent bed ships silently).")
     _asp = str(meta.get("aspect") or "16:9")
-    _ASPECTS = {"16:9", "9:16", "1:1", "4:5", "4:3"}     # keep in sync with remotion/src/Root.tsx ASPECTS
+    # READ, not restated. "keep in sync with Root.tsx ASPECTS" was a comment, and a comment is not a
+    # mechanism: this set and the renderer's table could drift in either direction — a ratio the renderer
+    # supports refused here, or one it does not silently accepted and rendered 16:9.
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import _caption_band as _cb
+        _ASPECTS = set(_cb.aspect_table())
+    except Exception:
+        _ASPECTS = {"16:9", "9:16", "1:1", "4:5", "4:3"}
     if _asp not in _ASPECTS:
         errors.append(f"remotion: meta.aspect='{_asp}' is not supported {sorted(_ASPECTS)} — it would SILENTLY render "
                       f"16:9 (Root.tsx dims() fallback); fix the typo or add the ratio to Root.tsx ASPECTS.")

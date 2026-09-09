@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {contentBottom, inkBlockH} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 // LEVEL-C: the whole blueprint flips with the DNA (paper→bg, ink→fg, grid→line, accent) so on a dark DNA it reads
@@ -40,9 +41,20 @@ export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: strin
   const INK = dna?.fg ?? INK0, FAINT = dna?.line ?? FAINT0, ACC = dna?.accent ?? ACC0, BG = dna?.bg ?? '#f6f8fb';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
-  const cx = W / 2, cy = H / 2;
+  const cx = W / 2;
   // module box
-  const mw = 720, mh = 380, mx = cx - mw / 2, my = cy - mh / 2;
+  const mw = 720, mh = 380;
+  // THE SPEC LINES HANG UNDER THE MACHINE and the machine was centred on a flat H/2, so the deepest line
+  // landed inside the caption band at 1:1 (29px of '0 cloud calls'). It is a DRAWING, and a drawing's
+  // parts move together: the whole plate slides up by exactly what did not fit, which is zero at 16:9 and
+  // 9:16. The second spec row only exists in the stacked branch below, so the depth is asked of that same
+  // condition rather than assumed.
+  const SPEC = 22;                                                   // `600 22px/1`
+  const stacked = W - (cx - mw / 2 + mw + 76) <= 240;
+  const deepest = (stacked ? 112 : 70) + inkBlockH(SPEC);
+  const over = Math.max(0, H / 2 + mh / 2 + deepest - contentBottom(W, H));
+  const cy = H / 2 - over;
+  const mx = cx - mw / 2, my = cy - mh / 2;
   const sub = clamp01(seg(t, 0.4, 0.7)); // sub-blocks appear
   // the supplied figure, counted UP to its own value — the motion is the register's, the number is the film's
   const specN = metric == null ? null : Math.round(lerp(0, metric, easeOutCubic(seg(t, 0.55, 0.9))));

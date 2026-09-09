@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {contentBottom} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 const FORMS = ['ask', 'draft', 'analyse', 'done'];
@@ -43,6 +44,13 @@ export const LiquidMorph: React.FC = () => {
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2 - 20;
+  // THE BLOB'S RADIUS IS WHAT YIELDS ON A SHORT FRAME. The form label hangs at the blob's bottom edge and
+  // the radius was a flat 300, so at 1:1 the word landed 70px inside the caption band (the sweep at the
+  // three aspects nobody had run). Clamping the LABEL alone would have put it on the blob; a blob 60px
+  // smaller is the same blob, and the word under it is the whole statement.
+  const LABEL_LINE = 64;          // the label's own line box — `800 64px/1`, so exactly its height
+  const GLOW = 26;                // the filter bleeds past the path; the word must clear the light too
+  const R = Math.min(300, contentBottom(W, H) - LABEL_LINE - GLOW - cy);
   const idx = clamp01(seg(t, 0.06, 0.96)) * (FORMS.length - 1); // which form (fractional)
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 42%, #141326, #05060d 72%)')}}>
@@ -53,14 +61,14 @@ export const LiquidMorph: React.FC = () => {
           </linearGradient>
           <filter id="glow"><feGaussianBlur stdDeviation="24" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
         </defs>
-        <path d={blobPath(cx, cy, 300, frame, 34)} fill="url(#iri)" filter="url(#glow)" opacity={0.96} />
+        <path d={blobPath(cx, cy, R, frame, 34)} fill="url(#iri)" filter="url(#glow)" opacity={0.96} />
         {/* the tool-glyph fades through on the blob surface */}
         <g transform={`translate(${cx},${cy}) scale(1.5)`}>
           {FORMS.map((f, i) => <Glyph key={i} form={f} op={clamp01(1 - Math.abs(idx - i))} />)}
         </g>
       </svg>
       {/* current form label */}
-      <div style={{position: 'absolute', left: 0, right: 0, top: cy + 300, textAlign: 'center'}}>
+      <div style={{position: 'absolute', left: 0, right: 0, top: cy + R + GLOW, height: LABEL_LINE, textAlign: 'center'}}>
         {FORMS.map((f, i) => <div key={i} style={{position: 'absolute', left: 0, right: 0, font: '800 64px/1 var(--f-display, Inter,system-ui,sans-serif)',
           color: '#fff', opacity: clamp01(1 - Math.abs(idx - i) * 1.4), textTransform: 'capitalize'}}>{f}.</div>)}
       </div>

@@ -4,6 +4,8 @@
     python3 scripts/text_safe_qa.py <out_dir>      # audit this film's beats, with their real copy
     python3 scripts/text_safe_qa.py --library      # sweep every register (dna=product, the themed path)
     python3 scripts/text_safe_qa.py --library --aspect=9:16     # ...at the aspect the film actually ships at
+    python3 scripts/text_safe_qa.py --library --only=Id,Id      # iterate on one finding without 160 renders
+    python3 scripts/text_safe_qa.py --library --all-aspects     # every aspect the renderer offers
 
 WHY THIS REPLACES A PIXEL GATE. `frame_safe_qa.py`'s EDGE-BLEED check asks how much ink sits in the outer
 border and calls a high answer an overflow. Measured on real cases, it is INVERTED:
@@ -128,7 +130,7 @@ def scan_film(out_dir):
 DEFAULT_DNA = "product"
 
 
-def scan_library(limit=None, aspect=None, dna=DEFAULT_DNA):
+def scan_library(limit=None, aspect=None, dna=DEFAULT_DNA, only=None):
     """Sweep the catalogue. `aspect` matters: a register laid out for 16:9 can hold its type comfortably and
     still clip it at 9:16, which is the failure mode a portrait film meets and a landscape sweep never sees.
 
@@ -136,7 +138,17 @@ def scan_library(limit=None, aspect=None, dna=DEFAULT_DNA):
     therefore every metric this audit measures, and EVERY delivered film has one. Sweeping with bare props
     measures the un-themed fallback, a mode no film ships."""
     durs = durations()
-    names = sorted(durs)[: limit or None]
+    # `--only` is for ITERATING on a finding. A sweep is 160 renders and ~10 minutes; fixing the 21 registers
+    # the 1:1 sweep found meant either re-running all of it per edit or trusting the edit, and trusting the
+    # edit is how a fix that moves the number without clearing the band gets committed. Names that are not
+    # registers are named back, rather than silently sweeping nothing and printing OK.
+    if only:
+        unknown = [n for n in only if n not in durs]
+        if unknown:
+            raise SystemExit("[text_safe] not a register: %s" % ", ".join(unknown))
+        names = sorted(only)
+    else:
+        names = sorted(durs)[: limit or None]
     tmp = os.path.join(os.environ.get("TMPDIR", "/tmp"), "_textsafe_lib.png")
     base = {}
     if aspect:
@@ -169,13 +181,28 @@ def main(argv):
         print(__doc__.strip().splitlines()[0])
         print("usage: text_safe_qa.py <out_dir> | --library")
         return 2
+    if argv[0] == "--library" and "--all-aspects" in argv:
+        # THE LIBRARY WAS SWEPT AT TWO OF THE FIVE ASPECTS IT SHIPS. `--aspect` has existed since the
+        # portrait work and 1:1, 4:5 and 4:3 had never been passed to it — the square sweep then found 21
+        # registers drawing into the caption band, one of them ('DONE!' at 190px) by 81. The list is READ
+        # from Root.tsx's ASPECTS rather than written here, so a sixth aspect is covered the day it is added
+        # instead of the day someone remembers this file.
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import _caption_band as _cb
+        rest = [a for a in argv if not a.startswith("--aspect=") and a != "--all-aspects"]
+        worst = 0
+        for asp in _cb.aspect_table():
+            print("### aspect %s" % asp, flush=True)
+            worst = max(worst, main(rest + ["--aspect=" + asp]))
+        return worst
     if argv[0] == "--library":
         limit = next((int(a.split("=", 1)[1]) for a in argv if a.startswith("--limit=")), None)
         aspect = next((a.split("=", 1)[1] for a in argv if a.startswith("--aspect=")), None)
         dna = next((a.split("=", 1)[1] for a in argv if a.startswith("--dna=")), DEFAULT_DNA)
+        only = next((a.split("=", 1)[1].split(",") for a in argv if a.startswith("--only=")), None)
         if dna in ("", "none"):
             dna = None
-        findings, n = scan_library(limit, aspect, dna)
+        findings, n = scan_library(limit, aspect, dna, only)
         scope = "%d registers at default props · dna=%s%s" % (n, dna or "none",
                                                               " · aspect %s" % aspect if aspect else "")
     else:

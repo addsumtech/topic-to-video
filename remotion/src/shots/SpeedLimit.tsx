@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {bottomTextY} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 
@@ -27,7 +28,11 @@ export const SpeedLimit: React.FC<{accent?: string; label?: string}> = ({
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
-  const bx = W * 0.5, trackTop = H * 0.26, trackBot = H * 0.74, trackH = trackBot - trackTop;
+  // the axis label is a BASELINE 40px under the track's foot, and the foot was a flat 0.74 of the height —
+  // 22px of 'gradient speed' inside the caption band at 1:1. The track shortens; the label stays put.
+  const bx = W * 0.5, trackTop = H * 0.26;
+  const trackBot = Math.min(H * 0.74, bottomTextY(W, H) - 40);
+  const trackH = trackBot - trackTop;
   const hwY = trackTop + trackH * 0.28;                     // hardware ceiling (the binding one)
   const pnsY = trackTop + trackH * 0.14;                    // nerve-stimulation ceiling (even higher)
   const rise = clamp01(seg(t, 0.12, 0.62));                 // the bar rises, then jams at the hardware ceiling

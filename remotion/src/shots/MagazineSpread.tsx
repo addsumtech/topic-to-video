@@ -7,7 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {captionBand, fitBlockPx} from '../runtime/layout';
+import {captionBand, contentBottom, fitBlockPx} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 
 export const DURATION = 165; // 5.5s
@@ -58,7 +58,9 @@ export const MagazineSpread: React.FC<{sectionLabel?: string; title?: string; he
         width: (W - 2 * M) * rule}} />
 
       {/* hero colour block */}
-      <div style={{position: 'absolute', right: M, top: 320, width: 560, height: 560,
+      {/* the plate's own height yields to the band: 560 tall from y=320 reaches 880, which is inside the
+          caption band on any frame narrower than 1400 (its FEATURE/ISSUE caption was 27px in at 1:1). */}
+      <div style={{position: 'absolute', right: M, top: 320, width: 560, height: Math.min(560, contentBottom(W, H) - 320),
         transform: `translateX(${(1 - block) * 120}px)`, opacity: block,
         background: `linear-gradient(160deg, ${ACC}, ${dna?.accent2 ?? '#b0311f'})`, boxShadow: '0 40px 80px #0002'}}>
         {/* THE PLATE'S CAPTION IS THE SECTION PROP, not the word FEATURE written into the JSX.

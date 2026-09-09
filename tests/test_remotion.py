@@ -3217,3 +3217,34 @@ def test_kinetic_manifesto_keeps_an_emphasis_it_can_afford():
     m = re.search(r"const settle = hero[^;]*?:\s*([0-9.]+)", code)
     assert m, "the hero has no emphasis left — something has to carry it"
     assert float(m.group(1)) < 1.0, "the emphasis inverted: the hero must be the one at full size"
+
+
+def test_the_type_sweep_reads_its_aspect_list_from_the_renderer():
+    """THE LIBRARY WAS SWEPT AT TWO OF THE FIVE ASPECTS IT SHIPS. `--aspect` has existed since the portrait
+    work; 1:1, 4:5 and 4:3 had never been passed to it. The square sweep then found 21 registers drawing
+    into the caption band — 'DONE!' at 190px by 81px, a whole recon panel and both its labels printed
+    through the subtitle — and 4:5 and 4:3 two more each.
+
+    A sweep that ENUMERATES its aspects goes stale the day a sixth is added. Both the sweep and the board
+    validator read Root.tsx's own ASPECTS instead, so a new ratio is covered by the run that adds it."""
+    import importlib.util
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    spec = importlib.util.spec_from_file_location("_caption_band", os.path.join(root, "scripts", "_caption_band.py"))
+    cb = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cb)
+    table = cb.aspect_table()
+    tsx = open(os.path.join(_RUNTIME_DIR, "..", "Root.tsx"), encoding="utf-8").read()
+    declared = set(re.findall(r"'([0-9]+:[0-9]+)':\s*\[", tsx.split("const ASPECTS")[1].split("};")[0]))
+    assert set(table) == declared and len(declared) >= 5, (
+        "aspect_table() disagrees with Root.tsx ASPECTS: %r vs %r" % (sorted(table), sorted(declared)))
+    for script, why in (("text_safe_qa.py", "the type sweep must be able to run every aspect the film can ship"),
+                        ("validate.py", "a board naming an aspect the renderer supports must not be refused")):
+        src = open(os.path.join(root, "scripts", script), encoding="utf-8").read()
+        assert "aspect_table" in src, "%s does not read the renderer's aspect table — %s" % (script, why)
+    ts = open(os.path.join(root, "scripts", "text_safe_qa.py"), encoding="utf-8").read()
+    assert "--all-aspects" in ts, "the sweep has no way to run them all, which is how three went unswept"
+    # and the enumerated set that used to live in validate.py must not come back
+    v = open(os.path.join(root, "scripts", "validate.py"), encoding="utf-8").read()
+    assert 'keep in sync with remotion/src/Root.tsx ASPECTS' not in v, (
+        "validate.py restates the aspect list behind a 'keep in sync' comment again — a comment is not a "
+        "mechanism")

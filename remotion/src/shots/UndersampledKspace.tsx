@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {bottomTextY} from '../runtime/layout';
 
 export const DURATION = 180; // 6s
 
@@ -31,11 +32,20 @@ export const UndersampledKspace: React.FC<{accent?: string; accent2?: string; la
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
-  const gx = W * 0.16, gw = W * 0.68, gy = H * 0.2, gh = H * 0.52;   // k-space grid box
+  const gx = W * 0.16, gw = W * 0.68, gy = H * 0.2;
   // the acquired-lines counter sits to the grid's right when the room exists; on a narrow frame it steps
   // UNDER the grid (the sweep caught '~4-8x undersampled' 135px off a portrait edge)
   const cRoom = W - (gx + gw) - 40;
   const cUnder = cRoom < 240;   // 16:9 leaves 267px and has always fit; 9:16 leaves 133 and never can
+  // AND THE ROOM IT STEPS INTO HAS TO EXIST. Stepping under was checked at 9:16, where the frame is 1920
+  // tall and the block lands 108px clear. It was never checked at the three aspects nobody had swept: the
+  // block is 160px deep below the grid, `gh` is a flat 0.52 of the height, and at 1:1 that put its last
+  // line 128px INSIDE the caption band (52px at 4:5, 71px at 4:3) — the burned subtitle drawn straight
+  // through the number the shot exists to show. The grid yields the room instead, because it is the
+  // element that can: 42 lines read the same at 434px as at 562px, and a reading missing its label does
+  // not. 16:9 (never under) and 9:16 (already clear) are untouched by construction.
+  const CBLOCK = 64 + 96;       // first baseline below the grid, plus the block's own last baseline
+  const gh = cUnder ? Math.min(H * 0.52, bottomTextY(W, H) - gy - CBLOCK) : H * 0.52;
   const cX = cUnder ? gx : gx + gw + 40;
   const cY = (line: number) => (cUnder ? gy + gh + 64 + line * 46 : gy + gh * 0.42 + line * 46);
   const nLines = 42;

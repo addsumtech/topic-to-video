@@ -6,7 +6,7 @@ import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {fitContentSquare} from '../runtime/layout';
+import {fitContentSquare, inkBlockH} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 
@@ -74,13 +74,20 @@ export const Aliasing: React.FC<{src?: string; accent?: string; label?: string; 
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
-  const {S, left, top} = fitContentSquare(W, H, {hFrac: 0.85, wFrac: 0.4, bottomReserve: 44});  // leaves room for the wrap-around note below
+  // THE RESERVE HAS TO MATCH THE BRANCH THAT SPENDS IT. `bottomReserve: 44` is right beside the plate,
+  // where the note sits 34 under it — and wrong when the annotation STACKS, where the note steps down to
+  // +118 and needs its ink too. At 4:5 that put 'undersample -> Nyquist violated -> wrap-around' inside the
+  // caption band. The square is measured twice: once to learn whether the side room exists, then again with
+  // the reserve that branch actually spends. A second fit is cheaper than a note under the subtitle.
+  const probe = fitContentSquare(W, H, {hFrac: 0.85, wFrac: 0.4, bottomReserve: 44});
+  const stackedFit = W - (probe.left + probe.S) - 30 < 270;
+  const {S, left, top} = fitContentSquare(W, H, {hFrac: 0.85, wFrac: 0.4,
+    bottomReserve: stackedFit ? 118 + inkBlockH(19) : 44});
   // STACK when the side is too narrow, decided by the ROOM, not by naming aspects: the ghost annotation
   // needs ~260px beside the plate, which a 1080-wide portrait frame does not have (it rode 196px off the
   // edge). Portrait frames are tall where they are narrow, so the annotation goes UNDER the plate and the
   // Nyquist note steps down to make room.
-  const sideRoom = W - (left + S) - 30;
-  const stacked = sideRoom < 270;
+  const stacked = stackedFit;   // decided on the probe above, so the reserve and the branch cannot disagree
   const gx = stacked ? left : left + S + 30;
   const gy = stacked ? top + S + 40 : top + S * 0.28;
   const noteY = stacked ? top + S + 118 : top + S + 34;

@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutBack} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {contentBottom} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 // LEVEL-C: frosted glass IS translucent-white on any ground (kept — that's what glass looks like), so the GROUND
@@ -39,7 +40,12 @@ export const LiquidGlass: React.FC<{items?: string[]; title?: string}> = ({items
   const ROW_INK = dna?.fg ?? '#26324c';        // the row label had its own ink — restore it exactly with no DNA
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
-  const listX = W / 2 - 420, listY = 300, rowH = 150;
+  // FOUR ROWS OF 150 IS 600px OF LIST, and the last one ('Ship it' — the row the whole shot lands on) ran
+  // into the caption band at 1:1. The row PITCH yields: the same four rows, closer together, rather than a
+  // fourth row the subtitle is drawn over. `rowH - 26` is the row's own height, so the last row's foot is
+  // `listY + 4*rowH - 26`. 16:9 and every taller frame keep 150 exactly.
+  const listX = W / 2 - 420, listY = 300;
+  const rowH = Math.min(150, Math.floor((contentBottom(W, H) - listY + 26) / 4));
   const path = easeInOutCubic(seg(t, 0.1, 0.78));
   const lx = lerp(W * 0.28, listX + 470, path);
   const ly = lerp(H * 0.34, listY + 3 * rowH + 46, path); // settles on last row "Ship it"

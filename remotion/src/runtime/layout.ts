@@ -94,6 +94,22 @@ export const bottomInset = (W: number, H: number, wanted = 0) =>
  * does not. The offset is a descender's worth of room, not a guess: a baseline exactly on the boundary puts
  * the glyph tails inside it.
  */
+/**
+ * How much INK a `line-height: 1` text block actually occupies, from the top of its box to the bottom of
+ * its deepest glyph.
+ *
+ * A 1em line box is SMALLER than the face's own ascent+descent (~1.21em for Inter, Space Grotesk and the
+ * rest of this library's display stack), so with `line-height: 1` the glyphs hang BELOW the box. That gap
+ * is why "the box ends above the band" and "the type is out of the band" are different statements, and the
+ * registers that place a closing line with `top:` were all clamping — where they clamped at all — against
+ * the box. Measured off textSafe's own report rather than assumed: a 70px label whose box starts at y=810
+ * was found with its ink bottom at 889, which is 1.13em.
+ *
+ * `bottomInset` is still the better tool where an element can be anchored from the bottom — then the
+ * browser measures the type and nothing here has to estimate it. This is for the ones that cannot.
+ */
+export const inkBlockH = (fontPx: number, lines = 1) => Math.ceil(fontPx * (lines - 1 + 1.13));
+
 export const bottomTextY = (W: number, H: number) =>
   contentBottom(W, H) - Math.round(Math.min(W, H) * 0.012);
 

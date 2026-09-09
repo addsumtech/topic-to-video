@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {bottomTextY} from '../runtime/layout';
 
 export const DURATION = 170; // ~5.7s
 
@@ -51,7 +52,7 @@ export const GradientTilt: React.FC<{accent?: string; accent2?: string; label?: 
         <text x={gx} y={baseY + 12} fill={accent} fontSize="18" fontFamily="var(--f-body, Inter, sans-serif)" opacity={on}>low freq</text>
         <text x={gx + gw} y={baseY - 0.95 * maxH - 12} textAnchor="end" fill={accent2} fontSize="18" fontFamily="var(--f-body, Inter, sans-serif)" opacity={on}>high freq</text>
         {/* the three gradient coils */}
-        <text x={W * 0.5} y={H * 0.8} textAnchor="middle" fill="#c9d6ea" fontSize="22" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01(seg(t,0.05,0.3))}>coils  Gx · Gy · Gz    →    B = B₀ + G·x</text>
+        <text x={W * 0.5} y={Math.min(H * 0.8, bottomTextY(W, H))} textAnchor="middle" fill="#c9d6ea" fontSize="22" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01(seg(t,0.05,0.3))}>coils  Gx · Gy · Gz    →    B = B₀ + G·x</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
         color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',

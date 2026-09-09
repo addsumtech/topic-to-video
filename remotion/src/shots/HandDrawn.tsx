@@ -33,14 +33,21 @@ export const HandDrawn: React.FC<{items?: string[]}> = ({items = ['You', 'WorkBu
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const zTop = CONTENT_TOP, zBot = contentBottom(W, H);
-  const bw = 380, bh = 240;
   // TWO orientations, decided by whether the ROW fits. Fixed x = 200 + i*570 put the third box at 1340 on a
   // 1080-wide frame ('Done' rode 549px off the edge); the first repair squeezed the step until the boxes
   // OVERLAPPED — which no gate reports, because overlapping each other crosses neither the canvas nor the
   // caption band. It took looking at the frame. A flow chart that cannot run across runs DOWN.
-  const horizontal = W >= items.length * bw + (items.length - 1) * 130 + 80;
-  const stepX = bw + 190, stepY = bh + 96;
-  const x0h = (W - (bw + stepX * (items.length - 1))) / 2;
+  const horizontal = W >= items.length * 380 + (items.length - 1) * 130 + 80;
+  // AND WHEN IT RUNS DOWN IT HAS TO FIT DOWN. Three 240px boxes stepping 336 apart is 912px of chart, and
+  // the column was CENTRED on the content zone rather than sized to it — so on a short frame it hung out of
+  // both ends: 'Done ✓' 46px inside the caption band at 1:1, and the first box up inside the title band. A
+  // hand-drawn chart is a drawing; it scales. `V` is 1 wherever the chart already fitted, which is every
+  // frame 1080 or more tall in the vertical branch, so 9:16 and 4:5 are untouched.
+  const stackH = 240 + (240 + 96) * (items.length - 1);
+  const V = horizontal ? 1 : Math.min(1, (zBot - zTop) / stackH);
+  const bw = 380 * V, bh = 240 * V;
+  const stepX = 380 + 190, stepY = bh + 96 * V;
+  const x0h = (W - (380 + stepX * (items.length - 1))) / 2;
   const y0h = H / 2 - 120;
   const y0v = zTop + ((zBot - zTop) - (bh + stepY * (items.length - 1))) / 2;
   const boxes = items.map((label, i) => ({
@@ -81,7 +88,7 @@ export const HandDrawn: React.FC<{items?: string[]}> = ({items = ['You', 'WorkBu
         const show = clamp01((t - b.at - 0.14) / 0.2);
         return <div key={i} style={{position: 'absolute', left: b.x, top: b.y, width: bw, height: bh, display: 'flex',
           alignItems: 'center', justifyContent: 'center', opacity: show, transform: `rotate(${(hash01(i + 9) - 0.5) * 3}deg)`,
-          font: '800 56px/1.1 var(--f-body, Inter,system-ui,sans-serif)', color: INKc, textAlign: 'center'}}>{b.label}</div>;
+          font: `800 ${Math.round(56 * V)}px/1.1 var(--f-body, Inter,system-ui,sans-serif)`, color: INKc, textAlign: 'center'}}>{b.label}</div>;
       })}
     </AbsoluteFill>
   );

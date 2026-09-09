@@ -7,6 +7,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeCursor, easeOutBack, easeOutCubic, clamp01} from '../runtime/motion';
 import {leading} from '../runtime/cjkType';
 import {useDNA} from '../runtime/dna';
+import {contentBottom} from '../runtime/layout';
 
 export const DURATION = 135; // 4.5s
 const RED_D0 = '#FF6B6B', BG_D0 = '#0d1017';
@@ -35,7 +36,11 @@ export const CursorStory: React.FC<{items?: string[]; doneLabel?: string; doneNo
   const paletteOn = t > 0.32 && t < 0.56;
   const done = t > 0.74;
   const hi = t < 0.32 ? -1 : Math.min(ROWS.length - 1, Math.floor(seg(t, 0.08, 0.3) * 3)); // hovered row
-  const LX = W * 0.26, LY = 240;
+  // THE LIST GROWS DOWNWARD FROM A FIXED TOP, so its last row ('Launch copy' — the one the palette is
+  // about to clear) ran into the caption band at 1:1. A row is 26+26 of padding, a 40px line, 1px of border
+  // each side and 12 of margin; six of them is 636, and the top yields by exactly what does not fit.
+  const ROW_H = 26 + 26 + 40 + 2 + 12;
+  const LX = W * 0.26, LY = Math.min(240, contentBottom(W, H) - ROWS.length * ROW_H);
   return (
     <AbsoluteFill style={{background: `radial-gradient(120% 100% at 40% 20%, #161b26, ${BG} 60%)`}}>
       {/* the list UI */}

@@ -472,6 +472,15 @@ TTS if the user gives an API key.
   the film is not reproducible. `dna_from_deck.py` puts the subsets at the head of every chain it builds
   (the serif worlds take `Noto Serif SC`) — it did not, which made the one path a real Chinese film takes
   the one path that never reached them.
+- `scripts/text_safe_qa.py --library --all-aspects` — the type sweep at **every aspect the renderer
+  offers**, and `--only=Id,Id` to iterate on one finding without 160 renders. `--aspect` had existed since
+  the portrait work and three of the five supported ratios had never been passed to it: the square sweep
+  found **21 registers drawing into the caption band** (a 190px 'DONE!' by 81px; a whole recon panel and
+  both its labels printed through the subtitle), 4:5 and 4:3 two more each. The aspect list is READ from
+  `Root.tsx` ASPECTS, so a sixth ratio is swept by the run that adds it rather than the run that remembers.
+  Looking at those frames also found what the gate cannot: `GaugeCluster` is 580px wide from its centre
+  against a 540px half-frame at 1:1, so both side gauges hung off the edge — what is cut there is an ARC,
+  and this instrument measures type.
 - `scripts/measure_ground_luma.py --check` — the **GROUND-TOKEN gate** (library maintenance, ~15 min: 160
   renders). Which DNA token each register paints its ground from is what the caption ink and the seam guard
   both read, and it is MEASURED, not declared: every register is rendered under a probe DNA whose tokens sit
