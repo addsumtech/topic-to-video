@@ -6,7 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {contentBottom, inkBlockH} from '../runtime/layout';
+import {contentBottom, fitTextPx, inkBlockH} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
 
@@ -39,7 +39,11 @@ export const PixelBuild: React.FC<{hud?: string; label?: string}> = ({
   // THE COMPLETE BANNER HANGS 30px UNDER THE GRID and the grid was centred on the frame, so the banner
   // landed 40px inside the caption band at 1:1. The grid and its banner are one object — the banner is what
   // the build is FOR — so the pair slides up by exactly what did not fit. Zero at 16:9 and 9:16.
-  const BANNER = 68;                                                  // `700 68px/1`
+  // AND THE BANNER IS ONE LINE, so it is fitted to the frame rather than assumed to fit. `inkBlockH(BANNER)`
+  // below reserves the depth of a SINGLE line; a longer label than the demo's ('WORKBUDDY · COMPLETE ·
+  // LEVEL 2') wrapped to two at a fixed 68px and the second one landed in the caption band, at 1:1. The
+  // demo label keeps 68 on every frame this library ships.
+  const BANNER = Math.round(fitTextPx(label, W - 120, 68));
   const gyRaw = (H - gh) / 2 - 40;
   const over = Math.max(0, gyRaw + gh + 30 + inkBlockH(BANNER) - contentBottom(W, H));
   const gx = (W - gw) / 2, gy = gyRaw - over;

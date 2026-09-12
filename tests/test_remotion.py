@@ -3292,3 +3292,58 @@ def test_no_register_draws_a_container_whose_content_never_arrived():
         "a register draws a panel whose every line is waiting on a prop that may never arrive — on default "
         "props it is a coloured rectangle with nothing in it, and it is drawn OVER whatever it lands on:\n  "
         + "\n  ".join(bad) + "\nGate the container on the same content its children are gated on.")
+
+
+def test_the_ink_block_factor_bounds_every_bundled_face():
+    """A SHARED CONSTANT CALIBRATED ON ONE TYPEFACE IS CALIBRATED ON NOTHING.
+
+    `inkBlockH` tells a register how far below its box a `line-height: 1` line's glyphs actually reach, so
+    it can keep a closing line out of the caption band. Its first factor was 1.13 — measured off textSafe's
+    own report for one 70px label, which happened to be Space Grotesk (1.138). Eight of the fourteen
+    bundled faces are above that: Baloo 2 at 1.301, Bodoni Moda at 1.262, and BOTH Chinese faces at ~1.22,
+    which under-reserved every CJK film by ~9% of its type size at exactly the boundary the helper exists
+    to protect.
+
+    A register cannot choose per face — the DNA supplies the family through `var(--f-display)` — so the
+    only sound bound is the maximum over every face a DNA stack can name. This reads the font files, so a
+    newly bundled face with deeper metrics fails here rather than silently shrinking the reserve.
+
+    The metrics are the ones the browser lays out with: OS/2 sTypo* when the face sets USE_TYPO_METRICS
+    (fsSelection bit 7), hhea otherwise.
+    """
+    try:
+        from fontTools.ttLib import TTFont
+    except ImportError:                        # the bound is read from the font files; without the
+        return                                    # reader there is nothing to read them with
+    import glob
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    faces = sorted(glob.glob(os.path.join(root, "assets", "fonts", "*.ttf")))
+    assert len(faces) >= 10, "the bundled font set has shrunk to %d — this bound is read from it" % len(faces)
+
+    worst, worst_name = 0.0, None
+    for path in faces:
+        f = TTFont(path, fontNumber=0, lazy=True)
+        upm = f["head"].unitsPerEm
+        os2 = f["OS/2"] if "OS/2" in f else None
+        if os2 is not None and (os2.fsSelection & (1 << 7)):
+            asc, desc = os2.sTypoAscender / upm, abs(os2.sTypoDescender) / upm
+        else:
+            asc, desc = f["hhea"].ascent / upm, abs(f["hhea"].descent) / upm
+        factor = (1 + asc + desc) / 2
+        if factor > worst:
+            worst, worst_name = factor, os.path.basename(path)
+
+    src = open(os.path.join(_RUNTIME_DIR, "layout.ts"), encoding="utf-8").read()
+    m = re.search(r"export const INK_BLOCK_FACTOR\s*=\s*([0-9.]+)\s*;", src)
+    assert m, "layout.ts no longer exports INK_BLOCK_FACTOR — the bound has nothing to pin"
+    declared = float(m.group(1))
+    assert declared >= worst, (
+        "INK_BLOCK_FACTOR is %.3f but %s needs %.3f — a line set in that face hangs %.0f%% of its size "
+        "further below the box than the helper reserves, which is how type gets under the subtitle"
+        % (declared, worst_name, worst, (worst - declared) * 100))
+    # and it must not drift far ABOVE the worst face either: over-reserving is safe, but a number nobody
+    # can trace back to a face is a number the next person will tune by feel
+    assert declared - worst < 0.05, (
+        "INK_BLOCK_FACTOR is %.3f against a worst bundled face of %.3f (%s) — if a face was removed, "
+        "bring the constant back down to it" % (declared, worst, worst_name))

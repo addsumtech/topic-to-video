@@ -6,6 +6,7 @@
     python3 scripts/text_safe_qa.py --library --aspect=9:16     # ...at the aspect the film actually ships at
     python3 scripts/text_safe_qa.py --library --only=Id,Id      # iterate on one finding without 160 renders
     python3 scripts/text_safe_qa.py --library --all-aspects     # every aspect the renderer offers
+    python3 scripts/text_safe_qa.py --library --cjk             # ...with CHINESE copy, not the demo strings
 
 WHY THIS REPLACES A PIXEL GATE. `frame_safe_qa.py`'s EDGE-BLEED check asks how much ink sits in the outer
 border and calls a high answer an overflow. Measured on real cases, it is INVERTED:
@@ -130,7 +131,7 @@ def scan_film(out_dir):
 DEFAULT_DNA = "product"
 
 
-def scan_library(limit=None, aspect=None, dna=DEFAULT_DNA, only=None):
+def scan_library(limit=None, aspect=None, dna=DEFAULT_DNA, only=None, cjk=False):
     """Sweep the catalogue. `aspect` matters: a register laid out for 16:9 can hold its type comfortably and
     still clip it at 9:16, which is the failure mode a portrait film meets and a landscape sweep never sees.
 
@@ -164,10 +165,26 @@ def scan_library(limit=None, aspect=None, dna=DEFAULT_DNA, only=None):
         evidence = _re.evidence_props()
     except Exception:
         evidence = {}
+    # THE BAND WAS ONLY EVER CHECKED IN ENGLISH. This sweep feeds each register its own demo strings, which
+    # are short Latin ones; `cjk_type_qa` feeds Chinese but asks a different question (does the type collide
+    # with itself), and neither asked whether CHINESE copy lands in the caption band. Chinese is where it
+    # would: a Han glyph is a full em wide, the leading floor is higher, so the same sentence takes more
+    # lines and reaches further down. Same fixtures as the CJK gate — one definition of "what Chinese copy
+    # for this register looks like", shaped from its own prop signature.
+    cjk_fixture = {}
+    if cjk:
+        import cjk_type_qa as _cjk
+        for n in names:
+            try:
+                props, _untestable = _cjk.cjk_props(n)
+                cjk_fixture[n] = props
+            except Exception:
+                cjk_fixture[n] = {}
     findings = []
     for i, n in enumerate(names, 1):
         frame = int(round(rr.frame_at_t(durs[n], rr.SETTLED_T)))
         props = dict(base)
+        props.update(cjk_fixture.get(n) or {})
         props.update(evidence.get(n) or {})
         for v in audit_shot(n, props, frame, tmp):
             findings.append("%s: %s" % (n, _describe(v)))
@@ -200,11 +217,12 @@ def main(argv):
         aspect = next((a.split("=", 1)[1] for a in argv if a.startswith("--aspect=")), None)
         dna = next((a.split("=", 1)[1] for a in argv if a.startswith("--dna=")), DEFAULT_DNA)
         only = next((a.split("=", 1)[1].split(",") for a in argv if a.startswith("--only=")), None)
+        cjk = "--cjk" in argv
         if dna in ("", "none"):
             dna = None
-        findings, n = scan_library(limit, aspect, dna, only)
-        scope = "%d registers at default props · dna=%s%s" % (n, dna or "none",
-                                                              " · aspect %s" % aspect if aspect else "")
+        findings, n = scan_library(limit, aspect, dna, only, cjk)
+        scope = "%d registers at %s · dna=%s%s" % (n, "CJK fixtures" if cjk else "default props", dna or "none",
+                                                   " · aspect %s" % aspect if aspect else "")
     else:
         findings, n = scan_film(os.path.abspath(argv[0]))
         scope = "%d beats" % n

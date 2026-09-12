@@ -5,6 +5,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutBack, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {contentBottom, textWidthPx} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 // LEVEL-C DNA migration: the whole chat UI flips together — ground, bubble surfaces, ink, and on-accent text — so
@@ -45,14 +46,39 @@ export const ChatThread: React.FC<{messages?: Msg[]}> = ({messages: MSGS = DEFAU
   const dna = useDNA();
   const BG = dna?.bg ?? '#fbfcfe', SURF = dna?.surface ?? WB, A1 = dna?.accent ?? YOU, A2c = dna?.accent2 ?? A2, DIM = dna?.dim ?? DOT;
   const t = useT();
-  const {width: W} = useVideoConfig();
+  const {width: W, height: H} = useVideoConfig();
   // typing indicator shows just before the next wb message
   const nextWb = MSGS.find((m) => m.side === 'wb' && t > m.at - 0.12 && t < m.at);
   const CW = Math.min(1500, W * 0.94);
-  const f = CW / 1500;
+  // AND A THREAD IS AS TALL AS ITS CONTENT, not as wide as its column. Scaling by width alone is right for
+  // the demo's four short messages and wrong for five long ones: at 16:9 the last two ran off the bottom
+  // AND through the caption band, and the width was never the thing that overflowed. So estimate the stack
+  // the way `fitBlockPx` estimates a headline — the advance is deliberately generous and a Han glyph counts
+  // a full em — and close the type up until it fits the content zone. `f` stays exactly 1 on any frame wide
+  // enough for the full column, so 16:9 and 9:16 with the demo thread are untouched.
+  const TOP = 170;
+  const BUDGET = contentBottom(W, H) - TOP;
+  const heightAt = (k: number) => {
+    const measure = Math.max(1, Math.min(880 * k, CW - 96 * k) - 80 * k);   // the bubble's text column
+    return MSGS.reduce((h, m) => {
+      const lines = Math.max(1, Math.ceil(textWidthPx(m.text, 46 * k) / measure));
+      return h + lines * 46 * k * 1.35 + 60 * k + 34 * k;                   // padding + the row's margin
+    }, 0);
+  };
+  let scale = Math.min(1, CW / 1500);
+  // A FIXED NUMBER OF STEPS, because the estimate is not continuous — a line count changes in jumps — so a
+  // while-loop on it can sit between two states forever. Four halvings of the error is plenty and always
+  // terminates.
+  for (let i = 0; i < 4 && heightAt(scale) > BUDGET; i++) {
+    scale *= Math.sqrt(BUDGET / heightAt(scale));
+  }
+  // and a floor, because type nobody can read is not a fix. Past it the column clips, which is what a chat
+  // does with its oldest messages anyway — never drawn over the subtitle.
+  const f = Math.max(0.34, scale);
   return (
     <AbsoluteFill style={{background: BG}}>
-      <div style={{position: 'absolute', left: (W - CW) / 2, top: 170, width: CW}}>
+      <div style={{position: 'absolute', left: (W - CW) / 2, top: TOP, width: CW,
+        height: BUDGET, overflow: 'hidden'}}>
         {MSGS.map((m, i) => (t > m.at - 0.02 ? <Bubble key={i} m={m} t={t} f={f} /> : null))}
         {nextWb && (
           <div style={{display: 'flex', alignItems: 'center', gap: Math.round(22 * f), marginBottom: Math.round(34 * f)}}>

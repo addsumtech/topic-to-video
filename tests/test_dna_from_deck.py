@@ -259,16 +259,31 @@ _REAL = {
 }
 
 
+def _readable(path):
+    """PRESENT IS NOT THE SAME AS READABLE on this platform, and the difference is a red suite.
+
+    macOS TCC can withdraw access to ~/Downloads and ~/Desktop part-way through a session: the path still
+    EXISTS, so an `os.path.exists` guard lets the test through, and python-pptx then fails with
+    "Package not found at ..." — which reads like a missing deck and is a permission. Open it.
+    """
+    try:
+        with open(path, "rb") as fh:
+            fh.read(4)
+        return True
+    except OSError:
+        return False
+
+
 def test_real_leiden_deck_is_a_custom_blue_theme():
-    if not os.path.exists(_REAL["leiden"]):
-        pytest.skip("real deck not on this machine")
+    if not _readable(_REAL["leiden"]):
+        pytest.skip("real deck not readable on this machine")
     t = pptx_theme.read(_REAL["leiden"])
     assert not t["default_theme"] and t["colors"]["accent1"] == "#0077cc" and t["fonts"]["major"]["latin"] == "Calibri Light"
 
 
 def test_real_workbuddy_deck_is_office_default():
-    if not os.path.exists(_REAL["workbuddy"]):
-        pytest.skip("real deck not on this machine")
+    if not _readable(_REAL["workbuddy"]):
+        pytest.skip("real deck not readable on this machine")
     t = pptx_theme.read(_REAL["workbuddy"])
     assert t["default_theme"] and t["fonts"]["major"]["latin"] == "Calibri"
 

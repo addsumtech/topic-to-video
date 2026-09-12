@@ -4,9 +4,10 @@
 // motion-blur approximated by CSS blur on the fast approach/exit (frame-safe, no ancestor-flatten).
 
 import React from 'react';
-import {AbsoluteFill} from 'remotion';
+import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, clamp01} from '../runtime/motion';
 import {leading} from '../runtime/cjkType';
+import {CONTENT_TOP, contentBottom, fitBlockPx} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
@@ -31,10 +32,19 @@ const HERO = 2; // which phrase pops in the accent colour
 
 const Word: React.FC<{text: string; start: number; span: number; t: number; hero: boolean}> = ({text, start, span, t, hero}) => {
   const dna = useDNA();
+  const {width: W, height: H} = useVideoConfig();
   // A null DNA keeps the original bold yellow-on-blue pair, which was never the failure: that flood is a
   // mid-dark hsl field and both inks are light on it.
   const ink = dna?.onAccent ?? null;
+  // AND 200px IS A LATIN NUMBER. Every Han glyph is a full em, so a Chinese manifesto line at 200px is
+  // about four frames wide: fed '把重复的步骤交给它，自己去做只有你能做的那部分工作' it wrapped past both edges
+  // AND 692px into the caption band at 1:1. The size is fitted to the box the words actually get — the
+  // 82%-wide column between the title band and the caption — the same way MagazineSpread fits its
+  // headline. Latin demo copy keeps 200 exactly, so nothing that ships today moves.
   const heroC = ink ?? '#FFE24D', normC = ink ?? '#ffffff';
+  const lead = leading(text, 0.95);
+  const px = Math.round(fitBlockPx(text, W * 0.82 - 120, contentBottom(W, H) - CONTENT_TOP, 200,
+                                   {leading: lead, usable: 1}));
   const lp = clamp01((t - start) / span);
   if (t < start - 0.02 || lp >= 1) return null;
   // WHERE THE WORD SETTLES. The hero lands at reading size and the rest a step under it — the step a viewer
@@ -46,9 +56,14 @@ const Word: React.FC<{text: string; start: number; span: number; t: number; hero
                           : lerp(settle, 1.9 * settle, easeOutCubic((lp - 0.62) / 0.38));
   const op = lp < 0.18 ? lp / 0.18 : lp > 0.72 ? clamp01((1 - lp) / 0.28) : 1;
   const blur = lp < 0.16 ? 18 * (1 - lp / 0.16) : lp > 0.66 ? 26 * ((lp - 0.66) / 0.34) : 0;
+  // CENTRED ON THE CONTENT ZONE, NOT ON THE FRAME. The fit above sizes the block to the zone, and then
+  // centring it on H/2 pushed the extra half of a tall (Chinese) block straight through the caption band
+  // anyway — the size was right and the anchor was not. The padding makes the flex centre the zone's
+  // centre; on a 16:9 frame that is 12px from where it was.
   return (
-    <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-      <div style={{font: `900 200px/${leading(text, 0.95)} var(--f-display, Inter,system-ui,sans-serif)`, letterSpacing: '-0.03em', textAlign: 'center',
+    <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center',
+      paddingTop: CONTENT_TOP, paddingBottom: H - contentBottom(W, H)}}>
+      <div style={{font: `900 ${px}px/${lead} var(--f-display, Inter,system-ui,sans-serif)`, letterSpacing: '-0.03em', textAlign: 'center',
         color: hero ? heroC : normC, opacity: op, transform: `scale(${scale})`,
         filter: blur > 0.5 ? `blur(${blur}px)` : undefined, textShadow: '0 20px 60px rgba(0,0,0,.25)',
         maxWidth: '82%', padding: '0 60px'}}>{text}</div>

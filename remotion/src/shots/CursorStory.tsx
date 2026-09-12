@@ -7,7 +7,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeCursor, easeOutBack, easeOutCubic, clamp01} from '../runtime/motion';
 import {leading} from '../runtime/cjkType';
 import {useDNA} from '../runtime/dna';
-import {contentBottom} from '../runtime/layout';
+import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 
 export const DURATION = 135; // 4.5s
 const RED_D0 = '#FF6B6B', BG_D0 = '#0d1017';
@@ -37,17 +37,24 @@ export const CursorStory: React.FC<{items?: string[]; doneLabel?: string; doneNo
   const done = t > 0.74;
   const hi = t < 0.32 ? -1 : Math.min(ROWS.length - 1, Math.floor(seg(t, 0.08, 0.3) * 3)); // hovered row
   // THE LIST GROWS DOWNWARD FROM A FIXED TOP, so its last row ('Launch copy' — the one the palette is
-  // about to clear) ran into the caption band at 1:1. A row is 26+26 of padding, a 40px line, 1px of border
-  // each side and 12 of margin; six of them is 636, and the top yields by exactly what does not fit.
-  const ROW_H = 26 + 26 + 40 + 2 + 12;
-  const LX = W * 0.26, LY = Math.min(240, contentBottom(W, H) - ROWS.length * ROW_H);
+  // about to clear) ran into the caption band at 1:1. The first repair moved the TOP up by what did not
+  // fit, which is right until the list is longer than the zone: ten items pushed it to y=-237 and the first
+  // two rows left the frame through the TOP instead — a clamp with no floor. A list too long for the zone
+  // is a PITCH problem, not a position one, so the rows close up and the top never rises above the content
+  // zone. The default six on a 16:9 frame keep their full 106.
+  const PAD = 26, LINE = 40, MARGIN = 12, BORDER = 2;
+  const n = Math.max(1, ROWS.length);
+  const zone = contentBottom(W, H) - CONTENT_TOP;
+  const ROW_H = Math.min(PAD * 2 + LINE + BORDER + MARGIN, Math.floor(zone / n));
+  const PADY = Math.max(6, Math.round((ROW_H - LINE - BORDER - MARGIN) / 2));
+  const LX = W * 0.26, LY = Math.max(CONTENT_TOP, Math.min(240, contentBottom(W, H) - n * ROW_H));
   return (
     <AbsoluteFill style={{background: `radial-gradient(120% 100% at 40% 20%, #161b26, ${BG} 60%)`}}>
       {/* the list UI */}
       <div style={{position: 'absolute', left: LX, top: LY, width: Math.min(900, W - LX - 40), opacity: paletteOn ? 0.35 : 1, transition: 'none'}}>
         {ROWS.map((r, i) => (
-          <div key={i} style={{display: 'flex', alignItems: 'center', gap: 22, padding: '26px 30px', borderRadius: 12,
-            marginBottom: 12, background: i === hi ? `${RED}1c` : '#141922', border: `1px solid ${i === hi ? RED : '#1e2531'}`}}>
+          <div key={i} style={{display: 'flex', alignItems: 'center', gap: 22, padding: `${PADY}px 30px`, borderRadius: 12,
+            marginBottom: MARGIN, background: i === hi ? `${RED}1c` : '#141922', border: `1px solid ${i === hi ? RED : '#1e2531'}`}}>
             <div style={{width: 14, height: 14, borderRadius: 7, background: i <= hi && t > 0.6 ? '#59d98b' : '#3a4658'}} />
             <div style={{font: '600 40px/1 var(--f-body, Inter,system-ui,sans-serif)', color: '#d6deea'}}>{r}</div>
             {i === hi && <div style={{marginLeft: 'auto', font: '700 26px/1 var(--f-body, Inter)', color: RED}}>⌘K</div>}

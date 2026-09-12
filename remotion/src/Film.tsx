@@ -261,7 +261,16 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
   const beatG = groundAt(dna ?? null, sc, frame - starts[active], Math.max(1, Math.round(sc.durF)), sc.shot, reduced);
   // Which token this shot grounds on is MEASURED (DNA_GROUND_TOKEN), so an accent-flooded register is judged
   // on its flood and not on a `bg` it never paints; `g.y` is the fallback when that token is a gradient.
-  const beatY = beatG ? (dnaGroundY(sc.shot, beatG) ?? beatG.y) : null;
+  // AND THE NUMBER IS ASKED FOR ON EVERY BEAT, not only on a re-grounded one. `captionInk` exists because
+  // the three-bucket class picks the WRONG ink on any ground between Y=0.19 (where the two burned inks
+  // cross over) and Y=0.5 (where the bucket's boundary sits) — its own docstring says so. But it was only
+  // reached when a beat DECLARED a ground, and almost no beat does; every other frame fell through to the
+  // bucket, which is the rule that was supposed to have been replaced. `dnaGroundY` resolves the film's own
+  // DNA for 158 of the 160 registers with no declaration at all, so the measured path is the normal one now
+  // and the bucket is the last resort it was meant to be. Measured on `KineticManifesto` under `product`
+  // (its accent->accent2 flood resolves to Y=0.267): the bucket said `mid`, drew WHITE at 3.3:1, where the
+  // dark ink measures 5.9:1 on the same pixels.
+  const beatY = beatG ? (dnaGroundY(sc.shot, beatG) ?? beatG.y) : dnaGroundY(sc.shot, dna);
   const lum = dnaGroundLum(sc.shot, sc.bgLum, dna);
   const ink = beatY === null ? (lum === 'light' ? CAPTION_INK_DARK : CAPTION_INK_LIGHT) : captionInk(beatY);
   // The subtitle sits DIRECTLY on the frame's own background — there is NO scrim/bar rectangle behind it.

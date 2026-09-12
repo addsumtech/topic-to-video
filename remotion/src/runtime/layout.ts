@@ -98,17 +98,30 @@ export const bottomInset = (W: number, H: number, wanted = 0) =>
  * How much INK a `line-height: 1` text block actually occupies, from the top of its box to the bottom of
  * its deepest glyph.
  *
- * A 1em line box is SMALLER than the face's own ascent+descent (~1.21em for Inter, Space Grotesk and the
- * rest of this library's display stack), so with `line-height: 1` the glyphs hang BELOW the box. That gap
- * is why "the box ends above the band" and "the type is out of the band" are different statements, and the
- * registers that place a closing line with `top:` were all clamping — where they clamped at all — against
- * the box. Measured off textSafe's own report rather than assumed: a 70px label whose box starts at y=810
- * was found with its ink bottom at 889, which is 1.13em.
+ * A 1em line box is SMALLER than the face's own ascent+descent, so with `line-height: 1` the glyphs hang
+ * BELOW the box: the half-leading is `(1 - (asc + desc)) / 2`, negative, so the ink runs to
+ * `(1 + asc + desc) / 2` em below the box top. That gap is why "the box ends above the band" and "the type
+ * is out of the band" are different statements, and the registers that place a closing line with `top:`
+ * were all clamping — where they clamped at all — against the box.
+ *
+ * THE FACTOR IS THE WORST BUNDLED FACE, AND IT HAS TO BE. The first version of this carried 1.13, measured
+ * off textSafe's report for ONE label in ONE typeface (Space Grotesk, which is 1.138). Eight of the
+ * fourteen bundled faces are above that — Baloo 2 is 1.301, Bodoni Moda 1.262, and BOTH Chinese faces are
+ * ~1.22, so every CJK film was under-reserved by ~9% of its type size at the exact boundary this exists to
+ * protect. And a register cannot pick per-face: the DNA supplies the family through `var(--f-display)`, so
+ * the call site does not know what it will be set in. The only sound bound is the maximum over every face
+ * a DNA stack can name. `tests/test_remotion.py` reads the font files and fails if a newly bundled face
+ * exceeds it — the numbers come from each face's metrics (OS/2 typo when USE_TYPO_METRICS is set, hhea
+ * otherwise), which is what the browser lays out with.
+ *
+ * Over-reserving costs a few pixels of clearance; under-reserving ships type under the subtitle.
  *
  * `bottomInset` is still the better tool where an element can be anchored from the bottom — then the
  * browser measures the type and nothing here has to estimate it. This is for the ones that cannot.
  */
-export const inkBlockH = (fontPx: number, lines = 1) => Math.ceil(fontPx * (lines - 1 + 1.13));
+export const INK_BLOCK_FACTOR = 1.31;
+export const inkBlockH = (fontPx: number, lines = 1) =>
+  Math.ceil(fontPx * (lines - 1 + INK_BLOCK_FACTOR));
 
 export const bottomTextY = (W: number, H: number) =>
   contentBottom(W, H) - Math.round(Math.min(W, H) * 0.012);
