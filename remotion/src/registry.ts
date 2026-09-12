@@ -162,6 +162,7 @@ import {PointerTour} from './shots/PointerTour';
 import {PageWrite} from './shots/PageWrite';
 import {GlowPick} from './shots/GlowPick';
 import {SourceDeal} from './shots/SourceDeal';
+import {SpatialSlides} from './shots/SpatialSlides';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
@@ -207,6 +208,7 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   PageWrite,
   GlowPick,
   SourceDeal,
+  SpatialSlides,
 };
 
 export const SHOT_IDS = Object.keys(REGISTRY);

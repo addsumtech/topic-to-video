@@ -105,7 +105,7 @@
     "OverlapSeparation": "3bb72fbfef3ab7d1",
     "PageWrite": "d745d9465eba0fa1",
     "PaperCutout": "f332dc3ff1783d3a",
-    "PaperSlot": "23a2f18271945a7f",
+    "PaperSlot": "9c81602bad30079c",
     "ParticleForm": "c06f7f57dcbcef70",
     "PhaseEncodeStep": "d2b369520c70d94d",
     "PhotoPlate": "efdeed110e4cd016",
@@ -121,15 +121,16 @@
     "RadialBurst": "dedc5b1117d99ab0",
     "RainGlass": "4ddba5c9855d65d1",
     "RansomZine": "fef40b22a4d6aac1",
-    "RealVersus": "e82c216a534f71bf",
+    "RealVersus": "9865ef05a0eb406f",
     "RestsOn": "b0507c942d49f6d2",
     "RidgeField": "9a15d9ed8bdb66dd",
-    "RisoPrint": "3f744bbcb679d83c",
+    "RisoPrint": "aa1e519f10dc12b9",
     "ScanReconstruct": "a4809040949307c1",
     "ScreenBubble": "a889c82420de48d8",
     "SectionRoute": "90cf47774ce836a3",
     "SharedBlindspot": "ebac7a59cd0fe95a",
     "SourceDeal": "27f6bce05eabb047",
+    "SpatialSlides": "22e06438cc42ae5d",
     "SpectrumPulse": "dc5d9114c79acb31",
     "SpeedLimit": "0fc182670b1b97fa",
     "SpinningProton": "7a0a5a6d07abbe94",
@@ -1043,7 +1044,7 @@
       "footprint": 0.562
     },
     "RisoPrint": {
-      "motion_p75": 0.0005,
+      "motion_p75": 0.0006,
       "ink_median": 0.045,
       "luma_range": 0.005,
       "seconds": 4.8,
@@ -1083,6 +1084,13 @@
       "luma_range": 0.016,
       "seconds": 5.8,
       "footprint": 0.227
+    },
+    "SpatialSlides": {
+      "motion_p75": 0.0041,
+      "ink_median": 0.003,
+      "luma_range": 0.004,
+      "seconds": 6.0,
+      "footprint": 0.218
     },
     "SpectrumPulse": {
       "motion_p75": 0.0093,

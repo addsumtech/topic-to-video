@@ -5,8 +5,10 @@ import {CJK_MIN_LEADING} from './runtime/cjkType';
 import {DesignDNAContext, coerceDna} from './runtime/dna';
 import './runtime/fonts';  // side effect: loads the DNA typefaces for Film AND every standalone shot still
 import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
+import {StageProbe, DURATION as SPD} from './runtime/__probe_stage3d';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
+import {SpatialSlides, DURATION as D_SPATIALSLIDES} from './shots/SpatialSlides';
 import {SourceDeal, DURATION as D_SOURCEDEAL} from './shots/SourceDeal';
 import {GlowPick, DURATION as D_GLOWPICK} from './shots/GlowPick';
 import {PageWrite, DURATION as D_PAGEWRITE} from './shots/PageWrite';
@@ -330,6 +332,8 @@ export const RemotionRoot: React.FC = () => (
       defaultProps={{scenes: WORKBUDDY_SCENES}}
       calculateMetadata={({props}) => ({durationInFrames: filmDuration((props as any).scenes ?? WORKBUDDY_SCENES),
         ...dims((props as any).aspect)})} />
+    <Composition id="StageProbe" component={StageProbe} durationInFrames={SPD} fps={30}
+      width={1920} height={1080} calculateMetadata={({props}) => ({...dims((props as any).aspect)})} />
     {F('TypeCollisionProbe', TypeCollisionProbe, 165)}
     {F('TiltedTypeCollisionProbe', TiltedTypeCollisionProbe, 165)}
     {F('TiltedTypeCleanProbe', TiltedTypeCleanProbe, 165)}
@@ -501,5 +505,6 @@ export const RemotionRoot: React.FC = () => (
     {F('PageWrite', PageWrite, D_PAGEWRITE)}
     {F('GlowPick', GlowPick, D_GLOWPICK)}
     {F('SourceDeal', SourceDeal, D_SOURCEDEAL)}
+    {F('SpatialSlides', SpatialSlides, D_SPATIALSLIDES)}
   </>
 );

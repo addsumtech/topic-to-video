@@ -2953,6 +2953,18 @@ def test_a_register_that_says_3D_can_back_the_claim():
         if name not in known or not re.search(r"\b3D\b", text):
             continue
         src = open(os.path.join(shots, name + ".tsx"), encoding="utf-8").read()
+        # THE CAPABILITY MAY LIVE IN A RUNTIME MODULE, and increasingly does. This read the shot file
+        # alone, so `SpatialSlides` — whose every card is a CSS 3D surface under an inverse-transform
+        # camera — was reported as claiming 3D it does not do, because the `perspective` and the
+        # `matrix3d` are in `runtime/stage3d`, where they belong. A register that IMPORTS a module
+        # carrying the markers backs the claim exactly as much as one that inlines them, and a gate that
+        # cannot see shared capability is a gate that argues against ever sharing any.
+        for mod in set(re.findall(r"from '\.\./runtime/([\w.]+)'", src)):
+            for ext in (".tsx", ".ts"):
+                rt = os.path.join(root, "remotion", "src", "runtime", mod + ext)
+                if os.path.exists(rt):
+                    src += open(rt, encoding="utf-8").read()
+                    break
         webgl = "@remotion/three" in src or "@react-three/fiber" in src
         if not (webgl or REAL_3D.search(src) or DECLARES.search(text)):
             overclaiming.append(name)
