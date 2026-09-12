@@ -21,7 +21,7 @@ import {useT, useAnimSpan, springAt, SPRING_SEAT, seg, lerp, clamp01, easeInOutC
         easeOutCubic} from '../runtime/motion';
 import {useDNA, readableOn} from '../runtime/dna';
 import {UiSurface, type UiContent} from '../runtime/uiSurface';
-import {captionBand, CONTENT_TOP, fitTextPx, fitBlockPx, textWidthPx} from '../runtime/layout';
+import {CONTENT_TOP, captionBand, fitBlockPx, fitTextPx, textWidthPx, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 
 export const DURATION = 174; // 5.8s
@@ -82,8 +82,20 @@ export const SourceDeal: React.FC<{
   const pad = Math.round(U * 0.035);
 
   // ── sizes first, because the copy is one of the frame's walls ────────────────────────────────────────────
-  const pillPx = list.reduce((px, s) => Math.min(px, fitTextPx(s, W * 0.30, Math.round(U * 0.032),
-    {usable: 0.92})), Math.round(U * 0.032));
+  // ONE MEASURE FOR THE LABEL AND THE PILL IT SITS IN. The label was fitted to `W * 0.30` while the pill
+  // was capped at `W * 0.44` (0.80 stacked) — two different numbers for the same string. In Latin the fit
+  // bound first and nothing showed; in Chinese the widest label plus its padding exceeded the CAP, the pill
+  // stopped growing, and the text ran 343px off the left edge of the frame. So the label is fitted to the
+  // text column the pill will actually have at that size. The two depend on each other, so it settles in
+  // two passes — and it can only ever make the type smaller, so the Latin frames are untouched.
+  const PILL_BASE = Math.round(U * 0.032);
+  const capW = Math.round(W * (vert ? 0.80 : 0.44));
+  const innerOf = (px: number) => Math.max(40, capW - Math.round(px * 2.4) * 1.1 - px * 0.76);
+  let pillPx = PILL_BASE;
+  for (let i = 0; i < 2; i++) {
+    const measure = Math.min(W * 0.30, innerOf(pillPx));
+    pillPx = list.reduce((px, s) => Math.min(px, fitTextPx(s, measure, PILL_BASE, {usable: 0.92})), pillPx);
+  }
   const pillH = Math.round(pillPx * 2.4);
   // ONE WIDTH FOR EVERY PILL. Sized to its own text each conclusion is a different-length lozenge, and three
   // ragged shapes read as three unrelated labels rather than as a set being dealt from one place — the same
@@ -91,7 +103,13 @@ export const SourceDeal: React.FC<{
   const pillW = Math.min(Math.round(list.reduce((w, s2) => Math.max(w, textWidthPx(s2, pillPx)), 0)
     + pillH * 1.1 + pillPx * 0.76), Math.round(W * (vert ? 0.80 : 0.44)));
   const notePx = Math.round(U * 0.026);
-  const noteH = Math.round(notePx * 2.6);
+  // THE NOTE ROW RESERVES FOR THE LINES IT TAKES. 2.6 is two lines and a little air, measured on Latin
+  // notes; a Chinese note in the same column runs to three and the last one lands in the caption band
+  // (34px of it at 1:1). Counted by breaking each note in the column it actually wraps in.
+  const noteLines = NOTES.length
+    ? Math.max(1, ...NOTES.map((x) => wrapLines(String(x ?? ''), notePx, Math.max(40, capW - pillPx))))
+    : 1;
+  const noteH = Math.round(notePx * Math.max(2.6, noteLines * 1.3 + 0.3));
   const rowH = pillH + (NOTES.length ? noteH + Math.round(pad * 0.4) : 0) + Math.round(pad * 0.5);
 
   const zoneTop = CONTENT_TOP;
@@ -137,7 +155,24 @@ export const SourceDeal: React.FC<{
   // The rows SPREAD into the room they are given rather than packing at the top of it. Packed, a portrait
   // cut put three conclusions in the upper third and left the rest of the frame doing nothing — the same
   // failure as a row that keeps its 16:9 size in a 9:16 frame, arrived at from the other direction.
-  const rowStep = Math.max(rowH, Math.floor((band - dealTop - pad) / Math.max(1, n)));
+  // THE SPREAD LEAVES ROOM FOR THE LAST ROW, not for an average one. Dividing the room by `n` spaces the
+  // TOPS evenly and then the final row still needs its own `rowH` below its top — so the deeper a row is
+  // (a Chinese note runs to three lines where a Latin one runs to two), the further the last note reaches
+  // past the band. Divide the room MINUS one row by the gaps between them, which is what "these all fit"
+  // actually means.
+  // AND WHEN THE ROWS DO NOT FIT AT ALL, THE TYPE YIELDS. Spreading only decides where the tops go; it
+  // cannot help when `n` rows each as deep as a Chinese note need more room than the zone has, and the last
+  // note then lands in the caption band whatever the spacing. The sizes are scaled by the shortfall — one
+  // pass, because the shortfall is computed from the sizes it corrects — so the shot degrades by getting
+  // quieter rather than by drawing over the subtitle. `k` is 1 wherever the rows already fitted.
+  const roomForRows = Math.max(1, band - dealTop - pad);
+  const k = Math.min(1, roomForRows / Math.max(1, n * rowH));
+  const pillPxF = Math.max(12, Math.round(pillPx * k));
+  const pillHF = Math.round(pillPxF * 2.4);
+  const notePxF = Math.max(10, Math.round(notePx * k));
+  const noteHF = Math.round(noteH * k);
+  const rowHF = pillHF + (NOTES.length ? noteHF + Math.round(pad * 0.4) : 0) + Math.round(pad * 0.5);
+  const rowStep = Math.max(rowHF, Math.floor((band - dealTop - pad - rowHF) / Math.max(1, n - 1)));
 
   const content: UiContent = {title: TITLE, items: DOC.length ? DOC : undefined};
 
@@ -182,25 +217,25 @@ export const SourceDeal: React.FC<{
         const chars = note ? wordCut(note, inn) : 0;
         return (
           <div key={i} style={{position: 'absolute', left: dealX, top, width: dealW, opacity: o}}>
-            <div style={{display: 'flex', alignItems: 'center', height: pillH, width: pillW, boxSizing: 'border-box',
-              padding: `0 ${Math.round(pillH * 0.55)}px`, borderRadius: 999, whiteSpace: 'nowrap',
-              transform: `translateY(${(1 - b) * pillH * 0.32}px) scale(${lerp(0.94, 1, b)})`,
+            <div style={{display: 'flex', alignItems: 'center', height: pillHF, width: pillW, boxSizing: 'border-box',
+              padding: `0 ${Math.round(pillHF * 0.55)}px`, borderRadius: 999, whiteSpace: 'nowrap',
+              transform: `translateY(${(1 - b) * pillHF * 0.32}px) scale(${lerp(0.94, 1, b)})`,
               background: SURF, border: `${Math.max(1, Math.round(U * 0.0016))}px solid ${LINE}`,
               // A TERNARY WITH TWO IDENTICAL BRANCHES is a decision that was never made: this read
               // `dna?.fg && dna.surface ? '#1c2029' : '#1c2029'` and so painted near-black text whatever the
               // ground was — on a dark DNA's surface the conclusions were black on near-black. No typecheck
               // can see it and no text gate measures contrast; it took looking at the delivered film.
               color: readableOn(SURF),
-              font: `700 ${pillPx}px/${leading(label, 1.15)} var(--f-body, system-ui, sans-serif)`}}>
-              <span style={{width: Math.round(pillPx * 0.34), height: Math.round(pillPx * 0.34),
-                borderRadius: '50%', background: ACC, marginRight: Math.round(pillPx * 0.42)}} />
+              font: `700 ${pillPxF}px/${leading(label, 1.15)} var(--f-body, system-ui, sans-serif)`}}>
+              <span style={{width: Math.round(pillPxF * 0.34), height: Math.round(pillPxF * 0.34),
+                borderRadius: '50%', background: ACC, marginRight: Math.round(pillPxF * 0.42)}} />
               {label}
             </div>
             {/* THE NOTE DARKENS AS IT IS READ, and clears before the next pill lands — one sentence on the
                 frame at a time, because two conclusions on screen at once is the thing dealing them was for */}
             {note ? (
               <div style={{marginTop: Math.round(pad * 0.4), color: DIM, opacity: outv, textWrap: 'balance',
-                font: `500 ${fitBlockPx(note, dealW, noteH, notePx, {usable: 0.92, leading: 1.35})}px/`
+                font: `500 ${fitBlockPx(note, dealW, noteHF, notePxF, {usable: 0.92, leading: 1.35})}px/`
                   + `${leading(note, 1.35)} var(--f-body, system-ui, sans-serif)`}}>
                 <span style={{color: FG}}>{note.slice(0, chars)}</span>
                 <span style={{opacity: 0.45}}>{note.slice(chars)}</span>

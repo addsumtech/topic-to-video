@@ -360,9 +360,19 @@ def _synth_field(name, ty, src="", i=0):
     if t.startswith("number"):
         # a 0..1 field given a 3 breaks the animation it drives (a `delay` of 3 puts the row off the clip),
         # and a magnitude given a 0.62 draws nothing. Name decides which, since the type cannot.
-        if re.search(r"^(at|delay|start|end|fill|frac|ratio|opacity|w|h|x|y|progress)$", name, re.I):
-            return 0.45
-        return 62
+        #
+        # AND IT VARIES BY ROW, for the same reason the STRINGS do. A flat 0.45 gave every row of a timeline
+        # the same timestamp, so a register that shows one phase at a time — which is what a timeline IS —
+        # correctly drew one, and the gate reported it as having dropped the other two: `VoiceSignal`,
+        # "2 of 3 strings it was given never reached the screen", at every aspect, for as long as the
+        # fixture has existed. That is the same defect the string side already carries a fix for (three
+        # identical labels once produced spurious self-overlaps on ProfileGrowth), in the numeric field.
+        # Spread across the clip's middle so no row sits at an endpoint, where a `seg` window is degenerate.
+        if re.search(r"^(at|delay|start|end|progress)$", name, re.I):
+            return round(0.18 + (i % 5) * 0.16, 3)
+        if re.search(r"^(fill|frac|ratio|opacity|w|h|x|y)$", name, re.I):
+            return round(0.34 + (i % 5) * 0.13, 3)
+        return 62 + (i % 5) * 17
     if t.startswith("boolean"):
         return name in ("find", "hero", "done", "ok")
     m = re.match(r"^'([^']+)'", t)                       # an INLINE string-literal union: first member

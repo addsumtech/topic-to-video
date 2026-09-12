@@ -141,6 +141,31 @@ export const bottomTextY = (W: number, H: number) =>
  */
 const CJK_CH = /[\u2e80-\u9fff\uf900-\ufaff\uff01-\uff60\u3000-\u303f]/;
 
+/** How many MONOSPACE CELLS a string occupies. A Han glyph is FULL-WIDTH — two cells — so counting
+ *  characters under-reports a Chinese line by half, and a terminal register that sizes itself from a
+ *  character count then picks a size that runs the line off the frame (TermTree: 2086px past the right
+ *  edge). Exported because three terminal registers ask the same question. */
+export const monoCells = (text: string): number =>
+  [...String(text ?? '')].reduce((n, ch) => n + (CJK_CH.test(ch) ? 2 : 1), 0);
+
+/** `text` cut to fit `cells` monospace columns, with an ellipsis when it was cut.
+ *
+ *  A terminal truncates — `ls` does, `git log --oneline` does — so a listing whose note is longer than its
+ *  column is not a layout emergency, it is the form. What IS an emergency is sizing the whole tree down
+ *  until one long note fits: a 35-glyph Chinese note drove TermTree's type to 18px and still ran 20px off
+ *  the frame, because the line cannot wrap (`white-space: pre`) and the fit has nothing left to give. A
+ *  bounded column makes the size solvable for any input instead of only for short ones. */
+export const clipCells = (text: string, cells: number): string => {
+  const chars = [...String(text ?? '')];
+  let used = 0;
+  for (let i = 0; i < chars.length; i++) {
+    const w = CJK_CH.test(chars[i]) ? 2 : 1;
+    if (used + w > cells) return chars.slice(0, i).join('') + '…';
+    used += w;
+  }
+  return chars.join('');
+};
+
 /**
  * How wide one line of `text` runs at `px`, in the SAME advance model the fitters use.
  *
@@ -182,15 +207,51 @@ export const fitTextPx = (
  * a character is. `usable` carries the safety margin: Latin cannot break inside a word, so a line packs a
  * little less than the estimate says.
  */
+/**
+ * How many LINES `text` takes at `px` in a `width` measure — counted by breaking it, not by dividing.
+ *
+ * THE RATIO IS WRONG WHEREVER A GLYPH IS BIG RELATIVE TO THE MEASURE, and for CJK that is everywhere: a Han
+ * glyph is a full em, so a 766px measure at 198px holds THREE of them, not 3.87. `ceil(totalWidth / width)`
+ * counted eleven glyphs as three lines; the browser drew four, so the fit believed it fitted and the fourth
+ * line went into the caption band. Measured on `KineticManifesto` at 1:1, 117px in. The ratio is only right
+ * when the quantisation error is small — which is the Latin case it was written for.
+ *
+ * So the line is filled the way the browser fills it: CJK breaks between any two glyphs, Latin at the last
+ * space before the overrun. A label is a handful of characters; walking them costs nothing.
+ */
+export const wrapLines = (
+  text: string, px: number, width: number, opts: {adv?: number; track?: number} = {},
+): number => {
+  const {adv = 0.72, track = 0} = opts;
+  const w = Math.max(1, width);
+  const chars = [...String(text ?? '')];
+  if (!chars.length) return 1;
+  let lines = 1, used = 0, lastBreak = -1, sinceBreak = 0;
+  for (const ch of chars) {
+    const cw = (CJK_CH.test(ch) ? 1.05 : adv) * px + track * px;
+    if (used + cw > w && used > 0) {
+      if (CJK_CH.test(ch) || lastBreak < 0) {          // break here: CJK breaks anywhere, and so does a
+        lines += 1; used = cw; lastBreak = -1; sinceBreak = 0;   // Latin run with no space to fall back to
+      } else {
+        lines += 1; used = sinceBreak + cw; lastBreak = -1; sinceBreak = 0;
+      }
+    } else {
+      used += cw;
+      sinceBreak += cw;
+    }
+    if (ch === ' ') { lastBreak = 1; sinceBreak = 0; }
+  }
+  return lines;
+};
+
 export const fitBlockPx = (
   text: string, W: number, H: number, base: number,
   opts: {usable?: number; adv?: number; track?: number; leading?: number; min?: number} = {},
 ): number => {
   const {usable = 0.92, adv = 0.72, track = 0, leading: lh = 1.1, min = 12} = opts;
-  const units = textWidthPx(text, 1, {adv, track});
   const width = Math.max(1, W * usable);
   for (let px = Math.floor(base); px >= min; px--) {
-    const lines = Math.max(1, Math.ceil((units * px) / width));
+    const lines = wrapLines(text, px, width, {adv, track});
     if (lines * px * lh <= H) return px;
   }
   return min;

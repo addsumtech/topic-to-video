@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, clamp01} from '../runtime/motion';
 import {leading} from '../runtime/cjkType';
+import {CONTENT_TOP, contentBottom, wrapLines} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
@@ -22,6 +23,18 @@ export const AuroraFlow: React.FC<{lines?: string[]}> = ({lines = ['Your AI team
   const t = useT();
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
+  // 150px IS A LATIN NUMBER, and the stack is centred on the FRAME. A Han glyph is a full em, so each line
+  // wraps where an English one did not, the block grows both ways from the centre, and the last line lands
+  // 306px inside the caption band at 1:1. The size is fitted to the stack the zone can hold and the stack
+  // is centred on the ZONE — the same repair KineticManifesto needed, for the same reason. Latin demo copy
+  // is one line per entry and resolves to 150 exactly.
+  const zoneH = contentBottom(W, H) - CONTENT_TOP;
+  const stackAt = (px: number) => lines.reduce(
+    (h, ln) => h + wrapLines(String(ln ?? ''), px, W * 0.86) * px * Math.max(1.02, leading(String(ln ?? ''), 1.02)), 0)
+    + Math.max(0, lines.length - 1) * 10;
+  let typePx = 150;
+  while (typePx > 24 && stackAt(typePx) > zoneH) typePx -= 2;
+
   return (
     <AbsoluteFill style={{background: dna?.bg ?? '#0a0b12', overflow: 'hidden'}}>
       {/* the flowing aurora — drifting soft colour bodies that blend */}
@@ -36,10 +49,11 @@ export const AuroraFlow: React.FC<{lines?: string[]}> = ({lines = ['Your AI team
       {/* subtle darkening at the edges so type stays crisp */}
       <AbsoluteFill style={{background: 'radial-gradient(80% 80% at 50% 50%, transparent 40%, rgba(6,7,14,.6) 100%)'}} />
       {/* crisp kinetic type */}
-      <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10}}>
+      <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10,
+        paddingTop: CONTENT_TOP, paddingBottom: H - contentBottom(W, H)}}>
         {lines.map((ln, i) => {
           const r = easeOutCubic(seg(t, 0.16 + i * 0.16, 0.16 + i * 0.16 + 0.34));
-          return <div key={i} style={{font: `900 150px/${leading(ln, 1.02)} var(--f-display, Inter,system-ui,sans-serif)`, color: '#fff', letterSpacing: '-0.03em',
+          return <div key={i} style={{font: `900 ${typePx}px/${leading(ln, 1.02)} var(--f-display, Inter,system-ui,sans-serif)`, color: '#fff', letterSpacing: '-0.03em',
             opacity: clamp01(r), transform: `translateY(${lerp(40, 0, clamp01(r))}px)`, textShadow: '0 20px 80px rgba(0,0,0,.35)'}}>{ln}</div>;
         })}
       </AbsoluteFill>

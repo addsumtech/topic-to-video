@@ -6,7 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutBack, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {CONTENT_TOP, contentBottom} from '../runtime/layout';
+import {CONTENT_TOP, contentBottom, inkBlockH, wrapLines} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 const A = Math.PI / 6;
@@ -66,6 +66,9 @@ export const IsometricAssembly: React.FC<{items?: [string, string, string]}> = (
     return {p, x, inside, finished, color: DONE[i]};
   });
   const busy = parts.some((pt) => pt.inside && pt.p < 1);
+  const labelTop = (y: number, text: unknown, px: number, measure: number) =>
+    Math.min(y, contentBottom(W, H) - inkBlockH(px, wrapLines(String(text ?? ''), px, measure)));
+
   return (
     <AbsoluteFill style={{background: bgc}}>
      <div style={{position: 'absolute', inset: 0, transform: `scale(${k})`, transformOrigin: `50% ${zTop}px`}}>
@@ -85,10 +88,14 @@ export const IsometricAssembly: React.FC<{items?: [string, string, string]}> = (
             top={pt.finished ? pt.color : '#b6bece'} ox={ox} oy={oy} />
         ))}
       </svg>
+      {/* A PROJECTED LABEL LANDS WHERE THE GEOMETRY PUTS IT, and the geometry knows nothing about the
+          caption band: a Chinese label wraps in its fixed 200-260px column and the lowest of the three
+          reaches into it (21px at 16:9). Each top is clamped to the ink its own copy takes — Latin is one
+          line and every label stays exactly where it was. */}
       {/* labels */}
-      <div style={{position: 'absolute', left: iso(inX - 40, y + 200, 0, ox, oy)[0] - 110, top: iso(inX - 40, y + 200, 0, ox, oy)[1], width: 200, textAlign: 'center', textWrap: 'balance', font: '700 38px/1.2 var(--f-body, Inter,system-ui,sans-serif)', color: L1}}>{items[0]}</div>
-      <div style={{position: 'absolute', left: iso(mx + mw / 2, y + 80, 0, ox, oy)[0] - 130, top: iso(mx + mw / 2, y + 80, 0, ox, oy)[1] - 300, width: 260, textAlign: 'center', textWrap: 'balance', font: '800 44px/1.15 var(--f-body, Inter,system-ui,sans-serif)', color: L2}}>{items[1]}</div>
-      <div style={{position: 'absolute', left: iso(outX, y + 200, 0, ox, oy)[0] - 60, top: iso(outX, y + 200, 0, ox, oy)[1] + 10, width: 260, textWrap: 'balance', font: '800 40px/1.2 var(--f-body, Inter,system-ui,sans-serif)', color: L3}}>{items[2]}</div>
+      <div style={{position: 'absolute', left: iso(inX - 40, y + 200, 0, ox, oy)[0] - 110, top: labelTop(iso(inX - 40, y + 200, 0, ox, oy)[1], items[0], 38, 200), width: 200, textAlign: 'center', textWrap: 'balance', font: '700 38px/1.2 var(--f-body, Inter,system-ui,sans-serif)', color: L1}}>{items[0]}</div>
+      <div style={{position: 'absolute', left: iso(mx + mw / 2, y + 80, 0, ox, oy)[0] - 130, top: labelTop(iso(mx + mw / 2, y + 80, 0, ox, oy)[1] - 300, items[1], 44, 260), width: 260, textAlign: 'center', textWrap: 'balance', font: '800 44px/1.15 var(--f-body, Inter,system-ui,sans-serif)', color: L2}}>{items[1]}</div>
+      <div style={{position: 'absolute', left: iso(outX, y + 200, 0, ox, oy)[0] - 60, top: labelTop(iso(outX, y + 200, 0, ox, oy)[1] + 10, items[2], 40, 260), width: 260, textWrap: 'balance', font: '800 40px/1.2 var(--f-body, Inter,system-ui,sans-serif)', color: L3}}>{items[2]}</div>
      </div>
     </AbsoluteFill>
   );

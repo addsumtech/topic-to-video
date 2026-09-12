@@ -13,7 +13,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, easeOutExpo} from '../runtime/motion';
-import {captionBand, CONTENT_TOP} from '../runtime/layout';
+import {CONTENT_TOP, captionBand, contentBottom, inkBlockH, wrapLines} from '../runtime/layout';
 import {useDNA, mix} from '../runtime/dna';
 
 export const DURATION = 160;
@@ -58,6 +58,20 @@ export const ProfileGrowth: React.FC<{
 
   const states = STATES.slice(0, 5);
   const n = Math.max(1, states.length);
+
+  // THE CAPTION UNDER THE PLATE IS TWO BLOCKS AT FIXED OFFSETS, and both offsets assume ONE line. A Han
+  // glyph is a full em, so the state's note wraps where the English one did not, the second block starts
+  // inside the first, and the pair reaches 66px into the caption band. Both tops derive from the lines the
+  // copy actually takes in `fieldW`, and the pair is clamped to the zone — Latin is one line each and
+  // resolves to the offsets it always had.
+  const CAP_PX = Math.round(W * 0.026), NOTE_PX = Math.round(W * 0.0135);
+  const capText = String(states[n - 1]?.note ?? '');
+  const capH = capText ? wrapLines(capText, CAP_PX, fieldW) * CAP_PX * 1.25 : 0;
+  const noteH2 = note ? wrapLines(String(note), NOTE_PX, fieldW) * NOTE_PX * 1.4 : 0;
+  const capGap = Math.round(W * 0.030) - Math.round(CAP_PX * 1.25);
+  const blockH2 = capH + (note ? Math.max(0, capGap) + noteH2 : 0);
+  const capTop = Math.min(bottom + H * 0.045, contentBottom(W, H) - blockH2 - (inkBlockH(NOTE_PX) - NOTE_PX));
+  const noteTop = capTop + capH + Math.max(0, capGap);
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG_D0, color: FG}}>
@@ -120,12 +134,12 @@ export const ProfileGrowth: React.FC<{
 
       {/* what the last state turned out to be */}
       {states[n - 1]?.note ? (
-        <div style={{position: 'absolute', left: fx, top: bottom + H * 0.045, width: fieldW,
+        <div style={{position: 'absolute', left: fx, top: capTop, width: fieldW,
           textAlign: 'center', opacity: land,
           font: `700 ${Math.round(W * 0.026)}px/1.25 ${disp}`, textWrap: 'balance', color: FG}}>{states[n - 1].note}</div>
       ) : null}
       {note ? (
-        <div style={{position: 'absolute', left: fx, top: bottom + H * 0.045 + Math.round(W * 0.030),
+        <div style={{position: 'absolute', left: fx, top: noteTop,
           width: fieldW, textAlign: 'center', opacity: land * 0.9,
           font: `400 ${Math.round(W * 0.0135)}px/1.4 var(--f-body, system-ui, sans-serif)`,
           color: DIM, textWrap: 'balance'}}>{note}</div>

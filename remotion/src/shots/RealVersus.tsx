@@ -16,7 +16,7 @@ import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {requireEvidence} from '../runtime/evidence';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
-import {CONTENT_TOP, TITLE_Y, contentBottom} from '../runtime/layout';
+import {CONTENT_TOP, TITLE_Y, bottomInset, contentBottom, textWidthPx} from '../runtime/layout';
 import {lumValue} from '../runtime/shotLuma';
 import {useDNA} from '../runtime/dna';
 
@@ -64,7 +64,14 @@ export const RealVersus: React.FC<{srcLeft?: string; srcRight?: string; labelLef
   const gap = px(0.0833);         // 90 @1080
   const slide = px(0.037);        // 40 @1080 — the wipe-in offset
   const labelGap = px(0.0148);    // 16 @1080
-  const strip = labelGap + Math.round(labelSize * 1.15);   // the label line under a panel
+  // THE STRIP RESERVES FOR THE LINES THE LABEL TAKES, not always for one. A Han glyph is a full em, so the
+  // same label that sets on one line in English wraps to two in Chinese — and the block is centred on the
+  // content zone, so the extra line comes off the BOTTOM, into the caption band (13px of it at 9:16, where
+  // the band is deepest). The count is estimated the way `fitBlockPx` estimates a headline, against the
+  // panel's own width, because that is the measure the label actually wraps in. English demo copy is one
+  // line and every frame that ships today is unchanged.
+  const labelLines = (w: number) => Math.max(1, Math.min(3,
+    Math.ceil(Math.max(...[labelLeft, labelRight].map((x) => textWidthPx(String(x ?? ''), labelSize))) / Math.max(1, w))));
 
   // THE PANELS LIVE IN THE CONTENT ZONE, not in the whole frame. Centred on H/2 the label's line box closed at
   // y=852.5 against a caption band that opens at 852 (captionBand at 1080p = 228px) — the burned narration sat
@@ -79,9 +86,15 @@ export const RealVersus: React.FC<{srcLeft?: string; srcRight?: string; labelLef
   // boundary ~22px at both ends; it is not binding at 16:9, where H*0.5 caps the panel first (verified: the
   // themed 16:9 frame is pixel-identical with and without it).
   const air = px(0.02);
-  const S = stack
+  // The panel's width and the label's line count depend on each other — the label wraps in the panel's width
+  // and the space the label needs sets the panel's height. Two passes settle it, the same way PhotoPlate
+  // settles its plate: assume one line, derive the real width, then re-derive with the real count.
+  const stripFor = (lines: number) => labelGap + Math.round(labelSize * 1.15 * lines);
+  const solveS = (strip: number) => (stack
     ? Math.max(1, Math.min(W * 0.82, (zoneH - 2 * air - gap - 2 * strip) / 2))
-    : Math.max(1, Math.min(H * 0.5, W * 0.32, zoneH - 2 * air - strip, (W - gap) / 2));
+    : Math.max(1, Math.min(H * 0.5, W * 0.32, zoneH - 2 * air - strip, (W - gap) / 2)));
+  const strip = stripFor(labelLines(solveS(stripFor(1))));
+  const S = solveS(strip);
   const cx = W / 2;
   const blockH = stack ? 2 * S + gap + 2 * strip : S + strip;
   const py = top0 + (zoneH - blockH) / 2;
@@ -131,7 +144,7 @@ export const RealVersus: React.FC<{srcLeft?: string; srcRight?: string; labelLef
         height: chipD, borderRadius: chipD / 2, background: SURF, border: `${chipRing}px solid ${ACC}`,
         color: CHIP_INK, display: 'flex', alignItems: 'center', justifyContent: 'center',
         font: `800 ${chipInk}px ${body}`, opacity: clamp01(seg(t, 0.5, 0.62))}}>{INTRINSIC_TEXT[0]}</div>
-      {credit ? <div style={{position: 'absolute', left: px(0.0185), right: px(0.0185), bottom: px(0.0074),
+      {credit ? <div style={{position: 'absolute', left: px(0.0185), right: px(0.0185), bottom: bottomInset(W, H, px(0.0074)),
         color: DIM, font: `400 ${creditSize}px/1.3 ${body}`}}>{credit}</div> : null}
     </AbsoluteFill>
   );

@@ -6,7 +6,7 @@ import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {fitContentSquare} from '../runtime/layout';
+import {bottomInset, fitContentSquare} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 
@@ -52,7 +52,7 @@ export const DiffusionDenoise: React.FC<{src?: string; accent?: string; label?: 
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
         color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
-      {credit ? <div style={{position: 'absolute', left: 20, bottom: 8, color: '#5f6b7d', font: "400 14px/1.3 var(--f-body, Inter, sans-serif)"}}>{credit}</div> : null}
+      {credit ? <div style={{position: 'absolute', left: 20, bottom: bottomInset(W, H, 8), color: '#5f6b7d', font: "400 14px/1.3 var(--f-body, Inter, sans-serif)"}}>{credit}</div> : null}
     </AbsoluteFill>
   );
 };

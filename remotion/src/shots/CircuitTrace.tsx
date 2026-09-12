@@ -7,6 +7,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {leading} from '../runtime/cjkType';
+import {contentBottom, fitTextPx, inkBlockH, wrapLines} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
 const BOARD = '#08130f', COPPER = '#2fd6a0', LIVE = '#7dffcf';
@@ -20,9 +21,20 @@ export const CircuitTrace: React.FC<{title?: string; chip?: string; nodes?: stri
   const titleIn = easeOutCubic(seg(t, 0.03, 0.16));
   const chipIn = easeOutBack(clamp01(seg(t, 0.1, 0.32)));
   // satellite pads around the core, each with an L-shaped trace to the core
+  // THE PADS RING THE CORE AT A FIXED 320px RADIUS, and each holds a label in a 116x74 box. A Han glyph is
+  // a full em, so a Chinese node name wraps out of that box — downward from a pad that is centred on its
+  // own point — and the lowest pad's label lands in the caption band (90px of it at 1:1). The label is
+  // fitted to the pad it sits in, and the ring's vertical radius yields so the deepest pad clears the zone.
+  // Both are 1:1 with the old numbers for the Latin demo, whose names are four characters.
+  const PAD_W = 116, PAD_H = 74;
+  const padPx = NODES.slice(0, 6).reduce(
+    (px, s2) => Math.min(px, fitTextPx(String(s2 ?? ''), PAD_W - 12, 26, {usable: 1})), 26);
+  const padLines = Math.max(1, ...NODES.slice(0, 6).map((s2) => wrapLines(String(s2 ?? ''), padPx, PAD_W - 12)));
+  const padDeep = Math.max(PAD_H, padLines * padPx * 1.15) / 2 + (inkBlockH(padPx) - padPx);
+  const ringY = Math.min(320, Math.max(120, contentBottom(W, H) - cy - padDeep));
   const pads = NODES.slice(0, 6).map((label, i) => {
     const ang = (i / Math.max(1, NODES.length)) * Math.PI * 2 - Math.PI / 2;
-    const px = cx + Math.cos(ang) * Math.min(560, W / 2 - 130), py = cy + Math.sin(ang) * 320;
+    const px = cx + Math.cos(ang) * Math.min(560, W / 2 - 130), py = cy + Math.sin(ang) * ringY;
     return {label, px, py, i, ang};
   });
   const lpath = (x1: number, y1: number, x2: number, y2: number) => `M${x1} ${y1} L${x1} ${y2} L${x2} ${y2}`;
@@ -60,7 +72,7 @@ export const CircuitTrace: React.FC<{title?: string; chip?: string; nodes?: stri
         return <div key={i} style={{position: 'absolute', left: p.px, top: p.py, transform: `translate(-50%,-50%) scale(${on})`,
           opacity: clamp01(on), width: 116, height: 74, borderRadius: 10, background: '#0c241a',
           border: `2px solid ${COPPER}`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: LIVE, font: `800 26px/${leading(p.label, 1)} var(--f-mono, "JetBrains Mono", monospace)`, boxShadow: `0 0 24px ${COPPER}44`}}>{p.label}</div>;
+          color: LIVE, font: `800 ${padPx}px/${leading(p.label, 1)} var(--f-mono, "JetBrains Mono", monospace)`, boxShadow: `0 0 24px ${COPPER}44`}}>{p.label}</div>;
       })}
       {/* central chip */}
       <div style={{position: 'absolute', left: cx, top: cy, transform: `translate(-50%,-50%) scale(${chipIn})`,

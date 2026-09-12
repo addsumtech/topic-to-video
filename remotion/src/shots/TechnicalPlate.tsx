@@ -14,7 +14,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, easeOutExpo} from '../runtime/motion';
-import {captionBand, CONTENT_TOP} from '../runtime/layout';
+import {CONTENT_TOP, captionBand, contentBottom, inkBlockH, wrapLines} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
 
 export const DURATION = 160;
@@ -99,6 +99,19 @@ export const TechnicalPlate: React.FC<{
 
   const nS = Math.max(1, STROKES.length);
 
+  // THE PLATE CAPTION IS TWO BLOCKS AT FIXED OFFSETS, and both assume one line — the same shape as
+  // ProfileGrowth's, and it fails the same way: a Chinese object name wraps, the note starts inside it, and
+  // the pair reaches 66px into the caption band. Derived from the lines the copy takes in `fieldW`, clamped
+  // to the zone, and identical to the old offsets for one-line Latin.
+  const OBJ_PX = Math.round(W * 0.028), PNOTE_PX = Math.round(W * 0.0145);
+  const objH = wrapLines(String(object ?? ''), OBJ_PX, fieldW) * OBJ_PX * 1.2;
+  const pnoteH = note ? wrapLines(String(note), PNOTE_PX, fieldW) * PNOTE_PX * 1.4 : 0;
+  const pGap = Math.max(0, Math.round(W * 0.032) - Math.round(OBJ_PX * 1.2));
+  const plateBlockH = objH + (note ? pGap + pnoteH : 0);
+  const plateCapTop = Math.min(bottom + H * 0.030,
+    contentBottom(W, H) - plateBlockH - (inkBlockH(PNOTE_PX) - PNOTE_PX));
+  const plateNoteTop = plateCapTop + objH + pGap;
+
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG_D0, color: FG}}>
       <div style={{position: 'absolute', left: fx0, top: CONTENT_TOP - H * 0.055, opacity: sheet,
@@ -176,11 +189,11 @@ export const TechnicalPlate: React.FC<{
       })}
 
       {/* the object's name, set under the sheet like a plate caption */}
-      <div style={{position: 'absolute', left: fx0, top: bottom + H * 0.030, width: fieldW,
+      <div style={{position: 'absolute', left: fx0, top: plateCapTop, width: fieldW,
         textAlign: 'center', opacity: land,
         font: `700 ${Math.round(W * 0.028)}px/1.2 ${disp}`, color: FG}}>{object}</div>
       {note ? (
-        <div style={{position: 'absolute', left: fx0, top: bottom + H * 0.030 + Math.round(W * 0.032),
+        <div style={{position: 'absolute', left: fx0, top: plateNoteTop,
           width: fieldW, textAlign: 'center', opacity: land * 0.9,
           font: `400 ${Math.round(W * 0.0135)}px/1.4 var(--f-body, system-ui, sans-serif)`,
           color: DIM}}>{note}</div>

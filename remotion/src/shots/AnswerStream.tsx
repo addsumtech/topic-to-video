@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, easeOutBack, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {contentBottom, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 
 export const DURATION = 165; // 5.5s
@@ -19,11 +20,22 @@ export const AnswerStream: React.FC<{query?: string; answer?: string; sources?: 
   const dna = useDNA();
   const TEAL = dna?.accent ?? TEAL_D0, BG = dna?.bg ?? BG_D0, PANEL = dna?.surface ?? PANEL_D0;
   const t = useT();
-  const {width: W} = useVideoConfig();
+  const {width: W, height: H} = useVideoConfig();
   const qIn = easeOutCubic(seg(t, 0, 0.14));
   const chars = Math.floor(A.length * easeOutCubic(seg(t, 0.2, 0.78)));
   const streaming = t > 0.2 && t < 0.8;
   const CW = Math.min(1300, Math.round(W * 0.92)), X = (W - CW) / 2;   // the column yields to a narrow frame
+  // THE EVIDENCE ROW SITS AT A FIXED y=600, and its cards are as tall as the copy in them. A Han glyph is
+  // a full em, so a Chinese source title wraps where the English one did not, the card grows downward from
+  // a top that never moves, and the row reaches 101px into the caption band at 1:1. The row's top yields by
+  // the height its tallest card actually needs. Latin is one line and the row stays at 600.
+  const SRC_PX = 36, SRC_D_PX = 26;
+  const colW = Math.max(80, (CW - 26 * Math.max(0, SRC.length - 1)) / Math.max(1, SRC.length) - 56);
+  const srcCardH = 52 + 26 + 14
+    + Math.max(1, ...SRC.map((s2) => wrapLines(String(s2.t ?? ''), SRC_PX, colW))) * SRC_PX * 1.2
+    + Math.max(0, ...SRC.map((s2) => wrapLines(String(s2.d ?? ''), SRC_D_PX, colW) - 1)) * SRC_D_PX;
+  const srcTop = Math.min(600, contentBottom(W, H) - srcCardH);
+
   return (
     <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 18%, #14203a, ${BG} 62%)`, padding: 0}}>
       {/* query */}
@@ -42,7 +54,7 @@ export const AnswerStream: React.FC<{query?: string; answer?: string; sources?: 
         </div>
       </div>
       {/* source cards */}
-      <div style={{position: 'absolute', left: X, top: 600, width: CW, display: 'flex', gap: 26}}>
+      <div style={{position: 'absolute', left: X, top: srcTop, width: CW, display: 'flex', gap: 26}}>
         {SRC.map((s, i) => {
           const r = easeOutBack(seg(t, 0.4 + i * 0.08, 0.4 + i * 0.08 + 0.22));
           return <div key={i} style={{flex: 1, opacity: clamp01(r), transform: `translateY(${lerp(24, 0, clamp01(r))}px)`,

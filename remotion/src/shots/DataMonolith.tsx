@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {contentBottom, inkBlockH, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 
 export const DURATION = 160; // ~5.3s
@@ -22,7 +23,14 @@ export const DataMonolith: React.FC<{items?: string[]; title?: string; hero?: nu
   const towers = ITEMS.slice(0, 9);
   const n = towers.length;
   const heroIdx = Math.min(HERO, n - 1);
-  const floorY = H * 0.72;
+  // THE FLOOR YIELDS TO THE LABELS UNDER IT. `H * 0.72` is a flat fraction and the labels hang 22px below
+  // it, so the reserve is one line of type — in Chinese each band's label wraps in a column only
+  // `min(150, (W-320)/n)` wide and the second line lands in the caption band (24px of it at 1:1). Counted by
+  // breaking the copy in the band's own measure, so Latin is one line and the floor does not move.
+  const bandW0 = Math.min(150, (W - 320) / Math.max(1, n));
+  const labelBlock = 22 + inkBlockH(22, Math.max(1, ...towers.map((b: string) =>
+    wrapLines(String(b ?? ''), 22, bandW0))));
+  const floorY = Math.min(H * 0.72, contentBottom(W, H) - labelBlock);
   const bandW = Math.min(150, (W - 320) / n), gap = 30;
   const rowW = n * bandW + (n - 1) * gap;
   const x0 = (W - rowW) / 2;

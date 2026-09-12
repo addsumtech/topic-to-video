@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01} from '../runtime/motion';
+import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 import {useDNA, EdFrame} from '../runtime/dna';
 
@@ -22,8 +23,13 @@ export const EdTimeline: React.FC<{kicker?: string; entries?: Entry[]; framed?: 
   const fg = dna?.fg ?? '#efe9df', dim = dna?.dim ?? '#9a9084', acc = dna?.accent ?? '#e2603f', line = dna?.line ?? '#2a2018';
 
   return (
+    // CENTRED ON THE CONTENT ZONE, NOT THE FRAME. Every entry grows with its copy — a Han glyph is a full
+    // em, so a Chinese note wraps where the English one did not — and a list centred on H/2 pushes half of
+    // that growth downward into the caption band (36px of it at 1:1). The padding makes the flex centre the
+    // zone's centre; on a frame whose band and title band are equal it changes nothing.
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(120% 120% at 50% -6%, #1c1815, #0d0b09 74%)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      paddingTop: CONTENT_TOP, paddingBottom: H - contentBottom(W, H)}}>
       <EdFrame dna={dna} kicker={kicker} t={t} framed={framed} align="left">
         <div style={{width: '100%', maxWidth: 1100}}>
           {entries.map((e, i) => {

@@ -7,7 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, clamp01} from '../runtime/motion';
 import {leading} from '../runtime/cjkType';
-import {CONTENT_TOP, contentBottom, fitBlockPx} from '../runtime/layout';
+import {CONTENT_TOP, contentBottom, fitBlockPx, wrapLines} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
@@ -43,8 +43,22 @@ const Word: React.FC<{text: string; start: number; span: number; t: number; hero
   // headline. Latin demo copy keeps 200 exactly, so nothing that ships today moves.
   const heroC = ink ?? '#FFE24D', normC = ink ?? '#ffffff';
   const lead = leading(text, 0.95);
-  const px = Math.round(fitBlockPx(text, W * 0.82 - 120, contentBottom(W, H) - CONTENT_TOP, 200,
-                                   {leading: lead, usable: 1}));
+  const zone = contentBottom(W, H) - CONTENT_TOP;
+  // THE MEASURE IS STATED, NOT INFERRED. It was `maxWidth: 82%` plus `padding: 0 60px` on a flex item, and
+  // what the browser then wrapped in was not the number this file computed: the estimate said three lines
+  // and the frame drew FOUR, so the fit believed it fitted and the fourth line went into the caption band.
+  // An explicit width with border-box sizing makes the number the type wraps in and the number the fit
+  // reasons about the same number — which is the only version of this that cannot drift apart.
+  const measure = Math.max(120, Math.round(W * 0.82) - 120);
+  const px = Math.round(fitBlockPx(text, measure, zone, 200, {leading: lead, usable: 1}));
+  // AND THE WORD RUSHES PAST, so the SETTLED size is not the size the frame has to hold. The depart phase
+  // scales to 1.9, and a transform does not change layout but it does change what is drawn: fitted to the
+  // zone at rest, a three-line Chinese phrase then swelled 117px into the caption band on its way out. The
+  // rush is clamped to what the zone can take instead of the type being shrunk to make room for a 1.9 that
+  // a one-line Latin phrase never needs — Latin fits 3x over, so `departTo` is 1.9 there and nothing that
+  // ships today moves.
+  const blockH = wrapLines(text, px, measure) * px * lead;   // the same count the fit used
+  const departTo = Math.min(1.9, Math.max(1.02, zone / blockH));
   const lp = clamp01((t - start) / span);
   if (t < start - 0.02 || lp >= 1) return null;
   // WHERE THE WORD SETTLES. The hero lands at reading size and the rest a step under it — the step a viewer
@@ -53,7 +67,7 @@ const Word: React.FC<{text: string; start: number; span: number; t: number; hero
   const settle = hero || !ink ? 1.0 : 0.86;
   // approach (0-.22): far+blur+fade-in → hold (.22-.62): reading size, sharp → depart (.62-1): rush past, blur+fade
   const scale = lp < 0.62 ? lerp(0.62 * settle, settle, easeOutCubic(clamp01(lp / 0.22)))
-                          : lerp(settle, 1.9 * settle, easeOutCubic((lp - 0.62) / 0.38));
+                          : lerp(settle, departTo * settle, easeOutCubic((lp - 0.62) / 0.38));
   const op = lp < 0.18 ? lp / 0.18 : lp > 0.72 ? clamp01((1 - lp) / 0.28) : 1;
   const blur = lp < 0.16 ? 18 * (1 - lp / 0.16) : lp > 0.66 ? 26 * ((lp - 0.66) / 0.34) : 0;
   // CENTRED ON THE CONTENT ZONE, NOT ON THE FRAME. The fit above sizes the block to the zone, and then
@@ -66,7 +80,7 @@ const Word: React.FC<{text: string; start: number; span: number; t: number; hero
       <div style={{font: `900 ${px}px/${lead} var(--f-display, Inter,system-ui,sans-serif)`, letterSpacing: '-0.03em', textAlign: 'center',
         color: hero ? heroC : normC, opacity: op, transform: `scale(${scale})`,
         filter: blur > 0.5 ? `blur(${blur}px)` : undefined, textShadow: '0 20px 60px rgba(0,0,0,.25)',
-        maxWidth: '82%', padding: '0 60px'}}>{text}</div>
+        boxSizing: 'content-box', width: measure, padding: '0 60px'}}>{text}</div>
     </AbsoluteFill>
   );
 };

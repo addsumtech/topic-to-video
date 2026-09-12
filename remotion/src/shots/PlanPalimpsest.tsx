@@ -13,7 +13,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, easeOutExpo} from '../runtime/motion';
-import {captionBand, CONTENT_TOP} from '../runtime/layout';
+import {CONTENT_TOP, captionBand, contentBottom, wrapLines} from '../runtime/layout';
 import {Plane, DEPTH} from '../runtime/depth';
 import {useDNA} from '../runtime/dna';
 
@@ -51,7 +51,25 @@ export const PlanPalimpsest: React.FC<{
   // at 1080) holds about half of that. The overflow used to fall into empty page; once the caption band grew
   // it fell under the burned subtitle instead, and beat 26 of a delivered film shipped with its last legend
   // line printed through. Reserved from the type that goes in it, like every other block in this library.
-  const legendH = Math.round(W * 0.020 + W * 0.0145 + W * 0.0135 * 2 * 1.4 + H * 0.045);
+  // ...and "wraps to two lines" is a LATIN observation. A Han glyph is a full em, so the same note runs to
+  // three or four in the same column and the overflow is back under the subtitle (104px of it, measured).
+  // The reserve is counted by breaking each string in the column it actually wraps in, floored at the
+  // original formula so Latin resolves to exactly the number it always did. The column depends on `pw`,
+  // which depends on this — two passes settle it, the same way PhotoPlate settles its plate.
+  const LEGEND_BASE = Math.round(W * 0.020 + W * 0.0145 + W * 0.0135 * 2 * 1.4 + H * 0.045);
+  const legendFor = (colW: number) => Math.round(Math.max(LEGEND_BASE,
+    W * 0.0195 * 1.25 * Math.max(1, ...[underLabel, overLabel].map((x) => wrapLines(String(x ?? ''), W * 0.0195, colW)))
+    + W * 0.0125 * 1.4 * Math.max(1, ...[underDate, overDate].map((x) => wrapLines(String(x ?? ''), W * 0.0125, colW)))
+    + W * 0.0135 * 1.4 * Math.max(1, ...[underNote, overNote].map((x) => wrapLines(String(x ?? ''), W * 0.0135, colW)))
+    + H * 0.045 + W * 0.005));
+  const colOf = (pwx: number) => Math.max(60, (pwx - W * 0.03) / 2 - W * 0.020 - W * 0.010);
+  // AND THE BLOCK IS CLAMPED, not only reserved for. A reserve is arithmetic about a layout the browser
+  // performs, and the two can disagree — at 16:9 the widest column makes the reserve smallest and it was
+  // still 46px short. The legend's TOP yields directly to the thing it must not cross, so the block cannot
+  // enter the band whatever the reserve came out at.
+  const legendInk = (colW: number) => Math.round(legendFor(colW) - H * 0.045);
+  const pw0 = Math.min(W * 0.44, (H - captionBand(W, H) - LEGEND_BASE - top) * 1.6);
+  const legendH = legendFor(colOf(pw0));
   const bottom = H - captionBand(W, H) - legendH;
   const pw = Math.min(W * 0.44, (bottom - top) * 1.6);
   const ph = (bottom - top) * 0.76;
@@ -123,7 +141,8 @@ export const PlanPalimpsest: React.FC<{
       <Cross cxp={x0 + pw + W * 0.045} cyp={y0 + ph + H * 0.055} on={over} />
 
       {/* the two legends, side by side under the plan — a filled swatch and an outline swatch */}
-      <div style={{position: 'absolute', left: x0, top: bottom + H * 0.045, width: pw,
+      <div style={{position: 'absolute', left: x0,
+        top: Math.min(bottom + H * 0.045, contentBottom(W, H) - legendInk(colOf(pw))), width: pw,
         display: 'flex', gap: W * 0.03, opacity: land}}>
         {[{sw: 'fill' as const, label: underLabel, date: underDate, note: underNote, tone: ACC},
           {sw: 'line' as const, label: overLabel, date: overDate, note: overNote, tone: FG}].map((L, i) => (
