@@ -112,20 +112,42 @@ _MED = "办公的产物本身就是文件，不是一段还要你二次加工的
 _ITEMS = ["自动拆解任务", "规划执行步骤并调用工具", "在授权目录里真正动文件", "交付可验收的成果",
           "把重复动作沉淀成可复用技能"]
 
-# One pool per length ROLE. The first entry of each is the base string the rest of this file already used,
-# so a single-row fixture renders exactly what it rendered before.
+# One pool per length ROLE. The first entry of each is what a single-prop register gets, so it is the entry
+# that has to be a real test — see the LABEL pool below for what happens when it is the shortest one.
 _SHORT_V = [_SHORT, "自动归档", "按类型分流", "沉淀为技能"]
-_LABEL_V = [_LABEL, "扩张阶段", "稳定运行", "交付验收"]
+# A LABEL POOL WHOSE EVERY ENTRY IS THE SAME LENGTH TESTS ONE LENGTH. All four of these were exactly four
+# glyphs, and this pool feeds `word`, `label`, `heading`, `focalLabel` — the DISPLAY props, the ones set at
+# 130-260px. Four Han glyphs at 240px is 960px, which clears a 1080-wide frame by sixty, so the sweep proved
+# 28 literal-display-type registers survive four glyphs and reported every one of them clean. Handed eight,
+# InflateType sliced its word 450px on the left and ElasticType 412px each side (`5e08043`). It is the same
+# lesson `_ITEMS` already carries one pool above: mixed lengths, because a real film writes both.
+# ...AND THE FIRST ENTRY IS THE ONE THAT GETS TESTED. `word` is the first prop a display register declares,
+# so it takes pool[0] and nothing else — lengthening the tail changed which strings the FOURTH scalar of a
+# register sees and left the display props exactly where they were. Four glyphs is not a hard case for type
+# set at 240px; six is a hero word a Chinese film actually writes, and it is longer than the four that hid
+# `InflateType` and `ElasticType`. The rest of the pool runs longer still, for registers that take several.
+# EVERY ENTRY IS A HARD CASE, not just the first. Varying by the prop's ordinal spreads the pool across the
+# library, which is what stops sibling props being identical — but it also means a register's display prop
+# gets whichever entry its POSITION happens to select, and `OdometerRoll.label` landed on the four-glyph one:
+# the exact length that hid `InflateType` and `ElasticType`. A pool whose shortest member is soft tests some
+# registers softly, at random. Six glyphs is a hero word a Chinese film actually writes; none is shorter.
+_LABEL_V = ["自主循环运转", "持续稳定运行", "在授权目录动手", "自主循环持续运转"]
 _MED_V = [_MED, "规划执行步骤并调用工具", "在授权目录里真正动文件", "交付可验收的成果"]
+# TITLE had no pool of its own, so `_variant` fell through to searching every pool for the string by
+# MEMBERSHIP — and `_TITLE` is also the fourth entry of `_MED_V`, so varying a title silently handed it a
+# MED-length sentence. A role's variants belong to that role.
+_TITLE_V = [_TITLE, "产物本身就是文件", "它自己动手交付", "把重复沉淀成技能"]
 _LONG_V = [_LONG, "它读取你授权的目录，按类型分流并归档，最后交付一份可验收的成果",
            "重复三次以上的动作会被沉淀成技能，下一次不必再从头讲一遍"]
 
+# Each role names its OWN pool. Keyed to a single string it needed `_variant` to find that string again by
+# searching every pool, which is how a title came to be varied into a MED sentence.
 _ROLE = [
     (r"^(kicker|meta|unit|issue|sectionLabel|wordmark|colophon|doneLabel|tag|cmd|root|hub|time|date|"
-     r"hash|ref|status|filename|glyph|kind|side)$", _SHORT),
-    (r"^(label|heading|focalLabel|titleTop|titleBottom|word|value|query)$", _LABEL),
-    (r"^(title|hero|headline|name)$", _TITLE),
-    (r"^(tagline|caption|deck|answer|note|callout|heroNote|statement1|statement2|pitch|body)$", _LONG),
+     r"hash|ref|status|filename|glyph|kind|side)$", _SHORT_V),
+    (r"^(label|heading|focalLabel|titleTop|titleBottom|word|value|query)$", _LABEL_V),
+    (r"^(title|hero|headline|name)$", _TITLE_V),
+    (r"^(tagline|caption|deck|answer|note|callout|heroNote|statement1|statement2|pitch|body)$", _LONG_V),
 ]
 
 
@@ -171,24 +193,13 @@ def _local_of(prop, src):
 # composition is clean. The register was never wrong; the fixture was repeating itself and the instrument was
 # reading the repetition as a collision.
 #
-# The variants keep the ROLE (a label stays label-length, a note stays note-length) so what is measured is
-# still the shape the register declared — only the words differ, which is the one thing that must.
-def _variant(text, i):
-    if not i or not isinstance(text, str) or text is _READOUT:
-        return text
-    for pool in (_SHORT_V, _LABEL_V, _MED_V, _LONG_V):
-        if text in pool:
-            return pool[i % len(pool)]
-    return text
-
-
 def _string_for(prop, local=None, src="", i=0):
     if _is_readout(prop, local or prop, src):
         return _READOUT
-    for pat, val in _ROLE:
+    for pat, pool in _ROLE:
         if re.match(pat, prop):
-            return _variant(val, i)
-    return _variant(_MED, i)
+            return pool[i % len(pool)]
+    return _MED_V[i % len(_MED_V)]
 
 
 def prop_signature(name):
@@ -223,6 +234,7 @@ def cjk_props(name):
     """(props, untestable) — CJK copy shaped to this register's own signature."""
     sig, src = prop_signature(name)
     props, untestable = {}, []
+    scalars = 0
     for prop, ty in sig.items():
         t = ty.replace(" ", "")
         # `page` selects WHICH page shape a surface draws (cards / chart / table / form) — plumbing, like
@@ -241,7 +253,15 @@ def cjk_props(name):
         elif t.startswith("string[]") or t.startswith("(string|"):
             props[prop] = list(_ITEMS[:4])
         elif t.startswith("string"):
-            props[prop] = _string_for(prop, _local_of(prop, src), src)
+            # EVERY SIBLING SCALAR GOT THE SAME SENTENCE. `i` is the row index inside a shaped array, and
+            # nothing passed one for a top-level prop, so each took its pool's first entry: `RackFocus`
+            # declares before / after / beforeNote / afterNote / pivot and rendered ONE sentence five times.
+            # A sweep cannot judge a multi-prop register that way — and it cannot tell a dropped string from
+            # a duplicated one either, which is the same reason the ARRAY side was given row-varying copy.
+            # The variants keep the ROLE, so a label stays label-length and a note stays note-length; only
+            # the words differ, which is the one thing that must.
+            props[prop] = _string_for(prop, _local_of(prop, src), src, scalars)
+            scalars += 1
         elif t.startswith("boolean"):
             continue
         elif t.startswith("number") or t.startswith("number|null"):
@@ -761,7 +781,7 @@ def sweep(names, dna=DEFAULT_DNA, aspect=None, film_props=None):
     durs = durations()
     ev = evidence_props()
     out = {}
-    tmp = os.path.join(_REMOTION, ".cjk_type_probe.png")
+    tmp = os.path.join(_REMOTION, ".cjk_type_probe.%d.png" % os.getpid())
     for n in names:
         props, untestable = (film_props.get(n), []) if film_props else cjk_props(n)
         if props is None:
@@ -807,7 +827,7 @@ def unfed_control():
     reported clean. Handing TermTree a list of strings where it declares {name, note, tag} is the actual bug
     that shipped, so that is what this replays."""
     wrong = {"cmd": _SHORT, "root": _SHORT, "items": list(_ITEMS[:3])}
-    tmp = os.path.join(_REMOTION, ".cjk_type_probe.png")
+    tmp = os.path.join(_REMOTION, ".cjk_type_probe.%d.png" % os.getpid())
     hit = audit("TermTree", wrong, 145, tmp) or []
     right, _ = cjk_props("TermTree")
     ok = audit("TermTree", right, 145, tmp) or []

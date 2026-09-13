@@ -1579,7 +1579,13 @@ def test_authored_seam_rhythm_does_not_warn(tmp_path):
 
 
 # ── cinematic camera/layers gate (Phase 0 spine) ──────────────────────────────────────────────────
-def test_cinematic_fields_clean_pass_has_no_errors_or_warnings():
+def test_a_removed_tier_scene_is_refused_not_certified():
+    """This asserted `e == [] and w == []` — that a scene built from `layers` + a keyframe `camera` is
+    perfectly valid. It is not renderable at all. `render.py` refuses a slide carrying layers/lens,
+    `render_remotion.py` answers meta.renderer='remotion-legacy' with "REMOVED in the phase-3 cutover",
+    the live Film reads `camera` only as {move, amount, pan}, and this file's own scene-type check allows
+    exactly ("slide", "html"). A gate that certifies a board no renderer will accept is worse than one
+    that says nothing: it moves the failure to the end of a render."""
     import validate as _v
     s = {"index": 1, "type": "cinematic", "duration": 6.0,
          "layers": [{"kind": "grid", "parallax": 0.82}, {"kind": "panel", "parallax": 1.28}],
@@ -1587,7 +1593,11 @@ def test_cinematic_fields_clean_pass_has_no_errors_or_warnings():
                     {"atFrame": 180, "x": 0.46, "y": 0.52, "zoom": 1.12, "easing": "inout"}]}
     e, w = [], []
     _v._cinematic_fields(s, {"fps": 30}, "/tmp", "scene 1", e, w)
-    assert e == [] and w == []
+    assert any("REMOVED in the phase-3 cutover" in x for x in e), e
+    assert any("layers" in x for x in e)
+    # ...and it still names the re-authoring path, because "this is dead" without "do that instead" is
+    # the shape of the retired-script instruction that went unfixed for a release (`7fc5e24`).
+    assert any("shot_props" in x and "LIBRARY.md" in x for x in e)
 
 
 def test_cinematic_fields_is_noop_when_absent():
@@ -1615,7 +1625,10 @@ def test_cinematic_fields_catch_structural_faults(tmp_path):
 
 
 # ── cinematic 3D lens gate ─────────────────────────────────────────────────────────────────────────
-def test_cinematic_lens_clean_pass_no_errors_or_warnings():
+def test_a_removed_tier_lens_scene_is_refused_too():
+    """Same stale belief, on the 3D lens half. The structural checks below it (keyframe ordering, pitch and
+    yaw ranges) still run and still hold — they are simply describing a shape that can no longer reach a
+    renderer, which is worth keeping only so long as the scene is REFUSED first."""
     import validate as _v
     s = {"index": 1, "type": "cinematic", "duration": 6.0, "perspective": 1250,
          "layers": [{"kind": "grid", "z": -1200, "blur": 8, "dim": 0.4}, {"kind": "panel", "z": 120}],
@@ -1623,7 +1636,11 @@ def test_cinematic_lens_clean_pass_no_errors_or_warnings():
                   {"atFrame": 180, "dolly": 200, "pitch": 4, "yaw": -2, "easing": "inout"}]}
     e, w = [], []
     _v._cinematic_fields(s, {"fps": 30}, "/tmp", "scene 1", e, w)
-    assert e == [] and w == []
+    assert any("REMOVED in the phase-3 cutover" in x for x in e), e
+    assert any("lens" in x for x in e)
+    # the well-formed lens itself must NOT also be reported as structurally broken — the scene is refused
+    # for the tier it belongs to, not for being malformed within it
+    assert not any("non-decreasing" in x for x in e)
 
 
 def test_cinematic_lens_catches_faults(tmp_path):

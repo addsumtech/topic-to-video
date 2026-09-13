@@ -7,7 +7,7 @@ import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {leading} from '../runtime/cjkType';
 import {useT, seg, lerp, clamp01, easeOutExpo} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {captionBand, fitTextPx} from '../runtime/layout';
+import {captionBand, fitTextPx, wrapLines} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#ececec', INK_D0 = '#0a0a0a', ACC_D0 = '#ff3b00';
@@ -42,13 +42,31 @@ export const BrutalistType: React.FC<{titleTop?: string; titleBottom?: string; m
   // UPWARD from a bottom-anchored box, straight back through the headline this derivation just protected.
   // So the statement is fitted to the width it has, and the lines it then needs are what the headline
   // subtracts. Latin copy is unchanged: a short phrase still fits on one line at 54px.
-  const stateSize = fitTextPx(`${statement1} ${statement2}`, W - 192, 54, {usable: 1.0});
-  const stateLines = Math.max(1, Math.ceil(fitTextPx(`${statement1} ${statement2}`, W - 192, 54,
-    {usable: 1.0}) === 54 ? 1 : 2));
+  // ...AND THE LINES ARE COUNTED, NOT GUESSED FROM WHETHER THE FIT MOVED. This asked whether `fitTextPx`
+  // had returned its base size and answered 1 line if so and 2 otherwise — a binary guess capped at two,
+  // in the same derivation whose own comment above says a Chinese sentence "wraps to THREE lines". At three
+  // the reserve was short by a line, `headRoom` came out too generous, and the headline it protects ran
+  // 210px into the caption band at 1:1. `wrapLines` breaks the string the way the browser does.
+  const stateMeasure = W - 192;
+  const stateSize = fitTextPx(`${statement1} ${statement2}`, stateMeasure, 54, {usable: 1.0});
+  const stateLines = wrapLines(`${statement1} ${statement2}`, stateSize, stateMeasure);
   const stateH = Math.ceil(stateSize * leading([statement1, statement2], 1) * stateLines);
   const headTop = 300, headGap = 24;
   const headRoom = Math.max(80, (H - (BAND + 52 + stateH)) - headTop - headGap);
-  const headSize = Math.min(300, Math.floor(headRoom / 1.88));
+  // THE HEADLINE IS SIZED BY ITS WIDTH AS WELL AS ITS ROOM. Everything above derives the size from the
+  // vertical space and nothing asked how WIDE the words are — correct for the demo copy ("WORK" / "BUDDY.")
+  // and wrong for anything longer: a six-glyph Chinese title at 230px wants 1380px and the box is 880, so
+  // each of the two lines wrapped to two and the stack came out at four. That is why it ran 476px into the
+  // caption band, and why counting the statement's lines correctly made it WORSE rather than better —
+  // the derivation it feeds was never the binding constraint.
+  const headBoxW = W - 200;
+  const headFitW = Math.min(fitTextPx(titleTop, headBoxW, 300, {usable: 1}),
+                            fitTextPx(titleBottom, headBoxW, 300, {usable: 1}));
+  // ...and the divisor carries the REAL leading. 1.88 is 2 lines x 0.82 + 0.24 of ink overflow, and 0.82 is
+  // the Latin stack — `leading()` raises the floor to 1.06 the moment the copy is CJK, so the block stood
+  // 13% taller than the number that reserved it. Latin still divides by exactly 1.88.
+  const headLead = leading([titleTop, titleBottom], 0.82);
+  const headSize = Math.min(300, Math.floor(headRoom / (2 * headLead + 0.24)), headFitW);
 
   const Head: React.FC<{color: string; dx: number; blend?: string}> = ({color, dx, blend}) => (
     <div style={{position: 'absolute', inset: 0, transform: `translateX(${dx}px)`, color, mixBlendMode: (blend as any) || 'normal',

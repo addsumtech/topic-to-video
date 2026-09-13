@@ -6,7 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01} from '../runtime/motion';
 import {useDNA, TermFrame, termInnerW} from '../runtime/dna';
-import {CONTENT_TOP, captionBand, monoFit, wrapLines} from '../runtime/layout';
+import {CONTENT_TOP, contentBottom, monoFit, wrapLines} from '../runtime/layout';
 
 export const DURATION = 175;
 
@@ -46,8 +46,13 @@ export const TermThink: React.FC<{cmd?: string; question?: string; think?: strin
     const a = linesAt(answer, f, INNER) * f * LH;
     return TERM_CHROME * k + q + BOX_MY * 2 * k + box + a;
   };
-  // The zone, not the frame: TermFrame centres the block, so half of any excess goes into the band.
-  const ZONE_H = Math.max(120, H - CONTENT_TOP - captionBand(W, H));
+  // THE ROOM IS MEASURED FROM WHERE THE BLOCK IS ACTUALLY CENTRED. TermFrame centres its child on the
+  // FRAME, and the content zone is not centred on the frame — the caption band hangs off the bottom, so the
+  // zone's middle sits above H/2. Comparing the stack to the zone's HEIGHT therefore allowed a block that
+  // fits the zone and still overhangs it: at 1:1 the zone is 176..823 (centre 499) against a frame centre
+  // of 540, and 20px of the answer drew inside the band. What a centred block may use is twice its distance
+  // to the NEARER zone edge.
+  const ZONE_H = Math.max(120, 2 * Math.min(H / 2 - CONTENT_TOP, contentBottom(W, H) - H / 2));
   // Walk down rather than divide: shrinking the type also re-wraps it, so `need` is not linear in `k` and
   // a single division over-shrinks. Ten steps is finer than the eye, and it stops at the first that fits.
   let k = 1;

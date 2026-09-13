@@ -14,5 +14,5 @@ tests/fixtures/images/
 remotion/public/
 
 # cjk_type_qa / text_safe probe renders
-remotion/.cjk_type_probe.png*
+remotion/.cjk_type_probe*
 remotion/.probe.png*

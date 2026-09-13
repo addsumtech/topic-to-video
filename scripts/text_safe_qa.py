@@ -151,7 +151,14 @@ def scan_library(limit=None, aspect=None, dna=DEFAULT_DNA, only=None, cjk=False)
         names = sorted(only)
     else:
         names = sorted(durs)[: limit or None]
-    tmp = os.path.join(os.environ.get("TMPDIR", "/tmp"), "_textsafe_lib.png")
+    # A SCRATCH FILE WITH A FIXED NAME IS A RACE. Two of these sweeps running at once — a library sweep beside
+    # a targeted one, which is the normal way this repo is used — write the same PNG and the same
+    # `<png>.props.json` beside it, and one process reads the other's half-written props. Remotion answers
+    # "Check that your input is parseable using `JSON.parse`", the sweep files that as a FINDING against
+    # whichever register happened to be mid-render, and the reader chases a type defect that never existed:
+    # measured at roughly one in twenty registers, on SpeedLimit, TermThink, GradientTilt and RansomZine, none
+    # of which reproduced alone. The pid makes the scratch path this process's own.
+    tmp = os.path.join(os.environ.get("TMPDIR", "/tmp"), "_textsafe_lib.%d.png" % os.getpid())
     base = {}
     if aspect:
         base["aspect"] = aspect

@@ -760,6 +760,24 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
     planes = s.get("planes") or (s.get("props") or {}).get("planes")
     camera3d = s.get("camera3d") or (s.get("props") or {}).get("camera3d")
     component = s.get("component") or (s.get("props") or {}).get("component")
+
+    # THE TIER THESE FIELDS BELONG TO WAS REMOVED, AND THIS GATE WAS STILL CERTIFYING THEM. `render.py`
+    # refuses a slide carrying `layers`/`lens` ("it renders on the cinematic tier"); `render_remotion.py`
+    # answers `meta.renderer='remotion-legacy'` with "the legacy generic-scene Remotion tier has been
+    # REMOVED in the phase-3 cutover ... an old-tier storyboard (planes/stage/atmosphere) must be
+    # re-authored"; the live Film consumes `camera` only as {move, amount, pan}, never a keyframe list; and
+    # this file's own scene-type check allows exactly ("slide", "html"). So a board carrying them renders on
+    # NO tier — and two tests asserted such a scene passes with no errors AND no warnings, which is this
+    # gate promising a render that cannot happen. Said here, the author learns at validate time instead of
+    # at the end of a render.
+    _removed = [k for k in ("lens", "layers", "camera3d", "perspective", "planes", "stage", "shots")
+                if (s.get(k) or (s.get("props") or {}).get(k))]
+    if _removed and not component:
+        errors.append(
+            f"{tag}: carries {_removed} — fields of the generic-scene tier REMOVED in the phase-3 cutover. "
+            f"No renderer consumes them: render.py refuses the scene and render_remotion.py refuses the "
+            f"board. Re-author the beat as `shot` + `shot_props` against remotion/LIBRARY.md")
+
     # TWO RENDER TIERS, NEVER MIXED: Scene.tsx dispatches a scene to EITHER ThreeScene (its `planes`, checked
     # FIRST) OR SceneStage (`stage`+`shots`) — never both, so a scene carrying BOTH silently DROPS all its
     # stage content (the plane tier wins). The docs say the tiers are mutually exclusive; catch the mistake
