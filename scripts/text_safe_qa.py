@@ -67,11 +67,22 @@ def audit_shot(shot, props, frame, tmp_png):
     pf = tmp_png + ".props.json"
     with open(pf, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, ensure_ascii=False, allow_nan=False)
-    r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, tmp_png,
-                        "--frame=%d" % frame, "--gl=angle", "--log=error",
-                        "--props=" + os.path.abspath(pf)],
-                       capture_output=True, text=True, cwd=_REMOTION)
-    blob = (r.stdout or "") + (r.stderr or "")
+    # A RENDER THAT FELL OVER IS NOT A TYPE DEFECT, AND IT USED TO BE FILED AS ONE. A browser that loses its
+    # connection ("at TCP.<anonymous>") or dies mid-launch produces a non-zero exit and no payload, and the
+    # reader gets a finding naming a register whose type is fine — measured at roughly one in twenty during a
+    # loaded sweep, on SpeedLimit, GradientTilt and RansomZine, none of which reproduced alone. The
+    # props-file race behind most of them is fixed, but a flaky render is still a flaky render, so it is
+    # RETRIED once. What survives a retry is reported, and reported as a FAILURE — a frame nobody measured —
+    # rather than as a finding about the copy on it.
+    blob, r = "", None
+    for _attempt in (1, 2):
+        r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, tmp_png,
+                            "--frame=%d" % frame, "--gl=angle", "--log=error",
+                            "--props=" + os.path.abspath(pf)],
+                           capture_output=True, text=True, cwd=_REMOTION)
+        blob = (r.stdout or "") + (r.stderr or "")
+        if TAG in blob or r.returncode == 0:
+            break
     if TAG in blob:
         # The payload arrives inside a render-cancelling error, wrapped in a stack trace. Let the JSON parser
         # find its own end: a hand-rolled bracket counter closes early on a ']' inside a string, and a beat's
@@ -83,9 +94,10 @@ def audit_shot(shot, props, frame, tmp_png):
         except json.JSONDecodeError:
             return [{"text": "(unparseable payload)", "out": {}}]
     if r.returncode != 0:
-        # A render that failed for another reason measured NOTHING. Reporting it as clean is how a gate
-        # quietly stops gating; this surfaces as its own finding.
-        return [{"text": "(render failed: %s)" % (blob.strip().splitlines() or ["?"])[-1][:160], "out": {}}]
+        # A render that failed measured NOTHING. Reporting it as clean is how a gate quietly stops gating —
+        # so it still surfaces, but as a RENDER FAILURE after a retry, not as a finding about the type.
+        return [{"text": "(render FAILED twice — nothing was measured on this frame: %s)"
+                         % (blob.strip().splitlines() or ["?"])[-1][:140], "out": {}}]
     return []
 
 

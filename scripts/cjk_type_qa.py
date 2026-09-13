@@ -132,7 +132,14 @@ _SHORT_V = [_SHORT, "自动归档", "按类型分流", "沉淀为技能"]
 # the exact length that hid `InflateType` and `ElasticType`. A pool whose shortest member is soft tests some
 # registers softly, at random. Six glyphs is a hero word a Chinese film actually writes; none is shorter.
 _LABEL_V = ["自主循环运转", "持续稳定运行", "在授权目录动手", "自主循环持续运转"]
-_MED_V = [_MED, "规划执行步骤并调用工具", "在授权目录里真正动文件", "交付可验收的成果"]
+# THE SAME RULE AS THE LABEL POOL, AND THIS ONE STILL HAD A SOFT MEMBER: 26, 11, 11 and EIGHT glyphs. Eight
+# is a label, in the pool that feeds `note`, `caption`, `tagline`, `answer`, `body` and every unnamed string
+# — so whichever register's ordinal landed on it was tested with a caption a third the length of a real one,
+# and a reserve sized for that passes. A pool is only as strong as its shortest member.
+_MED_V = [_MED,
+          "它自己拆解任务、调用工具、改动文件，最后交出可验收的结果",
+          "同样的输入框，同样的一段回答，变的是谁在动手做完这件事",
+          "重复三次以上的动作会被记下来，下一次不必再从头讲一遍"]
 # TITLE had no pool of its own, so `_variant` fell through to searching every pool for the string by
 # MEMBERSHIP — and `_TITLE` is also the fourth entry of `_MED_V`, so varying a title silently handed it a
 # MED-length sentence. A role's variants belong to that role.

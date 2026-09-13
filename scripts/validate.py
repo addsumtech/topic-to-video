@@ -919,7 +919,10 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
     for grp, gname in ((cam, "camera"), (lens, "lens")):
         for j, k in enumerate(grp if isinstance(grp, list) else []):
             if isinstance(k, dict):
-                for key in ("atFrame", "x", "y", "zoom", "dolly", "pitch", "yaw", "roll", "focusZ"):
+                # `focusZ` was in this list and occurs NOWHERE else in the repository: no renderer read
+                # it, no test exercised it, no document mentioned it. A NaN guard on a field that has never
+                # existed is a rule with nothing behind it, and it reads to the next author as a capability.
+                for key in ("atFrame", "x", "y", "zoom", "dolly", "pitch", "yaw", "roll"):
                     if _nf(k.get(key)):
                         errors.append(f"{tag}: {gname} keyframe {j} {key} is NaN/Infinity — not a renderable value")
 

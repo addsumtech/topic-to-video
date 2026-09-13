@@ -65,13 +65,50 @@ def test_a_full_bleed_field_is_not_a_finding(tmp_path):
     assert _audit("FlowField", {}, tmp_path) == []
 
 
-def test_a_render_that_failed_is_a_finding_not_a_pass(monkeypatch, tmp_path):
-    """A crashed render measured nothing. Counting it as clean is how a gate quietly stops gating."""
+def test_a_render_that_failed_is_reported_not_passed_and_is_retried_first(monkeypatch, tmp_path):
+    """A crashed render measured nothing. Counting it as clean is how a gate quietly stops gating.
+
+    But it is not a TYPE finding either, and filing it as one sent the reader after a defect that did not
+    exist: under a loaded sweep roughly one register in twenty came back "render failed", and none of them
+    reproduced when run alone. So it is retried once, and what survives the retry is reported as a FAILURE —
+    a frame nobody measured — distinct from a finding about the copy on it."""
+    calls = []
+
     class R:
         returncode, stdout, stderr = 1, "", "Error: bundle failed\n"
-    monkeypatch.setattr(g.subprocess, "run", lambda *a, **k: R())
+
+    def _run(*a, **k):
+        calls.append(1)
+        return R()
+
+    monkeypatch.setattr(g.subprocess, "run", _run)
     found = g.audit_shot("Whatever", {}, 10, str(tmp_path / "x.png"))
-    assert found and "render failed" in found[0]["text"]
+    assert found, "a failed render must not read as clean"
+    assert "FAILED twice" in found[0]["text"] and "nothing was measured" in found[0]["text"]
+    assert len(calls) == 2, "a flaky render must be retried once before it is believed (%d attempt(s))" % len(calls)
+
+
+def test_a_render_that_succeeds_on_the_retry_is_not_reported(monkeypatch, tmp_path):
+    """The point of the retry. The first attempt dies the way a lost browser connection does; the second
+    carries the payload, and the sweep reports what the SECOND one measured."""
+    payload = [{"out": {"right": 12}, "text": "x", "tag": "div", "cls": "", "font": "40px Inter"}]
+    state = {"n": 0}
+
+    class Dead:
+        returncode, stdout, stderr = 1, "", "Error: at TCP.<anonymous> (node:net:347:12)\n"
+
+    class Good:
+        returncode = 1
+        stdout = ""
+        stderr = "at Object.cancelRender\nError: " + g.TAG + json.dumps(payload) + "\n"
+
+    def _run(*a, **k):
+        state["n"] += 1
+        return Dead() if state["n"] == 1 else Good()
+
+    monkeypatch.setattr(g.subprocess, "run", _run)
+    assert g.audit_shot("Whatever", {}, 10, str(tmp_path / "x.png")) == payload
+    assert state["n"] == 2
 
 
 def test_the_payload_survives_the_stack_trace_around_it(monkeypatch, tmp_path):

@@ -1047,8 +1047,16 @@ PROBES["text_safe_qa"] = {
 }
 
 MUTANTS["text_safe_qa"] = {
+    # The anchor moved when the failure branch learned to RETRY and to report a FAILURE distinct from a
+    # type finding. The rule it pins is unchanged and is the one that matters: a render that never ran must
+    # never read as clean.
+    # The anchor moved when the failure branch learned to RETRY and to report a FAILURE distinct from a type
+    # finding. The rule it pins is unchanged and is the one that matters: a render that never ran must never
+    # read as clean. It spans BOTH lines of the statement on purpose — replacing only the first leaves the
+    # second dangling, and a mutant that does not compile proves nothing about the rule.
     "a render that never ran passes":
-        ('        return [{"text": "(render failed: %s)" % (blob.strip().splitlines() or ["?"])[-1][:160], "out": {}}]',
+        ('        return [{"text": "(render FAILED twice — nothing was measured on this frame: %s)"\n'
+         '                         % (blob.strip().splitlines() or ["?"])[-1][:140], "out": {}}]',
          "        return []"),
     "the audit is never armed":
         ('    payload["textSafe"] = True', '    payload["textSafe"] = False'),
