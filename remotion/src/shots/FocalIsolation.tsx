@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, easeOutBack, clamp01} from '../runtime/motion';
+import {focusAt, focusFilter} from '../runtime/focus';
 import {useDNA} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 
@@ -19,6 +20,7 @@ export const FocalIsolation: React.FC<{focalLabel?: string; items?: string[]}> =
   const t = useT();
   const dna = useDNA(); const ACCENT = dna?.accent ?? ACCENT0;
   const {width: W, height: H} = useVideoConfig();
+  const U = Math.min(W, H);
   const iso = easeOutCubic(seg(t, 0.32, 0.66)); // isolation progress
   const focal = 4; // centre item
   // The grid is fitted to the CONTENT ZONE. Three 220px rows and two 90px gutters are 840px tall and the
@@ -44,12 +46,19 @@ export const FocalIsolation: React.FC<{focalLabel?: string; items?: string[]}> =
         const col = i % cols, row = Math.floor(i / cols);
         const x = ox + col * (cw + gx), y = oy + row * (ch + gy);
         const appear = easeOutCubic(seg(t, i * 0.03, i * 0.03 + 0.2));
-        const blur = isF ? 0 : 9 * iso;
-        const op = (isF ? 1 : lerp(0.9, 0.18, iso)) * clamp01(appear);
-        const sc = isF ? lerp(1, 1.12, easeOutBack(clamp01(iso))) : lerp(1, 0.96, iso);
+        // THE HOUSE LENS, NOT A THIRD COPY OF IT. `runtime/focus.ts` exists because SurfaceCarousel had
+        // hand-rolled a recede curve and "the next register to want it would have written a third" — and
+        // this was that third: a literal 9px blur, a literal 0.18 opacity floor and a literal 0.96 scale,
+        // none of them related to each other or to any other shot's. The numbers below are the ones this
+        // register already used, handed to the shared curve, so a film that puts this beat next to a
+        // RackFocus beat has ONE lens in it rather than two that happen to both be blurry.
+        const f = focusAt(isF ? 0 : iso, U, {blurFrac: 9 / 1080, minOpacity: 0.18, minScale: 0.96,
+                                             minBrightness: 1, desat: 0.30});
+        const op = f.opacity * clamp01(appear);
+        const sc = isF ? lerp(1, 1.12, easeOutBack(clamp01(iso))) : f.scale;
         return (
           <div key={i} style={{position: 'absolute', left: x, top: y, width: cw, height: ch, opacity: op,
-            transform: `scale(${sc})`, transformOrigin: 'center', filter: blur > 0.5 ? `blur(${blur}px)` : undefined,
+            transform: `scale(${sc})`, transformOrigin: 'center', filter: isF ? undefined : focusFilter(f),
             background: isF ? 'linear-gradient(160deg,#223049,#18212f)' : '#161d29',
             border: `${isF ? 2 : 1}px solid ${isF ? ACCENT : '#26303f'}`, borderRadius: 16,
             boxShadow: isF ? `0 0 0 6px ${ACCENT}22, 0 30px 70px rgba(0,0,0,.5)` : 'none',

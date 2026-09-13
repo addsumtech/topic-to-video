@@ -434,7 +434,9 @@ NEXT_STEPS = (
     "  next: write the shot body, then BOTH of:\n"
     "    python3 scripts/measure_ground_luma.py --only %(s)s --luma --emit   # SHOT_LUMA\n"
     "    python3 scripts/measure_ground_luma.py --only %(s)s --emit          # DNA_GROUND_TOKEN\n"
-    "    python3 scripts/cjk_type_qa.py --only %(s)s                         # does its type hold in Chinese?"
+    "    python3 scripts/cjk_type_qa.py --only %(s)s --all-aspects            # type in Chinese, EVERY aspect\n"\
+    "      (--all-aspects matters: this is the only audit that sees a string the register declined to DRAW —\n"\
+    "       text_safe_qa reports type CUT OFF, so it can only see ink that EXISTS)"
 )
 
 

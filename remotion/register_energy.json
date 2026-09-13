@@ -37,7 +37,7 @@
     "CursorStory": "aae70e91fa747fd9",
     "DNAHelix": "092ab9208fc1af9d",
     "DataMonolith": "6e5b2a910890dbf5",
-    "DataOrrery": "3bf64a3e792fdff2",
+    "DataOrrery": "7ab33c36f2167c93",
     "DiffusionDenoise": "fc1a6d18f14fae06",
     "EdCompare": "3920c495c76b56ff",
     "EdStat": "cf0f07805697d2ec",
@@ -46,7 +46,7 @@
     "EmberFlame": "62c15d7b0f71841b",
     "ExplodedSchematic": "7d559c284b78c3b8",
     "FlowField": "3e0cf6dbea0629da",
-    "FocalIsolation": "5489c29ee7ce948b",
+    "FocalIsolation": "a44c770ec0290973",
     "FractalTree": "81a1caa0025b845a",
     "FractureIn": "b697ec4410301d09",
     "FrequencyEncode": "15389c46b7e7125e",
@@ -105,7 +105,7 @@
     "OverlapSeparation": "8b13026290755744",
     "PageWrite": "8c61c96d122895c0",
     "PaperCutout": "9ab0efdcde58d063",
-    "PaperSlot": "a902e224516656c2",
+    "PaperSlot": "3f7f764b89064573",
     "ParticleForm": "167475bf912c98c8",
     "PhaseEncodeStep": "3d3a10388897c6b0",
     "PhotoPlate": "da7186273c018894",
@@ -113,7 +113,7 @@
     "PixelBuild": "0b573d2bc8940dfc",
     "PlanPalimpsest": "7353f0b22cde02e0",
     "PlatformSurfaces": "1dda5818e9777b95",
-    "PointerTour": "79dbd1905b1a5fa7",
+    "PointerTour": "ba65450de226c5f8",
     "PortRail": "a1d39366b8509be5",
     "PositioningMatrix": "da8364d430987c82",
     "ProfileGrowth": "63306f5e8da30b49",
@@ -121,10 +121,10 @@
     "RadialBurst": "54b8642aa625b8bc",
     "RainGlass": "6723dbe919dd5c11",
     "RansomZine": "53e43163877128f7",
-    "RealVersus": "d853a4a9dc2a2cf5",
+    "RealVersus": "cbf16f2997080012",
     "RestsOn": "863bddf625d00628",
     "RidgeField": "f8796fe0d2dcb7a4",
-    "RisoPrint": "c6e350aa555a3e83",
+    "RisoPrint": "887444f70062f036",
     "ScanReconstruct": "0b80db6d18290224",
     "ScreenBubble": "ed0bb4e55f0de311",
     "SectionRoute": "4384ea32bd07db1f",
@@ -139,7 +139,7 @@
     "SpotlightStage": "8cbea6952d385612",
     "StarfieldWarp": "bea05952c302c641",
     "StrataColumn": "a88e36fa77853360",
-    "SurfaceCarousel": "16843656af4b420b",
+    "SurfaceCarousel": "6d0c9e841986dfe5",
     "SwissEditorial": "467a60cedaf4944b",
     "TallyLedger": "25df8d295051a861",
     "TechnicalPlate": "2d79e1e7234531d4",
@@ -162,7 +162,8 @@
     "VoiceSignal": "02bd237feb55a15e",
     "VoxelBuild": "10e5d998b21af97d",
     "WireGlobe": "adeaef0e1505f996",
-    "WordTunnel": "4dcd63b18482b2fa"
+    "WordTunnel": "4dcd63b18482b2fa",
+    "RackFocus": "bea6b09c7b98b649"
   },
   "_basis": "each register rendered as VIDEO at its own DURATION, 16:9, under dna=product — the themed path, because every delivered film has a design system and the un-themed fallback is a mode none of them use",
   "_dna": "product",
@@ -499,8 +500,8 @@
       "footprint": 1.0
     },
     "FocalIsolation": {
-      "motion_p75": 0.0014,
-      "ink_median": 0.035,
+      "motion_p75": 0.0015,
+      "ink_median": 0.036,
       "luma_range": 0.02,
       "seconds": 4.5,
       "footprint": 0.078
@@ -1001,6 +1002,13 @@
       "luma_range": 0.035,
       "seconds": 5.0,
       "footprint": 0.228
+    },
+    "RackFocus": {
+      "motion_p75": 0.0022,
+      "ink_median": 0.018,
+      "luma_range": 0.005,
+      "seconds": 5.7,
+      "footprint": 0.061
     },
     "RadialBurst": {
       "motion_p75": 0.0086,

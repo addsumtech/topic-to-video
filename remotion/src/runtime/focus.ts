@@ -22,7 +22,8 @@
 // it toward the reference's own proportion: `PointerTour` grazes a flat page at 0.008.
 
 /** What an out-of-focus thing looks like at distance `d`. */
-export type Focus = {opacity: number; blurPx: number; brightness: number; scale: number};
+export type Focus = {opacity: number; blurPx: number; brightness: number; scale: number;
+  saturate: number};
 
 export type FocusOpts = {
   /** how far the far plane falls: 1 = the reference's own range. */
@@ -33,6 +34,16 @@ export type FocusOpts = {
   minScale?: number;
   /** blur at d=1, as a fraction of the frame's short side (0.0022 ≈ 2.4px at 1080). */
   blurFrac?: number;
+  /**
+   * THE SATURATION ANCHOR — how much colour an out-of-focus thing loses at d=1.
+   *
+   * `runtime/depth` already carries this for PLANES, with the peer case law it came from stated in one
+   * line: without the blur AND saturation anchors together, layered material reads as stickers flying
+   * rather than as depth. The lens had the blur and not the saturation, so a shot whose whole argument is
+   * the focus MOVING had only half the anchor. It defaults to 0 — the three registers that already call
+   * `focusAt` were tuned without it and must not move — and a register that racks passes a real value.
+   */
+  desat?: number;
 };
 
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
@@ -44,13 +55,15 @@ const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
  * one of them alone reads as an effect applied to an object rather than as the object being further away.
  */
 export const focusAt = (d: number, U: number, o: FocusOpts = {}): Focus => {
-  const {depth = 1, minOpacity = 0.34, minBrightness = 0.7, minScale = 0.62, blurFrac = 0.0022} = o;
+  const {depth = 1, minOpacity = 0.34, minBrightness = 0.7, minScale = 0.62, blurFrac = 0.0022,
+         desat = 0} = o;
   const k = clamp01(d) * depth;
   return {
     opacity: 1 - (1 - minOpacity) * k,
     brightness: 1 - (1 - minBrightness) * k,
     scale: 1 - (1 - minScale) * k,
     blurPx: U * blurFrac * k,
+    saturate: 1 - desat * k,
   };
 };
 
@@ -66,6 +79,7 @@ export const focusFilter = (f: Focus): string | undefined => {
   const parts: string[] = [];
   if (f.blurPx > 0.15) parts.push(`blur(${f.blurPx.toFixed(2)}px)`);
   if (Math.abs(f.brightness - 1) > 0.004) parts.push(`brightness(${f.brightness.toFixed(3)})`);
+  if (Math.abs(f.saturate - 1) > 0.004) parts.push(`saturate(${f.saturate.toFixed(3)})`);
   return parts.length ? parts.join(' ') : undefined;
 };
 
