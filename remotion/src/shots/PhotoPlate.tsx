@@ -24,7 +24,7 @@ import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {requireEvidence} from '../runtime/evidence';
 import {useT, seg, clamp01, easeOutCubic, easeOutExpo} from '../runtime/motion';
-import {captionBand, CONTENT_TOP, placeLabel, latinAdvance, CJK_ADVANCE} from '../runtime/layout';
+import {captionBand, CONTENT_TOP, placeLabel, latinAdvance, cjkAdvance} from '../runtime/layout';
 import {Plane, DEPTH} from '../runtime/depth';
 import {useDNA} from '../runtime/dna';
 
@@ -176,7 +176,7 @@ export const PhotoPlate: React.FC<{
       // The chip's face is the DNA's MONO stack, and its advance comes from the one place that measured
       // it. A local 0.54 here was neither the mono 0.62 nor the proportional 0.52 — it belonged to no
       // font, and it under-predicted the wrap of every callout this register has ever drawn.
-      const adv = chipFont * (latinAdvance(mono) * (1 - mShare) + CJK_ADVANCE * mShare);
+      const adv = chipFont * (latinAdvance(mono) * (1 - mShare) + cjkAdvance(mono) * mShare);
       // A MEASURE IS COUNTED IN CHARACTERS, not in frame width. `W * 0.24` was picked at 1920 (461px, a
       // comfortable chip) and silently became 259px at a 1080-wide portrait or 4:5 frame — about thirteen
       // characters, so the labels stacked one word per line in a margin that had 453px to give. That is the
@@ -198,7 +198,7 @@ export const PhotoPlate: React.FC<{
       // break is not an approximation: per-character advance is a constant, taken from runtime/layout's
       // measured table — the same number that sized the chip, so height cannot disagree with width.
       const w1 = (ch: string) => chipFont * (/[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(ch)
-        ? CJK_ADVANCE : latinAdvance(mono));
+        ? cjkAdvance(mono) : latinAdvance(mono));
       const wordW = (s2: string) => s2.split('').reduce((a, c) => a + w1(c), 0);
       // Standard greedy: the space BEFORE a word is paid only if the word joins the current line. Charging
       // it unconditionally counted a trailing space that CSS drops at a break, and over-counted by a line on

@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
 import {useDNA, dnaPalette} from '../runtime/dna';
+import {fitTextPx} from '../runtime/layout';
 
 export const DURATION = 145; // ~4.8s
 const BG_D0 = '#141a2e';
@@ -18,6 +19,12 @@ export const ElasticType: React.FC<{word?: string; tagline?: string}> = ({
   const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
+  // THE WORD IS FITTED TO THE FRAME — see InflateType for the same defect in the same shape. 230px holds
+  // 'BOUNCE' at 1920; an eight-glyph Chinese phrase was cut 412px each side at 1:1. The jelly squash pushes
+  // each glyph out to 1.18 of its width at the moment of impact, which is the width that has to fit.
+  const GLYPH_MARGIN = 8, SX_MAX = 1.18;
+  const wordPx = Math.min(230, fitTextPx(WORD,
+    Math.max(60, (W * 0.94) / SX_MAX - [...WORD].length * GLYPH_MARGIN), 230, {usable: 1}));
   const letters = WORD.split('');
   const tagIn = easeOutCubic(seg(t, 0.66, 0.86));
   return (
@@ -41,7 +48,7 @@ export const ElasticType: React.FC<{word?: string; tagline?: string}> = ({
             <div key={i} style={{opacity: clamp01(drop * 1.5),
               transform: `translateY(${(1 - drop) * -220}px) scale(${sx}, ${sy})`, transformOrigin: 'center bottom',
               margin: '0 4px', fontFamily: 'var(--f-display, "Baloo 2", Inter, system-ui, sans-serif)', fontWeight: 900,
-              fontSize: 230, lineHeight: 1, color: tone,
+              fontSize: wordPx, lineHeight: 1, color: tone,
               textShadow: `0 10px 0 rgba(0,0,0,.16), 0 26px 40px rgba(0,0,0,.4)`}}>{ch}</div>
           );
         })}

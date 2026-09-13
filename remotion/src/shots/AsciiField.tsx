@@ -7,7 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, easeOutCubic, clamp01, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {contentBottom} from '../runtime/layout';
+import {contentBottom, fitBlockPx, monoFit} from '../runtime/layout';
 
 export const DURATION = 150; // 5s
 const CH = '01</>{}[]#*+=~.:$%&ABCDEFXYZ01'.split('');
@@ -44,6 +44,16 @@ export const AsciiField: React.FC<{message?: string}> = ({message: MSG = DEFAULT
       style={{font: `600 ${Math.round(U * 0.0278)}px/1 var(--f-mono, "JetBrains Mono", ui-monospace, monospace)`}}>{CH[flick]}</text>);
   }
   const decode = easeOutCubic(seg(t, 0.5, 0.78));
+  // THE MESSAGE IS FITTED TO THE FIELD IT DECODES IN. `U * 0.194` is 210px on every frame this register
+  // offers, which holds 'DONE.' and five Han glyphs — and a real Chinese message is longer than that. It
+  // wrapped to four lines inside a box centred on the field, so it grew out of BOTH ends and the gate read
+  // the top: glyphs cut off by 369px at 1:1. The face is MONOSPACE, where a Han glyph is two cells, so the
+  // fit is told that rather than the proportional default it would otherwise assume.
+  // `MSG_W` is passed to the fitter AND set on the box, so the measure the fit wrapped in is the measure
+  // the browser wraps in — the two disagreeing is what put KineticManifesto's last line in the band.
+  const MSG_W = Math.round(W * 0.86);
+  const msgPx = fitBlockPx(MSG, MSG_W, fieldH * 0.92, Math.round(U * 0.194),
+    {usable: 1, leading: 1, min: 28, ...monoFit()});
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('#140b03')}}>
       <svg width={W} height={fieldH} style={{position: 'absolute', left: 0, top: 0}}>{cells}</svg>
@@ -51,9 +61,9 @@ export const AsciiField: React.FC<{message?: string}> = ({message: MSG = DEFAULT
       {/* the message centres in the CONTENT zone, with the field — centred in the whole frame it would sit
           low of the field's own middle, and lower still at 9:16 where the reserved band is deepest */}
       <AbsoluteFill style={{top: 0, height: fieldH, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{position: 'relative', font: `900 ${Math.round(U * 0.194)}px/1 var(--f-mono, "JetBrains Mono", monospace)`, color: '#ffe6b0',
+        <div style={{position: 'relative', maxWidth: MSG_W, textAlign: 'center', font: `900 ${msgPx}px/1 var(--f-mono, "JetBrains Mono", monospace)`, color: '#ffe6b0',
           letterSpacing: '0.04em', opacity: decode, textShadow: '0 0 40px rgba(255,190,90,.5)'}}>
-          {MSG.split('').map((ch, i) => <span key={i} style={{opacity: clamp01((decode - i * 0.12) / 0.3)}}>{ch}</span>)}
+          {[...MSG].map((ch, i) => <span key={i} style={{opacity: clamp01((decode - i * 0.12) / 0.3)}}>{ch}</span>)}
         </div>
       </AbsoluteFill>
       {/* scanline glow */}

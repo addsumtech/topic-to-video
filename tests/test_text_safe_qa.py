@@ -312,3 +312,38 @@ def test_the_character_field_stops_at_the_caption_band():
         "the field's row count is not bounded by the content zone: %r" % rows)
     assert all("Math.floor" in l for l in rows), (
         "rows are rounded UP, so the last one is drawn half-clipped: %r" % rows)
+
+
+# ── the sweep must be able to enumerate the FACES it claims to cover ─────────────────────────────────────
+def test_the_dna_list_is_read_from_the_renderer_not_restated_here():
+    """A register that passes in one face has been tested in one face.
+
+    `scan_library`'s own docstring says the Design DNA "sets the type family and therefore every metric this
+    audit measures" — and the sweep then only ever ran `product`, a narrow grotesque. Under `editorial`'s
+    serif, VariableTypeMorph's one enormous word was sliced at BOTH edges of a 1:1 frame while the product
+    sweep called it clean at all five aspects. `--all-dna` closes that, and it reads the list from the
+    renderer so a new preset is covered the day it is added, not the day someone remembers this file.
+    """
+    import re as _re
+    names = g.dna_presets()
+    assert len(names) >= 5, "only %d preset(s): %r" % (len(names), names)
+    src = open(os.path.join(g._REMOTION, "src", "runtime", "dna.tsx"), encoding="utf-8").read()
+    for n in names:
+        assert _re.search(r"\b%s\s*:" % _re.escape(n), src), "%r is not a key of DNA_PRESETS" % n
+    # every name the sweep offers must actually resolve in the renderer, or the sweep reports a face it
+    # never rendered
+    for n in names:
+        assert _re.search(r"%s\s*:\s*[A-Z_]+_DNA" % _re.escape(n), src), (
+            "%r does not map to a DNA constant" % n)
+
+
+def test_it_refuses_to_guess_the_dna_list(tmp_path, monkeypatch):
+    """If the presets cannot be READ, the sweep must say so rather than fall back to a built-in list —
+    falling back is how it came to sweep exactly one face for this long."""
+    fake = tmp_path / "src" / "runtime"
+    fake.mkdir(parents=True)
+    (fake / "dna.tsx").write_text("export const DNA_PRESETS: Record<string, DesignDNA> = {\n};\n",
+                                  encoding="utf-8")
+    monkeypatch.setattr(g, "_REMOTION", str(tmp_path))
+    with pytest.raises(RuntimeError, match="EMPTY"):
+        g.dna_presets()

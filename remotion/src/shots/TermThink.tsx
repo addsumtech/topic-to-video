@@ -5,7 +5,8 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01} from '../runtime/motion';
-import {useDNA, TermFrame} from '../runtime/dna';
+import {useDNA, TermFrame, termInnerW} from '../runtime/dna';
+import {CONTENT_TOP, captionBand, monoFit, wrapLines} from '../runtime/layout';
 
 export const DURATION = 175;
 
@@ -22,27 +23,59 @@ export const TermThink: React.FC<{cmd?: string; question?: string; think?: strin
   const n = think.length;
   const answered = t > 0.86;
 
+  // THE STACK IS SIZED TO THE ZONE IT IS DRAWN IN. 40px was chosen against a 1920-wide frame and English
+  // reasoning lines. TermFrame centres its child in the WHOLE frame, so when Chinese copy wrapped the
+  // stack past the zone's height it grew out of both ends and the answer — plus the '=' that introduces
+  // it — landed 89px inside the caption band at 1:1.
+  //
+  // Every length below is declared ONCE and used by both the height model and the style that draws it. A
+  // model that restates the JSX's numbers is a second copy of the layout, and the two drift apart on the
+  // first edit; this way a change to the padding changes the prediction with it.
+  const INNER = termInnerW(W, framed);
+  const M = monoFit();
+  const LH = 1.5, BASE = 40, TAG = 30;
+  const BOX_PADY = 20, BOX_PADX = 28, BOX_MY = 24, TAG_GAP = 14, LINE_MY = 6;
+  const TERM_CHROME = 30 + 40;          // TermFrame's own command line and the margin under it
+  const measure = Math.max(80, INNER - BOX_PADX * 2);
+  const linesAt = (txt: string, px: number, w: number) => wrapLines(String(txt ?? ''), px, w, M);
+  const needAt = (k: number) => {
+    const f = BASE * k, tg = TAG * k;
+    const q = linesAt(question, f, INNER) * f * LH;
+    const reasoning = think.reduce((acc, ln) => acc + linesAt(ln, f, measure) * f * LH + LINE_MY * 2 * k, 0);
+    const box = BOX_PADY * 2 * k + tg + TAG_GAP * k + reasoning + TAG_GAP * k + tg + 2;
+    const a = linesAt(answer, f, INNER) * f * LH;
+    return TERM_CHROME * k + q + BOX_MY * 2 * k + box + a;
+  };
+  // The zone, not the frame: TermFrame centres the block, so half of any excess goes into the band.
+  const ZONE_H = Math.max(120, H - CONTENT_TOP - captionBand(W, H));
+  // Walk down rather than divide: shrinking the type also re-wraps it, so `need` is not linear in `k` and
+  // a single division over-shrinks. Ten steps is finer than the eye, and it stops at the first that fits.
+  let k = 1;
+  for (let i = 0; i <= 20; i++) { k = 1 - i * 0.04; if (needAt(k) <= ZONE_H) break; }
+  k = Math.max(0.36, k);
+  const px = (v: number) => Math.round(v * k);
+
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(130% 120% at 50% -8%, #0f1723, #06080d 72%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
       <TermFrame dna={dna} cmd={cmd} t={t} framed={framed} align="left">
-        <div style={{font: `500 40px/1.5 ${mono}`, width: '100%'}}>
+        <div style={{font: `500 ${px(BASE)}px/${LH} ${mono}`, width: '100%'}}>
           <div style={{color: fg}}><span style={{color: acc}}>❯</span> {question}</div>
-          <div style={{margin: '24px 0', border: `1px dashed ${acc2}66`, borderRadius: dna?.radius ?? 6,
-            background: `${acc2}0e`, padding: '20px 28px', opacity: clamp01(seg(t, 0.28, 0.38))}}>
-            <div style={{color: acc2, font: `700 30px/1 ${mono}`, marginBottom: 14}}>&lt;think&gt;</div>
+          <div style={{margin: `${px(BOX_MY)}px 0`, border: `1px dashed ${acc2}66`, borderRadius: dna?.radius ?? 6,
+            background: `${acc2}0e`, padding: `${px(BOX_PADY)}px ${px(BOX_PADX)}px`, opacity: clamp01(seg(t, 0.28, 0.38))}}>
+            <div style={{color: acc2, font: `700 ${px(TAG)}px/1 ${mono}`, marginBottom: px(TAG_GAP)}}>&lt;think&gt;</div>
             {think.map((ln, i) => {
               const start = 0.36 + i * (0.46 / Math.max(1, n));
               const show = clamp01(seg(t, start, start + 0.06));
               if (show <= 0) return null;
-              return <div key={i} style={{color: dim, opacity: show, transform: `translateX(${(1 - show) * -10}px)`, margin: '6px 0'}}>
+              return <div key={i} style={{color: dim, opacity: show, transform: `translateX(${(1 - show) * -10}px)`, margin: `${px(LINE_MY)}px 0`}}>
                 <span style={{color: acc2, opacity: 0.6}}>│</span> {ln}</div>;
             })}
-            <div style={{color: acc2, font: `700 30px/1 ${mono}`, marginTop: 14, opacity: answered ? 1 : 0.3}}>&lt;/think&gt;</div>
+            <div style={{color: acc2, font: `700 ${px(TAG)}px/1 ${mono}`, marginTop: px(TAG_GAP), opacity: answered ? 1 : 0.3}}>&lt;/think&gt;</div>
           </div>
           <div style={{color: answered ? fg : dim, opacity: clamp01(seg(t, 0.84, 0.92)), fontWeight: 700}}>
             <span style={{color: acc}}>=</span> {answer}
-            <span style={{display: 'inline-block', width: 14, height: 30, marginLeft: 12, verticalAlign: 'text-bottom',
+            <span style={{display: 'inline-block', width: px(14), height: px(30), marginLeft: px(12), verticalAlign: 'text-bottom',
               background: acc, opacity: caretOn ? 0.9 : 0.12}} /></div>
         </div>
       </TermFrame>

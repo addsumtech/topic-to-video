@@ -61,10 +61,19 @@ export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: strin
       {pts.map(([px, py], i) => {
         const pop = easeOutBack(seg(t, 0.14 + i * 0.05, 0.14 + i * 0.05 + 0.24));
         const pulse = 1 + 0.4 * Math.max(0, Math.sin((t - 0.3 - i * 0.05) * 9));
+        // THE LABEL TAKES THE SIDE THAT HAS ROOM, AND IS FITTED TO IT. It was pinned 34px to the RIGHT of
+        // every spoke and set `nowrap` at a fixed 26px — fine for the east spokes of a 1920 frame and for
+        // short English names, and 187px off the edge for a Chinese one on a 1080-wide frame. A pin near
+        // the right edge has no room on its right; it has plenty on its left. Anchoring by `right` inside
+        // this zero-size container puts the label's RIGHT edge 34px left of the pin, mirroring the offset.
+        const LBL_OFF = 34, LBL_PADX = 16, LBL_MARGIN = 24;
+        const roomR = W - (px + LBL_OFF) - LBL_MARGIN, roomL = (px - LBL_OFF) - LBL_MARGIN;
+        const flip = roomR < roomL;
+        const lblPx = fitTextPx(SPOKES[i], Math.max(80, (flip ? roomL : roomR) - LBL_PADX * 2), 26, {usable: 1});
         return <div key={i} style={{position: 'absolute', left: px, top: py, transform: `translate(-50%,-50%) scale(${clamp01(pop)})`}}>
           <div style={{position: 'absolute', left: -18, top: -18, width: 36, height: 36, borderRadius: 18, background: TEAL, boxShadow: `0 0 20px ${TEAL}`}} />
           <div style={{position: 'absolute', left: -18 * pulse, top: -18 * pulse, width: 36 * pulse, height: 36 * pulse, borderRadius: '50%', border: `2px solid ${TEAL}`, opacity: 2 - pulse}} />
-          <div style={{position: 'absolute', left: 34, top: -20, padding: '8px 16px', borderRadius: 8, background: 'rgba(10,25,35,.85)', border: `1px solid ${TEAL}55`, font: '700 26px/1 var(--f-body, Inter)', color: '#dffffa', whiteSpace: 'nowrap'}}>{SPOKES[i]}</div>
+          <div style={{position: 'absolute', ...(flip ? {right: LBL_OFF} : {left: LBL_OFF}), top: -20, padding: `8px ${LBL_PADX}px`, borderRadius: 8, background: 'rgba(10,25,35,.85)', border: `1px solid ${TEAL}55`, font: `700 ${lblPx}px/1 var(--f-body, Inter)`, color: '#dffffa', whiteSpace: 'nowrap'}}>{SPOKES[i]}</div>
         </div>;
       })}
       {/* the hub */}

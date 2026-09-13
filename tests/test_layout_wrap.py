@@ -102,3 +102,72 @@ def test_the_fit_uses_the_same_counter_it_reasons_about():
     body = body[:body.index("\n};")]
     assert "wrapLines(" in body, "fitBlockPx no longer counts lines with wrapLines — the two can now disagree"
     assert "Math.ceil((units * px) / width)" not in body, "the ratio is back inside the fit"
+
+
+# ── the advance is a property of the FACE ───────────────────────────────────────────────────────────────
+# Every fitter here carried ONE Han advance, 1.05, which is the proportional answer. In a monospace face a
+# Han glyph occupies TWO CELLS, so it advances twice the Latin cell — 14% more. Under-measured that way,
+# TermGitLog ran a commit message 345px off the frame, TensionScale centred a note 68px too wide on BOTH
+# sides, and BlueprintGrid clipped a spec by 288px, all with `white-space: pre`/`nowrap` so none of them
+# could wrap out of it.
+
+def test_a_han_glyph_is_two_cells_in_a_monospace_face():
+    r = run_probe("""
+      out.proportional = L.textWidthPx('中', 100);
+      out.mono = L.textWidthPx('中', 100, L.monoFit());
+      out.latinMono = L.textWidthPx('a', 100, L.monoFit());
+      out.cells = L.monoCells('中');
+    """)
+    assert r["cells"] == 2
+    # the mono answer IS two cells of the mono advance — not a second, unrelated constant
+    assert abs(r["mono"] - 2 * r["latinMono"]) < 1e-6, (
+        "the mono Han advance (%r) is not twice the mono Latin cell (%r)" % (r["mono"], r["latinMono"]))
+    assert r["mono"] > r["proportional"], (
+        "a monospace Han glyph measured %r, no wider than the proportional %r — the face is being ignored"
+        % (r["mono"], r["proportional"]))
+
+
+def test_the_default_is_unchanged_so_no_existing_fit_moves():
+    """The option exists to let a MONO caller say so. Every proportional caller must measure exactly what
+    it measured before, or this change silently re-sizes 104 registers that never asked for it."""
+    r = run_probe("""
+      out.a = L.textWidthPx('在授权目录里真正动文件', 100);
+      out.b = L.textWidthPx('在授权目录里真正动文件', 100, {cjk: L.CJK_FIT_ADVANCE});
+      out.lines = L.wrapLines('在授权目录里真正动文件', 198, 766);
+      out.linesExplicit = L.wrapLines('在授权目录里真正动文件', 198, 766, {cjk: L.CJK_FIT_ADVANCE});
+    """)
+    assert r["a"] == r["b"] and r["lines"] == r["linesExplicit"]
+
+
+def test_a_mono_measure_wraps_sooner_than_a_proportional_one():
+    """The whole point: the same string in the same box takes MORE lines in a monospace face.
+
+    The box is chosen where the two answers straddle a line boundary, because most boxes do not: at 38px a
+    900px measure holds 22 proportional Han glyphs and only 19 monospace ones, so 20 glyphs is one line by
+    the proportional model and two by the real one. Picked deliberately — a width where both happen to
+    round the same way would pass whatever the advance was, which is how this went unnoticed."""
+    r = run_probe("""
+      const s = [...'办公的产物本身就是文件，不是一段还要你二次加工的文字'].slice(0, 20).join('');
+      out.n = [...s].length;
+      out.prop = L.wrapLines(s, 38, 900);
+      out.mono = L.wrapLines(s, 38, 900, L.monoFit());
+    """)
+    assert r["n"] == 20
+    assert r["prop"] == 1, "the proportional model no longer fits 20 glyphs on a line; the case has moved"
+    assert r["mono"] == 2, (
+        "monospace wrapped %r glyphs to %r line(s) where two cells each needs 2 — the face is not reaching "
+        "the wrap" % (r["n"], r["mono"]))
+
+
+def test_the_prediction_side_asks_the_face_too():
+    """`cjkAdvance` mirrors `latinAdvance`: same argument, same question, for the other script. Film.tsx
+    predicts the CAPTION's wrap with it, and a terminal DNA sets the caption in the mono stack."""
+    r = run_probe("""
+      out.prop = L.cjkAdvance('Inter, system-ui, sans-serif');
+      out.mono = L.cjkAdvance('"JetBrains Mono", ui-monospace, monospace');
+      out.monoLatin = L.latinAdvance('"JetBrains Mono", ui-monospace, monospace');
+      out.none = L.cjkAdvance();
+    """)
+    assert r["prop"] == r["none"], "a face-less call must fall back to the proportional answer"
+    assert abs(r["mono"] - 2 * r["monoLatin"]) < 1e-6
+    assert r["mono"] > r["prop"]

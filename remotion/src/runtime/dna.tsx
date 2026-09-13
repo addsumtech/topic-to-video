@@ -452,6 +452,17 @@ export const TermFrame: React.FC<{dna: DesignDNA | null; cmd?: string; t: number
     );
   };
 
+/**
+ * The width TermFrame's children actually get.
+ *
+ * Exported because a register that sizes its own type to the frame otherwise restates these numbers, and a
+ * restated number is a second answer: TermGitLog set a fixed 38px row against a width it had guessed and
+ * ran a Chinese commit message 345px past the frame edge, with `white-space: pre` guaranteeing it could
+ * not wrap out of the problem. Framed subtracts its own 34px padding on each side.
+ */
+export const termInnerW = (W: number, framed?: boolean): number =>
+  framed ? Math.min(W * 0.80, 1180) - 68 : Math.min(W * 0.84, 1320);
+
 // EDFRAME — the EDITORIAL analogue of TermFrame (proves the three-layer model generalises past terminal). Its
 // grammar is print, not CLI: a small uppercase letter-spaced KICKER + a hairline RULE + a serif headline zone,
 // generous margins, smooth typographic reveals. `framed` = a heavier "cover/spread" surface (a ruled border) for
@@ -568,9 +579,16 @@ export const relLum = (hex: string): number => {
  * three labels unreadable, because alpha is not tone. This asks the only question that matters.
  */
 export const readableOn = (bg: string, ...candidates: string[]): string => {
+  // A CALL WITH NO CANDIDATES RETURNED `undefined`, AND `undefined` IS SILENT. React drops a style property
+  // whose value is undefined, so the element inherits — which for a bare `color` is BLACK. SourceDeal wrote
+  // `readableOn(SURF)` as the repair for conclusions that were black on a dark surface, and the repair
+  // reproduced the defect it was fixing: 1.14:1, measured off the rendered frame. A picker that cannot
+  // answer must not answer with nothing, so a caller that names no candidates gets the light/dark pair it
+  // plainly meant.
+  const list = candidates.length ? candidates : ['#ffffff', '#0b0f17'];
   const b = relLum(bg);
-  let best = candidates[0], bestC = -1;
-  for (const c of candidates) {
+  let best = list[0], bestC = -1;
+  for (const c of list) {
     const y = relLum(c);
     const ratio = (Math.max(y, b) + 0.05) / (Math.min(y, b) + 0.05);
     if (ratio > bestC) { bestC = ratio; best = c; }

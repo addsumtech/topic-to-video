@@ -7,6 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, easeInOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {fitTextPx} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#08080f';
@@ -18,6 +19,14 @@ export const VariableTypeMorph: React.FC<{word?: string; kicker?: string; taglin
   const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
+  // THE ENORMOUS WORD IS FITTED TO THE FRAME. 210px is one enormous word on a 1920-wide frame in a narrow
+  // grotesque; under the EDITORIAL DNA's serif on a 1080-wide frame 'EXPRESSIVE' was sliced at BOTH edges —
+  // the first E and the last E each cut in half. The type gate never saw it because it sweeps one DNA, and
+  // the DNA is what chooses the face and therefore the width.
+  // The word is a flex ROW that cannot wrap, and each glyph breathes on the WIDTH axis out to 1.12, so the
+  // fit is given the width the widest moment of that breath needs — not the resting width.
+  const WIDTH_AXIS_MAX = 1.12;
+  const wordPx = Math.min(210, fitTextPx(WORD, (W * 0.94) / WIDTH_AXIS_MAX, 210, {usable: 1, track: -0.02}));
   const letters = WORD.split('');
   const n = letters.length;
   const fieldX = lerp(-0.2, 0.2, easeInOutCubic(t)) * W;
@@ -50,7 +59,7 @@ export const VariableTypeMorph: React.FC<{word?: string; kicker?: string; taglin
               transform: `translateY(${rise}px) scaleX(${widthAxis}) scaleY(${lerp(0.8, 1, entr)})`,
               transformOrigin: 'center bottom',
               fontFamily: 'var(--f-display, Inter, system-ui, sans-serif)', fontWeight: weight,
-              fontSize: 210, lineHeight: 0.9, letterSpacing: '-0.02em',
+              fontSize: wordPx, lineHeight: 0.9, letterSpacing: '-0.02em',
               color: `color-mix(in oklab, ${ACC} ${Math.round((1 - hue) * 100)}%, ${ACC2})`,
               // enhancement if a variable font is present (harmless otherwise)
               fontVariationSettings: `"wght" ${weight}, "wdth" ${Math.round(widthAxis * 100)}`,

@@ -7,7 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {contentBottom, inkBlockH} from '../runtime/layout';
+import {contentBottom, fitTextPx, inkBlockH, monoFit, textWidthPx} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 // LEVEL-C: the whole blueprint flips with the DNA (paper→bg, ink→fg, grid→line, accent) so on a dark DNA it reads
@@ -41,6 +41,7 @@ export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: strin
   const INK = dna?.fg ?? INK0, FAINT = dna?.line ?? FAINT0, ACC = dna?.accent ?? ACC0, BG = dna?.bg ?? '#f6f8fb';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
+  const SPEC_MIN_PX = 16;   // below this a drafting note stops being readable as one
   const cx = W / 2;
   // module box
   const mw = 720, mh = 380;
@@ -114,6 +115,7 @@ export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: strin
       </svg>
 
       {/* mono labels (HTML for crisp type) */}
+      {/* SPEC_MIN_PX is the floor for a drafting note, used by BOTH the placement test and the fit below. */}
       <div style={{position: 'absolute', left: mx, top: my - 44, color: INK, font: `600 24px/1 ${MONO}`, letterSpacing: '0.04em', opacity: clamp01(seg(t, 0.12, 0.3))}}>
         <span style={{color: ACC}}>◇</span> {unit} · <span style={{color: '#5b6675'}}>{tag}</span>
       </div>
@@ -121,17 +123,31 @@ export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: strin
         {x: cx, y: my + mh + 70, txt: spec1, anchor: 'center'},
         // beside the machine when the room exists; under it (second line, below spec1) when it does not —
         // '0 cloud calls' rode 68px off a portrait frame's edge
-        (W - (mx + mw + 76) > 240
+        // BESIDE THE MACHINE WHEN THE ROOM EXISTS; UNDER IT WHEN IT DOES NOT — and "the room" is measured
+        // against THIS spec, not against a constant. `> 240` asks whether 240px exist and never asks how
+        // wide the text is, so a 26-glyph Chinese spec took the side slot with 190px of room and the fit
+        // below ground it down to the 12px floor, still 28px over. A drafting note under 16px is not a
+        // note. Ask whether it fits beside at a legible size; if it does not, it goes under, where the
+        // whole width is available and it can be drawn at full size.
+        (textWidthPx(String(spec2 ?? ''), SPEC_MIN_PX, monoFit()) <= W - (mx + mw + 76) - 48
           ? {x: mx + mw + 76, y: cy, txt: spec2, anchor: 'left'}
           : {x: cx, y: my + mh + 112, txt: spec2, anchor: 'center'}),
         // Was the literal x:960 y:540 — the centre of a 1920x1080 frame, printed beside the subject as
         // though it measured it. It measured nothing, it was wrong at any other resolution, and it
         // appeared on every film that reached for this register. A readout is real or it is absent.
         ...(readout ? [{x: cx + 34, y: cy + 6, txt: readout, anchor: 'left' as const}] : []),
-      ].map((l, i) => (
+      ].map((l, i) => {
+        // A `nowrap` SPEC IS FITTED TO THE ROOM ITS ANCHOR LEAVES. 22px is a drafting note's size on a 1920
+        // frame with an English spec; a Chinese one ran 288px past the right edge, and `nowrap` means it
+        // cannot wrap out of it. A centred label's room is twice its distance to the nearer edge; a
+        // left-anchored one's is what lies to its right. This can only ever shrink the note.
+        const room = (l.anchor === 'center' ? 2 * Math.min(l.x, W - l.x) : W - l.x) - 48;
+        const fs = Math.max(SPEC_MIN_PX, fitTextPx(String(l.txt ?? ''), Math.max(80, room), 22, {usable: 1, ...monoFit()}));
+        return (
         <div key={i} style={{position: 'absolute', left: l.x, top: l.y, transform: l.anchor === 'center' ? 'translateX(-50%)' : 'none',
-          color: '#48566a', font: `600 22px/1 ${MONO}`, opacity: easeOutCubic(seg(t, 0.6, 0.86)), whiteSpace: 'nowrap'}}>{l.txt}</div>
-      ))}
+          color: '#48566a', font: `600 ${fs}px/1 ${MONO}`, opacity: easeOutCubic(seg(t, 0.6, 0.86)), whiteSpace: 'nowrap'}}>{l.txt}</div>
+        );
+      })}
       {/* a counting spec readout, top-right — drawn only when the film supplied a figure */}
       {specN == null ? null : (
         <div style={{position: 'absolute', right: 120, top: 120, textAlign: 'right', opacity: clamp01(seg(t, 0.55, 0.78))}}>

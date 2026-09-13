@@ -8,7 +8,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, lerp, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {titleStyle, bottomTextY} from '../runtime/layout';
+import {titleStyle, bottomTextY, fitTextPx, monoFit, textWidthPx} from '../runtime/layout';
 
 export const DURATION = 175; // ~5.8s
 
@@ -40,16 +40,24 @@ export const TensionScale: React.FC<{
   const rx = cx + L * Math.cos(th), ry = fy - L * Math.sin(th);   // SCALE/MONEY arm end
   const appear = clamp01(t * 4);
 
+  const MONO = monoFit();
   const pan = (x: number, y: number, label: string, sub: string, col: string, key: string) => {
-    // box + font ADAPT to the real label length so long labels don't overflow (size-for-real-content)
-    const bw = Math.max(portrait ? 260 : 300, Math.min(capBw, Math.max(label.length * 13, sub.length * 8.5) + 44));
-    const lfs = Math.min(22, (bw - 30) / Math.max(1, label.length * 0.62));
+    // BOX AND FONT ADAPT TO THE REAL LABEL — MEASURED, not counted. `label.length * 13` is a character
+    // count with a Latin width attached to it, and in this monospace face a Han glyph advances TWO CELLS
+    // (1.2em, not 0.62em). So a Chinese label got a box a third too narrow and an SVG <text>, which cannot
+    // wrap and is centred on its anchor, ran out of BOTH sides of the frame — 68px each way, measured.
+    // The size is fitted to the widest box this frame allows, and the box is then drawn to the ink.
+    const inner = Math.max(60, capBw - 44);
+    const lfs = fitTextPx(label, inner, 22, {usable: 1, ...MONO});
+    const sfs = fitTextPx(sub, inner, 16, {usable: 1});
+    const bw = Math.max(portrait ? 260 : 300, Math.min(capBw,
+      Math.max(textWidthPx(label, lfs, MONO), textWidthPx(sub, sfs)) + 44));
     return (
     <g key={key} opacity={appear}>
       <line x1={x} y1={y} x2={x} y2={y + 28} stroke={`${col}aa`} strokeWidth={2} />
       <rect x={x - bw / 2} y={y + 28} width={bw} height={78} rx={8} fill="#0d1117" stroke={col} strokeWidth={1.6} />
       <text x={x} y={y + 60} textAnchor="middle" fill={col} fontSize={lfs} fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" fontWeight={700}>{label}</text>
-      <text x={x} y={y + 88} textAnchor="middle" fill="#9fb0c3" fontSize="16" fontFamily="var(--f-body, Inter, sans-serif)">{sub}</text>
+      <text x={x} y={y + 88} textAnchor="middle" fill="#9fb0c3" fontSize={sfs} fontFamily="var(--f-body, Inter, sans-serif)">{sub}</text>
     </g>
     );
   };
@@ -71,7 +79,9 @@ export const TensionScale: React.FC<{
         {/* equilibrium readout */}
         <text x={cx} y={fy + 96} textAnchor="middle" fill="#67788c" fontSize="15" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={appear}>equilibrium: unresolved</text>
         {/* bottom note (kept above the caption band) */}
-        <text x={cx} y={Math.min(H * 0.82, bottomTextY(W, H))} textAnchor="middle" fill="#c9d6ea" fontSize="20" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01((t - 0.15) * 3)}>{note}</text>
+        {/* The note was made band-aware VERTICALLY and never bounded horizontally. An SVG <text> does not
+            wrap, and this one is centred on the frame, so a Chinese note simply grew out of both edges. */}
+        <text x={cx} y={Math.min(H * 0.82, bottomTextY(W, H))} textAnchor="middle" fill="#c9d6ea" fontSize={fitTextPx(note, W * 0.9, 20, {usable: 1, ...MONO})} fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01((t - 0.15) * 3)}>{note}</text>
       </svg>
       <div style={{...titleStyle, opacity: lerp(0.4, 1, clamp01(t * 4))}}>{title}</div>
     </AbsoluteFill>

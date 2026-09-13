@@ -15,7 +15,7 @@ import {slide} from '@remotion/transitions/slide';
 import {wipe} from '@remotion/transitions/wipe';
 import {clockWipe} from '@remotion/transitions/clock-wipe';
 import {captionBand, CAPTION_SIZE_FRAC, CAPTION_MARGIN_FRAC, CAPTION_LINES,
-        CAPTION_LEAD, CAPTION_LEAD_CJK, CJK_ADVANCE, latinAdvance} from './runtime/layout';
+        CAPTION_LEAD, CAPTION_LEAD_CJK, cjkAdvance, latinAdvance} from './runtime/layout';
 import {SceneDurationContext, ReducedMotionContext, clamp01, SEAM_FRAMES} from './runtime/motion';
 import {NarrationContext} from './runtime/voice';
 import {groundLum, dnaGroundLum, dnaGroundY, groundGap, HARSH_GROUND_GAP, lumValue, lumFromY,
@@ -122,9 +122,11 @@ const splitCaption = (text: string): string[] => {
 // IBM Plex Sans averages 0.452-0.478 em on real prose — so 0.52 is conservative and safe — but the
 // `terminal` DNA sets ALL type to JetBrains Mono, where the same sentence measures 0.588. There the
 // estimate UNDER-counts, the caption wraps to more lines than the fit assumed, and it overflows the band
-// it was supposed to be guaranteed to fit. CJK measures 0.995, so 1.0 was already right.
+// it was supposed to be guaranteed to fit. CJK measures 0.995 in a PROPORTIONAL face, so 1.0 was right for
+// the faces this was written against — and wrong for a terminal DNA, whose caption is set in the mono
+// stack, where a Han glyph is two cells. `cjkAdvance` asks the face, exactly as `latinAdvance` does.
 const advanceFor = (text: string, fontStack?: string, uniform?: boolean): number =>
-  isCJKText(text) ? CJK_ADVANCE : latinAdvance(fontStack, uniform);
+  isCJKText(text) ? cjkAdvance(fontStack, uniform) : latinAdvance(fontStack, uniform);
 
 const CLAUSE = /[,;，；、]|\s—\s/g;
 const fitCaption = (chunks: string[], size: number, measure: number, lines: number,

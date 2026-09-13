@@ -141,6 +141,25 @@ export const bottomTextY = (W: number, H: number) =>
  */
 const CJK_CH = /[\u2e80-\u9fff\uf900-\ufaff\uff01-\uff60\u3000-\u303f]/;
 
+/**
+ * The Han advance the FITTERS below use, in ems. The TYPE ADVANCE section at the foot of this file carries
+ * the measured pair for PREDICTING a wrap (0.995, rounded to CJK_ADVANCE); a fitter wants a little margin
+ * over the measurement, because under-measuring clips the text and over-measuring only sets it slightly
+ * smaller. Kept apart from CJK_ADVANCE on purpose — same fact, different tolerance.
+ */
+export const CJK_FIT_ADVANCE = 1.05;
+
+/**
+ * The advance pair a MONOSPACE caller hands the fitters, because a Han glyph is TWO CELLS there.
+ *
+ * The advance is a property of the FACE, not of the character, and every fitter here had one number for
+ * both: 1.05, the proportional answer. In a monospace face a Han glyph occupies two cells — 1.2em at a
+ * 0.6em cell, 14% more — so every Chinese terminal string came out under-measured. TermGitLog ran a commit
+ * message 345px off the frame, TensionScale centred a note that was 68px too wide on BOTH sides, and
+ * BlueprintGrid clipped a spec by 288px. The ×2 lives here once: no register writes 1.2.
+ */
+export const monoFit = (cell = 0.6) => ({adv: cell, cjk: cell * 2});
+
 /** How many MONOSPACE CELLS a string occupies. A Han glyph is FULL-WIDTH — two cells — so counting
  *  characters under-reports a Chinese line by half, and a terminal register that sizes itself from a
  *  character count then picks a size that runs the line off the frame (TermTree: 2086px past the right
@@ -175,22 +194,22 @@ export const clipCells = (text: string, cells: number): string => {
  * a 324px column held for labels that ran 140px.
  */
 export const textWidthPx = (
-  text: string, px: number, opts: {adv?: number; track?: number} = {},
+  text: string, px: number, opts: {adv?: number; track?: number; cjk?: number} = {},
 ): number => {
-  const {adv = 0.72, track = 0} = opts;
-  const units = [...String(text || ' ')].reduce((n, ch) => n + (CJK_CH.test(ch) ? 1.05 : adv) + track, 0);
+  const {adv = 0.72, track = 0, cjk = CJK_FIT_ADVANCE} = opts;
+  const units = [...String(text || ' ')].reduce((n, ch) => n + (CJK_CH.test(ch) ? cjk : adv) + track, 0);
   return units * px;
 };
 
 export const fitTextPx = (
   text: string, W: number, base: number,
-  opts: {usable?: number; adv?: number; track?: number} = {},
+  opts: {usable?: number; adv?: number; track?: number; cjk?: number} = {},
 ): number => {
   // The DEFAULT advance is deliberately generous, and callers should rarely lower it: the face that
   // actually renders is the DNA's display font, not whatever the register's fallback stack names — a call
   // tuned to condensed Antonio (0.52) shipped Space Grotesk and still clipped 85px per edge.
-  const {usable = 0.9, adv = 0.72, track = 0} = opts;
-  const wLen = textWidthPx(text, 1, {adv, track});
+  const {usable = 0.9, adv = 0.72, track = 0, cjk = CJK_FIT_ADVANCE} = opts;
+  const wLen = textWidthPx(text, 1, {adv, track, cjk});
   return Math.max(12, Math.min(base, Math.floor((W * usable) / Math.max(0.1, wLen))));
 };
 
@@ -220,15 +239,15 @@ export const fitTextPx = (
  * space before the overrun. A label is a handful of characters; walking them costs nothing.
  */
 export const wrapLines = (
-  text: string, px: number, width: number, opts: {adv?: number; track?: number} = {},
+  text: string, px: number, width: number, opts: {adv?: number; track?: number; cjk?: number} = {},
 ): number => {
-  const {adv = 0.72, track = 0} = opts;
+  const {adv = 0.72, track = 0, cjk = CJK_FIT_ADVANCE} = opts;
   const w = Math.max(1, width);
   const chars = [...String(text ?? '')];
   if (!chars.length) return 1;
   let lines = 1, used = 0, lastBreak = -1, sinceBreak = 0;
   for (const ch of chars) {
-    const cw = (CJK_CH.test(ch) ? 1.05 : adv) * px + track * px;
+    const cw = (CJK_CH.test(ch) ? cjk : adv) * px + track * px;
     if (used + cw > w && used > 0) {
       if (CJK_CH.test(ch) || lastBreak < 0) {          // break here: CJK breaks anywhere, and so does a
         lines += 1; used = cw; lastBreak = -1; sinceBreak = 0;   // Latin run with no space to fall back to
@@ -246,12 +265,12 @@ export const wrapLines = (
 
 export const fitBlockPx = (
   text: string, W: number, H: number, base: number,
-  opts: {usable?: number; adv?: number; track?: number; leading?: number; min?: number} = {},
+  opts: {usable?: number; adv?: number; track?: number; cjk?: number; leading?: number; min?: number} = {},
 ): number => {
-  const {usable = 0.92, adv = 0.72, track = 0, leading: lh = 1.1, min = 12} = opts;
+  const {usable = 0.92, adv = 0.72, track = 0, cjk = CJK_FIT_ADVANCE, leading: lh = 1.1, min = 12} = opts;
   const width = Math.max(1, W * usable);
   for (let px = Math.floor(base); px >= min; px--) {
-    const lines = wrapLines(text, px, width, {adv, track});
+    const lines = wrapLines(text, px, width, {adv, track, cjk});
     if (lines * px * lh <= H) return px;
   }
   return min;
@@ -392,3 +411,9 @@ export const MONO_FACE = /mono|code|consol|courier|menlo|iosevka/i;
 export const CJK_ADVANCE = 1.0;
 export const latinAdvance = (fontStack?: string, uniform?: boolean) =>
   (uniform || (fontStack && MONO_FACE.test(fontStack))) ? 0.62 : 0.52;
+/** The same question for a Han glyph, and it has the same answer shape: a property of the FACE. In a
+ *  proportional face it is CJK_ADVANCE; in a MONOSPACE one it is two cells. `PhotoPlate` predicted the
+ *  wrap of a mono chip with the proportional 1.0 and under-counted its Chinese lines by a fifth. Callers
+ *  that already ask `latinAdvance(x)` ask `cjkAdvance(x)` with the same argument. */
+export const cjkAdvance = (fontStack?: string, uniform?: boolean) =>
+  (uniform || (fontStack && MONO_FACE.test(fontStack))) ? 2 * latinAdvance(fontStack, uniform) : CJK_ADVANCE;

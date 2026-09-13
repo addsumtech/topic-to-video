@@ -19,7 +19,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig, staticFile} from 'remotion';
 import {useT, useAnimSpan, springAt, SPRING_SEAT, seg, lerp, clamp01, easeInOutCubic,
         easeOutCubic} from '../runtime/motion';
-import {useDNA, readableOn} from '../runtime/dna';
+import {useDNA, contrastOf, readableOn} from '../runtime/dna';
 import {UiSurface, type UiContent} from '../runtime/uiSurface';
 import {CONTENT_TOP, captionBand, fitBlockPx, fitTextPx, textWidthPx, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
@@ -63,6 +63,10 @@ export const SourceDeal: React.FC<{
   const ACC = dna?.accent ?? ACC_D0;
   const SURF = dna?.surface ?? '#ffffff';
   const LINE = dna?.surfaceBorder ?? '#d7dce6';
+  // The conclusion's ink is the FILM's ink whenever that is readable on the pill, and only falls back when
+  // it is not — `readableOn` alone picks the highest-contrast candidate, which would throw away a themed
+  // DNA's colour in favour of pure white on every dark surface.
+  const PILL_INK = contrastOf(FG, SURF) >= 4.5 ? FG : readableOn(SURF);
   const U = Math.min(W, H);
 
   const list = (ITEMS ?? []).filter((x) => String(x ?? '').trim()).slice(0, MAX_DEALT);
@@ -120,18 +124,26 @@ export const SourceDeal: React.FC<{
   const docX = vert ? Math.round((W - docW) / 2) : Math.round(W * 0.03);
   const docY = zoneTop;
 
-  // PARK, DO NOT FADE. The source slides most of the way off its own edge and scales about that edge, so it
-  // stays anchored there instead of drifting inward as it shrinks — and about a third of it stays readable,
-  // which is the difference between a source and a decoration.
+  // PARK, DO NOT FADE — AND DO NOT SLIDE OFF. The source used to slide most of the way off its own edge
+  // (55% upright, 28% stood up) and scale about that edge, on the reasoning that what went off-frame was
+  // the document's margin. It was not. What a left slide hides is the START of every line and the title —
+  // the one part of a document that says what it is — and what it leaves on frame is the ragged right end
+  // of each row, which reads as nothing at all. Measured: four of the four rows a film supplies in `doc`
+  // were cut by 343px at 16:9 and 257px at 4:3, in ANY language. The register's own demo default is an
+  // EMPTY doc, which is the only reason this never showed on the English sweep.
+  //
+  // So it shrinks in place instead. The parked source occupies the same FOOTPRINT it did before — it ends
+  // at exactly the same x, so every number the conclusions are laid out from is unchanged — but the whole
+  // document is inside it: title, line starts and all, smaller.
   const park = easeInOutCubic(clamp01(seg(t, 0.06, 0.24)));
-  // Upright the source goes off its own LEFT edge, which hides a margin. Stood up it would go off the TOP,
-  // which hides the title — the one part of a document that says what it is — so it is pushed less far.
-  const parkShift = vert ? 0 : -0.55, parkLift = vert ? -0.28 : 0;
-  const parkScale = lerp(1, 0.92, park);
+  // The fraction of its own box the parked source occupies. These are the two numbers the old slide left
+  // visible (0.92 - 0.55 upright, 0.92 - 0.28 stood up), so the room handed to the conclusions is the same.
+  const PARKED = vert ? 0.64 : 0.37;
+  const parkScale = lerp(1, PARKED, park);
   // WHERE THE PARKED SOURCE ACTUALLY ENDS. Measured from the un-parked box — the obvious way, and the way
   // this was first written — the conclusions were placed against a document that is no longer there: at 9:16
   // it left a 360px dead band between the source and the first pill and used half the frame for nothing.
-  const parkedEnd = (px: number) => px * (parkScale + (vert ? parkLift : parkShift));
+  const parkedEnd = (px: number) => px * parkScale;
 
   // whole periods, so the last frame is where the first one was and the next shot can cut in on a still doc
   const scroll = (t * 3) % 1;
@@ -181,7 +193,7 @@ export const SourceDeal: React.FC<{
       {/* THE SOURCE, still being read */}
       <div style={{position: 'absolute', left: docX, top: docY, width: docW, height: docH,
         transformOrigin: vert ? '50% 0%' : '0% 50%',
-        transform: `translate(${parkShift * park * 100}%, ${parkLift * park * 100}%) scale(${parkScale})`,
+        transform: `scale(${parkScale})`,
         overflow: 'hidden', borderRadius: dna?.radius ?? 10,
         border: `${dna?.borderWidth ?? 1}px solid ${LINE}`, background: SURF}}>
         <div style={{position: 'absolute', left: 0, top: 0, width: docW, height: docH * 1.35,
@@ -225,7 +237,7 @@ export const SourceDeal: React.FC<{
               // `dna?.fg && dna.surface ? '#1c2029' : '#1c2029'` and so painted near-black text whatever the
               // ground was — on a dark DNA's surface the conclusions were black on near-black. No typecheck
               // can see it and no text gate measures contrast; it took looking at the delivered film.
-              color: readableOn(SURF),
+              color: PILL_INK,
               font: `700 ${pillPxF}px/${leading(label, 1.15)} var(--f-body, system-ui, sans-serif)`}}>
               <span style={{width: Math.round(pillPxF * 0.34), height: Math.round(pillPxF * 0.34),
                 borderRadius: '50%', background: ACC, marginRight: Math.round(pillPxF * 0.42)}} />

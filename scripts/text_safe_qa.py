@@ -7,6 +7,7 @@
     python3 scripts/text_safe_qa.py --library --only=Id,Id      # iterate on one finding without 160 renders
     python3 scripts/text_safe_qa.py --library --all-aspects     # every aspect the renderer offers
     python3 scripts/text_safe_qa.py --library --cjk             # ...with CHINESE copy, not the demo strings
+    python3 scripts/text_safe_qa.py --library --all-dna         # ...in every FACE the renderer offers
 
 WHY THIS REPLACES A PIXEL GATE. `frame_safe_qa.py`'s EDGE-BLEED check asks how much ink sits in the outer
 border and calls a high answer an overflow. Measured on real cases, it is INVERTED:
@@ -193,11 +194,40 @@ def scan_library(limit=None, aspect=None, dna=DEFAULT_DNA, only=None, cjk=False)
     return findings, len(names)
 
 
+def dna_presets():
+    """The DNA names the renderer actually offers, read from runtime/dna.tsx rather than listed here — a
+    list written in this file is a list that goes stale the day a preset is added."""
+    src = open(os.path.join(_REMOTION, "src", "runtime", "dna.tsx"), encoding="utf-8").read()
+    m = re.search(r"export const DNA_PRESETS[^=]*=\s*\{(.*?)\n\};", src, re.S)
+    if not m:
+        raise RuntimeError("could not read DNA_PRESETS from runtime/dna.tsx — the sweep cannot enumerate "
+                           "the faces it is supposed to cover, and guessing the list is how it came to "
+                           "sweep exactly one")
+    names = re.findall(r"^\s*([A-Za-z0-9_]+)\s*:", m.group(1), re.M)
+    if not names:
+        raise RuntimeError("DNA_PRESETS parsed to an EMPTY list — see above")
+    return names
+
+
 def main(argv):
     if not argv:
         print(__doc__.strip().splitlines()[0])
         print("usage: text_safe_qa.py <out_dir> | --library")
         return 2
+    if argv[0] == "--library" and "--all-dna" in argv:
+        # THE SWEEP SWEPT ONE DNA, AND THE DNA IS WHAT CHOOSES THE FACE. `scan_library`'s own docstring says
+        # the Design DNA "sets the type family and therefore every metric this audit measures" — and then
+        # the sweep only ever ran `product`, whose display face is a narrow grotesque. Under `editorial`'s
+        # serif, VariableTypeMorph's one enormous word was sliced at BOTH edges of a 1:1 frame while the
+        # product sweep reported the register clean at all five aspects. A register that passes in one face
+        # has been tested in one face. The list is READ from the renderer's own presets, so a ninth DNA is
+        # covered the day it is added.
+        rest = [a for a in argv if not a.startswith("--dna=") and a != "--all-dna"]
+        worst = 0
+        for name in dna_presets():
+            print("## dna %s" % name, flush=True)
+            worst = max(worst, main(rest + ["--dna=" + name]))
+        return worst
     if argv[0] == "--library" and "--all-aspects" in argv:
         # THE LIBRARY WAS SWEPT AT TWO OF THE FIVE ASPECTS IT SHIPS. `--aspect` has existed since the
         # portrait work and 1:1, 4:5 and 4:3 had never been passed to it — the square sweep then found 21

@@ -168,3 +168,27 @@ def test_surfaceOn_leaves_a_colour_that_is_already_a_surface_alone():
     """)
     assert out["already"] == "#8ea2f0"
     assert out["rescued"] != "#12141c"
+
+
+def test_a_picker_with_no_candidates_answers_with_a_colour_not_with_undefined():
+    """`readableOn(bg)` USED TO RETURN `undefined`, and undefined is the silent kind of wrong.
+
+    React drops a style property whose value is undefined, so the element inherits — and a bare inherited
+    `color` is black. SourceDeal wrote `readableOn(SURF)` as the repair for conclusions that came out black
+    on a dark surface, and the repair reproduced the defect its own comment describes: measured off the
+    rendered frame, the pill label was 1.14:1 against its pill. No typecheck sees it (the signature says it
+    returns string), and no text gate measures contrast.
+    """
+    out = probe("""
+      out.onDark = D.readableOn('#141822');
+      out.onLight = D.readableOn('#f4f0e6');
+      out.darkC = D.contrastOf(D.readableOn('#141822'), '#141822');
+      out.lightC = D.contrastOf(D.readableOn('#f4f0e6'), '#f4f0e6');
+      out.typeOnDark = typeof D.readableOn('#141822');
+    """)
+    assert out["typeOnDark"] == "string", "returned %r, which React drops" % out["typeOnDark"]
+    assert out["onDark"] != out["onLight"], (
+        "the same ink (%r) for a dark and a light surface — the default pair is not being compared"
+        % out["onDark"])
+    for name, c in (("dark", out["darkC"]), ("light", out["lightC"])):
+        assert c >= 7.0, "a candidate-less call on a %s surface gives only %.2f:1" % (name, c)

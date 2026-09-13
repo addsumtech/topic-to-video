@@ -5,7 +5,8 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01} from '../runtime/motion';
-import {useDNA, TermFrame} from '../runtime/dna';
+import {useDNA, TermFrame, termInnerW} from '../runtime/dna';
+import {clipCells, monoCells, monoFit} from '../runtime/layout';
 
 export const DURATION = 165;
 
@@ -26,14 +27,38 @@ export const TermGitLog: React.FC<{cmd?: string; commits?: Commit[]; framed?: bo
   const dna = useDNA();
   const mono = dna?.fontMono ?? '"JetBrains Mono", ui-monospace, monospace';
   const fg = dna?.fg ?? '#cdd7e4', dim = dna?.dim ?? '#5f6b80', acc = dna?.accent ?? '#3dd6a4', acc2 = dna?.accent2 ?? '#4d8cff';
-  const refW = Math.max(...commits.map((c) => [...(c.ref ?? '')].length), 4);
+  // A REF COLUMN IS COUNTED IN CELLS, NOT CHARACTERS. `minWidth` is set in `ch`, and `ch` is one cell —
+  // but a Han glyph occupies TWO of them, so a character count reserved half the column a Chinese ref
+  // needs and the message beside it started inside the parenthesis. Same defect as TermTree's tree.
+  const refW = Math.max(...commits.map((c) => monoCells(c.ref ?? '')), 4);
+  // AND THE ROW IS SIZED TO THE WIDTH IT IS ACTUALLY GIVEN. 38px was chosen against a 1920-wide frame and
+  // English commit messages; `white-space: pre` then guarantees the row cannot wrap out of trouble, so a
+  // Chinese message ran 345px past the edge and '← HEAD' 510px. The widest row decides the size, measured
+  // in the cells the face really advances. It can only ever shrink: short Latin rows still get their 38px.
+  const M = monoFit();
+  const GAPS = 18 * 3 + 10;   // the flex gaps and the HEAD margin are fixed px — they do not scale with the type
+  const INNER = termInnerW(W, framed);
+  // A LOG TRUNCATES; IT DOES NOT SHRINK. Sizing the whole log to its longest message is correct arithmetic
+  // and the wrong form: a 26-glyph Chinese subject drove every row to 19px, which is not a terminal any
+  // more. `git log --oneline` gives the subject the room the line has and the terminal clips the rest, so
+  // the message is clipped to what survives at a size a terminal is still legible at, and the fit then
+  // does the remaining work. Latin rows are far inside the budget and are never touched.
+  const MIN_PX = 22;
+  const fixedCells = (i: number, c: Commit) =>
+    monoCells('*' + String(c.hash ?? '')) + refW + 2 + (i === 0 ? monoCells('← HEAD') : 0);
+  const msgBudget = (i: number, c: Commit) =>
+    Math.max(8, Math.floor((INNER - GAPS) / (MIN_PX * M.adv)) - fixedCells(i, c));
+  const rows = commits.map((c, i) => ({...c, msg: clipCells(String(c.msg ?? ''), msgBudget(i, c))}));
+  const widestCells = Math.max(...rows.map((c, i) => fixedCells(i, c) + monoCells(c.msg)));
+  const rowPx = Math.max(MIN_PX, Math.min(38,
+    Math.floor((INNER - GAPS) / Math.max(1, widestCells * M.adv))));
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(130% 120% at 50% -8%, #0f1723, #06080d 72%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
       <TermFrame dna={dna} cmd={cmd} t={t} framed={framed} align="left">
-        <div style={{font: `500 38px/1 ${mono}`, whiteSpace: 'pre'}}>
-          {commits.map((c, i) => {
+        <div style={{font: `500 ${rowPx}px/1 ${mono}`, whiteSpace: 'pre'}}>
+          {rows.map((c, i) => {
             const start = 0.24 + i * 0.16;
             const show = clamp01(seg(t, start, start + 0.13));
             const head = i === 0;

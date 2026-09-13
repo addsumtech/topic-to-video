@@ -11,6 +11,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
 import {useDNA, dnaPalette} from '../runtime/dna';
+import {fitTextPx} from '../runtime/layout';
 
 export const DURATION = 150; // 5s
 const BG_D0 = '#0e1030';
@@ -23,6 +24,15 @@ export const InflateType: React.FC<{word?: string; tagline?: string}> = ({
   const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
+  // THE WORD IS FITTED TO THE FRAME. 240px holds 'PUFFY' on a 1920 frame and four Han glyphs on a 1080 one
+  // — and the CJK fixture happens to hand this register exactly four, so the sweep proved it survives four
+  // and nothing more. A real film writes the phrase its topic needs: at eight glyphs the word was sliced
+  // 450px on the left and 461px on the right at 1:1.
+  // The glyphs are a flex ROW that cannot wrap, each with a fixed 6px margin either side and a soft-body
+  // scale that breathes out past 1 — so the fit is given the room the widest moment of that breath needs.
+  const GLYPH_MARGIN = 12, SX_MAX = 1.05;
+  const wordPx = Math.min(240, fitTextPx(WORD,
+    Math.max(60, (W * 0.94) / SX_MAX - [...WORD].length * GLYPH_MARGIN), 240, {usable: 1, track: -0.01}));
   const letters = WORD.split('');
   const n = letters.length;
   const tagIn = easeOutCubic(seg(t, 0.66, 0.86));
@@ -50,7 +60,7 @@ export const InflateType: React.FC<{word?: string; tagline?: string}> = ({
               transform: `translateY(${(1 - inf) * 40}px) scale(${sx}, ${sy})`, transformOrigin: 'center bottom',
               margin: '0 6px'}}>
               <span style={{display: 'block',
-                fontFamily: 'var(--f-display, "Baloo 2", Inter, system-ui, sans-serif)', fontWeight: 900, fontSize: 240, lineHeight: 1,
+                fontFamily: 'var(--f-display, "Baloo 2", Inter, system-ui, sans-serif)', fontWeight: 900, fontSize: wordPx, lineHeight: 1,
                 letterSpacing: '-0.01em', color: tone,
                 background: `linear-gradient(180deg, #ffffff, ${tone} 42%, ${tone})`,
                 WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent',

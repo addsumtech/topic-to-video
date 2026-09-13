@@ -27,7 +27,7 @@ import {ThreeCanvas} from '@remotion/three';
 import {useDNA, dnaPalette} from '../runtime/dna';
 import {project, yawPoint, type Vec3} from '../runtime/project3d';
 import {AimCamera} from '../runtime/aimCamera';
-import {captionBand, CONTENT_TOP, fitTextPx} from '../runtime/layout';
+import {captionBand, CONTENT_TOP, fitTextPx, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 import {useT, seg, clamp01, easeOutCubic, easeOutBack, lerp} from '../runtime/motion';
 
@@ -207,10 +207,16 @@ export const MaterialHero: React.FC<{title?: string; items?: string[]; note?: st
     // ...AND KEPT INSIDE THE ZONE IT IS ALLOWED. A projected label follows its object wherever perspective
     // puts it, and the arcs nearest the lens sit low: two of six landed under the burned subtitle, which is
     // the one region of the frame a shot does not own. Clamped, a label can be crowded but never hidden.
+    // ...and the clamp holds back the LABEL, not a constant. `pad` is 3.5% of the short side — 37px at
+    // 1080, about a line and a quarter of the label's own 29px type. The label is centred on `y`
+    // (translate -50%), and a Chinese label in this 162px box wraps to THREE lines, so half of it is 50px
+    // and 13px of it drew inside the caption band at 1:1. Measured in the box the label is actually given.
     const pad = Math.round(Math.min(W, H) * 0.035);
+    const LABEL_PX = Math.round(U * 0.027);
+    const halfH = Math.ceil(wrapLines(text, LABEL_PX, Math.round(W * 0.15)) * LABEL_PX * leading(text, 1.15) / 2);
     const x = Math.min(Math.max(at.x + (dx / len) * OUT_PX, Math.round(W * 0.09)), Math.round(W * 0.91));
-    const y = Math.min(Math.max(at.y + (dy / len) * OUT_PX, CONTENT_TOP + pad),
-                       H - captionBand(W, H) - pad);
+    const y = Math.min(Math.max(at.y + (dy / len) * OUT_PX, CONTENT_TOP + halfH),
+                       H - captionBand(W, H) - Math.max(pad, halfH));
     return {text, i, s, at: {x, y, depth: at.depth}};
   });
 
@@ -228,6 +234,16 @@ export const MaterialHero: React.FC<{title?: string; items?: string[]; note?: st
   const titlePx = fitTextPx(TITLE, holeW * 0.74, Math.round(U * 0.044), {usable: 1.0});
   const notePx = Math.round(U * 0.024);
   const band = H - captionBand(W, H);
+  // THE CLAMP RESERVES THE BLOCK, NOT A CONSTANT. `band - U * 0.06` held back 65px at 1080 — about half a
+  // line of the title and nothing at all of the note under it. The block is centred on `top`
+  // (translate -50%), so what has to clear the band is its own HALF-HEIGHT, and in Chinese the title takes
+  // two lines and the note two more: 13px of the note drew inside the band at 1:1.
+  // Measured in the width the box is actually given, and by the BOX height rather than the ink, which errs
+  // toward holding the block a little higher rather than a little lower.
+  const CENTRE_W = Math.round(W * 0.34);
+  const TITLE_LH = leading(TITLE, 1.12), NOTE_LH = leading(NOTE, 1.4), NOTE_GAP = Math.round(U * 0.018);
+  const centreH = wrapLines(TITLE, titlePx, CENTRE_W) * titlePx * TITLE_LH
+    + (NOTE ? NOTE_GAP + wrapLines(NOTE, notePx, CENTRE_W) * notePx * NOTE_LH : 0);
 
   return (
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
@@ -247,16 +263,16 @@ export const MaterialHero: React.FC<{title?: string; items?: string[]; note?: st
       ) : null)}
 
       {centre ? (
-        <div style={{position: 'absolute', left: centre.x, top: Math.min(centre.y, band - Math.round(U * 0.06)),
-          transform: 'translate(-50%, -50%)', width: Math.round(W * 0.34), textAlign: 'center',
+        <div style={{position: 'absolute', left: centre.x, top: Math.min(centre.y, band - Math.ceil(centreH / 2)),
+          transform: 'translate(-50%, -50%)', width: CENTRE_W, textAlign: 'center',
           textWrap: 'balance', color: FG, opacity: clamp01(seg(t, 0.55, 0.75)),
-          font: `800 ${titlePx}px/${leading(TITLE, 1.12)} var(--f-display, Inter,system-ui,sans-serif)`,
+          font: `800 ${titlePx}px/${TITLE_LH} var(--f-display, Inter,system-ui,sans-serif)`,
           letterSpacing: '-0.02em'}}>
           {TITLE}
           {NOTE ? (
-            <div style={{marginTop: Math.round(U * 0.018), color: DIM, letterSpacing: 0,
-              opacity: clamp01(seg(t, 0.74, 0.90)),
-              font: `500 ${notePx}px/${leading(NOTE, 1.4)} var(--f-body, system-ui, sans-serif)`}}>{NOTE}</div>
+            <div style={{color: DIM, letterSpacing: 0,
+              opacity: clamp01(seg(t, 0.74, 0.90)), marginTop: NOTE_GAP,
+              font: `500 ${notePx}px/${NOTE_LH} var(--f-body, system-ui, sans-serif)`}}>{NOTE}</div>
           ) : null}
         </div>
       ) : null}

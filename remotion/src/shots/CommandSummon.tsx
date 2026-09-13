@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, easeOutBack, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {fitTextPx} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 
@@ -32,7 +33,15 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
   const caretOn = t < 0.46 && Math.floor(t * 60) % 2 === 0;
   const palY = lerp(60, 0, inP) + (fired ? -lerp(0, 40, easeOutCubic(seg(t, 0.46, 0.6))) : 0);
   const palScale = fired ? lerp(1, 0.94, easeOutCubic(seg(t, 0.46, 0.62))) : 1;
-  const PW = 1180, PX = (W - PW) / 2;
+  // A PALETTE WIDER THAN THE FRAME. 1180 was the width of a comfortable command palette on a 1920 frame;
+  // every other aspect this renderer offers is 1080 wide, so `PX` came out NEGATIVE and the palette hung
+  // off both edges before a single character was typed into it. Clamped to the frame, and the copy inside
+  // is then fitted to the width the palette really has — the command line is `white-space: pre`, so it
+  // cannot wrap out of an overflow, and a Chinese command ran 89px past the edge.
+  const PW = Math.min(1180, Math.round(W * 0.92)), PX = Math.round((W - PW) / 2);
+  const CMD_PADX = 40, ROW_PADX = 24, ICON = 34 + 22;
+  const cmdPx = fitTextPx(command, PW - CMD_PADX * 2 - ICON, 46, {usable: 1});
+  const rowPx = ROWS.reduce((px, r) => Math.min(px, fitTextPx(r, PW - 40 - ROW_PADX * 2 - 54 - 120, 38, {usable: 1})), 38);
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(120% 100% at 50% 22%, #141a26, #090c12 60%)'}}>
       {/* soft accent glow behind the palette */}
@@ -43,9 +52,9 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
         transform: `scale(${palScale})`, transformOrigin: '50% 0', background: 'rgba(20,25,35,0.92)',
         border: '1px solid #2a3346', borderRadius: 20, boxShadow: '0 50px 120px rgba(0,0,0,.6)', backdropFilter: 'blur(20px)'}}>
         {/* input row */}
-        <div style={{display: 'flex', alignItems: 'center', gap: 22, padding: '34px 40px', borderBottom: '1px solid #232c3d'}}>
+        <div style={{display: 'flex', alignItems: 'center', gap: 22, padding: `34px ${CMD_PADX}px`, borderBottom: '1px solid #232c3d'}}>
           <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2.2"><circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" /></svg>
-          <div style={{font: '500 46px/1 var(--f-body, Inter,system-ui,sans-serif)', color: '#eef2f8', whiteSpace: 'pre'}}>
+          <div style={{font: `500 ${cmdPx}px/1 var(--f-body, Inter,system-ui,sans-serif)`, color: '#eef2f8', whiteSpace: 'pre'}}>
             {command.slice(0, typed)}<span style={{opacity: caretOn ? 1 : 0, color: ACCENT}}>|</span>
           </div>
         </div>
@@ -55,12 +64,12 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
             const rev = fired ? easeOutBack(seg(t, 0.5 + i * 0.07, 0.5 + i * 0.07 + 0.18)) : (i === 0 ? 1 : 0.0);
             const tick = fired && t > 0.66 + i * 0.06;
             return (
-              <div key={i} style={{display: 'flex', alignItems: 'center', gap: 20, padding: '20px 24px', borderRadius: 12,
+              <div key={i} style={{display: 'flex', alignItems: 'center', gap: 20, padding: `20px ${ROW_PADX}px`, borderRadius: 12,
                 opacity: clamp01(rev), transform: `translateX(${lerp(-20, 0, clamp01(rev))}px)`,
                 background: (!fired && i === 0) ? `${ACCENT}1e` : 'transparent'}}>
                 <div style={{width: 34, height: 34, borderRadius: 9, border: `2px solid ${tick ? '#59d98b' : '#3a475e'}`,
                   background: tick ? '#59d98b' : 'transparent', color: '#0b0f17', font: '700 22px/30px var(--f-body, Inter)', textAlign: 'center'}}>{tick ? '✓' : ''}</div>
-                <div style={{font: '500 38px/1 var(--f-body, Inter,system-ui,sans-serif)', color: tick ? '#8f9bb0' : '#dfe6f0'}}>{r}</div>
+                <div style={{font: `500 ${rowPx}px/1 var(--f-body, Inter,system-ui,sans-serif)`, color: tick ? '#8f9bb0' : '#dfe6f0'}}>{r}</div>
                 {i === 0 && !fired && <div style={{marginLeft: 'auto', padding: '8px 16px', borderRadius: 8, background: '#2a3346',
                   font: '700 26px/1 var(--f-body, Inter)', color: ACCENT}}>↵ run</div>}
               </div>
