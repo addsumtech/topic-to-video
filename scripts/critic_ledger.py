@@ -38,16 +38,25 @@ import sys
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _CRITIC = os.path.join(_ROOT, "agents", "shot-critic.md")
+# The SECOND body of case law: rules for whoever edits the library, in the same form and parsed by
+# the same two functions. It is listed here so the precedent-resolution test walks it too — a rule
+# whose precedent nobody resolves is a rule that can cite an invented incident.
+_CASE_LAW = os.path.join(_ROOT, "references", "engineering-case-law.md")
+CASE_LAW_FILES = ((_CRITIC, "S"), (_CASE_LAW, "E"))
 
 LEDGER_NAME = "_critic_ledger.json"
 CONTACT_SHEET = "_contact_sheet.png"
 VERDICTS = ("pass", "fail", "na")
 
 
-def dimensions(path=None):
-    """Every dimension the critic declares, as [(id, title)] — parsed from the critic's own file."""
+def dimensions(path=None, prefix="S"):
+    """Every rule the file declares, as [(id, title)] — parsed from that file, never listed here.
+
+    `prefix` selects the numbering series: "S" for the critic's visual dimensions, "E" for the engineering
+    case law. Both files carry the same three-part form (rule / precedent / self-check), so both are read
+    by the same parser rather than by a second copy of it."""
     src = open(path or _CRITIC, encoding="utf-8").read()
-    found = re.findall(r"^\*\*(S\d+)\s*·\s*([^.*]+)", src, re.M)
+    found = re.findall(r"^\*\*(%s\d+)\s*·\s*([^.*]+)" % prefix, src, re.M)
     if not found:
         raise RuntimeError(
             "no `**Sn · ...**` dimension headings found in %s — this gate requires one row per dimension and "
@@ -64,11 +73,12 @@ def dimensions(path=None):
     return sorted(out, key=lambda p: int(p[0][1:]))
 
 
-def precedents(path=None):
-    """{dimension id: precedent commit hash} — a dimension may instead declare itself DOCTRINE."""
+def precedents(path=None, prefix="S"):
+    """{rule id: precedent commit hash} — a rule may instead declare itself DOCTRINE (value None)."""
     src = open(path or _CRITIC, encoding="utf-8").read()
     out = {}
-    for sid, body in re.findall(r"^\*\*(S\d+)\s*·(.*?)(?=^\*\*S\d+\s*·|\Z)", src, re.M | re.S):
+    for sid, body in re.findall(r"^\*\*(%s\d+)\s*·(.*?)(?=^\*\*%s\d+\s*·|\Z)" % (prefix, prefix),
+                                src, re.M | re.S):
         m = re.search(r"\*\*Precedent\s*—\s*`([0-9a-f]{7,40})`", body)
         if m:
             out[sid] = m.group(1)

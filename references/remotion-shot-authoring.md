@@ -584,6 +584,19 @@ the shot-critic (S1–S11). Meaning + frame-craft (S10), direction-adherence (S7
 (S11 — the Design DNA runs through EVERY frame, per §C2) are gates, not nice-to-haves. `validate.py` also warns
 when a themed film has no `design_dna`/preset or a scene has no `theme_cues`.
 
+## Before you commit a change to this library — walk the case law
+
+`references/engineering-case-law.md` is the E-numbered case law for whoever EDITS the renderer, the runtime
+or a gate: each rule is an executable sentence, the commit that repaired the incident behind it, and a
+question you can only answer by looking at something. It is the engineering half of what
+`agents/shot-critic.md` is for a finished film, and it exists because this repository's hardest-won
+knowledge lived in its commit messages, where no reviewer walks it.
+
+Walk the rules your change touches and report `En ✓` / `En ✗ (where)`. A deliberate violation is written
+down, not silently taken. The rules the register work below runs into most often are **E1** (a reserve is
+arithmetic about a layout the browser performs), **E2** (an advance is a property of the face), **E8** (a
+constant where a measurement belongs) and **E12** (render it and look).
+
 ## Width is a constraint, not a given
 
 Twenty-three registers cut type at 9:16 because a size was chosen for the text and the frame it was authored

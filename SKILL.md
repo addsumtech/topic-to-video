@@ -338,6 +338,11 @@ TTS if the user gives an API key.
   labelled list of 2+ entries with none, and the reasons that survive are categorical (a headline figure the
   icon would compete with, a motif-dominant frame), never "it looked fine". See
   `references/remotion-shot-authoring.md` "Icons".
+- **Editing the library itself** (a register, `runtime/`, or a gate) — walk
+  `references/engineering-case-law.md` before committing: E-numbered case law, each rule carrying the commit
+  that repaired the incident behind it, reported as `En ✓` / `En ✗ (where)`. `critic_ledger.py` parses the
+  hashes and a test resolves every one against this repo's history, so a fabricated precedent cannot be
+  committed.
   **Authoring:** the shot-director (`agents/shot-director.md`) reads `content_plan.json` +
   `remotion/LIBRARY.md` and writes, per scene, `shot` (a register id) + `shot_props` (the beat's topic copy)
   + `shot_adaptation` (a REQUIRED `{kept, redesigned, topic_idea, theme_cues}` note — KEEP the register's style,

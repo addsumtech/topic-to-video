@@ -2322,24 +2322,75 @@ def test_every_critic_rule_carries_a_REAL_precedent():
     """
     import subprocess
     mod, root = _critic_ledger()
-    declared = [d for d, _ in mod.dimensions()]
-    pre = mod.precedents()
+    # BOTH bodies of case law, walked by one test. The critic's file judges a finished FILM; the engineering
+    # file judges a change to the library — and the second one exists because this repo's hardest-won
+    # knowledge lived in its commit messages, where no reviewer walks it. A rule whose precedent nobody
+    # resolves is a rule that can cite an invented incident, whichever file it sits in.
+    assert len(mod.CASE_LAW_FILES) >= 2, "the engineering case law is no longer walked by this test"
+    has_git = subprocess.run(["git", "-C", root, "rev-parse", "--git-dir"], capture_output=True).returncode == 0
+    for path, prefix in mod.CASE_LAW_FILES:
+        assert os.path.exists(path), "%s is cited as case law and does not exist" % path
+        declared = [d for d, _ in mod.dimensions(path, prefix)]
+        pre = mod.precedents(path, prefix)
+        assert declared, "%s declares no %sn rules" % (path, prefix)
 
-    missing = [d for d in declared if d not in pre]
-    assert not missing, (
-        "%s carry neither a `**Precedent — `hash`:**` nor an explicit `**Precedent — none on record.**` — a "
-        "rule with no incident behind it cannot be generalised to a topic nobody has seen" % ", ".join(missing))
+        missing = [d for d in declared if d not in pre]
+        assert not missing, (
+            "%s in %s carry neither a `**Precedent — `hash`:**` nor an explicit `**Precedent — none on "
+            "record.**` — a rule with no incident behind it cannot be generalised to a case nobody has "
+            "seen" % (", ".join(missing), os.path.basename(path)))
 
-    if subprocess.run(["git", "-C", root, "rev-parse", "--git-dir"],
-                      capture_output=True).returncode != 0:
-        return                                    # installed without history; nothing to resolve against
-    for sid, h in sorted(pre.items()):
-        if h is None:
-            continue
-        r = subprocess.run(["git", "-C", root, "cat-file", "-t", h], capture_output=True, text=True)
-        assert r.stdout.strip() == "commit", (
-            "%s cites precedent %s, which is not a commit in this repository — a precedent that cannot be "
-            "resolved is indistinguishable from an invented one" % (sid, h))
+        if not has_git:
+            continue                              # installed without history; nothing to resolve against
+        for sid, h in sorted(pre.items()):
+            if h is None:
+                continue
+            r = subprocess.run(["git", "-C", root, "cat-file", "-t", h], capture_output=True, text=True)
+            assert r.stdout.strip() == "commit", (
+                "%s cites precedent %s, which is not a commit in this repository — a precedent that cannot "
+                "be resolved is indistinguishable from an invented one" % (sid, h))
+
+
+def test_no_author_facing_doc_points_at_a_script_that_does_not_run():
+    """E10: the document that would have caught it must point at something that still runs.
+
+    `7fc5e24`: the two documents a register author actually reads both told them to run
+    `scripts/gen_dna_ground.py`, retired for as long as the measured table had existed and exiting 2 with
+    its own obituary. The rule it enforced was therefore unenforced for every author who followed the
+    instructions. The guard that shipped with that repair named `gen_dna_ground.py` as a literal — it
+    caught the instance, not the class, and a second retirement would have been invisible to it.
+
+    The signal is calibrated on that real stub: a retired script's MODULE DOCSTRING begins with RETIRED and
+    it exits 2. That is precise enough not to fire on `shot_director.py`, whose head mentions a retired
+    family LETTER in a comment — the crude "does the word appear near the top" version flagged it three
+    times, which is how a gate becomes noise nobody reads.
+    """
+    import ast
+    import glob as _glob
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    docs = ["SKILL.md"] + sorted(os.path.relpath(p2, root) for p2 in
+                                 _glob.glob(os.path.join(root, "references", "*.md"))
+                                 + _glob.glob(os.path.join(root, "agents", "*.md")))
+    named = 0
+    for rel in docs:
+        src = open(os.path.join(root, rel), encoding="utf-8").read()
+        for m in re.finditer(r"scripts/([A-Za-z0-9_]+\.py)", src):
+            name = m.group(1)
+            path = os.path.join(root, "scripts", name)
+            named += 1
+            assert os.path.exists(path), (
+                "%s tells the reader to run scripts/%s, which does not exist" % (rel, name))
+            doc = ast.get_docstring(ast.parse(open(path, encoding="utf-8").read())) or ""
+            if not doc.lstrip().upper().startswith("RETIRED"):
+                continue
+            # A retired script may still be NAMED — to say it is retired. It may not be prescribed.
+            ctx = src[max(0, m.start() - 320):m.end() + 320]
+            assert re.search(r"retired", ctx, re.I), (
+                "%s tells the reader to run scripts/%s without saying it is RETIRED — its own docstring "
+                "opens with the word and it exits 2, so every author who follows this instruction gets "
+                "nothing done and no error they can act on" % (rel, name))
+    assert named >= 20, "only %d script references found across the author-facing docs — the scan is not "\
+                        "reaching them" % named
 
 
 def test_the_ledger_requires_every_dimension_and_refuses_a_bare_consent(tmp_path):
@@ -2445,6 +2496,12 @@ def test_every_remotion_capability_is_reachable_from_the_authoring_path():
          "reaching for real imagery is a register-SELECTION decision"),
         ("agents/shot-critic.md", "camera",
          "nothing reviews the camera, so a film can carry a nonsense one and pass"),
+        ("references/remotion-shot-authoring.md", "engineering-case-law.md",
+         "the engineering case law is walked by whoever EDITS a register, and this is the file they read "
+         "before writing one; named only in SKILL.md it reaches the pipeline and not the author"),
+        ("SKILL.md", "references/engineering-case-law.md",
+         "a body of case law nobody is told to walk is prose — the same failure as the commit messages "
+         "it was extracted from"),
         ("references/remotion-shot-authoring.md", "Plane",
          "depth is a thing a REGISTER does; its author reads this file before writing one"),
         ("references/remotion-shot-authoring.md", "captionBand",
