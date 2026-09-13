@@ -171,3 +171,35 @@ def test_the_prediction_side_asks_the_face_too():
     assert r["prop"] == r["none"], "a face-less call must fall back to the proportional answer"
     assert abs(r["mono"] - 2 * r["monoLatin"]) < 1e-6
     assert r["mono"] > r["prop"]
+
+
+def test_a_line_may_not_open_with_a_closing_mark():
+    """CJK kinsoku: `wrapLines` broke "between any two glyphs", which is what the SCRIPT allows and not what
+    a browser does.
+
+    A line may not begin with a closing mark, so the browser carries the preceding glyph down with it and
+    the block takes one line MORE than a naive per-glyph fill predicts. Found on `RealVersus` at 4:5, whose
+    label carries four such marks: the reserve settled on four lines and ended 22px clear of the caption
+    band, and the rendered label took five and closed 13px inside it — one line, to the half-pixel. Every
+    Chinese reserve in this library divides by this function.
+    """
+    r = run_probe("""
+      const punctuated = '它自己拆解任务、调用工具、改动文件，最后交出可验收的结果';
+      const plain      = '自动拆解任务规划执行步骤并调用工具在授权目录真正动文';
+      out.nPunct = [...punctuated].length;
+      out.nPlain = [...plain].length;
+      out.punct = L.wrapLines(punctuated, 30, 237.5);
+      out.plain = L.wrapLines(plain, 30, 237.5);
+      // the mark must travel WITH the glyph before it, never alone at the head of a line
+      out.pair = L.wrapLines('工具、改', 30, 30 * 3.2);
+    """)
+    assert r["punct"] == 5, (
+        "a 28-glyph label with four closing marks counted %r lines; the browser drew 5" % r["punct"])
+    assert r["plain"] == 4, (
+        "the same length WITHOUT punctuation counted %r — the rule must not inflate every string, only the "
+        "ones a browser actually breaks differently" % r["plain"])
+    assert r["punct"] > r["plain"], "punctuation made no difference, so the rule is not reaching the wrap"
+    # three glyphs plus a mark in a box that holds 3.2 glyphs: the mark cannot open line 2, so its glyph
+    # goes down with it and the answer is 2 rather than the 2 a naive fill would also give — pinned so a
+    # future edit cannot quietly make the glue a no-op for short runs.
+    assert r["pair"] == 2

@@ -16,7 +16,7 @@ import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {requireEvidence} from '../runtime/evidence';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
-import {CONTENT_TOP, TITLE_Y, bottomInset, contentBottom, textWidthPx} from '../runtime/layout';
+import {CONTENT_TOP, TITLE_Y, bottomInset, contentBottom, wrapLines} from '../runtime/layout';
 import {lumValue} from '../runtime/shotLuma';
 import {useDNA} from '../runtime/dna';
 
@@ -70,8 +70,12 @@ export const RealVersus: React.FC<{srcLeft?: string; srcRight?: string; labelLef
   // the band is deepest). The count is estimated the way `fitBlockPx` estimates a headline, against the
   // panel's own width, because that is the measure the label actually wraps in. English demo copy is one
   // line and every frame that ships today is unchanged.
-  const labelLines = (w: number) => Math.max(1, Math.min(3,
-    Math.ceil(Math.max(...[labelLeft, labelRight].map((x) => textWidthPx(String(x ?? ''), labelSize))) / Math.max(1, w))));
+  // COUNTED BY BREAKING, AND NOT CAPPED. This divided the label's total width by the panel's and capped the
+  // answer at THREE — a ratio under-counts wherever a glyph is large against the measure (E1), and a cap is
+  // a reserve that stops growing while the text does not. At 4:5 a 28-glyph caption needs four lines in a
+  // 272px panel; three were reserved, and the last line went 13px into the caption band.
+  const labelLines = (w: number) => Math.max(1, Math.max(
+    ...[labelLeft, labelRight].map((x) => wrapLines(String(x ?? ''), labelSize, Math.max(1, w)))));
 
   // THE PANELS LIVE IN THE CONTENT ZONE, not in the whole frame. Centred on H/2 the label's line box closed at
   // y=852.5 against a caption band that opens at 852 (captionBand at 1080p = 228px) — the burned narration sat
@@ -93,7 +97,17 @@ export const RealVersus: React.FC<{srcLeft?: string; srcRight?: string; labelLef
   const solveS = (strip: number) => (stack
     ? Math.max(1, Math.min(W * 0.82, (zoneH - 2 * air - gap - 2 * strip) / 2))
     : Math.max(1, Math.min(H * 0.5, W * 0.32, zoneH - 2 * air - strip, (W - gap) / 2)));
-  const strip = stripFor(labelLines(solveS(stripFor(1))));
+  // ...AND IT IS SETTLED TO A FIXED POINT, NOT IN TWO PASSES. The panel's width sets the label's line count
+  // and the count sets the panel's height, so one re-derivation is not a settle: assuming one line gave a
+  // 342px panel and three lines, three lines gave a 272px panel, and in 272px the label takes four. More
+  // lines only ever shrink the panel and a smaller panel only ever needs more lines, so the sequence climbs
+  // and stops; iterating keeps the LARGEST reserve seen, which is the one that cannot be short.
+  let strip = stripFor(1);
+  for (let i = 0; i < 5; i++) {
+    const next = stripFor(labelLines(solveS(strip)));
+    if (next <= strip) break;
+    strip = next;
+  }
   const S = solveS(strip);
   const cx = W / 2;
   const blockH = stack ? 2 * S + gap + 2 * strip : S + strip;

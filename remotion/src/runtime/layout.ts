@@ -238,6 +238,21 @@ export const fitTextPx = (
  * So the line is filled the way the browser fills it: CJK breaks between any two glyphs, Latin at the last
  * space before the overrun. A label is a handful of characters; walking them costs nothing.
  */
+/**
+ * Characters that may not BEGIN a line — the common half of CJK kinsoku shori (禁則処理).
+ *
+ * `wrapLines` breaks CJK between any two glyphs, which is what the script allows and NOT what a browser
+ * does: a line may not open with a closing mark, so the browser carries the preceding glyph down with it
+ * and the block takes one line more than a naive per-glyph fill predicts. Measured on `RealVersus` at 4:5,
+ * whose label carries four such marks: the settle reserved four lines and ended 22px clear of the caption
+ * band, and the rendered label took FIVE and closed 13px inside it — one line, to the half-pixel.
+ *
+ * So each glyph is glued to any closing marks that follow it and the pair is measured as one unbreakable
+ * unit. That can only ever predict the same number of lines or more, never fewer, which is the safe
+ * direction for anything sizing a reserve from it.
+ */
+const NO_LINE_START = /[、。，．：；！？）〕］｝〉》」』】〙〗〟'"｠»ー―‐–—～〜?!,.:;]/;
+
 export const wrapLines = (
   text: string, px: number, width: number, opts: {adv?: number; track?: number; cjk?: number} = {},
 ): number => {
@@ -245,9 +260,16 @@ export const wrapLines = (
   const w = Math.max(1, width);
   const chars = [...String(text ?? '')];
   if (!chars.length) return 1;
-  let lines = 1, used = 0, lastBreak = -1, sinceBreak = 0;
+  // Glue every closing mark to the glyph before it, so the pair breaks as one — see NO_LINE_START.
+  const units: string[] = [];
   for (const ch of chars) {
-    const cw = (CJK_CH.test(ch) ? cjk : adv) * px + track * px;
+    if (units.length && NO_LINE_START.test(ch)) units[units.length - 1] += ch;
+    else units.push(ch);
+  }
+  let lines = 1, used = 0, lastBreak = -1, sinceBreak = 0;
+  for (const unit of units) {
+    const ch = unit[0];
+    const cw = [...unit].reduce((n, c) => n + (CJK_CH.test(c) ? cjk : adv) * px + track * px, 0);
     if (used + cw > w && used > 0) {
       if (CJK_CH.test(ch) || lastBreak < 0) {          // break here: CJK breaks anywhere, and so does a
         lines += 1; used = cw; lastBreak = -1; sinceBreak = 0;   // Latin run with no space to fall back to
@@ -258,7 +280,7 @@ export const wrapLines = (
       used += cw;
       sinceBreak += cw;
     }
-    if (ch === ' ') { lastBreak = 1; sinceBreak = 0; }
+    if (unit === ' ') { lastBreak = 1; sinceBreak = 0; }
   }
   return lines;
 };
