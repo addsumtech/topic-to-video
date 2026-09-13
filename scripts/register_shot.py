@@ -22,7 +22,11 @@ command leaves the other still flagged 'never measured' and `test_shot_luma_is_m
   python3 scripts/measure_ground_luma.py --only <Id> --luma --emit   # SHOT_LUMA: its ground with NO DNA
   python3 scripts/measure_ground_luma.py --only <Id> --emit          # DNA_GROUND_TOKEN: which token it paints from
   python3 scripts/shot_proof.py <out_dir>                            # frame-craft + palette + reuse checks
-  python3 scripts/cjk_type_qa.py --only <Id>                         # does its type hold up in Chinese?
+  python3 scripts/cjk_type_qa.py --only <Id> --all-aspects            # type in Chinese, at EVERY aspect
+      (--all-aspects matters: this is the only audit that can see a string the register declined to
+       DRAW. text_safe_qa reports type CUT OFF, so it can only see ink that exists — WordTunnel's
+       final phrase was culled for width at 1:1 and the shot ended on an empty frame while
+       text_safe_qa reported 0 findings at all five aspects in both languages.)
 (The earlier text here named `--only <Id>` alone, which MEASURES and writes nothing, and an `--apply-json`
 flag that does not exist. Following it left both placeholders in place with no hint that anything was left
 to do — the first new register in a while is what found that.)

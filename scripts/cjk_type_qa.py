@@ -4,6 +4,7 @@
     python3 scripts/cjk_type_qa.py --library            # sweep every register with CJK copy
     python3 scripts/cjk_type_qa.py <out_dir>            # this film's beats, with their real copy
     python3 scripts/cjk_type_qa.py --only Shot1,Shot2   # a few registers
+    python3 scripts/cjk_type_qa.py --library --all-aspects   # ...at every aspect, not just 16:9
     python3 scripts/cjk_type_qa.py --library --json
 
 WHY THIS EXISTS. In one evening, on one real Chinese film, three registers set their copy into an
@@ -860,10 +861,30 @@ def main(argv):
     ap.add_argument("--controls", action="store_true")
     ap.add_argument("--dna", default=DEFAULT_DNA)
     ap.add_argument("--aspect", default=None)
+    ap.add_argument("--all-aspects", action="store_true",
+                    help="every aspect the renderer offers, not just the landscape one")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args(argv)
     if a.controls:
         return controls()
+    if getattr(a, "all_aspects", False):
+        # THE ONE GATE THAT CAN SEE A MISSING ELEMENT ONLY EVER RAN AT ONE ASPECT. `text_safe_qa` reports
+        # type CUT OFF by the frame, which means it can only see ink that exists; a phrase a register
+        # declined to draw is invisible to it and reported as clean. This audit asks a different question —
+        # did the strings the fixture FED the register reach the screen — and it is the only one that can
+        # answer it. WordTunnel held its final phrase at 1.4x and fitted it to the bare frame width, so at
+        # 1:1 in Chinese that phrase was culled for width and the shot played its ending on an empty frame.
+        # text_safe_qa said 0 findings at all five aspects in both languages. THIS said "DREW ALMOST
+        # NOTHING" — but only when handed `--aspect=1:1`, which nothing did. The list is read from the
+        # renderer, like text_safe_qa's, so a sixth aspect is covered the day it is added.
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import _caption_band as _cb
+        rest = [x for x in argv if not x.startswith("--aspect=") and x != "--all-aspects"]
+        worst = 0
+        for asp in _cb.aspect_table():
+            print("### aspect %s" % asp, flush=True)
+            worst = max(worst, main(rest + ["--aspect=" + asp]))
+        return worst
     film_props = None
     if a.only:
         names = [x.strip() for x in a.only.split(",") if x.strip()]

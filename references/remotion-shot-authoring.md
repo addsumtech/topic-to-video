@@ -577,7 +577,8 @@ icon-capable — so wiring a new one brings it under the gate the same day.
 ## E · The gates still bind
 
 None of the above relaxes the floor. Before delivery: `validate.py` (structure/faithfulness), `check_av.py`
-(A/V sync), `keyframe_qa_remotion.py` (no blank frames), `text_safe_qa.py` (no type cut by the canvas),
+(A/V sync), `keyframe_qa_remotion.py` (no blank frames), `text_safe_qa.py` (no type cut by the canvas — note it can only see ink that EXISTS; for a string
+the register declined to draw at all, `cjk_type_qa.py --all-aspects` is the only audit that reports it),
 `film_energy_qa.py` (the film moves, is dense, and has light — floors from four measured launch films;
 `frame_safe_qa.py` is advisory only), and
 the shot-critic (S1–S11). Meaning + frame-craft (S10), direction-adherence (S7), and design-system coverage

@@ -8,6 +8,7 @@ import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
 import {StageProbe, DURATION as SPD} from './runtime/__probe_stage3d';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
+import {WordTunnel, DURATION as D_WORDTUNNEL} from './shots/WordTunnel';
 import {SpatialSlides, DURATION as D_SPATIALSLIDES} from './shots/SpatialSlides';
 import {SourceDeal, DURATION as D_SOURCEDEAL} from './shots/SourceDeal';
 import {GlowPick, DURATION as D_GLOWPICK} from './shots/GlowPick';
@@ -506,5 +507,6 @@ export const RemotionRoot: React.FC = () => (
     {F('GlowPick', GlowPick, D_GLOWPICK)}
     {F('SourceDeal', SourceDeal, D_SOURCEDEAL)}
     {F('SpatialSlides', SpatialSlides, D_SPATIALSLIDES)}
+    {F('WordTunnel', WordTunnel, D_WORDTUNNEL)}
   </>
 );

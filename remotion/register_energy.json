@@ -105,7 +105,7 @@
     "OverlapSeparation": "8b13026290755744",
     "PageWrite": "8c61c96d122895c0",
     "PaperCutout": "9ab0efdcde58d063",
-    "PaperSlot": "f21ae9bc4bd93acb",
+    "PaperSlot": "a902e224516656c2",
     "ParticleForm": "167475bf912c98c8",
     "PhaseEncodeStep": "3d3a10388897c6b0",
     "PhotoPlate": "da7186273c018894",
@@ -121,10 +121,10 @@
     "RadialBurst": "54b8642aa625b8bc",
     "RainGlass": "6723dbe919dd5c11",
     "RansomZine": "53e43163877128f7",
-    "RealVersus": "1e37b9b6cd752157",
+    "RealVersus": "d853a4a9dc2a2cf5",
     "RestsOn": "863bddf625d00628",
     "RidgeField": "f8796fe0d2dcb7a4",
-    "RisoPrint": "7f91f7e22b4951d8",
+    "RisoPrint": "c6e350aa555a3e83",
     "ScanReconstruct": "0b80db6d18290224",
     "ScreenBubble": "ed0bb4e55f0de311",
     "SectionRoute": "4384ea32bd07db1f",
@@ -161,7 +161,8 @@
     "VersusSplit": "1c1acc76bf99315c",
     "VoiceSignal": "02bd237feb55a15e",
     "VoxelBuild": "10e5d998b21af97d",
-    "WireGlobe": "adeaef0e1505f996"
+    "WireGlobe": "adeaef0e1505f996",
+    "WordTunnel": "4dcd63b18482b2fa"
   },
   "_basis": "each register rendered as VIDEO at its own DURATION, 16:9, under dna=product — the themed path, because every delivered film has a design system and the un-themed fallback is a mode none of them use",
   "_dna": "product",
@@ -1308,6 +1309,13 @@
       "luma_range": 0.008,
       "seconds": 5.5,
       "footprint": 0.25
+    },
+    "WordTunnel": {
+      "motion_p75": 0.0074,
+      "ink_median": 0.02,
+      "luma_range": 0.018,
+      "seconds": 5.5,
+      "footprint": 0.142
     }
   }
 }

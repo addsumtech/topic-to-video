@@ -47,6 +47,7 @@ FAMILY = {
     "CrashZoom": "B", "TerrainFly": "B",
     "OverlapSeparation": "D", "SharedBlindspot": "H",
     "SpatialSlides": "C",
+    "WordTunnel": "C",
     "RestsOn": "D",
     "InOrder": "D",
     "MadeOf": "D",
@@ -102,6 +103,7 @@ FAMILY = {
 # conveyor belt is legitimate in a harbour film and still wrong for people cycling to a station. That
 # judgement is the shot-critic's (S10 meaning), and no table can make it.
 PROVENANCE = {
+    "WordTunnel":              'motion-graphics',
     "SpatialSlides":           'motion-graphics',
     "SourceDeal":              'product-demo',
     "GlowPick":                'product-demo',
