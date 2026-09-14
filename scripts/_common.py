@@ -131,3 +131,68 @@ def element_anim_seconds(tag_html, table=None):
         return float(mo.group(1))
     hits = [table[c] for c in classes if c in table]
     return max(hits) if hits else None
+
+
+# ── command-line flags, read the SAME way everywhere ────────────────────────────────────────────────────
+#
+# WHY THIS EXISTS, and what it cost. Nine scripts here parse their own flags with
+# `next((a.split("=", 1)[1] for a in argv if a.startswith("--only=")), None)`, and not one of them refused an
+# argument it did not understand. So `--only DollyZoom` — the spelling this repo's own docstrings use for
+# `cjk_type_qa`, and the one a person types — matched nothing in `register_energy`, fell through to `None`,
+# and ran a FULL 164-register sweep instead of the one that was asked for. Twice in one session, about
+# forty-five minutes of renders each time, with no message: the progress counter read "measured 10/164" and
+# nothing in the output said the filter had been dropped.
+#
+# Three scripts, three behaviours for the same typed flag: `register_energy` swept everything in silence,
+# `cjk_type_qa` (argparse) accepted it, and `text_safe_qa` crashed trying to open `--only/storyboard.json`.
+# Only the crash was honest.
+#
+# So: one reader that takes BOTH spellings, and one guard that REFUSES what a script did not claim. An
+# unparsed argument must never be a silent change of scope — that is the "degrades loudly" rule applied to
+# the command line, and the loud version costs a second while the quiet one costs an hour.
+def argflag(argv, name, default=None):
+    """The value of `--name=V` or `--name V`, or `default`. `name` is given without dashes."""
+    pref = "--%s=" % name
+    for i, a in enumerate(argv):
+        if a.startswith(pref):
+            return a[len(pref):]
+        if a == "--" + name and i + 1 < len(argv) and not argv[i + 1].startswith("-"):
+            return argv[i + 1]
+    return default
+
+
+def argflag_list(argv, name, default=None):
+    """`--name=a,b` or `--name a,b` as a list of non-empty items, or `default`."""
+    raw = argflag(argv, name)
+    if raw is None:
+        return default
+    items = [x.strip() for x in raw.split(",") if x.strip()]
+    return items or default
+
+
+def refuse_unknown(argv, valued=(), switches=(), usage=""):
+    """Exit non-zero naming any argument the caller did not claim, instead of ignoring it.
+
+    `valued` are flags that take a value (either spelling); `switches` are bare ones. Anything else that
+    starts with `-` is refused, and so is a bare word that follows a valued flag ONLY if that flag was not
+    consumed — callers pass their positional count separately by just not listing it here.
+    """
+    valued, switches = set(valued), set(switches)
+    unknown, i = [], 0
+    while i < len(argv):
+        a = argv[i]
+        if a.startswith("--"):
+            name = a[2:].split("=", 1)[0]
+            if name in valued:
+                if "=" not in a and i + 1 < len(argv) and not argv[i + 1].startswith("-"):
+                    i += 1                       # the value belongs to this flag
+            elif name not in switches:
+                unknown.append(a)
+        elif a.startswith("-") and a != "-":
+            unknown.append(a)
+        i += 1
+    if unknown:
+        print("[%s] unknown argument(s): %s" % (os.path.basename(sys.argv[0]), ", ".join(unknown)))
+        if usage:
+            print(usage)
+        raise SystemExit(2)

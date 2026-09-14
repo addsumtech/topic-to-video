@@ -26,6 +26,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _common as _c                                                  # noqa: E402
 import render_remotion as rr                                    # noqa: E402  (needs the path above)
 import shot_still_qa as q                                       # noqa: E402
 import text_safe_qa as tsq                                      # noqa: E402
@@ -122,10 +123,12 @@ def main(argv):
     if not ({"--check", "--write"} & set(argv)):
         print(__doc__.strip())
         return 2
-    png_dir = os.path.join(os.environ.get("TMPDIR", "/tmp"), "band_debt_stills")
-    for a in argv:
-        if a.startswith("--stills="):
-            png_dir = a.split("=", 1)[1]
+    # Both spellings, and nothing silently ignored — `--stills DIR` used to write the frames somewhere the
+    # caller never asked for, which is the mild end of the same family (scripts/_common.argflag).
+    _c.refuse_unknown(argv, valued=("stills",), switches=("check", "write"),
+                      usage="usage: band_debt.py (--check | --write) [--stills=DIR | --stills DIR]")
+    png_dir = _c.argflag(argv, "stills",
+                         os.path.join(os.environ.get("TMPDIR", "/tmp"), "band_debt_stills"))
     old = json.load(open(_MANIFEST, encoding="utf-8"))
     new = measure_all(png_dir)
     prev = old["registers"]

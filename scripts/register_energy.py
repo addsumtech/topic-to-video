@@ -30,6 +30,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _common as _c                                                  # noqa: E402
 import film_energy_qa as fe                                      # noqa: E402
 import render_remotion as rr                                     # noqa: E402
 
@@ -302,7 +303,16 @@ def stills_from(mp4, out_dir, name, durF, fps=30):
                        capture_output=True)
 
 
+_USAGE = ("usage: register_energy.py [--only=A,B | --only A,B] [--dna=NAME] [--stills=DIR] "
+          "[--check] [--report]")
+
+
 def main(argv):
+    # REFUSE what this script does not understand, and read a flag in BOTH spellings. `--only DollyZoom`
+    # matched nothing here and fell through to a FULL 164-register sweep — about forty-five minutes of
+    # renders — with no message: the progress counter read "measured 10/164" and nothing said the filter had
+    # been dropped. It happened twice in one session. See scripts/_common.argflag.
+    _c.refuse_unknown(argv, valued=("only", "dna", "stills"), switches=("check", "report"), usage=_USAGE)
     if "--check" in argv:
         # CHEAP ON PURPOSE. Re-measuring is 149 video renders; comparing hashes is a read. The expensive
         # check is the one that does not get run before a commit.
@@ -317,11 +327,20 @@ def main(argv):
     if "--report" in argv:
         data = json.load(open(MANIFEST, encoding="utf-8"))
     else:
-        only = next((a.split("=", 1)[1].split(",") for a in argv if a.startswith("--only=")), None)
-        dna = next((a.split("=", 1)[1] for a in argv if a.startswith("--dna=")), DEFAULT_DNA)
+        only = _c.argflag_list(argv, "only")
+        dna = _c.argflag(argv, "dna", DEFAULT_DNA)
         if dna in ("", "none"):
             dna = None
-        stills = next((a.split("=", 1)[1] for a in argv if a.startswith("--stills=")), None)
+        stills = _c.argflag(argv, "stills")
+        # A FILTER THAT MATCHES NOTHING IS NOT A FULL SWEEP. `--only=Zed` on a typo'd name used to leave
+        # `names` empty and write a manifest with no rows in it; `--only` that is dropped is the failure
+        # above. Say which registers were asked for and not found, and stop.
+        if only:
+            missing = [n for n in only if n not in durations()]
+            if missing:
+                print("[register_energy] --only names %d register(s) that do not exist: %s"
+                      % (len(missing), ", ".join(missing)))
+                return 2
         tmp = os.path.join(os.environ.get("TMPDIR", "/tmp"), "_register_energy")
         os.makedirs(tmp, exist_ok=True)
         durs = durations()

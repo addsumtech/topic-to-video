@@ -17,6 +17,7 @@ import sys, os, json, math
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import storyboard as sb
+import _common as _c
 
 # ── thresholds (video-pacing heuristics) ──────────────────────────────────────────────────────
 MIN_SCENES_UNIFORMITY = 5        # need a few scenes before "too uniform" means anything
@@ -208,6 +209,10 @@ def check(out_dir):
 
 
 def main(argv):
+    # `--jsonn` used to be dropped on the floor with every other unrecognised flag, so the report the caller
+    # asked for simply never appeared and the run still exited 0. Same family as the silent full sweep in
+    # `register_energy` — see scripts/_common.argflag.
+    _c.refuse_unknown(argv, switches=("json",), usage="usage: rhythm_qa.py <out_dir> [--json]")
     args = [a for a in argv if not a.startswith("--")]
     as_json = "--json" in argv
     out_dir = args[0] if args else "."

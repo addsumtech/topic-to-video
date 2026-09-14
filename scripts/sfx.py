@@ -21,6 +21,9 @@ import struct
 import subprocess
 import sys
 import wave
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _common                                                   # noqa: E402
 import zlib
 
 try:
@@ -428,10 +431,12 @@ if __name__ == "__main__":                          # CLI: preview the cue plan 
         # `python3 scripts/sfx.py --calibrate` — send a click through the real chain and report where it
         # comes out. This is the one number nothing in this pipeline had ever measured: cues are planned to
         # the frame, and then handed to an encoder on trust.
-        fps = 30
-        for a in sys.argv[1:]:
-            if a.startswith("--fps="):
-                fps = int(a.split("=", 1)[1])
+        # `--fps 60` (no `=`) used to fall through to 30 in silence, and every number this prints is in
+        # FRAMES — the offset would be reported against a frame length the run never used. Both spellings,
+        # and an argument this tool does not know stops it. See scripts/_common.argflag.
+        _common.refuse_unknown(sys.argv[1:], valued=("fps",), switches=("calibrate",),
+                               usage="usage: sfx.py --calibrate [--fps=N | --fps N]")
+        fps = int(_common.argflag(sys.argv[1:], "fps", 30))
         bad = False
         for has_bgm in (False, True):
             off = measure_offset(fps, has_bgm=has_bgm)

@@ -39,6 +39,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _common as _c                                             # noqa: E402
 import render_remotion as rr                                     # noqa: E402  (needs the path above)
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -228,6 +229,10 @@ def dna_presets():
     return names
 
 
+_USAGE = ("usage: text_safe_qa.py <out_dir> | --library [--only=A,B] [--aspect=16:9 | --all-aspects] "
+          "[--dna=NAME | --all-dna] [--cjk] [--limit=N]")
+
+
 def main(argv):
     if not argv:
         print(__doc__.strip().splitlines()[0])
@@ -262,10 +267,24 @@ def main(argv):
             worst = max(worst, main(rest + ["--aspect=" + asp]))
         return worst
     if argv[0] == "--library":
-        limit = next((int(a.split("=", 1)[1]) for a in argv if a.startswith("--limit=")), None)
-        aspect = next((a.split("=", 1)[1] for a in argv if a.startswith("--aspect=")), None)
-        dna = next((a.split("=", 1)[1] for a in argv if a.startswith("--dna=")), DEFAULT_DNA)
-        only = next((a.split("=", 1)[1].split(",") for a in argv if a.startswith("--only=")), None)
+        # BOTH SPELLINGS, AND NOTHING SILENTLY IGNORED. `--only Zed` (no `=`) matched nothing here and the
+        # register name was then read as the out_dir, so the sweep died on `--only/storyboard.json` — honest,
+        # but only by accident. In `register_energy` the same typing dropped the filter and swept all 164
+        # registers in silence. One reader, one guard, everywhere (scripts/_common.argflag).
+        _c.refuse_unknown(argv, valued=("limit", "aspect", "dna", "only"),
+                          switches=("library", "all-aspects", "all-dna", "cjk"), usage=_USAGE)
+        _lim = _c.argflag(argv, "limit")
+        limit = int(_lim) if _lim else None
+        aspect = _c.argflag(argv, "aspect")
+        dna = _c.argflag(argv, "dna", DEFAULT_DNA)
+        only = _c.argflag_list(argv, "only")
+        if only:
+            _known = set(durations())
+            _missing = [n for n in only if n not in _known]
+            if _missing:
+                print("[text_safe] --only names %d register(s) that do not exist: %s"
+                      % (len(_missing), ", ".join(_missing)))
+                return 2
         cjk = "--cjk" in argv
         if dna in ("", "none"):
             dna = None

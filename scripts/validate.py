@@ -1854,6 +1854,14 @@ def _arity_library():
 _ARITY_CACHE = None
 
 
+def _dna_named(design_dna):
+    """True when `meta.design_dna` is a STRING naming a known preset — a themed film, written the short way.
+
+    Parsed against the same table the error above uses, so a preset added to runtime/dna.tsx is themed here
+    the day it is added rather than the day someone remembers this function."""
+    return isinstance(design_dna, str) and design_dna in _DNA_PRESETS_FOR_TEST()
+
+
 def _check_remotion(meta, slides, errors, warnings, out_dir=None):
     """Guardrails for the remotion bespoke-shot tier: a valid whole-film `shot_template` direction (+ its
     contest trace); every scene needs a valid `shot` id + object `shot_props`; a NUMBER-bearing register left on
@@ -2034,12 +2042,22 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
                 elif _v not in _ATOM_FORMS[_k]:
                     warnings.append(f"meta.design_dna.atoms.{_k} = {_v!r} is not a form this atom implements "
                                     f"({sorted(_ATOM_FORMS[_k])}) — it will render the neutral form instead")
-    elif str(meta.get("shot_template") or "") not in _DNA_PRESETS:
+    elif not _dna_named(design_dna) and str(meta.get("shot_template") or "") not in _DNA_PRESETS:
         warnings.append("remotion: NO Design DNA — no meta.design_dna, and meta.shot_template maps to no known DNA "
                         "preset, so every shot renders its ORIGINAL hardcoded identity and the film reads as "
                         "'different compositions, different templates'. Author meta.design_dna (Design DNA artifact) "
                         "or pick a template with a preset (runtime/dna.tsx) so ONE visual system runs through every shot.")
-    _themed = isinstance(design_dna, dict) or str(meta.get("shot_template") or "") in _DNA_PRESETS  # DNA-themed film
+    # A STRING THAT NAMES A PRESET IS A THEMED FILM. `coerceDna` resolves the name at render, so every shot
+    # inherits that DNA — but this read `isinstance(design_dna, dict)` and judged such a film un-themed, which
+    # cost twice over. It WARNED "NO Design DNA … every shot renders its ORIGINAL hardcoded identity" about a
+    # film whose every shot inherits one, which is a gate crying wolf at a correct board; and, the half that
+    # is silent, `_themed` gates the DNA-coverage lints — so the same film skipped the `theme_cues` check and
+    # the un-migrated-register lint entirely. Measured on two boards identical but for this key: 0 findings
+    # against 1. A themed film opted out of every themed-only check by writing its DNA the shorter way, which
+    # is the "opt-in gate is not a detector" shape: the check exists and the deck that needs it is the one it
+    # cannot see.
+    _themed = isinstance(design_dna, dict) or _dna_named(design_dna) \
+        or str(meta.get("shot_template") or "") in _DNA_PRESETS  # DNA-themed film
     shots_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src", "shots")
     valid = {f[:-4] for f in os.listdir(shots_dir) if f.endswith(".tsx")} if os.path.isdir(shots_dir) else set()
     try:                          # which shots READ the Design DNA (self-updating grep of the source) — the rest

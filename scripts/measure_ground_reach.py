@@ -66,6 +66,7 @@ import json, os, re, shutil, subprocess, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np
 from PIL import Image
+import _common as _c
 import dna_audit
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -258,16 +259,15 @@ def write_set(names):
 
 
 def main(argv):
-    only = None
-    keep = None
-    reuse = None
-    for a in argv:
-        if a.startswith("--only="):
-            only = a.split("=", 1)[1].split(",")
-        if a.startswith("--keep="):
-            keep = a.split("=", 1)[1]
-        if a.startswith("--from="):
-            reuse = keep = a.split("=", 1)[1]
+    # BOTH SPELLINGS, AND NOTHING SILENTLY IGNORED — see scripts/_common.argflag for what the `=`-only form
+    # cost: `--only X` fell through to None in a sibling script and swept all 164 registers without a word.
+    _c.refuse_unknown(argv, valued=("only", "keep", "from"),
+                      usage="usage: measure_ground_reach.py [--only=A,B] [--keep=DIR] [--from=DIR]")
+    only = _c.argflag_list(argv, "only")
+    keep = _c.argflag(argv, "keep")
+    reuse = _c.argflag(argv, "from")
+    if reuse:
+        keep = reuse
     registered = set(dna_audit.registered_shots())
     # A NAME IN THE REFUSAL LIST THAT IS NOT A REGISTER REFUSES NOTHING, and looks exactly like a refusal
     # that is working. This repo has shipped that shape (an opt-in check that scored 0 on the very deck that

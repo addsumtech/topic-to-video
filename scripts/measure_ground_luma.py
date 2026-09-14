@@ -25,6 +25,7 @@ reported UNCLASSIFIED, never guessed.
 import json, os, re, subprocess, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from PIL import Image
+import _common as _c
 import dna_audit
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -364,12 +365,31 @@ def _emit(table=None):
     return 0
 
 
+_USAGE = ("usage: measure_ground_luma.py [--only=A,B | --only A,B] [--luma] [--emit] [--check] "
+          "[--apply-json]")
+
+
+def _only_or_stop(argv):
+    """The `--only` list, in EITHER spelling, or None for the whole library — and never silently neither.
+
+    This read `a.startswith("--only")` and then, when the arg carried no `=`, set the filter to None: so
+    `--only DollyZoom` did not narrow the sweep, it THREW THE FILTER AWAY and measured all 164 registers,
+    about half an hour, with nothing in the output saying so. A flag that silently inverts its own meaning
+    is worse than one that is not implemented. A name that matches no register stops the run rather than
+    quietly becoming a full sweep too."""
+    only = _c.argflag_list(argv, "only")
+    if only:
+        known = set(dna_audit.registered_shots())
+        missing = [n for n in only if n not in known]
+        if missing:
+            raise SystemExit("[shot_luma] --only names %d register(s) that do not exist: %s"
+                             % (len(missing), ", ".join(missing)))
+    return only
+
+
 def _main_shot_luma(argv):
     """Measure SHOT_LUMA — each shot rendered on its OWN defaults, no DNA."""
-    only = None
-    for a in argv:
-        if a.startswith("--only"):
-            only = a.split("=", 1)[1].split(",") if "=" in a else None
+    only = _only_or_stop(argv)
     shots = only or sorted(dna_audit.registered_shots())
     fixtures = _fixture_props()
     declared = read_shot_luma()
@@ -412,14 +432,12 @@ def _main_shot_luma(argv):
 
 
 def main(argv):
+    _c.refuse_unknown(argv, valued=("only",), switches=("luma", "emit", "check", "apply-json"), usage=_USAGE)
     if "--luma" in argv:
         return _main_shot_luma(argv)
     if "--apply-json" in argv:      # apply a PREVIOUS measurement; never re-render (that is --emit)
         return _emit(None)
-    only = None
-    for a in argv:
-        if a.startswith("--only"):
-            only = a.split("=", 1)[1].split(",") if "=" in a else None
+    only = _only_or_stop(argv)
     shots = only or sorted(dna_audit.registered_shots())
     fixtures = _fixture_props()
     lums = token_lums()

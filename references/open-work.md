@@ -151,17 +151,47 @@ a mutation, and an unverified rule in the denominator of every Chinese reserve i
 > **Acceptance:** a fixture string carrying an opening bracket, a rendered frame showing the browser's own
 > break, and a test that goes red when the rule is disabled — in that order.
 
-**B5 · Six hashes in `register_energy.json` were updated without a measurement beside them.** After
-`dollyAt` was added to `runtime/depth.tsx`, the manifest's `_source` entries for `PaperSlot`, `PhotoPlate`,
-`PlanPalimpsest`, `RackFocus`, `RealVersus` and `RisoPrint` matched their NEW sources while their rows still
-held the old numbers — and `--only DollyZoom`'s merge path reads as though it writes only the named
-register's hash. All six were then re-measured and every number is byte-identical, so the manifest is honest
-today; what is not established is WHAT wrote them. A hash that moves without a measurement is the silent
-half of the staleness gate (see D1): it makes a stale row read as fresh, which is the one failure that gate
-exists to prevent.
-> **Acceptance:** a test that writes a manifest, runs `--only` on ONE register after changing a module a
-> DIFFERENT register depends on, and asserts the untouched register's hash is unchanged — red before the
-> fix, green after.
+**~~B5 · Six hashes updated without a measurement beside them.~~ NOT WHAT HAPPENED — and the real cause is
+worse. DONE 2026-09-14.** The manifest was honest: every row had been freshly measured. The reason is that
+`register_energy.py --only DollyZoom` was not a targeted run at all. Its parser reads
+`a.startswith("--only=")`, so the SPACE spelling matched nothing, `only` fell through to `None`, and the
+command ran a FULL 164-register sweep — about forty-five minutes of renders instead of one, twice in one
+session, with no message. The only clue was a progress counter reading "measured 10/164" where a targeted
+run prints 1/1. `measure_ground_luma` had it worse: it matched `--only` with `startswith` and then SET THE
+FILTER TO NONE when the arg carried no `=`, so the flag did not narrow the sweep, it threw it away — that is
+the other half-hour I spent today.
+> **Reproduced and refuted in the right order.** The reading that produced the B5 entry — that the merge path
+> writes hashes it did not measure — was tested by changing a module `RackFocus` depends on and running
+> `--only=TermLog`: `RackFocus`'s hash was PRESERVED. The merge was innocent; my invocation was the bug.
+> **Nine scripts parsed flags by hand and not one refused an argument it did not understand.** Three
+> behaviours for the same typed flag: `register_energy` swept everything in silence, `cjk_type_qa`
+> (argparse) accepted it, `text_safe_qa` crashed on `--only/storyboard.json` — only the crash was honest,
+> and only by accident. `scripts/_common.argflag` / `argflag_list` / `refuse_unknown` are now the one reader
+> and the one guard; `register_energy`, `measure_ground_luma`, `text_safe_qa`, `measure_ground_reach`,
+> `band_debt`, `sfx` and `rhythm_qa` all take both spellings, refuse what they do not know (exit 2, naming
+> the argument), and stop on a `--only` naming a register that does not exist. `tests/test_arg_flags.py`
+> pins the FAMILY, including a check that no tenth script grows a private copy of the parser.
+
+**~~B6 · A string `meta.design_dna` is invisible to `validate.py` — twice.~~ DONE 2026-09-14.** Fixed:
+`_dna_named()` treats a string naming a known preset as themed, in both the warning branch and `_themed`.
+The test is PARITY — the two writings of the same film must produce the same findings, which cannot be
+satisfied by deleting the warning — and all three mutants (either branch reverted, or `_dna_named` saying
+yes to any string) are caught. Original text: `coerceDna` resolves a preset
+NAME at runtime, so `meta.design_dna: "product"` is a fully themed film. `validate.py` tests
+`isinstance(design_dna, dict)`, so that film is judged un-themed. Isolated on two boards identical but for
+that key:
+> * it WARNS "remotion: NO Design DNA … every shot renders its ORIGINAL hardcoded identity" about a film
+>   whose every shot does inherit the DNA — a gate crying wolf at a correct board;
+> * and the worse half, because it is silent: `_themed` gates the DNA-coverage lints, so the same film skips
+>   the `theme_cues` check (measured 0 findings against 1 for the identical board written with
+>   `shot_template`) and the un-migrated-register lint. A themed film opts out of every themed-only check by
+>   writing its DNA the shorter way.
+>
+> This is the shape `slide-maker`'s "opt-in gate is not a detector" already recorded: the check exists, and
+> the deck that most needs it is the one it cannot see.
+> **Acceptance:** `_themed` and the NO-Design-DNA branch both treat a STRING that names a known preset as
+> themed; a board written each way produces the same findings; a test that goes red if either branch
+> reverts.
 
 ## C · Peer-library capability gaps still open
 
