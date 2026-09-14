@@ -7,7 +7,7 @@ import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, clamp01, seg, lerp} from '../runtime/motion';
 import {leading} from '../runtime/cjkType';
 import {useDNA} from '../runtime/dna';
-import {bottomInset} from '../runtime/layout';
+import {bottomInset, fitTextPx} from '../runtime/layout';
 
 export const DURATION = 160; // ~5.3s
 
@@ -34,11 +34,18 @@ export const AnalogTape: React.FC<{title?: string; tagline?: string}> = ({title:
   const trackY = ((t * 1.4) % 1.25 - 0.12) * H;                         // rolling tracking band
   const recOn = frame % 40 < 26;                                         // blinking REC dot
   const inT = clamp01(seg(t, 0.06, 0.4));
+  // THE WORDMARK IS FITTED TO THE FRAME. 168px is a size chosen for the fallback named in the shorthand
+  // below — Antonio, a very condensed face — and the face that actually renders is the DNA's display stack.
+  // Under `cinematic` that is Bodoni Moda, and the same nine letters were cut off on BOTH sides, about 85px
+  // each, on all three of the RGB-split copies. The split itself is part of the width: the copies ride
+  // +-`split` px, so the fit is given the frame minus the widest excursion it can make.
+  const SPLIT_MAX = 7;
+  const titlePx = Math.min(168, fitTextPx(TITLE, W * 0.92 - SPLIT_MAX * 2, 168, {usable: 1, track: 0.02}));
 
   const Title: React.FC<{dx: number; color: string; blend?: string}> = ({dx, color, blend}) => (
     <div style={{position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', transform: `translate(${dx + jit}px, ${jit * 0.4}px)`, mixBlendMode: (blend as any) || 'normal'}}>
-      <div style={{color, font: `800 168px/${leading(TITLE, 0.95)} var(--f-display, "Antonio", "Oswald", Impact, sans-serif)`, letterSpacing: '0.02em',
+      <div style={{color, font: `800 ${titlePx}px/${leading(TITLE, 0.95)} var(--f-display, "Antonio", "Oswald", Impact, sans-serif)`, letterSpacing: '0.02em',
         textTransform: 'uppercase', opacity: inT}}>{TITLE}</div>
       <div style={{color, font: '600 34px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.34em', marginTop: 22,
         opacity: clamp01(seg(t, 0.4, 0.7))}}>{TAGLINE}</div>

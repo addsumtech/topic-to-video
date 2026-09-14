@@ -66,15 +66,31 @@ zero render-failure lines** across 815 renders.
 swept — which is the whole DNA axis for Chinese, since the other six presets fall back to the same two cuts
 and a Han glyph is one em in either.
 
-**A3 · Latin across the seven display faces.** The `--all-dna` flag exists (`fead316`) and has never been
-run library-wide. This is the axis that hid `VariableTypeMorph`.
-> **Acceptance:** `text_safe_qa --library --all-dna --aspect=1:1` reports 0 for every preset.
+**~~A3 · Latin across the display faces.~~ DONE 2026-09-14 07:36.** All NINE presets at 1:1, 1467 renders.
+Two registers, six findings, both the same shape and both fixed: a size chosen for the FALLBACK named in a
+font shorthand, while the face that renders is the DNA's. `SpeedLimit` reserved its labels' width as the
+literal `W - 344` — how wide those words are in Inter — and ran off the frame under JetBrains Mono;
+`AnalogTape` set its wordmark at a flat 168px, the size for the condensed Antonio in its own fallback list,
+and Bodoni Moda cut it off 85px on BOTH sides of all three RGB-split copies.
+> **The campaign verified its own fix:** `blueprint` shares JetBrains Mono with `terminal` and ran AFTER the
+> `SpeedLimit` repair — 0 findings.
 
-**A4 · `cjk_type_qa --all-aspects`, library-wide.** The flag was added in `5e08043` and proved on one
-register. It is the only audit that can see a string a register declined to DRAW — `text_safe_qa` reports
-type CUT OFF and therefore can only see ink that exists.
-> **Acceptance:** `cjk_type_qa --library --all-aspects` reports no DREW ALMOST NOTHING and no dropped
-> strings that are not explained.
+**~~A4 · `cjk_type_qa --all-aspects`, library-wide.~~ DONE 2026-09-14 09:17.** Five aspects, 163 registers.
+Zero DREW ALMOST NOTHING. Five registers reported dropped strings; THREE were the instrument asking the
+wrong question and are fixed, and the two that remain are the case the gate's own header calls "a report,
+not a failure — a capped list, or a panel conditional on a prop":
+> * `IsometricAssembly` — `items?: [string, string, string]` declares three slots and the fixture fed four.
+> * `EdCompare` — `_ARRAY_SHAPES` is keyed by PROP NAME and one name serves registers with different
+>   shapes, so `left` carried the union of EdCompare's `Col` and VersusSplit's. Each register is handed
+>   only the keys its own type declares now, and the shared table is untouched.
+> * `TermTree` — TRUNCATION IS NOT OMISSION. A terminal cuts a line and marks it; twelve glyphs of a
+>   twenty-seven glyph note score 0.44 on a character-coverage test and read as missing. A prefix followed
+>   by an ellipsis is the string, shown the way the medium shows it.
+> **Explained and accepted:** `BlueprintGrid`'s `metricLabel` is gated on `specN` and `TermTable`'s
+> `heroNote` on `hero` — both NUMBER props, which `cjk_props` skips by design because a number is not copy.
+> The fixture therefore feeds copy into a panel it does not enable. Supplying numbers would need the
+> name-based range heuristics to be right about an index versus a percentage, and a wrong one renders a
+> different frame than the film would — a worse trade than two explained reports.
 
 **A5 · `film_energy_qa` has never been run against a real film.** It needs a real `out_dir`, which no
 session has given it.

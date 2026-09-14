@@ -583,6 +583,14 @@ export const auditFedText = (root: Element, fed: unknown[]): string[] => {
     const n = norm(String(raw ?? ''));
     if (!n) return;
     if (hay.indexOf(n) >= 0) return;
+    // TRUNCATION IS NOT OMISSION. A terminal cuts a line and marks it — `TermTree` clips a note to its
+    // column and writes an ellipsis, which is the FORM, not a register dropping copy a film supplied. The
+    // character-coverage test below cannot tell the two apart: twelve glyphs of a twenty-seven glyph note
+    // score 0.44 and read as missing, at every aspect, for as long as the clip has existed. A prefix of the
+    // fed string followed by an ellipsis IS the string, shown the way the medium shows it.
+    for (let k = n.length; k >= 4; k--) {
+      if (hay.indexOf(n.slice(0, k) + '\u2026') >= 0) return;
+    }
     const left = new Map(pool);
     let hit = 0;
     for (const ch of n) {

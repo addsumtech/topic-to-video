@@ -247,6 +247,38 @@ def _one_prop(chunk):
     return {m.group(1): m.group(2).strip()} if m else {}
 
 
+def _tuple_len(ty):
+    """`[string, string, string]` declares THREE. Feeding four is not a harder test — the fourth cannot be
+    drawn by a register whose type has three slots, and it was reported as a dropped string on
+    `IsometricAssembly` at every aspect it was swept at."""
+    t = ty.replace(" ", "").rstrip(";")
+    if not (t.startswith("[") and t.endswith("]")):
+        return None
+    parts = [x for x in t[1:-1].split(",") if x]
+    return len(parts) if parts and all(x == "string" for x in parts) else None
+
+
+def _declared_keys(ty, src):
+    """The keys an object-typed prop actually declares — inline, or through a named alias.
+
+    `_ARRAY_SHAPES` is keyed by PROP NAME, and one name serves registers with different shapes: `left` is a
+    `Col {head, body, hero}` on EdCompare and something else on VersusSplit, so the shared entry carries the
+    union of both. The extra keys are not a fixture bug, but handing them to a register that cannot read
+    them is — EdCompare reported 2 of 11 strings dropped at four aspects, and both were `points` entries,
+    a key its own type does not have."""
+    t = ty.strip().rstrip(";").strip()
+    body = None
+    if t.startswith("{") and t.endswith("}"):
+        body = t[1:-1]
+    elif re.match(r"^[A-Z][A-Za-z0-9_]*$", t):
+        m = re.search(r"type\s+%s\s*=\s*\{([^}]*)\}" % re.escape(t), src, re.S)
+        if m:
+            body = m.group(1)
+    if body is None:
+        return None
+    return {k for k in re.findall(r"([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*:", body)}
+
+
 def cjk_props(name):
     """(props, untestable) — CJK copy shaped to this register's own signature."""
     sig, src = prop_signature(name)
@@ -269,6 +301,8 @@ def cjk_props(name):
             props[prop] = _ARRAY_SHAPES.get(prop, [list(_ITEMS[:2]), list(_ITEMS[2:4])])
         elif t.startswith("string[]") or t.startswith("(string|"):
             props[prop] = list(_ITEMS[:4])
+        elif _tuple_len(ty):
+            props[prop] = list(_ITEMS[:_tuple_len(ty)])
         elif t.startswith("string"):
             # EVERY SIBLING SCALAR GOT THE SAME SENTENCE. `i` is the row index inside a shaped array, and
             # nothing passed one for a top-level prop, so each took its pool's first entry: `RackFocus`
@@ -290,7 +324,12 @@ def cjk_props(name):
             else:
                 props[prop] = shaped
         elif prop in _ARRAY_SHAPES:
-            props[prop] = _ARRAY_SHAPES[prop]            # an OBJECT-shaped prop (a side, a group, a range)
+            # an OBJECT-shaped prop (a side, a group, a range), TRIMMED TO THE KEYS THIS REGISTER DECLARES —
+            # see `_declared_keys`. The shared entry carries the union of every register that uses the prop
+            # name, and a key the type does not have is copy that cannot be drawn.
+            shape = _ARRAY_SHAPES[prop]
+            keys = _declared_keys(ty, src) if isinstance(shape, dict) else None
+            props[prop] = {k: v for k, v in shape.items() if k in keys} if keys else shape
         else:
             untestable.append(prop)
     return props, untestable

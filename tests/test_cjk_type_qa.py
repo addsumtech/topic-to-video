@@ -652,3 +652,45 @@ def test_a_role_is_matched_on_the_name_not_on_the_whole_name():
         assert q._string_for(prop, prop, "", 0) in short, "%s lost its SHORT role to the tail match" % prop
     # ...and a name with no role word still falls through, rather than everything becoming a label
     assert q._string_for("somethingElse", "somethingElse", "", 0) in set(q._MED_V)
+
+
+def test_a_fixed_length_tuple_is_not_over_fed():
+    """`items?: [string, string, string]` declares THREE slots.
+
+    The fixture fed four, and the fourth was reported as a dropped string on `IsometricAssembly` at every
+    aspect the library was swept at — a finding about a register that had done nothing wrong."""
+    import cjk_type_qa as q
+    assert q._tuple_len("[string, string, string]") == 3
+    assert q._tuple_len("[string, string]") == 2
+    assert q._tuple_len("string[]") is None, "a plain array is not a fixed-length tuple"
+    assert q._tuple_len("[string, number]") is None, "a mixed tuple is not this function's business"
+    r = q.cjk_props("IsometricAssembly")
+    props = r[0] if isinstance(r, tuple) else r
+    assert len(props["items"]) == 3, "fed %d items into a three-slot tuple" % len(props["items"])
+
+
+def test_an_object_prop_gets_only_the_keys_its_own_type_declares():
+    """`_ARRAY_SHAPES` is keyed by PROP NAME, and one name serves registers with different shapes.
+
+    `left` is a `Col {head, body, hero}` on EdCompare and `{label, points}` on VersusSplit, so the shared
+    entry carries both. Handing EdCompare the `points` it cannot read produced 2 of 11 dropped strings at
+    four aspects."""
+    import cjk_type_qa as q
+    ed = q.cjk_props("EdCompare")
+    ed = (ed[0] if isinstance(ed, tuple) else ed)["left"]
+    vs = q.cjk_props("VersusSplit")
+    vs = (vs[0] if isinstance(vs, tuple) else vs)["left"]
+    assert set(ed) <= {"head", "body", "hero"}, "EdCompare's Col got keys it does not declare: %r" % set(ed)
+    assert "points" not in ed and "label" not in ed
+    # ...and the OTHER register keeps what IT declares — the filter is per-register, not a table edit
+    assert "points" in vs and "label" in vs, "VersusSplit lost the keys its own type declares: %r" % set(vs)
+
+
+def test_it_resolves_a_named_object_alias_not_just_an_inline_one():
+    """`Col` is declared beside the register, so the keys have to be looked up, not guessed."""
+    import cjk_type_qa as q
+    src = open(os.path.join(_ROOT, "remotion", "src", "shots", "EdCompare.tsx"),
+               encoding="utf-8").read()
+    assert q._declared_keys("Col", src) == {"head", "body", "hero"}
+    assert q._declared_keys("{a?: string; b?: string}", src) == {"a", "b"}
+    assert q._declared_keys("string", src) is None

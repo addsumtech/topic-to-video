@@ -203,3 +203,28 @@ def test_a_line_may_not_open_with_a_closing_mark():
     # goes down with it and the answer is 2 rather than the 2 a naive fill would also give — pinned so a
     # future edit cannot quietly make the glue a no-op for short runs.
     assert r["pair"] == 2
+
+
+def test_truncation_is_not_omission():
+    """A terminal cuts a line and marks it. `TermTree` clips a note to its column and writes an ellipsis —
+    that is the FORM, not a register dropping copy a film supplied.
+
+    The fed-text audit scores character coverage, which cannot tell the two apart: twelve glyphs of a
+    twenty-seven glyph note score 0.44 and read as missing, at every aspect, for as long as the clip has
+    existed. A prefix of the fed string followed by an ellipsis IS the string, shown the way the medium
+    shows it. This pins the rule in the runtime's own source, which is where the walk happens."""
+    src = open(os.path.join(RUNTIME, "textSafe.tsx"), encoding="utf-8").read()
+    assert "TRUNCATION IS NOT OMISSION" in src
+    import re as _re
+    m = _re.search(r"for \(let k = n\.length; k >= (\d+); k--\) \{\s*\n\s*if \(hay\.indexOf\(n\.slice\(0, k\) \+ '\\u2026'\) >= 0\) return;",
+                   src)
+    assert m, "the ellipsis-prefix check is gone or no longer scans from the full string downward"
+    assert int(m.group(1)) >= 3, (
+        "the prefix floor is %s — a one or two character prefix before an ellipsis is not evidence the "
+        "string was shown" % m.group(1))
+    # it must sit BEFORE the coverage test USES the threshold, or a truncated string is already counted
+    # missing by the time the ellipsis check runs. (The constant is DEFINED near the top of the file, so
+    # comparing against its first occurrence compares against the wrong thing — the first draft of this
+    # assertion did exactly that and failed on a correct implementation.)
+    use = src.index("hit / n.length < FED_CHAR_COVERAGE")
+    assert src.index("TRUNCATION IS NOT OMISSION") < use
