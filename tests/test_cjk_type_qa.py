@@ -626,3 +626,29 @@ def test_the_sweep_records_that_it_must_run_serially():
     twelve 'drew almost nothing' that draw fine alone, and MISSED findings the serial run then reported."""
     src = open(os.path.join(_ROOT, "scripts", "cjk_type_qa.py"), encoding="utf-8").read()
     assert "RUN IT SERIALLY" in src and "TermBars" in src
+
+
+def test_a_role_is_matched_on_the_name_not_on_the_whole_name():
+    """`_ROLE` matched exactly, so `label` was a label and `underLabel` was not.
+
+    Twenty-seven props across the library carry an obvious role word and fell through to the MED fallback,
+    which handed a legend swatch a 26-glyph CAPTION. That is not a harder test, it is the wrong one, and
+    `PlanPalimpsest` answered it by growing its legend past the whole content zone and lifting the block
+    229px off the top of the frame. A prop whose name ends in `Label` — or begins with it — is a label.
+    """
+    import cjk_type_qa as q
+    label = set(q._LABEL_V)
+    long_ = set(q._LONG_V)
+    for prop in ("underLabel", "overLabel", "leftLabel", "rightLabel", "metricLabel", "backLabel",
+                 "scanLabel", "lockLabel", "scaleLabel", "labelLeft", "labelRight", "headword"):
+        got = q._string_for(prop, prop, "", 0)
+        assert got in label, "%s was handed %r, which is not label-length copy" % (prop, got)
+    for prop in ("underNote", "overNote", "doneNote", "noteLeft"):
+        assert q._string_for(prop, prop, "", 0) in long_, "%s should take the note role" % prop
+    # ORDER STILL DECIDES. `doneLabel` and `sectionLabel` are listed with the SHORT role and must keep it —
+    # a tail match that re-read them as labels would silently lengthen two props this file already placed.
+    short = set(q._SHORT_V)
+    for prop in ("doneLabel", "sectionLabel"):
+        assert q._string_for(prop, prop, "", 0) in short, "%s lost its SHORT role to the tail match" % prop
+    # ...and a name with no role word still falls through, rather than everything becoming a label
+    assert q._string_for("somethingElse", "somethingElse", "", 0) in set(q._MED_V)

@@ -88,6 +88,14 @@ reader cannot tell without re-running it.
 > **Acceptance:** a failed render is retried once before it is reported, and a still-failing one is reported
 > as a FAILURE distinct from a finding.
 
+**B4 · Kinsoku is implemented in half.** `wrapLines` now glues a closing mark to the glyph before it, so a
+line cannot OPEN with one (`a8ded7b`). The other half of the rule — a line may not END with an opening
+bracket or quote — is not implemented. It is left out deliberately: no string in the CJK fixture contains
+one, so adding it today could be neither verified against a rendered frame nor shown to be load-bearing by
+a mutation, and an unverified rule in the denominator of every Chinese reserve is worse than a known gap.
+> **Acceptance:** a fixture string carrying an opening bracket, a rendered frame showing the browser's own
+> break, and a test that goes red when the rule is disabled — in that order.
+
 ## C · Peer-library capability gaps still open
 
 **C1 · The fake dolly-zoom** — subject pinned while the background swells 1 -> 2.25. The last unbuilt piece

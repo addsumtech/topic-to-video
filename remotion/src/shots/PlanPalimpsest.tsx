@@ -142,7 +142,13 @@ export const PlanPalimpsest: React.FC<{
 
       {/* the two legends, side by side under the plan — a filled swatch and an outline swatch */}
       <div style={{position: 'absolute', left: x0,
-        top: Math.min(bottom + H * 0.045, contentBottom(W, H) - legendInk(colOf(pw))), width: pw,
+        // ...AND THE YIELD HAS A FLOOR. The clamp only ever pushed the legend UP, and the legend's height
+        // feeds back into its own column width — a taller legend leaves a shorter plan, a shorter plan is a
+        // narrower column, a narrower column wraps to more lines. Handed a long legend label the loop ran
+        // away and the block was lifted 229px off the TOP of the frame, where its first lines are not
+        // crowded but invisible. Crowding is a defect a gate can see; vanishing upward is not.
+        top: Math.max(CONTENT_TOP,
+          Math.min(bottom + H * 0.045, contentBottom(W, H) - legendInk(colOf(pw)))), width: pw,
         display: 'flex', gap: W * 0.03, opacity: land}}>
         {[{sw: 'fill' as const, label: underLabel, date: underDate, note: underNote, tone: ACC},
           {sw: 'line' as const, label: overLabel, date: overDate, note: overNote, tone: FG}].map((L, i) => (

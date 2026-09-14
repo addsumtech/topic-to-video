@@ -149,12 +149,22 @@ _LONG_V = [_LONG, "它读取你授权的目录，按类型分流并归档，最�
 
 # Each role names its OWN pool. Keyed to a single string it needed `_variant` to find that string again by
 # searching every pool, which is how a title came to be varied into a MED sentence.
+# A ROLE IS MATCHED ON THE NAME'S TAIL, NOT ON THE WHOLE NAME. These were exact matches, so `label` took the
+# label role and `underLabel`, `leftLabel`, `metricLabel` and twenty-four others fell through to the MED
+# fallback and were handed a 26-glyph CAPTION. That is not a harder test, it is the wrong test: it measures
+# a legend swatch against a sentence no film would put there, and `PlanPalimpsest` answered by growing its
+# legend past the whole content zone. A prop whose name ends in `Label` is a label. The leading `[a-z]*` is
+# what makes the tail match, and the roles stay in order so `doneLabel` and `sectionLabel` keep the SHORT
+# role they are listed with rather than being re-read as labels.
 _ROLE = [
-    (r"^(kicker|meta|unit|issue|sectionLabel|wordmark|colophon|doneLabel|tag|cmd|root|hub|time|date|"
+    (r"^[a-z]*(kicker|meta|unit|issue|sectionLabel|wordmark|colophon|doneLabel|tag|cmd|root|hub|time|date|"
      r"hash|ref|status|filename|glyph|kind|side)$", _SHORT_V),
-    (r"^(label|heading|focalLabel|titleTop|titleBottom|word|value|query)$", _LABEL_V),
-    (r"^(title|hero|headline|name)$", _TITLE_V),
-    (r"^(tagline|caption|deck|answer|note|callout|heroNote|statement1|statement2|pitch|body)$", _LONG_V),
+    # ...and the role word can lead as well as trail: `underLabel` and `labelLeft` are both labels.
+    (r"^[a-z]*(label|heading|focalLabel|titleTop|titleBottom|word|value|query)$"
+     r"|^(label|heading|word)[A-Z][a-zA-Z]*$", _LABEL_V),
+    (r"^[a-z]*(title|hero|headline|name)$", _TITLE_V),
+    (r"^[a-z]*(tagline|caption|deck|answer|note|callout|heroNote|statement1|statement2|pitch|body)$"
+     r"|^(note|caption|answer|body)[A-Z][a-zA-Z]*$", _LONG_V),
 ]
 
 
@@ -204,7 +214,7 @@ def _string_for(prop, local=None, src="", i=0):
     if _is_readout(prop, local or prop, src):
         return _READOUT
     for pat, pool in _ROLE:
-        if re.match(pat, prop):
+        if re.match(pat, prop, re.I):
             return pool[i % len(pool)]
     return _MED_V[i % len(_MED_V)]
 
