@@ -36,7 +36,7 @@ const BG_D0 = '#0f1117', FG_D0 = '#eef2f8', ACC_D0 = '#6b62e8', DIM_D0 = '#8b93a
 
 type Props = {
   /** the two things that must BOTH hold. Exactly two — a third would make it a list, not a conjunction. */
-  conditions?: [string, string] | string[];
+  conditions?: [string, string];
   /** what exists only when both hold */
   result?: string;
   /** the word on the stamp */

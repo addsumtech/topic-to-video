@@ -919,7 +919,21 @@ def _probe_the_sampling_frame_follows_the_films_shape(mod):
     assert h > w, "a 1080x1920 film was sampled %dx%d — landscape, so its ink is undercounted" % (w, h)
 
 
+def _probe_the_density_error_names_the_next_command(mod):
+    """A gate that stops at a number teaches an author to waive it.
+
+    Measured across the committed sweep, most of this library's registers sit UNDER the ink floor on their
+    own, so an author who has not read those numbers cannot tell a starved frame from a quiet register —
+    and the only move the message leaves them is the waiver. `density_advice.py` reads the same sweep and
+    names the denser registers in each beat's own design family, which is a fix rather than an excuse."""
+    errs, _warns, _m = _energy(mod, _SLIDESHOW)
+    hit = [e for e in errs if e.startswith("DENSITY")]
+    assert hit, errs
+    assert "density_advice" in hit[0], "the density error names no next command: %r" % hit[0]
+
+
 PROBES["film_energy_qa"] = {
+    "density_error_names_the_next_command": _probe_the_density_error_names_the_next_command,
     "a_bright_passage_is_not_an_arc": _probe_a_bright_passage_is_not_a_luminance_arc,
     "short_film_is_not_a_pass": _probe_a_film_too_short_to_measure_is_not_a_pass,
     "sampling_follows_the_shape": _probe_the_sampling_frame_follows_the_films_shape,
@@ -942,6 +956,11 @@ MUTANTS["register_shot"] = dict(MUTANTS.get("register_shot", {}), **{
 })
 
 MUTANTS["film_energy_qa"] = {
+    # The same shape as register_shot's "next-step hint forgets the second emit" below: a gate that reports
+    # a number and stops leaves the author one move, and it is the waiver.
+    "the density error stops at the number":
+        ('"starved, and what the same design family offers instead: "\n'
+         '                    "`python3 scripts/density_advice.py <out_dir>`."', '""'),
     "the motion floor is disabled":
         ("MOTION_P75_FLOOR = 0.0037", "MOTION_P75_FLOOR = 0.0"),
     "the density floor is disabled":
@@ -1253,10 +1272,62 @@ def _probe_a_partially_supplied_beat_is_caught(mod):
         "an explicitly emptied prop was reported — the opt-out is gone")
 
 
+# A SLOT COUNT is part of a register's form, and both ways of getting it wrong have shipped here: a fourth
+# item dropped in silence (IsometricAssembly) and a third condition thrown mid-render, after a full bundle
+# (AcceptanceStamp). Three registers in the library declare a fixed count; this is the parser that sees it.
+_ARITY_SRC = """
+type Props = {
+  /** two things that must BOTH hold; a third would make it a list, not a conjunction. */
+  pair?: [string, string];
+  loose?: [string, string] | string[];
+  nested?: {from?: [number, number]; to?: [number, number]};
+  rows?: {label: string; v: number}[];
+  note?: string;
+};
+
+export const Aliased: React.FC<Props> = ({pair = ['a', 'b'], note = 'n'} = {}) => null;
+
+export const Inline: React.FC<{items?: [string, string, string]; last?: boolean}> = ({
+  items = ['Raw work', 'WorkBuddy', 'Delivered'],
+} = {}) => null;
+"""
+
+
+def _probe_a_fixed_slot_count_is_read(mod):
+    """`items?: [string, string, string]` says the register draws three slots. Nothing read that until a
+    board had already handed one of them four items and another three conditions."""
+    assert mod.tuple_arity(_ARITY_SRC, "Inline") == {"items": 3}, mod.tuple_arity(_ARITY_SRC, "Inline")
+    assert mod.tuple_arity(_ARITY_SRC, "Aliased").get("pair") == 2, "a NAMED props type was not resolved"
+
+
+def _probe_a_union_with_a_loose_array_fixes_nothing(mod):
+    """`[string, string] | string[]` says any length is legal. Enforcing the strict-looking half would make
+    a correct board an error AND hide the real finding: a declaration its own runtime contradicts."""
+    assert "loose" not in mod.tuple_arity(_ARITY_SRC, "Aliased"), "a union was read as a fixed count"
+
+
+def _probe_a_nested_shape_is_not_a_prop(mod):
+    """`channel?: {from?: [number, number]}` is one prop, not two. Read as top-level, MapPlate gained two
+    props that do not exist and every board using it became an error about `from`."""
+    got = mod.tuple_arity(_ARITY_SRC, "Aliased")
+    assert "from" not in got and "to" not in got, got
+    assert "v" not in mod._declared_types(_ARITY_SRC, "Aliased"), "a nested object's `;` invented a prop"
+
+
+def _probe_the_last_prop_is_read(mod):
+    """A props list's final entry carries no `;`. Requiring one dropped the last prop of every inline
+    register — silently, into the loosest possible reading of the thing this parser is strict about."""
+    assert "last" in mod._declared_types(_ARITY_SRC, "Inline"), "the last prop was dropped"
+
+
 PROBES["demo_copy_qa"] = {
     "read_from_the_signature": _probe_demo_copy_is_read_from_the_signature,
     "configuration_is_not_copy": _probe_configuration_is_not_mistaken_for_copy,
     "partial_props_are_caught": _probe_a_partially_supplied_beat_is_caught,
+    "fixed_slot_count_is_read": _probe_a_fixed_slot_count_is_read,
+    "a_union_fixes_nothing": _probe_a_union_with_a_loose_array_fixes_nothing,
+    "nested_shapes_are_not_props": _probe_a_nested_shape_is_not_a_prop,
+    "the_last_prop_is_read": _probe_the_last_prop_is_read,
 }
 
 MUTANTS["demo_copy_qa"] = {
@@ -1275,6 +1346,19 @@ MUTANTS["demo_copy_qa"] = {
          '            if re.search(r"[A-Za-z]{3}", v) and not _NOT_COPY.match(v):'),
     "an absent prop stops being a finding":
         ("            if prop not in props:", "            if False:"),
+    # ── the slot count ───────────────────────────────────────────────────────────────────────────────
+    "a named props type is not resolved, so an aliased register declares nothing":
+        ("    body = _brace_body(src, m.end())\n    if body is None:",
+         "    body = _brace_body(src, m.end())\n    if body is None:\n        return {}\n    if body is None:"),
+    # NOT the `startswith("[")` guard: `string[]`'s middle is not a primitive either, so the next line
+    # catches it anyway and the mutant survives while looking like it disabled the rule. The rule that
+    # actually carries the union is reading EVERY member of it.
+    "only the first member of a union type is read":
+        ('    return _split_top(t, "|")', '    return _split_top(t, "|")[:1]'),
+    "the last prop of an inline register is dropped again":
+        ('    for chunk in _split_top(body, ";"):', '    for chunk in body.split(";")[:-1]:'),
+    "a nested object's own `;` splits into invented props":
+        ('    for chunk in _split_top(body, ";"):', '    for chunk in body.split(";"):'),
 }
 
 def _all(kind):

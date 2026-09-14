@@ -218,9 +218,17 @@ def check(out_dir):
                     "fraction of the cost. What this tier is FOR is time."
                     % (m["motion_p75"], MOTION_P75_FLOOR, 0.0075, m["motion_p75"] * 100))
     if m["ink_median"] < INK_FLOOR:
+        # AND IT NAMES THE NEXT COMMAND. Ink is a CASTING property before it is a rendering one: measured
+        # across the committed sweep, most of this library's registers sit under this floor on their own, so
+        # a film assembled without looking at those numbers lands here by default and the author has no way
+        # to tell a starved frame from a quiet register. `density_advice.py` reads the same sweep and names,
+        # per beat, the denser registers in the SAME design family — the one substitution that does not
+        # change the film's visual language. A gate that stops at a number teaches an author to waive it.
         errs.append("DENSITY: the median frame carries %.1f%% ink, under the %.0f%% floor (half of the "
                     "sparsest reference, Apple's 24.3%%). Apple's sparse frames hold one lit object; an "
-                    "empty frame with a caption on it is not sparse, it is unfinished."
+                    "empty frame with a caption on it is not sparse, it is unfinished. Which beats are "
+                    "starved, and what the same design family offers instead: "
+                    "`python3 scripts/density_advice.py <out_dir>`."
                     % (m["ink_median"] * 100, INK_FLOOR * 100))
     if m["luma_range"] < LUMA_RANGE_FLOOR:
         errs.append("LIGHT: luminance spans %.3f across the film, under the %.3f floor (half of Apple's "

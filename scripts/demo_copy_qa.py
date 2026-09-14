@@ -62,6 +62,22 @@ def _destructure(src, name):
 
 
 _PROPS_TYPE = re.compile(r"export const %s:\s*React\.FC<\{")
+_COMMENTS = re.compile(r"/\*.*?\*/|//[^\n]*", re.S)
+
+
+def _brace_body(src, i):
+    """The inside of the `{...}` block that starts at or after `i`, brace-matched. None if there is none."""
+    while i < len(src) and src[i].isspace():
+        i += 1
+    if i >= len(src) or src[i] != "{":
+        return None
+    depth = 0
+    for j in range(i, len(src)):
+        depth += src[j] == "{"
+        depth -= src[j] == "}"
+        if depth == 0:
+            return src[i + 1:j]
+    return None
 
 
 def _declared_types(src, name):
@@ -71,22 +87,108 @@ def _declared_types(src, name):
     reads like a word and is never drawn — it names which page shape a surface renders. Flagged as demo copy
     it produced an error on every beat that used the register, and the author's only way out was to set the
     prop to "" and get no page at all. A default is only copy if the prop is TYPED as copy.
+
+    A NAMED props type counts too. `React.FC<Props>` with `type Props = {...}` above it is the same
+    declaration written in two places, and reading only the inline form returned {} for those registers —
+    every prop then fell back to the "string" assumption, which is the loosest possible reading of the one
+    thing this function exists to be strict about. One register in the library is written that way today
+    (AcceptanceStamp), and it is the one whose tuple arity `tuple_arity` has to see.
     """
-    m = _PROPS_TYPE.sub("", "", count=0) if False else re.search(
-        r"export const %s:\s*React\.FC<\{" % re.escape(name), src)
+    m = re.search(r"export const %s:\s*React\.FC<" % re.escape(name), src)
     if not m:
         return {}
-    i, depth = m.end() - 1, 0
-    for j in range(m.end() - 1, len(src)):
-        depth += src[j] == "{"
-        depth -= src[j] == "}"
-        if depth == 0:
-            i = j
-            break
-    body = src[m.end():i]
+    body = _brace_body(src, m.end())
+    if body is None:                                             # `React.FC<Alias>` — resolve the alias
+        alias = re.match(r"\s*(\w+)", src[m.end():])
+        if not alias:
+            return {}
+        am = re.search(r"\btype\s+%s\s*=\s*" % re.escape(alias.group(1)), src)
+        body = _brace_body(src, am.end()) if am else None
+        if body is None:
+            return {}
+    # Comments are stripped FIRST: a doc comment is prose, and prose that happens to hold `word: text;`
+    # parses as a prop declaration. The tuple check below turns a mis-read type into an error on a
+    # correct board, so the parser may not guess.
+    body = _COMMENTS.sub("", body)
     out = {}
-    for pm in re.finditer(r"(\w+)\s*\??\s*:\s*([^;]+);", body):
-        out[pm.group(1)] = pm.group(2).strip()
+    for chunk in _split_top(body, ";"):
+        pm = re.match(r"\s*(\w+)\s*\??\s*:\s*(.+)$", chunk, re.S)
+        if pm:
+            out[pm.group(1)] = pm.group(2).strip()
+    return out
+
+
+_PRIMITIVE = re.compile(r"(?:string|number|boolean)")
+
+
+def _split_top(s, sep):
+    """Split on `sep` only where no bracket is open.
+
+    Two things here were being read wrongly by a plain split. A prop list's LAST entry carries no `;`
+    (`React.FC<{cmd?: string; lines?: Line[]; framed?: boolean}>`), so a rule that required one dropped the
+    last prop of every inline register and let it fall back to the "string" assumption. And a nested object
+    type (`rows?: {label: string; v: number}[]`) holds its own `;`, so splitting on every one of them
+    invents a prop called `v`. Depth-aware splitting is the same operation both need.
+    """
+    out, depth, cur = [], 0, ""
+    for ch in s:
+        if ch in "[<({":
+            depth += 1
+        elif ch in "])>}":
+            depth -= 1
+        if ch == sep and depth == 0:
+            out.append(cur)
+            cur = ""
+        else:
+            cur += ch
+    out.append(cur)
+    return [m for m in (x.strip() for x in out) if m and m != "undefined"]
+
+
+def _union_members(t):
+    """Split a type on its TOP-LEVEL `|` — `[string|number,string]|string[]` is two members, not three."""
+    return _split_top(t, "|")
+
+
+def tuple_arity(src, name):
+    """{prop: how many items its declared type FIXES} — only where the type fixes a number.
+
+    `items?: [string, string, string]` is a declaration that the register draws three slots. A board that
+    hands it four is wrong before anything renders, and until now nothing said so: the fourth item was
+    dropped silently by one register (A4 found it in `IsometricAssembly`) and threw mid-render in another
+    (`AcceptanceStamp`, which costs a whole bundle + render to discover).
+
+    A claim is made ONLY when every member of the type fixes the SAME length. `[string, string] | string[]`
+    fixes nothing — the union says any length is legal — so this stays silent on it rather than enforcing
+    the half of the type it likes. That is deliberate: the fix for such a register is to narrow the type to
+    what its own runtime already requires, and a checker that guessed past the union would hide the fact
+    that the declaration and the code disagree.
+    """
+    out = {}
+    for prop, ty in _declared_types(src, name).items():
+        lens = set()
+        for mem in _union_members(ty.replace(" ", "")):
+            if not (mem.startswith("[") and mem.endswith("]")):
+                lens.add(None)
+                break
+            parts = mem[1:-1].split(",")
+            if not parts or not all(_PRIMITIVE.fullmatch(p) for p in parts):
+                lens.add(None)
+                break
+            lens.add(len(parts))
+        if len(lens) == 1 and None not in lens:
+            out[prop] = lens.pop()
+    return out
+
+
+def arity_library(shots_dir=None):
+    """{register: {prop: fixed length}} across the whole library — parsed, never listed."""
+    out = {}
+    for f in sorted(glob.glob(os.path.join(shots_dir or SHOTS, "*.tsx"))):
+        n = os.path.basename(f)[:-4]
+        a = tuple_arity(open(f, encoding="utf-8").read(), n)
+        if a:
+            out[n] = a
     return out
 
 

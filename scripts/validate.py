@@ -1839,6 +1839,21 @@ def _demo_copy_library():
 _DEMO_COPY_CACHE = None
 
 
+def _arity_library():
+    """{register: {prop: how many items its type FIXES}} — parsed from the registers, same as the copy one."""
+    global _ARITY_CACHE
+    if _ARITY_CACHE is None:
+        try:
+            import demo_copy_qa
+            _ARITY_CACHE = demo_copy_qa.arity_library()
+        except Exception:
+            _ARITY_CACHE = {}          # unavailable → skip rather than false-flag every beat
+    return _ARITY_CACHE
+
+
+_ARITY_CACHE = None
+
+
 def _check_remotion(meta, slides, errors, warnings, out_dir=None):
     """Guardrails for the remotion bespoke-shot tier: a valid whole-film `shot_template` direction (+ its
     contest trace); every scene needs a valid `shot` id + object `shot_props`; a NUMBER-bearing register left on
@@ -2097,6 +2112,32 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
                 errors.append(f"{tag}: {shot} was given no `{prop}`, so the register's DEMO COPY prints on "
                               f"the delivered frame: {copy}. Write this beat's own copy, or set "
                               f"`shot_props.{prop}` to {off} to draw nothing there.")
+        # A SLOT COUNT IS PART OF THE FORM. `items?: [string, string, string]` says the register draws three
+        # slots, and a board that hands it four is wrong before anything is rendered. Both halves of that
+        # have already happened here: IsometricAssembly dropped a fourth item in silence (A4 found it only
+        # because a type audit asked what a register DECLINED to draw), and AcceptanceStamp threw mid-render,
+        # which costs a full bundle plus a render — and, on this machine, a second render without --gl —
+        # before anyone learns the count was wrong. The declaration already knew; nothing read it.
+        #
+        # Only a type that fixes ONE length is checked (see demo_copy_qa.tuple_arity): a union with a loose
+        # array fixes nothing, and enforcing the half of the type that looks strict would hide a register
+        # whose declaration and runtime disagree instead of reporting it.
+        for _prop, _n in sorted(_arity_library().get(shot, {}).items()):
+            if not isinstance(sp, dict) or _prop not in sp:
+                continue
+            _v = sp[_prop]
+            if isinstance(_v, list) and len(_v) != _n:
+                errors.append(
+                    f"{tag}: {shot}.{_prop} is declared as exactly {_n} item(s) and this beat supplies "
+                    f"{len(_v)} — the register draws {_n} slot(s), so "
+                    + (f"the extra {len(_v) - _n} would be dropped or throw at render time. "
+                       if len(_v) > _n else f"{_n - len(_v)} slot(s) would be drawn empty. ")
+                    + f"Write exactly {_n}, or pick a register whose form takes {len(_v)}.")
+            elif not isinstance(_v, list):
+                errors.append(
+                    f"{tag}: {shot}.{_prop} must be a list of exactly {_n} item(s); this beat supplies "
+                    f"{type(_v).__name__}. The register indexes it positionally, so anything else reaches "
+                    f"the frame as undefined slots.")
         if props_empty:
             warnings.append(f"{tag}: {shot} carries EMPTY shot_props — a raw text-swap keeps the register's demo "
                             f"scaffolding (a mannequin), shipping a generic beat. Redesign its modules/components + "

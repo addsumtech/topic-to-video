@@ -92,23 +92,52 @@ not a failure — a capped list, or a panel conditional on a prop":
 > name-based range heuristics to be right about an index versus a percentage, and a wrong one renders a
 > different frame than the film would — a worse trade than two explained reports.
 
-**A5 · `film_energy_qa` has never been run against a real film.** It needs a real `out_dir`, which no
-session has given it.
-> **Acceptance:** one end-to-end render, then `film_energy_qa <out_dir>`, with its output read.
+**~~A5 · `film_energy_qa` has never been run against a real film.~~ DONE 2026-09-14 18:02.** A five-beat
+film was written with TRUE copy (the counts this campaign measured), narrated with edge-tts, rendered to
+`out.mp4`, and put through the gate — which had, until today, only ever seen synthetic mp4s built by its own
+tests. It deliberately cast `WordTunnel` and `RackFocus` so the two registers added this week got their first
+end-to-end run. Measured: **41s · motion p75 0.0038 · ink 4.0% · light 0.540 · arc 5.1%** → one ERROR,
+DENSITY, against floors of 0.0037 / 12% / 0.135 / 1.9%.
+> **What running it once cost, which is again the point.** Two defects, one in the pipeline and one in the
+> gate's own manners:
+> * **`AcceptanceStamp` threw MID-RENDER** on a board `validate.py` had just called clean. Its type declares
+>   `conditions?: [string, string]` and the beat supplied three — a full bundle, a failed render and an
+>   automatic retry without `--gl` to learn something the DECLARATION already knew. The other half of this
+>   defect is silent: `IsometricAssembly` declares three slots and A4 found a fixture feeding it four, which
+>   it dropped without a word. So the board now reads the slot count (`demo_copy_qa.tuple_arity`, parsed
+>   from the registers, three of them fixing four props today) and refuses a beat that does not match.
+>   A claim is made only where every member of the type fixes the SAME length — `[string, string] | string[]`
+>   fixes nothing, and AcceptanceStamp's own type said exactly that, so it was narrowed to what its runtime
+>   has always enforced, and a test pins the type to the `throw` so the two cannot drift.
+> * **The DENSITY error stopped at a number.** `density_advice.py` exists precisely to answer it — which
+>   beats are starved, and what the same design family offers instead — and the gate never said so. It does
+>   now. Run on this film it named all five beats and their denser neighbours in seconds.
+> **And one thing found while reading the parser:** `_declared_types` required a `;` after every prop, so the
+> LAST prop of every inline register (`framed?: boolean`) was dropped and fell back to the "string"
+> assumption — the loosest reading of the one thing that function is strict about. It also could not read a
+> NAMED props type, which is why AcceptanceStamp declared nothing at all to it. Both fixed; the demo-copy
+> library it feeds is byte-identical across all 146 registers afterwards, which is how the fix was checked.
 
 ## B · Instrument work the baselines depend on
 
-**B1 · `_MED_V` and `_LONG_V` are not hardened the way `_LABEL_V` was.** `_LABEL_V` was rewritten so its
+**~~B1 · `_MED_V` and `_LONG_V` are not hardened the way `_LABEL_V` was.~~ DONE.** Every pool's shortest
+member is now a hard case — `_LABEL_V` 6/6/7/8 glyphs, `_MED_V` 26/28/27/26, `_TITLE_V` 7-8, `_LONG_V`
+28/31/37 — and A3's 1467-render sweep at 1:1 across all nine presets ran against these pools. Original
+text: `_MED_V` and `_LONG_V` were not hardened the way `_LABEL_V` was. `_LABEL_V` was rewritten so its
 SHORTEST member is a hard case, because a pool with a soft member tests some registers softly at random,
 depending on which ordinal their prop lands on. The other two pools still contain short members.
 > **Acceptance:** every entry of each pool is at least as demanding as the one that exposed a real defect,
 > and a re-sweep at 1:1 still reports 0 (or the defects it finds are fixed).
 
-**B2 · `focusZ` is dead.** It occurs exactly once in the repository, in `validate.py`'s NaN-guard list: a
+**~~B2 · `focusZ` is dead.~~ DONE (`8e3837c`).** `grep -r focusZ` now finds only the comment in
+`validate.py` that records why the field was removed. Original text: `focusZ` is dead. It occurs exactly once in the repository, in `validate.py`'s NaN-guard list: a
 check on a field no renderer has ever read. The branch it sits in is now refused outright (`8e3837c`).
 > **Acceptance:** removed, and `grep -r focusZ` returns nothing.
 
-**B3 · A transient render failure is reported as a FINDING.** The props-file race is fixed (`8e3837c`), but
+**~~B3 · A transient render failure is reported as a FINDING.~~ DONE.** `text_safe_qa` retries a failed
+render once and reports a still-failing one as `(render FAILED twice — nothing was measured on this frame:
+…)`, which is a different sentence from a type finding. Original text: a transient render failure is
+reported as a FINDING. The props-file race is fixed (`8e3837c`), but
 a genuinely flaky render (a TCP reset) still lands in the report as though it were a type defect, and the
 reader cannot tell without re-running it.
 > **Acceptance:** a failed render is retried once before it is reported, and a still-failing one is reported
@@ -145,3 +174,15 @@ alternative risks correctness.**
 to `layout.ts` moves `VoiceSignal` 0.245 -> 0.246). Harmless against a 0.12 floor. Recorded in `fead316` so
 that a moved row is never read as evidence on its own. Treating it means coarsening the number or changing
 the manifest format, for no decision it would change.
+
+**D3 · The ink floor is a LIVE-ACTION number, and most of this library sits under it.** Measured from the
+committed sweep: **123 of 163 registers** are under `INK_FLOOR` (12%) on their own standalone render, and the
+median register is 5.0%. A film's ink is the median over its own frames, so clearing the floor takes a cast
+that is more than half drawn from the library's densest quarter — which nothing in the authoring path says.
+The floor is not being lowered and the instrument is not being changed: the reference films are not in the
+repo (`--reference` re-measures them from a directory the user supplies), so any change to what `ink` MEANS
+would silently invalidate the one calibration table this gate has, and a floor derived from the library's own
+median would accept the 4.3% film this gate was built to catch. What was wrong was the MESSAGE, which stopped
+at the number and left the author one move — the waiver. It now names `density_advice.py`, which reads the
+same sweep and answers the question the number raises. **Not changing the floor. The cost is a red gate on
+quiet films; the alternative is a gate that means nothing.**
