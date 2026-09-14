@@ -253,6 +253,27 @@ export const fitTextPx = (
  */
 const NO_LINE_START = /[、。，．：；！？）〕］｝〉》」』】〙〗〟'"｠»ー―‐–—～〜?!,.:;]/;
 
+/**
+ * Characters that may not END a line — the other half of the same rule, and it was left out for a session
+ * because it could not then be verified.
+ *
+ * It can now. Measured in the real browser, on the real bundled face (Noto Sans SC, 30px, a box exactly five
+ * glyphs wide), by asking Chrome where each glyph actually landed:
+ *
+ *     一二三四五六七八九      -> 2 lines:  一二三四五 / 六七八九
+ *     一二三四「五六七八九     -> 3 lines:  一二三四 / 「五六七八 / 九
+ *
+ * The same nine glyphs take one line MORE when an opening bracket falls where a line would have ended: the
+ * browser refuses to leave it there and carries it down onto the next line, and the glyph count no longer
+ * fits. Straight ASCII quotes are deliberately NOT here — measured on the same page, `一二三四"五六七"八九`
+ * breaks mid-run, because a straight quote can open or close and the rule does not apply to it.
+ *
+ * So an opening mark is glued to the glyph AFTER it, the mirror of the closing rule above. Like that one it
+ * can only ever predict the same number of lines or more, never fewer, which is the safe direction for
+ * anything sizing a reserve from it.
+ */
+const NO_LINE_END = /[（〔［｛〈《「『【〖〘｟«‘“([{]/;
+
 export const wrapLines = (
   text: string, px: number, width: number, opts: {adv?: number; track?: number; cjk?: number} = {},
 ): number => {
@@ -260,11 +281,31 @@ export const wrapLines = (
   const w = Math.max(1, width);
   const chars = [...String(text ?? '')];
   if (!chars.length) return 1;
-  // Glue every closing mark to the glyph before it, so the pair breaks as one — see NO_LINE_START.
+  // KINSOKU, BOTH HALVES. A closing mark is glued to the glyph BEFORE it and an opening mark to the glyph
+  // AFTER it, so each pair breaks as one unit — see NO_LINE_START / NO_LINE_END. Checked against the
+  // browser's own breaks on the real face: the model now reproduces its line CONTENTS, not only its count.
   const units: string[] = [];
+  let open = '';                                   // opening marks waiting for the glyph they open
   for (const ch of chars) {
-    if (units.length && NO_LINE_START.test(ch)) units[units.length - 1] += ch;
+    if (NO_LINE_END.test(ch)) { open += ch; continue; }
+    if (open) { units.push(open + ch); open = ''; }
+    else if (units.length && NO_LINE_START.test(ch)) units[units.length - 1] += ch;
     else units.push(ch);
+  }
+  // A string that ENDS on an opening mark has nothing to glue it to; it still has to be measured.
+  if (open) units.push(open);
+  // AND KINSOKU YIELDS TO OVERFLOW, which is what a browser does and what this function did not. A glued
+  // pair is an unbreakable unit only while the box can hold it: in a column narrower than two glyphs the
+  // browser has no legal break left and breaks inside the pair anyway. Measured before this line existed,
+  // on the fixture strings at px=18 in a 36px column: gluing turned 25 predicted lines into 24 — the glued
+  // pair overflowed an empty line and was counted as ONE. Predicting FEWER lines is the one direction a
+  // reserve must never be wrong in, and the comment above this block claimed it could not happen.
+  const room = w;
+  for (let i = units.length - 1; i >= 0; i--) {
+    const u = units[i];
+    if ([...u].length < 2) continue;
+    const uw = [...u].reduce((n, c) => n + (CJK_CH.test(c) ? cjk : adv) * px + track * px, 0);
+    if (uw > room) units.splice(i, 1, ...[...u]);
   }
   let lines = 1, used = 0, lastBreak = -1, sinceBreak = 0;
   for (const unit of units) {

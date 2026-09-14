@@ -136,10 +136,23 @@ _LABEL_V = ["自主循环运转", "持续稳定运行", "在授权目录动手",
 # is a label, in the pool that feeds `note`, `caption`, `tagline`, `answer`, `body` and every unnamed string
 # — so whichever register's ordinal landed on it was tested with a caption a third the length of a real one,
 # and a reserve sized for that passes. A pool is only as strong as its shortest member.
+# AND ONE OF THEM CARRIES AN OPENING BRACKET, which nothing in this fixture did until now. A line may not
+# END with one, so the browser carries it down — measured on the real face, the same nine glyphs take three
+# lines with `「` where a line would have ended and two without. `wrapLines` implements both halves of the
+# rule now; no fixture string exercised the second, so the sweep could not have caught it being wrong.
+#
+# WHERE THE BRACKET SITS IS THE WHOLE POINT, and the first string written here did not know that. It opened
+# `把「重复…`, two glyphs in — and a line can only END at that bracket in a column narrower than two glyphs,
+# which no register has. Swept against the rule turned off, across every realistic size (px 24-72, columns 4
+# to 20 glyphs wide), it changed the predicted line count in exactly ZERO of them: a fixture that exercises
+# nothing, which is the thing it was added to stop being. Moved to the middle of the sentence it changes 54.
+# It is deliberately the SAME sentence as the entry above it without the brackets, so the pool carries its
+# own control.
 _MED_V = [_MED,
           "它自己拆解任务、调用工具、改动文件，最后交出可验收的结果",
           "同样的输入框，同样的一段回答，变的是谁在动手做完这件事",
-          "重复三次以上的动作会被记下来，下一次不必再从头讲一遍"]
+          "重复三次以上的动作会被记下来，下一次不必再从头讲一遍",
+          "重复三次以上的动作会被记下来，「下一次」不必再从头讲一遍"]
 # TITLE had no pool of its own, so `_variant` fell through to searching every pool for the string by
 # MEMBERSHIP — and `_TITLE` is also the fourth entry of `_MED_V`, so varying a title silently handed it a
 # MED-length sentence. A role's variants belong to that role.

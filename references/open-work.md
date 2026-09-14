@@ -121,7 +121,7 @@ DENSITY, against floors of 0.0037 / 12% / 0.135 / 1.9%.
 ## B · Instrument work the baselines depend on
 
 **~~B1 · `_MED_V` and `_LONG_V` are not hardened the way `_LABEL_V` was.~~ DONE.** Every pool's shortest
-member is now a hard case — `_LABEL_V` 6/6/7/8 glyphs, `_MED_V` 26/28/27/26, `_TITLE_V` 7-8, `_LONG_V`
+member is now a hard case — `_LABEL_V` 6/6/7/8 glyphs, `_MED_V` 26/28/27/26/27, `_TITLE_V` 7-8, `_LONG_V`
 28/31/37 — and A3's 1467-render sweep at 1:1 across all nine presets ran against these pools. Original
 text: `_MED_V` and `_LONG_V` were not hardened the way `_LABEL_V` was. `_LABEL_V` was rewritten so its
 SHORTEST member is a hard case, because a pool with a soft member tests some registers softly at random,
@@ -143,13 +143,39 @@ reader cannot tell without re-running it.
 > **Acceptance:** a failed render is retried once before it is reported, and a still-failing one is reported
 > as a FAILURE distinct from a finding.
 
-**B4 · Kinsoku is implemented in half.** `wrapLines` now glues a closing mark to the glyph before it, so a
-line cannot OPEN with one (`a8ded7b`). The other half of the rule — a line may not END with an opening
-bracket or quote — is not implemented. It is left out deliberately: no string in the CJK fixture contains
-one, so adding it today could be neither verified against a rendered frame nor shown to be load-bearing by
-a mutation, and an unverified rule in the denominator of every Chinese reserve is worse than a known gap.
-> **Acceptance:** a fixture string carrying an opening bracket, a rendered frame showing the browser's own
-> break, and a test that goes red when the rule is disabled — in that order.
+**~~B4 · Kinsoku is implemented in half.~~ DONE 2026-09-15.** Both halves now: a closing mark is glued to
+the glyph BEFORE it and an opening mark to the glyph AFTER it. Done in the order the acceptance demanded,
+because the reason it was deferred was that it could not be verified — and now it can be.
+> **The browser's own break, measured.** Chrome, the real bundled face (Noto Sans SC), 30px, a box exactly
+> five glyphs wide, each glyph's line found by asking for its client rect:
+> ```
+> 一二三四五六七八九       -> 2 lines:  一二三四五 / 六七八九
+> 一二三四「五六七八九      -> 3 lines:  一二三四 / 「五六七八 / 九
+> 他说「先把这件事测一遍」再谈 -> 3 lines:  他说「先把 / 这件事测一 / 遍」再谈
+> 一二三四五「            -> 2 lines:  一二三四五 / 「
+> ```
+> The same nine glyphs take one line MORE when an opening bracket falls where a line would have ended. The
+> third case is the control — its bracket sits mid-line and costs nothing. `wrapLines` now reproduces the
+> browser's line CONTENTS on all four, not merely its counts.
+> **Straight ASCII quotes are deliberately excluded**, measured on the same page: `一二三四"五六七"八九`
+> breaks mid-run, because a straight quote can open or close and the rule does not apply to it.
+> **And the fixture now carries one** (`_MED_V`, `把「重复三次以上」的动作记下来…`): a rule no fixture
+> exercises is a rule the library sweep cannot catch being wrong, which is exactly why this half waited.
+> Five mutants — the rule disabled, the opening set emptied, a trailing mark dropped, the overflow yield
+> removed, the closing glue disabled — are all caught.
+> **AND THE SAFETY ARGUMENT FOR THE HALF THAT WAS ALREADY SHIPPING WAS FALSE.** "Gluing can only ever
+> predict the same number of lines or more, never fewer" was written in the source as the whole reason this
+> rule is safe in a reserve. A glued pair is unbreakable only while the column can HOLD it: in a narrower
+> one the browser has no legal break left and breaks inside the pair anyway, and `wrapLines` did not —
+> measured on the fixture strings at px=18 in a 36px column, gluing turned 25 predicted lines into 24.
+> Predicting FEWER is the one direction a reserve must never be wrong in. Kinsoku yields to overflow now,
+> and across 24,606 string x size combinations it never under-counts and adds a line in 1,034.
+> **The first fixture written for this exercised nothing**, and the first test written for it passed anyway.
+> The string opened `把「重复…`, two glyphs in — a line can only END there in a column narrower than two
+> glyphs, which no register has; across every realistic size it changed the count in ZERO of them. And
+> comparing against a naive per-glyph fill PASSED on that useless fixture, because its closing `」` was
+> moving the count by itself. The control is now the same string with the opening mark swapped for an
+> ordinary Han glyph — same length, same closing marks — so the only thing left is the opening rule.
 
 **~~B5 · Six hashes updated without a measurement beside them.~~ NOT WHAT HAPPENED — and the real cause is
 worse. DONE 2026-09-14.** The manifest was honest: every row had been freshly measured. The reason is that
@@ -233,6 +259,15 @@ All three of the peer study's depth hand-offs now exist here.
 
 **C3 · `stage3d` reaches 2 of 164 registers.** `SpatialSlides` and `WordTunnel`. A stage with two things on
 it is not yet a language.
+> **AND THE OBVIOUS SHORTCUT IS REFUTED, measured before it was taken.** Five registers hand-roll their own
+> 3D (`CubeRotate`, `CardFlip3D`, `CardStack3D`, `FractureIn`, `GlowPick`), and `CubeRotate` puts its TYPE
+> directly on `rotateY()/translateZ()` faces — exactly what `stage3d`'s header forbids, so migrating it
+> looked like reach and a defect fix in one. It is not a defect fix: at 3x nearest-neighbour zoom the front
+> face's type is visibly crisp, and the A/B (`scripts/type_sharpness.py CubeRotate --ab=…`, removing the
+> container's perspective so the same face composites in 2D) gains **6.6%** edge strength — against the 38%
+> the peer-derived case recorded for `perspective(1200px) translateZ(50px)`, and part of even that 6.6% is
+> the type being smaller once it is no longer magnified 1.187x. Converting healthy registers buys
+> maintainability, not pixels. Reach has to come from registers whose ARGUMENT needs a posed stage.
 
 ## D · Decided, deliberately not changed
 

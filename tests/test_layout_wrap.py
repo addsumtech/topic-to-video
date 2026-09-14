@@ -173,6 +173,125 @@ def test_the_prediction_side_asks_the_face_too():
     assert r["mono"] > r["prop"]
 
 
+def test_a_line_may_not_END_with_an_opening_mark():
+    """The other half of kinsoku, and it was left out of the first pass DELIBERATELY: no string in the CJK
+    fixture carried an opening bracket, so a rule added then could be neither verified against a rendered
+    frame nor shown to be load-bearing, and an unverified rule in the denominator of every Chinese reserve is
+    worse than a known gap.
+
+    It can be verified now, and these are the browser's OWN numbers — Chrome, the real bundled face (Noto
+    Sans SC), 30px, a box exactly five glyphs wide, each glyph's line found by asking for its client rect:
+
+        一二三四五六七八九       -> 2 lines:  一二三四五 / 六七八九
+        一二三四「五六七八九      -> 3 lines:  一二三四 / 「五六七八 / 九
+        他说「先把这件事测一遍」再谈 -> 3 lines:  他说「先把 / 这件事测一 / 遍」再谈
+
+    The same nine glyphs take one line MORE when an opening bracket falls where a line would have ended: the
+    browser refuses to leave it there, carries it down, and the glyphs no longer fit. The third case is the
+    control — its bracket sits mid-line, so the rule must not cost it anything.
+    """
+    r = run_probe("""
+      const px = 30, W = 158;                     // five glyphs at this library's 1.05em CJK advance
+      out.openOnly  = L.wrapLines('一二三四「五六七八九', px, W);
+      out.plain     = L.wrapLines('一二三四五六七八九', px, W);
+      out.real      = L.wrapLines('他说「先把这件事测一遍」再谈', px, W);
+      out.realPlain = L.wrapLines('他说先把这件事测一遍然后再谈', px, W);
+      // A string that ENDS on an opening mark has nothing to glue it to and still has to be MEASURED. Five
+      // glyphs fill the box exactly, so the mark's own width is the whole difference between one line and
+      // two — the browser draws 一二三四五 / 「, and a version that dropped the unmatched mark would say 1.
+      out.trailing  = L.wrapLines('一二三四五「', px, W);
+      out.trailPlain = L.wrapLines('一二三四五', px, W);
+    """)
+    assert r["openOnly"] == 3, (
+        "an opening bracket at a line end counted %r lines; the browser drew 3" % r["openOnly"])
+    assert r["plain"] == 2, (
+        "the same nine glyphs WITHOUT the bracket counted %r — the rule must not inflate every string" % r["plain"])
+    assert r["openOnly"] > r["plain"], "the bracket made no difference, so the rule is not reaching the wrap"
+    assert r["real"] == 3 and r["realPlain"] == 3, (
+        "a bracket that sits mid-line must cost nothing: %r vs %r" % (r["real"], r["realPlain"]))
+    assert r["trailPlain"] == 1, "the control moved: %r" % r["trailPlain"]
+    assert r["trailing"] == 2, (
+        "a trailing opening mark was dropped instead of measured (%r) — the browser draws 一二三四五 / 「"
+        % r["trailing"])
+
+
+def test_the_CJK_fixture_carries_a_bracket_THAT_THE_RULE_ACTUALLY_BITES_ON():
+    """A rule no fixture exercises is a rule the library sweep cannot catch being wrong. And a fixture that
+    merely CONTAINS a bracket is not one that exercises it: the first string written for this opened
+    `把「重复…`, two glyphs in — and a line can only END at that bracket in a column narrower than two
+    glyphs, which no register has. Swept against the rule turned off, across every realistic size, it
+    changed the predicted line count in exactly ZERO of them. The fixture that replaced it changes 54.
+
+    ISOLATED TO THE OPENING HALF. Comparing against a naive per-glyph fill is not enough — the first
+    attempt at this test did that and PASSED on the useless fixture, because its closing `」` was moving
+    the count all by itself. So the control is the same string with the opening mark replaced by an
+    ordinary Han glyph: same length, same closing marks, same everything else. Any difference left is the
+    opening rule and nothing else.
+    """
+    import cjk_type_qa as q
+    pools = [q._LABEL_V, q._MED_V, q._TITLE_V, q._LONG_V]
+    bracketed = [s for pool in pools for s in pool if "\u300c" in s or "\uff08" in s]
+    assert bracketed, "no CJK fixture string carries an opening bracket, so no sweep exercises the rule"
+    # \u53e3 is a full-width Han glyph, so the control differs ONLY in whether the mark opens something.
+    controls = [s.replace("\u300c", "\u53e3").replace("\uff08", "\u53e3") for s in bracketed]
+    r = run_probe("""
+      const A = %s, B = %s;
+      const rows = [];
+      for (let i = 0; i < A.length; i++)
+        for (let px = 24; px <= 72; px += 8)
+          for (let W = px * 4; W <= px * 20; W += Math.max(4, Math.round(px / 4))) {
+            const w = Math.round(W);
+            rows.push([i, px, w, L.wrapLines(A[i], px, w), L.wrapLines(B[i], px, w)]);
+          }
+      out.rows = rows;
+    """ % (json.dumps(bracketed, ensure_ascii=False), json.dumps(controls, ensure_ascii=False)))
+    differs = [row for row in r["rows"] if row[3] != row[4]]
+    assert differs, (
+        "no fixture string's OPENING bracket changes its line count at any realistic size — replacing the "
+        "mark with an ordinary glyph gives the same answer everywhere, so the sweep exercises the closing "
+        "half of the rule and never the opening one")
+    assert all(row[3] >= row[4] for row in r["rows"]), (
+        "an opening bracket made a string take FEWER lines than the same string without one")
+
+
+def test_kinsoku_YIELDS_TO_OVERFLOW_and_so_can_never_under_count():
+    """The whole safety argument for both halves of this rule is one sentence: gluing can only ever predict
+    the same number of lines or MORE, never fewer, because a reserve that is too tall is a wasted margin and
+    one that is too short is type in the caption band. That sentence was written in the source and was FALSE.
+
+    A glued pair is unbreakable only while the column can hold it. In one narrower than the pair the browser
+    has no legal break left and breaks inside it anyway — and this function did not, so it counted the
+    overflowing pair as a single line. Measured on the fixture strings at px=18 in a 36px column before the
+    fix: gluing turned 25 predicted lines into 24.
+
+    So the property is pinned directly, against a pure per-glyph fill, at widths that include columns
+    narrower than one glued pair.
+    """
+    import cjk_type_qa as q
+    strings = [s for pool in (q._LABEL_V, q._MED_V, q._TITLE_V, q._LONG_V) for s in pool]
+    r = run_probe("""
+      const S = %s;
+      out.adv = L.CJK_FIT_ADVANCE;
+      const rows = [];
+      for (const s of S) for (const px of [18, 30, 48])
+        for (const mul of [1.2, 1.6, 2.0, 2.4, 3.0, 4.0, 6.0, 10.0, 16.0]) {
+          const W = Math.round(px * mul);
+          rows.push([s.length, px, W, L.wrapLines(s, px, W)]);
+        }
+      out.rows = rows;
+    """ % json.dumps(strings, ensure_ascii=False))
+    import math
+    under = []
+    for n, px, W, got in r["rows"]:
+        per_line = max(1, int(W // (px * r["adv"])))
+        naive = math.ceil(n / per_line)
+        if got < naive:
+            under.append((n, px, W, got, naive))
+    assert not under, (
+        "kinsoku predicted FEWER lines than a per-glyph fill — a reserve sized from this is SHORT, which "
+        "puts type in the caption band: %r" % (under[:4],))
+
+
 def test_a_line_may_not_open_with_a_closing_mark():
     """CJK kinsoku: `wrapLines` broke "between any two glyphs", which is what the SCRIPT allows and not what
     a browser does.
