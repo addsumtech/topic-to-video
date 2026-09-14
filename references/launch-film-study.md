@@ -570,7 +570,10 @@ comparison is like for like rather than an impression.
    an argument.
 3. **Every seam we ship is planar.** Three of their six hand-off recipes are built on depth: through-dark
    flight, focus relay (the focal plane IS the cut point), portal wipe. Their stated bar: "no acclaimed
-   launch film cuts bare, ever." The focus relay has since been borrowed — see Film.tsx FocusRelayPresentation.
+   launch film cuts bare, ever." ALL THREE have since been built — see Film.tsx FocusRelayPresentation,
+   ThroughDarkPresentation and PortalPresentation. Only the focus relay's PARAMETERS were recorded in this
+   study (their case law was quoted verbatim); the other two were recorded by name only and the library is
+   no longer on disk, so their numbers are derived here and their headers say so.
 
 ### The form of their documentation is itself a capability
 

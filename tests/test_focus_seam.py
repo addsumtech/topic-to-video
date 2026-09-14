@@ -20,6 +20,8 @@ so a storyboard asking for it was silently downgraded — the same "built but un
 import os
 import re
 
+import pytest
+
 import render_remotion as rr
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(rr.__file__)))
@@ -66,13 +68,37 @@ def test_the_focus_carries_the_cut_not_the_opacity():
 
 def test_the_planner_routes_a_CROSSING_payoff_to_it():
     """Before this, every seam that crossed a dark/light boundary collapsed to the same carry whatever it was
-    claiming. A payoff says 'this became that', and focus is the crossing form that still says it."""
+    claiming. A payoff says 'this became that', and focus is the crossing form that still says it.
+
+    Checked by RUNNING the planner, not by grepping its source. The first version of this test asserted the
+    exact ternary the routing was written as, so the day a third crossing route was added — a `new-topic`
+    going to the through-dark flight — the assertion failed on a correct change and said nothing about
+    whether the payoff still routes anywhere. A test that pins the spelling of a line pins the wrong thing."""
     import seam_plan as sp
     assert sp.CROSSING_PAYOFF_SEAM == {"type": "focus"}
-    src = open(sp.__file__, encoding="utf-8").read()
-    assert 'CROSSING_PAYOFF_SEAM if rel == "payoff" else CROSSING_SEAM' in src
+    dark, light = _crossing_pair()
+    if not (dark and light):
+        pytest.skip("no dark/light pair in the library to build a crossing seam from")
+    got = sp.plan(_board(light, dark, 15, "payoff")).get(15)
+    assert got and got["type"] == "focus", "a crossing payoff no longer routes to the relay: %r" % (got,)
 
 
 def test_it_is_registered_in_the_scene_type_and_the_switch():
     assert "| 'focus'" in FILM, "SceneSpec.transitionIn does not admit it"
     assert "case 'focus': return focusRelay();" in FILM
+
+
+def _crossing_pair():
+    """One dark register and one light one, taken from the library rather than named here."""
+    import shot_director as sd
+    dark = next((n for n in sd.PROVENANCE if sd.shot_luma(n) == "dark"), None)
+    light = next((n for n in sd.PROVENANCE if sd.shot_luma(n) == "light"), None)
+    return dark, light
+
+
+def _board(base, other, at, relation):
+    """A 30-beat film that is one luminance throughout except for beat `at`, which crosses."""
+    slides = [{"shot": base, "relation": "continuation"} for _ in range(30)]
+    slides[0]["relation"] = "open"
+    slides[at] = {"shot": other, "relation": relation}
+    return slides

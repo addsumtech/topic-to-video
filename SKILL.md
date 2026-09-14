@@ -127,6 +127,17 @@ TTS if the user gives an API key.
   than adding any — so it is one of the two seams (with `carry`) allowed across a dark↔light boundary,
   and `seam_plan` routes a CROSSING `payoff` to it. Borrowed, with its parameters, from the
   video-shotcraft library's hand-off case law.
+  **The other two DEPTH seams — `transition_in:{type:'through-dark'}` and `{type:'portal'}`:** a FLIGHT
+  through darkness (the leaving beat recedes and its light goes out, the frame passes through black, the
+  next subject comes forward out of it) and a PORTAL (an aperture opens on the composition's own centre and
+  the next beat is already behind it at full size while the leaving one scales past the lens). The flight is
+  the THIRD seam allowed across a dark↔light boundary, and it earns it most strongly of the three: the two
+  beats never carry light at the same time, so no bright frame is ever added to a dark one — `seam_plan`
+  routes a CROSSING `new-topic` to it, because a bridge line claims continuity and a chapter break is
+  claiming the opposite. The portal is deliberately NOT exempt: a bright aperture opening on a dark field is
+  precisely the flash the guard refuses, so on a crossing seam it is rewritten to the fade. Only their NAMES
+  were recorded in the peer study, so unlike the focus relay their parameters are derived here — see the
+  headers in `Film.tsx`. Aliases for `transition_style`: `flight`/`through-black`, `aperture`.
   **Transition STYLE — `meta.transition_style`** (`dip` default | `fadethrough` studio-timed dip |
   `drift` breath-with-direction | `push` horizontal page-push | `lift` vertical page-turn | `wipe`
   bg-sheet sweep | `blur` rack-defocus coda): what a seam LOOKS like, chosen ONCE per deck from the

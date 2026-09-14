@@ -20,6 +20,10 @@ So the intent the storyboard ALREADY carries is translated into seams here. Ever
   payoff     → `dissolve`  setup and result share the screen for a moment: THIS became THAT
   close      → `carry`     the last move reads as continuity, not as one more swap
 
+...and across a dark↔light boundary, where the plane seams are refused, each relation keeps its claim in a
+seam that cannot flash: a `payoff` becomes `focus`, a `new-topic` becomes `through-dark` (out through black
+and in again, which is what a chapter break is saying), everything else the `carry`.
+
 `continuation` is never marked. Most cuts should be invisible; a marked seam only means something while
 it stays rare, which is why the budget is 2 on a short film and 3 on a long one, never per-chapter.
 
@@ -172,6 +176,14 @@ CROSSING_SEAM = {"type": "carry"}
 # A CROSSING seam on a `payoff`, where a dissolve would be forced back to a plain fade: the argument lands,
 # and the focus carrying from one frame to the next is a stronger claim than a cross-fade anyway.
 CROSSING_PAYOFF_SEAM = {"type": "focus"}
+# ...and a CROSSING `new-topic`, which used to become the carry along with everything else. A chapter break
+# is the one relation that means "we are leaving this behind", and `through-dark` says exactly that in the
+# same register the relation is in: the leaving beat recedes and its light goes out, the frame passes
+# through black, the next subject comes forward out of it. It earns the crossing exemption the same way the
+# other two do and more strongly — the two beats never carry light at the same time, so there is no instant
+# where a bright frame is added to a dark one. A bridge line is a claim of CONTINUITY, which is the opposite
+# of what a chapter break across a light boundary is claiming.
+CROSSING_NEW_TOPIC_SEAM = {"type": "through-dark"}
 
 MIN_GAP = 5          # beats between two marked seams, so a mark stays punctuation
 _LUM_RANK = {"dark": 0, "mid": 1, "light": 2}
@@ -234,10 +246,13 @@ def plan(slides, dna=None):
             # because racking focus redistributes light rather than adding any. Everything else that crosses
             # becomes the carry, whose bridge line IS the dip. Before this, every crossing seam collapsed to
             # the same carry whatever it was claiming.
-            seam = dict(CROSSING_PAYOFF_SEAM if rel == "payoff" else CROSSING_SEAM)
-            why = ("payoff across a dark/light boundary — focus relay carries the eye through the cut "
-                   "without a flash" if rel == "payoff" else
-                   "%s across a dark/light boundary — carry is the seam whose bridge line IS the dip" % rel)
+            seam = dict({"payoff": CROSSING_PAYOFF_SEAM,
+                         "new-topic": CROSSING_NEW_TOPIC_SEAM}.get(rel, CROSSING_SEAM))
+            why = {"payoff": "payoff across a dark/light boundary — focus relay carries the eye through the "
+                             "cut without a flash",
+                   "new-topic": "new-topic across a dark/light boundary — the flight leaves through black, "
+                                "which is what a chapter break claims anyway"}.get(
+                rel, "%s across a dark/light boundary — carry is the seam whose bridge line IS the dip" % rel)
         else:
             seam = dict(seam)
             why = {"new-topic": "opens outward onto a different subject",

@@ -30,11 +30,15 @@ _TRANSITION_STYLE = {
     "clock": {"type": "clock"}, "clockwipe": {"type": "clock"}, "clock-wipe": {"type": "clock"},
     "dissolve": {"type": "dissolve"},
     "carry": {"type": "carry"}, "collapse": {"type": "carry"}, "line": {"type": "carry"}, "match-cut": {"type": "carry"},
+    # the other two DEPTH seams. Named by what they DO, with the aliases an author is likely to reach for.
+    "through-dark": {"type": "through-dark"}, "flight": {"type": "through-dark"},
+    "through-black": {"type": "through-dark"},
+    "portal": {"type": "portal"}, "aperture": {"type": "portal"},
 }
-# `focus` is the depth seam (Film.tsx FocusRelayPresentation) — the rack-focus hand-off. It belongs here or
-# a storyboard that asks for it is silently downgraded to a fade, which is the exact "built but unreachable"
-# failure this file's `transition_in` docstring was written about.
-_KINETIC_TYPES = {"slide", "wipe", "clock", "dissolve", "carry", "focus"}
+# `focus`, `through-dark` and `portal` are the DEPTH seams (Film.tsx). They belong here or a storyboard that
+# asks for one is silently downgraded to a fade, which is the exact "built but unreachable" failure this
+# file's `transition_in` docstring was written about — and it has already cost this repo two deliveries.
+_KINETIC_TYPES = {"slide", "wipe", "clock", "dissolve", "carry", "focus", "through-dark", "portal"}
 
 
 # The runtime's own settled point, parsed from motion.ts so the two cannot drift: a keyframe must be the

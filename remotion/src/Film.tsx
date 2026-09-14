@@ -15,8 +15,10 @@ import {slide} from '@remotion/transitions/slide';
 import {wipe} from '@remotion/transitions/wipe';
 import {clockWipe} from '@remotion/transitions/clock-wipe';
 import {captionBand, CAPTION_SIZE_FRAC, CAPTION_MARGIN_FRAC, CAPTION_LINES,
-        CAPTION_LEAD, CAPTION_LEAD_CJK, cjkAdvance, latinAdvance} from './runtime/layout';
-import {SceneDurationContext, ReducedMotionContext, clamp01, SEAM_FRAMES} from './runtime/motion';
+        CAPTION_LEAD, CAPTION_LEAD_CJK, cjkAdvance, latinAdvance,
+        CONTENT_TOP, contentBottom} from './runtime/layout';
+import {SceneDurationContext, ReducedMotionContext, clamp01, SEAM_FRAMES,
+        easeOutCubic} from './runtime/motion';
 import {NarrationContext} from './runtime/voice';
 import {groundLum, dnaGroundLum, dnaGroundY, groundGap, HARSH_GROUND_GAP, lumValue, lumFromY,
         type Lum, type GroundColors} from './runtime/shotLuma';
@@ -50,7 +52,8 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // A MARKED seam (chapter break): the transition INTO this scene from the previous one. Optional +
   // remotion-only; unset = the luminance-safe default (a gentle cross-fade). A kinetic type is honored only
   // on a same/near-luminance seam — across a dark↔light gap it's suppressed back to fade (see pickPresentation).
-  transitionIn?: {type: 'fade' | 'slide' | 'wipe' | 'clock' | 'dissolve' | 'carry' | 'focus'; direction?: string};
+  transitionIn?: {type: 'fade' | 'slide' | 'wipe' | 'clock' | 'dissolve' | 'carry' | 'focus'
+    | 'through-dark' | 'portal'; direction?: string};
   // A MOTIVATED camera move for THIS beat: `push` (look closer at what is here), `pull` (here is the whole
   // of it), `hold` (most beats). Optional; absent = hold. This is not the film-wide ambient drift below —
   // that one had no relationship to anything being said, which is precisely why it read as a wobble.
@@ -444,6 +447,101 @@ const FocusRelayPresentation = ({presentationProgress: p, presentationDirection,
 };
 const focusRelay = (): TransitionPresentation<any> => ({component: FocusRelayPresentation, props: {}});
 
+// ── THROUGH-DARK FLIGHT — the second of the peer library's three DEPTH hand-offs ────────────────────────
+//
+// The leaving beat recedes and the light goes out of it; the frame passes through black; the arriving beat
+// comes forward out of that dark. What the eye follows across the cut is one continuous flight through an
+// unlit space, which is a thing a camera does and a page cannot.
+//
+// WHAT WAS BORROWED AND WHAT WAS NOT. The peer study recorded this seam's NAME and nothing else: the focus
+// relay's parameters were quoted verbatim in that study ("前景 blur 0→8px…两景错开 2–4f 起跑") and these
+// were not, and the library is no longer on disk to re-read. So the numbers below are DERIVED here, and the
+// derivation is the argument — not a figure presented as if it had been measured somewhere else.
+//
+// THE DEFINING PROPERTY, from which everything else follows: the two beats never carry light at the same
+// time. A cross-fade superimposes two images; a portal shows both at once through a hole. Here, at every
+// instant, at most one of them is lit. That is what makes it the one kinetic seam that is safe across a
+// dark/light gap — it cannot flash, because there is no moment where a bright frame is added to a dark one.
+// It is also why the two ramps OVERLAP by a hair rather than leaving a gap: with an overlap the frame is
+// fully black for about one frame of a twelve-frame seam, which reads as passing through darkness; with a
+// gap it would HOLD on black, and a held black frame in four tenths of a second is a dropout, not a flight.
+const FLIGHT_CROSS = 0.52;             // the leaving beat is dark by here; the arriving one starts at 1 - it
+const FLIGHT_AWAY = 0.82;              // how far the leaving beat recedes
+const FLIGHT_TOWARD = 1.26;            // how far out the arriving beat starts
+const ThroughDarkPresentation = ({presentationProgress: p, presentationDirection, children}: any) => {
+  const isEnter = presentationDirection === 'entering';
+  const c = {extrapolateLeft: 'clamp' as const, extrapolateRight: 'clamp' as const};
+  // Eased in on the way out (accelerating away into the dark) and eased out on the way in (decelerating into
+  // place) — the shape of one move seen from two ends, rather than two fades pointed at each other.
+  // `easeInCubic` is written out rather than imported: `runtime/motion` has the OUT curve and not the IN
+  // one, and adding an export there marks all 104 registers that import it stale in `register_energy`
+  // (open-work D1) — half an hour of re-measuring for a one-line curve that only this file uses.
+  const raw = isEnter
+    ? interpolate(p, [1 - FLIGHT_CROSS, 1], [0, 1], c)
+    : interpolate(p, [0, FLIGHT_CROSS], [0, 1], c);
+  const q = isEnter ? easeOutCubic(raw) : raw * raw * raw;
+  const bright = isEnter ? q : 1 - q;
+  const scale = isEnter ? FLIGHT_TOWARD + (1 - FLIGHT_TOWARD) * q : 1 + (FLIGHT_AWAY - 1) * q;
+  return (
+    <AbsoluteFill style={{filter: `brightness(${bright.toFixed(4)})`,
+      transform: `scale(${scale.toFixed(4)})`, transformOrigin: 'center'}}>
+      {children}
+    </AbsoluteFill>
+  );
+};
+const throughDark = (): TransitionPresentation<any> => ({component: ThroughDarkPresentation, props: {}});
+
+// ── PORTAL WIPE — the third of the three, and the one that is NOT luminance-safe ────────────────────────
+//
+// An aperture opens where the beat was looking and the next beat is already behind it, at full size, while
+// the leaving beat scales past the lens. The camera goes THROUGH the frame rather than replacing it.
+//
+// THE MASK IS THE REVEAL, AND THE ARRIVING BEAT NEVER FADES. An opacity ramp under an opening aperture is a
+// dissolve with a shape on it; what makes this read as a portal is that the incoming frame is fully present
+// from the first pixel the aperture uncovers.
+//
+// IT OPENS ON THE CONTENT ZONE'S CENTRE, NOT THE FRAME'S. Every register in this library composes inside
+// `CONTENT_TOP..contentBottom` because the strip below belongs to the burned caption, so the frame's own
+// centre sits low of everything a viewer is looking at — by 90px at 16:9 and 190px at 9:16. An aperture
+// opening from there starts on the caption band and grows off-centre against the composition.
+//
+// AND IT IS DELIBERATELY NOT IN `CANNOT_FLASH`. A bright disc opening on a dark field is precisely the
+// brightness jump the luminance guard exists to refuse, so on a dark/light seam this is rewritten to the
+// gentle fade like every other kinetic seam. Only the through-dark flight earns the exemption, and it earns
+// it by never lighting both beats at once.
+const PORTAL_PUSH = 1.4;               // how far the leaving beat scales as the camera passes through it
+const PortalPresentation = ({presentationProgress: p, presentationDirection, children, passedProps}: any) => {
+  const isEnter = presentationDirection === 'entering';
+  const c = {extrapolateLeft: 'clamp' as const, extrapolateRight: 'clamp' as const};
+  const W = Number(passedProps?.W) || 1920, H = Number(passedProps?.H) || 1080;
+  const cy = (CONTENT_TOP + contentBottom(W, H)) / 2;
+  // The radius that covers the whole frame from that centre: the furthest corner, which is the bottom one
+  // because the centre sits above the middle. Measured rather than assumed — a radius taken from the frame
+  // centre leaves an uncovered sliver along the bottom edge at 9:16.
+  const far = Math.hypot(Math.max(W - W / 2, W / 2), Math.max(H - cy, cy));
+  const r = easeOutCubic(p) * far;
+  if (!isEnter) {
+    // The leaving beat holds its light until the aperture has taken most of the frame; a long fade under an
+    // opening portal is the dissolve this seam exists not to be.
+    const op = interpolate(p, [0.62, 0.96], [1, 0], c);
+    const scale = 1 + (PORTAL_PUSH - 1) * p * p * p;
+    return (
+      <AbsoluteFill style={{opacity: op, transform: `scale(${scale.toFixed(4)})`,
+        transformOrigin: `50% ${((cy / H) * 100).toFixed(2)}%`}}>{children}</AbsoluteFill>
+    );
+  }
+  // A 1.5% feather on the aperture's edge: a hard stop aliases into a visibly stepped circle at 1080, and
+  // this edge is the one thing on the frame the eye is following.
+  const soft = Math.max(1, r * 0.015);
+  const mask = `radial-gradient(circle ${(r + soft).toFixed(1)}px at 50% ${cy.toFixed(1)}px, `
+    + `#000 ${Math.max(0, r - soft).toFixed(1)}px, transparent ${(r + soft).toFixed(1)}px)`;
+  return (
+    <AbsoluteFill style={{WebkitMaskImage: mask, maskImage: mask}}>{children}</AbsoluteFill>
+  );
+};
+const portal = (W: number, H: number): TransitionPresentation<any> =>
+  ({component: PortalPresentation, props: {W, H}});
+
 // DNA-native DEFAULT seam (Motion grammar): an UNMARKED seam on a themed film becomes the STYLE's native action
 // instead of a generic fade — the analogue of the surface/grammar split for TIME. terminal → screen-clear;
 // product → a soft push; editorial/blueprint → a directional wipe (a page/sheet turn); else the gentle fade.
@@ -511,7 +609,11 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
   // the display-encoded distance when both grounds resolve, and keep the bucket rule as the fallback.
   const gap = groundGap(dnaGroundY(prev.shot, prevG), dnaGroundY(next.shot, nextG));
   const harsh = gap === null ? dLum >= 2 : gap >= HARSH_GROUND_GAP;
-  const CANNOT_FLASH = new Set(['carry', 'focus']);
+  // `through-dark` earns the same exemption for a third reason, and the strongest of the three: the two
+  // beats never carry light at the same time, so there is no instant where a bright frame is added to a
+  // dark one. `portal` is deliberately NOT here — a bright aperture opening on a dark field is precisely
+  // the brightness jump this guard exists to refuse.
+  const CANNOT_FLASH = new Set(['carry', 'focus', 'through-dark']);
   const t = (harsh && !CANNOT_FLASH.has(want)) ? 'fade' : want;
   const dir = next.transitionIn?.direction;
   // MOTION GRAMMAR: an UNMARKED (default) seam becomes the DNA's native action on a luminance-safe cut (a themed
@@ -534,8 +636,10 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
     // cream ground it disappeared entirely, leaving a collapse to nothing. Contrast-picked: the accent
     // on a light ground (it is the film's own emphasis colour), a pale neutral on a dark one.
     case 'carry': return carry(carryLine(nextG as SeamColors | null), nextG?.bg ?? undefined);
-    // the only seam in this vocabulary that happens in DEPTH rather than in the plane — see FocusRelay
+    // the three seams that happen in DEPTH rather than in the plane — see their own headers above
     case 'focus': return focusRelay();
+    case 'through-dark': return throughDark();
+    case 'portal': return portal(W, H);
     default: return fade();
   }
 };

@@ -2610,8 +2610,18 @@ def test_the_cut_vocabulary_actually_reaches_the_storyboard():
         cross[0]["relation"] = "open"
         cross[15] = {"shot": dark, "relation": "new-topic"}
         got = sp.plan(cross).get(15)
-        assert got and got["type"] == "carry", (
-            "a mark across a dark/light boundary must be the carry, not %r — the guard discards the rest" % got)
+        # THE INVARIANT IS THE GUARD'S OWN SET, NOT ONE SEAM'S NAME. This asserted `carry` literally, which
+        # was right while the carry was the only crossing route and wrong the moment a second and a third
+        # were added (`focus` for a payoff, `through-dark` for a chapter break). What must never happen is a
+        # crossing mark the guard DISCARDS, so the exempt set is read out of Film.tsx and the test cannot
+        # drift from the guard it is about.
+        film = open(os.path.join(root, "remotion", "src", "Film.tsx"), encoding="utf-8").read()
+        m_exempt = re.search(r"CANNOT_FLASH = new Set\(\[([^\]]*)\]\)", film)
+        assert m_exempt, "Film.tsx no longer declares which seams survive a dark/light seam"
+        exempt = set(re.findall(r"'([a-z-]+)'", m_exempt.group(1)))
+        assert got and got["type"] in exempt, (
+            "a mark across a dark/light boundary must be one the guard exempts (%s), not %r — everything "
+            "else is silently discarded, which looks like the planner did nothing" % (sorted(exempt), got))
 
 
 def test_validate_notices_a_film_that_never_uses_its_own_cuts():

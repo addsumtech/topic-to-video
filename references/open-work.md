@@ -183,8 +183,23 @@ energy 0.0042 motion / 2.2% ink.
 > `direction?: 'in' | 'out'` to `string`, so the compiler cannot hold the prop to its own declared type.
 > `in` and `out` are opposite arguments, so it throws rather than picking one.
 
-**C2 · Depth seams — gap 3, untouched.** Three of their six hand-off recipes are built on depth; only the
-focus relay has been borrowed. `through-dark flight` and `portal wipe` do not exist here.
+**~~C2 · Depth seams — gap 3.~~ DONE 2026-09-14.** `ThroughDarkPresentation` and `PortalPresentation` in
+`Film.tsx`, reachable from a board (`_KINETIC_TYPES` + `_TRANSITION_STYLE` aliases) and routed by the planner
+(a CROSSING `new-topic` now takes the flight instead of collapsing to the carry with everything else — a
+bridge line claims continuity, which is the opposite of what a chapter break across a light boundary says).
+All three of the peer study's depth hand-offs now exist here.
+> **MEASURED ON A RENDERED THREE-BEAT FILM.** Across the through-dark seam the frame's mean luminance ran
+> 0.068 -> 0.016 -> 0.013 -> **0.010** (frame max 0.14 — the picture is black) -> 0.040 -> 0.070. A
+> cross-fade between two dark beats holds near 0.07 the whole way, so the dip is the flight and not a fade
+> wearing its name.
+> **And the first portal run verified the GUARD, not the seam.** Beat 3 was an accent flood, so the seam
+> crossed a dark/light boundary and was correctly rewritten to a fade — what got measured was a fade's
+> smooth monotone ramp, 0.079 -> 0.566. Re-run between two dark beats it renders as a portal: the incoming
+> beat at the centre at full size, the outgoing one still in the corners and scaled past the lens. Reporting
+> the first run as "the portal works" would have been a claim resting on evidence that never touched it.
+> **What is derived and what is borrowed.** The focus relay's parameters were quoted verbatim in the peer
+> study; these two were recorded by NAME only and the library is no longer on disk, so their numbers are
+> derived here and their headers say so rather than dressing them as measurements taken elsewhere.
 
 **C3 · `stage3d` reaches 2 of 164 registers.** `SpatialSlides` and `WordTunnel`. A stage with two things on
 it is not yet a language.
