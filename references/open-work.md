@@ -46,11 +46,20 @@ That is 17 runs, not 45, and every one of them measures something the others can
 
 ## A · Baselines never established
 
-**A1 · Chinese x the four remaining aspects, sans face.** 1:1 is done (163 registers, 0 findings, `8e3837c`).
-9:16, 4:5, 4:3 and 16:9 have never been swept against the corrected fixture.
-> **Evidence:** the corrected fixture found `BrutalistType` 476px into the band and `TermThink` 20px in, at
-> 1:1 alone, within minutes of existing.
-> **Acceptance:** `text_safe_qa --library --cjk --aspect=<A>` reports 0 for each of the four.
+**~~A1 · Chinese x all five aspects, sans face.~~ DONE 2026-09-14 03:41.** `text_safe_qa --library --cjk
+--all-aspects` on the frozen fixture: 16:9, 9:16, 1:1, 4:5 and 4:3, **163 registers, 0 findings each, and
+zero render-failure lines** across 815 renders.
+> **What establishing it cost, which is the point of having done it.** Three real defects and three
+> instrument defects, none of which existed in a world swept only at 16:9 under `product`:
+> `RealVersus` (line count by ratio, capped at 3, settled in two passes that do not converge);
+> `wrapLines` missing kinsoku — a line may not OPEN with a closing mark, so every Chinese reserve in the
+> library divided by a number one line short; `PlanPalimpsest`'s legend clamp with an upper bound and no
+> lower one, feeding back into its own column width and lifting the block off the top of the frame.
+> Instrument side: pools whose shortest member was soft (`_LABEL_V` at 4 glyphs, `_MED_V` at 8), roles
+> matched on the whole name so 27 props were handed body copy where a label belongs, and a fixed scratch
+> path that made two concurrent sweeps invent findings at about one register in twenty.
+> **The zero render-failure count is itself evidence:** 815 renders, none flaky, against roughly one in
+> twenty before the props-file race was fixed.
 
 **A2 · Chinese under the SERIF CJK face.** Every CJK sweep so far has run `product`, i.e. Noto Sans SC.
 `editorial` and `cinematic` ship Noto Serif SC, a different cut with different ink-box proportions.
