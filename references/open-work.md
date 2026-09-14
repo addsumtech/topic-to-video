@@ -151,15 +151,42 @@ a mutation, and an unverified rule in the denominator of every Chinese reserve i
 > **Acceptance:** a fixture string carrying an opening bracket, a rendered frame showing the browser's own
 > break, and a test that goes red when the rule is disabled — in that order.
 
+**B5 · Six hashes in `register_energy.json` were updated without a measurement beside them.** After
+`dollyAt` was added to `runtime/depth.tsx`, the manifest's `_source` entries for `PaperSlot`, `PhotoPlate`,
+`PlanPalimpsest`, `RackFocus`, `RealVersus` and `RisoPrint` matched their NEW sources while their rows still
+held the old numbers — and `--only DollyZoom`'s merge path reads as though it writes only the named
+register's hash. All six were then re-measured and every number is byte-identical, so the manifest is honest
+today; what is not established is WHAT wrote them. A hash that moves without a measurement is the silent
+half of the staleness gate (see D1): it makes a stale row read as fresh, which is the one failure that gate
+exists to prevent.
+> **Acceptance:** a test that writes a manifest, runs `--only` on ONE register after changing a module a
+> DIFFERENT register depends on, and asserts the untouched register's hash is unchanged — red before the
+> fix, green after.
+
 ## C · Peer-library capability gaps still open
 
-**C1 · The fake dolly-zoom** — subject pinned while the background swells 1 -> 2.25. The last unbuilt piece
-of the peer study's gap 2. Nothing in the library does it.
+**~~C1 · The fake dolly-zoom.~~ DONE 2026-09-14.** `dollyAt` in `runtime/depth.tsx` (the move as a
+primitive, so the next register wanting it does not hand-roll a second copy the way `SurfaceCarousel` once
+did with `focusAt`) and `DollyZoom` as the register that argues with it. Verified on the rendered frame, not
+from the source: the subject's ink box at frame 12 and at frame 168 is the SAME four numbers
+`(696, 491, 1228, 578)` while the frame itself changed by 0.0045 mean — both halves of the claim measured.
+0 findings from `text_safe_qa` at five aspects in English and in Chinese, nothing dropped by
+`cjk_type_qa` at five aspects, `register_shot --check` clean, ground luminance MEASURED (`dark`, token `bg`),
+energy 0.0042 motion / 2.2% ink.
+> **What looking at it cost.** The first render was a subject floating in nothing: the room was built from
+> `dna.line`, and that token is a hairline meant to sit ON a surface — every preset sets it a few levels off
+> its own ground (product `#20242f` on `#060709`). Seen through the room's own defocus it is invisible, so
+> the move the register exists to make had no room to make it in. Built from `dim` at an alpha instead — a
+> mid-tone in every preset, because it has to stay readable — with a major line every fourth cell to give
+> the swell something to count by. The type gates were green on that first frame; only looking found it.
+> **And a literal union does not survive a props default.** `= {}` on the props object widens
+> `direction?: 'in' | 'out'` to `string`, so the compiler cannot hold the prop to its own declared type.
+> `in` and `out` are opposite arguments, so it throws rather than picking one.
 
 **C2 · Depth seams — gap 3, untouched.** Three of their six hand-off recipes are built on depth; only the
 focus relay has been borrowed. `through-dark flight` and `portal wipe` do not exist here.
 
-**C3 · `stage3d` reaches 2 of 163 registers.** `SpatialSlides` and `WordTunnel`. A stage with two things on
+**C3 · `stage3d` reaches 2 of 164 registers.** `SpatialSlides` and `WordTunnel`. A stage with two things on
 it is not yet a language.
 
 ## D · Decided, deliberately not changed

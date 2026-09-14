@@ -165,6 +165,7 @@ import {SourceDeal} from './shots/SourceDeal';
 import {SpatialSlides} from './shots/SpatialSlides';
 import {WordTunnel} from './shots/WordTunnel';
 import {RackFocus} from './shots/RackFocus';
+import {DollyZoom} from './shots/DollyZoom';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
@@ -213,6 +214,7 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   SpatialSlides,
   WordTunnel,
   RackFocus,
+  DollyZoom,
 };
 
 export const SHOT_IDS = Object.keys(REGISTRY);

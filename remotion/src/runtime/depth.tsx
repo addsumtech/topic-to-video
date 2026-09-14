@@ -23,6 +23,7 @@ import React from 'react';
 import {useVideoConfig} from 'remotion';
 import {useT, ReducedMotionContext, clamp01, easeInOutCubic, hash01} from './motion';
 import {CONTENT_TOP, contentBottom, maxCameraPush, captionSlackPx} from './layout';
+import {focusAt, type Focus} from './focus';
 
 // ── depth planes ────────────────────────────────────────────────────────────────────────────────────────
 // Named, because a bare number says nothing about what the author meant. `subject` is the plane the beat is
@@ -263,6 +264,83 @@ export const bedPan = (
   const dx = (index % 2 === 0 ? 1 : -1) * (0.5 + 0.25 * hash01(index * 7 + 1));
   const dy = -(0.1 + 0.12 * hash01(index * 13 + 5));
   return {pan: [dx, dy], bed: true};
+};
+
+// ── the fake dolly-zoom ─────────────────────────────────────────────────────────────────────────────────
+// Dolly in, zoom out: the camera walks toward the subject while the lens widens by exactly as much, so the
+// SUBJECT's projected size never changes and everything behind it swells. It is the one camera move whose
+// meaning is not "look closer" or "here is the whole of it" — it is "this did not change; what surrounds it
+// did", and no arrangement of scale and translate in this library could say that.
+//
+// WHY IT IS A PRIMITIVE AND NOT A REGISTER'S PRIVATE CURVE. The peer study named it as the unbuilt half of
+// its depth gap, with the number it uses: subject pinned, background 1 -> 2.25. A second register wanting
+// the same move would otherwise hand-roll a second version, which is exactly how `SurfaceCarousel` came to
+// own a private copy of what is now `focusAt`.
+//
+// WHAT RIDES IT, AND WHY IT IS NOT JUST A SCALE. The same peer case law that gave this library its
+// saturation anchor states the failure in one line: without the blur AND saturation anchors, layered
+// material reads as stickers flying rather than as depth. A ground that only grows reads as a poster being
+// pushed at the lens. So the swell carries an optical anchor — softer, less saturated, a little darker as it
+// comes forward past the focal plane the subject sits on — and `focusAt` is where that curve already lives.
+// Only its OPTICS are taken: `minScale`/`minOpacity` are pinned to 1 so the dolly owns the scale outright
+// and nothing fades, because a background that fades out is a dissolve, not a lens.
+export const DOLLY_SWELL = 2.25;              // the peer library's own figure, kept so the two are comparable
+
+export type Dolly = {
+  /** the scale the GROUND is at: 1 at rest, `swell` at full move (or the reverse, on `direction: 'out'`) */
+  ground: number;
+  /** 0..1 of the move's clock — for anything that should land WITH it (a reading, a label) */
+  p: number;
+  /** 0..1 of how far the ground is from rest — `p` on the way in, `1 - p` on the way out */
+  k: number;
+  /** the optical anchor for everything ON the swelling ground */
+  focus: Focus;
+};
+
+export type DollyOpts = {
+  /** how far the ground swells. Must be > 1: a swell of 1 is a camera that does nothing. */
+  swell?: number;
+  /** when the move starts and how long it runs, in normalized shot time */
+  start?: number;
+  span?: number;
+  /** `in` = the room closes in around an unchanged subject; `out` = it recedes off one */
+  direction?: 'in' | 'out';
+  /** blur at full swell, as a fraction of the frame's short side */
+  blurFrac?: number;
+  /** colour the ground loses at full swell */
+  desat?: number;
+  /** how dark the ground goes at full swell — it must not compete with the pinned subject for the read */
+  minBrightness?: number;
+};
+
+/**
+ * Where a fake dolly-zoom is at normalized time `t`. Pure function; `U` is the frame's short side.
+ *
+ * The move is eased at BOTH ends, like every other camera in this file: a swell still running when the next
+ * shot blends over it reads as a bump, and one that starts at frame zero spends most of itself before there
+ * is anything on the frame to be surrounded by.
+ */
+export const dollyAt = (t: number, U: number, o: DollyOpts = {}): Dolly => {
+  const {swell = DOLLY_SWELL, start = 0.16, span = 0.70, direction = 'in',
+         blurFrac = 0.0030, desat = 0.34, minBrightness = 0.84} = o;
+  if (!(swell > 1)) {
+    throw new Error(
+      `dollyAt needs a swell greater than 1, got ${swell}. The move IS the difference between the subject's ` +
+      `scale and the ground's; at 1 they are the same number and the shot is a still with a filter on it.`);
+  }
+  if (!(span > 0)) {
+    throw new Error(`dollyAt needs a positive span, got ${span} — a move with no duration is not a move.`);
+  }
+  const p = easeInOutCubic(clamp01((t - start) / span));
+  const k = direction === 'out' ? 1 - p : p;
+  return {
+    ground: 1 + (swell - 1) * k,
+    p,
+    k,
+    // The anchor rides `k` — HOW FAR the ground is from rest — and never the clock, so a ground held at
+    // full swell stays exactly as soft as it was when it arrived there.
+    focus: focusAt(k, U, {blurFrac, desat, minBrightness, minOpacity: 1, minScale: 1}),
+  };
 };
 
 export const cameraAt = (move: CameraMove, t: number): number => {
