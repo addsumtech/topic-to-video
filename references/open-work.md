@@ -61,9 +61,10 @@ zero render-failure lines** across 815 renders.
 > **The zero render-failure count is itself evidence:** 815 renders, none flaky, against roughly one in
 > twenty before the props-file race was fixed.
 
-**A2 · Chinese under the SERIF CJK face.** Every CJK sweep so far has run `product`, i.e. Noto Sans SC.
-`editorial` and `cinematic` ship Noto Serif SC, a different cut with different ink-box proportions.
-> **Acceptance:** `text_safe_qa --library --cjk --dna=editorial --aspect=1:1` and `--aspect=9:16` report 0.
+**~~A2 · Chinese under the SERIF CJK face.~~ DONE 2026-09-14 04:08.** `--dna=editorial` (Noto Serif SC) at
+1:1 and 9:16: 163 registers, 0 findings each, 0 render failures. Both CJK faces the eight DNAs ship are now
+swept — which is the whole DNA axis for Chinese, since the other six presets fall back to the same two cuts
+and a Han glyph is one em in either.
 
 **A3 · Latin across the seven display faces.** The `--all-dna` flag exists (`fead316`) and has never been
 run library-wide. This is the axis that hid `VariableTypeMorph`.
