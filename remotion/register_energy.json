@@ -164,7 +164,8 @@
     "VoiceSignal": "54d390bdf8e23a23",
     "VoxelBuild": "21ae5233c9ac346d",
     "WireGlobe": "5d5844cc6af29027",
-    "WordTunnel": "9418246563af4866"
+    "WordTunnel": "9418246563af4866",
+    "TermSpace": "d3739bef88692c35"
   },
   "_basis": "each register rendered as VIDEO at its own DURATION, 16:9, under dna=product — the themed path, because every delivered film has a design system and the un-themed fallback is a mode none of them use",
   "_dna": "product",
@@ -1241,6 +1242,13 @@
       "luma_range": 0.002,
       "seconds": 5.5,
       "footprint": 0.033
+    },
+    "TermSpace": {
+      "motion_p75": 0.002,
+      "ink_median": 0.003,
+      "luma_range": 0.002,
+      "seconds": 6.3,
+      "footprint": 0.162
     },
     "TermTable": {
       "motion_p75": 0.0002,

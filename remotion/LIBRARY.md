@@ -17,7 +17,7 @@ yet in this library — they exist for new shots and opportunistic use. See
 deliberately left un-migrated.
 
 <!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
-**Family census — 164 registers across 27 families.** D×24 · A×18 · C×15 · B×13 · G×11 · F×10 · H×9 · E×8 · L×7 · I×5 · J×5 · K×5 · M×5 · S×5 · U×5 · JA×4 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
+**Family census — 165 registers across 27 families.** D×25 · A×18 · C×15 · B×13 · G×11 · F×10 · H×9 · E×8 · L×7 · I×5 · J×5 · K×5 · M×5 · S×5 · U×5 · JA×4 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
 
 **9 families hold two registers or fewer: O, Q, R, T, V, W, X, Y, Z.** That is a BUILD signal, not a menu. When a beat's
 argument wants one of those languages and the one register there does not carry it, the answer is
@@ -91,6 +91,7 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 26. **AsciiField** — an AMBER phosphor char field that DECODES a word in place. *Use: code / hacker beat.* (amber + static decode — vs **CodeRain** M's green FALLING rain.)
 
 ## D · Data / technical
+189. **TermSpace** — several consoles posed in one ROOM and a camera that flies to each in turn (`runtime/stage3d`, `camera = pose.inverse()`). The screen being faced types its status out under a live caret; the ones behind hold theirs settled behind a `✓`, so the travel arrives at the one machine still working rather than touring labels. The close pulls back to a camera `fitStage` has fitted to ALL of them inside the shot's own content box. *Use: several processes that are running AT ONCE — when a 2x2 grid of terminals would make them peers on one plane and the point is that they coexist in one system.* `screens[{name, status}], summary` · type is drawn FLAT over the surfaces by `projectPose`, never on the Z plane (91 flat vs 56 under Z, measured). QUIET: 0.002 motion, 0.3% ink against 0.0037/12% floors — a dark room with three lit screens by construction. Intercut with a dense register.
 185. **SpatialSlides** — cards posed anywhere in 3D; the camera flies to align with each one by inverting its own transform, then pulls back so the whole route reads as one space. *Use: an argument that is a JOURNEY through places rather than a list of them.*
 176. **RestsOn** — the phenomenon on top and the reasons that hold it up beneath, each deeper one BROADER, assembling from the root upward with a joint marker riding the seam. Mechanism is a relation and relations are usually drawn as lines, which have no area; here the relation is LOAD, so the argument has mass. *Use: why something happens — a causal chain, a root cause, what a claim depends on. Causes are ordered immediate-first, root LAST; the order is the depth of the explanation, never a chronology (that is InOrder).*
 175. **InOrder** — N labelled steps as bands that TILE the zone, with the one the film is on expanded and the rest compressed; completed steps carry a mark, pending ones are outlines, and the expansion TRAVELS as the narration advances. Its density, its motion and its argument are the same object. *Use: a procedure, a handoff chain, a lifecycle, what happens between A and B — when the ORDER is the claim. `at` pins the frame to one step; omitted, it walks the whole sequence.*

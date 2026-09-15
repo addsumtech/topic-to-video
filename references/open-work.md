@@ -257,8 +257,20 @@ All three of the peer study's depth hand-offs now exist here.
 > study; these two were recorded by NAME only and the library is no longer on disk, so their numbers are
 > derived here and their headers say so rather than dressing them as measurements taken elsewhere.
 
-**C3 · `stage3d` reaches 2 of 164 registers.** `SpatialSlides` and `WordTunnel`. A stage with two things on
-it is not yet a language.
+**~~C3 · `stage3d` reaches 2 of 164 registers.~~ DONE 2026-09-15.** `TermSpace` is the third, and it is the
+last of the peer library's 3D line this tier had no answer to: `basic-3d-scene` became `SpatialSlides`,
+`flying-words` became `WordTunnel`, and `terminal-3d` had nothing. Several consoles posed in one ROOM, the
+camera flying to each in turn, the screen being faced typing its status under a live caret while the ones
+behind hold theirs settled — a 2x2 grid of terminals makes them peers on one plane; travel says they
+coexist. 0 findings from `text_safe_qa` at five aspects in English and Chinese, nothing dropped by
+`cjk_type_qa` at five aspects, ground luminance MEASURED (`dark`, token `bg`), energy 0.002 motion / 0.3%
+ink. Original text: `stage3d` reaches 2 of 164 registers.
+> **TWO DEFECTS NO GATE COULD SEE, both found by looking at the first render.** A console was drawn BLANK —
+> the type was culled when its projected block left the safe box and the window was not, so a viewer saw an
+> empty screen in the corner, a machine that had crashed rather than one the camera was passing. And the
+> camera MISSED what it flew to: backing off as `z: pose.z + d` steps along world z, which is no longer
+> behind a lens that has just taken the screen's own rotation — measured 163px off centre on a 1920 frame at
+> ry 24deg. Surface and type share one fade now, and the lens backs off along its own forward axis.
 > **AND THE OBVIOUS SHORTCUT IS REFUTED, measured before it was taken.** Five registers hand-roll their own
 > 3D (`CubeRotate`, `CardFlip3D`, `CardStack3D`, `FractureIn`, `GlowPick`), and `CubeRotate` puts its TYPE
 > directly on `rotateY()/translateZ()` faces — exactly what `stage3d`'s header forbids, so migrating it
