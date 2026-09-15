@@ -266,6 +266,34 @@ on the English demo input — the exact failure mode the working rules name.
 > register, and the only propless one is `LiquidMorph`. **Closed.**
 
 
+**B10 · A MEASUREMENT IS STALE WHEN ANY OF ITS INPUTS MOVED, and three instruments were watching one.**
+Partly DONE 2026-09-15. The shape: every manifest in `remotion/` records a reading plus a hash of what it
+read, and in each case the hash covered less than the reading depended on.
+
+  * `prop_reach.json` hashed the register's SOURCE and not the PROPS it was fed — and the props come from
+    `cjk_type_qa.cjk_props`, a generator, not a constant. When its reader stopped being blind, 24 of 166
+    registers began receiving props they had never been given and every one of those numbers became
+    meaningless while `--check` reported the manifest clean, because not one `.tsx` had changed. It hashes
+    the fed props now (exact, and free — computing them needs no render). **DONE**, pinned by
+    `tests/test_prop_reach_staleness.py`.
+  * `GROUND_FOLLOWS_MEASURED` held an entry measured on an EMPTY PLATE. Six registers refuse to draw
+    without a real artefact; `measure_ground_reach.py` never fed them one, so all six reported RENDER
+    FAILED and none could ever be listed — while `validate.py` rejects any beat declaring a `ground` on a
+    register that is not listed. An error with no fix, which is the catch-22 `test_provenance.py` records
+    for provenance, sitting inside the luminance guard. With the fixture wired in, **PhotoPlate measures 51%
+    of the frame moving** — the photograph holds the middle and does not change with the ground — and it had
+    been LISTED as following since the original sweep, which ran before the evidence guard existed and
+    therefore measured a frame with no photograph in it. **DONE**; PhotoPlate removed, StateSheet and
+    FallbackPath added, pinned in `tests/test_register_schedules.py`.
+
+> **What is still open is the CLASS.** `register_energy.json` hashes a register plus its transitive runtime
+> imports (`_deps`) — which is right for pixels and blind to the same fixture question: a register measured
+> with `evidence_props()` has a second input that nothing hashes, so the day that fixture changes, 6 rows
+> silently describe a frame that no longer exists. Nothing checks `_ground_reach.json` for staleness at all.
+> **Acceptance:** each manifest names every input its numbers depend on, and `--check` fails when any of
+> them moves — demonstrated by changing one input and watching the check go red, not by reading the code.
+
+
 ## C · Peer-library capability gaps still open
 
 **~~C1 · The fake dolly-zoom.~~ DONE 2026-09-14.** `dollyAt` in `runtime/depth.tsx` (the move as a

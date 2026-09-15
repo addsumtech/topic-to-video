@@ -113,3 +113,51 @@ def test_the_readers_agree_with_each_other_about_what_a_register_declares():
     assert not bad, (
         "these registers are read differently by different readers — one of them is blind to a spelling "
         "the others handle: %r" % (bad,))
+
+
+# ── a prop can be supplied by ANOTHER prop, and the demo-copy check had no way to know ─────────────
+def test_the_supersedes_relation_is_declared_in_the_register_and_parsed():
+    """`PortRail` grew `groups` — items that belong to named kinds — and when a board gives groups, `items`
+    is never read. The demo-copy check saw `items` unset, found demo copy behind it, and ERRORED that
+    'Docs / Chat / Mail' would print on a delivered frame that does not contain them.
+
+    A false error on a correct board is worse than a missed one: it is the finding people learn to route
+    around, and this repo already has the shape on record (an opt-in gate reporting 0 on the very deck that
+    caused it). `SurfaceCarousel` has carried the same either/or for weeks and would have produced the same
+    false error the first time a board used its richer prop.
+
+    The relation is declared in the REGISTER, beside the props, and parsed — never listed in a script, which
+    is the drift this repo has paid for five times this week."""
+    import demo_copy_qa as d                                        # noqa: E402
+    sup = d.supersedes()
+    assert sup.get("PortRail", {}).get("groups") == ["items"], sup.get("PortRail")
+    assert sup.get("SurfaceCarousel", {}).get("surfaces") == ["items", "nav"], sup.get("SurfaceCarousel")
+    for name, rel in sup.items():
+        src = open(os.path.join(_SHOTS, name + ".tsx"), encoding="utf-8").read()
+        declared = set(c.prop_signature(name)[0])
+        for provider, supplied in rel.items():
+            assert provider in declared, (
+                "%s declares `@supersedes %s` and has no such prop" % (name, provider))
+            for p in supplied:
+                assert p in declared, "%s says %s supplies `%s`, which it does not declare" % (name, provider, p)
+
+
+def test_the_directive_does_not_swallow_the_line_after_it():
+    """The first version's character class included `\\s`, so it ran past the end of the line and took the
+    next prop's name with it — `groups: ['items\\n  groups']`. A parser that silently absorbs the following
+    line reports a relation nobody wrote."""
+    import demo_copy_qa as d                                        # noqa: E402
+    for name, rel in d.supersedes().items():
+        for provider, supplied in rel.items():
+            assert "\n" not in provider and all("\n" not in p for p in supplied), (name, provider, supplied)
+            assert all(p == p.strip() and " " not in p for p in supplied), (name, supplied)
+
+
+def test_a_superseded_prop_is_still_demo_copy_when_the_provider_is_absent():
+    """The relation must not switch the check OFF. A board that gives neither `groups` nor `items` still
+    prints PortRail's English demo labels, and that is the error this check exists for."""
+    import validate as v                                            # noqa: E402
+    lib = v._demo_copy_library()
+    assert "items" in lib.get("PortRail", {}), (
+        "PortRail's `items` stopped being demo copy — the supersedes relation was applied to the LIBRARY "
+        "instead of to one beat's props, which turns the check off for every board")
