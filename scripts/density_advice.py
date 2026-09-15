@@ -84,7 +84,8 @@ def advise(out_dir):
     ink = measured()
     floor = fe.INK_FLOOR
     beats, unknown = [], []
-    for s in board.get("slides") or []:
+    # by POSITION, not the 1-based `index` field this used to add one to — see critic_brief.
+    for _pos, s in enumerate(board.get("slides") or [], start=1):
         shot = s.get("shot")
         if not shot:
             continue
@@ -93,7 +94,7 @@ def advise(out_dir):
             # failure this repo keeps finding. Name it instead.
             unknown.append(shot)
             continue
-        beats.append((int(s.get("index", 0)) + 1, shot, ink[shot]))
+        beats.append((_pos, shot, ink[shot]))
     return beats, unknown, ink, floor
 
 

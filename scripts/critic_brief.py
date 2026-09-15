@@ -110,8 +110,12 @@ def build(out_dir):
     L.append("")
     L.append("| beat | register | family | narration |")
     L.append("|---|---|---|---|")
-    for s in slides:
-        b = int(s.get("index", 0)) + 1
+    # NUMBERED BY POSITION, never by the `index` FIELD. Every board on disk writes `index` 1-BASED, and this
+    # read it as 0-based and added one, so every finding named the beat AFTER the one it meant — "beat 3
+    # declares a ground on CompanionCard" sends a reader to PortRail. The repo paid for this once already in
+    # `contact_sheet.py`, where the same arithmetic mislabelled the sheet a critic reads.
+    for _pos, s in enumerate(slides, start=1):
+        b = _pos
         sh = s.get("shot") or "-"
         L.append("| %d | %s | %s | %s |" % (b, sh, sd.FAMILY.get(sh, "?"),
                                             str(s.get("narration", ""))[:60].replace("|", "/")))

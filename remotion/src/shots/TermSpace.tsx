@@ -230,11 +230,17 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
             </div>
             {s.status ? (
               <div style={{marginTop: Math.round(npx * 0.34),
-                color: done ? (s.waiting ? INK : DIM) : DIM,
+                color: done ? INK : DIM,
                 font: `500 ${spx.toFixed(1)}px/${leading(s.status, 1.3)} ${MONO}`}}>
-                <span style={{color: done ? (s.waiting ? ACC : DIM) : DIM,
+                {/* ONE GLYPH, AND THE COLOUR CARRIES THE STATE — a status LED, not a verdict. A ✓ on the
+                    screen that is WAITING reads as "this one finished successfully", which is the opposite
+                    of the beat's point: it is the one that needs you. And the colour must be the FILM's,
+                    not this register's own idea — the next beat prints the code in words
+                    (绿色＝工作中　灰色＝等待中), so green here has to mean working or the film contradicts
+                    itself across two consecutive frames. */}
+                <span style={{color: done ? (s.waiting ? DIM : ACC) : DIM,
                   marginRight: Math.round(spx * 0.5)}}>
-                  {done ? (s.waiting ? '✓' : '·') : '→'}
+                  {done ? '\u25cf' : '\u2192'}
                 </span>
                 {s.status.slice(0, cut)}
                 {/* the untyped tail stays in the DOM, transparent: revealed, never trimmed */}

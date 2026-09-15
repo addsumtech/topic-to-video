@@ -1255,8 +1255,8 @@ def _beat_grounds(slides, errors, warnings):
     presets = _ground_preset_names()
     followers = _ground_followers()
     seen_ground = 0
-    for s in slides:
-        beat = int(s.get("index", 0)) + 1
+    for _pos, s in enumerate(slides, start=1):
+        beat = _pos
         k = s.get("key")
         if k is not None and k not in ("dark", "light"):
             errors.append("remotion: beat %d has key %r — the only exposures are 'dark' and 'light'. Any "
@@ -1368,7 +1368,7 @@ def _idiom_world(meta, slides, errors, warnings):
         return
     ok = set(declared)
     off, untagged = [], []
-    for s in slides:
+    for _pos, s in enumerate(slides, start=1):
         shot = s.get("shot")
         w = PROV.get(shot)
         if w is None:
@@ -1376,9 +1376,9 @@ def _idiom_world(meta, slides, errors, warnings):
             # nothing and moves on. That is how the check would have decayed to nothing as the library grew,
             # so an untagged register is a finding about the LIBRARY, not a pass for the beat.
             if shot:
-                untagged.append((int(s.get("index", 0)) + 1, shot))
+                untagged.append((_pos, shot))
         elif w not in ok:
-            off.append((int(s.get("index", 0)) + 1, shot, w))
+            off.append((_pos, shot, w))
     for beat, shot in untagged[:6]:
         errors.append("remotion: beat %d uses %s, which carries no PROVENANCE in shot_director.py — an "
                       "untagged register is exempt from this gate by accident. Register it with "
@@ -1776,8 +1776,8 @@ def _form_vocabulary(meta, slides, errors, warnings):
             % (len(shopped), len(names),
                "; ".join("%s = %s" % (f, r) for f, r in sorted(shopped.items())[:6])))
     missing, unknown = [], []
-    for s in slides:
-        beat = int(s.get("index", 0)) + 1
+    for _pos, s in enumerate(slides, start=1):
+        beat = _pos
         form = str(((s.get("shot_fit") or {}).get("form")) or "").strip()
         if not form:
             missing.append(beat)
@@ -1819,7 +1819,7 @@ def _shot_truncation(meta, slides, errors, warnings):
         return
     fps = float(meta.get("fps", 30) or 30)
     seam = _seam_frames()
-    for s in slides:
+    for _pos, s in enumerate(slides, start=1):
         shot = s.get("shot")
         n = need.get(shot)
         dur = s.get("duration")
@@ -1829,7 +1829,7 @@ def _shot_truncation(meta, slides, errors, warnings):
         ratio = n / max(1.0, float(have))
         if ratio < 1.35:                     # under a third faster than authored: not worth mentioning
             continue
-        beat = int(s.get("index", 0)) + 1
+        beat = _pos
         warnings.append(
             "remotion: beat %d (%s) plays %.1fx faster than the register's natural pace (clip %d frames vs an "
             "authored %d) — its whole design language happens in a rush and then cuts. Give the beat a longer "

@@ -306,8 +306,10 @@ def static_checks(board):
     errors, warns = [], []
     slides = board.get("slides", [])
     seen = {}
-    for s in slides:
-        beat = s.get("index", 0) + 1
+    # by POSITION — boards write `index` 1-based, so `index + 1` names the FOLLOWING beat (see
+    # tests/test_beat_numbering.py; the same arithmetic mislabelled the critic's contact sheet).
+    for _pos, s in enumerate(slides, start=1):
+        beat = _pos
         shot = s.get("shot")
         props = s.get("shot_props") or {}
         if not shot:
@@ -625,8 +627,8 @@ def main(argv):
         os.makedirs(proof, exist_ok=True)
         dna_ref = board.get("meta", {}).get("design_dna") or board.get("meta", {}).get("shot_template")
         aspect = board.get("meta", {}).get("aspect")
-        for s in board.get("slides", []):
-            beat = s.get("index", 0) + 1
+        for _pos, s in enumerate(board.get("slides", []), start=1):
+            beat = _pos
             shot = s.get("shot")
             if not shot:
                 continue

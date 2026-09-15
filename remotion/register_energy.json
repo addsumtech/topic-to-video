@@ -5,7 +5,7 @@
     "Aliasing": "52f9d555a8b031cb",
     "AnalogTape": "5ec69e52b2174f9e",
     "AnswerStream": "3fb0b3072fafaea7",
-    "AntiDesignChaos": "c449ca53338def93",
+    "AntiDesignChaos": "91f4d3aed719b993",
     "AsciiField": "3e2aeac8f322ef2d",
     "AtomOrbital": "079dc930870b6f6f",
     "AuroraFlow": "274d6958d7c70d6a",
@@ -39,7 +39,7 @@
     "DataMonolith": "7bf27060cf5a325e",
     "DataOrrery": "7ab33c36f2167c93",
     "DiffusionDenoise": "b03a8732e75929e0",
-    "DollyZoom": "bb9cd7ff15504409",
+    "DollyZoom": "2231776770f4fb89",
     "EdCompare": "3920c495c76b56ff",
     "EdStat": "f018b85c160aa23b",
     "EdTimeline": "044e1fd9cc7b93f0",
@@ -88,7 +88,7 @@
     "LiquidMorph": "667838624f57d105",
     "LowPolyForm": "750abf43e30faf56",
     "MRIPipeline": "0bf1ec7992f7649c",
-    "MadeOf": "b9b27f990561336d",
+    "MadeOf": "e4f13180be62296d",
     "MagazineSpread": "b3b331c44ea42ee3",
     "MagnetizationTip": "5dee7fdea37954cb",
     "MapPlate": "81879f95e9f1b393",
@@ -106,7 +106,7 @@
     "OverlapSeparation": "c211806bdf55ebb3",
     "PageWrite": "08eedb0a1c7ef367",
     "PaperCutout": "7c0befd17b61d286",
-    "PaperSlot": "c02dcd0d58977248",
+    "PaperSlot": "019296211fd93d0f",
     "ParticleForm": "79f266d17897e933",
     "PhaseEncodeStep": "3d3a10388897c6b0",
     "PhotoPlate": "b1de4b6eb0b677cb",
@@ -115,7 +115,7 @@
     "PlanPalimpsest": "81aa5bc1e4a3af65",
     "PlatformSurfaces": "cf1f4771573ca5f1",
     "PointerTour": "a80c60029325e218",
-    "PortRail": "652235c382bc1226",
+    "PortRail": "896d84d4ab9756a1",
     "PositioningMatrix": "f82cc8e0cff2c9b0",
     "ProfileGrowth": "ed9866a51c78c75a",
     "QuadSplit": "454b16b99a229c7f",
@@ -123,10 +123,10 @@
     "RadialBurst": "d3df142d1ece814f",
     "RainGlass": "6723dbe919dd5c11",
     "RansomZine": "eeeacaded2e65144",
-    "RealVersus": "db533f842bed2d77",
+    "RealVersus": "f4aa59aebaccbdd8",
     "RestsOn": "851dd951627df758",
     "RidgeField": "a106a195ccf4a8ac",
-    "RisoPrint": "2a7466cbeab551af",
+    "RisoPrint": "e77e0ca591b6b30a",
     "ScanReconstruct": "f801fe89e1194051",
     "ScreenBubble": "ed0bb4e55f0de311",
     "SectionRoute": "f7614cf1e4fcb06a",
@@ -141,7 +141,7 @@
     "SpotlightStage": "8cbea6952d385612",
     "StarfieldWarp": "bea05952c302c641",
     "StrataColumn": "fdecd39f0a2277bd",
-    "SurfaceCarousel": "15e9f484017f68e4",
+    "SurfaceCarousel": "4b3be61a6ce0191d",
     "SwissEditorial": "ac0ae55ab5df1cfe",
     "TallyLedger": "8db176639d1da3f8",
     "TechnicalPlate": "91e4818c001e5576",
@@ -152,7 +152,7 @@
     "TermDiff": "942bd34e06aa10c5",
     "TermGitLog": "ba43e8421c753503",
     "TermLog": "11b000d1bdde539e",
-    "TermSpace": "d3739bef88692c35",
+    "TermSpace": "bc43ca974e2846b8",
     "TermTable": "cfa15d61272e4eeb",
     "TermThink": "975e74eaf26cffc7",
     "TermTree": "2076a57732184bd4",
@@ -166,7 +166,9 @@
     "VoxelBuild": "4119208763ffce1c",
     "WireGlobe": "1a2ce0476352918a",
     "WordTunnel": "1d9eee8bae1f4d7e",
-    "CompanionCard": "e308c4dc90679f50"
+    "CompanionCard": "2d699f6c189bb8b5",
+    "FallbackPath": "5bf7791c60f76a29",
+    "StateSheet": "e61c4e096435f356"
   },
   "_basis": "each register rendered as VIDEO at its own DURATION, 16:9, under dna=product — the themed path, because every delivered film has a design system and the un-themed fallback is a mode none of them use",
   "_dna": "product",
@@ -176,7 +178,8 @@
       "PageWrite",
       "PhotoPlate",
       "RealVersus",
-      "ScanReconstruct"
+      "ScanReconstruct",
+      "StateSheet"
     ],
     "why": "these refuse to draw without a real artefact (runtime/evidence.ts); measured with a deterministic stand-in so the row describes the register rather than an empty box"
   },
@@ -393,9 +396,9 @@
     "CompanionCard": {
       "motion_p75": 0.0001,
       "ink_median": 0.006,
-      "luma_range": 0.005,
+      "luma_range": 0.006,
       "seconds": 6.2,
-      "footprint": 0.036
+      "footprint": 0.078
     },
     "CompressedSensingEq": {
       "motion_p75": 0.0002,
@@ -508,6 +511,13 @@
       "luma_range": 0.008,
       "seconds": 5.0,
       "footprint": 0.494
+    },
+    "FallbackPath": {
+      "motion_p75": 0.0001,
+      "ink_median": 0.011,
+      "luma_range": 0.005,
+      "seconds": 6.3,
+      "footprint": 0.262
     },
     "FlowField": {
       "motion_p75": 0.0008,
@@ -1166,6 +1176,13 @@
       "luma_range": 0.063,
       "seconds": 5.0,
       "footprint": 1.0
+    },
+    "StateSheet": {
+      "motion_p75": 0.0019,
+      "ink_median": 0.116,
+      "luma_range": 0.076,
+      "seconds": 6.7,
+      "footprint": 0.271
     },
     "StrataColumn": {
       "motion_p75": 0.0006,
