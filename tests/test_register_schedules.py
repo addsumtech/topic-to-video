@@ -207,6 +207,27 @@ def test_the_press_ring_does_not_borrow_a_state_colour():
     assert "${ACC}33" not in card, "the press glow is a state colour again"
 
 
+def test_the_group_is_carried_by_spacing_and_a_name_not_by_colour():
+    """Three attempts to make colour carry it, each fixing the last one's defect and creating the next:
+    the first N of the palette left groups 2 and 3 "close in hue AND value"; spreading across it put group 3
+    at 1.00:1 against the cube it sits on (measured by a reviewer on the delivered frame); taking the most
+    legible N made all three pale and alike.
+
+    The cause is structural, not a matter of picking better: the module face is a mid-value blue-grey BY
+    DESIGN — "one material for every module, so the row reads as a manufactured set" — so anything legible
+    against it must be much lighter, and much-lighter collapses the palette's hues toward white. An
+    exhaustive search over the six tones found no set of three clearing 2.5:1 on the face while staying
+    apart. So the register stops claiming colour does the work."""
+    src = open(os.path.join(_REM, "src", "shots", "PortRail.tsx"), encoding="utf-8").read()
+    assert "const groupTags" in src, "the per-cluster name is gone"
+    assert "THE KEY. A mark that identifies" not in src, (
+        "the swatch legend is back — a colour key on a rail whose colours cannot separate is a code with "
+        "nothing to decode")
+    assert "const TONES = TONES0_;" in src, "the group-tone search came back"
+    assert "const toneOf = seats.map((_x, i) => i);" in src, (
+        "the bar is keyed to the group again, which is the thing measured at 1.00:1")
+
+
 def test_grouped_modules_are_spaced_by_their_group():
     """Colour alone put "三类" on a small legend. Spacing is the variable a viewer reads without being told
     to, so the run keeps its total span and redistributes it around the group changes."""

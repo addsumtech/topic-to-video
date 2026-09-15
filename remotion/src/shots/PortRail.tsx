@@ -23,7 +23,7 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {ThreeCanvas} from '@remotion/three';
-import {useDNA, dnaPalette} from '../runtime/dna';
+import {useDNA, dnaPalette, contrastOf, relLum} from '../runtime/dna';
 import {project, yawPoint, type Vec3} from '../runtime/project3d';
 import {AimCamera} from '../runtime/aimCamera';
 import {captionBand, CONTENT_TOP, fitTextPx, fitBlockPx, textWidthPx} from '../runtime/layout';
@@ -56,6 +56,9 @@ const YAW = (frame: number) => Math.sin(frame * 0.005) * 0.055;   // a breath, n
 // A ROW READS LEFT TO RIGHT AND A STACK READS DOWNWARD, so the axis flips its SIGN as well as its direction.
 // World +Y is up, so the untouched formula puts item 1 at the bottom of a standing rail and the last item at
 // the top — the list runs backwards, and nothing in the frame says so.
+// the module's own body colour — named once so the tone chooser and the mesh cannot drift apart.
+const MODULE_FACE = '#5d6889';
+
 const slotAt = (i: number, n: number, span: number, vert = false, slots?: number[]) => {
   // GROUPED MODULES ARE SPACED BY THEIR GROUP, not evenly. A reviewer looked at a rail of six carrying three
   // kinds and reported that "三类" rested entirely on a small legend — the bars said it and the LAYOUT did
@@ -149,7 +152,7 @@ const Scene: React.FC<{n: number; tones: string[]; toneOf: number[]; slots?: num
                   a product photograph identifies its parts by a MARK, not by dyeing each one. */}
               <mesh castShadow receiveShadow>
                 <boxGeometry args={[0.56, 0.42, 0.62]} />
-                <meshStandardMaterial color={'#5d6889'} metalness={0.34} roughness={0.40} />
+                <meshStandardMaterial color={MODULE_FACE} metalness={0.34} roughness={0.40} />
               </mesh>
               {/* the tone, a thin bar on the FRONT face. On a ring it sat on the outward face, which pointed
                   away from the lens for half the modules and left them unidentifiable. */}
@@ -222,14 +225,37 @@ export const PortRail: React.FC<{
   const seats = flat.slice(0, 6);
   const list = seats.map((x) => x.text);
   // the tone INDEX per module: its group when there are groups, its own position when there are not.
-  const toneOf = seats.map((x, i) => (x.g >= 0 ? x.g : i));
-  // THREE GROUPS TAKING THE PALETTE'S FIRST THREE HUES come out adjacent — the first and third read as the
-  // same colour at a glance, which is a key that cannot be used. Spread them across the whole palette so
-  // the separation is as large as the DNA allows, whatever the group count.
-  const TONES = gs.length
-    ? gs.map((_, gi) => TONES0_[Math.round(gi * (TONES0_.length - 1)
-                                           / Math.max(1, gs.length - 1)) % TONES0_.length])
-    : TONES0_;
+  const toneOf = seats.map((_x, i) => i);
+  // GROUP TONES ARE CHOSEN BY MEASURED CONTRAST AGAINST THE SURFACE THEY SIT ON, because both of the
+  // obvious rules fail and they fail in opposite directions. `dnaPalette` seeds with the film's two accents
+  // and derives the rest by shading toward the GROUND, so half its entries are dark:
+  //
+  //   first N          accent2 measures 1.71:1 on the module face — a reviewer called groups 2 and 3 "close
+  //                    in hue AND value", and they were.
+  //   spread across    walked group 3 onto #316a96 = 1.05:1. Measured on the delivered frame: 1.00:1. The
+  //                    band was the same luminance as the cube it sat on, so the one variable this grouping
+  //                    added carried NOTHING on a third of the items — while the adaptation note claimed
+  //                    the colours had been pulled apart so the legend would work.
+  //
+  // Neither is a rule about colour; both are rules about INDEX. Filter to the tones that actually separate
+  // from the face, then spread inside that. On TERMINAL_DNA this yields 2.98 / 3.35 / 3.91 : 1.
+  // COLOUR DOES NOT CARRY THE GROUPING HERE, and that is a measured conclusion rather than a preference.
+  // Three attempts, each fixing the previous one's defect and creating the next:
+  //
+  //   first N of the palette   groups 2 and 3 "close in hue AND value"      (reviewer, on the frame)
+  //   spread across it         group 3 at 1.00:1 on the cube — invisible    (reviewer, measured)
+  //   most legible N           legible, and all three pale and alike        (measured here)
+  //
+  // The cause is structural: the module face is a mid-value blue-grey by design ("one material for every
+  // module, so the row reads as a manufactured set"), so anything legible against it must be much lighter,
+  // and much-lighter collapses the palette's hues toward white. An exhaustive search over the six tones
+  // found no set of three that clears 2.5:1 on the face AND stays apart from the others.
+  //
+  // So the row keeps its ONE mark — which is what this register's own note asks for, a product photograph
+  // identifying its parts by a mark rather than by dyeing each one — and the GROUPING is carried by the two
+  // variables that measurably work: the gap between clusters, and a name under each cluster. No legend,
+  // because there is no code to decode.
+  const TONES = TONES0_;
   // A RAIL WITH NOTHING ON IT still composes — a lit bar with a title under it — and argues nothing. That is
   // the silent-wrong-output this library's evidence guard exists to end, so it throws instead.
   if (!list.length) {
@@ -367,6 +393,17 @@ export const PortRail: React.FC<{
       at: {x: at.x, y: Math.min(Math.max(at.y, CONTENT_TOP + labelH), band - pad), depth: at.depth}};
   });
 
+  // A GROUP'S NAME SITS UNDER ITS OWN CLUSTER. The gap already separates the runs; a name under each one
+  // says which kind it is with nothing to decode, because it is in the same place as the thing it names —
+  // which a swatch legend, sitting elsewhere and keyed by colour, is not.
+  const groupTags = gs.length ? gs.map((g, gi) => {
+    const mine = seats.map((x, i) => (x.g === gi ? i : -1)).filter((i) => i >= 0);
+    if (!mine.length || !g.label) return null;
+    const mid = mine.reduce((a, i) => a + slotAt(i, n, span, vert, slots), 0) / mine.length;
+    const at = project(yawPoint(vert ? [-0.46, mid, 0] : [mid, -0.46, 0], yaw), cam, aim, FOV, W, H);
+    return at ? {label: g.label, x: at.x, y: at.y} : null;
+  }).filter(Boolean) as {label: string; x: number; y: number}[] : [];
+
   return (
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
       <ThreeCanvas width={W} height={H} camera={{position: cam, fov: FOV}} shadows
@@ -389,6 +426,14 @@ export const PortRail: React.FC<{
           textShadow: `0 2px 14px ${HALO}`}}>{text}</div>
       ) : null)}
 
+      {groupTags.map((g, i) => (
+        <div key={'g' + i} style={{position: 'absolute', left: g.x, top: Math.min(g.y, band - Math.round(U * 0.03)),
+          transform: 'translate(-50%, -50%)', textAlign: 'center', whiteSpace: 'nowrap',
+          opacity: clamp01(seg(t, 0.50, 0.70)), color: DIM,
+          font: `600 ${Math.round(notePx * 0.94)}px/1.25 var(--f-mono, "JetBrains Mono", monospace)`,
+          letterSpacing: '0.04em', textShadow: `0 2px 12px ${HALO}`}}>{g.label}</div>
+      ))}
+
       {/* THE NAME AND THE NOTE ARE STACKED FROM ONE MEASURED ANCHOR — the rail's own front-bottom edge,
           projected once — and clamped above the caption band. Placed independently they drifted into the
           same row the moment the camera aim moved, which is two pieces of copy on top of each other. */}
@@ -396,7 +441,7 @@ export const PortRail: React.FC<{
         const rail = project(yawPoint(vert ? [0, -(span / 2) - 0.55, 0.43] : [0, -0.17, 0.43], yaw),
                              cam, aim, FOV, W, H);
         if (!rail) return null;
-        const keyH = gs.length ? Math.round(notePx * 1.9) : 0;
+        const keyH = 0;   // the group names live on the rail now, under their own clusters
         const blockH = Math.round(titlePx * 1.6) + keyH + (NOTE ? Math.round(notePx * 1.5) : 0);
         const top = Math.min(rail.y + Math.round(U * 0.075), band - blockH - Math.round(U * 0.02));
         return (
@@ -407,27 +452,7 @@ export const PortRail: React.FC<{
               font: `800 ${fitTextPx(STANDARD, W * 0.6, titlePx, {usable: 1.0})}px/${leading(STANDARD, 1.1)} var(--f-display, system-ui, sans-serif)`}}>
               {STANDARD}
             </div>
-            {/* THE KEY. A mark that identifies has to be decodable, and the bars on the modules were a
-                colour per INDEX with nothing to read them against. Given groups they carry the KIND, and
-                this row is what makes that legible — swatch and name, in the same tones the bars use, so
-                the viewer can count three kinds on a rail of six modules without the caption. */}
-            {gs.length ? (
-              <div style={{position: 'absolute', left: 0, right: 0, top: top + Math.round(titlePx * 1.6),
-                display: 'flex', justifyContent: 'center', gap: Math.round(U * 0.026),
-                opacity: clamp01(seg(t, 0.52, 0.72)), flexWrap: 'wrap',
-                padding: `0 ${Math.round(W * 0.12)}px`}}>
-                {gs.map((g, gi) => (
-                  <span key={gi} style={{display: 'inline-flex', alignItems: 'center',
-                    gap: Math.round(U * 0.008), color: DIM,
-                    font: `600 ${Math.round(notePx * 0.92)}px/1.3 var(--f-mono, "JetBrains Mono", monospace)`}}>
-                    <span style={{width: Math.round(notePx * 0.86), height: Math.round(notePx * 0.24),
-                      borderRadius: 1, background: TONES[gi % TONES.length],
-                      boxShadow: `0 0 ${Math.round(notePx * 0.5)}px ${TONES[gi % TONES.length]}66`}} />
-                    {g.label || ''}
-                  </span>
-                ))}
-              </div>
-            ) : null}
+
             {NOTE ? (
               <div style={{position: 'absolute', left: 0, right: 0, top: top + Math.round(titlePx * 1.6) + keyH,
                 textAlign: 'center', color: DIM, padding: `0 ${Math.round(W * 0.16)}px`, textWrap: 'balance',
