@@ -6,16 +6,43 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, clamp01, hash01, easeOutBack} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, mix} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 const CH = '▚ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789▸✓'.split('');
 const DEFAULT_ROWS = ['WORKBUDDY', 'DELIVERED'];
 
-export const SplitFlap: React.FC<{kicker?: string; rows?: string[]}> = ({
-  kicker = 'STATUS · TODAY',rows: ROWS = DEFAULT_ROWS} = {}) => {
+/** A row, and OPTIONALLY the tone it is lit in — named from the film's own DNA, never a raw colour. */
+export type FlapRow = string | {text: string; tone?: 'accent' | 'accent2' | 'dim' | 'fg'};
+
+// A BOARD'S WHOLE JOB IS THAT TWO ROWS CAN MEAN DIFFERENT THINGS, and for a while this one could not say
+// so. Every flap was lit in a hardcoded `#ffcf4a`: `useDNA()` was read for the background and for nothing
+// else, so a board sat in a green/blue film in a third colour that appeared in neither. The frame that
+// found it was a beat whose entire narration was "只有两种状态：绿色的工作中，灰色的等待中" — and the
+// register rendered both rows in the same amber, erasing the one distinction the beat existed to make.
+// No prop could fix that, because there was no prop: the film could write the words and not the claim.
+//
+// So a row may name a TONE, and the tones are DNA token names rather than colours — a board cannot leave
+// the film's palette, which is the rule `shot_proof` enforces for every other register. With no DNA the
+// original amber is still exactly what renders, so an unthemed film is byte-identical to before.
+export const SplitFlap: React.FC<{kicker?: string; rows?: FlapRow[]}> = ({
+  kicker = 'STATUS · TODAY',rows: ROWS_IN = DEFAULT_ROWS} = {}) => {
   const t = useT();
   const dna = useDNA();
+  const ROWS = (ROWS_IN ?? []).map((r) => (typeof r === 'string' ? r : String(r?.text ?? '')));
+  const AMBER_ON = '#ffcf4a', AMBER_OFF = '#c9a24a';
+  const toneOf = (i: number): {on: string; off: string} => {
+    const row = ROWS_IN?.[i];
+    const name = typeof row === 'string' ? undefined : row?.tone;
+    const lit = !name || !dna ? (dna?.accent ?? AMBER_ON)
+      : name === 'accent' ? dna.accent
+      : name === 'accent2' ? (dna.accent2 ?? dna.accent)
+      : name === 'dim' ? dna.dim
+      : dna.fg;
+    // The un-landed flap is the same ink at three quarters — one colour per row, two states of it, so a
+    // rolling flap reads as the same tile mid-turn rather than as a different tile.
+    return {on: lit, off: mix(lit, dna?.bg ?? '#0e0e12', 0.28)};
+  };
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
   const COLS = Math.max(...ROWS.map((r) => r.length));
@@ -46,9 +73,10 @@ export const SplitFlap: React.FC<{kicker?: string; rows?: string[]}> = ({
           {/* hairline split */}
           <div style={{position: 'absolute', left: 0, right: 0, top: '50%', height: 2, background: '#000', opacity: 0.7}} />
           <div style={{position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            font: `800 ${glyphPx}px/1 var(--f-display, "Anton", Impact, sans-serif)`, color: settled ? '#ffcf4a' : '#c9a24a',
+            font: `800 ${glyphPx}px/1 var(--f-display, "Anton", Impact, sans-serif)`,
+            color: settled ? toneOf(r).on : toneOf(r).off,
             opacity: settled ? 1 : 0.86, transform: `translateY(${(1 - justLanded) * 0}px)`,
-            textShadow: settled ? '0 0 18px #ffcf4a55' : 'none'}}>{shown === ' ' ? '' : shown}</div>
+            textShadow: settled ? `0 0 18px ${toneOf(r).on}55` : 'none'}}>{shown === ' ' ? '' : shown}</div>
         </div>
       );
     }

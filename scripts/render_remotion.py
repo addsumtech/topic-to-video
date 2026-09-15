@@ -443,7 +443,60 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
                 sfx.mix(out_dir, out_mp4, sfx_scenes, meta, fps)   # whooshes + riser/impact/sparkle + meta.bgm
             except Exception as e:
                 print("[render_remotion] sound_design skipped: %s" % e)
+        _not_delivered(out_dir)
     return out_mp4
+
+
+# THE RENDERER MUST NOT END ON A GREEN LIGHT. This one used to finish with "wrote out.srt + N keyframes
+# (…) for the shot-critic", which MENTIONS the critic and names no command — and the step it points at
+# lives eleven hundred lines into SKILL.md. Every film this session shipped without a critic pass for
+# exactly that reason: a success line was the last thing anyone read.
+#
+# This repo already filed the rule, in another skill and in the same words: a gate that passes must SAY THE
+# NEXT COMMAND, or a weaker agent stops at the first green light. So the render now ends on the remaining
+# work, and it also LEAVES THAT WORK IN THE DIRECTORY: `NOT_DELIVERED.md` sits beside out.mp4 carrying the
+# exact commands, and `critic_ledger.py --final` deletes it when the review it demands actually passes. A
+# checklist that is printed can be scrolled past; a file in the deliverable cannot, and any later step can
+# ask "is this film delivered?" by asking whether that file is gone.
+_NOT_DELIVERED = "NOT_DELIVERED.md"
+
+_NEXT_STEPS = '''# RENDERED, not DELIVERED
+
+`out.mp4` existing is not the same claim as this film being deliverable. Every machine gate here measures
+TYPE — is it cut off (`text_safe_qa`), was it drawn at all (`cjk_type_qa`), does the film move
+(`film_energy_qa`). NONE of them can ask whether a picture MEANS what its beat means.
+
+That half is the shot-critic's, and it has to be a reviewer who does not know what you meant to draw: the
+maker holds the intent, and the intent is what makes a wrong frame look right.
+
+Run these in order. The last one deletes this file when it passes:
+
+```sh
+python3 scripts/critic_brief.py   %(out)s          # _critic_brief.md + _contact_sheet.png
+python3 scripts/critic_ledger.py  %(out)s --emit-template
+# dispatch agents/shot-critic.md as a SUBAGENT whose entire input is the path %(out)s —
+#   no rationale, no summary of what you fixed, no steer about where to look
+python3 scripts/critic_ledger.py  %(out)s --final  # exit 0 is the delivery condition
+```
+
+`--final` refuses three things: a ledger with MISSING ROWS (a dimension nobody looked at is a missing row,
+not an absence of complaint), a BARE verdict (every pass/fail must cite a keyframe that exists), and a
+ledger written by the film's own maker.
+'''
+
+
+def _not_delivered(out_dir):
+    """Leave the remaining work IN the deliverable, not only in the log."""
+    try:
+        with open(os.path.join(out_dir, _NOT_DELIVERED), "w", encoding="utf-8") as fh:
+            fh.write(_NEXT_STEPS % {"out": out_dir})
+    except OSError:
+        pass
+    print("[render_remotion] RENDERED, not DELIVERED — wrote %s with the remaining steps." % _NOT_DELIVERED)
+    print("[render_remotion] next: python3 scripts/critic_brief.py %s" % out_dir)
+    print("[render_remotion]  then: dispatch agents/shot-critic.md (input = the out_dir path, nothing else)")
+    print("[render_remotion]  then: python3 scripts/critic_ledger.py %s --final   # exit 0 required" % out_dir)
+
 
 
 def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="error", no_plan=False):

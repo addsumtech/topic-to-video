@@ -223,6 +223,15 @@ def _local_of(prop, src):
 # composition is clean. The register was never wrong; the fixture was repeating itself and the instrument was
 # reading the repetition as a collision.
 #
+def _rotate(seq, off):
+    """The same list, started at a different place. `offset` has to reach the FIXED lists too, or two prop
+    sets that are meant to be different topics hand a register the identical `items` twice and the
+    measurement built on them reads 'this register ignores its props' about a register that was never
+    given two different ones."""
+    seq = list(seq)
+    return seq[off % len(seq):] + seq[:off % len(seq)] if seq else seq
+
+
 def _string_for(prop, local=None, src="", i=0):
     if _is_readout(prop, local or prop, src):
         return _READOUT
@@ -292,11 +301,16 @@ def _declared_keys(ty, src):
     return {k for k in re.findall(r"([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*:", body)}
 
 
-def cjk_props(name):
-    """(props, untestable) — CJK copy shaped to this register's own signature."""
+def cjk_props(name, offset=0):
+    """(props, untestable) — CJK copy shaped to this register's own signature.
+
+    `offset` shifts every role pool by the same amount, so the SAME register can be fed two prop sets that
+    are identically SHAPED and carry entirely different words. That is what `scripts/prop_reach.py` renders
+    twice: a register whose picture barely moves between them is one whose picture is furniture, and the
+    film only ever authored a caption on it. Default 0, so every existing caller is byte-identical."""
     sig, src = prop_signature(name)
     props, untestable = {}, []
-    scalars = 0
+    scalars = offset
     for prop, ty in sig.items():
         t = ty.replace(" ", "")
         # `page` selects WHICH page shape a surface draws (cards / chart / table / form) — plumbing, like
@@ -313,9 +327,9 @@ def cjk_props(name):
             # FAILURE — a fixture bug wearing a register's name.
             props[prop] = _ARRAY_SHAPES.get(prop, [list(_ITEMS[:2]), list(_ITEMS[2:4])])
         elif t.startswith("string[]") or t.startswith("(string|"):
-            props[prop] = list(_ITEMS[:4])
+            props[prop] = _rotate(list(_ITEMS), offset)[:4]
         elif _tuple_len(ty):
-            props[prop] = list(_ITEMS[:_tuple_len(ty)])
+            props[prop] = _rotate(list(_ITEMS), offset)[:_tuple_len(ty)]
         elif t.startswith("string"):
             # EVERY SIBLING SCALAR GOT THE SAME SENTENCE. `i` is the row index inside a shaped array, and
             # nothing passed one for a top-level prop, so each took its pool's first entry: `RackFocus`
@@ -331,7 +345,7 @@ def cjk_props(name):
         elif t.startswith("number") or t.startswith("number|null"):
             continue
         elif "[]" in t:
-            shaped = _shape_from_type(prop, ty, src) or _shape_array(prop, ty)
+            shaped = _shape_from_type(prop, ty, src, off=offset) or _shape_array(prop, ty, off=offset)
             if shaped is None:
                 untestable.append(prop)
             else:
@@ -514,7 +528,7 @@ def _shaped_row(fields, src, i=0):
     return row
 
 
-def _shape_from_type(prop, ty, src, n=3):
+def _shape_from_type(prop, ty, src, n=3, off=0):
     """Build the array a register actually declares, FROM ITS OWN TYPE.
 
     The first version of this file kept a table keyed by prop NAME, and that is wrong in a way that hides
@@ -528,7 +542,7 @@ def _shape_from_type(prop, ty, src, n=3):
     if m:
         fields = _alias_fields(src, m.group(1))
         if fields:
-            return [_shaped_row(fields, src, i) for i in range(n)]
+            return [_shaped_row(fields, src, i + off) for i in range(n)]
         return None
     m = re.match(r"^\{(.+)\}\[\]$", t)                                      # an INLINE object array
     if m:
@@ -538,20 +552,26 @@ def _shape_from_type(prop, ty, src, n=3):
             if f:
                 fields[f.group(1)] = f.group(2)
         if fields:
-            return [_shaped_row(fields, src, i) for i in range(n)]
+            return [_shaped_row(fields, src, i + off) for i in range(n)]
     return None
 
 
-def _shape_array(prop, ty):
+def _shape_array(prop, ty, off=0):
+    """`off` rotates the fixed lists the same way the role pools rotate, so a second prop set really is
+    different copy rather than the same list twice — see cjk_props(offset=)."""
+    def _rot(seq):
+        seq = list(seq)
+        return seq[off % len(seq):] + seq[:off % len(seq)] if seq else seq
     t = ty.replace(" ", "")
     if prop == "items" and t.startswith("[string,string,string]"):
-        return list(_ITEMS[:3])                          # a fixed-arity tuple, not an open list
+        return _rot(list(_ITEMS[:3]))                    # a fixed-arity tuple, not an open list
     if prop == "lines" and "Tok" in ty:
-        return ["读取授权目录里的表格", "按类型分类归档", "交付可验收的成果"]   # (Tok[] | string)[]
+        return _rot(["读取授权目录里的表格", "按类型分类归档", "交付可验收的成果"])   # (Tok[] | string)[]
     if prop in _ARRAY_SHAPES:
-        return _ARRAY_SHAPES[prop]
+        shape = _ARRAY_SHAPES[prop]
+        return _rot(shape) if isinstance(shape, list) else shape
     if prop == "rows" and "string[]" in ty.replace(" ", ""):
-        return list(_ITEMS[:3])
+        return _rot(list(_ITEMS[:3]))
     return None
 
 

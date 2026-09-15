@@ -226,13 +226,42 @@ def main(argv):
         print("[critic_ledger] wrote %s — fill every row, then re-run without --emit-template" % path)
         return 0
 
-    errs, warns = validate(out_dir, final="--final" in argv)
+    final = "--final" in argv
+    errs, warns = validate(out_dir, final=final)
     for w in warns:
         print("[critic_ledger] WARN  %s" % w)
     for e in errs:
         print("[critic_ledger] ERROR %s" % e)
     print("[critic_ledger] %s  %d error(s), %d warning(s)%s"
-          % ("FAIL" if errs else "OK", len(errs), len(warns), "  (delivery gate)" if "--final" in argv else ""))
+          % ("FAIL" if errs else "OK", len(errs), len(warns), "  (delivery gate)" if final else ""))
+    # THE OTHER END OF THE SAME STRING. `render_remotion` leaves a NOT_DELIVERED.md in the out_dir carrying
+    # the steps that are left, because a printed checklist can be scrolled past and a file in the deliverable
+    # cannot. This is the only thing allowed to remove it, and only on a clean DELIVERY review — so the
+    # question "was this film ever looked at?" is answerable by `ls` instead of by trusting a summary.
+    #
+    # AND THE MARKER COMES OFF FOR THE VERDICT, NOT FOR THE FORM. The first version of this removed it on
+    # `final and not errs` — and `errs` is everything wrong with the LEDGER, not with the FILM. The very
+    # first independent review run through this gate said REVISE with six failed rows, was perfectly well
+    # formed, exited 0, and the marker was deleted: `ls` then reported the film as delivered while the
+    # review said the opposite. The reviewer caught it and wrote it up as its first finding, which is the
+    # only reason it is fixed here. A clean ledger is the gate on the REVIEW; a PASS verdict is the gate on
+    # the FILM, and delivery needs both.
+    nd = os.path.join(out_dir, "NOT_DELIVERED.md")
+    overall = ""
+    try:
+        overall = str(json.load(open(os.path.join(out_dir, LEDGER_NAME), encoding="utf-8"))
+                      .get("verdict", "")).strip().upper()
+    except Exception:                                        # noqa: BLE001 — a missing ledger is already an err
+        pass
+    if final and os.path.exists(nd):
+        if not errs and overall == "PASS":
+            os.remove(nd)
+            print("[critic_ledger] delivery review PASSED — removed NOT_DELIVERED.md")
+        elif not errs:
+            print("[critic_ledger] the ledger is well formed and its verdict is %r — the FILM is not "
+                  "delivered. NOT_DELIVERED.md stays until a review passes." % (overall or "missing"))
+        else:
+            print("[critic_ledger] NOT_DELIVERED.md stays: fix the ledger, then the film")
     return 1 if errs else 0
 
 

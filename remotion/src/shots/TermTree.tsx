@@ -11,6 +11,10 @@ import {useDNA, TermFrame} from '../runtime/dna';
 export const DURATION = 165;
 type Item = {name?: string; note?: string; tag?: string};
 
+// The reveal window: the first row starts here, each row takes TREE_SPAN, and the LAST one lands at
+// TREE_START + 0.42 + TREE_SPAN = 0.80 — comfortably before the t=0.88 every gate in this repo samples.
+const TREE_START = 0.26, TREE_SPAN = 0.12;
+
 export const TermTree: React.FC<{cmd?: string; root?: string; items?: Item[]; framed?: boolean}> = ({
   cmd = 'ls -la', root = '~/project', framed = false,
   items = [{name: 'src/', note: 'source', tag: 'ok'}, {name: 'docs/', note: 'docs', tag: 'ok'}]} = {}) => {
@@ -49,8 +53,17 @@ export const TermTree: React.FC<{cmd?: string; root?: string; items?: Item[]; fr
           <div style={{color: acc}}>{root}</div>
           {items.map((it, i) => {
             const last = i === items.length - 1;
-            const start = 0.26 + i * 0.14;
-            const show = clamp01(seg(t, start, start + 0.12));
+            // THE STAGGER SCALES WITH THE LIST, and for a long time it did not. At a fixed 0.14 per row the
+            // fifth row finished at t=1.08 and the seventh at 1.36 — past the end of the shot, so a register
+            // that accepts an unbounded `items` could never draw more than five of them, and the sixth
+            // onward were permanently half-arrived. Worse at the frame everything samples: every gate here
+            // reads t=0.88, where the fourth row was 50% in, so the "settled" frame of this register was
+            // never settled. Spread over a fixed window instead and the whole list lands by TREE_SETTLE
+            // whatever its length. At four items the step is 0.42/3 = 0.14, so every film that shipped
+            // before this renders byte-identically.
+            const step = 0.42 / Math.max(1, items.length - 1);
+            const start = TREE_START + i * step;
+            const show = clamp01(seg(t, start, start + TREE_SPAN));
             return (
               <div key={i} style={{display: 'flex', alignItems: 'baseline', gap: Math.round(FS*0.55), opacity: show,
                 transform: `translateX(${(1 - show) * -14}px)`}}>

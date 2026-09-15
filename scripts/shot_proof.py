@@ -189,6 +189,17 @@ def exported_props(shot):
         return None
     m = re.search(r"export const %s\s*:\s*React\.FC<\{" % re.escape(shot), src)
     if not m:
+        # A NAMED props type is the same declaration written in two places, and `None` here means "cannot be
+        # read", which the caller turns into "skip" — silently exempt, the decay this whole file exists to
+        # stop. `demo_copy_qa._declared_types` already resolves `React.FC<Props>` against `type Props = {…}`
+        # and is alias-aware; one parser, not a second copy that knows less.
+        try:
+            import demo_copy_qa
+            aliased = demo_copy_qa._declared_types(src, shot)
+            if aliased:
+                return set(aliased)
+        except Exception:                                    # noqa: BLE001 — unreadable stays unreadable
+            pass
         return None
     st, depth = m.end() - 1, 0
     end = st
@@ -200,7 +211,14 @@ def exported_props(shot):
             if depth == 0:
                 end = k
                 break
-    blk = re.sub(r"//[^\n]*", "", src[st + 1:end])
+    # BOTH KINDS OF COMMENT, and for a while only one. This stripped `//` and left `/** */` alone, so a
+    # register that documents its props with JSDoc — which is the house style for a new one — parsed to an
+    # EMPTY set. Two failures, in opposite directions, from the same line: every board using such a register
+    # was FAILED for passing props that do exist (`DollyZoom` blocked a correct film), and the wrong-prop
+    # defect this gate was built for could never be caught there at all, because nothing is "not in" an
+    # empty set's complement that the caller checks. `_strip_comments` is already imported at the top of
+    # this file for exactly this job — the ONE comment stripper, per its own header — and was not used here.
+    blk = _strip_comments(src[st + 1:end])
     keys, depth, cur = [], 0, ""
     for ch in blk:
         if ch in "{[(":

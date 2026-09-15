@@ -1741,6 +1741,31 @@ def _form_vocabulary(meta, slides, errors, warnings):
     # A register's FILE NAME is its form name (StrataColumn, MuseumLabel, DepartureBoard), so the overlap is
     # measurable. Warning, not error: a real subject can genuinely be recorded in a form the library already
     # holds, and a museum label is a museum label. So it names the evidence and lets a human overrule it.
+    # THE ANTI-SHOPPING CHECK IS BLIND OUTSIDE LATIN SCRIPT, and said nothing about it. `_catalogue_forms`
+    # tokenises the register FILENAMES, which are English, so a Chinese vocabulary can never match one and
+    # the check returns {} — indistinguishable from a vocabulary that genuinely invented every form. The
+    # first Chinese film put eight forms through it and got silence; an independent reviewer then matched
+    # them by hand and found ZERO were new (一条接入轨=PortRail, 一次取舍的对焦=RackFocus,
+    # 一条验收行=AcceptanceStamp). A check that cannot run must SAY it did not run.
+    _latin = [n for n in names if re.search(r"[A-Za-z]", n)]
+    if names and len(_latin) * 2 < len(names):
+        warnings.append(
+            "remotion: the catalogue-shopping check could not run — it compares forms against the REGISTER "
+            "FILE NAMES, which are English, and %d of %d forms here are not in Latin script. It is blind on "
+            "this film, not clean: check by hand that at least half the vocabulary names forms this library "
+            "does NOT already have (agents/shot-director.md step 0.5, rule 2)." % (len(names) - len(_latin), len(names)))
+    # AND THE LANGUAGE-INDEPENDENT HALF: a DERIVED vocabulary has SLACK. A subject is recorded in more ways
+    # than any one film uses, so some declared forms go unused. A vocabulary where every form maps to
+    # exactly one beat and nothing is left over was not derived from the subject — it was read off the
+    # casting after the fact, which is the same failure in a script this check can see.
+    _used = [str(((s_.get("shot_fit") or {}).get("form")) or "").strip() for s_ in slides]
+    _used = [u for u in _used if u]
+    if names and _used and len(set(_used)) == len(names) and len(set(_used)) == len(_used):
+        warnings.append(
+            "remotion: all %d declared forms are used by exactly one beat each and none is left over — a "
+            "vocabulary DERIVED from the subject has slack, because a subject is recorded in more ways than "
+            "one film uses. Zero slack is the signature of a list written from the casting rather than from "
+            "the subject." % len(names))
     shopped = _catalogue_forms(names)
     if names and len(shopped) * 2 > len(names):
         warnings.append(
