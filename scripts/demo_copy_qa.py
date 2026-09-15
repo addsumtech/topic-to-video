@@ -298,3 +298,29 @@ def main(argv):
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
+
+# A PROP CAN BE SUPPLIED BY ANOTHER PROP, and the demo-copy check had no way to know. `PortRail` grew
+# `groups` — items that belong to named kinds — and when a board gives groups, `items` is never read; the
+# checker saw `items` unset, found demo copy behind it, and reported that 'Docs / Chat / Mail' would print
+# on a delivered frame that does not contain them. `SurfaceCarousel` has carried the same shape for weeks
+# (`surfaces[]` OR `items[]`+`nav[]`) and would have produced the same false error the first time a board
+# used the richer prop.
+#
+# The relation is DECLARED in the register and parsed here, never listed in this file: a register that grows
+# an alternative says so next to the props, where the person adding it is already looking.
+#
+#     // @supersedes groups: items
+#
+_SUPERSEDES = re.compile(r"//[ \t]*@supersedes[ \t]+([A-Za-z_][A-Za-z0-9_]*)[ \t]*:([^\n]*)")
+
+
+def supersedes():
+    """{register: {provider_prop: [props it supplies]}} — read from the registers' own declarations."""
+    out = {}
+    for f in sorted(glob.glob(os.path.join(SHOTS, "*.tsx"))):
+        name = os.path.basename(f)[:-4]
+        for m in _SUPERSEDES.finditer(open(f, encoding="utf-8").read()):
+            props = [x.strip() for x in m.group(2).split(",") if x.strip()]
+            if props:
+                out.setdefault(name, {}).setdefault(m.group(1), []).extend(props)
+    return out

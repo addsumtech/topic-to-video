@@ -17,7 +17,7 @@ yet in this library — they exist for new shots and opportunistic use. See
 deliberately left un-migrated.
 
 <!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
-**Family census — 167 registers across 27 families.** D×25 · A×20 · C×15 · B×13 · G×11 · F×10 · H×9 · E×8 · L×7 · I×5 · J×5 · K×5 · M×5 · S×5 · U×5 · JA×4 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
+**Family census — 168 registers across 27 families.** D×25 · A×21 · C×15 · B×13 · G×11 · F×10 · H×9 · E×8 · L×7 · I×5 · J×5 · K×5 · M×5 · S×5 · U×5 · JA×4 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
 
 **9 families hold two registers or fewer: O, Q, R, T, V, W, X, Y, Z.** That is a BUILD signal, not a menu. When a beat's
 argument wants one of those languages and the one register there does not carry it, the answer is
@@ -111,7 +111,7 @@ The floor of the library, lowest first — 36 of 161 registers:
 `_failed / _untrusted` could not be measured (they refuse to draw without a real artefact, or their two prop sets came out too alike to compare): AcceptanceStamp, DollyZoom, EdCompare, LiquidMorph, MRIPipeline, OverlapSeparation, VersusSplit — but see the warning above: `AcceptanceStamp`, `DollyZoom` and `MRIPipeline` are on that list because the reader handed them no props at all, so "its two prop sets came out too alike" was a statement about two IDENTICAL sets. `LiquidMorph` is the one honest entry of the four: it declares `React.FC` with no props, so a film cannot author it at all — which is a finding about the register, not about the instrument.
 
 ## A · Product-UI / SaaS-film — motion of a working interface
-191. **StateSheet** — one thing IS its states: a contact sheet of the REAL pictures a thing exists in, each cell a picture and the name of the state it is, one cell marked as the sta *Use: one thing IS its states: a contact sheet of the REAL pictures a thing exists in, each cell a picture and the name of the state it is, one cell marked as the sta*
+192. **FallbackPath** — one action, two routes, and the second is reached ONLY when the first misses. Use when the beat's claim is a mechanism with a preference in it — a cache and its *Use: one action, two routes, and the second is reached ONLY when the first misses. Use when the beat's claim is a mechanism with a preference in it — a cache and its*
 190. **CompanionCard** — a card sits beside a companion and reports what ANOTHER thing is doing, in two states and no more; the state turns once on its own, then a cursor arrives, presses the card, and the card says where it takes you back to. That last line is the whole form: a status display TELLS you, this one RETURNS you — so the three moments never overlap, because a state that turned while the cursor was arriving would read as the click causing it. Nothing here draws a pet, a menu bar or anyone's app: the companion is an abstract sitting shape in the film's own tokens and every word arrives through props, so a beat about a build agent, a long export, a CI run or a kettle uses the same register. *Use: a small thing reporting on a larger thing that is elsewhere, and the way back to it. Refuses to render with fewer than TWO states — with one there is nothing to turn, and the shot is a label beside a shape.* `task, states[2], returnsTo, note` · QUIET BY DESIGN: measured motion_p75 0.0001 and ink 0.6% — the library's quiet band (`PositioningMatrix`, `TallyLedger`, `TermLog` sit there too), not a defect to tune out. Its budget is the cursor press and the state turn; the companion's breath is a 0.5 Hz pulse on its lit core that STOPS when the state turns, so the shot goes still at the instant the work does and the viewer sees the stillness before reading the word. Intercut with a dense register.
 183. **GlowPick** — one light crosses a working interface (`runtime/uiSurface`), gathers into a capsule, and from where it lands draws the outline of the ONE element that matters; the stroke then converges from a hot glow to a thin accent border — the light becomes UI. Everything else recedes behind a dim with a hole in it, so the context never leaves. *Use: "look here" — without cutting away, without dimming the interface to noise, without an arrow.* `screen, items[], nav[], page, target, note` · QUIET: measured 2-4% ink in a delivered film against a 12% floor — one lit object on a dark stage, like most of this library. Intercut with a dense register; do not stack these back to back.
 180. **SurfaceCarousel** — the product's OWN screens (window chrome, real nav, real rows — `runtime/uiSurface`) queue up in a corridor and step past in three beats; the centred one sharp, its neighbours held at the edges, scaled down, sunk and blurred. Turns vertical at 9:16. *Use: one product, several surfaces — when four full-screen cuts would make the viewer re-locate themselves four times.* `surfaces[]` (each `{page?, items?, nav?, series?}`) or `items[]`, `nav[]` — a surface gets the chart page only if it was given a real `series`, so the queue never shows an empty plot · QUIET: measured 2-4% ink in a delivered film against a 12% floor — one lit object on a dark stage, like most of this library. Intercut with a dense register; do not stack these back to back.
@@ -218,8 +218,12 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 95. **LiquidMetal** — a chrome/mercury blob flows + merges (goo filter) with a banded reflection gradient, on a soft lavender/icy/beige palette, chrome wordmark on top. *Use: premium "liquid chrome, alive" hero (2026).*
 
 ## G · Illustrated / craft styles (the "style" axis)
-> **The four EVIDENCE registers — PhotoPlate · ScanReconstruct · RealVersus · MuseumLabel — take a real
-> photograph and REFUSE to render without one.** Their whole premise is that the artefact carries the
+> **The EVIDENCE registers — PhotoPlate · ScanReconstruct · RealVersus · MuseumLabel · PageWrite ·
+> StateSheet — take a real picture and REFUSE to render without one.** (`StateSheet` takes a LIST of them;
+> `scripts/register_energy.evidence_props()` derives which prop that is from the TYPE, so the next such
+> register is fed the day it is written. And note PhotoPlate is NOT in `GROUND_FOLLOWS_MEASURED`: with a real
+> photograph only 51% of its frame moves with the ground, because the picture holds the middle. It was listed
+> for weeks on a reading taken before the guard existed — a measurement of an empty plate.) Their whole premise is that the artefact carries the
 > argument; given no `src` they used to draw the furniture around an absent picture — an outlined empty
 > box with callout chips pointing at nothing — and the render succeeded, so nothing said the frame was
 > empty. Measured that way they were the four sparsest rows in this library (0.0–0.9% ink); measured with
@@ -268,6 +272,7 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 98. **GameOfLife** — Conway's cellular automaton evolves from a fixed seed (recomputed to the current generation each frame — deterministic + seekable), living cells glowing, a wordmark over the emergent order. *Use: simple rules → complex life / emergence.*
 
 ## L · Editorial / print — designed page systems
+191. **StateSheet** — one thing IS its states: a contact sheet of the REAL pictures a thing exists in, each cell a picture and the name of the state it is, one cell marked as the sta *Use: one thing IS its states: a contact sheet of the REAL pictures a thing exists in, each cell a picture and the name of the state it is, one cell marked as the sta*
 159. **CompressedSensingEq** — the concept as its actual constrained-optimisation equation, typeset rather than gestured at. *Use: a method that IS its equation / show the formula, not a metaphor.* `accent, accent2, label`
 (see also **RisoPrint** in G — a riso print title.)
 69. **MagazineSpread** — a designer editorial cover sets itself: serif masthead, hairline rule, hero colour block, a word-by-word feature headline, deck, and an optional `contents` index. *Use: an editorial section opener (LIGHT ground).*

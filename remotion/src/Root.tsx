@@ -10,6 +10,7 @@ import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
 import {CompanionCard, DURATION as D_COMPANIONCARD} from './shots/CompanionCard';
 import {StateSheet, DURATION as D_STATESHEET} from './shots/StateSheet';
+import {FallbackPath, DURATION as D_FALLBACKPATH} from './shots/FallbackPath';
 import {TermSpace, DURATION as D_TERMSPACE} from './shots/TermSpace';
 import {DollyZoom, DURATION as D_DOLLYZOOM} from './shots/DollyZoom';
 import {RackFocus, DURATION as D_RACKFOCUS} from './shots/RackFocus';
@@ -518,5 +519,6 @@ export const RemotionRoot: React.FC = () => (
     {F('TermSpace', TermSpace, D_TERMSPACE)}
     {F('CompanionCard', CompanionCard, D_COMPANIONCARD)}
     {F('StateSheet', StateSheet, D_STATESHEET)}
+    {F('FallbackPath', FallbackPath, D_FALLBACKPATH)}
   </>
 );

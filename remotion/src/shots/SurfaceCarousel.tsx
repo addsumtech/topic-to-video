@@ -45,6 +45,7 @@ const BEATS = [
 export type Surface = {page?: UiPage; items?: string[]; nav?: string[]; series?: number[]};
 
 export const SurfaceCarousel: React.FC<{
+  // @supersedes surfaces: items, nav
   surfaces?: Surface[];
   items?: string[];
   nav?: string[];

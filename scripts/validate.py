@@ -1864,6 +1864,21 @@ def _demo_copy_library():
 _DEMO_COPY_CACHE = None
 
 
+def _supersedes_library():
+    """{register: {provider: [props it supplies]}} — see demo_copy_qa.supersedes()."""
+    global _SUPERSEDES_CACHE
+    if _SUPERSEDES_CACHE is None:
+        try:
+            import demo_copy_qa
+            _SUPERSEDES_CACHE = demo_copy_qa.supersedes()
+        except Exception:
+            _SUPERSEDES_CACHE = {}     # unavailable → the check stays as strict as it was
+    return _SUPERSEDES_CACHE
+
+
+_SUPERSEDES_CACHE = None
+
+
 def _arity_library():
     """{register: {prop: how many items its type FIXES}} — parsed from the registers, same as the copy one."""
     global _ARITY_CACHE
@@ -2166,7 +2181,16 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
         # An ERROR, not a warning: the empty plate says nothing, this says something FALSE.
         _props_empty = (not isinstance(sp, dict)) or (len(sp) == 0)
         if isinstance(sp, dict) and shot in _demo_copy_library():
-            _left = [(p, c) for p, c in sorted(_demo_copy_library()[shot].items()) if p not in sp]
+            # A PROP CAN BE SUPPLIED BY ANOTHER PROP. `PortRail` grew `groups` (items that belong to named
+            # kinds) and when a board gives groups, `items` is never read — but the check saw `items` unset,
+            # found demo copy behind it, and reported that 'Docs / Chat / Mail' would print on a frame that
+            # does not contain them. A false ERROR on a correct board is worse than a missed one: it is the
+            # finding people learn to route around. The relation is declared in the register itself
+            # (`// @supersedes groups: items`) and parsed, never listed here.
+            _sup = _supersedes_library().get(shot, {})
+            _covered = {p for prov, ps in _sup.items() if prov in sp for p in ps}
+            _left = [(p, c) for p, c in sorted(_demo_copy_library()[shot].items())
+                     if p not in sp and p not in _covered]
             if _left and _props_empty:
                 # An empty-props beat already HAS a finding below (the mannequin warning), and it names the
                 # right problem. Stacking a second, longer error on the same beat teaches the author nothing

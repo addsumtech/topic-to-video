@@ -36,7 +36,8 @@ FAMILY = {
     "MapPlate": "J",
     "CollaborativeCursors": "A", "CommandSummon": "A", "TemporalAccelerate": "A", "VelocitySnap": "A",
     "CompanionCard": "A",
-    "StateSheet": "A",
+    "StateSheet": "L",
+    "FallbackPath": "A",
     "GlowPick": "A",
     "SurfaceCarousel": "A",
     "AcceptanceStamp": "A",
@@ -118,6 +119,7 @@ FAMILY = {
 PROVENANCE = {
     "CompanionCard":           'product-ui',
     "StateSheet":              'product-ui',
+    "FallbackPath":            'product-ui',
     "TermSpace":               'developer-tooling',
     "DollyZoom":               'photographic',
     "RackFocus":               'photographic',

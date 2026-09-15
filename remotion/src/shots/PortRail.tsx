@@ -84,9 +84,9 @@ const floorAt = (vert: boolean, span: number) => (vert ? -(span / 2) - 0.75 : -0
 const seatAt = (t: number, span: number, fps: number, i: number, n: number) =>
   springAt(t, span, fps, 0.08 + (i / Math.max(1, n)) * 0.52, SPRING_SEAT);
 
-const Scene: React.FC<{n: number; tones: string[]; accent: string; floor: string; vert: boolean;
+const Scene: React.FC<{n: number; tones: string[]; toneOf: number[]; accent: string; floor: string; vert: boolean;
   span: number; t: number; aim: Vec3; cam: Vec3; animSpan: number; fps: number}> =
-  ({n, tones, accent, floor, vert, span, t, aim, cam, animSpan, fps}) => {
+  ({n, tones, toneOf, accent, floor, vert, span, t, aim, cam, animSpan, fps}) => {
   const frame = useCurrentFrame();
   return (
     <>
@@ -136,7 +136,8 @@ const Scene: React.FC<{n: number; tones: string[]; accent: string; floor: string
                   away from the lens for half the modules and left them unidentifiable. */}
               <mesh position={[0, -0.115, 0.312]}>
                 <boxGeometry args={[0.34, 0.045, 0.008]} />
-                <meshStandardMaterial color={tones[i % tones.length]} emissive={tones[i % tones.length]}
+                <meshStandardMaterial color={tones[(toneOf[i] ?? i) % tones.length]}
+                  emissive={tones[(toneOf[i] ?? i) % tones.length]}
                   emissiveIntensity={0.45} roughness={0.55} />
               </mesh>
               {/* the pin that enters the rail — the part that makes this a PLUG and not a tile. The gap it
@@ -160,9 +161,20 @@ const Scene: React.FC<{n: number; tones: string[]; accent: string; floor: string
   );
 };
 
-export const PortRail: React.FC<{standard?: string; items?: string[]; note?: string}> = ({
+export const PortRail: React.FC<{
+  standard?: string;
+  items?: string[];
+  /** Items that belong to NAMED KINDS. Given these, each module's tone bar takes its group's colour and a
+   *  key is drawn, so the one visual variable on the rail identifies something instead of counting. Without
+   *  them the bar is chosen by INDEX — which is furniture: a reviewer looked at a rail of six modules whose
+   *  bars ran mint / pale blue / pale cyan / blue / white / teal with no key, under a narration whose claim
+   *  was THREE KINDS of channel, and reported that the only visual variable present carried no meaning. */
+  // @supersedes groups: items
+  groups?: {label?: string; items?: string[]}[];
+  note?: string;
+}> = ({
   standard: STANDARD = 'One standard', items: ITEMS = ['Docs', 'Chat', 'Mail', 'Calendar', 'Wiki', 'DB'],
-  note: NOTE = ''} = {}) => {
+  groups: GROUPS, note: NOTE = ''} = {}) => {
   const dna = useDNA();
   const t = useT();
   const frame = useCurrentFrame();
@@ -172,14 +184,33 @@ export const PortRail: React.FC<{standard?: string; items?: string[]; note?: str
   const FG = dna?.fg ?? FG_D0;
   const DIM = dna?.dim ?? DIM_D0;
   const ACC = dna?.accent ?? ACC_D0;
-  const TONES = dnaPalette(dna, 6) ?? TONES0;
+  const TONES0_ = dnaPalette(dna, 6) ?? TONES0;
   // The halo behind a label is THE GROUND'S OWN COLOUR, softened — not black. Black is invisible on a dark
   // stage (where it was written and looked fine) and a grey smudge behind dark type on a paper-ground DNA,
   // which is the same declaration reading as craft in one film and as a printing fault in the next. Taking
   // it from the ground needs no light/dark branch: it is always the colour the type is sitting on.
   const SOLID = dna?.bg ?? BG_D0;
   const HALO = /^#[0-9a-f]{6}$/i.test(SOLID) ? `${SOLID}cc` : SOLID;
-  const list = ITEMS.filter((x) => String(x ?? '').trim()).slice(0, 6);
+  // GROUPS WIN WHEN THEY ARE GIVEN, and the rail's cap of six applies to the flattened run either way, so
+  // a group whose members fall past the cap loses its members rather than silently losing its colour.
+  const gs = (Array.isArray(GROUPS) ? GROUPS : [])
+    .map((g) => ({label: String(g?.label ?? '').trim(),
+                  items: (g?.items ?? []).map((x) => String(x ?? '').trim()).filter(Boolean)}))
+    .filter((g) => g.items.length);
+  const flat: {text: string; g: number}[] = gs.length
+    ? gs.flatMap((g, gi) => g.items.map((text) => ({text, g: gi})))
+    : ITEMS.filter((x) => String(x ?? '').trim()).map((text) => ({text: String(text), g: -1}));
+  const seats = flat.slice(0, 6);
+  const list = seats.map((x) => x.text);
+  // the tone INDEX per module: its group when there are groups, its own position when there are not.
+  const toneOf = seats.map((x, i) => (x.g >= 0 ? x.g : i));
+  // THREE GROUPS TAKING THE PALETTE'S FIRST THREE HUES come out adjacent — the first and third read as the
+  // same colour at a glance, which is a key that cannot be used. Spread them across the whole palette so
+  // the separation is as large as the DNA allows, whatever the group count.
+  const TONES = gs.length
+    ? gs.map((_, gi) => TONES0_[Math.round(gi * (TONES0_.length - 1)
+                                           / Math.max(1, gs.length - 1)) % TONES0_.length])
+    : TONES0_;
   // A RAIL WITH NOTHING ON IT still composes — a lit bar with a title under it — and argues nothing. That is
   // the silent-wrong-output this library's evidence guard exists to end, so it throws instead.
   if (!list.length) {
@@ -319,7 +350,7 @@ export const PortRail: React.FC<{standard?: string; items?: string[]; note?: str
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
       <ThreeCanvas width={W} height={H} camera={{position: cam, fov: FOV}} shadows
         style={{position: 'absolute', inset: 0}}>
-        <Scene n={n} tones={TONES} accent={ACC} floor={dna?.bg ?? BG_D0} vert={vert} span={span} t={t}
+        <Scene n={n} tones={TONES} toneOf={toneOf} accent={ACC} floor={dna?.bg ?? BG_D0} vert={vert} span={span} t={t}
           aim={aim} cam={cam} animSpan={animSpan} fps={fps} />
       </ThreeCanvas>
 
@@ -344,7 +375,8 @@ export const PortRail: React.FC<{standard?: string; items?: string[]; note?: str
         const rail = project(yawPoint(vert ? [0, -(span / 2) - 0.55, 0.43] : [0, -0.17, 0.43], yaw),
                              cam, aim, FOV, W, H);
         if (!rail) return null;
-        const blockH = Math.round(titlePx * 1.6) + (NOTE ? Math.round(notePx * 1.5) : 0);
+        const keyH = gs.length ? Math.round(notePx * 1.9) : 0;
+        const blockH = Math.round(titlePx * 1.6) + keyH + (NOTE ? Math.round(notePx * 1.5) : 0);
         const top = Math.min(rail.y + Math.round(U * 0.075), band - blockH - Math.round(U * 0.02));
         return (
           <>
@@ -354,8 +386,29 @@ export const PortRail: React.FC<{standard?: string; items?: string[]; note?: str
               font: `800 ${fitTextPx(STANDARD, W * 0.6, titlePx, {usable: 1.0})}px/${leading(STANDARD, 1.1)} var(--f-display, system-ui, sans-serif)`}}>
               {STANDARD}
             </div>
-            {NOTE ? (
+            {/* THE KEY. A mark that identifies has to be decodable, and the bars on the modules were a
+                colour per INDEX with nothing to read them against. Given groups they carry the KIND, and
+                this row is what makes that legible — swatch and name, in the same tones the bars use, so
+                the viewer can count three kinds on a rail of six modules without the caption. */}
+            {gs.length ? (
               <div style={{position: 'absolute', left: 0, right: 0, top: top + Math.round(titlePx * 1.6),
+                display: 'flex', justifyContent: 'center', gap: Math.round(U * 0.026),
+                opacity: clamp01(seg(t, 0.52, 0.72)), flexWrap: 'wrap',
+                padding: `0 ${Math.round(W * 0.12)}px`}}>
+                {gs.map((g, gi) => (
+                  <span key={gi} style={{display: 'inline-flex', alignItems: 'center',
+                    gap: Math.round(U * 0.008), color: DIM,
+                    font: `600 ${Math.round(notePx * 0.92)}px/1.3 var(--f-mono, "JetBrains Mono", monospace)`}}>
+                    <span style={{width: Math.round(notePx * 0.86), height: Math.round(notePx * 0.24),
+                      borderRadius: 1, background: TONES[gi % TONES.length],
+                      boxShadow: `0 0 ${Math.round(notePx * 0.5)}px ${TONES[gi % TONES.length]}66`}} />
+                    {g.label || ''}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            {NOTE ? (
+              <div style={{position: 'absolute', left: 0, right: 0, top: top + Math.round(titlePx * 1.6) + keyH,
                 textAlign: 'center', color: DIM, padding: `0 ${Math.round(W * 0.16)}px`, textWrap: 'balance',
                 opacity: clamp01(seg(t, 0.66, 0.84)),
                 font: `500 ${notePx}px/${leading(NOTE, 1.4)} var(--f-body, system-ui, sans-serif)`}}>
