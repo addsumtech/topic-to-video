@@ -194,7 +194,16 @@ def test_a_screens_row_keeps_every_field_the_register_declares():
     assert "waiting?: boolean" in src, "the run-state field is gone from the type"
     assert "waiting: s?.waiting === true" in src, (
         "the normaliser drops `waiting` again — a declared input that never reaches the drawing")
-    assert "s.waiting ? '✓' : '·'" in src, "the glyph is back on the typewriter instead of the run-state"
+    # The CONTRACT, not the glyph. The first version of this test pinned the literal `✓ : ·` and went red
+    # the moment the glyph changed for a good reason — a test that breaks on a correct fix is a test people
+    # learn to edit rather than read. What must hold: the state comes from `waiting`, never from `done`
+    # (which means "finished TYPING"), and it is carried by the film's own colour code — the NEXT beat
+    # prints 绿色＝工作中　灰色＝等待中 in words, so green here has to mean working.
+    assert "s.waiting ? DIM : ACC" in src, (
+        "the state colour no longer matches the code the film prints one beat later")
+    assert "'✓'" not in src, (
+        "a ✓ on the screen that is WAITING reads as 'this one finished successfully' — the opposite of the "
+        "beat's point, which is that it is the one needing you")
 
 
 def test_the_press_ring_does_not_borrow_a_state_colour():
