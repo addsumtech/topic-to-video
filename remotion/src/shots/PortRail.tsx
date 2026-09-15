@@ -56,9 +56,28 @@ const YAW = (frame: number) => Math.sin(frame * 0.005) * 0.055;   // a breath, n
 // A ROW READS LEFT TO RIGHT AND A STACK READS DOWNWARD, so the axis flips its SIGN as well as its direction.
 // World +Y is up, so the untouched formula puts item 1 at the bottom of a standing rail and the last item at
 // the top — the list runs backwards, and nothing in the frame says so.
-const slotAt = (i: number, n: number, span: number, vert = false) => {
-  const s = n <= 1 ? 0 : (i / (n - 1) - 0.5) * span;
+const slotAt = (i: number, n: number, span: number, vert = false, slots?: number[]) => {
+  // GROUPED MODULES ARE SPACED BY THEIR GROUP, not evenly. A reviewer looked at a rail of six carrying three
+  // kinds and reported that "三类" rested entirely on a small legend — the bars said it and the LAYOUT did
+  // not, and spacing is the one variable a viewer reads without being told to. With `slots` the run keeps
+  // its total span and redistributes it, so the groups separate without the rail growing.
+  const s = slots && slots.length === n ? slots[i]
+    : (n <= 1 ? 0 : (i / (n - 1) - 0.5) * span);
   return vert ? -s : s;
+};
+
+/** Positions across `span` with an extra gap wherever the group changes. */
+const groupSlots = (g: number[], span: number): number[] => {
+  const n = g.length;
+  if (n <= 1) return [0];
+  const GAP = 1.9;                                       // a between-group step, in units of a within one
+  const steps = g.slice(1).map((x, k) => (x === g[k] ? 1 : GAP));
+  const total = steps.reduce((a, b) => a + b, 0);
+  let acc = 0;
+  return g.map((_, i) => {
+    if (i > 0) acc += steps[i - 1];
+    return (acc / total - 0.5) * span;
+  });
 };
 
 // THE SHADOW CATCHER SITS UNDER WHATEVER STANDS ON IT, and that is not a detail. Upright, the row rides just
@@ -84,9 +103,9 @@ const floorAt = (vert: boolean, span: number) => (vert ? -(span / 2) - 0.75 : -0
 const seatAt = (t: number, span: number, fps: number, i: number, n: number) =>
   springAt(t, span, fps, 0.08 + (i / Math.max(1, n)) * 0.52, SPRING_SEAT);
 
-const Scene: React.FC<{n: number; tones: string[]; toneOf: number[]; accent: string; floor: string; vert: boolean;
+const Scene: React.FC<{n: number; tones: string[]; toneOf: number[]; slots?: number[]; accent: string; floor: string; vert: boolean;
   span: number; t: number; aim: Vec3; cam: Vec3; animSpan: number; fps: number}> =
-  ({n, tones, toneOf, accent, floor, vert, span, t, aim, cam, animSpan, fps}) => {
+  ({n, tones, toneOf, slots, accent, floor, vert, span, t, aim, cam, animSpan, fps}) => {
   const frame = useCurrentFrame();
   return (
     <>
@@ -123,8 +142,8 @@ const Scene: React.FC<{n: number; tones: string[]; toneOf: number[]; accent: str
           const s = seatAt(t, animSpan, fps, i, n);
           return (
             <group key={i} position={vert
-              ? [lerp(LIFT, 0.365, s), slotAt(i, n, span, true), 0]
-              : [slotAt(i, n, span), lerp(LIFT, 0.365, s), 0]}>
+              ? [lerp(LIFT, 0.365, s), slotAt(i, n, span, true, slots), 0]
+              : [slotAt(i, n, span, false, slots), lerp(LIFT, 0.365, s), 0]}>
               {/* ONE MATERIAL FOR EVERY MODULE, so the row reads as a manufactured set. Six saturated hues
                   are what `dnaPalette` hands you and they are right for a diagram and wrong for an object:
                   a product photograph identifies its parts by a MARK, not by dyeing each one. */}
@@ -225,6 +244,8 @@ export const PortRail: React.FC<{
   // A row needs a wide frame; anything squarer or taller stands the rail up instead.
   const vert = W / H < 1.25;
   const span = vert ? Math.min(2.6, 0.52 * n) : SPAN;
+  // built here because it needs the resolved `span`, which depends on the aspect and the module count.
+  const slots = gs.length ? groupSlots(seats.map((x) => x.g), span) : undefined;
   const pad = Math.round(U * 0.035);
 
   // THE COPY IS MEASURED BEFORE THE CAMERA IS CHOSEN, because the copy is one of the frame's walls.
@@ -252,8 +273,8 @@ export const PortRail: React.FC<{
   const railHalf: Vec3 = vert ? [0.15, (span + 1.15) / 2, 0.43] : [(span + 1.15) / 2, 0.15, 0.43];
   const modHalf: Vec3 = [0.28, 0.21, 0.31];
   const posAt = (i: number, travel: number): Vec3 => vert
-    ? [travel, slotAt(i, n, span, true), 0]
-    : [slotAt(i, n, span), travel, 0];
+    ? [travel, slotAt(i, n, span, true, slots), 0]
+    : [slotAt(i, n, span, false, slots), travel, 0];
   const seated: Vec3[] = boxCorners([0, 0, 0], railHalf);
   const moving: Vec3[] = [];
   for (let i = 0; i < n; i++) {
@@ -263,8 +284,8 @@ export const PortRail: React.FC<{
     // alone and the column of type hangs off one side of a frame that is empty on the other — which is what
     // a square cut looked like: the rail pinned left, half the picture unused, the labels pointing into it.
     seated.push(vert
-      ? [0.365 + 0.62, slotAt(i, n, span, true), 0]
-      : [slotAt(i, n, span), 0.365 + 0.30, 0]);
+      ? [0.365 + 0.62, slotAt(i, n, span, true, slots), 0]
+      : [slotAt(i, n, span, false, slots), 0.365 + 0.30, 0]);
   }
   // TWO CLAIMS ON THE FRAME, not one. The settled shot is what a viewer reads, so it clears the caption band,
   // the copy block and the row of labels. A module still on its way owes none of that — its label is not
@@ -338,8 +359,8 @@ export const PortRail: React.FC<{
     // Upright, a label sits ABOVE its module; on the standing rail it sits BESIDE it, because above is where
     // the next module in the stack is.
     const p = vert
-      ? yawPoint([travel + 0.62, slotAt(i, n, span, true), 0], yaw)
-      : yawPoint([slotAt(i, n, span), travel + 0.30, 0], yaw);
+      ? yawPoint([travel + 0.62, slotAt(i, n, span, true, slots), 0], yaw)
+      : yawPoint([slotAt(i, n, span, false, slots), travel + 0.30, 0], yaw);
     const at = project(p, cam, aim, FOV, W, H);
     if (!at) return {text, i, s, at: null};
     return {text, i, s,
@@ -350,7 +371,7 @@ export const PortRail: React.FC<{
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
       <ThreeCanvas width={W} height={H} camera={{position: cam, fov: FOV}} shadows
         style={{position: 'absolute', inset: 0}}>
-        <Scene n={n} tones={TONES} toneOf={toneOf} accent={ACC} floor={dna?.bg ?? BG_D0} vert={vert} span={span} t={t}
+        <Scene n={n} tones={TONES} toneOf={toneOf} slots={slots} accent={ACC} floor={dna?.bg ?? BG_D0} vert={vert} span={span} t={t}
           aim={aim} cam={cam} animSpan={animSpan} fps={fps} />
       </ThreeCanvas>
 

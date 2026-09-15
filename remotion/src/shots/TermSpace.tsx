@@ -40,7 +40,12 @@ const ROOM: Pose[] = [
   {x: 0.30, y: 0.18, z: 0.12, rx: -7, ry: -20},
 ];
 
-type Screen = {name?: string; status?: string};
+// THE GLYPH CARRIES RUN-STATE, and for a long time it carried the TYPEWRITER. `done` means "this status
+// has finished typing", so by the close every screen showed the same ✓ whatever it said — and a reviewer
+// asked the question that settles it: hide the caption, and the frame reads "three terminals in three
+// places", not 哪个还在跑，哪个在等你, which is the beat's whole sentence. A mark derived from the animation
+// is furniture; `waiting` lets the film say which screens are finished and which are still going.
+type Screen = {name?: string; status?: string; waiting?: boolean};
 
 export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
   screens: SCREENS = [{name: 'ingest', status: 'reading the authorised directory'},
@@ -55,7 +60,11 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
   const P = Math.round(U * PERSP_FRAC);
 
   const list = (Array.isArray(SCREENS) ? SCREENS : [])
-    .map((s) => ({name: String(s?.name ?? '').trim(), status: String(s?.status ?? '').trim()}))
+    // THE NORMALISER REBUILDS THE ROW, so every field it does not name is dropped — `waiting` was declared,
+    // passed by the board, and silently thrown away here, which is the shape of half the defects found in
+    // this repo this week: a declared input that never reaches the drawing.
+    .map((s) => ({name: String(s?.name ?? '').trim(), status: String(s?.status ?? '').trim(),
+                  waiting: s?.waiting === true}))
     .filter((s) => s.name || s.status)
     .slice(0, ROOM.length);
   if (!list.length) {
@@ -220,10 +229,12 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
               <span style={{opacity: 0.7}}>$ </span>{s.name}
             </div>
             {s.status ? (
-              <div style={{marginTop: Math.round(npx * 0.34), color: done ? INK : DIM,
+              <div style={{marginTop: Math.round(npx * 0.34),
+                color: done ? (s.waiting ? INK : DIM) : DIM,
                 font: `500 ${spx.toFixed(1)}px/${leading(s.status, 1.3)} ${MONO}`}}>
-                <span style={{color: done ? ACC : DIM, marginRight: Math.round(spx * 0.5)}}>
-                  {done ? '✓' : '→'}
+                <span style={{color: done ? (s.waiting ? ACC : DIM) : DIM,
+                  marginRight: Math.round(spx * 0.5)}}>
+                  {done ? (s.waiting ? '✓' : '·') : '→'}
                 </span>
                 {s.status.slice(0, cut)}
                 {/* the untyped tail stays in the DOM, transparent: revealed, never trimmed */}

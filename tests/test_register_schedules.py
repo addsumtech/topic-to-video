@@ -164,3 +164,53 @@ def test_photoplate_is_not_claimed_to_follow_the_ground():
         "PhotoPlate is back in the ground-follows set; it measures 51% moved, under the floor")
     assert "StateSheet" in listed, "StateSheet measured as following and is not listed"
     assert len(listed) > 90, "the allow list collapsed to %d names — a spot check overwrote it" % len(listed)
+
+
+# ── text_safe_qa could not render any beat that loads a film ASSET ─────────────────────────────────
+def test_the_type_gate_mounts_the_film_s_own_public_dir():
+    """`render_remotion.py` runs the film with `--public-dir=<out_dir>`; `text_safe_qa.py` passed no public
+    dir at all. So every register that draws a file the FILM supplies — all six evidence registers, a brand
+    mark, PointerTour's captured page, a 17-sprite contact sheet — resolved `staticFile()` against a
+    directory this gate never mounted. The image 404s, the render dies, and the beat is reported as a
+    FAILURE: one beat of eight with no machine type reading at all.
+
+    An independent reviewer found it as 'a 17-SVG load race' because it failed on a different sprite each
+    run. It was not a race; it was every sprite, and the one that happened to be named first won."""
+    src = open(os.path.join(_ROOT, "scripts", "text_safe_qa.py"), encoding="utf-8").read()
+    assert "def audit_shot(shot, props, frame, tmp_png, public_dir=None):" in src, (
+        "audit_shot no longer takes a public dir")
+    assert '"--public-dir=" + os.path.abspath(public_dir)' in src, "it is taken and never used"
+    film = src.split("def scan_film(out_dir):", 1)[1].split("\ndef ", 1)[0]
+    assert "public_dir=out_dir" in film, (
+        "the FILM path does not hand its own out_dir to the render, which is the only path that has one")
+
+
+def test_a_screens_row_keeps_every_field_the_register_declares():
+    """TermSpace's normaliser rebuilt each row as {name, status}, so `waiting` — declared on the type and
+    passed by the board — was dropped between the prop and the pixel. The glyph then came from `done`, which
+    means 'this status finished TYPING', so by the close every screen carried the same tick whatever it said.
+    A mark derived from the animation is furniture; this is the defect the whole library was told about."""
+    src = open(os.path.join(_REM, "src", "shots", "TermSpace.tsx"), encoding="utf-8").read()
+    assert "waiting?: boolean" in src, "the run-state field is gone from the type"
+    assert "waiting: s?.waiting === true" in src, (
+        "the normaliser drops `waiting` again — a declared input that never reaches the drawing")
+    assert "s.waiting ? '✓' : '·'" in src, "the glyph is back on the typewriter instead of the run-state"
+
+
+def test_the_press_ring_does_not_borrow_a_state_colour():
+    """CompanionCard prints its own key (绿色＝工作中　灰色＝等待中) and then rang the card in ACC — the
+    'working' accent — on the frame after the state turns to 等待中 with a grey dot. A beat that states a
+    colour code and contradicts it teaches the viewer the colour means nothing."""
+    src = open(os.path.join(_REM, "src", "shots", "CompanionCard.tsx"), encoding="utf-8").read()
+    card = src.split("{/* THE CARD", 1)[1].split("{/* WHERE IT TAKES YOU BACK", 1)[0]
+    assert "pressed ? FG : LINE" in card, "the press border is a state colour again"
+    assert "${ACC}33" not in card, "the press glow is a state colour again"
+
+
+def test_grouped_modules_are_spaced_by_their_group():
+    """Colour alone put "三类" on a small legend. Spacing is the variable a viewer reads without being told
+    to, so the run keeps its total span and redistributes it around the group changes."""
+    src = open(os.path.join(_REM, "src", "shots", "PortRail.tsx"), encoding="utf-8").read()
+    assert "const groupSlots = (" in src, "the group spacing is gone"
+    assert "slots && slots.length === n" in src, "slotAt ignores the table"
+    assert src.count("slots)") >= 8, "not every slot call site takes the table — half the rail would shift"

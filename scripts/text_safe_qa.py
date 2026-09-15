@@ -57,7 +57,7 @@ def durations():
     return out
 
 
-def audit_shot(shot, props, frame, tmp_png):
+def audit_shot(shot, props, frame, tmp_png, public_dir=None):
     """Render one shot with the audit armed. Returns [] (clean) or the violation list it reported.
 
     Props travel by FILE, never on the command line: a beat's real copy is routinely CJK, and a multibyte
@@ -77,10 +77,18 @@ def audit_shot(shot, props, frame, tmp_png):
     # rather than as a finding about the copy on it.
     blob, r = "", None
     for _attempt in (1, 2):
-        r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, tmp_png,
-                            "--frame=%d" % frame, "--gl=angle", "--log=error",
-                            "--props=" + os.path.abspath(pf)],
-                           capture_output=True, text=True, cwd=_REMOTION)
+        # THE FILM'S OWN ASSETS HAVE TO BE SERVED, and this never served them. `render_remotion.py` runs the
+        # film with `--public-dir=<out_dir>`, so a register that draws a file the FILM supplies — every
+        # evidence register, a brand mark, `PointerTour`'s captured page, and a 17-sprite contact sheet —
+        # resolves its `staticFile()` against a directory this gate did not mount. The image 404s, the render
+        # dies, and the beat is reported as a FAILURE: one beat of eight with no machine type reading at all,
+        # which is the "a check that cannot run must say it did not run" hole from the inside.
+        cmd = ["npx", "remotion", "still", "src/index.ts", shot, tmp_png,
+               "--frame=%d" % frame, "--gl=angle", "--log=error",
+               "--props=" + os.path.abspath(pf)]
+        if public_dir:
+            cmd.append("--public-dir=" + os.path.abspath(public_dir))
+        r = subprocess.run(cmd, capture_output=True, text=True, cwd=_REMOTION)
         blob = (r.stdout or "") + (r.stderr or "")
         if TAG in blob or r.returncode == 0:
             break
@@ -134,7 +142,7 @@ def scan_film(out_dir):
             props.setdefault("aspect", meta["aspect"])
         frame = int(round(rr.frame_at_t(durs[shot], rr.SETTLED_T)))
         checked += 1
-        for v in audit_shot(shot, props, frame, tmp):
+        for v in audit_shot(shot, props, frame, tmp, public_dir=out_dir):
             findings.append("scene %02d (%s): %s" % (i, shot, _describe(v)))
     for p in (tmp, tmp + ".props.json"):
         if os.path.exists(p):

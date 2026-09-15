@@ -140,10 +140,15 @@ export const CompanionCard: React.FC<{
       {/* THE CARD — what something ELSE is doing, in two states and no more. */}
       <div style={{position: 'absolute', left: cardLeft, top: cardTop, width: CARD_W,
         padding: PAD, boxSizing: 'border-box', borderRadius: Math.round(U * 0.016),
-        background: SURF, border: `1px solid ${pressed ? ACC : LINE}`,
+        // THE PRESS RING IS NOT A STATE COLOUR. It was `ACC` — the same accent the card uses for "working" —
+        // so on the frame after the state turns, the card rings GREEN while its dot is grey and its word
+        // says 等待中. A beat that prints its own key (绿色＝工作中　灰色＝等待中) and then contradicts it
+        // teaches the viewer that the colour means nothing. A press is a physical affordance, not a state:
+        // it takes the neutral ink.
+        background: SURF, border: `1px solid ${pressed ? FG : LINE}`,
         opacity: arrive,
         transform: `translateY(${(1 - arrive) * U * 0.02}px) scale(${1 - pressed * 0.012})`,
-        boxShadow: pressed ? `0 0 ${Math.round(U * 0.05)}px ${ACC}33` : `0 ${Math.round(U * 0.012)}px ${Math.round(U * 0.03)}px #0007`}}>
+        boxShadow: pressed ? `0 0 ${Math.round(U * 0.05)}px ${FG}2b` : `0 ${Math.round(U * 0.012)}px ${Math.round(U * 0.03)}px #0007`}}>
         <div style={{color: FG, font: `700 ${taskPx}px/${leading(task, 1.25)} var(--f-display, Inter, system-ui, sans-serif)`}}>
           {task}
         </div>
@@ -186,7 +191,7 @@ export const CompanionCard: React.FC<{
           {pressed ? (
             <span style={{position: 'absolute', left: -Math.round(U * 0.02), top: -Math.round(U * 0.02),
               width: Math.round(U * 0.04), height: Math.round(U * 0.04), borderRadius: '50%',
-              border: `2px solid ${ACC}`, opacity: 0.55}} />
+              border: `2px solid ${FG}`, opacity: 0.45}} />
           ) : null}
         </div>
       ) : null}
