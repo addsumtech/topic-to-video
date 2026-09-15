@@ -104,9 +104,21 @@ export const MapPlate: React.FC<{
         const len = Math.hypot(x2 - x1, y2 - y1) * on;
         const ang = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
         const cw = Math.max(hair * 4, (channel.width ?? 0.02) * PW);
-        // A QUARTER along, not the midpoint. The centre of a plate is where the subject's own mark lives by
-        // construction, so a channel label at 50% lands on top of the place name every time.
-        const mx = x1 + (x2 - x1) * 0.26, my = y1 + (y2 - y1) * 0.26;
+        // A QUARTER ALONG, ON WHICHEVER SIDE IS FURTHER FROM THE SUBJECT — and measured, not assumed. The
+        // centre of a plate is where the subject's own mark lives by construction, and a FIXED fraction only
+        // clears it for a channel that crosses the whole plate, which is what the default happens to be. A
+        // short corridor between two nearby places — a thing a film authors, and what the CJK sweep fed —
+        // put the label straight back onto the place name at 0.26 exactly as it had at 0.50.
+        const nameTop = cy + dot * 2.4, nameH = W * 0.036, labH = W * 0.018;
+        const far = (f: number) =>
+          Math.hypot(x1 + (x2 - x1) * f - cx, y1 + (y2 - y1) * f - (nameTop + nameH / 2));
+        const f = far(0.26) >= far(0.74) ? 0.26 : 0.74;
+        const mx = x1 + (x2 - x1) * f, my = y1 + (y2 - y1) * f;
+        // ...and when the channel runs so near the mark that NEITHER quarter clears it, the label sits above
+        // its own bank instead of dropping into the name. A plate may draw a channel through its subject.
+        const clash = Math.abs(mx - cx) < W * 0.22
+          && my + cw < nameTop + nameH && my + cw + labH > nameTop;
+        const labTop = clash ? my - cw - labH * 1.4 : my + cw;
         return (
           <React.Fragment>
             <div style={{position: 'absolute', left: x1, top: y1 - cw / 2, width: len, height: cw,
@@ -117,7 +129,7 @@ export const MapPlate: React.FC<{
                 transformOrigin: '0 50%', transform: `rotate(${ang}deg)`}} />
             ))}
             {channel.label ? (
-              <div style={{position: 'absolute', left: mx - W * 0.09, top: my + cw, width: W * 0.18,
+              <div style={{position: 'absolute', left: mx - W * 0.09, top: labTop, width: W * 0.18,
                 textAlign: 'center', opacity: on,
                 font: `500 ${Math.round(W * 0.0135)}px/1.3 ${mono}`, color: ACC2,
                 letterSpacing: '0.06em'}}>{channel.label}</div>

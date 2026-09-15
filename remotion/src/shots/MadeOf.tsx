@@ -159,6 +159,10 @@ export const MadeOf: React.FC<{
       {note ? (
         <div style={{position: 'absolute', right: Math.round(W * 0.045), top: Math.round(zoneTop * 0.42),
           maxWidth: W * 0.34, textAlign: 'right', opacity: noteIn, color: DIM,
+          // `balance`: Chinese breaks between any two glyphs, so a note a unit too wide for the column
+          // under the partition drops one character onto a line of its own. First seen on the first Chinese
+          // render this register ever received — its five props were read as one until 2026-09-15.
+          textWrap: 'balance',
           font: `400 ${Math.round(base * 0.022)}px/1.35 ${body}`}}>{note}</div>
       ) : null}
     </AbsoluteFill>

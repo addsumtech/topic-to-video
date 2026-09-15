@@ -253,11 +253,18 @@ export const DollyZoom: React.FC<{
           font: `800 ${subjPx}px/${subjLead} var(--f-display, Inter, system-ui, sans-serif)`,
           letterSpacing: '-0.02em'}}>{subject}</div>
         {note ? (
-          <div style={{marginTop: Math.round(U * 0.022), color: DIM,
+          // `balance` because Chinese breaks between ANY two glyphs: a note a unit too wide for the subject's
+          // column drops a single character onto a line of its own under the display word, which reads as a
+          // typo rather than a wrap. Measured on the first Chinese render this register ever got — it was
+          // invisible to the CJK gate until 2026-09-15, because its props are documented with JSDoc.
+          <div style={{marginTop: Math.round(U * 0.022), color: DIM, textWrap: 'balance',
             font: `500 ${notePx}px/${noteLead} var(--f-body, system-ui, sans-serif)`}}>{note}</div>
         ) : null}
         {reading && readOn > 0 ? (
-          <div style={{marginTop: Math.round(U * 0.05), opacity: readOn,
+          // `balance` for the same reason as the note above it — and it matters more here, because the
+          // reading is the line the whole move lands on. A single glyph left alone under it is the last
+          // thing the shot shows.
+          <div style={{marginTop: Math.round(U * 0.05), opacity: readOn, textWrap: 'balance',
             color: readableOn(dna?.bg ?? '#0b0f17', ACC, FG),
             font: `700 ${readPx}px/${readLead} var(--f-mono, "JetBrains Mono", monospace)`,
             letterSpacing: '0.07em', textTransform: 'uppercase'}}>{reading}</div>

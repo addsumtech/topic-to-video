@@ -26,11 +26,18 @@ def build(out_dir, cols=5, cell_w=320, out_path=None):
     if not frames:
         raise SystemExit("[contact_sheet] no keyframes in %s" % kdir)
 
+    # BY POSITION, NOT BY THE `index` FIELD. `render_remotion` names keyframes `scene_%02d % (i + 1)` from
+    # the scene's POSITION, while this read `index + 1` — and boards in this repo use both a 0-based and a
+    # 1-based `index`. On a 1-based board every label shifted by one: cell 1 showed a register name of
+    # nothing and cell 2 labelled the SplitFlap board as TermSpace, for all eight beats. An independent
+    # reviewer caught it by cropping the label strip and cross-reading the storyboard, and noted the cost
+    # exactly: a reviewer who trusted this sheet would attribute every frame to the wrong register — the
+    # one artifact a review is built on, quietly lying about which register drew what.
     shots = {}
     try:
         board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
-        for s in board.get("slides", []):
-            shots[int(s.get("index", 0)) + 1] = str(s.get("shot") or "")
+        for pos, s in enumerate(board.get("slides", []), start=1):
+            shots[pos] = str(s.get("shot") or "")
     except (OSError, ValueError):
         pass
 

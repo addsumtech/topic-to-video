@@ -144,8 +144,12 @@ export const NeuralField: React.FC<{
   // A head label sits at its OWN slot's height, one gap to the right of it — adjacency does the labelling, so
   // there is no extra rule/underline furniture for the viewer to decode.
   const headLabel = (text: string, cy: number, color: string, opacity: number) => (
+    // `balance` because Chinese breaks between ANY two glyphs: a head label one unit too wide for its box
+    // drops a single character onto a line of its own, which reads as a typo rather than a wrap. One call
+    // site serves the live head and the ghost slot, so both are covered here.
     <div style={{position: 'absolute', left: labelLeft, top: cy, width: labelW, transform: 'translateY(-50%)',
-      opacity, color, font: `700 ${headSize}px/1.32 ${monoFace}`, letterSpacing: '0.06em'}}>{text}</div>
+      opacity, color, textWrap: 'balance',
+      font: `700 ${headSize}px/1.32 ${monoFace}`, letterSpacing: '0.06em'}}>{text}</div>
   );
 
   return (

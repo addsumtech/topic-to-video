@@ -94,6 +94,7 @@ sys.path.insert(0, _HERE)
 
 _ROOT = os.path.dirname(_HERE)
 _REMOTION = os.path.join(_ROOT, "remotion")
+from onscreen_text_qa import _strip_comments   # the ONE comment stripper
 _SHOTS = os.path.join(_REMOTION, "src", "shots")
 TAG = "TYPE-COLLISIONS "
 DEFAULT_DNA = "product"
@@ -169,13 +170,27 @@ _LONG_V = [_LONG, "它读取你授权的目录，按类型分流并归档，最�
 # legend past the whole content zone. A prop whose name ends in `Label` is a label. The leading `[a-z]*` is
 # what makes the tail match, and the roles stay in order so `doneLabel` and `sectionLabel` keep the SHORT
 # role they are listed with rather than being re-read as labels.
+# A UNIT IS ONE OR TWO GLYPHS. `unit` was matched by the kicker rule and handed 4-6 — eleven registers
+# declare one (`ChartLive`, `MadeOf`, `OdometerRoll`, `VelocitySnap`, …) and every one of them prints it
+# hard against its figure, so `MadeOf` drew «26沉淀为技能» and was reported under the leading floor at 81px
+# about a string no film would ever write there. A unit is 件 / 次 / 份 / %, and the gate's own doctrine is
+# the lengths a real film uses, not the longest string the pool holds.
+_UNIT_V = ["件", "次", "份", "%"]
+
 _ROLE = [
-    (r"^[a-z]*(kicker|meta|unit|issue|sectionLabel|wordmark|colophon|doneLabel|tag|cmd|root|hub|time|date|"
-     r"hash|ref|status|filename|glyph|kind|side)$", _SHORT_V),
+    (r"^[a-z]*(unit|per|each)$|^unit[A-Z][a-zA-Z]*$", _UNIT_V),
+    (r"^[a-z]*(kicker|meta|issue|sectionLabel|wordmark|colophon|doneLabel|tag|cmd|root|hub|time|date|"
+     r"hash|ref|status|filename|glyph|kind|side|stamp|seal|badge|code|plateNo|verdict|pronunciation)$",
+     _SHORT_V),
     # ...and the role word can lead as well as trail: `underLabel` and `labelLeft` are both labels.
-    (r"^[a-z]*(label|heading|focalLabel|titleTop|titleBottom|word|value|query)$"
+    (r"^[a-z]*(label|heading|focalLabel|titleTop|titleBottom|word|value|query|display)$"
      r"|^(label|heading|word)[A-Z][a-zA-Z]*$", _LABEL_V),
-    (r"^[a-z]*(title|hero|headline|name)$", _TITLE_V),
+    # A PLATE'S SUBJECT IS A PROPER NOUN. `place` matched nothing and fell to the medium-sentence default,
+    # so MapPlate's centre mark — set as display type against the plate — was a 26-glyph sentence that wrapped
+    # to four lines through the middle of the map. The pools are deliberately hard cases, but a hard case for
+    # a NAME is a long name, not a paragraph: fed a sentence, every register that centres its subject reports
+    # an overlap that no film could ever produce.
+    (r"^[a-z]*(title|hero|headline|name|place|city|subject|who)$", _TITLE_V),
     (r"^[a-z]*(tagline|caption|deck|answer|note|callout|heroNote|statement1|statement2|pitch|body)$"
      r"|^(note|caption|answer|body)[A-Z][a-zA-Z]*$", _LONG_V),
 ]
@@ -203,9 +218,18 @@ def _is_readout(prop, local, src):
     if dflt and re.fullmatch(r"[\d][\d.,%+\-\s]*", dflt.group(1).strip()):
         return True
     esc = re.escape(local)
-    return bool(re.search(r"<Figure\b[^>]*\bvalue=\{%s\b" % esc, src, re.S)
-                or re.search(r"\b(?:Number|parseFloat|parseInt)\([^)]*\b%s\b" % esc, src)
-                or re.search(r"\b%s\s*\.\s*toLocaleString\(" % esc, src))
+    if (re.search(r"<Figure\b[^>]*\bvalue=\{%s\b" % esc, src, re.S)
+            or re.search(r"\b(?:Number|parseFloat|parseInt)\([^)]*\b%s\b" % esc, src)
+            or re.search(r"\b%s\s*\.\s*toLocaleString\(" % esc, src)):
+        return True
+    # THE SAME TEST THE ROW LEVEL ALREADY MAKES, one level up. `_ROW_READOUT` says a row's `value` is a
+    # figure when the row is a MEASURED one, and that rule was never applied to a top-level prop: the same
+    # names — `total`, `count`, `amount` — fell through to the sentence pool. `TallyLedger.total` ("the
+    # figure the ledger adds up to, ruled off at the foot") was handed a 26-glyph sentence and overlapped
+    # its own neighbours three ways. The register's default is `''`, so there is no evidence in it to read;
+    # the evidence is that the register counts — it declares numbers — and that this prop is named for the
+    # result of counting.
+    return bool(_ROW_READOUT.match(prop) and re.search(r":\s*number\b", src))
 
 
 def _local_of(prop, src):
@@ -247,10 +271,33 @@ def prop_signature(name):
         src = open(os.path.join(_SHOTS, name + ".tsx"), encoding="utf-8").read()
     except OSError:
         return {}, ""
-    m = re.search(r"export const %s: React\.FC<\{(.*?)\}>\s*=" % re.escape(name), src, re.S)
+    # TWO MORE WAYS TO BE INVISIBLE, both found by asking which registers this gate feeds NOTHING. The old
+    # pattern demanded the props be written inline AND `}>` to be adjacent, so:
+    #   AcceptanceStamp  `React.FC<Props>`   — its four props live in a named alias above the component
+    #   MRIPipeline      `React.FC<{...} >`  — one space before the closing angle
+    # were swept with their English demo defaults ('Condition one', 'ACCEPTED', 'Always computed') and
+    # reported 0 findings, which is the same silence the JSDoc blindness produced: a register nobody can
+    # feed is never checked, and the output says nothing about it either way.
+    m = re.search(r"export const %s: React\.FC<\s*\{(.*?)\}\s*>\s*=" % re.escape(name), src, re.S)
+    if not m:
+        a = re.search(r"export const %s: React\.FC<\s*([A-Za-z_][A-Za-z0-9_]*)\s*>\s*=" % re.escape(name),
+                      src)
+        if a:
+            d = re.search(r"(?:type\s+%s\s*=\s*|interface\s+%s\s*)\{(.*?)\}\s*;?\s*$"
+                          % (re.escape(a.group(1)), re.escape(a.group(1))), src, re.S | re.M)
+            if d:
+                m = d
     if not m:
         return {}, src
-    body, out, depth, cur = m.group(1), {}, 0, ""
+    # COMMENTS COME OFF BEFORE THE SPLIT, not after. `_one_prop` strips them too, but by then the damage is
+    # done: this loop breaks the body at every top-level `;`, and a semicolon inside a comment splits mid
+    # sentence — so the NEXT prop's chunk begins with the comment's tail, `_one_prop` anchors on an
+    # identifier at the start, finds a backtick, and the prop is dropped in silence. Nine registers lost a
+    # prop this way AFTER the JSDoc fix, every one of them to a `;` a human wrote inside an explanation:
+    # StrataColumn `// top (surface) -> bottom; `find` marks the layer`, DollyZoom `/** `in` = ...; `out` =
+    # ... */`, SectionRoute, GazetteerEntry, InOrder, Inscription, LastLeg, PointerTour, ProfileGrowth.
+    # Stripping first also fixes the depth counter, which was counting braces inside prose.
+    body, out, depth, cur = _strip_comments(m.group(1)), {}, 0, ""
     for ch in body:                                    # split on top-level ';' only (nested {} survive)
         if ch in "{[(":
             depth += 1
@@ -264,8 +311,22 @@ def prop_signature(name):
     return out, src
 
 
+# COMMENTS ARE STRIPPED BEFORE A PROP IS READ, and for a long time they were not. `_one_prop` anchors on
+# an identifier at the START of its chunk, so a prop preceded by a JSDoc comment — which is the house style
+# for documenting one — never matched and was dropped in SILENCE. Measured across the library the day a new
+# register made it visible: TWO registers were invisible to this gate entirely (their every prop is
+# documented, so `cjk_props` returned {} and the sweep reported "0 findings" about a frame rendered from the
+# register's own demo defaults) and TWENTY-FIVE were read only in part — `GrantedTree` 1 prop of 6,
+# `MadeOf` 1 of 5, `Inscription` 1 of 4.
+#
+# That silence also produced a false FACT. `prop_reach` fed those crippled sets, measured almost no change,
+# and the number was written into LIBRARY.md as "a register whose only authorable prop is a kicker". MadeOf
+# declares five. The gate was not describing the register, it was describing what it could see of it.
+#
+# `_strip_comments` is the ONE stripper in this repo and two other parsers were already fixed to use it.
 def _one_prop(chunk):
-    m = re.match(r"\s*([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*:\s*(.+)", chunk.replace("\n", " "), re.S)
+    m = re.match(r"\s*([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*:\s*(.+)",
+                 _strip_comments(chunk).replace("\n", " "), re.S)
     return {m.group(1): m.group(2).strip()} if m else {}
 
 
@@ -309,14 +370,19 @@ def cjk_props(name, offset=0):
     twice: a register whose picture barely moves between them is one whose picture is furniture, and the
     film only ever authored a caption on it. Default 0, so every existing caller is byte-identical."""
     sig, src = prop_signature(name)
-    props, untestable = {}, []
+    props, untestable, seen = {}, [], set()
     scalars = offset
     for prop, ty in sig.items():
         t = ty.replace(" ", "")
         # `page` selects WHICH page shape a surface draws (cards / chart / table / form) — plumbing, like
         # `aspect` and `dna`, not copy. Left off this list it was reported as untestable on every register
         # that takes one, which is a permanent line in the gate's output that means nothing.
-        if prop in ("accent", "accent2", "imageAspect", "aspect", "dna", "page") or re.match(r"^src[A-Z]?", prop):
+        # `face` joins the list for the reason the others are on it: Inscription declares it as "override the
+        # stone tone; defaults to a darker cut of the DNA's surface" — a COLOUR. It was handed a 26-glyph
+        # sentence as a tone, which is the top-level twin of the `_NON_COPY_FIELDS` bug that fed TermBars a
+        # sentence as the colour of every bar.
+        if prop in ("accent", "accent2", "imageAspect", "aspect", "dna", "page",
+                    "face") or re.match(r"^src[A-Z]?", prop):
             # colours / images / plumbing, not copy. The `src` test is a PREFIX: KSpaceAnatomy declares
             # srcK / srcLow / srcHigh, an exact-match skip fed all three a Chinese sentence as a URL, and
             # the register reported as a RENDER FAILURE for it. evidence_props() fills them properly.
@@ -338,18 +404,59 @@ def cjk_props(name, offset=0):
             # a duplicated one either, which is the same reason the ARRAY side was given row-varying copy.
             # The variants keep the ROLE, so a label stays label-length and a note stays note-length; only
             # the words differ, which is the one thing that must.
-            props[prop] = _string_for(prop, _local_of(prop, src), src, scalars)
+            # NO TWO SIBLINGS GET THE SAME STRING. Varying by ordinal spreads the pool, but a pool of four
+            # and five label-role props wraps: `BeforeAfterSlider` got «自主循环运转» for BOTH `heading` and
+            # `afterLabel`, and the sweep reported an overlapping pair between them — the detector matches
+            # elements by their text, so two elements carrying one string cannot be told apart and a phantom
+            # pair is indistinguishable from a real one. It is the same reason the array side was given
+            # row-varying copy: this gate cannot tell a DROPPED string from a DUPLICATED one.
+            pick, tries = _string_for(prop, _local_of(prop, src), src, scalars), 0
+            while pick in seen and tries < 8:
+                tries += 1
+                pick = _string_for(prop, _local_of(prop, src), src, scalars + tries)
+            seen.add(pick)
+            props[prop] = pick
             scalars += 1
         elif t.startswith("boolean"):
             continue
         elif t.startswith("number") or t.startswith("number|null"):
             continue
         elif "[]" in t:
-            shaped = _shape_from_type(prop, ty, src, off=offset) or _shape_array(prop, ty, off=offset)
+            # THE TYPE BEATS THE NAME TABLE, and it has to be asked FIRST. `_shape_array` is keyed by prop
+            # name, so a type this could not read fell through to whatever `rows` or `items` means on some
+            # OTHER register — which is how SplitFlap came to be swept with a two-column table it renders
+            # as blank flaps. The table is the fallback for shapes the reader still cannot resolve, not the
+            # first answer.
+            shaped = _shape_from_type(prop, ty, src, off=offset)
+            if shaped is _NOT_COPY:
+                continue                                 # geometry, not copy — keep the register's default
+            if shaped is None:
+                shaped = _shape_array(prop, ty, off=offset)
             if shaped is None:
                 untestable.append(prop)
             else:
                 props[prop] = shaped
+        elif re.fullmatch(r"(?:'[^']*'\|)+'[^']*'", t):
+            # A UNION OF STRING LITERALS IS A SWITCH, not copy: `NeuralField.tone` picks WHICH accent the
+            # live path wears. Reported untestable it read as unreachable copy; fed a sentence it would be
+            # an undeclared value the register cannot honour. It gets its own FIRST declared literal, and
+            # gets it identically at every `offset` — prop_reach renders two sets to ask how much of the
+            # picture the film's WORDS author, and a switch that flipped between them would answer with a
+            # colour change.
+            props[prop] = t.split("|")[0].strip("'")
+        elif t.startswith("{") or (_type_fields(ty, src) and prop not in _ARRAY_SHAPES):
+            # AN OBJECT PROP THAT IS NOT AN ARRAY — `MapPlate.channel` is one object carrying a `label`,
+            # two coordinate pairs and a width. Only the array side had a reader, so a lone object fell to
+            # the bottom of this chain and was filed untestable although its label is exactly the copy this
+            # gate exists to set in Chinese.
+            got = _type_fields(ty, src)
+            if got is None:
+                untestable.append(prop)
+            else:
+                fields, bare = got
+                if not _carries_copy(fields, bare):
+                    continue                             # geometry again, one nesting level up
+                props[prop] = _shaped_row(fields, src, offset) if fields else _string_for(prop, prop, src, offset)
         elif prop in _ARRAY_SHAPES:
             # an OBJECT-shaped prop (a side, a group, a range), TRIMMED TO THE KEYS THIS REGISTER DECLARES —
             # see `_declared_keys`. The shared entry carries the union of every register that uses the prop
@@ -474,11 +581,36 @@ def _synth_field(name, ty, src="", i=0):
         # Spread across the clip's middle so no row sits at an endpoint, where a `seg` window is degenerate.
         if re.search(r"^(at|delay|start|end|progress)$", name, re.I):
             return round(0.18 + (i % 5) * 0.16, 3)
-        if re.search(r"^(fill|frac|ratio|opacity|w|h|x|y)$", name, re.I):
-            return round(0.34 + (i % 5) * 0.13, 3)
+        # Registers in this library author in W/H FRACTIONS so they reflow at every aspect (SKILL.md), so a
+        # geometry field is 0..1 unless its name says otherwise. `width` was not on this list and MapPlate's
+        # channel — `(channel.width ?? 0.02) * PW` — was handed 62, which is sixty-two plate widths.
+        # ...and a POSITION is not a THICKNESS. Both are 0..1 here and the same number cannot serve both:
+        # MapPlate's channel `width` defaults to 0.02 and a 0.34 draws a band a third of the plate across.
+        # The name nudge is the same one the coordinate pairs carry — one `i` reaches every field of a row,
+        # so a part's `x` and `y` came back equal and every callout sat on the plate's diagonal.
+        j = i + sum(ord(ch) for ch in name) % 4
+        if re.search(r"^(fill|frac|ratio|opacity|x\d?|y\d?|cx|cy|inset|scale)$", name, re.I):
+            return round(0.30 + (j % 5) * 0.13, 3)
+        if re.search(r"^(w|h|r|rx|ry|width|height|size|depth|gap|pad|thickness)$", name, re.I):
+            return round(0.05 + (j % 4) * 0.03, 3)
+        # a COUNTER is 1, 2, 3 — `TechnicalPlate` numbers its callouts on the plate the way a real sheet
+        # does, and 62 / 79 / 96 is not a part list.
+        if re.search(r"^(n|no|num|index|idx|step|order|rank|seq)$", name, re.I):
+            return i + 1
         return 62 + (i % 5) * 17
     if t.startswith("boolean"):
         return name in ("find", "hero", "done", "ok")
+    m = re.match(r"^\[([A-Za-z]+),([A-Za-z]+)\]$", t)    # a fixed PAIR — `from: [number, number]`
+    if m and m.group(1) == m.group(2) == "number":
+        # plate fractions, kept inside 0..1 and off the edges, and varied by row the way every other
+        # numeric field here is: two rows given the same pair draw one line on top of another.
+        # ...and it must differ from its SIBLING pair. `_shaped_row` passes one `i` to every field, so
+        # `from` and `to` came back identical and MapPlate drew a channel from a point to itself. The name
+        # contributes, so two coordinate pairs in one row are two different points.
+        j = i + sum(ord(ch) for ch in name) % 3
+        return [round(0.14 + (j % 4) * 0.19, 3), round(0.20 + (j % 3) * 0.21, 3)]
+    if m and m.group(1) == m.group(2) == "string":
+        return [_string_for(name, name, src, i), _string_for(name, name, src, i + 1)]
     m = re.match(r"^'([^']+)'", t)                       # an INLINE string-literal union: first member
     if m:
         return m.group(1)
@@ -489,17 +621,92 @@ def _synth_field(name, ty, src="", i=0):
     return _string_for(name, name, src)
 
 
-def _alias_fields(src, alias):
-    """{field: type} for `type Alias = {a?: string; b?: number}` declared in the register's own source."""
-    m = re.search(r"(?:export\s+)?type\s+%s\s*=\s*\{(.*?)\}\s*;" % re.escape(alias), src, re.S)
-    if not m:
-        return None
+# Three answers, not two. A shaper that can only say "here is a fixture" or "I could not" has to file
+# geometry under one of them, and both are wrong: a guess renders nonsense, and UNTESTABLE is a standing
+# line in the output claiming unreachable copy that does not exist.
+_NOT_COPY = object()
+
+
+def _split_union(t):
+    """Top-level `|` arms of a type, with nested braces/brackets/quotes left alone."""
+    arms, depth, cur, q = [], 0, "", ""
+    for ch in t:
+        if q:
+            cur += ch
+            if ch == q:
+                q = ""
+            continue
+        if ch in "\"'":
+            q, cur = ch, cur + ch
+            continue
+        if ch in "{[(":
+            depth += 1
+        elif ch in "}])":
+            depth -= 1
+        if ch == "|" and depth == 0:
+            arms.append(cur); cur = ""
+        else:
+            cur += ch
+    arms.append(cur)
+    return [a.strip() for a in arms if a.strip()]
+
+
+def _fields_of_body(body):
     out = {}
-    for chunk in m.group(1).split(";"):
+    for chunk in body.split(";"):
         f = re.match(r"\s*([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*:\s*(.+)", chunk.replace("\n", " "), re.S)
         if f:
-            out[f.group(1)] = f.group(2).strip()
-    return out or None
+            out.setdefault(f.group(1), f.group(2).strip())
+    return out
+
+
+# A UNION ALIAS IS STILL A SHAPE, and for a long time this reader stopped at the first `|`. `type FlapRow =
+# string | {text: string; tone?: ...}` did not match `type X = {...};`, so `_shape_from_type` returned None
+# and the prop fell through to the table keyed by prop NAME — where `rows` means a two-column TABLE. SplitFlap
+# was swept with `[["...","..."],["...","..."]]`, its own `String(r?.text ?? '')` turned every array row into
+# the empty string, and the register rendered a kicker over ONE EMPTY SLOT: measured 0.05% ink against 8.30%
+# when fed rows it can read. The gate reported it clean at every aspect, for as long as the fixture existed.
+# That is the same lie as measuring an empty plate, arriving through the exact door `_shape_from_type`'s own
+# docstring warns about — the name table hiding a type it could not parse.
+def _type_fields(ty, src, _depth=0):
+    """({field: type}, bare_string_ok) for an object-shaped type — inline, named, or a UNION of either.
+
+    None when the type cannot be resolved. That answer has to stay available: a shape this cannot read is
+    exactly where the defect it hunts for hides, so an unreadable type is reported UNTESTABLE rather than
+    fed a guess."""
+    t = (ty or "").strip().rstrip(";").strip()
+    if t.endswith("[]"):
+        t = t[:-2].strip()
+        if t.startswith("(") and t.endswith(")"):
+            t = t[1:-1].strip()
+    fields, bare, resolved = {}, False, False
+    for arm in _split_union(t):
+        if arm == "string":
+            bare, resolved = True, True
+        elif arm.startswith("{") and arm.endswith("}"):
+            fields.update({k: v for k, v in _fields_of_body(arm[1:-1]).items() if k not in fields})
+            resolved = True
+        elif re.fullmatch(r"[A-Z][A-Za-z0-9_]*", arm) and _depth < 3:
+            m = re.search(r"(?:export\s+)?type\s+%s\s*=\s*(.+?);\s*$" % re.escape(arm), src, re.S | re.M)
+            if m:
+                sub = _type_fields(m.group(1), src, _depth + 1)
+                if sub:
+                    fields.update({k: v for k, v in sub[0].items() if k not in fields})
+                    bare, resolved = bare or sub[1], True
+    return (fields, bare) if resolved else None
+
+
+# Copy is what this gate measures. A shape with no string in it is GEOMETRY — `TechnicalPlate`'s `Stroke` is
+# a discriminated union of coordinates, and there is no Chinese to put in a radius. Feeding it anything is
+# nonsense; calling it UNTESTABLE is worse, because that line claims the register has copy nobody can reach
+# when every string it draws (kicker / object / plateNo / parts / note) is fed and measured. So it keeps the
+# register's own default and says nothing — but ONLY once the type has actually been READ. A type this
+# cannot parse is never called geometry; it is still untestable, and still loud.
+def _carries_copy(fields, bare_string=False):
+    if bare_string:
+        return True
+    return any(re.search(r"\bstring\b", str(v)) for v in fields.values())
+
 
 
 # A field that names a COLOUR is not copy, at any nesting depth. The top-level skip covered `accent` and
@@ -540,10 +747,15 @@ def _shape_from_type(prop, ty, src, n=3, off=0):
     t = ty.replace(" ", "")
     m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\[\]$", t)                       # Item[]
     if m:
-        fields = _alias_fields(src, m.group(1))
-        if fields:
-            return [_shaped_row(fields, src, i + off) for i in range(n)]
-        return None
+        got = _type_fields(m.group(1), src)
+        if got is None:
+            return None
+        fields, bare = got
+        if not _carries_copy(fields, bare):
+            return _NOT_COPY
+        if not fields:                                   # a list of bare strings, e.g. `type Row = string`
+            return _rotate(list(_ITEMS), off)[:n]
+        return [_shaped_row(fields, src, i + off) for i in range(n)]
     m = re.match(r"^\{(.+)\}\[\]$", t)                                      # an INLINE object array
     if m:
         fields = {}

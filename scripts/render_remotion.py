@@ -83,6 +83,21 @@ def settled_frame(durF):
     return frame_at_t(durF, SETTLED_T)
 
 
+_SPACED_CAPS = re.compile(r"\b(?:[A-Z] ){1,7}[A-Z]\b")
+
+
+def _caption_for_eye(text):
+    """The narration as it should be READ — the spoken spelling-out rejoined.
+
+    Only the unambiguous half is done automatically: a run of two or more single capitals separated by one
+    space each is an initialism a film spelled out for the voice (`T T S` -> `TTS`). Anything else a film
+    spells for the ear — a number read as words, a deliberate pause — needs the slide's own `caption`,
+    because guessing at those would edit the film's copy rather than restore it.
+    """
+    t = str(text or "")
+    return _SPACED_CAPS.sub(lambda m: m.group(0).replace(" ", ""), t)
+
+
 def _transition_in(slide):
     """Map a storyboard scene's transition intent → the Film `transitionIn` mark (or None = the safe default fade).
     Only a MARKED (kinetic) seam returns a value; the shot-director budgets ~2-3 per film for chapter breaks."""
@@ -312,7 +327,14 @@ def build_scenes(slides, out_dir, valid, fps=30):
                         props = dict(props, imageAspect=round(_im.width / _im.height, 4))
             except Exception:
                 pass                          # a missing or unreadable file is the renderer's problem, not ours
-        caption = (s.get("narration") or s.get("script") or s.get("caption") or "").strip()
+        # THE EAR'S TEXT AND THE EYE'S TEXT ARE NOT THE SAME TEXT. `narration` is written to be SPOKEN, so a
+        # film spells an initialism out — "没有用 T T S", "S S H", "A G P L 三点零" — to stop edge-tts reading
+        # it as a word. That is correct for the voice and wrong on the frame, and it shipped: an independent
+        # reviewer found three burned captions carrying spelled-out forms, and on the closing beat the SAME
+        # fact twice in one frame — the register's own note reading `AGPL-3.0` above a caption reading
+        # `A G P L 三点零`. A slide may now carry an explicit `caption` for the eye; without one, a run of
+        # spaced single capitals is rejoined, which is the safe half of the transform and needs no author.
+        caption = (s.get("caption") or _caption_for_eye(s.get("narration") or s.get("script") or "")).strip()
         scene = {"shot": shot, "props": props, "durF": int(round(dur * fps)),
                  "mp3": str(audio).replace(os.sep, "/"), "caption": caption}
         # THE VOICE'S OWN WORD TIMES, WHICH THIS TIER HAS NEVER SEEN. `tts.py` has written

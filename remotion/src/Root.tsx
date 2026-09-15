@@ -8,6 +8,7 @@ import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
 import {StageProbe, DURATION as SPD} from './runtime/__probe_stage3d';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
+import {CompanionCard, DURATION as D_COMPANIONCARD} from './shots/CompanionCard';
 import {TermSpace, DURATION as D_TERMSPACE} from './shots/TermSpace';
 import {DollyZoom, DURATION as D_DOLLYZOOM} from './shots/DollyZoom';
 import {RackFocus, DURATION as D_RACKFOCUS} from './shots/RackFocus';
@@ -514,5 +515,6 @@ export const RemotionRoot: React.FC = () => (
     {F('RackFocus', RackFocus, D_RACKFOCUS)}
     {F('DollyZoom', DollyZoom, D_DOLLYZOOM)}
     {F('TermSpace', TermSpace, D_TERMSPACE)}
+    {F('CompanionCard', CompanionCard, D_COMPANIONCARD)}
   </>
 );

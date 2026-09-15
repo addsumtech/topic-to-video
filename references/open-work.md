@@ -219,6 +219,53 @@ that key:
 > themed; a board written each way produces the same findings; a test that goes red if either branch
 > reverts.
 
+**~~B9 · A PARSER THAT CANNOT READ A DECLARATION REPORTS NOTHING.~~ DONE
+2026-09-15 for `cjk_type_qa`; the FAMILY is what is still open. The shape: every static reader in `scripts/`
+answers "what does this register declare" with a regex, and each regex has a spelling it refuses. A refused
+spelling is not an error — it is an empty result, which flows downstream as *this register declares nothing*
+and then as *this register is fine*.
+
+Four instances, all found within one day of each other, three by a NEW register happening to use a spelling
+nobody had used before:
+
+| reader | the spelling it refused | what the silence produced |
+|---|---|---|
+| `cjk_type_qa._one_prop` | a prop preceded by a JSDoc comment | 2 registers invisible, 25 read in part |
+| `cjk_type_qa.prop_signature` | `React.FC<Props>` (a named alias) | `AcceptanceStamp` swept in English |
+| `cjk_type_qa.prop_signature` | `React.FC<{...} >` (one space) | `MRIPipeline` swept in English |
+| `cjk_type_qa._alias_fields` | `type X = A \| B` (a union) | `SplitFlap` swept on a BLANK board |
+| `cjk_type_qa.prop_signature` | a `;` inside a comment (split ran first) | 9 more registers, 1 prop each |
+| `shot_proof` / `demo_copy_qa` | comments inside the props block | (fixed earlier, same week) |
+
+The fifth was found by the acceptance test itself, minutes after it was written, and it is the most
+instructive of the five: the JSDoc fix stripped comments inside `_one_prop`, which is downstream of the
+`;`-split that had already cut the chunk in the wrong place. **A fix applied one layer below the defect looks
+identical to a fix.** Nothing said otherwise until a test compared this reader against the other three.
+
+**The measurement it corrupted.** `prop_reach` feeds through this reader, so 24 of 166 registers were scored
+on prop sets smaller than they declare — 79 props missing in all. The bias is one-directional — fewer words to change can only look
+like less change — so it lands entirely on the FLOOR, which is the half of the table anyone actually reads.
+Worse, a SENTENCE derived from the broken numbers was published in `LIBRARY.md` as a fact about the library
+("a register whose only authorable prop is a `kicker` — MadeOf, InOrder, LastLeg, RestsOn"); those four
+declare five, four, five and five. The table now carries a warning and `prop_reach` must be re-run.
+
+**Two register defects the silence was hiding**, both fixed the moment the registers could be fed:
+`SplitFlap`'s flip cascade was an unbounded sum that never completes past ~17 columns (more than half the
+board still flickering random glyphs on the LAST frame), and `MapPlate` avoided its own centre mark with a
+fixed 0.26 along the channel, which only clears a channel crossing the whole plate. Both are constants tuned
+on the English demo input — the exact failure mode the working rules name.
+
+> **Acceptance for the family, not the four instances:** one test that asks, of every `.tsx` in the shots
+> folder, whether the reader sees at least what the file declares — so a NEW spelling fails on the day it
+> lands instead of the day someone notices a register has been green about nothing. `tests/test_cjk_type_qa.py
+> ::test_every_register_the_library_ships_is_fed_its_own_props` does this for `cjk_type_qa` and names
+> `LiquidMorph` (genuinely propless) rather than allowing a pattern. `tests/test_declaration_readers.py`
+> then does it for ALL FOUR readers at once and adds the check that actually found the fifth blindness:
+> the readers are compared AGAINST EACH OTHER, so one going blind to a spelling the others handle fails
+> even when no register is reduced to zero. Measured after that test went green: all four readers see every
+> register, and the only propless one is `LiquidMorph`. **Closed.**
+
+
 ## C · Peer-library capability gaps still open
 
 **~~C1 · The fake dolly-zoom.~~ DONE 2026-09-14.** `dollyAt` in `runtime/depth.tsx` (the move as a

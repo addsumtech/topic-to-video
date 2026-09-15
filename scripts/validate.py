@@ -1879,6 +1879,30 @@ def _arity_library():
 _ARITY_CACHE = None
 
 
+_SPELLED_FOR_EAR = re.compile(r"[零一二三四五六七八九十]点[零一二三四五六七八九十]|[A-Z](?: [A-Z]){1,7}")
+
+
+def _spoken_spellings(slides, warnings):
+    """A narration written for the VOICE, burned onto the frame for the EYE.
+
+    A film spells an initialism out — "没有用 T T S", "A G P L 三点零" — so edge-tts does not read it as a
+    word. That is right for the ear and wrong on the frame, and it shipped: three burned captions carried
+    the spoken spelling, and the closing beat put the SAME fact on one frame twice, a register note reading
+    `AGPL-3.0` above a caption reading `A G P L 三点零`. `render_remotion` rejoins spaced capitals on its
+    own; a number spelled as words it will not touch, because guessing there edits the copy rather than
+    restoring it. So the author is told, and `slide.caption` is where the eye's version goes.
+    """
+    for s_ in slides:
+        if s_.get("caption"):
+            continue
+        hits = [h for h in _SPELLED_FOR_EAR.findall(str(s_.get("narration") or "")) if "点" in h]
+        if hits:
+            warnings.append(
+                "scene #%s: narration spells %s for the VOICE and the same text is burned as the caption. "
+                "Spaced capitals are rejoined automatically; a number spelled as words is not — set "
+                "`caption` to what a reader should SEE." % (s_.get("index"), ", ".join(repr(h) for h in hits[:3])))
+
+
 def _dna_named(design_dna):
     """True when `meta.design_dna` is a STRING naming a known preset — a themed film, written the short way.
 
@@ -1897,6 +1921,7 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
     The adapt lint is a PROXY (a script sees empty props + a missing note, never whether the components were
     truly redesigned) — the SEMANTIC verdict is shot-critic S10 (the note vs the rendered pixels)."""
     _check_shot_template(meta, errors, warnings)
+    _spoken_spellings(slides, warnings)
     # DESIGN DNA — the GLOBAL visual system every shot inherits (runtime/dna.tsx). A themed film should carry an
     # explicit meta.design_dna artifact (the reviewable "Design DNA", docx Artifact A) OR a shot_template that maps
     # to a built-in DNA preset; else every shot renders its OWN hardcoded identity and the film reads as "different

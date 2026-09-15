@@ -167,6 +167,7 @@ import {WordTunnel} from './shots/WordTunnel';
 import {RackFocus} from './shots/RackFocus';
 import {DollyZoom} from './shots/DollyZoom';
 import {TermSpace} from './shots/TermSpace';
+import {CompanionCard} from './shots/CompanionCard';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
@@ -217,6 +218,7 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   RackFocus,
   DollyZoom,
   TermSpace,
+  CompanionCard,
 };
 
 export const SHOT_IDS = Object.keys(REGISTRY);

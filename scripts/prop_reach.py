@@ -62,6 +62,7 @@ two sets come out mostly identical (number props, shared object fixtures) is rep
 than as a low score, because "this register ignores its props" and "this register was never given two
 different ones" are the same picture and opposite facts.
 """
+import hashlib
 import json
 import os
 import subprocess
@@ -161,11 +162,33 @@ def reach_of(name, dna=DEFAULT_DNA, tmp=None, durs=None):
             shutil.rmtree(tmp, ignore_errors=True)
 
 
+def props_hash(name):
+    """A row is a measurement of TWO INPUTS — the register's source, and the two prop sets it was fed. Only
+    the first was ever hashed, and the second is not a constant: `cjk_props` is a fixture GENERATOR whose
+    reader changes. On 2026-09-15 that reader stopped being blind in five ways at once and 24 of 166
+    registers began receiving props they had never been given — `MadeOf` 1 prop of 5 before, `AcceptanceStamp`
+    none of 4. Every one of their reach numbers became meaningless and `--check` reported the manifest clean,
+    because not one `.tsx` had changed.
+
+    Hashing the FED PROPS rather than the generator's source is exact and costs nothing: computing them
+    requires no render. Hashing the module instead would invalidate all 161 rows on any edit to any part of
+    `cjk_type_qa` — the over-broad dep-hash that `open-work.md` D1 accepts for `register_energy` only because
+    there it cannot be made exact. Here it can."""
+    try:
+        a = cq.cjk_props(name, 0)[0]
+        b = cq.cjk_props(name, OFFSET)[0]
+    except Exception:                                      # noqa: BLE001 — unreadable is its own answer
+        return "unreadable"
+    blob = json.dumps([a, b], sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]
+
+
 def stale(data):
-    """[(register, why)] — the same shape and the same reason as register_energy.stale."""
+    """[(register, why)] — the same shape and the same reason as register_energy.stale, plus the fixture."""
     now = {n: re_mod.source_hash(n) for n in
            (f[:-4] for f in os.listdir(_SHOTS) if f.endswith(".tsx"))}
     rows, was, out = data.get("registers") or {}, data.get("_source") or {}, []
+    fed = data.get("_props") or {}
     for n in sorted(rows):
         if n not in now:
             out.append((n, "the register is gone"))
@@ -173,6 +196,10 @@ def stale(data):
             out.append((n, "measured before source hashes were recorded"))
         elif was[n] != now[n]:
             out.append((n, "source changed since it was measured"))
+        elif n not in fed:
+            out.append((n, "measured before the FIXTURE was hashed — the props it was fed are unknown"))
+        elif fed[n] != props_hash(n):
+            out.append((n, "the fixture now feeds it different props than it was measured with"))
     for n in sorted(set(now) - set(rows)):
         out.append((n, "never measured"))
     return out
@@ -199,8 +226,14 @@ def main(argv):
         rows = stale(data)
         for n, why in rows:
             print("[prop_reach] STALE %-24s %s" % (n, why))
-        print("[prop_reach] %s  %d of %d row(s) no longer describe their source"
-              % ("FAIL" if rows else "OK", len(rows), len(data.get("registers") or {})))
+        # "166 of 161" — the two categories were being added together and then compared against one of
+        # them. A register that was NEVER measured has no row to be stale, and reporting it inside the row
+        # count makes the total exceed the manifest's size, which reads as a bug in the check rather than
+        # as the two real facts it is stating.
+        never = sum(1 for _, why in rows if why == "never measured")
+        print("[prop_reach] %s  %d of %d measured row(s) no longer describe what they measured%s"
+              % ("FAIL" if rows else "OK", len(rows) - never, len(data.get("registers") or {}),
+                 "; %d register(s) were never measured" % never if never else ""))
         return 1 if rows else 0
     if "--report" in argv:
         data = json.load(open(MANIFEST, encoding="utf-8"))
@@ -242,13 +275,16 @@ def main(argv):
                 "_untrusted": sorted(untrusted),
                 "_failed": sorted(failed),
                 "_source": {n: h for n, h in hashes.items() if n in rows},
+                "_props": {n: props_hash(n) for n in rows},
                 "registers": dict(sorted(rows.items()))}
         if only and os.path.exists(MANIFEST):
             prev = json.load(open(MANIFEST, encoding="utf-8"))
             merged = dict(prev.get("registers") or {}); merged.update(rows)
             src = dict(prev.get("_source") or {}); src.update({n: h for n, h in hashes.items() if n in rows})
+            fed = dict(prev.get("_props") or {}); fed.update({n: props_hash(n) for n in rows})
             data["registers"] = dict(sorted(merged.items()))
             data["_source"] = src
+            data["_props"] = fed
             data["_untrusted"] = sorted(set(prev.get("_untrusted") or []) - set(names) | set(untrusted))
             data["_failed"] = sorted(set(prev.get("_failed") or []) - set(names) | set(failed))
         json.dump(data, open(MANIFEST, "w", encoding="utf-8"), indent=2, ensure_ascii=False)

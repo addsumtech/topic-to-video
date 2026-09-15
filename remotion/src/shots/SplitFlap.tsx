@@ -54,12 +54,27 @@ export const SplitFlap: React.FC<{kicker?: string; rows?: FlapRow[]}> = ({
   const boardW = COLS * tw + (COLS - 1) * gap;
   const x0 = (W - boardW) / 2, y0 = (H - (ROWS.length * th + (ROWS.length - 1) * gap)) / 2;
 
+  // the longest tile's own offset under the original schedule, and the factor that pulls it back to
+  // SETTLE_BY. A board small enough to have finished already keeps its timing exactly (factor capped at 1).
+  const SETTLE_BY_START = 0.14, SETTLE_BY = 0.80;
+  const span = (COLS - 1) * 0.05 + (ROWS.length - 1) * 0.14 + 0.05;
+  const cascade = Math.min(1, (SETTLE_BY - SETTLE_BY_START) / Math.max(1e-6, span));
+
   const tiles: React.ReactNode[] = [];
   ROWS.forEach((label, r) => {
     const pad = Math.floor((COLS - label.length) / 2);
     for (let c = 0; c < COLS; c++) {
       const ch = label[c - pad] ?? ' ';
-      const settle = 0.14 + c * 0.05 + r * 0.14 + hash01(r * 40 + c) * 0.05;
+      // THE CASCADE IS NORMALISED TO THE BOARD, and for a long time it was an unbounded sum. Written as
+      // `0.14 + c*0.05 + r*0.14`, the schedule passes t = 1 at column 17 on the first row and column 11 on
+      // the third — so every tile beyond that NEVER lands, and a board wider than its demo copy flickers
+      // random glyphs to the final frame. Rendered with real Chinese rows the last frame still showed more
+      // than half the board unresolved; the English defaults are 8-10 columns, which is why it read fine.
+      // That is the WordTunnel defect in another register: type the shot was given and never draws.
+      // `SETTLE_BY` is the fraction the LAST tile lands at, so the whole board holds settled through the
+      // close — which is also where every type gate samples.
+      const settle = SETTLE_BY_START
+        + (c * 0.05 + r * 0.14 + hash01(r * 40 + c) * 0.05) * cascade;
       const settled = t >= settle;
       const shown = settled ? ch : CH[Math.floor(hash01(r * 97 + c * 13 + Math.floor(frame / 2)) * CH.length)];
       const justLanded = clamp01((t - settle) / 0.05);

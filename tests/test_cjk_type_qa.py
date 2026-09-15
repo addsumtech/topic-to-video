@@ -82,10 +82,15 @@ def test_an_unfeedable_prop_is_reported_rather_than_passing_silently(monkeypatch
     now, which is the point. So the contract under test is the REMAINING one: a prop whose shape cannot be
     resolved by EITHER route is reported, never silently skipped, because a register nobody can feed is
     exactly where this defect hides."""
-    # TermTree declares `items?: Item[]` — a NAMED alias, so blinding the alias reader leaves no route.
+    # TermTree declares `items?: Item[]` — a NAMED alias, so blinding the type resolver leaves no route.
     # (TimelineTravel's nodes are an INLINE object type and are resolved by the other branch, which is why
     # this test names a register whose shape actually depends on the alias.)
-    monkeypatch.setattr(c, "_alias_fields", lambda src, alias: None)
+    #
+    # IT PATCHES `_type_fields`, which is the resolver — `_alias_fields` used to be a second name for the
+    # same lookup and this test went green through it while the real route stayed open. The two were merged
+    # when the reader learned to read UNION aliases; a test that blinds a wrapper nothing calls asserts
+    # nothing, which is the failure mode this whole file is about.
+    monkeypatch.setattr(c, "_type_fields", lambda ty, src, _depth=0: None)
     monkeypatch.setattr(c, "_ARRAY_SHAPES", {})
     _, untestable = c.cjk_props("TermTree")
     assert "items" in untestable
@@ -694,3 +699,84 @@ def test_it_resolves_a_named_object_alias_not_just_an_inline_one():
     assert q._declared_keys("Col", src) == {"head", "body", "hero"}
     assert q._declared_keys("{a?: string; b?: string}", src) == {"a", "b"}
     assert q._declared_keys("string", src) is None
+
+
+# ── THREE MORE WAYS TO BE INVISIBLE, all found by asking which registers this gate feeds NOTHING ────
+#
+# The JSDoc blindness (pinned above) was not the only one. Reading the whole library's signatures turned up
+# two further shapes the declaration reader refused, and one shape the FIXTURE generator refused:
+#
+#   React.FC<Props>       AcceptanceStamp declares its four props in a named alias above the component.
+#   React.FC<{...} >      MRIPipeline has one space before the closing angle.
+#   type X = A | B        TechnicalPlate's `Stroke`, SplitFlap's `FlapRow`, CardStack3D's `StackItem`.
+#
+# Each produced the same silence: the sweep rendered the register's own ENGLISH demo defaults and reported
+# zero findings, which reads identically to "this register is fine in Chinese".
+# (the library-wide version of this check — all four declaration readers, compared against each other —
+# lives in tests/test_declaration_readers.py, which is where the CLASS is owned. What follows is specific to
+# this gate's own fixture generator.)
+
+
+@pytest.mark.parametrize("register,prop", [
+    ("AcceptanceStamp", "conditions"),   # React.FC<Props> — a named alias
+    ("MRIPipeline", "label"),            # React.FC<{...} > — a space before the angle
+])
+def test_a_props_declaration_is_read_however_it_is_spelled(register, prop):
+    sig = c.prop_signature(register)[0]
+    assert prop in sig, "%s declares %s and the reader cannot see it: %r" % (register, prop, sig)
+    assert prop in c.cjk_props(register)[0]
+
+
+def test_a_union_alias_is_shaped_from_its_own_type_not_from_the_prop_name_table():
+    """`FlapRow = string | {text: string; tone?: ...}`. Unreadable, the prop fell through to `_ARRAY_SHAPES`,
+    where `rows` means a two-column TABLE — and SplitFlap's `String(r?.text ?? '')` turns an array row into
+    the empty string. Measured on the real frame: 0.05% ink against 8.30% when fed rows it can read. The gate
+    reported it clean at every aspect for as long as that fixture existed, which is the same lie as measuring
+    an empty plate."""
+    rows = c.cjk_props("SplitFlap")[0]["rows"]
+    assert isinstance(rows, list) and rows, rows
+    for r in rows:
+        assert isinstance(r, (str, dict)), "a FlapRow is a string or an object, never %r" % (type(r),)
+        if isinstance(r, dict):
+            assert c._HAS_CJK.search(str(r.get("text", ""))), "a flap row carries no Chinese: %r" % (r,)
+
+
+def test_geometry_is_kept_out_of_the_copy_gate_without_being_called_untestable():
+    """`TechnicalPlate.strokes` is a discriminated union of coordinates — there is no Chinese to put in a
+    radius. Fed a fixture it renders nonsense; filed UNTESTABLE it claims the register has copy nobody can
+    reach, while every string it draws is fed and measured. It keeps its own default and says nothing.
+
+    The distinction must be EARNED, not assumed: a type the reader cannot parse is still untestable."""
+    props, untestable = c.cjk_props("TechnicalPlate")
+    assert "strokes" not in props and "strokes" not in untestable, (props.get("strokes"), untestable)
+    assert {"kicker", "object", "parts"} <= set(props), props
+    src = open(os.path.join(_ROOT, "remotion", "src", "shots", "TechnicalPlate.tsx"), encoding="utf-8").read()
+    assert c._type_fields("Stroke", src) is not None, "the union alias no longer resolves"
+    assert not c._carries_copy(*c._type_fields("Stroke", src)), "Stroke gained a string field"
+    assert c._type_fields("NoSuchAliasAnywhere", src) is None, (
+        "an unreadable type resolved to something — geometry would then swallow every shape this "
+        "reader fails on, which is exactly where the defect hides")
+
+
+def test_a_lone_object_prop_is_shaped_the_way_an_object_ARRAY_already_was():
+    """`MapPlate.channel` is one object carrying a label and two coordinate pairs. Only the array side had a
+    reader, so it was filed untestable although its label is exactly the copy this gate sets in Chinese."""
+    ch = c.cjk_props("MapPlate")[0]["channel"]
+    assert c._HAS_CJK.search(ch["label"]), ch
+    assert ch["from"] != ch["to"], (
+        "both ends of the channel are the same point — one `i` reaches every field of a row, so two "
+        "coordinate pairs came back identical and the register drew a line of zero length: %r" % (ch,))
+    assert 0 < ch["width"] < 0.2, (
+        "`width` is a plate FRACTION (the register's own default is 0.02) and was handed a magnitude: %r"
+        % (ch["width"],))
+
+
+def test_a_string_literal_union_is_fed_one_of_its_own_literals_and_never_varies_by_offset():
+    """A union of quoted literals is a SWITCH, not copy. It gets a declared value — and the same one at every
+    `offset`, because `prop_reach` renders two sets to ask how much of the picture the film's WORDS author,
+    and a switch that flipped between them would answer with a colour change."""
+    a = c.cjk_props("NeuralField", offset=0)[0]
+    b = c.cjk_props("NeuralField", offset=3)[0]
+    assert a["tone"] in ("accent", "accent2"), a["tone"]
+    assert a["tone"] == b["tone"], "the switch moved between two prop sets that differ only in their words"
+    assert a["input"] != b["input"], "the two sets are not actually different copy"
