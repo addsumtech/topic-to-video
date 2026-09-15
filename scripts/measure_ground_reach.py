@@ -195,13 +195,33 @@ def runtime_verdicts(rows):
     """ % (json.dumps(os.path.join(_RUNTIME, "shotLuma")), json.dumps(ys)))
 
 
+# A REGISTER THAT REFUSES TO DRAW WITHOUT ITS ARTEFACT WAS NEVER MEASURABLE HERE, and the consequence is
+# not a gap in a table — `GROUND_FOLLOWS_MEASURED` is a load-bearing safety guard, and a register that can
+# never be listed in it makes `validate.py` reject any beat declaring a `ground` on that register with no
+# fix available. That is the same catch-22 `tests/test_provenance.py` records for provenance, in the
+# luminance guard. Measured when a new list-of-pictures register was added: PhotoPlate and RealVersus, which
+# have carried the evidence guard for weeks, both report RENDER FAILED here and always have.
+# `measure_ground_luma.py` already solved this with one import; this is the same import.
+def _fixture_props():
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import register_energy
+        register_energy.ensure_fixture()
+        return register_energy.evidence_props()
+    except Exception:                                    # noqa: BLE001 — no fixture is not a verdict
+        return {}
+
+
 # ── the renders ───────────────────────────────────────────────────────────────────────────────────────
-def render(shot, key, dna, td):
+def render(shot, key, dna, td, fixtures=None):
     """One beat of `shot`, grounded. Captions OFF: the band criterion reads the band's own pixels, and a
     burned subtitle sitting in it would be measuring the caption instead of the ground under it."""
     props = os.path.join(td, "p_%s_%s.json" % (shot, key))
     png = os.path.join(td, "%s__%s.png" % (shot, key))
-    json.dump({"scenes": [{"shot": shot, "durF": PROBE_DUR}], "dna": dna, "captions": False, "camera": 0},
+    scene = {"shot": shot, "durF": PROBE_DUR}
+    if fixtures and shot in fixtures:
+        scene["props"] = fixtures[shot]                  # its artefact, or it draws furniture around a hole
+    json.dump({"scenes": [scene], "dna": dna, "captions": False, "camera": 0},
               open(props, "w"))
     r = subprocess.run(["npx", "remotion", "still", "src/index.ts", "Film", png,
                         "--frame=%d" % PROBE_FRAME, "--gl=angle", "--timeout=90000",
@@ -261,8 +281,14 @@ def write_set(names):
 def main(argv):
     # BOTH SPELLINGS, AND NOTHING SILENTLY IGNORED — see scripts/_common.argflag for what the `=`-only form
     # cost: `--only X` fell through to None in a sibling script and swept all 164 registers without a word.
-    _c.refuse_unknown(argv, valued=("only", "keep", "from"),
-                      usage="usage: measure_ground_reach.py [--only=A,B] [--keep=DIR] [--from=DIR]")
+    # ...AND THE SWITCHES HAVE TO BE DECLARED TOO. `--check` and `--emit` are documented at the top of this
+    # file and were both REFUSED, because `switches=` was never passed — so the two flags that read and
+    # write the allow list could not be run at all. `validate.py` prints "re-measure with
+    # `measure_ground_reach.py --emit`" as the fix for a real error, and that instruction died on this line.
+    # A next-command a gate hands you has to be a command that exists.
+    _c.refuse_unknown(argv, valued=("only", "keep", "from"), switches=("check", "emit"),
+                      usage="usage: measure_ground_reach.py [--only=A,B] [--check] [--emit] "
+                            "[--keep=DIR] [--from=DIR]")
     only = _c.argflag_list(argv, "only")
     keep = _c.argflag(argv, "keep")
     reuse = _c.argflag(argv, "from")
@@ -284,6 +310,7 @@ def main(argv):
              band_px, PROBE_FRAME))
 
     rows, failed = [], []
+    fixtures = _fixture_props()
     td = keep or tempfile.mkdtemp(prefix="ground_reach_png_")
     os.makedirs(td, exist_ok=True)
     try:
@@ -295,7 +322,7 @@ def main(argv):
                 # that cost is exactly why the first sweep was run by a throwaway script and thrown away.
                 p, e = os.path.join(td, "%s__%s.png" % (shot, k)), None
                 if not (reuse and os.path.exists(p)):
-                    p, e = render(shot, k, probe["dna"][k], td)
+                    p, e = render(shot, k, probe["dna"][k], td, fixtures)
                 if e:
                     err = e
                     break
@@ -347,11 +374,21 @@ def main(argv):
 
     names = {r["shot"] for r in follows}
     committed = read_set()
-    if only:                       # a --only run is a SPOT CHECK; it can never rewrite the whole set
-        print("(--only run: spot check, the committed set is NOT written)")
+    if only:
         for row in rows:
             was = "listed" if row["shot"] in committed else "refused"
             print("  %-24s measured %-8s committed %s" % (row["shot"], "follows" if row["ok"] else "refused", was))
+        # MERGE, rather than refuse. Refusing outright was the fix for a spot check that had REPLACED the
+        # 149-shot list with four rows, and it over-corrected in the way `register_energy` already recorded:
+        # a partial run could not correct the very rows it had just measured, so a NEW register measured as
+        # following the ground stayed refused forever and the only route to listing it was a 149-render
+        # sweep. Merging keeps both properties — nothing this run did not look at is touched, and what it
+        # did look at is written.
+        if "--emit" in argv:
+            n = write_set((committed - {r["shot"] for r in rows}) | {r["shot"] for r in rows if r["ok"]})
+            print("GROUND_FOLLOWS_MEASURED: merged %d measured row(s) into %d name(s)" % (len(rows), n))
+            return 0
+        print("(--only run: spot check, the committed set is NOT written — add --emit to merge these rows)")
         return 0
     gained, lost = sorted(names - committed), sorted(committed - names - set(failed))
     if "--emit" in argv:

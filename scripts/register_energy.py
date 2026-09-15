@@ -113,6 +113,38 @@ def evidence_props():
             sig = open(os.path.join(_SHOTS, n + ".tsx"), encoding="utf-8").read()
             if re.search(r"\bblocks\s*\?\s*:\s*\w*Block\[\]", sig):
                 out[n] = dict(page)      # a page texture and its boxes, not the photograph stand-in
+
+    # ...AND A REGISTER WHOSE EVIDENCE IS A LIST OF PICTURES. `requireEvidence` names ONE `src` prop, so a
+    # register that draws N images — `StateSheet`'s `cells: {src: string; label?: string}[]` — matched
+    # nothing above and was measured by rendering its defaults, which is an empty sheet: it threw, and the
+    # three measurement scripts each recorded RENDER FAILED. That is the same lie this whole function
+    # exists to end, one shape further out — the register is fine, the fixture was missing.
+    #
+    # Which prop it is comes from the TYPE (an array whose element declares a `src: string`), never from a
+    # name written here, so the next register to take a list of pictures is fed the day it is written.
+    for f in sorted(glob.glob(os.path.join(_SHOTS, "*.tsx"))):
+        src = open(f, encoding="utf-8").read()
+        n = os.path.basename(f)[:-4]
+        if n in out:
+            continue
+        head = re.search(r"export const %s: React\.FC<\{(.*?)\}>\s*=" % re.escape(n), src, re.S)
+        if not head:
+            continue
+        for pm in re.finditer(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*:\s*"
+                              r"(\{[^{}]*\}|[A-Z][A-Za-z0-9_]*)\[\]", head.group(1)):
+            prop, ty = pm.group(1), pm.group(2)
+            body = ty[1:-1] if ty.startswith("{") else ""
+            if not body:
+                m = re.search(r"type\s+%s\s*=\s*\{([^{}]*)\}" % re.escape(ty), src, re.S)
+                body = m.group(1) if m else ""
+            if not re.search(r"\bsrc\s*\??\s*:\s*string", body):
+                continue
+            label = re.search(r"\b(label|name|caption|title)\s*\??\s*:\s*string", body)
+            cell = {"src": _FIXTURE_REL}
+            if label:
+                cell[label.group(1)] = "fixture"
+            out.setdefault(n, {})[prop] = [dict(cell) for _ in range(6)]
+            break
     return out
 
 

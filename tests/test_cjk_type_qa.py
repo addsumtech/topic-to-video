@@ -780,3 +780,75 @@ def test_a_string_literal_union_is_fed_one_of_its_own_literals_and_never_varies_
     assert a["tone"] in ("accent", "accent2"), a["tone"]
     assert a["tone"] == b["tone"], "the switch moved between two prop sets that differ only in their words"
     assert a["input"] != b["input"], "the two sets are not actually different copy"
+
+
+def test_the_curated_table_wins_when_it_FITS_the_register_and_loses_when_it_does_not():
+    """"Read the type, never the prop name" was the right fix for the wrong scope.
+
+    The type route exists because the name table describes a DIFFERENT register that shares a prop name:
+    `rows` there means a two-column table, and `SplitFlap`'s rows are strings, so it was swept on a blank
+    board. But a curated entry knows things a type cannot — `sources?: {t: string; d: string}[]` says nothing
+    about `t` being a four-glyph chip — and making the type win ALWAYS filled both fields with 26-glyph
+    sentences, which orphaned a glyph off an `AnswerStream` source chip.
+
+    So the arbiter is compatibility with the register's OWN declared keys, not precedence."""
+    src = open(os.path.join(_ROOT, "remotion", "src", "shots", "AnswerStream.tsx"), encoding="utf-8").read()
+    keys = c._declared_keys("{t: string; d: string}", src)
+    assert keys == {"t", "d"}
+    got = c.cjk_props("AnswerStream")[0]["sources"]
+    assert got == c._ARRAY_SHAPES["sources"], (
+        "the curated chips lost to the type route, which cannot know a source chip is short: %r" % (got,))
+
+    rows = c.cjk_props("SplitFlap")[0]["rows"]
+    assert rows != c._ARRAY_SHAPES["rows"], (
+        "the table won on a register whose type it does not fit — this is the blank board again: %r" % (rows,))
+    assert all(isinstance(r, (str, dict)) for r in rows), rows
+
+
+def test_two_fields_of_one_row_never_carry_the_same_string():
+    """One `i` reached every field of a row, so `{t, d}` came back with one sentence twice. The overlap
+    detector matches elements by their text: a row whose two labels are one string is indistinguishable
+    from a real collision, and the gate cannot tell a dropped string from a duplicated one."""
+    bad = {}
+    import glob
+    for f in glob.glob(os.path.join(_ROOT, "remotion", "src", "shots", "*.tsx")):
+        name = os.path.basename(f)[:-4]
+        for prop, val in c.cjk_props(name)[0].items():
+            for row in (val if isinstance(val, list) else [val]):
+                if not isinstance(row, dict):
+                    continue
+                words = [v for v in row.values() if isinstance(v, str) and c._HAS_CJK.search(v)]
+                if len(words) != len(set(words)):
+                    bad["%s.%s" % (name, prop)] = row
+    assert not bad, "rows carrying one string in two fields: %r" % (bad,)
+
+
+def test_the_probe_fraction_is_named_once_so_the_alternate_probes_cannot_drift():
+    src = open(c.__file__, encoding="utf-8").read()
+    assert "PROBE_FRAC = 0.88" in src
+    assert "* 0.88)" not in src, "the probe fraction is written twice — two copies of a number always drift"
+    fn = src.split("def audit(", 1)[1].split("\ndef ", 1)[0]
+    assert "PROBE_FRAC" in fn, (
+        "the alternate probes no longer derive from the same fraction the close is taken at")
+
+
+def test_a_sequential_register_is_probed_more_than_once_before_it_is_called_unfed():
+    """`VoiceSignal` is a timeline: it shows ONE phase at a time, because that is what a timeline IS. Judged
+    on the close alone it 'dropped 2 of 3' and was reported as a register the fixture never reached — a
+    claim that is false about a frame carrying a settled waveform and its final label at 1.90% ink, MORE
+    than the register draws on its own defaults.
+
+    The previous repair varied the phases' timestamps, which changed WHICH label shows and not that only one
+    can, so the finding survived its own fix wearing a different name. No register is exempted here: the
+    union across probes is measured, and a string that appears at NO probe is still reported — which is the
+    WordTunnel case this branch was built for."""
+    src = open(c.__file__, encoding="utf-8").read()
+    fn = src.split("def audit(", 1)[1].split("\ndef ", 1)[0]
+    assert "for frac_t in (0.45, 0.65)" in fn, "the alternate probes are gone"
+    assert "missing = [x for x in missing if x in seen_there]" in fn, (
+        "the probes no longer INTERSECT — a string found at any frame was drawn, and keeping the close's "
+        "answer instead would make the extra renders decorative")
+    after = fn.split("_fed_missing(shot, props, frame", 1)[1]
+    assert after.index("if missing:") < after.index("for frac_t in"), (
+        "the extra renders are no longer gated on the close having found something missing, so every "
+        "low-ink register now pays for three renders instead of one")

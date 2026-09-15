@@ -100,6 +100,11 @@ export const AntiDesignChaos: React.FC<{title?: string; items?: string[]; taglin
       <AbsoluteFill style={{top: CONTENT_TOP, height: Math.max(120, contentBottom(W, H) - CONTENT_TOP),
         display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
         <div style={{transform: `rotate(-6deg) scale(${easeOutBack(clamp01(seg(t, 0.3, 0.56)))})`, maxWidth: TITLE_W,
+          // `balance` even here. The register breaks rules on PURPOSE, and a single glyph stranded on its
+          // own line is not one of the rules it breaks — at this size it reads as the title having been
+          // cut off, which is the one thing a display line may not look like. Chinese breaks between any
+          // two glyphs, so an 8-glyph title a unit too wide for the box does exactly that.
+          textWrap: 'balance',
           fontFamily: 'var(--f-display, Impact, system-ui, sans-serif)', fontSize: titlePx, lineHeight: leading(TITLE, 0.9), color: HEAD,
           WebkitTextStroke: `6px ${POP[0]}`, letterSpacing: '-0.02em',
           textShadow: `12px 12px 0 ${POP[2]}`}}>{TITLE}</div>

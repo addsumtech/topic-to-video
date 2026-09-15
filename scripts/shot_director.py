@@ -36,6 +36,7 @@ FAMILY = {
     "MapPlate": "J",
     "CollaborativeCursors": "A", "CommandSummon": "A", "TemporalAccelerate": "A", "VelocitySnap": "A",
     "CompanionCard": "A",
+    "StateSheet": "A",
     "GlowPick": "A",
     "SurfaceCarousel": "A",
     "AcceptanceStamp": "A",
@@ -116,6 +117,7 @@ FAMILY = {
 # pins the subset so it cannot drift again.
 PROVENANCE = {
     "CompanionCard":           'product-ui',
+    "StateSheet":              'product-ui',
     "TermSpace":               'developer-tooling',
     "DollyZoom":               'photographic',
     "RackFocus":               'photographic',

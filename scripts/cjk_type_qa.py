@@ -180,7 +180,7 @@ _UNIT_V = ["件", "次", "份", "%"]
 _ROLE = [
     (r"^[a-z]*(unit|per|each)$|^unit[A-Z][a-zA-Z]*$", _UNIT_V),
     (r"^[a-z]*(kicker|meta|issue|sectionLabel|wordmark|colophon|doneLabel|tag|cmd|root|hub|time|date|"
-     r"hash|ref|status|filename|glyph|kind|side|stamp|seal|badge|code|plateNo|verdict|pronunciation)$",
+     r"hash|ref|status|filename|glyph|kind|side|stamp|seal|badge|code|plateNo|verdict|pronunciation|chip)$",
      _SHORT_V),
     # ...and the role word can lead as well as trail: `underLabel` and `labelLeft` are both labels.
     (r"^[a-z]*(label|heading|focalLabel|titleTop|titleBottom|word|value|query|display)$"
@@ -430,6 +430,21 @@ def cjk_props(name, offset=0):
             shaped = _shape_from_type(prop, ty, src, off=offset)
             if shaped is _NOT_COPY:
                 continue                                 # geometry, not copy — keep the register's default
+            # ...BUT THE TABLE WINS WHEN IT FITS, and "type first, always" was too blunt. The table exists
+            # because a curated shape knows things a type cannot: `sources?: {t: string; d: string}[]` says
+            # nothing about `t` being a four-glyph chip and `d` a short status, so the type route filled both
+            # with 26-glyph sentences and `AnswerStream` orphaned a glyph off a source chip. What the type
+            # route is FOR is the case where the table is wrong — `rows` means a two-column table there and
+            # SplitFlap's rows are strings. So the test is COMPATIBILITY, asked of the declared keys, not
+            # precedence: a table entry whose rows are objects keyed inside the register's own type is the
+            # better fixture; anything else is the table describing a different register that shares a
+            # prop name.
+            if prop in _ARRAY_SHAPES:
+                keys = _declared_keys(ty.replace("[]", ""), src) or _declared_keys(ty, src)
+                tbl = _ARRAY_SHAPES[prop]
+                rows_ = tbl if isinstance(tbl, list) else [tbl]
+                if keys and rows_ and all(isinstance(r, dict) and set(r) <= keys for r in rows_):
+                    shaped = _shape_array(prop, ty, off=offset)
             if shaped is None:
                 shaped = _shape_array(prop, ty, off=offset)
             if shaped is None:
@@ -718,6 +733,10 @@ _NON_COPY_FIELDS = re.compile(r"^(tone|color|colour|accent\d?|bg|background|ink|
 _ROW_READOUT = re.compile(r"^(value|amount|metric|count|total|num)$", re.I)
 
 
+def _is_text(ty):
+    return str(ty).replace(" ", "").startswith("string")
+
+
 def _shaped_row(fields, src, i=0):
     """One element of a shaped array, with every field this cannot honour left out rather than guessed."""
     measured = any(re.match(r"^(pct|fill|ratio|frac|percent)$", k, re.I)
@@ -729,7 +748,11 @@ def _shaped_row(fields, src, i=0):
         if measured and _ROW_READOUT.match(k) and str(v).replace(" ", "").startswith("string"):
             row[k] = _READOUT
             continue
-        val = _synth_field(k, v, src, i)
+        # THE FIELD NAME CONTRIBUTES, exactly as it does for the numeric fields. One `i` reaches every field
+        # of a row, so `{t, d}` came back carrying the SAME sentence twice — and the overlap detector matches
+        # elements by their text, so a row whose two labels are one string cannot be told apart from a real
+        # collision.
+        val = _synth_field(k, v, src, i + (sum(ord(ch) for ch in k) % 3 if _is_text(v) else 0))
         if val is not _OMIT:
             row[k] = val
     return row
@@ -872,6 +895,11 @@ def durations():
 # Han, kana, Hangul and CJK punctuation — the same set `runtime/cjkType.ts` tests for, so the gate and
 # the registers cannot drift apart on what "is this Chinese" means.
 _HAS_CJK = re.compile("[\u1100-\u11ff\u2e80-\u9fff\uac00-\ud7af\uf900-\ufaff\ufe30-\ufe4f\uff00-\uffef]")
+
+# The probe lands in the CLOSE on purpose — type that is never drawn is never cut off, so the frame the
+# gate judges has to be the one that should be holding everything. It was a literal in one place and the
+# alternate probes below need to derive from it, because two copies of this number would let them drift.
+PROBE_FRAC = 0.88
 
 SUSPECT_INK = 0.05          # below this, ask the second question — above it, nothing was missed
 # ...and this much less ink than its own defaults means the fixture never landed. MEASURED on TermTree, the
@@ -1030,6 +1058,29 @@ def audit(shot, props, frame, tmp, dna=DEFAULT_DNA, aspect=None):
     fed = [x for x in _string_leaves(props) if _HAS_CJK.search(x)]
     if fed:
         missing = _fed_missing(shot, props, frame, tmp, dna, aspect, fed)
+        # A SEQUENTIAL REGISTER CANNOT HOLD EVERYTHING AT ONE FRAME, and asking it to is a question with a
+        # wrong answer built in. `VoiceSignal` is a timeline that shows ONE phase at a time — that is what a
+        # timeline IS — so at the close it draws the last label and two of three are legitimately absent.
+        # The gate reported "2 of 3 strings never reached the screen" for as long as this fixture existed;
+        # the fix applied last time varied the phases' timestamps, which changed WHICH label shows and not
+        # that only one can, so the finding survived its own repair wearing a different label.
+        #
+        # The distinction is measurable, so it is measured rather than declared: probe two earlier frames
+        # and take the UNION. A string that appears at some point was drawn — nothing was dropped. A string
+        # that appears at NO probe is the WordTunnel case this branch exists for, and still reported. No
+        # register is exempted by name, and the extra renders happen only on a frame that already looked
+        # empty — three registers in the last full sweep.
+        if missing:
+            for frac_t in (0.45, 0.65):
+                alt = int(round(frame / PROBE_FRAC * frac_t))
+                if alt <= 0 or alt == frame:
+                    continue
+                seen_there = _fed_missing(shot, props, alt, tmp, dna, aspect, fed)
+                if seen_there is None:
+                    continue
+                missing = [x for x in missing if x in seen_there]
+                if not missing:
+                    break
         if missing is None:
             return [{"kind": "unfed", "depth": 0, "font": "", "cls": "",
                      "text": "(drew %.2f%% ink and the re-render that would say whether its copy reached "
@@ -1089,7 +1140,7 @@ def sweep(names, dna=DEFAULT_DNA, aspect=None, film_props=None):
             props, untestable = cjk_props(n)
         if n in ev:
             props = dict(props, **ev[n])                 # a plate register needs its picture to draw at all
-        frame = int(durs.get(n, 150) * 0.88)
+        frame = int(durs.get(n, 150) * PROBE_FRAC)
         hits = audit(n, props, frame, tmp, dna, aspect)
         out[n] = {"hits": hits or [], "untestable": untestable, "failed": hits is None}
     for p in (tmp, tmp + ".props.json"):

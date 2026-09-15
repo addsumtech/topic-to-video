@@ -116,3 +116,51 @@ def test_the_chosen_quarter_is_the_one_further_from_the_centre(frm, to):
     assert far(chosen) >= far(0.26 if chosen == 0.74 else 0.74)
     assert far(chosen) >= far(0.5), (
         "the chosen quarter is nearer the subject than the midpoint it exists to avoid")
+
+
+# ── the ground-follows allow list had an entry measured on an EMPTY PLATE ──────────────────────────
+def test_the_ground_probe_feeds_a_register_that_refuses_to_draw_without_its_artefact():
+    """`GROUND_FOLLOWS_MEASURED` is a safety guard: `validate.py` refuses a beat that declares a `ground` on
+    a register not in it. Six registers REFUSE to render without a real artefact (runtime/evidence.ts), and
+    this script never fed them one — all six reported RENDER FAILED, so none could ever be listed and any
+    film declaring a ground on one got an error with no fix. That is the catch-22 `test_provenance.py`
+    records for provenance, inside the luminance guard.
+
+    `measure_ground_luma.py` already solved it with one import. This pins that `measure_ground_reach.py`
+    uses the same one, because the two scripts drifting apart is how the hole opened."""
+    src = open(os.path.join(_ROOT, "scripts", "measure_ground_reach.py"), encoding="utf-8").read()
+    assert "def _fixture_props()" in src, "the evidence fixture is gone again"
+    assert "register_energy.evidence_props()" in src, "it no longer uses the ONE fixture builder"
+    assert "fixtures[shot]" in src, "the fixture is built and never handed to the render"
+
+
+def test_a_list_of_pictures_register_is_fed_pictures():
+    """`requireEvidence` names ONE `src` prop, so a register drawing N images matched nothing and was
+    measured by rendering its defaults — an empty sheet, which throws. Derived from the TYPE (an array whose
+    element declares `src: string`) so the next such register is fed the day it is written, never from a
+    list of names that would drift."""
+    import sys
+    sys.path.insert(0, os.path.join(_ROOT, "scripts"))
+    import register_energy as reg                                    # noqa: E402
+    reg.ensure_fixture()
+    ev = reg.evidence_props()
+    cells = (ev.get("StateSheet") or {}).get("cells")
+    assert isinstance(cells, list) and len(cells) >= 2, (
+        "StateSheet draws a LIST of pictures and the fixture gives it %r" % (cells,))
+    assert all(isinstance(c, dict) and c.get("src") for c in cells), cells
+
+
+def test_photoplate_is_not_claimed_to_follow_the_ground():
+    """It was listed, and it does not: measured 51% of the frame moving, because the PHOTOGRAPH holds the
+    middle and does not change with the ground. The entry was written when the register still drew its
+    furniture around an ABSENT picture, so the whole frame took the ground and it looked like it followed —
+    a measurement of an empty plate, preserved inside a load-bearing guard, uncheckable by the one tool that
+    would have caught it because that tool could not render the register at all."""
+    src = open(os.path.join(_ROOT, "remotion", "src", "runtime", "shotLuma.ts"), encoding="utf-8").read()
+    listed = set(re.findall(r"'([A-Za-z0-9]+)'",
+                            src.split("GROUND_FOLLOWS_MEASURED", 1)[1].split("new Set([", 1)[1]
+                               .split("]);", 1)[0]))
+    assert "PhotoPlate" not in listed, (
+        "PhotoPlate is back in the ground-follows set; it measures 51% moved, under the floor")
+    assert "StateSheet" in listed, "StateSheet measured as following and is not listed"
+    assert len(listed) > 90, "the allow list collapsed to %d names — a spot check overwrote it" % len(listed)

@@ -66,6 +66,7 @@ import {HalftonePop} from './shots/HalftonePop';
 import {PaperCutout} from './shots/PaperCutout';
 import {RadialBurst} from './shots/RadialBurst';
 import {SplitFlap} from './shots/SplitFlap';
+import {StateSheet} from './shots/StateSheet';
 import {WireGlobe} from './shots/WireGlobe';
 import {LiquidGlass} from './shots/LiquidGlass';
 import {HoloFoil} from './shots/HoloFoil';
@@ -176,7 +177,7 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   TimelineTravel, MapRoutes, ChatThread, BeforeAfterSlider, AuroraFlow, IsometricAssembly, LiquidMorph,
   VoiceSignal, AsciiField, ParticleForm, HandDrawn, ChartLive, CartoonPop, LiquidChrome, CodeCompose,
   KnowledgeGraph, CinematicTitle, BlueprintGrid, SpotlightStage, AnalogTape, NeonGrid, SwissEditorial,
-  ClayStack, LiquidFill, HalftonePop, PaperCutout, RadialBurst, SplitFlap, WireGlobe, LiquidGlass, HoloFoil,
+  ClayStack, LiquidFill, HalftonePop, PaperCutout, RadialBurst, SplitFlap, StateSheet, WireGlobe, LiquidGlass, HoloFoil,
   BokehPull, PixelBuild, BrutalistType, LightTrails, DataOrrery, PhysicsStack,
   OdometerRoll, QuadSplit, CardFlip3D, CubeRotate, GearTrain,
   FractureIn, PositioningMatrix, GaugeCluster, BentoReveal, ConveyorBelt,

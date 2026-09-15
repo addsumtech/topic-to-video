@@ -7,6 +7,7 @@ export type Lum = 'dark' | 'mid' | 'light';
 // (KSpaceToImage added below with the map — a purpose-built dark shot)
 
 export const SHOT_LUMA: Record<string, Lum> = {
+  StateSheet: 'dark',
   CompanionCard: 'dark',
   TermSpace: 'dark',
   DollyZoom: 'dark',
@@ -100,6 +101,7 @@ const literalGround = (tok: GroundSpec | undefined): string | null =>
 // `declared-only`, until measure_ground_luma.py replaces it with a measurement. Everything else is
 // measured.
 export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
+  StateSheet: 'bg',
   CompanionCard: 'bg',
   TermSpace: 'bg',
   DollyZoom: 'bg',
@@ -315,27 +317,27 @@ export const GROUND_FOLLOWS_MEASURED: ReadonlySet<string> = new Set([
   'BokehPull', 'BrutalistType', 'CardFlip3D', 'CardStack3D',
   'CartoonPop', 'ChartRace', 'ChatThread', 'CinematicTitle',
   'CircuitTrace', 'ClayStack', 'CollaborativeCursors', 'ComicPanels',
-  'CommandSummon', 'CompressedSensingEq', 'ConveyorBelt', 'CubeRotate',
-  'DataOrrery', 'DiffusionDenoise', 'EdCompare', 'EdStat',
-  'EdTimeline', 'FrequencyEncode', 'GFactorNoise', 'GaugeCluster',
-  'GazetteerEntry', 'GradientTilt', 'GrantedTree', 'HalftonePop',
-  'HandDrawn', 'InducedFID', 'InfiniteCanvas', 'InkBloom',
-  'Inscription', 'IsometricAssembly', 'KSpaceAnatomy', 'KSpaceReal',
-  'KSpaceToImage', 'LarmorPrecession', 'LightTrails', 'LiquidFill',
-  'LiquidGlass', 'LiquidMetal', 'LiquidMorph', 'MRIPipeline',
-  'MagazineSpread', 'MagnetizationTip', 'MapPlate', 'MapRoutes',
-  'MuseumLabel', 'NeuralField', 'OdometerRoll', 'OpenQuestions',
-  'OverlapSeparation', 'PaperCutout', 'PhaseEncodeStep', 'PhotoPlate',
+  'CommandSummon', 'CompanionCard', 'CompressedSensingEq', 'ConveyorBelt',
+  'CubeRotate', 'DataOrrery', 'DiffusionDenoise', 'EdCompare',
+  'EdStat', 'EdTimeline', 'FrequencyEncode', 'GFactorNoise',
+  'GaugeCluster', 'GazetteerEntry', 'GradientTilt', 'GrantedTree',
+  'HalftonePop', 'HandDrawn', 'InducedFID', 'InfiniteCanvas',
+  'InkBloom', 'Inscription', 'IsometricAssembly', 'KSpaceAnatomy',
+  'KSpaceReal', 'KSpaceToImage', 'LarmorPrecession', 'LightTrails',
+  'LiquidFill', 'LiquidGlass', 'LiquidMetal', 'LiquidMorph',
+  'MRIPipeline', 'MagazineSpread', 'MagnetizationTip', 'MapPlate',
+  'MapRoutes', 'MuseumLabel', 'NeuralField', 'OdometerRoll',
+  'OpenQuestions', 'OverlapSeparation', 'PaperCutout', 'PhaseEncodeStep',
   'PhysicsStack', 'PixelBuild', 'PlanPalimpsest', 'PositioningMatrix',
   'ProfileGrowth', 'QuadSplit', 'RadialBurst', 'RainGlass',
   'RansomZine', 'RealVersus', 'RisoPrint', 'ScanReconstruct',
   'ScreenBubble', 'SectionRoute', 'SharedBlindspot', 'SpeedLimit',
-  'SpinningProton', 'SpinsAlign', 'SplitFlap', 'StrataColumn',
-  'SwissEditorial', 'TallyLedger', 'TechnicalPlate', 'TemporalAccelerate',
-  'TensionScale', 'TermBars', 'TermCounter', 'TermDiff',
-  'TermGitLog', 'TermLog', 'TermTable', 'TermThink',
-  'TermTree', 'TimelineTravel', 'UndersampledKspace', 'VariableTypeMorph',
-  'VelocitySnap', 'VersusSplit', 'WireGlobe',
+  'SpinningProton', 'SpinsAlign', 'SplitFlap', 'StateSheet',
+  'StrataColumn', 'SwissEditorial', 'TallyLedger', 'TechnicalPlate',
+  'TemporalAccelerate', 'TensionScale', 'TermBars', 'TermCounter',
+  'TermDiff', 'TermGitLog', 'TermLog', 'TermTable',
+  'TermThink', 'TermTree', 'TimelineTravel', 'UndersampledKspace',
+  'VariableTypeMorph', 'VelocitySnap', 'VersusSplit', 'WireGlobe',
 ]);
 
 /** Does a declared ground reach this register? An unknown id answers false, so an unmeasured register is
