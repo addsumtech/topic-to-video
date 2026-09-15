@@ -105,17 +105,25 @@ FAMILY = {
 # systematic failure. It does NOT catch a single beat misusing an in-world idiom — an industrial
 # conveyor belt is legitimate in a harbour film and still wrong for people cycling to a station. That
 # judgement is the shot-critic's (S10 meaning), and no table can make it.
+# EVERY VALUE HERE MUST BE ONE OF `IDIOM_WORLDS` ABOVE, and for a session it was not. Seven registers
+# carried `product-demo`, `product-hardware` or `paper-craft` — none of which is a world. `product-demo` is
+# the name of a TEMPLATE (one of the six seed directions), and it had been written here as though it were a
+# vocabulary. The effect was a catch-22 no film could escape: validate refuses `meta.idiom_world` entries it
+# does not know, so a film using PortRail was told it draws from an undeclared world AND that the world it
+# would have to declare is unknown. Seven registers were unusable in any film the gate would pass, and the
+# only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
+# pins the subset so it cannot drift again.
 PROVENANCE = {
     "TermSpace":               'developer-tooling',
     "DollyZoom":               'photographic',
     "RackFocus":               'photographic',
     "WordTunnel":              'motion-graphics',
     "SpatialSlides":           'motion-graphics',
-    "SourceDeal":              'product-demo',
-    "GlowPick":                'product-demo',
-    "PageWrite":               'product-demo',
-    "PointerTour":             'product-demo',
-    "SurfaceCarousel":         'product-demo',
+    "SourceDeal":              'product-ui',
+    "GlowPick":                'product-ui',
+    "PageWrite":               'product-ui',
+    "PointerTour":             'product-ui',
+    "SurfaceCarousel":         'product-ui',
     "AcceptanceStamp":         'product-ui',
     "RestsOn":                 'data-viz',
     "InOrder":                 'data-viz',
@@ -205,8 +213,8 @@ PROVENANCE = {
     "LowPolyForm":             'motion-graphics',
     "MRIPipeline":             'scientific',
     "MagazineSpread":          'print-editorial',
-    "PaperSlot":               'paper-craft',
-    "PortRail":                'product-hardware',
+    "PaperSlot":               'craft-handmade',
+    "PortRail":                'industrial',
     "MagnetizationTip":        'scientific',
     "MapPlate":                'survey-archive',
     "MapRoutes":               'motion-graphics',
