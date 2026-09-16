@@ -48,7 +48,19 @@ export const DollyZoom: React.FC<{
   context?: string[];
   /** what the new scale MEANS, landing once the room has settled */
   reading?: string;
-  /** `in` = the room closes in around the subject; `out` = an overwhelming room recedes off it */
+  /** Which way the move runs — and it is named for the ROOM, while what an author is actually choosing is
+   *  what the CONTEXT LABELS do, so it reads backwards unless that is said out loud:
+   *
+   *    'in'   the room closes in: the labels travel OUTWARD, growing and softening, and end large and
+   *           blurred at the edges. Use for SUBTRACTION — these things went away, this one remains.
+   *    'out'  an overwhelming room recedes off the subject: the labels travel INWARD, shrinking and
+   *           sharpening, and end small, crisp and near. Use for ARRIVAL — all of this landed on it.
+   *
+   *  A beat about six integrations LEAVING the product was authored `'out'`, on the reasonable reading that
+   *  things going away is "out". It ends with the six departed names as the brightest, sharpest, nearest
+   *  type in the frame, converging on the subject — measured by a reviewer at 129 → 221 peak luminance and
+   *  292px → 59px spread, against a flat 116 for the four that REMAIN. The picture asserted the opposite of
+   *  the sentence, and nothing but reading `dollyAt` would have told the author why. */
   direction?: 'in' | 'out';
 }> = ({
   subject: SUBJ = 'The thing itself', note: NOTE = '', context: CTX = ['around it', 'and this', 'and this too',
@@ -88,8 +100,9 @@ export const DollyZoom: React.FC<{
   if (DIR !== 'in' && DIR !== 'out') {
     throw new Error(
       `DollyZoom direction must be 'in' or 'out', got ${JSON.stringify(DIR)}. 'in' closes the room around ` +
-      `the subject; 'out' recedes an overwhelming room off it. They are opposite arguments, so there is no ` +
-      `sensible default to fall back to.`);
+      `the subject, so the context labels travel OUTWARD and soften — that is the SUBTRACTION reading. ` +
+      `'out' recedes an overwhelming room off it, so they travel INWARD and sharpen — that is ARRIVAL. ` +
+      `They are opposite arguments, so there is no sensible default to fall back to.`);
   }
   // A LIGHTER BLUR THAN THE HOUSE DEFAULT FOR A RACK, and the reason is that this plane carries COPY a film
   // supplied. `RackFocus` can push to 0.0065 because its far reading is meant to be unreadable until the

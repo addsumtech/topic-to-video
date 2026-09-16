@@ -225,7 +225,12 @@ export const PortRail: React.FC<{
   const seats = flat.slice(0, 6);
   const list = seats.map((x) => x.text);
   // the tone INDEX per module: its group when there are groups, its own position when there are not.
-  const toneOf = seats.map((_x, i) => i);
+  // ONE MARK, ONE COLOUR. Dropping the group-keyed tone left the bar back on `i` — six unrelated hues
+  // (measured 169/214/193/205/206/224 deg) that encode nothing, under an adaptation note saying colour had
+  // been removed as a variable. Removing a false code and leaving a random one in its place is the same
+  // defect with the claim deleted. The bar marks "this is a module", which is what this register's own note
+  // asks of it, so every module wears the same one.
+  const toneOf = seats.map(() => 0);
   // GROUP TONES ARE CHOSEN BY MEASURED CONTRAST AGAINST THE SURFACE THEY SIT ON, because both of the
   // obvious rules fail and they fail in opposite directions. `dnaPalette` seeds with the film's two accents
   // and derives the rest by shading toward the GROUND, so half its entries are dark:

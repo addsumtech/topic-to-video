@@ -233,8 +233,9 @@ def test_the_group_is_carried_by_spacing_and_a_name_not_by_colour():
         "the swatch legend is back — a colour key on a rail whose colours cannot separate is a code with "
         "nothing to decode")
     assert "const TONES = TONES0_;" in src, "the group-tone search came back"
-    assert "const toneOf = seats.map((_x, i) => i);" in src, (
-        "the bar is keyed to the group again, which is the thing measured at 1.00:1")
+    assert "const toneOf = seats.map(() => 0);" in src, (
+        "the identity bar carries an index again — either keyed to the group (measured at 1.00:1 against "
+        "the cube) or to the module's position (six unrelated hues encoding nothing). One mark, one colour.")
 
 
 def test_grouped_modules_are_spaced_by_their_group():

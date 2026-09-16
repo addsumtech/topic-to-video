@@ -41,10 +41,16 @@ export const StateSheet: React.FC<{
   cells?: Cell[];
   /** which cell is the state the thing is in right now (0-based); -1 or absent marks none */
   mark?: number;
+  /** THE OTHER MEMBERS THIS ONE BELONGS TO — one picture each, in a strip under the sheet. The sheet says
+   *  "this thing is N pictures"; the strip says "and it is one of M". Without it the second half of a beat
+   *  like "twenty sets, seventeen states each" is asserted in the voice and absent from the frame. A
+   *  typeface's other faces, a species' sibling species, a product's other themes. */
+  family?: {src: string; label?: string}[];
   /** one line under the sheet */
   note?: string;
 }> = ({
   title: TITLE = '', dir: DIR = '', cells: CELLS = [], mark: MARK = -1, note: NOTE = '',
+  family: FAMILY = [],
 } = {}) => {
   const dna = useDNA();
   const t = useT();
@@ -63,6 +69,7 @@ export const StateSheet: React.FC<{
   const dir = String(DIR ?? '').trim();
   const note = String(NOTE ?? '').trim();
   const mark = Number.isFinite(MARK) ? Math.trunc(MARK as number) : -1;
+  const family = (Array.isArray(FAMILY) ? FAMILY : []).filter((f) => f && String(f.src ?? '').trim());
 
   const BG = dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(120% 110% at 50% 34%, #141a26, #080a0f 74%)';
   const FG = dna?.fg ?? '#eef2f8';
@@ -79,9 +86,12 @@ export const StateSheet: React.FC<{
   const notePx = Math.round(U * 0.019);
   const headH = (title ? Math.round(headPx * 1.25) : 0) + (dir ? Math.round(dirPx * 1.9) : 0);
   const noteH = note ? Math.round(notePx * 2.2) : 0;
+  const famPx = Math.round(U * 0.016);
+  const famSide = Math.round(U * 0.062);
+  const famH = family.length ? famSide + Math.round(famPx * 2.1) : 0;
 
   const gridTop = zTop + headH + Math.round(U * 0.016);
-  const gridH = Math.max(U * 0.2, zBot - gridTop - noteH);
+  const gridH = Math.max(U * 0.2, zBot - gridTop - noteH - famH);
   const gridW = W * 0.88;
   const gridLeft = (W - gridW) / 2;
 
@@ -174,6 +184,30 @@ export const StateSheet: React.FC<{
           </div>
         );
       })}
+
+      {family.length ? (
+        <div style={{position: 'absolute', left: 0, right: 0, top: zBot - noteH - famH,
+          display: 'flex', justifyContent: 'center', alignItems: 'flex-start',
+          gap: Math.round(U * 0.006), opacity: easeOutCubic(clamp01(seg(t, 0.68, 0.86)))}}>
+          {family.map((f, i) => (
+            // the NAME may be wider than the tile — 海绵宝宝 is four glyphs against a square built for the
+            // picture, and clipping a member's name to fit its thumbnail is the sheet losing the thing it
+            // was added to show. The column is as wide as the name needs; the tile stays centred in it.
+            <div key={f.src + i} style={{width: Math.round(famSide * 1.45), textAlign: 'center'}}>
+              <div style={{width: famSide, height: famSide, margin: '0 auto',
+                borderRadius: Math.round(U * 0.008),
+                background: SURF, border: `1px solid ${LINE}`, overflow: 'hidden',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                <Img src={staticFile(f.src)} style={{width: '82%', height: '82%', objectFit: 'contain'}} />
+              </div>
+              {f.label ? (
+                <div style={{marginTop: Math.round(famPx * 0.4), color: DIM,
+                  font: `500 ${famPx}px/1.2 ${MONO}`, whiteSpace: 'nowrap'}}>{f.label}</div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       {note ? (
         <div style={{position: 'absolute', left: W * 0.07, top: zBot - noteH + Math.round(U * 0.004),
