@@ -439,12 +439,22 @@ def cjk_props(name, offset=0):
             # precedence: a table entry whose rows are objects keyed inside the register's own type is the
             # better fixture; anything else is the table describing a different register that shares a
             # prop name.
-            if prop in _ARRAY_SHAPES:
+            # ...AND WHEN IT FITS, IT IS MERGED, NOT CHOSEN. The first version of this let a compatible table
+            # REPLACE the type-derived shape, and "compatible" was a subset test: `panels` in the table carries
+            # `{label}` only, QuadSplit's type also declares `icon: IconName`, `{label} <= {label, icon, ...}`
+            # passed, and the table won — every icon came back None. That is the bug this whole shaper was
+            # written to end (a field the register needs, silently absent) reintroduced by its own fix, and a
+            # test pinned since QuadSplit first threw caught it. The table supplies curated VALUES for the keys
+            # it has; the type supplies every field the table does not name. Neither is allowed to delete
+            # what the other knows.
+            if prop in _ARRAY_SHAPES and isinstance(shaped, list):
                 keys = _declared_keys(ty.replace("[]", ""), src) or _declared_keys(ty, src)
                 tbl = _ARRAY_SHAPES[prop]
                 rows_ = tbl if isinstance(tbl, list) else [tbl]
                 if keys and rows_ and all(isinstance(r, dict) and set(r) <= keys for r in rows_):
-                    shaped = _shape_array(prop, ty, off=offset)
+                    curated = _shape_array(prop, ty, off=offset) or []
+                    shaped = [dict(shaped[i % len(shaped)], **curated[i]) if isinstance(curated[i], dict)
+                              else curated[i] for i in range(len(curated))] if curated else shaped
             if shaped is None:
                 shaped = _shape_array(prop, ty, off=offset)
             if shaped is None:

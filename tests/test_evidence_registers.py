@@ -58,7 +58,15 @@ def test_the_sweep_derives_its_fixture_list_from_the_call_sites():
     # FIVE now: `PageWrite` adopted the guard, and its evidence is a captured PAGE — a texture AND the boxes
     # measured from the same load, because a screenshot with no layout can be panned across and never
     # animated. Which registers need that is read from their own signatures too, not listed in the code.
-    assert set(ev) == {"PhotoPlate", "RealVersus", "ScanReconstruct", "MuseumLabel", "PageWrite"}, ev
+    # SIX now, and the sixth arrives by a SECOND derivation. `requireEvidence` names one `src` prop, so a
+    # register that draws a LIST of pictures — StateSheet's `cells: {src, label}[]` — matched no call site,
+    # was rendered on its defaults (an empty sheet, which throws), and all three measurement scripts recorded
+    # RENDER FAILED. Its fixture is derived from the TYPE: an array whose element declares `src: string`.
+    assert set(ev) == {"PhotoPlate", "RealVersus", "ScanReconstruct", "MuseumLabel", "PageWrite",
+                       "StateSheet"}, ev
+    cells = ev["StateSheet"].get("cells")
+    assert isinstance(cells, list) and len(cells) >= 2 and all(c.get("src") for c in cells), (
+        "a list-of-pictures register must get a LIST of pictures, not one path: %r" % (cells,))
     assert set(ev["PageWrite"]) >= {"src", "blocks", "pageW", "pageH", "bg"}, ev["PageWrite"]
     # a paired register guards ONE prop; both halves must be filled or half the frame is still the hole
     assert set(ev["RealVersus"]) == {"srcLeft", "srcRight"}, ev["RealVersus"]
@@ -68,8 +76,8 @@ def test_the_sweep_derives_its_fixture_list_from_the_call_sites():
     body = inspect.getsource(reg.evidence_props)
     parts = body.split('"""')
     code = "\n".join(l.split("#")[0] for l in (parts[0] + parts[2]).splitlines())
-    for n in ("PhotoPlate", "RealVersus", "ScanReconstruct", "MuseumLabel", "PageWrite"):
-        assert n not in code, "evidence_props hardcodes %s instead of parsing the call sites" % n
+    for n in ("PhotoPlate", "RealVersus", "ScanReconstruct", "MuseumLabel", "PageWrite", "StateSheet"):
+        assert n not in code, "evidence_props hardcodes %s instead of parsing the call sites or the type" % n
 
 
 def test_the_fixture_is_drawn_not_committed_and_is_deterministic(tmp_path, monkeypatch):
@@ -98,16 +106,25 @@ def test_the_measured_rows_describe_the_register_not_an_empty_box():
     absence of."""
     data = json.load(open(reg.MANIFEST, encoding="utf-8"))
     listed = sorted(data["_fixture"]["registers"])
-    assert listed == ["MuseumLabel", "PageWrite", "PhotoPlate", "RealVersus", "ScanReconstruct"], listed
-    floor = data["_floors"]["ink_median"]
+    assert listed == ["MuseumLabel", "PageWrite", "PhotoPlate", "RealVersus", "ScanReconstruct",
+                      "StateSheet"], listed
+    # THE QUESTION IS "EMPTY PLATE OR NOT", AND THE FILM'S INK FLOOR WAS ONLY EVER STANDING IN FOR IT. The
+    # docstring above records the two populations: a register handed nothing measures 0.0-0.6%; reached with
+    # its artefact, the photo registers measured 16.5-37.2%. A 12% film floor happened to fall in that gap.
+    # The sixth register does not sit on the same side of it: StateSheet, correctly fed six stand-in cells,
+    # measures 11.6% — twenty times an empty plate and still under a number chosen for a different question.
+    # Asserting the film floor there fails a register that is demonstrably reached, which is the test crying
+    # wolf; the bound below is the empty-plate ceiling the docstring itself measured, with a 5x margin.
+    EMPTY_PLATE_CEILING = 0.03
     for n in listed:
         assert n not in data.get("_failed", []), (
             "%s failed to render, so the sweep is not reaching it with its fixture" % n)
         assert n in data["registers"], "%s has no measured row at all" % n
         if "blocks" in reg.evidence_props().get(n, {}):
             continue                    # a captured page: reaching it at all is the thing being checked
-        assert data["registers"][n]["ink_median"] >= floor, (
-            "%s is back under the ink floor — it was measured as an empty plate" % n)
+        assert data["registers"][n]["ink_median"] >= EMPTY_PLATE_CEILING, (
+            "%s measures %.1f%% ink — an empty plate is 0.0-0.6%%, so the sweep is no longer reaching it "
+            "with its fixture" % (n, data["registers"][n]["ink_median"] * 100))
 
 
 def test_the_render_cache_is_keyed_on_everything_the_pixels_depend_on():

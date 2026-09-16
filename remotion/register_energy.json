@@ -39,7 +39,7 @@
     "DataMonolith": "7bf27060cf5a325e",
     "DataOrrery": "7ab33c36f2167c93",
     "DiffusionDenoise": "b03a8732e75929e0",
-    "DollyZoom": "2231776770f4fb89",
+    "DollyZoom": "3e9025b6190a32bf",
     "EdCompare": "3920c495c76b56ff",
     "EdStat": "f018b85c160aa23b",
     "EdTimeline": "044e1fd9cc7b93f0",
@@ -115,7 +115,7 @@
     "PlanPalimpsest": "81aa5bc1e4a3af65",
     "PlatformSurfaces": "cf1f4771573ca5f1",
     "PointerTour": "a80c60029325e218",
-    "PortRail": "896d84d4ab9756a1",
+    "PortRail": "5360d4ba6aff31e3",
     "PositioningMatrix": "f82cc8e0cff2c9b0",
     "ProfileGrowth": "ed9866a51c78c75a",
     "QuadSplit": "454b16b99a229c7f",
@@ -168,7 +168,7 @@
     "WordTunnel": "1d9eee8bae1f4d7e",
     "CompanionCard": "2d699f6c189bb8b5",
     "FallbackPath": "5bf7791c60f76a29",
-    "StateSheet": "e61c4e096435f356"
+    "StateSheet": "ced21aac72b7856d"
   },
   "_basis": "each register rendered as VIDEO at its own DURATION, 16:9, under dna=product — the themed path, because every delivered film has a design system and the un-themed fallback is a mode none of them use",
   "_dna": "product",
@@ -1003,7 +1003,7 @@
       "footprint": 0.61
     },
     "PortRail": {
-      "motion_p75": 0.0039,
+      "motion_p75": 0.0042,
       "ink_median": 0.121,
       "luma_range": 0.008,
       "seconds": 5.5,

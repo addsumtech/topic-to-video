@@ -505,7 +505,13 @@ def test_a_named_type_alias_is_resolved_not_filled_with_a_sentence():
 
 def test_an_unresolvable_field_is_left_out_rather_than_guessed():
     assert c._synth_field("whatever", "SomeTypeNobodyDeclared") is c._OMIT
-    assert c._shaped_row({"a": "string", "b": "SomeTypeNobodyDeclared"}, "") == {"a": c._string_for("a")}
+    # The CONTRACT is that `b` is left out. Which Chinese string `a` receives is incidental, and pinning it
+    # broke the day row fields were made to vary by name (two fields of one row carrying one string cannot
+    # be told apart from a collision by the overlap detector) — a test that fails on a correct change is one
+    # people learn to edit rather than read.
+    row = c._shaped_row({"a": "string", "b": "SomeTypeNobodyDeclared"}, "")
+    assert set(row) == {"a"}, "an unresolvable field was guessed instead of omitted: %r" % (row,)
+    assert c._HAS_CJK.search(row["a"]), row
 
 
 def test_a_control_that_did_not_render_is_not_counted_as_clean():

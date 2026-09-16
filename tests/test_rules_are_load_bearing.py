@@ -1086,8 +1086,8 @@ MUTANTS["text_safe_qa"] = {
         ("            found, _end = json.JSONDecoder().raw_decode(raw)\n            return found",
          "            return json.loads(raw[:raw.index(']') + 1])"),
     "props go inline on the command line":
-        ('                        "--props=" + os.path.abspath(pf)],',
-         '                        "--props=" + json.dumps(payload)],'),
+        ('               "--props=" + os.path.abspath(pf)]',
+         '               "--props=" + json.dumps(payload)]'),
 }
 
 
