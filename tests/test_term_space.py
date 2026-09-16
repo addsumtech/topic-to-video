@@ -124,3 +124,44 @@ def test_an_empty_screens_list_is_refused_rather_than_drawn_as_an_empty_room(tmp
     r = _still({"screens": []}, str(tmp_path / "x.png"), 120)
     assert r.returncode != 0, "an empty room rendered as a finished frame"
     assert "TermSpace needs at least one" in (r.stderr or "") + (r.stdout or ""), (r.stderr or "")[-500:]
+
+
+# ── the words lie on the screen's own plane ──────────────────────────────────────────────────────────
+def test_a_consoles_words_take_its_plane_not_just_its_position():
+    """A viewer of a delivered film said the first beat's windows tilt with the room while the words on them
+    stay upright — "not aligned like the terminal window is". The type was placed at the window's projected
+    CENTRE with one uniform scale, so it could move and grow but never turn: a sticker floating over the
+    glass. It is now laid out in the window's LOCAL px and carried onto the plane by a 2D affine fitted to
+    three projected corners of its own block."""
+    assert "planeAffine(p, cam, P, W, H, lleft, ltop, lw, lblock)" in SOURCE, (
+        "the type is placed by a projected point again — it cannot turn with its window")
+    assert "transform: `matrix(${aff.m11},${aff.m12},${aff.m21},${aff.m22},${aff.tx},${aff.ty})`" in SOURCE, (
+        "the fitted affine is computed and not applied")
+    assert "left: q.x - w / 2" not in SOURCE, "the upright, centre-anchored placement is back"
+
+
+def test_the_type_stays_in_2d_even_though_it_now_turns():
+    """The reason type was kept off the posed surface is unchanged: a 3D-composited layer is rasterised once
+    and scaled (91 flat vs 56 under Z). Turning the text must not reintroduce that — the transform is a 2D
+    `matrix()`, never `matrix3d()`, and the words are still not children of the Surface.
+
+    MEASURED on this register at the close (scripts/type_sharpness.py --ab, tilted affine vs the same anchor
+    and scale upright): edge strength 150.4 vs 176.4. Part of that 15% is geometry, not blur — a perfectly
+    rendered diagonal stroke scores lower than a horizontal one — and at 3x native crop the tilted glyphs show
+    no softening beyond anti-aliasing. It is recorded so the next change is compared against a number."""
+    flat = SOURCE.split("</Stage3D>", 1)[1]
+    assert "matrix3d" not in flat, "the overlay type was put into a 3D transform — it will go soft"
+    assert "transform: `matrix(" in flat, "the overlay type lost its 2D plane transform"
+
+
+def test_plane_affine_maps_the_corners_it_was_fitted_to():
+    """The helper is exact at the three corners that define it, and says `null` rather than inventing a
+    matrix when a corner is behind the eye."""
+    import re as _re
+    stage = open(os.path.join(_REM, "src", "runtime", "stage3d.tsx"), encoding="utf-8").read()
+    assert "export const planeAffine" in stage and "export const projectLocal" in stage
+    fn = stage.split("export const planeAffine", 1)[1].split("\n};", 1)[0]
+    assert "if (a.behind || b.behind || c.behind) return null;" in fn, (
+        "a corner behind the lens produces a matrix with a sign flip in it instead of drawing nothing")
+    assert "(b.x - a.x) / width" in fn and "(c.y - a.y) / height" in fn, (
+        "the affine is no longer fitted to the projected corners of the block it transforms")

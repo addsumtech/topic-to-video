@@ -106,6 +106,56 @@ export const projectPose = (
   return {x: W / 2 + ex * k, y: H / 2 + ey * k, k, behind: false};
 };
 
+/** Where a LOCAL point on a surface's plane lands on the frame. `lx, ly` are px from the surface's centre
+ *  in its own unrotated coordinates — the space `Surface` lays its children out in, since it is placed at
+ *  `left: -w/2, top: -h/2`. `projectPose` is this at (0, 0). */
+export const projectLocal = (
+  pose: Pose, cam: Pose, persp: number, W: number, H: number, lx: number, ly: number,
+): {x: number; y: number; behind: boolean} => {
+  const m = mul(inverseOf(cam), matrixOf(pose));
+  const ex = m[0] * lx + m[4] * ly + m[12];
+  const ey = m[1] * lx + m[5] * ly + m[13];
+  const ez = m[2] * lx + m[6] * ly + m[14];
+  const denom = persp - ez;
+  if (!(denom > 1e-3)) return {x: W / 2, y: H / 2, behind: true};
+  const k = persp / denom;
+  return {x: W / 2 + ex * k, y: H / 2 + ey * k, behind: false};
+};
+
+/**
+ * The 2D AFFINE transform that lays a FLAT element onto a surface's plane, fitted to the local rect it covers.
+ *
+ * WHY THIS EXISTS. Type over a posed surface was placed by `projectPose` — the surface's ORIGIN projected to a
+ * point, plus one uniform scale — so it could translate and grow but never turn. A viewer looking at the
+ * first beat of a real film said it plainly: the windows tilt with the room and the words on them do not;
+ * they float upright over the glass like a sticker instead of lying on the screen.
+ *
+ * WHY AFFINE AND NOT THE SURFACE'S OWN `matrix3d`. Putting the type INSIDE the posed surface is what the stage
+ * was built to avoid: a 3D-composited layer is rasterised once and scaled, and `runtime/depth` measured the
+ * cost at 91 flat against 56 under Z. A 2D `matrix()` — rotate, skew, scale, no perspective term — stays in the
+ * 2D path, where the browser rasterises glyphs at their final transform. Three projected corners of the text's
+ * own local rect define it exactly at those corners; perspective foreshortening ACROSS a text block is the one
+ * thing an affine cannot represent, and over a block that small against the stage's perspective distance the
+ * residual is sub-pixel. Measured, not assumed: see `scripts/type_sharpness.py --ab`.
+ *
+ * Returns null when any corner is at or behind the eye — the caller draws nothing, as with `projectPose`.
+ */
+export const planeAffine = (
+  pose: Pose, cam: Pose, persp: number, W: number, H: number,
+  left: number, top: number, width: number, height: number,
+): {m11: number; m12: number; m21: number; m22: number; tx: number; ty: number; scale: number} | null => {
+  if (!(width > 0) || !(height > 0)) return null;
+  const a = projectLocal(pose, cam, persp, W, H, left, top);
+  const b = projectLocal(pose, cam, persp, W, H, left + width, top);
+  const c = projectLocal(pose, cam, persp, W, H, left, top + height);
+  if (a.behind || b.behind || c.behind) return null;
+  const m11 = (b.x - a.x) / width, m12 = (b.y - a.y) / width;
+  const m21 = (c.x - a.x) / height, m22 = (c.y - a.y) / height;
+  // the local-to-screen area ratio, square-rooted: what a uniform scale would have been, for callers that
+  // still size or cull by it
+  return {m11, m12, m21, m22, tx: a.x, ty: a.y, scale: Math.sqrt(Math.abs(m11 * m22 - m12 * m21))};
+};
+
 /** The box on the frame a projected label may occupy — the same shape `runtime/fitCamera` takes, and for the
  *  same reason: "does it fit" and "does it collide with the caption band" are one question. */
 export type StageBox = {left: number; top: number; right: number; bottom: number};

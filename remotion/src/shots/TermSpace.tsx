@@ -27,7 +27,7 @@ import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime
 import {useDNA} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitTextPx, inkBlockH} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
-import {Stage3D, Surface, projectPose, fitStage, faceShade, PERSP_FRAC, type Pose} from '../runtime/stage3d';
+import {Stage3D, Surface, projectPose, planeAffine, fitStage, faceShade, PERSP_FRAC, type Pose} from '../runtime/stage3d';
 
 export const DURATION = 190; // ~6.3s
 
@@ -198,9 +198,22 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
       {poses.map((p, k) => {
         const q = projectPose(p, cam, P, W, H);
         if (q.behind || q.k <= 0.02) return null;
-        const w = scrW * q.k * 0.88;
-        const npx = Math.max(7, namePx * q.k), spx = Math.max(6, statusPx * q.k);
-        const block = inkBlockH(npx) + inkBlockH(spx) * 1.4;
+        // THE WORDS LIE ON THE SCREEN'S OWN PLANE. They used to be placed at the window's projected CENTRE and
+        // scaled by one factor, so they could move and grow but never turn — a viewer of the delivered film
+        // saw the windows tilt with the room and the text stay upright over them, like a sticker on the glass.
+        // The block is now laid out in the window's LOCAL px and carried onto the plane by a 2D affine fitted
+        // to its three projected corners (`planeAffine`). Still outside the posed surface, still a 2D
+        // transform — the reason the type was kept off the Z layer in the first place (91 flat vs 56 under Z)
+        // is untouched.
+        const npx = namePx, spx = statusPx;
+        const lw = scrW * 0.88;
+        const lleft = -scrW * 0.44;
+        const ltop = -scrH / 2 + scrH * 0.17 + npx * 0.5;
+        const lblock = inkBlockH(npx) + inkBlockH(spx) * 1.4;
+        const aff = planeAffine(p, cam, P, W, H, lleft, ltop, lw, lblock);
+        if (!aff) return null;
+        const w = lw * aff.scale;
+        const block = lblock * aff.scale;
         // A LINE GOES WITH ITS SCREEN. When the camera has travelled past one, the screen leaves frame, and
         // type that stays behind is cut by the canvas in every gate and unreadable besides. The same test
         // keeps it out of the caption band — the stage may put a surface anywhere, so the TYPE is bounded.
@@ -214,10 +227,11 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
         const done = cut >= s.status.length;
         const near = settledOn(k);
         return (
-          <div key={k} style={{position: 'absolute', left: q.x - w / 2,
+          <div key={k} style={{position: 'absolute', left: 0, top: 0, width: lw,
             // A CONSOLE'S TEXT STARTS AT THE TOP, under the title bar — centring it in the window is a card's
-            // habit, not a terminal's. Anchored off the screen's own projected height so it stays put.
-            top: q.y - (scrH * q.k) / 2 + scrH * q.k * 0.17 + npx * 0.5, width: w,
+            // habit, not a terminal's. `ltop` above is that offset in the window's own units.
+            transformOrigin: '0 0',
+            transform: `matrix(${aff.m11},${aff.m12},${aff.m21},${aff.m22},${aff.tx},${aff.ty})`,
             opacity: (0.3 + 0.7 * near) * fade, textShadow: '0 2px 10px rgba(0,0,0,.6)'}}>
             {/* NO `overflow: hidden` HERE. A clipped name is a string the register DECLINED to draw, and
                 the one audit that can see that is the one this library keeps learning the same lesson from.

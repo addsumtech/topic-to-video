@@ -294,6 +294,23 @@ read, and in each case the hash covered less than the reading depended on.
 > them moves — demonstrated by changing one input and watching the check go red, not by reading the code.
 
 
+**B11 · THE TYPE-OVERLAP DETECTOR IS BLIND TO ROTATION, and it now has a register that exercises it.** Open.
+`runtime/textSafe.tsx` measures text with `Range.getClientRects()` and `getBoundingClientRect()` — both
+AXIS-ALIGNED. A 2D-rotated label's box is larger than its glyphs and grows on the side it slopes toward.
+Since 2026-09-16 TermSpace lays each console's words onto the window's own plane with a 2D affine (a viewer
+said the upright text read as a sticker on tilted glass), and `cjk_type_qa --all-aspects` immediately
+reported «交付可验收的成果» × «自动归档» as overlapping at 9:16, 1:1 and 4:5. Looked at on the frame: they
+are the name and status lines of ONE window, one above the other, glyphs well clear. The name slopes down to
+the right, its axis-aligned box grows downward on that side, and it intersects the line below. A false
+positive, in a report tier ("candidate") rather than a failure, so nothing was blocked — but the memory entry
+"DOM rects blind to rotation" already records that this class inverts in BOTH directions, so a real collision
+between two tilted lines could equally be missed.
+> **Acceptance:** overlap is tested in each element's own local frame (un-apply its computed 2D transform to
+> the other's corners, or test the rotated quads with a separating-axis check), demonstrated on TermSpace at
+> 9:16 — the false pair disappears — AND on a synthetic probe where two tilted lines genuinely collide, which
+> the axis-aligned version must be shown to miss or misplace first.
+
+
 ## C · Peer-library capability gaps still open
 
 **~~C1 · The fake dolly-zoom.~~ DONE 2026-09-14.** `dollyAt` in `runtime/depth.tsx` (the move as a
