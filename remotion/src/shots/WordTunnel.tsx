@@ -17,6 +17,9 @@ import {useT, clamp01, easeInOutCubic, easeOutCubic, hash01} from '../runtime/mo
 import {useDNA} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitBlockPx, fitTextPx, textWidthPx, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
+// @billboard: each phrase IS the object in the corridor, not writing on a face — there is no surface for it
+// to lie on, and a word flying at the lens must face the viewer or it is unreadable at the one moment it is
+// largest. Placed by `projectPose` on purpose; see `OnSurface` in runtime/stage3d for the other case.
 import {projectPose, PERSP_FRAC, type Pose} from '../runtime/stage3d';
 
 export const DURATION = 165; // 5.5s

@@ -14,8 +14,11 @@
 // glyph edge strength 91 flat, 86 under a plain 2D scale (explained by the glyphs being larger, not softer)
 // and 56 under `perspective(1200px) translateZ(50px)` — a 38% loss that is plainly fuzzy. A 3D-composited
 // layer is rasterized once at layout size and upscaled by the GPU. So the stage carries SURFACES, and every
-// label is an ordinary 2D DOM element positioned over them by `projectPose` — crisp, in the film's own face,
-// and visible to every type gate. That is the same split `runtime/project3d` makes for the GL registers and
+// label is an ordinary 2D DOM element over them — crisp, in the film's own face, and visible to every type
+// gate. BUT 2D DOES NOT MEAN UPRIGHT: a word ON a face takes that face's plane through a 2D affine
+// (`<OnSurface>`), and only a word IN the space — hovering beside an object, flying at the lens — is a
+// billboard placed by `projectPose`. This header used to say every label was placed by `projectPose`, and
+// two registers took it at its word and drew their text level over tilted glass; see `OnSurface`. That is the same split `runtime/project3d` makes for the GL registers and
 // `runtime/pageCam2D` makes for the flat ones, and it is made here for the same recorded reason: two
 // cameras that agree until they quietly do not put all six of PortRail's labels 215px off their modules, on
 // a frame that read as correct with the wrong words on it. One camera, described once, projection derived
@@ -154,6 +157,48 @@ export const planeAffine = (
   // the local-to-screen area ratio, square-rooted: what a uniform scale would have been, for callers that
   // still size or cull by it
   return {m11, m12, m21, m22, tx: a.x, ty: a.y, scale: Math.sqrt(Math.abs(m11 * m22 - m12 * m21))};
+};
+
+/**
+ * TYPE THAT BELONGS TO A SURFACE, placed ON that surface — the one way to do it, so no register has to
+ * remember the matrix.
+ *
+ * THE RULE THIS COMPONENT ENFORCES. A word on the stage is one of two things, and they must not be drawn the
+ * same way:
+ *
+ *   ON a surface      a console's prompt, a card's title, a screen's label. It belongs to that face, so it
+ *                     takes that face's plane: when the card turns, the word turns with it. Use <OnSurface>.
+ *   IN the space      a label hovering beside an object, a word flying at the lens. It belongs to no face, so
+ *                     it faces the viewer: a billboard, placed by `projectPose`. A register that draws these
+ *                     says so with `// @billboard: <why>` so the choice is visible and the library test can
+ *                     tell a deliberate billboard from a forgotten one.
+ *
+ * WHY IT EXISTS AS A COMPONENT. The stage's original pattern placed EVERY word by `projectPose` — the surface's
+ * origin projected to a point, one uniform scale — which is right for a billboard and wrong for a word on a
+ * face: it can move and grow but never turn. Two registers built on that pattern drew their words upright over
+ * tilted glass. A viewer caught it on one (TermSpace, "not aligned like the terminal window is"); an audit of
+ * every 3D register then found the other (SpatialSlides, where each card's own rules tilt and its title does
+ * not). Fixing them one at a time is how the third would have shipped.
+ *
+ * `left, top, width, height` are the text block's rect in the surface's LOCAL px, measured from its centre —
+ * the space `Surface` lays its children out in. Children are laid out in those local px, unscaled; the
+ * matrix carries both the turn and the perspective scale. Pass `affine` when the caller has already computed
+ * it (to cull or fade on its screen size) so it is not solved twice.
+ */
+export const OnSurface: React.FC<{
+  pose: Pose; cam: Pose; persp: number; W: number; H: number;
+  left: number; top: number; width: number; height: number;
+  affine?: ReturnType<typeof planeAffine>;
+  style?: React.CSSProperties; children?: React.ReactNode;
+}> = ({pose, cam, persp, W, H, left, top, width, height, affine, style, children}) => {
+  const a = affine ?? planeAffine(pose, cam, persp, W, H, left, top, width, height);
+  if (!a) return null;
+  return (
+    <div style={{position: 'absolute', left: 0, top: 0, width, transformOrigin: '0 0',
+      transform: `matrix(${a.m11},${a.m12},${a.m21},${a.m22},${a.tx},${a.ty})`, ...style}}>
+      {children}
+    </div>
+  );
 };
 
 /** The box on the frame a projected label may occupy — the same shape `runtime/fitCamera` takes, and for the

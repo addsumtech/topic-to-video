@@ -17,7 +17,7 @@ import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic, hash01} from '..
 import {useDNA} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitTextPx, inkBlockH} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
-import {Stage3D, Surface, projectPose, fitStage, faceShade, PERSP_FRAC, type Pose} from '../runtime/stage3d';
+import {Stage3D, Surface, OnSurface, projectPose, planeAffine, fitStage, faceShade, PERSP_FRAC, type Pose} from '../runtime/stage3d';
 
 export const DURATION = 180; // 6s
 
@@ -120,34 +120,41 @@ export const SpatialSlides: React.FC<{steps?: string[]; notes?: string[]; overvi
         })}
       </Stage3D>
 
-      {/* THE WORDS ARE FLAT. Positioned over the surfaces by the same matrix the stage is drawn with, sized
-          by the perspective factor the browser applied — so they sit on their card and stay crisp. */}
+      {/* THE WORDS LIE ON THEIR CARD. They were placed at the card's projected centre with one uniform scale,
+          so they could move and grow but never turn — an audit of every 3D register, prompted by a viewer
+          catching the same thing on TermSpace, found each card's own rules tilting while its title stayed
+          level. Still outside the posed surface and still a 2D transform, so still crisp. */}
       {poses.map((p, k) => {
         const q = projectPose(p, cam, P, W, H);
         if (q.behind || q.k <= 0.02) return null;
         const near = out < 0.5 ? clamp01(1.15 - Math.abs(leg - k)) : 1;
-        const px = Math.max(8, labelPx * q.k);
-        const w = cardW * q.k * 0.92;
+        const px = labelPx;
+        const lw = cardW * 0.92;
+        const lblock = inkBlockH(px) * (NOTES[k] ? 2.2 : 1);
+        const aff = planeAffine(p, cam, P, W, H, -lw / 2, -inkBlockH(px) / 2, lw, lblock);
+        if (!aff) return null;
+        const w = lw * aff.scale;
         // A WORD GOES WITH ITS CARD. When the camera has travelled past a stop the card leaves frame, and a
         // label that stays is text cut by the canvas in every gate and unreadable to a viewer besides. The
         // same test keeps it out of the caption band, which is the other edge a projected position can wander
         // across: the stage may put a surface anywhere, so the TYPE is what gets bounded.
-        const half = w / 2, deep = inkBlockH(px) * (NOTES[k] ? 2.2 : 1) / 2;
+        const half = w / 2, deep = (lblock * aff.scale) / 2;
         if (q.x - half < 0 || q.x + half > W) return null;
         if (q.y - deep < CONTENT_TOP * 0.4 || q.y + deep > contentBottom(W, H)) return null;
         return (
-          <div key={k} style={{position: 'absolute', left: q.x - w / 2, top: q.y - inkBlockH(px) / 2,
-            width: w, textAlign: 'center', opacity: 0.25 + 0.75 * near,
+          <OnSurface key={k} pose={p} cam={cam} persp={P} W={W} H={H}
+            left={-lw / 2} top={-inkBlockH(px) / 2} width={lw} height={lblock} affine={aff}
+            style={{textAlign: 'center', opacity: 0.25 + 0.75 * near,
             color: INK, font: `700 ${px.toFixed(1)}px/${leading(list[k], 1.08)} var(--f-display, Inter, system-ui, sans-serif)`,
             textWrap: 'balance', textShadow: '0 2px 10px rgba(0,0,0,.55)'}}>
             {list[k]}
             {NOTES[k] ? (
               <div style={{marginTop: Math.round(px * 0.32), color: DIM,
-                font: `500 ${Math.max(7, notePx * q.k).toFixed(1)}px/${leading(String(NOTES[k]), 1.25)} var(--f-body, Inter, system-ui, sans-serif)`}}>
+                font: `500 ${notePx.toFixed(1)}px/${leading(String(NOTES[k]), 1.25)} var(--f-body, Inter, system-ui, sans-serif)`}}>
                 {NOTES[k]}
               </div>
             ) : null}
-          </div>
+          </OnSurface>
         );
       })}
 

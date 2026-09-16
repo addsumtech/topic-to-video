@@ -334,13 +334,13 @@ export const GROUND_FOLLOWS_MEASURED: ReadonlySet<string> = new Set([
   'PositioningMatrix', 'ProfileGrowth', 'QuadSplit', 'RadialBurst',
   'RainGlass', 'RansomZine', 'RealVersus', 'RisoPrint',
   'ScanReconstruct', 'ScreenBubble', 'SectionRoute', 'SharedBlindspot',
-  'SpeedLimit', 'SpinningProton', 'SpinsAlign', 'SplitFlap',
-  'StateSheet', 'StrataColumn', 'SwissEditorial', 'TallyLedger',
-  'TechnicalPlate', 'TemporalAccelerate', 'TensionScale', 'TermBars',
-  'TermCounter', 'TermDiff', 'TermGitLog', 'TermLog',
-  'TermTable', 'TermThink', 'TermTree', 'TimelineTravel',
-  'UndersampledKspace', 'VariableTypeMorph', 'VelocitySnap', 'VersusSplit',
-  'WireGlobe',
+  'SpatialSlides', 'SpeedLimit', 'SpinningProton', 'SpinsAlign',
+  'SplitFlap', 'StateSheet', 'StrataColumn', 'SwissEditorial',
+  'TallyLedger', 'TechnicalPlate', 'TemporalAccelerate', 'TensionScale',
+  'TermBars', 'TermCounter', 'TermDiff', 'TermGitLog',
+  'TermLog', 'TermSpace', 'TermTable', 'TermThink',
+  'TermTree', 'TimelineTravel', 'UndersampledKspace', 'VariableTypeMorph',
+  'VelocitySnap', 'VersusSplit', 'WireGlobe', 'WordTunnel',
 ]);
 
 /** Does a declared ground reach this register? An unknown id answers false, so an unmeasured register is

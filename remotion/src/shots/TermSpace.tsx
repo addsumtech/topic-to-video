@@ -27,7 +27,7 @@ import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime
 import {useDNA} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitTextPx, inkBlockH} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
-import {Stage3D, Surface, projectPose, planeAffine, fitStage, faceShade, PERSP_FRAC, type Pose} from '../runtime/stage3d';
+import {Stage3D, Surface, OnSurface, projectPose, planeAffine, fitStage, faceShade, PERSP_FRAC, type Pose} from '../runtime/stage3d';
 
 export const DURATION = 190; // ~6.3s
 
@@ -227,12 +227,11 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
         const done = cut >= s.status.length;
         const near = settledOn(k);
         return (
-          <div key={k} style={{position: 'absolute', left: 0, top: 0, width: lw,
-            // A CONSOLE'S TEXT STARTS AT THE TOP, under the title bar — centring it in the window is a card's
-            // habit, not a terminal's. `ltop` above is that offset in the window's own units.
-            transformOrigin: '0 0',
-            transform: `matrix(${aff.m11},${aff.m12},${aff.m21},${aff.m22},${aff.tx},${aff.ty})`,
-            opacity: (0.3 + 0.7 * near) * fade, textShadow: '0 2px 10px rgba(0,0,0,.6)'}}>
+          // A CONSOLE'S TEXT STARTS AT THE TOP, under the title bar — centring it in the window is a card's
+          // habit, not a terminal's. `ltop` above is that offset in the window's own units.
+          <OnSurface key={k} pose={p} cam={cam} persp={P} W={W} H={H}
+            left={lleft} top={ltop} width={lw} height={lblock} affine={aff}
+            style={{opacity: (0.3 + 0.7 * near) * fade, textShadow: '0 2px 10px rgba(0,0,0,.6)'}}>
             {/* NO `overflow: hidden` HERE. A clipped name is a string the register DECLINED to draw, and
                 the one audit that can see that is the one this library keeps learning the same lesson from.
                 `namePx` is fitted to the screen's own width, so it fits; if a film ever hands one that does
@@ -264,7 +263,7 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
                 ) : null}
               </div>
             ) : null}
-          </div>
+          </OnSurface>
         );
       })}
 

@@ -135,8 +135,11 @@ def test_a_consoles_words_take_its_plane_not_just_its_position():
     three projected corners of its own block."""
     assert "planeAffine(p, cam, P, W, H, lleft, ltop, lw, lblock)" in SOURCE, (
         "the type is placed by a projected point again — it cannot turn with its window")
-    assert "transform: `matrix(${aff.m11},${aff.m12},${aff.m21},${aff.m22},${aff.tx},${aff.ty})`" in SOURCE, (
-        "the fitted affine is computed and not applied")
+    # APPLIED THROUGH THE SHARED COMPONENT. This first pinned a matrix string written inside TermSpace; the
+    # same defect was then found in SpatialSlides, and the transform moved into `runtime/stage3d`'s
+    # <OnSurface> so the two could not drift — tests/test_text_on_surfaces.py owns the library-wide rule.
+    assert "<OnSurface key={k} pose={p}" in SOURCE and "affine={aff}" in SOURCE, (
+        "the fitted affine is computed and not applied through <OnSurface>")
     assert "left: q.x - w / 2" not in SOURCE, "the upright, centre-anchored placement is back"
 
 
@@ -151,7 +154,11 @@ def test_the_type_stays_in_2d_even_though_it_now_turns():
     no softening beyond anti-aliasing. It is recorded so the next change is compared against a number."""
     flat = SOURCE.split("</Stage3D>", 1)[1]
     assert "matrix3d" not in flat, "the overlay type was put into a 3D transform — it will go soft"
-    assert "transform: `matrix(" in flat, "the overlay type lost its 2D plane transform"
+    assert "<OnSurface" in flat, "the overlay type lost its plane transform"
+    stage = open(os.path.join(_REM, "src", "runtime", "stage3d.tsx"), encoding="utf-8").read()
+    on = stage.split("export const OnSurface", 1)[1].split("\n};", 1)[0]
+    assert "transform: `matrix(" in on and "matrix3d" not in on, (
+        "<OnSurface> no longer applies a 2D matrix — either the words stopped turning or they went 3D")
 
 
 def test_plane_affine_maps_the_corners_it_was_fitted_to():

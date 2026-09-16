@@ -106,7 +106,7 @@
     "OverlapSeparation": "c211806bdf55ebb3",
     "PageWrite": "08eedb0a1c7ef367",
     "PaperCutout": "7c0befd17b61d286",
-    "PaperSlot": "019296211fd93d0f",
+    "PaperSlot": "5df1a2c8ba0749a5",
     "ParticleForm": "79f266d17897e933",
     "PhaseEncodeStep": "3d3a10388897c6b0",
     "PhotoPlate": "b1de4b6eb0b677cb",
@@ -123,16 +123,16 @@
     "RadialBurst": "d3df142d1ece814f",
     "RainGlass": "6723dbe919dd5c11",
     "RansomZine": "eeeacaded2e65144",
-    "RealVersus": "f4aa59aebaccbdd8",
+    "RealVersus": "30825b5281931e47",
     "RestsOn": "851dd951627df758",
     "RidgeField": "a106a195ccf4a8ac",
-    "RisoPrint": "e77e0ca591b6b30a",
+    "RisoPrint": "84677807e13c9c52",
     "ScanReconstruct": "f801fe89e1194051",
     "ScreenBubble": "ed0bb4e55f0de311",
     "SectionRoute": "f7614cf1e4fcb06a",
     "SharedBlindspot": "6a28bb43c0f75ca5",
     "SourceDeal": "28cacea96c41c7f4",
-    "SpatialSlides": "bd1e1506573262f2",
+    "SpatialSlides": "9e21f586e57f8f2c",
     "SpectrumPulse": "235d52acfb80a9db",
     "SpeedLimit": "ea85b8d87a193c32",
     "SpinningProton": "5149788e2ce4e4dd",
@@ -152,7 +152,7 @@
     "TermDiff": "942bd34e06aa10c5",
     "TermGitLog": "ba43e8421c753503",
     "TermLog": "11b000d1bdde539e",
-    "TermSpace": "bc43ca974e2846b8",
+    "TermSpace": "a153326cefe6eaa2",
     "TermTable": "cfa15d61272e4eeb",
     "TermThink": "975e74eaf26cffc7",
     "TermTree": "2076a57732184bd4",
@@ -165,7 +165,7 @@
     "VoiceSignal": "2a448ca540bf9764",
     "VoxelBuild": "4119208763ffce1c",
     "WireGlobe": "1a2ce0476352918a",
-    "WordTunnel": "1d9eee8bae1f4d7e",
+    "WordTunnel": "627c25902c5a914c",
     "CompanionCard": "2d699f6c189bb8b5",
     "FallbackPath": "5bf7791c60f76a29",
     "StateSheet": "ced21aac72b7856d"
@@ -1080,7 +1080,7 @@
       "footprint": 0.562
     },
     "RisoPrint": {
-      "motion_p75": 0.0005,
+      "motion_p75": 0.0006,
       "ink_median": 0.045,
       "luma_range": 0.005,
       "seconds": 4.8,
@@ -1122,11 +1122,11 @@
       "footprint": 0.192
     },
     "SpatialSlides": {
-      "motion_p75": 0.0041,
+      "motion_p75": 0.004,
       "ink_median": 0.003,
       "luma_range": 0.004,
       "seconds": 6.0,
-      "footprint": 0.218
+      "footprint": 0.229
     },
     "SpectrumPulse": {
       "motion_p75": 0.0093,
@@ -1269,7 +1269,7 @@
       "footprint": 0.033
     },
     "TermSpace": {
-      "motion_p75": 0.002,
+      "motion_p75": 0.0021,
       "ink_median": 0.003,
       "luma_range": 0.002,
       "seconds": 6.3,
