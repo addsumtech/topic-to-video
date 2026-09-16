@@ -245,3 +245,17 @@ def test_grouped_modules_are_spaced_by_their_group():
     assert "const groupSlots = (" in src, "the group spacing is gone"
     assert "slots && slots.length === n" in src, "slotAt ignores the table"
     assert src.count("slots)") >= 8, "not every slot call site takes the table — half the rail would shift"
+
+
+def test_the_family_strip_sizes_itself_to_its_members():
+    """Built for eight it was one row of fixed tiles; asked to carry twenty it would have run 1940px across
+    a 1920 frame. A count that does not fit is a count nobody can make, which is the whole reason the strip
+    exists — a reviewer measured the earlier cut: eight tiles under a title reading 一共二十套, so a viewer
+    who counts reaches nine. On a film whose thesis two beats later is 这些不是形容词, that is the worst
+    place in it for a number that does not add up."""
+    src = open(os.path.join(_REM, "src", "shots", "StateSheet.tsx"), encoding="utf-8").read()
+    assert "const famPerRow" in src and "flexWrap: 'wrap'" in src, "the strip is back on a fixed single row"
+    assert "famCol * 0.74" in src, "the tile no longer solves for the column it has to fit"
+    assert "f.mark ? ACC : LINE" in src, (
+        "the member that IS the sheet above is no longer marked, so the strip and the sheet read as two "
+        "unrelated claims instead of one")

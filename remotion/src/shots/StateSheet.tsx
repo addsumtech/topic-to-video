@@ -45,7 +45,7 @@ export const StateSheet: React.FC<{
    *  "this thing is N pictures"; the strip says "and it is one of M". Without it the second half of a beat
    *  like "twenty sets, seventeen states each" is asserted in the voice and absent from the frame. A
    *  typeface's other faces, a species' sibling species, a product's other themes. */
-  family?: {src: string; label?: string}[];
+  family?: {src: string; label?: string; mark?: boolean}[];
   /** one line under the sheet */
   note?: string;
 }> = ({
@@ -86,9 +86,20 @@ export const StateSheet: React.FC<{
   const notePx = Math.round(U * 0.019);
   const headH = (title ? Math.round(headPx * 1.25) : 0) + (dir ? Math.round(dirPx * 1.9) : 0);
   const noteH = note ? Math.round(notePx * 2.2) : 0;
-  const famPx = Math.round(U * 0.016);
-  const famSide = Math.round(U * 0.062);
-  const famH = family.length ? famSide + Math.round(famPx * 2.1) : 0;
+  // THE STRIP SIZES ITSELF TO ITS MEMBERS. Built for eight it was one row of fixed tiles; asked to carry
+  // twenty it would have run 1940px across a 1920 frame. A count that does not fit is a count nobody can
+  // make, which is the whole reason the strip exists — so it solves for the tile size and wraps, the same
+  // way the sheet above it solves for its columns.
+  const famPx = Math.round(U * (family.length > 12 ? 0.0135 : 0.016));
+  const famGap = Math.round(U * 0.006);
+  const famAvail = W * 0.92;
+  const famPerRow = Math.max(1, Math.min(family.length,
+    Math.floor((famAvail + famGap) / (Math.round(U * 0.052) + famGap))));
+  const famRows = Math.ceil(family.length / Math.max(1, famPerRow));
+  const famCol = (famAvail - famGap * (famPerRow - 1)) / Math.max(1, famPerRow);
+  const famSide = Math.max(1, Math.min(Math.round(U * 0.062), Math.round(famCol * 0.74)));
+  const famH = family.length
+    ? famRows * (famSide + Math.round(famPx * 1.7)) + (famRows - 1) * famGap : 0;
 
   const gridTop = zTop + headH + Math.round(U * 0.016);
   const gridH = Math.max(U * 0.2, zBot - gridTop - noteH - famH);
@@ -186,22 +197,24 @@ export const StateSheet: React.FC<{
       })}
 
       {family.length ? (
-        <div style={{position: 'absolute', left: 0, right: 0, top: zBot - noteH - famH,
-          display: 'flex', justifyContent: 'center', alignItems: 'flex-start',
-          gap: Math.round(U * 0.006), opacity: easeOutCubic(clamp01(seg(t, 0.68, 0.86)))}}>
+        <div style={{position: 'absolute', left: (W - famAvail) / 2, width: famAvail,
+          top: zBot - noteH - famH,
+          display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'flex-start',
+          gap: famGap, opacity: easeOutCubic(clamp01(seg(t, 0.68, 0.86)))}}>
           {family.map((f, i) => (
             // the NAME may be wider than the tile — 海绵宝宝 is four glyphs against a square built for the
             // picture, and clipping a member's name to fit its thumbnail is the sheet losing the thing it
             // was added to show. The column is as wide as the name needs; the tile stays centred in it.
-            <div key={f.src + i} style={{width: Math.round(famSide * 1.45), textAlign: 'center'}}>
+            <div key={f.src + i} style={{width: famCol, textAlign: 'center'}}>
               <div style={{width: famSide, height: famSide, margin: '0 auto',
                 borderRadius: Math.round(U * 0.008),
-                background: SURF, border: `1px solid ${LINE}`, overflow: 'hidden',
+                background: SURF,
+                border: `1px solid ${f.mark ? ACC : LINE}`, overflow: 'hidden',
                 display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                 <Img src={staticFile(f.src)} style={{width: '82%', height: '82%', objectFit: 'contain'}} />
               </div>
               {f.label ? (
-                <div style={{marginTop: Math.round(famPx * 0.4), color: DIM,
+                <div style={{marginTop: Math.round(famPx * 0.4), color: f.mark ? ACC : DIM,
                   font: `500 ${famPx}px/1.2 ${MONO}`, whiteSpace: 'nowrap'}}>{f.label}</div>
               ) : null}
             </div>
