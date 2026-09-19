@@ -7,7 +7,7 @@ Voice spec in storyboard meta['voice']:
   "minimax:<voice_id>"  -> MiniMax T2A (very natural, esp. zh; needs MINIMAX_API_KEY); falls back
                            to say. "minimax" alone picks a voice by language+gender from the catalog.
 """
-import argparse, os, re, subprocess
+import argparse, json, os, re, subprocess
 import _common
 import storyboard as sb
 
@@ -227,6 +227,77 @@ def _edge(text, out_path, voice, rate="+0%"):
                 json.dump(words, f)
     except Exception as e:
         print(f"[tts] word-timing capture failed for {out_path}: {e}")
+
+# ── THE EAR'S TEXT ─────────────────────────────────────────────────────────────────────────────────────
+# A Chinese neural voice reading an English initialism inside a Chinese sentence HESITATES. Measured on
+# edge-tts zh-CN-XiaoxiaoNeural, in「它用的X很好」: before AI, TTS, API, SSH, CLI, GPU and MRI the voice holds
+# the preceding 的 for ~0.23s and then pauses ~0.10s — against 0.11s and 0.025s before macOS, Claude Code,
+# Codex or ChatGPT. Written with hyphens (A-I, T-T-S) the same voice reads the letters straight through
+# (的 0.11s, pause 0.01-0.03s), and the listener this pipeline works for, given both, picked the hyphenated
+# reading as the natural one. Spaces around the English changed nothing (measured identical boundaries).
+#
+# So the voice is sent the hyphenated form and the frame keeps the written one: this is applied to the text
+# SENT TO THE VOICE only, never to `narration` or the caption, and the per-word timings coming back are
+# mapped to the written spelling so karaoke still finds "AI" in the caption.
+#
+# SCOPE, deliberately narrow: 2-3 capitals standing alone. Four-letter and longer runs are where acronyms
+# spoken as WORDS live (NASA, JSON, UNESCO), and a letter-by-letter reading would be wrong there; AGPL
+# measured the same either way. Three-letter words read as words are listed. Anything else a film wants
+# said differently goes in `meta.tts_lexicon` ({written: spoken}), which is applied first and mapped back.
+# Off with `meta.tts_spell_initialisms: false`; on by default only for a Chinese edge voice, the one it was
+# measured on.
+_SPOKEN_AS_WORDS = {"RAM", "ROM", "GIF", "SIM", "LAN", "WAN", "NAT", "CAD", "PIN", "SIG", "ZIP"}
+_SPACED_CAPS = re.compile(r"\b(?:[A-Z] ){1,7}[A-Z]\b")
+_INITIALISM = re.compile(r"(?<![A-Za-z0-9-])([A-Z]{2,3})(?![A-Za-z0-9])")
+_HYPHENATED = re.compile(r"^[A-Z](?:-[A-Z]){1,2}$")
+
+
+def _spell_initialisms_on(meta, prov, name):
+    flag = (meta or {}).get("tts_spell_initialisms", "auto")
+    if flag in (True, False):
+        return flag
+    return prov == "edge" and str(name).lower().startswith("zh-")
+
+
+def spoken_text(text, meta=None, prov="edge", name="zh-CN-XiaoxiaoNeural"):
+    """(text for the voice, {spoken token: written token}) — see the block above. Pure."""
+    meta = meta or {}
+    t = str(text or "")
+    back = {}
+    lex = meta.get("tts_lexicon") or {}
+    if not isinstance(lex, dict):
+        raise ValueError("meta.tts_lexicon must be an object {written: spoken}, got %r" % type(lex).__name__)
+    for written, said in sorted(lex.items(), key=lambda kv: -len(str(kv[0]))):
+        written, said = str(written), str(said)
+        if written and said and written in t:
+            t = t.replace(written, said)
+            back[said] = written
+    # an author's old spelled-out form ("T T S") is rejoined first, so it gets the one reading below
+    t = _SPACED_CAPS.sub(lambda m: m.group(0).replace(" ", ""), t)
+    if _spell_initialisms_on(meta, prov, name):
+        def _hy(m):
+            w = m.group(1)
+            if w in _SPOKEN_AS_WORDS:
+                return w
+            said = "-".join(w)
+            back[said] = w
+            return said
+        t = _INITIALISM.sub(_hy, t)
+    return t, back
+
+
+def written_words(words, back):
+    """Map the voice's word tokens back to the written spelling, so a caption's karaoke still matches."""
+    out = []
+    for w in words or []:
+        tok = str(w.get("w", ""))
+        if tok in back:
+            tok = back[tok]
+        elif _HYPHENATED.match(tok):
+            tok = tok.replace("-", "")
+        out.append(dict(w, w=tok))
+    return out
+
 
 def _provider(voice_spec):
     if ":" in voice_spec:
@@ -660,15 +731,22 @@ def synthesize(out_dir, only=None):
             s["duration"] = round(max(1.0, _common.audio_duration(dest)), 3)
             continue
         ok_primary = False
+        said, back = spoken_text(text, data["meta"], prov, name)
         try:
             if prov == "openai":
-                _openai(text, dest, name)
+                _openai(said, dest, name)
             elif prov == "edge":
-                _edge(text, dest, name, _edge_rate(data["meta"]))
+                _edge(said, dest, name, _edge_rate(data["meta"]))
+                wj = os.path.join(audio_dir, f"{s['index']:02d}.words.json")
+                if os.path.exists(wj):
+                    with open(wj) as fh:
+                        words = json.load(fh)
+                    with open(wj, "w") as fh:
+                        json.dump(written_words(words, back), fh)
             elif prov == "minimax":
-                _minimax(text, dest, name, data["meta"])
+                _minimax(said, dest, name, data["meta"])
             else:
-                _say(text, dest, name)
+                _say(said, dest, name)
             ok_primary = prov != "say"
         except Exception as e:
             # Fall back to the LANGUAGE-MATCHED say voice — not a hardcoded English one,

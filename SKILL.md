@@ -1440,6 +1440,11 @@ figure), a non-singular `the_one_thing`, or a
   `api.minimax.chat`, caches the one that works) — an int'l or mainland key just works. Tunables:
   `meta.tts_model` (default `speech-02-hd`), `meta.minimax_base` (pin one host, disables auto-retry),
   `meta.minimax_group_id` (only if a mainland setup needs it); key via `MINIMAX_API_KEY` / `~/.minimax_key`.
+- **Write English terms as they are READ, not spelled for the voice.** `tts.py` sends a Chinese edge voice
+  "A-I" / "T-T-S" for a standalone 2-3 letter initialism (measured: without it the voice drags the syllable
+  before the letters and pauses) and maps the word timings back, so the caption and karaoke keep "AI". Never
+  hand-write "A G P L" / "T T S". Anything else pronounced wrong goes in **`meta.tts_lexicon`**
+  (`{"AgentHalo": "Agent Halo"}` — spoken text only); `meta.tts_spell_initialisms: false` turns the spelling off.
 - **`meta.tts_speed`** (default `1.0`) tightens or loosens the narration PACE without cutting content —
   a multiplier applied to BOTH edge-tts (mapped to its `rate` `±%`, e.g. `1.25` → `+25%`) and MiniMax
   (its `speed`). Clamped `[0.5, 2.0]`; for edge, keep within **~±30%** (`0.8–1.3`) — beyond that the
