@@ -13,9 +13,23 @@ export const DURATION = 140; // ~4.7s
 const BG_D0 = '#0a0c13', ACC_D0 = '#5b8cff';
 const OVERSHOOT = 1.06;      // the easeOutBack punch past the resting scale — the fit budget pre-divides by it
 
+const DEMO_ITEMS = ['Inbox', 'Docs', 'Tasks', 'Chat', 'Focus', 'Data', 'Code', 'Team', 'Calls'];
+
 export const CrashZoom: React.FC<{items?: string[]; label?: string; target?: number; title?: string}> = ({
-  items: ITEMS = ['Inbox', 'Docs', 'Tasks', 'Chat', 'Focus', 'Data', 'Code', 'Team', 'Calls'],
-  label: LABEL = 'One place for all of it', target: TARGET = 4, title: TITLE = 'Your workspace'} = {}) => {
+  items: ITEMS = DEMO_ITEMS,
+  label: LABEL = 'One place for all of it', target: TARGET, title: TITLE = 'Your workspace'} = {}) => {
+  // THE FILM SAYS WHICH TILE MATTERS. `target` defaulted to 4 and was clamped into range, so any film that
+  // passed its own items without naming one got its FIFTH item punched into as "the one that matters" — or its
+  // last, if it had fewer — a verdict about the film's list that the film never gave. The demo keeps its tile
+  // only while it is showing the demo's own list; a film's items require a `target` inside them.
+  if (!Array.isArray(ITEMS) || ITEMS.length < 1) {
+    throw new Error('CrashZoom needs at least one item — the grid the camera punches into.');
+  }
+  const TGT = TARGET ?? (ITEMS === DEMO_ITEMS ? 4 : undefined);
+  if (!(Number.isInteger(TGT) && (TGT as number) >= 0 && (TGT as number) < ITEMS.length)) {
+    throw new Error(`CrashZoom: pass \`target\` — the index (0-${ITEMS.length - 1}) of the item the camera punches into. ` +
+      `Got ${JSON.stringify(TARGET)}. Which item "matters" is the film's claim, never the register's.`);
+  }
   const dna = useDNA();
   const BG = dna?.bg ?? BG_D0, ACC = dna?.accent ?? ACC_D0;
   // The hero card's second gradient stop used to be a hardcoded '#2c3ac0'. On a themed film that stop
@@ -35,7 +49,7 @@ export const CrashZoom: React.FC<{items?: string[]; label?: string; target?: num
   const gw = cw * cols, gh = ch * rows;
   const gx = (W - gw) / 2, gy = (H - gh) / 2;
   const tw = cw - 16, th = ch - 16;                            // one tile's box
-  const ti = Math.min(Math.max(0, TARGET), ITEMS.length - 1);
+  const ti = TGT as number;
   const tcol = ti % cols, trow = Math.floor(ti / cols);
   // target-tile centre in overview coords
   const tcx = gx + tcol * cw + cw / 2, tcy = gy + trow * ch + ch / 2;

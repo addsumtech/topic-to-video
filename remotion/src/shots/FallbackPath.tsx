@@ -21,6 +21,13 @@
 // AND IT IS A FORM, NOT A PRODUCT. A cache and its origin, a retry and its backoff, a font and its
 // fallback, a fast path and a slow one: what it carries is "this is tried first, that is what happens when
 // it is not there, and the difference between them is the point".
+//
+// THE THREE PARTS COME FROM ONE PLACE. `action`, `first` and `then` each had its own demo default, and the
+// guard below only caught a route whose label was explicitly EMPTY. So a film that passed its action and its
+// preferred route but forgot `then` was drawn with the demo's fallback — "Open a new one / only when it is
+// not" — as the thing that happens when the film's first route misses: a mechanism nobody described, stated
+// as this product's behaviour. Now the demo appears only when none of the three is passed; pass any one and
+// all three are required, or the shot throws naming the missing one.
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, easeInOutCubic} from '../runtime/motion';
@@ -31,6 +38,12 @@ import {leading} from '../runtime/cjkType';
 export const DURATION = 190; // ~6.3s
 
 type Route = {label?: string; when?: string};
+
+// The standalone demo. Module constants so a prop the film left out is told apart by identity (a film's
+// props arrive as fresh objects/strings from JSON, never as these).
+const DEMO_ACTION = 'One click';
+const DEMO_FIRST: Route = {label: 'Go to the one already open', when: 'if it is there'};
+const DEMO_THEN: Route = {label: 'Open a new one', when: 'only when it is not'};
 
 export const FallbackPath: React.FC<{
   /** what you DO — the one action both routes leave from */
@@ -49,9 +62,20 @@ export const FallbackPath: React.FC<{
   // `measure_ground_reach` recorded RENDER FAILED, which is a hole in the luminance guard rather than a
   // reading about the register. The guard below still bites where it is meant to: a FILM passes explicit
   // props, and one that names a single route is refused.
-  action: ACTION = 'One click', first: FIRST = {label: 'Go to the one already open', when: 'if it is there'},
-  then: THEN = {label: 'Open a new one', when: 'only when it is not'}, note: NOTE = '',
+  action: ACTION = DEMO_ACTION, first: FIRST = DEMO_FIRST, then: THEN = DEMO_THEN, note: NOTE = '',
 } = {}) => {
+  // All three from the film, or all three from the demo — never a mix (see the header). `action` is a string, so
+  // its test is equality with the demo copy; a film whose action is literally "One click" must also pass both
+  // routes, which is the case this refuses anyway.
+  const given = {action: ACTION !== DEMO_ACTION, first: FIRST !== DEMO_FIRST, then: THEN !== DEMO_THEN};
+  if ((given.action || given.first || given.then) && !(given.action && given.first && given.then)) {
+    const missing = (Object.keys(given) as (keyof typeof given)[]).filter((k) => !given[k]);
+    throw new Error(
+      `FallbackPath got ${(Object.keys(given) as (keyof typeof given)[]).filter((k) => given[k]).map((k) => `\`${k}\``).join(' and ')} ` +
+      `but not ${missing.map((k) => `\`${k}\``).join(' or ')}, so it would complete the fork with the demo's ` +
+      `${missing.map((k) => (k === 'action' ? `"${DEMO_ACTION}"` : `"${(k === 'first' ? DEMO_FIRST : DEMO_THEN).label}"`)).join(' and ')} ` +
+      'as though the film had said it. Pass `action`, `first: {label, when?}` and `then: {label, when}` together.');
+  }
   const dna = useDNA();
   const t = useT();
   const {width: W, height: H} = useVideoConfig();

@@ -12,6 +12,21 @@
 // The carousel is a dozen lines of arithmetic; the missing part was the SUBJECT. `runtime/uiSurface` is that
 // subject, and it takes the topic's own nav and card titles rather than grey bars, so this stays a shot about
 // a product instead of a shot about a wireframe.
+//
+// WHAT KIND OF SCREEN A SURFACE IS, IS THE FILM'S CALL. Each surface without a `page` used to get one by its
+// POSITION — `PAGES[i % PAGES.length]`, so the second surface was a chart (or, lacking data, a form), the third
+// a table, the fourth a form, whatever they were called. A film naming its surfaces 「首页 · 订单 · 设置」 got
+// 订单 drawn as a settings form and 设置 as a table of rows: claims about what each screen looks like that the
+// film never made. A surface now shows the page it is given; one given a real `series` and no page shows it
+// as the chart (dropping the film's numbers would be worse); every other surface gets the SAME neutral page,
+// the cards overview, so no two surfaces are told apart by anything but their names. The standalone demo keeps
+// its cards · form · table · form rotation in its own data.
+//
+// AND EVERY SURFACE GETS CENTRE STAGE. The queue silently kept the first six names (`.slice(0, 6)`) and dropped
+// the rest, and the corridor steps only three times, so a fifth or sixth surface was never the subject — only
+// ever a blurred sliver at the edge. Four is what three steps bring to centre stage; past it the register
+// throws. An empty name used to be filtered out too, which quietly shifted every later `surfaces[i]` onto the
+// wrong name; it throws now.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -25,7 +40,14 @@ import {leading} from '../runtime/cjkType';
 export const DURATION = 120; // 4.0s
 
 const BG_D0 = '#dfe3ea', FG_D0 = '#20242c', ACC_D0 = '#5b6b86';
-const PAGES: UiPage[] = ['cards', 'chart', 'table', 'form'];
+// the one page a surface gets when the film names no page and gives no series — the same for every surface
+const NEUTRAL_PAGE: UiPage = 'cards';
+const DEFAULT_ITEMS = ['Overview', 'Reports', 'Records', 'Settings'];
+// the standalone demo's own page per surface, used only while the demo's own names are showing and no
+// `surfaces` were passed. (It was the old position rotation with its chart swapped for a form: the demo has no
+// series, and an empty chart on centre stage reads as a broken register.)
+const DEMO_PAGES: UiPage[] = ['cards', 'form', 'table', 'form'];
+export const MAX_SURFACES = 4;
 
 // THREE BEATS, NOT A CONSTANT SCROLL. A carousel that slides at one speed reads as a screensaver; three
 // discrete steps read as someone moving through a list. The first carries a long tail so the shot opens
@@ -49,7 +71,7 @@ export const SurfaceCarousel: React.FC<{
   surfaces?: Surface[];
   items?: string[];
   nav?: string[];
-}> = ({surfaces: SURFACES, items: ITEMS = ['Overview', 'Reports', 'Records', 'Settings'],
+}> = ({surfaces: SURFACES, items: ITEMS = DEFAULT_ITEMS,
   nav: NAV = ['Home', 'Overview', 'Reports', 'Records', 'Team', 'Settings']} = {}) => {
   const dna = useDNA();
   const t = useT();
@@ -59,13 +81,25 @@ export const SurfaceCarousel: React.FC<{
   const ACC = dna?.accent ?? ACC_D0;
   const U = Math.min(W, H);
 
-  const labels = (ITEMS ?? []).filter((x) => String(x ?? '').trim()).slice(0, 6);
-  if (!labels.length) {
+  if (!Array.isArray(ITEMS) || !ITEMS.length) {
     throw new Error(
       'SurfaceCarousel needs at least one non-empty `items` entry — the names of the surfaces. The whole ' +
       "form is a queue of the product's own screens stepping past; with nothing in the queue it draws an " +
       'empty corridor, which composes and argues nothing.');
   }
+  if (ITEMS.length > MAX_SURFACES) {
+    throw new Error(`SurfaceCarousel takes at most ${MAX_SURFACES} surfaces (got ${ITEMS.length}). The corridor steps three ` +
+      'times, so four surfaces reach centre stage; a fifth would only ever be a blurred sliver at the edge. Split ' +
+      'the surfaces across two beats.');
+  }
+  ITEMS.forEach((x, i) => {
+    if (!String(x ?? '').trim()) {
+      throw new Error(`SurfaceCarousel: surface ${i + 1} has an empty name — every surface in \`items\` needs one ` +
+        '(an empty entry used to be skipped, which put every later `surfaces[i]` under the wrong name).');
+    }
+  });
+  const labels = ITEMS.map((x) => String(x).trim());
+  const demo = ITEMS === DEFAULT_ITEMS && SURFACES === undefined;
   const list = labels.map((label, i): Surface & {label: string} => ({label, ...(SURFACES?.[i] ?? {})}));
   const n = list.length;
 
@@ -139,19 +173,12 @@ export const SurfaceCarousel: React.FC<{
         // the neighbours fall AWAY from the axis they travel on, so the corridor has a floor as well as a
         // direction; drifting along the same axis would just read as uneven spacing.
         const sink = d * (vert ? panelW : panelH) * 0.30;
-        // A CHART IS ONLY OFFERED TO A SURFACE THAT HAS DATA. `UiSurface` refuses to invent a series — right,
-        // and it means an un-supplied chart page draws a baseline and a grid and nothing else. In the demo
-        // that put an EMPTY WINDOW on centre stage for a third of the shot, which reads as the register
-        // having failed rather than as a product with a chart in it. So the rotation skips the chart for a
-        // surface that was given no `series`, and the author who has real numbers gets the chart by passing
-        // them. Neither half works alone: without the pass-through the chart is unreachable, and without the
-        // skip the default is an empty box.
-        const wanted = PAGES[i % PAGES.length];
+        // WHICH PAGE: the film's `page`; else the chart, if the film gave this surface a real `series` (a chart
+        // is only ever offered to a surface that has data — `UiSurface` refuses to invent one, and an empty
+        // chart window on centre stage reads as a broken register); else the one neutral page for every
+        // surface. Only the untouched demo uses its own rotation.
         const hasData = Array.isArray(s.series) && s.series.some((v) => typeof v === 'number' && isFinite(v));
-        // The stand-in is the FORM page, not the table: the rotation already ends on a table, and two
-        // identical-looking screens side by side in a corridor whose whole claim is "several surfaces"
-        // argues against itself. cards · form · table · form has no two neighbours alike, ring included.
-        const page: UiPage = s.page ?? (wanted === 'chart' && !hasData ? 'form' : wanted);
+        const page: UiPage = s.page ?? (hasData ? 'chart' : demo ? DEMO_PAGES[i] : NEUTRAL_PAGE);
         const content: UiContent = {title: s.label, nav: s.nav ?? NAV, items: s.items, series: s.series};
         return (
           <div key={i}

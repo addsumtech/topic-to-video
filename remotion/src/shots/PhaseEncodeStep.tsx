@@ -1,6 +1,13 @@
 // PhaseEncodeStep — phase encoding, encoded literally: a phase-encode GRADIENT BLIP steps through its amplitudes
 // (−Gmax → +Gmax), and each step writes ONE line into k-space. The grid fills one line per repetition (TR) — the
 // serial bottleneck that makes MRI slow. Gears (a generic "repeat") didn't show k-space filling; this does.
+//
+// 'gradient blip' names the mechanism under the bar the way 'k-space' names the grid, and it is now declared
+// with the rest of this register's form vocabulary. It had been left out, and nothing noticed only because
+// onscreen_text_qa discards any string containing "gradient" as CSS — so the one undeclared English label
+// on the frame was invisible to the gate that exists to find it, rather than judged and kept.
+// `steps` must be an integer 2-128: the blip's amplitude is `cur / (steps - 1)`, so one step divided by zero
+// and drew a NaN bar, and past 128 the k-space lines sit under 4px apart and merge.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -16,7 +23,10 @@ export const INTRINSIC_TEXT = [
   'k-space',
   'lines written',
   '±Gmax · steps each TR',
+  'gradient blip',
 ];
+
+export const MAX_PE_STEPS = 128;
 
 export const PhaseEncodeStep: React.FC<{accent?: string; accent2?: string; label?: string; steps?: number}> = ({
   accent = '#22d3ee', accent2 = '#a78bfa', label = 'Phase encoding · one line per TR', steps = 16,
@@ -24,6 +34,11 @@ export const PhaseEncodeStep: React.FC<{accent?: string; accent2?: string; label
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
+  if (!Number.isInteger(steps) || steps < 2 || steps > MAX_PE_STEPS) {
+    throw new Error(`PhaseEncodeStep: \`steps\` is the number of phase-encode lines and must be an integer 2-${MAX_PE_STEPS} ` +
+      `(got ${JSON.stringify(steps)}). The blip steps from -Gmax to +Gmax, which needs two ends; past ${MAX_PE_STEPS} ` +
+      'the lines merge — draw a representative count and name the real matrix in the label.');
+  }
   const cur = Math.min(steps - 1, Math.floor(clamp01(t) * steps));   // current phase-encode step
 
   // k-space grid (right): fill one line per step, from centre outward (typical order) — here top→bottom for clarity

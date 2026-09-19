@@ -51,8 +51,29 @@ def test_the_finding_shows_what_a_viewer_will_READ():
 def test_the_real_library_still_carries_the_defect_this_gate_names():
     """Pinned against the real register, so a future edit that re-hardcodes those labels is caught."""
     lib = q.library()
-    assert "Throughput" in lib["BentoReveal"]["items"], "BentoReveal's demo labels moved — re-verify the gate"
+    assert "Docs" in lib["BentoReveal"]["items"], "BentoReveal's demo labels moved — re-verify the gate"
     assert lib["PhotoPlate"]["caption"] == "the thing itself"
+
+
+def test_a_default_named_by_a_module_const_is_still_a_default():
+    """`panels: PANELS = DEFAULT_PANELS` printed four English labels on any film that omitted `panels`, and a
+    reader that only knew an inline `[...]` reported the register clean. A picture NAME (`icon: 'file'`) in the
+    same literal is configuration, not copy, and must not be reported as words a viewer reads."""
+    src = """const DEFAULT_PANELS = [{label: 'Find it', icon: 'search'}, {label: 'Edit it', glyph: 'checks'}];
+export const D: React.FC<{panels?: {label: string}[]}> = ({panels: PANELS = DEFAULT_PANELS} = {}) => null;"""
+    got = q.demo_defaults(src, "D")
+    assert "Find it" in got["panels"] and "Edit it" in got["panels"], got
+    assert "search" not in got["panels"] and "checks" not in got["panels"], got
+    lib = q.library()
+    assert "Find it" in lib["QuadSplit"]["panels"], "the real const-referenced default went unread again"
+    # a string const and an object const print just the same (FallbackPath: `action = DEMO_ACTION`)
+    strobj = """const DEMO_ACTION = 'One click';
+const DEMO_FIRST: Route = {label: 'Go to the one already open', when: 'if it is there'};
+export const F: React.FC<{action?: string; first?: Route}> = ({action: A = DEMO_ACTION, first: B = DEMO_FIRST} = {}) => null;"""
+    got = q.demo_defaults(strobj, "F")
+    assert got.get("action") == "One click" and "Go to the one already open" in got.get("first", ""), got
+    unresolved = """export const E: React.FC<{items?: string[]}> = ({items = MISSING_CONST} = {}) => null;"""
+    assert "items" not in q.demo_defaults(unresolved, "E"), "an unresolvable name must be skipped, not guessed"
 
 
 def test_a_prop_explicitly_left_empty_is_a_DECISION_and_passes():

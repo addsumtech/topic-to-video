@@ -37,7 +37,9 @@ import demo_copy_qa as d             # noqa: E402
 import onscreen_text_qa as o         # noqa: E402
 import shot_proof as sp              # noqa: E402
 
-PROPLESS = {"LiquidMorph"}
+# Empty since LiquidMorph took `forms` (2026-09): it printed "Ask. Draft. Analyse. Done." on every film and no
+# film could change a word of it. A register added here is one a film cannot author at all.
+PROPLESS = set()
 
 
 def _names():

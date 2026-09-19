@@ -10,6 +10,16 @@
 //
 // The object is described by props as a list of STROKES in unit space (0..1 across, 0..1 down), so any film
 // can draw its own object without a new register: `parts` positions the callouts, `strokes` draws the thing.
+//
+// THE DRAWING AND ITS CALLOUTS ARE ONE CLAIM, SO THEY COME FROM ONE PLACE. Both props used to default
+// independently: a film that passed its own `parts` but no `strokes` got the demo BICYCLE, numbered with the
+// film's part names — "1 知识库" pointing at a bicycle wheel — and a film that drew its own object but passed
+// no `parts` got "the part that does the work" and "the part that steers" pinned to the bicycle's wheel and
+// head-tube coordinates on top of it. A part without `x`/`y` was also placed at the drawing's centre
+// (`p.x ?? 0.5`), and parts past the fourth started their fade at t >= 1 and were never seen at all. Now: pass
+// both `strokes` and `parts` or neither (neither is the standalone demo); every part needs `x` and `y`; a
+// stroke missing a coordinate it needs throws; and the callout timing is spread over however many parts there
+// are, up to six.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -55,6 +65,27 @@ const BIKE_PARTS: Part[] = [
   {n: 2, label: 'the part that steers', x: 0.62, y: 0.34, side: 'right'},
 ];
 
+export const MAX_PLATE_PARTS = 6;
+
+const isNum = (v: unknown) => typeof v === 'number' && Number.isFinite(v);
+
+// A stroke is geometry the film authored; one missing a coordinate would draw at NaN (nothing, silently) or be
+// patched with a guess. Each kind names what it needs.
+const checkStroke = (st: any, i: number): Stroke => {
+  const need: Record<string, string[]> = {circle: ['x', 'y', 'r'], line: ['x', 'y', 'x2', 'y2'], bar: ['x', 'y', 'w', 'h']};
+  const keys = need[st?.kind];
+  if (!keys) {
+    throw new Error(`TechnicalPlate: stroke ${i + 1} has kind ${JSON.stringify(st?.kind)} — use 'circle' {x, y, r}, ` +
+      "'line' {x, y, x2, y2} or 'bar' {x, y, w, h}, all in unit space.");
+  }
+  const missing = keys.filter((k) => !isNum(st[k]));
+  if (missing.length) {
+    throw new Error(`TechnicalPlate: stroke ${i + 1} ('${st.kind}') is missing ${missing.map((k) => `\`${k}\``).join(', ')} ` +
+      '(numbers in unit space, 0..1 of the drawing).');
+  }
+  return st as Stroke;
+};
+
 export const TechnicalPlate: React.FC<{
   kicker?: string;
   object?: string;          // what it is, set under the plate
@@ -74,9 +105,40 @@ export const TechnicalPlate: React.FC<{
   const {width: W, height: H} = useVideoConfig();
   const FG = dna?.fg ?? FG_D0, DIM = dna?.dim ?? DIM_D0;
   const ACC = dna?.accent ?? ACC_D0, LINE = dna?.line ?? LINE_D0;
-  const disp = 'var(--f-display, Georgia, serif)';
+  const disp = 'var(--f-display, "Source Serif 4", Georgia, serif)';
   const mono = 'var(--f-mono, ui-monospace, monospace)';
   const hair = Math.max(1, Math.round(W * 0.0012));
+
+  // ONE SOURCE FOR THE OBJECT AND ITS PARTS (see the header). Identity with the module constants is how the shot
+  // knows a prop was left out: a film's props arrive as fresh arrays, never as BIKE itself.
+  const demoStrokes = STROKES === BIKE, demoParts = PARTS === BIKE_PARTS;
+  if (demoStrokes !== demoParts) {
+    throw new Error(demoStrokes
+      ? 'TechnicalPlate got `parts` but no `strokes`, so it would number the film\'s parts on its demo BICYCLE. ' +
+        'Pass `strokes` that draw the object those parts belong to (circle / line / bar in unit space), or cast ' +
+        'a register that does not need a drawing.'
+      : 'TechnicalPlate got `strokes` but no `parts`, so it would pin the demo callouts ("the part that does the ' +
+        'work") to the demo bicycle\'s coordinates on top of the film\'s object. Pass `parts: [{n, label, x, y, ' +
+        'side}]` naming the film\'s own parts, or `parts: []` for an unannotated drawing.');
+  }
+  if (!Array.isArray(STROKES) || STROKES.length < 1) {
+    throw new Error(`TechnicalPlate needs at least one stroke in \`strokes\` (got ${Array.isArray(STROKES) ? 0 : typeof STROKES}) — the plate IS the drawing.`);
+  }
+  STROKES.forEach(checkStroke);
+  if (!Array.isArray(PARTS) || PARTS.length > MAX_PLATE_PARTS) {
+    throw new Error(
+      `TechnicalPlate takes 0-${MAX_PLATE_PARTS} \`parts\` (got ${Array.isArray(PARTS) ? PARTS.length : typeof PARTS}). ` +
+      'Past six the callouts on each side of the sheet overprint one another — keep the parts the argument ' +
+      'names, or split the object across two plates.');
+  }
+  PARTS.forEach((p, i) => {
+    if (!isNum(p?.x) || !isNum(p?.y)) {
+      throw new Error(
+        `TechnicalPlate: part ${i + 1}${p?.label ? ` ("${p.label}")` : ''} needs \`x\` and \`y\` in the drawing's ` +
+        `unit space (got x=${String(p?.x)}, y=${String(p?.y)}). The callout's dot says "this part is HERE"; ` +
+        'without a point it would sit on the middle of the object.');
+    }
+  });
 
   const top = CONTENT_TOP + H * 0.02;
   const bottom = H - captionBand(W, H) - H * 0.09;
@@ -137,6 +199,7 @@ export const TechnicalPlate: React.FC<{
           return (
             <div key={i} style={{position: 'absolute', left: ux(st.x) - r, top: uy(st.y) - r,
               width: r * 2, height: r * 2, borderRadius: '50%',
+              // @fallback: on a circle or a line `w` is the STROKE WEIGHT multiplier (1 = the plate's hairline), a drawing parameter, not a reading about the part
               border: `${Math.max(2, Math.round((st.w ?? 1) * lw))}px ${st.ghost ? 'dashed' : 'solid'} ${st.ghost ? DIM : FG}`,
               opacity: on * (st.ghost ? 0.6 : 1), transform: `scale(${0.85 + 0.15 * on})`}} />
           );
@@ -155,8 +218,10 @@ export const TechnicalPlate: React.FC<{
         const ang = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
         return (
           <div key={i} style={{position: 'absolute', left: x1, top: y1 - lw / 2, width: len,
+            // @fallback: on a circle or a line `w` is the STROKE WEIGHT multiplier (1 = the plate's hairline), a drawing parameter, not a reading about the part
             height: Math.max(2, Math.round((st.w ?? 1) * lw)),
             background: st.ghost ? 'transparent' : FG,
+            // @fallback: on a circle or a line `w` is the STROKE WEIGHT multiplier (1 = the plate's hairline), a drawing parameter, not a reading about the part
             borderTop: st.ghost ? `${Math.max(2, Math.round((st.w ?? 1) * lw))}px dashed ${DIM}` : undefined,
             opacity: st.ghost ? 0.6 : 1,
             transformOrigin: '0 50%', transform: `rotate(${ang}deg)`}} />
@@ -165,10 +230,13 @@ export const TechnicalPlate: React.FC<{
 
       {/* numbered callouts with leader lines out to the margin */}
       {PARTS.map((p, i) => {
-        const on = easeOutCubic(clamp01(seg(t, 0.60 + i * 0.10, 0.76 + i * 0.10)));
+        // Spread over however many parts there are. A fixed 0.10 step put part 5's fade-in at t = 1.0, so every
+        // part past the fourth was drawn at opacity 0 — present in props, absent from the film.
+        const step = Math.min(0.10, 0.22 / Math.max(1, PARTS.length));
+        const on = easeOutCubic(clamp01(seg(t, 0.60 + i * step, 0.76 + i * step)));
         if (on <= 0) return null;
         const right = (p.side ?? 'right') === 'right';
-        const px = ux(p.x ?? 0.5), py = uy(p.y ?? 0.5);
+        const px = ux(p.x as number), py = uy(p.y as number);
         const lx = right ? fx0 + fieldW + W * 0.020 : fx0 - W * 0.020;
         const len = Math.abs(lx - px) * on;
         const dot = Math.max(4, Math.round(W * 0.0035));

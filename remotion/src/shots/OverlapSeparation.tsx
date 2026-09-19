@@ -16,6 +16,15 @@
 // use it. Curves are exact Gaussian densities evaluated from mean/spread (no sampled points, no RNG); every
 // colour comes from the DNA (dnaPalette's two categorical hues + the film's ink/ground); every position is a
 // fraction of W/H, so the shot reflows and STACKS at portrait aspects.
+//
+// EVERY CURVE IS THE FILM'S, OR THE SHOT REFUSES. Each population used to be read as `p?.mean ?? 0.52`,
+// `p?.spread ?? 0.17`, `p?.label ?? 'A'` — so a film that named its two measures and its populations but left
+// out a mean or a spread got the demo's curves drawn as its own data, and a film that passed `fail` alone got
+// the demo's "Execution" panel (0.82 vs 0.16, cleanly split) standing next to it as though it had measured
+// that too. A density curve is a quantitative claim about a population: its position IS the mean and its
+// width IS the spread. So `fail` and `pass` now come together or not at all, every population in them needs
+// a `label`, a finite `mean` and a finite `spread >= 0`, and anything missing throws naming the exact path.
+// The standalone demo (no props) is unchanged.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -220,17 +229,30 @@ const Panel: React.FC<PanelProps> = ({
 };
 
 // ── the shot ─────────────────────────────────────────────────────────────────────────────────────────────────
+// The standalone demo's two measures. Module constants so the shot can tell "the film passed nothing" (the
+// demo, by identity) from "the film passed one of the two" (refused below) — a partial film must never be
+// completed with the demo's curves.
+const DEMO_FAIL: OverlapMeasure = {label: 'Surface similarity', note: 'the two populations sit on top of each other',
+  a: {label: 'passes', mean: 0.52, spread: 0.17}, b: {label: 'fails', mean: 0.48, spread: 0.17}};
+const DEMO_PASS: OverlapMeasure = {label: 'Execution', note: 'same cases, cleanly split',
+  a: {label: 'passes', mean: 0.82, spread: 0.09}, b: {label: 'fails', mean: 0.16, spread: 0.09}};
+
 export const OverlapSeparation: React.FC<{
   kicker?: string; title?: string; fail?: OverlapMeasure; pass?: OverlapMeasure; domain?: [number, number];
 }> = ({
   kicker: KICKER = '',
   title: TITLE = 'Two measures, one set of cases',
-  fail: FAIL = {label: 'Surface similarity', note: 'the two populations sit on top of each other',
-    a: {label: 'passes', mean: 0.52, spread: 0.17}, b: {label: 'fails', mean: 0.48, spread: 0.17}},
-  pass: PASS = {label: 'Execution', note: 'same cases, cleanly split',
-    a: {label: 'passes', mean: 0.82, spread: 0.09}, b: {label: 'fails', mean: 0.16, spread: 0.09}},
+  fail: FAIL = DEMO_FAIL,
+  pass: PASS = DEMO_PASS,
   domain: DOMAIN,
 } = {}) => {
+  if ((FAIL === DEMO_FAIL) !== (PASS === DEMO_PASS)) {
+    throw new Error(
+      `OverlapSeparation needs BOTH measures: \`${FAIL === DEMO_FAIL ? 'fail' : 'pass'}\` is missing. The shot ` +
+      'is the comparison — the same two populations scored by a measure that cannot separate them (`fail`) and ' +
+      'by one that can (`pass`) — and drawing the demo\'s curves in the missing panel would present numbers ' +
+      'nobody measured. Pass `fail: {label, note, a: {label, mean, spread}, b: {…}}` and `pass: {…}`.');
+  }
   const dna = useDNA();
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
@@ -251,14 +273,30 @@ export const OverlapSeparation: React.FC<{
   const monoFace = dna?.fontMono ?? '"JetBrains Mono", ui-monospace, monospace';
 
   // DATA — resolved once, asserted finite, with a spread floor so a zero-variance population still draws.
+  // Nothing is filled in: the old `p?.mean ?? 0.52` / `p?.label ?? 'A'` drew the demo's curve under the film's
+  // name whenever a piece was left out (see the header). A missing piece names its own path and throws.
   const D = React.useMemo(() => {
-    const rd = (p: OverlapPop | undefined, dl: string, dm: number, ds: number, what: string): Pop => {
-      const spread = finite(p?.spread ?? ds, `${what}.spread`);
+    const rd = (p: OverlapPop | undefined | null, what: string): Pop => {
+      if (p == null || typeof p !== 'object') {
+        throw new Error(`OverlapSeparation: \`${what}\` is missing. Each measure scores the SAME two populations — ` +
+          `pass \`${what}: {label, mean, spread}\` with the population's real mean and spread on the shared axis.`);
+      }
+      const label = String(p.label ?? '').trim();
+      if (!label) {
+        throw new Error(`OverlapSeparation: \`${what}.label\` is missing — the legend names which curve is which ` +
+          'population, and an invented "A"/"B" tells the viewer nothing.');
+      }
+      if (p.mean == null || p.spread == null) {
+        throw new Error(`OverlapSeparation: \`${what}\` ("${label}") needs both \`mean\` and \`spread\` — the curve's ` +
+          `position IS its mean and its width IS its spread, so neither can be assumed (got mean=${String(p.mean)}, ` +
+          `spread=${String(p.spread)}).`);
+      }
+      const spread = finite(p.spread, `${what}.spread`);
       if (spread < 0) throw new Error(`OverlapSeparation: ${what}.spread must be >= 0, got ${spread}`);
-      return {label: String(p?.label ?? dl), mean: finite(p?.mean ?? dm, `${what}.mean`), spread};
+      return {label, mean: finite(p.mean, `${what}.mean`), spread};
     };
-    const fa = rd(FAIL?.a, 'A', 0.52, 0.17, 'fail.a'), fb = rd(FAIL?.b, 'B', 0.48, 0.17, 'fail.b');
-    const pa = rd(PASS?.a, 'A', 0.82, 0.09, 'pass.a'), pb = rd(PASS?.b, 'B', 0.16, 0.09, 'pass.b');
+    const fa = rd(FAIL?.a, 'fail.a'), fb = rd(FAIL?.b, 'fail.b');
+    const pa = rd(PASS?.a, 'pass.a'), pb = rd(PASS?.b, 'pass.b');
     const all = [fa, fb, pa, pb];
     const ms = all.map((p) => p.mean), ss = all.map((p) => p.spread);
     const sMax = Math.max(...ss), mSpan = Math.max(...ms) - Math.min(...ms);

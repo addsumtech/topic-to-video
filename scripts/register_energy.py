@@ -316,6 +316,10 @@ DEFAULT_DNA = "product"
 
 def render_one(name, mp4, dna=DEFAULT_DNA, extra=None):
     cmd = ["npx", "remotion", "render", "src/index.ts", name, mp4, "--gl=angle", "--log=error"]
+    # the same memory valve render_remotion.py honours: on a machine short of RAM a parallel render is killed
+    # mid-sweep and the register is reported as FAILED rather than measured
+    if os.environ.get("REMOTION_CONCURRENCY"):
+        cmd.append("--concurrency=" + os.environ["REMOTION_CONCURRENCY"])
     props = {}
     if dna:
         props["dna"] = dna

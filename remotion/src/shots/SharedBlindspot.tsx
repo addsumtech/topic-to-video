@@ -282,6 +282,7 @@ export const SharedBlindspot: React.FC<{
         {regs.map((rg, j) => (
           <circle key={`r${j}`} cx={rg.x} cy={rg.y} r={rr * lerp(0.8, 1, ringIn[j])} fill="none"
             stroke={WARN} strokeWidth={sw} opacity={ringIn[j] * 0.85}
+            // @positional: the second reviewer's blind area is dashed so the two overlapping regions can be told apart
             strokeDasharray={j === 1 ? `${Math.max(7, rr * 0.1)} ${Math.max(6, rr * 0.07)}` : undefined}
             strokeLinecap="round" />
         ))}
@@ -303,6 +304,7 @@ export const SharedBlindspot: React.FC<{
               {nm ? <svg width={sizes.swW} height={Math.max(10, sw * 3)} style={{flex: '0 0 auto', overflow: 'visible'}}>
                 <line x1={1} y1={Math.max(10, sw * 3) / 2} x2={sizes.swW - 1} y2={Math.max(10, sw * 3) / 2}
                   stroke={WARN} strokeWidth={sw} strokeLinecap="round"
+                  // @positional: the second reviewer's blind area is dashed so the two overlapping regions can be told apart
                   strokeDasharray={j === 1 ? `${Math.max(5, sw * 1.8)} ${Math.max(4, sw * 1.4)}` : undefined} />
               </svg> : null}
               <div style={{color: FG, font: `600 ${sizes.chipSize}px/1.32 ${mono}`, minWidth: 0}}>{nm}</div>

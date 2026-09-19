@@ -13,6 +13,12 @@
 // gaps between phrases are gaps on screen. Rendered standalone it gets that module's synthetic voice — which
 // has gaps too, for exactly this reason.
 //
+// A PHASE IS GREEN BECAUSE THE FILM SAYS IT SUCCEEDED, NOT BECAUSE IT IS LAST. The label turned success-green
+// the moment the LAST phase began (`done = t > last.at`), so a film whose closing phase was 「连接失败」 or
+// "Call dropped" showed its failure in the colour of success. Colour is now a per-phase `state`: 'done' paints
+// the success ink, 'failed' a warning ink, and a phase with no state stays in the neutral ink. A phase with no
+// `at`, an `at` outside 0..1, or phases out of order throw — `at ?? 0` used to put an untimed phase at the start.
+//
 // LOW FREQUENCIES IN THE MIDDLE. An FFT hands back bins low→high, and drawn in that order a voice is a slope
 // falling to the right — a decay curve, not a signal. Mirroring the spectrum about the centre is what makes it
 // read as a voice: the fundamental is the tall middle, the sibilants are the flutter at both edges.
@@ -27,9 +33,16 @@ import {leading} from '../runtime/cjkType';
 
 export const DURATION = 150; // 5s
 const ACC_D0 = '#3FE0FF';
-const DEFAULT_PHASES = [{at: 0.05, label: 'Listening…'}, {at: 0.34, label: 'Working…'}, {at: 0.74, label: 'Done ✓'}];
+export type VoicePhase = {
+  /** when this phase begins, as a fraction of the beat (0..1), in ascending order */
+  at: number;
+  label: string;
+  /** only when the film says so: 'done' = succeeded (success ink), 'failed' = failed (warning ink); else neutral */
+  state?: 'done' | 'failed';
+};
+const DEFAULT_PHASES: VoicePhase[] = [{at: 0.05, label: 'Listening…'}, {at: 0.34, label: 'Working…'}, {at: 0.74, label: 'Done ✓', state: 'done'}];
 
-export const VoiceSignal: React.FC<{phases?: {at: number; label: string}[]}> = ({phases: PHASES = DEFAULT_PHASES} = {}) => {
+export const VoiceSignal: React.FC<{phases?: VoicePhase[]}> = ({phases: PHASES = DEFAULT_PHASES} = {}) => {
   const dna = useDNA();
   const ACC = dna?.accent ?? ACC_D0;
   const t = useT();
@@ -42,15 +55,31 @@ export const VoiceSignal: React.FC<{phases?: {at: number; label: string}[]}> = (
   const GROUND = dna?.bg ?? '#05080f';
   const INK = readableOn(GROUND, '#dffaff', '#0c141c');
   const DONE_INK = readableOn(GROUND, '#59f0b0', '#0a5c3d');
+  const FAILED_INK = readableOn(GROUND, '#ff8a80', '#8f1d1d');
 
-  const list = (PHASES ?? []).filter((p) => p && String(p.label ?? '').trim());
-  if (!list.length) {
+  if (!Array.isArray(PHASES) || !PHASES.length) {
     throw new Error(
       'VoiceSignal needs at least one `phases` entry — a {at, label} naming what is being said while the ' +
       'waveform runs. The waveform alone is a level meter; the label is what makes it an account of a ' +
       'conversation.');
   }
-  const phase = [...list].reverse().find((p) => t > (p.at ?? 0)) || list[0];
+  const list = PHASES.map((p: any, i: number) => {
+    const label = String(p?.label ?? '').trim();
+    if (!label) throw new Error(`VoiceSignal: phase ${i + 1} has no label — every phase names what is being said.`);
+    if (typeof p?.at !== 'number' || !Number.isFinite(p.at) || p.at < 0 || p.at > 1) {
+      throw new Error(`VoiceSignal: phase ${i + 1} ("${label}") needs \`at\` — when it begins, 0 to 1 (got ${JSON.stringify(p?.at)}).`);
+    }
+    if (p.state != null && p.state !== 'done' && p.state !== 'failed') {
+      throw new Error(`VoiceSignal: phase ${i + 1} ("${label}") has state ${JSON.stringify(p.state)} — use 'done', 'failed', or leave it out.`);
+    }
+    return {at: p.at as number, label, state: p.state as VoicePhase['state']};
+  });
+  list.forEach((p, i) => {
+    if (i > 0 && p.at < list[i - 1].at) {
+      throw new Error(`VoiceSignal: phase ${i + 1} ("${p.label}") starts at ${p.at}, before phase ${i} (${list[i - 1].at}) — list phases in time order.`);
+    }
+  });
+  const phase = [...list].reverse().find((p) => t > p.at) || list[0];
 
   // ROOM FIRST. Everything here was once a literal — 22px pitch, 380px amplitude, a label at midY+260 in 66px
   // type — which meant 72 bars spanned 1562px and ran off both edges of a 1080-wide portrait frame, and the
@@ -76,7 +105,7 @@ export const VoiceSignal: React.FC<{phases?: {at: number; label: string}[]}> = (
   // held tone at the end, so the beat lands rather than simply stopping. Multiplying the live level (rather
   // than replacing it) keeps every gap in the real speech intact.
   const settle = lerp(1, 0.34, easeOutCubic(seg(t, 0.78, 0.95)));
-  const done = t > (list[list.length - 1].at ?? 1);
+  const ink = phase.state === 'done' ? DONE_INK : phase.state === 'failed' ? FAILED_INK : INK;
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(120% 120% at 50% 46%, #0e1826, #05080f 72%)'}}>
@@ -115,7 +144,7 @@ export const VoiceSignal: React.FC<{phases?: {at: number; label: string}[]}> = (
               font: `800 ${labelPx}px/${leading(String(phase.label), 1.15)} var(--f-display, Inter,system-ui,sans-serif)`,
               // the label brightens with the voice, so the two read as one event rather than as a caption
               // pasted over a graphic
-              color: done ? DONE_INK : INK, opacity: 0.72 + 0.28 * level}}>
+              color: ink, opacity: 0.72 + 0.28 * level}}>
               {phase.label}
             </div>
           </>

@@ -24,6 +24,7 @@ export const VoxelBuild: React.FC<{title?: string; tagline?: string; accent?: st
   const cx = W / 2 - 40, cy = H / 2 - 40;
   const pt = (x: number, y: number) => `${x.toFixed(1)},${y.toFixed(1)}`;
   // checkmark footprint in (i,j) grid, each stacked 2 voxels tall
+  // @decor: the voxel footprint of the check-mark form itself: geometry, not data
   const foot: [number, number][] = [[0, 3], [1, 4], [2, 5], [3, 4], [4, 3], [5, 2], [6, 1], [7, 0]];
   const voxels: {i: number; j: number; k: number; sx: number; sy: number; order: number}[] = [];
   for (const [i, j] of foot) for (let k = 0; k < 2; k++) {

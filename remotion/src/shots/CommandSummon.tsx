@@ -1,12 +1,22 @@
 // SHOT · Command Summon — Raycast/Superhuman language (DARK, on purpose — the command palette's native look).
 // A palette flies in, a plain-language command TYPES itself, matches filter live, Return fires — and the
 // work spawns as a checklist that ticks off. "One instruction → it plans and runs." Deterministic.
+//
+// EVERY ROW THE FILM GIVES IS REVEALED AND TICKED, HOWEVER MANY THERE ARE. Every item ticking is this
+// register's premise — one instruction, all of it done — and the ticks are not per-item data. But the
+// schedule was written for five rows: row i appeared at 0.5 + 0.07·i and ticked at 0.66 + 0.06·i of the clip,
+// so from the seventh row on the tick time fell past the end. A film with eight steps ended on six ticked,
+// one unticked and one still fading in — a frame that said two of the film's steps were not done, chosen by
+// nothing but their position in the list. The spacing now shrinks with the count so the last row lands and
+// ticks inside the clip (five rows keep their exact original timing). And the palette has a height: each
+// row is 78px, and the whole palette box — every row's slot is laid out before Return, invisible — has to
+// end above the caption band, which is six rows on a 1080-tall frame. More than that, or none, throws.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, easeOutBack, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {fitTextPx} from '../runtime/layout';
+import {contentBottom, fitTextPx} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 
@@ -25,6 +35,20 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
   const t = useT();
   const dna = useDNA(); const ACCENT = dna?.accent ?? ACCENT0;
   const {width: W, height: H} = useVideoConfig();
+  // palette top 210 + input row (34px padding x2 + 46px type) + list padding 36, then 78px a row (34px box
+  // with its 2px border each side, 20px padding above and below)
+  const ROW_H = 78, PAL_HEAD = 210 + 114 + 36;
+  const maxRows = Math.floor((contentBottom(W, H) - PAL_HEAD) / ROW_H);
+  if (!Array.isArray(ROWS) || ROWS.length < 1) {
+    throw new Error('CommandSummon needs at least one row in `items` — the command has to spawn something to run.');
+  }
+  if (ROWS.length > maxRows) {
+    throw new Error(`CommandSummon fits at most ${maxRows} \`items\` on a ${W}x${H} frame (got ${ROWS.length}): each row is ` +
+      `${ROW_H}px and the palette has to end above the caption band. Group the steps, or cast a list register.`);
+  }
+  // the reveal and tick spacing shrink with the count, so the last row is revealed by 0.96 and ticked by 0.94
+  const n = ROWS.length;
+  const stepR = Math.min(0.07, 0.28 / Math.max(1, n - 1)), stepT = Math.min(0.06, 0.28 / Math.max(1, n - 1));
   // phases: palette in (0-.12) · type command (.12-.42) · Return flash (.46) · checklist spawns+ticks (.5-1)
   const inP = easeOutBack(seg(t, 0, 0.14));
   const typed = Math.floor(command.length * easeOutCubic(seg(t, 0.14, 0.44)));
@@ -61,8 +85,8 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
         {/* matched actions / checklist that spawns after Return */}
         <div style={{padding: '18px 20px'}}>
           {ROWS.map((r, i) => {
-            const rev = fired ? easeOutBack(seg(t, 0.5 + i * 0.07, 0.5 + i * 0.07 + 0.18)) : (i === 0 ? 1 : 0.0);
-            const tick = fired && t > 0.66 + i * 0.06;
+            const rev = fired ? easeOutBack(seg(t, 0.5 + i * stepR, 0.5 + i * stepR + 0.18)) : (i === 0 ? 1 : 0.0);
+            const tick = fired && t > 0.66 + i * stepT;
             return (
               <div key={i} style={{display: 'flex', alignItems: 'center', gap: 20, padding: `20px ${ROW_PADX}px`, borderRadius: 12,
                 opacity: clamp01(rev), transform: `translateX(${lerp(-20, 0, clamp01(rev))}px)`,

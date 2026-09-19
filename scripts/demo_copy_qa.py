@@ -33,6 +33,12 @@ _NOT_COPY = re.compile(r"^(#|var\(|rgb|hsl|none$|round$|butt$|square$|center$|le
                        r"|row$|column$|nowrap$|auto$|hidden$|visible$|currentColor$|transparent$)", re.I)
 
 
+# `= DEFAULT_PANELS` — a default given by naming a module-level constant rather than writing the literal.
+_CONST_REF = re.compile(r"([A-Z][A-Z0-9_]*)\b(?!\s*[.(\[])")
+# keys whose string values name a picture or a style, not words on the frame
+_NOT_COPY_KEYS = re.compile(r"\b(icon|glyph|kind|shape|tone|color|colour)\s*:\s*(['\"])[^'\"]*\2")
+
+
 def _destructure(src, name):
     """The parameter destructuring block of `export const <name>: React.FC<{...}> = ({ ... } = {}) =>`.
 
@@ -220,15 +226,40 @@ def demo_defaults(src, name):
             k += end + 1
             if re.search(r"[A-Za-z]{3}", v) and not _NOT_COPY.match(v) and _is_copy(m.group(1)):
                 out[m.group(1)] = v
-        elif rest[:1] == "[":
+        elif rest[:1] == "[" or _CONST_REF.match(rest):
+            ref = _CONST_REF.match(rest)
+            if ref:
+                # A DEFAULT NAMED BY A MODULE CONST is still a default. `panels: PANELS = DEFAULT_PANELS` rendered
+                # its four English labels on any film that omitted `panels`, and this reader — which only knew
+                # an inline `[...]` — reported the register clean. Resolve the name to its literal in the same
+                # file; a name it cannot resolve is skipped, never guessed at.
+                # The literal may be an array, an object (`DEMO_FIRST = {label: ..., when: ...}`) or a plain
+                # string (`DEMO_ACTION = 'One click'`) — all three print on a film that omits the prop.
+                k += ref.end()
+                decl = re.search(r"\bconst\s+%s\b(?:\s*:[^=]+)?\s*=\s*([\[{'\"])" % re.escape(ref.group(1)), src)
+                if not decl:
+                    continue
+                arr = src[decl.start(1):]
+                if arr[0] in "'\"":
+                    end = arr.find(arr[0], 1)
+                    v = arr[1:end] if end > 0 else ""
+                    if re.search(r"[A-Za-z]{3}", v) and not _NOT_COPY.match(v) and _is_copy(m.group(1)):
+                        out[m.group(1)] = v
+                    continue
+            else:
+                arr = rest
+            open_, close_ = ("[", "]") if arr[:1] == "[" else ("{", "}")
             depth, e = 0, 0
-            for e, ch in enumerate(rest):
-                depth += ch == "["
-                depth -= ch == "]"
+            for e, ch in enumerate(arr):
+                depth += ch == open_
+                depth -= ch == close_
                 if depth == 0:
                     break
-            lit = rest[:e + 1]
-            k += e + 1
+            lit = arr[:e + 1]
+            if not ref:
+                k += e + 1
+            # A picture NAME is configuration, not copy: `icon: 'file'` is not a word a viewer reads.
+            lit = _NOT_COPY_KEYS.sub("", lit)
             # SHOW the strings. "[2 items of placeholder copy]" tells an author a prop is missing but not
             # what a viewer will read, so they cannot tell a harmless default from six English labels landing
             # on a Chinese frame — which is the finding this exists to report.
@@ -239,6 +270,17 @@ def demo_defaults(src, name):
                 out[m.group(1)] = "[%s%s]" % (shown, ", …" if len(words) > 6 else "")
         else:
             k += 1
+    return out
+
+
+def declared_library(shots_dir=None):
+    """{register: set(declared prop names)} — only for registers whose props this reader can see."""
+    out = {}
+    for f in sorted(glob.glob(os.path.join(shots_dir or SHOTS, "*.tsx"))):
+        n = os.path.basename(f)[:-4]
+        types = _declared_types(open(f, encoding="utf-8").read(), n)
+        if types:
+            out[n] = set(types)
     return out
 
 

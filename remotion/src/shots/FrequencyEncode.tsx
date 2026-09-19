@@ -3,6 +3,18 @@
 // The coil reads ONE summed signal; a single Fourier transform then SEPARATES that signal back into the columns
 // by frequency. Three stages: columns get their pitches → they sum into one readout → an FFT prism splits it back
 // to the columns. A radial spectrum burst showed none of this. Deterministic (pure fn of useT).
+//
+// THE RECOVERED PEAKS ARE AS TALL AS EACH OTHER, BECAUSE THE COLUMNS ARE. Each column's wave is drawn at the
+// same amplitude, and the summed readout adds them with equal weight — but the FFT stage drew its peaks at
+// `0.6 + 0.4 * Math.sin(i)`, so the transform "recovered" a column at twice the strength of another (the 6th
+// peak barely a quarter of the 3rd). A spectrum's peak height is the claim of how much signal sits at that
+// frequency, and that claim contradicted the encoding one stage above it. The peaks are equal now; a film
+// whose columns carry different signal needs a register that draws per-column amplitudes from its data.
+// `cols` is an integer 2-8: one column has nothing to separate, and past eight the fastest column's wave
+// drops under 8px a cycle on a 1080-wide frame and stops reading as a wave.
+// The two stage labels are centred over the readout, where the summed wave is flattest: left-aligned, they
+// sat where the columns' phases line up, and the wave's swing ran through "one Fourier transform"; and the
+// first label's baseline sat 11px under the column boxes, so its capitals touched their bottom edge.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -10,15 +22,16 @@ import {useT, seg, lerp, clamp01, radians} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 
 export const DURATION = 180; // 6s
+export const MAX_FREQ_COLS = 8;
 
 // This register's own vocabulary — the labels that belong to the FORM the way an axis belongs to a
 // graph, not sample copy about a topic. Declared so onscreen_text_qa can tell them apart from the
 // demo furniture that used to print on every film (WORKBUDDY, DASHBOARD, x:960 y:540).
 export const INTRINSIC_TEXT = [
   'low freq',
+  'high freq · readout gradient',
   'one measured signal',
-  'high freq',
-  'position →',
+  'one Fourier transform → columns',
 ];
 
 export const FrequencyEncode: React.FC<{accent?: string; accent2?: string; label?: string; cols?: number}> = ({
@@ -27,6 +40,11 @@ export const FrequencyEncode: React.FC<{accent?: string; accent2?: string; label
   const {width: W, height: H, durationInFrames, fps} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
+  if (!Number.isInteger(cols) || cols < 2 || cols > MAX_FREQ_COLS) {
+    throw new Error(`FrequencyEncode: \`cols\` must be an integer 2-${MAX_FREQ_COLS} (got ${JSON.stringify(cols)}). One column ` +
+      `has nothing for the transform to separate, and past ${MAX_FREQ_COLS} the fastest column's wave is under 8px a ` +
+      'cycle on a 1080-wide frame. The columns stand for positions, so a representative few say the same thing.');
+  }
   const gx = W * 0.14, gw = W * 0.72, colW = gw / cols;
   const rowY = H * 0.3, rowH = H * 0.2;
   const sumY = H * 0.62, specY = H * 0.82;
@@ -42,7 +60,9 @@ export const FrequencyEncode: React.FC<{accent?: string; accent2?: string; label
   for (let i = 0; i < cols; i++) {
     const cx0 = gx + i * colW, f = freqOf(i);
     const pts: string[] = [];
-    for (let x = 6; x <= colW - 6; x += 2) {
+    // sampled every pixel: at 2px the fastest columns aliased into peaks of visibly different heights, which
+    // reads as different amplitudes — the very claim the equal peaks below exist not to make
+    for (let x = 6; x <= colW - 6; x += 1) {
       const u = (x - 6) / (colW - 12);
       // THE TEMPORAL PHASE, in seconds. Authored as `t * 6` — which reads like radians per second and is
       // not: `t` runs 0→1 across the whole clip, so the readout waveform advanced 0.95 of one cycle in five
@@ -68,7 +88,7 @@ export const FrequencyEncode: React.FC<{accent?: string; accent2?: string; label
   const peaks: React.ReactNode[] = [];
   for (let i = 0; i < cols; i++) {
     const px = gx + (i + 0.5) * colW;
-    const hgt = lerp(0, H * 0.12, p3) * (0.6 + 0.4 * Math.sin(i));
+    const hgt = lerp(0, H * 0.11, p3);                     // equal: every column was encoded at the same amplitude
     peaks.push(<g key={i}>
       <line x1={px} y1={specY} x2={px} y2={specY - H * 0.11} stroke={`${accent}33`} strokeWidth={1} />
       <line x1={px} y1={specY} x2={px} y2={specY - hgt} stroke={i % 2 ? accent2 : accent} strokeWidth={5} />
@@ -87,9 +107,9 @@ export const FrequencyEncode: React.FC<{accent?: string; accent2?: string; label
         {colWaves}
         {/* summed readout */}
         <polyline points={sum.join(' ')} fill="none" stroke="#eaf6ff" strokeWidth={2.4} opacity={p2} />
-        <text x={gx} y={sumY - H * 0.11} fill="#c9d6ea" fontSize="18" fontFamily="var(--f-body, Inter, sans-serif)" opacity={p2}>one measured signal</text>
+        <text x={gx + gw / 2} y={rowY + rowH + 32} textAnchor="middle" fill="#c9d6ea" fontSize="18" fontFamily="var(--f-body, Inter, sans-serif)" opacity={p2}>one measured signal</text>
         {/* FFT separates it back into columns */}
-        <text x={gx} y={specY - H * 0.13} fill={accent} fontSize="20" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01(seg(t,0.56,0.66))}>one Fourier transform → columns</text>
+        <text x={gx + gw / 2} y={specY - H * 0.13} textAnchor="middle" fill={accent} fontSize="20" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01(seg(t,0.56,0.66))}>one Fourier transform → columns</text>
         {peaks}
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',

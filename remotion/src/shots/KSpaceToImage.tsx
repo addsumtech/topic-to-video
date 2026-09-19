@@ -1,9 +1,18 @@
 // KSpaceToImage — the inverse Fourier transform, MADE MEANINGFUL. A vertical sweep (the 2D inverse FFT
 // "computing" across the frame) turns the raw k-space FREQUENCY pattern (a symmetric lattice of dots, bright at
-// the low-frequency centre) on its right into the reconstructed IMAGE (a coherent brain cross-section) on its
-// left. The contrast — incoherent frequencies vs a coherent picture — IS the idea (k-space is not the image;
+// the low-frequency centre) on its right into the reconstructed IMAGE on its left — the film's own scan, passed
+// as `src`. The contrast — incoherent frequencies vs a coherent picture — IS the idea (k-space is not the image;
 // the transform makes it one). Purpose-built because no library shot encodes this. Deterministic (pure fn of
 // useT); theme-driven palette.
+//
+// WITHOUT `src` THERE IS NO ANATOMY. The fallback used to be a drawn BRAIN — skull ellipse, cortex outline,
+// midline fissure — so every film that reached for the register without an image reconstructed a head: a
+// knee film's k-space resolved into a brain, and a film about a sound spectrum did too. What the transform
+// produces is a claim about the subject, and only the film knows its subject. With no `src` the image side is
+// now an empty image frame holding a soft, structure-free glow at its centre: the smooth blob that a lattice
+// whose energy sits entirely at the centre transforms into, which says "the transform makes a coherent image"
+// and nothing about what the image is of. It is the same in the standalone demo — there is no way to tell a
+// demo render from a film that simply forgot `src`, so neither gets a picture the film did not choose.
 
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
@@ -35,13 +44,9 @@ export const KSpaceToImage: React.FC<{accent?: string; accent2?: string; label?:
       fill={(c + r) % 5 === 0 ? accent2 : accent} opacity={(0.10 + amp * 0.8) * tw} />);
   }
 
-  // --- the reconstructed image: a stylised brain cross-section (skull ellipse + brain outline + fissure) ---
+  // --- the reconstructed image's frame: a square the film's scan fills (or, with no scan, a structure-free glow) ---
   const rx = Math.min(W, H) * 0.19, ry = rx * 1.22;
   const img = clamp01((sweep - 0.02) / 0.4);               // fades in just behind the sweep front
-  const brain = `M ${cx} ${cy - ry * 0.86}
-    C ${cx + rx * 0.95} ${cy - ry * 0.86}, ${cx + rx * 0.92} ${cy + ry * 0.55}, ${cx + rx * 0.5} ${cy + ry * 0.82}
-    C ${cx + rx * 0.2} ${cy + ry * 0.98}, ${cx - rx * 0.2} ${cy + ry * 0.98}, ${cx - rx * 0.5} ${cy + ry * 0.82}
-    C ${cx - rx * 0.92} ${cy + ry * 0.55}, ${cx - rx * 0.95} ${cy - ry * 0.86}, ${cx} ${cy - ry * 0.86} Z`;
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 46%, #0b1120, #05060a)')}}>
@@ -50,32 +55,15 @@ export const KSpaceToImage: React.FC<{accent?: string; accent2?: string; label?:
         <svg width={W} height={H} style={{position: 'absolute'}}>{dots}</svg>
       </AbsoluteFill>
 
-      {/* the reconstructed IMAGE (shown to the LEFT of the sweep front) — a REAL scan if `src` is given, else a
-          drawn brain outline. The real image makes the reveal substantive: the sweep resolves the actual scan. */}
+      {/* the reconstructed IMAGE (shown to the LEFT of the sweep front) — the film's REAL scan when `src` is given:
+          the sweep resolves the actual image. Without one, the same frame holds a soft centred glow and nothing
+          that could be read as a body part (see the header). */}
       <AbsoluteFill style={{clipPath: `inset(0 ${(W - sweepX).toFixed(1)}px 0 0)`, opacity: img}}>
-        {src ? (
-          <div style={{position: 'absolute', left: cx - ry, top: cy - ry, width: ry * 2, height: ry * 2,
-            borderRadius: 8, overflow: 'hidden', boxShadow: `0 0 0 1.5px ${accent}88`}}>
-            <Img src={staticFile(src)} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
-          </div>
-        ) : null}
-        <svg width={W} height={H} style={{position: 'absolute', opacity: src ? 0 : 1}}>
-          <defs>
-            <radialGradient id="ksi-core" cx="50%" cy="46%" r="60%">
-              <stop offset="0%" stopColor={accent} stopOpacity="0.5" />
-              <stop offset="55%" stopColor={accent2} stopOpacity="0.16" />
-              <stop offset="100%" stopColor="#05060a" stopOpacity="0" />
-            </radialGradient>
-          </defs>
-          <ellipse cx={cx} cy={cy} rx={rx * 1.16} ry={ry * 1.08} fill="url(#ksi-core)" />
-          <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill="#0a1424" stroke={accent} strokeWidth={2.5} opacity={0.9} />
-          <path d={brain} fill="#0e1b30" stroke={accent2} strokeWidth={2} opacity={0.85} />
-          <line x1={cx} y1={cy - ry * 0.72} x2={cx} y2={cy + ry * 0.62} stroke={accent} strokeWidth={1.4} opacity={0.55} />
-          <path d={`M ${cx - rx * 0.55} ${cy - ry * 0.2} C ${cx - rx * 0.2} ${cy - ry * 0.05}, ${cx - rx * 0.2} ${cy + ry * 0.25}, ${cx - rx * 0.5} ${cy + ry * 0.4}`}
-            fill="none" stroke={accent} strokeWidth={1.2} opacity={0.4} />
-          <path d={`M ${cx + rx * 0.55} ${cy - ry * 0.2} C ${cx + rx * 0.2} ${cy - ry * 0.05}, ${cx + rx * 0.2} ${cy + ry * 0.25}, ${cx + rx * 0.5} ${cy + ry * 0.4}`}
-            fill="none" stroke={accent} strokeWidth={1.2} opacity={0.4} />
-        </svg>
+        <div style={{position: 'absolute', left: cx - ry, top: cy - ry, width: ry * 2, height: ry * 2,
+          borderRadius: 8, overflow: 'hidden', boxShadow: `0 0 0 1.5px ${accent}88`,
+          background: src ? undefined : `radial-gradient(closest-side, ${accent}6b 0%, ${accent}2b 40%, ${accent}0a 75%, #0a142400 100%), #0a1424`}}>
+          {src ? <Img src={staticFile(src)} style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : null}
+        </div>
       </AbsoluteFill>
 
       {/* the sweep front — the FFT computing across the frame */}

@@ -128,6 +128,7 @@ const Scene: React.FC<{n: number; tones: string[]; t: number}> = ({n, tones, t})
               <mesh position={[Math.cos(mid) * (r - RING_R), 0, Math.sin(mid) * (r - RING_R)]}
                 rotation={[-Math.PI / 2, 0, -mid + span * 0.5]}>
                 <torusGeometry args={[RING_R, TUBE * 1.05, 10, 64, span * 0.11]} />
+                {/* // @cycles: one inlay tone per part so neighbouring parts read apart; the tone is a mark, not a claim, and parts are never repeated */}
                 <meshStandardMaterial color={tones[i % tones.length]} emissive={tones[i % tones.length]}
                   emissiveIntensity={0.45 + 0.45 * s} roughness={0.45} />
               </mesh>

@@ -77,7 +77,7 @@ const WB_TRANS: Record<number, NonNullable<SceneSpec['transitionIn']>> = {
   2: {type: 'clock'},                            // CinematicTitle → ExplodedSchematic: the title OPENS the mechanism
   9: {type: 'slide', direction: 'from-right'},   // MapRoutes → MaterialHero: the routes push forward into the hero
   10: {type: 'dissolve'},                         // MaterialHero → ParticleForm: the solid hero DISSOLVES to particles
-  12: {type: 'carry'},                            // ChartLive → HandDrawn: the data COLLAPSES to a line, the human takeaway grows from it (crosses dark→light)
+  12: {type: 'carry'},                            // ChartLive → HandDrawn: the figure is carried into the human takeaway (crosses dark→light). No trend line: the 68× is one sourced number, and ChartLive draws a line only from a `series` it is given
 };
 // The default preview is SILENT (no demo audio ships with the skill) — a real film's per-scene narration is
 // supplied by render_remotion.py from the out_dir (`sc.mp3`), served via --public-dir.

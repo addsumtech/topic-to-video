@@ -31,6 +31,7 @@ export const DiffusionDenoise: React.FC<{src?: string; accent?: string; label?: 
   const grain: React.ReactNode[] = [];
   const n = Math.round(700 * noiseOp);
   for (let i = 0; i < n; i++)
+    // @decor: film grain: random speckle IS the noise being removed, and nothing reads a size off one grain
     grain.push(<rect key={i} x={hash01(i * 2 + 1) * S} y={hash01(i * 2 + 5) * S} width={2 + hash01(i) * 4} height={2 + hash01(i * 3) * 4}
       fill={hash01(i * 7) > 0.5 ? '#fff' : accent} opacity={0.2 + hash01(i * 9) * 0.6} />);
   const step = Math.min(8, Math.max(1, Math.round(clean * 8)));

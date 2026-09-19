@@ -140,7 +140,9 @@ def contest_still(key, topic):
                                            "items": ["Plan it", "Pull the data", "Draft the deck", "Ship it"]}),
         "kinetic-editorial": ("LiquidChrome", {"word": up, "tagline": t.lower()[:40]}),
         "cinematic-craft": ("MaterialHero", {"title": t[:40]}),
-        "data-story": ("ChartLive", {"label": t.lower()[:40]}),
+        # Not ChartLive: a topic string carries no figure and no series, and the register now draws neither
+        # without one — the still used to be an invented "128k" over a made-up rising line.
+        "data-story": ("WireGlobe", {"tagline": t.lower()[:40]}),
         "retro-playful": ("NeonGrid", {"title": up, "tagline": t.lower()[:40]}),
         "terminal-technical": ("CodeCompose", {"filename": re.sub(r"[^a-z0-9]+", "_", t.lower())[:24] + ".py"}),
     }

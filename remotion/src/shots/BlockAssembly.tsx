@@ -1,6 +1,14 @@
 // SHOT · Block Assembly — Notion language: a document BUILDS itself block by block. Each block snaps into
 // the page (slide-up + settle) top-to-bottom — title, text, callout, to-dos, table. Warm off-white, calm,
 // minimal ink (deliberately unlike the loud/dark shots). Deterministic staggered assembly.
+//
+// A TICK IS THE FILM'S, OR THERE IS NO TICK. The to-do block used to tick and strike through the first two
+// items of whatever list it was handed (`k < 2 ? '✓'` plus `line-through`), so a film listing three steps it
+// had not started shipped a page saying two of them were finished — and a film listing its three findings
+// shipped the first two crossed out, as though they had been withdrawn. "Done" is a claim about an item and
+// only the film can make it. Each item may now carry `done: true`; an item without it is an open to-do, and
+// a list with no `done` anywhere is a list with nothing finished. The standalone demo keeps its two ticks by
+// saying so in its own data.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -22,10 +30,44 @@ const Block: React.FC<{i: number; t: number; children: React.ReactNode}> = ({i, 
 const DOC_H = 760;   // the composed stack's height at scale 1, measured from its top at 150, IN LATIN
 const DOC_W = 1120;  // the document's own width at scale 1 — the measure every block wraps in
 
-export const BlockAssembly: React.FC<{title?: string; callout?: string; items?: string[]; tableHeaders?: string[]}> = ({
+export type BlockTodo = {
+  label: string;
+  /** true only when the film says this item is finished: it is then ticked and struck through */
+  done?: boolean;
+};
+
+// Past eight the page has to shrink below ~24px type at 1:1 to fit (it scales as a page, never clips), which
+// is a list, not a document being assembled.
+export const MAX_BLOCK_TODOS = 8;
+const DEFAULT_TODOS: BlockTodo[] = [
+  {label: 'Pull the financials', done: true}, {label: 'Draft the narrative', done: true}, {label: 'Design 24 slides'},
+];
+
+const normaliseTodos = (items: unknown): BlockTodo[] => {
+  if (!Array.isArray(items) || items.length < 1 || items.length > MAX_BLOCK_TODOS) {
+    throw new Error(
+      `BlockAssembly needs 1-${MAX_BLOCK_TODOS} \`items\` (got ${Array.isArray(items) ? items.length : typeof items}). ` +
+      'Each is one to-do on the page; past eight the page shrinks below readable type — split the list across ' +
+      'two beats or cast a list register.');
+  }
+  return items.map((it: any, i: number) => {
+    const label = String((typeof it === 'string' ? it : it?.label) ?? '').trim();
+    if (!label) throw new Error(`BlockAssembly: item ${i + 1} has no label.`);
+    const done = typeof it === 'string' ? undefined : it?.done;
+    if (done != null && typeof done !== 'boolean') {
+      throw new Error(`BlockAssembly: item ${i + 1} ("${label}") has \`done: ${JSON.stringify(done)}\` — pass true, ` +
+        'false, or leave it out. Only a film that says an item is finished gets a tick.');
+    }
+    return {label, done: done === true};
+  });
+};
+
+export const BlockAssembly: React.FC<{title?: string; callout?: string; items?: (string | BlockTodo)[]; tableHeaders?: string[]}> = ({
   title = 'Q3 Board Deck', callout = 'Goal: a board-ready deck from the Q3 numbers, by Friday.',
-  items = ['Pull the financials', 'Draft the narrative', 'Design 24 slides'],
+  items: ITEMS = DEFAULT_TODOS,
   tableHeaders: TABLE_HEADERS = ['', '', '']} = {}) => {
+  const todos = normaliseTodos(ITEMS);
+  const items = todos.map((d) => d.label);
   const dna = useDNA();
   const BG = dna?.bg ?? '#faf9f7', FG = dna?.fg ?? INK, ACC = dna?.accent ?? ACCENT, GOOD = dna?.accent2 ?? '#12b76a';
   const MUTE = dna?.line ?? DIM, SURF = dna?.surface ?? '#fff', DIMc = dna?.dim ?? '#8b877d', ON = dna?.onAccent ?? '#fff';
@@ -76,10 +118,10 @@ export const BlockAssembly: React.FC<{title?: string; callout?: string; items?: 
         </Block>
         <Block i={3} t={t}>
           <div style={{display: 'flex', flexDirection: 'column', gap: 20}}>
-            {items.map((s, k) => (
+            {todos.map(({label: s, done}, k) => (
               <div key={k} style={{display: 'flex', alignItems: 'center', gap: 20}}>
-                <div style={{width: 34, height: 34, borderRadius: 7, background: k < 2 ? GOOD : SURF, border: `2px solid ${k < 2 ? GOOD : CHECK_EDGE}`, color: ON, font: '700 20px/30px var(--f-body, Inter)', textAlign: 'center'}}>{k < 2 ? '✓' : ''}</div>
-                <div style={{font: `600 38px/${leading(s, 1)} var(--f-body, Inter,system-ui,sans-serif)`, textWrap: 'balance', color: k < 2 ? DONE_INK : FG, textDecoration: k < 2 ? 'line-through' : 'none'}}>{s}</div>
+                <div style={{width: 34, height: 34, borderRadius: 7, background: done ? GOOD : SURF, border: `2px solid ${done ? GOOD : CHECK_EDGE}`, color: ON, font: '700 20px/30px var(--f-body, Inter)', textAlign: 'center'}}>{done ? '✓' : ''}</div>
+                <div style={{font: `600 38px/${leading(s, 1)} var(--f-body, Inter,system-ui,sans-serif)`, textWrap: 'balance', color: done ? DONE_INK : FG, textDecoration: done ? 'line-through' : 'none'}}>{s}</div>
               </div>
             ))}
           </div>

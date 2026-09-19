@@ -13,6 +13,7 @@ pass-through away and the chart is unreachable; take the fallback away and the d
 """
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -72,7 +73,11 @@ def test_the_carousel_does_not_put_an_empty_chart_on_centre_stage():
     src = open(os.path.join(_REM, "src", "shots", "SurfaceCarousel.tsx"), encoding="utf-8").read()
     assert "series?: number[]" in src, "a Surface still cannot be given chart data"
     assert "series: s.series" in src, "the carousel accepts `series` and never passes it to the surface"
-    body = src[src.index("const wanted ="):src.index("const content:")]
+    # the page choice used to rotate by POSITION (`PAGES[i % PAGES.length]`); it is now the film's `page`, else
+    # the chart only when this surface has data, else one neutral page for every surface
+    body = src[src.index("const hasData ="):src.index("const content:")]
+    code = re.sub(r"//[^\n]*", "", src)            # the header quotes the old line to explain the change
+    assert "PAGES[i %" not in code, "the carousel picks a surface's page by its position again"
     assert "'chart'" in body and "hasData" in body, (
         "the page rotation no longer skips the chart for a surface with no data:\n%s" % body)
     assert "isFinite" in body, (

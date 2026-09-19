@@ -27,11 +27,13 @@ export const MRIPipeline: React.FC<{src?: string; accent?: string; accent2?: str
       for (let k = 0; k <= s - 20; k += 3) pts.push(`${x + 10 + k},${mid + Math.sin(k / 5) * (s * 0.3) * Math.exp(-k / (s * 0.9)) * p}`);
       return <polyline points={pts.join(' ')} fill="none" stroke="#eaf6ff" strokeWidth={2.4} />;
     }
+    // @positional: the four stages ARE the register's fixed mechanism (signal, encoding, k-space, image); stage 2 is always the gradient
     if (i === 1) { // gradient ramp grid
       const g: React.ReactNode[] = [];
       for (let c = 0; c < 6; c++) g.push(<line key={c} x1={x + 12 + c * (s - 24) / 5} y1={mid - s * 0.32} x2={x + 12 + c * (s - 24) / 5} y2={mid + s * 0.32} stroke={accent} strokeWidth={1.3} opacity={(0.3 + c * 0.13) * p} />);
       return <g>{g}</g>;
     }
+    // @positional: the four stages ARE the register's fixed mechanism (signal, encoding, k-space, image); stage 3 is always k-space
     if (i === 2) { // k-space dots
       const d: React.ReactNode[] = [];
       for (let r = 0; r < 6; r++) for (let c = 0; c < 6; c++) {

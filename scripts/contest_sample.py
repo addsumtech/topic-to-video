@@ -158,7 +158,7 @@ def _sample_shots(key, topic):
         ],
         "data-story": [
             ("KnowledgeGraph", {"hub": title, "items": nodes}),
-            ("DataOrrery", {"hub": title, "items": nodes}),
+            ("DataOrrery", {"hub": title, "items": nodes[:4]}),   # four orbits; it refuses a fifth
             ("WireGlobe", {"tagline": tag}),
         ],
         "retro-playful": [
@@ -175,7 +175,12 @@ def _sample_shots(key, topic):
         ],
     }
     generic = [("CinematicTitle", {"title": title}),
-               ("FocalIsolation", {"focalLabel": title}),
+               # the field is the topic's own tokens and the isolated one is named; given only a label it
+               # printed its demo file names and spotlit the demo's own pick. A topic that yields one token (a
+               # CJK phrase has no spaces to split on) has no field to isolate from, so it gets a register
+               # that needs none rather than the same word twice.
+               (("FocalIsolation", {"focalLabel": title, "items": list(dict.fromkeys(items))[:9], "focal": 0})
+                if len(set(items)) >= 2 else ("WireGlobe", {"tagline": tag})),
                ("ParticleForm", {"label": title})]
     return M.get(key, generic)
 

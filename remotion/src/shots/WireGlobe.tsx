@@ -42,6 +42,7 @@ export const WireGlobe: React.FC<{tagline?: string}> = ({tagline = 'connected to
 
   // integration nodes on the surface
   const NODES = [[20, 40], [-15, 120], [42, 200], [-30, 260], [8, 320], [55, 90]];
+  // @decor: unlabelled surface nodes and the arcs between them are the globe's texture; no film item is placed on them
   const arcs: [number, number][] = [[0, 2], [1, 4], [3, 5], [2, 4]];
 
   return (

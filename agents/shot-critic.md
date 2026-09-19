@@ -188,6 +188,15 @@ per-scene gate, not a nit. **But apply the director's own judgment — flag DEMO
 stock module the director KEPT because it already encodes THIS topic (recorded in `shot_adaptation.kept`) is
 correct, not a violation; do NOT demand a redesign for its own sake. What fails S10 is a module carrying the
 DEMO's generic meaning — never one that genuinely fits the content just because it shipped with the register.
+**CLAIMS NOBODY MADE (the content contract, `references/remotion-shot-authoring.md` §B1):** for every item on the
+frame, list what is drawn ABOUT it — a picture, a status mark (✓, strike-through, green, "active", a lit toggle),
+an emphasis (the one accent-coloured item, the spotlit one, the WINNER chip), a quantity (a bar's height, a fill,
+a count, a trend line), a relation (an edge between two items). Then find each one in `shot_props`. Anything you
+cannot trace to a prop is a claim the film did not make — REVISE, whatever it looks like. The static gate catches
+the index-and-constant shapes; it cannot see an index taken from the CLOCK (a highlight that lands on item 4
+because the animation ended there) or a fill that runs to 100% while the prop says 40, which is why this pass
+exists. A figure on the settled frame must read exactly as the prop wrote it ("−12" is not "12", "3–5" is not
+"35").
 **FRAME-CRAFT (the floor in `references/remotion-shot-authoring.md`
 §A):** read the `text_safe_qa.py` report — any TYPE cut off by the canvas is a hard REVISE. Note what is NOT a
 finding, and must not be treated as one: a full-bleed field or flood, and type cropped by a container the author

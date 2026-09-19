@@ -41,7 +41,7 @@ export const PlanPalimpsest: React.FC<{
   const {width: W, height: H} = useVideoConfig();
   const FG = dna?.fg ?? FG_D0, DIM = dna?.dim ?? DIM_D0;
   const ACC = dna?.accent ?? ACC_D0, ACC2 = dna?.accent2 ?? ACC2_D0, LINE = dna?.line ?? LINE_D0;
-  const disp = 'var(--f-display, Georgia, serif)';
+  const disp = 'var(--f-display, "Source Serif 4", Georgia, serif)';
   const mono = 'var(--f-mono, ui-monospace, monospace)';
   const body = 'var(--f-body, system-ui, sans-serif)';
   const hair = Math.max(1, Math.round(W * 0.0012));

@@ -752,9 +752,14 @@ def test_geometry_is_kept_out_of_the_copy_gate_without_being_called_untestable()
     radius. Fed a fixture it renders nonsense; filed UNTESTABLE it claims the register has copy nobody can
     reach, while every string it draws is fed and measured. It keeps its own default and says nothing.
 
-    The distinction must be EARNED, not assumed: a type the reader cannot parse is still untestable."""
+    The distinction must be EARNED, not assumed: a type the reader cannot parse is still untestable.
+
+    ...AND GEOMETRY THAT TRAVELS WITH COPY IS FED, NOT KEPT. TechnicalPlate now refuses `parts` without
+    `strokes` (a film's part names used to land on the demo bicycle), so the sweep feeds the fixed object in
+    `_COUPLED_GEOMETRY` — coordinates, still no Chinese in a radius, and still never reported untestable."""
     props, untestable = c.cjk_props("TechnicalPlate")
-    assert "strokes" not in props and "strokes" not in untestable, (props.get("strokes"), untestable)
+    assert "strokes" not in untestable, untestable
+    assert props.get("strokes") == c._COUPLED_GEOMETRY["strokes"], props.get("strokes")
     assert {"kicker", "object", "parts"} <= set(props), props
     src = open(os.path.join(_ROOT, "remotion", "src", "shots", "TechnicalPlate.tsx"), encoding="utf-8").read()
     assert c._type_fields("Stroke", src) is not None, "the union alias no longer resolves"

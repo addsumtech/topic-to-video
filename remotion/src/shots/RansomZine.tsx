@@ -15,7 +15,7 @@ export const DURATION = 145; // ~4.8s
 const SCRAPS = ['#f2ead6', '#ffffff', '#ffd23f', '#ff5c8a', '#151515', '#c9a24b', '#7ac0ff'];
 const INKS = ['#151515', '#151515', '#151515', '#ffffff', '#ffd23f', '#151515', '#151515'];
 const FONTS = ['"Playfair Display", Georgia, serif', 'Impact, system-ui, sans-serif',
-  '"JetBrains Mono", monospace', 'Inter, system-ui, sans-serif', 'Georgia, serif'];
+  '"JetBrains Mono", monospace', 'Inter, system-ui, sans-serif', '"Source Serif 4", Georgia, serif'];
 
 export const RansomZine: React.FC<{word?: string; tagline?: string}> = ({
   word: WORD = 'STAY WEIRD', tagline: TAG = 'cut · paste · repeat'} = {}) => {

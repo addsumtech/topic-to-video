@@ -2,6 +2,14 @@
 // (flash + the item flips to a finished ✓ state), and exit as "done". The "assembly line / it just processes
 // everything" register (family I — mechanical). Deterministic (belt scroll + item x = fn of t). No fabricated
 // numbers.
+//
+// BOTH STATUS WORDS ARE THE FILM'S. The stamped card's word was already a prop (`doneLabel`), but the card
+// waiting for the press printed a literal `queued` — so a Chinese film's belt read 「✓ 已处理」 on one side of
+// the stamp and English "queued" on the other, and no prop could reach it. It is `queuedLabel` now (default
+// 'queued', listed by the demo-copy gate when omitted; '' leaves the waiting cards with just their label).
+// The belt carries each item once and spaces the cards evenly along the run, so it has a capacity: a 208px
+// card needs 216px of run, which is ten cards on a 1920-wide frame and seven on a 1080-wide one. Past that
+// the cards were drawn touching and then on top of each other; that, and an empty list, now throw.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -10,12 +18,24 @@ import {useDNA, dnaHas, ScanGrid} from '../runtime/dna';
 
 const BG = '#0b0c11', DONE = '#37d4a6';
 export const DURATION = 155; // ~5.2s
+const CARD_RUN = 216;   // a 208px card plus 8px of belt between neighbours
 
-export const ConveyorBelt: React.FC<{items?: string[]; title?: string; doneLabel?: string}> = ({
+export const ConveyorBelt: React.FC<{items?: string[]; title?: string; doneLabel?: string; queuedLabel?: string}> = ({
   items: ITEMS = ['ticket', 'email', 'doc', 'lead', 'bug'], title: TITLE = 'Everything, handled',
-  doneLabel: DONELABEL = '✓ done'} = {}) => {
+  doneLabel: DONELABEL = '✓ done', queuedLabel: QUEUEDLABEL = 'queued'} = {}) => {
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
+  // the run a card travels is W + 440 (it enters 220px off the left and leaves 220px off the right), and the
+  // cards are spaced evenly along it, so the count that fits without overlap follows from the width
+  const maxCards = Math.floor((W + 440) / CARD_RUN);
+  if (!Array.isArray(ITEMS) || ITEMS.length < 1) {
+    throw new Error('ConveyorBelt needs at least one item in `items` — an empty belt has nothing to process.');
+  }
+  if (ITEMS.length > maxCards) {
+    throw new Error(`ConveyorBelt carries at most ${maxCards} \`items\` on a ${W}px-wide frame (got ${ITEMS.length}). ` +
+      `Each card needs ${CARD_RUN}px of belt; more would be ` +
+      'drawn over each other. Name fewer, representative items, or cast a list register for a long list.');
+  }
   // DESIGN DNA — inherit the film's visual system (or the shot's original look when no DNA is provided).
   const dna = useDNA();
   const done = dna?.accent ?? DONE;
@@ -80,7 +100,7 @@ export const ConveyorBelt: React.FC<{items?: string[]; title?: string; doneLabel
           label or a full-sentence doneLabel never bleeds past the box (frame-craft §A.8). Short demo labels keep
           the original 30px look. */}
       {cards.map((c, k) => {
-        const sub = c.stamped ? DONELABEL : 'queued';
+        const sub = c.stamped ? DONELABEL : QUEUEDLABEL;
         const lLen = [...(c.label ?? '')].length, sLen = [...sub].length;
         const lfs = lLen <= 6 ? 30 : lLen <= 10 ? 23 : lLen <= 16 ? 18 : 15;
         const sfs = sLen <= 8 ? 18 : sLen <= 16 ? 15 : 13;
@@ -95,8 +115,8 @@ export const ConveyorBelt: React.FC<{items?: string[]; title?: string; doneLabel
             boxShadow: c.stamped ? `0 16px 40px ${done}44` : '0 12px 30px #0006'}}>
             <div style={{color: c.stamped ? onAccLabel : fg, textAlign: 'center', maxWidth: 180,
               wordBreak: 'break-word', textWrap: 'balance', font: `800 ${lfs}px/1.12 ${labelFont}`}}>{c.label}</div>
-            <div style={{color: c.stamped ? onAccSub : dim, textAlign: 'center', maxWidth: 180,
-              wordBreak: 'break-word', font: `700 ${sfs}px/1.15 ${dna?.fontMono ?? '"JetBrains Mono", monospace'}`}}>{sub}</div>
+            {sub ? <div style={{color: c.stamped ? onAccSub : dim, textAlign: 'center', maxWidth: 180,
+              wordBreak: 'break-word', font: `700 ${sfs}px/1.15 ${dna?.fontMono ?? '"JetBrains Mono", monospace'}`}}>{sub}</div> : null}
           </div>
         );
       })}

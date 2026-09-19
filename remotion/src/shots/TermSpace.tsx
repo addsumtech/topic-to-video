@@ -76,6 +76,7 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
   const n = list.length;
   const poses: Pose[] = list.map((_, i) => {
     const p = ROOM[i];
+    // @fallback: an omitted pose coordinate is the origin of the space: a camera position, not a reading about a screen
     return {x: (p.x ?? 0) * U, y: (p.y ?? 0) * U, z: (p.z ?? 0) * U, rx: p.rx, ry: p.ry};
   });
 
@@ -112,6 +113,7 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
 
   const out = easeOutCubic(clamp01(seg(t, TOUR_END, 0.93)));
   const cam: Pose = {
+    // @fallback: an omitted pose coordinate is the origin of the space: a camera position, not a reading about a screen
     x: lerp(tour.x ?? 0, wide.x ?? 0, out), y: lerp(tour.y ?? 0, wide.y ?? 0, out),
     z: lerp(tour.z ?? 0, wide.z ?? 0, out), rx: lerp(tour.rx ?? 0, wide.rx ?? 0, out),
     ry: lerp(tour.ry ?? 0, wide.ry ?? 0, out),

@@ -84,6 +84,25 @@ export const FACES: Face[] = [
 // underneath it. A 37-scene film then died at exactly the failure this comment describes:
 //   delayRender() "Loading font Space Grotesk (url: …)" was called but not cleared after 118000ms
 // with the bundled asset sitting on local disk the whole time. One handle, one timeout, ours.
+// LINING FIGURES, EVERYWHERE, SET ONCE. Playfair Display — the editorial DNA's display face — ships OLD-STYLE
+// figures by default: in "3,457,689" the 3, 4, 5, 7 and 9 drop below the baseline and the 6 and 8 rise above
+// it, so a hero number bobs up and down. The person this pipeline works for has ruled that out twice ("忽上忽下
+// 不是很美观"), and it shipped again because it was left to each register to remember. `lnum` is a feature of
+// the face, so it is switched on at the root and inherited by every element on every frame. It is
+// `font-feature-settings`, not `font-variant-numeric`, on purpose: a register that sets `tabular-nums` replaces
+// the whole `font-variant-numeric` value (and with it any `lining-nums`), whereas a feature setting survives
+// it. Faces without an `lnum` table ignore it; they are lining already (see tests/test_lining_figures.py).
+if (typeof document !== 'undefined' && !document.getElementById('lining-figures')) {
+  const st = document.createElement('style');
+  st.id = 'lining-figures';
+  // `*`, not `body`: most registers set their type with the `font` shorthand inline, and the shorthand resets
+  // `font-feature-settings` on that element, so an inherited value never reached the digits (verified: a
+  // body-level rule left EdStat's Playfair figure exactly as old-style as before). `!important` because the
+  // rule has to beat an inline shorthand; no register sets its own feature settings (the lining test checks).
+  st.textContent = '*, *::before, *::after { font-feature-settings: "lnum" 1 !important; }';
+  document.head.appendChild(st);
+}
+
 const handle = delayRender('loading DNA typefaces', {timeoutInMilliseconds: 300000});
 Promise.all(
   FACES.map(async (f) => {

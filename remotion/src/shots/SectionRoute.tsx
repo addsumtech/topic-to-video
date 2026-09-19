@@ -11,6 +11,15 @@
 // Reads as a measured drawing rather than a diagram: the levels are ruled lines with a leader label, the
 // route is a drawn polyline with a load riding it, and every LIFT (a vertical run) is called out with its
 // own tick, because the lift is the thing being argued about.
+//
+// THE ROUTE IS THE FILM'S OR THERE IS NO ROUTE. `levels` and `route` used to default independently, so a
+// film that named its own levels but no route got the demo's route drawn through them — climb from the
+// bottom level to the top and back down, "start" to "end" — which is exactly the claim this register exists
+// to make ("it crossed levels it had no business crossing"), made about the film's section by nobody. A
+// route of fewer than two stops was silently replaced by a flat line across level 0, and a stop naming a
+// level the section does not have was clamped onto the nearest one. Now `levels` and `route` come together
+// or not at all (neither is the standalone demo), a route needs at least two stops, and every stop needs an
+// integer `level` inside the section and an `x` in 0..1, or the shot throws saying which.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -27,6 +36,12 @@ const ACC_D0 = '#e2603f', ACC2_D0 = '#5fa8a0', LINE_D0 = '#22303f';
 
 type Stop = {level: number; x: number; label?: string};
 
+// The standalone demo's section. Module constants so the shot can tell "the film passed neither" (identity)
+// from "the film passed one of the two", which it refuses.
+const DEFAULT_LEVELS: string[] = ['Upper level', 'Middle level', 'Lower level'];
+const DEFAULT_ROUTE: Stop[] = [{level: 2, x: 0.06, label: 'start'}, {level: 0, x: 0.34}, {level: 0, x: 0.66},
+                               {level: 2, x: 0.94, label: 'end'}];
+
 export const SectionRoute: React.FC<{
   kicker?: string;
   levels?: string[];          // top → bottom; the section's bands
@@ -36,9 +51,8 @@ export const SectionRoute: React.FC<{
   markLifts?: boolean;        // call out each vertical run (the point of the indirect case)
 }> = ({
   kicker = 'THE ROUTE',
-  levels: LEVELS = ['Upper level', 'Middle level', 'Lower level'],
-  route: ROUTE = [{level: 2, x: 0.06, label: 'start'}, {level: 0, x: 0.34}, {level: 0, x: 0.66},
-                  {level: 2, x: 0.94, label: 'end'}],
+  levels: LEVELS = DEFAULT_LEVELS,
+  route: ROUTE = DEFAULT_ROUTE,
   verdict = '',
   note = '',
   markLifts = true} = {}) => {
@@ -51,18 +65,46 @@ export const SectionRoute: React.FC<{
   const disp = 'var(--f-display, system-ui, sans-serif)';
   const mono = 'var(--f-mono, ui-monospace, monospace)';
 
+  // ── the section and its route, from the film or not at all (see the header).
+  if ((LEVELS === DEFAULT_LEVELS) !== (ROUTE === DEFAULT_ROUTE)) {
+    throw new Error(LEVELS === DEFAULT_LEVELS
+      ? 'SectionRoute got a `route` but no `levels`: its stops name level indices, and without the film\'s ' +
+        'levels they would be drawn on the demo\'s "Upper / Middle / Lower level". Pass `levels` (top → bottom).'
+      : 'SectionRoute got `levels` but no `route`, so it would draw the demo\'s climb-and-drop through the ' +
+        'film\'s section — the very claim this register makes, made by nobody. Pass `route: [{level, x, label?}]` ' +
+        'in travel order.');
+  }
+  if (!Array.isArray(LEVELS) || LEVELS.length < 2) {
+    throw new Error(`SectionRoute needs at least 2 \`levels\` (got ${Array.isArray(LEVELS) ? LEVELS.length : typeof LEVELS}) — a section with one level has nothing to climb.`);
+  }
+  if (!Array.isArray(ROUTE) || ROUTE.length < 2) {
+    throw new Error(`SectionRoute needs a \`route\` of at least 2 stops (got ${Array.isArray(ROUTE) ? ROUTE.length : typeof ROUTE}) — ` +
+      'a start and an end. It no longer draws a stand-in flat line in place of a route it was not given.');
+  }
+  ROUTE.forEach((st, i) => {
+    const lv = (st as any)?.level, x = (st as any)?.x;
+    if (!(Number.isInteger(lv) && lv >= 0 && lv < LEVELS.length)) {
+      throw new Error(`SectionRoute: stop ${i + 1} has level ${JSON.stringify(lv)}; it must be an integer index into ` +
+        `\`levels\` (0 = "${LEVELS[0]}" … ${LEVELS.length - 1} = "${LEVELS[LEVELS.length - 1]}"). A stop off the ` +
+        'section would otherwise be clamped onto a level the route never visited.');
+    }
+    if (!(typeof x === 'number' && x >= 0 && x <= 1)) {
+      throw new Error(`SectionRoute: stop ${i + 1} needs \`x\` in 0..1 across the section, got ${JSON.stringify(x)}.`);
+    }
+  });
+
   // ── geometry. The section fills the content zone; every measure is a FRACTION of the frame so the shot
   // reflows at 9:16 / 1:1 / 4:5 instead of running off the edge.
   const top = CONTENT_TOP + H * 0.06;
   const bottom = H - captionBand(W, H) - H * 0.09;   // leave room for the verdict under the section
-  const nL = Math.max(2, LEVELS.length);
+  const nL = LEVELS.length;
   const bandH = (bottom - top) / (nL - 1);
   const yOf = (lv: number) => top + Math.max(0, Math.min(nL - 1, lv)) * bandH;
   const labelW = Math.min(W * 0.20, 300);
   const x0 = labelW + W * 0.05, x1 = W - W * 0.06;
   const xOf = (f: number) => x0 + clamp01(f) * (x1 - x0);
 
-  const stops = (ROUTE && ROUTE.length >= 2) ? ROUTE : [{level: 0, x: 0}, {level: 0, x: 1}];
+  const stops = ROUTE;
   const pts = stops.map((s) => ({x: xOf(s.x), y: yOf(s.level), label: s.label, level: s.level}));
 
   // path length per segment, so the load moves at a CONSTANT speed rather than one segment per beat
@@ -130,7 +172,10 @@ export const SectionRoute: React.FC<{
       {/* every LIFT gets its own tick — the vertical runs are what the beat is arguing about */}
       {markLifts && drawn.slice(0, -1).map((p, i) => {
         const q = drawn[i + 1];
-        if (Math.abs(q.y - p.y) < 2 || p.on < 1) return null;
+        // `on` for the LAST segment is (total - cum[i]) / segLen[i], which floating point lands at 0.9999… —
+        // so the final lift of every route never got its tick, and the frame called out one climb and not the
+        // other. Every lift is marked the same way once it has been travelled.
+        if (Math.abs(q.y - p.y) < 2 || p.on < 1 - 1e-6) return null;
         // ON the run it marks, not at the segment's start: a diagonal run's start is nowhere near it
         const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
         return (

@@ -34,6 +34,16 @@ export type UiContent = {
   nav?: string[];        // sidebar entries
   items?: string[];      // card titles · table rows · form labels, depending on `page`
   series?: number[];     // chart values, PLOTTED AS GIVEN — never generated
+  // STATE IS CONTENT TOO. Which nav entry is current, which card is selected, which settings are on, which
+  // rows are flagged: each of these was chosen by POSITION (`i === 1`, `i === 0`, `i % 3 === 0`,
+  // `i % 4 === 0`), so every film's second nav entry was the page you were on, its first card was selected,
+  // and rows 1, 4 and 7 of any settings list read as switched ON — beside the film's own labels, claims nobody
+  // made. They are now given or absent, and absent draws the neutral state: nothing current, nothing selected,
+  // a form row with an empty field instead of a switch in a position.
+  active?: number;       // index into `nav` of the current page
+  selected?: number;     // index of the selected card on the `cards` page
+  on?: boolean[];        // per form row: the switch's state. Absent → the row shows a plain field, no switch
+  flagged?: number[];    // table rows whose status chip is lit
 };
 
 const PAGES: UiPage[] = ['cards', 'chart', 'table', 'form'];
@@ -164,7 +174,7 @@ export const UiSurface: React.FC<{
       display: 'flex', flexDirection: 'column', gap: Math.round(u * 0.030)}}>
       {Array.from({length: 6}).map((_, i) => {
         const label = navs[i];
-        const on = i === 1;
+        const on = content.active === i;
         return label && type(navPx) ? (
           <div key={i} style={{color: on ? accent : dim, font: `${on ? 700 : 500} ${navPx}px/${leading(label, 1.2)} ${body}`,
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>{label}</div>
@@ -207,7 +217,7 @@ export const UiSurface: React.FC<{
             // THE TINT GOES ON THE FILL, NOT ON THE ELEMENT. `opacity: 0.14` fades the card's own TITLE with
             // it, so the one card a shot has selected is the one card you cannot read — the highlight erasing
             // exactly what it was highlighting.
-            background: i === 0 ? `${accent}22` : 'transparent'}}>
+            background: content.selected === i ? `${accent}22` : 'transparent'}}>
             {label && type(cardPx) ? (
               <div style={{color: fg, font: `700 ${cardPx}px/${leading(label, 1.15)} ${body}`, flex: '0 0 auto',
                 maxHeight: titleBox.h, overflow: 'hidden',
@@ -272,17 +282,21 @@ export const UiSurface: React.FC<{
               <div style={{flex: 1, color: fg, font: `500 ${rowPx}px/${leading(label, 1.2)} ${body}`, whiteSpace: 'nowrap',
                 overflow: 'hidden', textOverflow: 'ellipsis'}}>{label}</div>
             ) : <div style={{flex: 1}}><Bar w={wid(i, inner.w * 0.22, inner.w * 0.55)} h={barH} c={fg} o={0.6} /></div>}
-            {isForm ? (
+            {isForm ? (Array.isArray(content.on) && typeof content.on[i] === 'boolean' ? (
               <div style={{width: Math.round(u * 0.11), height: Math.round(u * 0.058), borderRadius: 999,
-                background: i % 3 === 0 ? accent : dim, opacity: i % 3 === 0 ? 0.85 : 0.28,
-                display: 'flex', alignItems: 'center', justifyContent: i % 3 === 0 ? 'flex-end' : 'flex-start',
+                background: content.on[i] ? accent : dim, opacity: content.on[i] ? 0.85 : 0.28,
+                display: 'flex', alignItems: 'center', justifyContent: content.on[i] ? 'flex-end' : 'flex-start',
                 padding: Math.max(1, Math.round(u * 0.008)), boxSizing: 'border-box'}}>
                 <div style={{width: Math.round(u * 0.042), height: Math.round(u * 0.042), borderRadius: '50%',
                   background: surface}} />
               </div>
             ) : (
-              <Bar w={Math.round(inner.w * 0.10)} h={barH} c={i % 4 === 0 ? accent : dim}
-                o={i % 4 === 0 ? 0.85 : 0.32} />
+              // no state given: an empty field, which is a form row and says nothing about its value
+              <div style={{width: Math.round(u * 0.20), height: Math.round(u * 0.058), borderRadius: Math.round(radius * 0.5),
+                border: `${Math.max(1, bw)}px solid ${line}`, boxSizing: 'border-box'}} />
+            )) : (
+              <Bar w={Math.round(inner.w * 0.10)} h={barH} c={content.flagged?.includes(i) ? accent : dim}
+                o={content.flagged?.includes(i) ? 0.85 : 0.32} />
             )}
           </div>
         );

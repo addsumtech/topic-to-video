@@ -1,20 +1,63 @@
 // SHOT · Iso World — an isometric diorama builds itself: a tiled ground grid draws in, then labelled BLOCKS
 // (buildings) rise from it in an outward ripple, each a proper iso cube (shaded top/left/right faces). A
-// little world / workspace-as-a-city (family N · isometric). Deterministic (heights fixed by index, rise = fn
-// of t). True iso projection, painter's-ordered back-to-front.
+// little world / workspace-as-a-city (family N · isometric). Deterministic (rise = fn of t). True iso
+// projection, painter's-ordered back-to-front.
+//
+// EVERY LABELLED BUILDING STANDS THE SAME HEIGHT. A block's height came from the same hash that decided whether
+// its cell had a block (`hFrac: 0.5 + seed * 0.9`), so the film's labelled buildings ranged from 0.98 to 1.37 —
+// "this item is 40% bigger than that one", about a list of names that says nothing of the kind. The labels
+// also went to whichever hashed cells passed a second threshold, in scan order: there were thirteen such cells,
+// so a fourteenth item was silently dropped, and the first five items all landed in the back rows where the
+// chips collided ("Team" printed over "Code") above buildings hidden behind taller unlabelled ones.
+//
+// Now the film's items get their own cells, laid out for the count on a spread lattice (so no two chips share a
+// row closer than two cells and no labelled block stands directly in front of another), every labelled
+// building is one height, and the unlabelled filler — the city around them, which claims nothing — varies
+// BELOW that height, so the film's buildings are never hidden. 1-9 items; more throws.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA, dnaPalette} from '../runtime/dna';
+import {fitTextPx} from '../runtime/layout';
+import {leading} from '../runtime/cjkType';
 
 export const DURATION = 165; // 5.5s
 const BG_D0 = '#0a0d1a';
 const TONES0 = ['#5b8cff', '#ff6f91', '#37d4a6', '#f6a531', '#c07bff', '#4dd0e1'];
 const G = 7, TW = 150, TH = 76;
+export const MAX_ISO_ITEMS = 9;
+const LABEL_H = 1.25;                         // every labelled building, as a fraction of the 150px unit
+const FILLER_MIN = 0.3, FILLER_MAX = 0.85;    // the unlabelled city stays below the labelled buildings
+
+// [i, j] grid cells per item count, on the odd lattice of the 7x7 ground. Screen x ~ (i - j), y ~ (i + j):
+// cells on one screen row are >= 4 columns (300px) apart, adjacent rows are 2 steps (76px) apart. These are
+// WHERE a building stands, chosen so no chip collides — not a reading about any item — hence the declarations
+// for scripts/content_contract_qa.py, which reads a table of integer pairs as possibly-invented graph edges.
+const SLOTS: Record<number, [number, number][]> = {
+  1: [[3, 3]],  // @decor: layout cells, not data
+  2: [[1, 5], [5, 1]],  // @decor: layout cells, not data
+  3: [[1, 5], [3, 3], [5, 1]],  // @decor: layout cells, not data
+  4: [[1, 3], [3, 1], [3, 5], [5, 3]],  // @decor: layout cells, not data
+  5: [[1, 3], [3, 1], [3, 3], [3, 5], [5, 3]],  // @decor: layout cells, not data
+  6: [[1, 3], [3, 1], [1, 5], [5, 1], [3, 5], [5, 3]],  // @decor: layout cells, not data
+  7: [[1, 3], [3, 1], [1, 5], [3, 3], [5, 1], [3, 5], [5, 3]],  // @decor: layout cells, not data
+  8: [[1, 1], [1, 3], [3, 1], [1, 5], [5, 1], [3, 5], [5, 3], [5, 5]],  // @decor: layout cells, not data
+  9: [[1, 1], [1, 3], [3, 1], [1, 5], [3, 3], [5, 1], [3, 5], [5, 3], [5, 5]],  // @decor: layout cells, not data
+};
 
 export const IsoWorld: React.FC<{items?: string[]; title?: string}> = ({
   items: ITEMS = ['Docs', 'Chat', 'Data', 'Code', 'Team'], title: TITLE = 'Your world, built'} = {}) => {
+  if (!Array.isArray(ITEMS) || ITEMS.length < 1 || ITEMS.length > MAX_ISO_ITEMS) {
+    throw new Error(`IsoWorld needs 1-${MAX_ISO_ITEMS} \`items\` (got ${Array.isArray(ITEMS) ? ITEMS.length : typeof ITEMS}). ` +
+      'Each item is one labelled building on a 7x7 ground; past nine the labels crowd each other — group them, ' +
+      'or use a list register.');
+  }
+  const labels = ITEMS.map((x, k) => {
+    const s = String(x ?? '').trim();
+    if (!s) throw new Error(`IsoWorld: item ${k + 1} is empty.`);
+    return s;
+  });
   const dna = useDNA();
   const TONES = dnaPalette(dna, 6) ?? TONES0;   // derive the palette from the film's DNA (null DNA = the original)
   const BG = dna?.bg ?? BG_D0;
@@ -24,18 +67,27 @@ export const IsoWorld: React.FC<{items?: string[]; title?: string}> = ({
   const titleIn = easeOutCubic(seg(t, 0.03, 0.16));
   const pt = (sx: number, sy: number) => `${sx.toFixed(1)},${sy.toFixed(1)}`;
 
+  const slotOf = new Map<string, number>();
+  SLOTS[labels.length].forEach(([i, j], k) => slotOf.set(`${i},${j}`, k));
+
   type Cell = {i: number; j: number; sx: number; sy: number; block: boolean; hFrac: number; tone: string; label?: string};
   const cells: Cell[] = [];
-  let labelN = 0;
   for (let i = 0; i < G; i++) for (let j = 0; j < G; j++) {
     const sx = cx + (i - j) * (TW / 2), sy = cy + (i + j) * (TH / 2);
     const seed = hash01(i * 12.7 + j * 31.3);
-    const block = seed > 0.52;
-    const isLabel = block && labelN < ITEMS.length && hash01(i * 3.1 + j * 9.9) > 0.6;
-    cells.push({i, j, sx, sy, block, hFrac: 0.5 + seed * 0.9, tone: TONES[(i * 3 + j) % TONES.length],
-      label: isLabel ? ITEMS[labelN++] : undefined});
+    const k = slotOf.get(`${i},${j}`);
+    const tone = TONES[(i * 3 + j) % TONES.length];
+    if (k != null) {
+      cells.push({i, j, sx, sy, block: true, hFrac: LABEL_H, tone, label: labels[k]});
+    } else {
+      const block = seed > 0.52;
+      // filler texture: its height is the seed rescaled into a band BELOW the labelled buildings
+      // @decor: an unlabelled block names no item, so its height is texture, not a reading
+      cells.push({i, j, sx, sy, block, hFrac: lerp(FILLER_MIN, FILLER_MAX, (seed - 0.52) / 0.48), tone});
+    }
   }
   cells.sort((a, b) => a.i + a.j - (b.i + b.j)); // back-to-front
+  const chipPx = Math.round(Math.min(26, ...labels.map((l) => fitTextPx(l, 250, 26, {usable: 1}))));
 
   return (
     <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 34%, #131a33, ${BG} 74%)`, overflow: 'hidden'}}>
@@ -70,7 +122,7 @@ export const IsoWorld: React.FC<{items?: string[]; title?: string}> = ({
         })}
       </svg>
 
-      {/* floating labels above the tallest labelled blocks */}
+      {/* floating labels above the labelled buildings */}
       {cells.filter((c) => c.label).map((c, k) => {
         const wave = (c.i + c.j) / (2 * G);
         const rise = easeOutBack(clamp01(seg(t, 0.2 + wave * 0.32, 0.5 + wave * 0.32)));
@@ -80,7 +132,8 @@ export const IsoWorld: React.FC<{items?: string[]; title?: string}> = ({
           <div key={k} style={{position: 'absolute', left: c.sx, top: c.sy - TH / 2 - h - 54,
             transform: 'translate(-50%, 0)', opacity: on, zIndex: 4,
             padding: '8px 18px', borderRadius: 10, background: '#0e1426',
-            border: `1px solid ${c.tone}`, color: '#eef2ff', font: '700 26px/1 var(--f-body, Inter, system-ui, sans-serif)',
+            border: `1px solid ${c.tone}`, color: '#eef2ff',
+            font: `700 ${chipPx}px/${leading(c.label ?? '', 1)} var(--f-body, Inter, system-ui, sans-serif)`,
             whiteSpace: 'nowrap', boxShadow: '0 8px 24px #0008'}}>{c.label}</div>
         );
       })}

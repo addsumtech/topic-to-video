@@ -12,9 +12,11 @@
 //   ring    complete rings + a crosshair              → a PLACE, one located thing
 //   dots    a quincunx lattice of equal points        → a FIELD of like things
 //   wave    parallel rules, one profile repeated      → a FLOW
-// Omitting `glyph` keeps the historical behaviour (mark = panel INDEX → bars/ring/dots/wave), so films
-// authored before glyphs existed keep their tile-to-form assignment. An UNKNOWN glyph name throws rather
-// than silently drawing the wrong picture — a typo must not ship as a bar chart labelled "human review".
+// A panel with neither `glyph` nor `icon` draws NO picture, and its label takes the room. It used to fall back
+// to a mark chosen by the panel's INDEX (bars / ring / dots / wave, in that order on every film), which is how a
+// frame labelled 路飞 / 哆啦A梦 came to carry a ring and a wave that meant nothing about either: a picture the
+// film did not choose is a claim nobody made. An UNKNOWN glyph name throws rather than silently drawing the
+// wrong picture — a typo must not ship as a bar chart labelled "human review".
 //
 // NO GLYPH HERE CARRIES A FIGURE. The register's argument is "four things, one frame": the mark tells the
 // four apart, it does not measure them. The four neutral forms USED to be a 72%-filled gauge, a five-bar
@@ -51,14 +53,12 @@ const SOFT_D0 = '#ffffff2e';    // secondary marks — code lines a glyph has no
 
 export type QuadGlyph = 'bars' | 'ring' | 'dots' | 'wave' | 'checks' | 'gutter' | 'peers' | 'review';
 export const QUAD_GLYPHS: QuadGlyph[] = ['bars', 'ring', 'dots', 'wave', 'checks', 'gutter', 'peers', 'review'];
-const INDEX_GLYPHS: QuadGlyph[] = ['bars', 'ring', 'dots', 'wave'];
-
-/** Resolve a panel's glyph: an explicit name, else the historical index motif. Fails loudly on a typo. */
-const glyphFor = (name: string | undefined, i: number): QuadGlyph => {
-  if (!name) return INDEX_GLYPHS[i % INDEX_GLYPHS.length];
+/** Resolve a panel's glyph: an explicit name, or none. Fails loudly on a typo. */
+const glyphFor = (name: string | undefined): QuadGlyph | null => {
+  if (!name) return null;
   if ((QUAD_GLYPHS as string[]).includes(name)) return name as QuadGlyph;
   throw new Error(
-    `QuadSplit: unknown panel glyph "${name}". Use one of: ${QUAD_GLYPHS.join(', ')} (or omit it for the index motif).`,
+    `QuadSplit: unknown panel glyph "${name}". Use one of: ${QUAD_GLYPHS.join(', ')} (or omit it: no picture).`,
   );
 };
 
@@ -238,6 +238,7 @@ const Glyph: React.FC<Ink & {kind: QuadGlyph; g: number}> = ({kind, g, c, warn, 
 
   // ── HUMAN REVIEW: a pointer travels down the listing and stops on one line, which lights up ────────────
   const ROWS = [{x: 18, w: 150}, {x: 34, w: 186}, {x: 34, w: 132}, {x: 18, w: 164}];
+  // @positional: inside the `review` glyph: the reviewer's cursor stops on one line of an illustrative listing, not on a film item
   const TARGET = 2;
   const ty = 22 + TARGET * 30;
   const trav = easeOutCubic(clamp01(g * 1.5));
@@ -283,7 +284,10 @@ const legibleTone = (c: string, ground: string, ink: string): string => {
 
 export type QuadPanel = {label?: string; glyph?: string; icon?: IconName};
 
-const DEFAULT_PANELS: QuadPanel[] = [{label: 'Faster'}, {label: 'Simpler'}, {label: 'Cheaper'}, {label: 'Safer'}];
+const DEFAULT_PANELS: QuadPanel[] = [
+  {label: 'Find it', icon: 'search'}, {label: 'Edit it', icon: 'edit'},
+  {label: 'Send it', icon: 'send'}, {label: 'Lock it', icon: 'lock'},
+];
 
 // `hero: null` HOLDS THE QUAD. The register's documented use is "four angles -> the one that matters", and
 // the expansion is the second half of that argument. But a beat whose claim is simply THERE ARE FOUR ends
@@ -312,7 +316,13 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
   const headCase: 'uppercase' | 'none' = dna ? (dna.uppercaseLabels ? 'uppercase' : 'none') : 'uppercase';
 
   const {width: W, height: H} = useVideoConfig();
-  const cells = (PANELS && PANELS.length ? PANELS : DEFAULT_PANELS).slice(0, 4);
+  // 1-4 panels, each drawn once. An empty list used to fall back to the demo panels (four English words on
+  // the film's frame) and a fifth panel was dropped without a word; both now say so.
+  if (!Array.isArray(PANELS) || PANELS.length < 1 || PANELS.length > 4) {
+    throw new Error(`QuadSplit needs 1-4 \`panels\` (got ${Array.isArray(PANELS) ? PANELS.length : typeof PANELS}). ` +
+      'It is a four-up; a longer list belongs in a list register, and no panel is ever dropped silently.');
+  }
+  const cells = PANELS;
   const n = cells.length;
   const holdQuad = HERO === null;
   const heroIdx = Math.max(0, Math.min(Math.round(HERO || 0) || 0, n - 1));
@@ -350,6 +360,7 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
   // A hardcoded 56/132px overflowed the panel the moment the label was real Chinese copy instead of "Safer".
   const labelFits = React.useMemo(() => cells.map((p, i) => {
     const txt = String(p?.label ?? '');
+    // @positional: layout, not emphasis: with three panels the third spans the bottom row
     const spanned = n === 3 && i === 2;
     const tileW = (spanned ? W : cellW) - gap;
     const tileH = cellH - gap;
@@ -359,9 +370,11 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
       ? fitTextOnNLines({text: txt, maxLines: 2, maxBoxWidth: Math.max(60, boxW), fontFamily: dispFace,
         fontWeight: 800, maxFontSize: cap})
       : {fontSize: cap, lines: [] as string[]});
-    const a = fit(tileW - 2 * tPad, Math.max(20, Math.min(56, tileH * 0.18, tileW * 0.34)));
+    // No picture: the label IS the panel's content, so it is fitted to the room the picture would have had.
+    const bare = !p?.icon && !p?.glyph;
+    const a = fit(tileW - 2 * tPad, Math.max(20, Math.min(bare ? 84 : 56, tileH * (bare ? 0.30 : 0.18), tileW * 0.34)));
     const b = fit(eW - 2 * hPad, Math.max(24, Math.min(132, eH * 0.18)));
-    return {tile: a.fontSize, hero: b.fontSize, lines: Math.max(1, a.lines.length, b.lines.length)};
+    return {tile: a.fontSize, hero: b.fontSize, lines: Math.max(1, a.lines.length, b.lines.length), bare};
   }), [cells, n, W, cellW, cellH, gap, eW, eH, dispFace]);
 
   const headFit = React.useMemo(() => fitTextOnNLines({
@@ -372,6 +385,7 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG}}>
       {cells.map((p, i) => {
+        // @positional: layout, not emphasis: with three panels the third spans the bottom row
         const spanned = n === 3 && i === 2;               // a 3-panel deck: the last one spans the bottom row
         const col = i % cols, row = Math.floor(i / cols);
         const enter = easeOutBack(clamp01(seg(t, 0.12 + i * 0.09, 0.34 + i * 0.09)));
@@ -400,9 +414,11 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
         const fit = labelFits[i];
         const want = lerp(fit.tile, fit.hero, grow);
         const wantH = want * 1.24 * fit.lines;
-        const labelH = Math.min(wantH, inner * 0.42);
+        const labelH = Math.min(wantH, inner * (fit.bare ? 0.78 : 0.42));
         const labelSize = wantH > 0 ? want * (labelH / wantH) : want;
-        const glyphH = Math.max(34, inner - headH - labelH - 2 * gapY);
+        const kind = glyphFor(p?.glyph);
+        // a panel with no picture keeps the slot as air above the label, so labels sit on one baseline row
+        const glyphH = Math.max(fit.bare ? 0 : 34, inner - headH - labelH - 2 * gapY);
         const glyphW = Math.max(40, w - 2 * pad - 2 * bwid);
 
         return (
@@ -436,8 +452,8 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
                       alignItems: 'center', justifyContent: 'flex-start'}}>
                       <Icon name={p.icon} size={Math.min(glyphH, H * 0.46, glyphW)} ink={tone} weight={1.9} />
                     </div>
-                  : <Glyph kind={glyphFor(p?.glyph, i)} g={g} c={tone} warn={warn} soft={SOFT} track={TRACK} off={OFF}
-                      ink={INK} ground={BG} />}
+                  : kind ? <Glyph kind={kind} g={g} c={tone} warn={warn} soft={SOFT} track={TRACK} off={OFF}
+                      ink={INK} ground={BG} /> : null}
               </div>
             </div>
 

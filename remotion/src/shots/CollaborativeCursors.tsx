@@ -3,11 +3,27 @@
 // (superhuman slow→fast→slow ease) and REST where they work (no jitter); each builds a real deliverable —
 // a chart grows, a doc types, a table fills — all in parallel, with Figma selection boxes in the
 // collaborator's own colour. Light + colourful (deliberately NOT the dark/mono default). Deterministic.
+//
+// WHAT EACH BOARD HOLDS, AND WHETHER IT IS FINISHED, IS THE FILM'S. Three things here were decided by POSITION:
+//   * the deliverable: `kinds = ['chart','chart','slide','doc','doc','table']`, so whatever name came first or
+//     second got a CHART, the third a slide deck, the last a table. A film about a kitchen brigade gave six
+//     stations and shipped the pastry chef building a bar chart;
+//   * the chart itself: five invented heights (0.5 / 0.82 / 0.4 / 0.95 / 0.62) with the FOURTH bar in the
+//     collaborator's colour — a quantity and an emphasis about a name, made by nobody;
+//   * the ✓: every board got a done badge once its build ran, a claim that every piece of work was finished;
+//   * and the camera ended dollied into the fifth board, so the last frame singled that name out (and with
+//     fewer than five names it dollied into empty canvas).
+// Each board is now `{name, kind?, done?}`: `kind` picks the deliverable (a board with none is a clean
+// artboard with its name — no deliverable is invented), `done: true` earns the ✓, and a chart — which is
+// never given numbers here — is a skeleton of equal, placeholder-toned bars with none singled out. The grid
+// is laid out for the count (at most six; a name was silently dropped past it), and the camera settles on the
+// whole grid, inside the content zone. The standalone demo keeps its kinds and ticks in its own data.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeCursor, easeOutCubic, easeInOutCubic, easeOutBack, clamp01, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 
 // A virtual camera over a LARGE canvas: interpolate {cx,cy,z} keyframes so the lens sweeps + dollies across
 // the board (the Miro/Figma "fly over the canvas" feel) instead of a flat, static, head-on grid.
@@ -22,8 +38,19 @@ const WORLD_W = 2560, WORLD_H = 1500;
 
 export const DURATION = 180; // 6s @30
 
-type Kind = 'chart' | 'doc' | 'slide' | 'table';
-type Board = {name: string; kind: Kind; color: string; x: number; y: number; from: [number, number]; arrive: number};
+export type CollabKind = 'chart' | 'doc' | 'slide' | 'table';
+type Kind = CollabKind;
+export type CollabBoard = {
+  name: string;
+  /** what this collaborator is building — chosen by the film, never by position; absent → a clean artboard */
+  kind?: CollabKind;
+  /** true only when the film says this piece of work is finished: the board earns a ✓ once its build runs */
+  done?: boolean;
+};
+const KINDS: Kind[] = ['chart', 'doc', 'slide', 'table'];
+// Six boards is the 3x2 grid the canvas is composed for (2x3 standing up); past it a name was dropped silently.
+export const MAX_COLLAB_BOARDS = 6;
+type Board = {name: string; kind?: Kind; done: boolean; color: string; x: number; y: number; from: [number, number]; arrive: number};
 const BUILD = 0.34;
 const INK = '#1b2333', DIM = '#d7dde6', PANEL = '#ffffff';
 
@@ -34,11 +61,13 @@ const Artifact: React.FC<{kind: Kind; p: number; color: string}> = ({kind, p, co
   const dna = useDNA();
   const DIMc = dna?.line ?? DIM;                 // placeholder fills follow the DNA's line tone
   if (kind === 'chart') {
-    const hs = [0.5, 0.82, 0.4, 0.95, 0.62];
+    // a SKELETON chart: the film gave a name, not numbers, so every bar is the same height and the same
+    // placeholder tone — it says "a chart is being built", never what the chart says
     return <svg width="340" height="176" style={{position: 'absolute', left: 22, top: 52}}>
-      {hs.map((h, i) => {
-        const bh = 140 * h * easeOutCubic(clamp01((p - i * 0.12) / 0.4));
-        return <rect key={i} x={14 + i * 64} y={150 - bh} width={44} height={bh} rx={5} fill={i === 3 ? color : DIMc} />;
+      <line x1={6} y1={151} x2={330} y2={151} stroke={DIMc} strokeWidth={2} />
+      {[0, 1, 2, 3, 4].map((i) => {
+        const bh = 140 * 0.6 * easeOutCubic(clamp01((p - i * 0.12) / 0.4));
+        return <rect key={i} x={14 + i * 64} y={150 - bh} width={44} height={bh} rx={5} fill={DIMc} />;
       })}
     </svg>;
   }
@@ -58,9 +87,14 @@ const Artifact: React.FC<{kind: Kind; p: number; color: string}> = ({kind, p, co
         background: DIMc, borderRadius: 8}} />
     </div>;
   }
+  // A doc the film named only by its kind: four placeholder lines, all in the placeholder tone. The second line
+  // used to be painted in the collaborator's colour — a highlight on a line with nothing in it, singled out by
+  // its index, the same move the chart made with its fourth bar. The ragged lengths stay: they are what make
+  // four bars read as a paragraph of text rather than as a table or a chart.
+  // @decor: ragged line lengths of a placeholder paragraph — texture that says "text", not a reading of anything the film named
   const ws = [0.92, 0.78, 0.86, 0.6];
   return <div style={{position: 'absolute', left: 26, top: 58, right: 26, display: 'flex', flexDirection: 'column', gap: 17}}>
-    {ws.map((w, i) => <div key={i} style={{height: 13, borderRadius: 7, background: i === 1 ? color : DIMc,
+    {ws.map((w, i) => <div key={i} style={{height: 13, borderRadius: 7, background: DIMc,
       width: `${w * 100 * easeOutCubic(clamp01((p - i * 0.14) / 0.3))}%`}} />)}
   </div>;
 };
@@ -83,8 +117,8 @@ const Artboard: React.FC<{b: Board; t: number}> = ({b, t}) => {
       transform: `scale(${0.92 + 0.08 * appear})`, transformOrigin: 'center', background: PANELc,
       border: `1px solid ${BORD}`, borderRadius: 16, boxShadow: '0 22px 50px rgba(30,45,80,.16)'}}>
       <div style={{position: 'absolute', left: 22, top: 18, font: '700 22px/1 var(--f-body, Inter,system-ui,sans-serif)', color: INKc}}>{b.name}</div>
-      <Artifact kind={b.kind} p={p} color={b.color} />
-      {done && <div style={{position: 'absolute', right: 18, top: 16, width: 26, height: 26, borderRadius: 13,
+      {b.kind ? <Artifact kind={b.kind} p={p} color={b.color} /> : null}
+      {done && b.done && <div style={{position: 'absolute', right: 18, top: 16, width: 26, height: 26, borderRadius: 13,
         background: b.color, color: '#fff', font: '700 18px/26px var(--f-body, Inter,sans-serif)', textAlign: 'center'}}>✓</div>}
       {active && <>
         <div style={{position: 'absolute', inset: -3, border: `2px solid ${b.color}`, borderRadius: 18}} />
@@ -103,31 +137,73 @@ const Artboard: React.FC<{b: Board; t: number}> = ({b, t}) => {
   </>;
 };
 
-export const CollaborativeCursors: React.FC<{names?: string[]}> = ({
-  names = ['Market Research', 'Financial Analysis', 'Slide Design', 'Legal Drafting', 'Copywriting', 'Data Cleanup'],
-}) => {
+const DEFAULT_BOARDS: CollabBoard[] = [
+  {name: 'Market Research', kind: 'chart', done: true}, {name: 'Financial Analysis', kind: 'chart', done: true},
+  {name: 'Slide Design', kind: 'slide', done: true}, {name: 'Legal Drafting', kind: 'doc', done: true},
+  {name: 'Copywriting', kind: 'doc', done: true}, {name: 'Data Cleanup', kind: 'table', done: true},
+];
+
+const normaliseBoards = (names: unknown): CollabBoard[] => {
+  if (!Array.isArray(names) || names.length < 1 || names.length > MAX_COLLAB_BOARDS) {
+    throw new Error(`CollaborativeCursors needs 1-${MAX_COLLAB_BOARDS} \`names\` (got ${Array.isArray(names) ? names.length : typeof names}). ` +
+      'Each collaborator gets one artboard on a 3x2 canvas; past six, group the work or cast a grid register.');
+  }
+  return names.map((it: any, i: number) => {
+    const name = String((typeof it === 'string' ? it : it?.name) ?? '').trim();
+    if (!name) throw new Error(`CollaborativeCursors: board ${i + 1} has no name.`);
+    const kind = typeof it === 'string' ? undefined : it?.kind;
+    if (kind != null && !KINDS.includes(kind)) {
+      throw new Error(`CollaborativeCursors: board ${i + 1} ("${name}") has kind ${JSON.stringify(kind)} — use one of ` +
+        `${KINDS.join(', ')}, or leave it out for a clean artboard.`);
+    }
+    const done = typeof it === 'string' ? undefined : it?.done;
+    if (done != null && typeof done !== 'boolean') {
+      throw new Error(`CollaborativeCursors: board ${i + 1} ("${name}") has \`done: ${JSON.stringify(done)}\` — pass true, false, or leave it out.`);
+    }
+    return {name, kind: kind ?? undefined, done: done === true};
+  });
+};
+
+export const CollaborativeCursors: React.FC<{names?: (string | CollabBoard)[]}> = ({
+  names = DEFAULT_BOARDS,
+} = {}) => {
+  const items = normaliseBoards(names);
+  const n = items.length;
   // LEVEL-C: the Figma canvas flips to a DARK board on a dark DNA (ground/dots/panels/ink → DNA); the multi-colour
   // collaborator cursors + selection boxes stay (colour IS each collaborator's identity — they pop on any ground).
   const dna = useDNA();
   const BG = dna?.bg ?? '#eef1f5', DOT = dna?.line ?? '#c7cedb';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
-  const kinds: Kind[] = ['chart', 'chart', 'slide', 'doc', 'doc', 'table'];
-  // Aligned 3×2 grid on a LARGE world (bigger than the frame, so the camera has canvas to fly over).
-  const BW = 380, BH = 250, GUT = 260, COLS = 3, ROWS = 2;
+  // An aligned grid on a LARGE world (bigger than the frame, so the camera has canvas to fly over), laid out for
+  // the count: three across (two standing up), a short last row centred under the rest.
+  const BW = 380, BH = 250, GUT = 260;
+  const COLS = Math.min(H > W * 1.15 ? 2 : 3, n), ROWS = Math.ceil(n / COLS);
   const gridW = COLS * BW + (COLS - 1) * GUT, gridH = ROWS * BH + (ROWS - 1) * GUT;
   const ox = (WORLD_W - gridW) / 2, oy = (WORLD_H - gridH) / 2;
-  const boards: Board[] = names.slice(0, 6).map((name, i) => ({
-    name, kind: kinds[i], color: PALETTE[i % PALETTE.length],
-    x: ox + (i % COLS) * (BW + GUT), y: oy + Math.floor(i / COLS) * (BH + GUT),
-    from: [hash01(i + 1) * WORLD_W, hash01(i + 9) < 0.5 ? -120 : WORLD_H + 120], arrive: 0.14 + i * 0.11,
-  }));
-  // camera: establish the whole canvas wide → sweep down-right + push in as the work builds → settle on a board.
+  // EVERY BOARD IS AT REST BEFORE THE CLIP ENDS. At a fixed 0.11 pitch the sixth board was still mid-build at
+  // t=1, with its selection box and cursor on it: the last frame showed the LAST NAME as the one still being
+  // worked on — a status picked by position. The pitch now closes up with the count so the last cursor leaves
+  // (arrive + BUILD + 0.22) by t=0.94; up to three boards keep the original 0.11.
+  const pitch = Math.min(0.11, 0.24 / Math.max(1, n - 1));
+  const boards: Board[] = items.map((it, i) => {
+    const row = Math.floor(i / COLS), inRow = Math.min(COLS, n - row * COLS);
+    return {
+      name: it.name, kind: it.kind, done: !!it.done, color: PALETTE[i % PALETTE.length],
+      x: ox + ((COLS - inRow) * (BW + GUT)) / 2 + (i % COLS) * (BW + GUT), y: oy + row * (BH + GUT),
+      from: [hash01(i + 1) * WORLD_W, hash01(i + 9) < 0.5 ? -120 : WORLD_H + 120], arrive: 0.14 + i * pitch,
+    };
+  });
+  // camera: establish the whole canvas wide → sweep down-right + push in as the work builds → settle on the
+  // WHOLE GRID, centred on the content zone and sized to it, so no one board is where the shot ends up.
+  const zTop = CONTENT_TOP, zBot = contentBottom(W, H);
+  const zEnd = Math.min(1.04, ((zBot - zTop) * 0.96) / gridH, (W * 0.96) / gridW);
+  const cyEnd = WORLD_H / 2 - ((zTop + zBot) / 2 - H / 2) / zEnd;
   const cam = camAt(t, [
-    {at: 0.0, cx: WORLD_W / 2, cy: WORLD_H / 2, z: 0.66},
-    {at: 0.20, cx: WORLD_W / 2, cy: WORLD_H / 2, z: 0.70},
-    {at: 0.60, cx: WORLD_W / 2 + 240, cy: WORLD_H / 2 + 150, z: 0.90},
-    {at: 1.0, cx: ox + BW + GUT + BW / 2, cy: oy + BH + GUT + BH / 2, z: 1.04}, // dolly into the middle-bottom board
+    {at: 0.0, cx: WORLD_W / 2, cy: WORLD_H / 2, z: Math.min(0.66, zEnd)},
+    {at: 0.20, cx: WORLD_W / 2, cy: WORLD_H / 2, z: Math.min(0.70, zEnd)},
+    {at: 0.60, cx: WORLD_W / 2 + 240, cy: WORLD_H / 2 + 150, z: lerp(Math.min(0.70, zEnd), zEnd, 0.75)},
+    {at: 1.0, cx: WORLD_W / 2, cy: cyEnd, z: zEnd},
   ]);
   const world: React.CSSProperties = {position: 'absolute', left: 0, top: 0, width: WORLD_W, height: WORLD_H,
     transformOrigin: '0 0', transform: `translate(${W / 2 - cam.cx * cam.z}px, ${H / 2 - cam.cy * cam.z}px) scale(${cam.z})`};
@@ -135,8 +211,8 @@ export const CollaborativeCursors: React.FC<{names?: string[]}> = ({
   for (let gx = 0; gx < 33; gx++) for (let gy = 0; gy < 20; gy++) dots.push(<circle key={`${gx}-${gy}`} cx={gx * 80 + 30} cy={gy * 80 + 30} r={1.8} fill={DOT} />);
   return (
     <AbsoluteFill style={{background: BG}}>
-      {/* data-bleed: the camera DOLLIES IN to the middle-bottom board by the end, so the outer boards are
-          cropped by the frame at rest. That is the move, not a layout that overflowed. */}
+      {/* data-bleed: the camera flies over a canvas larger than the frame, so during the sweep boards are
+          cropped by the frame edge. At rest it has settled on the whole grid, inside the content zone. */}
       <div data-bleed style={world}>
         <svg width={WORLD_W} height={WORLD_H} style={{position: 'absolute', inset: 0, opacity: 0.7}}>{dots}</svg>
         {boards.map((b, i) => <Artboard key={i} b={b} t={t} />)}

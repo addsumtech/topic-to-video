@@ -151,6 +151,7 @@ export const PointerTour: React.FC<{
   // reading as the UI layer and starts reading as a picture of one.
   // `keys` is [overview, overview-hold, then per stop: arrive, hold-end], so a key's stop is fixed by its
   // index. During the overview the pointer waits at the middle of the page and travels in with the lens.
+  // @positional: `keys` is built as [overview, hold, then arrive/hold per stop], so a key's stop IS its index
   const stopOf = (idx: number) => (idx < 2 ? -1 : Math.floor((idx - 2) / 2));
   const cursorKeys: CamKey[] = keys.map((k, idx) => {
     const i = stopOf(idx);

@@ -1,7 +1,17 @@
 // SHOT · Knowledge Graph — a generative constellation: a central WorkBuddy node, then connections REACH OUT
 // (edges draw) and concept nodes POP into a connected graph — "your whole workspace, wired into one brain."
-// Distinct from MapRoutes (geographic hub-spoke): abstract force-graph layout + inter-node chords + labels.
+// Distinct from MapRoutes (geographic hub-spoke): abstract force-graph layout + labels, and inter-node chords
+// exactly where the film passes `links`.
 // Deterministic (angles/jitter seeded by index; edge draw + node pop = staggered fn of t).
+//
+// A CHORD IS A CLAIM THAT TWO THINGS ARE CONNECTED, SO ONLY THE FILM DRAWS ONE. The chords between nodes came
+// from a fixed index table — `[[0,1],[1,5],[2,3],[4,6],[5,6]]` — so every film's first and second items were
+// wired together, its second and sixth, its fifth and seventh. A film naming seven organs got a line from the
+// heart to the skin; a film naming four had indices 5 and 6 wrap to `undefined` positions and lines drawn to
+// nowhere. Chords now come from `links` — pairs of node indices or labels — and a film that passes none gets
+// the hub's spokes only: every item connected to the hub, which is what naming them around it already says,
+// and nothing connected to anything else. A link naming a node that is not there throws. The demo keeps its
+// own five chords in its own data.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -12,8 +22,44 @@ import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 export const DURATION = 165; // 5.5s
 const NODE_PALETTE0 = ['#4c8dff', '#22d3c5', '#b06cff', '#ff8fc7', '#ffd23f', '#2fcb6e', '#ff6b6b'];
 
-export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string}> = ({
-  items = ['Docs', 'Code', 'Slack', 'Calendar', 'Email', 'Tasks', 'Notes'], hub: HUB = 'WorkBuddy'} = {}) => {
+const DEFAULT_ITEMS = ['Docs', 'Code', 'Slack', 'Calendar', 'Email', 'Tasks', 'Notes'];
+// the demo's own chords, drawn only while the demo's own nodes are showing — never between a film's nodes
+// @decor: the standalone demo's chords only — used when `items` is the untouched demo list and `links` is absent; a film's nodes get only the links it passes
+const DEMO_LINKS: [number, number][] = [[0, 1], [1, 5], [2, 3], [4, 6], [5, 6]];
+// Eight nodes is what the ring carries at 1:1 before neighbouring labels of a word or two start to touch.
+export const MAX_GRAPH_NODES = 8;
+export type GraphLink = [number | string, number | string];
+
+export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string; links?: GraphLink[]}> = ({
+  items = DEFAULT_ITEMS, hub: HUB = 'WorkBuddy', links: LINKS} = {}) => {
+  if (!Array.isArray(items) || items.length < 1 || items.length > MAX_GRAPH_NODES) {
+    throw new Error(`KnowledgeGraph needs 1-${MAX_GRAPH_NODES} \`items\` (got ${Array.isArray(items) ? items.length : typeof items}). ` +
+      'Each is one node on the ring around the hub; past eight the labels collide — group the nodes or cast a list register.');
+  }
+  items.forEach((it, i) => {
+    if (!String(it ?? '').trim()) throw new Error(`KnowledgeGraph: item ${i + 1} is empty.`);
+  });
+  // RESOLVE THE CHORDS: an index or a label, both must name a node that exists; a self-link and a repeat are
+  // refused/merged rather than drawn as a dot or a double line.
+  const resolve = (end: unknown, k: number): number => {
+    const idx = typeof end === 'number' ? end : items.findIndex((it) => it === end);
+    if (!(Number.isInteger(idx) && idx >= 0 && idx < items.length)) {
+      throw new Error(`KnowledgeGraph: link ${k + 1} names ${JSON.stringify(end)}, which is not a node — pass an index ` +
+        `(0-${items.length - 1}) or one of the item labels exactly.`);
+    }
+    return idx;
+  };
+  const rawLinks = LINKS !== undefined ? LINKS : (items === DEFAULT_ITEMS ? DEMO_LINKS : []);
+  if (!Array.isArray(rawLinks)) throw new Error('KnowledgeGraph: `links` must be an array of [a, b] pairs.');
+  const seen = new Set<string>();
+  const chords: [number, number][] = [];
+  rawLinks.forEach((l, k) => {
+    if (!Array.isArray(l) || l.length !== 2) throw new Error(`KnowledgeGraph: link ${k + 1} must be a pair [a, b], got ${JSON.stringify(l)}.`);
+    const a = resolve(l[0], k), b = resolve(l[1], k);
+    if (a === b) throw new Error(`KnowledgeGraph: link ${k + 1} connects "${items[a]}" to itself.`);
+    const key = a < b ? `${a}-${b}` : `${b}-${a}`;
+    if (!seen.has(key)) { seen.add(key); chords.push([a, b]); }
+  });
   const t = useT();
   const dna = useDNA();
   const NODE_PALETTE = dnaPalette(dna, 7) ?? NODE_PALETTE0;
@@ -64,12 +110,26 @@ export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string}> = ({
           const ex = lerp(cx, p.x, draw), ey = lerp(cy, p.y, draw);
           return <line key={i} x1={cx} y1={cy} x2={ex} y2={ey} stroke={n.c} strokeWidth={2.5} strokeOpacity={0.5} filter="url(#ng)" />;
         })}
-        {/* chords between neighbours (drawn later → makes it a graph, not a star) */}
-        {[[0, 1], [1, 5], [2, 3], [4, 6], [5, 6]].map(([a, b], k) => {
-          const draw = easeOutCubic(seg(t, 0.62 + k * 0.05, 0.78 + k * 0.05));
+        {/* chords the FILM asserted (drawn later → a graph, not a star); none given → spokes only. The stagger
+            closes up with the count so the last chord has finished drawing by the end (five keep 0.05). */}
+        {chords.map(([a, b], k) => {
+          const step = chords.length > 1 ? Math.min(0.05, 0.2 / (chords.length - 1)) : 0;
+          const draw = easeOutCubic(seg(t, 0.62 + k * step, 0.78 + k * step));
           const pa = pos(a), pb = pos(b);
-          const ex = lerp(pa.x, pb.x, draw), ey = lerp(pa.y, pb.y, draw);
-          return <line key={`c${k}`} x1={pa.x} y1={pa.y} x2={ex} y2={ey} stroke="#3a4a6b" strokeWidth={1.6} strokeOpacity={0.35 * draw} />;
+          // A CHORD THROUGH THE HUB IS INVISIBLE: between two nodes on opposite sides of the ring the straight
+          // line runs under the hub and along two spokes, so a link the film asserted drew nothing anyone could
+          // see (found on an 8-node render: node 4 to node 0). Such a chord bows out just far enough to clear the
+          // hub's halo; every other chord stays the straight line it always was.
+          const dx = pb.x - pa.x, dy = pb.y - pa.y, len = Math.max(1, Math.hypot(dx, dy));
+          const mx = (pa.x + pb.x) / 2, my = (pa.y + pb.y) / 2;
+          const dist = Math.abs(dx * (pa.y - cy) - dy * (pa.x - cx)) / len;   // hub centre to the chord's line
+          const CLEAR = 80;                                                   // the hub disc (r 54) plus its glow
+          let nx = -dy / len, ny = dx / len;                                  // unit normal, pointed away from the hub
+          if ((mx - cx) * nx + (my - cy) * ny < 0) { nx = -nx; ny = -ny; }
+          const bow = Math.max(0, CLEAR - dist) * 2;                          // a quadratic's apex sits at half its control offset
+          const d = `M${pa.x},${pa.y} Q${mx + nx * bow},${my + ny * bow} ${pb.x},${pb.y}`;
+          return <path key={`c${k}`} d={d} fill="none" pathLength={1} strokeDasharray="1 1" strokeDashoffset={1 - draw}
+            stroke="#3a4a6b" strokeWidth={1.6} strokeOpacity={0.35 * draw} />;
         })}
 
         {/* concept nodes pop at spoke completion */}

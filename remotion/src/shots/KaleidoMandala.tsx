@@ -40,6 +40,7 @@ export const KaleidoMandala: React.FC<{title?: string; tagline?: string; accent?
               <g key={s} transform={`rotate(${rot}) scale(${mir}, 1)`}>
                 {wedge.map((w) => {
                   const hueShift = (Math.sin(radians(t, durationInFrames, fps, 8, w.k)) + 1) / 2;
+                  // @positional: every third wedge takes the second accent to make the mandala's pattern; no wedge carries a label
                   const col = w.k % 3 === 0 ? `color-mix(in oklab, ${ACC} ${Math.round(hueShift * 100)}%, ${ACC2})` : w.col;
                   const petalW = 46 * w.wob;
                   return <g key={w.k}>

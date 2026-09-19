@@ -17,6 +17,17 @@
 //     ~85px — barely visible, and the comparison is the whole reason the beat exists. The track is now SIZED
 //     FROM THE FRAME (the TermFrame column minus the label / value / tag columns), so a 2× difference is a 2×
 //     length, and a whisper-quiet 25/50/75 guide + a % axis give the eye a common scale to measure against.
+//
+// AND A THIRD, FROM THE CONTENT CONTRACT — every bar and every figure is one the film supplied:
+//
+//  3. THE QUANTITY. A row with no `fill` and no `pct` fell through to 0 and drew an EMPTY bar labelled "0%" — a
+//     measurement nobody made; a row carrying only a `value` ("1.2M") got the same empty bar beside its figure.
+//     `pct` also GUESSED its unit: ≤ 1 was read as a fraction, so `pct: 0.8` (0.8%) drew an 80% bar. And the
+//     printed figure was `Math.round(100 × fill)`, so a sourced 99.6% settled as "100%". Now `fill` is a 0-1
+//     fraction and `pct` a 0-100 percentage, always, each range-checked; the printed figure is the film's own
+//     (`value` as written, else `pct` as written + "%", else `fill` converted exactly, never rounded), counted
+//     up through runtime/figure.ts; a row with only a `value` prints it with NO bar and no track; a row with
+//     nothing to draw or print THROWS, as do an unlabelled row and more than MAX_TERMBARS_ROWS rows.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -24,7 +35,8 @@ import {fitTextOnNLines, measureText} from '@remotion/layout-utils';
 import {useT, seg, clamp01, easeOutExpo} from '../runtime/motion';
 import {useDNA, TermFrame, type DesignDNA} from '../runtime/dna';
 import {Bar} from '../runtime/atoms';
-import {CONTENT_TOP, contentBottom, titleStyle} from '../runtime/layout';
+import {CONTENT_TOP, contentBottom, titleStyle, textWidthPx, monoFit} from '../runtime/layout';
+import {parseFigure, figureAt, figureText, figureValue} from '../runtime/figure';
 
 export const DURATION = 165;
 
@@ -39,13 +51,50 @@ type Row = {label?: string; fill?: number; pct?: number; value?: string; tag?: s
 
 const clamp = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
 
-/** A row's quantity as a 0-1 fraction. `fill` is the real prop, but LIBRARY.md advertises this shot as
- *  `rows[{label, pct, tag}]`, so an author following the manifest writes `pct: 40` — which used to fall
- *  through to 0 and render an EMPTY bar with no complaint. Accept it: >1 is a percentage, ≤1 a fraction. */
-const fillOf = (r: Row): number => {
-  if (Number.isFinite(r?.fill)) return clamp01(Number(r.fill));
-  if (Number.isFinite(r?.pct)) return clamp01(Number(r.pct) > 1 ? Number(r.pct) / 100 : Number(r.pct));
-  return 0;
+export const MAX_TERMBARS_ROWS = 10;   // at the 16px bar floor, ten rows (+ a note) still fit a 1:1 content zone
+
+/** `fill` 0.845 → "84.5%": the exact percentage the fraction states, with only the digits it carries. */
+const pctOfFraction = (f: number): string => {
+  const s = String(f);
+  if (/e/i.test(s)) return `${parseFloat((f * 100).toFixed(10))}%`;
+  const d = Math.max(0, (s.split('.')[1] ?? '').length - 2);
+  return `${(f * 100).toFixed(d)}%`;
+};
+
+/** One row, checked: its drawable fraction (null = no bar) and the figure it prints (the film's own).
+ *  `fill` is a 0-1 fraction and `pct` a 0-100 percentage — always; LIBRARY.md advertises `pct`, so an author
+ *  following the manifest writes `pct: 40`, and the old "≤ 1 means a fraction" guess drew `pct: 0.8` as 80%. */
+const readRow = (r: Row, i: number): {label: string; frac: number | null; figure: string} => {
+  if (!r || typeof r !== 'object') throw new Error(`TermBars: row ${i + 1} is ${JSON.stringify(r)}, not a row object.`);
+  const label = String(r.label ?? '').trim();
+  if (!label) throw new Error(`TermBars: row ${i + 1} has no \`label\`.`);
+  const num = (v: unknown) => (typeof v === 'number' ? v : figureValue(v));
+  let frac: number | null = null;
+  let pctText = '';
+  if (r.fill != null) {
+    const f = num(r.fill);
+    if (f == null || !Number.isFinite(f) || f < 0 || f > 1) {
+      throw new Error(`TermBars: row ${i + 1} ("${label}") has \`fill\` ${JSON.stringify(r.fill)}; fill is a fraction 0-1 ` +
+        '(use `pct` for a 0-100 percentage).');
+    }
+    frac = f;
+    pctText = pctOfFraction(f);
+  } else if (r.pct != null) {
+    const p = num(r.pct);
+    if (p == null || !Number.isFinite(p) || p < 0 || p > 100) {
+      throw new Error(`TermBars: row ${i + 1} ("${label}") has \`pct\` ${JSON.stringify(r.pct)}; pct is a percentage 0-100 ` +
+        '(use `fill` for a 0-1 fraction).');
+    }
+    frac = p / 100;
+    const t = figureText(r.pct);
+    pctText = /%$/.test(t) ? t : `${t}%`;
+  }
+  const value = r.value == null ? '' : figureText(r.value);
+  if (frac == null && !value) {
+    throw new Error(`TermBars: row ${i + 1} ("${label}") has nothing to draw — pass \`fill\` (0-1) or \`pct\` (0-100) ` +
+      'for a bar, and/or `value` for the figure beside it. An empty bar reading "0%" would be a measurement nobody made.');
+  }
+  return {label, frac, figure: value || pctText};
 };
 
 /** A row's semantic colour, resolved to a DNA token — never a literal. `warn`/`accent2` marks a row the film's
@@ -68,7 +117,13 @@ export const TermBars: React.FC<{cmd?: string; title?: string; rows?: Row[]; not
   const mono = dna?.fontMono ?? '"JetBrains Mono", ui-monospace, monospace';
   const disp = dna?.fontDisplay ?? '"JetBrains Mono", ui-monospace, monospace';
   const fg = dna?.fg ?? FG_D0, dim = dna?.dim ?? DIM_D0;
-  const list = (Array.isArray(rows) ? rows : []).filter(Boolean);
+  if (!Array.isArray(rows) || rows.length < 1 || rows.length > MAX_TERMBARS_ROWS) {
+    throw new Error(`TermBars needs 1-${MAX_TERMBARS_ROWS} \`rows\` (got ${Array.isArray(rows) ? rows.length : typeof rows}). ` +
+      'Past ten the bars fall below a legible height; split the readout across beats or use TermTable. Rows are ' +
+      'never dropped to fit.');
+  }
+  const list = rows;
+  const checked = list.map(readRow);
   const n = Math.max(1, list.length);
 
   // ── ONE shared growth clock. `target × g` for every row ⇒ the bars are always in exact proportion. ──
@@ -86,7 +141,7 @@ export const TermBars: React.FC<{cmd?: string; title?: string; rows?: Row[]; not
   const head = framed ? 0 : 110;                       // the `$ cmd` line + its margin (framed puts it in the bar)
   // a % axis is only honest when the bars ARE percentages — a row carrying its own `value` ("1.2M") is a
   // proportion of something else, so the scale keeps its guides but drops the misleading 0-100 labels.
-  const isPct = list.length > 0 && list.every((r) => r.value == null);
+  const isPct = list.length > 0 && list.every((r) => r.value == null);   // (every such row has a fill or pct: readRow)
   const avail = Math.max(140, zoneH - head - (note ? 84 : 0) - (isPct ? 46 : 0));
   const barSize = clamp(avail / (2.15 * n), 16, 52);   // shrinks for a long list, so N rows always fit the zone
   const trackH = Math.round(barSize * 1.3);            // the row's track box — tall enough for the `block` glyphs
@@ -97,7 +152,10 @@ export const TermBars: React.FC<{cmd?: string; title?: string; rows?: Row[]; not
   const rowGap = clamp(((avail - n * trackH) / n) * 0.35, barSize * 0.5, barSize * 0.9);
   const gap = clamp(RW * 0.018, 12, 26);
   const labelW = clamp(RW * 0.15, 96, 300);
-  const pctW = clamp(RW * 0.085, 60, 140);
+  // the figure column is sized for the widest figure the film gave (a value like "3–5 千" is wider than "90%"),
+  // so a long figure widens its column instead of shrinking every row's figure to fit
+  const figUnits = Math.max(2.4, ...checked.map((c) => textWidthPx(c.figure, 1, monoFit())));
+  const pctW = clamp(Math.max(RW * 0.085, figUnits * barSize * 0.78), 60, Math.max(140, RW * 0.25));
   const hasTag = list.some((r) => Boolean(r.tag));
   const tagW = hasTag ? clamp(RW * 0.13, 84, 210) : 0;
   const TW = Math.max(120, RW - labelW - pctW - tagW - gap * (hasTag ? 3 : 2));
@@ -116,7 +174,8 @@ export const TermBars: React.FC<{cmd?: string; title?: string; rows?: Row[]; not
       fontFamily: mono, fontWeight: 700, maxFontSize: cap}).fontSize);
     return s.length ? Math.min(...s) : cap;
   }, [tags.join('\u0000'), tagW, mono, barSize]);
-  const pctSize = Math.min(barSize * 0.78, pctW / 2.4);   // 4 mono glyphs ("100%") always fit the value column
+  // 4 mono glyphs ("100%") always fit the value column — and so does the film's widest figure ("84.5%", "1.2M")
+  const pctSize = Math.min(barSize * 0.78, pctW / figUnits);
   const titleSize = React.useMemo(() => (title ? fitTextOnNLines({text: String(title), maxLines: 1,
     maxBoxWidth: W * 0.84, fontFamily: disp, fontWeight: 700,
     // a narrow frame must not scale the title off the same ratio as a 1920 one, or it arrives tiny
@@ -154,7 +213,8 @@ export const TermBars: React.FC<{cmd?: string; title?: string; rows?: Row[]; not
               ))}
 
               {list.map((r, i) => {
-                const target = fillOf(r);
+                const {label: rowLabel, frac, figure} = checked[i];
+                const target = frac ?? 0;
                 const tone = toneOf(dna, r.tone);
                 const a = FILL_A - 0.015 + i * stag;
                 const rowIn = clamp01(seg(t, a, a + 0.04));
@@ -162,12 +222,14 @@ export const TermBars: React.FC<{cmd?: string; title?: string; rows?: Row[]; not
                   <div key={i} style={{display: 'flex', alignItems: 'center', gap, width: RW,
                     margin: i ? `${rowGap}px 0 0` : 0, opacity: rowIn}}>
                     <span style={{flex: '0 0 auto', width: labelW, color: fg, whiteSpace: 'nowrap',
-                      overflow: 'hidden', textOverflow: 'ellipsis', font: `600 ${labelSize}px/1.2 ${mono}`}}>{r.label}</span>
+                      overflow: 'hidden', textOverflow: 'ellipsis', font: `600 ${labelSize}px/1.2 ${mono}`}}>{rowLabel}</span>
                     {/* the TRACK: the shot draws the quantity's MASS + the empty channel at the row's weight,
                         the Bar atom draws the DNA's own mark (block run / ruled scale / cells) crisply on top —
                         a 3px hairline is unreadable at hero scale, and the mark alone left the bar floating
                         with no visible full-scale to read the fraction against. */}
                     <span style={{flex: '0 0 auto', position: 'relative', width: TW, height: trackH, overflow: 'hidden'}}>
+                      {/* a row with only a `value` has no fraction: no bar AND no empty track, which would read as 0 */}
+                      {frac == null ? null : (<>
                       <span style={{position: 'absolute', left: 0, top: (trackH - massH) / 2, width: TW, height: massH,
                         border: `1px solid ${dim}`, opacity: 0.2, borderRadius: 2}} />
                       <span style={{position: 'absolute', left: 0, top: (trackH - massH) / 2, height: massH,
@@ -179,10 +241,11 @@ export const TermBars: React.FC<{cmd?: string; title?: string; rows?: Row[]; not
                         <Bar value={target * g} width={TW} cells={cellCount} size={barSize} tag=" "
                           tone={tone} ink={fg} dimInk={dim} fallbackForm="block" />
                       </span>
+                      </>)}
                     </span>
-                    <span style={{flex: '0 0 auto', width: pctW, textAlign: 'right', color: tone,
+                    <span style={{flex: '0 0 auto', width: pctW, textAlign: 'right', color: tone, whiteSpace: 'nowrap',
                       fontVariantNumeric: 'tabular-nums', font: `700 ${pctSize}px/1 ${mono}`}}>
-                      {r.value ?? `${Math.round(100 * target * g)}%`}</span>
+                      {figureAt(parseFigure(figure), g)}</span>
                     {hasTag ? (
                       <span style={{flex: '0 0 auto', width: tagW, textAlign: 'center', whiteSpace: 'nowrap',
                         overflow: 'hidden', color: done ? tone : dim, border: `1px solid ${done ? tone : dim}`,

@@ -18,6 +18,17 @@
 // stops. So the shot's luminance arc and its meaning are the same fact, and hiding the caption still leaves
 // "it took me this far and stopped" legible.
 //
+// EACH LEG IS LIT BY ITS OWN FLAG. The carry used to stop at `nCarried / legs.length` of the track and a leg's
+// chip lit when its POSITION fell behind that head (`lx < headX`) — `carried` was only ever counted, never read
+// per leg. So `carried: [false, true, true, true]` drew leg 1 lit (it sits first) and the last carried leg dark
+// in the "yours to walk" tail: the frame asserted the opposite of the film for two of four legs. And the demo
+// only looked right because its carried legs happened to come first and the count fraction happened to land
+// between the right ticks. Now the carry stops between the last carried leg and the first uncarried one, each
+// chip lights only if its own `carried` is true, and a pattern this shape cannot draw — a carried leg after an
+// uncarried one — throws instead of being drawn as something else. The legs were also cut at six with
+// `.slice(0, 6)`; more than six now throws, a leg needs a `label`, and a film that marks no leg's `carried`
+// at all (not even `false`) is refused, because the split is the whole claim and none was given.
+//
 // The first version of this register put a lit rail and a pulsing field on a static dark ground. It measured
 // 15.3% ink (over the 12% floor) but frame-diff p75 0.0033 and luminance span 0.075 — under BOTH the motion
 // and light floors film_energy_qa derives from real launch films. Local animation on a still ground is what
@@ -36,6 +47,8 @@ export const DURATION = 150; // 5s
 const BG_D0 = '#07090f', FG_D0 = '#eef2f8', ACC_D0 = '#4f8cff', DIM_D0 = '#6c7788', LINE_D0 = '#1b2330';
 
 type Leg = {label?: string; carried?: boolean};
+
+export const MAX_LEGS = 6;
 
 const DEFAULT_LEGS: Leg[] = [
   {label: 'brief', carried: true}, {label: 'draft', carried: true},
@@ -71,13 +84,40 @@ export const LastLeg: React.FC<{
   const zoneBottom = H - captionBand(W, H);
   const portrait = H > W;
 
-  const legs = LEGS.slice(0, 6);
-  const nCarried = Math.max(0, legs.filter((l) => l.carried).length);
-  const frac = legs.length ? nCarried / legs.length : 0;   // how far the carry reaches along the run
+  // The run as the film gave it — every leg, each with its own flag (see the header for what this replaces).
+  if (!Array.isArray(LEGS) || LEGS.length < 1 || LEGS.length > MAX_LEGS) {
+    throw new Error(
+      `LastLeg needs 1-${MAX_LEGS} \`legs\` (got ${Array.isArray(LEGS) ? LEGS.length : typeof LEGS}). Every leg is a chip ` +
+      'in the tick lane and a dropped one would shorten the run the film is measuring; group legs into at most six.');
+  }
+  const legs = LEGS.map((l, i) => {
+    const label = String(l?.label ?? '').trim();
+    if (!label) throw new Error(`LastLeg: leg ${i + 1} has no \`label\`.`);
+    if (l?.carried != null && typeof l.carried !== 'boolean') {
+      throw new Error(`LastLeg: leg ${i + 1} ("${label}") has carried=${JSON.stringify(l.carried)}; it must be true or false.`);
+    }
+    return {label, carried: l?.carried === true};
+  });
+  if (LEGS.every((l) => l?.carried == null)) {
+    throw new Error('LastLeg: no leg says whether it is `carried`. The register draws exactly that split — the ' +
+      'stretch covered for you and the tail that is not — so mark each leg `carried: true` or `carried: false`.');
+  }
+  const nCarried = legs.findIndex((l) => !l.carried) < 0 ? legs.length : legs.findIndex((l) => !l.carried);
+  const late = legs.findIndex((l, i) => i > nCarried && l.carried);
+  if (late >= 0) {
+    throw new Error(
+      `LastLeg: leg ${late + 1} ("${legs[late].label}") is carried but leg ${nCarried + 1} ("${legs[nCarried].label}") ` +
+      'before it is not. This register draws ONE carried stretch from the start and then the uncovered tail, so ' +
+      'that pattern would be drawn as something the film did not say. If the order is not the claim, list the ' +
+      'carried legs first; if it is, use a register that marks each item on its own.');
+  }
 
   // The track OVERRUNS the frame on both sides: the distance does not begin or end on screen.
   const overrun = W * 0.14;
   const x0 = -overrun, x1 = W + overrun;
+  // The tick lane's positions, shared by the chips and by where the carry stops.
+  const tickPad = W * 0.07;
+  const tickX = (i: number) => tickPad + ((W - tickPad * 2) / Math.max(1, legs.length - 1)) * i;
   const trackY = Math.round(zoneTop + (zoneBottom - zoneTop) * (portrait ? 0.58 : 0.62));
   const railH = Math.max(4, Math.round(base * 0.012));
 
@@ -86,7 +126,10 @@ export const LastLeg: React.FC<{
   const gapIn = easeOutCubic(clamp01(seg(t, 0.70, 0.88)));   // the uncovered tail is named
   const dispIn = easeOutCubic(clamp01(seg(t, 0.04, 0.34)));
 
-  const carriedX = x0 + (x1 - x0) * frac;
+  // The carry stops BETWEEN the last carried leg and the first uncarried one — read off the legs themselves.
+  // Nothing carried: it never leaves the origin. Everything carried: it runs off the far edge.
+  const carriedX = nCarried === 0 ? x0 : nCarried === legs.length ? x1
+    : (tickX(nCarried - 1) + tickX(nCarried)) / 2;
   const headX = x0 + (carriedX - x0) * draw;
 
   // The CARRIED GROUND — a lit plane that sweeps to the head of the run and stops. This is the frame's
@@ -133,9 +176,13 @@ export const LastLeg: React.FC<{
         const drift = ((block % 2) ? -1 : 1) * travel;
         const px = cx + (((drift % colW) + colW) % colW);
         if (px > headX) continue;                        // only carried ground holds the words
+        // ...all of each word-line, not just its start: a line beginning a little behind the head used to run on
+        // across it, printing "carried work" into the dark tail the frame says is still yours to walk.
+        const lineW = Math.min(Math.round((colW - blockGap) * wRatio), Math.max(0, headX - px));
+        if (lineW < lineH * 2) continue;
         units.push(
           <div key={`${block}-${k}-${cx}`} style={{position: 'absolute', left: px,
-            top: y, width: Math.round((colW - blockGap) * wRatio), height: lineH,
+            top: y, width: lineW, height: lineH,
             borderRadius: lineH, background: ON, opacity: 0.30 + 0.28 * ph}} />
         );
       }
@@ -224,9 +271,8 @@ export const LastLeg: React.FC<{
           they were dark-on-dark against the lines behind them and unreadable at 26px, which is the one
           failure mode this project treats as non-negotiable (a viewer must decode every element in ~1s). */}
       {legs.map((l, i) => {
-        const pad = W * 0.07;
-        const lx = pad + ((W - pad * 2) / Math.max(1, legs.length - 1)) * i;
-        const on = lx < headX;
+        const lx = tickX(i);
+        const on = l.carried && lx < headX;   // its OWN flag, lit as the carry reaches it
         return (
           <div key={i} style={{position: 'absolute', left: lx, top: tickLane,
             transform: 'translateX(-50%)', opacity: on ? draw : 0.85 * gapIn,
@@ -235,7 +281,7 @@ export const LastLeg: React.FC<{
             color: on ? ACC : DIM, whiteSpace: 'nowrap',
             borderRadius: Math.round(base * 0.006),
             padding: `${Math.round(base * 0.007)}px ${Math.round(base * 0.014)}px`,
-            font: `700 ${Math.round(base * 0.024)}px/1.2 ${mono}`}}>{l.label ?? ''}</div>
+            font: `700 ${Math.round(base * 0.024)}px/1.2 ${mono}`}}>{l.label}</div>
         );
       })}
 

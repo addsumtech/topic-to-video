@@ -2,12 +2,20 @@
 // marks, a schematic module DRAWN with thin strokes, dimension lines with arrowheads + mono spec labels, a
 // centre crosshair with a coordinate readout. Near-monochrome + ONE accent = precision, not decoration.
 // Deterministic (stroke-draw + counters = fn of t). Light, systematic, engineering-grade.
+//
+// THE CORNER READOUT PRINTS THE FILM'S FIGURE, WITH THE FILM'S UNIT. It used to print
+// `Math.round(lerp(0, metric, …))` followed by a hardcoded "%": a film's 99.5 settled as "100%", 0.8 as "1%",
+// and 1200 (a count of anything) as "1200%" — a unit the film never gave, on a register whose whole register is
+// precision. The readout now goes through runtime/figure.ts (`figureAt` counts up only a string that is exactly
+// one number and lands on it as written), `metric` may be the written figure itself ("62%", "3–5"), and the
+// unit is `metricUnit`, drawn only when the film supplies one. The count also settles by t=0.72 instead of 0.9.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
-import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
+import {useT, seg, clamp01, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {contentBottom, fitTextPx, inkBlockH, monoFit, textWidthPx} from '../runtime/layout';
+import {parseFigure, figureAt, figureText} from '../runtime/figure';
 
 export const DURATION = 165; // 5.5s
 // LEVEL-C: the whole blueprint flips with the DNA (paper→bg, ink→fg, grid→line, accent) so on a dark DNA it reads
@@ -31,12 +39,15 @@ export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: strin
   // the clock, so every film using this register printed a confident "100%" it had never been given —
   // over a beat arguing the cathedral's nave was NEVER finished, which is the opposite claim. A measured
   // figure comes from the film or the corner stays empty.
-  metric?: number | null;
+  // It is printed as the film wrote it: a number, or the written figure itself ("62%", "3–5").
+  metric?: number | string | null;
+  // the readout's unit, drawn beside it in the accent — only when the film gives one (it was a hardcoded "%")
+  metricUnit?: string;
   metricLabel?: string;
   // A real measurement to set beside the crosshair, or nothing. NEVER a screen coordinate.
   readout?: string}> = ({
   unit = 'workbuddy.unit', tag = 'local-only', spec1 = 'runs on your machine', spec2 = '0 cloud calls',
-  metric = null, metricLabel = '', readout = ''} = {}) => {
+  metric = null, metricUnit = '', metricLabel = '', readout = ''} = {}) => {
   const dna = useDNA();
   const INK = dna?.fg ?? INK0, FAINT = dna?.line ?? FAINT0, ACC = dna?.accent ?? ACC0, BG = dna?.bg ?? '#f6f8fb';
   const t = useT();
@@ -58,7 +69,9 @@ export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: strin
   const mx = cx - mw / 2, my = cy - mh / 2;
   const sub = clamp01(seg(t, 0.4, 0.7)); // sub-blocks appear
   // the supplied figure, counted UP to its own value — the motion is the register's, the number is the film's
-  const specN = metric == null ? null : Math.round(lerp(0, metric, easeOutCubic(seg(t, 0.55, 0.9))));
+  const metricText = metric == null ? '' : figureText(metric);
+  const specN = metricText ? figureAt(parseFigure(metricText), easeOutCubic(seg(t, 0.55, 0.72))) : null;
+  const metricPx = metricText ? Math.max(28, fitTextPx(metricText + (metricUnit ?? ''), W * 0.4, 80, {usable: 1, ...monoFit()})) : 0;
 
   return (
     <AbsoluteFill style={{background: BG}}>
@@ -151,7 +164,7 @@ export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: strin
       {/* a counting spec readout, top-right — drawn only when the film supplied a figure */}
       {specN == null ? null : (
         <div style={{position: 'absolute', right: 120, top: 120, textAlign: 'right', opacity: clamp01(seg(t, 0.55, 0.78))}}>
-          <div style={{color: INK, font: `800 80px/1 ${MONO}`, fontVariantNumeric: 'tabular-nums'}}>{specN}<span style={{color: ACC}}>%</span></div>
+          <div style={{color: INK, font: `800 ${metricPx}px/1 ${MONO}`, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap'}}>{specN}{metricUnit ? <span style={{color: ACC}}>{metricUnit}</span> : null}</div>
           {metricLabel ? (
             <div style={{color: '#5b6675', font: `600 22px/1 ${MONO}`, marginTop: 6}}>{metricLabel}</div>
           ) : null}

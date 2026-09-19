@@ -8,6 +8,11 @@
 //
 // The senses arrive numbered and in order, which is what makes it an argument rather than a caption: the
 // last sense is the one the film is claiming.
+//
+// NO SENSE IS DROPPED. The list used to be cut with `.slice(0, 4)`, and because the LAST sense is set as the
+// claim, a film giving five senses lost its fifth — the one it was arguing for — and had its fourth promoted
+// into the claim's bold instead. More than four now throws; `senses: []` is allowed (an entry that is only
+// the headword, its pronunciation and its etymology).
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -17,6 +22,7 @@ import {captionBand, CONTENT_TOP} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150;
+export const MAX_GAZETTEER_SENSES = 4;
 
 const BG_D0 = '#efe7d8', FG_D0 = '#241d14', DIM_D0 = '#6e6152';
 const ACC_D0 = '#9c3b1e', LINE_D0 = '#cdbfa7';
@@ -38,7 +44,7 @@ export const GazetteerEntry: React.FC<{
   const {width: W, height: H} = useVideoConfig();
   const FG = dna?.fg ?? FG_D0, DIM = dna?.dim ?? DIM_D0;
   const ACC = dna?.accent ?? ACC_D0, LINE = dna?.line ?? LINE_D0;
-  const disp = 'var(--f-display, Georgia, serif)';
+  const disp = 'var(--f-display, "Source Serif 4", Georgia, serif)';
   const body = 'var(--f-body, system-ui, sans-serif)';
   const mono = 'var(--f-mono, ui-monospace, monospace)';
 
@@ -51,7 +57,13 @@ export const GazetteerEntry: React.FC<{
   const orig = easeOutCubic(clamp01(seg(t, 0.24, 0.42)));
   const hair = Math.max(1, Math.round(W * 0.0011));
 
-  const items = SENSES.slice(0, 4);
+  if (!Array.isArray(SENSES) || SENSES.length > MAX_GAZETTEER_SENSES) {
+    throw new Error(
+      `GazetteerEntry takes 0-${MAX_GAZETTEER_SENSES} \`senses\` (got ${Array.isArray(SENSES) ? SENSES.length : typeof SENSES}). ` +
+      'The last sense is set as the claim, so cutting the list would drop the very sense the film argues for. ' +
+      'Keep the senses the argument walks through (the claim last), or split the entry across two beats.');
+  }
+  const items = SENSES;
   // A DERIVED STACK, not magic fractions. Every line here used to be placed at its own fraction of something
   // — the headword at `top`, the pronunciation at `top + W*0.070`, the rule at `top + zone*0.20`, the
   // etymology at `top + zone*0.235`. Fractions of two different quantities, hand-tuned until they happened
@@ -71,8 +83,13 @@ export const GazetteerEntry: React.FC<{
   const yRule = yPron + (pronunciation ? Math.round(pronSize * 1.3) + step : 0);
   const yOrig = yRule + step;
   const senseTop = yOrig + (origin ? Math.round(origSize * 1.4) + step : 0) + step;
+  // ...and the senses end ABOVE the source note, which sits on `bottom`. Spaced against `bottom` itself, a
+  // full entry (four senses, with pronunciation and etymology) set its fourth sense — the claim — straight
+  // through the note line. Four is now the stated maximum, so four has to fit.
+  const noteTop = bottom - Math.round(W * 0.016);
+  const senseBottom = note ? noteTop - step : bottom;
   const gap = Math.max(Math.round(origSize * 1.6),
-                       Math.min(zone * 0.20, (bottom - senseTop) / Math.max(1, items.length)));
+                       Math.min(zone * 0.20, (senseBottom - senseTop) / Math.max(1, items.length)));
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG_D0, color: FG}}>
@@ -119,7 +136,7 @@ export const GazetteerEntry: React.FC<{
       })}
 
       {note ? (
-        <div style={{position: 'absolute', left, right, top: bottom - Math.round(W * 0.016),
+        <div style={{position: 'absolute', left, right, top: noteTop,
           opacity: easeOutCubic(clamp01(seg(t, 0.80, 0.94))),
           font: `400 ${Math.round(W * 0.0125)}px/1.4 ${mono}`, color: DIM,
           letterSpacing: '0.05em'}}>{note}</div>

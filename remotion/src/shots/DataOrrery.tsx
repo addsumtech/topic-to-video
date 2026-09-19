@@ -29,7 +29,15 @@ export const DataOrrery: React.FC<{items?: string[]; hub?: string}> = ({
       'DataOrrery needs at least one non-empty `items` entry — the things that orbit. With nothing to ' +
       'orbit it draws a glowing core and four empty chips, which composes and argues nothing.');
   }
-  const RINGS = RING_GEOM.map((r, i) => ({...r, label: labels[i % labels.length]}));
+  // ONE ORBIT PER ITEM. This used to draw all four orbits whatever it was given and fill them by
+  // `labels[i % labels.length]`, so a film that named two things showed each of them twice and one that named
+  // five lost the fifth without a word. The orbits are geometry; the count is the film's.
+  if (labels.length > RING_GEOM.length) {
+    throw new Error(
+      `DataOrrery holds at most ${RING_GEOM.length} orbits and was given ${labels.length} items. Cut the list to ` +
+      'the ones the beat is about, or cast a register that holds more — an extra item is never dropped silently.');
+  }
+  const RINGS = labels.map((label, i) => ({...RING_GEOM[i], label}));
   const t = useT();
   const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();

@@ -1,14 +1,23 @@
 // SHOT · EdStat — an EDITORIAL pull-stat (the editorial analogue of TermCounter): a kicker + a HUGE serif figure
 // + a caption, ruled like a magazine feature. The 'metric/hero-stat' idea rebuilt in the editorial DNA, not a
 // terminal counter reskinned. Deterministic (count = fn of t; lands ~35% then holds — see ROLL below).
+//
+// THE FIGURE ON THE FRAME IS THE FILM'S STRING. This register used to strip `value` down to digits and dots,
+// parse what was left and re-format it: "3–5" printed as 35, "1.2M" as 1.2 (the M was simply gone), "~40" as
+// 40, "1,5" as 15, a year "2024" as "2,024", and "1234.5" as "1,235" — every one a figure no source gave,
+// under a kicker that says BY THE NUMBERS. It now goes through runtime/figure.ts: the settled frame prints
+// `figureText(value)` byte for byte, and the roll is `figureAt`, which only counts up a string that states
+// exactly one number (same prefix, sign, decimals, grouping and suffix) and shows anything else — a range, a
+// span of years, "N/A" — verbatim from the first frame, because there is nothing honest to count up to.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {measureText, fitTextOnNLines} from '@remotion/layout-utils';
-import {useT, seg, clamp01, easeOutCubic, lerp} from '../runtime/motion';
+import {useT, seg, clamp01, easeOutCubic} from '../runtime/motion';
 import {useDNA, EdFrame} from '../runtime/dna';
 import {Figure} from '../runtime/atoms';
 import {CONTENT_TOP, captionBand} from '../runtime/layout';
+import {parseFigure, figureAt, figureText} from '../runtime/figure';
 
 export const DURATION = 155;
 
@@ -37,15 +46,14 @@ export const EdStat: React.FC<{kicker?: string; value?: string; unit?: string; c
   const fg = dna?.fg ?? FG_D0, dim = dna?.dim ?? DIM_D0, acc = dna?.accent ?? ACC_D0;
 
   // ── the number ────────────────────────────────────────────────────────────────────────────────────────
-  const raw = String(value ?? '');
-  // SIGNED DATA RENDERS SIGNED: stripping everything but digits turned "-12" into 12, i.e. silently flipped
-  // the claim. Parse the sign separately and carry it through the roll and the formatter.
-  const sign = /^\s*-/.test(raw) ? -1 : 1;
-  const num = sign * (parseFloat(raw.replace(/[^\d.]/g, '')) || 0);
-  const decimals = (raw.split('.')[1]?.replace(/[^\d]/g, '') || '').length;
-  const fmt = (v: number) => (Math.abs(num) >= 1000
-    ? (Math.round(v) || 0).toLocaleString('en-US')   // `|| 0` so a rolling negative never prints "-0"
-    : v.toFixed(decimals));
+  // The film's string is the figure. `parseFigure` keeps its sign ("−12" stays negative — the old digit-strip
+  // flipped it), its decimals, its grouping and its prefix/suffix; `num` is null for anything that is not
+  // exactly one number, and such a value is printed as written at every frame.
+  const fig = parseFigure(value);
+  if (!fig.text) {
+    throw new Error('EdStat needs a `value` — the figure IS the register; with none there is only a kicker over ' +
+      'an empty rule. Pass the sourced figure as a string, exactly as it should read ("60%", "3–5", "1.2M").');
+  }
 
   // ROLL — the count-up. Two things were wrong in a delivered film and both are fixed here:
   //  • `roll={false}` renders the figure STATIC, correct from the very first frame. A beat that is ABOUT a
@@ -56,13 +64,13 @@ export const EdStat: React.FC<{kicker?: string; value?: string; unit?: string; c
   //    the beat instead of one third — and, decisively, correct at the mid-scene frame the delivery gate
   //    captures. Default is still "it rolls", so films that chose this register are unchanged in kind.
   const g = roll ? easeOutCubic(clamp01(seg(t, 0.04, 0.32))) : 1;
-  const shown = fmt(roll ? lerp(0, num, g) : num);
+  const shown = figureAt(fig, g);                 // === figureText(value) once g reaches 1, and when roll=false
 
   // ── sizing: measured, not assumed ─────────────────────────────────────────────────────────────────────
   // WIDTH-AWARE: size the figure by its FINAL string length so a big number ("5,000,000") stays inside the
   // frame (a fixed 260px overflowed the surface + ran the unit off-screen). Sizing off the landed value keeps
   // it stable (no reflow jitter as it counts up — intermediate strings are shorter, so they always fit).
-  const finalStr = fmt(num);
+  const finalStr = figureText(value);
   const heurSize = Math.max(108, Math.min(260, Math.floor(1120 / (finalStr.length * 0.6))));
   // The heuristic assumes a 0.6em advance — true for the mono forms, wrong for a proportional display face,
   // and blind to the UNIT entirely (a CJK unit is 1em per glyph). So MEASURE, and only ever shrink from the

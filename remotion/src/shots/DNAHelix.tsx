@@ -34,6 +34,7 @@ export const DNAHelix: React.FC<{title?: string; tagline?: string}> = ({
     if (i % 2 === 0) {
       const zc = (z1 + z2) / 2;
       items.push({z: zc, key: `r${i}`, el: <line x1={x1} y1={y} x2={x2} y2={y}
+        // @positional: the rungs alternate base-pair colours along the strand, which is what a helix diagram draws; no film item sits on a rung
         stroke={i % 4 === 0 ? A_T : G_C} strokeWidth={lerp(3, 8, depth(zc))} opacity={appear * (0.25 + 0.6 * depth(zc))} strokeLinecap="round" />});
     }
     const node = (x: number, z: number, k: string) => ({z, key: k, el:

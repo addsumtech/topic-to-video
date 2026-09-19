@@ -1,6 +1,15 @@
 // SHOT · Brutalist Type — a raw brutalist-editorial register: stark off-white/black + one hot accent, oversized
 // grotesque type in hard-edged boxes, mono metadata, harsh rules, and a brief RGB-glitch jolt. Aggressive,
 // anti-slick — the opposite pole from the refined SwissEditorial. Deterministic (glitch pulse = fn of frame).
+//
+// THE FOLIO IN THE ACCENT BLOCK IS THE FILM'S, OR THERE IS NONE. The block carried a literal `01/03` — a
+// page counter saying "this is the first of three". On a film that is a claim about the beat's place in a
+// sequence, and no film had made it: a single statement shipped as part one of a series that did not exist,
+// and every beat that used the register was "01" of the same "03". It is `counter` now, with NO default:
+// a film that numbers its parts passes the folio ('02/05'), and one that doesn't gets the bare hot block,
+// which is the brutalist form on its own. It is not defaulted to the old text because that default could
+// not be seen — the demo-copy gate reads a default by its Latin words and '01/03' has none, so a film that
+// omitted it would have printed the fake folio without a word from any check.
 
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
@@ -12,8 +21,10 @@ import {captionBand, fitTextPx, wrapLines} from '../runtime/layout';
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#ececec', INK_D0 = '#0a0a0a', ACC_D0 = '#ff3b00';
 
-export const BrutalistType: React.FC<{titleTop?: string; titleBottom?: string; meta?: string; statement1?: string; statement2?: string}> = ({
-  titleTop = 'WORK', titleBottom = 'BUDDY.', meta = 'WORKBUDDY / LOCAL-FIRST', statement1 = 'NO CLOUD.', statement2 = 'NO NONSENSE.'} = {}) => {
+export const BrutalistType: React.FC<{titleTop?: string; titleBottom?: string; meta?: string; statement1?: string; statement2?: string;
+  counter?: string}> = ({
+  titleTop = 'WORK', titleBottom = 'BUDDY.', meta = 'WORKBUDDY / LOCAL-FIRST', statement1 = 'NO CLOUD.', statement2 = 'NO NONSENSE.',
+  counter} = {}) => {
   const dna = useDNA();
   const BG = dna?.bg ?? BG_D0, INK = dna?.fg ?? INK_D0, ACC = dna?.accent ?? ACC_D0;
   const t = useT();
@@ -27,6 +38,10 @@ export const BrutalistType: React.FC<{titleTop?: string; titleBottom?: string; m
   const rise = easeOutExpo(seg(t, 0.06, 0.4));
 
   const BAND = captionBand(W, H);
+  // the folio sits inside the 260px accent block (10px in from its right edge), so it is fitted to that width
+  // at the original 46px; '01/03' is 5 mono cells and keeps 46px exactly
+  const folio = String(counter ?? '').trim();
+  const folioPx = Math.min(46, fitTextPx(folio, 230, 46, {usable: 1, adv: 0.62, cjk: 1.24}));
   // THE HEADLINE IS SIZED FROM THE ROOM IT HAS, not fixed at 300px. Two lines at 300px/0.82 stand 492px
   // tall; the space between the top rule and the statement is whatever the caption band leaves, and once
   // the band grew that space fell below what the type needed — so "1674" descended straight through
@@ -92,7 +107,8 @@ export const BrutalistType: React.FC<{titleTop?: string; titleBottom?: string; m
 
       {/* metadata */}
       <div style={{position: 'absolute', left: 96, top: 100, color: INK, font: '800 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.02em'}}>{meta}</div>
-      <div style={{position: 'absolute', right: 100, top: 186, color: BG, font: '800 46px/1 var(--f-mono, "JetBrains Mono", monospace)'}}>01/03</div>
+      {folio ? <div style={{position: 'absolute', right: 100, top: 186, color: BG, whiteSpace: 'pre',
+        font: `800 ${folioPx}px/1 var(--f-mono, "JetBrains Mono", monospace)`}}>{folio}</div> : null}
 
       {/* headline (RGB-glitch stack) */}
       {/* The headline box ENDS where the statement begins. It was a fixed 720px tall from y=300 — which

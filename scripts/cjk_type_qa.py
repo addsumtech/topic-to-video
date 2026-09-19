@@ -420,6 +420,14 @@ def cjk_props(name, offset=0):
         elif t.startswith("boolean"):
             continue
         elif t.startswith("number") or t.startswith("number|null"):
+            # AN INDEX THE REGISTER REQUIRES is fed one. Under the content contract a register no longer picks
+            # which of the film's items to spotlight (`focal`) or to land on (`target`) — it refuses to render
+            # without the film's choice, so a sweep that left these unset reported GlowPick and FocalIsolation
+            # as "failed to render" over a fixture that never said which item. 1 is inside every fixture list
+            # (they all carry at least two rows). Optional selectors (hero, winner, highlight, active) stay
+            # unset on purpose: their neutral state is what a film that omits them gets.
+            if prop in ("focal", "target") and t.split("|")[0] == "number":
+                props[prop] = 1
             continue
         elif "[]" in t:
             # THE TYPE BEATS THE NAME TABLE, and it has to be asked FIRST. `_shape_array` is keyed by prop
@@ -427,7 +435,22 @@ def cjk_props(name, offset=0):
             # OTHER register — which is how SplitFlap came to be swept with a two-column table it renders
             # as blank flaps. The table is the fallback for shapes the reader still cannot resolve, not the
             # first answer.
+            # A LIST OF NUMBERS OR OF PAIRS IS DATA, NOT COPY. BeforeAfterSlider's `series?: (number | string)[]`
+            # is a chart's values (a figure string at most) and KnowledgeGraph's `links?: [a, b][]` is which
+            # nodes connect. Fed a Chinese sentence, both registers refuse it — they are the content contract's
+            # new props, and their absence is exactly the case the contract draws (no chart, spokes only).
+            elem = t[:-2] if t.endswith("[]") else t
+            alias = re.fullmatch(r"[A-Z]\w*", elem) and re.search(
+                r"\btype\s+%s\s*=\s*([^;\n]+)" % re.escape(elem), src)
+            if alias:                                    # `GraphLink[]` → `[number | string, number | string]`
+                elem = alias.group(1).replace(" ", "")
+            if elem.startswith("[") or (elem.startswith("(number") and "{" not in elem):
+                continue
             shaped = _shape_from_type(prop, ty, src, off=offset)
+            if shaped is _NOT_COPY and prop in _COUPLED_GEOMETRY:
+                # geometry this sweep must feed anyway, because the register refuses the copy without it
+                props[prop] = _COUPLED_GEOMETRY[prop]
+                continue
             if shaped is _NOT_COPY:
                 continue                                 # geometry, not copy — keep the register's default
             # ...BUT THE TABLE WINS WHEN IT FITS, and "type first, always" was too blunt. The table exists
@@ -491,6 +514,11 @@ def cjk_props(name, offset=0):
             props[prop] = {k: v for k, v in shape.items() if k in keys} if keys else shape
         else:
             untestable.append(prop)
+    for prop, val in _REGISTER_COPY.get(name, {}).items():
+        if val is None:
+            props.pop(prop, None)
+        elif prop in props:
+            props[prop] = val
     return props, untestable
 
 
@@ -526,9 +554,17 @@ _ARRAY_SHAPES = {
                 {"date": "第二步", "title": "调用工具执行", "note": "在授权目录里真正动文件"}],
     "gauges": [{"label": "自动拆解任务", "fill": 0.72}, {"label": "规划执行步骤", "fill": 0.55}],
     "items": list(_ITEMS[:4]),
-    "fail": {"label": "只回答问题", "note": "产出停在文字上", "a": None, "b": None},
-    "pass": {"label": "交付成果", "note": "产出落进文件里", "a": None, "b": None},
-    "domain": [0, 100],
+    # EVERY POPULATION CARRIES ITS NUMBERS. `a: None` used to get the demo curves silently; OverlapSeparation
+    # now refuses a population without a mean and a spread, so the fixture states both (0..1 domain).
+    "fail": {"label": "只回答问题", "note": "产出停在文字上",
+             "a": {"label": "旧流程", "mean": 0.5, "spread": 0.16}, "b": {"label": "新流程", "mean": 0.54, "spread": 0.16}},
+    "pass": {"label": "交付成果", "note": "产出落进文件里",
+             "a": {"label": "旧流程", "mean": 0.25, "spread": 0.08}, "b": {"label": "新流程", "mean": 0.78, "spread": 0.08}},
+    # PhysicsStack draws heights, so its fixture carries values — `items` alone is refused.
+    "bars": [{"label": "自动拆解任务", "value": 12}, {"label": "规划执行步骤", "value": 19},
+             {"label": "交付可验收成果", "value": 27}],
+
+    "domain": [0, 1],
     "tiles": [{"label": "自动拆解任务", "note": "把一句话拆开"}, {"label": "调用工具执行", "note": "在授权目录里"},
               {"label": "交付可验收成果", "note": "产出是文件"}],
     "xAxis": ["只回答", "真执行"],
@@ -544,6 +580,27 @@ _ARRAY_SHAPES = {
                 {"hash": "e4f5a6b", "ref": "", "msg": "在授权目录里读写文件"}],
 }
 
+
+# GEOMETRY THAT TRAVELS WITH COPY. `TechnicalPlate` numbers the film's `parts` on the object its `strokes`
+# draw, and it now refuses parts without strokes — otherwise a film's part names landed on the demo bicycle.
+# The sweep feeds parts, so it must feed an object for them to sit on; this is that object, in plate fractions.
+_COUPLED_GEOMETRY = {
+    "strokes": [{"kind": "circle", "x": 0.28, "y": 0.62, "r": 0.14}, {"kind": "circle", "x": 0.72, "y": 0.62, "r": 0.14},
+                {"kind": "line", "x": 0.28, "y": 0.62, "x2": 0.5, "y2": 0.34}, {"kind": "line", "x": 0.5, "y": 0.34, "x2": 0.72, "y2": 0.62}],
+}
+
+# PER-REGISTER COPY, only where a register's FORM bounds the copy and refuses more. SpotlightStage sets its
+# words on ONE line with an arrow between each pair and throws when they cannot fit at a readable size (a
+# flow of four 11-glyph sentences is not a word-flow). Fed the generic long phrases, the sweep reported the
+# register as a render failure over an input no film should give it. Its fixture is words, as its type says.
+# `None` REMOVES a prop the register no longer reads once another is given: PhysicsStack keeps `items` only to
+# refuse it (labels without heights), so feeding both would report four strings "dropped" that it never draws.
+_REGISTER_COPY = {
+    "SpotlightStage": {"items": ["拆解任务", "调用工具", "交付成果"]},
+    # one or two ceilings — the bar jams against the first; four is a list it refuses
+    "SpeedLimit": {"limits": ["在授权目录里真正动文件", "交付可验收的成果"]},
+    "PhysicsStack": {"items": None},
+}
 
 # A number that is plainly a 0..1 fraction gets one; anything else gets a small count. No figure this gate
 # invents ever reaches a film — these props exist only to make the register DRAW so its type can be measured.
@@ -616,7 +673,19 @@ def _synth_field(name, ty, src="", i=0):
         j = i + sum(ord(ch) for ch in name) % 4
         if re.search(r"^(fill|frac|ratio|opacity|x\d?|y\d?|cx|cy|inset|scale)$", name, re.I):
             return round(0.30 + (j % 5) * 0.13, 3)
-        if re.search(r"^(w|h|r|rx|ry|width|height|size|depth|gap|pad|thickness)$", name, re.I):
+        # A ROW'S `depth` is a tree LEVEL — 0 at the top, an integer — not a 0..1 thickness; GrantedTree refuses
+        # a fraction because an indent is the tree's structure. Rows step 0, 1, 2 so the fixture is a tree.
+        if name == "depth":
+            return i % 3
+        # A route stop's `level` is an INDEX into the section's levels — SectionRoute refuses 62. Two levels are
+        # always there in any fixture that feeds one.
+        if name == "level":
+            return (i + 1) % 2
+        # A TALLY count is strokes somebody drew: 62 / 79 / 96 at one stroke each overran TallyLedger's row and
+        # it (rightly) refused to shrink the stroke silently when the film had named what a stroke counts.
+        if name == "count":
+            return 6 + (i % 5) * 5
+        if re.search(r"^(w|h|r|rx|ry|width|height|size|gap|pad|thickness)$", name, re.I):
             return round(0.05 + (j % 4) * 0.03, 3)
         # a COUNTER is 1, 2, 3 — `TechnicalPlate` numbers its callouts on the plate the way a real sheet
         # does, and 62 / 79 / 96 is not a part list.
@@ -624,6 +693,9 @@ def _synth_field(name, ty, src="", i=0):
             return i + 1
         return 62 + (i % 5) * 17
     if t.startswith("boolean"):
+        # `granted` marks a contiguous run (rows 2-3), so the sweep sees GrantedTree's bracket and a withheld row
+        if name == "granted":
+            return i in (1, 2)
         return name in ("find", "hero", "done", "ok")
     m = re.match(r"^\[([A-Za-z]+),([A-Za-z]+)\]$", t)    # a fixed PAIR — `from: [number, number]`
     if m and m.group(1) == m.group(2) == "number":
@@ -712,7 +784,9 @@ def _type_fields(ty, src, _depth=0):
             fields.update({k: v for k, v in _fields_of_body(arm[1:-1]).items() if k not in fields})
             resolved = True
         elif re.fullmatch(r"[A-Z][A-Za-z0-9_]*", arm) and _depth < 3:
-            m = re.search(r"(?:export\s+)?type\s+%s\s*=\s*(.+?);\s*$" % re.escape(arm), src, re.S | re.M)
+            # `;` may be followed by a line comment: `type Node = {...};   // label + depth REQUIRED` went
+            # unresolved, and GrantedTree's rows were filled from another register's timeline table.
+            m = re.search(r"(?:export\s+)?type\s+%s\s*=\s*(.+?);[ \t]*(?://[^\n]*)?$" % re.escape(arm), src, re.S | re.M)
             if m:
                 sub = _type_fields(m.group(1), src, _depth + 1)
                 if sub:
@@ -737,7 +811,11 @@ def _carries_copy(fields, bare_string=False):
 # A field that names a COLOUR is not copy, at any nesting depth. The top-level skip covered `accent` and
 # `accent2`; a row's own `tone` sat below it, so `TermBars` was handed a Chinese sentence as the colour of
 # every bar. Omitted, so the register keeps its own default.
-_NON_COPY_FIELDS = re.compile(r"^(tone|color|colour|accent\d?|bg|background|ink|hue|fill|shade|stroke)$", re.I)
+# `glyph`, `kind`, `state` and `el` NAME a picture, a board type, a status or an element — a closed set the
+# register validates. Fed a sentence, the repaired registers refuse it (an unknown glyph must not draw the wrong
+# picture), so the sweep reported PlatformSurfaces and QuadSplit as render failures over its own input. Left
+# out, the row draws no picture, which is the case the content contract says a film without one gets.
+_NON_COPY_FIELDS = re.compile(r"^(tone|color|colour|accent\d?|bg|background|ink|hue|fill|shade|stroke|glyph|kind|state|el)$", re.I)
 # ...and a DATA ROW's readout is a number. A row that also declares a numeric `pct` or `fill` is a measured
 # row, so its `value` is the figure beside the bar — `TermBars` drew nothing for the word it was given.
 _ROW_READOUT = re.compile(r"^(value|amount|metric|count|total|num)$", re.I)

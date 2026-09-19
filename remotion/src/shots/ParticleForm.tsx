@@ -46,6 +46,7 @@ export const ParticleForm: React.FC<{label?: string}> = ({label = 'Done.'} = {})
             const a = clamp01((assembled - hash01(i) * 0.18) / 0.6);
             const x = lerp(sx, tx, a), y = lerp(sy, ty, a);
             const r = (5 + hash01(i * 5) * 4) * (1 + 0.5 * pulse);
+            // @positional: a sparkle every seventh particle of an unlabelled cloud
             return <circle key={i} cx={x} cy={y} r={r} fill={i % 7 === 0 ? '#8fd0ff' : ACC} opacity={0.5 + 0.5 * a} />;
           })}
         </g>

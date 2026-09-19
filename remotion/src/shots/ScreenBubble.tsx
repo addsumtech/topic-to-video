@@ -1,12 +1,24 @@
 // SHOT · Screen + Bubble — Loom language: a light app screen being walked through, with a circular cam
 // BUBBLE in the corner (a person narrating) and a cursor demonstrating. Casual, human, light. The picture-
 // in-picture + screen choreography is a Remotion-native composite the flat tier doesn't do. Deterministic.
+//
+// THE SELECTED PAGE AND THE BUTTON ARE THE FILM'S. The sidebar always highlighted `nav[2]` and printed it as
+// the page heading, and the button always read "+ New" in English. So a film that listed its own four
+// sections got its THIRD one lit and titled as the page being demonstrated — a selection nobody made — and a
+// Chinese walkthrough clicked an English button. The button label is `action` now (default '+ New', which
+// the demo-copy gate lists when a film omits it; '' draws no button). The highlighted item is `active`, an
+// index into `nav`, and like every prop that SELECTS it defaults to none: a film that passes its own `nav`
+// without `active` gets an even sidebar and no page heading. The demo keeps its "Deliverables" page only as
+// part of the whole demo — `active` falls back to 2 when `nav` itself is the demo list, never when the list
+// is the film's. `nav` is 1-6 labels (eight one-line labels fill a 1080px-tall sidebar, and wrapped CJK
+// labels fill it at six), and an `active` that names no item throws.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeCursor, easeOutBack, easeOutCubic, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {leading} from '../runtime/cjkType';
+import {textWidthPx} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 const BRAND = '#6C5CE7';
@@ -16,9 +28,30 @@ const BRAND = '#6C5CE7';
 // traffic lights beside it. Everything else a viewer reads here is the FILM's, and now says so.
 export const INTRINSIC_TEXT = ['REC'];
 
-export const ScreenBubble: React.FC<{appTitle?: string; nav?: string[]; deliverable?: string; note?: string}> = ({
-  appTitle = 'workbuddy — untitled', nav = ['Home', 'Projects', 'Deliverables', 'Team'],
+export const MAX_NAV = 6;
+const DEFAULT_NAV = ['Home', 'Projects', 'Deliverables', 'Team'];
+const DEMO_ACTIVE = 2;   // the demo's own page — used only while `nav` is DEFAULT_NAV
+
+export const ScreenBubble: React.FC<{appTitle?: string; nav?: string[]; active?: number | null; action?: string;
+  deliverable?: string; note?: string}> = ({
+  appTitle = 'workbuddy — untitled', nav: NAV = DEFAULT_NAV, active, action = '+ New',
   deliverable = 'Q3 board deck', note = 'created just now'} = {}) => {
+  if (!Array.isArray(NAV) || NAV.length < 1 || NAV.length > MAX_NAV) {
+    throw new Error(`ScreenBubble: \`nav\` takes 1-${MAX_NAV} sidebar labels (got ${Array.isArray(NAV) ? NAV.length : typeof NAV}). ` +
+      'Eight one-line labels already fill the sidebar of a 1080px-tall window and a label that wraps takes half ' +
+      'again as much, so six is the most that always fits — name the sections the walkthrough actually visits.');
+  }
+  const nav = NAV.map((n, i) => {
+    const v = String(n ?? '').trim();
+    if (!v) throw new Error(`ScreenBubble: nav item ${i + 1} is empty — every sidebar entry needs a label.`);
+    return v;
+  });
+  // the selection is the film's; the demo's "Deliverables" belongs to the demo list alone
+  const sel = active != null ? active : (NAV === DEFAULT_NAV ? DEMO_ACTIVE : null);
+  if (sel != null && !(Number.isInteger(sel) && sel >= 0 && sel < nav.length)) {
+    throw new Error(`ScreenBubble: \`active\` must be the index (0-${nav.length - 1}) of the nav item being shown, ` +
+      `got ${JSON.stringify(active)}. Omit it to highlight nothing.`);
+  }
   // LEVEL-C: the app-window chrome follows the DNA → a DARK-MODE app on a dark DNA (window=surface, ink=fg, brand=
   // accent), the original light app on null DNA. The mac traffic-lights + REC dot stay (universal, iconic on both).
   const dna = useDNA();
@@ -29,13 +62,21 @@ export const ScreenBubble: React.FC<{appTitle?: string; nav?: string[]; delivera
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const SX = 150, SY = 130, SW = W - 300, SH = H - 300;
-  // cursor path: rest → "New" button (click) → the created block
-  const pts: [number, number][] = [[SX + SW * 0.5, SY + SH * 0.7], [SX + 250, SY + 150], [SX + SW * 0.62, SY + 360]];
+  // cursor path: rest → the action button (click) → the created block.
+  // THE CLICK LANDS ON THE BUTTON. It was aimed at a fixed `SX + 250`, which is inside the SIDEBAR — the cursor
+  // clicked the gap between the first two nav items while the ripple played on the button 1200px away, so
+  // the frame showed a click on navigation that no film had described. The button is right-aligned in the
+  // main column (44px padding, 30px side padding, 32px bold label), so its centre is measured from its label.
+  // With no button (`action: ''`) there is nothing to click, and the cursor goes straight to the new row.
+  const btnW = 60 + textWidthPx(action, 32, {adv: 0.62});
+  const rowPt: [number, number] = [SX + SW * 0.62, SY + 360];
+  const clickPt: [number, number] = action ? [SX + SW - 44 - btnW / 2, SY + 66 + 44 + 34] : rowPt;
+  const pts: [number, number][] = [[SX + SW * 0.5, SY + SH * 0.7], clickPt, rowPt];
   const seg1 = easeCursor(seg(t, 0.1, 0.34)), seg2 = easeCursor(seg(t, 0.44, 0.7));
   let cx = pts[0][0], cy = pts[0][1];
   if (t < 0.44) {cx = lerp(pts[0][0], pts[1][0], seg1); cy = lerp(pts[0][1], pts[1][1], seg1);}
   else {cx = lerp(pts[1][0], pts[2][0], seg2); cy = lerp(pts[1][1], pts[2][1], seg2);}
-  const clicked = t > 0.34 && t < 0.44;
+  const clicked = Boolean(action) && t > 0.34 && t < 0.44;
   const ripple = clicked ? (t - 0.34) / 0.1 : 0;
   const created = easeOutBack(seg(t, 0.46, 0.7));
   return (
@@ -50,17 +91,20 @@ export const ScreenBubble: React.FC<{appTitle?: string; nav?: string[]; delivera
         <div style={{display: 'flex', height: SH - 66}}>
           <div style={{width: 300, borderRight: `1px solid ${LINE}`, padding: 26, display: 'flex', flexDirection: 'column', gap: 20}}>
             {nav.map((n, i) => <div key={i} style={{padding: '16px 20px', borderRadius: 10,
-              background: i === 2 ? `${ACC}22` : 'transparent',
+              background: i === sel ? `${ACC}22` : 'transparent',
               // a nav label wraps on a Chinese film, and `/1` stacks the two lines with no air between them
-              font: `${i === 2 ? 700 : 500} 30px/${leading(n, 1)} var(--f-body, Inter)`,
-              color: i === 2 ? ACC : DIM}}>{n}</div>)}
+              font: `${i === sel ? 700 : 500} 30px/${leading(n, 1)} var(--f-body, Inter)`,
+              color: i === sel ? ACC : DIM}}>{n}</div>)}
           </div>
           <div style={{flex: 1, padding: 44, position: 'relative'}}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-              <div style={{font: '800 52px/1 var(--f-body, Inter)', color: FG}}>{nav[2] ?? nav[nav.length - 1]}</div>
-              <div style={{position: 'relative', padding: '18px 30px', borderRadius: 12, background: ACC, color: ON, font: '700 32px/1 var(--f-body, Inter)'}}>+ New
-                {ripple > 0 && <div style={{position: 'absolute', inset: 0, borderRadius: 12, border: `3px solid ${ACC}`, transform: `scale(${1 + ripple})`, opacity: 1 - ripple}} />}
-              </div>
+              {/* no selection, no heading: the page title IS the selected item, so with none there is none */}
+              <div style={{font: '800 52px/1 var(--f-body, Inter)', color: FG}}>{sel != null ? nav[sel] : null}</div>
+              {action ? (
+                <div style={{position: 'relative', padding: '18px 30px', borderRadius: 12, background: ACC, color: ON, font: '700 32px/1 var(--f-body, Inter)', whiteSpace: 'nowrap'}}>{action}
+                  {ripple > 0 && <div style={{position: 'absolute', inset: 0, borderRadius: 12, border: `3px solid ${ACC}`, transform: `scale(${1 + ripple})`, opacity: 1 - ripple}} />}
+                </div>
+              ) : null}
             </div>
             {/* the "created" deliverable row */}
             <div style={{marginTop: 40, opacity: clamp01(created), transform: `translateY(${lerp(24, 0, clamp01(created))}px)`,

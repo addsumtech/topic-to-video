@@ -1,6 +1,13 @@
 // SHOT · Analog Tape — the 2026 "authenticity / analog revival" register: a warm VHS/CRT treatment — tungsten
 // gradient, scanlines, RGB chromatic split, a rolling tracking band, grain, barrel vignette, and a retro OSD
 // (● REC, timestamp, ▶ PLAY). Nostalgic, textured, human — the anti-slick shot. Deterministic (jitter = fn t).
+//
+// THE DATE IN THE CORNER IS THE FILM'S. The OSD printed `SP · AUG 12 2026` as a literal — a recording date,
+// which is a claim about WHEN something was recorded, stamped onto every film that reached for the tape look
+// whatever its subject or era. A film about a 1994 home video showed a 2026 date and nothing could change
+// it. It is `date` now, defaulting to the words it replaced, so the original film renders identically and
+// the demo-copy gate lists it when a film omits it; '' leaves just the tape-speed mark `SP`, which, like REC
+// and ▶ PLAY, is the deck describing itself.
 
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
@@ -22,9 +29,11 @@ export const INTRINSIC_READOUT = true;
 export const INTRINSIC_TEXT = [
   'REC',
   '▶ PLAY',
+  'SP',
 ];
 
-export const AnalogTape: React.FC<{title?: string; tagline?: string}> = ({title: TITLE = 'WorkBuddy', tagline: TAGLINE = 'ON YOUR MACHINE'} = {}) => {
+export const AnalogTape: React.FC<{title?: string; tagline?: string; date?: string}> = ({title: TITLE = 'WorkBuddy',
+  tagline: TAGLINE = 'ON YOUR MACHINE', date = 'AUG 12 2026'} = {}) => {
   const t = useT();
   const dna = useDNA();
   const frame = useCurrentFrame();
@@ -40,6 +49,8 @@ export const AnalogTape: React.FC<{title?: string; tagline?: string}> = ({title:
   // each, on all three of the RGB-split copies. The split itself is part of the width: the copies ride
   // +-`split` px, so the fit is given the frame minus the widest excursion it can make.
   const SPLIT_MAX = 7;
+  // the OSD stamp: 60px margins, and ~260px held for the REC light and its word at the left
+  const stampPx = Math.min(40, fitTextPx(`SP · ${date}`, W - 120 - 260, 40, {usable: 1, adv: 0.62, cjk: 1.24}));
   const titlePx = Math.min(168, fitTextPx(TITLE, W * 0.92 - SPLIT_MAX * 2, 168, {usable: 1, track: 0.02}));
 
   const Title: React.FC<{dx: number; color: string; blend?: string}> = ({dx, color, blend}) => (
@@ -78,7 +89,9 @@ export const AnalogTape: React.FC<{title?: string; tagline?: string}> = ({title:
         font: '700 40px/1 var(--f-mono, "VT323", "JetBrains Mono", monospace)', color: '#eafff0', letterSpacing: '0.06em'}}>
         <span style={{width: 22, height: 22, borderRadius: 11, background: '#ff2b2b', opacity: recOn ? 1 : 0.15}} />REC
       </div>
-      <div style={{position: 'absolute', right: 60, top: 48, font: '700 40px/1 var(--f-mono, "VT323", "JetBrains Mono", monospace)', color: '#eafff0'}}>SP · AUG&nbsp;12&nbsp;2026</div>
+      {/* one line, as the &nbsp;s in the old literal kept it — and fitted to the room right of REC, so a long
+          date steps down in size instead of running into the REC light */}
+      <div style={{position: 'absolute', right: 60, top: 48, font: `700 ${stampPx}px/1 var(--f-mono, "VT323", "JetBrains Mono", monospace)`, color: '#eafff0', whiteSpace: 'pre'}}>SP{date ? ` · ${date}` : ''}</div>
       <div style={{position: 'absolute', left: 60, bottom: bottomInset(W, H, 48), font: '700 44px/1 var(--f-mono, "VT323", "JetBrains Mono", monospace)', color: '#eafff0', letterSpacing: '0.1em'}}>▶ PLAY</div>
       <div style={{position: 'absolute', right: 60, bottom: bottomInset(W, H, 48), font: '700 40px/1 var(--f-mono, "VT323", "JetBrains Mono", monospace)', color: '#eafff0'}}>{String(Math.floor(t * 12)).padStart(2, '0')}:{String(Math.floor((t * 12 * 60) % 60)).padStart(2, '0')}</div>
 

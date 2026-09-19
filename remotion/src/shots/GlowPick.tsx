@@ -17,6 +17,21 @@
 // NO BLEND MODES. The surface sits under a `perspective`, which isolates blending: `mix-blend-mode: screen`
 // comes out grey there. The light is a solid bright core with its glow thrown by box-shadow, which composites
 // the same on every ground.
+//
+// THE PICK IS THE FILM'S, AND IT MUST LAND ON ONE OF THE FILM'S ELEMENTS. `target` defaulted to 4 and was only
+// clamped to the six card RECTANGLES, never to the items. A film that gave three items and no target got the
+// light, the dim and the border on the fifth card — a placeholder with no label — so the whole shot said
+// "look here" at nothing. And the rectangle it aimed at is a CARD rectangle on every page: on `page: 'table'`
+// the border was drawn across the middle of three rows (seen on a render), on 'form' and 'chart' likewise over
+// a region that is not an element. So now:
+//   * `target` has no default for a film. The standalone preview (no `items` given) still picks its demo card;
+//     a film that passes `items` must say which one, as an index into them, or the register throws.
+//   * the target must be a real item — an integer in 0..items-1.
+//   * the pick is only offered on the `cards` page, the one page whose element geometry runtime/uiSurface
+//     exports (`uiCardRects`). Other pages throw until the surface can say where their rows are.
+//   * `series` (the chart page's numbers) therefore cannot reach the frame, and throws rather than vanish.
+//   * six cards is the page: a seventh item, or a seventh nav entry, used to vanish without a word; it throws.
+//     An empty item used to be filtered out, which silently shifted every index after it — it throws too.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -43,19 +58,27 @@ const ROAM: {at: number; x: number; y: number; w: number; h: number}[] = [
   {at: 0.44, x: 0.00, y: 0.00, w: 0.230, h: 0.045},   // x/y filled from the target below — it lands ON it
 ];
 
+// The standalone preview's surface and the card it picks. The demo target applies ONLY to these demo items:
+// identity (`ITEMS === DEFAULT_ITEMS`) is how the register knows no film supplied the list.
+const DEFAULT_ITEMS = ['Runs', 'Queue', 'Alerts', 'Sources', 'Access', 'Audit'];
+const DEMO_TARGET = 4;
+export const MAX_GLOWPICK_ITEMS = 6;      // the cards page is a 3x2 grid (`uiCardRects`)
+export const MAX_GLOWPICK_NAV = 6;        // the surface's sidebar draws six entries
+
 export const GlowPick: React.FC<{
   screen?: string;
   items?: string[];
   nav?: string[];
   page?: UiPage;
-  /** the chart page plots THESE and invents nothing — a `page: 'chart'` with no series draws an
-   *  empty plate, so pass the beat's real numbers or choose another page. */
+  /** the chart page's numbers. The chart page cannot be picked from (only `cards` exposes element geometry),
+   *  so passing `series` THROWS rather than accept numbers that would never reach the frame. */
   series?: number[];
-  target?: number;
+  /** index into `items` of the ONE element the light picks — required whenever the film passes `items` */
+  target?: number | null;
   note?: string;
-}> = ({screen: SCREEN = 'Overview', items: ITEMS = ['Runs', 'Queue', 'Alerts', 'Sources', 'Access', 'Audit'],
+}> = ({screen: SCREEN = 'Overview', items: ITEMS = DEFAULT_ITEMS,
   nav: NAV = ['Home', 'Overview', 'Runs', 'Sources', 'Team', 'Settings'],
-  page: PAGE = 'cards', series: SERIES, target: TARGET = 4, note: NOTE = ''} = {}) => {
+  page: PAGE = 'cards', series: SERIES, target: TARGET = null, note: NOTE = ''} = {}) => {
   const dna = useDNA();
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
@@ -65,12 +88,43 @@ export const GlowPick: React.FC<{
   const ACC = dna?.accent ?? ACC_D0;
   const U = Math.min(W, H);
 
-  const list = (ITEMS ?? []).filter((x) => String(x ?? '').trim());
-  if (!list.length) {
+  if (!Array.isArray(ITEMS) || ITEMS.length < 1) {
     throw new Error(
-      'GlowPick needs at least one non-empty `items` entry. The whole form is a light choosing ONE element ' +
+      'GlowPick needs at least one `items` entry. The whole form is a light choosing ONE element ' +
       'out of a working interface; with an empty interface it draws a border around nothing, which composes ' +
       'and argues nothing.');
+  }
+  if (ITEMS.length > MAX_GLOWPICK_ITEMS) {
+    throw new Error(`GlowPick: the cards page holds ${MAX_GLOWPICK_ITEMS} cards and \`items\` has ${ITEMS.length}. ` +
+      'Pass the six that frame the pick; a seventh would not be drawn.');
+  }
+  const list = ITEMS.map((x, i) => {
+    const v = String(x ?? '').trim();
+    if (!v) throw new Error(`GlowPick: items[${i}] is empty — every card the light can pick needs its title.`);
+    return v;
+  });
+  if (Array.isArray(NAV) && NAV.length > MAX_GLOWPICK_NAV) {
+    throw new Error(`GlowPick: the sidebar draws ${MAX_GLOWPICK_NAV} entries and \`nav\` has ${NAV.length}.`);
+  }
+  if (PAGE !== 'cards') {
+    throw new Error(`GlowPick picks a CARD, and \`page: '${PAGE}'\` has no cards: runtime/uiSurface exports element ` +
+      'geometry only for the cards page, so on any other page the border would be drawn around a region that is ' +
+      "not an element. Use page 'cards' (the default), or a register that does not single one element out.");
+  }
+  if (SERIES != null) {
+    // `series` fills the chart page, and the chart page cannot be picked from (above). Accepted and ignored,
+    // the film's numbers would simply never reach the frame.
+    throw new Error('GlowPick: `series` is drawn only on the chart page, which this register cannot aim at. ' +
+      'Put the numbers in a chart register, or drop `series` here.');
+  }
+  const target = TARGET == null && ITEMS === DEFAULT_ITEMS ? DEMO_TARGET : TARGET;
+  if (target == null) {
+    throw new Error('GlowPick: pass `target` — the index into `items` of the element the light picks. Without it ' +
+      'the register would have to choose one of the film\'s items itself.');
+  }
+  if (!Number.isInteger(target) || target < 0 || target >= list.length) {
+    throw new Error(`GlowPick: \`target\` must be an index into \`items\` (0-${list.length - 1}), got ` +
+      `${JSON.stringify(target)}. A pick past the last item lands on an empty placeholder card.`);
   }
 
   // THE SURFACE IS SIZED FROM THE ROOM LEFT AFTER THE COPY, not from a fraction of the frame — the note sits
@@ -88,7 +142,7 @@ export const GlowPick: React.FC<{
   // The element the light picks, from the SAME function that draws the cards — so the border lands on the
   // rectangle a card is actually in and not on a number written down twice.
   const rects = uiCardRects(surfW, surfH, true);
-  const tgt = rects[Math.max(0, Math.min(rects.length - 1, Math.round(TARGET)))];
+  const tgt = rects[target];
 
   // ── the four moves, each starting where the last one stopped ────────────────────────────────────────────
   const rise = easeOutCubic(clamp01(seg(t, 0, 0.12)));
@@ -171,7 +225,11 @@ export const GlowPick: React.FC<{
               // stroke begins turns the border into a diamond sitting over the card — which is the same
               // "the outline is not around the element" failure as an uneven viewBox, arrived at from the
               // other direction. Offsetting the dash pattern moves the pen; the shape never moves.
-              pathLength={1} strokeDasharray="1 1" strokeDashoffset={1 + startFrac - draw}
+              // ONE DASH OF LENGTH `draw` STARTING AT `startFrac`, on a period of exactly one perimeter so it wraps
+              // past the path's origin. It was `"1 1"` with offset `1 + startFrac - draw`, which at draw = 1 inks
+              // only [0, 1 - startFrac] — the settled border covered a quarter to a half of the card, and the shot
+              // ended on an outline with a gap in it (seen on the 3.2s still).
+              pathLength={1} strokeDasharray={`${draw} ${Math.max(0, 1 - draw)}`} strokeDashoffset={-startFrac}
               style={{filter: `drop-shadow(0 0 ${Math.round(U * 0.016 * (1 - settle))}px ${ACC})`,
                 opacity: draw > 0 ? 1 : 0}} />
           </svg>

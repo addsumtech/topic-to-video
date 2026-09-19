@@ -1,6 +1,18 @@
 // SHOT · Cursor Story — Raycast/Superhuman language: a single HERO cursor drives the whole story, moving
 // with exaggerated easing (+ a motion trail), firing keyboard-shortcut chips, and jump-cutting past loading
 // so a task finishes in a blink. Dark + Raycast-red (a red-accented dark, distinct from the blue/purple).
+//
+// THE ROW THE CURSOR ACTS ON, AND THE ROWS THAT END DONE, ARE THE FILM'S. The hovered row used to be
+// `Math.min(n - 1, Math.floor(seg(t, 0.08, 0.3) * 3))` — which is 3 once the cursor lands, so the red
+// highlight and the ⌘K chip fell on the FOURTH item of any list, and after Return every row up to it turned
+// green. A film listing six vendors shipped a frame saying the fourth was the one acted on and the first four
+// were finished; a film listing two rows had its highlight on the last one because the clamp caught it. The
+// cursor's waypoints were fixed pixels (300 / 560 / 720) that happened to sit over rows 1, 4 and 5 of the
+// demo, and the shot ENDED with the pointer resting on row 5 — a pointer parked on a row reads as a choice.
+// Now `target` (an index) is the row the cursor travels to, highlights and fires ⌘K on, and its waypoints are
+// that row's own centre; each row turns green after Return only if it says `done: true`. With no target the
+// cursor works from the gutter left of the list and never rests on a row, and with no `done` nothing is
+// finished. The standalone demo keeps its old story by passing target 3 and four done rows in its own data.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -11,11 +23,40 @@ import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 
 export const DURATION = 135; // 4.5s
 const RED_D0 = '#FF6B6B', BG_D0 = '#0d1017';
-const DEFAULT_ROWS = ['Weekly report', 'Invoice batch', 'Q3 numbers', 'Vendor list', 'Meeting notes', 'Launch copy'];
+
+export type CursorRow = {
+  label: string;
+  /** true only when the film says this row is finished by the action: its dot turns green after Return */
+  done?: boolean;
+};
+// Eight rows is what the tightest frame (1:1, 647px of content zone) can pitch at the row's minimum height
+// (40px type + 6px padding + border + margin = 66px). Past it the rows would overlap each other.
+export const MAX_CURSOR_ROWS = 8;
+const DEFAULT_ROWS: (string | CursorRow)[] = [
+  {label: 'Weekly report', done: true}, {label: 'Invoice batch', done: true}, {label: 'Q3 numbers', done: true},
+  {label: 'Vendor list', done: true}, 'Meeting notes', 'Launch copy'];
+// the demo's own choice, applied only when the demo's own rows are showing — never to a film's list
+const DEMO_TARGET = 3;
+
+const normaliseRows = (items: unknown): CursorRow[] => {
+  if (!Array.isArray(items) || items.length < 1 || items.length > MAX_CURSOR_ROWS) {
+    throw new Error(
+      `CursorStory needs 1-${MAX_CURSOR_ROWS} \`items\` (got ${Array.isArray(items) ? items.length : typeof items}). ` +
+      'Past eight the rows cannot keep their own height on a square frame — split the list or cast a list register.');
+  }
+  return items.map((it: any, i: number) => {
+    const label = String((typeof it === 'string' ? it : it?.label) ?? '').trim();
+    if (!label) throw new Error(`CursorStory: item ${i + 1} has no label.`);
+    const done = typeof it === 'string' ? undefined : it?.done;
+    if (done != null && typeof done !== 'boolean') {
+      throw new Error(`CursorStory: item ${i + 1} ("${label}") has \`done: ${JSON.stringify(done)}\` — pass true, false, or leave it out.`);
+    }
+    return {label, done: done === true};
+  });
+};
 
 // cursor position along waypoints at a given (possibly past) time — used for the trail ghosts too.
-function cursorAt(tt: number, W: number, H: number): [number, number] {
-  const pts: [number, number][] = [[W * 0.5, H * 0.8], [W * 0.34, 300], [W * 0.34, 560], [W * 0.62, 720]];
+function cursorAt(tt: number, pts: [number, number][]): [number, number] {
   const segs = [[0.08, 0.3], [0.34, 0.5], [0.56, 0.74]];
   let x = pts[0][0], y = pts[0][1];
   for (let i = 0; i < segs.length; i++) {
@@ -25,17 +66,24 @@ function cursorAt(tt: number, W: number, H: number): [number, number] {
   return [x, y];
 }
 
-export const CursorStory: React.FC<{items?: string[]; doneLabel?: string; doneNote?: string; command?: string}> = ({items: ROWS = DEFAULT_ROWS, doneLabel: DONE = '', doneNote: DONE_NOTE = '', command: CMD = ''} = {}) => {
+export const CursorStory: React.FC<{items?: (string | CursorRow)[]; target?: number | null; doneLabel?: string; doneNote?: string; command?: string}> = ({items: ITEMS = DEFAULT_ROWS, target: TARGET, doneLabel: DONE = '', doneNote: DONE_NOTE = '', command: CMD = ''} = {}) => {
+  const rows = normaliseRows(ITEMS);
+  const ROWS = rows.map((r) => r.label);
+  // `target` selects, so it defaults to NONE; only the untouched demo list gets the demo's own target.
+  const target = TARGET !== undefined ? TARGET : (ITEMS === DEFAULT_ROWS ? DEMO_TARGET : null);
+  if (target != null && !(Number.isInteger(target) && target >= 0 && target < rows.length)) {
+    throw new Error(`CursorStory: \`target\` is ${JSON.stringify(target)}, but it must be the index (0-${rows.length - 1}) ` +
+      'of the row the cursor acts on — or leave it out and the cursor acts on no row.');
+  }
   const dna = useDNA();
   const RED = dna?.accent ?? RED_D0, BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
-  const [cx, cy] = cursorAt(t, W, H);
   const kCmd = t > 0.3 && t < 0.44;      // ⌘K chip
   const kEnter = t > 0.5 && t < 0.64;    // ↵ chip
   const paletteOn = t > 0.32 && t < 0.56;
   const done = t > 0.74;
-  const hi = t < 0.32 ? -1 : Math.min(ROWS.length - 1, Math.floor(seg(t, 0.08, 0.3) * 3)); // hovered row
+  const hi = t < 0.32 || target == null ? -1 : target; // the highlighted row: the film's target, or none
   // THE LIST GROWS DOWNWARD FROM A FIXED TOP, so its last row ('Launch copy' — the one the palette is
   // about to clear) ran into the caption band at 1:1. The first repair moved the TOP up by what did not
   // fit, which is right until the list is longer than the zone: ten items pushed it to y=-237 and the first
@@ -48,14 +96,24 @@ export const CursorStory: React.FC<{items?: string[]; doneLabel?: string; doneNo
   const ROW_H = Math.min(PAD * 2 + LINE + BORDER + MARGIN, Math.floor(zone / n));
   const PADY = Math.max(6, Math.round((ROW_H - LINE - BORDER - MARGIN) / 2));
   const LX = W * 0.26, LY = Math.max(CONTENT_TOP, Math.min(240, contentBottom(W, H) - n * ROW_H));
+  // THE WAYPOINTS ARE THE LIST'S OWN GEOMETRY. With a target the cursor enters over the first row, runs
+  // down to the target's centre, and after Return drifts right ALONG that row, so it comes to rest on the
+  // row it acted on. With none it works from the gutter left of the list, at the list's middle, and never
+  // parks on a row.
+  const rowMid = (i: number) => LY + i * ROW_H + (ROW_H - MARGIN) / 2;
+  const listW = Math.min(900, W - LX - 40);
+  const pts: [number, number][] = target != null
+    ? [[W * 0.5, H * 0.8], [W * 0.34, rowMid(0)], [W * 0.34, rowMid(target)], [LX + listW * 0.62, rowMid(target)]]
+    : [[W * 0.5, H * 0.8], [LX * 0.5, LY + (n * ROW_H) / 2], [LX * 0.5, LY + (n * ROW_H) / 2], [LX * 0.5, LY + (n * ROW_H) / 2 + ROW_H * 0.3]];
+  const [cx, cy] = cursorAt(t, pts);
   return (
     <AbsoluteFill style={{background: `radial-gradient(120% 100% at 40% 20%, #161b26, ${BG} 60%)`}}>
       {/* the list UI */}
-      <div style={{position: 'absolute', left: LX, top: LY, width: Math.min(900, W - LX - 40), opacity: paletteOn ? 0.35 : 1, transition: 'none'}}>
+      <div style={{position: 'absolute', left: LX, top: LY, width: listW, opacity: paletteOn ? 0.35 : 1, transition: 'none'}}>
         {ROWS.map((r, i) => (
           <div key={i} style={{display: 'flex', alignItems: 'center', gap: 22, padding: `${PADY}px 30px`, borderRadius: 12,
             marginBottom: MARGIN, background: i === hi ? `${RED}1c` : '#141922', border: `1px solid ${i === hi ? RED : '#1e2531'}`}}>
-            <div style={{width: 14, height: 14, borderRadius: 7, background: i <= hi && t > 0.6 ? '#59d98b' : '#3a4658'}} />
+            <div style={{width: 14, height: 14, borderRadius: 7, background: rows[i].done && t > 0.6 ? '#59d98b' : '#3a4658'}} />
             <div style={{font: '600 40px/1 var(--f-body, Inter,system-ui,sans-serif)', color: '#d6deea'}}>{r}</div>
             {i === hi && <div style={{marginLeft: 'auto', font: '700 26px/1 var(--f-body, Inter)', color: RED}}>⌘K</div>}
           </div>

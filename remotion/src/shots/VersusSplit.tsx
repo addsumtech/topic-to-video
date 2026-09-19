@@ -1,7 +1,18 @@
 // SHOT · Versus Split — a head-to-head split screen: two contenders slide in from opposite edges across a
-// diagonal seam, a VS badge slams in the middle, attribute rows tick in per side, and the winner side lights
-// up. The "A vs B / this beats that" register (family H — comparison). Attributes/winner are QUALITATIVE and
-// overridable (a real film supplies the honest comparison). Deterministic.
+// diagonal seam, a VS badge slams in the middle, attribute rows tick in per side, and — only when the film
+// names one — the winner side lights up. The "A vs B / this beats that" register (family H — comparison).
+// Deterministic.
+//
+// A WINNER IS A VERDICT, AND ONLY THE FILM MAY GIVE ONE. `winner` defaulted to 1, so every film that passed
+// its two sides and said nothing about which was better shipped a WINNER chip, a glow and a ✓ on every point
+// of the RIGHT side — a judgement between the film's own two contenders that nobody made, landing on whichever
+// one happened to be written second. It now defaults to none: no chip, no glow, and a neutral • on both sides.
+// Pass `winner: 0` (left) or `winner: 1` (right) when the film does conclude.
+//
+// A COMPARISON HAS TWO SIDES FROM THE SAME FILM. Each side defaulted separately, so a film that passed only
+// `left` was completed with the demo's "After · One command · Seconds · Always caught" as its opponent. A
+// film now passes both or neither (neither = the standalone demo); one alone throws. The points were also cut
+// to four with `.slice(0, 4)`, silently dropping the film's fifth attribute — more than four now throws.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -21,6 +32,26 @@ export const INTRINSIC_TEXT = [
 ];
 
 type Side = {label?: string; points?: string[]};
+
+export const MAX_VERSUS_POINTS = 4;
+const DEMO_LEFT: Side = {label: 'Before', points: ['Manual steps', 'Hours lost', 'Easy to miss']};
+const DEMO_RIGHT: Side = {label: 'After', points: ['One command', 'Seconds', 'Always caught']};
+
+const checkSide = (side: unknown, which: 'left' | 'right'): Side => {
+  const sd = side as Side;
+  const label = String(sd?.label ?? '').trim();
+  if (!label) throw new Error(`VersusSplit: \`${which}\` has no label — pass {label, points?}.`);
+  const points = sd?.points == null ? [] : sd.points;
+  if (!Array.isArray(points)) throw new Error(`VersusSplit: \`${which}.points\` must be an array of strings.`);
+  if (points.length > MAX_VERSUS_POINTS) {
+    throw new Error(`VersusSplit: \`${which}\` has ${points.length} points; a side holds at most ${MAX_VERSUS_POINTS}. ` +
+      'Keep the four that decide the comparison, or use a table register for a longer feature list.');
+  }
+  points.forEach((pt, i) => {
+    if (!String(pt ?? '').trim()) throw new Error(`VersusSplit: \`${which}.points[${i}]\` is empty.`);
+  });
+  return {label, points: points.map((pt) => String(pt).trim())};
+};
 
 // `ground` is THIS HALF's fill, not the film's. The three inks below were literals chosen for a near-black
 // half; once `separatedPair` gives each half a real tone, a literal light grey lands on a mid-blue and the
@@ -58,7 +89,7 @@ const Panel: React.FC<{side: Side; enter: number; align: 'left' | 'right'; tone:
       textShadow: win ? `0 0 40px ${tone}88` : 'none'}}>{side.label}</div>
     <div style={{marginTop: 30, display: 'flex', flexDirection: 'column', gap: 18,
       alignItems: align === 'left' ? 'flex-start' : 'flex-end'}}>
-      {(side.points ?? []).slice(0, 4).map((p, i) => {
+      {(side.points ?? []).map((p, i) => {
         const on = clamp01(seg(t, base + i * 0.08, base + 0.2 + i * 0.08));
         return <div key={i} style={{opacity: on, transform: `translateY(${(1 - on) * 10}px)`,
           display: 'flex', flexDirection: align === 'left' ? 'row' : 'row-reverse', alignItems: 'center', gap: 14,
@@ -72,10 +103,20 @@ const Panel: React.FC<{side: Side; enter: number; align: 'left' | 'right'; tone:
   );
 };
 
-export const VersusSplit: React.FC<{left?: Side; right?: Side; winner?: number; title?: string}> = ({
-  left: LEFT = {label: 'Before', points: ['Manual steps', 'Hours lost', 'Easy to miss']},
-  right: RIGHT = {label: 'After', points: ['One command', 'Seconds', 'Always caught']},
-  winner: WINNER = 1, title: TITLE = 'The difference'} = {}) => {
+export const VersusSplit: React.FC<{left?: Side; right?: Side; winner?: number | null; title?: string}> = ({
+  left: LEFT0 = DEMO_LEFT, right: RIGHT0 = DEMO_RIGHT,
+  winner: WINNER = null, title: TITLE = 'The difference'} = {}) => {
+  // Identity, not equality: a film's JSON can never BE the module's demo object, so exactly one side still
+  // pointing at it means the film supplied the other side alone.
+  if ((LEFT0 === DEMO_LEFT) !== (RIGHT0 === DEMO_RIGHT)) {
+    throw new Error(`VersusSplit: the film passed \`${LEFT0 === DEMO_LEFT ? 'right' : 'left'}\` but not ` +
+      `\`${LEFT0 === DEMO_LEFT ? 'left' : 'right'}\`. A comparison needs both sides from the film; the other one ` +
+      'would be the demo\'s placeholder contender.');
+  }
+  const LEFT = checkSide(LEFT0, 'left'), RIGHT = checkSide(RIGHT0, 'right');
+  if (!(WINNER === null || WINNER === undefined || WINNER === 0 || WINNER === 1)) {
+    throw new Error(`VersusSplit: \`winner\` is 0 (left), 1 (right) or omitted for no verdict; got ${JSON.stringify(WINNER)}.`);
+  }
   const t = useT();
   const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
@@ -95,9 +136,11 @@ export const VersusSplit: React.FC<{left?: Side; right?: Side; winner?: number; 
   // The two sides must ALWAYS take different tones. Written as two independent ternaries on WINNER, a
   // board that never set `winner` fell through both and handed BOTH sides the same colour — the split
   // vanished into one flat ground and the palette check read "clean" because there was only one hue left.
-  const winLeft = WINNER === 0;
-  const toneL = vsPal ? vsPal[winLeft ? 0 : 1] : '#5b8cff';
-  const toneR = vsPal ? vsPal[winLeft ? 1 : 0] : '#37d4a6';
+  // With no verdict the primary accent goes to the side read first (left), not to the side the old default
+  // winner sat on: the accent is where a winner's light comes from, so it must not quietly favour one.
+  const primaryRight = WINNER === 1;
+  const toneL = vsPal ? vsPal[primaryRight ? 1 : 0] : '#5b8cff';
+  const toneR = vsPal ? vsPal[primaryRight ? 0 : 1] : '#37d4a6';
   const ground = dna?.bg ?? '#0a0c12';
   // 0.12 into a near-black ground left the two halves visually identical; the un-themed original separated
   // them clearly (navy vs plum), so the themed one has to separate too — hue AND a little lightness.

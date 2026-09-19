@@ -14,6 +14,11 @@
 //
 // THE HIDE-THE-CAPTION TEST: cover the subtitle and the frame still says "five steps, in this order, we are
 // on the third, two are done". Nothing here is filler — a band that named no step could not be drawn.
+//
+// ...WHICH MEANS NO STEP MAY BE LEFT OUT EITHER. The steps used to be cut with `.slice(0, 6)`, so a seven-step
+// process was drawn as a six-step one — "you can see how many steps there are" became a wrong count, with
+// the last step, where the walk ends, silently gone. More than six now throws; so does a step with no `label`
+// (the band would draw a number over nothing, which is the filler this register says it does not have).
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
@@ -26,6 +31,8 @@ const BG_D0 = '#07090f', FG_D0 = '#eef2f8', DIM_D0 = '#6c7788';
 const TONE_D0 = '#4f8cff', DONE_D0 = '#2b3550';
 
 type Step = {label?: string; note?: string};
+
+export const MAX_INORDER_STEPS = 6;
 
 const DEFAULT_STEPS: Step[] = [
   {label: 'first', note: 'what starts it'},
@@ -57,8 +64,19 @@ export const InOrder: React.FC<{
   const zoneH = Math.max(1, zoneBottom - zoneTop);
   const portrait = H > W;
 
-  const steps = STEPS.slice(0, 6);
-  const n = Math.max(1, steps.length);
+  if (!Array.isArray(STEPS) || STEPS.length < 1 || STEPS.length > MAX_INORDER_STEPS) {
+    throw new Error(
+      `InOrder needs 1-${MAX_INORDER_STEPS} \`steps\` (got ${Array.isArray(STEPS) ? STEPS.length : typeof STEPS}). The ` +
+      'bands ARE the count, so a dropped step would state the wrong number of steps; past six a compressed band ' +
+      'is too narrow to name. Group the steps into at most six stages, or split the process across two beats.');
+  }
+  STEPS.forEach((st, i) => {
+    if (!String(st?.label ?? '').trim()) {
+      throw new Error(`InOrder: step ${i + 1} has no \`label\` — a band must name the step it stands for.`);
+    }
+  });
+  const steps = STEPS;
+  const n = steps.length;
 
   // WHERE THE FRAME IS. With no `at` the focus WALKS the sequence — which is what makes this a shot rather
   // than a diagram, and where the frame-wide motion comes from. An explicit `at` pins it for a beat that
@@ -121,7 +139,7 @@ export const InOrder: React.FC<{
             </div>
             {!tight ? (
               <div style={{color: ink, font: `700 ${labelPx}px/1.15 ${body}`,
-                marginTop: Math.round(base * 0.006)}}>{s.label ?? ''}</div>
+                marginTop: Math.round(base * 0.006)}}>{s.label}</div>
             ) : null}
             {s.note && live && !tight ? (
               <div style={{color: sub, font: `400 ${Math.round(labelPx * 0.66)}px/1.35 ${body}`,

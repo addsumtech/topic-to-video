@@ -3,17 +3,29 @@
 // braces, a video frame, a code block, a cursor-on-window) rather than a random reused mini-chart. Keeps the
 // bento-assembles VIBE; the CONTENT is designed per surface. Fully prop-driven (label/note/glyph) → generalises
 // to any platform. Deterministic (pop = fn of t).
+//
+// THE TITLE IS SAID ONCE, AND A TILE'S PICTURE IS THE ONE THE FILM PICKED. Two things drew what nobody wrote:
+//   * `title` was rendered twice — as the frame's header AND as the hero panel's headline, 180px apart — so
+//     every film's one statement read as two, and a long title filled the frame twice over. It is now the
+//     hero panel's headline only (the panel is the statement: kicker, headline, subtitle), and the header row
+//     is left to the panel;
+//   * a tile with no `glyph` (or a glyph name the file did not know) was given a generic 'node' pictogram, a
+//     picture standing for a surface nobody said it was. A tile without a glyph now draws no picture, and an
+//     unknown glyph name throws with the list of names that exist.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {leading} from '../runtime/cjkType';
-import {titleStyle, contentBottom} from '../runtime/layout';
+import {contentBottom} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 
 type Tile = {label?: string; note?: string; glyph?: string};
+const GLYPHS = ['chat', 'api', 'video', 'code', 'cursor', 'node'];
+// Six tiles is three rows of two: past it a row is shorter than its own glyph and label.
+export const MAX_PLATFORM_TILES = 6;
 
 // each glyph is a small, legible pictogram that MEANS its surface (drawn in the tile's accent)
 const Glyph: React.FC<{kind: string; c: string; g: number}> = ({kind, c, g}) => {
@@ -36,7 +48,7 @@ const Glyph: React.FC<{kind: string; c: string; g: number}> = ({kind, c, g}) => 
     <rect x={2} y={2} width={96} height={62} rx={9} fill="none" stroke={c} strokeWidth={4} /><line x1={2} y1={20} x2={98} y2={20} stroke={c} strokeWidth={3} />
     <circle cx={12} cy={11} r={3} fill={c} /><circle cx={24} cy={11} r={3} fill={c} />
     <path d={`M54,34 L54,${34 + 34 * clamp01(g * 1.4)} L62,52 L68,60 L72,56 L66,48 L76,46 Z`} fill={c} stroke="#0a0c12" strokeWidth={2} /></svg>);
-  // fallback: a node
+  // 'node': a generic node — drawn only when the film names it; it is never a stand-in for a missing glyph
   return (<svg width={80} height={72}><circle cx={40} cy={36} r={22} fill="none" stroke={c} strokeWidth={4} /><circle cx={40} cy={36} r={7} fill={c} /></svg>);
 };
 
@@ -52,6 +64,17 @@ export const PlatformSurfaces: React.FC<{
            {label: 'Operator', note: 'browser agent', glyph: 'cursor'}],
   accent: accent0 = '#10a37f', accent2: accent20 = '#7aa2ff',
 } = {}) => {
+  if (!Array.isArray(tiles) || tiles.length < 1 || tiles.length > MAX_PLATFORM_TILES) {
+    throw new Error(`PlatformSurfaces needs 1-${MAX_PLATFORM_TILES} \`tiles\` (got ${Array.isArray(tiles) ? tiles.length : typeof tiles}). ` +
+      'Each surface gets its own tile, two to a row; past six the rows are too short to hold a glyph and a label.');
+  }
+  tiles.forEach((tile, i) => {
+    if (!String(tile?.label ?? '').trim()) throw new Error(`PlatformSurfaces: tile ${i + 1} has no label.`);
+    if (tile.glyph != null && !GLYPHS.includes(tile.glyph)) {
+      throw new Error(`PlatformSurfaces: tile ${i + 1} ("${tile.label}") has glyph ${JSON.stringify(tile.glyph)} — use one of ` +
+        `${GLYPHS.join(', ')}, or leave it out and the tile draws no picture.`);
+    }
+  });
   const {width: W, height: H} = useVideoConfig();
   const t = useT();
   const dna = useDNA();
@@ -65,13 +88,13 @@ export const PlatformSurfaces: React.FC<{
   const gw = portrait ? W * 0.88 : W * 0.47;
   // as tall as the zone allows, never into the caption band ('browser agent' sat 39px inside it at 9:16)
   const gh = Math.min(portrait ? H * 0.58 : H * 0.62, contentBottom(W, H) - gy);
-  const cols = 2, rows = Math.ceil(tiles.length / cols), tgap = 22;
+  // two to a row — one tile alone takes the whole row rather than half of it beside an empty slot
+  const cols = Math.min(2, tiles.length), rows = Math.ceil(tiles.length / cols), tgap = 22;
   const tw = (gw - tgap) / cols, th = (gh - tgap * (rows - 1)) / rows;
   const heroE = easeOutBack(clamp01(seg(t, 0.04, 0.3)));
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(120% 100% at 28% 22%, #12162a, #0a0c12 72%)'}}>
-      <div style={{...titleStyle, top: 84, opacity: clamp01(t * 5)}}>{title}</div>
       {/* hero panel */}
       <div style={{position: 'absolute', left: hx, top: hy, width: hw, height: hh, borderRadius: 22,
         background: `linear-gradient(150deg, ${accent}, #0e5c46)`, boxShadow: '0 24px 60px #0008',
@@ -95,9 +118,9 @@ export const PlatformSurfaces: React.FC<{
           <div key={i} style={{position: 'absolute', left: x, top: y, width: tw, height: th, borderRadius: 20,
             background: 'linear-gradient(160deg, #15192880, #0d0f18)', border: `1px solid ${tone}55`,
             opacity: clamp01(e * 1.4), transform: `scale(${lerp(0.86, 1, e)})`, transformOrigin: 'center',
-            padding: 34, display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+            padding: 34, display: 'flex', flexDirection: 'column', justifyContent: tile.glyph ? 'space-between' : 'flex-end',
             boxShadow: `0 18px 44px #0006, inset 0 0 60px ${tone}0e`}}>
-            <Glyph kind={tile.glyph || 'node'} c={tone} g={g} />
+            {tile.glyph ? <Glyph kind={tile.glyph} c={tone} g={g} /> : null}
             <div>
               <div style={{color: '#eef2ff', font: `800 34px/1 var(--f-body, Inter, system-ui, sans-serif)`, letterSpacing: '-0.01em', textWrap: 'balance'}}>{tile.label}</div>
               {tile.note ? <div style={{color: '#9aa4ba', font: `500 20px/1.2 var(--f-body, Inter, system-ui, sans-serif)`, textWrap: 'balance', marginTop: 8}}>{tile.note}</div> : null}

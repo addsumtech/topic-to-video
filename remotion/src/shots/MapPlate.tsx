@@ -9,6 +9,16 @@
 //
 // Topic-free: the marks and their positions are props, so any film arguing from location — a hub, a
 // frontier, a site, a catchment — can use it.
+//
+// A POSITION ON A PLATE IS A CLAIM, AND SO IS A LINE BETWEEN TWO. This register used to supply both when the
+// film did not. A mark with no coordinates was placed at `m.x ?? 0.5`, `m.y ?? 0.5` — ON the subject's own
+// ring, with a zero-length route — and one outside 0..1 was clamped to the plate's border. A channel given a
+// label but no ends was drawn from the demo's (0.10, 0.18) to (0.90, 0.86), straight across the plate. Marks
+// past eight were cut by `.slice(0, 8)` with no word. And `routes` defaulted to TRUE, so every film that
+// placed a few towns around its subject was drawn arguing that they converge on it — a relation nobody
+// stated. Now: a mark needs `x` and `y` in 0..1, a channel needs `from` and `to`, more than eight marks
+// throws, and routes are drawn only when the film asks (`routes: true`). The standalone demo still shows its
+// compass marks converging, because that picture is the demo's own.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -21,22 +31,34 @@ export const DURATION = 160;
 const BG_D0 = '#efe7d8', FG_D0 = '#241d14', DIM_D0 = '#6e6152';
 const ACC_D0 = '#9c3b1e', ACC2_D0 = '#2e5e4e', LINE_D0 = '#cdbfa7';
 
-type Mark = {label?: string; x?: number; y?: number};   // x/y are 0..1 of the plate
+type Mark = {label?: string; x?: number; y?: number};   // x/y are 0..1 of the plate — REQUIRED
+
+export const MAX_MAP_MARKS = 8;
+const DEFAULT_MARKS: Mark[] = [{label: 'north', x: 0.5, y: 0.1}, {label: 'west', x: 0.12, y: 0.55},
+                               {label: 'east', x: 0.88, y: 0.55}, {label: 'south', x: 0.5, y: 0.92}];
+
+const unitPair = (v: unknown, what: string): [number, number] => {
+  const ok = Array.isArray(v) && v.length === 2 && v.every((c) => typeof c === 'number' && c >= 0 && c <= 1);
+  if (!ok) {
+    throw new Error(`MapPlate: \`${what}\` must be [x, y] with both in 0..1 of the plate, got ${JSON.stringify(v)}. ` +
+      'A channel is drawn between the two points the film names; without them it would run wherever the demo ran.');
+  }
+  return v as [number, number];
+};
 
 export const MapPlate: React.FC<{
   title?: string;
   place?: string;                 // the mark at the centre — the subject of the plate
   marks?: Mark[];                 // outer places, positioned in plate fractions
-  routes?: boolean;               // draw hairlines from each mark INTO the centre
+  routes?: boolean;               // draw hairlines from each mark INTO the centre — only when the film says so
   channel?: {label?: string; from?: [number, number]; to?: [number, number]; width?: number};
   scaleLabel?: string;
   note?: string;
 }> = ({
   title = '',
   place = 'the place',
-  marks: MARKS = [{label: 'north', x: 0.5, y: 0.1}, {label: 'west', x: 0.12, y: 0.55},
-                  {label: 'east', x: 0.88, y: 0.55}, {label: 'south', x: 0.5, y: 0.92}],
-  routes = true,
+  marks: MARKS = DEFAULT_MARKS,
+  routes: ROUTES,
   channel,
   scaleLabel = '',
   note = ''} = {}) => {
@@ -45,9 +67,29 @@ export const MapPlate: React.FC<{
   const {width: W, height: H} = useVideoConfig();
   const FG = dna?.fg ?? FG_D0, DIM = dna?.dim ?? DIM_D0;
   const ACC = dna?.accent ?? ACC_D0, ACC2 = dna?.accent2 ?? ACC2_D0, LINE = dna?.line ?? LINE_D0;
-  const disp = 'var(--f-display, Georgia, serif)';
+  const disp = 'var(--f-display, "Source Serif 4", Georgia, serif)';
   const mono = 'var(--f-mono, ui-monospace, monospace)';
   const hair = Math.max(1, Math.round(W * 0.0011));
+
+  // Every mark at the point the film gives, every mark once; see the header for what each check replaces.
+  if (!Array.isArray(MARKS) || MARKS.length > MAX_MAP_MARKS) {
+    throw new Error(
+      `MapPlate takes 0-${MAX_MAP_MARKS} \`marks\` (got ${Array.isArray(MARKS) ? MARKS.length : typeof MARKS}). ` +
+      'Past eight the labels crowd the plate edge and stop reading as places — keep the ones the argument ' +
+      'turns on, or split the plate across two beats.');
+  }
+  const marks = MARKS.map((m, i) => {
+    const x = Number(m?.x), y = Number(m?.y);
+    if (m?.x == null || m?.y == null || !(x >= 0 && x <= 1) || !(y >= 0 && y <= 1)) {
+      throw new Error(
+        `MapPlate: mark ${i + 1}${m?.label ? ` ("${m.label}")` : ''} needs \`x\` and \`y\` in 0..1 of the plate ` +
+        `(got x=${String(m?.x)}, y=${String(m?.y)}). Its position IS the claim — without one it would be drawn ` +
+        "on top of the subject's own mark.");
+    }
+    return {...m, x, y};
+  });
+  // Convergence is a relation, so it is the film's to assert. The demo keeps its converging compass.
+  const routes = ROUTES ?? (MARKS === DEFAULT_MARKS);
 
   // the plate: a framed rectangle inside the content zone, kept clear of the caption band
   const top = CONTENT_TOP + H * 0.01;
@@ -98,7 +140,8 @@ export const MapPlate: React.FC<{
       {/* a CHANNEL driven through the plate — a cut, a river, a corridor. Drawn under the marks, with the
           double bank a survey draws a waterway with, so it reads as a route and not as a highlight bar. */}
       {channel ? (() => {
-        const a = channel.from ?? [0.10, 0.18], b = channel.to ?? [0.90, 0.86];
+        // the two ends the film names — no demo ends to fall back on (see the header)
+        const a = unitPair(channel.from, 'channel.from'), b = unitPair(channel.to, 'channel.to');
         const x1 = fx(a[0]), y1 = fy(a[1]), x2 = fx(b[0]), y2 = fy(b[1]);
         const on = easeOutCubic(clamp01(seg(t, 0.30, 0.62)));
         const len = Math.hypot(x2 - x1, y2 - y1) * on;
@@ -139,11 +182,11 @@ export const MapPlate: React.FC<{
       })() : null}
 
       {/* routes running INTO the centre — convergence, in the plate's own dialect */}
-      {routes && MARKS.slice(0, 8).map((m, i) => {
+      {routes && marks.map((m, i) => {
         const st = 0.46 + i * 0.045;
         const on = easeOutCubic(clamp01(seg(t, st, st + 0.16)));
         if (on <= 0) return null;
-        const x = fx(m.x ?? 0.5), y = fy(m.y ?? 0.5);
+        const x = fx(m.x), y = fy(m.y);
         const len = Math.hypot(cx - x, cy - y) * on;
         const ang = Math.atan2(cy - y, cx - x) * 180 / Math.PI;
         return (
@@ -154,10 +197,10 @@ export const MapPlate: React.FC<{
       })}
 
       {/* outer marks */}
-      {MARKS.slice(0, 8).map((m, i) => {
+      {marks.map((m, i) => {
         const st = 0.44 + i * 0.045;
         const on = easeOutCubic(clamp01(seg(t, st, st + 0.14)));
-        const x = fx(m.x ?? 0.5), y = fy(m.y ?? 0.5);
+        const x = fx(m.x), y = fy(m.y);
         // The side is chosen by WHERE THERE IS ROOM, not by which half of the plate the mark sits in. Keyed
         // on the half, a mark near the right edge got a right-hand label that ran straight out of the plate
         // — Groningen and Maastricht both crossed the border in a delivered film. A label is clamped inside

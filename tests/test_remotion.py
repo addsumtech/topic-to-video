@@ -518,6 +518,16 @@ _NULL_DNA_DELETED = {
     # stock image rendered expensively. The ring that replaced it is built from `items` and takes its colour
     # from the DNA, so these six literals left with the object they described.
     "MaterialHero.tsx": {"141a28", "141a33", "6f83bf", "8fa6d8", "ffc978", "ffffff"},
+    # THE CONTENT CONTRACT (references/remotion-shot-authoring.md §B1) removed pictures the film never chose,
+    # and their colours left with them. BentoReveal's avatar/toggle widgets were picked by cell INDEX and drew
+    # invented readings under a film's labels; the cells now carry the icon the film names.
+    "BentoReveal.tsx": {"2a3048"},
+    # DataMonolith dimmed every second tower by POSITION — an emphasis nobody gave; the towers are one tone now
+    # and only a film-named `hero` is lit.
+    "DataMonolith.tsx": {"3a6ad0"},
+    # KSpaceToImage drew a BRAIN when a film gave no `src`, so a knee or cardiac film reconstructed a brain.
+    # Without a real image it now resolves to a soft glow that is no anatomy at all.
+    "KSpaceToImage.tsx": {"05060a", "0a1424", "0e1b30"},
 }
 
 

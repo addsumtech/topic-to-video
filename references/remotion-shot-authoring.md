@@ -161,6 +161,35 @@ wrong thing is worse than a plain one that encodes the right thing.
 - **No fabricated data.** A number-bearing shot must carry a SOURCED figure (traces to `source_ref`), never its
   demo default and never an invented stat.
 
+## B1 · A picture beside a label is a claim — the content contract (for whoever WRITES a register)
+
+A delivered frame labelled six cells with anime characters, and each cell carried a sparkline, a gauge or a bar
+chart. `BentoReveal` picked the widget by the cell's INDEX, made the heights up from the index and the clock, and
+cycled the labels to fill six slots. Nobody had said 路飞 was trending up. A read of every register afterwards
+found the same class in about sixty of them. So, for every register:
+
+- **What a viewer reads as information comes from props** — a picture or icon for an item, a status (done /
+  active / selected / winner), an emphasis, a quantity (height, fill, count, trend, rank), a relation (an edge), a
+  figure, a factual sentence. Not given → draw nothing for it: no status, no emphasis, equal treatment, no picture.
+  Never a stand-in chosen by index (`i === 3`, `k < 2`, `i % 3 === 0`), a hash, a constant or the clock.
+- **Each item once.** Lay out for the count; never `arr[i % arr.length]` to fill slots. Beyond capacity, THROW with
+  the maximum — never `.slice(0, N)` in silence.
+- **A figure is the film's string.** Print through `runtime/figure.ts` (`figureText` settled, `figureAt` for a
+  count-up, `figureValue` to draw). Never `parseFloat(v.replace(/[^\d.]/g, ''))` — it turned "−12" into 12 and
+  "3–5" into 35 — and never `Math.round` a film value for display.
+- **A missing piece throws** (a mark with a label and no `x`), rather than `?? 0.5`.
+- **A selecting prop defaults to none** (`winner`, `hero`, `target`), so a film that omits it gets no verdict.
+- **Facts are props** whose default is the current text, so the demo-copy gate lists them when a film omits them.
+
+`scripts/content_contract_qa.py` reads the source for the shapes these claims were written in, and
+`tests/test_content_contract.py` holds the whole library to it. It is a tripwire, not a judge. A flagged line that
+is genuinely not a claim (a palette, a zig-zag layout, film grain) carries `// @positional:`, `@cycles:`,
+`@fallback:` or `@decor:` plus the reason on the line above, and a declaration with no reason does not count.
+What it cannot see by construction — an index derived from the clock, a fill that ignores its prop — stays the
+shot-critic's (S10). `validate.py` also ERRORS on a `shot_props` key the register does not declare. The manifest
+had drifted: `TermThink` advertised `prompt, thoughts[]` and reads `question, think`, so a board authored from it
+printed the demo defaults. `tests/test_library_signatures.py` now holds LIBRARY.md to the code.
+
 ## B2 · Adapt the register to the topic — don't text-swap the demo
 
 A register ships with **demo scaffolding**: placeholder mini-widgets, generic glyphs, a demo-length label set, a

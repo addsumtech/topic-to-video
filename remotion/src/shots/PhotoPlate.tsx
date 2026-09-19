@@ -19,6 +19,16 @@
 //
 // Topic-free: any film with a real image and things to point at — a building, a machine, a street, a
 // specimen, a screen. `marks` are fractions of the plate, so they travel with any crop or aspect.
+//
+// A RING ON A PHOTOGRAPH SAYS "HERE", SO "HERE" MUST BE THE FILM'S. Three ways this register used to point
+// at places nobody chose. (1) A mark without coordinates was placed at `m.x ?? 0.5`, `m.y ?? 0.5` — a
+// labelled ring on the dead centre of a real photograph, asserting the named feature is there. (2) A mark
+// outside 0..1 was clamped onto the plate's edge, which is also a place the film did not name. (3) `marks`
+// defaulted to two demo chips ("what to notice here", "and here") at fixed points — and because this register
+// refuses to draw without `src`, there IS no standalone preview for that default to serve: it only ever
+// landed on a film's own photograph. So a mark now needs `x` and `y` in 0..1 or the shot throws, `marks`
+// defaults to none (a plate may simply show its photograph), and more than five marks throws instead of the
+// old silent `.slice(0, 5)` dropping the sixth.
 
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
@@ -37,7 +47,9 @@ export const INTRINSIC_TEXT = ['no image supplied'];
 const BG_D0 = '#efe7d8', FG_D0 = '#241d14', DIM_D0 = '#6e6152';
 const ACC_D0 = '#9c3b1e', LINE_D0 = '#cdbfa7', SURF_D0 = '#f6f1e6';
 
-type Mark = {x?: number; y?: number; label?: string; n?: number};
+type Mark = {x?: number; y?: number; label?: string; n?: number};   // x/y REQUIRED, 0..1 of the plate
+
+export const MAX_PHOTO_MARKS = 5;
 
 const CHIP_MEASURE = 24;   // characters per line — a callout is a phrase, not a paragraph
 
@@ -55,8 +67,7 @@ export const PhotoPlate: React.FC<{
   src,
   title = '',
   caption = 'the thing itself',
-  marks: MARKS = [{x: 0.32, y: 0.44, label: 'what to notice here'},
-                  {x: 0.72, y: 0.62, label: 'and here'}],
+  marks: MARKS = [],
   imageAspect,
   credit = ''} = {}) => {
   requireEvidence('PhotoPlate', 'src', src, 'the real photograph this plate frames and points at');
@@ -66,7 +77,7 @@ export const PhotoPlate: React.FC<{
   const FG = dna?.fg ?? FG_D0, DIM = dna?.dim ?? DIM_D0;
   const ACC = dna?.accent ?? ACC_D0, LINE = dna?.line ?? LINE_D0;
   const SURF = dna?.surface ?? SURF_D0;
-  const disp = dna?.fontDisplay ?? 'Georgia, serif';
+  const disp = dna?.fontDisplay ?? '"Source Serif 4", Georgia, serif';
   const mono = dna?.fontMono ?? 'ui-monospace, monospace';
   const hair = Math.max(1, Math.round(W * 0.0011));
   // Type is sized off the NARROW dimension, which is the rule this library's scaffold states and the reason
@@ -76,10 +87,28 @@ export const PhotoPlate: React.FC<{
   // auxiliary text (~0.57) is the same one a broadcast readability floor asks for.
   const base = Math.min(W, H);
 
+  // Every mark the film gives is drawn, once, at the point it names — see the header for what used to happen.
+  if (!Array.isArray(MARKS) || MARKS.length > MAX_PHOTO_MARKS) {
+    throw new Error(
+      `PhotoPlate takes 0-${MAX_PHOTO_MARKS} \`marks\` (got ${Array.isArray(MARKS) ? MARKS.length : typeof MARKS}). ` +
+      'Past five the callouts stack into a column that no longer reads as pointing at the photograph — keep ' +
+      'the marks the narration names, or split the photograph across two beats.');
+  }
+  const shown = MARKS.map((m, i) => {
+    const x = Number(m?.x), y = Number(m?.y);
+    if (m?.x == null || m?.y == null || !(x >= 0 && x <= 1) || !(y >= 0 && y <= 1)) {
+      throw new Error(
+        `PhotoPlate: mark ${i + 1}${m?.label ? ` ("${m.label}")` : ''} needs \`x\` and \`y\` in 0..1 of the plate ` +
+        `(got x=${String(m?.x)}, y=${String(m?.y)}). A ring on a real photograph says the feature is THERE; ` +
+        'with no point from the film it would ring the centre, or the edge a clamp moved it to.');
+    }
+    return {...m, x, y};
+  });
+
   // THE PLATE IS THE SUBJECT, so it takes the content zone rather than a polite inset. It keeps a margin
   // only wide enough for the plate's own rule and its caption — the point of this register is that the
   // photograph is large enough to be READ, not acknowledged.
-  const top = CONTENT_TOP + H * 0.01;
+  const top0 = CONTENT_TOP + H * 0.01;
   // THE PLATE TAKES THE PHOTOGRAPH'S OWN PROPORTIONS. A fixed landscape plate plus `objectFit: cover` threw
   // away whatever did not fit: measured on a delivered film, a 1280x1707 portrait photograph in a 2.3:1
   // plate lost 67.4% of its HEIGHT — and the beat's whole claim was that the street and the wharf below it
@@ -120,7 +149,7 @@ export const PhotoPlate: React.FC<{
   const reserveFor = (lines: number) =>
     capGap + Math.round(capSize * 1.25 * lines) + (credit ? Math.round(creditSize * 1.85) : 0) + capGap;
   const plateWidthFor = (lines: number) => {
-    const h = Math.max(1, (H - captionBand(W, H) - reserveFor(lines)) - top);
+    const h = Math.max(1, (H - captionBand(W, H) - reserveFor(lines)) - top0);
     return Math.min(W - W * 0.17, h * plateAspect);
   };
   const linesIn = (w0: number) =>
@@ -128,19 +157,47 @@ export const PhotoPlate: React.FC<{
       / Math.max(8, Math.floor(Math.max(w0, W * 0.46) / (capSize * advance))))));
   const capLines = linesIn(plateWidthFor(linesIn(plateWidthFor(1))));
   const capH = reserveFor(capLines);
-  const bottom = H - captionBand(W, H) - capH;
+  const bottom0 = H - captionBand(W, H) - capH;
   // The plate takes the content zone, but its ASPECT is capped. Left to fill the width it came out at
   // 2.78:1 on a 16:9 frame — a cinemascope slit that happened to suit this photograph and would have cut
   // the subject out of a portrait one. The cap is on the WIDE side only: a tall frame wants a tall plate,
   // and cropping a landscape photograph to it is what a portrait film asks for anyway.
-  const PH = Math.max(1, bottom - top);
-  const PW = Math.min(W - W * 0.17, PH * plateAspect);
+  const PH0 = Math.max(1, bottom0 - top0);
+  const PW = Math.min(W - W * 0.17, PH0 * plateAspect);
+  // ...BUT AN ANNOTATED PLATE MUST FRAME THE WHOLE PHOTOGRAPH, because a mark's x/y are fractions of the image
+  // and a cover-crop moves every one of them. Filling a portrait frame's full height with a landscape photo
+  // cropped its sides away, and the rings — still placed at plate fractions — landed on different features
+  // than the film named (rendered: a mark authored on the brickwork left of a feature sat on the feature's
+  // edge at 9:16). With marks, the plate's height follows its width at the photograph's own proportions and
+  // the pair is centred in the zone; an unannotated plate keeps the tall crop, since a crop points at nothing.
+  const PH = shown.length > 0 ? Math.max(1, Math.min(PH0, PW / plateAspect)) : PH0;
+  const top = top0 + (PH0 - PH) / 2;
+  const bottom = top + PH;
+  // Where the photograph's own fractions land on the plate. Identity whenever the plate has the image's
+  // proportions; only an original past the aspect caps is still cropped, and then the marks are carried
+  // through the same crop `objectFit: cover` applies — a mark on a part of the photograph the crop removed
+  // cannot be pointed at, and says so rather than ringing the plate's edge.
+  const imgA = imageAspect && isFinite(imageAspect) && imageAspect > 0 ? imageAspect : PW / PH;
+  const boxA = PW / PH;
+  const visX = imgA > boxA ? boxA / imgA : 1, visY = imgA < boxA ? imgA / boxA : 1;
+  const onPlate = shown.map((m, i) => {
+    const u = (m.x - (1 - visX) / 2) / visX, v = (m.y - (1 - visY) / 2) / visY;
+    if (u < 0 || u > 1 || v < 0 || v > 1) {
+      throw new Error(
+        `PhotoPlate: mark ${i + 1}${m.label ? ` ("${m.label}")` : ''} at x=${m.x}, y=${m.y} of the photograph falls ` +
+        `outside the part this plate shows — an image of aspect ${imgA.toFixed(2)} is cropped to the plate's ` +
+        `${boxA.toFixed(2)} cap. Crop the photograph to its subject first (so the mark is inside it), or drop the mark.`);
+    }
+    return {u, v};
+  });
   // A NARROW plate sits LEFT, not centred. Centred, it leaves two thin margins and the callouts all
   // choose the same one anyway (placeLabel picks by room, and every mark had more room on one side), so
   // the frame came out with a dead half. Left-weighted, the picture and its margin of notes read as one
   // composition — which is what an annotated plate has always been. A plate wide enough to need no margin
   // stays centred, because then the callouts sit inside it.
-  const needsMargin = PW < W * 0.58;
+  // ...and a plate with NO marks has no notes to hold a margin for. Now that `marks` defaults to none (see the
+  // header), left-weighting an unannotated plate would leave half the frame as dead ground, so it centres.
+  const needsMargin = shown.length > 0 && PW < W * 0.58;
   const px0 = needsMargin ? W * 0.085 : (W - PW) / 2;
   const px1 = px0 + PW;
 
@@ -150,7 +207,6 @@ export const PhotoPlate: React.FC<{
   const chipPad = Math.round(base * 0.010);
   const chipFont = Math.round(base * 0.030);
 
-  const shown = MARKS.slice(0, 5);
 
   // ── LAYING THE CALLOUTS OUT AGAINST EACH OTHER ────────────────────────────────────────────────────────
   // Each chip used to be centred on its own mark and nothing else. Marks are wherever the SUBJECT put them,
@@ -186,8 +242,8 @@ export const PhotoPlate: React.FC<{
         ? Math.min(chipPad * 2 + CHIP_MEASURE * adv, Math.max(roomL, roomR))
         : PW * 0.42;
       const chipW = Math.min(chipMax, chipPad * 2 + text.length * adv + chipFont * 1.6);
-      const mx = px0 + clamp01(m.x ?? 0.5) * PW;
-      const my = top + clamp01(m.y ?? 0.5) * PH;
+      const mx = px0 + onPlate[i].u * PW;
+      const my = top + onPlate[i].v * PH;
       // The SAME advance estimate that sized the chip, reused to predict how the text wraps inside it —
       // one estimate, so the height cannot disagree with the width it was derived from.
       const inner = Math.max(1, chipW - chipPad * 2.8);

@@ -1894,6 +1894,21 @@ def _arity_library():
 _ARITY_CACHE = None
 
 
+def _declared_props_library():
+    """{register: set(declared props)} — parsed from the registers, same as the copy and arity readers."""
+    global _DECLARED_CACHE
+    if _DECLARED_CACHE is None:
+        try:
+            import demo_copy_qa
+            _DECLARED_CACHE = demo_copy_qa.declared_library()
+        except Exception:
+            _DECLARED_CACHE = {}       # unavailable → skip rather than false-flag every beat
+    return _DECLARED_CACHE
+
+
+_DECLARED_CACHE = None
+
+
 _SPELLED_FOR_EAR = re.compile(r"[零一二三四五六七八九十]点[零一二三四五六七八九十]|[A-Z](?: [A-Z]){1,7}")
 
 
@@ -1906,10 +1921,23 @@ def _spoken_spellings(slides, warnings):
     `AGPL-3.0` above a caption reading `A G P L 三点零`. `render_remotion` rejoins spaced capitals on its
     own; a number spelled as words it will not touch, because guessing there edits the copy rather than
     restoring it. So the author is told, and `slide.caption` is where the eye's version goes.
+
+    AND THE SPELLING IS NO LONGER THE AUTHOR'S JOB. `tts.spoken_text` now sends a Chinese voice "A-I" / "T-T-S"
+    for a 2-3 letter initialism written normally (measured: it removes the hesitation before the letters) and
+    maps the word timings back, so a narration should say "AI" and "AGPL 3.0" the way a reader writes them.
+    A hand-spaced "T T S" still works — it is rejoined for both the voice and the frame — but it is a leftover,
+    and the warning below says so.
     """
     for s_ in slides:
         if s_.get("caption"):
             continue
+        spaced = [h for h in _SPELLED_FOR_EAR.findall(str(s_.get("narration") or "")) if "点" not in h]
+        if spaced:
+            warnings.append(
+                "scene #%s: narration spells %s letter by letter. Write it as it is read (%s) — tts.py spells short "
+                "initialisms for the voice itself and keeps the written form on the frame."
+                % (s_.get("index"), ", ".join(repr(h) for h in spaced[:3]),
+                   ", ".join(h.replace(" ", "") for h in spaced[:3])))
         hits = [h for h in _SPELLED_FOR_EAR.findall(str(s_.get("narration") or "")) if "点" in h]
         if hits:
             warnings.append(
@@ -2134,7 +2162,7 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
     # registers that display a headline number were exempt from the demo-default faithfulness check.
     NUM = {"ChartLive": "endVal", "BeforeAfterSlider": "metric", "VelocitySnap": "metric",
            "OdometerRoll": "value", "GaugeCluster": "value", "ChartRace": "data",
-           "EdStat": "value", "TermCounter": "value"}
+           "EdStat": "value", "TermCounter": "value", "PhysicsStack": "bars"}
     brief_nums = _brief_numbers(out_dir)     # figures a number-bearing shot must trace to (None = no brief)
     seq = []
     _fit_missing, _fit_verdicts = [], []     # the per-beat fit judgement (see the shot_fit block below)
@@ -2180,6 +2208,18 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
         # which moved the default one level down and left the hole exactly where it was.
         # An ERROR, not a warning: the empty plate says nothing, this says something FALSE.
         _props_empty = (not isinstance(sp, dict)) or (len(sp) == 0)
+        # A PROP THE REGISTER DOES NOT DECLARE IS NEVER READ, and React does not complain. The manifest had
+        # drifted from the code — `TermThink` advertised `prompt, thoughts[]` and reads `question, think`;
+        # `TermGitLog` advertised `entries` and reads `commits` — so a board authored from it passed names that
+        # went nowhere, and the props it meant to set printed their DEMO defaults instead ("hermes --mode
+        # hybrid", two invented commits) on a frame about something else, with every gate green. Keys starting
+        # with `_` are the author's own notes and are left alone.
+        if isinstance(sp, dict) and shot in _declared_props_library():
+            _decl = _declared_props_library()[shot]
+            for _k in sorted(k for k in sp if not str(k).startswith("_") and k not in _decl):
+                errors.append(f"{tag}: {shot} has no prop `{_k}` — the register never reads it, so whatever it "
+                              f"was meant to set prints the demo default instead. Its props are: "
+                              f"{', '.join(sorted(_decl))}.")
         if isinstance(sp, dict) and shot in _demo_copy_library():
             # A PROP CAN BE SUPPLIED BY ANOTHER PROP. `PortRail` grew `groups` (items that belong to named
             # kinds) and when a board gives groups, `items` is never read — but the check saw `items` unset,

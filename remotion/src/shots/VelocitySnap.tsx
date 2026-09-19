@@ -1,12 +1,22 @@
 // SHOT · Velocity Snap — Linear/Stripe language: a UI ASSEMBLES in a blink, each element flying in and
 // SNAPPING into place with a micro-bounce + a motion-blur streak on arrival. Signals raw speed / "instant".
 // Dark premium + Linear-purple (adds a snappy dark language). Deterministic (blur ∝ per-element velocity).
+//
+// THE FIGURE IS THE FILM'S, WITH THE FILM'S UNIT, OR THERE IS NONE. `metric` defaulted to '0' and `unit` to 'ms'
+// independently, so a film that passed only `label` shipped a big "0ms" beside its own words, and one that
+// passed `metric: '1.2 秒'` with no unit printed "1.2 秒ms" — a unit nobody supplied, welded onto a sourced
+// figure. The illustrative "0ms" is now one piece that appears only in the standalone preview (no `label`,
+// `metric` or `unit` passed at all). A film's metric carries exactly the unit the film wrote, or none, and a
+// film with no metric gets no figure. The metric is printed through runtime/figure.ts `figureText` — as
+// written, never re-formatted — and sized to the room above the panels.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutBack, easeOutCubic, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {Figure} from '../runtime/atoms';
+import {figureText} from '../runtime/figure';
+import {textWidthPx} from '../runtime/layout';
 
 export const DURATION = 120; // 4s — snappy
 const PUR0 = '#7C89FF', BG = '#0c0d14';
@@ -14,10 +24,20 @@ const PUR0 = '#7C89FF', BG = '#0c0d14';
 type Piece = {x: number; y: number; w: number; h: number; dx: number; dy: number; at: number; c?: string};
 
 export const VelocitySnap: React.FC<{label?: string; metric?: string; unit?: string}> = ({
-  label = 'Done.', metric = '0', unit = 'ms'} = {}) => {
+  // `label` and `metric` are each bound twice on purpose: `labelIn` / `metricIn` are what the film actually
+  // passed (undefined when it passed nothing); the defaulted names hold the preview's illustrative copy. Only
+  // "nothing passed at all" may unlock the demo figure.
+  label: labelIn, label = 'Done.', metric: metricIn, metric = '0', unit} = {}) => {
   const t = useT();
   const dna = useDNA(); const PUR = dna?.accent ?? PUR0;
   const {width: W} = useVideoConfig();
+  const standalone = labelIn === undefined && metricIn === undefined && unit === undefined;
+  const figure = figureText(standalone ? metric : metricIn);
+  const UNIT = standalone ? 'ms' : (unit ?? '');
+  // the figure's right-aligned block has everything from the left margin to its own right inset; a long film
+  // string ("不到 1 秒") shrinks to fit rather than running off the left edge. Never larger than the 120px it was.
+  const metricPx = Math.max(40, Math.min(120, Math.floor((W - 150 - 130) /
+    Math.max(0.1, textWidthPx(figure, 1) + textWidthPx(UNIT, 1)))));
   // UI sits in the LEFT band; the big "0ms" gets a clear RIGHT band (no overlap).
   const cx = 130, cy = 300;
   const pieces: Piece[] = [
@@ -47,12 +67,12 @@ export const VelocitySnap: React.FC<{label?: string; metric?: string; unit?: str
           {p.c && <div style={{position: 'absolute', left: 30, bottom: 26, font: '800 66px/1 var(--f-display, Inter,system-ui,sans-serif)', color: '#fff'}}>{label}</div>}
         </div>;
       })}
-      <div style={{position: 'absolute', right: 150, top: 150, textAlign: 'right', opacity: easeOutCubic(seg(t, 0.4, 0.55))}}>
+      {figure ? <div style={{position: 'absolute', right: 150, top: 150, textAlign: 'right', opacity: easeOutCubic(seg(t, 0.4, 0.55))}}>
         {/* fallbackForm/fallbackFamily make explicit what previously worked only because NEUTRAL_DNA.fontDisplay
             happens to match this shot's hardcoded Inter stack — a coincidence, not a contract, until now. */}
-        <div><Figure value={metric} unit={unit} ink="#fff" tone={PUR} size={120} unitScale={1}
+        <div><Figure value={figure} unit={UNIT} ink="#fff" tone={PUR} size={metricPx} unitScale={1}
           fallbackForm="display" fallbackFamily="Inter, system-ui, sans-serif" /></div>
-      </div>
+      </div> : null}
     </AbsoluteFill>
   );
 };

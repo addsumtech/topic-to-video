@@ -9,6 +9,14 @@
 //
 // Any film with an incremental-until-transformed subject can use it: a footprint, an allocation, a scope, a
 // pit, a caseload. The states, their labels and the note are all props.
+//
+// A STATE'S SIZE IS THE FILM'S, OR THE SHOT REFUSES. Each profile used to be sized `(st.w ?? 0.3)` by
+// `(st.h ?? 0.4)`, so a film that listed its states by name alone got every one of them drawn at the same
+// invented 0.3 x 0.4 — three identical rectangles stacked on each other under a register whose whole claim is
+// "each larger than the last". The size of a profile IS the quantity being argued about, so a state without
+// a finite `w` and `h` in (0, 1] now throws. The list was also cut at five with `.slice(0, 5)`, silently
+// dropping every later state — and the LAST state is the one the register says the thing became. More than
+// five now throws instead.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -21,7 +29,9 @@ export const DURATION = 160;
 const BG_D0 = '#efe7d8', FG_D0 = '#241d14', DIM_D0 = '#6e6152';
 const ACC_D0 = '#9c3b1e', LINE_D0 = '#cdbfa7';
 
-type State = {label?: string; w?: number; h?: number; note?: string};   // w/h are 0..1 of the field
+type State = {label?: string; w?: number; h?: number; note?: string};   // w/h are 0..1 of the field — REQUIRED
+
+export const MAX_PROFILE_STATES = 5;
 
 export const ProfileGrowth: React.FC<{
   kicker?: string;
@@ -41,7 +51,7 @@ export const ProfileGrowth: React.FC<{
   const FG = dna?.fg ?? FG_D0, DIM = dna?.dim ?? DIM_D0;
   const ACC = dna?.accent ?? ACC_D0, LINE = dna?.line ?? LINE_D0;
   const SURF = dna?.surface ?? '#e5dac6';
-  const disp = 'var(--f-display, Georgia, serif)';
+  const disp = 'var(--f-display, "Source Serif 4", Georgia, serif)';
   const mono = 'var(--f-mono, ui-monospace, monospace)';
   const hair = Math.max(1, Math.round(W * 0.0012));
 
@@ -56,8 +66,24 @@ export const ProfileGrowth: React.FC<{
   const gline = easeOutCubic(clamp01(seg(t, 0.08, 0.28)));
   const land = easeOutExpo(clamp01(seg(t, 0.80, 0.94)));
 
-  const states = STATES.slice(0, 5);
-  const n = Math.max(1, states.length);
+  // One to five states, each drawn once at its own size (see the header for why nothing is filled in or cut).
+  if (!Array.isArray(STATES) || STATES.length < 1 || STATES.length > MAX_PROFILE_STATES) {
+    throw new Error(
+      `ProfileGrowth needs 1-${MAX_PROFILE_STATES} \`states\` (got ${Array.isArray(STATES) ? STATES.length : typeof STATES}). ` +
+      'Every state is drawn as its own ghosted profile, and the last one is what the thing became, so none can ' +
+      'be dropped — past five the ghosts are no longer countable; keep the states the argument turns on.');
+  }
+  const states = STATES.map((st, i) => {
+    const w = Number(st?.w), h = Number(st?.h);
+    if (st?.w == null || st?.h == null || !(w > 0 && w <= 1) || !(h > 0 && h <= 1)) {
+      throw new Error(
+        `ProfileGrowth: state ${i + 1}${st?.label ? ` ("${st.label}")` : ''} needs \`w\` and \`h\` as fractions of the ` +
+        `field in (0, 1] (got w=${String(st?.w)}, h=${String(st?.h)}). The profile's size IS the claim — each ` +
+        'state is drawn at the size the film gives it, never at an assumed one.');
+    }
+    return {...st, w, h};
+  });
+  const n = states.length;
 
   // THE CAPTION UNDER THE PLATE IS TWO BLOCKS AT FIXED OFFSETS, and both offsets assume ONE line. A Han
   // glyph is a full em, so the state's note wraps where the English one did not, the second block starts
@@ -106,7 +132,7 @@ export const ProfileGrowth: React.FC<{
         const on = easeOutCubic(clamp01(seg(t, a, a + 0.52 / n + 0.06)));
         if (on <= 0) return null;
         const last = i === n - 1;
-        const w = (st.w ?? 0.3) * fieldW, h = (st.h ?? 0.4) * fieldH;
+        const w = st.w * fieldW, h = st.h * fieldH;
         const x = fx + fieldW / 2 - w / 2;
         // the ghosts: earlier profiles keep a faint fill, the current one is drawn in the accent
         const fill = last ? ACC : (mix ? mix(SURF, ACC, 0.10 + 0.08 * i) : SURF);
@@ -122,7 +148,7 @@ export const ProfileGrowth: React.FC<{
         const on = easeOutCubic(clamp01(seg(t, a, a + 0.52 / n + 0.06)));
         if (on <= 0) return null;
         const last = i === n - 1;
-        const w = (st.w ?? 0.3) * fieldW, h = (st.h ?? 0.4) * fieldH;
+        const w = st.w * fieldW, h = st.h * fieldH;
         const x = fx + fieldW / 2 - w / 2;
         return (
           <div key={'l' + i} style={{position: 'absolute', left: x, top: baseY - h * on - Math.round(W * 0.021),

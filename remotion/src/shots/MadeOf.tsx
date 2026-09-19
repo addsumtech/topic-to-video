@@ -14,18 +14,33 @@
 // THE HIDE-THE-CAPTION TEST, which this is built to pass: cover the subtitle and the frame still says "this
 // whole is made of these parts, in these proportions, and that one is the big one". Nothing here is filler —
 // a region's AREA is its share, so an area that means nothing cannot be drawn.
+//
+// THE FIGURE IN A REGION IS THE SHARE THE FILM WROTE. Each cell used to print `Math.round(share / total * 100)`
+// followed by the film's `unit`: a film that measured a disk in GB — shares [4, 3], unit 'GB' — got "57GB" and
+// "43GB", figures that exist nowhere, and shares that did not sum to 100 were silently rescaled into
+// percentages under whatever unit was named. The AREA is still drawn relative to the total (that is what a
+// partition is), but the printed figure is now the share itself, as written, through runtime/figure.ts, with
+// the film's `unit` — and `unit` no longer defaults to '%' for a film ("4" of something is not "4%"); the '%'
+// belongs to the standalone preview's illustrative parts only. A part with no share, a negative share, more than
+// seven parts, or fewer than two drawable ones now THROWS instead of being dropped or cut in silence; a share
+// of exactly 0 is still left out, because a zero-area region is not a part.
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic} from '../runtime/motion';
-import {captionBand, CONTENT_TOP} from '../runtime/layout';
+import {captionBand, CONTENT_TOP, textWidthPx} from '../runtime/layout';
+import {figureText, figureValue} from '../runtime/figure';
 import {useDNA, dnaPalette, separated, surfaceOn, readableOn, dimOn, pilL, TONE_MIN_STEP} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
 
 const BG_D0 = '#07090f', FG_D0 = '#eef2f8', DIM_D0 = '#6c7788';
-const TONES_D0 = ['#4f8cff', '#8b6cf0', '#3dd6a4', '#f0b23d', '#ef6a6a', '#57c4e5'];
+// seven tones for up to seven parts: with six, the seventh region wore the first region's colour, which reads
+// as "these two are the same kind of thing" — a grouping no film stated
+const TONES_D0 = ['#4f8cff', '#8b6cf0', '#3dd6a4', '#f0b23d', '#ef6a6a', '#57c4e5', '#e58ac8'];
 
 type Part = {label?: string; share?: number; note?: string};
+
+export const MAX_MADEOF_PARTS = 7;
 
 const DEFAULT_PARTS: Part[] = [
   {label: 'the biggest piece', share: 44},
@@ -61,8 +76,10 @@ export const MadeOf: React.FC<{
   whole?: string;      // the thing being taken apart
   parts?: Part[];      // its constituents — `share` is the AREA, so it must mean something
   note?: string;       // one line under the partition
-  unit?: string;       // what a share is counted in ('%' by default); shown beside each figure
-}> = ({kicker = '', whole = '', parts: PARTS = DEFAULT_PARTS, note = '', unit = '%'} = {}) => {
+  unit?: string;       // what a share is counted in, shown beside each figure — only when the film gives one
+  // `parts` is bound twice: `partsGiven` is what the film passed (undefined if nothing), `PARTS` adds the preview
+  // parts the demo-copy gate lists. Only the preview's own parts are printed with an implied '%'.
+}> = ({kicker = '', whole = '', parts: partsGiven, parts: PARTS = DEFAULT_PARTS, note = '', unit} = {}) => {
   const dna = useDNA();
   const BG = dna?.bg ?? BG_D0;
   const FG = dna?.fg ?? FG_D0;
@@ -77,9 +94,30 @@ export const MadeOf: React.FC<{
   const zoneTop = CONTENT_TOP;
   const zoneBottom = H - captionBand(W, H);
 
-  const items = PARTS.slice(0, 7).filter((p) => (p.share ?? 0) > 0);
-  const sorted = items.map((p, i) => ({...p, share: p.share ?? 0, i})).sort((a, b) => b.share - a.share);
-  const total = sorted.reduce((s, p) => s + p.share, 0) || 1;
+  const UNIT = unit ?? (partsGiven === undefined ? '%' : '');
+  if (!Array.isArray(PARTS) || PARTS.length > MAX_MADEOF_PARTS) {
+    throw new Error(`MadeOf draws at most ${MAX_MADEOF_PARTS} \`parts\` (got ${Array.isArray(PARTS) ? PARTS.length : typeof PARTS}). ` +
+      'Past seven the regions are too small to label; group the tail into one part the film names (e.g. "other") ' +
+      'with its sourced share. Parts are never cut to fit.');
+  }
+  const parsed = PARTS.map((p, i) => {
+    const label = String(p?.label ?? '').trim();
+    if (!label) throw new Error(`MadeOf: part ${i + 1} has no \`label\` — a region nobody names is not a part.`);
+    const raw = p?.share as unknown;
+    const share = typeof raw === 'number' ? raw : figureValue(raw);
+    if (share == null || !Number.isFinite(share) || share < 0) {
+      throw new Error(`MadeOf: part ${i + 1} ("${label}") needs a \`share\` that is one number >= 0, got ` +
+        `${JSON.stringify(raw)}. The region's AREA is drawn from it, so it cannot be guessed.`);
+    }
+    return {...p, label, share, shown: figureText(raw) + UNIT, i};
+  });
+  const items = parsed.filter((p) => p.share > 0);        // a zero share is not a part: no zero-area region
+  if (items.length < 2) {
+    throw new Error(`MadeOf needs at least 2 parts with a share above 0 (got ${items.length}). A whole made of one ` +
+      'part is not a partition — use a single-figure register.');
+  }
+  const sorted = [...items].sort((a, b) => b.share - a.share);
+  const total = sorted.reduce((s, p) => s + p.share, 0);
 
   // The partition fills the whole content zone, edge to edge. A composition that insets itself is the
   // "small" half of this library's emptiness — measured, four of its sparsest registers occupy between 9%
@@ -112,12 +150,13 @@ export const MadeOf: React.FC<{
         const fill = fills[k];
         const ink = readableOn(fill, '#ffffff', '#05070c');
         const sub = dimOn(fill, ink);
-        const pct = Math.round((p.share / total) * 100);
         // Type sized to the CELL: a label larger than the region it names is the frame-craft defect this
         // project keeps finding, and a cell's area is exactly what tells you how big its label may be.
         const room = Math.min(c.w, c.h);
         const labelPx = Math.max(14, Math.min(Math.round(base * 0.042), Math.round(c.w / Math.max(4, [...(p.label ?? '')].length) * 1.7), Math.round(c.h * 0.30)));
-        const figPx = Math.max(16, Math.min(Math.round(base * 0.075), Math.round(room * 0.38)));
+        // ...and to the film's figure, which can be longer than a two-digit percentage ("4,600 GB")
+        const figPx = Math.max(16, Math.min(Math.round(base * 0.075), Math.round(room * 0.38),
+          Math.floor((c.w - 2 * Math.round(base * 0.022)) / Math.max(0.1, textWidthPx(p.shown, 1)))));
         const tight = room < base * 0.14;
         return (
           <div key={k} style={{position: 'absolute', left: c.x, top: c.y, width: c.w, height: c.h,
@@ -129,7 +168,7 @@ export const MadeOf: React.FC<{
             padding: Math.round(base * 0.022), boxSizing: 'border-box', overflow: 'hidden'}}>
             {!tight ? (
               <div style={{color: ink, font: `800 ${figPx}px/1 ${disp}`, letterSpacing: '-0.02em',
-                fontVariantNumeric: 'lining-nums tabular-nums'}}>{pct}{unit}</div>
+                fontVariantNumeric: 'lining-nums tabular-nums', whiteSpace: 'nowrap'}}>{p.shown}</div>
             ) : null}
             <div style={{color: ink, font: `700 ${labelPx}px/1.15 ${body}`, marginTop: tight ? 0 : Math.round(base * 0.006)}}>
               {p.label ?? ''}

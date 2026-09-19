@@ -25,7 +25,7 @@ export const INTRINSIC_TEXT = [
   'random undersampling → noise-like aliasing',
   'sparse in a transform',
 ];
-const SERIF = "var(--f-display, 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif)";
+const SERIF = "var(--f-display, 'Source Serif 4', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif)";
 
 export const CompressedSensingEq: React.FC<{accent?: string; accent2?: string; label?: string}> = ({
   accent = '#22d3ee', accent2 = '#a78bfa', label = 'Compressed sensing',
@@ -54,7 +54,7 @@ export const CompressedSensingEq: React.FC<{accent?: string; accent2?: string; l
   // The small runs (the subscripts and the italic "subject to") are measured at the FULL size, which
   // over-counts them and lands the line a little inside its budget. That is the safe direction: the cost is
   // a few percent of width, the alternative is a glyph over the edge.
-  const eqFace = dna?.fontDisplay ?? "'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif";
+  const eqFace = dna?.fontDisplay ?? "'Source Serif 4', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif";
   const EQ_PX = Math.min(92, fitText({
     text: EQ_TEXT, withinWidth: W * 0.94, fontFamily: eqFace, fontWeight: 400, letterSpacing: '0.01em',
   }).fontSize);

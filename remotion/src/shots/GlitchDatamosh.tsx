@@ -50,6 +50,7 @@ export const GlitchDatamosh: React.FC<{word?: string; tagline?: string; accent?:
           const on = hash01(k * 5.3 + step * 2) > 0.6;
           if (!on) return null;
           const x = hash01(k * 2.1 + step) * W, y = hash01(k * 7.9 + step) * H;
+          // @decor: glitch slices are texture; their sizes are not a reading about the word
           const w = 30 + hash01(k * 4.4) * 160, h = 6 + hash01(k * 8.2) * 20;
           return <rect key={k} x={x} y={y} width={w} height={h} fill={k % 2 ? ACC : '#ff004c'} opacity={0.5} />;
         })}

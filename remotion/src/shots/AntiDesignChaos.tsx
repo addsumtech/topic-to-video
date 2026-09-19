@@ -19,7 +19,7 @@ export const DURATION = 150; // 5s
 const GROUND0 = '#f4e63a';
 const POP0 = ['#ff2e6e', '#1b1b1b', '#2b6bff', '#00c37a', '#8b2fff', '#ff7a1a'];
 const FONTS = ['Impact, system-ui, sans-serif', '"Playfair Display", Georgia, serif',
-  '"JetBrains Mono", monospace', '"Baloo 2", Inter, sans-serif', 'Georgia, serif'];
+  '"JetBrains Mono", monospace', '"Baloo 2", Inter, sans-serif', '"Source Serif 4", Georgia, serif'];
 
 export const AntiDesignChaos: React.FC<{title?: string; items?: string[]; tagline?: string}> = ({
   title: TITLE = 'RULES?', items: ITEMS = ['no grid', 'more!', 'why not', 'LOUD', 'oops', 'yes.'],
@@ -45,6 +45,7 @@ export const AntiDesignChaos: React.FC<{title?: string; items?: string[]; taglin
           const x = 120 + hash01(i * 3.1) * (W - 240), y = 120 + hash01(i * 7.7) * (H - 240);
           const s = clamp01(seg(t, 0.1 + i * 0.05, 0.34 + i * 0.05));
           const col = POP[i % POP.length];
+          // @cycles: nine unlabelled sticker shapes; which of three outlines a sticker takes says nothing about any item
           const kind = i % 3;
           const rot = (hash01(i * 5) - 0.5) * 40;
           return (

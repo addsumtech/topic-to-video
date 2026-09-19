@@ -51,6 +51,7 @@ export const SpatialSlides: React.FC<{steps?: string[]; notes?: string[]; overvi
   const n = list.length;
   // stage px — the route is written in frame fractions so it reflows, and depth scales with the short side
   const poses: Pose[] = ROUTE.slice(0, n).map((p) => ({
+    // @fallback: an omitted pose coordinate is the origin of the space: a camera position, not a reading about a slide
     ...p, x: (p.x ?? 0) * W, y: (p.y ?? 0) * H, z: (p.z ?? 0) * U,
   }));
 
@@ -78,6 +79,7 @@ export const SpatialSlides: React.FC<{steps?: string[]; notes?: string[]; overvi
 
   const out = easeOutCubic(clamp01(seg(t, TOUR_END, 0.94)));
   const cam: Pose = {
+    // @fallback: an omitted pose coordinate is the origin of the space: a camera position, not a reading about a slide
     x: lerp(tour.x ?? 0, wide.x ?? 0, out), y: lerp(tour.y ?? 0, wide.y ?? 0, out),
     z: lerp(tour.z ?? 0, wide.z ?? 0, out), rx: lerp(tour.rx ?? 0, wide.rx ?? 0, out),
     ry: lerp(tour.ry ?? 0, wide.ry ?? 0, out), rz: lerp(tour.rz ?? 0, wide.rz ?? 0, out),
