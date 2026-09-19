@@ -189,3 +189,20 @@ specific field.
 > but neither produced a commit that repaired a shipped defect, so it is scored as weaker evidence than the
 > rules above. If you catch a real failure here, write it down as one.
 > **Ask yourself:** Which process produced the status you just read?
+
+**E14 · A PICTURE BESIDE A LABEL IS A CLAIM ABOUT THAT LABEL.** Anything a register draws next to a film's
+item that a viewer reads as information — a picture, a status, an emphasis, a quantity, a relation, a figure —
+must come from a prop the film set. Not given, it is not drawn: no status, no emphasis, equal treatment, no
+picture. Never a stand-in chosen by index, a hash, a constant or the clock; never a list cycled to fill slots;
+never a film figure re-typed.
+
+> **Precedent — `9588d4a`:** a user asked what a sparkline, a loading ring and a sine wave had to do with 路飞 and
+> 哆啦A梦. `BentoReveal` picked each cell's widget by `kind={(i - 1) % 6}`, computed the bar heights from the
+> index and the clock, and cycled the labels to fill six cells. A read of all 168 registers found the same
+> class in about sixty: `k < 2 ? '✓'` marking a film's first two to-dos done, `const HERO = 2`, tower heights
+> from `hash01(i)`, a hardcoded rising series under a sourced figure, `parseFloat(v.replace(/[^\d.]/g, ''))`
+> printing "−12" as 12 and "3–5" as 35, `fill ?? 0.6` inventing a gauge reading. Every gate was green on every
+> one of them, because every gate measured type. `scripts/content_contract_qa.py` now reads the source for
+> those shapes and `tests/test_content_contract.py` holds the library to it.
+> **Ask yourself:** For each thing this register draws about an item, which prop did it come from — and what
+> does the frame show when the film leaves that prop out?
