@@ -17,7 +17,7 @@ yet in this library — they exist for new shots and opportunistic use. See
 deliberately left un-migrated.
 
 <!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
-**Family census — 169 registers across 27 families.** D×25 · A×21 · C×15 · B×13 · G×11 · F×10 · H×9 · E×8 · L×8 · I×5 · J×5 · K×5 · M×5 · S×5 · U×5 · JA×4 · N×3 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
+**Family census — 170 registers across 27 families.** D×25 · A×21 · C×15 · B×13 · G×11 · F×10 · H×9 · E×8 · L×8 · I×5 · J×5 · K×5 · M×5 · S×5 · U×5 · JA×4 · N×4 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
 
 **9 families hold two registers or fewer: O, Q, R, T, V, W, X, Y, Z.** That is a BUILD signal, not a menu. When a beat's
 argument wants one of those languages and the one register there does not carry it, the answer is
@@ -294,6 +294,7 @@ Written FOR the editorial DNA (they read `EdFrame`: a kicker + hairline accent r
 91. **CodeRain** — Matrix-style digital rain: glyph columns fall with a bright head + fading phosphor trail, a message resolving on a darkened core. *Use: "in the machine" / decode / a data stream.*
 
 ## N · Isometric — dioramas & worlds
+194. **PlaneStack** — the layers a system is made of, drawn as slabs in space seen from slightly above: each plane carries its own name, gloss and things, and the layer the beat is about lifts out of the stack and sharpens while the rest recede (blur AND desaturation, the two anchors together, or layered material reads as stickers flying). *Use: what a thing is MADE OF, layer by layer, when one layer is what this beat is about — interface over service over store, coil over gradient over reconstruction. Not for layers in TIME (a timeline), for how deep something is buried (StrataColumn), or for peers (CardStack3D).* `title, layers[{label, note?, items?}], focal, note` · 2–5 layers, 0–4 items each; omit `focal` and no layer is picked — the stack is drawn with every layer equal. Past its capacity, and past what a plane can set at its type floor, it throws with both measurements.
 73. **IsoWorld** — an isometric diorama builds: a tiled ground draws in, then labelled iso-cube buildings rise in an outward ripple. *Use: your world / workspace-as-a-city / a system laid out.* `items[], title` · 1-9 labelled buildings, all one height; only unlabelled filler varies.
 89. **VoxelBuild** — an ISOMETRIC object assembles voxel by voxel: shaded cubes drop in (staggered by depth) and stack into a form (default: a checkmark). *Use: built block-by-block / a thing coming together.* · the cubes drop in stroke order into a fixed ✓ that reads as a check on screen.
 40. **IsometricAssembly** — iso raw block → machine → finished deliverable (moved from G so all iso shots live in N). *Use: pipeline as objects.* `items` · exactly three; the finished parts line up on the pad. Past that it throws: `items` exactly three.

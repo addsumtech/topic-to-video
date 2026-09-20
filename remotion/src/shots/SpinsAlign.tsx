@@ -39,6 +39,8 @@ export const SpinsAlign: React.FC<{accent?: string; accent2?: string; label?: st
   }
   // the k spins that align: the k lowest hashes, so the count is exact rather than a coin flip per arrow
   const k = Math.max(1, Math.round(N * frac));
+  // The list cut here is the register's OWN N drawn arrows, not anything the film gave.
+  // @truncates: `k` is the film's `alignedFraction` of those N arrows, so cutting to k IS how the fraction is drawn.
   const aligned = new Set([...Array(N).keys()].sort((a, b) => hash01(a * 11) - hash01(b * 11)).slice(0, k));
   const align = clamp01(seg(t, 0.15, 0.75));                 // 0 random → 1 field on
   const arrows: React.ReactNode[] = [];

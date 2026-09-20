@@ -84,6 +84,7 @@ FAMILY = {
     "EdStat": "L", "EdTimeline": "L", "EdCompare": "L",   # editorial-native family (Ed*) — grouped like Term* above
     "GlitchDatamosh": "M", "CodeRain": "M",
     "IsoWorld": "N", "VoxelBuild": "N", "IsometricAssembly": "N",
+    "PlaneStack": "N",
     "NeonTickerWall": "O",
     "VariableTypeMorph": "P", "InflateType": "P", "ElasticType": "P",
     "AntiDesignChaos": "Q",
@@ -118,6 +119,7 @@ FAMILY = {
 # only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
 # pins the subset so it cannot drift again.
 PROVENANCE = {
+    "PlaneStack":              'industrial',
     "TaskFold":                'product-ui',
     "CompanionCard":           'product-ui',
     "StateSheet":              'product-ui',

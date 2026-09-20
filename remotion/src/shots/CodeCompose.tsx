@@ -60,6 +60,8 @@ export const CodeCompose: React.FC<{doneLabel?: string; filename?: string; lines
     let col = 0; const spans: React.ReactNode[] = [];
     for (const tok of line) {
       const take = Math.max(0, Math.min(tok.t.length, revealedHere - col));
+      // `take` grows with the clock; every character of every token is on screen by the settled frame.
+      // @truncates: a typewriter REVEAL of the film's own line, not a cut of it.
       if (take > 0) spans.push(<tspan key={col} fill={tok.c}>{tok.t.slice(0, take)}</tspan>);
       col += tok.t.length;
       if (col >= revealedHere) break;
@@ -70,6 +72,7 @@ export const CodeCompose: React.FC<{doneLabel?: string; filename?: string; lines
     rendered.push(<text key={`g${li}`} x={gx + 40} y={yy} textAnchor="end" style={{font: `600 ${FS}px/1 var(--f-mono, "JetBrains Mono", monospace)`}} fill="#39414d" dominantBaseline="hanging">{li + 1}</text>);
     // caret lives on the last line that has begun revealing
     const lt = lineText(line);
+    // @truncates: measuring how wide the REVEALED part of this line is, to put the caret after it.
     if (shown > before && revealedHere < chars) {caretX = textX + cells(lt.slice(0, revealedHere)) * CHW; caretY = yy; caretLine = li;}
     else if (shown >= before + chars) {caretX = textX + cells(lt) * CHW; caretY = yy; caretLine = li;}
     acc += chars + 1; // + newline

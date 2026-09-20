@@ -171,6 +171,7 @@ import {DollyZoom} from './shots/DollyZoom';
 import {TermSpace} from './shots/TermSpace';
 import {CompanionCard} from './shots/CompanionCard';
 import {TaskFold} from './shots/TaskFold';
+import {PlaneStack} from './shots/PlaneStack';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
@@ -223,6 +224,7 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   TermSpace,
   CompanionCard,
   TaskFold,
+  PlaneStack,
 };
 
 export const SHOT_IDS = Object.keys(REGISTRY);

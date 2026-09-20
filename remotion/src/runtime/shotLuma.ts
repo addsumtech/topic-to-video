@@ -7,6 +7,7 @@ export type Lum = 'dark' | 'mid' | 'light';
 // (KSpaceToImage added below with the map — a purpose-built dark shot)
 
 export const SHOT_LUMA: Record<string, Lum> = {
+  PlaneStack: 'dark',
   TaskFold: 'dark',
   FallbackPath: 'dark',
   StateSheet: 'dark',
@@ -103,6 +104,7 @@ const literalGround = (tok: GroundSpec | undefined): string | null =>
 // `declared-only`, until measure_ground_luma.py replaces it with a measurement. Everything else is
 // measured.
 export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
+  PlaneStack: 'bg',
   TaskFold: 'bg',
   FallbackPath: 'bg',
   StateSheet: 'bg',
@@ -333,18 +335,18 @@ export const GROUND_FOLLOWS_MEASURED: ReadonlySet<string> = new Set([
   'MagazineSpread', 'MagnetizationTip', 'MapPlate', 'MapRoutes',
   'MuseumLabel', 'NeuralField', 'OdometerRoll', 'OpenQuestions',
   'OverlapSeparation', 'PaperCutout', 'PhaseEncodeStep', 'PhysicsStack',
-  'PixelBuild', 'PlanPalimpsest', 'PointerTour', 'PortRail',
-  'PositioningMatrix', 'ProfileGrowth', 'QuadSplit', 'RackFocus',
-  'RadialBurst', 'RainGlass', 'RansomZine', 'RealVersus',
-  'RisoPrint', 'ScanReconstruct', 'ScreenBubble', 'SectionRoute',
-  'SharedBlindspot', 'SourceDeal', 'SpatialSlides', 'SpeedLimit',
-  'SpinningProton', 'SpinsAlign', 'StateSheet', 'StrataColumn',
-  'SurfaceCarousel', 'SwissEditorial', 'TallyLedger', 'TaskFold',
-  'TechnicalPlate', 'TemporalAccelerate', 'TensionScale', 'TermBars',
-  'TermCounter', 'TermDiff', 'TermGitLog', 'TermLog',
-  'TermSpace', 'TermTable', 'TermThink', 'TermTree',
-  'TimelineTravel', 'UndersampledKspace', 'VariableTypeMorph', 'VersusSplit',
-  'VoiceSignal', 'WireGlobe', 'WordTunnel',
+  'PixelBuild', 'PlanPalimpsest', 'PlaneStack', 'PointerTour',
+  'PortRail', 'PositioningMatrix', 'ProfileGrowth', 'QuadSplit',
+  'RackFocus', 'RadialBurst', 'RainGlass', 'RansomZine',
+  'RealVersus', 'RisoPrint', 'ScanReconstruct', 'ScreenBubble',
+  'SectionRoute', 'SharedBlindspot', 'SourceDeal', 'SpatialSlides',
+  'SpeedLimit', 'SpinningProton', 'SpinsAlign', 'StateSheet',
+  'StrataColumn', 'SurfaceCarousel', 'SwissEditorial', 'TallyLedger',
+  'TaskFold', 'TechnicalPlate', 'TemporalAccelerate', 'TensionScale',
+  'TermBars', 'TermCounter', 'TermDiff', 'TermGitLog',
+  'TermLog', 'TermSpace', 'TermTable', 'TermThink',
+  'TermTree', 'TimelineTravel', 'UndersampledKspace', 'VariableTypeMorph',
+  'VersusSplit', 'VoiceSignal', 'WireGlobe', 'WordTunnel',
 ]);
 
 /** Does a declared ground reach this register? An unknown id answers false, so an unmeasured register is

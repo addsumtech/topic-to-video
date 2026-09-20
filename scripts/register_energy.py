@@ -226,8 +226,32 @@ def source_hash(name):
     f = os.path.join(_SHOTS, name + ".tsx")
     h = hashlib.sha256()
     for dep in sorted(_deps(f)):
-        h.update(open(dep, "rb").read())
+        h.update(_dep_bytes(dep, name))
     return h.hexdigest()[:16]
+
+
+# A PER-REGISTER TABLE IS NOT SHARED CODE. `runtime/shotLuma.ts` is one line per shot, and every register
+# that reads it imports the whole file — so REGISTERING a new shot, or re-measuring one shot's ground,
+# rewrote the table and marked every other reader's energy row stale. Nothing about their pictures had
+# changed. A sweep is a two-and-a-half hour render, so a check that cries wolf here is a check that gets
+# answered by re-measuring the whole library or by ignoring it; this repo has already recorded both.
+# What a reader actually depends on is the file's CODE plus its OWN row, so that is what is hashed.
+_LUMA_ENTRY = re.compile(r"^\s*(?:'|\")?([A-Za-z][A-Za-z0-9_]*)(?:'|\")?\s*:\s*'(?:dark|mid|light)'\s*,?",
+                         re.M)
+
+
+def _dep_bytes(dep, name):
+    if os.path.basename(dep) != "shotLuma.ts":
+        return open(dep, "rb").read()
+    src = open(dep, encoding="utf-8").read()
+    mine = [m.group(0).strip() for m in _LUMA_ENTRY.finditer(src) if m.group(1) == name]
+    # entries can share a line; drop every entry from the text, then add back only this register's
+    stripped = _LUMA_ENTRY.sub("", src)
+    stripped = re.sub(r"\b([A-Za-z][A-Za-z0-9_]*)\s*:\s*'(?:dark|mid|light)'\s*,?", "", stripped)
+    # ...and the WHITESPACE the removals leave behind is normalised, or the hash still moves when a row that
+    # shared a line with another register is taken out and the line collapses differently.
+    stripped = re.sub(r"\s+", " ", stripped).strip()
+    return (stripped + " | " + " ".join(sorted(mine))).encode("utf-8")
 
 
 def source_hashes():

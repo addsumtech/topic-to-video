@@ -8,6 +8,7 @@ import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
 import {StageProbe, DURATION as SPD} from './runtime/__probe_stage3d';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
+import {PlaneStack, DURATION as D_PLANESTACK} from './shots/PlaneStack';
 import {TaskFold, DURATION as D_TASKFOLD} from './shots/TaskFold';
 import {CompanionCard, DURATION as D_COMPANIONCARD} from './shots/CompanionCard';
 import {StateSheet, DURATION as D_STATESHEET} from './shots/StateSheet';
@@ -522,5 +523,6 @@ export const RemotionRoot: React.FC = () => (
     {F('StateSheet', StateSheet, D_STATESHEET)}
     {F('FallbackPath', FallbackPath, D_FALLBACKPATH)}
     {F('TaskFold', TaskFold, D_TASKFOLD)}
+    {F('PlaneStack', PlaneStack, D_PLANESTACK)}
   </>
 );

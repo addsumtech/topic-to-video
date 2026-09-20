@@ -177,10 +177,32 @@ def violations(src, name=""):
             hit("retype")
         if _FALLBACK.search(code):
             hit("fallback")
-        for m_tr in re.finditer(r"\.slice\(\s*0\s*,\s*[A-Z0-9_]+\s*\)", code):
-            recv = re.search(r"(\w+)\W*$", code[:m_tr.start()])
+        # A CAP IS A CAP WHATEVER IT IS SPELLED. This read `[A-Z0-9_]+` only, so `.slice(0, ROUTE.length)`
+        # — a list cut to the length of the register's own table of poses — was invisible, and `SpatialSlides`
+        # dropped a film's sixth step in silence while this checker reported it clean. Any expression that is
+        # not a string index is a cap: a constant, a member (`X.length`), or a local.
+        for m_tr in re.finditer(r"\.slice\(\s*0\s*,\s*([A-Za-z0-9_.\[\]]+)\s*\)", code):
+            recv = re.search(r"([A-Za-z0-9_]+)\W*$", code[:m_tr.start()])
+            cap = m_tr.group(1)
+            name = recv.group(1) if recv else ""
+            tail = code[m_tr.end():m_tr.end() + 24]
             # a string being shortened (a hex colour parsed, an error message quoting its input) is not a list
-            if recv and recv.group(1) in ("h", "hex", "v", "str", "txt", "text", "name", "id", "raw", "s"):
+            if name in ("h", "hex", "v", "str", "txt", "text", "name", "id", "raw", "s"):
+                continue
+            # A REVEAL IS NOT A CUT. `command.slice(0, typed)` types a string out character by character and
+            # shows all of it by the settled frame; flagging it teaches the reader to ignore this rule, which
+            # is how a checker that cries wolf ends up protecting nothing.
+            if cap in ("typed", "cut", "chars", "shown", "revealed", "visible", "nChars", "letters"):
+                continue
+            # A PREFIX SUM IS NOT A CUT EITHER: `metric.slice(0, i).reduce(...)` adds up what came before i.
+            if tail.lstrip().startswith(".reduce("):
+                continue
+            # NOR IS A SPLIT: `[items.slice(0, half), items.slice(half)]` keeps both halves.
+            if re.search(r"\.slice\(\s*%s\s*\)" % re.escape(cap), code):
+                continue
+            # NOR IS CUTTING THE REGISTER'S OWN DEFAULT TABLE DOWN TO THE FILM'S COUNT — `ROUTE.slice(0, n)`
+            # takes as many poses as the film gave steps. The table is the register's, not the film's.
+            if re.fullmatch(r"[A-Z][A-Z0-9_]*", name):
                 continue
             hit("truncate")
             break

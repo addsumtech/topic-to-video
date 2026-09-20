@@ -40,13 +40,23 @@ export const SpatialSlides: React.FC<{steps?: string[]; notes?: string[]; overvi
   const U = Math.min(W, H);
   const P = Math.round(U * PERSP_FRAC);
 
-  // A STEP WITH NO WORD IS NOT A PLACE. The route is as long as the copy the film supplied, capped at what
-  // the poses describe — a sixth stop would have to be invented, and an invented stop is furniture.
-  const list = STEPS.map((s) => String(s ?? '').trim()).filter(Boolean).slice(0, ROUTE.length);
-  if (!list.length) {
+  // A STEP WITH NO WORD IS NOT A PLACE, and a step past the route is not a step this shot can draw. The
+  // route describes ROUTE.length places; a sixth would have to be invented, and an invented stop is
+  // furniture. It used to `.slice()` there — the film's sixth step left the film in silence, and the frame
+  // read as a complete journey that was missing a place. It refuses instead, which is what the rest of the
+  // library does past its capacity.
+  const list = STEPS.map((s) => String(s ?? '').trim());
+  if (!list.length || list.some((w) => !w)) {
     throw new Error(
-      'SpatialSlides needs at least one non-empty `steps` entry. The whole form is a camera travelling ' +
-      'between places; with no places it draws an empty room, which composes and argues nothing.');
+      'SpatialSlides needs `steps` to be a list of non-empty words. The whole form is a camera travelling ' +
+      'between places; a place with no name draws an empty card, and with no places at all it draws an ' +
+      'empty room, which composes and argues nothing.');
+  }
+  if (list.length > ROUTE.length) {
+    throw new Error(
+      `SpatialSlides travels between ${ROUTE.length} places and was given ${list.length} steps. The route is ` +
+      'a fixed set of poses in one room, so a further stop has nowhere to be. Split the journey across two ' +
+      'beats, or merge two stops into one.');
   }
   const n = list.length;
   // stage px — the route is written in frame fractions so it reflows, and depth scales with the short side

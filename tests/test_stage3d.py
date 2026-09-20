@@ -166,3 +166,69 @@ def test_project_pose_lands_where_css_draws_it():
         "projectPose disagrees with CSS by %.2f px (marker %s: browser %s, arithmetic %s) — the drawn camera "
         "and the arithmetic one have come apart, which ships as a frame that looks right with every label in "
         "the wrong place" % (worst, where["i"], where["css"], where["math"]))
+
+
+def test_fit_surfaces_frames_the_planes_themselves_not_spheres_around_them():
+    """`fitStage` treats each pose as a point with a RADIUS, which for a wide tilted plane is a sphere far
+    bigger than the plane: the camera backs off and the shot sits small in a mostly empty frame. That is
+    exactly what the first render of `PlaneStack` did. `fitSurfaces` projects the four CORNERS instead, so
+    the distance it finds is the one the drawn quad actually needs.
+
+    Both must LAND — every corner inside the box — and the corner fit must not be the more distant of the
+    two, or it is not solving a tighter problem."""
+    r = run_probe("""
+      const W = 1920, H = 1080, P = Math.round(Math.min(W, H) * S.PERSP_FRAC);
+      const box = {left: 54, top: 176, right: W - 54, bottom: 890};
+      const planes = [0, 1, 2].map((i) => ({
+        pose: {x: 0, y: (i - 1) * 224, z: -(i - 1) * 54, rx: -48, ry: -8},
+        w: 713, h: 281,
+      }));
+      const surf = S.fitSurfaces(planes, {}, box, P, W, H, {pad: 11});
+      const sphere = S.fitStage(planes.map((p) => p.pose), {}, box, P, W, H,
+        {radius: Math.hypot(713, 281) / 2});
+      out.surf = surf; out.sphere = sphere;
+      const corners: any[] = [];
+      for (const {pose, w, h} of planes) {
+        for (const [dx, dy] of [[-w / 2, -h / 2], [w / 2, -h / 2], [-w / 2, h / 2], [w / 2, h / 2]]) {
+          corners.push(S.projectLocal(pose, surf.cam, P, W, H, dx, dy));
+        }
+      }
+      out.corners = corners;
+      out.box = box;
+    """)
+    assert r["surf"]["fits"] is True
+    for q in r["corners"]:
+        assert not q["behind"]
+        assert r["box"]["left"] - 1 <= q["x"] <= r["box"]["right"] + 1, q
+        assert r["box"]["top"] - 1 <= q["y"] <= r["box"]["bottom"] + 1, q
+    # the sphere fit stands further back — the whole reason the corner fit exists
+    assert r["surf"]["cam"]["z"] < r["sphere"]["cam"]["z"] * 0.95, (r["surf"]["cam"], r["sphere"]["cam"])
+
+
+def test_fit_surfaces_centres_what_is_drawn_not_the_poses():
+    """A yaw swings the far corners one way and perspective enlarges the near ones, so aiming at the
+    centroid of the POSES leaves the ink off to one side with an empty margin opposite — which is how
+    `PlaneStack` first read as a stack shoved to the right of an empty frame."""
+    r = run_probe("""
+      const W = 1920, H = 1080, P = Math.round(Math.min(W, H) * S.PERSP_FRAC);
+      const box = {left: 54, top: 176, right: W - 54, bottom: 890};
+      const planes = [0, 1, 2].map((i) => ({
+        pose: {x: 0, y: (i - 1) * 224, z: -(i - 1) * 54, rx: -48, ry: -22},
+        w: 713, h: 281,
+      }));
+      const fit = S.fitSurfaces(planes, {}, box, P, W, H);
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      for (const {pose, w, h} of planes) {
+        for (const [dx, dy] of [[-w / 2, -h / 2], [w / 2, -h / 2], [-w / 2, h / 2], [w / 2, h / 2]]) {
+          const q = S.projectLocal(pose, fit.cam, P, W, H, dx, dy);
+          x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x);
+          y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y);
+        }
+      }
+      out.ink = {x0, x1, y0, y1}; out.box = box;
+    """)
+    ink, box = r["ink"], r["box"]
+    cx = (ink["x0"] + ink["x1"]) / 2, (box["left"] + box["right"]) / 2
+    cy = (ink["y0"] + ink["y1"]) / 2, (box["top"] + box["bottom"]) / 2
+    assert abs(cx[0] - cx[1]) <= 12, "the drawn stack is %.0fpx off the box's centre horizontally" % (cx[0] - cx[1])
+    assert abs(cy[0] - cy[1]) <= 12, "the drawn stack is %.0fpx off the box's centre vertically" % (cy[0] - cy[1])

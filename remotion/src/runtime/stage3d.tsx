@@ -262,6 +262,88 @@ export const fitStage = (
   return {cam: {...aimed, z: hi}, fits: true};
 };
 
+/**
+ * The camera that brings every one of these SURFACES inside `box` — the same search as `fitStage`, asked of
+ * the thing a register actually draws.
+ *
+ * `fitStage` takes POSES and an optional `radius`, which treats each surface as a sphere around its origin.
+ * For a wide, tilted plane that is badly wrong in both directions at once: the sphere is far larger than the
+ * plane's projected height (so the camera backs off and the stack sits small in a mostly empty frame) and it
+ * ignores which way the plane is turned (so a yaw that swings a corner outward is not seen at all). The first
+ * render of `PlaneStack` lost about a third of the content zone to that over-estimate.
+ *
+ * The corners are projected through `projectLocal`, which is the same matrix path `Surface` and `OnSurface`
+ * use — so there is no second convention here to drift against the first, which is the failure this whole
+ * file is shaped around.
+ */
+export const fitSurfaces = (
+  planes: {pose: Pose; w: number; h: number}[], cam: Pose, box: StageBox, persp: number, W: number, H: number,
+  opts: {steps?: number; maxZ?: number; pad?: number} = {},
+): {cam: Pose; fits: boolean} => {
+  const {steps = 26, maxZ = 60000, pad = 0} = opts;
+  if (!planes.length) return {cam, fits: true};
+  const cx = planes.reduce((a, p) => a + (p.pose.x ?? 0), 0) / planes.length;
+  const cy = planes.reduce((a, p) => a + (p.pose.y ?? 0), 0) / planes.length;
+  const aimed: Pose = {...cam,
+    x: cx - ((box.left + box.right) / 2 - W / 2),
+    y: cy - ((box.top + box.bottom) / 2 - H / 2)};
+  const inside = (z: number) => {
+    const c = {...aimed, z};
+    for (const {pose, w, h} of planes) {
+      for (const [dx, dy] of [[-w / 2, -h / 2], [w / 2, -h / 2], [-w / 2, h / 2], [w / 2, h / 2]] as const) {
+        const q = projectLocal(pose, c, persp, W, H, dx, dy);
+        if (q.behind) return false;
+        if (q.x - pad < box.left || q.x + pad > box.right) return false;
+        if (q.y - pad < box.top || q.y + pad > box.bottom) return false;
+      }
+    }
+    return true;
+  };
+  const solve = (): number | null => {
+    let hi = 0;
+    for (let i = 0; i < 30 && !inside(hi); i++) hi = hi === 0 ? 240 : Math.min(maxZ, hi * 1.7);
+    if (!inside(hi)) return null;
+    let lo = 0;
+    for (let i = 0; i < steps; i++) {
+      const mid = (lo + hi) / 2;
+      if (inside(mid)) hi = mid; else lo = mid;
+    }
+    return hi;
+  };
+  // ...AND THEN CENTRED ON WHAT IS ACTUALLY DRAWN. Aiming at the centroid of the poses centres the stack's
+  // ORIGINS, which is not the same picture: a yaw swings the far corners one way and perspective enlarges the
+  // near ones, so the ink lands off to one side with a wide empty margin opposite. `PlaneStack` first read as
+  // a stack shoved to the right of an empty frame. The projected bounding box is measured and the camera slid
+  // so ITS centre lands on the box's, then the distance is solved again because the slide changes what fits.
+  let z = solve();
+  if (z === null) return {cam: {...aimed, z: 0}, fits: false};
+  for (let pass = 0; pass < 2; pass++) {
+    const c = {...aimed, z};
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, kSum = 0, kN = 0;
+    for (const {pose, w, h} of planes) {
+      for (const [dx, dy] of [[-w / 2, -h / 2], [w / 2, -h / 2], [-w / 2, h / 2], [w / 2, h / 2]] as const) {
+        const q = projectLocal(pose, c, persp, W, H, dx, dy);
+        if (q.behind) return {cam: c, fits: false};
+        x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x);
+        y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y);
+      }
+      const o = projectPose(pose, c, persp, W, H);
+      if (!o.behind) { kSum += o.k; kN += 1; }
+    }
+    const k = kN ? kSum / kN : 1;
+    if (!(k > 1e-6)) break;
+    const dxPx = (box.left + box.right) / 2 - (x0 + x1) / 2;
+    const dyPx = (box.top + box.bottom) / 2 - (y0 + y1) / 2;
+    if (Math.abs(dxPx) < 1 && Math.abs(dyPx) < 1) break;
+    aimed.x = (aimed.x ?? 0) - dxPx / k;              // camera right moves the picture left
+    aimed.y = (aimed.y ?? 0) - dyPx / k;
+    const again = solve();
+    if (again === null) break;
+    z = again;
+  }
+  return {cam: {...aimed, z}, fits: true};
+};
+
 /** The perspective this library stages at, as a fraction of the frame's short side. Written once because the
  *  projection and the CSS must use the SAME number — that is the whole failure this file is shaped around. */
 export const PERSP_FRAC = 1.15;
