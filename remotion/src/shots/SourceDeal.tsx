@@ -14,6 +14,15 @@
 // THE SCROLL IS THE TELL. A parked document that sits still reads as a screenshot of a document; one that
 // creeps reads as a document being read. It runs whole periods so the last frame lands where it started —
 // a beat that ends mid-scroll cannot be cut away from cleanly.
+//
+// EVERY CONCLUSION IS DEALT, OR THE REGISTER SAYS IT CANNOT DEAL THEM. It used to take
+// `items.filter(nonEmpty).slice(0, MAX_DEALT)`: a fifth finding was simply never dealt, on a shot whose whole
+// claim is "here are the findings FROM THIS", and an empty entry vanished the same way. Three more pieces of
+// film copy fell away in silence: a note past the last pill (notes are matched by position) had no pill to sit
+// under; `doc` rows past the drawn table's seven were never printed; and a `src` without the rest of its
+// capture (`pageW`, `pageH`, `blocks` — what scripts/capture_page.py writes together) was ignored in favour of
+// the drawn table, so a film that captured its real source showed a generic one. Each now THROWS saying what
+// to pass.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig, staticFile} from 'remotion';
@@ -29,9 +38,14 @@ export const DURATION = 174; // 5.8s
 const BG_D0 = '#0b0d13', FG_D0 = '#eef2f8', DIM_D0 = '#8f97a8', ACC_D0 = '#6c8cff';
 
 // A conclusion has to be SAID before the next one arrives, and a short spoken sentence is about 1.2s. Four is
-// the most that fits: at five the last note starts past 0.9 and never finishes darkening, which reads as the
-// caption flashing rather than as a sentence being read.
-const MAX_DEALT = 4;
+// the most that fits: the deal runs 0.26-0.92 in equal slots (0.66/n), so at four each conclusion gets 0.165
+// of the clip — ~0.96s at this register's 5.8s — and at five 0.132, ~0.77s, which reads as the caption
+// flashing rather than as a sentence being read. (An earlier version of this note said the fifth note "starts
+// past 0.9"; that was the old spacing — the slots have since been divided from the window that exists.)
+export const MAX_DEALT = 4;
+/** The drawn source table's row count — runtime/uiSurface's `Rows` draws exactly seven; a `doc` row past it is
+ *  never printed, so it is refused here rather than lost. Keep in step with uiSurface. */
+const DOC_ROWS = 7;
 
 /** How much of `text` has been read at progress `u`, snapped forward to a word boundary where there is one. */
 const wordCut = (text: string, u: number) => {
@@ -69,14 +83,43 @@ export const SourceDeal: React.FC<{
   const PILL_INK = contrastOf(FG, SURF) >= 4.5 ? FG : readableOn(SURF);
   const U = Math.min(W, H);
 
-  const list = (ITEMS ?? []).filter((x) => String(x ?? '').trim()).slice(0, MAX_DEALT);
+  // Every conclusion, note, row and capture the film gave is drawn, or it throws — see the header.
+  if (Array.isArray(ITEMS) && ITEMS.length > MAX_DEALT) {
+    throw new Error(
+      `SourceDeal deals 1-${MAX_DEALT} conclusions (got ${ITEMS.length}). Each has to be said before the next ` +
+      `lands, and at five each gets ~0.77s of a 5.8s beat. Keep the ${MAX_DEALT} that matter, ` +
+      `or deal the rest from the same source in a second beat.`);
+  }
+  const list = (Array.isArray(ITEMS) ? ITEMS : []).map((x, i) => {
+    const label = String(x ?? '').trim();
+    if (!label) throw new Error(`SourceDeal: conclusion ${i + 1} is empty.`);
+    return label;
+  });
   if (!list.length) {
     throw new Error(
-      'SourceDeal needs at least one non-empty `items` entry. The whole form is conclusions dealt out of a ' +
+      'SourceDeal needs at least one `items` entry. The whole form is conclusions dealt out of a ' +
       'source that stays on screen; with nothing to deal it parks a document and argues nothing.');
   }
   const n = list.length;
-  const captured = !!(SRC && SRC_BLOCKS && SRC_BLOCKS.length && SRC_W && SRC_H);
+  if (NOTES.length > n) {
+    throw new Error(
+      `SourceDeal got ${NOTES.length} \`notes\` for ${n} conclusions. Notes are matched to pills by position, ` +
+      `so note ${n + 1} onward would have no pill to sit under. Pass one note per conclusion (or fewer).`);
+  }
+  if (DOC.length > DOC_ROWS) {
+    throw new Error(
+      `SourceDeal's drawn source shows ${DOC_ROWS} \`doc\` rows (got ${DOC.length}). Pass the ${DOC_ROWS} lines ` +
+      `that carry the conclusions, or capture the real page and pass it as \`src\`.`);
+  }
+  const captured = !!(SRC && SRC_BLOCKS && SRC_BLOCKS.length && Number(SRC_W) > 0 && Number(SRC_H) > 0);
+  if (SRC && !captured) {
+    const missing = [!(Number(SRC_W) > 0) && '`pageW`', !(Number(SRC_H) > 0) && '`pageH`',
+      !(SRC_BLOCKS && SRC_BLOCKS.length) && '`blocks`'].filter(Boolean).join(', ');
+    throw new Error(
+      `SourceDeal was given \`src\` without ${missing} — an incomplete capture, and the drawn table would ` +
+      `stand in for the real source. Pass the whole capture scripts/capture_page.py writes (src, pageW, ` +
+      `pageH, blocks), or drop \`src\` to use the drawn table.`);
+  }
 
   // A ROW NEEDS A WIDE FRAME. Parked LEFT in portrait the document takes a third of a 1080px width and the
   // conclusions have nothing to be dealt into, so the axis turns: the source parks UP and the pills come out

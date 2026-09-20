@@ -2,18 +2,39 @@
 // field flickers, a scan-wave sweeps and BRIGHTENS the glyphs it crosses, and a clean message decodes out of
 // the noise. AMBER terminal phosphor (distinct from CodeRain's green Matrix rain) — this DECODES in place,
 // CodeRain FALLS. Code-native. Deterministic (each glyph = fn of cell + frame).
+//
+// EVERY CHARACTER OF THE MESSAGE RESOLVES. Character i's opacity used to be `(decode - 0.12 * i) / 0.3` — a
+// fixed per-character step against a decode that tops out at 1 — so only the first six characters ever reached
+// full strength: the eighth peaked near half, the ninth stayed faint and the tenth onward never appeared at all.
+// And the fit sized the box for the WHOLE string, so what did resolve sat off-centre beside an invisible tail.
+// A film whose verdict was "构建成功，全部测试通过" showed its first six glyphs. The step is now laid out for
+// the message — 0.12 stays the upper bound, so a short word keeps its exact cascade — so the last character
+// reaches full strength exactly when the decode completes (t = 0.78, before the settled frame). Past
+// MAX_ASCII_CHARS the message is a sentence, not a word resolving out of noise, and the register refuses.
 
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, easeOutCubic, clamp01, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {contentBottom, fitBlockPx, monoFit} from '../runtime/layout';
+import {CONTENT_TOP, contentBottom, fitBlockPx, monoFit} from '../runtime/layout';
 
 export const DURATION = 150; // 5s
 const CH = '01</>{}[]#*+=~.:$%&ABCDEFXYZ01'.split('');
 const DEFAULT_MSG = 'DONE.';
+export const MAX_ASCII_CHARS = 32;
+// Character i resolves over [i * step, i * step + CHAR_RISE] of the decode; DECODE_STEP is the original gap and
+// only an upper bound, so the last character's window always closes at decode = 1.
+const DECODE_STEP = 0.12, CHAR_RISE = 0.3;
 
 export const AsciiField: React.FC<{message?: string}> = ({message: MSG = DEFAULT_MSG} = {}) => {
+  const chars = [...String(MSG ?? '')];
+  if (!String(MSG ?? '').trim() || chars.length > MAX_ASCII_CHARS) {
+    throw new Error(
+      `AsciiField needs a \`message\` of 1-${MAX_ASCII_CHARS} characters (got ` +
+      `${String(MSG ?? '').trim() ? chars.length : 'no visible character'}). It is ONE short word or phrase ` +
+      'decoding out of the noise, character by character; a sentence belongs in a headline register.');
+  }
+  const charStep = chars.length > 1 ? Math.min(DECODE_STEP, (1 - CHAR_RISE) / (chars.length - 1)) : DECODE_STEP;
   const frame = useCurrentFrame();
   const dna = useDNA();
   const t = useT();
@@ -51,8 +72,16 @@ export const AsciiField: React.FC<{message?: string}> = ({message: MSG = DEFAULT
   // fit is told that rather than the proportional default it would otherwise assume.
   // `MSG_W` is passed to the fitter AND set on the box, so the measure the fit wrapped in is the measure
   // the browser wraps in — the two disagreeing is what put KineticManifesto's last line in the band.
+  // AND IT IS FITTED TO THE HEIGHT IT CAN HAVE WITHOUT CROSSING THE TITLE BAND. The box is centred on the
+  // field, and the field starts at the top of the frame — so a block fitted to the field's full height put its
+  // first line at y = 40 on a 16:9 frame, inside the band every register keeps clear. That was invisible while
+  // only six characters ever resolved; with every character drawn it is the first line a viewer reads. The
+  // room is the band ABOUT THE FIELD'S CENTRE that stays inside [CONTENT_TOP, field bottom], so the centre (and
+  // every short message, which already fitted) does not move.
+  const fieldMid = fieldH / 2;
+  const msgRoomH = 2 * Math.max(0, Math.min(fieldMid - CONTENT_TOP, fieldH - fieldMid));
   const MSG_W = Math.round(W * 0.86);
-  const msgPx = fitBlockPx(MSG, MSG_W, fieldH * 0.92, Math.round(U * 0.194),
+  const msgPx = fitBlockPx(MSG, MSG_W, msgRoomH * 0.92, Math.round(U * 0.194),
     {usable: 1, leading: 1, min: 28, ...monoFit()});
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('#140b03')}}>
@@ -63,7 +92,7 @@ export const AsciiField: React.FC<{message?: string}> = ({message: MSG = DEFAULT
       <AbsoluteFill style={{top: 0, height: fieldH, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
         <div style={{position: 'relative', maxWidth: MSG_W, textAlign: 'center', font: `900 ${msgPx}px/1 var(--f-mono, "JetBrains Mono", monospace)`, color: '#ffe6b0',
           letterSpacing: '0.04em', opacity: decode, textShadow: '0 0 40px rgba(255,190,90,.5)'}}>
-          {[...MSG].map((ch, i) => <span key={i} style={{opacity: clamp01((decode - i * 0.12) / 0.3)}}>{ch}</span>)}
+          {chars.map((ch, i) => <span key={i} style={{opacity: clamp01((decode - i * charStep) / CHAR_RISE)}}>{ch}</span>)}
         </div>
       </AbsoluteFill>
       {/* scanline glow */}

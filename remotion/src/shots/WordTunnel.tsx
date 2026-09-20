@@ -11,6 +11,11 @@
 // tunnel of words is the shape most tempting to build out of `translateZ`, and it is exactly the shape that
 // would look worst and be invisible to every type gate. So the stage computes WHERE and HOW BIG, and every
 // phrase is then an ordinary flat 2D element: crisp, measurable, and reachable by text_safe_qa.
+//
+// EVERY PHRASE IS IN THE CORRIDOR, OR THE REGISTER SAYS IT CANNOT BE. There are six hand-set lanes and the list
+// used to be `.filter(Boolean).slice(0, LANES.length)`: a seventh phrase was dropped in silence, and an empty
+// one was filtered out, so the order the film argued — the whole point of this register — lost a step without
+// anyone being told. Past MAX_PHRASES it now throws with the maximum, and an empty phrase throws naming it.
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, clamp01, easeInOutCubic, easeOutCubic, hash01} from '../runtime/motion';
@@ -31,6 +36,7 @@ const LANES: Array<{x: number; y: number}> = [
   {x: -0.13, y: -0.06}, {x: 0.14, y: 0.05}, {x: -0.11, y: 0.07},
   {x: 0.12, y: -0.07}, {x: -0.06, y: 0.02}, {x: 0.09, y: -0.03},
 ];
+export const MAX_PHRASES = LANES.length;
 
 export const WordTunnel: React.FC<{phrases?: string[]; tail?: string}> = ({
   phrases: PHRASES = ['First', 'Then', 'And then', 'Finally'], tail: TAIL = '',
@@ -41,12 +47,24 @@ export const WordTunnel: React.FC<{phrases?: string[]; tail?: string}> = ({
   const U = Math.min(W, H);
   const P = Math.round(U * PERSP_FRAC);
 
-  const list = PHRASES.map((s) => String(s ?? '').trim()).filter(Boolean).slice(0, LANES.length);
+  const list = (Array.isArray(PHRASES) ? PHRASES : []).map((s) => String(s ?? '').trim());
   if (!list.length) {
     throw new Error(
       'WordTunnel needs at least one non-empty `phrases` entry. The form IS the phrases arriving in order; ' +
       'with none it draws an empty corridor, which composes and argues nothing.');
   }
+  if (list.length > MAX_PHRASES) {
+    throw new Error(
+      `WordTunnel takes at most ${MAX_PHRASES} \`phrases\` (got ${list.length}): the corridor has ${MAX_PHRASES} ` +
+      'hand-set lanes, and a phrase with no lane would be a step of the argument the viewer never sees. Keep ' +
+      'the steps the order turns on, or use a list register for a longer sequence.');
+  }
+  list.forEach((p, i) => {
+    if (!p) {
+      throw new Error(`WordTunnel: phrase ${i + 1} is empty. Every phrase is a step in the order; pass its ` +
+        'words, or leave the entry out.');
+    }
+  });
   const n = list.length;
 
   const FG = dna?.fg ?? '#eef2f8';
@@ -191,11 +209,16 @@ export const WordTunnel: React.FC<{phrases?: string[]; tail?: string}> = ({
       ))}
 
       {/* THE TAIL is drawn only when the film supplies one, and only once the corridor is behind us — a
-          closing line competing with a phrase mid-flight is two claims at once. */}
-      {TAIL && t > 0.86 ? (
+          closing line competing with a phrase mid-flight is two claims at once.
+          ...AND IT IS IN BEFORE THE SETTLED FRAME. It used to start at `t > 0.86`, which is exactly the t
+          `useT` freezes at under reduced motion and the frame every gate and the shot-critic read — so on that
+          frame the film's closing line was never drawn at all, and under reduced motion it never appeared.
+          By 0.74 the camera has covered 96% of its travel and every passing phrase is behind the lens, so the
+          tail arrives with the held phrase alone on screen and is fully in by 0.82. */}
+      {TAIL && t > 0.74 ? (
         <div style={{position: 'absolute', left: 0, right: 0, top: zBot - Math.round(U * 0.12),
           transform: 'translateY(-100%)', textAlign: 'center', padding: `0 ${Math.round(W * 0.09)}px`,
-          opacity: easeOutCubic(clamp01((t - 0.86) / 0.1)), color: FG,
+          opacity: easeOutCubic(clamp01((t - 0.74) / 0.08)), color: FG,
           font: `700 ${fitTextPx(TAIL, W * 0.82, Math.round(U * 0.062), {usable: 1})}px/${leading(TAIL, 1.2)} ` +
                 'var(--f-display, Inter, system-ui, sans-serif)'}}>
           {TAIL}

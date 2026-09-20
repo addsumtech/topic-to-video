@@ -35,6 +35,7 @@ FAMILY = {
     "StrataColumn": "J",
     "MapPlate": "J",
     "CollaborativeCursors": "A", "CommandSummon": "A", "TemporalAccelerate": "A", "VelocitySnap": "A",
+    "TaskFold": "A",
     "CompanionCard": "A",
     "StateSheet": "L",
     "FallbackPath": "A",
@@ -117,6 +118,7 @@ FAMILY = {
 # only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
 # pins the subset so it cannot drift again.
 PROVENANCE = {
+    "TaskFold":                'product-ui',
     "CompanionCard":           'product-ui',
     "StateSheet":              'product-ui',
     "FallbackPath":            'product-ui',

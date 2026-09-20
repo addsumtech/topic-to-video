@@ -25,6 +25,7 @@ declaration on the line or the line above, WITH its reason:
     // @cycles: <why repeating this list is not repeating content>
     // @fallback: <why this constant is not a reading about the item>
     // @decor: <why these made-up numbers are texture, not a reading about anything the film named>
+    // @truncates: <why dropping the tail of this list is not dropping anything the film gave>
 
 A declaration with no reason does not count.
 
@@ -35,6 +36,8 @@ THE RULES (`RULES` below names each):
   relabel    a default datum that already HAS a label, spread and given the film's label instead
   retype     a film figure stripped to digits (`.replace(/[^\\d.]/g, '')`) or rounded straight out of parseFloat
   fallback   a per-item quantity/coordinate filled with a numeric constant (`x.fill ?? 0.6`)
+  truncate   a list cut with `.slice(0, N)` — the film's items past N vanish in silence; throw with the maximum
+             instead (every item is drawn once, or the register says it cannot)
   invent     numbers the register makes up for something that reads as data: a hash feeding a height or a
              value, a hardcoded run of fractions (`[0.5, 0.82, 0.4, 0.95]`), a hardcoded table of index pairs
              (graph edges), a hardcoded per-index table of kinds, a constant that picks the emphasised item
@@ -57,10 +60,10 @@ _REM = os.path.join(_HERE, "..", "remotion", "src")
 SHOTS = os.path.join(_REM, "shots")
 EXTRA = [os.path.join(_REM, "runtime", "uiSurface.tsx")]
 
-RULES = ("cycle", "position", "relabel", "retype", "fallback", "invent")
+RULES = ("cycle", "position", "relabel", "retype", "fallback", "invent", "truncate")
 _DECL = {
     "cycle": "cycles", "position": "positional", "relabel": "positional",
-    "retype": "fallback", "fallback": "fallback", "invent": "decor",
+    "retype": "fallback", "fallback": "fallback", "invent": "decor", "truncate": "truncates",
 }
 
 _LINE_COMMENT = re.compile(r"//.*$")
@@ -122,6 +125,8 @@ _POS_EQ = re.compile(r"\b(i|j|k|idx|index)\s*===\s*([1-9]\d*)\b")
 _POS_LT = re.compile(r"\b(i|j|k|idx|index)\s*(<|<=|>|>=)\s*([1-9]\d*)\s*\?")
 _POS_MOD = re.compile(r"\b(i|j|k|idx|index)\s*%\s*([3-9]|\d\d+)\s*===\s*\d+")   # % 2 is alternation
 _KIND_MOD = re.compile(r"\b(kind|shape|glyph|icon|widget|motif|variant|form|mark)\w*\s*[=:]\s*\{?\s*\(?[^;\n]*\b(i|j|k)\b[^;\n]*%\s*\d+")
+# `.slice(0, 4)` / `.slice(0, MAX)` on a list — not on a hex string (`h.slice(0, 6)` parses a colour)
+_TRUNCATE = re.compile(r"\b([A-Za-z_]\w*)\b[^;\n]*?\.slice\(\s*0\s*,\s*[A-Z0-9_]+\s*\)")
 _SPREAD = re.compile(r"\{\s*\.\.\.\s*(\w+)(?:\[[^\]]*\])?\s*,\s*(label|name|title|text)\s*:")
 # `DEFAULTS.map((d, i) => ({...d, label: ...}))` — the spread names the map's parameter, so follow it to the list
 _MAP_SPREAD = re.compile(r"\b(\w+)\.map\(\s*\(\s*(\w+)[^)]*\)\s*=>\s*\(\s*\{\s*\.\.\.\s*\2\s*,\s*(label|name|title|text)\s*:")
@@ -172,6 +177,13 @@ def violations(src, name=""):
             hit("retype")
         if _FALLBACK.search(code):
             hit("fallback")
+        for m_tr in re.finditer(r"\.slice\(\s*0\s*,\s*[A-Z0-9_]+\s*\)", code):
+            recv = re.search(r"(\w+)\W*$", code[:m_tr.start()])
+            # a string being shortened (a hex colour parsed, an error message quoting its input) is not a list
+            if recv and recv.group(1) in ("h", "hex", "v", "str", "txt", "text", "name", "id", "raw", "s"):
+                continue
+            hit("truncate")
+            break
         if _PICK_CONST.search(code):
             hit("position")
         pair = _PAIR_TABLE.search(code)

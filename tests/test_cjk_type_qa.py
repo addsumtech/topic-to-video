@@ -863,3 +863,33 @@ def test_a_sequential_register_is_probed_more_than_once_before_it_is_called_unfe
     assert after.index("if missing:") < after.index("for frac_t in"), (
         "the extra renders are no longer gated on the close having found something missing, so every "
         "low-ink register now pays for three renders instead of one")
+
+
+def test_a_films_own_pictures_are_not_replaced_by_the_library_fixture(monkeypatch):
+    """StateSheet on a real film carried seventeen real sprites; the sweep overwrote them with the library's
+    stand-in picture, which does not exist under the film's asset root, and reported FAILED TO RENDER on a
+    film that rendered fine. A film's props win; the fixture only fills a plate the film left empty."""
+    seen = {}
+    monkeypatch.setattr(c, "evidence_props", lambda: {"StateSheet": {"cells": [{"src": "_energy_fixture.png"}]}})
+    monkeypatch.setattr(c, "audit", lambda n, props, *a, **k: seen.setdefault(n, props) and [])
+    film = {"cells": [{"src": "assets/pikachu/idle-wave.svg", "label": "待机"}]}
+    c.sweep(["StateSheet"], film_props={"StateSheet": film})
+    assert seen["StateSheet"]["cells"] == film["cells"], seen
+    seen.clear()
+    c.sweep(["StateSheet"])                        # the library sweep still gets its fixture
+    assert seen["StateSheet"]["cells"][0]["src"] == "_energy_fixture.png"
+
+
+def test_film_mode_serves_the_films_own_asset_folder(monkeypatch, tmp_path):
+    """render_remotion serves `--public-dir=<out_dir>`; this gate rendered film beats against the library's
+    folder, so every register drawing a film's own image failed here and nowhere else."""
+    board = {"meta": {"aspect": "16:9"}, "slides": [{"index": 1, "shot": "CinematicTitle", "shot_props": {}}]}
+    import json as _json
+    _json.dump(board, open(tmp_path / "storyboard.json", "w"))
+    monkeypatch.setattr(c, "sweep", lambda *a, **k: {})
+    old = c.PUBLIC_DIR
+    try:
+        c.main([str(tmp_path)])
+        assert c.PUBLIC_DIR == os.path.abspath(str(tmp_path)), c.PUBLIC_DIR
+    finally:
+        c.PUBLIC_DIR = old

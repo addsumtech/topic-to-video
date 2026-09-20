@@ -1,6 +1,19 @@
 // SHOT · Isometric Assembly — an ORIGINAL design (isometric explainer + a factory metaphor): a RAW grey block
 // rides the conveyor INTO one WorkBuddy machine and comes out the far side as a FINISHED, colour deliverable,
-// which stacks on the "Delivered" pad. The literal "it does the work" made physical + legible (no bobbing).
+// which lines up with the others on the "Delivered" pad. The literal "it does the work" made physical + legible
+// (no bobbing).
+//
+// THE FINISHED WORK STAYS WHERE IT WAS DELIVERED. This header used to say the finished block "stacks on the
+// 'Delivered' pad", and nothing did: a part was drawn only while 0 < p < 1, so each one vanished the moment it
+// reached the end of the belt, and with the third part setting off at 0.58 and taking 0.8 to cross, it was
+// still hidden INSIDE the machine on the last frame (intake glowing). The settled frame — the one the viewer
+// is left with, under a label saying 'Delivered ✓' — showed one part in transit, one in the machine and one
+// gone: a delivery pad with nothing delivered on it, a process that never finishes.
+// So the parts now run as a real conveyor against an end stop: at the SAME belt speed as before (the whole
+// belt in 0.8 of the clip), set off 0.14 apart instead of 0.26, and each stops at its own slot on the pad,
+// the first at the far end and the others behind it. The last one arrives at ~0.91, the intake goes dark, and
+// the frame holds on three finished deliverables on the pad the label names. They are drawn back-to-front
+// by belt position, because a part queued behind another is farther from the viewer in iso.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -28,7 +41,17 @@ const Cuboid: React.FC<{x: number; y: number; z: number; w: number; d: number; h
 
 const DONE = ['#2E7BFF', '#7C5CFF', '#12B76A'];
 
-export const IsometricAssembly: React.FC<{items?: [string, string, string]}> = ({items = ['Raw work', 'WorkBuddy', 'Delivered ✓']} = {}) => {
+// three parts at the old belt speed, closer together, each stopping at its slot on the pad
+const N_PARTS = 3, START = 0.06, STAGGER = 0.14, SLOT_GAP = 90, PART = 82;
+
+export const IsometricAssembly: React.FC<{items?: [string, string, string]}> = ({items: RAW = ['Raw work', 'WorkBuddy', 'Delivered ✓']} = {}) => {
+  // THREE STATIONS, THREE LABELS. A fourth label used to be ignored and a missing third left the pad unnamed,
+  // with no error; the diorama has exactly three stations, so anything else is refused.
+  if (!Array.isArray(RAW) || RAW.length !== 3 || RAW.some((x) => !String(x ?? '').trim())) {
+    throw new Error(`IsometricAssembly needs exactly three non-empty \`items\` — intake, machine, delivery pad — ` +
+      `got ${JSON.stringify(RAW)}. For another number of stages use InOrder (1-6 steps) or ExplodedSchematic (1-6 parts).`);
+  }
+  const items = RAW.map((x) => String(x).trim());
   // LEVEL-C: the iso factory diorama flips its GROUND to the DNA (a dark iso world) + labels/intake-glow to DNA
   // tokens; the object colours (grey raw → coloured finished, dark machine, green delivered pad) are SEMANTIC and
   // read on any ground, so they're kept. Null DNA = the original light diorama.
@@ -57,36 +80,52 @@ export const IsometricAssembly: React.FC<{items?: [string, string, string]}> = (
   const oy = zTop - SCENE_TOP_OFF;
   const SCENE_HALF_W = 900;                                  // measured: max |iso x - ox| incl. the pad labels
   const k = Math.min(1, (zBot - zTop) / (SCENE_DROP - SCENE_TOP_OFF), (W * 0.95) / (2 * SCENE_HALF_W));
-  // three parts flow through, staggered; a part is HIDDEN while inside the machine, and emerges COLOURED.
-  const parts = [0, 1, 2].map((i) => {
-    const p = clamp01((t - 0.06 - i * 0.26) / 0.8);
-    const x = lerp(inX, outX, p);
+  // three parts flow through, staggered; a part is HIDDEN while inside the machine, and emerges COLOURED. Each
+  // travels at the belt's speed until it reaches its slot on the pad, and stays there.
+  const SPEED = (outX - inX) / 0.8;                          // belt units per unit of t — the original speed
+  const parts = Array.from({length: N_PARTS}, (_, i) => {
+    const slot = outX - PART + 22 - i * SLOT_GAP;            // part 0 against the far end, the rest queued behind
+    const start = START + i * STAGGER;
+    const started = t > start;
+    const x = Math.min(slot, inX + Math.max(0, t - start) * SPEED);
     const inside = x > mx - 10 && x < mx + mw + 10;
     const finished = x >= mx + mw / 2;
-    return {p, x, inside, finished, color: DONE[i]};
+    return {started, x, inside, finished, color: DONE[i]};
   });
-  const busy = parts.some((pt) => pt.inside && pt.p < 1);
+  const busy = parts.some((pt) => pt.started && pt.inside);
+  // back to front by belt position (a part queued behind another is farther from the viewer); a part inside
+  // the machine is hidden
+  const drawOrder = parts.map((pt, i) => ({...pt, i})).filter((pt) => pt.started && !pt.inside).sort((a, b) => a.x - b.x);
+  const partEl = (pt: (typeof drawOrder)[number]) => (
+    <Cuboid key={pt.i} x={pt.x} y={y + 34} z={0} w={PART} d={PART} h={pt.finished ? 92 : 66}
+      top={pt.finished ? pt.color : '#b6bece'} ox={ox} oy={oy} />
+  );
+  const machineRight = iso(mx + mw, y - 34, 200, ox, oy);   // the right vertex of the machine's top face
   const labelTop = (y: number, text: unknown, px: number, measure: number) =>
     Math.min(y, contentBottom(W, H) - inkBlockH(px, wrapLines(String(text ?? ''), px, measure)));
 
   return (
     <AbsoluteFill style={{background: bgc}}>
      <div style={{position: 'absolute', inset: 0, transform: `scale(${k})`, transformOrigin: `50% ${zTop}px`}}>
-      <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
+      {/* overflow visible: the scene is drawn in a W-wide SVG and then SCALED down about the centre, so at
+          9:16 (k≈0.57, ox = W/2 − 140) the pad and every delivered part past x = W were cut off at the SVG's
+          own edge — a vertical cut through the finished work, well inside the frame. */}
+      <svg width={W} height={H} style={{position: 'absolute', inset: 0, overflow: 'visible'}}>
         {/* conveyor slab */}
         <Cuboid x={0} y={y} z={-22} w={beltLen} d={150} h={22} top="#cdd4e1" ox={ox} oy={oy} />
         {/* IN pad (grey) + queued raw blocks */}
         <Cuboid x={inX - 70} y={y} z={0} w={54} d={150} h={14} top="#aab2c2" ox={ox} oy={oy} />
+        {/* raw parts still UPSTREAM of the machine are drawn BEFORE it: in iso a smaller x is farther back, so
+            the machine occludes a part nosing into it. They used to be painted after the machine, so for the
+            last ~80 units before the intake a grey block sat pasted over the machine's front face. */}
+        {drawOrder.filter((pt) => pt.x < mx).map(partEl)}
         {/* the WorkBuddy MACHINE — static, with a glowing intake slot that brightens while processing */}
         <Cuboid x={mx} y={y - 34} z={0} w={mw} d={218} h={200} top="#232a3a" ox={ox} oy={oy} />
         <Cuboid x={mx + 26} y={y - 6} z={200} w={mw - 52} d={150} h={16} top={busy ? GLOW : '#39415a'} ox={ox} oy={oy} />
         {/* OUT pad (green) where finished parts land */}
         <Cuboid x={outStart} y={y} z={0} w={outX - outStart + 40} d={150} h={12} top="#5fd996" ox={ox} oy={oy} />
-        {/* the travelling parts (hidden while inside the machine, emerge coloured) */}
-        {parts.map((pt, i) => (pt.p > 0 && pt.p < 1 && !pt.inside) && (
-          <Cuboid key={i} x={pt.x} y={y + 34} z={0} w={82} d={82} h={pt.finished ? 92 : 66}
-            top={pt.finished ? pt.color : '#b6bece'} ox={ox} oy={oy} />
-        ))}
+        {/* the parts downstream (emerged coloured, stay on the pad), back to front */}
+        {drawOrder.filter((pt) => pt.x >= mx).map(partEl)}
       </svg>
       {/* A PROJECTED LABEL LANDS WHERE THE GEOMETRY PUTS IT, and the geometry knows nothing about the
           caption band: a Chinese label wraps in its fixed 200-260px column and the lowest of the three
@@ -94,7 +133,15 @@ export const IsometricAssembly: React.FC<{items?: [string, string, string]}> = (
           line and every label stays exactly where it was. */}
       {/* labels */}
       <div style={{position: 'absolute', left: iso(inX - 40, y + 200, 0, ox, oy)[0] - 110, top: labelTop(iso(inX - 40, y + 200, 0, ox, oy)[1], items[0], 38, 200), width: 200, textAlign: 'center', textWrap: 'balance', font: '700 38px/1.2 var(--f-body, Inter,system-ui,sans-serif)', color: L1}}>{items[0]}</div>
-      <div style={{position: 'absolute', left: iso(mx + mw / 2, y + 80, 0, ox, oy)[0] - 130, top: labelTop(iso(mx + mw / 2, y + 80, 0, ox, oy)[1] - 300, items[1], 44, 260), width: 260, textAlign: 'center', textWrap: 'balance', font: '800 44px/1.15 var(--f-body, Inter,system-ui,sans-serif)', color: L2}}>{items[1]}</div>
+      {/* THE MACHINE'S NAME SITS BESIDE ITS TOP, on the ground, not across it. It used to hang at `-300` from
+          the machine's base, centred — 7px below the machine's top vertex, dark ink across the dark machine —
+          and it read only while the intake glowed blue behind it. Now that the shot settles with the machine
+          idle (see the header), the settled frame ended on a half-illegible name. Above the machine there is
+          no room (the scene already fills the zone from its top), so the name moves to the empty ground right
+          of the machine's top face, left-aligned against its right vertex; the scene's measured extent is
+          unchanged (it stays inside SCENE_HALF_W), and a wrapped name grows down into open ground, well
+          above the pad. */}
+      <div style={{position: 'absolute', left: machineRight[0] + 28, top: machineRight[1] - 30, width: 260, textAlign: 'left', textWrap: 'balance', font: '800 44px/1.15 var(--f-body, Inter,system-ui,sans-serif)', color: L2}}>{items[1]}</div>
       <div style={{position: 'absolute', left: iso(outX, y + 200, 0, ox, oy)[0] - 60, top: labelTop(iso(outX, y + 200, 0, ox, oy)[1] + 10, items[2], 40, 260), width: 260, textWrap: 'balance', font: '800 40px/1.2 var(--f-body, Inter,system-ui,sans-serif)', color: L3}}>{items[2]}</div>
      </div>
     </AbsoluteFill>

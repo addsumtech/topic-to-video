@@ -13,12 +13,19 @@
 // on. `shot_fit` has three verdicts and `fit` is the only one that costs nothing, which is exactly why a
 // library stops growing — see references/remotion-shot-authoring.md on building when the STRUCTURE differs.
 //
-// AND IT IS A FORM, NOT A PRODUCT. Nothing here draws a pet, a menu bar or anyone's app: a companion is an
-// abstract sitting shape in the film's own tokens, the card is a card, and every word arrives through
-// props. A beat about a build agent, a long export, a CI run or a kettle uses the same register — what it
-// carries is "a small thing reporting on a larger thing, and the way back".
+// AND IT IS A FORM, NOT A PRODUCT. Nothing here draws a pet, a menu bar or anyone's app by default: a
+// companion is an abstract sitting shape in the film's own tokens, the card is a card, and every word arrives
+// through props. A beat about a build agent, a long export, a CI run or a kettle uses the same register — what
+// it carries is "a small thing reporting on a larger thing, and the way back". A film whose subject HAS a real
+// companion passes its picture (`src`, served from the film's own folder) and the shape becomes that picture;
+// a faceless blob beside a product whose sprites are on disk was a reviewer's note against the hero beat.
+//
+// THE TURN AND THE PRESS BELONG TO THE SENTENCE. They were fixed at 0.40-0.56 and 0.66-0.78 of the clip, and
+// on a delivered film the card went grey ~0.6s BEFORE the voice said 「绿色的工作中」: for a second the frame
+// said 等待中 under a sentence saying 工作中. `turnAt` / `pressAt` place them; a board writes
+// `{"cue": "灰色"}` and render_remotion puts the event on the moment the voice says that word.
 import React from 'react';
-import {AbsoluteFill, useVideoConfig} from 'remotion';
+import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeInOutCubic} from '../runtime/motion';
 import {useDNA, readableOn} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitTextPx, wrapLines, inkBlockH} from '../runtime/layout';
@@ -36,9 +43,16 @@ export const CompanionCard: React.FC<{
   returnsTo?: string;
   /** one line under the card, for the rule behind the return */
   note?: string;
+  /** when the state STARTS to turn, as the register's t (0..1) — or `{"cue": "<words>"}` in a board. The start,
+   *  not the middle: centred on the cue, the card began going grey before the voice had said the word. */
+  turnAt?: number;
+  /** when the cursor presses the card; after the turn — the work finished on its own, THEN you went back */
+  pressAt?: number;
+  /** the companion's own picture (a path in the film's folder); omitted = the abstract sitting shape */
+  src?: string;
 }> = ({
   task: TASK = 'the long run', states: STATES = ['working', 'waiting for you'],
-  returnsTo: RETURNS = '', note: NOTE = '',
+  returnsTo: RETURNS = '', note: NOTE = '', turnAt: TURN_AT = 0.40, pressAt: PRESS_AT = 0.72, src: SRC = '',
 } = {}) => {
   const dna = useDNA();
   const t = useT();
@@ -47,6 +61,16 @@ export const CompanionCard: React.FC<{
 
   const task = String(TASK ?? '').trim();
   const pair = (Array.isArray(STATES) ? STATES : []).map((s) => String(s ?? '').trim()).filter(Boolean);
+  if (Array.isArray(STATES) && STATES.length > 2) {
+    throw new Error(`CompanionCard shows exactly TWO states and was given ${STATES.length}. A third was ignored ` +
+      'without a word; a display that can say three things is a dashboard, not this glance.');
+  }
+  const turnAt = Number(TURN_AT), pressAt = Number(PRESS_AT);
+  if (!(turnAt >= 0.2 && turnAt <= 0.8) || !(pressAt >= turnAt + 0.14 && pressAt <= 0.95)) {
+    throw new Error(`CompanionCard: turnAt ${JSON.stringify(TURN_AT)} and pressAt ${JSON.stringify(PRESS_AT)} ` +
+      'must satisfy 0.2 <= turnAt <= 0.8 and turnAt + 0.14 <= pressAt <= 0.95 — the state turns on its own, and ' +
+      'only after it has turned does the press take you back. A board can write {"cue": "<words>"} for either.');
+  }
   if (!task || pair.length < 2) {
     throw new Error(
       'CompanionCard needs a `task` and TWO `states`. The form is a glance that can say one of two things ' +
@@ -68,9 +92,10 @@ export const CompanionCard: React.FC<{
   // state that turned while the cursor was arriving would read as the click causing it, which is the
   // opposite of what the form says: the thing elsewhere finished on its own, and only then did you go back.
   const arrive = easeOutCubic(clamp01(seg(t, 0.06, 0.26)));
-  const turn = easeInOutCubic(clamp01(seg(t, 0.40, 0.56)));
-  const press = easeOutCubic(clamp01(seg(t, 0.66, 0.78)));
-  const back = easeOutCubic(clamp01(seg(t, 0.74, 0.90)));
+  const turn = easeInOutCubic(clamp01(seg(t, turnAt, turnAt + 0.12)));
+  const press = easeOutCubic(clamp01(seg(t, pressAt - 0.06, pressAt + 0.06)));
+  const back = easeOutCubic(clamp01(seg(t, pressAt + 0.02, Math.min(0.98, pressAt + 0.18))));
+  const src = String(SRC ?? '').trim();
 
   const zTop = CONTENT_TOP, zBot = contentBottom(W, H);
   const cy = (zTop + zBot) / 2;
@@ -78,7 +103,9 @@ export const CompanionCard: React.FC<{
 
   const CARD_W = Math.round(W * (portrait ? 0.78 : 0.44));
   const PAD = Math.round(U * 0.028);
-  const PET = Math.round(U * (portrait ? 0.13 : 0.11));      // the companion's own size
+  // the companion's own size — a real picture gets the room a character needs to be recognised; the abstract
+  // shape stays small, because it has nothing to recognise
+  const PET = Math.round(U * (String(SRC ?? '').trim() ? (portrait ? 0.2 : 0.2) : (portrait ? 0.13 : 0.11)));
 
   const taskPx = fitTextPx(task, CARD_W - PAD * 2, Math.round(U * 0.036), {usable: 1});
   const statePx = Math.round(U * 0.024);
@@ -107,8 +134,12 @@ export const CompanionCard: React.FC<{
 
   const cardH = Math.round(PAD * 2 + inkBlockH(taskPx) * wrapLines(task, taskPx, CARD_W - PAD * 2)
     + Math.round(U * 0.018) + inkBlockH(statePx));
-  const cardTop = Math.round(cy - cardH / 2);
+  // In portrait the companion sits ABOVE the card: beside it, a 0.78W card left it starting at x ≈ -42px on
+  // a 1080-wide frame (computed from this layout by the card reviewer, confirmed by render).
+  const cardTop = Math.round(cy - cardH / 2 + (portrait ? PET * 0.45 : 0));
   const cardLeft = Math.round((W - CARD_W) / 2 + (portrait ? 0 : PET * 0.55));
+  const petLeft = portrait ? Math.round(cardLeft + PAD) : Math.round(cardLeft - PET * 1.15);
+  const petTop = portrait ? Math.round(cardTop - PET * 1.02) : Math.round(cardTop + cardH - PET * 0.92);
 
   // The cursor comes from below-right, the way a hand does, and stops ON the card rather than beside it.
   const curX = lerp(cardLeft + CARD_W * 1.28, cardLeft + CARD_W * 0.72, press);
@@ -119,17 +150,22 @@ export const CompanionCard: React.FC<{
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
       {/* THE COMPANION — an abstract sitting shape in the film's own tokens, never a character. It is the
           thing that is HERE; everything the card says is about something that is not. */}
-      <div style={{position: 'absolute', left: Math.round(cardLeft - PET * 1.15),
-        top: Math.round(cardTop + cardH - PET * 0.92), width: PET, height: PET,
+      <div style={{position: 'absolute', left: petLeft, top: petTop, width: PET, height: PET,
         opacity: arrive, transform: `translateY(${(1 - arrive) * U * 0.03}px)`}}>
-        <div style={{position: 'absolute', inset: 0, borderRadius: '46% 46% 38% 38% / 52% 52% 32% 32%',
+        {src ? (
+          // the subject's own companion — it breathes the same way the shape does, and goes still with it
+          <Img src={staticFile(src)} style={{position: 'absolute', inset: 0, width: '100%', height: '100%',
+            objectFit: 'contain', transform: `scale(${1 + alive * 0.02})`, transformOrigin: '50% 100%',
+            filter: `drop-shadow(0 0 ${Math.round(PET * (0.06 + 0.08 * alive))}px ${stateTone}${glowA})`}} />
+        ) : null}
+        {src ? null : <div style={{position: 'absolute', inset: 0, borderRadius: '46% 46% 38% 38% / 52% 52% 32% 32%',
           background: `linear-gradient(170deg, ${SURF}, ${dna?.bg ?? '#0b1018'})`,
           border: `1px solid ${LINE}`,
           // the one lit part: it breathes while the card says "working" and goes still when it does not
           boxShadow: `inset 0 ${Math.round(PET * 0.1)}px ${Math.round(PET * (0.22 + 0.16 * alive))}px `
             + `${stateTone}${glowA}`,
-          transform: `scale(${1 + alive * 0.012})`, transformOrigin: '50% 100%'}} />
-        {[0, 1].map((i) => (
+          transform: `scale(${1 + alive * 0.012})`, transformOrigin: '50% 100%'}} />}
+        {src ? null : [0, 1].map((i) => (
           <div key={i} style={{position: 'absolute', top: PET * 0.34,
             left: PET * (i === 0 ? 0.30 : 0.58), width: Math.round(PET * 0.09),
             height: Math.round(PET * 0.09 * (turn < 0.5 ? 1 : 0.32)), borderRadius: '50%',
@@ -164,14 +200,17 @@ export const CompanionCard: React.FC<{
       </div>
 
       {/* WHERE IT TAKES YOU BACK TO — the line that makes this a way back and not a light. */}
-      {returns ? (
+      {/* a `note` without a `returnsTo` used to vanish with it: both are drawn when given */}
+      {returns || note ? (
         <div style={{position: 'absolute', left: cardLeft, top: Math.round(cardTop + cardH + U * 0.05),
           width: CARD_W, opacity: back,
           transform: `translateY(${(1 - back) * U * 0.018}px)`}}>
+          {returns ? (
           <div style={{color: readableOn(dna?.bg ?? '#0b0f17', ACC, FG),
             font: `600 ${backPx}px/${leading(returns, 1.3)} ${MONO}`, letterSpacing: '0.04em'}}>
             <span style={{opacity: 0.65, marginRight: Math.round(backPx * 0.5)}}>↩</span>{returns}
           </div>
+          ) : null}
           {note ? (
             <div style={{marginTop: Math.round(U * 0.012), color: DIM,
               font: `500 ${notePx}px/${leading(note, 1.35)} var(--f-body, system-ui, sans-serif)`}}>{note}</div>

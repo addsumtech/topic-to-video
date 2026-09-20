@@ -712,6 +712,12 @@ def test_every_seam_in_a_film_gets_the_same_pause(tmp_path, monkeypatch):
     out = _proj(tmp_path)
     board = _json.load(open(os.path.join(out, "storyboard.json"), encoding="utf-8"))
     board["meta"]["renderer"] = "html"
+    # THE FILM'S OPENING AND CLOSING HOLDS ARE NOT SEAMS: they are silence before the first word and after the
+    # last. This fixture is two beats long, so every beat is an end beat and the holds would be counted as
+    # seam length — the measure would read "the seam changed length" on a film whose seams are identical.
+    # They are switched off here and measured by tests/test_open_close_hold.py instead.
+    board["meta"]["open_hold"] = 0
+    board["meta"]["close_hold"] = 0
     _json.dump(board, open(os.path.join(out, "storyboard.json"), "w", encoding="utf-8"))
     made = {}                                              # ONE beat has a full stop inside; the rest do not
 
@@ -724,6 +730,9 @@ def test_every_seam_in_a_film_gets_the_same_pause(tmp_path, monkeypatch):
     monkeypatch.setattr(tts, "_say", fake_say)
     data = tts.synthesize(out)
     speech = 0.8 + 0.8                                     # _paused_clip's two tones; the gap sits between
+    # A SEAM IS BETWEEN TWO BEATS. The film's OPENING and CLOSING holds (tts.OPEN_HOLD_S / CLOSE_HOLD_S) are
+    # silence before the first word and after the last, not seams — measured across all eight beats they made
+    # this read as "the seam changed length", which is the one thing it must not say when the seams are equal.
     tails = [s["duration"] - speech - made["%02d" % s["index"]]
              for s in data["slides"] if "%02d" % s["index"] in made]
     assert len(tails) >= 2, made

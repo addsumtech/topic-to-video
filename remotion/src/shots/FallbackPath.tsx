@@ -31,7 +31,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, easeInOutCubic} from '../runtime/motion';
-import {useDNA, readableOn} from '../runtime/dna';
+import {useDNA, readableOn, mix} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitTextPx, wrapLines, inkBlockH} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 
@@ -132,13 +132,15 @@ export const FallbackPath: React.FC<{
   const yB = portrait ? actY + Math.round(zoneH * 0.62) : Math.round(cy + gapY * 0.6);
 
   const routeBox = (r: Route, lit: number, isFallback: boolean, y: number) => {
-    const ink = isFallback ? DIM : readableOn(dna?.bg ?? '#0b0f17', ACC, FG);
+    // quieter than the preferred route, never unreadable: the dim ink alone measured 2.2-2.9:1 on the ground
+    const ink = isFallback ? mix(DIM, FG, 0.4) : readableOn(dna?.bg ?? '#0b0f17', ACC, FG);
     return (
       <div style={{position: 'absolute', left: colX, top: y, width: boxW,
         padding: pad, boxSizing: 'border-box', borderRadius: Math.round(U * 0.014),
         background: isFallback ? 'transparent' : SURF,
         border: `${isFallback ? 1 : 2}px ${isFallback ? 'dashed' : 'solid'} ${isFallback ? LINE : ACC}`,
-        opacity: fork * (isFallback ? 0.55 + 0.45 * (1 - take) : 1),
+        // the fallback recedes, but stays READABLE: it rested at 0.55 and its words measured 2.2:1 on the ground
+        opacity: fork * (isFallback ? 0.82 + 0.18 * (1 - take) : 1),
         transform: `translateX(${(1 - fork) * U * 0.02}px) scale(${1 + lit * 0.012})`,
         boxShadow: isFallback ? 'none' : `0 0 ${Math.round(U * 0.05 * lit)}px ${ACC}${lit > 0.5 ? '33' : '11'}`}}>
         <div style={{color: ink, textWrap: 'balance',
@@ -146,7 +148,7 @@ export const FallbackPath: React.FC<{
           {r.label}
         </div>
         {r.when ? (
-          <div style={{marginTop: Math.round(U * 0.010), color: DIM, opacity: cond, textWrap: 'balance',
+          <div style={{marginTop: Math.round(U * 0.010), color: mix(DIM, FG, 0.3), opacity: cond, textWrap: 'balance',
             font: `500 ${whenPx}px/${leading(r.when, 1.3)} ${MONO}`, letterSpacing: '0.02em'}}>
             {r.when}
           </div>

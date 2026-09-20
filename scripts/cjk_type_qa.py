@@ -749,6 +749,10 @@ def _split_union(t):
 
 
 def _fields_of_body(body):
+    # A DOC COMMENT IS NOT A FIELD. A multi-line type whose fields carry `/** ... */` put the comment text in
+    # front of the field name, and `label` came back as a field called after the last word of its own prose.
+    body = re.sub(r"/\*.*?\*/", " ", body, flags=re.S)
+    body = re.sub(r"//[^\n]*", " ", body)
     out = {}
     for chunk in body.split(";"):
         f = re.match(r"\s*([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*:\s*(.+)", chunk.replace("\n", " "), re.S)
@@ -765,6 +769,39 @@ def _fields_of_body(body):
 # when fed rows it can read. The gate reported it clean at every aspect, for as long as the fixture existed.
 # That is the same lie as measuring an empty plate, arriving through the exact door `_shape_from_type`'s own
 # docstring warns about — the name table hiding a type it could not parse.
+# A TYPE'S BODY ENDS AT ITS OWN CLOSING BRACE, NOT AT THE FIRST `;`. The alias reader took everything up to
+# the first semicolon that ended a line, which is the FIRST FIELD of any type written across several lines:
+#
+#     export type FoldTask = {
+#       /** the main task, as the companion lists it */
+#       label: string;        <- the reader stopped here, on an unbalanced `{`
+#       state?: 'working' | 'waiting';
+#     };
+#
+# An unbalanced body resolves to nothing, so `TaskFold`'s whole `tasks` prop reported UNTESTABLE — the gate
+# saying "nobody can feed this register Chinese" about a register whose rows are all copy. Single-line aliases
+# are unaffected: the brace scan lands on the same text the old regex returned.
+def _alias_rhs(name, src):
+    m = re.search(r"(?:export\s+)?type\s+%s\s*=\s*" % re.escape(name), src)
+    if not m:
+        return None
+    rest = src[m.end():]
+    body = rest.lstrip()
+    if body.startswith("{"):
+        off = len(rest) - len(body)
+        depth = 0
+        for i, ch in enumerate(rest[off:], start=off):
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    return rest[off:i + 1]
+        return None                                  # an unclosed brace is unreadable, and stays UNTESTABLE
+    m2 = re.match(r"(.+?);[ \t]*(?://[^\n]*)?$", rest, re.S | re.M)
+    return m2.group(1) if m2 else None
+
+
 def _type_fields(ty, src, _depth=0):
     """({field: type}, bare_string_ok) for an object-shaped type — inline, named, or a UNION of either.
 
@@ -786,9 +823,9 @@ def _type_fields(ty, src, _depth=0):
         elif re.fullmatch(r"[A-Z][A-Za-z0-9_]*", arm) and _depth < 3:
             # `;` may be followed by a line comment: `type Node = {...};   // label + depth REQUIRED` went
             # unresolved, and GrantedTree's rows were filled from another register's timeline table.
-            m = re.search(r"(?:export\s+)?type\s+%s\s*=\s*(.+?);[ \t]*(?://[^\n]*)?$" % re.escape(arm), src, re.S | re.M)
-            if m:
-                sub = _type_fields(m.group(1), src, _depth + 1)
+            rhs = _alias_rhs(arm, src)
+            if rhs is not None:
+                sub = _type_fields(rhs, src, _depth + 1)
                 if sub:
                     fields.update({k: v for k, v in sub[0].items() if k not in fields})
                     bare, resolved = bare or sub[1], True
@@ -1014,6 +1051,14 @@ def _ink_fraction(png):
         return 1.0
 
 
+# WHERE A REGISTER'S `src` RESOLVES. The library sweep's evidence fixtures live in remotion/public; a FILM's
+# assets live in the film's own out_dir, which is what render_remotion serves (`--public-dir=<out_dir>`). This
+# was always the library's folder, so in film mode every register drawing the film's own pictures failed to
+# render — StateSheet's seventeen sprites were reported as "FAILED TO RENDER" on a film that rendered fine.
+# text_safe_qa had the same blind spot and was fixed the same way (`audit_shot(..., public_dir=)`).
+PUBLIC_DIR = os.path.join(_REMOTION, "public")
+
+
 def _default_ink(shot, frame, tmp, dna, aspect):
     """The same register at the same frame with ITS OWN default props — the yardstick for 'did the fixture
     reach it'. Rendered only when a probe looks suspiciously empty, so it costs nothing on a healthy sweep."""
@@ -1026,7 +1071,7 @@ def _default_ink(shot, frame, tmp, dna, aspect):
     png = tmp + ".base.png"
     r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png, "--frame=%d" % frame,
                         "--gl=angle", "--log=error", "--props=" + os.path.abspath(pf),
-                        "--public-dir=" + os.path.join(_REMOTION, "public")],
+                        "--public-dir=" + PUBLIC_DIR],
                        cwd=_REMOTION, capture_output=True, text=True)
     try:
         return _ink_fraction(png) if r.returncode == 0 and os.path.exists(png) else None
@@ -1093,7 +1138,7 @@ def _fed_missing(shot, props, frame, tmp, dna, aspect, fed):
     png = tmp + ".fed.png"
     r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png, "--frame=%d" % frame,
                         "--gl=angle", "--log=error", "--props=" + os.path.abspath(pf),
-                        "--public-dir=" + os.path.join(_REMOTION, "public")],
+                        "--public-dir=" + PUBLIC_DIR],
                        cwd=_REMOTION, capture_output=True, text=True)
     for f in (pf, png):
         if os.path.exists(f):
@@ -1120,7 +1165,7 @@ def audit(shot, props, frame, tmp, dna=DEFAULT_DNA, aspect=None):
         json.dump(payload, fh, ensure_ascii=False, allow_nan=False)
     r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, tmp,
                         "--frame=%d" % frame, "--gl=angle", "--log=error", "--props=" + os.path.abspath(pf),
-                        "--public-dir=" + os.path.join(_REMOTION, "public")],
+                        "--public-dir=" + PUBLIC_DIR],
                        cwd=_REMOTION, capture_output=True, text=True)
     err = (r.stderr or "") + (r.stdout or "")
     if TAG in err:
@@ -1227,7 +1272,12 @@ def sweep(names, dna=DEFAULT_DNA, aspect=None, film_props=None):
         if props is None:
             props, untestable = cjk_props(n)
         if n in ev:
-            props = dict(props, **ev[n])                 # a plate register needs its picture to draw at all
+            # a plate register needs its picture to draw at all — but a FILM already gave it its own. The
+            # fixture used to win over the film's props, so StateSheet's seventeen real sprites were replaced
+            # by the library's stand-in, which lives in remotion/public and 404s under the film's asset root:
+            # the film rendered fine and this gate reported it as FAILED TO RENDER. Fill only what is missing.
+            given = film_props.get(n) if film_props else None
+            props = dict(ev[n], **props) if given else dict(props, **ev[n])
         frame = int(durs.get(n, 150) * PROBE_FRAC)
         hits = audit(n, props, frame, tmp, dna, aspect)
         out[n] = {"hits": hits or [], "untestable": untestable, "failed": hits is None}
@@ -1349,11 +1399,14 @@ def main(argv):
     if a.only:
         names = [x.strip() for x in a.only.split(",") if x.strip()]
     elif a.out_dir:
+        global PUBLIC_DIR
+        PUBLIC_DIR = os.path.abspath(a.out_dir)        # the film's own assets, as the renderer serves them
         board = json.load(open(os.path.join(a.out_dir, "storyboard.json"), encoding="utf-8"))
         names, film_props = [], {}
         for s in board.get("slides", []):
             if s.get("shot"):
-                names.append(s["shot"]); film_props[s["shot"]] = s.get("shot_props") or {}
+                import render_remotion as _rr            # the renderer's own reading of a beat's props
+                names.append(s["shot"]); film_props[s["shot"]] = _rr.film_shot_props(s, a.out_dir)
         a.aspect = a.aspect or (board.get("meta") or {}).get("aspect")
         names = sorted(set(names))
     else:

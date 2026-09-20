@@ -8,6 +8,18 @@
 // anyway. It is `sublabel` now, defaulting to the words it replaced, so the original film is unchanged, the
 // demo-copy gate lists it when a film omits it, and a film about another sample can state its own line or
 // pass '' for none. The proton, its + charge, the field loops and μ are the mechanism and stay drawn.
+//
+// THE SPIN ARROW CIRCLES THE μ AXIS. It was a half-ellipse above the proton ROTATED IN THE PICTURE PLANE —
+// `rotate(spin * 20)`, 500° over the clip — so the "ring" swung like a clock hand: at a third of the way it
+// stood on end and cut through the proton, at half-way it hung upside down under its own pivot. A rotation in
+// the picture plane is a rotation about the axis pointing AT the viewer; the picture was claiming the proton
+// spins about the line of sight while μ points up the screen, which contradicts the diagram's own vector.
+// Now the ring stays put — a horizontal circle around μ, seen from slightly above as an ellipse — and the
+// ARROW travels along it: a 250° arc whose ends advance around the ellipse at the old angular rate. The
+// direction is counter-clockwise seen from above (right → front → left → back), the right-hand rule for a
+// moment pointing up — the proton's μ is parallel to its spin. The far half of the ring passes BEHIND the μ
+// line and the near half in FRONT of it, which is the cue that it goes around the axis rather than across it.
+// μ now starts at the proton's pole instead of its centre, so it no longer strikes through the + charge.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -26,6 +38,16 @@ export const SpinningProton: React.FC<{accent?: string; accent2?: string; label?
   const t = useT();
   const cx = W * 0.5, cy = H * 0.5 - 10, R = Math.min(W, H) * 0.075;
   const spin = t * Math.PI * 8;                              // the proton's spin
+  // the spin ring: a horizontal circle around μ above the proton, seen from slightly above (rx : ry = 1.5 : 0.6)
+  const ringX = cx, ringY = cy - R * 1.7, ringA = R * 1.5, ringB = R * 0.6;
+  const ARC = 250;                                           // degrees of the ring the arrow covers
+  const phase = (spin * 20) % 360;                           // same angular rate as before, now ALONG the ring
+  const onRing = (deg: number) => {
+    const a = (deg * Math.PI) / 180;                         // screen y grows DOWN, so +90° is the NEAR side
+    return `${(ringX + ringA * Math.cos(a)).toFixed(2)} ${(ringY + ringB * Math.sin(a)).toFixed(2)}`;
+  };
+  // increasing angle = right → front → left → back = counter-clockwise from above (sweep-flag 1 on screen)
+  const spinPath = `M ${onRing(phase)} A ${ringA} ${ringB} 0 ${ARC > 180 ? 1 : 0} 1 ${onRing(phase + ARC)}`;
   // μ's arrowhead stops under the title band. At 5.4R it reached y=93 on a 16:9 frame and ran straight
   // through the label's letters ("spins like"); the vector's length is not a quantity, so it yields.
   const muTip = Math.max(cy - R * 5.4, CONTENT_TOP + 24);
@@ -60,16 +82,20 @@ export const SpinningProton: React.FC<{accent?: string; accent2?: string; label?
         <defs><radialGradient id="pgrad" cx="42%" cy="38%" r="70%">
           <stop offset="0%" stopColor="#fff" /><stop offset="55%" stopColor={accent} /><stop offset="100%" stopColor="#1c6a86" /></radialGradient></defs>
         <text x={cx} y={cy + 9} textAnchor="middle" fill="#04222c" fontSize={R * 0.8} fontFamily="var(--f-display, Inter, sans-serif)" fontWeight={800}>+</text>
-        {/* spin arrow (angular momentum) — a curved arc around the pole */}
-        <path d={`M ${cx - R * 1.5} ${cy - R * 1.7} A ${R * 1.5} ${R * 0.6} 0 1 1 ${cx + R * 1.5} ${cy - R * 1.7}`}
-          fill="none" stroke={accent2} strokeWidth={2.5} markerEnd="url(#ah)"
-          transform={`rotate(${(spin * 20) % 360} ${cx} ${cy - R * 1.7})`} opacity={0.9} />
-        <defs><marker id="ah" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
-          <path d="M0,0 L6,3 L0,6 Z" fill={accent2} /></marker></defs>
-        {/* magnetic moment vector μ (up, along the dipole) */}
-        <line x1={cx} y1={cy} x2={cx} y2={muTip} stroke="#eaf6ff" strokeWidth={3} markerEnd="url(#ah2)" />
+        {/* spin arrow (angular momentum) — travels around a fixed ring about the μ axis. Drawn whole BEFORE μ
+            (so the far half passes behind the vector), then the near half again AFTER it, clipped to the
+            ring's lower (near) half, so it crosses in front. */}
+        <defs>
+          <marker id="ah" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill={accent2} /></marker>
+          <clipPath id="spinNear"><rect x={0} y={ringY} width={W} height={ringB + 20} /></clipPath>
+        </defs>
+        <path d={spinPath} fill="none" stroke={accent2} strokeWidth={2.5} markerEnd="url(#ah)" opacity={0.9} />
+        {/* magnetic moment vector μ (up, along the dipole), from the proton's pole */}
+        <line x1={cx} y1={cy - R} x2={cx} y2={muTip} stroke="#eaf6ff" strokeWidth={3} markerEnd="url(#ah2)" />
         <defs><marker id="ah2" markerWidth="12" markerHeight="12" refX="4" refY="6" orient="auto">
           <path d="M0,0 L8,6 L0,12 Z" fill="#eaf6ff" /></marker></defs>
+        <path d={spinPath} fill="none" stroke={accent2} strokeWidth={2.5} markerEnd="url(#ah)" opacity={0.9} clipPath="url(#spinNear)" />
         <text x={cx + 14} y={muTip + R * 0.4} fill="#eaf6ff" fontSize="28" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800}>μ</text>
         {sublabel ? <text x={cx} y={Math.min(cy + R * 5.6, bottomTextY(W, H))} textAnchor="middle" fill="#8aa" fontSize={subPx} fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">{sublabel}</text> : null}
       </svg>

@@ -36,6 +36,11 @@ export const RealVersus: React.FC<{srcLeft?: string; srcRight?: string; labelLef
   srcLeft, srcRight, labelLeft = '', labelRight = '', title = '', credit = '', accent,
 } = {}) => {
   requireEvidence('RealVersus', 'srcLeft', srcLeft, 'the left-hand photograph of the pair being compared');
+  // BOTH HALVES OF A PAIR ARE EVIDENCE. Only `srcLeft` was required, so a film that forgot `srcRight` got a
+  // framed, labelled, ringed EMPTY plate on the right with a `vs` chip between it and the photograph — a
+  // comparison against nothing that looks composed and passes every still-reading gate. The same guard, the
+  // same message, on the other half.
+  requireEvidence('RealVersus', 'srcRight', srcRight, 'the right-hand photograph of the pair being compared');
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();

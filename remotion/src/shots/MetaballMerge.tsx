@@ -45,7 +45,9 @@ export const MetaballMerge: React.FC<{title?: string; tagline?: string; accent?:
               style={{filter: `drop-shadow(0 0 0 ${ACC})`}} />
           ))}
         </g>
-        {/* specular highlights (outside goo) */}
+        {/* specular highlights (outside goo) — on the first four of the register's OWN ten blobs, which are
+            generated here, not film items (this register takes only a title, a tagline and two colours) */}
+        {/* // @truncates: the balls are the register's own generated decoration, not film content */}
         {balls.slice(0, 4).map((b, i) => (
           <ellipse key={i} cx={b.x - b.r * 0.3} cy={b.y - b.r * 0.35} rx={b.r * 0.28} ry={b.r * 0.2}
             fill="#ffffff" opacity={0.28} />

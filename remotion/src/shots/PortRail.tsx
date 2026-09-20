@@ -19,6 +19,15 @@
 // surface's lighting, so the copy would dim whenever its module turned from the key. Every label is an
 // ordinary DOM element placed by `runtime/project3d`: crisp type in the film's own face, anchored to a real
 // object, and visible to the text-safety and CJK gates, which cannot see inside a canvas.
+//
+// EVERY MODULE THE FILM GAVE SEATS, OR THE REGISTER SAYS THE RAIL CANNOT HOLD IT. It used to flatten `groups`
+// (or `items`) and take `.slice(0, 6)`: a film's seventh integration never plugged in, and with groups the
+// cut fell on whichever kind came last, so a whole named kind could lose members — or vanish — while its
+// label still promised it. Empty entries and empty groups were filtered out the same way. Now the whole run
+// seats or it THROWS: past MAX_RAIL_MODULES, on an empty entry, on a group with no items, and on a `groups`
+// that carries nothing (which used to fall back to `items` — the demo's app names, when the film gave none).
+// Six is the standing rail's limit: at 9:16 it is at most 2.6 units long for modules 0.42 tall, so six leave
+// 0.10 between neighbours and a seventh leaves 0.01 — the modules touch and the labels beside them collide.
 
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
@@ -33,6 +42,7 @@ import {useT, useAnimSpan, springAt, SPRING_SEAT, seg, clamp01, easeInOutCubic,
         lerp} from '../runtime/motion';
 
 export const DURATION = 165; // 5.5s
+export const MAX_RAIL_MODULES = 6;
 
 const BG_D0 = '#0b0d13', FG_D0 = '#eef2f8', DIM_D0 = '#8b93a8', ACC_D0 = '#5b8cff';
 const TONES0 = ['#5b8cff', '#37d4a6', '#f6a531', '#c07bff', '#ff6f91', '#4dd0e1'];
@@ -213,16 +223,35 @@ export const PortRail: React.FC<{
   // it from the ground needs no light/dark branch: it is always the colour the type is sitting on.
   const SOLID = dna?.bg ?? BG_D0;
   const HALO = /^#[0-9a-f]{6}$/i.test(SOLID) ? `${SOLID}cc` : SOLID;
-  // GROUPS WIN WHEN THEY ARE GIVEN, and the rail's cap of six applies to the flattened run either way, so
-  // a group whose members fall past the cap loses its members rather than silently losing its colour.
-  const gs = (Array.isArray(GROUPS) ? GROUPS : [])
-    .map((g) => ({label: String(g?.label ?? '').trim(),
-                  items: (g?.items ?? []).map((x) => String(x ?? '').trim()).filter(Boolean)}))
-    .filter((g) => g.items.length);
+  // GROUPS WIN WHEN THEY ARE GIVEN, and the rail's cap applies to the flattened run either way. Every
+  // entry is drawn once or the register refuses — see the header for what the old filters and cut dropped.
+  const entry = (x: unknown, where: string) => {
+    const text = String(x ?? '').trim();
+    if (!text) throw new Error(`PortRail: ${where} is empty. Every module carries the name of what plugs in.`);
+    return text;
+  };
+  if (GROUPS != null && (!Array.isArray(GROUPS) || GROUPS.length === 0)) {
+    throw new Error('PortRail: `groups` was given but holds no groups. Pass `groups: [{label, items: [...]}]`, ' +
+      'or omit `groups` and pass `items`.');
+  }
+  const gs = (GROUPS ?? []).map((g, gi) => {
+    if (!Array.isArray(g?.items) || !g.items.length) {
+      throw new Error(`PortRail: group ${gi + 1}${g?.label ? ` (${JSON.stringify(g.label)})` : ''} has no items. ` +
+        'A named kind with nothing in it would draw a label over an empty stretch of rail.');
+    }
+    return {label: String(g?.label ?? '').trim(),
+            items: g.items.map((x, k) => entry(x, `group ${gi + 1} item ${k + 1}`))};
+  });
   const flat: {text: string; g: number}[] = gs.length
     ? gs.flatMap((g, gi) => g.items.map((text) => ({text, g: gi})))
-    : ITEMS.filter((x) => String(x ?? '').trim()).map((text) => ({text: String(text), g: -1}));
-  const seats = flat.slice(0, 6);
+    : (Array.isArray(ITEMS) ? ITEMS : []).map((x, i) => ({text: entry(x, `item ${i + 1}`), g: -1}));
+  if (flat.length > MAX_RAIL_MODULES) {
+    throw new Error(
+      `PortRail seats 1-${MAX_RAIL_MODULES} modules on its rail (got ${flat.length}${gs.length ? ' across the groups' : ''}). ` +
+      `A seventh module touches its neighbours on the standing rail (any frame narrower than 5:4). Group the modules into ` +
+      `${MAX_RAIL_MODULES} or fewer, or use a list or grid register for a longer set.`);
+  }
+  const seats = flat;
   const list = seats.map((x) => x.text);
   // the tone INDEX per module: its group when there are groups, its own position when there are not.
   // ONE MARK, ONE COLOUR. Dropping the group-keyed tone left the bar back on `i` — six unrelated hues
@@ -265,7 +294,7 @@ export const PortRail: React.FC<{
   // the silent-wrong-output this library's evidence guard exists to end, so it throws instead.
   if (!list.length) {
     throw new Error(
-      'PortRail needs at least one non-empty `items` entry. The whole form is things seating onto one rail; ' +
+      'PortRail needs at least one `items` entry. The whole form is things seating onto one rail; ' +
       'with nothing to seat it draws a bare bar, which composes and argues nothing.');
   }
   const n = list.length;

@@ -88,7 +88,9 @@ export const AcceptanceStamp: React.FC<Props> = ({
   const both = Math.min(tickA, tickB);            // the result cannot lead the SECOND tick
   const fill = easeOutCubic(clamp01(seg(t, 0.54, 0.68)));
   const land = easeOutBack(clamp01(seg(t, 0.66, 0.80)));
-  const noteIn = clamp01(seg(t, 0.80, 0.92));
+  // SETTLED BY THE FRAME THAT IS READ. It faded in over 0.80-0.92, so at 0.88 — the frame every gate and the
+  // critic read — the source note was two thirds of the way in and measured 2.0:1 against the ground.
+  const noteIn = clamp01(seg(t, 0.72, 0.84));
 
   const cardW = Math.round(U * 0.385), cardH = Math.round(U * 0.165);
   const gap = Math.round(U * 0.075);

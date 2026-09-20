@@ -18,6 +18,15 @@
 //
 // THE HIDE-THE-CAPTION TEST: cover the subtitle and the frame still says "this rests on three reasons, and
 // the broad one at the bottom is the deepest".
+//
+// EVERY REASON IS IN THE STACK, OR THE REGISTER SAYS IT CANNOT HOLD THEM — AND THE ROOT MOST OF ALL. It used to
+// take `causes.slice(0, 5)`, and causes are ordered immediate-first, root LAST: a sixth reason cost the film
+// its ROOT, the one band the whole picture rests on, and the frame still read as a complete explanation. Past
+// MAX_RESTS_ON_CAUSES it now THROWS naming the limit; a cause with no label throws too. An EMPTY list is
+// allowed and draws the effect alone — nothing is being cut in that case.
+// (a slab with nothing written on it is a reason nobody gave). And the notes were dropped in silence as well:
+// a band under 10% of the short side hid its note, so at five causes on a 16:9 frame every note vanished. A
+// note the film wrote is now kept, and the band's type steps down until label and note both fit it.
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic} from '../runtime/motion';
@@ -29,6 +38,11 @@ export const DURATION = 175; // ~5.8s
 const BG_D0 = '#07090f', FG_D0 = '#eef2f8', DIM_D0 = '#6c7788', ACC_D0 = '#4f8cff';
 
 type Cause = {label?: string; note?: string};
+
+/** The most causes the stack holds. Five bands under the effect split 70% of the zone — ~95px each at 16:9,
+ *  where a label and its note still set at 37px and 22px; a sixth takes every band to ~79px and both down to
+ *  29px and 17px, a note too small to read at a glance. */
+export const MAX_RESTS_ON_CAUSES = 5;
 
 const DEFAULT_CAUSES: Cause[] = [
   {label: 'the immediate reason', note: 'what you notice first'},
@@ -58,7 +72,21 @@ export const RestsOn: React.FC<{
   const zoneBottom = H - captionBand(W, H);
   const zoneH = Math.max(1, zoneBottom - zoneTop);
 
-  const causes = CAUSES.slice(0, 5);
+  // Every cause once, root included — the header says why a sixth throws rather than being cut. AN EMPTY LIST
+  // IS NOT A MISSING PIECE: a film that gives an effect and no causes is saying the thing stands with nothing
+  // under it yet, and the frame draws exactly that (tests/test_restson.py pins it). Only a list this shot
+  // would have to CUT is refused.
+  if (!Array.isArray(CAUSES) || CAUSES.length > MAX_RESTS_ON_CAUSES) {
+    throw new Error(
+      `RestsOn stacks up to ${MAX_RESTS_ON_CAUSES} causes under its effect (got ${Array.isArray(CAUSES) ? CAUSES.length : typeof CAUSES}). ` +
+      `Causes run immediate-first and root LAST, so cutting the list would cut the root. Merge the ` +
+      `intermediate reasons, or split the explanation across two beats.`);
+  }
+  const causes: Cause[] = CAUSES.map((c, i) => {
+    const label = String(c?.label ?? '').trim();
+    if (!label) throw new Error(`RestsOn: cause ${i + 1} has no \`label\`. Every band states a reason.`);
+    return {label, note: String(c?.note ?? '').trim()};
+  });
   const n = causes.length;
   const levels = n + 1;                                   // the effect, then each cause below it
 
@@ -109,9 +137,14 @@ export const RestsOn: React.FC<{
         const sub = dimOn(fill, ink);
         const label = r.level === 0 ? effect : (r.cause?.label ?? '');
         const note = r.level === 0 ? effectNote : (r.cause?.note ?? '');
-        const tight = hgt < base * 0.10;
-        const labelPx = Math.max(14, Math.min(Math.round(base * (r.level === 0 ? 0.048 : 0.036)),
-                                              Math.round(hgt * 0.42), Math.round(wpx * 0.055)));
+        // A NOTE IS KEPT, AND THE TYPE MAKES ROOM FOR IT (see the header). The label and its note, stacked,
+        // must fit the band with a little air; when they do not, the label's size — and the note's with it,
+        // at 0.6 of it — steps down until they do. A band that already held both is unchanged.
+        let labelPx = Math.max(14, Math.min(Math.round(base * (r.level === 0 ? 0.048 : 0.036)),
+                                            Math.round(hgt * 0.42), Math.round(wpx * 0.055)));
+        const NOTE_GAP = Math.round(base * 0.005), AIR = Math.round(base * 0.016);
+        const stackH = (px: number) => px * 1.15 + (note ? NOTE_GAP + Math.round(px * 0.6) * 1.35 : 0);
+        while (note && labelPx > 14 && stackH(labelPx) > hgt - AIR) labelPx -= 1;
         return (
           <div key={idx} style={{position: 'absolute', left: (W - wpx) / 2, top, width: wpx, height: hgt,
             background: fill, opacity: on,
@@ -122,9 +155,9 @@ export const RestsOn: React.FC<{
             padding: `0 ${Math.round(base * 0.03)}px`, boxSizing: 'border-box', overflow: 'hidden'}}>
             <div style={{color: ink, font: `${r.level === 0 ? 800 : 700} ${labelPx}px/1.15 ${
               r.level === 0 ? disp : body}`, letterSpacing: r.level === 0 ? '-0.02em' : undefined}}>{label}</div>
-            {note && !tight ? (
+            {note ? (
               <div style={{color: sub, font: `400 ${Math.round(labelPx * 0.6)}px/1.35 ${body}`,
-                marginTop: Math.round(base * 0.005)}}>{note}</div>
+                marginTop: NOTE_GAP}}>{note}</div>
             ) : null}
           </div>
         );

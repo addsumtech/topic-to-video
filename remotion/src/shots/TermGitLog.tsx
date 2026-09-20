@@ -1,12 +1,20 @@
 // SHOT · TermGitLog — a TERMINAL-NATIVE version history (`git log --graph`). Default OPEN (grammar, no window
 // box): a command executes and the commit graph types out on the open canvas. `framed` = explicit terminal
 // window. Deterministic (commit reveal = fn of t).
+//
+// EVERY COMMIT THE FILM GIVES IS PRINTED. Commit i used to arrive at `0.24 + i * 0.16` — a fixed step — so a
+// fifth commit was not quite settled on the last frame and a sixth or later started after the clip had ended:
+// a history of seven releases printed five, with no error. The step is now laid out for the count — 0.16 stays
+// the upper bound, so three commits keep their exact rhythm — and closes until the last commit has landed by
+// LAND_BY, just before the frame `useT` calls settled. Past MAX_COMMITS the log would print faster than a
+// hash, a ref and a subject can be read, and the register refuses. The rows that now arrive are also fitted
+// to the content zone's HEIGHT (the width fit below already existed), and the log is centred on that zone.
 
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
-import {useT, seg, clamp01} from '../runtime/motion';
+import {useT, seg, clamp01, REDUCED_MOTION_T} from '../runtime/motion';
 import {useDNA, TermFrame, termInnerW} from '../runtime/dna';
-import {clipCells, monoCells, monoFit} from '../runtime/layout';
+import {CONTENT_TOP, clipCells, contentBottom, monoCells, monoFit} from '../runtime/layout';
 
 export const DURATION = 165;
 
@@ -18,9 +26,27 @@ export const INTRINSIC_TEXT = [
 ];
 type Commit = {hash?: string; ref?: string; msg?: string};
 
+export const MAX_COMMITS = 8;
+// Commit i slides in over [ROW_START + i * step, … + ROW_DUR]; ROW_STEP is the original gap and only an upper
+// bound — the real step is derived from the count so the last commit has landed by LAND_BY.
+const ROW_START = 0.24, ROW_STEP = 0.16, ROW_DUR = 0.13;
+const LAND_BY = REDUCED_MOTION_T - 0.02;
+
 export const TermGitLog: React.FC<{cmd?: string; commits?: Commit[]; framed?: boolean}> = ({
   cmd = 'git log --oneline --graph', framed = false,
   commits = [{hash: 'a1b2c3d', ref: 'v2', msg: 'second'}, {hash: 'e4f5a6b', ref: 'v1', msg: 'first'}]} = {}) => {
+  if (!Array.isArray(commits) || commits.length < 1 || commits.length > MAX_COMMITS) {
+    const got = Array.isArray(commits) ? commits.length : typeof commits;
+    throw new Error(
+      `TermGitLog needs 1-${MAX_COMMITS} \`commits\` (got ${got}). ` +
+      (Array.isArray(commits) && commits.length > MAX_COMMITS
+        ? 'Each commit prints one after another and must have landed before the settled frame; past ' +
+          `${MAX_COMMITS} they print faster than a hash, a ref and a subject can be read. Keep the commits the ` +
+          'story turns on, or use a timeline register for a long history.'
+        : 'With no commit there is no history to print.'));
+  }
+  const n = commits.length;
+  const step = n > 1 ? Math.min(ROW_STEP, (LAND_BY - ROW_START - ROW_DUR) / (n - 1)) : ROW_STEP;
   const t = useT();
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
@@ -50,17 +76,29 @@ export const TermGitLog: React.FC<{cmd?: string; commits?: Commit[]; framed?: bo
     Math.max(8, Math.floor((INNER - GAPS) / (MIN_PX * M.adv)) - fixedCells(i, c));
   const rows = commits.map((c, i) => ({...c, msg: clipCells(String(c.msg ?? ''), msgBudget(i, c))}));
   const widestCells = Math.max(...rows.map((c, i) => fixedCells(i, c) + monoCells(c.msg)));
-  const rowPx = Math.max(MIN_PX, Math.min(38,
+  // AND TO THE HEIGHT IT IS GIVEN. Each commit is its row (12px margin above and below) plus a 16px connector
+  // under all but the last, below the command line (30px + 40) or the framed title bar and padding (118).
+  const headH = framed ? 118 : 70;
+  const room = contentBottom(W, H) - CONTENT_TOP;
+  const heightPx = Math.floor((room - headH - n * 24 - (n - 1) * 16) / n);
+  if (heightPx < MIN_PX) {
+    throw new Error(
+      `TermGitLog: ${n} commits need ${headH + n * (MIN_PX + 24) + (n - 1) * 16}px at the ${MIN_PX}px floor and ` +
+      `the content zone leaves ${Math.round(room)}px at ${W}x${H}. Pass fewer commits.`);
+  }
+  const rowPx = Math.max(MIN_PX, Math.min(38, heightPx,
     Math.floor((INNER - GAPS) / Math.max(1, widestCells * M.adv))));
 
   return (
+    // CENTRED ON THE CONTENT ZONE, NOT THE FRAME: the height fit above is against the zone.
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(130% 120% at 50% -8%, #0f1723, #06080d 72%)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      paddingTop: CONTENT_TOP, paddingBottom: H - contentBottom(W, H)}}>
       <TermFrame dna={dna} cmd={cmd} t={t} framed={framed} align="left">
         <div style={{font: `500 ${rowPx}px/1 ${mono}`, whiteSpace: 'pre'}}>
           {rows.map((c, i) => {
-            const start = 0.24 + i * 0.16;
-            const show = clamp01(seg(t, start, start + 0.13));
+            const start = ROW_START + i * step;
+            const show = clamp01(seg(t, start, start + ROW_DUR));
             const head = i === 0;
             return (
               <React.Fragment key={i}>

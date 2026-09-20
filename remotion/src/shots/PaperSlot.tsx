@@ -13,6 +13,14 @@
 // Everything is drawn — no image, no texture file. The paper is a flat stock colour with a fibre wash and a
 // darker cut edge; the shadow is two offset blurs, a tight contact one and a wide soft one, which is what
 // makes a flat rectangle read as a thing lying on another thing.
+//
+// EVERY TAG THE FILM GAVE DROPS INTO A SLOT, OR THE REGISTER SAYS THE CARD CANNOT HOLD THEM. It used to take
+// `items.filter(nonEmpty).slice(0, 6)`: a seventh tool simply had no tag, on a frame whose whole claim is
+// "these ALL go into one simple thing", and an empty entry vanished the same way. Past MAX_PAPER_TAGS it now
+// THROWS naming the limit, and an empty entry throws. Six is where the tags stop being tags: each is 80% of
+// its share of a card 74% of the frame wide, so at six on a 9:16 frame a tag is ~107px and a four-glyph
+// label is already set smaller than the note under the card (21px against 31); the printed band that tells neighbours apart also comes from a
+// six-tone palette, so a seventh tag would repeat the first one's band.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -34,6 +42,8 @@ export const DURATION = 165; // 5.5s
 export const PAPER_STOCK = '#efe9dd';
 const INK_D0 = '#211d18', DIM_D0 = '#7d7466';
 const TONES0 = ['#c2603f', '#3f7a63', '#c99a2e', '#6b5aa6', '#a8486a', '#3c7fa0'];
+
+export const MAX_PAPER_TAGS = 6;
 
 export const PaperSlot: React.FC<{hub?: string; items?: string[]; note?: string}> = ({
   hub: HUB = 'One slot', items: ITEMS = ['Docs', 'Chat', 'Mail', 'Calendar', 'Wiki', 'DB'], note: NOTE = ''} = {}) => {
@@ -62,7 +72,17 @@ export const PaperSlot: React.FC<{hub?: string; items?: string[]; note?: string}
   const INK = adopted && dna ? dna.fg : INK_D0;
   const DIM = adopted && dna ? dna.dim : DIM_D0;
   const TONES = dnaPalette(dna, 6) ?? TONES0;
-  const list = ITEMS.filter((x) => String(x ?? '').trim()).slice(0, 6);
+  if (Array.isArray(ITEMS) && ITEMS.length > MAX_PAPER_TAGS) {
+    throw new Error(
+      `PaperSlot drops 1-${MAX_PAPER_TAGS} tags into its card (got ${ITEMS.length}). Past six the tags are too ` +
+      `narrow to carry a label and their printed bands repeat. Group the parts into ${MAX_PAPER_TAGS} or fewer, ` +
+      `or use a list or grid register for a longer set.`);
+  }
+  const list = (Array.isArray(ITEMS) ? ITEMS : []).map((x, i) => {
+    const tag = String(x ?? '').trim();
+    if (!tag) throw new Error(`PaperSlot: item ${i + 1} is empty. Every tag carries the name of a part.`);
+    return tag;
+  });
   // A CARD WITH NO TAGS still composes — a clean sheet with a title under it — and says nothing at all.
   // That is the silent-wrong-output this library's evidence guard exists to end, so it throws instead.
   if (!list.length) {

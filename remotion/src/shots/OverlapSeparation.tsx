@@ -25,6 +25,16 @@
 // width IS the spread. So `fail` and `pass` now come together or not at all, every population in them needs
 // a `label`, a finite `mean` and a finite `spread >= 0`, and anything missing throws naming the exact path.
 // The standalone demo (no props) is unchanged.
+//
+// THE LOCK IS CHECKED AGAINST THE FILM'S OWN NUMBERS. Which panel's threshold locks is decided by its SLOT:
+// `pass` always locks solid onto "a clean cut", `fail` always searches, dashed, and never finds one. The slot
+// is the film's claim, but the curves are the film's data, and nothing compared the two: a film that put its
+// better-separating measure in `fail` (or simply mistyped a mean) got a solid lock drawn over the MORE
+// overlapping pair and a futile search over the cleaner one — the motion asserting the opposite of the curves
+// under it. So the shot now computes the overlap it already draws — the area under min(density A, density B),
+// the same curve it floods with the blended hue, as a share of one population's area — for both pairs, and
+// throws when the `pass` pair overlaps at least as much as the `fail` pair. It is a relative check: the slot
+// only claims "this one separates, that one does not", so that is what the numbers are held to.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -76,6 +86,23 @@ const crossing = (a: Pop, b: Pop): number => {
     if (d < bd) { bd = d; best = x; }
   }
   return best;
+};
+
+/** The overlap coefficient of two populations: the share of area the two densities have in common (0 = no
+ *  common area, 1 = identical). It is the area under min(dens A, dens B) — the region the panel floods with the
+ *  blended hue — divided by one density's area (√(2π), since `dens` is not normalised). Integrated over ±8σ of
+ *  both, independent of the drawn domain, so a narrow `domain` cannot crop the overlap out of the check. */
+const overlapShare = (a: Pop, b: Pop): number => {
+  const x0 = Math.min(a.mean - 8 * a.spread, b.mean - 8 * b.spread);
+  const x1 = Math.max(a.mean + 8 * a.spread, b.mean + 8 * b.spread);
+  const n = 4000, dx = (x1 - x0) / n;
+  let area = 0;
+  for (let i = 0; i <= n; i++) {
+    const x = x0 + i * dx;
+    const m = Math.min(dens(x, a.mean, a.spread), dens(x, b.mean, b.spread));
+    area += (i === 0 || i === n ? 0.5 : 1) * m * dx;
+  }
+  return area / Math.sqrt(2 * Math.PI);
 };
 
 const samples = (m: number, s: number, x0: number, x1: number, n: number): [number, number][] => {
@@ -302,6 +329,18 @@ export const OverlapSeparation: React.FC<{
     const sMax = Math.max(...ss), mSpan = Math.max(...ms) - Math.min(...ms);
     const unit = sMax > 0 ? sMax : mSpan > 0 ? mSpan / 6 : 1;
     all.forEach((p) => { p.spread = Math.max(p.spread, unit * 0.02); });
+
+    // the slot's claim against the data (see the header): `pass` must separate its pair better than `fail`
+    const ovF = overlapShare(fa, fb), ovP = overlapShare(pa, pb);
+    if (!(ovP < ovF)) {
+      const pc = (v: number) => `${(v * 100).toFixed(1)}%`;
+      throw new Error(
+        `OverlapSeparation: the \`pass\` measure ("${String(PASS?.label ?? '')}") separates its populations no better ` +
+        `than the \`fail\` measure ("${String(FAIL?.label ?? '')}") — their curves share ${pc(ovP)} of their area, ` +
+        `against ${pc(ovF)} for \`fail\`. The \`pass\` panel locks its threshold onto a clean cut and the \`fail\` ` +
+        'panel never finds one, so with these numbers the motion would contradict the curves. Swap `fail` and ' +
+        '`pass` if they are the wrong way round, or check the means and spreads.');
+    }
 
     // x-DOMAIN — one axis for both panels (this is the honesty of the comparison). A normalised 0..1 score keeps
     // its natural bounds; anything else gets a padded, round-numbered range.

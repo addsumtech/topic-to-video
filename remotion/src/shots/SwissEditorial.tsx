@@ -36,6 +36,16 @@ export const SwissEditorial: React.FC<{items?: string[]; ticker?: string; wordma
   const FAINT = dna ? `${FG}22` : '#00000022';
   const disp = dna?.fontDisplay ?? '"Archivo", "Helvetica Neue", Arial, sans-serif';
   const mono = dna?.fontMono ?? '"JetBrains Mono", monospace';
+  // NO WORDS IS A REFUSAL, NOT A CRASH. `items: []` used to reach `word.slice(0, -1)` on an undefined word and
+  // die with a TypeError that named nothing a film author could act on; an empty string printed an empty
+  // snap and an INDEX counter pointing at it. Both now say what to pass.
+  if (!Array.isArray(WORDS) || WORDS.length < 1) {
+    throw new Error('SwissEditorial needs `items`: at least one word to snap through (e.g. ["WORK.", "SHIP.", ' +
+      '"DONE."]). With none there is nothing for the index to count or the grid to set.');
+  }
+  WORDS.forEach((w, i) => {
+    if (!String(w ?? '').trim()) throw new Error(`SwissEditorial: word ${i + 1} of \`items\` is empty.`);
+  });
   // which word + its local reveal
   const seq = clamp01(seg(t, 0.08, 0.92)) * WORDS.length;
   const idx = Math.min(WORDS.length - 1, Math.floor(seq));

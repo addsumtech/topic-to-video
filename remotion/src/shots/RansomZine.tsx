@@ -2,10 +2,21 @@
 // different colour + typeface, dropped in askew and settling under tape strips, over a photocopied grain,
 // with a marker scrawl underlining the word. Loud, DIY, hand-made (family L · editorial — the anti-slick
 // pole). Deterministic (scrap drops + jitter = fn of index, never RNG).
+//
+// EVERY LETTER OF THE NOTE LANDS. Scrap i used to drop over `0.06 + i * 0.07 … 0.34 + i * 0.07` — a fixed step
+// per character, spaces included — so only about the first ten characters had landed by the settled frame,
+// the eleventh to fourteenth were still falling on the LAST frame, and from the fifteenth on they started after
+// the clip had ended. The demo's own `STAY WEIRD` was ten, which is why it looked finished; a film's
+// 「不要乖，要怪一点」plus a word or two lost its tail in silence. The step is now laid out for the word —
+// 0.07 stays the upper bound, so a word of up to eight characters keeps its exact rhythm — and closes until the
+// last scrap has settled by LAND_BY, just before the frame `useT` calls settled (the demo's ten now tighten a
+// little and settle instead of overshooting on that frame). Past MAX_RANSOM_CHARS the scraps would shrink below
+// a legible cut-out, so the register refuses. The marker scrawl and the tape now follow the scrap's scale,
+// which they never needed to while the scrap could only be full size.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
-import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
+import {useT, seg, clamp01, easeOutBack, easeOutCubic, hash01, REDUCED_MOTION_T} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {bottomInset} from '../runtime/layout';
 
@@ -16,6 +27,11 @@ const SCRAPS = ['#f2ead6', '#ffffff', '#ffd23f', '#ff5c8a', '#151515', '#c9a24b'
 const INKS = ['#151515', '#151515', '#151515', '#ffffff', '#ffd23f', '#151515', '#151515'];
 const FONTS = ['"Playfair Display", Georgia, serif', 'Impact, system-ui, sans-serif',
   '"JetBrains Mono", monospace', 'Inter, system-ui, sans-serif', '"Source Serif 4", Georgia, serif'];
+export const MAX_RANSOM_CHARS = 16;
+// Scrap i drops over [DROP_START + i * step, … + DROP_DUR]; DROP_STEP is the original gap and only an upper
+// bound — the real step is derived from the word's length so the last scrap has settled by LAND_BY.
+const DROP_START = 0.06, DROP_STEP = 0.07, DROP_DUR = 0.28;
+const LAND_BY = REDUCED_MOTION_T - 0.02;
 
 export const RansomZine: React.FC<{word?: string; tagline?: string}> = ({
   word: WORD = 'STAY WEIRD', tagline: TAG = 'cut · paste · repeat'} = {}) => {
@@ -23,8 +39,16 @@ export const RansomZine: React.FC<{word?: string; tagline?: string}> = ({
   const bgc = dna?.bg ?? '#d9d4c7', MARK = dna?.accent ?? '#e8452e', TAGc = dna?.fg ?? '#151515';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
-  const letters = WORD.split('');
+  const letters = [...String(WORD ?? '')];
   const n = letters.length;
+  if (!String(WORD ?? '').trim() || n > MAX_RANSOM_CHARS) {
+    throw new Error(
+      `RansomZine needs a \`word\` of 1-${MAX_RANSOM_CHARS} characters, spaces included (got ` +
+      `${String(WORD ?? '').trim() ? n : 'no visible character'}). Every character is its own scrap, dropped ` +
+      'in one after another on one row; past that the scraps shrink below a legible cut-out. Keep the slogan ' +
+      'to a few words.');
+  }
+  const step = n > 1 ? Math.min(DROP_STEP, (LAND_BY - DROP_START - DROP_DUR) / (n - 1)) : DROP_STEP;
   // The scrap yields to the frame: at a fixed 150 a ten-letter word is 1500px of paper — fine at 1920, and
   // 135px of letters off each edge at 1080-wide portrait. Everything on the scrap scales with it.
   const scrapW = Math.min(150, Math.floor((W * 0.94) / Math.max(1, letters.reduce(
@@ -54,7 +78,7 @@ export const RansomZine: React.FC<{word?: string; tagline?: string}> = ({
       {scraps.map((s) => {
         if (s.ch === ' ') return null;
         const rot = (hash01(s.i * 7.3) - 0.5) * 18;
-        const drop = easeOutBack(clamp01(seg(t, 0.06 + s.i * 0.07, 0.34 + s.i * 0.07)));
+        const drop = easeOutBack(clamp01(seg(t, DROP_START + s.i * step, DROP_START + s.i * step + DROP_DUR)));
         const paper = SCRAPS[Math.floor(hash01(s.i * 3.1) * SCRAPS.length)];
         const ink = INKS[SCRAPS.indexOf(paper)] ?? '#151515';
         const font = FONTS[Math.floor(hash01(s.i * 5.9) * FONTS.length)];
@@ -66,7 +90,7 @@ export const RansomZine: React.FC<{word?: string; tagline?: string}> = ({
             display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
             <span style={{color: ink, fontFamily: font, fontWeight: 900, fontSize: sz, lineHeight: 1}}>{s.ch}</span>
             {/* a strip of tape across some scraps */}
-            {hash01(s.i * 8.8) > 0.5 ? <div style={{position: 'absolute', top: -14, left: '20%', width: '60%', height: 34,
+            {hash01(s.i * 8.8) > 0.5 ? <div style={{position: 'absolute', top: Math.round(-14 * scrapK), left: '20%', width: '60%', height: Math.round(34 * scrapK),
               background: '#e9dfae99', transform: `rotate(${rot > 0 ? -8 : 8}deg)`, boxShadow: '0 2px 6px #0003'}} /> : null}
           </div>
         );
@@ -74,7 +98,7 @@ export const RansomZine: React.FC<{word?: string; tagline?: string}> = ({
 
       {/* marker underline scrawl */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0, pointerEvents: 'none'}}>
-        <path d={`M${(W - totalW) / 2 - 10} ${H / 2 + 150} q ${totalW / 4} 40 ${totalW / 2} 6 t ${totalW / 2 + 10} 2`}
+        <path d={`M${(W - totalW) / 2 - 10} ${H / 2 + Math.round(90 * scrapK) + 60} q ${totalW / 4} 40 ${totalW / 2} 6 t ${totalW / 2 + 10} 2`}
           fill="none" stroke={MARK} strokeWidth={12} strokeLinecap="round"
           strokeDasharray={totalW + 60} strokeDashoffset={(totalW + 60) * (1 - marker)} opacity={0.9} />
       </svg>

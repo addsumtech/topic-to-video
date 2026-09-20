@@ -1,6 +1,14 @@
 // SHOT · Card Flip 3D — a row of cards standing in perspective FLIP 180° on their Y axis (staggered), a
 // light sheen sweeping the seam at the half-turn, revealing the payoff on the back. Pure CSS 3D
 // (preserve-3d + backface-visibility) — no WebGL. The "question → answer, turned over" register. Deterministic.
+//
+// EVERY PAIR IS TURNED, OR THE REGISTER SAYS IT CANNOT. It used to take `items.slice(0, 4)`, so a film that
+// handed it five before/after pairs shipped four cards and the fifth pair — often the one the narration was
+// building to — never appeared, with nothing anywhere saying so. Four is a real limit, not a taste: the flips
+// are staggered 0.16 of the clip apart and each takes 0.34, so the fourth card finishes turning on the last
+// frame and a fifth would still be mid-turn, its back (the payoff) never shown. So 1-4 pairs draw, and a fifth
+// THROWS naming the maximum. A pair missing either face throws too: a card with no back turns over onto
+// nothing, and one with no front has nothing to turn from — both read as finished cards that say half a claim.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -12,7 +20,9 @@ import {fitTextOnNLines} from '@remotion/layout-utils';
 export const DURATION = 150; // 5s
 const BG = '#0a0c13', ACC0 = '#6ea8ff';
 
-type Item = {front?: string; back?: string};
+type Item = {front: string; back: string};
+
+export const MAX_FLIP_CARDS = 4;
 
 // Both faces take their fill from the DNA. The back used to blend the tone into a hardcoded #2c3ac0 and
 // the front into a hardcoded near-black, so on a themed film the cards arrived in their own palette —
@@ -43,7 +53,22 @@ export const CardFlip3D: React.FC<{items?: Item[]; title?: string; backLabel?: s
   const INK = dna?.fg ?? '#eef2ff', DIM = dna?.dim ?? '#8b93a8', ON = dna?.onAccent ?? '#fff';
   const {width: W} = useVideoConfig();
   const dispFace = dna?.fontDisplay ?? 'Inter, system-ui, sans-serif';
-  const cards = ITEMS.slice(0, 4);
+  // Every pair the film gave, each once — see the header for why four is the ceiling and why it throws.
+  if (!Array.isArray(ITEMS) || ITEMS.length < 1 || ITEMS.length > MAX_FLIP_CARDS) {
+    throw new Error(
+      `CardFlip3D turns 1-${MAX_FLIP_CARDS} cards (got ${Array.isArray(ITEMS) ? ITEMS.length : typeof ITEMS}). ` +
+      `The flips are staggered so the fourth lands on the last frame; a fifth would never show its back. ` +
+      `Split the pairs across two beats, or use a list/table register for more.`);
+  }
+  const cards = ITEMS.map((c, i) => {
+    const front = String(c?.front ?? '').trim(), back = String(c?.back ?? '').trim();
+    if (!front || !back) {
+      throw new Error(
+        `CardFlip3D: card ${i + 1} needs both \`front\` and \`back\` (got front=${JSON.stringify(c?.front ?? null)}, ` +
+        `back=${JSON.stringify(c?.back ?? null)}). The card IS the turn from one to the other.`);
+    }
+    return {front, back};
+  });
   const n = cards.length;
   const gap = 56;
   // the card yields to the frame: three fixed 440s + gaps are 1432px, wider than a portrait frame

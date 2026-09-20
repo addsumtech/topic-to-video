@@ -8,6 +8,13 @@
 // tint-to-shade step of its OWN tone, so it can only ever land inside the film's hues, and its ink flips on
 // the chip's measured luminance so a dark derived tone still carries a legible label. Ground / ink / edge /
 // face-fill read DNA tokens too; the *_D0 constants below are the register's identity for the no-DNA case.
+//
+// FOUR FACES IS THE CUBE, SO A FIFTH THROWS. It used to take `faces.filter(nonEmpty).slice(0, 4)`: a five-stage
+// loop lost its fifth stage (often the one that closes it) and an empty entry vanished, both without a word,
+// and the cube turned through what was left as if that were the film's whole list. A cube has four side
+// faces and the orbit presents each exactly once, so there is no fifth place to put anything — past four it
+// throws naming the limit, and an empty face throws too, because a blank side would be presented and held for
+// a quarter of the clip saying nothing.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -44,6 +51,8 @@ const lum = (c: string): number => {
 // splits the same way instead of dumping the whole string into the label line.
 const FACE_SPLIT = /\s[-–—]\s/;
 
+export const MAX_CUBE_FACES = 4;
+
 export const CubeRotate: React.FC<{faces?: string[]; title?: string}> = ({
   faces: FACES = ['Plan', 'Build', 'Ship', 'Learn'], title: TITLE = 'The loop'} = {}) => {
   const t = useT();
@@ -72,8 +81,19 @@ export const CubeRotate: React.FC<{faces?: string[]; title?: string}> = ({
   const inner = SIZE - pad * 2;
   const chipH = Math.round(SIZE * 0.145);
 
-  const sides = (FACES ?? []).map((s) => String(s ?? '')).filter((s) => s.length > 0).slice(0, 4);
-  const n = Math.max(1, sides.length);
+  // Every face once — the header says why four is the ceiling and why blanks throw.
+  if (!Array.isArray(FACES) || FACES.length < 1 || FACES.length > MAX_CUBE_FACES) {
+    throw new Error(
+      `CubeRotate puts 1-${MAX_CUBE_FACES} statements on the side faces of a cube (got ` +
+      `${Array.isArray(FACES) ? FACES.length : typeof FACES}); a cube has four sides and each is presented once. ` +
+      `For a longer loop or chain use a sequence register (GearTrain, InOrder).`);
+  }
+  const sides = FACES.map((s, i) => {
+    const face = String(s ?? '').trim();
+    if (!face) throw new Error(`CubeRotate: face ${i + 1} is empty. Every face the cube turns to must say something.`);
+    return face;
+  });
+  const n = sides.length;
   const key = sides.join('');
   const faceData = sides.map((label, i) => {
     const parts = label.split(FACE_SPLIT);

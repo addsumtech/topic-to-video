@@ -622,6 +622,10 @@ on the delivered film is 0.95s, and the first word arrives at 0.20s. Lengthening
 pad change — Film.tsx and the SRT mirror time each beat's caption chunks over the clip, not the speech, so a
 longer tail would drag the last captions late. The correct version times captions over the speech span
 (tts.py knows the pad it added); it is a follow-up with its own render check, not part of the skeleton.
+**DONE 2026-09-19.** The captions now follow the voice's own word times (Film.tsx `capWords`), so the hold
+went into the audio: `tts._apply_holds` puts `OPEN_HOLD_S` (1.0s) of silence before the first word and
+`CLOSE_HOLD_S` (1.2s) after the last, shifting the first clip's word times by exactly what it added
+(`meta.open_hold` / `meta.close_hold`, 0 = off; tests/test_open_close_hold.py).
 - **The deck as the brand** (`scripts/dna_from_deck.py`, `scripts/pptx_theme.py`): their films are built from the
   product's own identity; ours painted every deck with a direction's preset. The pptx theme (scheme colours
   with sysClr resolved, major/minor faces, the master ground through its clrMap) and the rendered frames

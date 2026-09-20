@@ -21,6 +21,20 @@
 // because type that is never drawn is never cut off. The close pulls back to a camera `fitStage` has fitted
 // to ALL the screens inside the shot's own content box, so the frame the gates sample carries every string
 // this register was given.
+//
+// EVERY SCREEN IS IN THE ROOM, OR THE REGISTER SAYS IT CANNOT BE. The room has four hand-set positions and the
+// list used to be `.slice(0, ROOM.length)`, so a film that named five running jobs got a room of four with
+// nothing said — the fifth was the one the film had just told the viewer about. Past MAX_SCREENS it now
+// throws with the maximum, and an entry with neither a name nor a status (which was silently filtered out,
+// changing the count the film believed it had) throws naming the entry.
+//
+// A SCREEN'S NAME IS PAINTED IN ITS OWN STATE. The name took the accent when the camera was facing it and
+// the second accent otherwise — and after the pull-back the camera is still "facing" the last screen it
+// visited, so that screen's name ENDED in the accent whatever it was doing. The accent is the colour the film
+// uses for "working" (the next beat prints 绿色＝工作中　灰色＝等待中), so a WAITING last screen closed the
+// shot painted as working, beside its own grey dot. The name, the focus border and the focus glow now take
+// the screen's state colour — accent when it is working, dim when it is waiting — and the camera's attention
+// is carried by what does not claim a state: the lit border, the brightness and the opacity of the one faced.
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
@@ -39,6 +53,7 @@ const ROOM: Pose[] = [
   {x: -0.26, y: 0.22, z: -0.30, rx: 9, ry: 18},
   {x: 0.30, y: 0.18, z: 0.12, rx: -7, ry: -20},
 ];
+export const MAX_SCREENS = ROOM.length;
 
 // THE GLYPH CARRIES RUN-STATE, and for a long time it carried the TYPEWRITER. `done` means "this status
 // has finished typing", so by the close every screen showed the same ✓ whatever it said — and a reviewer
@@ -64,15 +79,25 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
     // passed by the board, and silently thrown away here, which is the shape of half the defects found in
     // this repo this week: a declared input that never reaches the drawing.
     .map((s) => ({name: String(s?.name ?? '').trim(), status: String(s?.status ?? '').trim(),
-                  waiting: s?.waiting === true}))
-    .filter((s) => s.name || s.status)
-    .slice(0, ROOM.length);
+                  waiting: s?.waiting === true}));
   if (!list.length) {
     throw new Error(
       'TermSpace needs at least one `screens` entry with a name or a status. The form is a camera moving ' +
       'between consoles that are all running; with no console there is nothing in the room and the shot is ' +
       'an empty stage.');
   }
+  if (list.length > MAX_SCREENS) {
+    throw new Error(
+      `TermSpace takes at most ${MAX_SCREENS} \`screens\` (got ${list.length}): the room has ${MAX_SCREENS} ` +
+      'hand-set positions, and a screen with no place in it would be a console the film named and the viewer ' +
+      'never sees. Keep the ones running at once, or use a grid/list register for more.');
+  }
+  list.forEach((s, i) => {
+    if (!s.name && !s.status) {
+      throw new Error(`TermSpace: screen ${i + 1} has neither a \`name\` nor a \`status\`, so there is nothing ` +
+        'to put on it. Give it one, or leave the entry out.');
+    }
+  });
   const n = list.length;
   const poses: Pose[] = list.map((_, i) => {
     const p = ROOM[i];
@@ -122,7 +147,6 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
   const INK = dna?.fg ?? '#cdd7e4';
   const DIM = dna?.dim ?? '#5f6b80';
   const ACC = dna?.accent ?? '#3dd6a4';
-  const ACC2 = dna?.accent2 ?? '#4d8cff';
   const SURF = dna?.surface ?? '#0d1420';
   const LINE = dna?.surfaceBorder ?? dna?.line ?? '#22304a';
   const MONO = dna?.fontMono ?? '"JetBrains Mono", ui-monospace, monospace';
@@ -169,13 +193,15 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
           const q0 = projectPose(p, cam, P, W, H);
           const sf = q0.behind ? 0 : edgeFade(q0.x, q0.y, scrW * q0.k * 0.88, scrH * q0.k);
           const focused = k === focusIdx && out < 0.5;
+          // the focus ring is lit in THIS screen's state colour, never the working accent on a waiting screen
+          const stateCol = list[k].waiting ? DIM : ACC;
           return (
             <Surface key={k} pose={p} w={scrW} h={scrH}
               style={{borderRadius: Math.round(U * 0.012), overflow: 'hidden', opacity: sf,
-                background: SURF, border: `1px solid ${focused ? ACC : LINE}`,
+                background: SURF, border: `1px solid ${focused ? stateCol : LINE}`,
                 filter: `brightness(${lit.toFixed(3)})`,
                 boxShadow: focused
-                  ? `0 0 ${Math.round(U * 0.05)}px ${ACC}33, inset 0 0 ${Math.round(U * 0.05)}px #0008`
+                  ? `0 0 ${Math.round(U * 0.05)}px ${stateCol}33, inset 0 0 ${Math.round(U * 0.05)}px #0008`
                   : `inset 0 0 ${Math.round(U * 0.05)}px #000a`}}>
               {/* the title bar — chrome only; every word on this register is drawn flat, above */}
               <div style={{height: Math.round(scrH * 0.17), borderBottom: `1px solid ${LINE}`,
@@ -238,7 +264,8 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
                 the one audit that can see that is the one this library keeps learning the same lesson from.
                 `namePx` is fitted to the screen's own width, so it fits; if a film ever hands one that does
                 not, it wraps and is ugly rather than silently short. */}
-            <div style={{color: k === focusIdx ? ACC : ACC2,
+            {/* THE NAME IS IN ITS OWN STATE'S COLOUR (see the header): the accent only when it is working. */}
+            <div style={{color: s.waiting ? DIM : ACC,
               font: `700 ${npx.toFixed(1)}px/${leading(s.name, 1.2)} ${MONO}`,
               letterSpacing: '0.04em'}}>
               <span style={{opacity: 0.7}}>$ </span>{s.name}

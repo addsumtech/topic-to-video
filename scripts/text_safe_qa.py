@@ -135,7 +135,8 @@ def scan_film(out_dir):
         shot = s.get("shot")
         if not shot or shot not in durs:
             continue
-        props = dict(s.get("shot_props") or {})
+        import render_remotion as _rr                    # the renderer's own reading of a beat's props
+        props = _rr.film_shot_props(s, out_dir)
         if meta.get("design_dna") is not None:
             props.setdefault("dna", meta["design_dna"])
         if meta.get("aspect"):

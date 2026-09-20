@@ -640,7 +640,8 @@ def main(argv):
             dm = re.search(r"export const DURATION\s*=\s*(\d+)", src)
             frame = int(int(dm.group(1)) * 0.88) if dm else 120
             pj = os.path.join(proof, "beat_%02d.json" % beat)
-            payload = dict(s.get("shot_props") or {})
+            import render_remotion as _rr                # the renderer's own reading of a beat's props
+            payload = _rr.film_shot_props(s, out_dir)
             if dna_ref:
                 payload["dna"] = dna_ref
             # The proof sheet must render at the FILM'S aspect. Without this it rendered every shot at

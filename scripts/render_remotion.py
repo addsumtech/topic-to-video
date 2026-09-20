@@ -179,6 +179,82 @@ def _remotion_shot_ids():
 _DEC = "\x00"
 
 
+def _motion_const(name, default):
+    """A numeric export of remotion/src/runtime/motion.ts, read rather than restated so the two cannot drift."""
+    try:
+        src = open(os.path.join(_REMOTION2_DIR, "src", "runtime", "motion.ts"), encoding="utf-8").read()
+        m = re.search(r"export const %s\s*=\s*([\d.]+)" % re.escape(name), src)
+        return float(m.group(1)) if m else default
+    except OSError:
+        return default
+
+
+def t_at_seconds(sec, dur_frames, fps):
+    """The register's `t` (runtime/motion `useT`) at `sec` seconds into its beat — the same held-edge mapping:
+    the beat is held still for SEAM_FRAMES at each edge and `t` rests at ENTRY_T through the entry hold."""
+    seam, entry = int(_motion_const("SEAM_FRAMES", 12)), _motion_const("ENTRY_T", 0.06)
+    dur = max(1, int(dur_frames))
+    pad = min(seam, (dur - 1) // 3)
+    span = max(1, dur - 1 - 2 * pad)
+    p = min(1.0, max(0.0, (float(sec) * fps - pad) / span))
+    return round(entry + (1 - entry) * p, 4)
+
+
+def resolve_cue_props(props, out_dir, audio, narration, dur_s, fps):
+    """A prop written `{"cue": "<words the narration says>"}` becomes the `t` at which the voice says them.
+
+    WHY. A register that changes state at a fixed fraction of its clip changes it at a moment that has nothing
+    to do with the sentence over it. Measured on a delivered film: CompanionCard turned its card grey at ~19.9s
+    while the voice was still saying 「绿色的工作中」 (20.5-21.7s) — for a second the frame said 等待中 under a
+    sentence saying 工作中. The timing belongs to the narration, and the narration's own word times are on disk
+    (tts.py writes `audio/NN.words.json`), so the board names the WORDS and this puts the event on them. Without
+    word times the position is estimated from the narration text, the same fallback the html tier's cues use.
+    `{"cue": ..., "offset": seconds}` shifts it. An anchor the narration does not contain is an ERROR — landing
+    it anywhere would be exactly the guess this exists to remove."""
+    def is_cue(v):
+        return isinstance(v, dict) and "cue" in v and set(v) <= {"cue", "offset"}
+    if not any(is_cue(v) for v in (props or {}).values()):
+        return props
+    import cues as _cues
+    words = []
+    if audio:
+        wj = os.path.splitext(os.path.join(out_dir, audio))[0] + ".words.json"
+        if os.path.exists(wj):
+            try:
+                words = json.load(open(wj, encoding="utf-8"))
+            except (OSError, ValueError):
+                words = []
+    out = dict(props)
+    for k, v in props.items():
+        if not is_cue(v):
+            continue
+        phrase = str(v["cue"] or "").strip()
+        if not phrase or _cues._anchor_pos(narration or "", phrase) < 0:
+            raise SystemExit("[render_remotion] shot prop `%s` cues %r, which this beat's narration does not say "
+                             "— name words the voice actually speaks" % (k, phrase))
+        if words and _cues._find(words, phrase, 0) >= 0:
+            sec = _cues.resolve_cues(words, [phrase])[0]
+        else:
+            sec = _cues.estimate_cues_from_text([phrase], narration or "", dur_s)[0]
+        sec += float(v.get("offset") or 0.0)
+        out[k] = t_at_seconds(sec, round(dur_s * fps), fps)
+    return out
+
+
+def film_shot_props(slide, out_dir, fps=30):
+    """A beat's `shot_props` as the RENDERER passes them — cue props resolved to `t`. Every gate that renders a
+    film's beat on its own (text_safe_qa, cjk_type_qa, shot_proof) goes through this, so a board that writes
+    `{"cue": ...}` is checked with the value the film actually plays, not with an object no register reads.
+    Before tts has run there is no duration; the cue is then placed by its position in the narration text."""
+    props = dict(slide.get("shot_props") or {})
+    narration = slide.get("narration") or slide.get("script") or ""
+    dur = slide.get("duration")
+    if dur:
+        return resolve_cue_props(props, out_dir, slide.get("audio"), narration, float(dur), fps)
+    return resolve_cue_props(props, out_dir, None, narration, 1.0, fps) if any(
+        isinstance(v, dict) and "cue" in v for v in props.values()) else props
+
+
 def _caption_word_spans(out_dir, audio, caption):
     """[{t, a, b}] for this beat's caption, or [] when there is no word timing to be had.
 
@@ -335,6 +411,7 @@ def build_scenes(slides, out_dir, valid, fps=30):
         # `A G P L 三点零`. A slide may now carry an explicit `caption` for the eye; without one, a run of
         # spaced single capitals is rejoined, which is the safe half of the transform and needs no author.
         caption = (s.get("caption") or _caption_for_eye(s.get("narration") or s.get("script") or "")).strip()
+        props = resolve_cue_props(props, out_dir, audio, s.get("narration") or s.get("script") or "", dur, fps)
         scene = {"shot": shot, "props": props, "durF": int(round(dur * fps)),
                  "mp3": str(audio).replace(os.sep, "/"), "caption": caption}
         # THE VOICE'S OWN WORD TIMES, WHICH THIS TIER HAS NEVER SEEN. `tts.py` has written

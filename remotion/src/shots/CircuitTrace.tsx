@@ -1,6 +1,16 @@
 // SHOT · Circuit Trace — a PCB comes alive: copper traces route (Manhattan bends) between chips and pads and
 // DRAW ON, signal pulses race along them, and a central chip lights up. A hardware / systems register
 // (family T · circuit/hardware). Deterministic (trace draw + pulse position = fn of t).
+//
+// EVERY NODE IS A PAD, AND THE RING IS SPACED FOR THE PADS IT HAS. It used to draw `nodes.slice(0, 6)` while
+// spacing the ring by the FULL count, so a film that named eight parts got six pads on an eight-way ring —
+// a visible empty sector where two parts should be, and those two names gone without a word. The picture
+// said the core has six connections and a gap; the film said eight. Now the ring divides by the pads actually
+// drawn, and a seventh node THROWS. The ceiling is the clock, not the ring (eight pads still clear each other
+// at every aspect): trace i draws over 0.18 + 0.07i -> 0.50 + 0.07i and its pulse only runs once it is drawn,
+// ending at 0.92. The sixth trace is drawn by 0.85 and its signal reaches the chip; a seventh finishes at the
+// very moment the pulses stop, so its signal never arrives, and an eighth never finishes drawing — a part
+// shown as NOT connected. A blank node name throws too: a pad with nothing on it is a connection to nothing.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -11,6 +21,8 @@ import {contentBottom, fitTextPx, inkBlockH, wrapLines} from '../runtime/layout'
 
 export const DURATION = 155; // ~5.2s
 const BOARD = '#08130f', COPPER = '#2fd6a0', LIVE = '#7dffcf';
+
+export const MAX_CIRCUIT_NODES = 6;
 
 export const CircuitTrace: React.FC<{title?: string; chip?: string; nodes?: string[]}> = ({
   title: TITLE = 'Wired together', chip: CHIP = 'CORE', nodes: NODES = ['IN', 'MEM', 'I/O', 'NET', 'PWR']} = {}) => {
@@ -26,14 +38,26 @@ export const CircuitTrace: React.FC<{title?: string; chip?: string; nodes?: stri
   // own point — and the lowest pad's label lands in the caption band (90px of it at 1:1). The label is
   // fitted to the pad it sits in, and the ring's vertical radius yields so the deepest pad clears the zone.
   // Both are 1:1 with the old numbers for the Latin demo, whose names are four characters.
+  // Every node once, on a ring divided by the pads drawn — see the header for the ceiling and the throw.
+  if (!Array.isArray(NODES) || NODES.length < 1 || NODES.length > MAX_CIRCUIT_NODES) {
+    throw new Error(
+      `CircuitTrace wires 1-${MAX_CIRCUIT_NODES} nodes to its chip (got ${Array.isArray(NODES) ? NODES.length : typeof NODES}). ` +
+      `A seventh trace finishes drawing as the pulses stop, so its signal would never reach the chip. Group ` +
+      `the parts into six or fewer, or use a graph register for a larger system.`);
+  }
+  const nodes = NODES.map((s2, i) => {
+    const label = String(s2 ?? '').trim();
+    if (!label) throw new Error(`CircuitTrace: node ${i + 1} is empty. Every pad needs a name.`);
+    return label;
+  });
   const PAD_W = 116, PAD_H = 74;
-  const padPx = NODES.slice(0, 6).reduce(
-    (px, s2) => Math.min(px, fitTextPx(String(s2 ?? ''), PAD_W - 12, 26, {usable: 1})), 26);
-  const padLines = Math.max(1, ...NODES.slice(0, 6).map((s2) => wrapLines(String(s2 ?? ''), padPx, PAD_W - 12)));
+  const padPx = nodes.reduce(
+    (px, s2) => Math.min(px, fitTextPx(s2, PAD_W - 12, 26, {usable: 1})), 26);
+  const padLines = Math.max(1, ...nodes.map((s2) => wrapLines(s2, padPx, PAD_W - 12)));
   const padDeep = Math.max(PAD_H, padLines * padPx * 1.15) / 2 + (inkBlockH(padPx) - padPx);
   const ringY = Math.min(320, Math.max(120, contentBottom(W, H) - cy - padDeep));
-  const pads = NODES.slice(0, 6).map((label, i) => {
-    const ang = (i / Math.max(1, NODES.length)) * Math.PI * 2 - Math.PI / 2;
+  const pads = nodes.map((label, i) => {
+    const ang = (i / nodes.length) * Math.PI * 2 - Math.PI / 2;
     const px = cx + Math.cos(ang) * Math.min(560, W / 2 - 130), py = cy + Math.sin(ang) * ringY;
     return {label, px, py, i, ang};
   });

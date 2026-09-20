@@ -4,7 +4,7 @@
 //
 // GLYPHS. Each panel carries a small form that MEANS its label — pass `glyph` per panel:
 //   checks  a row of passing check marks            → tests / a suite that goes green
-//   gutter  a code gutter, covered vs uncovered     → coverage / what the tests never touched
+//   gutter  a code gutter: one line run, one never  → coverage / what the tests never touched
 //   peers   two badges producing the same answer    → cross-check / peer agreement (AI 互检)
 //   review  a reviewer's cursor on a line of code   → human review / someone reads it
 // and four NEUTRAL MARKS for a panel whose content is simply "one of the four" — no measurement in any of them:
@@ -34,7 +34,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {fitTextOnNLines} from '@remotion/layout-utils';
-import {useT, seg, lerp, clamp01, easeOutCubic, easeInOutCubic, easeOutBack, hash01} from '../runtime/motion';
+import {useT, seg, lerp, clamp01, easeOutCubic, easeInOutCubic, easeOutBack} from '../runtime/motion';
 import {drawOn} from '../runtime/draw';
 import {useDNA, dnaPalette, mix} from '../runtime/dna';
 import {Icon, type IconName} from '../runtime/icons';
@@ -185,23 +185,29 @@ const Glyph: React.FC<Ink & {kind: QuadGlyph; g: number}> = ({kind, g, c, warn, 
     );
   }));
 
-  // ── COVERAGE: a code gutter — solid ticks where the tests ran, hollow amber ticks where they never did ─
+  // ── COVERAGE: a code gutter — a solid tick on a line the tests ran, a hollow amber tick on one they never did
+  // Was seven lines with a FIXED split, `COV = [1, 1, 0, 1, 1, 1, 0]`: five covered, two never run, on every
+  // film. Seven countable ticks under a label like 「覆盖不到的代码」 read as "5 of 7 covered", about 71% — a
+  // coverage figure the film never stated, which is exactly what the paragraph above says no glyph here does.
+  // Making the split a prop was the other way out, and the wrong one for THIS register: its argument is
+  // "four things, one frame", and a panel whose point is a coverage NUMBER belongs in a quantity register (the
+  // number goes in the label as text otherwise). So the gutter now shows the two STATES, once each — one line
+  // run, one line never run, like a legend — which says "some code the tests never touch" and has no split
+  // to count. Two lines, indented, so it still reads as code rather than as two bars.
   if (kind === 'gutter') {
-    const COV = [1, 1, 0, 1, 1, 1, 0];          // fixed, deterministic: five lines exercised, two never run
-    const IND = [0, 16, 16, 32, 16, 0, 16];     // indentation so the rows read as code, not as a bar chart
+    // @decor: one line of each state (run / never run) — a legend of the two states, not a count of either
+    const ROWS_G = [{run: true, y: 46, x: 46, w: 160}, {run: false, y: 94, x: 64, w: 124}];
     return box('0 0 240 140', (
       <>
         <line x1={32} y1={4} x2={32} y2={136} stroke={soft} strokeWidth={2} />
-        {COV.map((cv, k) => {
-          const p = clamp01((g - k * 0.1) * 4);
-          const y = 14 + k * 18.6;
-          const bw = 76 + Math.round(hash01(k * 3 + 1) * 82);
+        {ROWS_G.map((r, k) => {
+          const p = clamp01((g - k * 0.25) * 3);
           return (
             <g key={k} opacity={0.22 + 0.78 * p}>
-              <rect x={13} y={y - 7} width={10} height={14} rx={2}
-                fill={cv ? c : 'none'} stroke={cv ? c : warn} strokeWidth={2.5} />
-              <rect x={46 + IND[k]} y={y - 4.5} width={bw * (0.4 + 0.6 * p)} height={9} rx={4.5}
-                fill={cv ? mix(ground, c, 0.5) : mix(ground, warn, 0.3)} />
+              <rect x={11} y={r.y - 12} width={14} height={24} rx={3}
+                fill={r.run ? c : 'none'} stroke={r.run ? c : warn} strokeWidth={3.5} />
+              <rect x={r.x} y={r.y - 7} width={r.w * (0.4 + 0.6 * p)} height={14} rx={7}
+                fill={r.run ? mix(ground, c, 0.5) : mix(ground, warn, 0.3)} />
             </g>
           );
         })}
@@ -295,7 +301,11 @@ const DEFAULT_PANELS: QuadPanel[] = [
 // "four World Heritage sites sit inside this one city" settled on a single card. The same 2x2 assembly
 // serves both arguments; only the ending differs, so the ending is the thing that became a choice.
 export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?: number | null}> = ({
-  panels: PANELS = DEFAULT_PANELS, heading: HEADING = 'Four ways it wins', hero: HERO = 0} = {}) => {
+  panels: PANELS = DEFAULT_PANELS, heading: HEADING = 'Four ways it wins', hero: HERO_GIVEN} = {}) => {
+  // WHICH PANEL "MATTERS" IS THE FILM'S CALL. `hero` defaulted to 0, so any film that omitted it had its FIRST
+  // panel expand to take the frame as the one that matters — a verdict chosen by position. Omitted, a film's
+  // quad now holds; the standalone demo (its own panels) keeps its expansion so the register still shows it.
+  const HERO = HERO_GIVEN !== undefined ? HERO_GIVEN : (PANELS === DEFAULT_PANELS ? 0 : null);
   const t = useT();
   const dna = useDNA();
   const BG = dna?.bg ?? BG_D0;
@@ -325,7 +335,10 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
   const cells = PANELS;
   const n = cells.length;
   const holdQuad = HERO === null;
-  const heroIdx = Math.max(0, Math.min(Math.round(HERO || 0) || 0, n - 1));
+  if (HERO !== null && !(Number.isInteger(HERO) && HERO >= 0 && HERO < n)) {
+    throw new Error(`QuadSplit: \`hero\` must be a panel index 0-${n - 1} or null (hold the quad), got ${JSON.stringify(HERO)}.`);
+  }
+  const heroIdx = HERO === null ? 0 : HERO;
 
   // GEOMETRY. Everything lives in the CONTENT ZONE — never the whole frame — so the bottom row and the
   // expanded hero both stop clear of the burned caption band. Fractions of W/H, so it reflows at any aspect.

@@ -1,0 +1,20 @@
+# StarfieldWarp
+
+**Identity:** stars stream outward from a vanishing point, accelerating into hyperspace streaks; at peak speed the core flashes white, the field slows, and a glowing title blooms out of the light with a tagline under it.
+
+**Use when:** a cosmic "into the future" moment — a launch, a next-chapter title, a leap forward (family V). **Not when:** the beat carries content to read; or the film's ground is light (the type and streaks are pale and glow).
+
+**Motion core:** the stars accelerate 0.05–0.62, streaks lengthening with speed and looping so the field keeps streaming; the core flash rises and falls 0.60–0.78; the field decelerates 0.66–0.90 to under a third of its top speed; the title scales down into place as it fades in 0.72–0.92, the tagline 0.82–0.96.
+
+| Prop | What it sets | Feel of turning it |
+|---|---|---|
+| `title` | the glowing line that blooms from the core | very large fixed-size white type, not fitted: a word or two lands as a title card; a long title wraps into several huge lines; omitted, the demo `Lightspeed` prints |
+| `tagline` | the spaced mono line under it | a short phrase; omitted, the demo `the next era, now` prints |
+| `accent` | the star colour and the title's glow | plumbing — the DNA accent does NOT replace it; pass the film's accent to match |
+
+**Known traps:**
+- Only the ground follows the DNA (and the centre of its gradient is a fixed navy); the title, tagline and outer streaks are fixed white and pale blue, so a light-ground DNA loses them.
+- The title and the core bloom are fixed pixel sizes, authored for 1920×1080; the title is not fitted to narrower frames.
+- The field is decoration: star count, speed and flash carry no data and take no props.
+
+**Reference:** `remotion/src/shots/StarfieldWarp.tsx`

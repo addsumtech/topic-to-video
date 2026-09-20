@@ -45,7 +45,9 @@ export const LiquidMetal: React.FC<{title?: string; tagline?: string}> = ({
         <g filter="url(#lmgoo)">
           {blobs.map((b, i) => <circle key={i} cx={b.x} cy={b.y} r={b.r} fill="url(#chrome)" />)}
         </g>
-        {/* specular hot-spots */}
+        {/* specular hot-spots — on the first four of the register's OWN eight blobs, which are generated
+            here, not film items (this register takes only a title and a tagline): nothing a film gave is cut */}
+        {/* // @truncates: the blobs are the register's own generated decoration, not film content */}
         {blobs.slice(0, 4).map((b, i) => (
           <ellipse key={i} cx={b.x - b.r * 0.28} cy={b.y - b.r * 0.4} rx={b.r * 0.26} ry={b.r * 0.16} fill="#ffffff" opacity={0.6} />
         ))}

@@ -27,6 +27,15 @@
 // frame while `text_safe_qa` reported 0 findings at all five aspects, because type that is never drawn is
 // never cut off. Copy a film hands this register has to be READABLE at the frame it settles on, so the travel
 // is budgeted from the safe box and the labels arrive at its edge rather than through it.
+//
+// EVERY CONTEXT LABEL THE FILM GAVE IS IN THE ROOM, OR THE REGISTER SAYS IT CANNOT HOLD THEM. It used to take
+// `context.filter(nonEmpty).slice(0, 6)`, so a beat that named eight things around its subject showed six and
+// the other two left the room without a word — and an empty label was dropped the same way. Six was not a
+// limit of the layout: rendered with eight Chinese labels the room holds four a side at 16:9 and a row of
+// four above and below at 9:16 with room to spare. So every label is drawn, up to MAX_DOLLY_CONTEXT, past
+// which it THROWS naming the limit; an empty label throws. And the one way a long list COULD fail silently —
+// a column of labels taller than the zone, drawn on top of each other — is now part of the size fit below,
+// which steps the type down and refuses loudly if no size fits, exactly as it already did for the travel.
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
@@ -38,12 +47,16 @@ import {dollyAt} from '../runtime/depth';
 
 export const DURATION = 175; // ~5.8s
 
+/** The most context labels the room is drawn with: four a side (a row of four above and below at 9:16) —
+ *  the count this register has been rendered and looked at with. They are the room, not a list to read. */
+export const MAX_DOLLY_CONTEXT = 8;
+
 export const DollyZoom: React.FC<{
   /** the thing that does not change — the one element drawn sharp, at a constant size */
   subject?: string;
   /** one line under it: what the subject IS, when the name alone is not enough */
   note?: string;
-  /** SHORT labels for the surroundings — the first six are used. They are the room, not the argument: a
+  /** SHORT labels for the surroundings — up to eight, every one drawn. They are the room, not the argument: a
    *  sentence here reads as the subject's own caption rather than as context, and gets a size to match. */
   context?: string[];
   /** what the new scale MEANS, landing once the room has settled */
@@ -146,7 +159,17 @@ export const DollyZoom: React.FC<{
   // Two groups on opposite sides of the subject, along whichever axis the frame has room on: sideways in
   // landscape, above and below in portrait. Each group travels OUTWARD as the room swells and its members
   // spread apart — the parallax that carries the size cue the type is not allowed to take.
-  const items = CTX.map((s) => String(s ?? '').trim()).filter(Boolean).slice(0, 6);
+  if (!Array.isArray(CTX) || CTX.length > MAX_DOLLY_CONTEXT) {
+    throw new Error(
+      `DollyZoom holds 0-${MAX_DOLLY_CONTEXT} \`context\` labels, four a side (got ` +
+      `${Array.isArray(CTX) ? CTX.length : typeof CTX}). They are the room around the subject, not a list to ` +
+      `read — name the ${MAX_DOLLY_CONTEXT} that matter, or use a list or graph register when every item has to be read.`);
+  }
+  const items = CTX.map((s, i) => {
+    const label = String(s ?? '').trim();
+    if (!label) throw new Error(`DollyZoom: context label ${i + 1} is empty. Remove it or give it a name.`);
+    return label;
+  });
   const half = Math.ceil(items.length / 2);
   const groups = items.length ? [items.slice(0, half), items.slice(half)].filter((g) => g.length) : [];
 
@@ -156,6 +179,9 @@ export const DollyZoom: React.FC<{
   // real, and says so loudly if no step works — a register that quietly draws its context on top of its
   // subject is worse than one that refuses.
   const MIN_TRAVEL = U * 0.02;
+  // Spacing WITHIN a group runs along the CROSS axis — the content zone's own height in landscape, the safe
+  // width in portrait — and a group has to fit it, or its labels are drawn over each other.
+  const crossRoom = portrait ? W - 2 * MARGIN : zoneH - 2 * Math.round(U * 0.02);
   const fit = (() => {
     for (const s of [1, 0.92, 0.84, 0.76, 0.68, 0.6]) {
       const px = Math.max(11, Math.round(U * (portrait ? 0.026 : 0.028) * s));
@@ -173,21 +199,24 @@ export const DollyZoom: React.FC<{
       const axisRoom = (portrait ? zoneH / 2 : W / 2) - MARGIN - maxAlong / 2;
       const clear = (portrait ? plateH / 2 : SW / 2) + U * 0.05 + maxAlong / 2;
       if (!groups.length) return {px, lead, w, h, offMin: 0, offMax: 0};
+      // a landscape group is a COLUMN: its labels' heights stack along the cross axis. (A portrait group is a
+      // row whose box width is the safe width divided by its count, so it cannot overrun.)
+      const crossNeed = portrait ? 0 : Math.max(...groups.map((g) => g.reduce((n, str) => n + h(str), 0)));
+      if (crossNeed > crossRoom) continue;
       if (axisRoom - clear >= MIN_TRAVEL) {
         return {px, lead, w, h, offMin: clear + (axisRoom - clear) * 0.28, offMax: axisRoom};
       }
     }
     throw new Error(
       `DollyZoom cannot place its context labels on a ${W}x${H} frame: the subject plate and the margins ` +
-      `leave no room outside it for them to travel in, at any label size down to 60%. Shorten \`subject\`, ` +
-      `pass fewer \`context\` labels, or use a register whose context does not surround its subject.`);
+      `leave no room outside it for them to travel in, or a group of labels is taller than the zone, at any ` +
+      `label size down to 60%. Shorten \`subject\` or the labels, pass fewer \`context\` labels, or use a ` +
+      `register whose context does not surround its subject.`);
   })();
   const off = lerp(fit.offMin, fit.offMax, dolly.k);
 
-  // Spacing WITHIN a group, which opens with the room. Bounded by the cross axis — the content zone's own
-  // height in landscape, the safe width in portrait — so a group can spread to the edge of the safe box and
-  // no further.
-  const crossRoom = portrait ? W - 2 * MARGIN : zoneH - 2 * Math.round(U * 0.02);
+  // Spacing WITHIN a group, which opens with the room. Bounded by the cross axis (`crossRoom`, above) so a
+  // group can spread to the edge of the safe box and no further.
   const crossBase = (g: string[]) => (portrait ? fit.w * g.length : g.reduce((n, s) => n + fit.h(s), 0));
   const gapAt = (g: string[]) => {
     const n = Math.max(1, g.length - 1);

@@ -1,13 +1,21 @@
 // SHOT · Card Stack 3D — cards spring up one by one and PILE at centre, then fan out into a 3D arc (each
 // tilted on Y + rotated on Z), labels facing the camera. Pure CSS 3D (preserve-3d) — no WebGL. The "a deck of
 // things → laid out in hand" register (family E). Deterministic (pile + fan = fn of t).
+//
+// EVERY CARD THE FILM GAVE IS IN THE HAND, OR THE REGISTER SAYS IT CANNOT HOLD THEM. It used to take
+// `items.slice(0, 7)`: an eighth tool on a film's list simply was not in the fan, and a frame titled "all of it,
+// in hand" showed seven of eight with nothing saying one was missing. Seven is where the geometry runs out, not
+// a round number — the card width is solved from the count (see below) and at seven it is already 265px with a
+// 46px label; an eighth card goes under 240px, its label breaks to a word per line and the fan's end cards tip
+// past 45 degrees. So 1-7 cards draw and an eighth THROWS naming the maximum. A card with no label throws too:
+// a blank card in a fan of named ones reads as a thing the film forgot to name, not as nothing.
 
 import React from 'react';
 import {Icon, type IconName} from '../runtime/icons';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeInOutCubic, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA, dnaPalette, surfaceOn, shade} from '../runtime/dna';
-import {CONTENT_TOP, contentBottom} from '../runtime/layout';
+import {CONTENT_TOP, contentBottom, fitBlockPx, fitTextPx} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 
 export const DURATION = 155; // ~5.2s
@@ -29,6 +37,8 @@ const INK_D0 = '#f4f7ff', TITLE_D0 = '#dfe6ff';
 const TONES0 = ['#5b8cff', '#ff6f91', '#37d4a6', '#f6a531', '#c07bff', '#4dd0e1'];
 
 export type StackItem = string | {label: string; icon?: IconName};
+
+export const MAX_STACK_CARDS = 7;
 
 export const CardStack3D: React.FC<{items?: StackItem[]; title?: string}> = ({
   items: ITEMS = ['Docs', 'Chat', 'Tasks', 'Code', 'Data', 'Calls'], title: TITLE = 'All of it, in hand'} = {}) => {
@@ -56,7 +66,21 @@ export const CardStack3D: React.FC<{items?: StackItem[]; title?: string}> = ({
   const SHADOW = deep ? '0 40px 90px #0009, inset 0 1px 0 #ffffff14, 0 0 0 1px #0006'
                       : '0 26px 54px #1f180e26, inset 0 1px 0 #ffffff80';
   const {width: W, height: H} = useVideoConfig();
-  const cards = ITEMS.slice(0, 7);
+  // Every card once — the header says why seven is the ceiling and why past it throws.
+  if (!Array.isArray(ITEMS) || ITEMS.length < 1 || ITEMS.length > MAX_STACK_CARDS) {
+    throw new Error(
+      `CardStack3D fans 1-${MAX_STACK_CARDS} cards (got ${Array.isArray(ITEMS) ? ITEMS.length : typeof ITEMS}). ` +
+      `Past seven the solved card width drops under 240px and the labels break a word per line. Split the set ` +
+      `across two beats, or use a grid/list register for a longer list.`);
+  }
+  ITEMS.forEach((raw, i) => {
+    const label = typeof raw === 'string' ? raw : raw?.label;
+    if (!String(label ?? '').trim()) {
+      throw new Error(`CardStack3D: card ${i + 1} has no label (got ${JSON.stringify(raw ?? null)}). ` +
+        `Pass a string or {label, icon?} for every card.`);
+    }
+  });
+  const cards = ITEMS;
   const n = cards.length;
   const mid = (n - 1) / 2;
   // CARD WIDTH FOLLOWS THE COUNT, because two constraints have to hold at once and a fixed 360 could not
@@ -93,6 +117,21 @@ export const CardStack3D: React.FC<{items?: StackItem[]; title?: string}> = ({
   const cw = Math.round(Math.min(360, (WIDTH * 0.9) / (0.92 * Math.max(1, n - 1) + 1), cwByHeight));
   const ch = Math.round(cw * (480 / 360));
   const fanReach = spreadDrop + (cw / 2) * Math.sin(fanAngle);
+  // THE LABEL FITS THE CARD IT IS PRINTED ON. It was a flat 46px, set for a 360px card. The width above is
+  // solved from the count and the frame, so at seven cards on a 9:16 frame a card is ~150px wide with 81px
+  // of room inside its padding: a Chinese label broke one glyph per line (「酸/面/包」) and ran down over its
+  // own chip. One size for every card (peers read as peers), the largest at which every label fits the room
+  // left under the chip; it only ever comes DOWN from 46, so a wide card prints exactly as before.
+  // ONE LINE WHEN THAT COSTS LITTLE: a three-glyph Chinese label fitted as a block took two lines at 29px
+  // and balanced them 2+1, leaving 「包」 alone on a line; on one line it is 23px and whole.
+  const CARD_PAD = 34, CHIP = 60;
+  const innerW = cw - 2 * CARD_PAD, innerH = ch - 2 * CARD_PAD - CHIP - 8;
+  const labels = cards.map((raw) => String(typeof raw === 'string' ? raw : raw?.label ?? '').trim());
+  const labelPx = labels.reduce((px, l) => {
+    const block = fitBlockPx(l, innerW, innerH, 46, {leading: leading(l, 1), min: 14});
+    const one = Math.min(fitTextPx(l, innerW, 46, {usable: 0.92}), Math.floor(innerH / leading(l, 1)));
+    return Math.min(px, one >= block * 0.75 ? one : block);
+  }, 46);
   const fan = easeInOutCubic(seg(t, 0.58, 0.92));
   const titleIn = easeOutCubic(seg(t, 0.66, 0.86));
   return (
@@ -107,7 +146,7 @@ export const CardStack3D: React.FC<{items?: StackItem[]; title?: string}> = ({
           transform: `translateY(${lerp(40, -30, fan)}px)`}}>
           {cards.map((raw, i) => {
             // A card may arrive as a bare string (every film before icons existed) or as {label, icon}.
-            const label = typeof raw === 'string' ? raw : raw?.label ?? '';
+            const label = labels[i];
             const icon = typeof raw === 'string' ? undefined : raw?.icon;
             const st = 0.06 + i * 0.07;
             const rise = easeOutBack(clamp01(seg(t, st, st + 0.24)));    // spring up into the pile
@@ -129,10 +168,10 @@ export const CardStack3D: React.FC<{items?: StackItem[]; title?: string}> = ({
                 transform: `translate3d(${tx}px, ${lerp(120, 0, rise) + ty}px, ${i * 2}px) rotateZ(${rz}deg) rotateY(${ry}deg)`,
                 borderRadius: RAD, background: `linear-gradient(160deg, ${CARD}, ${CARD2}), linear-gradient(160deg, ${tone}1c, #0000)`,
                 border: `1px solid ${BORD}`, boxShadow: SHADOW,
-                display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 34}}>
+                display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: CARD_PAD}}>
                 {/* the second stop used to be a fixed blue, which put an off-system colour on every card
                     however the film was themed; it now runs to the DNA's own second accent. */}
-                <div style={{width: 60, height: 60, borderRadius: Math.min(16, RAD * 8),
+                <div style={{width: CHIP, height: CHIP, flexShrink: 0, borderRadius: Math.min(16, RAD * 8),
                   background: `linear-gradient(150deg, ${tone}, ${dna?.accent2 ?? '#2b3ac6'})`,
                   boxShadow: `0 0 26px ${tone}66`, display: 'flex', alignItems: 'center', justifyContent: 'center',
                   color: ONACC, font: `800 30px/1 var(--f-body, Inter, system-ui, sans-serif)`}}>
@@ -148,7 +187,7 @@ export const CardStack3D: React.FC<{items?: StackItem[]; title?: string}> = ({
                     `text-wrap: balance` for the other half of the same problem: Chinese breaks between any
                     two glyphs, so a label one unit too wide drops a single character onto a line of its own
                     — this card read 「Craft · 直接开」 over a line holding just 「干」 on a delivered film. */}
-                <div style={{color: INK, font: `800 46px/${leading(label, 1)} var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
+                <div style={{color: INK, font: `800 ${labelPx}px/${leading(label, 1)} var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
                   textWrap: 'balance',
                   textShadow: deep ? '0 2px 10px #000' : 'none'}}>{label}</div>
               </div>

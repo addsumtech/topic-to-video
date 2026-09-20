@@ -104,18 +104,23 @@ export const MoleculeBallStick: React.FC<{title?: string; tagline?: string; mole
     const persp = 2 / (2 - z * 0.5);
     return {x: x * persp, y: y2 * persp, z, persp};
   };
-  // the largest extent any atom reaches over the rotation this clip actually plays (t: 0..1 → ang 0..1.6),
-  // plus that atom's own radius, so S fits the ball and not just its centre
+  // THE MOLECULE ROCKS ABOUT ITS FACE; IT DOES NOT TURN AWAY. It turned 1.6 rad one way over the clip — 92° —
+  // so a flat molecule (every atom at z = 0, which is what most films will pass) ended the beat seen edge-on,
+  // a line of overlapping balls under its own title. It now swings ±0.5 rad around facing the viewer: the depth
+  // still reads, and the settled frame still shows the structure.
+  const angAt = (tt: number) => (tt - 0.5) * 1.0;
+  // the largest extent any atom reaches over the rotation this clip actually plays, plus that atom's own radius,
+  // so S fits the ball and not just its centre
   let ext = {x: 1e-6, y: 1e-6};
   for (let k = 0; k <= 32; k++) {
     for (const at of atoms) {
-      const q = unitProj(at.p, (k / 32) * 1.6);
+      const q = unitProj(at.p, angAt(k / 32));
       ext = {x: Math.max(ext.x, Math.abs(q.x)), y: Math.max(ext.y, Math.abs(q.y))};
     }
   }
   const rMax = Math.max(...atoms.map((a) => a.r)) * 1.25 * 1.1;   // 1.1 = easeOutBack's overshoot
   const S = Math.min(220, (W * 0.42 - rMax) / ext.x, ((zoneBot - zoneTop) / 2 - rMax) / ext.y);
-  const ang = t * 1.6;
+  const ang = angAt(t);
   const proj = (p: [number, number, number]) => {
     const q = unitProj(p, ang);
     return {x: cx + q.x * S * build, y: cy + q.y * S * build, z: q.z, persp: q.persp};

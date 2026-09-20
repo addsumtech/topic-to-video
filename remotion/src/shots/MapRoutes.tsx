@@ -1,10 +1,17 @@
 // SHOT · Map Routes — logistics/network language: glowing routes DRAW between pins on a dark night map, with
 // packets travelling the arcs and pins pulsing. A cool, premium "it reaches everywhere / connects your stack"
 // look. Deterministic (dash offset + packet position are pure fns of frame).
+//
+// EVERY PIN HAS LANDED BEFORE THE FRAME IS READ. Pin i pops in over `0.14 + i * 0.05 … + 0.24` and nothing
+// capped the list, so past about a dozen spokes the last pins were still popping when the clip ended (and
+// from the twentieth on they started after it). The pop step is now laid out for the count — 0.05 stays the
+// upper bound, which every list up to MAX_SPOKES already satisfies, so their timing is unchanged — and a list
+// past MAX_SPOKES refuses: rendered with twelve, neighbouring labels overlapped on a 1:1 frame (北京 on 上海,
+// 重庆 on 武汉), and a hub with that many spokes is a directory, not a picture of reach.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
-import {useT, seg, lerp, easeInOutCubic, easeOutBack, clamp01, hash01} from '../runtime/motion';
+import {useT, seg, easeInOutCubic, easeOutBack, clamp01, REDUCED_MOTION_T} from '../runtime/motion';
 import {drawOn} from '../runtime/draw';
 import {pointAt} from '../runtime/alongPath';
 import {leading, fitIfCJK} from '../runtime/cjkType';
@@ -12,8 +19,28 @@ import {useDNA} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitTextPx} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
+export const MAX_SPOKES = 10;
+// Pin i pops over [PIN_START + i * step, … + PIN_DUR]; PIN_STEP is the original gap and only an upper bound —
+// the real step is derived from the count so the last pin has landed by LAND_BY.
+const PIN_START = 0.14, PIN_STEP = 0.05, PIN_DUR = 0.24;
+const LAND_BY = REDUCED_MOTION_T - 0.02;
 export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: string}> = ({
   items: SPOKES = ['GitHub', 'Slack', 'Notion', 'Drive', 'Jira', 'Gmail'], hub: HUB = 'WorkBuddy', accent: TEAL = '#3FE0D0'} = {}) => {
+  if (!Array.isArray(SPOKES) || SPOKES.length < 1 || SPOKES.length > MAX_SPOKES) {
+    throw new Error(
+      `MapRoutes needs 1-${MAX_SPOKES} \`items\` (got ${Array.isArray(SPOKES) ? SPOKES.length : typeof SPOKES}). ` +
+      'Each is a pin on the ellipse that pops in one after another and must have landed before the settled ' +
+      `frame; past ${MAX_SPOKES} the labels collide round the hub. Keep the connections that make the point, ` +
+      'or use a list/grid register for a long directory.');
+  }
+  SPOKES.forEach((s, i) => {
+    if (typeof s !== 'string' || !s.trim()) {
+      throw new Error(`MapRoutes: item ${i + 1} is empty (got ${JSON.stringify(s)}). Every pin carries the name ` +
+        'of what the hub reaches; pass one for each, or leave it out.');
+    }
+  });
+  const n = SPOKES.length;
+  const step = n > 1 ? Math.min(PIN_STEP, (LAND_BY - PIN_START - PIN_DUR) / (n - 1)) : PIN_STEP;
   const t = useT();
   const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
@@ -59,7 +86,7 @@ export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: strin
       </svg>
       {/* spoke pins + labels */}
       {pts.map(([px, py], i) => {
-        const pop = easeOutBack(seg(t, 0.14 + i * 0.05, 0.14 + i * 0.05 + 0.24));
+        const pop = easeOutBack(seg(t, PIN_START + i * step, PIN_START + i * step + PIN_DUR));
         const pulse = 1 + 0.4 * Math.max(0, Math.sin((t - 0.3 - i * 0.05) * 9));
         // THE LABEL TAKES THE SIDE THAT HAS ROOM, AND IS FITTED TO IT. It was pinned 34px to the RIGHT of
         // every spoke and set `nowrap` at a fixed 26px — fine for the east spokes of a 1920 frame and for

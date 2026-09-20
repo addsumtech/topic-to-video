@@ -1445,6 +1445,9 @@ figure), a non-singular `the_one_thing`, or a
   before the letters and pauses) and maps the word timings back, so the caption and karaoke keep "AI". Never
   hand-write "A G P L" / "T T S". Anything else pronounced wrong goes in **`meta.tts_lexicon`**
   (`{"AgentHalo": "Agent Halo"}` — spoken text only); `meta.tts_spell_initialisms: false` turns the spelling off.
+- **The film opens and closes on a held picture:** `tts.py` makes the first word wait `meta.open_hold`
+  (default 1.0s) and the last word end `meta.close_hold` (1.2s) before the film does, shifting the first
+  clip's word times with it; 0 turns either off.
 - **`meta.tts_speed`** (default `1.0`) tightens or loosens the narration PACE without cutting content —
   a multiplier applied to BOTH edge-tts (mapped to its `rate` `±%`, e.g. `1.25` → `+25%`) and MiniMax
   (its `speed`). Clamped `[0.5, 2.0]`; for edge, keep within **~±30%** (`0.8–1.3`) — beyond that the

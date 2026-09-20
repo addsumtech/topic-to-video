@@ -20,6 +20,14 @@
 // an ordinary DOM element placed by `runtime/project3d` at its arc's screen position: crisp type in the
 // film's own face, anchored to a real object, and still visible to the text-safety and CJK gates, which
 // cannot see inside a canvas.
+//
+// EVERY PART IS AN ARC, OR THE REGISTER SAYS THE RING CANNOT HOLD IT. It used to take
+// `items.filter(nonEmpty).slice(0, 6)`: a product named as eight parts closed into a ring of six, the claim
+// "these are the parts, and nothing else" made about a set with two missing — and an empty entry vanished
+// the same way. The ring is falsifiable only if it is complete. Past MAX_HERO_PARTS it now THROWS naming the
+// limit, and an empty entry throws. Six is the palette, not the geometry: every arc is the same metal and the
+// parts are told apart ONLY by their inlay tone, which comes from a six-tone palette. Rendered with eight, the
+// seventh and eighth parts wore the first and second parts' tones — two unrelated parts marked as one kind.
 
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
@@ -32,6 +40,9 @@ import {leading} from '../runtime/cjkType';
 import {useT, seg, clamp01, easeOutCubic, easeOutBack, lerp} from '../runtime/motion';
 
 export const DURATION = 150; // 5s
+
+/** The most parts the ring is closed from: one inlay tone per part from a six-tone palette (see the header). */
+export const MAX_HERO_PARTS = 6;
 
 const BG_D0 = 'radial-gradient(120% 120% at 50% 42%, #10131d, #05070c 72%)';
 const FG_D0 = '#f2f5fb', DIM_D0 = '#8b93a8', ACC_D0 = '#5B8CFF';
@@ -158,7 +169,17 @@ export const MaterialHero: React.FC<{title?: string; items?: string[]; note?: st
   const FG = dna?.fg ?? FG_D0;
   const DIM = dna?.dim ?? DIM_D0;
   const TONES = dnaPalette(dna, 6) ?? TONES0;
-  const list = ITEMS.filter((x) => String(x ?? '').trim()).slice(0, 6);
+  if (Array.isArray(ITEMS) && ITEMS.length > MAX_HERO_PARTS) {
+    throw new Error(
+      `MaterialHero closes 1-${MAX_HERO_PARTS} parts into its ring (got ${ITEMS.length}). ` +
+      `The parts are told apart only by their inlay tone, and a seventh would repeat the first one's. Group the ` +
+      `parts into ${MAX_HERO_PARTS} or fewer, or use a list or grid register for a longer inventory.`);
+  }
+  const list = (Array.isArray(ITEMS) ? ITEMS : []).map((x, i) => {
+    const part = String(x ?? '').trim();
+    if (!part) throw new Error(`MaterialHero: item ${i + 1} is empty. Every arc of the ring is a named part.`);
+    return part;
+  });
   // THE RING IS THE PARTS. With none it would close into a plain torus and quietly become the decorative
   // blob this rebuild exists to remove — a frame that composes beautifully and argues nothing.
   if (!list.length) {

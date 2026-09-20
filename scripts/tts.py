@@ -620,6 +620,96 @@ def audible_pause(meta, ref=None, lead=0.0):
     return _tail_pad(meta, ref=ref, lead=lead) - _seam_seconds(meta) + lead + ECHO_TAIL
 
 
+# THE FILM OPENS AND CLOSES ON PICTURE, NOT ON A VOICE ALREADY TALKING. The peer study's R1 — a hold of at
+# least a second before the first word and after the last — was measured on a delivered film here rather than
+# ported: the first word arrived at 0.20s, so the opening frame never had a moment to be seen, and the sign-off
+# held 0.95s. It was deferred because the captions were then timed over the CLIP, so a longer tail would have
+# dragged the last caption late; they now follow the voice's own word times (Film.tsx `capWords`), so the
+# hold can be added where it belongs — in the audio, which is what sets each beat's length. The first clip's
+# word times are shifted by exactly the silence put in front of them. `meta.open_hold` / `meta.close_hold`
+# (seconds; 0 turns one off).
+OPEN_HOLD_S = 1.0
+CLOSE_HOLD_S = 1.2
+
+
+def _hold_seconds(meta, key, default):
+    try:
+        return max(0.0, min(5.0, float((meta or {}).get(key, default))))
+    except (TypeError, ValueError):
+        return default
+
+
+def _tail_silence(path):
+    """Seconds of silence AFTER the last sound of a clip (0 when it ends on sound)."""
+    try:
+        out = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", path, "-af",
+                              "silencedetect=noise=-55dB:d=0.05", "-f", "null", "-"],
+                             capture_output=True, text=True).stderr
+    except Exception:
+        return 0.0
+    starts = [float(x) for x in re.findall(r"silence_start:\s*(-?[\d.]+)", out)]
+    ends = [float(x) for x in re.findall(r"silence_end:\s*([\d.]+)", out)]
+    dur = _common.audio_duration(path)
+    if not starts:
+        return 0.0
+    # a silence still open at EOF has no silence_end line, or one that sits at the clip's end
+    if len(ends) < len(starts) or (ends and abs(ends[-1] - dur) < 0.03):
+        return round(max(0.0, dur - starts[-1]), 3)
+    return 0.0
+
+
+def _pad_clip(path, before=0.0, after=0.0):
+    """Put `before` seconds of silence in front of a clip and `after` seconds behind it, in place."""
+    if before <= 0.0005 and after <= 0.0005:
+        return False
+    tmp = path + ".hold" + os.path.splitext(path)[1]
+    filters = []
+    if before > 0.0005:
+        filters.append("adelay=delays=%d:all=1" % round(before * 1000))
+    if after > 0.0005:
+        filters.append("apad=pad_dur=%.3f" % after)
+    try:
+        _common.run(["ffmpeg", "-y", "-i", path, "-af", ",".join(filters), "-map_metadata", "-1", tmp])
+        if os.path.getsize(tmp) > 0:
+            os.replace(tmp, path)
+            return True
+    except Exception:
+        pass
+    if os.path.exists(tmp):
+        os.remove(tmp)
+    return False
+
+
+def _apply_holds(out_dir, data, only=None):
+    """Open and close the film on a held picture — see OPEN_HOLD_S. Returns (added_before, added_after)."""
+    spoken = [s for s in data["slides"] if (s.get("narration") or "").strip() and s.get("audio")]
+    if not spoken:
+        return 0.0, 0.0
+    first, last = spoken[0], spoken[-1]
+    added = [0.0, 0.0]
+    want_open = _hold_seconds(data["meta"], "open_hold", OPEN_HOLD_S)
+    if only is None or only == first["index"]:
+        path = os.path.join(out_dir, first["audio"])
+        need = round(want_open - _lead_silence(path), 3)
+        if need > 0.02 and _pad_clip(path, before=need):
+            added[0] = need
+            wj = os.path.splitext(path)[0] + ".words.json"
+            if os.path.exists(wj):
+                with open(wj) as fh:
+                    words = json.load(fh)
+                with open(wj, "w") as fh:
+                    json.dump([dict(w, t=round(float(w.get("t", 0)) + need, 3)) for w in words], fh)
+            first["duration"] = round(_common.audio_duration(path), 3)
+    want_close = _hold_seconds(data["meta"], "close_hold", CLOSE_HOLD_S)
+    if only is None or only == last["index"]:
+        path = os.path.join(out_dir, last["audio"])
+        need = round(want_close - _tail_silence(path), 3)
+        if need > 0.02 and _pad_clip(path, after=need):
+            added[1] = need
+            last["duration"] = round(_common.audio_duration(path), 3)
+    return tuple(added)
+
+
 def _master(path, meta=None, ref=None, lead=0.0):
     """Loudness-normalise + trim TRAILING dead-air of a SPEECH clip, in place. Two problems at once:
     (1) raw TTS ships at wildly different loudness across providers/scenes with no master, so a
@@ -783,6 +873,9 @@ def synthesize(out_dir, only=None):
     for s, dest in pending:
         _master(dest, data["meta"], ref=ref, lead=lead)
         s["duration"] = round(_common.audio_duration(dest), 3)
+    held = _apply_holds(out_dir, data, only) if pending else (0.0, 0.0)
+    if any(held):
+        print("[tts] held the open %.2fs and the close %.2fs longer (open_hold / close_hold)" % held)
     if pending:
         print("[tts] scene pause %.2fs audible (film full-stop %s + %.2fs breath, floor %.2f; "
               "next clip's own lead %.2fs subtracted)"
