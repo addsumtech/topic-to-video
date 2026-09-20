@@ -62,7 +62,7 @@ export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?:
   const rdStep = nR > 1 ? Math.min(RD_STEP, (LAND_BY - RD_START - RD_DUR) / (nR - 1)) : RD_STEP;
 
   const dna = useDNA();
-  const BG = dna?.bg ?? BG_D0, CYAN = dna?.accent ?? CYAN_D0, GREEN = dna?.accent2 ?? GREEN_D0;
+  const CYAN = dna?.accent ?? CYAN_D0, GREEN = dna?.accent2 ?? GREEN_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H);
@@ -118,9 +118,14 @@ export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?:
   // the grid is faint, but it is still ink: it stops at the content zone rather than running under the caption
   const gy0 = Math.max(zTop, cy - 360 * s), gy1 = Math.min(zBot, cy + 360 * s);
   return (
-    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 45%, #0c151a, ${BG} 74%)`, overflow: 'hidden'}}>
+    // THE LIFT IN THE GROUND FOLLOWED NOTHING. Only the OUTER stop of this well read the DNA, so a film
+    // grounded warm white got a teal-black pool in the middle of the frame with the film's paper around it —
+    // and the HUD's own ink, authored to sit on that pool, then had no ground it was designed for. The film's
+    // treatment first, its flat ground next, and the original two-stop well only when there is no DNA at all.
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg
+        ?? `radial-gradient(120% 100% at 50% 45%, #0c151a, ${BG_D0} 74%)`, overflow: 'hidden'}}>
       <div style={{position: 'absolute', top: 66, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
-        color: '#7fb6b2', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
+        color: dna?.dim ?? '#7fb6b2', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
 
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         {/* faint grid */}
@@ -151,7 +156,7 @@ export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?:
       {/* central subject */}
       <div style={{position: 'absolute', left: cx, top: cy, width: targetW,
         transform: `translate(-50%,-50%) scale(${lerp(0.9, 1, brackets)})`, textAlign: 'center'}}>
-        <div style={{color: '#eafffb', font: `800 ${targetPx}px/${targetLead} var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
+        <div style={{color: dna?.fg ?? '#eafffb', font: `800 ${targetPx}px/${targetLead} var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
           textWrap: 'balance', textShadow: `0 0 40px ${col}66`}}>{TARGET}</div>
         <div style={{marginTop: Math.round(14 * s), color: col, font: `700 ${Math.round(26 * s)}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.3em',
           opacity: locked ? lockIn : 0.6 * clamp01(seg(t, 0.4, 0.6))}}>{locked ? LOCK_LABEL : SCAN_LABEL}</div>
@@ -167,7 +172,7 @@ export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?:
           {READOUTS.map((rd, i) => {
             const on = clamp01(seg(t, RD_START + i * rdStep, RD_START + i * rdStep + RD_DUR));
             return <div key={i} style={{opacity: on, transform: `translateX(${(1 - on) * -16}px)`,
-              color: '#9fd6d0', font: `600 ${rdPx}px/${rdLead} var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.08em',
+              color: dna?.dim ?? '#9fd6d0', font: `600 ${rdPx}px/${rdLead} var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.08em',
               borderLeft: `3px solid ${col}`, paddingLeft: 14}}>{rd}</div>;
           })}
         </div>

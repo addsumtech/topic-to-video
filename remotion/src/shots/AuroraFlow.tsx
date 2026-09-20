@@ -8,6 +8,7 @@ import {useT, seg, lerp, easeOutCubic, clamp01} from '../runtime/motion';
 import {leading} from '../runtime/cjkType';
 import {CONTENT_TOP, contentBottom, wrapLines} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
+import {darkGround} from '../runtime/light';
 
 export const DURATION = 150; // 5s
 const BLOBS = [
@@ -36,7 +37,13 @@ export const AuroraFlow: React.FC<{lines?: string[]}> = ({lines = ['Your AI team
   while (typePx > 24 && stackAt(typePx) > zoneH) typePx -= 2;
 
   return (
-    <AbsoluteFill style={{background: dna?.bg ?? '#0a0b12', overflow: 'hidden'}}>
+    // @dark-world: an aurora IS emitted light, and light only reads against a night sky. On a film whose
+    // ground is warm white this shot measured a median 2.71:1 with 77% of its marks under 3:1
+    // (scripts/ink_contrast_qa.py) — not because its ink is wrong but because the picture has no meaning on
+    // paper. So it keeps its own night: the film's ground is taken only when the film's ground is dark, and
+    // a light film gets a deliberately dark beat here, which the seam guard and the caption ink already
+    // handle from the measured SHOT_LUMA.
+    <AbsoluteFill style={{background: darkGround(dna?.bg, '#0a0b12'), overflow: 'hidden'}}>
       {/* the flowing aurora — drifting soft colour bodies that blend */}
       <AbsoluteFill style={{filter: 'blur(70px) saturate(1.3)'}}>
         {BLOBS.map((b, i) => {

@@ -14,6 +14,7 @@
 - It used to take no props and printed "Ask. Draft. Analyse. Done." on every film (a product workflow whatever the topic); that sequence is still the default, so omitting `forms` prints it.
 - The old "analyse" glyph was a three-bar chart with invented bar heights; icons must be picked for the role the form plays, never by position (the icon rule in references/remotion-shot-authoring.md).
 - The blob's radius shrinks on short frames: at a flat 300px the label landed ~70px inside the caption band at 1:1, so on square/short frames the blob is smaller by design.
+- The form's word hangs BELOW the blob, on the film's own ground, so it is set in the film's ink. The icon riding the blob stays white, because the blob is a saturated iridescent fill on any ground. The blob's three gradient stops are fixed.
 
 **Refuses:** `forms` that is not an array or has fewer than 2 or more than 6 entries; a form with an empty label.
 

@@ -26,7 +26,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic} from '../runtime/motion';
-import {useDNA, readableOn} from '../runtime/dna';
+import {useDNA, readableOn, shade} from '../runtime/dna';
 import {Voice} from '../runtime/voice';
 import {captionBand, CONTENT_TOP, fitTextPx} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
@@ -55,6 +55,14 @@ export const VoiceSignal: React.FC<{phases?: VoicePhase[]}> = ({phases: PHASES =
   const GROUND = dna?.bg ?? '#05080f';
   const INK = readableOn(GROUND, '#dffaff', '#0c141c');
   const DONE_INK = readableOn(GROUND, '#59f0b0', '#0a5c3d');
+  // AND THE BARS ARE INK TOO. The ground and the label were already read from the DNA (above); the SPECTRUM
+  // was not. Its gradient runs from a bright tip down to the accent, and that tip was the literal '#8af0ff'
+  // — a highlight on a dark ground and nothing at all on paper. Measured on a warm-white film: 76% of this
+  // register's marks under 3:1, median 1.33:1 (`scripts/ink_contrast_qa.py`), and every one of them a bar.
+  // This is not a glow that needs a night — the bars are solid, filled shapes and the picture is a bank of
+  // them — so the tip goes to the far side of the film's OWN accent instead, and the bar keeps its two
+  // values on either ground. With no DNA, and on every preset, the original literal is still what wins.
+  const TIP = readableOn(GROUND, '#8af0ff', shade(ACC, 0.45));
   const FAILED_INK = readableOn(GROUND, '#ff8a80', '#8f1d1d');
 
   if (!Array.isArray(PHASES) || !PHASES.length) {
@@ -115,7 +123,7 @@ export const VoiceSignal: React.FC<{phases?: VoicePhase[]}> = ({phases: PHASES =
             <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
               <defs>
                 <linearGradient id="vsbar" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stopColor="#8af0ff" /><stop offset="1" stopColor={ACC} />
+                  <stop offset="0" stopColor={TIP} /><stop offset="1" stopColor={ACC} />
                 </linearGradient>
                 <filter id="vsglow">
                   <feGaussianBlur stdDeviation={Math.max(2, U * 0.006)} result="b" />

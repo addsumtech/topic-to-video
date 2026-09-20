@@ -17,6 +17,7 @@
 - The rig used to be fixed pixel sizes and ran 1200px wide at 9:16; it is now sized from the content zone and its outer radius is a hard limit — bar length is clamped, not multiplied (as a multiplier a loud syllable overshot the zone by 22%).
 - The loud low end sits at 12 o'clock on purpose; reversed, the longest bars grow downward, read as melting and reach toward the caption band.
 - The bar count follows the ring's circumference; a fixed count looked like a picket fence or a comb at other sizes.
-- The type is fixed white and lilac for the dark centre the register paints, and does not take the DNA's `fg`/`dim` — only the accents and the outer ground follow the film.
+- **`@dark-world`.** The subject is emitted light — a spectrum radiating out of a wordmark, every bar a drop-shadowed glow — and light only reads against a night, so inverting it would be a different picture rather than a repair. The ring takes the film's ground while that ground is DARK (all eight presets) and keeps its own `#080611` when the film's is paper. It used to take `dna.bg` whatever it was, which painted the gradient from a dark purple centre out to WHITE — a grey sludge with the wordmark on the one dark patch left (measured median 1.72:1 over 92% of its marks). A light film therefore gets one deliberately dark beat here, which `SHOT_LUMA`, the seam guard and the caption ink already handle.
+- The type is fixed white and lilac for the dark centre the register paints, and does not take the DNA's `fg`/`dim` — which is only safe BECAUSE of the line above. The accents do follow the film, and are lifted toward their own tint if the film's picks are too dark to read on this night (a light film chooses them for paper).
 
 **Reference:** `remotion/src/shots/SpectrumPulse.tsx`

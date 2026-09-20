@@ -25,10 +25,26 @@ export const TensionScale: React.FC<{
 }> = ({
   title = 'The tension that never resolves', leftLabel = 'MISSION', leftSub = 'benefit all of humanity',
   rightLabel = 'SCALE - MONEY - POWER', rightSub = 'the cost of the race', note = 'neither side wins - that IS the story',
-  accent = '#10a37f', accent2 = '#7aa2ff',
+  accent: accentIn, accent2: accent2In,
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
+  // THE BEAM WAS THE ONE THING THIS REGISTER HAS, AND IT WAS A LITERAL. `#e6edf5` is the teetering beam, the
+  // single object that carries the thesis, and on a film grounded paper it was drawn white on white: measured
+  // 1.07:1, a frame with two labelled cards, a triangle and NO BALANCE BETWEEN THEM. The title, the note, the
+  // pans' sub-lines and the pivot knot went the same way. Each keeps its own fallback.
+  const accent = accentIn ?? dna?.accent ?? '#10a37f';
+  const accent2 = accent2In ?? dna?.accent2 ?? '#7aa2ff';
+  const BEAM = dna?.fg ?? '#e6edf5';
+  const KNOT = dna?.fg ?? '#fff';
+  const CARD = dna?.surface ?? '#0d1117';
+  const SUB_INK = dna?.dim ?? '#9fb0c3';
+  const FULCRUM = dna?.surface ?? '#141b26';
+  const FULCRUM_EDGE = dna?.line ?? '#2b3646';
+  const BASE_LINE = dna?.line ?? '#1a2230';
+  const READOUT_INK = dna?.dim ?? '#67788c';
+  const NOTE_INK = dna?.dim ?? '#c9d6ea';
+  const TITLE_INK = dna?.fg ?? '#dfe8f5';
   const t = useT();
   const portrait = W < H;
   const cx = W * 0.5, fy = portrait ? H * 0.46 : H * 0.52, L = portrait ? W * 0.30 : W * 0.30;
@@ -55,9 +71,9 @@ export const TensionScale: React.FC<{
     return (
     <g key={key} opacity={appear}>
       <line x1={x} y1={y} x2={x} y2={y + 28} stroke={`${col}aa`} strokeWidth={2} />
-      <rect x={x - bw / 2} y={y + 28} width={bw} height={78} rx={8} fill="#0d1117" stroke={col} strokeWidth={1.6} />
+      <rect x={x - bw / 2} y={y + 28} width={bw} height={78} rx={8} fill={CARD} stroke={col} strokeWidth={1.6} />
       <text x={x} y={y + 60} textAnchor="middle" fill={col} fontSize={lfs} fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" fontWeight={700}>{label}</text>
-      <text x={x} y={y + 88} textAnchor="middle" fill="#9fb0c3" fontSize={sfs} fontFamily="var(--f-body, Inter, sans-serif)">{sub}</text>
+      <text x={x} y={y + 88} textAnchor="middle" fill={SUB_INK} fontSize={sfs} fontFamily="var(--f-body, Inter, sans-serif)">{sub}</text>
     </g>
     );
   };
@@ -66,24 +82,24 @@ export const TensionScale: React.FC<{
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 46%, #0c1016, #06070a)')}}>
       <svg width={W} height={H} style={{position: 'absolute', left: 0, top: 0}}>
         {/* faint technical grid baseline */}
-        <line x1={W * 0.12} y1={fy} x2={W * 0.88} y2={fy} stroke="#1a2230" strokeWidth={1} strokeDasharray="2 10" opacity={0.6} />
+        <line x1={W * 0.12} y1={fy} x2={W * 0.88} y2={fy} stroke={BASE_LINE} strokeWidth={1} strokeDasharray="2 10" opacity={0.6} />
         {/* the beam */}
-        <line x1={lx} y1={ly} x2={rx} y2={ry} stroke="#e6edf5" strokeWidth={5} strokeLinecap="round" opacity={appear} />
+        <line x1={lx} y1={ly} x2={rx} y2={ry} stroke={BEAM} strokeWidth={5} strokeLinecap="round" opacity={appear} />
         {/* the two force pans */}
         {pan(lx, ly, leftLabel, leftSub, accent, 'L')}
         {pan(rx, ry, rightLabel, rightSub, accent2, 'R')}
         {/* fulcrum triangle + glowing knot at the pivot */}
-        <path d={`M${cx - 30},${fy + 66} L${cx},${fy + 6} L${cx + 30},${fy + 66} Z`} fill="#141b26" stroke="#2b3646" strokeWidth={1.4} />
-        <circle cx={cx} cy={fy} r={9 + 3 * Math.sin(t * Math.PI * 2 * 1.15)} fill="#fff" opacity={0.9} />
+        <path d={`M${cx - 30},${fy + 66} L${cx},${fy + 6} L${cx + 30},${fy + 66} Z`} fill={FULCRUM} stroke={FULCRUM_EDGE} strokeWidth={1.4} />
+        <circle cx={cx} cy={fy} r={9 + 3 * Math.sin(t * Math.PI * 2 * 1.15)} fill={KNOT} opacity={0.9} />
         <circle cx={cx} cy={fy} r={20} fill="none" stroke={`${accent}`} strokeWidth={1.5} opacity={0.4 + 0.3 * Math.abs(Math.sin(t * Math.PI * 2 * 1.15))} />
         {/* equilibrium readout */}
-        <text x={cx} y={fy + 96} textAnchor="middle" fill="#67788c" fontSize="15" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={appear}>equilibrium: unresolved</text>
+        <text x={cx} y={fy + 96} textAnchor="middle" fill={READOUT_INK} fontSize="15" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={appear}>equilibrium: unresolved</text>
         {/* bottom note (kept above the caption band) */}
         {/* The note was made band-aware VERTICALLY and never bounded horizontally. An SVG <text> does not
             wrap, and this one is centred on the frame, so a Chinese note simply grew out of both edges. */}
-        <text x={cx} y={Math.min(H * 0.82, bottomTextY(W, H))} textAnchor="middle" fill="#c9d6ea" fontSize={fitTextPx(note, W * 0.9, 20, {usable: 1, ...MONO})} fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01((t - 0.15) * 3)}>{note}</text>
+        <text x={cx} y={Math.min(H * 0.82, bottomTextY(W, H))} textAnchor="middle" fill={NOTE_INK} fontSize={fitTextPx(note, W * 0.9, 20, {usable: 1, ...MONO})} fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01((t - 0.15) * 3)}>{note}</text>
       </svg>
-      <div style={{...titleStyle, opacity: lerp(0.4, 1, clamp01(t * 4))}}>{title}</div>
+      <div style={{...titleStyle, color: TITLE_INK, opacity: lerp(0.4, 1, clamp01(t * 4))}}>{title}</div>
     </AbsoluteFill>
   );
 };

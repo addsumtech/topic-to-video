@@ -12,7 +12,7 @@
 
 **Known traps:**
 - The six nodes and four arcs are hand-set decoration (marked `@decor` in the code); no film item is placed on them. Do not narrate them as real cities or links.
-- The line, node and arc colours are a literal cyan, and the back disc and tagline ink are literals too. Only the background follows the DNA, so on a light or warm film the globe stays cold cyan and the tagline loses contrast.
+- The graticule, arcs and halo are the film's `accent`, the nodes and tagline its `fg`, and the sphere's body its `surface`. Before this they were a literal cyan on a literal disc, so on a paper film the connections across the globe measured 1.18:1 and the tagline 1.02:1 — a grey ball with nothing drawn on it.
 - The globe is a fixed 340px radius, centred on the frame, the same size at every aspect.
 - The arcs are quadratic curves through a lifted midpoint ("great-circle-ish" in the code), not true great circles.
 

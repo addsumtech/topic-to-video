@@ -107,16 +107,24 @@ export const LiquidFill: React.FC<{label?: string; pct?: number | string | null}
           </g>
         )}
 
-        {/* vessel ring */}
-        <circle cx={cx} cy={cy} r={R} fill="none" stroke="#4b6a9c" strokeWidth={6} />
-        <circle cx={cx} cy={cy} r={R} fill="none" stroke="#7fd8ff" strokeWidth={2} opacity={0.5} filter="url(#lglow)" />
+        {/* THE VESSEL IS DRAWN ON THE FILM'S PAGE, so its two rules are the film's colours. The ring was a
+            fixed slate and its inner highlight a fixed pale cyan — a highlight is a lift off a dark ground and
+            on paper it is simply lighter than the paper, which is how the rim of the vessel disappeared at the
+            top on a warm-white film (scripts/ink_contrast_qa.py). `dim` because the ring is structure a reader
+            must see and `line`/`surfaceBorder` sit far too faint for a 6px rule that carries the shape. */}
+        <circle cx={cx} cy={cy} r={R} fill="none" stroke={dna?.dim ?? '#4b6a9c'} strokeWidth={6} />
+        <circle cx={cx} cy={cy} r={R} fill="none" stroke={dna?.accent ?? '#7fd8ff'} strokeWidth={2} opacity={0.5} filter="url(#lglow)" />
       </svg>
 
       {/* centre readout: the film's figure, counted up WITH the fill — and, for a full vessel only, a checkmark */}
       <div style={{position: 'absolute', left: cx - R, top: cy - R, width: 2 * R, height: 2 * R,
         display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
         {!figText ? null : done < 0.15 ? (
-          <div style={{color: '#eaf6ff', font: `800 ${numPx}px/1 var(--f-display, Inter, system-ui, sans-serif)`, fontVariantNumeric: 'tabular-nums',
+          // THE FIGURE READS ON BOTH OF ITS GROUNDS. It is drawn inside the vessel, which is the film's own
+          // page where the liquid has not reached and the liquid's mid-tone teal-to-blue where it has — so the
+          // film's ink works for both: near-white over a dark page (as before), near-black over paper, and
+          // either one clears 4:1 on the liquid itself. A literal near-white cleared only the first of those.
+          <div style={{color: dna?.fg ?? '#eaf6ff', font: `800 ${numPx}px/1 var(--f-display, Inter, system-ui, sans-serif)`, fontVariantNumeric: 'tabular-nums',
             textShadow: '0 4px 30px #000a', whiteSpace: 'nowrap'}}>{shown}{pctSuffix ? <span style={{fontSize: numPx * 70 / 150, opacity: 0.7}}>%</span> : null}</div>
         ) : (
           <svg width={360 * k} height={360 * k} viewBox="-180 -180 360 360" style={{transform: `scale(${easeOutBack(done)})`}}>
@@ -124,8 +132,10 @@ export const LiquidFill: React.FC<{label?: string; pct?: number | string | null}
           </svg>
         )}
       </div>
+      {/* the caption under the vessel is metadata on the film's own page — `dim`, not a fixed pale blue that
+          only exists against a dark one */}
       <div style={{position: 'absolute', left: 0, right: 0, top: Math.min(cy + R + 44, labelTop), textAlign: 'center',
-        color: '#8fb0d8', font: `600 ${labelPx}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.06em'}}>{label}</div>
+        color: dna?.dim ?? '#8fb0d8', font: `600 ${labelPx}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.06em'}}>{label}</div>
     </AbsoluteFill>
   );
 };

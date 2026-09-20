@@ -15,7 +15,7 @@ import {useT, seg, easeInOutCubic, easeOutBack, clamp01, REDUCED_MOTION_T} from 
 import {drawOn} from '../runtime/draw';
 import {pointAt} from '../runtime/alongPath';
 import {leading, fitIfCJK} from '../runtime/cjkType';
-import {useDNA} from '../runtime/dna';
+import {useDNA, readableOn, tint, shade} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitTextPx} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
@@ -25,7 +25,7 @@ export const MAX_SPOKES = 10;
 const PIN_START = 0.14, PIN_STEP = 0.05, PIN_DUR = 0.24;
 const LAND_BY = REDUCED_MOTION_T - 0.02;
 export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: string}> = ({
-  items: SPOKES = ['GitHub', 'Slack', 'Notion', 'Drive', 'Jira', 'Gmail'], hub: HUB = 'WorkBuddy', accent: TEAL = '#3FE0D0'} = {}) => {
+  items: SPOKES = ['GitHub', 'Slack', 'Notion', 'Drive', 'Jira', 'Gmail'], hub: HUB = 'WorkBuddy', accent: tealIn} = {}) => {
   if (!Array.isArray(SPOKES) || SPOKES.length < 1 || SPOKES.length > MAX_SPOKES) {
     throw new Error(
       `MapRoutes needs 1-${MAX_SPOKES} \`items\` (got ${Array.isArray(SPOKES) ? SPOKES.length : typeof SPOKES}). ` +
@@ -43,6 +43,22 @@ export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: strin
   const step = n > 1 ? Math.min(PIN_STEP, (LAND_BY - PIN_START - PIN_DUR) / (n - 1)) : PIN_STEP;
   const t = useT();
   const dna = useDNA();
+  // A HUB-AND-SPOKE MAP IS ITS ROUTES, and the routes were one teal literal. On a film grounded paper the
+  // labels still read — each carries its own dark chip, which is legibility by accident — while the arcs
+  // between them, the pins they end at and the travelling packet all measured under 1.5:1: every connection
+  // this register exists to draw was gone, and the graticule authored to be a faint hint at 0.35 opacity
+  // became a hard dark web across the paper. The teal is the film's accent; the chip and its ink are the
+  // film's surface and ink; the graticule is the film's line. A colour the film PASSES still wins.
+  const TEAL = tealIn ?? dna?.accent ?? '#3FE0D0';
+  const GRAT_A = dna?.line ?? '#123049';
+  const GRAT_B = dna?.line ?? '#0f2a42';
+  const PACKET = dna?.fg ?? '#eafffb';
+  const CHIP = dna?.surface ?? 'rgba(10,25,35,.85)';
+  const CHIP_INK = dna?.fg ?? '#dffffa';
+  // The hub's ink is measured against the DISC it sits on, not taken from `onAccent`: the disc is a tint of
+  // the accent, not the accent, and on a light-key film `onAccent` is white — which on a pale mint sphere is
+  // the same white-on-white this whole pass exists to remove.
+  const HUB_INK = dna ? readableOn(tint(TEAL, 0.44), '#ffffff', '#06322b') : '#06322b';
   const {width: W, height: H} = useVideoConfig();
   // Centred on the CONTENT ZONE, not the frame, and scaled to it. Centred on H/2 with a fixed radius the
   // lowest node landed inside the strip the renderer burns the caption over, so a node label and a subtitle
@@ -63,8 +79,8 @@ export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: strin
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(130% 130% at 50% 45%, #0d2033, #060d16 72%)')}}>
       {/* faint map grid / graticule */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0, opacity: 0.35}}>
-        {[...Array(30)].map((_, i) => <line key={`v${i}`} x1={i * 70} y1={0} x2={i * 70} y2={H} stroke="#123049" strokeWidth={1} />)}
-        {[...Array(16)].map((_, i) => <ellipse key={`h${i}`} cx={hx} cy={hy} rx={120 + i * 130} ry={70 + i * 78} fill="none" stroke="#0f2a42" strokeWidth={1} />)}
+        {[...Array(30)].map((_, i) => <line key={`v${i}`} x1={i * 70} y1={0} x2={i * 70} y2={H} stroke={GRAT_A} strokeWidth={1} />)}
+        {[...Array(16)].map((_, i) => <ellipse key={`h${i}`} cx={hx} cy={hy} rx={120 + i * 130} ry={70 + i * 78} fill="none" stroke={GRAT_B} strokeWidth={1} />)}
       </svg>
       {/* glowing routes hub→spoke, drawing on, with a travelling packet */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
@@ -80,7 +96,7 @@ export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: strin
           return <g key={i}>
             <path d={d} fill="none" stroke={TEAL} strokeWidth={3} strokeOpacity={0.9} {...drawOn(draw)}
               style={{filter: `drop-shadow(0 0 8px ${TEAL})`}} />
-            {t > 0.3 + i * 0.05 && pk < 1 && <circle cx={bx} cy={by} r={7} fill="#eafffb" style={{filter: `drop-shadow(0 0 10px ${TEAL})`}} />}
+            {t > 0.3 + i * 0.05 && pk < 1 && <circle cx={bx} cy={by} r={7} fill={PACKET} style={{filter: `drop-shadow(0 0 10px ${TEAL})`}} />}
           </g>;
         })}
       </svg>
@@ -100,7 +116,7 @@ export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: strin
         return <div key={i} style={{position: 'absolute', left: px, top: py, transform: `translate(-50%,-50%) scale(${clamp01(pop)})`}}>
           <div style={{position: 'absolute', left: -18, top: -18, width: 36, height: 36, borderRadius: 18, background: TEAL, boxShadow: `0 0 20px ${TEAL}`}} />
           <div style={{position: 'absolute', left: -18 * pulse, top: -18 * pulse, width: 36 * pulse, height: 36 * pulse, borderRadius: '50%', border: `2px solid ${TEAL}`, opacity: 2 - pulse}} />
-          <div style={{position: 'absolute', ...(flip ? {right: LBL_OFF} : {left: LBL_OFF}), top: -20, padding: `8px ${LBL_PADX}px`, borderRadius: 8, background: 'rgba(10,25,35,.85)', border: `1px solid ${TEAL}55`, font: `700 ${lblPx}px/1 var(--f-body, Inter)`, color: '#dffffa', whiteSpace: 'nowrap'}}>{SPOKES[i]}</div>
+          <div style={{position: 'absolute', ...(flip ? {right: LBL_OFF} : {left: LBL_OFF}), top: -20, padding: `8px ${LBL_PADX}px`, borderRadius: 8, background: CHIP, border: `1px solid ${TEAL}55`, font: `700 ${lblPx}px/1 var(--f-body, Inter)`, color: CHIP_INK, whiteSpace: 'nowrap'}}>{SPOKES[i]}</div>
         </div>;
       })}
       {/* the hub */}
@@ -110,7 +126,8 @@ export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: strin
           film's hub read 「MCP 协」 over a line holding just 「议」, at a leading with no air in it either.
           `fitIfCJK` shrinks only CJK copy (English keeps the size the disc was designed at), `leading`
           only ever raises, and `balance` splits what still has to wrap into even lines. */}
-      <div style={{width: 130, height: 130, borderRadius: 65, background: 'radial-gradient(circle,#fff,#8ff5e8 60%,#2fb5a5)', boxShadow: `0 0 60px ${TEAL}`, display: 'flex', alignItems: 'center', justifyContent: 'center', font: `800 ${fitIfCJK(HUB, 30, (t, base) => fitTextPx(t, 114, base, {usable: 1.0}))}px/${leading(HUB, 1)} var(--f-body, Inter)`, color: '#06322b', textAlign: 'center', textWrap: 'balance', padding: 8}}>{HUB}</div>
+      <div style={{width: 130, height: 130, borderRadius: 65, background: dna ? `radial-gradient(circle, ${tint(TEAL, 0.82)}, ${tint(TEAL, 0.44)} 60%, ${shade(TEAL, 0.24)})`
+          : 'radial-gradient(circle,#fff,#8ff5e8 60%,#2fb5a5)', boxShadow: `0 0 60px ${TEAL}`, display: 'flex', alignItems: 'center', justifyContent: 'center', font: `800 ${fitIfCJK(HUB, 30, (t, base) => fitTextPx(t, 114, base, {usable: 1.0}))}px/${leading(HUB, 1)} var(--f-body, Inter)`, color: HUB_INK, textAlign: 'center', textWrap: 'balance', padding: 8}}>{HUB}</div>
       </div>
     </AbsoluteFill>
   );

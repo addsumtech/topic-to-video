@@ -19,7 +19,8 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, clamp01, easeInOutCubic, easeOutCubic, hash01} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, shade} from '../runtime/dna';
+import {onLight} from '../runtime/light';
 import {CONTENT_TOP, contentBottom, fitBlockPx, fitTextPx, textWidthPx, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 // @billboard: each phrase IS the object in the corridor, not writing on a face — there is no surface for it
@@ -70,6 +71,12 @@ export const WordTunnel: React.FC<{phrases?: string[]; tail?: string}> = ({
   const FG = dna?.fg ?? '#eef2f8';
   const ACC = dna?.accent ?? '#5b8cff';
   const BG = dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(120% 100% at 50% 50%, #10131c, #05070b 70%)';
+  // A DROP SHADOW IS SEPARATION FROM THE GROUND, NOT A CONSTANT BLACK. `rgba(0,0,0,.55)` behind a phrase is
+  // invisible on this library's own near-black grounds — where it was authored — and on a film grounded
+  // paper it rings the one word on the frame with grey: measured, 60% of this register's marks fell under
+  // 3:1 and every one of them was a glyph EDGE, not a glyph. `onLight` is the read this decision needs, and
+  // on paper the shadow becomes a soft shade of the room instead of a hole in it.
+  const SHADOW = dna && onLight(dna) ? shade(dna.bg, 0.22) : 'rgba(0,0,0,.55)';
 
   // THE CORRIDOR, in stage units. Depth is a fraction of the short side so the tunnel is as deep at 9:16 as
   // at 16:9 — written in bare px it would be a different room at every aspect (E8).
@@ -203,7 +210,7 @@ export const WordTunnel: React.FC<{phrases?: string[]; tail?: string}> = ({
           letterSpacing: '-0.02em',
           // The glow rides the phrase's own colour and its nearness, so the corridor has a light in it
           // without any element being lit by a colour the film never declares.
-          textShadow: `0 ${Math.round(d.px * 0.06)}px ${Math.round(d.px * 0.5)}px rgba(0,0,0,.55)`}}>
+          textShadow: `0 ${Math.round(d.px * 0.06)}px ${Math.round(d.px * 0.5)}px ${SHADOW}`}}>
           {d.text}
         </div>
       ))}

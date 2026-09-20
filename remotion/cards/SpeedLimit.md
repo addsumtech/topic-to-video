@@ -13,13 +13,13 @@
 | `limits` | 1–2 ceilings, each a string or `{label, level?}` | without levels the ORDER is the claim: the first is drawn lower and binds, the second sits above it. With `level` (0 = foot, 1 = top) on every ceiling they sit where the film says and the lowest binds — a lower binding level stops the bar sooner. The binding ceiling is red with a heavier line, the other pink. Labels sit right of the track, sized down to fit the room. Omitted, the MRI demo ceilings print |
 | `verdict` | the bold line left of the track once the bar jams | fitted to the room left of the track; empty draws nothing; omitted, the demo `blocked` prints |
 | `instead` | the accent line under the verdict — the lever that is left | as `verdict`; omitted, the demo `→ skip k-space lines instead` prints |
-| `accent` | the bar before it jams, the track edge and the `instead` line | plumbing — the DNA accent does NOT replace it |
+| `accent` | the bar before it jams, the track edge and the `instead` line | what you pass wins; unset it is the film's DNA accent, and only an un-themed film gets the original cyan |
 
 **Known traps:**
 - It was built for one MRI beat and every word was hardwired; a film about a battery or a road speed limit got an MRI slew-rate ceiling and was told to skip k-space lines. All five copy props now exist, but each still defaults to that MRI copy — set every one.
 - The ceilings' heights were fixed, so the frame asserted which limit binds first; now the order (or the levels) you pass is that claim — make sure it is true.
 - Label room was a literal sized for Inter; in a monospaced DNA face the labels ran off both edges. The room is measured with the DNA's own face now.
-- The warning red, the second ceiling's pink, the track fill and the title colour are fixed literals; only the ground follows the DNA.
+- The warning red and the second ceiling's pink keep their HUE — a ceiling is a warning and the colour is the meaning — but their EXPOSURE is re-picked against the film's ground from the register's own pair, so the red reads on paper as well as on black. The title, the verdict and the axis label take the film's ink and the track well its surface.
 
 **Refuses:** zero or more than 2 ceilings; a ceiling with no label; `level` on some ceilings but not all; a level not strictly between 0.05 and 0.95; two levels less than 0.08 apart.
 

@@ -73,12 +73,17 @@ def test_the_authoring_path_names_the_capability():
 def test_a_ground_on_a_register_that_cannot_follow_one_is_caught_before_the_render():
     """The runtime already refuses it — mid-render, minutes in, which is the cost measure_ground_reach.py's
     own docstring says the pre-render check exists to avoid. Found by following the new authoring rule and
-    watching the render throw on MorphForms."""
+    watching the render throw on MorphForms.
+
+    MORPHFORMS NO LONGER STANDS HERE. Its ground was a hardcoded near-black pool painted inside the film's
+    own — repaired on 2026-09-20 with the ink sweep, and `measure_ground_reach.py` now measures it as
+    FOLLOWING. `EmberFlame` is the example instead: a flame is emitted light, it measures as refusing, and
+    the rule under test is unchanged."""
     errors, warnings = [], []
-    v._beat_grounds([{"index": i, "shot": "MorphForms", **({"ground": 1} if i == 2 else {})}
+    v._beat_grounds([{"index": i, "shot": "EmberFlame", **({"ground": 1} if i == 2 else {})}
                      for i in range(10)], errors, warnings)
     assert errors and "does not follow one" in errors[0], errors
-    assert "MorphForms" in errors[0] and "shotLuma.ts" in errors[0]
+    assert "EmberFlame" in errors[0] and "shotLuma.ts" in errors[0]
 
 
 def test_a_ground_on_a_following_register_passes():
@@ -93,7 +98,7 @@ def test_the_follower_list_is_parsed_not_restated():
     import inspect
     src = inspect.getsource(v._ground_followers)
     assert "shotLuma.ts" in src and "GROUND_FOLLOWS_MEASURED" in src
-    for name in ("CardStack3D", "MorphForms"):
+    for name in ("CardStack3D", "EmberFlame"):
         assert name not in src, "_ground_followers hardcodes %s" % name
     got = v._ground_followers()
     assert got and len(got) > 50, "the follower list did not parse: %r" % (got,)

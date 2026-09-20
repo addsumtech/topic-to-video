@@ -5,7 +5,8 @@
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, contrastOf, readableOn, tint} from '../runtime/dna';
+import {onLight, ACCENT_CONTRAST_MIN, INK_CONTRAST_MIN} from '../runtime/light';
 import {bottomInset, fitContentSquare, inkBlockH} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
@@ -39,9 +40,14 @@ export const INTRINSIC_TEXT = [
  * drawn ellipse presented without a word is a picture a viewer will read as one — inventing evidence is a
  * worse failure than the hole it replaces.
  */
+/** The plate's own ground. A scan viewport is black in every reader that has ever shown one — the phantom
+ *  paints it, and a real `src` is a scan that brings its own — so anything drawn ON the plate is judged
+ *  against THIS and not against the film's paper. */
+const PLATE = '#05070c';
+
 const Phantom: React.FC<{ink: string}> = ({ink}) => (
   <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="none"
-    style={{display: 'block', background: '#05070c'}}>
+    style={{display: 'block', background: PLATE}}>
     <defs>
       <radialGradient id="ph-body" cx="50%" cy="44%" r="62%">
         <stop offset="0%" stopColor="#e8eef6" stopOpacity="0.92" />
@@ -69,11 +75,37 @@ const Phantom: React.FC<{ink: string}> = ({ink}) => (
 );
 
 export const Aliasing: React.FC<{src?: string; accent?: string; label?: string; credit?: string}> = ({
-  src, accent = '#22d3ee', label = 'The anatomy folds onto itself', credit = '',
+  src, accent: ACC, label = 'The anatomy folds onto itself', credit = '',
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
+  // THE INK IS THE FILM'S — EXCEPT WHAT IS DRAWN ON THE PLATE. The title, the ghost annotation and the
+  // Nyquist line were literals picked for a near-black ground, and all eight DNA presets are near-black, so
+  // on a film whose DNA came from a warm-white deck they drew white on white (measured median 1.16:1 over
+  // 86% of the marks, `scripts/ink_contrast_qa.py`); those read from the DNA now. The plate is the
+  // opposite case and must not follow: it is a scan, it paints its own night, and its marks — the fold-over
+  // line, the phantom's own strokes, the provenance tag — would vanish INTO it if they took a light film's
+  // dark ink. They are judged against `PLATE` instead. Each token keeps its OWN original literal as its
+  // fallback, so an un-themed render is unchanged.
+  const accent = ACC ?? dna?.accent ?? '#22d3ee';
+  const ink = dna?.fg ?? '#dfe8f5';          // the title
+  const inkGhost = dna?.fg ?? '#c9d6ea';     // what the ghost IS, under its label
+  const meta = dna?.dim ?? '#8aa';           // the Nyquist line under the plate
+  const metaCredit = dna?.dim ?? '#5f6b7d';  // the CC-BY credit
+  // the ghost's own warning colour, which is a MEANING and not a palette choice — kept while it reads on
+  // the film's ground, and taken to its dark twin when the ground is paper (measured 2.3:1 there)
+  const ghostInk = readableOn(dna?.bg ?? '#05060a', '#ff8ad0', '#8f1d5f');
+  // ...and the marks that live on the plate, lifted until they read on ITS night rather than on the paper
+  const onPlate = (c: string, floor: number) => (contrastOf(c, PLATE) >= floor ? c : tint(c, 0.6));
+  const plateAccent = onPlate(accent, ACCENT_CONTRAST_MIN);
+  const tagInk = onPlate(dna?.dim ?? '#93a3b8', INK_CONTRAST_MIN);
+  // A DROP SHADOW TUNED FOR A DARK GROUND IS A SMUDGE ON PAPER. `#000a` is black at two-thirds alpha
+  // blurred 60px, which is invisible under a plate on near-black and, measured on a warm-white film, takes
+  // the paper directly beneath the plate from 246 to 135 — the Nyquist line under it is then read
+  // against a grey stain rather than against the page. The shadow itself is
+  // right; its weight is not, so it lightens on a light ground and is untouched everywhere else.
+  const plateShadow = onLight(dna) ? '#0003' : '#000a';
   // THE RESERVE HAS TO MATCH THE BRANCH THAT SPENDS IT. `bottomReserve: 44` is right beside the plate,
   // where the note sits 34 under it — and wrong when the annotation STACKS, where the note steps down to
   // +118 and needs its ink too. At 4:5 that put 'undersample -> Nyquist violated -> wrap-around' inside the
@@ -102,31 +134,31 @@ export const Aliasing: React.FC<{src?: string; accent?: string; label?: string; 
       : {width: '100%', height: '100%', objectFit: 'cover'};
     return src
       ? <Img src={staticFile(src)} style={style} />
-      : <div style={{...style, position: wrapped ? 'absolute' : 'relative'}}><Phantom ink={accent} /></div>;
+      : <div style={{...style, position: wrapped ? 'absolute' : 'relative'}}><Phantom ink={plateAccent} /></div>;
   };
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 46%, #0b1120, #05060a)')}}>
       <div style={{position: 'absolute', left, top, width: S, height: S, borderRadius: 6, overflow: 'hidden',
-        boxShadow: `0 0 0 1.5px ${accent}88, 0 20px 60px #000a`}}>
+        boxShadow: `0 0 0 1.5px ${accent}88, 0 20px 60px ${plateShadow}`}}>
         {plate(false)}
         {/* the wrapped copy: shifted by half, wrapping top→bottom, overlaid = the fold-over ghost */}
         {plate(true, '-50%')}
         {plate(true, '50%')}
       </div>
       <svg width={W} height={H} style={{position: 'absolute'}}>
-        <line x1={left} y1={top + S / 2} x2={left + S} y2={top + S / 2} stroke={accent} strokeWidth={1.4} strokeDasharray="5 6" opacity={ghost * 0.7} />
-        <text x={gx} y={gy} fill="#ff8ad0" fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700} opacity={ghost}>ghost:</text>
-        <text x={gx} y={gy + 30} fill="#c9d6ea" fontSize="20" fontFamily="var(--f-body, Inter, sans-serif)" opacity={ghost}>a wrapped copy folds in</text>
-        <text x={left + S / 2} y={noteY} textAnchor="middle" fill="#8aa" fontSize="19" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01(seg(t, 0.1, 0.4))}>undersample → Nyquist violated → wrap-around</text>
+        <line x1={left} y1={top + S / 2} x2={left + S} y2={top + S / 2} stroke={plateAccent} strokeWidth={1.4} strokeDasharray="5 6" opacity={ghost * 0.7} />
+        <text x={gx} y={gy} fill={ghostInk} fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700} opacity={ghost}>ghost:</text>
+        <text x={gx} y={gy + 30} fill={inkGhost} fontSize="20" fontFamily="var(--f-body, Inter, sans-serif)" opacity={ghost}>a wrapped copy folds in</text>
+        <text x={left + S / 2} y={noteY} textAnchor="middle" fill={meta} fontSize="19" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01(seg(t, 0.1, 0.4))}>undersample → Nyquist violated → wrap-around</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
+        color: ink, font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
-      {credit ? <div style={{position: 'absolute', left: 20, bottom: bottomInset(W, H, 8), color: '#5f6b7d', font: "400 14px/1.3 var(--f-body, Inter, sans-serif)"}}>{credit}</div> : null}
+      {credit ? <div style={{position: 'absolute', left: 20, bottom: bottomInset(W, H, 8), color: metaCredit, font: "400 14px/1.3 var(--f-body, Inter, sans-serif)"}}>{credit}</div> : null}
       {/* never let a drawn ellipse pass for a scan */}
       {!src ? (
-        <div style={{position: 'absolute', left: left + 10, top: top + S - 30, color: '#93a3b8',
+        <div style={{position: 'absolute', left: left + 10, top: top + S - 30, color: tagInk,
           font: "500 15px/1.2 var(--f-mono, 'JetBrains Mono', monospace)", letterSpacing: '0.06em'}}>
           synthetic phantom
         </div>

@@ -669,8 +669,14 @@ export const surfaceOn = (ground: string, hint: string,
     const c = mix(hint, pole, f);
     if (Math.abs(pilL(c) - g) >= minStep) return c;
   }
-  throw new Error(`surfaceOn(): ${hint} cannot be pushed off ${ground} by ${minStep} — the ground is at the `
-    + 'pole, so a container needs a different colour, not more of this one.');
+  // ...and SAY WHICH of the two is the problem. This blamed the ground in every case, so a caller handed a
+  // non-solid `surface` — `rgba(255,255,255,0.05)`, which looks exactly like this library's glass panels —
+  // read it as "your ground is at the pole" and went looking in the wrong place.
+  const solid = /^#([0-9a-f]{3,8})$/i.test(hint.trim());
+  throw new Error(`surfaceOn(): ${hint} cannot be pushed off ${ground} by ${minStep} — `
+    + (solid ? 'the ground is at the pole, so a container needs a different colour, not more of this one.'
+             : 'that is not a solid colour. A container fill is mixed toward a pole, which a translucent '
+               + 'rgba()/hsla() cannot be; give the DNA a hex `surface`.'));
 };
 
 /**

@@ -17,5 +17,6 @@
 - The default `gamma` is `42.58 MHz/T`, which is true of ¹H only. It used to be literal text that no prop could reach, so a sodium or phosphorus film was told the hydrogen number. It is a prop now, but omitting it still prints the hydrogen value.
 - The tilt and the speed are fixed. Neither is data.
 - Leaving `label` unset prints `Larmor precession`.
+- The ink is the film's: μ, its head and its label take the DNA's `fg` with the title, the B₀ label takes `dim`, and `accent`/`accent2` fall back to the film's two accents before their own cyan and violet. A prop still wins, and with no DNA every original literal prints as before. Until this was done the diagram drew white on white on a light-ground film (measured median 1.12:1).
 
 **Reference:** `remotion/src/shots/LarmorPrecession.tsx`

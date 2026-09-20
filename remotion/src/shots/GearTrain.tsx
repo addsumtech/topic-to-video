@@ -12,7 +12,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic, easeOutBack} from '../runtime/motion';
 import {leading} from '../runtime/cjkType';
-import {useDNA, dnaPalette} from '../runtime/dna';
+import {useDNA, dnaPalette, mix, readableOn, separated, TONE_MIN_STEP} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#0b0c11';
@@ -20,21 +20,26 @@ const TONES0 = ['#5b8cff', '#f6a531', '#ff5b7f', '#22c197'];
 const R = 156, TEETH = 12, SPACING = 278;
 export const MAX_GEARS = 4;
 
-const Gear: React.FC<{cx: number; cy: number; angle: number; tone: string; live: boolean}> = ({cx, cy, angle, tone, live}) => (
+// A GEAR IS AN OBJECT ON THE FILM'S GROUND, not a black disc with its own night. Its body, its dead-tooth
+// grey and its two inner highlights were literals, so on a film grounded paper three black discs sat on white
+// and the step names — white type that only reads BECAUSE the disc is black — were legible by accident rather
+// than by design. `body`/`dead`/`ink` are passed in so the Gear stays a pure function of its props.
+const Gear: React.FC<{cx: number; cy: number; angle: number; tone: string; live: boolean;
+  body: string; dead: string; spoke: string; rim: string}> = ({cx, cy, angle, tone, live, body, dead, spoke, rim}) => (
   <g transform={`rotate(${angle} ${cx} ${cy})`}>
     {[...Array(TEETH)].map((_, j) => {
       const a = (j / TEETH) * Math.PI * 2;
       const tx = cx + Math.cos(a) * R, ty = cy + Math.sin(a) * R;
       return <rect key={j} x={tx - 20} y={ty - 20} width={40} height={40} rx={7}
-        fill={live ? tone : '#2a2f45'} transform={`rotate(${(a * 180) / Math.PI} ${tx} ${ty})`} />;
+        fill={live ? tone : dead} transform={`rotate(${(a * 180) / Math.PI} ${tx} ${ty})`} />;
     })}
-    <circle cx={cx} cy={cy} r={R - 6} fill="#12141f" stroke={live ? tone : '#2a2f45'} strokeWidth={4} />
-    <circle cx={cx} cy={cy} r={R - 58} fill="none" stroke="#ffffff10" strokeWidth={10} />
+    <circle cx={cx} cy={cy} r={R - 6} fill={body} stroke={live ? tone : dead} strokeWidth={4} />
+    <circle cx={cx} cy={cy} r={R - 58} fill="none" stroke={rim} strokeWidth={10} />
     {[...Array(6)].map((_, s) => {
       const a = (s / 6) * Math.PI * 2;
       return <line key={s} x1={cx + Math.cos(a) * 40} y1={cy + Math.sin(a) * 40}
         x2={cx + Math.cos(a) * (R - 60)} y2={cy + Math.sin(a) * (R - 60)}
-        stroke="#ffffff12" strokeWidth={12} strokeLinecap="round" />;
+        stroke={spoke} strokeWidth={12} strokeLinecap="round" />;
     })}
   </g>
 );
@@ -43,7 +48,23 @@ export const GearTrain: React.FC<{items?: string[]; label?: string; title?: stri
   items: ITEMS = ['Trigger', 'Process', 'Deliver'], label: LABEL = 'Automatic', title: TITLE = 'How it runs'} = {}) => {
   const dna = useDNA();
   const TONES = dnaPalette(dna, 4) ?? TONES0;   // derive the palette from the film's DNA (null DNA = the original)
-  const BG = dna?.bg ?? BG_D0;
+  const GROUND = dna?.bg ?? BG_D0;
+  // The gear body is a real step off the film's ground — toward whichever pole that ground has room for, so
+  // it is a raised disc on a dark film and a machined plate on a light one, never a region that is not there.
+  // Its label is then measured against the body it is actually drawn on, rather than assumed white.
+  const BODY = dna ? separated(GROUND, readableOn(GROUND, '#ffffff', '#05070c'), TONE_MIN_STEP * 0.6) : '#12141f';
+  const DEAD = dna ? separated(GROUND, readableOn(GROUND, '#ffffff', '#05070c'), TONE_MIN_STEP * 1.4) : '#2a2f45';
+  const SPOKE = dna ? `${readableOn(BODY, '#ffffff', '#05070c')}12` : '#ffffff12';
+  const RIM = dna ? `${readableOn(BODY, '#ffffff', '#05070c')}10` : '#ffffff10';
+  // The last gear's label BRIGHTENS when the train locks, and that cue is a difference between two inks —
+  // originally #e7ebf7 and a pure #fff. Reading both from the same picker would have collapsed them into one
+  // colour on every themed film and quietly deleted the lock. The locked ink is the pure pole; the resting
+  // one is that pole stepped back toward the body by the same small amount the original pair differed by.
+  const POLE_INK = dna ? readableOn(BODY, '#ffffff', '#05070c') : '#fff';
+  const STEP_INK = dna ? mix(POLE_INK, BODY, 0.10) : '#e7ebf7';
+  const LOCKED_INK = POLE_INK;
+  const IDX_INK = dna?.dim ?? '#7f879c';
+  const TITLE_INK = dna?.dim ?? '#aeb6ca';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   if (!Array.isArray(ITEMS) || ITEMS.length < 2 || ITEMS.length > MAX_GEARS) {
@@ -67,9 +88,12 @@ export const GearTrain: React.FC<{items?: string[]; label?: string; title?: stri
   // it would not fit, and is untouched (k = 1) wherever it already did — every 16:9 frame.
   const fit = Math.min(1, (W * 0.92) / (totalW + 2 * (R + 24)));
   return (
-    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 40%, #14172a, ${BG} 70%)`}}>
+    // ...and the ground's lift followed nothing: only its outer stop read the DNA, so a paper film got a navy
+    // pool behind the train with its own paper around it.
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg
+        ?? `radial-gradient(120% 100% at 50% 40%, #14172a, ${BG_D0} 70%)`}}>
       <div style={{position: 'absolute', top: 88, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
-        color: '#aeb6ca', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em',
+        color: TITLE_INK, font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em',
         textTransform: 'uppercase'}}>{TITLE}</div>
 
       <div style={{position: 'absolute', inset: 0, transform: fit < 1 ? `scale(${fit})` : undefined,
@@ -82,7 +106,8 @@ export const GearTrain: React.FC<{items?: string[]; label?: string; title?: stri
           const base = (i % 2) * (180 / TEETH); // half-tooth offset so neighbours interleave
           const angle = base + dir * revs * 360 * engaged;
           const live = t > 0.12 + i * 0.12 - 0.02;
-          return <Gear key={i} cx={cx} cy={cy} angle={angle} tone={TONES[i % TONES.length]} live={live} />;
+          return <Gear key={i} cx={cx} cy={cy} angle={angle} tone={TONES[i % TONES.length]} live={live}
+            body={BODY} dead={DEAD} spoke={SPOKE} rim={RIM} />;
         })}
       </svg>
 
@@ -94,9 +119,9 @@ export const GearTrain: React.FC<{items?: string[]; label?: string; title?: stri
         return (
           <div key={i} style={{position: 'absolute', left: cx, top: cy, transform: 'translate(-50%,-50%)',
             textAlign: 'center', opacity: on, width: R * 1.7}}>
-            <div style={{color: '#7f879c', font: '600 20px/1 var(--f-mono, "JetBrains Mono", monospace)',
+            <div style={{color: IDX_INK, font: '600 20px/1 var(--f-mono, "JetBrains Mono", monospace)',
               letterSpacing: '0.14em', marginBottom: 8}}>{String(i + 1).padStart(2, '0')}</div>
-            <div style={{color: isLast && locked ? '#fff' : '#e7ebf7',
+            <div style={{color: isLast && locked ? LOCKED_INK : STEP_INK,
               font: `800 40px/${leading(g, 1)} var(--f-body, Inter, system-ui, sans-serif)`, letterSpacing: '-0.01em'}}>{g}</div>
           </div>
         );

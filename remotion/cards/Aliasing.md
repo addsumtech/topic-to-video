@@ -10,13 +10,13 @@
 |---|---|---|
 | `label` | the headline above the plate | a fixed 40px line, centred; short copy sits on one line, and long copy wraps downward toward the plate (it isn't fitted) |
 | `src` | the scan image (a path in `public/`) | given: the real scan folds onto itself. Omitted: a drawn, deliberately asymmetric phantom labelled `synthetic phantom` on the plate |
-| `accent` | the plate's border, the fold line and the phantom's ink | defaults to cyan, independent of the DNA accent |
+| `accent` | the plate's border, the fold line and the phantom's ink | defaults to the film's DNA accent, then to its own cyan; the marks on the plate are lifted to read on its night |
 | `credit` | a small attribution line, bottom-left | for CC-BY scans; `''` draws nothing |
 
 **Known traps:**
 - The annotation words (`ghost:`, `a wrapped copy folds in`, `undersample → Nyquist violated → wrap-around`, `synthetic phantom`) belong to the form and are declared in `INTRINSIC_TEXT`. They print in English on every film, and no prop can reword them.
 - Without `src` the picture is drawn, not scanned. The `synthetic phantom` tag is there so the drawing never passes for evidence, so keep it that way. An earlier symmetric phantom read as a cartoon face, and a symmetric one also hides the ghost.
 - When there's too little room beside the plate (portrait) the annotation moves under the plate. The square is measured twice so that the note's reserve matches the branch that's used. At 4:5 a single fit once put the Nyquist note in the caption band.
-- The headline, annotation and note colours are fixed light tints, while the ground follows the DNA. A light DNA ground would wash them out.
+- The ink is the film's for everything on the GROUND — the headline and what the ghost is take `fg`, the Nyquist note and the credit take `dim`, and `ghost:` keeps its warning pink while that reads, swapping to a dark twin on paper (it measures 2.3:1 there). What is on the PLATE must not follow: the fold line, the phantom's own strokes and the `synthetic phantom` tag are judged against the plate's `#05070c`, because a light film's ink is dark and dark on the plate is the same disappearance one layer in. With no DNA every original literal prints as before (measured median 1.16:1 before this).
 
 **Reference:** `remotion/src/shots/Aliasing.tsx`

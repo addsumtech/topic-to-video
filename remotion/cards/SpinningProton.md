@@ -10,14 +10,14 @@
 |---|---|---|
 | `label` | the title across the top | fixed-size, not fitted: one line reads as the claim; long copy wraps; omitted, the demo `A proton that spins like a tiny magnet` prints |
 | `sublabel` | the small mono line under the proton | fitted to the frame width; `''` draws nothing. Omitted, the demo `~70% water · ¹H` prints — a figure |
-| `accent` | the proton's colour and the field loops | plumbing — the DNA accent does not replace it |
-| `accent2` | the spin arrow and the water molecules | plumbing — the DNA's second accent does not replace it |
+| `accent` | the proton's colour and the field loops | defaults to the film's DNA accent, and the sphere's dark side is a shade of it; pass a prop to override |
+| `accent2` | the spin arrow and the water molecules | defaults to the film's second accent; pass a prop to override |
 
 **Known traps:**
 - The line under the proton used to be a hardwired `~70% water · ¹H` that no prop could change (LIBRARY.md advertised a `sublabel` that did not exist). It is a prop now but still defaults to that percentage: omit it and a body-composition figure prints on any film.
 - μ's arrowhead used to run through the title's letters; its length now yields to the title band — it is not a quantity.
 - The spin arrow used to be an arc rotated in the picture plane (500° over the clip), which is spin about the line of sight: mid-shot it stood on end through the proton and hung upside down. It now travels around a ring that stays horizontal about μ.
 - μ starts at the proton's pole; it used to start at the centre and strike through the + charge.
-- Type, the proton's + and μ are fixed light colours; only the ground follows the DNA.
+- The ink is the film's: the proton's rim, μ and the title take the DNA's `fg`, the line under the proton and the bulk water take `dim`, and the `+` takes `onAccent` — it is ink ON the sphere's accent body, not on the ground. With no DNA every original literal prints as before. Until this was done the rim, μ and both lines of type drew white on white on a light-ground film (measured median 1.12:1).
 
 **Reference:** `remotion/src/shots/SpinningProton.tsx`

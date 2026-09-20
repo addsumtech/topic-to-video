@@ -98,7 +98,19 @@ export const DataMonolith: React.FC<{items?: (string | MonolithItem)[]; title?: 
   const valued = towers[0].value != null;
   const vmax = valued ? Math.max(...towers.map((w) => w.value as number)) : 1;
   const dna = useDNA();
-  const BG = dna?.bg ?? BG_D0, ACC = dna?.accent ?? ACC_D0, ACC2 = dna?.accent2 ?? ACC2_D0;
+  const ACC = dna?.accent ?? ACC_D0, ACC2 = dna?.accent2 ?? ACC2_D0;
+  // THE SKYLINE KEPT ITS BARS AND LOST ITS CATEGORIES. The towers are drawn in the film's accents, but every
+  // word around them was a literal — the title (#aeb6ca), each value (#e6ecf8) and each tower's LABEL, which
+  // is the only thing saying which bar is which. On a film grounded paper those labels sit on the paper and
+  // measured 1.83:1 and below: a chart of six unnamed columns. The cap light on each tower was a flat
+  // #ffffff, which is a lit edge on a dark skyline and nothing at all on white.
+  const TITLE_INK = dna?.dim ?? '#aeb6ca';
+  const VALUE_INK = dna?.fg ?? '#e6ecf8';
+  const HERO_INK = dna?.fg ?? '#fff';
+  const LABEL_INK = dna?.fg ?? '#aeb6ca';      // no hero named: every label is a full-strength label
+  const MUTED_INK = dna?.dim ?? '#8b93a8';     // a hero IS named: the rest recede
+  const CAP = dna?.fg ?? '#ffffff';
+  const GRID = dna?.line ?? '#2b3a6e';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   // THE FLOOR YIELDS TO THE LABELS UNDER IT. `H * 0.72` is a flat fraction and the labels hang 22px below
@@ -120,9 +132,13 @@ export const DataMonolith: React.FC<{items?: (string | MonolithItem)[]; title?: 
   // one full pass, left to right, between the last tower landing and the end of the shot (row fractions -0.2..1.2)
   const sweepX = ((Math.max(0, t - 0.62) * 3.7) % 1.4) - 0.2;
   return (
-    <AbsoluteFill style={{background: `radial-gradient(120% 90% at 50% 30%, #10162e, ${BG} 72%)`, overflow: 'hidden'}}>
+    // ...AND THE GROUND'S LIFT FOLLOWED NOTHING: only the outer stop read the DNA, so a paper film got a navy
+    // pool under its skyline with its own paper around the edge. The film's treatment, then its ground, then
+    // the original well.
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg
+        ?? `radial-gradient(120% 90% at 50% 30%, #10162e, ${BG_D0} 72%)`, overflow: 'hidden'}}>
       <div style={{position: 'absolute', top: 74, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
-        color: '#aeb6ca', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em',
+        color: TITLE_INK, font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em',
         textTransform: 'uppercase', zIndex: 3}}>{TITLE}</div>
 
       {/* perspective floor grid */}
@@ -130,11 +146,11 @@ export const DataMonolith: React.FC<{items?: (string | MonolithItem)[]; title?: 
         <g opacity={0.28}>
           {[...Array(13)].map((_, i) => {
             const fx = (i / 12) * W;
-            return <line key={'v' + i} x1={lerp(W / 2, fx, 0.2)} y1={floorY} x2={fx} y2={H} stroke="#2b3a6e" strokeWidth={1} />;
+            return <line key={'v' + i} x1={lerp(W / 2, fx, 0.2)} y1={floorY} x2={fx} y2={H} stroke={GRID} strokeWidth={1} />;
           })}
           {[...Array(6)].map((_, i) => {
             const yy = lerp(floorY, H, (i / 5) ** 1.7);
-            return <line key={'h' + i} x1={0} y1={yy} x2={W} y2={yy} stroke="#2b3a6e" strokeWidth={1} />;
+            return <line key={'h' + i} x1={0} y1={yy} x2={W} y2={yy} stroke={GRID} strokeWidth={1} />;
           })}
         </g>
       </svg>
@@ -159,7 +175,7 @@ export const DataMonolith: React.FC<{items?: (string | MonolithItem)[]; title?: 
               transform: `scaleY(${pulse})`, transformOrigin: 'bottom',
               background: `linear-gradient(${tone}, ${tone}22)`, borderRadius: '6px 6px 0 0',
               boxShadow: `0 0 ${Math.round(30 + 40 * lit)}px ${tone}${lit > 0.5 ? '99' : '55'}, inset 0 0 20px ${tone}44`,
-              borderTop: `4px solid #ffffff`, opacity: clamp01(grow * 1.4) * (th > 0 ? 1 : 0),
+              borderTop: `4px solid ${CAP}`, opacity: clamp01(grow * 1.4) * (th > 0 ? 1 : 0),
               filter: lit > 0.01 ? `brightness(${(1 + 0.25 * lit).toFixed(3)})` : undefined}} />
             {/* reflection */}
             <div style={{position: 'absolute', left: x, top: floorY, width: bandW, height: th * 0.5,
@@ -169,14 +185,14 @@ export const DataMonolith: React.FC<{items?: (string | MonolithItem)[]; title?: 
             {tw.text != null ? (
               <div style={{position: 'absolute', left: x - gap / 2, width: bandW + gap, textAlign: 'center',
                 top: floorY - th * pulse - VALUE_ROOM, opacity: clamp01(seg(t, 0.4 + i * 0.06, 0.56 + i * 0.06)),
-                color: '#e6ecf8', whiteSpace: 'nowrap',
+                color: VALUE_INK, whiteSpace: 'nowrap',
                 font: `700 ${Math.max(12, Math.min(VALUE_PX, fitTextPx(tw.text, bandW + gap * 0.8, VALUE_PX, {usable: 1})))}px/1 ` +
                   'var(--f-mono, "JetBrains Mono", monospace)'}}>{tw.text}</div>
             ) : null}
             {/* label */}
             <div style={{position: 'absolute', left: x, top: floorY + 22, width: bandW, textAlign: 'center',
               opacity: clamp01(seg(t, 0.3 + i * 0.05, 0.5 + i * 0.05)),
-              color: isHero ? '#fff' : heroIdx == null ? '#aeb6ca' : '#8b93a8',
+              color: isHero ? HERO_INK : heroIdx == null ? LABEL_INK : MUTED_INK,
               font: `${isHero ? 800 : 600} 22px/${leading(tw.label, 1)} var(--f-body, Inter, system-ui, sans-serif)`}}>{tw.label}</div>
           </div>
         );

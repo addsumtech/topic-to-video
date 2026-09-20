@@ -14,8 +14,8 @@
 
 **Known traps:**
 - The diagram's labels (`RF pulse · B₁`, `at the Larmor frequency`, `transverse plane`, `B₀`, `M`) are fixed English text declared as INTRINSIC_TEXT; no prop reaches them, so a Chinese film still shows them in English.
-- `accent` gets an alpha byte appended for the B₀ axis (`#22d3ee` → `#22d3ee80`), so a named, rgb() or 3-digit colour produces an invalid stroke and the axis disappears.
-- Only the ground follows the DNA: the vector, its label and all text are fixed light tints and the accents default to cyan/violet, so on a light DNA ground the white vector and headline lose contrast.
+- `accent` gets an alpha byte appended for the B₀ axis (`#22d3ee` → `#22d3ee80`), so a named, rgb() or 3-digit colour produces an invalid stroke and the axis disappears. Every preset and every deck-derived DNA writes `#rrggbb`, so the accent it now defaults to is safe; a hand-written prop is the risk.
+- The ink is the film's: M, its label and the two headings take the DNA's `fg`, the B₀ and plane labels take `dim`, and `accent`/`accent2` fall back to the film's two accents before their own cyan and violet. A prop still wins, and with no DNA every original literal prints as before. Until this was done the vector and the headline drew white on white on a light-ground film (measured median 1.12:1).
 - Omitting `label` prints the default "Resonance tips the magnetization".
 
 **Reference:** `remotion/src/shots/MagnetizationTip.tsx`

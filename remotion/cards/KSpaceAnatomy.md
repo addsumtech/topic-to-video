@@ -21,5 +21,6 @@
 - The diagram's labels ("k-space (spatial frequencies)", "center = contrast", "edges = detail", the frequency lines) are fixed English text.
 - On portrait, the side labels once ran off the edge, then onto panel two and into the caption band. When there isn't room beside the panels, the labels now drop under them and the column is sized to the content zone.
 - Leaving `label` unset prints `Reading k-space`.
+- The type is the film's (`fg` for the title and the data panel's name, `dim` for the frequency lines and the credit) but the three PANELS keep their own night: they hold a k-space magnitude and two reconstructions, and a scan viewport is black in every reader that has ever shown one. They paint `#05060a` only when the film's ground is light — on a dark film, and with no DNA, nothing is painted and the ground shows through as before. The two rings are drawn inside the k-space panel, so they are lifted to read on that night; the mapping arrows are not, because they spend most of their length on the film's ground (measured median 1.63:1 before this).
 
 **Reference:** `remotion/src/shots/KSpaceAnatomy.tsx`

@@ -8,10 +8,19 @@ import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime
 import {drawOn} from '../runtime/draw';
 import {pointAt} from '../runtime/alongPath';
 import {useDNA} from '../runtime/dna';
+import {darkGround} from '../runtime/light';
 import {bottomInset} from '../runtime/layout';
 
 export const DURATION = 160; // ~5.3s
 
+// @dark-world: this is long-exposure light PAINTING. The check is not a stroke that happens to glow — it is
+// the trail a travelling head LEAVES, drawn by an additive bloom filter, and the ribbons behind it are the
+// same. A stroke of light cannot be brighter than paper, so on a warm-white ground the register measured a
+// median 1.00:1 with 100% of its marks under 3:1 (scripts/ink_contrast_qa.py): not ink that reads badly, ink
+// that is not there. Inverting it would draw a dark line, which is a drawing of a check, not a light
+// painting of one. So it keeps its own night whenever the film's ground is not dark.
+const OWN_NIGHT = 'radial-gradient(120% 120% at 50% 46%, #0a1020 0%, #05070f 66%, #03040a 100%)';
+const OWN_NIGHT_FLAT = '#05070f';                  // the same night as one colour, for darkGround to judge
 
 export const LightTrails: React.FC<{label?: string}> = ({label = 'done in one motion'} = {}) => {
   const t = useT();
@@ -34,8 +43,14 @@ export const LightTrails: React.FC<{label?: string}> = ({label = 'done in one mo
     return {x, y};
   };
 
+  // The film's ground while the film's ground is dark (all eight presets), this register's own night when it
+  // is not. The branch is on what `darkGround` RETURNED, not on a comparison with the literal, so a dark film
+  // that happens to ground on exactly this colour still gets its own `bgGrad` treatment rather than ours.
+  const night = darkGround(dna?.bg, OWN_NIGHT_FLAT);
+  const ground = night === dna?.bg ? (dna?.bgGrad ?? night) : OWN_NIGHT;
+
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 46%, #0a1020 0%, #05070f 66%, #03040a 100%)')}}>
+    <AbsoluteFill style={{background: ground}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <defs>
           <filter id="ltglow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="8" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>

@@ -18,7 +18,7 @@
 - Items without coordinates used to be plotted dead centre; `x` and `y` are now required in 0..1, so a position the film never gave cannot be drawn.
 - One-character labels (a Chinese name like 「我」) used to be hidden; every given label is drawn now.
 - Labels never wrap and always sit to the right of their dot, so a long label on a dot near the right edge runs past the plot — and close dots put their labels on top of each other.
-- The axes, labels and dot colours are fixed literals; only the ground follows the DNA.
+- The axes take the DNA's `line`, the hero its `accent` and `fg`, and every other label its `dim`. Before this the hero's own label was a near-white literal, so on a paper ground the one thing the matrix exists to say — which dot is us — had no name beside it (98% of the marks measured under 3:1).
 
 **Refuses:** fewer than 1 or more than 8 items; an item whose `x` or `y` is missing, not a finite number, or outside 0..1.
 

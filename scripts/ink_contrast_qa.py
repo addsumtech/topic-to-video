@@ -37,6 +37,7 @@ Usage:
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -52,9 +53,13 @@ _SHOTS = os.path.join(_REM, "src", "shots")
 # radius — is shared, so a pixel is the same mark in both renders and the comparison is about colour alone.
 _TYPE = {"fontDisplay": "Inter, sans-serif", "fontBody": "Inter, sans-serif",
          "fontMono": "ui-monospace, monospace", "radius": 14}
+# THE PROBE'S OWN TOKENS ARE SOLID COLOURS, as all eight presets are. Written with `rgba(255,255,255,0.05)`
+# for `surface` — which reads like this library's panels but is not what any DNA actually ships — the probe
+# made `surfaceOn()` throw, and `CardStack3D` was recorded as "refused to render" for eleven sweeps. A gate
+# whose own input a register cannot accept measures nothing and says the register is at fault.
 DARK = dict(_TYPE, id="inkprobe-dark", bg="#0b0d12", fg="#f2f5fa", dim="#8b97a8", accent="#5ac8fa",
-            accent2="#ff9f0a", onAccent="#05070b", surface="rgba(255,255,255,0.05)",
-            surfaceBorder="rgba(255,255,255,0.14)", line="rgba(255,255,255,0.14)")
+            accent2="#ff9f0a", onAccent="#05070b", surface="#171b28",
+            surfaceBorder="#2b3244", line="#232838")
 LIGHT = dict(_TYPE, id="inkprobe-light", bg="#f6f3ee", fg="#15181d", dim="#5d6570", accent="#1d63d6",
              accent2="#c2410c", onAccent="#ffffff", surface="#ffffff",
              surfaceBorder="#d8d3ca", line="#ded8cf")
@@ -68,7 +73,30 @@ FAIL_RATIO = 3.0        # WCAG's floor for large text — a mark under this on t
 # share is kept as context, and a register that loses HALF its marks is reported too, because a beat whose
 # left column vanished is not saved by a right column that did not.
 SHARE_FLOOR = 0.50
-FRAME = 142             # the settled frame this library reviews at
+# THE SETTLED FRAME IS PER REGISTER, not a constant. A fixed 142 is past the END of every register shorter
+# than 143 frames, and `remotion still` refuses the frame rather than clamping it — so `CrashZoom`,
+# `GlowPick`, `OdometerRoll`, `SurfaceCarousel`, `VelocitySnap`, `TemporalAccelerate` and `CursorStory` were
+# never measured at all, and the sweep said "skipped" with a stack trace that named nothing. Each register
+# declares its own DURATION; the settled point is the library's own REDUCED_MOTION_T through it.
+FRAME = 142             # the fallback when a register declares no DURATION
+_DUR = re.compile(r"export const DURATION\s*=\s*(\d+)")
+
+
+def settled_frame(shot):
+    try:
+        src = open(os.path.join(_SHOTS, shot + ".tsx"), encoding="utf-8").read()
+    except OSError:
+        return FRAME
+    m = _DUR.search(src)
+    if not m:
+        return FRAME
+    dur = int(m.group(1))
+    try:
+        mot = open(os.path.join(_REM, "src", "runtime", "motion.ts"), encoding="utf-8").read()
+        t = float(re.search(r"REDUCED_MOTION_T\s*=\s*([0-9.]+)", mot).group(1))
+    except Exception:
+        t = 0.86
+    return max(0, min(dur - 1, int(round(dur * t))))
 
 
 def _y(rgb):
@@ -112,14 +140,14 @@ def bundle(out_dir):
     return out_dir
 
 
-def _still(shot, dna, out_png, props=None, frame=FRAME, serve=None):
+def _still(shot, dna, out_png, props=None, frame=None, serve=None):
     payload = dict(props or {}, dna=dna)
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as fh:
         json.dump(payload, fh, ensure_ascii=False)
         pf = fh.name
     try:
         r = subprocess.run(["npx", "remotion", "still", serve or "src/index.ts", shot, out_png,
-                            "--frame=%d" % frame, "--gl=angle", "--log=error", "--props=" + pf],
+                            "--frame=%d" % (settled_frame(shot) if frame is None else frame), "--gl=angle", "--log=error", "--props=" + pf],
                            cwd=_REM, capture_output=True, text=True, timeout=900)
         return r
     finally:
@@ -171,6 +199,103 @@ def _ground_behind(y, radius):
     return np.where(y < mid, hi, lo)
 
 
+# A REGISTER WHOSE SUBJECT IS EMITTED LIGHT CANNOT BE DRAWN ON PAPER. An aurora, a phosphor screen, a signal
+# glowing in a scanner, headlights on a wet road — the DARKNESS is not a palette choice there, it is what makes
+# the light legible, and "invert the ink" is not a repair, it is a different picture. Such a register says so
+# in its header:
+#
+#     // @dark-world: <why this form needs a dark field>
+#
+# ...and the declaration is CHECKED, not believed: the register must actually keep its own ground when the
+# film's is light. One that declares darkness and then paints the film's warm white is reported — that is the
+# loudest version of the defect this gate exists for, since it now carries a note saying it is fine.
+_DARK_WORLD = re.compile(r"//[ \t]*@dark-world:[ \t]*(\S[^\n]*)")
+
+
+def _light_key_y(default=0.35):
+    """The exposure boundary, READ from runtime/light.tsx rather than chosen again here.
+
+    `darkGround` hands the film's ground through while `keyFromY` calls it dark, and this check asks whether
+    the register kept a dark field — the same question, so it must be the same number. Written independently
+    as 0.18, the two disagreed across a whole band: a film grounded between them would have every
+    `@dark-world` register legitimately take the film's ground and be reported by this gate as a LIE. No
+    shipped preset is near that band (the brightest is Y=0.0053), which is exactly why it would have sat
+    there unnoticed until the ground vocabulary grew.
+    """
+    try:
+        src = open(os.path.join(_REM, "src", "runtime", "light.tsx"), encoding="utf-8").read()
+        return float(re.search(r"LIGHT_KEY_Y\s*=\s*([0-9.]+)", src).group(1))
+    except Exception:
+        return default
+
+
+DARK_GROUND_Y = _light_key_y()
+
+
+def dark_world_reason(shot):
+    try:
+        src = open(os.path.join(_SHOTS, shot + ".tsx"), encoding="utf-8").read()
+    except OSError:
+        return None
+    m = _DARK_WORLD.search(src)
+    return m.group(1).strip() if m else None
+
+
+# A PHOTOGRAPH IS NOT INK. The evidence registers put a real picture on the frame, and on the dark ground
+# that picture is the brightest thing there — so every pixel of it enters the "legible marks" set, and on a
+# light ground its mid-tones sit near the paper. `ScanReconstruct` was reported at 91% unreadable when the
+# whole measurement was the fixture photograph; the register drew no type at all in that frame. Feeding the
+# register a SECOND fixture of a different tone and taking the pixels that MOVED gives the picture's own
+# area exactly, whatever shape the register composites it into — and it costs one render, only for the
+# registers that take an image.
+_ALT_FIXTURE_REL = "_ink_alt_fixture.png"
+
+
+def ensure_alt_fixture():
+    """A second stand-in photograph, deliberately a different tone from the energy sweep's."""
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        return None
+    pub = os.path.join(_REM, "public")
+    os.makedirs(pub, exist_ok=True)
+    path = os.path.join(pub, _ALT_FIXTURE_REL)
+    if not os.path.exists(path):
+        w, h = 1400, 933
+        im = Image.new("RGB", (w, h))
+        px = im.load()
+        for y in range(h):
+            for x in range(w):
+                v = 200 - int(70 * (x / w)) - int(40 * (y / h))
+                if (x // 55 + y // 55) % 2 == 0:
+                    v = max(0, v - 40)
+                px[x, y] = (min(255, int(v * 0.86)), min(255, int(v * 0.92)), v)
+        d = ImageDraw.Draw(im)
+        d.rectangle([w * 0.30, h * 0.20, w * 0.78, h * 0.70], fill=(24, 28, 36))
+        im.save(path)
+    return _ALT_FIXTURE_REL
+
+
+def _picture_mask(shot, tmpdir, props, serve, shape):
+    """True where the register drew the PICTURE it was given, found by swapping the picture."""
+    import numpy as np
+    from PIL import Image
+    alt = ensure_alt_fixture()
+    if not alt or not props:
+        return None
+    swapped = {k: (alt if isinstance(v, str) and v.endswith(".png") else v) for k, v in props.items()}
+    if swapped == props:
+        return None
+    png = os.path.join(tmpdir, shot + ".alt.png")
+    r = _still(shot, DARK, png, swapped, serve=serve)
+    if r.returncode != 0:
+        return None
+    a = np.asarray(Image.open(png).convert("RGB"), dtype=np.float32) / 255.0
+    if a.shape != shape:
+        return None
+    return None, a
+
+
 def measure(shot, tmpdir, props=None, mark_png=None, serve=None):
     """{ink, under, share, worst} for one register, or {'skipped': why}."""
     import numpy as np
@@ -182,11 +307,10 @@ def measure(shot, tmpdir, props=None, mark_png=None, serve=None):
     if rd.returncode != 0:
         # A REFUSAL IS NOT A FINDING. An evidence register with no `src`, or any register refusing props it
         # was not given, fails both renders identically and has nothing to say about ink.
-        return {"skipped": "refused to render: " + (rd.stderr or rd.stdout or "").strip().splitlines()[-1][:160]}
+        return {"skipped": "refused to render: " + _why(rd)}
     rl = _still(shot, LIGHT, light_png, props, serve=serve)
     if rl.returncode != 0:
-        return {"skipped": "rendered dark but not light: " +
-                           (rl.stderr or rl.stdout or "").strip().splitlines()[-1][:160]}
+        return {"skipped": "rendered dark but not light: " + _why(rl)}
 
     d = np.asarray(Image.open(dark_png).convert("RGB"), dtype=np.float32) / 255.0
     l = np.asarray(Image.open(light_png).convert("RGB"), dtype=np.float32) / 255.0
@@ -195,6 +319,13 @@ def measure(shot, tmpdir, props=None, mark_png=None, serve=None):
 
     # each frame's own ground: the median pixel, which is the paper in every register this library draws
     dg = _y(np.median(d.reshape(-1, 3), axis=0))
+    lg = _y(np.median(l.reshape(-1, 3), axis=0))
+    declared = dark_world_reason(shot)
+    if declared:
+        if lg <= DARK_GROUND_Y:
+            return {"dark_world": declared, "ground": round(float(lg), 4)}
+        return {"ink": 0, "under": 0, "share": 1.0, "worst": 0.0, "median": 0.0,
+                "lie": "declares @dark-world but took the film's LIGHT ground (measured Y=%.3f)" % lg}
     dy = _luma(d[::2, ::2])                            # every other pixel: this is a share, not a count
     ly = _luma(l[::2, ::2])
     # WHAT IS JUDGED IS WHAT WAS PLAINLY LEGIBLE ON THE DARK GROUND — nothing else. Two cheaper definitions
@@ -213,6 +344,13 @@ def measure(shot, tmpdir, props=None, mark_png=None, serve=None):
     d_hi = np.maximum(dy, dark_local) + 0.05
     d_lo = np.minimum(dy, dark_local) + 0.05
     mask = (d_hi / d_lo) >= 4.5
+    pic = _picture_mask(shot, tmpdir, props, serve, d.shape)
+    if pic is not None:
+        _, alt_rgb = pic
+        moved = (np.abs(_luma(alt_rgb[::2, ::2]) - dy) > 0.02)
+        # the picture's own area, grown by a pixel so its antialiased rim goes with it
+        moved = moved | np.roll(moved, 1, 0) | np.roll(moved, -1, 0) | np.roll(moved, 1, 1) | np.roll(moved, -1, 1)
+        mask = mask & ~moved
     # ...AND ONLY THE CORE OF A MARK, never its edge. An anti-aliased boundary pixel sits BETWEEN two regions
     # by construction, so against the far side of that boundary it always half-fails: the ring of pink tracing
     # `BentoReveal`'s hero tile was every edge pixel of the tile, not a word anybody cannot read. A pixel
@@ -242,6 +380,48 @@ def measure(shot, tmpdir, props=None, mark_png=None, serve=None):
         Image.fromarray(out).save(mark_png)
     return {"ink": ink, "under": under, "share": round(under / ink, 4),
             "worst": round(float(ratios.min()), 2), "median": round(float(np.median(ratios)), 2)}
+
+
+def _why(r):
+    """The REASON a render refused, not the last line of its stack.
+
+    Reading `splitlines()[-1]` gave `at process.processTicksAndRejections (node:internal/…)` for eight
+    registers — a skip list that says nothing about why anything skipped, which is the same failure as a
+    gate reporting a count instead of a coverage. Remotion prints the message on a line beginning with
+    `Error`, so that is what is kept, with the stack dropped.
+    """
+    out = ((r.stderr or "") + "\n" + (r.stdout or "")).strip()
+    lines = [l.strip() for l in out.splitlines() if l.strip()]
+    for i, l in enumerate(lines):
+        if l.startswith("Error") or " Error " in l or l.endswith("An error occurred:"):
+            tail = [x for x in lines[i:i + 3] if not x.startswith("at ")]
+            return " ".join(tail)[:220]
+    real = [l for l in lines if not l.startswith("at ") and not l.startswith("|")]
+    return (real[-1] if real else (lines[-1] if lines else "no output"))[:220]
+
+
+def _register_props():
+    """The props each register needs before it will draw at all — reused from the energy sweep rather than
+    rebuilt here.
+
+    A REGISTER THAT REFUSES TO RENDER IS NOT A REGISTER THAT PASSED. The first library sweep reported 19
+    registers "skipped", and a skip is a hole in the coverage, not a clean result: the evidence registers
+    (a real photograph, a scan, a contact sheet of real pictures) and the ones that need a figure were the
+    ones never measured. `register_energy` already derives a fixture per register from the shot's own
+    `requireEvidence(...)` call and draws the stand-in image; this gate asks it for the same thing, so the
+    two sweeps measure the same registers with the same inputs.
+    """
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("register_energy",
+                                                      os.path.join(_HERE, "register_energy.py"))
+        re_ = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(re_)
+        re_.ensure_fixture()
+        return re_.evidence_props()
+    except Exception as e:                                  # a missing fixture must not hide the sweep
+        print("[ink_contrast] could not build the evidence fixtures (%s) — those registers will skip" % e)
+        return {}
 
 
 def main(argv):
@@ -275,6 +455,11 @@ def main(argv):
     with tempfile.TemporaryDirectory(prefix="ink_contrast_") as tmp:
         if not ("--json" in argv):
             print("[ink_contrast] bundling the library once...", flush=True)
+        # THE FIXTURES HAVE TO EXIST BEFORE THE BUNDLE DOES. `npx remotion bundle` snapshots `public/`, so a
+        # fixture written afterwards is simply not in the build the renders read — the picture-swap probe
+        # silently did nothing, and the photograph went on being measured as ink.
+        ev = _register_props()
+        ensure_alt_fixture()
         todo = [n for n in names if n not in done]
         serve = bundle(os.path.join(tmp, "bundle")) if todo else None
         if done and not ("--json" in argv):
@@ -283,7 +468,7 @@ def main(argv):
             if n in done:
                 out[n] = done[n]
                 continue
-            out[n] = measure(n, tmp, serve=serve,
+            out[n] = measure(n, tmp, props=ev.get(n), serve=serve,
                              mark_png=(os.path.join(mark_dir, n + ".mark.png") if mark_dir else None))
             if store:
                 with open(store, "a", encoding="utf-8") as fh:
@@ -297,6 +482,9 @@ def main(argv):
         print(json.dumps(out, ensure_ascii=False, indent=1))
         return 1 if findings else 0
 
+    dark = {n: v["dark_world"] for n, v in out.items() if "dark_world" in v}
+    if dark and not ("--json" in argv):
+        print("\n[ink_contrast] %d register(s) keep their own dark field, as declared (@dark-world)" % len(dark))
     skipped = [n for n, v in out.items() if "skipped" in v]
     print("\n[ink_contrast] %d register(s) measured · %d skipped · reported when the MEDIAN mark is under "
           "%.1f:1 on a light ground, or when %d%% of the marks are"

@@ -20,7 +20,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, readableOn} from '../runtime/dna';
 import {bottomTextY, cjkAdvance, CJK_FIT_ADVANCE, fitTextPx, latinAdvance, textWidthPx} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
@@ -78,13 +78,32 @@ const normalise = (limits: unknown): {label: string; level: number}[] => {
 
 export const SpeedLimit: React.FC<{accent?: string; label?: string; quantity?: string;
   limits?: (string | SpeedCeiling)[]; verdict?: string; instead?: string}> = ({
-  accent = '#22d3ee', label = "You can't just go faster", quantity = 'gradient speed',
+  accent: accentIn, label = "You can't just go faster", quantity = 'gradient speed',
   limits: LIMITS = DEFAULT_LIMITS, verdict = 'blocked', instead = '→ skip k-space lines instead',
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
   const ceilings = normalise(LIMITS);
+  // WHAT THE BAR AND THE CEILINGS ARE MADE OF.
+  //
+  // Three of this frame's four pieces of copy were near-white literals — the claim at the top (#dfe8f5), the
+  // verdict (#eaf6ff) and the axis label (#c9d6ea) — so on a film grounded paper the register drew a red bar
+  // under two dashed lines and said none of the words. Those take the film's ink.
+  //
+  // THE RED STAYS RED. A ceiling is a WARNING and the hue is the meaning, so it is not swapped for the film's
+  // accent; only its EXPOSURE is re-picked, from the register's own pair, against the ground it will be read
+  // on — #ff5d6c measures 2.70:1 on warm white and its deeper twin 5.0:1, and the frame keeps saying "stop"
+  // either way. `readableOn` is the library's measured picker for exactly this.
+  const GROUND = dna?.bg ?? '#05060a';
+  const accent = accentIn ?? dna?.accent ?? '#22d3ee';
+  const WARN_INK = dna ? readableOn(GROUND, WARN, '#b21f2d') : WARN;
+  const WARN2_INK = dna ? readableOn(GROUND, '#ff8ad0', '#a01a6e') : '#ff8ad0';
+  const WARN2_LINE = dna ? readableOn(GROUND, '#f06ecb', '#a01a6e') : '#f06ecb';
+  const WELL = dna?.surface ?? '#0a1424';
+  const QTY_INK = dna?.dim ?? '#c9d6ea';
+  const VERDICT_INK = dna?.fg ?? '#eaf6ff';
+  const LABEL_INK = dna?.fg ?? '#dfe8f5';
   // the axis label is a BASELINE 40px under the track's foot, and the foot was a flat 0.74 of the height —
   // 22px of the quantity label inside the caption band at 1:1. The track shortens; the label stays put.
   // THE LABELS' ROOM IS MEASURED, NOT RESERVED AS 344px. Each ceiling label was placed with a literal
@@ -113,8 +132,8 @@ export const SpeedLimit: React.FC<{accent?: string; label?: string; quantity?: s
   const font = 'var(--f-body, Inter, sans-serif)';
 
   // ceiling k: the binding one keeps the warning red and the wider line, the one above it the softer pink
-  const STYLE = [{half: 210, gap: 230, stroke: WARN, ink: WARN, sw: 2.5, fade: [0.05, 0.3]},
-                 {half: 180, gap: 200, stroke: '#f06ecb', ink: '#ff8ad0', sw: 2, fade: [0.1, 0.35]}];
+  const STYLE = [{half: 210, gap: 230, stroke: WARN_INK, ink: WARN_INK, sw: 2.5, fade: [0.05, 0.3]},
+                 {half: 180, gap: 200, stroke: WARN2_LINE, ink: WARN2_INK, sw: 2, fade: [0.1, 0.35]}];
   const qPx = fit(quantity, W - edge * 2, 24);
   const vPx = fit(verdict, bx - 60 - edge, 30);
   const iPx = fit(instead, bx - 60 - edge, 24);
@@ -126,9 +145,9 @@ export const SpeedLimit: React.FC<{accent?: string; label?: string; quantity?: s
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 42%, #0b1120, #05060a)')}}>
       <svg width={W} height={H} style={{position: 'absolute'}}>
-        <rect x={bx - 46} y={trackTop} width={92} height={trackH} rx={12} fill="#0a1424" stroke={`${accent}44`} strokeWidth={1.4} />
-        <rect x={bx - 40 + shake} y={topY} width={80} height={trackBot - topY} rx={9} fill={blocked ? WARN : accent} opacity={0.9} />
-        {quantity ? <text x={bx} y={trackBot + 40} textAnchor="middle" fill="#c9d6ea" fontSize={qPx} fontFamily={font} fontWeight={700}>{quantity}</text> : null}
+        <rect x={bx - 46} y={trackTop} width={92} height={trackH} rx={12} fill={WELL} stroke={`${accent}44`} strokeWidth={1.4} />
+        <rect x={bx - 40 + shake} y={topY} width={80} height={trackBot - topY} rx={9} fill={blocked ? WARN_INK : accent} opacity={0.9} />
+        {quantity ? <text x={bx} y={trackBot + 40} textAnchor="middle" fill={QTY_INK} fontSize={qPx} fontFamily={font} fontWeight={700}>{quantity}</text> : null}
 
         {/* the ceilings — labels OUTSIDE the track with room */}
         {ceilings.map((c, k) => {
@@ -143,11 +162,11 @@ export const SpeedLimit: React.FC<{accent?: string; label?: string; quantity?: s
         })}
 
         {/* conclusion — left of the track, with room. An empty verdict or `instead` draws nothing. */}
-        {verdict ? <text x={concX(verdict, vPx)} y={concY} textAnchor="end" fill="#eaf6ff" fontSize={vPx} fontFamily={font} fontWeight={800} opacity={clamp01(seg(t, 0.66, 0.86))}>{verdict}</text> : null}
+        {verdict ? <text x={concX(verdict, vPx)} y={concY} textAnchor="end" fill={VERDICT_INK} fontSize={vPx} fontFamily={font} fontWeight={800} opacity={clamp01(seg(t, 0.66, 0.86))}>{verdict}</text> : null}
         {instead ? <text x={concX(instead, iPx)} y={concY + 34} textAnchor="end" fill={accent} fontSize={iPx} fontFamily={font} opacity={clamp01(seg(t, 0.72, 0.9))}>{instead}</text> : null}
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
+        color: LABEL_INK, font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
     </AbsoluteFill>
   );

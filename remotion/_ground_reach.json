@@ -24,23 +24,27 @@
     "light": 1.0,
     "dark": 0.0006070539820939302
    },
-   "moved": 0.7932457386363636,
+   "moved": 0.7976988636363637,
    "ok": true,
    "why": []
   },
   {
    "shot": "AnalogTape",
    "bandY": {
-    "light": 0.8227858543395996,
+    "light": 0.009311217814683914,
     "dark": 0.0
    },
    "fieldY": {
-    "light": 0.9386858940124512,
+    "light": 0.020026199519634247,
     "dark": 0.0
    },
-   "moved": 0.9535582386363637,
-   "ok": true,
-   "why": []
+   "moved": 8.996212121212121e-05,
+   "ok": false,
+   "why": [
+    "band ink light wants #ffffff",
+    "field light reads dark",
+    "only 0% of the frame moved"
+   ]
   },
   {
    "shot": "AnswerStream",
@@ -75,16 +79,20 @@
   {
    "shot": "AsciiField",
    "bandY": {
-    "light": 0.8879231810569763,
+    "light": 0.0038436567410826683,
     "dark": 0.0
    },
    "fieldY": {
-    "light": 1.0,
+    "light": 0.004693781491369009,
     "dark": 0.0006070539820939302
    },
-   "moved": 0.9689607007575758,
-   "ok": true,
-   "why": []
+   "moved": 0.0,
+   "ok": false,
+   "why": [
+    "band ink light wants #ffffff",
+    "field light reads dark",
+    "only 0% of the frame moved"
+   ]
   },
   {
    "shot": "AtomOrbital",
@@ -105,17 +113,19 @@
   {
    "shot": "AuroraFlow",
    "bandY": {
-    "light": 0.3606817126274109,
+    "light": 0.050386905670166016,
     "dark": 0.043696947395801544
    },
    "fieldY": {
-    "light": 0.43582746386528015,
+    "light": 0.13245809078216553,
     "dark": 0.12413115054368973
    },
-   "moved": 0.8031131628787879,
+   "moved": 0.0,
    "ok": false,
    "why": [
-    "field light reads mid"
+    "band ink light wants #ffffff",
+    "field light reads dark",
+    "only 0% of the frame moved"
    ]
   },
   {
@@ -177,16 +187,20 @@
   {
    "shot": "BokehPull",
    "bandY": {
-    "light": 0.8713672161102295,
+    "light": 0.004423399921506643,
     "dark": 0.0
    },
    "fieldY": {
-    "light": 0.9911022186279297,
+    "light": 0.006668034475296736,
     "dark": 0.0
    },
-   "moved": 0.9585795454545455,
-   "ok": true,
-   "why": []
+   "moved": 0.0,
+   "ok": false,
+   "why": [
+    "band ink light wants #ffffff",
+    "field light reads dark",
+    "only 0% of the frame moved"
+   ]
   },
   {
    "shot": "BrutalistType",
@@ -369,16 +383,19 @@
   {
    "shot": "CodeRain",
    "bandY": {
-    "light": 0.8879231810569763,
+    "light": 0.001497298595495522,
     "dark": 0.0
    },
    "fieldY": {
-    "light": 1.0,
+    "light": 0.001497298595495522,
     "dark": 0.0003035269910469651
    },
-   "moved": 0.9784848484848485,
+   "moved": 0.010535037878787878,
    "ok": false,
    "why": [
+    "band ink light wants #ffffff",
+    "field light reads dark",
+    "only 1% of the frame moved",
     "ink: title+glow fall from 19.2:1 to 6.1:1 and the dark glow halo becomes a brown smudge on cream"
    ]
   },
@@ -448,7 +465,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9875686553030303,
+   "moved": 0.9932173295454545,
    "ok": true,
    "why": []
   },
@@ -469,17 +486,16 @@
   {
    "shot": "CrashZoom",
    "bandY": {
-    "light": 0.49812543392181396,
-    "dark": 0.0026250947266817093
+    "light": 0.8291335701942444,
+    "dark": 0.002043140586465597
    },
    "fieldY": {
-    "light": 0.2404722273349762,
-    "dark": 0.040833670645952225
+    "light": 0.5131098031997681,
+    "dark": 0.007829067297279835
    },
-   "moved": 0.5007741477272727,
+   "moved": 0.500842803030303,
    "ok": false,
    "why": [
-    "field light reads mid",
     "only 50% of the frame moved"
    ]
   },
@@ -532,18 +548,16 @@
   {
    "shot": "DataMonolith",
    "bandY": {
-    "light": 0.8233622908592224,
-    "dark": 0.0003254416224081069
+    "light": 0.8879231810569763,
+    "dark": 0.0
    },
    "fieldY": {
-    "light": 0.2690218687057495,
-    "dark": 0.007378456648439169
+    "light": 1.0,
+    "dark": 0.002124688820913434
    },
-   "moved": 0.7720028409090909,
-   "ok": false,
-   "why": [
-    "field light reads mid"
-   ]
+   "moved": 0.9748816287878788,
+   "ok": true,
+   "why": []
   },
   {
    "shot": "DataOrrery",
@@ -569,7 +583,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.995530303030303,
+   "moved": 0.8078148674242425,
    "ok": true,
    "why": []
   },
@@ -632,18 +646,16 @@
   {
    "shot": "ElasticType",
    "bandY": {
-    "light": 0.5039107799530029,
-    "dark": 0.0030592598486691713
+    "light": 0.8879231810569763,
+    "dark": 0.0
    },
    "fieldY": {
-    "light": 0.2476671189069748,
-    "dark": 0.00979122705757618
+    "light": 1.0,
+    "dark": 0.0
    },
-   "moved": 0.8250355113636364,
-   "ok": false,
-   "why": [
-    "field light reads mid"
-   ]
+   "moved": 0.9737997159090909,
+   "ok": true,
+   "why": []
   },
   {
    "shot": "EmberFlame",
@@ -696,18 +708,16 @@
   {
    "shot": "FlowField",
    "bandY": {
-    "light": 0.3763708174228668,
+    "light": 0.8468732833862305,
     "dark": 0.0016089756973087788
    },
    "fieldY": {
-    "light": 0.1828157603740692,
+    "light": 0.921582043170929,
     "dark": 0.0037449090741574764
    },
-   "moved": 0.7138494318181818,
-   "ok": false,
-   "why": [
-    "field light reads mid"
-   ]
+   "moved": 0.9789157196969697,
+   "ok": true,
+   "why": []
   },
   {
    "shot": "FocalIsolation",
@@ -728,18 +738,16 @@
   {
    "shot": "FractalTree",
    "bandY": {
-    "light": 0.10853900015354156,
+    "light": 0.8069523572921753,
     "dark": 0.007825057953596115
    },
    "fieldY": {
-    "light": 0.5272034406661987,
+    "light": 0.9559735059738159,
     "dark": 0.0036765066906809807
    },
-   "moved": 0.9124952651515151,
-   "ok": false,
-   "why": [
-    "band ink light wants #ffffff"
-   ]
+   "moved": 0.9711103219696969,
+   "ok": true,
+   "why": []
   },
   {
    "shot": "FractureIn",
@@ -789,18 +797,16 @@
   {
    "shot": "GameOfLife",
    "bandY": {
-    "light": 0.3767044246196747,
+    "light": 0.8468732833862305,
     "dark": 0.0021481818985193968
    },
    "fieldY": {
-    "light": 0.2137039601802826,
+    "light": 0.921582043170929,
     "dark": 0.004539121873676777
    },
-   "moved": 0.6186529356060606,
-   "ok": false,
-   "why": [
-    "field light reads mid"
-   ]
+   "moved": 0.9870383522727273,
+   "ok": true,
+   "why": []
   },
   {
    "shot": "GaugeCluster",
@@ -812,7 +818,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9629971590909091,
+   "moved": 0.9744365530303031,
    "ok": true,
    "why": []
   },
@@ -833,32 +839,33 @@
   {
    "shot": "GearTrain",
    "bandY": {
-    "light": 0.5390656590461731,
-    "dark": 0.0015407637692987919
-   },
-   "fieldY": {
-    "light": 0.2320134937763214,
-    "dark": 0.005526525899767876
-   },
-   "moved": 0.7581486742424243,
-   "ok": false,
-   "why": [
-    "field light reads mid"
-   ]
-  },
-  {
-   "shot": "GlitchDatamosh",
-   "bandY": {
-    "light": 0.8713672161102295,
+    "light": 0.8879231810569763,
     "dark": 0.0
    },
    "fieldY": {
     "light": 1.0,
+    "dark": 0.0003035269910469651
+   },
+   "moved": 0.9845478219696969,
+   "ok": true,
+   "why": []
+  },
+  {
+   "shot": "GlitchDatamosh",
+   "bandY": {
+    "light": 0.00219043274410069,
     "dark": 0.0
    },
-   "moved": 0.9541879734848485,
+   "fieldY": {
+    "light": 0.0022129060234874487,
+    "dark": 0.0
+   },
+   "moved": 0.0,
    "ok": false,
    "why": [
+    "band ink light wants #ffffff",
+    "field light reads dark",
+    "only 0% of the frame moved",
     "ink: display word 'SIGNAL' is #ffffff \u2014 1.14:1 on paper; the frame is empty (render read)"
    ]
   },
@@ -888,7 +895,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9769981060606061,
+   "moved": 0.9635866477272728,
    "ok": true,
    "why": []
   },
@@ -937,14 +944,14 @@
   {
    "shot": "HoloFoil",
    "bandY": {
-    "light": 0.818367063999176,
+    "light": 0.7818867564201355,
     "dark": 0.004164542071521282
    },
    "fieldY": {
-    "light": 0.9140206575393677,
+    "light": 0.8727333545684814,
     "dark": 0.007903629913926125
    },
-   "moved": 0.939375,
+   "moved": 0.9929805871212121,
    "ok": false,
    "why": [
     "ink: subtitle is #fff \u2014 1.01:1 on paper"
@@ -953,18 +960,16 @@
   {
    "shot": "HudReticle",
    "bandY": {
-    "light": 0.40014564990997314,
-    "dark": 0.001953013939782977
+    "light": 0.8879231810569763,
+    "dark": 0.0
    },
    "fieldY": {
-    "light": 0.19869545102119446,
-    "dark": 0.004467418882995844
+    "light": 1.0,
+    "dark": 0.0
    },
-   "moved": 0.7516216856060606,
-   "ok": false,
-   "why": [
-    "field light reads mid"
-   ]
+   "moved": 0.9979782196969696,
+   "ok": true,
+   "why": []
   },
   {
    "shot": "InOrder",
@@ -990,7 +995,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.990842803030303,
+   "moved": 0.996077178030303,
    "ok": true,
    "why": []
   },
@@ -1055,18 +1060,16 @@
   {
    "shot": "IsoWorld",
    "bandY": {
-    "light": 0.5850889086723328,
-    "dark": 0.0015407637692987919
+    "light": 0.8879231810569763,
+    "dark": 0.0
    },
    "fieldY": {
-    "light": 0.21108369529247284,
-    "dark": 0.00758666405454278
+    "light": 1.0,
+    "dark": 0.0009105809731408954
    },
-   "moved": 0.731545928030303,
-   "ok": false,
-   "why": [
-    "field light reads mid"
-   ]
+   "moved": 0.9193821022727273,
+   "ok": true,
+   "why": []
   },
   {
    "shot": "IsometricAssembly",
@@ -1085,14 +1088,14 @@
   {
    "shot": "KSpaceAnatomy",
    "bandY": {
-    "light": 0.8879231810569763,
+    "light": 0.8796223998069763,
     "dark": 0.0
    },
    "fieldY": {
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9943063446969697,
+   "moved": 0.7924337121212122,
    "ok": true,
    "why": []
   },
@@ -1106,7 +1109,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9962002840909091,
+   "moved": 0.7267211174242424,
    "ok": true,
    "why": []
   },
@@ -1120,7 +1123,7 @@
     "light": 1.0,
     "dark": 0.0003035269910469651
    },
-   "moved": 0.8358759469696969,
+   "moved": 0.8381463068181818,
    "ok": true,
    "why": []
   },
@@ -1185,7 +1188,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9961766098484849,
+   "moved": 0.9990885416666667,
    "ok": true,
    "why": []
   },
@@ -1210,16 +1213,20 @@
   {
    "shot": "LightTrails",
    "bandY": {
-    "light": 0.8879231810569763,
+    "light": 0.0031276026275008917,
     "dark": 0.0
    },
    "fieldY": {
-    "light": 1.0,
+    "light": 0.004531871061772108,
     "dark": 0.0
    },
-   "moved": 0.990563446969697,
-   "ok": true,
-   "why": []
+   "moved": 0.0,
+   "ok": false,
+   "why": [
+    "band ink light wants #ffffff",
+    "field light reads dark",
+    "only 0% of the frame moved"
+   ]
   },
   {
    "shot": "LiquidChrome",
@@ -1245,9 +1252,9 @@
    },
    "fieldY": {
     "light": 1.0,
-    "dark": 0.0003035269910469651
+    "dark": 0.00026091179461218417
    },
-   "moved": 0.8141287878787878,
+   "moved": 0.8175804924242425,
    "ok": true,
    "why": []
   },
@@ -1275,7 +1282,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.8982623106060607,
+   "moved": 0.8922703598484848,
    "ok": true,
    "why": []
   },
@@ -1289,7 +1296,7 @@
     "light": 1.0,
     "dark": 0.00047605170402675867
    },
-   "moved": 0.8629474431818182,
+   "moved": 0.862327178030303,
    "ok": true,
    "why": []
   },
@@ -1367,7 +1374,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9939109848484848,
+   "moved": 0.9985464015151515,
    "ok": true,
    "why": []
   },
@@ -1393,29 +1400,25 @@
    },
    "fieldY": {
     "light": 1.0,
-    "dark": 2.1914649551035836e-05
+    "dark": 0.0
    },
-   "moved": 0.9696496212121212,
+   "moved": 0.9855610795454546,
    "ok": true,
    "why": []
   },
   {
    "shot": "MaterialHero",
    "bandY": {
-    "light": 0.0027605658397078514,
-    "dark": 0.0027605658397078514
+    "light": 0.6019852757453918,
+    "dark": 0.001539549557492137
    },
    "fieldY": {
-    "light": 0.003994660452008247,
-    "dark": 0.004060124047100544
+    "light": 0.6924009919166565,
+    "dark": 0.002731743035838008
    },
-   "moved": 0.023892045454545454,
-   "ok": false,
-   "why": [
-    "band ink light wants #ffffff",
-    "field light reads dark",
-    "only 2% of the frame moved"
-   ]
+   "moved": 0.7908214962121212,
+   "ok": true,
+   "why": []
   },
   {
    "shot": "MetaballMerge",
@@ -1452,18 +1455,16 @@
   {
    "shot": "MorphForms",
    "bandY": {
-    "light": 0.41840362548828125,
+    "light": 0.854992687702179,
     "dark": 0.00191572867333889
    },
    "fieldY": {
-    "light": 0.19936561584472656,
+    "light": 0.921582043170929,
     "dark": 0.005063450429588556
    },
-   "moved": 0.7373910984848485,
-   "ok": false,
-   "why": [
-    "field light reads mid"
-   ]
+   "moved": 0.9886458333333333,
+   "ok": true,
+   "why": []
   },
   {
    "shot": "MuseumLabel",
@@ -1552,7 +1553,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9838778409090909,
+   "moved": 0.999251893939394,
    "ok": true,
    "why": []
   },
@@ -1646,7 +1647,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9932481060606061,
+   "moved": 0.9951444128787879,
    "ok": true,
    "why": []
   },
@@ -1709,6 +1710,20 @@
    "why": []
   },
   {
+   "shot": "PlaneStack",
+   "bandY": {
+    "light": 0.8879231810569763,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 1.0,
+    "dark": 0.0009105809731408954
+   },
+   "moved": 0.9969839015151515,
+   "ok": true,
+   "why": []
+  },
+  {
    "shot": "PlatformSurfaces",
    "bandY": {
     "light": 0.8713672161102295,
@@ -1763,7 +1778,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9957362689393939,
+   "moved": 0.998889678030303,
    "ok": true,
    "why": []
   },
@@ -1819,23 +1834,27 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9456273674242425,
+   "moved": 0.9473484848484849,
    "ok": true,
    "why": []
   },
   {
    "shot": "RainGlass",
    "bandY": {
-    "light": 0.8879231810569763,
+    "light": 0.05093597620725632,
     "dark": 0.0
    },
    "fieldY": {
-    "light": 0.9911022186279297,
+    "light": 0.051089346408843994,
     "dark": 0.002124688820913434
    },
-   "moved": 0.9878953598484849,
-   "ok": true,
-   "why": []
+   "moved": 0.010007102272727273,
+   "ok": false,
+   "why": [
+    "band ink light wants #ffffff",
+    "field light reads dark",
+    "only 1% of the frame moved"
+   ]
   },
   {
    "shot": "RansomZine",
@@ -1884,18 +1903,16 @@
   {
    "shot": "RidgeField",
    "bandY": {
-    "light": 0.4433656930923462,
+    "light": 0.854992687702179,
     "dark": 0.00163411651737988
    },
    "fieldY": {
-    "light": 0.40036967396736145,
+    "light": 0.9386858940124512,
     "dark": 0.0033083853777498007
    },
-   "moved": 0.9735984848484849,
-   "ok": false,
-   "why": [
-    "field light reads mid"
-   ]
+   "moved": 0.9844507575757576,
+   "ok": true,
+   "why": []
   },
   {
    "shot": "RisoPrint",
@@ -1998,17 +2015,19 @@
   {
    "shot": "SpectrumPulse",
    "bandY": {
-    "light": 0.3309077024459839,
+    "light": 0.0029166624881327152,
     "dark": 0.0014329300029203296
    },
    "fieldY": {
-    "light": 0.18472032248973846,
+    "light": 0.0042481254786252975,
     "dark": 0.003329902421683073
    },
-   "moved": 0.7110369318181818,
+   "moved": 0.0,
    "ok": false,
    "why": [
-    "field light reads mid"
+    "band ink light wants #ffffff",
+    "field light reads dark",
+    "only 0% of the frame moved"
    ]
   },
   {
@@ -2021,7 +2040,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9642874053030303,
+   "moved": 0.997701231060606,
    "ok": true,
    "why": []
   },
@@ -2035,7 +2054,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9810227272727273,
+   "moved": 0.9858925189393939,
    "ok": true,
    "why": []
   },
@@ -2049,7 +2068,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9947017045454546,
+   "moved": 0.9983688446969697,
    "ok": true,
    "why": []
   },
@@ -2060,44 +2079,47 @@
     "dark": 0.0
    },
    "fieldY": {
-    "light": 0.5209956765174866,
+    "light": 0.8719632625579834,
     "dark": 0.0018211619462817907
    },
-   "moved": 0.5769176136363636,
-   "ok": false,
-   "why": [
-    "only 58% of the frame moved"
-   ]
+   "moved": 0.9693110795454546,
+   "ok": true,
+   "why": []
   },
   {
    "shot": "SpotlightStage",
    "bandY": {
-    "light": 0.05459928512573242,
+    "light": 0.0027761310338974,
     "dark": 0.0024720451328903437
    },
    "fieldY": {
-    "light": 0.8713672161102295,
+    "light": 0.0030352699104696512,
     "dark": 0.0018649912672117352
    },
-   "moved": 0.9718892045454546,
+   "moved": 0.0,
    "ok": false,
    "why": [
-    "band ink light wants #ffffff"
+    "band ink light wants #ffffff",
+    "field light reads dark",
+    "only 0% of the frame moved"
    ]
   },
   {
    "shot": "StarfieldWarp",
    "bandY": {
-    "light": 0.8631572127342224,
+    "light": 0.001327363308519125,
     "dark": 0.0
    },
    "fieldY": {
-    "light": 0.6323220133781433,
+    "light": 0.0036573591642081738,
     "dark": 0.0025054309517145157
    },
-   "moved": 0.9431321022727273,
+   "moved": 0.0,
    "ok": false,
    "why": [
+    "band ink light wants #ffffff",
+    "field light reads dark",
+    "only 0% of the frame moved",
     "ink: 6607 pure-white streak pixels at 1.10:1 on the light key"
    ]
   },
@@ -2181,7 +2203,7 @@
     "light": 1.0,
     "dark": 0.0018211619462817907
    },
-   "moved": 0.9967874053030303,
+   "moved": 0.9975899621212121,
    "ok": true,
    "why": []
   },
@@ -2223,7 +2245,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9606344696969698,
+   "moved": 0.997142518939394,
    "ok": true,
    "why": []
   },
@@ -2394,21 +2416,21 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9874952651515152,
+   "moved": 0.9921969696969697,
    "ok": true,
    "why": []
   },
   {
    "shot": "VariableTypeMorph",
    "bandY": {
-    "light": 0.8637499809265137,
-    "dark": 0.0008898804080672562
+    "light": 0.8632816672325134,
+    "dark": 0.0009763249545358121
    },
    "fieldY": {
-    "light": 0.7983295917510986,
-    "dark": 0.011449551209807396
+    "light": 0.8118581175804138,
+    "dark": 0.011288282461464405
    },
-   "moved": 0.937795928030303,
+   "moved": 0.9437286931818182,
    "ok": true,
    "why": []
   },
@@ -2422,11 +2444,9 @@
     "light": 0.9386858940124512,
     "dark": 0.0030352699104696512
    },
-   "moved": 0.5993631628787879,
-   "ok": false,
-   "why": [
-    "only 60% of the frame moved"
-   ]
+   "moved": 0.9003598484848485,
+   "ok": true,
+   "why": []
   },
   {
    "shot": "VersusSplit",
@@ -2449,10 +2469,10 @@
     "dark": 0.0
    },
    "fieldY": {
-    "light": 0.9646862745285034,
+    "light": 0.9559735059738159,
     "dark": 0.0030352699104696512
    },
-   "moved": 0.8579214015151515,
+   "moved": 0.9278338068181818,
    "ok": true,
    "why": []
   },
@@ -2482,7 +2502,7 @@
     "light": 1.0,
     "dark": 0.0012141079641878605
    },
-   "moved": 0.9935179924242424,
+   "moved": 0.9982220643939393,
    "ok": true,
    "why": []
   },
@@ -2493,10 +2513,10 @@
     "dark": 0.0
    },
    "fieldY": {
-    "light": 0.9898627996444702,
+    "light": 1.0,
     "dark": 0.0009105809731408954
    },
-   "moved": 0.9426373106060606,
+   "moved": 0.9426941287878788,
    "ok": true,
    "why": []
   }

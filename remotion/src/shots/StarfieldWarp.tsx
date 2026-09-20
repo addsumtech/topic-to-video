@@ -7,15 +7,22 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {darkGround} from '../runtime/light';
 
 export const DURATION = 150; // 5s
+// @dark-world: a star is a POINT OF LIGHT and the warp is the trail it leaves — the field is drawn as bright
+// streaks lengthening out of a core that flashes white at peak speed. Night is not this register's palette,
+// it is the distance the stars are travelling through. On a warm-white film it measured a median 1.41:1 with
+// half its marks under 3:1 (scripts/ink_contrast_qa.py) and, worse, the hardcoded core of its radial kept a
+// dark ellipse in the middle of the paper: a night sky the size of the title and cream everywhere else.
+// Dark streaks on paper would be a scratched print, not a warp. So it keeps its own night.
 const BG_D0 = '#03040c';
 const N = 240;
 
 export const StarfieldWarp: React.FC<{title?: string; tagline?: string; accent?: string}> = ({
   title: TITLE = 'Lightspeed', tagline: TAG = 'the next era, now', accent: ACC = '#8fb6ff'} = {}) => {
   const dna = useDNA();
-  const BG = dna?.bg ?? BG_D0;
+  const BG = darkGround(dna?.bg, BG_D0);   // the film's ground while it is dark; this register's own night when not
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2;

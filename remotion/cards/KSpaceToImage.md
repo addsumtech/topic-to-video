@@ -18,5 +18,6 @@
 - The lattice is illustrative (30×18 dots with a fixed falloff), not the scan's real k-space.
 - "k-space → image" is fixed English text.
 - Leaving `label` unset prints `inverse Fourier transform`.
+- The ink is the film's: the sweep front and the title take the DNA's `fg`, and `accent`/`accent2` fall back to the film's two accents before their own cyan and violet. The lattice encodes amplitude as OPACITY, so it reads the same on paper as on night. The reconstructed image's frame is the exception — it paints its own `#0a1424` under whatever scan the film passes, because a scan viewport is black. With no DNA every original literal prints as before (measured median 1.12:1 before this).
 
 **Reference:** `remotion/src/shots/KSpaceToImage.tsx`

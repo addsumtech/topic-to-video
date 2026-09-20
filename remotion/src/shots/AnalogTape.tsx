@@ -14,9 +14,18 @@ import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, clamp01, seg, lerp} from '../runtime/motion';
 import {leading} from '../runtime/cjkType';
 import {useDNA} from '../runtime/dna';
+import {darkGround} from '../runtime/light';
 import {bottomInset, fitTextPx} from '../runtime/layout';
 
 export const DURATION = 160; // ~5.3s
+// @dark-world: a CRT tube shot off the glass. The wordmark is three copies composited with
+// `mixBlendMode: 'screen'` — pure ADDITIVE light, which on a white ground is arithmetically a no-op — and the
+// tracking band, the scanlines and the barrel vignette are all shaping a lit phosphor screen rather than
+// colouring a surface. On a warm-white film the register measured a median 1.26:1 with 100% of its marks
+// under 3:1 (scripts/ink_contrast_qa.py): the red and cyan split copies vanished outright and the frame was
+// flat grey with an OSD outline on it. Nothing here can be inverted, because what would invert is the beam.
+const OWN_NIGHT = 'radial-gradient(120% 120% at 50% 42%, #4a2f18 0%, #241408 46%, #0b0704 100%)';
+const OWN_NIGHT_FLAT = '#241408';                 // the same tube-dark as one colour, for darkGround to judge
 
 // The running timecode below is the TAPE DECK DEPICTING ITSELF — a counter on a transport counts transport
 // time, the way a REC light is lit. It is not a measurement of any topic, so it is declared rather than
@@ -63,8 +72,14 @@ export const AnalogTape: React.FC<{title?: string; tagline?: string; date?: stri
     </div>
   );
 
+  // the film's ground while the film's ground is dark (all eight presets), this register's own tube-dark when
+  // it is not. The branch is on what `darkGround` RETURNED, so a dark film grounded on exactly this colour
+  // still gets its own `bgGrad` treatment rather than ours.
+  const night = darkGround(dna?.bg, OWN_NIGHT_FLAT);
+  const ground = night === dna?.bg ? (dna?.bgGrad ?? night) : OWN_NIGHT;
+
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 42%, #4a2f18 0%, #241408 46%, #0b0704 100%)'), overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: ground, overflow: 'hidden'}}>
       {/* content with RGB chromatic split (three offset copies) */}
       <Title dx={-split} color="#ff3b3b" blend="screen" />
       <Title dx={split} color="#38f0ff" blend="screen" />

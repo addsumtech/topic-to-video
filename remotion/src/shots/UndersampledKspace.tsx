@@ -41,7 +41,7 @@ export const MAX_KSPACE_LINES = 128;   // past this the strokes sit under 4px ap
 
 export const UndersampledKspace: React.FC<{accent?: string; accent2?: string; label?: string; keep?: number;
   lines?: number; method?: string; scans?: string}> = ({
-  accent = '#22d3ee', accent2 = '#a78bfa', label = 'Reconstruct from far fewer lines', keep = 6,
+  accent: ACC, accent2: ACC2, label = 'Reconstruct from far fewer lines', keep = 6,
   lines = 42,
   // A CLAIM ABOUT A METHOD, written straight into the JSX: `deep network · trained on {scans}k scans`
   // printed on every film that ever reached for this register, whatever the film's method actually was,
@@ -52,6 +52,18 @@ export const UndersampledKspace: React.FC<{accent?: string; accent2?: string; la
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
+  // THE INK IS THE FILM'S, AND THIS IS A DIAGRAM, NOT A GLOW. The lines, the counter and every label were
+  // literals picked for a near-black ground; all eight DNA presets are near-black, so a film whose DNA came
+  // from a warm-white deck drew the k-space grid and its count white on white — measured median 1.60:1 over
+  // 100% of the marks (`scripts/ink_contrast_qa.py`). Ruled lines and a count are a diagram, and they read
+  // in the film's own ink on any ground. Each token keeps its OWN original literal as its fallback, so an
+  // un-themed render is unchanged.
+  const accent = ACC ?? dna?.accent ?? '#22d3ee';
+  const accent2 = ACC2 ?? dna?.accent2 ?? '#a78bfa';
+  const live = dna?.fg ?? '#eaf6ff';         // the acquired count
+  const ink = dna?.fg ?? '#dfe8f5';          // the title
+  const meta = dna?.dim ?? '#9fb4cc';        // 'k-space · phase-encode lines'
+  const meta2 = dna?.dim ?? '#8aa';          // 'lines acquired' and the film's method line
   if (!Number.isInteger(lines) || lines < 2 || lines > MAX_KSPACE_LINES) {
     throw new Error(`UndersampledKspace: \`lines\` is the fully-sampled line count and must be an integer 2-${MAX_KSPACE_LINES} ` +
       `(got ${JSON.stringify(lines)}); past ${MAX_KSPACE_LINES} the strokes merge. Draw a representative count and put ` +
@@ -102,18 +114,18 @@ export const UndersampledKspace: React.FC<{accent?: string; accent2?: string; la
       <svg width={W} height={H} style={{position: 'absolute'}}>
         <rect x={gx - 14} y={gy - 14} width={gw + 28} height={gh + 28} rx={10} fill="none" stroke={accent} strokeWidth={1.4} opacity={0.35} />
         {strokes}
-        <text x={gx - 14} y={gy - 26} fill="#9fb4cc" fontSize="22" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" letterSpacing="1">k-space · phase-encode lines</text>
+        <text x={gx - 14} y={gy - 26} fill={meta} fontSize="22" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" letterSpacing="1">k-space · phase-encode lines</text>
         {/* live count of acquired lines */}
-        <text x={cX} y={cY(0)} fill="#eaf6ff" fontSize="72" fontFamily="var(--f-display, Inter, sans-serif)" fontWeight={800}>
+        <text x={cX} y={cY(0)} fill={live} fontSize="72" fontFamily="var(--f-display, Inter, sans-serif)" fontWeight={800}>
           {shownAcq}<tspan fill={accent} fontSize="40">/{total}</tspan></text>
-        <text x={cX + 4} y={cY(0) + 40} fill="#8aa" fontSize="22" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">lines acquired</text>
+        <text x={cX + 4} y={cY(0) + 40} fill={meta2} fontSize="22" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">lines acquired</text>
         <text x={cX + 4} y={cY(0) + 96} fill={accent2} fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700}>{keep}× undersampled</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
+        color: ink, font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}
         {methodLine ? (
-          <div style={{marginTop: 8, font: "600 22px/1 var(--f-mono, 'JetBrains Mono', monospace)", color: '#8aa', letterSpacing: '0.1em'}}>
+          <div style={{marginTop: 8, font: "600 22px/1 var(--f-mono, 'JetBrains Mono', monospace)", color: meta2, letterSpacing: '0.1em'}}>
             {methodLine}</div>
         ) : null}
       </div>

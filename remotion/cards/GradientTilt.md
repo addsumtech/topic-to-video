@@ -17,5 +17,6 @@
 - The labels on the diagram ("uniform field", "low freq", "high freq", "position →", the coil formula) are fixed English text and print on every film, whatever its language.
 - `cols` below 2 breaks the ramp: each bar's position is `i / (cols - 1)`, so a single bar divides by zero.
 - The bar heights are fixed (uniform at half height, then a ramp from 0.15 to 0.95), so the bars cannot show a measured field.
+- The ink is the film's: the field line and the relation take the DNA's `fg`, the axis words take `dim`, the bars' zero line takes `line`, and `accent`/`accent2` fall back to the film's two accents before their own cyan and violet. A prop still wins, and with no DNA every original literal prints as before. Until this was done the field line vanished on a light-ground film (measured median 1.36:1).
 
 **Reference:** `remotion/src/shots/GradientTilt.tsx`

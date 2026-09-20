@@ -15,7 +15,10 @@
 **Known traps:**
 - The field is placed by fixed pixel margins, not the content zone: at 1080p the front rows reach down into the band where the caption is burned.
 - The field is decoration generated from sines. Captioned as a real spectrum or signal it is a fabricated figure.
-- Only the ground follows the DNA (and the vignette centre is a fixed navy); the title is fixed white, so a light-ground DNA loses it.
+- A ridgeline plot is a FORM, not a light: on a film that grounds on paper it draws dark-on-light. The stroke (the `accent` prop, default a pale cyan that measures 1.77:1 on warm white) is walked along its own black-to-white axis until it clears the graphics floor, hue kept; the title takes the film's ink, the kicker its `dim`, and the ground's lit core and the title's separation shadow follow the film's own paper.
+- Each ridge is FILLED with the ground colour to occlude the rows behind it, so the occlusion works on either ground.
+- The near rows' 4px glow is a dark-ground device and is dropped on a light one: on paper it is a halo of the stroke's own colour that dissolves the stroke's edge into it.
+- The depth ramp lifts its floor on a light ground (0.62 → 1 instead of 0.35 → 1). A stroke painted at 35% composites toward whatever it sits on: against night that deepens the far rows and they stay lines, against paper it dilutes them into the page however well the stroke's colour was solved. The back of the field still recedes from the front, it just recedes in tone.
 - Ridge margins are fixed pixels, so on a portrait frame the field is a narrow column.
 
 **Reference:** `remotion/src/shots/RidgeField.tsx`

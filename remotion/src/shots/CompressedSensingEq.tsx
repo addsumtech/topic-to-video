@@ -28,11 +28,24 @@ export const INTRINSIC_TEXT = [
 const SERIF = "var(--f-display, 'Source Serif 4', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif)";
 
 export const CompressedSensingEq: React.FC<{accent?: string; accent2?: string; label?: string}> = ({
-  accent = '#22d3ee', accent2 = '#a78bfa', label = 'Compressed sensing',
+  accent: ACC, accent2: ACC2, label = 'Compressed sensing',
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
+  // THE INK IS THE FILM'S, AND THIS REGISTER IS NOTHING BUT TYPE. Every colour in the equation was a literal
+  // picked for a near-black ground, and all eight DNA presets are near-black, so a film whose DNA came from
+  // a warm-white deck set the whole formula white on white — measured median 1.92:1 over 100% of the marks
+  // (`scripts/ink_contrast_qa.py`), with nothing missing, nothing overflowing and nothing colliding, which
+  // is exactly the failure a type gate cannot see. Each token keeps its OWN original literal as its
+  // fallback, so an un-themed render is unchanged.
+  const accent = ACC ?? dna?.accent ?? '#22d3ee';
+  const accent2 = ACC2 ?? dna?.accent2 ?? '#a78bfa';
+  const eqInk = dna?.fg ?? '#eef4fb';        // the equation's own colour
+  const norm = dna?.fg ?? '#cfe0f2';         // the norm bars and their subscripts
+  const op = dna?.dim ?? '#9fb4cc';          // the operators: min, subject to, ≤, ε
+  const ink = dna?.fg ?? '#dfe8f5';          // the title
+  const meta = dna?.dim ?? '#8aa';           // the second line of each annotation
   const eqY = H * 0.46;
   // FIT BY TYPE SIZE, NOT BY TRANSFORM, AND MEASURE THE FACE THAT ACTUALLY RENDERS.
   //
@@ -80,31 +93,31 @@ export const CompressedSensingEq: React.FC<{accent?: string; accent2?: string; l
           the width it was given — the frame budget is 94%, and at 1352 it uses it. (Measured off the ink
           extent of a 16:9 still, where the scale is 1: x=284..1635.) */}
       <div style={{position: 'absolute', left: 0, right: 0, top: eqY, textAlign: 'center', opacity: app,
-        font: `400 ${EQ_PX}px/1.1 ${SERIF}`, color: '#eef4fb', letterSpacing: '0.01em'}}>
+        font: `400 ${EQ_PX}px/1.1 ${SERIF}`, color: eqInk, letterSpacing: '0.01em'}}>
         <span style={{display: 'inline-block', whiteSpace: 'nowrap'}}>
-        {span('min', '#9fb4cc')}&nbsp;&nbsp;
-        {span('‖', '#cfe0f2')}{span('Ψx', accent)}{span('‖', '#cfe0f2')}<span style={{fontSize: SUB_PX, verticalAlign: 'sub', color: '#cfe0f2'}}>1</span>
-        &nbsp;&nbsp;&nbsp;<span style={{font: `italic 400 ${SUB_PX}px/1 ${SERIF}`, color: '#9fb4cc'}}>subject&nbsp;to</span>&nbsp;&nbsp;&nbsp;
-        {span('‖', '#cfe0f2')}{span('Fx−y', accent2)}{span('‖', '#cfe0f2')}<span style={{fontSize: SUB_PX, verticalAlign: 'sub', color: '#cfe0f2'}}>2</span>
-        &nbsp;{span('≤', '#9fb4cc')}&nbsp;{span('ε', '#9fb4cc')}
+        {span('min', op)}&nbsp;&nbsp;
+        {span('‖', norm)}{span('Ψx', accent)}{span('‖', norm)}<span style={{fontSize: SUB_PX, verticalAlign: 'sub', color: norm}}>1</span>
+        &nbsp;&nbsp;&nbsp;<span style={{font: `italic 400 ${SUB_PX}px/1 ${SERIF}`, color: op}}>subject&nbsp;to</span>&nbsp;&nbsp;&nbsp;
+        {span('‖', norm)}{span('Fx−y', accent2)}{span('‖', norm)}<span style={{fontSize: SUB_PX, verticalAlign: 'sub', color: norm}}>2</span>
+        &nbsp;{span('≤', op)}&nbsp;{span('ε', op)}
         </span>
       </div>
 
       {/* annotation: the sparse transform term */}
       <div style={{position: 'absolute', left: W * 0.2, top: eqY - 120, width: 300, textAlign: 'center', opacity: a1}}>
         <div style={{color: accent, font: "700 24px/1.2 var(--f-body, Inter, sans-serif)"}}>sparse in a transform</div>
-        <div style={{color: '#8aa', font: "400 18px/1.3 var(--f-body, Inter, sans-serif)", marginTop: 4}}>L1 favors the fewest coefficients</div>
+        <div style={{color: meta, font: "400 18px/1.3 var(--f-body, Inter, sans-serif)", marginTop: 4}}>L1 favors the fewest coefficients</div>
         <div style={{position: 'absolute', left: 150, top: 62, width: 2, height: 46, background: `${accent}88`}} />
       </div>
       {/* annotation: the data-consistency term */}
       <div style={{position: 'absolute', left: W * 0.5, top: eqY + 120, width: 360, textAlign: 'center', opacity: a2}}>
         <div style={{position: 'absolute', left: 180, top: -48, width: 2, height: 46, background: `${accent2}88`}} />
         <div style={{color: accent2, font: "700 24px/1.2 var(--f-body, Inter, sans-serif)"}}>consistent with the measured k-space</div>
-        <div style={{color: '#8aa', font: "400 18px/1.3 var(--f-body, Inter, sans-serif)", marginTop: 4}}>random undersampling → noise-like aliasing</div>
+        <div style={{color: meta, font: "400 18px/1.3 var(--f-body, Inter, sans-serif)", marginTop: 4}}>random undersampling → noise-like aliasing</div>
       </div>
 
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
+        color: ink, font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
     </AbsoluteFill>
   );

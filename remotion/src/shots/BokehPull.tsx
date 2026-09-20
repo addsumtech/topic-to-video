@@ -7,21 +7,39 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, hash01, radians} from '../runtime/motion';
 import {leading} from '../runtime/cjkType';
 import {useDNA, dnaPalette} from '../runtime/dna';
+import {darkGround} from '../runtime/light';
 
 export const DURATION = 160; // ~5.3s
+// @dark-world: bokeh IS out-of-focus points of LIGHT. Each orb is an additive radial glow run at a fifth of
+// full strength, and the beat closes on a lens vignette — a photograph of highlights, which is a thing that
+// only exists when the rest of the frame is darker than they are. On a warm-white film it measured a median
+// 2.81:1 with 60% of its marks under 3:1 (scripts/ink_contrast_qa.py) and the field read as dust. A dark
+// disc on paper is a polka dot, not a highlight thrown out of focus, so this keeps its own night.
 const COLORS0 = ['#ffd48a', '#8ab6ff', '#ff9ec9', '#8affce', '#c9a2ff', '#fff2c0'];
+const OWN_NIGHT = 'radial-gradient(120% 120% at 50% 42%, #101828 0%, #070b14 66%, #04060c 100%)';
+const OWN_NIGHT_FLAT = '#070b14';                 // the same night as one colour, for darkGround to judge
 
 export const BokehPull: React.FC<{title?: string; tagline?: string}> = ({title = 'WorkBuddy', tagline = 'IN FOCUS'} = {}) => {
   const t = useT();
   const dna = useDNA();
-  const COLORS = dnaPalette(dna, 6) ?? COLORS0;   // derive the palette from the film's DNA (null DNA = the original)
+  // the film's ground while the film's ground is dark (all eight presets), this register's own night when it
+  // is not. The branch is on what `darkGround` RETURNED, so a dark film grounded on exactly this colour still
+  // gets its own `bgGrad` treatment rather than ours.
+  const night = darkGround(dna?.bg, OWN_NIGHT_FLAT);
+  const onFilmGround = night === dna?.bg;
+  const ground = onFilmGround ? (dna?.bgGrad ?? night) : OWN_NIGHT;
+  // AND ITS OWN HIGHLIGHTS WITH IT. `dnaPalette` grows the orbs out of the film's two accents — which, on a
+  // film that grounds on paper, were chosen to read ON paper and can be as dark as its ink. Dropped onto this
+  // register's night those are orbs nobody can see, so the palette follows the ground it is drawn on: the
+  // film's while the film's ground is dark (unchanged for every preset and for null DNA), ours when it is not.
+  const COLORS = (onFilmGround ? dnaPalette(dna, 6) : null) ?? COLORS0;
   const {width: W, height: H, durationInFrames, fps} = useVideoConfig();
   const focus = easeInOutCubic(seg(t, 0.32, 0.72)); // 0 = all blurred, 1 = sharp
   const wordBlur = lerp(34, 0, focus);
   const wordOp = clamp01(seg(t, 0.36, 0.66));
 
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 42%, #101828 0%, #070b14 66%, #04060c 100%)')}}>
+    <AbsoluteFill style={{background: ground}}>
       {/* bokeh field */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <defs>

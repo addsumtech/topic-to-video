@@ -240,11 +240,22 @@ _LUMA_ENTRY = re.compile(r"^\s*(?:'|\")?([A-Za-z][A-Za-z0-9_]*)(?:'|\")?\s*:\s*'
                          re.M)
 
 
+# ...AND THE ALLOW LIST IS A PER-REGISTER TABLE TOO. `GROUND_FOLLOWS_MEASURED` lives in the same file, and
+# `measure_ground_reach.py --emit` rewrites it whenever ANY register's ground behaviour is re-measured — so
+# merging one row staled 29 registers whose pixels had not moved, through `light.tsx`, which imports this
+# file. Same rule as the luminance table: a reader depends on the module's CODE and on its OWN membership.
+_FOLLOWS_BLOCK = re.compile(r"(GROUND_FOLLOWS_MEASURED[^=]*=\s*new Set\(\[)(.*?)(\]\))", re.S)
+
+
 def _dep_bytes(dep, name):
     if os.path.basename(dep) != "shotLuma.ts":
         return open(dep, "rb").read()
     src = open(dep, encoding="utf-8").read()
-    mine = [m.group(0).strip() for m in _LUMA_ENTRY.finditer(src) if m.group(1) == name]
+    m = _FOLLOWS_BLOCK.search(src)
+    if m:
+        listed = "yes" if re.search(r"'%s'" % re.escape(name), m.group(2)) else "no"
+        src = src[:m.start()] + m.group(1) + " /*follows:" + listed + "*/ " + m.group(3) + src[m.end():]
+    mine = [m2.group(0).strip() for m2 in _LUMA_ENTRY.finditer(src) if m2.group(1) == name]
     # entries can share a line; drop every entry from the text, then add back only this register's
     stripped = _LUMA_ENTRY.sub("", src)
     stripped = re.sub(r"\b([A-Za-z][A-Za-z0-9_]*)\s*:\s*'(?:dark|mid|light)'\s*,?", "", stripped)

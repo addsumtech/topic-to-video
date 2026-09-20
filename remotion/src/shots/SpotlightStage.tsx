@@ -17,6 +17,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {darkGround} from '../runtime/light';
 import {textWidthPx} from '../runtime/layout';
 
 export const DURATION = 175; // ~5.8s
@@ -75,7 +76,11 @@ export const SpotlightStage: React.FC<{items?: string[]; wordmark?: string}> = (
   const ry = lerp(300, 820, easeOutCubic(segW));
 
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('#040404')}}>
+    // @dark-world: the REVEAL here is brightness — each word is drawn from near-black up to cream as the
+    // beam reaches it, so on paper the words the light has found are the invisible ones and the sequence
+    // runs backwards; and a spotlight is additive light, which has no mark on white (measured before this:
+    // median 1.14:1 with 100% of the marks under 3:1, the beam and its cone gone entirely).
+    <AbsoluteFill style={{background: darkGround(dna?.bg, '#040404')}}>
       {/* floor sheen */}
       <div style={{position: 'absolute', left: 0, right: 0, bottom: 0, height: H * 0.4,
         background: 'linear-gradient(#0000, #0d0d10)'}} />

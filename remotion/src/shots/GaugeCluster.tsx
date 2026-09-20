@@ -52,30 +52,36 @@ const readFraction = (v: unknown, what: string): number => {
 };
 
 // `fill` = null draws the empty track only: no arc, no needle.
+// THE DIAL'S OWN INK IS THE FILM'S. The track, the needle, its hub, the readout and the label were five
+// literals, and four of them were near-white — so on a film grounded paper the NUMBER this register exists to
+// show (#fff, 1.11:1) and the needle pointing at it (#e7ebf7, 1.08:1) were both drawn white on white, leaving
+// a coloured arc with nothing in it. They are passed in rather than read here so the Gauge stays a pure
+// function of its props.
 const Gauge: React.FC<{cx: number; cy: number; r: number; fill: number | null; tone: string; label: string;
-  labelPx: number; big?: string; bigPx?: number; unit?: string}> = ({
-  cx, cy, r, fill, tone, label, labelPx, big, bigPx, unit}) => {
+  labelPx: number; big?: string; bigPx?: number; unit?: string;
+  track: string; ink: string; meta: string; bigInk?: string}> = ({
+  cx, cy, r, fill, tone, label, labelPx, big, bigPx, unit, track, ink, meta, bigInk}) => {
   const START = Math.PI * 0.75, SWEEP = Math.PI * 1.5; // 270°, bottom gap
   const a1 = fill == null ? START : START + SWEEP * clamp01(fill);
   const needle = a1;
   const numPx = bigPx ?? r * 0.42;
   return (
     <g>
-      <path d={arcPath(cx, cy, r, START, START + SWEEP)} fill="none" stroke="#20263a" strokeWidth={r * 0.16} strokeLinecap="round" />
+      <path d={arcPath(cx, cy, r, START, START + SWEEP)} fill="none" stroke={track} strokeWidth={r * 0.16} strokeLinecap="round" />
       {fill == null ? null : (
         <>
           <path d={arcPath(cx, cy, r, START, a1)} fill="none" stroke={tone} strokeWidth={r * 0.16} strokeLinecap="round"
             style={{filter: `drop-shadow(0 0 ${r * 0.06}px ${tone})`}} />
           <line x1={cx} y1={cy} x2={cx + r * 0.72 * Math.cos(needle)} y2={cy + r * 0.72 * Math.sin(needle)}
-            stroke="#e7ebf7" strokeWidth={r > 130 ? 6 : 4} strokeLinecap="round" />
-          <circle cx={cx} cy={cy} r={r * 0.09} fill="#e7ebf7" />
+            stroke={ink} strokeWidth={r > 130 ? 6 : 4} strokeLinecap="round" />
+          <circle cx={cx} cy={cy} r={r * 0.09} fill={ink} />
         </>
       )}
       {big ? (
-        <text x={cx} y={cy + r * 0.42} textAnchor="middle" fill="#fff"
+        <text x={cx} y={cy + r * 0.42} textAnchor="middle" fill={bigInk ?? ink}
           style={{font: `800 ${numPx}px var(--f-display, Inter, system-ui, sans-serif)`}}>{big}<tspan fill={tone} style={{font: `800 ${numPx * 0.24 / 0.42}px var(--f-display, Inter)`}}>{unit}</tspan></text>
       ) : null}
-      <text x={cx} y={cy + r * 1.42} textAnchor="middle" fill="#8b93a8"
+      <text x={cx} y={cy + r * 1.42} textAnchor="middle" fill={meta}
         style={{font: `600 ${labelPx}px var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.1em'}}>{label}</text>
     </g>
   );
@@ -90,6 +96,13 @@ export const GaugeCluster: React.FC<{value?: string; unit?: string; label?: stri
   gauges: gaugesGiven, gauges: SATS = DEFAULT_GAUGES} = {}) => {
   const t = useT();
   const dna = useDNA(); const ACC = dna?.accent ?? ACC0;   // inherit the film's Design DNA (else original look)
+  // Each literal keeps its OWN fallback — the readout's #fff and the needle's #e7ebf7 were two different
+  // whites and collapsing them onto one would move the un-themed render.
+  const TRACK = dna?.line ?? '#20263a';        // the empty scale: furniture, so it follows `line`
+  const INK = dna?.fg ?? '#e7ebf7';            // needle + hub
+  const BIG_INK = dna?.fg ?? '#fff';           // the figure itself
+  const META = dna?.dim ?? '#8b93a8';          // each gauge's label
+  const TITLE_INK = dna?.dim ?? '#aeb6ca';
   const {width: W, height: H} = useVideoConfig();
 
   const standalone = [value, unit, fill, labelGiven, titleGiven, gaugesGiven].every((v) => v === undefined);
@@ -148,17 +161,18 @@ export const GaugeCluster: React.FC<{value?: string; unit?: string; label?: stri
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? `radial-gradient(120% 100% at 50% 40%, #12182c, ${BG} 72%)`}}>
       {TITLE ? <div style={{position: 'absolute', top: 74, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
-        color: '#aeb6ca', font: `700 ${titlePx}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.3em',
+        color: TITLE_INK, font: `700 ${titlePx}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.3em',
         textTransform: 'uppercase'}}>{TITLE}</div> : null}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         {sats.map((g, i) => (
           <Gauge key={i} cx={satX[i]} cy={cy} r={rSide} labelPx={satLabelPx}
             fill={easeOutExpo(seg(t, 0.1 + i * 0.06, 0.36 + i * 0.06)) * g.fill}
-            tone={satTone[i]} label={g.label} />
+            tone={satTone[i]} label={g.label} track={TRACK} ink={INK} meta={META} />
         ))}
         <Gauge cx={heroX} cy={cy} r={rHero} labelPx={heroLabelPx}
           fill={heroTarget == null ? null : heroP * heroTarget}
-          tone={ACC} label={LABEL} big={shown} bigPx={bigPx} unit={UNIT} />
+          tone={ACC} label={LABEL} big={shown} bigPx={bigPx} unit={UNIT}
+          track={TRACK} ink={INK} meta={META} bigInk={BIG_INK} />
       </svg>
     </AbsoluteFill>
   );

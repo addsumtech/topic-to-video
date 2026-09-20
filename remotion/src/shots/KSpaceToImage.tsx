@@ -22,11 +22,24 @@ import {useDNA} from '../runtime/dna';
 export const DURATION = 180; // 6s
 
 export const KSpaceToImage: React.FC<{accent?: string; accent2?: string; label?: string; src?: string}> = ({
-  accent = '#22d3ee', accent2 = '#a78bfa', label = 'inverse Fourier transform', src,
+  accent: ACC, accent2: ACC2, label = 'inverse Fourier transform', src,
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
+  // THE INK IS THE FILM'S. The title, its line and the sweep front were literals picked for a near-black
+  // ground, and all eight DNA presets are near-black, so on a film whose DNA came from a warm-white deck
+  // this register's type drew white on white — measured median 1.12:1 over 100% of the marks
+  // (`scripts/ink_contrast_qa.py`). The FREQUENCIES are not light either: their amplitude is drawn as
+  // OPACITY (`0.10 + amp * 0.8`), so the lattice reads the same way in the film's own accents on paper as
+  // it does on night — dense at the centre, thinning to nothing at the edges. What does keep its own dark
+  // is the reconstructed image's frame, which already paints `#0a1424` under whatever the film's scan is:
+  // a scan viewport is black in every reader that has ever shown one. Each token keeps its OWN original
+  // literal as its fallback, so an un-themed render is unchanged.
+  const accent = ACC ?? dna?.accent ?? '#22d3ee';
+  const accent2 = ACC2 ?? dna?.accent2 ?? '#a78bfa';
+  const front = dna?.fg ?? '#eaf6ff';        // the sweep front — the transform computing across the frame
+  const ink = dna?.fg ?? '#dfe8f5';          // the title
   const cx = W / 2, cy = H / 2;
   // the FFT sweep: k-space on the right, image resolving on the left. Holds a beat of pure k-space, then sweeps.
   const sweep = easeInOutCubic(seg(t, 0.1, 0.86));
@@ -68,11 +81,11 @@ export const KSpaceToImage: React.FC<{accent?: string; accent2?: string; label?:
 
       {/* the sweep front — the FFT computing across the frame */}
       <div style={{position: 'absolute', left: sweepX - 1.5, top: 0, width: 3, height: H,
-        background: '#eaf6ff', boxShadow: `0 0 26px 5px ${accent}`, opacity: sweep > 0.01 && sweep < 0.995 ? 0.9 : 0}} />
+        background: front, boxShadow: `0 0 26px 5px ${accent}`, opacity: sweep > 0.01 && sweep < 0.995 ? 0.9 : 0}} />
 
       {/* label (kept above the reserved caption band) */}
       <div style={{position: 'absolute', left: 0, right: 0, top: 96, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
+        color: ink, font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.35, 1, clamp01(t * 4))}}>{label}
         <div style={{marginTop: 8, font: "500 22px/1 var(--f-mono, 'JetBrains Mono', monospace)", color: accent, letterSpacing: '0.14em'}}>
           k-space&nbsp;&nbsp;→&nbsp;&nbsp;image</div>

@@ -73,6 +73,7 @@ export const DIM_CONTRAST_MIN = 2.4;
 // library's own convention, which is precisely the metadata-you-cannot-read failure on a paper ground.
 const TOKEN_MIX = {dim: 0.589, surface: 0.044, surfaceBorder: 0.178, line: 0.116};
 
+
 /** WCAG contrast ratio between two relative luminances. */
 const contrast = (a: number, b: number): number => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 
@@ -138,6 +139,35 @@ export const keyFromY = (y: number): 'dark' | 'light' => (y > LIGHT_KEY_Y ? 'lig
 /** Which exposure a DNA's own tokens describe — DERIVED from `bg`, never stored. A stored `key` field would
  *  be a second copy of a fact `bg` already states, and the two would eventually disagree. */
 export const keyOf = (dna: DesignDNA): 'dark' | 'light' => keyFromY(lumValue(dna.bg) ?? 0);
+
+/**
+ * THE GROUND FOR A REGISTER WHOSE SUBJECT IS EMITTED LIGHT — its own night when the film's ground is light.
+ *
+ * An aurora, a phosphor screen, a signal glowing inside a scanner, headlights on a wet road: the darkness
+ * there is not a palette choice, it is what makes the light legible. Measured across the library on
+ * 2026-09-20 (`scripts/ink_contrast_qa.py`), every one of those registers lost its picture on a warm-white
+ * DNA — and "invert the ink" is not a repair for them, it is a different picture, because what would be
+ * inverted is the glow itself.
+ *
+ * So they take the film's ground while the film's ground is DARK — a terminal film, a cinematic one, all
+ * eight presets — and keep their own night when it is not. A light film then gets one deliberately dark
+ * beat, which is a thing this tier already knows how to carry: `SHOT_LUMA` records the register as dark, the
+ * seam guard refuses a kinetic cut across that boundary, and the caption ink is picked from the measured
+ * ground rather than from the film's.
+ *
+ * The register must also SAY so, with `// @dark-world: <why>` in its header. The gate reads that declaration
+ * and then checks it against the pixels: one that declares darkness and still paints the film's warm white
+ * is reported, because a wrong note is worse than no note.
+ */
+export const darkGround = (filmBg?: string | null, own = '#0a0b12'): string => {
+  const y = lumValue(filmBg);
+  if (typeof filmBg !== 'string' || !filmBg.trim()) return own;
+  if (y === null) return filmBg;          // a gradient or a var(): the film's own treatment, left alone
+  // ...and the boundary is asked of `keyFromY`, the one classifier, rather than compared again here: this
+  // file records that the exposure rule once had four callers within a page of each other, and a second
+  // comparison is how they start.
+  return keyFromY(y) === 'dark' ? filmBg : own;
+};
 
 /** The POLARITY a register should branch on — "am I drawing on light?" — so a shadow/glow decision is a
  *  read rather than a guess. Total: no DNA means no re-grounding, which is the dark library default. */

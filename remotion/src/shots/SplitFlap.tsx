@@ -6,7 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, clamp01, hash01, easeOutBack} from '../runtime/motion';
-import {useDNA, mix} from '../runtime/dna';
+import {useDNA, mix, readableOn, shade} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 const CH = '▚ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789▸✓'.split('');
@@ -43,6 +43,33 @@ export const SplitFlap: React.FC<{kicker?: string; rows?: FlapRow[]}> = ({
     // rolling flap reads as the same tile mid-turn rather than as a different tile.
     return {on: lit, off: mix(lit, dna?.bg ?? '#0e0e12', 0.28)};
   };
+  // THE BOARD IS A SURFACE, NOT A WORLD. Its plate, its flap bevel and its split were six charcoal literals,
+  // so a film grounded warm white got a private black board bolted onto its paper — and the lit glyph, which
+  // IS the film's accent, was then drawn on a tone the film never chose: measured, the light-key accent
+  // #1d63d6 on the flap face #191920 is 2.7:1, a departure board whose message cannot be read.
+  // So the flap is BUILT from the film's own ground, at the density steps the original tile already used
+  // (+0.115 / +0.065 / +0.017 / +0.067 off its own ground), walked toward whichever pole it has room for —
+  // which is what inverts the bevel on paper instead of clipping it. The split stays a shadow in the face at
+  // either exposure, because a gap between two flaps is darker than the flaps in any light.
+  const GROUND = dna?.bg ?? '#0a0a0e';
+  const POLE = dna ? readableOn(GROUND, '#ffffff', '#05070c') : '#ffffff';
+  const OPP = POLE === '#ffffff' ? '#05070c' : '#ffffff';
+  // The four bevel stops are the ORIGINAL tile's own distances from its own ground — measured in the density
+  // model as +0.115 / +0.065 / +0.017 / +0.067 — re-walked toward whichever pole THIS ground has room for.
+  // `separated` is the wrong instrument here and said so out loud: its ladder starts at 0.08 and steps 0.03,
+  // so it collapsed all four stops onto one tone on a light ground, and it THREW on a dark one because a
+  // plate recessed below a near-black ground is a region that is not there. `mix` at the measured fractions
+  // keeps the bevel on both keys, and the plate stays the subtle recess it always was.
+  const F = (f: number) => mix(GROUND, POLE, f);
+  const FACE_HI = dna ? F(0.115) : '#26262c';
+  const FACE = dna ? F(0.065) : '#191920';
+  const FACE_LO = dna ? F(0.017) : '#0e0e12';
+  const FACE_FT = dna ? F(0.067) : '#1a1a20';
+  // A GAP IS DARKER THAN THE FLAPS IN ANY LIGHT, so the split is always toward black — not toward `OPP`,
+  // which on a paper ground would have drawn the hairline between two flaps in WHITE.
+  const SPLIT = dna ? shade(FACE, 0.62) : '#000';
+  const PLATE = dna ? mix(GROUND, OPP, 0.5) : '#050506';
+  const PLATE_EDGE = dna ? F(0.10) : '#23232a';
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
   const COLS = Math.max(...ROWS.map((r) => r.length));
@@ -83,10 +110,11 @@ export const SplitFlap: React.FC<{kicker?: string; rows?: FlapRow[]}> = ({
       tiles.push(
         <div key={`${r}-${c}`} style={{position: 'absolute', left: tx, top: ty, width: tw, height: th,
           transform: `scaleY(${flapScale})`}}>
-          <div style={{position: 'absolute', inset: 0, borderRadius: 12, background: 'linear-gradient(#26262c 0%, #191920 49%, #0e0e12 51%, #1a1a20 100%)',
-            border: '1px solid #000', boxShadow: 'inset 0 1px 0 #ffffff10, 0 8px 20px #0007'}} />
+          <div style={{position: 'absolute', inset: 0, borderRadius: 12,
+            background: `linear-gradient(${FACE_HI} 0%, ${FACE} 49%, ${FACE_LO} 51%, ${FACE_FT} 100%)`,
+            border: `1px solid ${SPLIT}`, boxShadow: 'inset 0 1px 0 #ffffff10, 0 8px 20px #0007'}} />
           {/* hairline split */}
-          <div style={{position: 'absolute', left: 0, right: 0, top: '50%', height: 2, background: '#000', opacity: 0.7}} />
+          <div style={{position: 'absolute', left: 0, right: 0, top: '50%', height: 2, background: SPLIT, opacity: 0.7}} />
           <div style={{position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
             font: `800 ${glyphPx}px/1 var(--f-display, "Anton", Impact, sans-serif)`,
             color: settled ? toneOf(r).on : toneOf(r).off,
@@ -101,12 +129,12 @@ export const SplitFlap: React.FC<{kicker?: string; rows?: FlapRow[]}> = ({
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 34%, #17171d 0%, #0a0a0e 72%)')}}>
       {/* board backing plate */}
       <div style={{position: 'absolute', left: x0 - 30, top: y0 - 30, width: boardW + 60,
-        height: ROWS.length * th + (ROWS.length - 1) * gap + 60, borderRadius: 22, background: '#050506',
-        border: '1px solid #23232a', boxShadow: '0 40px 120px #000b'}} />
+        height: ROWS.length * th + (ROWS.length - 1) * gap + 60, borderRadius: 22, background: PLATE,
+        border: `1px solid ${PLATE_EDGE}`, boxShadow: '0 40px 120px #000b'}} />
       {tiles}
       {/* header label */}
       <div style={{position: 'absolute', left: 0, right: 0, top: y0 - 100, textAlign: 'center',
-        color: '#6f7078', font: '700 26px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.5em', paddingLeft: '0.5em'}}>{kicker}</div>
+        color: dna?.dim ?? '#6f7078', font: '700 26px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.5em', paddingLeft: '0.5em'}}>{kicker}</div>
     </AbsoluteFill>
   );
 };

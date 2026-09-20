@@ -6,18 +6,30 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, shade} from '../runtime/dna';
+import {onLight, groundFrom} from '../runtime/light';
 import {bottomInset} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 const BG_D0 = '#070912', ACC_D0 = '#5b8cff', ACC2_D0 = '#c07bff';
+const POOL_D0 = '#10142c';   // the lit core of the ground, a LIFT off this register's own night
 const N = 260;
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 
 export const MorphForms: React.FC<{title?: string; tagline?: string}> = ({
   title: TITLE = 'One idea, many shapes', tagline: TAG = ''} = {}) => {
   const dna = useDNA();
-  const BG = dna?.bg ?? BG_D0, ACC = dna?.accent ?? ACC_D0, ACC2 = dna?.accent2 ?? ACC2_D0;
+  // A FILM CAN GROUND ON PAPER, AND THIS REGISTER'S PALETTE WAS PICKED AGAINST NEAR-BLACK. `groundFrom` relights
+  // the film's OWN tokens for the ground they will actually be drawn on — exposure only, hue kept — so a light
+  // film gets its own accents at a legible exposure instead of the pastels it chose for dark type on paper.
+  // Null DNA and all eight (dark) presets never reach it: they take the `??` fallbacks exactly as before.
+  const lit = dna && onLight(dna) ? groundFrom(dna, {bg: dna.bg}) : null;
+  const BG = dna?.bg ?? BG_D0;
+  const ACC = lit?.accent ?? dna?.accent ?? ACC_D0, ACC2 = lit?.accent2 ?? dna?.accent2 ?? ACC2_D0;
+  // The ground's core is a LIFT off this register's night — on paper a lift is invisible and the literal is a
+  // near-black hole in the middle of the film's page (measured: a dark ellipse over half the frame). On a light
+  // ground it becomes the same gesture at the other exposure: a slightly deeper wash of the film's own paper.
+  const POOL = lit ? shade(BG, 0.06) : POOL_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   // three target shapes per point index
@@ -55,7 +67,7 @@ export const MorphForms: React.FC<{title?: string; tagline?: string}> = ({
     return {x: cx + x * S * persp, y: cy + yv * S * persp, z, persp, i};
   }).sort((a, b) => a.z - b.z);
   return (
-    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 44%, #10142c, ${BG} 74%)`, overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 44%, ${POOL}, ${BG} 74%)`, overflow: 'hidden'}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         {dots.map((d) => {
           const depth = clamp01((d.z + 1) / 2);
@@ -66,10 +78,13 @@ export const MorphForms: React.FC<{title?: string; tagline?: string}> = ({
         })}
       </svg>
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: bottomInset(W, H, 120)}}>
-        <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 14}px)`, color: '#eaf0ff',
+        {/* the title and its kicker sit ON the ground, so they are the film's ink and its metadata. The
+            separation shadow is the GROUND'S OWN colour, never a fixed black: black behind near-black type on
+            paper is a smudge, and a white one would be the halo the caption rule forbids. */}
+        <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 14}px)`, color: dna?.fg ?? '#eaf0ff',
           font: '800 76px/1.05 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.02em', textAlign: 'center',
-          textShadow: '0 8px 40px #000'}}>{TITLE}</div>
-        {TAG ? <div style={{opacity: titleIn, marginTop: 16, color: '#9fb0d0', font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.16em'}}>{TAG}</div> : null}
+          textShadow: lit ? `0 8px 40px ${BG}` : '0 8px 40px #000'}}>{TITLE}</div>
+        {TAG ? <div style={{opacity: titleIn, marginTop: 16, color: dna?.dim ?? '#9fb0d0', font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.16em'}}>{TAG}</div> : null}
       </AbsoluteFill>
     </AbsoluteFill>
   );

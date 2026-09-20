@@ -15,6 +15,7 @@
 - The label used to turn success-green whenever the last phase began, so a closing 「连接失败」 or "Call dropped" showed in the colour of success. Colour now comes only from the film's `state`.
 - An untimed phase used to fall back to `at ?? 0` and land at the start. A missing or out-of-range `at`, or phases out of order, now throw.
 - Its geometry was once literal: 72 bars at a 22px pitch spanned 1562px, off both edges of a 1080-wide frame. It is now sized from the frame and the caption band, and a portrait frame gets fewer bars, not thinner ones.
+- The ground and the label were read from the DNA from the start; the BARS were not. Their gradient runs from a bright tip down to the accent, and that tip was the literal `#8af0ff` — a highlight on a dark ground and nothing at all on paper (measured 76% of the register's marks under 3:1 on a warm-white film, median 1.33:1, every one of them a bar). The tip is now the far side of the film's own accent, so the bar keeps two values on either ground; on every preset, and with no DNA, the original literal still wins. These are solid filled shapes, not a glow, so the register follows a light film rather than keeping a night of its own.
 
 **Refuses:** `phases` empty or not an array; a phase with no `label`; an `at` that is missing, not a number, or outside 0–1; a `state` other than `done`/`failed`; phases not in ascending `at` order.
 

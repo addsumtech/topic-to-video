@@ -15,6 +15,7 @@
 - Omitting props prints the demo `Decoded` / `meaning from the stream`.
 - The rain is marked `data-bleed`: glyphs falling through the frame edge and the caption band are the effect, so the subtitle is always read over moving glyphs.
 - The darkened core is a fixed ellipse at the centre. A long title reaches past it onto the brightest rain, and the title isn't fitted.
-- The charset (including katakana) is fixed and reads as the Matrix; the head glyphs are fixed pale mint and the title is fixed near-white, while ground and trail follow the DNA.
+- **Dark world** (`@dark-world` in the shot). The rain is phosphor: each column is a bright head with a trail that decays by falling OPACITY, which on paper is a glyph fading into the page. It takes the film's ground only while that ground is DARK and keeps its own night when the film's is light — and on that night it keeps its own green too, because a light film's accent was chosen to read on paper and can be as dark as its ink.
+- The charset (including katakana) is fixed and reads as the Matrix; the head glyphs are fixed pale mint and the title is fixed near-white, while ground and trail follow the DNA of a dark-ground film.
 
 **Reference:** `remotion/src/shots/CodeRain.tsx`

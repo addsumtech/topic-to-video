@@ -26,11 +26,22 @@ const N = 60;
 
 export const SpinsAlign: React.FC<{accent?: string; accent2?: string; label?: string; note?: string;
   alignedFraction?: number}> = ({
-  accent = '#22d3ee', accent2 = '#a78bfa', label = 'Spins align in the field',
+  accent: ACC, accent2: ACC2, label = 'Spins align in the field',
   note = '~3 in a million tip the balance → net signal', alignedFraction = 0.1, } = {}) => {
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
+  // THE INK IS THE FILM'S, AND THIS IS A DIAGRAM, NOT A GLOW. The arrows, M₀ and both lines of type were
+  // literals picked for a near-black ground; all eight DNA presets are near-black, so a film whose DNA came
+  // from a warm-white deck lost the whole cloud — measured median 1.12:1 over 100% of the marks
+  // (`scripts/ink_contrast_qa.py`). Arrows on a field are rules, not light. Each token keeps its OWN
+  // original literal as its fallback, so an un-themed render is unchanged.
+  const accent = ACC ?? dna?.accent ?? '#22d3ee';
+  const accent2 = ACC2 ?? dna?.accent2 ?? '#a78bfa';
+  const vec = dna?.fg ?? '#eaf6ff';          // the net magnetization M₀, its head and its label
+  const ink = dna?.fg ?? '#dfe8f5';          // the title
+  const meta = dna?.dim ?? '#9fb4cc';        // the B₀ axis label
+  const idle = dna?.dim ?? '#6b7688';        // the spins that stay random — the crowd the minority stands out of
   const frac = Number(alignedFraction);
   if (!Number.isFinite(frac) || frac <= 0 || frac > 1) {
     throw new Error(`SpinsAlign: \`alignedFraction\` is the share of the ${N} drawn spins that end up along B₀, ` +
@@ -51,7 +62,7 @@ export const SpinsAlign: React.FC<{accent?: string; accent2?: string; label?: st
     const ang = lerp(rnd, flips ? -Math.PI / 2 : rnd, align);   // aligned ones point up (−90°)
     const len = 22;
     arrows.push(<line key={i} x1={x} y1={y} x2={x + Math.cos(ang) * len} y2={y + Math.sin(ang) * len}
-      stroke={flips ? accent : '#6b7688'} strokeWidth={flips ? 2.4 : 1.6} opacity={flips ? 0.95 : 0.6}
+      stroke={flips ? accent : idle} strokeWidth={flips ? 2.4 : 1.6} opacity={flips ? 0.95 : 0.6}
       markerEnd={flips ? 'url(#sa)' : undefined} />);
   }
   const mBase = H * 0.78, mY = lerp(0, H * 0.15, align);
@@ -64,16 +75,16 @@ export const SpinsAlign: React.FC<{accent?: string; accent2?: string; label?: st
         <defs><marker id="sa" markerWidth="9" markerHeight="9" refX="3" refY="4.5" orient="auto"><path d="M0,0 L6,4.5 L0,9 Z" fill={accent} /></marker></defs>
         {/* B0 field direction (up) appears as it turns on */}
         <line x1={W * 0.8} y1={H * 0.75} x2={W * 0.8} y2={H * 0.25} stroke={`${accent2}${Math.round(align * 160).toString(16).padStart(2, '0')}`} strokeWidth={2} strokeDasharray="4 6" />
-        <text x={W * 0.8 + 12} y={H * 0.27} fill="#9fb4cc" fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700} opacity={align}>B₀</text>
+        <text x={W * 0.8 + 12} y={H * 0.27} fill={meta} fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700} opacity={align}>B₀</text>
         {arrows}
         {/* the net magnetization that emerges from the excess */}
-        <line x1={W * 0.5} y1={mBase} x2={W * 0.5} y2={mBase - mY} stroke="#eaf6ff" strokeWidth={5} markerEnd="url(#sa2)" opacity={align} />
-        <defs><marker id="sa2" markerWidth="12" markerHeight="12" refX="4" refY="6" orient="auto"><path d="M0,0 L8,6 L0,12 Z" fill="#eaf6ff" /></marker></defs>
-        <text x={W * 0.5 + 16} y={mBase - mY} fill="#eaf6ff" fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800} opacity={align}>M₀</text>
+        <line x1={W * 0.5} y1={mBase} x2={W * 0.5} y2={mBase - mY} stroke={vec} strokeWidth={5} markerEnd="url(#sa2)" opacity={align} />
+        <defs><marker id="sa2" markerWidth="12" markerHeight="12" refX="4" refY="6" orient="auto"><path d="M0,0 L8,6 L0,12 Z" fill={vec} /></marker></defs>
+        <text x={W * 0.5 + 16} y={mBase - mY} fill={vec} fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800} opacity={align}>M₀</text>
         {note ? <text x={W * 0.5} y={Math.min(H * 0.84, bottomTextY(W, H))} textAnchor="middle" fill={accent} fontSize={notePx} fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={align}>{note}</text> : null}
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
+        color: ink, font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
     </AbsoluteFill>
   );

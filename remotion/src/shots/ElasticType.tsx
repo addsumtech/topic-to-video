@@ -41,7 +41,6 @@ export const ElasticType: React.FC<{word?: string; tagline?: string}> = ({
   const step = n > 1 ? Math.min(DROP_STEP, (LAND_BY - DROP_START - DROP_DUR) / (n - 1)) : DROP_STEP;
   const dna = useDNA();
   const TONES = dnaPalette(dna, 5) ?? TONES0;   // derive the palette from the film's DNA (null DNA = the original)
-  const BG = dna?.bg ?? BG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   // THE WORD IS FITTED TO THE FRAME — see InflateType for the same defect in the same shape. 230px holds
@@ -52,7 +51,12 @@ export const ElasticType: React.FC<{word?: string; tagline?: string}> = ({
     Math.max(60, (W * 0.94) / SX_MAX - n * GLYPH_MARGIN), 230, {usable: 1}));
   const tagIn = easeOutCubic(seg(t, 0.66, 0.86));
   return (
-    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 40%, #1c2647, ${BG} 74%)`, overflow: 'hidden',
+    // THE LIFT IN THE GROUND IS THE FILM'S TOO. `radial-gradient(…, #1c2647, ${BG})` followed the DNA only at
+    // its OUTER stop, so a film grounded warm white got a navy well in the middle of the frame — a murk, on a
+    // register whose whole identity is a bright playful ground. The film's own treatment first, then its flat
+    // ground, and only an un-themed film draws the original two-stop well.
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg
+        ?? `radial-gradient(120% 100% at 50% 40%, #1c2647, ${BG_D0} 74%)`, overflow: 'hidden',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
       <div style={{display: 'flex', alignItems: 'flex-end'}}>
         {letters.map((ch, i) => {
@@ -77,7 +81,7 @@ export const ElasticType: React.FC<{word?: string; tagline?: string}> = ({
           );
         })}
       </div>
-      <div style={{opacity: tagIn, transform: `translateY(${(1 - tagIn) * 12}px)`, marginTop: 48, color: '#c7d0ee',
+      <div style={{opacity: tagIn, transform: `translateY(${(1 - tagIn) * 12}px)`, marginTop: 48, color: dna?.dim ?? '#c7d0ee',
         font: '700 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.24em', textTransform: 'uppercase'}}>{TAG}</div>
     </AbsoluteFill>
   );

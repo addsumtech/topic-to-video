@@ -13,14 +13,14 @@
 | `lines` | the fully sampled line count drawn | an integer from 2 to 128. More lines give a denser comb with thinner spacing; past 128 the strokes would merge into a block. The count shown as acquired is ceil(lines ÷ R), the number actually drawn |
 | `method` | the words on the method line under the headline, before the figure | leaving the demo in place prints `deep network · trained on`, a claim about a method |
 | `scans` | the figure at the end of the method line | a string that is exactly one number counts up to the film's text; anything else shows verbatim; `''` draws no figure. Leaving the demo in place prints `167k scans` |
-| `accent` | the kept lines, the grid frame and the `/total` | a prop with a fixed cyan default, not the DNA's accent |
-| `accent2` | the skipped lines and the `R× undersampled` readout | a prop with a fixed violet default |
+| `accent` | the kept lines, the grid frame and the `/total` | defaults to the film's DNA accent, then to its own cyan |
+| `accent2` | the skipped lines and the `R× undersampled` readout | defaults to the film's second accent, then to its own violet |
 
 **Known traps:**
 - `method` and `scans` default to one film's claim, "deep network · trained on 167k scans". Omit them and that claim prints on any film. Set both, or pass `''`.
 - The factor used to be the literal "~4–8× undersampled" whatever `keep` said, so `keep: 2` showed 21/42 beside "4–8×". The acquired count also used `round`, printing 8 where 9 lines were drawn. Both now come from what is drawn.
 - On narrow frames the counter block moves under the grid, and the grid gives up height so the block stays out of the caption band (it once sat 128px inside the band at 1:1).
-- Only the background follows the DNA. The label, counter and caption inks are light literals, so a light DNA loses contrast. The axis words (`k-space · phase-encode lines`, `lines acquired`, `× undersampled`) always print in English.
+- The ink is the film's: the counter and the headline take the DNA's `fg`, the axis words and the method line take `dim`. With no DNA every original literal prints as before. Until this was done the grid, the count and the headline drew white on white on a light-ground film (measured median 1.60:1). The axis words (`k-space · phase-encode lines`, `lines acquired`, `× undersampled`) always print in English.
 
 **Refuses:** `lines` that is not an integer from 2 to 128; `keep` that is not an integer from 2 to `lines`.
 

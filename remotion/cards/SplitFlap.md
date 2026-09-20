@@ -1,6 +1,6 @@
 # SplitFlap
 
-**Identity:** a Solari departure board — rows of dark flap tiles riffle through random characters and settle one by one, left to right and row by row, to spell the message, each landed character glowing in its row's tone under a small spaced header.
+**Identity:** a Solari departure board — rows of flap tiles riffle through random characters and settle one by one, left to right and row by row, to spell the message, each landed character glowing in its row's tone under a small spaced header.
 
 **Use when:** a status or announcement moment — "the board updates": what is live, done or waiting, a destination or a result, with a mechanical, premium feel. Rows can carry different tones so two states read as two states. **Not when:** the copy is a sentence (it is one tile per character), or there are many rows.
 
@@ -14,6 +14,7 @@
 **Known traps:**
 - The cascade used to be an unbounded sum, so any tile past column 17 of row one (11 of row three) never landed and the board flickered to the last frame — real Chinese rows ended more than half unresolved. It is now normalised to the board; don't reintroduce a fixed per-tile offset.
 - Every row used to be one hardcoded amber, erasing a beat whose whole point was two states (green = working, grey = waiting). Use `tone` per row when rows mean different things. Without a DNA, tones are ignored and every row is amber.
+- The board is a SURFACE, not a world: the plate, the flap bevel and the hairline split are built from the film's own ground at the original tile's measured density steps, so a light-key film gets a cream board with dark splits rather than a private black one bolted onto its paper. That is what keeps the lit glyph legible — the glyph is the film's accent, chosen to read on the film's ground, and before this it was painted on a charcoal the film never chose (measured 2.7:1).
 - Only width is fitted: the board is centred on the frame, not the content zone, so at 1080p a board of four or more full-size rows reaches into the caption band.
 - The riffle draws Latin letters, digits and symbols whatever the row's language; only the settled characters are the film's.
 

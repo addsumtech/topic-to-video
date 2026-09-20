@@ -24,18 +24,36 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, lerp, clamp01, hash01, radians} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, shade} from '../runtime/dna';
 import {bottomTextY, CONTENT_TOP, fitTextPx, MONO_ADVANCE} from '../runtime/layout';
 
 export const DURATION = 180; // 6s
 
 export const SpinningProton: React.FC<{accent?: string; accent2?: string; label?: string; sublabel?: string}> = ({
-  accent = '#22d3ee', accent2 = '#a78bfa', label = 'A proton that spins like a tiny magnet',
+  accent: ACC, accent2: ACC2, label = 'A proton that spins like a tiny magnet',
   sublabel = '~70% water · ¹H',
 } = {}) => {
   const {width: W, height: H, durationInFrames, fps} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
+  // THE INK IS THE FILM'S, AND THIS IS A DIAGRAM, NOT A GLOW. The proton's rim, μ and the two lines of type
+  // were literals picked for a near-black ground; all eight DNA presets are near-black, so a film whose DNA
+  // came from a warm-white deck lost them — measured median 1.12:1 over 93% of the marks
+  // (`scripts/ink_contrast_qa.py`). The proton is a lit SPHERE and keeps its own shading; what changes is
+  // the ink around it. The `+` is ink ON that sphere, so it comes from `onAccent` — the token for exactly
+  // that — and not from `fg`. Each token keeps its OWN original literal as its fallback, so an un-themed
+  // render is unchanged.
+  const accent = ACC ?? dna?.accent ?? '#22d3ee';
+  const accent2 = ACC2 ?? dna?.accent2 ?? '#a78bfa';
+  const vec = dna?.fg ?? '#eaf6ff';          // the proton's rim, the μ vector, its head and its label
+  const onProton = dna?.onAccent ?? '#04222c';   // the + charge, drawn ON the proton's accent body
+  const ink = dna?.fg ?? '#dfe8f5';          // the title
+  const meta = dna?.dim ?? '#8aa';           // the film's line under the proton
+  const water = dna?.dim ?? '#7f8aa0';       // the bulk H₂O in the background
+  // The sphere's dark side was `#1c6a86` — a teal that only belongs under the cyan the accent used to be
+  // fixed at. Now that the accent is the film's, a shaded version of THAT colour is what keeps the proton
+  // one lit object instead of two hues; with no DNA the original literal is painted exactly as before.
+  const protonDeep = dna ? shade(accent, 0.45) : '#1c6a86';
   const cx = W * 0.5, cy = H * 0.5 - 10, R = Math.min(W, H) * 0.075;
   const spin = t * Math.PI * 8;                              // the proton's spin
   // the spin ring: a horizontal circle around μ above the proton, seen from slightly above (rx : ry = 1.5 : 0.6)
@@ -68,7 +86,7 @@ export const SpinningProton: React.FC<{accent?: string; accent2?: string; label?
     const x = hash01(i * 2 + 1) * W, y = hash01(i * 2 + 5) * H;
     if (Math.hypot(x - cx, y - cy) < R * 7) continue;
     waters.push(<g key={i} opacity={0.16} transform={`translate(${x} ${y})`}>
-      <circle cx={0} cy={0} r={9} fill={accent2} /><circle cx={-13} cy={9} r={5} fill="#7f8aa0" /><circle cx={13} cy={9} r={5} fill="#7f8aa0" />
+      <circle cx={0} cy={0} r={9} fill={accent2} /><circle cx={-13} cy={9} r={5} fill={water} /><circle cx={13} cy={9} r={5} fill={water} />
     </g>);
   }
 
@@ -78,10 +96,10 @@ export const SpinningProton: React.FC<{accent?: string; accent2?: string; label?
         {waters}
         {loops}
         {/* the proton */}
-        <circle cx={cx} cy={cy} r={R} fill="url(#pgrad)" stroke="#eaf6ff" strokeWidth={2} />
+        <circle cx={cx} cy={cy} r={R} fill="url(#pgrad)" stroke={vec} strokeWidth={2} />
         <defs><radialGradient id="pgrad" cx="42%" cy="38%" r="70%">
-          <stop offset="0%" stopColor="#fff" /><stop offset="55%" stopColor={accent} /><stop offset="100%" stopColor="#1c6a86" /></radialGradient></defs>
-        <text x={cx} y={cy + 9} textAnchor="middle" fill="#04222c" fontSize={R * 0.8} fontFamily="var(--f-display, Inter, sans-serif)" fontWeight={800}>+</text>
+          <stop offset="0%" stopColor="#fff" /><stop offset="55%" stopColor={accent} /><stop offset="100%" stopColor={protonDeep} /></radialGradient></defs>
+        <text x={cx} y={cy + 9} textAnchor="middle" fill={onProton} fontSize={R * 0.8} fontFamily="var(--f-display, Inter, sans-serif)" fontWeight={800}>+</text>
         {/* spin arrow (angular momentum) — travels around a fixed ring about the μ axis. Drawn whole BEFORE μ
             (so the far half passes behind the vector), then the near half again AFTER it, clipped to the
             ring's lower (near) half, so it crosses in front. */}
@@ -92,15 +110,15 @@ export const SpinningProton: React.FC<{accent?: string; accent2?: string; label?
         </defs>
         <path d={spinPath} fill="none" stroke={accent2} strokeWidth={2.5} markerEnd="url(#ah)" opacity={0.9} />
         {/* magnetic moment vector μ (up, along the dipole), from the proton's pole */}
-        <line x1={cx} y1={cy - R} x2={cx} y2={muTip} stroke="#eaf6ff" strokeWidth={3} markerEnd="url(#ah2)" />
+        <line x1={cx} y1={cy - R} x2={cx} y2={muTip} stroke={vec} strokeWidth={3} markerEnd="url(#ah2)" />
         <defs><marker id="ah2" markerWidth="12" markerHeight="12" refX="4" refY="6" orient="auto">
-          <path d="M0,0 L8,6 L0,12 Z" fill="#eaf6ff" /></marker></defs>
+          <path d="M0,0 L8,6 L0,12 Z" fill={vec} /></marker></defs>
         <path d={spinPath} fill="none" stroke={accent2} strokeWidth={2.5} markerEnd="url(#ah)" opacity={0.9} clipPath="url(#spinNear)" />
-        <text x={cx + 14} y={muTip + R * 0.4} fill="#eaf6ff" fontSize="28" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800}>μ</text>
-        {sublabel ? <text x={cx} y={Math.min(cy + R * 5.6, bottomTextY(W, H))} textAnchor="middle" fill="#8aa" fontSize={subPx} fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">{sublabel}</text> : null}
+        <text x={cx + 14} y={muTip + R * 0.4} fill={vec} fontSize="28" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800}>μ</text>
+        {sublabel ? <text x={cx} y={Math.min(cy + R * 5.6, bottomTextY(W, H))} textAnchor="middle" fill={meta} fontSize={subPx} fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">{sublabel}</text> : null}
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
+        color: ink, font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
     </AbsoluteFill>
   );

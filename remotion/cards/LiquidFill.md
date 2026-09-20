@@ -15,7 +15,7 @@
 - The liquid used to fill to the brim and tick whatever `pct` said, so `pct: 40` ended as a full vessel with a check. It now rises to `pct` and ticks only at 100.
 - Leaving `label` unset prints `on your machine`, even when the film passes `pct`. Only a render with neither prop gets the illustrative full vessel.
 - At 100 the numeral is replaced by the check, so a film that wants "100%" on screen loses the figure for the rest of the clip.
-- The liquid and ring colours (teal to blue) are fixed. The DNA reaches only the background.
+- The liquid's teal-to-blue is fixed, and so is the checkmark. Everything drawn on the film's own page follows the film: the vessel's 6px rule takes `dim`, its inner highlight takes `accent`, the caption under it takes `dim`, and the figure takes the film's ink (which reads both on the page where the vessel is empty and on the liquid where it is not).
 
 **Refuses:** a `pct` that is not one number from 0 to 100 (a range, a word, a negative, more than 100).
 

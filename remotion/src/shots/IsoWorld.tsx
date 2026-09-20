@@ -60,7 +60,17 @@ export const IsoWorld: React.FC<{items?: string[]; title?: string}> = ({
   });
   const dna = useDNA();
   const TONES = dnaPalette(dna, 6) ?? TONES0;   // derive the palette from the film's DNA (null DNA = the original)
-  const BG = dna?.bg ?? BG_D0;
+  // The blocks are the film's palette already; the CITY AROUND them was not. The empty ground diamonds and
+  // the plinth under each block were two navy literals and the title a near-grey one, so on a film grounded
+  // paper a dark checkerboard sat on white and the title measured 1.83:1. The chip under each label carries
+  // its own dark fill and white ink, which is why the labels still read on paper — by accident, not design;
+  // they take the film's surface and ink so the chip belongs to the film at either exposure.
+  const TITLE_INK = dna?.dim ?? '#aeb6ca';
+  const PLOT = dna?.surface ?? '#18203a';      // an empty tile
+  const PLINTH = dna?.surface ?? '#141b32';    // the tile a block stands on
+  const TILE_EDGE = dna?.line ?? '#26304f';
+  const CHIP = dna?.surface ?? '#0e1426';
+  const CHIP_INK = dna?.fg ?? '#eef2ff';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H * 0.4;
@@ -90,9 +100,11 @@ export const IsoWorld: React.FC<{items?: string[]; title?: string}> = ({
   const chipPx = Math.round(Math.min(26, ...labels.map((l) => fitTextPx(l, 250, 26, {usable: 1}))));
 
   return (
-    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 34%, #131a33, ${BG} 74%)`, overflow: 'hidden'}}>
+    // ...and the ground's lift followed nothing: only its outer stop read the DNA.
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg
+        ?? `radial-gradient(120% 100% at 50% 34%, #131a33, ${BG_D0} 74%)`, overflow: 'hidden'}}>
       <div style={{position: 'absolute', top: 76, left: 0, right: 0, textAlign: 'center', opacity: titleIn, zIndex: 5,
-        color: '#aeb6ca', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
+        color: TITLE_INK, font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
 
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         {cells.map((c, idx) => {
@@ -102,7 +114,7 @@ export const IsoWorld: React.FC<{items?: string[]; title?: string}> = ({
           // ground diamond
           const ground = `${pt(sx, sy - TH / 2)} ${pt(sx + TW / 2, sy)} ${pt(sx, sy + TH / 2)} ${pt(sx - TW / 2, sy)}`;
           if (!c.block) {
-            return <polygon key={idx} points={ground} fill="#18203a" stroke="#26304f" strokeWidth={1}
+            return <polygon key={idx} points={ground} fill={PLOT} stroke={TILE_EDGE} strokeWidth={1}
               opacity={tileIn * 0.9} style={{transformBox: 'fill-box', transformOrigin: 'center', transform: `scale(${lerp(0.7, 1, tileIn)})`}} />;
           }
           const rise = easeOutBack(clamp01(seg(t, 0.2 + wave * 0.32, 0.5 + wave * 0.32)));
@@ -113,7 +125,7 @@ export const IsoWorld: React.FC<{items?: string[]; title?: string}> = ({
           const rightF = `${pt(sx, sy + TH / 2)} ${pt(sx + TW / 2, sy)} ${pt(sx + TW / 2, Ry)} ${pt(sx, B2)}`;
           return (
             <g key={idx} opacity={clamp01(tileIn * 1.4)}>
-              <polygon points={ground} fill="#141b32" stroke="#26304f" strokeWidth={1} />
+              <polygon points={ground} fill={PLINTH} stroke={TILE_EDGE} strokeWidth={1} />
               <polygon points={leftF} fill={c.tone} style={{filter: 'brightness(0.6)'}} />
               <polygon points={rightF} fill={c.tone} style={{filter: 'brightness(0.82)'}} />
               <polygon points={top} fill={c.tone} style={{filter: 'brightness(1.15)'}} stroke="#ffffff44" strokeWidth={1} />
@@ -131,8 +143,8 @@ export const IsoWorld: React.FC<{items?: string[]; title?: string}> = ({
         return (
           <div key={k} style={{position: 'absolute', left: c.sx, top: c.sy - TH / 2 - h - 54,
             transform: 'translate(-50%, 0)', opacity: on, zIndex: 4,
-            padding: '8px 18px', borderRadius: 10, background: '#0e1426',
-            border: `1px solid ${c.tone}`, color: '#eef2ff',
+            padding: '8px 18px', borderRadius: 10, background: CHIP,
+            border: `1px solid ${c.tone}`, color: CHIP_INK,
             font: `700 ${chipPx}px/${leading(c.label ?? '', 1)} var(--f-body, Inter, system-ui, sans-serif)`,
             whiteSpace: 'nowrap', boxShadow: '0 8px 24px #0008'}}>{c.label}</div>
         );

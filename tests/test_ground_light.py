@@ -321,18 +321,26 @@ def test_a_ground_is_refused_on_a_register_it_cannot_reach():
     ring, so it has false positives. Rendered under a declared ground, 12 registers do not follow it in the
     band the caption sits on: ExplodedSchematic paints a hardcoded navy, MaterialHero's 3D floor stays black
     under a paper key. On those the caption's ink flips to dark over pixels that are still black. The
-    runtime cannot see the canvas, so it refuses the ground instead of shipping an unreadable subtitle."""
+    runtime cannot see the canvas, so it refuses the ground instead of shipping an unreadable subtitle.
+
+    MATERIAL HERO USED TO BE THE SECOND EXAMPLE HERE, and it moved — which is the point of measuring rather
+    than listing. Its floor was a radius-7 disc under a 1.24 ring, so at that lens it filled every pixel and
+    the register's own `bg` was never once on screen; the ink sweep of 2026-09-20 found 68% of its marks
+    unreadable on a light film for exactly that reason. The floor and the hemisphere bounce now bounce the
+    film's ground, `measure_ground_reach.py` measures it as following, and the allow list carries it. The
+    hazard is real and `ExplodedSchematic` still shows it — a hardcoded navy under a paper key — so the rule
+    is unchanged and only the roster moved."""
     r = run_probe("""
       const dna = D.DNA_PRESETS['product'];
-      for (const shot of ['ExplodedSchematic', 'MaterialHero', 'SwissEditorial', 'ChatThread']) {
+      for (const shot of ['ExplodedSchematic', 'KaleidoMandala', 'SwissEditorial', 'ChatThread', 'MaterialHero']) {
         try { out[shot] = {ok: !!L.groundAt(dna, {ground: 'paper'}, 0, 150, shot)}; }
         catch (e) { fail(shot, (e as Error).message); }
       }
     """)
-    for shot in ("ExplodedSchematic", "MaterialHero"):
+    for shot in ("ExplodedSchematic", "KaleidoMandala"):
         assert "threw" in r[shot], "%s accepted a ground it cannot render" % shot
         assert shot in r[shot]["threw"], "the refusal does not name the register"
-    for shot in ("SwissEditorial", "ChatThread"):
+    for shot in ("SwissEditorial", "ChatThread", "MaterialHero"):
         assert r[shot].get("ok"), "%s was refused a ground it does follow: %r" % (shot, r[shot])
 
 
@@ -637,7 +645,11 @@ def test_declaring_the_films_own_key_is_a_no_op_even_on_a_register_that_refuses_
     r = run_probe("""
       const dna = D.DNA_PRESETS['product'];
       out.noop = {}; out.flip = {};
-      for (const shot of ['MaterialHero', 'ExplodedSchematic', 'SwissEditorial', 'NotARegister']) {
+      // `MaterialHero` used to stand here as the register that refuses a ground; it was repaired on
+      // 2026-09-20 (its floor bounces the film's ground now) and `measure_ground_reach.py` measures it as
+      // following, so `ClothWave` — measured refused in the same run, "field light reads mid; only 38% of
+      // the frame moved" — is the example. The rule is untouched.
+      for (const shot of ['ClothWave', 'ExplodedSchematic', 'SwissEditorial', 'NotARegister']) {
         try { out.noop[shot] = {ok: L.groundAt(dna, {key: 'dark'}, 0, 150, shot)}; }
         catch (e) { out.noop[shot] = {threw: (e as Error).message}; }
         try { out.flip[shot] = {ok: !!L.groundAt(dna, {key: 'light'}, 0, 150, shot)}; }
@@ -645,13 +657,13 @@ def test_declaring_the_films_own_key_is_a_no_op_even_on_a_register_that_refuses_
       }
       out.dna = {bg: dna.bg, fg: dna.fg, dim: dna.dim, accent: dna.accent};
     """)
-    for shot in ("MaterialHero", "ExplodedSchematic", "SwissEditorial"):
+    for shot in ("ClothWave", "ExplodedSchematic", "SwissEditorial"):
         g = r["noop"][shot].get("ok")
         assert g, "key:'dark' on %s threw: %s" % (shot, r["noop"][shot].get("threw"))
         for k, v in r["dna"].items():
             assert g[k] == v, "%s: the no-op key changed %s (%s -> %s)" % (shot, k, v, g[k])
     # the FLIP still has to be refused there — the no-op is a no-op, not a way past the measurement
-    for shot in ("MaterialHero", "ExplodedSchematic"):
+    for shot in ("ClothWave", "ExplodedSchematic"):
         assert "threw" in r["flip"][shot], "%s accepted a light key it cannot render" % shot
         assert shot in r["flip"][shot]["threw"] and "key: 'light'" in r["flip"][shot]["threw"], \
             "the refusal mis-describes the input as a ground: %r" % r["flip"][shot]["threw"]
@@ -768,25 +780,49 @@ def test_the_reach_measurement_covers_the_registers_own_ink_not_only_the_caption
     HoloFoil's subtitle 1.01:1, StarfieldWarp's trails 1.11:1, and GearTrain / HudReticle / ClothWave keep
     a hardcoded dark vignette so a gallery-white ground survives only as a rim (0.0%, 0.7%, 0.8% of the
     frame at the declared luminance). Every one of them was ON the allow list, and FocalIsolation — the
-    register the feature used as its own `ground` example — was too."""
+    register the feature used as its own `ground` example — was too.
+
+    GEARTRAIN AND HUDRETICLE HAVE SINCE BEEN REPAIRED, and the roster moved with the measurement rather
+    than the other way round. The vignette they held was `radial-gradient(<near-black literal>, ${BG})` —
+    only the OUTER stop followed the DNA, so a paper film kept a navy pool in the middle of the page. Both
+    now take `dna?.bgGrad ?? dna?.bg` (the house pattern nine other registers already use) and their ink
+    reads from the film's, measured on a warm-white DNA at 5.33:1 median for both (2026-09-20,
+    scripts/ink_contrast_qa.py). `measure_ground_reach.py --only=GearTrain,HudReticle,ClothWave` then
+    reports both as FOLLOWING and ClothWave — untouched — as still refused, which is the control.
+
+    GLITCHDATAMOSH IS NOW REFUSED BY DESIGN RATHER THAN BY DEFECT, and the 1.14:1 above is no longer
+    reproducible. It declares `@dark-world` (2026-09-20) and takes its ground through `darkGround`, so under a
+    declared paper ground it paints its OWN near-black rather than the film's warm white: its tear is two
+    offset copies of the word composited with `mixBlendMode: 'screen'`, and screen over white is
+    arithmetically nothing, so inverting the ink would not be a repair but a different picture. It must stay
+    off this list for the same reason as before — the frame would be its night while the burned caption picked
+    ink for the paper the beat declared.
+
+    The rule this test states is unchanged: a register whose own content a declared ground destroys must not
+    be on the list. Only the roster is a measurement, and measurements move when the code is repaired."""
     shot_luma = _src(SHOTLUMA_TS)
     block = shot_luma[shot_luma.index("GROUND_FOLLOWS_MEASURED"):]
     block = block[:block.index("]);")]
     listed = set(re.findall(r"'(\w+)'", block))
-    for shot in ("GlitchDatamosh", "HoloFoil", "StarfieldWarp", "GearTrain", "HudReticle", "ClothWave",
+    for shot in ("GlitchDatamosh", "HoloFoil", "StarfieldWarp", "ClothWave",
                  "FocalIsolation", "EmberFlame", "CodeRain"):
         assert shot not in listed, \
             "%s is still allow-listed: its own type drops below the contrast floor under a declared ground" % shot
+    # ...and the two that were repaired are on it, or the repair was undone and nothing said so
+    for shot in ("GearTrain", "HudReticle"):
+        assert shot in listed, \
+            "%s was repaired to follow a declared ground and is no longer allow-listed — re-measure with " \
+            "scripts/measure_ground_reach.py before assuming the list is wrong" % shot
     # and the runtime actually refuses them
     r = run_probe("""
       const dna = D.DNA_PRESETS['product'];
-      for (const shot of ['GlitchDatamosh', 'HoloFoil', 'FocalIsolation', 'GearTrain', 'SwissEditorial',
+      for (const shot of ['GlitchDatamosh', 'HoloFoil', 'FocalIsolation', 'ClothWave', 'SwissEditorial',
                           'ChatThread', 'BlueprintGrid']) {
         try { out[shot] = {ok: !!L.groundAt(dna, {ground: 'paper'}, 0, 150, shot)}; }
         catch (e) { fail(shot, (e as Error).message); }
       }
     """)
-    for shot in ("GlitchDatamosh", "HoloFoil", "FocalIsolation", "GearTrain"):
+    for shot in ("GlitchDatamosh", "HoloFoil", "FocalIsolation", "ClothWave"):
         assert "threw" in r[shot], "%s is still handed a ground it cannot honour" % shot
     for shot in ("SwissEditorial", "ChatThread", "BlueprintGrid"):
         assert r[shot].get("ok"), "%s was refused a ground it does follow: %r" % (shot, r[shot])

@@ -20,11 +20,24 @@ export const INTRINSIC_TEXT = [
 ];
 
 export const InducedFID: React.FC<{accent?: string; accent2?: string; label?: string}> = ({
-  accent = '#22d3ee', accent2 = '#a78bfa', label = 'The induced signal decays',
+  accent: ACC, accent2: ACC2, label = 'The induced signal decays',
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
+  // THE INK IS THE FILM'S, AND THIS IS A DIAGRAM, NOT A GLOW. Every colour here was a literal chosen for a
+  // near-black ground, and all eight DNA presets are near-black, so nothing ever caught it: on a film whose
+  // DNA came from a warm-white deck (`scripts/dna_from_deck.py`) the trace, the coil, the labels and the
+  // title all drew white on white — measured median 1.01:1 over 100% of the register's marks
+  // (`scripts/ink_contrast_qa.py`). Nothing here is emitted light: the FID is a PLOTTED curve inside a
+  // dotted envelope with an axis and labels, and a plotted curve reads in the film's ink on any ground.
+  // Each token keeps its OWN original literal as its fallback, so an un-themed render is unchanged.
+  const accent = ACC ?? dna?.accent ?? '#22d3ee';
+  const accent2 = ACC2 ?? dna?.accent2 ?? '#a78bfa';
+  const trace = dna?.fg ?? '#eaf6ff';        // the FID itself — the brightest mark on the frame
+  const ink = dna?.fg ?? '#dfe8f5';          // the title
+  const meta = dna?.dim ?? '#9fb4cc';        // 'coil'
+  const meta2 = dna?.dim ?? '#8aa';          // the mono line under the title
   const midY = H * 0.52;
   const x0 = W * 0.16, x1 = W * 0.86, span = x1 - x0;
 
@@ -59,19 +72,19 @@ export const InducedFID: React.FC<{accent?: string; accent2?: string; label?: st
         {/* baseline */}
         <line x1={x0} y1={midY} x2={x1} y2={midY} stroke={A(0.25)} strokeWidth={1} />
         {/* the FID trace */}
-        <polyline points={pts.join(' ')} fill="none" stroke="#eaf6ff" strokeWidth={3} />
+        <polyline points={pts.join(' ')} fill="none" stroke={trace} strokeWidth={3} />
         {/* the receive COIL at the origin (a loop) + a precessing spin inducing the signal */}
         <ellipse cx={x0} cy={midY} rx={20} ry={40} fill="none" stroke={accent} strokeWidth={3} />
         <ellipse cx={x0} cy={midY} rx={11} ry={26} fill="none" stroke={accent} strokeWidth={2} opacity={0.6} />
         <circle cx={x0 + Math.cos(spin) * 22} cy={midY - 78 + Math.sin(spin) * 8} r={7} fill={accent} />
-        <text x={x0 - 6} y={midY + 74} fill="#9fb4cc" fontSize="20" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={600}>coil</text>
+        <text x={x0 - 6} y={midY + 74} fill={meta} fontSize="20" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={600}>coil</text>
         {/* labels */}
         <text x={x0 + span * 0.16} y={midY - H * 0.24 - 16} fill={accent} fontSize="19" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" letterSpacing="1">T2* decay</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
+        color: ink, font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}
-        <div style={{marginTop: 8, font: "500 22px/1 var(--f-mono, 'JetBrains Mono', monospace)", color: '#8aa', letterSpacing: '0.12em'}}>
+        <div style={{marginTop: 8, font: "500 22px/1 var(--f-mono, 'JetBrains Mono', monospace)", color: meta2, letterSpacing: '0.12em'}}>
           free induction decay</div>
       </div>
     </AbsoluteFill>

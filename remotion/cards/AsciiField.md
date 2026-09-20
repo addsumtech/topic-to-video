@@ -15,7 +15,8 @@
 - `message` defaults to `DONE.`, which prints on any film that omits it.
 - The field used to run to the bottom of the frame, and at 9:16 the type gate found 224 glyphs inside the caption band. It now stops above the band on a whole row.
 - A long Chinese message once grew out of both ends of its box (369px at 1:1). It's now fitted in monospace cells, with the fitted width set on the box itself.
-- The glyphs and message are fixed amber and the scan glow is fixed mint; only the ground follows the DNA.
+- **Dark world** (`@dark-world` in the shot). A glyph here is drawn by how much it GLOWS and the scan-wave's only action is to brighten the rows it crosses, so the register takes the film's ground only while that ground is DARK and keeps its own tube-dark when the film's is light. A light film gets one deliberately dark beat here, which the seam guard and the caption ink already handle.
+- The glyphs and message are fixed amber and the scan glow is fixed mint; the ground follows the DNA while the DNA's ground is dark.
 
 **Refuses:** a `message` with no visible character, or longer than 32 characters.
 

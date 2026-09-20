@@ -17,7 +17,7 @@
 - `steps` is a representative count, not the real matrix — the refusal message says to draw a representative count and name the real matrix in `label`.
 - The lines fill top to bottom "for clarity" (the code's own note), not the centre-out order a real acquisition often uses.
 - The diagram labels (`k-space`, `lines written`, `±Gmax · steps each TR`, `gradient blip`) are fixed English INTRINSIC_TEXT; no prop reaches them. `gradient blip` was once undeclared and slipped past onscreen_text_qa, which drops any string containing "gradient" as CSS.
-- Only the ground follows the DNA; the accents default to cyan/violet and all text is a fixed light tint, so a light DNA ground loses the headline. Omitting `label` prints "Phase encoding · one line per TR".
+- The ink is the film's: the line being written now, the counter, the blip's name and the headline take the DNA's `fg`, the smaller labels take `dim`, the blip's zero line takes `line`, and `accent`/`accent2` fall back to the film's two accents before their own cyan and violet. A prop still wins, and with no DNA every original literal prints as before. Until this was done the grid and its count drew white on white on a light-ground film (measured median 1.54:1). Omitting `label` prints "Phase encoding · one line per TR".
 
 **Refuses:** `steps` that is not an integer from 2 to 128 (one step used to divide by zero and draw a NaN bar).
 

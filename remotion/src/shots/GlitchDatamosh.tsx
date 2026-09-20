@@ -7,15 +7,27 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {darkGround} from '../runtime/light';
 import {bottomInset} from '../runtime/layout';
 
 export const DURATION = 140; // ~4.7s
+// @dark-world: a BROKEN TRANSMISSION, which only exists as light coming off a screen. The tear is two offset
+// copies of the word composited with `mixBlendMode: 'screen'` — additive light, and on a white ground screen
+// is arithmetically a no-op, so the red and the cyan channel simply cease to exist. What is left is the third
+// copy, pure white, plus scanlines and a vignette that are shaping a lit display rather than colouring a
+// surface. Measured on a warm-white DNA (scripts/ink_contrast_qa.py, 2026-09-20) the register came back at a
+// median 1.11:1 with 100% of its marks under 3:1, and the marked render is a blank sheet of paper with a
+// ghost outline of SIGNAL on it — no split, no flecks, no tear. The picture has no meaning on paper because
+// its subject is a signal failing, and a signal is not a pigment: inverting it would give dark ink torn on
+// white, which reads as a misprint — a fault of the PAGE — and not as a channel losing sync.
 const BG_D0 = '#07070b';
 
 export const GlitchDatamosh: React.FC<{word?: string; tagline?: string; accent?: string}> = ({
   word: WORD = 'SIGNAL', tagline: TAG = 'noise, then clarity', accent: ACC = '#00e5ff'} = {}) => {
   const dna = useDNA();
-  const BG = dna?.bg ?? BG_D0;
+  // the film's ground while the film's ground is dark (all eight presets, and no DNA at all); this
+  // register's own night when it is not (see @dark-world above)
+  const BG = darkGround(dna?.bg, BG_D0);
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   // glitch intensity: strong start, periodic bursts, resolves to ~0 by the end

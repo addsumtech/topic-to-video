@@ -14,7 +14,7 @@
 **Known traps:**
 - The arrows used to be exactly two at fixed offsets: with two words a stray reversed arrow crossed the last word, with four or five the chain stopped halfway, and even the demo's arrows ran through PLAN and BUILD. The light likewise never visited a fourth word. Now there are *n* − 1 arrows edge to edge and the light visits every word.
 - The arrows appear whatever the words are, so the frame always asserts word 1 → word 2 → …; don't hand it items with no order.
-- The stage is built for black: the lit/unlit word ramp, the warm light and the vignette are fixed; only the ground follows the DNA.
+- **The stage keeps its own night** (`@dark-world`). The reveal here IS brightness — each word ramps from near-black to cream as the beam reaches it — so on a paper ground the lit words would be the invisible ones and the sequence would run backwards; a spotlight is additive light and leaves no mark on white (measured: median 1.14:1, 100% of the marks under 3:1, the beam and cone gone). It therefore takes the film's ground only while that ground is dark and keeps `#040404` when the film's is light, so a light-key film gets one deliberately dark beat here. The lit/unlit ramp, the warm light and the vignette are fixed.
 - Omitting `wordmark` prints a real product name.
 
 **Refuses:** fewer than 1 or more than 5 items; an empty item; words too long to fit one line with arrows between them at this aspect.

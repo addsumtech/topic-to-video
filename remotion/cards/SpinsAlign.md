@@ -11,14 +11,14 @@
 | `label` | the title across the top | fixed-size, not fitted: one line; long copy wraps; omitted, the demo `Spins align in the field` prints |
 | `note` | the accent mono line under the cloud | fitted to the frame width; `''` draws nothing. Omitted, the demo `~3 in a million tip the balance → net signal` prints — a physics figure |
 | `alignedFraction` | the share of the sixty drawn arrows that end up along B₀ | in (0, 1]; rounded to a whole number of arrows, at least one. Default 0.1 = six arrows, a visible small minority; 0.5 is half the cloud; 1 is every arrow up. Which arrows align is arbitrary; how many is the claim |
-| `accent` | the aligned arrows and the note | plumbing — the DNA accent does not replace it |
-| `accent2` | the B₀ field line | plumbing — the DNA's second accent does not replace it |
+| `accent` | the aligned arrows and the note | defaults to the film's DNA accent; pass a prop to override |
+| `accent2` | the B₀ field line | defaults to the film's second accent; pass a prop to override |
 
 **Known traps:**
 - The note used to be a hardwired physics figure, and the cloud contradicted it: about HALF the arrows turned up under a sentence saying three in a million do. The note is a prop now (still defaulting to that figure) and the share is `alignedFraction` — keep the two saying the same thing.
 - A real physical excess (parts per million) cannot be drawn with sixty arrows; the default draws the claim's direction, a few against a crowd, not its magnitude.
 - M₀'s length is fixed — it does not grow with `alignedFraction`, so it cannot show "more alignment, more signal".
-- The title, B₀ and M₀ labels and the unaligned arrows are fixed colours; only the ground follows the DNA.
+- The ink is the film's: M₀ and the title take the DNA's `fg`, the B₀ label and the unaligned crowd take `dim`. With no DNA every original literal prints as before. Until this was done the whole cloud drew white on white on a light-ground film (measured median 1.12:1).
 
 **Refuses:** an `alignedFraction` that is not a finite number in (0, 1].
 

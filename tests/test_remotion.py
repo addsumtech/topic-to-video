@@ -1549,14 +1549,33 @@ def test_no_shot_falls_back_past_the_dna_background():
     import os
     import re
     d = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "shots")
-    bad = []
+    bad, lonely = [], []
     for f in sorted(glob.glob(os.path.join(d, "*.tsx"))):
         src = open(f, encoding="utf-8").read()
+        # A DECLARED DARK WORLD IS THE ONE LEGITIMATE WAY TO DECLINE THE FILM'S GROUND, and it declines only
+        # a LIGHT one: `runtime/light.darkGround` takes the film's bg while that bg is dark (every preset, so
+        # nothing moves for a themed film) and returns the register's own night when it is not. A register
+        # whose subject is emitted light — an aurora, a phosphor screen, a signal glowing in a scanner —
+        # cannot be drawn on paper, and inverting its ink would invert the glow rather than repair it.
+        # The claim is checked in PIXELS by scripts/ink_contrast_qa.py, which reports a register that
+        # declares `@dark-world` and then paints the film's warm white anyway.
+        declared = re.search(r"//[ \t]*@dark-world:[ \t]*\S", src) is not None
+        helper = "darkGround(" in src
+        if declared != helper:
+            lonely.append("%s (%s)" % (os.path.basename(f),
+                                       "declares @dark-world but does not use darkGround()" if declared
+                                       else "uses darkGround() without declaring @dark-world and why"))
+        if declared and helper:
+            # ...and it must still hand the film's own ground in, or a DARK film stops reaching it either
+            assert re.search(r"darkGround\(\s*dna\?\.bg", src), os.path.basename(f)
+            continue
         # every bgGrad read must be followed by a dna lookup, not straight to a literal/constant
         if re.search(r"dna\?\.bgGrad \?\? (?!dna)", src):
             bad.append(os.path.basename(f))
     assert not bad, ("these registers skip dna.bg and paint their own ground, so a DNA without the "
                      "optional bgGrad is ignored: %s" % ", ".join(bad))
+    assert not lonely, ("the declaration and the mechanism must travel together, or one of them is a "
+                        "claim nothing checks: %s" % "; ".join(lonely))
 
 
 def test_shot_proof_serves_the_films_public_dir_to_standalone_stills():

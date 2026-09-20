@@ -17,6 +17,7 @@
 - Omitting `title`/`tagline` prints the demo `WorkBuddy` / `ON YOUR MACHINE`.
 - The title used to be a flat 168px. Under the `cinematic` DNA (Bodoni Moda) it was cut off by about 85px on both sides in all three RGB copies, so it's now fitted with the split's excursion included.
 - `REC`, `SP`, `▶ PLAY` and the counter are the deck describing itself (`INTRINSIC_TEXT`, `INTRINSIC_READOUT`). The counter measures nothing.
-- The three RGB copies use fixed red, cyan and cream; only the ground follows the DNA.
+- **Dark world** (`@dark-world` in the shot). The three wordmark copies are composited with `mixBlendMode: screen` — additive light, which on a white ground is arithmetically nothing — and the scanlines, tracking band and barrel vignette all shape a lit tube. So the register takes the film's ground only while that ground is DARK and keeps its own tube-dark when the film's is light. A light film gets one deliberately dark beat here, which the seam guard and the caption ink already handle.
+- The three RGB copies use fixed red, cyan and cream; the ground follows the DNA of a dark-ground film.
 
 **Reference:** `remotion/src/shots/AnalogTape.tsx`

@@ -21,11 +21,24 @@ export const INTRINSIC_TEXT = [
 ];
 
 export const MagnetizationTip: React.FC<{accent?: string; accent2?: string; label?: string}> = ({
-  accent = '#22d3ee', accent2 = '#a78bfa', label = 'Resonance tips the magnetization',
+  accent: ACC, accent2: ACC2, label = 'Resonance tips the magnetization',
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
+  // THE INK IS THE FILM'S, AND THIS IS A DIAGRAM, NOT A GLOW. M, the B₀ axis, the transverse plane and the
+  // RF wave were literals picked for a near-black ground; all eight DNA presets are near-black, so a film
+  // whose DNA came from a warm-white deck drew the whole vector frame white on white — measured median
+  // 1.12:1 over 100% of the marks (`scripts/ink_contrast_qa.py`). Nothing here emits light: a vector, an
+  // ellipse and a sine are rules, and they read in the film's own ink on any ground. Each token keeps its
+  // OWN original literal as its fallback, so an un-themed render is unchanged.
+  const accent = ACC ?? dna?.accent ?? '#22d3ee';
+  const accent2 = ACC2 ?? dna?.accent2 ?? '#a78bfa';
+  const vec = dna?.fg ?? '#eaf6ff';          // the magnetization vector M, its head and its label
+  const ink = dna?.fg ?? '#dfe8f5';          // the title
+  const meta = dna?.dim ?? '#9fb4cc';        // the B₀ axis label
+  const meta2 = dna?.dim ?? '#8aa';          // 'transverse plane'
+  const meta3 = dna?.fg ?? '#c9d6ea';        // 'RF pulse · B₁' — the second subject's name, set brighter
   const ox = W * 0.40, oy = H * 0.56;                       // origin of the vector frame (left-of-centre)
   const L = Math.min(W, H) * 0.34;                          // vector length
   const ell = 0.34;                                         // vertical squash of the transverse plane (perspective)
@@ -61,27 +74,27 @@ export const MagnetizationTip: React.FC<{accent?: string; accent2?: string; labe
       <svg width={W} height={H} style={{position: 'absolute'}}>
         {/* B0 axis (vertical) + the transverse plane it tips into */}
         <line x1={ox} y1={oy - L * 1.15} x2={ox} y2={oy + L * 0.35} stroke={A(0.5)} strokeWidth={1.6} strokeDasharray="3 6" />
-        <text x={ox + 12} y={oy - L * 1.05} fill="#9fb4cc" fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700}>B₀</text>
+        <text x={ox + 12} y={oy - L * 1.05} fill={meta} fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700}>B₀</text>
         <ellipse cx={ox} cy={oy} rx={L * 0.92} ry={L * 0.92 * ell} fill="none" stroke={accent2} strokeWidth={1.3} opacity={0.4} />
-        <text x={ox + L * 0.9} y={oy + L * ell + 26} fill="#8aa" fontSize="20" fontFamily="var(--f-body, Inter, sans-serif)">transverse plane</text>
+        <text x={ox + L * 0.9} y={oy + L * ell + 26} fill={meta2} fontSize="20" fontFamily="var(--f-body, Inter, sans-serif)">transverse plane</text>
 
         {/* the spiral trace of M as it nutates */}
         {trace.length > 1 && <polyline points={trace.join(' ')} fill="none" stroke={accent} strokeWidth={2} opacity={0.5} />}
 
         {/* the magnetization vector M */}
-        <line x1={ox} y1={oy} x2={mx} y2={my} stroke="#eaf6ff" strokeWidth={4} />
-        <circle cx={mx} cy={my} r={9} fill="#eaf6ff" />
+        <line x1={ox} y1={oy} x2={mx} y2={my} stroke={vec} strokeWidth={4} />
+        <circle cx={mx} cy={my} r={9} fill={vec} />
         <circle cx={mx} cy={my} r={20} fill="none" stroke={accent} strokeWidth={2} opacity={0.6} />
-        <text x={mx + 16} y={my - 10} fill="#eaf6ff" fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800}>M</text>
+        <text x={mx + 16} y={my - 10} fill={vec} fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800}>M</text>
 
         {/* the resonant RF field B1 — a single-frequency wave (the actual pulse) */}
         <polyline points={wave.join(' ')} fill="none" stroke={accent2} strokeWidth={2.5} opacity={0.9} />
-        <text x={rfx} y={rfy - 78} fill="#c9d6ea" fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700}>RF pulse · B₁</text>
+        <text x={rfx} y={rfy - 78} fill={meta3} fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={700}>RF pulse · B₁</text>
         <text x={rfx} y={rfy + 92} fill={accent} fontSize="19" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" letterSpacing="1">at the Larmor frequency</text>
       </svg>
 
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
+        color: ink, font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
     </AbsoluteFill>
   );

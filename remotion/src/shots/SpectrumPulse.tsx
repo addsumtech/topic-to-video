@@ -18,7 +18,8 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, easeOutCubic, clamp01} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, contrastOf, tint} from '../runtime/dna';
+import {darkGround, ACCENT_CONTRAST_MIN} from '../runtime/light';
 import {Voice} from '../runtime/voice';
 import {captionBand, CONTENT_TOP, fitTextPx} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
@@ -29,10 +30,19 @@ const BG_D0 = '#080611';
 export const SpectrumPulse: React.FC<{title?: string; tagline?: string; accent?: string; accent2?: string}> = ({
   title: TITLE = 'On beat', tagline: TAG = 'it moves with you', accent: ACC = '#ff3b8b', accent2: ACC2 = '#41b8ff'} = {}) => {
   const dna = useDNA();
-  const BG = dna?.bg ?? BG_D0;
+  // THE GROUND THE HEADER ALWAYS CLAIMED. `dna?.bg` was taken whatever it was, so a film grounded on warm
+  // white painted this gradient from a dark purple centre OUT TO PAPER: a grey sludge with the wordmark
+  // still white on the one dark patch left (measured median 1.72:1 over 92% of the marks,
+  // `scripts/ink_contrast_qa.py`). The note beside `A1` below has said "this register paints its own dark
+  // ground" since it was written — `darkGround` is what makes that true.
+  const BG = darkGround(dna?.bg, BG_D0);
   // the ACCENTS follow the film's system, the TYPE does not: this register paints its own dark ground, so a
   // light film's `fg`/`dim` tokens would be white-on-white here. Ink stays fixed to the ground the shot draws.
-  const A1 = dna?.accent ?? ACC, A2 = dna?.accent2 ?? ACC2;
+  // The accents are lifted for the same reason the type is fixed: a light film picks them to read on ITS
+  // paper, and on this register's night a dark accent is a ring nobody can see. Under every preset (and
+  // with no DNA) they already clear the floor, so nothing moves there.
+  const onNight = (c: string) => (contrastOf(c, BG) >= ACCENT_CONTRAST_MIN ? c : tint(c, 0.55));
+  const A1 = onNight(dna?.accent ?? ACC), A2 = onNight(dna?.accent2 ?? ACC2);
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H);
@@ -64,6 +74,11 @@ export const SpectrumPulse: React.FC<{title?: string; tagline?: string; accent?:
     Math.round(U * 0.028), {usable: 1.0});
 
   return (
+    // @dark-world: the subject IS emitted light — a spectrum radiating out of a wordmark, every bar a
+    // drop-shadowed glow, the core a lit gradient — and light is only light against a night. Inverting it
+    // is not a repair but a different picture: what would be inverted is the glow. So the ring keeps its
+    // own night when the film's ground is paper, and takes the film's ground while that ground is dark
+    // (every one of the eight presets), which is what this shot has always done.
     <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 48%, #16091f, ${BG} 76%)`, overflow: 'hidden'}}>
       <Voice samples={Math.min(128, BARS / 2)}>
         {({bars, level}) => {

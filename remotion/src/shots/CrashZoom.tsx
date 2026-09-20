@@ -8,6 +8,7 @@ import {fitTextOnNLines} from '@remotion/layout-utils';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutBack, easeOutCubic} from '../runtime/motion';
 import {captionBand} from '../runtime/layout';
 import {useDNA, mix, shade} from '../runtime/dna';
+import {onLight} from '../runtime/light';
 
 export const DURATION = 140; // ~4.7s
 const BG_D0 = '#0a0c13', ACC_D0 = '#5b8cff';
@@ -36,6 +37,25 @@ export const CrashZoom: React.FC<{items?: string[]; label?: string; target?: num
   // OVERRODE the DNA: the card is ~25% of the frame, so a green/amber film got a royal-blue hero. Derive
   // it from the film's own two hues; with no DNA the original blue is still exactly what renders.
   const ACC_DEEP = dna ? shade(mix(ACC, dna.accent2 ?? ACC, 0.45), 0.3) : '#2c3ac0';
+  // THE FOCAL POOL IS NOT A SECOND GROUND. The radial's centre stop was a hardcoded '#12162a', so only its
+  // OUTER stop followed the film: on a warm-white DNA the frame was a dark navy pool over the middle of the
+  // page with the film's paper surviving in the corners, and the hero card — the one thing the beat is about
+  // — measured 1.97:1 against it, with 99% of the register's ink under 3:1 (scripts/ink_contrast_qa.py,
+  // 2026-09-20). It is a lift of the film's OWN ground toward the film's OWN accent, which is a pool of that
+  // film's light at either exposure; with no DNA the original navy is exactly what renders.
+  const HALO = dna ? mix(BG, ACC, 0.09) : '#12162a';
+  // A NEIGHBOUR TILE IS A SURFACE, not a dark world: it takes the film's ground and ink like any card. The
+  // fills were dark literals ('#14172480' over '#0d0f18'), so a paper film kept nine navy tiles on it.
+  const TILE = dna ? `linear-gradient(160deg, ${dna.surface}, ${dna.bg})`
+    : 'linear-gradient(160deg, #14172480, #0d0f18)';
+  const TILE_BORDER = dna?.surfaceBorder ?? '#20243a';
+  const TILE_INK = dna?.fg ?? '#c7cee0';
+  const KICKER_INK = dna?.dim ?? '#aeb6ca';
+  // WHITE ON `screen` IS ARITHMETICALLY A NO-OP ON PAPER. The speed lines are the punch's only motion cue and
+  // on a warm-white film they simply were not drawn. They are the film's own ink, composited so they ADD on a
+  // dark ground and SUBTRACT on a light one — light streaks at night, drag marks on paper.
+  const SPEED_INK = dna?.fg ?? '#ffffff';
+  const SPEED_BLEND: 'screen' | 'multiply' = onLight(dna) ? 'multiply' : 'screen';
   const bodyFace = 'var(--f-body, Inter, system-ui, sans-serif)';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
@@ -91,9 +111,9 @@ export const CrashZoom: React.FC<{items?: string[]; label?: string; target?: num
   }).fontSize, [LABEL, tw, bodyFace]);
 
   return (
-    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 40%, #12162a, ${BG} 72%)`, overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 40%, ${HALO}, ${BG} 72%)`, overflow: 'hidden'}}>
       <div style={{position: 'absolute', top: 60, left: 0, right: 0, textAlign: 'center',
-        opacity: titleIn * (1 - z), color: '#aeb6ca', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)',
+        opacity: titleIn * (1 - z), color: KICKER_INK, font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)',
         letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
 
       <AbsoluteFill style={{transformOrigin: `${tcx}px ${tcy}px`,
@@ -106,11 +126,14 @@ export const CrashZoom: React.FC<{items?: string[]; label?: string; target?: num
             <div key={i} style={{position: 'absolute', left: gx + c * cw + 8, top: gy + r * ch + 8,
               width: tw, height: th, opacity: clamp01(enter * 1.4) * (isT ? 1 : 1 - away),
               transform: `scale(${lerp(0.9, 1, enter)})`, borderRadius: 18,
-              background: isT ? `linear-gradient(150deg, ${ACC}, ${ACC_DEEP})` : 'linear-gradient(160deg, #14172480, #0d0f18)',
-              border: `1px solid ${isT ? 'transparent' : '#20243a'}`,
+              background: isT ? `linear-gradient(150deg, ${ACC}, ${ACC_DEEP})` : TILE,
+              border: `1px solid ${isT ? 'transparent' : TILE_BORDER}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 24px',
               boxShadow: isT ? `0 20px 60px ${ACC}44` : '0 12px 30px #0006'}}>
-              <div style={{color: isT ? '#fff' : '#c7cee0',
+              {/* the hero's label sits ON the accent fill, so its ink is the film's `onAccent` and not a
+                  literal white: white measures 1.77–3.51:1 on the eight presets' own accents (mint, amber,
+                  sky), where `onAccent` measures 5.35–10.70:1. */}
+              <div style={{color: isT ? (dna?.onAccent ?? '#fff') : TILE_INK,
                 font: `800 ${isT && detail > 0.1 ? labelSize : itemSize}px/1.16 ${bodyFace}`,
                 letterSpacing: '-0.02em', textAlign: 'center'}}>
                 {isT && detail > 0.1 ? LABEL : it}
@@ -122,12 +145,12 @@ export const CrashZoom: React.FC<{items?: string[]; label?: string; target?: num
 
       {/* radial speed lines during the punch — centred on where the hero lands, not the raw frame centre */}
       {speed > 0.02 ? (
-        <svg width={W} height={H} style={{position: 'absolute', inset: 0, pointerEvents: 'none', mixBlendMode: 'screen'}}>
+        <svg width={W} height={H} style={{position: 'absolute', inset: 0, pointerEvents: 'none', mixBlendMode: SPEED_BLEND}}>
           {[...Array(28)].map((_, i) => {
             const a = (i / 28) * Math.PI * 2, r0 = 180 + (i % 3) * 40, r1 = r0 + 260;
             const cx = W / 2, cyy = cy;
             return <line key={i} x1={cx + Math.cos(a) * r0} y1={cyy + Math.sin(a) * r0}
-              x2={cx + Math.cos(a) * r1} y2={cyy + Math.sin(a) * r1} stroke="#ffffff" strokeWidth={3}
+              x2={cx + Math.cos(a) * r1} y2={cyy + Math.sin(a) * r1} stroke={SPEED_INK} strokeWidth={3}
               opacity={speed * 0.5} strokeLinecap="round" />;
           })}
         </svg>

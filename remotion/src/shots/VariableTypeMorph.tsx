@@ -6,7 +6,8 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, easeInOutCubic} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, shade} from '../runtime/dna';
+import {onLight} from '../runtime/light';
 import {fitTextPx} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
@@ -14,9 +15,21 @@ const BG_D0 = '#08080f';
 
 export const VariableTypeMorph: React.FC<{word?: string; kicker?: string; tagline?: string; accent?: string; accent2?: string}> = ({
   word: WORD = 'EXPRESSIVE', kicker: KICKER = 'type, alive', tagline: TAG = 'weight · width · in motion',
-  accent: ACC = '#ff5b7f', accent2: ACC2 = '#5b8cff'} = {}) => {
+  accent: accIn, accent2: acc2In} = {}) => {
   const dna = useDNA();
+  // THE ENORMOUS WORD IS THE FRAME'S ONLY INK, and its colour was a pair of literals that no film could
+  // reach: a themed film got this register's pink→blue whatever palette it had declared, and a film grounded
+  // warm white got that pair drawn ON warm white (#5b8cff measures 2.86:1 there, under the 3:1 a display
+  // mark needs). What the film passes still wins; then the film's own accents; then the original pair.
+  const ACC = accIn ?? dna?.accent ?? '#ff5b7f';
+  const ACC2 = acc2In ?? dna?.accent2 ?? '#5b8cff';
   const BG = dna?.bg ?? BG_D0;
+  // ...AND THE DROP IS SEPARATION FROM THE GROUND, NOT A CONSTANT BLACK. `#000a` blurred 60px hugs every
+  // glyph; on this library's near-black grounds it is invisible, and on paper it is a dark smear pressed
+  // against the one word on the frame. Measured, the word's own interior reads at 4.06:1 on warm white while
+  // the gate still reported 90% of the marks under 3:1 — because the marks it can see are the glyph EDGES,
+  // and what sat behind them was this halo rather than the page. A shade of the ground on a light key.
+  const DROP = dna && onLight(dna) ? `0 14px 40px ${shade(dna.bg, 0.12)}` : '0 20px 60px #000a';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   // THE ENORMOUS WORD IS FITTED TO THE FRAME. 210px is one enormous word on a 1920-wide frame in a narrow
@@ -40,7 +53,7 @@ export const VariableTypeMorph: React.FC<{word?: string; kicker?: string; taglin
         transform: `translateX(${fieldX}px)`,
         background: `radial-gradient(50% 60% at 30% 40%, ${ACC}, #0000 60%), radial-gradient(50% 60% at 72% 60%, ${ACC2}, #0000 60%)`}} />
 
-      <div style={{opacity: kickIn, transform: `translateY(${(1 - kickIn) * 12}px)`, color: '#c7cee0',
+      <div style={{opacity: kickIn, transform: `translateY(${(1 - kickIn) * 12}px)`, color: dna?.dim ?? '#c7cee0',
         font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.5em', textTransform: 'uppercase',
         paddingLeft: '0.5em', marginBottom: 40, zIndex: 2}}>{KICKER}</div>
 
@@ -63,12 +76,12 @@ export const VariableTypeMorph: React.FC<{word?: string; kicker?: string; taglin
               color: `color-mix(in oklab, ${ACC} ${Math.round((1 - hue) * 100)}%, ${ACC2})`,
               // enhancement if a variable font is present (harmless otherwise)
               fontVariationSettings: `"wght" ${weight}, "wdth" ${Math.round(widthAxis * 100)}`,
-              textShadow: '0 20px 60px #000a'} as React.CSSProperties}>{ch}</span>
+              textShadow: DROP} as React.CSSProperties}>{ch}</span>
           );
         })}
       </div>
 
-      <div style={{opacity: tagIn, transform: `translateY(${(1 - tagIn) * 10}px)`, marginTop: 44, color: '#8b93a8',
+      <div style={{opacity: tagIn, transform: `translateY(${(1 - tagIn) * 10}px)`, marginTop: 44, color: dna?.dim ?? '#8b93a8',
         font: '600 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.24em', textTransform: 'uppercase', zIndex: 2}}>{TAG}</div>
     </AbsoluteFill>
   );

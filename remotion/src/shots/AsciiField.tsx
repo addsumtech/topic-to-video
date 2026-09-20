@@ -16,9 +16,17 @@ import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, easeOutCubic, clamp01, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {darkGround} from '../runtime/light';
 import {CONTENT_TOP, contentBottom, fitBlockPx, monoFit} from '../runtime/layout';
 
 export const DURATION = 150; // 5s
+// @dark-world: an amber PHOSPHOR field. A glyph here is not drawn in a colour, it is drawn by how much it
+// GLOWS — `op = base + near * 0.9` — and the scan-wave's single action is to brighten the rows it crosses.
+// Brightness is only legible against a darker field, so on a warm-white film the whole register measured a
+// median 1.05:1 with 100% of its marks under 3:1 (scripts/ink_contrast_qa.py): the noise, the sweep and the
+// message decoding out of them all went at once. Inverting it would make the sweep DARKEN what it touches,
+// which is not a screen coming alive. So it keeps its own tube-dark ground.
+const OWN_NIGHT = '#140b03';
 const CH = '01</>{}[]#*+=~.:$%&ABCDEFXYZ01'.split('');
 const DEFAULT_MSG = 'DONE.';
 export const MAX_ASCII_CHARS = 32;
@@ -83,8 +91,13 @@ export const AsciiField: React.FC<{message?: string}> = ({message: MSG = DEFAULT
   const MSG_W = Math.round(W * 0.86);
   const msgPx = fitBlockPx(MSG, MSG_W, msgRoomH * 0.92, Math.round(U * 0.194),
     {usable: 1, leading: 1, min: 28, ...monoFit()});
+  // the film's ground while the film's ground is dark (all eight presets), this register's own night when it
+  // is not. The branch is on what `darkGround` RETURNED, so a dark film grounded on exactly this colour still
+  // gets its own `bgGrad` treatment rather than ours.
+  const night = darkGround(dna?.bg, OWN_NIGHT);
+  const ground = night === dna?.bg ? (dna?.bgGrad ?? night) : night;
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('#140b03')}}>
+    <AbsoluteFill style={{background: ground}}>
       <svg width={W} height={fieldH} style={{position: 'absolute', left: 0, top: 0}}>{cells}</svg>
       {/* the decoded message resolving out of the noise */}
       {/* the message centres in the CONTENT zone, with the field — centred in the whole frame it would sit

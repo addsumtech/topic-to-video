@@ -5,7 +5,8 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01, radians} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, mix} from '../runtime/dna';
+import {onLight, groundFrom} from '../runtime/light';
 
 export const DURATION = 160; // ~5.3s
 
@@ -15,6 +16,15 @@ export const LiquidMetal: React.FC<{title?: string; tagline?: string}> = ({
   // the GROUND flips to the DNA (chrome reads even better on dark) + the tagline lifts to dim. Null DNA = original.
   const dna = useDNA();
   const bgc = dna?.bgGrad ?? dna?.bg ?? 'linear-gradient(160deg, #e9e3f5, #cfe0f2 55%, #f3ebdd)', TAGc = dna?.dim ?? '#4a5273';
+  // CHROME KEEPS ITS SILHOUETTE ON PAPER. The reflection ramp runs from #f6f8ff to #2b3050 and back, so on a
+  // light ground the blob's dark bands read and its pale ones melt into the page: 57% of the register's marks
+  // came in under the floor and every one of them was on the outline (scripts/ink_contrast_qa.py). The metal is
+  // not the problem and is not touched — chrome IS chrome on any ground, which is this register's whole
+  // premise — but a chrome object on a white table reads by the darker edge it reflects, and that edge was
+  // missing. It is drawn as a rim BEHIND the goo silhouette, out of the film's own ground and ink, and only
+  // when the film grounds on paper: on a dark film the page already supplies the edge, so nothing moves there.
+  const lit = dna && onLight(dna) ? groundFrom(dna, {bg: dna.bg}) : null;
+  const RIM_W = 7;
   const t = useT();
   const {width: W, height: H, durationInFrames, fps} = useVideoConfig();
   const cx = W / 2, cy = H / 2;
@@ -42,6 +52,11 @@ export const LiquidMetal: React.FC<{title?: string; tagline?: string}> = ({
             <stop offset="1" stopColor="#e7ecfb" />
           </linearGradient>
         </defs>
+        {lit ? (
+          <g filter="url(#lmgoo)">
+            {blobs.map((b, i) => <circle key={i} cx={b.x} cy={b.y} r={b.r + RIM_W} fill={mix(lit.bg, lit.fg, 0.72)} />)}
+          </g>
+        ) : null}
         <g filter="url(#lmgoo)">
           {blobs.map((b, i) => <circle key={i} cx={b.x} cy={b.y} r={b.r} fill="url(#chrome)" />)}
         </g>

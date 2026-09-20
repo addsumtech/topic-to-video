@@ -15,5 +15,6 @@
 - Omitting `title` / `tagline` prints the demo copy `Molten` / `chrome, but alive` on the film.
 - The wordmark is never shrunk to fit — keep it to a word or two.
 - The metal's silver reflection gradient ignores the DNA on purpose (the header's LEVEL-C note: "chrome IS chrome"); only the ground and the tagline colour follow the film, so it will not take the film's accent.
+- On a film that grounds on PAPER the blob gets a rim behind its silhouette, mixed from the film's own ground and ink. The reflection ramp runs to near-white at both ends, so on a light page half the outline melted into it; a chrome object on a white table reads by the darker edge it reflects. On a dark film the page already supplies that edge and no rim is drawn.
 
 **Reference:** `remotion/src/shots/LiquidMetal.tsx`

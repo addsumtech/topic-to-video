@@ -18,5 +18,6 @@
 - A missing `src` draws an empty square with a glow, and no error.
 - The axis and annotation labels (kx, ky, "center = low freq", "periphery = high freq · detail", the bottom line) are fixed English text.
 - When the square was centred on the frame, its own bottom line landed in the caption band. It is now centred in the content zone, at most 42% of the width.
+- The type is the film's (`fg` for the title and the centre label, `dim` for the axis names, the two annotation lines and the credit) but the SQUARE keeps its own night: `src` is screen-blended, and screen over paper is paper, so on a light-ground film the k-space would be a blank square with every label around it still perfectly legible. It paints `#05060a` only when the film's ground is light — on a dark film, and with no DNA, the film's ground shows through as before. The kx/ky axes cross the square, so they are lifted to read on that night rather than on the paper (measured median 1.12:1 before this).
 
 **Reference:** `remotion/src/shots/KSpaceReal.tsx`

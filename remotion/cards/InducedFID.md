@@ -16,5 +16,6 @@
 - "coil", "T2* decay" and "free induction decay" are fixed English labels and print on every film.
 - The trace has a fixed shape (15 cycles, a fixed decay rate). It is not data, so it cannot back a stated T2* value.
 - Leaving `label` unset prints `The induced signal decays`.
+- The ink is the film's: the trace and the title take the DNA's `fg`, "coil" and the mono line take `dim`, and `accent`/`accent2` fall back to the film's two accents before their own cyan and violet. A prop still wins, and with no DNA every original literal prints exactly as before. Until this was done the whole register drew white on white on a light-ground film (measured median 1.01:1).
 
 **Reference:** `remotion/src/shots/InducedFID.tsx`

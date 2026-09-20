@@ -6,9 +6,16 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {darkGround} from '../runtime/light';
 
 export const DURATION = 155; // ~5.2s
+// @dark-world: a lit pane at night. Every droplet, wake and streak on the glass is drawn as WHITE at 6-30%
+// opacity — a specular highlight catching the light behind it — and the scene behind the pane is three soft
+// glows. Nothing here has a colour of its own to invert; on a warm-white film the register measured a median
+// 1.62:1 with 100% of its marks under 3:1 (scripts/ink_contrast_qa.py) and the frame was blank cream with a
+// title on it. Rain drawn as dark specks on paper is a dirty window, not a lit one, so it keeps its own night.
 const BG1 = '#26313f', BG2 = '#3a4a5e';
+const OWN_NIGHT = `linear-gradient(160deg, ${BG1}, ${BG2})`;
 
 export const RainGlass: React.FC<{title?: string; tagline?: string; accent?: string}> = ({
   title: TITLE = 'Weather it', tagline: TAG = 'calm behind the storm', accent: ACC = '#9fd0ff'} = {}) => {
@@ -19,8 +26,13 @@ export const RainGlass: React.FC<{title?: string; tagline?: string; accent?: str
   const blur = lerp(22, 2, sharpen);
   const titleIn = easeOutCubic(seg(t, 0.28, 0.6));
   const streaks = 46, drops = 60;
+  // the film's ground while the film's ground is dark (all eight presets), this register's own night when it
+  // is not. The branch is on what `darkGround` RETURNED, so a dark film grounded on exactly BG1 still gets
+  // its own `bgGrad` treatment rather than ours.
+  const night = darkGround(dna?.bg, BG1);
+  const ground = night === dna?.bg ? (dna?.bgGrad ?? night) : OWN_NIGHT;
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? (`linear-gradient(160deg, ${BG1}, ${BG2})`), overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: ground, overflow: 'hidden'}}>
       {/* soft-focus scene behind the glass (blurred bokeh + the message) */}
       <div style={{position: 'absolute', inset: 0, filter: `blur(${blur}px)`}}>
         <div style={{position: 'absolute', inset: 0,

@@ -16,7 +16,8 @@
 - Omitting `title` / `items` prints demo copy: "One tool. Your whole team." over Docs, Chat, Tasks, Code, Data, Calls.
 - The arcs are deliberately one material — six dyed hues turned the object into a pie chart; the inlay is a mark to tell parts apart, not a claim about them.
 - It was rebuilt from a torus knot that took only a `title` and argued nothing; the ring now IS the parts, so don't feed it filler items to make it look fuller.
-- Labels of the arcs nearest the lens are clamped above the caption band, so a long (e.g. three-line Chinese) label there can sit crowded against its arc — at 16:9 the two nearest labels print on the metal itself, and the ring's near arc reaches down into the caption band.
+- Labels of the arcs nearest the lens are clamped above the caption band, so a long (e.g. three-line Chinese) label there can sit crowded against its arc — at 16:9 the two nearest labels print on the metal itself, and the ring's near arc reaches down into the caption band. Because a label there straddles the floor and the metal, it carries a halo in the FLOOR's own colour, which is what keeps it legible on either surface.
+- The stage floor is the film's ground, and it covers the frame: a radius-7 disc under a 1.24 ring fills every pixel at this lens, so the `background` behind the canvas was never once on screen. Before this it was a fixed `#0b0e16`, so a film grounded paper had its own dark ink drawn on the register's private night and the ring lost every word on it (68% of the marks measured under 3:1). This is NOT a dark world: the metal is lit by real lights and reads as a hero on a light seamless exactly as it does on black.
 
 **Refuses:** no `items`; more than six (parts are told apart only by their inlay tone, from a six-tone palette — a seventh would wear the first part's tone); an empty entry.
 

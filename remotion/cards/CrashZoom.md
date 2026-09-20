@@ -18,6 +18,10 @@
 - The landed card shows `label`, not the item: if `label` does not name the thing, the item's own name is gone at the moment of emphasis.
 - The punch is sized to land inside the content zone, clear of the action-safe border and the caption band; running it to the frame edge once parked the card under the subtitle.
 - The hero card's second gradient stop was a hardcoded royal blue that overrode themed films; it is derived from the DNA now.
+- The backdrop's own centre stop was a hardcoded navy too, so only the OUTER stop followed the film: on a warm-white DNA the beat painted a dark pool over the middle of the page, the paper survived in the corners, and the hero card — the whole point of the beat — measured 1.97:1 against it (99% of the register's ink under 3:1). The pool is a lift of the film's own ground toward its own accent now, so it is a pool of that film's light at either exposure.
+- The neighbour tiles, their borders and their labels were dark literals; they take the film's `surface`, `surfaceBorder` and `fg` now, so a paper film gets pale cards with dark labels instead of nine navy tiles on the page. The kicker over the grid is the film's `dim`.
+- The landed card's label is the film's `onAccent`, not white: white measures 1.77–3.51:1 on the eight presets' own accents (mint, amber, sky) where `onAccent` measures 5.35–10.70:1, so on a mint or amber film the one line the beat exists to show used to be the least readable thing on it.
+- The speed lines are the film's ink, composited `screen` on a dark ground and `multiply` on a light one. They were a literal white under `screen`, which on paper draws nothing at all — a light film got a punch with no speed lines.
 
 **Refuses:** no items; a missing, non-integer or out-of-range `target` when the items are the film's own.
 

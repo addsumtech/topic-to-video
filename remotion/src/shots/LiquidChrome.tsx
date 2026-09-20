@@ -70,7 +70,12 @@ export const LiquidChrome: React.FC<{word?: string; tagline?: string}> = ({
       {/* refined sub-line, letter-spaced small caps */}
       <div style={{position: 'absolute', left: 0, right: 0, top: baseY + 190, textAlign: 'center',
         opacity: clamp01(seg(t, 0.55, 0.8)), font: '500 30px/1 var(--f-mono, "JetBrains Mono", ui-monospace, monospace)',
-        color: '#9aa6b6', letterSpacing: '0.42em', textTransform: 'uppercase', paddingLeft: '0.42em'}}>{SUB}</div>
+        // THE SUBLINE IS THE FILM'S METADATA INK. Written as the literal `#9aa6b6` — a pale slate that only
+        // exists against this register's own near-black — it measured 2.13:1 median on a warm-white DNA
+        // (scripts/ink_contrast_qa.py), the whole line unreadable while the chrome word above it, being a
+        // gradient between two DNA hues, read perfectly. The wordmark keeps its chrome; the metadata takes
+        // the film's own dim, with the original literal as the un-themed fallback.
+        color: dna?.dim ?? '#9aa6b6', letterSpacing: '0.42em', textTransform: 'uppercase', paddingLeft: '0.42em'}}>{SUB}</div>
 
       {/* soft top vignette for depth */}
       <AbsoluteFill style={{background: 'linear-gradient(#06070a00 60%, #06070a 100%)', pointerEvents: 'none'}} />

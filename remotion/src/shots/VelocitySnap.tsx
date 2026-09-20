@@ -13,7 +13,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutBack, easeOutCubic, clamp01} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, mix, shade} from '../runtime/dna';
 import {Figure} from '../runtime/atoms';
 import {figureText} from '../runtime/figure';
 import {textWidthPx} from '../runtime/layout';
@@ -30,6 +30,16 @@ export const VelocitySnap: React.FC<{label?: string; metric?: string; unit?: str
   label: labelIn, label = 'Done.', metric: metricIn, metric = '0', unit} = {}) => {
   const t = useT();
   const dna = useDNA(); const PUR = dna?.accent ?? PUR0;
+  // A PANEL IS A SURFACE, NOT A DARK WORLD — it takes the film's ground and its ink like everything else.
+  // The fills and borders were dark literals, which is what this register's own card means by "a light,
+  // paper-toned film breaks it (the panels stay dark)": on a warm-white DNA five navy blocks sat on the page
+  // and the film reached only the accent panel and the backdrop. With no DNA the originals still render.
+  const PANEL = dna?.surface ?? '#161826';
+  const PANEL_BORDER = dna?.surfaceBorder ?? '#242741';
+  // The accent panel's second gradient stop was a hardcoded indigo, so on a themed film it OVERRODE the
+  // film's hue across half of the one panel that carries the word — the defect CrashZoom's hero card already
+  // records. Derived from the film's own two hues; with no DNA the original indigo is exactly what renders.
+  const PUR_DEEP = dna ? shade(mix(PUR, dna.accent2 ?? PUR, 0.45), 0.3) : '#5a63d8';
   const {width: W} = useVideoConfig();
   const standalone = labelIn === undefined && metricIn === undefined && unit === undefined;
   const figure = figureText(standalone ? metric : metricIn);
@@ -61,16 +71,23 @@ export const VelocitySnap: React.FC<{label?: string; metric?: string; unit?: str
         return <div key={i} style={{position: 'absolute', left: p.x, top: p.y, width: p.w, height: p.h,
           opacity: clamp01(r * 2), transform: `translate(${tx}px, ${ty}px) scale(${pulse})`,
           filter: blur > 0.5 ? `blur(${blur}px)` : undefined,
-          background: p.c ? `linear-gradient(150deg, ${p.c}, #5a63d8)` : '#161826',
-          border: `1px solid ${p.c ? 'transparent' : '#242741'}`, borderRadius: 16,
+          background: p.c ? `linear-gradient(150deg, ${p.c}, ${PUR_DEEP})` : PANEL,
+          border: `1px solid ${p.c ? 'transparent' : PANEL_BORDER}`, borderRadius: 16,
           boxShadow: '0 20px 50px rgba(0,0,0,.4)'}}>
-          {p.c && <div style={{position: 'absolute', left: 30, bottom: 26, font: '800 66px/1 var(--f-display, Inter,system-ui,sans-serif)', color: '#fff'}}>{label}</div>}
+          {/* the word sits ON the accent fill, so its ink is the film's `onAccent`, not a literal white:
+              across the eight presets white measures 1.77–3.51:1 on their own accents and `onAccent`
+              5.35–10.70:1, and at the gradient's deep end 1.77–3.51 against 3.20–5.01. */}
+          {p.c && <div style={{position: 'absolute', left: 30, bottom: 26, font: '800 66px/1 var(--f-display, Inter,system-ui,sans-serif)', color: dna?.onAccent ?? '#fff'}}>{label}</div>}
         </div>;
       })}
       {figure ? <div style={{position: 'absolute', right: 150, top: 150, textAlign: 'right', opacity: easeOutCubic(seg(t, 0.4, 0.55))}}>
         {/* fallbackForm/fallbackFamily make explicit what previously worked only because NEUTRAL_DNA.fontDisplay
             happens to match this shot's hardcoded Inter stack — a coincidence, not a contract, until now. */}
-        <div><Figure value={figure} unit={UNIT} ink="#fff" tone={PUR} size={metricPx} unitScale={1}
+        {/* THE FIGURE STANDS ON THE GROUND, so it is the film's ink. `ink="#fff"` is where this register's
+            measured failure was: on a warm-white DNA the whole value read 1.06:1 — the only thing left of it
+            was the unit, in the accent, beside nothing (scripts/ink_contrast_qa.py, 2026-09-20: 60% of the
+            register's marks under 3:1, and they were all this number). */}
+        <div><Figure value={figure} unit={UNIT} ink={dna?.fg ?? '#fff'} tone={PUR} size={metricPx} unitScale={1}
           fallbackForm="display" fallbackFamily="Inter, system-ui, sans-serif" /></div>
       </div> : null}
     </AbsoluteFill>

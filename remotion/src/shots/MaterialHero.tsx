@@ -95,7 +95,7 @@ const seatAt = (t: number, i: number, n: number) =>
 /** The angle at the CENTRE of arc `i` — where its label belongs, and where it flies in from. */
 const arcMid = (i: number, n: number) => -Math.PI / 2 + ((i + 0.5) / n) * Math.PI * 2;
 
-const Scene: React.FC<{n: number; tones: string[]; t: number}> = ({n, tones, t}) => {
+const Scene: React.FC<{n: number; tones: string[]; t: number; floor: string; bounce: string}> = ({n, tones, t, floor, bounce}) => {
   const frame = useCurrentFrame();
   const gap = 0.055;                                   // a hair of air between arcs, so the parts stay parts
   return (
@@ -106,7 +106,7 @@ const Scene: React.FC<{n: number; tones: string[]; t: number}> = ({n, tones, t})
       {/* A key that carves the form, a cool fill so the shadow side is not black, and a warm rake that
           sweeps — the rake is what makes a turned metal surface read as turned rather than as flat shading. */}
       <ambientLight intensity={0.52} />
-      <hemisphereLight args={['#93a9d6', '#0a0d14', 0.78]} />
+      <hemisphereLight args={['#93a9d6', bounce, 0.78]} />
       <directionalLight position={[4.2, 6.4, 5.0]} intensity={2.2} castShadow
         shadow-mapSize-width={2048} shadow-mapSize-height={2048}
         shadow-camera-left={-4} shadow-camera-right={4} shadow-camera-top={4} shadow-camera-bottom={-4} />
@@ -151,7 +151,7 @@ const Scene: React.FC<{n: number; tones: string[]; t: number}> = ({n, tones, t})
             colour is the ground's own, so its rim is never a visible arc across the frame. */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.70, 0]} receiveShadow>
           <circleGeometry args={[7, 64]} />
-          <meshStandardMaterial color={'#0b0e16'} metalness={0.1} roughness={0.95} />
+          <meshStandardMaterial color={floor} metalness={0.1} roughness={0.95} />
         </mesh>
       </group>
     </>
@@ -169,6 +169,14 @@ export const MaterialHero: React.FC<{title?: string; items?: string[]; note?: st
   const FG = dna?.fg ?? FG_D0;
   const DIM = dna?.dim ?? DIM_D0;
   const TONES = dnaPalette(dna, 6) ?? TONES0;
+  // THE FLOOR IS THE GROUND, AND IT COVERS THE FRAME. A radius-7 disc under a ring 1.24 across fills every
+  // pixel at this lens, so `BG` above was never once on screen: the canvas painted #0b0e16 over the film's
+  // ground, and then the labels and title — which DO read the DNA — turned dark on a film grounded paper and
+  // vanished into it. Measured before this: 68% of the marks under 3:1, a ring with no words on it at all.
+  // The floor's own comment already says its colour is the ground's; it is now actually the film's.
+  const FLOOR = dna?.bg ?? '#0b0e16';
+  const BOUNCE = dna?.bg ?? '#0a0d14';         // the light coming back UP off that floor
+  const LABEL_HALO = dna?.bg ?? '#000b';
   if (Array.isArray(ITEMS) && ITEMS.length > MAX_HERO_PARTS) {
     throw new Error(
       `MaterialHero closes 1-${MAX_HERO_PARTS} parts into its ring (got ${ITEMS.length}). ` +
@@ -271,7 +279,7 @@ export const MaterialHero: React.FC<{title?: string; items?: string[]; note?: st
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
       <ThreeCanvas width={W} height={H} camera={{position: CAM, fov: FOV}} shadows
         style={{position: 'absolute', inset: 0}}>
-        <Scene n={n} tones={TONES} t={t} />
+        <Scene n={n} tones={TONES} t={t} floor={FLOOR} bounce={BOUNCE} />
       </ThreeCanvas>
 
       {/* A label appears only once its arc is nearly home; drawn from frame one they ride outside the frame
@@ -281,7 +289,15 @@ export const MaterialHero: React.FC<{title?: string; items?: string[]; note?: st
           transform: 'translate(-50%, -50%)', textAlign: 'center', textWrap: 'balance',
           opacity: clamp01(s * 2.6 - 1.3), color: FG,
           font: `700 ${Math.round(U * 0.027)}px/${leading(text, 1.15)} var(--f-body, system-ui, sans-serif)`,
-          textShadow: '0 2px 14px #000b'}}>{text}</div>
+          // A LABEL HERE STRADDLES TWO SURFACES — the studio floor and, for the arcs nearest the lens, the
+          // metal itself (the card names that crowding). On the dark floor the label's white read on both; the
+          // moment the floor became the film's, a paper film put DARK ink on dark metal and two of six labels
+          // went. The halo is the FLOOR's own colour, so the label is lifted off whatever it lands on at
+          // either exposure — which is exactly what the literal #000b was doing on the one ground it knew.
+          // Four stacked copies, not one: a single soft shadow is a rim, and the arcs nearest the lens need a
+          // PLATE behind the word to lift it off the metal. Compounding one blur is how a map label survives
+          // crossing a coastline, and it costs nothing on the open floor, where it is the floor's own colour.
+          textShadow: `0 0 6px ${LABEL_HALO}, 0 0 6px ${LABEL_HALO}, 0 0 6px ${LABEL_HALO}, 0 2px 14px ${LABEL_HALO}`}}>{text}</div>
       ) : null)}
 
       {centre ? (

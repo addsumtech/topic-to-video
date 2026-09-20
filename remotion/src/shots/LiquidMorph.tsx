@@ -107,9 +107,13 @@ export const LiquidMorph: React.FC<{forms?: (string | LiquidForm)[]}> = ({forms:
       ) : null)}
       {/* current form label */}
       <div style={{position: 'absolute', left: 0, right: 0, top: cy + R + GLOW, height: LABEL_LINE, textAlign: 'center'}}>
+        {/* THE WORD IS ON THE FILM'S GROUND, NOT ON THE BLOB. The blob is a saturated iridescent fill and the
+            icon riding it keeps its white; the label hangs BELOW the blob, on the page, so it is the film's
+            ink — a literal near-white there measured 1.09:1 on a warm-white film with the register's entire
+            legible mark count under 3:1 (scripts/ink_contrast_qa.py), which is the word gone. */}
         {forms.map((f, i) => <div key={i} style={{position: 'absolute', left: 0, right: 0, whiteSpace: 'nowrap',
           font: `800 ${labelPx}px/${leading(f.label, 1)} var(--f-display, Inter,system-ui,sans-serif)`,
-          color: '#fff', opacity: clamp01(1 - Math.abs(idx - i) * 1.4)}}>{f.label}</div>)}
+          color: dna?.fg ?? '#fff', opacity: clamp01(1 - Math.abs(idx - i) * 1.4)}}>{f.label}</div>)}
       </div>
     </AbsoluteFill>
   );

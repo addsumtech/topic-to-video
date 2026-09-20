@@ -15,7 +15,7 @@
 **Known traps:**
 - `items` used to be cut to four, so a five-step mechanism lost its last step and the payoff was credited to the wrong gear. Past four now throws.
 - The badge never wraps; a long payoff runs wide from the last gear's centre.
-- The badge's green gradient is fixed; only the gear tones follow the DNA's palette.
+- The badge's green gradient and its dark ink are fixed — that pair carries its own fill and reads on either ground, so it is left alone. Everything else follows the film: the teeth take the DNA's palette, and the gear BODY is now a measured step off the film's ground with its step name picked against that body, so a light-key film gets machined plates with dark labels instead of three private black discs.
 - Defaults print 'Trigger / Process / Deliver', 'Automatic', 'How it runs'.
 
 **Refuses:** `items` that is not an array, or has fewer than 2 or more than 4 entries.
