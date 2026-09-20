@@ -554,7 +554,7 @@ comparison is like for like rather than an impression.
 | `rotateX` (pitch) | 24 | **2** |
 | `blur()` | 76 (35%) | 17 (11%) |
 | `spring` | 24 | **3** |
-| seam vocabulary | 18 transition cards + 6 hand-off recipes | 5, all planar |
+| seam vocabulary | 18 transition cards + 6 hand-off recipes | 5, all planar → **14 words, 4 of them in depth** (2026-09-20) |
 
 ### The three capability gaps
 
@@ -574,6 +574,30 @@ comparison is like for like rather than an impression.
    ThroughDarkPresentation and PortalPresentation. Only the focus relay's PARAMETERS were recorded in this
    study (their case law was quoted verbatim); the other two were recorded by name only and the library is
    no longer on disk, so their numbers are derived here and their headers say so.
+
+### What "closing the seam gap" did and did not mean (2026-09-20)
+
+Their 18 against our 5 is not an instruction to write 13 more moves. Our own `motion-grammar.md` REFUSES the
+novelty half of any such list — iris, blinds, cube, checkerboard, "random" — on the recorded ground that the
+audience then notices the mechanism instead of the content. Counting moves is the wrong measure; the right one
+is **how many RELATIONS between two beats this tier can claim**, and on that measure three were missing and
+two were unreachable:
+
+* `fadethrough` — the same reset as a fade with the emphasis on what ARRIVES (Material 30/70). Built.
+* `drift` — a cross-fade that also travels ~24px in the reading direction: direction without loudness. Built.
+* `blur` — a rack-defocus coda, both beats soft across the middle, budget one per film. Built, and distinct
+  from the `focus` relay by being SYMMETRIC: the relay always keeps something sharp because it staggers, and
+  that is what makes it a hand-off rather than a pause for thought.
+* `push` / `lift` — Remotion's slide in its two directions. The pictures already existed; the WORDS did not,
+  so `transition_in: {"type": "push"}` missed `_KINETIC_TYPES` and rendered as an anonymous fade. One
+  relation, one word, both tiers — and `render_remotion.seam_type` is now the single resolver for both
+  spellings and every alias, with `validate.py` ERRORing on a word it cannot resolve rather than letting a
+  seam go quiet.
+
+Vocabulary now: `fade` `fadethrough` `drift` `push` `lift` `slide` `wipe` `clock` `dissolve` `blur` `carry`
+`focus` `through-dark` `portal` — 14 words, four of which (carry, focus, through-dark, portal) happen in
+depth rather than in the plane. The remaining distance to 18 is theirs to keep: it is made of moves this
+repo has already decided not to ship.
 
 ### The form of their documentation is itself a capability
 

@@ -247,6 +247,19 @@ relate — never decoration:
 | **wipe** | a bg sheet sweeps L→R: covers the still page, uncovers the next | directional replacement without travel ("and next…") | graphic registers: swiss/terminal/editorial; process decks |
 | **blur** | rack-defocus into the dip; the entrance refocuses | attention shift / reflective coda | at most ONCE per deck (quote/closer), contemplative registers |
 
+**The remotion tier speaks the SAME WORDS** (`transition_in: {"type": "..."}` or `transition_style`, resolved
+by `render_remotion.seam_type`), plus four that only a compositor can draw. The table above is the shared half:
+`cut` · `dip`→`fade` · `fadethrough` · `drift` · `push` · `lift` · `wipe` · `blur`. The four that are remotion-only
+are the DEPTH seams and the film's native action — `carry` (a collapse-to-line match-cut), `focus` (the cut
+happens at the focal plane), `through-dark` (the leaving beat's light goes out, the next comes forward out of
+black), `portal` (the camera passes through the frame), plus `clock` and `dissolve`.
+
+Until 2026-09-20 the two tiers disagreed: `fadethrough`, `drift` and `blur` had no remotion picture at all, and
+`push`/`lift` were spelled only in the html vocabulary, so `transition_in: {"type": "push"}` fell through to an
+anonymous fade. A relation one tier can claim and the other cannot is a vocabulary hole, and a seam that goes
+quiet is the worst kind of bug — the board says one thing, the film does another, and every gate is green.
+`validate.py` now ERRORS on a seam word the renderer cannot resolve.
+
 **Taste + rhythm rules (from the research consensus):**
 - **Cut is the default; styled seams are punctuation.** Budget ~2–3 marked transitions per video
   (section seams + one payoff). If a viewer notices the mechanism, it failed the invisibility test.

@@ -2392,6 +2392,24 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
                                 f"language so the film doesn't read as one look")
     except Exception:
         pass
+    try:                                                   # A SEAM WORD THIS RENDERER CANNOT RESOLVE IS AN ERROR
+        # — never a quiet downgrade. `transition_in: {"type": "rack"}` used to fall through the kinetic set
+        # and render as an anonymous fade: the board said one thing, the film did another, and every gate was
+        # green. The vocabulary is `render_remotion.seam_type`, so the two cannot drift.
+        import render_remotion as _rr
+        for i, sl in enumerate(slides):
+            for key, raw in (("transition_in", (sl.get("transition_in") or {}).get("type")
+                              if isinstance(sl.get("transition_in"), dict) else None),
+                             ("transition_style", sl.get("transition_style"))):
+                # `transition_style` is shared with the html tier, whose `dip`/`cut`/`none` name a default or
+                # a deliberate non-mark rather than a word this renderer is failing to draw.
+                if raw and not _rr.seam_word_known(raw):
+                    known = ", ".join(sorted(_rr._KINETIC_TYPES))
+                    errors.append(f"remotion: beat {i + 1} asks for seam '{raw}' ({key}), which this renderer "
+                                  f"does not know — it would render as an unmarked fade. Known seams: {known} "
+                                  f"(aliases in render_remotion._TRANSITION_STYLE)")
+    except Exception:
+        pass
     try:                                                   # marked-seam BUDGET: most seams ride the safe fade
         import render_remotion as _rr
         marked = sum(1 for s in slides[1:] if _rr._transition_in(s))   # scene 0 has no incoming seam

@@ -402,7 +402,20 @@ back — commit registers that are memorable and unmistakably THIS film. For eac
    (a solid → its particles) → `dissolve`; a CONTINUITY beat where the two shots should read as one continuous
    move (a chart collapses and the human takeaway grows from the same line, a converge → resolve) → `carry` (a
    collapse-to-line match-cut — the ONE mark that also works across a dark↔light seam, its neutral line being the
-   luminance bridge). Two constraints: **budget ≤~3 marks** in a
+   luminance bridge).
+
+   **The rest of the vocabulary, one word per relation** (the same words the html tier uses, so a film that
+   changes tier keeps its seams — `references/motion-grammar.md` holds the full table):
+   `push` a lateral step in a sequence (next page, next step) · `lift` the same move turned 90°, a reading-flow
+   progression down one document · `fadethrough` the same reset as a fade with the emphasis moved onto what
+   ARRIVES (leaves in 30% of the seam, the new content gets 70%) · `drift` a cross-fade that also travels ~24px
+   in the reading direction, direction without loudness · `blur` a rack-defocus coda where both beats go soft at
+   the middle — attention letting go of one thing and settling on another, budget **ONE per film** (a quote, a
+   closer). `drift` and `blur` survive the dark↔light guard (a translation adds no light and a Gaussian
+   redistributes it); `fadethrough` does not, because leaving fast is how a dark ground becomes a light one in
+   0.15s. A seam word this renderer cannot resolve is now an ERROR in `validate.py`, never a quiet fade.
+
+   Two constraints: **budget ≤~3 marks** in a
    ≥10-beat film (marking every seam is as monotonous as marking none, and the shot-critic S2 flags it), and a
    mark only "takes" on a **same-luminance** seam — a dark↔light cut is auto-forced back to the safe fade
    (Film's pickPresentation guards against a bright edge slamming over a dark scene), so don't spend a mark

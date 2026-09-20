@@ -35,14 +35,26 @@ def test_shotluma_covers_all_shots():
 def test_transition_in_mapping():
     # P2 seam grammar reaches REAL films: the storyboard's transition vocabulary → the Film `transitionIn` mark.
     assert rr._transition_in({"transition_style": "slide"}) == {"type": "slide", "direction": "from-right"}
-    assert rr._transition_in({"transition_style": "lift"}) == {"type": "slide", "direction": "from-bottom"}
+    # `lift` and `push` are now WORDS of their own rather than spellings of `slide`: one relation, one word,
+    # on both tiers. Film.tsx resolves each to the slide direction it means (see pickPresentation), so the
+    # picture is unchanged and a board can finally ask for them by name through `transition_in` too.
+    assert rr._transition_in({"transition_style": "lift"}) == {"type": "lift"}
+    assert rr._transition_in({"transition_style": "push"}) == {"type": "push"}
+    assert rr._transition_in({"transition_in": {"type": "lift"}}) == {"type": "lift"}
     assert rr._transition_in({"transition_style": "wipe"})["type"] == "wipe"
     assert rr._transition_in({"transition_style": "Clock-Wipe"}) == {"type": "clock"}    # case/alias-insensitive
     assert rr._transition_in({"transition_style": "dissolve"}) == {"type": "dissolve"}
     assert rr._transition_in({"transition_style": "carry"}) == {"type": "carry"}
     assert rr._transition_in({"transition_style": "match-cut"}) == {"type": "carry"}   # alias
-    # non-kinetic styles + absent → None (the luminance-safe default fade, no mark)
-    for st_ in ("fade", "dip", "drift", "blur", "none", "", "bogus"):
+    # `drift` and `blur` USED to be in the list below — html styles with no remotion picture, so a board that
+    # asked for one got an anonymous fade and no gate said a word. They are seams here now (Film.tsx), which
+    # is the whole point of the 2026-09-20 vocabulary pass.
+    assert rr._transition_in({"transition_style": "drift"}) == {"type": "drift"}
+    assert rr._transition_in({"transition_style": "blur"}) == {"type": "blur"}
+    assert rr._transition_in({"transition_style": "fadethrough"}) == {"type": "fadethrough"}
+    # a word that names the DEFAULT or a deliberate non-mark stays unmarked — `dip` is the html tier's name
+    # for the cross-fade every unmarked seam already gets
+    for st_ in ("fade", "dip", "none", "", "bogus"):
         assert rr._transition_in({"transition_style": st_}) is None, st_
     assert rr._transition_in({}) is None
     # an explicit remotion mark wins and is sanitized (unknown type ignored)
@@ -3436,3 +3448,77 @@ def test_the_ink_block_factor_bounds_every_bundled_face():
     assert declared - worst < 0.05, (
         "INK_BLOCK_FACTOR is %.3f against a worst bundled face of %.3f (%s) — if a face was removed, "
         "bring the constant back down to it" % (declared, worst, worst_name))
+
+
+def test_every_seam_word_the_authoring_path_accepts_reaches_a_presentation():
+    """A seam that goes QUIET is the worst kind of bug: the board says one thing, the film does another, and
+    every gate stays green. `transition_in: {"type": "push"}` did exactly that — `push` was spelled only in the
+    html vocabulary, missed `_KINETIC_TYPES`, and rendered as an anonymous fade. So every word the authoring
+    path resolves must land on a `case` in Film.tsx's picker, and every case must be reachable from a board."""
+    import importlib.util
+    root = os.path.join(os.path.dirname(__file__), "..")
+    spec = importlib.util.spec_from_file_location("render_remotion", os.path.join(root, "scripts", "render_remotion.py"))
+    rr = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rr)
+    film = open(os.path.join(root, "remotion", "src", "Film.tsx"), encoding="utf-8").read()
+    picker = film[film.index("const pickPresentation"):]
+    picker = picker[:picker.index("\n};")]
+    cases = set(re.findall(r"case '([a-z-]+)':", picker))
+    words = set(rr._KINETIC_TYPES)
+    # 'fade' is the default branch, not a case — it is what an unmarked seam gets
+    assert words - cases == set(), "these seam words resolve but no presentation draws them: %r" % (words - cases)
+    assert cases - words == set(), "these presentations exist but no board can ask for them: %r" % (cases - words)
+    # every ALIAS resolves to a word that has a picture
+    for alias, mapped in rr._TRANSITION_STYLE.items():
+        assert rr.seam_type(alias) in words, (alias, mapped)
+        assert rr._transition_in({"transition_in": {"type": alias}}), "alias %r is silent on transition_in" % alias
+
+
+def test_a_seam_word_the_renderer_cannot_resolve_is_refused_not_faded():
+    import importlib.util
+    root = os.path.join(os.path.dirname(__file__), "..")
+    spec = importlib.util.spec_from_file_location("render_remotion", os.path.join(root, "scripts", "render_remotion.py"))
+    rr = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rr)
+    assert rr.seam_type("kaboom") is None
+    assert rr._transition_in({"transition_in": {"type": "kaboom"}}) is None
+    assert not rr.seam_word_known("kaboom")
+    # ...but the html tier's own words are KNOWN, not errors: `transition_style` is shared, and there `dip`
+    # is the default seam while `cut`/`none` name a deliberate non-mark. Reporting them as undrawable would
+    # fail every html deck that spells its seams.
+    for w in ("dip", "cut", "none", "fade"):
+        assert rr.seam_word_known(w) and rr.seam_type(w) is None, w
+    # validate carries the refusal (the mechanism, not a comment): it reads the same resolver
+    v = open(os.path.join(root, "scripts", "validate.py"), encoding="utf-8").read()
+    assert "seam_word_known(raw)" in v, "validate no longer checks seam words against the renderer's own vocabulary"
+
+
+def test_the_luminance_guard_exempts_only_seams_that_cannot_add_light():
+    """Each exemption is a claim about physics, and a wrong one flashes a bright frame over a dark beat."""
+    root = os.path.join(os.path.dirname(__file__), "..")
+    film = open(os.path.join(root, "remotion", "src", "Film.tsx"), encoding="utf-8").read()
+    m = re.search(r"const CANNOT_FLASH = new Set\(\[([^\]]+)\]\)", film)
+    assert m, "the seam guard's exemption list moved"
+    exempt = set(re.findall(r"'([a-z-]+)'", m.group(1)))
+    assert exempt == {"carry", "focus", "through-dark", "drift", "blur"}, exempt
+    # the fast-exit seam must NOT be exempt: leaving in 30% of the seam is how a dark ground becomes light
+    assert "fadethrough" not in exempt
+
+
+def test_every_seam_that_fades_its_leaving_half_paints_a_ground_under_it():
+    """E15. Measured: `fadethrough` between two near-white beats dipped to mean 13.5 — a black hole between
+    two cream frames — because two faded layers over nothing composite onto black. Remotion's own `fade` is
+    immune (only the entering half is faded); every presentation in this file that fades BOTH halves has to
+    supply the floor itself, under the EXITING half only (an opaque ground on the entering half would hide
+    the beat being left for the whole seam)."""
+    root = os.path.join(os.path.dirname(__file__), "..")
+    film = open(os.path.join(root, "remotion", "src", "Film.tsx"), encoding="utf-8").read()
+    for name in ("FadeThroughPresentation", "DriftPresentation", "DefocusPresentation", "FocusRelayPresentation"):
+        body = film[film.index("const %s" % name):]
+        body = body[:body.index("\n};")]
+        assert "SeamGround" in body, "%s fades both halves with no ground under them (E15)" % name
+        assert "show={!isEnter}" in body, "%s paints its ground on the wrong half (E15)" % name
+    # ...and the picker has a ground to give them
+    assert "const seamBg = nextG?.bg ?? prevG?.bg" in film
+    for factory in ("fadeThrough(seamBg)", "drift(dir, W, H, seamBg)", "defocus(seamBg)", "focusRelay(seamBg)"):
+        assert factory in film, "the picker no longer hands %s the film's ground" % factory

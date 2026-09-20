@@ -85,7 +85,9 @@ def test_the_planner_routes_a_CROSSING_payoff_to_it():
 
 def test_it_is_registered_in_the_scene_type_and_the_switch():
     assert "| 'focus'" in FILM, "SceneSpec.transitionIn does not admit it"
-    assert "case 'focus': return focusRelay();" in FILM
+    # the relay now takes the film's ground (E15: a seam that fades its LEAVING half composites onto black
+    # without one — measured 222 -> 13.5 -> 222 between two cream beats)
+    assert "case 'focus': return focusRelay(seamBg);" in FILM
 
 
 def _crossing_pair():

@@ -52,8 +52,8 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // A MARKED seam (chapter break): the transition INTO this scene from the previous one. Optional +
   // remotion-only; unset = the luminance-safe default (a gentle cross-fade). A kinetic type is honored only
   // on a same/near-luminance seam — across a dark↔light gap it's suppressed back to fade (see pickPresentation).
-  transitionIn?: {type: 'fade' | 'slide' | 'wipe' | 'clock' | 'dissolve' | 'carry' | 'focus'
-    | 'through-dark' | 'portal'; direction?: string};
+  transitionIn?: {type: 'fade' | 'slide' | 'push' | 'lift' | 'wipe' | 'clock' | 'dissolve' | 'fadethrough'
+    | 'drift' | 'blur' | 'carry' | 'focus' | 'through-dark' | 'portal'; direction?: string};
   // A MOTIVATED camera move for THIS beat: `push` (look closer at what is here), `pull` (here is the whole
   // of it), `hold` (most beats). Optional; absent = hold. This is not the film-wide ambient drift below —
   // that one had no relationship to anything being said, which is precisely why it read as a wobble.
@@ -424,7 +424,7 @@ const screenClear = (bg?: string, accent?: string): TransitionPresentation<any> 
 // here brightens or darkens a frame; blur redistributes light, it does not add any.
 const BLUR_MAX_PX = 9;                 // 8px in the source case law, scaled a touch for 1080p
 const RELAY_OFFSET = 0.18;             // ~2-4 frames of a 12-frame seam — the anti "one blurred screen" rule
-const FocusRelayPresentation = ({presentationProgress: p, presentationDirection, children}: any) => {
+const FocusRelayPresentation = ({presentationProgress: p, presentationDirection, children, passedProps}: any) => {
   const isEnter = presentationDirection === 'entering';
   const c = {extrapolateLeft: 'clamp' as const, extrapolateRight: 'clamp' as const};
   // The leaving beat softens from the first frame; the arriving one waits RELAY_OFFSET before it starts to
@@ -438,14 +438,116 @@ const FocusRelayPresentation = ({presentationProgress: p, presentationDirection,
   // Opacity crosses LATE and fast. The focus carries the hand-off; a long opacity cross on top of it would
   // make this an ordinary dissolve wearing a blur.
   const op = isEnter ? interpolate(p, [0.34, 0.68], [0, 1], c) : interpolate(p, [0.32, 0.66], [1, 0], c);
+  // ...and the ground under the leaving half — see SeamGround below. This seam has faded both halves since it
+  // was built, so on a light film it dipped toward black at mid-seam exactly as `fadethrough` did; it was
+  // found by the instrument written for the new seams, not by the eye, and the fix is the same floor.
   return (
-    <AbsoluteFill style={{opacity: op, filter: blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : undefined,
-      transform: `scale(${scale.toFixed(4)})`, transformOrigin: 'center'}}>
+    <SeamGround bg={passedProps?.bg} show={!isEnter}
+      style={{opacity: op, filter: blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : undefined,
+        transform: `scale(${scale.toFixed(4)})`, transformOrigin: 'center'}}>
       {children}
-    </AbsoluteFill>
+    </SeamGround>
   );
 };
-const focusRelay = (): TransitionPresentation<any> => ({component: FocusRelayPresentation, props: {}});
+const focusRelay = (bg?: string): TransitionPresentation<any> => ({component: FocusRelayPresentation, props: {bg}});
+
+// ────────────────────────────────────────────────────────────────────────────────────────────────────────
+// THE THREE SEAMS THIS TIER COULD NOT SAY. Measured against the peer library (references/launch-film-study.md)
+// this tier shipped 9 seam words against their 18. The honest reading of that gap is NOT that nine more moves
+// are missing — our own motion-grammar REFUSES the novelty half of any such list (iris, blinds, cube,
+// checkerboard: "the audience notices the mechanism instead of the content"). It is that three RELATIONS this
+// repo had already written down, and had already implemented on the html tier, had no remotion word at all:
+// a reset whose emphasis belongs to the NEW content, a page that breathes away in the reading direction, and
+// a reflective coda. A relation one tier can claim and the other cannot is a vocabulary hole, and a
+// storyboard that asked for one of them here was silently answered with a plain cross-fade.
+//
+// `push` and `lift` are the fourth and fifth words, and they needed no new picture — Remotion's `slide` IS a
+// push, and `lift` is that push turned through 90°. They were reachable only by their HTML spelling
+// (`transition_style`), so `transition_in: {type: "push"}` fell through `_KINETIC_TYPES` to a fade. One
+// relation, one word, both tiers.
+
+// A SEAM THAT FADES BOTH HALVES MUST PAINT THE GROUND UNDER THEM, or it dips to whatever is behind the
+// sequences — which is BLACK. Measured on two near-white beats (mean 222) with `fadethrough` between them:
+// the seam went 222 → 13.5 → 222, a black hole between two cream frames. That is the same defect this file
+// already records for @remotion/transitions/dissolve ("a full black hole where the seam should be"), arriving
+// through a different door: Remotion's own `fade` never shows it because only the ENTERING half carries an
+// opacity and the leaving one stays opaque underneath. Any seam that fades the leaving half too — this tier's
+// focus relay, and the three seams below — has to supply that floor itself.
+//
+// It is painted under the EXITING half only. The entering half sits on top, so an opaque ground there would
+// hide the beat being left behind for the whole seam.
+const SeamGround: React.FC<{bg?: string; show: boolean; children: React.ReactNode; style?: React.CSSProperties}> =
+  ({bg, show, children, style}) => (
+    <>
+      {show && bg ? <AbsoluteFill style={{background: bg}} /> : null}
+      <AbsoluteFill style={style}>{children}</AbsoluteFill>
+    </>
+  );
+
+// FADE-THROUGH — the same reset as a dip, with the emphasis moved onto what ARRIVES.
+// Material's 30/70: the outgoing image leaves FAST and the incoming one takes the rest of the seam. A
+// symmetric cross-fade splits the viewer's attention evenly between a thing that is over and a thing that is
+// starting; this one does not. It is the upgraded default for a precise register, and it is NOT exempt from
+// the luminance guard: leaving fast is exactly how a dark ground becomes a light one in 0.15s.
+const FadeThroughPresentation = ({presentationProgress: p, presentationDirection, children, passedProps}: any) => {
+  const c = {extrapolateLeft: 'clamp' as const, extrapolateRight: 'clamp' as const};
+  const isEnter = presentationDirection === 'entering';
+  const op = isEnter
+    ? interpolate(p, [0.34, 1], [0, 1], c)          // 70% of the seam belongs to the new content
+    : interpolate(p, [0, 0.30], [1, 0], c);         // 30%, and the old content is gone
+  return <SeamGround bg={passedProps?.bg} show={!isEnter} style={{opacity: op}}>{children}</SeamGround>;
+};
+const fadeThrough = (bg?: string): TransitionPresentation<any> => ({component: FadeThroughPresentation, props: {bg}});
+
+// DRIFT — a cross-fade that also MOVES, ~24px in the reading direction. Direction without loudness: the page
+// breathes away rather than being pushed off. The travel is small on purpose — past about 3% of the frame it
+// stops reading as a breath and starts reading as a failed push.
+//
+// It is luminance-SAFE by construction, so it joins the seams the harsh-gap guard lets through: every pixel
+// it draws is one of the two beats at some opacity, exactly as `fade` does, and a translation adds no light.
+const DRIFT_FRAC = 0.022;              // of the frame's long side — ~24px at 1080p, the html tier's number
+const DriftPresentation = ({presentationProgress: p, presentationDirection, children, passedProps}: any) => {
+  const c = {extrapolateLeft: 'clamp' as const, extrapolateRight: 'clamp' as const};
+  const isEnter = presentationDirection === 'entering';
+  const dir: string = passedProps?.direction ?? 'from-right';
+  const vertical = dir === 'from-bottom' || dir === 'from-top';
+  const sign = (dir === 'from-left' || dir === 'from-top') ? -1 : 1;
+  const d = (passedProps?.px ?? 24) * sign;
+  // eased on both halves so neither edge of the seam has a corner in it
+  const travel = isEnter ? interpolate(p, [0, 1], [d, 0], c) : interpolate(p, [0, 1], [0, -d], c);
+  const op = isEnter ? interpolate(p, [0.18, 0.82], [0, 1], c) : interpolate(p, [0.18, 0.82], [1, 0], c);
+  const t = vertical ? `translateY(${travel.toFixed(2)}px)` : `translateX(${travel.toFixed(2)}px)`;
+  return <SeamGround bg={passedProps?.bg} show={!isEnter} style={{opacity: op, transform: t}}>{children}</SeamGround>;
+};
+const drift = (direction: string | undefined, W: number, H: number, bg?: string): TransitionPresentation<any> =>
+  ({component: DriftPresentation, props: {direction, bg, px: Math.round(Math.max(W, H) * DRIFT_FRAC)}});
+
+// DEFOCUS — the reflective coda. Both beats go soft at the middle of the seam and the new one resolves out of
+// it: attention lets go of one thing and settles on another. Budget ONE per film (a quote, a closer).
+//
+// It is NOT the focus relay, and the difference is the whole reason both exist. The relay STAGGERS — the
+// leaving beat softens first and the arriving one waits, so the eye is handed from one subject to another and
+// something is always sharp. This one is SYMMETRIC and holds both images soft across the middle: nothing is
+// sharp for a moment, which is what makes it read as a pause for thought rather than a hand-off.
+// Luminance-safe for the same reason the relay is: a Gaussian blur redistributes light, it does not add any,
+// and the opacity pair is an ordinary cross-fade.
+const DEFOCUS_MAX_PX = 14;             // deeper than the relay's 9px — this seam is meant to be felt
+const DefocusPresentation = ({presentationProgress: p, presentationDirection, children, passedProps}: any) => {
+  const c = {extrapolateLeft: 'clamp' as const, extrapolateRight: 'clamp' as const};
+  const isEnter = presentationDirection === 'entering';
+  // both sides reach full softness at mid-seam; the entering beat resolves out of it
+  const blur = isEnter
+    ? interpolate(p, [0, 0.5, 1], [DEFOCUS_MAX_PX, DEFOCUS_MAX_PX, 0], c)
+    : interpolate(p, [0, 0.5, 1], [0, DEFOCUS_MAX_PX, DEFOCUS_MAX_PX], c);
+  const op = isEnter ? interpolate(p, [0.38, 0.72], [0, 1], c) : interpolate(p, [0.28, 0.62], [1, 0], c);
+  return (
+    <SeamGround bg={passedProps?.bg} show={!isEnter}
+      style={{opacity: op, filter: blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : undefined}}>
+      {children}
+    </SeamGround>
+  );
+};
+const defocus = (bg?: string): TransitionPresentation<any> => ({component: DefocusPresentation, props: {bg}});
 
 // ── THROUGH-DARK FLIGHT — the second of the peer library's three DEPTH hand-offs ────────────────────────
 //
@@ -613,14 +715,28 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
   // beats never carry light at the same time, so there is no instant where a bright frame is added to a
   // dark one. `portal` is deliberately NOT here — a bright aperture opening on a dark field is precisely
   // the brightness jump this guard exists to refuse.
-  const CANNOT_FLASH = new Set(['carry', 'focus', 'through-dark']);
+  // `drift` and `blur` join them, each for a reason that can be checked rather than asserted: `drift` draws
+  // exactly what `fade` draws and then translates it, and a translation adds no light; `blur` is a Gaussian
+  // over a cross-fade, and a Gaussian redistributes light without adding any. `fadethrough` is deliberately
+  // NOT here — leaving fast is how a dark ground becomes a light one in 0.15s, which is this guard's case.
+  const CANNOT_FLASH = new Set(['carry', 'focus', 'through-dark', 'drift', 'blur']);
   const t = (harsh && !CANNOT_FLASH.has(want)) ? 'fade' : want;
   const dir = next.transitionIn?.direction;
+  // The seams that fade their LEAVING half need a floor to fade onto. `carry` already asked for this ground
+  // by name; the others took whatever was behind the sequences, which is black.
+  const seamBg = nextG?.bg ?? prevG?.bg ?? undefined;
   // MOTION GRAMMAR: an UNMARKED (default) seam becomes the DNA's native action on a luminance-safe cut (a themed
   // film's cuts belong to its world — terminal = screen-clear, etc.); explicit marks + the dark↔light fade win.
   if (t === 'fade' && !harsh) { const s = dnaDefaultSeam(dna, W, H); if (s) return s; }
   switch (t) {
-    case 'slide': return slide({direction: (dir as any) ?? 'from-right'});
+    // One relation, one word, on both tiers: `push` is Remotion's own slide (the incoming page pushes the
+    // outgoing one off), and `lift` is that move turned through 90° — a reading-flow progression down a page.
+    case 'slide': case 'push': return slide({direction: (dir as any) ?? 'from-right'});
+    case 'lift': return slide({direction: (dir as any) ?? 'from-bottom'});
+    // the ground the seam dips THROUGH is the film's own, never the black behind the sequences
+    case 'fadethrough': return fadeThrough(seamBg);
+    case 'drift': return drift(dir, W, H, seamBg);
+    case 'blur': return defocus(seamBg);
     case 'wipe': return wipe({direction: (dir as any) ?? 'from-bottom'});
     case 'clock': return clockWipe({width: W, height: H});
     // `dissolve` is a CROSS-DISSOLVE — setup and result share the screen for a moment. It is NOT
@@ -637,7 +753,7 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
     // on a light ground (it is the film's own emphasis colour), a pale neutral on a dark one.
     case 'carry': return carry(carryLine(nextG as SeamColors | null), nextG?.bg ?? undefined);
     // the three seams that happen in DEPTH rather than in the plane — see their own headers above
-    case 'focus': return focusRelay();
+    case 'focus': return focusRelay(seamBg);
     case 'through-dark': return throughDark();
     case 'portal': return portal(W, H);
     default: return fade();

@@ -24,9 +24,16 @@ _REMOTION2_TR = 12   # cross-dissolve length in Film.tsx (frames) — the output
 # maps the deck's `transition_style` vocabulary (shared with the local tier) onto the bespoke transition set;
 # an explicit `transition_in:{type,direction}` on the scene wins outright (a direct remotion mark).
 _TRANSITION_STYLE = {
-    "slide": {"type": "slide", "direction": "from-right"}, "push": {"type": "slide", "direction": "from-right"},
-    "lift": {"type": "slide", "direction": "from-bottom"}, "slide-up": {"type": "slide", "direction": "from-bottom"},
+    # `push` and `lift` are the film words for the two directions of Remotion's slide. They are spelled here
+    # AND in `_KINETIC_TYPES` below, because a relation the html tier can name and this one cannot is a hole:
+    # `transition_in: {"type": "push"}` used to miss the kinetic set and come out as an anonymous fade.
+    "slide": {"type": "slide", "direction": "from-right"}, "push": {"type": "push"},
+    "lift": {"type": "lift"}, "slide-up": {"type": "lift"},
     "wipe": {"type": "wipe", "direction": "from-bottom"},
+    # the three relations this tier could not claim until the seams below were built (Film.tsx)
+    "fadethrough": {"type": "fadethrough"}, "fade-through": {"type": "fadethrough"},
+    "drift": {"type": "drift"},
+    "blur": {"type": "blur"}, "rack": {"type": "blur"}, "defocus": {"type": "blur"},
     "clock": {"type": "clock"}, "clockwipe": {"type": "clock"}, "clock-wipe": {"type": "clock"},
     "dissolve": {"type": "dissolve"},
     "carry": {"type": "carry"}, "collapse": {"type": "carry"}, "line": {"type": "carry"}, "match-cut": {"type": "carry"},
@@ -38,7 +45,8 @@ _TRANSITION_STYLE = {
 # `focus`, `through-dark` and `portal` are the DEPTH seams (Film.tsx). They belong here or a storyboard that
 # asks for one is silently downgraded to a fade, which is the exact "built but unreachable" failure this
 # file's `transition_in` docstring was written about — and it has already cost this repo two deliveries.
-_KINETIC_TYPES = {"slide", "wipe", "clock", "dissolve", "carry", "focus", "through-dark", "portal"}
+_KINETIC_TYPES = {"slide", "push", "lift", "wipe", "clock", "dissolve", "fadethrough", "drift", "blur",
+                  "carry", "focus", "through-dark", "portal"}
 
 
 # The runtime's own settled point, parsed from motion.ts so the two cannot drift: a keyframe must be the
@@ -98,15 +106,46 @@ def _caption_for_eye(text):
     return _SPACED_CAPS.sub(lambda m: m.group(0).replace(" ", ""), t)
 
 
+# WORDS THAT NAME A DELIBERATE NON-MARK, and the html tier's spelling of the default. `transition_style` is
+# shared with the html tier, where `dip` IS the default seam and `cut`/`none` mean "no seam at all". They
+# resolve to no remotion mark, which is correct — but they are KNOWN, so `validate.py` must not report them
+# as words this renderer cannot draw.
+_UNMARKED_WORDS = {"cut", "none", "hard-cut", "dip", "fade"}
+
+
+def seam_word_known(word):
+    """True when this word means something here — a mark, or a deliberate absence of one."""
+    w = (word or "").strip().lower()
+    return bool(w) and (w in _UNMARKED_WORDS or seam_type(w) is not None)
+
+
+def seam_type(word):
+    """The film word for a seam → the Film.tsx `transitionIn.type`, or None when this is not a seam word.
+
+    One resolver for both spellings (`transition_in.type` and `transition_style`) and for every alias, so a
+    word that works in one place cannot be silently ignored in the other."""
+    w = (word or "").strip().lower()
+    if w in _KINETIC_TYPES:
+        return w
+    mapped = _TRANSITION_STYLE.get(w)
+    return mapped["type"] if mapped else None
+
+
 def _transition_in(slide):
     """Map a storyboard scene's transition intent → the Film `transitionIn` mark (or None = the safe default fade).
     Only a MARKED (kinetic) seam returns a value; the shot-director budgets ~2-3 per film for chapter breaks."""
     ti = slide.get("transition_in")
-    if isinstance(ti, dict) and ti.get("type") in _KINETIC_TYPES:          # explicit remotion mark wins
-        out = {"type": ti["type"]}
-        if ti.get("direction"):
-            out["direction"] = ti["direction"]
-        return out
+    if isinstance(ti, dict) and ti.get("type"):                            # explicit remotion mark wins
+        # ALIASES RESOLVE ON BOTH SPELLINGS. They resolved only for `transition_style`, so a board that wrote
+        # `transition_in: {"type": "rack"}` — a word this file itself offers one line above — missed the
+        # kinetic set and was answered with an anonymous fade. `seam_type` is the single resolver, and
+        # `validate.py` refuses a word it cannot resolve rather than letting the seam go quiet.
+        t = seam_type(ti["type"])
+        if t:
+            out = {"type": t}
+            if ti.get("direction"):
+                out["direction"] = ti["direction"]
+            return out
     style = (slide.get("transition_style") or "").strip().lower()
     return dict(_TRANSITION_STYLE[style]) if style in _TRANSITION_STYLE else None
 

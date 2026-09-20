@@ -138,6 +138,17 @@ TTS if the user gives an API key.
   precisely the flash the guard refuses, so on a crossing seam it is rewritten to the fade. Only their NAMES
   were recorded in the peer study, so unlike the focus relay their parameters are derived here — see the
   headers in `Film.tsx`. Aliases for `transition_style`: `flight`/`through-black`, `aperture`.
+  **BOTH TIERS SPEAK ONE SEAM VOCABULARY (2026-09-20).** `fadethrough` (the same reset as a fade with the
+  emphasis on what ARRIVES — leaves in 30% of the seam, the new content gets 70%), `drift` (a cross-fade that
+  also travels ~24px in the reading direction) and `blur` (a rack-defocus coda, both beats soft across the
+  middle, budget ONE per film) had html pictures and no remotion ones; `push` and `lift` had remotion pictures
+  (`slide`, in its two directions) and no remotion WORD, so `transition_in:{type:'push'}` fell through to an
+  anonymous fade. All five are now reachable from either spelling through the single resolver
+  `render_remotion.seam_type`, and **`validate.py` ERRORS on a seam word this renderer cannot resolve** rather
+  than letting the seam go quiet. `drift` and `blur` cross a dark↔light boundary (a translation adds no light,
+  a Gaussian redistributes it); `fadethrough` does not. Every seam that fades its LEAVING half — these three
+  and the focus relay — paints the beat's own ground under it (E15: two faded layers over nothing composite
+  onto BLACK, measured 222 → 13.5 → 222 between two cream beats).
   **Transition STYLE — `meta.transition_style`** (`dip` default | `fadethrough` studio-timed dip |
   `drift` breath-with-direction | `push` horizontal page-push | `lift` vertical page-turn | `wipe`
   bg-sheet sweep | `blur` rack-defocus coda): what a seam LOOKS like, chosen ONCE per deck from the
