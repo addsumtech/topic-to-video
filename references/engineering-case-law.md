@@ -206,3 +206,20 @@ never a film figure re-typed.
 > those shapes and `tests/test_content_contract.py` holds the library to it.
 > **Ask yourself:** For each thing this register draws about an item, which prop did it come from — and what
 > does the frame show when the film leaves that prop out?
+
+**E15 · A SEAM THAT FADES ITS LEAVING HALF MUST PAINT THE FILM'S GROUND UNDER IT.** Remotion's own `fade`
+never shows this because only the ENTERING half carries an opacity and the beat being left stays opaque
+beneath it. The moment a presentation fades BOTH halves — for a dip, a rack, a drift — whatever is behind the
+sequences becomes visible at mid-seam, and that is black. Judge a new seam by measuring the frame's mean
+luminance across it on a LIGHT film; a dark film cannot tell you.
+
+> **Precedent — `688a603`:** `fadethrough` between two near-white beats (settled mean 222) measured
+> 222 → **13.5** → 222 — a black hole between two cream frames, on a seam whose entire claim is "the same
+> reset, emphasis on what arrives". The same measurement then found the identical hole in `focus`, a seam
+> that had been shipping since `4b4e8ce` and had been reviewed by eye on dark films only. Both now paint the
+> beat's own ground under the exiting half (`SeamGround`), and the same film measures a minimum of 222.
+> This is the third time this repository has put a black hole in a seam: `@remotion/transitions/dissolve`
+> rendered "a full black hole where the seam should be" between two cream shots, and the fix there was to
+> stop using it. The defect is not a library's bug — it is what compositing two faded layers over nothing
+> looks like.
+> **Ask yourself:** On a light film, what is the lowest mean luminance any frame of this seam reaches?
