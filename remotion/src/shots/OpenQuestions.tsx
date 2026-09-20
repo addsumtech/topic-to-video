@@ -13,7 +13,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, mix} from '../runtime/dna';
 import {captionBand, contentBottom, inkBlockH, wrapLines} from '../runtime/layout';
 
 export const DURATION = 170; // ~5.7s
@@ -27,6 +27,12 @@ export const OpenQuestions: React.FC<{kicker?: string; questions?: string[]; acc
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
+  // The film's own inks, each with the ORIGINAL literal it replaced as its null-DNA fallback — the kicker and
+  // the unlit question were two different greys, and collapsing them to one changed the un-themed look (the
+  // null-DNA colour test caught exactly that: `#8f9bb0` had become unreachable).
+  const FG = dna?.fg ?? '#eef4fc';
+  const DIM = dna?.dim ?? '#464e5c';          // the unlit end of a question
+  const KICKER = dna?.dim ?? '#8f9bb0';       // the spaced label above them
   // Every question once — the header says why four is the ceiling.
   if (!Array.isArray(questions) || questions.length < 1 || questions.length > MAX_OPEN_QUESTIONS) {
     throw new Error(
@@ -70,7 +76,7 @@ export const OpenQuestions: React.FC<{kicker?: string; questions?: string[]; acc
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 30%, #0d1119, #05060a 70%)')}}>
       {/* kicker */}
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center', opacity: clamp01(t * 5),
-        color: '#8f9bb0', font: '600 26px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.34em', textTransform: 'uppercase'}}>{kicker}</div>
+        color: KICKER, font: '600 26px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.34em', textTransform: 'uppercase'}}>{kicker}</div>
 
       {/* the descending scan light */}
       <div style={{position: 'absolute', left: 0, right: 0, top: scanY - 60, height: 120, pointerEvents: 'none',
@@ -92,7 +98,13 @@ export const OpenQuestions: React.FC<{kicker?: string; questions?: string[]; acc
           // balanced, the drawn wrap is the planned one. Short questions are unchanged.
           <div key={i} style={{position: 'absolute', left: 0, right: 0, top: yc, transform: 'translateY(-50%)', textAlign: 'center',
             padding: `0 ${Math.round((W - QMEASURE) / 2)}px`, boxSizing: 'border-box', textWrap: 'balance'}}>
-            <span style={{color: `rgba(${lerp(70, 238, b)},${lerp(78, 244, b)},${lerp(92, 252, b)},1)`,
+            {/* THE QUESTION LIGHTS FROM THE FILM'S OWN DIM TO THE FILM'S OWN INK. It used to interpolate
+                between two literals — slate rgb(70,78,92) and near-white rgb(238,244,252) — both of which
+                assume a dark ground. Measured on a warm-white DNA (scripts/ink_contrast_qa.py), every
+                question in this register set at a median 1.24:1: the whole content of the beat, present in
+                the DOM, invisible on the frame, with every type gate satisfied because nothing was missing
+                or overlapping. */}
+            <span style={{color: mix(DIM, FG, b),
               font: '700 62px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em', opacity: clamp01(lit * 1.3),
               textShadow: glow > 0.3 ? `0 0 46px ${accent}${Math.round(glow * 140).toString(16).padStart(2, '0')}` : 'none'}}>
               {q}</span>

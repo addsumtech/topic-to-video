@@ -102,7 +102,7 @@
     "NeonTickerWall": "6a58d853f1170beb",
     "NeuralField": "363edd8fc83626d0",
     "OdometerRoll": "e70382291c43b6ef",
-    "OpenQuestions": "d40a11185ae80830",
+    "OpenQuestions": "5b5003b138747eff",
     "OverlapSeparation": "ab7656b36cbbf56d",
     "PageWrite": "08eedb0a1c7ef367",
     "PaperCutout": "7c0befd17b61d286",
@@ -914,9 +914,9 @@
       "footprint": 0.114
     },
     "OpenQuestions": {
-      "motion_p75": 0.0012,
+      "motion_p75": 0.0011,
       "ink_median": 0.02,
-      "luma_range": 0.011,
+      "luma_range": 0.012,
       "seconds": 5.7,
       "footprint": 0.21
     },
