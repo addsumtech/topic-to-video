@@ -4,7 +4,7 @@
     "AcceptanceStamp": "118dbeaa97eb163b",
     "Aliasing": "ad49176e86079ccc",
     "AnalogTape": "44b45a291278ba06",
-    "AnswerStream": "5443854b550198b2",
+    "AnswerStream": "7724111a430bdd0d",
     "AntiDesignChaos": "6e1d3d9422eca836",
     "AsciiField": "9560476a3d543ac9",
     "AtomOrbital": "84d264b53c1e5e7b",
@@ -45,11 +45,11 @@
     "EdTimeline": "d443652a7d1e1e7b",
     "ElasticType": "2b657e1ddbd7bfb8",
     "EmberFlame": "3f8da885a002a452",
-    "ExplodedSchematic": "429642957750c773",
+    "ExplodedSchematic": "fb9b32fa2439efdb",
     "FlowField": "07cc775b60a6afd3",
     "FocalIsolation": "b45c1a7bf09ab7a4",
     "FractalTree": "6b93f5607812dc8d",
-    "FractureIn": "d0794115121d2531",
+    "FractureIn": "39a04c5005602dc6",
     "FrequencyEncode": "56707688cfba5c4d",
     "GFactorNoise": "c66329da2d9b1552",
     "GameOfLife": "fd03668b5c74bdf2",
@@ -67,7 +67,7 @@
     "InOrder": "1c26e047037db32d",
     "InducedFID": "c1752cbb297b9ebb",
     "InfiniteCanvas": "c60bd7daddbdf495",
-    "InflateType": "a694f2af2f73c787",
+    "InflateType": "1518434bd2762856",
     "InkBloom": "f9d52a156f022048",
     "Inscription": "adf59b64a9bcef6f",
     "IsoWorld": "2fe491f5bfd892d6",
@@ -111,7 +111,7 @@
     "PhaseEncodeStep": "fc789e9b8d347eb6",
     "PhotoPlate": "2954ce048bbb32c1",
     "PhysicsStack": "36f419a79a1b19ac",
-    "PixelBuild": "10ea995450309d6d",
+    "PixelBuild": "a889117023671783",
     "PlanPalimpsest": "783e99177763108d",
     "PlatformSurfaces": "84bc550159d7b3d3",
     "PointerTour": "20713e12747d5ace",
@@ -156,7 +156,7 @@
     "TermTable": "68154ff2c3a1f647",
     "TermThink": "3c4cf99c2dfaccf5",
     "TermTree": "e49e0f3e4dc0a15a",
-    "TerrainFly": "fdfc79a2b81a0afc",
+    "TerrainFly": "1f06ec7b3e1fee23",
     "TimelineTravel": "8953b2c9b015f594",
     "UndersampledKspace": "3f606efed75b40ba",
     "VariableTypeMorph": "581dca9725f10509",
@@ -172,6 +172,7 @@
     "TaskFold": "ea3d1b23f10fd57d",
     "PlaneStack": "2aa04731d35d9e97"
   },
+  "_fed": {},
   "_basis": "each register rendered as VIDEO at its own DURATION, 16:9, under dna=product — the themed path, because every delivered film has a design system and the un-themed fallback is a mode none of them use",
   "_dna": "product",
   "_fixture": {
@@ -215,9 +216,9 @@
       "footprint": 0.703
     },
     "AnswerStream": {
-      "motion_p75": 0.0012,
+      "motion_p75": 0.0013,
       "ink_median": 0.069,
-      "luma_range": 0.026,
+      "luma_range": 0.027,
       "seconds": 5.5,
       "footprint": 0.367
     },
@@ -510,8 +511,8 @@
     },
     "ExplodedSchematic": {
       "motion_p75": 0.0008,
-      "ink_median": 0.018,
-      "luma_range": 0.007,
+      "ink_median": 0.021,
+      "luma_range": 0.008,
       "seconds": 5.0,
       "footprint": 0.494
     },
@@ -544,9 +545,9 @@
       "footprint": 0.377
     },
     "FractureIn": {
-      "motion_p75": 0.0255,
-      "ink_median": 0.374,
-      "luma_range": 0.157,
+      "motion_p75": 0.0253,
+      "ink_median": 0.363,
+      "luma_range": 0.158,
       "seconds": 5.0,
       "footprint": 0.376
     },
@@ -671,8 +672,8 @@
     },
     "InflateType": {
       "motion_p75": 0.0017,
-      "ink_median": 0.028,
-      "luma_range": 0.008,
+      "ink_median": 0.029,
+      "luma_range": 0.01,
       "seconds": 5.0,
       "footprint": 0.111
     },
@@ -1314,11 +1315,11 @@
       "footprint": 0.264
     },
     "TerrainFly": {
-      "motion_p75": 0.0045,
-      "ink_median": 0.075,
+      "motion_p75": 0.0059,
+      "ink_median": 0.084,
       "luma_range": 0.008,
       "seconds": 5.3,
-      "footprint": 0.767
+      "footprint": 0.907
     },
     "TimelineTravel": {
       "motion_p75": 0.004,

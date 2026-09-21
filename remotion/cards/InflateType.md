@@ -12,6 +12,7 @@
 | `tagline` | the spaced mono caps line under the word | a short phrase sits under the word. Not fitted: long copy wraps |
 
 **Known traps:**
+- A balloon's lit top cannot be brighter than the paper under it: the gloss ramps from a LIFT of the letter's own tone on a light film and from white on a dark one. At a fixed white it ate the top two fifths of every letter of the hero word on paper.
 - The timing was once a fixed 0.09 per letter, so an 11th letter was still a faint blob on the last frame and a 12th never appeared. It is laid out for the length now; long words set small (13 Han glyphs are about 60px on a 1080-wide portrait frame).
 - At eight CJK glyphs the word was once cut off 450px on the left and 461px on the right at 1:1. The fit now allows for each letter's margin and the widest moment of the breath.
 - The header used to call this "3D". It is 2D shading, so don't cast it where a 3D form is promised.

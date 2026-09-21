@@ -13,6 +13,12 @@ So the instrument is held to cases built here, where what a reader would see is 
   white type on an accent tile, tile and all                                must pass
   a panel's soft glow, which simply stops being visible on light paper      must pass
   one low-contrast hairline among readable words                            must pass
+
+...and, because a SHARE cannot tell those apart from the real thing, the shape of what failed:
+
+  the same count of failing marks, gathered into one lost line                one big hole
+  the same count, spread as anti-aliased rims over many small marks           no hole worth reporting
+  six glyph-shaped failures 4px apart                                         ONE hole, not six
 """
 import importlib.util
 import os
@@ -123,6 +129,49 @@ def test_one_unreadable_hairline_among_readable_words_passes():
     m = _measure(g, dark, light)
     assert not _flagged(g, m), m
     assert m["share"] > 0, "the hairline should still be counted, just not decisive"
+
+
+def _fail_map(shape=(540, 960)):
+    return np.zeros(shape, dtype=bool)
+
+
+def test_a_lost_block_of_ink_is_one_region_and_scattered_rims_are_not():
+    """The number that tells `AnswerStream` from `StateSheet`, which share cannot.
+
+    Both lost ~43% of their marks. In one, the right half of a three-line sentence turned white-on-white and
+    the beat's words stopped existing; in the other, a dozen tiny mono captions kept a soft anti-aliased rim
+    and a dozen card borders lost their edge, and a reader misses nothing. The difference is not how much
+    failed but whether what failed was one PLACE.
+    """
+    g = _gate()
+    block = _fail_map()
+    block[100:140, 300:600] = True                        # a line of type gone: 300x40
+    rims = _fail_map()
+    for r in range(26):                                   # the SAME pixel count, spread as 1px rims
+        for c in range(23):
+            rims[80 + r * 12, 40 + c * 40: 40 + c * 40 + 20] = True
+    assert abs(int(block.sum()) - int(rims.sum())) < 0.02 * int(block.sum())   # the same amount of ink
+    assert g._largest_hole(block) > 8 * g._largest_hole(rims), \
+        (g._largest_hole(block), g._largest_hole(rims))
+
+
+def test_a_hole_is_measured_after_the_gaps_between_glyphs_are_closed():
+    """Letters are separate shapes; a lost WORD is not six lost letters. The failing marks are closed before
+    they are labelled, so a word reads as one region — otherwise the largest region a sentence can ever show
+    is a single letter, and the measure says the same thing as the share again."""
+    g = _gate()
+    word = _fail_map()
+    for k in range(6):                                    # six glyph-sized blobs, 4px apart
+        word[300:340, 200 + k * 24: 200 + k * 24 + 20] = True
+    one = _fail_map()
+    one[300:340, 200:344] = True
+    assert g._largest_hole(word) > 0.7 * g._largest_hole(one), (g._largest_hole(word), g._largest_hole(one))
+
+
+def test_an_empty_failure_map_has_no_hole():
+    """The register that passes cleanly must not divide by anything or index an empty count."""
+    g = _gate()
+    assert g._largest_hole(_fail_map()) == 0
 
 
 def test_the_two_probe_dnas_differ_only_in_colour():

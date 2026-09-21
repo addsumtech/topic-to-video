@@ -28,6 +28,8 @@ import os
 import re
 from onscreen_text_qa import _strip_comments   # the ONE comment stripper
 import subprocess
+
+import render_remotion as _rr   # the renderer's own reading of a beat: its props, and the frame useT calls settled
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -705,7 +707,12 @@ def main(argv):
             # genuinely broken. The fallback below is still a constant, so when it is used the beat is
             # reported as proofed at a frame the register may never reach, instead of passing as if it were
             # measured at its settled point.
-            frame = int(int(dm.group(1)) * 0.88) if dm else 120
+            # ...AND IT IS THE SAME SETTLED FRAME EVERY OTHER INSTRUMENT USES. `int(DURATION * 0.88)` was a
+            # third answer: `useT()` holds each shot still for SEAM_FRAMES at both edges and runs its span
+            # between them, so the settled point is the INVERSE of that mapping, not a fraction of the clip.
+            # Measured across the library, this literal sat up to 15 frames from it on all 170 registers —
+            # every proof sheet in this repo's history was read at a frame no other gate measured.
+            frame = int(round(_rr.frame_at_t(int(dm.group(1)), _rr.SETTLED_T))) if dm else 120
             if not dm:
                 unmeasured.append("beat %d (%s): the settled frame cannot be derived — %s. Proofed at the "
                                   "fallback frame %d, which this register may never reach (if it is "
@@ -715,7 +722,6 @@ def main(argv):
                                      else "src/shots/%s.tsx exports no `DURATION` — export it" % shot,
                                      frame))
             pj = os.path.join(proof, "beat_%02d.json" % beat)
-            import render_remotion as _rr                # the renderer's own reading of a beat's props
             payload = _rr.film_shot_props(s, out_dir)
             if dna_ref:
                 payload["dna"] = dna_ref

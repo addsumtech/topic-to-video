@@ -283,12 +283,41 @@ def source_hashes():
     return {n: source_hash(n) for n in universe()}
 
 
+def fed_hash(name, ev=None):
+    """sha256 over the ARTEFACTS a register was fed — its evidence props and the bytes of any file they name.
+
+    The cache key below has always included these, because the pixels depend on them. The MANIFEST did not,
+    so a row measured with half a fixture read as fresh forever: `StateSheet` declares two picture lists and
+    `evidence_props()` filled only the first, and when that was repaired its committed row still described
+    the old render (ink 11.6% against 8.9%, footprint 27.1% against 37.6%) with `--check` reporting OK. A
+    row that cannot be told stale is the lie this file already refuses one dimension of.
+    """
+    ev = evidence_props() if ev is None else ev
+    props = ev.get(name)
+    if not props:
+        return ""
+    h = hashlib.sha256(json.dumps(props, sort_keys=True).encode())
+    for v in sorted(json.dumps(props, sort_keys=True).split('"')):
+        f = os.path.join(_REMOTION, "public", v)
+        if v and "/" not in v.strip("./") and os.path.isfile(f):
+            h.update(open(f, "rb").read())
+    return h.hexdigest()[:10]
+
+
 def stale(data):
     """[(register, why)] for rows that no longer describe their source. Costs no renders, so it can run
     anywhere — which is the point: a check that needs 149 renders is a check nobody runs."""
     now = source_hashes()
     rows = data.get("registers") or {}
     was = data.get("_source") or {}
+    # the SECOND dimension: rows written before this existed carry no `_fed`, and are left to the source
+    # check alone rather than all being declared stale at once
+    fed_was = data.get("_fed") or {}
+    try:
+        ev_now = evidence_props()
+        fed_now = {n: fed_hash(n, ev_now) for n in rows}
+    except Exception:
+        fed_now = {}
     out = []
     for n in sorted(rows):
         if n not in now:
@@ -297,6 +326,8 @@ def stale(data):
             out.append((n, "measured before source hashes were recorded"))
         elif was[n] != now[n]:
             out.append((n, "source changed since it was measured"))
+        elif fed_was and n in fed_now and fed_was.get(n, "") != fed_now[n]:
+            out.append((n, "the artefact it was fed changed since it was measured (evidence fixture)"))
     for n in sorted(set(now) - set(rows)):
         out.append((n, "never measured"))
     return out
@@ -524,6 +555,7 @@ def main(argv):
         data = {"_regenerate": REGEN,
                 # the hash each row was RENDERED from, not a fresh read of the tree — see source_hash
                 "_source": {n: h for n, h in hashes.items() if n in rows},
+                "_fed": {n: fed_hash(n, ev) for n in rows if ev.get(n)},
                 "_basis": ("each register rendered as VIDEO at its own DURATION, 16:9, under dna=%s — the "
                            "themed path, because every delivered film has a design system and the un-themed "
                            "fallback is a mode none of them use" % (dna or "none")),

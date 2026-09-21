@@ -263,3 +263,60 @@ def test_validate_coverage_survives_any_board_shape(tmp_path, beats):
     r, cov = validate.coverage(out, pre_tts=True)
     assert cov["total"] > 0 and cov["evaluated"] >= 0
     assert validate.check(out, pre_tts=True) == r, "tracing must not change what the gate finds"
+
+
+def test_the_settled_frame_has_exactly_one_definition():
+    """Three gates measured three different frames and called them all "settled".
+
+    `useT()` holds a shot STILL for SEAM_FRAMES at both edges and runs its span between them, so the settled
+    point is the INVERSE of that mapping — `render_remotion.frame_at_t(dur, SETTLED_T)`, which `band_debt`
+    already used. `ink_contrast_qa` multiplied DURATION by REDUCED_MOTION_T and `shot_proof` by a literal
+    0.88; measured across the library on 2026-09-21 the two sat up to 12 and 15 frames from it — on ALL 170
+    registers. Every proof sheet this repo has produced was read at a frame no other instrument measured.
+
+    This file's own subject is what a gate cannot see; a gate reading a different frame than the one it
+    claims sees a different picture, which is the same failure one layer down. `runtime/aimCamera` records
+    what two cameras that agree until they quietly do not cost: six PortRail labels 215px off their own
+    modules, on a frame that read as perfectly correct.
+    """
+    import importlib.util
+    import os
+    import re
+    here = os.path.dirname(os.path.abspath(__file__))
+    scripts = os.path.join(os.path.dirname(here), "scripts")
+
+    def load(name):
+        spec = importlib.util.spec_from_file_location(name, os.path.join(scripts, name + ".py"))
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        return m
+
+    rr = load("render_remotion")
+    ink = load("ink_contrast_qa")
+    shots = os.path.join(os.path.dirname(here), "remotion", "src", "shots")
+
+    checked = 0
+    for f in sorted(os.listdir(shots)):
+        if not f.endswith(".tsx"):
+            continue
+        m = re.search(r"export const DURATION\s*=\s*(\d+)",
+                      open(os.path.join(shots, f), encoding="utf-8").read())
+        if not m:
+            continue
+        dur, name = int(m.group(1)), f[:-4]
+        want = max(0, min(dur - 1, int(round(rr.frame_at_t(dur, rr.SETTLED_T)))))
+        assert ink.settled_frame(name) == want, \
+            "%s: the ink gate reads frame %d where useT settles at %d" % (name, ink.settled_frame(name), want)
+        checked += 1
+    assert checked > 150, "this test read only %d registers — it is not covering the library" % checked
+
+    # ...and no gate may derive it again by hand. A literal fraction of DURATION is the shape that drifted.
+    for name in ("shot_proof.py", "ink_contrast_qa.py", "band_debt.py"):
+        src = open(os.path.join(scripts, name), encoding="utf-8").read()
+        # read the CODE, not the prose: these files describe the drift they were repaired of, and a
+        # docstring quoting `int(DURATION * 0.88)` is the record of the bug, not the bug
+        code = re.sub(r'"""[\s\S]*?"""|\'\'\'[\s\S]*?\'\'\'', "", src)
+        code = "\n".join(l for l in code.split("\n") if not l.lstrip().startswith("#"))
+        assert not re.search(r"DURATION[^\n]*\*\s*0\.\d+", code), \
+            "%s derives the settled frame from a literal again — call render_remotion.frame_at_t" % name
+        assert "frame_at_t" in code, "%s no longer asks the one definition" % name

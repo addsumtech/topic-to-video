@@ -15,6 +15,6 @@
 - Omitting the props prints a product demo: `SCORE 9999` and `WORKBUDDY · COMPLETE`.
 - `1UP ▪▪▪` is fixed INTRINSIC_TEXT (the HUD depicting itself); no prop reaches it.
 - A longer banner used to wrap to two lines at a fixed 68px and land in the caption band at 1:1; it is now fitted to one line and the sprite and banner slide up together by whatever does not fit.
-- Only the ground follows the DNA; the sprite, HUD, banner and bricks keep their fixed arcade colours.
+- It is a `@dark-world`: a CRT tube. The sprite, HUD, banner and bricks are 8-bit PHOSPHOR colours, chosen by hardware that only ever lit them on black, so on a light film the register keeps its own tube-dark ground rather than taking the paper (on paper the HUD row went entirely and the banner read as a yellow smudge — a median 3.06:1). A dark film's own ground IS a tube, and then it takes it, treatment and all.
 
 **Reference:** `remotion/src/shots/PixelBuild.tsx`

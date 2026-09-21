@@ -13,6 +13,7 @@
 | `sources` | one card each: `t` (title) and `d` (path or domain) | cards share one row equally. Two or three sit wide and calm; more make each card narrow, so titles wrap and the row lifts to stay above the caption band |
 
 **Known traps:**
+- The question, the streaming answer, the chips' ground and the source cards all take the film's ink (`fg`, a softened `fg` for the answer body, `dim` for the path, `surfaceBorder` for the card edge). They used to be literal near-whites over a ground that DID follow the film, so on a light film the sentence broke mid-word — the half over the gradient's dark head read and the half over the paper did not — and the cards, drawn on `surface` (white there), lost their titles outright.
 - Omitting props prints the demo cost-cutting exchange (`How do we cut Q3 costs?`, with three finance sources).
 - Only single-digit markers become chips: `[10]` prints as literal text. Nothing checks that a chip's number matches a source card, so the film has to keep them in step.
 - The query and answer tops are fixed (y 150 and 300) and the source row sits at y ≤ 600. A query that wraps past two lines runs into the answer, and an answer past four lines runs into the source cards.

@@ -15,6 +15,7 @@
 | `caption` | the readout's second line | fixed 28px mono, not fitted; right-aligned, so a long line grows leftward |
 
 **Known traps:**
+- The blueprint is a DRAWING, not a night: the sheet, its grid and the part labels follow the film's ground and ink. The register used to keep a fixed navy whatever the film was — undeclared, so nothing checked it — and then drew the film's accent on it, which on a light film meant paper-tuned dark blue arrows, corner ticks and a spec HUD sitting invisible on that navy. On paper it reads as the older form of the same drawing; the grammar (grid, hairlines, corner ticks, leader lines) is what makes it a blueprint.
 - `hot` used to be hardwired to the third part, so a checkout film's payment step glowed as the heart of the system for no reason but its position. It is the film's index now.
 - Fixed 260px boxes on a fixed axis used to overlap at 9:16, and the connectors pointed backwards; boxes and type are now sized per count and axis so every arrow runs forward.
 - The readout defaults ('SYSTEM', 'STAGES', 'ONE PROMPT → DELIVERED') print unless replaced — `caption` was once declared and never read.

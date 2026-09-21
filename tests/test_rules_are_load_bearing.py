@@ -51,6 +51,7 @@ MODULE_PATH = {
     "measure_ground_reach": os.path.join(_SCRIPTS, "measure_ground_reach.py"),
     "demo_copy_qa": os.path.join(_SCRIPTS, "demo_copy_qa.py"),
     "energy_skeleton": os.path.join(_SCRIPTS, "energy_skeleton.py"),
+    "ink_contrast_qa": os.path.join(_SCRIPTS, "ink_contrast_qa.py"),
 }
 
 
@@ -1863,6 +1864,123 @@ MUTANTS["measure_ground_reach"] = {
     "a render failure loses its reason":
         ('        return None, "; ".join([_c.render_error(r.stdout, r.stderr)] + _FIXTURE_ERR)',
          '        return None, "failed"'),
+}
+
+
+# ── ink_contrast_qa: the gate that has been wrong in five different ways ─────────────────────────────
+# This one was absent from this file entirely, which is the loudest kind of hole: it is the gate that has
+# needed the most repair (a white card's FILL counted as ink, bold display type dropped as a fill, a
+# wordmark read against paper two hundred pixels away, a panel's shadow reported, a fixed frame past the
+# end of seven short registers), and every one of those repairs was pinned only by the case that prompted
+# it. Its arithmetic is exercised on synthetic frames — no renders, no toolchain.
+def _ink_map(shape=(540, 960)):
+    import numpy as np
+    return np.zeros(shape, dtype=bool)
+
+
+def _probe_a_hole_is_a_place_not_an_amount(mod):
+    """The rule that separates `AnswerStream` from `StateSheet`, which the share cannot: the same count of
+    failing marks, scattered as rims or gathered into one lost paragraph, must NOT measure the same."""
+    block, rims = _ink_map(), _ink_map()
+    block[100:140, 300:600] = True                           # one lost line of type: 300x40
+    for r in range(26):                                      # the SAME pixel count, spread as 1px rims
+        for c in range(23):
+            rims[80 + r * 12, 40 + c * 40: 40 + c * 40 + 20] = True
+    assert abs(int(block.sum()) - int(rims.sum())) < 0.02 * int(block.sum()), \
+        "the two maps must hold the same amount of failing ink, or the probe proves nothing"
+    big, small = mod._largest_hole(block), mod._largest_hole(rims)
+    assert big > 8 * small, ("a lost block and scattered rims measure alike: %d vs %d" % (big, small))
+
+
+def _probe_a_lost_word_is_one_hole(mod):
+    """Letters are separate shapes. Without closing the gaps between them the largest region a lost
+    sentence can ever show is one letter — and the measure says what the share already said."""
+    word, solid = _ink_map(), _ink_map()
+    for k in range(6):
+        word[300:340, 200 + k * 24: 200 + k * 24 + 20] = True
+    solid[300:340, 200:344] = True
+    assert mod._largest_hole(word) > 0.7 * mod._largest_hole(solid), \
+        "the glyphs of one word are being counted as six separate holes"
+    assert mod._largest_hole(_ink_map()) == 0, "a clean register must measure no hole at all"
+
+
+def _probe_the_ground_behind_a_mark_is_the_one_behind_it(mod):
+    """Polarity, and locality. White type on an accent TILE is read against the tile — measured against
+    the frame's median `BentoReveal`'s wordmark scored 1.0:1, white on blue, which is what `onAccent` is
+    for — and dark type on paper is read against the paper."""
+    import numpy as np
+    y = np.full((200, 300), 0.9, dtype=np.float32)           # paper
+    y[40:160, 40:260] = 0.05                                 # a dark tile on it
+    y[60:64, 60:240] = 0.95                                  # a stroke of white type ON the tile
+    y[170:174, 40:260] = 0.02                                # a stroke of dark type on the paper
+    # read at the middle of each stroke: a mark thicker than the probe radius has no ground within it, by
+    # design — that is what keeps a bold glyph's INTERIOR out of the mask instead of reported as a fill
+    g = mod._ground_behind(y, radius=3)
+    assert g[62, 150] < 0.2, "white type on a dark tile is being read against the paper across the frame"
+    assert g[172, 150] > 0.7, "dark type on paper is being read against something darker than the paper"
+
+
+def _probe_the_settled_frame_is_the_one_useT_calls_settled(mod):
+    """`useT` holds each shot still for SEAM_FRAMES at both edges and runs its span between them, so the
+    settled point is the INVERSE of that mapping — not a fraction of the whole clip. Written as
+    `DURATION * REDUCED_MOTION_T` the two disagreed on all 170 registers, by up to 12 frames."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("render_remotion",
+                                                  os.path.join(_SCRIPTS, "render_remotion.py"))
+    rr = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rr)
+    seen = 0
+    for shot in ("FractureIn", "AnswerStream", "PixelBuild", "TerrainFly"):
+        dur = mod._DUR.search(open(os.path.join(mod._SHOTS, shot + ".tsx"), encoding="utf-8").read())
+        if not dur:
+            continue
+        seen += 1
+        want = int(round(rr.frame_at_t(int(dur.group(1)), rr.SETTLED_T)))
+        assert mod.settled_frame(shot) == want, \
+            "%s: the gate measures frame %d, `useT` settles at %d" % (shot, mod.settled_frame(shot), want)
+    assert seen >= 3, "the probe read no register's DURATION — it is proving nothing"
+
+
+def _probe_a_hole_alone_is_a_finding(mod):
+    """A register whose MEDIAN mark reads and whose share is small can still have lost a whole region —
+    that is every one of the five that shipped. The verdict must fire on the hole by itself, and it must be
+    asked of a row read back from `--store` as well as one just measured (a resumed sweep printed "every
+    register's ink still reads" over findings it had written to disk itself)."""
+    # MEASURED values, not `HOLE_FLOOR * 1.2` — a probe scaled by the constant it is testing moves with the
+    # mutation and proves nothing. 0.0126 is `GFactorNoise`, whose title and every axis label went while its
+    # median stayed 5.61 on a speckle field; 0.00082 is `StateSheet`'s soft caption rims, which cost nothing.
+    lost = {"ink": 20000, "under": 6000, "share": 0.30, "median": 5.6, "worst": 1.1, "hole": 0.0126}
+    fine = dict(lost, hole=0.00082)
+    assert mod.is_finding(lost), "a lost region is not reported when the median and the share are fine"
+    assert not mod.is_finding(fine), "a register with no hole worth the name is being reported"
+    assert mod.is_finding({"lie": "declares @dark-world but took the film's LIGHT ground"})
+    assert mod.is_finding({"blind": "keeps its own dark ground without declaring @dark-world"}), \
+        "a register that never took the film's ground is not reported at all"
+    assert not mod.is_finding({"skipped": "nothing to judge"}), "a skip is not a finding"
+
+
+PROBES["ink_contrast_qa"] = {
+    "a_hole_alone_is_a_finding": _probe_a_hole_alone_is_a_finding,
+    "a_hole_is_a_place_not_an_amount": _probe_a_hole_is_a_place_not_an_amount,
+    "a_lost_word_is_one_hole": _probe_a_lost_word_is_one_hole,
+    "the_ground_behind_a_mark_is_the_one_behind_it": _probe_the_ground_behind_a_mark_is_the_one_behind_it,
+    "the_settled_frame_is_the_one_useT_calls_settled": _probe_the_settled_frame_is_the_one_useT_calls_settled,
+}
+MUTANTS["ink_contrast_qa"] = {
+    "a lost region is not a finding on its own": ("HOLE_FLOOR = 0.0027", "HOLE_FLOOR = 9.9"),
+    "a ground the register never took reads as a pass":
+        ('    if row.get("lie") or row.get("blind"):\n        return True',
+         '    if False:\n        return True'),
+    "the hole is the total failing ink, not one region":
+        ("    counts = np.bincount(lab.ravel())\n    counts[0] = 0\n    return int(counts.max())",
+         "    return int(solid.sum())"),
+    "the failing marks are labelled before the gaps between glyphs are closed":
+        ("    solid = _band(_band(bad, close, np.maximum), close, np.minimum)", "    solid = bad"),
+    "the ground behind a mark loses its polarity":
+        ("    return np.where(y < mid, hi, lo)", "    return hi"),
+    "the settled frame goes back to a fraction of the clip":
+        ("    return max(0, min(dur - 1, int(round(rr.frame_at_t(dur, rr.SETTLED_T)))))",
+         "    return max(0, min(dur - 1, int(dur * rr.REDUCED_MOTION_T)))"),
 }
 
 

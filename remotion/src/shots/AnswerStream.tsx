@@ -5,12 +5,13 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, easeOutBack, clamp01} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, mix} from '../runtime/dna';
 import {contentBottom, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 
 export const DURATION = 165; // 5.5s
 const TEAL_D0 = '#22D3C5', BG_D0 = '#0b1220', PANEL_D0 = '#111a2b';
+const INK_D0 = '#eaf2ff', BODY_D0 = '#c7d3e6', DIM_D0 = '#7f8ea8', EDGE_D0 = '#22304a', DOT_D0 = '#3a4a66';
 const DEFAULT_Q = 'How do we cut Q3 costs?';
 const DEFAULT_A = 'Start with the three largest line items: consolidate vendor contracts [1], move compute to reserved capacity [2], and automate the monthly close [3].';
 const DEFAULT_SRC = [{t: 'Vendor audit', d: 'finance/'}, {t: 'Cloud cost report', d: 'infra/'}, {t: 'Monthly close checklist', d: 'ops/'}];
@@ -19,6 +20,14 @@ export const AnswerStream: React.FC<{query?: string; answer?: string; sources?: 
   query: Q = DEFAULT_Q, answer: A = DEFAULT_A, sources: SRC = DEFAULT_SRC} = {}) => {
   const dna = useDNA();
   const TEAL = dna?.accent ?? TEAL_D0, BG = dna?.bg ?? BG_D0, PANEL = dna?.surface ?? PANEL_D0;
+  // EVERY WORD OF THE ANSWER WAS A LITERAL NEAR-WHITE. The ground followed the film and the type did not, so
+  // on a light film the sentence broke mid-word — the half over the dark head of the gradient read and the
+  // half over the paper did not, and the source cards (drawn on `surface`, which is WHITE there) lost their
+  // titles entirely. The answer is the beat; it takes the film's ink.
+  const INK = dna?.fg ?? INK_D0;
+  const BODY = dna ? mix(dna.fg, dna.dim, 0.34) : BODY_D0;   // softer than the question, still the film's ink
+  const DIM = dna?.dim ?? DIM_D0, EDGE = dna?.surfaceBorder ?? EDGE_D0, DOT = dna?.line ?? DOT_D0;
+  const ON_TEAL = dna?.onAccent ?? BG;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const qIn = easeOutCubic(seg(t, 0, 0.14));
@@ -37,16 +46,17 @@ export const AnswerStream: React.FC<{query?: string; answer?: string; sources?: 
   const srcTop = Math.min(600, contentBottom(W, H) - srcCardH);
 
   return (
-    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 18%, #14203a, ${BG} 62%)`, padding: 0}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ??
+      `radial-gradient(120% 100% at 50% 18%, #14203a, ${BG} 62%)`, padding: 0}}>
       {/* query */}
       <div style={{position: 'absolute', left: X, top: 150, width: CW, opacity: qIn, transform: `translateY(${lerp(20, 0, qIn)}px)`,
         display: 'flex', alignItems: 'center', gap: 22}}>
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" /></svg>
-        <div style={{font: '700 62px/1.1 var(--f-body, Inter,system-ui,sans-serif)', color: '#eaf2ff'}}>{Q}</div>
+        <div style={{font: '700 62px/1.1 var(--f-body, Inter,system-ui,sans-serif)', color: INK}}>{Q}</div>
       </div>
       {/* streaming answer */}
       <div style={{position: 'absolute', left: X, top: 300, width: CW}}>
-        <div style={{font: '500 50px/1.5 var(--f-body, Inter,system-ui,sans-serif)', color: '#c7d3e6'}}>
+        <div style={{font: '500 50px/1.5 var(--f-body, Inter,system-ui,sans-serif)', color: BODY}}>
           {A.slice(0, chars).split(/(\[\d\])/).map((seg2, i) => /\[\d\]/.test(seg2)
             ? <span key={i} style={{display: 'inline-block', margin: '0 6px', padding: '2px 12px', borderRadius: 8, background: `${TEAL}22`, color: TEAL, font: '700 34px/1 var(--f-body, Inter)', verticalAlign: 'middle'}}>{seg2.replace(/[\[\]]/g, '')}</span>
             : <span key={i}>{seg2}</span>)}
@@ -58,13 +68,13 @@ export const AnswerStream: React.FC<{query?: string; answer?: string; sources?: 
         {SRC.map((s, i) => {
           const r = easeOutBack(seg(t, 0.4 + i * 0.08, 0.4 + i * 0.08 + 0.22));
           return <div key={i} style={{flex: 1, opacity: clamp01(r), transform: `translateY(${lerp(24, 0, clamp01(r))}px)`,
-            background: PANEL, border: '1px solid #22304a', borderRadius: 14, padding: '26px 28px'}}>
+            background: PANEL, border: `1px solid ${EDGE}`, borderRadius: dna?.radius ?? 14, padding: '26px 28px'}}>
             <div style={{display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14}}>
-              <div style={{width: 26, height: 26, borderRadius: 7, background: TEAL, color: BG, font: '700 16px/26px var(--f-body, Inter)', textAlign: 'center'}}>{i + 1}</div>
-              <div style={{width: 10, height: 10, borderRadius: 5, background: '#3a4a66'}} />
-              <div style={{font: `600 26px/${leading(s.d, 1)} var(--f-body, Inter)`, color: '#7f8ea8'}}>{s.d}</div>
+              <div style={{width: 26, height: 26, borderRadius: 7, background: TEAL, color: ON_TEAL, font: '700 16px/26px var(--f-body, Inter)', textAlign: 'center'}}>{i + 1}</div>
+              <div style={{width: 10, height: 10, borderRadius: 5, background: DOT}} />
+              <div style={{font: `600 26px/${leading(s.d, 1)} var(--f-body, Inter)`, color: DIM}}>{s.d}</div>
             </div>
-            <div style={{font: '700 36px/1.2 var(--f-body, Inter,system-ui,sans-serif)', color: '#eaf2ff'}}>{s.t}</div>
+            <div style={{font: '700 36px/1.2 var(--f-body, Inter,system-ui,sans-serif)', color: INK}}>{s.t}</div>
           </div>;
         })}
       </div>

@@ -18,11 +18,12 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, REDUCED_MOTION_T} from '../runtime/motion';
-import {useDNA, dnaPalette} from '../runtime/dna';
+import {useDNA, dnaPalette, mix} from '../runtime/dna';
+import {onLight} from '../runtime/light';
 import {fitTextPx} from '../runtime/layout';
 
 export const DURATION = 150; // 5s
-const BG_D0 = '#0e1030';
+const BG_D0 = '#0e1030', TAG_D0 = '#c7d0ff';
 const TONES0 = ['#ff6f9d', '#5b8cff', '#ffd24d', '#37e0c8', '#c07bff', '#ff8a4d'];
 export const MAX_INFLATE_CHARS = 16;
 // Letter i inflates over [INF_START + i * step, … + INF_DUR]; INF_STEP is the original gap and only an upper
@@ -46,6 +47,13 @@ export const InflateType: React.FC<{word?: string; tagline?: string}> = ({
   const dna = useDNA();
   const TONES = dnaPalette(dna, 6) ?? TONES0;   // derive the palette from the film's DNA (null DNA = the original)
   const BG = dna?.bg ?? BG_D0;
+  // A BALLOON'S LIT TOP CANNOT BE BRIGHTER THAN THE PAPER IT SITS ON. The gloss ramped from pure white down
+  // to the tone at 42% of each glyph's height — a dark-ground trick — so on a light film the top two fifths
+  // of every letter of the hero word was white on white and the word read with its tops eaten. On paper the
+  // lit face is a LIFT of the balloon's own colour, not a different colour.
+  const LIGHT = onLight(dna);
+  const gloss = (tone: string) => (LIGHT ? mix(tone, '#ffffff', 0.3) : '#ffffff');
+  const TAG_INK = dna ? mix(dna.fg, dna.dim, 0.4) : TAG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   // THE WORD IS FITTED TO THE FRAME. 240px holds 'PUFFY' on a 1920 frame and four Han glyphs on a 1080 one
@@ -65,7 +73,8 @@ export const InflateType: React.FC<{word?: string; tagline?: string}> = ({
     return s + `0 30px 50px rgba(0,0,0,.4)`;
   };
   return (
-    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 34%, #1a1c50, ${BG} 74%)`, overflow: 'hidden',
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ??
+      `radial-gradient(120% 100% at 50% 34%, #1a1c50, ${BG} 74%)`, overflow: 'hidden',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
       <div style={{display: 'flex', alignItems: 'center'}}>
         {letters.map((ch, i) => {
@@ -84,7 +93,7 @@ export const InflateType: React.FC<{word?: string; tagline?: string}> = ({
               <span style={{display: 'block',
                 fontFamily: 'var(--f-display, "Baloo 2", Inter, system-ui, sans-serif)', fontWeight: 900, fontSize: wordPx, lineHeight: 1,
                 letterSpacing: '-0.01em', color: tone,
-                background: `linear-gradient(180deg, #ffffff, ${tone} 42%, ${tone})`,
+                background: `linear-gradient(180deg, ${gloss(tone)}, ${tone} 42%, ${tone})`,
                 WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent',
                 filter: `drop-shadow(6px 10px 0 rgba(0,0,0,.18)) drop-shadow(0 26px 34px rgba(0,0,0,.45))`,
                 textShadow: extrude(tone)} as React.CSSProperties}>{ch}</span>
@@ -96,7 +105,7 @@ export const InflateType: React.FC<{word?: string; tagline?: string}> = ({
           );
         })}
       </div>
-      <div style={{opacity: tagIn, transform: `translateY(${(1 - tagIn) * 12}px)`, marginTop: 54, color: '#c7d0ff',
+      <div style={{opacity: tagIn, transform: `translateY(${(1 - tagIn) * 12}px)`, marginTop: 54, color: TAG_INK,
         font: '700 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.24em', textTransform: 'uppercase'}}>{TAG}</div>
     </AbsoluteFill>
   );

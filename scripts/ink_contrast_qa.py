@@ -30,6 +30,16 @@ identity colour (a syntax palette, CPK element colours, a brand's own hue) — t
 they are not near-white. It also cannot see a register that draws NO ink in either render; `register_energy`
 measures that.
 
+AND ITS KNOWN FALSE POSITIVE, because a gate whose limits are not written down is a gate that gets argued
+with once and discounted after: a PANEL'S RIM counts as ink. A filled card is excluded from the marks by its
+interior (there is no ground within three pixels of it), but its 3px edge survives, and where pale panels sit
+on pale paper — `RansomZine`'s cut-paper scraps, `InfiniteCanvas`'s pastel notes — those edges chain into one
+large connected region and are reported as a hole. The pictures read: the panels carry their own shadow. The
+repair belongs in the register (a hairline in `surfaceBorder`, which those forms want anyway), not in a
+weaker rule here — measured on the labelled set, no shape test separates a 6px scrap rim from small type.
+LOOK AT `--mark` BEFORE ACTING ON A FINDING. Of the 26 this gate reported on 2026-09-21, eleven were checked
+by eye and real, four were rims.
+
 Usage:
   python3 scripts/ink_contrast_qa.py                  # sweep the library, print the offenders
   python3 scripts/ink_contrast_qa.py --only A,B       # a few (this is a render per register per ground)
@@ -73,6 +83,18 @@ FAIL_RATIO = 3.0        # WCAG's floor for large text — a mark under this on t
 # share is kept as context, and a register that loses HALF its marks is reported too, because a beat whose
 # left column vanished is not saved by a right column that did not.
 SHARE_FLOOR = 0.50
+# ...AND WHERE IT FAILED, WHICH NEITHER OF THOSE CAN SAY. A share is an amount; the two pictures that lose the
+# same amount can be a register whose every tiny caption keeps a soft rim (nothing a reader misses) and one
+# whose answer turned white-on-white mid-sentence. Held apart by share alone they sat either side of no line
+# at all, and five real registers shipped under the 50% floor — one of them, `ExplodedSchematic`, by half a
+# percentage point. So the largest CONNECTED failing region is reported too.
+#
+# The floor is a fraction of the FRAME, not of the ink, because what it describes is a hole a viewer sees:
+# 0.0027 is about 5600px at 1080p — the area of one word of body copy. It is calibrated against the two
+# measured neighbours either side of it, not chosen: `BentoReveal`'s hero tile keeps a 1px border that is
+# blue-on-white (0.00247, and the picture is perfect), and `InflateType` loses its whole tagline (0.00294).
+# Every one of the nine registers looked at above this line had really lost something a reader needed.
+HOLE_FLOOR = 0.0027
 # THE SETTLED FRAME IS PER REGISTER, not a constant. A fixed 142 is past the END of every register shorter
 # than 143 frames, and `remotion still` refuses the frame rather than clamping it — so `CrashZoom`,
 # `GlowPick`, `OdometerRoll`, `SurfaceCarousel`, `VelocitySnap`, `TemporalAccelerate` and `CursorStory` were
@@ -83,6 +105,16 @@ _DUR = re.compile(r"export const DURATION\s*=\s*(\d+)")
 
 
 def settled_frame(shot):
+    """The frame `useT()` itself calls settled, for THIS register — one definition, not a fourth.
+
+    This multiplied DURATION by REDUCED_MOTION_T, which is not the same frame: `useT` holds each shot STILL
+    for SEAM_FRAMES at both edges and runs its span between them, so the settled point is the INVERSE of
+    that mapping, not a fraction of the whole clip. Measured across the library the two disagreed on all 170
+    registers by up to 12 frames — and `shot_proof`'s own `int(DURATION * 0.88)` was a third answer, up to 15
+    frames out, with a hardcoded 120 behind it. `render_remotion.frame_at_t` is the inversion, already used
+    by `band_debt`; everything asks it now. This repository records what two cameras that agree until they
+    quietly do not cost it: six PortRail labels 215px off their own modules, on a frame that read as correct.
+    """
     try:
         src = open(os.path.join(_SHOTS, shot + ".tsx"), encoding="utf-8").read()
     except OSError:
@@ -92,11 +124,14 @@ def settled_frame(shot):
         return FRAME
     dur = int(m.group(1))
     try:
-        mot = open(os.path.join(_REM, "src", "runtime", "motion.ts"), encoding="utf-8").read()
-        t = float(re.search(r"REDUCED_MOTION_T\s*=\s*([0-9.]+)", mot).group(1))
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("render_remotion",
+                                                      os.path.join(_HERE, "render_remotion.py"))
+        rr = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(rr)
+        return max(0, min(dur - 1, int(round(rr.frame_at_t(dur, rr.SETTLED_T)))))
     except Exception:
-        t = 0.86
-    return max(0, min(dur - 1, int(round(dur * t))))
+        return max(0, min(dur - 1, FRAME))
 
 
 def _y(rgb):
@@ -180,6 +215,68 @@ def _band(y, radius, op):
             acc = op(acc, np.roll(out, -k, axis=axis))
         out = acc
     return out
+
+
+def _edge_ground(img):
+    """The luminance of the frame's outer RING — the sheet, as opposed to whatever is drawn on it.
+
+    The median of the whole frame answers a different question: `FocalIsolation` draws a vignette, so its
+    ring is dark while its sheet is plainly light, and `ChartLive` fills the frame with one dark field. Both
+    measures are taken and a register is only called ground-blind when BOTH say dark.
+    """
+    import numpy as np
+    h, w = img.shape[:2]
+    k = max(2, int(min(h, w) * 0.03))
+    ring = np.concatenate([img[:k].reshape(-1, 3), img[-k:].reshape(-1, 3),
+                           img[:, :k].reshape(-1, 3), img[:, -k:].reshape(-1, 3)])
+    return _y(np.median(ring, axis=0))
+
+
+def is_finding(row):
+    """The verdict on ONE measured row — one definition, asked of stored rows and fresh ones alike."""
+    if row.get("lie") or row.get("blind"):
+        return True
+    if "share" not in row:
+        return False
+    return (row["median"] < FAIL_RATIO or row["share"] >= SHARE_FLOOR
+            or row.get("hole", 0.0) >= HOLE_FLOOR)
+
+
+def _largest_hole(bad, close=3):
+    """The area of the BIGGEST CONNECTED REGION whose ink is gone — a share cannot tell the two apart.
+
+    A share says how MUCH of a register's ink failed; it never says whether that ink was one place. Both
+    answers are 43%: `StateSheet`, where every tiny mono caption keeps a soft anti-aliased rim and a dozen
+    card borders lose their edge — nothing a reader misses — and `AnswerStream`, where the right half of a
+    three-line sentence turns white-on-white and the beat's actual words stop existing. Held apart by share
+    alone they sit either side of no line at all: at a 50% floor BOTH pass, and five real registers shipped
+    (`AnswerStream`, `TerrainFly`, `ExplodedSchematic`, `PixelBuild`, `InflateType`) — one of them, at
+    49.45%, by half a percentage point.
+
+    What separates them is SHAPE. Failing marks are closed by `close` px so the glyphs of a word join, then
+    the connected regions are labelled and the largest is returned: scattered rims can never grow a big
+    region, and a lost sentence always does. Measured on the six: the artefact 552, the five real ones
+    1526-20805.
+
+    Labelled by propagating each pixel's own index through the region (a max filter masked to it) until it
+    stops moving — `scipy.ndimage.label` is not a dependency of this skill, and a gate that needs one it
+    cannot assume is a gate that does not run.
+    """
+    import numpy as np
+    if not bad.any():
+        return 0
+    solid = _band(_band(bad, close, np.maximum), close, np.minimum)
+    if not solid.any():
+        return 0
+    lab = np.where(solid, np.arange(solid.size).reshape(solid.shape) + 1, 0).astype(np.int64)
+    while True:
+        nxt = np.where(solid, _band(lab, 4, np.maximum), 0)
+        if np.array_equal(nxt, lab):
+            break
+        lab = nxt
+    counts = np.bincount(lab.ravel())
+    counts[0] = 0
+    return int(counts.max())
 
 
 def _ground_behind(y, radius):
@@ -326,6 +423,16 @@ def measure(shot, tmpdir, props=None, mark_png=None, serve=None):
             return {"dark_world": declared, "ground": round(float(lg), 4)}
         return {"ink": 0, "under": 0, "share": 1.0, "worst": 0.0, "median": 0.0,
                 "lie": "declares @dark-world but took the film's LIGHT ground (measured Y=%.3f)" % lg}
+    # ...AND THE OTHER DIRECTION, WHICH NOTHING ASKED. The declaration was checked and its ABSENCE was not,
+    # so a register could ignore the film's ground entirely and sail through: its own night under its own
+    # light ink is perfect contrast, which is all this gate measured. Nineteen registers came back dark from
+    # the LIGHT probe, and `ChartLive`'s hero figure, `ParticleForm`'s wordmark and `ExplodedSchematic`'s
+    # whole sheet read only because the ground they were promised never arrived. A register may keep its own
+    # night — it says so, and then the rule above holds it to it.
+    edge = _edge_ground(l)
+    blind = (lg <= DARK_GROUND_Y and edge <= DARK_GROUND_Y and
+             "keeps its own dark ground on a light film without declaring @dark-world "
+             "(sheet Y=%.3f, frame Y=%.3f)" % (edge, lg))
     dy = _luma(d[::2, ::2])                            # every other pixel: this is a share, not a count
     ly = _luma(l[::2, ::2])
     # WHAT IS JUDGED IS WHAT WAS PLAINLY LEGIBLE ON THE DARK GROUND — nothing else. Two cheaper definitions
@@ -358,7 +465,9 @@ def measure(shot, tmpdir, props=None, mark_png=None, serve=None):
     mask = mask & np.roll(mask, 1, 0) & np.roll(mask, -1, 0) & np.roll(mask, 1, 1) & np.roll(mask, -1, 1)
     ink = int(mask.sum())
     if ink < 200:
-        return {"skipped": "nothing on the dark ground was legible enough to judge (register_energy sees that)"}
+        return ({"blind": blind} if blind else
+                {"skipped": "nothing on the dark ground was legible enough to judge "
+                            "(register_energy sees that)"})
 
     # ...AND THE GROUND A MARK IS READ AGAINST IS THE ONE BEHIND IT, not the frame's. Compared against the
     # frame median, `BentoReveal`'s white wordmark on its blue accent tile scored 19% of its ink "unreadable"
@@ -370,16 +479,20 @@ def measure(shot, tmpdir, props=None, mark_png=None, serve=None):
     lo = np.minimum(ly[mask], local[mask]) + 0.05
     ratios = hi / lo
     under = int((ratios < FAIL_RATIO).sum())
+    bad = np.zeros(mask.shape, dtype=bool)
+    bad[mask] = ratios < FAIL_RATIO
     if mark_png:
         # WHERE the failing marks are, on the light render — because a share is not a diagnosis, and a gate
         # nobody can check by looking is a gate that gets believed when it is wrong.
         out = (l[::2, ::2] * 255).astype(np.uint8).copy()
-        bad = np.zeros(mask.shape, dtype=bool)
-        bad[mask] = ratios < FAIL_RATIO
         out[bad] = [255, 0, 128]
         Image.fromarray(out).save(mark_png)
-    return {"ink": ink, "under": under, "share": round(under / ink, 4),
-            "worst": round(float(ratios.min()), 2), "median": round(float(np.median(ratios)), 2)}
+    row = {"ink": ink, "under": under, "share": round(under / ink, 4),
+           "hole": round(_largest_hole(bad) / float(bad.size), 5),
+           "worst": round(float(ratios.min()), 2), "median": round(float(np.median(ratios)), 2)}
+    if blind:
+        row["blind"] = blind
+    return row
 
 
 def _why(r):
@@ -448,7 +561,7 @@ def main(argv):
             return 2
         names = [n for n in names if n in only]
 
-    out, findings = {}, []
+    out = {}
     with tempfile.TemporaryDirectory(prefix="ink_contrast_") as tmp:
         if not ("--json" in argv):
             print("[ink_contrast] bundling the library once...", flush=True)
@@ -470,10 +583,14 @@ def main(argv):
             if store:
                 with open(store, "a", encoding="utf-8") as fh:
                     fh.write(json.dumps({"shot": n, "m": out[n]}, ensure_ascii=False) + "\n")
-            if "share" in out[n] and (out[n]["median"] < FAIL_RATIO or out[n]["share"] >= SHARE_FLOOR):
-                findings.append(n)
             if not ("--json" in argv) and i % 10 == 0:
                 print("  measured %d/%d" % (i, len(names)), flush=True)
+
+    # A RESUMED RUN USED TO REPORT NOTHING. The verdict was appended inside the measuring branch, so a row
+    # read back from `--store` — which is the whole point of the store — skipped it: an interrupted sweep,
+    # resumed, printed "every register's ink still reads on a light ground" over findings it had itself
+    # written to disk. The verdict is a function of the row, and it is asked of every row.
+    findings = [n for n in names if is_finding(out.get(n, {}))]
 
     if "--json" in argv:
         print(json.dumps(out, ensure_ascii=False, indent=1))
@@ -484,14 +601,25 @@ def main(argv):
         print("\n[ink_contrast] %d register(s) keep their own dark field, as declared (@dark-world)" % len(dark))
     skipped = [n for n, v in out.items() if "skipped" in v]
     print("\n[ink_contrast] %d register(s) measured · %d skipped · reported when the MEDIAN mark is under "
-          "%.1f:1 on a light ground, or when %d%% of the marks are"
+          "%.1f:1 on a light ground, when %d%% of the marks are, or when one connected region bigger than a "
+          "word of body copy has gone"
           % (len(out) - len(skipped), len(skipped), FAIL_RATIO, int(SHARE_FLOOR * 100)))
-    if findings:
+    ground = [n for n in findings if out[n].get("blind") or out[n].get("lie")]
+    if ground:
+        print("\nREGISTERS THAT DID NOT TAKE THE FILM'S GROUND:")
+        for n in sorted(ground):
+            print("    %-24s %s" % (n, out[n].get("blind") or out[n].get("lie")))
+        print("\n    A register either follows the film's ground or says in its header WHY its form needs a"
+              "\n    dark field (`// @dark-world: <reason>`) and takes it through `runtime/light.darkGround`,"
+              "\n    which hands the film's own ground back whenever the film is dark too.")
+    rest = [n for n in findings if n not in ground]
+    if rest:
         print("\nINK THAT STOPS READING WHEN THE GROUND TURNS LIGHT:")
-        for n in sorted(findings, key=lambda k: -out[k]["share"]):
+        for n in sorted(rest, key=lambda k: -out[k].get("hole", 1.0)):
             v = out[n]
-            print("    %-24s %4.0f%% of its ink under %.1f:1   worst %.2f:1   median %.2f:1"
-                  % (n, v["share"] * 100, FAIL_RATIO, v["worst"], v["median"]))
+            print("    %-24s %4.0f%% of its ink under %.1f:1   median %.2f:1   biggest hole %.2f%% of the frame"
+                  % (n, v["share"] * 100, FAIL_RATIO, v["median"], v.get("hole", 0) * 100))
+    if rest:
         print("\n    Each of these draws a literal ink instead of the film's. Read the colour from `useDNA()`"
               "\n    (fg / dim / accent / onAccent) — or, when the colour IS the meaning (a syntax palette, an"
               "\n    element's CPK colour, a brand hue), keep it and say so in the register's header.")

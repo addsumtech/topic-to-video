@@ -12,6 +12,7 @@
 | `tagline` | the spaced mono line under the title | a fixed 30px with wide tracking. Short phrases only. The demo `new ground, ahead` prints if omitted |
 
 **Known traps:**
+- The sky is DERIVED from the film's ground (lifted toward `accent2` at the top and `accent` at the horizon), not a fixed dusk. It used to run from a literal violet to the film's ground, so on a light film the near half of the mesh — the rows the terrain is actually read from — was mid-blue on white at 1.05:1, and the wordmark read only because the top of the frame happened to stay dark.
 - The perspective is hand-rolled arithmetic drawn in 2D SVG, not WebGL. The header was corrected so "3D" is not a claim the library cannot keep, so do not describe it as a 3D scene.
 - The palette is mostly fixed: the purple sky gradient, the mid-elevation line colour (`#4a6cff`) and the title and tagline inks are literals. Only the lower ground and the two accents follow the DNA, so it stays a night-synthwave look on any film.
 - Everything is in fixed pixels tuned to a 1920×1080 frame (title at 96px from the top, tagline at 244px, a 700px horizon glow). Nothing is fitted, so long copy is the failure mode.

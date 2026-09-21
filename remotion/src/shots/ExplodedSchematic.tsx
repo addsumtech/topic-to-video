@@ -18,7 +18,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeInOutCubic, easeOutCubic, clamp01} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, mix} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitBlockPx, fitTextPx} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 
@@ -52,6 +52,14 @@ export const ExplodedSchematic: React.FC<{caption?: string; label?: string; unit
   }
   const dna = useDNA();
   const CYAN = dna?.accent ?? CYAN_D0, LINE = dna?.line ?? LINE_D0;
+  // A BLUEPRINT IS A DRAWING, NOT A NIGHT. This register kept its own navy whatever the film's ground was —
+  // undeclared, so nothing checked it — and then drew the FILM's accent on it: on a light film the arrows,
+  // the key part's frame and the dimension readout were a paper-tuned dark blue on that navy, gone. A
+  // schematic on paper is the older form of the same drawing; the grammar (grid, hairlines, corner ticks,
+  // leader lines) is what makes it a blueprint, not the colour of the sheet.
+  const GRID = dna ? mix(dna.bg, dna.line, 0.55) : '#0e2b42';
+  const INK = dna?.fg ?? '#eaffff';
+  const LABEL = dna ? mix(dna.fg, dna.dim, 0.5) : '#9fc6d8';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const ex = easeInOutCubic(seg(t, 0.14, 0.62)); // explode progress
@@ -89,11 +97,12 @@ export const ExplodedSchematic: React.FC<{caption?: string; label?: string; unit
   const cy = vert ? (zTop + zBot) / 2 : H / 2 - 40;
   const at = (i: number) => (i - mid) * spread * ex;     // offset of part i from the centre, along the axis
   return (
-    <AbsoluteFill style={{background: `radial-gradient(130% 130% at 50% 40%, #0d2236, ${NAVY} 70%)`}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ??
+      `radial-gradient(130% 130% at 50% 40%, #0d2236, ${NAVY} 70%)`}}>
       {/* faint blueprint grid */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0, opacity: 0.5}}>
-        {[...Array(Math.ceil(W / 60) + 1)].map((_, i) => <line key={`v${i}`} x1={i * 60} y1={0} x2={i * 60} y2={H} stroke="#0e2b42" strokeWidth={1} />)}
-        {[...Array(Math.ceil(H / 60) + 1)].map((_, i) => <line key={`h${i}`} x1={0} y1={i * 60} x2={W} y2={i * 60} stroke="#0e2b42" strokeWidth={1} />)}
+        {[...Array(Math.ceil(W / 60) + 1)].map((_, i) => <line key={`v${i}`} x1={i * 60} y1={0} x2={i * 60} y2={H} stroke={GRID} strokeWidth={1} />)}
+        {[...Array(Math.ceil(H / 60) + 1)].map((_, i) => <line key={`h${i}`} x1={0} y1={i * 60} x2={W} y2={i * 60} stroke={GRID} strokeWidth={1} />)}
       </svg>
       {/* connectors (draw on as it assembles/explodes) — always from part i's far edge to part i+1's near one */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
@@ -118,7 +127,7 @@ export const ExplodedSchematic: React.FC<{caption?: string; label?: string; unit
           <div key={i}>
             {/* wireframe part box */}
             <div style={{position: 'absolute', left: x - bw / 2, top: y - bh / 2, width: bw, height: bh, opacity: clamp01(app),
-              border: `2px solid ${hot ? CYAN : LINE}`, borderRadius: 6, background: hot ? `${CYAN}12` : 'rgba(67,196,232,0.04)',
+              border: `2px solid ${hot ? CYAN : LINE}`, borderRadius: 6, background: hot ? `${CYAN}12` : `${CYAN}0a`,
               boxShadow: hot ? `0 0 40px ${CYAN}44` : 'none'}}>
               {/* corner ticks */}
               {[[0, 0], [1, 0], [0, 1], [1, 1]].map(([hx, hy], k) => <div key={k} style={{position: 'absolute',
@@ -126,7 +135,7 @@ export const ExplodedSchematic: React.FC<{caption?: string; label?: string; unit
                 borderTop: hy ? 'none' : `2px solid ${CYAN}`, borderBottom: hy ? `2px solid ${CYAN}` : 'none',
                 borderLeft: hx ? 'none' : `2px solid ${CYAN}`, borderRight: hx ? `2px solid ${CYAN}` : 'none'}} />)}
               <div style={{position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                font: `800 ${labelPx}px/${leading(String(s), 1.1)} var(--f-body, Inter,system-ui,sans-serif)`, color: hot ? '#eaffff' : '#9fc6d8',
+                font: `800 ${labelPx}px/${leading(String(s), 1.1)} var(--f-body, Inter,system-ui,sans-serif)`, color: hot ? INK : LABEL,
                 textAlign: 'center', padding: pad, textWrap: 'balance'}}>{s}</div>
             </div>
             {/* leader line + numbered label: below the part when the axis runs across, beside it when it runs down */}

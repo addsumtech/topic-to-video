@@ -6,9 +6,17 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {darkGround} from '../runtime/light';
 import {contentBottom, fitTextPx, inkBlockH} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
+// @dark-world: a CRT TUBE. Every colour here is an 8-bit PHOSPHOR — the HUD's yellow, the 1UP pink, the
+// sprite's three greens, the banner's hard orange drop — and that palette was chosen by hardware that only
+// ever lit it on black. Drawn on the film's paper it measured a median 3.06:1 with 41% of its marks under
+// 3:1 (scripts/ink_contrast_qa.py): the whole HUD row went, and the banner read as a yellow smudge. Nor can
+// it be inverted — a dark HUD with dark bricks under scanlines and a vignette is not an arcade screen, it
+// is a printed picture of one. So it keeps the tube's own dark.
+const OWN_NIGHT = '#0b0f2a';
 
 // An arcade HUD's own furniture. `1UP` and its three credit pips are what an arcade screen READS like —
 // the form depicting itself, not copy about any topic. Declared so onscreen_text_qa can tell the two apart.
@@ -49,9 +57,12 @@ export const PixelBuild: React.FC<{hud?: string; label?: string}> = ({
   const gx = (W - gw) / 2, gy = gyRaw - over;
   const maxSum = cols + rows;
   const banner = easeOutBack(seg(t, 0.7, 0.9));
+  // a DARK film's own ground is still a tube; a light one's is not, and then the register keeps its own
+  const night = darkGround(dna?.bg, OWN_NIGHT);
+  const ground = night === dna?.bg ? (dna?.bgGrad ?? night) : night;
 
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('#0b0f2a'), overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: ground, overflow: 'hidden'}}>
       {/* HUD */}
       <div style={{position: 'absolute', left: 60, top: 44, color: '#ffe14d', font: '700 42px/1 var(--f-mono, "Press Start 2P", "VT323", monospace)', letterSpacing: '0.04em'}}>{hud}</div>
       <div style={{position: 'absolute', right: 60, top: 44, color: '#ff5b7f', font: '700 42px/1 var(--f-mono, "VT323", monospace)', letterSpacing: '0.04em'}}>1UP ▪▪▪</div>
