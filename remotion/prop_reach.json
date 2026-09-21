@@ -1,0 +1,1043 @@
+{
+  "_regenerate": "python3 scripts/prop_reach.py",
+  "_what": "fraction of a register's ink that MOVES when every prop it can read changes — how much of the picture the FILM authors, not the register",
+  "_dna": "product",
+  "_offset": 2,
+  "_frame_frac": 0.88,
+  "_low_reach": 0.15,
+  "_min_prop_diff": 0.5,
+  "_untrusted": [
+    "EdCompare",
+    "OverlapSeparation",
+    "PageWrite",
+    "VersusSplit"
+  ],
+  "_failed": {},
+  "_universe": 170,
+  "_source": {
+    "AcceptanceStamp": "118dbeaa97eb163b",
+    "Aliasing": "3afe86ad7dbeee4c",
+    "AnalogTape": "4a5b7876adcce291",
+    "AnswerStream": "7724111a430bdd0d",
+    "AntiDesignChaos": "6e1d3d9422eca836",
+    "AsciiField": "4da0463c03e3fb46",
+    "AtomOrbital": "2b887a1ddbe86c77",
+    "AuroraFlow": "a57f00bfd50079e8",
+    "BeforeAfterSlider": "589f9e1d2c1fd4c1",
+    "BentoReveal": "a05226ac3b41cc16",
+    "BlockAssembly": "d336df6edbf686bb",
+    "BlueprintGrid": "0cb7b15cfc9f352a",
+    "BokehPull": "0685502b18292445",
+    "BrutalistType": "157355a0937a8c83",
+    "CardFlip3D": "d236b51e597bcead",
+    "CardStack3D": "60ba9ef7e82d7ed9",
+    "CartoonPop": "890857137754d333",
+    "ChartLive": "10804d441d42158d",
+    "ChartRace": "c2b2dcd8fe934a9d",
+    "ChatThread": "e9998ca6865278b9",
+    "CinematicTitle": "8b0ecbda575270b8",
+    "CircuitTrace": "e842ca2259fb00d4",
+    "ClayStack": "a49e6ba73eebfd4a",
+    "ClothWave": "ffb716cec3165ece",
+    "CodeCompose": "897b5e2cb40fe59f",
+    "CodeRain": "03cee3e134cb234c",
+    "CollaborativeCursors": "f9907a49f9f7bf24",
+    "ComicPanels": "122a00bea651da65",
+    "CommandSummon": "86165a3d6cf6ebfc",
+    "CompanionCard": "00b672928ddd9768",
+    "CompressedSensingEq": "e986d16cb1650ab3",
+    "ConveyorBelt": "ff73331a0f2f60f2",
+    "CrashZoom": "1ab6c26ceaae781f",
+    "CubeRotate": "3fadaacb2fa3e156",
+    "CursorStory": "57d8908f4bf16092",
+    "DNAHelix": "dabbad9b9031d04c",
+    "DataMonolith": "1efb5f138b4e0a8d",
+    "DataOrrery": "cb3ba4cf32a33947",
+    "DiffusionDenoise": "3951bb069339bec4",
+    "DollyZoom": "9c0c0cc0490c45ad",
+    "EdCompare": "1c2441fee9afea62",
+    "EdStat": "f75dd300b91686b5",
+    "EdTimeline": "d443652a7d1e1e7b",
+    "ElasticType": "2b657e1ddbd7bfb8",
+    "EmberFlame": "3f8da885a002a452",
+    "ExplodedSchematic": "fb9b32fa2439efdb",
+    "FallbackPath": "59931b796cb6f1b3",
+    "FlowField": "96b65f3513168675",
+    "FocalIsolation": "8c45a4a2a04ce381",
+    "FractalTree": "64de3342f387908f",
+    "FractureIn": "9fa655683ed17c00",
+    "FrequencyEncode": "e72ac8b7bf4c2a20",
+    "GFactorNoise": "00e2a36e5ada4888",
+    "GameOfLife": "3a1b1e3d69a5e7d7",
+    "GaugeCluster": "71cbe9b3a53c0c71",
+    "GazetteerEntry": "7f3f76c6a458cc49",
+    "GearTrain": "7505c63031c9696b",
+    "GlitchDatamosh": "9e502e502b700dc0",
+    "GlowPick": "83231a6d0d77f9d4",
+    "GradientTilt": "e5c5b42aa9de4766",
+    "GrantedTree": "6f4fe6b3cb7714ae",
+    "HalftonePop": "b24ed8cfea392d97",
+    "HandDrawn": "fc4efec9689a9d58",
+    "HoloFoil": "38e03cf412f16138",
+    "HudReticle": "f8246767613cd30f",
+    "InOrder": "1c26e047037db32d",
+    "InducedFID": "c1752cbb297b9ebb",
+    "InfiniteCanvas": "3f702f3e9f6c82e0",
+    "InflateType": "7bc79096fbe82a88",
+    "InkBloom": "f9d52a156f022048",
+    "Inscription": "adf59b64a9bcef6f",
+    "IsoWorld": "2fe491f5bfd892d6",
+    "IsometricAssembly": "ab17fe093fd83979",
+    "KSpaceAnatomy": "dfa23584385cecae",
+    "KSpaceReal": "0fdb83b8d0163fe8",
+    "KSpaceToImage": "36c9c84f3d8a42da",
+    "KaleidoMandala": "d177caf226ddc02a",
+    "KineticManifesto": "c5de8bd4a3b33863",
+    "KnowledgeGraph": "4b6f59f2e6f166f8",
+    "LarmorPrecession": "73e49ced9e0be7c8",
+    "LastLeg": "d35ed2d9a07a5bfb",
+    "LightTrails": "95e9eed403b6ddd4",
+    "LiquidChrome": "067a263d2a2e2d42",
+    "LiquidFill": "b72d33e24754e609",
+    "LiquidGlass": "eecae1b0071fbaf2",
+    "LiquidMetal": "9c8e2e3dd0012155",
+    "LiquidMorph": "d445faea353298e0",
+    "LowPolyForm": "322237c704294c20",
+    "MRIPipeline": "3bcc995a7d42db86",
+    "MadeOf": "6f04ee2b86539404",
+    "MagazineSpread": "59fb75a952d27f95",
+    "MagnetizationTip": "6caf44b6ca7aa602",
+    "MapPlate": "0de56a118c39fb8f",
+    "MapRoutes": "dd9b5a969128d914",
+    "MaterialHero": "b9e0a41ff51765d0",
+    "MetaballMerge": "b5f3e4dab6ae5e29",
+    "MoleculeBallStick": "af59566ad76e91aa",
+    "MorphForms": "07470a7a12c35eb1",
+    "MuseumLabel": "f5d4c712928630c3",
+    "NeonGrid": "a6b8ecf9fa189704",
+    "NeonTickerWall": "bec681f00c0b12e1",
+    "NeuralField": "cc9b6789b238e925",
+    "OdometerRoll": "fe0b5c99e2de1b85",
+    "OpenQuestions": "cf33d8d28936669e",
+    "OverlapSeparation": "9807df9227e26536",
+    "PageWrite": "1f7df290c808d998",
+    "PaperCutout": "dbe629d27346093a",
+    "PaperSlot": "e60f55cce76728e6",
+    "ParticleForm": "a2b528d4758fffc4",
+    "PhaseEncodeStep": "fc789e9b8d347eb6",
+    "PhotoPlate": "2954ce048bbb32c1",
+    "PhysicsStack": "36f419a79a1b19ac",
+    "PixelBuild": "7f20707a69c87ee0",
+    "PlanPalimpsest": "783e99177763108d",
+    "PlaneStack": "df8c7550608d0ca3",
+    "PlatformSurfaces": "fb465313f6f43a37",
+    "PointerTour": "20713e12747d5ace",
+    "PortRail": "14c485ed11e29f6f",
+    "PositioningMatrix": "9c39c813e242ca9c",
+    "ProfileGrowth": "b9f75a885f0d9282",
+    "QuadSplit": "0210b986c7cd8065",
+    "RackFocus": "036c679d180df570",
+    "RadialBurst": "bd1c23a483ea694c",
+    "RainGlass": "314213bd81890ecc",
+    "RansomZine": "7ba9cf4cf50364fc",
+    "RealVersus": "e29f4a9aaa63eac2",
+    "RestsOn": "c85766d85adb3656",
+    "RidgeField": "fcdd725c9abc8dfc",
+    "RisoPrint": "bf96ab427debf140",
+    "ScanReconstruct": "e40ddd037d87416f",
+    "ScreenBubble": "03fee34789f4a621",
+    "SectionRoute": "84acc43dafb69df7",
+    "SharedBlindspot": "cbdb2e2f7648910c",
+    "SourceDeal": "a6b748af5c7de516",
+    "SpatialSlides": "a78848c89c522818",
+    "SpectrumPulse": "4cd2d8acc8eb3521",
+    "SpeedLimit": "92cbb1bbd0112181",
+    "SpinningProton": "da0adb990f9834fb",
+    "SpinsAlign": "2f56de9a2c80afc2",
+    "SplitFlap": "467d4537de1e16ac",
+    "SpotlightStage": "6311b76078bdefd5",
+    "StarfieldWarp": "b1389403dc2112ee",
+    "StateSheet": "e9d01393cc572839",
+    "StrataColumn": "d0cf529e79a2fe2a",
+    "SurfaceCarousel": "d8c976132812b105",
+    "SwissEditorial": "04bb2b8825832df7",
+    "TallyLedger": "2fe6d4f32f1f4220",
+    "TaskFold": "ea3d1b23f10fd57d",
+    "TechnicalPlate": "b92a22522a4f40ad",
+    "TemporalAccelerate": "c2a7efbc1690a9a3",
+    "TensionScale": "190d0522969f841c",
+    "TermBars": "3ec61be6381f4700",
+    "TermCounter": "ecb944744483c6ca",
+    "TermDiff": "fe0e904e34027476",
+    "TermGitLog": "ce3eef2c18ab1c1f",
+    "TermLog": "1ad18d901d597b51",
+    "TermSpace": "62a784dc900e0b7e",
+    "TermTable": "68154ff2c3a1f647",
+    "TermThink": "3c4cf99c2dfaccf5",
+    "TermTree": "e49e0f3e4dc0a15a",
+    "TerrainFly": "b06b8660559428e7",
+    "TimelineTravel": "8953b2c9b015f594",
+    "UndersampledKspace": "3f606efed75b40ba",
+    "VariableTypeMorph": "8d54499a82cad716",
+    "VelocitySnap": "6717f0b22fa07ec0",
+    "VersusSplit": "02b7dcd5bb4cfcb8",
+    "VoiceSignal": "27b75f4535aade95",
+    "VoxelBuild": "885e2546af9303e6",
+    "WireGlobe": "98c07c5a56b04baf",
+    "WordTunnel": "350969448fcb139c"
+  },
+  "_props": {
+    "AcceptanceStamp": "12e20d0740fa7a78",
+    "Aliasing": "add568392d66d009",
+    "AnalogTape": "4d5e52e503af171e",
+    "AnswerStream": "54f6cc24911b8f1a",
+    "AntiDesignChaos": "8761cc32411db959",
+    "AsciiField": "53d508cd3d3211c4",
+    "AtomOrbital": "a109fca86fa180b9",
+    "AuroraFlow": "a47eaaa05b5ef31a",
+    "BeforeAfterSlider": "8ba1ff7fb1fbfd18",
+    "BentoReveal": "b90750cd6b9050a2",
+    "BlockAssembly": "4f90f29d3166b544",
+    "BlueprintGrid": "e84dd9a23ac37428",
+    "BokehPull": "a109fca86fa180b9",
+    "BrutalistType": "24344f092124c92e",
+    "CardFlip3D": "c07e97f3d2741d62",
+    "CardStack3D": "880bb84c7e235d58",
+    "CartoonPop": "c5e5501470b3856d",
+    "ChartLive": "abad258c7eb04bdf",
+    "ChartRace": "211be1813ae9b6ab",
+    "ChatThread": "f0a98d0836bc7fd3",
+    "CinematicTitle": "80fd67cf87b605b5",
+    "CircuitTrace": "5128da77383a8dd2",
+    "ClayStack": "c5e5501470b3856d",
+    "ClothWave": "a109fca86fa180b9",
+    "CodeCompose": "aa3a52fafa7d53f5",
+    "CodeRain": "a109fca86fa180b9",
+    "CollaborativeCursors": "4332f4c0af0ebfaf",
+    "ComicPanels": "dfd0c4e3fd6f5e3e",
+    "CommandSummon": "291a3d05434e58f8",
+    "CompanionCard": "6ce238cd87cf36a3",
+    "CompressedSensingEq": "c5e5501470b3856d",
+    "ConveyorBelt": "2d324531a853dc12",
+    "CrashZoom": "dee70c9dc1df6c9b",
+    "CubeRotate": "9fcfe91651f8dc1b",
+    "CursorStory": "e3b3782d8f9d5220",
+    "DNAHelix": "a109fca86fa180b9",
+    "DataMonolith": "f25cfd742d1f66b2",
+    "DataOrrery": "43026484956a45e4",
+    "DiffusionDenoise": "add568392d66d009",
+    "DollyZoom": "3e0b82dd8119335f",
+    "EdCompare": "dab0359b31001d89",
+    "EdStat": "aad302ff54267b31",
+    "EdTimeline": "97788686bb6965dd",
+    "ElasticType": "ad3d8781dd1ad26b",
+    "EmberFlame": "a109fca86fa180b9",
+    "ExplodedSchematic": "f95ab592aa4d7442",
+    "FallbackPath": "77c5a2231657a7e3",
+    "FlowField": "a109fca86fa180b9",
+    "FocalIsolation": "55541bcd78acdc47",
+    "FractalTree": "c5883cf7c8f91b66",
+    "FractureIn": "a109fca86fa180b9",
+    "FrequencyEncode": "c5e5501470b3856d",
+    "GFactorNoise": "08d5c7b810d6ec73",
+    "GameOfLife": "a109fca86fa180b9",
+    "GaugeCluster": "be86335da7bd987f",
+    "GazetteerEntry": "e817e0f0e607f845",
+    "GearTrain": "57bf840ed5164023",
+    "GlitchDatamosh": "ad3d8781dd1ad26b",
+    "GlowPick": "1a1126b706b5fe95",
+    "GradientTilt": "c5e5501470b3856d",
+    "GrantedTree": "b23d2fad0128f443",
+    "HalftonePop": "13feaaa83009f60c",
+    "HandDrawn": "b0c7c35cd6eb62fd",
+    "HoloFoil": "ad3d8781dd1ad26b",
+    "HudReticle": "73c314b2a55e9624",
+    "InOrder": "48d5de019e3a7696",
+    "InducedFID": "c5e5501470b3856d",
+    "InfiniteCanvas": "43026484956a45e4",
+    "InflateType": "ad3d8781dd1ad26b",
+    "InkBloom": "16edf40df847f243",
+    "Inscription": "c3fe6cdeea9e1280",
+    "IsoWorld": "f25cfd742d1f66b2",
+    "IsometricAssembly": "7cde67e77d5deb2e",
+    "KSpaceAnatomy": "add568392d66d009",
+    "KSpaceReal": "add568392d66d009",
+    "KSpaceToImage": "c5e5501470b3856d",
+    "KaleidoMandala": "a109fca86fa180b9",
+    "KineticManifesto": "48cec96b4bbe6bb6",
+    "KnowledgeGraph": "43026484956a45e4",
+    "LarmorPrecession": "f141098672934091",
+    "LastLeg": "fe3a94077cfb33a5",
+    "LightTrails": "c5e5501470b3856d",
+    "LiquidChrome": "ad3d8781dd1ad26b",
+    "LiquidFill": "c5e5501470b3856d",
+    "LiquidGlass": "133508d60a3c5a05",
+    "LiquidMetal": "a109fca86fa180b9",
+    "LiquidMorph": "4f05f1fc9d56bd31",
+    "LowPolyForm": "a109fca86fa180b9",
+    "MRIPipeline": "c5e5501470b3856d",
+    "MadeOf": "cf9cd9cdd6e231be",
+    "MagazineSpread": "b2b699335767ded3",
+    "MagnetizationTip": "c5e5501470b3856d",
+    "MapPlate": "16a7da6caad34c80",
+    "MapRoutes": "43026484956a45e4",
+    "MaterialHero": "332f99d5579ef5f9",
+    "MetaballMerge": "a109fca86fa180b9",
+    "MoleculeBallStick": "a43b95297879e24e",
+    "MorphForms": "a109fca86fa180b9",
+    "MuseumLabel": "d7302b2d9638b288",
+    "NeonGrid": "a109fca86fa180b9",
+    "NeonTickerWall": "70dc58364850ceb3",
+    "NeuralField": "f4d99a9d31ee4506",
+    "OdometerRoll": "54d36e8ddc648983",
+    "OpenQuestions": "3f0172f8b8f667af",
+    "OverlapSeparation": "a0d5f9d57a717988",
+    "PageWrite": "51d970f1b5706ea3",
+    "PaperCutout": "67c9d5b43f434343",
+    "PaperSlot": "87f4cc04a7c8d979",
+    "ParticleForm": "c5e5501470b3856d",
+    "PhaseEncodeStep": "c5e5501470b3856d",
+    "PhotoPlate": "eaf7c86d64bce103",
+    "PhysicsStack": "bf80bab2e32c07c6",
+    "PixelBuild": "ebe8c0c1ccbaaa4a",
+    "PlanPalimpsest": "79586521fd485927",
+    "PlaneStack": "169e249dce401c92",
+    "PlatformSurfaces": "5a700a43f29a4567",
+    "PointerTour": "3fe7a80170d2050d",
+    "PortRail": "3a730baee6878ed8",
+    "PositioningMatrix": "33c72f4f90d94858",
+    "ProfileGrowth": "8f7e394bcf67485a",
+    "QuadSplit": "7636e85069137f1e",
+    "RackFocus": "a626217f16ae3f83",
+    "RadialBurst": "642d831fbb696cba",
+    "RainGlass": "a109fca86fa180b9",
+    "RansomZine": "ad3d8781dd1ad26b",
+    "RealVersus": "47d6167623c311b4",
+    "RestsOn": "44bfa5f30ed74b36",
+    "RidgeField": "a109fca86fa180b9",
+    "RisoPrint": "a109fca86fa180b9",
+    "ScanReconstruct": "add568392d66d009",
+    "ScreenBubble": "328c5039585173ee",
+    "SectionRoute": "cd271196d087f58f",
+    "SharedBlindspot": "1f002037e629a79c",
+    "SourceDeal": "b6c0b5470135ee9d",
+    "SpatialSlides": "0e73c9172427f260",
+    "SpectrumPulse": "a109fca86fa180b9",
+    "SpeedLimit": "7d41f32d508016aa",
+    "SpinningProton": "025c46653e5968e6",
+    "SpinsAlign": "7045eb4f8ec8916e",
+    "SplitFlap": "4b94243436b51d43",
+    "SpotlightStage": "31cf89eb692c8727",
+    "StarfieldWarp": "a109fca86fa180b9",
+    "StateSheet": "8e8da78b29224d2d",
+    "StrataColumn": "15bc6b0b259a9533",
+    "SurfaceCarousel": "e4e12ac9742530c9",
+    "SwissEditorial": "f3c3c5a54b62a2e3",
+    "TallyLedger": "aabd4e4f182b8576",
+    "TaskFold": "8c96e37347c9fb1c",
+    "TechnicalPlate": "c4e671b83e9d012c",
+    "TemporalAccelerate": "f57acfe333dc55ed",
+    "TensionScale": "2c352c96e7eb34a9",
+    "TermBars": "8f59b3c489b3a3d7",
+    "TermCounter": "d6e797c7db758a40",
+    "TermDiff": "518f5b08f3e1fbd8",
+    "TermGitLog": "24bf305429eaebff",
+    "TermLog": "119b82595f1acfa2",
+    "TermSpace": "bc696ae51f426682",
+    "TermTable": "c0e209a1c0502467",
+    "TermThink": "fde88ce0babcb16e",
+    "TermTree": "bce9934a94f14b00",
+    "TerrainFly": "a109fca86fa180b9",
+    "TimelineTravel": "8c298d5009150a6e",
+    "UndersampledKspace": "29f5fc85e4164ac7",
+    "VariableTypeMorph": "ef4df08701ee2e72",
+    "VelocitySnap": "83bfb2ffe1958fc9",
+    "VersusSplit": "6efb312286c50dde",
+    "VoiceSignal": "b002111347e66619",
+    "VoxelBuild": "a109fca86fa180b9",
+    "WireGlobe": "4fbdd2f39326045c",
+    "WordTunnel": "eec2973d2fc8dcb6"
+  },
+  "registers": {
+    "AcceptanceStamp": {
+      "reach": 0.737,
+      "prop_diff": 1.0
+    },
+    "Aliasing": {
+      "reach": 0.045,
+      "prop_diff": 1.0
+    },
+    "AnalogTape": {
+      "reach": 0.675,
+      "prop_diff": 1.0
+    },
+    "AnswerStream": {
+      "reach": 0.695,
+      "prop_diff": 1.0
+    },
+    "AntiDesignChaos": {
+      "reach": 0.832,
+      "prop_diff": 1.0
+    },
+    "AsciiField": {
+      "reach": 0.55,
+      "prop_diff": 1.0
+    },
+    "AtomOrbital": {
+      "reach": 0.523,
+      "prop_diff": 1.0
+    },
+    "AuroraFlow": {
+      "reach": 0.254,
+      "prop_diff": 1.0
+    },
+    "BeforeAfterSlider": {
+      "reach": 0.542,
+      "prop_diff": 0.8
+    },
+    "BentoReveal": {
+      "reach": 0.177,
+      "prop_diff": 1.0
+    },
+    "BlockAssembly": {
+      "reach": 0.528,
+      "prop_diff": 1.0
+    },
+    "BlueprintGrid": {
+      "reach": 0.438,
+      "prop_diff": 1.0
+    },
+    "BokehPull": {
+      "reach": 0.714,
+      "prop_diff": 1.0
+    },
+    "BrutalistType": {
+      "reach": 0.549,
+      "prop_diff": 1.0
+    },
+    "CardFlip3D": {
+      "reach": 0.033,
+      "prop_diff": 1.0
+    },
+    "CardStack3D": {
+      "reach": 0.061,
+      "prop_diff": 1.0
+    },
+    "CartoonPop": {
+      "reach": 0.131,
+      "prop_diff": 1.0
+    },
+    "ChartLive": {
+      "reach": 0.734,
+      "prop_diff": 1.0
+    },
+    "ChartRace": {
+      "reach": 0.61,
+      "prop_diff": 1.0
+    },
+    "ChatThread": {
+      "reach": 1.002,
+      "prop_diff": 1.0
+    },
+    "CinematicTitle": {
+      "reach": 0.633,
+      "prop_diff": 1.0
+    },
+    "CircuitTrace": {
+      "reach": 0.398,
+      "prop_diff": 1.0
+    },
+    "ClayStack": {
+      "reach": 0.042,
+      "prop_diff": 1.0
+    },
+    "ClothWave": {
+      "reach": 0.122,
+      "prop_diff": 1.0
+    },
+    "CodeCompose": {
+      "reach": 0.728,
+      "prop_diff": 1.0
+    },
+    "CodeRain": {
+      "reach": 0.464,
+      "prop_diff": 1.0
+    },
+    "CollaborativeCursors": {
+      "reach": 0.704,
+      "prop_diff": 1.0
+    },
+    "ComicPanels": {
+      "reach": 0.455,
+      "prop_diff": 1.0
+    },
+    "CommandSummon": {
+      "reach": 0.767,
+      "prop_diff": 1.0
+    },
+    "CompanionCard": {
+      "reach": 0.774,
+      "prop_diff": 1.0
+    },
+    "CompressedSensingEq": {
+      "reach": 0.176,
+      "prop_diff": 1.0
+    },
+    "ConveyorBelt": {
+      "reach": 0.207,
+      "prop_diff": 1.0
+    },
+    "CrashZoom": {
+      "reach": 0.08,
+      "prop_diff": 0.75
+    },
+    "CubeRotate": {
+      "reach": 0.491,
+      "prop_diff": 1.0
+    },
+    "CursorStory": {
+      "reach": 0.386,
+      "prop_diff": 0.8
+    },
+    "DNAHelix": {
+      "reach": 0.42,
+      "prop_diff": 1.0
+    },
+    "DataMonolith": {
+      "reach": 0.051,
+      "prop_diff": 1.0
+    },
+    "DataOrrery": {
+      "reach": 0.174,
+      "prop_diff": 1.0
+    },
+    "DiffusionDenoise": {
+      "reach": 0.428,
+      "prop_diff": 1.0
+    },
+    "DollyZoom": {
+      "reach": 0.777,
+      "prop_diff": 0.8
+    },
+    "EdCompare": {
+      "reach": 0.049,
+      "prop_diff": 0.33
+    },
+    "EdStat": {
+      "reach": 0.397,
+      "prop_diff": 0.75
+    },
+    "EdTimeline": {
+      "reach": 0.668,
+      "prop_diff": 1.0
+    },
+    "ElasticType": {
+      "reach": 0.791,
+      "prop_diff": 1.0
+    },
+    "EmberFlame": {
+      "reach": 0.41,
+      "prop_diff": 1.0
+    },
+    "ExplodedSchematic": {
+      "reach": 0.69,
+      "prop_diff": 1.0
+    },
+    "FallbackPath": {
+      "reach": 0.723,
+      "prop_diff": 1.0
+    },
+    "FlowField": {
+      "reach": 0.317,
+      "prop_diff": 1.0
+    },
+    "FocalIsolation": {
+      "reach": 0.256,
+      "prop_diff": 0.67
+    },
+    "FractalTree": {
+      "reach": 0.323,
+      "prop_diff": 1.0
+    },
+    "FractureIn": {
+      "reach": 0.106,
+      "prop_diff": 1.0
+    },
+    "FrequencyEncode": {
+      "reach": 0.109,
+      "prop_diff": 1.0
+    },
+    "GFactorNoise": {
+      "reach": 0.344,
+      "prop_diff": 1.0
+    },
+    "GameOfLife": {
+      "reach": 0.226,
+      "prop_diff": 1.0
+    },
+    "GaugeCluster": {
+      "reach": 0.715,
+      "prop_diff": 0.8
+    },
+    "GazetteerEntry": {
+      "reach": 0.725,
+      "prop_diff": 1.0
+    },
+    "GearTrain": {
+      "reach": 0.344,
+      "prop_diff": 1.0
+    },
+    "GlitchDatamosh": {
+      "reach": 0.629,
+      "prop_diff": 1.0
+    },
+    "GlowPick": {
+      "reach": 0.677,
+      "prop_diff": 0.8
+    },
+    "GradientTilt": {
+      "reach": 0.03,
+      "prop_diff": 1.0
+    },
+    "GrantedTree": {
+      "reach": 0.927,
+      "prop_diff": 1.0
+    },
+    "HalftonePop": {
+      "reach": 0.225,
+      "prop_diff": 1.0
+    },
+    "HandDrawn": {
+      "reach": 0.502,
+      "prop_diff": 1.0
+    },
+    "HoloFoil": {
+      "reach": 0.679,
+      "prop_diff": 1.0
+    },
+    "HudReticle": {
+      "reach": 0.592,
+      "prop_diff": 1.0
+    },
+    "InOrder": {
+      "reach": 0.065,
+      "prop_diff": 1.0
+    },
+    "InducedFID": {
+      "reach": 0.196,
+      "prop_diff": 1.0
+    },
+    "InfiniteCanvas": {
+      "reach": 0.295,
+      "prop_diff": 1.0
+    },
+    "InflateType": {
+      "reach": 0.888,
+      "prop_diff": 1.0
+    },
+    "InkBloom": {
+      "reach": 0.279,
+      "prop_diff": 1.0
+    },
+    "Inscription": {
+      "reach": 0.203,
+      "prop_diff": 1.0
+    },
+    "IsoWorld": {
+      "reach": 0.091,
+      "prop_diff": 1.0
+    },
+    "IsometricAssembly": {
+      "reach": 0.158,
+      "prop_diff": 1.0
+    },
+    "KSpaceAnatomy": {
+      "reach": 0.263,
+      "prop_diff": 1.0
+    },
+    "KSpaceReal": {
+      "reach": 0.399,
+      "prop_diff": 1.0
+    },
+    "KSpaceToImage": {
+      "reach": 0.133,
+      "prop_diff": 1.0
+    },
+    "KaleidoMandala": {
+      "reach": 0.32,
+      "prop_diff": 1.0
+    },
+    "KineticManifesto": {
+      "reach": 0.985,
+      "prop_diff": 1.0
+    },
+    "KnowledgeGraph": {
+      "reach": 0.438,
+      "prop_diff": 1.0
+    },
+    "LarmorPrecession": {
+      "reach": 0.648,
+      "prop_diff": 1.0
+    },
+    "LastLeg": {
+      "reach": 0.582,
+      "prop_diff": 1.0
+    },
+    "LightTrails": {
+      "reach": 0.095,
+      "prop_diff": 1.0
+    },
+    "LiquidChrome": {
+      "reach": 0.696,
+      "prop_diff": 1.0
+    },
+    "LiquidFill": {
+      "reach": 0.264,
+      "prop_diff": 1.0
+    },
+    "LiquidGlass": {
+      "reach": 0.193,
+      "prop_diff": 0.67
+    },
+    "LiquidMetal": {
+      "reach": 0.433,
+      "prop_diff": 1.0
+    },
+    "LiquidMorph": {
+      "reach": 0.058,
+      "prop_diff": 1.0
+    },
+    "LowPolyForm": {
+      "reach": 0.275,
+      "prop_diff": 1.0
+    },
+    "MRIPipeline": {
+      "reach": 0.199,
+      "prop_diff": 1.0
+    },
+    "MadeOf": {
+      "reach": 0.171,
+      "prop_diff": 1.0
+    },
+    "MagazineSpread": {
+      "reach": 0.279,
+      "prop_diff": 1.0
+    },
+    "MagnetizationTip": {
+      "reach": 0.274,
+      "prop_diff": 1.0
+    },
+    "MapPlate": {
+      "reach": 0.898,
+      "prop_diff": 1.0
+    },
+    "MapRoutes": {
+      "reach": 0.318,
+      "prop_diff": 1.0
+    },
+    "MaterialHero": {
+      "reach": 0.125,
+      "prop_diff": 1.0
+    },
+    "MetaballMerge": {
+      "reach": 0.411,
+      "prop_diff": 1.0
+    },
+    "MoleculeBallStick": {
+      "reach": 0.258,
+      "prop_diff": 0.5
+    },
+    "MorphForms": {
+      "reach": 0.304,
+      "prop_diff": 1.0
+    },
+    "MuseumLabel": {
+      "reach": 0.156,
+      "prop_diff": 0.86
+    },
+    "NeonGrid": {
+      "reach": 0.452,
+      "prop_diff": 1.0
+    },
+    "NeonTickerWall": {
+      "reach": 0.417,
+      "prop_diff": 1.0
+    },
+    "NeuralField": {
+      "reach": 0.18,
+      "prop_diff": 0.8
+    },
+    "OdometerRoll": {
+      "reach": 0.212,
+      "prop_diff": 0.67
+    },
+    "OpenQuestions": {
+      "reach": 0.743,
+      "prop_diff": 1.0
+    },
+    "OverlapSeparation": {
+      "reach": 0.043,
+      "prop_diff": 0.4
+    },
+    "PageWrite": {
+      "reach": 0.0,
+      "prop_diff": 0.0
+    },
+    "PaperCutout": {
+      "reach": 0.093,
+      "prop_diff": 1.0
+    },
+    "PaperSlot": {
+      "reach": 0.456,
+      "prop_diff": 1.0
+    },
+    "ParticleForm": {
+      "reach": 0.321,
+      "prop_diff": 1.0
+    },
+    "PhaseEncodeStep": {
+      "reach": 0.101,
+      "prop_diff": 1.0
+    },
+    "PhotoPlate": {
+      "reach": 0.231,
+      "prop_diff": 0.8
+    },
+    "PhysicsStack": {
+      "reach": 0.133,
+      "prop_diff": 1.0
+    },
+    "PixelBuild": {
+      "reach": 0.152,
+      "prop_diff": 1.0
+    },
+    "PlanPalimpsest": {
+      "reach": 0.921,
+      "prop_diff": 1.0
+    },
+    "PlaneStack": {
+      "reach": 0.745,
+      "prop_diff": 0.75
+    },
+    "PlatformSurfaces": {
+      "reach": 0.083,
+      "prop_diff": 1.0
+    },
+    "PointerTour": {
+      "reach": 0.525,
+      "prop_diff": 1.0
+    },
+    "PortRail": {
+      "reach": 0.344,
+      "prop_diff": 1.0
+    },
+    "PositioningMatrix": {
+      "reach": 0.869,
+      "prop_diff": 1.0
+    },
+    "ProfileGrowth": {
+      "reach": 0.091,
+      "prop_diff": 1.0
+    },
+    "QuadSplit": {
+      "reach": 0.448,
+      "prop_diff": 1.0
+    },
+    "RackFocus": {
+      "reach": 0.849,
+      "prop_diff": 1.0
+    },
+    "RadialBurst": {
+      "reach": 0.127,
+      "prop_diff": 1.0
+    },
+    "RainGlass": {
+      "reach": 0.384,
+      "prop_diff": 1.0
+    },
+    "RansomZine": {
+      "reach": 0.817,
+      "prop_diff": 1.0
+    },
+    "RealVersus": {
+      "reach": 0.023,
+      "prop_diff": 0.67
+    },
+    "RestsOn": {
+      "reach": 0.131,
+      "prop_diff": 1.0
+    },
+    "RidgeField": {
+      "reach": 0.164,
+      "prop_diff": 1.0
+    },
+    "RisoPrint": {
+      "reach": 0.749,
+      "prop_diff": 1.0
+    },
+    "ScanReconstruct": {
+      "reach": 0.025,
+      "prop_diff": 0.67
+    },
+    "ScreenBubble": {
+      "reach": 0.463,
+      "prop_diff": 1.0
+    },
+    "SectionRoute": {
+      "reach": 0.865,
+      "prop_diff": 1.0
+    },
+    "SharedBlindspot": {
+      "reach": 0.048,
+      "prop_diff": 0.5
+    },
+    "SourceDeal": {
+      "reach": 0.58,
+      "prop_diff": 1.0
+    },
+    "SpatialSlides": {
+      "reach": 0.785,
+      "prop_diff": 1.0
+    },
+    "SpectrumPulse": {
+      "reach": 0.088,
+      "prop_diff": 1.0
+    },
+    "SpeedLimit": {
+      "reach": 0.349,
+      "prop_diff": 0.8
+    },
+    "SpinningProton": {
+      "reach": 0.21,
+      "prop_diff": 1.0
+    },
+    "SpinsAlign": {
+      "reach": 0.57,
+      "prop_diff": 1.0
+    },
+    "SplitFlap": {
+      "reach": 0.407,
+      "prop_diff": 1.0
+    },
+    "SpotlightStage": {
+      "reach": 0.009,
+      "prop_diff": 0.5
+    },
+    "StarfieldWarp": {
+      "reach": 0.352,
+      "prop_diff": 1.0
+    },
+    "StateSheet": {
+      "reach": 0.078,
+      "prop_diff": 0.6
+    },
+    "StrataColumn": {
+      "reach": 0.173,
+      "prop_diff": 1.0
+    },
+    "SurfaceCarousel": {
+      "reach": 0.629,
+      "prop_diff": 1.0
+    },
+    "SwissEditorial": {
+      "reach": 0.49,
+      "prop_diff": 1.0
+    },
+    "TallyLedger": {
+      "reach": 0.603,
+      "prop_diff": 0.86
+    },
+    "TaskFold": {
+      "reach": 0.71,
+      "prop_diff": 1.0
+    },
+    "TechnicalPlate": {
+      "reach": 0.83,
+      "prop_diff": 0.83
+    },
+    "TemporalAccelerate": {
+      "reach": 0.68,
+      "prop_diff": 1.0
+    },
+    "TensionScale": {
+      "reach": 0.605,
+      "prop_diff": 1.0
+    },
+    "TermBars": {
+      "reach": 0.606,
+      "prop_diff": 1.0
+    },
+    "TermCounter": {
+      "reach": 0.476,
+      "prop_diff": 0.75
+    },
+    "TermDiff": {
+      "reach": 0.825,
+      "prop_diff": 1.0
+    },
+    "TermGitLog": {
+      "reach": 0.866,
+      "prop_diff": 1.0
+    },
+    "TermLog": {
+      "reach": 0.894,
+      "prop_diff": 1.0
+    },
+    "TermSpace": {
+      "reach": 0.753,
+      "prop_diff": 1.0
+    },
+    "TermTable": {
+      "reach": 0.813,
+      "prop_diff": 0.75
+    },
+    "TermThink": {
+      "reach": 0.872,
+      "prop_diff": 1.0
+    },
+    "TermTree": {
+      "reach": 0.751,
+      "prop_diff": 1.0
+    },
+    "TerrainFly": {
+      "reach": 0.244,
+      "prop_diff": 1.0
+    },
+    "TimelineTravel": {
+      "reach": 0.531,
+      "prop_diff": 1.0
+    },
+    "UndersampledKspace": {
+      "reach": 0.33,
+      "prop_diff": 1.0
+    },
+    "VariableTypeMorph": {
+      "reach": 0.418,
+      "prop_diff": 1.0
+    },
+    "VelocitySnap": {
+      "reach": 0.104,
+      "prop_diff": 0.67
+    },
+    "VersusSplit": {
+      "reach": 0.005,
+      "prop_diff": 0.33
+    },
+    "VoiceSignal": {
+      "reach": 0.347,
+      "prop_diff": 1.0
+    },
+    "VoxelBuild": {
+      "reach": 0.27,
+      "prop_diff": 1.0
+    },
+    "WireGlobe": {
+      "reach": 0.369,
+      "prop_diff": 1.0
+    },
+    "WordTunnel": {
+      "reach": 0.692,
+      "prop_diff": 1.0
+    }
+  }
+}
