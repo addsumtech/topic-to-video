@@ -223,3 +223,24 @@ luminance across it on a LIGHT film; a dark film cannot tell you.
 > stop using it. The defect is not a library's bug — it is what compositing two faded layers over nothing
 > looks like.
 > **Ask yourself:** On a light film, what is the lowest mean luminance any frame of this seam reaches?
+
+**E16 · A SHARE CANNOT TELL A LOST SENTENCE FROM A SOFT RIM.** A gate that reduces a picture to "what
+fraction of the ink failed" has thrown away the only thing that decides whether a reader lost anything:
+WHERE the failures were. Scattered anti-aliased rims and a paragraph turning white-on-white produce the same
+number, so any floor drawn on that number is drawn between two things it cannot distinguish. Measure the
+SHAPE of the failure as well — close the failing marks so a word reads as one thing, label the connected
+regions, and report the largest.
+
+> **Precedent — `4b99a6c`:** `scripts/ink_contrast_qa.py` reported a register when its MEDIAN mark fell
+> under 3:1 or when half its marks did. `StateSheet` (43% of marks failing: a dozen tiny mono captions
+> keeping a soft rim, a dozen card borders losing their edge — a reader misses nothing) and `AnswerStream`
+> (46%: the right half of a three-line answer turned white-on-white, and the words of the beat stopped
+> existing) sat either side of no line at all. Five real registers shipped under that floor — `AnswerStream`,
+> `TerrainFly`, `ExplodedSchematic`, `PixelBuild`, `InflateType` — one of them, at **49.45%**, by half a
+> percentage point. Measured as the largest connected failing region the same six separate cleanly: the
+> artefact 552 px, the five real ones 1526–20805. The same measure also caught the SECOND half of
+> `FractureIn`'s defect: routing its literal ink through the DNA took it from 51% to 42% — passing — while
+> a drop shadow tuned for a void (14px down, 40px blur, 38% black) went on filling the 6px gap under every
+> tile, so a 5×5 grid read as five vertical strips. Scaling the shadow to the ground took it to 0.3%.
+> **Ask yourself:** Of everything this gate reports as one number, what two pictures would score the same —
+> and would a reader tell them apart in a second?
