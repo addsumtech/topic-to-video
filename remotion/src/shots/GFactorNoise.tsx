@@ -32,8 +32,8 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, hash01} from '../runtime/motion';
-import {useDNA, mix, contrastOf, readableOn} from '../runtime/dna';
-import {INK_CONTRAST_MIN} from '../runtime/light';
+import {useDNA, mix} from '../runtime/dna';
+import {INK_CONTRAST_MIN, KEEP_HUE, readsOn} from '../runtime/light';
 import {contentBottom} from '../runtime/layout';
 import {parseFigure, figureAt} from '../runtime/figure';
 
@@ -68,22 +68,10 @@ const TILE_GRAD = 'linear-gradient(160deg,#0e1b30,#0a1424)';   // the tile's own
 // at #bf4651 / 4.51:1, still plainly red. The band and the rule only gain from the deeper one.
 //
 // A LADDER, NOT ONE FIXED STEP: a single shade is a constant tuned to the one ground it was checked on, and
-// the ground a film derives from a client deck is not that ground. It walks toward whichever pure ink
-// MEASURES more on this ground rather than toward the one its key is named after — the same correction
-// runtime/light.tsx's `exposeTo` records, so a chromatic ground lifts the red instead of burying it. And it
-// stops three-quarters of the way: there, a colour that cannot clear its floor becomes pure ink, which here
-// would print "unusable" in black and lose the semantics silently. The hue survives and the mark is as deep
-// as red gets.
-const DEEPEN_STEPS = 12, DEEPEN_MAX = 0.75;
-const readsOn = (c: string, ground: string): string => {
-  if (contrastOf(c, ground) >= INK_CONTRAST_MIN) return c;
-  const toward = readableOn(ground, '#ffffff', '#000000');
-  for (let i = 1; i <= DEEPEN_STEPS; i++) {
-    const out = mix(c, toward, (DEEPEN_MAX * i) / DEEPEN_STEPS);
-    if (contrastOf(out, ground) >= INK_CONTRAST_MIN) return out;
-  }
-  return mix(c, toward, DEEPEN_MAX);
-};
+// the ground a film derives from a client deck is not that ground. `KEEP_HUE` is what makes it right HERE —
+// past about three quarters of the way to ink a red is not read as red, and the library's default (a colour
+// that cannot clear its floor becomes pure ink) would print "unusable" in black and lose the semantics
+// silently. This was a twelve-rung copy of runtime/light.tsx's own ladder; it is now that ladder.
 
 // `factor` is the amplification the FILM measured. No default: the read-out used to count 1.0x -> 3.0x off
 // the clock and print the result as though it had been measured, on whatever topic reached for the register.
@@ -100,7 +88,7 @@ export const GFactorNoise: React.FC<{accent?: string; label?: string; factor?: n
   // lit on, so the track and the tile's border read there without this register measuring anything.
   const accent = ACC ?? dna?.accent ?? ACCENT_D0;
   const ground = dna?.bg ?? '#05060a';
-  const warn = dna ? readsOn(WARN_D0, ground) : WARN_D0;     // on the film's ground — see readsOn
+  const warn = dna ? readsOn(WARN_D0, ground, INK_CONTRAST_MIN, KEEP_HUE) : WARN_D0;   // hue is the claim
   const ink = dna?.fg ?? TITLE_D0;                           // the title
   const readoutInk = dna?.fg ?? READOUT_D0;                  // the live R read-out
   // The ticks are the AXIS every other mark is drawn against, not metadata that may recede: on its own

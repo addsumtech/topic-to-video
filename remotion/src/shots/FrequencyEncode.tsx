@@ -30,8 +30,8 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, radians} from '../runtime/motion';
-import {useDNA, mix, tint, contrastOf} from '../runtime/dna';
-import {ACCENT_CONTRAST_MIN} from '../runtime/light';
+import {useDNA, mix, tint} from '../runtime/dna';
+import {ACCENT_CONTRAST_MIN, readsOn} from '../runtime/light';
 
 export const DURATION = 180; // 6s
 export const MAX_FREQ_COLS = 8;
@@ -72,7 +72,9 @@ export const FrequencyEncode: React.FC<{accent?: string; accent2?: string; label
   // paper, and on the panel's night that is the same disappearance one layer in — so a trace that does not
   // clear the non-text floor against the panel is lifted until it does. With no DNA both literals are far
   // clear of it and pass through unchanged. (Same lift as KSpaceAnatomy's rings inside its k-space panel.)
-  const onPanel = (c: string) => (contrastOf(c, PANEL) >= ACCENT_CONTRAST_MIN ? c : tint(c, 0.6));
+  // A LADDER, NOT ONE FIXED STEP — see MRIPipeline: a fixed tint overshoots 3:1 to 8.45:1 and washes a
+  // dark accent out. The shared ladder stops at the first rung that reads against the panel.
+  const onPanel = (c: string) => readsOn(c, PANEL, ACCENT_CONTRAST_MIN);
   if (!Number.isInteger(cols) || cols < 2 || cols > MAX_FREQ_COLS) {
     throw new Error(`FrequencyEncode: \`cols\` must be an integer 2-${MAX_FREQ_COLS} (got ${JSON.stringify(cols)}). One column ` +
       `has nothing for the transform to separate, and past ${MAX_FREQ_COLS} the fastest column's wave is under 8px a ` +

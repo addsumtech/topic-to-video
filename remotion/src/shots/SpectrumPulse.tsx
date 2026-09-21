@@ -18,8 +18,8 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, easeOutCubic, clamp01} from '../runtime/motion';
-import {useDNA, contrastOf, tint} from '../runtime/dna';
-import {darkGround, ACCENT_CONTRAST_MIN} from '../runtime/light';
+import {useDNA, tint} from '../runtime/dna';
+import {ACCENT_CONTRAST_MIN, darkGround, readsOn} from '../runtime/light';
 import {Voice} from '../runtime/voice';
 import {captionBand, CONTENT_TOP, fitTextPx} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
@@ -41,7 +41,9 @@ export const SpectrumPulse: React.FC<{title?: string; tagline?: string; accent?:
   // The accents are lifted for the same reason the type is fixed: a light film picks them to read on ITS
   // paper, and on this register's night a dark accent is a ring nobody can see. Under every preset (and
   // with no DNA) they already clear the floor, so nothing moves there.
-  const onNight = (c: string) => (contrastOf(c, BG) >= ACCENT_CONTRAST_MIN ? c : tint(c, 0.55));
+  // A LADDER, NOT ONE FIXED STEP — see runtime/light.tsx `readsOn`. A fixed tint clears the floor by
+  // overshooting it and washing the hue out; the ladder stops at the first rung that reads on this night.
+  const onNight = (c: string) => readsOn(c, BG, ACCENT_CONTRAST_MIN);
   const A1 = onNight(dna?.accent ?? ACC), A2 = onNight(dna?.accent2 ?? ACC2);
   const t = useT();
   const {width: W, height: H} = useVideoConfig();

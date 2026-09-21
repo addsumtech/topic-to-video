@@ -859,3 +859,130 @@ def test_a_ground_that_is_a_colour_resolves_without_a_dna():
     # under a dark preset ALSO answers 'dark' and the shot-vs-token distinction would never be exercised
     assert r["tokenY"] is None, "a TOKEN declaration resolved with no DNA — then nothing is literal"
     assert r["tokenDark"] == "dark"
+
+
+# ── the one ladder ────────────────────────────────────────────────────────────────────────────────────
+def test_the_readability_ladder_answers_the_question_it_is_asked():
+    """`readsOn` is the library's single answer to "deepen this until it reads on that".
+
+    It was four answers: `GFactorNoise` walked 12 rungs capped at 0.75, `FractalTree` 18 rungs capped at
+    0.9 against two surfaces, `KSpaceAnatomy` took one fixed `tint(c, 0.6)` that overshoots 3:1 to 8.45:1,
+    and this file's own `exposeTo` was a fifth that nobody could import. Four ladders are four different
+    numbers for one question, and the register that gets it right is the one whose author measured that day.
+
+    Every case here is a claim about the OUTPUT's contrast, not about which rung it landed on — a test that
+    pins the rung pins the implementation and says nothing about whether the mark reads.
+    """
+    out = run_probe("""
+      const C = (a: string, b: string) => D.contrastOf(a, b);
+      // 1. a mark that already reads comes back VERBATIM — the ladder never touches what works
+      out.verbatim = L.readsOn('#15181d', '#f6f3ee', 3.0) === '#15181d';
+      // 2. a mark that does not read is walked until it does, on either polarity of ground
+      const onPaper = L.readsOn('#7dd3fc', '#f6f3ee', 3.0);
+      const onNight = L.readsOn('#1a2540', '#0b0d12', 3.0);   // a dark blue on a dark ground: 1.6:1
+      out.paper = {c: C(onPaper, '#f6f3ee'), moved: onPaper !== '#7dd3fc'};
+      out.night = {c: C(onNight, '#0b0d12'), moved: onNight !== '#1a2540'};
+      // 3. the direction is DERIVED, not named: #999999 (Y=0.319) is a "dark" ground by the key boundary
+      //    and yet black reads 7.4:1 on it where white reads 2.85:1. The ladder must go to black.
+      const mid = L.readsOn('#8a8a8a', '#999999', 3.0);
+      out.mid = {c: C(mid, '#999999'), darker: D.pilL(mid) < D.pilL('#999999')};
+      // 4. SEVERAL surfaces: the mark has to clear all of them, which is what a line crossing two fills
+      //    needs. A floor against one of them is what left FractalTree's twigs at 1.06:1 on the blossom.
+      const both = L.readsOn('#7b876f', ['#918254', '#f6f3ee'], 3.0);
+      out.both = {a: C(both, '#918254'), b: C(both, '#f6f3ee')};
+      // 5. KEEP_HUE stops before the colour stops being itself: a warn red comes back red, not black
+      const red = L.readsOn('#ff5d6c', '#f6f3ee', 4.5, L.KEEP_HUE);
+      const [rr, gg, bb] = [1, 3, 5].map((i) => parseInt(red.slice(i, i + 2), 16));
+      out.keepHue = {red: rr > gg + 30 && rr > bb + 30, notInk: red !== '#000000', c: C(red, '#f6f3ee')};
+      // ...and without it, a colour that cannot clear the floor becomes ink rather than staying invisible
+      out.fallsToInk = L.readsOn('#f6f3ee', ['#000000', '#ffffff'], 7.0) === '#000000'
+                    || L.readsOn('#f6f3ee', ['#000000', '#ffffff'], 7.0) === '#ffffff';
+      // 6. it degrades the way every colour helper in this codebase degrades
+      out.passThrough = L.readsOn('currentColor', '#f6f3ee', 3.0) === 'currentColor'
+                     && L.readsOn('#ff5d6c', 'not-a-colour', 3.0) === '#ff5d6c'
+                     && L.readsOn('#ff5d6c', [], 3.0) === '#ff5d6c';
+      // 7. `keep <= 0` means the caller asked for the colour not to move
+      out.keepZero = L.readsOn('#7dd3fc', '#f6f3ee', 3.0, 0) === '#7dd3fc';
+      // 8. DETERMINISTIC: the same question twice is the same answer
+      out.stable = L.readsOn('#7dd3fc', '#f6f3ee', 3.0) === L.readsOn('#7dd3fc', '#f6f3ee', 3.0);
+    """)
+    assert out["verbatim"], "a mark that already reads is being moved"
+    assert out["paper"]["moved"] and out["paper"]["c"] >= 3.0, out["paper"]
+    assert out["night"]["moved"] and out["night"]["c"] >= 3.0, out["night"]
+    assert out["mid"]["darker"] and out["mid"]["c"] >= 3.0, \
+        "on a mid ground the ladder climbed toward the weaker ink: %r" % (out["mid"],)
+    assert out["both"]["a"] >= 3.0 and out["both"]["b"] >= 3.0, \
+        "a mark asked to clear two surfaces cleared one: %r" % (out["both"],)
+    assert out["keepHue"]["red"] and out["keepHue"]["notInk"], \
+        "the warn red came back as ink, which loses the semantics silently: %r" % (out["keepHue"],)
+    assert out["fallsToInk"], "a colour that cannot clear its floor must still become visible"
+    assert out["passThrough"], "the ladder does not degrade like the other colour helpers"
+    assert out["keepZero"], "`keep <= 0` moved the colour anyway"
+    assert out["stable"], "the ladder is not deterministic"
+
+
+def test_the_ladder_did_not_change_what_exposeTo_already_answered():
+    """`exposeTo` is now the one-surface case of the same ladder, and every derived token in this file goes
+    through it. The ground vocabulary is measured, committed and depended on, so the migration has to be a
+    refactor and not a re-tuning: every shipped preset's derived ground must come back byte-identical."""
+    out = run_probe("""
+      const PRESETS = Object.keys(D.DNA_PRESETS ?? {});
+      out.presets = PRESETS.length;
+      out.grounds = {};
+      for (const p of PRESETS) {
+        const dna = (D.DNA_PRESETS as any)[p];
+        const rows: any = {};
+        for (const [name, spec] of Object.entries(L.GROUND_PRESETS)) {
+          try {
+            const g = L.groundFrom(dna, spec as any);
+            rows[name] = [g.bg, g.fg, g.accent, g.dim, g.line];
+          } catch (e) { rows[name] = String(e); }
+        }
+        out.grounds[p] = rows;
+      }
+    """)
+    assert out["presets"] >= 5, "no presets were read, so this test proves nothing"
+    # A SNAPSHOT IS ONLY WORTH ITS SOURCE: this is the committed vocabulary, captured from the ladder's
+    # single-surface path, so a later change to the ladder that moves a shipped ground fails here.
+    import hashlib
+    import json as _json
+    digest = hashlib.sha256(_json.dumps(out["grounds"], sort_keys=True).encode()).hexdigest()[:16]
+    # Recorded from the COMMITTED light.tsx before `exposeTo` became the one-surface case of `ladderTo`,
+    # and unchanged after it — which is what makes the migration a refactor.
+    assert digest == "f24b7dcbcbe9b037", (
+        "a shipped preset's derived ground moved (%s). If that is intended, re-record the digest and say "
+        "in the commit which ground changed and by how much." % digest)
+
+
+def test_the_film_has_a_pale_end_and_it_is_not_always_fg():
+    """`fg` is the light end on all eight shipped presets, because all eight are dark — so a register that
+    wants a near-white object reaches for it and is right a hundred times, then draws a black cloud in a
+    pale sky on the hundred-and-first. It is high-contrast, so no ink gate can see it."""
+    out = run_probe("""
+      const dark = {bg: '#0b0d12', fg: '#f2f5fa'} as any;
+      const light = {bg: '#f6f3ee', fg: '#15181d'} as any;
+      out.dark = {pale: L.paleEnd(dark, '#fff'), deep: L.deepEnd(dark, '#000')};
+      out.light = {pale: L.paleEnd(light, '#fff'), deep: L.deepEnd(light, '#000')};
+      out.nullDna = {pale: L.paleEnd(null, '#abcdef'), deep: L.deepEnd(null, '#123456')};
+      // a DNA this file cannot measure is not a guess to make — the caller's own literal comes back
+      const bad = {bg: 'var(--sky)', fg: '#15181d'} as any;
+      out.unmeasurable = {pale: L.paleEnd(bad, '#abcdef'), deep: L.deepEnd(bad, '#123456')};
+      // the ends are always the film's OWN two colours — never a hue it did not name
+      const ok = (d: any, v: string) => v === d.bg || v === d.fg;
+      out.ownColours = ok(dark, out.dark.pale) && ok(dark, out.dark.deep)
+                    && ok(light, out.light.pale) && ok(light, out.light.deep);
+      // ...and every shipped preset agrees with itself
+      out.presets = Object.values(D.DNA_PRESETS ?? {}).map((d: any) =>
+        [L.paleEnd(d, '#fff'), L.deepEnd(d, '#000')]);
+    """)
+    assert out["dark"]["pale"] == "#f2f5fa" and out["dark"]["deep"] == "#0b0d12", out["dark"]
+    assert out["light"]["pale"] == "#f6f3ee" and out["light"]["deep"] == "#15181d", \
+        "on a light film the pale end is the GROUND, not `fg`: %r" % (out["light"],)
+    assert out["nullDna"] == {"pale": "#abcdef", "deep": "#123456"}, \
+        "with no DNA the register's own original literal must come back unchanged"
+    assert out["ownColours"], "an end came back as a colour the film never declared"
+    assert out["unmeasurable"] == {"pale": "#abcdef", "deep": "#123456"}, \
+        "a DNA whose ends cannot be measured was guessed at instead of falling back: %r" % (out["unmeasurable"],)
+    assert out["presets"], "no presets were read, so this test proves nothing"
+    for pale, deep in out["presets"]:
+        assert pale != deep, "a preset whose two ends are the same colour has no axis at all"

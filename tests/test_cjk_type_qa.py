@@ -1040,3 +1040,55 @@ def test_sweep_carries_the_refusal_reason_out_of_the_render(monkeypatch, tmp_pat
     assert "processTicks" not in (res["Widget"]["why"] or "")
     assert res["Widget"]["cjk_fed"] == 1, "the CJK leaves fed in are not counted"
     assert len(calls) == 2, "a failed render was not retried (%d attempt(s))" % len(calls)
+
+
+# ── the second prop set ───────────────────────────────────────────────────────────────────────────────
+def test_a_second_prop_set_is_different_words_and_never_a_different_shape():
+    """`cjk_props(offset=)` exists so one register can be rendered twice with the same SHAPE and different
+    WORDS — that is the whole basis of `prop_reach`'s measurement. Rotating a list of rows rotated the
+    numbers in them too, and in a list whose order IS its meaning that is not a new topic, it is an invalid
+    board: `VoiceSignal` refuses phases out of time order (its own header says so), threw, and was the one
+    register of 170 that `prop_reach` could not measure — a fixture bug wearing a register's name.
+    """
+    import os
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    import cjk_type_qa as c
+    import prop_reach as pr
+
+    a, _ = c.cjk_props("VoiceSignal")
+    b, _ = c.cjk_props("VoiceSignal", offset=pr.OFFSET)
+    at_a = [r["at"] for r in a["phases"]]
+    at_b = [r["at"] for r in b["phases"]]
+    assert at_b == sorted(at_b), "the second prop set put the phases out of time order: %r" % (at_b,)
+    assert at_a == at_b, "the ordered column moved, which changes the shape rather than the words"
+    assert [r["label"] for r in a["phases"]] != [r["label"] for r in b["phases"]], \
+        "the words did not change, so the two sets are the same board"
+
+
+def test_every_register_really_gets_two_different_prop_sets():
+    """A no-op is not a rotation. `off % n` is zero whenever the length divides the offset, and the offset
+    this library uses is 2 — so every TWO-element list came back unrotated. `ChatThread`'s two messages are
+    the whole content of that register, so its second prop set was its first one and `prop_reach` rendered
+    the identical frame twice and measured its reach as 0.000."""
+    import os
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    import cjk_type_qa as c
+    import prop_reach as pr
+
+    shots = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "shots")
+    same, seen = [], 0
+    for name in sorted(f[:-4] for f in os.listdir(shots) if f.endswith(".tsx")):
+        try:
+            a, _ = c.cjk_props(name)
+            b, _ = c.cjk_props(name, offset=pr.OFFSET)
+        except Exception:                      # a register this fixture cannot shape is a different finding
+            continue
+        if not a:
+            continue
+        seen += 1
+        if pr.prop_diff(a, b) == 0.0:
+            same.append(name)
+    assert seen > 100, "only %d registers were shaped, so this proves nothing" % seen
+    assert not same, "these registers are measured against an identical second prop set: %r" % same

@@ -247,13 +247,27 @@ def _local_of(prop, src):
 # composition is clean. The register was never wrong; the fixture was repeating itself and the instrument was
 # reading the repetition as a collision.
 #
+def _turn(n, off):
+    """How far to actually rotate a list of `n` for `off` — never zero when a shift was asked for.
+
+    `off % n` is 0 whenever the length divides the offset, and the offset this library uses is 2, so EVERY
+    two-element list came back unrotated: `ChatThread`'s two messages are the whole content of that
+    register, so its "second prop set" was the first one, `prop_reach` rendered the identical frame twice
+    and measured the register's reach as 0.000 — reported as UNTRUSTED, which is honest, and still a
+    measurement nobody could take. A no-op is not a rotation."""
+    if not n or not off:
+        return 0
+    return (off % n) or 1
+
+
 def _rotate(seq, off):
     """The same list, started at a different place. `offset` has to reach the FIXED lists too, or two prop
     sets that are meant to be different topics hand a register the identical `items` twice and the
     measurement built on them reads 'this register ignores its props' about a register that was never
     given two different ones."""
     seq = list(seq)
-    return seq[off % len(seq):] + seq[:off % len(seq)] if seq else seq
+    k = _turn(len(seq), off)
+    return seq[k:] + seq[:k] if seq else seq
 
 
 def _string_for(prop, local=None, src="", i=0):
@@ -948,12 +962,58 @@ def _shape_from_type(prop, ty, src, n=3, off=0):
     return None
 
 
+# A SECOND PROP SET IS DIFFERENT WORDS, NOT A DIFFERENT SHAPE. Rotating a list of ROWS rotates everything
+# in them, including the numbers — and in a list whose order IS its meaning that is not a new topic, it is
+# an invalid board. `VoiceSignal` refuses phases that are not in time order (its own header says so), and at
+# `offset=7` the fixture handed it 0.45, 0.78, 0.15: the register threw, and `prop_reach` recorded it as the
+# one register of 170 it could not measure. A fixture bug wearing a register's name, which is the failure
+# this file already carries three other fixes for.
+#
+# So a row's ORDERED fields stay where they are and only the copy travels. Ordered means: the field is
+# numeric and the column it forms is monotonic in the shape as written — which is a property of the data,
+# not a list of blessed field names, so a register added tomorrow with a `t`/`from`/`step` column gets it.
+_MONOTONIC_MIN = 3
+
+
+def _ordered_cols(rows):
+    """The keys whose column is a monotonic run of numbers across `rows` — the order is the meaning."""
+    if not isinstance(rows, list) or len(rows) < 2 or not all(isinstance(r, dict) for r in rows):
+        return set()
+    out = set()
+    for k in rows[0]:
+        col = [r.get(k) for r in rows]
+        if len(col) < 2 or not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in col):
+            continue
+        if len(rows) >= _MONOTONIC_MIN or len(set(col)) == len(col):
+            if all(a < b for a, b in zip(col, col[1:])) or all(a > b for a, b in zip(col, col[1:])):
+                out.add(k)
+    return out
+
+
+def _rotate_rows(rows, off):
+    """`rows` rotated for its COPY, with every ordered column left in place."""
+    n = len(rows)
+    if not n:
+        return rows
+    keep = _ordered_cols(rows)
+    k = _turn(n, off)
+    turned = rows[k:] + rows[:k]
+    if not keep:
+        return turned
+    return [{**r, **{k: rows[i][k] for k in keep if k in rows[i]}} for i, r in enumerate(turned)]
+
+
 def _shape_array(prop, ty, off=0):
     """`off` rotates the fixed lists the same way the role pools rotate, so a second prop set really is
     different copy rather than the same list twice — see cjk_props(offset=)."""
     def _rot(seq):
         seq = list(seq)
-        return seq[off % len(seq):] + seq[:off % len(seq)] if seq else seq
+        if not seq:
+            return seq
+        if all(isinstance(r, dict) for r in seq):
+            return _rotate_rows(seq, off)
+        k = _turn(len(seq), off)
+        return seq[k:] + seq[:k]
     t = ty.replace(" ", "")
     if prop == "items" and t.startswith("[string,string,string]"):
         return _rot(list(_ITEMS[:3]))                    # a fixed-arity tuple, not an open list

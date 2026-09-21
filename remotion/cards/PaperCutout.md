@@ -12,6 +12,8 @@
 | `tagline` | the line under the diorama, above the caption band | a fixed 40px centred line; a short phrase sits as a caption, a long one runs toward the frame edges |
 
 **Known traps:**
+- The cloud takes the film's PALE end, not `fg`: `mix(dna.fg, dna.bg, k)` is a white cloud on all eight (dark) presets and a black one on a film grounded on paper, and it is high-contrast so no ink gate reports it. On a light film the sky takes a wash of `accent2`, which a cut-paper sky wants anyway, so the pale cloud has something to sit on.
+- `ink_contrast_qa` waives this register's rim by name: a cut-paper layer has no outline by construction, and a cloud that cleared 3:1 against its own sky would be a dark blot. The waiver covers the hole rule only, up to 0.40% of the frame.
 - Omitting the props prints a product demo: `DONE ✓` and "your ai team · on your machine".
 - The tagline used to sit at `bottom: H*0.08`, under the burned caption; it is lifted clear of the band now — keep it one line.
 - Under a DNA the planes are a ramp from the film's accent into its ground and the sun takes `accent2`, so the depth reads in the film's hues; without a DNA it is the warm construction-paper palette.

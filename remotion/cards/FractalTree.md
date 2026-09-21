@@ -14,6 +14,7 @@
 | `blossom` | the colour of about half the blossoms | the other half stay a fixed yellow |
 
 **Known traps:**
+- The wood is walked until it clears the floor against BOTH blossoms AND the page — every surface it is actually drawn on. Naming only the blossoms inverts it: the shared ladder derives its direction from how much room each end has, the exposed blossoms are dark on a light film, so white had more room and the branches came out as a white line on white paper (median 2.01:1, 56% of marks under the floor — worse than the defect being repaired).
 - The tree's shape is fixed — a seeded recursion from a fixed trunk length at a fixed height above the bottom — the same on every film and not scaled to the frame.
 - A tree is a FORM, not a light — dark branches on pale paper is how one is drawn — so on a film that grounds on paper every one of its four hues (branch, leaf twig, and both blossoms) is walked along its own black-to-white axis until it clears the graphics floor. Hue is kept exactly; only the exposure moves, so a film that passes its own `branch`/`blossom` still gets that colour.
 - The title takes the film's ink and the kicker its `dim`; the lit floor the trunk grows out of, and the title's separation shadow, follow the film's own paper on a light film instead of staying near-black.

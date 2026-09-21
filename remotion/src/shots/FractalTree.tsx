@@ -5,8 +5,12 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
-import {useDNA, shade, contrastOf} from '../runtime/dna';
-import {onLight, groundFrom, ACCENT_CONTRAST_MIN} from '../runtime/light';
+import {useDNA, shade} from '../runtime/dna';
+import {ACCENT_CONTRAST_MIN, groundFrom, onLight, readsOn} from '../runtime/light';
+
+// How far the wood may travel toward ink before it stops being wood. The old hand-rolled walk
+// stopped at 0.9 of the way; keeping that number keeps the frame this register was measured on.
+const KEEP_WOOD = 0.9;
 
 export const DURATION = 160; // ~5.3s
 const BG_D0 = '#0b120e';
@@ -41,14 +45,16 @@ export const FractalTree: React.FC<{title?: string; tagline?: string; branch?: s
   // a patch of canopy, not a word. A tree on paper is drawn the way anyone draws one: the branches are the
   // dark LINE and the blossom keeps its colour, so the wood is walked down its own black axis until it
   // clears the graphics floor against BOTH blossoms. Hue is kept; only exposure moves, as above.
-  const apart = (c: string) => {
-    if (!lit) return c;
-    for (let i = 0; i <= 18; i++) {
-      const out = shade(c, (i / 18) * 0.9);
-      if ([BLOSSOM, BLOSSOM2].every((b) => contrastOf(out, b) >= ACCENT_CONTRAST_MIN)) return out;
-    }
-    return shade(c, 0.9);      // the blossoms are as dark as the wood can go: take the darkest wood there is
-  };
+  // AGAINST EVERY SURFACE THE WOOD IS ACTUALLY ON — both blossoms AND the page. This was an eighteen-rung
+  // copy of the ladder in runtime/light.tsx that could only walk toward black, and naming just the blossoms
+  // when it moved onto the shared ladder was enough to invert it: the ladder derives its direction from how
+  // much room each end has, the exposed blossoms are DARK on a light film, so white had more room against
+  // them and the branches walked up to a white line on white paper — measured at a median of 2.01:1 with
+  // 56% of the register's marks under the floor, worse than the defect being repaired. The list has to hold
+  // every surface the mark is drawn on; the direction then falls out of it. `KEEP_WOOD` stops short of pure
+  // ink so the branches stay wood rather than becoming a black line.
+  const apart = (c: string) =>
+    (lit ? readsOn(c, [BLOSSOM, BLOSSOM2, lit.bg], ACCENT_CONTRAST_MIN, KEEP_WOOD) : c);
   const BRANCH = apart(litHue(BR)), LEAF = apart(litHue(LEAF_D0));
   const t = useT();
   const {width: W, height: H} = useVideoConfig();

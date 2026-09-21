@@ -16,8 +16,8 @@
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {useT, lerp, clamp01, seg} from '../runtime/motion';
-import {useDNA, tint, contrastOf} from '../runtime/dna';
-import {ACCENT_CONTRAST_MIN} from '../runtime/light';
+import {useDNA, tint} from '../runtime/dna';
+import {ACCENT_CONTRAST_MIN, readsOn} from '../runtime/light';
 
 export const DURATION = 180; // 6s
 
@@ -44,7 +44,9 @@ export const MRIPipeline: React.FC<{src?: string; accent?: string; accent2?: str
   // and on the box's night that is the same disappearance one layer in — so the gradient lines and the
   // k-space dots are lifted until they clear the non-text floor against the box. With no DNA both literals
   // are far clear of it and pass through unchanged. (Same lift as KSpaceAnatomy's rings in its k-space panel.)
-  const inBox = (c: string) => (contrastOf(c, BOX) >= ACCENT_CONTRAST_MIN ? c : tint(c, 0.6));
+  // A LADDER, NOT ONE FIXED STEP. `tint(c, 0.6)` cleared 3:1 by landing at 8.45:1 and washing a dark
+  // accent's saturation out on the way; the shared ladder stops at the first rung that reads.
+  const inBox = (c: string) => readsOn(c, BOX, ACCENT_CONTRAST_MIN);
   const names = ['signal', 'encoding', 'k-space', 'image'];
   const n = names.length, box = Math.min(W * 0.17, H * 0.34), gap = (W - n * box) / (n + 1);
   const cy = H * 0.5 - 8;

@@ -11,6 +11,8 @@
 | `label` | the word on the burst | fixed 130px in a 400px box, with balanced wrapping and no fit. One short exclamation (`DONE!`) is the look; anything longer wraps into several giant lines around the burst |
 
 **Known traps:**
+- A daylight cartoon cannot be drawn with a night palette. The cloud and the paper sheets were `mix(dna.fg, dna.bg, k)` — "mostly ink, a little ground", which is white on all eight (dark) presets and BLACK on a film grounded on paper. It is high-contrast, so no ink gate reports it; it was found by reading the register. Both now take the film's PALE end (`runtime/light.paleEnd`), and on a light film the sky takes a wash of the accent so there is room above it for a white cloud to sit.
+- The clouds are outlined like every other shape here. Drawn bare on a pale sky they were the one shape a reader had to find rather than see; the outline is a silhouette UNDER the fills, because stroking three overlapping ellipses puts arcs through the cloud's middle.
 - The robot, the papers and the "cleared" story are always drawn, so whatever the label says, the frame shows a helper finishing paperwork. Only `label` is the film's.
 - `label` defaults to `DONE!`, a completion claim that prints on any film that omits the label.
 - Latin punch leading (0.9) made two wrapped Chinese lines crash into each other. The leading rises for CJK only.

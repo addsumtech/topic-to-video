@@ -173,6 +173,30 @@ export const darkGround = (filmBg?: string | null, own = '#0a0b12'): string => {
  *  read rather than a guess. Total: no DNA means no re-grounding, which is the dark library default. */
 export const onLight = (dna: DesignDNA | null): boolean => !!dna && keyOf(dna) === 'light';
 
+/** THE FILM'S OWN PALE END, and its deep one — whichever of the two colours the film DECLARED measures
+ *  lighter, and whichever measures darker.
+ *
+ *  `fg` is not the light end. It is on all eight shipped presets, because all eight are dark, and a register
+ *  that wants a near-white object reaches for it and is right a hundred times: `mix(dna.fg, dna.bg, 0.16)`
+ *  is "mostly ink, a little ground", which on a dark film is a white cloud. On a film grounded on paper the
+ *  same expression is a BLACK cloud in a pale sky, and it is high-contrast, so no ink gate can see it —
+ *  `CartoonPop` drew a daylight cartoon with a night palette and measured perfectly (found by reading, not
+ *  by measuring, 2026-09-21). Asking for the END instead of the token says what the register meant.
+ *
+ *  Neither introduces a hue the film has not named, which is the same rule `inkOn` follows one token over.
+ *  With no DNA the caller's own original literal comes back, so an un-themed render is unchanged. */
+const ends = (dna: DesignDNA | null): [string, string] | null => {
+  if (!dna) return null;
+  const b = lumValue(dna.bg), f = lumValue(dna.fg);
+  // A COLOUR THIS FILE CANNOT MEASURE IS NOT A GUESS TO MAKE. `?? 0` would call an unreadable ground dark
+  // and hand back `fg` as the pale end, which is the very mistake this pair exists to stop; the caller's own
+  // literal is the honest answer.
+  if (b === null || f === null) return null;
+  return b >= f ? [dna.bg, dna.fg] : [dna.fg, dna.bg];
+};
+export const paleEnd = (dna: DesignDNA | null, fallback: string): string => ends(dna)?.[0] ?? fallback;
+export const deepEnd = (dna: DesignDNA | null, fallback: string): string => ends(dna)?.[1] ?? fallback;
+
 /** The pure ink that MEASURES more on this ground — white's relative luminance is 1 and black's is 0 by
  *  definition, so the comparison needs no lookup. Every exposure ladder walks toward this end, and every
  *  ladder therefore terminates: the worse case over all grounds is Y=0.179, where the better pure ink still
@@ -188,17 +212,73 @@ const purest = (groundY: number): string => (contrast(1, groundY) >= contrast(0,
  *  between the two pure inks is at Y=0.179, so on any ground in between the ladder climbed toward the
  *  WEAKER ink and stopped at its own fallback. Measured on #999999 (Y=0.319): every accent landed on
  *  #ffffff at 2.85:1, under this file's own 3.0 floor, on a ground where black measures 7.4:1. */
-const exposeTo = (c: string, groundY: number, floor: number): string => {
+export const LADDER_STEPS = 24;
+
+/** How far a mark whose HUE is the claim may travel toward pure ink. Past about three quarters a red is no
+ *  longer read as red, and `readsOn(..., KEEP_HUE)` stops there rather than printing "unusable" in black. */
+export const KEEP_HUE = 0.75;
+
+/** THE ONE LADDER. Walk a colour along its own black-white axis until it clears `floor` against EVERY
+ *  surface in `surfaceYs`, and answer in at most `LADDER_STEPS` rungs so the result is identical on every
+ *  machine and every frame.
+ *
+ *  It is one function because it was four. Registers that needed "deepen this until it reads on that" each
+ *  wrote their own — `GFactorNoise` a 12-rung walk capped at 0.75, `FractalTree` an 18-rung walk capped at
+ *  0.9 against two surfaces, `KSpaceAnatomy` a single fixed `tint(c, 0.6)` that overshoots 3:1 to 8.45:1
+ *  and washes a dark accent out — and this file's own `exposeTo` was a fifth, private, so nobody could
+ *  reach it. Four ladders are four different answers to one question, and the register that gets the
+ *  question right is the one whose author happened to measure that day.
+ *
+ *  WHICH WAY IT WALKS is derived, not named. Going dark, the worst case is the DARKEST surface; going
+ *  light, the LIGHTEST. So the direction is whichever END can actually reach further, which for a single
+ *  surface is exactly `purest` and for a band is the only correct generalisation of it. (Reading the
+ *  ground's KEY instead climbs toward the weaker ink on any ground between Y=0.179 and the 0.35 key
+ *  boundary — measured on #999999, every accent landed on #ffffff at 2.85:1 where black measures 7.4:1.)
+ *
+ *  It terminates by construction: the worse case over all grounds is Y=0.179, where the better pure ink
+ *  still measures 4.58:1, above every floor in this file. A colour that cannot clear the floor even so
+ *  comes back as the furthest rung `keep` allows — pure ink when `keep` is 1, which is this file's house
+ *  rule (visible beats in-palette), and a still-recognisable hue when the caller says the hue is the claim.
+ *
+ *  Anything unparseable passes through, which is this codebase's house rule for colour helpers (dna.tsx
+ *  `mix`), and `keep <= 0` means the caller asked for the colour not to move, so it does not. */
+const ladderTo = (c: string, surfaceYs: readonly number[], floor: number, keep: number): string => {
   const y = lumValue(c);
-  if (y === null || contrast(y, groundY) >= floor) return c;
-  const toward = purest(groundY);
-  for (let i = 1; i <= 24; i++) {
-    const out = mix(c, toward, i / 24);
+  if (y === null || !surfaceYs.length || keep <= 0) return c;
+  const clears = (v: number) => surfaceYs.every((s) => contrast(v, s) >= floor);
+  if (clears(y)) return c;
+  const lo = Math.min(...surfaceYs), hi = Math.max(...surfaceYs);
+  const toward = contrast(1, hi) >= contrast(0, lo) ? '#ffffff' : '#000000';
+  const reach = Math.min(1, keep);
+  for (let i = 1; i <= LADDER_STEPS; i++) {
+    const out = mix(c, toward, (reach * i) / LADDER_STEPS);
     const oy = lumValue(out);
-    if (oy !== null && contrast(oy, groundY) >= floor) return out;
+    if (oy !== null && clears(oy)) return out;
   }
-  return toward;   // a colour that cannot clear the floor at all becomes ink — visible beats in-palette
+  return reach >= 1 ? toward : mix(c, toward, reach);
 };
+
+/** `ladderTo` as a REGISTER sees the question: a colour, the surface or surfaces it is drawn on, and the
+ *  floor it has to clear there. Pass `KEEP_HUE` as `keep` when the colour IS the meaning — a warn red, an
+ *  element's CPK colour, a brand hue — so it comes back deepened rather than as black.
+ *
+ *  Several surfaces answer "what does a mark that straddles two things have to clear", which is the shape
+ *  `FractalTree` needed: its wood crosses both blossoms, and a floor against the page alone left twigs at
+ *  1.06:1 against the blossom sitting on them. A contrast ratio is blind to hue, so exposing everything to
+ *  one floor against the GROUND can land a whole palette on one luminance and stop it separating from
+ *  itself. */
+export const readsOn = (c: string, against: string | readonly string[],
+                        floor: number = ACCENT_CONTRAST_MIN, keep = 1): string => {
+  const list = typeof against === 'string' ? [against] : against;
+  const ys: number[] = [];
+  for (const s of list) {
+    const y = lumValue(s);
+    if (y !== null) ys.push(y);
+  }
+  return ladderTo(c, ys, floor, keep);
+};
+
+const exposeTo = (c: string, groundY: number, floor: number): string => ladderTo(c, [groundY], floor, 1);
 const expose = (c: string, groundY: number): string => exposeTo(c, groundY, ACCENT_CONTRAST_MIN);
 
 /** Whichever of the film's own two inks reads better on this ground — verbatim when one of them reads, and

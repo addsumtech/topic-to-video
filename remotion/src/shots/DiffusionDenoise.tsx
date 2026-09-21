@@ -5,8 +5,8 @@
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, hash01} from '../runtime/motion';
-import {useDNA, contrastOf, tint} from '../runtime/dna';
-import {onLight, ACCENT_CONTRAST_MIN} from '../runtime/light';
+import {useDNA, tint} from '../runtime/dna';
+import {onLight, readsOn, ACCENT_CONTRAST_MIN} from '../runtime/light';
 import {bottomInset, fitContentSquare} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
@@ -50,7 +50,10 @@ export const DiffusionDenoise: React.FC<{src?: string; accent?: string; label?: 
   const plateGround = plateBg ?? dna?.bg ?? '#05060a';
   // half the speckle is the accent, and it is speckle ON that night: a light film's accent is picked to
   // read on paper, so on the plate it is lifted until it reads there instead.
-  const grainAccent = contrastOf(accent, plateGround) >= ACCENT_CONTRAST_MIN ? accent : tint(accent, 0.6);
+  // A LADDER, NOT ONE FIXED STEP. A fixed `tint(c, 0.6)` clears 3:1 by overshooting it — measured at
+  // 8.45:1 one register over — and washes a dark accent's saturation out on the way there. The shared
+  // ladder stops at the first rung that reads against this plate (runtime/light.tsx `readsOn`).
+  const grainAccent = readsOn(accent, plateGround, ACCENT_CONTRAST_MIN);
   const {S, left, top} = fitContentSquare(W, H, {hFrac: 0.85, wFrac: 0.4, bottomReserve: 66});  // leaves room for the ticks + label below
   const clean = clamp01(seg(t, 0.12, 0.86));                 // noise → image
   const noiseOp = 1 - clean;

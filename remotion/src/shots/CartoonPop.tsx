@@ -8,6 +8,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {leading} from '../runtime/cjkType';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA, dnaPalette, mix, pilL, tint, shade} from '../runtime/dna';
+import {paleEnd, onLight} from '../runtime/light';
 
 export const DURATION = 155; // ~5.2s
 // LEVEL-C: cel-shading is a TECHNIQUE (thick ink outlines, flat fills, hard offset shadows, squash-&-stretch),
@@ -47,10 +48,21 @@ export const CartoonPop: React.FC<{label?: string}> = ({label = 'DONE!'} = {}) =
   // is not — a dark screen under a light outline, a pale one under a dark outline — by the same 0.72,
   // mirrored, so every dark preset renders exactly what it rendered before.
   const FACE = dna ? (pilL(OUTLINE) > 0.5 ? shade(BODY, 0.72) : tint(BODY, 0.72)) : FACE0;
-  const SKYFILL = dna?.bgGrad ?? dna?.bg ?? (dna ? dna.bg : null) ?? `linear-gradient(${SKY0}, #b9e4ff)`;
-  const CLOUD = dna ? mix(dna.fg, dna.bg, 0.16) : '#ffffff';
+  // A DAYLIGHT CARTOON CANNOT BE DRAWN WITH A NIGHT PALETTE. `mix(dna.fg, dna.bg, k)` is "mostly ink, a
+  // little ground" — a white cloud and a white sheet on all eight presets, which are all dark, and a BLACK
+  // cloud and a black sheet on a film grounded on paper. It is high-contrast, so no ink gate can see it;
+  // this was found by reading the register, not by measuring it. What both wanted is the film's PALE end.
+  //
+  // AND A CLOUD NEEDS ROOM ABOVE THE SKY. If the sky is the film's own paper there is nothing lighter left
+  // to draw a cloud in, so on a light film the sky takes a wash of the film's accent — which is what a
+  // cartoon sky is anyway — leaving the pale end free for the cloud and the sheets to sit on it.
+  const PALE = paleEnd(dna, '#ffffff');
+  const SKYFILL = dna?.bgGrad ?? (dna && onLight(dna)
+    ? `linear-gradient(${mix(dna.bg, dna.accent, 0.30)}, ${mix(dna.bg, dna.accent, 0.12)})`
+    : dna?.bg) ?? `linear-gradient(${SKY0}, #b9e4ff)`;
+  const CLOUD = dna ? mix(PALE, dna.bg, 0.16) : '#ffffff';
   const GRASS = dna ? mix(BODY, dna.bg, 0.62) : '#a7e17f';   // the ground plane recedes toward the film's ground
-  const PAPER = dna ? mix(dna.fg, dna.bg, 0.12) : '#fffdf5', RULE = dna?.dim ?? '#c9ccd6';
+  const PAPER = dna ? mix(PALE, dna.bg, 0.12) : '#fffdf5', RULE = dna?.dim ?? '#c9ccd6';
   const CONF = P ?? CONF0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
@@ -79,10 +91,22 @@ export const CartoonPop: React.FC<{label?: string}> = ({label = 'DONE!'} = {}) =
           const dx = (t * 60 * (i + 1)) % (W + 400) - 200;
           const x = (c.x + dx) % (W + 400) - 100;
           return (
+            // OUTLINED LIKE EVERYTHING ELSE IN THIS REGISTER. The sun, the grass, the sheets, the poof
+            // and the burst all carry an 8px `OUTLINE`; only the clouds did not, and on a pale sky a pale
+            // cloud with no edge is the one shape here a reader has to find rather than see. Drawn as a
+            // silhouette UNDER the fills — three stroked ellipses would put arcs through the cloud's
+            // middle, which is why they were bare in the first place.
             <g key={i} transform={`translate(${x},${c.y}) scale(${c.s})`}>
-              <ellipse cx={0} cy={0} rx={110} ry={44} fill={CLOUD} />
-              <ellipse cx={70} cy={10} rx={70} ry={40} fill={CLOUD} />
-              <ellipse cx={-70} cy={12} rx={64} ry={36} fill={CLOUD} />
+              <g fill={OUTLINE}>
+                <ellipse cx={0} cy={0} rx={114} ry={48} />
+                <ellipse cx={70} cy={10} rx={74} ry={44} />
+                <ellipse cx={-70} cy={12} rx={68} ry={40} />
+              </g>
+              <g fill={CLOUD}>
+                <ellipse cx={0} cy={0} rx={110} ry={44} />
+                <ellipse cx={70} cy={10} rx={70} ry={40} />
+                <ellipse cx={-70} cy={12} rx={64} ry={36} />
+              </g>
             </g>
           );
         })}

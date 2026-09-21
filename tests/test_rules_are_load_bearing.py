@@ -2001,6 +2001,9 @@ def _probe_a_waiver_forgives_only_what_it_names(mod):
     ok = {"ink": 20000, "under": 5200, "share": 0.26, "median": 4.15, "worst": 1.2, "hole": 0.0103}
     assert not mod.is_finding(ok, "RansomZine"), "the waiver does not apply to the register it names"
     assert mod.is_finding(ok, "SomeOtherRegister"), "the waiver is forgiving registers it never named"
+    assert len(mod.RIM_WAIVED) <= 4, \
+        "the waiver list is growing into a habit — %d entries. Each one must name a form that CANNOT draw "\
+        "the edge, with the number measured the day it was written." % len(mod.RIM_WAIVED)
     ceiling = mod.RIM_WAIVED["RansomZine"][0]
     assert mod.is_finding(dict(ok, hole=ceiling * 1.3), "RansomZine"), \
         "a waived register that got worse than its own ceiling is still silent"

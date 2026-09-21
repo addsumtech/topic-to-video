@@ -1693,11 +1693,38 @@ def test_no_shot_falls_back_past_the_dna_background():
             # ...and it must still hand the film's own ground in, or a DARK film stops reaching it either
             assert re.search(r"darkGround\(\s*dna\?\.bg", src), os.path.basename(f)
             continue
-        # every bgGrad read must be followed by a dna lookup, not straight to a literal/constant
-        if re.search(r"dna\?\.bgGrad \?\? (?!dna)", src):
-            bad.append(os.path.basename(f))
+        # every bgGrad read must reach the film's own `bg` before any literal — WITHIN ITS OWN STATEMENT,
+        # not on the very next token. This was `?? (?!dna)`, which asks that `dna` be the next word, and
+        # that is a stricter claim than the rule: a register may legitimately DERIVE its ground from
+        # `dna.bg` (a sky lifted toward the accent, so a white cloud has something to sit on) and still
+        # honour the chain. Narrowing the window to the statement keeps the original defect caught and
+        # stops the guard dictating the expression's shape.
+        # ...and the names of the consts that ARE the film's ground, so the rule sees what a reader sees:
+        # `const BG = dna?.bg ?? BG_D0` then `...${BG} 78%)` honours the chain exactly as writing it out
+        # does. Without this the check can only be passed by one spelling, which is a guard dictating style.
+        via = set(re.findall(r"const\s+(\w+)\s*=\s*dna\??\.bg\b", src))
+        for m in re.finditer(r"dna\?\.bgGrad\s*\?\?", src):
+            tail = src[m.end():]
+            stmt = tail[:tail.index(";")] if ";" in tail else tail
+            names = set(re.findall(r"[A-Za-z_]\w*", stmt))
+            if not re.search(r"dna\??\.bg\b", stmt) and not (via & names):
+                bad.append(os.path.basename(f))
+                break
     assert not bad, ("these registers skip dna.bg and paint their own ground, so a DNA without the "
                      "optional bgGrad is ignored: %s" % ", ".join(bad))
+    # ...and the widened window must still bite on the defect it was written for
+    for defect in ("dna?.bgGrad ?? '#0b0f2a';", "dna?.bgGrad ?? (lit ? GRAD0 : NIGHT0);"):
+        assert not re.search(r"dna\??\.bg\b", defect[defect.index("??") + 2:]), \
+            "the guard stopped catching %r" % defect
+    for ok in ("dna?.bgGrad ?? dna?.bg ?? GRAD0;",
+               "dna?.bgGrad ?? (dna && lit ? wash(dna.bg) : dna?.bg) ?? GRAD0;"):
+        assert re.search(r"dna\??\.bg\b", ok[ok.index("??") + 2:]), \
+            "the guard now refuses a legitimate chain: %r" % ok
+    # AND IT MUST NOT BE SKIPPABLE BY A LINE BREAK. `dna\?\.bgGrad \?\? ` required a literal space, so a
+    # ground written across two lines — which is how a long gradient is written — was never examined at all:
+    # `TerrainFly` went unchecked from the day it was repaired until this window was widened.
+    assert re.search(r"dna\?\.bgGrad\s*\?\?", "dna?.bgGrad ??\n      `linear-gradient(...)`"), \
+        "a ground split across two lines is invisible to this guard again"
     assert not lonely, ("the declaration and the mechanism must travel together, or one of them is a "
                         "claim nothing checks: %s" % "; ".join(lonely))
 

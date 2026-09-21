@@ -7,8 +7,8 @@
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
-import {useDNA, contrastOf, tint} from '../runtime/dna';
-import {onLight, ACCENT_CONTRAST_MIN} from '../runtime/light';
+import {useDNA, tint} from '../runtime/dna';
+import {ACCENT_CONTRAST_MIN, onLight, readsOn} from '../runtime/light';
 import {CONTENT_TOP, bottomInset, contentBottom} from '../runtime/layout';
 
 export const DURATION = 175; // ~5.8s
@@ -59,7 +59,7 @@ export const KSpaceAnatomy: React.FC<{srcK?: string; srcLow?: string; srcHigh?: 
   // a light film's accent is chosen to read on paper, which on the panel is the same disappearance one
   // layer in. The mapping arrows are not here — they spend most of their length on the film's ground.
   const ringInk = (c: string) =>
-    (contrastOf(c, plateGround) >= ACCENT_CONTRAST_MIN ? c : tint(c, 0.6));
+    readsOn(c, plateGround, ACCENT_CONTRAST_MIN);   // a ladder, not a fixed tint — see runtime/light.tsx
   // phase A (center→contrast) then phase B (edges→detail)
   const pA = clamp01(seg(t, 0.12, 0.34));
   const pB = clamp01(seg(t, 0.5, 0.72));

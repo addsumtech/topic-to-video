@@ -7,6 +7,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack, hash01} from '../runtime/motion';
 import {captionBand} from '../runtime/layout';
 import {useDNA, mix} from '../runtime/dna';
+import {paleEnd, onLight} from '../runtime/light';
 
 export const DURATION = 165; // 5.5s
 
@@ -16,9 +17,15 @@ export const PaperCutout: React.FC<{label?: string; tagline?: string}> = ({label
   // its ground (`plane(f)`), so the diorama keeps its depth logic in the film's hues. Null DNA = the warm original.
   const dna = useDNA();
   const plane = (f: number, fallback: string) => (dna ? mix(dna.accent, dna.bg, f) : fallback);
-  const SKY = dna?.bgGrad ?? dna?.bg ?? 'linear-gradient(#ffe3b8 0%, #ffd0a0 46%, #ffcaa0 60%)';
+  const SKY = dna?.bgGrad ?? (dna && onLight(dna)
+    ? `linear-gradient(${mix(dna.bg, dna.accent2, 0.30)} 0%, ${mix(dna.bg, dna.accent2, 0.14)} 60%)`
+    : dna?.bg) ?? 'linear-gradient(#ffe3b8 0%, #ffd0a0 46%, #ffcaa0 60%)';
   const SUN = dna?.accent2 ?? '#ffb15a';
-  const CLOUD = dna ? mix(dna.fg, dna.bg, 0.18) : '#fff5ea';
+  // The film's PALE end, not `fg`: `mix(dna.fg, dna.bg, k)` is a white cloud on all eight (dark) presets
+  // and a black one on a film grounded on paper — high-contrast, so no ink gate reports it. On a light
+  // film the sky takes a wash of the accent, which a cut-paper sky wants anyway, so the pale cloud has
+  // something to sit on (see CartoonPop, same defect, same day).
+  const CLOUD = dna ? mix(paleEnd(dna, '#fff5ea'), dna.bg, 0.18) : '#fff5ea';
   const CARD = dna?.surface ?? '#fff6e9', CARD_EDGE = dna?.fg ?? '#7d2f2c', CARD_INK = dna?.accent ?? '#b5453f';
   const TAG = dna?.fg ?? '#fff6e9', TAG_SHADOW = dna?.bg ?? '#7d2f2c';
   const t = useT();

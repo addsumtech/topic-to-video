@@ -46,69 +46,64 @@ beats differ). Novel and daring beats a clean taxonomy — reach past the obviou
 
 A user looked at a delivered frame and asked what a sparkline and a sine wave had to do with 路飞 and 哆啦A梦. Nothing: the beat was `BentoReveal` (0.09) with six cells labelled with six characters, and its cell contents are chosen by INDEX. **Below ~0.15 a register draws its own picture: give it a title, not a list of things that must read as different.**
 
-> ### ⚠ THE NUMBERS BELOW WERE MEASURED WITH A BROKEN INSTRUMENT — re-run `prop_reach.py` before citing one
+> ### How this table is measured, and what its own floor is worth
 >
-> `prop_reach` feeds each register through `cjk_type_qa.cjk_props`, and that reader was blind in FOUR ways at
-> the time this table was written. It dropped any prop preceded by a JSDoc comment (the house style for
-> documenting one); it required the props to be declared inline rather than in a named alias; it required
-> `}>` to be adjacent; and it split the declaration on `;` BEFORE removing comments, so a semicolon inside a
-> human explanation — `// top (surface) -> bottom; \`find\` marks the layer` — split mid-sentence and silently
-> swallowed the prop that followed. **24 of 166 registers were handed fewer props than they declare, 79 props
-> lost in all** — `AcceptanceStamp`, `CompanionCard`, `DollyZoom` and `MRIPipeline` were handed NONE,
-> `GrantedTree` 1 of 6, `MadeOf` 1 of 5.
+> Re-measured 2026-09-21 over the WHOLE library after the reader that feeds it was repaired four times
+> and its second prop set twice. The numbers it published before were taken through a `cjk_props` that
+> dropped any prop preceded by a JSDoc comment, required the props inline rather than in a named alias,
+> required `}>` to be adjacent, and split the declaration on `;` before removing comments — 24 of 166
+> registers were handed fewer props than they declare, 79 props lost in all, and the bias runs ONE WAY:
+> a register given fewer words to change can only appear to change LESS, so the error landed exactly on
+> this floor. Then the second prop set was found to rotate a list of ROWS, which rotates the numbers in
+> them: `VoiceSignal` refuses phases out of time order, threw, and was the one register of 170 nothing
+> could measure. And `offset % len` is zero whenever the length divides the offset (it is 2), so every
+> TWO-row list came back unrotated and `ChatThread` was rendered twice with the SAME board and measured
+> at 0.000. All four are repaired and pinned by tests; every number below was taken after them.
 >
-> The bias runs ONE WAY: a register given fewer words to change can only appear to change LESS. So the FLOOR
-> is exactly where the error lands, and eight of the thirty-six entries below — `InOrder`, `LastLeg`, `MadeOf`,
-> `RestsOn`, `PhotoPlate`, `MuseumLabel`, `GrantedTree`, `NeuralField` — are among the twenty-three. Three of
-> the seven "could not be measured" are there because they were fed nothing at all.
->
-> One sentence of this section was not a suspect number but a stated FACT, and it was false: it said `MadeOf`,
-> `InOrder`, `LastLeg` and `RestsOn` are registers "whose only authorable prop is a `kicker`". They declare
-> five, four, five and five. The gate was not describing the registers; it was describing what it could see
-> of them, and the description was published as a property of the library.
+> A register in `_untrusted` is still not a measurement — its two prop sets came out too alike to compare,
+> which for `PageWrite` is a property of the register (its picture is a captured page, not its props).
 
-The floor of the library, lowest first — 36 of 161 registers:
+The floor of the library, lowest first — 35 of 170 registers:
 
 ```
-  PageWrite              0.000
-  InOrder                0.001
-  LastLeg                0.002
-  MadeOf                 0.002
-  RestsOn                0.002
-  PhotoPlate             0.009
-  LiquidFill             0.016
+  PageWrite              0.000   (two prop sets too alike — not a measurement)
+  VersusSplit            0.005   (two prop sets too alike — not a measurement)
+  SpotlightStage         0.009
   RealVersus             0.023
-  MuseumLabel            0.025
   ScanReconstruct        0.025
   GradientTilt           0.030
-  CardFlip3D             0.034
+  CardFlip3D             0.033
   ClayStack              0.042
-  Aliasing               0.044
+  OverlapSeparation      0.043   (two prop sets too alike — not a measurement)
+  Aliasing               0.045
   SharedBlindspot        0.048
-  DataMonolith           0.052
-  CollaborativeCursors   0.060
-  IsoWorld               0.075
-  CrashZoom              0.077
-  GrantedTree            0.085
-  PhysicsStack           0.086
+  EdCompare              0.049   (two prop sets too alike — not a measurement)
+  DataMonolith           0.051
+  LiquidMorph            0.058
+  CardStack3D            0.061
+  InOrder                0.065
+  StateSheet             0.078
+  CrashZoom              0.080
+  PlatformSurfaces       0.083
   SpectrumPulse          0.088
+  IsoWorld               0.091
+  ProfileGrowth          0.091
   PaperCutout            0.093
   LightTrails            0.095
-  PhaseEncodeStep        0.097
-  CardStack3D            0.109
-  FrequencyEncode        0.110
-  NeuralField            0.117
-  FractureIn             0.118
-  SpeedLimit             0.119
-  ClothWave              0.120
-  CartoonPop             0.132
-  RadialBurst            0.132
-  MaterialHero           0.133
-  BentoReveal            0.142
-  ChartRace              0.143
+  PhaseEncodeStep        0.101
+  VelocitySnap           0.104
+  FractureIn             0.106
+  FrequencyEncode        0.109
+  ClothWave              0.122
+  MaterialHero           0.125
+  RadialBurst            0.127
+  CartoonPop             0.131
+  RestsOn                0.131
+  KSpaceToImage          0.133
+  PhysicsStack           0.133
 ```
 
-`_failed / _untrusted` could not be measured (they refuse to draw without a real artefact, or their two prop sets came out too alike to compare): AcceptanceStamp, DollyZoom, EdCompare, LiquidMorph, MRIPipeline, OverlapSeparation, VersusSplit — but see the warning above: `AcceptanceStamp`, `DollyZoom` and `MRIPipeline` are on that list because the reader handed them no props at all, so "its two prop sets came out too alike" was a statement about two IDENTICAL sets. `LiquidMorph` is the one honest entry of the four: it declares `React.FC` with no props, so a film cannot author it at all — which is a finding about the register, not about the instrument.
+`_untrusted` could not be compared — their two prop sets came out too alike: EdCompare, OverlapSeparation, PageWrite, VersusSplit. `PageWrite` is the honest one of the four: its picture is a captured page, so no change of WORDS moves it. `_failed` is empty: every register in the library was rendered twice and read.
 
 ## A · Product-UI / SaaS-film — motion of a working interface
 193. **TaskFold** — beside the companion only the MAIN tasks hold a place; each task's background work shows as rows of its own, then folds up into its parent and leaves the count the film gave; a list longer than the panel scrolls. *Use: a subtraction of slots — only the top level is shown and the rest folds in; "when there are many, it scrolls".* `tasks[{label,state,subtasks}], stateLabels, foldLabel, note, src, visible`

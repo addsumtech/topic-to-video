@@ -113,6 +113,15 @@ RIM_WAIVED = {
                            "read at 4.15:1 and the scraps carry their own drop shadow"),
     "InfiniteCanvas": (0.0085, "pastel sticky notes on cream; the labels read at 9.00:1 and the white hub "
                                "card, which has always drawn a border, is not flagged at all"),
+    # ...and the case where the FORM is low contrast on purpose. A cloud on a sky is not a mark on a page:
+    # it is separated by a tone step and a shadow, the way a real one is and the way cut paper is, and a
+    # cloud that cleared 3:1 against its sky would be a dark blot. Everything flagged here is the rim of the
+    # three paper clouds and of the sun; the card, its type and the tagline read at 5.51:1 median.
+    # `CartoonPop` had the same shapes and is NOT waived — that register outlines every other shape it
+    # draws, so its clouds take the same outline and the rim goes away. A waiver is for a form that cannot
+    # draw the edge, not for one that had not got round to it.
+    "PaperCutout": (0.0040, "cut-paper clouds and a paper sun on a warm paper sky, each carrying its own "
+                            "drop shadow; a cut-paper layer has no outline by construction"),
 }
 # THE SETTLED FRAME IS PER REGISTER, not a constant. A fixed 142 is past the END of every register shorter
 # than 143 frames, and `remotion still` refuses the frame rather than clamping it — so `CrashZoom`,
