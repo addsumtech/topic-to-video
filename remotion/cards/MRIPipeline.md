@@ -17,6 +17,8 @@
 - The stage names (`signal`, `encoding`, `k-space`, `image`) and their pictures are fixed English furniture; no prop changes them.
 - The payoff only exists with `src` — the header's "culminating in the REAL reconstructed MRI" holds only when the film passes an image.
 - The unlit box strokes append an alpha byte to `accent` (`${accent}66`), so a named, rgb() or 3-digit colour gives those outlines an invalid stroke.
-- Only the ground follows the DNA; the box fill and all text are fixed dark/light tints, so a light DNA ground loses the headline. Omitting `label` prints "Always computed".
+- The headline, all four stage names and the three arrows were literals picked for a near-black ground, so on a warm-white film 33.0% of this register's marks measured under 3:1 with a connected hole 0.52% of the frame: four boxes on paper with no names under them and nothing joining them. The median stayed at 16.67:1 only because the boxes themselves are most of the ink and never moved. An arrow is the "→" in "signal → encoding → k-space → image", so it is a claim as much as a word is; all of it reads from the DNA now (`fg` for the headline and the stage names, `accent` for the arrows).
+- The four BOXES are not ink and do not follow the ground: they hold a signal trace, a gradient encode, a k-space lattice and a real MR slice, so they keep their own night, the trace inside box one keeps its literal, and the gradient lines and k-space dots are lifted to read against that night rather than against paper. On a light film the register is four dark boxes on paper by design.
+- Omitting `label` prints "Always computed".
 
 **Reference:** `remotion/src/shots/MRIPipeline.tsx`

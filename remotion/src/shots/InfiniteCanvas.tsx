@@ -21,6 +21,14 @@ export const InfiniteCanvas: React.FC<{hub?: string; items?: string[]}> = ({
   const dna = useDNA();
   const BG = dna?.bg ?? '#f6f4ec', LINE = dna?.line ?? '#d8d2c2', LINE2 = dna?.line ?? '#c9c2b0';
   const SURF = dna?.surface ?? '#ffffff', SURFB = dna?.line ?? '#e3ddcb', FG = dna?.fg ?? '#1b2333';
+  // A STICKY'S EDGE IS DRAWN, LIKE THE HUB'S ALREADY IS. The notes had no border at all — only a drop shadow
+  // — which reads on a dark board and does not on a light one: the six pastels sit within a hair of a warm
+  // white ground, so the note's boundary becomes paper on paper. Measured on a light ground (2026-09-21,
+  // scripts/ink_contrast_qa.py): 29.8% of this register's ink under 3:1, chained into one region 0.80% of
+  // the frame, and all of it note rims — the labels on them read (median 9.00:1), and the hub, which has
+  // carried a border since it was written, is not in the finding. Inset, so the 300×180 note stays 300×180.
+  const NOTEB = dna?.surfaceBorder ?? null;
+  const noteShadow = `${NOTEB ? `inset 0 0 0 1px ${NOTEB}, ` : ''}0 14px 30px rgba(80,70,40,.18)`;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   // a central hub + branches (a project mapped out); positions deterministic on the big world
@@ -58,7 +66,7 @@ export const InfiniteCanvas: React.FC<{hub?: string; items?: string[]}> = ({
           const ap = easeOutBack(clamp01((zt - i * 0.03) / 0.3));
           return <div key={i} style={{position: 'absolute', left: n.x, top: n.y, width: n.w, height: n.h, background: n.c,
             borderRadius: 14, transform: `scale(${clamp01(ap)}) rotate(${(hash01(i + 3) - 0.5) * 6}deg)`, transformOrigin: 'center',
-            boxShadow: '0 14px 30px rgba(80,70,40,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: noteShadow, display: 'flex', alignItems: 'center', justifyContent: 'center',
             font: '700 40px/1.15 var(--f-body, Inter,system-ui,sans-serif)', color: '#3a3320', textAlign: 'center', padding: 20}}>{n.text}</div>;
         })}
         {/* the hub */}

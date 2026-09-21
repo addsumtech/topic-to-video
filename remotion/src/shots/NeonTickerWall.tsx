@@ -11,15 +11,34 @@
 // strip, which is what a ticker is, and it now repeats far enough to fill the strip at any scroll position
 // (a short headline used to leave most of its strip dark, and the reverse-scrolling strips opened a blank gap
 // at the left edge).
+//
+// @dark-world: an LED strip and a neon tube are EMITTED light. A glyph on a ticker is not a colour laid on
+// the panel — it is how brightly that part of the panel is LIT, and the panel is the unlit black between the
+// lamps; the marquee is a tube burning inside its own bloom. Inverted onto paper this is not a wall of
+// signage, it is a diagram of one. So the wall keeps its night on a light film, and the film's hues are
+// exposed against the LED PANEL they are printed on instead of against the film's page.
+//
+// WHY THAT SECOND HALF MATTERS. The night alone was not the repair. The strips' palette already followed the
+// film through `dnaPalette`, and a light film's accents are exposed for paper — which means dark — so the
+// neon arrived as dark type on a black LED panel: `ink_contrast_qa` measured 37.9% of the marks under 3:1, a
+// median of 3.22:1 and a 0.38%-of-frame hole, and the hole was a whole ticker strip whose headline could not
+// be read. The palette is re-grown and re-exposed against the panel, so a strip the flicker dims keeps both
+// its band and its light.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
-import {useDNA, dnaPalette} from '../runtime/dna';
+import {useDNA, dnaPalette, mix} from '../runtime/dna';
+import {darkGround, groundFrom} from '../runtime/light';
 import {contentBottom, textWidthPx} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
-const BG_D0 = '#05060d';
+const OWN_NIGHT = '#05060d';
+const GLOW_D0 = '#0c0f22';        // the city's haze over the middle of the wall
+// The unlit LED panel every ticker is printed on. It is the register's own night furniture, not the film's
+// ground, which is the whole point of the declaration above — and it is what a lamp has to be legible
+// AGAINST, so the exposure floor is measured here and not on the wall behind it.
+const PANEL = '#0a0c18';
 const NEON0 = ['#ff2e88', '#00e5ff', '#ffe14d', '#8b5bff', '#39ff88'];
 export const MAX_TICKERS = 6;
 // the original six strips' speeds and directions, in top-down order for each band
@@ -38,8 +57,22 @@ export const NeonTickerWall: React.FC<{headline?: string; tickers?: string[]; ac
     if (!String(tk ?? '').trim()) throw new Error(`NeonTickerWall: ticker ${i + 1} is empty.`);
   });
   const dna = useDNA();
-  const NEON = dnaPalette(dna, 5) ?? NEON0;   // derive the palette from the film's DNA (null DNA = the original)
-  const BG = dna?.bg ?? BG_D0;
+  // the film's ground while the film grounds on night; this wall's own night when it does not (see header)
+  const night = darkGround(dna?.bg, OWN_NIGHT);
+  // THE LAMPS ARE GROWN AND EXPOSED AGAINST THE WALL, not against the film's page. `dnaPalette` grows its
+  // extra tones by lifting toward the film's own `fg` and pressing toward its own `bg` — which is right when
+  // a register draws on that ground and exactly inverted here: on the light probe the third tone came out
+  // #353c62 — sampled off the probe's own frame — which against this #0a0c18 panel is about 1.8:1, and that
+  // is the strip the gate reported as the hole. Built from the wall's resolved tokens it lifts toward the
+  // wall's ink instead, and then every lamp is walked to the graphics floor against the PANEL it is printed
+  // on, hue kept. Resolved over the eight shipped presets, seven come out byte-identical; `product`'s fourth
+  // tone lifts from about 2.7:1 to just over the floor — a lamp that was under it on a dark film too.
+  const wall = dna ? groundFrom(dna, {bg: night}) : null;
+  const lamp = (c: string) => (dna ? groundFrom(dna, {bg: PANEL, accent: c}).accent : c);
+  const NEON = (dna && wall
+    ? dnaPalette({...dna, bg: wall.bg, fg: wall.fg, accent: wall.accent, accent2: wall.accent2}, 5)?.map(lamp)
+    : null) ?? NEON0;
+  const BG = night;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const flick = (seed: number) => 0.6 + 0.4 * (hash01(seed + Math.floor(t * 12)) > 0.15 ? 1 : 0.3);
@@ -62,7 +95,11 @@ export const NeonTickerWall: React.FC<{headline?: string; tickers?: string[]; ac
     ? {text, y: 90 + i * topPitch, ...TOP_MOTION[i]}
     : {text, y: floor - STRIP_H - (nBot - 1 - (i - nTop)) * botPitch, ...BOTTOM_MOTION[3 - nBot + (i - nTop)]}));
   return (
-    <AbsoluteFill style={{background: `radial-gradient(120% 90% at 50% 46%, #0c0f22, ${BG} 76%)`, overflow: 'hidden'}}>
+    // the haze is derived from the night rather than stamped on it, so a film whose night this is keeps its
+    // own hue in the middle of the wall instead of a blue-black literal painted over it
+    <AbsoluteFill style={{background:
+      `radial-gradient(120% 90% at 50% 46%, ${wall ? mix(night, wall.accent, 0.10) : GLOW_D0}, ${BG} 76%)`,
+      overflow: 'hidden'}}>
       {/* rain of vertical light streaks (buildings) */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0, opacity: 0.5}}>
         {[...Array(24)].map((_, k) => {
@@ -83,7 +120,7 @@ export const NeonTickerWall: React.FC<{headline?: string; tickers?: string[]; ac
         const shift = ((t * s.sp * 420) % 800) * s.dir;
         return (
           <div key={i} style={{position: 'absolute', left: 0, right: 0, top: s.y, height: 64, overflow: 'hidden',
-            background: '#0a0c18', borderTop: `1px solid ${col}55`, borderBottom: `1px solid ${col}55`,
+            background: PANEL, borderTop: `1px solid ${col}55`, borderBottom: `1px solid ${col}55`,
             opacity: flick(i * 3.3)}}>
             <div style={{position: 'absolute', whiteSpace: 'nowrap', top: 10, left: -800, transform: `translateX(${-shift}px)`,
               color: col, font: '800 42px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.06em',

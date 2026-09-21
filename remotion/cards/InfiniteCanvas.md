@@ -15,5 +15,6 @@
 - Leaving the props unset prints the demo board: `Q3 Board Deck` with eight board-deck stickies (`Market scan`, `Financials`, …).
 - The board is a fixed 3600×2200 world and the final framing is on the hub, so the sticky labels are read mainly mid-zoom. Content off the frame is intended (the shot is a viewport over a larger canvas).
 - The pastel stickies and their dark text stay the same on every DNA. Only the canvas, grid, connectors and hub follow it.
+- The stickies had no border at all, only a shadow, and the six pastels sit within a hair of a warm-white ground. Measured 29.8% of the register's ink under 3:1 on a light ground, chained into one region 0.80% of the frame, all of it note rims — the labels on them read at a median 9.00:1, and the hub, which has carried a border since it was written, is not in the finding. Each note now takes a 1px hairline in the DNA's `surfaceBorder`, inset so a 300×180 note stays 300×180.
 
 **Reference:** `remotion/src/shots/InfiniteCanvas.tsx`

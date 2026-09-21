@@ -1,6 +1,8 @@
 // SHOT · Cursor Story — Raycast/Superhuman language: a single HERO cursor drives the whole story, moving
 // with exaggerated easing (+ a motion trail), firing keyboard-shortcut chips, and jump-cutting past loading
-// so a task finishes in a blink. Dark + Raycast-red (a red-accented dark, distinct from the blue/purple).
+// so a task finishes in a blink. An accent-driven UI (Raycast-red with no DNA, the film's own accent with
+// one) on the film's own ground — this is a list of cards, not a lit instrument, so it inverts to a light
+// command palette on a paper film rather than keeping a night of its own.
 //
 // THE ROW THE CURSOR ACTS ON, AND THE ROWS THAT END DONE, ARE THE FILM'S. The hovered row used to be
 // `Math.min(n - 1, Math.floor(seg(t, 0.08, 0.3) * 3))` — which is 3 once the cursor lands, so the red
@@ -18,11 +20,19 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeCursor, easeOutBack, easeOutCubic, clamp01} from '../runtime/motion';
 import {leading} from '../runtime/cjkType';
-import {useDNA} from '../runtime/dna';
+import {useDNA, mix} from '../runtime/dna';
+import {onLight} from '../runtime/light';
 import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 
 export const DURATION = 135; // 4.5s
 const RED_D0 = '#FF6B6B', BG_D0 = '#0d1017';
+// THE UI'S OWN LITERALS, hoisted so a film with no DNA still renders byte-for-byte the Raycast dark it
+// always did. Every one of them is now a fallback behind a DNA token — see the list below.
+const ROW_D0 = '#141922', ROWB_D0 = '#1e2531', ROWINK_D0 = '#d6deea', DOT_D0 = '#3a4658';
+const OK_D0 = '#59d98b', OKDIM_D0 = '#89e0a8';
+const PAL_D0 = 'rgba(20,24,32,.96)', PALINK_D0 = '#eef2f8';
+const TOAST_D0 = '#12241a', TOASTB_D0 = '#1f6b3f';
+const CHIPINK_D0 = '#0d1017';
 
 export type CursorRow = {
   label: string;
@@ -76,7 +86,25 @@ export const CursorStory: React.FC<{items?: (string | CursorRow)[]; target?: num
       'of the row the cursor acts on — or leave it out and the cursor acts on no row.');
   }
   const dna = useDNA();
-  const RED = dna?.accent ?? RED_D0, BG = dna?.bg ?? BG_D0;
+  const RED = dna?.accent ?? RED_D0;
+  // A ROW IS A CARD, AND A CARD NEEDS A FILL OF ITS OWN. Every surface here was a dark literal — the row
+  // #141922, its ink #d6deea — and the SELECTED row was not a surface at all: `${RED}1c`, an 11%-alpha
+  // accent with nothing under it, so the row it painted was whatever the ground happened to be. On a dark
+  // film that is the dark ground and the near-white label reads on it; on a light film it is the paper, and
+  // the label, the dot and the ⌘K were all drawn near-white on near-white. Measured on a light ground
+  // (2026-09-21, scripts/ink_contrast_qa.py): 31.0% of this register's ink under 3:1 in one connected
+  // region 0.47% of the frame — the rest of the list reads at a median 13.00:1 — and that one region is the
+  // row the whole shot is about. The rows take the film's container tokens now, and the selection is mixed
+  // INTO the card's fill at the same 0.11 the `1c` alpha was, so it tints the card instead of cutting a
+  // hole through it.
+  const SURF = dna?.surface ?? ROW_D0, ROWB = dna?.surfaceBorder ?? ROWB_D0, INK = dna?.fg ?? ROWINK_D0;
+  const HI = dna ? mix(SURF, RED, 0.11) : `${RED_D0}1c`;
+  const DOT = dna?.surfaceBorder ?? DOT_D0;   // idle: as quiet against its own card as it always was
+  // GREEN IS THE MEANING — a dot going green is how this register says "that row is finished" — so the hue
+  // is kept and only its EXPOSURE moves, toward whichever ink the film reads with: lighter on a dark card,
+  // deeper on a light one, far enough that it still separates from the palest card a film can hand it.
+  const OK = dna ? mix(OK_D0, dna.fg, 0.45) : OK_D0;
+  const OKDIM = dna ? mix(OK, dna.fg, 0.35) : OKDIM_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const kCmd = t > 0.3 && t < 0.44;      // ⌘K chip
@@ -107,23 +135,34 @@ export const CursorStory: React.FC<{items?: (string | CursorRow)[]; target?: num
     : [[W * 0.5, H * 0.8], [LX * 0.5, LY + (n * ROW_H) / 2], [LX * 0.5, LY + (n * ROW_H) / 2], [LX * 0.5, LY + (n * ROW_H) / 2 + ROW_H * 0.3]];
   const [cx, cy] = cursorAt(t, pts);
   return (
-    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 40% 20%, #161b26, ${BG} 60%)`}}>
+    // THE WELL'S INNER STOP FOLLOWED NOTHING. Only the OUTER stop of this radial read the DNA, so a film
+    // grounded on warm white got a near-black pool sitting over the top-left of its own paper — and the
+    // selected row, which has no fill of its own, was lit by that pool rather than by the film. The film's
+    // treatment first, its flat ground next, and the original two-stop well only when there is no DNA at
+    // all (the house pattern, same as HudReticle and GearTrain).
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg
+        ?? `radial-gradient(120% 100% at 40% 20%, #161b26, ${BG_D0} 60%)`}}>
       {/* the list UI */}
       <div style={{position: 'absolute', left: LX, top: LY, width: listW, opacity: paletteOn ? 0.35 : 1, transition: 'none'}}>
         {ROWS.map((r, i) => (
           <div key={i} style={{display: 'flex', alignItems: 'center', gap: 22, padding: `${PADY}px 30px`, borderRadius: 12,
-            marginBottom: MARGIN, background: i === hi ? `${RED}1c` : '#141922', border: `1px solid ${i === hi ? RED : '#1e2531'}`}}>
-            <div style={{width: 14, height: 14, borderRadius: 7, background: rows[i].done && t > 0.6 ? '#59d98b' : '#3a4658'}} />
-            <div style={{font: '600 40px/1 var(--f-body, Inter,system-ui,sans-serif)', color: '#d6deea'}}>{r}</div>
+            marginBottom: MARGIN, background: i === hi ? HI : SURF, border: `1px solid ${i === hi ? RED : ROWB}`}}>
+            <div style={{width: 14, height: 14, borderRadius: 7, background: rows[i].done && t > 0.6 ? OK : DOT}} />
+            <div style={{font: '600 40px/1 var(--f-body, Inter,system-ui,sans-serif)', color: INK}}>{r}</div>
             {i === hi && <div style={{marginLeft: 'auto', font: '700 26px/1 var(--f-body, Inter)', color: RED}}>⌘K</div>}
           </div>
         ))}
       </div>
       {/* command palette that jump-cuts in */}
       {paletteOn && (
-        <div style={{position: 'absolute', left: W / 2 - Math.min(460, W * 0.44), top: 300, width: Math.min(920, W * 0.88), background: 'rgba(20,24,32,.96)',
-          border: `1px solid ${RED}55`, borderRadius: 18, boxShadow: '0 40px 100px rgba(0,0,0,.6)', padding: '30px 36px'}}>
-          <div style={{font: '500 42px/1 var(--f-body, Inter)', color: '#eef2f8'}}>{CMD}{'\u258d'}</div>
+        // ...AND THE PALETTE IS THE SAME CARD AS THE ROWS. It is half of this register's surface area and was
+        // the same pair of dark literals, so repairing the list alone would ship a light list under a dark
+        // palette on the same film. Its lift is scaled too: `0 40px 100px rgba(0,0,0,.6)` is depth in a void
+        // and a grey smear a third of a frame wide on paper.
+        <div style={{position: 'absolute', left: W / 2 - Math.min(460, W * 0.44), top: 300, width: Math.min(920, W * 0.88), background: dna?.surface ?? PAL_D0,
+          border: `1px solid ${dna ? mix(SURF, RED, 0.33) : `${RED_D0}55`}`, borderRadius: 18,
+          boxShadow: onLight(dna) ? '0 20px 50px rgba(40,34,24,.18)' : '0 40px 100px rgba(0,0,0,.6)', padding: '30px 36px'}}>
+          <div style={{font: '500 42px/1 var(--f-body, Inter)', color: dna?.fg ?? PALINK_D0}}>{CMD}{'\u258d'}</div>
         </div>
       )}
       {/* result toast after Return (jump-cut past the work) */}
@@ -134,19 +173,23 @@ export const CursorStory: React.FC<{items?: (string | CursorRow)[]; target?: num
           it, and it is not a ground, so the luminance ones are too. It took looking at a still. */}
       {done && (DONE || DONE_NOTE) && (
         <div style={{position: 'absolute', left: W / 2 - 300, top: 340, width: 600, opacity: easeOutBack(seg(t, 0.74, 0.86)),
-          background: '#12241a', border: '1px solid #1f6b3f', borderRadius: 16, padding: '34px 40px', textAlign: 'center'}}>
+          background: dna ? mix(SURF, OK, 0.14) : TOAST_D0, border: `1px solid ${dna ? mix(SURF, OK, 0.55) : TOASTB_D0}`,
+          borderRadius: 16, padding: '34px 40px', textAlign: 'center'}}>
           {/* THE RESULT LINE COMES FROM THE FILM. These two were literals — `Cleared · 6 tasks` and
               `in one keystroke` — so every film that reached for this register printed English, and the
               「6」 was a count nobody supplied. No default on doneLabel: a number is not invented, so with
               nothing passed the block simply does not draw. */}
-          {DONE ? <div style={{font: '800 60px/1 var(--f-body, Inter)', color: '#59d98b'}}>{DONE}</div> : null}
-          {DONE_NOTE ? <div style={{font: `600 32px/${leading(DONE_NOTE, 1)} var(--f-body, Inter)`, color: '#89e0a8', marginTop: 12}}>{DONE_NOTE}</div> : null}
+          {DONE ? <div style={{font: '800 60px/1 var(--f-body, Inter)', color: OK}}>{DONE}</div> : null}
+          {DONE_NOTE ? <div style={{font: `600 32px/${leading(DONE_NOTE, 1)} var(--f-body, Inter)`, color: OKDIM, marginTop: 12}}>{DONE_NOTE}</div> : null}
         </div>
       )}
       {/* keyboard chips */}
-      {kCmd && <KeyChip x={cx + 40} y={cy - 10} label="⌘K" c={RED} />}
-      {kEnter && <KeyChip x={cx + 40} y={cy - 10} label="↵" c={RED} />}
-      {/* the hero cursor (no ghost trail — a discrete ghost reads as a render artifact, not speed) */}
+      {kCmd && <KeyChip x={cx + 40} y={cy - 10} label="⌘K" c={RED} ink={dna?.onAccent ?? CHIPINK_D0} />}
+      {kEnter && <KeyChip x={cx + 40} y={cy - 10} label="↵" c={RED} ink={dna?.onAccent ?? CHIPINK_D0} />}
+      {/* the hero cursor (no ghost trail — a discrete ghost reads as a render artifact, not speed). It keeps
+          its literal white-with-a-dark-outline: a pointer is not the film's ink, it is the one piece of the
+          operating system on screen, and it is drawn that way on every ground there is — the outline is what
+          carries it on paper, which is why it is not in the finding. */}
       <Pointer x={cx} y={cy} op={1} />
     </AbsoluteFill>
   );
@@ -157,8 +200,11 @@ const Pointer: React.FC<{x: number; y: number; op: number}> = ({x, y, op}) => (
     <svg width="34" height="40" viewBox="0 0 22 26"><path d="M2,2 L2,22 L7,17 L10,24 L13,23 L10,16 L17,16 Z" fill="#fff" stroke="#0d1017" strokeWidth="1.4" strokeLinejoin="round" /></svg>
   </div>
 );
-const KeyChip: React.FC<{x: number; y: number; label: string; c: string}> = ({x, y, label, c}) => (
+// The chip is a filled accent, so its glyph is ink ON an accent — `dna.onAccent`, which the film has
+// already picked against the accent it will actually paint. It was the literal near-black `#0d1017`, which
+// is a correct guess only while the accent is light.
+const KeyChip: React.FC<{x: number; y: number; label: string; c: string; ink: string}> = ({x, y, label, c, ink}) => (
   <div style={{position: 'absolute', left: x, top: y, padding: '10px 20px', borderRadius: 10, background: c,
-    color: '#0d1017', font: '800 34px/1 var(--f-body, Inter,system-ui,sans-serif)', boxShadow: '0 8px 20px rgba(0,0,0,.5)'}}>{label}</div>
+    color: ink, font: '800 34px/1 var(--f-body, Inter,system-ui,sans-serif)', boxShadow: '0 8px 20px rgba(0,0,0,.5)'}}>{label}</div>
 );
 export default CursorStory;

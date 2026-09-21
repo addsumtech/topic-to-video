@@ -16,7 +16,9 @@
 - Omitting props prints the demo `Wired together`, `CORE`, `IN`, `MEM`, `I/O`, `NET`, `PWR`.
 - A Chinese node name used to wrap out of its pad, and the lowest label landed 90px in the caption band at 1:1. It's now fitted, and the ring yields.
 - Pads in the same half of the ring route their L-traces along a shared vertical, so at six nodes the upper and lower side pads read as one bus into the chip.
-- The copper and signal greens are fixed; only the ground follows the DNA. The pad grid is a fixed 28×16 array laid out for 1920×1080.
+- The copper and signal greens keep their hue on every ground, but anything drawn straight onto the film's ground — the traces, the pad grid, the chip's pins, the signal dots, and the pad and chip edges — is exposed for it on a light film, and the traces are drawn nearly solid there rather than at half alpha. The pad grid is a fixed 28×16 array laid out for 1920×1080.
+- Most of this register already reads on paper: measured on a light film the median mark is 11.79:1, because the pads and the chip carry their own dark board under mint type, and those fills are left alone. What failed was the title (a fixed pale mint on the bare ground, now the film's ink) and the copper on the page.
+- The mint glows — the chip's outer bloom, the pads' halo, the pulse's — are dark-ground devices and are dropped on a light film. On paper the chip's bloom was a pale wash that the gate was reading the chip's own rim against.
 
 **Refuses:** no `nodes`, or more than six (a seventh trace finishes drawing just as the pulses stop, so its signal never reaches the chip — group the parts or use a graph register); an empty node name.
 

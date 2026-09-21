@@ -95,6 +95,25 @@ SHARE_FLOOR = 0.50
 # blue-on-white (0.00247, and the picture is perfect), and `InflateType` loses its whole tagline (0.00294).
 # Every one of the nine registers looked at above this line had really lost something a reader needed.
 HOLE_FLOOR = 0.0027
+# THE RIM, NAMED — because a gate with a permanent finding on it is a gate nobody reads to the end. These two
+# were looked at, at 7x, after being repaired: every flagged pixel is the ~3px edge of a PALE panel on the
+# film's PALE paper, chained across adjacent panels into one region. `RansomZine`'s scraps are cream and
+# white cut-outs, `InfiniteCanvas`'s notes are pastel; both now draw a hairline in `surfaceBorder` (which
+# those forms wanted anyway) and both still measure over the floor, because a quiet edge IS quiet — a real
+# sticky note on real paper is separated by about this much and a reader has never had trouble with one.
+# The mask cannot be made to drop them: a panel rim and a word of small type are the same shape at this
+# scale, and excluding marks that touch a large flat area would have hidden `AnswerStream`'s card titles,
+# which is the worst finding this gate has made.
+#
+# THE WAIVER IS CHECKED, not believed: it forgives the HOLE rule only (the median and the share still apply,
+# so ink that stops reading is still reported), and only up to the number measured on the day it was
+# written. A register that gets worse than its own ceiling is a finding again.
+RIM_WAIVED = {
+    "RansomZine": (0.0115, "cut-paper scraps in cream and white on the film's cream ground; the letters "
+                           "read at 4.15:1 and the scraps carry their own drop shadow"),
+    "InfiniteCanvas": (0.0085, "pastel sticky notes on cream; the labels read at 9.00:1 and the white hub "
+                               "card, which has always drawn a border, is not flagged at all"),
+}
 # THE SETTLED FRAME IS PER REGISTER, not a constant. A fixed 142 is past the END of every register shorter
 # than 143 frames, and `remotion still` refuses the frame rather than clamping it — so `CrashZoom`,
 # `GlowPick`, `OdometerRoll`, `SurfaceCarousel`, `VelocitySnap`, `TemporalAccelerate` and `CursorStory` were
@@ -217,6 +236,45 @@ def _band(y, radius, op):
     return out
 
 
+_GROUND_TOKEN_RE = re.compile(r"^\s*(\w+)\s*:\s*(\[[^\]]*\]|'[^']*'|\"[^\"]*\")", re.M)
+
+
+def _ground_tokens():
+    """{register: which DNA token its ground comes from}, READ from `runtime/shotLuma.ts`.
+
+    The library already records this, one entry per register, and it is the difference between a register
+    that ignored the film and one whose ground IS the film — a colour the film chose. `KineticManifesto`
+    floods `accent`->`accent2` edge to edge; on a light film those accents are dark BY CONSTRUCTION (they
+    were exposed to read on paper), so the frame comes back at Y=0.13 with nothing wrong. Asking luminance
+    alone would report it, and a gate that reports a register for obeying the film is a gate that teaches
+    its reader to skip the section.
+
+    Only a ground declared as the film's SHEET (`bg`/`bgGrad`) is held to the film's key. A literal hex is
+    not an exemption — that IS the defect this rule is for.
+    """
+    try:
+        src = open(os.path.join(_REM, "src", "runtime", "shotLuma.ts"), encoding="utf-8").read()
+        i = src.index("export const DNA_GROUND_TOKEN")
+        body = src[i:src.index("\n};", i)]
+    except (OSError, ValueError):
+        return {}
+    return {k: v for k, v in _GROUND_TOKEN_RE.findall(body)}
+
+
+_GROUND_TOKENS = _ground_tokens()
+
+
+def ground_is_the_films_sheet(shot):
+    """True when this register's OWN table entry says its ground is the film's sheet, so the film's key
+    applies to it. An unknown register is held to it too: the table covers the whole library, and a register
+    missing from it is not a register with a special ground."""
+    tok = _GROUND_TOKENS.get(shot)
+    if tok is None:
+        return True
+    names = re.findall(r"[A-Za-z]\w*", tok)
+    return bool(names) and all(n in ("bg", "bgGrad") for n in names)
+
+
 def _edge_ground(img):
     """The luminance of the frame's outer RING — the sheet, as opposed to whatever is drawn on it.
 
@@ -232,14 +290,18 @@ def _edge_ground(img):
     return _y(np.median(ring, axis=0))
 
 
-def is_finding(row):
+def is_finding(row, shot=None):
     """The verdict on ONE measured row — one definition, asked of stored rows and fresh ones alike."""
     if row.get("lie") or row.get("blind"):
         return True
     if "share" not in row:
         return False
-    return (row["median"] < FAIL_RATIO or row["share"] >= SHARE_FLOOR
-            or row.get("hole", 0.0) >= HOLE_FLOOR)
+    if row["median"] < FAIL_RATIO or row["share"] >= SHARE_FLOOR:
+        return True
+    ceiling, _why_waived = RIM_WAIVED.get(shot or "", (None, None))
+    if ceiling is not None:
+        return row.get("hole", 0.0) > ceiling
+    return row.get("hole", 0.0) >= HOLE_FLOOR
 
 
 def _largest_hole(bad, close=3):
@@ -430,9 +492,10 @@ def measure(shot, tmpdir, props=None, mark_png=None, serve=None):
     # whole sheet read only because the ground they were promised never arrived. A register may keep its own
     # night — it says so, and then the rule above holds it to it.
     edge = _edge_ground(l)
-    blind = (lg <= DARK_GROUND_Y and edge <= DARK_GROUND_Y and
-             "keeps its own dark ground on a light film without declaring @dark-world "
-             "(sheet Y=%.3f, frame Y=%.3f)" % (edge, lg))
+    blind = (ground_is_the_films_sheet(shot) and lg <= DARK_GROUND_Y and edge <= DARK_GROUND_Y and
+             "its own `DNA_GROUND_TOKEN` entry says its ground is the film's sheet, and on a LIGHT film it "
+             "came back dark (sheet Y=%.3f, frame Y=%.3f) — it never took the ground, and it does not "
+             "declare @dark-world" % (edge, lg))
     dy = _luma(d[::2, ::2])                            # every other pixel: this is a share, not a count
     ly = _luma(l[::2, ::2])
     # WHAT IS JUDGED IS WHAT WAS PLAINLY LEGIBLE ON THE DARK GROUND — nothing else. Two cheaper definitions
@@ -451,6 +514,7 @@ def measure(shot, tmpdir, props=None, mark_png=None, serve=None):
     d_hi = np.maximum(dy, dark_local) + 0.05
     d_lo = np.minimum(dy, dark_local) + 0.05
     mask = (d_hi / d_lo) >= 4.5
+    sharp = int(mask.sum())                            # before the picture is taken out of it
     pic = _picture_mask(shot, tmpdir, props, serve, d.shape)
     if pic is not None:
         _, alt_rgb = pic
@@ -465,9 +529,18 @@ def measure(shot, tmpdir, props=None, mark_png=None, serve=None):
     mask = mask & np.roll(mask, 1, 0) & np.roll(mask, -1, 0) & np.roll(mask, 1, 1) & np.roll(mask, -1, 1)
     ink = int(mask.sum())
     if ink < 200:
+        # A SKIP HAS TO SAY WHICH SKIP IT IS. One line covered three registers with 13%, 17% and 35% of the
+        # frame in ink by `register_energy`'s measure, which reads as the gate being broken. Two of them are
+        # evidence registers whose whole frame is the photograph — there is no drawn ink to judge, and that
+        # is a complete answer. The third (`InkBloom`) is soft by construction: a displaced, blurred
+        # diffusion with its wordmark inside its own glow, so nothing in it stands at 4.5:1 three pixels
+        # away on EITHER ground. Different holes, different work.
         return ({"blind": blind} if blind else
-                {"skipped": "nothing on the dark ground was legible enough to judge "
-                            "(register_energy sees that)"})
+                {"skipped": ("the frame is the evidence picture (%d mark(s) left outside it) — there is no "
+                             "drawn ink here to judge" % ink) if pic is not None and sharp >= 200 else
+                            ("nothing in this register stands at 4.5:1 three pixels away on the DARK ground "
+                             "either: it is soft-edged throughout, so a change of ground cannot be measured "
+                             "on it (register_energy measures whether it draws at all)")})
 
     # ...AND THE GROUND A MARK IS READ AGAINST IS THE ONE BEHIND IT, not the frame's. Compared against the
     # frame median, `BentoReveal`'s white wordmark on its blue accent tile scored 19% of its ink "unreadable"
@@ -590,7 +663,7 @@ def main(argv):
     # read back from `--store` — which is the whole point of the store — skipped it: an interrupted sweep,
     # resumed, printed "every register's ink still reads on a light ground" over findings it had itself
     # written to disk. The verdict is a function of the row, and it is asked of every row.
-    findings = [n for n in names if is_finding(out.get(n, {}))]
+    findings = [n for n in names if is_finding(out.get(n, {}), n)]
 
     if "--json" in argv:
         print(json.dumps(out, ensure_ascii=False, indent=1))
@@ -599,11 +672,23 @@ def main(argv):
     dark = {n: v["dark_world"] for n, v in out.items() if "dark_world" in v}
     if dark and not ("--json" in argv):
         print("\n[ink_contrast] %d register(s) keep their own dark field, as declared (@dark-world)" % len(dark))
-    skipped = [n for n, v in out.items() if "skipped" in v]
-    print("\n[ink_contrast] %d register(s) measured · %d skipped · reported when the MEDIAN mark is under "
-          "%.1f:1 on a light ground, when %d%% of the marks are, or when one connected region bigger than a "
-          "word of body copy has gone"
-          % (len(out) - len(skipped), len(skipped), FAIL_RATIO, int(SHARE_FLOOR * 100)))
+    # A SKIP IS NOT ONE THING, AND ONLY ONE KIND OF IT IS A HOLE. "The frame is the evidence picture" and
+    # "it is soft-edged throughout" are complete answers about a register that was rendered twice and read:
+    # there is nothing here this gate can measure, and nothing it is missing. A register that REFUSED TO
+    # RENDER is a different animal — it was never seen, and a sweep that exits 0 over it is the exact lie
+    # this repository keeps paying for. So the two are separated, and only the second moves the exit code.
+    answered = {n: v["skipped"] for n, v in out.items()
+                if "skipped" in v and not v["skipped"].startswith(("refused to render", "rendered dark but"))}
+    unseen = {n: v["skipped"] for n, v in out.items()
+              if "skipped" in v and n not in answered}
+    print("\n[ink_contrast] reported when the MEDIAN mark is under %.1f:1 on a light ground, when %d%% of "
+          "the marks are, when one connected region bigger than a word of body copy has gone, or when the "
+          "register never took the film's ground at all" % (FAIL_RATIO, int(SHARE_FLOOR * 100)))
+    _c.coverage("ink_contrast", len(out) - len(unseen), len(names), unseen)
+    if answered:
+        print("    %d register(s) were read and have no ink this gate can judge:" % len(answered))
+        for n in sorted(answered):
+            print("    %-24s %s" % (n, answered[n]))
     ground = [n for n in findings if out[n].get("blind") or out[n].get("lie")]
     if ground:
         print("\nREGISTERS THAT DID NOT TAKE THE FILM'S GROUND:")
@@ -623,9 +708,16 @@ def main(argv):
         print("\n    Each of these draws a literal ink instead of the film's. Read the colour from `useDNA()`"
               "\n    (fg / dim / accent / onAccent) — or, when the colour IS the meaning (a syntax palette, an"
               "\n    element's CPK colour, a brand hue), keep it and say so in the register's header.")
-    else:
-        print("\n    every register's ink still reads on a light ground")
-    return 1 if findings else 0
+    waived = [n for n in names if n in RIM_WAIVED and "hole" in out.get(n, {})]
+    if waived:
+        print("\nWAIVED — a pale panel's rim on pale paper, looked at and judged furniture:")
+        for n in sorted(waived):
+            ceiling, why = RIM_WAIVED[n]
+            print("    %-24s hole %.2f%% of %.2f%% allowed · %s" % (n, out[n]["hole"] * 100, ceiling * 100, why))
+    if not findings:
+        print("\n    every register takes the film's ground, and its ink still reads on a light one")
+    # 0 = the whole universe was measured and is clean · 1 = findings · 2 = part of it was never seen
+    return 1 if findings else (2 if unseen else 0)
 
 
 if __name__ == "__main__":

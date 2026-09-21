@@ -18,7 +18,8 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutBack, clamp01} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, mix} from '../runtime/dna';
+import {onLight} from '../runtime/light';
 import {CONTENT_TOP, contentBottom, inkBlockH, wrapLines} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
@@ -40,6 +41,11 @@ const Cuboid: React.FC<{x: number; y: number; z: number; w: number; d: number; h
 };
 
 const DONE = ['#2E7BFF', '#7C5CFF', '#12B76A'];
+// The RAW side of the diorama — belt, intake pad, unfinished block. These are greys because the work is not
+// coloured yet; the value is the meaning, not the lightness, so on a light ground they are taken from the
+// film's own paper→ink axis instead (see `raw` below). Lightest to darkest: belt, block, intake pad.
+const BELT_D0 = '#cdd4e1', RAW_D0 = '#b6bece', INPAD_D0 = '#aab2c2';
+const BELT_F = 0.52, RAW_F = 0.60, INPAD_F = 0.68;
 
 // three parts at the old belt speed, closer together, each stopping at its slot on the pad
 const N_PARTS = 3, START = 0.06, STAGGER = 0.14, SLOT_GAP = 90, PART = 82;
@@ -53,11 +59,24 @@ export const IsometricAssembly: React.FC<{items?: [string, string, string]}> = (
   }
   const items = RAW.map((x) => String(x).trim());
   // LEVEL-C: the iso factory diorama flips its GROUND to the DNA (a dark iso world) + labels/intake-glow to DNA
-  // tokens; the object colours (grey raw → coloured finished, dark machine, green delivered pad) are SEMANTIC and
-  // read on any ground, so they're kept. Null DNA = the original light diorama.
+  // tokens; the COLOURED objects (finished blocks, dark machine, green delivered pad) are SEMANTIC and read on
+  // any ground, so they're kept. The uncoloured ones did not — see the raw-grey note below. Null DNA = the
+  // original light diorama.
   const dna = useDNA();
   const bgc = dna?.bgGrad ?? dna?.bg ?? 'linear-gradient(180deg,#eef1f7,#e2e6ef)';
   const GLOW = dna?.accent ?? '#5B8CFF', L1 = dna?.dim ?? '#8791a3', L2 = dna?.fg ?? '#2b3450', L3 = dna?.accent2 ?? '#12a561';
+  // A PALE SLAB ON PALE PAPER IS NOT A CONVEYOR. The raw side of this diorama is three light greys chosen to
+  // sit on a dark iso world; on a light film they land within a hand's breadth of the page. Measured
+  // (`ink_contrast_qa.py`, light probe): 35.0% of the register's ink under 3:1, and the largest hole — 0.38%
+  // of the frame — is the belt's own silhouette, traced end to end, the thing everything else in the picture
+  // rides on. Grey means UNFINISHED here, not "light", so on a light ground the three are taken from the
+  // film's own paper→ink axis at the same order and spacing: the belt nearest the page, the intake pad
+  // furthest from it. The finished blocks, the green pad and the dark machine are SEMANTIC colour and are
+  // untouched — the only marks flagged on any of them are two facet edges inside one finished block, which is
+  // that block's own shading and not its silhouette.
+  const light = onLight(dna);
+  const raw = (f: number, d0: string) => (dna && light ? mix(dna.bg, dna.fg, f) : d0);
+  const BELT = raw(BELT_F, BELT_D0), RAWPART = raw(RAW_F, RAW_D0), INPAD = raw(INPAD_F, INPAD_D0);
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const ox = W / 2 - 140;
@@ -98,7 +117,7 @@ export const IsometricAssembly: React.FC<{items?: [string, string, string]}> = (
   const drawOrder = parts.map((pt, i) => ({...pt, i})).filter((pt) => pt.started && !pt.inside).sort((a, b) => a.x - b.x);
   const partEl = (pt: (typeof drawOrder)[number]) => (
     <Cuboid key={pt.i} x={pt.x} y={y + 34} z={0} w={PART} d={PART} h={pt.finished ? 92 : 66}
-      top={pt.finished ? pt.color : '#b6bece'} ox={ox} oy={oy} />
+      top={pt.finished ? pt.color : RAWPART} ox={ox} oy={oy} />
   );
   const machineRight = iso(mx + mw, y - 34, 200, ox, oy);   // the right vertex of the machine's top face
   const labelTop = (y: number, text: unknown, px: number, measure: number) =>
@@ -112,9 +131,9 @@ export const IsometricAssembly: React.FC<{items?: [string, string, string]}> = (
           own edge — a vertical cut through the finished work, well inside the frame. */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0, overflow: 'visible'}}>
         {/* conveyor slab */}
-        <Cuboid x={0} y={y} z={-22} w={beltLen} d={150} h={22} top="#cdd4e1" ox={ox} oy={oy} />
+        <Cuboid x={0} y={y} z={-22} w={beltLen} d={150} h={22} top={BELT} ox={ox} oy={oy} />
         {/* IN pad (grey) + queued raw blocks */}
-        <Cuboid x={inX - 70} y={y} z={0} w={54} d={150} h={14} top="#aab2c2" ox={ox} oy={oy} />
+        <Cuboid x={inX - 70} y={y} z={0} w={54} d={150} h={14} top={INPAD} ox={ox} oy={oy} />
         {/* raw parts still UPSTREAM of the machine are drawn BEFORE it: in iso a smaller x is farther back, so
             the machine occludes a part nosing into it. They used to be painted after the machine, so for the
             last ~80 units before the intake a grey block sat pasted over the machine's front face. */}

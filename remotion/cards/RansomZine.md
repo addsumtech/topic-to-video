@@ -13,7 +13,8 @@
 
 **Known traps:**
 - The drop stagger was once a fixed 0.07 per character, so only about ten characters had landed by the end of the clip and from the fifteenth on they never appeared (the demo's own tenth scrap was still overshooting on the settled frame). It is laid out for the word's length now.
-- The scraps' seven paper colours and five typefaces are the register's identity and do not follow the DNA; only the ground, the marker (accent) and the tagline (fg) do.
+- The scraps' seven paper colours and five typefaces are the register's identity and do not follow the DNA; only the ground, the marker (accent) and the tagline (fg) do. A ransom note is made of scraps cut from different printed sources, so the palette stays put on every film.
+- A scrap's only boundary was its drop shadow, and two of the seven papers are cream and white: on a light film those edges are paper on paper. Measured 30.0% of the register's ink under 3:1 on a warm-white ground, chained into one connected region 1.22% of the frame, all of it scrap rims — the letters read at a median 4.15:1. Scraps and tape strips now carry a 1px hairline in the DNA's `surfaceBorder`, inset so no scrap's box grows.
 
 **Refuses:** a `word` with no visible character, or longer than 16 characters (spaces included).
 

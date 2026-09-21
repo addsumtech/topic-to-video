@@ -26,7 +26,8 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, REDUCED_MOTION_T} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, contrastOf, dimOn, readableOn, shade as darken} from '../runtime/dna';
+import {ACCENT_CONTRAST_MIN, groundFrom, hexGround} from '../runtime/light';
 import {CONTENT_TOP, contentBottom, fitTextPx, inkBlockH, textWidthPx} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 import {Stage3D, Surface, OnSurface, planeAffine, fitSurfaces, faceShade, PERSP_FRAC,
@@ -240,6 +241,43 @@ export const PlaneStack: React.FC<{title?: string; layers?: StackLayer[]; focal?
   // ONE lens for every plane, so the recede is the same relationship everywhere (runtime/focus).
   const FOCUS_OPTS = {minOpacity: 0.5, minBrightness: 0.72, minScale: 1, blurFrac: 0.0030, desat: 0.55};
 
+  // ── the ink on a plane is read against the PLANE, not against the page ───────────────────────────────
+  // A word here sits on a slab, and the slab is not the film's ground: `faceShade` multiplies the surface's
+  // brightness by how far the plane has turned away from the key, which is a lighting model written for a
+  // dark room. On a light film `surface` is white and a turned plane comes out a mid grey — while `dim`,
+  // `line` and `accent` are still the values the film calibrated against its own paper. Measured by
+  // `ink_contrast_qa` on a light film: 32.7% of this register's marks under 3:1, its largest hole 0.34% of
+  // the frame, and that hole was the gloss NOTE and the item CHIPS on a slab — every one of them content
+  // the film supplied. So the face is reconstructed here (the same multiply the `filter` applies) and each
+  // token is KEPT where it still clears the floor on that face and derived only where it does not; on every
+  // dark preset the film's own tokens clear it, so nothing moves.
+  //
+  // THE CHIP'S 1PX RIM IS NOT IN HERE. It is a hairline, it is the one thing `ink_contrast_qa`'s own header
+  // names as its false positive, and on the rendered light frame the chips read as pills — the rim is doing
+  // its job at a ratio a rim is allowed to have.
+  //
+  // What is modelled is the FACE SHADE and nothing else. The focus recede (brightness, saturation,
+  // opacity) dims the words and the plane they are on by the same amount and is the register's own way of
+  // saying "this layer is not the one" — folding it in would fight the recede. `faceShade` is different in
+  // kind: it moves the PLANE and not the type, so it is what changes the relationship between them.
+  const PLANE_FLOOR = ACCENT_CONTRAST_MIN;        // the same 3.0 the ink gate fails under
+  const surfHex = dna ? hexGround(SURF) : null;   // a translucent `surface` is ~the ground: nothing to model
+  /** The tokens for a plane the lighting has multiplied to `k` of the film's `surface`. */
+  const inkOnPlane = (k: number) => {
+    if (!dna || !surfHex) return {fg: FG, dim: DIM, acc: ACC};
+    const face = darken(surfHex, clamp01(1 - k));
+    const keep = (c: string) => contrastOf(c, face) >= PLANE_FLOOR;
+    // the ink the plane can definitely carry — the film's own two poles, measured against the face
+    const pole = readableOn(face, FG, BG);
+    return {
+      fg: keep(FG) ? FG : pole,
+      dim: keep(DIM) ? DIM : dimOn(face, pole, PLANE_FLOOR),
+      // the focal layer's accent keeps its HUE and moves only its exposure, like any other ground — asked
+      // for only when the film named a focal layer, since nothing else on a plane is drawn in the accent
+      acc: focal === null || keep(ACC) ? ACC : groundFrom(dna, {bg: face}).accent,
+    };
+  };
+
   // TYPE LIVES OUTSIDE THE STAGE. `Stage3D`'s own header says it: everything inside is composited in 3D, so
   // a word placed there is rasterized at layout size and upscaled. `<OnSurface>` returns a screen-space 2D
   // matrix and belongs beside the stage, not in it — put inside, the stage's camera transform is applied to
@@ -252,6 +290,8 @@ export const PlaneStack: React.FC<{title?: string; layers?: StackLayer[]; focal?
     const d = focal === null ? 0 : clamp01((Math.abs(i - focal) / Math.max(1, n - 1)) * pick);
     const f = focusAt(d, U, FOCUS_OPTS);
     const isFocal = focal !== null && i === focal;
+    // the plane these words are actually on — the same multiply the Surface's own filter applies below
+    const ink = inkOnPlane(faceShade(pose, cam, 0.42));
     const aff = planeAffine(pose, cam, P, W, H, -planeW / 2 + pad, -planeH / 2 + pad,
       planeW - pad * 2, planeH - pad * 2);
     if (!aff) return null;
@@ -262,17 +302,17 @@ export const PlaneStack: React.FC<{title?: string; layers?: StackLayer[]; focal?
         style={{opacity: landed * f.opacity, filter: focusFilter(f), height: innerH,
           display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
         <div style={{font: `800 ${labelPx}px/${leading(l.label, 1.1)} ${dna?.fontDisplay ?? 'Inter, sans-serif'}`,
-          color: isFocal ? ACC : FG, letterSpacing: '-0.01em', whiteSpace: 'nowrap'}}>{l.label}</div>
+          color: isFocal ? ink.acc : ink.fg, letterSpacing: '-0.01em', whiteSpace: 'nowrap'}}>{l.label}</div>
         {l.note ? (
           <div style={{font: `500 ${notePx}px/${leading(l.note, 1.25)} ${dna?.fontBody ?? 'Inter, sans-serif'}`,
-            color: DIM, marginTop: Math.round(notePx * 0.25), maxWidth: innerW}}>{l.note}</div>
+            color: ink.dim, marginTop: Math.round(notePx * 0.25), maxWidth: innerW}}>{l.note}</div>
         ) : null}
         {l.items.length ? (
           <div style={{display: 'flex', gap: pad * 0.5, marginTop: pad * 0.5, flexWrap: 'nowrap'}}>
             {l.items.map((s, j) => (
               <div key={j} style={{
                 font: `600 ${chipPx}px/${leading(s, 1.2)} ${dna?.fontMono ?? 'ui-monospace, monospace'}`,
-                color: isFocal ? FG : DIM, padding: `${Math.round(chipPx * 0.26)}px ${Math.round(chipPx * 0.5)}px`,
+                color: isFocal ? ink.fg : ink.dim, padding: `${Math.round(chipPx * 0.26)}px ${Math.round(chipPx * 0.5)}px`,
                 border: `1px solid ${LINE}`, borderRadius: Math.round(chipPx * 0.4),
                 whiteSpace: 'nowrap'}}>{s}</div>
             ))}
@@ -293,11 +333,13 @@ export const PlaneStack: React.FC<{title?: string; layers?: StackLayer[]; focal?
           const f = focusAt(d, U, FOCUS_OPTS);
           const shade = faceShade(pose, cam, 0.42);
           const isFocal = focal !== null && i === focal;
+          // the focal ring is the accent exposed for THIS plane — the same value its label takes, so the
+          // ring and the word it rings stay one decision
           return (
             <Surface key={i} pose={pose} w={planeW} h={planeH}
               style={{
                 background: SURF,
-                border: `${Math.max(1, Math.round(U * 0.0016))}px solid ${isFocal ? ACC : LINE}`,
+                border: `${Math.max(1, Math.round(U * 0.0016))}px solid ${isFocal ? inkOnPlane(shade).acc : LINE}`,
                 borderRadius: Math.round(U * 0.012),
                 opacity: landed * f.opacity,
                 filter: focusFilter({...f, brightness: f.brightness * shade}),

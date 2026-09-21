@@ -1959,7 +1959,77 @@ def _probe_a_hole_alone_is_a_finding(mod):
     assert not mod.is_finding({"skipped": "nothing to judge"}), "a skip is not a finding"
 
 
+def _probe_a_register_never_seen_does_not_read_as_a_pass(mod):
+    """The headline states COVERAGE against a universe it DERIVED, and a register that REFUSED TO RENDER
+    moves the exit code — it was never seen, and this sweep's own history is four bugs hiding behind the
+    word "skipped". A register that WAS rendered twice and simply has no ink to judge (its frame is the
+    evidence picture; it is soft-edged throughout) is a complete answer and must not be counted as a hole.
+
+    Run with the renders replaced, so this measures the bookkeeping and nothing else.
+    """
+    import shutil
+    d = tempfile.mkdtemp()
+    for n in ("Alpha", "Beta", "Gamma"):
+        open(os.path.join(d, n + ".tsx"), "w", encoding="utf-8").write("export const DURATION = 150;\n")
+    rows = {"Alpha": {"ink": 9000, "under": 10, "share": 0.001, "median": 9.0, "worst": 4.0, "hole": 0.0},
+            "Beta": {"skipped": "the frame is the evidence picture (4 sharp mark(s) outside it)"},
+            "Gamma": {"skipped": "refused to render: TypeError: props.rows is not iterable"}}
+    try:
+        mod._SHOTS = d
+        mod.bundle = lambda out: None
+        mod.ensure_alt_fixture = lambda: None
+        mod._register_props = lambda: {}
+        mod.measure = lambda shot, *a, **k: rows[shot]
+        rc, out = _capture(mod.main, [])
+        assert "measured 2 of 3 · 1 NOT measured" in out, out
+        assert "Gamma" in out.split("NOT measured")[1][:300], "the register never seen is not named: %s" % out
+        assert rc == 2, "a register that was never rendered exits %r, not 2" % rc
+        # ...and the one that WAS read and has nothing to judge is not counted against coverage
+        del rows["Gamma"]
+        os.remove(os.path.join(d, "Gamma.tsx"))
+        rc2, out2 = _capture(mod.main, [])
+        assert "measured 2 of 2 · 0 NOT measured" in out2, out2
+        assert rc2 == 0, "a clean sweep exits %r, not 0" % rc2
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def _probe_a_waiver_forgives_only_what_it_names(mod):
+    """A gate carrying a permanent finding stops being read to the end, so two registers whose flagged marks
+    were looked at at 7x and judged furniture are waived — and a waiver that is not checked is a mute button.
+    It forgives the HOLE rule only, and only up to the number measured on the day it was written."""
+    ok = {"ink": 20000, "under": 5200, "share": 0.26, "median": 4.15, "worst": 1.2, "hole": 0.0103}
+    assert not mod.is_finding(ok, "RansomZine"), "the waiver does not apply to the register it names"
+    assert mod.is_finding(ok, "SomeOtherRegister"), "the waiver is forgiving registers it never named"
+    ceiling = mod.RIM_WAIVED["RansomZine"][0]
+    assert mod.is_finding(dict(ok, hole=ceiling * 1.3), "RansomZine"), \
+        "a waived register that got worse than its own ceiling is still silent"
+    assert mod.is_finding(dict(ok, median=2.0), "RansomZine"), \
+        "the waiver is silencing ink that stopped reading, which it does not cover"
+    assert mod.is_finding(dict(ok, share=0.8), "RansomZine"), \
+        "the waiver is silencing a register that lost most of its marks"
+
+
+def _probe_a_ground_the_film_chose_is_not_a_blind_one(mod):
+    """A dark frame on a light film is only a finding when the register was supposed to be painting the
+    film's SHEET. `KineticManifesto` floods `accent`->`accent2` edge to edge, and on a light film those
+    accents are dark by construction — the frame comes back at Y=0.13 with nothing wrong. The library
+    already records which token each ground comes from; the gate reads that table rather than guessing."""
+    assert len(mod._GROUND_TOKENS) > 100, \
+        "the ground-token table was not read at all (%d entries) — every register would be held to the "\
+        "film's key" % len(mod._GROUND_TOKENS)
+    assert not mod.ground_is_the_films_sheet("KineticManifesto"), \
+        "a register whose ground IS the film's accent flood is being held to the film's sheet"
+    assert not mod.ground_is_the_films_sheet("PointerTour"), "a `surface` ground is not the film's sheet"
+    assert mod.ground_is_the_films_sheet("ChartLive"), "a register declaring `bg` must be held to it"
+    assert mod.ground_is_the_films_sheet("NoSuchRegisterExists"), \
+        "a register missing from the table must still be held to the film's key, not exempted by absence"
+
+
 PROBES["ink_contrast_qa"] = {
+    "a_waiver_forgives_only_what_it_names": _probe_a_waiver_forgives_only_what_it_names,
+    "a_ground_the_film_chose_is_not_a_blind_one": _probe_a_ground_the_film_chose_is_not_a_blind_one,
+    "a_register_never_seen_does_not_read_as_a_pass": _probe_a_register_never_seen_does_not_read_as_a_pass,
     "a_hole_alone_is_a_finding": _probe_a_hole_alone_is_a_finding,
     "a_hole_is_a_place_not_an_amount": _probe_a_hole_is_a_place_not_an_amount,
     "a_lost_word_is_one_hole": _probe_a_lost_word_is_one_hole,
@@ -1967,6 +2037,18 @@ PROBES["ink_contrast_qa"] = {
     "the_settled_frame_is_the_one_useT_calls_settled": _probe_the_settled_frame_is_the_one_useT_calls_settled,
 }
 MUTANTS["ink_contrast_qa"] = {
+    "a waived register is silent whatever it measures":
+        ('    if ceiling is not None:\n        return row.get("hole", 0.0) > ceiling', '    if ceiling is not None:\n        return False'),
+    "every register is held to the film's sheet, whatever its ground is":
+        ('    names = re.findall(r"[A-Za-z]\\w*", tok)\n    return bool(names) and all(n in ("bg", "bgGrad") for n in names)',
+         '    return True'),
+    "the ground-token table is never read":
+        ('        i = src.index("export const DNA_GROUND_TOKEN")', '        i = len(src)'),
+    "the coverage line counts every register as measured":
+        ('    _c.coverage("ink_contrast", len(out) - len(unseen), len(names), unseen)',
+         '    _c.coverage("ink_contrast", len(names), len(names), {})'),
+    "a register that never rendered leaves the exit code clean":
+        ('    return 1 if findings else (2 if unseen else 0)', '    return 1 if findings else 0'),
     "a lost region is not a finding on its own": ("HOLE_FLOOR = 0.0027", "HOLE_FLOOR = 9.9"),
     "a ground the register never took reads as a pass":
         ('    if row.get("lie") or row.get("blind"):\n        return True',

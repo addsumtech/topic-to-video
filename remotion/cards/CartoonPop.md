@@ -16,5 +16,7 @@
 - Latin punch leading (0.9) made two wrapped Chinese lines crash into each other. The leading rises for CJK only.
 - The positions are fixed pixel offsets from the centre (papers −360, burst +260), sized for a landscape frame.
 - The squash-and-stretch comment says the robot squashes at contact, but that term is multiplied by `0.0`; only the entry stretch, and a slight squash from the ease's overshoot, remain.
+- The robot's face plate was `shade(BODY, 0.72)` — a dark screen, which is right only while the outline has inverted to a light one. On a light film the ink stays dark, so the eyes and the smile were drawn at the screen's own value: 11.1% of the register's ink under 3:1 on a warm-white ground, largest region 0.47% of the frame, and that region was the face. The plate takes whichever side of `BODY` the outline is not now. The starburst's inner highlight is untouched — its spike tips overhang the burst onto the paper and measure low there, but it is a 0.6-opacity gloss on a shape whose fourteen dark spikes carry it.
+- The sky furniture is still derived from `fg` on the assumption that `fg` is the light end — clouds `mix(fg, bg, 0.16)`, the task sheets `mix(fg, bg, 0.12)`, the sun in the third palette tone — so on a light film the clouds and the sheets come out dark. They read (high contrast against the paper) and the sheets are gone by the settled frame, so the ink sweep does not report them; it is a daylight cartoon drawn with a night palette, not an invisible one.
 
 **Reference:** `remotion/src/shots/CartoonPop.tsx`

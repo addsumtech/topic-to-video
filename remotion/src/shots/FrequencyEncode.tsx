@@ -15,11 +15,23 @@
 // The two stage labels are centred over the readout, where the summed wave is flattest: left-aligned, they
 // sat where the columns' phases line up, and the wave's swing ran through "one Fourier transform"; and the
 // first label's baseline sat 11px under the column boxes, so its capitals touched their bottom edge.
+//
+// THE DATA LAYER IS THE FILM'S; THE SCOPE PANELS KEEP THEIR NIGHT. Every mark that is not inside a column
+// box was a literal picked for a near-black ground, and all eight DNA presets are near-black, so on a film
+// whose DNA came from a warm-white deck the title, both axis ends, "one measured signal", the summed
+// readout curve itself and every bar of the FFT spectrum drew light ink on light paper
+// (`scripts/ink_contrast_qa.py`: 42.3% of this register's marks under 3:1, largest connected hole 1.15% of
+// the frame). The curve and the bars are claims exactly as much as the words are — the readout IS "one
+// measured signal" and a bar IS "this column came back" — so all of it reads from the DNA. The seven COLUMN
+// BOXES are not ink: each is a scope showing one column's own oscillation, and a scope viewport is dark in
+// every instrument that has ever shown one. They keep their own night, and the traces on them are lifted to
+// read against it rather than against the paper.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, radians} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, mix, tint, contrastOf} from '../runtime/dna';
+import {ACCENT_CONTRAST_MIN} from '../runtime/light';
 
 export const DURATION = 180; // 6s
 export const MAX_FREQ_COLS = 8;
@@ -34,12 +46,33 @@ export const INTRINSIC_TEXT = [
   'one Fourier transform → columns',
 ];
 
+// The literals this register was authored in, hoisted so an un-themed render is byte-for-byte what it was.
+const ACCENT_D0 = '#22d3ee', ACCENT2_D0 = '#a78bfa';
+const TITLE_D0 = '#dfe8f5';       // the title
+const AXIS_D0 = '#8aa';           // 'low freq' / 'high freq · readout gradient'
+const STAGE_D0 = '#c9d6ea';       // 'one measured signal'
+const SUM_D0 = '#eaf6ff';         // the summed readout curve
+const PANEL = '#0a1424';          // a column's scope viewport — see the header
+
 export const FrequencyEncode: React.FC<{accent?: string; accent2?: string; label?: string; cols?: number}> = ({
-  accent = '#22d3ee', accent2 = '#a78bfa', label = 'Position becomes frequency', cols = 7,
+  accent: ACC, accent2: ACC2, label = 'Position becomes frequency', cols = 7,
 } = {}) => {
   const {width: W, height: H, durationInFrames, fps} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
+  // The film's accents when it has them: `groundFrom` has already exposed both for whatever ground the beat
+  // is lit on, so the spectrum bars and the transform label read there without this register measuring.
+  const accent = ACC ?? dna?.accent ?? ACCENT_D0;
+  const accent2 = ACC2 ?? dna?.accent2 ?? ACCENT2_D0;
+  const ink = dna?.fg ?? TITLE_D0;                        // the title
+  const sumInk = dna?.fg ?? SUM_D0;                       // the summed readout — the beat's own measurement
+  const stageInk = dna ? mix(dna.fg, dna.dim, 0.4) : STAGE_D0;   // the annotation naming that measurement
+  const axisInk = dna?.dim ?? AXIS_D0;                    // the two ends of the gradient: metadata
+  // A TRACE INSIDE A SCOPE ANSWERS TO THE SCOPE, NOT TO THE PAGE. A light film's accent is chosen to read on
+  // paper, and on the panel's night that is the same disappearance one layer in — so a trace that does not
+  // clear the non-text floor against the panel is lifted until it does. With no DNA both literals are far
+  // clear of it and pass through unchanged. (Same lift as KSpaceAnatomy's rings inside its k-space panel.)
+  const onPanel = (c: string) => (contrastOf(c, PANEL) >= ACCENT_CONTRAST_MIN ? c : tint(c, 0.6));
   if (!Number.isInteger(cols) || cols < 2 || cols > MAX_FREQ_COLS) {
     throw new Error(`FrequencyEncode: \`cols\` must be an integer 2-${MAX_FREQ_COLS} (got ${JSON.stringify(cols)}). One column ` +
       `has nothing for the transform to separate, and past ${MAX_FREQ_COLS} the fastest column's wave is under 8px a ` +
@@ -71,8 +104,8 @@ export const FrequencyEncode: React.FC<{accent?: string; accent2?: string; label
       pts.push(`${(cx0 + x).toFixed(1)},${(rowY + rowH / 2 - Math.sin(u * f * Math.PI * 2 + radians(t, durationInFrames, fps, 4)) * rowH * 0.34 * p1).toFixed(1)}`);
     }
     colWaves.push(<g key={i}>
-      <rect x={cx0 + 2} y={rowY} width={colW - 4} height={rowH} rx={5} fill="#0a1424" stroke={`${accent}55`} strokeWidth={1} opacity={0.5 + p1 * 0.5} />
-      <polyline points={pts.join(' ')} fill="none" stroke={i % 2 ? accent2 : accent} strokeWidth={2} />
+      <rect x={cx0 + 2} y={rowY} width={colW - 4} height={rowH} rx={5} fill={PANEL} stroke={`${accent}55`} strokeWidth={1} opacity={0.5 + p1 * 0.5} />
+      <polyline points={pts.join(' ')} fill="none" stroke={onPanel(i % 2 ? accent2 : accent)} strokeWidth={2} />
     </g>);
   }
 
@@ -102,18 +135,18 @@ export const FrequencyEncode: React.FC<{accent?: string; accent2?: string; label
         {/* gradient ramp arrow above the row: position → frequency */}
         <line x1={gx} y1={rowY - 26} x2={gx + gw} y2={rowY - 26} stroke={accent} strokeWidth={2} opacity={0.5 * p1} markerEnd="url(#fah)" />
         <defs><marker id="fah" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill={accent} /></marker></defs>
-        <text x={gx} y={rowY - 34} fill="#8aa" fontSize="18" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={p1}>low freq</text>
-        <text x={gx + gw} y={rowY - 34} textAnchor="end" fill="#8aa" fontSize="18" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={p1}>high freq · readout gradient</text>
+        <text x={gx} y={rowY - 34} fill={axisInk} fontSize="18" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={p1}>low freq</text>
+        <text x={gx + gw} y={rowY - 34} textAnchor="end" fill={axisInk} fontSize="18" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={p1}>high freq · readout gradient</text>
         {colWaves}
-        {/* summed readout */}
-        <polyline points={sum.join(' ')} fill="none" stroke="#eaf6ff" strokeWidth={2.4} opacity={p2} />
-        <text x={gx + gw / 2} y={rowY + rowH + 32} textAnchor="middle" fill="#c9d6ea" fontSize="18" fontFamily="var(--f-body, Inter, sans-serif)" opacity={p2}>one measured signal</text>
+        {/* summed readout — drawn on the film's GROUND, not in a scope, so it is the film's ink */}
+        <polyline points={sum.join(' ')} fill="none" stroke={sumInk} strokeWidth={2.4} opacity={p2} />
+        <text x={gx + gw / 2} y={rowY + rowH + 32} textAnchor="middle" fill={stageInk} fontSize="18" fontFamily="var(--f-body, Inter, sans-serif)" opacity={p2}>one measured signal</text>
         {/* FFT separates it back into columns */}
         <text x={gx + gw / 2} y={specY - H * 0.13} textAnchor="middle" fill={accent} fontSize="20" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={clamp01(seg(t,0.56,0.66))}>one Fourier transform → columns</text>
         {peaks}
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
-        color: '#dfe8f5', font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
+        color: ink, font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',
         opacity: lerp(0.4, 1, clamp01(t * 4))}}>{label}</div>
     </AbsoluteFill>
   );

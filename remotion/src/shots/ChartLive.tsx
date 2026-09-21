@@ -19,6 +19,18 @@
 // NONE of its content props (`npx remotion still src/index.ts ChartLive`). A film that passes any of them is
 // never completed with a demo datum — a numeric series is invisible to the demo-copy gate, so the register
 // itself must refuse to invent one.
+//
+// AND THE SHEET IS THE FILM'S, NOT A DARK ROOM OF ITS OWN. The ground was a fixed near-black radial
+// (#0f1a1a→#060b0b), the gridlines a dark green and the figure's ink a pale mint, so only the accent ever
+// moved with the film: rendered under a light probe (bg #f6f3ee) the register painted its own black sheet
+// over the paper at Y=0.005 with 19% of its marks under 3:1 (scripts/ink_contrast_qa.py). This is NOT a dark
+// world — a chart's meaning is the SHAPE of its line, which is the same shape drawn in ink on paper as in
+// light on glass, and a chart on paper is the oldest form of chart there is. So ground, gridlines, figure ink
+// and label all come from the DNA, and the accent keeps drawing the line: `groundFrom` exposes an accent
+// until it clears 3:1 on whatever ground it is handed, so the line reads on the film's paper by contract
+// rather than by luck. The line's `#lg` bloom is kept on both exposures — it is a blurred copy of the accent
+// merged under the accent, so it thickens the stroke in the stroke's own colour and never lays black on
+// paper (the mud case runtime/light.tsx warns about).
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -30,6 +42,11 @@ import {contentBottom, fitTextPx, textWidthPx} from '../runtime/layout';
 
 export const DURATION = 150; // 5s
 const ACC_D0 = '#37E0A0';
+// the original dark-room literals, kept as the no-DNA rendering (byte-for-byte) and as the fallback chain
+const GROUND_D0 = 'radial-gradient(120% 120% at 50% 30%, #0f1a1a, #060b0b 72%)';
+const INK_D0 = '#eafff4';    // the figure, and the dot riding the line's tip
+const LABEL_D0 = '#6f8f83';  // the metadata line under the figure
+const GRID_D0 = '#16302a';   // the unlabelled reading gridlines
 // the standalone preview's illustrative data — used ONLY when no content prop at all was passed (see header)
 const DEMO_SERIES = [28, 34, 30, 44, 52, 48, 62, 70, 66, 82, 90, 96];
 const DEMO_END = 128, DEMO_UNIT = 'k';
@@ -63,6 +80,11 @@ export const ChartLive: React.FC<{endVal?: number | string; unit?: string; label
   endVal, unit, label: labelIn, label = 'tasks handled this month', series} = {}) => {
   const dna = useDNA();
   const ACC = dna?.accent ?? ACC_D0;
+  // the figure is the film's ink, its label the film's metadata token, the gridlines the film's rule — the
+  // three places this register used to state a colour of its own (see the header)
+  const INK = dna?.fg ?? INK_D0;
+  const LABEL_INK = dna?.dim ?? LABEL_D0;
+  const GRID = dna?.line ?? GRID_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const standalone = endVal === undefined && unit === undefined && labelIn === undefined && series === undefined;
@@ -113,20 +135,20 @@ export const ChartLive: React.FC<{endVal?: number | string; unit?: string; label
           <clipPath id="rev"><rect x={X0} y={0} width={(X1 - X0) * prog} height={H} /></clipPath>
         </defs>
         {/* gridlines — unlabelled, evenly spaced: a reading aid, never a value */}
-        {[0, 0.25, 0.5, 0.75, 1].map((g, i) => <line key={i} x1={X0} y1={lerp(Y0, Y1, g)} x2={X1} y2={lerp(Y0, Y1, g)} stroke="#16302a" strokeWidth={1.5} />)}
+        {[0, 0.25, 0.5, 0.75, 1].map((g, i) => <line key={i} x1={X0} y1={lerp(Y0, Y1, g)} x2={X1} y2={lerp(Y0, Y1, g)} stroke={GRID} strokeWidth={1.5} />)}
         {/* area + line, revealed left→right */}
         <g clipPath="url(#rev)">
           <path d={area} fill="url(#af)" />
           <path d={path} fill="none" stroke={ACC} strokeWidth={5} filter="url(#lg)" />
         </g>
         {/* leading dot */}
-        {prog > 0.02 && prog < 0.99 && <circle cx={lead[0]} cy={lead[1]} r={12} fill="#eafff4" filter="url(#lg)" />}
+        {prog > 0.02 && prog < 0.99 && <circle cx={lead[0]} cy={lead[1]} r={12} fill={INK} filter="url(#lg)" />}
       </svg>
     );
   }
 
   return (
-    <AbsoluteFill style={{background: 'radial-gradient(120% 120% at 50% 30%, #0f1a1a, #060b0b 72%)'}}>
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? GROUND_D0}}>
       {plot}
       {/* headline metric counting up */}
       <div style={DATA ? {position: 'absolute', left: mX, top: headTop}
@@ -138,12 +160,12 @@ export const ChartLive: React.FC<{endVal?: number | string; unit?: string; label
             NEUTRAL_DNA.fontDisplay happens to match this shot's hardcoded stack. */}
         {figText ? (
           <div style={{fontVariantNumeric: 'tabular-nums'}}>
-            <Figure value={shown} unit={UNIT} ink="#eafff4" tone={ACC} size={figPx} unitScale={unitScale}
+            <Figure value={shown} unit={UNIT} ink={INK} tone={ACC} size={figPx} unitScale={unitScale}
               fallbackForm="display" fallbackFamily="Inter, system-ui, sans-serif" />
           </div>
         ) : null}
         {LABEL ? (
-          <div style={{font: `600 ${labelPx}px/1.1 var(--f-body, Inter,system-ui,sans-serif)`, color: '#6f8f83',
+          <div style={{font: `600 ${labelPx}px/1.1 var(--f-body, Inter,system-ui,sans-serif)`, color: LABEL_INK,
             marginTop: labelGap, maxWidth: W - 2 * mX}}>{LABEL}</div>
         ) : null}
       </div>

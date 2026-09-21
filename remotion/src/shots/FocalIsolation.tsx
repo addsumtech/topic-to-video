@@ -12,15 +12,49 @@
 // out for the count now — three rows were reserved for any count, so four items sat in the top two thirds of
 // the zone and more than nine ran off the grid into the caption band.
 
+//
+// THE CAPTION IS THE FILM'S, AND THE VIGNETTE IS SCALED TO THE GROUND IT DARKENS. The caption under the
+// focal cell was a literal near-white, and all eight DNA presets are near-black, so on a film whose DNA came
+// from a warm-white deck the one sentence naming what was isolated drew white on paper
+// (`scripts/ink_contrast_qa.py`: 43.7% of this register's marks under 3:1, largest connected hole 0.90% of
+// the frame). The vignette was the other half of it: tuned for a void, it is barely a deepening on this
+// register's own slate and a stain on paper — sampled off the light probe render, the frame's corners came
+// out RGB 42,44,49 and 60,62,66 where the page is 246,243,238, so the page was simply black at the edges.
+// (The 42,44,49 is what this gradient composites to over that paper exactly; the lighter pair is the two
+// corners the spotlight reaches.)
+//
+// THE CARDS ARE NOT INK AND ARE UNTOUCHED. This register's field is a mid-dark slate world (see above) and
+// each card carries its own surface, so its own label answers to that card and not to the page. The RECEDED
+// labels do wash into their cards on paper — `measure_ground_reach.py`'s INK_REFUSED reads 1.07:1 there —
+// but that is the recede, not the ground: computed through this runtime's own helpers at the lens's 0.18
+// opacity floor, the same label measures 1.25:1 on this register's OWN slate, 1.22:1 on the ink probe's
+// paper and 1.21:1 on gallery white. A periphery you can read is not a periphery. The one label that must
+// read is the focal one, at 13.08:1 on its own card. The curve itself is the shared house lens in
+// runtime/focus.ts, not a colour decision made here.
+
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, easeOutBack, clamp01} from '../runtime/motion';
 import {focusAt, focusFilter} from '../runtime/focus';
 import {useDNA} from '../runtime/dna';
+import {onLight} from '../runtime/light';
 import {CONTENT_TOP, contentBottom, textWidthPx} from '../runtime/layout';
 
 export const DURATION = 135; // 4.5s
 const ACCENT0 = '#2E7BFF', SPOT = '#ffe6ad';
+const CAPTION0 = '#eaf1ff';          // the caption under the focal cell
+const VIGNETTE0 = '#060910';         // what the edges darken TOWARD
+// HOW FAR THE EDGES GO, PER GROUND. 0.85 is what this register has always used and is what its own slate
+// wants: composited over #0d131d it is a deepening of about a third of a channel, which is a vignette.
+// Composited over paper it is the blackout sampled above. On a light ground the same gradient is painted at
+// a quarter, which computes (runtime/dna `mix`) to a deepest corner of #bab9b7 — 186,185,183 against the
+// page's 246,243,238, instead of 42,44,49. The periphery still falls away and the page is still a page. The
+// geometry, the colour and the timing do not move, and on a dark ground or with no DNA nothing here does.
+const VIGNETTE_PEAK = 0.85, VIGNETTE_PEAK_LIGHT = 0.25;
+// A CONTACT SHADOW TUNED FOR A VOID FILLS EVERY GAP ON PAPER. `rgba(0,0,0,.5)` blurred 70px is what lifts
+// the focal card off near-black; on a light ground it is a grey smear under the one thing the beat is
+// pointing at. Lightened there and left alone everywhere else (the same move as KSpaceAnatomy's plates).
+const FOCAL_SHADOW = 'rgba(0,0,0,.5)', FOCAL_SHADOW_LIGHT = 'rgba(0,0,0,.18)';
 
 const DEFAULT_ITEMS = ['Cloud drive', 'Shared server', 'Email', 'Someone’s laptop', 'YOUR MACHINE', 'A vendor', 'Chat export', 'Backup', 'The internet'];
 // the demo's own focal item, used only while the demo's own items are showing — never for a film's list
@@ -50,6 +84,8 @@ export const FocalIsolation: React.FC<{focalLabel?: string; items?: string[]; fo
   }
   const t = useT();
   const dna = useDNA(); const ACCENT = dna?.accent ?? ACCENT0;
+  const light = onLight(dna);
+  const captionInk = dna?.fg ?? CAPTION0;
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H);
   const iso = easeOutCubic(seg(t, 0.32, 0.66)); // isolation progress
@@ -106,19 +142,20 @@ export const FocalIsolation: React.FC<{focalLabel?: string; items?: string[]; fo
             transform: `scale(${sc})`, transformOrigin: 'center', filter: isF ? undefined : focusFilter(f),
             background: isF ? 'linear-gradient(160deg,#223049,#18212f)' : '#161d29',
             border: `${isF ? 2 : 1}px solid ${isF ? ACCENT : '#26303f'}`, borderRadius: 16,
-            boxShadow: isF ? `0 0 0 6px ${ACCENT}22, 0 30px 70px rgba(0,0,0,.5)` : 'none',
+            boxShadow: isF ? `0 0 0 6px ${ACCENT}22, 0 30px 70px ${light ? FOCAL_SHADOW_LIGHT : FOCAL_SHADOW}` : 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
             <div style={{textWrap: 'balance', font: `${isF ? 700 : 500} ${isF ? 40 : 32}px/1.15 var(--f-body, Inter,system-ui,sans-serif)`,
               color: isF ? '#eaf1ff' : '#7f8da3', textAlign: 'center', padding: '0 24px'}}>{label}</div>
           </div>
         );
       })}
-      {/* vignette darkening the edges as isolation lands */}
-      <AbsoluteFill style={{background: 'radial-gradient(70% 70% at 50% 46%, transparent 55%, #060910 100%)', opacity: 0.85 * iso, pointerEvents: 'none'}} />
-      {/* focal label */}
+      {/* vignette darkening the edges as isolation lands — at the depth this ground can carry (see above) */}
+      <AbsoluteFill style={{background: `radial-gradient(70% 70% at 50% 46%, transparent 55%, ${VIGNETTE0} 100%)`,
+        opacity: (light ? VIGNETTE_PEAK_LIGHT : VIGNETTE_PEAK) * iso, pointerEvents: 'none'}} />
+      {/* focal label — it sits in the gutter ON the film's ground, so it is the film's ink */}
       {iso > 0.4 && (
         <div style={{position: 'absolute', left: labelLeft, width: labelW, top: labelTop, textAlign: 'center',
-          opacity: easeOutCubic(seg(t, 0.5, 0.7)), font: '700 44px/1 var(--f-body, Inter,system-ui,sans-serif)', color: '#eaf1ff'}}>{focalLabel}</div>
+          opacity: easeOutCubic(seg(t, 0.5, 0.7)), font: '700 44px/1 var(--f-body, Inter,system-ui,sans-serif)', color: captionInk}}>{focalLabel}</div>
       )}
     </AbsoluteFill>
   );

@@ -18,6 +18,7 @@
 - Leaving the props unset prints demo copy: `WorkBuddy`, the readouts `SIGNAL · strong / SCOPE · full workspace / STATUS · ready`, and `Locking on`.
 - The geometry was fixed pixels composed for 1920 wide, so on a 1080-wide frame the readouts sat on the ring and ran through the target's name. It reflows now (column beside the ring, or readouts under a scaled ring). The faint grid also stops at the content zone instead of running into the caption band.
 - Readout timing was a fixed 0.1 per line, so a fourth readout was still fading on the settled frame and a seventh never appeared. It is laid out for the count now.
+- The scan ring's `drop-shadow(0 0 8px)` and the target's 40px text bloom are lit-on-black effects: on a light film they spread the accent into a halo that is neither the ring nor the paper. Measured 8.3% of the register's ink under 3:1 on a warm-white ground, in one ring-shaped region 0.75% of the frame, while the ring's own stroke reads (median mark 5.33:1). Both are drawn only while the film's ground is dark now. The faint grid (0.12) and the inner dashed ring (0.3) are unchanged — they are as quiet on one ground as the other.
 
 **Refuses:** more than six `readouts`, or an empty readout.
 

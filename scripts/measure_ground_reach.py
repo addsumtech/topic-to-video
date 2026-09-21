@@ -103,14 +103,23 @@ INK_REFUSED = {
     "HoloFoil": "subtitle is #fff — 1.01:1 on paper",
     "StarfieldWarp": "6607 pure-white streak pixels at 1.10:1 on the light key",
     "EmberFlame": "'BUILT WITH FIRE' at 2.35:1, under ACCENT_CONTRAST_MIN",
-    "FocalIsolation": "card labels 1.07:1 on their own card, sub-headline ~1.4:1, and a #060910 vignette "
-                      "painted into the corners of the paper (render read)",
+    # Two of the three were repaired on 2026-09-21 (`4b99a6c`..): the sub-headline takes `fg` and the
+    # vignette is scaled to the ground. The FIRST one stands and is deliberate — the receded cards are the
+    # recede, and at the lens's own 0.18 opacity floor that label computes to 1.25:1 on this register's own
+    # slate as well, not only on paper. A periphery you can read is not a periphery. So it stays refused.
+    "FocalIsolation": "receded card labels 1.07:1 on their own card, by design (the sub-headline and the "
+                      "#060910 vignette were repaired 2026-09-21) — render read",
     "CodeRain": "title+glow fall from 19.2:1 to 6.1:1 and the dark glow halo becomes a brown smudge on cream",
     # Found by RENDERING A WHOLE FILM with an authored light arc and looking at it, not by this sweep — which
     # is the honest measure of what the sweep still misses. The hub node's own label is hardcoded near-white,
     # so it survives the band test, the field test and the moved-fraction test and then vanishes: measured on
     # the delivered frame, 17.41:1 on the film's native dark, 1.07:1 on the light key.
-    "KnowledgeGraph": "hub label is hardcoded near-white — 17.41:1 native, 1.07:1 on the light key (render read)",
+    # REPAIRED 2026-09-21: the hub label and the node rims take `fg`. The entry stays until this sweep is
+    # RE-RUN on it, because this list's whole claim is that every name in it carries a measurement — and the
+    # measurement that would move it out has not been taken. Absence means "not looked at"; a stale presence
+    # would mean "looked at and wrong", which is worse.
+    "KnowledgeGraph": "hub label was hardcoded near-white (17.41:1 native, 1.07:1 on the light key, render "
+                      "read); repaired 2026-09-21 and awaiting a re-measure by this sweep",
 }
 
 # WHAT THIS LIST IS, said plainly because it is load-bearing. INK_REFUSED is HAND-WRITTEN. The sweep below

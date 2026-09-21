@@ -15,12 +15,15 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack, hash01} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, mix} from '../runtime/dna';
+import {onLight, groundFrom} from '../runtime/light';
 import {leading} from '../runtime/cjkType';
 import {contentBottom, fitTextPx, inkBlockH, wrapLines} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
 const BOARD = '#08130f', COPPER = '#2fd6a0', LIVE = '#7dffcf';
+const TITLE_D0 = '#8fd8bf';
+const TRACE_OP_D0 = 0.5;   // a trace's stroke alpha (see the light-ground note in the body)
 
 export const MAX_CIRCUIT_NODES = 6;
 
@@ -28,6 +31,22 @@ export const CircuitTrace: React.FC<{title?: string; chip?: string; nodes?: stri
   title: TITLE = 'Wired together', chip: CHIP = 'CORE', nodes: NODES = ['IN', 'MEM', 'I/O', 'NET', 'PWR']} = {}) => {
   const t = useT();
   const dna = useDNA();
+  // MOST OF THIS REGISTER ALREADY READS ON PAPER: measured on a light film (`ink_contrast_qa.py`) the median
+  // mark is 11.79:1, because the pads and the chip carry their own dark board under mint type. What fails is
+  // everything drawn straight ONTO the film's ground — the title, the copper traces, the chip's pins and the
+  // signal dots — all of which are a light mint picked against near-black. Those keep their copper HUE and move
+  // only their exposure (`groundFrom`), as do the pad and chip EDGES, which touch the page on one side. The
+  // dark FILLS stay — a PCB is a dark board, and at a median mark of 11.79:1 nothing measured asks them to
+  // move. Null DNA and the eight (dark) presets never reach any of this.
+  const lit = dna && onLight(dna) ? groundFrom(dna, {bg: dna.bg}) : null;
+  const onGround = (c: string) => (dna && lit ? groundFrom(dna, {bg: dna.bg, fg: c}).fg : c);
+  const TRACE = onGround(COPPER), SIGNAL = onGround(LIVE);
+  // Alpha is a dark-ground device: half a bright mint still reads as copper on black, and on paper it is half
+  // way from the page to the ink. On a light ground the trace is drawn nearly solid, which is what a copper
+  // trace looks like on a light board anyway.
+  const TRACE_OP = lit ? 0.9 : TRACE_OP_D0;
+  // The title sits on the ground with nothing under it, so it is the film's ink rather than a board colour.
+  const TITLE_INK = dna ? mix(dna.fg, dna.dim, 0.4) : TITLE_D0;
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2 + 10;
   const titleIn = easeOutCubic(seg(t, 0.03, 0.16));
@@ -65,17 +84,17 @@ export const CircuitTrace: React.FC<{title?: string; chip?: string; nodes?: stri
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? (`radial-gradient(130% 100% at 50% 42%, #0d2018, ${BOARD} 74%)`), overflow: 'hidden'}}>
       <div style={{position: 'absolute', top: 70, left: 0, right: 0, textAlign: 'center', opacity: titleIn, zIndex: 5,
-        color: '#8fd8bf', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
+        color: TITLE_INK, font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
       {/* faint pad grid */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <g opacity={0.16}>{[...Array(28)].map((_, i) => [...Array(16)].map((__, j) =>
-          <circle key={`${i}-${j}`} cx={60 + i * 66} cy={40 + j * 66} r={2} fill={COPPER} />))}</g>
+          <circle key={`${i}-${j}`} cx={60 + i * 66} cy={40 + j * 66} r={2} fill={TRACE} />))}</g>
         {/* traces */}
         {pads.map((p, i) => {
           const draw = easeOutCubic(clamp01(seg(t, 0.18 + i * 0.07, 0.5 + i * 0.07)));
           const len = Math.abs(p.px - cx) + Math.abs(p.py - cy);
-          return <path key={i} d={lpath(p.px, p.py, cx, cy)} fill="none" stroke={COPPER} strokeWidth={5}
-            strokeLinejoin="round" opacity={0.5} strokeDasharray={len} strokeDashoffset={len * (1 - draw)} />;
+          return <path key={i} d={lpath(p.px, p.py, cx, cy)} fill="none" stroke={TRACE} strokeWidth={5}
+            strokeLinejoin="round" opacity={TRACE_OP} strokeDasharray={len} strokeDashoffset={len * (1 - draw)} />;
         })}
       </svg>
       {/* signal pulses (rendered as absolutely-positioned dots for clean movement) */}
@@ -87,25 +106,38 @@ export const CircuitTrace: React.FC<{title?: string; chip?: string; nodes?: stri
         const seg1 = clamp01(pulse * 2), seg2 = clamp01(pulse * 2 - 1);
         const x = p.px + (cx - p.px) * seg2;
         const y = p.py + (cy - p.py) * seg1;
+        // the pulse's halo is a dark-ground device — on paper a mint bloom is a pale wash that only softens the
+        // dot's own edge, and it is the dot that says where the signal is
         return <div key={i} style={{position: 'absolute', left: x, top: y, width: 14, height: 14, borderRadius: '50%',
-          transform: 'translate(-50%,-50%)', background: LIVE, boxShadow: `0 0 16px ${LIVE}`, opacity: pulse < 1 ? 1 : 0}} />;
+          transform: 'translate(-50%,-50%)', background: SIGNAL, boxShadow: lit ? 'none' : `0 0 16px ${LIVE}`,
+          opacity: pulse < 1 ? 1 : 0}} />;
       })}
       {/* satellite pads */}
       {pads.map((p, i) => {
         const on = easeOutBack(clamp01(seg(t, 0.12 + i * 0.06, 0.34 + i * 0.06)));
         return <div key={i} style={{position: 'absolute', left: p.px, top: p.py, transform: `translate(-50%,-50%) scale(${on})`,
           opacity: clamp01(on), width: 116, height: 74, borderRadius: 10, background: '#0c241a',
-          border: `2px solid ${COPPER}`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: LIVE, font: `800 ${padPx}px/${leading(p.label, 1)} var(--f-mono, "JetBrains Mono", monospace)`, boxShadow: `0 0 24px ${COPPER}44`}}>{p.label}</div>;
+          // the pad's EDGE touches the ground, so on paper it is the exposed copper (it still reads against
+          // the pad's own dark fill); the label inside it does not, and keeps the board's signal green
+          border: `2px solid ${lit ? TRACE : COPPER}`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: LIVE, font: `800 ${padPx}px/${leading(p.label, 1)} var(--f-mono, "JetBrains Mono", monospace)`,
+          boxShadow: lit ? 'none' : `0 0 24px ${COPPER}44`}}>{p.label}</div>;
       })}
       {/* central chip */}
       <div style={{position: 'absolute', left: cx, top: cy, transform: `translate(-50%,-50%) scale(${chipIn})`,
         width: 260, height: 200, borderRadius: 14, background: 'linear-gradient(160deg, #103326, #0a1f17)',
-        border: `3px solid ${LIVE}`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        // same rule as the pads: the chip's edge is the one part of it that sits against the page
+        border: `3px solid ${lit ? SIGNAL : LIVE}`, display: 'flex', alignItems: 'center', justifyContent: 'center',
         color: '#eafff6', font: `900 56px/${leading(CHIP, 1)} var(--f-body, Inter, system-ui, sans-serif)`,
-        boxShadow: t > 0.5 ? `0 0 60px ${LIVE}66, inset 0 0 30px ${COPPER}44` : `0 0 20px ${COPPER}44`}}>
-        {/* chip pins */}
-        {[...Array(8)].map((_, k) => <div key={k} style={{position: 'absolute', top: -12, left: 24 + k * 28, width: 12, height: 12, background: COPPER}} />)}
+        // THE CHIP'S OUTER GLOW IS WHAT THE GATE WAS READING THE CHIP'S EDGE AGAINST. On paper a 60px mint bloom
+        // is not light, it is a pale wash lying on the page — the mark render shows the chip's own rim measured
+        // against that wash instead of against the paper. Lit, the chip keeps only the inset light that says it
+        // is powered; the board it sits on is dark either way, so nothing about the chip stops reading.
+        boxShadow: lit
+          ? (t > 0.5 ? `inset 0 0 30px ${COPPER}44` : 'none')
+          : (t > 0.5 ? `0 0 60px ${LIVE}66, inset 0 0 30px ${COPPER}44` : `0 0 20px ${COPPER}44`)}}>
+        {/* chip pins — copper on the film's ground, not on the chip, so they follow the trace's exposure */}
+        {[...Array(8)].map((_, k) => <div key={k} style={{position: 'absolute', top: -12, left: 24 + k * 28, width: 12, height: 12, background: TRACE}} />)}
         {CHIP}
       </div>
     </AbsoluteFill>

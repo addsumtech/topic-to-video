@@ -6,10 +6,20 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, dnaPalette} from '../runtime/dna';
 import {focusAt, focusFilter} from '../runtime/focus';
 
 export const DURATION = 170; // ~5.7s
+// THE LIGHT LAYER, WHICH WAS ONE LITERAL FOUR TIMES OVER. The hub's name, each node's core, the core's own
+// centre and its rim were all near-white constants: they read because everything under them was ALSO a
+// literal near-black, and on a light film the ground arrived and the ink did not. `ink_contrast_qa` reported
+// 33.7% of the marks under 3:1, a median of 3.76:1 and a 0.30%-of-frame hole — and the hole was the word
+// `hub`, the beat's own subject, painted white on warm paper. The core assembly is left alone deliberately:
+// it carries its own dark disc under its own pale centre, so it reads on either ground (see the card).
+const HUB_D0 = '#eaf0ff', NODE_D0 = '#f2f7ff';
+// the hub's separation bloom. Under near-white type on night it is what lifts the word off the orbits;
+// under dark type on paper a black bloom is a smudge, so it follows the film's own ground.
+const HUB_BLOOM_D0 = '#000';
 // THE ORBITS carry geometry only. Their labels used to live here too — four English words in a module
 // const, which is not a prop default and so was invisible to the demo-default check: every film that omitted
 // `items` printed Docs / Code / Tasks / Comms whatever it was about, and nothing anywhere said so. Moved
@@ -37,9 +47,16 @@ export const DataOrrery: React.FC<{items?: string[]; hub?: string}> = ({
       `DataOrrery holds at most ${RING_GEOM.length} orbits and was given ${labels.length} items. Cut the list to ` +
       'the ones the beat is about, or cast a register that holds more — an extra item is never dropped silently.');
   }
-  const RINGS = labels.map((label, i) => ({...RING_GEOM[i], label}));
   const t = useT();
   const dna = useDNA();
+  // FOUR ORBITS IN FOUR HUES, and the hues were the register's, not the film's. `dnaPalette` grows them from
+  // the film's own two accents (null DNA -> null -> the originals), so a themed film's orbits belong to it,
+  // and on a light film they are hues the film already exposed for its own paper. Their 0.28 stroke alpha is
+  // NOT touched: it is as faint on the night as on the page, so it is this register's own restraint rather
+  // than something the ground broke.
+  const HUE = dnaPalette(dna, RING_GEOM.length);
+  const RINGS = labels.map((label, i) => ({...RING_GEOM[i], c: HUE?.[i] ?? RING_GEOM[i].c, label}));
+  const INK = dna?.fg ?? HUB_D0, NODE = dna?.fg ?? NODE_D0;
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2;
   const U = Math.min(W, H);
@@ -87,8 +104,11 @@ export const DataOrrery: React.FC<{items?: string[]; hub?: string}> = ({
         {RINGS.map((r, i) => {
           const n = nodeAt(r); if (!n.front) return null;
           const on = easeOutBack(seg(t, 0.2 + i * 0.08, 0.4 + i * 0.08));
+          // the node's CORE is the marker; the 30px disc behind it at 0.18 is its glow and is left as it is,
+          // since a halo that stops showing on paper costs a reader nothing. The core itself is the film's
+          // ink: as a literal near-white it was a white disc on warm paper, and only the accent rim survived.
           return <g key={`nf${i}`}><circle cx={n.x} cy={n.y} r={30 * on} fill={r.c} opacity={0.18} />
-            <circle cx={n.x} cy={n.y} r={13 * on} fill="#f2f7ff" filter="url(#og)" />
+            <circle cx={n.x} cy={n.y} r={13 * on} fill={NODE} filter="url(#og)" />
             <circle cx={n.x} cy={n.y} r={13 * on} fill="none" stroke={r.c} strokeWidth={3} /></g>;
         })}
       </svg>
@@ -113,8 +133,8 @@ export const DataOrrery: React.FC<{items?: string[]; hub?: string}> = ({
           whiteSpace: 'nowrap'}}>{r.label}</div>;
       })}
       <div style={{position: 'absolute', left: 0, right: 0, top: cy + 150, textAlign: 'center',
-        opacity: clamp01(seg(t, 0.18, 0.34)), color: '#eaf0ff', font: `800 40px/1 var(--f-body, Inter, system-ui, sans-serif)`,
-        letterSpacing: '-0.01em', textShadow: '0 2px 20px #000'}}>{HUB}</div>
+        opacity: clamp01(seg(t, 0.18, 0.34)), color: INK, font: `800 40px/1 var(--f-body, Inter, system-ui, sans-serif)`,
+        letterSpacing: '-0.01em', textShadow: `0 2px 20px ${dna?.bg ?? HUB_BLOOM_D0}`}}>{HUB}</div>
     </AbsoluteFill>
   );
 };

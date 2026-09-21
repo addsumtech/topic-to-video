@@ -20,7 +20,9 @@
 - A tile without a glyph used to get a generic `node` pictogram; now it gets no picture, and an unknown glyph name throws. `node` is only for a surface that really is "a node".
 - Omitting `tiles`, `title` or `markLabel` prints the demo copy about someone else's product line.
 - Type is fixed-size, not fitted: a long label or note wraps, and in the shorter rows of 5–6 tiles there is little room under the glyph for it.
-- Only the ground and the first two tones follow the DNA; tiles 3–5 use fixed tones, and the tile and hero-panel surfaces are fixed dark literals with light type.
+- The tile's fill had a TRANSLUCENT top stop, so on a light film it composited to a mid grey over the paper — and the glyph, the one thing this register exists to draw, sits in exactly that half of the tile. Measured on a light film: 32.6% of the ink under 3:1, and the mark render is four glyphs and nothing else. On a light ground the tile is now the film's `surface`, its label the film's ink and its note the film's metadata ink.
+- Tiles 3–5 no longer use three fixed tones picked for a near-black tile: every tone is the film's palette, exposed for the ground it will be drawn on. The hero panel's own gradient (the accent into a fixed deep green) and its white type are unchanged — the panel is opaque and dark at either exposure, and the gate flagged only two slivers of its edge, read against its own drop shadow.
+- The hero and tile drop shadows are scaled to the ground: at their dark-film weight they are a grey field in every gutter on paper.
 
 **Refuses:** fewer than 1 or more than 6 tiles; a tile with no label; a glyph name outside the list above.
 

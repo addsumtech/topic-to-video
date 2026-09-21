@@ -16,7 +16,8 @@
 - `backLabel` defaults to the Chinese `实际`, which prints on English films unless it's passed.
 - Omitting `items` or `title` prints the demo `Manual→Automated`, `Hours→Seconds`, `Guesswork→Grounded` and `What changes`.
 - A fixed 64px broke a Chinese label mid-word (`失/败`), and fitting each string on its own made peer cards read as primary and subordinate. There is now one width-aware size for all of them.
-- The back used to show a bare `↓` pointing at nothing; `backLabel` replaced it. The card fills used to be hardcoded; faces and tones now come from the DNA.
+- The back used to show a bare `↓` pointing at nothing; `backLabel` replaced it. The card fills used to be hardcoded; faces and tones now come from the DNA — though the FRONT face's DNA fill was computed and never passed to the face that draws it, so it stayed a literal near-black on every film, which on a light one is `dna.fg` (near-black) printed on a near-black card. It is wired.
+- The kicker over the row was a literal `#aeb6ca` — the beat's own title, white-on-warm-paper and the whole of `ink_contrast_qa`'s 0.29%-of-frame hole (14.7% of the marks under 3:1). It is the film's ink at its metadata tier now. The cards' `0 40px 90px #0008` shadow went with it: authored against a void, where it is the only thing separating a card from the frame, it pooled three grey washes across the lower half of a page. On a light film it is the paper's own shade, closer in and half as far.
 
 **Refuses:** no `items`, or more than four (a fifth card would still be mid-turn at the last frame, its back never shown — split the pairs across two beats); a card missing `front` or `back`.
 

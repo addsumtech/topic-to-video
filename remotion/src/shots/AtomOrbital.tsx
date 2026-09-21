@@ -13,20 +13,31 @@
 //   * the nucleus is one glowing core in both modes. Its particle count would be a second fact (protons AND
 //     neutrons) that no prop carries, so it is not drawn as particles at all.
 // 1-7 shells, each a whole number of electrons from 1 to 32; anything else throws.
+//
+// THE NUCLEUS'S AMBER IS THE ONE COLOUR THAT MEANS SOMETHING HERE — a hot core, the light the rest of the atom
+// is drawn around — so it is KEPT on any ground and only its exposure moves. A shell's colour is not an element
+// colour: it is only "this ring is not that ring", so the ring palette is the FILM's (dnaPalette), the way every
+// other categorical palette in this library is. The title, the tagline and the ground are ink and paper.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
-import {useDNA, mix} from '../runtime/dna';
+import {useDNA, mix, shade, dnaPalette} from '../runtime/dna';
+import {onLight, groundFrom} from '../runtime/light';
 import {bottomInset} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
-const BG_D0 = '#060812', CORE = '#ffd36e', CORE2 = '#ff8f5e';
-const RING_COLS = ['#37e0ff', '#ff5b9e', '#8f7bff'];
-// the emblem's three rings (no-`shells` mode) — the atom symbol, not a shell structure
-const EMBLEM = [{rx: 340, ry: 120, tilt: 0, col: RING_COLS[0], sp: 1.0},
-  {rx: 300, ry: 300, tilt: 60, col: RING_COLS[1], sp: -0.8},
-  {rx: 340, ry: 120, tilt: 120, col: RING_COLS[2], sp: 1.3}];
+const BG_D0 = '#060812', CORE_D0 = '#ffd36e', CORE2_D0 = '#ff8f5e';
+const POOL_D0 = '#101430';        // the lit core of the ground, a LIFT off this register's own night
+const CORE_HOT_D0 = '#fff6d8';    // the nucleus's specular centre
+const RING_COLS_D0 = ['#37e0ff', '#ff5b9e', '#8f7bff'];
+const TITLE_D0 = '#eaf2ff', TAG_D0 = '#9fb2d0';
+const RING_OP_D0 = 0.35;          // an orbit's stroke alpha (see the light-ground note in the body)
+// the emblem's three rings (no-`shells` mode) — the atom symbol, not a shell structure. `ci` indexes the ring
+// palette rather than naming a colour, because that palette is the film's and is resolved per render.
+const EMBLEM = [{rx: 340, ry: 120, tilt: 0, ci: 0, sp: 1.0},
+  {rx: 300, ry: 300, tilt: 60, ci: 1, sp: -0.8},
+  {rx: 340, ry: 120, tilt: 120, ci: 2, sp: 1.3}];
 export const MAX_ATOM_SHELLS = 7;
 const SHELL_RMAX = 400, SHELL_FLAT = 0.46;   // outermost shell's radius and the orbit plane's foreshortening
 export const MAX_SHELL_ELECTRONS = 32;
@@ -47,10 +58,10 @@ const checkShells = (shells: unknown): number[] | null => {
 };
 
 // a colour per shell, blended inner -> outer across the ring palette (never cycled by index)
-const shellColour = (i: number, n: number) => {
-  if (n === 1) return RING_COLS[0];
-  const u = (i / (n - 1)) * (RING_COLS.length - 1), k = Math.min(RING_COLS.length - 2, Math.floor(u));
-  return mix(RING_COLS[k], RING_COLS[k + 1], u - k);
+const shellColour = (i: number, n: number, cols: string[]) => {
+  if (n === 1) return cols[0];
+  const u = (i / (n - 1)) * (cols.length - 1), k = Math.min(cols.length - 2, Math.floor(u));
+  return mix(cols[k], cols[k + 1], u - k);
 };
 
 export const AtomOrbital: React.FC<{title?: string; tagline?: string; shells?: number[] | null}> = ({
@@ -58,6 +69,33 @@ export const AtomOrbital: React.FC<{title?: string; tagline?: string; shells?: n
   const shells = checkShells(SHELLS);
   const dna = useDNA();
   const BG = dna?.bg ?? BG_D0;
+  // AN ATOM IS A DIAGRAM, NOT A LIGHT SOURCE — it is drawn on paper in every textbook there has ever been — so
+  // it takes the film's ground and ink. Measured on a light film (`ink_contrast_qa.py`): 26.3% of this
+  // register's ink under 3:1, and the mark render says all of it is the tagline. The title read only because
+  // the literal `#101430` core painted a dark pool under it, i.e. because of the second defect and not despite
+  // it. On a light ground every hue here is walked along its own black-to-white axis until it clears the floor
+  // (`groundFrom`: exposure only, hue kept). Null DNA and the eight (dark) presets never reach this.
+  const lit = dna && onLight(dna) ? groundFrom(dna, {bg: dna.bg}) : null;
+  const litHue = (c: string) => (dna && lit ? groundFrom(dna, {bg: dna.bg, fg: c}).fg : c);
+  // The ring palette is CATEGORICAL — it says "this shell is not that shell" and names no element — so it is
+  // the film's own, derived from its two accents the way every other tone list in this library is. The
+  // nucleus's amber is not categorical and stays amber.
+  const RING = (dnaPalette(dna, RING_COLS_D0.length) ?? RING_COLS_D0).map(litHue);
+  const CORE = litHue(CORE_D0), CORE2 = litHue(CORE2_D0);
+  // A CORE'S LIT FACE CANNOT BE BRIGHTER THAN THE PAPER IT SITS ON: the nucleus ramps from a near-white
+  // specular, which on a light film is a hole punched through the middle of the atom. On paper the hot centre
+  // is a LIFT of the core's own colour.
+  const CORE_HOT = lit ? mix(CORE, '#ffffff', 0.3) : CORE_HOT_D0;
+  // The ground's core is a LIFT off this register's own night; on a light film the literal is a dark blob in
+  // the middle of the page (the light probe rendered the whole atom in that murk rather than on the paper).
+  const POOL = lit ? shade(BG, 0.06) : POOL_D0;
+  const TITLE_INK = dna?.fg ?? TITLE_D0;
+  const TAG_INK = dna ? mix(dna.fg, dna.dim, 0.4) : TAG_D0;
+  // ALPHA IS A DARK-GROUND DEVICE. A third of a bright hue still glows on black; on paper it is a third of the
+  // way from the page to the ink, which is no orbit at all. On a light ground the orbit is a drawn line, and
+  // the lights that run along it (nested strokes at 0.22-0.8, painted OVER it) still read as a swelling,
+  // because on paper alpha adds ink rather than taking it away.
+  const RING_OP = lit ? 0.9 : RING_OP_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2 + 10;
@@ -71,9 +109,9 @@ export const AtomOrbital: React.FC<{title?: string; tagline?: string; shells?: n
     ? shells.map((n, i) => {
       const R = SHELL_RMAX * (shells.length === 1 ? 0.62 : 0.34 + 0.66 * (i + 1) / shells.length);
       // one plane for every shell, turning slowly: concentric orbits read inner -> outer
-      return {rx: R, ry: R * SHELL_FLAT, tilt: -22 + 26 * t, col: shellColour(i, shells.length), sp: 1.35 - 0.6 * i / Math.max(1, shells.length - 1), n};
+      return {rx: R, ry: R * SHELL_FLAT, tilt: -22 + 26 * t, col: shellColour(i, shells.length, RING), sp: 1.35 - 0.6 * i / Math.max(1, shells.length - 1), n};
     })
-    : EMBLEM.map((o) => ({...o, n: 0}));
+    : EMBLEM.map((o) => ({rx: o.rx, ry: o.ry, tilt: o.tilt, sp: o.sp, col: RING[o.ci], n: 0}));
   const at = (o: Orbit, a: number): [number, number] => {
     const tl = (o.tilt * Math.PI) / 180;
     const x0 = Math.cos(a) * o.rx * build, y0 = Math.sin(a) * o.ry * build;
@@ -86,21 +124,22 @@ export const AtomOrbital: React.FC<{title?: string; tagline?: string; shells?: n
   const shellGapY = shells && shells.length > 1 ? (SHELL_RMAX * 0.66 / shells.length) * SHELL_FLAT : Infinity;
 
   return (
-    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 44%, #101430, ${BG} 74%)`, overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 44%, ${POOL}, ${BG} 74%)`, overflow: 'hidden'}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <defs>
           <radialGradient id="atomCore" cx="0.38" cy="0.34" r="0.7">
-            <stop offset="0" stopColor="#fff6d8" /><stop offset="0.35" stopColor={CORE} /><stop offset="1" stopColor={CORE2} />
+            <stop offset="0" stopColor={CORE_HOT} /><stop offset="0.35" stopColor={CORE} /><stop offset="1" stopColor={CORE2} />
           </radialGradient>
         </defs>
         <g transform={`translate(${cx} ${cy})`}>
           {orbits.map((o, i) => (
             <ellipse key={'e' + i} rx={o.rx * build} ry={o.ry * build} fill="none" stroke={o.col} strokeWidth={2}
-              opacity={0.35} transform={`rotate(${o.tilt})`} />
+              opacity={RING_OP} transform={`rotate(${o.tilt})`} />
           ))}
-          {/* nucleus — one core; its particle count is not something any prop states */}
+          {/* nucleus — one core; its particle count is not something any prop states. The bloom is a dark-ground
+              device: on paper it is a halo of the core's own colour that only fogs the edge it is meant to lift. */}
           <circle r={coreR} fill="url(#atomCore)" opacity={clamp01(build * 1.4)}
-            style={{filter: `drop-shadow(0 0 18px ${CORE})`}} />
+            style={{filter: lit ? 'none' : `drop-shadow(0 0 18px ${CORE})`}} />
           {shells
             // electrons — exactly shells[i] on orbit i, each RACING with a motion trail
             ? orbits.map((o, i) => [...Array(o.n)].map((_, k) => {
@@ -110,7 +149,7 @@ export const AtomOrbital: React.FC<{title?: string; tagline?: string; shells?: n
               const er = Math.max(4, Math.min(13, (Math.PI * (o.rx + o.ry)) / (o.n * 3.2), shellGapY * 0.42));
               return <g key={`${i}-${k}`} opacity={clamp01(build)}>
                 <polyline points={trail} fill="none" stroke={o.col} strokeWidth={Math.max(2, er * 0.38)} strokeLinecap="round" opacity={0.32} />
-                <circle cx={ex} cy={ey} r={er} fill={o.col} style={{filter: `drop-shadow(0 0 12px ${o.col})`}} />
+                <circle cx={ex} cy={ey} r={er} fill={o.col} style={{filter: lit ? 'none' : `drop-shadow(0 0 12px ${o.col})`}} />
               </g>;
             }))
             // no shells: a soft light slides along each ring — motion with nothing on it to count
@@ -127,16 +166,18 @@ export const AtomOrbital: React.FC<{title?: string; tagline?: string; shells?: n
                     .map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
                   return <polyline key={s} points={pts} fill="none" stroke={o.col} strokeWidth={L.w}
                     strokeLinecap="round" strokeLinejoin="round" opacity={L.o}
-                    style={s === LAYERS.length - 1 ? {filter: `drop-shadow(0 0 10px ${o.col})`} : undefined} />;
+                    style={s === LAYERS.length - 1 && !lit ? {filter: `drop-shadow(0 0 10px ${o.col})`} : undefined} />;
                 })}
               </g>;
             })}
         </g>
       </svg>
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: bottomInset(W, H, 110)}}>
-        <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 14}px)`, color: '#eaf2ff',
-          font: '800 104px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em', textShadow: '0 8px 40px #000'}}>{TITLE}</div>
-        <div style={{opacity: tagIn, marginTop: 16, color: '#9fb2d0',
+        {/* the title and its tagline are ON the ground, so they are the film's ink and its metadata; the
+            separation shadow is the ground's own colour on paper, never a fixed black under near-black type */}
+        <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 14}px)`, color: TITLE_INK,
+          font: '800 104px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em', textShadow: `0 8px 40px ${lit ? BG : '#000'}`}}>{TITLE}</div>
+        <div style={{opacity: tagIn, marginTop: 16, color: TAG_INK,
           font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.18em'}}>{TAG}</div>
       </AbsoluteFill>
     </AbsoluteFill>

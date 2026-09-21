@@ -5,8 +5,8 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
-import {useDNA, shade} from '../runtime/dna';
-import {onLight, groundFrom} from '../runtime/light';
+import {useDNA, shade, contrastOf} from '../runtime/dna';
+import {onLight, groundFrom, ACCENT_CONTRAST_MIN} from '../runtime/light';
 
 export const DURATION = 160; // ~5.3s
 const BG_D0 = '#0b120e';
@@ -32,8 +32,24 @@ export const FractalTree: React.FC<{title?: string; tagline?: string; branch?: s
   // the exact ratio the ink gate fails at, so a colour solved to 3.00 lands on the wrong side of it as soon as
   // the ground behind a mark is sampled locally rather than as the flat page.
   const litHue = (c: string) => (dna && lit ? groundFrom(dna, {bg: dna.bg, fg: c}).fg : c);
-  const BRANCH = litHue(BR), LEAF = litHue(LEAF_D0);
   const BLOSSOM = litHue(BL), BLOSSOM2 = litHue(BLOSSOM2_D0);
+  // ...AND THEN THEY ALL LAND ON THE SAME LUMINANCE. Exposing each hue to one floor against the PAGE says
+  // nothing about what the hues do to EACH OTHER, and a contrast ratio is blind to hue: on the light probe
+  // the sage twigs and the amber blossoms came out within a few hundredths of one tone, so every twig
+  // running through the canopy was read against the blossom sitting on it. That is what `ink_contrast_qa`
+  // reported as a median mark of 3.61:1 with 14.8% under the floor and a 0.30%-of-frame hole — the hole was
+  // a patch of canopy, not a word. A tree on paper is drawn the way anyone draws one: the branches are the
+  // dark LINE and the blossom keeps its colour, so the wood is walked down its own black axis until it
+  // clears the graphics floor against BOTH blossoms. Hue is kept; only exposure moves, as above.
+  const apart = (c: string) => {
+    if (!lit) return c;
+    for (let i = 0; i <= 18; i++) {
+      const out = shade(c, (i / 18) * 0.9);
+      if ([BLOSSOM, BLOSSOM2].every((b) => contrastOf(out, b) >= ACCENT_CONTRAST_MIN)) return out;
+    }
+    return shade(c, 0.9);      // the blossoms are as dark as the wood can go: take the darkest wood there is
+  };
+  const BRANCH = apart(litHue(BR)), LEAF = apart(litHue(LEAF_D0));
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const segs: Seg[] = [];

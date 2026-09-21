@@ -7,7 +7,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {leading} from '../runtime/cjkType';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
-import {useDNA, dnaPalette, mix, tint, shade} from '../runtime/dna';
+import {useDNA, dnaPalette, mix, pilL, tint, shade} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 // LEVEL-C: cel-shading is a TECHNIQUE (thick ink outlines, flat fills, hard offset shadows, squash-&-stretch),
@@ -38,7 +38,15 @@ export const CartoonPop: React.FC<{label?: string}> = ({label = 'DONE!'} = {}) =
   const P = dnaPalette(dna, 6);
   const OUTLINE = dna?.fg ?? OUTLINE0;                       // ink inverts to a LIGHT outline on a dark ground
   const BODY = P?.[0] ?? BODY0, GREEN = P?.[1] ?? GREEN0, STAR = P?.[2] ?? STAR0;
-  const FACE = dna ? shade(BODY, 0.72) : FACE0;              // face plate must contrast the (now light) eyes/ink
+  // THE FACE PLATE IS PICKED AGAINST THE INK, NOT AGAINST THE DARK. This was `shade(BODY, 0.72)` with the
+  // note "must contrast the (now light) eyes/ink" — true on all eight presets, where the outline inverts to
+  // a light one, and false the moment a film grounds on paper: there the ink stays dark, so the screen went
+  // dark under dark eyes and a dark smile and the robot lost its face. Measured on a light ground
+  // (2026-09-21, scripts/ink_contrast_qa.py): 11.1% of this register's ink under 3:1, largest region 0.47%
+  // of the frame, and that region is the face plate. The plate now takes whichever side of BODY the outline
+  // is not — a dark screen under a light outline, a pale one under a dark outline — by the same 0.72,
+  // mirrored, so every dark preset renders exactly what it rendered before.
+  const FACE = dna ? (pilL(OUTLINE) > 0.5 ? shade(BODY, 0.72) : tint(BODY, 0.72)) : FACE0;
   const SKYFILL = dna?.bgGrad ?? dna?.bg ?? (dna ? dna.bg : null) ?? `linear-gradient(${SKY0}, #b9e4ff)`;
   const CLOUD = dna ? mix(dna.fg, dna.bg, 0.16) : '#ffffff';
   const GRASS = dna ? mix(BODY, dna.bg, 0.62) : '#a7e17f';   // the ground plane recedes toward the film's ground

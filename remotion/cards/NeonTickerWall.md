@@ -18,6 +18,8 @@
 - The strip layout assumes a one-line marquee; a headline that wraps covers the strips nearest it.
 - Omitting `headline` / `tickers` prints demo copy: `NOW SHIPPING` and "BREAKING · IT WORKS", "LIVE NOW", "ALL SYSTEMS GO", "SOLD OUT · ENCORE".
 - The lower strips used to run through the caption band; they are now pinned to the content zone's floor.
+- The wall is a declared `@dark-world`: an LED panel and a neon tube are emitted light, so on a light film it keeps its own night instead of inverting onto paper. Taking the night was only half of it — the lamps are grown and exposed against the PANEL as well. Grown from the film's page they arrived as near-black type on a black strip: `ink_contrast_qa` measured 37.9% of the marks under 3:1, a median of 3.22:1 and a 0.38%-of-frame hole, and that hole was one whole ticker, a near-black blue printed on a black panel. Resolved over the eight shipped presets, seven come out byte-identical under this; `product`'s fourth tone lifts from about 2.7:1 to just over the floor, which it was under on a dark film too.
+- The LED panel and the marquee box stay this register's own literals, and the marquee's tube stays the `accent` prop's hot pink unless a film passes one. That is what the declaration buys: the wall's night is the wall's, not the film's.
 
 **Refuses:** `tickers` that is not an array or has fewer than 1 or more than 6 entries; an empty ticker.
 

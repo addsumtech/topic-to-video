@@ -15,7 +15,8 @@
 - `hub` defaults to 'WorkBuddy' — omit it and a product name prints under the core of any film.
 - The orbits used to be filled by `labels[i % n]`, so two items each appeared twice and a fifth was dropped without a word; now there is one orbit per item and a fifth throws.
 - Labels used to vanish whenever their node crossed behind the core, so at the settled frame one of four was drawn; they recede now instead.
-- Only the ground reads the DNA; the ring colours, the core and the label chips are fixed blue, teal, violet and pink.
+- The hub's name and every node's core were literal near-whites, so on a light film they were white on warm paper: `ink_contrast_qa` measured 33.7% of the marks under 3:1, a median of 3.76:1 and a 0.30%-of-frame hole, and the hole was the hub's own word — the subject of the beat. Both take the film's ink now, and the hub's separation bloom is the film's ground rather than a fixed black under it.
+- The ring hues come from `dnaPalette` instead of a fixed blue/teal/violet/pink. Still literal on purpose: the label chips (a dark pill carrying its own light ink, which reads on either ground) and the core assembly (a dark disc under a pale centre, same reason) — the gate flagged no mark on either. So is the rings' 0.28 stroke alpha, which is as faint on night as on paper: that is this register's own restraint, not something the ground broke.
 - The orbit scale budgets roughly a 90px chip at the outer ring and labels never wrap, so a long label can reach past a narrow frame's edge.
 
 **Refuses:** no non-empty items; more than four items.

@@ -12,15 +12,25 @@
 // molecule passes it — `molecule: {atoms: [{x, y, z?, el}], bonds: [[a, b]]}` with element symbols — and it is
 // drawn in the conventional CPK colours. Without one, the register draws its ring form in ONE neutral tone:
 // the shape of "a molecule", naming no element and no compound.
+//
+// THE CPK COLOURS ARE THE MEANING AND ARE KEPT, ON ANY GROUND — oxygen is red, nitrogen is blue, and a film
+// that says so must not be re-coloured, re-exposed or re-balanced by a design system. What is NOT an element
+// colour is everything else on the frame: the bonds, the specular on a ball, the title, the tagline and the
+// ground, and those are the film's. A light ground is met the way print meets it — every ball gets an edge.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, mix, shade} from '../runtime/dna';
+import {onLight, groundFrom} from '../runtime/light';
 import {bottomInset} from '../runtime/layout';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#070a14';
+const POOL_D0 = '#101430';        // the lit core of the ground, a LIFT off this register's own night
+const BOND_D0 = '#9fb0d0', BOND_OP_D0 = 0.5;
+const SPEC_D0 = '#ffffff';        // the specular cap on a ball
+const TITLE_D0 = '#eaf2ff', TAG_D0 = '#9fb2d0';
 // CPK colours for the elements a film is likely to name; an element outside this table throws rather than
 // being drawn in a guessed colour.
 const CPK: Record<string, string> = {
@@ -38,6 +48,28 @@ export const MoleculeBallStick: React.FC<{title?: string; tagline?: string; mole
   title: TITLE = 'Composed', tagline: TAG = 'the chemistry of it', molecule: MOL = null} = {}) => {
   const dna = useDNA();
   const BG = dna?.bg ?? BG_D0;
+  // A BALL-AND-STICK MODEL IS A DRAWING, NOT A LIGHT — it is printed on white in every chemistry book — so it
+  // takes the film's ground and ink. Measured on a light film (`ink_contrast_qa.py`): 28.7% of this register's
+  // ink under 3:1, and the mark render names two things — a ring around ball after ball, which is each one's
+  // BLOOM and not the ball, and the tagline.
+  //
+  // THE ELEMENT COLOURS ARE NOT EXPOSED, THEY ARE OUTLINED. Walking them to the ink floor is what this file
+  // does for a hue it owns, and it cannot be done to CPK: on the probe's paper it lands hydrogen's #e6ecff on
+  // #696c75 and carbon's #6b7488 on #676f82 — the two commonest atoms in organic chemistry, the same grey,
+  // the claim gone. So every ball keeps its element colour exactly and a light ground gets what a printed
+  // model gets: a hairline of the film's ink around each one, drawn by the same hand as the sticks. Hydrogen
+  // is then a white ball with an edge, which is what it is on paper, rather than 1.07:1 of nothing.
+  const lit = dna && onLight(dna) ? groundFrom(dna, {bg: dna.bg}) : null;
+  // The ground's core is a LIFT off this register's own night; on a light film the literal is a dark blob in
+  // the middle of the page (the light probe rendered the whole molecule in that murk rather than on the paper).
+  const POOL = lit ? shade(BG, 0.06) : POOL_D0;
+  // A bond is not an element: it is a rule drawn between two of them, so it is the film's secondary ink — and
+  // on a light ground it is also the ball edge. Its alpha is a dark-ground device: half of a pale slate is a
+  // lit stick on black and half-way to the page on paper, so lit, the stick is drawn nearer full strength.
+  const BOND = dna ? mix(dna.fg, dna.dim, 0.4) : BOND_D0;
+  const BOND_OP = lit ? 0.7 : BOND_OP_D0;
+  const TITLE_INK = dna?.fg ?? TITLE_D0;
+  const TAG_INK = dna ? mix(dna.fg, dna.dim, 0.4) : TAG_D0;
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H);
@@ -128,29 +160,41 @@ export const MoleculeBallStick: React.FC<{title?: string; tagline?: string; mole
   const pa = atoms.map((at) => ({...at, s: proj(at.p)}));
   const titleIn = easeOutCubic(seg(t, 0.52, 0.76));
   return (
-    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 42%, #101430, ${BG} 74%)`, overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 42%, ${POOL}, ${BG} 74%)`, overflow: 'hidden'}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         {/* bonds (behind) */}
         {bonds.map(([a, b], i) => {
           const A = pa[a].s, B = pa[b].s;
-          return <line key={'b' + i} x1={A.x} y1={A.y} x2={B.x} y2={B.y} stroke="#9fb0d0"
-            strokeWidth={7 * ((A.persp + B.persp) / 2)} strokeLinecap="round" opacity={0.5 * build} />;
+          return <line key={'b' + i} x1={A.x} y1={A.y} x2={B.x} y2={B.y} stroke={BOND}
+            strokeWidth={7 * ((A.persp + B.persp) / 2)} strokeLinecap="round" opacity={BOND_OP * build} />;
         })}
         {/* atoms (depth-sorted) */}
         {[...pa].map((at, i) => ({at, i})).sort((u, v) => u.at.s.z - v.at.s.z).map(({at, i}) => {
           const depth = clamp01((at.s.z + 1) / 2);
           return <g key={'a' + i} opacity={clamp01(build)}>
+            {/* The bloom is a dark-ground device — it is the ring the gate flagged on ball after ball: on paper
+                it is a wash of the element's colour lying between the ball and the page, dissolving the very
+                edge it is meant to lift. Lit, the edge is DRAWN instead, which is also what carries a white
+                hydrogen on a white page. */}
             <circle cx={at.s.x} cy={at.s.y} r={at.r * at.s.persp} fill={at.c}
-              style={{filter: `drop-shadow(0 0 10px ${at.c}66)`}} />
+              stroke={lit ? BOND : undefined} strokeWidth={lit ? 2 : undefined}
+              style={{filter: lit ? 'none' : `drop-shadow(0 0 10px ${at.c}66)`}} />
+            {/* A BALL'S LIT FACE CANNOT BE BRIGHTER THAN THE PAPER IT SITS ON. The gate did not flag this cap —
+                it measures it against the ball it sits on — but pure white on a pale element ON PAPER is a hole
+                punched through the atom rather than a highlight. Lit, it is a LIFT of the element's own colour,
+                so a white hydrogen simply has no visible cap; on a dark ground it is still white. */}
             <ellipse cx={at.s.x - at.r * 0.3 * at.s.persp} cy={at.s.y - at.r * 0.32 * at.s.persp}
-              rx={at.r * 0.3 * at.s.persp} ry={at.r * 0.22 * at.s.persp} fill="#ffffff" opacity={0.4 + 0.3 * depth} />
+              rx={at.r * 0.3 * at.s.persp} ry={at.r * 0.22 * at.s.persp}
+              fill={lit ? mix(at.c, '#ffffff', 0.3) : SPEC_D0} opacity={0.4 + 0.3 * depth} />
           </g>;
         })}
       </svg>
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: bottomInset(W, H, 110)}}>
-        <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 14}px)`, color: '#eaf2ff',
-          font: `800 ${titlePx}px/1 var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.03em', textShadow: '0 8px 40px #000'}}>{TITLE}</div>
-        <div style={{opacity: easeOutCubic(seg(t, 0.62, 0.84)), marginTop: Math.round(U * 0.015), color: '#9fb2d0',
+        {/* the title and its tagline are ON the ground, so they are the film's ink and its metadata; the
+            separation shadow is the ground's own colour on paper, never a fixed black under near-black type */}
+        <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 14}px)`, color: TITLE_INK,
+          font: `800 ${titlePx}px/1 var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.03em', textShadow: `0 8px 40px ${lit ? BG : '#000'}`}}>{TITLE}</div>
+        <div style={{opacity: easeOutCubic(seg(t, 0.62, 0.84)), marginTop: Math.round(U * 0.015), color: TAG_INK,
           font: `600 ${tagPx}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.18em'}}>{TAG}</div>
       </AbsoluteFill>
     </AbsoluteFill>

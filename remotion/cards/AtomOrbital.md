@@ -16,7 +16,9 @@
 - Every atom used to have seven nucleus spheres and seven electrons on shells of 2/3/2, whatever the title said: a film titled "Carbon" showed an arrangement no element has. Counts now come only from `shells`.
 - Omitting the props prints `Elemental` / `the core of everything`.
 - The emblem's soft lights are continuous, layered strokes on purpose. Drawn as segments they came out beaded, like countable dots, which is the one thing that mode must not look like.
-- The geometry is in fixed pixels (the outer shell radius is 400, the emblem rings about 340) and the ring colours are fixed cyan, pink and violet; only the ground follows the DNA.
+- The geometry is in fixed pixels (the outer shell radius is 400, the emblem rings about 340). The ring colours are no longer fixed cyan, pink and violet: a shell's colour only says "this ring is not that ring", so the palette is the film's, derived from its two accents. The nucleus's amber is kept on any ground — it is the one colour here that means something — and only its exposure moves.
+- An atom is a diagram, not a light, so on a film that grounds on paper the title takes the film's ink, the tagline its metadata ink, and every hue is walked along its own black-to-white axis until it clears the floor. Measured on a light film before that: 26.3% of the register's ink under 3:1 — all of it the tagline — and the title read only because the ground's fixed `#101430` core was painting a dark pool under it.
+- The orbit's stroke is drawn at 0.35 alpha on a dark ground and nearly solid on a light one: a third of a bright hue still glows on black and is a third of the way to the page on paper. The nucleus bloom and the electron glows are dark-ground devices and are dropped on a light film.
 
 **Refuses:** `shells` that is not an array of 1–7 entries, or any entry that is not a whole number from 1 to 32.
 

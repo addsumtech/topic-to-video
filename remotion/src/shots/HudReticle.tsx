@@ -24,6 +24,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic, REDUCED_MOTION_T} from '../runtime/motion';
 import {leading} from '../runtime/cjkType';
 import {useDNA} from '../runtime/dna';
+import {onLight} from '../runtime/light';
 import {CONTENT_TOP, contentBottom, fitBlockPx, fitTextPx, textWidthPx, wrapLines} from '../runtime/layout';
 
 // A reticle SCANS and then LOCKS: those two states are the form, not the topic — so they are
@@ -104,6 +105,14 @@ export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?:
   const ringAng = t * 300;                              // continuous scan rotation (deg)
   const locked = t > 0.76;
   const col = locked ? GREEN : CYAN;
+  // A GLOW IS EMITTED LIGHT, AND PAPER DOES NOT EMIT. The ring's `drop-shadow(0 0 8px)` and the target's
+  // 40px bloom are what an instrument looks like on a black field. On a light film the same two spray the
+  // accent out into a halo that is neither the ring nor the ground, and the halo is the whole finding:
+  // 8.3% of this register's ink under 3:1 on a light ground (2026-09-21, scripts/ink_contrast_qa.py), in
+  // one connected region 0.75% of the frame, ring-shaped, while the ring's own stroke reads and the
+  // register's median mark is 5.33:1. On paper the instrument is DRAWN rather than lit: the stroke, the
+  // brackets and the crosshair are hairlines in the film's own accent and carry it without the bloom.
+  const emits = !onLight(dna);
   const lockIn = easeOutExpo(seg(t, 0.76, 0.9));
   const titleIn = easeOutCubic(seg(t, 0.03, 0.16));
   const bo = lerp(120, 0, brackets) * s; // bracket offset from target (px)
@@ -136,7 +145,7 @@ export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?:
         {/* rotating dashed scan ring */}
         <circle cx={cx} cy={cy} r={R} fill="none" stroke={col} strokeWidth={locked ? 5 : 2}
           strokeDasharray={locked ? undefined : '18 22'} opacity={0.85}
-          transform={`rotate(${ringAng} ${cx} ${cy})`} style={{filter: `drop-shadow(0 0 8px ${col})`}} />
+          transform={`rotate(${ringAng} ${cx} ${cy})`} style={{filter: emits ? `drop-shadow(0 0 8px ${col})` : undefined}} />
         <circle cx={cx} cy={cy} r={innerR} fill="none" stroke={col} strokeWidth={1} opacity={0.3}
           transform={`rotate(${-ringAng * 0.6} ${cx} ${cy})`} strokeDasharray="4 14" />
         {/* crosshair */}
@@ -157,7 +166,7 @@ export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?:
       <div style={{position: 'absolute', left: cx, top: cy, width: targetW,
         transform: `translate(-50%,-50%) scale(${lerp(0.9, 1, brackets)})`, textAlign: 'center'}}>
         <div style={{color: dna?.fg ?? '#eafffb', font: `800 ${targetPx}px/${targetLead} var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
-          textWrap: 'balance', textShadow: `0 0 40px ${col}66`}}>{TARGET}</div>
+          textWrap: 'balance', textShadow: emits ? `0 0 40px ${col}66` : undefined}}>{TARGET}</div>
         <div style={{marginTop: Math.round(14 * s), color: col, font: `700 ${Math.round(26 * s)}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.3em',
           opacity: locked ? lockIn : 0.6 * clamp01(seg(t, 0.4, 0.6))}}>{locked ? LOCK_LABEL : SCAN_LABEL}</div>
       </div>

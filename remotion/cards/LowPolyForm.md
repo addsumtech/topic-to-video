@@ -10,11 +10,12 @@
 |---|---|---|
 | `title` | the white wordmark at centre | a fixed 138px with no fit-to-width: one word reads as a logotype, a phrase wraps into stacked huge lines |
 | `tagline` | the mono line under the title | a short phrase sits as a spaced caption; the letter-spacing stretches a long one wide |
-| `accent` | one end of the facet duotone (left / lower side of the mesh) | a colour close to `accent2` gives a near-flat crystal; a far one a vivid diagonal sweep |
+| `accent` | one end of the facet duotone (left / lower side of the mesh) | a colour close to `accent2` gives a near-flat crystal; a far one a vivid diagonal sweep. Named here it is used exactly as given; left out, it is the film's own `accent` |
 | `accent2` | the other end of the duotone (right / upper side) | as above — the two mix per facet across the frame |
 
 **Known traps:**
 - Omitting `title` / `tagline` prints the demo copy `Faceted` / `many facets, one form`.
-- The duotone does not read the DNA: without `accent` / `accent2` the mesh is always the default blue-to-pink, whatever the film's palette. Only the ground follows the DNA.
+- The duotone used to ignore the DNA — the mesh was always the default blue-to-pink whatever the film's palette — and the mesh covers the ground, which was the only thing that did follow it. On a light film that repainted the paper as a mid-dark slab with a grey smudge over the middle: measured under the light probe at sheet Y=0.328 / frame Y=0.282. Without `accent` / `accent2` the facets are now the film's two hues; on a light film they are carried half way back to the film's ground, so the crystal stays coloured and the frame stays light.
+- The pool behind the type and both type blooms were a fixed near-black and `#000`. They are the film's `bg` now, and the type is `fg` over it (with the tagline a step toward `dim`) — a `#000` bloom under dark type on paper is mud, not depth.
 
 **Reference:** `remotion/src/shots/LowPolyForm.tsx`

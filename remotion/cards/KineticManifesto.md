@@ -16,6 +16,7 @@
 - Phrases used to start 0.30 apart whatever the count, so a fourth arrived as a blur in the last frames and a fifth never appeared. The stagger is now laid out for the count, and more than five throws.
 - A 200px Chinese line once wrapped past both edges and 692px into the caption band. The size is now fitted, and the rush-past scale is clamped so a tall block doesn't swell into the band on its way out.
 - Leaving out `phrases` prints the demo `ONE PROMPT. / A HUNDRED EXPERTS. / YOUR AI TEAM.`, with the demo's own hero.
+- On a light film the frame still reads dark — light-probe sheet Y=0.118, frame Y=0.131 — and that is the design, not a register keeping a night of its own: the whole ground is `accent`→`accent2`, and Y=0.13 is the exposure `light.tsx` deepens a chromatic ground to (`CHROMA_TARGET_Y`; its clay and olive grounds sit at Y=0.14 and 0.09). A light film gets one deliberately saturated beat in its own two hues, inked in `onAccent`.
 
 **Refuses:** 0 or more than 5 phrases; an empty phrase; a `hero` that is not an integer index into `phrases`.
 

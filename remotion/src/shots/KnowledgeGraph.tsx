@@ -13,6 +13,16 @@
 // and nothing connected to anything else. A link naming a node that is not there throws. The demo keeps its
 // own five chords in its own data.
 
+//
+// THE TWO MARKS DRAWN ON THE GROUND ARE THE FILM'S. The hub's label and the rim around every node were
+// literal near-whites, and all eight DNA presets are near-black, so on a film whose DNA came from a
+// warm-white deck the hub had no name and every node lost its edge (`scripts/ink_contrast_qa.py`: 41.6% of
+// this register's marks under 3:1, largest connected hole 0.29% of the frame — small because they are the
+// only two things here that touch the ground). Everything else was checked against the light probe render
+// and left alone on purpose: the node LABELS ride dark pills that carry their own ground, the chords are a
+// mid slate that reads on either, and the halos are GLOW — a glow that stops showing on paper costs a
+// reader nothing, because what it separates the node from is a darkness that is no longer there.
+
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack, hash01, life} from '../runtime/motion';
@@ -21,6 +31,9 @@ import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 const NODE_PALETTE0 = ['#4c8dff', '#22d3c5', '#b06cff', '#ff8fc7', '#ffd23f', '#2fcb6e', '#ff6b6b'];
+// The literals this register was authored in, hoisted so an un-themed render is byte-for-byte what it was.
+const RIM_D0 = '#eaf1ff';        // the ring on every node's edge
+const HUB_D0 = '#eaf1ff';        // the hub's name, under the hub
 
 const DEFAULT_ITEMS = ['Docs', 'Code', 'Slack', 'Calendar', 'Email', 'Tasks', 'Notes'];
 // the demo's own chords, drawn only while the demo's own nodes are showing — never between a film's nodes
@@ -62,6 +75,10 @@ export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string; links?: G
   });
   const t = useT();
   const dna = useDNA();
+  // A node's rim and the hub's name are the only marks here drawn straight onto the film's ground, so they
+  // are the film's ink. The rim is what separates a node from that ground; on paper that has to be dark.
+  const rim = dna?.fg ?? RIM_D0;
+  const hubInk = dna?.fg ?? HUB_D0;
   const NODE_PALETTE = dnaPalette(dna, 7) ?? NODE_PALETTE0;
   const NODES = items.map((label, i) => ({label, c: NODE_PALETTE[i % NODE_PALETTE.length]}));
   const {width: W, height: H, durationInFrames, fps} = useVideoConfig();
@@ -142,7 +159,7 @@ export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string; links?: G
             <g key={i} transform={`translate(${p.x},${p.y}) scale(${pop})`}>
               <circle r={40} fill="url(#halo)" />
               <circle r={16} fill={n.c} filter="url(#ng)" />
-              <circle r={16} fill="none" stroke="#eaf1ff" strokeWidth={2.5} />
+              <circle r={16} fill="none" stroke={rim} strokeWidth={2.5} />
             </g>
           );
         })}
@@ -172,9 +189,9 @@ export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string; links?: G
             color: '#dbe5f5', font: `600 24px/1 var(--f-body, Inter, system-ui, sans-serif)`, whiteSpace: 'nowrap'}}>{n.label}</div>
         );
       })}
-      {/* center label */}
+      {/* center label — the one word here with no pill under it, so it reads straight off the ground */}
       <div style={{position: 'absolute', left: cx, top: cy + 96, transform: 'translateX(-50%)',
-        opacity: clamp01(seg(t, 0.16, 0.3)), color: '#eaf1ff', font: `800 34px/1 var(--f-body, Inter, system-ui, sans-serif)`,
+        opacity: clamp01(seg(t, 0.16, 0.3)), color: hubInk, font: `800 34px/1 var(--f-body, Inter, system-ui, sans-serif)`,
         letterSpacing: '-0.01em', whiteSpace: 'nowrap'}}>{HUB}</div>
     </AbsoluteFill>
   );

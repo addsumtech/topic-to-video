@@ -7,7 +7,7 @@
     "AnswerStream": "7724111a430bdd0d",
     "AntiDesignChaos": "6e1d3d9422eca836",
     "AsciiField": "9560476a3d543ac9",
-    "AtomOrbital": "84d264b53c1e5e7b",
+    "AtomOrbital": "9ed782547f359598",
     "AuroraFlow": "2188861b04d1c11f",
     "BeforeAfterSlider": "589f9e1d2c1fd4c1",
     "BentoReveal": "a05226ac3b41cc16",
@@ -15,16 +15,16 @@
     "BlueprintGrid": "0cb7b15cfc9f352a",
     "BokehPull": "e5cb3cbcf5c9cd5a",
     "BrutalistType": "157355a0937a8c83",
-    "CardFlip3D": "0f272b7cbfef9210",
+    "CardFlip3D": "9cb4b84b6f5fc4cb",
     "CardStack3D": "60ba9ef7e82d7ed9",
-    "CartoonPop": "d6db61ba5960002c",
-    "ChartLive": "22d201953288c1ac",
+    "CartoonPop": "194cb0dc82b0b537",
+    "ChartLive": "10804d441d42158d",
     "ChartRace": "c2b2dcd8fe934a9d",
     "ChatThread": "e9998ca6865278b9",
     "CinematicTitle": "8b0ecbda575270b8",
-    "CircuitTrace": "9fe1b991b52f5310",
+    "CircuitTrace": "baa7ae8a45d546dd",
     "ClayStack": "a49e6ba73eebfd4a",
-    "ClothWave": "a1676698764beb52",
+    "ClothWave": "9f0fe540f3fb6676",
     "CodeCompose": "897b5e2cb40fe59f",
     "CodeRain": "7621fe72bc05be0a",
     "CollaborativeCursors": "f9907a49f9f7bf24",
@@ -34,10 +34,10 @@
     "ConveyorBelt": "ff73331a0f2f60f2",
     "CrashZoom": "83c529a15faeaa51",
     "CubeRotate": "3fadaacb2fa3e156",
-    "CursorStory": "45413125004a0eb3",
+    "CursorStory": "095f0f0fce2f8fce",
     "DNAHelix": "dabbad9b9031d04c",
     "DataMonolith": "1efb5f138b4e0a8d",
-    "DataOrrery": "3e21a164c7c42489",
+    "DataOrrery": "cb3ba4cf32a33947",
     "DiffusionDenoise": "38e95a14d01bfe2a",
     "DollyZoom": "9c0c0cc0490c45ad",
     "EdCompare": "1c2441fee9afea62",
@@ -47,11 +47,11 @@
     "EmberFlame": "3f8da885a002a452",
     "ExplodedSchematic": "fb9b32fa2439efdb",
     "FlowField": "07cc775b60a6afd3",
-    "FocalIsolation": "b45c1a7bf09ab7a4",
-    "FractalTree": "6b93f5607812dc8d",
+    "FocalIsolation": "19da3de3066c5238",
+    "FractalTree": "fb4085b25f034d17",
     "FractureIn": "39a04c5005602dc6",
-    "FrequencyEncode": "56707688cfba5c4d",
-    "GFactorNoise": "c66329da2d9b1552",
+    "FrequencyEncode": "b22c451a3306ad13",
+    "GFactorNoise": "2d1a93a94668205c",
     "GameOfLife": "fd03668b5c74bdf2",
     "GaugeCluster": "71cbe9b3a53c0c71",
     "GazetteerEntry": "7f3f76c6a458cc49",
@@ -63,21 +63,21 @@
     "HalftonePop": "b24ed8cfea392d97",
     "HandDrawn": "fc4efec9689a9d58",
     "HoloFoil": "4a51d28d8dc7ee3e",
-    "HudReticle": "2935bd705fbbac7a",
+    "HudReticle": "2681ed94d64b29c3",
     "InOrder": "1c26e047037db32d",
     "InducedFID": "c1752cbb297b9ebb",
-    "InfiniteCanvas": "c60bd7daddbdf495",
+    "InfiniteCanvas": "3f702f3e9f6c82e0",
     "InflateType": "1518434bd2762856",
     "InkBloom": "f9d52a156f022048",
     "Inscription": "adf59b64a9bcef6f",
     "IsoWorld": "2fe491f5bfd892d6",
-    "IsometricAssembly": "1b9b7387e3c4d28f",
+    "IsometricAssembly": "4d7cc0f450b430e8",
     "KSpaceAnatomy": "aac6c8bc2ec25573",
     "KSpaceReal": "6b31aace69339cb6",
     "KSpaceToImage": "36c9c84f3d8a42da",
     "KaleidoMandala": "d177caf226ddc02a",
-    "KineticManifesto": "550fa7ea9a2d2d6f",
-    "KnowledgeGraph": "c44eb325be2fd6a2",
+    "KineticManifesto": "c5de8bd4a3b33863",
+    "KnowledgeGraph": "4b6f59f2e6f166f8",
     "LarmorPrecession": "73e49ced9e0be7c8",
     "LastLeg": "d35ed2d9a07a5bfb",
     "LightTrails": "9717247e87ba3cfa",
@@ -86,8 +86,8 @@
     "LiquidGlass": "eecae1b0071fbaf2",
     "LiquidMetal": "14339a45bc34dd2d",
     "LiquidMorph": "d445faea353298e0",
-    "LowPolyForm": "6802229422edb97e",
-    "MRIPipeline": "1fcb26d30ae6027c",
+    "LowPolyForm": "181f8cc74450f8ae",
+    "MRIPipeline": "addf57da5554ff4b",
     "MadeOf": "6f04ee2b86539404",
     "MagazineSpread": "59fb75a952d27f95",
     "MagnetizationTip": "6caf44b6ca7aa602",
@@ -95,11 +95,11 @@
     "MapRoutes": "dd9b5a969128d914",
     "MaterialHero": "b9e0a41ff51765d0",
     "MetaballMerge": "b5f3e4dab6ae5e29",
-    "MoleculeBallStick": "4ead49da82bbbd2a",
+    "MoleculeBallStick": "dc191086b724c703",
     "MorphForms": "a54f560b63dc79ff",
     "MuseumLabel": "f5d4c712928630c3",
-    "NeonGrid": "3a278585aba13472",
-    "NeonTickerWall": "bbe7075b987a751d",
+    "NeonGrid": "2cc4b4d06737c265",
+    "NeonTickerWall": "71b43c7084077f7d",
     "NeuralField": "cc9b6789b238e925",
     "OdometerRoll": "fe0b5c99e2de1b85",
     "OpenQuestions": "cf33d8d28936669e",
@@ -107,13 +107,13 @@
     "PageWrite": "1f7df290c808d998",
     "PaperCutout": "a6df6ae94a9efb79",
     "PaperSlot": "e60f55cce76728e6",
-    "ParticleForm": "78b78d561cfeba14",
+    "ParticleForm": "a2b528d4758fffc4",
     "PhaseEncodeStep": "fc789e9b8d347eb6",
     "PhotoPlate": "2954ce048bbb32c1",
     "PhysicsStack": "36f419a79a1b19ac",
     "PixelBuild": "a889117023671783",
     "PlanPalimpsest": "783e99177763108d",
-    "PlatformSurfaces": "84bc550159d7b3d3",
+    "PlatformSurfaces": "1d0c3b04a1488f76",
     "PointerTour": "20713e12747d5ace",
     "PortRail": "14c485ed11e29f6f",
     "PositioningMatrix": "9c39c813e242ca9c",
@@ -122,7 +122,7 @@
     "RackFocus": "036c679d180df570",
     "RadialBurst": "f3a2c2f3557d037d",
     "RainGlass": "78e7c3f0a24fc2f8",
-    "RansomZine": "e32fe9ca79473aa2",
+    "RansomZine": "7ba9cf4cf50364fc",
     "RealVersus": "e29f4a9aaa63eac2",
     "RestsOn": "c85766d85adb3656",
     "RidgeField": "abc6df8fb6704080",
@@ -170,7 +170,7 @@
     "FallbackPath": "59931b796cb6f1b3",
     "StateSheet": "e9d01393cc572839",
     "TaskFold": "ea3d1b23f10fd57d",
-    "PlaneStack": "2aa04731d35d9e97"
+    "PlaneStack": "97d9783ac2fd56fd"
   },
   "_fed": {},
   "_basis": "each register rendered as VIDEO at its own DURATION, 16:9, under dna=product — the themed path, because every delivered film has a design system and the un-themed fallback is a mode none of them use",
@@ -293,8 +293,8 @@
       "footprint": 0.638
     },
     "CardFlip3D": {
-      "motion_p75": 0.0046,
-      "ink_median": 0.136,
+      "motion_p75": 0.0038,
+      "ink_median": 0.135,
       "luma_range": 0.111,
       "seconds": 5.0,
       "footprint": 0.444
@@ -314,8 +314,8 @@
       "footprint": 0.907
     },
     "ChartLive": {
-      "motion_p75": 0.0046,
-      "ink_median": 0.056,
+      "motion_p75": 0.0047,
+      "ink_median": 0.054,
       "luma_range": 0.019,
       "seconds": 5.0,
       "footprint": 0.428
@@ -356,9 +356,9 @@
       "footprint": 0.155
     },
     "ClothWave": {
-      "motion_p75": 0.0091,
-      "ink_median": 0.473,
-      "luma_range": 0.206,
+      "motion_p75": 0.0092,
+      "ink_median": 0.474,
+      "luma_range": 0.211,
       "seconds": 5.2,
       "footprint": 0.586
     },
@@ -437,7 +437,7 @@
       "ink_median": 0.023,
       "luma_range": 0.012,
       "seconds": 4.5,
-      "footprint": 0.231
+      "footprint": 0.239
     },
     "DNAHelix": {
       "motion_p75": 0.0059,
@@ -454,7 +454,7 @@
       "footprint": 0.452
     },
     "DataOrrery": {
-      "motion_p75": 0.0012,
+      "motion_p75": 0.0011,
       "ink_median": 0.025,
       "luma_range": 0.007,
       "seconds": 5.7,
@@ -552,18 +552,18 @@
       "footprint": 0.376
     },
     "FrequencyEncode": {
-      "motion_p75": 0.0017,
-      "ink_median": 0.057,
-      "luma_range": 0.012,
+      "motion_p75": 0.0016,
+      "ink_median": 0.049,
+      "luma_range": 0.011,
       "seconds": 6.0,
       "footprint": 0.532
     },
     "GFactorNoise": {
       "motion_p75": 0.0,
-      "ink_median": 0.021,
+      "ink_median": 0.02,
       "luma_range": 0.002,
       "seconds": 5.5,
-      "footprint": 0.374
+      "footprint": 0.379
     },
     "GameOfLife": {
       "motion_p75": 0.08,
@@ -666,7 +666,7 @@
     "InfiniteCanvas": {
       "motion_p75": 0.0127,
       "ink_median": 0.076,
-      "luma_range": 0.083,
+      "luma_range": 0.082,
       "seconds": 5.5,
       "footprint": 1.0
     },
@@ -742,7 +742,7 @@
     },
     "KnowledgeGraph": {
       "motion_p75": 0.0015,
-      "ink_median": 0.02,
+      "ink_median": 0.019,
       "luma_range": 0.007,
       "seconds": 5.5,
       "footprint": 0.165
@@ -804,18 +804,18 @@
       "footprint": 0.188
     },
     "LowPolyForm": {
-      "motion_p75": 0.0143,
-      "ink_median": 0.122,
-      "luma_range": 0.484,
+      "motion_p75": 0.0136,
+      "ink_median": 0.126,
+      "luma_range": 0.438,
       "seconds": 5.2,
-      "footprint": 0.173
+      "footprint": 0.175
     },
     "MRIPipeline": {
       "motion_p75": 0.0003,
       "ink_median": 0.02,
       "luma_range": 0.009,
       "seconds": 6.0,
-      "footprint": 0.523
+      "footprint": 0.483
     },
     "MadeOf": {
       "motion_p75": 0.0088,
@@ -868,7 +868,7 @@
     },
     "MoleculeBallStick": {
       "motion_p75": 0.0016,
-      "ink_median": 0.024,
+      "ink_median": 0.025,
       "luma_range": 0.017,
       "seconds": 5.2,
       "footprint": 0.212
@@ -889,15 +889,15 @@
     },
     "NeonGrid": {
       "motion_p75": 0.0001,
-      "ink_median": 0.119,
-      "luma_range": 0.022,
+      "ink_median": 0.096,
+      "luma_range": 0.023,
       "seconds": 5.3,
-      "footprint": 0.537
+      "footprint": 0.412
     },
     "NeonTickerWall": {
-      "motion_p75": 0.0166,
-      "ink_median": 0.15,
-      "luma_range": 0.035,
+      "motion_p75": 0.0168,
+      "ink_median": 0.148,
+      "luma_range": 0.034,
       "seconds": 5.2,
       "footprint": 0.713
     },
@@ -1063,9 +1063,9 @@
       "footprint": 0.942
     },
     "RansomZine": {
-      "motion_p75": 0.0047,
-      "ink_median": 0.069,
-      "luma_range": 0.054,
+      "motion_p75": 0.0046,
+      "ink_median": 0.068,
+      "luma_range": 0.053,
       "seconds": 4.8,
       "footprint": 0.297
     },

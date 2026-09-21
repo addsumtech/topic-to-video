@@ -18,7 +18,7 @@
 - If `label` is omitted, the demo `tasks handled this month` prints even when a film passed `endVal` or `series`. That's deliberate, so the demo-copy gate lists it. The demo `128` / `k` / rising series appear only when NO content prop is passed.
 - The counter used to round (2.5 → `3`) and defaulted the unit to `k`, so `68` printed as `68k`. It now lands on the film's own string.
 - The plot used to sit under the figure's corner, so a falling series ran through the figure. The plot now starts below the headline block.
-- The ground, the gridlines and the figure ink are fixed dark green / mint; only the accent follows the DNA.
+- The ground, the gridlines and the figure ink used to be fixed dark green / mint, so on a light film the register painted its own black sheet over the paper — measured under the light probe at sheet Y=0.005, with 19% of its marks under 3:1. A chart is a drawing, not a lit screen: the ground now comes from `bgGrad`/`bg`, the gridlines from `line`, the figure and its tip dot from `fg`, and the label from `dim`. The accent still draws the line and the area fill.
 
 **Refuses:** `series` that is not an array; a `series` with 1 point or more than 240; a point that is not one number.
 

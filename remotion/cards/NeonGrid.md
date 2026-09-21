@@ -13,7 +13,9 @@
 
 **Known traps:**
 - Omitting `title` / `tagline` prints a product demo: `WORKBUDDY` / `ON YOUR MACHINE`.
-- The sky gradient and the sun are fixed purple/orange and do not read the DNA's ground; the DNA's `accent` recolours only the floor's scrolling lines and `accent2` the converging lines, the wordmark stroke and the tagline.
+- It is a declared `@dark-world`: neon is emitted light, so on a light film it keeps its own night rather than printing a sign in dark ink on white. On a dark film it now takes the film's ground (and its `bgGrad` treatment) instead of its own purple sky — the sun's scanline gaps are the sky, so they follow it too, or a deep-green film would have striped the sun in plum.
+- Under the light probe it measured sheet Y=0.005 with 7% of its marks under 3:1: the film's accents, chosen to read on paper, were being drawn on this sky as dark tubes. On its own night the neon is now the register's own magenta/cyan; on the film's ground it is `accent` (floor lines, sun's lower stop, wordmark backlight, horizon glow) and `accent2` (converging lines, wordmark stroke, tagline).
+- The stars stay white and the sun stays yellow→orange: those are what a star and a setting sun ARE, not this film's ink.
 - Before the fit, a long title ran off the frame and a long tagline wrapped onto the sun at 1:1; the fit fixed that, so very long copy now just gets small — keep both short.
 
 **Reference:** `remotion/src/shots/NeonGrid.tsx`

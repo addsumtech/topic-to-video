@@ -16,19 +16,31 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack} from '../runtime/motion';
-import {useDNA} from '../runtime/dna';
+import {useDNA, mix, dnaPalette, surfaceOn} from '../runtime/dna';
+import {onLight, groundFrom} from '../runtime/light';
 import {leading} from '../runtime/cjkType';
 import {contentBottom} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
+
+// The tile's own surface, and the inks on it. The top stop is TRANSLUCENT — see the tile note in the body.
+const TILE_TOP_D0 = '#15192880', TILE_BOT_D0 = '#0d0f18';
+const LABEL_D0 = '#eef2ff', NOTE_D0 = '#9aa4ba';
+const GAP_D0 = '#0a0c12';                 // the keyline that separates the cursor from the tile under it
+const TONES_D0 = ['#e0b64b', '#c07bff', '#37d4a6'];   // tiles 3+ when the film has no DNA to derive from
+const HERO_SHADOW_D0 = '0 24px 60px #0008', TILE_SHADOW_D0 = '0 18px 44px #0006';
+// On paper a 60px shadow at 53% black is not a lift, it is a grey field in every gutter between the tiles.
+const HERO_SHADOW_LIT = '0 18px 40px #00000014', TILE_SHADOW_LIT = '0 10px 26px #00000012';
 
 type Tile = {label?: string; note?: string; glyph?: string};
 const GLYPHS = ['chat', 'api', 'video', 'code', 'cursor', 'node'];
 // Six tiles is three rows of two: past it a row is shorter than its own glyph and label.
 export const MAX_PLATFORM_TILES = 6;
 
-// each glyph is a small, legible pictogram that MEANS its surface (drawn in the tile's accent)
-const Glyph: React.FC<{kind: string; c: string; g: number}> = ({kind, c, g}) => {
+// each glyph is a small, legible pictogram that MEANS its surface (drawn in the tile's accent). `gap` is the
+// TILE's own colour, used where a shape has to be cut out of another one (the cursor over its window) — a
+// literal near-black there is a keyline nobody drew as soon as the tile is not near-black.
+const Glyph: React.FC<{kind: string; c: string; g: number; gap?: string}> = ({kind, c, g, gap = GAP_D0}) => {
   const dash = (len: number) => ({strokeDasharray: len, strokeDashoffset: len * (1 - clamp01(g * 1.3))});
   if (kind === 'chat') return (<svg width={96} height={72}>
     <rect x={2} y={2} width={62} height={40} rx={12} fill="none" stroke={c} strokeWidth={4} /><path d="M18,42 L18,56 L34,42" fill="none" stroke={c} strokeWidth={4} strokeLinejoin="round" />
@@ -47,7 +59,7 @@ const Glyph: React.FC<{kind: string; c: string; g: number}> = ({kind, c, g}) => 
   if (kind === 'cursor') return (<svg width={100} height={78}>
     <rect x={2} y={2} width={96} height={62} rx={9} fill="none" stroke={c} strokeWidth={4} /><line x1={2} y1={20} x2={98} y2={20} stroke={c} strokeWidth={3} />
     <circle cx={12} cy={11} r={3} fill={c} /><circle cx={24} cy={11} r={3} fill={c} />
-    <path d={`M54,34 L54,${34 + 34 * clamp01(g * 1.4)} L62,52 L68,60 L72,56 L66,48 L76,46 Z`} fill={c} stroke="#0a0c12" strokeWidth={2} /></svg>);
+    <path d={`M54,34 L54,${34 + 34 * clamp01(g * 1.4)} L62,52 L68,60 L72,56 L66,48 L76,46 Z`} fill={c} stroke={gap} strokeWidth={2} /></svg>);
   // 'node': a generic node — drawn only when the film names it; it is never a stand-in for a missing glyph
   return (<svg width={80} height={72}><circle cx={40} cy={36} r={22} fill="none" stroke={c} strokeWidth={4} /><circle cx={40} cy={36} r={7} fill={c} /></svg>);
 };
@@ -79,7 +91,32 @@ export const PlatformSurfaces: React.FC<{
   const t = useT();
   const dna = useDNA();
   const accent = dna?.accent ?? accent0, accent2 = dna?.accent2 ?? accent20;
-  const TONES = [accent, accent2, '#e0b64b', '#c07bff', '#37d4a6'];
+  // THE TILE IS A CARD, AND A CARD TAKES THE FILM'S SURFACE. Its fill is a gradient whose top stop is
+  // TRANSLUCENT (`#15192880`), so on a light film it composites to a mid grey over the paper — and the glyph,
+  // which is the one thing this register exists to draw, sits in exactly that half of the tile. Measured
+  // (`ink_contrast_qa.py`, light probe): 32.6% of the ink under 3:1, and the mark render is four glyphs and
+  // nothing else — every label, every note and the hero panel read. Lit, the tile is the film's own surface and
+  // the type on it the film's own ink.
+  const lit = dna && onLight(dna) ? groundFrom(dna, {bg: dna.bg}) : null;
+  // `surfaceOn` rather than `surface` straight: all eight presets define that token within a hair of their own
+  // `bg`, so a card painted from it on a light film is a card nothing can see — and the gate's own notes record
+  // pale panels on pale paper chaining their rims into one reported hole. The hint is checked for being a solid
+  // colour first: `surfaceOn` refuses an `rgba()` surface (this library's glass panels are written that way),
+  // and a register must not crash on a DNA token it merely reads.
+  const SURF_HINT = dna && /^#[0-9a-fA-F]{3,8}$/.test(String(dna.surface).trim())
+    ? dna.surface : mix(dna?.bg ?? TILE_BOT_D0, dna?.fg ?? LABEL_D0, 0.06);
+  const TILE_SURF = lit && dna ? surfaceOn(dna.bg, SURF_HINT) : TILE_BOT_D0;
+  const TILE_BG = lit && dna
+    ? `linear-gradient(160deg, ${mix(TILE_SURF, dna.fg, 0.05)}, ${TILE_SURF})`
+    : `linear-gradient(160deg, ${TILE_TOP_D0}, ${TILE_BOT_D0})`;
+  const TILE_GAP = lit && dna ? TILE_SURF : GAP_D0;
+  // Tiles 3+ used three fixed tones picked for a near-black tile; they are the film's palette now. A tone is
+  // exposed against the TILE it is drawn on rather than against the page — `dnaPalette` presses half its rungs
+  // toward the film's own ground, which on a light film is the paper.
+  const litTone = (c: string) => (dna && lit ? groundFrom(dna, {bg: TILE_SURF, fg: c}).fg : c);
+  const TONES = (dnaPalette(dna, 2 + TONES_D0.length) ?? [accent, accent2, ...TONES_D0]).map(litTone);
+  const LABEL = dna?.fg ?? LABEL_D0;
+  const NOTE = dna ? mix(dna.fg, dna.dim, 0.4) : NOTE_D0;
   const portrait = W < H;
   // LANDSCAPE: hero panel on the LEFT, a 2x2 tile grid on the RIGHT. PORTRAIT: hero STACKS on top, tiles fill below.
   const hx = portrait ? W * 0.06 : W * 0.06, hy = portrait ? H * 0.11 : H * 0.26;
@@ -97,7 +134,7 @@ export const PlatformSurfaces: React.FC<{
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(120% 100% at 28% 22%, #12162a, #0a0c12 72%)'}}>
       {/* hero panel */}
       <div style={{position: 'absolute', left: hx, top: hy, width: hw, height: hh, borderRadius: 22,
-        background: `linear-gradient(150deg, ${accent}, #0e5c46)`, boxShadow: '0 24px 60px #0008',
+        background: `linear-gradient(150deg, ${accent}, #0e5c46)`, boxShadow: lit ? HERO_SHADOW_LIT : HERO_SHADOW_D0,
         opacity: clamp01(heroE * 1.4), transform: `scale(${lerp(0.9, 1, heroE)})`, transformOrigin: 'center',
         padding: 48, display: 'flex', flexDirection: 'column', justifyContent: 'space-between'}}>
         <div style={{color: '#eafff7cc', font: `600 22px/${leading(markLabel, 1)} var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.14em'}}>{markLabel}</div>
@@ -116,14 +153,14 @@ export const PlatformSurfaces: React.FC<{
         const tone = TONES[i % TONES.length];
         return (
           <div key={i} style={{position: 'absolute', left: x, top: y, width: tw, height: th, borderRadius: 20,
-            background: 'linear-gradient(160deg, #15192880, #0d0f18)', border: `1px solid ${tone}55`,
+            background: TILE_BG, border: `1px solid ${tone}55`,
             opacity: clamp01(e * 1.4), transform: `scale(${lerp(0.86, 1, e)})`, transformOrigin: 'center',
             padding: 34, display: 'flex', flexDirection: 'column', justifyContent: tile.glyph ? 'space-between' : 'flex-end',
-            boxShadow: `0 18px 44px #0006, inset 0 0 60px ${tone}0e`}}>
-            {tile.glyph ? <Glyph kind={tile.glyph} c={tone} g={g} /> : null}
+            boxShadow: `${lit ? TILE_SHADOW_LIT : TILE_SHADOW_D0}, inset 0 0 60px ${tone}0e`}}>
+            {tile.glyph ? <Glyph kind={tile.glyph} c={tone} g={g} gap={TILE_GAP} /> : null}
             <div>
-              <div style={{color: '#eef2ff', font: `800 34px/1 var(--f-body, Inter, system-ui, sans-serif)`, letterSpacing: '-0.01em', textWrap: 'balance'}}>{tile.label}</div>
-              {tile.note ? <div style={{color: '#9aa4ba', font: `500 20px/1.2 var(--f-body, Inter, system-ui, sans-serif)`, textWrap: 'balance', marginTop: 8}}>{tile.note}</div> : null}
+              <div style={{color: LABEL, font: `800 34px/1 var(--f-body, Inter, system-ui, sans-serif)`, letterSpacing: '-0.01em', textWrap: 'balance'}}>{tile.label}</div>
+              {tile.note ? <div style={{color: NOTE, font: `500 20px/1.2 var(--f-body, Inter, system-ui, sans-serif)`, textWrap: 'balance', marginTop: 8}}>{tile.note}</div> : null}
             </div>
           </div>
         );

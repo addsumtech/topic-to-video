@@ -18,6 +18,9 @@
 - Bond order cannot be shown — a double or triple bond draws as the same single stick.
 - The molecule used to swing down through the title as it turned; the scale is now fitted to the room above the title, so a long title that wraps is the one thing that can still crowd it.
 - Omitting `title` / `tagline` prints the demo copy `Composed` / `the chemistry of it`.
+- The CPK colours are kept exactly on every ground — they are the claim, and exposing them for paper collapses it: hydrogen's `#e6ecff` and carbon's `#6b7488` both land on the same grey once they are walked to the ink floor. A light film gets what a printed model gets instead: a hairline of the film's ink around every ball, drawn in the same colour as the sticks, so a white hydrogen is a white ball with an edge rather than 1.07:1 of nothing.
+- The ball's bloom is a dark-ground device and is dropped on a light one — measured on a light film, 28.7% of this register's ink was under 3:1 and the mark render is a ring around ball after ball, every one of them that bloom. The specular cap is pure white on a dark ground and a LIFT of the element's own colour on a light one, because a cap brighter than the paper is a hole and not a highlight.
+- The title takes the film's ink, the tagline its metadata ink, and the bonds are the film's secondary ink at a heavier alpha on paper. The ground's lit core follows the film's own paper instead of staying a near-black pool in the middle of a light page.
 
 **Refuses:** `molecule.atoms` with fewer than 2 or more than 40 atoms; an atom with a non-finite `x`, `y` or `z`; an element with no CPK colour here (known: H, C, N, O, F, Cl, Br, I, S, P, B, Si, Na, K, Mg, Ca, Fe, Zn, Cu); a bond that does not join two different valid atom indices.
 

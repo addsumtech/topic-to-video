@@ -14,11 +14,21 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
 import {leading} from '../runtime/cjkType';
-import {useDNA, dnaPalette, shade} from '../runtime/dna';
+import {useDNA, dnaPalette, mix, shade} from '../runtime/dna';
+import {onLight} from '../runtime/light';
 import {fitTextOnNLines} from '@remotion/layout-utils';
 
 export const DURATION = 150; // 5s
 const BG = '#0a0c13', ACC0 = '#6ea8ff';
+// The kicker over the row. A literal near-white-blue: `ink_contrast_qa` on a light film reported 14.7% of
+// the marks under 3:1 and a hole of 0.29% of the frame, and the hole was this whole line — the beat's own
+// title, white-on-warm-paper. The same literal is on record in `readableOnAll`'s header, where it measured
+// 1.07:1 on VersusSplit's light half.
+const TITLE_D0 = '#aeb6ca';
+// The cards' drop shadow, authored against a void: on a near-black ground `#0008` at 90px is the only thing
+// separating a card from the frame, and on paper three of them pool into one grey wash across the lower
+// half. On a light film the shadow is the PAPER's own shade, close in and half as far.
+const SHADOW_D0 = '0 40px 90px #0008, inset 0 1px 0 #ffffff12';
 
 type Item = {front: string; back: string};
 
@@ -28,7 +38,8 @@ export const MAX_FLIP_CARDS = 4;
 // the front into a hardcoded near-black, so on a themed film the cards arrived in their own palette —
 // teal and pink cards on a `data`-DNA deck. `?? <original>` keeps an un-themed render byte-identical.
 const Face: React.FC<{children: React.ReactNode; back?: boolean; tone: string;
-  faceBg?: string | null; faceEdge?: string | null}> = ({children, back, tone, faceBg, faceEdge}) => (
+  faceBg?: string | null; faceEdge?: string | null; shadow?: string}> = ({children, back, tone, faceBg, faceEdge,
+  shadow = SHADOW_D0}) => (
   <div style={{position: 'absolute', inset: 0, backfaceVisibility: 'hidden',
     transform: back ? 'rotateY(180deg)' : undefined, borderRadius: 26,
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 40,
@@ -36,7 +47,7 @@ const Face: React.FC<{children: React.ReactNode; back?: boolean; tone: string;
       ? `linear-gradient(155deg, ${tone}, ${shade(tone, 0.45)})`
       : (faceBg ?? 'linear-gradient(155deg, #171a28, #0f1220)'),
     border: `1px solid ${back ? 'transparent' : (faceEdge ?? '#262a42')}`,
-    boxShadow: '0 40px 90px #0008, inset 0 1px 0 #ffffff12'}}>{children}</div>
+    boxShadow: shadow}}>{children}</div>
 );
 
 export const CardFlip3D: React.FC<{items?: Item[]; title?: string; backLabel?: string}> = ({
@@ -48,9 +59,18 @@ export const CardFlip3D: React.FC<{items?: Item[]; title?: string; backLabel?: s
   // Four film-coherent hues instead of three hardcoded ones (pink/teal/amber), which is why a themed
   // deck's cards used to arrive in a palette that was not the film's. null DNA -> null -> the originals.
   const PAL = dnaPalette(dna, 4);
+  // …and these two were COMPUTED AND NEVER PASSED: `<Face>` was rendered without `faceBg`/`faceEdge`, so
+  // the front kept its literal near-black whatever the film said. It read on night and nowhere else — on a
+  // light film the front word is `dna.fg`, which is near-black, printed on a near-black card. Wired.
   const FACE_BG = dna ? `linear-gradient(155deg, ${dna.surface}, ${dna.bg})` : null;
   const FACE_EDGE = dna?.surfaceBorder ?? null;
   const INK = dna?.fg ?? '#eef2ff', DIM = dna?.dim ?? '#8b93a8', ON = dna?.onAccent ?? '#fff';
+  // The kicker is on the film's GROUND, not on a card, so it is the film's ink at its metadata tier.
+  const TITLE_INK = dna ? mix(dna.fg, dna.dim, 0.4) : TITLE_D0;
+  // …and the cards' shadow is scaled to the ground it falls on (see SHADOW_D0). The inset highlight goes
+  // with it: a 7%-white top edge is a lit rim on a dark card and nothing at all on a pale one.
+  const CARD_SHADOW = dna && onLight(dna)
+    ? `0 18px 34px ${shade(dna.bg, 0.34)}55` : SHADOW_D0;
   const {width: W} = useVideoConfig();
   const dispFace = dna?.fontDisplay ?? 'Inter, system-ui, sans-serif';
   // Every pair the film gave, each once — see the header for why four is the ceiling and why it throws.
@@ -95,7 +115,7 @@ export const CardFlip3D: React.FC<{items?: Item[]; title?: string; backLabel?: s
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? `radial-gradient(120% 100% at 50% 40%, #12162b, ${BG} 68%)`}}>
       <div style={{position: 'absolute', top: 96, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
-        transform: `translateY(${(1 - titleIn) * 14}px)`, color: '#aeb6ca',
+        transform: `translateY(${(1 - titleIn) * 14}px)`, color: TITLE_INK,
         font: '700 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.26em', textTransform: 'uppercase'}}>{TITLE}</div>
 
       {/* WIDTH-AWARE. Fixed 64px broke a Chinese label mid-word inside a card this narrow ("失/败").
@@ -113,13 +133,13 @@ export const CardFlip3D: React.FC<{items?: Item[]; title?: string; backLabel?: s
             <div key={i} style={{position: 'absolute', left: x0 + i * (cw + gap), top: 0, width: cw, height: ch,
               transformStyle: 'preserve-3d', opacity: rise,
               transform: `translateY(${(1 - rise) * 60}px) rotateY(${rot}deg)`}}>
-              <Face tone={tone}>
+              <Face tone={tone} shadow={CARD_SHADOW} faceBg={FACE_BG} faceEdge={FACE_EDGE}>
                 <div style={{color: DIM, font: '600 22px/1 var(--f-mono, "JetBrains Mono", monospace)',
                   letterSpacing: '0.14em', marginBottom: 22}}>{String(i + 1).padStart(2, '0')}</div>
                 <div style={{color: INK, font: `800 ${faceSize}px/1.18 ${dispFace}`,
                   textAlign: 'center', letterSpacing: '-0.02em'}}>{c.front}</div>
               </Face>
-              <Face back tone={tone}>
+              <Face back tone={tone} shadow={CARD_SHADOW}>
                 {/* was a bare ↓ pointing at nothing — undecodable furniture. A short label says what the back IS. */}
                 <div style={{color: ON, opacity: .72, font: `700 20px/${leading(BACKLABEL, 1)} var(--f-mono, "JetBrains Mono", monospace)`,
                   letterSpacing: '.18em', marginBottom: 16}}>{BACKLABEL}</div>

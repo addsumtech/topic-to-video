@@ -34,6 +34,17 @@ export const DURATION = 150; // 5s
 // all. Emphasis is a claim about which line matters most, so `hero` is now an index the film passes, and with
 // none every phrase lands alike. The demo passes its own (its last phrase).
 //
+// WHY THIS FRAME IS DARK ON A LIGHT FILM, AND WHY THAT IS NOT A DARK WORLD. Nothing here paints a night of
+// its own: the field is `linear-gradient(135deg, accent, accent2)` and the ink is `onAccent`, so the whole
+// ground is two DNA tokens (shotLuma's DNA_GROUND_TOKEN measured it as exactly that pair, and SHOT_LUMA
+// records the register as 'mid' — both the caption pick and the seam guard already know this frame is not
+// the film's `bg`). Rendered under a light probe (bg #f6f3ee, accent #1d63d6, accent2 #c2410c) the sheet
+// measures Y=0.118 and the frame Y=0.131 — which is where this library DEEPENS a saturated ground to on
+// purpose: runtime/light.tsx's CHROMA_TARGET_Y is 0.13, and its shipped chromatic grounds sit at Y=0.14
+// (clay) and Y=0.09 (olive). So a light film gets one deliberately chromatic beat, in its own two hues, with
+// the one ink the DNA contract guarantees against them. Declaring `@dark-world` here would be a false note —
+// the field is not emitted light, and it already follows the film.
+//
 // AND EVERY PHRASE GETS ITS TURN. Phrases started at `0.06 + i * 0.30` whatever the count, so a fourth phrase
 // began at t=0.96 as a half-transparent blur in the last frames and a fifth never appeared at all — a film's
 // line silently dropped. The stagger is now laid out for the count: the last phrase always starts where the

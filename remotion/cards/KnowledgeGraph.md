@@ -16,6 +16,8 @@
 - Chords used to come from a fixed index table, so every film wired its first node to its second (a film about organs got the heart linked to the skin). Only the film's `links` are drawn now.
 - A chord between opposite nodes ran under the hub and along two spokes, so it drew nothing visible. Such chords now bow out.
 - Leaving out `hub` prints the demo `WorkBuddy`, even when the film passes its own items. Leaving out `items` gives the demo nodes and the demo chords.
+- The hub's label and the rim on every node were literals picked for a near-black ground, so on a warm-white film the hub had no name and every node lost its edge — 41.6% of this register's marks under 3:1, connected hole 0.29% of the frame (small because those two are the only marks here that touch the ground). Both read from `fg` now.
+- Nothing else does, and that was checked against the light probe render rather than assumed: the node LABELS ride dark pills that carry their own ground, the chords are a mid slate that reads on either (`line` would make them invisible on paper — it is a grid token, not an ink one), and the halos are glow. A glow that stops showing on paper costs a reader nothing, because the darkness it separates the node from is not there.
 
 **Refuses:** 0 or more than 8 items; an empty item; `links` that is not an array; a link that is not a pair; a link naming a node that doesn't exist (a bad index, or a label that doesn't match exactly); a link from a node to itself.
 

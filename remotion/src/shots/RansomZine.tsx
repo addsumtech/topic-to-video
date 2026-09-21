@@ -13,6 +13,11 @@
 // little and settle instead of overshooting on that frame). Past MAX_RANSOM_CHARS the scraps would shrink below
 // a legible cut-out, so the register refuses. The marker scrawl and the tape now follow the scrap's scale,
 // which they never needed to while the scrap could only be full size.
+//
+// THE SCRAP PALETTE IS THE REGISTER'S MEANING AND DOES NOT FOLLOW THE DNA. A ransom note is made of scraps cut
+// from DIFFERENT printed sources — that is the whole form — so the seven papers and their inks stay exactly as
+// they are on every film, the way a syntax palette or a brand hue would. What a scrap does NOT own is its
+// BOUNDARY: see the cut edge below.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -37,6 +42,15 @@ export const RansomZine: React.FC<{word?: string; tagline?: string}> = ({
   word: WORD = 'STAY WEIRD', tagline: TAG = 'cut · paste · repeat'} = {}) => {
   const dna = useDNA();
   const bgc = dna?.bg ?? '#d9d4c7', MARK = dna?.accent ?? '#e8452e', TAGc = dna?.fg ?? '#151515';
+  // THE CUT EDGE IS DRAWN INSTEAD OF LEFT TO THE SHADOW. A scrap's boundary was nothing but its drop shadow,
+  // which works while the paper under it is dark — but two of the seven papers are cream and white, and on a
+  // cream FILM a cream scrap's border is paper on paper. Measured on a light ground (2026-09-21,
+  // scripts/ink_contrast_qa.py): 30.0% of this register's ink under 3:1, chained into one connected region
+  // 1.22% of the frame, and every pixel of it a scrap rim — the letters themselves read (median 4.15:1).
+  // A cut-out wants the line anyway, so each scrap and each tape strip now carries the film's own container
+  // border as a 1px hairline. It is INSET, so no scrap's box grows by 2px and every drop lands where it did.
+  const CUT = dna?.surfaceBorder ?? null;
+  const cutEdge = CUT ? `inset 0 0 0 1px ${CUT}, ` : '';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const letters = [...String(WORD ?? '')];
@@ -86,12 +100,12 @@ export const RansomZine: React.FC<{word?: string; tagline?: string}> = ({
         return (
           <div key={s.i} style={{position: 'absolute', left: s.x + Math.round(14 * scrapK), top: H / 2 - Math.round(90 * scrapK), width: s.w - Math.round(20 * scrapK), height: Math.round(180 * scrapK),
             opacity: clamp01(drop * 1.5), transform: `translateY(${(1 - drop) * -140}px) rotate(${rot * drop}deg)`,
-            transformOrigin: 'center', background: paper, boxShadow: '0 14px 26px #00000055',
+            transformOrigin: 'center', background: paper, boxShadow: `${cutEdge}0 14px 26px #00000055`,
             display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
             <span style={{color: ink, fontFamily: font, fontWeight: 900, fontSize: sz, lineHeight: 1}}>{s.ch}</span>
             {/* a strip of tape across some scraps */}
             {hash01(s.i * 8.8) > 0.5 ? <div style={{position: 'absolute', top: Math.round(-14 * scrapK), left: '20%', width: '60%', height: Math.round(34 * scrapK),
-              background: '#e9dfae99', transform: `rotate(${rot > 0 ? -8 : 8}deg)`, boxShadow: '0 2px 6px #0003'}} /> : null}
+              background: '#e9dfae99', transform: `rotate(${rot > 0 ? -8 : 8}deg)`, boxShadow: `${cutEdge}0 2px 6px #0003`}} /> : null}
           </div>
         );
       })}
