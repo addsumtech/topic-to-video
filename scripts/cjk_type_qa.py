@@ -519,7 +519,39 @@ def cjk_props(name, offset=0):
             props.pop(prop, None)
         elif prop in props:
             props[prop] = val
+    # TWO SPELLINGS OF ONE SLOT MUST NOT BOTH BE FED. `// @supersedes groups: items` declares that `groups`
+    # REPLACES `items` — they are the same rail, written two ways — and this shaper filled both because it
+    # walks the signature prop by prop. PortRail then received `items` (4 modules) AND `groups` (3 groups of
+    # 3), refused the 9 against its own 1-6 guard, and was recorded as FAILED TO RENDER for every sweep: a
+    # fixture bug wearing a register's name, which is bug class 4 of the four this coverage pass exists for.
+    #
+    # The PROVIDER is the one dropped, and that is the general reason rather than a PortRail-shaped one: the
+    # superseding spelling NESTS (a list of groups each holding a list), so the row count this shaper chose
+    # is multiplied by the nesting depth and lands outside whatever arity the register accepts, while the
+    # base spelling is the flat list whose length the shaper controls directly. The relation is READ from the
+    # registers' own declarations — `demo_copy_qa.supersedes()`, the same parse validate.py uses; there is no
+    # second list of names here.
+    for provider in _supersedes().get(name, {}):
+        props.pop(provider, None)
     return props, untestable
+
+
+_SUPERSEDES_CACHE = {}
+
+
+def _supersedes():
+    """{register: {provider: [props it supplies]}} — one definition, parsed, shared with validate.py."""
+    if not _SUPERSEDES_CACHE:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        # NOT WRAPPED IN A `try`. A swallowed import here returns an EMPTY relation, and an empty relation
+        # feeds every register both spellings of its slot again — which is the fixture bug that recorded
+        # PortRail as FAILED TO RENDER on every sweep. The module is a sibling in this directory; if it
+        # cannot be imported the checkout is broken, and that must surface as an error rather than as a
+        # register with a defect it does not have.
+        import demo_copy_qa as _dc
+        _SUPERSEDES_CACHE.update(_dc.supersedes() or {})
+        _SUPERSEDES_CACHE.setdefault("", {})              # so a genuinely empty parse is not re-read forever
+    return _SUPERSEDES_CACHE
 
 
 # The object-shaped array props the library actually declares. Each is written out rather than inferred,
@@ -1152,8 +1184,35 @@ def _fed_missing(shot, props, frame, tmp, dna, aspect, fed):
         return None
 
 
-def audit(shot, props, frame, tmp, dna=DEFAULT_DNA, aspect=None):
-    """[] clean · [collision…] · None when the render itself failed."""
+def _why_it_refused(blob):
+    """The register's OWN message, not the last line of the stack.
+
+    "It printed the last line of the failure, which is always `at process.processTicksAndRejections
+    (node:internal/…)`" — the third of the four bugs behind this coverage pass, in the sibling ink gate.
+    A remotion failure prints its reason on a line that carries `Error`; everything after it is the stack,
+    and the stack names nothing a reader can act on. PortRail's real message — "seats 1-6 modules on its
+    rail (got 9 across the groups)" — says the FIXTURE is wrong, which is the whole difference between a
+    broken register and a broken gate."""
+    lines = [l.strip() for l in (blob or "").splitlines() if l.strip()]
+    named = [l for l in lines
+             if ("Error" in l or "error" in l) and " at " not in l and not l.startswith("at ")]
+    prose = [l for l in lines if not l.startswith("at ")]
+    if named or prose:
+        pick = (named or prose)[0]
+        return re.sub(r"^\W*(Error|ERROR)\b\s*", "", pick)[:240]
+    if not lines:
+        return "(the render produced no output at all)"
+    # EVERY LINE IS STACK. Say that, rather than printing one and letting it read as the reason — which is
+    # the non-reason this function exists to stop ("at process.processTicksAndRejections (node:internal/…)").
+    return "(the render printed %d line(s) of stack and no message: %s)" % (len(lines), lines[0][:150])
+
+
+def audit(shot, props, frame, tmp, dna=DEFAULT_DNA, aspect=None, why=None):
+    """[] clean · [collision…] · None when the render itself failed.
+
+    `why` is an optional list the reason is appended to. The failure reason used to be discarded entirely —
+    `sweep` recorded `failed: True` and the report printed a bare list of names, so a register the gate's
+    own fixture had broken was indistinguishable from one that is broken."""
     _refuse_if_instrument_is_mutated()
     payload = dict(props)
     payload["typeCollisions"] = True
@@ -1163,11 +1222,20 @@ def audit(shot, props, frame, tmp, dna=DEFAULT_DNA, aspect=None):
     pf = tmp + ".props.json"
     with open(pf, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, ensure_ascii=False, allow_nan=False)
-    r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, tmp,
-                        "--frame=%d" % frame, "--gl=angle", "--log=error", "--props=" + os.path.abspath(pf),
-                        "--public-dir=" + PUBLIC_DIR],
-                       cwd=_REMOTION, capture_output=True, text=True)
-    err = (r.stderr or "") + (r.stdout or "")
+    cmd = ["npx", "remotion", "still", "src/index.ts", shot, tmp,
+           "--frame=%d" % frame, "--gl=angle", "--log=error", "--props=" + os.path.abspath(pf),
+           "--public-dir=" + PUBLIC_DIR]
+    # A FLAKY RENDER IS NOT A TYPE DEFECT, AND IT LEFT THE MEASUREMENT IN SILENCE. `StateSheet` came back
+    # FAILED TO RENDER in a full 170-register sweep and rendered clean on its own seconds later — a browser
+    # that dies under a loaded sweep, the failure mode `text_safe_qa.audit_shot` already retries for. One
+    # retry, and what survives it is reported with its own message.
+    for _attempt in (1, 2):
+        r = subprocess.run(cmd, cwd=_REMOTION, capture_output=True, text=True)
+        err = (r.stderr or "") + (r.stdout or "")
+        if TAG in err or r.returncode == 0:
+            break
+    if why is not None and TAG not in err and r.returncode != 0:
+        why.append(_why_it_refused(err))
     if TAG in err:
         raw = err.split(TAG, 1)[1]
         try:
@@ -1262,7 +1330,14 @@ def evidence_props():
 
 
 def sweep(names, dna=DEFAULT_DNA, aspect=None, film_props=None):
-    """{shot: {'hits': [...], 'untestable': [...], 'failed': bool}}"""
+    """{shot: {'hits': [...], 'untestable': [...], 'failed': bool, 'why': str|None, 'cjk_fed': int}}
+
+    `cjk_fed` IS THE COVERAGE, and it was the number nobody had. This gate's headline counted registers that
+    RENDERED; a register renders perfectly well on its own English demo defaults, so a register the shaper
+    fed no Chinese at all was swept, measured, found clean, and counted in a line that reads "rendered with
+    Chinese copy". `audit()` only asks which fed strings reached the screen when the frame already looks
+    empty — a busy frame short-circuits to clean before the question is put. Counting the CJK leaves that
+    went in costs nothing and makes the claim checkable."""
     durs = durations()
     ev = evidence_props()
     out = {}
@@ -1279,8 +1354,11 @@ def sweep(names, dna=DEFAULT_DNA, aspect=None, film_props=None):
             given = film_props.get(n) if film_props else None
             props = dict(ev[n], **props) if given else dict(props, **ev[n])
         frame = int(durs.get(n, 150) * PROBE_FRAC)
-        hits = audit(n, props, frame, tmp, dna, aspect)
-        out[n] = {"hits": hits or [], "untestable": untestable, "failed": hits is None}
+        why = []
+        hits = audit(n, props, frame, tmp, dna, aspect, why=why)
+        out[n] = {"hits": hits or [], "untestable": untestable, "failed": hits is None,
+                  "why": (why[0] if why else None),
+                  "cjk_fed": len([x for x in _string_leaves(props) if _HAS_CJK.search(x)])}
     for p in (tmp, tmp + ".props.json"):
         if os.path.exists(p):
             os.remove(p)
@@ -1364,7 +1442,12 @@ def controls():
 
 
 def main(argv):
-    ap = argparse.ArgumentParser(description="Does the type hold together in Chinese?")
+    ap = argparse.ArgumentParser(
+        description="Does the type hold together in Chinese? "
+                    "EXIT 0 = measured its whole universe and found nothing · 1 = findings · "
+                    "2 = part of the universe was NOT measured (a register that refused to render, one no "
+                    "Chinese copy could be shaped for, a --only name that is not a register, a beat that "
+                    "selects none). The headline is `measured N of M`, never a bare N.")
     ap.add_argument("out_dir", nargs="?")
     ap.add_argument("--library", action="store_true")
     ap.add_argument("--only", default="")
@@ -1390,30 +1473,58 @@ def main(argv):
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import _caption_band as _cb
         rest = [x for x in argv if not x.startswith("--aspect=") and x != "--all-aspects"]
-        worst = 0
-        for asp in _cb.aspect_table():
+        worst, per = 0, []
+        aspects = _cb.aspect_table()
+        for asp in aspects:
             print("### aspect %s" % asp, flush=True)
-            worst = max(worst, main(rest + ["--aspect=" + asp]))
+            rc = main(rest + ["--aspect=" + asp])
+            per.append((asp, rc))
+            worst = max(worst, rc)
+        # AN AGGREGATE, BECAUSE THE SUB-RUNS SCROLL PAST. Each aspect prints its own `measured N of M`, and
+        # a reader who ran five of them sees the LAST one. `worst` already carried the exit code; this says
+        # which aspect earned it, in the same honesty the per-aspect headline has.
+        print("### %d aspect(s) swept: %s" % (len(aspects), " · ".join(
+            "%s %s" % (a_, {0: "clean", 1: "FINDINGS", 2: "coverage hole"}.get(rc_, "rc=%d" % rc_))
+            for a_, rc_ in per)))
         return worst
     film_props = None
+    library = sorted(os.path.basename(f)[:-4] for f in glob.glob(os.path.join(_SHOTS, "*.tsx")))
+    # WHICH UNIVERSE THIS RUN COVERS, said out loud. Three modes, three universes, and the same headline
+    # was printed for all of them: the catalogue, one film's beats, and whatever `--only` named.
+    universe, scope, left_out = len(library), "registers in shots/", []
     if a.only:
         names = [x.strip() for x in a.only.split(",") if x.strip()]
+        # `--only` NAMED NOTHING BACK. A name that is not a register was swept anyway: `prop_signature`
+        # returns ({}, "") for a file it cannot open, the render then dies on an unknown composition, and
+        # the run reported it as a register that FAILED TO RENDER. `text_safe_qa --only` already refuses
+        # this; the list it checks against is the shots directory, never a restated one.
+        unknown = [n for n in names if n not in set(library)]
+        if unknown:
+            print("[cjk_type] --only names %d thing(s) that are not registers in shots/: %s"
+                  % (len(unknown), ", ".join(unknown)))
+            return 2
+        universe, scope = len(names), "registers named by --only, of %d in shots/" % len(library)
     elif a.out_dir:
         global PUBLIC_DIR
         PUBLIC_DIR = os.path.abspath(a.out_dir)        # the film's own assets, as the renderer serves them
         board = json.load(open(os.path.join(a.out_dir, "storyboard.json"), encoding="utf-8"))
         names, film_props = [], {}
-        for s in board.get("slides", []):
-            if s.get("shot"):
-                import render_remotion as _rr            # the renderer's own reading of a beat's props
-                names.append(s["shot"]); film_props[s["shot"]] = _rr.film_shot_props(s, a.out_dir)
+        beats = board.get("slides") or []
+        for i, s in enumerate(beats, 1):
+            if not s.get("shot"):
+                left_out.append(("scene %02d" % i, "selects no register (a still or image beat) — this "
+                                                   "audit reads a register's type and has none to read"))
+                continue
+            import render_remotion as _rr            # the renderer's own reading of a beat's props
+            names.append(s["shot"]); film_props[s["shot"]] = _rr.film_shot_props(s, a.out_dir)
         a.aspect = a.aspect or (board.get("meta") or {}).get("aspect")
         names = sorted(set(names))
+        # A FILM SWEEPS DISTINCT REGISTERS, NOT BEATS — two beats on one register are one render here.
+        # The line must say so, or "measured 6" reads as six of the film's twelve beats.
+        universe, scope = len(names), "distinct registers across %d beat(s)" % len(beats)
     else:
-        names = sorted(os.path.basename(f)[:-4] for f in glob.glob(os.path.join(_SHOTS, "*.tsx")))
+        names = library
     res = sweep(names, a.dna, a.aspect, film_props)
-    if a.json:
-        print(json.dumps(res, ensure_ascii=False, indent=2))
     lead = {n: [h for h in v["hits"] if h["kind"] == "leading"] for n, v in res.items()}
     lead = {n: h for n, h in lead.items() if h}
     over = {n: [h for h in v["hits"] if h["kind"] == "overlap"] for n, v in res.items()}
@@ -1432,6 +1543,27 @@ def main(argv):
     unmeas = {n: h for n, h in unmeas.items() if h}
     failed = [n for n, v in res.items() if v["failed"]]
     untest = {n: v["untestable"] for n, v in res.items() if v["untestable"]}
+    # NOT MEASURED, by the only definition that means anything for THIS gate: a register whose frame carries
+    # no Chinese the fixture put there. Three ways in, and each used to read as a pass:
+    #   the render failed          — printed as a bare name, no reason, and did not affect the exit code
+    #   no CJK copy was shaped     — swept in its own ENGLISH demo defaults and reported clean
+    #   a prop could not be shaped — reported, but under a heading that does not reach the headline
+    nofeed = [n for n, v in res.items() if not v["failed"] and not v.get("cjk_fed")]
+    notmeasured = ([(n, "refused to render — %s" % (res[n].get("why") or "(the render gave no message)"))
+                    for n in sorted(failed)]
+                   + [(n, "no Chinese copy could be shaped for its props, so its frame was measured in its "
+                          "own English demo defaults") for n in sorted(nofeed)]
+                   + [(n, "props no Chinese copy could be shaped for: %s" % ", ".join(untest[n]))
+                      for n in sorted(untest) if n not in set(failed) | set(nofeed)])
+    # `left_out` is a BEAT-level item on a different axis from the register count (a film's universe here is
+    # its DISTINCT registers), so it is counted in its own clause rather than subtracted from `of M` — where
+    # "measured 1 of 1 · 1 not measured" would be arithmetic a reader cannot follow.
+    measured = len(res) - len(failed) - len(nofeed)
+    if a.json:
+        print(json.dumps(dict(res, _coverage={"universe": universe, "scope": scope, "measured": measured,
+                                              "not_measured": [list(x) for x in notmeasured],
+                                              "beats_without_a_register": [list(x) for x in left_out]}),
+                         ensure_ascii=False, indent=2))
     if not a.json:
         cov = bundled_cjk_coverage()
         if cov is not None and not any(has for _, has in cov):
@@ -1440,7 +1572,12 @@ def main(argv):
                   "typography\n           does nothing on a CJK film (measured: 0px apart across two DNAs; "
                   "93px in English).\n           Bundle a CJK face in assets/fonts + runtime/fonts.ts to fix "
                   "it." % len(cov))
-        print("[cjk_type] %d register(s) rendered with Chinese copy" % (len(res) - len(failed)))
+        # MEASURED N OF M, NEVER A BARE N. "151 register(s) rendered with Chinese copy" has no denominator
+        # in it, so the same sentence describes a full sweep and one that lost nineteen registers — and it
+        # said "with Chinese copy" of every register that rendered, including any the shaper fed none.
+        print("[cjk_type] measured %d of %d %s · %d not measured%s"
+              % (measured, universe, scope, len(notmeasured),
+                 " · %d beat(s) select no register" % len(left_out) if left_out else ""))
         if lead:
             print("\nLINES COLLIDING WITH THEMSELVES — a wrapped Chinese line set at a Latin leading:")
             for n in sorted(lead, key=lambda k: -max(h["depth"] for h in lead[k])):
@@ -1465,10 +1602,8 @@ def main(argv):
             for n in sorted(orph)[:20]:
                 h = orph[n][0]
                 print("    %-22s «%s» ends on a line holding «%s»" % (n, h["text"], h.get("other", "?")))
-        if untest:
-            print("\nNOT TESTED — no CJK copy could be shaped for these props (add the shape to _ARRAY_SHAPES):")
-            for n in sorted(untest)[:14]:
-                print("    %-22s %s" % (n, ", ".join(untest[n])))
+        # (the old standalone "NOT TESTED" block is gone — it listed the same registers, truncated at 14,
+        #  under a heading the headline never referenced. They are in NOT MEASURED below, all of them.)
         if unfed:
             print("\nDREW ALMOST NOTHING — the fixture did not reach these registers, so a clean result here "
                   "would\n  be a measurement of an empty frame, not of the register:\n    %s"
@@ -1484,11 +1619,21 @@ def main(argv):
                   "could not\n  read them, so this run says nothing about them either way:")
             for n in sorted(unmeas)[:14]:
                 print("    %-22s %s  «%s»" % (n, unmeas[n][0].get("why", "?"), unmeas[n][0]["text"]))
-        if failed:
-            print("\nFAILED TO RENDER: %s" % ", ".join(sorted(failed)[:14]))
+        if notmeasured or left_out:
+            # ONE LIST, WITH A REASON PER LINE. "FAILED TO RENDER: PortRail, StateSheet" was the whole of
+            # what a reader got, and neither name was a register defect: PortRail refused the gate's OWN
+            # fixture (it was fed two spellings of one rail at once) and StateSheet was a browser that died
+            # under a loaded sweep. A bare name cannot be acted on; the register's own message can.
+            print("\nNOT MEASURED — this run says nothing about these (%d register(s) of %d%s):"
+                  % (len(notmeasured), universe,
+                     ", and %d beat(s) that select none" % len(left_out) if left_out else ""))
+            for n, whynot in notmeasured + left_out:
+                print("    %-22s %s" % (n, whynot))
         if not lead:
             print("\nNo register sets Chinese copy into itself.")
-    return 1 if (lead or unfed or unmeas) else 0
+    # A COVERAGE HOLE IS NOT A CLEAN RUN. The exit code counted `lead or unfed or unmeas` only, so a sweep
+    # that failed to render part of its universe — the 2 this pass found on the real library — returned 0.
+    return 1 if (lead or unfed or unmeas) else (2 if (notmeasured or left_out) else 0)
 
 
 if __name__ == "__main__":

@@ -1238,7 +1238,7 @@
     "light": 1.0,
     "dark": 0.0009324956336058676
    },
-   "moved": 0.9619010416666667,
+   "moved": 0.9616382575757576,
    "ok": false,
    "why": [
     "band ink light wants #ffffff"
@@ -2130,10 +2130,10 @@
     "dark": 0.0
    },
    "fieldY": {
-    "light": 0.9911022186279297,
-    "dark": 0.002731743035838008
+    "light": 1.0,
+    "dark": 0.0018211619462817907
    },
-   "moved": 0.8290530303030303,
+   "moved": 0.8660014204545454,
    "ok": true,
    "why": []
   },
@@ -2521,7 +2521,8 @@
    "why": []
   }
  ],
- "failed": [],
+ "failed": {},
+ "universe": 170,
  "inkRefused": {
   "GlitchDatamosh": "display word 'SIGNAL' is #ffffff \u2014 1.14:1 on paper; the frame is empty (render read)",
   "HoloFoil": "subtitle is #fff \u2014 1.01:1 on paper",

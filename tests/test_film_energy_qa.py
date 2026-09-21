@@ -218,3 +218,89 @@ def test_a_film_too_short_for_an_arc_says_so_instead_of_scoring_zero(slideshow):
     """Zero would read as 'measured, and the light never moves'. Not asking is a different claim."""
     m = g.measure(os.path.join(slideshow, "out.mp4"), fps=12)
     assert m["luma_windows"] >= g.MIN_WINDOWS or m["luma_steps"] is None
+
+
+# ── COVERAGE: the numbers describe the frames ffmpeg handed back, not the file ────────────────────────
+#
+# `-v error` sends ffmpeg's complaints to a stderr this gate discarded and its exit code was never read, so
+# a partial decode arrived as a SHORTER FILM. Measured on a real 88.9s delivered film truncated to 40% of
+# its bytes: ffmpeg printed `partial file`, exited non-zero, handed back 371 frames — and the gate printed
+# `31s`, `OK 0 error(s)` and exited 0 over 35% of the film.
+
+@pytest.fixture(scope="module")
+def truncated(tmp_path_factory):
+    """A film cut off mid-stream: the container still CLAIMS its full duration, the decode stops early.
+
+    `+faststart` on purpose — the moov atom has to survive the cut, or ffprobe cannot read a duration and
+    the fixture proves the wrong thing (no-duration, not short-decode). A delivered out.mp4 is faststart,
+    so this is the shape a damaged delivery actually has. Note that ffmpeg EXITS 0 here and complains only
+    on stderr, which is why the return code alone is not the signal.
+    """
+    d = tmp_path_factory.mktemp("truncated")
+    full = str(d / "full.mp4")
+    _render(full, ["-f", "lavfi", "-i", "testsrc2=s=320x180:r=24:d=12", "-movflags", "+faststart"])
+    src = open(full, "rb").read()
+    open(str(d / "out.mp4"), "wb").write(src[: int(len(src) * 0.4)])
+    return str(d)
+
+
+def test_the_universe_is_the_container_duration_not_the_decode(alive):
+    m = g.measure(os.path.join(alive, "out.mp4"))
+    assert m["declared_seconds"] and abs(m["declared_seconds"] - m["seconds"]) < 1.0, m
+    assert m["frames"] == int(round(m["seconds"] * m["fps"]))
+    assert "of the" in g.coverage_line(m) and "100%" in g.coverage_line(m), g.coverage_line(m)
+
+
+def test_a_half_decoded_film_is_an_error_naming_what_was_missed(truncated):
+    errs, _warns, m = g.check(truncated)
+    assert m["seconds"] < 0.9 * m["declared_seconds"], (
+        "the fixture no longer truncates — it decoded %.1fs of %.1fs" % (m["seconds"], m["declared_seconds"]))
+    cov = [e for e in errs if e.startswith("COVERAGE:")]
+    assert cov, errs
+    assert "never reached the instrument" in cov[0] and "%.1fs" % m["declared_seconds"] in cov[0], cov
+
+
+def test_no_waiver_can_absolve_a_short_decode(truncated):
+    """A waiver is a judgement about a film someone WATCHED. This is a report that the film was not read,
+    so a blanket string waiver — which turns off every other axis — must leave it standing."""
+    json.dump({"meta": {"energy_waiver": "this film is deliberately quiet"}},
+              open(os.path.join(truncated, "storyboard.json"), "w", encoding="utf-8"))
+    try:
+        errs, warns, _m = g.check(truncated)
+        assert any(e.startswith("COVERAGE:") for e in errs), errs
+        assert not any("COVERAGE" in w for w in warns), warns
+    finally:
+        os.remove(os.path.join(truncated, "storyboard.json"))
+
+
+def test_a_file_with_no_declared_duration_says_coverage_is_unknown(alive):
+    m = dict(g.measure(os.path.join(alive, "out.mp4")), declared_seconds=None)
+    assert "UNKNOWN" in g.coverage_line(m)
+    errs = g.coverage_errors(m)
+    assert errs and "cannot say how much of the film it measured" in errs[0], errs
+
+
+def test_the_headline_leads_with_coverage(truncated):
+    import sys
+    rc = subprocess.run([sys.executable, os.path.join(os.path.dirname(g.__file__), "film_energy_qa.py"),
+                         truncated], capture_output=True, text=True)
+    first = rc.stdout.splitlines()[0]
+    assert "measured" in first and " of the " in first, first
+    assert rc.returncode == 1, rc.stdout
+
+
+def test_the_mutation_that_ignores_a_short_decode_is_caught(truncated):
+    """THE MUTATION. Drop `declared_seconds` back out of the measurement — exactly the state before this
+    fix — and the gate goes back to reporting a third of a film as the film."""
+    import types
+    src = open(g.__file__, encoding="utf-8").read()
+    old = '        "declared_seconds": probe_duration(path),'
+    assert old in src, "the mutation target has drifted out of the source"
+    mod = types.ModuleType("film_energy_qa_mutant")
+    mod.__file__ = g.__file__
+    exec(compile(src.replace(old, '        "declared_seconds": None,', 1), g.__file__, "exec"), mod.__dict__)
+    errs, _w, _m = mod.check(truncated)
+    # It does NOT go quiet — it says it cannot state coverage, which is the weakest honest claim available.
+    assert any("cannot say how much of the film it measured" in e for e in errs), errs
+    assert not any("never reached the instrument" in e for e in errs), (
+        "the mutant still knew how much it missed, so this probe is not testing the derivation")

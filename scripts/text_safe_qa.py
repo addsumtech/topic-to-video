@@ -9,6 +9,11 @@
     python3 scripts/text_safe_qa.py --library --cjk             # ...with CHINESE copy, not the demo strings
     python3 scripts/text_safe_qa.py --library --all-dna         # ...in every FACE the renderer offers
 
+EXIT 0 = measured its whole universe and found nothing · 1 = findings · 2 = part of the universe was NOT
+measured. The scope line always names WHICH universe a run covered — `N of M beats` for a film, `N of M
+registers` for the catalogue, with the catalogue's own size beside a run narrowed by --only/--limit — so a
+sweep of eight beats can never be read as the library.
+
 WHY THIS REPLACES A PIXEL GATE. `frame_safe_qa.py`'s EDGE-BLEED check asks how much ink sits in the outer
 border and calls a high answer an overflow. Measured on real cases, it is INVERTED:
 
@@ -126,14 +131,28 @@ def _describe(v):
 
 
 def scan_film(out_dir):
+    """(findings, checked, universe, skipped) — the last two are the point.
+
+    `if not shot or shot not in durs: continue` dropped two different beats into one silent branch, and the
+    caller then printed `N beats` where N was the number that SURVIVED it. A film of twelve beats, eight of
+    which select a register, printed "8 beats" — a line indistinguishable from a twelve-beat film fully
+    covered. The universe is the board's slides; anything that leaves it is named with the reason.
+    """
     board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
     meta = board.get("meta") or {}
     durs = durations()
-    findings, checked = [], 0
+    findings, checked, skipped = [], 0, []
+    slides = board.get("slides") or []
     tmp = os.path.join(out_dir, "._textsafe.png")
-    for i, s in enumerate(board.get("slides") or [], 1):
+    for i, s in enumerate(slides, 1):
         shot = s.get("shot")
-        if not shot or shot not in durs:
+        if not shot:
+            skipped.append("scene %02d: selects no register (a still or image beat) — this audit reads a "
+                           "register's DOM and has none to read" % i)
+            continue
+        if shot not in durs:
+            skipped.append("scene %02d: %r is not a register in shots/ (no DURATION could be read for it), "
+                           "so no frame of this beat was measured" % (i, shot))
             continue
         import render_remotion as _rr                    # the renderer's own reading of a beat's props
         props = _rr.film_shot_props(s, out_dir)
@@ -148,7 +167,7 @@ def scan_film(out_dir):
     for p in (tmp, tmp + ".props.json"):
         if os.path.exists(p):
             os.remove(p)
-    return findings, checked
+    return findings, checked, len(slides), skipped
 
 
 DEFAULT_DNA = "product"
@@ -201,26 +220,42 @@ def scan_library(limit=None, aspect=None, dna=DEFAULT_DNA, only=None, cjk=False)
     # would: a Han glyph is a full em wide, the leading floor is higher, so the same sentence takes more
     # lines and reaches further down. Same fixtures as the CJK gate — one definition of "what Chinese copy
     # for this register looks like", shaped from its own prop signature.
-    cjk_fixture = {}
+    cjk_fixture, not_cjk = {}, []
     if cjk:
         import cjk_type_qa as _cjk
         for n in names:
+            # A SHAPING FAILURE USED TO BECOME AN ENGLISH SWEEP WEARING THE WORD "CJK". `except Exception:
+            # cjk_fixture[n] = {}` left the register with nothing but base props, so it rendered its LATIN
+            # demo defaults — and the scope line still said "CJK fixtures". Chinese is where this audit's
+            # findings live (a Han glyph is a full em, the leading floor is higher, the same sentence
+            # reaches further down the frame), so a register swept in English under a CJK headline is a
+            # register this run says nothing about. Same for one whose props shaped to nothing at all.
             try:
                 props, _untestable = _cjk.cjk_props(n)
-                cjk_fixture[n] = props
-            except Exception:
-                cjk_fixture[n] = {}
-    findings = []
+            except Exception as e:
+                not_cjk.append((n, "its CJK fixture could not be shaped (%s: %s)"
+                                % (type(e).__name__, str(e)[:120])))
+                continue
+            if not [x for x in _cjk._string_leaves(props) if _cjk._HAS_CJK.search(x)]:
+                not_cjk.append((n, "no CJK copy could be shaped for its props — it would be swept in its "
+                                   "own English demo defaults under a CJK headline"))
+                continue
+            cjk_fixture[n] = props
+    findings, swept = [], 0
+    unfed = {n for n, _ in not_cjk}
     for i, n in enumerate(names, 1):
+        if n in unfed:
+            continue                                     # named in the report; never swept in the wrong copy
         frame = int(round(rr.frame_at_t(durs[n], rr.SETTLED_T)))
         props = dict(base)
         props.update(cjk_fixture.get(n) or {})
         props.update(evidence.get(n) or {})
+        swept += 1
         for v in audit_shot(n, props, frame, tmp):
             findings.append("%s: %s" % (n, _describe(v)))
         if i % 20 == 0:
             print("  swept %d/%d" % (i, len(names)), flush=True)
-    return findings, len(names)
+    return findings, swept, len(names), not_cjk
 
 
 def dna_presets():
@@ -297,17 +332,36 @@ def main(argv):
         cjk = "--cjk" in argv
         if dna in ("", "none"):
             dna = None
-        findings, n = scan_library(limit, aspect, dna, only, cjk)
-        scope = "%d registers at %s · dna=%s%s" % (n, "CJK fixtures" if cjk else "default props", dna or "none",
-                                                   " · aspect %s" % aspect if aspect else "")
+        findings, n, universe, notmeasured = scan_library(limit, aspect, dna, only, cjk)
+        # `--only` AND `--limit` NARROW THE UNIVERSE, and "4 of 4 registers" reads as the catalogue. The
+        # catalogue's own size is printed beside them so a narrowed run can never be mistaken for a full one.
+        catalogue = len(durations())
+        why_narrow = "--only" if only else ("--limit=%d" % limit if limit else "narrowed")
+        narrowed = ("" if universe == catalogue
+                    else " (%s — of %d registers in shots/)" % (why_narrow, catalogue))
+        scope = "%d of %d registers%s at %s · dna=%s%s" % (
+            n, universe, narrowed, "CJK fixtures" if cjk else "default props", dna or "none",
+            " · aspect %s" % aspect if aspect else "")
+        what = "register(s) NOT swept"
     else:
-        findings, n = scan_film(os.path.abspath(argv[0]))
-        scope = "%d beats" % n
+        findings, n, universe, notmeasured = scan_film(os.path.abspath(argv[0]))
+        scope = "%d of %d beats" % (n, universe)
+        what = "beat(s) NOT measured"
+        notmeasured = [(x, None) for x in notmeasured]
     for f in findings:
         print("[text_safe] ERROR %s" % f)
+    # THE SCOPE LINE IS THE COVERAGE LINE, and the two universes this script covers must never be mistaken
+    # for each other: `--library` is the catalogue, an out_dir is one film's beats. Both now carry
+    # `measured of universe`, and anything that left the measurement is named under the headline rather
+    # than subtracted from it in silence.
+    if notmeasured:
+        print("[text_safe] %d %s:" % (len(notmeasured), what))
+        for item, why in notmeasured:
+            print("    %s" % (item if why is None else "%-22s %s" % (item, why)))
     print("[text_safe] %s  %d finding(s) across %s"
           % ("FAIL" if findings else "OK", len(findings), scope))
-    return 1 if findings else 0
+    # A run that did not measure part of its universe is not the same answer as one that found nothing.
+    return 1 if findings else (2 if notmeasured else 0)
 
 
 if __name__ == "__main__":

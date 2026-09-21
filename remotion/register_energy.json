@@ -191,6 +191,7 @@
     "luma_range": 0.135
   },
   "_failed": [],
+  "_universe": 170,
   "registers": {
     "AcceptanceStamp": {
       "motion_p75": 0.0008,
@@ -1187,11 +1188,11 @@
       "footprint": 1.0
     },
     "StateSheet": {
-      "motion_p75": 0.0019,
-      "ink_median": 0.116,
-      "luma_range": 0.076,
+      "motion_p75": 0.0014,
+      "ink_median": 0.089,
+      "luma_range": 0.06,
       "seconds": 6.7,
-      "footprint": 0.271
+      "footprint": 0.376
     },
     "StrataColumn": {
       "motion_p75": 0.0006,

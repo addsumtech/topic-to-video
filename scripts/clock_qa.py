@@ -5,6 +5,11 @@
     python3 scripts/clock_qa.py --all           # ...and every candidate, for a human to judge
     python3 scripts/clock_qa.py --json          # machine-readable
 
+EXIT 0 = nothing confirmed and the whole universe was measured · 1 = confirmed findings · 2 = part of
+the universe was NOT measured (a register file it could not read, or a narrowing step whose energy
+manifest was unusable). 2 exists because "could not measure" used to exit 0 beside the words NOT
+NARROWED, which a caller reads as a pass.
+
 WHY THIS EXISTS, AND WHY IT IS A SCRIPT RATHER THAN A LESSON. `useT()` returns 0→1 across the WHOLE clip,
 so `Math.sin(t * 2)` delivers two radians of phase in five seconds — a third of one cycle. Written down it
 looks like radians per second and it is nothing of the kind. Every register that has one was authored as
@@ -112,10 +117,32 @@ def scan_source(src, name):
 
 
 def scan_library(shots_dir=None):
-    rows = []
+    """Drivers only. `scan_library_covered` is the same walk with its own coverage attached."""
+    return scan_library_covered(shots_dir)[0]
+
+
+def scan_library_covered(shots_dir=None):
+    """(rows, coverage) — every driver, AND what the walk could and could not read.
+
+    A SCAN THAT CANNOT READ A FILE MUST NOT REPORT ZERO DRIVERS FOR IT. `open(...).read()` with no
+    handler either crashes the whole run (a file with a bad encoding) or, in any caller that wrapped it,
+    would have filed the register as driver-free — which is the clean-looking answer. The universe here is
+    every `shots/*.tsx`, derived from the directory; a file that cannot be read is NAMED with the error's own
+    message and counted as not measured, never folded into the 'no driver' majority."""
+    rows, read, unreadable = [], [], []
     for f in sorted(glob.glob(os.path.join(shots_dir or SHOTS, "*.tsx"))):
-        rows += scan_source(open(f, encoding="utf-8").read(), os.path.basename(f)[:-4])
-    return rows
+        name = os.path.basename(f)[:-4]
+        try:
+            src = open(f, encoding="utf-8").read()
+        except (OSError, UnicodeDecodeError) as e:
+            unreadable.append((name, "%s: %s" % (type(e).__name__, e)))
+            continue
+        read.append(name)
+        rows += scan_source(src, name)
+    cov = {"universe": len(read) + len(unreadable), "read": len(read),
+           "unreadable": unreadable,
+           "with_driver": sorted({r["register"] for r in rows})}
+    return rows, cov
 
 
 def findings(rows):
@@ -143,33 +170,71 @@ def measured_motion():
 def confirmed(rows, motion, floor):
     """The intersection: a register measured under the motion floor that also holds a driver authored to
     repeat and never repeating. Symptom paired with a named cause."""
-    out = []
+    return confirmed_covered(rows, motion, floor)[0]
+
+
+def confirmed_covered(rows, motion, floor):
+    """(hits, unnarrowed) — and the second half is the point.
+
+    `motion.get(name)` returning None used to `continue` in silence: a register holding a stalled driver
+    that the energy sweep never measured left the narrowing with no trace, and the reader saw a shorter
+    CONFIRMED list with nothing saying an item had dropped out of it. It is guarded today — `measured_motion`
+    refuses a manifest that `register_energy.stale()` rejects, and a register missing from the manifest is
+    exactly what makes it stale, so the whole narrowing is skipped rather than one register — but the branch
+    is one `stale()` relaxation away from firing, so it names its dropouts instead of swallowing them."""
+    out, unnarrowed = [], []
     for r in rows:
         if r["kind"] not in ("modulo", "trig") or (r["cycles"] or 0) >= 1.0:
             continue
         m = motion.get(r["register"])
-        if m is not None and m < floor:
+        if m is None:
+            unnarrowed.append((r["register"], "holds a stalled driver and the energy sweep has no "
+                                               "motion_p75 for it — it was neither confirmed nor cleared"))
+            continue
+        if m < floor:
             out.append(dict(r, motion=m))
-    return out
+    return out, sorted(set(unnarrowed))
 
 
 def main(argv):
-    rows = scan_library()
+    rows, cov = scan_library_covered()
     stalled, creeping = findings(rows)
     motion, floor, why = measured_motion()
     kinds = {}
     for r in rows:
         kinds[r["kind"]] = kinds.get(r["kind"], 0) + 1
-    hits = confirmed(rows, motion, floor) if motion else []
+    hits, unnarrowed = confirmed_covered(rows, motion, floor) if motion else ([], [])
+    # WHAT "COULD NOT MEASURE" IS WORTH. 83 drivers was the only number in the headline and it is a
+    # FINDINGS count — it says nothing about how many register files were read to arrive at it, and a run
+    # whose narrowing step never happened printed it unchanged and exited 0. Three things can leave the
+    # measurement, and each gets its own exit code so a caller cannot read any of them as clean.
+    unmeasured = len(cov["unreadable"]) + len(unnarrowed) + (1 if motion is None else 0)
     if "--json" in argv:
         print(json.dumps({"confirmed": hits, "stalled": stalled, "creeping": creeping,
-                          "measurement": why or "ok"}, ensure_ascii=False, indent=2))
-        return 1 if hits else 0
-    print("[clock_qa] %d drivers against `t`: %s" % (len(rows), ", ".join(
-        "%s %d" % (k, v) for k, v in sorted(kinds.items()))))
+                          "measurement": why or "ok",
+                          "coverage": {"register_files": cov["universe"], "read": cov["read"],
+                                       "with_driver": len(cov["with_driver"]),
+                                       "unreadable": cov["unreadable"],
+                                       "narrowed": motion is not None,
+                                       "not_narrowed": unnarrowed}},
+                         ensure_ascii=False, indent=2))
+        return 1 if hits else (2 if unmeasured else 0)
+    print("[clock_qa] read %d of %d register file(s) · %d hold a driver against `t` · %d driver(s): %s"
+          % (cov["read"], cov["universe"], len(cov["with_driver"]), len(rows), ", ".join(
+              "%s %d" % (k, v) for k, v in sorted(kinds.items()))))
+    if cov["unreadable"]:
+        print("\n  NOT SCANNED — %d register file(s) could not be read, so nothing is known about their "
+              "clocks:" % len(cov["unreadable"]))
+        for n, whynot in cov["unreadable"]:
+            print("    %-22s %s" % (n, whynot))
     if motion is None:
-        print("\n  NOT NARROWED BY MEASUREMENT: %s" % why)
+        print("\n  NOT NARROWED BY MEASUREMENT — 0 of %d stalled driver(s) were confirmed or cleared: %s"
+              % (len(stalled), why))
     else:
+        if unnarrowed:
+            print("\n  NOT NARROWED — in the sweep's universe but with no motion score of their own:")
+            for n, whynot in unnarrowed:
+                print("    %-22s %s" % (n, whynot))
         print("\nCONFIRMED — measured UNDER the %.4f motion floor, and holding a driver authored to repeat "
               "that never does:" % floor)
         for r in sorted(hits, key=lambda r: r["motion"]):
@@ -188,7 +253,13 @@ def main(argv):
             print("    %-22s L%-4d k=%-6s %s" % (r["register"], r["line"], r["k"], r["code"][:56]))
     print("\nThe fix is `radians()` / `life()` in runtime/motion.ts: say the period in SECONDS, which is the "
           "unit a period is actually in. Both enforce a 3s floor by throwing.")
-    return 1 if hits else 0
+    # EXIT 2 IS "PART OF THE UNIVERSE WAS NOT MEASURED", and it is not the same answer as 0. An unreadable
+    # register file, or a narrowing step that never ran, previously exited 0 alongside the word
+    # "NOT NARROWED" — a caller reading the code saw a pass.
+    if unmeasured:
+        print("  (exit 2 — %d part(s) of this run's universe were NOT measured; see the NOT lines above)"
+              % unmeasured)
+    return 1 if hits else (2 if unmeasured else 0)
 
 
 if __name__ == "__main__":

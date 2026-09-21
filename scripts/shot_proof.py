@@ -75,6 +75,33 @@ FIGURE_SETTLE_BLOCK = 70    # max 32x32-block difference between the MID and SET
 # statistic is the worst LOCAL block, not the average.
 
 
+_STACK_LINE = re.compile(r"^\s*(at\s|\.\.\.\s|node:internal|Node\.js v)")
+
+
+def _stderr_reason(stderr, limit=220):
+    """The MESSAGE a failed render actually carries, not the last line of its stack.
+
+    This used to report `(r.stderr or "").strip().split("\\n")[-1]`, and the last line of a node stack is
+    always `at process.processTicksAndRejections (node:internal/…)`. The ink gate shipped eight registers
+    marked "skipped" behind exactly that non-reason: the run said something failed and named nothing a
+    reader could act on. Stack frames are dropped, the first line that carries a thrown message wins, and
+    when nothing does, the surviving prose is returned rather than a shrug.
+    """
+    lines = [l.strip() for l in str(stderr or "").splitlines() if l.strip()]
+    prose = [l for l in lines if not _STACK_LINE.match(l)]
+    thrown = [l for l in prose
+              if re.search(r"(?:^|\b)(\w*Error|Invariant|Cannot|Unexpected|Failed|Unable|throw)\b", l)]
+    pick = thrown or prose or lines
+    if not pick:
+        return "the renderer wrote nothing to stderr (exit non-zero with no message)"
+    # FIRST and LAST, not the first two. node puts the thrown message at the top and remotion puts the
+    # resolved cause at the bottom (a teardown complaint from puppeteer often sits between them), so the
+    # two ends carry the cause whichever tool produced it; the middle never does.
+    pick = [pick[0]] if len(pick) == 1 else [pick[0], pick[-1]]
+    out = " / ".join(pick)
+    return out[:limit] + ("…" if len(out) > limit else "")
+
+
 def shot_defaults(shot):
     """{prop: default} for a registered shot — reads the file and delegates."""
     try:
@@ -302,7 +329,16 @@ def _flat(v, prefix=""):
     return out
 
 
-def static_checks(board):
+def static_checks(board, skips=None):
+    """(errors, warnings). `skips` collects every beat/register that LEFT the measurement, with a reason.
+
+    Three paths used to drop an item in silence: a beat with no `shot`, a register whose exported props
+    could not be parsed (`exported_props` returns None and the caller reads that as "exempt" — its own
+    docstring says so), and a register whose .tsx could not be opened for the welded-copy check. None of
+    them moved a number in the headline, so a run blind to a register printed the same line as a run that
+    cleared it.
+    """
+    skips = skips if skips is not None else []
     errors, warns = [], []
     slides = board.get("slides", [])
     seen = {}
@@ -313,12 +349,20 @@ def static_checks(board):
         shot = s.get("shot")
         props = s.get("shot_props") or {}
         if not shot:
+            skips.append("beat %d: no `shot` — every per-register check below (unknown props, demo copy, "
+                         "demo content, icons, duplicate composition) is skipped for this beat. "
+                         "validate.py ERRORS on it; this gate simply cannot see it." % beat)
             continue
         # (0) A PROP THE REGISTER DOES NOT HAVE. React drops it silently and the register draws its own
         # default instead, so a beat carrying perfect topic copy under the wrong key ships the DEMO words.
         # Both of this film's most important frames — its spine and its close — passed `text` to a register
         # whose prop is `phrases`, and rendered the English demo line "YOUR AI TEAM." in a Chinese film.
         iface = exported_props(shot)
+        if iface is None:
+            skips.append("beat %d (%s): the register's exported prop list could not be read from "
+                         "src/shots/%s.tsx (no `export const %s: React.FC<{…}>` and no resolvable named "
+                         "props type) — the wrong-prop check is OFF for this beat, which is the exact "
+                         "defect it exists to catch" % (beat, shot, shot, shot))
         if iface is not None:
             unknown = sorted(k for k in props if k not in iface)
             if unknown:
@@ -414,7 +458,9 @@ def static_checks(board):
     for shot in sorted({s.get("shot") for s in slides if s.get("shot")}):
         try:
             src = open(os.path.join(_SHOTS, shot + ".tsx"), encoding="utf-8").read()
-        except OSError:
+        except OSError as e:
+            skips.append("%s: src/shots/%s.tsx could not be opened (%s) — the welded-copy check did not "
+                         "run for this register" % (shot, shot, e))
             continue
         # Only the register's STRING LITERALS count. Matching the whole source flagged 'return' and
         # 'reverse' — JS keywords that reached the topic set from a beat whose props legitimately carry a
@@ -529,23 +575,29 @@ def _content_box(png, thresh=26):
 
 
 def _content_ink(png):
-    """What fraction of the CONTENT ZONE departs from the frame's own ground — the beat's visual density."""
+    """(ink % of the CONTENT ZONE, None) — the beat's visual density — or (None, reason).
+
+    The three ways this returns nothing are three different repairs (an absent dependency, an unreadable
+    PNG, a frame with no content zone), and returning a bare None for all of them silently dropped the
+    beat from the film-wide tonal distribution printed below. A median over an unknown subset is not a
+    measurement of the film.
+    """
     try:
         from PIL import Image
         import numpy as _np
-    except Exception:
-        return None
+    except Exception as e:                                   # noqa: BLE001 — name it, don't drop the beat
+        return None, "%s: %s (Pillow/numpy)" % (type(e).__name__, e)
     try:
         a = _np.asarray(Image.open(png).convert("L"), dtype=_np.int16)
-    except Exception:
-        return None
+    except Exception as e:                                   # noqa: BLE001 — name it, don't drop the beat
+        return None, "%s: %s" % (type(e).__name__, e)
     h, w = a.shape
     from _caption_band import caption_band_px
     zone = a[176:max(177, h - caption_band_px(w, h)), :]
     if zone.size == 0:
-        return None
+        return None, "the content zone is empty at %dx%d (the caption band leaves no rows)" % (w, h)
     mode = _np.bincount(zone.astype(_np.uint8).ravel(), minlength=256).argmax()
-    return float((_np.abs(zone - mode) > 25).mean() * 100)
+    return float((_np.abs(zone - mode) > 25).mean() * 100), None
 
 
 def _dna_hues(board):
@@ -602,11 +654,17 @@ def main(argv):
         print("[shot_proof] not a remotion deck — nothing to prove")
         return 0
 
-    errors, warns = static_checks(board)
+    # THE UNIVERSE, parsed from the board rather than counted from whatever rendered. `unmeasured` holds
+    # anything that left it, each with a reason a reader can act on; `exempt` holds what the gate
+    # deliberately does not judge, said out loud so an exemption cannot be mistaken for a clean result.
+    beats = board.get("slides", []) or []
+    unmeasured, exempt = [], []
+    errors, warns = static_checks(board, skips=unmeasured)
     # Hoisted out of the rendered-checks branch below: the tonal summary reads them unconditionally, so
     # defining them only when stills are rendered made `--no-stills` — the fast path this file's own usage
     # line recommends while authoring — die with an UnboundLocalError.
     inks, ink_by_beat = [], []
+    rendered = 0
 
     # THE RENDERED CHECKS RUN BY DEFAULT.
     #
@@ -631,14 +689,31 @@ def main(argv):
             beat = _pos
             shot = s.get("shot")
             if not shot:
+                unmeasured.append("beat %d: no `shot` — nothing to render, so every RENDERED check "
+                                  "(off-frame, caption band, palette, empty/dead frame, ink) is skipped "
+                                  "for this beat" % beat)
                 continue
-            src = ""
+            src, src_err = "", None
             try:
                 src = open(os.path.join(_SHOTS, shot + ".tsx"), encoding="utf-8").read()
-            except OSError:
-                pass
+            except OSError as e:
+                src_err = str(e)
             dm = re.search(r"export const DURATION\s*=\s*(\d+)", src)
+            # THE FRAME IS THE REGISTER'S OWN, never a house constant. `remotion still` REFUSES a frame past
+            # the end of a composition rather than clamping, so a fixed frame silently excludes every
+            # register shorter than it — the ink gate lost seven registers that way, three of which were
+            # genuinely broken. The fallback below is still a constant, so when it is used the beat is
+            # reported as proofed at a frame the register may never reach, instead of passing as if it were
+            # measured at its settled point.
             frame = int(int(dm.group(1)) * 0.88) if dm else 120
+            if not dm:
+                unmeasured.append("beat %d (%s): the settled frame cannot be derived — %s. Proofed at the "
+                                  "fallback frame %d, which this register may never reach (if it is "
+                                  "shorter, the still below simply fails)."
+                                  % (beat, shot,
+                                     "src/shots/%s.tsx could not be opened (%s)" % (shot, src_err) if src_err
+                                     else "src/shots/%s.tsx exports no `DURATION` — export it" % shot,
+                                     frame))
             pj = os.path.join(proof, "beat_%02d.json" % beat)
             import render_remotion as _rr                # the renderer's own reading of a beat's props
             payload = _rr.film_shot_props(s, out_dir)
@@ -663,10 +738,18 @@ def main(argv):
                                 "--public-dir=" + os.path.abspath(out_dir)],
                                cwd=_REMOTION, capture_output=True, text=True)
             if r.returncode != 0 or not os.path.exists(png):
-                errors.append("beat %d (%s): the shot FAILED to render standalone — %s"
-                              % (beat, shot, (r.stderr or "").strip().split("\n")[-1][:160]))
+                why = _stderr_reason(r.stderr)
+                errors.append("beat %d (%s): the shot FAILED to render standalone at frame %d — %s"
+                              % (beat, shot, frame, why))
+                unmeasured.append("beat %d (%s): no still, so off-frame / caption-band / palette / "
+                                  "empty-frame / ink were not measured — %s" % (beat, shot, why))
                 continue
+            rendered += 1
             # A figure-bearing register must be showing the RIGHT figure at the frame the gate captures.
+            if shot in FIGURE_SHOTS and not dm:
+                unmeasured.append("beat %d (%s): the figure-settle check needs the register's DURATION to "
+                                  "find the mid-scene frame and %s.tsx declares none — the on-screen "
+                                  "number was not checked for being caught mid-roll" % (beat, shot, shot))
             if shot in FIGURE_SHOTS and dm:
                 mid_png = os.path.join(proof, "beat_%02d_mid.png" % beat)
                 rm = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, mid_png,
@@ -674,6 +757,12 @@ def main(argv):
                                      "--props=" + pj, "--log=error",
                                      "--public-dir=" + os.path.abspath(out_dir)],
                                     cwd=_REMOTION, capture_output=True, text=True)
+                if rm.returncode != 0 or not os.path.exists(mid_png):
+                    # The one ERROR that guards an on-screen NUMBER. Dropping it in silence when the
+                    # second still fails is how a film ships a digit caught mid-flight with a green gate.
+                    unmeasured.append("beat %d (%s): the mid-scene still did not render, so the "
+                                      "figure-settle check did not run on a register whose subject IS a "
+                                      "number — %s" % (beat, shot, _stderr_reason(rm.stderr)))
                 if rm.returncode == 0 and os.path.exists(mid_png):
                     d = _block_diff(mid_png, png)
                     if d > FIGURE_SETTLE_BLOCK:
@@ -698,8 +787,21 @@ def main(argv):
             beat_props = (beat_by_index.get(beat) or {})
             shows_image = any(isinstance(v, str) and re.search(r"\.(jpe?g|png|webp|avif)$", v, re.I)
                               for v in beat_props.values())
+            if not dna_hues:
+                exempt.append("beat %d (%s): palette — this film's DNA yielded no accent hue "
+                              "(meta.design_dna/%r), so there is nothing to judge a colour against"
+                              % (beat, shot, dna_ref))
+            elif shows_image:
+                exempt.append("beat %d (%s): palette — the beat supplies a photograph, whose own colours "
+                              "no register change can move" % (beat, shot))
+            elif shot in SEMANTIC_COLOUR_SHOTS:
+                exempt.append("beat %d (%s): palette — %s"
+                              % (beat, shot, SEMANTIC_COLOUR_SHOTS[shot]))
             if dna_hues and not shows_image:
                 hs, _ = _hues(png)
+                if not hs:
+                    exempt.append("beat %d (%s): palette — the frame carries no chromatic ink above the "
+                                  "measurement floor (a monochrome beat)" % (beat, shot))
                 if hs:
                     off = [h for h in hs if not _in_palette(h, dna_hues)]
                     if len(off) / len(hs) > OFF_SYSTEM_FRAC and shot not in SEMANTIC_COLOUR_SHOTS:
@@ -715,9 +817,12 @@ def main(argv):
                 # dead-frame branch with `if frac and ...` let the emptiest possible result pass silently.
                 errors.append("beat %d (%s): the frame is EMPTY — nothing departs from the background"
                               % (beat, shot))
-            _ink = _content_ink(png)
+            _ink, _ink_why = _content_ink(png)
             if _ink is not None:
                 inks.append(_ink); ink_by_beat.append((beat, _ink))
+            else:
+                unmeasured.append("beat %d (%s): ink density could not be measured (%s) — this beat is "
+                                  "NOT in the tonal-register distribution below" % (beat, shot, _ink_why))
             if frac and frac < NARROW_FRAC:
                 m2 = shot_still_qa.measure(png)
                 off = abs((x0 + x1) / 2 - m2["w"] / 2) / float(m2["w"])
@@ -736,25 +841,43 @@ def main(argv):
         med = inks_sorted[len(inks_sorted) // 2]
         lo, hi = inks_sorted[0], inks_sorted[-1]
         thin = [b for b, v in ink_by_beat if v < 3.0]
+        # "across every beat" is a claim, so it states the count it is actually over. A distribution over
+        # 5 of 8 beats reads exactly like one over 8 unless it says which.
+        _over = "%d of %d beat(s)" % (len(inks), len(beats))
         if med < 6.0:
-            warns.append("the film's TONAL REGISTER is thin: median %.1f%% of the content zone carries ink "
-                         "(range %.1f-%.1f%%), and %d beat(s) are under 3%%. A film of near-empty frames has "
-                         "no register — the caption carries it and the design is a garnish. Give the "
-                         "sparsest beats something the sentence does not already say."
-                         % (med, lo, hi, len(thin)))
+            warns.append("the film's TONAL REGISTER is thin (measured over %s): median %.1f%% of the content "
+                         "zone carries ink (range %.1f-%.1f%%), and %d beat(s) are under 3%%. A film of "
+                         "near-empty frames has no register — the caption carries it and the design is a "
+                         "garnish. Give the sparsest beats something the sentence does not already say."
+                         % (_over, med, lo, hi, len(thin)))
         elif hi > 12 * max(0.5, med):
-            warns.append("the film's ink ranges %.1f-%.1f%% of the content zone around a %.1f%% median — the "
-                         "dense beats read as a different film from the sparse ones. Vary within a band, not "
-                         "by an order of magnitude." % (lo, hi, med))
+            warns.append("the film's ink ranges %.1f-%.1f%% of the content zone around a %.1f%% median "
+                         "(measured over %s) — the dense beats read as a different film from the sparse "
+                         "ones. Vary within a band, not by an order of magnitude." % (lo, hi, med, _over))
+    elif "--no-stills" not in argv and beats:
+        unmeasured.append("the film's TONAL REGISTER: no beat yielded an ink measurement, so the "
+                          "distribution check did not run at all")
 
     for e in errors:
         print("  ERROR: " + e)
     for w in warns:
         print("  warn : " + w)
-    print("[shot_proof] %s  %d error(s), %d warning(s)%s"
-          % ("FAIL" if errors else "OK", len(errors), len(warns),
-             "  (static only — drop --no-stills for the rendered checks)" if "--no-stills" in argv else ""))
-    return 1 if errors else 0
+    for u in unmeasured:
+        print("  NOT MEASURED: " + u)
+    for x in exempt:
+        print("  n/a  : " + x)
+    static_only = "--no-stills" in argv
+    # COVERAGE, not just findings. The universe is the board's beats; `rendered` is how many of them this
+    # run actually put on a frame. A gate that measured 5 of 8 must not print a line that reads as 8.
+    if static_only:
+        cover = "static checks on %d beat(s); 0 rendered (--no-stills)" % len(beats)
+    else:
+        cover = "rendered %d of %d beat(s)" % (rendered, len(beats))
+    state = "FAIL" if errors else ("INCOMPLETE" if unmeasured else "OK")
+    print("[shot_proof] %s  %s · %d error(s), %d warning(s), %d not measured, %d n/a%s"
+          % (state, cover, len(errors), len(warns), len(unmeasured), len(exempt),
+             "  (static only — drop --no-stills for the rendered checks)" if static_only else ""))
+    return 1 if (errors or unmeasured) else 0
 
 
 if __name__ == "__main__":

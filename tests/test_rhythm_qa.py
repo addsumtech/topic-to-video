@@ -136,3 +136,68 @@ def test_est_seconds_mixed_script_no_blowup():
     assert est < 9.0                      # binary flip gave ~20s
     zh = {"narration": "这是一个二十个字左右的中文句子用来测速"}
     assert 3.0 <= rq._est_seconds(zh, {"language": "zh"}) <= 5.5   # pure zh path unchanged
+
+
+# ── COVERAGE: what this gate did NOT measure ──────────────────────────────────────────────────────────
+#
+# `rhythm_qa: 8 scenes` was the count that SURVIVED the `isinstance` filter, so a 9-entry board with one
+# malformed entry printed 8 and the number read as the film. And an empty board returned ok=True, which is
+# "could not measure" wearing the face of "clean".
+import json          # noqa: E402
+import os            # noqa: E402
+import sys           # noqa: E402
+import types         # noqa: E402
+
+import pytest        # noqa: E402
+
+
+@pytest.mark.parametrize("n", [5, 9])
+def test_the_universe_is_the_board_not_the_survivors(n):
+    r = rq.evaluate(_board([_sc(i, 4.0 + i) for i in range(n)] + ["a stray string"]))
+    assert r["universe"] == n + 1 and r["measured"] == n
+    assert any("not a scene object" in e for e in r["errors"]), r["errors"]
+    assert r["ok"] is False, "a board this gate could only partly read must not report ok"
+
+
+def test_the_headline_states_coverage_and_flags_estimates(tmp_path, capsys):
+    board = _board([_sc(0, 8.0), _sc(1, 9.0), dict(_sc(2, 0), duration=None)] + ["stray"])
+    (tmp_path / "storyboard.json").write_text(json.dumps(board), encoding="utf-8")
+    rc = rq.main([str(tmp_path)])
+    text = capsys.readouterr().out
+    assert "measured 3 of 4 scene(s)" in text, text
+    assert "ESTIMATED from narration" in text, text
+    assert rc == 1
+
+
+def test_an_empty_board_is_not_a_pass():
+    r = rq.evaluate(_board([]))
+    assert r["ok"] is False and r["universe"] == 0
+    assert any("not a pass" in e for e in r["errors"]), r["errors"]
+
+
+def test_the_held_frame_rule_says_when_it_inspected_nothing():
+    """The only ERROR here reads scenes of one type. On an all-html deck it looks at nothing, and the
+    headline still counted them — a rule that inspected zero scenes must say so."""
+    r = rq.evaluate(_board([_sc(i, 20.0, type="html") for i in range(5)]))
+    assert r["held_frame_scenes"] == 0 and r["held_frame_skipped"] == {"html": 5}
+    assert any("inspected 0 of 5" in w for w in r["warnings"]), r["warnings"]
+    # …and it stays quiet when the rule did cover the board.
+    r2 = rq.evaluate(_board([_sc(i, 4.0 + i, type="slide") for i in range(5)]))
+    assert r2["held_frame_scenes"] == 5
+    assert not any("inspected 0 of" in w for w in r2["warnings"])
+
+
+def test_the_mutation_that_drops_a_scene_is_caught():
+    """THE MUTATION. Filter one more scene out of `slides` without recording it: `measured` falls, M does
+    not, and the unrecorded-reason check has to name the gap instead of letting the shares shift."""
+    src = open(rq.__file__, encoding="utf-8").read()
+    old = "    slides = [s for s in entries if isinstance(s, dict)]"
+    assert old in src, "the mutation target has drifted out of the source"
+    mod = types.ModuleType("rhythm_qa_mutant")
+    mod.__file__ = rq.__file__
+    sys.path.insert(0, os.path.dirname(rq.__file__))
+    exec(compile(src.replace(old, old + "[:-1]", 1), rq.__file__, "exec"), mod.__dict__)
+    r = mod.evaluate(_board([_sc(i, 4.0 + i) for i in range(5)]))
+    assert r["universe"] == 5 and r["measured"] == 4, r
+    assert any("NO recorded reason" in e for e in r["errors"]), r["errors"]
+    assert r["ok"] is False

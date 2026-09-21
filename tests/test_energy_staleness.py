@@ -75,6 +75,7 @@ def test_the_recorded_hash_is_the_one_the_render_read(tmp_path, monkeypatch):
     monkeypatch.setenv("TMPDIR", str(tmp_path / "cache"))
     monkeypatch.setattr(re_, "MANIFEST", str(man))
     monkeypatch.setattr(re_, "durations", lambda: {"A": 100, "B": 100})
+    monkeypatch.setattr(re_, "universe", lambda: ["A", "B"])
     monkeypatch.setattr(re_, "ensure_fixture", lambda: None)
     monkeypatch.setattr(re_, "evidence_props", lambda: {})
     monkeypatch.setattr(re_, "stills_from", lambda *a, **k: None)

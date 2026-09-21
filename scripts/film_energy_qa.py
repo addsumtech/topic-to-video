@@ -50,6 +50,16 @@ category. Ink is measured against a per-frame median ground, so a full-bleed gra
 is intended, a gradient is not content, but it means a deliberately atmospheric film will score low. A quiet
 film can be right; `meta.energy_waiver` accepts one, and requires a written reason, because the discipline
 this codebase runs on is that an accepted warning is a decision someone made rather than one that defaulted.
+
+WHAT THIS GATE'S UNIVERSE IS, AND HOW IT SAYS SO. Every number above is a statistic over the frames ffmpeg
+handed back, and that is NOT the same set as the film. `-v error` sends ffmpeg's own complaints to a stderr
+this script used to discard, and its exit code was never read, so a PARTIAL decode came back as a shorter
+film rather than as a failure. Measured, on a real 88.9s delivered film truncated to 40% of its bytes:
+ffmpeg printed `partial file`, exited non-zero, and handed back 371 frames — this gate printed `31s`,
+reported `OK  0 error(s)` and exited 0, having measured 35% of the film under a headline that read as the
+film. The universe is therefore DERIVED from the container (`ffprobe` duration, never a constant), the
+headline states coverage against it, and a short decode is an error `meta.energy_waiver` cannot touch: a
+waiver is a judgement about a film someone watched, and this is a report that the film was never read.
 """
 import glob
 import json
@@ -68,6 +78,11 @@ LUMA_STEP_FLOOR = 0.019
 LUMA_STEP_DELTA = 0.12
 LUMA_WINDOW_SECONDS = 1
 MIN_WINDOWS = 4               # under four seconds there is no arc to measure, and saying so beats guessing
+# COVERAGE. The decode is allowed to land a little short of the container's duration — the sampler drops the
+# fractional tail frame, and a container rounds — so a shortfall must clear BOTH of these to be a finding.
+# They are deliberately loose: this exists to catch a decode that stopped, not to police rounding.
+COVERAGE_MIN_GAP = 1.0        # seconds; under this, no arithmetic on a normal film can raise a finding
+COVERAGE_TOLERANCE = 0.02     # …and at least this fraction of what the file claims
 
 # The four films the floors are derived from, and the file each was measured from. A record nobody can
 # regenerate is not a measurement, it is a memory — so `--reference <dir>` re-measures them and reports drift.
@@ -115,6 +130,28 @@ def probe_size(path):
         return None
 
 
+def probe_duration(path):
+    """The seconds the FILE claims — this gate's universe, parsed from the container rather than assumed.
+
+    Two entries because they disagree and either can be absent: a remuxed mp4 can carry a format duration
+    with no stream one, and a raw stream the reverse. Whichever answers first and is positive wins; None
+    means the file would not say, which is itself reportable — it is the difference between "I measured all
+    of it" and "I have no idea how much of it I measured".
+    """
+    for select, entries in ((None, "format=duration"), ("v", "stream=duration")):
+        args = ["ffprobe", "-v", "error"] + (["-select_streams", select] if select else [])
+        args += ["-show_entries", entries, "-of", "csv=p=0", path]
+        out = subprocess.run(args, capture_output=True, text=True).stdout
+        for tok in out.replace(",", "\n").split():
+            try:
+                v = float(tok)
+            except ValueError:
+                continue
+            if v > 0:
+                return v
+    return None
+
+
 def measure(path, fps=12, long_side=192):
     """Greyscale frame-difference, ink coverage and luminance spread. Same instrument for every film.
 
@@ -136,9 +173,12 @@ def measure(path, fps=12, long_side=192):
         w, h = long_side, max(2, int(round(long_side * H0 / W0)) // 2 * 2)
     else:
         h, w = long_side, max(2, int(round(long_side * W0 / H0)) // 2 * 2)
-    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-vf",
-                          "fps=%d,scale=%d:%d" % (fps, w, h), "-pix_fmt", "gray", "-f", "rawvideo", "-"],
-                         capture_output=True).stdout
+    # The return code and stderr are READ, not discarded. ffmpeg happily hands back the frames it managed
+    # before giving up, so a truncated or damaged file used to arrive here as a shorter film.
+    proc = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-vf",
+                           "fps=%d,scale=%d:%d" % (fps, w, h), "-pix_fmt", "gray", "-f", "rawvideo", "-"],
+                          capture_output=True)
+    raw = proc.stdout
     n = len(raw) // (w * h)
     if n < MIN_FRAMES:
         return n                                     # an INT, not None: the caller says which failure it was
@@ -152,8 +192,16 @@ def measure(path, fps=12, long_side=192):
     # never moves", which is a different and much worse claim than "not long enough to ask".
     steps = (sum(1 for a, b in zip(win, win[1:]) if abs(b - a) >= LUMA_STEP_DELTA) / (len(win) - 1)
              if len(win) >= MIN_WINDOWS else None)
+    err = (proc.stderr or b"").decode("utf-8", "replace").strip()
     return {
         "seconds": n / fps,
+        "frames": n,
+        "fps": fps,
+        # The universe, and what the decode said about reaching it. None for `declared_seconds` is a real
+        # answer ("the file would not say"), never a silent 0.
+        "declared_seconds": probe_duration(path),
+        "decode_rc": proc.returncode,
+        "decode_stderr": err,
         "motion_p50": float(np.percentile(d, 50)),
         "motion_p75": float(np.percentile(d, 75)),
         "motion_p90": float(np.percentile(d, 90)),
@@ -165,6 +213,42 @@ def measure(path, fps=12, long_side=192):
 
 
 AXES = ("MOTION", "DENSITY", "LIGHT", "LIGHT ARC")
+
+
+def coverage_line(m):
+    """One phrase saying how much of the film these numbers describe. Always printed, never only on failure."""
+    dec = m.get("declared_seconds")
+    frames = "%d frames at %dfps" % (m.get("frames", 0), m.get("fps", 0))
+    if not dec:
+        return "%.1fs (%s) — the file declares no duration, so coverage is UNKNOWN" % (m["seconds"], frames)
+    return "%.1fs of the %.1fs out.mp4 claims (%.0f%%, %s)" % (
+        m["seconds"], dec, 100.0 * min(1.0, m["seconds"] / dec), frames)
+
+
+def coverage_errors(m, name="out.mp4"):
+    """The findings about what was NOT measured. Kept apart from the four axes on purpose: these are not
+    judgements about a film, they are reports that part of it never reached the instrument, so
+    `meta.energy_waiver` must not be able to absolve them."""
+    out = []
+    dec = m.get("declared_seconds")
+    why = ""
+    if m.get("decode_stderr"):
+        why = " ffmpeg said: %s" % m["decode_stderr"].splitlines()[-1].strip()
+    elif m.get("decode_rc"):
+        why = " ffmpeg exited %d with nothing on stderr." % m["decode_rc"]
+    if dec is None:
+        out.append("COVERAGE: ffprobe could not read a duration from %s, so this run cannot say how much of "
+                   "the film it measured — every number above describes the %.1fs it decoded and nothing "
+                   "claims that is the whole film.%s" % (name, m["seconds"], why))
+        return out
+    short = dec - m["seconds"]
+    if short > max(COVERAGE_MIN_GAP, COVERAGE_TOLERANCE * dec):
+        out.append("COVERAGE: decoded %.1fs of the %.1fs %s claims — %.0f%% of the film never reached the "
+                   "instrument, so every number above describes that %.0f%% and not this film. Re-render or "
+                   "repair the file, then re-run.%s"
+                   % (m["seconds"], dec, name, 100.0 * short / dec, 100.0 * m["seconds"] / dec,
+                      why or " ffmpeg reported no error, which makes a damaged container the likely cause."))
+    return out
 
 
 def parse_waiver(raw):
@@ -267,12 +351,13 @@ def check(out_dir):
         if blanket and kept:
             head += "  (a plain-string waiver covers EVERY axis — name the axes instead to keep the rest gated)"
         warns = [head] + waived + warns
-    errs = kept
-    if errs:
-        errs.append("If this film is deliberately quiet, say so in `meta.energy_waiver` with the reason — a "
+    if kept:
+        kept.append("If this film is deliberately quiet, say so in `meta.energy_waiver` with the reason — a "
                     "STRING waives every axis, an object like {\"density\": \"…\"} waives only what it names. "
                     "A waiver is a decision someone made; silence is one that defaulted.")
-    return errs, warns, m
+    # COVERAGE goes FIRST and never through the waiver loop above. A blanket string waiver turning off "I
+    # only read a third of this file" is the exact shape of hole this gate was hardened against.
+    return coverage_errors(m, os.path.basename(mp4)) + kept, warns, m
 
 
 def main(argv):
@@ -299,10 +384,14 @@ def main(argv):
     out_dir = os.path.abspath(argv[0])
     errs, warns, m = check(out_dir)
     if m:
-        print("[film_energy] %.0fs  motion p50/p75/p90 %.4f/%.4f/%.4f  ink %.1f%%  light %.3f  arc %s"
-              % (m["seconds"], m["motion_p50"], m["motion_p75"], m["motion_p90"],
+        # COVERAGE BEFORE FINDINGS. The old first word was the measured length, which on a half-decoded file
+        # read as the film's length; what a reader needs first is how much of the film these numbers are.
+        print("[film_energy] measured %s" % coverage_line(m))
+        print("              motion p50/p75/p90 %.4f/%.4f/%.4f  ink %.1f%%  light %.3f  arc %s (%d window(s))"
+              % (m["motion_p50"], m["motion_p75"], m["motion_p90"],
                  m["ink_median"] * 100, m["luma_range"],
-                 "n/a" if m["luma_steps"] is None else "%.1f%%" % (m["luma_steps"] * 100)))
+                 "n/a" if m["luma_steps"] is None else "%.1f%%" % (m["luma_steps"] * 100),
+                 m["luma_windows"]))
         print("              reference floors: motion p75 >= %.4f · ink >= %.0f%% · light >= %.3f · arc >= %.1f%%"
               % (MOTION_P75_FLOOR, INK_FLOOR * 100, LUMA_RANGE_FLOOR, LUMA_STEP_FLOOR * 100))
     for w in warns:

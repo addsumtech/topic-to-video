@@ -269,6 +269,36 @@ export const CaptionBandCleanProbe: React.FC = () => (
 );
 
 
+// TYPE CUT OFF BY THE CANVAS — the OTHER half of the same audit, and it had no synthetic control at all.
+//
+// It is the identical mistake the band control above is a monument to, made once more one defect-class
+// over. The cut-off positive control was `AnalogTape` fed a 59-character word: a production register,
+// depended on to keep overflowing. It stopped. `AnalogTape` now sizes its title with
+// `fitTextPx(TITLE, W * 0.92 - …)`, which shrinks any word to the frame — so the word renders comfortably
+// inside (looked at, not inferred: the rendered still shows it spanning roughly 380→1540px of 1920), the
+// audit correctly reports nothing, and the test that proves this gate can SEE a cut has been failing with
+// `assert []`. A control that needs production code to stay broken works exactly once.
+//
+// So: a fixed-size line, wider than the canvas, in a composition nobody will ever "fix", with NO clipping
+// ancestor — the audit exempts text cropped by a container smaller than the frame, because that is a
+// marquee the author built. Paired with a clean probe carrying the SAME copy at a size that fits, so a
+// detector that fires on everything is caught too.
+const CUT_PROBE_TEXT = 'THIS LINE IS WIDER THAN THE CANVAS AND NOTHING CLIPS IT';
+export const CutOffProbe: React.FC = () => (
+  <div style={{position: 'absolute', inset: 0, background: '#fff'}}>
+    <div style={{position: 'absolute', left: -600, top: 400, color: '#000', whiteSpace: 'nowrap',
+      font: '800 140px/1.2 var(--f-display, Inter, system-ui, sans-serif)'}}>{CUT_PROBE_TEXT}</div>
+  </div>
+);
+
+export const CutOffCleanProbe: React.FC = () => (
+  <div style={{position: 'absolute', inset: 0, background: '#fff'}}>
+    <div style={{position: 'absolute', left: 80, top: 400, color: '#000', whiteSpace: 'nowrap',
+      font: '800 28px/1.2 var(--f-display, Inter, system-ui, sans-serif)'}}>{CUT_PROBE_TEXT}</div>
+  </div>
+);
+
+
 // A LAST LINE HOLDING ONE CHARACTER, and the one-property fix. Chinese breaks between any two glyphs, so a
 // label a single unit too wide for its box drops one character onto a line of its own — a delivered film's
 // card read 「Craft · 直接开」 over a line holding just 「干」. Fifteen characters in a box seven wide is that
@@ -348,6 +378,8 @@ export const RemotionRoot: React.FC = () => (
     {F('TiltedTypeCleanProbe', TiltedTypeCleanProbe, 165)}
     {F('CaptionBandProbe', CaptionBandProbe, 165)}
     {F('CaptionBandCleanProbe', CaptionBandCleanProbe, 165)}
+    {F('CutOffProbe', CutOffProbe, 165)}
+    {F('CutOffCleanProbe', CutOffCleanProbe, 165)}
     {F('OrphanLineProbe', OrphanLineProbe, 165)}
     {F('BalancedLineProbe', BalancedLineProbe, 165)}
     {F('TightLeadingProbe', TightLeadingProbe, 165)}

@@ -12,6 +12,15 @@ gates a render). Everything else, including a missing climax, is a WARNING. Run 
 durations) and before the full render.
 
     python scripts/rhythm_qa.py <out_dir> [--json]
+
+WHAT IT COVERS, AND WHY THE HEADLINE SAYS SO. The universe is every entry in `storyboard.json`'s `slides`,
+parsed from the board. Three things used to leave that universe without a word: an entry that is not an
+object was filtered out by an `isinstance` and then COUNTED OUT of `n`, so the headline read as the film;
+an empty board returned `ok: True` ("could not measure" wearing the face of "clean"); and the held-frame
+ERROR — the only rule here that can block a render — only ever looks at scenes whose `type` is a held
+image, so on a deck of `html`/`chart` scenes it inspects nothing while the headline still counts them.
+The total seconds mix MEASURED durations with narration ESTIMATES, which is now stated on the headline
+rather than only inside whichever warning happened to fire.
 """
 import sys, os, json, math
 
@@ -90,11 +99,24 @@ def _is_reset(s, prev, meta):
 
 def evaluate(data, meta=None):
     meta = meta if meta is not None else (data.get("meta") or {})
-    slides = [s for s in (data.get("slides") or []) if isinstance(s, dict)]
+    entries = data.get("slides") or []
+    universe = len(entries)
+    slides = [s for s in entries if isinstance(s, dict)]
+    # NAMED, not filtered into silence. A board entry that is not an object is a malformed board, and the
+    # position is the only thing that lets anyone find it.
+    unreadable = ["scene at position %d: the storyboard entry is a %s, not a scene object — nothing about "
+                  "this scene could be read, and it is not in any number below"
+                  % (i + 1, type(s).__name__) for i, s in enumerate(entries) if not isinstance(s, dict)]
     errors, warnings = [], []
     n = len(slides)
     if n == 0:
-        return {"ok": True, "errors": [], "warnings": ["no scenes"], "scenes": 0}
+        # NOT ok. An empty board is a board this gate could not measure, and a caller that reads the exit
+        # code must not be able to mistake that for a well-paced film.
+        return {"ok": False,
+                "errors": (unreadable or
+                           ["the storyboard holds no scenes — nothing was measured, which is not a pass"]),
+                "warnings": [], "scenes": 0, "universe": universe, "measured": 0, "not_measured": unreadable,
+                "durations_estimated": 0, "held_frame_scenes": 0, "held_frame_skipped": {}}
 
     durs = [_est_seconds(s, meta) for s in slides]
     total = sum(durs)
@@ -160,8 +182,14 @@ def evaluate(data, meta=None):
     #    (a pre-tts estimate never hard-blocks) AND only on a genuinely DEAD frame. A slide walked by
     #    TIMED callouts (cue/at) has moving attention — each callout is the reset-equivalent of a cut —
     #    so downgrade it to a WARN, however long.
+    held_checked, held_skipped = 0, {}
     for s, d in zip(slides, durs):
+        if _stype(s) not in _STATIC_TYPES:
+            # This rule's universe is NARROWER than the film's, and that has to be reportable: on a deck of
+            # html/chart scenes the only ERROR here inspects nothing at all.
+            held_skipped[_stype(s)] = held_skipped.get(_stype(s), 0) + 1
         if _stype(s) in _STATIC_TYPES:
+            held_checked += 1
             measured = isinstance(s.get("duration"), (int, float)) and s.get("duration") > 0
             timed = any((c or {}).get("cue") or (c or {}).get("at") is not None
                         for c in (s.get("callouts") or []))
@@ -193,18 +221,42 @@ def evaluate(data, meta=None):
             run_start = s.get("index")
         prev = s
 
+    est_n = sum(1 for s in slides if not (isinstance(s.get("duration"), (int, float)) and s["duration"] > 0))
+    if held_skipped and not held_checked:
+        warnings.append(
+            "the held-frame check — the only ERROR this gate raises — inspected 0 of %d scene(s): it reads "
+            "scenes of type %s, and this board holds %s. Nothing here was checked for an over-held frame."
+            % (n, "/".join(sorted(_STATIC_TYPES)),
+               ", ".join("%s x%d" % (k, v) for k, v in sorted(held_skipped.items()))))
+    # A drop with no recorded reason is itself the finding — the same rule the shared coverage printer
+    # applies. M comes from the board, so a future silent filter shows up here instead of shrinking M.
+    if universe - n > len(unreadable):
+        errors.append("%d scene(s) left the measurement with NO recorded reason — a gate that cannot say "
+                      "why it lost a scene is reporting over a film it did not read"
+                      % (universe - n - len(unreadable)))
+    errors = unreadable + errors
     return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": n,
-            "total_seconds": round(total, 1)}
+            "total_seconds": round(total, 1),
+            # COVERAGE, carried in the result so --json and any caller sees the same numbers the headline
+            # prints. `scenes` is what was measured; `universe` is what the board holds.
+            "universe": universe, "measured": n, "not_measured": unreadable,
+            "durations_estimated": est_n, "held_frame_scenes": held_checked,
+            "held_frame_skipped": held_skipped}
+
+
+def _unmeasurable(why):
+    return {"ok": False, "errors": [why], "warnings": [], "scenes": 0, "universe": 0, "measured": 0,
+            "not_measured": [why], "durations_estimated": 0, "held_frame_scenes": 0, "held_frame_skipped": {}}
 
 
 def check(out_dir):
     path = os.path.join(out_dir, "storyboard.json")
     if not os.path.exists(path):
-        return {"ok": False, "errors": [f"no storyboard.json in {out_dir}"], "warnings": [], "scenes": 0}
+        return _unmeasurable(f"no storyboard.json in {out_dir}")
     try:
         data = sb.load(path)
     except Exception as e:
-        return {"ok": False, "errors": [f"storyboard.json unreadable: {e}"], "warnings": [], "scenes": 0}
+        return _unmeasurable(f"storyboard.json unreadable: {e}")
     return evaluate(data)
 
 
@@ -223,7 +275,15 @@ def main(argv):
             json.dump(r, f, indent=2)
         print(json.dumps(r, indent=2))
     else:
-        print(f"rhythm_qa: {r['scenes']} scenes, {r.get('total_seconds','?')}s")
+        # THE HEADLINE STATES COVERAGE. `{scenes} scenes` alone was the count that SURVIVED the isinstance
+        # filter, so a 10-entry board with two malformed entries printed "8 scenes" and read as the film.
+        est = r.get("durations_estimated") or 0
+        held = ("" if r.get("held_frame_scenes") == r.get("measured") else
+                f" · held-frame check covered {r.get('held_frame_scenes', 0)}")
+        print(f"rhythm_qa: measured {r.get('measured', r['scenes'])} of {r.get('universe', r['scenes'])} "
+              f"scene(s), {r.get('total_seconds','?')}s"
+              + (f" ({est} duration(s) ESTIMATED from narration — run after tts.py)" if est else "")
+              + held)
         for e in r["errors"]:
             print(f"  ERROR: {e}")
         for w in r["warnings"]:

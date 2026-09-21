@@ -379,6 +379,84 @@ def test_no_shot_calls_useDNA_without_importing_it():
     assert not broken, "shots call useDNA() without importing it (hard ReferenceError at render): %s" % broken
 
 
+# ── dna_audit COVERAGE. The audit's universe is the REGISTERED set, and it never said so — nor how many
+# shots/*.tsx exist beside it. Three ways an item used to leave the measurement while the report stayed
+# clean-looking: an unreadable registry returned set() (0 registered, 0 un-migrated, --check exit 0), a
+# registry entry with no file scored `none` like any un-migrated shot, and a file whose source could not be
+# read scored `none · residual 0 · reads 0` — the same row. Each is now derived, named and counted.
+
+def _fake_library(tmp_path, *, orphan_file=False, ghost_import=False, bad_bytes=False, registry=True,
+                  registry_text=None, name="lib"):
+    """A minimal remotion tree. Every count the tests below assert is taken from THIS tree, so a coverage
+    line printed from a constant cannot satisfy them."""
+    r = tmp_path / name / "remotion"
+    shots = r / "src" / "shots"
+    shots.mkdir(parents=True)
+    body = ("import {useDNA} from '../runtime/dna';\n"
+            "export const DURATION = 150;\n"
+            "export const X: React.FC = () => {const dna = useDNA(); return null;};\n")
+    names = ["Alpha", "Beta"]
+    for n in names:
+        (shots / (n + ".tsx")).write_text(body, encoding="utf-8")
+    if orphan_file:
+        (shots / "Orphan.tsx").write_text(body, encoding="utf-8")
+    imports = ["import {%s} from './shots/%s';" % (n, n) for n in names]
+    if ghost_import:
+        imports.append("import {Ghost} from './shots/Ghost';")
+    if bad_bytes:
+        (shots / "Bad.tsx").write_bytes(b"import {useDNA} from '../runtime/dna';\n\xff\xfe")
+        imports.append("import {Bad} from './shots/Bad';")
+    if registry:
+        (r / "src" / "registry.ts").write_text(
+            registry_text if registry_text is not None else "\n".join(imports), encoding="utf-8")
+    return str(r)
+
+
+def test_dna_audit_states_its_universe_and_derives_both_counts(tmp_path):
+    """`registered N · of M shots/*.tsx on disk` — both sides read off the tree, never restated."""
+    r = _fake_library(tmp_path, orphan_file=True)
+    a = da.audit(r)
+    assert a["registered"] == 2 and a["shot_files"] == 3, a
+    assert a["files_not_registered"] == ["Orphan"], a["files_not_registered"]
+
+
+def test_dna_audit_refuses_a_registry_it_cannot_derive_its_universe_from(tmp_path):
+    """`except OSError: pass` returned an EMPTY set: the report then printed 0 registered / 0 un-migrated
+    and --check exited 0 — a perfect pass over nothing at all."""
+    import pytest as _pt
+    with _pt.raises(RuntimeError) as e:
+        da.registered_shots(_fake_library(tmp_path, registry=False, name="a"))
+    assert "indistinguishable from a clean library" in str(e.value)
+    with _pt.raises(RuntimeError) as e2:
+        da.registered_shots(_fake_library(tmp_path, registry_text="// nothing here\n", name="b"))
+    assert "ZERO shots" in str(e2.value)
+
+
+def test_dna_audit_names_a_registry_entry_with_no_file(tmp_path):
+    """It is scored `depth: none` — byte-identical to a register that genuinely hardcodes its palette."""
+    a = da.audit(_fake_library(tmp_path, ghost_import=True))
+    assert a["registered_without_file"] == ["Ghost"], a
+    assert a["detail"]["Ghost"]["depth"] == "none", "the row it is silently given"
+
+
+def test_dna_audit_names_a_shot_whose_source_it_could_not_read(tmp_path):
+    a = da.audit(_fake_library(tmp_path, bad_bytes=True))
+    assert [n for n, _ in a["unreadable"]] == ["Bad"], a["unreadable"]
+    assert "utf-8" in a["unreadable"][0][1], "the reason names nothing actionable"
+    assert a["detail"]["Bad"]["depth"] == "none", "unread scores the same as un-migrated — hence the list"
+
+
+def test_dna_audit_check_refuses_when_part_of_its_universe_was_not_scored(tmp_path, capsys, monkeypatch):
+    """--check is a gate. 'unknown' must not exit 0 in a gate."""
+    r = _fake_library(tmp_path, ghost_import=True, bad_bytes=True)
+    monkeypatch.setattr(da, "_REMOTION", r)
+    rc = da.main(["--check"])
+    out = capsys.readouterr().out
+    assert "NOT SCORED" in out and "Ghost" in out, out
+    assert "NOT READ" in out and "Bad" in out, out
+    assert rc == 1, "a run that scored part of its universe as 'unknown' exited %r" % rc
+
+
 def test_validate_dna_presets_match_the_runtime():
     # validate.py keeps a python copy of DNA_PRESETS to decide whether a film is 'themed'. If the two drift, a
     # themed film silently stops being gated (or an un-themed one gets nagged).
@@ -704,6 +782,52 @@ def test_every_multiword_family_is_quoted_in_every_stack():
             if fam.startswith('"'):
                 continue
             assert ' ' not in fam, "multi-word family %r must be quoted in stack %r" % (fam, stack)
+
+
+def _font_gate_module():
+    import importlib.util
+    spec_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "font_gate.py")
+    spec = importlib.util.spec_from_file_location("font_gate", spec_path)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+def test_font_gate_counts_the_faces_it_covers_and_names_the_ones_it_cannot_weight_test():
+    """"every declared face loaded" is the same sentence for one face and for twelve. The counts are read
+    off fonts.ts, and a non-variable face answers only one of the gate's two questions — say so."""
+    fg = _font_gate_module()
+    faces = fg._all_faces()
+    src = open(os.path.join(_RUNTIME_DIR, "fonts.ts"), encoding="utf-8").read()
+    declared = src.split("export const FACES")[1].split("\n];")[0].count("{family:")
+    assert len(faces) == declared > 0, (
+        "the face list this gate covers (%d) is not the list fonts.ts declares (%d)" % (len(faces), declared))
+    assert fg._families(True) == [f for f, var in faces if var]
+    assert fg._families(False) == [f for f, _ in faces]
+    static = [f for f, var in faces if not var]
+    assert static, "no non-variable face left to prove the ladder exclusion is reported"
+    body = open(os.path.join(os.path.dirname(__file__), "..", "scripts", "font_gate.py"),
+                encoding="utf-8").read()
+    assert "NOT WEIGHT-TESTED" in body, "a face excluded from the ladder must be named, not dropped"
+    assert "declared face(s) proved loaded" in body, "the success line states no coverage"
+
+
+def test_font_gate_refuses_a_run_that_compared_fewer_faces_than_it_declares(capsys):
+    """The numerator must be the comparisons MADE. `zip(fams, tiles_differ(...))` running dry would print
+    the success line over a smaller library than the one that ships — the exact shape of hole this pass is
+    about. No renderer needed: the probe render and the pixel comparison are both stubbed."""
+    fg = _font_gate_module()
+    faces = fg._all_faces()
+    fg._render = lambda png, ladder, expected_rows: None
+    fg.tiles_differ = lambda png, rows, cols=2: [True] * (rows - 1)      # one comparison silently lost
+    rc = fg.main()
+    out = capsys.readouterr().out
+    assert "NOT EVERY DECLARED FACE WAS COMPARED" in out, out
+    assert "declares %d face(s)" % len(faces) in out, out
+    assert rc == 1, "a short comparison run exited %r" % rc
+    fg.tiles_differ = lambda png, rows, cols=2: [True] * rows            # a full run passes
+    assert fg.main() == 0
+    assert "%d of %d declared face(s) proved loaded" % (len(faces), len(faces)) in capsys.readouterr().out
 
 
 def test_tiles_differ_detects_identical_and_distinct_halves(tmp_path):

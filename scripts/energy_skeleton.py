@@ -40,6 +40,16 @@ THE RULES (each one a line in `findings()`, each with its case):
   run-of-kinetic    three or more kinetic registers in a row                        (the peer's noise case)
   summit-off-peak   the film's most kinetic register is not on its peak beat        (beat 9 above)
 
+THE OTHER UNIVERSE. This gate reads TWO sets and can be blind in either: the film's beats, and the manifest
+rows behind them. A beat whose register has no row — or whose row `stale()` drops because the shot's source
+changed since it was measured — used to fall out of `findings()` on a bare `continue`, and it took the
+`run-of-kinetic` and `summit-off-peak` scans with it (an unmeasured beat BREAKS a kinetic run, so four
+kinetic beats with one unmeasured among them produce no finding at all). Both now surface as an `unmeasured`
+finding that names the beat and WHICH of the two it is, because the fixes differ: a missing row wants the
+shot-director or a sweep that includes the new register, a stale row wants `register_energy.py` re-run. The
+headline states `measured N of M`, and the "follows the plan's skeleton" verdict is printed only when
+N == M — it is a claim about every beat, and it used to be printed over beats nobody had looked at.
+
 Deterministic; reads the storyboard and the sweep, writes nothing. `validate.py` reports the same findings
 as warnings; `shot_director.py` uses `band_for()` to prefer an in-band register on the deterministic path.
 """
@@ -50,6 +60,8 @@ import sys
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)
 
+import _common as _c                                                # noqa: E402
+
 ENERGIES = ("low", "medium", "high", "peak")
 HARD = ("high-on-quiet", "peak-under-floor", "low-on-kinetic")   # the mismatches that set the exit code
 RUN = 3                    # kinetic beats in a row that read as noise
@@ -58,8 +70,18 @@ SPARK = " ▁▂▃▄▅▆▇█"
 
 
 def load_sweep():
-    """({register: motion_p75}, floor, quiet_cut, kinetic_cut, why_none). The sweep is the library's own
-    measurement; when it is missing or stale there is no basis, and the reason is returned instead."""
+    """({register: motion_p75}, floor, quiet_cut, kinetic_cut, why_none) — see `sweep_status`."""
+    return sweep_status()[:5]
+
+
+def sweep_status():
+    """(motion, floor, quiet_cut, kinetic_cut, why_none, stale_rows).
+
+    `stale_rows` is {register: why} for the rows this call DROPPED — kept out of `motion` so nothing is
+    judged against a measurement of different source, and returned so the caller can tell a beat whose
+    register was never measured from one whose measurement went out of date. Reporting both as "not
+    measured" sends the reader to the shot-director when the fix is `python3 scripts/register_energy.py`.
+    """
     try:
         import register_energy as reg
         data = json.load(open(reg.MANIFEST, encoding="utf-8"))
@@ -70,16 +92,17 @@ def load_sweep():
         rows = data["registers"]
         if len(stale_rows) > max(3, len(rows) // 4):
             return None, None, None, None, ("the register sweep is STALE for %d registers — run "
-                                            "`python3 scripts/register_energy.py`" % len(stale_rows))
+                                            "`python3 scripts/register_energy.py`" % len(stale_rows)), stale_rows
         motion = {n: float(r["motion_p75"]) for n, r in rows.items() if "motion_p75" in r and n not in stale_rows}
         floor = float(data["_floors"]["motion_p75"])
     except Exception as e:                                          # noqa: BLE001 — any failure = no basis
-        return None, None, None, None, "no usable register sweep (%s)" % e
+        return None, None, None, None, "no usable register sweep (%s)" % e, {}
     if len(motion) < 6:
-        return None, None, None, None, "the register sweep holds %d registers — too few for bands" % len(motion)
+        return (None, None, None, None,
+                "the register sweep holds %d registers — too few for bands" % len(motion), stale_rows)
     vals = sorted(motion.values())
     q = lambda p: vals[int(round(p * (len(vals) - 1)))]           # noqa: E731
-    return motion, floor, q(1 / 3.0), q(2 / 3.0), None
+    return motion, floor, q(1 / 3.0), q(2 / 3.0), None, stale_rows
 
 
 def band_for(energy, quiet_cut, kinetic_cut, floor):
@@ -106,6 +129,21 @@ def declared(slide, beat=None):
     if (slide.get("relation") or (beat or {}).get("relation")) == "close":
         return "low"
     return "medium"
+
+
+def _normalise(slides):
+    """([slide dicts], {position: why}) — a board entry that is not an object cannot be read, and used to
+    reach `s.get` as an AttributeError traceback that named a Python type and no beat. It becomes an empty
+    beat here and an `unmeasured` finding with its position, so a malformed board is a named hole."""
+    out, bad = [], {}
+    for i, s in enumerate(slides):
+        if isinstance(s, dict):
+            out.append(s)
+        else:
+            bad[i] = ("storyboard entry is a %s, not a beat object — the board is malformed here and "
+                      "nothing about this beat can be read" % type(s).__name__)
+            out.append({})
+    return out, bad
 
 
 def _beats_by_position(plan, slides):
@@ -142,13 +180,30 @@ def _alternatives(slide, beat, lo, hi, motion, used, families, k=3):
     return out[:k]
 
 
-def findings(slides, motion, floor, quiet_cut, kinetic_cut, plan=None):
-    """The list of dicts described in the module docstring. Empty when the film follows its skeleton."""
+def unmeasured_reason(shot, stale_rows):
+    """Why this beat carries no motion number, in words whose FIX differs — the whole point of separating
+    them. `None` when there is nothing to say (the beat is measured)."""
+    if not shot:
+        return "no register assigned yet — run the shot-director, then re-run this"
+    if shot in (stale_rows or {}):
+        return ("%s's row in the sweep is STALE (%s), so it was dropped rather than trusted — run "
+                "`python3 scripts/register_energy.py`" % (shot, stale_rows[shot]))
+    return ("%s has no row in the sweep, so its motion is unknown rather than fine — if it is a new "
+            "register, run `python3 scripts/register_energy.py`" % shot)
+
+
+def findings(slides, motion, floor, quiet_cut, kinetic_cut, plan=None, stale_rows=None, malformed=None):
+    """The list of dicts described in the module docstring. Empty when the film follows its skeleton.
+
+    A beat with no motion number is emitted as kind `unmeasured` rather than skipped: it is the one thing
+    this check could not do, and it silently weakened two of the five rules as well as its own line.
+    """
     try:
         import shot_director as sd
         fam = sd.FAMILY
     except Exception:                                               # noqa: BLE001
         fam = {}
+    malformed = malformed or {}
     beats = _beats_by_position(plan, slides)
     used = {s.get("shot") for s in slides}
     rows = []
@@ -159,6 +214,8 @@ def findings(slides, motion, floor, quiet_cut, kinetic_cut, plan=None):
     out = []
     for i, r in enumerate(rows):
         if r["motion"] is None:
+            out.append(dict(r, kind="unmeasured", alternatives=[],
+                            why=malformed.get(i) or unmeasured_reason(r["shot"], stale_rows)))
             continue
         e, m = r["energy"], r["motion"]
         kind = None
@@ -173,7 +230,11 @@ def findings(slides, motion, floor, quiet_cut, kinetic_cut, plan=None):
             near = {fam.get(rows[j]["shot"]) for j in (i - 1, i + 1) if 0 <= j < len(rows)}
             out.append(dict(r, kind=kind, band=(lo, hi if hi != float("inf") else None),
                             alternatives=_alternatives(slides[i], beats[i], lo, hi, motion, used, near)))
-    # a run of kinetic registers reads as noise whatever each beat declared
+    # a run of kinetic registers reads as noise whatever each beat declared.
+    # NOTE a real blind spot that stays: an unmeasured beat BREAKS a run here, because a beat whose motion
+    # is unknown cannot be asserted to be kinetic. So 4 kinetic beats with one unmeasured among them yield
+    # no run-of-kinetic finding. That is the honest reading, and the `unmeasured` line above is what tells
+    # the reader this rule may have been cut short — which is why it is emitted even when nothing else fires.
     run = []
     for r in rows + [{"motion": None}]:
         if r["motion"] is not None and r["motion"] >= kinetic_cut:
@@ -213,12 +274,35 @@ def curve(slides, motion, quiet_cut, kinetic_cut, plan=None):
     return "".join(dec), "".join(meas)
 
 
+def coverage(fs, slides, curve_pair=None):
+    """(measured, universe, [unmeasured findings]).
+
+    M is every entry in `slides`, parsed from the board — never `measured + missing`, which shrinks in step
+    with anything the loop silently drops and keeps the line reading 100%.
+
+    `curve_pair` is the CROSS-CHECK. The sparkline marks an unmeasured beat `?` and `findings()` emits an
+    `unmeasured` row for it, by two different paths over the same motion map. If they ever disagree, one of
+    them has started hiding a beat, and that is a refusal rather than a smaller number.
+    """
+    miss = [f for f in fs if f.get("kind") == "unmeasured"]
+    if curve_pair and curve_pair[1].count("?") != len(miss):
+        raise RuntimeError(
+            "the curve marks %d unmeasured beat(s) and the findings name %d — one of the two paths is "
+            "dropping a beat without recording it, which is exactly the hole this coverage line exists to "
+            "close" % (curve_pair[1].count("?"), len(miss)))
+    return len(slides) - len(miss), len(slides), miss
+
+
 def check_slides(slides, plan=None):
-    """(findings, curve_pair, why_none) for a storyboard's slides — what validate.py calls on the board it holds."""
-    motion, floor, qc, kc, why = load_sweep()
+    """(findings, curve_pair, why_none) for a storyboard's slides — what validate.py calls on the board it
+    holds. Beats the sweep cannot measure arrive as `unmeasured` findings, so a caller that reports findings
+    reports the coverage hole too without needing a second channel for it."""
+    motion, floor, qc, kc, why, stale_rows = sweep_status()
+    slides, malformed = _normalise(slides)
     if why:
         return [], None, why
-    return findings(slides, motion, floor, qc, kc, plan), curve(slides, motion, qc, kc, plan), None
+    return (findings(slides, motion, floor, qc, kc, plan, stale_rows, malformed),
+            curve(slides, motion, qc, kc, plan), None)
 
 
 def load_plan(out_dir):
@@ -248,6 +332,9 @@ def describe(f):
                 "(%s, %.4f) — the visual summit is somewhere the argument does not peak; swap them or give "
                 "the peak a livelier register"
                 % (f["shot"], f["beat"], f["energy"], f["motion"], f["peak_beat"], f["peak_shot"], f["peak_motion"]))
+    if f["kind"] == "unmeasured":
+        return ("beat %d declared %s was NOT checked — %s"
+                % (f["beat"], (f.get("energy") or "medium").upper(), f.get("why") or "no motion number"))
     why = {"high-on-quiet": "declared %s, and %s is in the library's stillest third",
            "peak-under-floor": "declared %s, and %s is under the delivery motion floor",
            "low-on-kinetic": "declared %s (a hold), and %s is in the library's liveliest third"}[f["kind"]]
@@ -261,29 +348,50 @@ def main(argv):
     if not argv or argv[0].startswith("-"):
         print(__doc__.split("\n\n")[0]); return 2
     fs, cv, why = check(argv[0])
-    if "--json" in argv:
-        print(json.dumps({"findings": fs, "curve": cv, "basis": why or "ok"}, ensure_ascii=False, indent=2))
-        return 1 if any(f["kind"] in HARD for f in fs) else 0
-    if why:
-        print("[energy_skeleton] NOT CHECKED: %s" % why); return 0
     data = json.load(open(os.path.join(argv[0], "storyboard.json"), encoding="utf-8"))
-    unassigned = sum(1 for s in (data.get("slides") or []) if not s.get("shot"))
-    unmeasured = cv[1].count("?") - unassigned
-    if unassigned:
-        print("[energy_skeleton] %d beat(s) have no register yet (shown as ?) — run the shot-director first" % unassigned)
-    if unmeasured > 0:
-        print("[energy_skeleton] %d beat(s) sit on registers the sweep has not measured (shown as ?)" % unmeasured)
+    slides = data.get("slides") or []
+    seen, universe, missing = coverage(fs, slides, None if why else cv)
+    if "--json" in argv:
+        # The JSON carried findings and no coverage, so a caller reading it could not tell a clean film from
+        # one whose beats were never measured — the same hole the text path had.
+        print(json.dumps({"findings": fs, "curve": cv, "basis": why or "ok",
+                          "coverage": {"measured": 0 if why else seen, "universe": universe,
+                                       "not_measured": [{"beat": f["beat"], "shot": f.get("shot"),
+                                                         "why": f.get("why")} for f in missing]}},
+                         ensure_ascii=False, indent=2))
+        return 1 if (why or missing or any(f["kind"] in HARD for f in fs)) else 0
+    if why:
+        # Non-zero: this is "could not measure", and an exit code a caller reads as success is exactly how a
+        # hole stays invisible. The line says NOT CHECKED, and now so does the status.
+        _c.coverage("energy_skeleton", 0, universe,
+                    {"the whole sweep": why} if universe else {})
+        print("[energy_skeleton] NOT CHECKED: %s" % why); return 1
+    # COVERAGE FIRST, through the shared printer — the same shape every gate here prints.
+    _c.coverage("energy_skeleton", seen, universe,
+                {"beat %3d %s" % (f["beat"], f.get("shot") or "(no register)"): f.get("why") or "unmeasured"
+                 for f in missing})
     print("[energy_skeleton] declared  %s" % cv[0])
     print("[energy_skeleton] measured  %s   (L/m/H/P = plan; bars = register motion, full = 2.5x the kinetic cut)"
           % cv[1])
+    if not universe:
+        # An empty board used to print the pass sentence, which is a claim about registers over a film that
+        # has none. Nothing measured is not the same as nothing wrong.
+        print("[energy_skeleton] the board holds no beats — nothing was measured, which is not a pass")
+        return 1
     if not fs:
+        # Only reachable at full coverage: an unmeasured beat is itself a finding, so `fs` is non-empty
+        # whenever one exists. This sentence is a claim about EVERY beat and must never be printed over
+        # beats nobody looked at.
         print("[energy_skeleton] the registers follow the plan's skeleton"); return 0
     for f in fs:
         print("  %-17s %s" % (f["kind"], describe(f)))
     hard = sum(f["kind"] in HARD for f in fs)
-    print("[energy_skeleton] %d finding(s), %d hard. Findings are candidates: a beat's real motion also depends on "
-          "props, ground, camera and length — check the beat, then swap or re-declare." % (len(fs), hard))
-    return 1 if hard else 0
+    print("[energy_skeleton] measured %d of %d beat(s) · %d finding(s), %d hard%s. Findings are candidates: a "
+          "beat's real motion also depends on props, ground, camera and length — check the beat, then swap "
+          "or re-declare."
+          % (seen, universe, len(fs), hard,
+             "" if not missing else " · %d beat(s) could not be checked at all" % len(missing)))
+    return 1 if (hard or missing) else 0
 
 
 if __name__ == "__main__":

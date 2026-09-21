@@ -122,3 +122,90 @@ def test_the_deterministic_director_follows_the_skeleton():
     fams = [sd.FAMILY.get(x) for x in shots]
     assert all(a != b for a, b in zip(fams, fams[1:])), "family variety still holds"
     assert len(set(shots)) == 6, "freshness still holds"
+
+
+# ── COVERAGE: the sweep is a second universe, and being blind in it must not read as a pass ───────────
+#
+# A beat whose register has no row — or whose row `stale()` drops — used to leave `findings()` on a bare
+# `continue`. It appeared in the sparkline as `?` and nowhere else, so with no other finding the CLI
+# printed "the registers follow the plan's skeleton" over beats nobody had looked at, and exited 0.
+
+def _board(tmp_path, shots, name="film"):
+    d = tmp_path / name
+    d.mkdir(parents=True)
+    json.dump({"meta": {"renderer": "remotion"},
+               "slides": [{"index": i, "shot": s} for i, s in enumerate(shots)]},
+              open(d / "storyboard.json", "w", encoding="utf-8"))
+    return str(d)
+
+
+def _stale_manifest(monkeypatch, tmp_path, names):
+    """The real manifest with `names` deliberately out of date — the state after a shot is edited."""
+    import register_energy as reg
+    data = json.load(open(reg.MANIFEST, encoding="utf-8"))
+    for n in names:
+        data["_source"][n] = "0" * 16
+    p = tmp_path / "register_energy.json"
+    json.dump(data, open(p, "w", encoding="utf-8"))
+    monkeypatch.setattr(reg, "MANIFEST", str(p))
+
+
+@pytest.mark.parametrize("n", [1, 3, 8])
+def test_the_coverage_line_derives_its_universe_from_the_board(tmp_path, capsys, n):
+    """M is parsed from `slides`. A restated or survivor-derived M would keep printing full coverage."""
+    motion, _f, _q, _k = _sweep()
+    calm = min(motion, key=motion.get)
+    es.main([_board(tmp_path, [calm] * n, name="f%d" % n)])
+    assert "measured %d of %d" % (n, n) in capsys.readouterr().out
+
+
+def test_a_beat_with_no_row_is_a_named_finding_not_a_pass(tmp_path, capsys):
+    motion, _f, _q, _k = _sweep()
+    calm = min((m for m in motion if motion[m] < _sweep()[3]), key=motion.get)
+    out = _board(tmp_path, [calm, "NoSuchRegister", None])
+    rc = es.main([out])
+    text = capsys.readouterr().out
+    assert "measured 1 of 3" in text, text
+    assert "follow the plan's skeleton" not in text, "a pass sentence was printed over unmeasured beats"
+    assert "NoSuchRegister" in text and "register_energy.py" in text, text
+    assert "no register assigned" in text, text
+    assert rc == 1, "beats that could not be checked must not exit 0"
+
+
+def test_a_stale_row_is_told_apart_from_a_missing_one(tmp_path, capsys, monkeypatch):
+    """Both leave the beat unmeasured and the FIXES differ — one is the shot-director, the other is a
+    re-run of the sweep. Reporting both as 'not measured' sends the reader to the wrong one."""
+    motion, _f, _q, _k = _sweep()
+    victim = sorted(motion)[0]
+    _stale_manifest(monkeypatch, tmp_path, [victim])
+    es.main([_board(tmp_path, [victim], name="stale")])
+    text = capsys.readouterr().out
+    assert "measured 0 of 1" in text, text
+    assert "STALE" in text and "register_energy.py" in text, text
+    assert "has no row in the sweep" not in text, "a stale row was reported as a missing one"
+
+
+def test_the_json_report_carries_the_coverage_too(tmp_path, capsys):
+    motion, _f, _q, _k = _sweep()
+    calm = min(motion, key=motion.get)
+    es.main([_board(tmp_path, [calm, "NoSuchRegister"], name="js"), "--json"])
+    r = json.loads(capsys.readouterr().out)
+    assert r["coverage"]["measured"] == 1 and r["coverage"]["universe"] == 2
+    assert r["coverage"]["not_measured"][0]["beat"] == 2
+
+
+def test_the_mutation_that_hides_an_unmeasured_beat_is_caught(tmp_path, capsys):
+    """THE MUTATION. Restore the bare `continue` in `findings()`: the sparkline still prints `?` and the
+    findings no longer mention the beat, so coverage would read 2 of 2. The curve/findings cross-check
+    has to refuse rather than let the two disagree."""
+    import types
+    src = open(es.__file__, encoding="utf-8").read()
+    old = ('            out.append(dict(r, kind="unmeasured", alternatives=[],\n'
+           '                            why=malformed.get(i) or unmeasured_reason(r["shot"], stale_rows)))\n'
+           '            continue')
+    assert old in src, "the mutation target has drifted out of the source"
+    mod = types.ModuleType("energy_skeleton_mutant")
+    mod.__file__ = es.__file__
+    exec(compile(src.replace(old, "            continue", 1), es.__file__, "exec"), mod.__dict__)
+    with pytest.raises(RuntimeError, match="dropping a beat without recording it"):
+        mod.main([_board(tmp_path, [min(_sweep()[0], key=_sweep()[0].get), "NoSuchRegister"], name="mut")])

@@ -148,6 +148,9 @@ def test_a_partial_sweep_merges_instead_of_dropping_or_overwriting(tmp_path, mon
     }), encoding="utf-8")
     monkeypatch.setattr(reg, "MANIFEST", str(man))
     monkeypatch.setattr(reg, "durations", lambda: {"Old": 150, "PhotoPlate": 150})
+    # the fake library is TWO registers: the coverage line counts against the shots directory, and a
+    # two-row manifest measured against the real 170 would report 168 registers it never looked at
+    monkeypatch.setattr(reg, "universe", lambda: ["Old", "PhotoPlate"])
     monkeypatch.setattr(reg, "render_one", lambda *a, **k: (True, [""]))
     monkeypatch.setattr(reg, "stills_from", lambda *a, **k: None)
     monkeypatch.setattr(reg, "footprint", lambda *a, **k: 0.45)
@@ -168,6 +171,7 @@ def test_a_partial_sweep_refuses_to_blend_two_design_systems(tmp_path, monkeypat
                    encoding="utf-8")
     monkeypatch.setattr(reg, "MANIFEST", str(man))
     monkeypatch.setattr(reg, "durations", lambda: {"PhotoPlate": 150})
+    monkeypatch.setattr(reg, "universe", lambda: ["PhotoPlate"])
     monkeypatch.setattr(reg, "render_one", lambda *a, **k: (True, [""]))
     monkeypatch.setattr(reg, "stills_from", lambda *a, **k: None)
     monkeypatch.setattr(reg, "footprint", lambda *a, **k: 0.45)

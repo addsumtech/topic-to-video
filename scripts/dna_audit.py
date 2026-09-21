@@ -21,6 +21,12 @@ CLI:  python scripts/dna_audit.py            # summary + the un-migrated registe
       python scripts/dna_audit.py --json     # machine-readable
       python scripts/dna_audit.py --check     # exit 1 if any REGISTERED shot is un-migrated (for a completeness gate)
       python scripts/dna_audit.py --type     # per-role (display/body/mono) TYPE reach across every shot
+
+COVERAGE: the universe is the REGISTERED set (registry.ts imports), printed beside the number of
+shots/*.tsx on disk. A registry that cannot be read, or that parses to zero shots, RAISES — it used to
+return an empty set, and an empty universe reports 0 registered / 0 un-migrated and exits 0.
+`--check` also refuses a registry entry with no file and a shot whose source could not be read: both
+score `depth: none`, which is the same row a genuinely un-migrated register gets.
 """
 import os, re, sys, json
 
@@ -58,8 +64,8 @@ def broken_shots(remotion_dir=None):
             continue
         try:
             src = open(os.path.join(d, f), encoding="utf-8").read()
-        except OSError:
-            continue
+        except (OSError, UnicodeDecodeError):
+            continue                       # named by unreadable_shots(), never scored here
         if _USE_CALL.search(src) and not _USE_IMPORT.search(src):
             out.add(f[:-4])
     return out
@@ -78,8 +84,8 @@ def dna_aware_shots(remotion_dir=None):
             continue
         try:
             src = open(os.path.join(d, f), encoding="utf-8").read()
-        except OSError:
-            continue
+        except (OSError, UnicodeDecodeError):
+            continue                       # named by unreadable_shots(), never scored here
         if _USE_CALL.search(src) and _USE_IMPORT.search(src):
             out.add(f[:-4])
     return out
@@ -91,12 +97,25 @@ def registered_shots(remotion_dir=None):
     topic-locked bespoke shots wired in elsewhere)."""
     reg = os.path.join(remotion_dir or _REMOTION, "src", "registry.ts")
     ids = set()
+    # AN UNREADABLE REGISTRY USED TO PRODUCE AN EMPTY UNIVERSE, AND AN EMPTY UNIVERSE READS AS CLEAN.
+    # `except OSError: pass` returned set(), so the report printed `registered shots : 0 · un-migrated : 0`
+    # and `--check` exited 0 — a perfect pass over nothing at all, which is precisely the shape of hole this
+    # audit's own header warns about ("a manual list would rot"). A universe that cannot be derived is a
+    # hard failure, and so is one that parses to nothing.
     try:
         with open(reg, encoding="utf-8") as fh:
-            for m in re.finditer(r"from\s+'\./shots/([A-Za-z0-9_]+)'", fh.read()):
-                ids.add(m.group(1))
-    except OSError:
-        pass
+            src = fh.read()
+    except OSError as e:
+        raise RuntimeError("dna_audit: cannot read the registry at %s (%s) — the set of REGISTERED shots is "
+                           "this audit's whole universe, and an unreadable registry would otherwise report "
+                           "0 registered / 0 un-migrated, which is indistinguishable from a clean library"
+                           % (reg, e))
+    for m in re.finditer(r"from\s+'\./shots/([A-Za-z0-9_]+)'", src):
+        ids.add(m.group(1))
+    if not ids:
+        raise RuntimeError("dna_audit: the registry at %s parsed to ZERO shots — the import-line grep has "
+                           "drifted from registry.ts's real shape; fix the parse before trusting this audit"
+                           % reg)
     return ids
 
 
@@ -128,7 +147,7 @@ def residual_hardcodes(shot, remotion_dir=None):
     f = os.path.join(_shots_dir(remotion_dir), shot + ".tsx")
     try:
         src = open(f, encoding="utf-8").read()
-    except OSError:
+    except (OSError, UnicodeDecodeError):
         return (0, 0)
     reads = len(re.findall(r"dna\?\.|dna \?|useDNA\s*\(", src))
     residual = 0
@@ -157,6 +176,28 @@ def depth(shot, remotion_dir=None):
     return "deep"
 
 
+def unreadable_shots(remotion_dir=None):
+    """[(id, reason)] for shot files whose SOURCE could not be read.
+
+    Three greps in this file (`dna_aware_shots`, `broken_shots`, `residual_hardcodes`) each carry their own
+    `except OSError: continue / return (0, 0)`. Individually each is defensible; together they mean a shot
+    whose file cannot be opened is scored `not aware · 0 residuals · 0 dna_reads` — a row that looks exactly
+    like a measured un-migrated register, with nothing saying it was never read. The reason belongs in the
+    report, so the reader can tell "this shot hardcodes its palette" from "nobody looked"."""
+    d = _shots_dir(remotion_dir)
+    out = []
+    if not os.path.isdir(d):
+        return out
+    for f in sorted(os.listdir(d)):
+        if not f.endswith(".tsx"):
+            continue
+        try:
+            open(os.path.join(d, f), encoding="utf-8").read()
+        except (OSError, UnicodeDecodeError) as e:
+            out.append((f[:-4], "%s: %s" % (type(e).__name__, e)))
+    return out
+
+
 def audit(remotion_dir=None):
     reg = registered_shots(remotion_dir)
     aware = dna_aware_shots(remotion_dir)
@@ -171,6 +212,8 @@ def audit(remotion_dir=None):
             "ground-only" if reads <= 2 and residual > 0 else ("partial" if residual >= 8 else "deep"))
         by_depth[d].append(shot)
         detail[shot] = {"depth": d, "residual_hardcodes": residual, "dna_reads": reads}
+    files = all_shot_files(remotion_dir)
+    unread = unreadable_shots(remotion_dir)
     return {
         "registered": len(reg),
         "dna_aware": len(reg_aware),
@@ -179,6 +222,14 @@ def audit(remotion_dir=None):
         "depth_counts": {k: len(v) for k, v in by_depth.items()},
         "by_depth": by_depth,
         "detail": detail,
+        # COVERAGE. The universe is the REGISTERED set and always was — but the report never said so next
+        # to the other universe in the same directory, and the two are only equal by convention. A `.tsx`
+        # nobody imported is a shot no film can select AND a shot this audit never scores; a registry entry
+        # with no file is an import that cannot resolve. Both are derived here, never listed.
+        "shot_files": len(files),
+        "files_not_registered": sorted(files - reg),
+        "registered_without_file": sorted(reg - files),
+        "unreadable": unread,
     }
 
 
@@ -208,7 +259,9 @@ def type_report(shots_dir):
             token = role.capitalize() if role != "display" else "Display"
             if ("var(--f-%s" % role) in src or ("dna?.font%s" % token) in src:
                 reach[role].add(name)
-    print("type reach across %d shots:" % total)
+    # A DIFFERENT UNIVERSE FROM THE MAIN REPORT, said out loud: this walks every shots/*.tsx, the migration
+    # report walks the REGISTERED set. They are equal by convention, not by construction.
+    print("type reach across %d shots/*.tsx (every file, not only the registered ones):" % total)
     for role in _TYPE_ROLES:
         print("  %-8s %3d" % (role, len(reach[role])))
     silent = [n for n in sorted(os.listdir(shots_dir))
@@ -227,10 +280,30 @@ def main(argv):
     if "--json" in argv:
         print(json.dumps(a, indent=2)); return 0
     dc = a["depth_counts"]
-    print(f"registered shots : {a['registered']}")
+    print(f"registered shots : {a['registered']}  (scored {a['registered'] - len(a['registered_without_file'])}"
+          f" of {a['registered']} · universe = registry.ts imports, of {a['shot_files']} shots/*.tsx on disk)")
     print(f"DNA-aware        : {a['dna_aware']}")
     print(f"un-migrated      : {a['unmigrated_count']}")
     print(f"migration depth  : deep {dc['deep']} | partial {dc['partial']} | ground-only {dc['ground-only']} | none {dc['none']}")
+    # WHAT THIS RUN DID NOT SCORE. Each of these three reads as a clean row otherwise: an unregistered file
+    # is simply absent, a registry entry with no file scores `none` like any un-migrated shot, and an
+    # unreadable one scores `none · residual 0 · reads 0` — the same row a genuinely un-migrated register
+    # gets. All three are advisory (this tool is a worklist, per the header), so they are NAMED here and
+    # the `--check` gate below refuses only the ones that make its own answer unsound.
+    if a["files_not_registered"]:
+        print("\nNOT SCORED — %d shots/*.tsx that no registry import names, so no film can select them and "
+              "this audit never scores them:\n  %s"
+              % (len(a["files_not_registered"]), " ".join(a["files_not_registered"])))
+    if a["registered_without_file"]:
+        print("\nNOT SCORED — %d registry import(s) with no shots/*.tsx behind them (the import cannot "
+              "resolve; they are counted as registered and measured as nothing):\n  %s"
+              % (len(a["registered_without_file"]), " ".join(a["registered_without_file"])))
+    if a["unreadable"]:
+        print("\nNOT READ — %d shot file(s) whose source could not be opened. Their depth above is the "
+              "default 'none · residual 0', which is what a genuinely un-migrated register also scores:"
+              % len(a["unreadable"]))
+        for sname, whynot in a["unreadable"]:
+            print(f"  {sname:24s} {whynot}")
     if "--depth" in sys.argv[1:]:
         for d in ("partial", "ground-only"):
             if a["by_depth"][d]:
@@ -247,7 +320,11 @@ def main(argv):
     brk = sorted(broken_shots() & registered_shots())
     if brk:
         print("\n*** BROKEN — call useDNA() without importing it (hard ReferenceError at render): " + " ".join(brk))
-    if "--check" in argv and (a["unmigrated"] or brk):
+    # `--check` is the completeness gate. A registry entry with no file, or a file it could not read, means
+    # the gate's own answer about that shot is "unknown" — and unknown must not exit 0 in a gate. The
+    # unregistered-file list stays advisory: those shots are outside this audit's universe by definition,
+    # and refusing over them would turn a worklist into a gate over a set it never claimed.
+    if "--check" in argv and (a["unmigrated"] or brk or a["registered_without_file"] or a["unreadable"]):
         return 1
     return 0
 

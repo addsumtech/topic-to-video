@@ -387,17 +387,14 @@ def _why(r):
 
     Reading `splitlines()[-1]` gave `at process.processTicksAndRejections (node:internal/…)` for eight
     registers — a skip list that says nothing about why anything skipped, which is the same failure as a
-    gate reporting a count instead of a coverage. Remotion prints the message on a line beginning with
-    `Error`, so that is what is kept, with the stack dropped.
+    gate reporting a count instead of a coverage.
+
+    The reader itself now lives in `_common.render_error`, because four sweeps needed the same answer and
+    this one's first version matched the literal word `Error` at the start of a line — which silently misses
+    `RangeError: Cannot use frame 110: Duration of composition is 96`, the one message that names the
+    fixed-frame bug this gate was repaired for.
     """
-    out = ((r.stderr or "") + "\n" + (r.stdout or "")).strip()
-    lines = [l.strip() for l in out.splitlines() if l.strip()]
-    for i, l in enumerate(lines):
-        if l.startswith("Error") or " Error " in l or l.endswith("An error occurred:"):
-            tail = [x for x in lines[i:i + 3] if not x.startswith("at ")]
-            return " ".join(tail)[:220]
-    real = [l for l in lines if not l.startswith("at ") and not l.startswith("|")]
-    return (real[-1] if real else (lines[-1] if lines else "no output"))[:220]
+    return _c.render_error(r.stdout, r.stderr)
 
 
 def _register_props():

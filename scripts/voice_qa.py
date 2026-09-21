@@ -37,6 +37,15 @@ still is not a person. Treat every number here as a place to LOOK, not a target 
 trips a check and reads well is fine; a beat that passes everything and reads dead is still dead.
 This script is ADVISORY and always exits 0.
 
+WHAT IT COVERS. The universe is every entry in `storyboard.json`'s `slides`, and the headline states
+`measured N of M`. Three drops used to happen in silence and one of them changed the headline's meaning: a
+beat with an EMPTY narration was filtered out before `evaluate` ever saw it, so an 8-beat film with one
+silent beat announced "7 beat(s)" — a number a reader takes for the film. A board entry that is not an
+object went the same way. And the (A) vocabulary lists only exist for two scripts, so a beat in a third was
+scanned by no list at all while the report said nothing; that is now a note, for the same reason the
+rhythm checks report UNAVAILABLE rather than 0% — a gap in this tool must never read as a clean result for
+the writing.
+
 WHAT IS STILL NOT CALIBRATED: none of the five thresholds has been measured against a corpus of
 human-written narration. They are anchored to ONE case — a delivered film its author found
 machine-sounding — and to nothing else. The Latin figures are weaker still, because characters and words
@@ -66,6 +75,10 @@ EN_TELLS = {
     "triad-parallel": r"\bfirst,[^.]{0,80}second,[^.]{0,80}(third|finally),",
     "hedge-stack": r"\b(in a sense|to some extent|in many ways|arguably)\b",
 }
+# The (A) lists, keyed by the SCRIPT each was written for. One structure, so the set of scripts that has a
+# vocabulary list is PARSED from the lists themselves — a restated list of script names is how a check ends
+# up claiming coverage it lost.
+VOCAB_LISTS = {"han": ZH_TELLS, "latin": EN_TELLS}
 # Half-width punctuation sitting between CJK characters — a translation/rendering residue.
 MIXED_PUNCT = r"[一-鿿]\s*[,.;:?!]\s*[一-鿿]"
 
@@ -313,15 +326,34 @@ _MSG = {
               "own artificiality; a beat that trips a check and reads well aloud is fine as it is.",
     },
 }
+# Why a beat never reached a single metric, in the report's own language. Keys, not sentences, cross the
+# boundary from `main` so the wording lives next to every other message here.
+_DROP_MSG = {
+    "no-narration": {
+        "zh": "第 %s 拍没有旁白，没有可判断的声音——若是有意的静场就无妨，否则是脚本漏了这一拍。",
+        "en": "beat %s carries no narration, so there is no voice here to judge — fine for a deliberate "
+              "silent beat, a missing script otherwise.",
+    },
+    "malformed": {
+        "zh": "第 %s 项不是一个拍子对象，分镜表在这里是坏的，这一拍的旁白根本读不出来。",
+        "en": "entry %s is not a beat object — the storyboard is malformed there and no narration could be "
+              "read from it.",
+    },
+}
 
 
-def evaluate(narrations):
+def evaluate(narrations, dropped=None, universe=None):
     """narrations: list of (beat_index, text). Returns a report dict.
 
     Each beat is classified by SCRIPT and measured with that script's profile, so a mixed-script film is
     not forced through one set of rules. A check with no curated list for a script reports UNAVAILABLE
     rather than 0% — reporting zero would be a claim about the writing when it is a gap in this tool.
+
+    `dropped` is [(beat_index, reason)] for beats the caller could not hand over at all (no narration, a
+    malformed entry) and `universe` is how many the board holds, so `metrics["beats"]` can keep meaning
+    "beats measured" while the headline can still say what it did not read.
     """
+    dropped = list(dropped or [])
     warnings, notes = [], []
     beats = [(i, t, _script_of(t)) for i, t in narrations]
     scripts = {}
@@ -339,12 +371,22 @@ def evaluate(narrations):
     # English beat inside a Chinese film was never checked at all — its "delve into the tapestry" went
     # unreported — while the comment here claimed the opposite.
     vocab = {}
-    for name, pat, script in ([(k, v, "han") for k, v in ZH_TELLS.items()] +
-                              [(k, v, "latin") for k, v in EN_TELLS.items()]):
-        hits = [(i, m.group(0)) for i, t, sc in beats if sc == script for m in re.finditer(pat, t, re.I)]
-        if hits:
-            vocab[name] = hits
-            warnings.append("%s x%d — %s" % (name, len(hits), " / ".join(h[1] for h in hits[:3])))
+    for script, lists in sorted(VOCAB_LISTS.items()):
+        for name, pat in lists.items():
+            hits = [(i, m.group(0)) for i, t, sc in beats if sc == script for m in re.finditer(pat, t, re.I)]
+            if hits:
+                vocab[name] = hits
+                warnings.append("%s x%d — %s" % (name, len(hits), " / ".join(h[1] for h in hits[:3])))
+    # The (A) family's own coverage. A beat in a script with no list was scanned by nothing and said so
+    # nowhere, so "0 vocabulary tells" read as a clean result over text no list can match.
+    no_vocab = sorted({sc for _, _, sc in beats if sc not in VOCAB_LISTS})
+    if no_vocab:
+        notes.append(("有 %d 拍的文种(%s)没有词表，(A) 类套话检查对这些拍一个字都没查——"
+                      "报「没查出套话」是工具的空白，不是文本的结论。"
+                      if lang == "zh" else
+                      "%d beat(s) are in a script with no vocabulary list (%s), so the (A) checks scanned "
+                      "none of them — 'no vocabulary tells' there is a gap in this tool, not a result.")
+                     % (sum(1 for _, _, sc in beats if sc in no_vocab), ", ".join(no_vocab)))
     mp = [(i, m.group(0)) for i, t, sc in beats if sc == "han" for m in re.finditer(MIXED_PUNCT, t)]
     if mp:
         warnings.append("半角标点混入中文 x%d — %s" % (len(mp), mp[0][1]))
@@ -382,6 +424,13 @@ def evaluate(narrations):
     n = max(1, measured)
     m = {
         "beats": len(beats),
+        # COVERAGE. `beats` is what reached the metrics; `universe` is what the board holds. They differ
+        # whenever a beat has no narration, whenever an entry is malformed, and they are what the headline
+        # must print together.
+        "universe": len(beats) + len(dropped) if universe is None else universe,
+        "rhythm_measured": measured,
+        "antithesis_denominator": measurable_anti,
+        "connective_denominator": measurable_conn,
         "scripts": scripts,
         "sentence_len_mean": round(statistics.mean(sent), 1) if sent else 0,
         "sentence_len_cv": round(cv, 3),
@@ -390,19 +439,38 @@ def evaluate(narrations):
         "aphorism_ending_share": round(len(endsharp) / measurable_anti, 3) if measurable_anti else None,
         "balanced_pair_share": round(len(balanced) / n, 3),
     }
+    # ADVISORY, so a drop with no reason is a NOTE rather than a refusal — but it is never silence. M is
+    # the board's own length, so a beat lost on an unrecorded path widens this gap instead of shrinking M.
+    unexplained = (universe if universe is not None else len(beats) + len(dropped)) - len(beats) - len(dropped)
+    if unexplained > 0:
+        notes.append(("有 %d 拍在没有留下任何原因的情况下离开了测量——这本身就是结论。" if lang == "zh" else
+                      "%d beat(s) left the measurement with NO recorded reason, which is itself the "
+                      "finding.") % unexplained)
+    for i, why in dropped:
+        tmpl = _DROP_MSG.get(why, {}).get(lang)
+        notes.append(tmpl % i if tmpl else ("第 %s 拍没有参与任何测量：%s" if lang == "zh" else
+                                            "beat %s was measured by nothing here — %s") % (i, why))
     if unsupported_beats:
-        notes.append(("有 %d 拍使用了本工具无法切分的文种(%s)，这些拍不参与任何节奏指标。" if lang == "zh" else
-                      "%d beat(s) are in a script this tool cannot segment (%s); they are left out of every "
-                      "rhythm metric rather than given a number.")
-                     % (len(unsupported_beats), ", ".join(sorted({sc for _, sc in unsupported_beats}))))
+        # Named by BEAT, not just counted by script: a count tells a reader something is missing and a beat
+        # number tells them where.
+        notes.append(("有 %d 拍(第 %s 拍)使用了本工具无法切分的文种(%s)，这些拍不参与任何节奏指标。" if lang == "zh" else
+                      "%d beat(s) (%s) are in a script this tool cannot segment (%s); they are left out of "
+                      "every rhythm metric rather than given a number.")
+                     % (len(unsupported_beats), ", ".join(str(i) for i, _ in unsupported_beats),
+                        ", ".join(sorted({sc for _, sc in unsupported_beats}))))
     unsupported = sorted({sc for _, _, sc in beats
                           if not profile_for(sc).get("unsupported") and not profile_for(sc).get("connectives")})
-    if beats and unsupported and (m["connective_share"] is None or m["antithesis_share"] is None):
-        notes.append(("没有针对「%s」文种的连接词/对仗词表，这两项本次不作判断（报 0%% 会把工具的空白说成文本的问题）。"
+    # FIRES WHENEVER A BEAT IS OUTSIDE THOSE TWO DENOMINATORS, not only when the share collapses to None.
+    # A mixed film hid this: seven Han beats kept `connective_share` a real number, so the note stayed
+    # silent while a Cyrillic beat sat outside the denominator with nothing said about it.
+    if beats and unsupported:
+        notes.append(("没有针对「%s」文种的连接词/对仗词表；否定对仗按 %d/%d 拍计、连接词按 %d/%d 拍计，"
+                      "其余的拍这两项不作判断（报 0%% 会把工具的空白说成文本的问题）。"
                       if lang == "zh" else
-                      "no curated connective/antithesis list for the '%s' script, so those two checks are "
-                      "UNAVAILABLE here — reporting 0%% would blame the writing for a gap in this tool.")
-                     % ", ".join(unsupported))
+                      "no curated connective/antithesis list for the '%s' script: antithesis is a share of "
+                      "%d of %d beat(s) and connectives of %d of %d — the rest are UNAVAILABLE, and "
+                      "reporting 0%% would blame the writing for a gap in this tool.")
+                     % (", ".join(unsupported), measurable_anti, len(beats), measurable_conn, len(beats)))
     # Too little text to say anything about rhythm. A 0- or 1-beat film has CV 0.00 by construction, so
     # firing the thresholds on it produces confident nonsense.
     if len(sent) < MIN_SENTENCES or len(beats) < MIN_BEATS:
@@ -461,10 +529,20 @@ def main(argv):
     if not isinstance(slides, list):
         print("[voice_qa] storyboard.json has no usable `slides` list")
         return 2
-    nar = [(s.get("index", i), str(s.get("narration") or ""))
-           for i, s in enumerate(slides) if isinstance(s, dict)]
-    nar = [(i, t) for i, t in nar if t.strip()]
-    r = evaluate(nar)
+    # THE UNIVERSE IS THE BOARD. Both filters below used to run silently and then set the headline's count,
+    # so an 8-beat film with one silent beat announced "7 beat(s)" — the number a reader takes for the film.
+    nar, dropped = [], []
+    for i, s in enumerate(slides):
+        if not isinstance(s, dict):
+            dropped.append((i + 1, "malformed"))
+            continue
+        idx = s.get("index", i)
+        text = str(s.get("narration") or "")
+        if not text.strip():
+            dropped.append((idx, "no-narration"))
+            continue
+        nar.append((idx, text))
+    r = evaluate(nar, dropped=dropped, universe=len(slides))
     if "--json" in argv:
         print(json.dumps(r, ensure_ascii=False, indent=1))
         return 0
@@ -473,11 +551,13 @@ def main(argv):
     # Multiplying it by 100 in the headline crashed the CLI on exactly those films.
     def _pct(v):
         return "n/a" if v is None else "%.0f%%" % (100 * v)
-    head = ("[voice_qa] %d beat(s), %s — 句长 mean=%.1f CV=%.2f | 否定对仗 %s | 连接词 %s | 警句收尾 %s"
+    head = ("[voice_qa] 量了 %d/%d 拍, %s — 句长 mean=%.1f CV=%.2f | 否定对仗 %s | 连接词 %s | 警句收尾 %s"
             if r["language"] == "zh" else
-            "[voice_qa] %d beat(s), %s — sentence len mean=%.1f CV=%.2f | antithesis %s | connectives %s | aphorism endings %s")
+            "[voice_qa] measured %d of %d beat(s), %s — sentence len mean=%.1f CV=%.2f | antithesis %s | "
+            "connectives %s | aphorism endings %s")
     print(head
-          % (m["beats"], r["dominant_script"], m["sentence_len_mean"], m["sentence_len_cv"],
+          % (m["beats"], m.get("universe", m["beats"]), r["dominant_script"],
+             m["sentence_len_mean"], m["sentence_len_cv"],
              _pct(m["antithesis_share"]), _pct(m["connective_share"]), _pct(m["aphorism_ending_share"])))
     print(("           两句等长对置 %.0f%%" if r["language"] == "zh" else
            "           balanced pairs %.0f%%") % (100 * m["balanced_pair_share"]))

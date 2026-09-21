@@ -112,6 +112,47 @@ def template(out_dir):
     }
 
 
+def coverage(out_dir):
+    """How much of the critic's declared universe this ledger actually JUDGED.
+
+    A missing row is already a refusal. The quieter hole is a ledger that is perfectly well formed and
+    judges almost nothing: `na` is a legitimate verdict (a dimension can genuinely not apply) and it
+    carries a reason, but thirteen of them still print `0 error(s)` and read exactly like thirteen looked-at
+    dimensions. The headline now states the split, so "the review passed" cannot be read off a review that
+    declined most of its own subject.
+    """
+    declared = dimensions()
+    # Counters are named rather than indexed by the verdict string: `out[v] += 1` would reach into the
+    # LIST fields the moment a new verdict shares their name, and a coverage report that raises is a
+    # coverage report nobody keeps.
+    out = {"declared": len(declared), "judged": 0, "pass": 0, "fail": 0, "na": [], "missing": [],
+           "unjudged": []}
+    try:
+        led = json.load(open(os.path.join(out_dir, LEDGER_NAME), encoding="utf-8"))
+        rows = led.get("rows") or []
+        by_id = {str(r.get("id", "")).strip(): r for r in rows if isinstance(r, dict)}
+    except Exception:                                        # noqa: BLE001 — validate() reports the why
+        by_id = {}
+    for sid, title in declared:
+        r = by_id.get(sid)
+        if r is None:
+            out["missing"].append("%s (%s)" % (sid, title))
+            continue
+        v = str(r.get("verdict", "")).strip().lower()
+        if v == "pass":
+            out["judged"] += 1
+            out["pass"] += 1
+        elif v == "fail":
+            out["judged"] += 1
+            out["fail"] += 1
+        elif v == "na":
+            out["na"].append("%s (%s): %s" % (sid, title, str(r.get("note", "")).strip() or "no reason given"))
+        else:
+            out["unjudged"].append("%s (%s): verdict %r is not one of %s"
+                                   % (sid, title, r.get("verdict"), "/".join(VERDICTS)))
+    return out
+
+
 def validate(out_dir, final=False):
     errs, warns = [], []
     path = os.path.join(out_dir, LEDGER_NAME)
@@ -228,12 +269,22 @@ def main(argv):
 
     final = "--final" in argv
     errs, warns = validate(out_dir, final=final)
+    cov = coverage(out_dir)
     for w in warns:
         print("[critic_ledger] WARN  %s" % w)
     for e in errs:
         print("[critic_ledger] ERROR %s" % e)
-    print("[critic_ledger] %s  %d error(s), %d warning(s)%s"
-          % ("FAIL" if errs else "OK", len(errs), len(warns), "  (delivery gate)" if final else ""))
+    for n in cov["na"]:
+        print("[critic_ledger] NOT JUDGED (n/a) %s" % n)
+    for n in cov["unjudged"]:
+        print("[critic_ledger] NOT JUDGED %s" % n)
+    for n in cov["missing"]:
+        print("[critic_ledger] NO ROW %s" % n)
+    print("[critic_ledger] %s  judged %d of %d dimension(s) (%d pass / %d fail) · %d n/a · %d no row · "
+          "%d error(s), %d warning(s)%s"
+          % ("FAIL" if errs else "OK", cov["judged"], cov["declared"], cov["pass"], cov["fail"],
+             len(cov["na"]), len(cov["missing"]), len(errs), len(warns),
+             "  (delivery gate)" if final else ""))
     # THE OTHER END OF THE SAME STRING. `render_remotion` leaves a NOT_DELIVERED.md in the out_dir carrying
     # the steps that are left, because a printed checklist can be scrolled past and a file in the deliverable
     # cannot. This is the only thing allowed to remove it, and only on a clean DELIVERY review — so the

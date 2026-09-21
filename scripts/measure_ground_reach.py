@@ -202,13 +202,21 @@ def runtime_verdicts(rows):
 # luminance guard. Measured when a new list-of-pictures register was added: PhotoPlate and RealVersus, which
 # have carried the evidence guard for weeks, both report RENDER FAILED here and always have.
 # `measure_ground_luma.py` already solved this with one import; this is the same import.
+_FIXTURE_ERR = []
+
+
 def _fixture_props():
+    del _FIXTURE_ERR[:]
     try:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import register_energy
         register_energy.ensure_fixture()
         return register_energy.evidence_props()
-    except Exception:                                    # noqa: BLE001 — no fixture is not a verdict
+    except Exception as exc:                             # noqa: BLE001 — no fixture is not a verdict
+        # ...BUT A SWALLOWED ONE IS BLAMED ON THE REGISTER. With no fixtures the guarded registers simply
+        # refuse to render, and the sweep prints RENDER FAILED beside their names — the gate's own broken
+        # input, recorded as a fact about the library.
+        _FIXTURE_ERR.append("the sweep could not build its evidence fixtures (%s)" % exc)
         return {}
 
 
@@ -228,7 +236,8 @@ def render(shot, key, dna, td, fixtures=None):
                         "--scale=%s" % PROBE_SCALE, "--log=error", "--props=" + props],
                        cwd=_REMOTION, capture_output=True, text=True)
     if not os.path.exists(png):
-        return None, (r.stderr or r.stdout or "")[-300:]
+        # THE MESSAGE, not the last 300 characters of a stack. One reader, in _common.render_error.
+        return None, "; ".join([_c.render_error(r.stdout, r.stderr)] + _FIXTURE_ERR)
     return png, None
 
 
@@ -309,8 +318,10 @@ def main(argv):
           % (PROBE_DNA_ID, PROBE_GROUNDS, {k: round(v, 3) for k, v in probe["groundY"].items()},
              band_px, PROBE_FRAME))
 
-    rows, failed = [], []
+    rows, failed = [], {}
     fixtures = _fixture_props()
+    for msg in _FIXTURE_ERR:
+        print("  [ground_reach] %s — the registers that need one will not render" % msg)
     td = keep or tempfile.mkdtemp(prefix="ground_reach_png_")
     os.makedirs(td, exist_ok=True)
     try:
@@ -328,10 +339,16 @@ def main(argv):
                     break
                 pngs[k] = p
             if err or len(pngs) != 2:
-                failed.append(shot)
-                print("  [%3d/%d] %-24s RENDER FAILED %s" % (i, len(shots), shot, (err or "")[:120]))
+                failed[shot] = err or ("only %d of the 2 probe grounds rendered, with no error reported"
+                                       % len(pngs))
+                print("  [%3d/%d] %-24s NOT MEASURED — %s" % (i, len(shots), shot, failed[shot][:160]))
                 continue
-            row = stats(shot, pngs, band_px)
+            try:
+                row = stats(shot, pngs, band_px)
+            except Exception as exc:                 # noqa: BLE001 — one shot, not a 340-render sweep
+                failed[shot] = "both renders exist and measuring them raised: %r" % (exc,)
+                print("  [%3d/%d] %-24s NOT MEASURED — %s" % (i, len(shots), shot, failed[shot]))
+                continue
             rows.append(row)
             print("  [%3d/%d] %-24s band %.3f/%.3f  field %.3f/%.3f  moved %5.1f%%"
                   % (i, len(shots), shot, row["bandY"]["light"], row["bandY"]["dark"],
@@ -355,7 +372,12 @@ def main(argv):
         row["ok"], row["why"] = ok, why
         (follows if ok else refused).append(row)
 
-    print("\n%d follow · %d refused · %d failed to render" % (len(follows), len(refused), len(failed)))
+    print("\n%d follow · %d refused" % (len(follows), len(refused)))
+    # COVERAGE, against the universe this gate claims: every registered shot, or the --only subset. A
+    # register that would not render is not a register that does not follow — it is one whose entry in a
+    # load-bearing safety guard nobody has checked, and that difference decides whether `validate.py` lets
+    # a beat re-ground it.
+    _c.coverage("ground_reach", len(rows), len(shots), failed)
     for row in sorted(refused, key=lambda r: r["shot"]):
         print("  REFUSED %-24s %s" % (row["shot"], "; ".join(row["why"])))
     # A SPOT CHECK MUST NOT DESTROY THE RECORD. This wrote unconditionally, before the --only early return
@@ -368,9 +390,27 @@ def main(argv):
                      .get("rows") or []) if os.path.exists(os.path.join(_REMOTION, "_ground_reach.json"))
                     else []))
     else:
-        json.dump({"rows": rows, "failed": failed, "inkRefused": INK_REFUSED,
+        # SAY WHAT IS BEING REPLACED. `--check` reads as read-only and rewrites this file, so a run that
+        # measured fewer shots than the record it overwrites silently shrinks the record — which is the same
+        # loss the `--only` guard above exists to prevent, arriving by the other door. It happened while
+        # this very gate was being repaired: a two-shot probe replaced the 170-row sweep.
+        dest = os.path.join(_REMOTION, "_ground_reach.json")
+        was = 0
+        if os.path.exists(dest):
+            try:
+                was = len(json.load(open(dest, encoding="utf-8")).get("rows") or [])
+            except (OSError, ValueError):
+                was = 0
+        json.dump({"rows": rows,
+                   # {shot: why}, and the universe measured against: a list of bare names cannot tell a
+                   # missing fixture from a register that throws, and those want opposite fixes.
+                   "failed": failed, "universe": len(shots),
+                   "inkRefused": INK_REFUSED,
                    "thresholds": {"MOVED_MIN": MOVED_MIN, "MOVED_DY": MOVED_DY}},
-                  open(os.path.join(_REMOTION, "_ground_reach.json"), "w"), indent=1)
+                  open(dest, "w"), indent=1)
+        print("wrote _ground_reach.json: %d row(s)%s"
+              % (len(rows), "  <- REPLACED a record of %d — this sweep saw fewer shots than the last one"
+                 % was if was > len(rows) else ""))
 
     names = {r["shot"] for r in follows}
     committed = read_set()
@@ -386,14 +426,24 @@ def main(argv):
         # did look at is written.
         if "--emit" in argv:
             n = write_set((committed - {r["shot"] for r in rows}) | {r["shot"] for r in rows if r["ok"]})
-            print("GROUND_FOLLOWS_MEASURED: merged %d measured row(s) into %d name(s)" % (len(rows), n))
-            return 0
+            print("GROUND_FOLLOWS_MEASURED: merged %d measured row(s) into %d name(s)%s"
+                  % (len(rows), n, "; %d shot(s) were NOT measured and keep whatever they had"
+                     % len(failed) if failed else ""))
+            return 1 if failed else 0
         print("(--only run: spot check, the committed set is NOT written — add --emit to merge these rows)")
-        return 0
+        return 1 if failed else 0
     gained, lost = sorted(names - committed), sorted(committed - names - set(failed))
     if "--emit" in argv:
         n = write_set(names | (committed & set(failed)))   # a shot that would not render keeps its entry
         print("GROUND_FOLLOWS_MEASURED: wrote %d name(s) (+%d, -%d)" % (n, len(gained), len(lost)))
+        if failed:
+            # A SHOT THAT WOULD NOT RENDER KEEPS ITS ENTRY — which is the safe choice and an INVISIBLE one:
+            # an entry nobody measured stays in a load-bearing allow list, and `validate.py` reads it as
+            # "this register was measured to follow a declared ground".
+            kept = sorted(committed & set(failed))
+            print("    %d shot(s) were NOT measured; %d of them keep an UNVERIFIED entry in the set: %s"
+                  % (len(failed), len(kept), ", ".join(kept) or "-"))
+            return 1
         return 0
     if "--check" in argv:
         if gained or lost:
@@ -404,10 +454,19 @@ def main(argv):
                 print("    - %s is listed but does not follow" % l)
             print("re-run: python3 scripts/measure_ground_reach.py --emit")
             return 1
+        if failed:
+            # THE SET IS A SAFETY GUARD, AND THIS EXITED 0 OVER ANY NUMBER OF UNMEASURED SHOTS. `lost`
+            # deliberately excludes them so a failure cannot silently REMOVE a name; the cost is that the
+            # check then compares the committed set against a sweep with holes in it and calls it a match.
+            kept = sorted(committed & set(failed))
+            print("GROUND_FOLLOWS_MEASURED cannot be confirmed: %d shot(s) were not measured (named "
+                  "above)%s" % (len(failed), "; %d of them are LISTED in the set on an unverified entry: %s"
+                                % (len(kept), ", ".join(kept)) if kept else ""))
+            return 1
         print("GROUND_FOLLOWS_MEASURED matches the measured pixels (%d shots)" % len(names))
         return 0
     print("committed %d · measured %d · +%s · -%s" % (len(committed), len(names), gained, lost))
-    return 0
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

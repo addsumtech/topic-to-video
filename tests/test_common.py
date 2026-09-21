@@ -88,3 +88,56 @@ def test_missing_extract_file_is_reported_not_silently_passed():
     os.remove(os.path.join(T, "sources", "doc.txt"))
     ok, detail = sources.resolve(T, "doc#text")
     assert ok is False and "missing" in detail
+
+
+# ── what a sweep did NOT measure ──────────────────────────────────────────────────────────────────────
+# `ink_contrast_qa` swept 170 registers and reported 19 "skipped"; a skip reads like a clean result and
+# behind those 19 sat four different bugs. These two helpers are the shared answer — the coverage line
+# every sweep prints, and the reason it prints beside each name — so they are pinned here once.
+
+def test_coverage_counts_the_universe_not_the_measurements(capsys):
+    """The headline must state M, not N. A gate that measured 151 of 170 must not print a line reading 170."""
+    k = c.coverage("g", 151, 170, {"Zed": "refused to render — boom"})
+    out = capsys.readouterr().out
+    assert "measured 151 of 170" in out and "19 NOT measured" in out, out
+    assert k == 19
+
+
+def test_coverage_cannot_hide_an_item_it_lost_without_a_reason(capsys):
+    """K comes from the universe, never from the length of the reason map — otherwise a sweep that dropped
+    an item and forgot to write down why would report full coverage."""
+    k = c.coverage("g", 3, 5, {})
+    out = capsys.readouterr().out
+    assert k == 2 and "2 NOT measured" in out and "NO recorded reason" in out, out
+
+
+def test_coverage_names_every_item_with_its_reason(capsys):
+    c.coverage("g", 0, 2, {"Alpha": "no fixture for its `src` prop", "Zed": "its type could not be parsed"})
+    out = capsys.readouterr().out
+    assert "Alpha" in out and "no fixture for its `src` prop" in out
+    assert "Zed" in out and "its type could not be parsed" in out
+
+
+def test_render_error_reports_the_message_not_the_stack():
+    """`splitlines()[-1]` on a failed remotion render is `at process.processTicksAndRejections (…)`, which
+    is what eight of the nineteen skips carried."""
+    blob = ("Bundling...\nAn error occurred:\nError: StateSheet needs at least one `cells` entry\n"
+            "    at St (bundle.js:1:2)\n    at process.processTicksAndRejections (node:internal/x)")
+    got = c.render_error("", blob)
+    assert "needs at least one" in got and "processTicksAndRejections" not in got, got
+
+
+def test_render_error_reads_an_error_TYPE_not_the_literal_word_Error():
+    """The fixed-frame bug's own message names a subclass and starts the line with it: matching `Error` at
+    the start of a line reports `Rendered 0/1` and the gate looks like it failed for no reason."""
+    blob = ("Rendered 0/1\nRangeError: Cannot use frame 110: Duration of composition is 96, therefore the "
+            "highest frame that can be rendered is 95\n    at f (x.js:1:1)")
+    got = c.render_error("", blob)
+    assert got.startswith("RangeError: Cannot use frame 110"), got
+    assert "Rendered" not in got, "the progress counter was glued onto a self-contained message: %r" % got
+
+
+def test_render_error_says_when_there_was_no_message_at_all():
+    got = c.render_error("", "    at process.processTicksAndRejections (node:internal/x)")
+    assert "no message" in got, got
+    assert "no output at all" == c.render_error("", "")

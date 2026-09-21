@@ -17,6 +17,10 @@ content as real.
 
 WHY A PARSER AND NOT A LIST. 152 registers, 283 defaulted props, and both numbers move every time someone
 adds a register. A checked-in list would be stale before it was reviewed; the signature IS the record.
+
+EXIT 0 = judged its whole universe and found nothing · 1 = findings · 2 = part of the universe was NOT
+judged (a beat naming a register that does not exist; a register file that could not be read or whose
+signature could not be parsed, so a default it carries is invisible to every film check).
 """
 import glob
 import json
@@ -286,13 +290,42 @@ def declared_library(shots_dir=None):
 
 def library(shots_dir=None):
     """{register: {prop: demo default}} across the whole library."""
-    out = {}
-    for f in sorted(glob.glob(os.path.join(shots_dir or SHOTS, "*.tsx"))):
+    return library_covered(shots_dir)[0]
+
+
+def library_covered(shots_dir=None):
+    """({register: {prop: default}}, coverage) — and the coverage is the half that was missing.
+
+    166 OF 170 REGISTERS CARRY A COPY DEFAULT, AND THE REPORT ONLY EVER PRINTED THE 166. Two very different
+    things produce an empty `{}` here: a register that genuinely declares no copy default, and one whose
+    parameter destructuring or props type this reader could not see — `_destructure` returns None and
+    `demo_defaults` returns `{}` with nothing said. The second is a register that can ship its demo copy on a
+    delivered frame while this gate reports the film clean, which is the exact defect the header describes.
+    So they are separated, and both are named."""
+    out, unreadable, no_signature, clean = {}, [], [], []
+    files = sorted(glob.glob(os.path.join(shots_dir or SHOTS, "*.tsx")))
+    for f in files:
         n = os.path.basename(f)[:-4]
-        d = demo_defaults(open(f, encoding="utf-8").read(), n)
+        try:
+            src = open(f, encoding="utf-8").read()
+        except (OSError, UnicodeDecodeError) as e:
+            unreadable.append((n, "%s: %s" % (type(e).__name__, e)))
+            continue
+        if _destructure(src, n) is None or not _declared_types(src, n):
+            # No signature this reader can see == no defaults it can find. That is not "no defaults".
+            no_signature.append((n, "its %s could not be parsed, so no default it carries can be seen"
+                                 % ("parameter destructuring" if _declared_types(src, n)
+                                    else "props type")))
+            continue
+        d = demo_defaults(src, n)
         if d:
             out[n] = d
-    return out
+        else:
+            clean.append(n)
+    cov = {"universe": len(files), "read": len(files) - len(unreadable),
+           "with_defaults": len(out), "props": sum(len(v) for v in out.values()),
+           "no_defaults": clean, "unreadable": unreadable, "no_signature": no_signature}
+    return out, cov
 
 
 def audit_board(board, lib=None):
@@ -301,17 +334,57 @@ def audit_board(board, lib=None):
     A beat is judged on the props it SUPPLIES: absence is what makes the default render, so an omitted prop
     with a copy default is the finding. A prop supplied as an empty string is a deliberate 'leave it off'
     and passes — the register draws nothing rather than the demo line."""
-    lib = library() if lib is None else lib
-    found = []
-    for s in board.get("slides", []):
+    return audit_board_covered(board, lib)[0]
+
+
+def audit_board_covered(board, lib=None, shots_dir=None):
+    """(findings, coverage) — WHICH BEATS THIS RUN ACTUALLY JUDGED.
+
+    `if not shot or shot not in lib: continue` skipped three different things in one silent branch, and the
+    film report then printed "no beat leaves a demo default in place" with no count of beats at all — a line
+    that reads as the whole film whether it judged eight beats or none:
+
+      a beat with no `shot`         a still/image beat. Nothing to check, and it should still be counted.
+      a `shot` that is not a        a typo, or a register removed since the board was written. Nothing was
+      register at all               checked and nothing said so — the beat renders whatever the registry
+                                    does with an unknown id, and this gate reported the film clean.
+      a register with no copy       genuinely checked: there is no default to leave in. Counted as judged.
+      default
+
+    The register universe is read from the shots directory, never restated."""
+    lib = library(shots_dir) if lib is None else lib
+    known = set(lib) | {os.path.basename(f)[:-4]
+                        for f in glob.glob(os.path.join(shots_dir or SHOTS, "*.tsx"))}
+    found, judged, skipped = [], [], []
+    slides = board.get("slides") or []
+    for pos, s in enumerate(slides, 1):
+        idx = s.get("index", pos)
         shot = s.get("shot")
-        if not shot or shot not in lib:
+        if not shot:
+            skipped.append((idx, None, "the beat selects no register (a still or image beat) — this gate "
+                                       "has nothing to judge on it"))
             continue
+        if shot not in known:
+            skipped.append((idx, shot, "%r is not a register in shots/ — nothing on this beat was checked"
+                                       % shot))
+            continue
+        judged.append((idx, shot))
         props = s.get("shot_props") or {}
-        for prop, copy in sorted(lib[shot].items()):
-            if prop not in props:
-                found.append((s.get("index"), shot, prop, copy))
-    return found
+        # A SUPERSEDED PROP'S DEFAULT NEVER REACHES THE FRAME, so reporting it is a wolf. `PortRail` declares
+        # `// @supersedes groups: items`: a beat that supplies `groups` makes `items` dead, whatever the
+        # register's own default says — and this CLI reported the delivered AgentHalo film's beat 3 as
+        # leaving `PortRail.items → ['Docs','Chat','Mail','Calendar','Wiki']` in place, on a beat whose rail
+        # is three named groups. `validate.py` has applied this rule since the declaration existed
+        # (validate.py's shot-props lint); the standalone path never did, and the two therefore disagreed
+        # about the same board. One reader, `supersedes()`, parsed from the registers themselves.
+        dead = set()
+        for given, killed in (supersedes().get(shot) or {}).items():
+            if given in props:
+                dead.update(killed)
+        for prop, copy in sorted(lib.get(shot, {}).items()):
+            if prop not in props and prop not in dead:
+                found.append((idx, shot, prop, copy))
+    return found, {"beats": len(slides), "judged": len(judged), "skipped": skipped}
 
 
 def main(argv):
@@ -320,26 +393,43 @@ def main(argv):
         print("usage: demo_copy_qa.py <out_dir> | --library")
         return 0
     if argv[0] == "--library":
-        lib = library()
-        print("[demo_copy_qa] %d registers carry copy defaults, %d props total"
-              % (len(lib), sum(len(v) for v in lib.values())))
+        lib, cov = library_covered()
+        # TWO UNIVERSES, AND ONLY ONE OF THEM WAS EVER PRINTED. "166 registers carry copy defaults" is a
+        # findings count; the universe is the 170 files it read to get there.
+        print("[demo_copy_qa] read %d of %d register file(s) · %d carry copy defaults (%d props) · "
+              "%d carry none" % (cov["read"], cov["universe"], cov["with_defaults"], cov["props"],
+                                 len(cov["no_defaults"])))
         for n, d in sorted(lib.items()):
             print("  %-22s %s" % (n, json.dumps(d, ensure_ascii=False)[:120]))
-        return 0
+        if cov["no_defaults"]:
+            print("\n  NO COPY DEFAULT TO LEAVE IN — measured, nothing to report:\n    %s"
+                  % " ".join(cov["no_defaults"]))
+        for label, rows in (("COULD NOT BE READ", cov["unreadable"]),
+                            ("NOT MEASURED — the signature this reader needs could not be parsed, so a "
+                             "default it carries would be invisible to every film check", cov["no_signature"])):
+            if rows:
+                print("\n  %s (%d):" % (label, len(rows)))
+                for n, whynot in rows:
+                    print("    %-22s %s" % (n, whynot))
+        return 2 if (cov["unreadable"] or cov["no_signature"]) else 0
     board = json.load(open(os.path.join(argv[0], "storyboard.json"), encoding="utf-8"))
-    found = audit_board(board)
-    if not found:
-        print("[demo_copy_qa] no beat leaves a demo default in place")
-        return 0
-    print("[demo_copy_qa] %d beat/prop pair(s) will print the register's DEMO COPY as content:" % len(found))
+    found, cov = audit_board_covered(board)
+    print("[demo_copy_qa] judged %d of %d beat(s) · %d beat/prop pair(s) will print the register's DEMO "
+          "COPY as content" % (cov["judged"], cov["beats"], len(found)))
     for i, shot, prop, copy in found:
         print("    scene %s · %s.%s → %r" % (i, shot, prop, copy))
-    print("  Supply the beat's own copy, or set the prop to \"\" to draw nothing there.")
-    return 1
+    if cov["skipped"]:
+        print("\n  NOT JUDGED — %d beat(s) this gate said nothing about:" % len(cov["skipped"]))
+        for i, shot, whynot in cov["skipped"]:
+            print("    scene %s · %s" % (i, whynot))
+    if found:
+        print("  Supply the beat's own copy, or set the prop to \"\" to draw nothing there.")
+        return 1
+    # A beat with no register is not a hole (a still has no demo copy); a beat naming a register that does
+    # not exist is — this gate checked nothing on it and must not be read as having cleared it.
+    return 2 if any(shot for _, shot, _ in cov["skipped"]) else 0
 
 
-if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
 
 # A PROP CAN BE SUPPLIED BY ANOTHER PROP, and the demo-copy check had no way to know. `PortRail` grew
 # `groups` — items that belong to named kinds — and when a board gives groups, `items` is never read; the
@@ -366,3 +456,7 @@ def supersedes():
             if props:
                 out.setdefault(name, {}).setdefault(m.group(1), []).extend(props)
     return out
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

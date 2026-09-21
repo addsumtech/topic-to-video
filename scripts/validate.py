@@ -375,13 +375,26 @@ def _visible_text(out_dir, rel):
     return re.sub(r"\s+", " ", t)
 
 
-def _figure_traceability(slides, out_dir, warnings):
+def _figure_traceability(slides, out_dir, warnings, skips=None):
     """Deterministic backstop for truthful content: every STATISTIC (%/× ) spoken or shown must trace to
     a number in `brief.json` (the sourced evidence). A stat whose value is absent from the brief is likely
     INVENTED — WARN (not ERROR: a figure can be legitimately DERIVED or phrased differently, and the
-    content-critic is the semantic judge that FAILs a confirmed fabrication). No brief → skip."""
+    content-critic is the semantic judge that FAILs a confirmed fabrication).
+
+    NO BRIEF USED TO MEAN SILENCE. `_brief_numbers` returns None for an absent or unparsable brief.json and
+    this returned on it — so the one deterministic guard against an invented on-screen figure switched
+    itself off, and the run printed the same clean line it prints when every figure traces. It is still
+    not an ERROR (a film can legitimately have no brief), but the skip is now NAMED, because "no statistic
+    was checked" and "every statistic checked out" must not look alike."""
     nums = _brief_numbers(out_dir)
     if nums is None:
+        if skips is not None:
+            skips.append(
+                "figure traceability: %s, so NO spoken or on-screen statistic was checked against a source. "
+                "Every %%/× figure in this film is unverified by this gate (the content-critic is the only "
+                "thing left between it and an invented number)."
+                % ("no out_dir was given" if not out_dir else
+                   "there is no readable brief.json in %s" % out_dir))
         return
     for s in slides:
         idx = s.get("index")
@@ -1526,51 +1539,17 @@ def _image_attribution(slides, out_dir, errors, warnings):
                     "%r)." % (i, rel, lic))
 
 
-def _film_language(meta, slides, errors, warnings):
-    """Is the film's own CUT vocabulary actually being used, or is every seam the anonymous default?
+def _camera_vocabulary(meta, slides, errors, warnings):
+    """A `camera` the renderer cannot execute, and the two camera layers competing for one budget.
 
-    The remotion tier ships five kinetic seams, a luminance guard that protects them, and a `carry`
-    match-cut that reads as continuity rather than a swap. A delivered 35-beat film used none of them:
-    all 34 cuts were the default cross-fade, because nothing in the authoring path ever wrote
-    `transition_in` — the key was not in the storyboard at all. Everything worked; nothing was reached.
-
-    That is the failure this warns about. It is a WARNING, not an error: a film whose argument really is
-    one unbroken line is entitled to leave every cut invisible. But it must be a decision someone made,
-    and `scripts/seam_plan.py` derives a defensible plan from the `relation` field the board already has.
+    THIS USED TO LIVE BEHIND A LENGTH GATE. It was written inside `_film_language`, whose first statement
+    is `if n < 12: return` — a guard that belongs to the SEAM argument (punctuation only reads as
+    punctuation across a long enough film) and has nothing to do with a camera move. On an 8-beat film
+    every line below was unreachable: a beat carrying `{"move":"orbit"}` would be silently dropped by
+    render_remotion and this gate would print a clean run. That is the gate's own constant excluding its
+    own universe, which is the defect class this file's coverage report exists to surface — so the
+    length-independent half is now its own check and runs on every film.
     """
-    n = len(slides)
-    if n < 12:
-        return                                  # too short for punctuation to mean anything
-    # from beat 1: there is no seam before the first shot, so a mark there counts nothing and made the
-    # message read "20 of 19 cuts are MARKED"
-    marked = [i for i, s in enumerate(slides)
-              if i > 0 and (s.get("transition_in") or s.get("transition_style"))]
-    # `meta.design_dna` is EITHER an inline DNA object OR a preset NAME — both are documented, both are
-    # accepted by coerceDna() on the TS side, and the string form is validated a few hundred lines below.
-    # This check read it as a dict unconditionally and crashed the whole gate with an AttributeError the
-    # first time a film declared its DNA the short way. A validator that dies on a legal board is worse
-    # than the defect it was looking for: nothing downstream of it ran.
-    dna_raw = meta.get("design_dna")
-    dna = dna_raw if isinstance(dna_raw, dict) else {}
-    native = (dna.get("seam") or {}).get("type")
-    if isinstance(dna_raw, str) and dna_raw:
-        # A preset carries its OWN native seam (terminal clears the screen, editorial lays a sheet down),
-        # so the swamping check below cannot see it from here. Say so rather than reporting a clean run.
-        warnings.append(
-            "meta.design_dna is the preset %r, whose NATIVE seam this check cannot resolve — the "
-            "\"declared seam swamps the marks\" test below is therefore only measuring the %d authored "
-            "mark(s). Declare `seam` inline if you need that checked." % (dna_raw, len(marked)))
-    if not marked:
-        warnings.append(
-            "%d beats and not one MARKED seam — every cut is the anonymous default. The tier implements "
-            "clock/slide/wipe/dissolve and `carry` (a collapse-to-line match-cut that reads as continuity), "
-            "and the board already says which beats are new-topic / payoff / close. Run "
-            "`python3 scripts/seam_plan.py <out_dir>` to derive ~2-3 marked cuts from that, or set them by "
-            "hand; leave it bare only if the film is deliberately one unbroken line." % n)
-    elif len(marked) > max(4, n // 8):
-        warnings.append(
-            "%d of %d cuts are MARKED — a marked seam is punctuation and only reads as punctuation while it "
-            "is rare. Budget ~2-3 per film and let the rest be the default cut." % (len(marked), n - 1))
     # A camera move the tier does not have is DROPPED by render_remotion — silently, so the author's
     # intent vanishes with no signal at all. Measured: `{"move":"orbit","amount":3}` produced not one word.
     cam_vocab = {"push", "pull", "hold"}
@@ -1627,6 +1606,62 @@ def _film_language(meta, slides, errors, warnings):
                 "picture toward the same band — pick one: the ambient drift, or the motivated per-beat move."
                 % (drift, cap * 100, len(moving), " to nothing" if cap <= 0.001 else ""))
 
+
+
+def _film_language(meta, slides, errors, warnings, skips=None):
+    """Is the film's own CUT vocabulary actually being used, or is every seam the anonymous default?
+
+    The remotion tier ships five kinetic seams, a luminance guard that protects them, and a `carry`
+    match-cut that reads as continuity rather than a swap. A delivered 35-beat film used none of them:
+    all 34 cuts were the default cross-fade, because nothing in the authoring path ever wrote
+    `transition_in` — the key was not in the storyboard at all. Everything worked; nothing was reached.
+
+    That is the failure this warns about. It is a WARNING, not an error: a film whose argument really is
+    one unbroken line is entitled to leave every cut invisible. But it must be a decision someone made,
+    and `scripts/seam_plan.py` derives a defensible plan from the `relation` field the board already has.
+    """
+    # FIRST, and outside the length gate below. Half of what used to be in this function is about the
+    # CAMERA, which a short film has exactly as much of as a long one.
+    _camera_vocabulary(meta, slides, errors, warnings)
+    n = len(slides)
+    if n < 12:
+        if skips is not None:
+            skips.append("seam vocabulary (%s): this film is %d beats and the check needs 12 — a marked cut "
+                         "only reads as punctuation across enough of them. Nothing below ran: whether any "
+                         "cut is marked, whether the marks are over-budget, whether meta.design_dna names a "
+                         "seam this renderer implements, and whether a declared native seam swamps them."
+                         % ("_film_language", n))
+        return                                  # too short for punctuation to mean anything
+    # from beat 1: there is no seam before the first shot, so a mark there counts nothing and made the
+    # message read "20 of 19 cuts are MARKED"
+    marked = [i for i, s in enumerate(slides)
+              if i > 0 and (s.get("transition_in") or s.get("transition_style"))]
+    # `meta.design_dna` is EITHER an inline DNA object OR a preset NAME — both are documented, both are
+    # accepted by coerceDna() on the TS side, and the string form is validated a few hundred lines below.
+    # This check read it as a dict unconditionally and crashed the whole gate with an AttributeError the
+    # first time a film declared its DNA the short way. A validator that dies on a legal board is worse
+    # than the defect it was looking for: nothing downstream of it ran.
+    dna_raw = meta.get("design_dna")
+    dna = dna_raw if isinstance(dna_raw, dict) else {}
+    native = (dna.get("seam") or {}).get("type")
+    if isinstance(dna_raw, str) and dna_raw:
+        # A preset carries its OWN native seam (terminal clears the screen, editorial lays a sheet down),
+        # so the swamping check below cannot see it from here. Say so rather than reporting a clean run.
+        warnings.append(
+            "meta.design_dna is the preset %r, whose NATIVE seam this check cannot resolve — the "
+            "\"declared seam swamps the marks\" test below is therefore only measuring the %d authored "
+            "mark(s). Declare `seam` inline if you need that checked." % (dna_raw, len(marked)))
+    if not marked:
+        warnings.append(
+            "%d beats and not one MARKED seam — every cut is the anonymous default. The tier implements "
+            "clock/slide/wipe/dissolve and `carry` (a collapse-to-line match-cut that reads as continuity), "
+            "and the board already says which beats are new-topic / payoff / close. Run "
+            "`python3 scripts/seam_plan.py <out_dir>` to derive ~2-3 marked cuts from that, or set them by "
+            "hand; leave it bare only if the film is deliberately one unbroken line." % n)
+    elif len(marked) > max(4, n // 8):
+        warnings.append(
+            "%d of %d cuts are MARKED — a marked seam is punctuation and only reads as punctuation while it "
+            "is rare. Budget ~2-3 per film and let the rest be the default cut." % (len(marked), n - 1))
     seam_vocab = {"wipe", "slide", "clock", "dissolve", "screen-clear", "fade"}
     if native and native not in seam_vocab:
         warnings.append(
@@ -1954,7 +1989,7 @@ def _dna_named(design_dna):
     return isinstance(design_dna, str) and design_dna in _DNA_PRESETS_FOR_TEST()
 
 
-def _check_remotion(meta, slides, errors, warnings, out_dir=None):
+def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None):
     """Guardrails for the remotion bespoke-shot tier: a valid whole-film `shot_template` direction (+ its
     contest trace); every scene needs a valid `shot` id + object `shot_props`; a NUMBER-bearing register left on
     its illustrative demo default is flagged (a real film must pass a SOURCED figure); a register left as a raw
@@ -2164,6 +2199,15 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None):
            "OdometerRoll": "value", "GaugeCluster": "value", "ChartRace": "data",
            "EdStat": "value", "TermCounter": "value", "PhysicsStack": "bars"}
     brief_nums = _brief_numbers(out_dir)     # figures a number-bearing shot must trace to (None = no brief)
+    if brief_nums is None and skips is not None and any(s.get("shot") in NUM for s in slides):
+        # The SECOND figure check that goes quiet without a brief, and the reason it needs saying twice:
+        # a bare counter (endVal: 250) carries no %/× unit, so _figure_traceability's regex cannot see it
+        # at all. With no brief, nothing checks it — and the beats it applies to are exactly the ones whose
+        # subject IS a number.
+        skips.append("on-screen figures in %s: no readable brief.json in %r, so the digits a number-bearing "
+                     "register puts on screen were not traced to any source"
+                     % (", ".join(sorted({s.get("shot") for s in slides if s.get("shot") in NUM})),
+                        out_dir))
     seq = []
     _fit_missing, _fit_verdicts = [], []     # the per-beat fit judgement (see the shot_fit block below)
     for s in slides:
@@ -2498,18 +2542,24 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     `vertical` mirrors render.py's --vertical flag; meta.aspect=="9:16" also forces it, so the
     caption-fit checks run on the SAME canvas render.py will use."""
     errors, warnings = [], []
+    # WHAT THIS RUN COULD NOT MEASURE, in the gate's own words. `errors`/`warnings` are findings; `skips`
+    # is the third channel a gate needs and this one did not have — a check that switched itself off
+    # because its INPUT was missing (no brief.json, a film too short for the seam argument) left no trace
+    # at all, so "nothing was checked" and "everything checked out" printed the same line.
+    skips = []
 
     # 1. Structural contract (the same gate render.py runs, surfaced early with its message).
     #    Catch the broad failures too: a non-dict `meta`/`slides` makes sb.validate raise
     #    TypeError/AttributeError/KeyError rather than StoryboardError — a gate must report
     #    those cleanly, never crash with a traceback.
     if not isinstance(data, dict):
-        return {"ok": False, "errors": ["storyboard.json is not a JSON object"], "warnings": warnings, "scenes": 0}
+        return {"ok": False, "errors": ["storyboard.json is not a JSON object"], "warnings": warnings,
+                "scenes": 0, "skipped": skips}
     try:
         sb.validate(data)
     except (sb.StoryboardError, TypeError, AttributeError, KeyError) as e:
         errors.append(f"structure: {e}")
-        return {"ok": False, "errors": errors, "warnings": warnings, "scenes": 0}
+        return {"ok": False, "errors": errors, "warnings": warnings, "scenes": 0, "skipped": skips}
 
     meta = data["meta"]
     slides = data["slides"]
@@ -2525,16 +2575,17 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # REMOTION2 bespoke-shot tier — its own scene contract (shot id + props + family variety); the legacy
     # cinematic/HTML checks below don't apply to it, so guard and skip them.
     if (meta.get("renderer") or "") == "remotion":
-        _check_remotion(meta, slides, errors, warnings, out_dir)
+        _check_remotion(meta, slides, errors, warnings, out_dir, skips=skips)
         _shot_truncation(meta, slides, errors, warnings)
         _form_vocabulary(meta, slides, errors, warnings)
         _idiom_world(meta, slides, errors, warnings)
         _beat_grounds(slides, errors, warnings)
-        _film_language(meta, slides, errors, warnings)
+        _film_language(meta, slides, errors, warnings, skips=skips)
         _image_attribution(slides, out_dir, errors, warnings)
         _caption_legibility(meta, slides, errors, warnings, out_dir)
-        _figure_traceability(slides, out_dir, warnings)   # %/×/$ figures in shot_props text must trace to brief.json
-        return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides)}
+        _figure_traceability(slides, out_dir, warnings, skips=skips)   # %/×/$ figures must trace to brief.json
+        return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides),
+                "skipped": skips}
     # visual_style is the declared single source of truth — a typo/hallucinated key degrades silently to the
     # default look, so cross-check it against the catalog (theme.STYLE_PRESETS) independent of the plan file.
     _vs = str(meta.get("visual_style") or "").strip()   # str() guards a hand-edited non-string value (.strip crash)
@@ -3140,7 +3191,8 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # Truthful-content backstop: flag any statistic spoken/shown that doesn't trace to brief.json evidence.
     _figure_traceability(slides, out_dir, warnings)
 
-    return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides)}
+    return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides),
+            "skipped": skips}
 
 
 _TREND_SHAPE = ("time", "trend", "over-time", "over time", "trajectory", "growth", "declin", "rise",
@@ -3863,6 +3915,181 @@ def check(out_dir, pre_tts=False, vertical=False):
     return evaluate(data, out_dir, pre_tts=pre_tts, vertical=vertical)
 
 
+# ── HOW MANY OF ITS OWN CHECKS THIS RUN ACTUALLY RAN ────────────────────────────────────────────────
+#
+# This file carries hundreds of separate judgements and used to end on one line: "OK — N scene(s), E
+# error(s), W warning(s)". That line counts FINDINGS. It says nothing about how much of the file was
+# reached, and on a real 8-beat remotion film the answer turned out to be 63 of 360 finding sites: the
+# whole html/cinematic half sits past an early `return` for the tier, `_film_language` returned on its
+# own `n < 12` length gate, and `_figure_traceability` returned because the film has no brief.json. All
+# three printed exactly the same clean line as a film that passed them.
+#
+# So the gate measures ITSELF. The universe is parsed from this module's own AST — every
+# `errors.append(...)`/`warnings.append(...)` is one check — and the run is traced a line at a time, so a
+# check counts as EVALUATED when the decision that guards it was actually computed. Nothing is restated:
+# add a check anywhere in this file and the denominator moves on its own.
+_FINDING_CHANNELS = ("errors", "warnings")
+
+
+def _me():
+    """The filename the interpreter stamps on THIS module's code objects.
+
+    Not `os.path.abspath(__file__)`: when the module is imported through a path carrying a `..` segment
+    (which is how the test suite puts `scripts/` on sys.path), abspath normalises it and `co_filename`
+    does not — the trace below then matched nothing and reported 0 of 360 checks evaluated, a coverage
+    report that was itself silently empty. Reading the name off a real code object cannot disagree.
+    """
+    return _me.__code__.co_filename
+
+
+def _self_sites(path=None):
+    """[(line, channel, guard, kind, ctrl, func)] — every finding site in THIS file, from its AST."""
+    import ast
+    path = path or _me()
+    tree = ast.parse(open(path, encoding="utf-8").read())
+    parent = {}
+    for node in ast.walk(tree):
+        for kid in ast.iter_child_nodes(node):
+            parent[kid] = node
+
+    def ancestors(n):
+        while n in parent:
+            n = parent[n]
+            yield n
+
+    def is_doc(st):
+        return isinstance(st, ast.Expr) and isinstance(st.value, ast.Constant) \
+            and isinstance(st.value.value, str)
+
+    def first_line(n):
+        body = [b for b in (getattr(n, "body", None) or [])]
+        while body and is_doc(body[0]):
+            body = body[1:]
+        return body[0].lineno if body else n.lineno
+
+    sites = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "append" and isinstance(node.func.value, ast.Name)
+                and node.func.value.id in _FINDING_CHANNELS):
+            continue
+        guard, kind, ctrl, fn = None, None, None, "<module>"
+        for a in ancestors(node):
+            if guard is None:
+                if isinstance(a, ast.If):
+                    guard, kind, ctrl = a.lineno, "if", a.lineno
+                elif isinstance(a, (ast.For, ast.AsyncFor, ast.While)):
+                    # the loop BODY, not the `for` line: an empty iterable still traces the header, so
+                    # keying on it would call a loop that never ran "evaluated". The header is kept for
+                    # the report, because "this loop never iterated" is the sentence a reader needs.
+                    guard, kind, ctrl = first_line(a), "loop", a.lineno
+                elif isinstance(a, ast.ExceptHandler):
+                    guard, kind, ctrl = first_line(a), "except", a.lineno
+                elif isinstance(a, ast.With):
+                    guard, kind, ctrl = first_line(a), "with", a.lineno
+            if isinstance(a, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if guard is None:
+                    guard, kind, ctrl = first_line(a), "unconditional", a.lineno
+                fn = a.name
+                break
+        stmt = node
+        while stmt in parent and not isinstance(stmt, ast.stmt):
+            stmt = parent[stmt]
+        sites.append((stmt.lineno, node.func.value.id, guard or stmt.lineno, kind or "self",
+                      ctrl or stmt.lineno, fn))
+
+    funcs, returns = {}, {}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            funcs.setdefault(node.name, []).append(first_line(node))
+            for sub in ast.walk(node):
+                if isinstance(sub, ast.Return):
+                    # a `return` inside a NESTED def belongs to that def, not this one
+                    owner = next((a.name for a in ancestors(sub)
+                                  if isinstance(a, (ast.FunctionDef, ast.AsyncFunctionDef))), None)
+                    if owner == node.name:
+                        guard = next((a.lineno for a in ancestors(sub) if isinstance(a, ast.If)), None)
+                        returns.setdefault(node.name, []).append((sub.lineno, guard))
+    return sites, funcs, returns
+
+
+def _source_line(n, path=None):
+    import linecache
+    return linecache.getline(path or _me(), n).strip()
+
+
+def coverage(out_dir, pre_tts=False, vertical=False):
+    """(result, coverage) — run check() under a line trace of this file and account for every check.
+
+    Buckets, all derived, never listed: EVALUATED (the guard was computed), NOT CALLED (the enclosing
+    function never ran on this storyboard), PAST AN EARLY RETURN (the function ran and stopped before the
+    check — the returning `if` is quoted, so "wrong tier" and "too short" are told apart by reading it),
+    and BRANCH NOT TAKEN (the function reached the check's guard's parent but the guard itself was never
+    computed — nearly always a field this storyboard does not carry).
+    """
+    me = _me()
+    sites, funcs, returns = _self_sites(me)
+    executed = set()
+
+    def tracer(frame, event, arg):
+        if frame.f_code.co_filename == me:
+            if event == "line":
+                executed.add(frame.f_lineno)
+            return tracer
+        return None
+
+    prev = sys.gettrace()
+    sys.settrace(tracer)
+    try:
+        r = check(out_dir, pre_tts=pre_tts, vertical=vertical)
+    finally:
+        sys.settrace(prev)
+
+    entered = {name: any(l in executed for l in lines) for name, lines in funcs.items()}
+    ran_returns = {name: sorted(l for l, _g in rs if l in executed) for name, rs in returns.items()}
+    return_guard = {l: g for rs in returns.values() for l, g in rs}
+
+    evaluated, groups = [], {}
+    for line, channel, guard, kind, ctrl, fn in sites:
+        if guard in executed:
+            evaluated.append((line, fn))
+            continue
+        if not entered.get(fn, fn == "<module>"):
+            key = (fn, "not called", None)
+        else:
+            before = [l for l in ran_returns.get(fn, ()) if l < line]
+            if before:
+                key = (fn, "past return", max(before))
+            else:
+                key = (fn, "branch not taken", None)
+        groups.setdefault(key, []).append((line, ctrl, kind))
+
+    rows = []
+    for (fn, why, at), items in groups.items():
+        if why == "not called":
+            reason = "%s() is never called on this storyboard" % fn
+        elif why == "past return":
+            g = return_guard.get(at)
+            reason = "past the `return` at L%d%s" % (at, ", taken by `%s`" % _source_line(g, me) if g else "")
+        else:
+            _WHY = {"if": "branch not taken", "loop": "loop never iterated",
+                    "except": "that exception was never raised", "with": "block never entered",
+                    "unconditional": "the surrounding statement never ran"}
+            seen, examples = set(), []
+            for _l, ctrl, kind in items:
+                src = "%s: `%s`" % (_WHY.get(kind, kind), _source_line(ctrl, me)[:90])
+                if src not in seen:
+                    seen.add(src); examples.append(src)
+            reason = " · ".join(examples[:3]) + (" …" if len(examples) > 3 else "")
+        rows.append({"func": fn, "kind": why, "checks": len(items), "reason": reason,
+                     "lines": sorted(i[0] for i in items)})
+    rows.sort(key=lambda d: (-d["checks"], d["func"]))
+    not_called = sum(d["checks"] for d in rows if d["kind"] == "not called")
+    return r, {"total": len(sites), "evaluated": len(evaluated),
+               "not_evaluated": len(sites) - len(evaluated), "not_called": not_called,
+               "rows": rows}
+
+
 def main():
     ap = argparse.ArgumentParser(description="Pre-render gate for storyboard.json")
     ap.add_argument("out_dir")
@@ -3874,12 +4101,22 @@ def main():
                          "almost every judgement about how the video LOOKS is advisory, which is how "
                          "a deck once shipped 'all green' carrying 94 warnings. Opt-in so existing "
                          "decks keep their exit codes; reach for it on a deck you intend to be good.")
+    ap.add_argument("--no-coverage", action="store_true",
+                    help="skip the self-coverage trace (~0.3s). It is ON by default on purpose: an "
+                         "opt-in coverage report is one nobody passes the flag for, and this gate's "
+                         "headline otherwise reads as if all ~360 of its checks ran.")
+    ap.add_argument("--coverage-detail", action="store_true",
+                    help="list every check that was not evaluated, with the guard that stopped it")
     a = ap.parse_args()
-    r = check(a.out_dir, pre_tts=a.pre_tts, vertical=a.vertical)
+    cov = None
+    if a.no_coverage:
+        r = check(a.out_dir, pre_tts=a.pre_tts, vertical=a.vertical)
+    else:
+        r, cov = coverage(a.out_dir, pre_tts=a.pre_tts, vertical=a.vertical)
     if a.strict and r["warnings"]:
         r = dict(r, ok=False)
     if a.json:
-        print(json.dumps(r, ensure_ascii=False, indent=2))
+        print(json.dumps(dict(r, coverage=cov), ensure_ascii=False, indent=2))
     else:
         print(f"[validate] {'OK' if r['ok'] else 'FAIL'}  "
               f"{r['scenes']} scene(s), {len(r['errors'])} error(s), {len(r['warnings'])} warning(s)")
@@ -3887,8 +4124,21 @@ def main():
             print(f"  ERROR: {e}")
         for w in r["warnings"]:
             print(f"  {'ERROR' if a.strict else 'warn '}: {w}")
+        # A check that switched itself off because its INPUT was absent. Louder than a warning about the
+        # film, because it is a statement about this gate: it did not look.
+        for s in r.get("skipped") or []:
+            print(f"  NOT MEASURED: {s}")
         if a.strict and r["warnings"]:
             print(f"[validate] --strict: {len(r['warnings'])} design warning(s) treated as blocking")
+        if cov:
+            print("[validate] COVERAGE  evaluated %d of %d checks · %d not evaluated "
+                  "(%d of those in code this storyboard never calls)"
+                  % (cov["evaluated"], cov["total"], cov["not_evaluated"], cov["not_called"]))
+            for row in cov["rows"] if a.coverage_detail else cov["rows"][:12]:
+                print("    %-24s %3d check(s) — %s" % (row["func"], row["checks"], row["reason"]))
+            if not a.coverage_detail and len(cov["rows"]) > 12:
+                print("    … %d more group(s) — --coverage-detail for all of them"
+                      % (len(cov["rows"]) - 12))
     sys.exit(0 if r["ok"] else 1)
 
 

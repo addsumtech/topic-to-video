@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from PIL import Image
 import _common as _c
 import dna_audit
+import render_remotion as rr
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _REMOTION = os.path.join(_HERE, "..", "remotion")
@@ -170,13 +171,43 @@ def _declared_y(decl, lums):
 # tokens as declarations nobody has ever checked. A permanent failure line in a gate's output is worse than a
 # gap: it is the line people learn to skip, and it was hiding the fact that those tokens are unverified.
 # `register_energy` already builds the fixtures for exactly this; using them is one import.
+_FIXTURE_ERR = []
+
+
 def _fixture_props():
+    """The fixtures, and — when they cannot be built — the REASON, kept so the registers they feed are not
+    blamed for a hole in this gate's own input."""
+    del _FIXTURE_ERR[:]
     try:
         sys.path.insert(0, _HERE)
         import register_energy
         register_energy.ensure_fixture()
         return register_energy.evidence_props()
-    except Exception:
+    except Exception as exc:                                   # noqa: BLE001
+        _FIXTURE_ERR.append("the sweep could not build its evidence fixtures (%s)" % exc)
+        return {}
+
+
+# THE SETTLED FRAME IS PER REGISTER. `measure_own` rendered every shot at a fixed frame 110 and, when that
+# failed, RETRIED AT FRAME 30 — so `GlowPick` (DURATION 96, `remotion still` refusing frame 110 outright:
+# "Cannot use frame 110: Duration of composition is 96") was measured a third of the way into its reveal and
+# written into SHOT_LUMA as if it were the settled state, with nothing in the output saying which frame the
+# number came from. A substitution nobody can see is worse than a gap. `frame_at_t` is the runtime's own
+# inversion of `useT()`, the frame every visual gate in this repo reads; the probe below renders a 150-frame
+# FILM around the shot and so is unaffected, which is why only this half carried the bug.
+def settled_frame(shot, durs=None):
+    durs = durs if durs is not None else _durations()
+    if shot not in durs:
+        return None
+    return int(round(rr.frame_at_t(durs[shot], rr.SETTLED_T)))
+
+
+def _durations():
+    try:
+        sys.path.insert(0, _HERE)
+        import register_energy
+        return register_energy.durations()
+    except Exception:                                          # noqa: BLE001
         return {}
 
 
@@ -192,9 +223,14 @@ def measure(shot, td, fixtures=None):
     r = subprocess.run(["npx", "remotion", "still", "src/index.ts", "Film", png,
                         "--frame=110", "--gl=angle", "--timeout=90000", "--props=" + props],
                        cwd=_REMOTION, capture_output=True, text=True)
-    if r.returncode != 0:
-        return None, (r.stderr or "")[-300:]
-    return border_luminance(png), None
+    # ...AND THE PNG, NOT JUST THE EXIT CODE: `border_luminance` on a file that was never written raises out
+    # of the sweep, which is a crash where a named skip belongs.
+    if r.returncode != 0 or not os.path.exists(png):
+        return None, "; ".join([_c.render_error(r.stdout, r.stderr)] + _FIXTURE_ERR)
+    try:
+        return border_luminance(png), None
+    except Exception as exc:                         # noqa: BLE001 — one shot, not the sweep
+        return None, "the frame rendered and reading its border raised: %r" % (exc,)
 
 
 # ── SHOT_LUMA: the shot's OWN ground class, with no DNA at all ───────────────────────────────────────────
@@ -218,8 +254,11 @@ def luma_bucket(lum):
     return "dark" if lum < LUMA_DARK_MAX else ("light" if lum > LUMA_LIGHT_MIN else "mid")
 
 
-def measure_own(shot, td, fixtures=None):
-    """The shot's ground with NO DNA — its own default palette, which is what SHOT_LUMA describes."""
+def measure_own(shot, td, fixtures=None, durs=None):
+    """The shot's ground with NO DNA — its own default palette, which is what SHOT_LUMA describes.
+
+    Rendered at the shot's OWN settled frame; see `settled_frame` for the fixed 110 and the silent retry at
+    30 that this replaces."""
     png = os.path.join(td, "own_" + shot + ".png")
     extra = []
     ev = (fixtures or {}).get(shot)
@@ -227,16 +266,20 @@ def measure_own(shot, td, fixtures=None):
         pf = os.path.join(td, "own_" + shot + ".props.json")
         json.dump(ev, open(pf, "w"))
         extra = ["--props=" + pf]
+    frame = settled_frame(shot, durs)
+    if frame is None:
+        return None, ("no `export const DURATION` — the settled frame is derived from it, and a fixed "
+                      "frame is past the end of any register shorter than it")
     r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png,
-                        "--frame=110", "--gl=angle", "--timeout=90000"] + extra,
+                        "--frame=%d" % frame, "--gl=angle", "--timeout=90000"] + extra,
                        cwd=_REMOTION, capture_output=True, text=True)
-    if r.returncode != 0:                       # a shorter shot: fall back to a frame it certainly has
-        r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png,
-                            "--frame=30", "--gl=angle", "--timeout=90000"] + extra,
-                           cwd=_REMOTION, capture_output=True, text=True)
     if not os.path.exists(png):
-        return None, (r.stderr or "")[-300:]
-    return border_luminance(png), None
+        return None, "; ".join(["refused to render at its settled frame %d: %s"
+                                % (frame, _c.render_error(r.stdout, r.stderr))] + _FIXTURE_ERR)
+    try:
+        return border_luminance(png), None
+    except Exception as exc:                         # noqa: BLE001 — one shot, not the sweep
+        return None, "the frame rendered and reading its border raised: %r" % (exc,)
 
 
 def read_shot_luma():
@@ -294,7 +337,7 @@ def provisional_shots():
     return sorted(set(out))
 
 
-def _emit(table=None):
+def _emit(table=None, partial=False):
     """Write the measured table into DNA_GROUND_TOKEN in shotLuma.ts.
 
     The docstring has advertised `--emit` since this script was written and the flag was never
@@ -319,6 +362,10 @@ def _emit(table=None):
     i = src.index(head)
     j = src.index("\n};", i) + 3
     block, kept, wrote = src[i:j], 0, 0
+    # THREE REASONS AN ENTRY IS LEFT ALONE, and they were one number. "declared-only/unknown" put a
+    # deliberate declaration, a self-identifying literal and a shot THIS RUN NEVER MEASURED in the same
+    # count — so a sweep that lost thirty shots and a sweep that measured everything printed the same line.
+    skipped = {}
     lines = []
     for line in block.split("\n"):
         m = re.match(r"^  (\w+):\s*(.+?),(\s*//.*)?$", line)
@@ -332,16 +379,17 @@ def _emit(table=None):
         # reported success. A sentinel you can only detect by substring is a sentinel that will one day
         # appear inside the prose explaining it.
         if "PROVISIONAL" not in comment and re.search(r"//\s*declared-only", comment):
-            lines.append(line); kept += 1; continue
+            lines.append(line); kept += 1; skipped.setdefault("declared-only", []).append(shot); continue
         # A LITERAL IS SELF-IDENTIFYING, and that is why it is not guarded by a comment. The sentinel bug
         # recorded above happened because a marker had to be spelled right in prose; `'#efe9dd'` cannot be
         # mis-spelled into a token. The measurement can never produce a literal (it only names probe
         # tokens), so writing over one would silently replace a ground the register paints unconditionally
         # with whichever token the probe happened to sit nearest.
         if re.match(r"^'#[0-9a-fA-F]{3,6}'$", m.group(2).strip()):
-            lines.append(line); kept += 1; continue
+            lines.append(line); kept += 1; skipped.setdefault("a literal colour", []).append(shot); continue
         if shot not in table:
-            lines.append(line); kept += 1; continue
+            lines.append(line); kept += 1
+            skipped.setdefault("NOT in this measurement", []).append(shot); continue
         tok = table[shot]
         want = ("'%s'" % tok) if isinstance(tok, str) else ("[%s]" % ", ".join("'%s'" % x for x in tok))
         # A MEASURED ENTRY IS NO LONGER PROVISIONAL. The marker survived an --emit that CONFIRMED the
@@ -360,9 +408,17 @@ def _emit(table=None):
             lines.append("  %s: %s," % (shot, want))
         lines.append(tail)
     open(dest, "w", encoding="utf-8").write(src[:i] + "\n".join(lines) + src[j:])
-    print("DNA_GROUND_TOKEN: %d updated, %d added (%s), %d left as declared-only/unknown"
+    print("DNA_GROUND_TOKEN: %d updated, %d added (%s), %d left alone"
           % (wrote, len(added), ", ".join(added) or "-", kept))
-    return 0
+    for why in sorted(skipped):
+        print("    %-22s %d: %s" % (why, len(skipped[why]), ", ".join(sorted(skipped[why]))))
+    # A TABLE THAT COVERS PART OF THE LIBRARY SAYS SO. Applying a 148-row measurement over a 170-shot table
+    # left 22 entries as they were and printed one number that read like a success.
+    # A SPOT CHECK LEAVES THE REST OF THE TABLE ALONE ON PURPOSE, so only a run that claimed the whole
+    # library treats an untouched entry as a hole. `register_shot.py` hands a new register's author
+    # `--only <Id> --emit`; a non-zero exit there would be this gate crying wolf on its own instructions.
+    missing = skipped.get("NOT in this measurement") or []
+    return 1 if (missing and not partial) else 0
 
 
 _USAGE = ("usage: measure_ground_luma.py [--only=A,B | --only A,B] [--luma] [--emit] [--check] "
@@ -392,14 +448,17 @@ def _main_shot_luma(argv):
     only = _only_or_stop(argv)
     shots = only or sorted(dna_audit.registered_shots())
     fixtures = _fixture_props()
+    durs = _durations()
     declared = read_shot_luma()
-    measured, failed = {}, []
+    measured, failed = {}, {}
     with tempfile.TemporaryDirectory() as td:
         for i, sh in enumerate(shots, 1):
-            lum, err = measure_own(sh, td, fixtures)
+            lum, err = measure_own(sh, td, fixtures, durs)
             if err is not None or lum is None:
-                failed.append(sh)
-                print("  [%3d/%d] %-24s RENDER FAILED" % (i, len(shots), sh))
+                # NAMED WITH ITS REASON. "RENDER FAILED" with the message thrown away is the line people
+                # learn to skip, and behind four of them sat a missing fixture this gate could have built.
+                failed[sh] = err or "returned no luminance, and no reason was recorded"
+                print("  [%3d/%d] %-24s NOT MEASURED — %s" % (i, len(shots), sh, failed[sh]))
                 continue
             b = luma_bucket(lum)
             measured[sh] = b
@@ -408,27 +467,31 @@ def _main_shot_luma(argv):
 
     drift = sorted(k for k, v in measured.items() if declared.get(k) != v)
     prov = provisional_shots()
+    _c.coverage("shot_luma", len(measured), len(shots), failed)
     if prov:
         print("[shot_luma] %d entry(ies) are still PROVISIONAL placeholders written by register_shot.py "
               "(never measured): %s" % (len(prov), ", ".join(prov)))
     if failed:
-        print("[shot_luma] %d shot(s) would not render; their entries are UNCHANGED: %s"
-              % (len(failed), ", ".join(failed)))
+        print("[shot_luma] the entries above are UNCHANGED in shotLuma.ts — declared, never measured")
     if "--emit" in argv:
         n = write_shot_luma(measured)
         print("[shot_luma] wrote %d corrected entry(ies) into shotLuma.ts" % n)
-        return 0
+        return 1 if failed else 0
     if "--check" in argv:
-        if drift or prov:
-            print("[shot_luma] FAIL — %d declared value(s) disagree with the pixels%s. Re-run with --emit."
-                  % (len(drift), " and %d are unmeasured placeholders" % len(prov) if prov else ""))
+        # A SHOT THAT WOULD NOT RENDER IS NOT A SHOT THAT AGREES. This returned 0 over any number of them:
+        # the failures were printed, the verdict was computed from what was left, and "declaration matches
+        # the pixels" is what a caller saw. Same shape as the 19 "skipped" registers that produced this.
+        if drift or prov or failed:
+            print("[shot_luma] FAIL — %d declared value(s) disagree with the pixels%s%s. Re-run with --emit."
+                  % (len(drift), " and %d are unmeasured placeholders" % len(prov) if prov else "",
+                     " and %d shot(s) could not be measured at all" % len(failed) if failed else ""))
             for k in drift:
                 print("    %-24s declared %-5s  measured %s" % (k, declared.get(k), measured[k]))
             return 1
         print("[shot_luma] OK  %d shot(s), declaration matches the pixels" % len(measured))
         return 0
     print("[shot_luma] %d measured, %d disagree with the committed table" % (len(measured), len(drift)))
-    return 0
+    return 1 if failed else 0
 
 
 def main(argv):
@@ -442,19 +505,25 @@ def main(argv):
     fixtures = _fixture_props()
     lums = token_lums()
     print("probe token luminances: " + ", ".join("%s=%.3f" % (k, v) for k, v in sorted(lums.items(), key=lambda kv: kv[1])))
-    out, unclassified, failed, meas = {}, [], [], {}
+    out, unclassified, failed, meas = {}, [], {}, {}
     with tempfile.TemporaryDirectory() as td:
         for i, s in enumerate(shots, 1):
             lum, err = measure(s, td, fixtures)
             if err is not None:
-                failed.append(s); print("  [%3d/%d] %-24s RENDER FAILED" % (i, len(shots), s)); continue
+                failed[s] = err
+                print("  [%3d/%d] %-24s NOT MEASURED — %s" % (i, len(shots), s, err))
+                continue
             meas[s] = lum
             tok, d = classify(lum, lums)
             if tok is None:
                 unclassified.append((s, lum)); print("  [%3d/%d] %-24s lum=%.3f  UNCLASSIFIED" % (i, len(shots), s, lum))
             else:
                 out[s] = tok; print("  [%3d/%d] %-24s lum=%.3f  -> %s" % (i, len(shots), s, lum, tok if isinstance(tok,str) else "+".join(tok)))
-    print("\nmeasured %d · unclassified %d · failed %d" % (len(out), len(unclassified), len(failed)))
+    print("\nclassified %d · unclassified %d (measured, no token named)" % (len(out), len(unclassified)))
+    # COVERAGE against the universe this gate claims — `dna_audit.registered_shots()`, or the `--only`
+    # subset. `measured %d` used to be the count of shots it could NAME A TOKEN for, three different
+    # populations deep, and the failures were a number at the end of the same line.
+    _c.coverage("ground_luma", len(meas), len(shots), failed)
     if "--check" in argv:
         cur = open(os.path.join(_REMOTION, "src", "runtime", "shotLuma.ts"), encoding="utf-8").read()
         bad, off, ok_lit, ok_unc = [], [], 0, 0
@@ -520,21 +589,33 @@ def main(argv):
                               % (shot, lum, declared.get(shot), pred, d))
             print("re-run: python3 scripts/measure_ground_luma.py --emit")
             return 1
+        if failed:
+            # A SHOT THAT WOULD NOT RENDER WAS NEVER COMPARED TO ANYTHING. The loop above walks `meas`, so a
+            # failure is absent from every verdict — and this line then printed "matches the measured
+            # pixels" and returned 0 over it. The table's entries for those shots are declarations nobody
+            # has ever checked, which is precisely what the file's header says this table exists to stop.
+            print("DNA_GROUND_TOKEN: %d shot(s) could not be measured (named above), so their declared "
+                  "ground is UNCHECKED — not confirmed" % len(failed))
+            return 1
         print("DNA_GROUND_TOKEN matches the measured pixels (%d classified, %d literal, %d unclassified "
               "but consistent with their declaration)" % (len(out), ok_lit, ok_unc))
         return 0
     if "--emit" in argv:
-        return _emit(out)
+        rc = _emit(out, partial=bool(only))
+        return rc or (1 if failed else 0)
     dest = os.path.join(_HERE, "..", "remotion", "_ground_luma.json")
     if only:
         # A --only run is a SPOT CHECK; it must never overwrite the full-library table. It did once,
         # silently, and a 134-shot measurement was lost to a 1-shot rerun.
         print("(--only run: spot check, table NOT written)")
     else:
-        json.dump({"table": out, "unclassified": [s for s, _ in unclassified], "failed": failed},
+        json.dump({"table": out, "unclassified": [s for s, _ in unclassified],
+                   # {shot: why}, and the universe it was measured against — the committed file recorded
+                   # four bare names and 155 of 170 shots, and nothing in it could say which.
+                   "failed": failed, "universe": len(shots)},
                   open(dest, "w"), indent=1)
         print("wrote " + os.path.relpath(dest, os.path.join(_HERE, "..")))
-    return 0
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

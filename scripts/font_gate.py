@@ -43,13 +43,23 @@ def tiles_differ(png_path, rows, cols=2):
     return out
 
 
-def _families(ladder):
-    """Read the face list out of fonts.ts so the gate cannot drift from what is loaded."""
+def _all_faces():
+    """[(family, is_variable)] read out of fonts.ts, so the gate cannot drift from what is loaded.
+
+    THE COUNT IS THE COVERAGE. A face whose declaration this regex cannot match does not fail — it
+    vanishes, and every remaining tile still compares cleanly, so the gate prints its success line over a
+    smaller library than the one that ships. `FontProbe` cross-checks the count against a real JS
+    evaluation of FACES and throws on a mismatch (see `_render`), which is what makes the number below
+    trustworthy rather than merely printed."""
     src = open(os.path.join(_REMOTION, "src", "runtime", "fonts.ts"), encoding="utf-8").read()
     faces = re.findall(r"\{family: '([^']+)'.*?variable: (true|false)\}", src)
     if not faces:
         sys.exit("font_gate: could not parse FACES out of fonts.ts")
-    return [f for f, v in faces if (v == "true" or not ladder)]
+    return [(f, v == "true") for f, v in faces]
+
+
+def _families(ladder):
+    return [f for f, var in _all_faces() if (var or not ladder)]
 
 
 def _render(out_png, ladder, expected_rows):
@@ -68,23 +78,49 @@ def _render(out_png, ladder, expected_rows):
 
 
 def main():
-    failures = []
+    all_faces = _all_faces()
+    static = [f for f, var in all_faces if not var]
+    failures, checked = [], {False: 0, True: 0}
     with tempfile.TemporaryDirectory() as td:
         for ladder in (False, True):
             fams = _families(ladder)
             png = os.path.join(td, "ladder.png" if ladder else "faces.png")
             _render(png, ladder, expected_rows=len(fams))
             for fam, ok in zip(fams, tiles_differ(png, rows=len(fams))):
+                # COUNTED HERE, ONE PER COMPARISON ACTUALLY MADE — not restated from the face list. A count
+                # taken from `len(fams)` would print "12 of 12" even if the zip above had run dry, which is
+                # the shape of every hole this pass is about.
+                checked[ladder] += 1
                 if not ok:
                     failures.append(
                         "%s: %s" % (fam, "weight range not honoured (light == heavy)" if ladder
                                     else "SILENT FALLBACK - renders identically to its generic"))
+    # COVERAGE, NOT JUST THE VERDICT. "every declared face loaded" was true of one face and of twelve, and
+    # the line did not say which — nor that a NON-variable face has no weight range to honour and so is
+    # measured on one of the gate's two questions, not both. The denominators come from fonts.ts, the
+    # numerators from the comparisons that were made.
+    head = ("font_gate: %d of %d declared face(s) proved loaded · %d of %d variable face(s) proved to "
+            "honour their weight range" % (checked[False], len(all_faces),
+                                           checked[True], len(all_faces) - len(static)))
+    if checked[False] != len(all_faces) or checked[True] != len(all_faces) - len(static):
+        print("font_gate: NOT EVERY DECLARED FACE WAS COMPARED — " + head)
+        print("  fonts.ts declares %d face(s) (%d variable) and this run compared %d and %d. The probe's "
+              "row grid and the face list have come apart; do not read the result below as coverage."
+              % (len(all_faces), len(all_faces) - len(static), checked[False], checked[True]))
+        return 1
     if failures:
-        print("font_gate FAILED:")
+        print("font_gate FAILED (%d of %d face-check(s) failed):"
+              % (len(failures), checked[False] + checked[True]))
         for f in failures:
             print("  " + f)
         return 1
-    print("font_gate: every declared face loaded and honours its weight range")
+    print(head)
+    if static:
+        print("  NOT WEIGHT-TESTED — declared non-variable, so there is no range to honour: %s"
+              % ", ".join(static))
+    print("  NOT PROVABLE HERE — a family whose name also matches a font installed on this render host "
+          "cannot be\n  told apart from it by this instrument (see the docstring; 'Baloo 2' is the known "
+          "case on macOS).")
     return 0
 
 

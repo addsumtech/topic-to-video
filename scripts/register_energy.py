@@ -122,17 +122,26 @@ def evidence_props():
     #
     # Which prop it is comes from the TYPE (an array whose element declares a `src: string`), never from a
     # name written here, so the next register to take a list of pictures is fed the day it is written.
+    #
+    # ...AND EVERY SUCH PROP, NOT THE FIRST ONE. This stopped at the first match and skipped any register
+    # already carrying a `requireEvidence` fixture, which left `StateSheet.family` — a SECOND list of
+    # pictures, the strip of siblings under the sheet — filled by whatever the caller had: `cjk_type_qa`
+    # hands every string field a sentence of Chinese copy, so `<Img src={staticFile('它自己拆解任务…')}>` 404'd
+    # and the render died. `prop_reach` recorded that as "StateSheet: empty frame or render failure", which
+    # is the gate's own input blamed on the register — the same shape as the probe DNA that made
+    # `CardStack3D` "refuse to render" for eleven sweeps. Fill them all; skip only a prop already filled
+    # above, because the captured page and the guarded `src` are more specific answers than this one.
     for f in sorted(glob.glob(os.path.join(_SHOTS, "*.tsx"))):
         src = open(f, encoding="utf-8").read()
         n = os.path.basename(f)[:-4]
-        if n in out:
-            continue
         head = re.search(r"export const %s: React\.FC<\{(.*?)\}>\s*=" % re.escape(n), src, re.S)
         if not head:
             continue
         for pm in re.finditer(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*:\s*"
                               r"(\{[^{}]*\}|[A-Z][A-Za-z0-9_]*)\[\]", head.group(1)):
             prop, ty = pm.group(1), pm.group(2)
+            if prop in out.get(n, {}):
+                continue
             body = ty[1:-1] if ty.startswith("{") else ""
             if not body:
                 m = re.search(r"type\s+%s\s*=\s*\{([^{}]*)\}" % re.escape(ty), src, re.S)
@@ -144,7 +153,6 @@ def evidence_props():
             if label:
                 cell[label.group(1)] = "fixture"
             out.setdefault(n, {})[prop] = [dict(cell) for _ in range(6)]
-            break
     return out
 
 
@@ -272,8 +280,7 @@ def source_hashes():
     `density_advice.py` — which reads this file — kept offering one of the densest registers in the library as
     a starved beat's problem. A record nobody can tell is stale is not a record, it is a lie with a
     timestamp."""
-    return {os.path.basename(f)[:-4]: source_hash(os.path.basename(f)[:-4])
-            for f in sorted(glob.glob(os.path.join(_SHOTS, "*.tsx")))}
+    return {n: source_hash(n) for n in universe()}
 
 
 def stale(data):
@@ -304,13 +311,50 @@ def floors():
     return {"motion_p75": fe.MOTION_P75_FLOOR, "ink_median": fe.INK_FLOOR, "luma_range": fe.LUMA_RANGE_FLOOR}
 
 
+def universe():
+    """EVERY register this sweep claims to cover, parsed from the shots directory — the source of truth.
+
+    Said out loud and derived, because the headline used to be `len(rows)`: a sweep that lost nineteen
+    registers printed the number it had measured and a reader had no way to tell it from the library. The
+    one number that makes a skip visible is the one nothing was computing.
+    """
+    return sorted(os.path.basename(f)[:-4] for f in glob.glob(os.path.join(_SHOTS, "*.tsx")))
+
+
 def durations():
+    """{register: DURATION}. A register that exports none is NOT in here — see `not_measured`, which names
+    it rather than letting it fall out of `names` in silence."""
     out = {}
-    for f in sorted(glob.glob(os.path.join(_SHOTS, "*.tsx"))):
-        m = re.search(r"export const DURATION\s*=\s*(\d+)", open(f, encoding="utf-8").read())
+    for n in universe():
+        m = re.search(r"export const DURATION\s*=\s*(\d+)",
+                      open(os.path.join(_SHOTS, n + ".tsx"), encoding="utf-8").read())
         if m:
-            out[os.path.basename(f)[:-4]] = int(m.group(1))
+            out[n] = int(m.group(1))
     return out
+
+
+def not_measured(data):
+    """{register: why} for every register in the UNIVERSE that has no measured row.
+
+    Three populations, and they are different facts that used to print as the same silence: one that was
+    swept and refused (its reason is recorded in `_failed`), one the sweep never reached at all (an older
+    manifest, or a `--only` run), and one the sweep's own filter dropped because it exports no DURATION.
+    """
+    rows = data.get("registers") or {}
+    univ, durs = universe(), durations()
+    why = {}
+    for f in (data.get("_failed") or []):
+        n, _, tail = str(f).partition(" (")
+        why[n] = tail.rstrip(")").strip() or "refused to render or measure, and no reason was recorded"
+    for n in univ:
+        if n in rows or n in why:
+            continue
+        why[n] = ("no `export const DURATION` — the sweep renders each register at its own length and "
+                  "cannot place one that declares none" if n not in durs else
+                  "never swept — this manifest has no row for it and no recorded failure")
+    # Bounded by the UNIVERSE: a `_failed` line for a register that has since been deleted is not a hole in
+    # today's coverage, and counting it would make K larger than the library.
+    return {n: w for n, w in sorted(why.items()) if n not in rows and n in univ}
 
 
 def footprint(png):
@@ -362,7 +406,10 @@ def render_one(name, mp4, dna=DEFAULT_DNA, extra=None):
     if props:
         cmd.append("--props=" + json.dumps(props))
     r = subprocess.run(cmd, capture_output=True, text=True, cwd=_REMOTION)
-    return os.path.exists(mp4), ((r.stdout or "") + (r.stderr or "")).strip().splitlines()[-1:] or [""]
+    # THE REASON, NOT THE LAST LINE. `splitlines()[-1]` on a failed render is
+    # `at process.processTicksAndRejections (node:internal/…)`, which is what eight of ink_contrast_qa's
+    # nineteen skips carried: a failure list nobody can act on. One reader, in _common.
+    return os.path.exists(mp4), [_c.render_error(r.stdout, r.stderr, limit=100)]
 
 
 def stills_from(mp4, out_dir, name, durF, fps=30):
@@ -391,9 +438,15 @@ def main(argv):
         rows = stale(data)
         for n, why in rows:
             print("[register_energy] STALE %-24s %s" % (n, why))
+        measured = data.get("registers") or {}
+        univ = set(universe())
         print("[register_energy] %s  %d of %d row(s) no longer describe their source%s"
-              % ("FAIL" if rows else "OK", len(rows), len(data.get("registers") or {}),
+              % ("FAIL" if rows else "OK", len(rows), len(measured),
                  " — re-run `%s`" % REGEN if rows else ""))
+        # ...and the same coverage line the sweep prints, so `--check` cannot report OK over a manifest
+        # that simply has no row for a third of the library.
+        _c.coverage("register_energy", len([n for n in measured if n in univ]), len(univ),
+                    not_measured(data))
         return 1 if rows else 0
     if "--report" in argv:
         data = json.load(open(MANIFEST, encoding="utf-8"))
@@ -435,7 +488,14 @@ def main(argv):
                 if not ok:
                     failed.append("%s (%s)" % (n, tail[0][:100]))
                     continue
-            m = fe.measure(mp4)
+            try:
+                m = fe.measure(mp4)
+            except Exception as exc:                 # noqa: BLE001 — one register, not the sweep
+                # A FULL SWEEP IS TWO AND A HALF HOURS OF RENDERS. One unreadable mp4 raising here used to
+                # end all of it, and an aborted sweep writes nothing at all — every register leaves the
+                # measurement, unnamed, which is the failure this file's `_failed` list exists to prevent.
+                failed.append("%s (measuring it raised: %r)" % (n, exc))
+                continue
             if not isinstance(m, dict):
                 failed.append("%s (unmeasurable: %r)" % (n, m))
                 continue
@@ -447,8 +507,11 @@ def main(argv):
             # temp dir if not: a diagnosis that cannot distinguish "too small" from "too flat" sends every
             # register the same advice, and the two need opposite work.
             sd = stills or os.path.join(tmp, "_fp")
-            stills_from(mp4, sd, n, durs[n])
-            fp = footprint(os.path.join(sd, "%s_b.png" % n))
+            try:
+                stills_from(mp4, sd, n, durs[n])
+                fp = footprint(os.path.join(sd, "%s_b.png" % n))
+            except Exception:                        # noqa: BLE001 — the footprint is an EXTRA axis
+                fp = None                            # `why()` already reports a missing one as "?"
             if fp is not None:
                 rows[n]["footprint"] = round(fp, 3)
             if i % 10 == 0:
@@ -473,6 +536,7 @@ def main(argv):
                 # absent row in a ranking reads as "fine" — the exact silent-improvement failure band_debt.py
                 # refuses. Keeping the names in the artifact makes the hole visible to whoever reads it next.
                 "_failed": sorted(failed),
+                "_universe": len(universe()),
                 "registers": dict(sorted(rows.items()))}
         if only:
             # MERGE a targeted re-measure into the record instead of dropping it. Refusing to write at all
@@ -496,6 +560,13 @@ def main(argv):
                 src.update({n: h for n, h in hashes.items() if n in rows})
                 # a register that now renders is no longer a hole; one that now fails becomes one
                 keep = [f for f in (prev.get("_failed") or []) if f.split(" (")[0] not in names]
+                # ...AND IT LOSES ITS OLD ROW. Merging only what succeeded left the previous number in place
+                # beside a fresh failure line, so the manifest said both "0.6% ink" and "could not be
+                # measured" about the same register — and `not_measured` believes the row, so the hole
+                # disappears from the coverage it is supposed to appear in.
+                for f in failed:
+                    n = f.split(" (")[0]
+                    merged.pop(n, None); src.pop(n, None)
                 data["registers"] = dict(sorted(merged.items()))
                 data["_source"] = src
                 data["_failed"] = sorted(keep + failed)
@@ -506,6 +577,11 @@ def main(argv):
     regs = data["registers"]
     fl = data["_floors"]
     unknown = data.get("_failed") or []
+    # WHAT THIS RUN DID NOT SEE, derived from the shots directory rather than from the manifest's own rows.
+    # `_failed` only ever held what a sweep TRIED and could not measure; a register the sweep never reached
+    # — an older manifest, a `--only` run, a register exporting no DURATION — had no row, no failure line
+    # and no absence anyone could count.
+    gaps = not_measured(data)
     def fails(r):
         return ((r["motion_p75"] < fl["motion_p75"]) + (r["ink_median"] < fl["ink_median"])
                 + (r["luma_range"] < fl["luma_range"]))
@@ -524,11 +600,15 @@ def main(argv):
     n2 = sum(1 for _, r in ranked if fails(r) == 2)
     n1 = sum(1 for _, r in ranked if fails(r) == 1)
     n0 = sum(1 for _, r in ranked if fails(r) == 0)
-    print("\n[register_energy] %d registers · floors motion %.4f / ink %.0f%% / light %.3f"
-          % (len(regs), fl["motion_p75"], fl["ink_median"] * 100, fl["luma_range"]))
-    if unknown:
-        print("[register_energy] %d register(s) UNMEASURED — absent from the ranking below, not passing it: %s"
-              % (len(unknown), ", ".join(u.split(" ")[0] for u in unknown)))
+    print("\n[register_energy] floors motion %.4f / ink %.0f%% / light %.3f"
+          % (fl["motion_p75"], fl["ink_median"] * 100, fl["luma_range"]))
+    # COVERAGE, NOT A COUNT. This line read "%d registers" with the number of rows in it, so a sweep that
+    # measured 151 of 170 printed a line that reads as 170 and the nineteen holes were invisible.
+    univ = universe()
+    # rows for registers that are GONE are not coverage of the library — `stale()` names those separately
+    _c.coverage("register_energy", len([n for n in regs if n in set(univ)]), len(univ), gaps)
+    if gaps:
+        print("[register_energy] the register(s) above are absent from the ranking, NOT passing it")
     print("[register_energy] under all three: %d · two: %d · one: %d · clear: %d" % (n3, n2, n1, n0))
     print("\n%-24s %8s %7s %7s %7s  %-4s %s"
           % ("register", "motion", "ink", "light", "footprnt", "why", "under"))
@@ -540,7 +620,9 @@ def main(argv):
               % (n, r["motion_p75"], r["ink_median"] * 100, r["luma_range"],
                  "-" if r.get("footprint") is None else "%.0f%%" % (r["footprint"] * 100),
                  why(r), marks or "-"))
-    return 1 if unknown else 0
+    # A RUN THAT COULD NOT MEASURE PART OF ITS UNIVERSE IS NOT A CLEAN RUN, whether the register refused
+    # (`unknown`) or was never reached at all (`gaps`). The second was exit 0 until now.
+    return 1 if unknown or gaps else 0
 
 
 if __name__ == "__main__":

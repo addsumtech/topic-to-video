@@ -1,5 +1,5 @@
 """Shared low-level helpers. No domain knowledge lives here."""
-import json, os, shutil, subprocess, sys
+import json, os, re, shutil, subprocess, sys
 
 def progress(done, total, prefix="", width=22, stream=None):
     """A single-line terminal progress bar that overwrites itself in place on a TTY. On a non-TTY
@@ -196,3 +196,66 @@ def refuse_unknown(argv, valued=(), switches=(), usage=""):
         if usage:
             print(usage)
         raise SystemExit(2)
+
+
+# ── WHAT A SWEEP DID NOT MEASURE ──────────────────────────────────────────────────────────────────────
+# A gate's headline counted what it MEASURED, and a skip read as a clean result. `ink_contrast_qa` swept the
+# library and reported 19 registers "skipped"; behind those 19 were FOUR different bugs — a fixed frame past
+# the end of seven short registers, six registers handed no picture to draw, a skip reason that printed
+# `at process.processTicksAndRejections (node:internal/…)` for eight more, and a probe DNA value no preset
+# ships, which made a register throw and be written down as refusing to render. None of it was visible in the
+# headline, because the headline counted what the gate had measured.
+#
+# So: one reader of "what did this sweep NOT see", used by every sweep, because four disagreeing copies of
+# the caption band is how this repository learned what a second definition costs.
+def coverage(tag, measured, universe, not_measured=None, out=None):
+    """Print `measured N of M · K NOT measured`, then NAME each one with a reason. Returns K.
+
+    `measured` and `universe` may be counts or collections; `not_measured` is {item: why}. K comes from the
+    UNIVERSE (M - N), never from the length of the reason map: a sweep that dropped an item without writing
+    down why must not be able to hide it by having nothing to print.
+    """
+    n = measured if isinstance(measured, int) else len(measured)
+    m = universe if isinstance(universe, int) else len(universe)
+    nm = dict(not_measured or {})
+    k = max(m - n, len(nm))
+    w = out or sys.stdout
+    w.write("[%s] measured %d of %d · %d NOT measured%s\n" % (tag, n, m, k, ":" if k else ""))
+    for name in sorted(nm):
+        w.write("    %-24s %s\n" % (name, nm[name]))
+    if k > len(nm):
+        w.write("    (and %d with NO recorded reason — a sweep that cannot say why it lost an item is "
+                "itself the finding)\n" % (k - len(nm)))
+    w.flush()
+    return k
+
+
+# THE REASON, NOT THE LAST LINE OF THE STACK. `splitlines()[-1]` on a failed remotion render is
+# `at process.processTicksAndRejections (node:internal/…)` — eight registers carried that non-reason into a
+# skip list, which says nothing anyone can act on and is the same failure as a gate reporting a count instead
+# of a coverage. The renderer prints the real message on a line naming an Error type, so that is what is
+# kept, with the stack dropped. `RangeError: Cannot use frame 110: Duration of composition is 96` is the case
+# that forced the match to be a TYPE rather than the literal word `Error` at the start of a line.
+_ERR_LINE = re.compile(r"(?:^|\s)[A-Za-z]*Error\b|An error occurred:")
+
+
+def render_error(stdout, stderr="", limit=220):
+    """The message a failed subprocess refused with, from its combined output. Never empty."""
+    out = ((stderr or "") + "\n" + (stdout or "")).strip()
+    lines = [l.strip() for l in out.splitlines() if l.strip()]
+    for i, l in enumerate(lines):
+        if _ERR_LINE.search(l):
+            # A SELF-CONTAINED MESSAGE IS THE WHOLE REASON. Remotion prints some failures as a bare
+            # `An error occurred:` followed by the message, so the window has to reach forward — and
+            # reaching forward on a message that already said everything glues the progress counter
+            # ("Rendered 0/1") onto the end of it.
+            if ":" in l and len(l) > 40:
+                return l[:limit]
+            tail = [x for x in lines[i:i + 3] if not x.startswith("at ")]
+            return " ".join(tail)[:limit]
+    real = [l for l in lines if not l.startswith("at ") and not l.startswith("|")]
+    if real:
+        return real[-1][:limit]
+    if lines:
+        return ("no message, only a stack: " + lines[-1])[:limit]
+    return "no output at all"

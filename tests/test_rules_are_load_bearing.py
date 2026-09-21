@@ -45,6 +45,10 @@ MODULE_PATH = {
     "film_energy_qa": os.path.join(_SCRIPTS, "film_energy_qa.py"),
     "text_safe_qa": os.path.join(_SCRIPTS, "text_safe_qa.py"),
     "register_energy": os.path.join(_SCRIPTS, "register_energy.py"),
+    "band_debt": os.path.join(_SCRIPTS, "band_debt.py"),
+    "prop_reach": os.path.join(_SCRIPTS, "prop_reach.py"),
+    "measure_ground_luma": os.path.join(_SCRIPTS, "measure_ground_luma.py"),
+    "measure_ground_reach": os.path.join(_SCRIPTS, "measure_ground_reach.py"),
     "demo_copy_qa": os.path.join(_SCRIPTS, "demo_copy_qa.py"),
     "energy_skeleton": os.path.join(_SCRIPTS, "energy_skeleton.py"),
 }
@@ -565,7 +569,7 @@ MUTANTS["voice_qa"] = {
     # every beat, which detects MORE, not less: a mutant has to reproduce the defect, not merely change
     # the line.
     "vocabulary back to the dominant list only":
-        ('[(k, v, "latin") for k, v in EN_TELLS.items()]):', '[]):'),
+        ('VOCAB_LISTS = {"han": ZH_TELLS, "latin": EN_TELLS}', 'VOCAB_LISTS = {"han": ZH_TELLS}'),
     "parallelism requirement removed": ("PARALLEL_RATIO = 3.0", "PARALLEL_RATIO = 999.0"),
     **_guard_mutants(),
     "uniform threshold never fires": ('"uniform_cv": 0.45', '"uniform_cv": 0.0'),
@@ -809,13 +813,16 @@ MUTANTS["shot_director"] = {
 # The end-to-end claim — that the instrument separates a real slideshow from a real film — is proved
 # against rendered fixtures in tests/test_film_energy_qa.py, not here.
 _SLIDESHOW = {"seconds": 163.0, "motion_p50": 0.0004, "motion_p75": 0.0023, "motion_p90": 0.0085,
-              "ink_median": 0.043, "luma_range": 0.079, "luma_steps": 0.000, "luma_windows": 163}
+              "ink_median": 0.043, "luma_range": 0.079, "luma_steps": 0.000, "luma_windows": 163,
+              "declared_seconds": 163.0, "frames": 1956, "fps": 12, "decode_rc": 0, "decode_stderr": ""}
 _ALIVE = {"seconds": 81.0, "motion_p50": 0.0181, "motion_p75": 0.0481, "motion_p90": 0.1169,
-          "ink_median": 0.361, "luma_range": 0.903, "luma_steps": 0.425, "luma_windows": 81}
+          "ink_median": 0.361, "luma_range": 0.903, "luma_steps": 0.425, "luma_windows": 81,
+          "declared_seconds": 81.0, "frames": 972, "fps": 12, "decode_rc": 0, "decode_stderr": ""}
 # The gaming case, MEASURED: the delivered film with four seconds of a blank white rectangle appended. Every
 # other frame identical; the luminance RANGE goes from 0.097 to 0.910 and clears its floor by 6.7x.
 _GAMED = {"seconds": 60.0, "motion_p50": 0.0005, "motion_p75": 0.0025, "motion_p90": 0.0089,
-          "ink_median": 0.047, "luma_range": 0.910, "luma_steps": 0.017, "luma_windows": 60}
+          "ink_median": 0.047, "luma_range": 0.910, "luma_steps": 0.017, "luma_windows": 60,
+          "declared_seconds": 60.0, "frames": 720, "fps": 12, "decode_rc": 0, "decode_stderr": ""}
 
 
 def _energy(mod, measurement, board=None):
@@ -1215,7 +1222,14 @@ MUTANTS["register_energy"] = {
         ('    return {"motion_p75": fe.MOTION_P75_FLOOR, "ink_median": fe.INK_FLOOR, "luma_range": fe.LUMA_RANGE_FLOOR}',
          '    return {"motion_p75": 0.0037, "ink_median": 0.12, "luma_range": 0.135}'),
     "an unmeasured register reads as fine":
-        ("    return 1 if unknown else 0", "    return 0"),
+        ("    return 1 if unknown or gaps else 0", "    return 0"),
+    # ...AND THE OTHER HALF OF THE SAME SENTENCE: `_failed` only ever held what a sweep TRIED and lost. A
+    # register it never reached had no row, no failure line, and nothing that counted its absence.
+    "a register the sweep never reached reads as fine":
+        ("    return 1 if unknown or gaps else 0", "    return 1 if unknown else 0"),
+    "the coverage line counts its own rows instead of the library":
+        ('    _c.coverage("register_energy", len([n for n in regs if n in set(univ)]), len(univ), gaps)',
+         '    _c.coverage("register_energy", len(regs), len(regs), {})'),
     "the guarded registers are swept with no image":
         ("    return out\n\n\ndef ensure_fixture():", "    return {}\n\n\ndef ensure_fixture():"),
     "the render cache forgets what it rendered":
@@ -1320,6 +1334,28 @@ def _probe_the_last_prop_is_read(mod):
     assert "last" in mod._declared_types(_ARITY_SRC, "Inline"), "the last prop was dropped"
 
 
+def _probe_supersession_is_narrow(mod):
+    """A superseded prop's default cannot draw, so it is not a finding — but ONLY when the beat actually
+    supplies the prop that supersedes it.
+
+    `PortRail` declares `// @supersedes groups: items`. The delivered AgentHalo film's beat 3 supplies three
+    named groups and the standalone CLI still reported `PortRail.items -> ['Docs','Chat',…]`: a wolf on a
+    shipped film, while `validate.py`, reading the same declaration, stayed quiet. The repair has to narrow
+    exactly one prop and only on the beats that earned it, or it becomes a way for demo copy to ship unseen.
+    """
+    sup = mod.supersedes()
+    assert sup.get("PortRail", {}).get("groups") == ["items"], \
+        "PortRail no longer declares the supersession this probe rests on: %r" % (sup.get("PortRail"),)
+    bare = _board([{"index": 0, "shot": "PortRail", "narration": "x", "shot_props": {"title": "t"}}])
+    grouped = _board([{"index": 0, "shot": "PortRail", "narration": "x", "shot_props": {
+        "title": "t", "groups": [{"label": "a", "items": ["p"]}]}}])
+    props = lambda b: {p for _, _, p, _ in mod.audit_board(b)}
+    assert "items" in props(bare), "a default the film did NOT supersede stopped being a finding"
+    assert "items" not in props(grouped), "a superseded default is still reported, on a prop that cannot draw"
+    assert props(bare) - {"items"} == props(grouped), \
+        "supersession silenced more than the prop it kills: %r vs %r" % (props(bare), props(grouped))
+
+
 PROBES["demo_copy_qa"] = {
     "read_from_the_signature": _probe_demo_copy_is_read_from_the_signature,
     "configuration_is_not_copy": _probe_configuration_is_not_mistaken_for_copy,
@@ -1328,6 +1364,7 @@ PROBES["demo_copy_qa"] = {
     "a_union_fixes_nothing": _probe_a_union_with_a_loose_array_fixes_nothing,
     "nested_shapes_are_not_props": _probe_a_nested_shape_is_not_a_prop,
     "the_last_prop_is_read": _probe_the_last_prop_is_read,
+    "supersession_is_narrow": _probe_supersession_is_narrow,
 }
 
 MUTANTS["demo_copy_qa"] = {
@@ -1345,7 +1382,11 @@ MUTANTS["demo_copy_qa"] = {
         ('            if re.search(r"[A-Za-z]{3}", v) and not _NOT_COPY.match(v) and _is_copy(m.group(1)):',
          '            if re.search(r"[A-Za-z]{3}", v) and not _NOT_COPY.match(v):'),
     "an absent prop stops being a finding":
-        ("            if prop not in props:", "            if False:"),
+        ("            if prop not in props and prop not in dead:", "            if False:"),
+    # ...and the SUPERSESSION that narrows it must stay narrow: a mutant that treats every superseded prop
+    # as dead on every beat silences findings the film never superseded.
+    "a supersession silences a prop the beat did not supersede":
+        ("            if given in props:", "            if True:"),
     # ── the slot count ───────────────────────────────────────────────────────────────────────────────
     "a named props type is not resolved, so an aliased register declares nothing":
         ("    body = _brace_body(src, m.end())\n    if body is None:",
@@ -1457,6 +1498,372 @@ MUTANTS["shot_director"]["the peak is not the liveliest"] = (
     '    lively = (lambda c: 0.0)')
 
 
+
+
+
+# ── the five library-wide SWEEPS: every one must be able to say what it did NOT measure ──────────────
+# `ink_contrast_qa` swept 170 registers and reported 19 "skipped". A skip reads like a clean result, and
+# behind those 19 were four different bugs: a fixed frame past the end of seven short registers, six
+# registers handed no picture to draw, a skip reason that printed `at process.processTicksAndRejections
+# (node:internal/…)`, and a probe DNA value no preset ships that made a register throw and be recorded as
+# refusing. None of it was visible in the headline, because the headline counted what the gate MEASURED.
+#
+# These sweeps are the expensive ones — a full run of any of them is tens of minutes to hours — so a hole
+# here is the one that costs the most to notice. Two rules per sweep: the headline states COVERAGE against
+# a universe it DERIVED, and an item it could not measure never reads as a passing one.
+def _capture(fn, *a, **k):
+    import contextlib
+    import io
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = fn(*a, **k)
+    return rc, buf.getvalue()
+
+
+def _tiny_png(path, v=200):
+    from PIL import Image
+    Image.new("RGB", (8, 8), (v, v, v)).save(path)
+    return path
+
+
+# ── register_energy ──────────────────────────────────────────────────────────────────────────────────
+def _probe_energy_coverage_is_derived_from_the_library(mod):
+    """The headline's M must follow the shots directory. Pinned by MOVING the universe and requiring the
+    number to move with it — equality against 170 would pass a hardcoded constant, which is the bug."""
+    import json as _json
+    d = tempfile.mkdtemp()
+    path = os.path.join(d, "m.json")
+    _json.dump({"_dna": "product", "_floors": mod.floors(), "_failed": [], "_source": {},
+                "registers": {"Alpha": {"motion_p75": 1, "ink_median": 1, "luma_range": 1, "seconds": 5},
+                              "Beta": {"motion_p75": 1, "ink_median": 1, "luma_range": 1, "seconds": 5}}},
+               open(path, "w", encoding="utf-8"))
+    mod.MANIFEST = path
+    for lib, expect in ((["Alpha", "Beta", "Gamma", "Zed"], "measured 2 of 4"),
+                        (["Alpha", "Beta", "Gamma", "Zed", "Omega"], "measured 2 of 5")):
+        mod.universe = lambda lib=lib: list(lib)
+        mod.durations = lambda lib=lib: {n: 150 for n in lib}
+        _rc, out = _capture(mod.main, ["--report"])
+        assert expect in out, "the coverage line does not follow the library (%r): %r" % (expect, out)
+    assert "Gamma" in out and "Zed" in out, "the registers with no row are counted and not NAMED: %r" % out
+
+
+def _probe_a_register_the_sweep_never_reached_is_not_a_passing_one(mod):
+    """`_failed` held what a sweep TRIED and lost. A register it never reached — an older manifest, an
+    `--only` run, a register exporting no DURATION — had no row and nothing counted its absence."""
+    import json as _json
+    d = tempfile.mkdtemp()
+    path = os.path.join(d, "m.json")
+    _json.dump({"_dna": "product", "_floors": mod.floors(), "_failed": [], "_source": {},
+                "registers": {"Alpha": {"motion_p75": 1, "ink_median": 1, "luma_range": 1, "seconds": 5}}},
+               open(path, "w", encoding="utf-8"))
+    mod.MANIFEST = path
+    mod.universe = lambda: ["Alpha", "Zed"]
+    mod.durations = lambda: {"Alpha": 150, "Zed": 150}
+    rc, out = _capture(mod.main, ["--report"])
+    assert rc == 1, "a manifest missing a register reported success (exit %r): %r" % (rc, out)
+    assert "Zed" in out, "and it did not say which register is missing: %r" % out
+
+
+PROBES["register_energy"]["coverage_is_derived"] = _probe_energy_coverage_is_derived_from_the_library
+PROBES["register_energy"]["never_reached_is_not_passing"] = (
+    _probe_a_register_the_sweep_never_reached_is_not_a_passing_one)
+
+
+# ── prop_reach ───────────────────────────────────────────────────────────────────────────────────────
+def _prop_reach_stub(mod, lib, fail=None):
+    """The sweep with no renders.
+
+    The RENDER is stubbed, never `_still` itself: a probe that replaces `_still` cannot see what `_still`
+    does with a failure, and the probe below is about exactly that. (It also leaked — running first, it
+    left its own stub in place for the later probe, which then passed on the stub's answer.)
+    """
+    import json as _json
+    mod.universe = lambda: list(lib)
+    mod.re_mod = types.SimpleNamespace(durations=lambda: {n: 150 for n in lib},
+                                       source_hash=lambda n: "h-" + n)
+    mod.cq = types.SimpleNamespace(cjk_props=lambda n, offset=0: ({"title": "%s-%d" % (n, offset)}, []),
+                                   evidence_props=lambda: {})
+    mod.props_hash = lambda n: "p-" + n
+
+    class R:
+        returncode, stdout, stderr = 0, "", ""
+
+    def run(cmd, **kw):
+        r = R()
+        name, out_png = cmd[4], cmd[5]
+        if fail and name in fail:
+            r.returncode = 1
+            r.stderr = ("Bundling...\n%s\n    at process.processTicksAndRejections (node:internal/x)"
+                        % fail[name])
+            return r
+        props = _json.load(open(out_png + ".props.json", encoding="utf-8"))
+        _tiny_png(out_png, 200 if str(props.get("title", "")).endswith("-0") else 40)
+        return r
+    mod.subprocess = types.SimpleNamespace(run=run)
+
+
+def _probe_prop_reach_names_what_it_could_not_measure(mod):
+    """"5 could not be measured (empty frame or render failure)" is a GUESS between two opposite facts,
+    printed because the sweep threw the renderer's own message away."""
+    import json as _json
+    d = tempfile.mkdtemp()
+    mod.MANIFEST = os.path.join(d, "m.json")
+    _prop_reach_stub(mod, ["Alpha", "Zed"], fail={"Zed": "Error: needs at least one `cells` entry"})
+    rc, out = _capture(mod.main, [])
+    assert rc == 1, "a sweep that lost half its universe exited 0: %r" % out
+    assert "cells" in out, "the reason the register refused is not in the output: %r" % out
+    rec = _json.load(open(mod.MANIFEST, encoding="utf-8"))["_failed"]
+    assert isinstance(rec, dict) and "cells" in str(rec.get("Zed")), (
+        "the manifest records names without reasons: %r" % (rec,))
+
+
+def _probe_prop_reach_coverage_is_derived(mod):
+    """M follows the shots directory, so a register added today is a hole in the manifest from today."""
+    import json as _json
+    d = tempfile.mkdtemp()
+    mod.MANIFEST = os.path.join(d, "m.json")
+    _json.dump({"_low_reach": 0.15, "_failed": {}, "_untrusted": [],
+                "registers": {"Alpha": {"reach": 0.4, "prop_diff": 1.0}}},
+               open(mod.MANIFEST, "w", encoding="utf-8"))
+    for lib, expect in ((["Alpha", "Zed"], "measured 1 of 2"), (["Alpha", "Zed", "Omega"], "measured 1 of 3")):
+        mod.universe = lambda lib=lib: list(lib)
+        rc, out = _capture(mod.main, ["--report"])
+        assert expect in out, "the coverage line does not follow the library (%r): %r" % (expect, out)
+        assert rc == 1, "a report over a manifest with holes in it exited 0"
+
+
+def _probe_prop_reach_keeps_the_renderers_own_message(mod):
+    """The REASON, from the renderer, not "failed". Exercised through the real `_still` with the render
+    stubbed, because a probe that replaces `_still` cannot see what `_still` does with a failure."""
+    _fake_run(mod, returncode=1,
+              stderr="Bundling...\nError: StateSheet needs at least one `cells` entry\n"
+                     "    at process.processTicksAndRejections (node:internal/x)")
+    ok, why = mod._still("Zed", {}, os.path.join(tempfile.mkdtemp(), "x.png"), 10, "product")
+    assert ok is False
+    assert "cells" in (why or ""), "the renderer's own message was thrown away: %r" % (why,)
+    assert "processTicksAndRejections" not in (why or ""), "the stack was kept instead of the reason"
+
+
+PROBES["prop_reach"] = {
+    "names_what_it_could_not_measure": _probe_prop_reach_names_what_it_could_not_measure,
+    "coverage_is_derived": _probe_prop_reach_coverage_is_derived,
+    "keeps_the_renderers_message": _probe_prop_reach_keeps_the_renderers_own_message,
+}
+
+MUTANTS["prop_reach"] = {
+    "a hole in the coverage reads as a clean sweep":
+        ("    return 1 if k else 0", "    return 0"),
+    "the coverage line counts its own rows instead of the library":
+        ('    k = _c.coverage("prop_reach", len([n for n in regs if n in set(univ)]), len(univ), gaps)',
+         '    k = _c.coverage("prop_reach", len(regs), len(regs), {})'),
+    "the render failure loses its reason":
+        ("    return False, _c.render_error(r.stdout, r.stderr)", "    return False, None"),
+    "an unmeasurable register is recorded as a bare name":
+        ('                "_failed": dict(sorted(failed.items())),',
+         '                "_failed": sorted(failed),'),
+}
+
+
+# ── band_debt ────────────────────────────────────────────────────────────────────────────────────────
+def _probe_a_type_measurement_that_never_ran_is_not_zero_debt(mod):
+    """`text_safe_qa` reports a failed render and an unparseable payload as ENTRIES with no `band` key, and
+    `max([v.get("band") or 0 ...], default=0)` reads both as zero px of type in the band — the same answer a
+    clean register gives. The register then went into the manifest as measured and clean."""
+    assert mod._audit_failure([{"text": "(render FAILED twice — nothing was measured on this frame: x)",
+                                "out": {}}]), "a render that never ran reads as no text debt"
+    assert mod._audit_failure([{"text": "(unparseable payload)", "out": {}}]), (
+        "a payload that could not be read reads as no text debt")
+    assert mod._audit_failure([{"text": "REAL COPY", "band": 12}]) is None, (
+        "a real finding was mistaken for a failed measurement")
+    assert mod._audit_failure([]) is None
+
+
+def _probe_band_debt_coverage_is_derived_and_a_hole_is_not_clean(mod):
+    import json as _json
+    d = tempfile.mkdtemp()
+    mod._MANIFEST = os.path.join(d, "m.json")
+    _json.dump({"registers": {}}, open(mod._MANIFEST, "w", encoding="utf-8"))
+    mod.measure_all = lambda png_dir, quiet=False, only=None: (
+        {}, {"Zed": "refused to render at frame 129: Error: no `src`"}, ["Alpha"])
+    for lib, expect in ((["Alpha", "Zed"], "measured 1 of 2"),
+                        (["Alpha", "Zed", "Omega"], "measured 1 of 3")):
+        mod.universe = lambda lib=lib: list(lib)
+        rc, out = _capture(mod.main, ["--check"])
+        assert expect in out, "the coverage line does not follow the library (%r): %r" % (expect, out)
+        assert "no `src`" in out, "the register's own reason is not in the output: %r" % out
+        assert rc == 1, "a sweep that could not measure a register reported a clean check (exit %r)" % rc
+
+
+def _probe_band_debt_refuses_to_write_a_manifest_with_a_hole(mod):
+    """The manifest lists the registers IN DEBT, so a register that could not be measured is simply absent
+    from it — the same shape as "repaired". The ratchet in test_remotion.py then reads a hole as progress."""
+    import json as _json
+    d = tempfile.mkdtemp()
+    mod._MANIFEST = os.path.join(d, "m.json")
+    _json.dump({"registers": {"Zed": {"band": 9.0, "edge": 0.0}}},
+               open(mod._MANIFEST, "w", encoding="utf-8"))
+    mod.universe = lambda: ["Alpha", "Zed"]
+    mod.measure_all = lambda png_dir, quiet=False, only=None: (
+        {}, {"Zed": "refused to render"}, ["Alpha"])
+    rc, out = _capture(mod.main, ["--write"])
+    assert rc != 0, "it wrote a manifest over a register whose debt is unknown: %r" % out
+    assert _json.load(open(mod._MANIFEST, encoding="utf-8"))["registers"] == {"Zed": {"band": 9.0,
+                                                                                     "edge": 0.0}}, (
+        "the unmeasured register was dropped from the manifest, which reads as FIXED")
+
+
+PROBES["band_debt"] = {
+    "a_failed_type_measurement_is_not_zero_debt": _probe_a_type_measurement_that_never_ran_is_not_zero_debt,
+    "coverage_is_derived": _probe_band_debt_coverage_is_derived_and_a_hole_is_not_clean,
+    "refuses_to_write_over_a_hole": _probe_band_debt_refuses_to_write_a_manifest_with_a_hole,
+}
+
+MUTANTS["band_debt"] = {
+    "a type measurement that never ran counts as no debt":
+        ('        if not (v.get("out") or v.get("band")):', "        if False:"),
+    "the coverage line counts the sweep against itself":
+        ('    _c.coverage("band_debt", len(swept), len(only or universe()), not_measured)',
+         '    _c.coverage("band_debt", len(swept), len(swept), {})'),
+    "a hole in the sweep reads as a clean check":
+        ("    return 1 if (fresh or worse or not_measured) else 0",
+         "    return 1 if (fresh or worse) else 0"),
+    "the manifest is written with a hole in it":
+        ('        if not_measured:\n            print("[band_debt] REFUSING to write:',
+         '        if False:\n            print("[band_debt] REFUSING to write:'),
+}
+
+
+# ── measure_ground_luma ──────────────────────────────────────────────────────────────────────────────
+def _probe_the_settled_frame_follows_the_registers_own_duration(mod):
+    """A fixed frame 110 is past the END of every register shorter than 111 — `remotion still` refuses it
+    outright ("Cannot use frame 110: Duration of composition is 96") — and the retry at frame 30 then wrote
+    a third-of-the-way-in reading into SHOT_LUMA as if it were the settled state."""
+    short, long_ = mod.settled_frame("S", {"S": 96}), mod.settled_frame("L", {"L": 210})
+    assert short is not None and 0 < short < 96, (
+        "the settled frame is not inside a 96-frame register: %r" % (short,))
+    assert long_ > short, "the frame does not follow DURATION — it is a constant: %r vs %r" % (short, long_)
+    assert mod.settled_frame("X", {}) is None, "a register with no DURATION got a guessed frame"
+
+
+def _probe_shot_luma_does_not_confirm_a_shot_it_could_not_render(mod):
+    mod._fixture_props = lambda: {}
+    mod._durations = lambda: {"Alpha": 150, "Zed": 150}
+    mod.dna_audit = types.SimpleNamespace(registered_shots=lambda: ["Alpha", "Zed"])
+    mod.read_shot_luma = lambda: {"Alpha": "dark", "Zed": "dark"}
+    mod.provisional_shots = lambda: []
+    mod.measure_own = lambda sh, td, fx=None, durs=None: (
+        (0.001, None) if sh == "Alpha" else (None, "Error: needs a real photograph"))
+    rc, out = _capture(mod.main, ["--luma", "--check"])
+    assert "measured 1 of 2" in out, "the coverage line does not state the universe: %r" % out
+    assert "photograph" in out, "the shot's own reason is not in the output: %r" % out
+    assert rc == 1, "SHOT_LUMA reported its declaration confirmed over a shot it never measured"
+
+
+def _probe_ground_token_does_not_confirm_a_shot_it_could_not_render(mod):
+    """The other half of the same file, and the one the seam guard reads on a themed film."""
+    mod._fixture_props = lambda: {}
+    mod.dna_audit = types.SimpleNamespace(registered_shots=lambda: ["GlowPick"])
+    mod.measure = lambda s, td, fx=None: (None, "Error: needs a real photograph")
+    rc, out = _capture(mod.main, ["--only=GlowPick", "--check"])
+    assert "measured 0 of 1" in out, "the coverage line does not state the universe: %r" % out
+    assert rc == 1, "DNA_GROUND_TOKEN reported a match over a shot it never measured: %r" % out
+
+
+PROBES["measure_ground_luma"] = {
+    "settled_frame_follows_duration": _probe_the_settled_frame_follows_the_registers_own_duration,
+    "shot_luma_does_not_confirm_a_hole": _probe_shot_luma_does_not_confirm_a_shot_it_could_not_render,
+    "ground_token_does_not_confirm_a_hole": _probe_ground_token_does_not_confirm_a_shot_it_could_not_render,
+}
+
+MUTANTS["measure_ground_luma"] = {
+    "the settled frame goes back to a constant":
+        ("    return int(round(rr.frame_at_t(durs[shot], rr.SETTLED_T)))", "    return 110"),
+    "SHOT_LUMA confirms a shot it could not measure":
+        ("        if drift or prov or failed:", "        if drift or prov:"),
+    "DNA_GROUND_TOKEN confirms a shot it could not measure":
+        ('        if failed:\n            # A SHOT THAT WOULD NOT RENDER WAS NEVER COMPARED',
+         '        if False:\n            # A SHOT THAT WOULD NOT RENDER WAS NEVER COMPARED'),
+    "the coverage line counts what it managed to measure":
+        ('    _c.coverage("ground_luma", len(meas), len(shots), failed)',
+         '    _c.coverage("ground_luma", len(meas), len(meas), {})'),
+}
+
+
+# ── measure_ground_reach ─────────────────────────────────────────────────────────────────────────────
+def _probe_ground_reach_does_not_confirm_a_safety_guard_it_could_not_measure(mod):
+    """`GROUND_FOLLOWS_MEASURED` is the allow list `runtime/light.tsx` consults before it lets a beat
+    re-ground a register. A shot that would not render keeps its entry — the safe choice, and an invisible
+    one: the check then compared the committed set against a sweep with holes in it and printed "matches
+    the measured pixels"."""
+    d = tempfile.mkdtemp()
+    # THE SWEEP WRITES ITS RECORD, and a non-`--only` run writes it BEFORE the --check verdict — so a probe
+    # that calls main() against the real tree replaces `remotion/_ground_reach.json` with its two fake rows.
+    # This probe did exactly that once. The module's own paths are redirected into a temp tree so the
+    # measurement it takes lands there.
+    mod._REMOTION = d
+    mod.INK_REFUSED = {}
+    mod.dna_audit = types.SimpleNamespace(registered_shots=lambda: ["Alpha", "Zed"])
+    mod.probe_dnas = lambda: {"dna": {"light": {}, "dark": {}}, "groundY": {"light": 1.0, "dark": 0.0},
+                              "groundInk": {"light": "#000", "dark": "#fff"}, "band": 200,
+                              "groundLum": {"light": "light", "dark": "dark"}}
+    mod.runtime_verdicts = lambda rows: {"ink": ["#000", "#fff"] * (2 * len(rows)),
+                                         "lum": ["light", "dark"] * (2 * len(rows))}
+    mod.read_set = lambda: {"Alpha", "Zed"}
+
+    class R:
+        returncode, stdout, stderr = 0, "", ""
+
+    def run(cmd, **kw):
+        # THE RENDER, not `render` itself — a probe that replaces `render` cannot see what `render` does
+        # with a failure, and it leaves its own stub behind for the probe that is about exactly that.
+        r = R()
+        out_png = cmd[5]
+        shot, _, key = os.path.basename(out_png)[:-4].partition("__")
+        if shot == "Zed":
+            r.returncode = 1
+            r.stderr = ("An error occurred:\nError: needs a real photograph\n"
+                        "    at process.processTicksAndRejections (node:internal/x)")
+            return r
+        _tiny_png(out_png, 240 if key == "light" else 5)
+        return r
+    mod.subprocess = types.SimpleNamespace(run=run)
+    mod.stats = lambda shot, pngs, band_px: {"shot": shot, "bandY": {"light": 1.0, "dark": 0.0},
+                                             "fieldY": {"light": 1.0, "dark": 0.0}, "moved": 1.0}
+    rc, out = _capture(mod.main, ["--check", "--keep=" + d])
+    assert "measured 1 of 2" in out, "the coverage line does not state the universe: %r" % out
+    assert "photograph" in out, "the shot's own reason is not in the output: %r" % out
+    assert rc == 1, "the allow list was reported as matching the pixels over a shot nobody measured: %r" % out
+    assert "Zed" in out.split("cannot be confirmed")[-1], (
+        "the unmeasured shot is LISTED in the guard and the check did not say so: %r" % out)
+
+
+def _probe_ground_reach_keeps_the_renderers_own_message(mod):
+    """Through the real `render`, for the reason the prop_reach twin gives."""
+    _fake_run(mod, returncode=1,
+              stderr="An error occurred:\nError: PhotoPlate needs a real photograph\n"
+                     "    at process.processTicksAndRejections (node:internal/x)")
+    png, why = mod.render("Zed", "light", {}, tempfile.mkdtemp())
+    assert png is None
+    assert "photograph" in (why or ""), "the renderer's own message was thrown away: %r" % (why,)
+    assert "processTicksAndRejections" not in (why or ""), "the stack was kept instead of the reason"
+
+
+PROBES["measure_ground_reach"] = {
+    "does_not_confirm_a_hole": _probe_ground_reach_does_not_confirm_a_safety_guard_it_could_not_measure,
+    "keeps_the_renderers_message": _probe_ground_reach_keeps_the_renderers_own_message,
+}
+
+MUTANTS["measure_ground_reach"] = {
+    "the allow list is confirmed over a shot nobody measured":
+        ('        if failed:\n            # THE SET IS A SAFETY GUARD',
+         '        if False:\n            # THE SET IS A SAFETY GUARD'),
+    "the coverage line counts the rows it managed to measure":
+        ('    _c.coverage("ground_reach", len(rows), len(shots), failed)',
+         '    _c.coverage("ground_reach", len(rows), len(rows), {})'),
+    "a render failure loses its reason":
+        ('        return None, "; ".join([_c.render_error(r.stdout, r.stderr)] + _FIXTURE_ERR)',
+         '        return None, "failed"'),
+}
 
 
 @pytest.mark.parametrize("module,rule", _all(PROBES))

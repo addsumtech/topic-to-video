@@ -35,6 +35,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _common as _c                                             # noqa: E402
 import film_energy_qa as fe                                      # noqa: E402
 import register_energy as re                                     # noqa: E402
 import shot_director as sd                                       # noqa: E402
@@ -80,22 +81,50 @@ def alternatives(shot, ink, floor, limit=3):
 
 
 def advise(out_dir):
+    """(beats, unknown, ink, floor, skipped, universe).
+
+    `beats` is what was MEASURED; `skipped` is every beat that left the measurement, each with the beat
+    number and a reason a reader can act on. `universe` is `len(board["slides"])` — parsed from the board,
+    never `len(beats) + len(skipped)` — because the headline has to be able to say `measured N of M`. A beat
+    with no register used to `continue` into silence: it appeared in no list, no count and no line, and the
+    headline said "6 beat(s)" about an eight-beat film.
+
+    Deriving M from the two lists instead was TRIED and caught by its own mutation test: restoring the
+    silent `continue` shrank M in step with N, so the coverage line went on reading "100%" while a beat
+    vanished. M comes from the board, and the invariant below turns any future silent drop into a refusal
+    rather than a smaller denominator.
+    """
     board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
     ink = measured()
     floor = fe.INK_FLOOR
-    beats, unknown = [], []
+    slides = board.get("slides") or []
+    beats, unknown, skipped = [], [], []
     # by POSITION, not the 1-based `index` field this used to add one to — see critic_brief.
-    for _pos, s in enumerate(board.get("slides") or [], start=1):
+    for _pos, s in enumerate(slides, start=1):
+        if not isinstance(s, dict):
+            skipped.append((_pos, None, "storyboard entry is a %s, not a beat object — the board is "
+                                        "malformed here and nothing about this beat can be read"
+                                        % type(s).__name__))
+            continue
         shot = s.get("shot")
         if not shot:
+            skipped.append((_pos, None, "no register assigned yet — run the shot-director, then re-run this"))
             continue
         if shot not in ink:
             # An unmeasured register would silently read as "fine" in the median below — the absence-is-a-pass
             # failure this repo keeps finding. Name it instead.
             unknown.append(shot)
+            skipped.append((_pos, shot, "%s has no row in the sweep, so its ink is unmeasured rather than "
+                                        "fine — run `python3 scripts/register_energy.py`" % shot))
             continue
         beats.append((_pos, shot, ink[shot]))
-    return beats, unknown, ink, floor
+    if len(beats) + len(skipped) != len(slides):
+        raise RuntimeError(
+            "density_advice lost %d of %d beat(s) on a path that recorded no reason — a beat that leaves "
+            "the measurement without a line is the hole this coverage report exists to close; find the "
+            "`continue` that does not append to `skipped`."
+            % (len(slides) - len(beats) - len(skipped), len(slides)))
+    return beats, unknown, ink, floor, skipped, len(slides)
 
 
 def main(argv):
@@ -104,18 +133,20 @@ def main(argv):
         print("usage: density_advice.py <out_dir>")
         return 2
     out_dir = os.path.abspath(argv[0])
-    beats, unknown, ink, floor = advise(out_dir)
+    beats, unknown, ink, floor, skipped, universe = advise(out_dir)
+    # COVERAGE FIRST, through the shared printer, so this line has the same shape as every other gate's.
+    # `len(beats)` alone described the beats that survived the loop above and read as the film.
+    missed = _c.coverage("density", len(beats), universe,
+                         {"beat %3d %s" % (b, s or "(no register)"): why for b, s, why in skipped})
     if not beats:
-        print("[density] no beats with a measured register")
-        return 1 if unknown else 0
+        print("[density] nothing here sits on a register the sweep has measured, so there is no advice to "
+              "give — this is not a clean density report")
+        return 1 if skipped else 0
     vals = sorted(b[2] for b in beats)
     med = vals[len(vals) // 2]
     starved = [b for b in beats if b[2] < floor]
-    print("[density] %d beat(s) · median register ink %.1f%% · floor %.0f%% · %d beat(s) under it"
+    print("[density] over the %d measured beat(s): median register ink %.1f%% · floor %.0f%% · %d under it"
           % (len(beats), med * 100, floor * 100, len(starved)))
-    if unknown:
-        print("[density] %d register(s) NOT in the sweep, so unmeasured rather than fine: %s"
-              % (len(unknown), ", ".join(sorted(set(unknown)))))
     for beat, shot, v in starved:
         alts = alternatives(shot, ink, floor)
         line = "   beat %2d  %-22s %4.1f%%" % (beat, shot, v * 100)
@@ -128,7 +159,9 @@ def main(argv):
         print("[density] These are CANDIDATES, not instructions. A register is chosen because it encodes the "
               "beat's idea; swapping to whatever measures densest is how a film ends up carrying ink no "
               "viewer can decode.")
-    return 1 if unknown else 0
+    # Non-zero when any beat left the measurement — an unassigned beat is as invisible to the median above
+    # as an unmeasured register is, and "advice over part of the film" must not read as advice over it.
+    return 1 if missed else 0
 
 
 if __name__ == "__main__":

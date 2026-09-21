@@ -893,3 +893,150 @@ def test_film_mode_serves_the_films_own_asset_folder(monkeypatch, tmp_path):
         assert c.PUBLIC_DIR == os.path.abspath(str(tmp_path)), c.PUBLIC_DIR
     finally:
         c.PUBLIC_DIR = old
+
+
+# ── COVERAGE: what this gate did NOT measure ───────────────────────────────────────────────────────
+# The headline was `N register(s) rendered with Chinese copy` — a count of what rendered, with no
+# denominator and no check that any Chinese went in. Three items used to leave the measurement while the
+# run still read as a pass, and a real 170-register sweep produced two of them:
+#   PortRail    refused the gate's OWN fixture (fed `items` AND `groups`, two spellings of one rail)
+#   StateSheet  a browser that died under a loaded sweep; it rendered clean on its own seconds later
+# Neither name was a register defect, both printed as a bare name under "FAILED TO RENDER", and the run
+# exited 0 on them.
+
+def test_the_headline_states_coverage_with_a_derived_denominator(monkeypatch, capsys):
+    """`measured N of M`, M read from the shots directory. A constant cannot satisfy this."""
+    import glob as _g
+    on_disk = len(_g.glob(os.path.join(c._SHOTS, "*.tsx")))
+    monkeypatch.setattr(c, "sweep", lambda names, *a, **k: {
+        n: {"hits": [], "untestable": [], "failed": False, "why": None, "cjk_fed": 3} for n in names})
+    rc = c.main(["--library"])
+    head = [l for l in capsys.readouterr().out.splitlines() if l.startswith("[cjk_type] measured")][0]
+    assert "measured %d of %d registers in shots/" % (on_disk, on_disk) in head, head
+    assert "0 not measured" in head, head
+    assert rc == 0
+
+
+def test_a_register_that_refused_to_render_is_named_with_its_own_message(monkeypatch, capsys):
+    """"FAILED TO RENDER: PortRail" is not a reason. The register's own words are."""
+    real = "PortRail seats 1-6 modules on its rail (got 9 across the groups)."
+    monkeypatch.setattr(c, "sweep", lambda names, *a, **k: {
+        names[0]: {"hits": [], "untestable": [], "failed": True, "why": real, "cjk_fed": 4},
+        names[1]: {"hits": [], "untestable": [], "failed": False, "why": None, "cjk_fed": 4}})
+    rc = c.main(["--only=PortRail,CinematicTitle"])
+    out = capsys.readouterr().out
+    assert "measured 1 of 2" in out and "1 not measured" in out, out
+    assert "NOT MEASURED" in out and "refused to render" in out and real in out, out
+    assert rc == 2, "a register nothing was measured on exited %r" % rc
+
+
+def test_a_register_fed_no_chinese_is_not_counted_as_rendered_with_chinese(monkeypatch, capsys):
+    """A register renders perfectly on its own ENGLISH demo defaults. `audit()` only asks which fed
+    strings reached the screen when the frame already looks empty, so a busy English frame short-circuits
+    to clean — and the headline called it 'rendered with Chinese copy'."""
+    monkeypatch.setattr(c, "sweep", lambda names, *a, **k: {
+        names[0]: {"hits": [], "untestable": [], "failed": False, "why": None, "cjk_fed": 0},
+        names[1]: {"hits": [], "untestable": [], "failed": False, "why": None, "cjk_fed": 7}})
+    rc = c.main(["--only=SplitFlap,CinematicTitle"])
+    out = capsys.readouterr().out
+    assert "measured 1 of 2" in out, out
+    assert "no Chinese copy could be shaped" in out and "SplitFlap" in out, out
+    assert rc == 2
+
+
+def test_only_refuses_a_name_that_is_not_a_register(capsys):
+    """An unknown name was swept anyway: prop_signature returns ({}, '') for a file it cannot open, the
+    render then died on an unknown composition, and it was reported as a register that FAILED TO RENDER."""
+    rc = c.main(["--only=NoSuchRegister,CinematicTitle"])
+    out = capsys.readouterr().out
+    assert "not registers in shots/" in out and "NoSuchRegister" in out, out
+    assert "CinematicTitle" not in out, "a real name must not be blamed alongside the bad one"
+    assert rc == 2
+
+
+def test_the_film_universe_is_beats_and_says_so(monkeypatch, capsys, tmp_path):
+    """A film sweeps DISTINCT REGISTERS, not beats — two beats on one register are one render. Saying
+    'measured 1' of a three-beat film reads as one beat of three."""
+    import json as _json
+    _json.dump({"meta": {"aspect": "16:9"}, "slides": [
+        {"index": 1, "shot": "CinematicTitle", "shot_props": {}},
+        {"index": 2, "shot": "CinematicTitle", "shot_props": {}},
+        {"index": 3, "shot_props": {}},
+    ]}, open(tmp_path / "storyboard.json", "w"))
+    monkeypatch.setattr(c, "sweep", lambda names, *a, **k: {
+        n: {"hits": [], "untestable": [], "failed": False, "why": None, "cjk_fed": 2} for n in names})
+    old = c.PUBLIC_DIR
+    try:
+        rc = c.main([str(tmp_path)])
+    finally:
+        c.PUBLIC_DIR = old
+    out = capsys.readouterr().out
+    assert "measured 1 of 1 distinct registers across 3 beat(s)" in out, out
+    assert "selects no register" in out, "the still beat was dropped in silence"
+    assert rc == 2
+
+
+def test_the_fixture_never_feeds_two_spellings_of_one_slot():
+    """`// @supersedes groups: items` says `groups` REPLACES `items`. The shaper walks the signature prop
+    by prop and filled both, so PortRail got 4 modules AND 3 groups of 3, refused the 9 against its own
+    1-6 guard, and was recorded as FAILED TO RENDER on every sweep. The relation is parsed from the
+    registers' own declarations, never listed here."""
+    import demo_copy_qa as _dc
+    rel = _dc.supersedes()
+    assert rel, "no register declares @supersedes any more — this test is measuring nothing"
+    for name, providers in rel.items():
+        props, _ = c.cjk_props(name)
+        for provider, supplied in providers.items():
+            assert provider not in props, (
+                "%s was fed both %r and what it supersedes (%s)" % (name, provider, ", ".join(supplied)))
+            assert any(p in props for p in supplied), (
+                "%s was fed neither spelling of the slot — it would draw nothing" % name)
+
+
+def test_a_failure_reason_is_the_registers_words_not_the_node_stack():
+    """The ink gate printed the last line of the failure, which is always
+    `at process.processTicksAndRejections (node:internal/…)` — eight registers carried that non-reason."""
+    blob = ("\n Error  PortRail seats 1-6 modules on its rail (got 9 across the groups).\n"
+            "    at PortRail (file:///x/PortRail.tsx:250:11)\n"
+            "    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n")
+    got = c._why_it_refused(blob)
+    assert got.startswith("PortRail seats 1-6"), got
+    assert "processTicksAndRejections" not in got
+    assert "no output at all" in c._why_it_refused("")
+    # and a blob that is ALL stack must say so, not print a stack line as though it were the reason
+    only_stack = c._why_it_refused("    at process.processTicksAndRejections (node:internal/x:9:5)\n")
+    assert "no message" in only_stack, only_stack
+
+
+def test_a_flaky_render_is_retried_before_it_is_called_unmeasured():
+    """StateSheet came back FAILED TO RENDER in a loaded 170-register sweep and rendered clean alone
+    seconds later. text_safe_qa.audit_shot already retries for exactly this."""
+    import inspect
+    src = inspect.getsource(c.audit)
+    assert "for _attempt in (1, 2):" in src, "a single failed render still ends the measurement"
+
+
+def test_sweep_carries_the_refusal_reason_out_of_the_render(monkeypatch, tmp_path):
+    """The wiring, not just the parser: `audit` must APPEND the reason and `sweep` must record it. The
+    reason used to be computed nowhere at all — `audit` returned None and `sweep` stored `failed: True`."""
+    class _R:
+        returncode = 1
+        stdout = ""
+        stderr = (" Error  Widget seats 1-6 modules on its rail (got 9 across the groups).\n"
+                  "    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n")
+    calls = []
+
+    def _fake_run(cmd, **kw):
+        calls.append(cmd)
+        return _R()
+    monkeypatch.setattr(c.subprocess, "run", _fake_run)
+    monkeypatch.setattr(c, "durations", lambda: {"Widget": 150})
+    monkeypatch.setattr(c, "evidence_props", lambda: {})
+    monkeypatch.setattr(c, "cjk_props", lambda n, offset=0: ({"title": "交付可验收的成果"}, []))
+    monkeypatch.setattr(c, "_ink_fraction", lambda p: 1.0)
+    res = c.sweep(["Widget"])
+    assert res["Widget"]["failed"] is True
+    assert res["Widget"]["why"].startswith("Widget seats 1-6"), res["Widget"]["why"]
+    assert "processTicks" not in (res["Widget"]["why"] or "")
+    assert res["Widget"]["cjk_fed"] == 1, "the CJK leaves fed in are not counted"
+    assert len(calls) == 2, "a failed render was not retried (%d attempt(s))" % len(calls)

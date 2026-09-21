@@ -42,13 +42,35 @@ def _audit_settled(shot, props, tmp_path):
 
 @_NEEDS_RENDER
 def test_type_the_layout_cannot_hold_is_caught(tmp_path):
-    """THE positive control: copy longer than the layout assumed is the accident this exists for, and it is
-    what real topic copy does to a register tuned on a short demo string."""
-    found = _audit("AtomOrbital", {"title": LONG}, tmp_path)
-    assert found, "a word far wider than the frame was not reported"
-    assert any("SUPERCALIFRAGIL" in (v.get("text") or "") for v in found), found
+    """THE positive control for the CUT-OFF half: copy wider than the canvas, with nothing clipping it.
+
+    IT USED TO BE A PRODUCTION REGISTER, AND THAT IS THE MISTAKE THIS FILE'S SIBLING ALREADY MADE ONCE.
+    The control fed `AnalogTape` a 59-character word and depended on the register to keep overflowing. It
+    stopped: AnalogTape now sizes its title with `fitTextPx(TITLE, W * 0.92 - SPLIT_MAX * 2, 168, …)`,
+    which shrinks any word to the frame — looked at rather than inferred, the rendered still shows the word
+    spanning roughly 380→1540px of 1920. The audit was correct to report nothing, and the only proof that
+    this gate can SEE a cut went dark with `assert []`. (Exactly what happened to the BAND control when
+    AsciiField was fixed; see `CaptionBandProbe`'s comment in Root.tsx.)
+
+    `CutOffProbe` is synthetic and permanent, and `CutOffCleanProbe` carries the SAME copy at a size that
+    fits — a detector that fires on everything proves as little as one that fires on nothing."""
+    # the probes live in Root.tsx, not in src/shots, so `durations()` does not know them — and they are
+    # static, so any frame is the settled one (same reason the band control passes 82 by hand)
+    found = g.audit_shot("CutOffProbe", {"dna": "product"}, 82, str(tmp_path / "cut.png"))
+    assert found, "a line far wider than the canvas was not reported"
+    assert any("WIDER THAN THE CANVAS" in (v.get("text") or "") for v in found), found
     px = max(max((v.get("out") or {}).values(), default=0) for v in found)
-    assert px > 100, "reported a cut of only %dpx for a word overflowing both edges" % px
+    assert px > 100, "reported a cut of only %dpx for a line overflowing both edges" % px
+    assert g.audit_shot("CutOffCleanProbe", {"dna": "product"}, 82, str(tmp_path / "fit.png")) == [], (
+        "the same copy at a size that FITS was reported — the detector fires on everything")
+
+
+@_NEEDS_RENDER
+def test_a_register_that_autofits_its_copy_is_not_a_finding(tmp_path):
+    """The other side of the control above, kept because it is what took the old one away: a register that
+    shrinks overlong copy to the frame is CORRECT, and must stay clean however long the word is."""
+    assert _audit("AnalogTape", {"title": LONG}, tmp_path) == [], (
+        "AnalogTape fits its title with fitTextPx; a fitted word is not a cut")
 
 
 @_NEEDS_RENDER
@@ -384,3 +406,79 @@ def test_it_refuses_to_guess_the_dna_list(tmp_path, monkeypatch):
     monkeypatch.setattr(g, "_REMOTION", str(tmp_path))
     with pytest.raises(RuntimeError, match="EMPTY"):
         g.dna_presets()
+
+
+# ── COVERAGE: which universe a run covered, and what left it ───────────────────────────────────────
+# This script covers TWO universes — a film's beats and the library — and the scope line must never let
+# one be read as the other. `scan_film` counted only the beats that SURVIVED its skip branch, so a
+# twelve-beat film where eight select a register printed "8 beats": a line indistinguishable from full
+# coverage. And `--cjk` swallowed a shaping failure into `{}`, sweeping the register in its own LATIN
+# demo defaults while the headline still said "CJK fixtures".
+
+def _film(tmp_path, slides):
+    d = tmp_path / "film"
+    d.mkdir()
+    (d / "storyboard.json").write_text(json.dumps({"meta": {"aspect": "16:9"}, "slides": slides}),
+                                       encoding="utf-8")
+    return str(d)
+
+
+def test_a_film_run_says_how_many_of_its_beats_it_measured(monkeypatch, capsys, tmp_path):
+    seen = []
+    monkeypatch.setattr(g, "audit_shot", lambda *a, **k: seen.append(a[0]) or [])
+    out_dir = _film(tmp_path, [
+        {"index": 1, "shot": "CinematicTitle", "shot_props": {}},
+        {"index": 2, "shot": "GoneRegister", "shot_props": {}},
+        {"index": 3, "shot_props": {}},
+        {"index": 4, "shot": "CinematicTitle", "shot_props": {}},
+    ])
+    rc = g.main([out_dir])
+    text = capsys.readouterr().out
+    assert "across 2 of 4 beats" in text, text
+    assert "2 beat(s) NOT measured" in text, text
+    assert "'GoneRegister' is not a register" in text and "selects no register" in text, text
+    assert rc == 2, "two beats nothing was measured on exited %r" % rc
+    assert seen == ["CinematicTitle", "CinematicTitle"]
+
+
+def test_a_fully_covered_film_says_so_and_exits_clean(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr(g, "audit_shot", lambda *a, **k: [])
+    rc = g.main([_film(tmp_path, [{"index": 1, "shot": "CinematicTitle", "shot_props": {}}])])
+    assert "across 1 of 1 beats" in capsys.readouterr().out
+    assert rc == 0
+
+
+def test_the_library_scope_line_names_the_library_not_the_film(monkeypatch, capsys):
+    """The two universes share one report. A `--library` line must read as registers, a film's as beats."""
+    monkeypatch.setattr(g, "audit_shot", lambda *a, **k: [])
+    g.main(["--library", "--limit=3"])
+    text = capsys.readouterr().out
+    # …and a NARROWED run must carry the catalogue's own size, or "3 of 3 registers" reads as the library.
+    assert "3 of 3 registers (--limit=3 — of %d registers in shots/)" % len(g.durations()) in text, text
+    assert "at default props" in text and "beats" not in text, text
+
+
+def test_a_cjk_sweep_never_sweeps_a_register_in_english_under_a_cjk_headline(monkeypatch, capsys):
+    """`except Exception: cjk_fixture[n] = {}` left the register with base props only, so it rendered its
+    LATIN demo defaults — and the scope line still said 'CJK fixtures'. Chinese is where this audit's
+    findings live, so a register swept in English is one the run says nothing about."""
+    import cjk_type_qa as _cjk
+    swept = []
+    monkeypatch.setattr(g, "audit_shot", lambda n, *a, **k: swept.append(n) or [])
+    real = _cjk.cjk_props
+
+    def _broken(name, offset=0):
+        if name == "Aliasing":
+            raise ValueError("no shape for its props")
+        if name == "AnalogTape":
+            return {}, []                     # shaped, but nothing Chinese in it
+        return real(name, offset)
+    monkeypatch.setattr(_cjk, "cjk_props", _broken)
+    rc = g.main(["--library", "--cjk", "--limit=4"])
+    text = capsys.readouterr().out
+    assert "Aliasing" not in swept and "AnalogTape" not in swept, swept
+    assert "2 register(s) NOT swept" in text, text
+    assert "could not be shaped" in text and "English demo defaults" in text, text
+    assert "2 of 4 registers (--limit=4 — of %d registers in shots/) at CJK fixtures" % len(
+        g.durations()) in text, text
+    assert rc == 2
