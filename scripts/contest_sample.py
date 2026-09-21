@@ -206,8 +206,17 @@ def build_props_conceived(spec, topic):
 
     Without this, conceiving a direction had no way to reach the screen, so the catalogue's fallback padding
     was the path of least resistance — and that is exactly how an off-topic option got onto the ballot.
-    `dna` names the preset the look is built in (the sample must render in the DNA the film would actually
-    get); `shots` is the [ShotId, props] list, i.e. the direction stated as frames rather than as a pitch.
+    `dna` is EITHER a preset name OR a full DesignDNA object, and it is routed the way `render_remotion.py`
+    routes `meta.design_dna` — an object to the Film's `dna` prop, a name to `template`. It used to go to
+    `template` unconditionally, and a conceived DNA is an OBJECT: the Film's `dnaFromTemplate()` cannot
+    resolve one, so it fell through to the default look and EVERY conceived direction rendered identically.
+    The contest then asked a user to choose between three looks none of which had been applied — which is
+    worse than no contest, because the ballot looks real. Measured on a three-direction Chinese film: a
+    direction declaring `bg: #F2EDE3` (paper, Y=0.850) rendered near-black, and its props file carried no
+    `dna` key at all. `shots` is the [ShotId, props] list, i.e. the direction stated as frames.
+
+    The seam goes the same way: `spec["seam"]` is `{type, direction}` in a real film's DNA, and passing that
+    object where a `{"type": ...}` was expected made the marked seam silently anonymous.
     """
     shots = [(s[0], s[1]) for s in (spec.get("shots") or [])]
     if not shots:
@@ -218,9 +227,18 @@ def build_props_conceived(spec, topic):
     caps = ["%s — %s" % (topic, spec.get("key", "conceived")), pitch[:70], "one film, this look"]
     scenes = [{"shot": sid, "props": props, "durF": SCENE_F, "caption": caps[i % len(caps)]}
               for i, (sid, props) in enumerate(shots)]
+    seam = spec.get("seam") or {"type": "dissolve"}
+    if isinstance(seam, str):
+        seam = {"type": seam}
     if len(scenes) > 1:
-        scenes[1]["transitionIn"] = {"type": spec.get("seam", "dissolve")}
-    return {"camera": 0, "template": spec.get("dna", "neutral"), "scenes": scenes}
+        scenes[1]["transitionIn"] = dict(seam)
+    props = {"camera": 0, "scenes": scenes}
+    dna = spec.get("dna")
+    if isinstance(dna, dict):
+        props["dna"] = dna                      # the conceived look itself — the Film coerces a partial one
+    else:
+        props["template"] = (dna or "neutral") if isinstance(dna, str) else "neutral"
+    return props
 
 
 def main():
