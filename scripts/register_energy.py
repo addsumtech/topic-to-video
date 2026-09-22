@@ -255,9 +255,172 @@ _LUMA_ENTRY = re.compile(r"^\s*(?:'|\")?([A-Za-z][A-Za-z0-9_]*)(?:'|\")?\s*:\s*'
 _FOLLOWS_BLOCK = re.compile(r"(GROUND_FOLLOWS_MEASURED[^=]*=\s*new Set\(\[)(.*?)(\]\))", re.S)
 
 
+# ── SYMBOL REACHABILITY ───────────────────────────────────────────────────────────────────────────────
+# A REGISTER DEPENDS ON THE SYMBOLS IT USES, NOT ON EVERY BYTE OF THE FILE THEY LIVE IN.
+#
+# `_deps` already narrowed this once, from "anything in runtime/ moved" to "a module this register
+# imports moved", and the two per-register tables below narrowed it twice more. What was left is still
+# the dominant cost: `runtime/dna.tsx` is imported by all 174 registers (every one of them calls
+# `useDNA`), so ANY edit to it invalidates the entire manifest. Measured on the session that motivated
+# this: adding `plane` — a new export nothing imported yet — staled 174 rows, and changing
+# `separatedPair`, which exactly ONE register imports (`VersusSplit`), staled 174 rows again. Each of
+# those cost a ~20 min prop_reach sweep plus a ~29 min register_energy sweep to answer a question whose
+# true answer was "0 rows" and "1 row". The file's own comment on `shotLuma.ts` already says why that
+# matters: "a check that cries wolf here is a check that gets answered by re-measuring the whole library
+# or by ignoring it; this repo has already recorded both."
+#
+# So a DIRECTLY imported module is hashed as: its preamble (imports, module-level statements — anything
+# before the first top-level declaration) plus the bodies of the top-level symbols REACHABLE from the
+# names this register actually imports. Reachability is deliberately an OVER-approximation: a symbol is
+# pulled in when its identifier appears anywhere in an included body, comments included. Over-approximating
+# can only ever hash too much, which costs a needless re-measure; it can never mark a row fresh whose
+# pixels moved, which is the failure the hash exists to catch. Anything this cannot parse with confidence
+# — a default import, a namespace import, a module with no recognisable declarations — falls back to the
+# whole file. Transitive modules (imported by a module rather than by the register) are hashed whole too:
+# narrowing those needs the closure across module boundaries and the measured cost is not there.
+_TOP_DECL = re.compile(r"^(?:export\s+)?(?:declare\s+)?(?:const|let|var|function|class|type|interface|enum)"
+                       r"\s+([A-Za-z_$][\w$]*)", re.M)
+_NAMED_IMPORT = re.compile(r"""^\s*import\s*\{([^}]*)\}\s*from\s*['"](\.[^'"]+)['"]""", re.M)
+_BARE_IMPORT = re.compile(r"""^\s*import\s+(?!\{|type\s*\{)[A-Za-z_$*][^'"]*from\s*['"](\.[^'"]+)['"]""", re.M)
+
+
+def _imported_names(register_src, dep_path, register_dir):
+    """The names `register_src` imports from `dep_path`, or None when it cannot be narrowed safely."""
+    want = None
+    for spec in _BARE_IMPORT.findall(register_src):          # default or namespace import → cannot narrow
+        if _resolve_rel(spec, register_dir) == dep_path:
+            return None
+    for names, spec in _NAMED_IMPORT.findall(register_src):
+        if _resolve_rel(spec, register_dir) != dep_path:
+            continue
+        want = set() if want is None else want
+        for n in names.split(","):
+            n = n.strip()
+            if not n:
+                continue
+            n = n.split(" as ")[0].strip()                   # `mix as blend` still depends on `mix`
+            n = re.sub(r"^type\s+", "", n).strip()
+            if n:
+                want.add(n)
+    return want
+
+
+def _resolve_rel(spec, base):
+    for ext in (".tsx", ".ts", "/index.tsx", "/index.ts", ""):
+        cand = os.path.realpath(os.path.join(base, spec + ext))
+        if os.path.isfile(cand):
+            return cand
+    return None
+
+
+# The narrowing is a REGEX CLOSURE over every symbol of every module a register imports, and `source_hash`
+# is called per register by `stale()`, which the gates and the tests call constantly. Unmemoised it took a
+# full `source_hashes()` from milliseconds to 9.6s and the test suite from 13 minutes to 66 — a performance
+# regression introduced by a performance fix. Keyed on (path, mtime_ns, size) so an edit DURING a sweep is
+# still picked up, which is the property the per-register re-read exists for in the first place.
+_BLOCK_CACHE = {}
+_NARROW_CACHE = {}
+_IMPORTS_CACHE = {}
+
+
+def _stamp(path):
+    try:
+        st = os.stat(path)
+        return (path, st.st_mtime_ns, st.st_size)
+    except OSError:
+        return (path, None, None)
+
+
+def _blocks_of(path, src):
+    key = _stamp(path)
+    hit = _BLOCK_CACHE.get(key)
+    if hit is None:
+        marks = [(m.start(), m.group(1)) for m in _TOP_DECL.finditer(src)]
+        if not marks:
+            hit = (None, None)
+        else:
+            blocks, starts = {}, [q for q, _ in marks] + [len(src)]
+            for i, (pos, nm) in enumerate(marks):
+                blocks[nm] = blocks.get(nm, "") + src[pos:starts[i + 1]]
+            hit = (src[: marks[0][0]], blocks)
+        _BLOCK_CACHE[key] = hit
+    return hit
+
+
+_IDENT = re.compile(r"[A-Za-z_$][\w$]*")
+_GRAPH_CACHE = {}
+
+
+def _mentions_of(path, blocks):
+    """{symbol: the other top-level symbols its body mentions} — built once per file version."""
+    key = _stamp(path)
+    hit = _GRAPH_CACHE.get(key)
+    if hit is None:
+        names = set(blocks)
+        hit = {k: {n for n in _IDENT.findall(v) if n in names} for k, v in blocks.items()}
+        _GRAPH_CACHE[key] = hit
+    return hit
+
+
+def _narrowed(src, want, path=None):
+    """`src` reduced to its preamble + the top-level symbols reachable from `want`, or None if unparseable."""
+    ckey = (_stamp(path) if path else None, frozenset(want))
+    if ckey[0] is not None and ckey in _NARROW_CACHE:
+        return _NARROW_CACHE[ckey]
+    preamble, blocks = _blocks_of(path, src) if path else (None, None)
+    if blocks is None:
+        if path:
+            _NARROW_CACHE[ckey] = None
+        return None
+    keep = {w for w in want if w in blocks}
+    if len(keep) != len(want):
+        if path:
+            _NARROW_CACHE[ckey] = None
+        return None                                          # imports a name this file does not declare
+    # The closure walks a symbol->mentions GRAPH built once per file, not a regex re-scan of the joined
+    # bodies per iteration: that inner loop was O(rounds x symbols x bytes) and cost 9.6s for one
+    # `source_hashes()`. Same over-approximation — a symbol is a dependency when its identifier appears
+    # anywhere in a body, comments included — computed by extracting identifiers instead of searching for
+    # each name in turn.
+    graph = _mentions_of(path, blocks) if path else {
+        k: {n for n in _IDENT.findall(v) if n in blocks} for k, v in blocks.items()}
+    todo = list(keep)
+    while todo:
+        for nm in graph.get(todo.pop(), ()):  # noqa: B007
+            if nm not in keep:
+                keep.add(nm)
+                todo.append(nm)
+    # Each block is rstripped: the LAST declaration's span runs to end-of-file, so a file that merely gains
+    # a trailing newline — or a new declaration appended after it — moved that block's text and staled 29
+    # rows whose symbols had not changed. Only TRAILING whitespace is touched; whitespace INSIDE a block can
+    # be load-bearing (a template literal's spacing reaches the frame), so it is hashed as written.
+    out = preamble.rstrip() + "".join(blocks[k].rstrip() for k in sorted(keep))
+    if path:
+        _NARROW_CACHE[ckey] = out
+    return out
+
+
 def _dep_bytes(dep, name):
     if os.path.basename(dep) != "shotLuma.ts":
-        return open(dep, "rb").read()
+        raw = open(dep, "rb").read()
+        # narrow a DIRECTLY imported module to the symbols this register reaches (see above). Any doubt —
+        # an unparseable module, a default/namespace import, a name the module does not declare — keeps the
+        # whole file, so the hash is never narrower than what the register actually reads.
+        own = os.path.join(_SHOTS, name + ".tsx")
+        try:
+            ikey = (_stamp(own), os.path.realpath(dep))
+            if ikey in _IMPORTS_CACHE:
+                want = _IMPORTS_CACHE[ikey]
+            else:
+                want = _imported_names(open(own, encoding="utf-8").read(), os.path.realpath(dep), _SHOTS)
+                _IMPORTS_CACHE[ikey] = want
+            if want:
+                cut = _narrowed(raw.decode("utf-8"), want, os.path.realpath(dep))
+                if cut is not None:
+                    return cut.encode("utf-8")
+        except (OSError, UnicodeDecodeError, re.error):
+            pass
+        return raw
     src = open(dep, encoding="utf-8").read()
     m = _FOLLOWS_BLOCK.search(src)
     if m:

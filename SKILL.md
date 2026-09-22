@@ -635,6 +635,24 @@ figure), a non-singular `the_one_thing`, or a
   1200-line contract to re-derive things a script had already decided; the mechanical half is gated before
   the render now, so the critic's pass is spent on meaning, faithfulness, register fit and the film's shape.
   `scripts/contact_sheet.py` builds the sheet alone if you want it without the brief.
+- `scripts/settled_frame.py <clip.mp4|out_dir> <out.png|dir/> [--at 0.90] [--beat N]` — the frame worth
+  JUDGING a design on. Every register animates in: type sets word by word, a plate draws on, a stamp lands
+  at 0.62–0.78, a counter rolls toward its final string. A frame grabbed mid-clip shows that machinery
+  in flight, and produces confident wrong readings — measured on one review pass, from mid-clip grabs:
+  "MagazineSpread drops the `deck`" (it fades in at 0.72–0.90), "the climax bar is 3.36:1, under the ink
+  floor" (settled: 10.94:1), "StatedBy never draws its stamp" (it lands last, by design). Two of those
+  nearly bought a "fix" to correct code. Sample late, at a fixed fraction, every time; `--beat N` finds
+  the beat's window in `out.mp4` itself, because the renderer compresses every cut and the board's running
+  duration is not the film's clock.
+
+**BEFORE you dispatch an agent to re-pick registers, run `validate.py` and read it.** It answers, in about
+a second and in any script, the two questions such a task is usually about: *one register drawing more than
+one FORM* names the beats that were cast on resemblance rather than on meaning, and the catalogue-shopping
+line reports which declared forms were BUILT versus drawn by a register the library already had. On the film
+that motivated this, a 49-minute agent explored five beats and had three of its picks rejected; the gate
+names the two that were actually miscast. Diagnose with the cheap deterministic instrument, then spend the
+agent on the beats it points at.
+
 - `scripts/register_shot.py <Id> <Family> --use-when "…"` — scaffold and register a NEW shot at every
   sync point in ONE command (`src/shots/<Id>.tsx` stub + `registry.ts` + `Root.tsx` + `shotLuma.ts` +
   `shot_director.FAMILY` + `LIBRARY.md`), `--check` verifies an existing one. **The library is meant to

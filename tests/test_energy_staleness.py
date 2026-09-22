@@ -109,3 +109,64 @@ def test_the_recorded_hash_is_the_one_the_render_read(tmp_path, monkeypatch):
     # and the consequence that makes it matter: the edit is now VISIBLE
     assert [n for n, _ in re_.stale(data)] == ["A"], (
         "a register edited after it was measured does not report as stale: %r" % re_.stale(data))
+
+
+# ── a register depends on the SYMBOLS it uses, not on every byte of the file they live in ─────────────
+def _dna_path():
+    import register_energy as reg
+    return os.path.join(os.path.dirname(reg._SHOTS), "runtime", "dna.tsx")
+
+
+def _hashes():
+    import register_energy as reg
+    return {n: reg.source_hash(n) for n in reg.universe()}
+
+
+def _with_dna(edit):
+    """Apply `edit(src) -> src` to runtime/dna.tsx, return the set of registers whose hash moved."""
+    import register_energy as reg                                     # noqa: F401
+    p = _dna_path()
+    orig = open(p, encoding="utf-8").read()
+    before = _hashes()
+    try:
+        open(p, "w", encoding="utf-8").write(edit(orig))
+        after = _hashes()
+    finally:
+        open(p, "w", encoding="utf-8").write(orig)
+    assert _hashes() == before, "restoring dna.tsx did not restore the hashes"
+    return {n for n in before if before[n] != after.get(n)}
+
+
+def test_a_register_is_stale_for_the_symbols_it_uses_and_not_for_the_rest():
+    """`runtime/dna.tsx` is imported by every register in the library, so whole-file hashing meant ANY edit
+    to it invalidated all 174 rows. Measured on the session that motivated this: adding `plane`, a new
+    export nothing imported yet, staled 174; changing `separatedPair`, which exactly ONE register imports,
+    staled 174 again. Each answer cost a ~20 min prop_reach sweep plus a ~29 min register_energy sweep to
+    say "0 rows" and "1 row".
+
+    Both directions are asserted, and the SAFE one is the one that matters: over-approximating costs a
+    needless re-measure, under-approximating marks a row fresh whose pixels moved, which is the whole
+    reason the hash exists."""
+    import register_energy as reg
+
+    # 1. a NEW export nobody imports moves nothing
+    moved = _with_dna(lambda s: s + "\nexport const _unusedProbeXYZ = (x: string): string => x;\n")
+    assert moved == set(), "an export with no importer staled %d row(s): %r" % (len(moved), sorted(moved)[:5])
+
+    # 2. a symbol with exactly one importer moves exactly that one
+    assert "separatedPair" in open(_dna_path(), encoding="utf-8").read()
+    users = [n for n in reg.universe()
+             if "separatedPair" in open(os.path.join(reg._SHOTS, n + ".tsx"), encoding="utf-8").read()]
+    assert len(users) == 1, "this probe assumes one importer, found %r" % users
+    moved = _with_dna(lambda s: s.replace("export const separatedPair = (",
+                                          "export const separatedPair = (   /* touched */", 1))
+    assert moved == set(users), "expected %r, got %r" % (users, sorted(moved))
+
+    # 3. SAFETY — a widely used symbol still moves widely
+    moved = _with_dna(lambda s: s.replace("export const mix = (", "export const mix = (  /* touched */", 1))
+    assert len(moved) > 40, "editing `mix` staled only %d row(s) — narrowing is cutting too deep" % len(moved)
+
+    # 4. SAFETY — a PRIVATE helper an imported symbol reaches is not exempt. `_hex` is not exported; `mix`
+    #    calls it, and a register that imports `mix` must go stale when it changes.
+    moved = _with_dna(lambda s: s.replace("const _hex = (", "const _hex = (  /* touched */", 1))
+    assert len(moved) > 40, "a private helper reached from an imported symbol staled only %d row(s)" % len(moved)
