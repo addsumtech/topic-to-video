@@ -320,3 +320,79 @@ def test_the_settled_frame_has_exactly_one_definition():
         assert not re.search(r"DURATION[^\n]*\*\s*0\.\d+", code), \
             "%s derives the settled frame from a literal again — call render_remotion.frame_at_t" % name
         assert "frame_at_t" in code, "%s no longer asks the one definition" % name
+
+
+# ── critic_ledger: the user may waive the review — but only for the render they watched ──────────────
+
+def _waiver_fixture(tmp_path, reason="我看过整片了，就这样发，不用再评审", pin="self", extra=None):
+    from PIL import Image
+    out = str(tmp_path)
+    sheet = os.path.join(out, critic_ledger.CONTACT_SHEET)
+    if not os.path.exists(sheet):
+        Image.new("RGB", (32, 32), (20, 30, 40)).save(sheet)
+    w = {"reason": reason}
+    if pin == "self":
+        w["render_sha256"] = critic_ledger.sha256_of(sheet)
+    elif pin is not None:
+        w["render_sha256"] = pin
+    if extra is not None:
+        w = extra
+    board = {"meta": {"renderer": "remotion", "review_waiver": w}, "slides": []}
+    json.dump(board, open(os.path.join(out, "storyboard.json"), "w", encoding="utf-8"))
+    open(os.path.join(out, "NOT_DELIVERED.md"), "w", encoding="utf-8").write("# not yet\n")
+    return out
+
+
+def test_a_user_may_waive_the_critic_but_only_for_the_render_they_watched(tmp_path):
+    """"Reviewed" and "not reviewed" are not the only truths: a user who has watched the film and judged it
+    finished may waive the critic. What makes that safe to have is not the option, it is the three things
+    around it — the reason is recorded in the user's own words, the waiver pins the RENDER it covers, and it
+    waives taste only.
+
+    The pin is the property that matters. "The user said fine once" must not become a standing licence over
+    everything changed afterwards: re-render one beat and the contact sheet moves, the waiver stops applying
+    and the gate asks again."""
+    out = _waiver_fixture(tmp_path)
+    errs, warns = critic_ledger.validate(out, final=True)
+    assert not errs, errs
+    assert any("WAIVED BY THE USER" in w for w in warns), warns
+    cov = critic_ledger.coverage(out)
+    assert cov["judged"] == 0 and cov["waived"] is True and not cov["missing"], cov
+
+    # it is NOT a pass: the delivery marker is rewritten to say the film shipped unreviewed
+    p = subprocess.run([sys.executable, critic_ledger.__file__, out, "--final"], capture_output=True, text=True)
+    assert p.returncode == 0, p.stdout
+    nd = open(os.path.join(out, "NOT_DELIVERED.md"), encoding="utf-8").read()
+    assert "WITHOUT a critic review" in nd and "我看过整片了" in nd, nd
+
+    # ── and every way of getting it wrong is refused ────────────────────────────────────────────────
+    # 1. the film was re-rendered since the waiver was given
+    out2 = _waiver_fixture(tmp_path, pin="0" * 64)
+    errs, _ = critic_ledger.validate(out2, final=True)
+    assert errs and "DIFFERENT render" in errs[0], errs
+    assert critic_ledger.coverage(out2)["waived"] is False
+    # a broken waiver must not drown its own message in per-dimension noise
+    assert not critic_ledger.coverage(out2)["missing"]
+
+    # 2. no reason, or a reason too thin to be a decision
+    for bad in ("", "ok", "   "):
+        errs, _ = critic_ledger.validate(_waiver_fixture(tmp_path, reason=bad), final=True)
+        assert errs and "reason" in errs[0], (bad, errs)
+
+    # 3. no render pinned at all
+    errs, _ = critic_ledger.validate(_waiver_fixture(tmp_path, pin=None), final=True)
+    assert errs and "render_sha256" in errs[0], errs
+
+    # 4. a bare string is accepted as the reason but still needs its pin — it cannot become the easy path
+    errs, _ = critic_ledger.validate(
+        _waiver_fixture(tmp_path, extra="我看过整片了，就这样发，不用再评审"), final=True)
+    assert errs and "render_sha256" in errs[0], errs
+
+    # 5. no waiver at all is unchanged: a missing ledger is still a refusal with every dimension named
+    plain = _waiver_fixture(tmp_path)
+    b = json.load(open(os.path.join(plain, "storyboard.json"), encoding="utf-8"))
+    b["meta"].pop("review_waiver")
+    json.dump(b, open(os.path.join(plain, "storyboard.json"), "w", encoding="utf-8"))
+    errs, _ = critic_ledger.validate(plain, final=True)
+    assert errs and "no %s" % critic_ledger.LEDGER_NAME in errs[0], errs
+    assert len(critic_ledger.coverage(plain)["missing"]) == len(critic_ledger.dimensions())

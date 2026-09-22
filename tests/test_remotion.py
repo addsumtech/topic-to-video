@@ -1223,6 +1223,26 @@ def test_shot_proof_catches_the_mechanical_half_of_a_shot_review():
     assert not sp._in_palette(280.0, data_hues)
 
 
+# Eight registers from eight DIFFERENT families, resolved from the live map so this cannot rot into a
+# hardcoded list of names the library has since renamed.
+def _spread_registers(n=8):
+    import collections
+    import shot_director as _sd
+    # ...from families with THREE OR MORE members. A one- or two-register family trips the separate
+    # "leans on a thin family and built nothing" warning, which this fixture is also not about.
+    size = collections.Counter(_sd.FAMILY.values())
+    seen, out = set(), []
+    for name, fam in sorted(_sd.FAMILY.items()):
+        if fam not in seen and size[fam] >= 3:
+            seen.add(fam)
+            out.append(name)
+    assert len(out) >= n, "the library no longer holds %d families of 3+" % n
+    return out[:n]
+
+
+_FAMILY_SPREAD = _spread_registers()
+
+
 def test_the_library_can_grow_and_the_gates_say_so():
     # The skill is supposed to BUILD a register when no existing one carries a beat's argument. It never
     # did, for two reasons this test pins: nothing asked (no fit judgement was recorded anywhere), and
@@ -1252,7 +1272,12 @@ def test_the_library_can_grow_and_the_gates_say_so():
                                           {"form": "field note", "carries": "an observation, dated"},
                                           {"form": "wall chart", "carries": "a series, at a glance"}],
                       "idiom_world": ["motion-graphics"]},
-             "slides": [{"index": i, "shot": "CinematicTitle", "shot_props": {"title": "t%d" % i},
+             # The registers VARY across families on purpose. This fixture's contract is "compliant apart
+             # from the thing each case is probing", and twelve beats on one register is one design language
+             # top-to-bottom — which `validate` now says out loud (family spread, shot-critic S2). Keeping
+             # them identical would make every assertion below fight a complaint it is not about.
+             "slides": [{"index": i, "shot": _FAMILY_SPREAD[i % len(_FAMILY_SPREAD)],
+                         "shot_props": {"title": "t%d" % i},
                          "shot_adaptation": {"kept": "k", "redesigned": "r", "topic_idea": "t"},
                          "audio": "audio/%02d.mp3" % i, "duration": 5.0, "narration": "一句话。"}
                         for i in range(12)]}

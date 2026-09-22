@@ -78,8 +78,10 @@ say why — those parts have a per-DNA form and a hand-rolled one will not follo
 > **Precedent — `18371d5`:** A city documentary came out of this library speaking developer-tool: six terminal shots (`$ dig --oudegracht`, `$ diff 1674 1826`), a SaaS dashboard under a children's-book character, product cards for a municipal bicycle garage. 16 of 35 beats, every one passing its own gates. The cause was the ORDER OF OPERATIONS — atmosphere was derived from the topic, form vocabulary was taken from the catalogue, so whatever the catalogue is mostly made of became every film's vocabulary.
 > **Ask yourself:** Name the form this beat's SUBJECT is actually recorded, measured or argued about in. Is that what is on screen, or is it the nearest thing the catalogue had?
 
-**S2 · Family VARIETY (whole-film).** No two ADJACENT beats may share a family (A–Z in LIBRARY.md, an OPEN set — AA+ if extended); a ≥10-beat
-film should span ≥6 families and not lean on one. Two adjacent same-family beats = REVISE the second.
+**S2 · Family VARIETY (whole-film).** **`validate.py` now counts all three of these** — two ADJACENT
+beats on one family, a ≥10-beat film spanning fewer than 6, and one family past 45% of the film — and the
+counts are in your brief. Do not re-derive them; a finding of yours that repeats one is a finding the
+pipeline already had. What a count cannot answer is the next line.
 
 > **Precedent — `3685843`:** Same film. The cause was a selection RULE, not taste: registers were picked by "renders correctly on paper" instead of "belongs to this subject", and this library's centre of gravity is AI-product films — so that filter returned Term* and product registers for a place.
 > **Ask yourself:** Which family is this film leaning on, and did it CHOOSE that family or default into it?
@@ -106,10 +108,13 @@ caption) and in the deck's language (English or 中文, matching `meta.language`
 > **Precedent — `c19efd2`:** A Chinese route string matched only `AI` under an ASCII-only token regex; every other character was discarded and the copy fell through to hardcoded English placeholders (`Overview` / `Signals` / `Results`). The script exited 0, wrote three sample videos, and the diversity gate scored them.
 > **Ask yourself:** Is every word on this frame in the film's language, and did the FILM supply it?
 
-**S6 · A/V + deterministic keyframe QA.** `check_av` must pass (video/audio in sync, no truncation) AND
-`python scripts/keyframe_qa_remotion.py <out_dir>` must pass — the machine backstop behind your eyes: it fails
-loud on any scene keyframe that rendered BLANK / near-uniform (a malformed prop, a regressed bundle, a frozen
-empty beat). Run it before you consent; a FAIL blocks delivery.
+**S6 · A/V + deterministic keyframe QA.** `check_av` and `keyframe_qa_remotion` have already run and
+their verdicts are in your brief; a FAIL blocks delivery whatever you think of the frames. You are not here
+to re-run them. You are here for the line below, which is the half a gate cannot do — and which this
+pipeline has got wrong in both directions: a gate pointed at the wrong artifact reporting a collision that
+was not there, and a reviewer judging a composition on a frame grabbed mid-animation, where the plate has
+not drawn on and the stamp has not landed. `scripts/settled_frame.py` exists so the second cannot happen by
+accident; sample at ~90%, never by eye.
 
 > **Precedent — `8a3938f`:** `shot_still_qa` pointed at delivered `_keyframes/` counts the burned subtitle itself as content: a long CJK line alone scored 5.2% and 13.7% band ink, both reported as collisions that were not there. I read that false signal myself before checking the frames.
 > **Ask yourself:** Did each gate run on the RIGHT artifact — and did I look at the frame before believing its number?

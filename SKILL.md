@@ -1426,6 +1426,32 @@ agent on the beats it points at.
    — and that PASS must be an INDEPENDENT one: re-dispatch the critic as a fresh subagent given only the
    `<out_dir>` path, then `python3 scripts/critic_ledger.py <out_dir> --final` (exit 0 required; it refuses an
    in-context ledger, a ledger missing any dimension, and one pinned to a different render's contact sheet).
+
+   **The user may WAIVE this review — and only the user may.** At the delivery checkpoint, offer it as a
+   third option beside "review it" and "revise first": *skip the critic, I have watched it and it is
+   finished*. If they take it, write their own words into `meta.review_waiver` in `storyboard.json`:
+
+   ```json
+   "review_waiver": {"reason": "<what the user actually said>",
+                     "render_sha256": "<sha256 of _contact_sheet.png, which you compute>"}
+   ```
+
+   `critic_ledger.py --final` then exits 0 without a ledger, says REVIEW WAIVED on every run, and rewrites
+   `NOT_DELIVERED.md` into a record that the film shipped unreviewed and why — a waiver is **not** a PASS,
+   and `ls` must keep answering "was this ever looked at?" truthfully.
+
+   Three things bind you here:
+   - **Never author it on your own behalf.** Not to save time, not because the gates are green, not because
+     you think the film is good. It is the one judgement in this pipeline you are structurally the wrong
+     party to make (`critic_ledger.py`'s own header: the maker has confirmation bias about their own output).
+     If the user has not said it, there is no waiver.
+   - **It expires with the render.** The pin covers the cut the user actually watched. Change one beat, one
+     colour, one line of narration, re-render — the sha moves, the waiver stops applying, and the gate asks
+     again. That is deliberate: "fine once" must not become a licence over everything changed afterwards.
+     When that happens, show the user the NEW cut and ask again; do not re-stamp the pin.
+   - **It waives taste, not correctness.** `check_av`, `keyframe_qa_remotion`, `text_safe_qa`, `cjk_type_qa`,
+     `film_energy_qa`, `shake_qa` and `validate.py` all still run and still gate delivery. A waived film is
+     one nobody judged for register fit, meaning, frame-craft or boldness — not one nobody checked plays.
    **BEFORE the render, on a `meta.renderer:"remotion"` film, run the two PRE-render checks this tier grew
    after shipping films that passed everything and still read wrong.** Neither costs a render of the film:
    • `python3 scripts/energy_skeleton.py <out_dir>` — the plan declares an `energy` per beat and the sweep

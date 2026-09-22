@@ -27,6 +27,21 @@ the one handed to the user. This session supplied the proof — a change was lan
 and the number that showed it had NOT worked was written into the code as its motivation. A reviewer holding
 no memory of intending it reads that frame as a blank frame, which is what it was.
 
+AND A THIRD STATE, BECAUSE "REVIEWED" AND "NOT REVIEWED" ARE NOT THE ONLY TRUTHS. A user who has watched
+the film and judged it finished may waive the critic — `meta.review_waiver` in storyboard.json. That is a
+DECISION, recorded where decisions live, and it is not a PASS: the film ships marked UNREVIEWED, and this
+gate says so on every run rather than falling silent. Three properties make it safe to have:
+
+* It is the USER's, not the maker's. Nothing in this pipeline may author it on its own behalf; the reason
+  string is the user's own words, and an empty one is refused.
+* It EXPIRES WITH THE RENDER. The waiver pins the contact sheet's sha256, so it covers the film the user
+  actually looked at. Re-render — change one beat, one colour, one line of narration — and the sha moves and
+  the waiver no longer applies. This is the property that matters: "the user said fine once" must not become
+  a standing licence over everything changed afterwards.
+* It waives THIS review only. `check_av`, `keyframe_qa_remotion`, `text_safe_qa`, `cjk_type_qa`,
+  `film_energy_qa`, `shake_qa` and `validate.py` are untouched and still gate delivery. A waiver is a
+  judgement about taste, never about whether the file plays.
+
 The dimension list is PARSED from agents/shot-critic.md. Restating it here is how this repo's caption band
 became four disagreeing copies; a new dimension must be required by this gate the moment it is written down.
 """
@@ -115,12 +130,23 @@ def template(out_dir):
 def coverage(out_dir):
     """How much of the critic's declared universe this ledger actually JUDGED.
 
+    Under a user waiver there is no ledger and nothing was judged — which this reports as zero of N, not as
+    a pile of NO ROW findings. "Nobody looked, by the user's decision" is a different fact from "the review
+    forgot eleven dimensions", and printing the second for the first would train a reader to scroll past it.
+
     A missing row is already a refusal. The quieter hole is a ledger that is perfectly well formed and
     judges almost nothing: `na` is a legitimate verdict (a dimension can genuinely not apply) and it
     carries a reason, but thirteen of them still print `0 error(s)` and read exactly like thirteen looked-at
     dimensions. The headline now states the split, so "the review passed" cannot be read off a review that
     declined most of its own subject.
     """
+    # A waiver — valid or BROKEN — already explains why there is no ledger, so the per-dimension list is
+    # suppressed either way. Printing fourteen NO ROW lines above the one actionable line ("the waiver was
+    # given for a different render") is how a reader learns to scroll past this gate's output.
+    wv, wprobs = waiver(out_dir)
+    if wv is not None:
+        return {"declared": len(dimensions()), "judged": 0, "pass": 0, "fail": 0,
+                "na": [], "unjudged": [], "missing": [], "waived": not wprobs}
     declared = dimensions()
     # Counters are named rather than indexed by the verdict string: `out[v] += 1` would reach into the
     # LIST fields the moment a new verdict shares their name, and a coverage report that raises is a
@@ -153,8 +179,59 @@ def coverage(out_dir):
     return out
 
 
+WAIVER_KEY = "review_waiver"
+
+
+def waiver(out_dir):
+    """(waiver_dict, [problems]) — the user's decision to ship without a critic pass, or (None, []).
+
+    Read from storyboard.json's `meta`, not from the ledger: the ledger is the REVIEWER's artifact and a
+    waiver is not a review. Returns problems rather than raising so the gate can report them like any other
+    finding."""
+    board = os.path.join(out_dir, "storyboard.json")
+    if not os.path.exists(board):
+        return None, []
+    try:
+        meta = (json.load(open(board, encoding="utf-8")) or {}).get("meta") or {}
+    except Exception:                                         # noqa: BLE001 — a broken board is validate.py's
+        return None, []
+    w = meta.get(WAIVER_KEY)
+    if w is None:
+        return None, []
+    if isinstance(w, str):
+        w = {"reason": w}
+    if not isinstance(w, dict):
+        return None, ["meta.%s must be an object {reason, render_sha256} or a reason string" % WAIVER_KEY]
+    probs = []
+    reason = str(w.get("reason") or "").strip()
+    if len(reason) < 12:
+        probs.append("meta.%s.reason is empty or too short — a waiver is a decision someone made, and the "
+                     "record has to say what it was, in the user's own words" % WAIVER_KEY)
+    sheet = os.path.join(out_dir, CONTACT_SHEET)
+    pinned = str(w.get("render_sha256") or "").strip().lower()
+    if not pinned:
+        probs.append("meta.%s.render_sha256 is empty — a waiver covers the render the user actually watched, "
+                     "so it must be pinned to one" % WAIVER_KEY)
+    elif not os.path.exists(sheet):
+        probs.append("%s is missing, so the pinned render cannot be checked — run scripts/critic_brief.py"
+                     % CONTACT_SHEET)
+    elif pinned != sha256_of(sheet):
+        probs.append("meta.%s was given for a DIFFERENT render (pinned %s, this film is %s). The film has "
+                     "been re-rendered since it was waived; a waiver is not a standing licence over "
+                     "everything changed afterwards. Show the user this cut and ask again, or review it."
+                     % (WAIVER_KEY, pinned[:12], sha256_of(sheet)[:12]))
+    return w, probs
+
+
 def validate(out_dir, final=False):
     errs, warns = [], []
+    wv, wprobs = waiver(out_dir)
+    if wv is not None:
+        if wprobs:
+            return (["the review waiver is not usable: " + p for p in wprobs], [])
+        return ([], ["REVIEW WAIVED BY THE USER for this render — no critic judged this film. Reason given: "
+                     "%r. The deterministic gates still apply and still gate delivery; this waives taste, "
+                     "not whether the file plays." % str(wv.get("reason"))[:160]])
     path = os.path.join(out_dir, LEDGER_NAME)
     if not os.path.exists(path):
         return (["no %s — the review produced no per-dimension record. Run with --emit-template, fill every "
@@ -268,6 +345,7 @@ def main(argv):
         return 0
 
     final = "--final" in argv
+    wv, _wprobs = waiver(out_dir)
     errs, warns = validate(out_dir, final=final)
     cov = coverage(out_dir)
     for w in warns:
@@ -304,7 +382,22 @@ def main(argv):
                       .get("verdict", "")).strip().upper()
     except Exception:                                        # noqa: BLE001 — a missing ledger is already an err
         pass
-    if final and os.path.exists(nd):
+    # A WAIVER IS NOT A PASS, so the marker does not simply come off: it is REWRITTEN to say the film shipped
+    # unreviewed and who decided that. `ls` must still answer "was this film ever looked at?" truthfully, and
+    # for a waived film the honest answer is no — by the user's choice, for this exact render.
+    if final and wv is not None and not errs:
+        with open(nd, "w", encoding="utf-8") as fh:
+            fh.write("# Delivered WITHOUT a critic review\n\n"
+                     "The user waived `shot-critic` for this render (`meta.review_waiver` in "
+                     "storyboard.json).\n\n- **Reason given:** %s\n- **Render this covers:** contact sheet "
+                     "`%s`\n\nNo critic judged register fit, meaning, frame-craft, boldness or direction "
+                     "adherence on this film. The deterministic gates DID run and did gate delivery.\n\n"
+                     "If this film is re-rendered, the waiver expires with it: the pin above stops matching "
+                     "and `critic_ledger.py --final` asks again.\n"
+                     % (str(wv.get("reason"))[:400],
+                        str(wv.get("render_sha256"))[:16]))
+        print("[critic_ledger] delivered UNREVIEWED — rewrote NOT_DELIVERED.md to say so")
+    elif final and os.path.exists(nd):
         if not errs and overall == "PASS":
             os.remove(nd)
             print("[critic_ledger] delivery review PASSED — removed NOT_DELIVERED.md")

@@ -2448,6 +2448,38 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None):
                         "redesigned and none needed a new register. On a topic-specific film that is the "
                         "signature of matching the catalogue rather than judging it. Re-read the beats whose "
                         "register you picked for its shape rather than its meaning." % len(slides))
+    # FAMILY SPREAD, not just adjacency. `validate` already refuses two ADJACENT beats on one family and
+    # already names a thin family leaned on without building — but the other half of the shot-critic's S2
+    # ("a >=10-beat film should span >=6 families and not lean on one") lived only in that rubric, where an
+    # optional, late, subjective step may or may not run it. The same lesson as the slide counter: a rule
+    # nothing executes is not a rule. The share bound reuses LAYOUT_FAMILY_MAX_SHARE rather than inventing a
+    # second number — it is the html tier's calibrated "one form top-to-bottom reads as auto-generated"
+    # threshold, and the claim is identical one tier over. The >=3 guard comes with it, so a short film is
+    # not called monotonous for having two of four alike.
+    # WHAT IS STILL THE CRITIC'S: whether the film CHOSE the family it leans on or defaulted into it. This
+    # counts; it cannot read intent.
+    try:
+        import shot_director as _sdf
+        import collections as _cof
+        _fseq = [_sdf.FAMILY.get(x) for x in seq if _sdf.FAMILY.get(x)]
+        if len(slides) >= 10 and _fseq:
+            _spread = len(set(_fseq))
+            if _spread < 6:
+                warnings.append(
+                    "remotion: %d beats span only %d design famil%s (%s) — a film this long that stays "
+                    "inside five is reading the catalogue's centre of gravity rather than its own subject. "
+                    "shot-critic S2 asks for >=6."
+                    % (len(slides), _spread, "y" if _spread == 1 else "ies",
+                       ", ".join(sorted(set(_fseq)))))
+            _top, _n = _cof.Counter(_fseq).most_common(1)[0]
+            if _n >= 3 and _n / len(_fseq) > LAYOUT_FAMILY_MAX_SHARE:
+                warnings.append(
+                    "remotion: %d of %d beats sit in family '%s' (%d%%) — one design language top-to-bottom "
+                    "reads as one look however varied the copy is. Say why that family, or vary it."
+                    % (_n, len(_fseq), _top, round(100 * _n / len(_fseq))))
+    except Exception:
+        pass
+
     # A FILM HAS NO PAGES. `agents/design-critic.md` has said "REVISE a playback button, seek/progress bar,
     # timecode, or slide counter" since the critic was written — but only there, as prose a late, optional,
     # subjective step reads. Nothing in the authoring path mentioned the per-scene `chrome` block at all

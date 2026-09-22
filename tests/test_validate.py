@@ -1784,3 +1784,43 @@ def test_the_catalogue_check_measures_instead_of_delegating_outside_latin():
     assert "could not run" not in w[0], "it still refuses to measure"
     assert "1 of 2 declared form(s) have a beat that BUILT" in w[0], w[0]
     assert "交接单" in w[0] and "口径戳" in w[0], w[0]
+
+
+def test_family_spread_is_gated_not_left_to_the_rubric():
+    """`shot-critic` S2 asks for two things: no two ADJACENT beats on one family, and "a >=10-beat film
+    should span >=6 families and not lean on one". `validate` enforced only the first; the second lived in
+    a rubric an optional late step may or may not run — the same shape as the slide-counter rule, which
+    shipped on 30 frames because it existed only there.
+
+    The real film that motivated this spans 10 families with a 17% top share, so the gate must stay SILENT
+    on it: a diversity check that fires on a diverse film is a check that gets ignored."""
+    import validate as _v
+    import shot_director as _sd
+
+    def board(shots):
+        return _remotion_beats([(s, "f%d" % i) for i, s in enumerate(shots)])
+
+    by_family = {}
+    for name, fam in _sd.FAMILY.items():
+        by_family.setdefault(fam, []).append(name)
+    wide = [v[0] for v in list(by_family.values())[:8]]
+    assert len(wide) == 8, "the library no longer has 8 families to draw from"
+
+    # 1. a varied film is silent — 12 beats, 8 families, top share 2/12
+    ok = board((wide * 2)[:12])
+    w = _v.evaluate(ok, "/tmp")["warnings"]
+    assert not any("span only" in x or "sit in family" in x for x in w), w
+
+    # 2. a film that stays inside five families is named
+    narrow = board([wide[i % 4] for i in range(12)])
+    w = _v.evaluate(narrow, "/tmp")["warnings"]
+    assert any("span only 4 design famil" in x for x in w), w
+
+    # 3. and a film that leans on ONE past the share bound is named separately
+    lean = board([wide[0]] * 8 + wide[1:5])
+    w = _v.evaluate(lean, "/tmp")["warnings"]
+    assert any("sit in family" in x and "67%" in x for x in w), w
+
+    # 4. under 10 beats the spread half does not apply — a short film has no room for six
+    short = board([wide[0], wide[1], wide[0], wide[1]])
+    assert not any("span only" in x for x in _v.evaluate(short, "/tmp")["warnings"])
