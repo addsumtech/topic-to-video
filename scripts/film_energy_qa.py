@@ -88,7 +88,12 @@ COVERAGE_TOLERANCE = 0.02     # …and at least this fraction of what the file c
 # regenerate is not a measurement, it is a memory — so `--reference <dir>` re-measures them and reports drift.
 # The films are not in the repo (they are not ours to redistribute); the command names what to put in the
 # directory, and says so plainly when a file is absent instead of quietly measuring three of four.
-REFERENCE = {                 # (motion_p75, ink_median, luma_range, luma_steps)
+# The INK column is kept as a RECORD and is no longer compared: those numbers were measured under the old
+# "share of pixels far from the frame's modal tone" definition, which `_drawn` replaced after it scored a
+# film's emptiest frame as its second fullest. They cannot be re-derived without re-measuring these four
+# films, which are not in the repo — so the density floor went with the old metric rather than being
+# re-guessed from them, and `--reference` checks the three axes it can still honestly check.
+REFERENCE = {                 # (motion_p75, [retired: ink_median], luma_range, luma_steps)
     "Apple iPhone 17 Pro": (0.0357, 0.243, 0.270, 0.038),
     "OpenAI Codex Micro": (0.0075, 0.644, 0.330, 0.060),
     "Figma Config": (0.0481, 0.361, 0.903, 0.425),
@@ -100,6 +105,7 @@ REFERENCE_FILES = {
     "Figma Config": "figma",
     "Anthropic Keep thinking": "anthropic",
 }
+REFERENCE_COMPARED = (0, 2, 3)          # motion_p75, luma_range, luma_steps — ink is a record now
 REFERENCE_DRIFT = 0.02        # re-encodes and re-downloads move these a little; a real drift moves them more
 
 
@@ -116,8 +122,110 @@ def verify_reference(directory):
             missing.append("%s (%s could not be measured)" % (name, os.path.basename(hits[0])))
             continue
         got = (m["motion_p75"], m["ink_median"], m["luma_range"], m["luma_steps"] or 0.0)
-        rows.append((name, REFERENCE[name], got, max(abs(a - b) for a, b in zip(REFERENCE[name], got))))
+        drift = max(abs(REFERENCE[name][i] - (got[i] or 0.0)) for i in REFERENCE_COMPARED)
+        rows.append((name, REFERENCE[name], got, drift))
     return rows, missing
+
+
+# WHAT "INK" MEANS, AND WHY IT WAS MEASURED BACKWARDS FOR A YEAR.
+#
+# It used to be `(|f - median(f)| > 0.10).mean()` — the share of pixels far from the frame's modal tone.
+# That is a measure of how much of the frame is a FILLED FIELD, not of how much is DRAWN ON, and on a film
+# whose language is hairlines and type the two come apart completely. Measured on a delivered 30-beat film,
+# with the frames then opened and looked at:
+#
+#   beat 19 — five heavily blurred, information-free plates and one sharp card   OLD 22.5%  (2nd densest!)
+#   beat  7 — two labels and four list rows, carried by two large colour fields  OLD 49.2%
+#   beat 15 — a full stone slab with two lines of giant carved type              OLD  5.0%  (near the bottom)
+#
+# The gate's own sentence is "an empty frame with a caption on it is not sparse, it is unfinished" — and it
+# was scoring the film's emptiest frame as its second fullest, because blurred grey plates deviate from
+# cream. So the question it asks is now the one it meant: is there STRUCTURE here — edges, strokes, rules,
+# type — or is this a coloured area? Local gradient answers that. Thin type scores; a flat block does not,
+# except at its border; a blurred plate does not at all, which is exactly right.
+#
+#   the same three beats, re-measured                                            NEW 3.0% · 4.4% · 6.7%
+#
+# THE ABSOLUTE FLOOR IS RETIRED WITH THE OLD METRIC, NOT RE-GUESSED. The old 12% was "half of the sparsest
+# reference, Apple's 24.3%" — a number derived from reference films measured under the OLD definition, so
+# it does not carry over, and this repo has no corpus to re-derive one from. Inventing a replacement from
+# the one film in front of me is the error recorded all over this codebase. The axis therefore REPORTS: the
+# film's own distribution and the beats at the bottom of it, which is the question an author can act on
+# ("which of my beats is least drawn on?") rather than one they can only waive.
+_EDGE = 0.04          # a local step this size is a mark; below it is paper grain and gradient banding
+# ...AND DENSITY IS MEASURED AT ITS OWN RESOLUTION, in a second decode. Structure is scale-dependent in a
+# way a mean is not: at the 192px long side the other axes use, the film's confirmed-emptiest beat (five
+# heavily blurred, information-free plates) ranked TWELFTH of thirty, because at that size a soft plate
+# border still counts as an edge while 24px type does not resolve at all. At 384 it ranks second, at 640
+# first; the confirmed-full and confirmed-densest beats rank 25-27th and 30th at every size, so the ranking
+# is stable once the question can be resolved at all.
+#
+# The obvious move — raise `long_side` for everything — is the one that must not be made: MOTION is a
+# frame-difference and IT MOVES WITH SCALE. Measured on the same film, p75 goes 0.00284 -> 0.00339 between
+# 192 and 384 against a 0.0037 floor, i.e. from 23% under to 8% under with nothing about the film changed.
+# That floor was calibrated against reference films decoded at 192, so a wider decode would silently
+# recalibrate it. Two decodes, two questions, neither one quietly moving the other's bar.
+DENSITY_LONG_SIDE = 384
+
+
+def density(path, board=None, fps=12, long_side=None):
+    """{median, beats:[{index, shot, drawn}]} — how much of each frame is DRAWN ON, at the resolution that
+    question needs. Returns None when it cannot decode; the axis then reports that it did not run."""
+    try:
+        import numpy as np
+    except ImportError:
+        return None
+    ls = long_side or DENSITY_LONG_SIDE
+    size = probe_size(path)
+    if not size:
+        return None
+    W0, H0 = size
+    if W0 >= H0:
+        w, h = ls, max(2, int(round(ls * H0 / W0)) // 2 * 2)
+    else:
+        h, w = ls, max(2, int(round(ls * W0 / H0)) // 2 * 2)
+    proc = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-vf",
+                           "fps=%d,scale=%d:%d" % (fps, w, h), "-pix_fmt", "gray", "-f", "rawvideo", "-"],
+                          capture_output=True)
+    n = len(proc.stdout) // (w * h)
+    if n < MIN_FRAMES:
+        return None
+    F = np.frombuffer(proc.stdout[:n * w * h], dtype=np.uint8).reshape(n, h, w).astype(np.float32) / 255.0
+    out = {"median": float(np.median([_drawn(f) for f in F[::2]])), "beats": []}
+    # PER-BEAT, ON THE FILM'S OWN CLOCK. A beat's position in out.mp4 is NOT the running sum of the board's
+    # durations: the renderer compresses every cut by its seam length, so summing durations drifts further
+    # out of place with every seam — eleven seconds of it by the end of a 30-beat film. The seam length is
+    # read from the renderer rather than restated here, so the two cannot disagree.
+    if board:
+        try:
+            import render_remotion as _rr
+            slides = board.get("slides") or []
+            seam = _rr._REMOTION2_TR / float((board.get("meta") or {}).get("fps") or 30)
+            t = 0.0
+            for i, sl in enumerate(slides):
+                a = t
+                b = a + float(sl.get("duration") or 0)
+                t = b - (seam if i + 1 < len(slides) else 0)
+                f0, f1 = int(a * fps) + 1, min(n, int(b * fps) - 1)
+                if f1 <= f0:
+                    continue                       # a beat shorter than two sampled frames says nothing
+                out["beats"].append({"index": i + 1, "shot": sl.get("shot"),
+                                     "drawn": float(np.mean([_drawn(f) for f in F[f0:f1]]))})
+        except Exception:                          # noqa: BLE001 — the per-beat half never breaks the axis
+            out["beats"] = []
+    return out
+
+
+def _drawn(f):
+    """Share of the frame carrying local STRUCTURE — an edge, a stroke, a rule, a glyph.
+
+    numpy is imported here rather than at module scope because this file's whole point is to be runnable
+    where it is not installed: `measure` returns None instead of raising, and the caller says "needs
+    ffmpeg + numpy" rather than dying on an import nobody asked for."""
+    import numpy as np
+    gy = np.abs(np.diff(f, axis=0))[:, :-1]
+    gx = np.abs(np.diff(f, axis=1))[:-1, :]
+    return float((np.maximum(gx, gy) > _EDGE).mean())
 
 
 def probe_size(path):
@@ -184,7 +292,7 @@ def measure(path, fps=12, long_side=192):
         return n                                     # an INT, not None: the caller says which failure it was
     F = np.frombuffer(raw[:n * w * h], dtype=np.uint8).reshape(n, h, w).astype(np.float32) / 255.0
     d = np.abs(np.diff(F, axis=0)).mean(axis=(1, 2))
-    ink = [float((np.abs(f - np.median(f)) > 0.10).mean()) for f in F[::2]]
+    ink = []                                       # density has its own decode — see DENSITY_LONG_SIDE
     lum = F.mean(axis=(1, 2))
     k = max(1, int(round(fps * LUMA_WINDOW_SECONDS)))
     win = [float(lum[i:i + k].mean()) for i in range(0, len(lum) - k + 1, k)]
@@ -193,7 +301,12 @@ def measure(path, fps=12, long_side=192):
     steps = (sum(1 for a, b in zip(win, win[1:]) if abs(b - a) >= LUMA_STEP_DELTA) / (len(win) - 1)
              if len(win) >= MIN_WINDOWS else None)
     err = (proc.stderr or b"").decode("utf-8", "replace").strip()
+    # PER-BEAT, ON THE FILM'S OWN CLOCK. A beat's position in out.mp4 is NOT the running sum of the board's
+    # durations: the renderer compresses every cut by its seam length, so summing durations drifts a beat
+    # further out of place with every seam — by the end of a 30-beat film, eleven seconds of it. The seam
+    # length is read from the renderer rather than restated, so the two cannot disagree.
     return {
+        "beats": [],
         "seconds": n / fps,
         "frames": n,
         "fps": fps,
@@ -205,7 +318,7 @@ def measure(path, fps=12, long_side=192):
         "motion_p50": float(np.percentile(d, 50)),
         "motion_p75": float(np.percentile(d, 75)),
         "motion_p90": float(np.percentile(d, 90)),
-        "ink_median": float(np.median(ink)),
+        "ink_median": float(np.median(ink)) if len(ink) else None,
         "luma_range": float(np.percentile(lum, 95) - np.percentile(lum, 5)),
         "luma_steps": steps,
         "luma_windows": len(win),
@@ -270,14 +383,19 @@ def check(out_dir):
     mp4 = os.path.join(out_dir, "out.mp4")
     if not os.path.exists(mp4):
         return ["no out.mp4 — this gate reads the delivered film, so it runs after the render"], [], None
-    meta = {}
+    meta, board = {}, None
     sb = os.path.join(out_dir, "storyboard.json")
     if os.path.exists(sb):
         try:
-            meta = json.load(open(sb, encoding="utf-8")).get("meta") or {}
+            board = json.load(open(sb, encoding="utf-8"))
+            meta = board.get("meta") or {}
         except Exception:                                        # noqa: BLE001 - a broken board is another gate's job
-            meta = {}
+            meta, board = {}, None
     m = measure(mp4)
+    if isinstance(m, dict):
+        _d = density(mp4, board=board)
+        if _d:
+            m["ink_median"], m["beats"] = _d["median"], _d["beats"]
     if isinstance(m, int):
         # Say WHICH failure this is. "needs ffmpeg + numpy" on a film that decoded perfectly well and is
         # simply half a second long sends the reader to install tools they already have.
@@ -301,19 +419,33 @@ def check(out_dir):
                     "before them — that is a slideshow, and the html tier renders slideshows for a "
                     "fraction of the cost. What this tier is FOR is time."
                     % (m["motion_p75"], MOTION_P75_FLOOR, 0.0075, m["motion_p75"] * 100))
-    if m["ink_median"] < INK_FLOOR:
-        # AND IT NAMES THE NEXT COMMAND. Ink is a CASTING property before it is a rendering one: measured
-        # across the committed sweep, most of this library's registers sit under this floor on their own, so
-        # a film assembled without looking at those numbers lands here by default and the author has no way
-        # to tell a starved frame from a quiet register. `density_advice.py` reads the same sweep and names,
-        # per beat, the denser registers in the SAME design family — the one substitution that does not
-        # change the film's visual language. A gate that stops at a number teaches an author to waive it.
-        errs.append("DENSITY: the median frame carries %.1f%% ink, under the %.0f%% floor (half of the "
-                    "sparsest reference, Apple's 24.3%%). Apple's sparse frames hold one lit object; an "
-                    "empty frame with a caption on it is not sparse, it is unfinished. Which beats are "
-                    "starved, and what the same design family offers instead: "
-                    "`python3 scripts/density_advice.py <out_dir>`."
-                    % (m["ink_median"] * 100, INK_FLOOR * 100))
+    # DENSITY REPORTS, IT DOES NOT GATE — see `_drawn` above for why the floor went with the old metric.
+    # The useful question was never "is the median frame 12%"; it is "WHICH of my beats is least drawn on",
+    # and that one is answerable without a reference corpus because a film is compared against itself. A
+    # design language is the author's to choose; being the emptiest frame in your own film is a fact about
+    # this film. `density_advice.py` still names the denser registers in the same family for the beats at
+    # the bottom — the one substitution that does not change the film's visual language.
+    if m.get("ink_median") is None:
+        warns.append("DENSITY: not measured — the second decode (at %dpx, which is what resolves a drawn "
+                     "frame from a blurred blank one) did not return enough frames." % DENSITY_LONG_SIDE)
+    else:
+        # REPORTED WHETHER OR NOT THERE IS A BOARD. The per-beat half needs storyboard.json to know where
+        # the beats are; the film-level number does not, and a measurement that disappears because a file
+        # is absent is the "measured 3 of 4 and said nothing" failure this file already refuses elsewhere.
+        _b = sorted(m.get("beats") or [], key=lambda r: r["drawn"])
+        if _b:
+            _lo = _b[: max(1, len(_b) // 6)]
+            _where = (" (range %.1f–%.1f%%). Least drawn on: %s. If one of those is a beat you meant to be "
+                      "quiet, it is fine; if it is a beat you meant to carry an argument, it is not."
+                      % (_b[0]["drawn"] * 100, _b[-1]["drawn"] * 100,
+                         ", ".join("beat %d (%s, %.1f%%)" % (r["index"], r["shot"] or "?", r["drawn"] * 100)
+                                   for r in _lo)))
+        else:
+            _where = (". Per-beat detail needs storyboard.json beside out.mp4 — without it this is the "
+                      "film-level number only.")
+        warns.append("DENSITY (measured, not gated): the film's frames carry %.1f%% structure at the "
+                     "median%s `python3 scripts/density_advice.py <out_dir>` names denser registers in "
+                     "the same family." % (m["ink_median"] * 100, _where))
     if m["luma_range"] < LUMA_RANGE_FLOOR:
         errs.append("LIGHT: luminance spans %.3f across the film, under the %.3f floor (half of Apple's "
                     "0.270; Figma's is 0.903). Nothing gets brighter or darker — the film has no light, "
@@ -392,8 +524,9 @@ def main(argv):
                  m["ink_median"] * 100, m["luma_range"],
                  "n/a" if m["luma_steps"] is None else "%.1f%%" % (m["luma_steps"] * 100),
                  m["luma_windows"]))
-        print("              reference floors: motion p75 >= %.4f · ink >= %.0f%% · light >= %.3f · arc >= %.1f%%"
-              % (MOTION_P75_FLOOR, INK_FLOOR * 100, LUMA_RANGE_FLOOR, LUMA_STEP_FLOOR * 100))
+        print("              reference floors: motion p75 >= %.4f · light >= %.3f · arc >= %.1f%% "
+              "· density measured, not floored"
+              % (MOTION_P75_FLOOR, LUMA_RANGE_FLOOR, LUMA_STEP_FLOOR * 100))
     for w in warns:
         print("[film_energy] WARN  %s" % w)
     for e in errs:

@@ -133,7 +133,7 @@ export const FocalIsolation: React.FC<{focalLabel?: string; items?: string[]; fo
         // none of them related to each other or to any other shot's. The numbers below are the ones this
         // register already used, handed to the shared curve, so a film that puts this beat next to a
         // RackFocus beat has ONE lens in it rather than two that happen to both be blurry.
-        const f = focusAt(isF ? 0 : iso, U, {blurFrac: 9 / 1080, minOpacity: 0.18, minScale: 0.96,
+        const f = focusAt(isF ? 0 : iso, U, {blurFrac: 0.0022, minOpacity: 0.34, minScale: 0.96,
                                              minBrightness: 1, desat: 0.30});
         const op = f.opacity * clamp01(appear);
         const sc = isF ? lerp(1, 1.12, easeOutBack(clamp01(iso))) : f.scale;

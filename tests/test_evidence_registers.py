@@ -154,8 +154,11 @@ def test_a_partial_sweep_merges_instead_of_dropping_or_overwriting(tmp_path, mon
     monkeypatch.setattr(reg, "render_one", lambda *a, **k: (True, [""]))
     monkeypatch.setattr(reg, "stills_from", lambda *a, **k: None)
     monkeypatch.setattr(reg, "footprint", lambda *a, **k: 0.45)
+    # BOTH decodes are stubbed. Ink moved to its own (`fe.density`) when its definition changed, so a stub
+    # that covers only `measure` leaves the sweep measuring a real file that is not the fixture's.
     monkeypatch.setattr(reg.fe, "measure", lambda *a, **k: {
-        "motion_p75": 0.0009, "ink_median": 0.372, "luma_range": 0.131, "seconds": 5.8})
+        "motion_p75": 0.0009, "ink_median": None, "luma_range": 0.131, "seconds": 5.8})
+    monkeypatch.setattr(reg.fe, "density", lambda *a, **k: {"median": 0.372, "beats": []})
     reg.main(["--only=PhotoPlate"])
     out = json.loads(man.read_text(encoding="utf-8"))
     assert set(out["registers"]) == {"Old", "PhotoPlate"}, "the merge dropped rows it did not measure"
@@ -176,7 +179,8 @@ def test_a_partial_sweep_refuses_to_blend_two_design_systems(tmp_path, monkeypat
     monkeypatch.setattr(reg, "stills_from", lambda *a, **k: None)
     monkeypatch.setattr(reg, "footprint", lambda *a, **k: 0.45)
     monkeypatch.setattr(reg.fe, "measure", lambda *a, **k: {
-        "motion_p75": 0.0009, "ink_median": 0.372, "luma_range": 0.131, "seconds": 5.8})
+        "motion_p75": 0.0009, "ink_median": None, "luma_range": 0.131, "seconds": 5.8})
+    monkeypatch.setattr(reg.fe, "density", lambda *a, **k: {"median": 0.372, "beats": []})
     assert reg.main(["--only=PhotoPlate", "--dna=product"]) == 1
     assert "REFUSING to merge" in capsys.readouterr().out
     assert json.loads(man.read_text(encoding="utf-8"))["registers"] == {}, "it merged anyway"

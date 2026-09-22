@@ -54,15 +54,26 @@ def test_the_instrument_separates_a_slideshow_from_a_film(slideshow, alive):
     # Separation on all three axes independently — a gate that only works because one axis happens to
     # correlate with the others would pass a film that fixed the easy axis and nothing else.
     assert b["motion_p75"] > a["motion_p75"] * 10
-    assert b["ink_median"] > a["ink_median"] * 10
     assert b["luma_range"] > a["luma_range"] * 10
+    # density moved to its own decode at its own resolution (see DENSITY_LONG_SIDE), so it is asked of
+    # `density()` rather than `measure()` — but it is still asked, because "the instrument can tell these
+    # apart on every axis independently" is the claim, not "on the axes that happen to share a decode".
+    da = g.density(os.path.join(slideshow, "out.mp4"))
+    db = g.density(os.path.join(alive, "out.mp4"))
+    assert da and db, (da, db)
+    assert db["median"] > da["median"] * 10, (da["median"], db["median"])
 
 
 def test_a_rendered_slideshow_fails_the_gate(slideshow):
-    errs, _warns, m = g.check(slideshow)
+    errs, warns, m = g.check(slideshow)
     assert m["motion_p75"] < g.MOTION_P75_FLOOR
     blob = " ".join(errs)
-    assert "MOTION" in blob and "DENSITY" in blob and "LIGHT" in blob
+    # DENSITY is deliberately absent from this list now: its floor retired with the metric that could not
+    # tell a drawn frame from a blurred blank one, and it reports per beat instead of gating. The axes that
+    # still have defensible floors still gate, and that is what this asserts.
+    assert "MOTION" in blob and "LIGHT" in blob
+    assert not any(e.startswith("DENSITY") for e in errs), errs
+    assert any("DENSITY (measured, not gated)" in w for w in warns), warns
 
 
 def test_a_rendered_film_clears_every_floor(alive):
@@ -86,13 +97,15 @@ def test_a_waiver_named_for_one_axis_does_not_absolve_the_others(slideshow):
     DENSITY — a deck's warm-white design language — silently excused a MOTION failure that appeared later
     from an unrelated change (the camera bed going opt-in). One stated reason must not absolve the axes
     nobody reasoned about."""
-    board = {"meta": {"energy_waiver": {"density": "this deck's own warm-white design language is sparse"}}}
+    # The axis pair moved from DENSITY/MOTION to LIGHT/MOTION when the density floor retired — the claim
+    # is about one named axis not absolving an unnamed one, and it needs two axes that still GATE.
+    board = {"meta": {"energy_waiver": {"light": "this piece is deliberately one unlit tone"}}}
     json.dump(board, open(os.path.join(slideshow, "storyboard.json"), "w", encoding="utf-8"))
     try:
         errs, warns, _m = g.check(slideshow)
         assert any(e.startswith("MOTION") for e in errs), "motion was never reasoned about; it stays gated"
-        assert any("waived (DENSITY)" in w for w in warns), "the named axis IS waived, and says so"
-        assert not any(e.startswith("DENSITY") for e in errs)
+        assert any("waived (LIGHT)" in w for w in warns), "the named axis IS waived, and says so"
+        assert not any(e.startswith("LIGHT:") for e in errs)
     finally:
         os.remove(os.path.join(slideshow, "storyboard.json"))
 
@@ -304,3 +317,70 @@ def test_the_mutation_that_ignores_a_short_decode_is_caught(truncated):
     assert any("cannot say how much of the film it measured" in e for e in errs), errs
     assert not any("never reached the instrument" in e for e in errs), (
         "the mutant still knew how much it missed, so this probe is not testing the derivation")
+
+
+# ── density measures whether a frame is DRAWN ON, not whether it is a coloured area ──────────────────
+
+@pytest.fixture(scope="module")
+def drawn_vs_blurred(tmp_path_factory):
+    """The exact inversion the old metric shipped, rendered so the claim is testable without the film.
+
+    `ruled` is a page of thin rules: every pixel sits NEAR the page tone, and the frame is drawn all over.
+    `plate` is a large grey block on the same page, blurred: every pixel of it sits FAR from the page tone,
+    and there is no structure anywhere. The delivered film's confirmed-emptiest beat was exactly the second
+    — five heavily blurred plates carrying no readable information — and the old metric ranked it the
+    SECOND DENSEST frame of thirty."""
+    d = tmp_path_factory.mktemp("drawn")
+    _render(str(d / "ruled.mp4"), [
+        "-f", "lavfi", "-i", "color=c=0xf2ede3:s=384x216:r=12:d=3",
+        "-vf", "geq=lum='if(lt(mod(Y,6),1),150,235)':cb=128:cr=128"])
+    _render(str(d / "plate.mp4"), [
+        "-f", "lavfi", "-i", "color=c=0xf2ede3:s=384x216:r=12:d=3",
+        "-f", "lavfi", "-i", "color=c=0x9a9a9a:s=240x130:r=12:d=3",
+        "-filter_complex", "[0][1]overlay=x=72:y=43,boxblur=10:2"])
+    return d
+
+
+def _old_metric(path):
+    """The definition `_drawn` replaced: share of pixels far from the frame's modal tone."""
+    import numpy as np
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-vf", "fps=12,scale=384:216",
+                          "-pix_fmt", "gray", "-f", "rawvideo", "-"], capture_output=True).stdout
+    n = len(raw) // (384 * 216)
+    F = np.frombuffer(raw[:n * 384 * 216], dtype=np.uint8).reshape(n, 216, 384).astype(np.float32) / 255
+    return float(np.median([(np.abs(f - np.median(f)) > 0.10).mean() for f in F]))
+
+
+def test_density_reads_structure_not_coloured_area(drawn_vs_blurred):
+    """Both halves are asserted, and the second is what makes this a regression test rather than a
+    tautology: the OLD metric must get this pair BACKWARDS. If it did not, the probe would not be testing
+    the thing that was wrong."""
+    d = drawn_vs_blurred
+    ruled = g.density(str(d / "ruled.mp4"))
+    plate = g.density(str(d / "plate.mp4"))
+    assert ruled and plate, (ruled, plate)
+    assert ruled["median"] > 0.10 and plate["median"] < 0.02, (
+        "a page of rules is drawn on and a blurred field is not: %.3f vs %.3f"
+        % (ruled["median"], plate["median"]))
+    o_ruled, o_plate = _old_metric(str(d / "ruled.mp4")), _old_metric(str(d / "plate.mp4"))
+    assert o_plate > o_ruled, (
+        "the old metric is supposed to rank these BACKWARDS (blurred field %.3f over ruled page %.3f) — if "
+        "it does not, this probe is not reproducing the defect" % (o_plate, o_ruled))
+
+
+def test_density_reports_per_beat_and_no_longer_floors_the_film(slideshow):
+    """The absolute floor retired with the old metric rather than being re-guessed from reference films
+    measured under it. What replaces it is the question an author can act on: which of MY beats is least
+    drawn on. So a sparse film must no longer ERROR on density, and must still be told."""
+    board = {"meta": {"renderer": "remotion", "fps": 30},
+             "slides": [{"index": i + 1, "shot": "S%d" % i, "duration": 2.0} for i in range(3)]}
+    json.dump(board, open(os.path.join(slideshow, "storyboard.json"), "w", encoding="utf-8"))
+    try:
+        errs, warns, m = g.check(slideshow)
+        assert not any("DENSITY" in e for e in errs), errs
+        assert any("DENSITY (measured, not gated)" in w for w in warns), warns
+        assert m["beats"] and all("drawn" in b and "index" in b for b in m["beats"]), m.get("beats")
+        # MOTION is untouched: it still ERRORs on a held frame, so retiring one floor did not retire them all
+        assert any("MOTION" in e for e in errs), errs
+    finally:
+        os.remove(os.path.join(slideshow, "storyboard.json"))

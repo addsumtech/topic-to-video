@@ -31,8 +31,15 @@ def test_the_floor_is_the_delivery_gate_s_floor_not_a_second_copy():
     caption band became four disagreeing definitions."""
     import inspect
     src = inspect.getsource(da)
-    assert "fe.INK_FLOOR" in src and "0.12" not in src.split('"""')[2], (
-        "density_advice carries its own ink floor instead of reading film_energy_qa's")
+    # The single source MOVED when `film_energy_qa` retired its absolute ink floor: there is no gate
+    # constant left to read, so the cut is the library's own bottom fifth, computed by the sweep and stored
+    # with the rows it measured. The claim is unchanged — read it, never restate it — and it is now that
+    # `density_advice` must take the number from the manifest rather than hold one of its own.
+    assert "_sweep_cut" in src, "density_advice does not read the sweep's recorded cut"
+    assert "fe.INK_FLOOR" not in src, "density_advice still reads a floor the gate retired"
+    body = src.split('"""')[2]
+    assert "0.12" not in body and "0.021" not in body, (
+        "density_advice carries a private copy of the ink cut: %r" % body[:200])
 
 
 def test_it_advises_from_the_measured_sweep_and_says_so_when_there_is_none(tmp_path, monkeypatch):
@@ -80,7 +87,8 @@ def test_alternatives_are_offered_densest_first():
 
 def test_a_register_with_no_dense_neighbour_is_told_so_rather_than_left_silent(tmp_path, capsys):
     ink = da.measured()
-    lonely = [s for s in ink if ink[s] < fe.INK_FLOOR and not da.alternatives(s, ink, fe.INK_FLOOR)]
+    cut = da._sweep_cut()
+    lonely = [s for s in ink if ink[s] < cut and not da.alternatives(s, ink, cut)]
     if not lonely:
         pytest.skip("every starved register currently has a denser neighbour")
     da.main([_board(tmp_path, [lonely[0]])])
@@ -91,7 +99,9 @@ def test_the_advisory_refuses_to_be_read_as_an_instruction(tmp_path, capsys):
     """Swapping to whatever measures densest is how a film ends up carrying ink no viewer can decode. The
     output has to say so, every time it names a candidate."""
     ink = da.measured()
-    starved = [s for s in ink if ink[s] < fe.INK_FLOOR and da.alternatives(s, ink, fe.INK_FLOOR)]
+    cut = da._sweep_cut()
+    starved = [s for s in ink if ink[s] < cut and da.alternatives(s, ink, cut)]
+    assert starved, "no register is in this library's bottom fifth — the probe has nothing to test"
     da.main([_board(tmp_path, [starved[0]])])
     out = capsys.readouterr().out
     assert "CANDIDATES, not instructions" in out and "encodes the" in out

@@ -502,7 +502,26 @@ def floors():
     Restating them is how this repo's caption band became four disagreeing copies. A diagnostic that ranks
     registers against a private copy of the numbers would keep ranking against them after the real gate moved.
     """
-    return {"motion_p75": fe.MOTION_P75_FLOOR, "ink_median": fe.INK_FLOOR, "luma_range": fe.LUMA_RANGE_FLOOR}
+    # ...EXCEPT INK, WHICH NO LONGER HAS ONE TO TAKE. `film_energy_qa` retired the absolute ink floor with
+    # the metric that could not tell a drawn frame from a blurred blank one, and did NOT re-guess a
+    # replacement — its reference films were measured under the old definition and are not in the repo. A
+    # diagnostic cannot invent the constant the gate refused to invent. So the register-level ink cut is
+    # taken from the LIBRARY'S OWN distribution instead: the bottom fifth of 174 measured registers is a
+    # fact about this library, needs no corpus, and moves with the library as it grows. `_floors()` fills
+    # it in at sweep time from the rows it just measured; the two axes that still have derived floors keep
+    # taking them from the gate, never restating them.
+    return {"motion_p75": fe.MOTION_P75_FLOOR, "ink_median": None, "luma_range": fe.LUMA_RANGE_FLOOR}
+
+
+INK_QUINTILE = 0.20           # "under-inked" = the bottom fifth of the library's own measured distribution
+
+
+def _ink_cut(rows):
+    """The ink level below which a register is in this LIBRARY's bottom fifth. None when nothing measured."""
+    vals = sorted(v["ink_median"] for v in rows.values() if v.get("ink_median") is not None)
+    if len(vals) < 5:
+        return None
+    return vals[max(0, int(len(vals) * INK_QUINTILE) - 1)]
 
 
 def universe():
@@ -693,8 +712,15 @@ def main(argv):
             if not isinstance(m, dict):
                 failed.append("%s (unmeasurable: %r)" % (n, m))
                 continue
+            # INK COMES FROM `density()`, NOT FROM `measure()`. The two used to share one decode; density
+            # moved to its own when its definition changed from "pixels far from the modal tone" to "local
+            # structure", because the new question needs a resolution the motion floor's calibration must
+            # not be dragged to (`film_energy_qa.DENSITY_LONG_SIDE`). A register's ink and a film's ink are
+            # the same question, so they must keep using the same answer — a sweep measuring one definition
+            # while the delivery gate measures another is a manifest that lies without being stale.
+            _dn = fe.density(mp4)
             rows[n] = {"motion_p75": round(m["motion_p75"], 4),
-                       "ink_median": round(m["ink_median"], 3),
+                       "ink_median": round(_dn["median"], 3) if _dn else None,
                        "luma_range": round(m["luma_range"], 3),
                        "seconds": round(m["seconds"], 1)}
             # The settled still, for the footprint. Written whether or not --stills was asked for, into a
@@ -765,26 +791,39 @@ def main(argv):
                 data["registers"] = dict(sorted(merged.items()))
                 data["_source"] = src
                 data["_failed"] = sorted(keep + failed)
+        # The relative ink cut is recomputed from the rows about to be written and stored WITH them —
+        # before the dump, not after, or the manifest ships a null that every later reader has to re-derive
+        # (and a `--only` run would re-derive it from a merged set the sweep never saw whole).
+        data["_floors"]["ink_median"] = _ink_cut(data["registers"])
         json.dump(data, open(MANIFEST, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
         print("[register_energy] wrote %s (%d rows%s)"
               % (MANIFEST, len(data["registers"]), ", merged" if only else ""))
 
     regs = data["registers"]
     fl = data["_floors"]
+    if fl.get("ink_median") is None:              # an older manifest, or a --check run that wrote nothing
+        fl["ink_median"] = _ink_cut(regs)
     unknown = data.get("_failed") or []
     # WHAT THIS RUN DID NOT SEE, derived from the shots directory rather than from the manifest's own rows.
     # `_failed` only ever held what a sweep TRIED and could not measure; a register the sweep never reached
     # — an older manifest, a `--only` run, a register exporting no DURATION — had no row, no failure line
     # and no absence anyone could count.
     gaps = not_measured(data)
+    _cut = fl.get("ink_median")
+    if _cut is None:
+        _cut = _ink_cut(regs)
+
+    def _thin(r):
+        return _cut is not None and r.get("ink_median") is not None and r["ink_median"] < _cut
+
     def fails(r):
-        return ((r["motion_p75"] < fl["motion_p75"]) + (r["ink_median"] < fl["ink_median"])
+        return ((r["motion_p75"] < fl["motion_p75"]) + _thin(r)
                 + (r["luma_range"] < fl["luma_range"]))
 
     def why(r):
         """Which KIND of empty, when it is empty. The two need opposite fixes, so naming one is the
         difference between directable work and a number."""
-        if r["ink_median"] >= fl["ink_median"]:
+        if not _thin(r):
             return ""
         fp = r.get("footprint")
         if fp is None:
@@ -795,8 +834,14 @@ def main(argv):
     n2 = sum(1 for _, r in ranked if fails(r) == 2)
     n1 = sum(1 for _, r in ranked if fails(r) == 1)
     n0 = sum(1 for _, r in ranked if fails(r) == 0)
-    print("\n[register_energy] floors motion %.4f / ink %.0f%% / light %.3f"
-          % (fl["motion_p75"], fl["ink_median"] * 100, fl["luma_range"]))
+    # The ink cut is RELATIVE and can legitimately be absent — a sweep of fewer than five registers has no
+    # distribution to take a fifth of. "not derivable" is printed as itself rather than as a zero, which
+    # would read as "every register cleared it".
+    print("\n[register_energy] floors motion %.4f / ink %s / light %.3f"
+          % (fl["motion_p75"],
+             "not derivable (<5 rows)" if fl["ink_median"] is None else "bottom fifth at %.1f%%"
+             % (fl["ink_median"] * 100),
+             fl["luma_range"]))
     # COVERAGE, NOT A COUNT. This line read "%d registers" with the number of rows in it, so a sweep that
     # measured 151 of 170 printed a line that reads as 170 and the nineteen holes were invisible.
     univ = universe()
@@ -809,10 +854,10 @@ def main(argv):
           % ("register", "motion", "ink", "light", "footprnt", "why", "under"))
     for n, r in ranked[:40]:
         marks = "".join(m for m, bad in (("M", r["motion_p75"] < fl["motion_p75"]),
-                                         ("D", r["ink_median"] < fl["ink_median"]),
+                                         ("D", _thin(r)),
                                          ("L", r["luma_range"] < fl["luma_range"])) if bad)
         print("%-24s %8.4f %6.1f%% %7.3f %7s  %-4s %s"
-              % (n, r["motion_p75"], r["ink_median"] * 100, r["luma_range"],
+              % (n, r["motion_p75"], (r["ink_median"] or 0) * 100, r["luma_range"],
                  "-" if r.get("footprint") is None else "%.0f%%" % (r["footprint"] * 100),
                  why(r), marks or "-"))
     # A RUN THAT COULD NOT MEASURE PART OF ITS UNIVERSE IS NOT A CLEAN RUN, whether the register refused

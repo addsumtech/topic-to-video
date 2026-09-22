@@ -64,7 +64,7 @@
     "ExplodedSchematic": "85196333090773b4",
     "FallbackPath": "f1a38e6c24da5fcb",
     "FlowField": "e72564bfd864e981",
-    "FocalIsolation": "5f75de063f5ed64a",
+    "FocalIsolation": "3bf14929bdc8725e",
     "FractalTree": "aa5428d4f5836c17",
     "FractureIn": "276afbd4bdac0bd2",
     "FrequencyEncode": "cef36af5b468bc1e",
@@ -564,7 +564,7 @@
       "prop_diff": 1.0
     },
     "FocalIsolation": {
-      "reach": 0.256,
+      "reach": 0.253,
       "prop_diff": 0.67
     },
     "FractalTree": {

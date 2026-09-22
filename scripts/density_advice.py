@@ -68,6 +68,18 @@ def measured(strict=True):
     return rows
 
 
+def _sweep_cut():
+    """The ink level below which a register is in this library's bottom fifth, as the sweep recorded it."""
+    d = json.load(open(MANIFEST, encoding="utf-8"))
+    cut = (d.get("_floors") or {}).get("ink_median")
+    if cut is None:                                # an older manifest: derive it the way the sweep would
+        cut = re._ink_cut(d.get("registers") or {})
+    if cut is None:
+        raise RuntimeError("the sweep recorded no ink cut and its rows cannot supply one — re-run "
+                           "`python3 scripts/register_energy.py`")
+    return float(cut)
+
+
 def alternatives(shot, ink, floor, limit=3):
     """Denser registers in the SAME family, densest first. Same family = the same design shelf, so the
     substitution does not change the film's visual language — a cross-family swap is a different film."""
@@ -96,7 +108,14 @@ def advise(out_dir):
     """
     board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
     ink = measured()
-    floor = fe.INK_FLOOR
+    # THE CUT COMES FROM THE SWEEP, NOT FROM A RETIRED CONSTANT. `film_energy_qa.INK_FLOOR` was "half of
+    # the sparsest reference film" measured under the OLD ink definition — the one that scored a blurred
+    # blank plate as denser than a page of rules — and it retired with that definition rather than being
+    # re-guessed from films this repo does not hold. What replaces it is the library's own bottom fifth,
+    # computed by the sweep over the rows it measured and stored beside them, so this advises against the
+    # same population it draws alternatives from. Read, never restated: a private copy would keep ranking
+    # against a number the sweep had moved.
+    floor = _sweep_cut()
     slides = board.get("slides") or []
     beats, unknown, skipped = [], [], []
     # by POSITION, not the 1-based `index` field this used to add one to — see critic_brief.
@@ -145,7 +164,8 @@ def main(argv):
     vals = sorted(b[2] for b in beats)
     med = vals[len(vals) // 2]
     starved = [b for b in beats if b[2] < floor]
-    print("[density] over the %d measured beat(s): median register ink %.1f%% · floor %.0f%% · %d under it"
+    print("[density] over the %d measured beat(s): median register ink %.1f%% · this library's bottom "
+          "fifth starts at %.1f%% · %d beat(s) under it"
           % (len(beats), med * 100, floor * 100, len(starved)))
     for beat, shot, v in starved:
         alts = alternatives(shot, ink, floor)

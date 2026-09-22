@@ -840,7 +840,9 @@ def _energy(mod, measurement, board=None):
 def _probe_slideshow_fails_all_three(mod):
     errs, _warns, _m = _energy(mod, _SLIDESHOW)
     blob = " ".join(errs)
-    for word in ("MOTION", "DENSITY", "LIGHT"):
+    # DENSITY left this list when its floor retired — it reports instead of gating. The axes that still
+    # hold a defensible floor still gate, and a slideshow must still trip every one of them.
+    for word in ("MOTION", "LIGHT"):
         assert word in blob, "a film measured at slideshow level was not flagged for %s: %r" % (word, errs)
 
 
@@ -927,21 +929,23 @@ def _probe_the_sampling_frame_follows_the_films_shape(mod):
     assert h > w, "a 1080x1920 film was sampled %dx%d — landscape, so its ink is undercounted" % (w, h)
 
 
-def _probe_the_density_error_names_the_next_command(mod):
-    """A gate that stops at a number teaches an author to waive it.
-
-    Measured across the committed sweep, most of this library's registers sit UNDER the ink floor on their
-    own, so an author who has not read those numbers cannot tell a starved frame from a quiet register —
-    and the only move the message leaves them is the waiver. `density_advice.py` reads the same sweep and
-    names the denser registers in each beat's own design family, which is a fix rather than an excuse."""
-    errs, _warns, _m = _energy(mod, _SLIDESHOW)
-    hit = [e for e in errs if e.startswith("DENSITY")]
-    assert hit, errs
-    assert "density_advice" in hit[0], "the density error names no next command: %r" % hit[0]
+def _probe_the_density_report_names_the_next_command(mod):
+    """A gate that stops at a number teaches an author to waive it — and the density axis no longer even
+    has a number to fail. Its floor retired with the metric that could not tell a drawn frame from a
+    blurred blank one (a film's emptiest beat scored its second densest), and what replaced it REPORTS:
+    the film's own distribution, the beats at the bottom of it, and the command that names denser
+    registers in each beat's own design family. The rule this pins is unchanged — say what to do next —
+    it has simply moved from an error to a measurement that cannot be waived because it never blocked."""
+    errs, warns, _m = _energy(mod, _SLIDESHOW)
+    assert not [e for e in errs if e.startswith("DENSITY")], (
+        "density is measured, not gated; it must not be back to erroring: %r" % errs)
+    hit = [w for w in warns if "DENSITY" in w]
+    assert hit, warns
+    assert "density_advice" in hit[0], "the density report names no next command: %r" % hit[0]
 
 
 PROBES["film_energy_qa"] = {
-    "density_error_names_the_next_command": _probe_the_density_error_names_the_next_command,
+    "density_report_names_the_next_command": _probe_the_density_report_names_the_next_command,
     "a_bright_passage_is_not_an_arc": _probe_a_bright_passage_is_not_a_luminance_arc,
     "short_film_is_not_a_pass": _probe_a_film_too_short_to_measure_is_not_a_pass,
     "sampling_follows_the_shape": _probe_the_sampling_frame_follows_the_films_shape,
@@ -966,13 +970,14 @@ MUTANTS["register_shot"] = dict(MUTANTS.get("register_shot", {}), **{
 MUTANTS["film_energy_qa"] = {
     # The same shape as register_shot's "next-step hint forgets the second emit" below: a gate that reports
     # a number and stops leaves the author one move, and it is the waiver.
-    "the density error stops at the number":
-        ('"starved, and what the same design family offers instead: "\n'
-         '                    "`python3 scripts/density_advice.py <out_dir>`."', '""'),
+    "the density report stops at the number":
+        ('"the same family." % (m["ink_median"] * 100, _where))', '"." % (m["ink_median"] * 100,))'),
+    "density goes back to a coloured-area count":
+        ("    return float((np.maximum(gx, gy) > _EDGE).mean())",
+         "    return float((np.abs(f - np.median(f)) > 0.10).mean())"),
     "the motion floor is disabled":
         ("MOTION_P75_FLOOR = 0.0037", "MOTION_P75_FLOOR = 0.0"),
-    "the density floor is disabled":
-        ("INK_FLOOR = 0.12", "INK_FLOOR = 0.0"),
+
     "the light floor is disabled":
         ("LUMA_RANGE_FLOOR = 0.135", "LUMA_RANGE_FLOOR = 0.0"),
     "the light-arc floor is disabled":
@@ -1198,16 +1203,41 @@ def _probe_a_partial_sweep_reaches_the_record(mod):
     mod.render_one = lambda *a, **k: (True, [""])
     mod.stills_from = lambda *a, **k: None
     mod.footprint = lambda *a, **k: 0.4
-    was_measure = mod.fe.measure
+    was_measure, was_density = mod.fe.measure, mod.fe.density
     try:
-        mod.fe.measure = lambda *a, **k: {"motion_p75": 0.5, "ink_median": 0.372, "luma_range": 0.5,
+        # BOTH decodes are faked, because ink moved to its own. `measure` no longer answers the density
+        # question — it returns None for it — so a probe that stubs only `measure` measures nothing and
+        # the row it checks is the stub's silence rather than the sweep's record.
+        mod.fe.measure = lambda *a, **k: {"motion_p75": 0.5, "ink_median": None, "luma_range": 0.5,
                                           "seconds": 5.0}
+        mod.fe.density = lambda *a, **k: {"median": 0.372, "beats": []}
         mod.main(["--only=Alpha"])
     finally:
-        mod.fe.measure = was_measure
+        mod.fe.measure, mod.fe.density = was_measure, was_density
     out = _json.load(open(path, encoding="utf-8"))
     assert out["registers"]["Alpha"]["ink_median"] == 0.372, "the re-measure never reached the record"
     assert out["registers"]["Old"]["ink_median"] == 1, "the partial sweep clobbered a row it never rendered"
+
+
+def _probe_the_ink_cut_is_the_librarys_own_distribution(mod):
+    """The ink cut is RELATIVE, and it has to stay that way.
+
+    `film_energy_qa` retired its absolute ink floor with the metric that could not tell a drawn frame from
+    a blurred blank one, and refused to re-guess a replacement: its reference films were measured under the
+    old definition and are not in this repo. A diagnostic must not invent the constant the gate declined to
+    invent — so the cut is the bottom fifth of the library's OWN measured rows, and it must MOVE when that
+    distribution moves. A fixed number would read as measured and rank registers against a bar nobody
+    derived."""
+    rows = {"A%d" % i: {"ink_median": i / 100.0} for i in range(1, 21)}
+    cut = mod._ink_cut(rows)
+    assert cut is not None and 0.03 <= cut <= 0.05, (
+        "the bottom fifth of 0.01..0.20 should land near 0.04, got %r" % cut)
+    # ...and it moves with the library, which a constant does not
+    denser = {k: {"ink_median": v["ink_median"] * 10} for k, v in rows.items()}
+    assert mod._ink_cut(denser) > cut * 5, (
+        "a ten-times denser library must move the cut: %r then %r" % (cut, mod._ink_cut(denser)))
+    # a set too small to have a distribution says so instead of inventing one
+    assert mod._ink_cut({"A": {"ink_median": 0.1}}) is None
 
 
 PROBES["register_energy"] = {
@@ -1216,12 +1246,17 @@ PROBES["register_energy"] = {
     "fixture_is_derived": _probe_the_fixture_list_is_derived_from_the_call_sites,
     "cache_separates_design_systems": _probe_the_render_cache_distinguishes_two_design_systems,
     "partial_sweep_reaches_the_record": _probe_a_partial_sweep_reaches_the_record,
+    "ink_cut_is_relative": _probe_the_ink_cut_is_the_librarys_own_distribution,
 }
 
 MUTANTS["register_energy"] = {
     "the floors become a private copy":
-        ('    return {"motion_p75": fe.MOTION_P75_FLOOR, "ink_median": fe.INK_FLOOR, "luma_range": fe.LUMA_RANGE_FLOOR}',
-         '    return {"motion_p75": 0.0037, "ink_median": 0.12, "luma_range": 0.135}'),
+        ('    return {"motion_p75": fe.MOTION_P75_FLOOR, "ink_median": None, "luma_range": fe.LUMA_RANGE_FLOOR}',
+         '    return {"motion_p75": 0.0037, "ink_median": None, "luma_range": 0.135}'),
+    # ...and the ink cut, which is NOT taken from the gate because the gate has none to give, must stay the
+    # library's own distribution rather than becoming a second invented constant.
+    "the relative ink cut becomes an invented constant":
+        ("    return vals[max(0, int(len(vals) * INK_QUINTILE) - 1)]", "    return 0.12"),
     "an unmeasured register reads as fine":
         ("    return 1 if unknown or gaps else 0", "    return 0"),
     # ...AND THE OTHER HALF OF THE SAME SENTENCE: `_failed` only ever held what a sweep TRIED and lost. A
