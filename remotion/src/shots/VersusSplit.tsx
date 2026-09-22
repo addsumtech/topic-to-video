@@ -18,6 +18,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutExpo, easeOutCubic} from '../runtime/motion';
 import {useDNA, dnaPalette, mix, shade, tint, separated, separatedPair, readableOn, readableOnAll, dimOn, TONE_MIN_STEP} from '../runtime/dna';
+import {onLight} from '../runtime/light';
 
 export const DURATION = 155; // ~5.2s
 
@@ -120,6 +121,11 @@ export const VersusSplit: React.FC<{left?: Side; right?: Side; winner?: number |
   const t = useT();
   const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
+  // The film's own two poles, for the marks that are NEITHER panel: the seam between the halves and
+  // the operator sitting on top of them. Both were literals tuned for a dark world.
+  const FG = dna?.fg ?? '#e9edf7', BG = dna?.bg ?? '#0a0c12';
+  // the DARKER end of the badge disc's own radial gradient — the worst case the VS has to clear
+  const discTone = dna ? shade(dna.bg, 0.2) : '#12141f';
   const lEnter = easeOutExpo(seg(t, 0.08, 0.42));
   const rEnter = easeOutExpo(seg(t, 0.16, 0.5));
   const vs = easeOutBack(clamp01(seg(t, 0.46, 0.64)));
@@ -164,8 +170,15 @@ export const VersusSplit: React.FC<{left?: Side; right?: Side; winner?: number |
       {/* two grounds */}
       <div style={{position: 'absolute', inset: 0, background: `linear-gradient(120deg, ${halfL} 0%, ${halfL} 50%, ${halfR} 50%, ${halfR} 100%)`}} />
       {/* diagonal seam */}
-      <div style={{position: 'absolute', top: -60, bottom: -60, left: '50%', width: 6, background: '#0a0c12',
-        transform: 'translateX(-50%) rotate(8deg)', boxShadow: '0 0 30px #000'}} />
+      {/* THE SEAM IS A LINE ON THE FILM'S GROUND, NOT A HOLE IN IT. `#0a0c12` + a 30px black glow is a
+          near-black gash: on a cream DNA it measures 16.75:1 and runs the full height of the frame, THROUGH
+          the caption band — where this tier draws the subtitle in dark ink picked for the light ground, so
+          the caption disappears where it crosses. Drawn from the film's own two poles it stays a seam on
+          every ground, and the glow only belongs to a world that is already dark. */}
+      <div style={{position: 'absolute', top: -60, bottom: -60, left: '50%', width: 6,
+        background: mix(FG, BG, 0.12),
+        transform: 'translateX(-50%) rotate(8deg)',
+        boxShadow: onLight(dna) ? `0 0 18px ${mix(FG, BG, 0.62)}` : '0 0 30px #000'}} />
 
       <div style={{position: 'absolute', top: 54, left: 0, right: 0, textAlign: 'center', opacity: titleIn, zIndex: 5,
         color: titleInk, font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
@@ -181,7 +194,11 @@ export const VersusSplit: React.FC<{left?: Side; right?: Side; winner?: number |
         border: `3px solid ${dna?.surfaceBorder ?? '#454d68'}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 6,
         boxShadow: '0 20px 60px #000a'}}>
-        <div style={{color: '#fff', font: '900 58px/1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.02em'}}>VS</div>
+        {/* THE BADGE INK IS PICKED AGAINST THE DISC IT SITS ON. A literal `#fff` is right on every dark
+            preset and 1.06:1 on a cream one — the operator at the centre of the frame becomes an unreadable
+            pearl. Same shape as the `PaperSlot` 1.22:1 incident, one register over. */}
+        <div style={{color: readableOn(discTone, dna?.onAccent ?? '#ffffff', dna?.fg ?? '#0a0d14', '#ffffff', '#0a0d14'),
+          font: '900 58px/1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.02em'}}>VS</div>
       </div>
     </AbsoluteFill>
   );

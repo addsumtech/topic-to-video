@@ -115,6 +115,23 @@ Choose the FORM first, from your own list. Only then ask the catalogue:
 * Record which form the beat realises: **`shot_fit.form` MUST name one of `meta.form_vocabulary`.**
   `validate.py` ERRORS on a beat whose `shot_fit.form` is missing or not in the list — which is what stops
   the catalogue from quietly supplying the vocabulary again.
+* **One register argues ONE form.** Reusing a register across beats is fine when both beats name the SAME
+  form — a bookend, or one motif struck twice — and that is what `shot_fit.form` records. Putting one
+  register on two DIFFERENT forms means at most one of those beats got the form it declared and the other
+  was cast on resemblance; `validate.py` names it. On the film that motivated this, `Inscription` was
+  recorded drawing both 「字段 schema 定义行」 and 「口径戳（来源印章）」, and `QuadSplit` drew a beat whose
+  own form was the capacity nameplate — the frame it produced was the emptiest in the film.
+* A viewer's standing expectation is that **every beat gets the register that argues ITS content**. Two
+  beats on one register need a reason you would say out loud, not just an absence of collision.
+
+### The per-scene `chrome` block — and why a film has no pages
+`scene.chrome` = `{root, path, status}` draws a small running head (the DNA's `breadcrumb` decoration).
+It is for an idiom that genuinely has one — a terminal path, a console status. **It must never carry a
+page or slide counter.** A folio on every frame reads as a slide deck played back, which is `design-critic`'s
+`no player-chrome` rule, and `validate.py` now ERRORs on it: a delivered film shipped 「第 N / 37 页」 in its
+corner for 30 beats (the 37 was also stale from the pre-cut board, but a *correct* count would have been
+just as wrong) and the viewer's first note was 这本质不是 ppt. If the running head is not doing real work
+for the idiom, omit `chrome` entirely — most films should.
 
 ### What this is not
 It is not a licence to build 35 one-offs. A form used once is a one-off; a form used across films is a

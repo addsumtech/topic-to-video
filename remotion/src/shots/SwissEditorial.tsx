@@ -6,7 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutExpo} from '../runtime/motion';
-import {captionBand} from '../runtime/layout';
+import {captionBand, textWidthPx} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
 import {fitText} from '@remotion/layout-utils';
 
@@ -59,7 +59,15 @@ export const SwissEditorial: React.FC<{items?: string[]; ticker?: string; wordma
   // range from Bodoni Moda to JetBrains Mono, whose advance widths differ enormously. So measure the real
   // string in the real face instead. Sized off the LONGEST word so all beats share one size (the register's
   // character — the words swap in place) and every one of them fits.
-  const longest = WORDS.reduce((a, b) => (String(b).length > String(a).length ? b : a), WORDS[0] ?? '');
+  // THE LONGEST WORD IS THE WIDEST ONE, NOT THE ONE WITH THE MOST CHARACTERS. `.length` counts code
+  // points, and a Han glyph is a full em where a Latin letter is about 0.72 of one — so a film whose words
+  // are 「换一个 App」 (8 chars, mostly narrow) and 「换不掉那道缝」 (6 chars, all full-width) sized itself
+  // off the 8 and then set the 6 at that size, with `whiteSpace: nowrap` below guaranteeing the overflow
+  // rather than a wrap. Measured: the final glyph — the film's central noun — hung off the right edge, and
+  // `shot_proof` reported it as 5.1% of the action-safe border. `textWidthPx` weights CJK and Latin apart,
+  // which is the same model `fitTextPx` uses, so the two agree about how wide a character is.
+  const longest = WORDS.reduce(
+    (a, b) => (textWidthPx(String(b), 1) > textWidthPx(String(a), 1) ? b : a), WORDS[0] ?? '');
   const wordSize = Math.min(340, fitText({
     text: String(longest), withinWidth: W - 240, fontFamily: disp, fontWeight: 900,
     letterSpacing: '-0.04em',

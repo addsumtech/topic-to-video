@@ -25,6 +25,7 @@ import argparse, json, os, sys
 # IsometricAssembly G→N (all iso shots together), VariableTypeMorph J→P (J retired, one-shot subset of P).
 FAMILY = {
     "GazetteerEntry": "JA",
+    "StatedBy": "JA",
     "ProfileGrowth": "J",
     "PhotoPlate": "H",
     "TechnicalPlate": "J",
@@ -38,6 +39,8 @@ FAMILY = {
     "TaskFold": "A",
     "CompanionCard": "A",
     "StateSheet": "L",
+    "SeamBetween": "L",
+    "CarryOver": "L",
     "FallbackPath": "A",
     "GlowPick": "A",
     "SurfaceCarousel": "A",
@@ -52,6 +55,7 @@ FAMILY = {
     "PointerTour": "B",
     "CrashZoom": "B", "TerrainFly": "B",
     "OverlapSeparation": "D", "SharedBlindspot": "H",
+    "ViewSwitch": "D",
     "TermSpace": "D",
     "SpatialSlides": "C",
     "WordTunnel": "C",
@@ -119,6 +123,10 @@ FAMILY = {
 # only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
 # pins the subset so it cannot drift again.
 PROVENANCE = {
+    "SeamBetween":             'print-editorial',
+    "ViewSwitch":              'product-ui',
+    "StatedBy":                'survey-archive',
+    "CarryOver":               'print-editorial',
     "PlaneStack":              'industrial',
     "TaskFold":                'product-ui',
     "CompanionCard":           'product-ui',

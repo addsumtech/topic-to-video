@@ -542,6 +542,23 @@ export const pilL = (hex: string): number => {
   return (0.299 * v[0] + 0.587 * v[1] + 0.114 * v[2]) / 255;
 };
 
+/** A PLANE OF THE SAME MATERIAL, set one step off the tone it is cut from — the film's own paper in
+ *  shadow, or its own dark given a lift. For a card, a dressed face, a recessed well: anything the eye
+ *  should read as MORE OF THE SAME SURFACE at another depth, rather than as a different material.
+ *
+ *  Registers derived these by mixing the surface TOWARD THE INK, which stays in the palette only while
+ *  ground and ink share a temperature. They usually do not, and then the two cancel: measured on a
+ *  cream/navy film, `mix('#FBF8F1', '#101A33', 0.16)` came out (213,212,211) — 12° off the paper's hue
+ *  with 76% of its saturation gone, the one neutral mass on a page whose every other tone is one hue's
+ *  tints and shades. Exposure moves; hue does not.
+ *
+ *  The direction is asked of the TONE ITSELF, not of the film: a dark plate on a light film is still set
+ *  back rather than pushed past white, and the step stays visible at either end. This is the plane rule —
+ *  a FAINT INK MARK (an inactive rule, a disabled glyph) is not a plane and is still derived toward the
+ *  ink, because it really is ink. */
+export const plane = (tone: string, step: number): string =>
+  (pilL(tone) > 0.5 ? shade(tone, step) : tint(tone, step));
+
 /** The step a filled region must clear to READ as a region rather than as the ground. */
 export const TONE_MIN_STEP = 0.10;
 
@@ -700,6 +717,31 @@ export const separatedPair = (ground: string, towardA: string, towardB: string,
     // covering a frame need. Rather than throw on a legitimate pair of accents, separate by LIGHTNESS
     // toward whichever pole has headroom and put the hue back as a light tint, so the register keeps its
     // colour argument and the two sides still read as two.
+    // ...AND ON A LIGHT GROUND THE TINT IS WHERE THE FILM'S PALETTE LEAKS. This path lifts toward a pole
+    // and puts the hue back as a 12% wash, which on a dark ground reads as "the accent, dimmed". On PAPER
+    // the two accents sit on OPPOSITE sides of the ground by construction (measured on a real film: 深蓝
+    // 8.41:1 and 青绿 1.59:1 on #F2EDE3), so the normal path cannot separate them and every light film
+    // lands here — where a grey lifted toward the ground plus 12% of a hue is neither accent. Measured on
+    // that film: cold grey + sage green, two hues its DNA never declares, across the only three non-paper
+    // frames it had. So on a light ground the pair separates by EXPOSURE ALONG ONE HUE — the same accent,
+    // near and far — which keeps both halves inside the palette and still reads as two regions.
+    const light = pilL(ground) > 0.5;
+    if (light) {
+      // ...AND THE NEAR HALF IS THE PAPER, not a short step toward the accent. Walking 8% from a WARM
+      // ground toward a COLD accent does not read as "a little of the accent" — it passes straight
+      // through neutral and stops there: measured on a cream/navy film the near half landed at
+      // (215,216,218), hue 220° with CHROMA 3, a dead cold grey covering half the frame while the page
+      // under it is hue 40° chroma 15. Two small steps toward the same accent cannot both stay in the
+      // palette, because the first one is spent crossing the ground's own hue.
+      // So the near region is a `plane` of the ground — exposure moves, hue does not — and the accent
+      // is carried by the FAR one alone. Measured after: near (223,218,209) hue 38.6° chroma 14 (the
+      // page's own cast), far (150,161,189) hue 223° — and the two are still 0.226 of PIL L apart,
+      // marginally MORE than the 0.223 the neutral pair had, so they read as two regions exactly as
+      // before. Same rule as `plane`'s own header: a region cut from a surface keeps that surface's hue.
+      const near = plane(ground, minStep * 0.8);
+      const far = separated(near, towardA, need);          // the accent, carried by ONE half
+      return [near, far];
+    }
     const pole = readableOn(a, '#ffffff', '#05070c');
     const b0 = separated(a, pole, need);
     const tinted = mix(b0, towardB, 0.12);

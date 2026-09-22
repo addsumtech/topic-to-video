@@ -23,7 +23,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, easeOutExpo} from '../runtime/motion';
 import {captionBand, CONTENT_TOP} from '../runtime/layout';
-import {useDNA, mix} from '../runtime/dna';
+import {useDNA, mix, plane} from '../runtime/dna';
 
 export const DURATION = 155;
 
@@ -55,8 +55,12 @@ export const Inscription: React.FC<{
   const mono = 'var(--f-mono, ui-monospace, monospace)';
   const hair = Math.max(1, Math.round(W * 0.0012));
 
-  // the dressed face: a stone tone derived from the film's own surface, so it belongs to the palette
-  const STONE = face || (mix ? mix(SURF, FG, 0.16) : SURF);
+  // The dressed face is the film's OWN paper, one plane back — so it is cut with `plane` (runtime/dna),
+  // which moves exposure and leaves hue alone. It used to be `mix(SURF, FG, 0.16)`, and mixing a warm
+  // paper toward a cold ink lands on grey: (213,212,211) on this cream/navy film, 12° off the paper with
+  // 76% of its saturation gone. Same step, same separation from the page (0.114 of PIL L, marginally
+  // MORE than the mix it replaces), paper kept. The chisel SHADOW below is still ink — it is a shadow.
+  const STONE = face || plane(SURF, 0.16);
   const SHADOW = mix ? mix(STONE, FG, 0.55) : FG;
   const HILITE = mix ? mix(STONE, '#ffffff', 0.55) : '#fff';
 

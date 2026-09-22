@@ -351,8 +351,17 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
   const zoneBot = contentBottom(W, H) - shadowRoom;
   const zoneH = Math.max(200, zoneBot - zoneTop);
   const gap = Math.round(Math.min(W, H) * 0.018);
-  const cols = n <= 1 ? 1 : 2;
-  const rows = n <= 2 ? 1 : 2;
+  // THREE EQUAL THINGS GET THREE EQUAL CELLS. Three panels used to lay out 2 + 1, with the third spanning
+  // the whole bottom row — a shape that says the third is a SUMMARY of the two above it. When the three are
+  // peers (three spec limits, three metrics, three options) that is a claim the film did not make, and the
+  // picture pays for it: the spanning card is twice the width it has copy for, and on a delivered film beat
+  // 17's third card was ~70% empty cream — the emptiest frame in the whole thirty, and one this library's
+  // own density gate scored ABOVE its floor, so only looking caught it.
+  // The register already knows which panel matters: `hero`. So the span is now what the FILM says it is —
+  // `hero: 2` keeps the 2 + 1 summary shape, and three peers get three columns. Two and four are unchanged.
+  const spanLast = n === 3 && HERO === 2;
+  const cols = n <= 1 ? 1 : (n === 3 && !spanLast ? 3 : 2);
+  const rows = n <= 2 || (n === 3 && !spanLast) ? 1 : 2;
   const cellW = W / cols, cellH = zoneH / rows;
   // The hero's settled rect: full content zone minus a margin OUTSIDE the action-safe border.
   const safe = Math.round(Math.min(W, H) * 0.05);
@@ -373,8 +382,10 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
   // A hardcoded 56/132px overflowed the panel the moment the label was real Chinese copy instead of "Safer".
   const labelFits = React.useMemo(() => cells.map((p, i) => {
     const txt = String(p?.label ?? '');
-    // @positional: layout, not emphasis: with three panels the third spans the bottom row
-    const spanned = n === 3 && i === 2;
+    // The span is the FILM's call (`hero: 2`), not the count's — three peers are three columns; see
+    // `spanLast` above. The declaration must sit on the line DIRECTLY above the statement it excuses.
+    // @positional: layout, not emphasis: the third panel spans only when the film named it the hero
+    const spanned = spanLast && i === 2;
     const tileW = (spanned ? W : cellW) - gap;
     const tileH = cellH - gap;
     const tPad = Math.round(Math.max(16, Math.min(tileW * 0.06, tileH * 0.1, 64)));
@@ -398,8 +409,8 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG}}>
       {cells.map((p, i) => {
-        // @positional: layout, not emphasis: with three panels the third spans the bottom row
-        const spanned = n === 3 && i === 2;               // a 3-panel deck: the last one spans the bottom row
+        // @positional: layout, not emphasis: the span is the film's call (`hero: 2`), not the count's
+        const spanned = spanLast && i === 2;
         const col = i % cols, row = Math.floor(i / cols);
         const enter = easeOutBack(clamp01(seg(t, 0.12 + i * 0.09, 0.34 + i * 0.09)));
         const grow = i === heroIdx ? expand : 0;

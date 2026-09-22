@@ -158,14 +158,21 @@ export const PlanPalimpsest: React.FC<{
               background: L.sw === 'fill' ? ACC : 'transparent', opacity: L.sw === 'fill' ? 0.35 : 1,
               border: `${hair * 2}px solid ${L.tone}`}} />
             <div>
-              <div style={{font: `600 ${Math.round(W * 0.0195)}px/1.25 ${disp}`, color: L.tone}}>{L.label}</div>
+              {/* `text-wrap: balance` because Chinese breaks between ANY two glyphs: a legend label one unit
+                  wider than its column drops a single character onto a line of its own, which reads as a typo
+                  rather than as a line break. It is a line-BREAKING hint only — a label that already fits on
+                  one line cannot move — and Latin ragging is only improved by it. A board tried to pass this
+                  as a `textWrap` PROP, which this register does not read: the fix belongs to every film that
+                  sets a CJK label here, not to the one that noticed. */}
+              <div style={{font: `600 ${Math.round(W * 0.0195)}px/1.25 ${disp}`, color: L.tone,
+                textWrap: 'balance'}}>{L.label}</div>
               {L.date ? (
                 <div style={{font: `500 ${Math.round(W * 0.0125)}px/1.4 ${mono}`, color: DIM,
                   letterSpacing: '0.06em', marginTop: Math.round(W * 0.002)}}>{L.date}</div>
               ) : null}
               {L.note ? (
                 <div style={{font: `400 ${Math.round(W * 0.0135)}px/1.4 ${body}`, color: DIM,
-                  marginTop: Math.round(W * 0.003)}}>{L.note}</div>
+                  textWrap: 'balance', marginTop: Math.round(W * 0.003)}}>{L.note}</div>
               ) : null}
             </div>
           </div>

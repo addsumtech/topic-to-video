@@ -24,7 +24,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, easeOutExpo} from '../runtime/motion';
-import {captionBand, CONTENT_TOP} from '../runtime/layout';
+import {captionBand, CONTENT_TOP, wrapLines} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
 
 export const DURATION = 150; // 5s
@@ -96,12 +96,29 @@ export const SectionRoute: React.FC<{
   // ── geometry. The section fills the content zone; every measure is a FRACTION of the frame so the shot
   // reflows at 9:16 / 1:1 / 4:5 instead of running off the edge.
   const top = CONTENT_TOP + H * 0.06;
-  const bottom = H - captionBand(W, H) - H * 0.09;   // leave room for the verdict under the section
+  const labelW = Math.min(W * 0.20, 300);
+  const x0 = labelW + W * 0.05, x1 = W - W * 0.06;
+  // THE FOOT IS RESERVED FROM THE TYPE THAT GOES IN IT. `H * 0.09` was sized for the VERDICT alone
+  // ("leave room for the verdict under the section"); the `note` was added under it later and the
+  // reserve never grew, so a film that passed both printed the note 33px INSIDE the caption band and
+  // the burned subtitle drew straight over it — measured on a delivered 30-beat film, beat 2.
+  // And "one line each" is a LATIN assumption: a Han glyph is a full em, so the same note wraps in a
+  // column where the English one did not. Both blocks are measured in the column they actually wrap
+  // in, and the section yields by what they need, floored at the original H*0.09 so every film that
+  // fits in one line lays out exactly as before. `x0` depends only on W, so there is no loop here.
+  const footW = x1 - x0;
+  const VERDICT_PX = Math.round(W * 0.0225), NOTE_PX = Math.round(W * 0.0125);
+  const FOOT_GAP = H * 0.035;                         // the section's foot to the verdict's top
+  const vH = verdict ? wrapLines(String(verdict), VERDICT_PX, footW) * VERDICT_PX * 1.25 : 0;
+  const nH = note ? wrapLines(String(note), NOTE_PX, footW) * NOTE_PX * 1.4 : 0;
+  // the note used to be pinned W*0.030 below the verdict's TOP, which a verdict of two lines runs
+  // through. It now clears the verdict's real height, never closer than the original spacing.
+  const noteOff = note ? Math.max(Math.round(W * 0.030), vH + Math.round(H * 0.010)) : 0;
+  const footH = FOOT_GAP + (note ? noteOff + nH : vH) + H * 0.012;
+  const bottom = H - captionBand(W, H) - Math.max(H * 0.09, footH);
   const nL = LEVELS.length;
   const bandH = (bottom - top) / (nL - 1);
   const yOf = (lv: number) => top + Math.max(0, Math.min(nL - 1, lv)) * bandH;
-  const labelW = Math.min(W * 0.20, 300);
-  const x0 = labelW + W * 0.05, x1 = W - W * 0.06;
   const xOf = (f: number) => x0 + clamp01(f) * (x1 - x0);
 
   const stops = ROUTE;
@@ -220,16 +237,19 @@ export const SectionRoute: React.FC<{
         );
       })}
 
-      {/* the verdict — what this route cost, or what the shortcut removed */}
+      {/* the verdict — what this route cost, or what the shortcut removed.
+          Both foot blocks are laid out against the SAME numbers the reserve above was computed from
+          (`FOOT_GAP`, `VERDICT_PX`, `NOTE_PX`, `noteOff`), so the arithmetic and the layout cannot
+          drift apart — which is how the note came to sit inside the caption band in the first place. */}
       {verdict ? (
-        <div style={{position: 'absolute', left: x0, top: bottom + H * 0.035, right: W * 0.06,
+        <div style={{position: 'absolute', left: x0, top: bottom + FOOT_GAP, width: footW,
           opacity: settled, transform: `translateY(${(1 - settled) * 10}px)`,
-          font: `700 ${Math.round(W * 0.0225)}px/1.25 ${disp}`, color: FG}}>{verdict}</div>
+          font: `700 ${VERDICT_PX}px/1.25 ${disp}`, color: FG}}>{verdict}</div>
       ) : null}
       {note ? (
-        <div style={{position: 'absolute', left: x0, top: bottom + H * 0.035 + Math.round(W * 0.030),
-          right: W * 0.06, opacity: settled * 0.9,
-          font: `400 ${Math.round(W * 0.0125)}px/1.4 var(--f-body, system-ui, sans-serif)`,
+        <div style={{position: 'absolute', left: x0, top: bottom + FOOT_GAP + noteOff, width: footW,
+          opacity: settled * 0.9,
+          font: `400 ${NOTE_PX}px/1.4 var(--f-body, system-ui, sans-serif)`,
           color: DIM}}>{note}</div>
       ) : null}
     </AbsoluteFill>

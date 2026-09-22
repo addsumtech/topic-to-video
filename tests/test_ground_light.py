@@ -986,3 +986,190 @@ def test_the_film_has_a_pale_end_and_it_is_not_always_fg():
     assert out["presets"], "no presets were read, so this test proves nothing"
     for pale, deep in out["presets"]:
         assert pale != deep, "a preset whose two ends are the same colour has no axis at all"
+
+
+def test_two_regions_covering_a_light_frame_stay_inside_the_palette():
+    """`separatedPair`'s fallback put a hue back as a 12% wash, and on PAPER that is where the palette leaks.
+
+    A film's two accents sit on opposite sides of a light ground by construction — measured on a real one,
+    深蓝 #133C9A reads 8.41:1 on #F2EDE3 and 青绿 #00D6B9 reads 1.59:1 — so the normal path cannot separate
+    them and EVERY light film lands in the fallback. There a grey lifted toward the ground plus 12% of a hue
+    is neither accent: that film's `VersusSplit` beats came back cold grey and sage green, two hues its DNA
+    never declares, across the only three non-paper frames it had.
+
+    What this pins is not a rung but the CLAIM: on a light ground both halves stay on a hue the film
+    DECLARES — the ground's or an accent's — and neither becomes a neutral.
+
+    THE BOUND WAS ONCE "within 12 deg of the ACCENT", and that was two mistakes in one line. It forbade
+    the most in-palette answer there is (a half that is literally the paper, one step back, at the
+    ground's own hue), and it EXCUSED the actual defect, because a neutral has no hue to compare and the
+    probe's `hue()` returned -1 for it, which `dh` scored as no conflict. So the shipped derivation --
+    which walked the near half 8% from a warm ground toward a cold accent and stopped on
+    (215,216,218), hue 220 at CHROMA 3 -- passed this test while covering half of a cream frame in a
+    grey the DNA never declares. Only looking at the render caught it. The claim below is the one that
+    was meant: EVERY declared hue is in the palette, and a neutral on a chromatic ground is a finding,
+    not an exemption.
+    """
+    out = run_probe("""
+      const paper = '#F2EDE3', navy = '#133C9A', teal = '#00D6B9';
+      const [a, b] = D.separatedPair(paper, navy, teal);
+      const hue = (hex: string) => {
+        const m = hex.replace('#','');
+        const [r, g, bl] = [0,2,4].map((i) => parseInt(m.slice(i,i+2),16)/255);
+        const mx = Math.max(r,g,bl), mn = Math.min(r,g,bl), d = mx-mn;
+        if (d === 0) return -1;                       // a neutral has no hue to compare
+        let h = mx===r ? ((g-bl)/d)%6 : mx===g ? (bl-r)/d+2 : (r-g)/d+4;
+        return (((h*60)%360)+360)%360;
+      };
+      const dh = (x: number, y: number) => {
+        if (x < 0 || y < 0) return 0;                 // neutral vs anything: no hue conflict
+        const d = Math.abs(x-y); return Math.min(d, 360-d);
+      };
+      out.halves = [a, b];
+      out.hues = [hue(a), hue(b)];
+      out.navyHue = hue(navy);
+      // Each half is EITHER neutral or ON the film's own hue. The bound is MEASURED, not chosen: the
+      // fallback this replaces returned #85a0a1 at 182 deg against the accent's 222 — a 40.4 deg miss, so
+      // a "<= 40" test slipped past it by four tenths of a degree. The single-hue ramp returns 222.5 deg,
+      // 0.8 off. Anything under ~10 is the same hue; anything near 40 is a hue the film never named.
+      // Against EVERY hue the DNA declares, not just the accent: the paper is the film's too.
+      const declared = [paper, navy, teal].map(hue).filter((x) => x >= 0);
+      const missOf = (c: string) => (hue(c) < 0 ? 999 : Math.min(...declared.map((d) => dh(hue(c), d))));
+      out.worstHueMiss = Math.max(...[a, b].map(missOf));
+      // A NEUTRAL IS NOT AN EXEMPTION. `chroma` is max-min over 0..255; the ground here is 15 wide, so a
+      // half at 3 is grey, and grey is exactly what this test failed to see the first time.
+      const chroma = (hex: string) => {
+        const m = hex.replace('#','');
+        const v = [0,2,4].map((i) => parseInt(m.slice(i,i+2),16));
+        return Math.max(...v) - Math.min(...v);
+      };
+      out.chromas = [a, b].map(chroma);
+      out.groundChroma = chroma(paper);
+      out.inPalette = out.worstHueMiss <= 12
+        && out.chromas.every((c: number) => c >= out.groundChroma * 0.5);
+      // ...and they still read as two regions
+      out.step = Math.abs(D.pilL(a) - D.pilL(b));
+      // the dark path is untouched: on a near-black ground the pair still separates
+      const [da, db] = D.separatedPair('#0b0d12', '#5ac8fa', '#ff9f0a');
+      out.darkStep = Math.abs(D.pilL(da) - D.pilL(db));
+      out.darkPair = [da, db];
+    """)
+    assert out["inPalette"], (
+        "a half of a light film's split frame is outside the declared palette: %r — worst miss %.1f deg "
+        "from any declared hue (hues %r), chromas %r against the ground's %d"
+        % (out["halves"], out["worstHueMiss"], [round(h) for h in out["hues"]],
+           out["chromas"], out["groundChroma"]))
+    assert out["step"] >= 0.12, "the two halves no longer read as two regions: %r" % (out["halves"],)
+    assert out["darkStep"] >= 0.12, "the dark-ground path regressed: %r" % (out["darkPair"],)
+
+
+def test_a_plane_cut_from_a_surface_keeps_that_surface_s_hue():
+    """`plane` is the "more of the same material, one step back" rule, and the thing it replaces is a mix
+    toward the INK. That mix stays inside the palette only while ground and ink share a temperature; a warm
+    paper and a cold ink CANCEL, and the result is the one grey mass on a one-hue page. Inscription's
+    dressed face shipped that way — measured (213,212,211) off #FBF8F1 and #101A33.
+
+    Measured independently here (colorsys on the returned hex), at both ends and over every preset, so the
+    test cannot be satisfied by the code agreeing with itself. The pair asserted is BOTH halves of the
+    rule: hue is kept AND the step is real, because a `plane` that returned its input would pass a
+    hue check perfectly and draw nothing."""
+    r = run_probe("""
+      const cases: any = {};
+      const pairs: [string, string][] = [
+        ['#FBF8F1', '#101A33'],   // warm paper, cold ink — the cancelling pair that produced the defect
+        ['#0E1730', '#F2EDE3'],   // the same film's night ground, inks swapped
+        ['#00D6B9', '#101A33'],   // a saturated ground
+        ['#808080', '#000000'],   // a neutral surface: nothing to keep, and it must still step
+      ];
+      for (const [s, ink] of pairs) {
+        cases[s] = {plane: D.plane(s, 0.16), mixToInk: D.mix(s, ink, 0.16)};
+      }
+      for (const p of %s) {
+        const dna = D.DNA_PRESETS[p];
+        cases['preset:' + p] = {surface: dna.surface, plane: D.plane(dna.surface, 0.16),
+                                mixToInk: D.mix(dna.surface, dna.fg, 0.16)};
+      }
+      out.cases = cases;
+    """ % json.dumps(PRESETS))
+    cases = r["cases"]
+
+    def dh(a, b):                                   # hue distance on the circle
+        d = abs(_hue(a) - _hue(b)) % 360
+        return min(d, 360 - d)
+
+    cancelled = 0
+    for key, c in cases.items():
+        src = c.get("surface", key if key.startswith("#") else None)
+        assert src, key
+        got, step = c["plane"], abs(_Y(c["plane"]) - _Y(src))
+        # a neutral source has no hue to keep, but every source must MOVE
+        assert step > 0.004, "%s: plane(%s) = %s did not step off its source (dY=%.4f)" % (key, src, got, step)
+        # CHROMA IS THE MEASURE HERE, NOT HUE ANGLE. The colour this defect ruins is a near-white paper
+        # whose whole cast is 10 units of chroma wide, and at that width the hue ANGLE is rounding noise:
+        # the `editorial` preset's #181512 (chroma 6) reads 6 deg off after a one-unit rounding, while
+        # staying visibly the same brown. What the eye sees is the cast SURVIVING or not — the mix toward
+        # the ink left that paper with 20% of it. So chroma retention is asked of every source, and the
+        # hue angle only where there is enough chroma for the angle to mean anything.
+        if _chroma(src) >= 4:
+            assert _chroma(got) >= _chroma(src) * 0.75, (
+                "%s: plane(%s) = %s kept only %.0f%% of the source's chroma" % (
+                    key, src, got, 100.0 * _chroma(got) / _chroma(src)))
+        if _chroma(src) >= 12:
+            assert dh(got, src) <= 4.0, "%s: plane(%s) = %s drifted %.1f deg off its source" % (
+                key, src, got, dh(got, src))
+        if _chroma(src) >= 4 and _chroma(c["mixToInk"]) < _chroma(src) * 0.6:
+            cancelled += 1
+    # ...and the probe is only load-bearing if the derivation it replaces really does cancel somewhere.
+    assert cancelled >= 1, ("no case in this probe cancels under a mix toward the ink — the test would "
+                            "pass against the very code it was written to catch")
+
+
+def test_two_regions_on_paper_both_stay_the_film_s_own_hues():
+    """`separatedPair` covers a frame with TWO regions, and on a light film both must stay in the palette.
+
+    The light branch used to walk BOTH halves toward the accent — a small step first, a larger one after.
+    From a WARM ground toward a COLD accent the small step is spent crossing the ground's own hue and
+    stops on neutral: measured on a cream/navy film the near half was (215,216,218), hue 220° at CHROMA 3,
+    half a frame of a grey the DNA never declares, on a page of hue 40° chroma 15.
+
+    Asserted here on EVERY preset plus the real film's pair, measured independently (colorsys on the
+    returned hex), and BOTH halves are checked: the near one must keep the ground's cast, the far one must
+    carry the accent's hue, and the two must still separate — a pair that passed the palette by returning
+    the ground twice would draw one region, not two."""
+    r = run_probe("""
+      const out2: any = {};
+      const pairs: [string, string, string][] = [
+        ['#F2EDE3', '#133C9A', '#00D6B9'],     // the real film: warm paper, cold accents — the failing case
+        ['#FBF8F1', '#9c3b1e', '#2e5e4e'],     // warm paper, WARM accent — must not regress
+        ['#eef2f8', '#b8412e', '#133C9A'],     // cool paper
+      ];
+      for (const [g, a, b] of pairs) out2[g] = D.separatedPair(g, a, b);
+      for (const p of %s) {
+        const dna = D.DNA_PRESETS[p];
+        if (D.pilL(dna.bg) > 0.5) out2['preset:' + p] = D.separatedPair(dna.bg, dna.accent, dna.accent2);
+      }
+      out.pairs = out2;
+    """ % json.dumps(PRESETS))
+
+    def dh(a, b):
+        d = abs(_hue(a) - _hue(b)) % 360
+        return min(d, 360 - d)
+
+    checked = 0
+    for key, pair in r["pairs"].items():
+        ground = key.split(":", 1)[-1] if key.startswith("preset:") else key
+        if key.startswith("preset:"):
+            continue                                   # the probe returns only the pair; ground checked below
+        near, far = pair
+        # the two regions must still be two
+        assert abs(_Y(near) - _Y(far)) > 0.02, "%s: the pair collapsed to one region (%s / %s)" % (key, near, far)
+        # the NEAR half is the paper, one step back — it keeps the ground's cast
+        if _chroma(ground) >= 4:
+            assert _chroma(near) >= _chroma(ground) * 0.75, (
+                "%s: near half %s kept only %.0f%% of the ground's chroma — it crossed into neutral" % (
+                    key, near, 100.0 * _chroma(near) / _chroma(ground)))
+        if _chroma(ground) >= 12:
+            assert dh(near, ground) <= 6.0, "%s: near half %s drifted %.1f deg off the ground" % (
+                key, near, dh(near, ground))
+        checked += 1
+    assert checked >= 3, "the probe measured only %d light pairs" % checked

@@ -101,7 +101,12 @@ export const EdTimeline: React.FC<{kicker?: string; entries?: Entry[]; framed?: 
                 borderTop: i ? `1px solid ${line}` : 'none', opacity: show, transform: `translateY(${(1 - show) * 14}px)`}}>
                 <span style={{color: acc, font: `700 ${px(40)}px/${leading(e.date, 1)} ${disp}`, textWrap: 'balance', minWidth: '3ch'}}>{e.date}</span>
                 <div>
-                  <div style={{color: fg, font: `700 ${px(52)}px/${leading(e.title, 1.1)} ${disp}`, letterSpacing: '-0.01em'}}>{e.title}</div>
+                  {/* `text-wrap: balance` for the same reason `date` and `note` already carry it, and the
+                      TITLE is the one that needed it most: it is the widest line in the row, so a Chinese
+                      title one unit past its column drops a single glyph onto a line of its own — measured
+                      here as 「…多种主流语言」 ending on a line holding 「言」. A break hint only; a title
+                      that already fits cannot move, and Latin ragging is only improved. */}
+                  <div style={{color: fg, font: `700 ${px(52)}px/${leading(e.title, 1.1)} ${disp}`, letterSpacing: '-0.01em', textWrap: 'balance'}}>{e.title}</div>
                   {e.note ? <div style={{color: dim, font: `400 ${px(30)}px/${leading(e.note, 1.4)} ${body}`, textWrap: 'balance', marginTop: px(8)}}>{e.note}</div> : null}
                 </div>
               </div>

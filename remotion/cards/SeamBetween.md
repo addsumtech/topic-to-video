@@ -1,0 +1,27 @@
+# SeamBetween
+
+**Identity:** two masses of the same stock stand apart, and the strip of nothing between their facing edges is the subject: the accent fills the kerf, a dimension line is drawn under it with its extension lines and inward arrows, and the gap's own name is set beneath. Name what the two become and the register enters its SECOND STATE — the masses travel together, the accent is squeezed until it is only the line of the joint, the measurement leaves, and the one name stands in the place the measurement stood.
+
+**Use when:** the beat's claim is that THE INTERFACE IS THE EXPENSIVE PART, not either side — two teams and the handover between them, two datastores and the sync, two codebases and their bridge, two jurisdictions and the border — or that such a gap was CLOSED: a merger that removes a reconciliation step, a migration that deletes an integration, two tools folded into one body. The two states are the same picture, so one film can open on the gap and close on the joint and the rhyme does the arguing. **Not when:** the two sides are the subject and the divider is furniture (`VersusSplit`, `EdCompare`, `RealVersus`), when what is lost in crossing is the claim (`CarryOver`), when most of a distance was covered and a little was not (`LastLeg`), or when three to six parts are seating onto one standard (`PortRail` — a fit, not a gap).
+
+**Motion core:** the kicker fades 0.02–0.12, the masthead 0.03–0.20 (easeOutCubic) and the hairline draws 0.10–0.34. **Open:** the two masses travel in from outside over 0.04–0.26 (easeOutCubic), the kerf lights 0.24–0.40, the dimension draws 0.38–0.56 (easeOutCubic), the gap's name sets 0.56–0.70, the standfirst 0.78–0.90. **Closed:** the same picture is built faster — masses 0.02–0.18, kerf 0.16–0.28, dimension 0.26–0.40, gap's name 0.34–0.46 — and then the gap SHUTS 0.46–0.72 (easeInOutCubic). The hand-off is sequential, never a cross-fade: the measurement and the gap's name leave 0.50–0.62, the whole's name arrives 0.72–0.84, and the standfirst 0.82–0.92.
+
+| Prop | What it sets | Feel of turning it |
+|---|---|---|
+| `whole` | the name of the single mass the two become — **and, by being there, the second state** | present, the gap shuts and this word arrives under the joint; absent, the gap holds open and measured. There is no separate `state` prop: two props for one fact make half the combinations invalid, and it made the register unrenderable to `cjk_type_qa`, which feeds every declared string prop |
+| `left` | the mass on the left, named on its own stock | REQUIRED. The names STAY through the shut — the closed state is two named halves in one body, not a blank slab. A sentence wraps inside the sheet rather than being refused |
+| `right` | the mass on the right | as `left`. Both, or the register throws: the gap is the space between two NAMED things, and with one unnamed the dimension points at nothing |
+| `seamLabel` | what the SPACE is — the thing the dimension line measures | REQUIRED, and the whole reason the register exists. Unnamed, the kerf reads as the margin between two panels instead of as the subject. In the closed state it leaves before the whole's name arrives, so the two never overlap |
+| `title` | the masthead over the hairline rule | the ONE word the frame is about, and the thing a bookend CHANGES between its two uses — the rest of the picture staying identical is what makes that word an argument |
+| `note` | the standfirst under the form, in the film's own voice | arrives last. Wraps to as many lines as it needs and the form yields the height |
+| `kicker` | a small standing label above the masthead | the only prop with NO demo default: a default here prints on every film that simply does not pass one, and the first consumer had its own chrome already drawing a breadcrumb in that position |
+
+**Known traps:**
+- **Nothing is ever set on the accent.** The kerf is a fill and only a fill. On a light stock a second accent is frequently a colour that cannot carry type at all (measured on the first consumer: 1.59:1 on the paper), and a strip narrow enough to be the subject of a dimension line is never wide enough to set a word in anyway. Every word is on the sheet or on the paper.
+- The pair does **not** run the full column on a wide frame. Set edge to edge it reads as ONE strip with a coloured stripe in it — visible only in a rendered frame — so the form takes two thirds of the column at 16:9 and the whole of it on a narrow one.
+- The dimension speaks in the DNA's `accent` whenever that clears 4.5:1 on the ground, and in the ink otherwise. Asking `readableOn` for it instead returns the MOST legible candidate, which is always the ink — and the hierarchy (masses in ink on their stock, the measurement in the other voice on the paper) is lost.
+- Long copy WRAPS and shrinks; it is refused only under `MIN_NAME_FRAC` / `MIN_SEAM_NAME_FRAC` / `MIN_TITLE_FRAC`, the point at which type stops being a word. Refusing a silent DROP is the house rule; refusing to wrap is not the same thing, and the first cut did the second and made the register unmeasurable at every aspect.
+
+**Refuses:** `left` or `right` missing or empty; `seamLabel` missing or empty; any of the masthead, the mass names, the gap's name or the whole's name that cannot be drawn at its floor size in the room the frame has (it throws with the measured px and the floor).
+
+**Reference:** `remotion/src/shots/SeamBetween.tsx`

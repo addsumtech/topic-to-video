@@ -22,9 +22,14 @@ export const INTRINSIC_TEXT = [
 export const TensionScale: React.FC<{
   title?: string; leftLabel?: string; leftSub?: string; rightLabel?: string; rightSub?: string;
   note?: string; accent?: string; accent2?: string;
+  /** The equilibrium read-out under the beam. It was the literal `equilibrium: unresolved` with no way
+   *  to reach it, so every film printed English on its frame whatever language it was in — on a
+   *  Chinese film it is the only Latin string in the shot. A word the form owns still has to be a
+   *  prop (§B1): the default keeps every existing film pixel-identical. */
+  readout?: string;
 }> = ({
   title = 'The tension that never resolves', leftLabel = 'MISSION', leftSub = 'benefit all of humanity',
-  rightLabel = 'SCALE - MONEY - POWER', rightSub = 'the cost of the race', note = 'neither side wins - that IS the story',
+  rightLabel = 'SCALE - MONEY - POWER', rightSub = 'the cost of the race', note = 'neither side wins - that IS the story', readout = 'equilibrium: unresolved',
   accent: accentIn, accent2: accent2In,
 } = {}) => {
   const {width: W, height: H} = useVideoConfig();
@@ -93,7 +98,7 @@ export const TensionScale: React.FC<{
         <circle cx={cx} cy={fy} r={9 + 3 * Math.sin(t * Math.PI * 2 * 1.15)} fill={KNOT} opacity={0.9} />
         <circle cx={cx} cy={fy} r={20} fill="none" stroke={`${accent}`} strokeWidth={1.5} opacity={0.4 + 0.3 * Math.abs(Math.sin(t * Math.PI * 2 * 1.15))} />
         {/* equilibrium readout */}
-        <text x={cx} y={fy + 96} textAnchor="middle" fill={READOUT_INK} fontSize="15" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={appear}>equilibrium: unresolved</text>
+        <text x={cx} y={fy + 96} textAnchor="middle" fill={READOUT_INK} fontSize="15" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={appear}>{readout}</text>
         {/* bottom note (kept above the caption band) */}
         {/* The note was made band-aware VERTICALLY and never bounded horizontally. An SVG <text> does not
             wrap, and this one is centred on the frame, so a Chinese note simply grew out of both edges. */}

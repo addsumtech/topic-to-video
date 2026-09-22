@@ -14,7 +14,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
 import {leading} from '../runtime/cjkType';
-import {useDNA, dnaPalette, mix, shade} from '../runtime/dna';
+import {useDNA, dnaPalette, mix, shade, contrastOf, readableOn} from '../runtime/dna';
 import {onLight} from '../runtime/light';
 import {fitTextOnNLines} from '@remotion/layout-utils';
 
@@ -65,6 +65,15 @@ export const CardFlip3D: React.FC<{items?: Item[]; title?: string; backLabel?: s
   const FACE_BG = dna ? `linear-gradient(155deg, ${dna.surface}, ${dna.bg})` : null;
   const FACE_EDGE = dna?.surfaceBorder ?? null;
   const INK = dna?.fg ?? '#eef2ff', DIM = dna?.dim ?? '#8b93a8', ON = dna?.onAccent ?? '#fff';
+  // THE BACK OF A CARD IS FLOODED WITH ITS TONE, AND THE PAYOFF IS WRITTEN ON THAT FLOOD. `onAccent` is the
+  // DNA's ink for its FIRST accent, and `dnaPalette`'s second entry is the raw `accent2` — a colour chosen
+  // for chroma against the first accent, not for value against anything. On a light-stock film whose second
+  // accent is a teal, card 2's back measured `onAccent` at **1.69:1** while card 1's measured 8.93:1: the
+  // whole payoff of one flip in two was invisible, on a register whose entire form is the payoff. Ask the
+  // tone. `onAccent` wins wherever it already clears the floor — which is every dark preset, so nothing that
+  // renders today moves — and the film's own ink takes over where it does not.
+  const backInk = (tone: string) =>
+    contrastOf(ON, tone) >= 4.5 ? ON : readableOn(tone, INK, ON, '#ffffff', '#0a0d14');
   // The kicker is on the film's GROUND, not on a card, so it is the film's ink at its metadata tier.
   const TITLE_INK = dna ? mix(dna.fg, dna.dim, 0.4) : TITLE_D0;
   // …and the cards' shadow is scaled to the ground it falls on (see SHADOW_D0). The inset highlight goes
@@ -141,9 +150,9 @@ export const CardFlip3D: React.FC<{items?: Item[]; title?: string; backLabel?: s
               </Face>
               <Face back tone={tone} shadow={CARD_SHADOW}>
                 {/* was a bare ↓ pointing at nothing — undecodable furniture. A short label says what the back IS. */}
-                <div style={{color: ON, opacity: .72, font: `700 20px/${leading(BACKLABEL, 1)} var(--f-mono, "JetBrains Mono", monospace)`,
+                <div style={{color: backInk(tone), opacity: .72, font: `700 20px/${leading(BACKLABEL, 1)} var(--f-mono, "JetBrains Mono", monospace)`,
                   letterSpacing: '.18em', marginBottom: 16}}>{BACKLABEL}</div>
-                <div style={{color: ON, font: `800 ${faceSize}px/1.18 ${dispFace}`,
+                <div style={{color: backInk(tone), font: `800 ${faceSize}px/1.18 ${dispFace}`,
                   textAlign: 'center', letterSpacing: '-0.02em'}}>{c.back}</div>
               </Face>
               {sheen > 0.01 ? <div style={{position: 'absolute', inset: 0, borderRadius: 26, pointerEvents: 'none',

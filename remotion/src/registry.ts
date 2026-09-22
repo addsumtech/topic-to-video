@@ -172,6 +172,10 @@ import {TermSpace} from './shots/TermSpace';
 import {CompanionCard} from './shots/CompanionCard';
 import {TaskFold} from './shots/TaskFold';
 import {PlaneStack} from './shots/PlaneStack';
+import {CarryOver} from './shots/CarryOver';
+import {StatedBy} from './shots/StatedBy';
+import {ViewSwitch} from './shots/ViewSwitch';
+import {SeamBetween} from './shots/SeamBetween';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
@@ -225,6 +229,10 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   CompanionCard,
   TaskFold,
   PlaneStack,
+  CarryOver,
+  StatedBy,
+  ViewSwitch,
+  SeamBetween,
 };
 
 export const SHOT_IDS = Object.keys(REGISTRY);

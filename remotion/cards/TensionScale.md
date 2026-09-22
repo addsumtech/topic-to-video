@@ -14,6 +14,7 @@
 | `rightLabel` | the right pan's name | as `leftLabel`. The demo is `SCALE - MONEY - POWER` |
 | `rightSub` | the line under the right label | as `leftSub`. The demo is `the cost of the race` |
 | `note` | one mono line above the caption band | an SVG line that cannot wrap, so a long note shrinks to fit 90% of the width (at most 20px) and a very long one becomes small. The demo is `neither side wins - that IS the story` |
+| `readout` | the small mono line under the pivot, the scale's own verdict | it is the ONE thing on this register that states the outcome, so a film that leaves it at the demo's `equilibrium: unresolved` is asserting that in English. A film in another language, or one whose beat names its own stalemate, passes its own line here. It does not wrap — keep it to a few words |
 | `accent` | the left pan's colour and the pivot ring | what you pass wins; unset it is the film's DNA accent, and only an un-themed film gets the original green |
 | `accent2` | the right pan's colour | likewise: passed, then the DNA's accent2, then the original blue |
 
@@ -21,6 +22,6 @@
 - Every text prop defaults to one film's mission-vs-money copy. Omit any of them and that copy prints.
 - The beam is the one object this register has, and it was a near-white literal: on a paper ground it was drawn white on white (measured 1.07:1) and the frame became two labelled cards, a triangle and no balance between them. The beam, the pivot knot and the title now take the film's `fg`, the pans its `surface`, and the sub-lines, readout and note its `dim`.
 - An SVG `<text>` cannot wrap. The note used to be bounded only vertically, and a Chinese note grew out of both frame edges; pan labels once ran 68px off each side because a Han glyph was counted as one Latin cell. Both are measured now, which means long copy gets smaller rather than wrapping.
-- `equilibrium: unresolved` is the form's own readout and always prints, in English.
+- `equilibrium: unresolved` is the DEMO readout, not a fixed string: it used to always print, in English, on every film in any language. It is now the `readout` prop's default, so a film that does not set it is still shipping an English verdict — set it.
 
 **Reference:** `remotion/src/shots/TensionScale.tsx`

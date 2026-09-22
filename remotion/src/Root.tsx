@@ -8,6 +8,10 @@ import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
 import {StageProbe, DURATION as SPD} from './runtime/__probe_stage3d';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
+import {SeamBetween, DURATION as D_SEAMBETWEEN} from './shots/SeamBetween';
+import {ViewSwitch, DURATION as D_VIEWSWITCH} from './shots/ViewSwitch';
+import {StatedBy, DURATION as D_STATEDBY} from './shots/StatedBy';
+import {CarryOver, DURATION as D_CARRYOVER} from './shots/CarryOver';
 import {PlaneStack, DURATION as D_PLANESTACK} from './shots/PlaneStack';
 import {TaskFold, DURATION as D_TASKFOLD} from './shots/TaskFold';
 import {CompanionCard, DURATION as D_COMPANIONCARD} from './shots/CompanionCard';
@@ -556,5 +560,9 @@ export const RemotionRoot: React.FC = () => (
     {F('FallbackPath', FallbackPath, D_FALLBACKPATH)}
     {F('TaskFold', TaskFold, D_TASKFOLD)}
     {F('PlaneStack', PlaneStack, D_PLANESTACK)}
+    {F('CarryOver', CarryOver, D_CARRYOVER)}
+    {F('StatedBy', StatedBy, D_STATEDBY)}
+    {F('ViewSwitch', ViewSwitch, D_VIEWSWITCH)}
+    {F('SeamBetween', SeamBetween, D_SEAMBETWEEN)}
   </>
 );

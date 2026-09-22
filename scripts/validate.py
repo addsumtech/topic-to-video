@@ -1784,11 +1784,32 @@ def _form_vocabulary(meta, slides, errors, warnings):
     # 一条验收行=AcceptanceStamp). A check that cannot run must SAY it did not run.
     _latin = [n for n in names if re.search(r"[A-Za-z]", n)]
     if names and len(_latin) * 2 < len(names):
+        # ...AND "BLIND" WAS NOT THE END OF IT. This branch used to print "could not run — check by hand"
+        # and stop, which on every non-Latin film turns the rule into an instruction nobody executes: the
+        # first Chinese film through it got that line, the hand-check was done by eye and recorded 9 of 12
+        # forms as ones the library lacked, and the board's own data says 4. The token matcher genuinely
+        # cannot read these names, but the BOARD can answer the same question in any script: a beat records
+        # `shot_fit.verdict`, and per agents/shot-director.md `build` means nothing in the library carried
+        # that form while `fit`/`adapt` mean something did. So the check reports the measurement instead of
+        # delegating it, and the author argues with a number rather than with a memory.
+        _vby = {}
+        for _s2 in slides:
+            _f2 = str(((_s2.get("shot_fit") or {}).get("form")) or "").strip()
+            _v2 = str(((_s2.get("shot_fit") or {}).get("verdict")) or "").strip().lower()
+            if _f2:
+                _vby.setdefault(_f2, set()).add(_v2)
+        _builtf = sorted(f for f, vs in _vby.items() if "build" in vs)
+        _shopf = sorted(f for f, vs in _vby.items() if "build" not in vs and vs)
         warnings.append(
-            "remotion: the catalogue-shopping check could not run — it compares forms against the REGISTER "
-            "FILE NAMES, which are English, and %d of %d forms here are not in Latin script. It is blind on "
-            "this film, not clean: check by hand that at least half the vocabulary names forms this library "
-            "does NOT already have (agents/shot-director.md step 0.5, rule 2)." % (len(names) - len(_latin), len(names)))
+            "remotion: the catalogue-shopping check cannot use its token matcher here — it compares forms "
+            "against the REGISTER FILE NAMES, which are English, and %d of %d forms are not in Latin script. "
+            "Measured instead from the board's own `shot_fit.verdict`, which is language-independent: "
+            "%d of %d declared form(s) have a beat that BUILT a register (%s); %d were drawn by a register "
+            "the library already had (%s). The rule is that at least half the vocabulary should name forms "
+            "this library does NOT hold (agents/shot-director.md step 0.5, rule 2) — read those two lists "
+            "against it rather than checking by eye."
+            % (len(names) - len(_latin), len(names), len(_builtf), len(names),
+               ", ".join(_builtf) or "none", len(_shopf), ", ".join(_shopf) or "none"))
     # AND THE LANGUAGE-INDEPENDENT HALF: a DERIVED vocabulary has SLACK. A subject is recorded in more ways
     # than any one film uses, so some declared forms go unused. A vocabulary where every form maps to
     # exactly one beat and nothing is left over was not derived from the subject — it was read off the
@@ -2427,6 +2448,68 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None):
                         "redesigned and none needed a new register. On a topic-specific film that is the "
                         "signature of matching the catalogue rather than judging it. Re-read the beats whose "
                         "register you picked for its shape rather than its meaning." % len(slides))
+    # A FILM HAS NO PAGES. `agents/design-critic.md` has said "REVISE a playback button, seek/progress bar,
+    # timecode, or slide counter" since the critic was written — but only there, as prose a late, optional,
+    # subjective step reads. Nothing in the authoring path mentioned the per-scene `chrome` block at all
+    # (no line in SKILL.md, shot-director.md or any reference), and no gate looked at it, so a delivered
+    # 30-beat film carried a 卷宗 breadcrumb and 「第 N / 37 页」 in its top corners on every frame. The
+    # viewer's first note was "这本质不是 ppt". The folio was also STALE — 37 came from the pre-cut board
+    # and nobody re-numbered it — but staleness is the smaller fault: a correct page count on a film is
+    # still a page count. A rule that lives only in a rubric is not a rule, so it is a gate now.
+    for _i, _s in enumerate(slides, 1):
+        _ch = _s.get("chrome")
+        if not isinstance(_ch, dict):
+            continue
+        for _k in ("status", "path", "root"):
+            _v = str(_ch.get(_k) or "")
+            if not _v:
+                continue
+            # a PAGINATION shape only — a terminal-idiom status like "● main" or "2 warnings" is fine
+            if re.search(r"\d+\s*(?:/|of|／)\s*\d+\s*(?:页|p(?:ages?)?|slides?)?\b", _v) \
+                    or re.search(r"(?:第\s*\d+\s*页|\bp(?:age|g)?\.?\s*\d+\b|\bslide\s*\d+\b)", _v, re.I):
+                errors.append(
+                    "scene %d: chrome.%s is a PAGE COUNTER (%r) — a film has no pages. This is the "
+                    "`design-critic` rule 'REVISE a playback button, seek/progress bar, timecode, or slide "
+                    "counter', made deterministic: a running folio reads as a slide deck played back, and it "
+                    "is on every frame. Drop the counter (and, if the running head is deck furniture too, "
+                    "the whole `chrome` block)." % (_i, _k, _v))
+
+    # ONE REGISTER DRAWING TWO DIFFERENT FORMS IS A MISCAST, AND NOTHING LOOKED FOR IT.
+    #
+    # A register carrying two beats is not itself a fault: a film's deliberate return — the same form at
+    # two states as a bookend, or one 口径 motif struck twice — is good structure, and `shot_fit.form`
+    # says so, because both beats name the SAME form. What the board cannot mean is one register drawing
+    # two DIFFERENT forms: the register was written to argue one shape, so at most one of those two beats
+    # is getting the shape it declared, and the other was picked for what it looks like.
+    #
+    # Measured on the film that motivated this: `Inscription` drew 「字段 schema 定义行」 at one beat and
+    # 「口径戳（来源印章）」 at another, and `QuadSplit` drew a capacity nameplate whose own declared form
+    # was the plate-with-a-stamp — a beat whose third panel then spanned the frame at ~70% empty, the
+    # emptiest frame in the film, which the density gate scored ABOVE its floor. A viewer reported this
+    # class as "the later beats repeat the earlier templates"; the board had said so all along.
+    #
+    # Language-independent by construction: it compares the film's own form strings to each other and
+    # never to a register FILENAME, so it runs on a Chinese vocabulary exactly as on an English one —
+    # unlike the catalogue-shopping check above, which is blind outside Latin script.
+    _by_shot = {}
+    for _i, _s in enumerate(slides, 1):
+        _sh = _s.get("shot")
+        if _sh:
+            _by_shot.setdefault(_sh, []).append((_i, str(((_s.get("shot_fit") or {}).get("form")) or "").strip()))
+    _miscast = []
+    for _sh, _uses in sorted(_by_shot.items()):
+        _forms = {f for _, f in _uses if f}
+        if len(_uses) > 1 and len(_forms) > 1:
+            _miscast.append("%s draws %s (beats %s)"
+                            % (_sh, " and ".join("'%s'" % f for f in sorted(_forms)),
+                               ", ".join(str(i) for i, _ in _uses)))
+    if _miscast:
+        warnings.append(
+            "remotion: one register is drawing more than one FORM — %s. A register argues one shape, so at "
+            "most one of those beats is getting the form it declared and the other was cast on resemblance. "
+            "Either re-pick that beat's register, or correct the `shot_fit.form` that is wrong."
+            % "; ".join(_miscast))
+
     try:                                                   # family-variety: no two ADJACENT beats one look
         import shot_director as _sd
         fams = [_sd.FAMILY.get(x) if x else None for x in seq]

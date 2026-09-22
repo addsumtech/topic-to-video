@@ -1713,3 +1713,74 @@ def test_remotion_16x9_cinematic_deck_has_no_parity_warnings():
                         "layers": [{"kind": "panel", "z": 100}], "lens": [{"atFrame": 0}]}]}
     w = _v.evaluate(data, "/tmp")["warnings"]
     assert not any(k in x for x in w for k in ("caption_mode", "transition_style", "karaoke", "landscape-tuned"))
+
+
+# ── a film has no pages, and one register argues one form ────────────────────────────────────────────
+def _remotion_beats(shots_forms, chrome=None):
+    """A minimal remotion board: [(shot, form), …] plus an optional chrome block on every beat."""
+    slides = []
+    for i, (shot, form) in enumerate(shots_forms, 1):
+        s = {"index": i, "narration": "一句话。", "duration": 5.0, "audio": "a.mp3",
+             "shot": shot, "shot_props": {}, "shot_fit": {"verdict": "adapt", "form": form, "why": "…"}}
+        if chrome:
+            s["chrome"] = dict(chrome, status=chrome["status"].format(i=i, n=len(shots_forms)))
+        slides.append(s)
+    return {"meta": {"fps": 30, "renderer": "remotion", "aspect": "16:9",
+                     "form_vocabulary": [{"form": f} for f in sorted({f for _, f in shots_forms})]},
+            "slides": slides}
+
+
+def test_a_page_counter_in_the_chrome_is_an_error():
+    """`agents/design-critic.md` has always said "REVISE a … slide counter", and a rule that lives only in
+    a late, optional, subjective rubric is not a rule: a delivered 30-beat film shipped 「第 N / 37 页」 in
+    its corner on every frame and the viewer's first note was 这本质不是 ppt. Asserted on a CORRECT count
+    too — the fault is the pagination, not the staleness."""
+    import validate as _v
+    data = _remotion_beats([("StatedBy", "f1"), ("Inscription", "f2")],
+                           chrome={"root": "卷宗", "path": "一 · 问题", "status": "第 {i} / {n} 页"})
+    e = _v.evaluate(data, "/tmp")["errors"]
+    assert sum("PAGE COUNTER" in x for x in e) == 2, e
+    # ...in either script, and on `path` as well as `status`
+    for status in ("3 of 30", "slide 3", "p. 3", "3/30"):
+        d2 = _remotion_beats([("StatedBy", "f1")], chrome={"root": "r", "path": "p", "status": status})
+        assert any("PAGE COUNTER" in x for x in _v.evaluate(d2, "/tmp")["errors"]), status
+    # a terminal-idiom status that is NOT pagination stays clean
+    for status in ("● main", "2 warnings", "READY", "未核实"):
+        d3 = _remotion_beats([("StatedBy", "f1")], chrome={"root": "r", "path": "p", "status": status})
+        assert not any("PAGE COUNTER" in x for x in _v.evaluate(d3, "/tmp")["errors"]), status
+    # and a board with no chrome at all is clean
+    assert not any("PAGE COUNTER" in x
+                   for x in _v.evaluate(_remotion_beats([("StatedBy", "f1")]), "/tmp")["errors"])
+
+
+def test_one_register_drawing_two_forms_is_reported():
+    """A register argues ONE shape. Two beats on one register naming the SAME form is a deliberate return;
+    two beats naming DIFFERENT forms means at most one of them got the form it declared. Found on the real
+    film: `Inscription` was recorded drawing both 「字段 schema 定义行」 and 「口径戳（来源印章）」, and the
+    schema label was simply wrong. Language-independent: it compares the film's own strings to each other,
+    never to a register filename, so it runs where the catalogue matcher is blind."""
+    import validate as _v
+    bad = _remotion_beats([("Inscription", "字段 schema 定义行"), ("StatedBy", "口径戳"),
+                           ("Inscription", "口径戳")])
+    w = _v.evaluate(bad, "/tmp")["warnings"]
+    hit = [x for x in w if "drawing more than one FORM" in x]
+    assert hit, w
+    assert "Inscription" in hit[0] and "beats 1, 3" in hit[0], hit[0]
+    assert "StatedBy" not in hit[0], "a register used once must not be named"
+    # the deliberate return — one register, one form, two beats — is NOT reported
+    good = _remotion_beats([("SeamBetween", "应用坞"), ("StatedBy", "口径戳"), ("SeamBetween", "应用坞")])
+    assert not any("drawing more than one FORM" in x for x in _v.evaluate(good, "/tmp")["warnings"])
+
+
+def test_the_catalogue_check_measures_instead_of_delegating_outside_latin():
+    """The token matcher cannot read a Chinese form name, and the branch that admits it used to stop at
+    "check by hand" — which is how a hand-check recorded 9 of 12 forms as ones the library lacked when the
+    board's own verdicts said 4. `shot_fit.verdict` answers the same question in any script."""
+    import validate as _v
+    data = _remotion_beats([("CarryOver", "交接单"), ("StatedBy", "口径戳"), ("Inscription", "口径戳")])
+    data["slides"][0]["shot_fit"]["verdict"] = "build"
+    w = [x for x in _v.evaluate(data, "/tmp")["warnings"] if "catalogue-shopping" in x]
+    assert w, "the branch did not fire on a non-Latin vocabulary"
+    assert "could not run" not in w[0], "it still refuses to measure"
+    assert "1 of 2 declared form(s) have a beat that BUILT" in w[0], w[0]
+    assert "交接单" in w[0] and "口径戳" in w[0], w[0]
