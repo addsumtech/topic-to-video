@@ -335,6 +335,17 @@ def _is_an_index(prop, src):
     return bool(_INDEX_DOC.search(" ".join(doc)))
 
 
+def _refused_without(prop, src):
+    """True when the register's own refusal names `prop` — it will throw unless the fixture supplies it.
+
+    Shares the signal `_is_an_index` reads, for the same reason: a register that requires something says
+    so in the sentence it throws, and that sentence is structural where a list of prop names is a copy
+    that goes stale. The backtick may be escaped, because a refusal written in a template literal has to
+    write a backslash before one."""
+    return bool(re.search(r"(?:pass|marked|needs at least one[^.]{0,40}?)\s*\\?`%s\\?`"
+                          % re.escape(prop), src or ""))
+
+
 def prop_signature(name):
     """{prop: type-text} straight from the register's own React.FC<{…}> declaration."""
     try:
@@ -739,7 +750,7 @@ def _named_union_member(alias, src):
     return got
 
 
-def _synth_field(name, ty, src="", i=0):
+def _synth_field(name, ty, src="", i=0, rowIdx=0):
     t = ty.replace(" ", "").rstrip(";")
     # A LIST FIELD IS TESTED BEFORE THE SCALAR IT IS SPELLED WITH. `"string[]".startswith("string")` is true,
     # so a `string[]` INSIDE an object row was filled with one sentence: `SurfaceCarousel`'s
@@ -798,6 +809,21 @@ def _synth_field(name, ty, src="", i=0):
         # `granted` marks a contiguous run (rows 2-3), so the sweep sees GrantedTree's bracket and a withheld row
         if name == "granted":
             return i in (1, 2)
+        # A FLAG THE REGISTER REFUSES WITHOUT has to be set on SOMETHING, or the register throws and the
+        # sweep reports a coverage hole instead of a finding. `NearTheLine` refuses unless one case is
+        # `near` and `PulledThread` unless one thread `moves` — both deliberately, because a frame with
+        # none of them marked argues the OPPOSITE of the beat, convincingly, past every gate. The signal
+        # is the same one the numeric-index rule reads: the refusal names the prop it wants. Marking ONE
+        # item is the minimum that satisfies such a register, and it is also the more interesting fixture
+        # — a sweep where every row is flagged never renders the unflagged branch.
+        # THE RAW ROW NUMBER, not the synthesis index. `i` is the row plus the sweep's OFFSET — the second
+        # prop set of a `prop_reach` measurement shifts it — so a rule written as `i == 0` fired on the
+        # first set and on NO row of the second, and both registers refused to render there. The row
+        # number is threaded through for this, because "exactly one row" is a statement about rows.
+        # Exactly one is also the better fixture: a sweep where every row is flagged never renders the
+        # unflagged branch, which on these registers is half the picture.
+        if _refused_without(name, src):
+            return rowIdx == 0
         return name in ("find", "hero", "done", "ok")
     m = re.match(r"^\[([A-Za-z]+),([A-Za-z]+)\]$", t)    # a fixed PAIR — `from: [number, number]`
     if m and m.group(1) == m.group(2) == "number":
@@ -964,7 +990,10 @@ def _is_text(ty):
     return str(ty).replace(" ", "").startswith("string")
 
 
-def _shaped_row(fields, src, i=0):
+# `rowIdx` is the row NUMBER, kept distinct from the local `row` dict this builds — naming it
+# `row` shadowed that dict and handed `_synth_field` a mapping where it expected an index, which
+# silently switched the flag rule off in every prop set.
+def _shaped_row(fields, src, i=0, rowIdx=0):
     """One element of a shaped array, with every field this cannot honour left out rather than guessed."""
     measured = any(re.match(r"^(pct|fill|ratio|frac|percent)$", k, re.I)
                    and str(v).replace(" ", "").startswith("number") for k, v in fields.items())
@@ -979,7 +1008,7 @@ def _shaped_row(fields, src, i=0):
         # of a row, so `{t, d}` came back carrying the SAME sentence twice — and the overlap detector matches
         # elements by their text, so a row whose two labels are one string cannot be told apart from a real
         # collision.
-        val = _synth_field(k, v, src, i + (sum(ord(ch) for ch in k) % 3 if _is_text(v) else 0))
+        val = _synth_field(k, v, src, i + (sum(ord(ch) for ch in k) % 3 if _is_text(v) else 0), rowIdx)
         if val is not _OMIT:
             row[k] = val
     return row
@@ -1005,7 +1034,7 @@ def _shape_from_type(prop, ty, src, n=3, off=0):
             return _NOT_COPY
         if not fields:                                   # a list of bare strings, e.g. `type Row = string`
             return _rotate(list(_ITEMS), off)[:n]
-        return [_shaped_row(fields, src, i + off) for i in range(n)]
+        return [_shaped_row(fields, src, i + off, i) for i in range(n)]
     m = re.match(r"^\{(.+)\}\[\]$", t)                                      # an INLINE object array
     if m:
         fields = {}
@@ -1014,7 +1043,7 @@ def _shape_from_type(prop, ty, src, n=3, off=0):
             if f:
                 fields[f.group(1)] = f.group(2)
         if fields:
-            return [_shaped_row(fields, src, i + off) for i in range(n)]
+            return [_shaped_row(fields, src, i + off, i) for i in range(n)]
     return None
 
 

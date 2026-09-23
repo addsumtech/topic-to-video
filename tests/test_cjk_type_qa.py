@@ -1153,3 +1153,47 @@ def test_a_required_index_is_fed_because_the_register_says_it_is_one():
             assert re.search(r"pass `%s`" % re.escape(prop), src) or re.search(
                 r"\bindex(es)?\b|\bwhich (one|of)\b", src, re.I), (
                 "%s.%s was fed a number without the register asking for one" % (n, prop))
+
+
+def test_a_flag_the_register_refuses_without_is_set_on_something():
+    """A register that throws unless one item is flagged is UNMEASURABLE if the fixture flags none.
+
+    `NearTheLine` refuses unless a case is marked `near`, and `PulledThread` unless a thread `moves`.
+    Both refusals are deliberate and both are the register's best property: with nothing marked, the
+    frame argues the OPPOSITE of its beat — a clean separation, a change that came away clean — and it
+    does so convincingly, past every gate in this repo. But a boolean fixture that answers `false`
+    everywhere turns that good refusal into a COVERAGE HOLE: the sweep reports "refused to render" at
+    five aspects and says nothing about the register at all.
+
+    The signal is the one the numeric-index rule already reads — the refusal names the prop it wants —
+    so this is the same structural fix, not a second list of names. Exactly ONE item is marked, because
+    a fixture that flags every row never renders the unflagged branch, which on these registers is half
+    the picture.
+    """
+    import glob
+    for f in sorted(glob.glob(os.path.join(_ROOT, "remotion", "src", "shots", "*.tsx"))):
+        n = os.path.basename(f)[:-4]
+        src = open(f, encoding="utf-8").read()
+        # the registers this is about: ones whose refusal names a boolean prop
+        sig, _ = c.prop_signature(n)
+        wanted = set()
+        for m in re.finditer(r"(?:pass|marked|needs at least one[^.]{0,40}?)\s*\\?`([A-Za-z][A-Za-z0-9_]*)\\?`",
+                             src):
+            wanted.add(m.group(1))
+        if not wanted:
+            continue
+        try:
+            props, _ = c.cjk_props(n, 0)
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+        for prop in wanted:
+            rows = [v for v in props.values() if isinstance(v, list) and v and isinstance(v[0], dict)]
+            flagged = [r for r in rows if any(isinstance(it.get(prop), bool) for it in r)]
+            for r in flagged:
+                vals = [it.get(prop) for it in r if isinstance(it.get(prop), bool)]
+                assert any(vals), (
+                    "%s refuses without `%s` and the fixture set it nowhere, so the gate cannot render it "
+                    "at all: %r" % (n, prop, vals))
+                assert not all(vals), (
+                    "%s.%s is set on EVERY row, so the unflagged branch — half of what the register draws "
+                    "— is never rendered: %r" % (n, prop, vals))
