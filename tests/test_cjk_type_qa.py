@@ -1092,3 +1092,64 @@ def test_every_register_really_gets_two_different_prop_sets():
             same.append(name)
     assert seen > 100, "only %d registers were shaped, so this proves nothing" % seen
     assert not same, "these registers are measured against an identical second prop set: %r" % same
+
+
+def test_a_required_index_is_fed_because_the_register_says_it_is_one():
+    """A register that REFUSES without an index was fed one from a hardcoded list of two prop names.
+
+    Under the content contract a register no longer picks which of the film's items to point at — it
+    refuses to render without the film's choice. `focal` and `target` were named in `cjk_type_qa` the day
+    they were written, and the next such prop was not: `HeldInstant.held` made the register refuse at all
+    five aspects, and the sweep reported a COVERAGE HOLE rather than a finding. A register no gate can feed
+    is a register nobody checks, and it fails in the direction that looks like nothing happened — the same
+    shape `evidence_props` fixed by parsing `requireEvidence` call sites instead of listing registers.
+
+    The two signals are the ones a register already carries: its refusal names the prop it wants, and its
+    documentation says the prop is an index. Optional SELECTORS stay unset, because their neutral state is
+    what a film that omits them gets.
+    """
+    import glob
+    fed = {}
+    for f in sorted(glob.glob(os.path.join(_ROOT, "remotion", "src", "shots", "*.tsx"))):
+        n = os.path.basename(f)[:-4]
+        # NOT a bare `except Exception`: the first draft of this test called the module by the wrong
+        # alias, the NameError was swallowed here, and the assertion below reported "the legacy pair is
+        # not fed" about a loop that had never run. A guard that hides the reason a check did nothing
+        # reports the wrong defect with total confidence.
+        try:
+            props, _ = c.cjk_props(n, 0)
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+        got = {k: v for k, v in props.items()
+               if isinstance(v, (int, float)) and not isinstance(v, bool)}
+        if got:
+            fed[n] = got
+
+    # THE PROPERTY, over the whole library — not three names. The first draft of this test asserted
+    # FocalIsolation, GlowPick and HeldInstant by name, and a refusal written inside a TEMPLATE LITERAL
+    # (where a backtick must be escaped) went unmatched: `CrashZoom` stopped being fed, its row went from
+    # measured to "refused to render", and the unit test stayed green because CrashZoom was not one of the
+    # three. A test that names the cases it knows about cannot catch the case it does not.
+    refusing = {}
+    for f in sorted(glob.glob(os.path.join(_ROOT, "remotion", "src", "shots", "*.tsx"))):
+        n = os.path.basename(f)[:-4]
+        src = open(f, encoding="utf-8").read()
+        sig, _ = c.prop_signature(n)
+        for m in re.finditer(r"pass\s+\\?`([A-Za-z][A-Za-z0-9_]*)\\?`", src):
+            prop = m.group(1)
+            if (sig.get(prop) or "").split("|")[0].strip().startswith("number"):
+                refusing.setdefault(n, set()).add(prop)
+    assert refusing, "no register refuses without a numeric index — this test is measuring nothing"
+    missing = {n: sorted(ps) for n, ps in refusing.items()
+               if not ps <= set(fed.get(n, {}))}
+    assert not missing, (
+        "these registers REFUSE to render without a numeric index and the gate does not feed them one, so "
+        "it cannot measure them at all: %r (fed: %r)" % (missing, fed))
+
+    # ...AND NOT EVERY NUMBER. An optional selector left unset is the state a film that omits it gets.
+    for n, got in fed.items():
+        for prop in got:
+            src = open(os.path.join(_ROOT, "remotion", "src", "shots", n + ".tsx"), encoding="utf-8").read()
+            assert re.search(r"pass `%s`" % re.escape(prop), src) or re.search(
+                r"\bindex(es)?\b|\bwhich (one|of)\b", src, re.I), (
+                "%s.%s was fed a number without the register asking for one" % (n, prop))

@@ -279,6 +279,62 @@ def _string_for(prop, local=None, src="", i=0):
     return _MED_V[i % len(_MED_V)]
 
 
+
+
+# WHICH NUMBER PROPS ARE AN INDEX, read from the register's OWN documentation rather than a list of names.
+#
+# This was `prop in ("focal", "target")`. Both of those are real, and the list was right on the day it was
+# written — which is the whole problem: `HeldInstant` requires `held`, an index into its `steps`, refused to
+# render without one, and the sweep reported a COVERAGE HOLE at all five aspects. A register no gate can
+# feed is a register nobody checks, and it fails silently in the direction that looks like nothing happened.
+# This repo has fixed the same shape in `evidence_props` (parse the `requireEvidence` call sites, never list
+# the registers) and in `register_energy.register_maps` (structure, never a restated list of keys).
+#
+# The signal is the prose the author already writes: a required index is documented as an index, because
+# whoever wrote the prop had to explain which list it points into. Optional SELECTORS (hero, winner,
+# highlight, active) stay unset on purpose — their neutral state is what a film that omits them gets — and
+# they are not documented as indices, so the same test leaves them alone.
+_INDEX_DOC = re.compile(r"\bindex(es)?\b|\bwhich (one|of)\b", re.I)
+
+
+def _is_an_index(prop, src):
+    """True when `prop`'s own comment in the register's source says it names a position in a list."""
+    # The REFUSAL test first, because it needs no particular layout. Anchoring on a declaration at the
+    # start of a line returned False for `FocalIsolation` before either test ran: it declares all three
+    # props on one line, so the prop is never at a line start and the early return swallowed it.
+    # The backtick may be ESCAPED. A refusal written in a template literal has to write \` for a backtick,
+    # and a refusal in a single-quoted string does not — so `FocalIsolation` matched a bare-backtick pattern
+    # and `CrashZoom`, which says exactly the same sentence inside a template literal, did not. Its row went
+    # from measured to "refused to render" and only the real sweep caught it; the unit test named three
+    # registers and CrashZoom was not one of them.
+    if re.search(r"pass\s+\\?`%s\\?`" % re.escape(prop), src or ""):
+        return True
+    m = re.search(r"^([ \t]*)%s\s*\??\s*:" % re.escape(prop), src or "", re.M)
+    if not m:
+        return False
+    head = (src or "")[:m.start()].rstrip()
+    # walk back over the contiguous comment block directly above the declaration
+    doc = []
+    for line in reversed(head.splitlines()):
+        st = line.strip()
+        if st.endswith("*/"):
+            doc.append(st)
+            for ln in reversed(head.splitlines()[:len(head.splitlines()) - len(doc)]):
+                doc.append(ln.strip())
+                if ln.strip().startswith("/*"):
+                    break
+            break
+        if st.startswith("//"):
+            doc.append(st)
+            continue
+        break
+    # ...OR ITS OWN DOCUMENTATION SAYS SO, which is what a register written since the content contract
+    # carries: whoever wrote a required index had to explain which list it points into. Optional SELECTORS
+    # (hero, winner, highlight, active) stay unset on purpose — their neutral state is what a film that
+    # omits them gets — and none of them is documented as an index or refused without.
+    return bool(_INDEX_DOC.search(" ".join(doc)))
+
+
 def prop_signature(name):
     """{prop: type-text} straight from the register's own React.FC<{…}> declaration."""
     try:
@@ -440,7 +496,7 @@ def cjk_props(name, offset=0):
             # as "failed to render" over a fixture that never said which item. 1 is inside every fixture list
             # (they all carry at least two rows). Optional selectors (hero, winner, highlight, active) stay
             # unset on purpose: their neutral state is what a film that omits them gets.
-            if prop in ("focal", "target") and t.split("|")[0] == "number":
+            if t.split("|")[0] == "number" and _is_an_index(prop, src):
                 props[prop] = 1
             continue
         elif "[]" in t:
