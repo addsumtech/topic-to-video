@@ -134,6 +134,65 @@ export function easeOutBack(t: number): number {
   const c1 = 1.70158, c3 = c1 + 1;
   return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
 }
+// CADENCE — discrete landings, and the one thing this file could not say.
+//
+// Every easing above is CONTINUOUS, and a peer-library audit recorded the consequence precisely: this
+// library escaped "uniform motion reads as cheap PowerPoint" by using an easing in 121 of 152 registers —
+// and smooth EVERYWHERE is its own uniformity. Nothing here could hold a value and then jump it, which is
+// how a drawn thing moves, how a mechanism moves, and how a frame reads as made rather than tweened.
+// `seg(t, a, b)` already gives "wait, then go", so that was never the gap; discrete ADVANCE was.
+//
+// IT IS THE INTERVALS THAT CARRY THE RHYTHM, not the steps. Equal intervals are a metronome; intervals
+// that SHRINK are the accelerating cut a trailer is built from; intervals that stretch are a thing running
+// out of energy. One parameter covers all three, and writing only the metronome — which is where this
+// started — would have left the next two to be hand-rolled, which is the failure `runtime/focus.ts`'s own
+// header describes ("the next register to want it would have written a third").
+//
+// It quantises TIME, not the value, so it composes with every easing above rather than replacing them:
+// `easeOutCubic(cadence(t, 4))` is the house settle performed in four beats.
+//
+// NOT A REPLACEMENT FOR A FRAME CADENCE. `SplitFlap` riffles on `Math.floor(frame / 2)` — a fixed
+// mechanical rate in FRAMES, which is what a departure board does regardless of how long the shot is.
+// This is landings across the SHOT, which is a different question; neither is the other.
+//
+// THE LAST LANDING IS BEFORE THE END, DELIBERATELY. `floor(t*n)/n` holds the final value for one frame at
+// t=1 and shows (n-1)/n for the whole shot — a register whose settled frame is a step short, which is
+// exactly what `scripts/settled_frame.py` exists because of. Mapping onto n-1 intervals means the value
+// reaches 1 at the last landing and HOLDS, which is also what this file's `useAnimSpan` already prefers:
+// "content lands sooner and holds longer, which is also better pacing".
+/** WHERE the landings are, 0..1, one entry per step. Exported because a register that DRAWS a rhythm has
+ *  to place its marks at the same moments the rhythm lands them: `Escalation` puts a mark's x at its
+ *  landing time, so a viewer watching the spacing and a viewer watching the timing are given the same
+ *  evidence. Two copies of this series would be two definitions, which is how this repo's caption band
+ *  became four — so there is one, and both callers read it. Normalised to 0..1; scale it to your own span. */
+export const cadenceAt = (steps = 3, accel = 1): number[] => {
+  const n = Math.max(2, Math.round(steps));
+  const a = Math.max(0.2, Math.min(5, accel));
+  const w: number[] = [];
+  let k = 1;
+  for (let i = 0; i < n - 1; i++) { w.push(k); k /= a; }   // a > 1 shrinks each interval: accelerating
+  const total = w.reduce((s, v) => s + v, 0) || 1;
+  const out = [0];
+  let acc = 0;
+  for (let i = 0; i < n - 1; i++) { acc += w[i]; out.push(acc / total); }
+  return out;
+};
+
+export const cadence = (t: number, steps = 3, accel = 1): number => {
+  const n = Math.max(2, Math.round(steps));
+  const pos = cadenceAt(n, accel);
+  const last = (n - 1) / n;                       // where the final landing sits, per the note above
+  const x = clamp01(t);
+  let landed = 0;
+  for (let i = 1; i < n; i++) {
+    if (x >= pos[i] * last - 1e-9) landed = i;
+  }
+  return landed / (n - 1);
+};
+
+/** Equal intervals — the metronome case of `cadence`, and the name most registers want. */
+export const stepped = (t: number, steps = 3): number => cadence(t, steps, 1);
+
 // The "superhuman" cursor ease: slow-start, rapid-middle, slow-stop (Raycast/Linear cursor narrative).
 export const easeCursor = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2);
 

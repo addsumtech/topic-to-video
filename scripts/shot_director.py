@@ -55,6 +55,7 @@ FAMILY = {
     "PointerTour": "B",
     "CrashZoom": "B", "TerrainFly": "B",
     "OverlapSeparation": "D", "SharedBlindspot": "H",
+    "Escalation": "D",
     "ViewSwitch": "D",
     "TermSpace": "D",
     "SpatialSlides": "C",
@@ -123,6 +124,7 @@ FAMILY = {
 # only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
 # pins the subset so it cannot drift again.
 PROVENANCE = {
+    "Escalation":              'data-viz',
     "SeamBetween":             'print-editorial',
     "ViewSwitch":              'product-ui',
     "StatedBy":                'survey-archive',

@@ -657,6 +657,17 @@ drift.
 - **`clamp01(t * k)` is fine** — a saturating fade-in is a reveal, not an oscillator.
 - **Run `python3 scripts/clock_qa.py`** after adding a register. It cross-references the scan with the
   measured sweep, so it names a symptom and a cause together.
+- **A rhythm goes in LANDINGS, not in an easing** — `cadence(t, steps, accel)` in `runtime/motion.ts`.
+  Every other easing in that file is continuous, and a peer-library audit found this one had escaped
+  "uniform motion reads as cheap PowerPoint" by easing 121 of 152 registers: smooth EVERYWHERE is its own
+  uniformity, and nothing here could hold a value and then jump it. `cadence` quantises TIME, so it
+  composes rather than replaces — `easeOutCubic(cadence(t, 4))` is the house settle performed in four
+  beats. `accel > 1` shrinks each interval (the accelerating cut), `< 1` stretches it (running out of
+  energy), `= 1` is a metronome and is also exported as `stepped(t, n)`. The final landing sits at
+  `(n-1)/n` and HOLDS, so the settled frame is never one step short.
+  A FIXED CADENCE IN FRAMES IS A DIFFERENT QUESTION: `SplitFlap` riffles on `Math.floor(frame / 2)`,
+  a mechanical rate that should not change with the clip's length. Use `cadence` for landings across the
+  SHOT; hand-roll the frame cadence, and say which you meant.
 - **Correcting a clock is a fidelity fix, not a motion fix.** Where the driven element is small the measured
   motion barely moves; render before and after and revert the edit if the number does not.
 
