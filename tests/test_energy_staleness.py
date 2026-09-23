@@ -229,3 +229,36 @@ def test_a_targeted_re_measure_keeps_every_other_row_s_recorded_artefact(tmp_pat
     # and the consequence that makes it matter: the manifest is still clean
     assert re_.stale(after) == [], (
         "a targeted re-measure left rows it never touched reporting stale: %r" % re_.stale(after))
+
+
+def test_an_artefact_in_a_subdirectory_is_part_of_the_hash_and_one_outside_public_is_not(tmp_path,
+                                                                                         monkeypatch):
+    """`PageWrite`'s whole evidence is `textures/demo-report.png`, and none of its bytes were hashed.
+
+    The containment test used to ban the path separator, so an artefact anywhere but the top of `public/`
+    was skipped — and the one register whose artefact this repo REGENERATES (`capture_page.py`) is exactly
+    the one that keeps it in a subdirectory. Re-capture that page with different pixels at the same page
+    size and `--check` reports OK about a row describing pixels nobody has: the lie `fed_hash` exists to
+    refuse, one directory deeper.
+
+    Resolving the path says what banning the separator was standing in for, so the other half is pinned
+    too: a value climbing out of `public/` is still refused, and cannot be used to read an arbitrary file.
+    """
+    monkeypatch.setattr(re_, "_REMOTION", str(tmp_path))
+    nested = tmp_path / "public" / "textures" / "page.png"
+    nested.parent.mkdir(parents=True)
+    nested.write_bytes(b"first capture")
+    outside = tmp_path / "secret.bin"
+    outside.write_bytes(b"one")
+
+    ev = {"X": {"src": "textures/page.png"}, "Y": {"src": "../secret.bin"}}
+    before_x, before_y = re_.fed_hash("X", ev), re_.fed_hash("Y", ev)
+
+    nested.write_bytes(b"re-captured, same page size, different pixels")
+    assert re_.fed_hash("X", ev) != before_x, (
+        "a register's only artefact changed and its recorded hash did not move — the row reads fresh "
+        "while describing pixels nobody has")
+
+    outside.write_bytes(b"two")
+    assert re_.fed_hash("Y", ev) == before_y, (
+        "a prop value climbing out of public/ was read as a fixture: %r" % ev["Y"])

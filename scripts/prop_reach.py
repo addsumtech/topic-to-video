@@ -159,7 +159,7 @@ def reach_of(name, dna=DEFAULT_DNA, tmp=None, durs=None):
     pa = os.path.join(tmp, "%s_a.png" % name)
     pb = os.path.join(tmp, "%s_b.png" % name)
     try:
-        ev = cq.evidence_props()
+        ev = fixtures()
         if name in ev:
             a, b = dict(a, **ev[name]), dict(b, **ev[name])
             # THE DIFFERENCE IS BETWEEN THE PROPS ACTUALLY FED, not the ones cjk_type_qa shaped. The fixture
@@ -200,6 +200,21 @@ def reach_of(name, dna=DEFAULT_DNA, tmp=None, durs=None):
             shutil.rmtree(tmp, ignore_errors=True)
 
 
+_FIXTURES = None
+
+
+def fixtures():
+    """`evidence_props()` once per process — the sweep calls it per register, and it parses every shot file.
+
+    Cached because the same dict is now read twice per register (once to feed the render, once to hash what
+    was fed) and re-parsing 175 `.tsx` files 350 times is how a correctness fix turns into a slowdown; this
+    repo has already shipped one of those."""
+    global _FIXTURES
+    if _FIXTURES is None:
+        _FIXTURES = cq.evidence_props()
+    return _FIXTURES
+
+
 def props_hash(name):
     """A row is a measurement of TWO INPUTS — the register's source, and the two prop sets it was fed. Only
     the first was ever hashed, and the second is not a constant: `cjk_props` is a fixture GENERATOR whose
@@ -211,14 +226,24 @@ def props_hash(name):
     Hashing the FED PROPS rather than the generator's source is exact and costs nothing: computing them
     requires no render. Hashing the module instead would invalidate all 161 rows on any edit to any part of
     `cjk_type_qa` — the over-broad dep-hash that `open-work.md` D1 accepts for `register_energy` only because
-    there it cannot be made exact. Here it can."""
+    there it cannot be made exact. Here it can.
+
+    ...AND THE PROPS ACTUALLY FED INCLUDE THE EVIDENCE FIXTURE. `reach_of` overlays `evidence_props()` onto
+    both sets before rendering, so six registers' stills are drawn from an artefact that appears nowhere in
+    `cjk_props` — re-capture the page and both frames move while neither this hash nor `_source` does. The
+    artefact hash is taken from `register_energy.fed_hash`, fed THIS sweep's own fixture dict, so there is
+    one definition of "hash an artefact set" rather than a second copy to drift from it."""
     try:
         a = cq.cjk_props(name, 0)[0]
         b = cq.cjk_props(name, OFFSET)[0]
     except Exception:                                      # noqa: BLE001 — unreadable is its own answer
         return "unreadable"
     blob = json.dumps([a, b], sort_keys=True, ensure_ascii=False, default=str)
-    return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]
+    h = hashlib.sha256(blob.encode("utf-8"))
+    fed = re_mod.fed_hash(name, fixtures())
+    if fed:
+        h.update(("|fed:" + fed).encode())
+    return h.hexdigest()[:16]
 
 
 def universe():

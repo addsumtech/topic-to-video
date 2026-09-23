@@ -94,3 +94,26 @@ def test_the_committed_manifest_is_currently_stale_and_says_so():
     else:
         assert "MEASURED WITH A BROKEN INSTRUMENT" not in lib, (
             "the sweep has been re-run and the numbers are sound — remove the warning from LIBRARY.md")
+
+
+def test_the_evidence_fixture_the_sweep_overlays_is_part_of_the_hash(tmp_path, monkeypatch):
+    """`reach_of` overlays `evidence_props()` onto BOTH prop sets before rendering, and that artefact
+    appeared in neither hash.
+
+    So six registers' stills were drawn from a picture no recorded hash covered: re-capture the page and
+    both frames move while `_source` and `_props` sit still, and `--check` reports the manifest clean. The
+    props this sweep records must be the props it FED, which is the claim `props_hash` already makes in its
+    own first paragraph — the fixture overlay simply arrived after it.
+    """
+    name = "TermTree"
+    pub = tmp_path / "public" / "textures"
+    pub.mkdir(parents=True)
+    png = pub / "page.png"
+    png.write_bytes(b"first capture")
+    monkeypatch.setattr(pr.re_mod, "_REMOTION", str(tmp_path))
+    monkeypatch.setattr(pr, "fixtures", lambda: {name: {"src": "textures/page.png"}})
+
+    before = pr.props_hash(name)
+    png.write_bytes(b"re-captured: same page, different pixels")
+    assert pr.props_hash(name) != before, (
+        "the artefact both stills were drawn from changed and the row's recorded props did not move")

@@ -468,15 +468,27 @@ def fed_hash(name, ev=None):
     `evidence_props()` filled only the first, and when that was repaired its committed row still described
     the old render (ink 11.6% against 8.9%, footprint 27.1% against 37.6%) with `--check` reporting OK. A
     row that cannot be told stale is the lie this file already refuses one dimension of.
+
+    ...AND A FIXTURE IN A SUBDIRECTORY IS STILL A FIXTURE. This read only artefacts sitting at the top of
+    `public/`, so `PageWrite` — whose entire evidence is `textures/demo-report.png` — had NONE of its
+    picture's bytes in its hash, only the layout numbers beside it. Re-capture that page with different
+    pixels at the same page size and the row reads fresh forever: the same lie as above, one directory
+    deeper, on the one register whose artefact this repo actually regenerates. Containment is now checked
+    by resolving the path instead of by banning the separator, which is what the ban was standing in for —
+    an absolute path or one climbing out of `public/` is refused, a nested one is read.
     """
     ev = evidence_props() if ev is None else ev
     props = ev.get(name)
     if not props:
         return ""
-    h = hashlib.sha256(json.dumps(props, sort_keys=True).encode())
-    for v in sorted(json.dumps(props, sort_keys=True).split('"')):
-        f = os.path.join(_REMOTION, "public", v)
-        if v and "/" not in v.strip("./") and os.path.isfile(f):
+    blob = json.dumps(props, sort_keys=True)
+    h = hashlib.sha256(blob.encode())
+    pub = os.path.realpath(os.path.join(_REMOTION, "public"))
+    for v in sorted(blob.split('"')):
+        if not v:
+            continue
+        f = os.path.realpath(os.path.join(pub, v))
+        if f.startswith(pub + os.sep) and os.path.isfile(f):
             h.update(open(f, "rb").read())
     return h.hexdigest()[:10]
 
