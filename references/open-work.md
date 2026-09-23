@@ -46,6 +46,27 @@ That is 17 runs, not 45, and every one of them measures something the others can
 
 ## A · Baselines never established
 
+> **THE BASELINES BELOW WERE ESTABLISHED OVER 163 REGISTERS. THE LIBRARY HOLDS 178.**
+> Every A item records its coverage as a number, and that number went stale silently as the library grew —
+> the same shape `7a0183c` fixed for `LIBRARY.md`'s headline, one file over. Fifteen registers were added
+> after the sweeps ran (`DollyZoom` the same day at 20:02, after A3 finished at 07:36; then `CompanionCard`,
+> `FallbackPath`, `StateSheet`, `TermSpace`, `PlaneStack`, `TaskFold`, `CarryOver`, `SeamBetween`,
+> `StatedBy`, `ViewSwitch`, `CraneUp`, `Escalation`, `HeldInstant`, `ShorteningHold` — list derived from
+> `git log --diff-filter=A` per file, not from memory).
+>
+> **Covered 2026-09-23, 315 renders, ZERO findings and zero render failures at every step:**
+>
+>   * **A3** (Latin, nine presets at 1:1): 15 of 15 registers under terminal, neutral, editorial, product,
+>     blueprint, cinematic, data, retro and un-themed — 135 renders.
+>   * **A4** (`cjk_type_qa --all-aspects`): 16:9 / 9:16 / 1:1 / 4:5 / 4:3 all clean, nothing dropped.
+>   * **A1** (`text_safe_qa --cjk`, sans face): 0 findings at each of the five aspects — 75 renders.
+>   * **A2** (serif CJK, `--dna=editorial`): 0 findings at 1:1 and 9:16 — 30 renders.
+>
+> So the baselines now cover 178 of 178. What this does NOT re-establish is the 163 themselves: they passed
+> on 2026-09-14 and the library has been edited heavily since, so a true re-baseline is a separate,
+> ~1600-render job. The honest state is "the gap that opened since the baselines is closed", not "the
+> baselines are fresh".
+
 **~~A1 · Chinese x all five aspects, sans face.~~ DONE 2026-09-14 03:41.** `text_safe_qa --library --cjk
 --all-aspects` on the frozen fixture: 16:9, 9:16, 1:1, 4:5 and 4:3, **163 registers, 0 findings each, and
 zero render-failure lines** across 815 renders.
@@ -257,13 +278,19 @@ on the English demo input — the exact failure mode the working rules name.
 
 > **Acceptance for the family, not the four instances:** one test that asks, of every `.tsx` in the shots
 > folder, whether the reader sees at least what the file declares — so a NEW spelling fails on the day it
-> lands instead of the day someone notices a register has been green about nothing. `tests/test_cjk_type_qa.py
-> ::test_every_register_the_library_ships_is_fed_its_own_props` does this for `cjk_type_qa` and names
-> `LiquidMorph` (genuinely propless) rather than allowing a pattern. `tests/test_declaration_readers.py`
+> lands instead of the day someone notices a register has been green about nothing.
+> `tests/test_declaration_readers.py`
 > then does it for ALL FOUR readers at once and adds the check that actually found the fifth blindness:
 > the readers are compared AGAINST EACH OTHER, so one going blind to a spelling the others handle fails
 > even when no register is reduced to zero. Measured after that test went green: all four readers see every
-> register, and the only propless one is `LiquidMorph`. **Closed.**
+> register, and the only propless one is `LiquidMorph` — which that file names outright rather than allowing
+> a pattern (`test_a_register_that_declares_nothing_is_NAMED_not_allowed_by_pattern`). **Closed.**
+>
+> *(Citation corrected 2026-09-23: this acceptance used to point at
+> `tests/test_cjk_type_qa.py::test_every_register_the_library_ships_is_fed_its_own_props`, a test name that
+> no longer exists anywhere under `tests/` — grep, zero hits. The guarantee moved into
+> `test_declaration_readers.py`; the pointer did not follow it. An acceptance that names a test nobody can
+> run is the same failure as a manifest nobody can tell is stale.)*
 
 
 **B10 · A MEASUREMENT IS STALE WHEN ANY OF ITS INPUTS MOVED, and three instruments were watching one.**
@@ -286,12 +313,25 @@ read, and in each case the hash covered less than the reading depended on.
     therefore measured a frame with no photograph in it. **DONE**; PhotoPlate removed, StateSheet and
     FallbackPath added, pinned in `tests/test_register_schedules.py`.
 
-> **What is still open is the CLASS.** `register_energy.json` hashes a register plus its transitive runtime
-> imports (`_deps`) — which is right for pixels and blind to the same fixture question: a register measured
-> with `evidence_props()` has a second input that nothing hashes, so the day that fixture changes, 6 rows
-> silently describe a frame that no longer exists. Nothing checks `_ground_reach.json` for staleness at all.
-> **Acceptance:** each manifest names every input its numbers depend on, and `--check` fails when any of
-> them moves — demonstrated by changing one input and watching the check go red, not by reading the code.
+> **`register_energy.json` — DONE 2026-09-22/23 (`eb67b85`, and the merge fix in `8c4df82`).** It now
+> records a SECOND hash dimension, `_fed`, beside `_source`: `fed_hash(name)` over the evidence props and
+> the BYTES of any file they name, so the day the fixture changes those rows report
+> `"the artefact it was fed changed since it was measured (evidence fixture)"`. Two defects were found
+> closing it, both by running the thing rather than reading it: a targeted `--only` re-measure REPLACED the
+> whole `_fed` map instead of merging it, so re-measuring one evidence register evicted the other five and
+> no sequence of targeted sweeps could reach zero stale rows; and containment was tested by banning the
+> path separator, so `PageWrite` — whose entire evidence is `textures/demo-report.png` — had none of its
+> picture's bytes in its hash. Pinned by `tests/test_energy_staleness.py`, including the change-an-input
+> demonstration the acceptance asks for. `prop_reach` carries the same artefact dimension now, for the
+> same reason: it overlays the fixture at render time and hashed only `cjk_props`.
+>
+> **What is still open is `_ground_reach.json`.** It carries NO input hash of any kind — its top-level keys
+> are `rows`, `failed`, `universe`, `inkRefused`, `thresholds` (checked 2026-09-23) — and its `--check` is a
+> DRIFT check that re-renders the library to compare the measured follow-set against
+> `GROUND_FOLLOWS_MEASURED`. That answers "is the committed set still right" at the cost of a full sweep;
+> it cannot answer "did an input move" at all, which is the cheap question the other two manifests can now
+> be asked. **Acceptance:** it names every input its numbers depend on and `--check` fails when one moves —
+> demonstrated by changing one input and watching the check go red, not by reading the code.
 
 
 **B11 · THE TYPE-OVERLAP DETECTOR IS BLIND TO ROTATION, and it now has a register that exercises it.** Open.
@@ -305,6 +345,27 @@ the right, its axis-aligned box grows downward on that side, and it intersects t
 positive, in a report tier ("candidate") rather than a failure, so nothing was blocked — but the memory entry
 "DOM rects blind to rotation" already records that this class inverts in BOTH directions, so a real collision
 between two tilted lines could equally be missed.
+> **PART OF THIS LANDED, and the item did not say so.** `runtime/textSafe.tsx` grew a ROTATED TYPE section
+> — `selfRotated()` reading the off-diagonals of `matrix()`/`matrix3d()` and the `rotate` longhand, plus a
+> memoised ancestor walk — and the **`leading`** measure (one element's own wrapped lines) now bypasses
+> client rects entirely for rotated type in favour of an orientation-free instrument, `metricLeading()`
+> against resolved `line-height`. It was driven by a real defect: `CardStack3D`'s ±13° fan reporting a
+> phantom 64px collision. The synthetic probes the acceptance asks for exist and are permanent
+> (`TiltedTypeCleanProbe` / `TiltedTypeCollisionProbe`), and
+> `tests/test_cjk_type_qa.py::test_the_rotation_guard_is_load_bearing_in_both_directions` mutates
+> `selfRotated` to show the clean probe going falsely dirty and the colliding probe being MISSED — the
+> "must be shown to miss it first" half, for `leading`. `charLines()` and the orphan detector were made
+> rotation-aware too (median inter-character direction instead of axis-aligned grouping).
+>
+> **What is still open is the CROSS-ELEMENT pass**, which is the one this item is actually about.
+> `textSafe.tsx` still intersects `a.r` and `b.r` — two `getBoundingClientRect` boxes — and its only
+> concession to rotation is to tag the finding `rot: true`, in its own words "advisory either way; the flag
+> says which numbers to discount". So the TermSpace false pair is LABELLED, not eliminated, and the other
+> direction the memory entry warns about — a real collision between two tilted lines being missed here — is
+> untouched. Worse, **nothing reads the flag**: grep across `scripts/` and `tests/` finds no consumer of
+> `rot` (checked 2026-09-23), so the advice about which numbers to discount is written and never delivered.
+> That is the cheap half of this item and it should go first: a flag with no reader is not a mitigation.
+>
 > **Acceptance:** overlap is tested in each element's own local frame (un-apply its computed 2D transform to
 > the other's corners, or test the rotated quads with a separating-axis check), demonstrated on TermSpace at
 > 9:16 — the false pair disappears — AND on a synthetic probe where two tilted lines genuinely collide, which
@@ -357,6 +418,11 @@ behind hold theirs settled — a 2x2 grid of terminals makes them peers on one p
 coexist. 0 findings from `text_safe_qa` at five aspects in English and Chinese, nothing dropped by
 `cjk_type_qa` at five aspects, ground luminance MEASURED (`dark`, token `bg`), energy 0.002 motion / 0.3%
 ink. Original text: `stage3d` reaches 2 of 164 registers.
+> **Overtaken 2026-09-23:** `stage3d` now reaches FIVE — `CraneUp`, `PlaneStack`, `SpatialSlides`,
+> `TermSpace`, `WordTunnel`. `CraneUp` is the first register in the library whose camera changes ELEVATION
+> and tilts, and it reuses this item's own hard-won lesson: the camera position is derived from the AIM
+> (`cam = target + D · forward(rx)`), because raising `y` alone walks the subject out of frame for exactly
+> the reason recorded below.
 > **TWO DEFECTS NO GATE COULD SEE, both found by looking at the first render.** A console was drawn BLANK —
 > the type was culled when its projected block left the safe box and the window was not, so a viewer saw an
 > empty screen in the corner, a machine that had crashed rather than one the camera was passing. And the
@@ -375,11 +441,21 @@ ink. Original text: `stage3d` reaches 2 of 164 registers.
 
 ## D · Decided, deliberately not changed
 
-**D1 · `register_energy`'s whole-module dep-hash.** Editing `layout.ts` marks 104 registers stale when 3-6
-rows actually move, costing ~15 minutes each time. Hashing per-symbol would miss a module-level constant
-read inside a function it hashes — `INK_BLOCK_FACTOR` inside `inkBlockH` is exactly that shape — and a
-staleness gate that can silently miss is worse than a slow one. **Not changing it. The cost is time; the
-alternative risks correctness.**
+**~~D1 · `register_energy`'s whole-module dep-hash.~~ REVERSED 2026-09-22 (`4ae1fe8`).** This entry said
+"not changing it": editing `layout.ts` marked 104 registers stale when 3-6 rows actually moved, and hashing
+per-symbol looked like it would miss a module-level constant read inside a function it hashes —
+`INK_BLOCK_FACTOR` inside `inkBlockH` was named as exactly that shape.
+
+It was changed, and **the named risk does not materialise**, because the reachability walk follows an
+identifier from the function into the constant rather than stopping at the function's own text. Verified
+by experiment on 2026-09-23, both directions, rather than by reading the code:
+
+  * `INK_BLOCK_FACTOR` 1.31 → 1.55 moves `Aliasing`'s hash (`5181181f…` → `3bfc3559…`). Caught.
+  * appending an export nothing imports to `layout.ts` moves **0 of 178** rows. Narrowed.
+
+The decision recorded here was the right one **for the implementation that existed when it was written**;
+what changed is not the trade-off but the instrument. Left in D rather than deleted, because a decision
+that was later reversed is more useful to the next reader than a decision that quietly vanishes.
 
 **D2 · `ink_median`'s last digit is not reproducible** (+-0.001 across a recompile; appending a no-op export
 to `layout.ts` moves `VoiceSignal` 0.245 -> 0.246). Harmless against a 0.12 floor. Recorded in `fead316` so
