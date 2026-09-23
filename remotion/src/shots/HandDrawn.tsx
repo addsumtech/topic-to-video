@@ -18,7 +18,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {clamp01, hash01, useT, REDUCED_MOTION_T} from '../runtime/motion';
-import {drawOn} from '../runtime/draw';
+import {drawOn, boilPhase} from '../runtime/draw';
 import {useDNA} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 
@@ -34,9 +34,13 @@ export const MAX_HAND_ITEMS = 5;
 const BOX_START = 0.08, BOX_STEP = 0.27, BOX_DRAW = 0.2, LABEL_DELAY = 0.14, LABEL_FADE = 0.2, ARROW_DELAY = 0.16;
 const LAND_BY = REDUCED_MOTION_T - 0.02;
 
-// a rough hand-drawn rectangle path (jittered corners, slightly overshooting)
-function roughRect(x: number, y: number, w: number, h: number, s: number): string {
-  const j = (k: number) => (hash01(s * 7 + k) - 0.5) * 10;
+// A rough hand-drawn rectangle (jittered corners, slightly overshooting). `boil` selects WHICH drawing of
+// this shape is on screen: the jitter used to be a function of the shape index alone, so every line in a
+// register whose whole claim is "hand-made" held perfectly still for five and a half seconds — a hand
+// cannot do that, and the stillness is the thing that reads as digital. The stride is large enough that
+// two phases of one shape never collide with a neighbouring shape's seeds.
+function roughRect(x: number, y: number, w: number, h: number, s: number, boil = 0): string {
+  const j = (k: number) => (hash01(s * 7 + k + boil * 997) - 0.5) * 10;
   return `M${x + j(1)},${y + j(2)} L${x + w + j(3)},${y + j(4)} L${x + w + j(5)},${y + h + j(6)} L${x + j(7)},${y + h + j(8)} Z`;
 }
 
@@ -64,7 +68,7 @@ export const HandDrawn: React.FC<{items?: string[]}> = ({items = ['You', 'WorkBu
   const dna = useDNA();
   const BG = dna?.bg ?? '#f3ecda', INKc = dna?.fg ?? INK, RISOc = dna?.accent ?? RISO, grainBlend = dna ? 'screen' : 'multiply';
   const t = useT();
-  const {width: W, height: H} = useVideoConfig();
+  const {width: W, height: H, fps, durationInFrames} = useVideoConfig();
   const zTop = CONTENT_TOP, zBot = contentBottom(W, H);
   // TWO orientations, decided by whether the ROW fits. Fixed x = 200 + i*570 put the third box at 1340 on a
   // 1080-wide frame ('Done' rode 549px off the edge); the first repair squeezed the step until the boxes
@@ -93,6 +97,9 @@ export const HandDrawn: React.FC<{items?: string[]}> = ({items = ['You', 'WorkBu
     y: horizontal ? y0h : y0v + i * stepY,
     label, at: BOX_START + i * step,
   }));
+  // ONE phase for the whole frame: the riso under-layer is the same drawing printed off-register,
+  // so it has to be the same drawing. Two independent boils would read as two hands.
+  const boil = boilPhase(t, durationInFrames, fps);
   return (
     <AbsoluteFill style={{background: BG}}>
       {/* grain */}
@@ -102,21 +109,24 @@ export const HandDrawn: React.FC<{items?: string[]}> = ({items = ['You', 'WorkBu
       </svg>
       {/* riso misregistered under-layer (warm red, offset) */}
       <svg width={W} height={H} style={{position: 'absolute', left: 6, top: 7, opacity: 0.55}}>
-        {boxes.map((b, i) => <Sketch key={i} d={roughRect(b.x, b.y, bw, bh, i + 1)} t={t} at={b.at} color={RISOc} />)}
+        {boxes.map((b, i) => <Sketch key={i} d={roughRect(b.x, b.y, bw, bh, i + 1, boil)} t={t} at={b.at} color={RISOc} />)}
       </svg>
       {/* ink layer */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
-        {boxes.map((b, i) => <Sketch key={i} d={roughRect(b.x, b.y, bw, bh, i + 1)} t={t} at={b.at} color={INKc} />)}
+        {boxes.map((b, i) => <Sketch key={i} d={roughRect(b.x, b.y, bw, bh, i + 1, boil)} t={t} at={b.at} color={INKc} />)}
         {/* hand-drawn arrows between boxes */}
         {[...Array(Math.max(0, boxes.length - 1))].map((_, i) => {
+          // The arrows boil on the SAME phase as the boxes. A still arrow beside a breathing rectangle
+          // reads as two different hands, which is worse than neither moving.
+          const aj = (k: number) => (hash01(1009 + i * 13 + k + boil * 997) - 0.5) * 7 * S;
           const d = horizontal
             ? (() => {
                 const x1 = boxes[i].x + bw + 8 * S, x2 = boxes[i + 1].x - 8 * S, my = boxes[i].y + bh / 2;
-                return `M${x1},${my} C${x1 + 60 * S},${my - 40 * S} ${x2 - 60 * S},${my + 30 * S} ${x2},${my} M${x2 - 26 * S},${my - 16 * S} L${x2},${my} L${x2 - 26 * S},${my + 16 * S}`;
+                return `M${x1},${my + aj(1)} C${x1 + 60 * S + aj(2)},${my - 40 * S + aj(3)} ${x2 - 60 * S + aj(4)},${my + 30 * S + aj(5)} ${x2},${my + aj(6)} M${x2 - 26 * S},${my - 16 * S + aj(6)} L${x2},${my + aj(6)} L${x2 - 26 * S},${my + 16 * S + aj(6)}`;
               })()
             : (() => {
                 const yA = boxes[i].y + bh + 8 * S, yB = boxes[i + 1].y - 8 * S, mx = W / 2;
-                return `M${mx},${yA} C${mx + 46 * S},${yA + 30 * S} ${mx - 36 * S},${yB - 30 * S} ${mx},${yB} M${mx - 16 * S},${yB - 26 * S} L${mx},${yB} L${mx + 16 * S},${yB - 26 * S}`;
+                return `M${mx + aj(1)},${yA} C${mx + 46 * S + aj(2)},${yA + 30 * S + aj(3)} ${mx - 36 * S + aj(4)},${yB - 30 * S + aj(5)} ${mx + aj(6)},${yB} M${mx - 16 * S + aj(6)},${yB - 26 * S} L${mx + aj(6)},${yB} L${mx + 16 * S + aj(6)},${yB - 26 * S}`;
               })();
           return <Sketch key={i} d={d} t={t} at={boxes[i].at + ARROW_DELAY} color={INKc} sw={4} />;
         })}

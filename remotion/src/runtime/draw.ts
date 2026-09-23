@@ -61,3 +61,41 @@ export const dashedStroke = (dash: number, gap: number, travel: number) => ({
   strokeDasharray: `${dash} ${gap}`,
   strokeDashoffset: -travel * (dash + gap),
 });
+
+// ── LINE BOIL ────────────────────────────────────────────────────────────────────────────────────────
+//
+// A hand-drawn line in this library does not move. `HandDrawn` jitters its rectangles with
+// `hash01(s * 7 + k)` where `s` is the SHAPE's index — so the irregularity is decided once and then holds
+// perfectly still for the whole shot, which is the one thing a hand cannot do. The register's Use clause
+// says "human / hand-made"; a frozen wobble is a PHOTOGRAPH of a hand-made thing, and the stillness is
+// exactly what reads as digital.
+//
+// Real boil is not per-frame noise. An animator draws the same shape two or three times and CYCLES those
+// drawings; the line appears to breathe because the eye keeps recognising the same few variants. Drawing a
+// fresh random variant every frame instead reads as static — television snow — which is why this returns a
+// PHASE out of a small set rather than an ever-increasing seed.
+//
+// Frame-rate independent, because the rate is a property of the eye and not of the render: a boil pinned to
+// "every 3 frames" doubles in speed on a 60fps film. Deterministic — a pure function of the shot's own
+// normalised time, so two renders of one frame are the same bytes, and FROZEN under reduced motion for
+// free, because `useT()` is frozen there and this reads nothing else.
+/** Which of `phases` drawings of the same shape is on screen now. Add it to your own shape seed.
+ *
+ *  @param t      the shot's normalised time, from `useT()`
+ *  @param durF   the shot's duration in frames
+ *  @param fps    the film's frame rate
+ *  @param hz     redraws per second — 8–12 is the animator's "on twos/threes" at 24–30fps
+ *  @param phases how many drawings are cycled; 2 breathes, 3 is the classic, past 4 it reads as noise */
+export const BOIL_HZ_MIN = 4, BOIL_HZ_MAX = 15, BOIL_PHASES_MAX = 4;
+
+export const boilPhase = (t: number, durF: number, fps: number, hz = 10, phases = 3): number => {
+  if (!(hz >= BOIL_HZ_MIN && hz <= BOIL_HZ_MAX)) {
+    throw new Error(
+      `boilPhase() rate ${hz}Hz is outside ${BOIL_HZ_MIN}–${BOIL_HZ_MAX}Hz. Slower reads as the drawing ` +
+      'being REPLACED — a slideshow of sketches — and faster stops being a line that breathes and becomes ' +
+      'television snow. Change the jitter amplitude at the call site instead of the rate.');
+  }
+  const n = Math.max(2, Math.min(BOIL_PHASES_MAX, Math.round(phases)));
+  const seconds = clamp01(t) * (durF / Math.max(1, fps));
+  return Math.floor(seconds * hz) % n;
+};

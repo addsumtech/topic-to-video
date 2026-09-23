@@ -193,6 +193,51 @@ export const cadence = (t: number, steps = 3, accel = 1): number => {
 /** Equal intervals — the metronome case of `cadence`, and the name most registers want. */
 export const stepped = (t: number, steps = 3): number => cadence(t, steps, 1);
 
+// A SPEED RAMP IS A REMAP OF TIME, NOT A SECOND CLOCK.
+//
+// `cadence` above answers "which step have we reached"; this answers "how fast is the shot running right
+// now". They are different questions and neither is the other: a cadence CUTS, a ramp never does — one
+// continuous move slows through the part that carries the meaning and catches back up, so the frame the
+// viewer needs to read is on screen longer without the shot taking longer.
+//
+// WHY IT IS AN INTEGRAL AND NOT A CURVE PICKED BY EYE. The thing being specified is a SPEED (how much
+// shot-time passes per unit of real time), so the remap is its integral, normalised. Writing the remap
+// directly — an ease that "looks slow in the middle" — cannot state how slow, and two registers reaching
+// for it would each pick a different curve: the four-disagreeing-definitions failure this file's own
+// `cadenceAt` note is about. Here `factor` is the number a film can actually say: 3 means that stretch
+// plays at a third speed.
+//
+// The speed profile is 1 everywhere except a raised-cosine dip centred at `at`, so there is no kink where
+// the ramp starts — a hard-edged dip reads as a stutter, not a ramp. The dip's integral is closed form, so
+// this costs a few trig calls and is exact rather than sampled: sampling would make the result depend on
+// the sample count, and two renders of the same frame must be the same bytes.
+//
+// Monotone by construction (the speed is never ≤ 0), 0→0 and 1→1 exactly, and the identity when `factor`
+// is 1 or `width` is 0 — so a register can pass the film's number straight through without a branch.
+/** Normalised time, remapped so the stretch around `at` plays `factor`× slower and the rest catches up.
+ *
+ *  @param at     where the slow part is centred, 0..1 of the shot
+ *  @param width  HALF-width of the slow stretch, 0..0.5 of the shot
+ *  @param factor how much slower there — 1 is no ramp, clamped to 20 */
+export const speedRamp = (t: number, at = 0.5, width = 0.18, factor = 3): number => {
+  const W = Math.max(0, Math.min(0.5, width));
+  const f = Math.max(1, Math.min(20, factor));
+  const d = 1 - 1 / f;                       // the depth of the dip: 0 = no ramp
+  if (W <= 1e-6 || d <= 1e-9) return clamp01(t);
+  const A = clamp01(at);
+  // ∫ of the dip from its own leading edge to z — the closed form of a raised cosine, area W over its
+  // full 2W width, clipped where the window runs past either end of the shot.
+  const area = (z: number): number => {
+    if (z <= A - W) return 0;
+    if (z >= A + W) return W;
+    const u = (z - A) / W;
+    return W * (0.5 * (u + 1) + Math.sin(Math.PI * u) / (2 * Math.PI));
+  };
+  const base = area(0);                      // the window may start before the shot does
+  const den = 1 - d * (area(1) - base);      // ≥ 1 - d > 0, so this cannot divide by zero
+  return clamp01((clamp01(t) - d * (area(clamp01(t)) - base)) / den);
+};
+
 // The "superhuman" cursor ease: slow-start, rapid-middle, slow-stop (Raycast/Linear cursor narrative).
 export const easeCursor = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2);
 

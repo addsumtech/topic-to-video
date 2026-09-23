@@ -7,8 +7,11 @@ REMOTION = os.path.join(ROOT, "remotion")
 RUNTIME = os.path.join(REMOTION, "src", "runtime")
 
 
-def _run(body):
-    """Bundle `body` against the REAL motion.ts and run it — the same harness test_ground_light uses."""
+def _run(body, module="motion"):
+    """Bundle `body` against the REAL runtime module and run it — the harness test_ground_light uses.
+
+    `module` is the runtime file the probe imports as `M`; the rhythm primitives live in `motion` and the
+    drawing ones in `draw`, and both are pinned here because both are read by registers as rules."""
     if not shutil.which("npx") or not shutil.which("node"):
         pytest.skip("npx/node unavailable")
     if not os.path.isdir(os.path.join(REMOTION, "node_modules")):
@@ -17,7 +20,7 @@ def _run(body):
     try:
         entry = os.path.join(tmp, "probe.tsx")
         head = ("import * as M from %s;\nconst out: any = {};\n"
-                % json.dumps(os.path.join(RUNTIME, "motion")))
+                % json.dumps(os.path.join(RUNTIME, module)))
         open(entry, "w", encoding="utf-8").write(head + body + "\nconsole.log(JSON.stringify(out));\n")
         outfile = os.path.join(tmp, "probe.cjs")
         b = subprocess.run(["npx", "esbuild", entry, "--bundle", "--platform=node",
@@ -129,3 +132,85 @@ def test_the_landing_series_is_one_definition_that_cadence_itself_reads():
         assert len(steps) == len(want), "%s: walker took %d steps for %d landings" % (key, len(steps), len(want))
         for got, exp in zip(steps, want):
             assert abs(got - exp) <= 0.002, "%s: a step at %.3f is not a landing (%.3f)" % (key, got, exp)
+
+
+def test_a_speed_ramp_is_monotone_lands_on_its_endpoints_and_spends_the_time_it_claims():
+    """A ramp that is not monotone runs the shot BACKWARDS for a stretch, and nothing would catch it.
+
+    The property that makes it a ramp rather than an ease is arithmetic, not visual: `factor` has to be the
+    number a film can say out loud — "that stretch plays at a third speed" — or two registers reaching for a
+    slow-down each pick their own curve and the library has two definitions of the same idea, which is the
+    failure `cadenceAt` already carries a note about. So this checks the SPEED, by differencing the remap:
+    inside the window the shot must advance about `factor`× less per unit time than outside it.
+    """
+    r = _run("""
+const grid = Array.from({length: 401}, (_, i) => i / 400);
+out.ramp = grid.map((t) => M.speedRamp(t, 0.5, 0.2, 3));
+out.identity_f1 = grid.every((t) => Math.abs(M.speedRamp(t, 0.5, 0.2, 1) - t) < 1e-12);
+out.identity_w0 = grid.every((t) => Math.abs(M.speedRamp(t, 0.5, 0, 3) - t) < 1e-12);
+// the window pushed past either end must still land on its endpoints
+out.edges = [M.speedRamp(0, 0.02, 0.3, 4), M.speedRamp(1, 0.02, 0.3, 4),
+             M.speedRamp(0, 0.98, 0.3, 4), M.speedRamp(1, 0.98, 0.3, 4)];
+// out-of-range arguments are clamped, never NaN
+out.wild = [M.speedRamp(-1, 0.5, 0.2, 3), M.speedRamp(2, 0.5, 0.2, 3),
+            M.speedRamp(0.5, 5, 9, 1e9), M.speedRamp(0.5, -3, -1, -7)];
+""")
+    v = r["ramp"]
+    assert abs(v[0]) < 1e-9 and abs(v[-1] - 1) < 1e-9, (v[0], v[-1])
+    assert all(b >= a - 1e-12 for a, b in zip(v, v[1:])), "the ramp runs the shot backwards somewhere"
+    assert r["identity_f1"], "factor=1 is not the identity — a register would have to branch around it"
+    assert r["identity_w0"], "width=0 is not the identity"
+    assert r["edges"][:2] == [0.0, 1.0] and r["edges"][2:] == [0.0, 1.0], r["edges"]
+    assert all(isinstance(x, (int, float)) and not isinstance(x, bool)
+               and 0.0 <= x <= 1.0 for x in r["wild"]), r["wild"]
+
+    # THE CLAIM ITSELF: the middle really does run ~3x slower than the ends.
+    step = 1 / 400
+    mid = [(b - a) / step for a, b in zip(v[195:205], v[196:206])]       # centre of the window
+    out = [(b - a) / step for a, b in zip(v[0:20], v[1:21])]             # well outside it
+    assert 0.9 < (sum(out) / len(out)) / (sum(mid) / len(mid)) / 3 < 1.1, (
+        "the slow stretch does not run at 1/factor speed: outside=%.4f inside=%.4f"
+        % (sum(out) / len(out), sum(mid) / len(mid)))
+
+
+def test_line_boil_cycles_a_few_drawings_at_a_rate_that_does_not_depend_on_the_frame_rate():
+    """A hand-drawn register whose jitter is seeded by the SHAPE index holds perfectly still — which is the
+    one thing a hand cannot do, and the stillness is what reads as digital.
+
+    Two properties make it boil rather than fizz. It CYCLES a small set of drawings, because an animator
+    redraws the same shape two or three times and the eye keeps recognising them; a fresh variant every
+    step is television snow. And its rate is in HERTZ, not frames, because the rate is a property of the
+    eye: pinned to "every 3 frames" the same shot boils twice as fast on a 60fps film as on a 30fps one.
+    """
+    r = _run("""
+const sample = (fps, durS, hz, phases) => {
+  const durF = Math.round(durS * fps);
+  return Array.from({length: durF}, (_, f) => M.boilPhase(f / (durF - 1), durF, fps, hz, phases));
+};
+out.at30 = sample(30, 3, 10, 3);
+out.at60 = sample(60, 3, 10, 3);
+out.two  = sample(30, 3, 10, 2);
+out.deterministic = M.boilPhase(0.37, 165, 30) === M.boilPhase(0.37, 165, 30);
+out.clamped_phases = new Set(sample(30, 3, 10, 99)).size;   // past BOIL_PHASES_MAX
+out.refused = [];
+for (const hz of [0, 1, 3.9, 15.1, 60, -4, NaN]) {
+  try { M.boilPhase(0.5, 90, 30, hz); out.refused.push(false); }
+  catch (e) { out.refused.push(String(e.message).includes('television snow')
+                               || String(e.message).includes('slideshow')); }
+}
+""", module="draw")
+
+    assert r["deterministic"], "the same frame gives two different drawings — the render is not reproducible"
+    assert sorted(set(r["at30"])) == [0, 1, 2], "three phases were asked for and not cycled: %r" % sorted(set(r["at30"]))
+    assert sorted(set(r["two"])) == [0, 1], sorted(set(r["two"]))
+    assert r["clamped_phases"] <= 4, "phases is not clamped to BOIL_PHASES_MAX: %d" % r["clamped_phases"]
+    assert all(r["refused"]), "a rate outside the readable band was accepted: %r" % r["refused"]
+
+    # THE RATE ITSELF: ~10 redraws per second over a 3s shot, at BOTH frame rates.
+    def redraws(seq):
+        return sum(1 for a, b in zip(seq, seq[1:]) if a != b)
+    n30, n60 = redraws(r["at30"]), redraws(r["at60"])
+    assert 27 <= n30 <= 31, "10Hz over 3s is ~29 redraws, got %d at 30fps" % n30
+    assert abs(n30 - n60) <= 1, (
+        "the boil rate follows the frame rate instead of the clock: %d redraws at 30fps, %d at 60fps"
+        % (n30, n60))

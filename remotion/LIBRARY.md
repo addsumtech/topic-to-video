@@ -232,7 +232,7 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 
 157. **ScanReconstruct** — a real fetched image is revealed by a reconstruction technique rather than a wipe. *Use: a real image revealed by the process that produces it.* `src` **(REQUIRED)**`, label, credit, accent, cols`
 156. **KSpaceReal** — the real FFT magnitude of an actual scan, not a decorative mandala. *Use: showing the real transform of real data.* `src, accent, label, credit`
-41. **HandDrawn** — riso ink sketch draws on (You→WorkBuddy→Done). *Use: human / hand-made.* Past that it throws: `items` 1–5.
+41. **HandDrawn** — riso ink sketch draws on (You→WorkBuddy→Done), and the LINEWORK BOILS: every box and arrow is redrawn from a different jitter 10×/s, cycling 3 drawings of the same shape (`boilPhase`, `runtime/draw`), with the misregistered riso under-layer on the same phase. *Use: human / hand-made.* Past that it throws: `items` 1–5.
 42. **CartoonPop** — cel-shaded cartoon mascot zaps tasks → DONE! *Use: playful / friendly.* `label` · PRODUCT-LOCKED: every film gets the same robot mascot zapping a pile of task papers into DONE — no prop can change that story. Cast it only for a beat whose claim IS that story.
 43. **HalftonePop** — comic Ben-Day pop-art burst "SHIP IT!". *Use: loud fun highlight.*
 44. **ClayStack** — soft pastel clay blocks stack + clay check. *Use: tactile approachable build.*

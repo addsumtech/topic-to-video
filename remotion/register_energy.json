@@ -64,7 +64,7 @@
     "GradientTilt": "93dc579f25a937fc",
     "GrantedTree": "3a82173b80240cf2",
     "HalftonePop": "fedc184351ecea01",
-    "HandDrawn": "ace26902df0b30d4",
+    "HandDrawn": "4eff756fe34c0fdb",
     "HudReticle": "55d8fd81b75cf583",
     "InOrder": "9d4765f6fddb1f31",
     "InducedFID": "61b40781259e0130",
@@ -655,8 +655,8 @@
       "footprint": 1.0
     },
     "HandDrawn": {
-      "motion_p75": 0.0005,
-      "ink_median": 0.04,
+      "motion_p75": 0.0046,
+      "ink_median": 0.041,
       "luma_range": 0.017,
       "seconds": 5.5,
       "footprint": 0.193
