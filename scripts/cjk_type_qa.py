@@ -592,8 +592,16 @@ def cjk_props(name, offset=0):
                 rows_ = tbl if isinstance(tbl, list) else [tbl]
                 if keys and rows_ and all(isinstance(r, dict) and set(r) <= keys for r in rows_):
                     curated = _shape_array(prop, ty, off=offset) or []
-                    shaped = [dict(shaped[i % len(shaped)], **curated[i]) if isinstance(curated[i], dict)
-                              else curated[i] for i in range(len(curated))] if curated else shaped
+                    # A FIELD THE TABLE MENTIONS ANYWHERE BELONGS TO THE TABLE, including on the rows it
+                    # leaves it OFF. `layers` marks exactly one layer `find: true` — a singleton, which is
+                    # what the register draws and what its own demo supplies — and the union filled `find`
+                    # on the rows the table had deliberately omitted it from, so StrataColumn was swept
+                    # with two layers marked as the one you came for. Absence in a curated row is a
+                    # statement, not a hole: the table says "not this one".
+                    spoken = {k for r in rows_ if isinstance(r, dict) for k in r}
+                    shaped = [dict({k: v for k, v in shaped[i % len(shaped)].items() if k not in spoken},
+                                   **curated[i]) if isinstance(curated[i], dict) else curated[i]
+                              for i in range(len(curated))] if curated else shaped
             if shaped is None:
                 shaped = _shape_array(prop, ty, off=offset)
             if shaped is None:
@@ -865,7 +873,17 @@ def _synth_field(name, ty, src="", i=0, rowIdx=0):
         # unflagged branch, which on these registers is half the picture.
         if _refused_without(name, src):
             return rowIdx == 0
-        return name in ("find", "hero", "done", "ok")
+        # ...AND A SELECTOR IS NOT SET ON EVERY ROW. These four were returned as a flat `True`, so
+        # `StrataColumn` was swept with EVERY layer marked as the one you came for and
+        # `PositioningMatrix` with every item a hero — frames no film produces, and the register's
+        # unmarked branch never rendered at all. Verified singletons: `find` exists only on
+        # StrataColumn, whose own demo marks one layer; `hero` on EdCompare and PositioningMatrix,
+        # whose header says the tint goes to "the quadrant each hero actually sits in (none without a
+        # hero)". `done` is a progress state, and a run that is entirely finished is the one state
+        # those registers do not exist to show. One row, which renders both branches.
+        if name in ("find", "hero", "done", "ok"):
+            return rowIdx == 0
+        return False
     m = re.match(r"^\[([A-Za-z]+),([A-Za-z]+)\]$", t)    # a fixed PAIR — `from: [number, number]`
     if m and m.group(1) == m.group(2) == "number":
         # plate fractions, kept inside 0..1 and off the edges, and varied by row the way every other
@@ -1773,7 +1791,19 @@ def main(argv):
             print("\nTYPE OVERLAPPING OTHER TYPE (a candidate — some registers stack type on purpose):")
             for n in sorted(over, key=lambda k: -len(over[k]))[:14]:
                 h = over[n][0]
-                print("    %-22s %d pair(s)  «%s» × «%s»" % (n, len(over[n]), h["text"], h.get("other", "")))
+                # THE `rot` FLAG FINALLY HAS A READER. `textSafe` tags a pair involving a 2D-rotated
+                # element because the cross-element pass intersects axis-aligned BOXES, and a tilted
+                # element's box is bigger than its glyphs on the side it slopes toward — so such a pair
+                # overlaps more on paper than the ink does. Its own comment says the flag "says which
+                # numbers to discount", and nothing in scripts/ or tests/ read it: the advice was
+                # written and never delivered, which is not a mitigation. Saying it here costs one
+                # branch and is the cheap half of open-work B11; the separating-axis test that would
+                # REMOVE the false pair is still open.
+                rotted = sum(1 for x in over[n] if x.get("rot"))
+                tag = ("  [%d of %d involve TILTED type — boxes overstate the overlap; check the frame "
+                       "before believing these]" % (rotted, len(over[n]))) if rotted else ""
+                print("    %-22s %d pair(s)  «%s» × «%s»%s"
+                      % (n, len(over[n]), h["text"], h.get("other", ""), tag))
         if tight:
             print("\nWRAPPED CHINESE UNDER THE LEADING FLOOR — nothing collides, and there is no air either "
                   "(fix with\n  `leading(text, latin)` from runtime/cjkType; the call is a no-op on Latin "

@@ -364,7 +364,13 @@ between two tilted lines could equally be missed.
 > direction the memory entry warns about — a real collision between two tilted lines being missed here — is
 > untouched. Worse, **nothing reads the flag**: grep across `scripts/` and `tests/` finds no consumer of
 > `rot` (checked 2026-09-23), so the advice about which numbers to discount is written and never delivered.
-> That is the cheap half of this item and it should go first: a flag with no reader is not a mitigation.
+> **The cheap half is DONE 2026-09-23.** `cjk_type_qa`'s overlap report now reads the flag and says, per
+> register, how many of its pairs involve tilted type and that the boxes overstate them — pinned by
+> `tests/test_cjk_type_qa.py::test_the_rotation_flag_on_an_overlap_is_read_by_something`, which checks
+> BOTH ends (the reader exists, and the renderer still sets the field it reads). It cost a real detour
+> before it existed: a 4:3 pair was rendered and inspected by hand that the tag would have qualified on
+> sight. What remains is the expensive half below — labelling a false pair is not removing it, and the
+> missed-collision direction is untouched.
 >
 > **Acceptance:** overlap is tested in each element's own local frame (un-apply its computed 2D transform to
 > the other's corners, or test the rotated quads with a separating-axis check), demonstrated on TermSpace at

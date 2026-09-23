@@ -1230,3 +1230,74 @@ def test_a_relation_between_two_of_the_films_numbers_is_taken_from_the_register_
     # rename (`typical: TYPICAL`), and reading only the rename form is what made the first fix a no-op
     assert re.search(r"typical\s*=\s*DEMO_TYPICAL", src), (
         "this test pins the identifier-default binding form; the register no longer uses it")
+
+
+def test_a_curated_row_that_omits_a_field_is_saying_not_this_one():
+    """A selector set on every row renders a frame no film produces.
+
+    `_ARRAY_SHAPES['layers']` marks exactly ONE layer `find: true` — a singleton, which is what
+    `StrataColumn` draws and what its own demo supplies. Two things were overriding that. The boolean
+    synthesiser returned a flat `True` for `find`/`hero`/`done`/`ok`, so every layer was the one you came
+    for and every item was a hero; and the curated table was merged as a UNION, so even after that was
+    fixed the synthesiser refilled `find` on the rows the table had deliberately left it off.
+
+    Absence in a curated row is a statement, not a hole: the table says "not this one". A field the table
+    mentions anywhere therefore belongs to the table, including on the rows it omits — and the unmarked
+    branch, which is half of what these registers draw, finally renders.
+    """
+    import glob
+    props, _ = c.cjk_props("StrataColumn", 0)
+    marked = [bool(x.get("find")) for x in props["layers"]]
+    assert sum(marked) == 1, (
+        "`find` marks the layer, singular — the fixture set it on %d of %d: %r"
+        % (sum(marked), len(marked), marked))
+
+    props, _ = c.cjk_props("PositioningMatrix", 0)
+    heroes = [bool(x.get("hero")) for x in props["items"]]
+    assert sum(heroes) == 1, "`hero` is the one the tint follows, set on %d: %r" % (sum(heroes), heroes)
+
+    # ...and a curated RUN is still a run — GrantedTree brackets a contiguous branch on purpose
+    props, _ = c.cjk_props("GrantedTree", 0)
+    granted = [bool(x.get("granted")) for x in props["nodes"]]
+    assert 0 < sum(granted) < len(granted), (
+        "GrantedTree's authorised branch must be some-but-not-all: %r" % granted)
+
+    # the property, library-wide: no boolean selector is true on EVERY row of any register
+    for f in sorted(glob.glob(os.path.join(_ROOT, "remotion", "src", "shots", "*.tsx"))):
+        n = os.path.basename(f)[:-4]
+        try:
+            props, _ = c.cjk_props(n, 0)
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+        for k, v in props.items():
+            if not (isinstance(v, list) and len(v) > 1 and all(isinstance(x, dict) for x in v)):
+                continue
+            for field in ("find", "hero", "done", "ok"):
+                vals = [x.get(field) for x in v if field in x]
+                assert not (vals and all(bool(x) for x in vals) and len(vals) == len(v)), (
+                    "%s.%s[].%s is set on every row, so the unmarked branch never renders" % (n, k, field))
+
+
+def test_the_rotation_flag_on_an_overlap_is_read_by_something():
+    """`textSafe` tags an overlap pair involving 2D-rotated type, and nothing read the tag.
+
+    The cross-element overlap pass intersects axis-aligned BOXES. A tilted element's box is larger than
+    its glyphs and grows on the side it slopes toward, so a pair involving one overlaps more on paper
+    than the ink does — which is why the renderer sets `rot: true` and its own comment says the flag
+    "says which numbers to discount". Grepped across `scripts/` and `tests/`, nothing discounted
+    anything: the advice was written and never delivered, and a flag with no reader is not a mitigation.
+    It cost a real detour — a 4:3 pair was rendered and inspected by hand that the tag would have
+    qualified on sight.
+
+    This pins the READER, not the wording. The separating-axis test that would remove the false pair
+    instead of labelling it is still open (open-work B11).
+    """
+    src = open(os.path.join(_ROOT, "scripts", "cjk_type_qa.py"), encoding="utf-8").read()
+    assert re.search(r'\.get\(\s*["\']rot["\']\s*\)|\["rot"\]', src), (
+        "nothing in cjk_type_qa reads the `rot` flag; the renderer sets it to say which overlap numbers "
+        "to discount, and that advice is going nowhere")
+
+    # ...and the renderer still SETS it, or the reader above is reading a field that no longer exists
+    ts = open(os.path.join(_ROOT, "remotion", "src", "runtime", "textSafe.tsx"), encoding="utf-8").read()
+    assert re.search(r"rot\s*\?\s*\{\s*rot:\s*true\s*\}|rot:\s*true", ts), (
+        "textSafe no longer tags rotated overlaps, so the reader in cjk_type_qa is dead code")

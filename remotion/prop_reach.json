@@ -317,7 +317,7 @@
     "PlatformSurfaces": "5a700a43f29a4567",
     "PointerTour": "3fe7a80170d2050d",
     "PortRail": "3a730baee6878ed8",
-    "PositioningMatrix": "33c72f4f90d94858",
+    "PositioningMatrix": "c107985cf603bf5d",
     "ProfileGrowth": "8f7e394bcf67485a",
     "QuadSplit": "7636e85069137f1e",
     "RackFocus": "a626217f16ae3f83",
@@ -344,7 +344,7 @@
     "StarfieldWarp": "a109fca86fa180b9",
     "StateSheet": "3acd64c402bca07f",
     "StatedBy": "e2f456a7bb3683e9",
-    "StrataColumn": "15bc6b0b259a9533",
+    "StrataColumn": "18d4b06f2165bb2e",
     "SurfaceCarousel": "e4e12ac9742530c9",
     "SwissEditorial": "f3c3c5a54b62a2e3",
     "TallyLedger": "aabd4e4f182b8576",
@@ -878,7 +878,7 @@
       "prop_diff": 1.0
     },
     "PositioningMatrix": {
-      "reach": 0.869,
+      "reach": 0.912,
       "prop_diff": 1.0
     },
     "ProfileGrowth": {
@@ -994,7 +994,7 @@
       "prop_diff": 1.0
     },
     "StrataColumn": {
-      "reach": 0.173,
+      "reach": 0.713,
       "prop_diff": 1.0
     },
     "SurfaceCarousel": {
