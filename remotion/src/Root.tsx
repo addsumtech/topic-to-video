@@ -12,6 +12,8 @@ import {Escalation, DURATION as D_ESCALATION} from './shots/Escalation';
 import {ShorteningHold, DURATION as D_SHORTENINGHOLD} from './shots/ShorteningHold';
 import {HeldInstant, DURATION as D_HELDINSTANT} from './shots/HeldInstant';
 import {CraneUp, DURATION as D_CRANEUP} from './shots/CraneUp';
+import {NearTheLine, DURATION as D_NEARTHELINE} from './shots/NearTheLine';
+import {PulledThread, DURATION as D_PULLEDTHREAD} from './shots/PulledThread';
 import {SeamBetween, DURATION as D_SEAMBETWEEN} from './shots/SeamBetween';
 import {ViewSwitch, DURATION as D_VIEWSWITCH} from './shots/ViewSwitch';
 import {StatedBy, DURATION as D_STATEDBY} from './shots/StatedBy';
@@ -572,5 +574,7 @@ export const RemotionRoot: React.FC = () => (
     {F('ShorteningHold', ShorteningHold, D_SHORTENINGHOLD)}
     {F('HeldInstant', HeldInstant, D_HELDINSTANT)}
     {F('CraneUp', CraneUp, D_CRANEUP)}
+    {F('NearTheLine', NearTheLine, D_NEARTHELINE)}
+    {F('PulledThread', PulledThread, D_PULLEDTHREAD)}
   </>
 );

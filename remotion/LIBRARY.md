@@ -1,4 +1,4 @@
-# Remotion2 — Bespoke Shot Library (178 design languages)
+# Remotion2 — Bespoke Shot Library (180 design languages)
 
 Each shot is a **hand-written, deterministic component** (`{default Component, DURATION}`) authored in
 1920×1080, driven by `useT()` (0→1) + the shared `runtime/motion.ts` kit. No generic template funnel —
@@ -17,7 +17,7 @@ yet in this library — they exist for new shots and opportunistic use. See
 deliberately left un-migrated.
 
 <!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
-**Family census — 178 registers across 27 families.** D×28 · A×21 · C×16 · B×14 · G×11 · F×10 · L×10 · H×9 · E×8 · I×5 · J×5 · JA×5 · K×5 · M×5 · S×5 · U×5 · N×4 · P×3 · O×1 · Q×1 · R×1 · T×1 · V×1 · W×1 · X×1 · Y×1 · Z×1
+**Family census — 180 registers across 27 families.** D×28 · A×21 · C×16 · B×14 · G×11 · F×10 · L×10 · H×9 · E×8 · I×5 · J×5 · JA×5 · K×5 · M×5 · S×5 · U×5 · N×4 · P×3 · R×2 · Z×2 · O×1 · Q×1 · T×1 · V×1 · W×1 · X×1 · Y×1
 
 **9 families hold two registers or fewer: O, Q, R, T, V, W, X, Y, Z.** That is a BUILD signal, not a menu. When a beat's
 argument wants one of those languages and the one register there does not carry it, the answer is
@@ -313,6 +313,7 @@ Written FOR the editorial DNA (they read `EdFrame`: a kicker + hairline accent r
 79. **AntiDesignChaos** — a deliberately "wrong" maximalist collage: a huge clashing headline, scattered mismatched words, stickers, hand-drawn arrows + scribbles, on a loud ground. *Use: rebellious / youthful / disruptive statement.* (2026 anti-design)
 
 ## R · AI / neural
+203. **NearTheLine** — the boundary a system LEARNED crosses the field, bending; a band either side of it is where its answer is a coin-flip; the cases the film names sit where the film says — some clear of the band, at least one inside it — over an anonymous field of cases that thins inside the band, because a model sees fewest examples where it is least sure. *Use: a system's own certainty — 'it is sure in the middle and guessing at the edge', and from outside the guess looks exactly as confident as the certainty. Not `OverlapSeparation`, which argues about which MEASURE separates two populations: that is a claim about instruments, this is a claim about one system's answers.* `kicker, sideA, sideB, cases[{label,side,near}], note` · 2–6 cases; `side` ('a'/'b') and `near` are the FILM's reading and the register decides neither. **Throws when no case is marked `near`** — with everything clear of the band the frame argues the opposite claim, convincingly, past every gate. The band's width is not a prop: a band a film could widen would be a number invented here and presented as a reading. · Measured 4.3% ink / 57.8% footprint — dense for this library — but prop reach 0.088: most of the frame is the boundary and the anchored field, which do not change with the copy. That is the cost of the design and not a defect to tune away; cast it where the two or three names ARE the beat, not where a lot of content needs carrying.
 80. **NeuralField** — a neural network THINKS: layered nodes + edges light up as an activation front sweeps left→right until the output locks. *Use: AI reasons / a model at work / "it thinks".*
 
 ## S · Scientific / molecular
@@ -345,6 +346,7 @@ Written FOR the editorial DNA (they read `EdFrame`: a kicker + hairline accent r
 96. **EmberFlame** — a wordmark forged in fire: flame licks flicker at the base, embers rise + fade, heat-glow blooms, the title glowing white-hot → red. *Use: passion / launch / "built with fire".*
 
 ## Z · Textile / fabric
+204. **PulledThread** — a cloth of named threads; one is PULLED and the ones the film says it drags follow it into the same dip while the rest lie flat, the cross-threads bending with them because they pass through the same cloth. *Use: changing one thing REQUIRES moving others — at the same instant, because they pass through each other. Not a CHAIN one-turns-the-next (`GearTrain`), not a HIERARCHY of what holds what up (`RestsOn`).* `kicker, threads[{label,moves}], pulled, note` · 3–7 threads; `pulled` is REQUIRED once a film passes its own. What follows, follows in TIME and never in amplitude — displacing a thread less the further it sits would be the register inventing degrees of coupling the film never gave. Adjacency is never coupling: only `moves` decides. **Throws when no other thread moves** — that frame says the thread came away clean, which is the opposite beat. A weave rather than a graph because a graph draws coupling as an EDGE, a line you could delete; in cloth there is no coupling object to remove.
 97. **ClothWave** — a silk flag ripples on a travelling wave, strips shaded by slope for a sheen, the wordmark riding the ripple. *Use: soft power / elegance / a tactile fabric hero.*
 
 *(the single-letter families A–Z are full; add two-letter families AA+ when a new bold language needs one.)*
