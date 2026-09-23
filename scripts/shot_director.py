@@ -56,6 +56,9 @@ FAMILY = {
     "CrashZoom": "B", "TerrainFly": "B",
     "OverlapSeparation": "D", "SharedBlindspot": "H",
     "Escalation": "D",
+    "ShorteningHold": "C",
+    "HeldInstant": "D",
+    "CraneUp": "B",
     "ViewSwitch": "D",
     "TermSpace": "D",
     "SpatialSlides": "C",
@@ -125,6 +128,9 @@ FAMILY = {
 # pins the subset so it cannot drift again.
 PROVENANCE = {
     "Escalation":              'data-viz',
+    "ShorteningHold":          'motion-graphics',
+    "HeldInstant":             'data-viz',
+    "CraneUp":                 'motion-graphics',
     "SeamBetween":             'print-editorial',
     "ViewSwitch":              'product-ui',
     "StatedBy":                'survey-archive',

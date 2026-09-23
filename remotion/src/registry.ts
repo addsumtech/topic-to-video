@@ -177,6 +177,9 @@ import {StatedBy} from './shots/StatedBy';
 import {ViewSwitch} from './shots/ViewSwitch';
 import {SeamBetween} from './shots/SeamBetween';
 import {Escalation} from './shots/Escalation';
+import {ShorteningHold} from './shots/ShorteningHold';
+import {HeldInstant} from './shots/HeldInstant';
+import {CraneUp} from './shots/CraneUp';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
@@ -235,6 +238,9 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   ViewSwitch,
   SeamBetween,
   Escalation,
+  ShorteningHold,
+  HeldInstant,
+  CraneUp,
 };
 
 export const SHOT_IDS = Object.keys(REGISTRY);

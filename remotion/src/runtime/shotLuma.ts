@@ -8,6 +8,9 @@ export type Lum = 'dark' | 'mid' | 'light';
 
 export const SHOT_LUMA: Record<string, Lum> = {
   Escalation: 'dark',
+  ShorteningHold: 'dark',
+  HeldInstant: 'dark',
+  CraneUp: 'dark',
   SeamBetween: 'light',
   ViewSwitch: 'light',
   StatedBy: 'light',
@@ -110,6 +113,9 @@ const literalGround = (tok: GroundSpec | undefined): string | null =>
 // measured.
 export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
   Escalation: 'bg',
+  ShorteningHold: 'bg',
+  HeldInstant: 'bg',
+  CraneUp: 'bg',
   SeamBetween: 'bg',
   ViewSwitch: 'bg',
   StatedBy: 'bg',

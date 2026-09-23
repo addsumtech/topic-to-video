@@ -9,6 +9,9 @@ import {StageProbe, DURATION as SPD} from './runtime/__probe_stage3d';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
 import {Escalation, DURATION as D_ESCALATION} from './shots/Escalation';
+import {ShorteningHold, DURATION as D_SHORTENINGHOLD} from './shots/ShorteningHold';
+import {HeldInstant, DURATION as D_HELDINSTANT} from './shots/HeldInstant';
+import {CraneUp, DURATION as D_CRANEUP} from './shots/CraneUp';
 import {SeamBetween, DURATION as D_SEAMBETWEEN} from './shots/SeamBetween';
 import {ViewSwitch, DURATION as D_VIEWSWITCH} from './shots/ViewSwitch';
 import {StatedBy, DURATION as D_STATEDBY} from './shots/StatedBy';
@@ -566,5 +569,8 @@ export const RemotionRoot: React.FC = () => (
     {F('ViewSwitch', ViewSwitch, D_VIEWSWITCH)}
     {F('SeamBetween', SeamBetween, D_SEAMBETWEEN)}
     {F('Escalation', Escalation, D_ESCALATION)}
+    {F('ShorteningHold', ShorteningHold, D_SHORTENINGHOLD)}
+    {F('HeldInstant', HeldInstant, D_HELDINSTANT)}
+    {F('CraneUp', CraneUp, D_CRANEUP)}
   </>
 );
