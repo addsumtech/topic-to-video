@@ -140,3 +140,22 @@ def test_validate_errors_on_a_prop_the_register_never_reads():
     assert any("`prompt`" in e for e in hits) and any("`thoughts`" in e for e in hits), errors
     assert not any("`_note`" in e for e in hits) and not any("`answer`" in e for e in hits), hits
     assert "question" in hits[0] and "think" in hits[0], "the error must name the props the register reads"
+
+
+def test_the_librarys_own_headline_count_is_the_number_of_registers_it_documents():
+    """The heading said 134 while the directory held 175 and every one of them was documented below it.
+
+    Nobody writes the wrong number on purpose: a register is added, its section is written, and the count
+    in the title — the one line a reader takes on trust without scrolling — is the one thing no step
+    touches. It drifted by 41, which is a quarter of the library missing from the only number most readers
+    will ever read. This repo has shipped this exact shape before as a stale folio ("第 N / 37 页" on a
+    30-beat film): a rule that lived in prose and never as a gate. So it is a gate.
+    """
+    import glob
+    head = open(LIBRARY, encoding="utf-8").readline()
+    m = re.search(r"\((\d+)\s+design languages\)", head)
+    assert m, "LIBRARY.md's first line no longer states a count: %r" % head
+    on_disk = len(glob.glob(os.path.join(_ROOT, "remotion", "src", "shots", "*.tsx")))
+    assert int(m.group(1)) == on_disk, (
+        "LIBRARY.md's headline claims %s design languages and the library holds %d — the one number a "
+        "reader takes on trust is the one nothing updates" % (m.group(1), on_disk))
