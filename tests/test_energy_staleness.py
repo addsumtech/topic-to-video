@@ -153,6 +153,20 @@ def test_a_register_is_stale_for_the_symbols_it_uses_and_not_for_the_rest():
     moved = _with_dna(lambda s: s + "\nexport const _unusedProbeXYZ = (x: string): string => x;\n")
     assert moved == set(), "an export with no importer staled %d row(s): %r" % (len(moved), sorted(moved)[:5])
 
+    # 1b. ...AND THAT HOLDS WHEN IT IS DOCUMENTED, which is how this repo writes. A block used to run to
+    #     the next declaration's first character, so the doc-comment ABOVE a new function was attributed to
+    #     the PREVIOUS one: adding `cadenceAt` to runtime/motion.ts staled 88 of 174 rows because its
+    #     header landed inside `easeOutBack`, which most of the library imports. Nothing had moved.
+    def _documented(src):
+        i = src.index("export const mix = (")
+        return (src[:i] + "// A doc comment for something new.\n// A second line of it.\n//\n"
+                "export const _documentedProbeXYZ = (x: number): number => x * 2;\n\n" + src[i:])
+
+    moved = _with_dna(_documented)
+    assert moved == set(), (
+        "a DOCUMENTED new export staled %d row(s) — its comment is being attributed to the symbol above "
+        "it: %r" % (len(moved), sorted(moved)[:5]))
+
     # 2. a symbol with exactly one importer moves exactly that one
     assert "separatedPair" in open(_dna_path(), encoding="utf-8").read()
     users = [n for n in reg.universe()
@@ -170,3 +184,48 @@ def test_a_register_is_stale_for_the_symbols_it_uses_and_not_for_the_rest():
     #    calls it, and a register that imports `mix` must go stale when it changes.
     moved = _with_dna(lambda s: s.replace("const _hex = (", "const _hex = (  /* touched */", 1))
     assert len(moved) > 40, "a private helper reached from an imported symbol staled only %d row(s)" % len(moved)
+
+
+def test_a_targeted_re_measure_keeps_every_other_row_s_recorded_artefact(tmp_path, monkeypatch):
+    """`--only B` must not make A stale. It did, and no sequence of sweeps could clear it.
+
+    The manifest carries two maps keyed by register name: `_source` (the code a row was rendered from) and
+    `_fed` (the artefact it was handed). The merge path carried `_source` forward by name and rebuilt `_fed`
+    from the registers THIS run measured — so re-measuring one evidence register dropped the other five
+    hashes, `stale()` read each absence as a changed artefact, and re-measuring those five evicted the first
+    right back. Six rows, five permanently stale, whichever five you did not just sweep.
+
+    A check that cannot be satisfied is worse than no check: it trains whoever reads it to skip the line.
+    """
+    import json
+    man = tmp_path / "m.json"
+    monkeypatch.setenv("TMPDIR", str(tmp_path / "cache"))
+    monkeypatch.setattr(re_, "MANIFEST", str(man))
+    monkeypatch.setattr(re_, "durations", lambda: {"A": 100, "B": 100})
+    monkeypatch.setattr(re_, "universe", lambda: ["A", "B"])
+    monkeypatch.setattr(re_, "ensure_fixture", lambda: None)
+    monkeypatch.setattr(re_, "stills_from", lambda *a, **k: None)
+    monkeypatch.setattr(re_, "footprint", lambda *a, **k: 0.4)
+    monkeypatch.setattr(re_, "source_hash", lambda n: n + "-src")
+    monkeypatch.setattr(re_, "source_hashes", lambda: {"A": "A-src", "B": "B-src"})
+    monkeypatch.setattr(re_, "render_one",
+                        lambda n, mp4, dna, props: (open(mp4, "w").write("x"), (True, [""]))[1])
+    monkeypatch.setattr(re_.fe, "measure", lambda *a, **k: {
+        "motion_p75": 0.001, "ink_median": 0.2, "luma_range": 0.1, "seconds": 5.0})
+    # BOTH are fed an artefact, and different ones, or the two hashes cannot be told apart
+    monkeypatch.setattr(re_, "evidence_props",
+                        lambda: {"A": {"src": "a-fixture.png"}, "B": {"src": "b-fixture.png"}})
+
+    re_.main(["--dna=product"])                      # the full sweep: both rows, both artefacts recorded
+    full = json.loads(man.read_text(encoding="utf-8"))
+    assert set(full["_fed"]) == {"A", "B"}, "a full sweep did not record both artefacts: %r" % full["_fed"]
+    assert re_.stale(full) == [], "a fresh full sweep is already stale: %r" % re_.stale(full)
+
+    re_.main(["--only=B", "--dna=product"])          # ...then one of them is re-measured on its own
+    after = json.loads(man.read_text(encoding="utf-8"))
+
+    assert after["_fed"].get("A") == full["_fed"]["A"], (
+        "re-measuring B dropped A's recorded artefact: %r" % after["_fed"])
+    # and the consequence that makes it matter: the manifest is still clean
+    assert re_.stale(after) == [], (
+        "a targeted re-measure left rows it never touched reporting stale: %r" % re_.stale(after))

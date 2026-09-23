@@ -339,9 +339,23 @@ def _blocks_of(path, src):
         if not marks:
             hit = (None, None)
         else:
+            # A BLOCK ENDS BEFORE THE COMMENTS THAT INTRODUCE THE NEXT ONE. Splitting at the next
+            # declaration's first character attributes the doc-comment ABOVE it to the PREVIOUS symbol —
+            # measured: adding `cadenceAt` to runtime/motion.ts, with its header written above it, staled
+            # 88 of 174 rows because that header landed inside `easeOutBack`, which most of the library
+            # imports. Nothing about those registers' pixels had moved. The trailing run of comment and
+            # blank lines is trimmed off each block, so a note written for the next symbol belongs to the
+            # next symbol — and it is not dropped, because that symbol's own span starts where it ends.
             blocks, starts = {}, [q for q, _ in marks] + [len(src)]
             for i, (pos, nm) in enumerate(marks):
-                blocks[nm] = blocks.get(nm, "") + src[pos:starts[i + 1]]
+                body = src[pos:starts[i + 1]]
+                if i + 1 < len(marks):
+                    lines = body.split("\n")
+                    while lines and (not lines[-1].strip()
+                                     or lines[-1].lstrip().startswith(("//", "/*", "*", "*/"))):
+                        lines.pop()
+                    body = "\n".join(lines)
+                blocks[nm] = blocks.get(nm, "") + body
             hit = (src[: marks[0][0]], blocks)
         _BLOCK_CACHE[key] = hit
     return hit
@@ -465,6 +479,25 @@ def fed_hash(name, ev=None):
         if v and "/" not in v.strip("./") and os.path.isfile(f):
             h.update(open(f, "rb").read())
     return h.hexdigest()[:10]
+
+
+def register_maps(data):
+    """The manifest's top-level keys whose value is a map KEYED BY REGISTER NAME — what `--only` must merge.
+
+    Structural, never a list, because the list IS the bug. `_source` was merged forward by name and `_fed`
+    — added later, for the artefact a register was fed — was not, so every targeted re-measure replaced the
+    whole map with the one or two registers that run had touched. The other evidence registers lost their
+    recorded artefact hash, `stale()` reads an absent hash as a changed one, and re-measuring THOSE evicted
+    the first the same way: a manifest that no sequence of sweeps could bring to zero stale rows. That is
+    the record-nobody-can-tell-is-stale `source_hashes` refuses, arrived at from the opposite side — not a
+    row that cannot be told stale, but one that cannot be told fresh, which teaches a reader to ignore the
+    check entirely.
+
+    Read off the FRESH `data`, never the file on disk: its maps are built from this run's own rows, so a
+    register deleted from the library cannot make a map stop looking like one and silently opt out."""
+    names = set(universe())
+    return [k for k, v in data.items()
+            if k.startswith("_") and isinstance(v, dict) and set(v) <= names]
 
 
 def stale(data):
@@ -777,8 +810,14 @@ def main(argv):
                 return 1
             if prev:
                 merged = dict(prev["registers"]); merged.update(rows)
-                src = dict(prev.get("_source") or {})
-                src.update({n: h for n, h in hashes.items() if n in rows})
+                # EVERY map keyed by register name merges forward — not the two anyone remembered to list.
+                # A register the library no longer has is dropped on the way through, so a deleted name
+                # cannot sit in the record forever describing nothing.
+                per_reg, known = register_maps(data), set(universe())
+                for k in per_reg:
+                    m = {n: h for n, h in (prev.get(k) or {}).items() if n in known}
+                    m.update(data[k])
+                    data[k] = m
                 # a register that now renders is no longer a hole; one that now fails becomes one
                 keep = [f for f in (prev.get("_failed") or []) if f.split(" (")[0] not in names]
                 # ...AND IT LOSES ITS OLD ROW. Merging only what succeeded left the previous number in place
@@ -787,9 +826,10 @@ def main(argv):
                 # disappears from the coverage it is supposed to appear in.
                 for f in failed:
                     n = f.split(" (")[0]
-                    merged.pop(n, None); src.pop(n, None)
+                    merged.pop(n, None)
+                    for k in per_reg:
+                        data[k].pop(n, None)
                 data["registers"] = dict(sorted(merged.items()))
-                data["_source"] = src
                 data["_failed"] = sorted(keep + failed)
         # The relative ink cut is recomputed from the rows about to be written and stored WITH them —
         # before the dump, not after, or the manifest ships a null that every later reader has to re-derive
