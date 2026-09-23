@@ -17,10 +17,12 @@
 
 **Known traps:**
 - The last mark stops at `LAST_AT` (0.82) of the rule, not at its end. The tail is the argument: an escalation whose final event sits at the end of the line reads as a thing that finished. An earlier build normalised the last landing to 1.0 and this file's own header described a tail the frame did not have.
+- The first mark starts at `FIRST_AT` (0.05), for the opposite reason and one the frame shows immediately: the first landing of any series is 0, so a mark at the rule's own origin sits in the same column as `from` and their two labels stack on consecutive rows, reading as one two-line label. That is structural — it happens to every film, not to one — and it was only visible by rendering the register with its defaults filled in.
 - The mark positions are derived from the same interval series as `cadence`, not re-measured from it. A test pins the two against each other, because a second copy of a rule is how this repo's caption band became four disagreeing definitions.
-- Labels WRAP rather than shrink — the rule's height is reserved from the tallest stack, in the column each label actually wraps in, so a Chinese label and its English translation reserve different heights and both clear the caption band.
+- Labels WRAP rather than shrink, and each wraps in **the column it actually has** — bounded by the smaller of its two gaps, not by `span / n`. The average column is the trap: the marks are deliberately NOT evenly spaced, so labels at the tight end were lettered wider than the gap and overprinted each other, struck through and unreadable, exactly where the register makes its point. It was invisible at 16:9 in English and obvious at 4:3 in Chinese.
+- The rule's height is reserved from the TALLEST stack, but each label is bottom-aligned on **its own** line count, so a one-line label does not float two lines clear of the rule while its neighbours sit on it.
 - Seven marks is a rhythm; an eighth is a chart. Past that the gaps a viewer is asked to compare are narrower than the marks are wide: the argument is still true and no longer visible.
 
-**Refuses:** fewer than 3 `marks`; more than `MAX_ESCALATION_MARKS`; a mark with no `label`.
+**Refuses:** fewer than 3 `marks`; more than `MAX_ESCALATION_MARKS`; a mark with no `label`; and a mark whose column has closed below `MIN_LABEL_EM` (3) ems of its own type size — `accel` is the film's claim about how hard the gaps closed, and a hard enough claim closes them past what type can occupy (at `accel` 5 with seven marks the last landings are within a hair of each other). A pile of overprinted words passes every pixel gate, so the register says so instead: lower `accel`, use fewer marks, or shorten the labels at the tight end.
 
 **Reference:** `remotion/src/shots/Escalation.tsx`
