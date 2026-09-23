@@ -1240,6 +1240,31 @@ def _probe_the_ink_cut_is_the_librarys_own_distribution(mod):
     assert mod._ink_cut({"A": {"ink_median": 0.1}}) is None
 
 
+def _probe_the_light_cut_is_the_librarys_own_not_a_films(mod):
+    """A per-register light reading must not be judged against a whole FILM's threshold.
+
+    `film_energy_qa.LUMA_RANGE_FLOOR` is 0.135 — half the lowest reference launch film — and a film's
+    luminance range is mostly the CUT: it comes from moving between a dark beat and a light one. A single
+    register paints on ONE ground by construction, so it cannot produce a film's range and was never the
+    thing that number described. Measured before this changed: of 180 registers, 12 cleared light and those
+    twelve were EXACTLY the twelve clearing all three floors — the light axis was deciding the whole test
+    on its own, and the twelve were the registers whose own composition spans dark to light rather than the
+    ones with an arc. Same category error the ink floor was retired for, one axis over.
+
+    The gate keeps its constant, because there it judges FILMS. Here the reference is the library's own
+    distribution."""
+    assert mod.floors()["luma_range"] is None, (
+        "floors() is taking a light constant from the gate again; a whole-film threshold cannot judge one shot")
+    rows = {"A%d" % i: {"luma_range": i / 100.0} for i in range(1, 21)}
+    cut = mod._light_cut(rows)
+    assert cut is not None and 0.03 <= cut <= 0.05, (
+        "the bottom fifth of 0.01..0.20 should land near 0.04, got %r" % cut)
+    brighter = {k: {"luma_range": v["luma_range"] * 10} for k, v in rows.items()}
+    assert mod._light_cut(brighter) > cut * 5, (
+        "a ten-times brighter library must move the cut: %r then %r" % (cut, mod._light_cut(brighter)))
+    assert mod._light_cut({"A": {"luma_range": 0.1}}) is None
+
+
 PROBES["register_energy"] = {
     "floors_are_derived": _probe_floors_are_derived_not_restated,
     "unmeasured_is_not_passing": _probe_an_unmeasured_register_is_not_a_passing_one,
@@ -1247,12 +1272,19 @@ PROBES["register_energy"] = {
     "cache_separates_design_systems": _probe_the_render_cache_distinguishes_two_design_systems,
     "partial_sweep_reaches_the_record": _probe_a_partial_sweep_reaches_the_record,
     "ink_cut_is_relative": _probe_the_ink_cut_is_the_librarys_own_distribution,
+    "light_cut_is_relative": _probe_the_light_cut_is_the_librarys_own_not_a_films,
 }
 
 MUTANTS["register_energy"] = {
     "the floors become a private copy":
-        ('    return {"motion_p75": fe.MOTION_P75_FLOOR, "ink_median": None, "luma_range": fe.LUMA_RANGE_FLOOR}',
-         '    return {"motion_p75": 0.0037, "ink_median": None, "luma_range": 0.135}'),
+        ('    return {"motion_p75": fe.MOTION_P75_FLOOR, "ink_median": None, "luma_range": None}',
+         '    return {"motion_p75": 0.0037, "ink_median": None, "luma_range": None}'),
+    # ...and the LIGHT cut must not go back to the gate's number. That constant describes a whole film —
+    # it is half the lowest reference launch film — and a film's range comes from cutting between a dark
+    # beat and a light one, which one register on one ground cannot do. Reverting it made 12 of 180
+    # registers "clear light", and those twelve were exactly the twelve clearing all three floors.
+    "the light cut goes back to the film's threshold":
+        ("    return vals[max(0, int(len(vals) * LIGHT_QUINTILE) - 1)]", "    return fe.LUMA_RANGE_FLOOR"),
     # ...and the ink cut, which is NOT taken from the gate because the gate has none to give, must stay the
     # library's own distribution rather than becoming a second invented constant.
     "the relative ink cut becomes an invented constant":

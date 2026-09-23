@@ -555,7 +555,24 @@ def floors():
     # fact about this library, needs no corpus, and moves with the library as it grows. `_floors()` fills
     # it in at sweep time from the rows it just measured; the two axes that still have derived floors keep
     # taking them from the gate, never restating them.
-    return {"motion_p75": fe.MOTION_P75_FLOOR, "ink_median": None, "luma_range": fe.LUMA_RANGE_FLOOR}
+    # ...AND NEITHER DOES LIGHT, for a reason the ink note above states and nobody carried across.
+    # `fe.LUMA_RANGE_FLOOR` is 0.135 — half the LOWEST reference LAUNCH FILM (Apple, 0.270) — and a film's
+    # luminance range is mostly the CUT: it comes from moving between a dark beat and a light one, which is
+    # what `luma_steps` measures as the arc. A single register paints on ONE ground by construction
+    # (`DNA_GROUND_TOKEN` records which token each one takes, and 148 of them take `bg`), so it cannot
+    # produce a film's range and was never the thing that number described.
+    #
+    # Measured before this was changed: 147 of 180 registers clear the ink cut, 63 clear motion, and **12
+    # clear light — the same 12 that clear all three**, verified as set equality. So "clears all three" was
+    # the light axis wearing three hats, and the twelve are the registers whose own composition happens to
+    # span dark to light (`PageWrite` is a white page on a dark ground; `RealVersus` is photographs) rather
+    # than the registers with an arc. Judging one shot against a whole film's number is the same category
+    # error the ink floor was retired for, one axis over.
+    #
+    # The gate keeps its constant, because there it judges FILMS and is right. Here the reference is the
+    # library's own distribution, which needs no corpus of single-register reference renders — there is no
+    # such corpus and inventing one is the thing `film_energy_qa` refused to do.
+    return {"motion_p75": fe.MOTION_P75_FLOOR, "ink_median": None, "luma_range": None}
 
 
 INK_QUINTILE = 0.20           # "under-inked" = the bottom fifth of the library's own measured distribution
@@ -567,6 +584,21 @@ def _ink_cut(rows):
     if len(vals) < 5:
         return None
     return vals[max(0, int(len(vals) * INK_QUINTILE) - 1)]
+
+
+LIGHT_QUINTILE = 0.20         # "flat" = the bottom fifth of the library's own measured light range
+
+
+def _light_cut(rows):
+    """The luminance range below which a register is in this LIBRARY's bottom fifth. None under 5 rows.
+
+    The same shape as `_ink_cut` and for the same reason — see `floors()`. Kept as a separate function
+    rather than one parameterised by key, because the two are separate DECISIONS: if the gate ever gains a
+    per-register light reference, this is what gets deleted and ink stays."""
+    vals = sorted(v["luma_range"] for v in rows.values() if v.get("luma_range") is not None)
+    if len(vals) < 5:
+        return None
+    return vals[max(0, int(len(vals) * LIGHT_QUINTILE) - 1)]
 
 
 def universe():
@@ -847,6 +879,7 @@ def main(argv):
         # before the dump, not after, or the manifest ships a null that every later reader has to re-derive
         # (and a `--only` run would re-derive it from a merged set the sweep never saw whole).
         data["_floors"]["ink_median"] = _ink_cut(data["registers"])
+        data["_floors"]["luma_range"] = _light_cut(data["registers"])
         json.dump(data, open(MANIFEST, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
         print("[register_energy] wrote %s (%d rows%s)"
               % (MANIFEST, len(data["registers"]), ", merged" if only else ""))
@@ -855,6 +888,8 @@ def main(argv):
     fl = data["_floors"]
     if fl.get("ink_median") is None:              # an older manifest, or a --check run that wrote nothing
         fl["ink_median"] = _ink_cut(regs)
+    if fl.get("luma_range") is None:
+        fl["luma_range"] = _light_cut(regs)
     unknown = data.get("_failed") or []
     # WHAT THIS RUN DID NOT SEE, derived from the shots directory rather than from the manifest's own rows.
     # `_failed` only ever held what a sweep TRIED and could not measure; a register the sweep never reached
@@ -868,9 +903,15 @@ def main(argv):
     def _thin(r):
         return _cut is not None and r.get("ink_median") is not None and r["ink_median"] < _cut
 
+    _lcut = fl.get("luma_range")
+    if _lcut is None:
+        _lcut = _light_cut(regs)
+
+    def _flat(r):
+        return _lcut is not None and r.get("luma_range") is not None and r["luma_range"] < _lcut
+
     def fails(r):
-        return ((r["motion_p75"] < fl["motion_p75"]) + _thin(r)
-                + (r["luma_range"] < fl["luma_range"]))
+        return (r["motion_p75"] < fl["motion_p75"]) + _thin(r) + _flat(r)
 
     def why(r):
         """Which KIND of empty, when it is empty. The two need opposite fixes, so naming one is the
@@ -889,11 +930,12 @@ def main(argv):
     # The ink cut is RELATIVE and can legitimately be absent — a sweep of fewer than five registers has no
     # distribution to take a fifth of. "not derivable" is printed as itself rather than as a zero, which
     # would read as "every register cleared it".
-    print("\n[register_energy] floors motion %.4f / ink %s / light %.3f"
+    print("\n[register_energy] floors motion %.4f / ink %s / light %s"
           % (fl["motion_p75"],
              "not derivable (<5 rows)" if fl["ink_median"] is None else "bottom fifth at %.1f%%"
              % (fl["ink_median"] * 100),
-             fl["luma_range"]))
+             "not derivable (<5 rows)" if fl["luma_range"] is None else "bottom fifth at %.3f"
+             % fl["luma_range"]))
     # COVERAGE, NOT A COUNT. This line read "%d registers" with the number of rows in it, so a sweep that
     # measured 151 of 170 printed a line that reads as 170 and the nineteen holes were invisible.
     univ = universe()
@@ -907,7 +949,7 @@ def main(argv):
     for n, r in ranked[:40]:
         marks = "".join(m for m, bad in (("M", r["motion_p75"] < fl["motion_p75"]),
                                          ("D", _thin(r)),
-                                         ("L", r["luma_range"] < fl["luma_range"])) if bad)
+                                         ("L", _flat(r))) if bad)
         print("%-24s %8.4f %6.1f%% %7.3f %7s  %-4s %s"
               % (n, r["motion_p75"], (r["ink_median"] or 0) * 100, r["luma_range"],
                  "-" if r.get("footprint") is None else "%.0f%%" % (r["footprint"] * 100),

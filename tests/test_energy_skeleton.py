@@ -209,3 +209,45 @@ def test_the_mutation_that_hides_an_unmeasured_beat_is_caught(tmp_path, capsys):
     exec(compile(src.replace(old, "            continue", 1), es.__file__, "exec"), mod.__dict__)
     with pytest.raises(RuntimeError, match="dropping a beat without recording it"):
         mod.main([_board(tmp_path, [min(_sweep()[0], key=_sweep()[0].get), "NoSuchRegister"], name="mut")])
+
+
+def test_the_light_cut_is_the_librarys_own_and_not_a_whole_films_threshold():
+    """A per-register light reading was judged against a number that describes a whole FILM.
+
+    `film_energy_qa.LUMA_RANGE_FLOOR` is 0.135 — half the lowest reference launch film — and a film's
+    luminance range is mostly the CUT: it comes from moving between a dark beat and a light one. A single
+    register paints on ONE ground by construction, so it cannot produce a film's range and was never the
+    thing that number described.
+
+    Measured before this changed: of 180 registers, 147 cleared ink, 63 cleared motion, and 12 cleared
+    light — and the twelve that cleared light were EXACTLY the twelve that cleared all three. "Clears all
+    three" was the light axis wearing three hats, and the twelve were the registers whose own composition
+    happens to span dark to light, not the ones with an arc. That is the same category error the ink floor
+    was retired for, one axis over, and the fix is the same: the library's own distribution.
+
+    The gate keeps its constant — there it judges films, and there it is right.
+    """
+    import register_energy as re_
+    man = json.load(open(os.path.join(_HERE, "..", "remotion", "register_energy.json"), encoding="utf-8"))
+    rows = man["registers"]
+
+    assert re_.floors()["luma_range"] is None, (
+        "floors() is taking a light constant again; a whole-film threshold cannot judge one shot")
+    cut = re_._light_cut(rows)
+    assert cut is not None and cut < re_.fe.LUMA_RANGE_FLOOR, (
+        "the library's own light cut (%r) is not below the FILM floor (%r) — either the library changed "
+        "shape or the cut is being taken from the gate again" % (cut, re_.fe.LUMA_RANGE_FLOOR))
+
+    def clears(key, floor):
+        return {n for n, r in rows.items() if (r.get(key) or 0) >= floor}
+
+    fl = {"motion_p75": re_.fe.MOTION_P75_FLOOR, "ink_median": re_._ink_cut(rows), "luma_range": cut}
+    ink, mot, lum = (clears("ink_median", fl["ink_median"]), clears("motion_p75", fl["motion_p75"]),
+                     clears("luma_range", fl["luma_range"]))
+    all3 = ink & mot & lum
+    # THE POINT: the three axes must say three different things. Under the film floor they did not —
+    # `lum` WAS `all3`, so two of the columns carried no information of their own.
+    assert lum != all3, (
+        "the light axis still decides the whole test on its own: %d clear light, %d clear all three"
+        % (len(lum), len(all3)))
+    assert len(all3) > len(man.get("_failed") or []), "nothing clears all three; the cut cannot be right"
