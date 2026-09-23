@@ -281,6 +281,132 @@ def _string_for(prop, local=None, src="", i=0):
 
 
 
+# A REFUSAL IS CODE, NOT PROSE.
+#
+# The two rules below read the sentence a register THROWS. A doc comment that merely mentions a prop
+# ("pass `hero` to tint one cell") is the same words in the same order, so it read as a refusal — and the
+# consequence is silent and in the wrong direction: an OPTIONAL selector becomes one the sweep sets on a
+# row, and the unset branch that a film omitting it would actually render never renders again. Measured
+# across the library the day this was written: 23 refusal hits and 6 index hits, every one inside a real
+# `throw` — so blanking comments removes nothing that is there today and closes the way in for tomorrow's
+# register. Strings are honoured, so a URL's `//` inside a caption is not mistaken for a comment, and an
+# apostrophe inside a comment is consumed by the comment rather than opening a string.
+def _code_only(src):
+    """`src` with every comment blanked to spaces — same length, so offsets still line up.
+
+    A STATE STACK, not a flat scan. The flat version read a template literal by scanning to the next
+    unescaped backtick, which is the wrong backtick whenever the template interpolates another one —
+    `FallbackPath` writes ``${missing.map((k) => `\\`${k}\\``).join(' or ')}`` inside its refusal. From
+    that point the scanner was off by one string, so the apostrophes downstream flipped it in and out of
+    "string" at random and NOTHING after was blanked: measured 8 live comments left in `FallbackPath` and
+    6 in `TechnicalPlate`, out of 7487 `//` in the library. The fix worked on 179 of 181 files and failed
+    silently on the two, which is the failure mode this whole module keeps being audited for.
+    """
+    src = src or ""
+    out, i, n = list(src), 0, len(src)
+    stack, depth = [], []                     # 'tpl' = template text · 'expr' = a ${ } hole, with its brace depth
+    while i < n:
+        c = src[i]
+        if stack and stack[-1] == "tpl":      # inside a template's TEXT: only an escape, a hole, or the end
+            if c == "\\":
+                i += 2
+            elif c == "`":
+                stack.pop()
+                i += 1
+            elif c == "$" and i + 1 < n and src[i + 1] == "{":
+                stack.append("expr")
+                depth.append(0)
+                i += 2
+            else:
+                i += 1
+            continue
+        if c == "/" and i + 1 < n and src[i + 1] == "/":
+            while i < n and src[i] != "\n":
+                out[i] = " "
+                i += 1
+            continue
+        if c == "/" and i + 1 < n and src[i + 1] == "*":
+            while i < n and not (src[i] == "*" and i + 1 < n and src[i + 1] == "/"):
+                if src[i] != "\n":
+                    out[i] = " "
+                i += 1
+            for j in range(i, min(i + 2, n)):
+                out[j] = " "
+            i += 2
+            continue
+        if c in "'\"":
+            q, i = c, i + 1
+            while i < n and src[i] != q:
+                i += 2 if src[i] == "\\" else 1
+            i += 1
+            continue
+        if c == "`":
+            stack.append("tpl")
+            i += 1
+            continue
+        if stack and stack[-1] == "expr":     # the hole ends at ITS brace, not at any brace
+            if c == "{":
+                depth[-1] += 1
+            elif c == "}":
+                if depth[-1] == 0:
+                    stack.pop()
+                    depth.pop()
+                    i += 1
+                    continue
+                depth[-1] -= 1
+        i += 1
+    return "".join(out)
+
+
+def _obj_body(src, brace):
+    """The text between `brace` (the offset of a `{`) and its MATCHING `}`, or None if it never closes."""
+    depth, i, n = 0, brace, len(src)
+    while i < n:
+        if src[i] == "{":
+            depth += 1
+        elif src[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return src[brace + 1:i]
+        i += 1
+    return None
+
+
+_NUM_PAIR = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(-?\d+(?:\.\d+)?)\s*(?=[,}\]]|$)")
+
+
+def _top_numbers(body):
+    """{field: number} for the pairs at DEPTH 0 of an object body.
+
+    Depth matters in both directions. `{typical: 12, cap: {hi: 9}}` used to return NOTHING — the old
+    pattern demanded a body with no braces in it, so one nested value lost every number the author
+    declared and the relation-based refusal it exists to satisfy threw again. Reading it brace-balanced
+    instead would pick up `hi` as though the register had declared it at the top level, which is a
+    different wrong answer; a nested object is not this object's fields.
+    """
+    out, depth, i, n = {}, 0, 0, len(body or "")
+    while i < n:
+        c = body[i]
+        if c in "'\"`":                     # a QUOTED value is copy, not a field: `label: 'ratio: 9,'`
+            q, i = c, i + 1                 # would otherwise contribute a `ratio` nobody declared
+            while i < n and body[i] != q:
+                i += 2 if body[i] == "\\" else 1
+            i += 1
+            continue
+        if c in "{[(":
+            depth += 1
+        elif c in "}])":
+            depth -= 1
+        elif depth == 0:
+            m = _NUM_PAIR.match(body, i)
+            if m:
+                out[m.group(1)] = float(m.group(2)) if "." in m.group(2) else int(m.group(2))
+                i = m.end()
+                continue
+        i += 1
+    return out
+
+
 # WHICH NUMBER PROPS ARE AN INDEX, read from the register's OWN documentation rather than a list of names.
 #
 # This was `prop in ("focal", "target")`. Both of those are real, and the list was right on the day it was
@@ -307,7 +433,7 @@ def _is_an_index(prop, src):
     # and `CrashZoom`, which says exactly the same sentence inside a template literal, did not. Its row went
     # from measured to "refused to render" and only the real sweep caught it; the unit test named three
     # registers and CrashZoom was not one of them.
-    if re.search(r"pass\s+\\?`%s\\?`" % re.escape(prop), src or ""):
+    if re.search(r"pass\s+\\?`%s\\?`" % re.escape(prop), _code_only(src)):
         return True
     m = re.search(r"^([ \t]*)%s\s*\??\s*:" % re.escape(prop), src or "", re.M)
     if not m:
@@ -343,7 +469,7 @@ def _refused_without(prop, src):
     that goes stale. The backtick may be escaped, because a refusal written in a template literal has to
     write a backslash before one."""
     return bool(re.search(r"(?:pass|marked|needs at least one[^.]{0,40}?)\s*\\?`%s\\?`"
-                          % re.escape(prop), src or ""))
+                          % re.escape(prop), _code_only(src)))
 
 
 # THE REGISTER'S OWN NUMBERS, for a prop whose validity is a RELATION between them.
@@ -359,26 +485,25 @@ def _refused_without(prop, src):
 # declaration, the way `evidence_props` parses `requireEvidence` call sites rather than restating them —
 # and keep the synthesised Chinese on the STRINGS, which is the only thing this gate is actually asking
 # about. Numbers are not copy; nothing is lost by using the ones the author chose.
-_NUM_IN_OBJ = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(-?\d+(?:\.\d+)?)\s*[,}]")
-
-
 def _declared_numbers(prop, src):
     """{field: number} from the object literal this prop defaults to, or {} when there is not one."""
     # The prop may bind by RENAME (`typical: TYPICAL`) or default straight to an identifier
     # (`typical = DEMO_TYPICAL`). `_local_of` reads the first spelling only, and the second is the one a
     # register with a demo object actually uses — so both are asked for here.
+    src = src or ""
     ident = _local_of(prop, src)
-    d = re.search(r"\b%s\s*=\s*([A-Za-z_$][\w$]*)" % re.escape(prop), src or "")
+    d = re.search(r"\b%s\s*=\s*([A-Za-z_$][\w$]*)" % re.escape(prop), src)
+    m = None
     for cand in ([ident] + ([d.group(1)] if d else [])):
-        m = re.search(r"\b(?:const|let|var)\s+%s\s*(?::[^=]+)?=\s*\{([^{}]*)\}" % re.escape(cand), src or "")
+        m = re.search(r"\b(?:const|let|var)\s+%s\s*(?::[^=]+)?=\s*\{" % re.escape(cand), src)
         if m:
             break
     if not m:
         # an inline default in the destructuring: `typical = {label: 'x', value: 1}`
-        m = re.search(r"\b%s\s*=\s*\{([^{}]*)\}" % re.escape(prop), src or "")
+        m = re.search(r"\b%s\s*=\s*\{" % re.escape(prop), src)
     if not m:
         return {}
-    return {k: (float(v) if "." in v else int(v)) for k, v in _NUM_IN_OBJ.findall(m.group(1) + "}")}
+    return _top_numbers(_obj_body(src, m.end() - 1))
 
 
 def prop_signature(name):

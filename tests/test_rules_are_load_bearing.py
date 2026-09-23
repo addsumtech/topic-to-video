@@ -47,6 +47,7 @@ MODULE_PATH = {
     "register_energy": os.path.join(_SCRIPTS, "register_energy.py"),
     "band_debt": os.path.join(_SCRIPTS, "band_debt.py"),
     "prop_reach": os.path.join(_SCRIPTS, "prop_reach.py"),
+    "cjk_type_qa": os.path.join(_SCRIPTS, "cjk_type_qa.py"),
     "measure_ground_luma": os.path.join(_SCRIPTS, "measure_ground_luma.py"),
     "measure_ground_reach": os.path.join(_SCRIPTS, "measure_ground_reach.py"),
     "demo_copy_qa": os.path.join(_SCRIPTS, "demo_copy_qa.py"),
@@ -2133,6 +2134,128 @@ MUTANTS["ink_contrast_qa"] = {
     "the settled frame goes back to a fraction of the clip":
         ("    return max(0, min(dur - 1, int(round(rr.frame_at_t(dur, rr.SETTLED_T)))))",
          "    return max(0, min(dur - 1, int(dur * rr.REDUCED_MOTION_T)))"),
+}
+
+
+# ── the fixture synthesiser: cjk_type_qa ─────────────────────────────────────────────────────────────
+#
+# This module decides what EVERY register in the library is fed, and it carried no mutant of any kind. A
+# rule here can be deleted while the suite stays green and 181 registers are swept with the wrong props —
+# which is the exact failure this file exists to catch, and the exact shape three of this session's
+# findings took (a boolean selector true on every row; a numeric index nobody supplied; a demo object's
+# numbers lost). Probes are synthetic so one rule can be removed at a time.
+
+_REFUSAL_IN_CODE = "throw new Error('WhateverShot: pass `hero` \u2014 the row the tint follows.');"
+_REFUSAL_IN_PROSE = "// you may pass `hero` to tint one cell; most films leave it unset\nhero?: boolean;"
+_NESTED_DEMO = ("const DEMO_TYPICAL = {typical: 12, tail: 30, cap: {hi: 9}};\n"
+                "export const S: React.FC<{typical?: {typical: number}}> = ({typical = DEMO_TYPICAL}) => null;")
+
+
+def _probe_a_refusal_is_code_not_prose(mod):
+    assert mod._refused_without("hero", _REFUSAL_IN_CODE), "a register's own throw no longer reads as a refusal"
+    assert not mod._refused_without("hero", _REFUSAL_IN_PROSE), (
+        "a doc comment that merely MENTIONS a prop reads as a refusal, so an OPTIONAL selector gets set on "
+        "a row and the unset branch — what a film that omits it actually renders — never renders again")
+
+
+def _probe_an_index_refusal_is_code_not_prose(mod):
+    assert mod._is_an_index("target", "throw new Error(`pass \\`target\\` \u2014 the item to punch into.`)"), (
+        "a refusal inside a template literal no longer reads as one; that regression took a full sweep to find")
+    assert not mod._is_an_index("target", "// pass `target` to aim it somewhere else\ntarget?: number;"), (
+        "a doc comment reads as a refusal, so an optional number is fed a list position")
+
+
+def _probe_a_nested_demo_object_keeps_its_own_numbers(mod):
+    got = mod._declared_numbers("typical", _NESTED_DEMO)
+    assert got.get("typical") == 12 and got.get("tail") == 30, (
+        "one nested value loses EVERY number the author declared, and the relation-based refusal these "
+        "numbers exist to satisfy throws again, reporting a coverage hole instead of a finding: %r" % got)
+    assert "hi" not in got, (
+        "a nested object's field is being read as this object's field, which is a different wrong "
+        "answer, not a fix: %r" % got)
+
+    # ...and a QUOTED value is copy, not a field
+    quoted = mod._declared_numbers("typical", "const D = {typical: 12, label: 'ratio: 9,'};\n"
+                                              "const S = ({typical = D}) => null;")
+    assert quoted == {"typical": 12}, (
+        "a string whose CONTENT looks like a field contributes a number the register never declared: %r"
+        % quoted)
+
+
+def _probe_a_selector_is_not_set_on_every_row(mod):
+    for flag in ("hero", "find", "done", "ok"):
+        vals = [mod._synth_field(flag, "boolean", "const x = 1;", i, i) for i in range(4)]
+        assert sum(bool(v) for v in vals) == 1, (
+            "`%s` is set on %d of 4 rows; a sweep where every row is marked never renders the unmarked "
+            "branch, which on these registers is half the picture" % (flag, sum(bool(v) for v in vals)))
+
+
+def _probe_a_refused_flag_is_set_on_exactly_one_row(mod):
+    src = "throw new Error('NearTheLine: needs at least one case marked `near` \u2014 else it argues the opposite.');"
+    vals = [mod._synth_field("near", "boolean", src, i, i) for i in range(4)]
+    assert sum(bool(v) for v in vals) == 1, (
+        "a flag the register REFUSES without must be set on exactly one row — %r renders either a refusal "
+        "or a frame with no unflagged branch" % (vals,))
+
+
+# A TEMPLATE LITERAL INSIDE A TEMPLATE LITERAL. The blanker's first version scanned a template by running
+# to the next unescaped backtick, which is the wrong backtick as soon as the template interpolates one:
+# `FallbackPath` writes ``${missing.map((k) => `\`${k}\``).join(' or ')}`` inside its refusal. From there
+# the scanner was off by one string and NOTHING downstream was blanked — 8 live comments in FallbackPath,
+# 6 in TechnicalPlate, and the audit that added the blanker reported it as working, because the other 179
+# files were fine. Caught by asking the blanked library how many comments SURVIVED, not by asking whether
+# the thing it was built for still passed.
+_NESTED_TEMPLATE = ("const msg = `got ${ks.map((k) => `\\`${k}\\``).join(' or ')}, so it stopped.`;\n"
+                    "// you may pass `hero` to tint one cell\n"
+                    "hero?: boolean;\n")
+
+
+def _probe_a_template_inside_a_template_keeps_the_scanner_in_sync(mod):
+    blanked = mod._code_only(_NESTED_TEMPLATE)
+    assert len(blanked) == len(_NESTED_TEMPLATE), "the blanker changed the source LENGTH, so every offset moved"
+    assert "//" not in blanked, (
+        "a nested template literal puts the comment scanner out of sync, and every comment after it stays "
+        "live — so the rules below read prose as code again, silently: %r" % blanked)
+    assert not mod._refused_without("hero", _NESTED_TEMPLATE), (
+        "the doc comment after a nested template still reads as a refusal")
+    assert "got ${ks" in blanked and "stopped" in blanked, "the blanker ate the code it was meant to keep"
+
+PROBES["cjk_type_qa"] = {
+    "a_refusal_is_code_not_prose": _probe_a_refusal_is_code_not_prose,
+    "a_template_inside_a_template_keeps_the_scanner_in_sync":
+        _probe_a_template_inside_a_template_keeps_the_scanner_in_sync,
+    "an_index_refusal_is_code_not_prose": _probe_an_index_refusal_is_code_not_prose,
+    "a_nested_demo_object_keeps_its_own_numbers": _probe_a_nested_demo_object_keeps_its_own_numbers,
+    "a_selector_is_not_set_on_every_row": _probe_a_selector_is_not_set_on_every_row,
+    "a_refused_flag_is_set_on_exactly_one_row": _probe_a_refused_flag_is_set_on_exactly_one_row,
+}
+MUTANTS["cjk_type_qa"] = {
+    # the flat scan this replaced: a backtick runs to the next backtick, which inside a nested template
+    # is the one that OPENS the inner one
+    "a template literal is scanned flat, so a nested one desyncs it":
+        ('        if c == "`":\n            stack.append("tpl")\n            i += 1\n            continue',
+         '        if c == "`":\n            q, i = c, i + 1\n'
+         '            while i < n and src[i] != q:\n                i += 2 if src[i] == "\\\\" else 1\n'
+         '            i += 1\n            continue'),
+    "a comment reads as a refusal":
+        ("% re.escape(prop), _code_only(src)))", '% re.escape(prop), src or ""))'),
+    "a comment reads as an index refusal":
+        ("% re.escape(prop), _code_only(src)):", '% re.escape(prop), src or ""):'),
+    "a demo object with any nested value yields nothing":
+        ("            if depth == 0:\n                return src[brace + 1:i]",
+         "            if depth == 0:\n                return None"),
+    "a quoted value's contents count as fields":
+        ('        if c in "\'\\"`":                     # a QUOTED value is copy, not a field',
+         '        if False:                     # a QUOTED value is copy, not a field'),
+    "a nested object's fields count as this object's":
+        ("        elif depth == 0:\n            m = _NUM_PAIR.match(body, i)",
+         "        else:\n            m = _NUM_PAIR.match(body, i)"),
+    "a selector goes back to being set on every row":
+        ('        if name in ("find", "hero", "done", "ok"):\n            return rowIdx == 0',
+         '        if name in ("find", "hero", "done", "ok"):\n            return True'),
+    "a refused flag goes back to being set on every row":
+        ("        if _refused_without(name, src):\n            return rowIdx == 0",
+         "        if _refused_without(name, src):\n            return True"),
 }
 
 

@@ -143,7 +143,7 @@ export const NearTheLine: React.FC<{
   const bandIn = clamp01(seg(t, 0.36, 0.56));
   const casesIn = clamp01(seg(t, 0.5, 0.78));
   const kickIn = clamp01(seg(t, 0.02, 0.1));
-  const noteIn = clamp01(seg(t, 0.84, 0.94));
+  const noteIn = clamp01(seg(t, 0.72, 0.84));
 
   const path = React.useMemo(() => {
     const pts: string[] = [];

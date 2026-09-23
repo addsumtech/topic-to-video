@@ -1,4 +1,4 @@
-import json, os, shutil, subprocess, tempfile
+import json, os, re, shutil, subprocess, tempfile
 import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -214,3 +214,54 @@ for (const hz of [0, 1, 3.9, 15.1, 60, -4, NaN]) {
     assert abs(n30 - n60) <= 1, (
         "the boil rate follows the frame rate instead of the clock: %d redraws at 30fps, %d at 60fps"
         % (n30, n60))
+
+
+# ── a reveal the settled frame cannot see ────────────────────────────────────────────────────────────
+#
+# `useT()` returns exactly REDUCED_MOTION_T under reduced motion, and motion.ts says why that value was
+# picked: 0.86 "lands in the 'reveal complete, exit not begun' zone". So a window that only OPENS at or
+# after 0.86 is at opacity exactly 0 in the frame the accessibility render freezes on — and in every still
+# the gates inspect, because shot_still_qa, ink_contrast_qa and cjk_type_qa all capture the settled frame.
+# The element is not dim there. It does not exist: its contrast is never measured, its type is never
+# checked for overflow, and `--reduced-motion` ships the beat without it.
+#
+# Found by rendering seven registers this session and looking at them. Three (AverageHides, CraneUp,
+# HeldInstant) opened their closing line at seg(t, 0.86, 0.96) — the only 3 of 158 in the library — and on
+# CraneUp the kicker's fade-out completed at 0.86 as well, so the settled frame carried no words at all.
+# The other four opened at 0.82–0.84, which is 20–40% opacity at that frame: a sentence the viewer gets
+# about a quarter of a second of, at full strength, before the outgoing dissolve starts.
+#
+# The rule gated here is the BINARY one, because it is the one with no judgement in it. "Complete by 0.86"
+# would name 69 registers, most of them slow settles that are 70%+ in and perfectly visible — that is a
+# redesign, not a gate.
+_LATE = re.compile(r"seg\(\s*t\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)\s*\)")
+
+
+def _windows_that_never_open(src, settled):
+    """[(start, end)] for every reveal window this source opens at or after the settled frame."""
+    return [(float(m.group(1)), float(m.group(2))) for m in _LATE.finditer(src)
+            if float(m.group(1)) >= settled]
+
+
+def test_no_register_reveals_something_the_settled_frame_cannot_see():
+    settled = float(re.search(r"REDUCED_MOTION_T\s*=\s*([0-9.]+)",
+                              open(os.path.join(RUNTIME, "motion.ts"), encoding="utf-8").read()).group(1))
+
+    # the detector first, on a source built to violate it — a sweep that cannot fail is not a sweep
+    assert _windows_that_never_open("const noteIn = clamp01(seg(t, %g, 0.96));" % settled, settled), (
+        "the detector does not flag a window opening exactly at the settled frame, so the sweep below "
+        "would pass whatever the library does")
+    assert not _windows_that_never_open("const noteIn = clamp01(seg(t, 0.72, 0.84));", settled)
+
+    shots = os.path.join(REMOTION, "src", "shots")
+    bad = []
+    for f in sorted(os.listdir(shots)):
+        if not f.endswith(".tsx"):
+            continue
+        late = _windows_that_never_open(open(os.path.join(shots, f), encoding="utf-8").read(), settled)
+        if late:
+            bad.append("%s %s" % (f[:-4], ", ".join("seg(t, %g, %g)" % w for w in late)))
+    assert not bad, (
+        "%d register(s) open a reveal at or after t=%g, which is the frame `--reduced-motion` freezes on "
+        "and the frame every still gate measures — the element is at opacity 0 there, so it ships in "
+        "neither:\n  %s" % (len(bad), settled, "\n  ".join(bad)))

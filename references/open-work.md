@@ -334,6 +334,29 @@ read, and in each case the hash covered less than the reading depended on.
 > demonstrated by changing one input and watching the check go red, not by reading the code.
 
 
+**~~B12 · A REVEAL THE SETTLED FRAME CANNOT SEE.~~ DONE (gated).** `useT()` returns exactly
+`REDUCED_MOTION_T` (0.86) under reduced motion, and motion.ts says why that value was picked: it "lands in
+the 'reveal complete, exit not begun' zone". A window that only OPENS at 0.86 is therefore at opacity
+**exactly 0** in the frame `--reduced-motion` freezes on — and in every still the gates inspect, since
+`shot_still_qa`, `ink_contrast_qa` and `cjk_type_qa` all capture the settled frame. The element is not dim
+there; it does not exist. Its contrast is never measured, its type is never checked for overflow, and the
+accessibility render ships the beat without it.
+
+Found by rendering seven registers and LOOKING at them, not by any gate. Three (`AverageHides`, `CraneUp`,
+`HeldInstant`) opened their closing line at `seg(t, 0.86, 0.96)` — the only 3 of 158 in the library, all
+added this session. On `CraneUp` the kicker's fade-out also completed at 0.86, so the settled frame carried
+**no words at all**. The other four opened at 0.82-0.84 = 20-40% opacity at that frame: a sentence the
+viewer gets ~0.24s of at full strength before the outgoing dissolve starts. `AverageHides` was worse than a
+faint note — its `gapIn` ran to 0.9, so the band that IS the register's argument stopped short of the tail
+mark it measures to, in every frame any instrument ever saw.
+
+All seven now complete by 0.84. The gate
+(`tests/test_motion_timing.py::test_no_register_reveals_something_the_settled_frame_cannot_see`) asserts the
+BINARY rule — no window may OPEN at or after the settled frame — and proves its own detector on a synthetic
+violation first. Verified to go RED on the pre-fix source. The stronger "complete by 0.86" rule was
+considered and rejected: it names **69 registers**, most of them slow settles that are 70%+ in and perfectly
+visible. That is a redesign, not a gate.
+
 **B11 · THE TYPE-OVERLAP DETECTOR IS BLIND TO ROTATION, and it now has a register that exercises it.** Open.
 `runtime/textSafe.tsx` measures text with `Range.getClientRects()` and `getBoundingClientRect()` — both
 AXIS-ALIGNED. A 2D-rotated label's box is larger than its glyphs and grows on the side it slopes toward.

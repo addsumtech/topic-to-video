@@ -213,7 +213,7 @@ export const Escalation: React.FC<{
   // because the label columns are measured from the landings and the geometry needs them first. ─────────
   const kickIn = clamp01(seg(t, 0.02, 0.12));
   const ruleIn = easeOutCubic(clamp01(seg(t, 0.04, 0.26)));
-  const noteIn = clamp01(seg(t, 0.82, 0.92));
+  const noteIn = clamp01(seg(t, 0.72, 0.84));
   const walked = cadence(t, n, A);                     // which mark has landed, in the film's rhythm
 
   const strong = readableOn(dna?.bg ?? BG_D0, FG, ACC);

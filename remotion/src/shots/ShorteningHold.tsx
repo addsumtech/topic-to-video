@@ -153,7 +153,7 @@ export const ShorteningHold: React.FC<{
   const top = Math.max(zoneTop, zoneTop + (zoneBot - zoneTop - blockH) / 2);
 
   const kickIn = clamp01(seg(t, 0.02, 0.1));
-  const noteIn = clamp01(seg(t, 0.84, 0.94));
+  const noteIn = clamp01(seg(t, 0.72, 0.84));
   // A CUT, NOT A DISSOLVE. The replacement is the argument, so the live statement arrives on one frame and
   // only SETTLES after — an eased fade-in would spend the first third of every hold being half-legible,
   // and the shortest holds would never be fully on screen at all.

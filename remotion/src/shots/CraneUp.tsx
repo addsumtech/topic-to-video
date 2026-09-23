@@ -149,7 +149,7 @@ export const CraneUp: React.FC<{
   const nearIn = clamp01(seg(t, 0.06, 0.16)) * (1 - clamp01(seg(t, 0.30, 0.44)));
   const revealIn = clamp01(seg(t, 0.70, 0.84));
   const kickIn = clamp01(seg(t, 0.02, 0.1)) * (1 - clamp01(seg(t, 0.74, 0.86)));
-  const noteIn = clamp01(seg(t, 0.86, 0.96));
+  const noteIn = clamp01(seg(t, 0.74, 0.84));
 
   const revealLines = reveal ? wrapLines(String(reveal), LINE_PX, W * 0.7) : 0;
   const noteLines = note ? wrapLines(String(note), NOTE_PX, W * 0.82) : 0;

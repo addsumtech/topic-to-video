@@ -60,7 +60,7 @@
     "EdTimeline": "1b89ddacb79774df",
     "ElasticType": "e0e6902f35cd0615",
     "EmberFlame": "e197d329a728aa10",
-    "Escalation": "6f3d38f7b0118b7a",
+    "Escalation": "35021cefef5fb078",
     "ExplodedSchematic": "b069556b83c75794",
     "FallbackPath": "8233fecb85a03281",
     "FlowField": "00cca2c619ba5cb0",
@@ -189,13 +189,13 @@
     "VoxelBuild": "3ae03a5d4c40ecf2",
     "WireGlobe": "682228cf46421f58",
     "WordTunnel": "ef91738d4a4fe04e",
-    "ShorteningHold": "580cd864fe955978",
-    "CraneUp": "af653ef493f375b5",
-    "HeldInstant": "04ed2e1bc96ac6b1",
+    "ShorteningHold": "e29ff72590042624",
+    "CraneUp": "5d3b0fac1e7315ed",
+    "HeldInstant": "1af1d22f88b05f53",
     "CrashZoom": "5fa229afc6bb6eb1",
-    "NearTheLine": "6dffc5679e8bc8f6",
-    "PulledThread": "7e0f7f983faaf89d",
-    "AverageHides": "685a53ffbc4d5697"
+    "NearTheLine": "cbc3f83e4981c332",
+    "PulledThread": "c9af9d28c14edace",
+    "AverageHides": "f872468bef430195"
   },
   "_props": {
     "AcceptanceStamp": "12e20d0740fa7a78",
@@ -414,7 +414,7 @@
       "prop_diff": 1.0
     },
     "AverageHides": {
-      "reach": 0.451,
+      "reach": 0.456,
       "prop_diff": 1.0
     },
     "BeforeAfterSlider": {
@@ -518,7 +518,7 @@
       "prop_diff": 1.0
     },
     "CraneUp": {
-      "reach": 0.269,
+      "reach": 0.272,
       "prop_diff": 1.0
     },
     "CrashZoom": {
@@ -650,7 +650,7 @@
       "prop_diff": 1.0
     },
     "HeldInstant": {
-      "reach": 0.992,
+      "reach": 0.99,
       "prop_diff": 0.8
     },
     "HoloFoil": {
@@ -886,7 +886,7 @@
       "prop_diff": 1.0
     },
     "PulledThread": {
-      "reach": 0.287,
+      "reach": 0.288,
       "prop_diff": 0.75
     },
     "QuadSplit": {

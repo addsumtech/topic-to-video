@@ -125,9 +125,9 @@ export const AverageHides: React.FC<{
   const pileIn = clamp01(seg(t, 0.2, 0.52));
   const typIn = clamp01(seg(t, 0.4, 0.58));
   const tailIn = clamp01(seg(t, 0.6, 0.8));
-  const gapIn = clamp01(seg(t, 0.74, 0.9));
+  const gapIn = clamp01(seg(t, 0.66, 0.82));
   const kickIn = clamp01(seg(t, 0.02, 0.1));
-  const noteIn = clamp01(seg(t, 0.86, 0.96));
+  const noteIn = clamp01(seg(t, 0.74, 0.84));
 
   // THE PILE. Texture standing for "many cases", clustered around the typical value and thinning outward,
   // with a handful strung out toward the tail. Deterministic from `hash01`.

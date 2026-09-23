@@ -151,7 +151,7 @@ export const HeldInstant: React.FC<{
   const dwellPhase = clamp01((p - (at - width)) / Math.max(1e-6, 2 * width));
 
   const kickIn = clamp01(seg(t, 0.02, 0.1));
-  const noteIn = clamp01(seg(t, 0.86, 0.96));
+  const noteIn = clamp01(seg(t, 0.72, 0.84));
   // ONCE READ, IT STAYS — dimmer, because the dwell is when there was TIME to read it, not the only
   // moment it was true. Faded back out it also took the register's payoff off the settled frame, and the
   // contact sheet, `shot_still_qa` and every reviewer read that frame: an argument only visible mid-clip

@@ -152,7 +152,7 @@ export const PulledThread: React.FC<{
   const amp = rowH * 0.62;
   const drawIn = easeOutCubic(clamp01(seg(t, 0.02, 0.26)));
   const kickIn = clamp01(seg(t, 0.02, 0.1));
-  const noteIn = clamp01(seg(t, 0.84, 0.94));
+  const noteIn = clamp01(seg(t, 0.72, 0.84));
   const PULL_AT = 0.26;                                     // where on the clip the pull begins
 
   // A thread's displacement: the pulled one leads, the followers arrive a beat later — IN TIME, never in

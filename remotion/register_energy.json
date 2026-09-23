@@ -46,7 +46,7 @@
     "EdTimeline": "1b89ddacb79774df",
     "ElasticType": "e0e6902f35cd0615",
     "EmberFlame": "e197d329a728aa10",
-    "Escalation": "6f3d38f7b0118b7a",
+    "Escalation": "35021cefef5fb078",
     "ExplodedSchematic": "b069556b83c75794",
     "FallbackPath": "8233fecb85a03281",
     "FlowField": "00cca2c619ba5cb0",
@@ -176,12 +176,12 @@
     "MuseumLabel": "6f371528aca9e392",
     "RisoPrint": "2e7f38f233da1c93",
     "SplitFlap": "032eaea17701525a",
-    "ShorteningHold": "580cd864fe955978",
-    "CraneUp": "af653ef493f375b5",
-    "HeldInstant": "04ed2e1bc96ac6b1",
-    "NearTheLine": "6dffc5679e8bc8f6",
-    "PulledThread": "7e0f7f983faaf89d",
-    "AverageHides": "685a53ffbc4d5697"
+    "ShorteningHold": "e29ff72590042624",
+    "CraneUp": "5d3b0fac1e7315ed",
+    "HeldInstant": "1af1d22f88b05f53",
+    "NearTheLine": "cbc3f83e4981c332",
+    "PulledThread": "c9af9d28c14edace",
+    "AverageHides": "f872468bef430195"
   },
   "_fed": {
     "MuseumLabel": "4befec7f07",
@@ -273,7 +273,7 @@
       "ink_median": 0.019,
       "luma_range": 0.01,
       "seconds": 6.5,
-      "footprint": 0.355
+      "footprint": 0.571
     },
     "BeforeAfterSlider": {
       "motion_p75": 0.0041,
@@ -451,11 +451,11 @@
       "footprint": 0.623
     },
     "CraneUp": {
-      "motion_p75": 0.0004,
+      "motion_p75": 0.0005,
       "ink_median": 0.018,
       "luma_range": 0.011,
       "seconds": 6.5,
-      "footprint": 0.181
+      "footprint": 0.376
     },
     "CrashZoom": {
       "motion_p75": 0.0086,
@@ -686,7 +686,7 @@
       "ink_median": 0.034,
       "luma_range": 0.005,
       "seconds": 6.5,
-      "footprint": 0.364
+      "footprint": 0.423
     },
     "HoloFoil": {
       "motion_p75": 0.0037,
