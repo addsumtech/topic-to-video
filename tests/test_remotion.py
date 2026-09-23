@@ -3717,3 +3717,46 @@ def test_every_seam_that_fades_its_leaving_half_paints_a_ground_under_it():
     assert "const seamBg = nextG?.bg ?? prevG?.bg" in film
     for factory in ("fadeThrough(seamBg)", "drift(dir, W, H, seamBg)", "defocus(seamBg)", "focusRelay(seamBg)"):
         assert factory in film, "the picker no longer hands %s the film's ground" % factory
+
+
+def test_an_unmatched_topic_is_not_reported_as_a_skipped_contest():
+    """An empty candidate list has TWO causes, and they are opposite instructions to the author.
+
+    `audacity: conservative` means the contest is deliberately off — pick one direction and move on. A topic
+    the seed catalogue has no keyword for means the contest is ON and every direction must be CONCEIVED.
+    The CLI printed "audacity=conservative → contest SKIPPED" for both, so a film at `balanced` whose
+    subject simply was not in the catalogue was told its own risk setting had turned the contest off, and
+    the correct move — conceive three — reads as "nothing to do here". `conceive_gap()` already computed
+    that number and the CLI never called it.
+
+    Found while actually routing a film (a job-hunting skill: four modes, evidence provenance, isolated
+    judges): width 3, zero seed matches, reported as skipped. The library was right the whole time; only
+    the message lied, and no test read stdout.
+    """
+    import subprocess
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    cli = os.path.join(root, "scripts", "shot_templates.py")
+    unmatched = "a job-hunting skill with evidence provenance and isolated resume judges"
+
+    r = subprocess.run([sys.executable, cli, "--route", unmatched, "--audacity", "balanced"],
+                       capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    assert "conservative" not in r.stdout, (
+        "a zero-match topic at audacity=balanced is still blamed on `conservative`, so the author is told "
+        "their own setting skipped a contest they never turned off:\n%s" % r.stdout)
+    assert "CONCEIVE" in r.stdout and "3" in r.stdout, (
+        "the shortfall is not stated, so the number `conceive_gap()` computes still reaches nobody:\n%s"
+        % r.stdout)
+    assert "NOT skipped" in r.stdout, "the message does not say the contest is still on: %s" % r.stdout
+
+    # ...and the real skip must still read as a skip
+    r2 = subprocess.run([sys.executable, cli, "--route", unmatched, "--audacity", "conservative"],
+                        capture_output=True, text=True)
+    assert "SKIPPED" in r2.stdout and "conservative" in r2.stdout, (
+        "audacity=conservative no longer reports a deliberate skip: %s" % r2.stdout)
+
+    # ...and a topic the catalogue DOES match must still route rather than fall into either branch
+    r3 = subprocess.run([sys.executable, cli, "--route", "a developer tool that runs in the terminal",
+                         "--audacity", "balanced"], capture_output=True, text=True)
+    assert "directions for" in r3.stdout and "terminal-technical" in r3.stdout, (
+        "a matching topic no longer routes: %s" % r3.stdout)

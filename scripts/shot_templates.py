@@ -160,11 +160,28 @@ def main():
     a = ap.parse_args()
     cands = route(a.route, a.n, a.audacity)
     outdir = a.out or "<out_dir>"
-    if not cands:
+    width = a.n if a.n is not None else contest_width(a.audacity)
+    # AN EMPTY CANDIDATE LIST HAS TWO CAUSES, AND THEY ARE OPPOSITE INSTRUCTIONS.
+    #
+    # This printed "audacity=conservative → contest SKIPPED" for BOTH, so a film whose subject the seed
+    # catalogue simply has no keyword for was told its own risk setting had turned the contest off. The
+    # author's correct move there is the opposite of skipping: CONCEIVE the directions. `conceive_gap()`
+    # already computed exactly that number and nothing called it — the same shape as the seam plan that
+    # was complete, tested, documented and unreached. Measured on the film that found this: a real topic
+    # at audacity=balanced (width 3, zero seed matches) reported the contest as skipped by a setting the
+    # author never chose.
+    if width == 0:
         print("[shot_templates] audacity=conservative → contest SKIPPED (pick one direction directly)."); return
-    if (a.n or contest_width(a.audacity)) > len(TEMPLATES):
+    if not cands:
+        print("[shot_templates] %d direction(s) asked for at audacity=%s and NO seed template matched %r.\n"
+              "                 The contest is NOT skipped — CONCEIVE all %d directions for this subject "
+              "(shot-director Step 0),\n                 then render them: "
+              "contest_sample.py --conceived <file.json> --out %s --render"
+              % (width, a.audacity, a.route, conceive_gap(a.route, a.n, a.audacity), outdir))
+        return
+    if width > len(TEMPLATES):
         print("[shot_templates] width %d > %d seed templates — CONCEIVE %d more bespoke topic-directions (Step 0)."
-              % (a.n or contest_width(a.audacity), len(TEMPLATES), (a.n or contest_width(a.audacity)) - len(TEMPLATES)))
+              % (width, len(TEMPLATES), width - len(TEMPLATES)))
     if a.json:
         out = []
         for k in cands:
