@@ -1197,3 +1197,36 @@ def test_a_flag_the_register_refuses_without_is_set_on_something():
                 assert not all(vals), (
                     "%s.%s is set on EVERY row, so the unflagged branch — half of what the register draws "
                     "— is never rendered: %r" % (n, prop, vals))
+
+
+def test_a_relation_between_two_of_the_films_numbers_is_taken_from_the_register_s_own_demo():
+    """A generic fixture can supply a TYPE. It cannot supply a RELATION between two of the film's numbers.
+
+    `AverageHides` refuses a tail under 1.5x its typical value — deliberately: that close, the quoted
+    number IS a fair summary, and the frame would manufacture an alarm the beat never made. Two
+    independently synthesised numbers came out EQUAL, the register threw, and the sweep reported a
+    coverage hole at all five aspects — the third time in this session that a good refusal turned into a
+    register no gate could measure.
+
+    Weakening the refusal to please the instrument is the wrong direction, and so is a solver that
+    invents numbers satisfying it: that is the instrument making the film's claim. The register already
+    ships a valid instance — its demo — so the numbers come from there, parsed from the declaration the
+    way `evidence_props` parses `requireEvidence` call sites. The Chinese still goes on every string,
+    which is the only thing this gate actually asks about; numbers are not copy.
+    """
+    src = open(os.path.join(_ROOT, "remotion", "src", "shots", "AverageHides.tsx"), encoding="utf-8").read()
+    assert c._declared_numbers("typical", src) == {"value": 1}, c._declared_numbers("typical", src)
+    assert c._declared_numbers("tail", src) == {"value": 9}, c._declared_numbers("tail", src)
+
+    props, _ = c.cjk_props("AverageHides", 0)
+    tv, xv = props["typical"]["value"], props["tail"]["value"]
+    assert xv / tv >= 1.5, (
+        "the fixture no longer satisfies the register's own refusal, so it cannot be rendered at all: "
+        "typical=%r tail=%r" % (tv, xv))
+    # ...and the STRINGS are still Chinese, which is what the gate is for
+    assert any("一" <= ch <= "鿿" for ch in str(props["typical"]["label"])), props["typical"]
+
+    # the binding form matters: this register defaults to an IDENTIFIER (`typical = DEMO_TYPICAL`), not a
+    # rename (`typical: TYPICAL`), and reading only the rename form is what made the first fix a no-op
+    assert re.search(r"typical\s*=\s*DEMO_TYPICAL", src), (
+        "this test pins the identifier-default binding form; the register no longer uses it")

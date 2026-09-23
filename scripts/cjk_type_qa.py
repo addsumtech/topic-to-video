@@ -346,6 +346,41 @@ def _refused_without(prop, src):
                           % re.escape(prop), src or ""))
 
 
+# THE REGISTER'S OWN NUMBERS, for a prop whose validity is a RELATION between them.
+#
+# A generic fixture can supply a TYPE. It cannot supply a relation: `AverageHides` refuses a tail under
+# 1.5x its typical value — deliberately, because that close the quoted number is a fair summary and the
+# frame would manufacture an alarm the beat did not make — and two independently synthesised numbers came
+# out equal, so the register threw and the sweep reported a coverage hole at all five aspects. Weakening a
+# good refusal to please the instrument is the wrong direction; so is a solver that invents numbers
+# satisfying it, which is the instrument making the film's claim.
+#
+# The register already ships a valid instance: its DEMO. Read the numbers out of it — parsed from the
+# declaration, the way `evidence_props` parses `requireEvidence` call sites rather than restating them —
+# and keep the synthesised Chinese on the STRINGS, which is the only thing this gate is actually asking
+# about. Numbers are not copy; nothing is lost by using the ones the author chose.
+_NUM_IN_OBJ = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(-?\d+(?:\.\d+)?)\s*[,}]")
+
+
+def _declared_numbers(prop, src):
+    """{field: number} from the object literal this prop defaults to, or {} when there is not one."""
+    # The prop may bind by RENAME (`typical: TYPICAL`) or default straight to an identifier
+    # (`typical = DEMO_TYPICAL`). `_local_of` reads the first spelling only, and the second is the one a
+    # register with a demo object actually uses — so both are asked for here.
+    ident = _local_of(prop, src)
+    d = re.search(r"\b%s\s*=\s*([A-Za-z_$][\w$]*)" % re.escape(prop), src or "")
+    for cand in ([ident] + ([d.group(1)] if d else [])):
+        m = re.search(r"\b(?:const|let|var)\s+%s\s*(?::[^=]+)?=\s*\{([^{}]*)\}" % re.escape(cand), src or "")
+        if m:
+            break
+    if not m:
+        # an inline default in the destructuring: `typical = {label: 'x', value: 1}`
+        m = re.search(r"\b%s\s*=\s*\{([^{}]*)\}" % re.escape(prop), src or "")
+    if not m:
+        return {}
+    return {k: (float(v) if "." in v else int(v)) for k, v in _NUM_IN_OBJ.findall(m.group(1) + "}")}
+
+
 def prop_signature(name):
     """{prop: type-text} straight from the register's own React.FC<{…}> declaration."""
     try:
@@ -585,7 +620,13 @@ def cjk_props(name, offset=0):
                 fields, bare = got
                 if not _carries_copy(fields, bare):
                     continue                             # geometry again, one nesting level up
-                props[prop] = _shaped_row(fields, src, offset) if fields else _string_for(prop, prop, src, offset)
+                row = _shaped_row(fields, src, offset) if fields else None
+                if row is not None:
+                    # keep the author's own numbers — see `_declared_numbers`
+                    for k, v in _declared_numbers(prop, src).items():
+                        if k in fields:
+                            row[k] = v
+                props[prop] = row if row is not None else _string_for(prop, prop, src, offset)
         elif prop in _ARRAY_SHAPES:
             # an OBJECT-shaped prop (a side, a group, a range), TRIMMED TO THE KEYS THIS REGISTER DECLARES —
             # see `_declared_keys`. The shared entry carries the union of every register that uses the prop

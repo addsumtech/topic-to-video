@@ -14,6 +14,7 @@ import {HeldInstant, DURATION as D_HELDINSTANT} from './shots/HeldInstant';
 import {CraneUp, DURATION as D_CRANEUP} from './shots/CraneUp';
 import {NearTheLine, DURATION as D_NEARTHELINE} from './shots/NearTheLine';
 import {PulledThread, DURATION as D_PULLEDTHREAD} from './shots/PulledThread';
+import {AverageHides, DURATION as D_AVERAGEHIDES} from './shots/AverageHides';
 import {SeamBetween, DURATION as D_SEAMBETWEEN} from './shots/SeamBetween';
 import {ViewSwitch, DURATION as D_VIEWSWITCH} from './shots/ViewSwitch';
 import {StatedBy, DURATION as D_STATEDBY} from './shots/StatedBy';
@@ -576,5 +577,6 @@ export const RemotionRoot: React.FC = () => (
     {F('CraneUp', CraneUp, D_CRANEUP)}
     {F('NearTheLine', NearTheLine, D_NEARTHELINE)}
     {F('PulledThread', PulledThread, D_PULLEDTHREAD)}
+    {F('AverageHides', AverageHides, D_AVERAGEHIDES)}
   </>
 );
