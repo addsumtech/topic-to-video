@@ -3825,3 +3825,26 @@ def test_lastleg_kicker_clears_its_own_rail_and_its_gap_label_is_bounded():
     assert "maxWidth" in gap, (
         "gapLabel is clamped on the left and unbounded on the right — a long CJK label runs to the frame "
         "edge and wraps mid-word")
+
+
+def test_the_delivery_instruction_does_not_say_the_exit_code_ships_the_film():
+    """`critic_ledger.py --final` gates the LEDGER's form, not the film.
+
+    It exits 0 on a REVISE verdict — correctly, and it says so on stdout ("the FILM is not delivered")
+    — because a well-formed review of a film that needs work is still a well-formed review. But
+    `render_remotion.py` printed "# exit 0 is the delivery condition" and "# exit 0 required" beside
+    that command, so anyone automating on the exit code ships an un-passed film, and anyone reading the
+    marker believes a green exit is a pass.
+
+    Found by an independent critic reviewing this very pipeline: "anyone reading only the exit code
+    would ship this." It is the same shape as reading `echo $?` after a pipeline and getting echo's
+    code — the number is real and answers a different question than the one being asked.
+    """
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    src = open(os.path.join(root, "scripts", "render_remotion.py"), encoding="utf-8").read()
+    for bad in ("exit 0 is the delivery condition", "exit 0 required"):
+        assert bad not in src, (
+            "render_remotion still tells the reader that critic_ledger's exit code is the delivery "
+            "condition (%r) — it gates the ledger's form, and a REVISE verdict exits 0" % bad)
+    assert "VERDICT" in src or "verdict" in src, (
+        "the instruction no longer points the reader at the verdict, which is what actually ships it")

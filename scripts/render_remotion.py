@@ -614,7 +614,10 @@ python3 scripts/critic_brief.py   %(out)s          # _critic_brief.md + _contact
 python3 scripts/critic_ledger.py  %(out)s --emit-template
 # dispatch agents/shot-critic.md as a SUBAGENT whose entire input is the path %(out)s —
 #   no rationale, no summary of what you fixed, no steer about where to look
-python3 scripts/critic_ledger.py  %(out)s --final  # exit 0 is the delivery condition
+python3 scripts/critic_ledger.py  %(out)s --final
+#   exit 0 means the LEDGER is well formed — NOT that the film may ship. The verdict is what
+#   ships it: --final prints `the FILM is not delivered` on a REVISE and still exits 0, because
+#   the exit code gates the REVIEW's form. Read the verdict line, not the exit code.
 ```
 
 `--final` refuses three things: a ledger with MISSING ROWS (a dimension nobody looked at is a missing row,
@@ -633,7 +636,9 @@ def _not_delivered(out_dir):
     print("[render_remotion] RENDERED, not DELIVERED — wrote %s with the remaining steps." % _NOT_DELIVERED)
     print("[render_remotion] next: python3 scripts/critic_brief.py %s" % out_dir)
     print("[render_remotion]  then: dispatch agents/shot-critic.md (input = the out_dir path, nothing else)")
-    print("[render_remotion]  then: python3 scripts/critic_ledger.py %s --final   # exit 0 required" % out_dir)
+    print("[render_remotion]  then: python3 scripts/critic_ledger.py %s --final" % out_dir)
+    print("[render_remotion]        read its VERDICT line — exit 0 only means the ledger is well "
+          "formed; a REVISE verdict exits 0 too and the film is NOT delivered")
 
 
 
