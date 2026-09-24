@@ -228,9 +228,26 @@ export const LastLeg: React.FC<{
       {/* The kicker sits BOTTOM-right, mirroring the note at bottom-left. At the top right it shared the corner
           with the run's last tick and the two labels overprinted into an unreadable smear — and on this beat
           they were the same words, so the frame said one thing twice and neither legibly. */}
+      {/* THE RAIL PRINTS THROUGH A RIGHT-ANCHORED KICKER, and only its COLOUR was ever handling that.
+          `headX` is data — it moves with how many legs are carried — while this box was pinned to the
+          right margin with no width, so for any film whose carry lands the rail inside the kicker's span
+          the stop bar is painted straight over the first glyph. Measured on the film that found it: the
+          rail sat at x≈1510 and the kicker ran 1492–1824, so `排练的是取出,不是内容` read as
+          `练的是取出,不是内容` with the first character sliced. No gate sees this — nothing is cut off
+          by the CANVAS, so `text_safe_qa` is correctly silent; it took a person looking at a 2x crop.
+          The kicker now ends left of the rail whenever the rail is in its way, and is bounded so it can
+          never grow back into it. */}
       {kicker ? (
         <div style={{position: 'absolute', right: Math.round(W * 0.05),
           top: zoneBottom - Math.round(base * 0.062), opacity: dispIn,
+          // BOUNDED to the room RIGHT of the rail, not pushed left of it. The rail spans the full zone
+          // height, so there is no vertical escape; pushing the kicker left instead lands it in `note`,
+          // which is what a first repair did — one collision traded for another. Right of the rail is
+          // the uncovered tail, and it is empty by construction. Too narrow to set means the kicker is
+          // simply not drawn: `note` already says what the frame is about, and a missing kicker is a
+          // visible absence rather than two strings printed through each other.
+          maxWidth: Math.max(0, Math.round(W * 0.95 - headX - railH - base * 0.02)),
+          textAlign: 'right',
           letterSpacing: '0.16em', color: headX > W * 0.95 ? ON : DIM,
           font: `700 ${Math.round(base * 0.024)}px/1.2 ${mono}`}}>{kicker}</div>
       ) : null}
@@ -255,6 +272,11 @@ export const LastLeg: React.FC<{
       {gapLabel ? (
         <div style={{position: 'absolute',
           left: Math.min(Math.max(headX + base * 0.03, W * 0.05), W * 0.74),
+          // ...and BOUNDED on the right. The clamp above stopped the label starting off-frame; nothing
+          // stopped it ENDING there. With no maxWidth a 14-character CJK label set to x≈1911 of 1920 — a
+          // 9px margin — and wrapped mid-word, splitting 代写 across two lines. Give it the room that is
+          // actually left on the frame, so it wraps where a typesetter would.
+          maxWidth: Math.round(W * 0.94 - Math.min(Math.max(headX + base * 0.03, W * 0.05), W * 0.74)),
           top: trackY + railH * 3, opacity: gapIn, color: FG,
           font: `800 ${Math.round(base * 0.042)}px/1.2 ${body}`,
           borderLeft: `${Math.max(2, Math.round(base * 0.004))}px solid ${FG}`,

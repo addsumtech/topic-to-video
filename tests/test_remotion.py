@@ -3760,3 +3760,68 @@ def test_an_unmatched_topic_is_not_reported_as_a_skipped_contest():
                          "--audacity", "balanced"], capture_output=True, text=True)
     assert "directions for" in r3.stdout and "terminal-technical" in r3.stdout, (
         "a matching topic no longer routes: %s" % r3.stdout)
+
+
+def test_the_critic_brief_ships_the_gate_that_decides_and_labels_the_one_that_does_not():
+    """The brief handed the critic an INVERTED measure and omitted the authoritative one.
+
+    `frame_safe_qa`'s border-ink check is documented in `text_safe_qa.py`'s own header as running
+    OPPOSITE to the defect: the three registers whose type is genuinely cut read 1.00%/1.45%/4.40%, all
+    UNDER its error floor, while four deliberately full-bleed registers (9.6–35.2%) were all blocked.
+    `critic_brief.py` shipped that one and not `text_safe_qa`, which asks the DOM whether any TYPE is
+    actually cut off.
+
+    Measured on the film that found this: an independent critic was handed a 4-error FAIL, checked all
+    four against the pixels, found every one was the inverted measure (a full-bleed diagonal reading as
+    63% caption-band ink; a display word whose own source says "cropped by the frame on purpose"), and
+    had to run the right gate itself — which returned 0 findings across 37 of 37 beats. That critic had
+    the judgement to go around the brief. The next one files four revisions against correct frames while
+    nothing measures the failure that actually destroys type.
+    """
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    src = open(os.path.join(root, "scripts", "critic_brief.py"), encoding="utf-8").read()
+
+    assert "text_safe_qa.py" in src, (
+        "critic_brief no longer hands the critic the gate that DECIDES whether type is cut off")
+    assert src.index("text_safe_qa.py") < src.index("frame_safe_qa.py"), (
+        "the advisory border measure is printed before the authoritative type gate — a reader takes the "
+        "first verdict as the verdict")
+    band = src[src.index("frame_safe_qa.py") - 400:src.index("frame_safe_qa.py") + 60]
+    assert "ADVISORY" in band or "advisory" in band, (
+        "frame_safe_qa is still presented as a peer of the real gate; its own label has to say it is "
+        "advisory, or the critic reads a known-inverted FAIL as a finding")
+
+
+def test_lastleg_kicker_clears_its_own_rail_and_its_gap_label_is_bounded():
+    """Two defects a person found on a 2x crop that no gate can see.
+
+    LastLeg's kicker was `right`-anchored with no width while the stop rail's x is DATA (it moves with
+    how many legs are carried), so for any film whose carry lands the rail inside the kicker's span the
+    bar is painted straight over the first glyph. The register was already aware of the interaction —
+    it switches the kicker's COLOUR on `headX > W * 0.95` — and handled only that half. Measured: the
+    rail at x≈1510 against a kicker spanning 1492–1824, so the first character was sliced.
+
+    Its `gapLabel` had the mirror problem: `left` was clamped so the label could not start off-frame,
+    and nothing stopped it ENDING there — a 14-character CJK label set to x≈1911 of 1920 and wrapped
+    mid-word.
+
+    Neither is visible to `text_safe_qa`, correctly: no type is cut off by the CANVAS. These are
+    source-level assertions because the defect is a layout relationship, not a pixel count.
+    """
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    src = open(os.path.join(root, "remotion", "src", "shots", "LastLeg.tsx"), encoding="utf-8").read()
+    kick = src[src.index("{kicker ? ("):src.index("{kicker ? (") + 1400]
+    # The RULE, not one implementation of it: the kicker's geometry has to be a function of the rail's
+    # data-dependent x. A first repair satisfied this by moving `right`, which pushed the kicker out of
+    # the rail and straight into `note` — one collision traded for another — so this must not pin the
+    # property it is expressed through, only that `headX` bounds the box somewhere.
+    box = kick.split(">")[0]
+    assert "headX" in box, (
+        "the kicker's box no longer accounts for the rail's data-dependent x, so the stop bar can print "
+        "through it again")
+    assert "maxWidth" in box, "the kicker is unbounded and can grow into whatever is beside it"
+
+    gap = src[src.index("{gapLabel ? ("):src.index("{gapLabel ? (") + 900]
+    assert "maxWidth" in gap, (
+        "gapLabel is clamped on the left and unbounded on the right — a long CJK label runs to the frame "
+        "edge and wraps mid-word")

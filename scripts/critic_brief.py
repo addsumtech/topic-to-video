@@ -87,7 +87,21 @@ def build(out_dir):
     for label, script, args in [("validate", "validate.py", ()),
                                 ("A/V", "check_av.py", ()),
                                 ("keyframes", "keyframe_qa_remotion.py", ()),
-                                ("frame-safe", "frame_safe_qa.py", ()),
+                                # THE AUTHORITATIVE TYPE GATE GOES FIRST, AND IT WAS MISSING ENTIRELY.
+                                # This brief shipped `frame_safe_qa` — the border-ink measure whose own
+                                # header records it as INVERTED (it passes every genuinely-cut case and
+                                # blocks every deliberate full-bleed) — and omitted `text_safe_qa`, which
+                                # asks the DOM whether any TYPE is actually cut off and is what decides.
+                                # Measured on the film that found this: the critic was handed a 4-error
+                                # FAIL, checked all four against the pixels, and found every one was the
+                                # inverted measure (a full-bleed diagonal read as 63% caption-band ink, a
+                                # display word its own source documents as "cropped by the frame on
+                                # purpose"). It then had to run the right gate itself. That critic caught
+                                # it; the next one would have filed four revisions against frames that are
+                                # correct, while nothing measured the failure that actually destroys type.
+                                ("TYPE cut off (authoritative)", "text_safe_qa.py", ()),
+                                ("frame-safe (ADVISORY — border ink; known inverted, see above)",
+                                 "frame_safe_qa.py", ()),
                                 ("proof sheet", "shot_proof.py", ()),
                                 ("voice", "voice_qa.py", ())]:
         L.append("**%s**" % label)
