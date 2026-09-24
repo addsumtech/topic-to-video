@@ -102,3 +102,47 @@ def test_the_mutation_that_hides_a_silent_beat_is_caught(tmp_path, capsys):
     assert "量了 5/6 拍" in text, text                       # the universe did NOT shrink with the beat
     assert "第 2 拍没有旁白" not in text, "the mutant did not actually hide the beat"
     assert "没有留下任何原因" in text, text                   # …and the silence is itself reported
+
+
+def test_the_same_answering_shape_beat_after_beat_is_reported():
+    """Six numbers cleared a script its viewer heard as machine-written on the first listen.
+
+    The film measured CV 0.45, antithesis 8%, connectives 38%, aphorism endings 5%, balanced pairs 5% —
+    every one clear — and the person watching said 「脚本没有人的感觉，读起来也很机器」. The shape none of
+    them could see: seven of its thirty-seven beats opened on the same short denial answering the previous
+    beat's implied question (「不会。」「不能。」「删不掉。」「不是匹配度。」). A reviewer had even named it in
+    prose — "a seventh use starts to read as a template" — and it was filed as non-blocking because no
+    number moved.
+
+    Deliberately narrow. Any short opener catches 「装一次，」 and 「第一站找岗，」 too, which are fine, and
+    that widening turned a real 19%->8% separation into a muddy 41%->30%.
+    """
+    import voice_qa as v
+
+    machine = [(i, t) for i, t in enumerate(
+        ["不会。最多三轮，理由只剩你真没有就停。", "不能。说短说顺可以，但缺的那块不许填。",
+         "删不掉。只能标成撤回。", "不是匹配度。它不预测结果。",
+         "没人再核对。抽错的要求会自洽地全错。", "还真至于。地区一错，底下五样全错。",
+         "把材料做出来，再压测一遍。", "它开口先问地区，还不许从你打字的语言猜。"], 1)]
+    r = v.evaluate(machine)
+    assert r["metrics"]["same_opener_share"] > v.THRESHOLDS["same_opener"], (
+        "six beats of eight opening on the same short denial is not reported: %r"
+        % r["metrics"]["same_opener_share"])
+    assert "same_opener" in r["fired"]
+
+    # ...and a script that uses the device ONCE is not punished for it
+    human = [(i, t) for i, t in enumerate(
+        ["不会的。最多三轮，而且只要剩下的理由是你真的没有，它就停了。",
+         "它清点的是证据，不是匹配度，也不预测结果。",
+         "删是删不掉的。只能标成撤回，因为删了就看不出来。",
+         "后面就没人再核对了，抽错的要求会自洽地全错。",
+         "它只帮你把话说顺说短，缺的那一块是不许填的。",
+         "停下来不算废品，它写一份 honest-stop 分开两种。",
+         "把材料做出来，再压测一遍。", "它开口先问地区，还不许从你打字的语言猜。"], 1)]
+    r2 = v.evaluate(human)
+    assert "same_opener" not in r2["fired"], (
+        "a script that folds its denials into clauses is still reported: %.2f"
+        % r2["metrics"]["same_opener_share"])
+
+    # the English side exists, because the shape is not Chinese-specific
+    assert "en" in v._MSG["same_opener"] and "zh" in v._MSG["same_opener"]

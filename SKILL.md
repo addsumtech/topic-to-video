@@ -1334,8 +1334,22 @@ agent on the beats it points at.
    **Overall PASS only when ALL THREE critics return PASS.** Apply the **UNION** of their required
    EDITS to the storyboard, then re-dispatch the critics (or just the failing one) until all
    return PASS. THEN:
-   🔴 **CHECKPOINT · 🛑 STOP:** present the full, critic-panel-passed script and get the user's
-   edits/approval BEFORE any TTS. Do not synthesize audio until they sign off.
+   **THEN MAKE IT AUDIBLE, BEFORE the checkpoint — `python3 scripts/script_audition.py <out_dir>`.**
+   It speaks five beats (hook, climax, close and two consecutive middles) through the board's OWN voice,
+   joined by the film's own measured pause, into `audition.mp3` in seconds. **Listen to it in order, and
+   send it to the user with the script.**
+   This is not a nicety, it is the step whose absence shipped a machine-sounding film: a 37-beat script
+   cleared every `voice_qa` metric (CV 0.45 · antithesis 8% · connectives 38% · aphorism endings 5%),
+   passed two independent content critics, was read end-to-end by its author — and the person it was made
+   for said, on the first listen, 「脚本没有人的感觉，读起来也很机器」. Every check in this pipeline READS
+   the narration; the defect is AUDIBLE. `references/anti-ai-voice.md` opened with "the last pass is
+   always a human read-aloud" and nothing in the workflow produced anything to read aloud.
+   The old instruction here was *"do not synthesize audio until they sign off"* — which made the sign-off
+   a reading of a document whose only destiny is to be heard. Auditioning five beats is not the full
+   synth; the full run still waits for approval.
+   🔴 **CHECKPOINT · 🛑 STOP:** present the full, critic-panel-passed script **and the audition audio**,
+   and get the user's edits/approval before the full TTS run. A script nobody has HEARD has not been
+   checked, whatever the metrics say.
 6. **Motion** — read `references/motion-grammar.md`. Default motion is a gentle centered
    zoom `from:[0.5,0.5,1.0] → to:[0.5,0.5,1.12]` (keep zoom delta ≤0.20). **Callouts are OFF
    by default** — do NOT add emphasis boxes. They are easy to mis-place and a translucent
@@ -1686,7 +1700,9 @@ For anything else, read `references/troubleshooting.md` before guessing.
 
 ## Red lights — never do this
 
-- ❌ Render audio/video before the user signs off script/sample (honor the 🔴 checkpoints).
+- ❌ Render audio/video before the user signs off script/sample (honor the 🔴 checkpoints) — but
+  the five-beat `script_audition.py` proof is REQUIRED before that sign-off, not forbidden by it:
+  the checkpoint is a listen, and a script nobody heard has not been checked.
 - ❌ Narrate from the slides alone, or invent facts/numbers — ground in the material (or a
   web fact-check) and stay strictly faithful (step 3).
 - ❌ Skip the critic panel — the parallel `critic-narrative` + `critic-content` + `design-critic` check (step 5) is REQUIRED; ship only when ALL THREE return PASS.

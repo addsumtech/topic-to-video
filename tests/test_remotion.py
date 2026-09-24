@@ -1339,6 +1339,11 @@ def test_voice_qa_every_threshold_and_rule_is_load_bearing():
         # threshold could be disabled unnoticed. A ~0.5 share sits above 0.30 and below 0.99.
         "aphorism": (["绿灯量的是测试有多强，而不是代码有多对。"] * 4 +
                      ["我们又跑了一遍，边界上差了一个等号，于是补了个用例。"] * 4),
+        # EIGHT DIFFERENT short denials, not one repeated: the defect this reports is the repeated SHAPE,
+        # so a probe built from one literal would pass a detector that only matched that literal.
+        "same_opener": ["不会。它在这里就停了。", "不能。那一块不许填。", "删不掉。只能标成撤回。",
+                        "不是这样。它清点的是证据。", "没人再核对。后面全部继承它。",
+                        "别急。先把地区问清楚。", "未必。要看它读到了什么。", "非也。收据拿不出来就不算。"],
     }
     ZH_QUIET = [
         "这段代码是 AI 写的，能跑，测试全绿，但它其实是错的，而且没有任何提示。",

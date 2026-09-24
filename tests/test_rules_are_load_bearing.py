@@ -514,12 +514,30 @@ def _probe_thresholds_fire_on_the_right_side(mod):
         "antithesis": ["绿灯量的是测试有多强，而不是代码有多对。"] * 8,
         "aphorism": (["绿灯量的是测试有多强，而不是代码有多对。"] * 4 +
                      ["我们又跑了一遍，边界上差了一个等号，于是补了个用例。"] * 4),
+        # The same short denial answering the previous beat, over and over. Varied ON PURPOSE — the defect
+        # is the repeated SHAPE, not one phrase, so a probe of eight identical strings would pass a
+        # detector that only matched a literal.
+        "same_opener": ["不会。它在这里就停了。", "不能。那一块不许填。", "删不掉。只能标成撤回。",
+                        "不是这样。它清点的是证据。", "没人再核对。后面全部继承它。",
+                        "别急。先把地区问清楚。", "未必。要看它读到了什么。", "非也。收据拿不出来就不算。"],
     }
     quiet = ["这段代码是 AI 写的，能跑，测试全绿，但它其实是错的，而且没有任何提示。", "写崩的会当场报错。",
              "所以我们又跑了一遍，结果发现边界上差了一个等号，于是补了个用例。", "覆盖率只证明这行被执行过。",
              "因为出题的和判卷的是同一个来源，错误模式也一样，所以互相看不见对方的盲区。", "还没人做过受控比较。",
              "有个数字到处在传，但我们查了那份报告，里面根本没有它，所以别当结论。", "先弄坏它一次。"]
     quiet_fired = set(mod.evaluate([(i, t) for i, t in enumerate(quiet)])["fired"])
+
+    # ...and the repeated-opener check must not count a LEGITIMATE short opener. A mutant that returns
+    # True for any short leading unit survived every other probe here: these eight all open short and
+    # none of them is the answering device, which is the distinction the whole signal rests on.
+    short_but_fine = ["装一次，以后一句人话就进去了。", "第一站找岗，你给方向它给清单。",
+                      "你挑中一条，就进第二站了。", "每改一条，它就往账本里追一行。",
+                      "三审都过了，还得练。", "算了一下，一共五行。",
+                      "开头那句，现在能回答了。", "四句人话，一轮就跑完了。"]
+    assert "same_opener" not in set(mod.evaluate(
+        [(i, t) for i, t in enumerate(short_but_fine)])["fired"]), (
+        "the repeated-opener check counts any short opener, so it reports every brisk script and "
+        "distinguishes nothing — the signal is the answering SHAPE, not brevity")
     assert set(fire) == set(mod.THRESHOLDS), \
         "a threshold has no boundary probe: %r" % (set(mod.THRESHOLDS) - set(fire))
     for key, beats in fire.items():
@@ -555,6 +573,15 @@ def _guard_mutants():
 
 
 MUTANTS["voice_qa"] = {
+    # The repeated-opener detector, both halves: the shape test and the SHORTNESS test. Widening it to
+    # any short opener is the failure mode that matters — measured, that turned a real 19%->8% separation
+    # into a muddy 41%->30%, because 「装一次，」 and 「第一站找岗，」 are perfectly good openers.
+    "the repeated-opener check is blind to the denial":
+        ('    pat = _DENY_OPEN["han"] if prof == "han" else _DENY_OPEN["latin"]\n    return bool(pat.match(m.group(1).strip()))',
+         '    pat = _DENY_OPEN["han"] if prof == "han" else _DENY_OPEN["latin"]\n    return False'),
+    "any short opener counts, not just an answering one":
+        ('    pat = _DENY_OPEN["han"] if prof == "han" else _DENY_OPEN["latin"]\n    return bool(pat.match(m.group(1).strip()))',
+         '    pat = _DENY_OPEN["han"] if prof == "han" else _DENY_OPEN["latin"]\n    return True'),
     "CV loses its denominator":
         ("    cv = (statistics.pstdev(sent) / statistics.mean(sent)) if len(sent) > 1 and statistics.mean(sent) else 0.0",
          "    cv = statistics.pstdev(sent) if len(sent) > 1 else 0.0"),

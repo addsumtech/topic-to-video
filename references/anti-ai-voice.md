@@ -89,3 +89,40 @@ Read once, a clipped antithesis is punchy. Read thirty-seven times in a row, it 
 Write the beat as if answering a colleague who just asked "wait, why?" — then cut what they already knew.
 That produces uneven sentence length, real connectives, and an occasional first person, for free, because
 that is what answering a question actually sounds like.
+
+## Layer 4 — the script that cleared every number and still read as a machine
+
+A 37-beat Chinese film measured CV 0.45, antithesis 8%, connectives 38%, aphorism endings 5%, balanced
+pairs 5% — the whole panel clear — and the person who watched it said, on the first listen,
+「脚本没有人的感觉，读起来也很机器」. Two things were wrong, and no metric here could see either.
+
+**It was too finished to be speech.** Spoken language is defined by short, simple, *often incomplete*
+sentences with **repetition, false starts and asides**; written language is what is coherent, ordered,
+precise and regular. All 37 lines were complete, self-contained, maximally-compressed aphorisms — not one
+half-sentence, not one repetition, not one aside. The script was not badly written. It was written to a
+standard that no one talks in. Research on synthetic speech says the same thing from the other side:
+listeners read localized irregularity — a filler, a pause, a small repetition, a mid-sentence correction —
+as the marker of a human, and hear the regular version as the machine. **Imperfection is what reads as
+authentic**, which means a line you cannot improve any further is often a line you have polished past a
+person.
+
+**And one good device became the template.** Seven beats opened on the same short denial answering the
+previous beat's implied question — 「不会。」「不能。」「删不掉。」「不是匹配度。」. It is a genuinely
+conversational shape; it earned its place the first two or three times. By the seventh it *is* the
+formula, and a reviewer had said so in prose while every number stayed green. `voice_qa` now reports
+`same_opener` for exactly this, because the lesson was that prose findings get filed as non-blocking and
+numbers do not.
+
+Both of these are tier-agnostic. Neither has anything to do with the renderer: they are properties of the
+narration, which the html tier and the remotion tier share, and `voice_qa` reads the same
+`storyboard.json` for both.
+
+**The repair is not a ban list.** Published practice on this is blunt: prompting an AI with prohibitions
+does not fix it, because the problem is not vocabulary — a model writes in the *average* of everything it
+read, and "avoid X" never tells it whose voice to write in instead. What worked here was naming the
+structural fault (too complete) and the specific tic (one opener, seven times), then rewriting with a
+target register the user chose from rendered options. What did NOT work was the first pass over the
+metrics, which produced a tighter script that still read as written.
+
+**The last check is still a person reading it aloud, in order.** The numbers above mark places to look.
+On this film every number looked fine and the film was not.

@@ -174,6 +174,14 @@ THRESHOLDS = {
     "balanced": 0.35,        # share of beats that are a balanced pair ABOVE this
     "connective": 0.30,      # share of beats carrying any connective BELOW this
     "aphorism": 0.30,        # share of beats ending on an antithesis ABOVE this
+    # THE SAME ANSWERING SHAPE, BEAT AFTER BEAT. A short denial that answers the previous beat's implied
+    # question (the Chinese 「不会。」「不能。」「删不掉。」) is a good device twice and IS the template by the
+    # seventh. Measured on one film before and after the rewrite its viewer called machine-written: 7 of 37
+    # beats (19%) opened that way, against 3 of 37 (8%) after. Every other number here was already clear on
+    # that first cut — CV 0.45, antithesis 8%, connectives 38%, aphorism endings 5% — so this is the one
+    # shape none of them could see, and a reviewer had named it in prose ("a seventh use starts to read as
+    # a template") while this gate returned OK. Anchored to that one film, like every threshold above.
+    "same_opener": 0.15,     # share of beats opening on a short denial/answer ABOVE this
 }
 BALANCED_TOL = 0.30          # two clauses count as "equal length" within this fraction
 MIN_BEATS = 3                # below this there is not enough text to judge rhythm
@@ -256,6 +264,24 @@ def _units(t, prof):
     return len([w for w in re.split(r"\s+", t.strip()) if w])
 
 
+# A SHORT DENIAL ANSWERING THE PREVIOUS BEAT. Both scripts, because the shape is not Chinese-specific:
+# "No." / "It can't." opening beat after beat is the same template in English. Deliberately narrow — a
+# short opener is not the defect (「装一次，」 and 「第一站找岗，」 are fine), the repeated ANSWERING SHAPE
+# is; widening it to any short opener moved a real before/after from 19%->8% to a muddy 41%->30%.
+_DENY_OPEN = {
+    "han": re.compile(r"^(不|没|别|未|非|算不算|还真|未必)"),
+    "latin": re.compile(r"^(no|not|nope|never|it can.?t|you can.?t|neither|hardly)\b", re.I),
+}
+
+
+def _opens_on_denial(text, prof):
+    """True when the beat opens on a SHORT terminated unit that is a denial or a bare answer."""
+    m = re.match(r"^([^，。？！,.!?]{1,6})[，。！？,.!?]", (text or "").strip())
+    if not m:
+        return False
+    pat = _DENY_OPEN["han"] if prof == "han" else _DENY_OPEN["latin"]
+    return bool(pat.match(m.group(1).strip()))
+
 def _antithesis_pairs(text, prof):
     """The antithesis pairs in one beat, AFTER requiring the two sides to be parallel.
 
@@ -319,11 +345,29 @@ _MSG = {
         "en": "%.0f%% of beats end on an aphorism (>%.0f%%) — most beats only need to deliver their fact. "
               "Save the landing for the two or three that earned it.",
     },
+    "same_opener": {
+        "zh": "%.0f%% 的拍用同一种短应答开头(>%.0f%%)——「不会。」「不能。」这类回上一拍的句式，"
+              "用两三次是对话感，用七次就是模板。换几种回答的方式：把否定折进句子里、直接往下说、"
+              "或者先给出肯定的那半。",
+        "en": "%.0f%% of beats open on the same short denial (>%.0f%%) — answering the previous beat's "
+              "implied question is conversational twice and a template by the seventh. Vary how the answer "
+              "arrives: fold the denial into a clause, open on the positive half, or just carry on.",
+    },
     "note": {
         "zh": "提示：以上都是「去看一眼」的位置，不是要压到零。规则用过头会产生新的规则腔——"
               "一段触发了检查却读着自然的话，不用改。",
         "en": "note: each number marks a place to LOOK, never a target. Over-applying the rules produces its "
               "own artificiality; a beat that trips a check and reads well aloud is fine as it is.",
+    },
+    # THIS REPORT CANNOT HEAR. Printed on every run, clean or not, because a clean run is exactly
+    # when it gets mistaken for "the voice has been checked". One film cleared all six numbers and
+    # its viewer called it machine-written on the first listen.
+    "deaf": {
+        "zh": "这份报告量的是分布，它听不见。合成 audition.mp3(scripts/script_audition.py)并真的听一遍，"
+              "再让人签字——全绿的脚本被听出机器味，已经发生过。",
+        "en": "this report measures distribution and cannot HEAR. Run scripts/script_audition.py and "
+              "listen to it before anyone signs the script off: a script that cleared every number "
+              "here has been called machine-written on its first listen.",
     },
 }
 # Why a beat never reached a single metric, in the report's own language. Keys, not sentences, cross the
@@ -438,6 +482,8 @@ def evaluate(narrations, dropped=None, universe=None):
         "connective_share": round(len(conn) / measurable_conn, 3) if measurable_conn else None,
         "aphorism_ending_share": round(len(endsharp) / measurable_anti, 3) if measurable_anti else None,
         "balanced_pair_share": round(len(balanced) / n, 3),
+        "same_opener_share": round(
+            sum(1 for _i, t, pr in beats if _opens_on_denial(t, pr)) / float(n), 3),
     }
     # ADVISORY, so a drop with no reason is a NOTE rather than a refusal — but it is never silence. M is
     # the board's own length, so a beat lost on an unrecorded path widens this gap instead of shrinking M.
@@ -510,7 +556,12 @@ def evaluate(narrations, dropped=None, universe=None):
     if m["aphorism_ending_share"] is not None and m["aphorism_ending_share"] > THRESHOLDS["aphorism"]:
         fired.append("aphorism")
         warnings.append(_MSG["aphorism"][lang] % (100 * m["aphorism_ending_share"], 100 * THRESHOLDS["aphorism"]))
+    if m["same_opener_share"] > THRESHOLDS["same_opener"]:
+        fired.append("same_opener")
+        warnings.append(_MSG["same_opener"][lang]
+                        % (100 * m["same_opener_share"], 100 * THRESHOLDS["same_opener"]))
     notes.append(_MSG["note"][lang])
+    notes.append(_MSG["deaf"][lang])
     return {"metrics": m, "warnings": warnings, "vocab": vocab, "notes": notes, "fired": fired,
             "antithesis_beats": anti, "language": lang, "dominant_script": dominant}
 
