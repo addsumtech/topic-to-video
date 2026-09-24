@@ -7,6 +7,8 @@ export type Lum = 'dark' | 'mid' | 'light';
 // (KSpaceToImage added below with the map — a purpose-built dark shot)
 
 export const SHOT_LUMA: Record<string, Lum> = {
+  BreaksWhenAsked: 'dark',
+  HardBarrier: 'dark',
   Escalation: 'dark',
   ShorteningHold: 'dark',
   HeldInstant: 'dark',
@@ -115,6 +117,8 @@ const literalGround = (tok: GroundSpec | undefined): string | null =>
 // `declared-only`, until measure_ground_luma.py replaces it with a measurement. Everything else is
 // measured.
 export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
+  BreaksWhenAsked: 'bg',
+  HardBarrier: 'bg',
   Escalation: 'bg',
   ShorteningHold: 'bg',
   HeldInstant: 'bg',

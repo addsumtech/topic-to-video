@@ -2220,8 +2220,40 @@ def _probe_a_template_inside_a_template_keeps_the_scanner_in_sync(mod):
         "the doc comment after a nested template still reads as a refusal")
     assert "got ${ks" in blanked and "stopped" in blanked, "the blanker ate the code it was meant to keep"
 
+# A UNION FED ITS FIRST MEMBER ON EVERY ROW. The boolean-selector defect in a third shape, and the worst of
+# the three: a register can REFUSE over it. `HardBarrier` refuses a board where every condition is a `gap`
+# on purpose — that frame draws a run with an open road at the end and argues the opposite of its own claim,
+# convincingly, past every gate. Fed `'gap'` on all four rows it could not render at all, and its
+# `prop_reach` row read "could not be measured" while 182 of 183 rows were sound. A register no fixture can
+# feed is a register nobody checks.
+_UNION_REFUSAL = (
+    "/** 'gap' = effort closes it · 'barrier' = nothing does */\n"
+    "  kind?: 'gap' | 'barrier';\n"
+    "const DEMO = [{label: 'a', kind: 'gap'}, {label: 'b', kind: 'barrier'}];\n"
+    "  if (!rows.some((c) => c.kind === 'barrier')) throw new Error(\n"
+    "    'Shot was given no condition with `kind: \"barrier\"`. Every condition being a gap argues the "
+    "opposite.');\n")
+
+
+def _probe_a_refused_union_member_reaches_exactly_one_row(mod):
+    got = mod._refused_member("kind", ["gap", "barrier"], _UNION_REFUSAL)
+    assert got == "barrier", (
+        "the member the register's own refusal NAMES is not found, so the union is fed its first member on "
+        "every row and a register that refuses without the other one cannot be fed at all: %r" % got)
+
+    vals = [mod._synth_field("kind", "'gap' | 'barrier'", _UNION_REFUSAL, i, i) for i in range(4)]
+    assert vals.count("barrier") == 1 and vals.count("gap") == 3, (
+        "the refused member must land on exactly one row — every row carrying it renders only that branch, "
+        "and no row carrying it renders nothing at all: %r" % vals)
+
+    # ...and a union the register does NOT refuse over keeps its first member everywhere
+    plain = "  side?: 'a' | 'b';\n"
+    assert {mod._synth_field("side", "'a' | 'b'", plain, i, i) for i in range(3)} == {"a"}, (
+        "an ordinary union changed shape — this rule must only fire on a refusal")
 PROBES["cjk_type_qa"] = {
     "a_refusal_is_code_not_prose": _probe_a_refusal_is_code_not_prose,
+    "a_refused_union_member_reaches_exactly_one_row":
+        _probe_a_refused_union_member_reaches_exactly_one_row,
     "a_template_inside_a_template_keeps_the_scanner_in_sync":
         _probe_a_template_inside_a_template_keeps_the_scanner_in_sync,
     "an_index_refusal_is_code_not_prose": _probe_an_index_refusal_is_code_not_prose,
@@ -2237,6 +2269,11 @@ MUTANTS["cjk_type_qa"] = {
          '        if c == "`":\n            q, i = c, i + 1\n'
          '            while i < n and src[i] != q:\n                i += 2 if src[i] == "\\\\" else 1\n'
          '            i += 1\n            continue'),
+    "a union is always fed its first member":
+        ('        want = _refused_member(name, members, src)', '        want = None'),
+    "the refusal matcher ignores the backtick, so it finds the demo default":
+        ('        if re.search(r"\\\\?`%s\\s*:\\s*\\\\?[\\"\']%s\\\\?[\\"\']"',
+         '        if re.search(r"%s\\s*:\\s*\\\\?[\\"\']%s\\\\?[\\"\']"'),
     "a comment reads as a refusal":
         ("% re.escape(prop), _code_only(src)))", '% re.escape(prop), src or ""))'),
     "a comment reads as an index refusal":

@@ -897,6 +897,31 @@ _OMIT = object()
 _UNION_CACHE = {}
 
 
+def _refused_member(prop, members, src):
+    """The union member a register's own refusal NAMES, or None.
+
+    The same signal `_refused_without` reads, one level down. An inline union was fed its FIRST member on
+    every row, which is the boolean-selector defect in another shape — except worse, because a register can
+    REFUSE over it rather than merely draw a poorer frame. `HardBarrier` refuses a board where every
+    condition is a `gap`, on purpose: that frame draws a run with an open road at the end of it and argues
+    the opposite of the register's own claim, convincingly, past every gate. Fed `'gap'` on all four rows it
+    could not render at all, and its `prop_reach` row read `could not be measured` — a register no fixture
+    can feed is a register nobody checks, which is the hole this module exists to close.
+
+    Comment-blanked, for the reason `_code_only` exists: a doc comment explaining what `'barrier'` MEANS is
+    not a refusal demanding one.
+    """
+    # The BACKTICK is the discriminator, and it is not cosmetic: a register's demo defaults are written
+    # `kind: \'gap\'` in plain source, and a refusal quotes the field the way this repo quotes every
+    # identifier — inside backticks, as `kind: "barrier"`. Matching without it returned the demo\'s own
+    # first member and changed nothing, which is the failure wearing a fix.
+    code = _code_only(src)
+    for mem in members:
+        if re.search(r"\\?`%s\s*:\s*\\?[\"']%s\\?[\"']" % (re.escape(prop), re.escape(mem)), code):
+            return mem
+    return None
+
+
 def _named_union_member(alias, src):
     """The first member of `type Alias = 'a' | 'b' | …`, wherever that alias is declared.
 
@@ -1020,8 +1045,15 @@ def _synth_field(name, ty, src="", i=0, rowIdx=0):
         return [round(0.14 + (j % 4) * 0.19, 3), round(0.20 + (j % 3) * 0.21, 3)]
     if m and m.group(1) == m.group(2) == "string":
         return [_string_for(name, name, src, i), _string_for(name, name, src, i + 1)]
-    m = re.match(r"^'([^']+)'", t)                       # an INLINE string-literal union: first member
+    m = re.match(r"^'([^']+)'", t)                       # an INLINE string-literal union
     if m:
+        # ...but not the FIRST member on every row when the register refuses without another one. Exactly
+        # one row carries the named member, the way a refused boolean flag does: both branches then render,
+        # and the register can be fed at all.
+        members = re.findall(r"'([^']+)'", t)
+        want = _refused_member(name, members, src)
+        if want and want != m.group(1):
+            return want if rowIdx == 0 else m.group(1)
         return m.group(1)
     m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)(\|undefined)?$", t)
     if m:                                                # a NAMED type — resolve it, never invent copy

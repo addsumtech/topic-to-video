@@ -8,6 +8,8 @@ import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
 import {StageProbe, DURATION as SPD} from './runtime/__probe_stage3d';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
+import {BreaksWhenAsked, DURATION as D_BREAKSWHENASKED} from './shots/BreaksWhenAsked';
+import {HardBarrier, DURATION as D_HARDBARRIER} from './shots/HardBarrier';
 import {Escalation, DURATION as D_ESCALATION} from './shots/Escalation';
 import {ShorteningHold, DURATION as D_SHORTENINGHOLD} from './shots/ShorteningHold';
 import {HeldInstant, DURATION as D_HELDINSTANT} from './shots/HeldInstant';
@@ -578,5 +580,7 @@ export const RemotionRoot: React.FC = () => (
     {F('NearTheLine', NearTheLine, D_NEARTHELINE)}
     {F('PulledThread', PulledThread, D_PULLEDTHREAD)}
     {F('AverageHides', AverageHides, D_AVERAGEHIDES)}
+    {F('HardBarrier', HardBarrier, D_HARDBARRIER)}
+    {F('BreaksWhenAsked', BreaksWhenAsked, D_BREAKSWHENASKED)}
   </>
 );
