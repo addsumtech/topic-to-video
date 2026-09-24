@@ -6,6 +6,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
+import {rows} from '../runtime/rows';
 import {drawOn} from '../runtime/draw';
 import {useDNA, dnaPalette} from '../runtime/dna';
 import {bottomInset} from '../runtime/layout';
@@ -22,8 +23,9 @@ const FONTS = ['Impact, system-ui, sans-serif', '"Playfair Display", Georgia, se
   '"JetBrains Mono", monospace', '"Baloo 2", Inter, sans-serif', '"Source Serif 4", Georgia, serif'];
 
 export const AntiDesignChaos: React.FC<{title?: string; items?: string[]; tagline?: string}> = ({
-  title: TITLE = 'RULES?', items: ITEMS = ['no grid', 'more!', 'why not', 'LOUD', 'oops', 'yes.'],
+  title: TITLE = 'RULES?', items: ITEMS_IN = ['no grid', 'more!', 'why not', 'LOUD', 'oops', 'yes.'],
   tagline: TAG = 'break it on purpose'} = {}) => {
+  const ITEMS = rows<string>(ITEMS_IN, 'items', 'AntiDesignChaos');
   const dna = useDNA();
   const GROUND = dna?.bg ?? GROUND0;
   const POP = dnaPalette(dna, 6) ?? POP0;

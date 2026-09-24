@@ -3169,6 +3169,106 @@ def test_no_register_shadows_its_own_prop_default_with_a_literal():
                      "override it: %s" % bad)
 
 
+def test_no_register_calls_an_array_method_on_an_unchecked_list_prop():
+    """A register that trusts a list prop to be a list dies naming ITSELF when it is not.
+
+    `parts.map is not a function` points at a line of the register, so a caller's mistake is filed under the
+    register's name — that exact confusion cost two sessions on the wrong file when a fixture generator
+    handed a nested list a sentence. And `.slice` is worse than a crash: a string has `.slice`, so a register
+    that slices its layers would take SUBSTRINGS of the string and draw them as content, with no error
+    anywhere and every gate green. `StrataColumn` was one line of that shape.
+
+    The fix is `rows(v, 'prop', 'Shot')` from `runtime/rows`, or an explicit `Array.isArray` check — which 89
+    registers already had, so this pins the house rule rather than inventing one.
+
+    Probed on both sides: a detector that only ever returns [] passes this test for the wrong reason, and the
+    NEGATIVE cases are the ones that made the first version of this audit report 22 registers when the real
+    number was 12 (it was matching an internal sub-component's props, and locals derived AFTER a guard).
+    """
+    import glob
+    import os
+    import sys
+    import tempfile
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    import onscreen_text_qa as q
+
+    UNGUARDED = """
+export const Probe: React.FC<{items?: Item[]; title?: string}> = ({items: ITEMS = D, title = ''} = {}) => {
+  return <div>{ITEMS.map((i) => i.name)}</div>;
+};
+"""
+    # The two SILENT shapes. A string answers `.length` with its character count and `[i]` with a character,
+    # so these draw a wrong picture with no error anywhere — worse than the crash, and three registers were
+    # in exactly this state (PointerTour.blocks, SourceDeal.doc, SpatialSlides.notes).
+    UNGUARDED_LENGTH = """
+export const Probe: React.FC<{blocks?: Block[]}> = ({blocks: B = D} = {}) => {
+  return <div>{B.length > 0 ? 'some' : 'none'}</div>;
+};
+"""
+    UNGUARDED_INDEX = """
+export const Probe: React.FC<{notes?: string[]}> = ({notes: N = D} = {}) => {
+  return <div>{N[0]}</div>;
+};
+"""
+    GUARDED_BY_ROWS = """
+export const Probe: React.FC<{items?: Item[]}> = ({items: ITEMS_IN = D} = {}) => {
+  const ITEMS = rows<Item>(ITEMS_IN, 'items', 'Probe');
+  return <div>{ITEMS.map((i) => i.name)}</div>;
+};
+"""
+    GUARDED_BY_ISARRAY = """
+export const Probe: React.FC<{items?: Item[]}> = ({items: ITEMS = D} = {}) => {
+  if (!Array.isArray(ITEMS)) throw new Error('Probe needs a list');
+  return <div>{ITEMS.map((i) => i.name)}</div>;
+};
+"""
+    DERIVED_AFTER_A_GUARD = """
+export const Probe: React.FC<{legs?: Leg[]}> = ({legs: LEGS = D} = {}) => {
+  if (!Array.isArray(LEGS)) throw new Error('Probe needs a list');
+  const legs = LEGS.filter(Boolean);
+  return <div>{legs.map((l) => l.name)}</div>;
+};
+"""
+    SUBCOMPONENT_PROP = """
+const Row: React.FC<{bars: number[]}> = ({bars}) => <div>{bars.map((b) => b)}</div>;
+export const Probe: React.FC<{series?: number[]}> = ({series: S = D} = {}) => {
+  if (!Array.isArray(S)) throw new Error('Probe needs a list');
+  return <Row bars={S.map((v) => v)} />;
+};
+"""
+    ONLY_IN_A_COMMENT = """
+export const Probe: React.FC<{items?: Item[]}> = ({items: ITEMS_IN = D} = {}) => {
+  const ITEMS = rows<Item>(ITEMS_IN, 'items', 'Probe');
+  // the old shape was ITEMS.map(...) straight off the prop
+  return <div>{ITEMS.map((i) => i.name)}</div>;
+};
+"""
+    with tempfile.TemporaryDirectory() as d:
+        def ask(src):
+            f = os.path.join(d, "Probe.tsx")
+            open(f, "w", encoding="utf-8").write(src)
+            return q.unguarded_list_props(f)
+
+        assert ask(UNGUARDED), "an array method straight off a list prop is no longer reported"
+        assert ask(UNGUARDED_LENGTH), (
+            "`.length` on an unchecked list prop is no longer reported — on a string that is a CHARACTER "
+            "COUNT, and the register draws the wrong picture without throwing anything")
+        assert ask(UNGUARDED_INDEX), (
+            "indexing an unchecked list prop is no longer reported — on a string that yields a CHARACTER")
+        for label, src in (("rows()", GUARDED_BY_ROWS), ("Array.isArray", GUARDED_BY_ISARRAY),
+                           ("a local derived after a guard", DERIVED_AFTER_A_GUARD),
+                           ("a sub-component's own prop", SUBCOMPONENT_PROP),
+                           ("a mention in a comment", ONLY_IN_A_COMMENT)):
+            got = ask(src)
+            assert not got, "%s reads as unguarded: %r" % (label, got)
+
+    shots = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "shots")
+    bad = {os.path.basename(f)[:-4]: q.unguarded_list_props(f)
+           for f in sorted(glob.glob(os.path.join(shots, "*.tsx"))) if q.unguarded_list_props(f)}
+    assert not bad, ("these registers call an array method on a list prop they never checked: %s. Wrap it "
+                     "with `rows(v, 'prop', 'Shot')` from runtime/rows." % bad)
+
+
 def test_no_register_renders_a_line_comment_as_on_screen_text():
     """A `//` comment in JSX CHILDREN position is not a comment — React draws it on the frame.
 

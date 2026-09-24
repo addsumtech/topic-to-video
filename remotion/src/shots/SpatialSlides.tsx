@@ -14,6 +14,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic, hash01} from '../runtime/motion';
+import {rows} from '../runtime/rows';
 import {useDNA} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitTextPx, inkBlockH} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
@@ -32,8 +33,10 @@ const ROUTE: Pose[] = [
 ];
 
 export const SpatialSlides: React.FC<{steps?: string[]; notes?: string[]; overview?: string}> = ({
-  steps: STEPS = ['Collect', 'Plan', 'Act', 'Verify', 'Deliver'], notes: NOTES = [], overview: OVER = '',
+  steps: STEPS_IN = ['Collect', 'Plan', 'Act', 'Verify', 'Deliver'], notes: NOTES_IN = [], overview: OVER = '',
 } = {}) => {
+  const NOTES = rows<string>(NOTES_IN, 'notes', 'SpatialSlides');
+  const STEPS = rows<string>(STEPS_IN, 'steps', 'SpatialSlides');
   const dna = useDNA();
   const t = useT();
   const {width: W, height: H} = useVideoConfig();

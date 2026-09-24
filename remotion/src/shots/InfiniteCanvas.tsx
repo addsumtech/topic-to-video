@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, lerp, easeInOutCubic, easeOutBack, seg, clamp01, hash01} from '../runtime/motion';
+import {rows} from '../runtime/rows';
 import {useDNA} from '../runtime/dna';
 
 export const DURATION = 165; // 5.5s
@@ -17,7 +18,8 @@ type Node = {x: number; y: number; w: number; h: number; text: string; c: string
 
 export const InfiniteCanvas: React.FC<{hub?: string; items?: string[]}> = ({
   hub: hubText = 'Q3 Board Deck',
-  items: labels = ['Market scan', 'Financials', 'Narrative', 'Slide design', 'Appendix', 'Review', 'Export', 'Sources']} = {}) => {
+  items: labels_IN = ['Market scan', 'Financials', 'Narrative', 'Slide design', 'Appendix', 'Review', 'Export', 'Sources']} = {}) => {
+  const labels = rows<string>(labels_IN, 'items', 'InfiniteCanvas');
   const dna = useDNA();
   const BG = dna?.bg ?? '#f6f4ec', LINE = dna?.line ?? '#d8d2c2', LINE2 = dna?.line ?? '#c9c2b0';
   const SURF = dna?.surface ?? '#ffffff', SURFB = dna?.line ?? '#e3ddcb', FG = dna?.fg ?? '#1b2333';

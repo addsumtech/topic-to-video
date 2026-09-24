@@ -18,6 +18,8 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, easeOutExpo} from '../runtime/motion';
+// aliased: this register already has a local `rows` (the layers it draws)
+import {rows as listOf} from '../runtime/rows';
 import {captionBand, CONTENT_TOP} from '../runtime/layout';
 import {useDNA, mix} from '../runtime/dna';
 
@@ -49,10 +51,11 @@ export const StrataColumn: React.FC<{
   note?: string;
 }> = ({
   kicker = 'BELOW THE SURFACE',
-  layers: LAYERS = [{label: 'surface', depth: '0'}, {label: 'fill', depth: '1 m'},
+  layers: LAYERS_IN = [{label: 'surface', depth: '0'}, {label: 'fill', depth: '1 m'},
                     {label: 'what you came for', depth: '4 m', find: true}],
   base = '',
   note = ''} = {}) => {
+  const LAYERS = listOf<Layer>(LAYERS_IN, 'layers', 'StrataColumn');
   const dna = useDNA();
   const t = useT();
   const {width: W, height: H} = useVideoConfig();

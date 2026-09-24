@@ -17,6 +17,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig, staticFile} from 'remotion';
 import {useT, seg, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
+import {rows} from '../runtime/rows';
 import {useDNA} from '../runtime/dna';
 import {UiSurface, uiCardRects, type UiContent} from '../runtime/uiSurface';
 import {captionBand} from '../runtime/layout';
@@ -75,7 +76,8 @@ export const PointerTour: React.FC<{
 }> = ({screen: SCREEN = 'Workspace',
   items: ITEMS = ['Overview', 'Reports', 'Records', 'Settings', 'Team', 'Billing'],
   nav: NAV = ['Home', 'Overview', 'Reports', 'Records', 'Team', 'Settings'],
-  src: SRC, pageW: SRC_W, pageH: SRC_H, blocks: SRC_BLOCKS} = {}) => {
+  src: SRC, pageW: SRC_W, pageH: SRC_H, blocks: SRC_BLOCKS_IN} = {}) => {
+  const SRC_BLOCKS = rows<TourBlock>(SRC_BLOCKS_IN, 'blocks', 'PointerTour');
   const dna = useDNA();
   const t = useT();
   const {width: W, height: H} = useVideoConfig();

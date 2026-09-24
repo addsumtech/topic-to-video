@@ -28,6 +28,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig, staticFile} from 'remotion';
 import {useT, useAnimSpan, springAt, SPRING_SEAT, seg, lerp, clamp01, easeInOutCubic,
         easeOutCubic} from '../runtime/motion';
+import {rows} from '../runtime/rows';
 import {useDNA, contrastOf, readableOn} from '../runtime/dna';
 import {UiSurface, type UiContent} from '../runtime/uiSurface';
 import {CONTENT_TOP, captionBand, fitBlockPx, fitTextPx, textWidthPx, wrapLines} from '../runtime/layout';
@@ -66,7 +67,9 @@ export const SourceDeal: React.FC<{
   pageH?: number;
   blocks?: {x: number; y: number; w: number; h: number}[];
 }> = ({title: TITLE = 'Source', items: ITEMS = ['Quick start', 'Bundle plan', 'Starter kit'],
-  notes: NOTES = [], doc: DOC = [], src: SRC, pageW: SRC_W, pageH: SRC_H, blocks: SRC_BLOCKS} = {}) => {
+  notes: NOTES_IN = [], doc: DOC_IN = [], src: SRC, pageW: SRC_W, pageH: SRC_H, blocks: SRC_BLOCKS} = {}) => {
+  const DOC = rows<string>(DOC_IN, 'doc', 'SourceDeal');
+  const NOTES = rows<string>(NOTES_IN, 'notes', 'SourceDeal');
   const dna = useDNA();
   const t = useT();
   const {width: W, height: H, fps} = useVideoConfig();

@@ -19,6 +19,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig, staticFile} from 'remotion';
 import {useT, seg, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
+import {rows} from '../runtime/rows';
 import {useDNA} from '../runtime/dna';
 import {requireEvidence} from '../runtime/evidence';
 import {captionBand} from '../runtime/layout';
@@ -39,7 +40,8 @@ export const PageWrite: React.FC<{
   pageH?: number;
   bg?: string;
   blocks?: PageBlock[];
-}> = ({src, pageW = 1400, pageH = 900, bg = '#ffffff', blocks = []} = {}) => {
+}> = ({src, pageW = 1400, pageH = 900, bg = '#ffffff', blocks: blocks_IN = []} = {}) => {
+  const blocks = rows<PageBlock>(blocks_IN, 'blocks', 'PageWrite');
   const dna = useDNA();
   const t = useT();
   const {width: W, height: H} = useVideoConfig();

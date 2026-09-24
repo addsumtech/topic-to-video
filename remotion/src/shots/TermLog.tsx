@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01} from '../runtime/motion';
+import {rows} from '../runtime/rows';
 import {useDNA, TermFrame} from '../runtime/dna';
 
 export const DURATION = 165;
@@ -12,7 +13,8 @@ type Line = {text?: string; kind?: 'run' | 'ok' | 'info'};
 
 export const TermLog: React.FC<{cmd?: string; lines?: Line[]; framed?: boolean}> = ({
   cmd = 'build --pipeline', framed = false,
-  lines = [{text: 'step one', kind: 'run'}, {text: 'done', kind: 'ok'}]} = {}) => {
+  lines: lines_IN = [{text: 'step one', kind: 'run'}, {text: 'done', kind: 'ok'}]} = {}) => {
+  const lines = rows<Line>(lines_IN, 'lines', 'TermLog');
   const t = useT();
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();

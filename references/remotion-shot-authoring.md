@@ -31,8 +31,16 @@ from `src/runtime/layout.ts` — do NOT hand-guess pixel positions.
    whether TWO glyphs of THIS string fit across, then whether the wrapped block fits the height — so CJK
    and Latin get their own answers. False means draw nothing there; a label that does not fit is not a
    label set smaller.
-4. **Title band.** Put the shot title at `TITLE_Y` (use `titleStyle`); keep real content out of `[0, CONTENT_TOP)`.
-5. **Caption band.** The Film burns the caption in the bottom `CAPTION_BAND` px. Keep the shot's own text/labels
+4. **A list prop goes through `rows` before anything calls an array method on it.**
+   `const ITEMS = rows<Item>(ITEMS_IN, 'items', 'MyShot')` — absent returns nothing, a list is itself, and
+   any other shape is refused by NAME. Without it, `items.map is not a function` points at a line of the
+   REGISTER, so a caller's mistake gets filed under the register's name; that exact confusion cost two
+   sessions on the wrong file. `.slice` is worse than a crash: a string has `.slice`, so the register takes
+   SUBSTRINGS of the string and draws them as content, with no error and every gate green — `StrataColumn`
+   was one line of that shape. `Array.isArray(local)` counts as a guard too; 89 registers already had one.
+   `tests/test_remotion.py` holds the line, and the 12 stragglers converted with zero measured drift.
+5. **Title band.** Put the shot title at `TITLE_Y` (use `titleStyle`); keep real content out of `[0, CONTENT_TOP)`.
+6. **Caption band.** The Film burns the caption in the bottom `CAPTION_BAND` px. Keep the shot's own text/labels
    out of `[H - CAPTION_BAND, H]` — the ONLY allowed thing down there is a small `credit` line at `bottom:8`.
    A shot label at `0.9·H` WILL overlap the caption.
    **The band is `captionBand(W, H)`, not the constant.** `CAPTION_BAND = 150` is a legacy landscape number kept
@@ -49,15 +57,15 @@ from `src/runtime/layout.ts` — do NOT hand-guess pixel positions.
    can trust: it is sized on the LATIN lead and the caption fits ITSELF to it (a CJK or over-long caption shrinks
    rather than growing the band), and both `fitContentSquare` and `maxCameraPush` measure from it — so the beat's
    camera cannot push your lowest content into it either.
-6. **Center a hero image/panel in the CONTENT ZONE, not the whole frame.** A square centered in the full frame
+7. **Center a hero image/panel in the CONTENT ZONE, not the whole frame.** A square centered in the full frame
    rides up UNDER the title (an MRI sized `0.72·H` and centered literally overlapped its title). Use
    `fitContentSquare(W, H, {hFrac, wFrac, bottomReserve})` — it returns `{S, left, top}` centered in
    `[CONTENT_TOP, H - CAPTION_BAND]`. Pass `bottomReserve` when the shot draws its own labels UNDER the image
    (ticks, a note) so the square shrinks and those labels stay above the caption band.
-7. **Edge-anchored labels must survive a resize.** Two labels anchored to a panel's left+right edges COLLIDE in
+8. **Edge-anchored labels must survive a resize.** Two labels anchored to a panel's left+right edges COLLIDE in
    the middle when the panel shrinks (a real bug after an image was made smaller). Anchor to a stable reference
    (frame-relative x, or one centered line with a separator), not the panel width.
-8. **Camera is LOCKED by default; drive animation through `useT`.** Every shot animates itself via `useT` (the
+9. **Camera is LOCKED by default; drive animation through `useT`.** Every shot animates itself via `useT` (the
    shared 0→1 driver). A whole-film camera DRIFT on top of that reads as a per-frame **shake** — it is OFF by
    default (opt-in via `meta.camera_drift`). Do not add a per-shot floating/breathing transform to the whole shot
    for "life"; animate the CONTENT, keep the frame still. **Use `useT` (not `useCurrentFrame` directly) so your
@@ -65,9 +73,9 @@ from `src/runtime/layout.ts` — do NOT hand-guess pixel positions.
    shot renders a static, fully-revealed frame (the accessibility cut); a shot that reads the frame directly keeps
    animating and won't honor it. **Brand:** a `meta.brand.logo` renders as a persistent corner bug (Film-level),
    so shots must not also draw a logo.
-9. **Determinism.** Pure function of `useT()`/frame. No `Date.now()`/`Math.random()`/argless `new Date()` — use
+10. **Determinism.** Pure function of `useT()`/frame. No `Date.now()`/`Math.random()`/argless `new Date()` — use
    `hash01(i)` for stable pseudo-randomness. Signed data must render signed; CJK copy must fit; aspect must adapt.
-10. **Author in FRACTIONS so the shot reflows to ANY aspect.** The Film Composition is aspect-driven: `meta.aspect`
+11. **Author in FRACTIONS so the shot reflows to ANY aspect.** The Film Composition is aspect-driven: `meta.aspect`
    (or `--vertical`) renders 16:9 `1920×1080` / 9:16 `1080×1920` / 1:1 / 4:5 / 4:3 (Root.tsx `calculateMetadata` +
    render_remotion pass an `aspect` prop; preview a shot at portrait with `--props '{"aspect":"9:16"}'`). A shot
    reads W/H from `useVideoConfig` and must lay out in **fractions of W/H** — never hardcoded 1920/1080 — so it
@@ -79,7 +87,7 @@ from `src/runtime/layout.ts` — do NOT hand-guess pixel positions.
    band), not the fixed `CAPTION_BAND`; `fitContentSquare` already widens a hero image in portrait. **On a non-16:9
    film, still-render EVERY chosen shot at that aspect and fix/swap any that don't reflow** — most centered / stacked
    / chart shots are fine; the library's fixed multi-column + wide-horizontal registers need this pass.
-11. **Size for the REAL content, not the demo.** Registers are tuned to their DEMO copy — short words
+12. **Size for the REAL content, not the demo.** Registers are tuned to their DEMO copy — short words
    (`PLAN`/`BUILD`/`SHIP`), a fixed element count, a small marker. Real topic copy is longer and breaks that
    tuning in three ways you must check on the RENDERED frame at real length: **text overflows to the frame edge**
    (a 92px label sized for "Plan" runs off the box for "2025 - OpenAI Group PBC" → pad the container + shrink/wrap

@@ -376,6 +376,59 @@ def fixed_px_font_sites(path):
     return len(re.findall(r"font:\s*[`'\"][^`'\"]*?\b\d{2,3}px\s*/", body))
 
 
+_LIST_METHODS = ("filter", "map", "some", "every", "forEach", "reduce", "concat", "find", "flatMap",
+                 "sort", "slice")
+
+
+def unguarded_list_props(path):
+    """Array props a register calls an array method on WITHOUT first checking it got an array.
+
+    WHY. A register declares `parts?: Part[]` and then calls `parts.map(...)`. Handed a string it dies with
+    `parts.map is not a function` — an error naming a line of the REGISTER, which is how a fixture bug got
+    filed under a register's name and cost two sessions on the wrong file. `.slice` is the worse case and it
+    was in the library: a string has `.slice` too, so `StrataColumn` would have taken SUBSTRINGS of a string
+    and drawn them as layers — no error at all, a frame full of wrong content, every gate green.
+
+    The fix at each site is `rows(v, 'prop', 'Shot')` from `runtime/rows`, which returns [] for absent, the
+    list for a list, and otherwise refuses by naming what it was actually given. An explicit
+    `Array.isArray(local)` check counts as a guard too — 89 registers already had one, which is what makes
+    this the house rule rather than a new idea.
+
+    Only the EXPORTED register's own signature is read. An internal sub-component's props are fed by the
+    register itself, and flagging those reported twelve registers that were already guarding correctly.
+    """
+    name = os.path.basename(path)[:-4]
+    src = open(path, encoding="utf-8").read()
+    code = _strip_comments(src)
+    m = re.search(r"export const %s\s*:\s*React\.FC<\{(.*?)\}>\s*=\s*\((.*?)\)\s*=>" % re.escape(name),
+                  code, re.S)
+    if not m:
+        return []
+    props = {f: t.strip() for f, t in re.findall(r"(\w+)\s*\??\s*:\s*([^;]+);", m.group(1) + ";")
+             if "[]" in t}
+    binds = dict(re.findall(r"(\w+)\s*:\s*(\w+)", m.group(2)))
+    out = []
+    for prop, ty in sorted(props.items()):
+        local = binds.get(prop, prop)
+        if re.search(r"Array\.isArray\(\s*%s\b" % re.escape(local), code):
+            continue
+        if re.search(r"\b(?:rows|listOf)\s*(?:<[^>]*>)?\s*\(\s*%s\b" % re.escape(local), code):
+            continue
+        hit = re.search(r"\b%s\s*\.\s*(%s)\s*\(" % (re.escape(local), "|".join(_LIST_METHODS)), code)
+        if hit:
+            out.append("%s (%s) .%s" % (prop, ty, hit.group(1)))
+            continue
+        # ...AND THE READS THAT DO NOT CRASH AT ALL, which are the worse half. A string answers `.length`
+        # with its CHARACTER COUNT and `[i]` with a CHARACTER, so a register that only measures or indexes
+        # its list prop draws a wrong picture in silence — no throw, no gate, nothing to notice. Three
+        # registers were in exactly that state: PointerTour.blocks, SourceDeal.doc, SpatialSlides.notes.
+        if re.search(r"\b%s\s*\.\s*length\b" % re.escape(local), code):
+            out.append("%s (%s) .length" % (prop, ty))
+        elif re.search(r"\b%s\s*\[" % re.escape(local), code):
+            out.append("%s (%s) [i]" % (prop, ty))
+    return out
+
+
 def _comment_spans(src):
     """(start, end) of every `//` line comment, with strings, templates and /* */ skipped.
 
@@ -459,7 +512,7 @@ def jsx_text_comments(path):
 def main(argv):
     names = argv or [os.path.basename(f)[:-4] for f in sorted(glob.glob(os.path.join(_SHOTS, "*.tsx")))]
     total, dirty, fixed_px, unsourced = 0, 0, {}, 0
-    dead, shadowed, rendered_comments = {}, {}, {}
+    dead, shadowed, rendered_comments, unguarded = {}, {}, {}, {}
     for n in names:
         p = os.path.join(_SHOTS, n + ".tsx")
         if not os.path.exists(p):
@@ -479,6 +532,9 @@ def main(argv):
         sh = hardcoded_defaults(p)
         if sh:
             shadowed[n] = sh
+        ug = unguarded_list_props(p)
+        if ug:
+            unguarded[n] = ug
         rc = jsx_text_comments(p)
         if rc:
             rendered_comments[n] = rc
@@ -512,6 +568,15 @@ def main(argv):
         print("[onscreen_text] %d rendered NUMBER(s) no prop feeds — computed from the clock and printed as "
               "though measured. Give the readout a prop and draw it only when supplied; a number is real or "
               "it is absent." % unsourced)
+    if unguarded:
+        print("[onscreen_text] %d register(s) call an array method on a list prop without checking they got "
+              "a\n                list:" % len(unguarded))
+        for n in sorted(unguarded):
+            print("  %-24s %s" % (n, " · ".join(unguarded[n])))
+        print("                Wrap it: `const X = rows<T>(X_IN, 'prop', 'Shot')` from runtime/rows. Handed "
+              "the wrong\n                shape these die in `prop.map is not a function`, which names THIS "
+              "file and not the\n                board — and `.slice` does not even die, it takes substrings "
+              "of the string and draws them.")
     if rendered_comments:
         print("[onscreen_text] %d register(s) put a `//` COMMENT in JSX children position — React renders "
               "it as\n                literal text on the frame:" % len(rendered_comments))

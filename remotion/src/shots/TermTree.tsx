@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01} from '../runtime/motion';
+import {rows} from '../runtime/rows';
 import {clipCells, fitMono, contentZoneBox, monoCells} from '../runtime/layout';
 import {useDNA, TermFrame} from '../runtime/dna';
 
@@ -17,7 +18,8 @@ const TREE_START = 0.26, TREE_SPAN = 0.12;
 
 export const TermTree: React.FC<{cmd?: string; root?: string; items?: Item[]; framed?: boolean}> = ({
   cmd = 'ls -la', root = '~/project', framed = false,
-  items = [{name: 'src/', note: 'source', tag: 'ok'}, {name: 'docs/', note: 'docs', tag: 'ok'}]} = {}) => {
+  items: items_IN = [{name: 'src/', note: 'source', tag: 'ok'}, {name: 'docs/', note: 'docs', tag: 'ok'}]} = {}) => {
+  const items = rows<Item>(items_IN, 'items', 'TermTree');
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();

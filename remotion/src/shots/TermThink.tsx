@@ -5,13 +5,15 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01} from '../runtime/motion';
+import {rows} from '../runtime/rows';
 import {useDNA, TermFrame, termInnerW} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, monoFit, wrapLines} from '../runtime/layout';
 
 export const DURATION = 175;
 
 export const TermThink: React.FC<{cmd?: string; question?: string; think?: string[]; answer?: string; framed?: boolean}> = ({
-  cmd = 'hermes --mode hybrid', question = 'solve it', think = ['reason…'], answer = 'answer', framed = false} = {}) => {
+  cmd = 'hermes --mode hybrid', question = 'solve it', think: think_IN = ['reason…'], answer = 'answer', framed = false} = {}) => {
+  const think = rows<string>(think_IN, 'think', 'TermThink');
   const t = useT();
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();

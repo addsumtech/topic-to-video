@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, clamp01} from '../runtime/motion';
+import {rows} from '../runtime/rows';
 import {leading} from '../runtime/cjkType';
 import {CONTENT_TOP, contentBottom, wrapLines} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
@@ -19,7 +20,8 @@ const BLOBS = [
   {c: '#FFB020', r: 560, sx: 0.00047, sy: 0.00050, px: 0.50, py: 0.52},
 ];
 
-export const AuroraFlow: React.FC<{lines?: string[]}> = ({lines = ['Your AI team.', 'On your machine.']}) => {
+export const AuroraFlow: React.FC<{lines?: string[]}> = ({lines: lines_IN = ['Your AI team.', 'On your machine.']}) => {
+  const lines = rows<string>(lines_IN, 'lines', 'AuroraFlow');
   const dna = useDNA();
   const t = useT();
   const frame = useCurrentFrame();

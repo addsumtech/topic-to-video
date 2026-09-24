@@ -13,6 +13,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutBack, easeOutCubic, clamp01} from '../runtime/motion';
+import {rows} from '../runtime/rows';
 import {useDNA} from '../runtime/dna';
 import {leading} from '../runtime/cjkType';
 import {contentBottom, wrapLines} from '../runtime/layout';
@@ -65,7 +66,8 @@ const normaliseTodos = (items: unknown): BlockTodo[] => {
 export const BlockAssembly: React.FC<{title?: string; callout?: string; items?: (string | BlockTodo)[]; tableHeaders?: string[]}> = ({
   title = 'Q3 Board Deck', callout = 'Goal: a board-ready deck from the Q3 numbers, by Friday.',
   items: ITEMS = DEFAULT_TODOS,
-  tableHeaders: TABLE_HEADERS = ['', '', '']} = {}) => {
+  tableHeaders: TABLE_HEADERS_IN = ['', '', '']} = {}) => {
+  const TABLE_HEADERS = rows<string>(TABLE_HEADERS_IN, 'tableHeaders', 'BlockAssembly');
   const todos = normaliseTodos(ITEMS);
   const items = todos.map((d) => d.label);
   const dna = useDNA();

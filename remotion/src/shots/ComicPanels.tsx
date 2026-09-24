@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
+import {rows} from '../runtime/rows';
 import {useDNA, dnaPalette} from '../runtime/dna';
 import {contentBottom} from '../runtime/layout';
 
@@ -20,7 +21,8 @@ const POP0 = ['#ff3b6b', '#ffd23f', '#2b7bff', '#00b070'];
 // accepted and discarded is worse than a missing one — the film's copy disappears with no error anywhere —
 // so the signature says what the register actually renders.
 export const ComicPanels: React.FC<{panels?: string[]; splash?: string}> = ({
-  panels: PANELS = ['ZIP!', 'WHIRR', 'CLICK'], splash: SPLASH = 'DONE!'} = {}) => {
+  panels: PANELS_IN = ['ZIP!', 'WHIRR', 'CLICK'], splash: SPLASH = 'DONE!'} = {}) => {
+  const PANELS = rows<string>(PANELS_IN, 'panels', 'ComicPanels');
   const dna = useDNA();
   const PAPER = dna?.bg ?? PAPER0, INK = dna?.fg ?? INK0;
   const POP = dnaPalette(dna, 4) ?? POP0;
