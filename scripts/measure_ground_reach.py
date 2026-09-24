@@ -57,6 +57,8 @@ be the wrong register for a paper beat.
   python3 scripts/measure_ground_reach.py             # measure all, print the table
   python3 scripts/measure_ground_reach.py --only A,B  # measure a few (method check)
   python3 scripts/measure_ground_reach.py --check     # non-zero when the committed set has drifted
+  python3 scripts/measure_ground_reach.py --stale     # which rows no longer describe their source (NO renders)
+  python3 scripts/measure_ground_reach.py --apply-manifest   # write the set from the committed sweep (NO renders)
   python3 scripts/measure_ground_reach.py --emit      # write GROUND_FOLLOWS_MEASURED into shotLuma.ts
   python3 scripts/measure_ground_reach.py --keep=DIR  # keep the probe PNGs, to LOOK at what was measured
   python3 scripts/measure_ground_reach.py --from=DIR  # re-derive the verdict from a kept sweep, no renders
@@ -68,6 +70,7 @@ import numpy as np
 from PIL import Image
 import _common as _c
 import dna_audit
+import register_energy as re_mod
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _REMOTION = os.path.join(_HERE, "..", "remotion")
@@ -296,6 +299,33 @@ def write_set(names):
     return len(names)
 
 
+def stale(data):
+    """[(shot, why)] for rows that no longer describe their register's source. No renders.
+
+    A row with no recorded hash is reported too, and that is the point: silence must not read as agreement.
+    The whole committed manifest was in that state until this was added, so a run that says "0 stale" over
+    rows nobody can confirm is the exact failure `prop_reach` was fixed for, one manifest over.
+    """
+    rows = data.get("rows") or []
+    was = data.get("_source") or {}
+    out = []
+    for r in rows:
+        shot = r.get("shot")
+        if not shot:
+            continue
+        if shot not in was:
+            out.append((shot, "measured before the SOURCE was hashed — cannot be confirmed"))
+            continue
+        try:
+            now = re_mod.source_hash(shot, ignore_follows=True)
+        except Exception as exc:                       # noqa: BLE001 — a missing register is a finding
+            out.append((shot, "source unreadable: %s" % exc))
+            continue
+        if now != was[shot]:
+            out.append((shot, "source changed since it was measured"))
+    return out
+
+
 def main(argv):
     # BOTH SPELLINGS, AND NOTHING SILENTLY IGNORED — see scripts/_common.argflag for what the `=`-only form
     # cost: `--only X` fell through to None in a sibling script and swept all 164 registers without a word.
@@ -304,8 +334,60 @@ def main(argv):
     # write the allow list could not be run at all. `validate.py` prints "re-measure with
     # `measure_ground_reach.py --emit`" as the fix for a real error, and that instruction died on this line.
     # A next-command a gate hands you has to be a command that exists.
-    _c.refuse_unknown(argv, valued=("only", "keep", "from"), switches=("check", "emit"),
-                      usage="usage: measure_ground_reach.py [--only=A,B] [--check] [--emit] "
+    if "--apply-manifest" in argv:
+        # APPLY A MEASUREMENT ALREADY MADE, without re-rendering 185 shots to learn what the file already
+        # records. The sweep's verdict lives in `_ground_reach.json` (`ok` per row), so re-running the whole
+        # library only to write a set derivable from it is an hour spent re-deriving a known answer — and an
+        # hour is exactly the cost that kept this gate un-run for so long. `measure_ground_luma` has had
+        # `--apply-json` for the same reason.
+        #
+        # It REFUSES on a stale manifest, which is the whole point of the hash: applying rows measured from
+        # code that has since changed would write a safety list from a record of something else.
+        dest = os.path.join(_REMOTION, "_ground_reach.json")
+        if not os.path.exists(dest):
+            print("[ground_reach] no manifest — run the sweep first")
+            return 1
+        data = json.load(open(dest, encoding="utf-8"))
+        bad = stale(data)
+        if bad:
+            print("[ground_reach] REFUSED: %d row(s) no longer describe their source, so this manifest "
+                  "cannot be applied. Run --stale to see them." % len(bad))
+            return 1
+        rows_ = data.get("rows") or []
+        if not rows_:
+            print("[ground_reach] the manifest holds no rows")
+            return 1
+        failed_ = data.get("failed") or {}
+        before = read_set()
+        follows_ = {r["shot"] for r in rows_ if r.get("ok")}
+        n = write_set(follows_ | (before & set(failed_)))
+        gained_, lost_ = sorted(follows_ - before), sorted(before - follows_ - set(failed_))
+        print("GROUND_FOLLOWS_MEASURED: wrote %d name(s) from the committed manifest (+%d, -%d)"
+              % (n, len(gained_), len(lost_)))
+        for g in gained_:
+            print("    + %s follows and was not listed" % g)
+        for l in lost_:
+            print("    - %s WAS listed and does not follow — a beat could re-ground it into a broken frame"
+                  % l)
+        return 0
+    if "--stale" in argv:
+        dest = os.path.join(_REMOTION, "_ground_reach.json")
+        if not os.path.exists(dest):
+            print("[ground_reach] no manifest — run `python3 scripts/measure_ground_reach.py` first")
+            return 1
+        data = json.load(open(dest, encoding="utf-8"))
+        bad = stale(data)
+        n = len(data.get("rows") or [])
+        if bad:
+            print("[ground_reach] %d of %d row(s) no longer describe their source:" % (len(bad), n))
+            for shot, why in bad:
+                print("    %-24s %s" % (shot, why))
+            print("re-run: python3 scripts/measure_ground_reach.py --emit")
+            return 1
+        print("[ground_reach] OK  all %d row(s) still describe their source" % n)
+        return 0
+    _c.refuse_unknown(argv, valued=("only", "keep", "from"), switches=("check", "emit", "stale", "apply-manifest"),
+                      usage="usage: measure_ground_reach.py [--only=A,B] [--check] [--stale] [--emit] [--apply-manifest] "
                             "[--keep=DIR] [--from=DIR]")
     only = _c.argflag_list(argv, "only")
     keep = _c.argflag(argv, "keep")
@@ -393,17 +475,48 @@ def main(argv):
     # below, so a two-register method check replaced the 149-shot sweep that produced the committed allow
     # list — and it did: the file in the tree held four rows. The allow list is a load-bearing safety guard,
     # and a guard nobody can re-derive is the exact failure this file was added to end.
-    if only:
-        print("(--only run: the %d-row sweep manifest is left untouched)"
-              % len((json.load(open(os.path.join(_REMOTION, "_ground_reach.json"), encoding="utf-8"))
-                     .get("rows") or []) if os.path.exists(os.path.join(_REMOTION, "_ground_reach.json"))
-                    else []))
+    dest = os.path.join(_REMOTION, "_ground_reach.json")
+    if only and "--emit" in argv:
+        # MERGE, rather than leave the record permanently incomplete. Refusing to touch the manifest on an
+        # `--only` run is the right answer to REPLACEMENT and the wrong one to ADDITION, and the difference
+        # matters: the committed record held 170 rows for a library of 185, so fifteen registers had no
+        # measurement at all — and three of them (CarryOver, StatedBy, ViewSwitch) were nevertheless ON the
+        # allow list, permitted to re-ground on no evidence. There was no way to close that without
+        # re-rendering all 185 shots, which is why it stayed open. The table one level up has merged on
+        # `--only --emit` since the day that lesson was learned; the manifest backing it now does the same.
+        prev = {"rows": [], "_source": {}}
+        if os.path.exists(dest):
+            try:
+                prev = json.load(open(dest, encoding="utf-8"))
+            except (OSError, ValueError):
+                prev = {"rows": [], "_source": {}}
+        keep = {r["shot"]: r for r in (prev.get("rows") or [])}
+        src = dict(prev.get("_source") or {})
+        added = [r["shot"] for r in rows if r["shot"] not in keep]
+        for r in rows:
+            keep[r["shot"]] = r
+            src[r["shot"]] = re_mod.source_hash(r["shot"], ignore_follows=True)
+        merged = sorted(keep.values(), key=lambda r: r["shot"])
+        prev.update({"rows": merged, "_source": src,
+                     "failed": {**(prev.get("failed") or {}), **failed},
+                     # the universe is the WHOLE library, not this run's subset — a merge that wrote the
+                     # subset's size would make a two-shot top-up read as a two-shot universe.
+                     "universe": len(registered),
+                     "inkRefused": INK_REFUSED,
+                     "thresholds": {"MOVED_MIN": MOVED_MIN, "MOVED_DY": MOVED_DY}})
+        json.dump(prev, open(dest, "w"), indent=1)
+        print("merged %d measured row(s) into _ground_reach.json (%d -> %d rows; %d new: %s)"
+              % (len(rows), len(keep) - len(added), len(merged), len(added), ", ".join(sorted(added)) or "-"))
+    elif only:
+        print("(--only run WITHOUT --emit: the %d-row sweep manifest is left untouched; add --emit to MERGE "
+              "these rows into it)"
+              % len((json.load(open(dest, encoding="utf-8")).get("rows") or [])
+                    if os.path.exists(dest) else []))
     else:
         # SAY WHAT IS BEING REPLACED. `--check` reads as read-only and rewrites this file, so a run that
         # measured fewer shots than the record it overwrites silently shrinks the record — which is the same
         # loss the `--only` guard above exists to prevent, arriving by the other door. It happened while
         # this very gate was being repaired: a two-shot probe replaced the 170-row sweep.
-        dest = os.path.join(_REMOTION, "_ground_reach.json")
         was = 0
         if os.path.exists(dest):
             try:
@@ -411,6 +524,15 @@ def main(argv):
             except (OSError, ValueError):
                 was = 0
         json.dump({"rows": rows,
+                   # WHAT EACH ROW WAS MEASURED FROM. This manifest backs `GROUND_FOLLOWS_MEASURED`, the
+                   # allow list `light.tsx` consults before it lets a beat re-ground — a register not on it
+                   # is REFUSED — and for its whole life it recorded no input at all. So the only way to ask
+                   # "does this record still describe the code?" was to re-render all 185 shots, which is
+                   # hours, which means nobody asked, which means a register could be rewritten into one
+                   # whose content the declared ground destroys and keep its place on a SAFETY list. Both
+                   # sibling manifests (register_energy, prop_reach) have answered this in seconds since the
+                   # day a stale row was found in one of them; this one now does too.
+                   "_source": {r["shot"]: re_mod.source_hash(r["shot"], ignore_follows=True) for r in rows},
                    # {shot: why}, and the universe measured against: a list of bare names cannot tell a
                    # missing fixture from a register that throws, and those want opposite fixes.
                    "failed": failed, "universe": len(shots),

@@ -220,8 +220,12 @@ def _deps(path, seen=None):
     return seen
 
 
-def source_hash(name):
+def source_hash(name, ignore_follows=False):
     """sha256 over ONE register's .tsx and every runtime module it imports, read NOW.
+
+    `ignore_follows=True` drops the register's own membership of `GROUND_FOLLOWS_MEASURED` from the hash.
+    Exactly one caller wants that — `measure_ground_reach`, whose rows are the EVIDENCE the membership is
+    derived from; see `_dep_bytes`.
 
     Read now, and per register, because a full sweep is a two-and-a-half hour render and the source can move
     under it. Hashing the whole library once at the start and again at the end both lie, in opposite
@@ -234,7 +238,7 @@ def source_hash(name):
     f = os.path.join(_SHOTS, name + ".tsx")
     h = hashlib.sha256()
     for dep in sorted(_deps(f)):
-        h.update(_dep_bytes(dep, name))
+        h.update(_dep_bytes(dep, name, ignore_follows))
     return h.hexdigest()[:16]
 
 
@@ -414,7 +418,7 @@ def _narrowed(src, want, path=None):
     return out
 
 
-def _dep_bytes(dep, name):
+def _dep_bytes(dep, name, ignore_follows=False):
     if os.path.basename(dep) != "shotLuma.ts":
         raw = open(dep, "rb").read()
         # narrow a DIRECTLY imported module to the symbols this register reaches (see above). Any doubt —
@@ -438,7 +442,15 @@ def _dep_bytes(dep, name):
     src = open(dep, encoding="utf-8").read()
     m = _FOLLOWS_BLOCK.search(src)
     if m:
-        listed = "yes" if re.search(r"'%s'" % re.escape(name), m.group(2)) else "no"
+        # ...AND ONE CALLER MUST NOT SEE ITS OWN CONCLUSION. Membership is the right dependency for every
+        # reader of this table EXCEPT the sweep that decides it: `measure_ground_reach` records what each
+        # register's pixels did, and applying that record rewrites the very membership bit folded in here,
+        # so every row it just wrote reported itself stale the moment it was applied — 7 of them, on a
+        # library whose pixels had not moved. A check that cries wolf is a check that gets ignored, and
+        # this file has already written that lesson down twice. The exclusion is sound because the probe
+        # does not consult the list: nine registers that were NOT listed measured as following, which they
+        # could not have done if the permission gated the measurement.
+        listed = "n/a" if ignore_follows else ("yes" if re.search(r"'%s'" % re.escape(name), m.group(2)) else "no")
         src = src[:m.start()] + m.group(1) + " /*follows:" + listed + "*/ " + m.group(3) + src[m.end():]
     mine = [m2.group(0).strip() for m2 in _LUMA_ENTRY.finditer(src) if m2.group(1) == name]
     # entries can share a line; drop every entry from the text, then add back only this register's

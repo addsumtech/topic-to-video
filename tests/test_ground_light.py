@@ -34,6 +34,30 @@ def _src(path):
 
 
 # ── running the real runtime ──────────────────────────────────────────────────────────────────────────
+# ── THE ROSTER IS DERIVED, NOT LISTED ──────────────────────────────────────────────────────────────────
+#
+# Twice now a test here has named a register as "the one that cannot take a ground" and been overtaken by
+# the register being repaired: `MaterialHero` (its floor bounces the film's ground since 2026-09-20) and
+# then `ExplodedSchematic`, whose hardcoded navy became `dna?.bgGrad ?? dna?.bg` in 4b99a6c. Both times the
+# test went red for the best possible reason — the library got better — and both times the red looked like
+# a regression. Worse, the allow list had been DENYING ExplodedSchematic a capability it regained months
+# earlier, because re-measuring cost a full sweep and so nobody did it.
+#
+# So the examples now come from the committed measurement. The rule under test never changes; only which
+# registers illustrate it, and that is the thing that was never anyone's to hand-maintain.
+def _measured(follows, n=2):
+    """`n` registers the committed sweep measured as following / not following a declared ground."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "remotion", "_ground_reach.json")
+    if not os.path.exists(path):
+        pytest.skip("no ground-reach manifest committed")
+    rows = json.load(open(path, encoding="utf-8")).get("rows") or []
+    got = sorted(r["shot"] for r in rows if bool(r.get("ok")) is bool(follows))
+    assert len(got) >= n, ("the sweep records fewer than %d register(s) that %s a ground — the rule these "
+                           "tests pin has no example left: %r"
+                           % (n, "follow" if follows else "refuse", got))
+    return got[:n]
+
+
 def run_probe(body):
     """Bundle `body` against the REAL light.tsx/dna.tsx/shotLuma.ts and run it, returning its JSON.
 
@@ -323,25 +347,29 @@ def test_a_ground_is_refused_on_a_register_it_cannot_reach():
     under a paper key. On those the caption's ink flips to dark over pixels that are still black. The
     runtime cannot see the canvas, so it refuses the ground instead of shipping an unreadable subtitle.
 
-    MATERIAL HERO USED TO BE THE SECOND EXAMPLE HERE, and it moved — which is the point of measuring rather
-    than listing. Its floor was a radius-7 disc under a 1.24 ring, so at that lens it filled every pixel and
-    the register's own `bg` was never once on screen; the ink sweep of 2026-09-20 found 68% of its marks
-    unreadable on a light film for exactly that reason. The floor and the hemisphere bounce now bounce the
-    film's ground, `measure_ground_reach.py` measures it as following, and the allow list carries it. The
-    hazard is real and `ExplodedSchematic` still shows it — a hardcoded navy under a paper key — so the rule
-    is unchanged and only the roster moved."""
+    THE ROSTER HAS MOVED TWICE, WHICH IS WHY IT IS NO LONGER WRITTEN DOWN. `MaterialHero` was the second
+    example until its floor and hemisphere were made to bounce the film's ground (2026-09-20). Then
+    `ExplodedSchematic` was, until `4b99a6c` replaced its hardcoded navy with `dna?.bgGrad ?? dna?.bg` —
+    and because re-measuring cost a full 185-shot sweep, nobody re-ran it, so the allow list went on
+    DENYING that register a capability it had regained months earlier. Both times a hand-written roster
+    turned a library improvement into a red test that read like a regression.
+
+    So the examples are now read from the committed sweep (`_measured`). The rule is untouched: a register
+    the pixels say cannot carry a declared ground must be refused one, because the runtime cannot see the
+    canvas and the alternative is shipping a caption whose ink was picked for a ground that is not there."""
+    refuse, follow = _measured(False), _measured(True, 3)
     r = run_probe("""
       const dna = D.DNA_PRESETS['product'];
-      for (const shot of ['ExplodedSchematic', 'KaleidoMandala', 'SwissEditorial', 'ChatThread', 'MaterialHero']) {
+      for (const shot of %s) {
         try { out[shot] = {ok: !!L.groundAt(dna, {ground: 'paper'}, 0, 150, shot)}; }
         catch (e) { fail(shot, (e as Error).message); }
       }
-    """)
-    for shot in ("ExplodedSchematic", "KaleidoMandala"):
-        assert "threw" in r[shot], "%s accepted a ground it cannot render" % shot
+    """ % json.dumps(refuse + follow))
+    for shot in refuse:
+        assert "threw" in r[shot], "%s accepted a ground the sweep measured it cannot render" % shot
         assert shot in r[shot]["threw"], "the refusal does not name the register"
-    for shot in ("SwissEditorial", "ChatThread", "MaterialHero"):
-        assert r[shot].get("ok"), "%s was refused a ground it does follow: %r" % (shot, r[shot])
+    for shot in follow:
+        assert r[shot].get("ok"), "%s was refused a ground the sweep measured it DOES follow: %r" % (shot, r[shot])
 
 
 def test_a_beat_cannot_describe_one_ground_and_paint_another():
@@ -642,28 +670,26 @@ def test_declaring_the_films_own_key_is_a_no_op_even_on_a_register_that_refuses_
     REFUSAL ran before the no-op check, so it threw on the twelve registers that do not follow a ground.
     An EDL pass that stamps a key on every beat (the obvious next step for this vocabulary) would have
     crashed the film on exactly those beats, for a declaration that changes nothing about them."""
+    refuse, follow = _measured(False), _measured(True, 1)
     r = run_probe("""
       const dna = D.DNA_PRESETS['product'];
       out.noop = {}; out.flip = {};
-      // `MaterialHero` used to stand here as the register that refuses a ground; it was repaired on
-      // 2026-09-20 (its floor bounces the film's ground now) and `measure_ground_reach.py` measures it as
-      // following, so `ClothWave` — measured refused in the same run, "field light reads mid; only 38% of
-      // the frame moved" — is the example. The rule is untouched.
-      for (const shot of ['ClothWave', 'ExplodedSchematic', 'SwissEditorial', 'NotARegister']) {
+      // the refusers and the follower are read from the committed sweep — see _measured.
+      for (const shot of %s) {
         try { out.noop[shot] = {ok: L.groundAt(dna, {key: 'dark'}, 0, 150, shot)}; }
         catch (e) { out.noop[shot] = {threw: (e as Error).message}; }
         try { out.flip[shot] = {ok: !!L.groundAt(dna, {key: 'light'}, 0, 150, shot)}; }
         catch (e) { out.flip[shot] = {threw: (e as Error).message}; }
       }
       out.dna = {bg: dna.bg, fg: dna.fg, dim: dna.dim, accent: dna.accent};
-    """)
-    for shot in ("ClothWave", "ExplodedSchematic", "SwissEditorial"):
+    """ % json.dumps(refuse + follow + ["NotARegister"]))
+    for shot in refuse + follow:
         g = r["noop"][shot].get("ok")
         assert g, "key:'dark' on %s threw: %s" % (shot, r["noop"][shot].get("threw"))
         for k, v in r["dna"].items():
             assert g[k] == v, "%s: the no-op key changed %s (%s -> %s)" % (shot, k, v, g[k])
     # the FLIP still has to be refused there — the no-op is a no-op, not a way past the measurement
-    for shot in ("ClothWave", "ExplodedSchematic"):
+    for shot in refuse:
         assert "threw" in r["flip"][shot], "%s accepted a light key it cannot render" % shot
         assert shot in r["flip"][shot]["threw"] and "key: 'light'" in r["flip"][shot]["threw"], \
             "the refusal mis-describes the input as a ground: %r" % r["flip"][shot]["threw"]

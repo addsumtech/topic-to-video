@@ -325,13 +325,31 @@ read, and in each case the hash covered less than the reading depended on.
 > demonstration the acceptance asks for. `prop_reach` carries the same artefact dimension now, for the
 > same reason: it overlays the fixture at render time and hashed only `cjk_props`.
 >
-> **What is still open is `_ground_reach.json`.** It carries NO input hash of any kind — its top-level keys
-> are `rows`, `failed`, `universe`, `inkRefused`, `thresholds` (checked 2026-09-23) — and its `--check` is a
-> DRIFT check that re-renders the library to compare the measured follow-set against
-> `GROUND_FOLLOWS_MEASURED`. That answers "is the committed set still right" at the cost of a full sweep;
-> it cannot answer "did an input move" at all, which is the cheap question the other two manifests can now
-> be asked. **Acceptance:** it names every input its numbers depend on and `--check` fails when one moves —
-> demonstrated by changing one input and watching the check go red, not by reading the code.
+> **~~What is still open is `_ground_reach.json`.~~ DONE 2026-09-25.** It now records `_source` per row and
+> answers the cheap question with `--stale`, in a second, with no renders. Acceptance met as written:
+> appending one comment to `TermTree.tsx` takes it from `OK all 185 rows` to `1 of 185 ... TermTree source
+> changed`, `--apply-manifest` REFUSES to write the safety list from a stale record, and reverting returns
+> it to green.
+>
+> Running it once paid for itself immediately, because the record it replaced was worse than unverifiable:
+> - the manifest held **170 rows for a library of 185**, and three of the missing registers (`CarryOver`,
+>   `StatedBy`, `ViewSwitch`) were nevertheless ON the allow list — permitted to re-ground on no evidence.
+>   All three measure as following, so the permission was right and had simply never been earned.
+> - the full sweep found the drift the cheap check could never see: nine registers follow and were not
+>   listed (a capability denied), and **`PixelBuild` was listed and does NOT follow** — 0% of the frame
+>   moves between a white ground and a black one, so a beat re-grounding it gets the register's own dark
+>   frame with the caption picking ink for a ground that is not there. It is off the list.
+> - `--apply-manifest` was added so a completed sweep can be applied without re-rendering the library to
+>   re-derive what the file already records; the hour that cost is why this gate went unrun.
+> - the hash deliberately EXCLUDES the register's own membership of `GROUND_FOLLOWS_MEASURED`
+>   (`source_hash(name, ignore_follows=True)`), because that bit is this measurement's own conclusion:
+>   with it in, applying a fresh sweep marked seven of the rows it had just written as stale. Sound only
+>   because the probe does not consult the list, which the nine unlisted-but-following registers prove.
+>
+> Still owed: `_ground_luma.json` carries `_source` from now on and has `--stale`, but its committed
+> entries (148, for 185 registers) predate the hash and read "cannot be confirmed" until a full luma sweep
+> runs. Lower stakes than this one — the table the runtime reads is complete and separately tested; the
+> file is its cache.
 
 
 **~~B12 · A REVEAL THE SETTLED FRAME CANNOT SEE.~~ DONE (gated).** `useT()` returns exactly

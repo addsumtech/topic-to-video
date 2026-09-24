@@ -422,7 +422,7 @@ def _emit(table=None, partial=False):
 
 
 _USAGE = ("usage: measure_ground_luma.py [--only=A,B | --only A,B] [--luma] [--emit] [--check] "
-          "[--apply-json]")
+          "[--stale] [--apply-json]")
 
 
 def _only_or_stop(argv):
@@ -494,8 +494,53 @@ def _main_shot_luma(argv):
     return 1 if failed else 0
 
 
+def _source_hashes(names):
+    """{shot: source_hash}. `register_energy` is imported lazily here, the way this module already imports
+    it elsewhere — it pulls in the render stack, and this file has to stay importable without it."""
+    import register_energy as _re
+    out = {}
+    for n in names:
+        try:
+            out[n] = _re.source_hash(n)
+        except Exception as exc:                       # noqa: BLE001 — an unhashable register is a finding
+            out[n] = "unhashable:%s" % exc
+    return out
+
+
+def stale(data):
+    """[(shot, why)] for table entries that no longer describe their register's source. No renders."""
+    was = data.get("_source") or {}
+    table = data.get("table") or {}
+    now = _source_hashes(sorted(table))
+    out = []
+    for shot in sorted(table):
+        if shot not in was:
+            out.append((shot, "measured before the SOURCE was hashed — cannot be confirmed"))
+        elif now[shot] != was[shot]:
+            out.append((shot, "source changed since it was measured"))
+    return out
+
+
 def main(argv):
-    _c.refuse_unknown(argv, valued=("only",), switches=("luma", "emit", "check", "apply-json"), usage=_USAGE)
+    _c.refuse_unknown(argv, valued=("only",), switches=("luma", "emit", "check", "stale", "apply-json"), usage=_USAGE)
+    if "--stale" in argv:
+        jp = os.path.join(_REMOTION, "_ground_luma.json")
+        if not os.path.exists(jp):
+            print("[shot_luma] no _ground_luma.json — run `python3 scripts/measure_ground_luma.py` first")
+            return 1
+        data = json.load(open(jp, encoding="utf-8"))
+        bad = stale(data)
+        n = len(data.get("table") or {})
+        if bad:
+            print("[shot_luma] %d of %d entry(ies) no longer describe their source:" % (len(bad), n))
+            for shot, why in bad[:40]:
+                print("    %-24s %s" % (shot, why))
+            if len(bad) > 40:
+                print("    ... and %d more" % (len(bad) - 40))
+            print("re-run: python3 scripts/measure_ground_luma.py --luma --emit")
+            return 1
+        print("[shot_luma] OK  all %d entry(ies) still describe their source" % n)
+        return 0
     if "--luma" in argv:
         return _main_shot_luma(argv)
     if "--apply-json" in argv:      # apply a PREVIOUS measurement; never re-render (that is --emit)
@@ -612,7 +657,14 @@ def main(argv):
         json.dump({"table": out, "unclassified": [s for s, _ in unclassified],
                    # {shot: why}, and the universe it was measured against — the committed file recorded
                    # four bare names and 155 of 170 shots, and nothing in it could say which.
-                   "failed": failed, "universe": len(shots)},
+                   "failed": failed, "universe": len(shots),
+                   # WHAT EACH ENTRY WAS MEASURED FROM. `--check` answers "does the declared table still
+                   # match the pixels" and answers it properly, by re-rendering the library — which is
+                   # right, and is hours, so in practice it is not asked. Recording the source each entry
+                   # came from makes the cheap half of that question answerable in a second: which
+                   # registers have been rewritten since anyone looked. Same mechanism as
+                   # register_energy / prop_reach / _ground_reach; this was the last table without it.
+                   "_source": _source_hashes(out)},
                   open(dest, "w"), indent=1)
         print("wrote " + os.path.relpath(dest, os.path.join(_HERE, "..")))
     return 1 if failed else 0
