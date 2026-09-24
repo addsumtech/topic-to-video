@@ -3169,6 +3169,61 @@ def test_no_register_shadows_its_own_prop_default_with_a_literal():
                      "override it: %s" % bad)
 
 
+def test_no_register_renders_a_line_comment_as_on_screen_text():
+    """A `//` comment in JSX CHILDREN position is not a comment — React draws it on the frame.
+
+    Found by LOOKING at a render: a five-line rationale written between `<>` and its first child printed
+    across the top of the frame, in English, on a Chinese film. Every source gate said the register was
+    clean, and they all said it for the same reason — each strips comments before it reads, which is exactly
+    what makes a comment that is being DRAWN invisible.
+
+    The probes run on BOTH sides, because a detector that only ever says "clean" proves nothing about the
+    library and everything about itself. The four negatives are the shapes that a naive "a `//` after a
+    `>`" rule reports and must not: an arrow function's body, a wrapped comparison, an expression slot, and
+    a comment that follows a closed element rather than sitting inside one.
+    """
+    import glob
+    import os
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    import onscreen_text_qa as q
+
+    import tempfile
+    POSITIVE = [
+        ("one child",      "<div>\n  // this renders\n  <span/>\n</div>", 1),
+        ("a whole block",  "<>\n  // line one\n  // line two\n  <A/>\n</>", 2),
+        ("before a slot",  "<div>\n  // note\n  {x}\n</div>", 1),
+        ("between kids",   "<div>\n  <A/>\n  // trailing note\n  <B/>\n</div>", 1),
+    ]
+    NEGATIVE = [
+        ("arrow body",     "const f = (a) =>\n  // pick\n  {return a};"),
+        ("wrapped >",      "const b = a >\n  // wrap\n  c;"),
+        ("expression slot", "{cond ? (\n  // why\n  <A/>\n) : null}"),
+        ("after the close", "return (\n  <div>x</div>\n  // trailing\n);"),
+        ("a real comment", "{/* fine */}\n<div>\n  <A/>\n</div>"),
+        ("inside a string", "const s = '<div>\\n// not a comment\\n<a/>';"),
+    ]
+    with tempfile.TemporaryDirectory() as d:
+        for name, src, want in POSITIVE:
+            f = os.path.join(d, "p.tsx")
+            open(f, "w", encoding="utf-8").write(src)
+            got = q.jsx_text_comments(f)
+            assert len(got) == want, ("the detector missed a rendered comment (%s): wanted %d, got %r"
+                                      % (name, want, got))
+        for name, src in NEGATIVE:
+            f = os.path.join(d, "n.tsx")
+            open(f, "w", encoding="utf-8").write(src)
+            got = q.jsx_text_comments(f)
+            assert not got, ("the detector reported an ordinary comment as on-screen text (%s): %r"
+                             % (name, got))
+
+    shots = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "shots")
+    bad = {os.path.basename(f)[:-4]: q.jsx_text_comments(f)
+           for f in sorted(glob.glob(os.path.join(shots, "*.tsx"))) if q.jsx_text_comments(f)}
+    assert not bad, ("these registers draw a `//` comment onto the frame: %s. Write it as {/* ... */}, or "
+                     "move it above the `return`." % bad)
+
+
 def test_every_bundled_face_can_honour_the_weight_range_it_declares():
     """`fonts.ts` tells the browser what each face covers, and the browser BELIEVES it.
 

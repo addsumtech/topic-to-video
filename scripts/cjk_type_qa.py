@@ -949,7 +949,62 @@ def _named_union_member(alias, src):
     return got
 
 
-def _synth_field(name, ty, src="", i=0, rowIdx=0):
+_MAX_NEST = 2          # a row's list may hold rows; past that a self-referential type never ends
+
+
+def _top_split(text, sep=";"):
+    """Split on `sep` at brace/bracket/paren depth 0 only, with quoted runs left alone.
+
+    A type body is not a flat list of `;`-separated fields the moment ONE field is an inline object:
+
+        cells?: {name?: string; share?: number}[];
+
+    A flat split cuts that field in half, so the reader saw a field `cells` of type `{name?: string` —
+    which matches no branch and falls through to a sentence — and invented a sibling field `share`. The
+    register was handed a STRING where it declares a list, called `.some` on it, and the sweep recorded
+    "refused to render — TypeError". A fixture bug wearing a register's name, silently, for every register
+    that nests one object inside another.
+    """
+    out, depth, q, cur = [], 0, "", ""
+    for ch in text:
+        if q:
+            cur += ch
+            if ch == q:
+                q = ""
+            continue
+        if ch in "\"'`":
+            q, cur = ch, cur + ch
+            continue
+        if ch in "{[(":
+            depth += 1
+        elif ch in "}])":
+            depth -= 1
+        if ch == sep and depth == 0:
+            out.append(cur)
+            cur = ""
+        else:
+            cur += ch
+    out.append(cur)
+    return out
+
+
+def _demo_fraction(name, src):
+    """Is this numeric field a 0..1 FRACTION? Asked of the register's OWN sample data, not of a name table.
+
+    The name rules above cover the fields whose names say what they are (`opacity`, `width`, `delay`). They
+    cannot cover the ones that only the register knows: `lost` is the share of a body that leaves, written
+    `0.55` in that register's demo, and a name table would have handed it 62 — sixty-two bodies' worth,
+    clamped to the cap, leaving a 5% sliver where the material should be and every label in it too narrow
+    to draw. The evidence is already in the file: a field whose demo values are all within 0..1 and at
+    least one of which is strictly between them cannot be a count, an index or a pixel.
+    """
+    vals = [float(v) for v in re.findall(r"\b%s\s*:\s*(-?\d*\.?\d+)" % re.escape(name), _code_only(src))]
+    if not vals or not all(0 <= v <= 1 for v in vals):
+        return False
+    return any(0 < v < 1 for v in vals)
+
+
+def _synth_field(name, ty, src="", i=0, rowIdx=0, depth=0):
     t = ty.replace(" ", "").rstrip(";")
     # A LIST FIELD IS TESTED BEFORE THE SCALAR IT IS SPELLED WITH. `"string[]".startswith("string")` is true,
     # so a `string[]` INSIDE an object row was filled with one sentence: `SurfaceCarousel`'s
@@ -1003,6 +1058,10 @@ def _synth_field(name, ty, src="", i=0, rowIdx=0):
         # does, and 62 / 79 / 96 is not a part list.
         if re.search(r"^(n|no|num|index|idx|step|order|rank|seq)$", name, re.I):
             return i + 1
+        # ...and finally, ASK THE REGISTER. Everything above is a name table; this is the one rule that
+        # reads what the register itself writes. See _demo_fraction.
+        if _demo_fraction(name, src):
+            return round(0.30 + (j % 5) * 0.13, 3)
         return 62 + (i % 5) * 17
     if t.startswith("boolean"):
         # `granted` marks a contiguous run (rows 2-3), so the sweep sees GrantedTree's bracket and a withheld row
@@ -1055,6 +1114,32 @@ def _synth_field(name, ty, src="", i=0, rowIdx=0):
         if want and want != m.group(1):
             return want if rowIdx == 0 else m.group(1)
         return m.group(1)
+    # A ROW'S OWN LIST. A field may itself be a list of objects — `cells: {name; share}[]` inside a stage,
+    # `items: Msg[]` inside a panel — and this reader had no branch for either, so both fell through to the
+    # sentence at the bottom and the register was handed a STRING where it declares a list. Registers that
+    # nest were therefore fed garbage or not fed at all, and the sweep filed it under the REGISTER's name.
+    # Two rows, because the point of a nested list is that it has more than one entry; `depth` stops a
+    # self-referential type (`type Node = {children?: Node[]}`) from recursing forever.
+    if depth < _MAX_NEST:
+        mm = re.match(r"^\{(.+)\}(\[\])?$", t)
+        if mm:
+            sub = {}
+            for chunk in _top_split(mm.group(1), ";"):
+                f = re.match(r"\s*([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*:(.+)", chunk.replace("\n", " "), re.S)
+                if f:
+                    sub.setdefault(f.group(1), f.group(2).strip())
+            if sub:
+                rows = [_shaped_row(sub, src, i + j, j, depth + 1) for j in range(2)]
+                return rows if mm.group(2) else rows[0]
+        mm = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\[\]$", t)
+        if mm:
+            got = _type_fields(mm.group(1), src)
+            if got is not None:
+                sub, bare = got
+                if sub:
+                    return [_shaped_row(sub, src, i + j, j, depth + 1) for j in range(2)]
+                if bare:
+                    return list(_ITEMS[:2])
     m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)(\|undefined)?$", t)
     if m:                                                # a NAMED type — resolve it, never invent copy
         member = _named_union_member(m.group(1), src)
@@ -1098,7 +1183,7 @@ def _fields_of_body(body):
     body = re.sub(r"/\*.*?\*/", " ", body, flags=re.S)
     body = re.sub(r"//[^\n]*", " ", body)
     out = {}
-    for chunk in body.split(";"):
+    for chunk in _top_split(body, ";"):
         f = re.match(r"\s*([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*:\s*(.+)", chunk.replace("\n", " "), re.S)
         if f:
             out.setdefault(f.group(1), f.group(2).strip())
@@ -1209,7 +1294,7 @@ def _is_text(ty):
 # `rowIdx` is the row NUMBER, kept distinct from the local `row` dict this builds — naming it
 # `row` shadowed that dict and handed `_synth_field` a mapping where it expected an index, which
 # silently switched the flag rule off in every prop set.
-def _shaped_row(fields, src, i=0, rowIdx=0):
+def _shaped_row(fields, src, i=0, rowIdx=0, depth=0):
     """One element of a shaped array, with every field this cannot honour left out rather than guessed."""
     measured = any(re.match(r"^(pct|fill|ratio|frac|percent)$", k, re.I)
                    and str(v).replace(" ", "").startswith("number") for k, v in fields.items())
@@ -1224,13 +1309,14 @@ def _shaped_row(fields, src, i=0, rowIdx=0):
         # of a row, so `{t, d}` came back carrying the SAME sentence twice — and the overlap detector matches
         # elements by their text, so a row whose two labels are one string cannot be told apart from a real
         # collision.
-        val = _synth_field(k, v, src, i + (sum(ord(ch) for ch in k) % 3 if _is_text(v) else 0), rowIdx)
+        val = _synth_field(k, v, src, i + (sum(ord(ch) for ch in k) % 3 if _is_text(v) else 0),
+                           rowIdx, depth)
         if val is not _OMIT:
             row[k] = val
     return row
 
 
-def _shape_from_type(prop, ty, src, n=3, off=0):
+def _shape_from_type(prop, ty, src, n=3, off=0, depth=0):
     """Build the array a register actually declares, FROM ITS OWN TYPE.
 
     The first version of this file kept a table keyed by prop NAME, and that is wrong in a way that hides
@@ -1250,16 +1336,16 @@ def _shape_from_type(prop, ty, src, n=3, off=0):
             return _NOT_COPY
         if not fields:                                   # a list of bare strings, e.g. `type Row = string`
             return _rotate(list(_ITEMS), off)[:n]
-        return [_shaped_row(fields, src, i + off, i) for i in range(n)]
+        return [_shaped_row(fields, src, i + off, i, depth) for i in range(n)]
     m = re.match(r"^\{(.+)\}\[\]$", t)                                      # an INLINE object array
     if m:
         fields = {}
-        for chunk in m.group(1).split(";"):
+        for chunk in _top_split(m.group(1), ";"):
             f = re.match(r"([A-Za-z_][A-Za-z0-9_]*)\??:(.+)", chunk)
             if f:
                 fields[f.group(1)] = f.group(2)
         if fields:
-            return [_shaped_row(fields, src, i + off, i) for i in range(n)]
+            return [_shaped_row(fields, src, i + off, i, depth) for i in range(n)]
     return None
 
 

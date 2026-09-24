@@ -35,6 +35,10 @@ import {useDNA, readableOn, mix} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitTextPx, wrapLines, inkBlockH} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 
+// Where the single line out of the action ends and the two roads begin. Far enough that the
+// stub reads as a line rather than a nub, near enough that each road keeps most of its run.
+const FORK_FRAC = 0.24;
+
 export const DURATION = 190; // ~6.3s
 
 type Route = {label?: string; when?: string};
@@ -157,11 +161,28 @@ export const FallbackPath: React.FC<{
     );
   };
 
+  // ONE LINE LEAVES THE ACTION, AND THEN IT FORKS. Both risers used to sit at `actX + boxW` — the action
+  // block's own right edge — so the picture was two separate connectors glued to the box, and the place
+  // where one claim becomes two fates had no position on screen. That split IS this register's argument
+  // ("a claim with no source" going one way or the other), and it was the one thing the frame did not
+  // draw. A viewer watching the delivered film said so: the left block should run out as a single line
+  // and split. So: a shared stub from the box to `forkX`, then the two roads from there.
+  const stubX = () => Math.round((actX + boxW) + (colX - (actX + boxW)) * FORK_FRAC);
+
+  const stub = () => {
+    if (portrait) return null;
+    const x0 = actX + boxW;
+    return (
+      <div style={{position: 'absolute', left: x0, top: Math.round(cy), height: 2,
+        width: Math.max(0, (stubX() - x0) * fork), background: ACC, opacity: fork}} />
+    );
+  };
+
   // The two roads. The preferred one is drawn as a solid rule that FILLS as it is taken; the fallback as a
   // dashed one that never fills — the ink on the road is the argument, not a decoration between boxes.
   const road = (y: number, isFallback: boolean) => {
     if (portrait) return null;
-    const x0 = actX + boxW, x1 = colX;
+    const x0 = stubX(), x1 = colX;
     const midY = Math.round(cy);
     const toY = y + Math.round(U * 0.03);
     return (
@@ -179,6 +200,7 @@ export const FallbackPath: React.FC<{
 
   return (
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
+      {stub()}
       {/* THE ACTION — one thing you do, and both roads leave from it */}
       <div style={{position: 'absolute', left: actX, top: actY, width: boxW,
         padding: pad, boxSizing: 'border-box', borderRadius: Math.round(U * 0.014),

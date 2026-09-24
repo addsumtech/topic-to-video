@@ -2277,6 +2277,54 @@ def _probe_a_refused_union_member_reaches_exactly_one_row(mod):
     plain = "  side?: 'a' | 'b';\n"
     assert {mod._synth_field("side", "'a' | 'b'", plain, i, i) for i in range(3)} == {"a"}, (
         "an ordinary union changed shape — this rule must only fire on a refusal")
+_NESTED_LIST_TYPE = (
+    "type Stage = {\n"
+    "  /** what this stage is, in the film's words */\n"
+    "  label?: string;\n"
+    "  cells?: {name?: string; share?: number}[];\n"
+    "  lost?: number;\n"
+    "};\n"
+    "const DEMO: Stage[] = [{label: 'a', cells: [{name: 'x', share: 0.6}], lost: 0.55}];\n"
+    "export const S: React.FC<{stages?: Stage[]}> = ({stages = DEMO}) => null;\n"
+)
+
+
+def _probe_a_nested_list_field_is_a_list_not_a_sentence(mod):
+    rows = mod._shape_from_type("stages", "Stage[]", _NESTED_LIST_TYPE)
+    assert isinstance(rows, list) and rows, "a register's own row type no longer shapes at all"
+    r = rows[0]
+    assert isinstance(r.get("cells"), list) and r["cells"], (
+        "a row's OWN list came back as %r. The register is then handed a string where it declares a list, "
+        "calls .some/.filter on it, and the sweep records 'refused to render \u2014 TypeError' under the "
+        "REGISTER's name for a defect that is entirely the fixture's" % (r.get("cells"),))
+    assert isinstance(r["cells"][0], dict) and r["cells"][0].get("name"), (
+        "the nested rows carry no copy, so the one audit that reads Chinese type never sees any of it")
+    assert "share" not in r, (
+        "a field from INSIDE the nested object was hoisted into the parent row \u2014 the flat `;` split "
+        "cutting the inline object in half, which is what turned the list into a sentence to begin with")
+
+
+def _probe_a_fraction_is_read_from_the_registers_own_demo(mod):
+    # THROUGH THE SYNTHESISER, not the helper. The first version of this probe asked `_demo_fraction`
+    # directly and passed with the CALL SITE deleted — it proved the helper worked and said nothing about
+    # whether anything used it, which is the exact shape of a rule that is not load-bearing.
+    frac = mod._synth_field("lost", "number", "const DEMO = [{lost: 0.55}, {lost: 0.7}];", 0, 0)
+    assert 0 < frac <= 1, (
+        "a field this register's own demo writes as 0.55 is fed %r \u2014 whole shares where a fraction "
+        "was declared, clamped to the cap, leaving a sliver where the subject should be" % (frac,))
+    cnt = mod._synth_field("tally", "number", "const DEMO = [{tally: 6}, {tally: 12}];", 0, 0)
+    assert cnt > 1, (
+        "a COUNT reads as a fraction (%r), so a register that draws six strokes is asked for a third of "
+        "one" % (cnt,))
+    assert mod._demo_fraction("lost", "const DEMO = [{lost: 0.55}, {lost: 0.7}];"), (
+        "a field this register's own demo writes as 0.55 no longer reads as a fraction, so it is fed 62 "
+        "\u2014 sixty-two whole shares, clamped to the cap, leaving a sliver where the subject should be")
+    assert not mod._demo_fraction("count", "const DEMO = [{count: 6}, {count: 12}];"), (
+        "a COUNT reads as a fraction, so a register that draws six strokes is asked for 0.3 of one")
+    assert not mod._demo_fraction("share", ""), (
+        "a field with no evidence in the register at all is guessed rather than declined")
+
+
 PROBES["cjk_type_qa"] = {
     "a_refusal_is_code_not_prose": _probe_a_refusal_is_code_not_prose,
     "a_refused_union_member_reaches_exactly_one_row":
@@ -2287,8 +2335,20 @@ PROBES["cjk_type_qa"] = {
     "a_nested_demo_object_keeps_its_own_numbers": _probe_a_nested_demo_object_keeps_its_own_numbers,
     "a_selector_is_not_set_on_every_row": _probe_a_selector_is_not_set_on_every_row,
     "a_refused_flag_is_set_on_exactly_one_row": _probe_a_refused_flag_is_set_on_exactly_one_row,
+    "a_nested_list_field_is_a_list_not_a_sentence": _probe_a_nested_list_field_is_a_list_not_a_sentence,
+    "a_fraction_is_read_from_the_registers_own_demo":
+        _probe_a_fraction_is_read_from_the_registers_own_demo,
 }
 MUTANTS["cjk_type_qa"] = {
+    # the flat split this replaced: one inline object inside a type body cuts a field in half and invents
+    # a sibling out of the other half
+    "a type body is split on every `;`, so a nested object halves a field":
+        ('    for chunk in _top_split(body, ";"):', '    for chunk in body.split(";"):'),
+    "a row's own list falls through to a sentence":
+        ("    if depth < _MAX_NEST:\n        mm = re.match(r\"^\\{(.+)\\}(\\[\\])?$\", t)",
+         "    if False:\n        mm = re.match(r\"^\\{(.+)\\}(\\[\\])?$\", t)"),
+    "the register's own demo stops deciding whether a number is a fraction":
+        ("        if _demo_fraction(name, src):", "        if False:"),
     # the flat scan this replaced: a backtick runs to the next backtick, which inside a nested template
     # is the one that OPENS the inner one
     "a template literal is scanned flat, so a nested one desyncs it":

@@ -376,10 +376,90 @@ def fixed_px_font_sites(path):
     return len(re.findall(r"font:\s*[`'\"][^`'\"]*?\b\d{2,3}px\s*/", body))
 
 
+def _comment_spans(src):
+    """(start, end) of every `//` line comment, with strings, templates and /* */ skipped.
+
+    A regex cannot do this: `const s = 'http://x'` and a URL inside a comment both contain `//`, and the
+    library's own `_strip_comments` (which only ever DELETES, so a wrong span costs nothing) is not safe to
+    reuse here, where a wrong span becomes a reported defect.
+    """
+    out, i, n = [], 0, len(src)
+    while i < n:
+        c = src[i]
+        if c in "'\"`":
+            q = c
+            i += 1
+            while i < n:
+                if src[i] == "\\":
+                    i += 2
+                    continue
+                if src[i] == q:
+                    i += 1
+                    break
+                i += 1
+            continue
+        if src.startswith("/*", i):
+            j = src.find("*/", i + 2)
+            i = n if j < 0 else j + 2
+            continue
+        if src.startswith("//", i):
+            j = src.find("\n", i)
+            j = n if j < 0 else j
+            out.append((i, j))
+            i = j
+            continue
+        i += 1
+    return out
+
+
+def jsx_text_comments(path):
+    """`//` comments sitting in JSX CHILDREN position — which React renders as literal on-screen text.
+
+    WHY THIS IS ITS OWN CHECK. Every other reader in this file strips comments before it looks, because a
+    comment is not code. In children position that assumption inverts: `<div>` / `// note` / `</div>` puts
+    the note ON SCREEN, and stripping it first is precisely what makes it invisible. Found by rendering —
+    a five-line rationale I had written between `<>` and its first child printed across the top of a
+    register's frame, in English, on a Chinese film, while every source gate reported the register clean.
+
+    THE TEST. The comment's preceding non-space character is `>` (a tag just closed) and not part of `=>`,
+    and the next non-space character after it opens another child (`<` or `{`). Both sides are required:
+    `</div>` followed by `)` is a comment after the element, not inside it, and `=>` followed by `{` is a
+    function body. Adjacent comment lines are stepped over on both scans so a multi-line block is judged
+    by the code around it rather than by itself. Probed on both sides in tests/test_remotion.py.
+    """
+    src = open(path, encoding="utf-8").read()
+    sp = _comment_spans(src)
+    out = []
+    for a, b in sp:
+        k = a - 1
+        while True:
+            while k >= 0 and src[k] in " \t\r\n":
+                k -= 1
+            prev = [(x, y) for x, y in sp if x <= k < y]
+            if prev:
+                k = prev[0][0] - 1
+                continue
+            break
+        if k < 0 or src[k] != ">" or (k > 0 and src[k - 1] == "="):
+            continue
+        k2 = b
+        while True:
+            while k2 < len(src) and src[k2] in " \t\r\n":
+                k2 += 1
+            nxt = [(x, y) for x, y in sp if x <= k2 < y]
+            if nxt:
+                k2 = nxt[0][1]
+                continue
+            break
+        if k2 < len(src) and src[k2] in "<{":
+            out.append(src[a:b].strip())
+    return out
+
+
 def main(argv):
     names = argv or [os.path.basename(f)[:-4] for f in sorted(glob.glob(os.path.join(_SHOTS, "*.tsx")))]
     total, dirty, fixed_px, unsourced = 0, 0, {}, 0
-    dead, shadowed = {}, {}
+    dead, shadowed, rendered_comments = {}, {}, {}
     for n in names:
         p = os.path.join(_SHOTS, n + ".tsx")
         if not os.path.exists(p):
@@ -399,6 +479,9 @@ def main(argv):
         sh = hardcoded_defaults(p)
         if sh:
             shadowed[n] = sh
+        rc = jsx_text_comments(p)
+        if rc:
+            rendered_comments[n] = rc
         nums = unsourced_numbers(p)
         if nums:
             unsourced += len(nums)
@@ -429,6 +512,14 @@ def main(argv):
         print("[onscreen_text] %d rendered NUMBER(s) no prop feeds — computed from the clock and printed as "
               "though measured. Give the readout a prop and draw it only when supplied; a number is real or "
               "it is absent." % unsourced)
+    if rendered_comments:
+        print("[onscreen_text] %d register(s) put a `//` COMMENT in JSX children position — React renders "
+              "it as\n                literal text on the frame:" % len(rendered_comments))
+        for n in sorted(rendered_comments):
+            print("  %-24s %s" % (n, rendered_comments[n][0][:72]))
+        print("                Write it as {/* ... */}, or move it above the `return`. No other check in "
+              "this\n                file can see these: they all strip comments before they look, which "
+              "is exactly what\n                hides a comment that is being drawn.")
     if fixed_px:
         n = sum(fixed_px.values())
         print("[onscreen_text] %d register(s) size type in bare px (%d sites) — the same type takes ~1.8x as "

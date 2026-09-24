@@ -8,6 +8,8 @@ import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
 import {StageProbe, DURATION as SPD} from './runtime/__probe_stage3d';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
+import {SameStuffChanged, DURATION as D_SAMESTUFFCHANGED} from './shots/SameStuffChanged';
+import {WorksThrough, DURATION as D_WORKSTHROUGH} from './shots/WorksThrough';
 import {BreaksWhenAsked, DURATION as D_BREAKSWHENASKED} from './shots/BreaksWhenAsked';
 import {HardBarrier, DURATION as D_HARDBARRIER} from './shots/HardBarrier';
 import {Escalation, DURATION as D_ESCALATION} from './shots/Escalation';
@@ -582,5 +584,7 @@ export const RemotionRoot: React.FC = () => (
     {F('AverageHides', AverageHides, D_AVERAGEHIDES)}
     {F('HardBarrier', HardBarrier, D_HARDBARRIER)}
     {F('BreaksWhenAsked', BreaksWhenAsked, D_BREAKSWHENASKED)}
+    {F('WorksThrough', WorksThrough, D_WORKSTHROUGH)}
+    {F('SameStuffChanged', SameStuffChanged, D_SAMESTUFFCHANGED)}
   </>
 );

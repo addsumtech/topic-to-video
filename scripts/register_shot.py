@@ -22,6 +22,13 @@ command leaves the other still flagged 'never measured' and `test_shot_luma_is_m
   python3 scripts/measure_ground_luma.py --only <Id> --luma --emit   # SHOT_LUMA: its ground with NO DNA
   python3 scripts/measure_ground_luma.py --only <Id> --emit          # DNA_GROUND_TOKEN: which token it paints from
   python3 scripts/shot_proof.py <out_dir>                            # frame-craft + palette + reuse checks
+
+DO NOT EDIT A REGISTER WHILE A LIBRARY SWEEP IS RUNNING. `register_energy.py` and `prop_reach.py` re-render
+every register from the working tree, so a source saved mid-sweep is measured in whatever state it was in at
+that instant and the manifest records it as the register's own behaviour. It happened: a half-applied edit
+was swept and written up as `SameStuffChanged refused to render — ReferenceError cells is not defined`,
+which is a true sentence about a file that existed for ninety seconds. Finish the edits, THEN sweep — and if
+one slips through, `--only <Id>` re-measures the affected rows without repeating the other 183.
   python3 scripts/cjk_type_qa.py --only <Id> --all-aspects            # type in Chinese, at EVERY aspect
       (--all-aspects matters: this is the only audit that can see a string the register declined to
        DRAW. text_safe_qa reports type CUT OFF, so it can only see ink that exists — WordTunnel's

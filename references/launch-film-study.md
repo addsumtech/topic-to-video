@@ -294,8 +294,19 @@ So the answer to "should the library be bigger" is no in general — 88 of 149 a
 and adding breadth adds work — and yes very specifically: registers for the EXPLANATORY shapes whose density
 comes from the content rather than from a field. `MadeOf` is the first (structure): the whole fills the
 frame, every region's AREA is its share, and it measures 52.6% ink / 100% footprint / all three floors clear
-as film. It is the sixth register in the library to clear all three, and the first for its shape. Process and
-mechanism are still at zero.
+as film. It is the sixth register in the library to clear all three, and the first for its shape.
+
+**Process and mechanism now have one register each, and only one of them cleared the floor** (2026-09-24).
+`SameStuffChanged` (process) draws ONE body re-apportioned stage by stage, area conserved by the register
+rather than trusted to the props: 16.9% on its settled frame, over the floor, against a 2.9% clip median —
+because it opens as one undivided block, which is the claim it exists to make, and gains structure only as
+it re-forms. `WorksThrough` (mechanism) cuts the subject open and threads a live path through its parts:
+3.9% settled, **under** the floor. The lesson is worth keeping separate from the win. Both registers close
+the ARGUMENT gap — before them a film could not say "the same material, re-formed" or "the path goes
+through HERE" at all. Only one closes the DENSITY gap, and the difference is not area versus line: `MadeOf`
+argues in area at 52.6%. It is how MANY regions the argument has. A mechanism with four parts is four
+regions, and four regions do not fill a frame however large you draw them. The next mechanism register
+should be sought among claims that have many parts, not by re-drawing this one bigger.
 
 **Asked structurally, the gap is worse than the prose suggested.** Clustering by keywords is unreliable in
 both directions — a narrow vocabulary put "process" at 12 registers, a wide one at 39, and the wide one was

@@ -123,6 +123,34 @@ export const INK_BLOCK_FACTOR = 1.31;
 export const inkBlockH = (fontPx: number, lines = 1) =>
   Math.ceil(fontPx * (lines - 1 + INK_BLOCK_FACTOR));
 
+/**
+ * Can this text be READ in a box this size? — the honest alternative to a fixed width floor.
+ *
+ * WHY IT EXISTS. A register whose boxes change width cannot gate its labels on a constant: a floor is a
+ * floor for one string at one size and nothing else. `SameStuffChanged` gated its cell names on
+ * `w > U * 0.05`, and a 70px sliver mid-split kept its seven-glyph name — which the browser then set one
+ * glyph per line, a vertical column of characters that reads as decoration rather than as a word. Both
+ * settled frames were fine; only the frames in between were wrong, which is how it survived being looked at.
+ *
+ * TWO GLYPHS IS THE WIDTH FLOOR, and it is asked of THIS string's own first glyphs through `wrapLines` —
+ * the same model, the same kinsoku — so full-width CJK and half-width Latin each get their own answer
+ * instead of sharing a guess. Below two glyphs across, every line break is forced and there is no setting
+ * of the text that reads. The height is then checked against the wrapped block, so a box that is wide
+ * enough and too short is refused as well.
+ *
+ * Returning false means DRAW NOTHING THERE. A label that does not fit is not a label made smaller; the
+ * caller decides what to do with the room, and this only answers the question it was asked.
+ */
+export const fitsBox = (
+  text: string, fontPx: number, boxW: number, boxH: number, padX = 0, padY = 0,
+): boolean => {
+  const s = String(text ?? '');
+  const inner = boxW - padX;
+  if (!s || !(fontPx > 0) || inner <= 0) return false;
+  if (wrapLines([...s].slice(0, 2).join(''), fontPx, inner) > 1) return false;
+  return inkBlockH(fontPx, wrapLines(s, fontPx, inner)) <= boxH - padY;
+};
+
 export const bottomTextY = (W: number, H: number) =>
   contentBottom(W, H) - Math.round(Math.min(W, H) * 0.012);
 
