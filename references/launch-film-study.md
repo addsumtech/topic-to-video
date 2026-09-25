@@ -556,16 +556,23 @@ supposed to be film.
 runs the SAME stack — Remotion 4 + React, CSS 3D on both sides, no three.js in either shot library — so the
 comparison is like for like rather than an impression.
 
-| | video-shotcraft | this tier |
-|---|---:|---:|
-| shots | 218 | 152 |
-| median lines per shot | 135 | 77 |
-| any 3D | 38 (17%) | 11 (7%) |
-| `perspective` | 34 | 10 |
-| `rotateX` (pitch) | 24 | **2** |
-| `blur()` | 76 (35%) | 17 (11%) |
-| `spring` | 24 | **3** |
-| seam vocabulary | 18 transition cards + 6 hand-off recipes | 5, all planar → **14 words, 4 of them in depth** (2026-09-20) |
+| | video-shotcraft | this tier, 2026-09-05 | this tier, **re-measured 2026-09-25** |
+|---|---:|---:|---:|
+| shots | 218 | 152 | 185 |
+| any 3D | 38 (17%) | 11 (7%) | 12 (6%) |
+| `perspective` | 34 | 10 | 5 |
+| `rotateX` (pitch) | 24 | 2 | 5 |
+| `blur()` | 76 (35%) | 17 (11%) | 19 (10%) — but 17 are real `filter`, 2 frosted |
+| `spring` | 24 (11%) | 3 | 3 |
+| **overshoot of any kind** | — | — | **59 (32%)** |
+| seam vocabulary | 18 cards + 6 hand-off recipes | 5, all planar | **14 words, 4 in depth** — closed |
+
+**The `spring` row compared the wrong thing, and it is the row that reads worst.** A spring is not the
+capability; OVERSHOOT is — "a thing that settles past its mark and comes back reads as having weight; a
+thing that eases into place reads as being faded in" (`motion.SPRING_LAND`'s own note). This library says
+that with `easeOutBack` in **56 registers** plus `springAt` in 3, so 59 of 185 (32%) can make the claim,
+against the peer's 24 of 218 (11%). Counting `spring` calls counted one spelling of it. On this axis the
+tier was never behind; it was ahead, and a year of reading that row would have bought decoration.
 
 ### The three capability gaps
 
@@ -574,11 +581,16 @@ comparison is like for like rather than an impression.
    each. Paging becomes travel through the idea's space. `cube-navigation`, `terminal-3d` and `flying-words`
    (keywords rushing past the lens down a z tunnel) build on it. Our `SceneCamera` is scale + 2D translate;
    `rotateX` appears in two registers in the whole library.
-2. **Focus is not part of our language.** Theirs is structural: `depth-layer-moves` builds depth from three
-   parallax coefficients (0.35 / 0.7 / 1.4) plus fore/background blur plus desaturation, with the rule
-   "without the blur/saturation anchor it reads as stickers flying"; a fake dolly-zoom pins the subject while
-   the background swells 1→2.25. Our blur is almost entirely frosted-glass panels; no register uses focus as
-   an argument.
+2. **~~Focus is not part of our language.~~ LARGELY CLOSED (re-checked 2026-09-25).** Theirs is structural:
+   `depth-layer-moves` builds depth from three parallax coefficients (0.35 / 0.7 / 1.4) plus fore/background
+   blur plus desaturation, with the rule "without the blur/saturation anchor it reads as stickers flying"; a
+   fake dolly-zoom pins the subject while the background swells 1→2.25. Both of those specific recipes now
+   exist here — `DollyZoom` pins the subject while the room swells, `FocalIsolation` blurs, dims and shrinks
+   the periphery — on top of `runtime/focus.ts` (depth of field as a signal) with 7 users, and `RackFocus`
+   makes the focal plane itself the argument. The sentence "our blur is almost entirely frosted-glass
+   panels" is no longer true: 17 of the 19 blurring registers use a real `filter`, 2 use `backdropFilter`.
+   What is left is small and specific — `DataMonolith` (towers on a perspective floor) and `GlowPick` (a
+   tilted app surface) both have real depth and still say "this one matters" by dimming alone.
 3. **Every seam we ship is planar.** Three of their six hand-off recipes are built on depth: through-dark
    flight, focus relay (the focal plane IS the cut point), portal wipe. Their stated bar: "no acclaimed
    launch film cuts bare, ever." ALL THREE have since been built — see Film.tsx FocusRelayPresentation,
