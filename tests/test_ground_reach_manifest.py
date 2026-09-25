@@ -157,3 +157,24 @@ def test_the_reach_hash_does_not_include_the_conclusion_it_is_evidence_for():
     assert listed_off == unlisted_off, (
         "ignore_follows still lets membership move the hash, so applying a ground-reach sweep marks the "
         "rows it just wrote as stale and the check starts crying wolf")
+
+
+def test_the_committed_shot_luma_cache_is_confirmable():
+    """A RATCHET, not a synthetic probe. Until 2026-09-25 this file held 148 entries for a 185-register
+    library and every one of them read "measured before the SOURCE was hashed" — the only way to ask
+    whether it still described the code was to re-render the library, which is why nobody did. The sweep
+    has been run: 185 measured, 182 classified, 0 stale, and the declared `DNA_GROUND_TOKEN` table agrees
+    with the pixels on every entry. This holds that line, so the debt cannot quietly come back."""
+    import measure_ground_luma as gl
+
+    path = os.path.join(_ROOT, "remotion", "_ground_luma.json")
+    if not os.path.exists(path):
+        pytest.skip("no luma cache committed")
+    data = json.load(open(path, encoding="utf-8"))
+    bad = gl.stale(data)
+    assert not bad, ("%d of %d luma entries no longer describe their source: %s. Re-run "
+                     "`python3 scripts/measure_ground_luma.py`."
+                     % (len(bad), len(data.get("table") or {}), bad[:6]))
+    assert len(data.get("table") or {}) >= 180, (
+        "the luma cache has shrunk to %d entries — a spot check has replaced the full sweep again"
+        % len(data.get("table") or {}))
