@@ -2034,17 +2034,21 @@ def main(argv):
             print("\nTYPE OVERLAPPING OTHER TYPE (a candidate — some registers stack type on purpose):")
             for n in sorted(over, key=lambda k: -len(over[k]))[:14]:
                 h = over[n][0]
-                # THE `rot` FLAG FINALLY HAS A READER. `textSafe` tags a pair involving a 2D-rotated
-                # element because the cross-element pass intersects axis-aligned BOXES, and a tilted
-                # element's box is bigger than its glyphs on the side it slopes toward — so such a pair
-                # overlaps more on paper than the ink does. Its own comment says the flag "says which
-                # numbers to discount", and nothing in scripts/ or tests/ read it: the advice was
-                # written and never delivered, which is not a mitigation. Saying it here costs one
-                # branch and is the cheap half of open-work B11; the separating-axis test that would
-                # REMOVE the false pair is still open.
+                # A TILTED PAIR IS NOW MEASURED AS THE SHAPES IT IS. This used to warn that the
+                # cross-element pass intersects axis-aligned BOXES, so a tilted element overlapped more on
+                # paper than its ink did — the cheap half of open-work B11, delivered as a caveat because
+                # the separating-axis test was not written yet. It is now: `textSafe` reconstructs each
+                # element's real parallelogram from its layout size and its accumulated 2x2, then clips the
+                # two. TermSpace's «交付可验收的成果» x «自动归档», reported at 9:16, 1:1 and 4:5 and clean
+                # on the frame, is gone at every aspect; the registers that still report (AntiDesignChaos,
+                # ComicPanels) stack type on purpose and now do so on an exact measurement.
                 rotted = sum(1 for x in over[n] if x.get("rot"))
-                tag = ("  [%d of %d involve TILTED type — boxes overstate the overlap; check the frame "
-                       "before believing these]" % (rotted, len(over[n]))) if rotted else ""
+                # THE CAVEAT USED TO SAY "boxes overstate the overlap", and since `textSafe` reconstructs
+                # the real parallelogram for a tilted pair it no longer does. Leaving it would have taught
+                # the reader to discount exactly the findings that are now the most exact ones in the
+                # report — the opposite of what it was written for.
+                tag = ("  [%d of %d involve TILTED type — measured as the shapes they are, not as their "
+                       "bounding boxes]" % (rotted, len(over[n]))) if rotted else ""
                 print("    %-22s %d pair(s)  «%s» × «%s»%s"
                       % (n, len(over[n]), h["text"], h.get("other", ""), tag))
         if tight:

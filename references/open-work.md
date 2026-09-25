@@ -375,7 +375,7 @@ violation first. Verified to go RED on the pre-fix source. The stronger "complet
 considered and rejected: it names **69 registers**, most of them slow settles that are 70%+ in and perfectly
 visible. That is a redesign, not a gate.
 
-**B11 · THE TYPE-OVERLAP DETECTOR IS BLIND TO ROTATION, and it now has a register that exercises it.** Open.
+**~~B11 · THE TYPE-OVERLAP DETECTOR IS BLIND TO ROTATION.~~ DONE 2026-09-25.**
 `runtime/textSafe.tsx` measures text with `Range.getClientRects()` and `getBoundingClientRect()` — both
 AXIS-ALIGNED. A 2D-rotated label's box is larger than its glyphs and grows on the side it slopes toward.
 Since 2026-09-16 TermSpace lays each console's words onto the window's own plane with a 2D affine (a viewer
@@ -417,6 +417,27 @@ between two tilted lines could equally be missed.
 > the other's corners, or test the rotated quads with a separating-axis check), demonstrated on TermSpace at
 > 9:16 — the false pair disappears — AND on a synthetic probe where two tilted lines genuinely collide, which
 > the axis-aligned version must be shown to miss or misplace first.
+
+> **THE OTHER HALF LANDED (2026-09-25).** `leading` had an orientation-free instrument; the cross-element
+> OVERLAP still intersected axis-aligned boxes and only tagged the finding `rot: true` — advice the report
+> printed and nothing acted on. It now reconstructs the real shape: `offsetWidth`/`offsetHeight` are layout
+> numbers that transforms do not touch, and an affine image of a rectangle is a parallelogram, which is
+> centrally symmetric — so its bounding box, which is what the DOM returns, is centred on exactly the same
+> point. Centre plus the accumulated 2x2 gives the four corners with no matrix-to-viewport walk and no
+> reliance on `transform-origin`; Sutherland-Hodgman gives the true intersection area and the separating-axis
+> projection gives the penetration depth. `Element.getBoxQuads()` would answer it directly and is **undefined
+> in the Chrome this renderer ships** (149, headless shell) — asked before anything was built on it.
+>
+> Acceptance, as this entry set it: TermSpace's «交付可验收的成果» × «自动归档» is gone at 9:16, 1:1 and 4:5.
+> Swept across all 34 registers that transform something, at five aspects: the only remaining reports are
+> `AntiDesignChaos` and `ComicPanels`, which stack type on purpose, and they now do so on an exact
+> measurement rather than an over-report. The false-NEGATIVE direction this entry also warned about is
+> probed directly — two lines crossing at 40° to each other, and two 10px apart on a 60px line height, both
+> still collide.
+>
+> A first attempt inverted the bounding box for a pure ROTATION (two equations, two unknowns) and could not
+> read TermSpace at all, because `planeAffine` fits a general affine with scale and skew. The general form
+> is simpler as well as wider, and it has no singularity at 45°.
 
 
 ## C · Peer-library capability gaps still open

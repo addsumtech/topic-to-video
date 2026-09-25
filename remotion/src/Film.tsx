@@ -743,7 +743,19 @@ const LUM_RANK: Record<Lum, number> = {dark: 0, mid: 1, light: 2};
 // keeps every existing film's seam decisions identical; for a re-grounded beat they are the only honest
 // input, since the film-wide ground the guard used to read is no longer what is on either frame.
 const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number, dna: DesignDNA | null,
-                          prevG: GroundColors | null, nextG: GroundColors | null): TransitionPresentation<any> => {
+                          prevG: GroundColors | null, nextG: GroundColors | null,
+                          reducedMotion = false): TransitionPresentation<any> => {
+  // REDUCED MOTION REACHES THE SEAMS, WHICH IT DID NOT. Everything else in this tier honoured it — `useT()`
+  // freezes every register's animation at REDUCED_MOTION_T, the ambient camera is zeroed, the finish layer
+  // drops to 0.55 — and then the film slid a WHOLE FRAME across the screen at every marked seam, which is
+  // the largest single movement in it. Measured by rendering the same mid-seam frame both ways: the tile
+  // boundary sat at column 889 against 889, the only difference being the 10px of ambient drift that was
+  // already being switched off. The accessibility variant was leaving the biggest motion untouched.
+  //
+  // A cross-fade is the answer the html tier already gives ("HTML reveals become opacity-only
+  // cross-fades"), it is what this function's own luminance guard already falls back to, and it carries no
+  // movement at all. One rule, both tiers.
+  if (reducedMotion) return fade();
   const dLum = Math.abs(LUM_RANK[dnaGroundLum(next.shot, next.bgLum, nextG)] - LUM_RANK[dnaGroundLum(prev.shot, prev.bgLum, prevG)]);
   const want = next.transitionIn?.type ?? 'fade';
   // luminance guard: a dark↔light gap forces the gentle fade — EXCEPT the two seams that cannot flash.
@@ -1008,7 +1020,8 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
           return [seq, (
             <TransitionSeries.Transition key={`t${i}`}
               presentation={pickPresentation(sc, scenes[i + 1], width, height, activeDna,
-                edgeGround(sc, 'out') ?? activeDna, edgeGround(scenes[i + 1], 'in') ?? activeDna)}
+                edgeGround(sc, 'out') ?? activeDna, edgeGround(scenes[i + 1], 'in') ?? activeDna,
+                reducedMotion)}
               timing={linearTiming({durationInFrames: TR})} />
           )];
         })}

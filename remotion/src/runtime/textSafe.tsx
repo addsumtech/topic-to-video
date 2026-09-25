@@ -278,6 +278,116 @@ const selfRotated = (cs: CSSStyleDeclaration): boolean => {
 };
 
 /**
+ * THIS element's own 2x2 LINEAR transform — rotation, scale, skew, or any combination — or null.
+ *
+ * Null for `matrix3d`: under a `perspective` ancestor that projects to something which is not an affine
+ * image of the box at all, and guessing there would replace a known over-report with an unknown wrong one.
+ */
+export const selfMatrix = (cs: CSSStyleDeclaration): [number, number, number, number] | null => {
+  let M: [number, number, number, number] = [1, 0, 0, 1];
+  const rotLong = (cs as unknown as {rotate?: string}).rotate;
+  if (rotLong && rotLong !== 'none') {
+    const m = /(-?[\d.]+)(deg|rad|turn|grad)?/.exec(rotLong.trim());
+    if (!m) return null;
+    const v = parseFloat(m[1]), u = m[2] || 'deg';
+    const ang = u === 'rad' ? v : u === 'turn' ? v * 2 * Math.PI : u === 'grad' ? (v * Math.PI) / 200
+      : (v * Math.PI) / 180;
+    M = [Math.cos(ang), Math.sin(ang), -Math.sin(ang), Math.cos(ang)];
+  }
+  const tr = cs.transform;
+  if (!tr || tr === 'none') return M;
+  if (tr.indexOf('(') < 0) return null;
+  const n = tr.slice(tr.indexOf('(') + 1, tr.lastIndexOf(')')).split(',').map((x) => parseFloat(x) || 0);
+  if (n.length !== 6) return null;
+  const T: [number, number, number, number] = [n[0], n[1], n[2], n[3]];
+  return [M[0] * T[0] + M[2] * T[1], M[1] * T[0] + M[3] * T[1],
+          M[0] * T[2] + M[2] * T[3], M[1] * T[2] + M[3] * T[3]];
+};
+
+/**
+ * The QUADRILATERAL an element actually occupies, from its untransformed size and its accumulated 2x2.
+ *
+ * `offsetWidth`/`offsetHeight` are LAYOUT numbers — transforms do not touch them — so they give the box
+ * before anything tilted it. An affine image of a rectangle is a parallelogram, and a parallelogram is
+ * centrally symmetric, so its axis-aligned bounding box (which is what the DOM hands back) is centred on
+ * exactly the same point. Centre plus the two edge vectors is therefore the whole shape, exactly, with no
+ * matrix-to-viewport walk and no reliance on `transform-origin`.
+ *
+ * This is what a client rect cannot say. Measured on the case it was written for: two parallel lines at 14
+ * degrees with a clear 44px gap between them report 66.5% overlap as axis-aligned boxes, against a 22%
+ * threshold, and 0% as the shapes they are. `Element.getBoxQuads()` would answer this directly and is
+ * undefined in the Chrome this renderer ships (149, headless shell) — asked, not assumed.
+ */
+export const quadOf = (el: Element, r: {left: number; top: number; width: number; height: number},
+                       M: [number, number, number, number]): Array<[number, number]> | null => {
+  const he = el as HTMLElement;
+  const w = he.offsetWidth, h = he.offsetHeight;
+  if (!(w > 0) || !(h > 0)) return null;           // SVG and inline boxes have no offset size
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const hx = w / 2, hy = h / 2;
+  return ([[-hx, -hy], [hx, -hy], [hx, hy], [-hx, hy]] as Array<[number, number]>)
+    .map(([x, y]) => [cx + M[0] * x + M[2] * y, cy + M[1] * x + M[3] * y] as [number, number]);
+};
+
+/** Sutherland-Hodgman: the convex intersection of two convex polygons. */
+const clipPoly = (subject: Array<[number, number]>, clip: Array<[number, number]>) => {
+  let out = subject;
+  for (let i = 0; i < clip.length && out.length; i++) {
+    const [ax, ay] = clip[i], [bx, by] = clip[(i + 1) % clip.length];
+    const ex = bx - ax, ey = by - ay;
+    const inside = (p: [number, number]) => (ex * (p[1] - ay) - ey * (p[0] - ax)) >= 0;
+    const next: Array<[number, number]> = [];
+    for (let k = 0; k < out.length; k++) {
+      const P = out[k], Q = out[(k + 1) % out.length];
+      const pin = inside(P), qin = inside(Q);
+      if (pin) next.push(P);
+      if (pin !== qin) {
+        const dx = Q[0] - P[0], dy = Q[1] - P[1];
+        const den = ex * dy - ey * dx;
+        if (Math.abs(den) > 1e-9) {
+          const u = (ex * (P[1] - ay) - ey * (P[0] - ax)) / -den;
+          next.push([P[0] + u * dx, P[1] + u * dy]);
+        }
+      }
+    }
+    out = next;
+  }
+  return out;
+};
+
+const polyArea = (pts: Array<[number, number]>) => {
+  let a = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const [x1, y1] = pts[i], [x2, y2] = pts[(i + 1) % pts.length];
+    a += x1 * y2 - x2 * y1;
+  }
+  return Math.abs(a) / 2;
+};
+
+/** Two quads' true overlap: {area, depth} in px, depth being the shallowest penetration over both shapes'
+ *  edge normals — the separating-axis quantity, which is what "how deep" means for a tilted pair. */
+export const quadOverlap = (pa: Array<[number, number]>, pb: Array<[number, number]>) => {
+  const area = polyArea(clipPoly(pa, pb));
+  if (area <= 0) return {area: 0, depth: 0};
+  let depth = Infinity;
+  for (const poly of [pa, pb]) {
+    for (let i = 0; i < poly.length; i++) {
+      const [x1, y1] = poly[i], [x2, y2] = poly[(i + 1) % poly.length];
+      const len = Math.hypot(x2 - x1, y2 - y1);
+      if (len < 1e-9) continue;
+      const nx = -(y2 - y1) / len, ny = (x2 - x1) / len;
+      const proj = (q: Array<[number, number]>) => {
+        const v = q.map(([x, y]) => x * nx + y * ny);
+        return [Math.min(...v), Math.max(...v)] as [number, number];
+      };
+      const [a0, a1] = proj(pa), [b0, b1] = proj(pb);
+      depth = Math.min(depth, Math.min(a1, b1) - Math.max(a0, b0));
+    }
+  }
+  return {area, depth: Math.max(0, depth)};
+};
+
+/**
  * Does any transform up this element's chain rotate or skew it? Deliberately over-inclusive.
  *
  * MEMOISED PER AUDIT, because the naive walk is quadratic in a way this library actually reaches: a
@@ -285,6 +395,7 @@ const selfRotated = (cs: CSSStyleDeclaration): boolean => {
  * which is the expensive call. An element's answer is its own transform OR its parent's answer, so one
  * cache turns the whole tree into a single pass.
  */
+
 const rotatedUnder = (el: Element, win: Window, memo: Map<Element, boolean>): boolean => {
   const chain: Element[] = [];
   let node: Element | null = el;
@@ -300,6 +411,37 @@ const rotatedUnder = (el: Element, win: Window, memo: Map<Element, boolean>): bo
   }
   for (let i = chain.length - 1; i >= 0; i--) {
     acc = acc || selfRotated(win.getComputedStyle(chain[i]));
+    memo.set(chain[i], acc);
+  }
+  return acc;
+};
+
+/**
+ * The accumulated 2x2 up this element's chain, or null when any link is not an affine we can compose.
+ *
+ * The boolean twin above answers "should these numbers be discounted"; this answers "by exactly what",
+ * which is what turns a bounding box back into the shape it bounds. Null propagates: one `matrix3d`
+ * ancestor and the reconstruction is not valid, so the pair falls back to the advisory path rather than to
+ * a confident wrong number. Memoised for the same reason its twin is.
+ */
+const matrixUnder = (el: Element, win: Window,
+                     memo: Map<Element, [number, number, number, number] | null>) => {
+  const chain: Element[] = [];
+  let node: Element | null = el;
+  let acc: [number, number, number, number] | null = [1, 0, 0, 1];
+  while (node) {
+    if (memo.has(node)) {
+      acc = memo.get(node) as [number, number, number, number] | null;
+      break;
+    }
+    chain.push(node);
+    node = node.parentElement;
+  }
+  for (let i = chain.length - 1; i >= 0; i--) {
+    const own = selfMatrix(win.getComputedStyle(chain[i]));
+    acc = acc === null || own === null ? null
+      : [acc[0] * own[0] + acc[2] * own[1], acc[1] * own[0] + acc[3] * own[1],
+         acc[0] * own[2] + acc[2] * own[3], acc[1] * own[2] + acc[3] * own[3]];
     memo.set(chain[i], acc);
   }
   return acc;
@@ -393,8 +535,10 @@ export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] 
   const win = root.ownerDocument?.defaultView;
   if (!win) return [];
   const out: Collision[] = [];
-  const boxes: {el: Element; r: DOMRect; text: string; font: string; cls: string; rot: boolean}[] = [];
+  const boxes: {el: Element; r: DOMRect; text: string; font: string; cls: string; rot: boolean;
+                mat: [number, number, number, number] | null}[] = [];
   const rotMemo = new Map<Element, boolean>();
+  const matMemo = new Map<Element, [number, number, number, number] | null>();
   root.querySelectorAll('*').forEach((el) => {
     const text = hasOwnText(el);
     if (!text) return;
@@ -409,6 +553,7 @@ export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] 
     // 1. this element's own lines, against each other. Rotated type gets the orientation-free instrument —
     //    its client rects are bounding boxes of tilted lines and overlap by construction.
     const rot = rotatedUnder(el, win, rotMemo);
+    const mat = rot ? matrixUnder(el, win, matMemo) : null;
     let worst = 0, box = 0, wraps = false;
     if (rot) {
       const m = metricLeading(el, cs, text);
@@ -468,7 +613,7 @@ export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] 
                   ...(rot ? {rot: true} : {})});
       }
     }
-    boxes.push({el, r, text: short, font, cls, rot});
+    boxes.push({el, r, text: short, font, cls, rot, mat});
   });
   // 2. element against element — skip any pair where one contains the other (a label inside its own card
   //    is not a collision; its box is supposed to be inside)
@@ -476,15 +621,40 @@ export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] 
     for (let j = i + 1; j < boxes.length; j++) {
       const a = boxes[i], b = boxes[j];
       if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
-      const w = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);
-      const h = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
+      // A TILTED PAIR IS MEASURED AS THE RECTANGLES IT IS, NOT AS THE BOXES THAT BOUND THEM. A client rect
+      // is axis-aligned, so for sloping type it is larger than the glyphs on the side they slope toward —
+      // and the error runs BOTH ways, so a real collision between two tilted lines could equally be missed.
+      // Measured on the case this was written for: two parallel lines at 14 degrees with a clear 44px gap
+      // between them report 66.5% overlap axis-aligned, against a threshold of 22%, and 0% as rectangles.
+      // (That is TermSpace's «交付可验收的成果» x «自动归档», reported at 9:16, 1:1 and 4:5 and clean on
+      // the frame.) Bounded to pairs that actually involve a rotation, so every other pair keeps the fast
+      // path and the same numbers it has always produced.
+      let w: number, h: number, area: number, smaller: number, depth: number;
+      const qa = a.rot || b.rot
+        ? quadOf(a.el, a.r, a.mat ?? [1, 0, 0, 1]) : null;
+      const qb = qa ? quadOf(b.el, b.r, b.mat ?? [1, 0, 0, 1]) : null;
+      const exact = (a.rot ? a.mat !== null : true) && (b.rot ? b.mat !== null : true) && qa && qb
+        ? {qa, qb} : null;
+      if (exact) {
+        const {area: ar, depth: dp} = quadOverlap(exact.qa, exact.qb);
+        area = ar;
+        depth = dp;
+        w = h = dp;                                   // the gates below read these as "is it deep enough"
+        const sizeOf = (q: Array<[number, number]>) =>
+          Math.abs((q[1][0] - q[0][0]) * (q[3][1] - q[0][1]) - (q[3][0] - q[0][0]) * (q[1][1] - q[0][1]));
+        smaller = Math.min(sizeOf(exact.qa), sizeOf(exact.qb));
+      } else {
+        w = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);
+        h = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
+        area = w * h;
+        smaller = Math.min(a.r.width * a.r.height, b.r.width * b.r.height);
+        depth = Math.min(w, h);
+      }
       if (w <= MIN_OVERLAP_PX || h <= MIN_OVERLAP_PX) continue;
-      const area = w * h;
-      const smaller = Math.min(a.r.width * a.r.height, b.r.width * b.r.height);
       if (smaller <= 0 || area / smaller < OVERLAP_AREA_FRAC) continue;
-      // A tilted element's box is its bounding box, so a pair involving one overlaps more than the ink
-      // does. `overlap` is advisory either way; the flag says which numbers to discount.
-      out.push({kind: 'overlap', depth: Math.round(Math.min(w, h)), text: a.text, other: b.text,
+      // `rot` still rides along: on the oriented path it says the numbers came from the exact instrument,
+      // and on the fallback that they are a bounding-box over-report.
+      out.push({kind: 'overlap', depth: Math.round(depth), text: a.text, other: b.text,
                 font: a.font, cls: a.cls, ...(a.rot || b.rot ? {rot: true} : {})});
     }
   }
