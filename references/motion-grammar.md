@@ -254,6 +254,19 @@ are the DEPTH seams and the film's native action — `carry` (a collapse-to-line
 happens at the focal plane), `through-dark` (the leaving beat's light goes out, the next comes forward out of
 black), `portal` (the camera passes through the frame), plus `clock` and `dissolve`.
 
+**`return` is the one seam an author does not spell.** It is written as an ARGUMENT — `relation: 'return'`
+with `returns_to: <beat>` — and the direction is derived from where that beat sits on the film's board
+(`scripts/film_board.py`). It is the only word in this vocabulary that claims a PLACE rather than a
+relationship: *this is where we were*. `carry` looks similar and is not, because it carries an ELEMENT
+across a cut rather than saying the two frames are the same location.
+
+Geometrically it IS a push, and that is a measured limit rather than a shortcut. Two full-frame pictures
+offset by anything less than one frame leave a strip exactly that wide covered by neither — rendered and
+measured at left-edge luminance 9.5 against a centre of 74.6, which reads as a curtain — and a diagonal
+offset leaves two corners bare. So the pan is a unit step along one axis; the distance a film reaches back
+is not expressible in twelve frames and is not pretended at. A return that claims nothing (a forward
+reference, or the cell the film is already standing in) is an ERROR in `validate`, not a quiet cut.
+
 Until 2026-09-20 the two tiers disagreed: `fadethrough`, `drift` and `blur` had no remotion picture at all, and
 `push`/`lift` were spelled only in the html vocabulary, so `transition_in: {"type": "push"}` fell through to an
 anonymous fade. A relation one tier can claim and the other cannot is a vocabulary hole, and a seam that goes

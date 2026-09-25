@@ -565,7 +565,7 @@ comparison is like for like rather than an impression.
 | `blur()` | 76 (35%) | 17 (11%) | 19 (10%) — but 17 are real `filter`, 2 frosted |
 | `spring` | 24 (11%) | 3 | 3 |
 | **overshoot of any kind** | — | — | **59 (32%)** |
-| seam vocabulary | 18 cards + 6 hand-off recipes | 5, all planar | **14 words, 4 in depth** — closed |
+| seam vocabulary | 18 cards + 6 hand-off recipes | 5, all planar | **15 words, 4 in depth** — closed |
 
 **The `spring` row compared the wrong thing, and it is the row that reads worst.** A spring is not the
 capability; OVERSHOOT is — "a thing that settles past its mark and comes back reads as having weight; a
@@ -618,9 +618,29 @@ two were unreachable:
   seam go quiet.
 
 Vocabulary now: `fade` `fadethrough` `drift` `push` `lift` `slide` `wipe` `clock` `dissolve` `blur` `carry`
-`focus` `through-dark` `portal` — 14 words, four of which (carry, focus, through-dark, portal) happen in
-depth rather than in the plane. The remaining distance to 18 is theirs to keep: it is made of moves this
-repo has already decided not to ship.
+`focus` `through-dark` `portal` `return` — 15 words, four of which (carry, focus, through-dark, portal)
+happen in depth rather than in the plane. The remaining distance to 18 is theirs to keep: it is made of
+moves this repo has already decided not to ship.
+
+**`return` is the fifteenth, and it is the only one that claims a PLACE (2026-09-25).** Every other word
+says something about how two beats RELATE — continuity, arrival, a chapter break, a hand-off. None could
+say *this is where we were*, so a film reaching back to an earlier idea had nothing to say it with; `carry`
+carries an ELEMENT across a cut, which is a different claim. The film's beats are laid out on a board
+derived from the `relation` chain they already declare (`scripts/film_board.py` — a step along a row, a new
+row on a chapter break, and a returning beat TAKES the cell it returns to), and `relation: 'return'` with
+`returns_to: <beat>` pans toward that cell.
+
+It is also the clearest case in this repo of a design being cut down by a render rather than by an opinion,
+and the cut is worth keeping written down. The first build made the DISTANCE mean something — reach back
+five cells and travel further than two. Two full-frame pictures offset by V leave a strip exactly |V| wide
+that neither covers: measured at left-edge luminance 9.5 against a centre of 74.6, a hard dark band sweeping
+the frame, a curtain rather than a camera. `slide`/`push` escape that for one reason only — their separation
+is EXACTLY one frame, so the two tile — and a diagonal does not tile either, since an offset of (W, H)
+leaves two corners bare. **So the pan is a unit step along one axis, and geometrically `return` IS a push.**
+What it adds is that the direction is DERIVED from where the remembered beat sits rather than chosen, and
+that a return which claims nothing — a forward reference, the cell the film is already in — is refused by
+`validate` instead of rendering as a quiet cut. The distance is not expressible in twelve frames between
+two pictures that are not tiles of one image, and saying so is more useful than shipping the band.
 
 ### The form of their documentation is itself a capability
 

@@ -46,7 +46,7 @@ _TRANSITION_STYLE = {
 # asks for one is silently downgraded to a fade, which is the exact "built but unreachable" failure this
 # file's `transition_in` docstring was written about — and it has already cost this repo two deliveries.
 _KINETIC_TYPES = {"slide", "push", "lift", "wipe", "clock", "dissolve", "fadethrough", "drift", "blur",
-                  "carry", "focus", "through-dark", "portal"}
+                  "carry", "focus", "through-dark", "portal", "return"}
 
 
 # The runtime's own settled point, parsed from motion.ts so the two cannot drift: a keyframe must be the
@@ -131,9 +131,18 @@ def seam_type(word):
     return mapped["type"] if mapped else None
 
 
-def _transition_in(slide):
+def _transition_in(slide, travel=None):
     """Map a storyboard scene's transition intent → the Film `transitionIn` mark (or None = the safe default fade).
-    Only a MARKED (kinetic) seam returns a value; the shot-director budgets ~2-3 per film for chapter breaks."""
+    Only a MARKED (kinetic) seam returns a value; the shot-director budgets ~2-3 per film for chapter breaks.
+
+    `travel` is this beat's (dx, dy) from `film_board.travels`, present only on a beat that declares a
+    RETURN. It arrives as an argument rather than being derived here because the vector is a property of the
+    whole board — where this beat sits and where the one it names sits — and a per-slide function cannot see
+    that. One definition, in `film_board`, used by the planner, the validator and this emitter alike.
+    """
+    if travel is not None:
+        dx, dy = travel
+        return {"type": "return", "dx": round(float(dx), 5), "dy": round(float(dy), 5)}
     ti = slide.get("transition_in")
     if isinstance(ti, dict) and ti.get("type"):                            # explicit remotion mark wins
         # ALIASES RESOLVE ON BOTH SPELLINGS. They resolved only for `transition_style`, so a board that wrote
@@ -417,7 +426,15 @@ def build_scenes(slides, out_dir, valid, fps=30):
     the translation nobody could test had never learned the fields.
     """
     scenes = []
-    for s in slides:
+    # THE BOARD, ONCE PER FILM. A return's travel is a property of where two beats sit relative to each
+    # other, so it cannot be derived inside a per-slide function; `film_board` owns the geometry and every
+    # caller — the validator, this emitter, a human reading the plan — asks the same module for it.
+    try:
+        import film_board as _fb
+        _travels = _fb.travels(slides)
+    except Exception:                          # noqa: BLE001 — a board with no returns must still render
+        _travels = {}
+    for i, s in enumerate(slides):
         idx, shot = s.get("index"), s.get("shot")
         if not shot:
             raise RuntimeError("scene #%s has no `shot` (a remotion register id) — run the shot-director "
@@ -462,7 +479,7 @@ def build_scenes(slides, out_dir, valid, fps=30):
         spans = _caption_word_spans(out_dir, audio, caption)
         if spans:
             scene["capWords"] = spans
-        tin = _transition_in(s)   # a MARKED seam (chapter break) → Film's kinetic transition; else the safe fade
+        tin = _transition_in(s, _travels.get(i))   # a MARKED seam → Film's kinetic transition; else the safe fade
         if tin:
             scene["transitionIn"] = tin
         cam = _camera(s)          # a MOTIVATED per-beat move (push/pull); absent = hold

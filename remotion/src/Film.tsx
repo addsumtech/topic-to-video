@@ -53,7 +53,10 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // remotion-only; unset = the luminance-safe default (a gentle cross-fade). A kinetic type is honored only
   // on a same/near-luminance seam — across a dark↔light gap it's suppressed back to fade (see pickPresentation).
   transitionIn?: {type: 'fade' | 'slide' | 'push' | 'lift' | 'wipe' | 'clock' | 'dissolve' | 'fadethrough'
-    | 'drift' | 'blur' | 'carry' | 'focus' | 'through-dark' | 'portal'; direction?: string};
+    | 'drift' | 'blur' | 'carry' | 'focus' | 'through-dark' | 'portal' | 'return'; direction?: string;
+    /** `return` only: the pan across the film's board, as fractions of the frame's LONG side. Computed by
+     *  `scripts/film_board.py`, which is the one place that knows where two beats sit. */
+    dx?: number; dy?: number};
   // A MOTIVATED camera move for THIS beat: `push` (look closer at what is here), `pull` (here is the whole
   // of it), `hold` (most beats). Optional; absent = hold. This is not the film-wide ambient drift below —
   // that one had no relationship to anything being said, which is precisely why it read as a wobble.
@@ -506,6 +509,49 @@ const fadeThrough = (bg?: string): TransitionPresentation<any> => ({component: F
 // It is luminance-SAFE by construction, so it joins the seams the harsh-gap guard lets through: every pixel
 // it draws is one of the two beats at some opacity, exactly as `fade` does, and a translation adds no light.
 const DRIFT_FRAC = 0.022;              // of the frame's long side — ~24px at 1080p, the html tier's number
+// THE ONE SEAM THAT CLAIMS A PLACE. Every other word in this vocabulary says something about the
+// RELATIONSHIP between two beats — continuity, arrival, a chapter break, a hand-off. None of them can say
+// "this is where we were", and a film that reaches back to an earlier idea had no way to show it.
+//
+// It is a PAN, so both halves travel together in the same direction and at the same rate: the leaving beat
+// slides out by the whole vector while the arriving one comes in from the far side of it, which is what a
+// camera crossing a board actually does. Drawn as two independently sliding pages it would read as a push.
+//
+// THE VECTOR IS NOT COMPUTED HERE. It arrives in `passedProps` from `scripts/film_board.py`, which knows
+// where both beats sit; deriving board geometry in two languages is how the two drift apart. It is a UNIT
+// step along one axis — never a diagonal and never a fraction — because two full-frame pictures tile only
+// when they are exactly one frame apart, and a diagonal offset leaves two corners bare.
+//
+// NO PERSPECTIVE, ON PURPOSE. `runtime/depth.tsx` measured what a Z plane costs this renderer — glyph edge
+// strength 91 flat against 56 under `perspective(1200px) translateZ(50px)`, a 38% loss — so a "space" built
+// that way would soften every word in the film. A pure 2D translate has no such cost, and at both ends of
+// the seam the transform is exactly identity, so no beat is ever READ through a transform at all.
+const ReturnPresentation = ({presentationProgress: p, presentationDirection, children, passedProps}: any) => {
+  const c = {extrapolateLeft: 'clamp' as const, extrapolateRight: 'clamp' as const};
+  const isEnter = presentationDirection === 'entering';
+  // EACH AXIS SCALES BY ITS OWN DIMENSION, so the two halves tile at every aspect. Against the long side
+  // they tile only at 16:9; at 9:16 a horizontal return would overshoot by the whole difference and open
+  // the band this seam was rebuilt to close.
+  const vx = (passedProps?.dx ?? 0) * (passedProps?.W ?? 1920);
+  const vy = (passedProps?.dy ?? 0) * (passedProps?.H ?? 1080);
+  // both halves move by the SAME vector in the same direction; the arriving beat simply starts a whole
+  // vector behind, which is where it sits on the board relative to the one being left
+  // ONE ramp, shared: the leaving half runs 0 -> 1 of the vector and the arriving half -1 -> 0, so at every
+  // instant they are exactly one vector apart and travelling together. Linear, like every other seam here —
+  // the timing curve belongs to `linearTiming`, not to each presentation.
+  const kk = isEnter ? interpolate(p, [0, 1], [-1, 0], c) : interpolate(p, [0, 1], [0, 1], c);
+  // AND NO CROSS-FADE. A pan does not dissolve; it moves. Measured on the first build, which faded both
+  // halves over [0.18, 0.82] the way `drift` does: at a quarter through the seam the arriving beat was at
+  // 10% opacity, so the strip it occupied showed bare ground and the frame read left-edge 9.5 against a
+  // centre of 74.6 — a hard dark band sweeping across, which is a curtain and not a camera. Both halves
+  // stay fully opaque and the offsets tile, exactly as `slide` does, so every pixel is always covered by
+  // one beat or the other.
+  const t = `translate(${(vx * kk).toFixed(2)}px, ${(vy * kk).toFixed(2)}px)`;
+  return <SeamGround bg={passedProps?.bg} show={!isEnter} style={{transform: t}}>{children}</SeamGround>;
+};
+const travelBack = (dx: number, dy: number, W: number, H: number, bg?: string): TransitionPresentation<any> =>
+  ({component: ReturnPresentation, props: {dx, dy, W, H, bg}});
+
 const DriftPresentation = ({presentationProgress: p, presentationDirection, children, passedProps}: any) => {
   const c = {extrapolateLeft: 'clamp' as const, extrapolateRight: 'clamp' as const};
   const isEnter = presentationDirection === 'entering';
@@ -719,6 +765,11 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
   // exactly what `fade` draws and then translates it, and a translation adds no light; `blur` is a Gaussian
   // over a cross-fade, and a Gaussian redistributes light without adding any. `fadethrough` is deliberately
   // NOT here — leaving fast is how a dark ground becomes a light one in 0.15s, which is this guard's case.
+  // `return` is deliberately NOT here, and the reason is consistency rather than doubt: it is geometrically
+  // the same move as `push` — two full frames tiling past each other — and `push` is not exempt either.
+  // Both may well deserve the exemption (nothing is ever uncovered, so no ground can flash through), but
+  // that is a claim to EARN with three measured renders the way `focus` earned its, and for both words at
+  // once. Giving my own new word an exemption its twin does not have would be special pleading.
   const CANNOT_FLASH = new Set(['carry', 'focus', 'through-dark', 'drift', 'blur']);
   const t = (harsh && !CANNOT_FLASH.has(want)) ? 'fade' : want;
   const dir = next.transitionIn?.direction;
@@ -736,6 +787,7 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
     // the ground the seam dips THROUGH is the film's own, never the black behind the sequences
     case 'fadethrough': return fadeThrough(seamBg);
     case 'drift': return drift(dir, W, H, seamBg);
+    case 'return': return travelBack(next.transitionIn?.dx ?? 0, next.transitionIn?.dy ?? 0, W, H, seamBg);
     case 'blur': return defocus(seamBg);
     case 'wipe': return wipe({direction: (dir as any) ?? 'from-bottom'});
     case 'clock': return clockWipe({width: W, height: H});

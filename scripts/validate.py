@@ -2569,6 +2569,17 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None):
                                   f"(aliases in render_remotion._TRANSITION_STYLE)")
     except Exception:
         pass
+    try:                                                   # A RETURN MUST NAME A PLACE THE FILM HAS BEEN
+        # `relation: 'return'` is the only seam word that refers to ANOTHER beat, so it is the only one that
+        # can be wrong about something outside itself: a forward reference, a beat that is not there, the
+        # cell the film is already standing in. Every one of those renders as a quiet no-op — the board says
+        # "we are back where we started" and the film cuts. `film_board.refusals` is the one place that
+        # knows, and it is what the renderer asks too, so the two cannot disagree.
+        import film_board as _fb
+        for beat, why in _fb.refusals(slides):
+            errors.append(f"remotion: beat {beat} — {why}")
+    except Exception:
+        pass
     try:                                                   # marked-seam BUDGET: most seams ride the safe fade
         import render_remotion as _rr
         marked = sum(1 for s in slides[1:] if _rr._transition_in(s))   # scene 0 has no incoming seam
