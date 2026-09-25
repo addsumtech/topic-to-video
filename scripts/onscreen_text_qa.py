@@ -380,6 +380,48 @@ _LIST_METHODS = ("filter", "map", "some", "every", "forEach", "reduce", "concat"
                  "sort", "slice")
 
 
+def _signature(path):
+    """(code, prop-declaration body, destructuring) for a register's exported component — or None.
+
+    Two spellings defeated the first reader and it returned [] for both, which is the shape this repo keeps
+    finding: a gate that cannot read something reports it as clean. `MRIPipeline` writes `React.FC<{...} >`
+    with a space before the angle bracket; `AcceptanceStamp` writes `React.FC<Props>` and declares `Props`
+    as a named alias above. Neither had an unguarded list, so nothing was wrong — but nothing was CHECKED
+    either, and the caller could not tell the difference. Now both parse, and anything that still does not
+    is RETURNED as a finding rather than swallowed.
+    """
+    name = os.path.basename(path)[:-4]
+    code = _strip_comments(open(path, encoding="utf-8").read())
+    m = re.search(r"export const %s\s*:\s*React\.FC<\s*\{(.*?)\}\s*>\s*=\s*\((.*?)\)\s*=>"
+                  % re.escape(name), code, re.S)
+    if m:
+        return code, m.group(1), m.group(2)
+    # a NAMED props type: `React.FC<Props>` with `type Props = {...}` above
+    m = re.search(r"export const %s\s*:\s*React\.FC<\s*([A-Za-z_]\w*)\s*>\s*=\s*\((.*?)\)\s*=>"
+                  % re.escape(name), code, re.S)
+    if m:
+        body = _alias_body(m.group(1), code)
+        if body is not None:
+            return code, body, m.group(2)
+    return None
+
+
+def _alias_body(alias, code):
+    """The `{...}` body of `type <alias> = {...}`, brace-balanced."""
+    m = re.search(r"(?:type|interface)\s+%s\s*=?\s*\{" % re.escape(alias), code)
+    if not m:
+        return None
+    i, depth = m.end() - 1, 0
+    for j in range(i, len(code)):
+        if code[j] == "{":
+            depth += 1
+        elif code[j] == "}":
+            depth -= 1
+            if depth == 0:
+                return code[i + 1:j]
+    return None
+
+
 def unguarded_list_props(path):
     """Array props a register calls an array method on WITHOUT first checking it got an array.
 
@@ -397,16 +439,13 @@ def unguarded_list_props(path):
     Only the EXPORTED register's own signature is read. An internal sub-component's props are fed by the
     register itself, and flagging those reported twelve registers that were already guarding correctly.
     """
-    name = os.path.basename(path)[:-4]
-    src = open(path, encoding="utf-8").read()
-    code = _strip_comments(src)
-    m = re.search(r"export const %s\s*:\s*React\.FC<\{(.*?)\}>\s*=\s*\((.*?)\)\s*=>" % re.escape(name),
-                  code, re.S)
-    if not m:
-        return []
-    props = {f: t.strip() for f, t in re.findall(r"(\w+)\s*\??\s*:\s*([^;]+);", m.group(1) + ";")
+    decl = _signature(path)
+    if decl is None:
+        return ["(signature unreadable — this register is NOT covered by the rule)"]
+    code, inline, destr = decl
+    props = {f: t.strip() for f, t in re.findall(r"(\w+)\s*\??\s*:\s*([^;]+);", inline + ";")
              if "[]" in t}
-    binds = dict(re.findall(r"(\w+)\s*:\s*(\w+)", m.group(2)))
+    binds = dict(re.findall(r"(\w+)\s*:\s*(\w+)", destr))
     out = []
     for prop, ty in sorted(props.items()):
         local = binds.get(prop, prop)
@@ -453,7 +492,9 @@ def _comment_spans(src):
             continue
         if src.startswith("/*", i):
             j = src.find("*/", i + 2)
-            i = n if j < 0 else j + 2
+            end = n if j < 0 else j + 2
+            out.append((i, end))
+            i = end
             continue
         if src.startswith("//", i):
             j = src.find("\n", i)
@@ -467,6 +508,12 @@ def _comment_spans(src):
 
 def jsx_text_comments(path):
     """`//` comments sitting in JSX CHILDREN position — which React renders as literal on-screen text.
+
+    BOTH SPELLINGS. `/* x */` written bare between two tags renders exactly as `// x` does — only
+    `{/* x */}` is a real JSX comment, because the braces make it an expression slot. The first version of
+    this checker looked for `//` alone and missed the block form; an adversarial pass over this file's own
+    output found it. The position test is identical for both, and the brace form is excluded for free: the
+    character before `{/*` is `{`, not `>`.
 
     WHY THIS IS ITS OWN CHECK. Every other reader in this file strips comments before it looks, because a
     comment is not code. In children position that assumption inverts: `<div>` / `// note` / `</div>` puts

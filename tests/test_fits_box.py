@@ -113,3 +113,18 @@ def test_it_refuses_rather_than_throwing_on_the_empty_and_absent_cases():
         "out.negative = fitsBox('文字', 24, -50, 400);\n")
     for k, v in out.items():
         assert v is False, "%s should be a quiet false, not %r — a label needs a box to be drawn in" % (k, v)
+
+
+@_NEEDS_NODE
+def test_a_blank_label_is_not_a_label():
+    """`'   '` is a truthy string that wraps to one line and fits any box, so the first version said TRUE and
+    the caller drew a padded ground with nothing on it. Found by probing this helper adversarially after it
+    had shipped, not by any gate."""
+    out = _run(
+        "out.spaces = fitsBox('   ', 24, 400, 400);\n"
+        "out.tab = fitsBox('\\t\\n', 24, 400, 400);\n"
+        "out.padded_real = fitsBox('  \u6587\u5b57  ', 24, 400, 400);\n")
+    assert out["spaces"] is False, "a run of spaces is accepted as a label"
+    assert out["tab"] is False, "whitespace characters are accepted as a label"
+    assert out["padded_real"] is True, (
+        "a real label with incidental whitespace is refused — the trim must clean the ends, not reject them")

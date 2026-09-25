@@ -3262,9 +3262,35 @@ export const Probe: React.FC<{items?: Item[]}> = ({items: ITEMS_IN = D} = {}) =>
             got = ask(src)
             assert not got, "%s reads as unguarded: %r" % (label, got)
 
+    # ...AND A SIGNATURE IT CANNOT READ IS A FINDING, NOT A PASS. Two spellings defeated the first reader
+    # and it returned [] for both: `React.FC<{...} >` (a space before the bracket) and `React.FC<Props>`
+    # (a named alias). Neither register had an unguarded list, so nothing was wrong — and nothing was
+    # CHECKED, which is the shape this repo keeps finding. Coverage is asserted as a number.
+    NAMED_ALIAS = """
+type Props = {items?: Item[]};
+export const Probe: React.FC<Props> = ({items: ITEMS = D} = {}) => <div>{ITEMS.map((i) => i.name)}</div>;
+"""
+    SPACED_BRACKET = """
+export const Probe: React.FC<{items?: Item[]} > = ({items: ITEMS = D} = {}) => <div>{ITEMS.map((i) => i)}</div>;
+"""
+    with tempfile.TemporaryDirectory() as d:
+        for label, src in (("a named props alias", NAMED_ALIAS), ("a space before the bracket", SPACED_BRACKET)):
+            f = os.path.join(d, "Probe.tsx")
+            open(f, "w", encoding="utf-8").write(src)
+            assert q._signature(f) is not None, "%s is no longer parsed, so the rule silently skips it" % label
+            assert q.unguarded_list_props(f), "%s parses but its unguarded list is not reported" % label
+        f = os.path.join(d, "Probe.tsx")
+        open(f, "w", encoding="utf-8").write("export const Probe = () => null;\n")
+        assert "unreadable" in " ".join(q.unguarded_list_props(f)), (
+            "a signature this rule cannot read is reported as CLEAN — silence must not mean agreement")
+
     shots = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "shots")
+    files = sorted(glob.glob(os.path.join(shots, "*.tsx")))
+    unreadable = [os.path.basename(f)[:-4] for f in files if q._signature(f) is None]
+    assert not unreadable, ("the rule cannot read these registers' signatures, so they are not covered by "
+                            "it at all: %s" % unreadable)
     bad = {os.path.basename(f)[:-4]: q.unguarded_list_props(f)
-           for f in sorted(glob.glob(os.path.join(shots, "*.tsx"))) if q.unguarded_list_props(f)}
+           for f in files if q.unguarded_list_props(f)}
     assert not bad, ("these registers call an array method on a list prop they never checked: %s. Wrap it "
                      "with `rows(v, 'prop', 'Shot')` from runtime/rows." % bad)
 
@@ -3294,6 +3320,12 @@ def test_no_register_renders_a_line_comment_as_on_screen_text():
         ("a whole block",  "<>\n  // line one\n  // line two\n  <A/>\n</>", 2),
         ("before a slot",  "<div>\n  // note\n  {x}\n</div>", 1),
         ("between kids",   "<div>\n  <A/>\n  // trailing note\n  <B/>\n</div>", 1),
+        # BOTH SPELLINGS. `/* x */` written bare between two tags renders exactly as `// x` does; only
+        # `{/* x */}` is a real JSX comment, because the braces make it an expression slot. The first
+        # version of this checker looked for `//` alone and an adversarial pass over its own output
+        # found the gap.
+        ("a bare block",   "<div>\n  /* this renders too */\n  <A/>\n</div>", 1),
+        ("both kinds",     "<div>\n  /* one */\n  // two\n  <A/>\n</div>", 2),
     ]
     NEGATIVE = [
         ("arrow body",     "const f = (a) =>\n  // pick\n  {return a};"),
@@ -3302,6 +3334,8 @@ def test_no_register_renders_a_line_comment_as_on_screen_text():
         ("after the close", "return (\n  <div>x</div>\n  // trailing\n);"),
         ("a real comment", "{/* fine */}\n<div>\n  <A/>\n</div>"),
         ("inside a string", "const s = '<div>\\n// not a comment\\n<a/>';"),
+        ("a doc block before a return", "return (\n  /* why */\n  <div/>\n);"),
+        ("a module header block", "/* module header */\nconst a = 1;"),
     ]
     with tempfile.TemporaryDirectory() as d:
         for name, src, want in POSITIVE:

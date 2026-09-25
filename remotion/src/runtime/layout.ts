@@ -144,7 +144,12 @@ export const inkBlockH = (fontPx: number, lines = 1) =>
 export const fitsBox = (
   text: string, fontPx: number, boxW: number, boxH: number, padX = 0, padY = 0,
 ): boolean => {
-  const s = String(text ?? '');
+  // TRIMMED, AND A BLANK IS NOT A LABEL. `'   '` is a truthy string that wraps to one line and fits any
+  // box, so the first version answered TRUE for it and the caller drew a padded ground with nothing on it —
+  // on `SameStuffChanged`, a solid rectangle where a name should be. Whitespace is also what the browser
+  // collapses at the ends, so measuring the trimmed text is the more accurate question as well as the
+  // safer one.
+  const s = String(text ?? '').trim();
   const inner = boxW - padX;
   if (!s || !(fontPx > 0) || inner <= 0) return false;
   if (wrapLines([...s].slice(0, 2).join(''), fontPx, inner) > 1) return false;
