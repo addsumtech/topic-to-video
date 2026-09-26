@@ -60,3 +60,19 @@ def test_the_default_look_follows_the_ground():
       out.none = defaultLook(null);
     """)
     assert out == {"dark": "real", "light": "flat", "none": "flat"}
+
+
+@needs_node
+def test_a_fling_ends_exactly_where_it_was_sent_and_overshoots_only_a_little():
+    out = tp.run_ts("import {flingAt, scrollRangePx} from %s;" % tp.mod("screen"), """
+      const us = Array.from({length: 101}, (_, i) => i / 100);
+      out.v = us.map((u) => flingAt(u));
+      out.range = scrollRangePx(1170, 6000, 390, 844);
+      out.none = scrollRangePx(1170, 2532, 390, 844);
+    """)
+    v = out["v"]
+    assert v[0] == 0 and abs(v[-1] - 1) < 1e-9
+    assert max(v) <= 1.04 + 1e-9 and max(v) > 1.0
+    assert all(b >= a - 1e-9 for a, b in zip(v[:72], v[1:73])), "the fling reverses before its peak"
+    assert out["range"] == pytest.approx(6000 * 390 / 1170 - 844)
+    assert out["none"] == pytest.approx(0, abs=1)
