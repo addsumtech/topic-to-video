@@ -24,9 +24,12 @@ The tiers are not three looks. They are three different trade-offs, and every on
 
   remotion the bespoke-shot library — 185 hand-designed shot languages, luminance-safe seams, a carry
            match-cut, a design DNA for the whole film. The strongest register for launch, promo and story.
-           It renders the whole film in one pass (no per-scene cache), so any edit re-renders everything, and
-           it needs Node, its own Chrome and real memory: on a 37-beat film the full render failed repeatedly
-           at ~1 GB free, and a one-beat fix the user asked for never reached the delivered film.
+           It renders PER BEAT and keeps the beats an edit did not touch (remotion_segments.py): a VISUAL edit
+           re-renders that beat and the next, but a NARRATION edit changes a beat's length and so re-renders
+           every later one (the film's atmosphere pulses on the absolute frame). Before that cache it rendered
+           the whole film in one pass, and on a 37-beat film that pass failed repeatedly at ~1 GB free, so a
+           one-beat fix the user asked for never reached the delivered film. It still needs Node, its own
+           Chrome and real memory.
 
 So the recommendation follows the PURPOSE first and the TOPIC second, and it is ADVICE: it names the tier,
 why, and what you give up — the user still chooses, and `--check` says so once if the choice fights the
@@ -155,9 +158,10 @@ def recommend(purpose, has_deck=False, keep_deck=False, data_dense=None, remotio
                "发布、宣传和讲故事靠的是镜头语言和节奏：185 种设计好的镜头、电影化接缝、统一的品牌 DNA。",
                "Launch, promo and story run on shot language and pace: 185 designed shots, cinematic seams, one "
                "brand DNA across the film.",
-               "要点不会随口播逐条出现；改任何一拍都要整片重渲，也更吃内存和时间。",
-               "Points do not appear as they are spoken; any edit re-renders the whole film, and it needs more "
-               "memory and time.",
+               "要点不会随口播逐条出现；改一拍的画面只重渲这一拍和下一拍，但改口播会让它后面的拍全部重渲；"
+               "也更吃内存和时间。",
+               "Points do not appear as they are spoken; a visual edit re-renders that beat and the next, but a "
+               "narration edit re-renders every later beat; it needs more memory and time.",
                "html", basis)
 
 
@@ -185,10 +189,10 @@ def mismatch(board):
     lang = str(meta.get("language") or "zh")
     zh = lang.lower().startswith("zh")
     if want == "html" and got == "remotion":
-        return ("目的是「%s」，却选了电影感分支：要点不会随口播逐条出现，改任何一拍都要整片重渲。"
+        return ("目的是「%s」，却选了电影感分支：要点不会随口播逐条出现，改口播会让它后面的拍全部重渲。"
                 "这是可以的选择——只是要知道代价。" % p) if zh else (
-                "Purpose is %r but the cinematic tier is chosen: points will not appear as they are spoken, and any "
-                "edit re-renders the whole film. A legitimate choice — just a known cost." % p)
+                "Purpose is %r but the cinematic tier is chosen: points will not appear as they are spoken, and a "
+                "narration edit re-renders every later beat. A legitimate choice — just a known cost." % p)
     if want == "remotion" and got in ("html", "slides"):
         return ("目的是「%s」，却选了%s：少了镜头语言库和电影化接缝，发布/宣传的节奏感会弱一些。"
                 % (p, "原样配音" if got == "slides" else "html")) if zh else (

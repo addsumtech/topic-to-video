@@ -215,6 +215,24 @@ TTS if the user gives an API key.
   purpose and topic, see interview ③): a **bespoke-shot LIBRARY** where every beat is a hand-written, topic-driven design language (the
   registers catalogued in `remotion/LIBRARY.md`), sequenced into a narrated film with cross-dissolve
   transitions + scene-relative captions + per-scene edge-tts narration (served via `--public-dir=<out_dir>`).
+  **IT RENDERS ONE BEAT AT A TIME AND KEEPS WHAT DID NOT CHANGE** (`scripts/remotion_segments.py`). Each beat's
+  share of the timeline — from the seam into it to the frame before the next beat — is rendered from the SAME
+  props with `--frames`, so it is the same film by construction, and kept in `<out_dir>/.remotion_segments/`
+  under a key of everything those frames depend on (the beat and the one before it — its tail plays under the
+  seam — the film-wide props, the content of every file a prop names, the absolute frames, the code). Video is
+  joined by stream copy; audio travels as lossless PCM, joined sample-exact and encoded once. Measured on the
+  37-beat job-hunt film: all 5362 frames ≥44 dB PSNR against a one-pass render, every beat's voice within
+  ±0.33 ms of it (a one-pass render rounds each beat onto a whole millisecond and starts its whole track
+  42.7 ms late — AAC priming it never trims; the joined film places each beat on its frame). What an edit
+  costs: a **visual** edit (a prop, a register, a ground, a seam — the shot-critic loop) re-renders that beat
+  and the next — **43 s** end to end, keyframes included, against **6:20** for the whole film; a **narration**
+  edit changes that beat's length and re-renders **every later beat**, because the Atmosphere under the film
+  pulses on the absolute frame and nothing guarantees it is covered (open-work D4). The first render is ~25%
+  slower than one pass (**7:55 vs 6:20**: each segment pays a browser start-up; the bundle is built once). A
+  render that dies keeps its finished beats — re-running is a resume. **`python3 scripts/remotion_segments.py
+  <out_dir>`** lists which beats the next render would redo, read from the board as it is now. `--whole`,
+  `meta.segment_cache: false` or `REMOTION_SEGMENTS=0` render in one pass as before; a disagreement between
+  the segment model and the film is never shipped — it is reported and the film is rendered whole.
   **THE CUT IS PART OF THE DESIGN — and it has to be authored, not assumed.** The tier implements five seams:
   `clock` `slide` `wipe` `dissolve` and **`carry`**, a collapse-to-line match-cut that reads as CONTINUITY
   rather than a swap and is the one seam allowed to cross a dark↔light boundary (its neutral bridge line IS
@@ -844,7 +862,7 @@ agent on the beats it points at.
      |---|---|---|
      | **原样配音 / Voice my deck as-is** — FREE | a finished deck that just needs a voice; nothing redesigned | no new design; points do not appear as they are spoken |
      | **Designed HTML** — FREE (+AI backdrops: PAID) | explainers, how-tos, research briefings, data-heavy material: each point appears **the moment it is said** (`data-cue` on the spoken word) and any table/chart/code/equation is laid out as the content needs; **editing one beat re-renders one beat**; needs only Chrome | less cinematic motion |
-     | **Cinematic (Remotion)** — FREE of money, NOT of machine | launches, promos, story and brand: 185 hand-designed shot languages, cinematic seams, one design DNA | points animate on the shot's own clock, not the voice (0 of 185 registers read word timings); **any edit re-renders the whole film**; needs Node + its own Chrome + real memory (a 37-beat film failed its full render repeatedly at ~1 GB free) |
+     | **Cinematic (Remotion)** — FREE of money, NOT of machine | launches, promos, story and brand: 185 hand-designed shot languages, cinematic seams, one design DNA | points animate on the shot's own clock, not the voice (0 of 185 registers read word timings); **a visual edit re-renders that beat and the next** (43 s on a 37-beat film, against 6:20 for the whole film) but **a narration edit re-renders every later beat**; the first render costs ~25% more than one pass (7:55 vs 6:20); needs Node + its own Chrome + real memory (the same film's one-pass render failed repeatedly at ~1 GB free — per beat, a failure keeps the finished beats) |
 
      **How to recommend (do this before showing the menu):** ① is on the same screen, so infer the likely
      purpose from the user's request and material, then ask the rule rather than restating it:
@@ -1439,7 +1457,7 @@ agent on the beats it points at.
    ALOUD — the metrics catch distribution, only the read catches deadness.
    **On a `meta.renderer:"remotion"` deck, run `python scripts/shot_proof.py <out_dir>`
    BEFORE the full render** — it catches, in ~3 minutes, the mechanical findings that otherwise cost
-   a 15-minute render plus a shot-critic pass to discover: a leftover register default, two beats
+   a full render (6–8 minutes for a 37-beat film) plus a shot-critic pass to discover: a leftover register default, two beats
    rendering the same picture, action-safe overflow, ink in the caption band, an off-palette colour,
    a dead frame. Fix every ERROR and triage the warnings out loud, exactly as with validate.
    **For an HTML-tier deck, also run `python scripts/keyframe_qa.py <out_dir>`** — it screenshots

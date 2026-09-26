@@ -541,3 +541,15 @@ median would accept the 4.3% film this gate was built to catch. What was wrong w
 at the number and left the author one move — the waiver. It now names `density_advice.py`, which reads the
 same sweep and answers the question the number raises. **Not changing the floor. The cost is a red gate on
 quiet films; the alternative is a gate that means nothing.**
+
+**D4 · A narration edit re-renders every later beat of a cinematic film.** The per-beat render
+(`scripts/remotion_segments.py`) keys each beat on its ABSOLUTE frames, because the film's Atmosphere pulses on
+the absolute frame (a 16-second glow, and a drifting motif on a themed film) and nothing guarantees it is
+covered: `BeatGround` paints nothing for a beat that declares no ground, so coverage is each of 185 registers'
+own business. A narration edit changes a beat's length, every later beat starts on a different frame, and a
+time-shifted segment is not provably the same pixels — so they are re-rendered. A visual edit re-renders that
+beat and the next only: measured on the 37-beat job-hunt film, 2 beats and 43 s against 6:20 for the whole
+film. What would lift it: prove coverage (render every register over a garish, time-varying atmosphere and
+assert no atmosphere pixel survives, at settled AND seam frames — a full-library sweep), or drive the
+atmosphere from beat-relative time (a visible change to every film). **Not done: correctness first; the cost
+is the tail of the film on a narration edit.**

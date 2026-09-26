@@ -11,12 +11,13 @@ The html/local tier (`render.py`) is a completely separate module and is byte-un
 generic-scene Remotion machinery (atmospheres/templates/planes/ThreeScene) was REMOVED in the phase-3 cutover.
 Requires the Node toolchain + `cd remotion && npm install` once (doctor.py reports availability).
 """
-import argparse, json, os, shutil, subprocess, sys
+import argparse, json, os, shutil, subprocess
 import re
 import storyboard as sb
 
 _REMOTION2_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion")
-_REMOTION2_TR = 12   # cross-dissolve length in Film.tsx (frames) — the output timeline is compressed by this per cut
+# `_REMOTION2_TR` (the cross-dissolve length the output timeline is compressed by per cut) is defined below,
+# from runtime/motion.ts's SEAM_FRAMES — it used to be a literal 12 here, restated in three modules.
 
 # The MARKED-seam grammar (P2): a storyboard scene MARKS the transition INTO it. Only kinetic styles produce a
 # mark — everything else (fade/dip/drift/blur/none/absent) is the luminance-safe default fade in Film.tsx, and a
@@ -66,6 +67,7 @@ def _settled_t():
 SETTLED_T = _settled_t()
 SEAM_FRAMES = int(_motion_const("SEAM_FRAMES"))
 ENTRY_T = _motion_const("ENTRY_T")
+_REMOTION2_TR = SEAM_FRAMES        # film_energy_qa and settled_frame read it under this name
 
 
 def frame_at_t(durF, t):
@@ -227,20 +229,10 @@ def _remotion_shot_ids():
 _DEC = "\x00"
 
 
-def _motion_const(name, default):
-    """A numeric export of remotion/src/runtime/motion.ts, read rather than restated so the two cannot drift."""
-    try:
-        src = open(os.path.join(_REMOTION2_DIR, "src", "runtime", "motion.ts"), encoding="utf-8").read()
-        m = re.search(r"export const %s\s*=\s*([\d.]+)" % re.escape(name), src)
-        return float(m.group(1)) if m else default
-    except OSError:
-        return default
-
-
 def t_at_seconds(sec, dur_frames, fps):
     """The register's `t` (runtime/motion `useT`) at `sec` seconds into its beat — the same held-edge mapping:
     the beat is held still for SEAM_FRAMES at each edge and `t` rests at ENTRY_T through the entry hold."""
-    seam, entry = int(_motion_const("SEAM_FRAMES", 12)), _motion_const("ENTRY_T", 0.06)
+    seam, entry = SEAM_FRAMES, ENTRY_T
     dur = max(1, int(dur_frames))
     pad = min(seam, (dur - 1) // 3)
     span = max(1, dur - 1 - 2 * pad)
@@ -350,10 +342,21 @@ def _srt_ts(t):
     return "%02d:%02d:%02d,%03d" % (h, m, s, ms)
 
 
-def _remotion_deliverables(out_dir, scenes, out_mp4, fps):
+_KEYFRAME_SOURCES = ".segment_sources.json"
+
+
+def _remotion_deliverables(out_dir, scenes, out_mp4, fps, segments=None):
     """Delivery parity with the html tier so the WORKFLOW's critic + A/V gate have material: write out.srt
     (from the overlap-compressed scene timeline) and _keyframes/scene_NN.png (one mid-scene frame per beat,
-    extracted from out.mp4) for the shot-critic filmstrip + `check_av`."""
+    extracted from out.mp4) for the shot-critic filmstrip + `check_av`.
+
+    `segments` ([(a, b, key)] from a per-beat render) lets an unchanged keyframe be KEPT: a frame of the
+    joined film is a bit-exact copy of its segment's frame, and a segment file is named by its content key,
+    so a keyframe taken at frame f of the segment with key K is the same picture as long as both match.
+    Measured on the 37-beat film, re-extracting all 74 keyframes was 42 of the 83 seconds a two-beat edit
+    took. The lookup is BY FRAME, not by beat: a beat shorter than ~37 frames can settle inside the next
+    beat's seam, which is the next segment. A whole render (segments=None) re-extracts everything and drops
+    the record, because its frames are not the segments' bits."""
     tr = _REMOTION2_TR
     starts, acc = [], 0                                # output-timeline start of each scene (each cut removes tr frames)
     for i, sc in enumerate(scenes):
@@ -388,6 +391,28 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps):
         f.write("\n".join(lines))
     if shutil.which("ffmpeg") and os.path.exists(out_mp4):   # per-scene keyframes for the shot-critic
         kdir = os.path.join(out_dir, "_keyframes"); os.makedirs(kdir, exist_ok=True)
+        src_path = os.path.join(kdir, _KEYFRAME_SOURCES)
+        try:
+            was = json.load(open(src_path, encoding="utf-8")) if segments else {}
+        except (OSError, ValueError):
+            was = {}
+        now, kept = {}, 0
+
+        def key_at(f):
+            return next((k for a, b, k in segments if a <= f <= b), None) if segments else None
+
+        def grab(at_s, dest):
+            nonlocal kept
+            f = int(round(at_s * fps))
+            name = os.path.relpath(dest, kdir)
+            k = key_at(f)
+            if k and was.get(name) == [f, k] and os.path.exists(dest):
+                kept += 1
+            else:
+                subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "%.3f" % at_s, "-i", out_mp4,
+                                "-frames:v", "1", dest], check=False)
+            if k:
+                now[name] = [f, k]
         # THE SETTLED FRAME, not the midpoint. A keyframe used to be taken at t=0.5 of the beat — but a
         # register reveals its content over roughly the first half of its animated span, so half the
         # keyframes showed a shot that had not finished drawing. Everything downstream reads these: the
@@ -402,8 +427,7 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps):
             durF = max(1, int(sc["durF"]))
             pad = min(SEAM_FRAMES, (durF - 1) // 3)
             at = starts[i] + settled_frame(durF) / fps
-            subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "%.3f" % at, "-i", out_mp4,
-                            "-frames:v", "1", os.path.join(kdir, "scene_%02d.png" % (i + 1))], check=False)
+            grab(at, os.path.join(kdir, "scene_%02d.png" % (i + 1)))
             # ALSO a MOTION frame, in _keyframes/motion/. The settled frame is the right one for every
             # frame-craft question — is anything colliding, off-frame, illegible — but it is the wrong one
             # for every MOTION question, because by definition nothing is moving in it. Reviewing motion
@@ -412,9 +436,14 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps):
             # scene_*.png picks it up by accident.
             mdir = os.path.join(kdir, "motion"); os.makedirs(mdir, exist_ok=True)
             mid = starts[i] + frame_at_t(durF, 0.42) / fps
-            subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "%.3f" % mid, "-i", out_mp4,
-                            "-frames:v", "1", os.path.join(mdir, "scene_%02d.png" % (i + 1))], check=False)
-        print("[render_remotion] wrote out.srt + %d keyframes (_keyframes/) for the shot-critic + A/V gate." % len(scenes))
+            grab(mid, os.path.join(mdir, "scene_%02d.png" % (i + 1)))
+        if segments:
+            with open(src_path, "w", encoding="utf-8") as fh:
+                json.dump(now, fh)
+        elif os.path.exists(src_path):
+            os.remove(src_path)
+        print("[render_remotion] wrote out.srt + %d keyframes (_keyframes/) for the shot-critic + A/V gate%s."
+              % (len(scenes), " — %d unchanged kept from their segments" % kept if kept else ""))
 
 
 def build_scenes(slides, out_dir, valid, fps=30):
@@ -502,12 +531,13 @@ def build_scenes(slides, out_dir, valid, fps=30):
     return scenes
 
 
-def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=False, vertical=False):
-    """Render via the bespoke-shot LIBRARY. Fails loud on a missing/unknown shot or missing audio."""
-    if not shutil.which("npx"):
-        raise RuntimeError("Node/npx not found — the Remotion tier needs Node.js.")
-    if not os.path.isdir(os.path.join(_REMOTION2_DIR, "node_modules")):
-        raise RuntimeError("remotion deps not installed — run `cd %s && npm install` once." % _REMOTION2_DIR)
+def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False):
+    """(props, slides): the Film's input props for this board, and the slides they were built from.
+
+    The render and `remotion_segments.py --plan` both ask this one function, so a plan describes the board
+    AS IT IS NOW. Reading the last render's props file instead would answer "which beats would a render
+    redo?" with "none" right after an edit — the one moment anybody asks.
+    """
     valid = _remotion_shot_ids()
     slides = data.get("slides", [])
     if sample is not None:
@@ -554,35 +584,64 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
         props["dna"] = design_dna.strip()
     elif meta.get("shot_template"):
         props["template"] = str(meta["shot_template"])
+    return props, slides
+
+
+def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=False, vertical=False, whole=False):
+    """Render via the bespoke-shot LIBRARY. Fails loud on a missing/unknown shot or missing audio."""
+    if not shutil.which("npx"):
+        raise RuntimeError("Node/npx not found — the Remotion tier needs Node.js.")
+    if not os.path.isdir(os.path.join(_REMOTION2_DIR, "node_modules")):
+        raise RuntimeError("remotion deps not installed — run `cd %s && npm install` once." % _REMOTION2_DIR)
+    props, slides = film_props(out_dir, data, sample=sample, reduced_motion=reduced_motion, vertical=vertical)
+    scenes, meta, fps = props["scenes"], data.get("meta") or {}, 30
     props_path = os.path.join(out_dir, ".remotion-props.json")
     with open(props_path, "w", encoding="utf-8") as f:
         json.dump(props, f, allow_nan=False, ensure_ascii=False)
     out_name = "sample.mp4" if sample is not None else "out.mp4"
     out_mp4 = os.path.abspath(os.path.join(out_dir, out_name))
-    gl = os.environ.get("REMOTION_GL") or ("angle" if sys.platform in ("darwin", "win32") else "swangle")
-    cmd = ["npx", "remotion", "render", "src/index.ts", "Film", out_mp4,
-           "--props=" + os.path.abspath(props_path), "--public-dir=" + os.path.abspath(out_dir),
-           "--gl=" + gl, "--log=" + log,
-           "--timeout=" + str(int(os.environ.get("REMOTION_TIMEOUT_MS", "120000") or "120000"))]
+    import remotion_segments as _rs
+    gl = _rs.default_gl()
+    run_flags = ["--gl=" + gl, "--log=" + log,
+                 "--timeout=" + str(int(os.environ.get("REMOTION_TIMEOUT_MS", "120000") or "120000"))]
     # CONCURRENCY. Remotion opens one browser tab per worker and EACH loads the film's fonts; on a loaded
     # machine a starved tab can blow past its delayRender and kill a long render outright. REMOTION_CONCURRENCY
     # lets a caller trade wall-clock for that safety without editing this file.
     _conc = os.environ.get("REMOTION_CONCURRENCY")
     if _conc:
-        cmd.append("--concurrency=" + str(int(_conc)))
+        run_flags.append("--concurrency=" + str(int(_conc)))
     print("[render_remotion] %s: %d scene(s) -> %s"
           % ("sample" if sample is not None else "full", len(scenes), out_mp4))
-    try:
-        subprocess.run(cmd, cwd=_REMOTION2_DIR, check=True)
-    except subprocess.CalledProcessError:
-        if any(a.startswith("--gl=") for a in cmd):
+    # ONE BEAT AT A TIME (remotion_segments.py): each beat's share of the timeline is rendered from these same
+    # props with --frames and kept under a key of everything its frames depend on, so an edit re-renders the
+    # beats it touched. `whole` / `meta.segment_cache: false` / REMOTION_SEGMENTS=0 render the film in one
+    # pass, the way it always was. A disagreement between the segment model and the film is never shipped:
+    # it is reported, and the film is rendered whole instead.
+    segmented = (sample is None and not whole and meta.get("segment_cache", True) is not False
+                 and os.environ.get("REMOTION_SEGMENTS", "1") != "0")
+    segments_used = None
+    if segmented:
+        try:
+            done = _rs.render_film(out_dir, props, props_path, out_mp4, run_flags, _rs.pixel_flags(gl),
+                                   labels=[sl.get("index", i + 1) for i, sl in enumerate(slides)])
+            print("[render_remotion] %d beat(s): %d re-rendered, %d reused from %s/"
+                  % (done["beats"], len(done["rendered"]), done["beats"] - len(done["rendered"]), _rs.CACHE_DIR))
+            segments_used = done["segments"]
+        except _rs.ModelMismatch as e:
+            print("[render_remotion] the per-beat cache disagreed with the film (%s) — rendering it WHOLE "
+                  "instead; nothing from the cache is used." % e)
+            segmented = False
+    if not segmented:
+        cmd = ["npx", "remotion", "render", "src/index.ts", "Film", out_mp4,
+               "--props=" + os.path.abspath(props_path), "--public-dir=" + os.path.abspath(out_dir)] + run_flags
+        try:
+            subprocess.run(cmd, cwd=_REMOTION2_DIR, check=True)
+        except subprocess.CalledProcessError:
             print("[render_remotion] render failed with GL — retrying ONCE without --gl (software raster; slower).")
             subprocess.run([a for a in cmd if not a.startswith("--gl=")], cwd=_REMOTION2_DIR, check=True)
-        else:
-            raise
     if sample is None:                                 # delivery parity: srt + critic keyframes (full render only)
         try:
-            _remotion_deliverables(out_dir, scenes, out_mp4, fps)
+            _remotion_deliverables(out_dir, scenes, out_mp4, fps, segments=segments_used)
         except Exception as e:
             print("[render_remotion] deliverables (srt/keyframes) skipped: %s" % e)
         meta = data.get("meta") or {}
@@ -659,7 +718,7 @@ def _not_delivered(out_dir):
 
 
 
-def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="error", no_plan=False):
+def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="error", no_plan=False, whole=False):
     """Render the whole deck to out.mp4 (+ out.srt / _keyframes / optional SFX), or one scene (sample=N) to
     sample.mp4 for the sign-off checkpoint. Routes through the remotion bespoke-shot library. `reduced_motion`
     stills the #camera drift (accessibility); `vertical` (or meta.aspect) renders portrait 1080x1920 via the
@@ -667,7 +726,8 @@ def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="erro
     data = sb.load(os.path.join(out_dir, "storyboard.json"))
     _renderer = (data.get("meta") or {}).get("renderer")
     if _renderer == "remotion":
-        return _render_remotion(out_dir, data, sample=sample, log=log, reduced_motion=reduced_motion, vertical=vertical)
+        return _render_remotion(out_dir, data, sample=sample, log=log, reduced_motion=reduced_motion, vertical=vertical,
+                                whole=whole)
     if _renderer == "remotion-legacy":
         raise RuntimeError(
             "the legacy generic-scene Remotion tier has been REMOVED in the phase-3 cutover — set "
@@ -685,8 +745,11 @@ def main():
     ap.add_argument("--reduced-motion", action="store_true")
     ap.add_argument("--log", default="error")
     ap.add_argument("--no-plan", action="store_true", help="(accepted for CLI parity; no-op on this tier)")
+    ap.add_argument("--whole", action="store_true",
+                    help="render the film in ONE pass instead of per beat (no segment cache is read or written)")
     a = ap.parse_args()
-    render(a.out_dir, vertical=a.vertical, reduced_motion=a.reduced_motion, sample=a.sample, log=a.log, no_plan=a.no_plan)
+    render(a.out_dir, vertical=a.vertical, reduced_motion=a.reduced_motion, sample=a.sample, log=a.log, no_plan=a.no_plan,
+           whole=a.whole)
 
 
 if __name__ == "__main__":
