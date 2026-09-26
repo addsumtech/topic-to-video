@@ -1,8 +1,10 @@
 """A screenshot's facts are read from the file. Light AND dark screenshots, because every constant here is a
 threshold that a dark UI turns upside down."""
+import json
 import os
 import subprocess
 import sys
+import types
 
 import pytest
 from PIL import Image, ImageDraw, ImageFont
@@ -15,6 +17,7 @@ import device_script as ds          # noqa: E402
 import screen_media as sm           # noqa: E402
 
 FONT = os.path.join(_ROOT, "assets", "fonts", "NotoSansSC-Subset.ttf")
+LATIN = os.path.join(_ROOT, "assets", "fonts", "Inter-VF.ttf")
 
 
 def _shot(path, w=1170, h=2532, bg=(255, 255, 255), ink=(20, 23, 28), field=None, lines=(), border=None):
@@ -125,6 +128,61 @@ def test_no_field_under_the_point_is_an_error(tmp_path):
               lines=[(62, 286, "搜索上周的客户反馈很长很长的文字", 44)])
     with pytest.raises(ds.DeviceScriptError):
         sm.field_at(r, 0.3, 320 / 2532)                         # text as tall as the region: no padding, no field
+
+
+def _magnifier(d, cx, cy, h, col):
+    r, w = h * 0.36, max(3, int(h * 0.11))
+    d.ellipse([cx - r, cy - h / 2, cx + r, cy - h / 2 + 2 * r], outline=col, width=w)
+    d.line([cx + r * 0.62, cy - h / 2 + 1.7 * r, cx + h * 0.5, cy + h / 2], fill=col, width=w)
+
+
+def test_a_search_icon_is_not_the_placeholder_text(tmp_path):
+    """Any row holding ink joined the text band, so a 24dp Material magnifier beside 16sp text measured as the
+    icon (56 px against the text's 47), and a tall icon in a small field got the field refused outright."""
+    im = Image.new("RGB", (1080, 2400), (254, 247, 255))
+    d = ImageDraw.Draw(im)
+    d.rounded_rectangle([48, 300, 1032, 468], radius=84, fill=(236, 230, 240))
+    _magnifier(d, 132, 384, 54, (73, 69, 79))
+    font = ImageFont.truetype(LATIN, 48)
+    d.text((204, 384), "Search messages", fill=(73, 69, 79), font=font, anchor="lm")
+    top, bottom = d.textbbox((204, 384), "Search messages", font=font, anchor="lm")[1::2]
+    p = str(tmp_path / "m.png")
+    im.save(p)
+    assert abs(sm.field_at(p, 0.5, 384 / 2400)["textPx"] - (bottom - top)) <= 2
+    q = _shot(str(tmp_path / "s.png"), ink=(60, 60, 67), field=((60, 300, 1110, 364), (238, 241, 244)),
+              lines=[(300, 317, "设置", 30)])
+    plain = sm.field_at(q, 0.3, 332 / 2532)["textPx"]
+    im = Image.open(q).convert("RGB")
+    _magnifier(ImageDraw.Draw(im), 180, 332, 50, (60, 60, 67))
+    im.save(q)
+    assert sm.field_at(q, 0.3, 332 / 2532)["textPx"] == plain       # was refused: "the text there fills 78%"
+
+
+@pytest.mark.skipif(not __import__("shutil").which("ffmpeg"), reason="needs ffmpeg")
+def test_a_recording_without_a_picture_or_a_frame_rate_is_refused(tmp_path, monkeypatch):
+    a = str(tmp_path / "a.mp3")
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=2", a],
+                   check=True)
+    with pytest.raises(ds.DeviceScriptError) as e:
+        sm.video_facts(a)                                       # audio only: was reported as 30 fps, 0x0
+    assert "no video stream" in str(e.value)
+    probe = {"streams": [{"width": 640, "height": 480, "r_frame_rate": "0/0", "avg_frame_rate": "0/0"}],
+             "format": {"duration": "3.0"}}
+    monkeypatch.setattr(sm.subprocess, "run", lambda *a, **k: types.SimpleNamespace(
+        returncode=0, stdout=json.dumps(probe), stderr=""))
+    with pytest.raises(ds.DeviceScriptError) as e:
+        sm.video_facts("x.mp4")                                 # "0/0" was a ZeroDivisionError
+    assert "frame rate" in str(e.value)
+    probe["streams"][0]["avg_frame_rate"] = "25/1"
+    assert sm.video_facts("x.mp4")["fps"] == 25.0
+
+
+def test_fit_kind_refuses_an_unknown_device_and_an_empty_image():
+    with pytest.raises(ds.DeviceScriptError) as e:
+        sm.fit_kind({"w": 1080, "h": 2400}, "watch")
+    assert "unknown device 'watch'" in str(e.value)
+    with pytest.raises(ds.DeviceScriptError):
+        sm.fit_kind({"w": 1080, "h": 0}, "phone")
 
 
 def test_caption_ink_is_measured_from_the_bundled_face():
