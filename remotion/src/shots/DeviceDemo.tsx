@@ -18,7 +18,7 @@ import {useT, useAnimSpan, ENTRY_T, ReducedMotionContext, clamp01, seg, easeInOu
 import {useDNA, mix} from '../runtime/dna';
 import {camAt, clampToPage, type CamKey} from '../runtime/pageCam2D';
 import {textWidthPx, TITLE_Y} from '../runtime/layout';
-import {deviceGeometry, defaultLook, isTouch, Device, type DeviceKind, type DeviceLook, type Placement, type Rect} from '../runtime/device';
+import {deviceGeometry, deviceFace, defaultLook, isTouch, Device, type DeviceKind, type DeviceLook, type Placement, type Rect} from '../runtime/device';
 import {ScreenImage, ScreenVideo, scrollRangePx, flingAt, type VideoSpan} from '../runtime/screen';
 import {typeChunks, typedCount, caretOn, framesBetween, TapRipple, CursorArrow} from '../runtime/gesture';
 import spec from '../runtime/deviceSpec.json';
@@ -58,10 +58,13 @@ const scheduled = (steps: Step[], demo: boolean): Step[] => {
   return steps;
 };
 
-/** The zoomed camera kept ON the device: along an axis where the device is larger than the view, the view
- *  stays inside its body; where it is smaller (a phone's width at 3x), the view centres on it. Clamped to the
- *  frame instead, a push-in near the device's top edge showed a third of the frame as empty background with
- *  the target pushed off-centre. Applied to the zoomed KEYS, so the move from rest stays one smooth path. */
+/** The zoomed camera kept ON the device's face (its screen and bezel — runtime/device.tsx deviceFace): along
+ *  an axis where the face is larger than the view, the view stays inside it; where it is smaller (a phone's
+ *  width at 3x), the view centres on it. Clamped to the frame instead, a push-in near the device's top edge
+ *  showed a third of the frame as empty background with the target pushed off-centre; clamped to the BODY, a
+ *  laptop's base (wider than its lid) let a push-in on the lid's edge show 280 px of background beside it, and
+ *  a monitor's stand let one on its bottom row show the stand's empty surround. Applied to the zoomed KEYS, so
+ *  the move from rest stays one smooth path. */
 const onDevice = (x: number, y: number, s: number, b: Rect, W: number, H: number): {x: number; y: number} => {
   const axis = (c: number, lo: number, len: number, half: number) =>
     len <= half * 2 ? lo + len / 2 : Math.min(Math.max(c, lo + half), lo + len - half);
@@ -215,7 +218,7 @@ export const DeviceDemo: React.FC<{
       if (!st.focus || !st.textFrac || !st.captionPx) return;
       const zoom = Math.min(spec.maxZoom, Math.max(1, st.captionPx / (st.textFrac * s.w)));
       if (zoom <= 1.01) return;
-      const f = onDevice(s.x + st.focus[0] * s.w, s.y + st.focus[1] * s.h, zoom, g.body, W, H);
+      const f = onDevice(s.x + st.focus[0] * s.w, s.y + st.focus[1] * s.h, zoom, deviceFace(g), W, H);
       const last = keys[keys.length - 1];
       keys.push({at: st.t0!, x: last.x, y: last.y, s: last.s});
       keys.push({at: st.ta!, x: f.x, y: f.y, s: zoom});

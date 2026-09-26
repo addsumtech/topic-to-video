@@ -174,6 +174,45 @@ def test_a_push_in_near_the_top_stays_on_the_device(tmp_path):
 
 
 @needs_toolchain
+def test_the_device_at_rest_draws_inside_its_body(tmp_path):
+    """deviceGeometry fits the body to the content zone exactly — a phone's bottom IS contentBottom — and the
+    realistic look drew its metal ring OUTSIDE the lid: for a phone or a tablet, whose face is its whole body,
+    10 px into the caption band on every frame. At rest, no bright pixel of any device leaves its body."""
+    np = pytest.importorskip("numpy")
+    import device_geometry as dg
+    for kind in ("phone", "tablet", "laptop", "monitor"):
+        b = dg.geometry(kind, "real", 1920, 1080)["body"]
+        png = _render(tmp_path, {"device": kind, "look": "real"}, 2, "rest_" + kind)
+        a = np.asarray(Image.open(png).convert("L"), dtype=int)
+        out = a > 40            # the ground peaks at 22; the ring's darker band is 89, so a cut at 90 missed it
+        out[max(0, b["y"] - 2):b["y"] + b["h"] + 2, max(0, b["x"] - 2):b["x"] + b["w"] + 2] = False
+        assert not out.any(), "%s: %d device pixels outside the body %r" % (kind, out.sum(), b)
+
+
+@needs_toolchain
+def test_a_push_in_near_a_lid_edge_stays_on_the_lid(tmp_path):
+    """A laptop's body is as wide as its BASE, which overhangs the lid; a monitor's body runs down its stand.
+    With the push-in clamped to the body, a target on a laptop screen's left edge showed 280 px of background
+    beside the lid, and one on a monitor's bottom row showed the empty ground around the stand. The zoomed view
+    stays on the face — the screen and its bezel."""
+    np = pytest.importorskip("numpy")
+    for kind, (iw, ih), focus, strip in (("laptop", (1920, 1200), [0.0286, 0.481], "left"),
+                                         ("monitor", (1920, 1080), [0.5, 0.97], "bottom")):
+        Image.new("RGB", (iw, ih), "white").save(str(tmp_path / (kind + ".png")))
+        # a tiny text height forces the largest push-in (maxZoom), where the leak was widest
+        steps = [{"screen": {"image": kind + ".png"}, "imageW": iw, "imageH": ih, "t0": 0.06, "ta": 0.06, "t1": 0.2},
+                 {"tap": focus, "t0": 0.3, "ta": 0.45, "t1": 0.75, "focus": focus, "textFrac": 0.003,
+                  "captionPx": 41.0}]
+        png = _render(tmp_path, {"device": kind, "look": "flat", "steps": steps}, 100, "lid_" + kind)
+        a = np.asarray(Image.open(png).convert("L"), dtype=float)
+        H, W = a.shape
+        band = a[:, : int(W * 0.03)] if strip == "left" else np.concatenate(
+            [a[int(H * 0.97):, : int(W * 0.25)], a[int(H * 0.97):, int(W * 0.75):]], axis=1)
+        assert band.mean() > 150, "%s: the %s edge of the push-in is background (mean %.0f)" % (kind, strip,
+                                                                                               band.mean())
+
+
+@needs_toolchain
 def test_a_script_step_without_its_time_is_refused(tmp_path):
     """One step missing `t1` used to re-time the WHOLE script by an even spread, silently: the tap drew nothing
     at the words the narration names. A film's script is prepared on every step or it is refused."""

@@ -20,7 +20,8 @@ export const DeviceHero: React.FC<{
   screen?: HeroScreen;   // the screenshot or recording, prepared by scripts/device_script.py
   placement?: Placement; // center | left | right
   kicker?: string;       // an optional spaced label above the device
-}> = ({device = 'laptop', look, screen: SCREEN = {page: 'demo'}, placement = 'center', kicker = ''} = {}) => {
+}> = ({device = 'laptop', look, screen, placement = 'center', kicker = ''} = {}) => {
+  const SCREEN: HeroScreen = screen ?? {page: 'demo'};   // null is absent, as scripts/device_script.py reads it
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
@@ -33,8 +34,10 @@ export const DeviceHero: React.FC<{
   // the caption band while half opaque — and its perspective, centred on the FRAME, pushed the turned device's
   // near corner below its own bottom edge even once settled. Now it grows upward from its bottom edge, the
   // perspective is centred on that edge (a point on it projects onto itself), and in the realistic look it is
-  // drawn just small enough that its largest turn still fits: a turn of θ magnifies the near edge by
-  // p / (p − k·(w/2)·sin θ), so a scale k ≤ p / (p + (w/2)·sin θ) keeps the projection inside the rect.
+  // drawn small enough that its largest turn still fits: a turn of θ magnifies the near side by
+  // p / (p − (w/2)·sin θ) (the scale is 2D, applied after the turn, so it does not change that depth), and a scale
+  // of p / (p + (w/2)·sin θ) keeps every corner of the turned body inside the rect — a sweep of every kind, aspect
+  // and entrance step found 3 px to spare at the tightest.
   const TURN_FROM = 14, TURN_TO = 5;                                    // degrees, the realistic look only
   const turn = lk === 'real' ? TURN_FROM - (TURN_FROM - TURN_TO) * enter : 0;
   const persp = Math.round(W * 1.2);

@@ -67,6 +67,19 @@ export const deviceGeometry = (kind: DeviceKind, look: DeviceLook, W: number, H:
   };
 };
 
+/** The device's FACE — the screen and its bezel (the 'screen' look: the window panel, title strip included).
+ *  Everything the Device draws there stays inside it, the realistic look's metal ring included, and a camera
+ *  that pushes in stays on it: the BODY also spans a laptop's base, which overhangs the lid, and a monitor's
+ *  stand, which is mostly background. */
+export const deviceFace = (g: DeviceGeom): Rect => {
+  const s = g.screen;
+  if (g.look === 'screen') {
+    const top = g.strip ? g.strip.y : s.y;
+    return {x: s.x, y: top, w: s.w, h: s.y + s.h - top};
+  }
+  return {x: s.x - g.bezel, y: s.y - g.bezel, w: s.w + 2 * g.bezel, h: s.h + 2 * g.bezel};
+};
+
 /** The look a beat gets when it names none: realistic on a dark ground, flat on a light one. */
 export const defaultLook = (dna: DesignDNA | null): DeviceLook => (dna && keyOf(dna) === 'dark' ? 'real' : 'flat');
 
@@ -81,18 +94,21 @@ export const Device: React.FC<{g: DeviceGeom; dna: DesignDNA | null; children?: 
   const hi = mix(METAL_HI, bg, 0.1), mid = mix(METAL_MID, bg, 0.1), lo = mix(METAL_LO, bg, 0.1);
   const shadow = g.look === 'real' ? `0 ${Math.round(s.h * 0.05)}px ${Math.round(s.h * 0.1)}px rgba(0,0,0,0.45)`
     : `0 ${Math.round(s.h * 0.03)}px ${Math.round(s.h * 0.07)}px ${alpha(ink, g.look === 'screen' ? 0.22 : 0.16)}`;
-  const lid: Rect = {x: s.x - g.bezel, y: s.y - g.bezel, w: s.w + 2 * g.bezel, h: s.h + 2 * g.bezel};
-  const panelTop = g.strip ? g.strip.y : s.y;
+  const face = deviceFace(g);
+  // The realistic look's metal ring is drawn INSIDE the face's edge: the black lid is inset by the ring's width
+  // and the ring (spread shadows) grows back out to exactly that edge. Drawn outside it, as it was, a phone or a
+  // tablet — whose face is its whole body — put the ring up to 10 px past the body, into the caption band.
+  const ring = g.look === 'real' ? Math.min(g.bezel, Math.max(3, Math.round(g.bezel * 0.6))) : 0;
+  const shine = Math.min(ring, Math.max(2, Math.round(g.bezel * 0.35)));
+  const lid: Rect = {x: face.x + ring, y: face.y + ring, w: face.w - 2 * ring, h: face.h - 2 * ring};
   return (
     <>
       {g.look !== 'screen' ? (
         <div style={{position: 'absolute', left: lid.x, top: lid.y, width: lid.w, height: lid.h,
-          borderRadius: g.radius + g.bezel, background: g.look === 'real' ? '#050608' : ink,
-          boxShadow: g.look === 'real'
-            ? `0 0 0 ${Math.max(2, Math.round(g.bezel * 0.35))}px ${hi}, 0 0 0 ${Math.max(3, Math.round(g.bezel * 0.6))}px ${lo}, ${shadow}`
-            : shadow}} />
+          borderRadius: g.radius + g.bezel - ring, background: g.look === 'real' ? '#050608' : ink,
+          boxShadow: g.look === 'real' ? `0 0 0 ${shine}px ${hi}, 0 0 0 ${ring}px ${lo}, ${shadow}` : shadow}} />
       ) : (
-        <div style={{position: 'absolute', left: s.x, top: panelTop, width: s.w, height: s.y + s.h - panelTop,
+        <div style={{position: 'absolute', left: face.x, top: face.y, width: face.w, height: face.h,
           borderRadius: g.radius, background: mix(bg, '#ffffff', 0.85), boxShadow: shadow}} />
       )}
       {g.strip ? (
