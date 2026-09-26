@@ -800,15 +800,18 @@ agent on the beats it points at.
    **Rendering rule for options:** `AskUserQuestion` shows at most **4 selectable buttons per question**
    (and up to **4 questions per call**); when a menu is richer, spell out the FULL menu in the question
    text, make the most-common items the ≤4 buttons, and let the automatic **"Other"** free-text accept
-   any listed item by name — a menu that is naturally ≤4 shows every item as a button. Ask the **core
-   screens (Batch 1) always** — TWO `AskUserQuestion` calls (screen A = ①–④, screen B = ⑤ Voice +
-   ⑥ Grounding, plus ⑦ Brand when triggered); fire Batches 2–3 **only when a prior answer triggers
-   them**. A common free/default run finishes in those **two option screens**, with zero mandatory
-   free-text beyond the single topic line on a no-deck run.
+   any listed item by name — a menu that is naturally ≤4 shows every item as a button. **Ask a question
+   at the moment the user can actually answer it.** Screen A (①–④) is asked every run; screen B carries
+   ONLY what is genuinely undetermined — ⑥ Grounding when a deck is the only material, ⑦ Brand when the
+   topic triggers it — and is skipped when both are settled; **⑤ Voice is asked at the script audition**,
+   where the user HEARS the voice instead of choosing an engine in the abstract. Batches 2–3 still fire
+   only when an answer triggers them. A common free/default run is now ONE option screen (it used to be
+   two, seven questions, before anything existed to look at or listen to), with zero mandatory free-text
+   beyond the single topic line on a no-deck run.
 
-   **Batch 1 — core intent + essentials (ask every run).** Fire it as **two `AskUserQuestion` calls:
-   screen A = ①–④, screen B = ⑤ Voice + ⑥ Grounding (+ ⑦ Brand when triggered)** — per the batching
-   note above.
+   **Batch 1 — core intent + essentials.** Screen A = ①–④, every run. Screen B = ⑥ Grounding (only when
+   undetermined) + ⑦ Brand (only when triggered) — skip it when neither applies. ⑤ Voice moves to the
+   script audition — per the batching note above.
    **No-deck (make-from-scratch) runs — capture the topic FIRST:** if the user has a deck
    (pptx/pdf/images) SKIP this (the deck IS the topic); with **no** input deck, before screen A ask ONE
    plain-text line for the **topic sentence** — a plain prompt ONLY because the topic is an irreducible
@@ -831,8 +834,8 @@ agent on the beats it points at.
      `fr`/`de`/… — or a *cross-language* voiceover where the narration language ≠ the slide language).
      Set `meta.language` to the resolved code (never leave it `"auto"` at render). On a **no-deck** run
      'Match the slides' has nothing to detect — default the highlighted option to the **topic
-     sentence's own language** instead. The narration **voice engine** is the separate question **⑤**
-     below.
+     sentence's own language** instead. The narration **voice engine** is question **⑤**, asked at the
+     script audition below.
    - **③ Tier** *(→ `meta.renderer` + `meta.image_source`, and whether pages are authored at all)* — which
      renderer makes THIS video. **It is recommended from the PURPOSE and the TOPIC, not offered as three
      looks** — the tiers are three different trade-offs, every one of them measured:
@@ -893,17 +896,23 @@ agent on the beats it points at.
      into beat count (**beats ≈ target_seconds/4**, with per-beat `est_seconds` summed to the target)
      and the design-director reads to scale hero/climax cadence — so it SUBSUMES the old per-slide
      pace ask (a per-slide ceiling, if ever wanted, is just `target_seconds / beats`).
-   - **⑤ Voice engine** *(→ `meta.voice`; on screen B, since screen A already holds ①–④)* —
-     the narration engine. Menu: **edge-tts** (free **default**, natural, needs network, accent-matched;
+   - **⑤ Voice engine** *(→ `meta.voice`; asked AT THE SCRIPT AUDITION, not up front)* — until then
+     `meta.voice` stays `"auto"`, which resolves to a language-matched edge-tts voice (free), so the
+     audition has a voice to speak in. Choosing an engine before hearing anything was the most abstract
+     question in the interview; at the audition the user has just heard one and can say "keep it" or
+     "try another". The narration engine menu: **edge-tts** (free **default**, natural, needs network, accent-matched;
      the ONLY engine that emits per-word timings for word-exact caption/reveal sync) · **MiniMax**
      (paid, most natural, esp. **Chinese**; needs a key) · **OpenAI** (paid, premium neural; needs a
      key) · **macOS `say`** (offline, robotic fallback). (Other → an accent or gender preference.)
      State the tradeoff aloud: only edge-tts gives per-word timings, so say/MiniMax/OpenAI HTML reveals
      use the text-position estimate (tracks the voice's pacing, not word-exact). A cloud engine
      (MiniMax/OpenAI) then triggers **Batch 2** (key setup out-of-band + a voice-sample pick).
-   - **⑥ Grounding material** *(→ how step 3 gets its facts; a MENU on screen B next to Voice)* — how to
+   - **⑥ Grounding material** *(→ how step 3 gets its facts; ASKED ONLY WHEN UNDETERMINED)* — how to
      ground + fact-check the narration (slides/topic alone rarely say enough to narrate *well* — step 3
-     depends on this). Menu: **I'll share source material** (a paper/PDF, a code repo, a report, notes) ·
+     depends on this). Most runs already answer it: the user supplied source files/paths/a repo → use
+     them, do not ask; ONLY a topic line, no deck → web research is the only way to narrate it well, so
+     do not ask — SAY you will research it and that anything they send takes precedence; a deck and
+     nothing else → ASK, because "the deck is enough" vs "research the rest" is a real choice. Menu: **I'll share source material** (a paper/PDF, a code repo, a report, notes) ·
      **Web-research it for me** (no material — I confirm the facts/numbers/names from the latest sources,
      as of today, and fact-check the script) · **Both** (I have some — research the rest) · *(deck runs
      only)* **The deck is enough** (rare; say the script will be thinner). Other → describe what
@@ -921,8 +930,8 @@ agent on the beats it points at.
      `theme.py` auto-samples the accent from `meta.brand.logo` (see its `--brand-logo` entry), so just
      recording the block is enough. No assets ⇒ no `brand` block — never fabricate one.
 
-   **Batch 2 — cloud-voice setup (ONLY if Batch 1 ⑤ Voice engine = MiniMax or OpenAI).** First get the API key
-   **OUT OF BAND** — have them `export MINIMAX_API_KEY=…` / `export OPENAI_API_KEY=…` in their own
+   **Batch 2 — cloud-voice setup (ONLY if the voice picked at the audition ⑤ is MiniMax or OpenAI).**
+   First get the API key **OUT OF BAND** — have them `export MINIMAX_API_KEY=…` / `export OPENAI_API_KEY=…` in their own
    shell (they can type `! export …` in this session) or put it in `~/.minimax_key` /
    `~/.openai_key`. Do **NOT** ask them to paste it into chat; if they paste it anyway, warn it lands
    in the transcript and tell them to **rotate it** afterward. Never write a key into
@@ -1359,6 +1368,15 @@ agent on the beats it points at.
    The old instruction here was *"do not synthesize audio until they sign off"* — which made the sign-off
    a reading of a document whose only destiny is to be heard. Auditioning five beats is not the full
    synth; the full run still waits for approval.
+   **Ask ⑤ Voice HERE**, right after they have heard it: keep this voice (the free edge-tts default,
+   and the only engine with per-word timings — html reveals and karaoke captions land on the exact word)
+   · MiniMax (paid, most natural, especially Chinese) · OpenAI (paid) · macOS `say` (offline). A paid pick
+   triggers Batch 2 (key + a voice-sample pick), then re-run `script_audition.py <out_dir> --allow-paid` in
+   the new voice before sign-off — the user signs off on the voice they will actually get. (The flag is
+   the consent: without it the audition refuses a paid engine and says how many characters it would
+   send, so a board that merely CARRIES a paid voice never spends on a key nobody chose.) The audition
+   speaks through the film's own voice path (`tts.film_voice` + `tts.speak`): same language detection,
+   same pronunciation layer, no silent fallback — what is heard here is what the film will say.
    🔴 **CHECKPOINT · 🛑 STOP:** present the full, critic-panel-passed script **and the audition audio**,
    and get the user's edits/approval before the full TTS run. A script nobody has HEARD has not been
    checked, whatever the metrics say.

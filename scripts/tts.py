@@ -787,18 +787,65 @@ def _master(path, meta=None, ref=None, lead=0.0):
             os.remove(tmp)
 
 
+PAID_PROVIDERS = ("openai", "minimax")
+
+
+def film_voice(meta, slides):
+    """(provider, name, language, note) — the voice the film speaks in, resolved ONE way for every caller.
+
+    The audition used to resolve its own and got a different answer. With `meta.language` unset it asked
+    `_resolve_voice` directly, which cannot detect a language, and was handed `say:Samantha` — an English
+    voice reading a Chinese script — while this module detected zh and spoke through edge Xiaoxiao. The
+    person approving the script would have heard a voice the film never uses.
+    """
+    meta = meta or {}
+    lang = meta.get("language") or "auto"
+    if lang == "auto":
+        lang = _detect_language(slides or [])
+    prov, name = _provider(_resolve_voice(dict(meta, language=lang)))
+    note = None
+    if prov == "say":
+        name, note = _resolve_say_voice(name, lang)
+    return prov, name, lang, note
+
+
+def speak(text, dest, meta, prov, name):
+    """One clip the way the film says it: the ear's text (`spoken_text`), then the engine.
+
+    Raises on any failure. The `say` FALLBACK belongs to `synthesize()`, where a film has to finish; a
+    caller that exists to let a person judge the voice must not be handed a different one in silence.
+    """
+    said, back = spoken_text(text, meta, prov, name)
+    if prov == "openai":
+        _openai(said, dest, name)
+    elif prov == "edge":
+        _edge(said, dest, name, _edge_rate(meta))
+        wj = os.path.splitext(dest)[0] + ".words.json"
+        if os.path.exists(wj):
+            with open(wj) as fh:
+                words = json.load(fh)
+            with open(wj, "w") as fh:
+                json.dump(written_words(words, back), fh)
+    elif prov == "minimax":
+        _minimax(said, dest, name, meta)
+    elif prov == "say":
+        _say(said, dest, name)
+    else:
+        raise ValueError("unknown voice provider %r (edge / say / openai / minimax)" % prov)
+
+
 def synthesize(out_dir, only=None):
     path = os.path.join(out_dir, "storyboard.json")
     data = sb.load(path)
     audio_dir = os.path.join(out_dir, "audio")
     os.makedirs(audio_dir, exist_ok=True)
-    if (data["meta"].get("language") or "auto") in ("", "auto"):   # fill it so voice selection is right
-        data["meta"]["language"] = _detect_language(data["slides"])
-    prov, name = _provider(_resolve_voice(data["meta"]))
-    if prov == "say":
-        name, note = _resolve_say_voice(name, data["meta"].get("language", "auto"))
-        if note:
-            print(note)
+    prov, name, lang, note = film_voice(data["meta"], data["slides"])
+    data["meta"]["language"] = lang          # filled so voice selection is right (an explicit one is kept)
+    if note:
+        print(note)
+    # A malformed `meta.tts_lexicon` is an authoring error, not an engine failure: check it HERE, before the
+    # loop, or the per-clip fallback below would catch it and quietly voice every beat with `say`.
+    spoken_text("", data["meta"], prov, name)
 
     fell_back = []        # indices that dropped to the say fallback (a cloud/edge failure)
     used_primary = []     # indices that actually used the requested non-say provider
@@ -821,22 +868,8 @@ def synthesize(out_dir, only=None):
             s["duration"] = round(max(1.0, _common.audio_duration(dest)), 3)
             continue
         ok_primary = False
-        said, back = spoken_text(text, data["meta"], prov, name)
         try:
-            if prov == "openai":
-                _openai(said, dest, name)
-            elif prov == "edge":
-                _edge(said, dest, name, _edge_rate(data["meta"]))
-                wj = os.path.join(audio_dir, f"{s['index']:02d}.words.json")
-                if os.path.exists(wj):
-                    with open(wj) as fh:
-                        words = json.load(fh)
-                    with open(wj, "w") as fh:
-                        json.dump(written_words(words, back), fh)
-            elif prov == "minimax":
-                _minimax(said, dest, name, data["meta"])
-            else:
-                _say(said, dest, name)
+            speak(text, dest, data["meta"], prov, name)
             ok_primary = prov != "say"
         except Exception as e:
             # Fall back to the LANGUAGE-MATCHED say voice — not a hardcoded English one,

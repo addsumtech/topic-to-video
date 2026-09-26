@@ -74,11 +74,20 @@ def pick(slides):
     return [(s.get("index", 0), s["narration"]) for s in want]
 
 
-def audition(out_dir, beats=None, out_name="audition.mp3"):
+def audition(out_dir, beats=None, out_name="audition.mp3", allow_paid=False):
     """Synthesize the picked beats through the board's OWN voice and join them with its own pause.
 
     Returns (path, picked, voice). Raises RuntimeError when no engine can speak — never returns a silent
     file, because a checkpoint that passes on silence is the defect this script exists to prevent.
+
+    THE FILM'S OWN PATH, not a copy of it: the voice comes from `tts.film_voice` and every clip from
+    `tts.speak`, the two functions `tts.synthesize` itself uses. The copy this replaced resolved the voice
+    without detecting the language (an unset `meta.language` auditioned a Chinese script in the English
+    `say:Samantha` while the film spoke edge Xiaoxiao) and skipped the pronunciation layer (the audition
+    said "AI" where the film says "A-I" — the one reading a listener here chose BY EAR).
+
+    A PAID engine (OpenAI, MiniMax) is spoken only with `allow_paid=True`: the voice is chosen at this
+    checkpoint, and an audition on a key must follow that choice, not a board that merely carries one.
     """
     board = os.path.join(out_dir, "storyboard.json")
     data = json.load(open(board, encoding="utf-8"))
@@ -87,24 +96,26 @@ def audition(out_dir, beats=None, out_name="audition.mp3"):
     if len(picked) < MIN_BEATS:
         raise RuntimeError("only %d beat(s) carry narration — there is nothing to audition yet" % len(picked))
 
-    voice = _tts._resolve_voice(meta)
+    prov, name, lang, _note = _tts.film_voice(meta, data.get("slides") or [])
+    voice = "%s:%s" % (prov, name)
+    if prov in _tts.PAID_PROVIDERS and not allow_paid:
+        raise RuntimeError(
+            "meta.voice is %s, a PAID engine: this audition would synthesize %d beat(s), %d characters, on "
+            "the user's key. Re-run with --allow-paid once the user has chosen this voice — do NOT approve "
+            "a script nobody heard." % (voice, len(picked), sum(len(t) for _i, t in picked)))
+    spoken_meta = dict(meta, language=lang)
     work = os.path.join(out_dir, ".audition")
     os.makedirs(work, exist_ok=True)
     parts = []
     for n, (idx, text) in enumerate(picked):
-        p = os.path.join(work, "%02d.mp3" % n)
-        prov, _, name = voice.partition(":")
-        if prov == "edge":
-            _tts._edge(text, p, name, _tts._edge_rate(meta))
-        elif prov == "say":
-            _tts._say(text, p.replace(".mp3", ".aiff"), name)
-            p = p.replace(".mp3", ".aiff")
-        else:                                                                # a cloud engine this run has
-            raise RuntimeError(                                              # no key for: say so, loudly
-                "meta.voice is %r and this audition only drives edge/say directly. Run tts.py first and "
-                "audition from audio/, or set a local voice — do NOT approve a script nobody heard." % voice)
+        p = os.path.join(work, "%02d.%s" % (n, "aiff" if prov == "say" else "mp3"))
+        try:
+            _tts.speak(text, p, spoken_meta, prov, name)
+        except Exception as exc:                                             # noqa: BLE001 — name the beat
+            raise RuntimeError("%s could not speak beat %s (%s) — nothing was auditioned"
+                               % (voice, idx, exc)) from exc
         if not (os.path.exists(p) and os.path.getsize(p) > 0):
-            raise RuntimeError("the engine produced no audio for beat %d — nothing was auditioned" % (idx + 1))
+            raise RuntimeError("the engine produced no audio for beat %s — nothing was auditioned" % idx)
         parts.append(p)
 
     gap = _tts._tail_pad(meta)                                               # the film's own seam, not 0
@@ -130,9 +141,11 @@ def main():
                     "listens.")
     ap.add_argument("out_dir")
     ap.add_argument("--name", default="audition.mp3")
+    ap.add_argument("--allow-paid", action="store_true",
+                    help="speak through a paid engine (OpenAI/MiniMax) — only once the user has chosen it")
     a = ap.parse_args()
     try:
-        path, picked, voice = audition(a.out_dir, out_name=a.name)
+        path, picked, voice = audition(a.out_dir, out_name=a.name, allow_paid=a.allow_paid)
     except Exception as exc:                                                 # noqa: BLE001 — report, never skip
         print("[audition] COULD NOT AUDITION — %s" % exc)
         print("[audition] Do not treat the script checkpoint as met: nobody has heard this script.")
@@ -141,7 +154,7 @@ def main():
           % (path, len(picked), voice, _tts._tail_pad(json.load(
               open(os.path.join(a.out_dir, "storyboard.json"), encoding="utf-8")).get("meta") or {})))
     for idx, text in picked:
-        print("   beat %-3d %s" % (idx + 1, text[:54]))
+        print("   beat %-3s %s" % (idx, text[:54]))           # the board's OWN index: what --only takes
     print("[audition] LISTEN to it, in order, before the script checkpoint. The metrics in voice_qa "
           "measure distribution; they cannot hear that a script is dead.")
     return 0
