@@ -159,3 +159,22 @@ def test_the_librarys_own_headline_count_is_the_number_of_registers_it_documents
     assert int(m.group(1)) == on_disk, (
         "LIBRARY.md's headline claims %s design languages and the library holds %d — the one number a "
         "reader takes on trust is the one nothing updates" % (m.group(1), on_disk))
+
+
+def test_registering_a_shot_keeps_the_headline_count_current(tmp_path, monkeypatch):
+    """register_shot refreshed the census on every registration but never the headline: adding DeviceDemo left
+    "(185 design languages)" over 186 registers. The refresh now rewrites both, from the files on disk."""
+    import register_shot as rs
+    rem = tmp_path / "remotion"
+    shots = rem / "src" / "shots"
+    shots.mkdir(parents=True)
+    for n in ("A", "B", "C"):
+        (shots / (n + ".tsx")).write_text("// stub\n", encoding="utf-8")
+    src = open(LIBRARY, encoding="utf-8").read()
+    (rem / "LIBRARY.md").write_text(re.sub(r"\(\d+\s+design languages\)", "(999 design languages)", src, count=1),
+                                    encoding="utf-8")
+    monkeypatch.setattr(rs, "_REM", str(rem))
+    monkeypatch.setattr(rs, "_SHOTS", str(shots))
+    assert rs.refresh_family_census()
+    head = (rem / "LIBRARY.md").read_text(encoding="utf-8").splitlines()[0]
+    assert "(3 design languages)" in head, head

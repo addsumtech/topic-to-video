@@ -1,4 +1,4 @@
-# Remotion2 — Bespoke Shot Library (185 design languages)
+# Remotion2 — Bespoke Shot Library (186 design languages)
 
 Each shot is a **hand-written, deterministic component** (`{default Component, DURATION}`) authored in
 1920×1080, driven by `useT()` (0→1) + the shared `runtime/motion.ts` kit. No generic template funnel —

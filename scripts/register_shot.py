@@ -38,6 +38,7 @@ one slips through, `--only <Id>` re-measures the affected rows without repeating
 flag that does not exist. Following it left both placeholders in place with no hint that anything was left
 to do — the first new register in a while is what found that.)
 """
+import glob
 import os
 import re
 import sys
@@ -452,7 +453,10 @@ def next_steps(shot):
 
 
 def refresh_family_census():
-    """Rewrite the census in LIBRARY.md. Called after every registration so it cannot go stale."""
+    """Rewrite the census and the headline count in LIBRARY.md. Called after every registration so neither can
+    go stale. The headline's "(N design languages)" is the one number a reader takes on trust, and no step
+    touched it: it drifted by 41 once, and adding DeviceDemo left it one short at once. It counts what the gate
+    in tests/test_library_signatures.py counts — the register files on disk."""
     p = os.path.join(_REM, "LIBRARY.md")
     try:
         src = open(p, encoding="utf-8").read()
@@ -462,6 +466,8 @@ def refresh_family_census():
     if "<!-- FAMILY-CENSUS" not in src:
         return False
     new = re.sub(r"<!-- FAMILY-CENSUS.*?<!-- /FAMILY-CENSUS -->\n", lambda _m: block, src, flags=re.S)
+    on_disk = len(glob.glob(os.path.join(_SHOTS, "*.tsx")))
+    new = re.sub(r"\((\d+)\s+design languages\)", "(%d design languages)" % on_disk, new, count=1)
     if new != src:
         open(p, "w", encoding="utf-8").write(new)
     return True
