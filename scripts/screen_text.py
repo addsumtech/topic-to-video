@@ -12,6 +12,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import unicodedata
 
 import device_script as ds
@@ -38,14 +39,20 @@ def available():
 
 
 def _replace(path, write):
-    """Write through a temporary file and rename it into place: a reader never sees half a file, and two
-    processes racing on the same path each land a whole one."""
-    tmp = "%s.%d.tmp" % (path, os.getpid())
+    """Write through a uniquely named temporary file beside `path` and rename it into place: a reader never
+    sees half a file, and racing writers — processes or threads — each land a whole one. A write the disk
+    refuses is a DeviceScriptError naming the path."""
+    tmp = None
     try:
+        fd, tmp = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(path)), prefix=os.path.basename(path) + ".",
+                                   suffix=".tmp")
+        os.close(fd)
         write(tmp)
         os.replace(tmp, path)
+    except OSError as e:
+        raise ds.DeviceScriptError(["cannot write %s: %s" % (path, e)])
     finally:
-        if os.path.exists(tmp):
+        if tmp and os.path.exists(tmp):
             os.remove(tmp)
 
 
@@ -56,6 +63,7 @@ def _compile(exe):
         r = subprocess.run(["swiftc", "-O", _SWIFT, "-o", tmp], capture_output=True, text=True)
         if r.returncode != 0:
             raise ds.DeviceScriptError(["compiling the text-recognition helper failed: %s" % r.stderr.strip()[-300:]])
+        os.chmod(tmp, 0o755)
     _replace(exe, build)
 
 
@@ -102,7 +110,7 @@ def _tesseract(path):
 
 def recognize(path, cache_dir=None):
     if not os.path.isfile(path):
-        raise ds.DeviceScriptError(["the screenshot %s does not exist" % path])
+        raise ds.DeviceScriptError(["the screenshot %s does not exist or is not a file" % path])
     backend = available()
     if backend is None:
         raise ds.DeviceScriptError(["a text target needs text recognition, and this machine has none (macOS "
@@ -126,9 +134,24 @@ def recognize(path, cache_dir=None):
     return lines
 
 
+def _norm_map(s):
+    """(`s` without whitespace, width- and case-blind; for each of its characters, the index of the character
+    of `s` it came from, counting only non-space ones; how many non-space characters `s` has). NFKC folds
+    full-width punctuation and letters (设置： is 设置:, ＡＩ is AI) but can lengthen a character (㎡ becomes
+    m2), so a match's share of its line is counted in the line's own characters, not the folded ones."""
+    out, owner, n = [], [], 0
+    for c in str(s):
+        if c.isspace():
+            continue
+        f = "".join(unicodedata.normalize("NFKC", c).casefold().split())
+        out.append(f)
+        owner += [n] * len(f)
+        n += 1
+    return "".join(out), owner, n
+
+
 def _norm(s):
-    """Width- and case-blind: NFKC folds full-width punctuation and letters (设置： is 设置:, ＡＩ is AI)."""
-    return "".join(unicodedata.normalize("NFKC", str(s)).split()).casefold()
+    return _norm_map(s)[0]
 
 
 def find_text(lines, text, nth=None):
@@ -139,11 +162,11 @@ def find_text(lines, text, nth=None):
     key = _norm(text)
     hits = []
     for ln in lines:
-        t = _norm(ln["text"])
+        t, owner, n = _norm_map(ln["text"])
         at = t.find(key)
         while key and at >= 0:
             x0, y0, x1, y1 = ln["box"]
-            a, b = at / float(len(t)), (at + len(key)) / float(len(t))
+            a, b = owner[at] / float(n), (owner[at + len(key) - 1] + 1) / float(n)
             hits.append([x0 + (x1 - x0) * a, y0, x0 + (x1 - x0) * b, y1])
             at = t.find(key, at + 1)
     hits.sort(key=lambda b: (round(b[1], 3), b[0]))

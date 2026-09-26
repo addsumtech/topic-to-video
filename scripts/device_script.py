@@ -81,12 +81,12 @@ def needs_lead(step):
 
 def _target_problem(t, where):
     if isinstance(t, (list, tuple)):
-        if len(t) == 2 and all(isinstance(v, (int, float)) and 0 <= v <= 1 for v in t):
+        if len(t) == 2 and all(isinstance(v, (int, float)) and not isinstance(v, bool) and 0 <= v <= 1 for v in t):
             return None
         return "%s: a position is [x, y] with both in 0..1 of the screen (got %r)" % (where, t)
     if isinstance(t, dict) and set(t) <= {"text", "nth"} and str(t.get("text", "")).strip():
         n = t.get("nth")
-        if n is None or (isinstance(n, int) and n >= 1):
+        if n is None or (isinstance(n, int) and not isinstance(n, bool) and n >= 1):
             return None
         return "%s: `nth` counts from 1 (got %r)" % (where, n)
     return "%s: a target is [x, y] or {\"text\": ..., \"nth\": n} (got %r)" % (where, t)
