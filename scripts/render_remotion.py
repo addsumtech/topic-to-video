@@ -479,7 +479,7 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps, segments=None):
               % (len(scenes), " — %d unchanged kept from their segments" % kept if kept else ""))
 
 
-def build_scenes(slides, out_dir, valid, fps=30):
+def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh"):
     """The storyboard -> Film SceneSpec[] translation, on its own so it can be TESTED without a render.
 
     It was inline in _render_remotion, which meant the only way to check that a storyboard field reaches
@@ -530,6 +530,15 @@ def build_scenes(slides, out_dir, valid, fps=30):
         # spaced single capitals is rejoined, which is the safe half of the transform and needs no author.
         caption = (s.get("caption") or _caption_for_eye(s.get("narration") or s.get("script") or "")).strip()
         props = resolve_cue_props(props, out_dir, audio, s.get("narration") or s.get("script") or "", dur, fps)
+        if shot in ("DeviceDemo", "DeviceHero"):
+            import device_script as _ds
+            try:
+                props, _warns = _ds.prepare(props, shot=shot, out_dir=out_dir, dur_frames=int(round(dur * fps)),
+                                            fps=fps, W=frame[0], H=frame[1], lang=lang)
+            except _ds.DeviceScriptError as e:
+                raise RuntimeError("scene #%s (%s): %s" % (idx, shot, "; ".join(e.problems)))
+            for w in _warns:
+                print("[render_remotion] scene #%s: %s" % (idx, w))
         scene = {"shot": shot, "props": props, "durF": int(round(dur * fps)),
                  "mp3": str(audio).replace(os.sep, "/"), "caption": caption}
         # THE VOICE'S OWN WORD TIMES, WHICH THIS TIER HAS NEVER SEEN. `tts.py` has written
@@ -578,7 +587,11 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
         if not slides:
             raise RuntimeError("no scene with index %s to sample" % sample)
     fps = 30
-    scenes = build_scenes(slides, out_dir, valid, fps)
+    from _caption_band import aspect_table
+    _aspect = "9:16" if vertical else str((data.get("meta") or {}).get("aspect") or "16:9")
+    _frame = aspect_table().get(_aspect, (1920, 1080))
+    import device_script as _dsl
+    scenes = build_scenes(slides, out_dir, valid, fps, frame=_frame, lang=_dsl.film_language(data.get("meta"), slides))
     meta = data.get("meta") or {}
     reduced = bool(reduced_motion or meta.get("reduced_motion"))
     # ASPECT: --vertical or meta.aspect:"9:16" renders the Film Composition at 1080x1920 (Root.tsx calculateMetadata

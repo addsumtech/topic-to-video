@@ -230,3 +230,224 @@ def schedule(steps, dur_frames, fps):
         d["t0"], d["ta"], d["t1"] = (rr.t_at_seconds(x, dur_frames, fps) for x in (a, b, c))
         out.append(d)
     return out
+
+
+def _viewport(y_img, image_w, image_h, device, acc):
+    """Image fraction y -> fraction of the VISIBLE screen, after `acc` of the overflow has been scrolled."""
+    rw, rh = SPEC["screenRatio"][device]
+    disp_over_screen = (float(image_h) / image_w) * (float(rw) / rh)       # displayed image height / screen height
+    return y_img * disp_over_screen - acc * max(0.0, disp_over_screen - 1.0)
+
+
+def _image_y(y_view, image_w, image_h, device, acc):
+    rw, rh = SPEC["screenRatio"][device]
+    d = (float(image_h) / image_w) * (float(rw) / rh)
+    return (y_view + acc * max(0.0, d - 1.0)) / d
+
+
+def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=None):
+    """Authored props (cues already turned into useT times by render_remotion.resolve_cue_props) -> the props
+    the register draws, and the legibility warnings. Raises DeviceScriptError with EVERY problem found."""
+    import subprocess
+    import render_remotion as rr
+    import screen_media as sm
+    import screen_text as stx
+    import device_geometry as dg
+    device = props.get("device", "phone" if shot == "DeviceDemo" else "laptop")
+    probs, warns = [], []
+    if shot == "DeviceHero":
+        src = dict(props.get("screen") or {"page": "demo"})
+        p = os.path.join(out_dir, str(src.get("image") or src.get("video") or ""))
+        if src.get("image"):
+            if not os.path.isfile(p):
+                raise DeviceScriptError(["the screen image %s does not exist" % src["image"]])
+            f = sm.image_facts(p)
+            sm.fit_kind(f, device)
+            src.update(imageW=f["w"], imageH=f["h"])
+        elif src.get("video"):
+            if not os.path.isfile(p):
+                raise DeviceScriptError(["the recording %s does not exist" % src["video"]])
+            f = sm.video_facts(p)
+            frm, to = float(src.get("from", 0)), float(src.get("to", f["duration"]))
+            probs += sm.check_video(f, device, frm, to)
+            beat_s = dur_frames / float(fps)
+            if (to - frm) / beat_s > SPEC["maxVideoRate"] + 1e-6:
+                probs.append("the recording's %.1f s would play at %.1fx to fit a %.1f s beat — trim it (the cap is %.0fx)"
+                             % (to - frm, (to - frm) / beat_s, beat_s, SPEC["maxVideoRate"]))
+            src = {"video": src["video"], "spans": [{"f0": 0, "f1": dur_frames, "v0": frm, "v1": to}]}
+        if probs:
+            raise DeviceScriptError(probs)
+        return dict(props, screen=src), warns
+
+    probs += check_shape(props)
+    if probs:
+        raise DeviceScriptError(probs)
+    rec = recognizer or (lambda path: stx.recognize(path, cache_dir=os.path.join(out_dir, ".cache")))
+    steps = [dict(s) for s in props["steps"]]
+    cur, cur_path, acc, facts = None, None, 0.0, {}
+    screen_w = dg.geometry(device, props.get("look") or "flat", W, H)["screen"]["w"]
+    caption = sm.caption_ink_px(lang, W, H)
+    measured, gestures = 0, 0
+    for i, st in enumerate(steps):
+        k, where = step_kind(st), "step %d (%s)" % (i + 1, step_kind(st))
+        if k == "screen":
+            src = st["screen"]
+            cur, acc = src, 0.0
+            if "image" in src:
+                cur_path = os.path.join(out_dir, src["image"])
+                if not os.path.isfile(cur_path):
+                    probs.append("%s: the screenshot %s does not exist" % (where, src["image"]))
+                    cur_path = None
+                    continue
+                try:
+                    f = facts[cur_path] = sm.image_facts(cur_path)
+                    sm.fit_kind(f, device)
+                    st.update(imageW=f["w"], imageH=f["h"])
+                except DeviceScriptError as e:
+                    probs += ["%s: %s" % (where, p) for p in e.problems]
+            elif "video" in src:
+                cur_path = None
+                vp = os.path.join(out_dir, src["video"])
+                if not os.path.isfile(vp):
+                    probs.append("%s: the recording %s does not exist" % (where, src["video"]))
+                else:
+                    f = sm.video_facts(vp)
+                    probs += ["%s: %s" % (where, p) for p in
+                              sm.check_video(f, device, float(src.get("from", 0)), float(src["to"]))]
+            else:
+                cur_path = None
+            continue
+        if k == "scroll":
+            acc = min(1.0, acc + float(st["scroll"]))
+            continue
+        if cur_path is None or cur_path not in facts:
+            if k in ("type", "tap", "click", "drag", "mark") and any(isinstance(v, dict) and "text" in v
+                                                                    for v in (st.get(k), st.get("into"))):
+                probs.append("%s: a text target needs a screenshot on the screen" % where)
+            continue
+        f = facts[cur_path]
+        key = "into" if k == "type" else ("drag" if k == "drag" else k)
+        targets = [st[key]["from"], st[key]["to"]] if k == "drag" else [st[key]]
+        resolved = []
+        for tg in targets:
+            if isinstance(tg, dict):
+                try:
+                    hit = stx.find_text(rec(cur_path), tg["text"], tg.get("nth"))
+                except DeviceScriptError as e:
+                    probs += ["%s: %s" % (where, p) for p in e.problems]
+                    continue
+                y = _viewport(hit["y"], f["w"], f["h"], device, acc)
+                if not 0 <= y <= 1:
+                    probs.append("%s: %r is out of view at this point in the scroll — scroll first" % (where, tg["text"]))
+                    continue
+                resolved.append(([hit["x"], y], (hit["box"][3] - hit["box"][1]) * f["h"]))
+            else:
+                resolved.append((list(tg), None))
+        if len(resolved) != len(targets):
+            continue
+        if k == "drag":
+            st["drag"] = {"from": resolved[0][0], "to": resolved[1][0]}
+        else:
+            st[key] = resolved[0][0]
+        (x, y), ocr_h = resolved[0]
+        y_img = _image_y(y, f["w"], f["h"], device, acc)
+        text_px = ocr_h if ocr_h else sm.text_band_px(cur_path, x, y_img)
+        gestures += 1
+        if k == "type":
+            try:
+                fld = sm.field_at(cur_path, x, y_img)
+            except DeviceScriptError as e:          # ruling R6: no field there is the author's to fix — name the step
+                probs += ["%s: %s" % (where, p) for p in e.problems]
+                continue
+            b = fld["box"]
+            st["field"] = {"box": [b[0], _viewport(b[1], f["w"], f["h"], device, acc), b[2],
+                                   _viewport(b[3], f["w"], f["h"], device, acc)],
+                           "bg": fld["bg"], "ink": fld["ink"],
+                           "textFrac": (fld["textPx"] / f["w"]) if fld["textPx"] else None}
+            text_px = fld["textPx"] or text_px
+        if text_px:
+            measured += 1
+            st.update(focus=[x, y], textFrac=text_px / f["w"], captionPx=caption)
+            need = caption / (text_px * screen_w / f["w"])
+            if need > SPEC["maxZoom"] and props.get("camera") != "still":
+                warns.append("%s: the text there needs a %.1fx push-in to reach caption size; the cap is %.0fx — "
+                             "use a tighter screenshot or a larger device" % (where, need, SPEC["maxZoom"]))
+    if probs:
+        raise DeviceScriptError(probs)
+    if gestures and measured < gestures:
+        warns.append("legibility: measured %d of %d gesture targets — the rest have no text height and get no "
+                      "push-in" % (measured, gestures))
+    steps = schedule(steps, dur_frames, fps)
+    for i, st in enumerate(steps):
+        src = st.get("screen") or {}
+        if "video" in src:
+            nxt = next((s for s in steps[i + 1:] if step_kind(s) == "screen"), None)
+            f_end = rr.frame_at_t(dur_frames, nxt["t0"]) if nxt else float(dur_frames)
+            pts = [(rr.frame_at_t(dur_frames, st["ta"]), float(src.get("from", 0)))]
+            for m in steps[i + 1:]:
+                if step_kind(m) == "screen":
+                    break
+                if step_kind(m) == "mark" and isinstance(m.get("video"), (int, float)):
+                    pts.append((rr.frame_at_t(dur_frames, m["ta"]), float(m["video"])))
+            pts.append((f_end, float(src["to"])))
+            spans = []
+            for (f0, v0), (f1, v1) in zip(pts, pts[1:]):
+                rate = (v1 - v0) / max(1e-6, (f1 - f0) / float(fps))
+                if v1 < v0 or rate > SPEC["maxVideoRate"] + 1e-6:
+                    raise DeviceScriptError(["step %d (screen): the recording would run at %.1fx between frames %d "
+                                             "and %d — the cap is %.0fx and it may not run backwards"
+                                             % (i + 1, rate, f0, f1, SPEC["maxVideoRate"])])
+                spans.append({"f0": f0, "f1": f1, "v0": v0, "v1": v1})
+            st["spans"] = spans
+            # A mark pushes in by the same rule as a tap — the text height at its point — measured on the
+            # frame the recording is showing at that moment (a recording has no other text to measure).
+            vp = os.path.join(out_dir, src["video"])
+            vw = sm.video_facts(vp)["w"]
+            for m in steps[i + 1:]:
+                if step_kind(m) == "screen":
+                    break
+                if step_kind(m) != "mark":
+                    continue
+                fm = rr.frame_at_t(dur_frames, m["ta"])
+                sp = next((x for x in spans if x["f0"] <= fm <= x["f1"]), spans[-1])
+                vt = sp["v0"] + (sp["v1"] - sp["v0"]) * (fm - sp["f0"]) / max(1e-6, sp["f1"] - sp["f0"])
+                still = os.path.join(out_dir, ".cache", "device", "%s-%.3f.png" % (os.path.basename(vp), vt))
+                os.makedirs(os.path.dirname(still), exist_ok=True)
+                subprocess.run(["ffmpeg", "-y", "-v", "error", "-ss", "%.3f" % vt, "-i", vp, "-frames:v", "1",
+                                still], check=True)
+                px = sm.text_band_px(still, m["mark"][0], m["mark"][1])
+                if px:
+                    m.update(focus=list(m["mark"]), textFrac=px / float(vw), captionPx=caption)
+    return dict(props, steps=steps), warns
+
+
+def film_language(meta, slides):
+    """The language the film's captions are set in: meta.language, or — when that is "auto", the default — the
+    script its narration is written in, by the same detection tts.py voices it with (ruling R12). Passed through
+    as "auto", a Chinese film's captions were measured with the Latin sample (43 px against 41 at 1920x1080)."""
+    lang = str((meta or {}).get("language") or "auto")
+    if lang.lower() == "auto":
+        import tts
+        lang = tts._detect_language(slides or [])
+    return lang
+
+
+def check_slide(slide, out_dir, meta):
+    """(errors, warnings) for one device beat, exactly as a render would meet them."""
+    import render_remotion as rr
+    from _caption_band import aspect_table
+    shot, sp = slide.get("shot"), slide.get("shot_props") or {}
+    dur, audio = slide.get("duration"), slide.get("audio")
+    if not dur:
+        return [], []                                   # pre-TTS: timing is checked once the audio exists
+    fps = 30
+    W, H = aspect_table().get(str(meta.get("aspect") or "16:9"), (1920, 1080))
+    try:
+        props = rr.resolve_cue_props(sp, out_dir, audio, slide.get("narration") or "", float(dur), fps)
+        _out, warns = prepare(props, shot=shot, out_dir=out_dir, dur_frames=int(round(float(dur) * fps)), fps=fps,
+                              W=W, H=H, lang=film_language(meta, [slide]))
+        return [], warns
+    except SystemExit as e:
+        return [str(e)], []
+    except DeviceScriptError as e:
+        return ["device beat: " + p for p in e.problems], []

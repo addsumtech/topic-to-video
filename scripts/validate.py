@@ -2285,6 +2285,12 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None):
                 errors.append(f"{tag}: {shot} has no prop `{_k}` — the register never reads it, so whatever it "
                               f"was meant to set prints the demo default instead. Its props are: "
                               f"{', '.join(sorted(_decl))}.")
+        # A DEVICE BEAT'S SCRIPT is checked the way the render will meet it: shapes, files, text targets, time.
+        if shot in ("DeviceDemo", "DeviceHero") and isinstance(sp, dict) and out_dir:
+            import device_script as _dsx
+            _derr, _dwarn = _dsx.check_slide(s, out_dir, meta)
+            errors.extend(f"{tag}: {m}" for m in _derr)
+            warnings.extend(f"{tag}: {m}" for m in _dwarn)
         if isinstance(sp, dict) and shot in _demo_copy_library():
             # A PROP CAN BE SUPPLIED BY ANOTHER PROP. `PortRail` grew `groups` (items that belong to named
             # kinds) and when a board gives groups, `items` is never read — but the check saw `items` unset,

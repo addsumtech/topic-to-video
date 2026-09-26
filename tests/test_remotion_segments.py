@@ -429,7 +429,7 @@ def _route(monkeypatch, tmp_path, meta=None, env=None, whole=False, mismatch=Fal
     monkeypatch.setattr(rs, "render_film", fake_film)
     monkeypatch.setattr(rr.subprocess, "run", fake_run)
     monkeypatch.setattr(rr, "_remotion_deliverables", lambda *a, **k: None)
-    monkeypatch.setattr(rr, "build_scenes", lambda slides, out_dir, valid, fps=30: [{"shot": "TermTable", "durF": 60}])
+    monkeypatch.setattr(rr, "build_scenes", lambda slides, out_dir, valid, fps=30, **kw: [{"shot": "TermTable", "durF": 60}])
     monkeypatch.setattr(rr, "_remotion_shot_ids", lambda: {"TermTable"})
     monkeypatch.setattr(rr.shutil, "which", lambda _x: "/usr/bin/npx")
     for k, v in (env or {}).items():
