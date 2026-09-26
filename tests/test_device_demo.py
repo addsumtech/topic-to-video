@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.join(_ROOT, "scripts"))
 needs_toolchain = pytest.mark.skipif(not os.path.isdir(os.path.join(_REM, "node_modules")),
                                      reason="needs the remotion toolchain")
 FONT = os.path.join(_ROOT, "assets", "fonts", "NotoSansSC-Subset.ttf")
+from _caption_band import caption_band_px    # noqa: E402 — scripts/ is on the path from the line above
 ACCENT_PRODUCT = None     # read from the rendered pixels, not restated
 
 
@@ -144,7 +145,8 @@ def test_the_push_in_makes_the_target_text_caption_tall(tmp_path):
               "textFrac": ink / 1170, "captionPx": cap}]
     props = {"device": "phone", "look": "flat", "steps": steps}
     png = _render(tmp_path, props, 100, "zoom")
-    band = sm.text_band_px(png, 0.5, 0.5)
+    # the camera centres the target in its VIEW — the zone above the caption band — not in the frame
+    band = sm.text_band_px(png, 0.5, (1080 - caption_band_px(1920, 1080)) / 2.0 / 1080)
     assert band is not None and band >= cap * 0.85, (band, cap)
 
 
@@ -206,10 +208,33 @@ def test_a_push_in_near_a_lid_edge_stays_on_the_lid(tmp_path):
         png = _render(tmp_path, {"device": kind, "look": "flat", "steps": steps}, 100, "lid_" + kind)
         a = np.asarray(Image.open(png).convert("L"), dtype=float)
         H, W = a.shape
-        band = a[:, : int(W * 0.03)] if strip == "left" else np.concatenate(
-            [a[int(H * 0.97):, : int(W * 0.25)], a[int(H * 0.97):, int(W * 0.75):]], axis=1)
+        cb = H - caption_band_px(W, H)                     # the view ends where the caption band begins
+        band = a[:cb, : int(W * 0.03)] if strip == "left" else np.concatenate(
+            [a[cb - int(H * 0.03):cb, : int(W * 0.25)], a[cb - int(H * 0.03):cb, int(W * 0.75):]], axis=1)
         assert band.mean() > 150, "%s: the %s edge of the push-in is background (mean %.0f)" % (kind, strip,
                                                                                                band.mean())
+
+
+@needs_toolchain
+def test_the_push_in_leaves_the_caption_band_to_the_ground(tmp_path):
+    """The camera filled the FRAME, so a push-in laid the screen's rows under the burned caption: on a real film
+    「先在上面的搜索框里输入上周的反馈。」 sat on 「第4条反馈」, and a caption word sat black on the black bezel. The
+    camera fills the content zone (PointerTour's rule); below it the band stays the film's own ground."""
+    import screen_media as sm
+    np = pytest.importorskip("numpy")
+    ui = _screenshot(str(tmp_path / "ui.png"))
+    cap = sm.caption_ink_px("zh", 1920, 1080)
+    y = 255 / 2532                                        # the search bar's placeholder line
+    ink = sm.text_band_px(ui, 0.2, y)
+    steps = [{"screen": {"image": "ui.png"}, "imageW": 1170, "imageH": 2532, "t0": 0.06, "ta": 0.06, "t1": 0.2},
+             {"tap": [0.2, y], "t0": 0.3, "ta": 0.45, "t1": 0.75, "focus": [0.2, y],
+              "textFrac": ink / 1170, "captionPx": cap}]
+    for kind in ("phone", "tablet"):                      # both push in here (a laptop's text is caption-tall already)
+        png = _render(tmp_path, {"device": kind, "look": "flat", "steps": steps}, 100, "band_" + kind)
+        a = np.asarray(Image.open(png).convert("L"), dtype=int)
+        H, W = a.shape
+        band = a[H - caption_band_px(W, H):, :]
+        assert band.max() <= 40, "%s: the push-in reaches the caption band (brightest %d)" % (kind, band.max())
 
 
 @needs_toolchain

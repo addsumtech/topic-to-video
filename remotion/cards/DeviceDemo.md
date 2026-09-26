@@ -19,6 +19,7 @@
 - A text target that is not in the screenshot, or is there twice without `nth`, is refused with the text that WAS recognised — the ring must land on what the film names.
 - A `type` step paints the field's own colour over the field's INNER box before typing — without that the placeholder and the typed words both show — so an icon inside the field (a search magnifier, a mic) is hidden while typing. Neither geometry nor OCR tells an icon from placeholder text (OCR reads a magnifier as "Q"), and a placeholder word left beside typed text is the worse failure.
 - A push-in near the device's edge stays on the device: the zoomed view keeps inside the device's face — its screen and bezel, not a laptop's base or a monitor's stand — along any axis the face is larger than the view, and centres on it along the other.
+- The push-in's view is the content zone, not the frame: a zoomed device is cropped at the caption band's top edge and the caption always sits on the film's own ground — filling the frame, it laid the screen's rows under the burned caption.
 - A script step without its prepared time (`t0`/`ta`/`t1`), or a recording without its `spans`, is refused — never re-timed or drawn black.
 - A long screenshot scrolls only within its real overflow; a fling may overshoot 4% and springs back.
 - The standalone demo is skeleton bars with no text, so no demo copy exists to leak into a film.

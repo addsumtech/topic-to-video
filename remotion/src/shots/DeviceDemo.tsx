@@ -17,7 +17,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, useAnimSpan, ENTRY_T, ReducedMotionContext, clamp01, seg, easeInOutCubic, easeCursor} from '../runtime/motion';
 import {useDNA, mix} from '../runtime/dna';
 import {camAt, clampToPage, type CamKey} from '../runtime/pageCam2D';
-import {textWidthPx, TITLE_Y} from '../runtime/layout';
+import {textWidthPx, TITLE_Y, contentBottom} from '../runtime/layout';
 import {deviceGeometry, deviceFace, defaultLook, isTouch, Device, type DeviceKind, type DeviceLook, type Placement, type Rect} from '../runtime/device';
 import {ScreenImage, ScreenVideo, scrollRangePx, flingAt, type VideoSpan} from '../runtime/screen';
 import {typeChunks, typedCount, caretOn, framesBetween, TapRipple, CursorArrow} from '../runtime/gesture';
@@ -65,10 +65,10 @@ const scheduled = (steps: Step[], demo: boolean): Step[] => {
  *  laptop's base (wider than its lid) let a push-in on the lid's edge show 280 px of background beside it, and
  *  a monitor's stand let one on its bottom row show the stand's empty surround. Applied to the zoomed KEYS, so
  *  the move from rest stays one smooth path. */
-const onDevice = (x: number, y: number, s: number, b: Rect, W: number, H: number): {x: number; y: number} => {
+const onDevice = (x: number, y: number, s: number, b: Rect, viewW: number, viewH: number): {x: number; y: number} => {
   const axis = (c: number, lo: number, len: number, half: number) =>
     len <= half * 2 ? lo + len / 2 : Math.min(Math.max(c, lo + half), lo + len - half);
-  return {x: axis(x, b.x, b.w, W / 2 / s), y: axis(y, b.y, b.h, H / 2 / s)};
+  return {x: axis(x, b.x, b.w, viewW / 2 / s), y: axis(y, b.y, b.h, viewH / 2 / s)};
 };
 
 const DemoPage: React.FC<{w: number; h: number; ink: string; ground: string}> = ({w, h, ink, ground}) => (
@@ -213,27 +213,33 @@ export const DeviceDemo: React.FC<{
   if (cursor) overlays.push(<CursorArrow key="cursor" x={cursor.x} y={cursor.y} size={s.w * 0.035} press={cursor.press} />);
 
   // ── the legibility push-in, computed from what prepare() measured ─────────────────────────────────────
-  const keys: CamKey[] = [{at: 0, x: W / 2, y: H / 2, s: 1}];
+  // THE CAMERA FILLS THE CONTENT ZONE, NOT THE FRAME (PointerTour's rule, and every register's contract with
+  // the burned caption). Filling the frame, a push-in laid the screen's rows under the caption: on a real
+  // film 「先在上面的搜索框里输入上周的反馈。」 sat on 「第4条反馈」, and a caption word sat black on the black
+  // bezel. The view is the zone above the band; at rest it is the frame's own layout, unmoved.
+  const VIEW_H = contentBottom(W, H);
+  const keys: CamKey[] = [{at: 0, x: W / 2, y: VIEW_H / 2, s: 1}];
   if (camera !== 'still' && !reduced) {
     steps.forEach((st, i) => {
       if (!st.focus || !st.textFrac || !st.captionPx) return;
       const zoom = Math.min(spec.maxZoom, Math.max(1, st.captionPx / (st.textFrac * s.w)));
       if (zoom <= 1.01) return;
-      const f = onDevice(s.x + st.focus[0] * s.w, s.y + st.focus[1] * s.h, zoom, deviceFace(g), W, H);
+      const f = onDevice(s.x + st.focus[0] * s.w, s.y + st.focus[1] * s.h, zoom, deviceFace(g), W, VIEW_H);
       const last = keys[keys.length - 1];
       keys.push({at: st.t0!, x: last.x, y: last.y, s: last.s});
       keys.push({at: st.ta!, x: f.x, y: f.y, s: zoom});
       keys.push({at: st.t1!, x: f.x, y: f.y, s: zoom});
       const next = steps[i + 1];
-      if (!next || !next.focus) keys.push({at: Math.min(1, st.t1! + (st.ta! - st.t0!)), x: W / 2, y: H / 2, s: 1});
+      if (!next || !next.focus) keys.push({at: Math.min(1, st.t1! + (st.ta! - st.t0!)), x: W / 2, y: VIEW_H / 2, s: 1});
     });
   }
-  const cam = clampToPage(camAt(keys, t, easeInOutCubic), W, H, W, H);
+  const cam = clampToPage(camAt(keys, t, easeInOutCubic), W, VIEW_H, W, VIEW_H);
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? GROUND, overflow: 'hidden'}}>
+      <div style={{position: 'absolute', left: 0, top: 0, width: W, height: VIEW_H, overflow: 'hidden'}}>
       <AbsoluteFill style={{transformOrigin: '0 0',
-        transform: `translate(${W / 2 - cam.x * cam.s}px, ${H / 2 - cam.y * cam.s}px) scale(${cam.s})`}}>
+        transform: `translate(${W / 2 - cam.x * cam.s}px, ${VIEW_H / 2 - cam.y * cam.s}px) scale(${cam.s})`}}>
         <Device g={g} dna={dna}>
           {prev && change < 1 ? (
             <div style={{position: 'absolute', inset: 0, transform: push ? `translateX(${-change * s.w * 0.3}px)` : undefined}}>
@@ -247,6 +253,7 @@ export const DeviceDemo: React.FC<{
           {overlays}
         </Device>
       </AbsoluteFill>
+      </div>
       {kicker ? (
         <div style={{position: 'absolute', left: 0, right: 0, top: TITLE_Y, textAlign: 'center', color: dna?.dim ?? '#5b6472',
           font: `600 ${Math.round(Math.min(W, H) * 0.022)}px/1 ${dna?.fontMono ?? 'ui-monospace, monospace'}`,
