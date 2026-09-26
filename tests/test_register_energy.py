@@ -43,3 +43,42 @@ def test_one_shots_ground_row_does_not_stale_every_other_shots_energy():
         # the file's CODE still does, for every reader
         open(p, "w", encoding="utf-8").write(base.replace("?? 'dark'", "?? 'light'"))
         assert re_._dep_bytes(p, "Alpha") != alpha_before, "a change to the module's code no longer stales it"
+
+
+def test_another_shots_dna_ground_entry_does_not_stale_a_reader():
+    """`DNA_GROUND_TOKEN` is a per-register table too, and only `SHOT_LUMA` and `GROUND_FOLLOWS_MEASURED`
+    were reduced to the reader's own entry: registering DeviceDemo and DeviceHero added two ground rows and
+    staled 53 readers whose pictures had not moved. An entry may span lines (`['accent',\n 'accent2']`)."""
+    import importlib.util
+    import os
+    import tempfile
+    here = os.path.dirname(os.path.abspath(__file__))
+    spec = importlib.util.spec_from_file_location(
+        "register_energy", os.path.join(os.path.dirname(here), "scripts", "register_energy.py"))
+    re_ = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(re_)
+
+    base = ("export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {\n"
+            "  Alpha: 'bg',\n"
+            "  Beta: ['accent',\n    'accent2'],\n"
+            "};\n"
+            "export const groundTokenOf = (id: string) => DNA_GROUND_TOKEN[id] ?? 'bg';\n")
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "shotLuma.ts")
+        open(p, "w", encoding="utf-8").write(base)
+        alpha_before = re_._dep_bytes(p, "Alpha")
+        # ANOTHER register's entry changes, and a new one is registered
+        open(p, "w", encoding="utf-8").write(
+            base.replace("'accent2']", "'surface']").replace("  Alpha: 'bg',\n", "  Delta: 'surface',\n  Alpha: 'bg',\n"))
+        assert re_._dep_bytes(p, "Alpha") == alpha_before, "another shot's ground entry staled Alpha"
+        # ...and Alpha's OWN entry still does
+        open(p, "w", encoding="utf-8").write(base.replace("Alpha: 'bg'", "Alpha: 'surface'"))
+        assert re_._dep_bytes(p, "Alpha") != alpha_before, "Alpha's own ground entry no longer affects its hash"
+        # a multi-line entry is still the reader's own
+        beta_before = re_._dep_bytes(p, "Beta")
+        open(p, "w", encoding="utf-8").write(base.replace("'accent2']", "'surface']"))
+        assert re_._dep_bytes(p, "Beta") != beta_before, "the second line of Beta's own entry no longer counts"
+        # the file's CODE still does, for every reader
+        open(p, "w", encoding="utf-8").write(base.replace("?? 'bg'", "?? 'surface'"))
+        assert re_._dep_bytes(p, "Alpha") != alpha_before, "a change to the module's code no longer stales it"
+

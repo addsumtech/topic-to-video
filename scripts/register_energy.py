@@ -259,6 +259,14 @@ _LUMA_ENTRY = re.compile(r"^\s*(?:'|\")?([A-Za-z][A-Za-z0-9_]*)(?:'|\")?\s*:\s*'
 _FOLLOWS_BLOCK = re.compile(r"(GROUND_FOLLOWS_MEASURED[^=]*=\s*new Set\(\[)(.*?)(\]\))", re.S)
 
 
+# ...AND SO IS `DNA_GROUND_TOKEN` — one entry per shot, written by register_shot.py and by
+# `measure_ground_luma.py --emit`. Folded in whole, registering DeviceDemo and DeviceHero added two rows and
+# staled 53 readers whose pixels had not moved; the library's previous registration (059edd8) rewrote 56
+# register_energy rows for the same reason. Same rule as the other two tables: the module's CODE plus the reader's
+# OWN entry (an entry may span lines — `['accent', 'accent2']`).
+_GROUND_TABLE = re.compile(r"(export\s+const\s+DNA_GROUND_TOKEN\b[^=]*=\s*\{)(.*?)(\n\};)", re.S)
+
+
 # ── SYMBOL REACHABILITY ───────────────────────────────────────────────────────────────────────────────
 # A REGISTER DEPENDS ON THE SYMBOLS IT USES, NOT ON EVERY BYTE OF THE FILE THEY LIVE IN.
 #
@@ -452,6 +460,11 @@ def _dep_bytes(dep, name, ignore_follows=False):
         # could not have done if the permission gated the measurement.
         listed = "n/a" if ignore_follows else ("yes" if re.search(r"'%s'" % re.escape(name), m.group(2)) else "no")
         src = src[:m.start()] + m.group(1) + " /*follows:" + listed + "*/ " + m.group(3) + src[m.end():]
+    g = _GROUND_TABLE.search(src)
+    if g:
+        own = re.search(r"(?<![A-Za-z0-9_])'?%s'?\s*:\s*(\[[^\]]*\]|'[^']*'|\"[^\"]*\")" % re.escape(name), g.group(2))
+        own_text = re.sub(r"\s+", " ", own.group(0)) if own else ""
+        src = src[:g.start()] + g.group(1) + " /*ground:" + own_text + "*/ " + g.group(3) + src[g.end():]
     mine = [m2.group(0).strip() for m2 in _LUMA_ENTRY.finditer(src) if m2.group(1) == name]
     # entries can share a line; drop every entry from the text, then add back only this register's
     stripped = _LUMA_ENTRY.sub("", src)

@@ -101,7 +101,8 @@ export const DeviceDemo: React.FC<{
   const lk: DeviceLook = look ?? defaultLook(dna);
   const g = deviceGeometry(device, lk, W, H, placement, Boolean(kicker));
   const s = g.screen;
-  const INK = dna?.fg ?? '#14171c', GROUND = dna?.bg ?? '#eef1f4', ACC = dna?.accent ?? '#3563e9';
+  const GROUND = dna?.bg ?? '#eef1f4';          // the film's ground: bgGrad -> bg -> this
+  const INK = dna?.fg ?? '#14171c', ACC = dna?.accent ?? '#3563e9';
   const BODY_FONT = dna?.fontBody ?? '"Inter", "Noto Sans SC", system-ui, sans-serif';
   const touch = isTouch(device);
 
