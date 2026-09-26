@@ -1,4 +1,5 @@
 """Text targets: found, or refused with what WAS found. Never a guess."""
+import json
 import os
 import shutil
 import sys
@@ -40,6 +41,52 @@ def test_text_found_twice_needs_nth_and_nth_picks():
         st.find_text(LINES, "设置")
     assert "2 places" in str(e.value)
     assert st.find_text(LINES, "设置", nth=2)["x"] == pytest.approx(0.65)
+
+
+def test_nth_below_one_is_refused_not_wrapped():
+    """`(nth or 1) - 1` read 0 as 1 and -1 as the last place — a silent wrong target."""
+    for bad in (0, -1, 1.5, True):
+        with pytest.raises(ds.DeviceScriptError) as e:
+            st.find_text(LINES, "设置", nth=bad)
+        assert "`nth`" in str(e.value)
+
+
+def test_full_width_punctuation_matches_half_width():
+    lines = [{"text": "设置：通知", "box": [0.1, 0.5, 0.5, 0.53]}, {"text": "ＡＩ 助手", "box": [0.1, 0.6, 0.4, 0.63]}]
+    assert st.find_text(lines, "设置:")["y"] == pytest.approx(0.515)
+    assert st.find_text(lines, "AI助手")["y"] == pytest.approx(0.615)
+
+
+def test_a_missing_screenshot_and_a_torn_cache_entry(tmp_path, monkeypatch):
+    with pytest.raises(ds.DeviceScriptError) as e:
+        st.recognize(str(tmp_path / "nope.png"), cache_dir=str(tmp_path))
+    assert "does not exist" in str(e.value)
+    p = tmp_path / "s.png"
+    Image.new("RGB", (40, 40), "white").save(p)
+    monkeypatch.setattr(st, "available", lambda: "vision")
+    monkeypatch.setattr(st, "_vision", lambda path: [{"text": "设置", "box": [0.1, 0.1, 0.2, 0.2]}])
+    memo = tmp_path / "screen_text" / ("%s-vision.json" % st._sha(str(p)))
+    memo.parent.mkdir()
+    memo.write_text("{not json", encoding="utf-8")         # what an interrupted write leaves
+    assert st.recognize(str(p), cache_dir=str(tmp_path))[0]["text"] == "设置"
+    assert json.loads(memo.read_text(encoding="utf-8"))[0]["text"] == "设置"
+
+
+def test_an_unrunnable_helper_is_rebuilt_once(tmp_path, monkeypatch):
+    """A helper binary left torn by an interrupted build raised a raw `Exec format error`."""
+    monkeypatch.setattr(st, "_BIN_DIR", str(tmp_path))
+    exe = tmp_path / ("ocr_macos-" + st._sha(st._SWIFT)[:16])
+    exe.write_bytes(b"\0" * 37)
+    exe.chmod(0o755)
+
+    def fake_compile(path):
+        with open(path, "w") as fh:
+            fh.write("#!/bin/sh\necho '[]'\n")
+        os.chmod(path, 0o755)
+    monkeypatch.setattr(st, "_compile", fake_compile)
+    img = tmp_path / "s.png"
+    Image.new("RGB", (40, 40), "white").save(img)
+    assert st._vision(str(img)) == []
 
 
 @pytest.mark.skipif(sys.platform != "darwin" or not shutil.which("swiftc"), reason="macOS Vision only")

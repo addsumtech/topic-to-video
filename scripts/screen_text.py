@@ -12,6 +12,7 @@ import os
 import shutil
 import subprocess
 import sys
+import unicodedata
 
 import device_script as ds
 
@@ -36,13 +37,40 @@ def available():
     return None
 
 
+def _replace(path, write):
+    """Write through a temporary file and rename it into place: a reader never sees half a file, and two
+    processes racing on the same path each land a whole one."""
+    tmp = "%s.%d.tmp" % (path, os.getpid())
+    try:
+        write(tmp)
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
+def _compile(exe):
+    os.makedirs(_BIN_DIR, exist_ok=True)
+
+    def build(tmp):
+        r = subprocess.run(["swiftc", "-O", _SWIFT, "-o", tmp], capture_output=True, text=True)
+        if r.returncode != 0:
+            raise ds.DeviceScriptError(["compiling the text-recognition helper failed: %s" % r.stderr.strip()[-300:]])
+    _replace(exe, build)
+
+
 def _vision(path):
-    tag = _sha(_SWIFT)[:16]
-    exe = os.path.join(_BIN_DIR, "ocr_macos-" + tag)
+    exe = os.path.join(_BIN_DIR, "ocr_macos-" + _sha(_SWIFT)[:16])
     if not os.path.exists(exe):
-        os.makedirs(_BIN_DIR, exist_ok=True)
-        subprocess.run(["swiftc", "-O", _SWIFT, "-o", exe], check=True, capture_output=True)
-    r = subprocess.run([exe, path], capture_output=True, text=True)
+        _compile(exe)
+    try:
+        r = subprocess.run([exe, path], capture_output=True, text=True)
+    except OSError:                          # a helper left unrunnable (a torn write from an older build): rebuild once
+        _compile(exe)
+        try:
+            r = subprocess.run([exe, path], capture_output=True, text=True)
+        except OSError as e:
+            raise ds.DeviceScriptError(["cannot run the text-recognition helper %s: %s" % (exe, e)])
     if r.returncode != 0:
         raise ds.DeviceScriptError(["text recognition failed on %s: %s" % (path, r.stderr.strip()[-200:])])
     return [{"text": o["text"], "box": [float(v) for v in o["box"]]} for o in json.loads(r.stdout or "[]")]
@@ -55,6 +83,8 @@ def _tesseract(path):
     langs = subprocess.run(["tesseract", "--list-langs"], capture_output=True, text=True).stdout
     lang = "chi_sim+eng" if "chi_sim" in langs else "eng"
     r = subprocess.run(["tesseract", path, "stdout", "-l", lang, "tsv"], capture_output=True, text=True)
+    if r.returncode != 0:
+        raise ds.DeviceScriptError(["text recognition (tesseract) failed on %s: %s" % (path, r.stderr.strip()[-200:])])
     lines = {}
     for row in r.stdout.splitlines()[1:]:
         c = row.split("\t")
@@ -71,6 +101,8 @@ def _tesseract(path):
 
 
 def recognize(path, cache_dir=None):
+    if not os.path.isfile(path):
+        raise ds.DeviceScriptError(["the screenshot %s does not exist" % path])
     backend = available()
     if backend is None:
         raise ds.DeviceScriptError(["a text target needs text recognition, and this machine has none (macOS "
@@ -80,20 +112,30 @@ def recognize(path, cache_dir=None):
     os.makedirs(cache, exist_ok=True)
     memo = os.path.join(cache, "%s-%s.json" % (_sha(path), backend))
     if os.path.exists(memo):
-        return json.load(open(memo, encoding="utf-8"))
+        try:
+            with open(memo, encoding="utf-8") as fh:
+                return json.load(fh)
+        except (OSError, ValueError):
+            pass                                            # a torn or corrupt entry: recognise again
     lines = _vision(path) if backend == "vision" else _tesseract(path)
-    with open(memo, "w", encoding="utf-8") as fh:
-        json.dump(lines, fh, ensure_ascii=False)
+
+    def write(tmp):
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(lines, fh, ensure_ascii=False)
+    _replace(memo, write)
     return lines
 
 
 def _norm(s):
-    return "".join(str(s).split()).casefold()
+    """Width- and case-blind: NFKC folds full-width punctuation and letters (设置： is 设置:, ＡＩ is AI)."""
+    return "".join(unicodedata.normalize("NFKC", str(s)).split()).casefold()
 
 
 def find_text(lines, text, nth=None):
     """{"x", "y", "box"} (image fractions) of the nth place `text` appears. A match inside a longer line takes
     its share of the line's width."""
+    if nth is not None and (isinstance(nth, bool) or not isinstance(nth, int) or nth < 1):
+        raise ds.DeviceScriptError(["`nth` must be a whole number from 1 (the top-most place), not %r" % (nth,)])
     key = _norm(text)
     hits = []
     for ln in lines:
