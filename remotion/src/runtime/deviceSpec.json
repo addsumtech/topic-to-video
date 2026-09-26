@@ -1,0 +1,36 @@
+{
+  "_doc": "The device layer's numbers, defined ONCE. Read by runtime/device.tsx, runtime/screen.tsx and runtime/gesture.tsx, and by scripts/device_script.py, scripts/device_geometry.py and scripts/screen_media.py. Values come from docs/superpowers/specs/2026-09-26-device-layer-design.md and the rulings in docs/superpowers/plans/2026-09-26-device-layer.md; the durations and caps are design choices to tune on real films, not measurements.",
+  "screenRatio": {"phone": [9, 19.5], "tablet": [3, 4], "laptop": [16, 10], "monitor": [16, 9]},
+  "touch": {"phone": true, "tablet": true, "laptop": false, "monitor": false},
+  "body": {
+    "flat": {
+      "phone":   {"bezel": 0.045, "radius": 0.13,  "base": 0,     "overhang": 0,    "strip": 0},
+      "tablet":  {"bezel": 0.04,  "radius": 0.05,  "base": 0,     "overhang": 0,    "strip": 0},
+      "laptop":  {"bezel": 0.022, "radius": 0.012, "base": 0.035, "overhang": 0.06, "strip": 0},
+      "monitor": {"bezel": 0.018, "radius": 0.01,  "base": 0.16,  "overhang": 0,    "strip": 0}
+    },
+    "real": {
+      "phone":   {"bezel": 0.045, "radius": 0.13,  "base": 0,     "overhang": 0,    "strip": 0},
+      "tablet":  {"bezel": 0.04,  "radius": 0.05,  "base": 0,     "overhang": 0,    "strip": 0},
+      "laptop":  {"bezel": 0.022, "radius": 0.012, "base": 0.035, "overhang": 0.06, "strip": 0},
+      "monitor": {"bezel": 0.018, "radius": 0.01,  "base": 0.16,  "overhang": 0,    "strip": 0}
+    },
+    "screen": {
+      "phone":   {"bezel": 0, "radius": 0.11,  "base": 0, "overhang": 0, "strip": 0},
+      "tablet":  {"bezel": 0, "radius": 0.045, "base": 0, "overhang": 0, "strip": 0},
+      "laptop":  {"bezel": 0, "radius": 0.012, "base": 0, "overhang": 0, "strip": 0.045},
+      "monitor": {"bezel": 0, "radius": 0.012, "base": 0, "overhang": 0, "strip": 0.04}
+    }
+  },
+  "island": {"w": 0.30, "h": 0.052, "top": 0.035},
+  "zoneTopFrac": 0.05,
+  "zoneWidthFill": 0.9,
+  "placementX": {"center": 0.5, "left": 0.32, "right": 0.68},
+  "minSeconds": {"screen": 0.5, "tap": 0.6, "click": 0.6, "typeLatinKey": 0.15, "typeCjkWord": 0.35,
+                 "scroll": 0.9, "drag": 0.9, "mark": 0.6},
+  "cameraLeadSeconds": 0.35,
+  "maxZoom": 4.0,
+  "maxVideoRate": 2.0,
+  "caretPhaseFrames": 16,
+  "aspectTolerance": 0.04
+}
