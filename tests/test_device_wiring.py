@@ -137,3 +137,19 @@ def test_a_hero_is_checked_like_a_demo(tmp_path):
                         W=1920, H=1080, lang="zh")
     assert out["screen"] == {"page": "demo"}
 
+
+def test_a_text_target_is_measured_by_its_ink_not_its_recognition_box(tmp_path):
+    """The push-in brings a target to the caption's INK height, but a text target took its height from the
+    recognition BOX — Vision's line box, 1.1–1.6x the ink and not the same for two identical rows — so every text
+    target was pushed in about a third too little (a real film's rows read 67–74% of its caption). The box now
+    only bounds where the ink is measured."""
+    import screen_media as sm
+    img = _ui(tmp_path)
+    tall_box = lambda path: [{"text": "反馈汇总", "box": [90 / 1170, 690 / 2532, 290 / 1170, 770 / 2532]}]
+    props = {"device": "phone", "steps": [{"screen": {"image": img}}, {"tap": {"text": "反馈汇总"}, "at": 0.7}]}
+    out, _ = ds.prepare(props, shot="DeviceDemo", out_dir=str(tmp_path), dur_frames=180, fps=FPS, W=1920, H=1080,
+                        lang="zh", recognizer=tall_box)
+    ink = sm.text_band_px(str(tmp_path / img), 190 / 1170, 725 / 2532)
+    got = out["steps"][1]["textFrac"] * 1170
+    assert ink and abs(got - ink) <= 1, "measured %.1f px for text whose ink is %.1f px (the box is 80 px)" % (got, ink)
+

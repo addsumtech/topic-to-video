@@ -356,7 +356,15 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
                 if not 0 <= y <= 1:
                     probs.append("%s: %r is out of view at this point in the scroll — scroll first" % (where, tg["text"]))
                     continue
-                resolved.append(([hit["x"], y], (hit["box"][3] - hit["box"][1]) * f["h"]))
+                # The push-in brings the target to the caption's INK height, so its height is the INK inside its
+                # recognition box: the box is the recogniser's line box, 1.1-1.6x the ink and not the same for two
+                # identical rows, and taken as the height it pushed every text target in about a third too
+                # little. The box, padded a quarter of its height, only bounds where the ink is looked for.
+                bx0, by0, bx1, by1 = hit["box"]
+                pad = (by1 - by0) * 0.25
+                ink = sm.text_band_px(cur_path, hit["x"], hit["y"],
+                                      box=[bx0, max(0.0, by0 - pad), bx1, min(1.0, by1 + pad)])
+                resolved.append(([hit["x"], y], ink or (by1 - by0) * f["h"]))
             else:
                 resolved.append((list(tg), None))
         if len(resolved) != len(targets):
@@ -365,9 +373,9 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
             st["drag"] = {"from": resolved[0][0], "to": resolved[1][0]}
         else:
             st[key] = resolved[0][0]
-        (x, y), ocr_h = resolved[0]
+        (x, y), text_h = resolved[0]
         y_img = _image_y(y, f["w"], f["h"], device, acc)
-        text_px = ocr_h if ocr_h else sm.text_band_px(cur_path, x, y_img)
+        text_px = text_h if text_h else sm.text_band_px(cur_path, x, y_img)
         gestures += 1
         if k == "type":
             try:
