@@ -135,17 +135,25 @@ def recognize(path, cache_dir=None):
 
 
 def _norm_map(s):
-    """(`s` without whitespace, width- and case-blind; for each of its characters, the index of the character
-    of `s` it came from, counting only non-space ones; how many non-space characters `s` has). NFKC folds
-    full-width punctuation and letters (设置： is 设置:, ＡＩ is AI) but can lengthen a character (㎡ becomes
-    m2), so a match's share of its line is counted in the line's own characters, not the folded ones. The line
-    is composed (NFC) before it is folded character by character: folding one code point at a time could never
-    join a letter and the combining accent after it, so an OCR'd decomposed e-acute missed a typed composed one."""
+    """(`s` without whitespace, width- and case-blind; for each of its characters, the index of the on-screen
+    character of `s` it came from, counting only non-space ones; how many non-space characters `s` has). NFKC
+    folds full-width punctuation and letters (设置： is 设置:, ＡＩ is AI) but can lengthen a character (㎡ becomes
+    m2), so a match's share of its line is counted in the line's own characters, not the folded ones. An
+    on-screen character is a base with the combining marks after it, folded as one unit: folding one code point
+    at a time can never join a letter and its accent (a decomposed e-acute missed a typed one), nor a
+    compatibility character and its accent (Roman numeral one + acute folded to a bare i and a stray accent) —
+    per unit, the result equals NFKC over the whole line."""
+    units = []
+    for c in unicodedata.normalize("NFC", str(s)):
+        if units and unicodedata.combining(c) and not units[-1][0].isspace():
+            units[-1] += c
+        else:
+            units.append(c)
     out, owner, n = [], [], 0
-    for c in unicodedata.normalize("NFC", str(s)):          # compose first: e + U+0301 is one é, as typed
-        if c.isspace():
+    for u in units:
+        if u.isspace():
             continue
-        f = "".join(unicodedata.normalize("NFKC", c).casefold().split())
+        f = "".join(unicodedata.normalize("NFKC", u).casefold().split())
         out.append(f)
         owner += [n] * len(f)
         n += 1

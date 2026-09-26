@@ -2,6 +2,7 @@
 import json
 import os
 import threading
+import unicodedata
 import shutil
 import sys
 
@@ -76,6 +77,21 @@ def test_a_decomposed_accent_matches_a_composed_one():
         assert r["box"][0] == pytest.approx(0.0) and r["box"][2] == pytest.approx(0.4)
     r = st.find_text([{"text": decomposed, "box": [0.0, 0.0, 1.0, 0.1]}], "lait")
     assert r["box"][0] == pytest.approx(0.6) and r["box"][2] == pytest.approx(1.0)
+
+
+def test_folding_a_line_agrees_with_folding_it_whole():
+    """Folding code point by code point after NFC still split a compatibility character from the accent after
+    it (Roman numeral one + U+0301 folded to a bare i and a stray accent): 862 base + mark pairs disagreed
+    with NFKC over the whole line. Every compatibility character in the BMP is checked, with two marks."""
+    def whole(s):
+        return "".join(unicodedata.normalize("NFKC", s).casefold().split())
+    bases = [chr(cp) for cp in range(0x10000)
+             if not 0xD800 <= cp <= 0xDFFF and unicodedata.decomposition(chr(cp)).startswith("<")] + ["e", "A"]
+    for base in bases:
+        for mark in ("\u0301", "\u0308"):
+            assert st._norm(base + mark) == whole(base + mark), ("U+%04X" % ord(base), "U+%04X" % ord(mark))
+    r = st.find_text([{"text": "\u2160\u0301 x", "box": [0.0, 0.0, 1.0, 0.1]}], "\u00ed")
+    assert r["box"][0] == pytest.approx(0.0) and r["box"][2] == pytest.approx(0.5)
 
 
 def test_racing_writers_each_land_a_whole_file(tmp_path):
