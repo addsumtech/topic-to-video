@@ -210,8 +210,9 @@ TTS if the user gives an API key.
   cross-fades (a `reduced-motion.css` linked last), still deterministic + seekable. It's an
   authoring-time opt-in variant (a baked mp4 can't read the viewer's OS setting), and it busts the
   clip cache.
-- `scripts/render_remotion.py <out_dir>` with **`meta.renderer:"remotion"`** — the **RECOMMENDED cinematic
-  tier**: a **bespoke-shot LIBRARY** where every beat is a hand-written, topic-driven design language (the
+- `scripts/render_remotion.py <out_dir>` with **`meta.renderer:"remotion"`** — the **cinematic tier**
+  (recommended for launch / promo / story — NOT for every video; `scripts/tier_advice.py` decides from the
+  purpose and topic, see interview ③): a **bespoke-shot LIBRARY** where every beat is a hand-written, topic-driven design language (the
   registers catalogued in `remotion/LIBRARY.md`), sequenced into a narrated film with cross-dissolve
   transitions + scene-relative captions + per-scene edge-tts narration (served via `--public-dir=<out_dir>`).
   **THE CUT IS PART OF THE DESIGN — and it has to be authored, not assumed.** The tier implements five seams:
@@ -816,7 +817,7 @@ agent on the beats it points at.
    the source the content-planner + design-director build the deck from. (If the conversation has
    ALREADY surfaced candidate topics/angles, offer THEM as an `AskUserQuestion` menu with "Other" for
    the user's own — only a contextless from-scratch run needs the bare plain line.)
-   - **① Purpose** *(→ `arc_kind` + the planner's tone/audience `director_note`)* — what the video
+   - **① Purpose** *(→ `arc_kind` + `meta.purpose` + the planner's tone/audience `director_note`)* — what the video
      is for, and roughly who watches. Menu: **Teach/explain** (expository) · **Pitch/persuade**
      (narrative) · **How-to/walkthrough** (howto → expository) · **Research briefing** (reference →
      expository) · Overview/intro (→ expository) · Launch/announcement (→ narrative) · Promo/hype (→
@@ -832,23 +833,32 @@ agent on the beats it points at.
      'Match the slides' has nothing to detect — default the highlighted option to the **topic
      sentence's own language** instead. The narration **voice engine** is the separate question **⑤**
      below.
-   - **③ Look / tier** *(→ `meta.image_source` + `meta.renderer`)* — the deck's visual world, as a clean
-     TIER menu (this menu decides ONLY the tier; everything else below rides alongside it). Options:
-     **Designed HTML — FREE, no AI images** (bespoke full-screen pages rendered by headless Chrome;
-     `image_source:none` + `renderer:local`, the default) · **HTML + AI backdrops — PAID** (the SAME
-     designed pages WITH a generated hero cover + soft on-topic textures behind the glass cards at low
-     opacity; `image_source:openai` + `renderer:local` — Batch 3 then confirms the spend + style) ·
-     **Cinematic (Remotion) — FREE** (a kinetic, bespoke-DESIGNED film — each beat its OWN hand-written
-     design language from the register library `remotion/LIBRARY.md`, narrated, with luminance-safe seams
-     + a carry match-cut; each shot is FULL-BLEED (edge-to-edge, no borders) and the camera is LOCKED by
-     default — the shots animate themselves, so a whole-film drift is OFF unless `meta.camera_drift` opts in
-     (a global float on top of self-animating shots reads as a per-frame SHAKE); `renderer:remotion` — the
-     shot-director assigns each beat a `shot`+`shot_props`, it renders via `render_remotion.py`, reviewed by
-     the shot-critic).
-     **Show the Cinematic button ONLY when `doctor.py` reports the remotion tier installed**; otherwise
-     the two HTML options are the whole menu. Make the FREE-vs-PAID split visible in every label; never
-     enable the generator without the user picking the AI tier here. (Other → a brand/theme/CSS to
-     match.) The three tiers are three distinct LOOKS, not interchangeable.
+   - **③ Tier** *(→ `meta.renderer` + `meta.image_source`, and whether pages are authored at all)* — which
+     renderer makes THIS video. **It is recommended from the PURPOSE and the TOPIC, not offered as three
+     looks** — the tiers are three different trade-offs, every one of them measured:
+
+     | tier | what it is best FOR | what you give up |
+     |---|---|---|
+     | **原样配音 / Voice my deck as-is** — FREE | a finished deck that just needs a voice; nothing redesigned | no new design; points do not appear as they are spoken |
+     | **Designed HTML** — FREE (+AI backdrops: PAID) | explainers, how-tos, research briefings, data-heavy material: each point appears **the moment it is said** (`data-cue` on the spoken word) and any table/chart/code/equation is laid out as the content needs; **editing one beat re-renders one beat**; needs only Chrome | less cinematic motion |
+     | **Cinematic (Remotion)** — FREE of money, NOT of machine | launches, promos, story and brand: 185 hand-designed shot languages, cinematic seams, one design DNA | points animate on the shot's own clock, not the voice (0 of 185 registers read word timings); **any edit re-renders the whole film**; needs Node + its own Chrome + real memory (a 37-beat film failed its full render repeatedly at ~1 GB free) |
+
+     **How to recommend (do this before showing the menu):** ① is on the same screen, so infer the likely
+     purpose from the user's request and material, then ask the rule rather than restating it:
+     `python3 scripts/tier_advice.py --purpose <p> [--deck] [--data-dense yes|no] [--no-remotion]`.
+     Put **"(Recommended)"** on the tier it returns, and its `why` in that option's description. When the
+     user's ① answer is a different purpose, re-run with it; if the tier they picked then fights the
+     purpose, say the `trade` ONCE, in their words, and let them keep it — this is advice, never an
+     override. Record the purpose as **`meta.purpose`** (the ① key: teach/howto/research/overview/pitch/
+     launch/promo); `validate.py` repeats the trade-off once as a `tier:` warning if the two disagree.
+     Options, in this order (max four): **原样配音** (ONLY when the user supplied a deck — `--keep-deck`;
+     the board keeps `type:"slide"` and step 4d is skipped entirely) · **Designed HTML — FREE**
+     (`image_source:none` + `renderer:local`) · **HTML + AI backdrops — PAID** (`image_source:openai` +
+     `renderer:local`; Batch 3 then confirms the spend + style) · **Cinematic (Remotion)** (`renderer:
+     remotion`; the shot-director assigns each beat a `shot`+`shot_props`, reviewed by the shot-critic —
+     **show it ONLY when `doctor.py` reports the remotion tier installed**). Make FREE-vs-PAID visible in
+     every label and never enable the generator without the user picking the AI tier here. (Other → a
+     brand/theme/CSS to match.)
      **These ride ALONGSIDE the tier — NOT menu items (don't cram them into the option prompt):**
      • **Image doctrine (paid tier):** the generator only ever makes **backgrounds/atmosphere behind
        HTML pages** — never a bare slideshow of generated stills; DATA always stays in real HTML/charts
@@ -1081,8 +1091,8 @@ agent on the beats it points at.
 3.55. **Register CONTEST — the divergence half (designed decks; audacity-gated).** A register written
      once regresses to the safe mean: the register system (D2e) can REFUSE blandness, but only sampling
      several genuinely different registers and SELECTING can produce the striking one. So on a
-     from-scratch **designed** deck (HTML or AI tier — skip when an ingested pptx/pdf already owns the
-     look, and skip at `meta.audacity: conservative`), run the contest BEFORE the full design plan.
+     from-scratch **designed** deck (HTML or AI tier — skip on the **原样配音** tier, where the ingested
+     pptx/pdf already owns the look, and skip at `meta.audacity: conservative`), run the contest BEFORE the full design plan.
      Width by audacity: `balanced` 3 candidates · `bold` 5 · `experimental` 7. Bounded cost: ONE authored
      page + ONE snapshot per candidate — never a full render. Procedure:
      ⓪ **Read the register ledger first**: `python scripts/register_ledger.py show` — pass any recent
@@ -1123,7 +1133,7 @@ agent on the beats it points at.
      committed `design_register.name` isn't the recorded winner's. **No Chrome / no HTML pages:** run the
      contest on PAPER (judge mode ranks the specs; record `mode: "paper"`) — weaker than pixels, say so,
      but still divergence+selection.
-3.6. **Design plan (art director) — give the content its visual language.** Dispatch
+3.6. **Design plan (art director) — give the content its visual language.** **Skip on the 原样配音 tier** (the user's own slides, `type:"slide"` — the deck IS the design). Dispatch
      `agents/design-director.md` on the content plan + comprehension brief + `meta`. It returns a
      SEPARATE **design plan** keyed by beat id: top-level `motif` (the CONCEPT motif — one topic-derived
      visual idea), `theme` (mode/accent/accent2/bg), `design_anti_slop`; and per beat the concrete
@@ -1291,7 +1301,7 @@ agent on the beats it points at.
     (Codex) — then reference the file by `file://` in the page. The `imagegen.py <out_dir>` CLI path
     generates any deck-level `image_prompt` backdrops/cover in one pass; these direct calls cover the
     per-beat page media.
-4c. **Documentary (REAL-image) fetch — FREE, no key.** For every beat the design plan marks
+4c. **Documentary (REAL-image) fetch — FREE, no key.** **Skip on the 原样配音 tier** (the user's own slides, `type:"slide"` — the deck IS the design). For every beat the design plan marks
     `media.treatment:"documentary"` (the design-director's per-beat imagery DECISION — see its "IMAGERY
     TREATMENT" procedure: `none` for data beats, `atmosphere` for mood, `documentary` to SHOW a real
     concrete subject), fetch the real image at authoring time:
@@ -1304,13 +1314,15 @@ agent on the beats it points at.
     `fetch` returns None, degrade per the design plan — `atmosphere` if the beat wanted mood, else `none`
     (never ship a blank). No spend + no checkpoint (it's free + real), but the critic panel (R1e) still
     checks the query matched the subject and the credit is present. Keep it to the 2–4 most physical beats.
-4d. **Author the pages (HTML tiers).** This is where the deck's `pages/scene_NN.html` are actually
+4d. **Author the pages (HTML tiers).** **Skip on the 原样配音 tier** (the user's own slides, `type:"slide"` — the deck IS the design). This is where the deck's `pages/scene_NN.html` are actually
     written — one page per beat from the design plan (form + props + cue anchors + media), on
     `base.css` + `theme.css` (+ `motifs.css`; `vertical.css` last on 9:16), per
     `references/html-pages.md`. The full authoring procedure (including the archetype and cue-anchor
     rules) is the "After the look is chosen (HTML tiers)" passage in step 1's interview notes — follow
     it HERE in the sequence, then run `keyframe_qa` on the authored pages before the critic panel.
-5. **Parallel critic panel — narration + content + design (REQUIRED, not optional).** Dispatch
+5. **Parallel critic panel — narration + content + design (REQUIRED, not optional).** On the
+   **原样配音** tier there is no authored design to judge: dispatch the narration and content critics only
+   (the script is still written, and still has to be right). Otherwise dispatch
    `agents/critic-narrative.md`, `agents/critic-content.md`, AND `agents/design-critic.md`
    **concurrently — in ONE message with three Agent calls** — on the storyboard **plus the comprehension
    brief / source material AND both plans** (the content plan carries `continuity`/`relation`/faithfulness;

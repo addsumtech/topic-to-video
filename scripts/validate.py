@@ -2698,6 +2698,20 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         warnings.append(f"MIXED-VOICE run: {_n} scene(s) fell back to a different TTS engine (meta._tts_mixed_voice) — "
                         f"the deck is split between two voices; fix the engine and re-run tts.py, or set meta.voice to "
                         f"one engine (edge:*/say:*) so every scene matches. Do NOT ship a two-voice deck.")
+    # TIER VS PURPOSE — a WARNING, once, never an error, and it runs BEFORE the tier split below. Written at
+    # the end of this function first, it could never fire for a remotion board, because a remotion board
+    # returns early a few lines down — so "picked the cinematic tier for a how-to", the mismatch with the
+    # highest cost, was the one case it could not see. The tier is the user's call; what this owes them is
+    # the cost of that call in words they will recognise. `tier_advice` owns the rule, so the interview,
+    # this check and a human asking "which tier?" get the same answer.
+    try:
+        import tier_advice as _ta
+        _note = _ta.mismatch(data)
+        if _note:
+            warnings.append("tier: " + _note)
+    except Exception as _e:                                  # noqa: BLE001 — advice must not break validation,
+        warnings.append("tier: the tier advice could not run (%s) — the purpose/tier fit was NOT checked"
+                        % type(_e).__name__)                  # ...and it must not fail SILENTLY either
     # REMOTION2 bespoke-shot tier — its own scene contract (shot id + props + family variety); the legacy
     # cinematic/HTML checks below don't apply to it, so guard and skip them.
     if (meta.get("renderer") or "") == "remotion":
@@ -2874,6 +2888,11 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                 errors.append(f"{tag}: no audio/duration — run tts.py before render")
             elif not _exists(out_dir, s["audio"]):
                 errors.append(f"{tag}: audio '{s['audio']}' not found under {out_dir}")
+            elif s["duration"] > PACE_CEILING_S and s.get("type", "slide") == "slide":
+                # The same threshold, and the move the user actually has. A `type:"slide"` beat is the
+                # user's own slide: it cannot be split into shorter beats, but its narration can be trimmed.
+                warnings.append(f"{tag}: this slide's narration runs {s['duration']:.1f}s (> {PACE_CEILING_S:.0f}s) — "
+                                f"if it feels long, trim the narration; your own slide can't be split into beats")
             elif s["duration"] > PACE_CEILING_S:
                 warnings.append(f"{tag}: holds {s['duration']:.1f}s (> {PACE_CEILING_S:.0f}s) — splitting into shorter beats reads less sluggish")
 
@@ -3019,7 +3038,11 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # enforced by _design_variety_lint (>45% / <3 distinct / back-to-back); a type run-length warn
     # here fires on EVERY cinematic film (incl. the golden fixture) and is unactionable. Programmatic
     # types (title/chart/timeline/…) still checked.
-    _variety_exempt = {"html", "cinematic", "cinematic3d"}
+    # ...AND "slide", for the same reason: a `type:"slide"` scene is the user's OWN slide image, so its
+    # variety lives in the picture, which the storyboard cannot see. On the 原样配音 tier every scene is a
+    # slide by definition, and "vary the visual type" there tells the user to redesign the deck they asked
+    # to keep — found by rendering that tier end to end, on a three-slide deck, the first time it was run.
+    _variety_exempt = {"html", "cinematic", "cinematic3d", "slide"}
     run = 1
     for a, b in zip(prev_types, prev_types[1:]):
         run = run + 1 if a == b else 1
