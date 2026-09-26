@@ -67,6 +67,17 @@ def test_a_lengthened_character_does_not_move_a_match():
     assert st.find_text([{"text": "面积15㎡说明", "box": [0.0, 0.0, 1.0, 0.1]}], "m2")["box"][0] == pytest.approx(4 / 7)
 
 
+def test_a_decomposed_accent_matches_a_composed_one():
+    """Folding code point by code point never joined e + U+0301 into e-acute: the composed "cafe-acute" was "not
+    found" in a line showing it decomposed. Spelled with escapes: the two forms look identical in any editor."""
+    decomposed = "caf" + "e\u0301" + " au lait"
+    for line, query in ((decomposed, "caf\u00e9"), ("caf\u00e9 au lait", "cafe\u0301")):
+        r = st.find_text([{"text": line, "box": [0.0, 0.0, 1.0, 0.1]}], query)
+        assert r["box"][0] == pytest.approx(0.0) and r["box"][2] == pytest.approx(0.4)
+    r = st.find_text([{"text": decomposed, "box": [0.0, 0.0, 1.0, 0.1]}], "lait")
+    assert r["box"][0] == pytest.approx(0.6) and r["box"][2] == pytest.approx(1.0)
+
+
 def test_racing_writers_each_land_a_whole_file(tmp_path):
     """A pid-only temp name let threads share one temp file: three of four raised, and the content was mixed."""
     target, errors = tmp_path / "out.json", []

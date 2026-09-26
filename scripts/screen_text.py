@@ -138,9 +138,11 @@ def _norm_map(s):
     """(`s` without whitespace, width- and case-blind; for each of its characters, the index of the character
     of `s` it came from, counting only non-space ones; how many non-space characters `s` has). NFKC folds
     full-width punctuation and letters (设置： is 设置:, ＡＩ is AI) but can lengthen a character (㎡ becomes
-    m2), so a match's share of its line is counted in the line's own characters, not the folded ones."""
+    m2), so a match's share of its line is counted in the line's own characters, not the folded ones. The line
+    is composed (NFC) before it is folded character by character: folding one code point at a time could never
+    join a letter and the combining accent after it, so an OCR'd decomposed e-acute missed a typed composed one."""
     out, owner, n = [], [], 0
-    for c in str(s):
+    for c in unicodedata.normalize("NFC", str(s)):          # compose first: e + U+0301 is one é, as typed
         if c.isspace():
             continue
         f = "".join(unicodedata.normalize("NFKC", c).casefold().split())
