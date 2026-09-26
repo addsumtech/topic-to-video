@@ -92,8 +92,8 @@ def _target_problem(t, where):
     return "%s: a target is [x, y] or {\"text\": ..., \"nth\": n} (got %r)" % (where, t)
 
 
-def check_shape(props):
-    """Every shape problem in an AUTHORED script, as sentences. [] means it is well formed."""
+def _frame_problems(props):
+    """The device, its look, the camera and the placement — the props every device register shares."""
     probs = []
     if props.get("device", "phone") not in DEVICE_KINDS:
         probs.append("`device` is one of %s (got %r)" % (", ".join(DEVICE_KINDS), props.get("device")))
@@ -103,6 +103,12 @@ def check_shape(props):
         probs.append("`camera` is absent or \"still\" (got %r)" % (props.get("camera"),))
     if props.get("placement", "center") not in PLACEMENTS:
         probs.append("`placement` is one of %s (got %r)" % (", ".join(PLACEMENTS), props.get("placement")))
+    return probs
+
+
+def check_shape(props):
+    """Every shape problem in an AUTHORED script, as sentences. [] means it is well formed."""
+    probs = _frame_problems(props)
     steps = props.get("steps")
     if not isinstance(steps, list) or not steps:
         return probs + ["`steps` must be a non-empty list — the script of what happens on the device"]
@@ -256,7 +262,17 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
     device = props.get("device", "phone" if shot == "DeviceDemo" else "laptop")
     probs, warns = [], []
     if shot == "DeviceHero":
-        src = dict(props.get("screen") or {"page": "demo"})
+        # The frame props are checked the way DeviceDemo's are — a `look` of 'bogus' used to reach the render and
+        # crash inside the geometry, un-named. And a `screen` the author WROTE must say what it shows: `{}` is
+        # falsy, so `screen or {"page": "demo"}` quietly turned an empty screen into the demo page.
+        probs += _frame_problems(props)
+        src = props.get("screen")
+        src = {"page": "demo"} if src is None else src
+        if not isinstance(src, dict) or not (src.get("image") or src.get("video") or src.get("page") == "demo"):
+            probs.append("`screen` needs an image, a recording, or page \"demo\" (got %r)" % (src,))
+        if probs:
+            raise DeviceScriptError(probs)
+        src = dict(src)
         p = os.path.join(out_dir, str(src.get("image") or src.get("video") or ""))
         if src.get("image"):
             if not os.path.isfile(p):
@@ -374,9 +390,6 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
                              "use a tighter screenshot or a larger device" % (where, need, SPEC["maxZoom"]))
     if probs:
         raise DeviceScriptError(probs)
-    if gestures and measured < gestures:
-        warns.append("legibility: measured %d of %d gesture targets — the rest have no text height and get no "
-                      "push-in" % (measured, gestures))
     steps = schedule(steps, dur_frames, fps)
     for i, st in enumerate(steps):
         src = st.get("screen") or {}
@@ -390,14 +403,20 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
                 if step_kind(m) == "mark" and isinstance(m.get("video"), (int, float)):
                     pts.append((rr.frame_at_t(dur_frames, m["ta"]), float(m["video"])))
             pts.append((f_end, float(src["to"])))
-            spans = []
+            spans, refused = [], False
             for (f0, v0), (f1, v1) in zip(pts, pts[1:]):
                 rate = (v1 - v0) / max(1e-6, (f1 - f0) / float(fps))
                 if v1 < v0 or rate > SPEC["maxVideoRate"] + 1e-6:
-                    raise DeviceScriptError(["step %d (screen): the recording would run at %.1fx between frames %d "
-                                             "and %d — the cap is %.0fx and it may not run backwards"
-                                             % (i + 1, rate, f0, f1, SPEC["maxVideoRate"])])
+                    # COLLECTED, not raised: every recording of the beat is checked, so a script is fixed in one
+                    # pass — the first offender used to hide the rest.
+                    probs.append("step %d (screen): the recording would run at %.1fx between frames %d and %d — "
+                                 "the cap is %.0fx and it may not run backwards"
+                                 % (i + 1, rate, f0, f1, SPEC["maxVideoRate"]))
+                    refused = True
+                    continue
                 spans.append({"f0": f0, "f1": f1, "v0": v0, "v1": v1})
+            if refused:
+                continue
             st["spans"] = spans
             # A mark pushes in by the same rule as a tap — the text height at its point — measured on the
             # frame the recording is showing at that moment (a recording has no other text to measure).
@@ -408,6 +427,7 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
                     break
                 if step_kind(m) != "mark":
                     continue
+                gestures += 1                    # a mark is a target too: unmeasured, it is counted as unmeasured
                 fm = rr.frame_at_t(dur_frames, m["ta"])
                 sp = next((x for x in spans if x["f0"] <= fm <= x["f1"]), spans[-1])
                 vt = sp["v0"] + (sp["v1"] - sp["v0"]) * (fm - sp["f0"]) / max(1e-6, sp["f1"] - sp["f0"])
@@ -417,7 +437,13 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
                                 still], check=True)
                 px = sm.text_band_px(still, m["mark"][0], m["mark"][1])
                 if px:
+                    measured += 1
                     m.update(focus=list(m["mark"]), textFrac=px / float(vw), captionPx=caption)
+    if probs:
+        raise DeviceScriptError(probs)
+    if gestures and measured < gestures:
+        warns.append("legibility: measured %d of %d gesture targets — the rest have no text height and get no "
+                      "push-in" % (measured, gestures))
     return dict(props, steps=steps), warns
 
 

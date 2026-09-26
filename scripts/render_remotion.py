@@ -596,7 +596,7 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
     reduced = bool(reduced_motion or meta.get("reduced_motion"))
     # ASPECT: --vertical or meta.aspect:"9:16" renders the Film Composition at 1080x1920 (Root.tsx calculateMetadata
     # reads this `aspect` prop). Any of 16:9 / 9:16 / 1:1 / 4:5 / 4:3; unknown falls back to 16:9.
-    aspect = "9:16" if vertical else str(meta.get("aspect") or "16:9")
+    aspect = _aspect                    # computed once, above, for the device beats' frame size as well
     props = {"scenes": scenes, "camera": _camera_amp(meta),
              # the camera BED (Film-side default Ken Burns on unauthored beats, themed films only) is ON
              # unless the board switches it off — `meta.camera_bed: false` is the film-wide opt-out

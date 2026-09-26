@@ -2,6 +2,8 @@
 every field a box, every recording a mapping — or the beat is refused with every reason at once."""
 import json
 import os
+import shutil
+import subprocess
 import sys
 
 import pytest
@@ -86,3 +88,52 @@ def test_a_film_in_auto_language_measures_captions_in_its_narrations_script():
     assert ds.film_language({"language": "auto"}, [{"narration": "先在上面搜索上周的反馈"}]) == "zh"
     assert ds.film_language({}, [{"narration": "Search last week's feedback"}]) == "en"
     assert ds.film_language({"language": "ja"}, [{"narration": "先在上面搜索"}]) == "ja"
+
+
+def _recording(tmp_path, name, seconds, colour="white"):
+    (tmp_path / "rec").mkdir(exist_ok=True)
+    path = tmp_path / "rec" / name
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "color=c=%s:s=64x138:r=30:d=%d" % (colour, seconds),
+                    "-pix_fmt", "yuv420p", str(path)], check=True)
+    return "rec/" + name
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="needs ffmpeg")
+def test_every_recording_problem_is_reported_at_once(tmp_path):
+    """The recording check raised on the FIRST offender, so a script with two over-fast recordings was fixed
+    one error at a time — against prepare's own promise of every problem at once."""
+    a, b = _recording(tmp_path, "a.mp4", 20), _recording(tmp_path, "b.mp4", 20)
+    props = {"device": "phone", "steps": [{"screen": {"video": a, "from": 0, "to": 18}},
+                                          {"screen": {"video": b, "from": 0, "to": 18}}]}
+    with pytest.raises(ds.DeviceScriptError) as e:
+        ds.prepare(props, shot="DeviceDemo", out_dir=str(tmp_path), dur_frames=180, fps=FPS, W=1920, H=1080,
+                   lang="zh", recognizer=_fake_recognizer)
+    assert "step 1 (screen)" in str(e.value) and "step 2 (screen)" in str(e.value), e.value.problems
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="needs ffmpeg")
+def test_a_mark_with_no_text_to_measure_is_counted_unmeasured(tmp_path):
+    """A mark's push-in is measured on the recording's frame; a mark where nothing can be measured used to be
+    left out of the count, so an unmeasured target read as a passing one."""
+    v = _recording(tmp_path, "plain.mp4", 6)
+    props = {"device": "phone", "steps": [{"screen": {"video": v, "from": 0, "to": 5}},
+                                          {"mark": [0.5, 0.5], "video": 2.0}]}
+    _out, warns = ds.prepare(props, shot="DeviceDemo", out_dir=str(tmp_path), dur_frames=180, fps=FPS, W=1920,
+                             H=1080, lang="zh", recognizer=_fake_recognizer)
+    assert any("measured 0 of 1" in w for w in warns), warns
+
+
+def test_a_hero_is_checked_like_a_demo(tmp_path):
+    img = _ui(tmp_path)
+    with pytest.raises(ds.DeviceScriptError) as e:
+        ds.prepare({"device": "phone", "look": "bogus", "placement": "nowhere", "screen": {"image": img}},
+                   shot="DeviceHero", out_dir=str(tmp_path), dur_frames=150, fps=FPS, W=1920, H=1080, lang="zh")
+    assert "`look`" in str(e.value) and "`placement`" in str(e.value)
+    with pytest.raises(ds.DeviceScriptError) as e:
+        ds.prepare({"device": "phone", "screen": {}}, shot="DeviceHero", out_dir=str(tmp_path), dur_frames=150,
+                   fps=FPS, W=1920, H=1080, lang="zh")
+    assert "`screen` needs an image" in str(e.value)
+    out, _ = ds.prepare({"device": "laptop"}, shot="DeviceHero", out_dir=str(tmp_path), dur_frames=150, fps=FPS,
+                        W=1920, H=1080, lang="zh")
+    assert out["screen"] == {"page": "demo"}
+
