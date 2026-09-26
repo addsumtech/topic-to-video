@@ -170,6 +170,11 @@ _DEFAULT_PROFILE = {"unit": "word", "enders": ".!?。！？", "smart_latin": Fal
 # are why a mutation audit could disable five thresholds one at a time and the suite stayed green.
 THRESHOLDS = {
     "uniform_cv": 0.45,      # sentence-length CV BELOW this = template-uniform
+    # ...and ABOVE this share of single-sentence beats, the uniformity is the BEAT PLAN's, not the prose's,
+    # so the advice changes to the move that costs no seconds. Measured on the film that prompted it: 33 of
+    # 37 beats, 0.89. Two thirds is well clear of a film that merely happens to have a few one-liners and
+    # well below the case where every beat is one sentence and nothing can vary.
+    "one_sentence_beats": 0.66,
     "antithesis": 0.35,      # share of beats built on a negation contrast ABOVE this
     "balanced": 0.35,        # share of beats that are a balanced pair ABOVE this
     "connective": 0.30,      # share of beats carrying any connective BELOW this
@@ -319,6 +324,23 @@ _MSG = {
         "en": "sentence length is uniform, CV=%.2f (<%.2f) — every beat the same shape. Let some beats run "
               "one longer sentence with a turn in it and others be four words; uniformity is the tell.",
     },
+    # THE SAME FINDING, WHEN THE AUTHOR CANNOT ACT ON IT BY REWRITING. One sentence per beat means the
+    # sentence length IS the beat length — narration is roughly the speaking rate times the duration — so
+    # telling the author to vary their sentences asks them to change a number the beat plan has already
+    # fixed. The move that costs nothing is to split ONE beat into a short line and a long one: same
+    # seconds, same words, two different shapes. `rhythm_qa` owns the other move and accepts a much flatter
+    # film than this check does (durations CV 0.15 against sentences CV 0.45), so a film can pass there and
+    # fail here for one cause, and be told to fix the wrong layer.
+    "uniform_one_sentence": {
+        "zh": "句长齐整，而且 %.0f%% 的拍只有一句话——这时候「把句子写得长短不一」是做不到的："
+              "一句话的长度就是这一拍的时长。最省的改法是挑几拍拆成「一句短的 + 一句长的」，"
+              "秒数不变、字数不变，形状变了。另一条路是让节拍本身长短拉开（rhythm_qa 那关比这里松得多）。",
+        "en": "sentence length is uniform AND %.0f%% of beats hold a single sentence — so \"vary your "
+              "sentence lengths\" is not a move the author has: one sentence per beat means the sentence "
+              "length IS the beat length. The free fix is to split a few beats into a short line and a long "
+              "one — same seconds, same words, two shapes. The other is to make the beat plan itself "
+              "lumpier (rhythm_qa accepts a far flatter film than this check does).",
+    },
     "antithesis": {
         "zh": "否定式对仗占 %.0f%%(>%.0f%%)— 「不是X，是Y」一旦成为默认，就是机器味最重的地方。"
               "留给真正需要纠正误解的那几拍。",
@@ -437,6 +459,7 @@ def evaluate(narrations, dropped=None, universe=None):
 
     # (B) rhythm — per beat, under that beat's profile
     sent, balanced, anti, endsharp, conn = [], [], [], [], []
+    per_beat = []                        # sentences in each MEASURED beat — the same universe as `sent`
     measurable_anti, measurable_conn = 0, 0
     unsupported_beats = []
     for i, t, sc in beats:
@@ -447,6 +470,7 @@ def evaluate(narrations, dropped=None, universe=None):
         ss = _sentences(t, prof)
         ls = [_units(x, prof) for x in ss]
         sent.extend(ls)
+        per_beat.append(len(ls))
         if 2 <= len(ls) <= 3 and min(ls) >= 4 and (max(ls) - min(ls)) <= BALANCED_TOL * max(ls):
             balanced.append(i)
         pairs = _antithesis_pairs(t, prof)
@@ -476,6 +500,17 @@ def evaluate(narrations, dropped=None, universe=None):
         "antithesis_denominator": measurable_anti,
         "connective_denominator": measurable_conn,
         "scripts": scripts,
+        # SENTENCES PER BEAT, because it decides whether the advice above this one is even ACTIONABLE.
+        # A beat that holds exactly one sentence has its sentence length pinned by its own duration
+        # (narration ~= speaking rate x seconds), so "vary the sentence lengths" is asking the author to
+        # change something the beat plan already fixed. Measured on a delivered 37-beat film: 33 beats of
+        # exactly one sentence, 4.1 chars/second throughout, sentence CV 0.31 tracking duration CV 0.20.
+        # The variation has to come from somewhere, and with one sentence per beat there is nowhere.
+        "sentences_per_beat": round(statistics.mean(per_beat), 2) if per_beat else 0,
+        # denominated on the beats this actually MEASURED, not on the board — a beat whose script has no
+        # segmenter was skipped above, and counting it here would quietly dilute the share.
+        "one_sentence_beat_share": round(
+            sum(1 for k in per_beat if k <= 1) / float(len(per_beat)), 3) if per_beat else 0,
         "sentence_len_mean": round(statistics.mean(sent), 1) if sent else 0,
         "sentence_len_cv": round(cv, 3),
         "antithesis_share": round(len(anti) / measurable_anti, 3) if measurable_anti else None,
@@ -543,7 +578,14 @@ def evaluate(narrations, dropped=None, universe=None):
     fired = []                       # which thresholds decided to speak — the testable decision
     if cv < THRESHOLDS["uniform_cv"]:
         fired.append("uniform_cv")
-        warnings.append(_MSG["uniform"][lang] % (cv, THRESHOLDS["uniform_cv"]))
+        # WHICH ADVICE DEPENDS ON WHETHER THE AUTHOR CAN ACT ON IT. With one sentence per beat the
+        # sentence length is the beat length, so the generic "vary your sentences" names a number the
+        # beat plan already fixed; say the move that is actually free instead. See `uniform_one_sentence`.
+        if m["one_sentence_beat_share"] >= THRESHOLDS["one_sentence_beats"]:
+            fired.append("one_sentence_beats")
+            warnings.append(_MSG["uniform_one_sentence"][lang] % (m["one_sentence_beat_share"] * 100))
+        else:
+            warnings.append(_MSG["uniform"][lang] % (cv, THRESHOLDS["uniform_cv"]))
     if m["antithesis_share"] is not None and m["antithesis_share"] > THRESHOLDS["antithesis"]:
         fired.append("antithesis")
         warnings.append(_MSG["antithesis"][lang] % (100 * m["antithesis_share"], 100 * THRESHOLDS["antithesis"]))

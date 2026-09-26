@@ -517,6 +517,11 @@ def _probe_thresholds_fire_on_the_right_side(mod):
         # The same short denial answering the previous beat, over and over. Varied ON PURPOSE — the defect
         # is the repeated SHAPE, not one phrase, so a probe of eight identical strings would pass a
         # detector that only matched a literal.
+        # Eight beats, each ONE sentence, all about the same length: the uniformity is the beat plan's and
+        # no rewrite of the prose can change it, which is what this threshold exists to say.
+        "one_sentence_beats": ["它读的是你授权的目录。", "报告落在同一个文件夹。", "简历和清单分开放。",
+                               "面试的问题从档案里出。", "追不到出处就标出来。", "改写之前先过一道闸。",
+                               "每改一条就记一行。", "最后一步还是你自己选。"],
         "same_opener": ["不会。它在这里就停了。", "不能。那一块不许填。", "删不掉。只能标成撤回。",
                         "不是这样。它清点的是证据。", "没人再核对。后面全部继承它。",
                         "别急。先把地区问清楚。", "未必。要看它读到了什么。", "非也。收据拿不出来就不算。"],
@@ -538,6 +543,18 @@ def _probe_thresholds_fire_on_the_right_side(mod):
         [(i, t) for i, t in enumerate(short_but_fine)])["fired"]), (
         "the repeated-opener check counts any short opener, so it reports every brisk script and "
         "distinguishes nothing — the signal is the answering SHAPE, not brevity")
+    # ...AND THE OTHER SIDE OF THE ONE THAT ROUTES ADVICE. `one_sentence_beats` does not decide WHETHER to
+    # speak — `uniform_cv` does that — it decides WHICH advice is actionable. So the case that must not
+    # fire is a script that is just as uniform and whose beats hold SEVERAL sentences: there the author
+    # really can vary their prose, and being told the beat plan is at fault would send them to the wrong
+    # layer. Both scripts below trip `uniform_cv`; only one of them is the beat plan's doing.
+    multi = ["它读目录。它归档。它交一份成果。"] * 8
+    multi_fired = set(mod.evaluate([(i, t) for i, t in enumerate(multi)])["fired"])
+    assert "uniform_cv" in multi_fired, "the control script is not uniform, so it proves nothing"
+    assert "one_sentence_beats" not in multi_fired, (
+        "a uniform script whose beats hold three sentences each is blamed on the beat plan — the author "
+        "is sent to change durations when the prose is what they can actually vary")
+
     assert set(fire) == set(mod.THRESHOLDS), \
         "a threshold has no boundary probe: %r" % (set(mod.THRESHOLDS) - set(fire))
     for key, beats in fire.items():

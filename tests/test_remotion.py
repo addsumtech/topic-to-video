@@ -1339,6 +1339,12 @@ def test_voice_qa_every_threshold_and_rule_is_load_bearing():
         # threshold could be disabled unnoticed. A ~0.5 share sits above 0.30 and below 0.99.
         "aphorism": (["绿灯量的是测试有多强，而不是代码有多对。"] * 4 +
                      ["我们又跑了一遍，边界上差了一个等号，于是补了个用例。"] * 4),
+        # ONE SENTENCE PER BEAT, uniform: the uniformity belongs to the beat plan, not the prose, because
+        # with a constant speaking rate the sentence length IS the beat length. This threshold does not
+        # decide whether to speak (`uniform_cv` does) — it decides which advice can actually be followed.
+        "one_sentence_beats": ["它读的是你授权的目录。", "报告落在同一个文件夹。", "简历和清单分开放。",
+                               "面试的问题从档案里出。", "追不到出处就标出来。", "改写之前先过一道闸。",
+                               "每改一条就记一行。", "最后一步还是你自己选。"],
         # EIGHT DIFFERENT short denials, not one repeated: the defect this reports is the repeated SHAPE,
         # so a probe built from one literal would pass a detector that only matched that literal.
         "same_opener": ["不会。它在这里就停了。", "不能。那一块不许填。", "删不掉。只能标成撤回。",
@@ -1359,6 +1365,15 @@ def test_voice_qa_every_threshold_and_rule_is_load_bearing():
     for key, beats in ZH_FIRE.items():
         assert key in fired(beats), "threshold %r never fires — it can be disabled unnoticed" % key
         assert key not in quiet, "threshold %r fires on varied human-ish prose — it cannot distinguish" % key
+    # ...and the side that must stay QUIET for the router: a script just as uniform whose beats hold three
+    # sentences each. There the author really can vary their prose, and blaming the beat plan would send
+    # them to the wrong layer entirely.
+    multi = fired(["它读目录。它归档。它交一份成果。"] * 8)
+    assert "uniform_cv" in multi, "the control is not uniform, so it proves nothing"
+    assert "one_sentence_beats" not in multi, (
+        "a uniform script whose beats hold three sentences each is blamed on the beat plan — the author is "
+        "told to change durations when the prose is the thing they can vary")
+
     assert set(ZH_FIRE) == set(vq.THRESHOLDS), \
         "a threshold exists with no boundary probe: %r" % (set(vq.THRESHOLDS) - set(ZH_FIRE))
 
