@@ -127,7 +127,12 @@ def test_the_code_hash_reaches_the_fonts_outside_src():
     files = [os.path.relpath(f, _ROOT) for f in rs.code_files()]
     assert any(f.startswith(os.path.join("assets", "fonts")) for f in files), files[:8]
     assert os.path.join("remotion", "src", "Film.tsx") in files
-    assert os.path.join("remotion", "package-lock.json") in files
+    # package.json is tracked and pins every remotion package exactly. The lockfile is git-IGNORED
+    # (remotion/.gitignore), so it exists on the machine that ran `npm install` and on no fresh clone: it is
+    # hashed when present, never required. This line used to require it, and failed on every fresh checkout.
+    assert os.path.join("remotion", "package.json") in files
+    lock = os.path.join(_ROOT, "remotion", "package-lock.json")
+    assert (os.path.join("remotion", "package-lock.json") in files) == os.path.isfile(lock)
 
 
 # ── the pin: the key knows every place Film.tsx reads the scene list ───────────────────────────────────
