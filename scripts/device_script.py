@@ -25,7 +25,7 @@ PLACEMENTS = ("center", "left", "right")
 ALLOWED = {"screen": {"screen", "via", "at"}, "type": {"type", "into", "at"}, "tap": {"tap", "at"},
            "click": {"click", "at"}, "scroll": {"scroll", "at"}, "drag": {"drag", "at"},
            "mark": {"mark", "at", "video"}}
-_CJK = re.compile(r"[㐀-鿿豈-﫿぀-ヿ가-힯]")
+_CJK = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7a3]")
 
 with open(SPEC_PATH, encoding="utf-8") as _fh:
     SPEC = json.load(_fh)
@@ -71,7 +71,7 @@ def gesture_seconds(step):
     """How long the step's own action takes — without the camera's lead."""
     k, ms = step_kind(step), SPEC["minSeconds"]
     if k == "type":
-        return sum(ms["typeCjkWord"] if _CJK.search(c) else ms["typeLatinKey"] for c in type_chunks(step["type"]))
+        return float(sum(ms["typeCjkWord"] if _CJK.search(c) else ms["typeLatinKey"] for c in type_chunks(step["type"])))
     return float(ms[k])
 
 

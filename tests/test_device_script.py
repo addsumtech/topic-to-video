@@ -92,3 +92,12 @@ def test_an_anchor_that_arrives_before_the_steps_before_it_can_finish_is_an_erro
     with pytest.raises(ds.DeviceScriptError) as e:
         ds.schedule(steps, 180, FPS)
     assert "step 4" in str(e.value) and "cue" in str(e.value)
+
+
+def test_cjk_detection_covers_only_the_named_blocks():
+    """U+F900 is a compatibility ideograph whose NFC form is U+8C48: a range typed as the glyph can be normalized
+    into [U+8C48-U+FAFF] and silently swallow the Private Use Area, Yi and more. Pin both sides of the edge."""
+    assert ds.type_chunks("豈更") == ["豈更"]      # compatibility ideographs ARE CJK: one word
+    assert ds.type_chunks("") == ["", ""]  # the Private Use Area is not: two keys
+    assert ds.type_chunks("ꀀꀁ") == ["ꀀ", "ꀁ"]  # nor is Yi
+    assert ds.gesture_seconds({"type": "", "into": [0.5, 0.5]}) == ds.SPEC["minSeconds"]["typeLatinKey"]
