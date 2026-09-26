@@ -47,3 +47,47 @@ def test_a_recording_shows_the_moment_its_span_maps_to(tmp_path):
 @needs_toolchain
 def test_the_standalone_demo_renders(tmp_path):
     _still(tmp_path, {}, 120, "demo")
+
+
+def _still_err(tmp_path, props, frame, name):
+    pf = tmp_path / (name + ".json")
+    pf.write_text(json.dumps(dict(props, dna="product", aspect="16:9"), ensure_ascii=False), encoding="utf-8")
+    r = subprocess.run(["npx", "remotion", "still", "src/index.ts", "DeviceHero", str(tmp_path / (name + ".png")),
+                        "--frame=%d" % frame, "--gl=angle", "--log=error", "--props=" + str(pf),
+                        "--public-dir=" + str(tmp_path)], cwd=_REM, capture_output=True, text=True, timeout=900)
+    return r.returncode, r.stdout + r.stderr
+
+
+@needs_toolchain
+def test_the_entrance_never_leaves_the_fitted_rect(tmp_path):
+    """The laptop fills the content zone exactly at 16:9 (its bottom IS contentBottom), and the entrance used to
+    slide up from below with a perspective centred on the frame: 35 px into the caption band while half opaque,
+    and the settled turn's near corner still dipped below the edge. No bright device pixel may leave the body."""
+    np = pytest.importorskip("numpy")
+    Image = pytest.importorskip("PIL.Image")
+    import device_geometry as dg
+    for aspect, (W, H), frame in (("16:9", (1920, 1080), 20), ("16:9", (1920, 1080), 30), ("16:9", (1920, 1080), 47),
+                                  ("9:16", (1080, 1920), 20)):
+        b = dg.geometry("laptop", "real", W, H)["body"]
+        pf = tmp_path / ("e%s.json" % frame)
+        pf.write_text(json.dumps({"device": "laptop", "look": "real", "dna": "product", "aspect": aspect}),
+                      encoding="utf-8")
+        png = str(tmp_path / ("e_%s_%d.png" % (aspect.replace(":", "x"), frame)))
+        r = subprocess.run(["npx", "remotion", "still", "src/index.ts", "DeviceHero", png, "--frame=%d" % frame,
+                            "--gl=angle", "--log=error", "--props=" + str(pf)], cwd=_REM, capture_output=True,
+                           text=True, timeout=900)
+        assert r.returncode == 0, (r.stdout + r.stderr)[-400:]
+        a = np.asarray(Image.open(png).convert("L"), dtype=int)
+        out = a > 90
+        out[max(0, b["y"] - 2):b["y"] + b["h"] + 2, max(0, b["x"] - 2):b["x"] + b["w"] + 2] = False
+        assert not out.any(), "%s frame %d: %d bright pixels outside the body %r" % (aspect, frame, out.sum(), b)
+
+
+@needs_toolchain
+def test_a_screen_without_content_is_refused(tmp_path):
+    for name, screen, needle in (("empty", {}, "needs an image, a recording"),
+                                 ("bogus", {"page": "nonsense"}, "needs an image, a recording"),
+                                 ("nospans", {"video": "rec.mp4"}, "needs its `spans`")):
+        code, out = _still_err(tmp_path, {"device": "phone", "look": "flat", "screen": screen}, 60, name)
+        assert code != 0 and needle in out, (name, out[-300:])
+
