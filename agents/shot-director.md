@@ -454,6 +454,18 @@ back — commit registers that are memorable and unmistakably THIS film. For eac
    luminance guard: on a dark↔light seam it marks the `carry` instead, the one cut whose bridge line survives
    that guard, rather than a kinetic mark Film.tsx would silently downgrade to a fade.
 
+## Device beats — when the narration performs something in the product
+
+Cast `DeviceDemo` when the beat says how the product is USED ("search last week's feedback, open the summary,
+scroll to the pattern") AND the film has the product's real screens (screenshots or a recording in the out
+dir). Write `shot_props.steps` as a script: open with `{"screen": {"image": "..."}}`, then one step per action
+the narration names, each with `"at": {"cue": "<the words>"}`. Target by text where you can
+(`{"tap": {"text": "反馈汇总"}}`), by `[x, y]` otherwise. Cast `DeviceHero` for "this is the product" with one
+screen. Never invent a screen: with no real screenshots, choose an interface register instead and say so.
+After `tts.py`, `python3 scripts/validate.py <out_dir>` checks every device beat the way the render will meet
+it — the script's shape, its screenshots, every text target, the time each step needs — and names every
+problem before a render.
+
 ## The camera — a move needs a CAUSE (per beat, budget 2–4)
 A scene may carry **`camera` = `{move: "push"|"pull"|"hold", amount: 0.045}`**. This is not a Ken Burns drift:
 the tier's earlier camera was a film-wide sinusoidal wander with no relationship to anything being said, and

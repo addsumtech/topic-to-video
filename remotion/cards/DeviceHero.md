@@ -20,6 +20,8 @@
 - The entrance never leaves the rect the geometry fitted above the caption band: the device grows upward from its bottom edge, its perspective is centred on that edge, and in the realistic look it is drawn a few percent smaller so its turn still fits.
 - A `screen` with no image, no recording and no `page: 'demo'` is refused, not drawn as the skeleton; a recording without `spans` is refused, not drawn black.
 
+**Measured:** 9.7% ink (clip median) · 48.4% footprint · 0.0 motion. No settled-frame ink figure is recorded for this register.
+
 **Reference:** `remotion/src/shots/DeviceHero.tsx`
 
-**Provenance:** product-ui. **Family:** A.
+**Provenance:** product-ui. **Family:** A. **Ground:** `bg` (`DNA_GROUND_TOKEN`), measured light.

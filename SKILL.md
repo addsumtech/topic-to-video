@@ -233,6 +233,12 @@ TTS if the user gives an API key.
   <out_dir>`** lists which beats the next render would redo, read from the board as it is now. `--whole`,
   `meta.segment_cache: false` or `REMOTION_SEGMENTS=0` render in one pass as before; a disagreement between
   the segment model and the film is never shipped — it is reported and the film is rendered whole.
+  **DEVICES AND THE PRODUCT'S OWN SCREENS.** `DeviceDemo` performs one operation — type, tap, scroll, drag — on
+  a phone, tablet, laptop or monitor showing the user's own screenshots or recording, each step on the words
+  the narration says; `DeviceHero` shows the product on its device with one screen whole. The step script is
+  written in `shot_props.steps` and checked and scheduled by `scripts/device_script.py` (text targets are found
+  in the screenshot on a Mac; too many steps for a beat is refused in seconds). Spec:
+  `docs/superpowers/specs/2026-09-26-device-layer-design.md`.
   **THE CUT IS PART OF THE DESIGN — and it has to be authored, not assumed.** The tier implements five seams:
   `clock` `slide` `wipe` `dissolve` and **`carry`**, a collapse-to-line match-cut that reads as CONTINUITY
   rather than a swap and is the one seam allowed to cross a dark↔light boundary (its neutral bridge line IS
@@ -933,8 +939,10 @@ agent on the beats it points at.
      nothing else → ASK, because "the deck is enough" vs "research the rest" is a real choice. Menu: **I'll share source material** (a paper/PDF, a code repo, a report, notes) ·
      **Web-research it for me** (no material — I confirm the facts/numbers/names from the latest sources,
      as of today, and fact-check the script) · **Both** (I have some — research the rest) · *(deck runs
-     only)* **The deck is enough** (rare; say the script will be thinner). Other → describe what
-     grounding exists. On **"I'll share"/"Both"**, the ONLY surviving free-text is the file/repo
+     only)* **The deck is enough** (rare; say the script will be thinner). When the purpose is a how-to
+     or a launch of a real product, ask for screenshots or a screen recording of the flow the film
+     describes — the device registers draw the product's OWN screens and will not invent one. Other →
+     describe what grounding exists. On **"I'll share"/"Both"**, the ONLY surviving free-text is the file/repo
      **PATH(s)** — a one-line follow-up asked AFTER that option is picked (the path is an irreducible
      value, not a decision).
    - **⑦ Brand assets** *(a MENU on screen B; asked ONLY when the topic is company/institution/

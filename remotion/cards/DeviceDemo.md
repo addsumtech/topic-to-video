@@ -24,6 +24,8 @@
 - A long screenshot scrolls only within its real overflow; a fling may overshoot 4% and springs back.
 - The standalone demo is skeleton bars with no text, so no demo copy exists to leak into a film.
 
+**Measured:** 3.9% ink (clip median) · 16.0% footprint · 0.0 motion. No settled-frame ink figure is recorded for this register.
+
 **Reference:** `remotion/src/shots/DeviceDemo.tsx`
 
-**Provenance:** product-ui. **Family:** A.
+**Provenance:** product-ui. **Family:** A. **Ground:** `bg` (`DNA_GROUND_TOKEN`), measured light.
