@@ -1334,7 +1334,7 @@ agent on the beats it points at.
    **Overall PASS only when ALL THREE critics return PASS.** Apply the **UNION** of their required
    EDITS to the storyboard, then re-dispatch the critics (or just the failing one) until all
    return PASS. THEN:
-   **THEN MAKE IT AUDIBLE, BEFORE the checkpoint — `python3 scripts/script_audition.py <out_dir>`.**
+   **BOTH TIERS — THEN MAKE IT AUDIBLE, BEFORE the checkpoint — `python3 scripts/script_audition.py <out_dir>`.**
    It speaks five beats (hook, climax, close and two consecutive middles) through the board's OWN voice,
    joined by the film's own measured pause, into `audition.mp3` in seconds. **Listen to it in order, and
    send it to the user with the script.**
@@ -1389,24 +1389,29 @@ agent on the beats it points at.
    94 collapsed to ~10 kinds) and put every kind in one of three buckets: **fix** · **accept, with a
    one-line reason** · **can't fix here**. Then TELL THE USER the accepted ones and why. A warning
    silently swallowed is a defect you chose and hid; a warning accepted out loud is a design decision.
-   **Also run `python scripts/rhythm_qa.py <out_dir>`** (needs the real durations, so after tts) — it
+   **BOTH TIERS — also run `python scripts/rhythm_qa.py <out_dir>`** (needs the real durations, so after tts) — it
    flags flat pacing: uniform scene lengths, a mis-placed or missing climax, a non-sparse closer, an
    over-held static image, or no attention reset for >~35s. Fix the ERRORs; treat the WARNs as
    direction (vary `est_seconds`, place the climax at ~75–80%, split a long image hold).
-   **And run `python scripts/pedagogy_qa.py <out_dir>`** — the teaching-order gate: it ERRORs on a
+   **BOTH TIERS — and run `python scripts/pedagogy_qa.py <out_dir>`** — the teaching-order gate: it ERRORs on a
    concept used before it is introduced (walks `content_plan.json`'s concept DAG). Fix every ERROR;
    it no-ops if `content_plan.json` wasn't persisted.
+   **BOTH TIERS — run `python scripts/voice_qa.py <out_dir>`** — the VOICE gate (see
+   `references/anti-ai-voice.md`). The narration is the ONE thing the two tiers share outright: both read
+   the same `narration` in the same `storyboard.json`, and `tts.py` speaks it for both. This instruction
+   used to sit between "On a remotion deck…" and "For an HTML-tier deck…", so an html author reading down
+   the page hit the remotion sentence, saw it was not their tier, and skipped the voice gate with it — a
+   rule that exists and is not on the path its reader takes is not a rule.
+   It reports the vocabulary tells AND the rhythm distribution (sentence-length CV, balanced-pair share,
+   connective share, antithesis share, and how many beats hold a single sentence). Treat each number as a
+   place to look, not a target: fix the beats that genuinely read as template, leave the ones that trip a
+   check and still sound like a person, and say out loud which you accepted. Then READ THE WHOLE SCRIPT
+   ALOUD — the metrics catch distribution, only the read catches deadness.
    **On a `meta.renderer:"remotion"` deck, run `python scripts/shot_proof.py <out_dir>`
    BEFORE the full render** — it catches, in ~3 minutes, the mechanical findings that otherwise cost
    a 15-minute render plus a shot-critic pass to discover: a leftover register default, two beats
    rendering the same picture, action-safe overflow, ink in the caption band, an off-palette colour,
    a dead frame. Fix every ERROR and triage the warnings out loud, exactly as with validate.
-   **And run `python scripts/voice_qa.py <out_dir>`** — the VOICE gate (see `references/anti-ai-voice.md`).
-   It reports the vocabulary tells AND the rhythm distribution (sentence-length CV, balanced-pair share,
-   connective share, antithesis share). Treat each number as a place to look, not a target: fix the beats
-   that genuinely read as template, leave the ones that trip a check and still sound like a person, and
-   say out loud which you accepted. Then READ THE WHOLE SCRIPT ALOUD — the metrics catch distribution,
-   only the read catches deadness.
    **For an HTML-tier deck, also run `python scripts/keyframe_qa.py <out_dir>`** — it screenshots
    every page at several reveal states into `<out_dir>/_keyframes/` and flags any BLANK page or
    content overflowing the 1080 canvas (open `_keyframes/all.png` and eyeball for tofu / off-theme /

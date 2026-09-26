@@ -324,22 +324,26 @@ _MSG = {
         "en": "sentence length is uniform, CV=%.2f (<%.2f) — every beat the same shape. Let some beats run "
               "one longer sentence with a turn in it and others be four words; uniformity is the tell.",
     },
-    # THE SAME FINDING, WHEN THE AUTHOR CANNOT ACT ON IT BY REWRITING. One sentence per beat means the
-    # sentence length IS the beat length — narration is roughly the speaking rate times the duration — so
-    # telling the author to vary their sentences asks them to change a number the beat plan has already
-    # fixed. The move that costs nothing is to split ONE beat into a short line and a long one: same
-    # seconds, same words, two different shapes. `rhythm_qa` owns the other move and accepts a much flatter
-    # film than this check does (durations CV 0.15 against sentences CV 0.45), so a film can pass there and
-    # fail here for one cause, and be told to fix the wrong layer.
+    # THE SAME FINDING, POINTED AT WHERE THE VARIATION IS MISSING. One sentence per beat means a beat has
+    # no INTERNAL contrast: whatever rhythm the film has must then come from beat differing from beat, and
+    # nothing inside one carries it.
+    #
+    # A FIRST VERSION OF THIS MESSAGE SAID THE AUTHOR COULD NOT ACT — that the sentence length IS the beat
+    # length, because the beat plan fixed the duration. That is backwards and it shipped. `tts.py` is the
+    # ONLY thing in this skill that writes `duration`, and it writes what it MEASURED from the synthesised
+    # audio: the text decides the seconds, not the other way round. A longer sentence simply makes a longer
+    # beat. Getting the direction of a causal claim wrong is how advice ends up telling someone their hands
+    # are tied when they are not.
     "uniform_one_sentence": {
-        "zh": "句长齐整，而且 %.0f%% 的拍只有一句话——这时候「把句子写得长短不一」是做不到的："
-              "一句话的长度就是这一拍的时长。最省的改法是挑几拍拆成「一句短的 + 一句长的」，"
-              "秒数不变、字数不变，形状变了。另一条路是让节拍本身长短拉开（rhythm_qa 那关比这里松得多）。",
-        "en": "sentence length is uniform AND %.0f%% of beats hold a single sentence — so \"vary your "
-              "sentence lengths\" is not a move the author has: one sentence per beat means the sentence "
-              "length IS the beat length. The free fix is to split a few beats into a short line and a long "
-              "one — same seconds, same words, two shapes. The other is to make the beat plan itself "
-              "lumpier (rhythm_qa accepts a far flatter film than this check does).",
+        "zh": "句长齐整，而且 %.0f%% 的拍只有一句话——所以一拍内部没有任何长短对比，整片的节奏全压在"
+              "「拍与拍不同」上。两个方向都能改：把几拍写成「一句短的 + 一句长的」，一拍之内就有了形状；"
+              "或者直接让某几句明显更长（时长跟着文本走，写长了这一拍就更长，片长再从别处找回来）。",
+        "en": "sentence length is uniform AND %.0f%% of beats hold a single sentence — so no beat has any "
+              "internal contrast, and whatever rhythm the film has rests entirely on beat differing from "
+              "beat. Both directions are open: write a few beats as a short line FOLLOWED BY a long one, so "
+              "the shape lives inside one beat; or simply let some sentences run much longer (duration "
+              "follows the text — a longer line makes a longer beat, and the film length comes back "
+              "elsewhere).",
     },
     "antithesis": {
         "zh": "否定式对仗占 %.0f%%(>%.0f%%)— 「不是X，是Y」一旦成为默认，就是机器味最重的地方。"
@@ -578,9 +582,9 @@ def evaluate(narrations, dropped=None, universe=None):
     fired = []                       # which thresholds decided to speak — the testable decision
     if cv < THRESHOLDS["uniform_cv"]:
         fired.append("uniform_cv")
-        # WHICH ADVICE DEPENDS ON WHETHER THE AUTHOR CAN ACT ON IT. With one sentence per beat the
-        # sentence length is the beat length, so the generic "vary your sentences" names a number the
-        # beat plan already fixed; say the move that is actually free instead. See `uniform_one_sentence`.
+        # WHICH ADVICE POINTS AT WHERE THE VARIATION IS MISSING. With one sentence per beat there is no
+        # contrast INSIDE a beat, so name that; the generic message assumes beats already hold more than
+        # one sentence and only their lengths need spreading. See `uniform_one_sentence`.
         if m["one_sentence_beat_share"] >= THRESHOLDS["one_sentence_beats"]:
             fired.append("one_sentence_beats")
             warnings.append(_MSG["uniform_one_sentence"][lang] % (m["one_sentence_beat_share"] * 100))

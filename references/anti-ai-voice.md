@@ -128,42 +128,51 @@ metrics, which produced a tighter script that still read as written.
 On this film every number looked fine and the film was not.
 
 
-## Layer 5 — the uniformity that is not the writer's to fix
+## Layer 5 — every line is speech and all of them are the same shape
 
 The film from Layer 4 was rewritten and reads, line by line, like a person: 「纸上是挑不出毛病的，可守不守得住，
 要到面试当场才知道」「四句人话，一轮就跑完了」. Read any beat aloud and it is speech. Read all 37 and it is a
 template, and `voice_qa` says so — **句长过于齐整 CV=0.30**.
 
-**The cause is upstream of the prose, and that is why rewriting kept failing.** Measured on the delivered
-board:
+Measured on the delivered board:
 
 | | |
 |---|---|
-| beat durations | median 5.2s, **CV 0.20** |
-| narration length | median 22 chars, **CV 0.23** |
-| speaking rate | **4.1 chars/second**, flat across the film |
 | beats holding exactly ONE sentence | **33 of 37** |
+| sentence length | median 22 chars, **CV 0.30** (target ≥ 0.45) |
+| speaking rate | **4.1 chars/second**, flat across the film |
+| beat durations | median 5.2s, CV 0.20 |
 
-With one sentence per beat and a constant speaking rate, *the sentence length is the beat length*. Asking
-the author to "vary the sentence rhythm" is asking them to change a number the beat plan fixed two steps
-earlier. They can shorten a line — and then the TTS underruns the beat — or lengthen it and overrun. The
-advice was correct and unfollowable, which is worse than no advice, because the author burns a pass on it
-and the number does not move.
+**One sentence per beat means no beat has any internal contrast.** Whatever rhythm the film has must then
+come from beat differing from beat — nothing inside a single beat carries it, because there is nothing
+inside a single beat to compare. That is the specific shape of this failure, and it is not visible to any
+vocabulary check: every word is fine, every line is fine, and the 37th one arrives in the same rhythm as
+the first.
 
-**Two moves actually exist, and only one is free.**
+Two directions are open, and both work:
 
-1. **Split a beat into a short line and a long one.** Same seconds, same words, two shapes instead of one.
-   Nothing downstream changes — not the duration, not the seam, not the caption. This is the move to reach
-   for first, and `voice_qa` now names it whenever two thirds of the beats hold a single sentence.
-2. **Make the beat plan itself lumpier**, at the content-plan step. Real, but it moves durations, seams and
-   the whole rhythm budget, so it is a replan and not a rewrite.
+1. **Write a few beats as a short line FOLLOWED BY a long one.** The shape then lives inside one beat, and
+   the listener hears a change of pace without the film's structure moving at all.
+2. **Let some sentences simply run much longer.** Duration FOLLOWS the text — `tts.py` is the only thing in
+   this skill that writes `duration`, and it writes what it measured from the synthesised audio — so a
+   longer line makes a longer beat, and the film's total length is recovered somewhere else.
 
-**The two gates disagreed about this film and neither was wrong.** `rhythm_qa` accepts duration CV ≥ 0.15
-and passed it ("pacing varies"); `voice_qa` wants sentence CV ≥ 0.45 and failed it. They measure nearly the
-same quantity through different units, three times apart, so a film can sit between them — flat enough to
-sound like a template, varied enough to pass the pacing gate. When that happens the author must be told
-WHICH layer to change, or they will rewrite sentences that cannot vary.
+### The correction this entry needed, recorded because the mistake is instructive
 
-**What this does not mean.** Do not pad a line to move a number. A 13-character beat that lands is a
-13-character beat; the point is that thirty-seven of them in a row is a shape, and a shape the listener
-hears even when every individual line is good.
+The first version of this section claimed the opposite of (2): that the sentence length *is* the beat
+length, that the beat plan had fixed the duration two steps earlier, and that "vary the sentence rhythm"
+was therefore advice the author could not follow. **That is backwards, and it shipped.** Nothing in the
+skill sets a duration before TTS; `tts.py` measures the audio and writes the seconds it found. The text
+decides the duration, not the other way round.
+
+What produced the wrong conclusion was a real correlation read as a cause: duration CV 0.20 against
+narration CV 0.23 with a flat 4.1 chars/second. Those numbers track **by construction** — the duration is
+derived from the text — so they say nothing whatever about which one constrains the other. It was caught
+by asking a different question ("does this hold for the html tier too?") and having to trace where
+`duration` is actually written, which is the one check that settles it.
+
+The lesson generalises past this file: **a correlation between two quantities where one is COMPUTED from
+the other is not evidence of a constraint, and the direction of a causal claim has to be traced in the
+code before it is written into advice.** Advice that tells someone their hands are tied, when they are not,
+costs them the move they should have made.
+

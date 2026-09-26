@@ -123,13 +123,16 @@ space-delimited text; for CJK, judge pacing by characters and by the rendered au
 Count your words/characters before running TTS. The rendered clip length comes directly
 from `ffprobe` timing of the audio file — there is no padding or trimming.
 
-**The budget is per BEAT, and a beat may hold more than one sentence — which is where rhythm comes from.**
-Write one sentence per beat and the sentence length IS the beat length, so "vary the sentence rhythm"
-(above, and the first thing `voice_qa` measures) becomes something you cannot do: shorten a line and the
-audio underruns the beat, lengthen it and it overruns. Measured on a delivered 37-beat film: 33 beats of
-exactly one sentence, 4.1 chars/second throughout, sentence-length CV 0.30 against a target of 0.45 — and
-no rewrite could move it. Splitting a few beats into **a short line and a long one** costs no seconds and
-no words and is the whole fix. See `references/anti-ai-voice.md`, Layer 5.
+**These are a CEILING, not a target, and the duration follows the text rather than the other way round.**
+`tts.py` is the only thing that writes `duration`, and it writes what it measured from the synthesised
+audio — so a longer line simply makes a longer beat. Nothing stops you varying sentence length; the film's
+total is what you balance, not each beat.
+
+**A beat may hold more than one sentence, and that is where rhythm comes from.** Write one sentence per
+beat and no beat has any internal contrast — the film's whole rhythm then rests on beat differing from
+beat. Measured on a delivered 37-beat film: 33 beats of exactly one sentence, sentence-length CV 0.30
+against a target of 0.45, and every line individually good. Writing a few beats as **a short line followed
+by a long one** puts the shape inside a single beat. See `references/anti-ai-voice.md`, Layer 5.
 
 ## BEFORE / AFTER Example
 
