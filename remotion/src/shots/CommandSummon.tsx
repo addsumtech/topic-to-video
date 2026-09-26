@@ -14,9 +14,10 @@
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
-import {useT, seg, lerp, easeOutCubic, easeOutBack, clamp01} from '../runtime/motion';
+import {useT, seg, lerp, easeOutCubic, easeOutBack, clamp01, useAnimSpan, ENTRY_T, ReducedMotionContext} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {contentBottom, fitTextPx} from '../runtime/layout';
+import {caretOn, framesBetween} from '../runtime/gesture';
 
 export const DURATION = 165; // 5.5s
 
@@ -54,7 +55,13 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
   const typed = Math.floor(command.length * easeOutCubic(seg(t, 0.14, 0.44)));
   const fired = t > 0.46;
   const flash = fired ? Math.max(0, 1 - (t - 0.46) / 0.06) : 0;
-  const caretOn = t < 0.46 && Math.floor(t * 60) % 2 === 0;
+  // The caret runs on FRAMES (runtime/gesture): solid while the command types, then the system's 16-frame
+  // phases. It used to be `Math.floor(t * 60) % 2` — a rate tied to the beat's length, measured at 5.6
+  // flashes a second on a 5-second beat, blinking mid-word.
+  const span = useAnimSpan();
+  const reduced = React.useContext(ReducedMotionContext);
+  const TYPED_BY = 0.44;
+  const caretShown = t < 0.46 && caretOn(t < TYPED_BY ? null : framesBetween(TYPED_BY, t, span, ENTRY_T), reduced);
   const palY = lerp(60, 0, inP) + (fired ? -lerp(0, 40, easeOutCubic(seg(t, 0.46, 0.6))) : 0);
   const palScale = fired ? lerp(1, 0.94, easeOutCubic(seg(t, 0.46, 0.62))) : 1;
   // A PALETTE WIDER THAN THE FRAME. 1180 was the width of a comfortable command palette on a 1920 frame;
@@ -79,7 +86,7 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
         <div style={{display: 'flex', alignItems: 'center', gap: 22, padding: `34px ${CMD_PADX}px`, borderBottom: '1px solid #232c3d'}}>
           <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2.2"><circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" /></svg>
           <div style={{font: `500 ${cmdPx}px/1 var(--f-body, Inter,system-ui,sans-serif)`, color: '#eef2f8', whiteSpace: 'pre'}}>
-            {command.slice(0, typed)}<span style={{opacity: caretOn ? 1 : 0, color: ACCENT}}>|</span>
+            {command.slice(0, typed)}<span style={{opacity: caretShown ? 1 : 0, color: ACCENT}}>|</span>
           </div>
         </div>
         {/* matched actions / checklist that spawns after Return */}

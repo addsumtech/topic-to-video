@@ -19,9 +19,10 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 // here are measureText (per cell, to derive the column widths + the type size) and fitText (the one
 // prompt line), not fitTextOnNLines, which fits a multi-line box.
 import {fitText, measureText} from '@remotion/layout-utils';
-import {useT, seg, clamp01} from '../runtime/motion';
+import {useT, seg, clamp01, useAnimSpan, ENTRY_T, ReducedMotionContext} from '../runtime/motion';
 import {useDNA, mix} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom} from '../runtime/layout';
+import {caretOn, framesBetween} from '../runtime/gesture';
 
 export const DURATION = 160;
 
@@ -178,7 +179,11 @@ export const TermTable: React.FC<{cmd?: string; headers?: string[]; rows?: strin
   const typed = Math.round(chars.length * clamp01(seg(t, 0.04, 0.17)));
   const shown = chars.slice(0, typed).join('');
   const ran = typed >= chars.length;
-  const caretOn = Math.floor(t * 24) % 2 === 0;                  // blink driven by t → frozen under reduced motion
+  // FRAMES, not t: `Math.floor(t * 24)` tied the blink to the beat's length. Reduced motion stays solid —
+  // what the t-driven version was protecting — through caretOn's own `reduced` branch.
+  const span = useAnimSpan();
+  const reduced = React.useContext(ReducedMotionContext);
+  const caretLit = caretOn(ran ? framesBetween(0.17, t, span, ENTRY_T) : null, reduced);
   const headIn = clamp01(seg(t, 0.2, 0.29));
   const R0 = 0.28, R1 = 0.8;                                     // ALL rows landed by 0.8 < REDUCED_MOTION_T
   const step = (R1 - R0) / Math.max(1, nRow);
@@ -196,7 +201,7 @@ export const TermTable: React.FC<{cmd?: string; headers?: string[]; rows?: strin
       opacity: clamp01(t / 0.05)}}>
       <span style={{color: ACC}}>$</span> {shown}
       <span style={{display: 'inline-block', width: caretW, height: caretH, marginLeft: 6,
-        verticalAlign: 'text-bottom', background: ACC, opacity: ran ? (caretOn ? 0.5 : 0.12) : 0.9}} />
+        verticalAlign: 'text-bottom', background: ACC, opacity: ran ? (caretLit ? 0.5 : 0.12) : 0.9}} />
     </div>
   );
 

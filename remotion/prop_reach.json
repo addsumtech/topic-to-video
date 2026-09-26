@@ -46,7 +46,7 @@
     "CodeRain": "6449664ee2476d2e",
     "CollaborativeCursors": "5f1c8789531d2cd7",
     "ComicPanels": "0887b100ec23e229",
-    "CommandSummon": "f3140a3d3640164a",
+    "CommandSummon": "1bac23e970c7321f",
     "CompanionCard": "311d406232b49506",
     "CompressedSensingEq": "802878ab61ea4364",
     "ConveyorBelt": "851fa970be9e86e6",
@@ -184,7 +184,7 @@
     "TermGitLog": "d31390d346468ca0",
     "TermLog": "8265496ae8cca34e",
     "TermSpace": "eb29a76f5331199f",
-    "TermTable": "b7199038b0a4f0ea",
+    "TermTable": "95cf567826ecb87c",
     "TermThink": "7992b30db6ba4b48",
     "TermTree": "c1d73639416749fb",
     "TerrainFly": "b282ae77b0155609",
@@ -1070,7 +1070,7 @@
       "prop_diff": 1.0
     },
     "TermTable": {
-      "reach": 0.813,
+      "reach": 0.811,
       "prop_diff": 0.75
     },
     "TermThink": {
