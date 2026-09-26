@@ -187,6 +187,7 @@ import {HardBarrier} from './shots/HardBarrier';
 import {BreaksWhenAsked} from './shots/BreaksWhenAsked';
 import {WorksThrough} from './shots/WorksThrough';
 import {SameStuffChanged} from './shots/SameStuffChanged';
+import {DeviceDemo} from './shots/DeviceDemo';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
@@ -255,6 +256,7 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   BreaksWhenAsked,
   WorksThrough,
   SameStuffChanged,
+  DeviceDemo,
 };
 
 export const SHOT_IDS = Object.keys(REGISTRY);
