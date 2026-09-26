@@ -250,10 +250,19 @@ def resolve_cue_props(props, out_dir, audio, narration, dur_s, fps):
     (tts.py writes `audio/NN.words.json`), so the board names the WORDS and this puts the event on them. Without
     word times the position is estimated from the narration text, the same fallback the html tier's cues use.
     `{"cue": ..., "offset": seconds}` shifts it. An anchor the narration does not contain is an ERROR — landing
-    it anywhere would be exactly the guess this exists to remove."""
+    it anywhere would be exactly the guess this exists to remove.
+
+    LISTS OF TIMED ITEMS resolve IN ORDER. A prop that is a list of objects carrying `at: {"cue": ...}` — a
+    device script's steps, a chat thread's messages — is ONE ordered search: each cue is looked for after the
+    previous one's match, so a phrase the narration says twice lands on two successive items, and a cue the
+    narration reaches only BEFORE the previous item's is an error rather than a silent swap."""
     def is_cue(v):
         return isinstance(v, dict) and "cue" in v and set(v) <= {"cue", "offset"}
-    if not any(is_cue(v) for v in (props or {}).values()):
+
+    def timed_list(v):
+        return isinstance(v, list) and any(isinstance(x, dict) and is_cue(x.get("at")) for x in v)
+
+    if not any(is_cue(v) or timed_list(v) for v in (props or {}).values()):
         return props
     import cues as _cues
     words = []
@@ -264,20 +273,44 @@ def resolve_cue_props(props, out_dir, audio, narration, dur_s, fps):
                 words = json.load(open(wj, encoding="utf-8"))
             except (OSError, ValueError):
                 words = []
+    dur_frames = round(dur_s * fps)
     out = dict(props)
     for k, v in props.items():
-        if not is_cue(v):
-            continue
-        phrase = str(v["cue"] or "").strip()
-        if not phrase or _cues._anchor_pos(narration or "", phrase) < 0:
-            raise SystemExit("[render_remotion] shot prop `%s` cues %r, which this beat's narration does not say "
-                             "— name words the voice actually speaks" % (k, phrase))
-        if words and _cues._find(words, phrase, 0) >= 0:
-            sec = _cues.resolve_cues(words, [phrase])[0]
-        else:
-            sec = _cues.estimate_cues_from_text([phrase], narration or "", dur_s)[0]
-        sec += float(v.get("offset") or 0.0)
-        out[k] = t_at_seconds(sec, round(dur_s * fps), fps)
+        if is_cue(v):
+            phrase = str(v["cue"] or "").strip()
+            if not phrase or _cues._anchor_pos(narration or "", phrase) < 0:
+                raise SystemExit("[render_remotion] shot prop `%s` cues %r, which this beat's narration does not say "
+                                 "— name words the voice actually speaks" % (k, phrase))
+            if words and _cues._find(words, phrase, 0) >= 0:
+                sec = _cues.resolve_cues(words, [phrase])[0]
+            else:
+                sec = _cues.estimate_cues_from_text([phrase], narration or "", dur_s)[0]
+            sec += float(v.get("offset") or 0.0)
+            out[k] = t_at_seconds(sec, dur_frames, fps)
+        elif timed_list(v):
+            items = [dict(x) if isinstance(x, dict) else x for x in v]
+            idx = [i for i, x in enumerate(items) if isinstance(x, dict) and is_cue(x.get("at"))]
+            phrases, pos = [], 0
+            for i in idx:
+                phrase = str(items[i]["at"].get("cue") or "").strip()
+                if not phrase or _cues._anchor_pos(narration or "", phrase) < 0:
+                    raise SystemExit("[render_remotion] shot prop `%s[%d].at` cues %r, which this beat's narration "
+                                     "does not say — name words the voice actually speaks" % (k, i, phrase))
+                p = _cues._anchor_pos(narration or "", phrase, pos)
+                if p < 0:
+                    raise SystemExit("[render_remotion] shot prop `%s[%d].at` cues %r, but the narration says it only "
+                                     "BEFORE the previous item's cue — the items would play out of order. Reorder "
+                                     "them, or cue a phrase said later" % (k, i, phrase))
+                pos = p + len(phrase)
+                phrases.append(phrase)
+            if words and all(_cues._find(words, p, 0) >= 0 for p in phrases):
+                secs = _cues.resolve_cues(words, phrases)
+            else:
+                secs = _cues.estimate_cues_from_text(phrases, narration or "", dur_s)
+            for i, sec in zip(idx, secs):
+                sec += float(items[i]["at"].get("offset") or 0.0)
+                items[i]["at"] = t_at_seconds(sec, dur_frames, fps)
+            out[k] = items
     return out
 
 
