@@ -733,14 +733,22 @@ def cjk_props(name, offset=0):
                 untestable.append(prop)
             else:
                 props[prop] = shaped
-        elif re.fullmatch(r"(?:'[^']*'\|)+'[^']*'", t):
+        elif re.fullmatch(r"(?:'[^']*'\|)*'[^']*'", t):
             # A UNION OF STRING LITERALS IS A SWITCH, not copy: `NeuralField.tone` picks WHICH accent the
             # live path wears. Reported untestable it read as unreachable copy; fed a sentence it would be
             # an undeclared value the register cannot honour. It gets its own FIRST declared literal, and
             # gets it identically at every `offset` — prop_reach renders two sets to ask how much of the
             # picture the film's WORDS author, and a switch that flipped between them would answer with a
             # colour change.
+            # A SINGLE literal is the same switch with one position: `DeviceDemo.camera?: 'still'` turns a
+            # behaviour off. The pattern required two, so a one-literal switch was filed untestable.
             props[prop] = t.split("|")[0].strip("'")
+        elif re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(\|undefined)?", t) and _literal_alias_member(t.split("|")[0], src):
+            # A NAMED ALIAS OF STRING LITERALS is the same switch, declared once in the runtime and imported:
+            # `DeviceDemo.device?: DeviceKind` ('phone' | 'tablet' | ...). The row-level shaper resolved such
+            # aliases already; the top level filed them untestable, and the library gate reported both device
+            # registers as unfeedable in Chinese.
+            props[prop] = _literal_alias_member(t.split("|")[0], src)
         elif t.startswith("{") or (_type_fields(ty, src) and prop not in _ARRAY_SHAPES):
             # AN OBJECT PROP THAT IS NOT AN ARRAY — `MapPlate.channel` is one object carrying a `label`,
             # two coordinate pairs and a width. Only the array side had a reader, so a lone object fell to
@@ -887,6 +895,13 @@ _REGISTER_COPY = {
     # one or two ceilings — the bar jams against the first; four is a list it refuses
     "SpeedLimit": {"limits": ["在授权目录里真正动文件", "交付可验收的成果"]},
     "PhysicsStack": {"items": None},
+    # A device beat's `steps` / `screen` are PREPARED at build time by scripts/device_script.prepare — a screen
+    # step first, measured image sizes, times on the narration's words. Shaped field by field they came out as
+    # a sentence for an image path, one number for every time and the same sentence in `type` and `spans`,
+    # which the register refuses. Without them each draws its standalone demo, and the kicker carries the
+    # Chinese this gate measures; typed Chinese on a real screenshot is measured by tests/test_device_demo.py.
+    "DeviceDemo": {"steps": None},
+    "DeviceHero": {"screen": None},
 }
 
 # A number that is plainly a 0..1 fraction gets one; anything else gets a small count. No figure this gate
@@ -947,6 +962,24 @@ def _named_union_member(alias, src):
             break
     _UNION_CACHE[alias] = got
     return got
+
+
+def _literal_alias_member(alias, src):
+    """The first member of `type Alias = 'a' | 'b' | ...` when the alias is NOTHING BUT string literals — the
+    register's own source first, then the runtime it imports from — else None. Unlike `_named_union_member`,
+    an alias whose body merely CONTAINS a literal (an object type with a `kind?: 'a' | 'b'` field) is not a
+    switch and is not answered."""
+    pool = [src] if src else []
+    pool += [open(f, encoding="utf-8").read()
+             for f in sorted(glob.glob(os.path.join(_REMOTION, "src", "runtime", "*.ts*")))]
+    for text in pool:
+        m = re.search(r"(?:export\s+)?type\s+%s\s*=\s*([^;]+);" % re.escape(alias), text, re.S)
+        if m:
+            body = m.group(1).strip()
+            if re.fullmatch(r"(?:'[^']*'\s*\|\s*)*'[^']*'", body):
+                return re.match(r"'([^']*)'", body).group(1)
+            return None
+    return None
 
 
 _MAX_NEST = 2          # a row's list may hold rows; past that a self-referential type never ends

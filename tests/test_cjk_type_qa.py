@@ -1301,3 +1301,15 @@ def test_the_rotation_flag_on_an_overlap_is_read_by_something():
     ts = open(os.path.join(_ROOT, "remotion", "src", "runtime", "textSafe.tsx"), encoding="utf-8").read()
     assert re.search(r"rot\s*\?\s*\{\s*rot:\s*true\s*\}|rot:\s*true", ts), (
         "textSafe no longer tags rotated overlaps, so the reader in cjk_type_qa is dead code")
+
+
+def test_a_top_level_switch_is_fed_its_value_not_a_sentence():
+    """DeviceDemo types `device?: DeviceKind` (a runtime alias of string literals) and `camera?: 'still'` (one
+    literal). The top level knew only unions of two or more literals, so both were filed untestable and the
+    library gate reported the device registers as unfeedable in Chinese."""
+    props, holes = c.cjk_props("DeviceDemo")
+    assert not holes, holes
+    assert (props["device"], props["look"], props["placement"], props["camera"]) == ("phone", "flat", "center", "still")
+    assert c._literal_alias_member("DeviceKind", "") == "phone"
+    assert c._literal_alias_member("Step", "") is None          # an object alias is not a switch
+

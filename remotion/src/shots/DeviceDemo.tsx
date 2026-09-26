@@ -18,7 +18,7 @@ import {useT, useAnimSpan, ENTRY_T, ReducedMotionContext, clamp01, seg, easeInOu
 import {useDNA, mix} from '../runtime/dna';
 import {camAt, clampToPage, type CamKey} from '../runtime/pageCam2D';
 import {textWidthPx, TITLE_Y} from '../runtime/layout';
-import {deviceGeometry, defaultLook, isTouch, Device, type DeviceKind, type DeviceLook, type Placement} from '../runtime/device';
+import {deviceGeometry, defaultLook, isTouch, Device, type DeviceKind, type DeviceLook, type Placement, type Rect} from '../runtime/device';
 import {ScreenImage, ScreenVideo, scrollRangePx, flingAt, type VideoSpan} from '../runtime/screen';
 import {typeChunks, typedCount, caretOn, framesBetween, TapRipple, CursorArrow} from '../runtime/gesture';
 import spec from '../runtime/deviceSpec.json';
@@ -41,11 +41,31 @@ const DEMO_STEPS: Step[] = [{screen: {page: 'demo'}}, {tap: [0.5, 0.355]}];
 const KINDS = ['screen', 'type', 'tap', 'click', 'scroll', 'drag', 'mark'] as const;
 const kindOf = (s: Step): string => KINDS.find((k) => k in s) ?? '';
 
-/** The prepared schedule when every step carries one, else an even spread (the standalone demo). */
-const scheduled = (steps: Step[]): Step[] => {
-  if (steps.every((s) => typeof s.t0 === 'number' && typeof s.ta === 'number' && typeof s.t1 === 'number')) return steps;
-  const slot = (1 - ENTRY_T) / steps.length;
-  return steps.map((s, i) => ({...s, t0: ENTRY_T + i * slot, ta: ENTRY_T + (i + 0.35) * slot, t1: ENTRY_T + (i + 0.9) * slot}));
+/** The prepared schedule. A film's script carries it on EVERY step: one step without it used to re-time the
+ *  whole script by an even spread, silently, and a tap drew nothing at the words the narration names. Only
+ *  the standalone demo (no script given) is spread evenly. */
+const scheduled = (steps: Step[], demo: boolean): Step[] => {
+  if (demo) {
+    const slot = (1 - ENTRY_T) / steps.length;
+    return steps.map((s, i) => ({...s, t0: ENTRY_T + i * slot, ta: ENTRY_T + (i + 0.35) * slot, t1: ENTRY_T + (i + 0.9) * slot}));
+  }
+  steps.forEach((s, i) => {
+    if (typeof s.t0 !== 'number' || typeof s.ta !== 'number' || typeof s.t1 !== 'number') {
+      throw new Error(`DeviceDemo: step ${i + 1} has no prepared time (t0/ta/t1) — scripts/device_script.py ` +
+        "prepares every step on the narration's words; a script without them would be re-timed by guesswork.");
+    }
+  });
+  return steps;
+};
+
+/** The zoomed camera kept ON the device: along an axis where the device is larger than the view, the view
+ *  stays inside its body; where it is smaller (a phone's width at 3x), the view centres on it. Clamped to the
+ *  frame instead, a push-in near the device's top edge showed a third of the frame as empty background with
+ *  the target pushed off-centre. Applied to the zoomed KEYS, so the move from rest stays one smooth path. */
+const onDevice = (x: number, y: number, s: number, b: Rect, W: number, H: number): {x: number; y: number} => {
+  const axis = (c: number, lo: number, len: number, half: number) =>
+    len <= half * 2 ? lo + len / 2 : Math.min(Math.max(c, lo + half), lo + len - half);
+  return {x: axis(x, b.x, b.w, W / 2 / s), y: axis(y, b.y, b.h, H / 2 / s)};
 };
 
 const DemoPage: React.FC<{w: number; h: number; ink: string; ground: string}> = ({w, h, ink, ground}) => (
@@ -74,7 +94,7 @@ export const DeviceDemo: React.FC<{
     throw new Error('DeviceDemo needs `steps` opening with a `screen` step — the device would arrive showing ' +
       'nothing. Write the script in the storyboard; scripts/device_script.py checks and schedules it.');
   }
-  const steps = scheduled(STEPS);
+  const steps = scheduled(STEPS, STEPS === DEMO_STEPS);
   const lk: DeviceLook = look ?? defaultLook(dna);
   const g = deviceGeometry(device, lk, W, H, placement, Boolean(kicker));
   const s = g.screen;
@@ -111,7 +131,13 @@ export const DeviceDemo: React.FC<{
       }
       return <ScreenImage src={src.image} imageW={x.st.imageW} imageH={x.st.imageH} w={s.w} h={s.h} offsetPx={offsetFor(x.i)} />;
     }
-    if (src.video) return <ScreenVideo src={src.video} spans={x.st.spans ?? []} w={s.w} h={s.h} />;
+    if (src.video) {
+      if (!x.st.spans || !x.st.spans.length) {
+        throw new Error('DeviceDemo: a recording needs its `spans` — scripts/device_script.py maps the beat onto ' +
+          'the recording; without them the screen would be black.');
+      }
+      return <ScreenVideo src={src.video} spans={x.st.spans} w={s.w} h={s.h} />;
+    }
     return <DemoPage w={s.w} h={s.h} ink={INK} ground={dna?.surface ?? '#ffffff'} />;
   };
   const push = cur.st.via !== 'fade';
@@ -189,11 +215,11 @@ export const DeviceDemo: React.FC<{
       if (!st.focus || !st.textFrac || !st.captionPx) return;
       const zoom = Math.min(spec.maxZoom, Math.max(1, st.captionPx / (st.textFrac * s.w)));
       if (zoom <= 1.01) return;
-      const fx = s.x + st.focus[0] * s.w, fy = s.y + st.focus[1] * s.h;
+      const f = onDevice(s.x + st.focus[0] * s.w, s.y + st.focus[1] * s.h, zoom, g.body, W, H);
       const last = keys[keys.length - 1];
       keys.push({at: st.t0!, x: last.x, y: last.y, s: last.s});
-      keys.push({at: st.ta!, x: fx, y: fy, s: zoom});
-      keys.push({at: st.t1!, x: fx, y: fy, s: zoom});
+      keys.push({at: st.ta!, x: f.x, y: f.y, s: zoom});
+      keys.push({at: st.t1!, x: f.x, y: f.y, s: zoom});
       const next = steps[i + 1];
       if (!next || !next.focus) keys.push({at: Math.min(1, st.t1! + (st.ta! - st.t0!)), x: W / 2, y: H / 2, s: 1});
     });

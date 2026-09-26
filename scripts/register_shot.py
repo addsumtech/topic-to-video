@@ -467,7 +467,8 @@ def refresh_family_census():
         return False
     new = re.sub(r"<!-- FAMILY-CENSUS.*?<!-- /FAMILY-CENSUS -->\n", lambda _m: block, src, flags=re.S)
     on_disk = len(glob.glob(os.path.join(_SHOTS, "*.tsx")))
-    new = re.sub(r"\((\d+)\s+design languages\)", "(%d design languages)" % on_disk, new, count=1)
+    head, nl, rest = new.partition("\n")                 # the headline is LINE 1: never a later sentence
+    new = re.sub(r"\((\d+)\s+design languages\)", "(%d design languages)" % on_disk, head, count=1) + nl + rest
     if new != src:
         open(p, "w", encoding="utf-8").write(new)
     return True

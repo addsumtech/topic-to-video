@@ -151,3 +151,39 @@ def test_the_push_in_makes_the_target_text_caption_tall(tmp_path):
 @needs_toolchain
 def test_the_standalone_demo_renders_without_a_script(tmp_path):
     _render(tmp_path, {}, 90, "demo")
+
+
+@needs_toolchain
+def test_a_push_in_near_the_top_stays_on_the_device(tmp_path):
+    """Pushing in on the search bar (the spec's own `into: [0.5, 0.11]`) with the camera clamped to the FRAME
+    left a third of the frame as dark background above and beside the phone, the target off-centre. Clamped
+    to the device, the view's top edge is the phone's own top."""
+    import screen_media as sm
+    np = pytest.importorskip("numpy")
+    ui = _screenshot(str(tmp_path / "ui.png"))
+    cap = sm.caption_ink_px("zh", 1920, 1080)
+    y = 255 / 2532                                        # the search bar's placeholder line
+    ink = sm.text_band_px(ui, 0.2, y)
+    steps = [{"screen": {"image": "ui.png"}, "imageW": 1170, "imageH": 2532, "t0": 0.06, "ta": 0.06, "t1": 0.2},
+             {"tap": [0.2, y], "t0": 0.3, "ta": 0.45, "t1": 0.75, "focus": [0.2, y],
+              "textFrac": ink / 1170, "captionPx": cap}]
+    png = _render(tmp_path, {"device": "phone", "look": "flat", "steps": steps}, 100, "edge")
+    a = np.asarray(Image.open(png).convert("L"), dtype=float)
+    top = a[: int(a.shape[0] * 0.05), int(a.shape[1] * 0.35): int(a.shape[1] * 0.65)]
+    assert top.mean() > 150, "the top of a push-in near the device's edge is background (mean %.0f)" % top.mean()
+
+
+@needs_toolchain
+def test_a_script_step_without_its_time_is_refused(tmp_path):
+    """One step missing `t1` used to re-time the WHOLE script by an even spread, silently: the tap drew nothing
+    at the words the narration names. A film's script is prepared on every step or it is refused."""
+    _screenshot(str(tmp_path / "ui.png"))
+    steps = [{"screen": {"image": "ui.png"}, "imageW": 1170, "imageH": 2532, "t0": 0.06, "ta": 0.06, "t1": 0.2},
+             {"tap": [0.3, 0.2], "t0": 0.3, "ta": 0.4}]
+    pf = tmp_path / "bad.json"
+    pf.write_text(json.dumps(dict(BASE, steps=steps, dna="product", aspect="16:9")), encoding="utf-8")
+    r = subprocess.run(["npx", "remotion", "still", "src/index.ts", "DeviceDemo", str(tmp_path / "bad.png"),
+                        "--frame=72", "--gl=angle", "--log=error", "--props=" + str(pf),
+                        "--public-dir=" + str(tmp_path)], cwd=_REM, capture_output=True, text=True, timeout=900)
+    assert r.returncode != 0 and "has no prepared time" in (r.stdout + r.stderr), (r.stdout + r.stderr)[-400:]
+
