@@ -87,3 +87,39 @@ def test_a_screenshot_without_a_size_is_refused():
       });
     """)
     assert all(e and "positive size" in e for e in out["errors"]), out["errors"]
+
+
+_CHUNK_CASES = ["ab c", "上周的客户反馈", "上周 AI", "", "搜索：上周所有的客户反馈 invoice",
+                chr(0xF900) + chr(0xF901), chr(0xE000) + chr(0xE001), chr(0xA000) + chr(0xA001), chr(0x4DC0)]   # R5: both edges, spelled with chr() so nothing can normalize them
+
+
+@needs_node
+def test_typing_chunks_are_the_same_on_both_sides():
+    import device_script as ds
+    out = tp.run_ts("import {typeChunks} from %s;" % tp.mod("gesture"),
+                    "out.v = %s.map((s) => typeChunks(s));" % _CHUNK_CASES.__repr__().replace("'", '"'))
+    assert out["v"] == [ds.type_chunks(s) for s in _CHUNK_CASES]
+
+
+@needs_node
+def test_every_chunk_is_typed_by_the_end_and_never_before_the_start():
+    out = tp.run_ts("import {typeChunks, typedCount} from %s;" % tp.mod("gesture"), """
+      const c = typeChunks('上周的客户反馈 invoice');
+      const ts = Array.from({length: 51}, (_, i) => 0.3 + (i / 50) * 0.4);
+      out.n = c.length; out.v = ts.map((t) => typedCount(t, 0.4, 0.6, c));
+    """)
+    v = out["v"]
+    assert v[0] == 0 and v[-1] == out["n"] and all(b >= a for a, b in zip(v, v[1:]))
+
+
+@needs_node
+def test_the_caret_is_solid_while_typing_and_blinks_in_sixteen_frame_phases():
+    out = tp.run_ts("import {caretOn} from %s;" % tp.mod("gesture"), """
+      out.typing = [null, -3, 0].map((f) => caretOn(f as any, false));
+      out.after = Array.from({length: 64}, (_, i) => caretOn(i + 1, false));
+      out.reduced = caretOn(20, true);
+    """)
+    assert out["typing"] == [True, True, True] and out["reduced"] is True
+    a = out["after"]
+    flips = [i for i in range(1, len(a)) if a[i] != a[i - 1]]
+    assert flips and all(b - a_ == 16 for a_, b in zip(flips, flips[1:])), flips
