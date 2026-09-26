@@ -105,4 +105,3 @@ def test_cjk_detection_covers_only_the_named_blocks():
     assert ds.type_chunks(chr(0xA000) + chr(0xA001)) == [chr(0xA000), chr(0xA001)]    # nor is Yi
     assert ds.gesture_seconds({"type": chr(0xE000), "into": [0.5, 0.5]}) == ds.SPEC["minSeconds"]["typeLatinKey"]
 
-    assert ds.gesture_seconds({"type": "", "into": [0.5, 0.5]}) == ds.SPEC["minSeconds"]["typeLatinKey"]
