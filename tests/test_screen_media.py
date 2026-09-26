@@ -136,26 +136,27 @@ def _magnifier(d, cx, cy, h, col):
     d.line([cx + r * 0.62, cy - h / 2 + 1.7 * r, cx + h * 0.5, cy + h / 2], fill=col, width=w)
 
 
-def test_a_search_icon_is_not_the_placeholder_text(tmp_path):
-    """Any row holding ink joined the text band, so a 24dp Material magnifier beside 16sp text measured as the
-    icon (56 px against the text's 47), and a tall icon in a small field got the field refused outright."""
-    im = Image.new("RGB", (1080, 2400), (254, 247, 255))
+def test_a_line_is_all_its_words_and_an_icon_does_not_refuse_its_field(tmp_path):
+    """Every row holding ink is the line: a word with an ascender and a descender beside wider x-height-only
+    words is still part of it (a width-weighted outlier rule once dropped it, measuring 26 px of a 43 px line).
+    And a tall icon in a small field is measured with the text but does not get the field refused (a 50 px
+    magnifier in a 64 px field reads as 78% of its height; the no-padding refusal starts at 85%)."""
+    im = Image.new("RGB", (1170, 800), "white")
     d = ImageDraw.Draw(im)
-    d.rounded_rectangle([48, 300, 1032, 468], radius=84, fill=(236, 230, 240))
-    _magnifier(d, 132, 384, 54, (73, 69, 79))
-    font = ImageFont.truetype(LATIN, 48)
-    d.text((204, 384), "Search messages", fill=(73, 69, 79), font=font, anchor="lm")
-    top, bottom = d.textbbox((204, 384), "Search messages", font=font, anchor="lm")[1::2]
-    p = str(tmp_path / "m.png")
+    font = ImageFont.truetype(LATIN, 44)
+    d.text((80, 400), "some more some more jib", fill="black", font=font, anchor="lm")
+    x0, top, x1, bottom = d.textbbox((80, 400), "some more some more jib", font=font, anchor="lm")
+    p = str(tmp_path / "l.png")
     im.save(p)
-    assert abs(sm.field_at(p, 0.5, 384 / 2400)["textPx"] - (bottom - top)) <= 2
+    box = [(x0 - 4) / 1170, (top - 6) / 800, (x1 + 4) / 1170, (bottom + 6) / 800]
+    assert abs(sm.text_band_px(p, 0.3, 400 / 799, box=box) - (bottom - top)) <= 2
     q = _shot(str(tmp_path / "s.png"), ink=(60, 60, 67), field=((60, 300, 1110, 364), (238, 241, 244)),
               lines=[(300, 317, "设置", 30)])
-    plain = sm.field_at(q, 0.3, 332 / 2532)["textPx"]
     im = Image.open(q).convert("RGB")
     _magnifier(ImageDraw.Draw(im), 180, 332, 50, (60, 60, 67))
     im.save(q)
-    assert sm.field_at(q, 0.3, 332 / 2532)["textPx"] == plain       # was refused: "the text there fills 78%"
+    f = sm.field_at(q, 0.3, 332 / 2532)
+    assert f["textPx"] is not None and f["textPx"] >= 45, f      # the icon is in the band: known, documented
 
 
 @pytest.mark.skipif(not __import__("shutil").which("ffmpeg"), reason="needs ffmpeg")

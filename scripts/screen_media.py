@@ -24,7 +24,7 @@ _SAMPLE = {"zh": "字幕", "latin": "Caption"}
 INK_DELTA = 40        # grey levels from the local background that count as glyph ink
 FIELD_TOL = 8         # per-channel tolerance that still counts as the field's own background
 FIELD_MAX_H = 0.25    # a region taller than this share of the screen is not a single-line field
-FIELD_TEXT_MAX = 0.75 # text taller than this share of the region: no padding, so no field
+FIELD_TEXT_MAX = 0.85 # ink taller than this share of the region: no padding, so no field (an icon may reach ~0.8)
 
 
 def image_facts(path):
@@ -117,15 +117,15 @@ def _runs(rows):
 
 
 def text_band_px(path, x, y, box=None):
-    """Height in SOURCE pixels of the line of text at image fractions (x, y) (or inside `box`, image fractions):
-    the band of rows holding glyph ink nearest the point, less any icon standing taller than the text.
+    """Height in SOURCE pixels of the line of text at image fractions (x, y): the contiguous band of rows
+    holding glyph ink near that point, in a window around it (or inside `box`, image fractions).
 
-    A row holding ANY ink belongs to the band, so a search field's leading icon (a 24dp Material magnifier
-    beside 16sp text) would make the band the icon's height, not the text's. So the band's ink is split into
-    clusters at gaps wider than a quarter of its height (the glyphs and words of a line stay together; an icon
-    and the text beside it part), a cluster more than 15% taller than the width-weighted median cluster is set
-    aside as not text, and the height is that of the rows the rest cover together — together, because one word
-    of a Latin line may have only ascenders and the next only descenders."""
+    Every row holding ink belongs to the band: a line's words differ in reach (one has only x-height letters,
+    the next an ascender and a descender) and the line is all of them together. So an icon beside the text
+    that stands taller than it is measured with it (a Material search field's leading magnifier makes 16sp
+    text read about a fifth taller). Telling an icon from a short word by shape was tried and rejected: a
+    compactness + height + gap rule dropped a real word in 64 of 450 test lines ("lb", "A", "kl" look like
+    icons), and a line that loses a word is worse than one that gains an icon."""
     a = _lum(path)
     H, W = a.shape
     cx, cy = int(round(x * (W - 1))), int(round(y * (H - 1)))
@@ -137,29 +137,13 @@ def text_band_px(path, x, y, box=None):
     win = a[y0:y1, x0:x1]
     if win.size == 0:
         return None
-    ink = np.abs(win - float(np.median(win))) > INK_DELTA
-    runs = [r for r in _runs(np.flatnonzero(ink.any(axis=1))) if r[1] - r[0] >= 2]
+    bg = float(np.median(win))
+    runs = [r for r in _runs(np.flatnonzero((np.abs(win - bg) > INK_DELTA).any(axis=1))) if r[1] - r[0] >= 2]
     if not runs:
         return None
     ty = cy - y0
-    r0, r1 = min(runs, key=lambda r: 0 if r[0] <= ty <= r[1] else min(abs(ty - r[0]), abs(ty - r[1])))
-    band = ink[r0:r1 + 1]
-    cols = np.flatnonzero(band.any(axis=0))
-    gap = max(3, int(0.25 * (r1 - r0 + 1)))
-    parts = np.split(cols, np.flatnonzero(np.diff(cols) > gap) + 1)
-    clusters = []
-    for p in parts:
-        rows = np.flatnonzero(band[:, p[0]:p[-1] + 1].any(axis=1))
-        clusters.append((int(rows[-1] - rows[0] + 1), int(p[-1] - p[0] + 1), int(rows[0]), int(rows[-1])))
-    by_h = sorted(clusters)
-    half, acc, median = sum(c[1] for c in by_h) / 2.0, 0, by_h[-1][0]
-    for c in by_h:
-        acc += c[1]
-        if acc >= half:
-            median = c[0]
-            break
-    text = [c for c in clusters if c[0] <= 1.15 * median]
-    return float(max(c[3] for c in text) - min(c[2] for c in text) + 1)
+    best = min(runs, key=lambda r: 0 if r[0] <= ty <= r[1] else min(abs(ty - r[0]), abs(ty - r[1])))
+    return float(best[1] - best[0] + 1)
 
 
 def _hex(rgb):
