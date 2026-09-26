@@ -5,8 +5,17 @@ import React from 'react';
 import {Img, OffthreadVideo, Sequence, staticFile, useVideoConfig} from 'remotion';
 import {clamp01, easeOutCubic, easeInOutCubic} from './motion';
 
+/** The height a screenshot takes at width `w`. A size that is not positive is refused: floored instead, a zero
+ *  width gave a 2.3-million-pixel scroll range, and NaN a CSS height the browser silently drops. */
+const scaledHeight = (imageW: number, imageH: number, w: number): number => {
+  if (!(imageW > 0) || !(imageH > 0)) {
+    throw new Error(`screen: a screenshot needs a positive size (got ${imageW}x${imageH})`);
+  }
+  return (imageH * w) / imageW;
+};
+
 export const scrollRangePx = (imageW: number, imageH: number, screenW: number, screenH: number): number =>
-  Math.max(0, (imageH * screenW) / Math.max(1, imageW) - screenH);
+  Math.max(0, scaledHeight(imageW, imageH, screenW) - screenH);
 
 /** A fling: a fast start and an eased stop at 1 + overshoot by 72% of the gesture, then a spring back to 1. */
 export const flingAt = (u: number, overshoot = 0.04): number => {
@@ -21,7 +30,7 @@ export const ScreenImage: React.FC<{src: string; imageW: number; imageH: number;
   ({src, imageW, imageH, w, h, offsetPx = 0}) => (
     <div style={{position: 'absolute', left: 0, top: 0, width: w, height: h, overflow: 'hidden', background: '#ffffff'}}>
       <Img src={staticFile(src)} style={{position: 'absolute', left: 0, top: -offsetPx, width: w,
-        height: (imageH * w) / Math.max(1, imageW)}} />
+        height: scaledHeight(imageW, imageH, w)}} />
     </div>
   );
 
@@ -35,7 +44,7 @@ export const ScreenVideo: React.FC<{src: string; spans: VideoSpan[]; w: number; 
         const frames = Math.max(1, Math.round(s.f1 - s.f0));
         return (
           <Sequence key={i} from={Math.round(s.f0)} durationInFrames={frames} layout="none">
-            <OffthreadVideo src={staticFile(src)} muted startFrom={Math.round(s.v0 * fps)}
+            <OffthreadVideo src={staticFile(src)} muted trimBefore={Math.round(s.v0 * fps)}
               playbackRate={Math.max(0.01, ((s.v1 - s.v0) * fps) / frames)}
               style={{position: 'absolute', left: 0, top: 0, width: w, height: h, objectFit: 'cover'}} />
           </Sequence>

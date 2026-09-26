@@ -75,4 +75,15 @@ def test_a_fling_ends_exactly_where_it_was_sent_and_overshoots_only_a_little():
     assert max(v) <= 1.04 + 1e-9 and max(v) > 1.0
     assert all(b >= a - 1e-9 for a, b in zip(v[:72], v[1:73])), "the fling reverses before its peak"
     assert out["range"] == pytest.approx(6000 * 390 / 1170 - 844)
-    assert out["none"] == pytest.approx(0, abs=1)
+    assert out["none"] == 0
+
+
+@needs_node
+def test_a_screenshot_without_a_size_is_refused():
+    """A zero width once scrolled 2.3 million pixels; NaN became a CSS height the browser silently drops."""
+    out = tp.run_ts("import {scrollRangePx} from %s;" % tp.mod("screen"), """
+      out.errors = [[0, 6000], [-1170, 6000], [NaN, 6000], [1170, 0]].map(([w, h]) => {
+        try { scrollRangePx(w, h, 390, 844); return null; } catch (e) { return String((e as Error).message); }
+      });
+    """)
+    assert all(e and "positive size" in e for e in out["errors"]), out["errors"]
