@@ -136,6 +136,25 @@ def test_contract_findings_are_reported_with_the_file_and_line(tmp_path):
     assert any("WsDisc.tsx:" in p and "[truncate]" in p for p in probs), probs
 
 
+def test_i1_the_contract_message_declares_a_tag_the_checker_actually_accepts(tmp_path):
+    """I1: content_contract_qa._declared only accepts content_contract_qa._DECL[rule] (`truncate` -> the tag
+    `truncates`, plural) — the message used to print `rule` itself, so an author who typed exactly what it said
+    (`// @truncate: <why>`) would find the violation still there."""
+    import re as _re
+    out = _film(tmp_path, objects=["WsDisc"])
+    f = tmp_path / "film" / "workshop" / "objects" / "WsDisc.tsx"
+    base = f.read_text()
+    line = "export const firstThree = (xs: string[]) => xs.slice(0, 3);\n"
+    f.write_text(base + line, encoding="utf-8")
+    probs = ws.contract_problems(out, [str(f)])
+    msg = next(p for p in probs if "[truncate]" in p)
+    m = _re.search(r"declare `// @(\w+): <why>`", msg)
+    assert m, msg
+    f.write_text(base + ("// @%s: a fixed preview window, not a claim\n" % m.group(1)) + line, encoding="utf-8")
+    probs2 = ws.contract_problems(out, [str(f)])
+    assert not [p for p in probs2 if "[truncate]" in p], probs2
+
+
 _WORDS_BAD = """import React from 'react';
 export const WsWords: React.FC<{v?: number; mode?: 'fill' | 'stroke'; label?: string}> =
   ({v = 0, mode = 'fill', label = 'hand written label'}) => (

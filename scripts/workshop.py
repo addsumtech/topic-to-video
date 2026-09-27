@@ -508,9 +508,14 @@ def contract_problems(out_dir, files):
     for f in files:
         name = os.path.basename(f).rsplit(".", 1)[0]
         for line, rule, text in cq.violations(_read(f), name):
+            # I1 (task-2-fix-1.md): content_contract_qa._declared only accepts the TAG in cq._DECL[rule]
+            # (cycle->cycles, position/relabel->positional, retype/fallback->fallback, invent->decor,
+            # truncate->truncates) — printing `rule` itself told an author to write a declaration the checker
+            # does not recognise, so it never went away.
             probs.append("%s:%d [%s] %s — every status, emphasis or quantity it shows must come from the film "
                          "(declare `// @%s: <why>` only when it is genuinely not a claim)"
-                         % (os.path.relpath(f, os.path.dirname(ws)), line, rule, text.strip()[:100], rule))
+                         % (os.path.relpath(f, os.path.dirname(ws)), line, rule, text.strip()[:100],
+                            cq._DECL.get(rule, rule)))
     return probs
 
 
