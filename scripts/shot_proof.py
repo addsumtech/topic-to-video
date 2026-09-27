@@ -698,9 +698,31 @@ def main(argv):
         return 2
     board = json.load(open(board_path, encoding="utf-8"))
     import workshop as _ws
+    # A BROKEN WORKSHOP IS NOT A CONTENT FINDING. `run_kwargs` (through `prepare`) raises `WorkshopError` for
+    # a blocking problem — a name clash, a DURATION the index cannot wire — and letting that reach the CLI as
+    # a bare traceback (exit 1) would read as the same failure this gate uses for "beat(s) NOT measured", when
+    # it means the film cannot be proofed at all. Named and exited on its own code (2, "could not measure").
+    try:
+        wk = _ws.run_kwargs(out_dir)
+        ws_durs = _ws.durations(out_dir)
+    except _ws.WorkshopError as e:
+        for x in e.problems:
+            print("  PROBLEM: " + x)
+        return 2
+    # FILM-SCOPED STATE, RESTORED ON THE WAY OUT. `_FILM_SHOTS`/`_FILM_ENV` are read by every register lookup
+    # and every still this run makes; leaving them set after `main` returns (or raises) would have the NEXT
+    # film proofed in one process read THIS one's workshop — silently, since both are module-level.
     _FILM_SHOTS[:] = [os.path.join(_ws.workshop_dir(out_dir), "shots")]
     _FILM_ENV.clear()
-    _FILM_ENV.update(_ws.run_kwargs(out_dir))
+    _FILM_ENV.update(wk)
+    try:
+        return _prove(argv, out_dir, board, ws_durs)
+    finally:
+        _FILM_SHOTS[:] = []
+        _FILM_ENV.clear()
+
+
+def _prove(argv, out_dir, board, ws_durs):
     if str(board.get("meta", {}).get("renderer", "")).lower() not in ("remotion", "remotion-bespoke"):
         print("[shot_proof] not a remotion deck — nothing to prove")
         return 0
@@ -749,7 +771,12 @@ def main(argv):
                 src = open(_src_path(shot), encoding="utf-8").read()
             except OSError as e:
                 src_err = str(e)
-            dm = re.search(r"export const DURATION\s*=\s*(\d+)", src)
+            # A WORKSHOP SHOT'S DURATION comes from workshop.durations() (scripts/workshop.py) — the same
+            # comment-stripped, typed-declaration-aware reader text_safe_qa and cjk_type_qa use, so a
+            # workshop beat settles at the same frame in every gate. The regex below stays the library's
+            # own reader, so a library register's frame does not move.
+            dm = None if shot in ws_durs else re.search(r"export const DURATION\s*=\s*(\d+)", src)
+            dur = ws_durs.get(shot) if shot in ws_durs else (int(dm.group(1)) if dm else None)
             # THE FRAME IS THE REGISTER'S OWN, never a house constant. `remotion still` REFUSES a frame past
             # the end of a composition rather than clamping, so a fixed frame silently excludes every
             # register shorter than it — the ink gate lost seven registers that way, three of which were
@@ -761,14 +788,14 @@ def main(argv):
             # between them, so the settled point is the INVERSE of that mapping, not a fraction of the clip.
             # Measured across the library, this literal sat up to 15 frames from it on all 170 registers —
             # every proof sheet in this repo's history was read at a frame no other gate measured.
-            frame = int(round(_rr.frame_at_t(int(dm.group(1)), _rr.SETTLED_T))) if dm else 120
-            if not dm:
+            frame = int(round(_rr.frame_at_t(dur, _rr.SETTLED_T))) if dur is not None else 120
+            if dur is None:
                 unmeasured.append("beat %d (%s): the settled frame cannot be derived — %s. Proofed at the "
                                   "fallback frame %d, which this register may never reach (if it is "
                                   "shorter, the still below simply fails)."
                                   % (beat, shot,
-                                     "src/shots/%s.tsx could not be opened (%s)" % (shot, src_err) if src_err
-                                     else "src/shots/%s.tsx exports no `DURATION` — export it" % shot,
+                                     "%s could not be opened (%s)" % (_src_path(shot), src_err) if src_err
+                                     else "%s exports no `DURATION` — export it" % _src_path(shot),
                                      frame))
             pj = os.path.join(proof, "beat_%02d.json" % beat)
             payload = _rr.film_shot_props(s, out_dir)
