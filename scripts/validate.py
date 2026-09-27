@@ -1340,7 +1340,7 @@ def _beat_grounds(slides, errors, warnings):
             % (len(slides), "/".join(sorted(presets)) if presets else "the named presets"))
 
 
-def _idiom_world(meta, slides, errors, warnings):
+def _idiom_world(meta, slides, errors, warnings, out_dir=None):
     """A register speaks some world's vocabulary. The film must be in that world.
 
     Family says what a shot LOOKS like; provenance says WHOSE language it is. A `$ diff` gutter, a bento
@@ -1381,9 +1381,23 @@ def _idiom_world(meta, slides, errors, warnings):
         return
     ok = set(declared)
     off, untagged = [], []
+    import workshop as _ws
+    film_prov = _ws.provenances(out_dir) if out_dir else {}
+    lib_obj_prov = {n: (_ws.object_meta(_ws.object_source(None, n)) or {}).get("provenance")
+                    for n in _ws.library_object_names()}
     for _pos, s in enumerate(slides, start=1):
         shot = s.get("shot")
-        w = PROV.get(shot)
+        # AN OBJECT THAT HOLDS A BEAT SUPPLIES THE BEAT'S IDIOM: the register frames it, the object is what the
+        # viewer reads — so a stage register does not force a film to declare the stage's own world.
+        held = [ref["id"] for _p, ref in _ws.object_refs(_ws.shot_source(out_dir, shot), s.get("shot_props") or {})
+                if isinstance(ref, dict) and isinstance(ref.get("id"), str)]
+        held_worlds = [film_prov.get(o) or lib_obj_prov.get(o) for o in held]
+        if held and all(held_worlds):
+            for o, hw in zip(held, held_worlds):
+                if hw not in ok:
+                    off.append((_pos, "%s (holding %s)" % (shot, o), hw))
+            continue
+        w = PROV.get(shot) or film_prov.get(shot)
         if w is None:
             # A register with no provenance is SILENTLY EXEMPT from this gate — validate looks it up, gets
             # nothing and moves on. That is how the check would have decayed to nothing as the library grew,
@@ -2214,6 +2228,10 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
         or str(meta.get("shot_template") or "") in _DNA_PRESETS  # DNA-themed film
     shots_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src", "shots")
     valid = {f[:-4] for f in os.listdir(shots_dir) if f.endswith(".tsx")} if os.path.isdir(shots_dir) else set()
+    import workshop as _wsv
+    # A FILM'S OWN SHOTS are valid ids for THIS film (scripts/workshop.py); _check_build judges them.
+    _film_shots = _wsv.shot_names(out_dir)
+    valid |= _film_shots
     try:                          # which shots READ the Design DNA (self-updating grep of the source) — the rest
         import dna_audit as _da   # wear a hardcoded palette and won't unify on a THEMED film (lint below)
         _dna_aware = _da.dna_aware_shots()
@@ -2375,7 +2393,7 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
             warnings.append(f"{tag}: shot_fit.verdict {verdict!r} is not one of fit/adapt/build")
         else:
             _fit_verdicts.append(verdict)
-            if verdict == "build":
+            if verdict == "build" and shot not in _film_shots:
                 # NOTE ON WHAT THIS CAN AND CANNOT CHECK: a "build" claim is not independently verifiable
                 # here — nothing in the board proves a register was authored for THIS film rather than
                 # picked from the catalogue and relabelled. What is checkable is that the claim is
@@ -2675,6 +2693,119 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
                                 "run python3 scripts/energy_skeleton.py <out_dir> for the full curve" % (len(_hard) - 6))
 
 
+def _check_build(meta, slides, errors, warnings, out_dir, skips=None):
+    """WHAT THE FILM BUILT (docs/superpowers/specs/2026-09-27-adaptive-build-design.md). The build list and the
+    workshop agree both ways; every `shot_fit.ref` names an entry the beat really uses; every object a beat names
+    exists and is not a stage's own preview; every prop a register requires in a film is set; a film that builds
+    has a Design DNA; and the workshop's own code passes scripts/workshop.py check (type-check, imports, content
+    contract, words from props). Every finding names the beat or the entry and the fix."""
+    import workshop as _ws
+    items = {}
+    if out_dir:
+        items.update({n: "shot" for n in _ws.shot_names(out_dir)})
+        items.update({n: "object" for n in _ws.object_names(out_dir)})
+    bl = meta.get("build_list")
+    if bl is not None and not isinstance(bl, list):
+        errors.append("meta.build_list must be a list of {id, kind, beats, means, slot, uses, accept}")
+        bl = []
+    entries = {}
+    for i, e in enumerate(bl or []):
+        if not isinstance(e, dict) or not isinstance(e.get("id"), str) or not e["id"].strip():
+            errors.append("meta.build_list[%d] needs an `id` — the name of the object or shot it builds" % i)
+            continue
+        eid = e["id"]
+        where = "meta.build_list `%s`" % eid
+        if eid in entries:
+            errors.append("%s is listed twice" % where)
+        entries[eid] = e
+        kind = e.get("kind")
+        if kind not in ("object", "shot"):
+            errors.append("%s: `kind` is object or shot (got %r)" % (where, kind))
+        for f, why in (("means", "say what the viewer must see"),
+                       ("accept", "say how it is judged — with the caption hidden, what does a viewer still see?")):
+            if not str(e.get(f) or "").strip():
+                errors.append("%s: `%s` is empty — %s" % (where, f, why))
+        if not str(e.get("slot") or "").strip():
+            errors.append("%s: `slot` names the template it goes into — a register with an object slot, a stage "
+                          "register, or `own` for a shot" % where)
+        if e.get("promoted"):
+            lib = _ws.library_shot_names() if kind == "shot" else _ws.library_object_names()
+            if eid not in lib:
+                errors.append("%s is marked promoted but the library has no %s %s" % (where, kind, eid))
+        elif eid not in items:
+            k = kind if kind in ("object", "shot") else "object"
+            errors.append("%s has no workshop/%ss/%s.tsx — build it: python3 scripts/workshop.py <out_dir> new-%s %s "
+                          "--means \"...\"" % (where, k, eid, k, eid))
+        elif kind in ("object", "shot") and items[eid] != kind:
+            errors.append("%s is listed as a %s and the workshop holds it as a %s" % (where, kind, items[eid]))
+    for name, kind in sorted(items.items()):
+        if name not in entries:
+            errors.append("workshop/%ss/%s.tsx is not on meta.build_list — every built thing says what it is for "
+                          "(`means`) and how it is judged (`accept`)" % (kind, name))
+    used = _ws.uses(slides, out_dir)
+    for eid, e in sorted(entries.items()):
+        beats = used.get(eid) or []
+        if not beats:
+            errors.append("meta.build_list `%s` is used by no beat" % eid)
+        elif isinstance(e.get("beats"), list) and sorted(e["beats"]) != sorted(beats):
+            warnings.append("meta.build_list `%s` says beats %s; the board uses it on beats %s"
+                            % (eid, e["beats"], beats))
+    for pos, s in enumerate(slides, 1):
+        num = s.get("index", pos)
+        tag = "scene #%s" % num
+        fit = s.get("shot_fit") if isinstance(s.get("shot_fit"), dict) else {}
+        ref = fit.get("ref")
+        if ref is not None:
+            if ref not in entries:
+                errors.append("%s: shot_fit.ref %r is not on meta.build_list" % (tag, ref))
+            elif num not in (used.get(ref) or []):
+                errors.append("%s: shot_fit.ref %r, but this beat neither is that shot nor holds that object"
+                              % (tag, ref))
+        elif fit.get("verdict") == "build" and (s.get("shot") in items or bl is not None):
+            errors.append("%s: shot_fit says build but names no `ref` — name the build-list entry this beat uses"
+                          % tag)
+    known = _ws.library_object_names() | _ws.object_names(out_dir)
+    demo = _ws.demo_objects()
+    for pos, s in enumerate(slides, 1):
+        tag = "scene #%s" % s.get("index", pos)
+        shot = s.get("shot")
+        src = _ws.shot_source(out_dir, shot)
+        if src is None:
+            continue
+        sp = s.get("shot_props") if isinstance(s.get("shot_props"), dict) else {}
+        for path, ref in _ws.object_refs(src, sp):
+            if not isinstance(ref, dict) or not isinstance(ref.get("id"), str) or not ref["id"].strip():
+                errors.append('%s: %s.%s must be an object reference {"id": "<Name>", "props": {...}} (got %r)'
+                              % (tag, shot, path, ref))
+                continue
+            oid = ref["id"]
+            if oid in demo:
+                errors.append("%s: %s.%s is `%s`, a stage's own preview form — draw the film's object "
+                              "(python3 scripts/workshop.py <out_dir> new-object <Name> --means \"...\")"
+                              % (tag, shot, path, oid))
+            elif oid not in known:
+                errors.append("%s: %s.%s names object %r, which neither the film's workshop nor the library "
+                              "defines (defined: %s)" % (tag, shot, path, oid, ", ".join(sorted(known)) or "none"))
+            props = ref.get("props")
+            if props is not None and not isinstance(props, dict):
+                errors.append("%s: %s.%s.props must be an object (got %r)" % (tag, shot, path, props))
+            elif isinstance(props, dict):
+                clash = sorted(k for k in props if k in ("w", "h", "t", "dna", "yaw"))
+                if clash:
+                    errors.append("%s: %s.%s.props sets %s, which the slot gives every object — remove them"
+                                  % (tag, shot, path, ", ".join(clash)))
+        for p in sorted(_ws.required_in_film(src)):
+            if p not in sp:
+                errors.append("%s: %s needs `%s` in a film — without it the register draws its own preview, which "
+                              "is no film's picture" % (tag, shot, p))
+    if items and not (meta.get("design_dna") or meta.get("shot_template")):
+        errors.append("remotion: this film builds things but has no Design DNA — built things paint from its "
+                      "tokens, and a workshop shot's declared GROUND resolves only under one (set meta.design_dna)")
+    if out_dir and os.path.isdir(os.path.join(os.path.abspath(out_dir), "workshop")):
+        for p in _ws.check(out_dir):
+            errors.append("workshop: " + p)
+
+
 def evaluate(data, out_dir, pre_tts=False, vertical=False):
     """Pure check: returns {ok, errors, warnings, scenes, ...}. No render, no network.
     `vertical` mirrors render.py's --vertical flag; meta.aspect=="9:16" also forces it, so the
@@ -2728,9 +2859,10 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # cinematic/HTML checks below don't apply to it, so guard and skip them.
     if (meta.get("renderer") or "") == "remotion":
         _check_remotion(meta, slides, errors, warnings, out_dir, skips=skips, vertical=vertical)
+        _check_build(meta, slides, errors, warnings, out_dir, skips=skips)
         _shot_truncation(meta, slides, errors, warnings)
         _form_vocabulary(meta, slides, errors, warnings)
-        _idiom_world(meta, slides, errors, warnings)
+        _idiom_world(meta, slides, errors, warnings, out_dir=out_dir)
         _beat_grounds(slides, errors, warnings)
         _film_language(meta, slides, errors, warnings, skips=skips)
         _image_attribution(slides, out_dir, errors, warnings)
