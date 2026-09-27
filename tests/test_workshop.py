@@ -124,7 +124,7 @@ def test_a_clean_layout_has_no_names_problems(tmp_path):
 
 @pytest.mark.parametrize("name", ["Film", "FontProbe"])
 def test_a_name_taken_by_a_root_composition_is_a_blocking_problem(tmp_path, name):
-    """R9: Root.tsx registers `Film` and `StageProbe` as `id="…"` Composition attributes, and `TypeSpecimen`,
+    """Root.tsx registers `Film` and `StageProbe` as `id="…"` Composition attributes, and `TypeSpecimen`,
     `FontProbe` and the other `*Probe` ids as `{F('<Id>', …)}` rows — none of them a file in src/shots/ or
     src/objects/, so library_shot_names()/library_object_names() cannot see a workshop name collide with one.
     Unrefused, that collision would hit Remotion's generic duplicate-composition error instead of a specific
@@ -135,17 +135,17 @@ def test_a_name_taken_by_a_root_composition_is_a_blocking_problem(tmp_path, name
     assert any("already a library composition" in p for p in ws.index_blockers(out)), ws.index_blockers(out)
 
 
-def test_m1_a_name_that_is_both_a_library_register_and_a_composition_id_gets_one_message(tmp_path):
-    """M1: TermTable is a real library shot file AND a {F('TermTable', …)} row in Root.tsx — before this fix
-    the composition-id check fired independently of the library check and reported it twice."""
+def test_a_name_that_is_both_a_library_register_and_a_composition_id_gets_one_message(tmp_path):
+    """TermTable is a real library shot file AND a {F('TermTable', …)} row in Root.tsx — the composition-id
+    check must not fire independently of the library check and report the same clash twice."""
     out = _film(tmp_path, shots=["TermTable"])
     probs = [p for p in ws.names_problems(out) if "TermTable" in p and "already a library" in p]
     assert len(probs) == 1, probs
     assert "already a library register" in probs[0], probs
 
 
-def test_m1_composition_ids_are_read_across_line_breaks_and_from_still_elements(tmp_path, monkeypatch):
-    """M1: id="…" is not always on the same line as `<Composition`/`<Still` — and a `<Still>` element (a real
+def test_composition_ids_are_read_across_line_breaks_and_from_still_elements(tmp_path, monkeypatch):
+    """id="…" is not always on the same line as `<Composition`/`<Still` — and a `<Still>` element (a real
     Remotion component, not used in this file today) must be recognised too."""
     fake_root = tmp_path / "FakeRoot.tsx"
     fake_root.write_text(
@@ -164,9 +164,9 @@ def test_m1_composition_ids_are_read_across_line_breaks_and_from_still_elements(
     assert ids == {"Film", "MultiLineStill"}, ids
 
 
-def test_m1_a_root_that_no_longer_lists_film_raises_loudly(tmp_path, monkeypatch):
-    """M1: if Root.tsx's own format changes in a way this parser doesn't understand, it must say so loudly
-    rather than silently return an incomplete set that then under-refuses forever."""
+def test_a_root_that_no_longer_lists_film_raises_loudly(tmp_path, monkeypatch):
+    """If Root.tsx's own format changes in a way this parser doesn't understand, it must say so loudly rather
+    than silently return an incomplete set that then under-refuses forever."""
     fake_root = tmp_path / "FakeRoot.tsx"
     fake_root.write_text("export const RemotionRoot = () => <Composition id=\"SomethingElse\" />;\n",
                           encoding="utf-8")
@@ -175,9 +175,9 @@ def test_m1_a_root_that_no_longer_lists_film_raises_loudly(tmp_path, monkeypatch
         ws._root_composition_ids()
 
 
-def test_m2_scaffold_refuses_a_name_taken_by_a_root_composition_before_writing(tmp_path):
-    """M2: scaffold() used to share none of _problems()'s name checks beyond PascalCase/library-name, so
-    scaffold(out, "shot", "Film", …) wrote a file every later check (and every later scaffold/new-shot call)
+def test_scaffold_refuses_a_name_taken_by_a_root_composition_before_writing(tmp_path):
+    """scaffold() must share _problems()'s composition-id check, not only PascalCase/library-name — otherwise
+    scaffold(out, "shot", "Film", …) writes a file every later check (and every later scaffold/new-shot call)
     would then refuse."""
     out = str(tmp_path / "film")
     with pytest.raises(ws.WorkshopError) as e:
@@ -202,10 +202,11 @@ def test_imports_are_held_to_react_remotion_the_runtime_the_library_and_the_work
     assert not [p for p in probs if "WsGood" in p], probs
 
 
-def test_i2_a_film_folder_with_glob_metacharacters_still_sees_its_own_shot(tmp_path):
-    """I2: glob.glob runs on unescaped absolute paths — in a folder named with `[...]`, a bracket expression
-    that matches nothing on disk used to make shot_names() (and _tsx_names underneath it) come back empty, so a
-    real shot on disk went invisible and `check` reported a false CLEAN."""
+def test_a_film_folder_with_glob_metacharacters_still_sees_its_own_shot(tmp_path):
+    """A film folder listing must treat the folder's own name as a literal path, not a glob pattern — in a
+    folder named with `[...]`, a bracket expression that matches nothing on disk would otherwise make
+    shot_names() (and _tsx_names underneath it) come back empty, so a real shot on disk goes invisible and
+    `check` reports a false CLEAN."""
     out = _film(tmp_path, shots=["WsShotA"], name="film [v2]")
     assert ws.shot_names(out) == {"WsShotA"}
     assert ws.names_problems(out) == []
@@ -213,18 +214,18 @@ def test_i2_a_film_folder_with_glob_metacharacters_still_sees_its_own_shot(tmp_p
     assert any("already a library register" in p for p in ws.names_problems(bad))
 
 
-def test_i2_a_film_folder_with_a_star_never_sees_a_sibling_films_shots(tmp_path):
-    """I2: `glob.glob(".../filmA*/shots/*.tsx")` matches sibling `filmB`'s directory too when filmA's own name
-    literally contains `*` — a wildcard in the FOLDER name must never widen the scan."""
+def test_a_film_folder_with_a_star_never_sees_a_sibling_films_shots(tmp_path):
+    """A wildcard in the FOLDER name (e.g. a literal `*`) must never widen a listing to match a sibling film's
+    directory too."""
     a = _film(tmp_path, shots=["WsShotA"], name="film*")
     _film(tmp_path, shots=["WsShotB"], name="filmXYZ")
     assert ws.shot_names(a) == {"WsShotA"}
 
 
-def test_m3_import_problems_resolves_relative_files_given_as_relative_paths(tmp_path, monkeypatch):
-    """M3: import_problems computed `target` from `os.path.dirname(f)`, which stays relative when `f` is
-    relative, then compared it against workshop_dir()'s always-ABSOLUTE path — a relative-path caller always
-    lost this comparison, so a legitimate `./helper` import was wrongly reported as outside the workshop."""
+def test_import_problems_resolves_relative_files_given_as_relative_paths(tmp_path, monkeypatch):
+    """import_problems computes `target` from `os.path.dirname(f)`, which stays relative when `f` is relative,
+    then compares it against workshop_dir()'s always-ABSOLUTE path — a relative-path caller must not lose that
+    comparison and see a legitimate `./helper` import wrongly reported as outside the workshop."""
     out = _film(tmp_path, objects=["WsDisc"])
     (tmp_path / "film" / "workshop" / "objects" / "helper.ts").write_text("export const R = 1;\n", encoding="utf-8")
     f = tmp_path / "film" / "workshop" / "objects" / "WsUsesHelper.tsx"
@@ -236,9 +237,9 @@ def test_m3_import_problems_resolves_relative_files_given_as_relative_paths(tmp_
     assert not [p for p in probs if "outside the film's workshop" in p], probs
 
 
-def test_m4_source_files_finds_ts_helpers_at_any_depth(tmp_path):
-    """M4: source_files must use the SAME recursive traversal code_files does, or a helper module organised
-    into a subfolder is hashed for the cache key but never import/contract/baked-words checked."""
+def test_source_files_finds_ts_helpers_at_any_depth(tmp_path):
+    """source_files must use the SAME recursive traversal code_files does, or a helper module organised into a
+    subfolder is hashed for the cache key but never import/contract/baked-words checked."""
     out = _film(tmp_path, objects=["WsDisc"])
     nested = tmp_path / "film" / "workshop" / "objects" / "lib"
     nested.mkdir()
@@ -247,8 +248,8 @@ def test_m4_source_files_finds_ts_helpers_at_any_depth(tmp_path):
     assert any(os.path.basename(f) == "geometry.ts" for f in files), files
 
 
-def test_m4_a_relative_import_must_resolve_inside_objects_shots_or_assets(tmp_path):
-    """M4: a relative import that resolves to the workshop ROOT (not objects/, shots/ or assets/) edits a file
+def test_a_relative_import_must_resolve_inside_objects_shots_or_assets(tmp_path):
+    """A relative import that resolves to the workshop ROOT (not objects/, shots/ or assets/) edits a file
     code_files() never hashes — the segment cache key would not change even though the imported code did."""
     out = _film(tmp_path, objects=["WsDisc"])
     (tmp_path / "film" / "workshop" / "helper.ts").write_text("export const R = 1;\n", encoding="utf-8")
@@ -266,10 +267,10 @@ def test_contract_findings_are_reported_with_the_file_and_line(tmp_path):
     assert any("WsDisc.tsx:" in p and "[truncate]" in p for p in probs), probs
 
 
-def test_i1_the_contract_message_declares_a_tag_the_checker_actually_accepts(tmp_path):
-    """I1: content_contract_qa._declared only accepts content_contract_qa._DECL[rule] (`truncate` -> the tag
-    `truncates`, plural) — the message used to print `rule` itself, so an author who typed exactly what it said
-    (`// @truncate: <why>`) would find the violation still there."""
+def test_the_contract_message_declares_a_tag_the_checker_actually_accepts(tmp_path):
+    """content_contract_qa._declared only accepts content_contract_qa._DECL[rule] (`truncate` -> the tag
+    `truncates`, plural) — the message must print that tag, not `rule` itself, or an author who types exactly
+    what it says (`// @truncate: <why>`) finds the violation still there."""
     import re as _re
     out = _film(tmp_path, objects=["WsDisc"])
     f = tmp_path / "film" / "workshop" / "objects" / "WsDisc.tsx"
@@ -395,12 +396,12 @@ def test_durations_grounds_and_provenances_are_read_from_the_sources(tmp_path):
 
 
 @pytest.mark.parametrize("decl,ok,frames", [
-    ("export const DURATION = 6 * 30;", False, None),          # I3: an expression no longer misreads as 6
-    ("export const DURATION = 150.5;", False, None),           # I3: a decimal no longer misreads as 150
-    ("export const DURATION = 0;", False, None),                # I3: zero no longer silently registers
-    ("export const DURATION: number = 150;", True, 150),        # I3: valid TS no longer wrongly refused
+    ("export const DURATION = 6 * 30;", False, None),          # an expression is not a frame count
+    ("export const DURATION = 150.5;", False, None),           # a decimal is not a whole number of frames
+    ("export const DURATION = 0;", False, None),                # zero is not a positive frame count
+    ("export const DURATION: number = 150;", True, 150),        # a type-annotated declaration is valid TS
 ])
-def test_i3_duration_is_read_by_one_anchored_parser(tmp_path, decl, ok, frames):
+def test_duration_is_read_by_one_anchored_parser(tmp_path, decl, ok, frames):
     shot = (SHOT % {"name": "WsDur"}).replace("export const DURATION = 30;", decl)
     out = _film(tmp_path, shots=["WsDur"], shot_src=shot.replace("%", "%%"))
     probs = [p for p in ws.names_problems(out) if "DURATION" in p]
@@ -414,7 +415,7 @@ def test_i3_duration_is_read_by_one_anchored_parser(tmp_path, decl, ok, frames):
         assert any("export const DURATION = <frames>;" in p for p in ws.index_blockers(out))
 
 
-def test_i3_a_commented_out_duration_never_wins(tmp_path):
+def test_a_commented_out_duration_never_wins(tmp_path):
     shot = (SHOT % {"name": "WsDur"}).replace(
         "export const DURATION = 30;", "// export const DURATION = 999;\nexport const DURATION = 45;")
     out = _film(tmp_path, shots=["WsDur"], shot_src=shot.replace("%", "%%"))
@@ -422,7 +423,7 @@ def test_i3_a_commented_out_duration_never_wins(tmp_path):
     assert not [p for p in ws.names_problems(out) if "DURATION" in p]
 
 
-def test_i3_still_on_a_shot_with_a_bad_duration_is_a_sentence_not_a_keyerror(tmp_path, monkeypatch):
+def test_still_on_a_shot_with_a_bad_duration_is_a_sentence_not_a_keyerror(tmp_path, monkeypatch):
     """Proven by making a render attempt itself fail the test: still() must refuse BEFORE ever invoking
     subprocess.run, not rely on the render failing for an unrelated reason and getting wrapped anyway."""
     shot = (SHOT % {"name": "WsDur"}).replace("export const DURATION = 30;", "export const DURATION = 0;")
@@ -437,16 +438,14 @@ def test_i3_still_on_a_shot_with_a_bad_duration_is_a_sentence_not_a_keyerror(tmp
     assert any("DURATION" in p for p in e.value.problems), e.value.problems
 
 
-def test_i3_still_on_an_object_with_a_bad_host_duration_is_a_sentence_too(tmp_path, monkeypatch):
-    """Fix round 2, Minor (docstring only — the code was already right): still()'s object branch resolves the
-    slot and builds `payload` BEFORE calling `_required_duration(src, host)`, and that call happens before
-    run_kwargs()/write_index() are ever reached (those are only invoked later, inside the subprocess.run() call
-    at the bottom of still()) — so the error comes from still()'s OWN `_required_duration(src, host)` line, not
-    from _problems()'s general blocking check. Confirmed by reading e.value.problems: it names the BARE host
-    ("WsBadHost: DURATION must be …"), not a workshop/shots/WsBadHost.tsx: file path, which is what
-    _problems()/names_problems() would print instead. This is also the host-is-a-LIBRARY-register case
-    _problems() never sees at all (it only scans the WORKSHOP's own files) — one parser, reached from two
-    call sites, not two parsers."""
+def test_still_on_an_object_with_a_bad_host_duration_is_a_sentence_too(tmp_path, monkeypatch):
+    """still()'s object branch resolves the slot and builds `payload` BEFORE calling
+    `_required_duration(src, host)`, and that call happens before run_kwargs()/write_index() are ever reached
+    (those are only invoked later, inside the subprocess.run() call at the bottom of still()) — so the error
+    comes from still()'s OWN `_required_duration(src, host)` line, naming the BARE host ("WsBadHost: DURATION
+    must be …"), not a workshop/shots/WsBadHost.tsx: file path (what _problems()/names_problems() would print
+    instead). This is also the only path that reaches the host-is-a-LIBRARY-register case, which _problems()
+    never sees at all (it only scans the WORKSHOP's own files) — one parser, reached from two call sites."""
     _stub_render(monkeypatch)
     shot = (SHOT % {"name": "WsBadHost"}).replace("export const DURATION = 30;", "export const DURATION = 0;")
     out = _film(tmp_path, shots=["WsBadHost"], objects=["WsDisc"], shot_src=shot.replace("%", "%%"))
@@ -455,9 +454,8 @@ def test_i3_still_on_an_object_with_a_bad_host_duration_is_a_sentence_too(tmp_pa
     assert any("DURATION" in p for p in e.value.problems), e.value.problems
 
 
-# I4 fixtures (task-2-fix-1.md) — none named TechnicalPlate/ObjectCompare: those slots land in a LATER task
-# (global-constraints.md's ruling on which registers get one), not yet in this tree. These prove the SAME
-# mechanism instead: still() reads the host's ACTUAL top-level ObjectRef slot name, never hard-codes "object".
+# Synthetic hosts, not any particular library register: these prove the general mechanism — still() reads the
+# host's ACTUAL top-level ObjectRef slot name, never hard-codes "object".
 _HOST_ART_SLOT = """import React from 'react';
 import {AbsoluteFill} from 'remotion';
 import {ObjectSlot, type ObjectRef} from '@runtime/objectSlot';
@@ -502,8 +500,8 @@ export const %(name)s: React.FC<{steps?: {screen?: ScreenSrc}[]}> = ({steps = []
 );
 """
 
-# Fix round 2, Important — a HELPER component declared before the host's own export. 35 of 187 library
-# registers do this (e.g. DeviceDemo.tsx's own `DemoPage` helper, declared before `export const DeviceDemo`).
+# A HELPER component declared before the host's own export — some library registers do this (e.g.
+# DeviceDemo.tsx's own `DemoPage` helper, declared before `export const DeviceDemo`).
 _HOST_HELPER_BEFORE_EXPORT = """import React from 'react';
 import {AbsoluteFill} from 'remotion';
 import {ObjectSlot, type ObjectRef} from '@runtime/objectSlot';
@@ -524,7 +522,7 @@ export const %(name)s: React.FC<{title?: string; object?: ObjectRef}> = ({title 
 """
 
 
-def test_i4_still_refuses_a_host_with_no_object_slot_of_its_own(tmp_path, monkeypatch):
+def test_still_refuses_a_host_with_no_object_slot_of_its_own(tmp_path, monkeypatch):
     """The real, unmodified TermTable register — no film has ever been able to give it an object."""
     _stub_render(monkeypatch)
     out = _film(tmp_path, objects=["WsDisc"])
@@ -533,7 +531,7 @@ def test_i4_still_refuses_a_host_with_no_object_slot_of_its_own(tmp_path, monkey
     assert any("no object slot of its own" in p for p in e.value.problems), e.value.problems
 
 
-def test_i4_still_puts_the_object_under_the_hosts_own_top_level_slot(tmp_path, monkeypatch):
+def test_still_puts_the_object_under_the_hosts_own_top_level_slot(tmp_path, monkeypatch):
     _stub_render(monkeypatch)
     out = _film(tmp_path, shots=["WsArtHost"], objects=["WsDisc"], shot_src=_HOST_ART_SLOT)
     ws.still(out, "WsDisc", host="WsArtHost")
@@ -541,10 +539,10 @@ def test_i4_still_puts_the_object_under_the_hosts_own_top_level_slot(tmp_path, m
     assert payload == {"art": {"id": "WsDisc"}}, payload
 
 
-def test_i4_still_anchors_on_the_hosts_own_export_not_a_helper_declared_first(tmp_path, monkeypatch):
-    """Fix round 2, Important: _top_level_object_ref_keys used to scan the FIRST `React.FC<{` in the file — a
-    helper component's own props literal, declared before the host's export, if the file has one. The object
-    must land under the EXPORT's own `object` slot, not the helper's `art`."""
+def test_still_anchors_on_the_hosts_own_export_not_a_helper_declared_first(tmp_path, monkeypatch):
+    """The top-level slot scan must anchor on the HOST's own export, not the first `React.FC<{` literal in the
+    file — a helper component's own props literal, declared before the host's export, must not be read
+    instead. The object must land under the EXPORT's own `object` slot, not the helper's `art`."""
     _stub_render(monkeypatch)
     out = _film(tmp_path, shots=["WsHost"], objects=["WsDisc"], shot_src=_HOST_HELPER_BEFORE_EXPORT)
     ws.still(out, "WsDisc", host="WsHost")
@@ -552,11 +550,11 @@ def test_i4_still_anchors_on_the_hosts_own_export_not_a_helper_declared_first(tm
     assert payload == {"object": {"id": "WsDisc"}}, payload
 
 
-def test_i4_top_level_scan_on_the_real_devicedemo_finds_its_own_injected_slot():
-    """The reviewer's own repro: remotion/src/shots/DeviceDemo.tsx declares a helper (`DemoPage`) before its
-    export. Injecting `object?: ObjectRef` into DeviceDemo's OWN top-level props literal (read from the real
-    file, never written back to it) must be found there — not in DemoPage's, and not under DemoPage's own
-    (non-existent) export name."""
+def test_top_level_scan_on_the_real_devicedemo_finds_its_own_injected_slot():
+    """remotion/src/shots/DeviceDemo.tsx declares a helper (`DemoPage`) before its export. Injecting
+    `object?: ObjectRef` into DeviceDemo's OWN top-level props literal (read from the real file, never written
+    back to it) must be found there — not in DemoPage's, and not under DemoPage's own (non-existent) export
+    name."""
     path = os.path.join(_REM, "src", "shots", "DeviceDemo.tsx")
     with open(path, encoding="utf-8") as fh:
         src = fh.read()
@@ -567,7 +565,7 @@ def test_i4_top_level_scan_on_the_real_devicedemo_finds_its_own_injected_slot():
     assert ws._top_level_object_ref_keys(injected, "DemoPage") == []   # not exported — no slot to find
 
 
-def test_i4_still_with_several_top_level_slots_needs_slot(tmp_path, monkeypatch):
+def test_still_with_several_top_level_slots_needs_slot(tmp_path, monkeypatch):
     _stub_render(monkeypatch)
     out = _film(tmp_path, shots=["WsTwoSlots"], objects=["WsDisc"], shot_src=_HOST_TWO_SLOTS)
     with pytest.raises(ws.WorkshopError) as e:
@@ -578,7 +576,7 @@ def test_i4_still_with_several_top_level_slots_needs_slot(tmp_path, monkeypatch)
     assert payload == {"second": {"id": "WsDisc"}}, payload
 
 
-def test_i4_still_refuses_a_slot_name_that_is_not_a_top_level_slot(tmp_path, monkeypatch):
+def test_still_refuses_a_slot_name_that_is_not_a_top_level_slot(tmp_path, monkeypatch):
     _stub_render(monkeypatch)
     out = _film(tmp_path, shots=["WsTwoSlots"], objects=["WsDisc"], shot_src=_HOST_TWO_SLOTS)
     with pytest.raises(ws.WorkshopError) as e:
@@ -586,7 +584,7 @@ def test_i4_still_refuses_a_slot_name_that_is_not_a_top_level_slot(tmp_path, mon
     assert any("nope" in p and "first" in p and "second" in p for p in e.value.problems), e.value.problems
 
 
-def test_i4_still_with_only_a_nested_slot_needs_props_to_place_it(tmp_path, monkeypatch):
+def test_still_with_only_a_nested_slot_needs_props_to_place_it(tmp_path, monkeypatch):
     _stub_render(monkeypatch)
     out = _film(tmp_path, shots=["WsNested"], objects=["WsDisc"], shot_src=_HOST_NESTED_SLOT)
     with pytest.raises(ws.WorkshopError) as e:
@@ -598,7 +596,7 @@ def test_i4_still_with_only_a_nested_slot_needs_props_to_place_it(tmp_path, monk
     assert payload == given, payload
 
 
-def test_m6_ground_and_provenance_are_read_from_comment_stripped_source(tmp_path):
+def test_ground_and_provenance_are_read_from_comment_stripped_source(tmp_path):
     shot = (SHOT % {"name": "WsCS"}).replace(
         "export const GROUND = 'bg';", "// export const GROUND = 'accent';\nexport const GROUND = 'surface';"
     ).replace(
@@ -609,7 +607,7 @@ def test_m6_ground_and_provenance_are_read_from_comment_stripped_source(tmp_path
     assert ws.provenances(out) == {"WsCS": "motion-graphics"}
 
 
-def test_m6_the_export_const_name_check_ignores_a_commented_out_stray(tmp_path):
+def test_the_export_const_name_check_ignores_a_commented_out_stray(tmp_path):
     """Only a COMMENT still claims the real name; the live export was renamed away."""
     shot = "// export const WsCS2 = () => null; (an old export, left as a comment)\n" + \
         (SHOT % {"name": "WsCS2"}).replace("export const WsCS2", "export const NotTheRealOne")
@@ -618,7 +616,7 @@ def test_m6_the_export_const_name_check_ignores_a_commented_out_stray(tmp_path):
     assert any("export the component as `export const WsCS2`" in p for p in probs), probs
 
 
-def test_m6_the_scaffold_marker_is_still_found_after_stripping_elsewhere(tmp_path):
+def test_the_scaffold_marker_is_still_found_after_stripping_elsewhere(tmp_path):
     """The marker itself IS a comment (`// @scaffold …`) — comment-stripping the OTHER declarations must not
     strip the one check that reads it."""
     out = str(tmp_path / "film")
@@ -627,7 +625,7 @@ def test_m6_the_scaffold_marker_is_still_found_after_stripping_elsewhere(tmp_pat
 
 
 @pytest.mark.parametrize("suffix", ["", " satisfies ObjectMeta", " as const", " satisfies ObjectMeta as const"])
-def test_m6_object_meta_tolerates_missing_semicolon_and_trailing_assertions(suffix):
+def test_object_meta_tolerates_missing_semicolon_and_trailing_assertions(suffix):
     src = ("export const META: ObjectMeta = {aspect: 1, provenance: 'motion-graphics'}%s\n"
            "export const X = 1;\n") % suffix
     meta = ws.object_meta(src)
@@ -635,8 +633,8 @@ def test_m6_object_meta_tolerates_missing_semicolon_and_trailing_assertions(suff
 
 
 @pytest.mark.parametrize("bad_aspect", ["1.2.3", "16 / 0"])
-def test_m5_object_meta_never_raises_on_a_malformed_aspect(tmp_path, bad_aspect):
-    """M5: `float('1.2.3')` raises ValueError, `float('16') / float('0')` raises ZeroDivisionError — object_meta
+def test_object_meta_never_raises_on_a_malformed_aspect(tmp_path, bad_aspect):
+    """`float('1.2.3')` raises ValueError, `float('16') / float('0')` raises ZeroDivisionError — object_meta
     must catch both and report a None aspect for names_problems/check to flag, not crash its caller."""
     src = (OBJECT % {"name": "WsBadAspect"}).replace("aspect: 1,", "aspect: %s," % bad_aspect)
     meta = ws.object_meta(src)   # must not raise
@@ -655,15 +653,15 @@ def test_object_refs_are_found_under_every_key_the_register_types_objectref():
     assert ws.slot_keys("// object?: ObjectRef in a comment\n") == set()
 
 
-def test_r10_an_unambiguous_key_still_hand_validates_a_malformed_value(tmp_path):
-    """R10: the dict-only fix (task-2-report.md) protected the AMBIGUOUS `object` field above but over-corrected
-    for a name the source ONLY ever types ObjectRef — Task 4's validate._check_build needs the malformed value
-    back (a plain string under `art`) to report it, not silently drop it; the render is still the last word."""
+def test_an_unambiguous_key_still_hand_validates_a_malformed_value(tmp_path):
+    """A name the source ONLY EVER types ObjectRef must still hand back a malformed value (a plain string,
+    not a ref object) under it, not silently drop it — validate.py's own build check needs to see it and
+    report it; the render is still the last word regardless."""
     src = "export const X: React.FC<{art?: ObjectRef}> = () => null;"
     assert ws.object_refs(src, {"art": "Puck"}) == [("art", "Puck")]
 
 
-def test_r10_slot_keys_ignores_a_const_declaration(tmp_path):
+def test_slot_keys_ignores_a_const_declaration(tmp_path):
     """A later stage register's own standalone-preview constant (`const DEMO_OBJECT: ObjectRef = …`) is a
     variable, not a prop a beat can set — slot_keys() must not treat its name as a slot."""
     src = "const DEMO_OBJECT: ObjectRef = {id: 'X'};\nexport const Y: React.FC<{}> = () => null;"
@@ -672,9 +670,10 @@ def test_r10_slot_keys_ignores_a_const_declaration(tmp_path):
     assert "DEMO_OBJECT" not in ws.slot_keys(src2)
 
 
-def test_r10_the_original_ambiguous_key_test_still_passes():
-    """Guards against a regression on the fix that started this ruling — kept here as a second witness next to
-    test_object_refs_are_found_under_every_key_the_register_types_objectref."""
+def test_an_ambiguous_top_level_field_is_excluded_while_a_nested_one_is_found():
+    """A second witness next to test_object_refs_are_found_under_every_key_the_register_types_objectref: a
+    field typed differently at the top level (a caption) than in a nested type (an ObjectRef) must exclude
+    the top-level value while still finding the nested one."""
     src = ("type ScreenSrc = {image?: string; object?: ObjectRef};\n"
            "export const X: React.FC<{steps?: {screen?: ScreenSrc}[]; art?: ObjectRef; object?: string}> = "
            "() => null;")
@@ -721,10 +720,10 @@ def test_a_work_in_progress_object_can_still_be_rendered(tmp_path):
     assert os.path.exists(ws.write_index(out))
 
 
-def test_m5_write_index_on_a_film_with_no_workshop_at_all_is_a_sentence(tmp_path):
-    """M5: write_index() on an out_dir with no workshop/ folder at all used to try to open
-    <out_dir>/workshop/index.ts for writing — a raw FileNotFoundError, since its parent directory does not
-    exist either. index_blockers()/has_items() both handle this gracefully; write_index() did not."""
+def test_write_index_on_a_film_with_no_workshop_at_all_is_a_sentence(tmp_path):
+    """write_index() on an out_dir with no workshop/ folder at all must not try to open
+    <out_dir>/workshop/index.ts for writing — its parent directory does not exist either, which is a raw
+    FileNotFoundError, not a sentence."""
     out = str(tmp_path / "bare")
     os.makedirs(out)
     assert not os.path.isdir(os.path.join(out, "workshop"))
@@ -734,8 +733,8 @@ def test_m5_write_index_on_a_film_with_no_workshop_at_all_is_a_sentence(tmp_path
 
 
 @needs_toolchain
-def test_m5_typecheck_on_a_film_with_no_workshop_at_all_is_a_sentence(tmp_path):
-    """M5: typecheck() calls write_index() internally, so it inherits the same fix automatically."""
+def test_typecheck_on_a_film_with_no_workshop_at_all_is_a_sentence(tmp_path):
+    """typecheck() calls write_index() internally, so it must inherit the same graceful sentence."""
     out = str(tmp_path / "bare")
     os.makedirs(out)
     with pytest.raises(ws.WorkshopError) as e:
@@ -743,7 +742,7 @@ def test_m5_typecheck_on_a_film_with_no_workshop_at_all_is_a_sentence(tmp_path):
     assert e.value.problems and "workshop" in e.value.problems[0].lower()
 
 
-def test_m5_a_missing_props_file_is_a_sentence_not_a_traceback(tmp_path, capsys):
+def test_a_missing_props_file_is_a_sentence_not_a_traceback(tmp_path, capsys):
     out = _film(tmp_path, shots=["WsShotA"])
     rc = ws.main([out, "still", "WsShotA", "--props", str(tmp_path / "nope.json")])
     assert rc == 1
@@ -751,9 +750,9 @@ def test_m5_a_missing_props_file_is_a_sentence_not_a_traceback(tmp_path, capsys)
     assert "PROBLEM" in out_text and "nope.json" in out_text
 
 
-def test_m8_the_next_line_points_at_the_authoring_reference_for_the_kind_just_written(tmp_path, capsys):
-    """M8: new-shot used to print the same NEXT line as new-object (references/object-authoring.md) — the
-    shot-authoring guide is a different file."""
+def test_the_next_line_points_at_the_authoring_reference_for_the_kind_just_written(tmp_path, capsys):
+    """new-shot and new-object point at different authoring references — a shot's structure and an object's
+    drawing are different guides, so new-shot must not print the object guide."""
     out = str(tmp_path / "film")
     ws.main([out, "new-object", "EspressoPuck", "--means", "a compressed espresso puck"])
     assert "object-authoring.md" in capsys.readouterr().out
@@ -761,7 +760,7 @@ def test_m8_the_next_line_points_at_the_authoring_reference_for_the_kind_just_wr
     assert "remotion-shot-authoring.md" in capsys.readouterr().out
 
 
-def test_m8_grounds_maps_a_shot_with_no_ground_to_none(tmp_path):
+def test_grounds_maps_a_shot_with_no_ground_to_none(tmp_path):
     shot = (SHOT % {"name": "WsNoGround"}).replace("export const GROUND = 'bg';\n", "")
     out = _film(tmp_path, shots=["WsNoGround"], shot_src=shot.replace("%", "%%"))
     assert ws.grounds(out) == {"WsNoGround": None}
@@ -769,8 +768,9 @@ def test_m8_grounds_maps_a_shot_with_no_ground_to_none(tmp_path):
 
 @needs_toolchain
 def test_the_workshop_never_writes_outside_its_folder(tmp_path, monkeypatch):
-    """M7: extended to also exercise typecheck() (writes .tsconfig.json) and still() (writes _stills/, with
-    subprocess.run stubbed) — not just prepare()/scaffold()/names_problems() as before."""
+    """Covers typecheck() (writes .tsconfig.json) and still() (writes _stills/, with subprocess.run stubbed)
+    alongside prepare()/scaffold()/names_problems() — every one of a film's own operations, all confined to
+    workshop/."""
     out = _film(tmp_path, shots=["WsShotA"], objects=["WsDisc"])
     (tmp_path / "film" / "storyboard.json").write_text("{}")
     _stub_render(monkeypatch)

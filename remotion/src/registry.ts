@@ -282,8 +282,8 @@ for (const [id, s] of Object.entries(WORKSHOP_SHOTS)) {
   // Both checked at LOAD, before any composition renders: a missing component is a render of nothing where a
   // beat was meant to be, and Remotion needs an actual integer frame count for durationInFrames — either one
   // reaching a real render is a defect that should have been caught at bundle time, cheaply, for every shot at
-  // once. A bad or missing GROUND stays soft here on purpose (Ruling R8) — `workshop.py check` and validate
-  // report it — so a shot mid-build can still be previewed while only its ground is wrong.
+  // once. A bad or missing GROUND stays soft here on purpose — `workshop.py check` and validate report it — so
+  // a shot mid-build can still be previewed while only its ground is wrong.
   if (!s.C) {
     throw new Error(`the film's workshop shot "${id}" has no component — its workshop/shots/${id}.tsx must ` +
       `export a component named "${id}" (scripts/workshop.py check catches this before a render)`);

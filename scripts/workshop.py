@@ -75,9 +75,9 @@ def workshop_dir(out_dir):
 
 
 def _tsx_names(folder):
-    # I2 (task-2-fix-1.md): glob.glob interprets `[...]`/`*`/`?` IN THE PATH ITSELF as wildcards — a film
-    # folder named "film [v2]" made a real shot on disk invisible (the bracket expression matched nothing),
-    # and one named "film*" pulled a sibling film's shots in. os.listdir treats `folder` as a literal path.
+    # glob.glob reads `[...]`/`*`/`?` IN A PATH ARGUMENT as wildcards, not literal characters — a film folder
+    # named "film [v2]" or "film*" would have its own shots misread or a sibling's pulled in. os.listdir takes
+    # `folder` as a literal path, so the folder's own name can never be read as a pattern.
     if not os.path.isdir(folder):
         return []
     return sorted(f[:-4] for f in os.listdir(folder) if f.endswith(".tsx"))
@@ -133,16 +133,16 @@ def object_source(out_dir, name):
     return None
 
 
-# M6 (task-2-fix-1.md): tolerates a missing trailing semicolon (ASI) and a trailing `satisfies ObjectMeta` /
-# `as const` (in either order) after the object literal — all valid TypeScript the strict `\s*;` used to miss.
+# Tolerates a missing trailing semicolon (ASI) and a trailing `satisfies ObjectMeta` / `as const` (in either
+# order) after the object literal — all valid TypeScript a strict `\s*;` alone would miss.
 _META = re.compile(r"export const META\b[^=]*=\s*\{(.*?)\}\s*(?:(?:as\s+const|satisfies\s+\w+)\s*)*;?", re.S)
 
 
 def object_meta(src):
     """An object's META as {aspect, turns, demo, provenance} (only the keys it sets), or None if it has none.
-    `aspect` is None when it is DECLARED but unparseable, non-finite or not positive (`1.2.3`, `16 / 0`) — this
-    never raises (M5); `names_problems`/`check` report a None aspect as a problem instead."""
-    m = _META.search(_strip_comments(src or ""))   # M6: declarations are read from comment-stripped source
+    `aspect` is None when it is DECLARED but unparseable, non-finite or not positive (`1.2.3`, `16 / 0`) — never
+    raises; `names_problems`/`check` report a None aspect as a problem instead."""
+    m = _META.search(_strip_comments(src or ""))   # every declaration is read from comment-stripped source
     if not m:
         return None
     body, meta = m.group(1), {}
@@ -171,12 +171,12 @@ def demo_objects():
     return {n for n in library_object_names() if (object_meta(_read(os.path.join(LIB_OBJECTS, n + ".tsx"))) or {}).get("demo")}
 
 
-# I3 (task-2-fix-1.md): ONE anchored parser for DURATION, shared by _problems(), durations() and still() (its
-# host too) — an unanchored `=\s*(\d+)` used to misread `= 6 * 30;` as 6 (the settled frame then judged
-# mid-entry), `= 150.5;` as 150, let `= 0;` through to a registry-load crash, refuse a valid `: number = 150;`
-# as "no DURATION" (and then KeyError inside still()), and let a commented-out `// export const DURATION = …;`
-# win over a real one below it. On comment-stripped source; anything but `export const DURATION = <positive
-# whole number>;` (an optional `: number` type annotation allowed) comes back None.
+# ONE anchored parser for DURATION, shared by _problems(), durations() and still() (its host too): an
+# unanchored `=\s*(\d+)` would misread `= 6 * 30;` as 6 (the settled frame then judged mid-entry), `= 150.5;`
+# as 150, let `= 0;` through to a registry-load crash, refuse a valid `: number = 150;` as "no DURATION", and
+# let a commented-out `// export const DURATION = …;` win over a real one below it. On comment-stripped
+# source; anything but `export const DURATION = <positive whole number>;` (an optional `: number` type
+# annotation allowed) comes back None.
 _DURATION = re.compile(r"^export const DURATION\s*(?::\s*number\s*)?=\s*(\d+)\s*;", re.M)
 _DURATION_FORM = "export const DURATION = <frames>;` — a positive whole number of frames"
 
@@ -193,7 +193,7 @@ def _duration_of(src):
 
 def _required_duration(src, label):
     """DURATION for `label` (a shot or a host register), or a WorkshopError sentence — never a raw KeyError
-    (durations()) or AttributeError (`.group(1)` on no match), both of which still() used to raise directly."""
+    (durations()) or AttributeError (`.group(1)` on no match) reaching a caller directly."""
     d = _duration_of(src)
     if d is None:
         raise WorkshopError(["%s: DURATION must be `%s (the gates find its settled frame from it)"
@@ -216,7 +216,7 @@ _PROVENANCE = re.compile(r"export const PROVENANCE\b[^=]*=\s*['\"]([^'\"]*)['\"]
 
 
 def _ground_of(src):
-    m = _GROUND.search(_strip_comments(src or ""))   # M6: comment-stripped, like every other declaration
+    m = _GROUND.search(_strip_comments(src or ""))   # comment-stripped, like every other declaration
     if not m:
         return None
     raw = m.group(1)
@@ -236,7 +236,7 @@ def grounds(out_dir):
 
 
 def _provenance_of(src):
-    m = _PROVENANCE.search(_strip_comments(src or ""))   # M6: comment-stripped, like every other declaration
+    m = _PROVENANCE.search(_strip_comments(src or ""))   # comment-stripped, like every other declaration
     return m.group(1) if m else None
 
 
@@ -259,24 +259,24 @@ def _worlds():
     return list(shot_director.IDIOM_WORLDS)
 
 
-# M1 (task-2-fix-1.md): `[^<]*?` (not `[^\n]*?`) so `id="…"` is found even on a LATER line of the same
-# `<Composition …>`/`<Still …>` element — bounded by the NEXT `<` (the start of a sibling element), which a
-# `=> (...)` arrow inside the same tag (e.g. `calculateMetadata`) can never contain, so it can't prematurely
-# end the scan the way excluding `>` instead would (an arrow contains a literal `>`).
+# `id="…"` can sit on a LATER line of the same `<Composition …>`/`<Still …>` element, so the scan is bounded
+# by the NEXT `<` (the start of a sibling element) rather than by `>` — a `=> (...)` arrow inside the same tag
+# (e.g. `calculateMetadata`) contains a literal `>` and would end the scan too early.
 _COMPOSITION_ID = re.compile(r'<(?:Composition|Still)\b[^<]*?\bid="([A-Za-z0-9_]+)"')
-_F_ROW_ID = re.compile(r"\bF\(\s*'([A-Za-z0-9_]+)'")   # already spans line breaks: \s* matches \n too
+_F_ROW_ID = re.compile(r"\bF\(\s*'([A-Za-z0-9_]+)'")   # spans line breaks: \s* matches \n too
 
 
 def _root_composition_ids():
-    """Every composition id remotion/src/Root.tsx registers directly (R9): `Film` and `StageProbe` as
+    """Every composition id remotion/src/Root.tsx registers directly: `Film` and `StageProbe` as
     `<Composition id="…">` attributes, `TypeSpecimen`, `FontProbe` and the other `*Probe` ids as
     `{F('<Id>', …)}` rows. Read from Root.tsx itself, not a hard-coded list, so a future composition Root.tsx
-    adds is covered automatically — but MOST of what this returns (187 of 202, 2026-09-27) is ALSO a file in
-    src/shots/ or src/objects/, which library_shot_names()/library_object_names() already see and report with
-    their own, more specific message; a caller wanting the R9-only names subtracts those two sets itself
-    (M1: `_root_composition_ids() - library_shot_names() - library_object_names()` — TermTable used to get two
-    messages). Raises if the result does not contain "Film" — Root.tsx's own format changing in a way this
-    parser no longer understands must be loud, not a silently incomplete set that under-refuses forever."""
+    adds is covered automatically — but most of what this returns is ALSO a file in src/shots/ or
+    src/objects/, which library_shot_names()/library_object_names() already see and report with their own,
+    more specific message; a caller that wants only the names those two miss subtracts them itself
+    (`_root_composition_ids() - library_shot_names() - library_object_names()` — a name in both would
+    otherwise get two problem messages for the one clash). Raises if the result does not contain "Film" —
+    Root.tsx's own format changing in a way this parser no longer understands must be loud, not a silently
+    incomplete set that under-refuses forever."""
     src = _strip_comments(_read(ROOT_TSX))
     ids = set(_COMPOSITION_ID.findall(src)) | set(_F_ROW_ID.findall(src))
     if "Film" not in ids:
@@ -287,9 +287,9 @@ def _root_composition_ids():
 
 
 _SLOT_KEY = re.compile(r"\b([A-Za-z_]\w*)\s*\??\s*:\s*ObjectRef\b")
-# R10 (task-2-fix-1.md): a `const|let|var <Name>: ObjectRef = …` is a stage register's own standalone-preview
-# constant (later stage registers have exactly these), not a prop a beat can set — masked out before slot_keys()
-# ever sees it, rather than excluded by name afterwards (the same name could ALSO be a real prop elsewhere).
+# A `const|let|var <Name>: ObjectRef = …` is a stage register's own standalone-preview constant, not a prop a
+# beat can set — masked out before slot_keys() ever sees it, rather than excluded by name afterwards (the same
+# name could ALSO be a real prop elsewhere).
 _SLOT_DECL = re.compile(r"\b(?:const|let|var)\s+[A-Za-z_]\w*\s*:\s*ObjectRef\b")
 
 
@@ -306,10 +306,10 @@ def _ambiguous_slot_keys(src):
     """The subset of slot_keys(src) the same (comment-stripped) source ALSO annotates otherwise — some other
     `name:`/`name?:` not immediately followed by ObjectRef, detected generously (an object-literal property
     counts too, since erring toward "ambiguous" only loses object_refs()'s early hand-validation below; the
-    render still refuses a malformed ref either way). R10 (task-2-fix-1.md): a register can reuse a field name
-    for a plain caption at one level and type it ObjectRef at a nested one (`object` on TechnicalPlate's own
-    props vs. inside a device's `ScreenSrc`) — slot_keys() can't tell those apart by name alone, so for THOSE
-    names only a dict-shaped value counts as a found ref; a name the source types ObjectRef and nothing else
+    render still refuses a malformed ref either way). A register can reuse a field name for a plain caption at
+    one level and type it ObjectRef at a nested one (`object` on a caption prop vs. inside a device's
+    `ScreenSrc`) — slot_keys() can't tell those apart by name alone, so for THOSE names only a dict-shaped
+    value counts as a found ref; a name the source types ObjectRef and nothing else
     hands back every non-None value, malformed ones included, for a caller like validate.py to report."""
     src = _slot_scan_src(src)
     keys = set(_SLOT_KEY.findall(src))
@@ -325,10 +325,11 @@ def _ambiguous_slot_keys(src):
 def object_refs(src, props):
     """[(path, value)] for every object reference in a beat's props: each value under a key the register types
     ObjectRef, at any depth (a device's `steps[0].screen.object`, a compare's `left.object`). A key the source
-    types ObjectRef and NOTHING else hands back every non-None value under it, well-formed or not (R10:
-    validate.py's build check is the one that reports a malformed one — a plain string where a ref belongs — so
-    it must still see it here); a key the source ALSO types otherwise elsewhere is ambiguous, and only a
-    dict-shaped value under it counts (the brief's own test: a register's top-level `object` is a caption)."""
+    types ObjectRef and NOTHING else hands back every non-None value under it, well-formed or not — validate.py's
+    build check is the one that reports a malformed one (a plain string where a ref belongs), so it must still
+    see it here; a key the source ALSO types otherwise elsewhere is ambiguous, and only a dict-shaped value
+    under it counts (a register's top-level `object` can be a caption, with a differently-typed `object` field
+    nested inside some other type in the same file)."""
     keys, ambiguous, found = slot_keys(src), _ambiguous_slot_keys(src), []
 
     def walk(v, path):
@@ -353,18 +354,15 @@ _TOP_SLOT_SCAN = re.compile(r"[{}]|" + _SLOT_KEY.pattern)   # the SAME "typed Ob
 
 def _top_level_object_ref_keys(host_src, host_name):
     """Prop names `host_src`'s OWN `export const <host_name>: React.FC<{…}>` types `ObjectRef` at brace depth 1
-    of THAT (and only that) type literal (I4, task-2-fix-1.md; anchored on the export's own name — fix round
-    2's Important finding) — the ones still() can place an object under without knowing the host's nested shape
-    (TechnicalPlate's `art`; a device's `steps[i].screen.object` is depth 2, and does NOT count).
+    of THAT (and only that) type literal — the ones still() can place an object under without knowing the
+    host's nested shape (a device's `steps[i].screen.object` is depth 2, and does NOT count).
 
-    Anchored on `export const <host_name>`, not the first `React.FC<{` in the file: the fix round 2 review
-    counted 35 of the 187 library registers declaring a HELPER component before their export (DeviceDemo.tsx's
-    own `DemoPage`, before `export const DeviceDemo`, is the confirmed case below) — scanning the first
-    occurrence read the helper's props literal instead of the host's own, so injecting a slot into DeviceDemo's
-    real export was read as [] (DemoPage's shape, not DeviceDemo's). Matched by counting braces, not angle
-    brackets: the literal's own body holds arrow functions (`=>`), which a naive `<...>` scan would misread as
-    closing the generic early. [] when there is no such export, or it does not declare its props as an inline
-    object literal (186 of 187 library registers that DO export this way do)."""
+    Anchored on `export const <host_name>`, never the first `React.FC<{` in the file: a register can declare a
+    helper component before its own export (DeviceDemo.tsx's own `DemoPage`, before `export const DeviceDemo`,
+    is one) — scanning the first occurrence in the file would read the helper's props literal instead of the
+    host's own. Matched by counting braces, not angle brackets: the literal's own body holds arrow functions
+    (`=>`), which a naive `<...>` scan would misread as closing the generic early. [] when there is no such
+    export, or it does not declare its props as an inline object literal."""
     src = _strip_comments(host_src or "")
     m = re.search(r"export const %s\s*:\s*React\.FC<\s*\{" % re.escape(host_name), src)
     if not m:
@@ -411,12 +409,12 @@ def uses(slides, out_dir):
 
 def _clash_with(name, lib_s, lib_o, comp_ids):
     """None, or why `name` cannot be a workshop item's name because the LIBRARY already has it — a shot
-    register, an object, or (R9) a composition id Root.tsx registers directly. `lib_s`/`lib_o` are
-    library_shot_names()/library_object_names(); `comp_ids` is `_root_composition_ids() - lib_s - lib_o` (M1,
-    task-2-fix-1.md: a name already caught by one of the first two gets that more specific reason, not also
-    this one — TermTable is both a library shot file and an {F('TermTable', …)} row). The core `_problems()`
-    (an existing file) and `scaffold()` (M2: refuses BEFORE writing one) share — see `_library_or_composition_
-    clash()` below for the single-name convenience wrapper `scaffold()` actually calls."""
+    register, an object, or a composition id Root.tsx registers directly. `lib_s`/`lib_o` are
+    library_shot_names()/library_object_names(); `comp_ids` is `_root_composition_ids() - lib_s - lib_o`, so a
+    name already caught by one of the first two gets that more specific reason, not also this one (a name can
+    be both a library shot file and a Root.tsx composition id at once). The core check `_problems()` (an
+    existing file) and `scaffold()` (refuses BEFORE writing one) share — see `_library_or_composition_clash()`
+    below for the single-name convenience wrapper `scaffold()` actually calls."""
     if name in lib_s:
         return "%s is already a library register — rename it (the render refuses a shadowed name)" % name
     if name in lib_o:
@@ -472,8 +470,8 @@ def _problems(out_dir):
             if clash:
                 out.append(("%s: %s" % (where, clash), True))
             src = _read(os.path.join(folder, n + ".tsx"))
-            # M6 (task-2-fix-1.md): every declaration check below reads comment-stripped source — EXCEPT the
-            # scaffold marker just below, which IS a comment (`// @scaffold …`) and must stay on the raw one.
+            # every declaration check below reads comment-stripped source — EXCEPT the scaffold marker just
+            # below, which IS a comment (`// @scaffold …`) and must stay on the raw one.
             if not re.search(r"export const %s\b" % re.escape(n), _strip_comments(src)):
                 out.append(("%s: export the component as `export const %s`" % (where, n), True))
             if SCAFFOLD_MARK in src:
@@ -529,9 +527,9 @@ def write_index(out_dir):
     """Regenerate <workshop>/index.ts from the two folders and return its path. A BLOCKING problem raises
     WorkshopError — an index is never written around a name the render would refuse; the rest wait for `check`."""
     if not os.path.isdir(workshop_dir(out_dir)):
-        # M5 (task-2-fix-1.md): `open(<workshop>/index.ts, "w")` below needs the workshop/ folder to already
-        # exist — a raw FileNotFoundError otherwise. A film's own callers only reach here through prepare(),
-        # guarded by has_items(), so this is for write_index()/typecheck() called directly (both public).
+        # `open(<workshop>/index.ts, "w")` below needs the workshop/ folder to already exist — a raw
+        # FileNotFoundError otherwise. A film's own callers only reach here through prepare(), guarded by
+        # has_items(), so this matters for write_index()/typecheck() called directly (both public).
         raise WorkshopError(["%s has no workshop yet — nothing to index" % workshop_dir(out_dir)])
     probs = index_blockers(out_dir)
     if probs:
@@ -590,9 +588,9 @@ def code_files(out_dir):
 
 def source_files(out_dir):
     """The workshop's code: every .ts and .tsx under objects/ and shots/, at any depth — a helper module may sit
-    in its own subfolder. M4 (task-2-fix-1.md): the SAME traversal code_files() uses, so a helper is hashed for
-    the render cache AND import/contract/baked-words checked, never just the former. (I2: os.walk, not
-    glob.glob, so a folder name with `[...]`/`*`/`?` in it is never misread as a wildcard.)"""
+    in its own subfolder. The SAME traversal code_files() uses, so a helper is hashed for the render cache AND
+    import/contract/baked-words checked, never just the former. os.walk, not glob.glob, so a folder name with
+    `[...]`/`*`/`?` in it is never misread as a wildcard."""
     ws, out = workshop_dir(out_dir), []
     for kind in KINDS:
         for dp, dn, fn in os.walk(os.path.join(ws, kind)):
@@ -607,15 +605,15 @@ _IMPORT = re.compile(r"""(?:\bfrom\s+|\bimport\s*\(\s*|^\s*import\s+)['"]([^'"]+
 def import_problems(out_dir, files):
     """A workshop may import react, remotion (and the project's other dependencies), the runtime as
     @runtime/<module>, library registers as @shots/<Name>, and its own files under objects/, shots/ or assets/
-    (M4: what code_files() hashes for the render cache key — a file at the workshop root is never reached by a
+    (what code_files() hashes for the render cache key — a file at the workshop root is never reached by a
     render, so editing it would not change the key). Nothing else resolves."""
     pkg = json.loads(_read(os.path.join(REMOTION, "package.json")))
     deps = set(pkg.get("dependencies") or {}) | set(pkg.get("devDependencies") or {})
     ws, lib, probs = workshop_dir(out_dir), library_shot_names(), []
     roots = [os.path.join(ws, d) for d in KINDS + ("assets",)]
     for f in files:
-        # M3 (task-2-fix-1.md): workshop_dir() is always absolute; a RELATIVE `f` made every `target` below
-        # relative too, so it could never match the `ws`/roots prefix check and every "./helper" import was
+        # workshop_dir() is always absolute; a RELATIVE `f` would make every `target` below relative too, so
+        # it could never match the `ws`/roots prefix check and a legitimate "./helper" import would be
         # wrongly reported as outside the workshop.
         f = os.path.abspath(f)
         rel = os.path.relpath(f, os.path.dirname(ws))
@@ -634,8 +632,8 @@ def import_problems(out_dir, files):
                     probs.append("%s imports %s, outside the film's workshop — film code may use react, remotion, "
                                  "@runtime/…, @shots/… and its own workshop files" % (rel, spec))
                 elif not any((target + os.sep).startswith(root + os.sep) for root in roots):
-                    # M4: inside the workshop, but not inside objects/, shots/ or assets/ (e.g. the workshop
-                    # root itself, or its generated index.ts/_stills/) — code_files() never hashes it.
+                    # inside the workshop, but not inside objects/, shots/ or assets/ (e.g. the workshop root
+                    # itself, or its generated index.ts/_stills/) — code_files() never hashes it.
                     probs.append("%s imports %s — a workshop file may only import its own files under objects/, "
                                  "shots/ or assets/ (what code_files() hashes for the render cache key); "
                                  "nothing else in the workshop is reached by a render" % (rel, spec))
@@ -656,10 +654,10 @@ def contract_problems(out_dir, files):
     for f in files:
         name = os.path.basename(f).rsplit(".", 1)[0]
         for line, rule, text in cq.violations(_read(f), name):
-            # I1 (task-2-fix-1.md): content_contract_qa._declared only accepts the TAG in cq._DECL[rule]
-            # (cycle->cycles, position/relabel->positional, retype/fallback->fallback, invent->decor,
-            # truncate->truncates) — printing `rule` itself told an author to write a declaration the checker
-            # does not recognise, so it never went away.
+            # content_contract_qa._declared only accepts the TAG in cq._DECL[rule] (cycle->cycles,
+            # position/relabel->positional, retype/fallback->fallback, invent->decor, truncate->truncates) —
+            # printing `rule` itself would tell an author to write a declaration the checker does not
+            # recognise, so the violation would never go away.
             probs.append("%s:%d [%s] %s — every status, emphasis or quantity it shows must come from the film "
                          "(declare `// @%s: <why>` only when it is genuinely not a claim)"
                          % (os.path.relpath(f, os.path.dirname(ws)), line, rule, text.strip()[:100],
@@ -813,7 +811,7 @@ def scaffold(out_dir, kind, name, means):
     if not NAME.match(name or ""):
         probs.append("%r: a name is PascalCase, 3-32 letters and digits" % (name,))
     else:
-        clash = _library_or_composition_clash(name)   # M2: the SAME check _problems() refuses an item with
+        clash = _library_or_composition_clash(name)   # the SAME check _problems() refuses an existing item with
         if clash:
             probs.append(clash)
         elif name in shot_names(out_dir) | object_names(out_dir):
@@ -845,7 +843,7 @@ def still(out_dir, name, props=None, host="ObjectStage", frame=None, aspect=None
     An object's `props`, when given, is tried FIRST as the host's own full props with the object already
     placed somewhere in them (object_refs() finds a ref to `name`) — how a device screen is previewed; used
     as given, unchanged. Otherwise it is the object's OWN sub-props, and the object goes under `slot` (a
-    top-level ObjectRef slot of the host — I4, task-2-fix-1.md) if given, else the host's single one; refused
+    top-level ObjectRef slot of the host) if given, else the host's single one; refused
     when the host has none or several, naming them either way — never silently hard-coded to "object", which
     only ever happened to be right for ObjectStage."""
     import render_remotion as rr
@@ -857,7 +855,7 @@ def still(out_dir, name, props=None, host="ObjectStage", frame=None, aspect=None
         if props is None:
             beat = next((s for s in board.get("slides") or [] if s.get("shot") == name), None)
             payload = rr.film_shot_props(beat, out_dir) if beat else {}
-        dur = _required_duration(shot_source(out_dir, name), name)   # I3: a sentence, never a raw KeyError
+        dur = _required_duration(shot_source(out_dir, name), name)   # a sentence, never a raw KeyError
     elif name in object_names(out_dir) or name in library_object_names():
         comp = host
         src = shot_source(out_dir, host)
@@ -952,14 +950,15 @@ def main(argv=None):
         if a.cmd in ("new-object", "new-shot"):
             path = scaffold(a.out_dir, a.cmd[4:], a.name, a.means)
             print("[workshop] wrote %s" % path)
-            # M8 (task-2-fix-1.md): new-shot used to print the OBJECT guide too.
+            # new-shot and new-object each point at their own authoring reference — a shot's structure and an
+            # object's drawing are different guides.
             doc = "object-authoring.md" if a.cmd == "new-object" else "remotion-shot-authoring.md"
             print("NEXT: draw it (references/%s), then python3 scripts/workshop.py %s still %s"
                   % (doc, a.out_dir, a.name))
             return 0
         if a.props:
-            # M5 (task-2-fix-1.md): a missing or unreadable --props file is a sentence, not a raw traceback —
-            # OSError/ValueError are not WorkshopError, so they used to escape the except clause below.
+            # a missing or unreadable --props file is a sentence, not a raw traceback — OSError/ValueError are
+            # not WorkshopError, so they would otherwise escape the except clause below.
             try:
                 props = json.loads(_read(a.props))
             except OSError as e:
