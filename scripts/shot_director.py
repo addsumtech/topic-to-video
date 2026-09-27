@@ -521,18 +521,28 @@ def main():
     # authored, and is deterministic — so running it here changes nothing for a board that has its own.
     try:
         import seam_plan
-        marks = seam_plan.plan(data.get("slides", []), (data.get("meta") or {}).get("design_dna"))
-        cams = seam_plan.plan_camera(data.get("slides", []))
-        for i, m in marks.items():
-            sl = data["slides"][i]
-            if not (sl.get("transition_in") or sl.get("transition_style")):
-                sl["transition_in"] = {"type": m["type"]}
-        for i, c in cams.items():
-            sl = data["slides"][i]
-            if not sl.get("camera"):
-                sl["camera"] = ({"move": c["move"]} if seam_plan.CAMERA_AMOUNT is None
-                                else {"move": c["move"], "amount": seam_plan.CAMERA_AMOUNT})
-        print("[shot_director] %d marked seam(s), %d moving beat(s)" % (len(marks), len(cams)))
+        # THE FILM'S OWN WORKSHOP REACHES THE PLAN HERE TOO. `seam_plan.plan`/`plan_camera` read a workshop
+        # shot's declared ground and a workshop object's declared provenance (scripts/workshop.py) from
+        # module state `install_workshop` sets — calling them without it judges a workshop beat's seam on no
+        # ground at all, and never gives the push camera a workshop object's own PROVENANCE. `install_workshop`
+        # is the one door this entry point and `seam_plan.main` both go through; restored in `finally` so it
+        # never outlives this call.
+        seam_plan.install_workshop(a.out_dir)
+        try:
+            marks = seam_plan.plan(data.get("slides", []), (data.get("meta") or {}).get("design_dna"))
+            cams = seam_plan.plan_camera(data.get("slides", []))
+            for i, m in marks.items():
+                sl = data["slides"][i]
+                if not (sl.get("transition_in") or sl.get("transition_style")):
+                    sl["transition_in"] = {"type": m["type"]}
+            for i, c in cams.items():
+                sl = data["slides"][i]
+                if not sl.get("camera"):
+                    sl["camera"] = ({"move": c["move"]} if seam_plan.CAMERA_AMOUNT is None
+                                    else {"move": c["move"], "amount": seam_plan.CAMERA_AMOUNT})
+            print("[shot_director] %d marked seam(s), %d moving beat(s)" % (len(marks), len(cams)))
+        finally:
+            seam_plan.clear_workshop()
     except Exception as e:                       # a board with no `relation` is a legitimate film, not a crash
         print("[shot_director] seam/camera plan skipped: %s" % e)
 

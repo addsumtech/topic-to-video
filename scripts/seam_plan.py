@@ -54,8 +54,34 @@ _SHOTLUMA = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 _GROUND_TOKEN = None
 
 # A film's own shots declare their ground (scripts/workshop.py GROUND) — the renderer merges the same declaration
-# (remotion/src/registry.ts), so the planner must too, or it judges their seams on nothing. Set by main().
+# (remotion/src/registry.ts), so the planner must too, or it judges their seams on nothing. A film's own
+# objects and shots also declare their PROVENANCE, which the push-camera's detail check reads alongside the
+# library's own table. Both installed by `install_workshop` — the one door `main` and `shot_director.main`
+# both go through — and cleared by `clear_workshop` when the film-scoped work is done.
 _EXTRA_GROUNDS = {}
+_EXTRA_PROVENANCE = {}
+
+
+def install_workshop(out_dir):
+    """Read this film's workshop declarations (scripts/workshop.py) into the planner's module state. A bare
+    ground token normalises to a one-element list, matching `_ground_tokens()`'s own shape; a '#hex' stays a
+    string, which `dna_ground_y` resolves with no DNA at all."""
+    import workshop as _ws
+    _EXTRA_GROUNDS.clear()
+    for n, g in _ws.grounds(out_dir).items():
+        if isinstance(g, str) and not g.startswith("#"):
+            g = [g]
+        if g:
+            _EXTRA_GROUNDS[n] = g
+    _EXTRA_PROVENANCE.clear()
+    _EXTRA_PROVENANCE.update(_ws.provenances(out_dir))
+
+
+def clear_workshop():
+    """The other half of `install_workshop` — call from a `finally`, so a film's declarations never outlive
+    the run that installed them."""
+    _EXTRA_GROUNDS.clear()
+    _EXTRA_PROVENANCE.clear()
 
 
 def _ground_tokens():
@@ -342,6 +368,11 @@ def plan_camera(slides):
               "craft-handmade", "data-viz"}
 
     def _rewards_a_push(shot):
+        # A WORKSHOP SHOT'S OWN PROVENANCE, before the library's table — `shot_director.PROVENANCE` only
+        # ever knew the library's registers, so a push onto a film-built shot always fell back to "unknown
+        # provenance is not a reason to refuse the move" and got the detail-bearing budget for free.
+        if shot in _EXTRA_PROVENANCE:
+            return _EXTRA_PROVENANCE[shot] in DETAIL
         try:
             from shot_director import PROVENANCE
             return PROVENANCE.get(shot) in DETAIL
@@ -388,14 +419,18 @@ def main(argv):
         print("[seam_plan] not a remotion deck — the marked-seam vocabulary is remotion-only")
         return 0
 
+    # FILM-SCOPED STATE, RESTORED ON THE WAY OUT. `install_workshop` sets the module-level grounds and
+    # provenances this run's `plan`/`plan_camera` read; leaving them set after `main` returns (or raises)
+    # would have the NEXT film planned in the same process read THIS one's workshop.
+    install_workshop(out_dir)
+    try:
+        return _plan_film(argv, out_dir, dry, path, board)
+    finally:
+        clear_workshop()
+
+
+def _plan_film(argv, out_dir, dry, path, board):
     slides = board.get("slides", [])
-    import workshop as _ws
-    _EXTRA_GROUNDS.clear()
-    for n, g in _ws.grounds(out_dir).items():
-        if isinstance(g, str) and not g.startswith("#"):
-            g = [g]
-        if g:
-            _EXTRA_GROUNDS[n] = g
     already = [i for i, s in enumerate(slides) if s.get("transition_in") or s.get("transition_style")]
     if already and not dry:
         print("[seam_plan] %d beat(s) already carry an authored seam (%s) — leaving them alone"
