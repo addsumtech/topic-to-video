@@ -80,6 +80,7 @@ def audit_shot(shot, props, frame, tmp_png, public_dir=None, env=None):
     # props-file race behind most of them is fixed, but a flaky render is still a flaky render, so it is
     # RETRIED once. What survives a retry is reported, and reported as a FAILURE — a frame nobody measured —
     # rather than as a finding about the copy on it.
+    import workshop as _ws
     blob, r = "", None
     for _attempt in (1, 2):
         # THE FILM'S OWN ASSETS HAVE TO BE SERVED, and this never served them. `render_remotion.py` runs the
@@ -93,8 +94,7 @@ def audit_shot(shot, props, frame, tmp_png, public_dir=None, env=None):
                "--props=" + os.path.abspath(pf)]
         if public_dir:
             cmd.append("--public-dir=" + os.path.abspath(public_dir))
-        r = subprocess.run(cmd, capture_output=True, text=True, cwd=_REMOTION,
-                           **({"env": env} if env is not None else {}))
+        r = subprocess.run(cmd, capture_output=True, text=True, cwd=_REMOTION, **_ws.env_kwargs(env))
         blob = (r.stdout or "") + (r.stderr or "")
         if TAG in blob or r.returncode == 0:
             break
@@ -113,7 +113,7 @@ def audit_shot(shot, props, frame, tmp_png, public_dir=None, env=None):
         # so it still surfaces, but as a RENDER FAILURE after a retry, not as a finding about the type.
         from shot_proof import _stderr_reason        # the MESSAGE, never the last line of a stack
         return [{"text": "(render FAILED twice — nothing was measured on this frame: %s)"
-                         % _stderr_reason(blob)[:160], "out": {}}]
+                         % _stderr_reason(blob, limit=160), "out": {}}]
     return []
 
 
@@ -350,7 +350,13 @@ def main(argv):
             " · aspect %s" % aspect if aspect else "")
         what = "register(s) NOT swept"
     else:
-        findings, n, universe, notmeasured = scan_film(os.path.abspath(argv[0]))
+        import workshop as _ws
+        try:
+            findings, n, universe, notmeasured = scan_film(os.path.abspath(argv[0]))
+        except _ws.WorkshopError as e:
+            for x in e.problems:
+                print("[text_safe] PROBLEM: " + x)
+            return 2
         scope = "%d of %d beats" % (n, universe)
         what = "beat(s) NOT measured"
         notmeasured = [(x, None) for x in notmeasured]

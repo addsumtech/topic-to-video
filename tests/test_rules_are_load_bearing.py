@@ -1133,7 +1133,7 @@ MUTANTS["text_safe_qa"] = {
     # second dangling, and a mutant that does not compile proves nothing about the rule.
     "a render that never ran passes":
         ('        return [{"text": "(render FAILED twice — nothing was measured on this frame: %s)"\n'
-         '                         % (blob.strip().splitlines() or ["?"])[-1][:140], "out": {}}]',
+         '                         % _stderr_reason(blob, limit=160), "out": {}}]',
          "        return []"),
     "the audit is never armed":
         ('    payload["textSafe"] = True', '    payload["textSafe"] = False'),
