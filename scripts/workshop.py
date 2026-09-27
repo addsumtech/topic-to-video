@@ -53,6 +53,12 @@ GENERATED = ("index.ts", ".tsconfig.json", "_stills")
 NAME = re.compile(r"^[A-Z][A-Za-z0-9]{2,31}$")
 GROUND_TOKENS = ("bg", "bgGrad", "accent", "accent2", "surface")
 SCAFFOLD_MARK = "@scaffold"
+# What every object is given for free (runtime/objectSlot.tsx SLOT_KEYS) — a beat's own `props` for an object
+# may never set one of these, since the slot overrules it silently rather than drawing what the film asked for.
+SLOT_KEYS = ("w", "h", "t", "dna", "yaw")
+# A problem sentence ending in this phrase is something this RUN could not measure (the toolchain is missing),
+# never a finding about the film's code — a caller sorts on it to report a skip rather than an error.
+NOTHING_CHECKED = "nothing was checked"
 
 
 class WorkshopError(RuntimeError):
@@ -385,21 +391,28 @@ _REQUIRED = re.compile(r"export const REQUIRED_IN_FILM\b[^=]*=\s*\[([^\]]*)\]")
 
 
 def required_in_film(src):
-    """The props a register says a FILM must set (its standalone preview fills them otherwise)."""
-    m = _REQUIRED.search(src or "")
+    """The props a register says a FILM must set (its standalone preview fills them otherwise). Comment-stripped
+    like every other declaration reader — a commented-out `// export const REQUIRED_IN_FILM = [...]` must not
+    count as a live requirement."""
+    m = _REQUIRED.search(_strip_comments(src or ""))
     return set(re.findall(r"['\"](\w+)['\"]", m.group(1))) if m else set()
 
 
-def uses(slides, out_dir):
+def uses(slides, out_dir, refs=None):
     """{shot or object id: [beat numbers]} — a shot by the beats cast on it, an object by the beats whose props
-    name it. A beat number is the board's own `index` (its position when a slide has none)."""
+    name it. A beat number is the board's own `index` (its position when a slide has none). `refs`, when given,
+    is object_refs(shot_source(out_dir, shot), shot_props) already computed per beat, BY LIST POSITION — a
+    caller that needs those same refs for its own per-beat checks (validate.py's _check_build) passes them here
+    instead of having this recompute them a second time."""
     out = {}
     for pos, s in enumerate(slides or [], 1):
         num = s.get("index", pos)
         shot = s.get("shot")
         if isinstance(shot, str) and shot:
             out.setdefault(shot, []).append(num)
-        for _path, ref in object_refs(shot_source(out_dir, shot), s.get("shot_props") or {}):
+        beat_refs = (refs[pos - 1] if refs is not None else
+                     object_refs(shot_source(out_dir, shot), s.get("shot_props") or {}))
+        for _path, ref in beat_refs:
             if isinstance(ref, dict) and isinstance(ref.get("id"), str):
                 lst = out.setdefault(ref["id"], [])
                 if num not in lst:
@@ -686,7 +699,7 @@ def baked_words(out_dir, files):
         return {"problems": [], "declared": []}
     if not node or not os.path.isdir(tsmod):
         return {"problems": ["the baked-words scan could not run: node or remotion/node_modules/typescript is "
-                             "missing — nothing was checked"], "declared": []}
+                             "missing — %s" % NOTHING_CHECKED], "declared": []}
     r = subprocess.run([node, os.path.join(_HERE, "jsx_words.cjs"), tsmod] + code, capture_output=True, text=True)
     if r.returncode != 0:
         return {"problems": ["the baked-words scan failed: %s" % ((r.stderr or r.stdout).strip()[-300:] or
@@ -705,7 +718,7 @@ def typecheck(out_dir):
     """tsc over the workshop, with the project's own settings and the three aliases. [] when it is clean."""
     tsc = os.path.join(REMOTION, "node_modules", ".bin", "tsc")
     if not os.path.exists(tsc):
-        return ["the type-check could not run: %s is missing (npm install in remotion/) — nothing was checked" % tsc]
+        return ["the type-check could not run: %s is missing (npm install in remotion/) — %s" % (tsc, NOTHING_CHECKED)]
     ws = workshop_dir(out_dir)
     write_index(out_dir)
     cfg = {"extends": os.path.join(REMOTION, "tsconfig.json"),

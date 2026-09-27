@@ -685,6 +685,8 @@ def test_an_ambiguous_top_level_field_is_excluded_while_a_nested_one_is_found():
 def test_required_in_film_is_read_from_the_register():
     assert ws.required_in_film("export const REQUIRED_IN_FILM = ['object', 'stations'] as const;") == {"object", "stations"}
     assert ws.required_in_film("export const X = 1;") == set()
+    # comment-stripped like every other declaration reader: a commented-out line is not a live requirement.
+    assert ws.required_in_film("// export const REQUIRED_IN_FILM = ['fill'];\nexport const X = 1;") == set()
 
 
 def test_uses_maps_each_item_to_the_beats_that_show_it(tmp_path):
@@ -693,6 +695,16 @@ def test_uses_maps_each_item_to_the_beats_that_show_it(tmp_path):
               {"index": 4, "shot": "WsShotA"}, {"index": 5, "shot": "TermTable"}]
     got = ws.uses(slides, out)
     assert got["WsShotA"] == [3, 4] and got["WsDisc"] == [3] and got["TermTable"] == [5]
+
+
+def test_uses_takes_precomputed_refs_instead_of_recomputing_them(tmp_path):
+    """A caller that already computed object_refs() per beat (validate.py's build check) passes them here
+    rather than have `uses` walk every beat's props a second time — same answer either way."""
+    out = _film(tmp_path, shots=["WsShotA"], objects=["WsDisc"])
+    slides = [{"index": 3, "shot": "WsShotA", "shot_props": {"object": {"id": "WsDisc"}}},
+              {"index": 4, "shot": "WsShotA"}, {"index": 5, "shot": "TermTable"}]
+    refs = [ws.object_refs(ws.shot_source(out, s.get("shot")), s.get("shot_props") or {}) for s in slides]
+    assert ws.uses(slides, out, refs=refs) == ws.uses(slides, out)
 
 
 def test_scaffolds_are_written_once_and_are_flagged_until_replaced(tmp_path):
