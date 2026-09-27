@@ -177,7 +177,7 @@ def test_the_type_gate_mounts_the_film_s_own_public_dir():
     An independent reviewer found it as 'a 17-SVG load race' because it failed on a different sprite each
     run. It was not a race; it was every sprite, and the one that happened to be named first won."""
     src = open(os.path.join(_ROOT, "scripts", "text_safe_qa.py"), encoding="utf-8").read()
-    assert "def audit_shot(shot, props, frame, tmp_png, public_dir=None):" in src, (
+    assert "def audit_shot(shot, props, frame, tmp_png, public_dir=None, env=None):" in src, (
         "audit_shot no longer takes a public dir")
     assert '"--public-dir=" + os.path.abspath(public_dir)' in src, "it is taken and never used"
     film = src.split("def scan_film(out_dir):", 1)[1].split("\ndef ", 1)[0]
