@@ -58,7 +58,8 @@ CACHE_VERSION = 1          # bump when the MEANING of a key changes, so every ol
 
 def _wk(env):
     """subprocess kwargs for a film's environment — none at all when it has no workshop (scripts/workshop.py)."""
-    return {"env": env} if env is not None else {}
+    import workshop as _ws
+    return _ws.env_kwargs(env)
 
 
 def default_gl():
@@ -202,19 +203,29 @@ def code_files(out_dir=None):
 
 
 def code_hash(out_dir=None):
-    """The code a segment is built from. A workshop file is keyed by its path INSIDE the workshop, so moving a
-    film folder does not re-render it and editing one of its built things does."""
-    ws_root = None
-    if out_dir:
-        import workshop as _ws
-        ws_root = _ws.workshop_dir(out_dir) + os.sep
+    """The code a segment is built from. The library hashes exactly as it always has — the same order,
+    the same relative-path spelling — so a film with no workshop keeps a byte-identical key on every OS and
+    on every disk layout. A workshop file is keyed by its path INSIDE the workshop and the workshop's own
+    files are sorted by THAT key, never by their absolute path: two spellings of the same folder (a macOS
+    volume alias is one) can sort on opposite sides of `SKILL`, and a merged, absolute-path sort would then
+    hash the library and the workshop in a different relative order for the same film — a spurious full
+    re-render, not a stale reuse, but a re-render all the same."""
     h = hashlib.sha256()
-    for p in code_files(out_dir):
-        rel = ("workshop/" + os.path.relpath(p, ws_root)) if ws_root and p.startswith(ws_root) else os.path.relpath(p, SKILL)
-        h.update(rel.replace(os.sep, "/").encode("utf-8"))
+    for p in code_files():
+        h.update(os.path.relpath(p, SKILL).encode("utf-8"))
         h.update(b"\0")
         h.update(file_sha(p).encode("ascii"))
         h.update(b"\n")
+    if out_dir:
+        import workshop as _ws
+        ws_root = _ws.workshop_dir(out_dir) + os.sep
+        keyed = sorted(("workshop/" + os.path.relpath(p, ws_root).replace(os.sep, "/"), p)
+                       for p in _ws.code_files(out_dir))
+        for rel, p in keyed:
+            h.update(rel.encode("utf-8"))
+            h.update(b"\0")
+            h.update(file_sha(p).encode("ascii"))
+            h.update(b"\n")
     return h.hexdigest()
 
 
