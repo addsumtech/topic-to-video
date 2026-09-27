@@ -403,20 +403,30 @@ def uses(slides, out_dir):
     return out
 
 
-def _library_or_composition_clash(name):
+def _clash_with(name, lib_s, lib_o, comp_ids):
     """None, or why `name` cannot be a workshop item's name because the LIBRARY already has it — a shot
-    register, an object, or (R9) a composition id Root.tsx registers directly (and that is not ALSO one of the
-    first two, which already have their own, more specific reason — M1, task-2-fix-1.md: TermTable is both a
-    library shot file and an {F('TermTable', …)} row). Shared by `_problems()` (an existing file) and
-    `scaffold()` (M2: refuses BEFORE writing one, instead of writing a file every later check then refuses)."""
-    lib_s, lib_o = library_shot_names(), library_object_names()
+    register, an object, or (R9) a composition id Root.tsx registers directly. `lib_s`/`lib_o` are
+    library_shot_names()/library_object_names(); `comp_ids` is `_root_composition_ids() - lib_s - lib_o` (M1,
+    task-2-fix-1.md: a name already caught by one of the first two gets that more specific reason, not also
+    this one — TermTable is both a library shot file and an {F('TermTable', …)} row). The core `_problems()`
+    (an existing file) and `scaffold()` (M2: refuses BEFORE writing one) share — see `_library_or_composition_
+    clash()` below for the single-name convenience wrapper `scaffold()` actually calls."""
     if name in lib_s:
         return "%s is already a library register — rename it (the render refuses a shadowed name)" % name
     if name in lib_o:
         return "%s is already a library object — rename it" % name
-    if name in (_root_composition_ids() - lib_s - lib_o):
+    if name in comp_ids:
         return "%s is already a library composition — rename it (Root.tsx registers it directly)" % name
     return None
+
+
+def _library_or_composition_clash(name):
+    """`_clash_with(name, ...)` for a caller that checks a single name per call (scaffold()) — computes its own
+    library_shot_names()/library_object_names()/_root_composition_ids() rather than taking them as arguments.
+    `_problems()` computes those three ONCE and calls `_clash_with` directly across its whole loop instead, so
+    a workshop with several items does not re-read the library and Root.tsx once per item."""
+    lib_s, lib_o = library_shot_names(), library_object_names()
+    return _clash_with(name, lib_s, lib_o, _root_composition_ids() - lib_s - lib_o)
 
 
 def _problems(out_dir):
@@ -435,6 +445,8 @@ def _problems(out_dir):
     for n in sorted(shot_names(out_dir) & object_names(out_dir)):
         out.append(("workshop: %s is both a shot and an object — one name, one thing" % n, True))
     worlds = _worlds()
+    lib_s, lib_o = library_shot_names(), library_object_names()
+    comp_ids = _root_composition_ids() - lib_s - lib_o   # read the library/Root.tsx ONCE, not once per item
     for kind in KINDS:
         folder = os.path.join(ws, kind)
         if not os.path.isdir(folder):
@@ -450,7 +462,7 @@ def _problems(out_dir):
             if not NAME.match(n):
                 out.append(("%s: a name is PascalCase, 3-32 letters and digits" % where, True))
                 continue
-            clash = _library_or_composition_clash(n)
+            clash = _clash_with(n, lib_s, lib_o, comp_ids)
             if clash:
                 out.append(("%s: %s" % (where, clash), True))
             src = _read(os.path.join(folder, n + ".tsx"))
