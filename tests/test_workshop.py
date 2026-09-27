@@ -320,6 +320,97 @@ def test_durations_grounds_and_provenances_are_read_from_the_sources(tmp_path):
     assert ws.provenances(out) == {"WsShotA": "motion-graphics", "WsDisc": "motion-graphics"}
 
 
+@pytest.mark.parametrize("decl,ok,frames", [
+    ("export const DURATION = 6 * 30;", False, None),          # I3: an expression no longer misreads as 6
+    ("export const DURATION = 150.5;", False, None),           # I3: a decimal no longer misreads as 150
+    ("export const DURATION = 0;", False, None),                # I3: zero no longer silently registers
+    ("export const DURATION: number = 150;", True, 150),        # I3: valid TS no longer wrongly refused
+])
+def test_i3_duration_is_read_by_one_anchored_parser(tmp_path, decl, ok, frames):
+    shot = (SHOT % {"name": "WsDur"}).replace("export const DURATION = 30;", decl)
+    out = _film(tmp_path, shots=["WsDur"], shot_src=shot.replace("%", "%%"))
+    probs = [p for p in ws.names_problems(out) if "DURATION" in p]
+    if ok:
+        assert probs == [], probs
+        assert ws.durations(out) == {"WsDur": frames}
+        assert ws.index_blockers(out) == []
+    else:
+        assert probs and "export const DURATION = <frames>;" in probs[0], probs
+        assert "WsDur" not in ws.durations(out)
+        assert any("export const DURATION = <frames>;" in p for p in ws.index_blockers(out))
+
+
+def test_i3_a_commented_out_duration_never_wins(tmp_path):
+    shot = (SHOT % {"name": "WsDur"}).replace(
+        "export const DURATION = 30;", "// export const DURATION = 999;\nexport const DURATION = 45;")
+    out = _film(tmp_path, shots=["WsDur"], shot_src=shot.replace("%", "%%"))
+    assert ws.durations(out) == {"WsDur": 45}
+    assert not [p for p in ws.names_problems(out) if "DURATION" in p]
+
+
+def test_i3_still_on_a_shot_with_a_bad_duration_is_a_sentence_not_a_keyerror(tmp_path, monkeypatch):
+    """Proven by making a render attempt itself fail the test: still() must refuse BEFORE ever invoking
+    subprocess.run, not rely on the render failing for an unrelated reason and getting wrapped anyway."""
+    shot = (SHOT % {"name": "WsDur"}).replace("export const DURATION = 30;", "export const DURATION = 0;")
+    out = _film(tmp_path, shots=["WsDur"], shot_src=shot.replace("%", "%%"))
+
+    def _no_render(*a, **k):
+        raise AssertionError("still() must refuse a bad DURATION before ever invoking a render")
+
+    monkeypatch.setattr(ws.subprocess, "run", _no_render)
+    with pytest.raises(ws.WorkshopError) as e:
+        ws.still(out, "WsDur")
+    assert any("DURATION" in p for p in e.value.problems), e.value.problems
+
+
+def test_m6_ground_and_provenance_are_read_from_comment_stripped_source(tmp_path):
+    shot = (SHOT % {"name": "WsCS"}).replace(
+        "export const GROUND = 'bg';", "// export const GROUND = 'accent';\nexport const GROUND = 'surface';"
+    ).replace(
+        "export const PROVENANCE = 'motion-graphics';",
+        "// export const PROVENANCE = 'natural-world';\nexport const PROVENANCE = 'motion-graphics';")
+    out = _film(tmp_path, shots=["WsCS"], shot_src=shot.replace("%", "%%"))
+    assert ws.grounds(out) == {"WsCS": "surface"}
+    assert ws.provenances(out) == {"WsCS": "motion-graphics"}
+
+
+def test_m6_the_export_const_name_check_ignores_a_commented_out_stray(tmp_path):
+    """Only a COMMENT still claims the real name; the live export was renamed away."""
+    shot = "// export const WsCS2 = () => null; (an old export, left as a comment)\n" + \
+        (SHOT % {"name": "WsCS2"}).replace("export const WsCS2", "export const NotTheRealOne")
+    out = _film(tmp_path, shots=["WsCS2"], shot_src=shot.replace("%", "%%"))
+    probs = ws.names_problems(out)
+    assert any("export the component as `export const WsCS2`" in p for p in probs), probs
+
+
+def test_m6_the_scaffold_marker_is_still_found_after_stripping_elsewhere(tmp_path):
+    """The marker itself IS a comment (`// @scaffold …`) — comment-stripping the OTHER declarations must not
+    strip the one check that reads it."""
+    out = str(tmp_path / "film")
+    ws.scaffold(out, "shot", "WsFresh", "a fresh scaffold")
+    assert any("still the scaffold" in p for p in ws.names_problems(out))
+
+
+@pytest.mark.parametrize("suffix", ["", " satisfies ObjectMeta", " as const", " satisfies ObjectMeta as const"])
+def test_m6_object_meta_tolerates_missing_semicolon_and_trailing_assertions(suffix):
+    src = ("export const META: ObjectMeta = {aspect: 1, provenance: 'motion-graphics'}%s\n"
+           "export const X = 1;\n") % suffix
+    meta = ws.object_meta(src)
+    assert meta == {"aspect": 1.0, "provenance": "motion-graphics"}, (suffix, meta)
+
+
+@pytest.mark.parametrize("bad_aspect", ["1.2.3", "16 / 0"])
+def test_m5_object_meta_never_raises_on_a_malformed_aspect(tmp_path, bad_aspect):
+    """M5: `float('1.2.3')` raises ValueError, `float('16') / float('0')` raises ZeroDivisionError — object_meta
+    must catch both and report a None aspect for names_problems/check to flag, not crash its caller."""
+    src = (OBJECT % {"name": "WsBadAspect"}).replace("aspect: 1,", "aspect: %s," % bad_aspect)
+    meta = ws.object_meta(src)   # must not raise
+    assert meta is not None and meta.get("aspect") is None, (bad_aspect, meta)
+    out = _film(tmp_path, objects=["WsBadAspect"], obj_src=src.replace("%", "%%"))
+    probs = ws.names_problems(out)
+    assert any("aspect" in p.lower() for p in probs), probs
+
+
 def test_object_refs_are_found_under_every_key_the_register_types_objectref():
     src = ("type ScreenSrc = {image?: string; object?: ObjectRef};\n"
            "export const X: React.FC<{steps?: {screen?: ScreenSrc}[]; art?: ObjectRef; object?: string}> = () => null;")

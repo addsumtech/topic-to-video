@@ -133,19 +133,29 @@ def object_source(out_dir, name):
     return None
 
 
-_META = re.compile(r"export const META\b[^=]*=\s*\{(.*?)\}\s*;", re.S)
+# M6 (task-2-fix-1.md): tolerates a missing trailing semicolon (ASI) and a trailing `satisfies ObjectMeta` /
+# `as const` (in either order) after the object literal — all valid TypeScript the strict `\s*;` used to miss.
+_META = re.compile(r"export const META\b[^=]*=\s*\{(.*?)\}\s*(?:(?:as\s+const|satisfies\s+\w+)\s*)*;?", re.S)
 
 
 def object_meta(src):
-    """An object's META as {aspect, turns, demo, provenance} (only the keys it sets), or None if it has none."""
-    m = _META.search(src or "")
+    """An object's META as {aspect, turns, demo, provenance} (only the keys it sets), or None if it has none.
+    `aspect` is None when it is DECLARED but unparseable, non-finite or not positive (`1.2.3`, `16 / 0`) — this
+    never raises (M5); `names_problems`/`check` report a None aspect as a problem instead."""
+    m = _META.search(_strip_comments(src or ""))   # M6: declarations are read from comment-stripped source
     if not m:
         return None
     body, meta = m.group(1), {}
     a = re.search(r"\baspect\s*:\s*([0-9.]+(?:\s*/\s*[0-9.]+)?)", body)
     if a:
         num = a.group(1).replace(" ", "")
-        meta["aspect"] = (float(num.split("/")[0]) / float(num.split("/")[1])) if "/" in num else float(num)
+        try:
+            val = (float(num.split("/")[0]) / float(num.split("/")[1])) if "/" in num else float(num)
+            if not (val == val and 0 < val < float("inf")):   # NaN, non-positive or infinite
+                val = None
+        except (ValueError, ZeroDivisionError):
+            val = None
+        meta["aspect"] = val
     for flag in ("turns", "demo"):
         f = re.search(r"\b%s\s*:\s*(true|false)" % flag, body)
         if f:
@@ -161,13 +171,43 @@ def demo_objects():
     return {n for n in library_object_names() if (object_meta(_read(os.path.join(LIB_OBJECTS, n + ".tsx"))) or {}).get("demo")}
 
 
+# I3 (task-2-fix-1.md): ONE anchored parser for DURATION, shared by _problems(), durations() and still() (its
+# host too) — an unanchored `=\s*(\d+)` used to misread `= 6 * 30;` as 6 (the settled frame then judged
+# mid-entry), `= 150.5;` as 150, let `= 0;` through to a registry-load crash, refuse a valid `: number = 150;`
+# as "no DURATION" (and then KeyError inside still()), and let a commented-out `// export const DURATION = …;`
+# win over a real one below it. On comment-stripped source; anything but `export const DURATION = <positive
+# whole number>;` (an optional `: number` type annotation allowed) comes back None.
+_DURATION = re.compile(r"^export const DURATION\s*(?::\s*number\s*)?=\s*(\d+)\s*;", re.M)
+_DURATION_FORM = "export const DURATION = <frames>;` — a positive whole number of frames"
+
+
+def _duration_of(src):
+    """The frames `export const DURATION = <n>;` declares, or None (missing, an expression, a decimal, zero, or
+    hidden behind `//` — see _DURATION above)."""
+    m = _DURATION.search(_strip_comments(src or ""))
+    if not m:
+        return None
+    n = int(m.group(1))
+    return n if n > 0 else None
+
+
+def _required_duration(src, label):
+    """DURATION for `label` (a shot or a host register), or a WorkshopError sentence — never a raw KeyError
+    (durations()) or AttributeError (`.group(1)` on no match), both of which still() used to raise directly."""
+    d = _duration_of(src)
+    if d is None:
+        raise WorkshopError(["%s: DURATION must be `%s (the gates find its settled frame from it)"
+                             % (label, _DURATION_FORM)])
+    return d
+
+
 def durations(out_dir):
     """{workshop shot: DURATION} — the frame count every film-mode gate needs to find a beat's settled frame."""
     out = {}
     for n in shot_names(out_dir):
-        m = re.search(r"export const DURATION\s*=\s*(\d+)", _read(os.path.join(workshop_dir(out_dir), "shots", n + ".tsx")))
-        if m:
-            out[n] = int(m.group(1))
+        d = _duration_of(_read(os.path.join(workshop_dir(out_dir), "shots", n + ".tsx")))
+        if d is not None:
+            out[n] = d
     return out
 
 
@@ -176,7 +216,7 @@ _PROVENANCE = re.compile(r"export const PROVENANCE\b[^=]*=\s*['\"]([^'\"]*)['\"]
 
 
 def _ground_of(src):
-    m = _GROUND.search(src or "")
+    m = _GROUND.search(_strip_comments(src or ""))   # M6: comment-stripped, like every other declaration
     if not m:
         return None
     raw = m.group(1)
@@ -190,17 +230,23 @@ def _ground_ok(g):
 
 
 def grounds(out_dir):
-    """{workshop shot: the ground it declares} — what the caption ink and the seam guard judge it on."""
+    """{workshop shot: the ground it declares, or None when it hasn't declared one} — what the caption ink and
+    the seam guard judge it on."""
     return {n: _ground_of(_read(os.path.join(workshop_dir(out_dir), "shots", n + ".tsx"))) for n in shot_names(out_dir)}
+
+
+def _provenance_of(src):
+    m = _PROVENANCE.search(_strip_comments(src or ""))   # M6: comment-stripped, like every other declaration
+    return m.group(1) if m else None
 
 
 def provenances(out_dir):
     """{workshop shot or object: the idiom world it declares}."""
     out = {}
     for n in shot_names(out_dir):
-        m = _PROVENANCE.search(_read(os.path.join(workshop_dir(out_dir), "shots", n + ".tsx")))
-        if m and m.group(1):
-            out[n] = m.group(1)
+        prov = _provenance_of(_read(os.path.join(workshop_dir(out_dir), "shots", n + ".tsx")))
+        if prov:
+            out[n] = prov
     for n in object_names(out_dir):
         meta = object_meta(_read(os.path.join(workshop_dir(out_dir), "objects", n + ".tsx"))) or {}
         if meta.get("provenance"):
@@ -356,15 +402,16 @@ def _problems(out_dir):
                 out.append(("%s: %s is already a library composition — rename it (Root.tsx registers it directly)"
                             % (where, n), True))
             src = _read(os.path.join(folder, n + ".tsx"))
-            if not re.search(r"export const %s\b" % re.escape(n), src):
+            # M6 (task-2-fix-1.md): every declaration check below reads comment-stripped source — EXCEPT the
+            # scaffold marker just below, which IS a comment (`// @scaffold …`) and must stay on the raw one.
+            if not re.search(r"export const %s\b" % re.escape(n), _strip_comments(src)):
                 out.append(("%s: export the component as `export const %s`" % (where, n), True))
             if SCAFFOLD_MARK in src:
                 out.append(("%s: still the scaffold — draw the real %s, then delete the `%s` line"
                             % (where, kind[:-1], SCAFFOLD_MARK), False))
             if kind == "shots":
-                if not re.search(r"export const DURATION\s*=\s*\d+", src):
-                    out.append(("%s: export `DURATION` (frames at 30 fps) — the gates find its settled frame from it"
-                                % where, True))
+                if _duration_of(src) is None:
+                    out.append(("%s: DURATION must be `%s" % (where, _DURATION_FORM), True))
                 g = _ground_of(src)
                 if g is None:
                     out.append(("%s: export `GROUND` — the DNA token its ground is painted from (%s) or a '#hex'; "
@@ -372,17 +419,20 @@ def _problems(out_dir):
                 elif not _ground_ok(g):
                     out.append(("%s: GROUND %r is not a DNA ground token (%s), a list of them, or a '#hex'"
                                 % (where, g, ", ".join(GROUND_TOKENS)), False))
-                pm = _PROVENANCE.search(src)
-                if not pm or not pm.group(1):
+                prov = _provenance_of(src)
+                if not prov:
                     out.append(("%s: export `PROVENANCE` — the idiom world its look comes from (%s)"
                                 % (where, ", ".join(worlds)), False))
-                elif pm.group(1) not in worlds:
-                    out.append(("%s: PROVENANCE %r is not one of %s" % (where, pm.group(1), ", ".join(worlds)), False))
+                elif prov not in worlds:
+                    out.append(("%s: PROVENANCE %r is not one of %s" % (where, prov, ", ".join(worlds)), False))
             else:
                 meta = object_meta(src)
                 if meta is None:
                     out.append(("%s: export `META: ObjectMeta` — {aspect, provenance}" % where, False))
                     continue
+                if "aspect" in meta and meta["aspect"] is None:
+                    out.append(("%s: META.aspect must be a positive number (optionally `a / b`) — the slot fits "
+                                "the object to it" % where, False))
                 if not meta.get("provenance"):
                     out.append(("%s: META.provenance names the idiom world its look comes from (%s)"
                                 % (where, ", ".join(worlds)), False))
@@ -724,7 +774,7 @@ def still(out_dir, name, props=None, host="ObjectStage", frame=None, aspect=None
         if props is None:
             beat = next((s for s in board.get("slides") or [] if s.get("shot") == name), None)
             payload = rr.film_shot_props(beat, out_dir) if beat else {}
-        dur = durations(out_dir)[name]
+        dur = _required_duration(shot_source(out_dir, name), name)   # I3: a sentence, never a raw KeyError
     elif name in object_names(out_dir) or name in library_object_names():
         comp = host
         payload = {"object": dict({"id": name}, **({"props": props} if props else {}))}
