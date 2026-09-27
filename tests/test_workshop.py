@@ -254,6 +254,34 @@ def test_object_refs_are_found_under_every_key_the_register_types_objectref():
     assert ws.slot_keys("// object?: ObjectRef in a comment\n") == set()
 
 
+def test_r10_an_unambiguous_key_still_hand_validates_a_malformed_value(tmp_path):
+    """R10: the dict-only fix (task-2-report.md) protected the AMBIGUOUS `object` field above but over-corrected
+    for a name the source ONLY ever types ObjectRef — Task 4's validate._check_build needs the malformed value
+    back (a plain string under `art`) to report it, not silently drop it; the render is still the last word."""
+    src = "export const X: React.FC<{art?: ObjectRef}> = () => null;"
+    assert ws.object_refs(src, {"art": "Puck"}) == [("art", "Puck")]
+
+
+def test_r10_slot_keys_ignores_a_const_declaration(tmp_path):
+    """A later stage register's own standalone-preview constant (`const DEMO_OBJECT: ObjectRef = …`) is a
+    variable, not a prop a beat can set — slot_keys() must not treat its name as a slot."""
+    src = "const DEMO_OBJECT: ObjectRef = {id: 'X'};\nexport const Y: React.FC<{}> = () => null;"
+    assert "DEMO_OBJECT" not in ws.slot_keys(src)
+    src2 = "let DEMO_OBJECT: ObjectRef = {id: 'X'};\nexport const Y: React.FC<{}> = () => null;"
+    assert "DEMO_OBJECT" not in ws.slot_keys(src2)
+
+
+def test_r10_the_original_ambiguous_key_test_still_passes():
+    """Guards against a regression on the fix that started this ruling — kept here as a second witness next to
+    test_object_refs_are_found_under_every_key_the_register_types_objectref."""
+    src = ("type ScreenSrc = {image?: string; object?: ObjectRef};\n"
+           "export const X: React.FC<{steps?: {screen?: ScreenSrc}[]; art?: ObjectRef; object?: string}> = "
+           "() => null;")
+    props = {"object": "a caption, not a ref", "art": {"id": "Puck"},
+             "steps": [{"screen": {"object": {"id": "Phone"}}}, {"tap": [0.5, 0.5]}]}
+    assert sorted(ws.object_refs(src, props)) == [("art", {"id": "Puck"}), ("steps[0].screen.object", {"id": "Phone"})]
+
+
 def test_required_in_film_is_read_from_the_register():
     assert ws.required_in_film("export const REQUIRED_IN_FILM = ['object', 'stations'] as const;") == {"object", "stations"}
     assert ws.required_in_film("export const X = 1;") == set()

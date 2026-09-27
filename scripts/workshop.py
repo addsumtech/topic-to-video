@@ -225,29 +225,55 @@ def _root_composition_ids():
 
 
 _SLOT_KEY = re.compile(r"\b([A-Za-z_]\w*)\s*\??\s*:\s*ObjectRef\b")
+# R10 (task-2-fix-1.md): a `const|let|var <Name>: ObjectRef = …` is a stage register's own standalone-preview
+# constant (later stage registers have exactly these), not a prop a beat can set — masked out before slot_keys()
+# ever sees it, rather than excluded by name afterwards (the same name could ALSO be a real prop elsewhere).
+_SLOT_DECL = re.compile(r"\b(?:const|let|var)\s+[A-Za-z_]\w*\s*:\s*ObjectRef\b")
+
+
+def _slot_scan_src(src):
+    return _SLOT_DECL.sub("", _strip_comments(src or ""))
 
 
 def slot_keys(src):
     """Every prop name a register types `ObjectRef`, in any of its types — nested ones included."""
-    return set(_SLOT_KEY.findall(_strip_comments(src or "")))
+    return set(_SLOT_KEY.findall(_slot_scan_src(src)))
+
+
+def _ambiguous_slot_keys(src):
+    """The subset of slot_keys(src) the same (comment-stripped) source ALSO annotates otherwise — some other
+    `name:`/`name?:` not immediately followed by ObjectRef, detected generously (an object-literal property
+    counts too, since erring toward "ambiguous" only loses object_refs()'s early hand-validation below; the
+    render still refuses a malformed ref either way). R10 (task-2-fix-1.md): a register can reuse a field name
+    for a plain caption at one level and type it ObjectRef at a nested one (`object` on TechnicalPlate's own
+    props vs. inside a device's `ScreenSrc`) — slot_keys() can't tell those apart by name alone, so for THOSE
+    names only a dict-shaped value counts as a found ref; a name the source types ObjectRef and nothing else
+    hands back every non-None value, malformed ones included, for a caller like validate.py to report."""
+    src = _slot_scan_src(src)
+    keys = set(_SLOT_KEY.findall(src))
+    amb = set()
+    for k in keys:
+        for m in re.finditer(r"\b%s\s*\??\s*:\s*(\w*)" % re.escape(k), src):
+            if m.group(1) != "ObjectRef":
+                amb.add(k)
+                break
+    return amb
 
 
 def object_refs(src, props):
     """[(path, value)] for every object reference in a beat's props: each value under a key the register types
-    ObjectRef, at any depth (a device's `steps[0].screen.object`, a compare's `left.object`)."""
-    keys, found = slot_keys(src), []
+    ObjectRef, at any depth (a device's `steps[0].screen.object`, a compare's `left.object`). A key the source
+    types ObjectRef and NOTHING else hands back every non-None value under it, well-formed or not (R10:
+    validate.py's build check is the one that reports a malformed one — a plain string where a ref belongs — so
+    it must still see it here); a key the source ALSO types otherwise elsewhere is ambiguous, and only a
+    dict-shaped value under it counts (the brief's own test: a register's top-level `object` is a caption)."""
+    keys, ambiguous, found = slot_keys(src), _ambiguous_slot_keys(src), []
 
     def walk(v, path):
         if isinstance(v, dict):
             for k, x in v.items():
                 p = "%s.%s" % (path, k) if path else str(k)
-                # BRIEF DEFECT (task-2-report.md): `x is not None` alone treats ANY value under a
-                # same-named key as a ref, even where THIS type's own field is not ObjectRef (a register can
-                # reuse a field name like `object` for a plain caption at one level and type it ObjectRef at
-                # another, nested one — slot_keys() cannot tell the two apart, since it reads names, not
-                # types). A ref is always {"id": ...}; scoping to dict-shaped values is what actually keys
-                # this off "the register types ObjectRef", not merely "a key with this name exists somewhere".
-                if k in keys and isinstance(x, dict):
+                if k in keys and x is not None and (isinstance(x, dict) or k not in ambiguous):
                     found.append((p, x))
                 else:
                     walk(x, p)
