@@ -220,8 +220,8 @@ def _root_composition_ids():
     cannot see a workshop name collide with one — and unrefused, that collision would hit Remotion's generic
     duplicate-composition error instead of a specific one naming the file to rename. Read from Root.tsx itself,
     not a hard-coded list, so a future composition Root.tsx adds is covered automatically."""
-    return set(_COMPOSITION_ID.findall(_strip_comments(_read(ROOT_TSX))) +
-               _F_ROW_ID.findall(_strip_comments(_read(ROOT_TSX))))
+    src = _strip_comments(_read(ROOT_TSX))
+    return set(_COMPOSITION_ID.findall(src)) | set(_F_ROW_ID.findall(src))
 
 
 _SLOT_KEY = re.compile(r"\b([A-Za-z_]\w*)\s*\??\s*:\s*ObjectRef\b")
