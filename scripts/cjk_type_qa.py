@@ -1608,7 +1608,8 @@ _RUN_ENV = None
 
 
 def _wk():
-    return {"env": _RUN_ENV} if _RUN_ENV is not None else {}
+    import workshop as _ws
+    return _ws.env_kwargs(_RUN_ENV)
 
 
 def _refuse_if_instrument_is_mutated():
@@ -1831,12 +1832,14 @@ def sweep(names, dna=DEFAULT_DNA, aspect=None, film_props=None, out_dir=None):
     Chinese copy". `audit()` only asks which fed strings reached the screen when the frame already looks
     empty — a busy frame short-circuits to clean before the question is put. Counting the CJK leaves that
     went in costs nothing and makes the claim checkable."""
-    global _RUN_ENV
+    global _RUN_ENV, PUBLIC_DIR
     durs = durations()
+    prev_public = PUBLIC_DIR
     if out_dir:
         import workshop as _ws
         durs.update(_ws.durations(out_dir))
         _RUN_ENV = _ws.prepare(out_dir)
+        PUBLIC_DIR = os.path.abspath(out_dir)     # the film's own assets, as the renderer serves them
     try:
         ev = evidence_props()
         out = {}
@@ -1864,6 +1867,7 @@ def sweep(names, dna=DEFAULT_DNA, aspect=None, film_props=None, out_dir=None):
         return out
     finally:
         _RUN_ENV = None
+        PUBLIC_DIR = prev_public
 
 
 # The POSITIVE control is synthetic and permanent (`TypeCollisionProbe` in remotion/src/Root.tsx: Chinese
@@ -2030,7 +2034,13 @@ def main(argv):
         universe, scope = len(names), "distinct registers across %d beat(s)" % len(beats)
     else:
         names = library
-    res = sweep(names, a.dna, a.aspect, film_props, out_dir=a.out_dir if film_props is not None else None)
+    import workshop as _ws
+    try:
+        res = sweep(names, a.dna, a.aspect, film_props, out_dir=a.out_dir if film_props is not None else None)
+    except _ws.WorkshopError as e:
+        for x in e.problems:
+            print("[cjk_type] PROBLEM: " + x)
+        return 2
     lead = {n: [h for h in v["hits"] if h["kind"] == "leading"] for n, v in res.items()}
     lead = {n: h for n, h in lead.items() if h}
     over = {n: [h for h in v["hits"] if h["kind"] == "overlap"] for n, v in res.items()}
