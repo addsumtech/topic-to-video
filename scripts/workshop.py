@@ -349,7 +349,7 @@ def object_refs(src, props):
 
 
 _FC_LITERAL = re.compile(r"React\.FC<\s*\{")
-_TOP_SLOT_SCAN = re.compile(r"[{}]|\b([A-Za-z_]\w*)\s*\??\s*:\s*ObjectRef\b")
+_TOP_SLOT_SCAN = re.compile(r"[{}]|" + _SLOT_KEY.pattern)   # the SAME "typed ObjectRef" shape as _SLOT_KEY
 
 
 def _top_level_object_ref_keys(host_src):
