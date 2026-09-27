@@ -363,13 +363,19 @@ export const FlooredLeadingProbe: React.FC = () => (
 const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C, p}) => {
   const {dna, aspect: _a, ...rest} = p as {dna?: unknown; aspect?: unknown};
   const active = coerceDna(dna as never);   // a string is a preset name; an object is a partial DNA
-  const _p = p as {textSafe?: unknown; typeCollisions?: unknown; fedText?: unknown};
+  const _p = p as {textSafe?: unknown; typeCollisions?: unknown; fedText?: unknown; unfedText?: unknown;
+    unfedScope?: unknown};
   // `fedText` asks a THIRD question of the same walk: of the strings the caller fed this register, which
   // never reached the screen? It is how a gate tells a legitimately sparse frame from one drawn out of
   // `undefined` — see `auditFedText`.
-  const mode = _p.fedText ? 'fed' as const : _p.typeCollisions ? 'collisions' as const : 'safe' as const;
-  const audit = <TextSafeAudit enabled={Boolean(_p.textSafe || _p.typeCollisions || _p.fedText)}
-                               mode={mode} fed={Array.isArray(_p.fedText) ? _p.fedText : []} />;
+  // `unfedText` asks a FOURTH question: which words on the frame did no prop supply? (runtime/textSafe
+  // auditUnfedText — the content contract for a film's built things, asked by scripts/shot_proof.py.)
+  const mode = _p.unfedText ? 'unfed' as const : _p.fedText ? 'fed' as const
+    : _p.typeCollisions ? 'collisions' as const : 'safe' as const;
+  const audit = <TextSafeAudit enabled={Boolean(_p.textSafe || _p.typeCollisions || _p.fedText || _p.unfedText)}
+                               mode={mode}
+                               fed={Array.isArray(_p.unfedText) ? _p.unfedText : Array.isArray(_p.fedText) ? _p.fedText : []}
+                               scope={_p.unfedScope === 'slots' ? 'slots' : 'all'} />;
   const shot = <ObjectsContext.Provider value={OBJECTS}><C {...rest} />{audit}</ObjectsContext.Provider>;
   if (!active) return shot;
   return (

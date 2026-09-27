@@ -41,6 +41,82 @@ _SHOTS = os.path.join(_REMOTION, "src", "shots")
 _FILM_SHOTS = []
 _FILM_ENV = {}
 
+UNFED_TAG = "UNFED-TEXT "      # runtime/textSafe.tsx UNFED_TEXT_TAG — tests/test_unfed_text.py holds them equal
+
+
+def _unfed_text(shot, payload, frame, proof, beat, out_dir, scope, declared):
+    """The words on this beat's frame that no prop supplied — [] clean, None when the render gave no answer.
+    `declared` are the words the workshop code names with `// @fixed-text:` (scripts/jsx_words.cjs).
+
+    An object ref's `id` says WHICH object to place, not copy for a viewer to read, so it is dropped from the
+    fed pool before the frame is asked — otherwise an object's own id can share enough letters with the very
+    word it draws to make that word read as fed, and the words-from-props check would clear a beat exactly
+    where a word has no source."""
+    import cjk_type_qa
+    import workshop as _ws
+    ref_ids = {ref.get("id") for _p, ref in _ws.object_refs(_ws.shot_source(out_dir, shot), payload)
+               if isinstance(ref, dict) and isinstance(ref.get("id"), str)}
+    pj = os.path.join(proof, "beat_%02d.unfed.json" % beat)
+    fed = [x for x in cjk_type_qa._string_leaves(payload) if x.strip() and x not in ref_ids] + list(declared or [])
+    with open(pj, "w", encoding="utf-8") as fh:
+        json.dump(dict(payload, unfedText=fed, unfedScope=scope), fh, ensure_ascii=False)
+    png = os.path.join(proof, "beat_%02d.unfed.png" % beat)
+    r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png, "--frame=%d" % frame, "--gl=angle",
+                        "--props=" + pj, "--log=error", "--public-dir=" + os.path.abspath(out_dir)],
+                       cwd=_REMOTION, capture_output=True, text=True, **_FILM_ENV)
+    for f in (pj, png):
+        if os.path.exists(f):
+            os.remove(f)
+    blob = (r.stdout or "") + (r.stderr or "")
+    if UNFED_TAG not in blob:
+        return None
+    try:
+        return (json.JSONDecoder().raw_decode(blob.split(UNFED_TAG, 1)[1])[0] or {}).get("unfed") or []
+    except json.JSONDecodeError:
+        return None
+
+
+def _band_luminance(png):
+    """Median relative luminance of the caption band — the ground the burned caption is inked for."""
+    try:
+        from PIL import Image
+        import numpy as np
+        from _caption_band import caption_band_px
+    except ImportError:
+        return None
+    im = Image.open(png).convert("RGB")
+    band = int(caption_band_px(im.width, im.height))
+    a = np.asarray(im.crop((0, im.height - band, im.width, im.height)), dtype=float) / 255.0
+    lin = np.where(a <= 0.03928, a / 12.92, ((a + 0.055) / 1.055) ** 2.4)
+    y = 0.2126 * lin[..., 0] + 0.7152 * lin[..., 1] + 0.0722 * lin[..., 2]
+    return float(np.median(y))
+
+
+def _ground_claim(png, shot, out_dir, board):
+    """A film-local shot DECLARES the ground its caption is inked for (workshop GROUND); the library's registers
+    are measured instead. Compare the claim with the caption band actually rendered. A gap past the seam guard's
+    own flash threshold means the burned caption would be inked for a ground that is not there."""
+    import workshop as _ws
+    import seam_plan
+    g = _ws.grounds(out_dir).get(shot)
+    if g is None:
+        return None
+    dna = seam_plan._resolve_dna((board.get("meta") or {}).get("design_dna"))
+    if isinstance(g, str) and g.startswith("#"):
+        claim = seam_plan._rel_lum(g)
+    else:
+        toks = [g] if isinstance(g, str) else g
+        ys = [seam_plan._rel_lum((dna or {}).get(t)) for t in toks]
+        claim = None if not dna or any(y is None for y in ys) else sum(ys) / len(ys)
+    measured = _band_luminance(png)
+    if claim is None or measured is None:
+        return None
+    if abs(claim ** (1 / 2.2) - measured ** (1 / 2.2)) > seam_plan.HARSH_GAP:
+        return ("declares GROUND %r (luminance %.2f under this film's DNA) but its caption band renders at %.2f — "
+                "the burned caption would be inked for a ground that is not there; set GROUND to what the shot "
+                "really paints" % (g, claim, measured))
+    return None
+
 
 def _src_path(shot):
     """Where register `shot` is defined for the film being proofed: the library first, then the film's own. One
@@ -715,14 +791,17 @@ def main(argv):
     _FILM_SHOTS[:] = [os.path.join(_ws.workshop_dir(out_dir), "shots")]
     _FILM_ENV.clear()
     _FILM_ENV.update(wk)
+    _film_shots = _ws.shot_names(out_dir)
+    _declared = (_ws.baked_words(out_dir, _ws.source_files(out_dir))["declared"]
+                 if _film_shots or _ws.object_names(out_dir) else [])
     try:
-        return _prove(argv, out_dir, board, ws_durs)
+        return _prove(argv, out_dir, board, ws_durs, _film_shots, _declared)
     finally:
         _FILM_SHOTS[:] = []
         _FILM_ENV.clear()
 
 
-def _prove(argv, out_dir, board, ws_durs):
+def _prove(argv, out_dir, board, ws_durs, film_shots, declared):
     if str(board.get("meta", {}).get("renderer", "")).lower() not in ("remotion", "remotion-bespoke"):
         print("[shot_proof] not a remotion deck — nothing to prove")
         return 0
@@ -751,6 +830,7 @@ def _prove(argv, out_dir, board, ws_durs):
     # half that matters. `--no-stills` still exists for a fast source-only pass while authoring.
     if "--no-stills" not in argv:
         import shot_still_qa
+        import workshop as _ws
         dna_hues = _dna_hues(board)
         beat_by_index = {i + 1: (sl.get("shot_props") or {})
                          for i, sl in enumerate(board.get("slides", []))}
@@ -827,6 +907,26 @@ def _prove(argv, out_dir, board, ws_durs):
                                   "empty-frame / ink were not measured — %s" % (beat, shot, why))
                 continue
             rendered += 1
+            # BUILT THINGS TAKE EVERY WORD FROM THE FILM — asked of the frame. On a film-local register every run
+            # is asked; on a library register holding an object, only what is inside the object's slot. One more
+            # render, only on beats that show a built thing.
+            _held = [ref for _p, ref in _ws.object_refs(_ws.shot_source(out_dir, shot), s.get("shot_props") or {})
+                     if isinstance(ref, dict)]
+            if shot in film_shots or _held:
+                unfed = _unfed_text(shot, payload, frame, proof, beat, out_dir,
+                                    "all" if shot in film_shots else "slots", declared)
+                if unfed is None:
+                    unmeasured.append("beat %d (%s): the words-from-props check gave no answer — its render "
+                                      "failed or carried no payload" % (beat, shot))
+                elif unfed:
+                    errors.append("beat %d (%s): text on the frame that no prop supplied: %s — a built thing "
+                                  "takes every word from the film's props (pass it in; a word that is part of "
+                                  "the form is declared `// @fixed-text: <why>` in the workshop code)"
+                                  % (beat, shot, " / ".join(repr(u) for u in unfed[:6])))
+            if shot in film_shots:
+                _gc = _ground_claim(png, shot, out_dir, board)
+                if _gc:
+                    errors.append("beat %d (%s): %s" % (beat, shot, _gc))
             # A figure-bearing register must be showing the RIGHT figure at the frame the gate captures.
             if shot in FIGURE_SHOTS and not dm:
                 unmeasured.append("beat %d (%s): the figure-settle check needs the register's DURATION to "

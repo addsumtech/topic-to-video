@@ -775,6 +775,59 @@ export const auditFedText = (root: Element, fed: unknown[]): string[] => {
   return missing;
 };
 
+/**
+ * THE CONTENT CONTRACT, ON THE FRAME: the words a viewer can read that no prop supplied.
+ *
+ * `fed` asks whether the film's copy ARRIVED; this asks the opposite question \u2014 whether anything arrived that the
+ * film never said. A built thing (scripts/workshop.py) takes every word from props; the static scan
+ * (scripts/jsx_words.cjs) catches the words written into its code, and cannot see a word that reaches the
+ * screen through a constant list, a one-word default, or a wrapped library register's own copy. This can.
+ *
+ * Compared on LETTERS only, case- and width-folded, because a register may re-case a label, join two of them
+ * with a separator, or set each glyph in its own element \u2014 all of which are the register working. A run counts
+ * as fed when its letters appear inside one fed string, or when nearly all of them are found among the fed
+ * strings' letters. `scope: 'slots'` asks only the text inside objects (`[data-object-slot]`), for a library
+ * register holding a film's object: the register's own words are judged elsewhere.
+ *
+ * `frame` gates the walk through the SAME `visibleRect` the collision and off-canvas audits use, not a bare
+ * `querySelectorAll('*')` filter. Remotion writes its own `<script>` config tags into this document \u2014 never
+ * laid out, so `getBoundingClientRect` on one is a 0\u00d70 rect \u2014 and without this a still of the plainest shot
+ * reported `window.remotion_numberOfAudioTags = 0;` as a word the frame shows.
+ */
+export const UNFED_TEXT_TAG = 'UNFED-TEXT ';
+const UNFED_COVERAGE = 0.9;
+export const auditUnfedText = (root: Element, fed: unknown[], scope: 'all' | 'slots', frame: DOMRect): string[] => {
+  const letters = (s: string) => [...s.normalize('NFKC').toLowerCase()].filter((ch) => /\p{L}/u.test(ch)).join('');
+  const fedL = fed.map((f) => letters(String(f ?? ''))).filter((f) => f.length > 0);
+  const pool = new Map<string, number>();
+  for (const f of fedL) for (const ch of f) pool.set(ch, (pool.get(ch) ?? 0) + 1);
+  const els = scope === 'slots'
+    ? Array.from(root.querySelectorAll('[data-object-slot], [data-object-slot] *'))
+    : Array.from(root.querySelectorAll('*'));
+  const out: string[] = [];
+  for (const el of els) {
+    if (isEcho(el)) continue;
+    const own = hasOwnText(el);
+    const L = letters(own);
+    if (!L) continue;
+    if (!visibleRect(el, frame)) continue;
+    if (fedL.some((f) => f.includes(L))) continue;
+    const left = new Map(pool);
+    let hit = 0;
+    for (const ch of L) {
+      const c = left.get(ch) ?? 0;
+      if (c > 0) {
+        hit += 1;
+        left.set(ch, c - 1);
+      }
+    }
+    if (hit / L.length >= UNFED_COVERAGE) continue;
+    const shown = own.length > 40 ? own.slice(0, 40) + '\u2026' : own;
+    if (!out.includes(shown)) out.push(shown);
+  }
+  return out;
+};
+
 /** Every text element whose VISIBLE box crosses the canvas edge, with no ancestor claiming the clip. */
 export const auditTextSafety = (root: Element, frame: DOMRect): Violation[] => {
   const win = root.ownerDocument?.defaultView;
@@ -826,8 +879,8 @@ export const auditTextSafety = (root: Element, frame: DOMRect): Violation[] => {
  * its caller. That makes a violation loud and per-scene: `scripts/text_safe_qa.py` renders each beat on its
  * own and collects the failures rather than stopping at the first.
  */
-export const TextSafeAudit: React.FC<{enabled?: boolean; mode?: 'safe' | 'collisions' | 'fed';
-  fed?: unknown[]}> = ({enabled = false, mode = 'safe', fed}) => {
+export const TextSafeAudit: React.FC<{enabled?: boolean; mode?: 'safe' | 'collisions' | 'fed' | 'unfed';
+  fed?: unknown[]; scope?: 'all' | 'slots'}> = ({enabled = false, mode = 'safe', fed, scope = 'all'}) => {
   const ref = React.useRef<HTMLDivElement>(null);
   const [handle] = React.useState(() =>
     enabled ? delayRender('text-safe audit', {timeoutInMilliseconds: 60000}) : null);
@@ -858,6 +911,10 @@ export const TextSafeAudit: React.FC<{enabled?: boolean; mode?: 'safe' | 'collis
         cancelRender(new Error(FED_TEXT_TAG + JSON.stringify({missing: auditFedText(body, fed ?? [])})));
         return;
       }
+      if (mode === 'unfed') {
+        cancelRender(new Error(UNFED_TEXT_TAG + JSON.stringify({unfed: auditUnfedText(body, fed ?? [], scope, frame)})));
+        return;
+      }
       if (mode === 'collisions') {
         const hits = auditTypeCollisions(body, frame);
         if (hits.length) {
@@ -883,7 +940,7 @@ export const TextSafeAudit: React.FC<{enabled?: boolean; mode?: 'safe' | 'collis
     return () => {
       dead = true;
     };
-  }, [enabled, handle, mode, fed]);
+  }, [enabled, handle, mode, fed, scope]);
 
   if (!enabled) return null;
   // Its own box IS the canvas rect — measured rather than assumed, so the audit is correct at any aspect
