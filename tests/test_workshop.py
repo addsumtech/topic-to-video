@@ -438,12 +438,15 @@ def test_i3_still_on_a_shot_with_a_bad_duration_is_a_sentence_not_a_keyerror(tmp
 
 
 def test_i3_still_on_an_object_with_a_bad_host_duration_is_a_sentence_too(tmp_path, monkeypatch):
-    """A workshop shot with a bad DURATION is now a BLOCKING _problems() finding regardless of its own role, so
-    still()'s write_index() (inside run_kwargs()) already refuses before a render when that shot is used as a
-    HOST — confirmed by reading e.value.problems: it names workshop/shots/WsBadHost.tsx, i.e. _problems(), not
-    still()'s own host-branch line. I4 below still switches that line to the shared parser too (":680" in the
-    fix brief — AttributeError on no match, and it never rejected zero on its own), for the host-is-a-LIBRARY-
-    register case _problems() never sees, and so there is one parser, not two."""
+    """Fix round 2, Minor (docstring only — the code was already right): still()'s object branch resolves the
+    slot and builds `payload` BEFORE calling `_required_duration(src, host)`, and that call happens before
+    run_kwargs()/write_index() are ever reached (those are only invoked later, inside the subprocess.run() call
+    at the bottom of still()) — so the error comes from still()'s OWN `_required_duration(src, host)` line, not
+    from _problems()'s general blocking check. Confirmed by reading e.value.problems: it names the BARE host
+    ("WsBadHost: DURATION must be …"), not a workshop/shots/WsBadHost.tsx: file path, which is what
+    _problems()/names_problems() would print instead. This is also the host-is-a-LIBRARY-register case
+    _problems() never sees at all (it only scans the WORKSHOP's own files) — one parser, reached from two
+    call sites, not two parsers."""
     _stub_render(monkeypatch)
     shot = (SHOT % {"name": "WsBadHost"}).replace("export const DURATION = 30;", "export const DURATION = 0;")
     out = _film(tmp_path, shots=["WsBadHost"], objects=["WsDisc"], shot_src=shot.replace("%", "%%"))
