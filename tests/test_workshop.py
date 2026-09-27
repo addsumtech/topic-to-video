@@ -128,6 +128,62 @@ def test_imports_are_held_to_react_remotion_the_runtime_the_library_and_the_work
     assert not [p for p in probs if "WsGood" in p], probs
 
 
+def test_i2_a_film_folder_with_glob_metacharacters_still_sees_its_own_shot(tmp_path):
+    """I2: glob.glob runs on unescaped absolute paths — in a folder named with `[...]`, a bracket expression
+    that matches nothing on disk used to make shot_names() (and _tsx_names underneath it) come back empty, so a
+    real shot on disk went invisible and `check` reported a false CLEAN."""
+    out = _film(tmp_path, shots=["WsShotA"], name="film [v2]")
+    assert ws.shot_names(out) == {"WsShotA"}
+    assert ws.names_problems(out) == []
+    bad = _film(tmp_path, shots=["TermTable"], name="bad [v2]")
+    assert any("already a library register" in p for p in ws.names_problems(bad))
+
+
+def test_i2_a_film_folder_with_a_star_never_sees_a_sibling_films_shots(tmp_path):
+    """I2: `glob.glob(".../filmA*/shots/*.tsx")` matches sibling `filmB`'s directory too when filmA's own name
+    literally contains `*` — a wildcard in the FOLDER name must never widen the scan."""
+    a = _film(tmp_path, shots=["WsShotA"], name="film*")
+    _film(tmp_path, shots=["WsShotB"], name="filmXYZ")
+    assert ws.shot_names(a) == {"WsShotA"}
+
+
+def test_m3_import_problems_resolves_relative_files_given_as_relative_paths(tmp_path, monkeypatch):
+    """M3: import_problems computed `target` from `os.path.dirname(f)`, which stays relative when `f` is
+    relative, then compared it against workshop_dir()'s always-ABSOLUTE path — a relative-path caller always
+    lost this comparison, so a legitimate `./helper` import was wrongly reported as outside the workshop."""
+    out = _film(tmp_path, objects=["WsDisc"])
+    (tmp_path / "film" / "workshop" / "objects" / "helper.ts").write_text("export const R = 1;\n", encoding="utf-8")
+    f = tmp_path / "film" / "workshop" / "objects" / "WsUsesHelper.tsx"
+    f.write_text("import {R} from './helper';\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    rel_f = os.path.relpath(str(f), str(tmp_path))
+    assert not os.path.isabs(rel_f)
+    probs = ws.import_problems(out, [rel_f])
+    assert not [p for p in probs if "outside the film's workshop" in p], probs
+
+
+def test_m4_source_files_finds_ts_helpers_at_any_depth(tmp_path):
+    """M4: source_files must use the SAME recursive traversal code_files does, or a helper module organised
+    into a subfolder is hashed for the cache key but never import/contract/baked-words checked."""
+    out = _film(tmp_path, objects=["WsDisc"])
+    nested = tmp_path / "film" / "workshop" / "objects" / "lib"
+    nested.mkdir()
+    (nested / "geometry.ts").write_text("export const R = 1;\n", encoding="utf-8")
+    files = ws.source_files(out)
+    assert any(os.path.basename(f) == "geometry.ts" for f in files), files
+
+
+def test_m4_a_relative_import_must_resolve_inside_objects_shots_or_assets(tmp_path):
+    """M4: a relative import that resolves to the workshop ROOT (not objects/, shots/ or assets/) edits a file
+    code_files() never hashes — the segment cache key would not change even though the imported code did."""
+    out = _film(tmp_path, objects=["WsDisc"])
+    (tmp_path / "film" / "workshop" / "helper.ts").write_text("export const R = 1;\n", encoding="utf-8")
+    bad = tmp_path / "film" / "workshop" / "objects" / "WsRoot.tsx"
+    bad.write_text("import {R} from '../helper';\n", encoding="utf-8")
+    probs = ws.import_problems(out, [str(bad)])
+    assert any("objects/, shots/ or assets/" in p for p in probs), probs
+
+
 def test_contract_findings_are_reported_with_the_file_and_line(tmp_path):
     out = _film(tmp_path, objects=["WsDisc"])
     f = tmp_path / "film" / "workshop" / "objects" / "WsDisc.tsx"

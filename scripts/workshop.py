@@ -29,7 +29,6 @@ it, so a stale export can never put another film's things into this one. Library
 here writes outside `<out_dir>/workshop/`.
 """
 import argparse
-import glob
 import json
 import os
 import re
@@ -76,7 +75,12 @@ def workshop_dir(out_dir):
 
 
 def _tsx_names(folder):
-    return sorted(os.path.basename(p)[:-4] for p in glob.glob(os.path.join(folder, "*.tsx")))
+    # I2 (task-2-fix-1.md): glob.glob interprets `[...]`/`*`/`?` IN THE PATH ITSELF as wildcards — a film
+    # folder named "film [v2]" made a real shot on disk invisible (the bracket expression matched nothing),
+    # and one named "film*" pulled a sibling film's shots in. os.listdir treats `folder` as a literal path.
+    if not os.path.isdir(folder):
+        return []
+    return sorted(f[:-4] for f in os.listdir(folder) if f.endswith(".tsx"))
 
 
 def shot_names(out_dir):
@@ -460,10 +464,16 @@ def code_files(out_dir):
 
 
 def source_files(out_dir):
-    """The workshop's code: every .tsx and .ts in objects/ and shots/."""
-    ws = workshop_dir(out_dir)
-    return sorted(p for kind in KINDS for p in glob.glob(os.path.join(ws, kind, "*.ts*"))
-                  if p.endswith((".ts", ".tsx")))
+    """The workshop's code: every .ts and .tsx under objects/ and shots/, at any depth — a helper module may sit
+    in its own subfolder. M4 (task-2-fix-1.md): the SAME traversal code_files() uses, so a helper is hashed for
+    the render cache AND import/contract/baked-words checked, never just the former. (I2: os.walk, not
+    glob.glob, so a folder name with `[...]`/`*`/`?` in it is never misread as a wildcard.)"""
+    ws, out = workshop_dir(out_dir), []
+    for kind in KINDS:
+        for dp, dn, fn in os.walk(os.path.join(ws, kind)):
+            dn[:] = sorted(d for d in dn if not d.startswith("."))
+            out += [os.path.join(dp, f) for f in fn if not f.startswith(".") and f.endswith((".ts", ".tsx"))]
+    return sorted(out)
 
 
 _IMPORT = re.compile(r"""(?:\bfrom\s+|\bimport\s*\(\s*|^\s*import\s+)['"]([^'"]+)['"]""", re.M)
@@ -471,11 +481,18 @@ _IMPORT = re.compile(r"""(?:\bfrom\s+|\bimport\s*\(\s*|^\s*import\s+)['"]([^'"]+
 
 def import_problems(out_dir, files):
     """A workshop may import react, remotion (and the project's other dependencies), the runtime as
-    @runtime/<module>, library registers as @shots/<Name>, and its own files. Nothing else resolves."""
+    @runtime/<module>, library registers as @shots/<Name>, and its own files under objects/, shots/ or assets/
+    (M4: what code_files() hashes for the render cache key — a file at the workshop root is never reached by a
+    render, so editing it would not change the key). Nothing else resolves."""
     pkg = json.loads(_read(os.path.join(REMOTION, "package.json")))
     deps = set(pkg.get("dependencies") or {}) | set(pkg.get("devDependencies") or {})
     ws, lib, probs = workshop_dir(out_dir), library_shot_names(), []
+    roots = [os.path.join(ws, d) for d in KINDS + ("assets",)]
     for f in files:
+        # M3 (task-2-fix-1.md): workshop_dir() is always absolute; a RELATIVE `f` made every `target` below
+        # relative too, so it could never match the `ws`/roots prefix check and every "./helper" import was
+        # wrongly reported as outside the workshop.
+        f = os.path.abspath(f)
         rel = os.path.relpath(f, os.path.dirname(ws))
         for spec in _IMPORT.findall(_strip_comments(_read(f))):
             if spec.startswith("@runtime/"):
@@ -491,6 +508,12 @@ def import_problems(out_dir, files):
                 if not (target + os.sep).startswith(ws + os.sep):
                     probs.append("%s imports %s, outside the film's workshop — film code may use react, remotion, "
                                  "@runtime/…, @shots/… and its own workshop files" % (rel, spec))
+                elif not any((target + os.sep).startswith(root + os.sep) for root in roots):
+                    # M4: inside the workshop, but not inside objects/, shots/ or assets/ (e.g. the workshop
+                    # root itself, or its generated index.ts/_stills/) — code_files() never hashes it.
+                    probs.append("%s imports %s — a workshop file may only import its own files under objects/, "
+                                 "shots/ or assets/ (what code_files() hashes for the render cache key); "
+                                 "nothing else in the workshop is reached by a render" % (rel, spec))
                 elif not any(os.path.exists(target + e) for e in ("", ".ts", ".tsx", ".json", "/index.ts")):
                     probs.append("%s imports %s, which does not exist" % (rel, spec))
             else:
