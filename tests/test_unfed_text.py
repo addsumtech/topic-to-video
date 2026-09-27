@@ -53,14 +53,78 @@ export const META: ObjectMeta = {aspect: 1, provenance: 'industrial'};
 const WORD = ['INSIDE'];
 export const %(name)s: React.FC<ObjectProps> = ({w, h}) => (
   <div style={{width: w, height: h, fontSize: 40, color: '#aaaaaa'}}>
-    {WORD[0]}
+    <div>{WORD[0]}</div>
     {/* @fixed-text: the SI symbol of the quantity the film names */}
-    <span>bar</span>
+    <div>bar</div>
   </div>
 );
 """
 
-# The matching-rule matrix (I2/ruling R21), every listed case batched into one frame. Fed against
+# I1: baked words the DNA object's OWN tokens spell ('motion: smooth', '…system-ui…') — a fixture whose
+# baked words are NOT among them (as round 0's own fixture happened to be) passes whether or not the object
+# is excluded, and is not load bearing.
+DNA_LEAK_SHOT = """import React from 'react';
+import {AbsoluteFill} from 'remotion';
+export const DURATION = 60;
+export const GROUND = 'bg';
+export const PROVENANCE = 'industrial';
+export const %(name)s: React.FC<{}> = () => (
+  <AbsoluteFill style={{background: '#101010', color: '#dddddd', fontSize: 40}}>
+    <div>Smooth</div>
+    <div>System</div>
+  </AbsoluteFill>
+);
+"""
+
+# By-path id exclusion: a caption prop and an object's id that happen to share the same word.
+CAPTIONED_SHOT = """import React from 'react';
+import {AbsoluteFill} from 'remotion';
+import {ObjectSlot, type ObjectRef} from '@runtime/objectSlot';
+export const DURATION = 60;
+export const GROUND = 'bg';
+export const PROVENANCE = 'industrial';
+export const %(name)s: React.FC<{caption?: string; object?: ObjectRef}> = ({caption = '', object}) => (
+  <AbsoluteFill style={{background: '#101010', color: '#dddddd', fontSize: 40}}>
+    <div>{caption}</div>
+    {object ? <ObjectSlot object={object} box={{x: 900, y: 200, w: 400, h: 400}} /> : null}
+  </AbsoluteFill>
+);
+"""
+GRINDER_OBJECT = """import React from 'react';
+import type {ObjectProps, ObjectMeta} from '@runtime/objectSlot';
+export const META: ObjectMeta = {aspect: 1, provenance: 'industrial'};
+export const %(name)s: React.FC<ObjectProps> = ({w, h}) => <div style={{width: w, height: h}} />;
+"""
+
+# M2: thirteen distinct baked words, none fed — one past MAX_REPORTED (12).
+MANY_WORDS_SHOT = """import React from 'react';
+import {AbsoluteFill} from 'remotion';
+export const DURATION = 60;
+export const GROUND = 'bg';
+export const PROVENANCE = 'industrial';
+const WORDS = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel', 'India', 'Juliet',
+              'Kilo', 'Lima', 'Mike'];
+export const %(name)s: React.FC<{}> = () => (
+  <AbsoluteFill style={{background: '#101010', color: '#dddddd', fontSize: 26}}>
+    {WORDS.map((w, i) => <div key={w} style={{position: 'absolute', left: 40, top: 20 + i * 40}}>{w}</div>)}
+  </AbsoluteFill>
+);
+"""
+
+# M2: one unfed word 50 characters long — past the report's own 40-character cap.
+LONG_WORD_SHOT = """import React from 'react';
+import {AbsoluteFill} from 'remotion';
+export const DURATION = 60;
+export const GROUND = 'bg';
+export const PROVENANCE = 'industrial';
+export const %(name)s: React.FC<{}> = () => (
+  <AbsoluteFill style={{background: '#101010', color: '#dddddd', fontSize: 16}}>
+    <div>{'a'.repeat(50)}</div>
+  </AbsoluteFill>
+);
+"""
+
+# The matching-rule matrix — every listed case batched into one frame. Fed against
 # BREW_FED = ["Grind finer", "Tamp evenly", "Heat the water to 93°C", "Before", "Output"].
 BREW_NOTES = """import React from 'react';
 import {AbsoluteFill} from 'remotion';
@@ -113,7 +177,7 @@ export const %(name)s: React.FC<{}> = () => (
 """
 ROAST_FED = ["研磨更细", "压粉均匀"]
 
-# I3's ground-claim fixtures.
+# Ground-claim fixtures.
 FLAT_GROUND = """import React from 'react';
 import {AbsoluteFill} from 'remotion';
 export const DURATION = 30;
@@ -261,34 +325,135 @@ def test_shot_proof_names_the_words_no_prop_supplied_and_accepts_a_declared_one(
 def test_a_design_dna_object_does_not_mask_baked_words(tmp_path, capsys):
     """meta.design_dna is typically an OBJECT (dna_from_deck.py writes one), not the preset NAME the other
     tests use — and an object carries some two dozen strings of its own (font stacks, a gradient, motion and
-    atom keywords). None of them may leak into the fed pool and mask a baked word."""
-    out = _workshop(tmp_path, shots={"WsLabels": LABELS}, objects={"WsInside": INSIDE})
+    atom keywords). Baking a word those strings do not themselves spell is not load bearing — it passes
+    whether or not the object is excluded from the fed pool. "Smooth" and "System" are words this object's own
+    tokens DO spell ('motion: smooth', '…system-ui…'), so only excluding `dna` — not merely the object ref's
+    id — keeps them correctly unfed."""
+    out = _workshop(tmp_path, shots={"WsDnaLeak": DNA_LEAK_SHOT})
     dna_object = {
         "fontDisplay": ('"Space Grotesk", "Noto Sans SC", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", '
                         '"Noto Sans CJK SC", system-ui, sans-serif'),
         "bg": "#060709", "bgGrad": "radial-gradient(120% 120% at 50% 0%, #14161d, #060709 72%)",
         "accent": "#5b8cff", "accent2": "#a06bff", "motion": "smooth", "radius": 22,
     }
-    _board(out, {"label": "研磨", "object": {"id": "WsInside"}}, dna=dna_object)
+    _board(out, {}, dna=dna_object, shot="WsDnaLeak")
     sp.main([out])
     printed = capsys.readouterr().out
     line = next((ln for ln in printed.splitlines() if "no prop supplied" in ln), "")
-    assert "'Grind'" in line and "'Tamp'" in line and "'INSIDE'" in line, printed[-2000:]
-    assert "'bar'" not in line, line
+    assert "'Smooth'" in line and "'System'" in line, printed[-2000:]
+
+
+@needs_toolchain
+def test_an_object_ref_s_id_is_excluded_by_path_not_by_value(tmp_path, capsys):
+    """A beat's own label may legitimately equal an object's id (both named after the same real-world thing) —
+    only the id AT ITS OWN PATH is wiring, not the string wherever it appears. A label "Grinder" on a beat that
+    also holds the object `Grinder` must stay fed."""
+    out = _workshop(tmp_path, shots={"WsCaptioned": CAPTIONED_SHOT}, objects={"Grinder": GRINDER_OBJECT})
+    _board(out, {"caption": "Grinder", "object": {"id": "Grinder"}}, shot="WsCaptioned")
+    sp.main([out])
+    printed = capsys.readouterr().out
+    assert "no prop supplied" not in printed, printed[-2000:]
+
+
+@needs_toolchain
+def test_the_unfed_list_is_capped_with_the_true_count(tmp_path, capsys):
+    out = _workshop(tmp_path, shots={"WsManyWords": MANY_WORDS_SHOT})
+    _board(out, {}, shot="WsManyWords")
+    sp.main([out])
+    printed = capsys.readouterr().out
+    line = next((ln for ln in printed.splitlines() if "no prop supplied" in ln), "")
+    assert "13 word(s)" in line, line
+    assert line.count(" / ") == 11, line             # MAX_REPORTED (12) items shown = 11 separators
+    assert "(1 more not shown)" in line, line
+
+
+@needs_toolchain
+def test_a_long_unfed_item_is_capped_at_40_characters(tmp_path, capsys):
+    out = _workshop(tmp_path, shots={"WsLongWord": LONG_WORD_SHOT})
+    _board(out, {}, shot="WsLongWord")
+    sp.main([out])
+    printed = capsys.readouterr().out
+    line = next((ln for ln in printed.splitlines() if "no prop supplied" in ln), "")
+    assert ("'" + "a" * 40 + "…'") in line, line
+    assert "a" * 41 not in line, line
+
+
+@needs_toolchain
+def test_the_gave_no_answer_reason_carries_the_render_s_own_message(tmp_path, monkeypatch, capsys):
+    out = _workshop(tmp_path, shots={"WsLabels": LABELS}, objects={"WsInside": INSIDE})
+    _board(out, {"label": "研磨"})
+    real_run = sp.subprocess.run
+
+    def fake(cmd, **kw):
+        if any(isinstance(a, str) and ".unfed." in a for a in cmd):
+            return sp.subprocess.CompletedProcess(cmd, 1, "", "boom: the unfed render crashed")
+        return real_run(cmd, **kw)
+    monkeypatch.setattr(sp.subprocess, "run", fake)
+    sp.main([out])
+    printed = capsys.readouterr().out
+    assert "the words-from-props check gave no answer" in printed and "boom" in printed, printed[-2000:]
+
+
+@needs_toolchain
+def test_the_ground_gap_boundary_itself_is_an_error(tmp_path, monkeypatch, capsys):
+    """seam_plan's own seam guard treats a gap >= HARSH_GAP as a flash (`>=`, not `>`) — `_ground_claim`'s
+    comparison must agree with it exactly at the boundary, not one float epsilon short of it. Mocking
+    `seam_plan.ground_gap` itself (rather than reconstructing a luminance pair that rounds to the boundary
+    through two `**` calls) is what makes the boundary exact, not approximately so."""
+    import seam_plan
+    out = _workshop(tmp_path, shots={"WsFlatGround": FLAT_GROUND})
+    _ground_board(out, "WsFlatGround", {"fill": "#3a3a3a"}, {"design_dna": "product"})
+    monkeypatch.setattr(seam_plan, "ground_gap", lambda a, b: seam_plan.HARSH_GAP)
+    sp.main([out])
+    printed = capsys.readouterr().out
+    assert "declares GROUND" in printed, printed[-2000:]
 
 
 @needs_toolchain
 def test_a_broken_declared_word_scan_leaves_the_beat_unmeasured_not_falsely_unfed(tmp_path, monkeypatch, capsys):
     """`baked_words`'s `declared` comes back `[]` both when nothing is declared and when the scan itself could
     not run (node/tsc missing) — the two must not be treated alike, or a real `@fixed-text` declaration reads
-    as a false unfed finding the moment the scan breaks."""
+    as a false unfed finding the moment the scan breaks. Only a `problems` entry ending in
+    `workshop.NOTHING_CHECKED` means the latter — a scan HIT (a baked word the scan actually found) does not,
+    and must not disable the frame check either (see the next test)."""
     out = _workshop(tmp_path, shots={"WsLabels": LABELS}, objects={"WsInside": INSIDE})
     _board(out, {"label": "研磨", "object": {"id": "WsInside"}})
-    monkeypatch.setattr(ws, "baked_words", lambda *a, **k: {"problems": ["node is missing"], "declared": []})
+    monkeypatch.setattr(ws, "baked_words",
+                        lambda *a, **k: {"problems": ["node is missing — %s" % ws.NOTHING_CHECKED], "declared": []})
     sp.main([out])
     printed = capsys.readouterr().out
     assert "the words-from-props check did not run" in printed and "node is missing" in printed, printed[-2000:]
     assert "no prop supplied" not in printed, printed[-2000:]
+
+
+BAKED_WORD_SHOT = """import React from 'react';
+import {AbsoluteFill} from 'remotion';
+export const DURATION = 60;
+export const GROUND = 'bg';
+export const PROVENANCE = 'industrial';
+export const %(name)s: React.FC<{label?: string}> = ({label = ''}) => (
+  <AbsoluteFill style={{background: '#101010', color: '#dddddd', fontSize: 40}}>
+    <div>{label}</div>
+    <div>Step</div>
+  </AbsoluteFill>
+);
+"""
+
+
+@needs_toolchain
+def test_a_baked_word_the_static_scan_finds_does_not_disable_the_frame_check(tmp_path, capsys):
+    """`baked_words`'s `problems` also carries the scan's own HITS (a baked word it found written straight into
+    the JSX) — a real finding, not a "could not run" reason, and the two must not be conflated: a workshop
+    whose code writes "Step" gets both findings, the static one AND the frame's own, not the static one instead
+    of the frame's."""
+    out = _workshop(tmp_path, shots={"WsBakedWord": BAKED_WORD_SHOT})
+    bw = ws.baked_words(out, ws.source_files(out))
+    assert bw["problems"] and not any(p.endswith(ws.NOTHING_CHECKED) for p in bw["problems"]), bw["problems"]
+    _board(out, {"label": "研磨"}, shot="WsBakedWord")
+    sp.main([out])
+    printed = capsys.readouterr().out
+    line = next((ln for ln in printed.splitlines() if "no prop supplied" in ln), "")
+    assert "'Step'" in line, printed[-2000:]
 
 
 @needs_toolchain
@@ -354,6 +519,96 @@ def test_a_shot_template_alone_still_resolves_and_measures(tmp_path, capsys):
     sp.main([out])
     printed = capsys.readouterr().out
     assert "could not be measured" not in printed and "declares GROUND" not in printed, printed[-2000:]
+
+
+RUN_MODEL_FED = ["FORM", "FOLLOWS", "Grind", "Tamp", "Preview", "Grind finer", "A", "B", "C", "Steps",
+                 "Output", "Café", "コーヒー", "数据中心", "中心化"]
+
+# The run-building cases (what one run of text is), batched into one frame.
+RUN_MODEL = """import React from 'react';
+import {AbsoluteFill} from 'remotion';
+export const DURATION = 60;
+export const GROUND = 'bg';
+export const PROVENANCE = 'industrial';
+const glyphRow = (s) => Array.from(s).map((c, i) => <span key={i}>{c}</span>);
+export const %(name)s: React.FC<{}> = () => (
+  <AbsoluteFill style={{background: '#101010', color: '#dddddd', fontSize: 32}}>
+    {/* <br> breaks the run: two words either side must not fuse into one */}
+    <div style={{position: 'absolute', left: 40, top: 0}}>FORM<br />FOLLOWS</div>
+    {/* an inline child (not one grapheme, not empty) is absorbed with no separator of its own — the
+        separator here is the SPAN's own text, not a rule inserted between elements */}
+    <div style={{position: 'absolute', left: 40, top: 70}}>Grind<span> · </span>Tamp</div>
+    {/* Pre<b>view</b> absorbs into one word */}
+    <div style={{position: 'absolute', left: 40, top: 140}}>Pre<b>view</b></div>
+    {/* per-glyph "Grind finer", the space written as its own SPAN (inline flow keeps every glyph close) */}
+    <div style={{position: 'absolute', left: 40, top: 210}}>{glyphRow('Grind finer')}</div>
+    {/* per-glyph "Grind finer", the space an empty flex-gap DIV (a real box, no rendered text) */}
+    <div style={{position: 'absolute', left: 40, top: 280, display: 'flex'}}>
+      {Array.from('Grind finer').map((c, i) => (c === ' '
+        ? <div key={i} style={{width: 14, height: 0}} />
+        : <div key={i}>{c}</div>))}
+    </div>
+    {/* per-glyph "Grind finer" with a trailing caret (an empty inline-block, a real box, no text) */}
+    <div style={{position: 'absolute', left: 40, top: 350}}>
+      {glyphRow('Grind finer')}<span style={{display: 'inline-block', width: 4, height: 32}} />
+    </div>
+    {/* per-glyph baked "NEW" next to the same kind of caret — unfed, reported as one word */}
+    <div style={{position: 'absolute', left: 40, top: 420}}>
+      {glyphRow('NEW')}<span style={{display: 'inline-block', width: 4, height: 32}} />
+    </div>
+    {/* one-letter labels WITH GAPS between them — sibling option letters, not one kinetic word */}
+    <div style={{position: 'absolute', left: 40, top: 490}}>
+      <span style={{marginRight: 160}}>A</span><span style={{marginRight: 160}}>B</span><span>C</span>
+    </div>
+    {/* a glyph nested in wrapper spans is still a glyph */}
+    <div style={{position: 'absolute', left: 40, top: 560}}>
+      {Array.from('Grind').map((c, i) => <span key={i}><span>{c}</span></span>)}
+    </div>
+    {/* an echo duplicate of a glyph run must not double it — the echo itself absolutely positioned, as a
+        real echo overlay is (PointerTour softens a SECOND copy at the SAME place), so it never occupies
+        normal-flow width that would push the real glyphs apart from one another */}
+    <div style={{position: 'absolute', left: 40, top: 630}}>
+      {Array.from('Grind').map((c, i) => (
+        <React.Fragment key={i}>
+          <span>{c}</span>
+          <span aria-hidden data-echo="" style={{position: 'absolute', left: 0, top: 0}}>{c}</span>
+        </React.Fragment>
+      ))}
+    </div>
+    {/* display:contents has no box of its own; its child still joins the run */}
+    <div style={{position: 'absolute', left: 40, top: 700}}>
+      <div style={{display: 'contents'}}>Ghost</div>
+    </div>
+    {/* text overflowing a zero-size box is still read (a Range over the text node, not the container) */}
+    <div style={{position: 'absolute', left: 40, top: 770, width: 0, height: 0, overflow: 'visible'}}>Overflow</div>
+    <div style={{position: 'absolute', left: 40, top: 840}}>８７％</div>
+    <div style={{position: 'absolute', left: 340, top: 840}}>{'Cafe\\u0301'}</div>
+    <div style={{position: 'absolute', left: 40, top: 910}}>コーヒー</div>
+    <div style={{position: 'absolute', left: 340, top: 910}}>Step 1</div>
+    <div style={{position: 'absolute', left: 40, top: 980}}>Outp…</div>
+    <div style={{position: 'absolute', left: 340, top: 980}}>O</div>
+    <div style={{position: 'absolute', left: 40, top: 1050}}>数据中心化</div>
+  </AbsoluteFill>
+);
+"""
+
+
+@needs_toolchain
+def test_the_run_model_covers_every_listed_case(tmp_path):
+    out = _workshop(tmp_path, shots={"WsRunModel": RUN_MODEL})
+    env = _env(ws.workshop_dir(out))
+    got = _unfed("WsRunModel", {"unfedText": RUN_MODEL_FED, "unfedScope": "all"}, env, tmp_path / "runmodel.png")
+    # unfed: the caret idiom baked with "NEW" (one word, not glued to the caret or split into three letters);
+    # a display:contents wrapper's own baked word ("Ghost"); text overflowing its zero-size box ("Overflow");
+    # a fabricated figure ("８７", the fullwidth "％" recognised as "%" once folded); "Step" (not licensed by
+    # a fed "Steps" — short of an ellipsis, a short token is a different word, not a maybe-truncation); a bare
+    # "O" (not licensed by a fed "Output" the same way). Every other case is fed (see the fixture's own
+    # comments) — <br>, the absorbed inline separator and <b>, all three per-glyph spellings of "Grind finer",
+    # sibling option letters kept apart by their gap, nested glyphs, the echo not doubling, an NFD "Café"
+    # matching an NFC fed "Café", "コーヒー" surviving its own prolonged-sound mark, "Outp…" truncating into
+    # "Output", and "数据中心化" splitting 数据｜中心化 across two fed CJK tokens dynamic programming finds
+    # and a greedy search missed.
+    assert sorted(got) == sorted(["NEW", "Ghost", "Overflow", "８７", "Step", "O"]), got
 
 
 @needs_toolchain

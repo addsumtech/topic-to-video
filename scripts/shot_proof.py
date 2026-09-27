@@ -45,10 +45,10 @@ UNFED_TAG = "UNFED-TEXT "      # runtime/textSafe.tsx UNFED_TEXT_TAG — tests/t
 
 
 def _number_leaves(v, out=None):
-    """Every non-bool int/float anywhere in a props tree — a figure-shaped numeral (runtime/textSafe.tsx's I2
+    """Every non-bool int/float anywhere in a props tree — a figure-shaped numeral (runtime/textSafe.tsx's
     numeral rule) may match a raw numeric prop value directly, not only a numeral spelled out inside a fed
-    string. A separate walk from `cjk_type_qa._string_leaves`, which collects STRINGS: Ruling R1 keeps that one
-    walk a single definition, not every leaf-shaped question sharing it."""
+    string. A separate walk from `cjk_type_qa._string_leaves`, which collects STRINGS — that one walk stays a
+    single definition, not every leaf-shaped question sharing it."""
     out = [] if out is None else out
     if isinstance(v, bool):
         pass
@@ -64,9 +64,9 @@ def _number_leaves(v, out=None):
 
 
 def _unfed_text(shot, payload, frame, proof, beat, out_dir, scope, declared):
-    """The words on this beat's frame that no prop supplied: (words, total) on a clean answer — `words` is what
-    the runtime itself already capped (runtime/textSafe.tsx MAX_REPORTED), `total` the true count past that cap
-    — or (None, None, reason) when the render gave no answer, `reason` the render's own message
+    """The words on this beat's frame that no prop supplied: (words, total, None) on a clean answer — `words`
+    is what the runtime itself already capped (runtime/textSafe.tsx MAX_REPORTED), `total` the true count past
+    that cap — or (None, None, reason) when the render gave no answer, `reason` the render's own message
     (`_stderr_reason`), not a shrug. `declared` are the words the workshop code names with `// @fixed-text:`
     (scripts/jsx_words.cjs).
 
@@ -910,7 +910,12 @@ def _prove(argv, out_dir, board, ws_durs):
         # `baked_words` degrades cheaply (an os.walk, no subprocess) when the film's workshop is empty, so this
         # costs a real scan only on a film that actually has one.
         _bw = _ws.baked_words(out_dir, _ws.source_files(out_dir))
-        film_shots, declared, declared_problems = _ws.shot_names(out_dir), _bw["declared"], _bw["problems"]
+        film_shots, declared = _ws.shot_names(out_dir), _bw["declared"]
+        # `problems` carries the scan's own HITS (a baked word it found) alongside a genuine "could not run"
+        # reason, in the SAME list — treating any non-empty list as "the scan is broken" disabled the frame
+        # check's declared-word allowance for every beat the moment ONE baked word existed anywhere in the
+        # workshop. Only a problem ending in workshop.NOTHING_CHECKED means the scan itself did not run.
+        declared_broken = [p for p in _bw["problems"] if p.endswith(_ws.NOTHING_CHECKED)]
         dna_hues = _dna_hues(board)
         beat_by_index = {i + 1: (sl.get("shot_props") or {})
                          for i, sl in enumerate(board.get("slides", []))}
@@ -993,12 +998,12 @@ def _prove(argv, out_dir, board, ws_durs):
             _held = [ref for _p, ref in _ws.object_refs(_ws.shot_source(out_dir, shot), s.get("shot_props") or {})
                      if isinstance(ref, dict)]
             if shot in film_shots or _held:
-                if declared_problems:
+                if declared_broken:
                     # The declared-word scan itself is broken (node/tsc missing, jsx_words.cjs failed) — an
                     # EMPTY declared list here is not "nothing is declared", it is "the question could not be
                     # asked", and proceeding as the former would report every `@fixed-text` word as unfed.
                     unmeasured.append("beat %d (%s): the words-from-props check did not run — the workshop's "
-                                      "declared-word scan could not run (%s)" % (beat, shot, declared_problems[0]))
+                                      "declared-word scan could not run (%s)" % (beat, shot, declared_broken[0]))
                 else:
                     words, total, reason = _unfed_text(shot, payload, frame, proof, beat, out_dir,
                                                         "all" if shot in film_shots else "slots", declared)

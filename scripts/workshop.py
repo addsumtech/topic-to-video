@@ -709,8 +709,8 @@ def baked_words(out_dir, files):
                              "missing — %s" % NOTHING_CHECKED], "declared": []}
     r = subprocess.run([node, os.path.join(_HERE, "jsx_words.cjs"), tsmod] + code, capture_output=True, text=True)
     if r.returncode != 0:
-        return {"problems": ["the baked-words scan failed: %s" % ((r.stderr or r.stdout).strip()[-300:] or
-                                                                  "(no output)")], "declared": []}
+        return {"problems": ["the baked-words scan failed: %s — %s" % ((r.stderr or r.stdout).strip()[-300:] or
+                                                                       "(no output)", NOTHING_CHECKED)], "declared": []}
     got = json.loads(r.stdout or "{}")
     base = os.path.dirname(workshop_dir(out_dir))
     probs = ["%s:%d words written into the code (%s): %r — every word on screen comes from a prop; a word that "
