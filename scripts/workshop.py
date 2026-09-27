@@ -934,8 +934,10 @@ def main(argv=None):
         if a.cmd in ("new-object", "new-shot"):
             path = scaffold(a.out_dir, a.cmd[4:], a.name, a.means)
             print("[workshop] wrote %s" % path)
-            print("NEXT: draw it (references/object-authoring.md), then python3 scripts/workshop.py %s still %s"
-                  % (a.out_dir, a.name))
+            # M8 (task-2-fix-1.md): new-shot used to print the OBJECT guide too.
+            doc = "object-authoring.md" if a.cmd == "new-object" else "remotion-shot-authoring.md"
+            print("NEXT: draw it (references/%s), then python3 scripts/workshop.py %s still %s"
+                  % (doc, a.out_dir, a.name))
             return 0
         if a.props:
             # M5 (task-2-fix-1.md): a missing or unreadable --props file is a sentence, not a raw traceback —

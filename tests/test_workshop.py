@@ -701,13 +701,35 @@ def test_m5_a_missing_props_file_is_a_sentence_not_a_traceback(tmp_path, capsys)
     assert "PROBLEM" in out_text and "nope.json" in out_text
 
 
-def test_the_workshop_never_writes_outside_its_folder(tmp_path):
+def test_m8_the_next_line_points_at_the_authoring_reference_for_the_kind_just_written(tmp_path, capsys):
+    """M8: new-shot used to print the same NEXT line as new-object (references/object-authoring.md) — the
+    shot-authoring guide is a different file."""
+    out = str(tmp_path / "film")
+    ws.main([out, "new-object", "EspressoPuck", "--means", "a compressed espresso puck"])
+    assert "object-authoring.md" in capsys.readouterr().out
+    ws.main([out, "new-shot", "ExtractionCurve", "--means", "how the flow changes"])
+    assert "remotion-shot-authoring.md" in capsys.readouterr().out
+
+
+def test_m8_grounds_maps_a_shot_with_no_ground_to_none(tmp_path):
+    shot = (SHOT % {"name": "WsNoGround"}).replace("export const GROUND = 'bg';\n", "")
+    out = _film(tmp_path, shots=["WsNoGround"], shot_src=shot.replace("%", "%%"))
+    assert ws.grounds(out) == {"WsNoGround": None}
+
+
+@needs_toolchain
+def test_the_workshop_never_writes_outside_its_folder(tmp_path, monkeypatch):
+    """M7: extended to also exercise typecheck() (writes .tsconfig.json) and still() (writes _stills/, with
+    subprocess.run stubbed) — not just prepare()/scaffold()/names_problems() as before."""
     out = _film(tmp_path, shots=["WsShotA"], objects=["WsDisc"])
     (tmp_path / "film" / "storyboard.json").write_text("{}")
+    _stub_render(monkeypatch)
     before = {os.path.join(dp, f) for dp, _dn, fn in os.walk(str(tmp_path)) for f in fn}
     ws.prepare(out)
     ws.scaffold(out, "object", "WsNew", "a new thing")
     ws.names_problems(out)
+    ws.typecheck(out)
+    ws.still(out, "WsShotA")
     after = {os.path.join(dp, f) for dp, _dn, fn in os.walk(str(tmp_path)) for f in fn}
     new = sorted(os.path.relpath(p, out) for p in after - before)
     assert all(p.startswith("workshop" + os.sep) for p in new), new
