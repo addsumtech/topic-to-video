@@ -567,10 +567,17 @@ def prepare(out_dir):
     return None
 
 
+def env_kwargs(env):
+    """`subprocess.run(..., **env_kwargs(env))` — {} leaves a call exactly as it was before workshops. The
+    one definition every film-scoped caller shares, so a caller holding an environment it already computed
+    (cjk_type_qa's one sweep-long `_RUN_ENV`, remotion_segments' per-segment `env`) does not restate the
+    same `{"env": x} if x is not None else {}` ternary."""
+    return {"env": env} if env is not None else {}
+
+
 def run_kwargs(out_dir):
     """`subprocess.run(..., **run_kwargs(out_dir))` — {} leaves a call exactly as it was before workshops."""
-    env = prepare(out_dir)
-    return {"env": env} if env is not None else {}
+    return env_kwargs(prepare(out_dir))
 
 
 def code_files(out_dir):
