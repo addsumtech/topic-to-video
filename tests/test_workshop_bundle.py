@@ -39,6 +39,75 @@ export const %(name)s: React.FC<ObjectProps & {color?: string}> = ({w, h, color 
 );
 """
 
+# fix round 1 fixtures — F1: a workshop object reaching a real project dependency Remotion does not alias.
+OBJECT_THREE = """import React from 'react';
+import {Color} from 'three';
+import type {ObjectProps, ObjectMeta} from '@runtime/objectSlot';
+export const META: ObjectMeta = {aspect: 1, provenance: 'motion-graphics'};
+export const %(name)s: React.FC<ObjectProps> = ({w, h}) => (
+  <div style={{width: w, height: h, background: new Color(0, 1, 0).getStyle()}} />
+);
+"""
+
+# F8 — the object receives the beat's `t` (its fill depends on it, two frames give two colours).
+OBJECT_T = """import React from 'react';
+import type {ObjectProps, ObjectMeta} from '@runtime/objectSlot';
+export const META: ObjectMeta = {aspect: 1, provenance: 'motion-graphics'};
+export const %(name)s: React.FC<ObjectProps> = ({w, h, t}) => (
+  <div style={{width: w, height: h,
+    background: `rgb(${Math.round(255 * t)}, 0, ${Math.round(255 * (1 - t))})`}} />
+);
+"""
+
+# F8 — the object receives the film's Design DNA.
+OBJECT_DNA = """import React from 'react';
+import type {ObjectProps, ObjectMeta} from '@runtime/objectSlot';
+export const META: ObjectMeta = {aspect: 1, provenance: 'motion-graphics'};
+export const %(name)s: React.FC<ObjectProps> = ({w, h, dna}) => (
+  <div style={{width: w, height: h, background: dna ? dna.accent : '#888888'}} />
+);
+"""
+
+# F5 — an object whose export name does not match its filename: WORKSHOP_OBJECTS[id].C is undefined.
+OBJECT_NOCOMPONENT = """import React from 'react';
+import type {ObjectMeta} from '@runtime/objectSlot';
+export const META: ObjectMeta = {aspect: 1, provenance: 'motion-graphics'};
+export const NotTheRightExport: React.FC<any> = () => null;
+"""
+
+# F4 — a shot whose box is configurable from props, so a still can send it a NaN width or a zero height.
+SHOT_BOX = """import React from 'react';
+import {AbsoluteFill} from 'remotion';
+import {ObjectSlot, type ObjectRef} from '@runtime/objectSlot';
+export const DURATION = 30;
+export const GROUND = 'bg';
+export const PROVENANCE = 'motion-graphics';
+export const %(name)s: React.FC<{object?: ObjectRef; bw?: number | 'nan'; bh?: number}> =
+  ({object, bw = 600, bh = 600}) => (
+  <AbsoluteFill style={{background: '#000000'}}>
+    {object ? <ObjectSlot object={object} box={{x: 660, y: 240, w: bw === 'nan' ? 0 / 0 : bw, h: bh}} /> : null}
+  </AbsoluteFill>
+);
+"""
+
+# F5 — a shot whose DURATION is not a positive integer.
+SHOT_BADDUR = """import React from 'react';
+import {AbsoluteFill} from 'remotion';
+export const DURATION = 29.5;
+export const GROUND = 'bg';
+export const PROVENANCE = 'motion-graphics';
+export const %(name)s: React.FC<{}> = () => <AbsoluteFill style={{background: '#00ff00'}} />;
+"""
+
+# F5 — a shot whose export name does not match its filename: WORKSHOP_SHOTS[id].C is undefined.
+SHOT_NOCOMPONENT = """import React from 'react';
+import {AbsoluteFill} from 'remotion';
+export const DURATION = 30;
+export const GROUND = 'bg';
+export const PROVENANCE = 'motion-graphics';
+export const NotTheRightExport: React.FC<{}> = () => <AbsoluteFill style={{background: '#00ff00'}} />;
+"""
+
 
 def _index(shots, objects):
     """The index scripts/workshop.py generates for these names — the one format both sides agree on."""
@@ -235,3 +304,119 @@ def test_fit_aspect_letterboxes_extreme_shapes():
     assert out["wide"] == {"x": 0, "y": 225, "w": 600, "h": 150}
     assert out["tall"] == {"x": 325, "y": 50, "w": 150, "h": 600}
     assert out["none"] == {"x": 1, "y": 2, "w": 30, "h": 40} and out["bad"] == out["none"]
+
+
+# ── fix round 1 (task-1-fix-1.md) ──────────────────────────────────────────────────────────────────────────
+
+@needs_toolchain
+def test_a_workshop_object_reaches_a_project_dependency_remotion_does_not_alias(tmp_path):
+    """F1: `three` is a real dependency of THIS project (remotion/node_modules; MaterialHero uses it), never
+    aliased by remotion.config.ts — so it can only reach a workshop object through resolve.modules. Rendered
+    from a film folder under tmp_path, well outside the project, which has no node_modules of its own."""
+    ws = _workshop(tmp_path / "film", shots=["WsShotA"], objects=["WsThree"], obj_src=OBJECT_THREE)
+    r = _still("WsShotA", tmp_path / "three.png", {"fill": "#000000", "object": {"id": "WsThree"}}, _env(ws))
+    assert r.returncode == 0, (r.stdout + r.stderr)[-800:]
+    assert _near(_px(tmp_path / "three.png", 960, 540), (0, 255, 0))
+
+
+@needs_toolchain
+def test_an_id_shaped_like_a_prototype_property_is_refused(tmp_path):
+    """F2: `objects[id]` reads the prototype chain too — an id of "constructor" resolves to Object.prototype's
+    own function and must still be refused as an unknown object, not fail later inside React."""
+    ws = _workshop(tmp_path, shots=["WsShotA"], objects=["WsDisc"])
+    r = _still("WsShotA", tmp_path / "proto.png", {"object": {"id": "constructor"}}, _env(ws))
+    out = r.stdout + r.stderr
+    assert r.returncode != 0 and 'no object "constructor"' in out, out[-800:]
+
+
+@needs_toolchain
+def test_a_ref_with_props_at_the_top_level_is_refused(tmp_path):
+    """F3: the object's own prop put beside "id" instead of inside "props" must be refused — not silently
+    dropped, drawing the object's defaults."""
+    ws = _workshop(tmp_path, shots=["WsShotA"], objects=["WsDisc"])
+    r = _still("WsShotA", tmp_path / "stray.png", {"object": {"id": "WsDisc", "color": "#f00"}}, _env(ws))
+    out = r.stdout + r.stderr
+    assert r.returncode != 0 and 'outside "props"' in out and "color" in out, out[-800:]
+
+
+@needs_toolchain
+def test_key_in_props_is_refused(tmp_path):
+    """F3: React strips `key` off the props object before the component ever runs — an object author who
+    wrote it into props believing it would reach their component is silently wrong without this refusal."""
+    ws = _workshop(tmp_path, shots=["WsShotA"], objects=["WsDisc"])
+    r = _still("WsShotA", tmp_path / "keyprop.png",
+               {"object": {"id": "WsDisc", "props": {"key": "x"}}}, _env(ws))
+    out = r.stdout + r.stderr
+    assert r.returncode != 0 and "JSX's own" in out and "key" in out, out[-800:]
+
+
+@needs_toolchain
+def test_a_nan_box_is_refused(tmp_path):
+    """F4: a NaN box draws a NaN rect — a blank slot with no error."""
+    ws = _workshop(tmp_path, shots=["WsBox"], objects=["WsDisc"], shot_src=SHOT_BOX)
+    r = _still("WsBox", tmp_path / "nan.png", {"object": {"id": "WsDisc"}, "bw": "nan"}, _env(ws))
+    out = r.stdout + r.stderr
+    assert r.returncode != 0 and "box is unusable" in out, out[-800:]
+
+
+@needs_toolchain
+def test_a_zero_height_box_is_refused(tmp_path):
+    """F4: a zero-height box draws a 0×0 object — also a blank slot with no error."""
+    ws = _workshop(tmp_path, shots=["WsBox"], objects=["WsDisc"], shot_src=SHOT_BOX)
+    r = _still("WsBox", tmp_path / "zero.png", {"object": {"id": "WsDisc"}, "bh": 0}, _env(ws))
+    out = r.stdout + r.stderr
+    assert r.returncode != 0 and "box is unusable" in out, out[-800:]
+
+
+@needs_toolchain
+def test_a_workshop_shot_with_a_non_integer_duration_is_refused(tmp_path):
+    """F5: Remotion needs an integer durationInFrames; caught at load, for every shot in the workshop at once."""
+    ws = _workshop(tmp_path, shots=["WsBadDur"], shot_src=SHOT_BADDUR)
+    r = _still("WsBadDur", tmp_path / "dur.png", {}, _env(ws))
+    out = r.stdout + r.stderr
+    assert r.returncode != 0 and "DURATION" in out and "positive integer" in out, out[-800:]
+
+
+@needs_toolchain
+def test_a_workshop_shot_missing_its_component_is_refused(tmp_path):
+    """F5: the generated index imports `S_X.X` — an export name that does not match the filename resolves to
+    undefined, and REGISTRY[id] must not silently become that."""
+    ws = _workshop(tmp_path, shots=["WsNoComp"], shot_src=SHOT_NOCOMPONENT)
+    r = _still("WsNoComp", tmp_path / "nocomp.png", {}, _env(ws))
+    out = r.stdout + r.stderr
+    assert r.returncode != 0 and "has no component" in out, out[-800:]
+
+
+@needs_toolchain
+def test_a_workshop_object_missing_its_component_is_refused(tmp_path):
+    """F5: the same check, for a workshop object."""
+    ws = _workshop(tmp_path, shots=["WsShotA"], objects=["WsNoComp"], obj_src=OBJECT_NOCOMPONENT)
+    r = _still("WsShotA", tmp_path / "onocomp.png", {"object": {"id": "WsNoComp"}}, _env(ws))
+    out = r.stdout + r.stderr
+    assert r.returncode != 0 and "has no component" in out, out[-800:]
+
+
+@needs_toolchain
+def test_the_object_receives_the_beats_t(tmp_path):
+    """F8: an object whose fill depends on `t`, rendered at two frames far apart in the shot, must come back
+    two different colours."""
+    ws = _workshop(tmp_path, shots=["WsShotA"], objects=["WsTObj"], obj_src=OBJECT_T)
+    props = {"fill": "#000000", "object": {"id": "WsTObj"}}
+    r0 = _still("WsShotA", tmp_path / "t0.png", props, _env(ws), frame=0)
+    r1 = _still("WsShotA", tmp_path / "t1.png", props, _env(ws), frame=25)
+    assert r0.returncode == 0, (r0.stdout + r0.stderr)[-800:]
+    assert r1.returncode == 0, (r1.stdout + r1.stderr)[-800:]
+    early, late = _px(tmp_path / "t0.png", 960, 540), _px(tmp_path / "t1.png", 960, 540)
+    assert early[2] > early[0], early     # early t (held near ENTRY_T): mostly blue
+    assert late[0] > late[2], late        # t settled at 1: mostly red
+
+
+@needs_toolchain
+def test_the_object_receives_the_films_dna(tmp_path):
+    """F8: an object that paints `dna.accent`, rendered under a named DNA preset, must show that preset's
+    accent colour."""
+    ws = _workshop(tmp_path, shots=["WsShotA"], objects=["WsDnaObj"], obj_src=OBJECT_DNA)
+    r = _still("WsShotA", tmp_path / "dna.png",
+               {"fill": "#000000", "dna": "terminal", "object": {"id": "WsDnaObj"}}, _env(ws))
+    assert r.returncode == 0, (r.stdout + r.stderr)[-800:]
+    assert _near(_px(tmp_path / "dna.png", 960, 540), (61, 214, 164))

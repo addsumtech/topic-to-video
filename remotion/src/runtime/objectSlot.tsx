@@ -51,13 +51,25 @@ export const resolveObject = (objects: Record<string, ObjectEntry>, ref: unknown
   if (!r || typeof r !== 'object' || typeof r.id !== 'string' || !r.id.trim()) {
     throw new Error(`ObjectSlot: an object is {"id": "<Name>", "props": {...}} — got ${JSON.stringify(ref)}`);
   }
-  const e = objects[r.id];
-  if (!e) {
+  // A ref is EXACTLY {id, props}. A stray top-level key (a film's own props put at the top instead of inside
+  // "props") draws the object's defaults with no error — silently, because it is a shape the reader below
+  // never looks at. Refused before the lookup, naming the keys and where they belong.
+  const stray = Object.keys(r).filter((k) => k !== 'id' && k !== 'props');
+  if (stray.length) {
+    throw new Error(`ObjectSlot: "${r.id}" has ${stray.join(', ')} outside "props" — an object is exactly ` +
+      '{"id": ..., "props": {...}}; its own props go inside "props", not beside "id".');
+  }
+  // `objects[r.id]` reads the PROTOTYPE CHAIN too: an id of "constructor" or "toString" resolves to
+  // Object.prototype's own function, passes this check, and fails later inside React with a generic "element
+  // type is invalid" that names nothing. hasOwnProperty (the same pattern shotLuma.ts's isRegisteredShot
+  // uses) only ever matches a REAL entry.
+  if (!Object.prototype.hasOwnProperty.call(objects, r.id)) {
     const known = Object.keys(objects).sort();
     throw new Error(`ObjectSlot: no object "${r.id}" — defined here: ${known.length ? known.join(', ') : '(none)'}. ` +
       `A film builds its own in <out_dir>/workshop/objects/${r.id}.tsx ` +
       `(python3 scripts/workshop.py <out_dir> new-object ${r.id} --means "...").`);
   }
+  const e = objects[r.id];
   if (r.props != null && (typeof r.props !== 'object' || Array.isArray(r.props))) {
     throw new Error(`ObjectSlot: "${r.id}".props must be an object — got ${JSON.stringify(r.props)}`);
   }
@@ -65,6 +77,13 @@ export const resolveObject = (objects: Record<string, ObjectEntry>, ref: unknown
   if (clash.length) {
     throw new Error(`ObjectSlot: "${r.id}".props sets ${clash.join(', ')}, which the slot gives every object ` +
       "(its box, its clock, the film's DNA) — remove them.");
+  }
+  // `key` and `ref` are JSX's own — React strips them off the props object before the component ever runs, so
+  // an object author who wrote `props: {key: ...}` believing it would reach their component is silently wrong.
+  const reactOwn = ['key', 'ref'].filter((k) => r.props != null && k in (r.props as Record<string, unknown>));
+  if (reactOwn.length) {
+    throw new Error(`ObjectSlot: "${r.id}".props sets ${reactOwn.join(', ')} — those are JSX's own, stripped ` +
+      'before the object ever sees them; rename them.');
   }
   return e;
 };
@@ -78,6 +97,15 @@ export const ObjectSlot: React.FC<{object: ObjectRef; box: Rect; t?: number; yaw
   const beatT = useT();
   const dna = useDNA();
   const {C, meta} = resolveObject(objects, object);
+  // A NaN/Infinity coordinate draws a NaN rect (the object never appears — CSS silently treats it as auto);
+  // a zero (or negative) w/h draws a 0×0 object — a blank slot either way, the exact failure this file's
+  // header is written against. Checked here, not in fitAspect: fitAspect is a plain layout function other
+  // hosts call for other purposes, and its own tests pin its behaviour on the boxes they pass it.
+  if (!(Number.isFinite(box.x) && Number.isFinite(box.y) && Number.isFinite(box.w) && Number.isFinite(box.h)
+        && box.w > 0 && box.h > 0)) {
+    throw new Error(`ObjectSlot: "${object.id}"'s box is unusable — {x, y, w, h} must all be finite and w/h ` +
+      `positive; got ${JSON.stringify(box)}. The host drawing this slot has a layout bug.`);
+  }
   const r = fitAspect(box, meta?.aspect);
   return (
     <div data-object-slot={object.id}

@@ -279,6 +279,19 @@ for (const [id, s] of Object.entries(WORKSHOP_SHOTS)) {
     throw new Error(`the film's workshop shot "${id}" has the name of a library register — rename it ` +
       '(scripts/workshop.py check refuses this before a render)');
   }
+  // Both checked at LOAD, before any composition renders: a missing component is a render of nothing where a
+  // beat was meant to be, and Remotion needs an actual integer frame count for durationInFrames — either one
+  // reaching a real render is a defect that should have been caught at bundle time, cheaply, for every shot at
+  // once. A bad or missing GROUND stays soft here on purpose (Ruling R8) — `workshop.py check` and validate
+  // report it — so a shot mid-build can still be previewed while only its ground is wrong.
+  if (!s.C) {
+    throw new Error(`the film's workshop shot "${id}" has no component — its workshop/shots/${id}.tsx must ` +
+      `export a component named "${id}" (scripts/workshop.py check catches this before a render)`);
+  }
+  if (!(Number.isInteger(s.d) && s.d > 0)) {
+    throw new Error(`the film's workshop shot "${id}"'s DURATION is ${JSON.stringify(s.d)} — it must be a ` +
+      'positive integer number of frames');
+  }
   REGISTRY[id] = s.C;
   (DNA_GROUND_TOKEN as Record<string, GroundSpec>)[id] = s.ground;
 }
@@ -289,6 +302,10 @@ export const OBJECTS: Record<string, ObjectEntry> = {...LIBRARY_OBJECTS};
 for (const [id, o] of Object.entries(WORKSHOP_OBJECTS)) {
   if (OBJECTS[id]) {
     throw new Error(`the film's workshop object "${id}" has the name of a library object — rename it`);
+  }
+  if (!o?.C) {
+    throw new Error(`the film's workshop object "${id}" has no component — its workshop/objects/${id}.tsx must ` +
+      `export a component named "${id}" (scripts/workshop.py check catches this before a render)`);
   }
   OBJECTS[id] = o;
 }
