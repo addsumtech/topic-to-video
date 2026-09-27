@@ -259,19 +259,31 @@ def _worlds():
     return list(shot_director.IDIOM_WORLDS)
 
 
-_COMPOSITION_ID = re.compile(r'<Composition\b[^\n]*?\bid="([A-Za-z0-9_]+)"')
-_F_ROW_ID = re.compile(r"\bF\(\s*'([A-Za-z0-9_]+)'")
+# M1 (task-2-fix-1.md): `[^<]*?` (not `[^\n]*?`) so `id="…"` is found even on a LATER line of the same
+# `<Composition …>`/`<Still …>` element — bounded by the NEXT `<` (the start of a sibling element), which a
+# `=> (...)` arrow inside the same tag (e.g. `calculateMetadata`) can never contain, so it can't prematurely
+# end the scan the way excluding `>` instead would (an arrow contains a literal `>`).
+_COMPOSITION_ID = re.compile(r'<(?:Composition|Still)\b[^<]*?\bid="([A-Za-z0-9_]+)"')
+_F_ROW_ID = re.compile(r"\bF\(\s*'([A-Za-z0-9_]+)'")   # already spans line breaks: \s* matches \n too
 
 
 def _root_composition_ids():
     """Every composition id remotion/src/Root.tsx registers directly (R9): `Film` and `StageProbe` as
-    `id="…"` Composition attributes, `TypeSpecimen`, `FontProbe` and the other `*Probe` ids as `{F('<Id>', …)}`
-    rows. None of these is a file in src/shots/ or src/objects/, so library_shot_names()/library_object_names()
-    cannot see a workshop name collide with one — and unrefused, that collision would hit Remotion's generic
-    duplicate-composition error instead of a specific one naming the file to rename. Read from Root.tsx itself,
-    not a hard-coded list, so a future composition Root.tsx adds is covered automatically."""
+    `<Composition id="…">` attributes, `TypeSpecimen`, `FontProbe` and the other `*Probe` ids as
+    `{F('<Id>', …)}` rows. Read from Root.tsx itself, not a hard-coded list, so a future composition Root.tsx
+    adds is covered automatically — but MOST of what this returns (187 of 202, 2026-09-27) is ALSO a file in
+    src/shots/ or src/objects/, which library_shot_names()/library_object_names() already see and report with
+    their own, more specific message; a caller wanting the R9-only names subtracts those two sets itself
+    (M1: `_root_composition_ids() - library_shot_names() - library_object_names()` — TermTable used to get two
+    messages). Raises if the result does not contain "Film" — Root.tsx's own format changing in a way this
+    parser no longer understands must be loud, not a silently incomplete set that under-refuses forever."""
     src = _strip_comments(_read(ROOT_TSX))
-    return set(_COMPOSITION_ID.findall(src)) | set(_F_ROW_ID.findall(src))
+    ids = set(_COMPOSITION_ID.findall(src)) | set(_F_ROW_ID.findall(src))
+    if "Film" not in ids:
+        raise RuntimeError("Root.tsx's own composition ids no longer include \"Film\" — "
+                           "_root_composition_ids()'s parser (scripts/workshop.py) needs updating for "
+                           "whatever changed there")
+    return ids
 
 
 _SLOT_KEY = re.compile(r"\b([A-Za-z_]\w*)\s*\??\s*:\s*ObjectRef\b")
@@ -391,6 +403,22 @@ def uses(slides, out_dir):
     return out
 
 
+def _library_or_composition_clash(name):
+    """None, or why `name` cannot be a workshop item's name because the LIBRARY already has it — a shot
+    register, an object, or (R9) a composition id Root.tsx registers directly (and that is not ALSO one of the
+    first two, which already have their own, more specific reason — M1, task-2-fix-1.md: TermTable is both a
+    library shot file and an {F('TermTable', …)} row). Shared by `_problems()` (an existing file) and
+    `scaffold()` (M2: refuses BEFORE writing one, instead of writing a file every later check then refuses)."""
+    lib_s, lib_o = library_shot_names(), library_object_names()
+    if name in lib_s:
+        return "%s is already a library register — rename it (the render refuses a shadowed name)" % name
+    if name in lib_o:
+        return "%s is already a library object — rename it" % name
+    if name in (_root_composition_ids() - lib_s - lib_o):
+        return "%s is already a library composition — rename it (Root.tsx registers it directly)" % name
+    return None
+
+
 def _problems(out_dir):
     """[(sentence, blocking)] for the workshop's layout and declarations. BLOCKING problems stop an index from being
     written (a name that is not an identifier, a shadowed library name, a component or DURATION the index cannot
@@ -406,7 +434,7 @@ def _problems(out_dir):
         out.append(("workshop/%s: a workshop holds objects/, shots/ and assets/ only" % entry, False))
     for n in sorted(shot_names(out_dir) & object_names(out_dir)):
         out.append(("workshop: %s is both a shot and an object — one name, one thing" % n, True))
-    lib_s, lib_o, worlds, comp_ids = library_shot_names(), library_object_names(), _worlds(), _root_composition_ids()
+    worlds = _worlds()
     for kind in KINDS:
         folder = os.path.join(ws, kind)
         if not os.path.isdir(folder):
@@ -422,14 +450,9 @@ def _problems(out_dir):
             if not NAME.match(n):
                 out.append(("%s: a name is PascalCase, 3-32 letters and digits" % where, True))
                 continue
-            if n in lib_s:
-                out.append(("%s: %s is already a library register — rename it (the render refuses a shadowed name)"
-                            % (where, n), True))
-            if n in lib_o:
-                out.append(("%s: %s is already a library object — rename it" % (where, n), True))
-            if n in comp_ids:
-                out.append(("%s: %s is already a library composition — rename it (Root.tsx registers it directly)"
-                            % (where, n), True))
+            clash = _library_or_composition_clash(n)
+            if clash:
+                out.append(("%s: %s" % (where, clash), True))
             src = _read(os.path.join(folder, n + ".tsx"))
             # M6 (task-2-fix-1.md): every declaration check below reads comment-stripped source — EXCEPT the
             # scaffold marker just below, which IS a comment (`// @scaffold …`) and must stay on the raw one.
@@ -766,10 +789,12 @@ def scaffold(out_dir, kind, name, means):
     probs = []
     if not NAME.match(name or ""):
         probs.append("%r: a name is PascalCase, 3-32 letters and digits" % (name,))
-    elif name in library_shot_names() or name in library_object_names():
-        probs.append("%s is already in the library — pick another name, or use the library's" % name)
-    elif name in shot_names(out_dir) | object_names(out_dir):
-        probs.append("%s is already in this film's workshop" % name)
+    else:
+        clash = _library_or_composition_clash(name)   # M2: the SAME check _problems() refuses an item with
+        if clash:
+            probs.append(clash)
+        elif name in shot_names(out_dir) | object_names(out_dir):
+            probs.append("%s is already in this film's workshop" % name)
     if not str(means or "").strip():
         probs.append("--means: say what the viewer must see — it heads the file and the build-list entry")
     if probs:

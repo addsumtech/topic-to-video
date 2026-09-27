@@ -135,6 +135,57 @@ def test_a_name_taken_by_a_root_composition_is_a_blocking_problem(tmp_path, name
     assert any("already a library composition" in p for p in ws.index_blockers(out)), ws.index_blockers(out)
 
 
+def test_m1_a_name_that_is_both_a_library_register_and_a_composition_id_gets_one_message(tmp_path):
+    """M1: TermTable is a real library shot file AND a {F('TermTable', …)} row in Root.tsx — before this fix
+    the composition-id check fired independently of the library check and reported it twice."""
+    out = _film(tmp_path, shots=["TermTable"])
+    probs = [p for p in ws.names_problems(out) if "TermTable" in p and "already a library" in p]
+    assert len(probs) == 1, probs
+    assert "already a library register" in probs[0], probs
+
+
+def test_m1_composition_ids_are_read_across_line_breaks_and_from_still_elements(tmp_path, monkeypatch):
+    """M1: id="…" is not always on the same line as `<Composition`/`<Still` — and a `<Still>` element (a real
+    Remotion component, not used in this file today) must be recognised too."""
+    fake_root = tmp_path / "FakeRoot.tsx"
+    fake_root.write_text(
+        "export const RemotionRoot = () => (\n"
+        "  <>\n"
+        "    <Composition\n"
+        "      id=\"Film\"\n"
+        "      component={X} />\n"
+        "    <Still\n"
+        "      id=\"MultiLineStill\"\n"
+        "      component={Y} />\n"
+        "  </>\n"
+        ");\n", encoding="utf-8")
+    monkeypatch.setattr(ws, "ROOT_TSX", str(fake_root))
+    ids = ws._root_composition_ids()
+    assert ids == {"Film", "MultiLineStill"}, ids
+
+
+def test_m1_a_root_that_no_longer_lists_film_raises_loudly(tmp_path, monkeypatch):
+    """M1: if Root.tsx's own format changes in a way this parser doesn't understand, it must say so loudly
+    rather than silently return an incomplete set that then under-refuses forever."""
+    fake_root = tmp_path / "FakeRoot.tsx"
+    fake_root.write_text("export const RemotionRoot = () => <Composition id=\"SomethingElse\" />;\n",
+                          encoding="utf-8")
+    monkeypatch.setattr(ws, "ROOT_TSX", str(fake_root))
+    with pytest.raises(RuntimeError, match="Film"):
+        ws._root_composition_ids()
+
+
+def test_m2_scaffold_refuses_a_name_taken_by_a_root_composition_before_writing(tmp_path):
+    """M2: scaffold() used to share none of _problems()'s name checks beyond PascalCase/library-name, so
+    scaffold(out, "shot", "Film", …) wrote a file every later check (and every later scaffold/new-shot call)
+    would then refuse."""
+    out = str(tmp_path / "film")
+    with pytest.raises(ws.WorkshopError) as e:
+        ws.scaffold(out, "shot", "Film", "a test")
+    assert any("already a library composition" in p for p in e.value.problems), e.value.problems
+    assert not os.path.exists(os.path.join(out, "workshop", "shots", "Film.tsx"))
+
+
 def test_imports_are_held_to_react_remotion_the_runtime_the_library_and_the_workshop(tmp_path):
     out = _film(tmp_path, objects=["WsDisc"])
     bad = tmp_path / "film" / "workshop" / "objects" / "WsBad.tsx"
