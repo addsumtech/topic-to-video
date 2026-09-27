@@ -62,7 +62,7 @@ def durations():
     return out
 
 
-def audit_shot(shot, props, frame, tmp_png, public_dir=None):
+def audit_shot(shot, props, frame, tmp_png, public_dir=None, env=None):
     """Render one shot with the audit armed. Returns [] (clean) or the violation list it reported.
 
     Props travel by FILE, never on the command line: a beat's real copy is routinely CJK, and a multibyte
@@ -93,7 +93,8 @@ def audit_shot(shot, props, frame, tmp_png, public_dir=None):
                "--props=" + os.path.abspath(pf)]
         if public_dir:
             cmd.append("--public-dir=" + os.path.abspath(public_dir))
-        r = subprocess.run(cmd, capture_output=True, text=True, cwd=_REMOTION)
+        r = subprocess.run(cmd, capture_output=True, text=True, cwd=_REMOTION,
+                           **({"env": env} if env is not None else {}))
         blob = (r.stdout or "") + (r.stderr or "")
         if TAG in blob or r.returncode == 0:
             break
@@ -110,8 +111,9 @@ def audit_shot(shot, props, frame, tmp_png, public_dir=None):
     if r.returncode != 0:
         # A render that failed measured NOTHING. Reporting it as clean is how a gate quietly stops gating —
         # so it still surfaces, but as a RENDER FAILURE after a retry, not as a finding about the type.
+        from shot_proof import _stderr_reason        # the MESSAGE, never the last line of a stack
         return [{"text": "(render FAILED twice — nothing was measured on this frame: %s)"
-                         % (blob.strip().splitlines() or ["?"])[-1][:140], "out": {}}]
+                         % _stderr_reason(blob)[:160], "out": {}}]
     return []
 
 
@@ -141,6 +143,10 @@ def scan_film(out_dir):
     board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
     meta = board.get("meta") or {}
     durs = durations()
+    import workshop as _ws
+    # A FILM'S OWN SHOTS are registers too: measured the same way, rendered in a bundle that holds its workshop.
+    durs.update(_ws.durations(out_dir))
+    env = _ws.prepare(out_dir)
     findings, checked, skipped = [], 0, []
     slides = board.get("slides") or []
     tmp = os.path.join(out_dir, "._textsafe.png")
@@ -162,7 +168,7 @@ def scan_film(out_dir):
             props.setdefault("aspect", meta["aspect"])
         frame = int(round(rr.frame_at_t(durs[shot], rr.SETTLED_T)))
         checked += 1
-        for v in audit_shot(shot, props, frame, tmp, public_dir=out_dir):
+        for v in audit_shot(shot, props, frame, tmp, public_dir=out_dir, env=env):
             findings.append("scene %02d (%s): %s" % (i, shot, _describe(v)))
     for p in (tmp, tmp + ".props.json"):
         if os.path.exists(p):

@@ -36,6 +36,22 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _REMOTION = os.path.join(_HERE, "..", "remotion")
 _SHOTS = os.path.join(_REMOTION, "src", "shots")
 
+# THE FILM'S OWN REGISTERS. While a film is proofed, its workshop's shots/ folder (scripts/workshop.py) is read
+# after the library's, and every still renders in a bundle that holds the workshop. Empty otherwise.
+_FILM_SHOTS = []
+_FILM_ENV = {}
+
+
+def _src_path(shot):
+    """Where register `shot` is defined for the film being proofed: the library first, then the film's own. One
+    lookup, so no check here reads the library for a register the film built itself."""
+    for d in [_SHOTS] + _FILM_SHOTS:
+        p = os.path.join(d, shot + ".tsx")
+        if os.path.isfile(p):
+            return p
+    return os.path.join(_SHOTS, shot + ".tsx")           # the path the caller's message names
+
+
 # Hue arc a colour must NOT fall in, expressed as "outside the film's own two accents by more than this
 # many degrees". Computed per film from its DNA rather than hardcoded, so it works for any palette.
 HUE_TOLERANCE = 28
@@ -109,7 +125,7 @@ def switch_props(shot):
     setting, not copy. Their default is a real choice a film makes (a phone), never leftover demo furniture, so
     the demo-default rule does not read them; it warned on every phone DeviceDemo."""
     try:
-        src = open(os.path.join(_SHOTS, shot + ".tsx"), encoding="utf-8").read()
+        src = open(_src_path(shot), encoding="utf-8").read()
     except OSError:
         return set()
     runtime = []
@@ -135,7 +151,7 @@ def switch_props(shot):
 def shot_defaults(shot):
     """{prop: default} for a registered shot — reads the file and delegates."""
     try:
-        src = open(os.path.join(_SHOTS, shot + ".tsx"), encoding="utf-8").read()
+        src = open(_src_path(shot), encoding="utf-8").read()
     except OSError:
         return {}
     return defaults_from_source(src, shot)
@@ -182,7 +198,7 @@ def demo_content_props(shot):
     whole library.
     """
     try:
-        src = open(os.path.join(_SHOTS, shot + ".tsx"), encoding="utf-8").read()
+        src = open(_src_path(shot), encoding="utf-8").read()
     except OSError:
         return {}
     m = re.search(r"export const %s\s*:\s*React\.FC<" % re.escape(shot), src)
@@ -203,7 +219,7 @@ def icon_capable(shot):
     the first one somebody added.
     """
     try:
-        src = open(os.path.join(_SHOTS, shot + ".tsx"), encoding="utf-8").read()
+        src = open(_src_path(shot), encoding="utf-8").read()
     except OSError:
         return False
     return "runtime/icons" in src
@@ -241,7 +257,7 @@ def exported_props(shot):
     read the wrong `React.FC<{...}>` and you get a private interface that no board can address.
     """
     try:
-        src = open(os.path.join(_SHOTS, shot + ".tsx"), encoding="utf-8").read()
+        src = open(_src_path(shot), encoding="utf-8").read()
     except OSError:
         return None
     m = re.search(r"export const %s\s*:\s*React\.FC<\{" % re.escape(shot), src)
@@ -322,7 +338,7 @@ def default_copy(shot):
     TEAM -- NO CLOUD" across a Chinese beat, and NO CLOUD contradicted the film's own sources.
     """
     try:
-        src = open(os.path.join(_SHOTS, shot + ".tsx"), encoding="utf-8").read()
+        src = open(_src_path(shot), encoding="utf-8").read()
     except OSError:
         return {}
     consts = {}
@@ -488,7 +504,7 @@ def static_checks(board, skips=None):
                     topic.add(phrase)          # a PHRASE, never a lone token: one word is never proof
     for shot in sorted({s.get("shot") for s in slides if s.get("shot")}):
         try:
-            src = open(os.path.join(_SHOTS, shot + ".tsx"), encoding="utf-8").read()
+            src = open(_src_path(shot), encoding="utf-8").read()
         except OSError as e:
             skips.append("%s: src/shots/%s.tsx could not be opened (%s) — the welded-copy check did not "
                          "run for this register" % (shot, shot, e))
@@ -681,6 +697,10 @@ def main(argv):
         print("[shot_proof] no storyboard.json in %s" % out_dir)
         return 2
     board = json.load(open(board_path, encoding="utf-8"))
+    import workshop as _ws
+    _FILM_SHOTS[:] = [os.path.join(_ws.workshop_dir(out_dir), "shots")]
+    _FILM_ENV.clear()
+    _FILM_ENV.update(_ws.run_kwargs(out_dir))
     if str(board.get("meta", {}).get("renderer", "")).lower() not in ("remotion", "remotion-bespoke"):
         print("[shot_proof] not a remotion deck — nothing to prove")
         return 0
@@ -726,7 +746,7 @@ def main(argv):
                 continue
             src, src_err = "", None
             try:
-                src = open(os.path.join(_SHOTS, shot + ".tsx"), encoding="utf-8").read()
+                src = open(_src_path(shot), encoding="utf-8").read()
             except OSError as e:
                 src_err = str(e)
             dm = re.search(r"export const DURATION\s*=\s*(\d+)", src)
@@ -771,7 +791,7 @@ def main(argv):
             r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png,
                                 "--frame=%d" % frame, "--gl=angle", "--props=" + pj, "--log=error",
                                 "--public-dir=" + os.path.abspath(out_dir)],
-                               cwd=_REMOTION, capture_output=True, text=True)
+                               cwd=_REMOTION, capture_output=True, text=True, **_FILM_ENV)
             if r.returncode != 0 or not os.path.exists(png):
                 why = _stderr_reason(r.stderr)
                 errors.append("beat %d (%s): the shot FAILED to render standalone at frame %d — %s"
@@ -791,7 +811,7 @@ def main(argv):
                                      "--frame=%d" % int(int(dm.group(1)) * 0.5), "--gl=angle",
                                      "--props=" + pj, "--log=error",
                                      "--public-dir=" + os.path.abspath(out_dir)],
-                                    cwd=_REMOTION, capture_output=True, text=True)
+                                    cwd=_REMOTION, capture_output=True, text=True, **_FILM_ENV)
                 if rm.returncode != 0 or not os.path.exists(mid_png):
                     # The one ERROR that guards an on-screen NUMBER. Dropping it in silence when the
                     # second still fails is how a film ships a digit caught mid-flight with a green gate.

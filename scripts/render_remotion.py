@@ -607,7 +607,10 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
     AS IT IS NOW. Reading the last render's props file instead would answer "which beats would a render
     redo?" with "none" right after an edit — the one moment anybody asks.
     """
-    valid = _remotion_shot_ids()
+    import workshop as _ws
+    # A FILM'S OWN SHOTS ARE SHOTS. The library's ids are the component files in remotion/src/shots; a film's
+    # workshop (scripts/workshop.py) adds its own, which exist only in a render scoped to this film.
+    valid = set(_remotion_shot_ids()) | _ws.shot_names(out_dir)
     slides = data.get("slides", [])
     if sample is not None:
         slides = [s for s in slides if s.get("index") == sample]
@@ -705,13 +708,15 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
                   "instead; nothing from the cache is used." % e)
             segmented = False
     if not segmented:
+        import workshop as _ws
+        wk = _ws.run_kwargs(out_dir)            # the film's workshop — or {}, exactly the call it always was
         cmd = ["npx", "remotion", "render", "src/index.ts", "Film", out_mp4,
                "--props=" + os.path.abspath(props_path), "--public-dir=" + os.path.abspath(out_dir)] + run_flags
         try:
-            subprocess.run(cmd, cwd=_REMOTION2_DIR, check=True)
+            subprocess.run(cmd, cwd=_REMOTION2_DIR, check=True, **wk)
         except subprocess.CalledProcessError:
             print("[render_remotion] render failed with GL — retrying ONCE without --gl (software raster; slower).")
-            subprocess.run([a for a in cmd if not a.startswith("--gl=")], cwd=_REMOTION2_DIR, check=True)
+            subprocess.run([a for a in cmd if not a.startswith("--gl=")], cwd=_REMOTION2_DIR, check=True, **wk)
     if sample is None:                                 # delivery parity: srt + critic keyframes (full render only)
         try:
             _remotion_deliverables(out_dir, scenes, out_mp4, fps, segments=segments_used)

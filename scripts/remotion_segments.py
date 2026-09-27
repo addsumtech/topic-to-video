@@ -56,6 +56,11 @@ CACHE_DIR = ".remotion_segments"
 CACHE_VERSION = 1          # bump when the MEANING of a key changes, so every old segment is re-rendered
 
 
+def _wk(env):
+    """subprocess kwargs for a film's environment — none at all when it has no workshop (scripts/workshop.py)."""
+    return {"env": env} if env is not None else {}
+
+
 def default_gl():
     """The GL backend a render uses — ONE definition, because it is in every key: `--plan` asking with a
     different one would report every cached beat as stale."""
@@ -162,9 +167,10 @@ _IMPORT = re.compile(r"""(?:\bfrom\s+|\bimport\s*\(\s*|\brequire\s*\(\s*|^\s*imp
 _EXTS = ("", ".ts", ".tsx", ".js", ".jsx", ".json", "/index.ts", "/index.tsx", "/index.js")
 
 
-def code_files():
+def code_files(out_dir=None):
     """Every file the bundle is built from: remotion/src, whatever src imports from OUTSIDE src (the fonts
-    live in the skill's assets/fonts), the lockfile and the bundler/TypeScript config."""
+    live in the skill's assets/fonts), the lockfile and the bundler/TypeScript config — and, for a film with
+    a workshop, every source of it (scripts/workshop.py)."""
     src = os.path.join(REMOTION, "src")
     files = set()
     for dp, dn, fn in os.walk(src):
@@ -189,13 +195,23 @@ def code_files():
         p = os.path.join(REMOTION, extra)
         if os.path.isfile(p):
             files.add(p)
+    if out_dir:
+        import workshop as _ws
+        files.update(_ws.code_files(out_dir))
     return sorted(files)
 
 
-def code_hash():
+def code_hash(out_dir=None):
+    """The code a segment is built from. A workshop file is keyed by its path INSIDE the workshop, so moving a
+    film folder does not re-render it and editing one of its built things does."""
+    ws_root = None
+    if out_dir:
+        import workshop as _ws
+        ws_root = _ws.workshop_dir(out_dir) + os.sep
     h = hashlib.sha256()
-    for p in code_files():
-        h.update(os.path.relpath(p, SKILL).encode("utf-8"))
+    for p in code_files(out_dir):
+        rel = ("workshop/" + os.path.relpath(p, ws_root)) if ws_root and p.startswith(ws_root) else os.path.relpath(p, SKILL)
+        h.update(rel.replace(os.sep, "/").encode("utf-8"))
         h.update(b"\0")
         h.update(file_sha(p).encode("ascii"))
         h.update(b"\n")
@@ -208,7 +224,7 @@ def plan(props, public_dir, flags, tr=None, code=None):
     tr = seam_frames() if tr is None else tr
     scenes = props.get("scenes") or []
     ranges, total = timeline(scenes, tr)
-    code = code_hash() if code is None else code
+    code = code_hash(public_dir) if code is None else code
     film = {k: v for k, v in props.items() if k != "scenes"}
     # THE ROOT FILL IS SCENE 0's OPENING GROUND (Film.tsx `rootBg`), under every frame of the film. It is
     # covered by the Atmosphere's opaque fill, so this is belt and braces — and cheap, because only what
@@ -272,16 +288,16 @@ def minimal_public(props, public_dir, dest):
     return dest
 
 
-def _bundle(dest, public, run=subprocess.run):
-    """Bundle the film ONCE for all the segments of this render."""
+def _bundle(dest, public, run=subprocess.run, env=None):
+    """Bundle the film ONCE for all the segments of this render — with the film's workshop, when it has one."""
     run(["npx", "remotion", "bundle", "src/index.ts", "--out-dir=" + dest, "--public-dir=" + public,
-         "--log=error"], cwd=REMOTION, check=True)
+         "--log=error"], cwd=REMOTION, check=True, **_wk(env))
     if not os.path.isfile(os.path.join(dest, "index.html")):
         raise ModelMismatch("`remotion bundle` produced no index.html in %s" % dest)
     return dest
 
 
-def render_segment(seg, last, props_path, public_dir, cache, cli_flags, run=subprocess.run, serve=None):
+def render_segment(seg, last, props_path, public_dir, cache, cli_flags, run=subprocess.run, serve=None, env=None):
     """Render one segment to its cache file, atomically: a crash leaves no half file under the final name.
 
     `serve` is a bundle built once for the whole render (see `_bundle`); without one the CLI bundles from
@@ -298,12 +314,12 @@ def render_segment(seg, last, props_path, public_dir, cache, cli_flags, run=subp
            "--enforce-audio-track", "--frames=" + frames, "--props=" + os.path.abspath(props_path)]
            + ([] if serve else ["--public-dir=" + os.path.abspath(public_dir)]) + list(cli_flags))
     try:
-        run(cmd, cwd=REMOTION, check=True)
+        run(cmd, cwd=REMOTION, check=True, **_wk(env))
     except subprocess.CalledProcessError:
         if not any(a.startswith("--gl=") for a in cmd):
             raise
         print("[segments] beat %d failed with GL — retrying ONCE without --gl (software raster; slower)." % seg["k"])
-        run([a for a in cmd if not a.startswith("--gl=")], cwd=REMOTION, check=True)
+        run([a for a in cmd if not a.startswith("--gl=")], cwd=REMOTION, check=True, **_wk(env))
     got, want = video_frames(tmp), seg["b"] - seg["a"] + 1
     if got != want:
         os.remove(tmp)
@@ -381,11 +397,13 @@ def render_film(out_dir, props, props_path, out_mp4, cli_flags, flags, log=print
         len(segs), len(segs) - len(stale), len(stale),
         (" (beats %s)" % ", ".join(str(name(s["k"])) for s in stale[:12]) + (" ..." if len(stale) > 12 else ""))
         if stale else ""))
+    import workshop as _ws
+    env = _ws.prepare(out_dir)       # the film's workshop enters the bundle here
     work = tempfile.mkdtemp(prefix="remotion_segments_") if stale else None
     try:
         serve = (_bundle(os.path.join(work, "bundle"), minimal_public(props, out_dir, os.path.join(work, "public")),
-                         run=run) if stale else None)
-        _render_stale(stale, segs, props_path, out_dir, cache, cli_flags, run, serve, name, log)
+                         run=run, env=env) if stale else None)
+        _render_stale(stale, segs, props_path, out_dir, cache, cli_flags, run, serve, name, log, env=env)
     finally:
         if work:
             shutil.rmtree(work, ignore_errors=True)
@@ -399,12 +417,13 @@ def render_film(out_dir, props, props_path, out_mp4, cli_flags, flags, log=print
             "segments": [(s["a"], s["b"], s["key"]) for s in segs]}
 
 
-def _render_stale(stale, segs, props_path, out_dir, cache, cli_flags, run, serve, name, log):
+def _render_stale(stale, segs, props_path, out_dir, cache, cli_flags, run, serve, name, log, env=None):
     for i, s in enumerate(stale):
         log("[segments] rendering beat %s (%d of %d to render, frames %d-%d)"
             % (name(s["k"]), i + 1, len(stale), s["a"], s["b"]))
         try:
-            render_segment(s, s["k"] == len(segs) - 1, props_path, out_dir, cache, cli_flags, run=run, serve=serve)
+            render_segment(s, s["k"] == len(segs) - 1, props_path, out_dir, cache, cli_flags, run=run, serve=serve,
+                           env=env)
         except subprocess.CalledProcessError:
             # A real render failure (memory, a register that throws) is not the model's fault and a whole
             # render would hit it too. Say what is already safe, so a re-run is a resume, not a restart.

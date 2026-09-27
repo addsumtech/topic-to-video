@@ -1584,7 +1584,7 @@ def _default_ink(shot, frame, tmp, dna, aspect):
     r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png, "--frame=%d" % frame,
                         "--gl=angle", "--log=error", "--props=" + os.path.abspath(pf),
                         "--public-dir=" + PUBLIC_DIR],
-                       cwd=_REMOTION, capture_output=True, text=True)
+                       cwd=_REMOTION, capture_output=True, text=True, **_wk())
     try:
         return _ink_fraction(png) if r.returncode == 0 and os.path.exists(png) else None
     finally:
@@ -1601,6 +1601,14 @@ FED_TAG = "FED-TEXT "
 # would report numbers from the broken instrument and look exactly like a normal run. This happened. The
 # mutator holds this sentinel; every render refuses while it is there, loudly, instead of returning a lie.
 _MUTATING = os.path.join(_REMOTION, ".textsafe-mutating")
+
+# The film's workshop environment for the renders of ONE film-mode sweep (scripts/workshop.py) — None outside it,
+# so a library sweep never bundles a film's workshop.
+_RUN_ENV = None
+
+
+def _wk():
+    return {"env": _RUN_ENV} if _RUN_ENV is not None else {}
 
 
 def _refuse_if_instrument_is_mutated():
@@ -1656,7 +1664,7 @@ def _fed_missing(shot, props, frame, tmp, dna, aspect, fed):
     r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png, "--frame=%d" % frame,
                         "--gl=angle", "--log=error", "--props=" + os.path.abspath(pf),
                         "--public-dir=" + PUBLIC_DIR],
-                       cwd=_REMOTION, capture_output=True, text=True)
+                       cwd=_REMOTION, capture_output=True, text=True, **_wk())
     for f in (pf, png):
         if os.path.exists(f):
             os.remove(f)
@@ -1715,7 +1723,7 @@ def audit(shot, props, frame, tmp, dna=DEFAULT_DNA, aspect=None, why=None):
     # that dies under a loaded sweep, the failure mode `text_safe_qa.audit_shot` already retries for. One
     # retry, and what survives it is reported with its own message.
     for _attempt in (1, 2):
-        r = subprocess.run(cmd, cwd=_REMOTION, capture_output=True, text=True)
+        r = subprocess.run(cmd, cwd=_REMOTION, capture_output=True, text=True, **_wk())
         err = (r.stderr or "") + (r.stdout or "")
         if TAG in err or r.returncode == 0:
             break
@@ -1814,7 +1822,7 @@ def evidence_props():
         return {}
 
 
-def sweep(names, dna=DEFAULT_DNA, aspect=None, film_props=None):
+def sweep(names, dna=DEFAULT_DNA, aspect=None, film_props=None, out_dir=None):
     """{shot: {'hits': [...], 'untestable': [...], 'failed': bool, 'why': str|None, 'cjk_fed': int}}
 
     `cjk_fed` IS THE COVERAGE, and it was the number nobody had. This gate's headline counted registers that
@@ -1823,31 +1831,39 @@ def sweep(names, dna=DEFAULT_DNA, aspect=None, film_props=None):
     Chinese copy". `audit()` only asks which fed strings reached the screen when the frame already looks
     empty — a busy frame short-circuits to clean before the question is put. Counting the CJK leaves that
     went in costs nothing and makes the claim checkable."""
+    global _RUN_ENV
     durs = durations()
-    ev = evidence_props()
-    out = {}
-    tmp = os.path.join(_REMOTION, ".cjk_type_probe.%d.png" % os.getpid())
-    for n in names:
-        props, untestable = (film_props.get(n), []) if film_props else cjk_props(n)
-        if props is None:
-            props, untestable = cjk_props(n)
-        if n in ev:
-            # a plate register needs its picture to draw at all — but a FILM already gave it its own. The
-            # fixture used to win over the film's props, so StateSheet's seventeen real sprites were replaced
-            # by the library's stand-in, which lives in remotion/public and 404s under the film's asset root:
-            # the film rendered fine and this gate reported it as FAILED TO RENDER. Fill only what is missing.
-            given = film_props.get(n) if film_props else None
-            props = dict(ev[n], **props) if given else dict(props, **ev[n])
-        frame = int(durs.get(n, 150) * PROBE_FRAC)
-        why = []
-        hits = audit(n, props, frame, tmp, dna, aspect, why=why)
-        out[n] = {"hits": hits or [], "untestable": untestable, "failed": hits is None,
-                  "why": (why[0] if why else None),
-                  "cjk_fed": len([x for x in _string_leaves(props) if _HAS_CJK.search(x)])}
-    for p in (tmp, tmp + ".props.json"):
-        if os.path.exists(p):
-            os.remove(p)
-    return out
+    if out_dir:
+        import workshop as _ws
+        durs.update(_ws.durations(out_dir))
+        _RUN_ENV = _ws.prepare(out_dir)
+    try:
+        ev = evidence_props()
+        out = {}
+        tmp = os.path.join(_REMOTION, ".cjk_type_probe.%d.png" % os.getpid())
+        for n in names:
+            props, untestable = (film_props.get(n), []) if film_props else cjk_props(n)
+            if props is None:
+                props, untestable = cjk_props(n)
+            if n in ev:
+                # a plate register needs its picture to draw at all — but a FILM already gave it its own. The
+                # fixture used to win over the film's props, so StateSheet's seventeen real sprites were replaced
+                # by the library's stand-in, which lives in remotion/public and 404s under the film's asset root:
+                # the film rendered fine and this gate reported it as FAILED TO RENDER. Fill only what is missing.
+                given = film_props.get(n) if film_props else None
+                props = dict(ev[n], **props) if given else dict(props, **ev[n])
+            frame = int(durs.get(n, 150) * PROBE_FRAC)
+            why = []
+            hits = audit(n, props, frame, tmp, dna, aspect, why=why)
+            out[n] = {"hits": hits or [], "untestable": untestable, "failed": hits is None,
+                      "why": (why[0] if why else None),
+                      "cjk_fed": len([x for x in _string_leaves(props) if _HAS_CJK.search(x)])}
+        for p in (tmp, tmp + ".props.json"):
+            if os.path.exists(p):
+                os.remove(p)
+        return out
+    finally:
+        _RUN_ENV = None
 
 
 # The POSITIVE control is synthetic and permanent (`TypeCollisionProbe` in remotion/src/Root.tsx: Chinese
@@ -2014,7 +2030,7 @@ def main(argv):
         universe, scope = len(names), "distinct registers across %d beat(s)" % len(beats)
     else:
         names = library
-    res = sweep(names, a.dna, a.aspect, film_props)
+    res = sweep(names, a.dna, a.aspect, film_props, out_dir=a.out_dir if film_props is not None else None)
     lead = {n: [h for h in v["hits"] if h["kind"] == "leading"] for n, v in res.items()}
     lead = {n: h for n, h in lead.items() if h}
     over = {n: [h for h in v["hits"] if h["kind"] == "overlap"] for n, v in res.items()}

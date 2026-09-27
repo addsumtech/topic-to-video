@@ -53,6 +53,10 @@ _SHOTLUMA = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "..", "remotion", "src", "runtime", "shotLuma.ts")
 _GROUND_TOKEN = None
 
+# A film's own shots declare their ground (scripts/workshop.py GROUND) — the renderer merges the same declaration
+# (remotion/src/registry.ts), so the planner must too, or it judges their seams on nothing. Set by main().
+_EXTRA_GROUNDS = {}
+
 
 def _ground_tokens():
     """DNA_GROUND_TOKEN — which DNA token(s) each shot MEASURABLY paints its ground from."""
@@ -137,7 +141,7 @@ def dna_ground_y(shot, dna):
     SHOT_LUMA therefore invented luminance crossings that are not on the screen — and, after the table was
     corrected, changed the plan for a beat where the picture had not changed at all.
     """
-    toks = _ground_tokens().get(shot)
+    toks = _ground_tokens().get(shot) or _EXTRA_GROUNDS.get(shot)
     # A literal ground resolves with no DNA at all — that is what makes it literal.
     if isinstance(toks, str):
         return _rel_lum(toks)
@@ -385,6 +389,13 @@ def main(argv):
         return 0
 
     slides = board.get("slides", [])
+    import workshop as _ws
+    _EXTRA_GROUNDS.clear()
+    for n, g in _ws.grounds(out_dir).items():
+        if isinstance(g, str) and not g.startswith("#"):
+            g = [g]
+        if g:
+            _EXTRA_GROUNDS[n] = g
     already = [i for i, s in enumerate(slides) if s.get("transition_in") or s.get("transition_style")]
     if already and not dry:
         print("[seam_plan] %d beat(s) already carry an authored seam (%s) — leaving them alone"
