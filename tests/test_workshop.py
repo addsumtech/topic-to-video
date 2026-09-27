@@ -97,6 +97,7 @@ def test_a_bad_layout_is_refused_before_an_index_is_written(tmp_path):
     ({"shots/WsX.tsx": (SHOT % {"name": "WsX"}).replace("export const DURATION = 30;\n", "")}, "DURATION"),
     ({"shots/WsX.tsx": (SHOT % {"name": "WsX"}).replace("export const GROUND = 'bg';\n", "")}, "GROUND"),
     ({"shots/WsX.tsx": (SHOT % {"name": "WsX"}).replace("'bg'", "'paper'")}, "not a DNA ground token"),
+    ({"shots/WsX.tsx": (SHOT % {"name": "WsX"}).replace("'bg'", "'bgGrad'")}, "no single luminance"),
     ({"shots/WsX.tsx": (SHOT % {"name": "WsX"}).replace("'motion-graphics'", "''")}, "PROVENANCE"),
     ({"shots/WsX.tsx": (SHOT % {"name": "WsX"}).replace("export const WsX", "export const Other")}, "export const WsX"),
     ({"objects/WsX.tsx": (OBJECT % {"name": "WsX"}).replace("export const META: ObjectMeta = {aspect: 1, provenance: 'motion-graphics'};\n", "")}, "META"),

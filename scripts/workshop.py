@@ -500,6 +500,13 @@ def _problems(out_dir):
                 elif not _ground_ok(g):
                     out.append(("%s: GROUND %r is not a DNA ground token (%s), a list of them, or a '#hex'"
                                 % (where, g, ", ".join(GROUND_TOKENS)), False))
+                elif "bgGrad" in (g if isinstance(g, list) else [g]):
+                    # A gradient has no single luminance — under every shipped Design DNA preset, 'bgGrad' is a
+                    # CSS gradient string, so shot_proof.py's caption-band check (and the render's own caption
+                    # ink) can never resolve a claim for it. Syntactically a GROUND token, semantically unusable.
+                    out.append(("%s: GROUND %r names bgGrad, a gradient with no single luminance under any "
+                                "Design DNA — declare the solid token(s) the caption band actually shows, or a "
+                                "'#hex'" % (where, g), False))
                 prov = _provenance_of(src)
                 if not prov:
                     out.append(("%s: export `PROVENANCE` — the idiom world its look comes from (%s)"
