@@ -183,6 +183,8 @@ export const TermTable: React.FC<{cmd?: string; headers?: string[]; rows?: strin
   // what the t-driven version was protecting — through caretOn's own `reduced` branch.
   const span = useAnimSpan();
   const reduced = React.useContext(ReducedMotionContext);
+  // `ran` turns true when the last glyph ROUNDS in, a frame or so before t reaches 0.17: those frames count
+  // negative, which caretOn reads as lit (its <=0 branch) — the typing caret, held until the blink begins.
   const caretLit = caretOn(ran ? framesBetween(0.17, t, span, ENTRY_T) : null, reduced);
   const headIn = clamp01(seg(t, 0.2, 0.29));
   const R0 = 0.28, R1 = 0.8;                                     // ALL rows landed by 0.8 < REDUCED_MOTION_T

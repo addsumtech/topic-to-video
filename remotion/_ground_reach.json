@@ -622,14 +622,14 @@
   {
    "shot": "DeviceDemo",
    "bandY": {
-    "light": 0.8879231810569763,
+    "light": 0.8796223998069763,
     "dark": 0.0
    },
    "fieldY": {
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9892234848484849,
+   "moved": 0.9888423295454546,
    "ok": true,
    "why": []
   },
@@ -2765,7 +2765,7 @@
   "CodeRain": "092a5d6bc635212c",
   "CollaborativeCursors": "5f1c8789531d2cd7",
   "ComicPanels": "0887b100ec23e229",
-  "CommandSummon": "9895abba27d13cf1",
+  "CommandSummon": "91a10742ef27db7b",
   "CompanionCard": "311d406232b49506",
   "CompressedSensingEq": "802878ab61ea4364",
   "ConveyorBelt": "851fa970be9e86e6",
@@ -2904,7 +2904,7 @@
   "TermGitLog": "d31390d346468ca0",
   "TermLog": "8265496ae8cca34e",
   "TermSpace": "eb29a76f5331199f",
-  "TermTable": "ebacd2e6f1b2fdb6",
+  "TermTable": "d4791beb5eff7b84",
   "TermThink": "7992b30db6ba4b48",
   "TermTree": "c1d73639416749fb",
   "TerrainFly": "17380b1ea6d26973",
@@ -2919,8 +2919,8 @@
   "WireGlobe": "682228cf46421f58",
   "WordTunnel": "d6d3e69c7243da19",
   "WorksThrough": "e2ad62366962a853",
-  "DeviceDemo": "367ae4b5967b684f",
-  "DeviceHero": "8d24f3a9535b4383"
+  "DeviceDemo": "e8eaeef57c2f2833",
+  "DeviceHero": "e308456362af32fc"
  },
  "failed": {},
  "universe": 187,

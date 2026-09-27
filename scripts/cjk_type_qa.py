@@ -1619,6 +1619,11 @@ def _refuse_if_instrument_is_mutated():
             % (owner or "?", _MUTATING))
 
 
+def _cjk_leaves(props):
+    """How many string leaves of `props` carry Chinese."""
+    return len([x for x in _string_leaves(props) if _HAS_CJK.search(x)])
+
+
 def _string_leaves(obj, out=None):
     """Every string anywhere in a props tree — the copy a register was actually handed."""
     if out is None:
@@ -1996,7 +2001,12 @@ def main(argv):
                                                    "audit reads a register's type and has none to read"))
                 continue
             import render_remotion as _rr            # the renderer's own reading of a beat's props
-            names.append(s["shot"]); film_props[s["shot"]] = _rr.film_shot_props(s, a.out_dir)
+            names.append(s["shot"])
+            fp = _rr.film_shot_props(s, a.out_dir)
+            # Two beats on one register are one render: keep the beat with the most Chinese in it. Keeping the
+            # LAST dropped a device beat's typed Chinese whenever a later beat on it only tapped.
+            if s["shot"] not in film_props or _cjk_leaves(fp) > _cjk_leaves(film_props[s["shot"]]):
+                film_props[s["shot"]] = fp
         a.aspect = a.aspect or (board.get("meta") or {}).get("aspect")
         names = sorted(set(names))
         # A FILM SWEEPS DISTINCT REGISTERS, NOT BEATS — two beats on one register are one render here.
@@ -2029,6 +2039,13 @@ def main(argv):
     #   no CJK copy was shaped     — swept in its own ENGLISH demo defaults and reported clean
     #   a prop could not be shaped — reported, but under a heading that does not reach the headline
     nofeed = [n for n, v in res.items() if not v["failed"] and not v.get("cjk_fed")]
+    # IN A FILM, NO CHINESE COPY IS NOT A HOLE. The library sweep has to shape Chinese into a register or it is
+    # measuring the register's English demo; a film's beat is drawn with the film's OWN props, and when none of
+    # them is Chinese (a device beat whose words are its screenshots' pixels) there is nothing of its own to
+    # measure — it was reported "measured in its own English demo defaults", which was false, and exited 2.
+    no_chinese = []
+    if a.out_dir and film_props:
+        no_chinese, nofeed = sorted(nofeed), []
     notmeasured = ([(n, "refused to render — %s" % (res[n].get("why") or "(the render gave no message)"))
                     for n in sorted(failed)]
                    + [(n, "no Chinese copy could be shaped for its props, so its frame was measured in its "
@@ -2038,11 +2055,12 @@ def main(argv):
     # `left_out` is a BEAT-level item on a different axis from the register count (a film's universe here is
     # its DISTINCT registers), so it is counted in its own clause rather than subtracted from `of M` — where
     # "measured 1 of 1 · 1 not measured" would be arithmetic a reader cannot follow.
-    measured = len(res) - len(failed) - len(nofeed)
+    measured = len(res) - len(failed) - len(nofeed) - len(no_chinese)
     if a.json:
         print(json.dumps(dict(res, _coverage={"universe": universe, "scope": scope, "measured": measured,
                                               "not_measured": [list(x) for x in notmeasured],
-                                              "beats_without_a_register": [list(x) for x in left_out]}),
+                                              "beats_without_a_register": [list(x) for x in left_out],
+                                              "no_chinese_copy": no_chinese}),
                          ensure_ascii=False, indent=2))
     if not a.json:
         cov = bundled_cjk_coverage()
@@ -2055,9 +2073,11 @@ def main(argv):
         # MEASURED N OF M, NEVER A BARE N. "151 register(s) rendered with Chinese copy" has no denominator
         # in it, so the same sentence describes a full sweep and one that lost nineteen registers — and it
         # said "with Chinese copy" of every register that rendered, including any the shaper fed none.
-        print("[cjk_type] measured %d of %d %s · %d not measured%s"
+        print("[cjk_type] measured %d of %d %s · %d not measured%s%s"
               % (measured, universe, scope, len(notmeasured),
-                 " · %d beat(s) select no register" % len(left_out) if left_out else ""))
+                 " · %d beat(s) select no register" % len(left_out) if left_out else "",
+                 " · %d set no Chinese copy of their own in this film (%s)" % (len(no_chinese), ", ".join(no_chinese))
+                 if no_chinese else ""))
         if lead:
             print("\nLINES COLLIDING WITH THEMSELVES — a wrapped Chinese line set at a Latin leading:")
             for n in sorted(lead, key=lambda k: -max(h["depth"] for h in lead[k])):

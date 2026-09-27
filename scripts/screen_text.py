@@ -58,6 +58,10 @@ def _replace(path, write):
 
 def _compile(exe):
     os.makedirs(_BIN_DIR, exist_ok=True)
+    # Once per machine (the helper is cached by its source's hash), and it takes about a minute and a half:
+    # silent, the first validate on a new Mac looked hung.
+    print("[screen_text] compiling the macOS text-recognition helper — once, about a minute…", file=sys.stderr,
+          flush=True)
 
     def build(tmp):
         r = subprocess.run(["swiftc", "-O", _SWIFT, "-o", tmp], capture_output=True, text=True)
@@ -101,7 +105,7 @@ def _tesseract(path):
         key = (c[2], c[3], c[4])
         x, y, w, h = (int(v) for v in c[6:10])
         cur = lines.setdefault(key, {"text": "", "box": [x, y, x + w, y + h]})
-        cur["text"] += c[11].strip()
+        cur["text"] = (cur["text"] + " " + c[11].strip()).strip()     # words keep their spaces (matching ignores them)
         b = cur["box"]
         cur["box"] = [min(b[0], x), min(b[1], y), max(b[2], x + w), max(b[3], y + h)]
     return [{"text": v["text"], "box": [v["box"][0] / W, v["box"][1] / H, v["box"][2] / W, v["box"][3] / H]}

@@ -5,10 +5,10 @@ import React from 'react';
 import {Img, OffthreadVideo, Sequence, staticFile, useVideoConfig} from 'remotion';
 import {clamp01, easeOutCubic, easeInOutCubic} from './motion';
 
-/** The height a screenshot takes at width `w`. A size that is not positive is refused: floored instead, a zero
- *  width gave a 2.3-million-pixel scroll range, and NaN a CSS height the browser silently drops. */
+/** The height a screenshot takes at width `w`. A size that is not a positive, finite number is refused: floored
+ *  instead, a zero width gave a 2.3-million-pixel scroll range, and NaN a CSS height the browser silently drops. */
 const scaledHeight = (imageW: number, imageH: number, w: number): number => {
-  if (!(imageW > 0) || !(imageH > 0)) {
+  if (!(imageW > 0) || !(imageH > 0) || !Number.isFinite(imageW) || !Number.isFinite(imageH)) {
     throw new Error(`screen: a screenshot needs a positive size (got ${imageW}x${imageH})`);
   }
   return (imageH * w) / imageW;

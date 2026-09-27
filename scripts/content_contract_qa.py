@@ -239,6 +239,11 @@ def library(names=None):
 
 def main(argv):
     names = set(argv[1:]) or None
+    known = {os.path.basename(f)[:-4] for f in glob.glob(os.path.join(SHOTS, "*.tsx")) + EXTRA}
+    unknown = sorted((names or set()) - known)
+    if unknown:                     # a misspelt name read "0 finding(s) in 0 file(s)" — a clean bill for nothing
+        print("[content_contract_qa] no such register(s): %s" % ", ".join(unknown))
+        return 2
     found = library(names)
     for n, vs in found.items():
         for line, rule, text in vs:

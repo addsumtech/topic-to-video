@@ -201,7 +201,10 @@ At render time the registers throw past capacity or on a missing piece, as the l
 - **Legibility gate (warning).** At each gesture's moment, the text under the target, in rendered frame
   pixels after the push-in, against the film's caption glyph height (the same measure §1 zooms to). Text height comes from
   recognition boxes when available, else from the screenshot's pixels (the band of ink rows under the target
-  point). If the capped zoom cannot reach it, a warning with both numbers. It reports how many targets it
+  point). *Amended in implementation (rulings R21, R22): a recognition box is the recogniser's LINE box, 1.1–1.6× the
+  ink and different for identical rows, so the height is the INK of the target's line, looked for inside its
+  recognition box; a line whose ink cannot be isolated from its neighbour falls back to the box height and is
+  reported.* If the capped zoom cannot reach it, a warning with both numbers. It reports how many targets it
   actually measured, so an unmeasured target is never read as a passing one.
 - **The three traps from the mockups, as render assertions on real frames:** the tap ripple's centre lands
   inside the target's box; the caret's x equals the typed glyphs' right edge (±2 px); a settled scroll shows

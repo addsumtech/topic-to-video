@@ -86,3 +86,12 @@ def test_the_library_honours_the_content_contract():
     assert not found, ("registers draw something the film did not supply — fix it from props, or declare why it "
                        "is not a claim (`// @positional:` / `@cycles:` / `@fallback:` / `@decor:` + reason):\n"
                        + report)
+
+
+def test_a_name_that_is_no_register_is_refused_not_passed(capsys):
+    """`content_contract_qa.py NoSuchShot` printed "0 finding(s) in 0 file(s)" and exited 0 — a clean bill for a
+    register that does not exist."""
+    import content_contract_qa as cq
+    assert cq.main(["content_contract_qa.py", "DeviceDemo", "NoSuchShot"]) == 2
+    assert "NoSuchShot" in capsys.readouterr().out
+

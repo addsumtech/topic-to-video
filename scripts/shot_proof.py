@@ -104,6 +104,34 @@ def _stderr_reason(stderr, limit=220):
     return out[:limit] + ("…" if len(out) > limit else "")
 
 
+def switch_props(shot):
+    """Props typed as a CHOICE of string literals — `camera?: 'still'`, `device?: DeviceKind` — whose value is a
+    setting, not copy. Their default is a real choice a film makes (a phone), never leftover demo furniture, so
+    the demo-default rule does not read them; it warned on every phone DeviceDemo."""
+    try:
+        src = open(os.path.join(_SHOTS, shot + ".tsx"), encoding="utf-8").read()
+    except OSError:
+        return set()
+    runtime = []
+    for f in sorted(os.listdir(os.path.join(_REMOTION, "src", "runtime"))):
+        if f.endswith((".ts", ".tsx")):
+            runtime.append(open(os.path.join(_REMOTION, "src", "runtime", f), encoding="utf-8").read())
+    lit = r"(?:'[^']*'\s*\|\s*)*'[^']*'"
+
+    def literal_alias(name):
+        for text in [src] + runtime:
+            m = re.search(r"(?:export\s+)?type\s+%s\s*=\s*([^;]+);" % re.escape(name), text)
+            if m:
+                return bool(re.fullmatch(lit, m.group(1).strip()))
+        return False
+    out = set()
+    for key, typ in re.findall(r"\b(\w+)\?\s*:\s*([^;\n]+);", src):
+        typ = typ.strip()
+        if re.fullmatch(lit, typ) or (re.fullmatch(r"[A-Za-z_]\w*", typ) and literal_alias(typ)):
+            out.add(key)
+    return out
+
+
 def shot_defaults(shot):
     """{prop: default} for a registered shot — reads the file and delegates."""
     try:
@@ -415,8 +443,9 @@ def static_checks(board, skips=None):
         # (1) a register's DEMO DEFAULT left in place on a real topic
         defs = shot_defaults(shot)
         flat = _flat(props)
+        switches = switch_props(shot)
         for key, dv in defs.items():
-            if not isinstance(dv, str) or len(dv) < 2:
+            if not isinstance(dv, str) or len(dv) < 2 or key in switches:
                 continue
             for path, val in flat.items():
                 if isinstance(val, str) and val.strip() == dv.strip():

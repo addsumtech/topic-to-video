@@ -15,7 +15,7 @@ export const DURATION = 150;
 type HeroScreen = {image?: string; imageW?: number; imageH?: number; video?: string; spans?: VideoSpan[]; page?: 'demo'};
 
 export const DeviceHero: React.FC<{
-  device?: DeviceKind;   // phone | tablet | laptop | monitor
+  device?: DeviceKind;   // phone | tablet | tablet-landscape | laptop | monitor
   look?: DeviceLook;     // flat | real | screen — absent: real on a dark beat, flat on a light one
   screen?: HeroScreen;   // the screenshot or recording, prepared by scripts/device_script.py
   placement?: Placement; // center | left | right

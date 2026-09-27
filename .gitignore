@@ -16,3 +16,5 @@ remotion/public/
 # cjk_type_qa / text_safe probe renders
 remotion/.cjk_type_probe*
 remotion/.probe.png*
+# tests/_tsprobe.py's scratch TypeScript (removed after each probe; left behind only by a killed run)
+remotion/tsprobe_*

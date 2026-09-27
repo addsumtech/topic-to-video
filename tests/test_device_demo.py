@@ -179,16 +179,22 @@ def test_a_push_in_near_the_top_stays_on_the_device(tmp_path):
 def test_the_device_at_rest_draws_inside_its_body(tmp_path):
     """deviceGeometry fits the body to the content zone exactly — a phone's bottom IS contentBottom — and the
     realistic look drew its metal ring OUTSIDE the lid: for a phone or a tablet, whose face is its whole body,
-    10 px into the caption band on every frame. At rest, no bright pixel of any device leaves its body."""
+    10 px into the caption band on every frame. At rest, no bright pixel of any device leaves its body — and the
+    device is drawn WHOLE: its drawn extent is its body, so a camera view cut short (the push-in's view ends at
+    the caption band) cannot clip it."""
     np = pytest.importorskip("numpy")
     import device_geometry as dg
-    for kind in ("phone", "tablet", "laptop", "monitor"):
+    for kind in ("phone", "tablet", "tablet-landscape", "laptop", "monitor"):
         b = dg.geometry(kind, "real", 1920, 1080)["body"]
         png = _render(tmp_path, {"device": kind, "look": "real"}, 2, "rest_" + kind)
         a = np.asarray(Image.open(png).convert("L"), dtype=int)
         out = a > 40            # the ground peaks at 22; the ring's darker band is 89, so a cut at 90 missed it
         out[max(0, b["y"] - 2):b["y"] + b["h"] + 2, max(0, b["x"] - 2):b["x"] + b["w"] + 2] = False
         assert not out.any(), "%s: %d device pixels outside the body %r" % (kind, out.sum(), b)
+        ys, xs = np.nonzero(a > 40)
+        drawn = (int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max()))
+        body = (b["x"], b["y"], b["x"] + b["w"] - 1, b["y"] + b["h"] - 1)
+        assert all(abs(d - e) <= 2 for d, e in zip(drawn, body)), "%s: drawn %r, body %r" % (kind, drawn, body)
 
 
 @needs_toolchain
@@ -229,12 +235,59 @@ def test_the_push_in_leaves_the_caption_band_to_the_ground(tmp_path):
     steps = [{"screen": {"image": "ui.png"}, "imageW": 1170, "imageH": 2532, "t0": 0.06, "ta": 0.06, "t1": 0.2},
              {"tap": [0.2, y], "t0": 0.3, "ta": 0.45, "t1": 0.75, "focus": [0.2, y],
               "textFrac": ink / 1170, "captionPx": cap}]
-    for kind in ("phone", "tablet"):                      # both push in here (a laptop's text is caption-tall already)
-        png = _render(tmp_path, {"device": kind, "look": "flat", "steps": steps}, 100, "band_" + kind)
+    low = (420 + 11 * 180 + 30) / 2532                  # the last row: the view's lower edge meets the band
+    low_ink = sm.text_band_px(ui, 0.2, low)
+    for kind, aspect, fy, fink in (("phone", "16:9", y, ink), ("tablet", "16:9", y, ink),
+                                   ("phone", "9:16", low, low_ink), ("tablet", "1:1", low, low_ink)):
+        st = [dict(steps[0]), dict(steps[1], tap=[0.2, fy], focus=[0.2, fy], textFrac=fink / 1170,
+                                    captionPx=sm.caption_ink_px("zh", *{"16:9": (1920, 1080), "9:16": (1080, 1920),
+                                                                          "1:1": (1080, 1080)}[aspect]))]
+        png = _render(tmp_path, {"device": kind, "look": "flat", "steps": st}, 100,
+                      "band_%s_%s" % (kind, aspect.replace(":", "x")), aspect=aspect)
         a = np.asarray(Image.open(png).convert("L"), dtype=int)
         H, W = a.shape
         band = a[H - caption_band_px(W, H):, :]
-        assert band.max() <= 40, "%s: the push-in reaches the caption band (brightest %d)" % (kind, band.max())
+        assert band.max() <= 40, "%s %s: the push-in reaches the caption band (brightest %d)" % (kind, aspect,
+                                                                                                band.max())
+
+
+def _frame_at(t, durF=180):
+    import render_remotion as rr
+    return int(round(rr.frame_at_t(durF, t)))
+
+
+@needs_toolchain
+def test_the_camera_comes_back_when_the_next_step_needs_no_push_in(tmp_path):
+    """A pushed-in tap followed by a tap whose text is legible at rest (a filled button measures caption-tall)
+    held the first push-in to the end of the beat: the second tap happened off-screen. The camera returns."""
+    np = pytest.importorskip("numpy")
+    import device_geometry as dg
+    _screenshot(str(tmp_path / "ui.png"))
+    steps = [{"screen": {"image": "ui.png"}, "imageW": 1170, "imageH": 2532, "t0": 0.06, "ta": 0.06, "t1": 0.06},
+             {"tap": [0.2, 0.3], "t0": 0.2, "ta": 0.3, "t1": 0.45, "focus": [0.2, 0.3], "textFrac": 0.01,
+              "captionPx": 41.0},
+             {"tap": [0.85, 0.85], "t0": 0.6, "ta": 0.7, "t1": 0.85, "focus": [0.85, 0.85], "textFrac": 0.3,
+              "captionPx": 41.0}]
+    png = _render(tmp_path, {"device": "phone", "look": "real", "steps": steps}, _frame_at(0.72), "back")
+    a = np.asarray(Image.open(png).convert("L"), dtype=int)
+    b = dg.geometry("phone", "real", 1920, 1080)["body"]
+    ys, xs = np.nonzero(a > 40)
+    drawn = (int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max()))
+    body = (b["x"], b["y"], b["x"] + b["w"] - 1, b["y"] + b["h"] - 1)
+    assert all(abs(d - e) <= 3 for d, e in zip(drawn, body)), "still pushed in at the second tap: %r vs %r" % (drawn, body)
+
+
+@needs_toolchain
+def test_a_drag_is_framed_whole_under_the_push_in(tmp_path):
+    """Framed on its `from` at the legibility zoom, a long drag's finger left the view within five frames and its
+    drop was never seen. Both ends are framed: at the end of the drag the finger is in the picture."""
+    np = pytest.importorskip("numpy")
+    _screenshot(str(tmp_path / "ui.png"))
+    steps = [{"screen": {"image": "ui.png"}, "imageW": 1170, "imageH": 2532, "t0": 0.06, "ta": 0.06, "t1": 0.06},
+             {"drag": {"from": [0.5, 0.25], "to": [0.5, 0.85]}, "t0": 0.3, "ta": 0.4, "t1": 0.8,
+              "focus": [0.5, 0.25], "textFrac": 0.01, "captionPx": 41.0}]
+    png = _render(tmp_path, {"device": "phone", "look": "flat", "steps": steps}, _frame_at(0.78), "drag")
+    assert _accent_centroid(png) is not None, "the finger is not in the picture at the end of the drag"
 
 
 @needs_toolchain

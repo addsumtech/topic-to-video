@@ -20,7 +20,7 @@ import {camAt, clampToPage, type CamKey} from '../runtime/pageCam2D';
 import {textWidthPx, TITLE_Y, contentBottom} from '../runtime/layout';
 import {deviceGeometry, deviceFace, defaultLook, isTouch, Device, type DeviceKind, type DeviceLook, type Placement, type Rect} from '../runtime/device';
 import {ScreenImage, ScreenVideo, scrollRangePx, flingAt, type VideoSpan} from '../runtime/screen';
-import {typeChunks, typedCount, caretOn, framesBetween, TapRipple, CursorArrow} from '../runtime/gesture';
+import {typeChunks, typedCount, caretOn, framesBetween, TapRipple, TouchPoint, CursorArrow} from '../runtime/gesture';
 import spec from '../runtime/deviceSpec.json';
 
 export const DURATION = 180;
@@ -81,7 +81,7 @@ const DemoPage: React.FC<{w: number; h: number; ink: string; ground: string}> = 
 );
 
 export const DeviceDemo: React.FC<{
-  device?: DeviceKind;   // phone | tablet | laptop | monitor
+  device?: DeviceKind;   // phone | tablet | tablet-landscape | laptop | monitor
   look?: DeviceLook;     // flat | real | screen — absent: real on a dark beat, flat on a light one
   steps?: Step[];        // the script, prepared by scripts/device_script.py — absent: the register's own demo
   camera?: 'still';      // turn the legibility push-in off
@@ -180,10 +180,10 @@ export const DeviceDemo: React.FC<{
       overlays.push(<TapRipple key={`g${n}`} x={p.x} y={p.y} u={u} color={ACC} size={size} />);
     } else if (k === 'drag' && touch && t >= st.ta! && t <= st.t1!) {
       const a = P(st.drag!.from), b = P(st.drag!.to), v = easeInOutCubic(u);
-      overlays.push(<TapRipple key={`g${n}`} x={a.x + (b.x - a.x) * v} y={a.y + (b.y - a.y) * v} u={0.5} color={ACC} size={size} />);
+      overlays.push(<TouchPoint key={`g${n}`} x={a.x + (b.x - a.x) * v} y={a.y + (b.y - a.y) * v} color={ACC} size={size} />);
     } else if (k === 'scroll' && touch && u > 0 && u < 0.35) {
       const v = u / 0.35;
-      overlays.push(<TapRipple key={`g${n}`} x={s.w * 0.5} y={s.h * (0.72 - 0.3 * v)} u={0.5} color={ACC} size={size} />);
+      overlays.push(<TouchPoint key={`g${n}`} x={s.w * 0.5} y={s.h * (0.72 - 0.3 * v)} color={ACC} size={size} />);
     } else if (k === 'type' && t >= st.ta!) {
       const f = st.field;
       if (!f) throw new Error('DeviceDemo: a `type` step needs its `field` — scripts/device_script.py measures it.');
@@ -219,25 +219,46 @@ export const DeviceDemo: React.FC<{
   // bezel. The view is the zone above the band; at rest it is the frame's own layout, unmoved.
   const VIEW_H = contentBottom(W, H);
   const keys: CamKey[] = [{at: 0, x: W / 2, y: VIEW_H / 2, s: 1}];
+  const key = (at: number, x: number, y: number, z: number) =>
+    keys.push({at: Math.max(keys[keys.length - 1].at, at), x, y, s: z});      // keys stay in time order
+  // A step's push-in — its zoom and the point it frames — or null when its text is legible at rest (or was not
+  // measured). A DRAG is framed whole, both ends inside the view whatever the legibility zoom asks: centred on its
+  // `from`, the finger left the zoomed view within five frames and the drop was never seen.
+  const framing = (st: Step): {zoom: number; x: number; y: number} | null => {
+    if (!st.focus || !st.textFrac || !st.captionPx) return null;
+    let zoom = Math.min(spec.maxZoom, Math.max(1, st.captionPx / (st.textFrac * s.w)));
+    let fx = st.focus[0], fy = st.focus[1];
+    if (st.drag) {
+      const [ax, ay] = st.drag.from, [bx, by] = st.drag.to;
+      const dx = Math.abs(bx - ax) * s.w, dy = Math.abs(by - ay) * s.h;
+      zoom = Math.min(zoom, dx > 0 ? (W * 0.8) / dx : zoom, dy > 0 ? (VIEW_H * 0.8) / dy : zoom);
+      fx = (ax + bx) / 2; fy = (ay + by) / 2;
+    }
+    return zoom > 1.01 ? {zoom, x: s.x + fx * s.w, y: s.y + fy * s.h} : null;
+  };
   if (camera !== 'still' && !reduced) {
     steps.forEach((st, i) => {
-      if (!st.focus || !st.textFrac || !st.captionPx) return;
-      const zoom = Math.min(spec.maxZoom, Math.max(1, st.captionPx / (st.textFrac * s.w)));
-      if (zoom <= 1.01) return;
-      const f = onDevice(s.x + st.focus[0] * s.w, s.y + st.focus[1] * s.h, zoom, deviceFace(g), W, VIEW_H);
+      const fr = framing(st);
+      if (!fr) return;
+      const f = onDevice(fr.x, fr.y, fr.zoom, deviceFace(g), W, VIEW_H);
       const last = keys[keys.length - 1];
-      keys.push({at: st.t0!, x: last.x, y: last.y, s: last.s});
-      keys.push({at: st.ta!, x: f.x, y: f.y, s: zoom});
-      keys.push({at: st.t1!, x: f.x, y: f.y, s: zoom});
+      key(st.t0!, last.x, last.y, last.s);
+      key(st.ta!, f.x, f.y, fr.zoom);
+      key(st.t1!, f.x, f.y, fr.zoom);
+      // Back to rest unless the NEXT step pushes in too: a next step that needs no zoom (a button whose fill
+      // measured caption-tall) used to leave the camera holding this push-in to the end of the beat.
       const next = steps[i + 1];
-      if (!next || !next.focus) keys.push({at: Math.min(1, st.t1! + (st.ta! - st.t0!)), x: W / 2, y: VIEW_H / 2, s: 1});
+      if (!next || !framing(next)) key(Math.min(1, st.t1! + (st.ta! - st.t0!)), W / 2, VIEW_H / 2, 1);
     });
   }
   const cam = clampToPage(camAt(keys, t, easeInOutCubic), W, VIEW_H, W, VIEW_H);
+  // The view is clipped at the band only while it is pushed in: at rest the device is laid out above the band and
+  // its soft shadow falls into it as DeviceHero's does — clipped at rest too, the shadow was cut in a hard line.
+  const clipH = cam.s > 1.0005 ? VIEW_H : H;
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? GROUND, overflow: 'hidden'}}>
-      <div style={{position: 'absolute', left: 0, top: 0, width: W, height: VIEW_H, overflow: 'hidden'}}>
+      <div style={{position: 'absolute', left: 0, top: 0, width: W, height: clipH, overflow: 'hidden'}}>
       <AbsoluteFill style={{transformOrigin: '0 0',
         transform: `translate(${W / 2 - cam.x * cam.s}px, ${VIEW_H / 2 - cam.y * cam.s}px) scale(${cam.s})`}}>
         <Device g={g} dna={dna}>

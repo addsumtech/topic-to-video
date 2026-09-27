@@ -18,13 +18,14 @@ SPEC_PATH = os.path.join(_HERE, "..", "remotion", "src", "runtime", "deviceSpec.
 
 STEP_KINDS = ("screen", "type", "tap", "click", "scroll", "drag", "mark")
 GESTURES = ("type", "tap", "click", "scroll", "drag", "mark")
-DEVICE_KINDS = ("phone", "tablet", "laptop", "monitor")
+DEVICE_KINDS = ("phone", "tablet", "tablet-landscape", "laptop", "monitor")
 LOOKS = ("flat", "real", "screen")
 VIAS = ("push", "fade")
 PLACEMENTS = ("center", "left", "right")
 ALLOWED = {"screen": {"screen", "via", "at"}, "type": {"type", "into", "at"}, "tap": {"tap", "at"},
            "click": {"click", "at"}, "scroll": {"scroll", "at"}, "drag": {"drag", "at"},
            "mark": {"mark", "at", "video"}}
+SLOW_RATE = 0.5           # a recording stretched below half speed reads as slow motion: said, not refused
 _CJK = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7a3]")
 
 with open(SPEC_PATH, encoding="utf-8") as _fh:
@@ -106,6 +107,42 @@ def _frame_problems(props):
     return probs
 
 
+def _hero_screen_problems(props):
+    """A film's DeviceHero shows the product's OWN screen: a screenshot or a recording, named by its path. Its
+    skeleton demo is the register's standalone preview — in a film it would be the placeholder picture the
+    device layer exists to replace."""
+    src = props.get("screen")
+    if src is None:
+        return ["DeviceHero needs `screen` — a screenshot (`image`) or a recording (`video`) of the product"]
+    if isinstance(src, dict) and "page" in src:
+        return ["`screen` page %r is the register's own preview, never a film's — give an image or a video"
+                % (src.get("page"),)]
+    keys = [k for k in ("image", "video") if isinstance(src, dict) and k in src]
+    if len(keys) != 1:
+        return ["`screen` is exactly one of image / video (got %r)" % (src,)]
+    if not isinstance(src[keys[0]], str) or not src[keys[0]].strip():
+        return ["`screen` %s is a file path in the out dir (got %r)" % (keys[0], src[keys[0]])]
+    return []
+
+
+def static_problems(shot, props, out_dir):
+    """What is wrong with a device beat before its narration exists: its shape and its files. The timing waits
+    for the audio; these do not, so a misspelt look or a missing screenshot is named on the first validate."""
+    if shot == "DeviceHero":
+        probs = _frame_problems(props) + _hero_screen_problems(props)
+        srcs = [("`screen`", props.get("screen"))]
+    else:
+        probs = check_shape(props)
+        srcs = [("step %d (screen)" % (i + 1), st.get("screen")) for i, st in enumerate(props.get("steps") or [])
+                if isinstance(st, dict)]
+    for where, src in srcs:
+        if isinstance(src, dict):
+            for key, what in (("image", "screenshot"), ("video", "recording")):
+                if src.get(key) and not os.path.isfile(os.path.join(out_dir, str(src[key]))):
+                    probs.append("%s: the %s %s does not exist" % (where, what, src[key]))
+    return probs
+
+
 def check_shape(props):
     """Every shape problem in an AUTHORED script, as sentences. [] means it is well formed."""
     probs = _frame_problems(props)
@@ -134,6 +171,11 @@ def check_shape(props):
                 probs.append("%s: a screen is exactly one of image / video / page (got %r)" % (where, src))
                 continue
             on_video = srcs[0] == "video"
+            if srcs[0] == "page":
+                probs.append("%s: page %r is the register's own preview, never a film's — give an image or a video"
+                             % (where, src.get("page")))
+            elif not isinstance(src[srcs[0]], str) or not src[srcs[0]].strip():
+                probs.append("%s: a screen's %s is a file path in the out dir (got %r)" % (where, srcs[0], src[srcs[0]]))
             if st.get("via") not in (None,) + VIAS:
                 probs.append("%s: `via` is %s (got %r)" % (where, " or ".join(VIAS), st.get("via")))
             if on_video:
@@ -141,8 +183,15 @@ def check_shape(props):
                 if not isinstance(a, (int, float)) or a < 0 or not isinstance(b, (int, float)) or b <= a:
                     probs.append("%s: a recording needs `from` >= 0 and `to` > `from`, in seconds (got %r, %r)"
                                  % (where, a, b))
+        elif on_video and k in ("type", "tap", "click", "drag", "scroll"):
+            # A recording plays as it was recorded: a finger drawn over it would perform an action the video does
+            # not show (and a typed field has no pixels to measure). A `mark` points at something on it.
+            probs.append("%s (%s): the screen is a recording, which plays as recorded — point at something on it "
+                         "with `mark`, or show a screenshot for the %s" % (where, k, k))
         elif k == "type":
-            if not type_chunks(st["type"]):
+            if isinstance(st["type"], list) and not all(isinstance(v, str) for v in st["type"]):
+                probs.append("%s: a `type` list is the chunks as strings (got %r)" % (where, st["type"]))
+            elif not type_chunks(st["type"]):
                 probs.append("%s: `type` has nothing to type" % where)
             if "into" not in st:
                 probs.append("%s: `type` needs `into` — the field it types into" % where)
@@ -169,8 +218,11 @@ def check_shape(props):
                 for end in ("from", "to"):
                     p = _target_problem(d[end], "%s `drag.%s`" % (where, end))
                     probs.extend([p] if p else [])
-        if "at" in st and not isinstance(st["at"], (dict, int, float)):
+        if "at" in st and (not isinstance(st["at"], (dict, int, float)) or isinstance(st["at"], bool)):
             probs.append("%s: `at` is {\"cue\": words the narration says} (got %r)" % (where, st["at"]))
+        elif isinstance(st.get("at"), (int, float)) and not 0 <= st["at"] <= 1:
+            probs.append("%s: a number `at` is a fraction of the beat from 0 to 1 (got %r) — a moment in the "
+                         "narration is written {\"cue\": \"its words\"}" % (where, st["at"]))
     return probs
 
 
@@ -184,7 +236,9 @@ def schedule_seconds(steps, anchors, start_s, end_s):
     in the room the anchors leave. Raises DeviceScriptError, in seconds, when the room is not there."""
     lead = float(SPEC["cameraLeadSeconds"])
     pre = [lead if needs_lead(s) else 0.0 for s in steps]
-    act = [gesture_seconds(s) for s in steps]
+    # The OPENING screen is on the device when the beat begins — nothing transitions, so it takes no time.
+    # Charged a screen change's 0.5 s, it pushed the earliest possible action to 1.25 s into every line.
+    act = [0.0 if k == 0 and step_kind(s) == "screen" else gesture_seconds(s) for k, s in enumerate(steps)]
     n, out, cursor, i = len(steps), [None] * len(steps), float(start_s), 0
     while i < n:
         j = i
@@ -195,6 +249,10 @@ def schedule_seconds(steps, anchors, start_s, end_s):
         need = sum(pre[k] + act[k] for k in run)
         slack = limit - cursor - need
         if slack < -1e-6:
+            if j < n and anchors[j] <= float(start_s) + 1e-3:
+                raise DeviceScriptError(["step %d's cue is said as the beat opens — the device needs %.1f s before "
+                                         "it acts (its first %.1f s are the cut into the beat); put the action's "
+                                         "words later in the line" % (j + 1, need + pre[j], float(start_s))])
             if j < n:
                 raise DeviceScriptError(["%s need%s %.1f s before step %d's cue, which the narration reaches "
                                          "%.1f s into the beat — only %.1f s are left for them"
@@ -238,6 +296,21 @@ def schedule(steps, dur_frames, fps):
     return out
 
 
+def _line_ink(path, hit):
+    """Ink height in source pixels of the recognised line `hit`, or None when the line's ink cannot be isolated:
+    measured inside the box padded by half its height and by all of it, and trusted only when both agree."""
+    import screen_media as sm
+    bx0, by0, bx1, by1 = hit["box"]
+    bh = by1 - by0
+
+    def band(pad):
+        return sm.text_band_px(path, hit["x"], hit["y"], box=[bx0, max(0.0, by0 - bh * pad), bx1, min(1.0, by1 + bh * pad)])
+    near, far = band(0.5), band(1.0)
+    if near is None or far is None or abs(near - far) > max(2.0, 0.05 * near):
+        return None
+    return near
+
+
 def _viewport(y_img, image_w, image_h, device, acc):
     """Image fraction y -> fraction of the VISIBLE screen, after `acc` of the overflow has been scrolled."""
     rw, rh = SPEC["screenRatio"][device]
@@ -251,6 +324,30 @@ def _image_y(y_view, image_w, image_h, device, acc):
     return (y_view + acc * max(0.0, d - 1.0)) / d
 
 
+def _oriented(device, shot, props, out_dir):
+    """A `tablet` turns to the screen it shows (spec §1: 3:4 portrait or 4:3 landscape): when its first screenshot
+    or recording is wider than tall, the beat's device is `tablet-landscape`. Every other kind is one shape."""
+    if device != "tablet":
+        return device
+    import screen_media as sm
+    if shot == "DeviceHero":
+        src = props.get("screen")
+    else:
+        src = next((st.get("screen") for st in props.get("steps") or []
+                    if isinstance(st, dict) and isinstance(st.get("screen"), dict)), None)
+    src = src if isinstance(src, dict) else {}
+    try:
+        if isinstance(src.get("image"), str) and os.path.isfile(os.path.join(out_dir, src["image"])):
+            f = sm.image_facts(os.path.join(out_dir, src["image"]))
+        elif isinstance(src.get("video"), str) and os.path.isfile(os.path.join(out_dir, src["video"])):
+            f = sm.video_facts(os.path.join(out_dir, src["video"]))
+        else:
+            return device
+    except DeviceScriptError:
+        return device                   # an unreadable file is named where it is checked, not here
+    return "tablet-landscape" if f["w"] > f["h"] else device
+
+
 def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=None):
     """Authored props (cues already turned into useT times by render_remotion.resolve_cue_props) -> the props
     the register draws, and the legibility warnings. Raises DeviceScriptError with EVERY problem found."""
@@ -259,20 +356,18 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
     import screen_media as sm
     import screen_text as stx
     import device_geometry as dg
-    device = props.get("device", "phone" if shot == "DeviceDemo" else "laptop")
+    device = _oriented(props.get("device", "phone" if shot == "DeviceDemo" else "laptop"), shot, props, out_dir)
+    if device != props.get("device", device):
+        props = dict(props, device=device)
     probs, warns = [], []
     if shot == "DeviceHero":
         # The frame props are checked the way DeviceDemo's are — a `look` of 'bogus' used to reach the render and
         # crash inside the geometry, un-named. And a `screen` the author WROTE must say what it shows: `{}` is
         # falsy, so `screen or {"page": "demo"}` quietly turned an empty screen into the demo page.
-        probs += _frame_problems(props)
-        src = props.get("screen")
-        src = {"page": "demo"} if src is None else src
-        if not isinstance(src, dict) or not (src.get("image") or src.get("video") or src.get("page") == "demo"):
-            probs.append("`screen` needs an image, a recording, or page \"demo\" (got %r)" % (src,))
+        probs += _frame_problems(props) + _hero_screen_problems(props)
         if probs:
             raise DeviceScriptError(probs)
-        src = dict(src)
+        src = dict(props["screen"])
         p = os.path.join(out_dir, str(src.get("image") or src.get("video") or ""))
         if src.get("image"):
             if not os.path.isfile(p):
@@ -290,6 +385,9 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
             if (to - frm) / beat_s > SPEC["maxVideoRate"] + 1e-6:
                 probs.append("the recording's %.1f s would play at %.1fx to fit a %.1f s beat — trim it (the cap is %.0fx)"
                              % (to - frm, (to - frm) / beat_s, beat_s, SPEC["maxVideoRate"]))
+            elif 0 < (to - frm) / beat_s < SLOW_RATE:
+                warns.append("the recording's %.1f s plays at %.2fx across a %.1f s beat — slow motion; use a longer "
+                             "stretch of it or a shorter line" % (to - frm, (to - frm) / beat_s, beat_s))
             src = {"video": src["video"], "spans": [{"f0": 0, "f1": dur_frames, "v0": frm, "v1": to}]}
         if probs:
             raise DeviceScriptError(probs)
@@ -300,8 +398,9 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
         raise DeviceScriptError(probs)
     rec = recognizer or (lambda path: stx.recognize(path, cache_dir=os.path.join(out_dir, ".cache")))
     steps = [dict(s) for s in props["steps"]]
-    cur, cur_path, acc, facts = None, None, 0.0, {}
-    screen_w = dg.geometry(device, props.get("look") or "flat", W, H)["screen"]["w"]
+    cur, cur_path, acc, facts, cur_fit = None, None, 0.0, {}, None
+    screen_w = dg.geometry(device, props.get("look") or "flat", W, H, props.get("placement") or "center",
+                           bool(props.get("kicker")))["screen"]["w"]
     caption = sm.caption_ink_px(lang, W, H)
     measured, gestures = 0, 0
     for i, st in enumerate(steps):
@@ -317,7 +416,7 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
                     continue
                 try:
                     f = facts[cur_path] = sm.image_facts(cur_path)
-                    sm.fit_kind(f, device)
+                    cur_fit = sm.fit_kind(f, device)
                     st.update(imageW=f["w"], imageH=f["h"])
                 except DeviceScriptError as e:
                     probs += ["%s: %s" % (where, p) for p in e.problems]
@@ -334,6 +433,9 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
                 cur_path = None
             continue
         if k == "scroll":
+            if cur_path is not None and cur_fit == "fit":
+                probs.append("%s: the screenshot is no longer than the screen — there is nothing to scroll; use a "
+                             "full-page capture" % where)
             acc = min(1.0, acc + float(st["scroll"]))
             continue
         if cur_path is None or cur_path not in facts:
@@ -356,15 +458,19 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
                 if not 0 <= y <= 1:
                     probs.append("%s: %r is out of view at this point in the scroll — scroll first" % (where, tg["text"]))
                     continue
-                # The push-in brings the target to the caption's INK height, so its height is the INK inside its
-                # recognition box: the box is the recogniser's line box, 1.1-1.6x the ink and not the same for two
+                # The push-in brings the target to the caption's INK height, so its height is the INK of its line:
+                # the recognition box is the recogniser's line box, 1.1-1.6x the ink and not the same for two
                 # identical rows, and taken as the height it pushed every text target in about a third too
-                # little. The box, padded a quarter of its height, only bounds where the ink is looked for.
-                bx0, by0, bx1, by1 = hit["box"]
-                pad = (by1 - by0) * 0.25
-                ink = sm.text_band_px(cur_path, hit["x"], hit["y"],
-                                      box=[bx0, max(0.0, by0 - pad), bx1, min(1.0, by1 + pad)])
-                resolved.append(([hit["x"], y], ink or (by1 - by0) * f["h"]))
+                # little (ruling R21). The box only bounds where the ink is looked for — padded by half its
+                # height and by all of it: a line whose band is the same in both is isolated and measured; one
+                # whose band grows with the window runs into the next line (or past a box cut tighter than its
+                # glyphs), cannot be measured, and says so (ruling R22) — the box's height stands in for it.
+                text_h = _line_ink(cur_path, hit)
+                if text_h is None:
+                    text_h = (hit["box"][3] - hit["box"][1]) * f["h"]
+                    warns.append("%s: the text height of %r could not be told apart from the line next to it; the "
+                                 "push-in uses its recognition box (%d px) instead" % (where, tg["text"], round(text_h)))
+                resolved.append(([hit["x"], y], text_h))
             else:
                 resolved.append((list(tg), None))
         if len(resolved) != len(targets):
@@ -381,7 +487,7 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
             try:
                 fld = sm.field_at(cur_path, x, y_img)
             except DeviceScriptError as e:          # ruling R6: no field there is the author's to fix — name the step
-                probs += ["%s: %s" % (where, p) for p in e.problems]
+                probs += ["%s: at [%.2f, %.2f] on the screen, %s" % (where, x, y, p) for p in e.problems]
                 continue
             b = fld["box"]
             st["field"] = {"box": [b[0], _viewport(b[1], f["w"], f["h"], device, acc), b[2],
@@ -404,16 +510,26 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
         if "video" in src:
             nxt = next((s for s in steps[i + 1:] if step_kind(s) == "screen"), None)
             f_end = rr.frame_at_t(dur_frames, nxt["t0"]) if nxt else float(dur_frames)
-            pts = [(rr.frame_at_t(dur_frames, st["ta"]), float(src.get("from", 0)))]
+            # HELD AT BOTH EDGES. Outside its spans a recording draws black: from the beat's first frame (or its
+            # own transition in) until it starts, and while the next screen replaces it. The first frame is held
+            # from the moment the screen is on the device, the last until it has left.
+            f_show = 0.0 if i == 0 else rr.frame_at_t(dur_frames, st["t0"])
+            f_gone = rr.frame_at_t(dur_frames, nxt["t1"]) if nxt else float(dur_frames)
+            pts = [(f_show, float(src.get("from", 0))),
+                   (rr.frame_at_t(dur_frames, st["ta"]), float(src.get("from", 0)))]
             for m in steps[i + 1:]:
                 if step_kind(m) == "screen":
                     break
                 if step_kind(m) == "mark" and isinstance(m.get("video"), (int, float)):
                     pts.append((rr.frame_at_t(dur_frames, m["ta"]), float(m["video"])))
-            pts.append((f_end, float(src["to"])))
+            pts += [(f_end, float(src["to"])), (f_gone, float(src["to"]))]
+            pts = [pt for k, pt in enumerate(pts) if k == 0 or pt[0] > pts[k - 1][0] + 1e-6]   # no empty spans
             spans, refused = [], False
             for (f0, v0), (f1, v1) in zip(pts, pts[1:]):
                 rate = (v1 - v0) / max(1e-6, (f1 - f0) / float(fps))
+                if v1 > v0 and rate < SLOW_RATE:
+                    warns.append("step %d (screen): the recording plays at %.2fx between frames %d and %d — slow "
+                                 "motion; use a longer stretch of it or a shorter line" % (i + 1, rate, f0, f1))
                 if v1 < v0 or rate > SPEC["maxVideoRate"] + 1e-6:
                     # COLLECTED, not raised: every recording of the beat is checked, so a script is fixed in one
                     # pass — the first offender used to hide the rest.
@@ -429,7 +545,8 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
             # A mark pushes in by the same rule as a tap — the text height at its point — measured on the
             # frame the recording is showing at that moment (a recording has no other text to measure).
             vp = os.path.join(out_dir, src["video"])
-            vw = sm.video_facts(vp)["w"]
+            vf = sm.video_facts(vp)
+            vw = vf["w"]
             for m in steps[i + 1:]:
                 if step_kind(m) == "screen":
                     break
@@ -439,10 +556,13 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
                 fm = rr.frame_at_t(dur_frames, m["ta"])
                 sp = next((x for x in spans if x["f0"] <= fm <= x["f1"]), spans[-1])
                 vt = sp["v0"] + (sp["v1"] - sp["v0"]) * (fm - sp["f0"]) / max(1e-6, sp["f1"] - sp["f0"])
+                vt = max(0.0, min(vt, vf["duration"] - 1.0 / vf["fps"]))   # `video` = its length names the last frame
                 still = os.path.join(out_dir, ".cache", "device", "%s-%.3f.png" % (os.path.basename(vp), vt))
                 os.makedirs(os.path.dirname(still), exist_ok=True)
                 subprocess.run(["ffmpeg", "-y", "-v", "error", "-ss", "%.3f" % vt, "-i", vp, "-frames:v", "1",
                                 still], check=True)
+                if not os.path.isfile(still):
+                    continue                     # no frame there to measure: counted as unmeasured, never a crash
                 px = sm.text_band_px(still, m["mark"][0], m["mark"][1])
                 if px:
                     measured += 1
@@ -466,20 +586,20 @@ def film_language(meta, slides):
     return lang
 
 
-def check_slide(slide, out_dir, meta):
+def check_slide(slide, out_dir, meta, slides=None):
     """(errors, warnings) for one device beat, exactly as a render would meet them."""
     import render_remotion as rr
     from _caption_band import aspect_table
     shot, sp = slide.get("shot"), slide.get("shot_props") or {}
     dur, audio = slide.get("duration"), slide.get("audio")
-    if not dur:
-        return [], []                                   # pre-TTS: timing is checked once the audio exists
+    if not dur:                                         # pre-TTS: the timing waits for the audio, the rest does not
+        return ["device beat: " + p for p in static_problems(shot, sp, out_dir)], []
     fps = 30
     W, H = aspect_table().get(str(meta.get("aspect") or "16:9"), (1920, 1080))
     try:
         props = rr.resolve_cue_props(sp, out_dir, audio, slide.get("narration") or "", float(dur), fps)
         _out, warns = prepare(props, shot=shot, out_dir=out_dir, dur_frames=int(round(float(dur) * fps)), fps=fps,
-                              W=W, H=H, lang=film_language(meta, [slide]))
+                              W=W, H=H, lang=film_language(meta, slides or [slide]))
         return [], warns
     except SystemExit as e:
         return [str(e)], []

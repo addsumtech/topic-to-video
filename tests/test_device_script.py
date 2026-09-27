@@ -107,3 +107,42 @@ def test_cjk_detection_covers_only_the_named_blocks():
     assert ds.type_chunks(chr(0xA000) + chr(0xA001)) == [chr(0xA000), chr(0xA001)]    # nor is Yi
     assert ds.gesture_seconds({"type": chr(0xE000), "into": [0.5, 0.5]}) == ds.SPEC["minSeconds"]["typeLatinKey"]
 
+
+def test_a_typed_list_holds_strings():
+    """runtime/gesture.tsx stringifies a list's chunks the JavaScript way (true, null) and this module the Python
+    way (True, None): a list of anything but strings is refused, so the two can never disagree."""
+    probs = ds.check_shape({"steps": [{"screen": {"image": "a.png"}}, {"type": ["上周", 3, None], "into": [0.5, 0.1]}]})
+    assert any("chunks as strings" in p for p in probs), probs
+    assert not ds.check_shape({"steps": [{"screen": {"image": "a.png"}}, {"type": ["上周", "的"], "into": [0.5, 0.1]}]})
+
+
+@pytest.mark.parametrize("steps, needle", [
+    ([{"screen": {"page": "demo"}}], "register's own preview"),
+    ([{"screen": {"image": 5}}], "file path"),
+    ([{"screen": {"video": "r.mp4", "to": 3}}, {"tap": [0.5, 0.5]}], "the screen is a recording"),
+    ([{"screen": {"video": "r.mp4", "to": 3}}, {"type": "hi", "into": [0.5, 0.2]}], "the screen is a recording"),
+    ([{"screen": {"video": "r.mp4", "to": 3}}, {"drag": {"from": [0.2, 0.2], "to": [0.8, 0.8]}}],
+     "the screen is a recording"),
+    ([{"screen": {"video": "r.mp4", "to": 3}}, {"scroll": 0.5}], "the screen is a recording"),
+    ([{"screen": {"image": "a.png"}}, {"tap": [0.5, 0.5], "at": 2.5}], "fraction of the beat from 0 to 1"),
+])
+def test_what_a_film_cannot_show_is_refused(steps, needle):
+    """A demo page in a film is the placeholder the layer exists to replace; a finger over a recording performs
+    an action the video does not show; a number `at` of 2.5 was meant as seconds and was clamped to the end."""
+    probs = ds.check_shape({"steps": steps})
+    assert any(needle in p for p in probs), probs
+
+
+def test_the_opening_screen_takes_no_time():
+    """The first screen is on the device when the beat opens; charged a screen change, it pushed every action
+    to 1.25 s into its line and refused ordinary narration ("Scroll down the inbox…")."""
+    steps = [{"screen": {"image": "a.png"}}, {"tap": [0.5, 0.5]}]
+    (a0, b0, c0), (t0, ta, t1) = ds.schedule_seconds(steps, [None, 0.8], 0.4, 5.0)
+    assert a0 == b0 == c0 and ta == pytest.approx(0.8)       # the 0.4 s entry + the 0.35 s camera lead fit
+
+
+def test_a_cue_at_the_very_start_is_named_as_early():
+    with pytest.raises(ds.DeviceScriptError) as e:
+        ds.schedule_seconds([{"screen": {"image": "a.png"}}, {"tap": [0.5, 0.5]}], [None, 0.4], 0.4, 5.0)
+    assert "said as the beat opens" in str(e.value), e.value.problems
+

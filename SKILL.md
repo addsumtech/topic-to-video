@@ -237,7 +237,9 @@ TTS if the user gives an API key.
   a phone, tablet, laptop or monitor showing the user's own screenshots or recording, each step on the words
   the narration says; `DeviceHero` shows the product on its device with one screen whole. The step script is
   written in `shot_props.steps` and checked and scheduled by `scripts/device_script.py` (text targets are found
-  in the screenshot on a Mac; too many steps for a beat is refused in seconds). Spec:
+  in the screenshot on a Mac; too many steps for a beat is refused in seconds). The step format — targets as
+  fractions of the visible screen or recognised words, cues, the time each step needs, what a recording allows —
+  is the **Step script** section of `remotion/cards/DeviceDemo.md`. Spec:
   `docs/superpowers/specs/2026-09-26-device-layer-design.md`.
   **THE CUT IS PART OF THE DESIGN — and it has to be authored, not assumed.** The tier implements five seams:
   `clock` `slide` `wipe` `dissolve` and **`carry`**, a collapse-to-line match-cut that reads as CONTINUITY

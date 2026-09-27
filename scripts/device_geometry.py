@@ -27,6 +27,11 @@ def _r(x):
 
 def geometry(kind, look, W, H, placement="center", kicker=False):
     S = ds.SPEC
+    if kind not in S["screenRatio"] or look not in S["body"] or kind not in S["body"][look] \
+            or placement not in S["placementX"]:
+        raise ValueError("device: no geometry for %s / %s / %s — kinds are %s, looks %s, placements %s"
+                         % (kind, look, placement, ", ".join(S["screenRatio"]), ", ".join(S["body"]),
+                            ", ".join(S["placementX"])))
     rw, rh = S["screenRatio"][kind]
     b = S["body"][look][kind]
     top = _content_top() if kicker else _r(H * S["zoneTopFrac"])

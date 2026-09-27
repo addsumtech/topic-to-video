@@ -4,11 +4,11 @@
 
 **Use when:** the beat's claim is how an interface is USED — "search, open, scroll to it" — and real screens exist. **Not when:** there are no real screens (a concept, an unbuilt product — use an interface register such as `SurfaceCarousel`, or wait for the app templates); not a list of features in one place (`PointerTour`); not the product as an object with nothing done on it (`DeviceHero`).
 
-**Motion core:** the device arrives with its first screen; then only the steps move — a ripple where a finger lands, typed words at the caret, a fling that settles. The push-in is computed, not styled: it zooms exactly as far as the target's text needs to match the caption, capped at 4×.
+**Motion core:** the device is there from the first frame, showing its first screen; then only the steps move — a ripple where a finger lands, typed words at the caret, a fling that settles. The push-in is computed, not styled: it zooms exactly as far as the target's text needs to match the caption, capped at 4×.
 
 | Prop | What it sets | Feel of turning it |
 |---|---|---|
-| `device` | phone, tablet, laptop or monitor | touch devices tap with a ring; laptop and monitor move a cursor |
+| `device` | phone, tablet, laptop or monitor (a tablet turns to landscape when its first screen is a landscape capture) | touch devices tap with a ring; laptop and monitor move a cursor |
 | `look` | flat, real or screen | absent: real on a dark beat, flat on a light one; `screen` drops the body entirely |
 | `steps` | the script — `screen`, `type`, `tap`/`click`, `scroll`, `drag`, `mark` — prepared by `scripts/device_script.py` | each step on its cue; too many for the beat is a refusal in seconds, never a squeeze |
 | `camera` | `"still"` turns the push-in off | the whole device stays in frame; small text stays small |
@@ -22,9 +22,24 @@
 - The push-in's view is the content zone, not the frame: a zoomed device is cropped at the caption band's top edge and the caption always sits on the film's own ground — filling the frame, it laid the screen's rows under the burned caption.
 - A script step without its prepared time (`t0`/`ta`/`t1`), or a recording without its `spans`, is refused — never re-timed or drawn black.
 - A long screenshot scrolls only within its real overflow; a fling may overshoot 4% and springs back.
-- The standalone demo is skeleton bars with no text, so no demo copy exists to leak into a film.
+- The standalone demo is skeleton bars with no text, so no demo copy exists to leak into a film — and a film may not show it: a `page` screen is refused.
+- A recording plays as it was recorded: a `type`, `tap`, `click`, `drag` or `scroll` on it is refused (a finger over a video would perform an action the video does not show); point at something on it with `mark`. Its first frame is held until it plays and its last until it has gone, never black.
+- A placeholder set in lowercase x-height letters only ("username") types at about half size: the typed size is taken from the placeholder's ink, and those letters have no ascenders to measure. A capitalised or CJK placeholder is exact.
 
-**Measured:** 3.9% ink (clip median) · 16.0% footprint · 0.0 motion. No settled-frame ink figure is recorded for this register.
+**Step script:** `shot_props.steps` is a list, one object per step, each naming exactly one kind:
+- `{"screen": {"image": "<file in the out dir>"}}` or `{"screen": {"video": "<file>", "from": 0, "to": 6.5}}` (seconds; `to` required) — the first step is always a screen; a later one replaces the current screen, `"via": "push"` (default) or `"fade"`.
+- `{"type": "上周的反馈", "into": T}` — Latin one key at a time, Chinese two glyphs a keystroke, or your own chunks as a list of strings.
+- `{"tap": T}` / `{"click": T}` — one step, two spellings: a phone or tablet draws a ring, a laptop or monitor moves its cursor and clicks.
+- `{"scroll": 0.6}` — a fraction of a LONG screenshot's overflow, added to what was scrolled before (downward only); a screenshot no longer than the screen has nothing to scroll and is refused.
+- `{"drag": {"from": T, "to": T}}` — the push-in frames both ends.
+- `{"mark": T, "video": 3.2}` — recordings only: points at something at that moment of the recording (`video` optional).
+- A target `T` is `[x, y]`, fractions of the VISIBLE screen at the current scroll (not of the image), or `{"text": "反馈汇总", "nth": 1}` — words recognised in the screenshot on a Mac (`nth` 1 = top-most, then left-most).
+- `"at": {"cue": "the words"}` acts when the voice says them (`"offset": seconds` shifts it); a number is a fraction of the beat from 0 to 1. Steps without `at` spread evenly between cued ones.
+- Time each step needs (`runtime/deviceSpec.json`): a screen change 0.5 s, a tap or click 0.6 s, a Latin key 0.15 s, a Chinese word 0.35 s, a scroll or drag 0.9 s, a mark 0.6 s, plus a 0.35 s camera lead before every gesture. A beat's first 0.4 s is the cut into it, so the first action's words must come about 0.75 s into its line or later. Too much for the beat is refused, in seconds.
+- A recording is spread from `from` to `to` over its screen's time: at most 2× speed and never backwards (refused), under 0.5× said as slow motion.
+- After `tts.py`, `python3 scripts/validate.py <out_dir>` checks all of it — shape, files, text targets, time — and names every problem before a render.
+
+**Measured:** 3.9% ink (clip median) · 16.0% footprint · 0.0 motion · 3.2% ink on the settled frame. Measured on the register's own demo — one phone of skeleton rows and a single tap, no screenshot — so the numbers describe the empty stage: in a film the density is the product's own screens.
 
 **Reference:** `remotion/src/shots/DeviceDemo.tsx`
 

@@ -9,7 +9,7 @@ import {CONTENT_TOP, contentBottom} from './layout';
 import {mix, type DesignDNA} from './dna';
 import {keyOf} from './light';
 
-export type DeviceKind = 'phone' | 'tablet' | 'laptop' | 'monitor';
+export type DeviceKind = 'phone' | 'tablet' | 'tablet-landscape' | 'laptop' | 'monitor';
 export type DeviceLook = 'flat' | 'real' | 'screen';
 export type Placement = 'center' | 'left' | 'right';
 export type Rect = {x: number; y: number; w: number; h: number};

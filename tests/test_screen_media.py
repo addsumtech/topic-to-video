@@ -140,7 +140,7 @@ def test_a_line_is_all_its_words_and_an_icon_does_not_refuse_its_field(tmp_path)
     """Every row holding ink is the line: a word with an ascender and a descender beside wider x-height-only
     words is still part of it (a width-weighted outlier rule once dropped it, measuring 26 px of a 43 px line).
     And a tall icon in a small field is measured with the text but does not get the field refused (a 50 px
-    magnifier in a 64 px field reads as 78% of its height; the no-padding refusal starts at 85%)."""
+    magnifier in a 64 px field reads as 80% of its height; the no-padding refusal starts at 85%)."""
     im = Image.new("RGB", (1170, 800), "white")
     d = ImageDraw.Draw(im)
     font = ImageFont.truetype(LATIN, 44)

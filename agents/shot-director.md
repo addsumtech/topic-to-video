@@ -460,7 +460,9 @@ Cast `DeviceDemo` when the beat says how the product is USED ("search last week'
 scroll to the pattern") AND the film has the product's real screens (screenshots or a recording in the out
 dir). Write `shot_props.steps` as a script: open with `{"screen": {"image": "..."}}`, then one step per action
 the narration names, each with `"at": {"cue": "<the words>"}`. Target by text where you can
-(`{"tap": {"text": "反馈汇总"}}`), by `[x, y]` otherwise. Cast `DeviceHero` for "this is the product" with one
+(`{"tap": {"text": "反馈汇总"}}`), by `[x, y]` otherwise — fractions of the VISIBLE screen, not of the image. Put
+each action's words about 0.75 s or more into its line. On a recording, only `mark`. The whole format is the
+**Step script** section of `remotion/cards/DeviceDemo.md`. Cast `DeviceHero` for "this is the product" with one
 screen. Never invent a screen: with no real screenshots, choose an interface register instead and say so.
 After `tts.py`, `python3 scripts/validate.py <out_dir>` checks every device beat the way the render will meet
 it — the script's shape, its screenshots, every text target, the time each step needs — and names every

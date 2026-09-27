@@ -28,8 +28,14 @@ FIELD_TEXT_MAX = 0.85 # ink taller than this share of the region: no padding, so
 
 
 def image_facts(path):
-    with Image.open(path) as im:
-        return {"w": int(im.width), "h": int(im.height)}
+    """A screenshot's size. A file this machine cannot read as an image (HEIC, a corrupt download) is an error
+    naming it — it used to end validate with a raw traceback."""
+    try:
+        with Image.open(path) as im:
+            return {"w": int(im.width), "h": int(im.height)}
+    except (OSError, ValueError) as e:              # PIL.UnidentifiedImageError is an OSError
+        raise ds.DeviceScriptError(["%s is not an image this machine can read (save it as PNG or JPEG): %s"
+                                    % (os.path.basename(path), str(e)[:120])])
 
 
 def _screen_aspect(device):
@@ -46,8 +52,11 @@ def fit_kind(facts, device):
         raise ds.DeviceScriptError(["a %dx%d screenshot has no picture" % (facts["w"], facts["h"])])
     a, s, tol = facts["w"] / float(facts["h"]), _screen_aspect(device), float(ds.SPEC["aspectTolerance"])
     if a > s * (1 + tol):
-        raise ds.DeviceScriptError(["a %dx%d screenshot is wider than a %s screen allows (%.3f against %.3f) — it "
-                                    "is a capture of a different device" % (facts["w"], facts["h"], device, a, s)])
+        fits = [k for k in ds.SPEC["screenRatio"] if abs(a / _screen_aspect(k) - 1) <= tol]
+        hint = ("its proportion is a %s's screen — use device \"%s\"" % (fits[0], fits[0]) if fits else
+                "crop it to the %s screen's proportion, or show it on a device whose screen it fits" % device)
+        raise ds.DeviceScriptError(["a %dx%d screenshot is wider than a %s screen allows (%.3f against %.3f) — %s"
+                                    % (facts["w"], facts["h"], device, a, s, hint)])
     return "long" if a < s * (1 - tol) else "fit"
 
 
@@ -202,7 +211,7 @@ def field_at(path, x, y):
     rgb = np.asarray(Image.open(path).convert("RGB"), dtype=float)
     H, W, _ = rgb.shape
     cx, cy = int(round(x * (W - 1))), int(round(y * (H - 1)))
-    where = "(%.2f, %.2f)" % (x, y)
+    where = "(%.2f, %.2f) of the screenshot" % (x, y)
     kb = max(8, int(W * 0.05))
     band = rgb[max(0, cy - 2):cy + 3, max(0, cx - kb):cx + kb + 1].reshape(-1, 3).astype(int)
     colours, counts = np.unique(band, axis=0, return_counts=True)

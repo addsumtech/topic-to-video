@@ -323,9 +323,32 @@ def film_shot_props(slide, out_dir, fps=30):
     narration = slide.get("narration") or slide.get("script") or ""
     dur = slide.get("duration")
     if dur:
-        return resolve_cue_props(props, out_dir, slide.get("audio"), narration, float(dur), fps)
+        props = resolve_cue_props(props, out_dir, slide.get("audio"), narration, float(dur), fps)
+        if slide.get("shot") in ("DeviceDemo", "DeviceHero"):
+            props = _prepared_device_props(slide, props, out_dir, float(dur), fps)
+        return props
     return resolve_cue_props(props, out_dir, None, narration, 1.0, fps) if any(
         isinstance(v, dict) and "cue" in v for v in props.values()) else props
+
+
+def _prepared_device_props(slide, props, out_dir, dur, fps):
+    """A device beat as the film draws it. build_scenes prepares its script (device_script.prepare) against the
+    film's frame and language; a gate that renders the beat on its own must do the same, or the register refuses
+    the unprepared script and the gate reports a render failure on a correct film — which is what text_safe_qa,
+    shot_proof and cjk_type_qa did to every device beat. The frame and the language come from the board."""
+    import device_script as _ds
+    from _caption_band import aspect_table
+    board = {}
+    try:
+        with open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8") as fh:
+            board = json.load(fh)
+    except (OSError, ValueError):
+        pass
+    meta = board.get("meta") or {}
+    W, H = aspect_table().get(str(meta.get("aspect") or "16:9"), (1920, 1080))
+    out, _warns = _ds.prepare(props, shot=slide.get("shot"), out_dir=out_dir, dur_frames=int(round(dur * fps)),
+                              fps=fps, W=W, H=H, lang=_ds.film_language(meta, board.get("slides") or [slide]))
+    return out
 
 
 def _caption_word_spans(out_dir, audio, caption):

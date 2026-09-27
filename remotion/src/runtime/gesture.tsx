@@ -64,6 +64,14 @@ export const TapRipple: React.FC<{x: number; y: number; u: number; color: string
   return <>{ring(0.4 + 0.6 * land, fade, true)}{ring(1 + 1.4 * wave, (1 - wave) * 0.9 * fade, false)}</>;
 };
 
+/** A fingertip held on the glass while it moves (a drag, a scroll): one filled disc, no ripple. A ripple is a tap
+ *  LANDING; frozen mid-spread for a whole drag it read as a static double ring. */
+export const TouchPoint: React.FC<{x: number; y: number; color: string; size: number}> = ({x, y, color, size}) => (
+  <div style={{position: 'absolute', left: x - size * 0.35, top: y - size * 0.35, width: size * 0.7, height: size * 0.7,
+    borderRadius: '50%', background: alpha(color, 0.28), border: `${Math.max(2, Math.round(size * 0.05))}px solid ${color}`,
+    boxShadow: `0 0 ${Math.round(size * 0.25)}px ${alpha(color, 0.35)}`}} />
+);
+
 /** A system arrow whose tip sits exactly on (x, y); `press` 0..1 shrinks it as a click lands. */
 export const CursorArrow: React.FC<{x: number; y: number; size: number; press?: number}> = ({x, y, size, press = 0}) => (
   <svg viewBox="0 0 24 24" width={size} height={size} style={{position: 'absolute', left: x - size * (4 / 24),

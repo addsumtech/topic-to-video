@@ -1881,6 +1881,12 @@ def _shot_truncation(meta, slides, errors, warnings):
         dur = s.get("duration")
         if not n or not isinstance(dur, (int, float)) or not dur:
             continue
+        # A SCRIPTED beat is paced by its script, not by the register's preview length: device_script schedules
+        # every step of `steps` into the beat and refuses what does not fit, so on a DeviceDemo beat this warning
+        # fired on every short line and said nothing true.
+        sp = s.get("shot_props")
+        if isinstance(sp, dict) and isinstance(sp.get("steps"), list) and sp["steps"]:
+            continue
         have = int(round(float(dur) * fps)) - seam
         ratio = n / max(1.0, float(have))
         if ratio < 1.35:                     # under a third faster than authored: not worth mentioning
@@ -2288,7 +2294,7 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None):
         # A DEVICE BEAT'S SCRIPT is checked the way the render will meet it: shapes, files, text targets, time.
         if shot in ("DeviceDemo", "DeviceHero") and isinstance(sp, dict) and out_dir:
             import device_script as _dsx
-            _derr, _dwarn = _dsx.check_slide(s, out_dir, meta)
+            _derr, _dwarn = _dsx.check_slide(s, out_dir, meta, slides)
             errors.extend(f"{tag}: {m}" for m in _derr)
             warnings.extend(f"{tag}: {m}" for m in _dwarn)
         if isinstance(sp, dict) and shot in _demo_copy_library():
