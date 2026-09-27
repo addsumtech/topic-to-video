@@ -74,6 +74,12 @@ def _whole(monkeypatch, tmp_path, with_workshop):
     monkeypatch.setattr(rr, "_remotion_deliverables", lambda *a, **k: None)
     monkeypatch.setattr(rr, "build_scenes", lambda slides, out_dir, valid, fps=30, **kw: [{"shot": "TermTable", "durF": 60}])
     monkeypatch.setattr(rr.shutil, "which", lambda _x: "/usr/bin/npx")
+    # This unit test never renders anything (subprocess.run is replaced above), so it must not depend on the
+    # real toolchain being installed either — only the one os.path.isdir check that gates a render is forced;
+    # every other isdir call (a workshop's own folders included) reaches the real filesystem.
+    real_isdir = os.path.isdir
+    node_modules = os.path.join(rr._REMOTION2_DIR, "node_modules")
+    monkeypatch.setattr(rr.os.path, "isdir", lambda p: True if p == node_modules else real_isdir(p))
     monkeypatch.delenv("SLIDES_WORKSHOP", raising=False)
     out = _film(tmp_path) if with_workshop else str(tmp_path)
     rr._render_remotion(out, {"meta": {"renderer": "remotion"}, "slides": [{"index": 1}]}, whole=True)
@@ -85,7 +91,7 @@ def test_the_whole_film_render_runs_with_the_workshop(monkeypatch, tmp_path):
     assert calls and calls[0]["env"]["SLIDES_WORKSHOP"] == ws.workshop_dir(out)
 
 
-def test_without_a_workshop_the_whole_film_render_is_the_call_it_always_was(monkeypatch, tmp_path):
+def test_without_a_workshop_the_whole_film_render_passes_no_extra_environment(monkeypatch, tmp_path):
     _out, calls = _whole(monkeypatch, tmp_path, False)
     assert calls == [{}]
 
@@ -179,11 +185,15 @@ def test_shot_proof_reads_a_workshop_register_from_the_film(tmp_path):
         sp._FILM_SHOTS[:] = []
 
 
-def test_seam_plan_judges_a_workshop_shot_on_its_declared_ground(monkeypatch):
+def test_seam_plan_judges_a_workshop_shot_on_its_declared_ground(tmp_path):
     import seam_plan
-    monkeypatch.setattr(seam_plan, "_EXTRA_GROUNDS", {"WsShotA": ["surface"]})
-    assert seam_plan.dna_ground_y("WsShotA", {"surface": "#ffffff", "bg": "#000000"}) == pytest.approx(1.0)
-    assert seam_plan.dna_ground_y("NotAShot", {"surface": "#ffffff"}) is None
+    out = _film(tmp_path)
+    seam_plan.install_workshop(out)
+    try:
+        assert seam_plan.dna_ground_y("WsShotA", {"bg": "#000000", "surface": "#ffffff"}) == pytest.approx(0.0)
+        assert seam_plan.dna_ground_y("NotAShot", {"surface": "#ffffff"}) is None
+    finally:
+        seam_plan.clear_workshop()
 
 
 @needs_toolchain
@@ -207,8 +217,8 @@ def test_a_real_film_with_a_workshop_renders_per_beat(tmp_path):
 
 @needs_toolchain
 def test_a_throwing_object_is_named_by_the_gates(tmp_path, capsys):
-    """Review focus: a bug in film code must be reported as the film code's own message by every gate — not as
-    the last line of a stack, and never as a clean or blank frame."""
+    """A bug in film code is reported as the film code's own message by every gate — not as the last line of a
+    stack, and never as a clean or blank frame."""
     import text_safe_qa as g
     import cjk_type_qa as c
     import shot_proof as sp
@@ -221,3 +231,179 @@ def test_a_throwing_object_is_named_by_the_gates(tmp_path, capsys):
     rc = sp.main([out])
     printed = capsys.readouterr().out
     assert rc != 0 and "pressure must be a number" in printed, printed[-1500:]
+
+
+# ── a workshop shot's DURATION reads the same way in every gate ───────────────────────────────────────────
+_DUR_TYPED = """import React from 'react';
+import {AbsoluteFill} from 'remotion';
+export const DURATION: number = 40;
+export const GROUND = 'bg';
+export const PROVENANCE = 'motion-graphics';
+export const %(name)s: React.FC<{}> = () => <AbsoluteFill style={{background: '#112233'}} />;
+"""
+
+# A commented-out decoy ABOVE the real declaration — a regex that does not strip comments first, or is not
+# anchored to a line start, reads the decoy's number instead of the one that actually governs the clip.
+_DUR_COMMENTED = """import React from 'react';
+import {AbsoluteFill} from 'remotion';
+// export const DURATION = 45;
+export const DURATION = 40;
+export const GROUND = 'bg';
+export const PROVENANCE = 'motion-graphics';
+export const %(name)s: React.FC<{}> = () => <AbsoluteFill style={{background: '#112233'}} />;
+"""
+
+
+def _dur_film(tmp_path):
+    out = tmp_path / "durfilm"
+    d = out / "workshop" / "shots"
+    d.mkdir(parents=True)
+    for n, src in (("WsDurTyped", _DUR_TYPED), ("WsDurCommented", _DUR_COMMENTED)):
+        (d / (n + ".tsx")).write_text(src % {"name": n}, encoding="utf-8")
+    board = {"meta": {"renderer": "remotion", "design_dna": "product", "language": "zh"},
+             "slides": [{"index": 1, "shot": "WsDurTyped", "narration": "一", "shot_props": {}},
+                        {"index": 2, "shot": "WsDurCommented", "narration": "二", "shot_props": {}}]}
+    (out / "storyboard.json").write_text(json.dumps(board, ensure_ascii=False), encoding="utf-8")
+    return str(out)
+
+
+def test_shot_proof_proves_a_workshop_shot_at_the_gates_shared_settled_frame(monkeypatch, tmp_path):
+    import shot_proof as sp
+    import render_remotion as rr
+    out = _dur_film(tmp_path)
+    seen = {}
+
+    class R:
+        returncode, stdout, stderr = 1, "", "boom"
+
+    def spy(cmd, **kw):
+        if len(cmd) > 4 and cmd[:3] == ["npx", "remotion", "still"]:
+            frame = next(a for a in cmd if a.startswith("--frame=")).split("=", 1)[1]
+            seen[cmd[4]] = int(frame)
+        return R()
+    monkeypatch.setattr(sp.subprocess, "run", spy)
+    sp.main([out])
+    want = int(round(rr.frame_at_t(40, rr.SETTLED_T)))
+    assert seen.get("WsDurTyped") == want, seen
+    assert seen.get("WsDurCommented") == want, seen
+
+
+# ── the segment cache key does not depend on where the film sits on disk ──────────────────────────────────
+def test_the_cache_key_does_not_depend_on_which_side_of_the_skill_the_film_sits(tmp_path):
+    out = _film(tmp_path)
+    real = os.path.realpath(out)
+    alias = os.path.join("/System/Volumes/Data", real.lstrip("/"))
+    if not (os.path.isdir(alias) and os.stat(alias).st_ino == os.stat(real).st_ino):
+        pytest.skip("no /System/Volumes/Data alias for this machine's tmp_path")
+    assert rs.code_hash(alias) == rs.code_hash(real)
+
+
+# ── film-scoped module state never outlives the run that set it ───────────────────────────────────────────
+def test_shot_proof_s_film_state_is_cleared_after_main_returns(tmp_path):
+    import shot_proof as sp
+    out = _film(tmp_path)
+    sp.main([out, "--no-stills"])
+    assert sp._FILM_SHOTS == [] and sp._FILM_ENV == {}
+
+
+def test_shot_proof_s_film_state_is_cleared_after_main_raises(monkeypatch, tmp_path):
+    import shot_proof as sp
+    out = _film(tmp_path)
+
+    def boom(*_a, **_k):
+        raise RuntimeError("boom")
+    monkeypatch.setattr(sp, "static_checks", boom)
+    with pytest.raises(RuntimeError):
+        sp.main([out, "--no-stills"])
+    assert sp._FILM_SHOTS == [] and sp._FILM_ENV == {}
+
+
+def test_seam_plan_s_workshop_state_is_cleared_after_main_returns(tmp_path):
+    import seam_plan
+    out = _film(tmp_path)
+    seam_plan.main([out, "--dry-run"])
+    assert seam_plan._EXTRA_GROUNDS == {} and seam_plan._EXTRA_PROVENANCE == {}
+
+
+def test_seam_plan_s_workshop_state_is_cleared_after_main_raises(monkeypatch, tmp_path):
+    import seam_plan
+    out = _film(tmp_path)
+
+    def boom(*_a, **_k):
+        raise RuntimeError("boom")
+    monkeypatch.setattr(seam_plan, "plan", boom)
+    with pytest.raises(RuntimeError):
+        seam_plan.main([out])
+    assert seam_plan._EXTRA_GROUNDS == {} and seam_plan._EXTRA_PROVENANCE == {}
+
+
+def test_cjk_type_s_run_env_is_none_after_sweep_raises(monkeypatch, tmp_path):
+    import cjk_type_qa as c
+    out = _film(tmp_path)
+
+    def boom():
+        raise RuntimeError("boom")
+    monkeypatch.setattr(c, "evidence_props", boom)
+    with pytest.raises(RuntimeError):
+        c.sweep(["WsShotA"], film_props={"WsShotA": {"fill": "#000000"}}, out_dir=out)
+    assert c._RUN_ENV is None
+
+
+# ── the seam planner's workshop declarations reach shot_director's own call path too ──────────────────────
+def test_shot_director_installs_the_workshop_before_planning_seams(monkeypatch, tmp_path):
+    import shot_director
+    import seam_plan
+    out = _film(tmp_path)
+    seen = {}
+    real_plan = seam_plan.plan
+
+    def spy_plan(slides, dna=None):
+        seen["grounds"] = dict(seam_plan._EXTRA_GROUNDS)
+        return real_plan(slides, dna)
+    monkeypatch.setattr(seam_plan, "plan", spy_plan)
+    monkeypatch.setattr(sys, "argv", ["shot_director.py", out])
+    shot_director.main()
+    assert seen.get("grounds", {}).get("WsShotA") == ["bg"], seen
+    assert seam_plan._EXTRA_GROUNDS == {} and seam_plan._EXTRA_PROVENANCE == {}
+
+
+# ── a broken workshop is a named problem and exit 2, in every gate — never a raw traceback ────────────────
+def _broken_workshop_film(tmp_path):
+    out = tmp_path / "broken"
+    d = out / "workshop" / "shots"
+    d.mkdir(parents=True)
+    (d / "WsBad.tsx").write_text((SHOT % {"name": "WsBad"}).replace("DURATION = 30", "DURATION = 0"),
+                                 encoding="utf-8")
+    board = {"meta": {"renderer": "remotion", "design_dna": "product", "language": "zh"},
+             "slides": [{"index": 1, "shot": "WsBad", "narration": "一", "shot_props": {}}]}
+    (out / "storyboard.json").write_text(json.dumps(board, ensure_ascii=False), encoding="utf-8")
+    return str(out)
+
+
+def test_a_broken_workshop_is_named_and_exits_2_from_every_gate(capsys, tmp_path):
+    import text_safe_qa as g
+    import cjk_type_qa as c
+    import shot_proof as sp
+    out = _broken_workshop_film(tmp_path)
+    for mod, name, extra in ((g, "text_safe_qa", []), (c, "cjk_type_qa", []), (sp, "shot_proof", ["--no-stills"])):
+        rc = mod.main([out] + extra)
+        printed = capsys.readouterr().out
+        assert rc == 2, (name, rc, printed)
+        assert "DURATION" in printed, (name, printed)
+
+
+# ── a direct film-mode sweep renders against the film's own assets, not the library's ─────────────────────
+def test_cjk_type_sweep_renders_against_the_film_s_own_public_dir(monkeypatch, tmp_path):
+    import cjk_type_qa as c
+    out = _film(tmp_path)
+    prev_public = c.PUBLIC_DIR
+    seen = []
+
+    class R:
+        returncode, stdout, stderr = 0, "", ""
+    monkeypatch.setattr(c.subprocess, "run", lambda cmd, **k: seen.append(cmd) or R())
+    monkeypatch.setattr(c, "_ink_fraction", lambda p: 1.0)
+    monkeypatch.setattr(c, "evidence_props", lambda: {})
+    c.sweep(["WsShotA"], film_props={"WsShotA": {"fill": "#000000"}}, out_dir=out)
+    assert seen and all(("--public-dir=" + os.path.abspath(out)) in cmd for cmd in seen), seen
+    assert c.PUBLIC_DIR == prev_public, "the library's public dir was not restored after the sweep"

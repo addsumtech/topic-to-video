@@ -709,7 +709,7 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
             segmented = False
     if not segmented:
         import workshop as _ws
-        wk = _ws.run_kwargs(out_dir)            # the film's workshop — or {}, exactly the call it always was
+        wk = _ws.run_kwargs(out_dir)            # the film's workshop, or no extra environment when it has none
         cmd = ["npx", "remotion", "render", "src/index.ts", "Film", out_mp4,
                "--props=" + os.path.abspath(props_path), "--public-dir=" + os.path.abspath(out_dir)] + run_flags
         try:
