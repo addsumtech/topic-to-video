@@ -29,6 +29,29 @@ def _film(tmp_path, shots=(), objects=(), shot_src=SHOT, obj_src=OBJECT, name="f
     return str(out)
 
 
+def _stub_render(monkeypatch):
+    """Stub subprocess.run for a test that needs still() to "succeed" without a real render: a `still`-shaped
+    argv ([…, 'still', 'src/index.ts', comp, png, …]) creates the target png so the "did it render" check
+    passes; any other call (e.g. typecheck's tsc) runs for real."""
+    real_run = ws.subprocess.run
+
+    def fake(cmd, **kwargs):
+        if isinstance(cmd, list) and "still" in cmd:
+            i = cmd.index("still")
+            with open(cmd[i + 3], "wb") as fh:
+                fh.write(b"stub")
+            return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+        return real_run(cmd, **kwargs)
+
+    monkeypatch.setattr(ws.subprocess, "run", fake)
+
+
+def _stills_payload(out, name):
+    p = os.path.join(out, "workshop", "_stills", name + ".props.json")
+    with open(p, encoding="utf-8") as fh:
+        return json.load(fh)
+
+
 def test_a_film_without_a_workshop_changes_nothing(tmp_path, monkeypatch):
     monkeypatch.delenv("SLIDES_WORKSHOP", raising=False)
     out = _film(tmp_path)
@@ -361,6 +384,117 @@ def test_i3_still_on_a_shot_with_a_bad_duration_is_a_sentence_not_a_keyerror(tmp
     with pytest.raises(ws.WorkshopError) as e:
         ws.still(out, "WsDur")
     assert any("DURATION" in p for p in e.value.problems), e.value.problems
+
+
+def test_i3_still_on_an_object_with_a_bad_host_duration_is_a_sentence_too(tmp_path, monkeypatch):
+    """A workshop shot with a bad DURATION is now a BLOCKING _problems() finding regardless of its own role, so
+    still()'s write_index() (inside run_kwargs()) already refuses before a render when that shot is used as a
+    HOST — confirmed by reading e.value.problems: it names workshop/shots/WsBadHost.tsx, i.e. _problems(), not
+    still()'s own host-branch line. I4 below still switches that line to the shared parser too (":680" in the
+    fix brief — AttributeError on no match, and it never rejected zero on its own), for the host-is-a-LIBRARY-
+    register case _problems() never sees, and so there is one parser, not two."""
+    _stub_render(monkeypatch)
+    shot = (SHOT % {"name": "WsBadHost"}).replace("export const DURATION = 30;", "export const DURATION = 0;")
+    out = _film(tmp_path, shots=["WsBadHost"], objects=["WsDisc"], shot_src=shot.replace("%", "%%"))
+    with pytest.raises(ws.WorkshopError) as e:
+        ws.still(out, "WsDisc", host="WsBadHost")
+    assert any("DURATION" in p for p in e.value.problems), e.value.problems
+
+
+# I4 fixtures (task-2-fix-1.md) — none named TechnicalPlate/ObjectCompare: those slots land in a LATER task
+# (global-constraints.md's ruling on which registers get one), not yet in this tree. These prove the SAME
+# mechanism instead: still() reads the host's ACTUAL top-level ObjectRef slot name, never hard-codes "object".
+_HOST_ART_SLOT = """import React from 'react';
+import {AbsoluteFill} from 'remotion';
+import {ObjectSlot, type ObjectRef} from '@runtime/objectSlot';
+export const DURATION = 30;
+export const GROUND = 'bg';
+export const PROVENANCE = 'motion-graphics';
+export const %(name)s: React.FC<{caption?: string; art?: ObjectRef}> = ({caption = '', art}) => (
+  <AbsoluteFill style={{background: '#000000'}}>
+    {art ? <ObjectSlot object={art} box={{x: 660, y: 240, w: 600, h: 600}} /> : null}
+  </AbsoluteFill>
+);
+"""
+
+_HOST_TWO_SLOTS = """import React from 'react';
+import {AbsoluteFill} from 'remotion';
+import {ObjectSlot, type ObjectRef} from '@runtime/objectSlot';
+export const DURATION = 30;
+export const GROUND = 'bg';
+export const PROVENANCE = 'motion-graphics';
+export const %(name)s: React.FC<{first?: ObjectRef; second?: ObjectRef}> = ({first, second}) => (
+  <AbsoluteFill style={{background: '#000000'}}>
+    {first ? <ObjectSlot object={first} box={{x: 0, y: 0, w: 400, h: 400}} /> : null}
+    {second ? <ObjectSlot object={second} box={{x: 800, y: 0, w: 400, h: 400}} /> : null}
+  </AbsoluteFill>
+);
+"""
+
+# A device-shaped host: its only ObjectRef is NESTED (steps[i].screen.object), never a top-level prop of the
+# host's own React.FC<{...}> literal — `ScreenSrc` is a SEPARATE `type` alias, textually outside that literal.
+_HOST_NESTED_SLOT = """import React from 'react';
+import {AbsoluteFill} from 'remotion';
+import {ObjectSlot, type ObjectRef} from '@runtime/objectSlot';
+export const DURATION = 30;
+export const GROUND = 'bg';
+export const PROVENANCE = 'motion-graphics';
+type ScreenSrc = {object?: ObjectRef};
+export const %(name)s: React.FC<{steps?: {screen?: ScreenSrc}[]}> = ({steps = []}) => (
+  <AbsoluteFill style={{background: '#000000'}}>
+    {steps[0]?.screen?.object
+      ? <ObjectSlot object={steps[0].screen.object} box={{x: 0, y: 0, w: 400, h: 400}} /> : null}
+  </AbsoluteFill>
+);
+"""
+
+
+def test_i4_still_refuses_a_host_with_no_object_slot_of_its_own(tmp_path, monkeypatch):
+    """The real, unmodified TermTable register — no film has ever been able to give it an object."""
+    _stub_render(monkeypatch)
+    out = _film(tmp_path, objects=["WsDisc"])
+    with pytest.raises(ws.WorkshopError) as e:
+        ws.still(out, "WsDisc", host="TermTable")
+    assert any("no object slot of its own" in p for p in e.value.problems), e.value.problems
+
+
+def test_i4_still_puts_the_object_under_the_hosts_own_top_level_slot(tmp_path, monkeypatch):
+    _stub_render(monkeypatch)
+    out = _film(tmp_path, shots=["WsArtHost"], objects=["WsDisc"], shot_src=_HOST_ART_SLOT)
+    ws.still(out, "WsDisc", host="WsArtHost")
+    payload = _stills_payload(out, "WsDisc")
+    assert payload == {"art": {"id": "WsDisc"}}, payload
+
+
+def test_i4_still_with_several_top_level_slots_needs_slot(tmp_path, monkeypatch):
+    _stub_render(monkeypatch)
+    out = _film(tmp_path, shots=["WsTwoSlots"], objects=["WsDisc"], shot_src=_HOST_TWO_SLOTS)
+    with pytest.raises(ws.WorkshopError) as e:
+        ws.still(out, "WsDisc", host="WsTwoSlots")
+    assert any("first, second" in p and "--slot" in p for p in e.value.problems), e.value.problems
+    ws.still(out, "WsDisc", host="WsTwoSlots", slot="second")
+    payload = _stills_payload(out, "WsDisc")
+    assert payload == {"second": {"id": "WsDisc"}}, payload
+
+
+def test_i4_still_refuses_a_slot_name_that_is_not_a_top_level_slot(tmp_path, monkeypatch):
+    _stub_render(monkeypatch)
+    out = _film(tmp_path, shots=["WsTwoSlots"], objects=["WsDisc"], shot_src=_HOST_TWO_SLOTS)
+    with pytest.raises(ws.WorkshopError) as e:
+        ws.still(out, "WsDisc", host="WsTwoSlots", slot="nope")
+    assert any("nope" in p and "first" in p and "second" in p for p in e.value.problems), e.value.problems
+
+
+def test_i4_still_with_only_a_nested_slot_needs_props_to_place_it(tmp_path, monkeypatch):
+    _stub_render(monkeypatch)
+    out = _film(tmp_path, shots=["WsNested"], objects=["WsDisc"], shot_src=_HOST_NESTED_SLOT)
+    with pytest.raises(ws.WorkshopError) as e:
+        ws.still(out, "WsDisc", host="WsNested")
+    assert any("no object slot of its own" in p for p in e.value.problems), e.value.problems
+    given = {"steps": [{"screen": {"object": {"id": "WsDisc"}}}]}
+    ws.still(out, "WsDisc", host="WsNested", props=given)
+    payload = _stills_payload(out, "WsDisc")
+    assert payload == given, payload
 
 
 def test_m6_ground_and_provenance_are_read_from_comment_stripped_source(tmp_path):

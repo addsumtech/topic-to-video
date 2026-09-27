@@ -336,6 +336,35 @@ def object_refs(src, props):
     return found
 
 
+_FC_LITERAL = re.compile(r"React\.FC<\s*\{")
+_TOP_SLOT_SCAN = re.compile(r"[{}]|\b([A-Za-z_]\w*)\s*\??\s*:\s*ObjectRef\b")
+
+
+def _top_level_object_ref_keys(host_src):
+    """Prop names `host_src` types `ObjectRef` at brace depth 1 of its own `export const <Host>: React.FC<{…}>`
+    type literal (I4, task-2-fix-1.md) — the ones still() can place an object under without knowing the host's
+    nested shape (TechnicalPlate's `art`; a device's `steps[i].screen.object` is depth 2, and does NOT count).
+    Matched by counting braces, not angle brackets: the literal's own body holds arrow functions (`=>`), which
+    a naive `<...>` scan would misread as closing the generic early. [] when the register doesn't declare its
+    props as an inline object literal (186 of 187 library registers do)."""
+    src = _strip_comments(host_src or "")
+    m = _FC_LITERAL.search(src)
+    if not m:
+        return []
+    depth, keys = 1, []
+    for tm in _TOP_SLOT_SCAN.finditer(src, m.end()):
+        tok = tm.group()
+        if tok == "{":
+            depth += 1
+        elif tok == "}":
+            depth -= 1
+            if depth == 0:
+                break
+        elif depth == 1 and tm.group(1):
+            keys.append(tm.group(1))
+    return keys
+
+
 _REQUIRED = re.compile(r"export const REQUIRED_IN_FILM\b[^=]*=\s*\[([^\]]*)\]")
 
 
@@ -761,10 +790,16 @@ def _board(out_dir):
         return {}
 
 
-def still(out_dir, name, props=None, host="ObjectStage", frame=None, aspect=None):
+def still(out_dir, name, props=None, host="ObjectStage", frame=None, aspect=None, slot=None):
     """Render `name`'s settled frame on its own into <workshop>/_stills/<name>.png and return that path — a shot
-    as its own composition (props: the given ones, else its first beat's), an object on `host` (props: the
-    object's own)."""
+    as its own composition (props: the given ones, else its first beat's), an object on `host`.
+
+    An object's `props`, when given, is tried FIRST as the host's own full props with the object already
+    placed somewhere in them (object_refs() finds a ref to `name`) — how a device screen is previewed; used
+    as given, unchanged. Otherwise it is the object's OWN sub-props, and the object goes under `slot` (a
+    top-level ObjectRef slot of the host — I4, task-2-fix-1.md) if given, else the host's single one; refused
+    when the host has none or several, naming them either way — never silently hard-coded to "object", which
+    only ever happened to be right for ObjectStage."""
     import render_remotion as rr
     board = _board(out_dir)
     meta = board.get("meta") or {}
@@ -777,11 +812,28 @@ def still(out_dir, name, props=None, host="ObjectStage", frame=None, aspect=None
         dur = _required_duration(shot_source(out_dir, name), name)   # I3: a sentence, never a raw KeyError
     elif name in object_names(out_dir) or name in library_object_names():
         comp = host
-        payload = {"object": dict({"id": name}, **({"props": props} if props else {}))}
         src = shot_source(out_dir, host)
         if src is None:
             raise WorkshopError(["%s is not a register with a slot this film can use" % host])
-        dur = int(re.search(r"export const DURATION\s*=\s*(\d+)", src).group(1))
+        placed = any(isinstance(ref, dict) and ref.get("id") == name for _p, ref in object_refs(src, props or {}))
+        if placed:
+            payload = dict(props)
+        else:
+            top = _top_level_object_ref_keys(src)
+            if slot is not None:
+                if slot not in top:
+                    raise WorkshopError(["%s has no top-level object slot %r — its own are: %s"
+                                         % (host, slot, ", ".join(top) if top else "(none)")])
+                use_slot = slot
+            elif len(top) == 1:
+                use_slot = top[0]
+            elif not top:
+                raise WorkshopError(["%s has no object slot of its own — use a host that has one, e.g. "
+                                     "ObjectStage, or pass props that place the object" % host])
+            else:
+                raise WorkshopError(["%s has several: %s — pass --slot" % (host, ", ".join(top))])
+            payload = {use_slot: dict({"id": name}, **({"props": props} if props else {}))}
+        dur = _required_duration(src, host)
     else:
         raise WorkshopError(["%s is not in this film's workshop or the library's objects" % name])
     dna = meta.get("design_dna") or meta.get("shot_template")
@@ -831,10 +883,12 @@ def main(argv=None):
         p.add_argument("--means", required=True)
     p = sub.add_parser("still")
     p.add_argument("name")
-    p.add_argument("--props", help="a JSON file: the shot's props, or the object's own props")
+    p.add_argument("--props", help="a JSON file: the shot's props, or the object's own props "
+                                    "(or the host's full props with the object already placed in them)")
     p.add_argument("--host", default="ObjectStage")
     p.add_argument("--frame", type=int)
     p.add_argument("--aspect")
+    p.add_argument("--slot", help="which of the host's top-level object slots to use, when it has more than one")
     a = ap.parse_args(argv)
     try:
         if a.cmd == "list":
@@ -854,7 +908,7 @@ def main(argv=None):
                   % (a.out_dir, a.name))
             return 0
         props = json.loads(_read(a.props)) if a.props else None
-        png = still(a.out_dir, a.name, props, host=a.host, frame=a.frame, aspect=a.aspect)
+        png = still(a.out_dir, a.name, props, host=a.host, frame=a.frame, aspect=a.aspect, slot=a.slot)
         print("[workshop] %s" % png)
         print("NEXT: open it and LOOK — does it carry its build-list entry's `means` with the caption hidden?")
         return 0
