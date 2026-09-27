@@ -25,6 +25,7 @@
 - The standalone demo is skeleton bars with no text, so no demo copy exists to leak into a film — and a film may not show it: a `page` screen is refused.
 - A recording plays as it was recorded: a `type`, `tap`, `click`, `drag` or `scroll` on it is refused (a finger over a video would perform an action the video does not show); point at something on it with `mark`. Its first frame is held until it plays and its last until it has gone, never black.
 - A placeholder set in lowercase x-height letters only ("username") types at about half size: the typed size is taken from the placeholder's ink, and those letters have no ascenders to measure. A capitalised or CJK placeholder is exact.
+- A label that nearly fills its button (a 44 px label in a 56 px button) is measured as the whole button — about 1.8× its ink — so the push-in stops short, silently: around such a label the button is the only ground the measure sees. A label with room above and below it inside its button is exact.
 
 **Step script:** `shot_props.steps` is a list, one object per step, each naming exactly one kind:
 - `{"screen": {"image": "<file in the out dir>"}}` or `{"screen": {"video": "<file>", "from": 0, "to": 6.5}}` (seconds; `to` required) — the first step is always a screen; a later one replaces the current screen, `"via": "push"` (default) or `"fade"`.
