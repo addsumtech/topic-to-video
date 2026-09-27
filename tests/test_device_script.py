@@ -144,5 +144,5 @@ def test_the_opening_screen_takes_no_time():
 def test_a_cue_at_the_very_start_is_named_as_early():
     with pytest.raises(ds.DeviceScriptError) as e:
         ds.schedule_seconds([{"screen": {"image": "a.png"}}, {"tap": [0.5, 0.5]}], [None, 0.4], 0.4, 5.0)
-    assert "said as the beat opens" in str(e.value), e.value.problems
+    assert "said as the beat opens" in str(e.value) and "0.35 s" in str(e.value), e.value.problems
 

@@ -250,8 +250,8 @@ def schedule_seconds(steps, anchors, start_s, end_s):
         slack = limit - cursor - need
         if slack < -1e-6:
             if j < n and anchors[j] <= float(start_s) + 1e-3:
-                raise DeviceScriptError(["step %d's cue is said as the beat opens — the device needs %.1f s before "
-                                         "it acts (its first %.1f s are the cut into the beat); put the action's "
+                raise DeviceScriptError(["step %d's cue is said as the beat opens — the device needs %.2f s before "
+                                         "it acts (its first %.2f s are the cut into the beat); put the action's "
                                          "words later in the line" % (j + 1, need + pre[j], float(start_s))])
             if j < n:
                 raise DeviceScriptError(["%s need%s %.1f s before step %d's cue, which the narration reaches "
@@ -298,14 +298,17 @@ def schedule(steps, dur_frames, fps):
 
 def _line_ink(path, hit):
     """Ink height in source pixels of the recognised line `hit`, or None when the line's ink cannot be isolated:
-    measured inside the box padded by half its height and by all of it, and trusted only when both agree."""
+    measured inside the box padded by half its height and by all of it, and trusted only when both agree. Both are
+    measured against the NEAR window's ground: in its own median the wider window reached past a button onto the
+    page, read the whole button as ink, and a correctly measured label fell back to its box."""
     import screen_media as sm
     bx0, by0, bx1, by1 = hit["box"]
     bh = by1 - by0
 
-    def band(pad):
-        return sm.text_band_px(path, hit["x"], hit["y"], box=[bx0, max(0.0, by0 - bh * pad), bx1, min(1.0, by1 + bh * pad)])
-    near, far = band(0.5), band(1.0)
+    def box(pad):
+        return [bx0, max(0.0, by0 - bh * pad), bx1, min(1.0, by1 + bh * pad)]
+    ground = sm.window_ground(path, box(0.5))
+    near, far = (sm.text_band_px(path, hit["x"], hit["y"], box=box(p), bg=ground) for p in (0.5, 1.0))
     if near is None or far is None or abs(near - far) > max(2.0, 0.05 * near):
         return None
     return near
@@ -556,7 +559,9 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
                 fm = rr.frame_at_t(dur_frames, m["ta"])
                 sp = next((x for x in spans if x["f0"] <= fm <= x["f1"]), spans[-1])
                 vt = sp["v0"] + (sp["v1"] - sp["v0"]) * (fm - sp["f0"]) / max(1e-6, sp["f1"] - sp["f0"])
-                vt = max(0.0, min(vt, vf["duration"] - 1.0 / vf["fps"]))   # `video` = its length names the last frame
+                # `video` = its length names the last frame; a seek one frame from the end still decodes nothing,
+                # so the still is cut two frames in
+                vt = max(0.0, min(vt, vf["duration"] - 2.0 / vf["fps"]))
                 still = os.path.join(out_dir, ".cache", "device", "%s-%.3f.png" % (os.path.basename(vp), vt))
                 os.makedirs(os.path.dirname(still), exist_ok=True)
                 subprocess.run(["ffmpeg", "-y", "-v", "error", "-ss", "%.3f" % vt, "-i", vp, "-frames:v", "1",

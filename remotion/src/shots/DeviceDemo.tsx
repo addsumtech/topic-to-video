@@ -174,7 +174,7 @@ export const DeviceDemo: React.FC<{
   gestures.forEach((st, n) => {
     const k = kindOf(st);
     const u = seg(t, st.ta!, st.t1!);
-    const size = touch ? s.w * 0.14 : s.w * 0.06;
+    const size = touch ? Math.min(s.w, s.h) * 0.14 : s.w * 0.06;   // a finger is sized by the short side (a landscape tablet)
     if (k === 'tap' || k === 'click' || k === 'mark') {
       const p = P((st.tap ?? st.click ?? st.mark)!);
       overlays.push(<TapRipple key={`g${n}`} x={p.x} y={p.y} u={u} color={ACC} size={size} />);

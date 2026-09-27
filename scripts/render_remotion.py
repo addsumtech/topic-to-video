@@ -346,8 +346,12 @@ def _prepared_device_props(slide, props, out_dir, dur, fps):
         pass
     meta = board.get("meta") or {}
     W, H = aspect_table().get(str(meta.get("aspect") or "16:9"), (1920, 1080))
-    out, _warns = _ds.prepare(props, shot=slide.get("shot"), out_dir=out_dir, dur_frames=int(round(dur * fps)),
-                              fps=fps, W=W, H=H, lang=_ds.film_language(meta, board.get("slides") or [slide]))
+    try:
+        out, _warns = _ds.prepare(props, shot=slide.get("shot"), out_dir=out_dir, dur_frames=int(round(dur * fps)),
+                                  fps=fps, W=W, H=H, lang=_ds.film_language(meta, board.get("slides") or [slide]))
+    except _ds.DeviceScriptError as e:          # a board validate refuses: named, not a traceback
+        raise SystemExit("device beat (%s, %r): %s — validate.py names every problem before a render"
+                         % (slide.get("shot"), (slide.get("narration") or "")[:40], "; ".join(e.problems)))
     return out
 
 

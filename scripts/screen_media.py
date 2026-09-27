@@ -125,7 +125,7 @@ def _runs(rows):
     return out
 
 
-def text_band_px(path, x, y, box=None):
+def text_band_px(path, x, y, box=None, bg=None):
     """Height in SOURCE pixels of the line of text at image fractions (x, y): the contiguous band of rows
     holding glyph ink near that point, in a window around it (or inside `box`, image fractions).
 
@@ -134,7 +134,8 @@ def text_band_px(path, x, y, box=None):
     that stands taller than it is measured with it (a Material search field's leading magnifier makes 16sp
     text read about a fifth taller). Telling an icon from a short word by shape was tried and rejected: a
     compactness + height + gap rule dropped a real word in 64 of 450 test lines ("lb", "A", "kl" look like
-    icons), and a line that loses a word is worse than one that gains an icon."""
+    icons), and a line that loses a word is worse than one that gains an icon. `bg` holds the ground at a value
+    measured elsewhere (window_ground) instead of this window's median."""
     a = _lum(path)
     H, W = a.shape
     cx, cy = int(round(x * (W - 1))), int(round(y * (H - 1)))
@@ -146,13 +147,21 @@ def text_band_px(path, x, y, box=None):
     win = a[y0:y1, x0:x1]
     if win.size == 0:
         return None
-    bg = float(np.median(win))
+    bg = float(np.median(win)) if bg is None else float(bg)
     runs = [r for r in _runs(np.flatnonzero((np.abs(win - bg) > INK_DELTA).any(axis=1))) if r[1] - r[0] >= 2]
     if not runs:
         return None
     ty = cy - y0
     best = min(runs, key=lambda r: 0 if r[0] <= ty <= r[1] else min(abs(ty - r[0]), abs(ty - r[1])))
     return float(best[1] - best[0] + 1)
+
+
+def window_ground(path, box):
+    """The median luminance inside `box` (image fractions) — the ground text_band_px measures ink against."""
+    a = _lum(path)
+    H, W = a.shape
+    win = a[int(box[1] * H):int(box[3] * H), int(box[0] * W):int(box[2] * W)]
+    return float(np.median(win)) if win.size else None
 
 
 def _hex(rgb):

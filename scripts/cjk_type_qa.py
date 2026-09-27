@@ -2043,6 +2043,8 @@ def main(argv):
     # measuring the register's English demo; a film's beat is drawn with the film's OWN props, and when none of
     # them is Chinese (a device beat whose words are its screenshots' pixels) there is nothing of its own to
     # measure — it was reported "measured in its own English demo defaults", which was false, and exited 2.
+    # The cost, said plainly: a register left on its English demo defaults in a Chinese film no longer trips
+    # THIS gate; the demo-copy checks (shot_proof, content_contract_qa) are the ones that catch that.
     no_chinese = []
     if a.out_dir and film_props:
         no_chinese, nofeed = sorted(nofeed), []

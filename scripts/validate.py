@@ -1881,11 +1881,10 @@ def _shot_truncation(meta, slides, errors, warnings):
         dur = s.get("duration")
         if not n or not isinstance(dur, (int, float)) or not dur:
             continue
-        # A SCRIPTED beat is paced by its script, not by the register's preview length: device_script schedules
-        # every step of `steps` into the beat and refuses what does not fit, so on a DeviceDemo beat this warning
-        # fired on every short line and said nothing true.
-        sp = s.get("shot_props")
-        if isinstance(sp, dict) and isinstance(sp.get("steps"), list) and sp["steps"]:
+        # A DEVICE SCRIPT is paced by its script, not by the register's preview length: device_script schedules
+        # every step into the beat and refuses what does not fit, so on a DeviceDemo beat this warning fired on
+        # every short line and said nothing true. Other registers that take a `steps` list are still paced.
+        if shot == "DeviceDemo":
             continue
         have = int(round(float(dur) * fps)) - seam
         ratio = n / max(1.0, float(have))
@@ -2016,7 +2015,7 @@ def _dna_named(design_dna):
     return isinstance(design_dna, str) and design_dna in _DNA_PRESETS_FOR_TEST()
 
 
-def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None):
+def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, vertical=False):
     """Guardrails for the remotion bespoke-shot tier: a valid whole-film `shot_template` direction (+ its
     contest trace); every scene needs a valid `shot` id + object `shot_props`; a NUMBER-bearing register left on
     its illustrative demo default is flagged (a real film must pass a SOURCED figure); a register left as a raw
@@ -2294,7 +2293,8 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None):
         # A DEVICE BEAT'S SCRIPT is checked the way the render will meet it: shapes, files, text targets, time.
         if shot in ("DeviceDemo", "DeviceHero") and isinstance(sp, dict) and out_dir:
             import device_script as _dsx
-            _derr, _dwarn = _dsx.check_slide(s, out_dir, meta, slides)
+            # the frame the render will use: --vertical renders 9:16 whatever meta.aspect says
+            _derr, _dwarn = _dsx.check_slide(s, out_dir, dict(meta, aspect="9:16") if vertical else meta, slides)
             errors.extend(f"{tag}: {m}" for m in _derr)
             warnings.extend(f"{tag}: {m}" for m in _dwarn)
         if isinstance(sp, dict) and shot in _demo_copy_library():
@@ -2727,7 +2727,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # REMOTION2 bespoke-shot tier — its own scene contract (shot id + props + family variety); the legacy
     # cinematic/HTML checks below don't apply to it, so guard and skip them.
     if (meta.get("renderer") or "") == "remotion":
-        _check_remotion(meta, slides, errors, warnings, out_dir, skips=skips)
+        _check_remotion(meta, slides, errors, warnings, out_dir, skips=skips, vertical=vertical)
         _shot_truncation(meta, slides, errors, warnings)
         _form_vocabulary(meta, slides, errors, warnings)
         _idiom_world(meta, slides, errors, warnings)

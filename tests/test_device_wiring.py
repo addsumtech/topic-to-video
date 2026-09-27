@@ -224,11 +224,14 @@ def test_a_scripted_beat_is_not_called_rushed():
     paced by its script (every step scheduled into the beat, and refused when it does not fit), so the warning
     fired on every short line and said nothing true. An unscripted short beat is still warned."""
     import validate as v
-    slides = [{"shot": "DeviceDemo", "duration": 2.5, "shot_props": {"steps": [{"screen": {"page": "demo"}}]}},
-              {"shot": "DeviceHero", "duration": 2.5, "shot_props": {}}]
+    slides = [{"shot": "DeviceDemo", "duration": 2.5, "shot_props": {"steps": [{"screen": {"image": "a.png"}}]}},
+              {"shot": "DeviceHero", "duration": 2.5, "shot_props": {}},
+              {"shot": "InOrder", "duration": 2.0, "shot_props": {"steps": [{"label": "one"}, {"label": "two"}]}}]
     warnings = []
     v._shot_truncation({}, slides, [], warnings)
-    assert not any("beat 1 " in w for w in warnings) and any("beat 2 " in w for w in warnings), warnings
+    assert not any("beat 1 " in w for w in warnings), warnings
+    # another register that happens to take a `steps` list is still paced (the skip once silenced five of them)
+    assert any("beat 2 " in w for w in warnings) and any("beat 3 " in w for w in warnings), warnings
 
 
 def test_a_switch_default_is_a_choice_not_demo_furniture():
@@ -319,6 +322,8 @@ def test_a_mark_at_the_recordings_last_moment_is_measured_not_a_crash(tmp_path):
     out, warns = ds.prepare(props, shot="DeviceDemo", out_dir=str(tmp_path), dur_frames=180, fps=FPS, W=1920,
                             H=1080, lang="zh", recognizer=_fake_recognizer)
     assert out["steps"][1]["t1"] > 0
+    cut = [f for f in os.listdir(str(tmp_path / ".cache" / "device")) if f.startswith("end.mp4-")]
+    assert cut, "no frame was cut at the recording's last moment, so the mark could never be measured"
 
 
 @pytest.mark.skipif(not shutil.which("ffmpeg"), reason="needs ffmpeg")
@@ -327,4 +332,43 @@ def test_a_recording_stretched_into_slow_motion_is_said(tmp_path):
     _out, warns = ds.prepare({"device": "phone", "screen": {"video": v}}, shot="DeviceHero", out_dir=str(tmp_path),
                              dur_frames=180, fps=FPS, W=1920, H=1080, lang="zh")
     assert any("slow motion" in w for w in warns), warns
+
+
+def test_a_label_on_a_button_is_measured_by_its_ink(tmp_path):
+    """A button a little taller than its label: the wider of R22's two windows reached past the button onto the
+    page, its own ground flipped to the page, the whole button read as ink, and the label fell back to its box
+    with a warning that it "could not be told apart from the line next to it". Both windows now share a ground."""
+    im = Image.new("RGB", (1170, 2532), "white")
+    d = ImageDraw.Draw(im)
+    d.rounded_rectangle([300, 1000, 870, 1070], radius=20, fill=(53, 99, 233))          # a 70 px button
+    f = ImageFont.truetype(FONT, 40)
+    d.text((585, 1035), "继续 Continue", fill="white", font=f, anchor="mm")
+    (tmp_path / "ui").mkdir(exist_ok=True)
+    im.save(str(tmp_path / "ui" / "btn.png"))
+    import numpy as np
+    a = np.asarray(Image.open(str(tmp_path / "ui" / "btn.png")).convert("L"), dtype=float)[1002:1068, 440:730]
+    rows = np.flatnonzero((a > 200).any(axis=1))                  # the white label on the blue button
+    top, bottom = 1002 + int(rows[0]), 1002 + int(rows[-1])
+    ink = bottom - top + 1
+    pad = 0.2 * ink                                          # a recogniser's line box: a little taller than the ink
+    box = lambda path: [{"text": "继续 Continue", "box": [440 / 1170, (top - pad) / 2532, 730 / 1170,
+                                                          (bottom + pad) / 2532]}]
+    props = {"device": "phone", "steps": [{"screen": {"image": "ui/btn.png"}},
+                                          {"tap": {"text": "继续 Continue"}, "at": 0.7}]}
+    out, warns = ds.prepare(props, shot="DeviceDemo", out_dir=str(tmp_path), dur_frames=180, fps=FPS, W=1920,
+                            H=1080, lang="zh", recognizer=box)
+    assert not any("told apart" in w for w in warns), warns
+    assert abs(out["steps"][1]["textFrac"] * 1170 - ink) <= 1, (out["steps"][1]["textFrac"] * 1170, ink)
+
+
+def test_a_gate_meeting_a_refused_device_beat_names_it(tmp_path):
+    import render_remotion as rr
+    img = _ui(tmp_path)
+    slide = {"shot": "DeviceDemo", "narration": "往下看", "duration": 4.0,
+             "shot_props": {"device": "phone", "steps": [{"screen": {"image": img}}, {"scroll": 0.5}]}}
+    (tmp_path / "storyboard.json").write_text(json.dumps({"meta": {}, "slides": [slide]}, ensure_ascii=False),
+                                              encoding="utf-8")
+    with pytest.raises(SystemExit) as e:
+        rr.film_shot_props(slide, str(tmp_path))
+    assert "nothing to scroll" in str(e.value) and "validate.py" in str(e.value), e.value
 
