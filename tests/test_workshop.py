@@ -499,6 +499,27 @@ export const %(name)s: React.FC<{steps?: {screen?: ScreenSrc}[]}> = ({steps = []
 );
 """
 
+# Fix round 2, Important — a HELPER component declared before the host's own export. 35 of 187 library
+# registers do this (e.g. DeviceDemo.tsx's own `DemoPage` helper, declared before `export const DeviceDemo`).
+_HOST_HELPER_BEFORE_EXPORT = """import React from 'react';
+import {AbsoluteFill} from 'remotion';
+import {ObjectSlot, type ObjectRef} from '@runtime/objectSlot';
+export const DURATION = 30;
+export const GROUND = 'bg';
+export const PROVENANCE = 'motion-graphics';
+const Helper: React.FC<{art?: ObjectRef}> = ({art}) => (
+  <AbsoluteFill style={{background: '#111111'}}>
+    {art ? <ObjectSlot object={art} box={{x: 0, y: 0, w: 200, h: 200}} /> : null}
+  </AbsoluteFill>
+);
+export const %(name)s: React.FC<{title?: string; object?: ObjectRef}> = ({title = '', object}) => (
+  <AbsoluteFill style={{background: '#000000'}}>
+    <Helper />
+    {object ? <ObjectSlot object={object} box={{x: 660, y: 240, w: 600, h: 600}} /> : null}
+  </AbsoluteFill>
+);
+"""
+
 
 def test_i4_still_refuses_a_host_with_no_object_slot_of_its_own(tmp_path, monkeypatch):
     """The real, unmodified TermTable register — no film has ever been able to give it an object."""
@@ -515,6 +536,32 @@ def test_i4_still_puts_the_object_under_the_hosts_own_top_level_slot(tmp_path, m
     ws.still(out, "WsDisc", host="WsArtHost")
     payload = _stills_payload(out, "WsDisc")
     assert payload == {"art": {"id": "WsDisc"}}, payload
+
+
+def test_i4_still_anchors_on_the_hosts_own_export_not_a_helper_declared_first(tmp_path, monkeypatch):
+    """Fix round 2, Important: _top_level_object_ref_keys used to scan the FIRST `React.FC<{` in the file — a
+    helper component's own props literal, declared before the host's export, if the file has one. The object
+    must land under the EXPORT's own `object` slot, not the helper's `art`."""
+    _stub_render(monkeypatch)
+    out = _film(tmp_path, shots=["WsHost"], objects=["WsDisc"], shot_src=_HOST_HELPER_BEFORE_EXPORT)
+    ws.still(out, "WsDisc", host="WsHost")
+    payload = _stills_payload(out, "WsDisc")
+    assert payload == {"object": {"id": "WsDisc"}}, payload
+
+
+def test_i4_top_level_scan_on_the_real_devicedemo_finds_its_own_injected_slot():
+    """The reviewer's own repro: remotion/src/shots/DeviceDemo.tsx declares a helper (`DemoPage`) before its
+    export. Injecting `object?: ObjectRef` into DeviceDemo's OWN top-level props literal (read from the real
+    file, never written back to it) must be found there — not in DemoPage's, and not under DemoPage's own
+    (non-existent) export name."""
+    path = os.path.join(_REM, "src", "shots", "DeviceDemo.tsx")
+    with open(path, encoding="utf-8") as fh:
+        src = fh.read()
+    marker = "export const DeviceDemo: React.FC<{\n"
+    assert marker in src, "DeviceDemo.tsx's own export literal no longer opens this way — update the fixture"
+    injected = src.replace(marker, marker + "  object?: ObjectRef;\n", 1)
+    assert "object" in ws._top_level_object_ref_keys(injected, "DeviceDemo")
+    assert ws._top_level_object_ref_keys(injected, "DemoPage") == []   # not exported — no slot to find
 
 
 def test_i4_still_with_several_top_level_slots_needs_slot(tmp_path, monkeypatch):

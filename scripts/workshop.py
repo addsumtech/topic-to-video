@@ -348,19 +348,25 @@ def object_refs(src, props):
     return found
 
 
-_FC_LITERAL = re.compile(r"React\.FC<\s*\{")
 _TOP_SLOT_SCAN = re.compile(r"[{}]|" + _SLOT_KEY.pattern)   # the SAME "typed ObjectRef" shape as _SLOT_KEY
 
 
-def _top_level_object_ref_keys(host_src):
-    """Prop names `host_src` types `ObjectRef` at brace depth 1 of its own `export const <Host>: React.FC<{…}>`
-    type literal (I4, task-2-fix-1.md) — the ones still() can place an object under without knowing the host's
-    nested shape (TechnicalPlate's `art`; a device's `steps[i].screen.object` is depth 2, and does NOT count).
-    Matched by counting braces, not angle brackets: the literal's own body holds arrow functions (`=>`), which
-    a naive `<...>` scan would misread as closing the generic early. [] when the register doesn't declare its
-    props as an inline object literal (186 of 187 library registers do)."""
+def _top_level_object_ref_keys(host_src, host_name):
+    """Prop names `host_src`'s OWN `export const <host_name>: React.FC<{…}>` types `ObjectRef` at brace depth 1
+    of THAT (and only that) type literal (I4, task-2-fix-1.md; anchored on the export's own name — fix round
+    2's Important finding) — the ones still() can place an object under without knowing the host's nested shape
+    (TechnicalPlate's `art`; a device's `steps[i].screen.object` is depth 2, and does NOT count).
+
+    Anchored on `export const <host_name>`, not the first `React.FC<{` in the file: 35 of the 187 library
+    registers declare a HELPER component before their export (DeviceDemo.tsx's own `DemoPage`, before
+    `export const DeviceDemo`) — scanning the first occurrence read the helper's props literal instead of the
+    host's own, so injecting a slot into DeviceDemo's real export was read as [] (DemoPage's shape, not
+    DeviceDemo's). Matched by counting braces, not angle brackets: the literal's own body holds arrow functions
+    (`=>`), which a naive `<...>` scan would misread as closing the generic early. [] when there is no such
+    export, or it does not declare its props as an inline object literal (186 of 187 library registers that DO
+    export this way do)."""
     src = _strip_comments(host_src or "")
-    m = _FC_LITERAL.search(src)
+    m = re.search(r"export const %s\s*:\s*React\.FC<\s*\{" % re.escape(host_name), src)
     if not m:
         return []
     depth, keys = 1, []
@@ -861,7 +867,7 @@ def still(out_dir, name, props=None, host="ObjectStage", frame=None, aspect=None
         if placed:
             payload = dict(props)
         else:
-            top = _top_level_object_ref_keys(src)
+            top = _top_level_object_ref_keys(src, host)
             if slot is not None:
                 if slot not in top:
                     raise WorkshopError(["%s has no top-level object slot %r — its own are: %s"
