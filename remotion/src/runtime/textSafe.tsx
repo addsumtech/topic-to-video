@@ -778,76 +778,116 @@ export const auditFedText = (root: Element, fed: unknown[]): string[] => {
 /**
  * THE CONTENT CONTRACT, ON THE FRAME: the words a viewer can read that no prop supplied.
  *
- * `fed` asks whether the film's copy ARRIVED; this asks the opposite question \u2014 whether anything arrived that the
+ * `fed` asks whether the film's copy ARRIVED; this asks the opposite question — whether anything arrived that the
  * film never said. A built thing (scripts/workshop.py) takes every word from props; the static scan
  * (scripts/jsx_words.cjs) catches the words written into its code, and cannot see a word that reaches the
  * screen through a constant list, a one-word default, or a wrapped library register's own copy. This can.
  *
- * TOKEN MATCHING, not letter coverage \u2014 a pooled-letter version of this let ~120 letters of ordinary copy cover
- * unrelated baked words (18 of 22 real baked words in one library sweep passed), let a truncated prefix riding
- * beside real fed copy in one element pass for free, and never compared a digit. A run is fed when its TOKENS
- * split into consecutive chunks each found, in order, inside ONE fed string \u2014 case- and width-folded, so a
- * register may re-case a label, join two with a separator, or set each glyph in its own element (see the
- * glyph-run rule below), all of which are the register working:
+ * TWO QUESTIONS, ANSWERED SEPARATELY: what counts as ONE RUN of text (below the matcher), and whether a
+ * run's TOKENS are fed — case- and width-folded, so a register may re-case a label, join two with a
+ * separator, split one across elements, or set each glyph in its own element, all of which are the register
+ * working:
  *
- *   - a TOKEN is a maximal run of letters/digits of one script class: a Han/kana/Hangul run is one CJK token;
- *     any other letters/digits form a WORD token (mixed freely, so "MP3" is one token); anything else (space,
- *     punctuation, `%`, `\u00d7`, `\u00b0`, a currency sign) separates tokens and is judged only as an adjacency mark
- *     (below) \u2014 never itself a token.
- *   - a WORD token matches by exact equality, except the run's LAST token may be a proper prefix of the fed
- *     token it meets (truncation: "wa" of "water" \u2014 a terminal's ellipsis is the FORM, not omitted copy).
- *   - a CJK token has no internal word boundaries (CJK has no spaces, so a line or element break can fall
- *     anywhere in a phrase, and two joined phrases arrive as one token) \u2014 it is covered by PIECES of a fed CJK
- *     token instead, each piece \u22652 characters (a lone character counts as fed only where some fed token IS
- *     exactly that one character \u2014 a substring of one is not enough, or almost any single glyph would pass).
- *   - a WORD token made only of digits (internal `.`/`,` allowed) is a NUMERAL. FIGURE-SHAPED (holds `.`/`,`,
- *     or sits against `%`, `\u00d7`/`x`, `\u2030` or a currency sign) means fabricated unless it equals a numeral of a
- *     fed string OR a numeric prop value ("87%", "3.2\u00d7", "$1,200" baked with no source are exactly this). A
- *     plain integer with no figure mark is presumed DERIVED (an index, a step number, an axis tick) and passes
- *     untested \u2014 ticks "0"/"25"/"50" are not copy.
- *   - GLYPH RUNS: when an element's own text is a single grapheme and its parent holds \u22652 such children and no
- *     other own text (kinetic type set per glyph), the PARENT's concatenated text is judged as one run and the
- *     children are skipped \u2014 judged per glyph, "NEW" is three tokens of one letter each and none of them is a
- *     word any fed string has.
- *   - EVERY LAID-OUT ELEMENT is read \u2014 a non-empty client rect of non-zero size, except `script`/`style`/
- *     `template`/`noscript` and a `display:none` chain \u2014 regardless of opacity, visibility or clipping: a
- *     cycling constant list shows one word at the proofed frame and hides the rest by fading them, and the
- *     hidden ones are still words the film put on screen.
+ *   - a TOKEN is a maximal run of letters/digits of one script class: a Han/kana/Hangul run is one CJK token
+ *     (ー and 々 stay inside one, by Unicode's SCRIPT EXTENSIONS rather than a character's primary Script,
+ *     which puts a mark several scripts share into "Common" and reads it as a token break); any other
+ *     letters/digits form a WORD token (mixed freely, so "MP3" is one token); anything else (space,
+ *     punctuation, `%`, `×`, `°`, a currency sign) separates tokens and is judged only as an adjacency mark
+ *     (below), across whitespace too ("87 %" is a figure) — never itself a token.
+ *   - a WORD or CJK token matches by pooled PROVENANCE: a fed word may appear ANYWHERE on the frame, in any
+ *     fed string, so a run's WORD tokens are checked against the pool of every fed string's own word tokens,
+ *     not a contiguous run inside one of them (chunk contiguity added nothing a plain membership test does
+ *     not, and cost real time: an adversarial 2000-token run against a 2000-token fed string took 5.5s to
+ *     search contiguously and 2ms to pool). A CJK token has no internal word boundaries at all (CJK has no
+ *     spaces, so a line or element break can fall anywhere in a phrase, and two joined phrases arrive as one
+ *     token) — it is covered by PIECES of a fed CJK token instead, each piece ≥2 characters (a lone character
+ *     counts as fed only where some fed token IS exactly that one character — a substring of one is not
+ *     enough, or almost any single glyph would pass), found by DYNAMIC PROGRAMMING rather than a greedy
+ *     longest-piece search: greedy commits to the first long match and cannot back out of it, so "数据中心化"
+ *     fed "数据中心" + "中心化" (the split 数据｜中心化) was missed — the greedy pass ate "数据中心" whole
+ *     and was left with a lone "化".
+ *   - TRUNCATION is an exception on the run's own FINAL token alone (whichever class it is), and only when
+ *     the run's text ends with an ellipsis ("…" or "..."): that token may then be a proper prefix of a fed
+ *     token of the same class ("wa" of "water" when a run reads "…wa…", "压" of "压粉均匀" when a CJK run is
+ *     cut mid phrase) instead of a full match. Elsewhere a short token is not "maybe truncated", it is a
+ *     different word — "Step 1" is not licensed by a fed "Steps", and a bare "O" is not licensed by "Output".
+ *   - a WORD token made only of digits (internal `.`/`,` allowed) is a NUMERAL, compared by VALUE (thousands
+ *     separators stripped, so "87" matches a fed 87.0 and "1,200" matches a fed 1200) rather than by string.
+ *     FIGURE-SHAPED (holds `.`/`,`, or sits — across whitespace — against `%`, `×`/`x`, `‰` or a currency
+ *     sign) means fabricated unless its VALUE equals a numeral of a fed string or a numeric prop value ("87%",
+ *     "3.2×", "$1,200" baked with no source are exactly this). A plain integer with no figure mark is
+ *     presumed DERIVED (an index, a step number, an axis tick) and passes untested — ticks "0"/"25"/"50" are
+ *     not copy.
+ *   - every string this audits is folded FIRST (Unicode canonical composition, so an NFD "e" + a combining
+ *     accent recomposes into the one letter an NFC fed string spells, before any per-character script test can
+ *     be confused by the accent alone) and each character is folded again for the STRUCTURAL questions only —
+ *     is it a digit, is a `.`/`,` a numeral's own separator, is a neighbour a figure mark — so "８７％" reads
+ *     as the figure 87% and "１，２００" as one numeral, though what gets REPORTED keeps the run's own written
+ *     form.
+ *   - config-like prop strings (an enum value, a file name) stay in the same fed pool on purpose: the pool is
+ *     every word the film handed this beat, not a sentence parser that only trusts prose.
  *
  * `scope: 'slots'` asks only the text inside objects (`[data-object-slot]`), for a library register holding a
  * film's object: the register's own words are judged elsewhere.
  *
  * BLIND SPOTS, by construction: a DOM walk cannot see text painted by a CSS `content:` rule, drawn onto a
- * `<canvas>`, or baked into a raster image \u2014 none of those write a text node this can read.
+ * `<canvas>`, or baked into a raster image — none of those write a text node this can read.
  */
 export const UNFED_TEXT_TAG = 'UNFED-TEXT ';
-const CJK_SCRIPT_RE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+// Script EXTENSIONS, not a character's primary Script: a Katakana/Hiragana run's own prolonged-sound mark
+// "ー" and the CJK iteration mark "々" both carry the primary Script value "Common" (several scripts write
+// with them), which primary-Script scanning reads as a token break — "コーヒー" tokenized as four pieces,
+// two of them a bare "ー" belonging to neither neighbour. Script Extensions is Unicode's own answer to "which
+// scripts actually use this character", and both "ー" and "々" extend into Han/Hiragana/Katakana/Hangul.
+const CJK_SCRIPT_RE = /[\p{Script_Extensions=Han}\p{Script_Extensions=Hiragana}\p{Script_Extensions=Katakana}\p{Script_Extensions=Hangul}]/u;
 const LETTER_DIGIT_RE = /[\p{L}\p{N}]/u;
 const DIGIT_RE = /\p{Nd}/u;
 const NUMERAL_RE = /^\p{Nd}+([.,]\p{Nd}+)*$/u;
 // `x`/`X` covers the common ASCII stand-in for a multiplication sign; \p{Sc} is every currency symbol (a
-// hardcoded {$,\u00a5,\u20ac,\u00a3} list would miss the one a topic actually uses).
-const FIGURE_MARK_RE = /[%\u00d7\u2030x]/iu;
+// hardcoded {$,¥,€,£} list would miss the one a topic actually uses).
+const FIGURE_MARK_RE = /[%×‰x]/iu;
 const CURRENCY_RE = /\p{Sc}/u;
+const WHITESPACE_RE = /\p{White_Space}/u;              // incl. no-break (U+00A0) and thin (U+2009) spaces
+const ENDS_WITH_ELLIPSIS_RE = /(…|\.\.\.)\s*$/;
 
-type UnfedTok = {raw: string; norm: string; cjk: boolean; start: number; end: number};
+type UnfedTok = {raw: string; norm: string; cjk: boolean; numeral: boolean; start: number; end: number};
 
-/** Split RAW (unfolded \u2014 reporting keeps the source's own casing) text into script-class tokens; `.norm` is
- * the folded form comparisons run on. A `.`/`,` continues a token only between two digits (a numeral's own
- * separator), so "3.2\u00d7" tokenizes as the numeral "3.2" then the mark "\u00d7", never "3" then ".2\u00d7". */
-const tokenizeUnfed = (raw: string): UnfedTok[] => {
-  const chars = Array.from(raw);
+/** A single character's fold for a STRUCTURAL question (is it a digit, a numeral separator, a figure mark) —
+ * fullwidth/compatibility forms collapse to their ASCII selves. Never used to build the reported text: `.raw`
+ * keeps the run's own written form (a fullwidth run is reported as written). A fold that expands past one
+ * character (rare) is not trusted — the source character stands in for itself rather than desyncing `.raw`
+ * from what is actually being scanned. */
+const foldCh = (ch: string): string => {
+  const f = ch.normalize('NFKC').toLowerCase();
+  return [...f].length === 1 ? f : ch;
+};
+
+/**
+ * Split text into script-class tokens. The WHOLE string is canonically composed first (NFC — composition
+ * only, no compatibility folding, so a fullwidth run stays fullwidth in `.raw`): composing needs a
+ * character's neighbour, which a per-character fold cannot see, so an NFD "café" (e + a combining acute)
+ * would otherwise split into a token "cafe" plus a lone, unclassifiable accent mark, never matching an NFC
+ * fed "café". `.raw` is the run's own text; `.norm` is `.raw` folded (NFKC + lowercase) for equality and
+ * value comparisons. A `.`/`,` continues a token only between two (possibly fullwidth) digits — a numeral's
+ * own separator — so "3.2×" tokenizes as the numeral "3.2" then the mark "×", never "3" then ".2×", and a
+ * fullwidth "１，２００" tokenizes as one numeral, not "1" then "200".
+ */
+export const tokenizeUnfed = (raw: string): UnfedTok[] => {
+  const chars = Array.from(raw.normalize('NFC'));
   const toks: UnfedTok[] = [];
   let cur = '', curCjk: boolean | null = null, curStart = 0;
   const flush = (endIdx: number) => {
-    if (cur) toks.push({raw: cur, norm: cur.normalize('NFKC').toLowerCase(), cjk: !!curCjk, start: curStart, end: endIdx});
+    if (cur) {
+      const norm = cur.normalize('NFKC').toLowerCase();
+      toks.push({raw: cur, norm, cjk: !!curCjk, numeral: !curCjk && NUMERAL_RE.test(norm), start: curStart, end: endIdx});
+    }
     cur = '';
     curCjk = null;
   };
   for (let i = 0; i < chars.length; i++) {
-    const ch = chars[i];
-    if (LETTER_DIGIT_RE.test(ch)) {
-      const cjk = CJK_SCRIPT_RE.test(ch);
+    const ch = chars[i], fch = foldCh(ch);
+    if (LETTER_DIGIT_RE.test(fch)) {
+      const cjk = CJK_SCRIPT_RE.test(fch);
       if (curCjk === null) {
         curCjk = cjk;
         cur = ch;
@@ -860,8 +900,8 @@ const tokenizeUnfed = (raw: string): UnfedTok[] => {
         cur = ch;
         curStart = i;
       }
-    } else if ((ch === '.' || ch === ',') && curCjk === false && DIGIT_RE.test(cur.slice(-1)) &&
-               i + 1 < chars.length && DIGIT_RE.test(chars[i + 1])) {
+    } else if ((fch === '.' || fch === ',') && curCjk === false && DIGIT_RE.test(foldCh(cur.slice(-1))) &&
+               i + 1 < chars.length && DIGIT_RE.test(foldCh(chars[i + 1]))) {
       cur += ch;                                          // a numeral's own internal separator
     } else {
       flush(i);
@@ -871,139 +911,265 @@ const tokenizeUnfed = (raw: string): UnfedTok[] => {
   return toks;
 };
 
-const isNumeralTok = (t: UnfedTok) => !t.cjk && NUMERAL_RE.test(t.raw);
 const stripCommas = (s: string) => s.replace(/,/g, '');
+const numeralValue = (t: UnfedTok): number => Number(stripCommas(t.norm));
 
-/** Does this numeral CLAIM to be a real figure (a measurement, a percentage, a price) rather than an index? */
+/** Does this numeral CLAIM to be a real figure (a measurement, a percentage, a price) rather than an index?
+ * The mark may sit across whitespace ("87 %", a no-break space included) — the run already glues
+ * `87<span>%</span>` into one run, so this only has to look past real space characters, not across elements. */
 const isFigureShaped = (t: UnfedTok, chars: string[]): boolean => {
-  if (t.raw.includes('.') || t.raw.includes(',')) return true;
-  const isMark = (ch: string) => !!ch && (FIGURE_MARK_RE.test(ch) || CURRENCY_RE.test(ch));
-  return isMark(t.start > 0 ? chars[t.start - 1] : '') || isMark(t.end < chars.length ? chars[t.end] : '');
+  if (t.norm.includes('.') || t.norm.includes(',')) return true;   // .norm is ASCII-folded; a fullwidth "，" is not
+  const isMark = (ch: string) => !!ch && (FIGURE_MARK_RE.test(foldCh(ch)) || CURRENCY_RE.test(ch));
+  let i = t.start - 1;
+  while (i >= 0 && WHITESPACE_RE.test(chars[i])) i--;
+  if (i >= 0 && isMark(chars[i])) return true;
+  let j = t.end;
+  while (j < chars.length && WHITESPACE_RE.test(chars[j])) j++;
+  return j < chars.length && isMark(chars[j]);
 };
 
-/** Rule for WHAT IS READ: a non-empty client rect, except the tags that are never rendered content. Deliberately
- * NOT `visibleRect` \u2014 opacity, visibility and ancestor clipping at the proofed frame do not exempt an element
- * here (see the docstring above); only genuinely absent layout (a `display:none` chain reports a 0\u00d70 rect, same
- * as an unrendered `<script>` tag) does. */
+type FedContext = {wordPool: Set<string>; wordList: string[]; cjkPool: string[]; maxCjkLen: number; numeralPool: Set<number>};
+
+const buildFedContext = (fed: unknown[]): FedContext => {
+  const entries = fed.map((f) => tokenizeUnfed(String(f ?? ''))).filter((toks) => toks.length > 0);
+  const wordToks = entries.flatMap((toks) => toks.filter((t) => !t.cjk && !t.numeral));
+  const cjkToks = entries.flatMap((toks) => toks.filter((t) => t.cjk));
+  const numeralToks = entries.flatMap((toks) => toks.filter((t) => t.numeral));
+  return {
+    wordPool: new Set(wordToks.map((t) => t.norm)),
+    wordList: wordToks.map((t) => t.norm),               // kept as a list too, for the truncation prefix search
+    cjkPool: cjkToks.map((t) => t.norm),
+    maxCjkLen: cjkToks.reduce((m, t) => Math.max(m, t.norm.length), 0),
+    numeralPool: new Set(numeralToks.map(numeralValue)),
+  };
+};
+
+/**
+ * A CJK token is fed when it splits into pieces each ≥2 characters that are a substring of ONE fed CJK token
+ * (a lone character counts only where it IS a whole fed token) — dynamic programming, not greedy. `canCover[i]`
+ * is true when the prefix of length `i` is fully covered by pieces; the piece length tried at each position is
+ * bounded by the LONGEST fed CJK token, never by how much of the run is left — a piece longer than every fed
+ * token can never be a substring of one, so trying longer lengths is wasted work, and it is not free: the
+ * greedy search this replaced tried every length down from what remained at each position, and on an
+ * adversarial single CJK token where only 2-character pieces exist anywhere in the pool, that took 36 seconds
+ * at 3000 characters. Bounded to the longest fed token, the same case takes low single-digit milliseconds.
+ */
+const coverCjk = (text: string, ctx: FedContext): boolean => {
+  if (ctx.cjkPool.some((f) => f === text)) return true;
+  const cs = Array.from(text);
+  const n = cs.length;
+  const canCover = new Array<boolean>(n + 1).fill(false);
+  canCover[0] = true;
+  const maxLen = Math.max(2, ctx.maxCjkLen);
+  for (let i = 0; i < n; i++) {
+    if (!canCover[i]) continue;
+    if (n - i === 1) {
+      if (ctx.cjkPool.some((f) => f === cs[i])) canCover[i + 1] = true;
+      continue;
+    }
+    for (let len = Math.min(maxLen, n - i); len >= 2; len--) {
+      if (canCover[i + len]) continue;
+      const piece = cs.slice(i, i + len).join('');
+      if (ctx.cjkPool.some((f) => f.includes(piece))) canCover[i + len] = true;
+    }
+  }
+  return canCover[n];
+};
+
+/** WORD-LEVEL PROVENANCE (see the docstring above): a fed word may appear anywhere on the frame, so this is
+ * pool membership, not a search for a contiguous run inside one fed string. `isTruncatable` is true only for
+ * the run's own final token, and only when the run's text ends with an ellipsis. */
+const isWordFed = (t: UnfedTok, ctx: FedContext, isTruncatable: boolean): boolean => {
+  if (ctx.wordPool.has(t.norm)) return true;
+  if (!isTruncatable) return false;
+  return ctx.wordList.some((f) => f.length > t.norm.length && f.startsWith(t.norm));
+};
+
+const REPORT_CAP = 40;
+const capped = (s: string) => (s.length > REPORT_CAP ? s.slice(0, REPORT_CAP) + '…' : s);
+
+/** Every unfed token of ONE run's already-tokenized text (`chars` is the same run text, for the figure-mark
+ * neighbour lookup). Truncation is scoped to the run's true final token, whatever its class — a numeral is
+ * never "truncated", so it is exempt regardless of position. */
+const unfedTokensOf = (toks: UnfedTok[], chars: string[], endsEllipsis: boolean, ctx: FedContext): string[] => {
+  const out: string[] = [];
+  const lastIdx = toks.length - 1;
+  toks.forEach((t, i) => {
+    const isFinal = i === lastIdx && endsEllipsis;
+    if (t.cjk) {
+      let ok = coverCjk(t.norm, ctx);
+      if (!ok && isFinal) ok = ctx.cjkPool.some((f) => f.length > t.norm.length && f.startsWith(t.norm));
+      if (!ok) out.push(capped(t.raw));
+    } else if (t.numeral) {
+      if (isFigureShaped(t, chars) && !ctx.numeralPool.has(numeralValue(t))) out.push(capped(t.raw));
+    } else if (!isWordFed(t, ctx, isFinal)) {
+      out.push(capped(t.raw));
+    }
+  });
+  return out;
+};
+
+// ── WHAT ONE RUN OF TEXT IS ─────────────────────────────────────────────────────────────────────────────
+//
+// The unit of judgement is an element's RUN, built from its own child nodes in order — not "every element
+// with its own direct text node", which glued `{top}<br />{bottom}` into "FORMFOLLOWS" (a `<br>` is an
+// element, not a text node, so `hasOwnText` skipped it and concatenated the two text nodes on either side
+// with nothing between them), glued `{a}<span>·</span>{b}` into "GrindTamp" the same way, and read a
+// per-glyph word as unfed letter by letter the moment ANY one child in the row was not itself a single
+// grapheme (a caret, a space rendered as its own span, an empty spacer div) — because the whole-word merge
+// this file used to do required EVERY child to be a glyph, so one non-glyph sibling broke the merge for
+// every glyph in the row, and reading each glyph alone let a single first-letter match ("N" of "NEW" is a
+// prefix of nothing, but a bare "G" is a prefix of "Grind") pass through the truncation exception meant for
+// a real elided word. It also read an echoed glyph's own children twice, gluing "Grind" into "GGrriinndd".
 const NOT_LIVE_TAGS = new Set(['script', 'style', 'template', 'noscript']);
-const isLaidOutForContent = (el: Element): boolean => {
-  if (NOT_LIVE_TAGS.has(el.tagName.toLowerCase())) return false;
-  const r = el.getBoundingClientRect();
-  return r.width > 0 && r.height > 0;
+const isPrunedTag = (el: Element): boolean => NOT_LIVE_TAGS.has(el.tagName.toLowerCase());
+
+/** Is this TEXT NODE actually painted? A Range over the node itself, never the ancestor element's own box —
+ * the only way to tell it apart from an ancestor whose `display: contents` gives it no box of its own (the
+ * text still paints, inherited into whichever ancestor DOES have one) and from text that legitimately
+ * overflows a zero-size container the author sized on purpose. */
+const textNodeIsRendered = (n: Node, doc: Document): boolean => {
+  if (!doc.createRange) return true;      // no Range API in this engine: assume rendered, not silently dropped
+  const r = doc.createRange();
+  r.selectNodeContents(n);
+  const rects = Array.from(r.getClientRects());
+  r.detach?.();
+  return rects.some((rc) => rc.width > 0 && rc.height > 0);
+};
+
+/** THE prune rule for an element child — echo, a tag that is never content, or computed `display: none` —
+ * and ONLY these: never the element's own box, which `display: contents` legitimately lacks. */
+const isPrunedChild = (el: Element, win: Window): boolean =>
+  isEcho(el) || isPrunedTag(el) || win.getComputedStyle(el).display === 'none';
+
+/** The text a subtree would show, read through `display: contents` and pruned the same way a run is — used
+ * only to CLASSIFY a child (is it one grapheme? is it empty?), not itself a matching unit. */
+const renderedTextOf = (el: Element, win: Window): string => {
+  let s = '';
+  el.childNodes.forEach((n) => {
+    if (n.nodeType === 3) {
+      if (textNodeIsRendered(n, el.ownerDocument)) s += n.textContent ?? '';
+    } else if (n.nodeType === 1) {
+      const c = n as Element;
+      if (!isPrunedChild(c, win)) s += renderedTextOf(c, win);
+    }
+  });
+  return s;
+};
+
+const graphemeLen = (s: string) => Array.from(s).length;
+const GLYPH_GAP_EM = 0.35;
+
+/**
+ * Build ONE element's run from its child nodes, in order, and collect the OWN-UNIT children found along the
+ * way (block-level, a flex/grid item, inline-block — anything not `inline`/`contents` — judged separately,
+ * never folded into this run). A GLYPH (rendered text of exactly one grapheme, nesting included — a glyph
+ * inside wrapper spans is still a glyph) glues to an immediately preceding glyph when the gap between their
+ * boxes along the line is small (kinetic type set per glyph), else it starts a new word; a child with no
+ * rendered text but a real box width is a SPACER and contributes a space (an empty flex-gap div, a caret); an
+ * `inline` child with real text is ABSORBED, spliced in with no separator (`Pre<b>view</b>` reads "Preview");
+ * `<br>` and any own-unit boundary both just break the run so neither side glues across it.
+ */
+const buildRun = (el: Element, win: Window): {text: string; ownUnits: Element[]} => {
+  const ownUnits: Element[] = [];
+  let text = '';
+  let lastGlyph: Element | null = null;
+  const append = (piece: string, glue: boolean) => {
+    if (!piece) return;
+    if (glue || !text) text += piece;
+    else text += (/\s$/.test(text) ? '' : ' ') + piece;
+  };
+  const breakRun = () => {
+    if (text && !/\s$/.test(text)) text += ' ';
+  };
+  el.childNodes.forEach((n) => {
+    if (n.nodeType === 3) {
+      if (textNodeIsRendered(n, el.ownerDocument)) append(n.textContent ?? '', true);
+      lastGlyph = null;
+      return;
+    }
+    if (n.nodeType !== 1) return;
+    const child = n as Element;
+    if (isPrunedChild(child, win)) return;
+    if (child.tagName.toLowerCase() === 'br') {
+      breakRun();
+      lastGlyph = null;
+      return;
+    }
+    const cs = win.getComputedStyle(child);
+    if (cs.display === 'contents') {
+      // No box of its own and no line break either — its children join THIS run exactly where it sits.
+      const sub = buildRun(child, win);
+      append(sub.text, true);
+      ownUnits.push(...sub.ownUnits);
+      lastGlyph = null;
+      return;
+    }
+    const rendered = renderedTextOf(child, win);
+    if (graphemeLen(rendered) === 1) {
+      const r = child.getBoundingClientRect();
+      const fontSize = parseFloat(cs.fontSize || '0') || 0;
+      let glue = true;
+      if (lastGlyph) {
+        const pr = lastGlyph.getBoundingClientRect();
+        // "Along the line" presumes a line: two boxes whose vertical ranges do not even overlap are not on
+        // one, whatever their horizontal distance reads as — two single-character labels stacked one above
+        // the other ("新" then "均", each its own row) span the same left edge and read as touching by a
+        // left/right-only gap, which glued them into one two-character run "新均" that matches no fed piece,
+        // when each on its own is the separate, individually-judged finding the frame actually shows.
+        const sameLine = Math.min(r.bottom, pr.bottom) - Math.max(r.top, pr.top) > 0;
+        const gap = r.left - pr.right;                                  // along the (horizontal) line
+        glue = sameLine && (fontSize > 0 ? gap <= GLYPH_GAP_EM * fontSize : true);   // unmeasurable: don't invent a break
+      }
+      append(rendered, glue);
+      lastGlyph = child;
+      return;
+    }
+    if (!rendered.trim()) {
+      if (child.getBoundingClientRect().width > 0) append(' ', false);   // a spacer, not silence
+      lastGlyph = null;
+      return;
+    }
+    if (cs.display === 'inline') {
+      // NOT trimmed here — an absorbed child's own trailing/leading space (`{s} ` between two mapped
+      // per-step spans) is what keeps it from fusing with the next absorbed sibling ("Grind" + "Tamp"
+      // glued into "GrindTamp" the moment this end was trimmed away). Only the top-level judged run trims.
+      const sub = buildRun(child, win);
+      append(sub.text, true);
+      ownUnits.push(...sub.ownUnits);
+      lastGlyph = null;
+      return;
+    }
+    breakRun();
+    ownUnits.push(child);
+    lastGlyph = null;
+  });
+  return {text, ownUnits};
+};
+
+const collectUnfed = (el: Element, win: Window, out: string[], ctx: FedContext) => {
+  if (isEcho(el)) return;
+  const {text, ownUnits} = buildRun(el, win);
+  if (text) {
+    const toks = tokenizeUnfed(text);
+    if (toks.length) {
+      const chars = Array.from(text.normalize('NFC'));
+      const endsEllipsis = ENDS_WITH_ELLIPSIS_RE.test(text);
+      for (const w of unfedTokensOf(toks, chars, endsEllipsis, ctx)) {
+        if (!out.includes(w)) out.push(w);
+      }
+    }
+  }
+  for (const u of ownUnits) collectUnfed(u, win, out, ctx);
 };
 
 export const auditUnfedText = (root: Element, fed: unknown[], scope: 'all' | 'slots'): string[] => {
-  const fedEntries = fed.map((f) => tokenizeUnfed(String(f ?? ''))).filter((toks) => toks.length > 0);
-  const fedWordSeqs = fedEntries.map((toks) => toks.filter((t) => !t.cjk && !isNumeralTok(t)));
-  const fedCjkPool = fedEntries.flatMap((toks) => toks.filter((t) => t.cjk).map((t) => t.norm));
-  const numeralPool = new Set<string>();
-  for (const toks of fedEntries) for (const t of toks) if (isNumeralTok(t)) numeralPool.add(stripCommas(t.raw));
-
-  // A CJK token has no word boundaries of its own, so it is covered by PIECES of a pooled fed CJK token \u2014
-  // greedy longest piece first, falling back to an exact single-character match only.
-  const coverCjk = (text: string): boolean => {
-    const cs = Array.from(text);
-    let i = 0;
-    while (i < cs.length) {
-      let matched = false;
-      for (let len = cs.length - i; len >= 2 && !matched; len--) {
-        const piece = cs.slice(i, i + len).join('').normalize('NFKC').toLowerCase();
-        if (fedCjkPool.some((f) => f.includes(piece))) {
-          i += len;
-          matched = true;
-        }
-      }
-      if (!matched) {
-        const one = cs[i].normalize('NFKC').toLowerCase();
-        if (fedCjkPool.some((f) => f === one)) {
-          i += 1;
-          matched = true;
-        }
-      }
-      if (!matched) return false;
-    }
-    return true;
-  };
-
-  // WORD tokens: greedy longest contiguous match, from the left, against any ONE fed sequence's own token
-  // order \u2014 the run's true last token may meet its fed counterpart as a proper prefix (truncation).
-  const coverWords = (runWords: UnfedTok[]): UnfedTok[] => {
-    const unfed: UnfedTok[] = [];
-    let i = 0;
-    while (i < runWords.length) {
-      let bestLen = 0;
-      searchLen:
-      for (let len = runWords.length - i; len >= 1; len--) {
-        const isTail = i + len === runWords.length;
-        for (const fseq of fedWordSeqs) {
-          for (let off = 0; off + len <= fseq.length; off++) {
-            let ok = true;
-            for (let k = 0; k < len; k++) {
-              const rt = runWords[i + k].norm, ft = fseq[off + k].norm;
-              if (rt === ft) continue;
-              if (isTail && k === len - 1 && ft.length > rt.length && ft.startsWith(rt)) continue;
-              ok = false;
-              break;
-            }
-            if (ok) {
-              bestLen = len;
-              break searchLen;
-            }
-          }
-        }
-      }
-      if (bestLen > 0) i += bestLen;
-      else {
-        unfed.push(runWords[i]);
-        i += 1;
-      }
-    }
-    return unfed;
-  };
-
-  // Filtered at the source, once, so every walk below \u2014 the glyph-run precompute and the judging pass alike
-  // \u2014 already never sees a duplicate: a second rendering of type this frame already shows (`data-echo`) is
-  // not a new word to judge, and letting either pass see it risks reporting the same finding twice.
-  const els = (scope === 'slots'
-    ? Array.from(root.querySelectorAll('[data-object-slot], [data-object-slot] *'))
-    : Array.from(root.querySelectorAll('*'))).filter((el) => !isEcho(el));
-
-  // GLYPH RUNS, precomputed: a parent whose \u22652 laid-out children each hold exactly one grapheme (and who has
-  // no text of its own) is judged ONCE, on the children's concatenated text; the children are then skipped.
-  const graphemeLen = (s: string) => Array.from(s).length;
-  const skipAsGlyph = new Set<Element>();
-  const mergedRunText = new Map<Element, string>();
-  for (const el of els) {
-    if (!isLaidOutForContent(el) || hasOwnText(el)) continue;
-    const kids = Array.from(el.children).filter((k) => isLaidOutForContent(k));
-    const glyphKids = kids.filter((k) => graphemeLen(hasOwnText(k)) === 1);
-    if (kids.length >= 2 && glyphKids.length === kids.length) {
-      mergedRunText.set(el, glyphKids.map((k) => hasOwnText(k)).join(''));
-      glyphKids.forEach((k) => skipAsGlyph.add(k));
-    }
-  }
-
+  const win = root.ownerDocument?.defaultView;
+  if (!win) return [];
+  const ctx = buildFedContext(fed);
   const out: string[] = [];
-  const add = (text: string) => {
-    if (!out.includes(text)) out.push(text);
-  };
-  for (const el of els) {
-    if (skipAsGlyph.has(el) || !isLaidOutForContent(el)) continue;
-    const own = mergedRunText.get(el) ?? hasOwnText(el);
-    if (!own) continue;
-    const chars = Array.from(own);
-    const toks = tokenizeUnfed(own);
-    if (!toks.length) continue;
-    const wordToks = toks.filter((t) => !t.cjk && !isNumeralTok(t));
-    coverWords(wordToks).forEach((t) => add(t.raw));
-    for (const t of toks) {
-      if (t.cjk) {
-        if (!coverCjk(t.raw)) add(t.raw);
-      } else if (isNumeralTok(t) && isFigureShaped(t, chars) && !numeralPool.has(stripCommas(t.raw))) {
-        add(t.raw);
-      }
-    }
-  }
+  const starts = scope === 'slots' ? Array.from(root.querySelectorAll('[data-object-slot]')) : [root];
+  for (const s of starts) collectUnfed(s, win, out, ctx);
   return out;
 };
 
