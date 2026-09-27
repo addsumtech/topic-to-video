@@ -1,0 +1,304 @@
+"""scripts/workshop.py — the one door into a film's workshop: its layout, its generated index, the environment
+every film-scoped render runs with, and the checks built code must pass before it is rendered."""
+import json
+import os
+import subprocess
+import sys
+
+import pytest
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_REM = os.path.join(_ROOT, "remotion")
+sys.path.insert(0, os.path.join(_ROOT, "scripts"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import workshop as ws  # noqa: E402
+from test_workshop_bundle import _index, SHOT, OBJECT  # noqa: E402  (the one index format)
+
+needs_toolchain = pytest.mark.skipif(not os.path.isdir(os.path.join(_REM, "node_modules")),
+                                     reason="needs the remotion toolchain")
+
+
+def _film(tmp_path, shots=(), objects=(), shot_src=SHOT, obj_src=OBJECT, name="film"):
+    out = tmp_path / name
+    for kind, names, src in (("shots", shots, shot_src), ("objects", objects, obj_src)):
+        d = out / "workshop" / kind
+        d.mkdir(parents=True, exist_ok=True)
+        for n in names:
+            (d / (n + ".tsx")).write_text(src % {"name": n}, encoding="utf-8")
+    out.mkdir(exist_ok=True)
+    return str(out)
+
+
+def test_a_film_without_a_workshop_changes_nothing(tmp_path, monkeypatch):
+    monkeypatch.delenv("SLIDES_WORKSHOP", raising=False)
+    out = _film(tmp_path)
+    assert ws.prepare(out) is None and ws.run_kwargs(out) == {}
+
+
+def test_an_inherited_workshop_never_leaks_into_another_film(tmp_path, monkeypatch):
+    monkeypatch.setenv("SLIDES_WORKSHOP", "/some/other/film/workshop")
+    env = ws.prepare(_film(tmp_path))
+    assert env is not None and "SLIDES_WORKSHOP" not in env and env.get("PATH") == os.environ.get("PATH")
+
+
+def test_prepare_makes_the_workshop_path_absolute(tmp_path, monkeypatch):
+    """Review focus: the CLI runs with cwd=remotion/, where a relative path names a different folder."""
+    _film(tmp_path, shots=["WsShotA"])
+    monkeypatch.chdir(tmp_path)
+    env = ws.prepare("film")
+    assert env["SLIDES_WORKSHOP"] == os.path.join(str(tmp_path), "film", "workshop")
+    assert os.path.isabs(env["SLIDES_WORKSHOP"])
+
+
+def test_the_index_is_generated_from_the_folders_in_the_one_format(tmp_path):
+    out = _film(tmp_path, shots=["WsShotB", "WsShotA"], objects=["WsDisc"])
+    path = ws.write_index(out)
+    assert open(path, encoding="utf-8").read() == _index(["WsShotA", "WsShotB"], ["WsDisc"])
+    mtime = os.path.getmtime(path)
+    ws.write_index(out)                                   # unchanged names: the file is not rewritten
+    assert os.path.getmtime(path) == mtime
+
+
+def test_a_bad_layout_is_refused_before_an_index_is_written(tmp_path):
+    out = _film(tmp_path, shots=["TermTable"])
+    with pytest.raises(ws.WorkshopError) as e:
+        ws.write_index(out)
+    assert any("already a library register" in p for p in e.value.problems)
+    assert not os.path.exists(os.path.join(out, "workshop", "index.ts"))
+
+
+@pytest.mark.parametrize("files,expect", [
+    ({"shots/bad_name.tsx": SHOT % {"name": "bad_name"}}, "PascalCase"),
+    ({"shots/WsX.tsx": SHOT % {"name": "WsX"}, "objects/WsX.tsx": OBJECT % {"name": "WsX"}}, "both a shot and an object"),
+    ({"stuff/a.txt": "x"}, "objects/, shots/ and assets/ only"),
+    ({"shots/WsX.tsx": (SHOT % {"name": "WsX"}).replace("export const DURATION = 30;\n", "")}, "DURATION"),
+    ({"shots/WsX.tsx": (SHOT % {"name": "WsX"}).replace("export const GROUND = 'bg';\n", "")}, "GROUND"),
+    ({"shots/WsX.tsx": (SHOT % {"name": "WsX"}).replace("'bg'", "'paper'")}, "not a DNA ground token"),
+    ({"shots/WsX.tsx": (SHOT % {"name": "WsX"}).replace("'motion-graphics'", "''")}, "PROVENANCE"),
+    ({"shots/WsX.tsx": (SHOT % {"name": "WsX"}).replace("export const WsX", "export const Other")}, "export const WsX"),
+    ({"objects/WsX.tsx": (OBJECT % {"name": "WsX"}).replace("export const META: ObjectMeta = {aspect: 1, provenance: 'motion-graphics'};\n", "")}, "META"),
+    ({"objects/WsX.tsx": (OBJECT % {"name": "WsX"}).replace("'motion-graphics'", "'underwater'")}, "not one of"),
+    ({"objects/WsX.tsx": (OBJECT % {"name": "WsX"}).replace("aspect: 1,", "aspect: 1, demo: true,")}, "`demo`"),
+    ({"objects/WsX.tsx": "// @scaffold — replace\n" + OBJECT % {"name": "WsX"}}, "still the scaffold"),
+    ({"objects/notes.md": "x"}, "only .tsx items and .ts helpers"),
+])
+def test_names_problems_say_what_is_wrong(tmp_path, files, expect):
+    out = tmp_path / "film"
+    for rel, text in files.items():
+        p = out / "workshop" / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(text, encoding="utf-8")
+    probs = ws.names_problems(str(out))
+    assert any(expect in p for p in probs), probs
+
+
+def test_a_clean_layout_has_no_names_problems(tmp_path):
+    out = _film(tmp_path, shots=["WsShotA"], objects=["WsDisc"])
+    (tmp_path / "film" / "workshop" / "objects" / "discGeometry.ts").write_text("export const R = 1;\n")
+    (tmp_path / "film" / "workshop" / "assets").mkdir()
+    assert ws.names_problems(out) == []
+
+
+@pytest.mark.parametrize("name", ["Film", "FontProbe"])
+def test_a_name_taken_by_a_root_composition_is_a_blocking_problem(tmp_path, name):
+    """R9: Root.tsx registers `Film` and `StageProbe` as `id="…"` Composition attributes, and `TypeSpecimen`,
+    `FontProbe` and the other `*Probe` ids as `{F('<Id>', …)}` rows — none of them a file in src/shots/ or
+    src/objects/, so library_shot_names()/library_object_names() cannot see a workshop name collide with one.
+    Unrefused, that collision would hit Remotion's generic duplicate-composition error instead of a specific
+    one. It must block the index the same way a shadowed library name does."""
+    out = _film(tmp_path, shots=[name])
+    probs = ws.names_problems(out)
+    assert any("already a library composition" in p for p in probs), probs
+    assert any("already a library composition" in p for p in ws.index_blockers(out)), ws.index_blockers(out)
+
+
+def test_imports_are_held_to_react_remotion_the_runtime_the_library_and_the_workshop(tmp_path):
+    out = _film(tmp_path, objects=["WsDisc"])
+    bad = tmp_path / "film" / "workshop" / "objects" / "WsBad.tsx"
+    bad.write_text("import x from 'lodash';\nimport {a} from '@runtime/nope';\nimport {B} from '@shots/Nope';\n"
+                   "import {c} from '../../../outside';\nimport {d} from './missing';\n", encoding="utf-8")
+    good = tmp_path / "film" / "workshop" / "objects" / "WsGood.tsx"
+    good.write_text("import React from 'react';\nimport {useCurrentFrame} from 'remotion';\n"
+                    "import {seg} from '@runtime/motion';\nimport {TermTable} from '@shots/TermTable';\n"
+                    "import {R} from './discGeometry';\n", encoding="utf-8")
+    (tmp_path / "film" / "workshop" / "objects" / "discGeometry.ts").write_text("export const R = 1;\n")
+    probs = ws.import_problems(out, [str(bad), str(good)])
+    for needle in ("'lodash'", "@runtime/nope", "@shots/Nope", "outside the film's workshop", "does not exist"):
+        assert any(needle in p for p in probs), (needle, probs)
+    assert not [p for p in probs if "WsGood" in p], probs
+
+
+def test_contract_findings_are_reported_with_the_file_and_line(tmp_path):
+    out = _film(tmp_path, objects=["WsDisc"])
+    f = tmp_path / "film" / "workshop" / "objects" / "WsDisc.tsx"
+    f.write_text(f.read_text() + "export const firstThree = (xs: string[]) => xs.slice(0, 3);\n", encoding="utf-8")
+    probs = ws.contract_problems(out, [str(f)])
+    assert any("WsDisc.tsx:" in p and "[truncate]" in p for p in probs), probs
+
+
+_WORDS_BAD = """import React from 'react';
+export const WsWords: React.FC<{v?: number; mode?: 'fill' | 'stroke'; label?: string}> =
+  ({v = 0, mode = 'fill', label = 'hand written label'}) => (
+  <div className="box" style={{textAlign: 'center', fontFamily: 'Inter'}}>
+    <span>Pressure</span>
+    <span>{'Flow rate'}</span>
+    <span>{v > 1 ? 'high' : 'low'}</span>
+    <span>{`压力 ${v}`}</span>
+    <Chip title="Grinder" />
+    <span>&nbsp;&nbsp;</span>
+  </div>
+);
+const Chip: React.FC<{title: string}> = ({title}) => <b>{title}</b>;
+const UNIT = '毫升';
+"""
+
+_WORDS_GOOD = """import React from 'react';
+export const WsQuiet: React.FC<{label?: string; unit?: string; mode?: 'fill' | 'stroke'}> =
+  ({label = '', unit = '', mode = 'fill'}) => (
+  <div className="box" style={{textAlign: 'center', fontFamily: 'Inter, sans-serif', position: 'absolute'}}>
+    <span>{label}</span>
+    {/* a comment is not drawn */}
+    <span>{mode === 'fill' ? label : unit}</span>
+    <span>&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+    {/* @fixed-text: the SI symbol for the quantity the film names */}
+    <span>bar</span>
+  </div>
+);
+"""
+
+
+@needs_toolchain
+def test_the_baked_words_scan_catches_each_way_words_get_written_in(tmp_path):
+    bad = tmp_path / "WsWords.tsx"
+    bad.write_text(_WORDS_BAD, encoding="utf-8")
+    got = ws.baked_words(str(tmp_path), [str(bad)])
+    text = "\n".join(got["problems"])
+    for word in ("Pressure", "Flow rate", "high", "low", "压力", "Grinder", "hand written label", "毫升"):
+        assert word in text, (word, text)
+    assert "nbsp" not in text and "Inter" not in text and "'fill'" not in text, text
+
+
+@needs_toolchain
+def test_the_baked_words_scan_leaves_honest_code_alone_and_reports_what_was_declared(tmp_path):
+    good = tmp_path / "WsQuiet.tsx"
+    good.write_text(_WORDS_GOOD, encoding="utf-8")
+    got = ws.baked_words(str(tmp_path), [str(good)])
+    assert got["problems"] == [], got
+    assert "bar" in got["declared"], got
+
+
+@needs_toolchain
+def test_the_scan_on_the_library_finds_real_words_only():
+    """Calibration, re-run: every hit on the library is a word a viewer would read (a demo default, an intrinsic
+    label) — never an entity-only run, a CSS keyword or an import path. The library is ALLOWED these; the point
+    is that the scanner's rules only fire on words."""
+    import glob
+    import re
+    files = sorted(glob.glob(os.path.join(_REM, "src", "shots", "*.tsx")))
+    got = ws.baked_words(_ROOT, files)
+    assert len(got["problems"]) > 100, len(got["problems"])
+    words = [re.search(r"\): (.+) — every word", p).group(1) for p in got["problems"]]
+    assert not [w for w in words if "nbsp" in w or "&lt;" in w or w.startswith(("'./", "'../", "'@"))], words
+    assert all(re.search(r"[^\W\d_]", w) for w in words), [w for w in words if not re.search(r"[^\W\d_]", w)]
+
+
+@needs_toolchain
+def test_the_typecheck_catches_a_type_error_and_passes_clean_code(tmp_path):
+    out = _film(tmp_path, shots=["WsShotA"], objects=["WsDisc"])
+    assert ws.typecheck(out) == []
+    f = tmp_path / "film" / "workshop" / "objects" / "WsDisc.tsx"
+    f.write_text(f.read_text() + "export const oops = (n: number) => n.toFixed('x');\n", encoding="utf-8")
+    probs = ws.typecheck(out)
+    assert probs and "type error" in probs[0] and "WsDisc.tsx" in probs[0], probs
+
+
+@needs_toolchain
+def test_the_typecheck_runs_in_a_folder_with_spaces(tmp_path):
+    out = _film(tmp_path, shots=["WsShotA"], name="my film")
+    assert ws.typecheck(out) == []
+
+
+@needs_toolchain
+def test_check_is_empty_for_a_clean_workshop(tmp_path):
+    out = _film(tmp_path, shots=["WsShotA"], objects=["WsDisc"])
+    assert ws.check(out) == []
+
+
+def test_code_files_hash_the_sources_and_leave_out_what_is_generated(tmp_path):
+    out = _film(tmp_path, shots=["WsShotA"], objects=["WsDisc"])
+    ws.write_index(out)
+    root = tmp_path / "film" / "workshop"
+    (root / "assets").mkdir()
+    (root / "assets" / "grain.png").write_bytes(b"x")
+    (root / "_stills").mkdir()
+    (root / "_stills" / "WsDisc.png").write_bytes(b"x")
+    (root / ".tsconfig.json").write_text("{}")
+    names = sorted(os.path.relpath(p, str(root)) for p in ws.code_files(out))
+    assert names == ["assets/grain.png", "objects/WsDisc.tsx", "shots/WsShotA.tsx"], names
+
+
+def test_durations_grounds_and_provenances_are_read_from_the_sources(tmp_path):
+    shot = (SHOT % {"name": "WsShotA"}).replace("= 30;", "= 180;").replace("'bg'", "['accent', 'accent2']")
+    out = _film(tmp_path, shots=["WsShotA"], objects=["WsDisc"], shot_src=shot.replace("%", "%%"))
+    assert ws.durations(out) == {"WsShotA": 180}
+    assert ws.grounds(out) == {"WsShotA": ["accent", "accent2"]}
+    assert ws.provenances(out) == {"WsShotA": "motion-graphics", "WsDisc": "motion-graphics"}
+
+
+def test_object_refs_are_found_under_every_key_the_register_types_objectref():
+    src = ("type ScreenSrc = {image?: string; object?: ObjectRef};\n"
+           "export const X: React.FC<{steps?: {screen?: ScreenSrc}[]; art?: ObjectRef; object?: string}> = () => null;")
+    props = {"object": "a caption, not a ref", "art": {"id": "Puck"},
+             "steps": [{"screen": {"object": {"id": "Phone"}}}, {"tap": [0.5, 0.5]}]}
+    assert sorted(ws.object_refs(src, props)) == [("art", {"id": "Puck"}), ("steps[0].screen.object", {"id": "Phone"})]
+    assert ws.slot_keys("// object?: ObjectRef in a comment\n") == set()
+
+
+def test_required_in_film_is_read_from_the_register():
+    assert ws.required_in_film("export const REQUIRED_IN_FILM = ['object', 'stations'] as const;") == {"object", "stations"}
+    assert ws.required_in_film("export const X = 1;") == set()
+
+
+def test_uses_maps_each_item_to_the_beats_that_show_it(tmp_path):
+    out = _film(tmp_path, shots=["WsShotA"], objects=["WsDisc"])
+    slides = [{"index": 3, "shot": "WsShotA", "shot_props": {"object": {"id": "WsDisc"}}},
+              {"index": 4, "shot": "WsShotA"}, {"index": 5, "shot": "TermTable"}]
+    got = ws.uses(slides, out)
+    assert got["WsShotA"] == [3, 4] and got["WsDisc"] == [3] and got["TermTable"] == [5]
+
+
+def test_scaffolds_are_written_once_and_are_flagged_until_replaced(tmp_path):
+    out = str(tmp_path / "film")
+    p = ws.scaffold(out, "object", "EspressoPuck", "water forced through a packed bed")
+    assert p.endswith(os.path.join("workshop", "objects", "EspressoPuck.tsx"))
+    src = open(p, encoding="utf-8").read()
+    assert "@scaffold" in src and "water forced through a packed bed" in src and "export const META" in src
+    with pytest.raises(ws.WorkshopError):
+        ws.scaffold(out, "object", "EspressoPuck", "again")
+    with pytest.raises(ws.WorkshopError):
+        ws.scaffold(out, "shot", "TermTable", "a library name")
+    assert any("still the scaffold" in x for x in ws.names_problems(out))
+    s = ws.scaffold(out, "shot", "ExtractionCurve", "how the flow changes over the shot")
+    assert "export const DURATION" in open(s, encoding="utf-8").read()
+
+
+def test_a_work_in_progress_object_can_still_be_rendered(tmp_path):
+    """A scaffold still in place, or a provenance not yet named, is reported — but the author can still render the
+    object and look at it while drawing it. Only what the index cannot be written around blocks."""
+    out = str(tmp_path / "film")
+    ws.scaffold(out, "object", "HalfDrawn", "a thing being drawn")
+    assert any("still the scaffold" in p for p in ws.names_problems(out))
+    assert ws.index_blockers(out) == []
+    assert os.path.exists(ws.write_index(out))
+
+
+def test_the_workshop_never_writes_outside_its_folder(tmp_path):
+    out = _film(tmp_path, shots=["WsShotA"], objects=["WsDisc"])
+    (tmp_path / "film" / "storyboard.json").write_text("{}")
+    before = {os.path.join(dp, f) for dp, _dn, fn in os.walk(str(tmp_path)) for f in fn}
+    ws.prepare(out)
+    ws.scaffold(out, "object", "WsNew", "a new thing")
+    ws.names_problems(out)
+    after = {os.path.join(dp, f) for dp, _dn, fn in os.walk(str(tmp_path)) for f in fn}
+    new = sorted(os.path.relpath(p, out) for p in after - before)
+    assert all(p.startswith("workshop" + os.sep) for p in new), new
