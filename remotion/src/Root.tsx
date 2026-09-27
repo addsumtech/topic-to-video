@@ -3,6 +3,8 @@ import {AbsoluteFill, Composition} from 'remotion';
 import {TextSafeAudit} from './runtime/textSafe';
 import {CJK_MIN_LEADING} from './runtime/cjkType';
 import {DesignDNAContext, coerceDna} from './runtime/dna';
+import {ObjectsContext} from './runtime/objectSlot';
+import {OBJECTS, WORKSHOP_SHOTS} from './registry';
 import './runtime/fonts';  // side effect: loads the DNA typefaces for Film AND every standalone shot still
 import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
 import {StageProbe, DURATION as SPD} from './runtime/__probe_stage3d';
@@ -368,7 +370,7 @@ const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C
   const mode = _p.fedText ? 'fed' as const : _p.typeCollisions ? 'collisions' as const : 'safe' as const;
   const audit = <TextSafeAudit enabled={Boolean(_p.textSafe || _p.typeCollisions || _p.fedText)}
                                mode={mode} fed={Array.isArray(_p.fedText) ? _p.fedText : []} />;
-  const shot = <><C {...rest} />{audit}</>;
+  const shot = <ObjectsContext.Provider value={OBJECTS}><C {...rest} />{audit}</ObjectsContext.Provider>;
   if (!active) return shot;
   return (
     <DesignDNAContext.Provider value={active}>
@@ -382,9 +384,15 @@ const F = (id: string, C: React.FC<any>, d: number) => (
     durationInFrames={d} fps={30} width={1920} height={1080} defaultProps={{}}
     calculateMetadata={({props}) => ({...dims((props as any).aspect)})} />
 );
+// The film's scenes find their OBJECTS (runtime/objectSlot) by id among the library's and the film's workshop's,
+// provided once for the whole Film — as DnaPreview provides them to a beat rendered on its own.
+const FilmWithObjects: React.FC<React.ComponentProps<typeof Film>> = (p) => (
+  <ObjectsContext.Provider value={OBJECTS}><Film {...p} /></ObjectsContext.Provider>
+);
+
 export const RemotionRoot: React.FC = () => (
   <>
-    <Composition id="Film" component={Film} fps={30} width={1920} height={1080}
+    <Composition id="Film" component={FilmWithObjects} fps={30} width={1920} height={1080}
       defaultProps={{scenes: WORKBUDDY_SCENES}}
       calculateMetadata={({props}) => ({durationInFrames: filmDuration((props as any).scenes ?? WORKBUDDY_SCENES),
         ...dims((props as any).aspect)})} />
@@ -590,5 +598,8 @@ export const RemotionRoot: React.FC = () => (
     {F('SameStuffChanged', SameStuffChanged, D_SAMESTUFFCHANGED)}
     {F('DeviceDemo', DeviceDemo, D_DEVICEDEMO)}
     {F('DeviceHero', DeviceHero, D_DEVICEHERO)}
+    {/* THE FILM'S OWN SHOTS (its workshop): one composition each, so every film-mode gate renders a beat by its
+        id exactly as it renders a library register's. Nothing here without a film in scope. */}
+    {Object.entries(WORKSHOP_SHOTS).map(([id, s]) => <React.Fragment key={id}>{F(id, s.C, s.d)}</React.Fragment>)}
   </>
 );

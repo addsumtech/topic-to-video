@@ -2,6 +2,10 @@
 // film can look shots up by name. Every bespoke shot in the library is registered here; keep in sync with Root.tsx.
 
 import React from 'react';
+import {WORKSHOP_SHOTS, WORKSHOP_OBJECTS} from '@workshop';
+import {LIBRARY_OBJECTS} from './objects';
+import {DNA_GROUND_TOKEN, type GroundSpec} from './runtime/shotLuma';
+import type {ObjectEntry} from './runtime/objectSlot';
 import {CollaborativeCursors} from './shots/CollaborativeCursors';
 import {CommandSummon} from './shots/CommandSummon';
 import {TemporalAccelerate} from './shots/TemporalAccelerate';
@@ -260,5 +264,33 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   DeviceDemo,
   DeviceHero,
 };
+
+// A FILM'S OWN SHOTS AND OBJECTS — its workshop (scripts/workshop.py) — join the library here, for a render scoped
+// to that film. With no film in scope `@workshop` is the empty stub (src/workshop/none.ts) and nothing below adds
+// anything. A workshop name that is already a library name is REFUSED rather than shadowed: the film would draw
+// one of the two, and which one would depend on the order of two object spreads.
+//
+// A workshop shot's GROUND is its own declaration, merged into the table the burned caption and the seam guard
+// read (runtime/shotLuma DNA_GROUND_TOKEN). The library measures that table per register; a film's shot is never
+// measured, so it says which token it paints from, and scripts/shot_proof.py checks the claim against the
+// rendered caption band.
+for (const [id, s] of Object.entries(WORKSHOP_SHOTS)) {
+  if (REGISTRY[id]) {
+    throw new Error(`the film's workshop shot "${id}" has the name of a library register — rename it ` +
+      '(scripts/workshop.py check refuses this before a render)');
+  }
+  REGISTRY[id] = s.C;
+  (DNA_GROUND_TOKEN as Record<string, GroundSpec>)[id] = s.ground;
+}
+export {WORKSHOP_SHOTS};
+
+/** Every object a slot can resolve: the library's, then the film's workshop's. */
+export const OBJECTS: Record<string, ObjectEntry> = {...LIBRARY_OBJECTS};
+for (const [id, o] of Object.entries(WORKSHOP_OBJECTS)) {
+  if (OBJECTS[id]) {
+    throw new Error(`the film's workshop object "${id}" has the name of a library object — rename it`);
+  }
+  OBJECTS[id] = o;
+}
 
 export const SHOT_IDS = Object.keys(REGISTRY);
