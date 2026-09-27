@@ -671,6 +671,36 @@ def test_a_work_in_progress_object_can_still_be_rendered(tmp_path):
     assert os.path.exists(ws.write_index(out))
 
 
+def test_m5_write_index_on_a_film_with_no_workshop_at_all_is_a_sentence(tmp_path):
+    """M5: write_index() on an out_dir with no workshop/ folder at all used to try to open
+    <out_dir>/workshop/index.ts for writing — a raw FileNotFoundError, since its parent directory does not
+    exist either. index_blockers()/has_items() both handle this gracefully; write_index() did not."""
+    out = str(tmp_path / "bare")
+    os.makedirs(out)
+    assert not os.path.isdir(os.path.join(out, "workshop"))
+    with pytest.raises(ws.WorkshopError) as e:
+        ws.write_index(out)
+    assert e.value.problems and "workshop" in e.value.problems[0].lower()
+
+
+@needs_toolchain
+def test_m5_typecheck_on_a_film_with_no_workshop_at_all_is_a_sentence(tmp_path):
+    """M5: typecheck() calls write_index() internally, so it inherits the same fix automatically."""
+    out = str(tmp_path / "bare")
+    os.makedirs(out)
+    with pytest.raises(ws.WorkshopError) as e:
+        ws.typecheck(out)
+    assert e.value.problems and "workshop" in e.value.problems[0].lower()
+
+
+def test_m5_a_missing_props_file_is_a_sentence_not_a_traceback(tmp_path, capsys):
+    out = _film(tmp_path, shots=["WsShotA"])
+    rc = ws.main([out, "still", "WsShotA", "--props", str(tmp_path / "nope.json")])
+    assert rc == 1
+    out_text = capsys.readouterr().out
+    assert "PROBLEM" in out_text and "nope.json" in out_text
+
+
 def test_the_workshop_never_writes_outside_its_folder(tmp_path):
     out = _film(tmp_path, shots=["WsShotA"], objects=["WsDisc"])
     (tmp_path / "film" / "storyboard.json").write_text("{}")

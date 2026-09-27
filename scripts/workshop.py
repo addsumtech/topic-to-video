@@ -510,6 +510,11 @@ def index_blockers(out_dir):
 def write_index(out_dir):
     """Regenerate <workshop>/index.ts from the two folders and return its path. A BLOCKING problem raises
     WorkshopError — an index is never written around a name the render would refuse; the rest wait for `check`."""
+    if not os.path.isdir(workshop_dir(out_dir)):
+        # M5 (task-2-fix-1.md): `open(<workshop>/index.ts, "w")` below needs the workshop/ folder to already
+        # exist — a raw FileNotFoundError otherwise. A film's own callers only reach here through prepare(),
+        # guarded by has_items(), so this is for write_index()/typecheck() called directly (both public).
+        raise WorkshopError(["%s has no workshop yet — nothing to index" % workshop_dir(out_dir)])
     probs = index_blockers(out_dir)
     if probs:
         raise WorkshopError(probs)
@@ -932,7 +937,17 @@ def main(argv=None):
             print("NEXT: draw it (references/object-authoring.md), then python3 scripts/workshop.py %s still %s"
                   % (a.out_dir, a.name))
             return 0
-        props = json.loads(_read(a.props)) if a.props else None
+        if a.props:
+            # M5 (task-2-fix-1.md): a missing or unreadable --props file is a sentence, not a raw traceback —
+            # OSError/ValueError are not WorkshopError, so they used to escape the except clause below.
+            try:
+                props = json.loads(_read(a.props))
+            except OSError as e:
+                raise WorkshopError(["--props %s: %s" % (a.props, e.strerror or str(e))]) from None
+            except ValueError as e:
+                raise WorkshopError(["--props %s: not valid JSON (%s)" % (a.props, e)]) from None
+        else:
+            props = None
         png = still(a.out_dir, a.name, props, host=a.host, frame=a.frame, aspect=a.aspect, slot=a.slot)
         print("[workshop] %s" % png)
         print("NEXT: open it and LOOK — does it carry its build-list entry's `means` with the caption hidden?")
