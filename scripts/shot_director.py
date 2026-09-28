@@ -84,6 +84,7 @@ FAMILY = {
     "TermBars": "D", "TermTree": "D", "TermLog": "D", "TermGitLog": "D", "TermCounter": "D",
     "TermTable": "D", "TermDiff": "D", "TermThink": "D",
     "MaterialHero": "E", "CardFlip3D": "E", "FractureIn": "E", "CardStack3D": "E", "DataMonolith": "E",
+    "ObjectStage": "E",
     "MorphForms": "E", "KSpaceToImage": "E", "MagnetizationTip": "E",
     "InducedFID": "U", "GFactorNoise": "M", "UndersampledKspace": "D", "ScanReconstruct": "G", "RealVersus": "H", "SpinningProton": "S", "PhaseEncodeStep": "D", "MRIPipeline": "B", "FrequencyEncode": "U", "CompressedSensingEq": "L", "KSpaceReal": "G", "SpeedLimit": "D", "LarmorPrecession": "S", "Aliasing": "M", "DiffusionDenoise": "F", "SpinsAlign": "M", "GradientTilt": "U", "KSpaceAnatomy": "H", "TensionScale": "H", "PlatformSurfaces": "A", "OpenQuestions": "C",
     "AuroraFlow": "F", "LiquidMorph": "F", "LiquidFill": "F", "ParticleForm": "F",
@@ -136,6 +137,7 @@ FAMILY = {
 # only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
 # pins the subset so it cannot drift again.
 PROVENANCE = {
+    "ObjectStage":             'motion-graphics',
     "DeviceHero":              'product-ui',
     "DeviceDemo":              'product-ui',
     "WorksThrough":            'scientific',

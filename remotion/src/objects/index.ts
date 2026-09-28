@@ -2,6 +2,8 @@
 // adds the import and the entry below. Any film can put one into any register with a slot for one (a prop typed
 // ObjectRef) by its id. See references/object-authoring.md.
 import type {ObjectEntry} from '../runtime/objectSlot';
+import * as O_DemoForm from './DemoForm';
 
 export const LIBRARY_OBJECTS: Record<string, ObjectEntry> = {
+  DemoForm: {C: O_DemoForm.DemoForm, meta: O_DemoForm.META},
 };

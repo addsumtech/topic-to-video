@@ -1,4 +1,4 @@
-# Remotion2 — Bespoke Shot Library (187 design languages)
+# Remotion2 — Bespoke Shot Library (188 design languages)
 
 Each shot is a **hand-written, deterministic component** (`{default Component, DURATION}`) authored in
 1920×1080, driven by `useT()` (0→1) + the shared `runtime/motion.ts` kit. No generic template funnel —
@@ -17,7 +17,7 @@ yet in this library — they exist for new shots and opportunistic use. See
 deliberately left un-migrated.
 
 <!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
-**Family census — 187 registers across 27 families.** D×29 · A×23 · C×17 · B×14 · G×11 · F×10 · L×10 · H×9 · E×8 · I×8 · J×5 · JA×5 · K×5 · M×5 · S×5 · U×5 · N×4 · P×3 · R×2 · Z×2 · O×1 · Q×1 · T×1 · V×1 · W×1 · X×1 · Y×1
+**Family census — 188 registers across 27 families.** D×29 · A×23 · C×17 · B×14 · G×11 · F×10 · L×10 · E×9 · H×9 · I×8 · J×5 · JA×5 · K×5 · M×5 · S×5 · U×5 · N×4 · P×3 · R×2 · Z×2 · O×1 · Q×1 · T×1 · V×1 · W×1 · X×1 · Y×1
 
 **9 families hold two registers or fewer: O, Q, R, T, V, W, X, Y, Z.** That is a BUILD signal, not a menu. When a beat's
 argument wants one of those languages and the one register there does not carry it, the answer is
@@ -201,6 +201,7 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 135. **OverlapSeparation** — two density curves per panel on a shared axis: the failing measure's two populations sit on top of each other with no threshold that divides them; the separating measure's split cleanly. *Use: this metric cannot tell these two apart, that one can / a proxy measure that does not discriminate.* Curves are a deterministic function of each population's mean+spread — no sampling. `kicker, title, fail{label,note,a{label,mean,spread},b{…}}, pass{…}, domain[lo,hi]` · `fail` and `pass` together or neither; every population needs label, mean and spread — a missing one throws. · a `pass` pair that overlaps at least as much as the `fail` pair throws — the lock follows the data, not the slot.
 
 ## E · 3D / material
+212. **ObjectStage** — a thing the film drew, standing whole on a quiet floor, numbered callouts at points on it and its name under it. *Use: "this is the thing — look at it", for an object no register draws.* `object, labels[{text,x,y,side}], title, note, kicker` · `object` required in a film; 0-6 labels.
 146. **MagnetizationTip** — what an RF pulse actually does to the magnetization vector, shown on the real vector. *Use: an input tipping a system out of equilibrium.* `accent, accent2, label`
 145. **KSpaceToImage** — a vertical sweep computes the inverse Fourier transform, k-space resolving into the image. *Use: a transform made meaningful / raw data becoming a picture.* `accent, accent2, label, src` · without `src` the image is a soft centred glow, never a stand-in anatomy.
 32. **MaterialHero** — real WebGL (R3F): the film's own parts arrive from off-frame and close into ONE turned metal ring under a sweeping rake-light, with the whole thing named in the ring's hole. Give it five parts and the ring closes with five arcs; the form cannot say more than the props do. *Use: a hero beat whose claim is that separate capabilities are one thing.* Past that it throws: `items` 1–6 (past six the inlay tones repeat).
@@ -490,3 +491,13 @@ other than `terminal` is fully uniform across all three roles.
 
 ## JA · (new family — name it)
 196. **StatedBy** — one to three figures set on a plate, and a SOLID stamp struck across its foot rule naming who asserted them and when; the stamp lands last, so the reading is "…and this is who says so". *Use: figures the film did not measure — a vendor-stated benchmark, a self-reported survey, a manufacturer's rating, a party's own count — where the provenance is the claim and not a caption under it. (number-bearing)* `kicker, figures[{value,unit,label}], stamp{label,source,date}, note, roll` · 1-3 figures, each `value` printed through `runtime/figure` exactly as the film wrote it ("90% 以上", "−12", "1,200"); `roll:false` holds every figure settled from frame one. Throws with no figure and with no stamp — a plate of figures with no stamp is a different register (EdStat). The stamp's ink is measured against the block (`runtime/onAccent`), which is where a system's second accent can be type on a light film.
+
+## Objects — things a film drew, kept in the library
+
+An object goes into any register with a slot for one — a prop typed `ObjectRef`: `ObjectStage`, `ObjectCompare`,
+`ObjectPath`, `ObjectTurntable`, `TechnicalPlate` (`art`), `HudReticle` (`object`), a device's `screen` — by its id.
+A film draws its own in its workshop (`scripts/workshop.py`); the good ones are promoted here (`scripts/promote.py`),
+each naming the film it came from.
+
+<!-- OBJECTS (scripts/promote.py appends below) -->
+- **DemoForm** — slabs stacked into one form, drawn in 3D; the four stage registers' own standalone preview. *Never a film's object: `demo` in its META, and validate.py refuses it.* `layers` 1–5.
