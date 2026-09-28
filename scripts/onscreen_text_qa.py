@@ -406,6 +406,13 @@ def _signature(path):
         body = _alias_body(m.group(1), code)
         if body is not None:
             return code, body, m.group(2)
+    # an INTERSECTION with an imported type: every library object is `React.FC<ObjectProps & {...}>`. The
+    # imported half (`ObjectProps` — w/h/t/dna/yaw) has no list-typed field for this rule to miss; reading
+    # the object's own inline half is enough to cover what the object itself declares.
+    m = re.search(r"export const %s\s*:\s*React\.FC<\s*[A-Za-z_]\w*\s*&\s*\{(.*?)\}\s*>\s*=\s*\((.*?)\)\s*=>"
+                  % re.escape(name), code, re.S)
+    if m:
+        return code, m.group(1), m.group(2)
     return None
 
 

@@ -31,6 +31,12 @@ export const MAX_STAGE_LABELS = 6;
 export const REQUIRED_IN_FILM = ['object'] as const;
 const BG_D0 = '#eef0f3', FG_D0 = '#1b1f27', DIM_D0 = '#5d6573', ACC_D0 = '#2f5bd8';
 const DEMO_OBJECT: ObjectRef = {id: DEMO_ID};
+// `runtime/dna.tsx`'s relLum reads a 6-digit hex only and reports 0 (reads as dark) for anything shorter,
+// so a DNA authored with the 3-digit shorthand (`bg: '#fff'`) would misclassify a light ground as dark —
+// harmless for THIS read (black is a safe shadow on either polarity), but a real ground the register
+// should still read correctly. Expanded here, not in dna.tsx (not edited).
+const hex6 = (c: string): string =>
+  /^#[0-9a-fA-F]{3}$/.test(c) ? '#' + [...c.slice(1)].map((ch) => ch + ch).join('') : c;
 const OBJ_A = 0.06, OBJ_B = 0.6;          // the object's own t runs 0 → 1 here, then holds
 const LBL_A = 0.6, LAND_BY = 0.84;        // callouts, every one in before the settled frame
 
@@ -72,7 +78,7 @@ export const ObjectStage: React.FC<{
   // one — on all eight shipped presets (every one dark) it is the film's near-white ink, and mixing toward
   // it painted a pale GLOW under the object instead of a shadow. Read from the ground actually being
   // painted below (`bg`, this register's own fallback otherwise), not guessed from the DNA's identity.
-  const groundLight = relLum(dna?.bg ?? BG_D0) > 0.5;
+  const groundLight = relLum(hex6(dna?.bg ?? BG_D0)) > 0.5;
   const shadowInk = groundLight ? FG : '#000000';
   const disp = 'var(--f-display, Inter, system-ui, sans-serif)';
   const bodyF = 'var(--f-body, Inter, system-ui, sans-serif)';
@@ -110,15 +116,21 @@ export const ObjectStage: React.FC<{
     return {titlePx, titleH, notePx, noteH, noteGap, wordsH, gap, keyPx, keyH, keyGap, total: gap + wordsH + keyGap + keyH};
   };
   // The room left for words once the object has claimed its floor — the same U*0.2 `roomH` already floors
-  // to below. Two correction passes (wrapping is a STEP function of px, so one linear guess can undershoot
-  // or overshoot by a line) converge comfortably inside six CJK-length labels + a two-line title + note,
-  // the heaviest a legal board can set.
+  // to below. The loop ends only once the words actually fit or the floor is reached — never after a fixed
+  // number of passes with the result unchecked — and each step makes real progress (a proportional guess
+  // alone can stall a hair short, since wrapping is a STEP function of px): title/note/labels are free text
+  // with no length cap, so "the words still don't fit at the floor" is a real case, not a hypothetical one,
+  // and the register refuses by name rather than let the key print into the caption band.
   const budget = Math.max(0, zBot - zTop - U * 0.02 - U * 0.2);
   let scale = 1;
-  for (let pass = 0; pass < 3; pass++) {
-    const total = wordsAt(scale).total;
-    if (total <= budget || scale <= MIN_WORD_SCALE) break;
-    scale = Math.max(MIN_WORD_SCALE, scale * (budget / Math.max(1, total)));
+  let total = wordsAt(1).total;
+  while (total > budget && scale > MIN_WORD_SCALE) {
+    scale = Math.max(MIN_WORD_SCALE, Math.min(scale - 0.01, scale * budget / total));
+    total = wordsAt(scale).total;
+  }
+  if (total > budget) {
+    throw new Error(`ObjectStage: the title, note and key need ${Math.ceil(total)}px even at half size; the frame ` +
+      `leaves ${Math.floor(budget)}px under the object — shorten the note or the labels.`);
   }
   const {titlePx, titleH, notePx, noteH, noteGap, wordsH, gap, keyPx, keyH, keyGap} = wordsAt(scale);
 
@@ -141,23 +153,53 @@ export const ObjectStage: React.FC<{
   const titleIn = easeOutCubic(clamp01(seg(t, 0.62, 0.78)));
   const noteIn = easeOutCubic(clamp01(seg(t, 0.66, 0.82)));
 
-  // side callouts: each column ordered by height and pushed apart so no label overprints its neighbour; a column
-  // that then runs past the content zone is lifted back as a whole
-  const lblPx = Math.round(U * 0.02), lblLead = 1.3;
+  // SIDE CALLOUT COLUMNS: each column is ordered top-to-bottom from its labels' own points and pushed apart
+  // so no label overprints its neighbour, the SAME bound the words already keep — inside the content zone,
+  // and (when there is a title or note under the object) never reaching into it, since a wide frame's words
+  // block sits close enough in X for a tall column to print straight over it. The column is measured as ONE
+  // span FIRST and only placed once that span is known to fit — shifting a column that already overflows
+  // can push its far end back inside while pushing its NEAR end out the other side: keeping the bottom off
+  // the caption band by shifting the whole column up is exactly what can send its top past the frame's own
+  // edge. A column whose labels need more room than the bound has, even at their smallest legible size,
+  // refuses by name rather than print outside the frame or over the words.
+  const lblLead = 1.3;
+  let lblPx = Math.round(U * 0.02);
   const placed = LABELS.map((l, i) => ({l, i, p: {x: box.x + l.x * box.w, y: box.y + l.y * box.h},
     right: (l.side ?? (l.x >= 0.5 ? 'right' : 'left')) === 'right'}));
   const rowY: number[] = placed.map((q) => q.p.y);
   if (side) {
-    for (const right of [true, false]) {
-      const col = placed.filter((q) => q.right === right).sort((a, b) => a.p.y - b.p.y);
-      let prev = -Infinity;
-      for (const q of col) {
-        rowY[q.i] = Math.max(q.p.y, prev + lblPx * 0.8);
-        prev = rowY[q.i] + wrapLines(q.l.text, lblPx, colW) * lblPx * lblLead;
+    const colBoundBottom = (title || note) ? Math.min(zBot, wordsTop) : zBot;
+    const available = Math.max(1, colBoundBottom - zTop);
+    const cascade = (px: number) => {
+      let top = Infinity, bottom = -Infinity;
+      const laid: {i: number; top: number}[] = [];
+      for (const right of [true, false]) {
+        const col = placed.filter((q) => q.right === right).sort((a, b) => a.p.y - b.p.y);
+        let prev = -Infinity;
+        for (const q of col) {
+          const y = Math.max(q.p.y, prev + px * 0.8);
+          const rowH = wrapLines(q.l.text, px, colW) * px * lblLead;
+          laid.push({i: q.i, top: y - px * 0.68});
+          top = Math.min(top, y - px * 0.68);
+          bottom = Math.max(bottom, y - px * 0.68 + rowH);
+          prev = y + rowH;
+        }
       }
-      const over = prev - zBot;
-      if (col.length && over > 0) col.forEach((q) => { rowY[q.i] -= over; });
+      return {laid, top, bottom, span: laid.length ? bottom - top : 0};
+    };
+    let cur = cascade(lblPx);
+    let colScale = 1;
+    while (cur.span > available && colScale > MIN_WORD_SCALE) {
+      colScale = Math.max(MIN_WORD_SCALE, Math.min(colScale - 0.01, colScale * available / Math.max(1, cur.span)));
+      lblPx = Math.max(1, Math.round(U * 0.02 * colScale));
+      cur = cascade(lblPx);
     }
+    if (cur.span > available) {
+      throw new Error(`ObjectStage: the side callouts need ${Math.ceil(cur.span)}px of column even at their ` +
+        `smallest size; this frame leaves ${Math.floor(available)}px for them — shorten the labels or drop one.`);
+    }
+    const shift = Math.min(Math.max(0, zTop - cur.top), colBoundBottom - cur.bottom);
+    for (const row of cur.laid) rowY[row.i] = row.top + shift + lblPx * 0.68;
   }
   const dot = Math.max(4, Math.round(U * 0.006));
   const hair = Math.max(1, Math.round(W * 0.0012));

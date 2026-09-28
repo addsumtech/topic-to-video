@@ -19,9 +19,9 @@
 - A callout point is a fraction of the object's DRAWN box, not of the frame: a wide object leaves its box shorter, and the points move with it.
 - Past six labels the columns overprint; the register refuses.
 - The object is fitted at its own declared aspect (`META.aspect` — the workshop's `new-object` scaffold defaults it to 1, a square) and letterboxed inside the stage box; a wide or tall object leaves the box's spare width or height empty, and callout points still map through the FITTED box, not the room around it.
-- An object whose own drawing does not reach its box's bottom edge reads as floating above the stage floor: the floor's shadow sits at the box's edge, not at the object's own silhouette, so an object with air under it (rather than one seated flush, the way `DemoForm` is) looks like it is hovering.
+- An object whose own drawing does not reach its box's bottom edge reads as floating above the stage floor: the floor's shadow sits at the box's edge, not at the object's own silhouette, so an object with air under it (rather than one seated close to it, the way `DemoForm` is at its own default turn) looks like it is hovering.
 
-**Refuses:** a malformed `labels` (not a list, more than six, a label with no `text`, without `x`/`y` in 0..1, or a `side` that is not `'left'`/`'right'`); an `object` that is not `{id, props?}`, names no object that exists, or sets `w`/`h`/`t`/`dna`/`yaw` in its props.
+**Refuses:** a malformed `labels` (not a list, more than six, a label with no `text`, without `x`/`y` in 0..1, or a `side` that is not `'left'`/`'right'`); an `object` that is not `{id, props?}`, names no object that exists, or sets `w`/`h`/`t`/`dna`/`yaw` in its props; a `title`/`note`/`labels` combination that still cannot fit above the caption band at half size (name the exact case, not just "too much text" — the register says how many px it needed and how many the frame had); the same for a wide frame's side callouts, when they cannot fit the content zone clear of the title/note even at their smallest legible size.
 
 **Reference:** `remotion/src/shots/ObjectStage.tsx`
 

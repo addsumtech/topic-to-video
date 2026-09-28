@@ -3052,8 +3052,9 @@ def test_no_register_prints_text_the_film_never_supplied():
     import onscreen_text_qa as q
 
     shots = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "shots")
+    objects = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "objects")
     dirty = set()
-    for f in sorted(glob.glob(os.path.join(shots, "*.tsx"))):
+    for f in sorted(glob.glob(os.path.join(shots, "*.tsx"))) + sorted(glob.glob(os.path.join(objects, "*.tsx"))):
         if q.scan(f):
             dirty.add(os.path.basename(f)[:-4])
 
@@ -3193,8 +3194,9 @@ def test_no_register_declares_a_prop_it_never_reads():
     import onscreen_text_qa as q
 
     shots = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "shots")
-    bad = {os.path.basename(f)[:-4]: q.dead_props(f)
-           for f in sorted(glob.glob(os.path.join(shots, "*.tsx"))) if q.dead_props(f)}
+    objects = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "objects")
+    files = sorted(glob.glob(os.path.join(shots, "*.tsx"))) + sorted(glob.glob(os.path.join(objects, "*.tsx")))
+    bad = {os.path.basename(f)[:-4]: q.dead_props(f) for f in files if q.dead_props(f)}
     assert not bad, ("these registers declare a prop they never read: %s. Draw it, or delete it from the "
                      "signature." % bad)
 
@@ -3210,8 +3212,9 @@ def test_no_register_shadows_its_own_prop_default_with_a_literal():
     import onscreen_text_qa as q
 
     shots = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "shots")
-    bad = {os.path.basename(f)[:-4]: q.hardcoded_defaults(f)
-           for f in sorted(glob.glob(os.path.join(shots, "*.tsx"))) if q.hardcoded_defaults(f)}
+    objects = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "objects")
+    files = sorted(glob.glob(os.path.join(shots, "*.tsx"))) + sorted(glob.glob(os.path.join(objects, "*.tsx")))
+    bad = {os.path.basename(f)[:-4]: q.hardcoded_defaults(f) for f in files if q.hardcoded_defaults(f)}
     assert not bad, ("these registers write a prop's default as a bare literal too, so the prop cannot "
                      "override it: %s" % bad)
 
@@ -3332,7 +3335,8 @@ export const Probe: React.FC<{items?: Item[]} > = ({items: ITEMS = D} = {}) => <
             "a signature this rule cannot read is reported as CLEAN — silence must not mean agreement")
 
     shots = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "shots")
-    files = sorted(glob.glob(os.path.join(shots, "*.tsx")))
+    objects = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "objects")
+    files = sorted(glob.glob(os.path.join(shots, "*.tsx"))) + sorted(glob.glob(os.path.join(objects, "*.tsx")))
     unreadable = [os.path.basename(f)[:-4] for f in files if q._signature(f) is None]
     assert not unreadable, ("the rule cannot read these registers' signatures, so they are not covered by "
                             "it at all: %s" % unreadable)
@@ -3399,8 +3403,9 @@ def test_no_register_renders_a_line_comment_as_on_screen_text():
                              % (name, got))
 
     shots = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "shots")
-    bad = {os.path.basename(f)[:-4]: q.jsx_text_comments(f)
-           for f in sorted(glob.glob(os.path.join(shots, "*.tsx"))) if q.jsx_text_comments(f)}
+    objects = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "objects")
+    files = sorted(glob.glob(os.path.join(shots, "*.tsx"))) + sorted(glob.glob(os.path.join(objects, "*.tsx")))
+    bad = {os.path.basename(f)[:-4]: q.jsx_text_comments(f) for f in files if q.jsx_text_comments(f)}
     assert not bad, ("these registers draw a `//` comment onto the frame: %s. Write it as {/* ... */}, or "
                      "move it above the `return`." % bad)
 

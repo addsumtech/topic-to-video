@@ -19,14 +19,15 @@ const SURF_D0 = '#e9edf3', ACC_D0 = '#3563e9', INK_D0 = '#1c2230';
 // the camera, fitted so the whole stack stays inside its box at any yaw (half-height 2.3 units at the aim)
 const CAM: Vec3 = [0, 2.6, 8.2], AIM: Vec3 = [0, 0, 0], FOV = 30;
 const LIGHT: Vec3 = [-0.45, 0.8, 0.4];
-// Where the bottom slab's BOTTOM FACE sits, in world-Y, so the stack stands ON the box floor at every yaw
-// rather than hovering in its upper half. Solved numerically (bisection through `project()`+`yawPoint()`
-// themselves, sweeping every yaw and all four of the widest slab's corners): the naive candidate — the Y
-// that puts the box-AXIS (x=z=0) on the floor pixel — ignores that a corner near the camera reads LOWER in
-// frame than the axis does at the same Y, and seating the axis there ran real corners ~20% past the box.
-// This is the lowest Y at which every corner, at every yaw, still lands inside the box; at the object's own
-// default yaw (0.6) that leaves a ~1.5% gap rather than none, which is the margin the "any yaw" guarantee
-// below costs — a hairline is cheaper than a clipped corner once this object turns.
+// Where the bottom slab's BOTTOM FACE sits, in world-Y — seated flush with the box floor AT THE OBJECT'S
+// OWN DEFAULT YAW (0.6, a ~1.5% gap), not at every yaw: the stack is a rigid rotation of a shape wider than
+// it is deep, so its lowest corner's distance from the floor varies with which corner that turn currently
+// presents, from a 1.9px hairline up to 59px of its own box height at the widest presentation. Solved
+// numerically (bisection through `project()`+`yawPoint()` themselves, sweeping every yaw and all four of
+// the widest slab's corners): the naive candidate — the Y that puts the box-AXIS (x=z=0) on the floor pixel
+// — ignores that a corner near the camera reads LOWER in frame than the axis does at the same Y, and
+// seating the axis there ran real corners ~20% past the box. This is the lowest Y at which every corner, at
+// every yaw, still lands INSIDE the box — the gap varies, but a clipped corner never happens.
 const SEAT_Y = -1.6;
 
 const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -35,6 +36,11 @@ const unit = (a: Vec3): Vec3 => {
   const l = Math.hypot(a[0], a[1], a[2]) || 1;
   return [a[0] / l, a[1] / l, a[2] / l];
 };
+// `runtime/dna.tsx`'s relLum reads a 6-digit hex only and reports 0 (reads as dark) for anything shorter —
+// so a DNA authored with the 3-digit shorthand (`fg: '#fff'`) would relLum as dark and shade toward WHITE,
+// backwards on the very ground that shorthand most often means. Expanded here, not in dna.tsx (not edited).
+const hex6 = (c: string): string =>
+  /^#[0-9a-fA-F]{3}$/.test(c) ? '#' + [...c.slice(1)].map((ch) => ch + ch).join('') : c;
 
 export const DemoForm: React.FC<ObjectProps & {layers?: number}> = ({w, h, t, dna, yaw, layers = 3}) => {
   if (!Number.isInteger(layers) || layers < 1 || layers > 5) {
@@ -46,7 +52,7 @@ export const DemoForm: React.FC<ObjectProps & {layers?: number}> = ({w, h, t, dn
   // object's own D0 fallback ground, `eef0f3`). A face in shadow mixes toward BLACK on a dark ground and
   // toward `ink` — already dark there — on a light one; either way it darkens, never the pale glow a flat
   // mix toward `ink` painted when `ink` itself turned out to be the film's near-white text colour.
-  const darkGround = relLum(ink) > 0.5;
+  const darkGround = relLum(hex6(ink)) > 0.5;
   const shadeInk = darkGround ? '#000000' : ink;
   const Y = yaw ?? 0.6;
   const light = unit(LIGHT);
@@ -64,8 +70,11 @@ export const DemoForm: React.FC<ObjectProps & {layers?: number}> = ({w, h, t, dn
     // EVERY LAYER KEEPS A MINIMUM STEP OFF THE MATERIAL'S OWN SURFACE TONE, not just the accent-heavy top
     // ones: at i=0 (layers>1) a 0% mix toward the accent makes `tone` exactly `surf` — indistinguishable
     // from a ground that (on this object's own light D0 fallback) is itself close to `surf`, a container fill
-    // designed to sit near a page's own colour. The floor keeps the bottom slab a visible step off any ground.
-    const tone = mix(surf, acc, layers > 1 ? 0.2 + (i / (layers - 1)) * 0.4 : 0.3);
+    // designed to sit near a page's own colour. The floor is 0.25, not a round 0.2: the bottom slab's own top
+    // face (the closest any face comes to the null-DNA ground) clears `runtime/dna.tsx`'s own TONE_MIN_STEP
+    // (0.10, the step a filled region must clear to read as a region rather than as the ground) at 0.25 with
+    // nothing to spare — 0.2 cleared only 0.081 of it.
+    const tone = mix(surf, acc, layers > 1 ? 0.25 + (i / (layers - 1)) * 0.4 : 0.3);
     const corner = (sx: number, sy: number, sz: number): Vec3 => yawPoint([sx * hx, cy + sy * hy, sz * hz], Y);
     const quads: {pts: Vec3[]; n: Vec3}[] = [
       {pts: [corner(-1, 1, -1), corner(1, 1, -1), corner(1, 1, 1), corner(-1, 1, 1)], n: [0, 1, 0]},

@@ -35,6 +35,19 @@ LABELS = [{"text": "压实的粉饼", "x": 0.5, "y": 0.35}, {"text": "粉碗", "
 FILM_PROPS = {"object": {"id": "WsSquare"}, "labels": LABELS, "title": "意式浓缩的粉饼",
               "note": "水要穿过它，阻力就是关键", "kicker": "萃取"}
 
+# A real sentence, cycled to any length — the same generator the layout review's own model used, so a
+# counterexample found there reproduces here exactly.
+_CJK_BASE = ("它自主拆解任务在你授权的目录里真正动文件并把重复动作沉淀成可复用的技能"
+             "水穿过压实的粉饼时阻力分布决定了萃取是否均匀")
+
+
+def cjk(n, seed=0):
+    s, k = "", seed
+    while len(s) < n:
+        s += _CJK_BASE[k % len(_CJK_BASE)]
+        k += 1
+    return s
+
 
 @pytest.fixture(scope="module")
 def film(tmp_path_factory):
@@ -107,8 +120,8 @@ def test_the_standalone_preview_draws_its_own_form_and_no_words(tmp_path):
     box, not as a fraction of the whole frame (which also counts how much room the box itself gets, and
     that varies by aspect and by whether any words are set, telling a caller nothing about the object's own
     drawing). A blank box cannot clear this floor by construction. And the name promises "no words": nothing
-    may print above the box (where a kicker would land) or below it and its floor shadow (where a
-    title/note would)."""
+    may print above the box (where a kicker would land), below it and its floor shadow (where a title/note
+    would), or beside it (where a wide frame's side callouts would)."""
     W, H = 1920, 1080
     r = _still("ObjectStage", tmp_path / "d.png", {"dna": "product"}, _env(), frame=150)
     assert r.returncode == 0, (r.stdout + r.stderr)[-800:]
@@ -127,8 +140,60 @@ def test_the_standalone_preview_draws_its_own_form_and_no_words(tmp_path):
     shadow_bottom = int(math.ceil(y1 + u * 0.035))     # past the floor shadow's own blurred extent
     above = int(ink[:y0, :].sum())
     below = int(ink[shadow_bottom:, :].sum())
+    left = int(ink[y0:y1, :x0].sum())
+    right = int(ink[y0:y1, x1:].sum())
     assert above == 0, "ink above the object's box — a kicker printed with none set (%d px)" % above
     assert below == 0, "ink below the object and its floor shadow — a title/note printed with none set (%d px)" % below
+    assert left == 0, "ink left of the object's box — a side callout printed with none set (%d px)" % left
+    assert right == 0, "ink right of the object's box — a side callout printed with none set (%d px)" % right
+
+
+@needs_toolchain
+def test_words_that_still_dont_fit_at_half_size_refuse_by_name(film, tmp_path):
+    """The fit loop must end only once the words actually fit or MIN_WORD_SCALE is reached, with the result
+    checked on every exit path — not after a fixed number of passes, which can leave the key past the
+    caption band with nothing having noticed. Six 8-glyph labels, an 8-glyph title and an 855-glyph note at
+    1:1 overflow by 4.3px in the layout model — title/note/labels are free text with no length cap, so this
+    is the register's own floor, reached honestly, not a contrived input."""
+    labels = [{"text": cjk(8, i * 7), "x": 0.2 if i % 2 else 0.8, "y": 0.1 + 0.15 * i} for i in range(6)]
+    props = {"object": {"id": "WsSquare"}, "labels": labels, "title": cjk(8, 3), "note": cjk(855, 11),
+             "dna": "product", "aspect": "1:1"}
+    r = _still("ObjectStage", tmp_path / "overflow.png", props, _env(ws.workshop_dir(film)))
+    out = r.stdout + r.stderr
+    assert r.returncode != 0 and "even at half size" in out, out[-800:]
+
+
+@needs_toolchain
+def test_side_columns_stay_off_the_title_band_at_4_3(film, tmp_path):
+    """Same class as the words fit: a column measured and placed BEFORE its span is known to fit can be
+    shifted to clear its bottom of the caption band by pushing its top above the content zone instead (or
+    left over the title/note below, when the overflow was at the other end). Six same-side labels long
+    enough to need more room than the column has at 4:3 (a real film photographing a real machine writes
+    captions this long) fit — smaller, but never past CONTENT_TOP."""
+    labels = [{"text": cjk(60, i * 5), "x": 0.9, "y": 0.1 + 0.15 * i} for i in range(6)]
+    props = {"object": {"id": "WsSquare"}, "labels": labels, "title": "意式浓缩的粉饼",
+             "note": "水要穿过它，阻力就是关键", "dna": "product", "aspect": "4:3"}
+    r = _still("ObjectStage", tmp_path / "side43.png", props, _env(ws.workshop_dir(film)), frame=150)
+    assert r.returncode == 0, (r.stdout + r.stderr)[-800:]
+    a = np.asarray(Image.open(str(tmp_path / "side43.png")).convert("RGB")).astype(int)
+    ground = np.median(a.reshape(-1, 3), axis=0)
+    ink = np.abs(a - ground).sum(axis=-1) > 60
+    z_top = dg._content_top()
+    above = int(ink[:z_top, :].sum())
+    assert above == 0, "ink above CONTENT_TOP — the side column reached into the kicker band (%d px)" % above
+
+
+@needs_toolchain
+def test_side_columns_refuse_by_name_when_they_cannot_fit_even_shrunk(film, tmp_path):
+    """The same six-label column, long enough (150 glyphs each) that even the smallest legible size cannot
+    fit it clear of the title/note at 4:3 — the register refuses by name rather than print over the words
+    or off the frame."""
+    labels = [{"text": cjk(150, i * 5), "x": 0.9, "y": 0.1 + 0.15 * i} for i in range(6)]
+    props = {"object": {"id": "WsSquare"}, "labels": labels, "title": "意式浓缩的粉饼",
+             "note": "水要穿过它，阻力就是关键", "dna": "product", "aspect": "4:3"}
+    r = _still("ObjectStage", tmp_path / "side43refuse.png", props, _env(ws.workshop_dir(film)))
+    out = r.stdout + r.stderr
+    assert r.returncode != 0 and "the side callouts need" in out, out[-800:]
 
 
 HEAVY_LABELS = [
