@@ -521,6 +521,68 @@ def stale(data):
     return out
 
 
+def record_spot(names):
+    """Merge a few shots' measurement into the COMMITTED `remotion/_ground_luma.json` — the one write path a
+    spot check has. `--only ... --emit` classifies and prints without ever touching this file, and a bare
+    `--only` run refuses to on purpose ("a --only run is a SPOT CHECK; it must never overwrite the
+    full-library table" — a one-shot rerun once did, silently, and a 134-shot table was lost to it). So a
+    register re-measured alone — freshly registered, promoted from a film's workshop, or simply edited
+    without a full sweep — could confirm its OWN classification and `stale()` would still call it
+    unmeasured forever: the committed table never moved. This is the narrower door: it writes only the
+    named rows, so a spot check leaves the table exactly as confirmable as a full sweep does, without the
+    hours a full sweep costs.
+
+    Every name is measured with the module's own pipeline — `measure`, `classify`, `token_lums`,
+    `_fixture_props`, the same functions a bare `--only` run calls — and REFUSES, naming the shot and the
+    reason, before a byte is written, if any of them fails to measure: a spot check that leaves the table
+    half updated is worse than one that changes nothing.
+
+    Only `names` move: a classified one lands in `table` and leaves `unclassified`; an unclassified one the
+    other way; `_source` is refreshed for a name only once it is IN `table` (the hash `stale()` compares
+    against — an entry that just became unclassified is not measured against a source at all). Every other
+    row, and `failed`, are untouched. `universe` means "how many distinct names this table has ever
+    accounted for" (`len(table) + len(unclassified) + len(failed)` at the last full write, which the
+    committed file already satisfies); it is raised by exactly the count of names this call sees for the
+    first time — absent from `table`, `unclassified` AND `failed` alike — never for one already counted in
+    any of the three, classified or not.
+    """
+    dest = os.path.join(_REMOTION, "_ground_luma.json")
+    data = json.load(open(dest, encoding="utf-8")) if os.path.exists(dest) else \
+        {"table": {}, "unclassified": [], "failed": {}, "universe": 0, "_source": {}}
+    table = dict(data.get("table") or {})
+    unclassified = set(data.get("unclassified") or [])
+    never_counted = set(names) - (table.keys() | unclassified | (data.get("failed") or {}).keys())
+    lums = token_lums()
+    fixtures = _fixture_props()
+    lum_of = {}
+    with tempfile.TemporaryDirectory() as td:
+        for name in names:
+            lum, err = measure(name, td, fixtures)
+            if err is not None:
+                raise SystemExit("[ground_luma] record_spot: %s did not measure — %s; "
+                                 "_ground_luma.json is left untouched" % (name, err))
+            lum_of[name] = lum
+    results = {}
+    for name in names:
+        tok, _err = classify(lum_of[name], lums)
+        results[name] = tok
+        if tok is None:
+            table.pop(name, None)
+            unclassified.add(name)
+            print("  %-24s lum=%.3f  UNCLASSIFIED" % (name, lum_of[name]))
+        else:
+            table[name] = tok
+            unclassified.discard(name)
+            print("  %-24s lum=%.3f  -> %s"
+                  % (name, lum_of[name], tok if isinstance(tok, str) else "+".join(tok)))
+    source = dict(data.get("_source") or {})
+    source.update(_source_hashes(sorted(n for n in names if n in table)))
+    data["table"], data["unclassified"], data["_source"] = table, sorted(unclassified), source
+    data["universe"] = int(data.get("universe") or 0) + len(never_counted)
+    json.dump(data, open(dest, "w"), indent=1)
+    return results
+
+
 def main(argv):
     _c.refuse_unknown(argv, valued=("only",), switches=("luma", "emit", "check", "stale", "apply-json"), usage=_USAGE)
     if "--stale" in argv:
