@@ -45,6 +45,39 @@ def test_one_shots_ground_row_does_not_stale_every_other_shots_energy():
         assert re_._dep_bytes(p, "Alpha") != alpha_before, "a change to the module's code no longer stales it"
 
 
+def test_a_freshly_scaffolded_rows_own_comment_does_not_stale_a_reader():
+    """`register_shot.py` writes a brand-new, unmeasured row with its OWN trailing comment —
+    `Name: 'dark',   // PROVISIONAL — placeholder, not a measurement; run measure_ground_luma.py --luma
+    --emit` — not the bare `Name: 'mid',` the test above registers. Matching only up to the row's optional
+    comma leaves that trailing comment sitting in the text the row is stripped OUT of, which is exactly the
+    file's shared CODE component every other register's hash folds in — so one freshly registered, not-yet-
+    measured shot would move it for every reader, none of whose pictures had moved."""
+    import importlib.util
+    import os
+    import tempfile
+    here = os.path.dirname(os.path.abspath(__file__))
+    spec = importlib.util.spec_from_file_location(
+        "register_energy", os.path.join(os.path.dirname(here), "scripts", "register_energy.py"))
+    re_ = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(re_)
+
+    base = ("export type Lum = 'dark' | 'mid' | 'light';\n"
+            "export const SHOT_LUMA: Record<string, Lum> = {\n"
+            "  Alpha: 'dark',\n"
+            "  Beta: 'light', Gamma: 'mid',\n"
+            "};\n"
+            "export const groundOf = (id: string) => SHOT_LUMA[id] ?? 'dark';\n")
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "shotLuma.ts")
+        open(p, "w", encoding="utf-8").write(base)
+        alpha_before = re_._dep_bytes(p, "Alpha")
+        scaffolded = ("  Delta: 'dark',   // PROVISIONAL — placeholder, not a measurement; run "
+                      "measure_ground_luma.py --luma --emit\n")
+        open(p, "w", encoding="utf-8").write(base.replace("  Alpha: 'dark',\n", scaffolded + "  Alpha: 'dark',\n"))
+        assert re_._dep_bytes(p, "Alpha") == alpha_before, (
+            "a freshly scaffolded row's own PROVISIONAL comment staled Alpha, whose picture never moved")
+
+
 def test_another_shots_dna_ground_entry_does_not_stale_a_reader():
     """`DNA_GROUND_TOKEN` is a per-register table too, and only `SHOT_LUMA` and `GROUND_FOLLOWS_MEASURED`
     were reduced to the reader's own entry: registering DeviceDemo and DeviceHero added two ground rows and
