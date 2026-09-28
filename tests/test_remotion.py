@@ -3023,7 +3023,9 @@ def test_no_register_prints_a_number_the_film_never_supplied():
     qa = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(qa)
     offenders = {}
-    for f in sorted(glob.glob(os.path.join(root, "remotion", "src", "shots", "*.tsx"))):
+    files = (sorted(glob.glob(os.path.join(root, "remotion", "src", "shots", "*.tsx")))
+             + sorted(glob.glob(os.path.join(root, "remotion", "src", "objects", "*.tsx"))))
+    for f in files:
         hits = qa.unsourced_numbers(f)
         if hits:
             offenders[os.path.basename(f)[:-4]] = hits

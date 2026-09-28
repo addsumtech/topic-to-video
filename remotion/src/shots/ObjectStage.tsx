@@ -23,6 +23,7 @@ import {leading} from '../runtime/cjkType';
 import {useDNA, relLum} from '../runtime/dna';
 import {onAccentInk} from '../runtime/onAccent';
 import {rows} from '../runtime/rows';
+import {hex6} from '../runtime/hexColor';
 import {ObjectSlot, useObjectEntry, fitAspect, type ObjectRef} from '../runtime/objectSlot';
 import {DEMO_ID} from '../objects/DemoForm';
 
@@ -31,12 +32,6 @@ export const MAX_STAGE_LABELS = 6;
 export const REQUIRED_IN_FILM = ['object'] as const;
 const BG_D0 = '#eef0f3', FG_D0 = '#1b1f27', DIM_D0 = '#5d6573', ACC_D0 = '#2f5bd8';
 const DEMO_OBJECT: ObjectRef = {id: DEMO_ID};
-// `runtime/dna.tsx`'s relLum reads a 6-digit hex only and reports 0 (reads as dark) for anything shorter,
-// so a DNA authored with the 3-digit shorthand (`bg: '#fff'`) would misclassify a light ground as dark —
-// harmless for THIS read (black is a safe shadow on either polarity), but a real ground the register
-// should still read correctly. Expanded here, not in dna.tsx (not edited).
-const hex6 = (c: string): string =>
-  /^#[0-9a-fA-F]{3}$/.test(c) ? '#' + [...c.slice(1)].map((ch) => ch + ch).join('') : c;
 const OBJ_A = 0.06, OBJ_B = 0.6;          // the object's own t runs 0 → 1 here, then holds
 const LBL_A = 0.6, LAND_BY = 0.84;        // callouts, every one in before the settled frame
 
@@ -116,21 +111,36 @@ export const ObjectStage: React.FC<{
     return {titlePx, titleH, notePx, noteH, noteGap, wordsH, gap, keyPx, keyH, keyGap, total: gap + wordsH + keyGap + keyH};
   };
   // The room left for words once the object has claimed its floor — the same U*0.2 `roomH` already floors
-  // to below. The loop ends only once the words actually fit or the floor is reached — never after a fixed
-  // number of passes with the result unchecked — and each step makes real progress (a proportional guess
-  // alone can stall a hair short, since wrapping is a STEP function of px): title/note/labels are free text
-  // with no length cap, so "the words still don't fit at the floor" is a real case, not a hypothetical one,
-  // and the register refuses by name rather than let the key print into the caption band.
+  // to below. `wordsAt(scale).total` FALLS as scale falls (checked over 30k random boards) but not linearly
+  // — height is set by a wrapped LINE COUNT more than by the px size directly, so it falls closer to the
+  // SQUARE of the scale, and a step sized for a linear fall overshoots: for an 855-glyph note at 16:9, such
+  // a step stalls at scale 0.657 where 0.820 already fits, rendering visibly smaller than it needs to be.
+  // Monotone total means the LARGEST fitting scale is found by bisection instead — about a dozen steps,
+  // against a [MIN_WORD_SCALE, 1] range 0.5 wide, is far past the precision a rounded px size can even show.
+  // Title/note/labels are free text with no length cap, so "the words still don't fit at the floor" is a
+  // real case, not a hypothetical one, and the register refuses by name rather than let the key print into
+  // the caption band.
   const budget = Math.max(0, zBot - zTop - U * 0.02 - U * 0.2);
   let scale = 1;
-  let total = wordsAt(1).total;
-  while (total > budget && scale > MIN_WORD_SCALE) {
-    scale = Math.max(MIN_WORD_SCALE, Math.min(scale - 0.01, scale * budget / total));
-    total = wordsAt(scale).total;
+  if (wordsAt(1).total > budget) {
+    if (wordsAt(MIN_WORD_SCALE).total > budget) {
+      scale = MIN_WORD_SCALE;                    // the floor itself does not fit; the throw below says so
+    } else {
+      let lo = MIN_WORD_SCALE, hi = 1;
+      for (let i = 0; i < 12; i++) {
+        const mid = (lo + hi) / 2;
+        if (wordsAt(mid).total <= budget) lo = mid; else hi = mid;
+      }
+      scale = lo;
+    }
   }
+  const total = wordsAt(scale).total;
   if (total > budget) {
-    throw new Error(`ObjectStage: the title, note and key need ${Math.ceil(total)}px even at half size; the frame ` +
-      `leaves ${Math.floor(budget)}px under the object — shorten the note or the labels.`);
+    // SIDE MODE DRAWS NO KEY, AND ITS LABELS SIT IN THEIR OWN COLUMNS — this total is title+note alone there.
+    const what = side ? 'the title and note' : 'the title, note and key';
+    const fix = side ? 'shorten the title or the note' : 'shorten the note or the labels';
+    throw new Error(`ObjectStage: ${what} need ${Math.ceil(total)}px even at half size; the frame leaves ` +
+      `${Math.floor(budget)}px under the object — ${fix}.`);
   }
   const {titlePx, titleH, notePx, noteH, noteGap, wordsH, gap, keyPx, keyH, keyGap} = wordsAt(scale);
 
@@ -156,12 +166,18 @@ export const ObjectStage: React.FC<{
   // SIDE CALLOUT COLUMNS: each column is ordered top-to-bottom from its labels' own points and pushed apart
   // so no label overprints its neighbour, the SAME bound the words already keep — inside the content zone,
   // and (when there is a title or note under the object) never reaching into it, since a wide frame's words
-  // block sits close enough in X for a tall column to print straight over it. The column is measured as ONE
-  // span FIRST and only placed once that span is known to fit — shifting a column that already overflows
-  // can push its far end back inside while pushing its NEAR end out the other side: keeping the bottom off
-  // the caption band by shifting the whole column up is exactly what can send its top past the frame's own
-  // edge. A column whose labels need more room than the bound has, even at their smallest legible size,
-  // refuses by name rather than print outside the frame or over the words.
+  // block sits close enough in X for a tall column to print straight over it. LEFT AND RIGHT ARE TWO
+  // INDEPENDENT STACKS IN TWO SEPARATE MARGINS, and are measured and fitted that way: what a column NEEDS
+  // is its OWN span, so a one-line label alone in a short column must never be judged (or shrunk, or
+  // refused) by how tall the OTHER column happens to be — a union of the two spans is neither column's own
+  // requirement, and reading a few labels stacked opposite a genuinely long one as if they shared a budget
+  // both refused boards a per-column fit existed for and shrank type nobody's own column needed shrunk.
+  // Each column is measured as ONE span FIRST and only placed once that span is known to fit — shifting a
+  // column that already overflows can push its far end back inside while pushing its NEAR end out the
+  // other side: keeping the bottom off the caption band by shifting the whole column up is exactly what can
+  // send its top past the frame's own edge. A column whose own labels need more room than the bound has,
+  // even at their smallest legible size, refuses by name rather than print outside the frame or over the
+  // words.
   const lblLead = 1.3;
   let lblPx = Math.round(U * 0.02);
   const placed = LABELS.map((l, i) => ({l, i, p: {x: box.x + l.x * box.w, y: box.y + l.y * box.h},
@@ -171,11 +187,12 @@ export const ObjectStage: React.FC<{
     const colBoundBottom = (title || note) ? Math.min(zBot, wordsTop) : zBot;
     const available = Math.max(1, colBoundBottom - zTop);
     const cascade = (px: number) => {
-      let top = Infinity, bottom = -Infinity;
-      const laid: {i: number; top: number}[] = [];
+      const cols: {laid: {i: number; top: number}[]; top: number; bottom: number}[] = [];
+      let span = 0;
       for (const right of [true, false]) {
         const col = placed.filter((q) => q.right === right).sort((a, b) => a.p.y - b.p.y);
-        let prev = -Infinity;
+        let prev = -Infinity, top = Infinity, bottom = -Infinity;
+        const laid: {i: number; top: number}[] = [];
         for (const q of col) {
           const y = Math.max(q.p.y, prev + px * 0.8);
           const rowH = wrapLines(q.l.text, px, colW) * px * lblLead;
@@ -184,8 +201,9 @@ export const ObjectStage: React.FC<{
           bottom = Math.max(bottom, y - px * 0.68 + rowH);
           prev = y + rowH;
         }
+        if (laid.length) { cols.push({laid, top, bottom}); span = Math.max(span, bottom - top); }
       }
-      return {laid, top, bottom, span: laid.length ? bottom - top : 0};
+      return {cols, span};
     };
     let cur = cascade(lblPx);
     let colScale = 1;
@@ -195,11 +213,13 @@ export const ObjectStage: React.FC<{
       cur = cascade(lblPx);
     }
     if (cur.span > available) {
-      throw new Error(`ObjectStage: the side callouts need ${Math.ceil(cur.span)}px of column even at their ` +
-        `smallest size; this frame leaves ${Math.floor(available)}px for them — shorten the labels or drop one.`);
+      throw new Error(`ObjectStage: a side column needs ${Math.ceil(cur.span)}px even at the smallest legible ` +
+        `size; this frame leaves ${Math.floor(available)}px for it — shorten that side's labels or drop one.`);
     }
-    const shift = Math.min(Math.max(0, zTop - cur.top), colBoundBottom - cur.bottom);
-    for (const row of cur.laid) rowY[row.i] = row.top + shift + lblPx * 0.68;
+    for (const c of cur.cols) {
+      const shift = Math.min(Math.max(0, zTop - c.top), colBoundBottom - c.bottom);
+      for (const row of c.laid) rowY[row.i] = row.top + shift + lblPx * 0.68;
+    }
   }
   const dot = Math.max(4, Math.round(U * 0.006));
   const hair = Math.max(1, Math.round(W * 0.0012));

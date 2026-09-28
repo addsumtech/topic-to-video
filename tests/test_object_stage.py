@@ -164,6 +164,85 @@ def test_words_that_still_dont_fit_at_half_size_refuse_by_name(film, tmp_path):
 
 
 @needs_toolchain
+def test_the_words_loop_finds_the_largest_scale_that_fits(film, tmp_path):
+    """A short title and an 855-glyph note at 16:9 (free text has no length cap, and a note this long is a
+    real near-the-floor case, not a contrived one) push the words close to the room the frame leaves. A
+    wrapped block's height comes from its LINE COUNT more than from its px size alone, so it falls closer to
+    the SQUARE of the scale than linearly as the font shrinks — a step sized for a linear fall stops well
+    short of the room actually available: on this exact note, in the layout model, such a step stalls at
+    scale 0.657 (349px used of a 466px budget, the note wrapped to 12 lines) where scale 0.82 already fits
+    (465px, 14 lines) — a fifth more of the frame's own room left on the floor. The words block's rendered
+    height is the observable: near 432px at the larger, correct scale, far from the ~317px the smaller one
+    would have drawn."""
+    props = {"object": {"id": "WsSquare"}, "title": cjk(8, 3), "note": cjk(855, 11),
+             "dna": "product", "aspect": "16:9"}
+    env = _env(ws.workshop_dir(film))
+    r = _still("ObjectStage", tmp_path / "bisect169.png", props, env, frame=150)
+    assert r.returncode == 0, (r.stdout + r.stderr)[-800:]
+    W, H = 1920, 1080
+    a = np.asarray(Image.open(str(tmp_path / "bisect169.png")).convert("RGB")).astype(int)
+    assert a.shape[1] == W and a.shape[0] == H, "not the plain 16:9 still this measurement assumes"
+    ground = np.median(a.reshape(-1, 3), axis=0)
+    ink = np.abs(a - ground).sum(axis=-1) > 60
+
+    _n, obj_box = _mask(tmp_path / "bisect169.png", (255, 0, 255))
+    assert obj_box, "the object itself never rendered"
+    u = min(W, H)
+    words_top = obj_box[3] + 1 + round(u * 0.03)     # the object's own rendered floor, plus the fixed gap
+    # to the words below it (the same U*0.03 the register itself adds — see ObjectStage.tsx's own `gap`)
+
+    rows = np.nonzero(ink[words_top:, :].any(axis=1))[0]
+    assert len(rows) > 0, "no ink below the object at all — the title/note never printed"
+    words_h = int(rows.max()) + 1
+    assert words_h > 375, ("the words block measures %dpx tall — close to the 317px a step sized for a "
+                            "linear fall would have stopped at, not the ~432px the largest fitting scale "
+                            "draws" % words_h)
+
+
+@needs_toolchain
+def test_a_short_column_is_never_refused_for_a_long_one_on_the_other_side(film, tmp_path):
+    """One 4-glyph right label and one 60-glyph left label, at 4:3 with the film's own title and note: each
+    column's OWN span is modest — the right column is a single short line, the left wraps to a few — but
+    read as ONE span across both margins together (the two columns' extremes combined) the same board asks
+    for 587px against the 586px the frame leaves, a refusal earned by nobody's own column. Measured per
+    column instead (each margin is its own stack, and is never placed past the other's need), the same board
+    needs only 172px and fits at the label's full, unshrunk size."""
+    labels = [{"text": cjk(4, 0), "x": 0.9, "y": 0}, {"text": cjk(60, 2), "x": 0.1, "y": 1}]
+    props = {"object": {"id": "WsSquare"}, "labels": labels, "title": FILM_PROPS["title"],
+             "note": FILM_PROPS["note"], "dna": "product", "aspect": "4:3"}
+    env = _env(ws.workshop_dir(film))
+    r = _still("ObjectStage", tmp_path / "shortcol.png", props, env, frame=150)
+    assert r.returncode == 0, (r.stdout + r.stderr)[-800:]
+    a = np.asarray(Image.open(str(tmp_path / "shortcol.png")).convert("RGB")).astype(int)
+    ground = np.median(a.reshape(-1, 3), axis=0)
+    ink = np.abs(a - ground).sum(axis=-1) > 60
+    W = a.shape[1]
+    assert ink[:, int(W * 0.75):].sum() > 0, "no ink in the right margin — the short column never printed"
+    assert ink[:, :int(W * 0.25)].sum() > 0, "no ink in the left margin — the long column never printed"
+
+
+@needs_toolchain
+def test_side_labels_never_reach_into_the_words_below_them_at_4_3(film, tmp_path):
+    """Three right-side labels anchored at 0.8/0.9/1.0 — all on the object's own lower half — cascade down
+    from their own points until the last one's bottom meets the title/note block below it, its real bound
+    here, one CONTENT_TOP alone never catches (nothing in this board comes near the top of the frame). A
+    label column and the words block both sit inside the same centred width at 4:3, so a plain ink scan
+    cannot tell one's pixels from the other's where they'd touch; the DOM's own measured boxes can, and this
+    asks them the same way every other register's overlap check already does."""
+    labels = [{"text": cjk(12, i * 5), "x": 0.95, "y": y} for i, y in enumerate([0.8, 0.9, 1.0])]
+    props = {"object": {"id": "WsSquare"}, "labels": labels, "title": cjk(40, 3), "note": cjk(60, 9),
+             "dna": "product", "aspect": "4:3"}
+    env = _env(ws.workshop_dir(film))
+    r = _still("ObjectStage", tmp_path / "anchors43.png", props, env, frame=150)
+    assert r.returncode == 0, (r.stdout + r.stderr)[-800:]
+    hits = c.sweep(["ObjectStage"], dna="product", aspect="4:3", film_props={"ObjectStage": props},
+                   out_dir=film)["ObjectStage"]
+    assert not hits["failed"], hits
+    bad = [h for h in hits["hits"] if h["kind"] in ("leading", "overlap", "orphan")]
+    assert not bad, bad
+
+
+@needs_toolchain
 def test_side_columns_stay_off_the_title_band_at_4_3(film, tmp_path):
     """Same class as the words fit: a column measured and placed BEFORE its span is known to fit can be
     shifted to clear its bottom of the caption band by pushing its top above the content zone instead (or
@@ -187,13 +266,14 @@ def test_side_columns_stay_off_the_title_band_at_4_3(film, tmp_path):
 def test_side_columns_refuse_by_name_when_they_cannot_fit_even_shrunk(film, tmp_path):
     """The same six-label column, long enough (150 glyphs each) that even the smallest legible size cannot
     fit it clear of the title/note at 4:3 — the register refuses by name rather than print over the words
-    or off the frame."""
+    or off the frame. All six sit on the one (right) side, so the column that overflows is also the column
+    named in the refusal — its own shortfall, not a span borrowed from the empty side opposite it."""
     labels = [{"text": cjk(150, i * 5), "x": 0.9, "y": 0.1 + 0.15 * i} for i in range(6)]
     props = {"object": {"id": "WsSquare"}, "labels": labels, "title": "意式浓缩的粉饼",
              "note": "水要穿过它，阻力就是关键", "dna": "product", "aspect": "4:3"}
     r = _still("ObjectStage", tmp_path / "side43refuse.png", props, _env(ws.workshop_dir(film)))
     out = r.stdout + r.stderr
-    assert r.returncode != 0 and "the side callouts need" in out, out[-800:]
+    assert r.returncode != 0 and "a side column needs" in out, out[-800:]
 
 
 HEAVY_LABELS = [

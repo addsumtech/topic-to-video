@@ -11,6 +11,7 @@ import type {ObjectProps, ObjectMeta} from '../runtime/objectSlot';
 import {project, yawPoint, type Vec3} from '../runtime/project3d';
 import {clamp01, seg, easeOutCubic} from '../runtime/motion';
 import {mix, relLum} from '../runtime/dna';
+import {hex6} from '../runtime/hexColor';
 
 export const DEMO_ID = 'DemoForm';
 export const META: ObjectMeta = {aspect: 1, turns: true, demo: true, provenance: 'motion-graphics'};
@@ -36,11 +37,6 @@ const unit = (a: Vec3): Vec3 => {
   const l = Math.hypot(a[0], a[1], a[2]) || 1;
   return [a[0] / l, a[1] / l, a[2] / l];
 };
-// `runtime/dna.tsx`'s relLum reads a 6-digit hex only and reports 0 (reads as dark) for anything shorter —
-// so a DNA authored with the 3-digit shorthand (`fg: '#fff'`) would relLum as dark and shade toward WHITE,
-// backwards on the very ground that shorthand most often means. Expanded here, not in dna.tsx (not edited).
-const hex6 = (c: string): string =>
-  /^#[0-9a-fA-F]{3}$/.test(c) ? '#' + [...c.slice(1)].map((ch) => ch + ch).join('') : c;
 
 export const DemoForm: React.FC<ObjectProps & {layers?: number}> = ({w, h, t, dna, yaw, layers = 3}) => {
   if (!Number.isInteger(layers) || layers < 1 || layers > 5) {
@@ -62,10 +58,12 @@ export const DemoForm: React.FC<ObjectProps & {layers?: number}> = ({w, h, t, dn
     const at = (i / layers) * 0.5;
     const drop = easeOutCubic(clamp01(seg(t, at, at + 0.4)));
     const hx = 1.3 - i * 0.18, hz = 0.95 - i * 0.13, hy = 0.18;
-    // SEAT_Y seats the bottom slab's settled underside on the box's own floor; the drop still starts 1.4
-    // above wherever a slab settles, and every layer's own corners stay inside the box through that fall at
-    // every yaw (checked for 1-5 layers and the full yaw sweep: the tightest is layers=5's own start, 0.8%
-    // of the box's height under its ceiling — a real margin, not a coincidence of one angle).
+    // SEAT_Y seats the bottom slab's settled underside on the box's own floor AT THE OBJECT'S OWN DEFAULT
+    // YAW (0.6); at other yaw the gap is up to 59px on the 682.4px 16:9 standalone box (1.9-59.1px over a
+    // full sweep — see SEAT_Y's own comment above). The drop still starts 1.4 above wherever a slab
+    // settles, and every layer's own corners stay inside the box through that fall at every yaw (checked
+    // for 1-5 layers and the full yaw sweep: the tightest is layers=5's own start, 0.8% of the box's height
+    // under its ceiling — a real margin, not a coincidence of one angle).
     const cy = SEAT_Y + hy + i * 0.5 + (1 - drop) * 1.4;
     // EVERY LAYER KEEPS A MINIMUM STEP OFF THE MATERIAL'S OWN SURFACE TONE, not just the accent-heavy top
     // ones: at i=0 (layers>1) a 0% mix toward the accent makes `tone` exactly `surf` — indistinguishable
