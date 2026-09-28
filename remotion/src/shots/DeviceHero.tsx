@@ -9,10 +9,12 @@ import {useDNA, mix} from '../runtime/dna';
 import {TITLE_Y} from '../runtime/layout';
 import {deviceGeometry, defaultLook, Device, type DeviceKind, type DeviceLook, type Placement} from '../runtime/device';
 import {ScreenImage, ScreenVideo, type VideoSpan} from '../runtime/screen';
+import {ObjectSlot, type ObjectRef} from '../runtime/objectSlot';
 
 export const DURATION = 150;
 
-type HeroScreen = {image?: string; imageW?: number; imageH?: number; video?: string; spans?: VideoSpan[]; page?: 'demo'};
+type HeroScreen = {image?: string; imageW?: number; imageH?: number; video?: string; spans?: VideoSpan[];
+  page?: 'demo'; object?: ObjectRef};
 
 export const DeviceHero: React.FC<{
   device?: DeviceKind;   // phone | tablet | tablet-landscape | laptop | monitor
@@ -44,10 +46,10 @@ export const DeviceHero: React.FC<{
   const b = g.body, ox = b.x + b.w / 2, oy = b.y + b.h;
   const fit = lk === 'real' ? persp / (persp + (b.w / 2) * Math.sin((TURN_FROM * Math.PI) / 180)) : 1;
   const k = fit * (0.94 + 0.06 * enter);
-  const demo = !SCREEN.image && !SCREEN.video && SCREEN.page === 'demo';
-  if (!demo && !SCREEN.image && !SCREEN.video) {
-    throw new Error("DeviceHero: `screen` needs an image, a recording, or page 'demo' — got " + JSON.stringify(SCREEN) +
-      '. A screen with none of them used to draw the demo skeleton, as if the film had asked for it.');
+  const demo = !SCREEN.image && !SCREEN.video && !SCREEN.object && SCREEN.page === 'demo';
+  if (!demo && !SCREEN.image && !SCREEN.video && !SCREEN.object) {
+    throw new Error("DeviceHero: `screen` needs an image, a recording, an object, or page 'demo' — got " +
+      JSON.stringify(SCREEN) + '. A screen with none of them used to draw the demo skeleton, as if the film had asked for it.');
   }
   if (SCREEN.video && !(SCREEN.spans && SCREEN.spans.length)) {
     throw new Error('DeviceHero: a recording needs its `spans` — scripts/device_script.py maps the beat onto the ' +
@@ -57,18 +59,20 @@ export const DeviceHero: React.FC<{
     throw new Error('DeviceHero: a screen image needs its size (`imageW`, `imageH`) — scripts/device_script.py ' +
       'reads it from the file; render through render_remotion.py.');
   }
-  const content = SCREEN.image
-    ? <ScreenImage src={SCREEN.image} imageW={SCREEN.imageW!} imageH={SCREEN.imageH!} w={s.w} h={s.h} />
-    : SCREEN.video
-      ? <ScreenVideo src={SCREEN.video} spans={SCREEN.spans!} w={s.w} h={s.h} />
-      : (
-        <div style={{position: 'absolute', left: 0, top: 0, width: s.w, height: s.h, background: dna?.surface ?? '#ffffff'}}>
-          {Array.from({length: 6}).map((_, i) => (   // @decor: skeleton rows of the register's own demo screen — no film ever sees them
-            <div key={i} style={{position: 'absolute', left: s.w * 0.08, top: s.h * (0.14 + i * 0.12), width: s.w * 0.84,
-              height: s.h * 0.07, borderRadius: s.h * 0.012, background: mix(dna?.surface ?? '#ffffff', dna?.fg ?? '#14171c', 0.07)}} />
-          ))}
-        </div>
-      );
+  const content = SCREEN.object
+    ? <ObjectSlot object={SCREEN.object} box={{x: 0, y: 0, w: s.w, h: s.h}} />
+    : SCREEN.image
+      ? <ScreenImage src={SCREEN.image} imageW={SCREEN.imageW!} imageH={SCREEN.imageH!} w={s.w} h={s.h} />
+      : SCREEN.video
+        ? <ScreenVideo src={SCREEN.video} spans={SCREEN.spans!} w={s.w} h={s.h} />
+        : (
+          <div style={{position: 'absolute', left: 0, top: 0, width: s.w, height: s.h, background: dna?.surface ?? '#ffffff'}}>
+            {Array.from({length: 6}).map((_, i) => (   // @decor: skeleton rows of the register's own demo screen — no film ever sees them
+              <div key={i} style={{position: 'absolute', left: s.w * 0.08, top: s.h * (0.14 + i * 0.12), width: s.w * 0.84,
+                height: s.h * 0.07, borderRadius: s.h * 0.012, background: mix(dna?.surface ?? '#ffffff', dna?.fg ?? '#14171c', 0.07)}} />
+            ))}
+          </div>
+        );
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? '#eef1f4', perspective: persp,
       perspectiveOrigin: `${ox}px ${oy}px`}}>

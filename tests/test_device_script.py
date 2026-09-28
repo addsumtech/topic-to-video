@@ -49,7 +49,7 @@ def test_each_kind_needs_its_own_time():
     ({"steps": [{"screen": {"image": "a.png"}}, {"tap": [True, 0.5]}]}, "in 0..1"),
     ({"steps": [{"screen": {"image": "a.png"}}, {"tap": [0.5, 0.5], "colour": "red"}]}, "has no key `colour`"),
     ({"device": "watch", "steps": [{"screen": {"image": "a.png"}}]}, "`device`"),
-    ({"steps": [{"screen": {"image": "a.png", "video": "b.mp4"}}]}, "exactly one of image / video / page"),
+    ({"steps": [{"screen": {"image": "a.png", "video": "b.mp4"}}]}, "exactly one of image / video / object / page"),
 ])
 def test_a_malformed_script_is_refused_with_its_reason(props, needle):
     probs = ds.check_shape(props)

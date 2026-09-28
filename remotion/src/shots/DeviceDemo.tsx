@@ -21,13 +21,14 @@ import {textWidthPx, TITLE_Y, contentBottom} from '../runtime/layout';
 import {deviceGeometry, deviceFace, defaultLook, isTouch, Device, type DeviceKind, type DeviceLook, type Placement, type Rect} from '../runtime/device';
 import {ScreenImage, ScreenVideo, scrollRangePx, flingAt, type VideoSpan} from '../runtime/screen';
 import {typeChunks, typedCount, caretOn, framesBetween, TapRipple, TouchPoint, CursorArrow} from '../runtime/gesture';
+import {ObjectSlot, type ObjectRef} from '../runtime/objectSlot';
 import spec from '../runtime/deviceSpec.json';
 
 export const DURATION = 180;
 
 type Pt = [number, number];
 type Field = {box: [number, number, number, number]; bg: string; ink: string; textFrac: number | null};
-type ScreenSrc = {image?: string; video?: string; page?: 'demo'; from?: number; to?: number};
+type ScreenSrc = {image?: string; video?: string; page?: 'demo'; object?: ObjectRef; from?: number; to?: number};
 export type Step = {
   screen?: ScreenSrc; via?: 'push' | 'fade';
   type?: string | string[]; into?: Pt; tap?: Pt; click?: Pt; scroll?: number; drag?: {from: Pt; to: Pt};
@@ -128,6 +129,10 @@ export const DeviceDemo: React.FC<{
   };
   const layer = (x: {st: Step; i: number}) => {
     const src = x.st.screen!;
+    // A SCREEN THE FILM DREW (runtime/objectSlot): an interface or a scene built for this beat, drawn at the
+    // screen's own size on the beat's clock. Its taps target coordinates — scripts/device_script.py refuses a
+    // text target, typing and scrolling on it, since there is no screenshot to find text in or to scroll.
+    if (src.object) return <ObjectSlot object={src.object} box={{x: 0, y: 0, w: s.w, h: s.h}} />;
     if (src.image) {
       if (!x.st.imageW || !x.st.imageH) {
         throw new Error('DeviceDemo: a screen image needs its size (`imageW`, `imageH`) — scripts/device_script.py ' +

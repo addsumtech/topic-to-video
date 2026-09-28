@@ -108,18 +108,23 @@ def _frame_problems(props):
 
 
 def _hero_screen_problems(props):
-    """A film's DeviceHero shows the product's OWN screen: a screenshot or a recording, named by its path. Its
-    skeleton demo is the register's standalone preview — in a film it would be the placeholder picture the
-    device layer exists to replace."""
+    """A film's DeviceHero shows the product's OWN screen — a screenshot or a recording, named by its path — or
+    a screen the FILM drew, an object from its workshop. Its skeleton demo is the register's standalone preview
+    — in a film it would be the placeholder picture the device layer exists to replace."""
     src = props.get("screen")
     if src is None:
-        return ["DeviceHero needs `screen` — a screenshot (`image`) or a recording (`video`) of the product"]
+        return ["DeviceHero needs `screen` — a screenshot (`image`), a recording (`video`) or a screen the film drew (`object`)"]
     if isinstance(src, dict) and "page" in src:
         return ["`screen` page %r is the register's own preview, never a film's — give an image or a video"
                 % (src.get("page"),)]
-    keys = [k for k in ("image", "video") if isinstance(src, dict) and k in src]
+    keys = [k for k in ("image", "video", "object") if isinstance(src, dict) and k in src]
     if len(keys) != 1:
-        return ["`screen` is exactly one of image / video (got %r)" % (src,)]
+        return ["`screen` is exactly one of image / video / object (got %r)" % (src,)]
+    if keys[0] == "object":
+        o = src["object"]
+        if not isinstance(o, dict) or not isinstance(o.get("id"), str) or not o["id"].strip():
+            return ['`screen` object is {"id": "<Name>", "props": {...}} — a screen the film drew (got %r)' % (o,)]
+        return []
     if not isinstance(src[keys[0]], str) or not src[keys[0]].strip():
         return ["`screen` %s is a file path in the out dir (got %r)" % (keys[0], src[keys[0]])]
     return []
@@ -150,6 +155,7 @@ def check_shape(props):
     if not isinstance(steps, list) or not steps:
         return probs + ["`steps` must be a non-empty list — the script of what happens on the device"]
     on_video = False
+    on_object = False
     for i, st in enumerate(steps, 1):
         where = "step %d" % i
         if not isinstance(st, dict):
@@ -166,14 +172,19 @@ def check_shape(props):
             probs.append("step 1 must be a `screen` — the device would arrive showing nothing")
         if k == "screen":
             src = st["screen"]
-            srcs = [s for s in ("image", "video", "page") if isinstance(src, dict) and s in src]
+            srcs = [s for s in ("image", "video", "page", "object") if isinstance(src, dict) and s in src]
             if len(srcs) != 1:
-                probs.append("%s: a screen is exactly one of image / video / page (got %r)" % (where, src))
+                probs.append("%s: a screen is exactly one of image / video / object / page (got %r)" % (where, src))
                 continue
             on_video = srcs[0] == "video"
+            on_object = srcs[0] == "object"
             if srcs[0] == "page":
                 probs.append("%s: page %r is the register's own preview, never a film's — give an image or a video"
                              % (where, src.get("page")))
+            elif on_object:
+                o = src["object"]
+                if not isinstance(o, dict) or not isinstance(o.get("id"), str) or not o["id"].strip():
+                    probs.append('%s: a screen\'s object is {"id": "<Name>", "props": {...}} (got %r)' % (where, o))
             elif not isinstance(src[srcs[0]], str) or not src[srcs[0]].strip():
                 probs.append("%s: a screen's %s is a file path in the out dir (got %r)" % (where, srcs[0], src[srcs[0]]))
             if st.get("via") not in (None,) + VIAS:
@@ -188,6 +199,16 @@ def check_shape(props):
             # not show (and a typed field has no pixels to measure). A `mark` points at something on it.
             probs.append("%s (%s): the screen is a recording, which plays as recorded — point at something on it "
                          "with `mark`, or show a screenshot for the %s" % (where, k, k))
+        elif on_object and k in ("type", "scroll"):
+            # A SCREEN THE FILM DREW animates itself: its typing and its scrolling are the object's own motion,
+            # from its `t`. There is no field to measure and no long screenshot to scroll.
+            probs.append("%s (%s): the screen is drawn by the film (an object) — animate the %s inside the object "
+                         "from its `t`, or show a screenshot" % (where, k, "typing" if k == "type" else "scroll"))
+        elif on_object and any(isinstance(v, dict) and "text" in v for v in
+                               ([st.get(k)] + ([st[k].get("from"), st[k].get("to")]
+                                               if k == "drag" and isinstance(st.get(k), dict) else []))):
+            probs.append("%s (%s): a text target needs a screenshot to find the text in — on a film-drawn screen, "
+                         "target [x, y]" % (where, k))
         elif k == "type":
             if isinstance(st["type"], list) and not all(isinstance(v, str) for v in st["type"]):
                 probs.append("%s: a `type` list is the chunks as strings (got %r)" % (where, st["type"]))

@@ -10,7 +10,7 @@
 |---|---|---|
 | `device` | phone, tablet, laptop or monitor (a tablet turns to landscape when its first screen is a landscape capture) | touch devices tap with a ring; laptop and monitor move a cursor |
 | `look` | flat, real or screen | absent: real on a dark beat, flat on a light one; `screen` drops the body entirely |
-| `steps` | the script — `screen`, `type`, `tap`/`click`, `scroll`, `drag`, `mark` — prepared by `scripts/device_script.py` | each step on its cue; too many for the beat is a refusal in seconds, never a squeeze |
+| `steps` | the script — `screen` (a screenshot, a recording, or `{"object": …}`: a screen the film drew), `type`, `tap`/`click`, `scroll`, `drag`, `mark` — prepared by `scripts/device_script.py` | each step on its cue; too many for the beat is a refusal in seconds, never a squeeze |
 | `camera` | `"still"` turns the push-in off | the whole device stays in frame; small text stays small |
 | `placement` | center, left or right | where the device stands in the content zone |
 | `kicker` | a spaced label above the device | moves the device below the title band |
@@ -26,6 +26,7 @@
 - A recording plays as it was recorded: a `type`, `tap`, `click`, `drag` or `scroll` on it is refused (a finger over a video would perform an action the video does not show); point at something on it with `mark`. Its first frame is held until it plays and its last until it has gone, never black.
 - A placeholder set in lowercase x-height letters only ("username") types at about half size: the typed size is taken from the placeholder's ink, and those letters have no ascenders to measure. A capitalised or CJK placeholder is exact.
 - A label that nearly fills its button (a 44 px label in a 56 px button) is measured as the whole button — about 1.8× its ink — so the push-in stops short, silently: around such a label the button is the only ground the measure sees. A label with room above and below it inside its button is exact.
+- A screen the film drew (an `object` from its workshop) is tapped and dragged by coordinates only: there is no screenshot to find text in, and typing or scrolling on it is the object's own animation — both are refused by name. The camera holds on it: there is no text height to push in to.
 
 **Step script:** `shot_props.steps` is a list, one object per step, each naming exactly one kind:
 - `{"screen": {"image": "<file in the out dir>"}}` or `{"screen": {"video": "<file>", "from": 0, "to": 6.5}}` (seconds; `to` required) — the first step is always a screen; a later one replaces the current screen, `"via": "push"` (default) or `"fade"`.
