@@ -78,6 +78,25 @@ def test_record_spot_updates_only_the_named_entries(spot, monkeypatch):
     assert after["universe"] == before["universe"] + 1
 
 
+def test_record_spot_prunes_the_source_hash_when_a_name_turns_unclassified(spot, monkeypatch):
+    """KNOWN starts classified, with a `_source` entry left over from that earlier measurement. Measured
+    unclassified this time, its row leaves `table` — and the hash that described its old classification must
+    leave `_source` with it, not linger describing a row that no longer exists (`stale()` only ever reads
+    `_source[shot]` for `shot in table`, so a leftover entry backs nothing and is real debt, not a value)."""
+    path, before = spot
+    assert before["_source"].get(KNOWN), "the fixture must start KNOWN with a _source entry for this to prove anything"
+    lums = gl.token_lums()
+    monkeypatch.setattr(gl, "measure", _stub({KNOWN: (0.5, None)}))
+    assert gl.classify(0.5, lums)[0] is None, "0.5 must classify as nothing for this test to prove anything"
+
+    out = gl.record_spot([KNOWN])
+
+    assert out == {KNOWN: None}
+    after = json.loads(path.read_text(encoding="utf-8"))
+    assert KNOWN not in after["table"] and KNOWN in after["unclassified"]
+    assert KNOWN not in after["_source"], "a name that just left `table` must not keep a source hash for it"
+
+
 def test_record_spot_leaves_stale_empty_for_the_named_shot(spot, monkeypatch):
     path, _before = spot
     lums = gl.token_lums()

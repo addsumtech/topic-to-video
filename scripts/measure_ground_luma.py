@@ -537,11 +537,13 @@ def record_spot(names):
     reason, before a byte is written, if any of them fails to measure: a spot check that leaves the table
     half updated is worse than one that changes nothing.
 
-    Only `names` move: a classified one lands in `table` and leaves `unclassified`; an unclassified one the
-    other way; `_source` is refreshed for a name only once it is IN `table` (the hash `stale()` compares
-    against — an entry that just became unclassified is not measured against a source at all). Every other
-    row, and `failed`, are untouched. `universe` means "how many distinct names this table has ever
-    accounted for" (`len(table) + len(unclassified) + len(failed)` at the last full write, which the
+    Only `names` move: a classified one lands in `table` and leaves `unclassified`, with `_source` refreshed
+    to the hash `stale()` compares it against; an unclassified one the other way — and its `_source` entry,
+    if it had one from a PRIOR classification, is REMOVED rather than left to describe a source that no
+    longer backs anything in `table` (`stale()` only ever reads `_source[shot]` for `shot in table`, so a
+    leftover entry is not wrong today, only a stale one waiting to be read again if the name is re-added by
+    hand). Every other row, and `failed`, are untouched. `universe` means "how many distinct names this table
+    has ever accounted for" (`len(table) + len(unclassified) + len(failed)` at the last full write, which the
     committed file already satisfies); it is raised by exactly the count of names this call sees for the
     first time — absent from `table`, `unclassified` AND `failed` alike — never for one already counted in
     any of the three, classified or not.
@@ -577,6 +579,9 @@ def record_spot(names):
                   % (name, lum_of[name], tok if isinstance(tok, str) else "+".join(tok)))
     source = dict(data.get("_source") or {})
     source.update(_source_hashes(sorted(n for n in names if n in table)))
+    for name in names:
+        if name not in table:
+            source.pop(name, None)             # unclassified: no source hash backs a row that does not exist
     data["table"], data["unclassified"], data["_source"] = table, sorted(unclassified), source
     data["universe"] = int(data.get("universe") or 0) + len(never_counted)
     json.dump(data, open(dest, "w"), indent=1)

@@ -136,31 +136,47 @@ def _render(b, comp, props, frame, name):
     return png
 
 
+def _mid_frame_checked(dur, lo, hi, fps=30):
+    """The frame nearest the middle of the OPEN window `(lo, hi)` of `useT()`'s own `t`, verified rather than
+    trusted. For a `screen` step `t0 == ta` (`device_script.GESTURES` excludes "screen", so it gets no camera
+    lead), and a midpoint built from `t0` then collapses to the window's own edge — where rounding to an
+    integer FRAME can land on either side of it, showing the register settled rather than moving.
+    `render_remotion.t_at_seconds` is the same pad/span/ENTRY_T inversion `runtime/motion.ts`'s `useT()` uses
+    (`frame_at_t`'s own inverse, reused rather than re-derived), so a picked frame whose real `t` misses its
+    window fails HERE, loudly — never a silent pass on two renders of the same settled state."""
+    import render_remotion as rr
+    frame = int(round(rr.frame_at_t(dur, (lo + hi) / 2)))
+    real_t = rr.t_at_seconds(frame / float(fps), dur, fps)
+    assert lo < real_t < hi, ("frame %d's real t=%.4f is not strictly inside the window (%.4f, %.4f) it was "
+                              "meant to land inside" % (frame, real_t, lo, hi))
+    return frame
+
+
 def _entry_frames(name, label, props, dur):
     """[(when, frame, aspects)] taken from THIS case's own real motion — never a blind fraction of the
-    duration (DeviceHero's rise finishes a third in; DeviceDemo's tap and scroll sit wherever the schedule
-    put them, evenly on the standalone demo or on ds.prepare()'s real schedule for a film-like script)."""
+    duration (DeviceHero's rise finishes a third in; DeviceDemo's tap, scroll and its second screen's own
+    transition sit wherever the schedule put them, evenly on the standalone demo or on ds.prepare()'s real
+    schedule for a film-like script) — and never merely picked: `_mid_frame_checked` confirms each one."""
     import render_remotion as rr
     at = lambda t: int(round(rr.frame_at_t(dur, t)))
     settled = ("settled", at(rr.SETTLED_T), ("16:9", "9:16"))
     if name == "DeviceHero":
-        mid_entrance = (rr.ENTRY_T + 0.32) / 2                # inside seg(t, ENTRY_T, 0.32)'s rise+turn
-        return [("entrance", at(mid_entrance), ("16:9",)), settled]
+        entrance = _mid_frame_checked(dur, rr.ENTRY_T, 0.32)   # inside seg(t, ENTRY_T, 0.32)'s rise+turn
+        return [("entrance", entrance, ("16:9",)), settled]
     if label == "demo":
         # DEMO_STEPS = [screen, tap], spread evenly by scheduled()'s own formula: slot = (1-ENTRY_T)/2, and
         # step i=1 (the tap) acts across ta=ENTRY_T+1.35*slot .. t1=ENTRY_T+1.9*slot.
         slot = (1 - rr.ENTRY_T) / 2
         ta, t1 = rr.ENTRY_T + 1.35 * slot, rr.ENTRY_T + 1.9 * slot
-        return [("tap", at((ta + t1) / 2), ("16:9",)), settled]
+        return [("tap", _mid_frame_checked(dur, ta, t1), ("16:9",)), settled]
     steps = props["steps"]
     tap = next(s for s in steps if "tap" in s)
     scroll = next(s for s in steps if "scroll" in s)
-    transition = steps[-1]                                    # the second `screen` step
-    mid = lambda s: (s["ta"] + s["t1"]) / 2
+    transition = steps[-1]     # the second `screen` step: t0 == ta (no camera lead), so its window is [t0, t1]
     return [
-        ("tap", at(mid(tap)), ("16:9",)),
-        ("scroll", at(mid(scroll)), ("16:9",)),
-        ("transition", at((transition["t0"] + transition["ta"]) / 2), ("16:9",)),
+        ("tap", _mid_frame_checked(dur, tap["ta"], tap["t1"]), ("16:9",)),
+        ("scroll", _mid_frame_checked(dur, scroll["ta"], scroll["t1"]), ("16:9",)),
+        ("transition", _mid_frame_checked(dur, transition["t0"], transition["t1"]), ("16:9",)),
         settled,
     ]
 
