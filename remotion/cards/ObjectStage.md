@@ -1,6 +1,6 @@
 # ObjectStage
 
-**Identity:** a thing the film drew for itself (an object from its workshop) stands whole on a quiet floor; numbered callouts point at named points on it and its name is set under it. The object owns the picture, the stage owns the words.
+**Identity:** a thing the film drew for itself (an object from its workshop) stands whole on a quiet floor and its name is set under it. What calls out its parts depends on the room: a wide frame (16:9, 4:3) runs leader lines out to unnumbered side labels; a portrait or square one puts numbered dots on the object with a numbered key under its name. The object owns the picture, the stage owns the words.
 
 **Use when:** the beat says "this is the thing — look at it": the film has built an object no register draws (a coffee puck in section, a sensor, an artefact) and the argument names a few of its parts. **Not when:** the thing is a real photograph (`PhotoPlate`, `MuseumLabel`); the claim is a comparison (`ObjectCompare`), a process (`ObjectPath`) or the object's shape in the round (`ObjectTurntable`); the object is best read as a technical elevation (`TechnicalPlate` with `art`).
 
@@ -18,8 +18,10 @@
 - The object is drawn by the film, so everything the stage cannot see — its words, its colours, its motion — is the object's to get right; the stage's gates (text-safe, CJK type, words-from-props) still run on the whole frame.
 - A callout point is a fraction of the object's DRAWN box, not of the frame: a wide object leaves its box shorter, and the points move with it.
 - Past six labels the columns overprint; the register refuses.
+- The object is fitted at its own declared aspect (`META.aspect` — the workshop's `new-object` scaffold defaults it to 1, a square) and letterboxed inside the stage box; a wide or tall object leaves the box's spare width or height empty, and callout points still map through the FITTED box, not the room around it.
+- An object whose own drawing does not reach its box's bottom edge reads as floating above the stage floor: the floor's shadow sits at the box's edge, not at the object's own silhouette, so an object with air under it (rather than one seated flush, the way `DemoForm` is) looks like it is hovering.
 
-**Refuses:** a malformed `labels` (not a list, more than six, a label with no `text` or without `x`/`y` in 0..1); an `object` that is not `{id, props?}`, names no object that exists, or sets `w`/`h`/`t`/`dna`/`yaw` in its props.
+**Refuses:** a malformed `labels` (not a list, more than six, a label with no `text`, without `x`/`y` in 0..1, or a `side` that is not `'left'`/`'right'`); an `object` that is not `{id, props?}`, names no object that exists, or sets `w`/`h`/`t`/`dna`/`yaw` in its props.
 
 **Reference:** `remotion/src/shots/ObjectStage.tsx`
 

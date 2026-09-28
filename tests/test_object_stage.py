@@ -1,6 +1,7 @@
 """ObjectStage: a thing the film drew, standing on a floor, its parts called out, its name under it — at every
 aspect, with its type inside the frame, and with a wide object letterboxed rather than stretched."""
 import json
+import math
 import os
 import sys
 
@@ -15,6 +16,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import workshop as ws  # noqa: E402
 import text_safe_qa as g  # noqa: E402
 import cjk_type_qa as c  # noqa: E402
+import device_geometry as dg  # noqa: E402
+from _caption_band import caption_band_px  # noqa: E402
 from test_workshop_bundle import _env, _still  # noqa: E402
 
 needs_toolchain = pytest.mark.skipif(not os.path.isdir(os.path.join(_REM, "node_modules")),
@@ -82,14 +85,76 @@ def test_a_wide_object_is_letterboxed_on_the_stage(film, tmp_path):
     assert abs(ratio - 4.0) < 0.08, (ratio, box)
 
 
+def _standalone_box(W, H):
+    """The box ObjectStage fits its object into for a bare `{dna}` call — no title/note/kicker/labels, so
+    the object takes the whole room the content zone leaves (`side` is False with no labels; DemoForm's own
+    META.aspect is 1). Mirrors ObjectStage.tsx's layout for exactly that case, reading the shared constants
+    (TITLE_BAND, the caption band) from the same place the TypeScript does rather than restating them."""
+    U = min(W, H)
+    zTop = dg._content_top()
+    zBot = H - caption_band_px(W, H)
+    room_w = W * 0.84
+    room_h = max(U * 0.2, zBot - zTop - U * 0.02)
+    w = min(room_w, room_h)          # square: room_h is always <= room_w at every supported aspect
+    x = (W - room_w) / 2 + (room_w - w) / 2
+    y = zTop + max(U * 0.01, (zBot - zTop - w) / 2)
+    return x, y, w, w
+
+
 @needs_toolchain
 def test_the_standalone_preview_draws_its_own_form_and_no_words(tmp_path):
+    """The preview must draw a real, legible form, not a blank canvas — measured INSIDE the object's own
+    box, not as a fraction of the whole frame (which also counts how much room the box itself gets, and
+    that varies by aspect and by whether any words are set, telling a caller nothing about the object's own
+    drawing). A blank box cannot clear this floor by construction. And the name promises "no words": nothing
+    may print above the box (where a kicker would land) or below it and its floor shadow (where a
+    title/note would)."""
+    W, H = 1920, 1080
     r = _still("ObjectStage", tmp_path / "d.png", {"dna": "product"}, _env(), frame=150)
     assert r.returncode == 0, (r.stdout + r.stderr)[-800:]
     a = np.asarray(Image.open(str(tmp_path / "d.png")).convert("RGB")).astype(int)
+    assert a.shape[1] == W and a.shape[0] == H, "the standalone still is not the 16:9 default — recheck the box math"
     ground = np.median(a.reshape(-1, 3), axis=0)
-    ink = (np.abs(a - ground).sum(axis=-1) > 60).mean()
-    assert ink > 0.05, ink
+    ink = np.abs(a - ground).sum(axis=-1) > 60
+
+    x, y, w, h = _standalone_box(W, H)
+    x0, y0 = int(x), int(y)
+    x1, y1 = int(math.ceil(x + w)), int(math.ceil(y + h))
+    in_box = ink[y0:y1, x0:x1].mean()
+    assert in_box > 0.10, (in_box, (x0, y0, x1, y1))
+
+    u = min(W, H)
+    shadow_bottom = int(math.ceil(y1 + u * 0.035))     # past the floor shadow's own blurred extent
+    above = int(ink[:y0, :].sum())
+    below = int(ink[shadow_bottom:, :].sum())
+    assert above == 0, "ink above the object's box — a kicker printed with none set (%d px)" % above
+    assert below == 0, "ink below the object and its floor shadow — a title/note printed with none set (%d px)" % below
+
+
+HEAVY_LABELS = [
+    {"text": "压实的粉饼层", "x": 0.5, "y": 0.15},
+    {"text": "粉碗与手柄接缝", "x": 0.1, "y": 0.3, "side": "left"},
+    {"text": "萃取压力的传导路径", "x": 0.85, "y": 0.4},
+    {"text": "滤网下方的出水口", "x": 0.15, "y": 0.6, "side": "left"},
+    {"text": "咖啡液汇聚的底部锥面", "x": 0.85, "y": 0.75},
+    {"text": "手柄与冲煮头的锁合处", "x": 0.5, "y": 0.9},
+]
+HEAVY_PROPS = {"object": {"id": "WsSquare"}, "labels": HEAVY_LABELS,
+               "title": "意式浓缩萃取的压力曲线与流速控制",
+               "note": "水穿过压实的粉饼时，阻力分布决定了萃取是否均匀，这是意式咖啡最容易出问题的一步",
+               "kicker": "萃取剖面", "dna": "product", "aspect": "1:1"}
+
+
+@needs_toolchain
+def test_heavy_legal_props_still_fit_above_the_caption_band_at_1_1(film, tmp_path):
+    """Six CJK-length labels (the MAX_STAGE_LABELS ceiling) plus a two-line title and a two-line note are
+    each legal on their own; together at 1:1 they push the object down to its U*0.2 floor, and the words
+    themselves must still fit the room that leaves — scaled to it rather than spilling the numbered key
+    past `contentBottom` into the caption band."""
+    env = _env(ws.workshop_dir(film))
+    r = _still("ObjectStage", tmp_path / "heavy.png", HEAVY_PROPS, env, frame=150)
+    assert r.returncode == 0, (r.stdout + r.stderr)[-800:]
+    assert g.audit_shot("ObjectStage", HEAVY_PROPS, 150, str(tmp_path / "heavy_a.png"), env=env) == []
 
 
 @needs_toolchain
@@ -97,6 +162,7 @@ def test_the_standalone_preview_draws_its_own_form_and_no_words(tmp_path):
     ([{"text": "a", "x": 0.1 * i, "y": 0.5} for i in range(7)], "0-6 `labels`"),
     ([{"text": "粉碗", "y": 0.5}], "needs `x` and `y`"),
     ("粉碗", "must be a LIST"),
+    ([{"text": "粉碗", "x": 0.5, "y": 0.5, "side": "up"}], "is 'left' or 'right'"),
 ])
 def test_malformed_labels_are_refused_by_name(film, tmp_path, labels, expect):
     r = _still("ObjectStage", tmp_path / "x.png", {"object": {"id": "WsSquare"}, "labels": labels},

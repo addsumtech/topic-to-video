@@ -10,7 +10,7 @@ import React from 'react';
 import type {ObjectProps, ObjectMeta} from '../runtime/objectSlot';
 import {project, yawPoint, type Vec3} from '../runtime/project3d';
 import {clamp01, seg, easeOutCubic} from '../runtime/motion';
-import {mix} from '../runtime/dna';
+import {mix, relLum} from '../runtime/dna';
 
 export const DEMO_ID = 'DemoForm';
 export const META: ObjectMeta = {aspect: 1, turns: true, demo: true, provenance: 'motion-graphics'};
@@ -19,6 +19,15 @@ const SURF_D0 = '#e9edf3', ACC_D0 = '#3563e9', INK_D0 = '#1c2230';
 // the camera, fitted so the whole stack stays inside its box at any yaw (half-height 2.3 units at the aim)
 const CAM: Vec3 = [0, 2.6, 8.2], AIM: Vec3 = [0, 0, 0], FOV = 30;
 const LIGHT: Vec3 = [-0.45, 0.8, 0.4];
+// Where the bottom slab's BOTTOM FACE sits, in world-Y, so the stack stands ON the box floor at every yaw
+// rather than hovering in its upper half. Solved numerically (bisection through `project()`+`yawPoint()`
+// themselves, sweeping every yaw and all four of the widest slab's corners): the naive candidate — the Y
+// that puts the box-AXIS (x=z=0) on the floor pixel — ignores that a corner near the camera reads LOWER in
+// frame than the axis does at the same Y, and seating the axis there ran real corners ~20% past the box.
+// This is the lowest Y at which every corner, at every yaw, still lands inside the box; at the object's own
+// default yaw (0.6) that leaves a ~1.5% gap rather than none, which is the margin the "any yaw" guarantee
+// below costs — a hairline is cheaper than a clipped corner once this object turns.
+const SEAT_Y = -1.6;
 
 const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -32,6 +41,13 @@ export const DemoForm: React.FC<ObjectProps & {layers?: number}> = ({w, h, t, dn
     throw new Error(`DemoForm: \`layers\` is a whole number from 1 to 5 (got ${JSON.stringify(layers)})`);
   }
   const surf = dna?.surface ?? SURF_D0, acc = dna?.accent ?? ACC_D0, ink = dna?.fg ?? INK_D0;
+  // THE POLARITY THIS OBJECT OWNS. `ink` (dna.fg) is the film's readable ink, so it is light exactly when
+  // its ground is dark (true of all eight shipped presets) and dark exactly when its ground is light (this
+  // object's own D0 fallback ground, `eef0f3`). A face in shadow mixes toward BLACK on a dark ground and
+  // toward `ink` — already dark there — on a light one; either way it darkens, never the pale glow a flat
+  // mix toward `ink` painted when `ink` itself turned out to be the film's near-white text colour.
+  const darkGround = relLum(ink) > 0.5;
+  const shadeInk = darkGround ? '#000000' : ink;
   const Y = yaw ?? 0.6;
   const light = unit(LIGHT);
   const faces: {d: string; depth: number; fill: string}[] = [];
@@ -40,8 +56,16 @@ export const DemoForm: React.FC<ObjectProps & {layers?: number}> = ({w, h, t, dn
     const at = (i / layers) * 0.5;
     const drop = easeOutCubic(clamp01(seg(t, at, at + 0.4)));
     const hx = 1.3 - i * 0.18, hz = 0.95 - i * 0.13, hy = 0.18;
-    const cy = -0.72 + i * 0.5 + (1 - drop) * 1.4;
-    const tone = mix(surf, acc, layers > 1 ? (i / (layers - 1)) * 0.6 : 0.3);
+    // SEAT_Y seats the bottom slab's settled underside on the box's own floor; the drop still starts 1.4
+    // above wherever a slab settles, and every layer's own corners stay inside the box through that fall at
+    // every yaw (checked for 1-5 layers and the full yaw sweep: the tightest is layers=5's own start, 0.8%
+    // of the box's height under its ceiling — a real margin, not a coincidence of one angle).
+    const cy = SEAT_Y + hy + i * 0.5 + (1 - drop) * 1.4;
+    // EVERY LAYER KEEPS A MINIMUM STEP OFF THE MATERIAL'S OWN SURFACE TONE, not just the accent-heavy top
+    // ones: at i=0 (layers>1) a 0% mix toward the accent makes `tone` exactly `surf` — indistinguishable
+    // from a ground that (on this object's own light D0 fallback) is itself close to `surf`, a container fill
+    // designed to sit near a page's own colour. The floor keeps the bottom slab a visible step off any ground.
+    const tone = mix(surf, acc, layers > 1 ? 0.2 + (i / (layers - 1)) * 0.4 : 0.3);
     const corner = (sx: number, sy: number, sz: number): Vec3 => yawPoint([sx * hx, cy + sy * hy, sz * hz], Y);
     const quads: {pts: Vec3[]; n: Vec3}[] = [
       {pts: [corner(-1, 1, -1), corner(1, 1, -1), corner(1, 1, 1), corner(-1, 1, 1)], n: [0, 1, 0]},
@@ -56,7 +80,12 @@ export const DemoForm: React.FC<ObjectProps & {layers?: number}> = ({w, h, t, dn
       const proj = q.pts.map((p) => project(p, CAM, AIM, FOV, w, h));
       if (proj.some((p) => p === null)) continue;
       const lit = clamp01(0.55 + 0.45 * dot(q.n, light));
-      const fill = q.n[1] > 0.5 ? mix(tone, '#ffffff', 0.22) : mix(tone, ink, 0.28 * (1 - lit));
+      // LIT READS LIGHTER AND SHADED READS DARKER THAN THE BASE TONE, on either ground: `bias` recentres
+      // `lit` on its own midpoint, so the best-lit face of a side pair is pushed toward white and the
+      // worst-lit toward `shadeInk`, rather than the old one-sided "less dark, never actually lighter".
+      const bias = (lit - 0.55) / 0.45;
+      const fill = q.n[1] > 0.5 ? mix(tone, '#ffffff', 0.22)
+        : bias >= 0 ? mix(tone, '#ffffff', 0.14 * bias) : mix(tone, shadeInk, 0.28 * -bias);
       faces.push({d: 'M' + proj.map((p) => `${p!.x.toFixed(1)} ${p!.y.toFixed(1)}`).join(' L') + ' Z',
         depth: Math.hypot(...sub(c, CAM)), fill});
     }

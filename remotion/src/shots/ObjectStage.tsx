@@ -20,7 +20,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic} from '../runtime/motion';
 import {CONTENT_TOP, TITLE_Y, contentBottom, fitBlockPx, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
-import {useDNA} from '../runtime/dna';
+import {useDNA, relLum} from '../runtime/dna';
 import {onAccentInk} from '../runtime/onAccent';
 import {rows} from '../runtime/rows';
 import {ObjectSlot, useObjectEntry, fitAspect, type ObjectRef} from '../runtime/objectSlot';
@@ -57,6 +57,10 @@ export const ObjectStage: React.FC<{
       throw new Error(`ObjectStage: label ${i + 1} ("${l.text}") needs \`x\` and \`y\` in 0..1 of the object's box ` +
         `(got x=${String(l.x)}, y=${String(l.y)}) — the dot says "this part is HERE".`);
     }
+    if (l.side !== undefined && l.side !== 'left' && l.side !== 'right') {
+      throw new Error(`ObjectStage: label ${i + 1} ("${l.text}") has \`side\` ${JSON.stringify(l.side)} — ` +
+        "it is 'left' or 'right', or leave it out and the point's own half decides.");
+    }
   });
   const entry = useObjectEntry(OBJECT);
   const dna = useDNA();
@@ -64,32 +68,60 @@ export const ObjectStage: React.FC<{
   const {width: W, height: H} = useVideoConfig();
   const FG = dna?.fg ?? FG_D0, DIM = dna?.dim ?? DIM_D0, ACC = dna?.accent ?? ACC_D0;
   const ON_ACC = onAccentInk(ACC, dna?.accent2, dna?.onAccent, FG);
+  // A CONTACT SHADOW IS ALWAYS DARKER THAN ITS FLOOR, on any ground: `FG` is only reliably dark on a light
+  // one — on all eight shipped presets (every one dark) it is the film's near-white ink, and mixing toward
+  // it painted a pale GLOW under the object instead of a shadow. Read from the ground actually being
+  // painted below (`bg`, this register's own fallback otherwise), not guessed from the DNA's identity.
+  const groundLight = relLum(dna?.bg ?? BG_D0) > 0.5;
+  const shadowInk = groundLight ? FG : '#000000';
   const disp = 'var(--f-display, Inter, system-ui, sans-serif)';
   const bodyF = 'var(--f-body, Inter, system-ui, sans-serif)';
   const mono = 'var(--f-mono, "JetBrains Mono", ui-monospace, monospace)';
   const U = Math.min(W, H);
   const zTop = CONTENT_TOP, zBot = contentBottom(W, H);
 
-  // THE WORDS FIRST, SIZED TO THEIR COPY; THE OBJECT TAKES THE ROOM THEY LEAVE.
+  // THE WORDS FIRST, SIZED TO THEIR COPY; THE OBJECT TAKES THE ROOM THEY LEAVE — and if the words
+  // themselves (a long title, a note, a six-entry CJK key) would still overrun the content zone even with
+  // the object down at its floor (U*0.2), they SCALE DOWN to the room actually left rather than spill into
+  // the caption band. Legal props are the only bound (title/note are free text; MAX_STAGE_LABELS caps the
+  // key at six), so "heavy but legal" is a real case, not a hypothetical one.
   const capW = Math.min(W * 0.84, 1240);
   const tLead = leading(title, 1.12), nLead = leading(note, 1.4);
-  const titlePx = title ? fitBlockPx(title, capW, U * 0.13, Math.round(U * 0.05), {usable: 1, leading: tLead}) : 0;
-  const titleH = title ? wrapLines(title, titlePx, capW) * titlePx * tLead : 0;
-  const notePx = Math.round(U * 0.022);
-  const noteH = note ? wrapLines(note, notePx, capW) * notePx * nLead : 0;
-  const noteGap = title && note ? Math.round(U * 0.012) : 0;
-  const wordsH = titleH + noteGap + noteH;
-  const gap = wordsH ? Math.round(U * 0.03) : 0;
-
-  // SIDE CALLOUTS where the frame has room beside the object; a NUMBERED KEY under the words where it does not.
   const nL = LABELS.length;
   const side = nL > 0 && W >= H * 1.2;
-  const keyPx = Math.round(U * 0.02);
   const keyLines = LABELS.map((l, i) => `${i + 1}  ${l.text}`);
-  const keyH = !side && nL
-    ? keyLines.reduce((acc, s, i) => acc + (i ? keyPx * 0.45 : 0) + wrapLines(s, keyPx, capW) * keyPx * leading(s, 1.35), 0)
-    : 0;
-  const keyGap = keyH ? Math.round(U * 0.022) : 0;
+  const titlePx0 = title ? fitBlockPx(title, capW, U * 0.13, Math.round(U * 0.05), {usable: 1, leading: tLead}) : 0;
+  const MIN_WORD_SCALE = 0.5;
+
+  // The block's total height at a given font-size SCALE (1 = the ideal, unshrunk sizes above).
+  const wordsAt = (scale: number) => {
+    const titlePx = title ? Math.max(1, Math.round(titlePx0 * scale)) : 0;
+    const titleH = title ? wrapLines(title, titlePx, capW) * titlePx * tLead : 0;
+    const notePx = Math.max(1, Math.round(U * 0.022 * scale));
+    const noteH = note ? wrapLines(note, notePx, capW) * notePx * nLead : 0;
+    const noteGap = title && note ? Math.round(U * 0.012 * scale) : 0;
+    const wordsH = titleH + noteGap + noteH;
+    const gap = wordsH ? Math.round(U * 0.03) : 0;
+    const keyPx = Math.max(1, Math.round(U * 0.02 * scale));
+    const keyH = !side && nL
+      ? keyLines.reduce((acc, s, i) => acc + (i ? keyPx * 0.45 : 0) + wrapLines(s, keyPx, capW) * keyPx * leading(s, 1.35), 0)
+      : 0;
+    const keyGap = keyH ? Math.round(U * 0.022) : 0;
+    return {titlePx, titleH, notePx, noteH, noteGap, wordsH, gap, keyPx, keyH, keyGap, total: gap + wordsH + keyGap + keyH};
+  };
+  // The room left for words once the object has claimed its floor — the same U*0.2 `roomH` already floors
+  // to below. Two correction passes (wrapping is a STEP function of px, so one linear guess can undershoot
+  // or overshoot by a line) converge comfortably inside six CJK-length labels + a two-line title + note,
+  // the heaviest a legal board can set.
+  const budget = Math.max(0, zBot - zTop - U * 0.02 - U * 0.2);
+  let scale = 1;
+  for (let pass = 0; pass < 3; pass++) {
+    const total = wordsAt(scale).total;
+    if (total <= budget || scale <= MIN_WORD_SCALE) break;
+    scale = Math.max(MIN_WORD_SCALE, scale * (budget / Math.max(1, total)));
+  }
+  const {titlePx, titleH, notePx, noteH, noteGap, wordsH, gap, keyPx, keyH, keyGap} = wordsAt(scale);
+
   const colW = side ? Math.round(W * 0.19) : 0;
   const margin = Math.round(W * 0.045);
   const roomW = side ? W - 2 * (margin + colW + W * 0.03) : W * 0.84;
@@ -129,6 +161,7 @@ export const ObjectStage: React.FC<{
   }
   const dot = Math.max(4, Math.round(U * 0.006));
   const hair = Math.max(1, Math.round(W * 0.0012));
+  const leaderGap = Math.max(4, Math.round(U * 0.006));   // clear air between a leader's end and its label
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG_D0, color: FG}}>
@@ -137,9 +170,9 @@ export const ObjectStage: React.FC<{
           font: `600 ${Math.round(U * 0.018)}px/1.2 ${mono}`, color: ACC, letterSpacing: dna?.labelSpacing ?? '0.14em',
           textTransform: (dna?.uppercaseLabels ?? true) ? 'uppercase' : 'none'}}>{kicker}</div>
       ) : null}
-      {/* the floor it stands on: a soft shadow in the film's own ink, at a whisper */}
+      {/* the floor it stands on: a soft shadow, always darker than the floor, at a whisper */}
       <div style={{position: 'absolute', left: box.x + box.w * 0.08, top: floorY - U * 0.012, width: box.w * 0.84,
-        height: U * 0.03, borderRadius: '50%', background: FG, opacity: 0.1 * floorIn,
+        height: U * 0.03, borderRadius: '50%', background: shadowInk, opacity: 0.1 * floorIn,
         filter: `blur(${Math.round(U * 0.01)}px)`}} />
       <ObjectSlot object={OBJECT} box={box} t={objT} />
       {placed.map(({l, i, p, right}) => {
@@ -156,10 +189,11 @@ export const ObjectStage: React.FC<{
         const colX = right ? box.x + box.w + W * 0.03 : box.x - W * 0.03 - colW;
         const edgeX = right ? colX : colX + colW;
         const elbowX = right ? Math.max(p.x + W * 0.012, edgeX - W * 0.02) : Math.min(p.x - W * 0.012, edgeX + W * 0.02);
-        return (
+        const lineEndX = right ? edgeX - leaderGap : edgeX + leaderGap;   // stop short — the label reads as
+        return (                                                          // NEXT to the line, not welded to it
           <React.Fragment key={i}>
             <svg width={W} height={H} style={{position: 'absolute', left: 0, top: 0, overflow: 'visible', opacity: on}}>
-              <polyline points={`${p.x},${p.y} ${elbowX},${y} ${edgeX},${y}`} fill="none" stroke={ACC}
+              <polyline points={`${p.x},${p.y} ${elbowX},${y} ${lineEndX},${y}`} fill="none" stroke={ACC}
                 strokeWidth={hair * 1.5} opacity={0.85} />
               <circle cx={p.x} cy={p.y} r={dot} fill={ACC} />
             </svg>
