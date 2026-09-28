@@ -12,6 +12,7 @@
 | `object` | the object's name, set centred under the sheet | a short name reads as a plate caption. Long or CJK names wrap, and the caption block is measured and lifted to stay out of the caption band. Leaving the demo in place prints `the object` |
 | `plateNo` | the sheet's own number, top-right | like "FIG. 3". Empty draws nothing |
 | `strokes` | the object in square unit space (0..1): `circle {x,y,r}`, `line {x,y,x2,y2}`, `bar {x,y,w,h,fill?}`, each optionally `ghost` | the drawing keeps its proportions at any aspect and is centred in the sheet. More strokes means each draws faster. `ghost: true` draws the stroke dashed and dim, as a part that is not there. On a circle or line `w` is a stroke-weight multiplier; on a bar `w` is its width |
+| `art` | a drawing the FILM made (an object from its workshop, `{"id": …, "props": …}`), in place of `strokes` — drawn in the same square field on the plate's drawing phase (its t runs 0→1 over 0.14–0.62) | the parts' `x,y` are fractions of the art's square, so the callouts land on the film's drawing; one drawing per plate |
 | `parts` | 0–6 numbered callouts, `{n?, label, x, y, side?}` | `x,y` put the dot on the drawing. `side` (default `right`) sends the leader to that margin, where the label wraps in a column about a sixth of the frame wide. `n` defaults to the part's position. Parts on the same side at similar heights overprint, which is why six is the cap |
 | `note` | a smaller dim line under the object's name | wraps in the sheet's width and is measured into the caption block |
 
@@ -20,7 +21,8 @@
 - A part without `x`/`y` used to sit silently at the drawing's centre, and parts past the fourth faded in at t ≥ 1, so they were never seen. Both are fixed; `x` and `y` are now required.
 - The demo callouts once read 'the last mile' / 'no timetable', the copy of the beat this register was written during. The neutral demo `kicker` and `object` still print if omitted.
 - Unit space is a square centred in the sheet (which is up to 1.45:1). A wide object drawn inside 0..1 leaves the sheet's spare width empty, or its spare height in portrait. Callout labels live outside the sheet, in the margins.
+- `art` replaces `strokes` and still needs `parts` (or `parts: []`): the demo callouts would otherwise point at the film's drawing. An object is a designed drawing sized to its square — see references/object-authoring.md.
 
-**Refuses:** `parts` given without `strokes`, or `strokes` without `parts`; `strokes` empty or not an array; a stroke of unknown `kind` or missing a coordinate its kind needs; `parts` not an array or more than 6; a part without numeric `x` and `y`.
+**Refuses:** `parts` given without `strokes`, or `strokes` without `parts`; `strokes` empty or not an array; a stroke of unknown `kind` or missing a coordinate its kind needs; `parts` not an array or more than 6; a part without numeric `x` and `y`; `art` together with `strokes`; `art` without `parts`.
 
 **Reference:** `remotion/src/shots/TechnicalPlate.tsx`

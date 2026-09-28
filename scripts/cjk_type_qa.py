@@ -628,6 +628,12 @@ def cjk_props(name, offset=0):
             # srcK / srcLow / srcHigh, an exact-match skip fed all three a Chinese sentence as a URL, and
             # the register reported as a RENDER FAILURE for it. evidence_props() fills them properly.
             continue
+        if re.fullmatch(r"ObjectRef(\|undefined|\|null)?", t):
+            # AN OBJECT SLOT IS NOT COPY. It names a thing a film drew (runtime/objectSlot); left unset the register
+            # shows its own picture, which is what a library sweep measures. Filed untestable it read as a coverage
+            # hole on every register that can hold an object — and no register had one until now, so no existing
+            # fixture changes.
+            continue
         if t.startswith("string[][]"):
             # a TABLE, and it must be routed BEFORE the plain string[] rule that startswith() also matches:
             # TermTable took a flat list, threw `(r ?? []).map is not a function`, and reported as a RENDER

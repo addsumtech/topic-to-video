@@ -26,6 +26,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, easeOutExpo} from '../runtime/motion';
 import {CONTENT_TOP, captionBand, contentBottom, inkBlockH, wrapLines} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
+import {ObjectSlot, type ObjectRef} from '../runtime/objectSlot';
 
 export const DURATION = 160;
 
@@ -91,6 +92,7 @@ export const TechnicalPlate: React.FC<{
   object?: string;          // what it is, set under the plate
   plateNo?: string;         // the plate's own number, like a real sheet
   strokes?: Stroke[];       // the object, in unit space
+  art?: ObjectRef;          // a drawing the FILM made (runtime/objectSlot), in place of `strokes`
   parts?: Part[];           // numbered callouts with leader lines
   note?: string;
 }> = ({
@@ -98,6 +100,7 @@ export const TechnicalPlate: React.FC<{
   object = 'the object',
   plateNo = '',
   strokes: STROKES = BIKE,
+  art,
   parts: PARTS = BIKE_PARTS,
   note = ''} = {}) => {
   const dna = useDNA();
@@ -112,7 +115,17 @@ export const TechnicalPlate: React.FC<{
   // ONE SOURCE FOR THE OBJECT AND ITS PARTS (see the header). Identity with the module constants is how the shot
   // knows a prop was left out: a film's props arrive as fresh arrays, never as BIKE itself.
   const demoStrokes = STROKES === BIKE, demoParts = PARTS === BIKE_PARTS;
-  if (demoStrokes !== demoParts) {
+  if (art) {
+    // A DRAWING THE FILM MADE takes the strokes' place — and is still ONE claim with its callouts.
+    if (!demoStrokes) {
+      throw new Error("TechnicalPlate got both `art` and `strokes` — one drawing per plate: the film's own " +
+        '(`art`, from its workshop) or strokes, not both.');
+    }
+    if (demoParts) {
+      throw new Error("TechnicalPlate got `art` but no `parts`, so it would pin the demo callouts to the film's " +
+        'drawing. Pass `parts: [{n, label, x, y, side}]` at points on the art (0..1 of its square), or `parts: []`.');
+    }
+  } else if (demoStrokes !== demoParts) {
     throw new Error(demoStrokes
       ? 'TechnicalPlate got `parts` but no `strokes`, so it would number the film\'s parts on its demo BICYCLE. ' +
         'Pass `strokes` that draw the object those parts belong to (circle / line / bar in unit space), or cast ' +
@@ -191,7 +204,7 @@ export const TechnicalPlate: React.FC<{
         border: `${hair}px solid ${LINE}`, boxSizing: 'border-box'}} />
 
       {/* the object, drawn stroke by stroke */}
-      {STROKES.map((st, i) => {
+      {art ? <ObjectSlot object={art} box={{x: ox, y: oy, w: unit, h: unit}} t={draw} /> : STROKES.map((st, i) => {
         const on = easeOutCubic(clamp01(draw * nS - i));
         if (on <= 0) return null;
         if (st.kind === 'circle') {

@@ -9,6 +9,7 @@
 | Prop | What it sets | Feel of turning it |
 |---|---|---|
 | `target` | the name at the centre, up to 84px (scaled with the ring) | fitted and balanced inside the ring's inner circle: a short name keeps 84px, a long one wraps into a block that stays inside the ring |
+| `object` | a thing the FILM drew (an object from its workshop), locked onto in the ring — the name moves under it, smaller | what is being identified, SHOWN rather than named; its t runs 0→1 over the lock-on window 0.1–0.6 |
 | `readouts` | status lines, each with an accent rule, 0–6 | a column left of the ring where it can hold the longest line at 20px or more (16:9); otherwise a block centred under the ring, with the ring scaled so both fit the content zone (9:16, 1:1, 4:3). 2–4 short status words read best |
 | `title` | small spaced mono caps at the top | a quiet heading for the scan |
 | `scanLabel` | the state word under the target before the lock | lets a film say "scanning" in its own language |
@@ -19,6 +20,7 @@
 - The geometry was fixed pixels composed for 1920 wide, so on a 1080-wide frame the readouts sat on the ring and ran through the target's name. It reflows now (column beside the ring, or readouts under a scaled ring). The faint grid also stops at the content zone instead of running into the caption band.
 - Readout timing was a fixed 0.1 per line, so a fourth readout was still fading on the settled frame and a seventh never appeared. It is laid out for the count now.
 - The scan ring's `drop-shadow(0 0 8px)` and the target's 40px text bloom are lit-on-black effects: on a light film they spread the accent into a halo that is neither the ring nor the paper. Measured 8.3% of the register's ink under 3:1 on a warm-white ground, in one ring-shaped region 0.75% of the frame, while the ring's own stroke reads (median mark 5.33:1). Both are drawn only while the film's ground is dark now. The faint grid (0.12) and the inner dashed ring (0.3) are unchanged — they are as quiet on one ground as the other.
+- With `object`, the name is set under the object inside the ring at up to 40px (scaled): a long name wraps, balanced, and stays inside the ring.
 
 **Refuses:** more than six `readouts`, or an empty readout.
 

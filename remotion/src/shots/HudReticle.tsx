@@ -26,6 +26,7 @@ import {leading} from '../runtime/cjkType';
 import {useDNA} from '../runtime/dna';
 import {onLight} from '../runtime/light';
 import {CONTENT_TOP, contentBottom, fitBlockPx, fitTextPx, textWidthPx, wrapLines} from '../runtime/layout';
+import {ObjectSlot, type ObjectRef} from '../runtime/objectSlot';
 
 // A reticle SCANS and then LOCKS: those two states are the form, not the topic — so they are
 // declared here AND exposed as props, because a Chinese film should be able to say them in Chinese.
@@ -43,10 +44,10 @@ const LAND_BY = REDUCED_MOTION_T - 0.02;
 const RD_PX0 = 26, RD_GAP = 16, RD_RULE = 17;
 const RD_ADV = {adv: 0.6 + 0.08, cjk: 1.2 + 0.08};
 
-export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?: string; scanLabel?: string; lockLabel?: string}> = ({
+export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?: string; scanLabel?: string; lockLabel?: string; object?: ObjectRef}> = ({
   target: TARGET = 'WorkBuddy', readouts: READOUTS = ['SIGNAL · strong', 'SCOPE · full workspace', 'STATUS · ready'],
   title: TITLE = 'Locking on',
-  scanLabel: SCAN_LABEL = 'SCANNING…', lockLabel: LOCK_LABEL = '● LOCKED'} = {}) => {
+  scanLabel: SCAN_LABEL = 'SCANNING…', lockLabel: LOCK_LABEL = '● LOCKED', object: OBJECT} = {}) => {
   if (!Array.isArray(READOUTS) || READOUTS.length > MAX_READOUTS) {
     throw new Error(
       `HudReticle takes 0-${MAX_READOUTS} \`readouts\` (got ${Array.isArray(READOUTS) ? READOUTS.length : typeof READOUTS}). ` +
@@ -124,6 +125,14 @@ export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?:
   const targetW = Math.round(2 * innerR * 0.92);
   const targetLead = leading(TARGET, 1);
   const targetPx = fitBlockPx(TARGET, targetW, innerR * 0.9, Math.round(84 * s), {usable: 1, leading: targetLead});
+  // WITH AN OBJECT the reticle locks onto a THING the film drew (runtime/objectSlot): it sits in the upper part of
+  // the inner ring and the name moves under it, smaller, still inside the ring (every corner of the box is within
+  // 0.97 of the inner radius; the name's block ends by 0.7 of it). The object's clock is the lock-on window,
+  // 0.1–0.6, so it is whole before the lock at 0.76.
+  const objSide = innerR * 1.1;
+  const objBox = {x: cx - objSide / 2, y: cy - innerR * 0.8, w: objSide, h: objSide};
+  const nameW = Math.round(innerR * 1.3);
+  const namePx = fitBlockPx(TARGET, nameW, innerR * 0.22, Math.round(40 * s), {usable: 1, leading: targetLead});
   // the grid is faint, but it is still ink: it stops at the content zone rather than running under the caption
   const gy0 = Math.max(zTop, cy - 360 * s), gy1 = Math.min(zBot, cy + 360 * s);
   return (
@@ -162,14 +171,28 @@ export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?:
         })}
       </svg>
 
-      {/* central subject */}
-      <div style={{position: 'absolute', left: cx, top: cy, width: targetW,
-        transform: `translate(-50%,-50%) scale(${lerp(0.9, 1, brackets)})`, textAlign: 'center'}}>
-        <div style={{color: dna?.fg ?? '#eafffb', font: `800 ${targetPx}px/${targetLead} var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
-          textWrap: 'balance', textShadow: emits ? `0 0 40px ${col}66` : undefined}}>{TARGET}</div>
-        <div style={{marginTop: Math.round(14 * s), color: col, font: `700 ${Math.round(26 * s)}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.3em',
-          opacity: locked ? lockIn : 0.6 * clamp01(seg(t, 0.4, 0.6))}}>{locked ? LOCK_LABEL : SCAN_LABEL}</div>
-      </div>
+      {/* central subject — the film's object when it gives one, else its name */}
+      {OBJECT ? (
+        <>
+          <ObjectSlot object={OBJECT} box={objBox} t={clamp01(seg(t, 0.1, 0.6))}
+            style={{transform: `scale(${lerp(0.9, 1, brackets)})`, transformOrigin: '50% 50%'}} />
+          <div style={{position: 'absolute', left: cx, top: cy + innerR * 0.36, width: nameW,
+            transform: 'translate(-50%, 0)', textAlign: 'center'}}>
+            <div style={{color: dna?.fg ?? '#eafffb', font: `800 ${namePx}px/${targetLead} var(--f-display, Inter, system-ui, sans-serif)`,
+              letterSpacing: '-0.01em', textWrap: 'balance'}}>{TARGET}</div>
+            <div style={{marginTop: Math.round(10 * s), color: col, font: `700 ${Math.round(22 * s)}px/1 var(--f-mono, "JetBrains Mono", monospace)`,
+              letterSpacing: '0.3em', opacity: locked ? lockIn : 0.6 * clamp01(seg(t, 0.4, 0.6))}}>{locked ? LOCK_LABEL : SCAN_LABEL}</div>
+          </div>
+        </>
+      ) : (
+        <div style={{position: 'absolute', left: cx, top: cy, width: targetW,
+          transform: `translate(-50%,-50%) scale(${lerp(0.9, 1, brackets)})`, textAlign: 'center'}}>
+          <div style={{color: dna?.fg ?? '#eafffb', font: `800 ${targetPx}px/${targetLead} var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
+            textWrap: 'balance', textShadow: emits ? `0 0 40px ${col}66` : undefined}}>{TARGET}</div>
+          <div style={{marginTop: Math.round(14 * s), color: col, font: `700 ${Math.round(26 * s)}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.3em',
+            opacity: locked ? lockIn : 0.6 * clamp01(seg(t, 0.4, 0.6))}}>{locked ? LOCK_LABEL : SCAN_LABEL}</div>
+        </div>
+      )}
 
       {/* readouts: a column left of the ring (side), or a block centred under it (stacked) */}
       <div style={side
