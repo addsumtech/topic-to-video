@@ -3104,6 +3104,38 @@ def test_the_reader_does_not_mistake_an_arrow_function_for_a_tag():
         "text inside a fragment is no longer seen")
 
 
+def test_the_cli_sweep_finds_a_planted_word_in_a_library_object_too(tmp_path, monkeypatch, capsys):
+    """A library object answers to the same content contract as a register (LIBRARY.md's Objects section
+    says so): a word baked into its JSX prints on every film that ever places it. The CLI's own default
+    sweep and its by-name lookup both used to know only shots/, so an object's own literal was invisible to
+    `python3 scripts/onscreen_text_qa.py` however it was invoked. A clean shot alongside the planted object
+    proves the shots-side sweep still reports exactly what it always did — nothing added, nothing lost."""
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    import onscreen_text_qa as q
+
+    shots, objects = tmp_path / "shots", tmp_path / "objects"
+    shots.mkdir(); objects.mkdir()
+    (shots / "CleanShot.tsx").write_text(
+        "export const CleanShot: React.FC<{title?: string}> = ({title = ''} = {}) => (\n"
+        "  <div>{title}</div>\n);\n", encoding="utf-8")
+    (objects / "PlantedObject.tsx").write_text(
+        "export const PlantedObject: React.FC<{}> = () => (\n"
+        "  <div>A PLANTED WORD</div>\n);\n", encoding="utf-8")
+    monkeypatch.setattr(q, "_SHOTS", str(shots))
+    monkeypatch.setattr(q, "_OBJECTS", str(objects))
+
+    q.main([])                                             # the bare, no-argv, whole-library sweep
+    out = capsys.readouterr().out
+    assert "PlantedObject" in out and "A PLANTED WORD" in out, (
+        "the default sweep did not reach the object at all:\n%s" % out)
+    assert "CleanShot" not in out, "the sweep flagged a shot with nothing wrong with it:\n%s" % out
+    assert "1 register(s) print text the film never supplied (1 string(s))" in out
+
+    q.main(["PlantedObject"])                              # by name, the way register_shot.py's own hint reads
+    assert "A PLANTED WORD" in capsys.readouterr().out, "naming the object directly could not find it by path"
+
+
 def test_no_draw_on_declares_its_own_path_length():
     """A stroke drawn on with `stroke-dasharray` needs the path's LENGTH, and nine call sites used to guess it.
 

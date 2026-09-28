@@ -37,6 +37,9 @@ import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _SHOTS = os.path.join(_HERE, "..", "remotion", "src", "shots")
+# LIBRARY OBJECTS ANSWER TO THE SAME CONTRACT AS REGISTERS — a word baked into an object's JSX prints on
+# every film that ever places it, the same defect class this file exists for; `main()` sweeps both trees.
+_OBJECTS = os.path.join(_HERE, "..", "remotion", "src", "objects")
 
 # strings that are plainly CSS/geometry, never copy
 _CSS = re.compile(r"(px|%|em|rem|deg|vh|vw|#[0-9a-fA-F]{3,8}|gradient|solid|dashed|dotted|none|absolute"
@@ -557,11 +560,14 @@ def jsx_text_comments(path):
 
 
 def main(argv):
-    names = argv or [os.path.basename(f)[:-4] for f in sorted(glob.glob(os.path.join(_SHOTS, "*.tsx")))]
+    lib = sorted(glob.glob(os.path.join(_SHOTS, "*.tsx"))) + sorted(glob.glob(os.path.join(_OBJECTS, "*.tsx")))
+    names = argv or [os.path.basename(f)[:-4] for f in lib]
     total, dirty, fixed_px, unsourced = 0, 0, {}, 0
     dead, shadowed, rendered_comments, unguarded = {}, {}, {}, {}
     for n in names:
         p = os.path.join(_SHOTS, n + ".tsx")
+        if not os.path.exists(p):
+            p = os.path.join(_OBJECTS, n + ".tsx")
         if not os.path.exists(p):
             print("[onscreen_text] no such register: %s" % n)
             continue
