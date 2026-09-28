@@ -3,12 +3,15 @@
 The static scan (scripts/jsx_words.cjs) sees words written into the code; it cannot see a word that reaches the
 screen through a constant list, a single-word default, or a wrapped library register's own copy. The frame can.
 
-The matching rule (runtime/textSafe.tsx auditUnfedText) compares TOKENS, not pooled letters: a token is a
-maximal run of characters of one class — CJK, digit, or letter, so a value joined to its unit ("9bar") splits
-at the boundary — and a WORD or CJK token is fed when it is found among the words of every fed string pooled
-together, wherever it appears, not a chunk search inside one fed string. When the run ends in an ellipsis, its
-last token may instead be a prefix of a fed token of the same class. A figure-shaped numeral must match a fed
-numeral or a numeric prop value while a plain integer is presumed derived (an index, a tick) and passes."""
+The rule (runtime/textSafe.tsx auditUnfedText) reads the frame as ONE character stream in document order and
+measures no gap. A HARD boundary is where a word certainly ends: a separator character, a <br>, whitespace, a
+spacer box, the edges of a block-level / flex / grid / inline-block child holding more than one grapheme, or a
+change among CJK, letters and digits (so "9bar" is a value and a unit). A SOFT boundary is every other place two
+text pieces meet — an inline child, a child of any display holding one grapheme. A WORD segment is fed when
+cutting it at some of its soft boundaries leaves parts that are each exactly a word of some fed string (just
+before an ellipsis the last part may be a prefix); a CJK segment is fed when pieces of fed CJK tokens cover it
+(two or more characters of one token, or a character that is itself a fed token); a figure-shaped numeral must
+match a fed numeral or a numeric prop value, while a plain integer is presumed derived (an index, a tick)."""
 import json
 import os
 import sys
@@ -151,6 +154,7 @@ export const %(name)s: React.FC<{}> = () => (
       {['0', '25', '50'].map((c, i) => <span key={i}>{c}</span>)}
     </div>
     <div style={{position: 'absolute', left: 40, top: 620}}>3.2×</div>
+    <div style={{position: 'absolute', left: 340, top: 620}}>3x</div>
     <div style={{position: 'absolute', left: 40, top: 680}}>Loading</div>
     <div style={{position: 'absolute', left: 40, top: 740}}>Before</div>
     <div style={{position: 'absolute', left: 40, top: 800, opacity: 0}}>Draft</div>
@@ -172,7 +176,7 @@ export const %(name)s: React.FC<{}> = () => (
       {['研', '磨'].map((c, i) => <span key={i}>{c}</span>)}
     </div>
     <div style={{position: 'absolute', left: 40, top: 140}}>新</div>
-    <div style={{position: 'absolute', left: 340, top: 140}}>均</div>
+    <div style={{position: 'absolute', left: 40, top: 200}}>均</div>
   </AbsoluteFill>
 );
 """
@@ -288,15 +292,15 @@ def test_the_matching_rule_covers_every_listed_english_case(tmp_path):
     env = _env(ws.workshop_dir(out))
     got = _unfed("WsBrewNotes", {"unfedText": BREW_FED, "unfedScope": "all"}, env, tmp_path / "brew.png")
     # unfed: a baked word ("Step", found twice, once alone and once inside "Step 1: Heat the water" — the
-    # rest of that sentence is fed and only "Step" is named), a per-glyph run ("NEW"), two fabricated
-    # figures ("87%", "3.2×" — reported as their numeral, not the adjacent mark), a baked word ("Loading"),
-    # and a baked word under opacity 0 ("Draft", still read — zero opacity does not exempt a word from the
-    # audit).
+    # rest of that sentence is fed and only "Step" is named), a per-glyph run ("NEW"), three fabricated
+    # figures ("87%", "3.2×" — reported as their numeral, not the adjacent mark — and "3x", whose letter x
+    # sits directly against the numeral and is itself an unfed word), a baked word ("Loading"), and a baked
+    # word under opacity 0 ("Draft", still read — zero opacity does not exempt a word from the audit).
     # fed: a joined pair ("Grind · Tamp"), a re-cased whole match ("GRIND FINER"), a truncated prefix
     # ("Heat the wa…"), a per-glyph run of real copy ("Grind"), a plain unit reading ("93°C" — "93" is a
     # derived integer with no figure mark, "c" is a fed token), three plain-integer ticks (never copy), and
     # an exact match ("Before").
-    assert sorted(got) == sorted(["Step", "NEW", "87", "3.2", "Loading", "Draft"]), got
+    assert sorted(got) == sorted(["Step", "NEW", "87", "3.2", "3", "x", "Loading", "Draft"]), got
 
 
 @needs_toolchain
@@ -305,11 +309,12 @@ def test_the_matching_rule_covers_every_listed_cjk_case(tmp_path):
     env = _env(ws.workshop_dir(out))
     got = _unfed("WsRoastNotes", {"unfedText": ROAST_FED, "unfedScope": "all"}, env, tmp_path / "roast.png")
     # fed: two joined phrases sharing no fed string's own boundary ("研磨·压粉", each half a ≥2-char piece of
-    # one fed CJK token) and a per-glyph run of the same ("研","磨"). unfed: a lone baked character never
-    # spelled out in any fed string ("新"), and a lone baked character that IS a substring of a fed token but
-    # not the WHOLE token ("均" — a single CJK character must match a fed token exactly, or nearly every
-    # glyph in the language would pass).
-    assert sorted(got) == sorted(["新", "均"]), got
+    # one fed CJK token) and a per-glyph run of the same ("研","磨"). unfed: two baked characters stacked in
+    # their own one-glyph elements. A one-grapheme element's edges are SOFT, so the two are ONE segment, and
+    # neither character is covered: "新" is spelled in no fed string, and "均" is a substring of a fed token
+    # but not a WHOLE one (a single CJK character must match a fed token exactly, or nearly every glyph in
+    # the language would pass). A CJK segment reports its maximal uncovered runs — here the one run "新均".
+    assert got == ["新均"], got
 
 
 @needs_toolchain
@@ -579,7 +584,7 @@ def test_a_shot_template_alone_still_resolves_and_measures(tmp_path, capsys):
 RUN_MODEL_FED = ["FORM", "FOLLOWS", "Grind", "Tamp", "Preview", "Grind finer", "A", "B", "C", "Steps",
                  "Output", "Café", "コーヒー", "数据中心", "中心化", "研磨更细", "研磨", "Tilt"]
 
-# The run-building cases (what one run of text is), batched into one frame.
+# How the DOM becomes one character stream (what ends a word, what may), batched into one frame.
 RUN_MODEL = """import React from 'react';
 import {AbsoluteFill} from 'remotion';
 export const DURATION = 60;
@@ -588,22 +593,21 @@ export const PROVENANCE = 'industrial';
 const glyphRow = (s) => Array.from(s).map((c, i) => <span key={i}>{c}</span>);
 export const %(name)s: React.FC<{}> = () => (
   <AbsoluteFill style={{background: '#101010', color: '#dddddd', fontSize: 32}}>
-    {/* <br> breaks the run: two words either side must not fuse into one */}
+    {/* a <br> is a HARD boundary: the words either side never form one */}
     <div style={{position: 'absolute', left: 40, top: 0}}>FORM<br />FOLLOWS</div>
-    {/* an inline child (not one grapheme, not empty) is absorbed with no separator of its own — the
-        separator here is the SPAN's own text, not a rule inserted between elements */}
+    {/* an inline child meets its neighbours at SOFT boundaries; the separator here is the span's own text */}
     <div style={{position: 'absolute', left: 40, top: 70}}>Grind<span> · </span>Tamp</div>
-    {/* Pre<b>view</b> absorbs into one word */}
+    {/* Pre<b>view</b>: a soft boundary the fed "Preview" needs no cut at */}
     <div style={{position: 'absolute', left: 40, top: 140}}>Pre<b>view</b></div>
-    {/* per-glyph "Grind finer", the space written as its own SPAN (inline flow keeps every glyph close) */}
+    {/* per-glyph "Grind finer", the space written as its own whitespace-only span — a HARD boundary */}
     <div style={{position: 'absolute', left: 40, top: 210}}>{glyphRow('Grind finer')}</div>
-    {/* per-glyph "Grind finer", the space an empty flex-gap DIV (a real box, no rendered text) */}
+    {/* per-glyph "Grind finer", the space an empty flex-gap div — a box with no text that takes room */}
     <div style={{position: 'absolute', left: 40, top: 280, display: 'flex'}}>
       {Array.from('Grind finer').map((c, i) => (c === ' '
         ? <div key={i} style={{width: 14, height: 0}} />
         : <div key={i}>{c}</div>))}
     </div>
-    {/* per-glyph "Grind finer" with a trailing caret (an empty inline-block, a real box, no text) */}
+    {/* per-glyph "Grind finer" with a trailing caret (an empty inline-block with a box, no text) */}
     <div style={{position: 'absolute', left: 40, top: 350}}>
       {glyphRow('Grind finer')}<span style={{display: 'inline-block', width: 4, height: 32}} />
     </div>
@@ -611,17 +615,16 @@ export const %(name)s: React.FC<{}> = () => (
     <div style={{position: 'absolute', left: 40, top: 420}}>
       {glyphRow('NEW')}<span style={{display: 'inline-block', width: 4, height: 32}} />
     </div>
-    {/* one-letter labels WITH GAPS between them — sibling option letters, not one kinetic word */}
+    {/* one-letter option labels set apart by wide margins: one segment, cut into the fed "A", "B", "C" */}
     <div style={{position: 'absolute', left: 40, top: 490}}>
       <span style={{marginRight: 160}}>A</span><span style={{marginRight: 160}}>B</span><span>C</span>
     </div>
-    {/* a glyph nested in wrapper spans is still a glyph */}
+    {/* a letter nested in wrapper spans is still one grapheme */}
     <div style={{position: 'absolute', left: 40, top: 560}}>
       {Array.from('Grind').map((c, i) => <span key={i}><span>{c}</span></span>)}
     </div>
-    {/* an echo duplicate of a glyph run must not double it — the echo itself absolutely positioned, as a
-        real echo overlay is (PointerTour softens a SECOND copy at the SAME place), so it never occupies
-        normal-flow width that would push the real glyphs apart from one another */}
+    {/* an echo overlay of a per-glyph word is pruned, so the word is read once (PointerTour softens a second
+        copy at the same place) */}
     <div style={{position: 'absolute', left: 40, top: 630}}>
       {Array.from('Grind').map((c, i) => (
         <React.Fragment key={i}>
@@ -630,7 +633,7 @@ export const %(name)s: React.FC<{}> = () => (
         </React.Fragment>
       ))}
     </div>
-    {/* display:contents has no box of its own; its child still joins the run */}
+    {/* display:contents has no box of its own; its child still joins the stream */}
     <div style={{position: 'absolute', left: 40, top: 700}}>
       <div style={{display: 'contents'}}>Ghost</div>
     </div>
@@ -643,24 +646,20 @@ export const %(name)s: React.FC<{}> = () => (
     <div style={{position: 'absolute', left: 40, top: 980}}>Outp…</div>
     <div style={{position: 'absolute', left: 340, top: 980}}>O</div>
     <div style={{position: 'absolute', left: 40, top: 1050}}>数据中心化</div>
-    {/* a flex column stacks one glyph per row; rows touch in the SAME COLUMN, so the glue gap is the
-        vertical one, not the horizontal-only measurement that read every row alone */}
+    {/* vertical CJK set one glyph per element — a flex column and writing-mode: vertical-rl */}
     <div style={{position: 'absolute', left: 40, top: 1120, display: 'flex', flexDirection: 'column'}}>
       {glyphRow('研磨更细')}
     </div>
-    {/* writing-mode: vertical-rl stacks glyphs the same way, without flex */}
     <div style={{position: 'absolute', left: 340, top: 1120, writingMode: 'vertical-rl'}}>
-      {glyphRow('研磨')}
+      {glyphRow('研磨更细')}
     </div>
-    {/* row-reverse: DOM order A,B,C but each next box sits to the LEFT of the one before it — a signed,
-        left-to-right-only gap reads this as touching; the fix measures an absolute distance instead */}
+    {/* row-reverse: the stream follows DOM order A, B, C wherever each box is painted */}
     <div style={{position: 'absolute', left: 40, top: 1300, display: 'flex', flexDirection: 'row-reverse',
                   gap: 60}}>
       {glyphRow('ABC')}
     </div>
-    {/* a per-glyph word set on an absolutely positioned "scrap" per letter, each scrap inheriting the
-        frame's own font size while the letter itself is set much larger on an inner span — the glue
-        distance is measured against the INNER size, not the scrap's */}
+    {/* a per-glyph word on absolutely positioned "scraps", the letter set larger on an inner span: each scrap
+        holds one grapheme, whatever its size or position */}
     <div style={{position: 'absolute', left: 40, top: 1450}}>
       {Array.from('Tilt').map((c, i) => (
         <div key={i} style={{position: 'absolute', left: i * 0.7 * 110, top: 0}}>
@@ -668,14 +667,13 @@ export const %(name)s: React.FC<{}> = () => (
         </div>
       ))}
     </div>
-    {/* two multi-character chips set apart by a real margin — absorption is proximity gated the same as a
-        glyph, so a wide-enough gap must not fuse them */}
+    {/* two chips as flex items holding several graphemes each: their edges are HARD boundaries */}
     <div style={{position: 'absolute', left: 40, top: 1650, display: 'flex'}}>
       <span style={{marginRight: 40}}>Grind</span><span>Tamp</span>
     </div>
     {/* the library's own per-code-point idiom on an NFD string: the combining acute lands in its own span,
-        commonly a zero-area one, and must still be read onto the "e" before it */}
-    <div style={{position: 'absolute', left: 340, top: 1650}}>{glyphRow('Café')}</div>
+        commonly a zero-area one, and is still read onto the "e" before it */}
+    <div style={{position: 'absolute', left: 340, top: 1650}}>{glyphRow('Café')}</div>
   </AbsoluteFill>
 );
 """
@@ -686,21 +684,115 @@ def test_the_run_model_covers_every_listed_case(tmp_path):
     out = _workshop(tmp_path, shots={"WsRunModel": RUN_MODEL})
     env = _env(ws.workshop_dir(out))
     got = _unfed("WsRunModel", {"unfedText": RUN_MODEL_FED, "unfedScope": "all"}, env, tmp_path / "runmodel.png")
-    # unfed: the caret idiom baked with "NEW" (one word, not glued to the caret or split into three letters);
-    # a display:contents wrapper's own baked word ("Ghost"); text overflowing its zero-size box ("Overflow");
-    # a fabricated figure ("８７", the fullwidth "％" recognised as "%" once folded); "Step" (not licensed by
-    # a fed "Steps" — short of an ellipsis, a short token is a different word, not a maybe-truncation); a bare
-    # "O" (not licensed by a fed "Output" the same way). Every other case is fed (see the fixture's own
-    # comments) — <br>, the absorbed inline separator and <b>, all three per-glyph spellings of "Grind finer",
-    # sibling option letters kept apart by their gap, nested glyphs, the echo not doubling, an NFD "Café"
-    # matching an NFC fed "Café", "コーヒー" surviving its own prolonged-sound mark, "Outp…" truncating into
-    # "Output", "数据中心化" splitting 数据｜中心化 across two fed CJK tokens dynamic programming finds and a
-    # greedy search missed, a flex column and a vertical-rl run gluing each own-column glyph along the
-    # vertical gap, a row-reverse run gluing by absolute distance despite each next box sitting to the left
-    # of the one before it, a per-glyph word on absolutely positioned scraps gluing by its own inner font
-    # size, two margin-set-apart chips staying two words, and a per-code-point NFD run whose lone combining
-    # mark still lands on the letter before it.
+    # unfed: the caret idiom baked with "NEW" (one segment, cut nowhere into fed words); a display:contents
+    # wrapper's own baked word ("Ghost"); text overflowing its zero-size box ("Overflow"); a fabricated figure
+    # ("８７", the fullwidth "％" recognised as "%" once folded); "Step" (not licensed by a fed "Steps" — short
+    # of an ellipsis, a shorter word is a different word, not a maybe-truncation); a bare "O" (not licensed by
+    # a fed "Output" the same way). Every other case is fed (see the fixture's own comments) — <br>, the inline
+    # separator and <b>, all three per-glyph spellings of "Grind finer", option letters cut apart as the fed
+    # "A", "B", "C", nested glyphs, the echo read once, an NFD "Café" matching an NFC fed "Café", "コーヒー"
+    # keeping its own prolonged-sound mark, "Outp…" truncating "Output", "数据中心化" covered 数据｜中心化 by two
+    # fed CJK tokens, vertical CJK per glyph in a flex column and in vertical-rl, a row-reverse row, a word on
+    # absolutely positioned scraps, two flex-item chips, and a per-code-point NFD run whose lone combining mark
+    # lands on the letter before it.
     assert sorted(got) == sorted(["NEW", "Ghost", "Overflow", "８７", "Step", "O"]), got
+
+
+WORD_BOUNDARIES_FED = ["Grind", "Tamp", "A", "B", "C", "D", "E", "F", "5", "ms", "Grind finer", "OK"]
+
+# Where a word ends, decided from the DOM and the fed words alone — no gap is measured — batched into one frame.
+WORD_BOUNDARIES = """import React from 'react';
+import {AbsoluteFill} from 'remotion';
+export const DURATION = 60;
+export const GROUND = 'bg';
+export const PROVENANCE = 'industrial';
+const glyphRow = (s) => Array.from(s).map((c, i) => <span key={i}>{c}</span>);
+const glyphDivs = (s) => Array.from(s).map((c, i) => <div key={i}>{c}</div>);
+export const %(name)s: React.FC<{}> = () => (
+  <AbsoluteFill style={{background: '#101010', color: '#dddddd', fontSize: 40}}>
+    {/* "Grind" one letter per element, four ways — flex items, inline spans, absolutely positioned on fixed
+        0.70em slots, a flex column: each element holds one grapheme, so every edge is SOFT and the letters
+        are one segment the fed "Grind" covers uncut */}
+    <div style={{position: 'absolute', left: 40, top: 0, display: 'flex'}}>{glyphDivs('Grind')}</div>
+    <div style={{position: 'absolute', left: 340, top: 0}}>{glyphRow('Grind')}</div>
+    <div style={{position: 'absolute', left: 640, top: 0}}>
+      {Array.from('Grind').map((c, i) => (
+        <div key={i} style={{position: 'absolute', left: i * 70, top: 0, fontSize: 100, lineHeight: 1}}>{c}</div>
+      ))}
+    </div>
+    <div style={{position: 'absolute', left: 1100, top: 0, display: 'flex', flexDirection: 'column', gap: 12}}>
+      {glyphDivs('Grind')}
+    </div>
+    {/* a two-line per-glyph label, line 2 starting under line 1's last letter: one segment "GrindTamp", fed
+        by the cut at the soft boundary between "d" and "T" */}
+    <div style={{position: 'absolute', left: 40, top: 150, fontSize: 60, lineHeight: 1}}>
+      {Array.from('Grind').map((c, i) => <div key={'a' + i} style={{position: 'absolute', left: i * 42, top: 0}}>{c}</div>)}
+      {Array.from('Tamp').map((c, i) => (
+        <div key={'b' + i} style={{position: 'absolute', left: (4 + i) * 42, top: 72}}>{c}</div>
+      ))}
+    </div>
+    {/* stacked one-letter labels in a column, the same letters in a row, and y-axis grade letters: each
+        letter is cut out as a fed word of its own */}
+    <div style={{position: 'absolute', left: 1300, top: 0, display: 'flex', flexDirection: 'column', gap: 8}}>
+      {glyphDivs('ABC')}
+    </div>
+    <div style={{position: 'absolute', left: 1400, top: 0}}>
+      {['A', 'B', 'C'].map((c) => <span key={c} style={{marginRight: 16}}>{c}</span>)}
+    </div>
+    <div style={{position: 'absolute', left: 1700, top: 0, fontSize: 16}}>
+      {Array.from('ABCDEF').map((c, i) => <div key={c} style={{position: 'absolute', left: 0, top: i * 26}}>{c}</div>)}
+    </div>
+    {/* padded chips with a margin: inline, so they meet at a soft boundary the fed words cut at */}
+    <div style={{position: 'absolute', left: 40, top: 330, fontSize: 20}}>
+      {['Grind', 'Tamp'].map((s) => (
+        <span key={s} style={{marginRight: 8, padding: '4px 12px', background: '#333333'}}>{s}</span>
+      ))}
+    </div>
+    {/* per-glyph text wrapping at a zero-width space: a whitespace-only element is a HARD boundary */}
+    <div style={{position: 'absolute', left: 340, top: 330, width: 200, fontSize: 60}}>
+      {glyphRow('Grind')}<span>{'\\u200B'}</span>{glyphRow('Tamp')}
+    </div>
+    {/* an in-flow echo of a per-glyph word: every echo is pruned, so the word is read once */}
+    <div style={{position: 'absolute', left: 700, top: 330}}>
+      {Array.from('Grind').map((c, i) => (
+        <React.Fragment key={i}><span>{c}</span><span aria-hidden data-echo="">{c}</span></React.Fragment>
+      ))}
+    </div>
+    {/* a separator glyph with no spaces around it, and a value with its unit in an inline span */}
+    <div style={{position: 'absolute', left: 1000, top: 330}}>Grind<span>·</span>Tamp</div>
+    <div style={{position: 'absolute', left: 1300, top: 330}}>5<span>ms</span></div>
+    {/* tight negative tracking collapses a narrow glyph ("i") to zero width: a text node with any height is
+        still rendered */}
+    <div style={{position: 'absolute', left: 40, top: 500, fontSize: 48, letterSpacing: '-0.3em'}}>
+      {glyphRow('Grind finer')}
+    </div>
+    <div style={{position: 'absolute', left: 340, top: 500, fontSize: 48, letterSpacing: '-0.3em', display: 'flex'}}>
+      {Array.from('Grind finer').map((c, i) => (c === ' ' ? <div key={i} style={{width: 14}} /> : <div key={i}>{c}</div>))}
+    </div>
+    {/* stacked baked "O" / "K": one segment, and "OK" is fed, so it reads as fed; the stacked baked "N" / "O"
+        beside it is one segment no cut makes fed words */}
+    <div style={{position: 'absolute', left: 700, top: 500, display: 'flex', flexDirection: 'column', gap: 8}}>
+      {glyphDivs('OK')}
+    </div>
+    <div style={{position: 'absolute', left: 800, top: 500, display: 'flex', flexDirection: 'column', gap: 8}}>
+      {glyphDivs('NO')}
+    </div>
+  </AbsoluteFill>
+);
+"""
+
+
+@needs_toolchain
+def test_word_ends_come_from_the_dom_and_the_fed_words_never_from_gaps(tmp_path):
+    out = _workshop(tmp_path, shots={"WsWordBoundaries": WORD_BOUNDARIES})
+    env = _env(ws.workshop_dir(out))
+    got = _unfed("WsWordBoundaries", {"unfedText": WORD_BOUNDARIES_FED, "unfedScope": "all"}, env,
+                 tmp_path / "boundaries.png")
+    # Every case is fed (see the fixture's comments) except the stacked baked "N"/"O": one segment that no cut
+    # at its soft boundary turns into fed words, reported as the segment's own text. The stacked baked "O"/"K"
+    # reads as fed because "OK" is — a soft boundary may or may not end a word, and nothing but geometry could
+    # tell two stacked one-letter labels from one word set a letter per element. This pins that consequence.
+    assert got == ["NO"], got
 
 
 @needs_toolchain

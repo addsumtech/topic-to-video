@@ -782,509 +782,419 @@ export const auditFedText = (root: Element, fed: unknown[]): string[] => {
  * (scripts/jsx_words.cjs) catches the words written into its code, and cannot see a word that reaches the
  * screen through a constant list, a one-word default, or a wrapped library register's own copy. This can.
  *
- * TWO QUESTIONS, ANSWERED SEPARATELY: what counts as ONE RUN of text (below the matcher), and whether a
- * run's TOKENS are fed — case- and width-folded, so a register may re-case a label, join two with a
- * separator, split one across elements, or set each glyph in its own element, all of which are the register
- * working:
+ * ONE STREAM, TWO KINDS OF BOUNDARY. The audited scope is read in document order as one character stream, and
+ * no distance between glyphs is ever measured: letter spacing, fixed slots, wrapped lines and stacked labels
+ * set a word's own letters as far apart as two words, so no gap tells the two apart. Instead:
  *
- *   - a TOKEN is a maximal run of characters of one CLASS — CJK (Han/kana/Hangul, by Unicode's SCRIPT
- *     EXTENSIONS rather than a character's primary Script, which puts a mark several scripts share into
- *     "Common" and reads it as a token break: ー and 々 stay inside a CJK run), DIGIT (`\p{Nd}`, with an
- *     internal `.`/`,` allowed as a numeral's own separator), or LETTER (everything else `\p{L}`/`\p{N}`
- *     matches) — any change of class ends a token, so a value joined to its unit ("9bar", "5ms") tokenizes as
- *     the number and the unit separately. Fed strings tokenize the same way, so a fed "H2O" still licenses
- *     an "H2O" shown split into "H"/"2"/"O": each of the three pools its own class identically on both sides.
- *   - a WORD or CJK token matches by pooled PROVENANCE: a fed word may appear ANYWHERE on the frame, in any
- *     fed string, so a run's WORD tokens are checked against the pool of every fed string's own word tokens,
- *     not a contiguous run inside one of them. A CJK token has no internal word boundaries at all (CJK has no
- *     spaces, so a line or element break can fall anywhere in a phrase, and two joined phrases arrive as one
- *     token) — it is covered by PIECES of a fed CJK token instead, each piece either ≥2 characters and a
- *     substring of one fed CJK token, or exactly 1 character and itself a whole fed CJK token (at any
- *     position in the run, not only the last), found by DYNAMIC PROGRAMMING rather than a greedy
- *     longest-piece search: greedy commits to the first long match and cannot back out of it, so "数据中心化"
- *     fed "数据中心" + "中心化" (the split 数据｜中心化) was missed — the greedy pass ate "数据中心" whole
- *     and was left with a lone "化". The piece length tried is bounded to a small constant regardless of how
- *     long a fed token is: a longer fed substring always splits into short pieces that are substrings too,
- *     so the bound changes nothing about which runs are coverable, only how many pieces prove it.
- *   - TRUNCATION is an exception on the run's own FINAL token alone (whichever class it is), and only when
- *     the run's text ends with an ellipsis ("…", "...", or "⋯"): that token may then be a proper prefix of a
- *     fed token of the same class ("wa" of "water" when a run reads "…wa…"), or — for a CJK run — the DP's
- *     final piece specifically may be a prefix of a fed CJK token ("压" of "压粉均匀" when a run reads
- *     "研磨更细压…", the DP covering 研磨更细 whole and "压" as that trailing piece). Elsewhere a short token
- *     is not "maybe truncated", it is a different word — "Step 1" is not licensed by a fed "Steps", and a
- *     bare "O" is not licensed by "Output".
- *   - a WORD token made only of digits (internal `.`/`,` allowed) is a NUMERAL, compared by VALUE (thousands
- *     separators stripped, so "87" matches a fed 87.0 and "1,200" matches a fed 1200) when that value is a
- *     finite number, and as a plain STRING otherwise — a numeral no `Number()` call parses (Arabic-Indic or
- *     Devanagari digits, two separators in one run) never joins the pool as the same value as every OTHER
- *     numeral no `Number()` parses; it is judged only against a fed numeral written the same way.
- *     FIGURE-SHAPED (holds `.`/`,`; sits, across whitespace, against `%`, `‰` or a currency sign; or sits,
- *     with NO whitespace at all, directly against the letter x/X) means fabricated unless its value equals a
- *     numeral of a fed string or a numeric prop value ("87%", "3.2×", "$1,200", "3x" baked with no source are
- *     exactly this). A plain integer with no figure mark is presumed DERIVED (an index, a step number, an
- *     axis tick) and passes untested — ticks "0"/"25"/"50", and a bare "3" next to an unrelated word that
- *     merely ENDS or STARTS with the letter x ("Box 3", "3 xylophones"), are not copy.
- *   - every string this audits is folded FIRST (Unicode canonical composition, so an NFD "e" + a combining
- *     accent recomposes into the one letter an NFC fed string spells, before any per-character script test can
- *     be confused by the accent alone) and each character is folded again for the STRUCTURAL questions only —
- *     is it a digit, is a `.`/`,` a numeral's own separator, is a neighbour a figure mark — so "８７％" reads
- *     as the figure 87% and "１，２００" as one numeral, though what gets REPORTED keeps the run's own written
- *     form. "One character" is a GRAPHEME, not a code point — an NFD accent held in its own span is still one
- *     glyph of the letter it paints onto.
- *   - config-like prop strings (an enum value, a file name) stay in the same fed pool on purpose: the pool is
- *     every word the film handed this beat, not a sentence parser that only trusts prose.
+ *   - a HARD boundary is where a word certainly ends: a separator character (whitespace, punctuation, a symbol
+ *     — anything but a letter, a digit or a combining mark), a `<br>`, a whitespace-only text node or element
+ *     (rendered or not — a zero-width space included), an element with no text whose box takes room (a
+ *     spacer, a caret), both edges of a child that is block-level, a flex or grid item, or inline-block AND
+ *     holds more than one grapheme, and a change of class among CJK (Han/kana/Hangul by Unicode's Script
+ *     Extensions, so ー and 々 stay inside their run), other letters (WORD) and digits (NUM) — "9bar" is a
+ *     value and a unit;
+ *   - a SOFT boundary is every other place two text pieces meet — the edges of an inline child, of a child of
+ *     any display holding one grapheme (type set a glyph per element, one-letter labels), a text node against
+ *     an inline element. It may or may not end a word: the fed words decide.
  *
- * `scope: 'slots'` asks only the text inside objects (`[data-object-slot]`), for a library register holding a
- * film's object: the register's own words are judged elsewhere.
+ * The stream splits at its hard boundaries into SEGMENTS, each of one class:
+ *
+ *   - a WORD segment is fed when some of its soft boundaries cut it into parts that are each exactly a word of
+ *     a fed string: per-glyph "G r i n d" is "grind" uncut, stacked labels "A" "B" "C" are three cuts, a
+ *     two-line per-glyph label is "grind" | "tamp", "Pre<b>view</b>" is "preview". Immediately before an
+ *     ellipsis ("…", "...", "⋯") the last part may instead be a prefix of a fed word ("Outp…"); anywhere else
+ *     a shorter word is a different word — "Step" is not licensed by a fed "Steps", a bare "O" not by
+ *     "Output". The price of reading no geometry: baked one-letter labels that together spell a fed word read
+ *     as that word ("O" stacked over "K", with "OK" fed).
+ *   - a CJK segment has no word boundaries of its own (a line or element break can fall anywhere in a phrase),
+ *     so its soft boundaries play no part: it is fed when it is covered by pieces that are each two or more
+ *     characters of ONE fed CJK token, or one character that is itself a whole fed CJK token, at any position
+ *     ("研磨与压粉" fed 研磨 / 与 / 压粉); before an ellipsis the final piece may be a prefix of a fed CJK token
+ *     ("研磨更细压…"). A lone character that is only part of a fed token is not covered, or nearly every glyph
+ *     in the language would pass. The cover is found by dynamic programming over pieces of at most
+ *     CJK_PIECE_MAX characters — any longer piece splits into shorter ones that are substrings too, so the
+ *     bound changes no verdict and keeps the work linear in the segment's length.
+ *   - a NUM segment (digits, a `.`/`,` between two digits being the numeral's own separator) compares by VALUE
+ *     when it parses to a finite number and as its folded STRING otherwise, so two numerals no parser reads
+ *     (Arabic-Indic or Devanagari digits, two separators in one numeral) never match by both being NaN. A
+ *     FIGURE-SHAPED numeral — holding `.`/`,`, with `%`, `×`, `‰` or a currency sign beside it across
+ *     whitespace, or a letter x directly against it — is fabricated unless a fed string holds the same numeral
+ *     or a prop the value ("87%", "3.2×", "$1,200", "3x"). A plain integer is presumed DERIVED (an index, a
+ *     step number, an axis tick) and passes; so does a numeral next to a word that merely ends or starts with
+ *     an x ("Box 3", "3 xylophones").
+ *
+ * Every string, the fed ones included, is folded BEFORE it is tokenized — NFKC, then lower case — so "８７％" is
+ * the figure 87%, an NFD "Café" is the fed "Café" and "ＧＲＩＮＤ" is "grind"; and the stream is cut into
+ * GRAPHEMES before it is folded, so an accent held in its own span still lands on the letter before it. What
+ * is reported is each unfed segment as the frame shows it (original case, capped at REPORT_CAP characters) —
+ * for a CJK segment, each maximal run of characters no cover reaches. Config-like prop strings (an enum value,
+ * a file name) stay in the fed pool on purpose: the pool is every word the film handed this beat.
+ *
+ * What is read: every text node a Range paints with some height (the width may be zero — tight negative letter
+ * spacing collapses a narrow glyph), whatever its opacity, visibility or clipping at this frame (a cycling
+ * constant list shows one word per frame, and the others are still words the film puts on screen), read
+ * through `display: contents`; never an echo (`[data-echo]`), a `script`/`style`/`template`/`noscript`, or a
+ * `display: none` subtree. `scope: 'slots'` asks only the text inside objects (`[data-object-slot]`), for a
+ * library register holding a film's object: the register's own words are judged elsewhere.
  *
  * BLIND SPOTS, by construction: a DOM walk cannot see text painted by a CSS `content:` rule, drawn onto a
  * `<canvas>`, or baked into a raster image — none of those write a text node this can read.
  */
 export const UNFED_TEXT_TAG = 'UNFED-TEXT ';
-// Script EXTENSIONS, not a character's primary Script: a Katakana/Hiragana run's own prolonged-sound mark
-// "ー" and the CJK iteration mark "々" both carry the primary Script value "Common" (several scripts write
-// with them), which primary-Script scanning reads as a token break — "コーヒー" tokenized as four pieces,
-// two of them a bare "ー" belonging to neither neighbour. Script Extensions is Unicode's own answer to "which
-// scripts actually use this character", and both "ー" and "々" extend into Han/Hiragana/Katakana/Hangul.
 const CJK_SCRIPT_RE = /[\p{Script_Extensions=Han}\p{Script_Extensions=Hiragana}\p{Script_Extensions=Katakana}\p{Script_Extensions=Hangul}]/u;
-// A letter-or-digit gate BEFORE the CJK sub-check: several punctuation marks (the interpunct "·" among them)
-// carry Script Extensions into Han/Hiragana/Katakana/Hangul too (Unicode marks them shared with those
-// scripts' own punctuation) without being a letter or digit at all — un-gated, "Mix 2 · Grind 3" tokenized
-// the dot itself as a lone one-character CJK token, fed by nothing.
 const LETTER_DIGIT_RE = /[\p{L}\p{N}]/u;
 const DIGIT_RE = /\p{Nd}/u;
-// `\p{Sc}` is every currency symbol (a hardcoded {$,¥,€,£} list would miss the one a topic actually uses). The
-// letter x/X is judged separately, with no whitespace tolerance at all (see isFigureShaped) — it is common
-// English prose ("Box 3", "3 x 4") far more often than a multiplication sign, and only the character DIRECTLY
-// against a numeral, with nothing at all between them, disambiguates it.
-const SYMBOL_MARK_RE = /[%×‰]/u;
-const FIGURE_X_RE = /x/i;
-const CURRENCY_RE = /\p{Sc}/u;
-const WHITESPACE_RE = /\p{White_Space}/u;              // incl. no-break (U+00A0) and thin (U+2009) spaces
-const ENDS_WITH_ELLIPSIS_RE = /(…|\.\.\.|⋯)\s*$/;
-const COMBINING_MARK_RE = /^\p{M}+$/u;
-
-type UnfedTok = {raw: string; norm: string; cjk: boolean; numeral: boolean; start: number; end: number};
-
-/** A single character's fold for a STRUCTURAL question (is it a digit, a numeral separator, a figure mark) —
- * fullwidth/compatibility forms collapse to their ASCII selves. Never the basis for the reported text: `.raw`
- * keeps the run's own written form (a fullwidth run is reported as written). A fold that expands past one
- * character (rare) is not trusted — the source character stands in for itself rather than desyncing `.raw`
- * from what is actually being scanned. */
-const foldCh = (ch: string): string => {
-  const f = ch.normalize('NFKC').toLowerCase();
-  return [...f].length === 1 ? f : ch;
-};
-
-type CharClass = 'cjk' | 'digit' | 'letter' | null;
-const classOf = (fch: string): CharClass => {
-  if (!LETTER_DIGIT_RE.test(fch)) return null;
-  if (DIGIT_RE.test(fch)) return 'digit';
-  return CJK_SCRIPT_RE.test(fch) ? 'cjk' : 'letter';
-};
-
-/**
- * Split text into script-class tokens. The WHOLE string is canonically composed first (NFC — composition
- * only, no compatibility folding, so a fullwidth run stays fullwidth in `.raw`): composing needs a
- * character's neighbour, which a per-character fold cannot see, so an NFD "café" (e + a combining acute)
- * would otherwise split into a token "cafe" plus a lone, unclassifiable accent mark, never matching an NFC
- * fed "café". `.raw` is the run's own text; `.norm` is `.raw` folded (NFKC + lowercase) for equality and
- * value comparisons. A CJK/digit/letter class change always ends a token — "9bar" is "9" then "bar", "5ms"
- * is "5" then "ms" — except that a `.`/`,` continues a DIGIT token between two (possibly fullwidth) digits, a
- * numeral's own separator, so "3.2×" tokenizes as the numeral "3.2" then the mark "×", never "3" then ".2×",
- * and a fullwidth "１，２００" tokenizes as one numeral, not "1" then "200".
- */
-export const tokenizeUnfed = (raw: string): UnfedTok[] => {
-  const chars = Array.from(raw.normalize('NFC'));
-  const toks: UnfedTok[] = [];
-  let cur = '', curCls: CharClass = null, curStart = 0;
-  const flush = (endIdx: number) => {
-    if (cur) {
-      const norm = cur.normalize('NFKC').toLowerCase();
-      toks.push({raw: cur, norm, cjk: curCls === 'cjk', numeral: curCls === 'digit', start: curStart, end: endIdx});
-    }
-    cur = '';
-    curCls = null;
-  };
-  for (let i = 0; i < chars.length; i++) {
-    const ch = chars[i], fch = foldCh(ch);
-    const cls = classOf(fch);
-    if (cls) {
-      if (curCls === null) {
-        curCls = cls;
-        cur = ch;
-        curStart = i;
-      } else if (curCls === cls) {
-        cur += ch;
-      } else {
-        flush(i);
-        curCls = cls;
-        cur = ch;
-        curStart = i;
-      }
-    } else if ((fch === '.' || fch === ',') && curCls === 'digit' &&
-               i + 1 < chars.length && DIGIT_RE.test(foldCh(chars[i + 1]))) {
-      cur += ch;                                          // a numeral's own internal separator
-    } else {
-      flush(i);
-    }
-  }
-  flush(chars.length);
-  return toks;
-};
-
-const stripCommas = (s: string) => s.replace(/,/g, '');
-/** A numeral's comparison KEY: its parsed VALUE when `Number()` reads that value as finite, else its own
- * folded STRING. `Set.has` uses SameValueZero, under which every `NaN` is the SAME value — comparing by a bare
- * `Number(...)` let one fed numeral no parser reads (Arabic-Indic or Devanagari digits, two separators in one
- * run) license every OTHER unparseable numeral regardless of its actual digits, purely because both sides
- * became `NaN`. Falling back to the string keeps two different unparseable numerals apart. */
-const numeralKey = (t: UnfedTok): number | string => {
-  const v = Number(stripCommas(t.norm));
-  return Number.isFinite(v) ? v : t.norm;
-};
-
-/** Does this numeral CLAIM to be a real figure (a measurement, a percentage, a price) rather than an index?
- * A symbol mark may sit across whitespace ("87 %", a no-break space included) — the run already glues
- * `87<span>%</span>` into one run, so this only has to look past real space characters, not across elements.
- * The letter x/X is judged differently, with NO whitespace tolerance at all: it is a common word's own last or
- * first letter far more often than a multiplication sign ("Box 3", "Max 5", "3 xylophones" are plain
- * integers, their neighbouring word's x nowhere near them once even one space sits between), so only a
- * character directly, immediately against the numeral counts ("3x", "x3"). */
-const isFigureShaped = (t: UnfedTok, chars: string[]): boolean => {
-  if (t.norm.includes('.') || t.norm.includes(',')) return true;   // .norm is ASCII-folded; a fullwidth "，" is not
-  const before = t.start > 0 ? chars[t.start - 1] : '';
-  const after = t.end < chars.length ? chars[t.end] : '';
-  if ((before && FIGURE_X_RE.test(foldCh(before))) || (after && FIGURE_X_RE.test(foldCh(after)))) return true;
-  const isSymbol = (ch: string) => !!ch && (SYMBOL_MARK_RE.test(foldCh(ch)) || CURRENCY_RE.test(ch));
-  let i = t.start - 1;
-  while (i >= 0 && WHITESPACE_RE.test(chars[i])) i--;
-  if (i >= 0 && isSymbol(chars[i])) return true;
-  let j = t.end;
-  while (j < chars.length && WHITESPACE_RE.test(chars[j])) j++;
-  return j < chars.length && isSymbol(chars[j]);
-};
-
-type FedContext = {wordPool: Set<string>; wordList: string[]; cjkPool: string[]; cjkSubstrings: Set<string>;
-  cjkSingles: Set<string>; numeralPool: Set<number | string>};
-
-const CJK_PIECE_MAX = 16;
-
-const buildFedContext = (fed: unknown[]): FedContext => {
-  const entries = fed.map((f) => tokenizeUnfed(String(f ?? ''))).filter((toks) => toks.length > 0);
-  const wordToks = entries.flatMap((toks) => toks.filter((t) => !t.cjk && !t.numeral));
-  const cjkToks = entries.flatMap((toks) => toks.filter((t) => t.cjk));
-  const numeralToks = entries.flatMap((toks) => toks.filter((t) => t.numeral));
-  // Every substring of length 2..16 of every fed CJK token, precomputed once — coverCjk below then tests
-  // membership in this set rather than scanning the fed pool itself at every position, and a piece longer
-  // than 16 characters is never tried: a longer fed substring always splits into pieces of at most 16
-  // characters that are themselves substrings of it, so bounding the search here changes nothing about which
-  // runs are coverable. A single-character fed token is kept in its OWN set — it may cover a piece anywhere
-  // in a run, but only as a whole token match, never as a substring of something longer.
-  const cjkSubstrings = new Set<string>();
-  const cjkSingles = new Set<string>();
-  for (const t of cjkToks) {
-    const cs = Array.from(t.norm);
-    if (cs.length === 1) cjkSingles.add(t.norm);
-    for (let start = 0; start < cs.length; start++) {
-      for (let len = 2; len <= Math.min(CJK_PIECE_MAX, cs.length - start); len++) {
-        cjkSubstrings.add(cs.slice(start, start + len).join(''));
-      }
-    }
-  }
-  return {
-    wordPool: new Set(wordToks.map((t) => t.norm)),
-    wordList: wordToks.map((t) => t.norm),               // kept as a list too, for the truncation prefix search
-    cjkPool: cjkToks.map((t) => t.norm),
-    cjkSubstrings,
-    cjkSingles,
-    numeralPool: new Set(numeralToks.map(numeralKey)),
-  };
-};
-
-/**
- * A CJK token is fed when it splits into pieces each either ≥2 characters and a substring of ONE fed CJK
- * token, or exactly 1 character and itself a WHOLE fed CJK token — at ANY position, not only the run's last
- * character ("研磨与压粉", fed 研磨/与/压粉, splits 研磨｜与｜压粉 with "与" the middle piece) — dynamic
- * programming, not greedy. `canCover[i]` is true when the prefix of length `i` is fully covered by pieces.
- * Under an ellipsis, the FINAL piece (the one reaching the very end of the run) may instead be a proper,
- * shorter prefix of a fed CJK token ("研磨更细压…" splits 研磨更细｜压…, "压" a prefix of "压粉均匀").
- */
-const coverCjk = (text: string, ctx: FedContext, endsEllipsis: boolean): boolean => {
-  if (ctx.cjkPool.some((f) => f === text)) return true;
-  const cs = Array.from(text);
-  const n = cs.length;
-  const canCover = new Array<boolean>(n + 1).fill(false);
-  canCover[0] = true;
-  for (let i = 0; i < n; i++) {
-    if (!canCover[i]) continue;
-    for (let len = Math.min(CJK_PIECE_MAX, n - i); len >= 1; len--) {
-      const end = i + len;
-      if (canCover[end]) continue;
-      const piece = cs.slice(i, end).join('');
-      if (len >= 2 && ctx.cjkSubstrings.has(piece)) {
-        canCover[end] = true;
-      } else if (len === 1 && ctx.cjkSingles.has(piece)) {
-        canCover[end] = true;
-      } else if (endsEllipsis && end === n && ctx.cjkPool.some((f) => f.length > piece.length && f.startsWith(piece))) {
-        canCover[end] = true;
-      }
-    }
-  }
-  return canCover[n];
-};
-
-/** WORD-LEVEL PROVENANCE (see the docstring above): a fed word may appear anywhere on the frame, so this is
- * pool membership, not a search for a contiguous run inside one fed string. `isTruncatable` is true only for
- * the run's own final token, and only when the run's text ends with an ellipsis. */
-const isWordFed = (t: UnfedTok, ctx: FedContext, isTruncatable: boolean): boolean => {
-  if (ctx.wordPool.has(t.norm)) return true;
-  if (!isTruncatable) return false;
-  return ctx.wordList.some((f) => f.length > t.norm.length && f.startsWith(t.norm));
-};
-
-const REPORT_CAP = 40;
-const capped = (s: string) => (s.length > REPORT_CAP ? s.slice(0, REPORT_CAP) + '…' : s);
-
-/** Every unfed token of ONE run's already-tokenized text (`chars` is the same run text, for the figure-mark
- * neighbour lookup). Truncation is scoped to the run's true final token, whatever its class — a numeral is
- * never "truncated", so it is exempt regardless of position. */
-const unfedTokensOf = (toks: UnfedTok[], chars: string[], endsEllipsis: boolean, ctx: FedContext): string[] => {
-  const out: string[] = [];
-  const lastIdx = toks.length - 1;
-  toks.forEach((t, i) => {
-    const isFinal = i === lastIdx && endsEllipsis;
-    if (t.cjk) {
-      if (!coverCjk(t.norm, ctx, isFinal)) out.push(capped(t.raw));
-    } else if (t.numeral) {
-      if (isFigureShaped(t, chars) && !ctx.numeralPool.has(numeralKey(t))) out.push(capped(t.raw));
-    } else if (!isWordFed(t, ctx, isFinal)) {
-      out.push(capped(t.raw));
-    }
-  });
-  return out;
-};
-
-// ── WHAT ONE RUN OF TEXT IS ─────────────────────────────────────────────────────────────────────────────
-//
-// The unit of judgement is an element's RUN, built from its own child nodes in order — not "every element
-// with its own direct text node": a `<br>` breaks the run without gluing the text on either side; an
-// `inline` child with real text of its own is ABSORBED into the run, proximity-gated the same way a glyph
-// is (below); a child rendering exactly one grapheme is a GLYPH, glued to (or, past the glue distance, space
-// separated from) an immediately preceding glyph or absorbed child by the gap between their boxes; a child
-// with no rendered text but a real box width is a SPACER and contributes a space; anything else (block-level,
-// a flex/grid item, inline-block) is its OWN unit, judged separately and recursively — never folded into
-// this run, so one such child among a row of glyphs breaks nothing else in that row. An echoed duplicate is
-// pruned before any of this, so it is never read as content at all.
+const MARK_RE = /\p{M}/u;
+const COMBINING_MARKS_RE = /^\p{M}+$/u;
+const SPACE_RE = /[\p{White_Space}\u200B]/u;            // incl. no-break (U+00A0), thin and zero-width spaces
+const SPACE_ONLY_RE = /^[\p{White_Space}\u200B]+$/u;
+const VISIBLE_RE = /[^\p{White_Space}\u200B]/u;
+const FIGURE_SYMBOL_RE = /[%×‰\p{Sc}]/u;                // `\p{Sc}`: every currency sign, not a hand-kept list
 const NOT_LIVE_TAGS = new Set(['script', 'style', 'template', 'noscript']);
-const isPrunedTag = (el: Element): boolean => NOT_LIVE_TAGS.has(el.tagName.toLowerCase());
+const CJK_PIECE_MAX = 16;
+const REPORT_CAP = 40;
 
-/** Is this TEXT NODE actually painted? A Range over the node itself, never the ancestor element's own box —
- * the only way to tell it apart from an ancestor whose `display: contents` gives it no box of its own (the
- * text still paints, inherited into whichever ancestor DOES have one) and from text that legitimately
- * overflows a zero-size container the author sized on purpose. A text node holding combining marks only is
- * kept regardless of its own rect: it paints onto the PRECEDING glyph, not one of its own, so it commonly
- * measures a zero-area rect of its own (the library's `[...s]` per-character idiom splits "é" into an "e"
- * span and a lone U+0301 span) — dropping it for having no area of its own read "Café" as "Cafe". */
-const textNodeIsRendered = (n: Node, doc: Document): boolean => {
-  if (COMBINING_MARK_RE.test(n.textContent ?? '')) return true;
-  if (!doc.createRange) return true;      // no Range API in this engine: assume rendered, not silently dropped
-  const r = doc.createRange();
-  r.selectNodeContents(n);
-  const rects = Array.from(r.getClientRects());
-  r.detach?.();
-  return rects.some((rc) => rc.width > 0 && rc.height > 0);
+type CharClass = 'cjk' | 'word' | 'num';
+
+/** The class of one folded code point: a combining mark continues whatever it follows, and anything that is
+ * not a letter, digit or mark separates (null). Letter-or-digit is asked BEFORE the CJK script: several
+ * punctuation marks (the interpunct "·" among them) carry CJK Script Extensions without being letters. */
+const classOf = (c: string): CharClass | 'mark' | null => {
+  if (MARK_RE.test(c)) return 'mark';
+  if (!LETTER_DIGIT_RE.test(c)) return null;
+  if (DIGIT_RE.test(c)) return 'num';
+  return CJK_SCRIPT_RE.test(c) ? 'cjk' : 'word';
 };
 
-/** THE prune rule for an element child — echo, a tag that is never content, or computed `display: none` —
- * and ONLY these: never the element's own box, which `display: contents` legitimately lacks. */
-const isPrunedChild = (el: Element, win: Window): boolean =>
-  isEcho(el) || isPrunedTag(el) || win.getComputedStyle(el).display === 'none';
-
-/** The text a subtree would show, read through `display: contents` and pruned the same way a run is — used
- * only to CLASSIFY a child (is it one grapheme? is it empty?), not itself a matching unit. */
-const renderedTextOf = (el: Element, win: Window): string => {
-  let s = '';
-  el.childNodes.forEach((n) => {
-    if (n.nodeType === 3) {
-      if (textNodeIsRendered(n, el.ownerDocument)) s += n.textContent ?? '';
-    } else if (n.nodeType === 1) {
-      const c = n as Element;
-      if (!isPrunedChild(c, win)) s += renderedTextOf(c, win);
-    }
-  });
-  return s;
-};
-
-let _segmenter: {segment: (s: string) => Iterable<unknown>} | null | undefined;
-/** GRAPHEMES, not code points: an NFD "é" (e + a combining acute) is ONE user-perceived character, but a
- * code-point count reads it as two, so a "é" held whole in one glyph span failed the "exactly one grapheme"
- * test and was never glued to its neighbours. `Intl.Segmenter` (grapheme granularity) is the grapheme-cluster
- * aware count; an engine without it falls back to code points rather than throwing — a coarser count on a
- * rare cluster, not a broken audit. */
-const graphemeLen = (s: string): number => {
+let _segmenter: {segment: (s: string) => Iterable<{segment: string}>} | null | undefined;
+/** The text's GRAPHEMES, lazily: an NFD "é" (e + a combining acute) or a Devanagari cluster is one
+ * user-perceived character, however many code points or elements it spans. Without `Intl.Segmenter`, a code
+ * point with the combining marks after it is the nearest cluster. */
+function* graphemesOf(s: string): Generator<string> {
   if (_segmenter === undefined) {
     try {
       const Ctor = (Intl as unknown as {Segmenter?: new (l?: string, o?: object) =>
-        {segment: (s: string) => Iterable<unknown>}}).Segmenter;
+        {segment: (s: string) => Iterable<{segment: string}>}}).Segmenter;
       _segmenter = Ctor ? new Ctor(undefined, {granularity: 'grapheme'}) : null;
     } catch {
       _segmenter = null;
     }
   }
-  if (!_segmenter) return Array.from(s).length;
-  let n = 0;
-  for (const _ of _segmenter.segment(s)) n++;
-  return n;
-};
-
-/** The innermost element that directly holds the glyph's own text node(s) — walking down through wrapper
- * elements that hold no text of their own and have exactly one (unpruned) element child. A rotated "scrap"
- * that positions a per-glyph letter commonly inherits the page's own font size, while the SPAN actually
- * sized to the letter carries its real one — measuring the glue distance against the wrapper's size reads a
- * large letter's real gaps as many multiples of a small, unrelated number. */
-const innermostTextHolder = (el: Element, win: Window): Element => {
-  let cur = el;
-  for (;;) {
-    const ownText = Array.from(cur.childNodes).some((n) => n.nodeType === 3 && textNodeIsRendered(n, cur.ownerDocument));
-    if (ownText) return cur;
-    const kids = Array.from(cur.children).filter((k) => !isPrunedChild(k, win));
-    if (kids.length !== 1) return cur;
-    cur = kids[0];
+  if (_segmenter) {
+    for (const g of _segmenter.segment(s)) yield g.segment;
+  } else {
+    yield* s.match(/\P{M}\p{M}*|\p{M}+/gu) ?? [];
   }
+}
+
+/** More than one visible grapheme — whitespace is a boundary of its own, never a glyph. */
+const holdsSeveralGraphemes = (s: string): boolean => {
+  let n = 0;
+  for (const g of graphemesOf(s)) {
+    if (!SPACE_ONLY_RE.test(g) && ++n > 1) return true;
+  }
+  return false;
 };
 
-type Rect = {left: number; top: number; right: number; bottom: number};
-
-/** The gap between two boxes, measured along whichever axis they are actually adjacent on — same ROW (their
- * vertical ranges overlap) reads the horizontal gap, same COLUMN (horizontal ranges overlap) reads the
- * vertical one, and boxes on neither axis are not glued at all. Always an ABSOLUTE distance: a signed
- * left-to-right gap reads an RTL pair, or a row-reverse or bottom-to-top one, as touching regardless of how
- * far apart they actually sit — the "next" box in DOM order sits to the LEFT of or ABOVE the previous one,
- * giving a large negative number that a signed comparison against a small positive threshold always passes. */
-const rectGap = (a: Rect, b: Rect): number => {
-  const vOverlap = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
-  if (vOverlap > 0) return Math.max(0, Math.max(a.left, b.left) - Math.min(a.right, b.right));
-  const hOverlap = Math.min(a.right, b.right) - Math.max(a.left, b.left);
-  if (hOverlap > 0) return Math.max(0, Math.max(a.top, b.top) - Math.min(a.bottom, b.bottom));
-  return Infinity;
-};
-
-/** The union box of a text node's own painted rects (never an ancestor's), for gap measurement against a
- * neighbouring glyph or absorbed child — `null` when the node paints nothing of its own to measure. */
-const rangeBoxOf = (n: Node, doc: Document): Rect | null => {
-  if (!doc.createRange) return null;
+/** Is this TEXT NODE painted? A Range over the node itself, never an ancestor's box — the only way to read
+ * text inside a `display: contents` wrapper (no box of its own) or overflowing a zero-size container the
+ * author sized on purpose. Some height is enough: tight negative letter spacing collapses a narrow glyph's
+ * width to zero while it still paints. A node of combining marks only is kept whatever its rect: it paints
+ * onto the PRECEDING glyph (the library's `[...s]` per-character idiom splits "é" into an "e" span and a lone
+ * U+0301 span), so it commonly measures nothing of its own. */
+const textNodeIsRendered = (n: Node, doc: Document): boolean => {
+  if (COMBINING_MARKS_RE.test(n.textContent ?? '')) return true;
+  if (!doc.createRange) return true;      // no Range API in this engine: assume rendered, not silently dropped
   const r = doc.createRange();
   r.selectNodeContents(n);
-  const rects = Array.from(r.getClientRects()).filter((rc) => rc.width > 0 && rc.height > 0);
+  const rects = Array.from(r.getClientRects());
   r.detach?.();
-  if (!rects.length) return null;
-  return {
-    left: Math.min(...rects.map((x) => x.left)), top: Math.min(...rects.map((x) => x.top)),
-    right: Math.max(...rects.map((x) => x.right)), bottom: Math.max(...rects.map((x) => x.bottom)),
-  };
+  return rects.some((rc) => rc.height > 0);
 };
 
-const GLUE_EM = 0.6;
+/** Does an element with no text take room in the layout (a spacer, a caret, an icon)? An empty INLINE box is
+ * its line's strut — as tall as the line and as wide as nothing — so it holds nothing apart unless padding or
+ * a border also gives it width; any other box that extends at all (ElasticType's 56×0 flex-gap div) does. */
+const takesRoom = (el: Element, display: string): boolean => {
+  const r = el.getBoundingClientRect();
+  return display === 'inline' ? r.width > 0 && r.height > 0 : r.width > 0 || r.height > 0;
+};
+
+/** The stream: a rendered text node's text, a HARD boundary (null), or nothing (undefined — a child's leading
+ * edge that turned out soft). */
+type StreamItem = string | null | undefined;
 
 /**
- * Build ONE element's run from its child nodes, in order, and collect the OWN-UNIT children found along the
- * way (block-level, a flex/grid item, inline-block — anything not `inline`/`contents` — judged separately,
- * never folded into this run). A GLYPH (rendered text of exactly one grapheme, nesting included — a glyph
- * inside wrapper spans is still a glyph) and an ABSORBED `inline` child both glue to whatever content came
- * immediately before them when the gap between their boxes (see `rectGap`) is within `GLUE_EM` of the font
- * size of the element that actually holds THEIR OWN text (see `innermostTextHolder`), else they are space
- * separated — a chip row `<span>Grind</span><span>Tamp</span>` set apart with margins reads "Grind Tamp", not
- * "GrindTamp"; a child with no rendered text but a real box width is a SPACER and contributes a space (an
- * empty flex-gap div, a caret); `<br>` and any own-unit boundary both just break the run so neither side
- * glues across it.
+ * Append an element's children to the stream in document order, and return the text they show — rendered text,
+ * plus whitespace-only text rendered or not — so the caller can tell how many graphemes the element holds.
+ * Pruned: an echo, a tag that is never content, a `display: none` subtree. `display: contents` adds no edges.
  */
-const buildRun = (el: Element, win: Window): {text: string; ownUnits: Element[]; lastBox: Rect | null} => {
-  const ownUnits: Element[] = [];
+const walk = (el: Element, win: Window, out: StreamItem[]): string => {
   let text = '';
-  let lastBox: Rect | null = null;
-  const append = (piece: string, glue: boolean) => {
-    if (!piece) return;
-    if (glue || !text) text += piece;
-    else text += (/\s$/.test(text) ? '' : ' ') + piece;
-  };
-  const glueDecision = (r: Rect, fontSize: number): boolean => {
-    if (!lastBox) return true;
-    const gap = rectGap(lastBox, r);
-    return fontSize > 0 ? gap <= GLUE_EM * fontSize : gap === 0;
-  };
-  const breakRun = () => {
-    if (text && !/\s$/.test(text)) text += ' ';
-    lastBox = null;
-  };
   el.childNodes.forEach((n) => {
     if (n.nodeType === 3) {
-      if (textNodeIsRendered(n, el.ownerDocument)) {
-        append(n.textContent ?? '', true);
-        const b = rangeBoxOf(n, el.ownerDocument);
-        if (b) lastBox = b;                    // a mark-only node with no box of its own leaves lastBox as-is
+      const t = n.textContent ?? '';
+      if (SPACE_ONLY_RE.test(t)) {
+        out.push(null);
+        text += t;
+      } else if (t && textNodeIsRendered(n, el.ownerDocument)) {
+        out.push(t);
+        text += t;
       }
       return;
     }
     if (n.nodeType !== 1) return;
     const child = n as Element;
-    if (isPrunedChild(child, win)) return;      // echoes never update lastBox or contribute a gap endpoint
+    if (isEcho(child) || NOT_LIVE_TAGS.has(child.tagName.toLowerCase())) return;
+    const display = win.getComputedStyle(child).display;
+    if (display === 'none') return;
     if (child.tagName.toLowerCase() === 'br') {
-      breakRun();
+      out.push(null);
       return;
     }
-    const cs = win.getComputedStyle(child);
-    if (cs.display === 'contents') {
-      // No box of its own and no line break either — its children join THIS run exactly where it sits.
-      const sub = buildRun(child, win);
-      append(sub.text, true);
-      ownUnits.push(...sub.ownUnits);
-      if (sub.lastBox) lastBox = sub.lastBox;
-      return;
+    const lead = out.length;
+    out.push(undefined);
+    const inner = walk(child, win, out);
+    text += inner;
+    const hardEdges = display === 'contents' ? false
+      : !VISIBLE_RE.test(inner) ? inner.length > 0 || takesRoom(child, display)
+      : display !== 'inline' && holdsSeveralGraphemes(inner);
+    if (hardEdges) {
+      out[lead] = null;
+      out.push(null);
     }
-    const rendered = renderedTextOf(child, win);
-    if (graphemeLen(rendered) === 1) {
-      const r = child.getBoundingClientRect();
-      const fontSize = parseFloat(win.getComputedStyle(innermostTextHolder(child, win)).fontSize || '0') || 0;
-      append(rendered, glueDecision(r, fontSize));
-      lastBox = r;
-      return;
-    }
-    if (!rendered.trim()) {
-      if (child.getBoundingClientRect().width > 0) append(' ', false);   // a spacer, not silence
-      lastBox = null;
-      return;
-    }
-    if (cs.display === 'inline') {
-      const r = child.getBoundingClientRect();
-      const fontSize = parseFloat(win.getComputedStyle(innermostTextHolder(child, win)).fontSize || '0') || 0;
-      const glue = glueDecision(r, fontSize);
-      const sub = buildRun(child, win);
-      append(sub.text, glue);
-      ownUnits.push(...sub.ownUnits);
-      lastBox = r;
-      return;
-    }
-    breakRun();
-    ownUnits.push(child);
   });
-  return {text, ownUnits, lastBox};
+  return text;
 };
 
-const collectUnfed = (el: Element, win: Window, out: string[], ctx: FedContext) => {
-  if (isEcho(el)) return;
-  const {text, ownUnits} = buildRun(el, win);
-  if (text) {
-    const toks = tokenizeUnfed(text);
-    if (toks.length) {
-      const chars = Array.from(text.normalize('NFC'));
-      const endsEllipsis = ENDS_WITH_ELLIPSIS_RE.test(text);
-      for (const w of unfedTokensOf(toks, chars, endsEllipsis, ctx)) {
-        if (!out.includes(w)) out.push(w);
+type Junction = 'none' | 'soft' | 'hard';
+/** One folded code point of the stream, the grapheme it came from, and the junction just before it. */
+type Ch = {c: string; glyph: number; junction: Junction};
+
+/**
+ * The stream as folded code points. Each stretch between two HARD boundaries is cut into graphemes as one
+ * string, so a combining mark in its own element joins the letter before it; a text piece that starts between
+ * two graphemes starts at a SOFT junction, and one that starts inside a grapheme adds no junction at all.
+ * `glyphs` keeps every grapheme as written, for reporting.
+ */
+const charsOf = (items: StreamItem[]): {glyphs: string[]; chars: Ch[]} => {
+  const glyphs: string[] = [];
+  const chars: Ch[] = [];
+  let pieces: string[] = [];
+  const flush = () => {
+    const starts = new Set<number>();
+    let at = 0;
+    for (const p of pieces) {
+      starts.add(at);
+      at += p.length;
+    }
+    let pos = 0;
+    for (const g of graphemesOf(pieces.join(''))) {
+      const junction: Junction = pos === 0 ? 'hard' : starts.has(pos) ? 'soft' : 'none';
+      const glyph = glyphs.push(g) - 1;
+      Array.from(g.normalize('NFKC').toLowerCase()).forEach((c, k) =>
+        chars.push({c, glyph, junction: k === 0 ? junction : 'none'}));
+      pos += g.length;
+    }
+    pieces = [];
+  };
+  for (const it of items) {
+    if (it === null) flush();
+    else if (it !== undefined) pieces.push(it);
+  }
+  flush();
+  return {glyphs, chars};
+};
+
+/** A maximal run of one class between HARD boundaries: `chars[from..to)`, folded into `norm`; `cuts` are its
+ * SOFT junctions, as offsets into `norm`. */
+type Segment = {cls: CharClass; from: number; to: number; norm: string; cuts: number[]};
+
+const segmentsOf = (chars: Ch[]): Segment[] => {
+  const segs: Segment[] = [];
+  let cur: Segment | null = null;
+  for (let i = 0; i < chars.length; i++) {
+    const {c, junction} = chars[i];
+    const cls = classOf(c);
+    if (cur && junction !== 'hard') {
+      if (cls === cur.cls) {
+        if (junction === 'soft') cur.cuts.push(cur.norm.length);
+        cur.norm += c;
+        continue;
+      }
+      if (cls === 'mark') {
+        cur.norm += c;
+        continue;
+      }
+      const next = chars[i + 1];
+      if (cur.cls === 'num' && (c === '.' || c === ',') && next && next.junction !== 'hard' &&
+          classOf(next.c) === 'num') {
+        cur.norm += c;                                  // a numeral's own separator: "3.2", "1,200"
+        continue;
+      }
+    }
+    if (cur) {
+      cur.to = i;
+      segs.push(cur);
+      cur = null;
+    }
+    if (cls !== null && cls !== 'mark') cur = {cls, from: i, to: i + 1, norm: c, cuts: []};
+  }
+  if (cur) {
+    cur.to = chars.length;
+    segs.push(cur);
+  }
+  return segs;
+};
+
+/** An ellipsis starting at `chars[i]` ("…" and a vertical "︙" fold to "..."). */
+const ellipsisAt = (chars: Ch[], i: number): boolean =>
+  chars[i]?.c === '⋯' || (chars[i]?.c === '.' && chars[i + 1]?.c === '.' && chars[i + 2]?.c === '.');
+
+type FedContext = {words: Set<string>; wordList: string[]; wordLengths: number[]; cjkTokens: string[];
+  cjkPieces: Set<string>; cjkSingles: Set<string>; numerals: Set<number | string>};
+
+/** A numeral's comparison KEY: its value when `Number()` reads a finite one, else its folded string —
+ * `Set.has` compares by SameValueZero, under which every NaN is the same value. */
+const numeralKey = (norm: string): number | string => {
+  const v = Number(norm.replace(/,/g, ''));
+  return Number.isFinite(v) ? v : norm;
+};
+
+/** The fed strings, tokenized by the stream's own rules: every WORD token (with the distinct lengths the WORD
+ * cover tries), every CJK token with each of its substrings of 2..CJK_PIECE_MAX characters (and the tokens of
+ * one character, which cover only as themselves), every numeral's key. */
+const buildFedContext = (fed: unknown[]): FedContext => {
+  const words = new Set<string>();
+  const cjkTokens: string[] = [];
+  const numerals = new Set<number | string>();
+  for (const f of fed) {
+    for (const s of segmentsOf(charsOf([String(f ?? '')]).chars)) {
+      if (s.cls === 'word') words.add(s.norm);
+      else if (s.cls === 'cjk') cjkTokens.push(s.norm);
+      else numerals.add(numeralKey(s.norm));
+    }
+  }
+  const cjkPieces = new Set<string>();
+  const cjkSingles = new Set<string>();
+  for (const t of cjkTokens) {
+    const cs = Array.from(t);
+    if (cs.length === 1) cjkSingles.add(t);
+    for (let a = 0; a < cs.length; a++) {
+      for (let len = 2; len <= Math.min(CJK_PIECE_MAX, cs.length - a); len++) {
+        cjkPieces.add(cs.slice(a, a + len).join(''));
       }
     }
   }
-  for (const u of ownUnits) collectUnfed(u, win, out, ctx);
+  const wordList = Array.from(words);
+  const wordLengths = Array.from(new Set(wordList.map((w) => w.length))).sort((a, b) => a - b);
+  return {words, wordList, wordLengths, cjkTokens, cjkPieces, cjkSingles, numerals};
+};
+
+/** Can the segment's soft junctions cut it into fed words? `fits[j]`: its first `j` code units split into fed
+ * words, each part ending at a soft junction or at the segment's end; `truncatable` lets the last part be a
+ * prefix of a fed word instead. */
+const wordFed = (seg: Segment, truncatable: boolean, ctx: FedContext): boolean => {
+  const s = seg.norm;
+  const ends = new Set(seg.cuts.concat(s.length));
+  const fits = new Array<boolean>(s.length + 1).fill(false);
+  fits[0] = true;
+  for (let i = 0; i < s.length; i++) {
+    if (!fits[i]) continue;
+    for (const len of ctx.wordLengths) {
+      if (i + len > s.length) break;
+      if (ends.has(i + len) && ctx.words.has(s.slice(i, i + len))) fits[i + len] = true;
+    }
+    if (truncatable) {
+      const rest = s.slice(i);
+      if (ctx.wordList.some((w) => w.length > rest.length && w.startsWith(rest))) return true;
+    }
+  }
+  return fits[s.length];
+};
+
+/** The characters of a CJK segment its best cover leaves uncovered — none when the segment is fed. `cost[j]`
+ * is the fewest uncovered characters in the first `j`; `step[j]` is where the step reaching `j` began, and
+ * `covered[j]` whether that step was a covering piece rather than one uncovered character. */
+const cjkUncovered = (seg: Segment, truncatable: boolean, ctx: FedContext): boolean[] => {
+  const cs = Array.from(seg.norm);
+  const n = cs.length;
+  const cost = new Array<number>(n + 1).fill(Infinity);
+  const step = new Array<number>(n + 1).fill(0);
+  const covered = new Array<boolean>(n + 1).fill(false);
+  cost[0] = 0;
+  for (let i = 0; i < n; i++) {
+    for (let len = Math.min(CJK_PIECE_MAX, n - i); len >= 1; len--) {
+      const j = i + len;
+      if (cost[i] >= cost[j]) continue;
+      const piece = cs.slice(i, j).join('');
+      const fed = len >= 2 ? ctx.cjkPieces.has(piece) : ctx.cjkSingles.has(piece);
+      const truncated = !fed && truncatable && j === n &&
+        ctx.cjkTokens.some((t) => t.length > piece.length && t.startsWith(piece));
+      if (fed || truncated) {
+        cost[j] = cost[i];
+        step[j] = i;
+        covered[j] = true;
+      }
+    }
+    if (cost[i] + 1 < cost[i + 1]) {
+      cost[i + 1] = cost[i] + 1;
+      step[i + 1] = i;
+      covered[i + 1] = false;
+    }
+  }
+  const uncovered = new Array<boolean>(n).fill(false);
+  for (let j = n; j > 0; j = step[j]) {
+    if (!covered[j]) uncovered[j - 1] = true;
+  }
+  return uncovered;
+};
+
+/** Does this numeral CLAIM to be a real figure (a measurement, a percentage, a price) rather than an index?
+ * A symbol mark may sit across whitespace ("87 %", a no-break space included). The letter x counts only
+ * directly against the numeral — no character and no HARD boundary between ("3x", "x3", `3<span>x</span>`) —
+ * as it is a word's own first or last letter far more often than a multiplication sign ("Box 3", "3 xylophones"). */
+const isFigure = (seg: Segment, chars: Ch[]): boolean => {
+  if (seg.norm.includes('.') || seg.norm.includes(',')) return true;
+  const before = chars[seg.from - 1];
+  const after = chars[seg.to];
+  if (before?.c === 'x' && chars[seg.from].junction !== 'hard') return true;
+  if (after?.c === 'x' && after.junction !== 'hard') return true;
+  let i = seg.from - 1;
+  while (i >= 0 && SPACE_RE.test(chars[i].c)) i--;
+  let j = seg.to;
+  while (j < chars.length && SPACE_RE.test(chars[j].c)) j++;
+  return (i >= 0 && FIGURE_SYMBOL_RE.test(chars[i].c)) || (j < chars.length && FIGURE_SYMBOL_RE.test(chars[j].c));
+};
+
+const capped = (s: string) => (s.length > REPORT_CAP ? s.slice(0, REPORT_CAP) + '…' : s);
+
+/** Judge one stream, adding each unfed item — as the frame shows it — to `out` once. */
+const judgeStream = (items: StreamItem[], ctx: FedContext, out: string[]) => {
+  const {glyphs, chars} = charsOf(items);
+  const shown = (a: number, b: number) =>
+    glyphs.slice(chars[a].glyph, chars[b - 1].glyph + 1).join('').normalize('NFC');
+  const report = (s: string) => {
+    const w = capped(s);
+    if (!out.includes(w)) out.push(w);
+  };
+  for (const seg of segmentsOf(chars)) {
+    const truncatable = ellipsisAt(chars, seg.to);
+    if (seg.cls === 'word') {
+      if (!wordFed(seg, truncatable, ctx)) report(shown(seg.from, seg.to));
+    } else if (seg.cls === 'num') {
+      if (isFigure(seg, chars) && !ctx.numerals.has(numeralKey(seg.norm))) report(shown(seg.from, seg.to));
+    } else {
+      const miss = cjkUncovered(seg, truncatable, ctx);
+      for (let a = 0; a < miss.length; a++) {
+        if (!miss[a]) continue;
+        let b = a;
+        while (b + 1 < miss.length && miss[b + 1]) b++;
+        report(shown(seg.from + a, seg.from + b + 1));
+        a = b;
+      }
+    }
+  }
 };
 
 export const auditUnfedText = (root: Element, fed: unknown[], scope: 'all' | 'slots'): string[] => {
@@ -1292,8 +1202,17 @@ export const auditUnfedText = (root: Element, fed: unknown[], scope: 'all' | 'sl
   if (!win) return [];
   const ctx = buildFedContext(fed);
   const out: string[] = [];
-  const starts = scope === 'slots' ? Array.from(root.querySelectorAll('[data-object-slot]')) : [root];
-  for (const s of starts) collectUnfed(s, win, out, ctx);
+  // Each object is a stream of its own; an object nested inside another is read once, as part of the outer.
+  const scopes = scope === 'slots'
+    ? Array.from(root.querySelectorAll('[data-object-slot]'))
+      .filter((s) => !s.parentElement?.closest('[data-object-slot]'))
+    : [root];
+  for (const s of scopes) {
+    if (isEcho(s)) continue;
+    const items: StreamItem[] = [];
+    walk(s, win, items);
+    judgeStream(items, ctx, out);
+  }
   return out;
 };
 
