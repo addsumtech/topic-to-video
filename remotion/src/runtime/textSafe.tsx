@@ -788,11 +788,12 @@ export const auditFedText = (root: Element, fed: unknown[]): string[] => {
  *
  *   - a HARD boundary is where a word certainly ends: a separator character (whitespace, punctuation, a symbol
  *     — anything but a letter, a digit or a combining mark), a `<br>`, a whitespace-only text node or element
- *     (rendered or not — a zero-width space included), an element with no text whose box takes room (a
- *     spacer, a caret), both edges of a child that is block-level, a flex or grid item, or inline-block AND
- *     holds more than one grapheme, and a change of class among CJK (Han/kana/Hangul by Unicode's Script
- *     Extensions, so ー and 々 stay inside their run), other letters (WORD) and digits (NUM) — "9bar" is a
- *     value and a unit;
+ *     (rendered or not — a zero-width space included), an element with no text whose box takes room in the
+ *     flow (a spacer, a caret — never an absolutely or fixed positioned decoration laid over the text), both
+ *     edges of a child that is block-level, a flex or grid item, or inline-block AND holds more than one
+ *     grapheme (an element EDGE: beyond it is another label), and a change of class among CJK (Han/kana/Hangul
+ *     by Unicode's Script Extensions, so ー and 々 stay inside their run), other letters (WORD) and digits
+ *     (NUM) — "9bar" is a value and a unit;
  *   - a SOFT boundary is every other place two text pieces meet — the edges of an inline child, of a child of
  *     any display holding one grapheme (type set a glyph per element, one-letter labels), a text node against
  *     an inline element. It may or may not end a word: the fed words decide.
@@ -817,11 +818,13 @@ export const auditFedText = (root: Element, fed: unknown[]): string[] => {
  *   - a NUM segment (digits, a `.`/`,` between two digits being the numeral's own separator) compares by VALUE
  *     when it parses to a finite number and as its folded STRING otherwise, so two numerals no parser reads
  *     (Arabic-Indic or Devanagari digits, two separators in one numeral) never match by both being NaN. A
- *     FIGURE-SHAPED numeral — holding `.`/`,`, with `%`, `×`, `‰` or a currency sign beside it across
- *     whitespace, or a letter x directly against it — is fabricated unless a fed string holds the same numeral
- *     or a prop the value ("87%", "3.2×", "$1,200", "3x"). A plain integer is presumed DERIVED (an index, a
- *     step number, an axis tick) and passes; so does a numeral next to a word that merely ends or starts with
- *     an x ("Box 3", "3 xylophones").
+ *     FIGURE-SHAPED numeral — holding `.`/`,`; with `%`, `×`, `‰` or a currency sign beside it across
+ *     whitespace, a `<br>` or a spacer, never across an element EDGE (a table's next cell, a chart title under
+ *     its last tick); or with a letter x directly against it, in the same text or across an inline element's
+ *     edge — is fabricated unless a fed string holds the same numeral or a prop the value ("87%", "3.2×",
+ *     "$1,200", "3x"). A plain integer is presumed DERIVED (an index, a step number, an axis tick) and passes;
+ *     so does a numeral next to a word that merely ends or starts with an x ("Box 3", "3 xylophones"), or next
+ *     to an "x" set as a label of its own (an axis letter, a close button).
  *
  * Every string, the fed ones included, is folded BEFORE it is tokenized — NFKC, then lower case — so "８７％" is
  * the figure 87%, an NFD "Café" is the fed "Café" and "ＧＲＩＮＤ" is "grind"; and the stream is cut into
@@ -912,17 +915,26 @@ const textNodeIsRendered = (n: Node, doc: Document): boolean => {
   return rects.some((rc) => rc.height > 0);
 };
 
-/** Does an element with no text take room in the layout (a spacer, a caret, an icon)? An empty INLINE box is
- * its line's strut — as tall as the line and as wide as nothing — so it holds nothing apart unless padding or
- * a border also gives it width; any other box that extends at all (ElasticType's 56×0 flex-gap div) does. */
-const takesRoom = (el: Element, display: string): boolean => {
+/** Does an element with no text take room in the flow (a spacer, a caret, an icon)? An absolutely or fixed
+ * positioned box is out of the flow — a decoration laid over the text (a split-flap tile's face, a highlight)
+ * holds nothing apart. An empty INLINE box is its line's strut — as tall as the line and as wide as nothing —
+ * so it needs a width too (padding, a border); any other box that extends at all (ElasticType's 56×0 flex-gap
+ * div) takes room. */
+const takesRoom = (el: Element, cs: CSSStyleDeclaration): boolean => {
+  if (cs.position === 'absolute' || cs.position === 'fixed') return false;
   const r = el.getBoundingClientRect();
-  return display === 'inline' ? r.width > 0 && r.height > 0 : r.width > 0 || r.height > 0;
+  return cs.display === 'inline' ? r.width > 0 && r.height > 0 : r.width > 0 || r.height > 0;
 };
 
-/** The stream: a rendered text node's text, a HARD boundary (null), or nothing (undefined — a child's leading
- * edge that turned out soft). */
-type StreamItem = string | null | undefined;
+// What separates two text pieces, weakest first. INLINE and GLYPH are SOFT; BREAK and EDGE are HARD.
+const INLINE = 1;       // two pieces meeting directly, or across an inline element's edge
+const GLYPH = 2;        // across the edge of an element of any other display that holds one grapheme
+const BREAK = 3;        // a <br>, whitespace, a spacer box
+const EDGE = 4;         // the edge of a block-level / flex / grid / inline-block child holding several graphemes
+
+/** The stream: a rendered text node's text, or a boundary between text pieces — a `<br>`, a whitespace-only text
+ * node, a child's edge (0: none). */
+type StreamItem = string | number;
 
 /**
  * Append an element's children to the stream in document order, and return the text they show — rendered text,
@@ -935,7 +947,7 @@ const walk = (el: Element, win: Window, out: StreamItem[]): string => {
     if (n.nodeType === 3) {
       const t = n.textContent ?? '';
       if (SPACE_ONLY_RE.test(t)) {
-        out.push(null);
+        out.push(BREAK);
         text += t;
       } else if (t && textNodeIsRendered(n, el.ownerDocument)) {
         out.push(t);
@@ -946,61 +958,67 @@ const walk = (el: Element, win: Window, out: StreamItem[]): string => {
     if (n.nodeType !== 1) return;
     const child = n as Element;
     if (isEcho(child) || NOT_LIVE_TAGS.has(child.tagName.toLowerCase())) return;
-    const display = win.getComputedStyle(child).display;
-    if (display === 'none') return;
+    const cs = win.getComputedStyle(child);
+    if (cs.display === 'none') return;
     if (child.tagName.toLowerCase() === 'br') {
-      out.push(null);
+      out.push(BREAK);
       return;
     }
     const lead = out.length;
-    out.push(undefined);
+    out.push(0);                                  // the child's leading edge, decided once its content is known
     const inner = walk(child, win, out);
     text += inner;
-    const hardEdges = display === 'contents' ? false
-      : !VISIBLE_RE.test(inner) ? inner.length > 0 || takesRoom(child, display)
-      : display !== 'inline' && holdsSeveralGraphemes(inner);
-    if (hardEdges) {
-      out[lead] = null;
-      out.push(null);
-    }
+    const edge = cs.display === 'contents' ? 0
+      : !VISIBLE_RE.test(inner) ? (inner.length > 0 || takesRoom(child, cs) ? BREAK : 0)
+      : cs.display === 'inline' ? INLINE
+      : holdsSeveralGraphemes(inner) ? EDGE : GLYPH;
+    out[lead] = edge;
+    out.push(edge);
   });
   return text;
 };
 
-type Junction = 'none' | 'soft' | 'hard';
-/** One folded code point of the stream, the grapheme it came from, and the junction just before it. */
-type Ch = {c: string; glyph: number; junction: Junction};
+/** One folded code point of the stream, the grapheme it came from, and the boundary between it and the code
+ * point before it: 0 inside one text piece, else the strongest boundary between the two pieces. */
+type Ch = {c: string; glyph: number; junction: number};
 
 /**
  * The stream as folded code points. Each stretch between two HARD boundaries is cut into graphemes as one
  * string, so a combining mark in its own element joins the letter before it; a text piece that starts between
- * two graphemes starts at a SOFT junction, and one that starts inside a grapheme adds no junction at all.
+ * two graphemes carries the boundary before it, and one that starts inside a grapheme carries none.
  * `glyphs` keeps every grapheme as written, for reporting.
  */
 const charsOf = (items: StreamItem[]): {glyphs: string[]; chars: Ch[]} => {
   const glyphs: string[] = [];
   const chars: Ch[] = [];
-  let pieces: string[] = [];
+  let stretch: Array<{text: string; before: number}> = [];
   const flush = () => {
-    const starts = new Set<number>();
+    const starts = new Map<number, number>();
     let at = 0;
-    for (const p of pieces) {
-      starts.add(at);
-      at += p.length;
+    for (const p of stretch) {
+      starts.set(at, p.before);
+      at += p.text.length;
     }
     let pos = 0;
-    for (const g of graphemesOf(pieces.join(''))) {
-      const junction: Junction = pos === 0 ? 'hard' : starts.has(pos) ? 'soft' : 'none';
+    for (const g of graphemesOf(stretch.map((p) => p.text).join(''))) {
+      const junction = starts.get(pos) ?? 0;
       const glyph = glyphs.push(g) - 1;
       Array.from(g.normalize('NFKC').toLowerCase()).forEach((c, k) =>
-        chars.push({c, glyph, junction: k === 0 ? junction : 'none'}));
+        chars.push({c, glyph, junction: k === 0 ? junction : 0}));
       pos += g.length;
     }
-    pieces = [];
+    stretch = [];
   };
+  let pending = EDGE;                             // nothing comes before the stream
   for (const it of items) {
-    if (it === null) flush();
-    else if (it !== undefined) pieces.push(it);
+    if (typeof it === 'number') {
+      pending = Math.max(pending, it);
+      continue;
+    }
+    const before = Math.max(pending, INLINE);
+    if (before >= BREAK) flush();
+    stretch.push({text: it, before});
+    pending = 0;
   }
   flush();
   return {glyphs, chars};
@@ -1016,9 +1034,9 @@ const segmentsOf = (chars: Ch[]): Segment[] => {
   for (let i = 0; i < chars.length; i++) {
     const {c, junction} = chars[i];
     const cls = classOf(c);
-    if (cur && junction !== 'hard') {
+    if (cur && junction < BREAK) {
       if (cls === cur.cls) {
-        if (junction === 'soft') cur.cuts.push(cur.norm.length);
+        if (junction > 0) cur.cuts.push(cur.norm.length);        // INLINE or GLYPH: a SOFT boundary
         cur.norm += c;
         continue;
       }
@@ -1027,7 +1045,7 @@ const segmentsOf = (chars: Ch[]): Segment[] => {
         continue;
       }
       const next = chars[i + 1];
-      if (cur.cls === 'num' && (c === '.' || c === ',') && next && next.junction !== 'hard' &&
+      if (cur.cls === 'num' && (c === '.' || c === ',') && next && next.junction < BREAK &&
           classOf(next.c) === 'num') {
         cur.norm += c;                                  // a numeral's own separator: "3.2", "1,200"
         continue;
@@ -1150,21 +1168,29 @@ const cjkUncovered = (seg: Segment, truncatable: boolean, ctx: FedContext): bool
   return uncovered;
 };
 
+/** Is the nearest code point that is not whitespace, from `chars[i]` on in the direction `step`, a figure mark
+ * found without crossing an element EDGE? Whitespace, a `<br>`, a spacer and a SOFT boundary are crossed. */
+const markBeside = (chars: Ch[], i: number, step: 1 | -1): boolean => {
+  for (; i >= 0 && i < chars.length; i += step) {
+    if (chars[step === 1 ? i : i + 1].junction === EDGE) return false;
+    if (!SPACE_RE.test(chars[i].c)) return FIGURE_SYMBOL_RE.test(chars[i].c);
+  }
+  return false;
+};
+
 /** Does this numeral CLAIM to be a real figure (a measurement, a percentage, a price) rather than an index?
- * A symbol mark may sit across whitespace ("87 %", a no-break space included). The letter x counts only
- * directly against the numeral — no character and no HARD boundary between ("3x", "x3", `3<span>x</span>`) —
- * as it is a word's own first or last letter far more often than a multiplication sign ("Box 3", "3 xylophones"). */
+ * A symbol mark counts across whitespace ("87 %", a no-break space included), a `<br>` or a spacer, never
+ * across an element EDGE — beyond it is another label (a table's next cell, a chart title under its last
+ * tick). The letter x counts only directly against the numeral, in the same text piece or across an inline
+ * element's edge ("3x", "x3", `3<span>x</span>`): it is a word's own first or last letter ("Box 3",
+ * "3 xylophones"), or a label of its own (an "x" axis letter, a close button), far more often than a sign. */
 const isFigure = (seg: Segment, chars: Ch[]): boolean => {
   if (seg.norm.includes('.') || seg.norm.includes(',')) return true;
   const before = chars[seg.from - 1];
   const after = chars[seg.to];
-  if (before?.c === 'x' && chars[seg.from].junction !== 'hard') return true;
-  if (after?.c === 'x' && after.junction !== 'hard') return true;
-  let i = seg.from - 1;
-  while (i >= 0 && SPACE_RE.test(chars[i].c)) i--;
-  let j = seg.to;
-  while (j < chars.length && SPACE_RE.test(chars[j].c)) j++;
-  return (i >= 0 && FIGURE_SYMBOL_RE.test(chars[i].c)) || (j < chars.length && FIGURE_SYMBOL_RE.test(chars[j].c));
+  if (before?.c === 'x' && chars[seg.from].junction <= INLINE) return true;
+  if (after?.c === 'x' && after.junction <= INLINE) return true;
+  return markBeside(chars, seg.from - 1, -1) || markBeside(chars, seg.to, 1);
 };
 
 const capped = (s: string) => (s.length > REPORT_CAP ? s.slice(0, REPORT_CAP) + '…' : s);

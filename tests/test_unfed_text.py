@@ -5,13 +5,14 @@ screen through a constant list, a single-word default, or a wrapped library regi
 
 The rule (runtime/textSafe.tsx auditUnfedText) reads the frame as ONE character stream in document order and
 measures no gap. A HARD boundary is where a word certainly ends: a separator character, a <br>, whitespace, a
-spacer box, the edges of a block-level / flex / grid / inline-block child holding more than one grapheme, or a
-change among CJK, letters and digits (so "9bar" is a value and a unit). A SOFT boundary is every other place two
-text pieces meet — an inline child, a child of any display holding one grapheme. A WORD segment is fed when
-cutting it at some of its soft boundaries leaves parts that are each exactly a word of some fed string (just
-before an ellipsis the last part may be a prefix); a CJK segment is fed when pieces of fed CJK tokens cover it
-(two or more characters of one token, or a character that is itself a fed token); a figure-shaped numeral must
-match a fed numeral or a numeric prop value, while a plain integer is presumed derived (an index, a tick)."""
+spacer box in the flow, the edges of a block-level / flex / grid / inline-block child holding more than one
+grapheme, or a change among CJK, letters and digits (so "9bar" is a value and a unit). A SOFT boundary is every
+other place two text pieces meet — an inline child, a child of any display holding one grapheme. A WORD segment
+is fed when cutting it at some of its soft boundaries leaves parts that are each exactly a word of some fed string
+(just before an ellipsis the last part may be a prefix); a CJK segment is fed when pieces of fed CJK tokens cover
+it (two or more characters of one token, or a character that is itself a fed token); a figure-shaped numeral (a
+mark beside it within its own element, a letter x against it) must match a fed numeral or a numeric prop value,
+while a plain integer is presumed derived (an index, a tick)."""
 import json
 import os
 import sys
@@ -673,7 +674,7 @@ export const %(name)s: React.FC<{}> = () => (
     </div>
     {/* the library's own per-code-point idiom on an NFD string: the combining acute lands in its own span,
         commonly a zero-area one, and is still read onto the "e" before it */}
-    <div style={{position: 'absolute', left: 340, top: 1650}}>{glyphRow('Café')}</div>
+    <div style={{position: 'absolute', left: 340, top: 1650}}>{glyphRow('Cafe\\u0301')}</div>
   </AbsoluteFill>
 );
 """
@@ -777,6 +778,32 @@ export const %(name)s: React.FC<{}> = () => (
     <div style={{position: 'absolute', left: 800, top: 500, display: 'flex', flexDirection: 'column', gap: 8}}>
       {glyphDivs('NO')}
     </div>
+    {/* SplitFlap-shaped tiles: each an absolutely positioned tile holding a face and a split line laid over it
+        and one letter, a blank tile padding the shorter row — boxes out of the flow take no room, so they hold
+        nothing apart */}
+    <div style={{position: 'absolute', left: 40, top: 650}}>
+      {['GRIND', 'TAMP '].flatMap((row, r) => Array.from(row).map((c, i) => (
+        <div key={r + '-' + i} style={{position: 'absolute', left: i * 64, top: r * 76, width: 56, height: 68}}>
+          <div style={{position: 'absolute', inset: 0, background: '#26262c', borderRadius: 8}} />
+          <div style={{position: 'absolute', left: 0, right: 0, top: '50%%', height: 2, background: '#000000'}} />
+          <div style={{position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                       fontSize: 44}}>{c === ' ' ? '' : c}</div>
+        </div>
+      )))}
+    </div>
+    {/* InflateType-shaped glyphs: each letter a flex item holding the letter and an absolutely positioned
+        highlight over it; the word space is an in-flow spacer, which does take room */}
+    <div style={{position: 'absolute', left: 500, top: 650, display: 'flex', alignItems: 'flex-end'}}>
+      {Array.from('Grind finer').map((c, i) => (c === ' '
+        ? <div key={i} style={{width: 60}} />
+        : (
+          <div key={i} style={{position: 'relative', margin: '0 6px'}}>
+            <span style={{display: 'block', fontWeight: 900, fontSize: 80, lineHeight: 1}}>{c}</span>
+            <div style={{position: 'absolute', left: '24%%', top: '14%%', width: 15, height: 10, borderRadius: '50%%',
+                         background: '#ffffff', opacity: 0.55}} />
+          </div>
+        )))}
+    </div>
   </AbsoluteFill>
 );
 """
@@ -788,11 +815,115 @@ def test_word_ends_come_from_the_dom_and_the_fed_words_never_from_gaps(tmp_path)
     env = _env(ws.workshop_dir(out))
     got = _unfed("WsWordBoundaries", {"unfedText": WORD_BOUNDARIES_FED, "unfedScope": "all"}, env,
                  tmp_path / "boundaries.png")
-    # Every case is fed (see the fixture's comments) except the stacked baked "N"/"O": one segment that no cut
-    # at its soft boundary turns into fed words, reported as the segment's own text. The stacked baked "O"/"K"
-    # reads as fed because "OK" is — a soft boundary may or may not end a word, and nothing but geometry could
-    # tell two stacked one-letter labels from one word set a letter per element. This pins that consequence.
+    # Every case is fed (see the fixture's comments) — the SplitFlap- and InflateType-shaped words included,
+    # their decorations being out of the flow — except the stacked baked "N"/"O": one segment that no cut at its
+    # soft boundary turns into fed words, reported as the segment's own text. The stacked baked "O"/"K" reads
+    # as fed because "OK" is — a soft boundary may or may not end a word, and nothing but geometry could tell
+    # two stacked one-letter labels from one word set a letter per element. This pins that consequence.
     assert got == ["NO"], got
+
+
+# The three HARD boundaries between two text pieces that are not characters: a <br>, a whitespace-only element
+# (here a zero-width space) and a spacer box. One shot, one separator per render.
+HARD_BOUNDARY = """import React from 'react';
+import {AbsoluteFill} from 'remotion';
+export const DURATION = 60;
+export const GROUND = 'bg';
+export const PROVENANCE = 'industrial';
+export const %(name)s: React.FC<{sep?: string}> = ({sep = 'br'}) => (
+  <AbsoluteFill style={{background: '#101010', color: '#dddddd', fontSize: 40}}>
+    {sep === 'br' ? <div style={{position: 'absolute', left: 40, top: 40}}>O<br />K</div> : null}
+    {sep === 'zwsp' ? (
+      <div style={{position: 'absolute', left: 40, top: 40}}><span>O</span><span>{'\\u200B'}</span><span>K</span></div>
+    ) : null}
+    {sep === 'spacer' ? (
+      <div style={{position: 'absolute', left: 40, top: 40, display: 'flex'}}>
+        <div>O</div><div style={{width: 14}} /><div>K</div>
+      </div>
+    ) : null}
+  </AbsoluteFill>
+);
+"""
+
+
+@needs_toolchain
+@pytest.mark.parametrize("sep", ["br", "zwsp", "spacer"])
+def test_a_hard_boundary_keeps_two_baked_letters_apart_though_together_they_spell_a_fed_word(tmp_path, sep):
+    out = _workshop(tmp_path, shots={"WsHardBoundary": HARD_BOUNDARY})
+    env = _env(ws.workshop_dir(out))
+    got = _unfed("WsHardBoundary", {"sep": sep, "unfedText": ["OK"], "unfedScope": "all"}, env,
+                 tmp_path / (sep + ".png"))
+    # Joined at a SOFT boundary, the baked "O" and "K" would be one segment the fed "OK" covers; each of these
+    # separators is a HARD boundary, so they are two words, and neither is fed.
+    assert got == ["O", "K"], got
+
+
+FIGURE_MARKS_FED = ["Latte", "$4.50", "Mocha", "$5.20", "% of cups", "Top", "$4", "Plan", "$9", "Step", "of",
+                    "beans", "new messages", "x", "y"]
+
+# Whether a numeral claims to be a figure — a mark beside it, a letter x against it — is asked within the element
+# that holds it, never across the edge of a neighbouring element; batched into one frame.
+FIGURE_MARKS = """import React from 'react';
+import {AbsoluteFill} from 'remotion';
+export const DURATION = 60;
+export const GROUND = 'bg';
+export const PROVENANCE = 'industrial';
+const glyphDivs = (s) => Array.from(s).map((c, i) => <div key={i}>{c}</div>);
+export const %(name)s: React.FC<{}> = () => (
+  <AbsoluteFill style={{background: '#101010', color: '#dddddd', fontSize: 28}}>
+    {/* derived integers beside an element that starts with a mark: a table's rank between a name and a
+        price, the last chart tick before a "%% of cups" title, "Top 3" over "$4 Latte", "Plan 1" over "$9",
+        "Step 5" over "%% of beans", a close "×" button over "3 new messages" — the search for a mark stops at
+        the edge of a block-level / flex / grid / inline-block element holding more than one grapheme */}
+    <table style={{position: 'absolute', left: 40, top: 0, borderCollapse: 'collapse'}}>
+      <tbody>
+        <tr><td>Latte</td><td>1</td><td>$4.50</td></tr>
+        <tr><td>Mocha</td><td>2</td><td>$5.20</td></tr>
+      </tbody>
+    </table>
+    <div style={{position: 'absolute', left: 500, top: 0, fontSize: 16}}>
+      <div style={{display: 'flex', gap: 40}}>{['10', '20', '30'].map((t) => <div key={t}>{t}</div>)}</div>
+      <div>%% of cups</div>
+    </div>
+    <div style={{position: 'absolute', left: 800, top: 0}}><h2 style={{margin: 0}}>Top 3</h2><div>$4 Latte</div></div>
+    <div style={{position: 'absolute', left: 1100, top: 0}}><div>Plan 1</div><div>$9</div></div>
+    <div style={{position: 'absolute', left: 1400, top: 0}}><div>Step 5</div><div>%% of beans</div></div>
+    <div style={{position: 'absolute', left: 40, top: 200}}><button>×</button><div>3 new messages</div></div>
+    {/* a <br> and whitespace are crossed, as within one line of text: both are still figures */}
+    <div style={{position: 'absolute', left: 400, top: 200}}>87<br />%%</div>
+    <div style={{position: 'absolute', left: 500, top: 200}}>64<span> </span>%%</div>
+    {/* a letter x counts against a numeral only in the same text or across an inline element's edge: not the
+        y-axis ticks above an "x" axis letter (divs, then SVG <text>), a Likert row before an "x" close button,
+        or a digit stacked over an x — but a unit span "7<span>x</span>" is a figure */}
+    <div style={{position: 'absolute', left: 700, top: 200, fontSize: 16}}>
+      {Array.from('012345').map((c, i) => <div key={c} style={{position: 'absolute', left: 0, top: 150 - i * 26}}>{c}</div>)}
+      <div style={{position: 'absolute', left: 300, top: 170}}>x</div>
+    </div>
+    <svg width={500} height={200} style={{position: 'absolute', left: 1100, top: 200}}>
+      {Array.from('012345').map((c, i) => <text key={c} x={10} y={180 - i * 30} style={{fontSize: 16}}>{c}</text>)}
+      <text x={470} y={195} style={{fontSize: 16}}>x</text>
+    </svg>
+    <div style={{position: 'absolute', left: 40, top: 500, display: 'flex', gap: 24}}>
+      {glyphDivs('12345')}<button>x</button>
+    </div>
+    <div style={{position: 'absolute', left: 500, top: 500, display: 'flex', flexDirection: 'column'}}>
+      <div>3</div><div>x</div>
+    </div>
+    <div style={{position: 'absolute', left: 700, top: 500}}>7<span>x</span></div>
+  </AbsoluteFill>
+);
+"""
+
+
+@needs_toolchain
+def test_a_figure_mark_counts_only_within_the_element_that_holds_the_numeral(tmp_path):
+    out = _workshop(tmp_path, shots={"WsFigureMarks": FIGURE_MARKS})
+    env = _env(ws.workshop_dir(out))
+    got = _unfed("WsFigureMarks", {"unfedText": FIGURE_MARKS_FED, "unfedScope": "all"}, env, tmp_path / "marks.png")
+    # unfed: the three figures no prop holds — "87" across a <br>, "64" across a whitespace span, "7" against
+    # its x unit. Every derived integer beside a neighbouring element's mark, or above/before a separate "x",
+    # stays a plain integer.
+    assert sorted(got) == sorted(["87", "64", "7"]), got
 
 
 @needs_toolchain
